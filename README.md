@@ -12,8 +12,7 @@ using data from ClinVar, gnomAD, and UniProt databases.
 ```bash
 git clone https://github.com/monzia-moodie/genomic-variant-classifier.git
 cd genomic-variant-classifier
-pip install -r requirements.txt
-pip install -e .
+
 ```
 ## Author
 **Monzia Moodie** - [@monzia-moodie](https://github.com/monzia-moodie)
