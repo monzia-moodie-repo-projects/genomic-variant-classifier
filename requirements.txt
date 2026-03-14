@@ -42,4 +42,4 @@ nbformat>=5.9
 
 # Image processing (for TCGA slides)
 Pillow>=10.0
-openslide-python>=4.0
+openslide-python>=1.4.0

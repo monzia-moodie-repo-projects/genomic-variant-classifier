@@ -1,0 +1,54 @@
+project:
+  name: genomic-variant-classifier
+  version: "2.0"
+  base_dir: genomic_variant_classifier
+
+data:
+  raw_dir:       genomic_variant_classifier/data/raw
+  processed_dir: genomic_variant_classifier/data/processed
+  features_dir:  genomic_variant_classifier/data/features
+  images_dir:    genomic_variant_classifier/data/images
+
+apis:
+  gnomad_endpoint:    https://gnomad.broadinstitute.org/api
+  clinvar_base:       https://eutils.ncbi.nlm.nih.gov/entrez/eutils
+  uniprot_base:       https://rest.uniprot.org/uniprotkb
+  gwas_base:          https://www.ebi.ac.uk/gwas/rest/api
+  open_targets:       https://api.genetics.opentargets.org/graphql
+  gtex_base:          https://gtexportal.org/api/v2
+  gdc_base:           https://api.gdc.cancer.gov
+  cadd_base:          https://cadd.gs.washington.edu/api/v1.0
+
+models:
+  cnn:
+    backbone:       resnet50
+    embedding_dim:  512
+    num_classes:    5
+    dropout:        0.3
+  xgboost:
+    n_estimators:   500
+    learning_rate:  0.05
+    max_depth:      6
+  lightgbm:
+    n_estimators:   500
+    learning_rate:  0.05
+    num_leaves:     63
+
+training:
+  batch_size:    32
+  num_epochs:    20
+  patience:      5
+  lr:            0.0001
+  seed:          42
+
+genes_of_interest:
+  - BRCA1
+  - BRCA2
+  - TP53
+  - PTEN
+  - ATM
+
+tcga_projects:
+  - TCGA-BRCA
+  - TCGA-LUAD
+  - TCGA-COAD
