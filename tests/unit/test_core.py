@@ -381,3 +381,205 @@ class TestEndToEndPipeline:
         report = gen.generate(modality="dna", variant_df=df, model_metrics=model_metrics)
         assert report.exists()
         assert report.stat().st_size > 1000
+
+
+# ---------------------------------------------------------------------------
+# Tests: src/data/gtex.py — Phase 2 Pillar 1
+# ---------------------------------------------------------------------------
+class TestGTExConnector:
+    """Unit tests for the GTEx connector. All HTTP calls are mocked."""
+ 
+    # ── ID helpers ────────────────────────────────────────────────────────
+ 
+    def test_gtex_variant_id_format(self):
+        from src.data.gtex import _gtex_variant_id
+        assert _gtex_variant_id("17", 43071077, "G", "T") == "chr17_43071077_G_T_b38"
+        assert _gtex_variant_id("X",  100000,   "A", "C") == "chrX_100000_A_C_b38"
+        assert _gtex_variant_id("1",  925952,   "G", "A") == "chr1_925952_G_A_b38"
+ 
+    def test_from_gtex_variant_id_valid(self):
+        from src.data.gtex import _from_gtex_variant_id
+        result = _from_gtex_variant_id("chr17_43071077_G_T_b38")
+        assert result == {"chrom": "17", "pos": 43071077, "ref": "G", "alt": "T"}
+ 
+    def test_from_gtex_variant_id_x_chromosome(self):
+        from src.data.gtex import _from_gtex_variant_id
+        result = _from_gtex_variant_id("chrX_100000_A_C_b38")
+        assert result is not None
+        assert result["chrom"] == "X"
+ 
+    def test_from_gtex_variant_id_invalid_returns_none(self):
+        from src.data.gtex import _from_gtex_variant_id
+        assert _from_gtex_variant_id("bad_format")            is None
+        assert _from_gtex_variant_id("chr1_notanint_G_A_b38") is None
+        assert _from_gtex_variant_id("1_925952_G_A_b38")      is None
+        assert _from_gtex_variant_id("chr1_925952_G_A")        is None
+ 
+    def test_variant_id_roundtrip(self):
+        from src.data.gtex import _gtex_variant_id, _from_gtex_variant_id
+        gtex_id = _gtex_variant_id("17", 43071077, "G", "T")
+        parsed  = _from_gtex_variant_id(gtex_id)
+        assert parsed == {"chrom": "17", "pos": 43071077, "ref": "G", "alt": "T"}
+ 
+    # ── Expression summary ─────────────────────────────────────────────────
+ 
+    def test_summarise_expression_basic(self):
+        from src.data.gtex import GTExConnector
+        expr_df = pd.DataFrame({
+            "tissueSiteDetailId": ["Whole_Blood", "Liver", "Lung"],
+            "median": [10.0, 0.5, 5.0],
+        })
+        result = GTExConnector._summarise_expression("BRCA1", expr_df)
+        assert result["gene_symbol"]              == "BRCA1"
+        assert result["gtex_max_tpm"]             == 10.0
+        assert result["gtex_n_tissues_expressed"] == 2   # Whole_Blood + Lung >= 1.0
+        assert 0.0 < result["gtex_tissue_specificity"] < 1.0
+        assert "Whole_Blood" in result["gtex_tissue_tpm"]
+ 
+    def test_summarise_expression_ubiquitous(self):
+        from src.data.gtex import GTExConnector
+        expr_df = pd.DataFrame({
+            "tissueSiteDetailId": [f"T{i}" for i in range(10)],
+            "median": [5.0] * 10,
+        })
+        result = GTExConnector._summarise_expression("UBIQ", expr_df)
+        assert result["gtex_tissue_specificity"] == 0.0
+ 
+    def test_summarise_expression_all_zero(self):
+        from src.data.gtex import GTExConnector
+        expr_df = pd.DataFrame({
+            "tissueSiteDetailId": ["Whole_Blood"],
+            "median": [0.0],
+        })
+        result = GTExConnector._summarise_expression("SILENT", expr_df)
+        assert result["gtex_max_tpm"]             == 0.0
+        assert result["gtex_tissue_specificity"]  == 0.0
+        assert result["gtex_n_tissues_expressed"] == 0
+ 
+    def test_empty_expression_row(self):
+        from src.data.gtex import GTExConnector
+        result = GTExConnector._empty_expression_row("UNKNOWN")
+        assert result["gene_symbol"]              == "UNKNOWN"
+        assert result["gtex_max_tpm"]             == 0.0
+        assert result["gtex_n_tissues_expressed"] == 0
+        assert result["gtex_tissue_specificity"]  == 0.0
+        assert result["gtex_tissue_tpm"]          == {}
+ 
+    # ── connector.fetch() — all HTTP mocked ───────────────────────────────
+ 
+    def test_fetch_returns_canonical_schema(self):
+        from src.data.gtex import GTExConnector
+        from src.data.database_connectors import CANONICAL_COLUMNS
+        connector = GTExConnector()
+        connector._resolve_gencode_ids = MagicMock(
+            return_value={"BRCA1": "ENSG00000012048.23"}
+        )
+        connector._fetch_expression = MagicMock(
+            return_value=GTExConnector._empty_expression_row("BRCA1")
+        )
+        connector._fetch_eqtls = MagicMock(return_value=[{
+            "variant_id": "gtex:17:43071077:G:T", "source_db": "gtex",
+            "chrom": "17", "pos": 43071077, "ref": "G", "alt": "T",
+            "gene_symbol": "BRCA1", "transcript_id": None,
+            "consequence": "regulatory_region_variant", "pathogenicity": None,
+            "allele_freq": 0.01, "clinical_sig": None, "protein_change": None,
+            "fasta_seq": None, "source_id": "chr17_43071077_G_T_b38",
+            "metadata": {"tissue": "Whole_Blood", "neg_log10_pval": 5.2,
+                         "beta": -0.35, "tss_distance": 1000},
+        }])
+        result = connector.fetch(gene_symbols=["BRCA1"])
+        missing = set(CANONICAL_COLUMNS) - set(result.columns)
+        assert not missing, f"Missing canonical columns: {missing}"
+        assert result.iloc[0]["source_db"]   == "gtex"
+        assert result.iloc[0]["gene_symbol"] == "BRCA1"
+ 
+    def test_fetch_empty_gene_list(self):
+        from src.data.gtex import GTExConnector
+        from src.data.database_connectors import CANONICAL_COLUMNS
+        connector = GTExConnector()
+        result    = connector.fetch(gene_symbols=[])
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == 0
+        assert set(CANONICAL_COLUMNS).issubset(set(result.columns))
+ 
+    def test_fetch_populates_expression_summary(self):
+        from src.data.gtex import GTExConnector
+        connector = GTExConnector()
+        connector._resolve_gencode_ids = MagicMock(
+            return_value={"TP53": "ENSG00000141510.16"}
+        )
+        connector._fetch_expression = MagicMock(return_value={
+            "gene_symbol": "TP53", "gtex_max_tpm": 42.0,
+            "gtex_n_tissues_expressed": 15, "gtex_tissue_specificity": 0.3,
+            "gtex_tissue_tpm": {"Whole_Blood": 42.0},
+        })
+        connector._fetch_eqtls = MagicMock(return_value=[])
+        connector.fetch(gene_symbols=["TP53"])
+        assert not connector.gene_expression_summary.empty
+        assert "TP53" in connector.gene_expression_summary.index
+        assert connector.gene_expression_summary.loc["TP53", "gtex_max_tpm"] == 42.0
+ 
+    # ── build_gtex_feature_df ──────────────────────────────────────────────
+ 
+    def test_build_gtex_adds_six_columns(self):
+        from src.data.gtex import GTExConnector, build_gtex_feature_df
+        connector = GTExConnector()
+        connector.gene_expression_summary = pd.DataFrame(
+            {"gtex_max_tpm": [10.0], "gtex_n_tissues_expressed": [5],
+             "gtex_tissue_specificity": [0.4], "gtex_tissue_tpm": [{}]},
+            index=pd.Index(["BRCA1"], name="gene_symbol"),
+        )
+        df     = pd.DataFrame({"variant_id": ["clinvar:17:43071077:G:T"],
+                                "source_db": ["clinvar"], "gene_symbol": ["BRCA1"]})
+        result = build_gtex_feature_df(connector, df)
+        for col in ["gtex_max_tpm", "gtex_n_tissues_expressed", "gtex_tissue_specificity",
+                    "gtex_is_eqtl", "gtex_min_eqtl_pval", "gtex_max_abs_effect"]:
+            assert col in result.columns, f"Missing column: {col}"
+        assert result.iloc[0]["gtex_max_tpm"] == 10.0
+ 
+    def test_build_gtex_nan_safe(self):
+        from src.data.gtex import GTExConnector, build_gtex_feature_df
+        connector = GTExConnector()
+        connector.gene_expression_summary = pd.DataFrame(
+            {"gtex_max_tpm": [5.0], "gtex_n_tissues_expressed": [3],
+             "gtex_tissue_specificity": [0.6], "gtex_tissue_tpm": [{}]},
+            index=pd.Index(["KNOWN"], name="gene_symbol"),
+        )
+        df     = pd.DataFrame({"variant_id": ["clinvar:1:1000:A:T"],
+                                "source_db": ["clinvar"], "gene_symbol": ["UNKNOWN"]})
+        result = build_gtex_feature_df(connector, df)
+        assert result["gtex_max_tpm"].isna().sum()   == 0
+        assert result["gtex_is_eqtl"].isna().sum()   == 0
+        assert result["gtex_max_tpm"].iloc[0]         == 0.0
+ 
+    # ── Integration with variant_ensemble.py ──────────────────────────────
+ 
+    def test_gtex_features_in_phase2(self):
+        from src.models.variant_ensemble import PHASE_2_FEATURES
+        for feat in ["gtex_max_tpm", "gtex_n_tissues_expressed",
+                     "gtex_tissue_specificity", "gtex_is_eqtl",
+                     "gtex_min_eqtl_pval", "gtex_max_abs_effect"]:
+            assert feat in PHASE_2_FEATURES, (
+                f"'{feat}' missing from PHASE_2_FEATURES — did Section D run?"
+            )
+ 
+    def test_gtex_not_in_tabular_features(self):
+        from src.models.variant_ensemble import TABULAR_FEATURES
+        assert "gtex_is_eqtl" not in TABULAR_FEATURES
+        assert "gtex_max_tpm" not in TABULAR_FEATURES
+ 
+    def test_inherits_base_connector(self):
+        from src.data.gtex import GTExConnector
+        from src.data.database_connectors import BaseConnector
+        assert issubclass(GTExConnector, BaseConnector)
+ 
+    def test_source_name(self):
+        from src.data.gtex import GTExConnector
+        assert GTExConnector.source_name == "gtex"
+ 
+    def test_priority_tissues(self):
+        from src.data.gtex import PRIORITY_TISSUES
+        assert len(PRIORITY_TISSUES) == 7
+        assert "Whole_Blood"     in PRIORITY_TISSUES
+        assert "Brain_Cortex"    in PRIORITY_TISSUES
+        assert "Liver"           in PRIORITY_TISSUES
