@@ -91,9 +91,16 @@ TABULAR_FEATURES = [
 
 # Features planned for Phase 2 (require VEP annotation or external tools)
 PHASE_2_FEATURES = [
-    "codon_position",           # 1, 2, or 3 — requires VEP
-    "splice_ai_score",          # SpliceAI delta score
-    "alphamissense_score",       # AlphaMissense pathogenicity score
+    "codon_position",             # 1, 2, or 3 -- requires VEP
+    "splice_ai_score",            # SpliceAI delta score
+    "alphamissense_score",        # AlphaMissense pathogenicity score
+    # GTEx (RNA expression) -- Phase 2, Pillar 1
+    "gtex_max_tpm",               # max median TPM across tissues (gene level)
+    "gtex_n_tissues_expressed",   # tissues with median TPM >= 1.0 (gene level)
+    "gtex_tissue_specificity",    # 1 - mean_tpm/max_tpm (gene level)
+    "gtex_is_eqtl",               # 1 if variant is significant eQTL in any tissue
+    "gtex_min_eqtl_pval",         # max -log10(p) eQTL across tissues
+    "gtex_max_abs_effect",        # max |beta| eQTL effect size across tissues
 ]
 
 SEQUENCE_FEATURES = ["fasta_seq"]   # 101 bp context window, one-hot encoded
