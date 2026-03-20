@@ -131,6 +131,378 @@ class TestGnomADConnector:
         assert parts[0] == "gnomad"
         assert parts[1] == "17"
         assert int(parts[2]) > 0
+        
+# ---------------------------------------------------------------------------
+# Tests: sift_polyphen.py (Connector 6)
+# ---------------------------------------------------------------------------
+class TestSIFTPolyPhenConnector:
+    """
+    Unit tests for SIFTPolyPhenConnector.
+
+    The fixture ``_connector_with_index`` injects a small synthetic index
+    directly (bypassing file I/O) so every test is fast and self-contained.
+    This mirrors how TestREVELConnector is structured.
+    """
+
+    # ------------------------------------------------------------------
+    # Shared fixture: a connector whose index is pre-populated in memory
+    # ------------------------------------------------------------------
+    @pytest.fixture
+    def connector(self):
+        """Connector with a small synthetic in-memory index (no file I/O)."""
+        from src.data.sift_polyphen import SIFTPolyPhenConnector, _normalise_chrom
+        c = SIFTPolyPhenConnector(sift_polyphen_file=None)
+        # Inject a synthetic index directly — mirrors what _df_to_index produces
+        c._index = {
+            ("17", 43071077, "G", "T"): (0.03, 0.95),   # deleterious / prob. damaging
+            ("1",  925952,   "G", "A"): (0.21, 0.12),   # tolerated / benign
+            ("13", 32338271, "T", "A"): (0.00, 1.00),   # extreme deleterious
+            ("X",  153296777,"C", "T"): (0.08, 0.55),   # X chromosome
+        }
+        return c
+
+    @pytest.fixture
+    def minimal_df(self):
+        """Four-variant canonical DataFrame covering the synthetic index."""
+        return pd.DataFrame({
+            "chrom": ["17", "1", "13", "X"],
+            "pos":   [43071077, 925952, 32338271, 153296777],
+            "ref":   ["G", "G", "T", "C"],
+            "alt":   ["T", "A", "A", "T"],
+        })
+
+    # ------------------------------------------------------------------
+    # Import + constants
+    # ------------------------------------------------------------------
+
+    def test_module_imports_cleanly(self):
+        from src.data.sift_polyphen import SIFTPolyPhenConnector
+        assert SIFTPolyPhenConnector is not None
+
+    def test_constants_exported(self):
+        from src.data.sift_polyphen import (
+            DEFAULT_SIFT,
+            DEFAULT_PP2,
+            SIFT_DELETERIOUS_THRESHOLD,
+            PP2_PROBABLY_DAMAGING_THRESHOLD,
+        )
+        assert DEFAULT_SIFT == 0.5
+        assert DEFAULT_PP2  == 0.5
+        assert SIFT_DELETERIOUS_THRESHOLD == pytest.approx(0.05)
+        assert PP2_PROBABLY_DAMAGING_THRESHOLD == pytest.approx(0.908)
+
+    def test_source_name(self):
+        from src.data.sift_polyphen import SIFTPolyPhenConnector
+        assert SIFTPolyPhenConnector.source_name == "sift_polyphen"
+
+    # ------------------------------------------------------------------
+    # Stub mode (no file)
+    # ------------------------------------------------------------------
+
+    def test_stub_mode_returns_default_sift(self):
+        from src.data.sift_polyphen import SIFTPolyPhenConnector, DEFAULT_SIFT
+        c = SIFTPolyPhenConnector(sift_polyphen_file=None)
+        assert c.get_sift_score("17", 43071077, "G", "T") == DEFAULT_SIFT
+
+    def test_stub_mode_returns_default_pp2(self):
+        from src.data.sift_polyphen import SIFTPolyPhenConnector, DEFAULT_PP2
+        c = SIFTPolyPhenConnector(sift_polyphen_file=None)
+        assert c.get_pp2_score("17", 43071077, "G", "T") == DEFAULT_PP2
+
+    def test_stub_mode_annotate_dataframe(self, minimal_df):
+        """Stub connector must annotate without raising; columns filled with defaults."""
+        from src.data.sift_polyphen import (
+            SIFTPolyPhenConnector, DEFAULT_SIFT, DEFAULT_PP2,
+        )
+        c = SIFTPolyPhenConnector(sift_polyphen_file=None)
+        result = c.annotate_dataframe(minimal_df)
+        assert (result["sift_score"]      == DEFAULT_SIFT).all()
+        assert (result["polyphen2_score"] == DEFAULT_PP2).all()
+
+    # ------------------------------------------------------------------
+    # get_sift_score — lookup correctness
+    # ------------------------------------------------------------------
+
+    def test_known_variant_returns_real_sift_score(self, connector):
+        score = connector.get_sift_score("17", 43071077, "G", "T")
+        assert score == pytest.approx(0.03)
+
+    def test_missing_variant_returns_default_sift(self, connector):
+        from src.data.sift_polyphen import DEFAULT_SIFT
+        score = connector.get_sift_score("2", 999999, "A", "C")
+        assert score == DEFAULT_SIFT
+
+    def test_custom_missing_sift_value_honoured(self, connector):
+        score = connector.get_sift_score("2", 999999, "A", "C", missing_value=-1.0)
+        assert score == -1.0
+
+    def test_sift_chr_prefix_stripped(self, connector):
+        score_no_prefix  = connector.get_sift_score("17",    43071077, "G", "T")
+        score_chr_prefix = connector.get_sift_score("chr17", 43071077, "G", "T")
+        assert score_no_prefix == score_chr_prefix
+
+    def test_sift_lowercase_chrom_accepted(self, connector):
+        score = connector.get_sift_score("chr17", 43071077, "G", "T")
+        assert score == pytest.approx(0.03)
+
+    def test_sift_lowercase_alleles_accepted(self, connector):
+        score_upper = connector.get_sift_score("17", 43071077, "G",  "T")
+        score_lower = connector.get_sift_score("17", 43071077, "g",  "t")
+        assert score_upper == score_lower
+
+    def test_sift_sex_chromosome_X(self, connector):
+        score = connector.get_sift_score("X", 153296777, "C", "T")
+        assert score == pytest.approx(0.08)
+
+    # ------------------------------------------------------------------
+    # get_pp2_score — lookup correctness
+    # ------------------------------------------------------------------
+
+    def test_known_variant_returns_real_pp2_score(self, connector):
+        score = connector.get_pp2_score("17", 43071077, "G", "T")
+        assert score == pytest.approx(0.95)
+
+    def test_missing_variant_returns_default_pp2(self, connector):
+        from src.data.sift_polyphen import DEFAULT_PP2
+        score = connector.get_pp2_score("2", 999999, "A", "C")
+        assert score == DEFAULT_PP2
+
+    def test_custom_missing_pp2_value_honoured(self, connector):
+        score = connector.get_pp2_score("2", 999999, "A", "C", missing_value=-1.0)
+        assert score == -1.0
+
+    def test_pp2_chr_prefix_stripped(self, connector):
+        assert connector.get_pp2_score("17", 43071077, "G", "T") == \
+               connector.get_pp2_score("chr17", 43071077, "G", "T")
+
+    def test_pp2_sex_chromosome_X(self, connector):
+        score = connector.get_pp2_score("X", 153296777, "C", "T")
+        assert score == pytest.approx(0.55)
+
+    # ------------------------------------------------------------------
+    # annotate_dataframe — output correctness
+    # ------------------------------------------------------------------
+
+    def test_annotate_adds_both_score_columns(self, connector, minimal_df):
+        result = connector.annotate_dataframe(minimal_df)
+        assert "sift_score" in result.columns
+        assert "polyphen2_score" in result.columns
+
+    def test_annotate_returns_copy(self, connector, minimal_df):
+        result = connector.annotate_dataframe(minimal_df)
+        assert result is not minimal_df
+
+    def test_annotate_does_not_mutate_input(self, connector, minimal_df):
+        original_cols = set(minimal_df.columns)
+        _ = connector.annotate_dataframe(minimal_df)
+        assert set(minimal_df.columns) == original_cols
+
+    def test_annotate_correct_sift_for_hit(self, connector, minimal_df):
+        result = connector.annotate_dataframe(minimal_df)
+        assert result.loc[0, "sift_score"] == pytest.approx(0.03)   # chr17
+
+    def test_annotate_correct_pp2_for_hit(self, connector, minimal_df):
+        result = connector.annotate_dataframe(minimal_df)
+        assert result.loc[0, "polyphen2_score"] == pytest.approx(0.95)   # chr17
+
+    def test_annotate_default_for_miss(self, connector):
+        from src.data.sift_polyphen import DEFAULT_SIFT, DEFAULT_PP2
+        miss_df = pd.DataFrame({
+            "chrom": ["2"], "pos": [999999], "ref": ["A"], "alt": ["C"],
+        })
+        result = connector.annotate_dataframe(miss_df)
+        assert result.loc[0, "sift_score"]      == DEFAULT_SIFT
+        assert result.loc[0, "polyphen2_score"] == DEFAULT_PP2
+
+    def test_annotate_mixed_hits_and_misses(self, connector):
+        from src.data.sift_polyphen import DEFAULT_SIFT, DEFAULT_PP2
+        df = pd.DataFrame({
+            "chrom": ["17",      "2"],
+            "pos":   [43071077,  999999],
+            "ref":   ["G",       "A"],
+            "alt":   ["T",       "C"],
+        })
+        result = connector.annotate_dataframe(df)
+        assert result.loc[0, "sift_score"]      == pytest.approx(0.03)
+        assert result.loc[0, "polyphen2_score"] == pytest.approx(0.95)
+        assert result.loc[1, "sift_score"]      == DEFAULT_SIFT
+        assert result.loc[1, "polyphen2_score"] == DEFAULT_PP2
+
+    def test_annotate_preserves_existing_columns(self, connector, minimal_df):
+        result = connector.annotate_dataframe(minimal_df)
+        for col in minimal_df.columns:
+            assert col in result.columns
+
+    def test_annotate_no_nans(self, connector, minimal_df):
+        result = connector.annotate_dataframe(minimal_df)
+        assert not result["sift_score"].isna().any()
+        assert not result["polyphen2_score"].isna().any()
+
+    def test_annotate_score_ranges_valid(self, connector, minimal_df):
+        result = connector.annotate_dataframe(minimal_df)
+        assert (result["sift_score"]      >= 0).all() and (result["sift_score"]      <= 1).all()
+        assert (result["polyphen2_score"] >= 0).all() and (result["polyphen2_score"] <= 1).all()
+
+    def test_annotate_replaces_existing_columns(self, connector):
+        df = pd.DataFrame({
+            "chrom": ["17"], "pos": [43071077], "ref": ["G"], "alt": ["T"],
+            "sift_score": [0.99],   # stale value — should be overwritten
+            "polyphen2_score": [0.01],
+        })
+        result = connector.annotate_dataframe(df)
+        assert result.loc[0, "sift_score"]      == pytest.approx(0.03)
+        assert result.loc[0, "polyphen2_score"] == pytest.approx(0.95)
+
+    # ------------------------------------------------------------------
+    # _parse_multival helper
+    # ------------------------------------------------------------------
+
+    def test_parse_multival_min_basic(self):
+        from src.data.sift_polyphen import _parse_multival
+        assert _parse_multival("0.04;0.12;0.01", "min") == pytest.approx(0.01)
+
+    def test_parse_multival_max_basic(self):
+        from src.data.sift_polyphen import _parse_multival
+        assert _parse_multival("0.2;.;0.9", "max") == pytest.approx(0.9)
+
+    def test_parse_multival_all_missing_returns_none(self):
+        from src.data.sift_polyphen import _parse_multival
+        assert _parse_multival(".", "min")     is None
+        assert _parse_multival(".;.;.", "max") is None
+        assert _parse_multival("", "min")      is None
+        assert _parse_multival(None, "min")    is None
+
+    def test_parse_multival_single_value(self):
+        from src.data.sift_polyphen import _parse_multival
+        assert _parse_multival("0.03", "min") == pytest.approx(0.03)
+
+    def test_parse_multival_already_float(self):
+        """pandas may pass a float directly for single-transcript genes."""
+        from src.data.sift_polyphen import _parse_multival
+        assert _parse_multival(0.07, "min") == pytest.approx(0.07)
+
+    # ------------------------------------------------------------------
+    # _df_to_index
+    # ------------------------------------------------------------------
+
+    def test_df_to_index_keys_are_normalised(self):
+        from src.data.sift_polyphen import SIFTPolyPhenConnector
+        df = pd.DataFrame({
+            "chrom":         ["chr17"],
+            "pos":           [43071077],
+            "ref":           ["g"],
+            "alt":           ["t"],
+            "sift_score":    [0.03],
+            "polyphen2_score": [0.95],
+        })
+        index = SIFTPolyPhenConnector._df_to_index(df)
+        assert ("17", 43071077, "G", "T") in index
+
+    def test_df_to_index_values_are_float_tuples(self):
+        from src.data.sift_polyphen import SIFTPolyPhenConnector
+        df = pd.DataFrame({
+            "chrom":         ["17"],
+            "pos":           [43071077],
+            "ref":           ["G"],
+            "alt":           ["T"],
+            "sift_score":    [0.03],
+            "polyphen2_score": [0.95],
+        })
+        index = SIFTPolyPhenConnector._df_to_index(df)
+        val = index[("17", 43071077, "G", "T")]
+        assert isinstance(val, tuple) and len(val) == 2
+        assert isinstance(val[0], float) and isinstance(val[1], float)
+
+    # ------------------------------------------------------------------
+    # File-based integration test (synthetic TSV — no real dbNSFP needed)
+    # ------------------------------------------------------------------
+
+    def test_file_based_annotation(self, tmp_path):
+        from src.data.sift_polyphen import SIFTPolyPhenConnector
+        # Minimal synthetic dbNSFP v4.x TSV
+        content = (
+            "#chr\tpos(1-based)\tref\talt\tSIFT_score\tPolyphen2_HDIV_score\n"
+            "17\t43071077\tG\tT\t0.03\t0.95\n"
+            "1\t925952\tG\tA\t0.21\t0.12\n"
+            "13\t32338271\tT\tA\t.\t.\n"   # dots → both missing
+        )
+        tsv = tmp_path / "test_dbnsfp.tsv"
+        tsv.write_text(content)
+
+        c = SIFTPolyPhenConnector(sift_polyphen_file=tsv)
+        df = pd.DataFrame({
+            "chrom": ["17", "1",   "13"],
+            "pos":   [43071077, 925952, 32338271],
+            "ref":   ["G", "G", "T"],
+            "alt":   ["T", "A", "A"],
+        })
+        result = c.annotate_dataframe(df)
+
+        # chr17: real scores from file
+        assert result.loc[0, "sift_score"]      == pytest.approx(0.03)
+        assert result.loc[0, "polyphen2_score"] == pytest.approx(0.95)
+
+        # chr1: real scores
+        assert result.loc[1, "sift_score"]      == pytest.approx(0.21)
+        assert result.loc[1, "polyphen2_score"] == pytest.approx(0.12)
+
+        # chr13: both dots → defaults (0.5)
+        from src.data.sift_polyphen import DEFAULT_SIFT, DEFAULT_PP2
+        assert result.loc[2, "sift_score"]      == DEFAULT_SIFT
+        assert result.loc[2, "polyphen2_score"] == DEFAULT_PP2
+
+    def test_parquet_cache_used_on_second_call(self, tmp_path):
+        from src.data.sift_polyphen import SIFTPolyPhenConnector
+        content = (
+            "#chr\tpos(1-based)\tref\talt\tSIFT_score\tPolyphen2_HDIV_score\n"
+            "17\t43071077\tG\tT\t0.03\t0.95\n"
+        )
+        tsv = tmp_path / "dbnsfp.tsv"
+        tsv.write_text(content)
+
+        # First call — builds and caches
+        c1 = SIFTPolyPhenConnector(sift_polyphen_file=tsv, cache_dir=tmp_path)
+        c1.get_sift_score("17", 43071077, "G", "T")
+        cache_file = tmp_path / "dbnsfp_sift_pp2_index.parquet"
+        assert cache_file.exists(), "Parquet cache must be written after first call"
+
+        # Second call — loads from parquet (delete TSV to prove it)
+        tsv.unlink()
+        c2 = SIFTPolyPhenConnector(sift_polyphen_file=tsv, cache_dir=tmp_path)
+        score = c2.get_sift_score("17", 43071077, "G", "T")
+        assert score == pytest.approx(0.03), "Second call must read from parquet cache"
+
+    # ------------------------------------------------------------------
+    # End-to-end: annotated scores flow through engineer_features
+    # ------------------------------------------------------------------
+
+    def test_scores_flow_into_feature_matrix(self, connector):
+        from src.models.variant_ensemble import engineer_features, TABULAR_FEATURES
+        df = pd.DataFrame({
+            "variant_id":  ["test:17:43071077:G:T"],
+            "chrom":       ["17"],
+            "pos":         [43071077],
+            "ref":         ["G"],
+            "alt":         ["T"],
+            "consequence": ["missense_variant"],
+            "allele_freq": [0.0001],
+        })
+        annotated = connector.annotate_dataframe(df)
+        feats = engineer_features(annotated)
+
+        assert feats.shape == (1, len(TABULAR_FEATURES))
+        assert not feats.isnull().any().any()
+        # Real scores must survive the fillna pass in engineer_features
+        assert feats.loc[0, "sift_score"]      == pytest.approx(0.03)
+        assert feats.loc[0, "polyphen2_score"] == pytest.approx(0.95)
+
+    def test_sift_score_in_tabular_features(self):
+        from src.models.variant_ensemble import TABULAR_FEATURES
+        assert "sift_score" in TABULAR_FEATURES
+
+    def test_polyphen2_score_in_tabular_features(self):
+        from src.models.variant_ensemble import TABULAR_FEATURES
+        assert "polyphen2_score" in TABULAR_FEATURES        
 
 
 # ---------------------------------------------------------------------------
