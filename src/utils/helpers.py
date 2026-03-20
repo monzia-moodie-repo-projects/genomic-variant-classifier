@@ -26,6 +26,13 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
+def load_config() -> dict:
+    """Load configs/config.yaml relative to the repo root."""
+    import yaml
+    config_path = Path(__file__).resolve().parents[2] / "configs" / "config.yaml"
+    with open(config_path) as f:
+        return yaml.safe_load(f)
+
 
 # ---------------------------------------------------------------------------
 # Variant ID utilities
@@ -220,3 +227,69 @@ def proportion_ci(
     centre = (p_hat + z ** 2 / (2 * n)) / denominator
     margin = z * np.sqrt(p_hat * (1 - p_hat) / n + z ** 2 / (4 * n ** 2)) / denominator
     return float(max(0.0, centre - margin)), float(min(1.0, centre + margin))
+
+
+# ---------------------------------------------------------------------------
+# Environment-aware data directory resolution (Phase 2)
+# ---------------------------------------------------------------------------
+def resolve_data_dir(config: dict | None = None) -> Path:
+    """
+    Resolve the root data directory across VS Code, Colab, and CI environments.
+
+    Priority order:
+      1. GENOMIC_DATA_DIR environment variable  (set in .env for VS Code)
+      2. Google Colab Drive mount               (auto-detected)
+      3. Google Drive for Desktop on Windows    (auto-detected, common letters)
+      4. Google Drive for Desktop on macOS      (auto-detected)
+      5. config["data_dir"] if supplied         (explicit override)
+      6. ./data fallback                        (CI / synthetic-only runs)
+
+    Args:
+        config: Optional dict loaded from config.yaml. If None, only env-var
+                and auto-detection paths are tried before the ./data fallback.
+
+    Returns:
+        Path to the resolved data root directory.
+    """
+    # Load .env file so GENOMIC_DATA_DIR is available in this process
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=False)
+    except ImportError:
+        pass  # python-dotenv not installed — fall through to auto-detection
+
+    # 1. Explicit environment variable (VS Code .env or shell export)
+    if env_val := os.environ.get("GENOMIC_DATA_DIR"):
+        p = Path(env_val)
+        if p.exists():
+            return p
+        logger.warning("GENOMIC_DATA_DIR set to %s but path does not exist.", p)
+
+    # 2. Google Colab Drive mount
+    colab = Path("/content/drive/MyDrive/genomic-variant-data")
+    if colab.exists():
+        return colab
+
+    # 3. Google Drive for Desktop — Windows common drive letters
+    for letter in "GHIJKL":
+        win = Path(f"{letter}:/My Drive/genomic-variant-data")
+        if win.exists():
+            return win
+
+    # 4. Google Drive for Desktop — macOS
+    mac = Path.home() / "Google Drive" / "My Drive" / "genomic-variant-data"
+    if mac.exists():
+        return mac
+
+    # 5. Explicit config value
+    if config and config.get("data_dir"):
+        p = Path(config["data_dir"]).expanduser().resolve()
+        if p.exists():
+            return p
+        logger.warning("config data_dir %s does not exist; falling back to ./data", p)
+
+    # 6. Local fallback — works for CI and synthetic-only dev runs
+    fallback = Path("data")
+    fallback.mkdir(parents=True, exist_ok=True)
+    logger.info("resolve_data_dir: using local fallback at %s", fallback.resolve())
+    return fallback

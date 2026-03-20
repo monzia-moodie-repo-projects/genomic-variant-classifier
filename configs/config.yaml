@@ -3,6 +3,26 @@ project:
   version: "2.0"
   base_dir: genomic_variant_classifier
 
+ # ---------------------------------------------------------------------------
+# Data directory — resolved at runtime by src/utils/helpers.resolve_data_dir()
+# The value here is only used as a fallback if env-var and auto-detection fail.
+# VS Code: set GENOMIC_DATA_DIR in .env
+# Colab:   auto-detected from /content/drive/MyDrive/
+# ---------------------------------------------------------------------------
+data_dir: null
+
+external_data:
+  revel:       "external/revel-v1.3_all_chromosomes.csv.gz"
+  cadd_snv:    "external/whole_genome_SNVs.tsv.gz"
+  cadd_indel:  "external/InDels.tsv.gz"
+  spliceai:    "external/spliceai_scores.masked.snv.hg38.vcf.gz"
+  alphamissense: "external/AlphaMissense_aa_substitutions.tsv.gz"
+  phylop:      "external/hg38.phyloP100way.bw"
+  dbnsfp:      "external/dbNSFP4.7a.zip"
+
+cache_dir:     "processed"
+models_dir:    "models" 
+
 data:
   raw_dir:       genomic_variant_classifier/data/raw
   processed_dir: genomic_variant_classifier/data/processed
