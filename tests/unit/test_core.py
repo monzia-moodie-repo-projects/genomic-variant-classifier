@@ -782,3 +782,170 @@ class TestSpliceAIConnector:
     def test_splice_ai_score_not_in_tabular_features(self):
         from src.models.variant_ensemble import TABULAR_FEATURES
         assert "splice_ai_score" not in TABULAR_FEATURES
+
+# ---------------------------------------------------------------------------
+# Tests: src/data/cadd.py -- Phase 2 Pillar 1, Connector 3
+# ---------------------------------------------------------------------------
+class TestCADDConnector:
+    """Unit tests for CADDConnector. All HTTP calls are mocked."""
+
+    def test_source_name(self):
+        from src.data.cadd import CADDConnector
+        assert CADDConnector.source_name == "cadd"
+
+    def test_inherits_base_connector(self):
+        from src.data.cadd import CADDConnector
+        from src.data.database_connectors import BaseConnector
+        assert issubclass(CADDConnector, BaseConnector)
+
+    def test_rate_delay_enforced(self):
+        from src.data.cadd import CADDConnector, CADD_RATE_DELAY
+        from src.data.database_connectors import FetchConfig
+        config    = FetchConfig(rate_limit_delay=0.1)
+        connector = CADDConnector(config=config)
+        assert connector.config.rate_limit_delay >= CADD_RATE_DELAY
+
+    def test_parse_response_valid(self):
+        from src.data.cadd import CADDConnector
+        data   = [{"Chrom": "17", "Pos": "43071077",
+                   "Ref": "G", "Alt": "T",
+                   "RawScore": "2.345", "PHRED": "23.4"}]
+        result = CADDConnector.parse_response(data)
+        assert result == pytest.approx(23.4)
+
+    def test_parse_response_low_score(self):
+        from src.data.cadd import CADDConnector
+        data   = [{"Chrom": "1", "Pos": "925952",
+                   "Ref": "G", "Alt": "A",
+                   "RawScore": "-0.5", "PHRED": "1.2"}]
+        result = CADDConnector.parse_response(data)
+        assert result == pytest.approx(1.2)
+
+    def test_parse_response_empty_list_returns_median(self):
+        from src.data.cadd import CADDConnector, CADD_MEDIAN_PHRED
+        assert CADDConnector.parse_response([]) == CADD_MEDIAN_PHRED
+
+    def test_parse_response_none_returns_median(self):
+        from src.data.cadd import CADDConnector, CADD_MEDIAN_PHRED
+        assert CADDConnector.parse_response(None) == CADD_MEDIAN_PHRED
+
+    def test_parse_response_missing_phred_returns_median(self):
+        from src.data.cadd import CADDConnector, CADD_MEDIAN_PHRED
+        data   = [{"Chrom": "1", "Pos": "925952",
+                   "Ref": "G", "Alt": "A", "RawScore": "-0.5"}]
+        assert CADDConnector.parse_response(data) == CADD_MEDIAN_PHRED
+
+    def test_parse_response_non_numeric_phred_returns_median(self):
+        from src.data.cadd import CADDConnector, CADD_MEDIAN_PHRED
+        data   = [{"Chrom": "1", "Pos": "925952",
+                   "Ref": "G", "Alt": "A", "PHRED": "not_a_number"}]
+        assert CADDConnector.parse_response(data) == CADD_MEDIAN_PHRED
+
+    def test_fetch_empty_dataframe_returns_empty(self):
+        from src.data.cadd import CADDConnector
+        connector = CADDConnector()
+        result    = connector.fetch(variant_df=pd.DataFrame())
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == 0
+
+    def test_fetch_adds_cadd_phred_column(self):
+        from src.data.cadd import CADDConnector
+        connector = CADDConnector()
+        connector._fetch_one = MagicMock(return_value=23.4)
+        variant_df = pd.DataFrame({
+            "variant_id": ["clinvar:17:43071077:G:T"],
+            "source_db":  ["clinvar"],
+            "chrom": ["17"], "pos": [43071077], "ref": ["G"], "alt": ["T"],
+        })
+        result = connector.fetch(variant_df=variant_df)
+        assert "cadd_phred" in result.columns
+        assert result.iloc[0]["cadd_phred"] == pytest.approx(23.4)
+
+    def test_fetch_multiple_variants(self):
+        from src.data.cadd import CADDConnector
+        connector = CADDConnector()
+        expected  = {
+            "17:43071077_G_T": 23.4,
+            "17:43071077_G_A": 8.1,
+            "1:925952_G_A":    3.5,
+        }
+        connector._fetch_one = MagicMock(
+            side_effect=lambda key: expected.get(key, 15.0)
+        )
+        variant_df = pd.DataFrame({
+            "variant_id": [
+                "clinvar:17:43071077:G:T",
+                "clinvar:17:43071077:G:A",
+                "clinvar:1:925952:G:A",
+            ],
+            "source_db":  ["clinvar"] * 3,
+            "chrom": ["17", "17", "1"],
+            "pos":   [43071077, 43071077, 925952],
+            "ref":   ["G", "G", "G"],
+            "alt":   ["T", "A", "A"],
+        })
+        result = connector.fetch(variant_df=variant_df)
+        scores = result.set_index("variant_id")["cadd_phred"]
+        assert scores["clinvar:17:43071077:G:T"] == pytest.approx(23.4)
+        assert scores["clinvar:17:43071077:G:A"] == pytest.approx(8.1)
+        assert scores["clinvar:1:925952:G:A"]    == pytest.approx(3.5)
+
+    def test_fetch_api_failure_returns_median(self):
+        from src.data.cadd import CADDConnector, CADD_MEDIAN_PHRED
+        connector = CADDConnector()
+        connector._fetch_one = MagicMock(return_value=CADD_MEDIAN_PHRED)
+        variant_df = pd.DataFrame({
+            "variant_id": ["clinvar:1:999999:A:C"],
+            "source_db":  ["clinvar"],
+            "chrom": ["1"], "pos": [999999], "ref": ["A"], "alt": ["C"],
+        })
+        result = connector.fetch(variant_df=variant_df)
+        assert result["cadd_phred"].iloc[0] == CADD_MEDIAN_PHRED
+
+    def test_fetch_no_lookup_key_in_result(self):
+        from src.data.cadd import CADDConnector
+        connector = CADDConnector()
+        connector._fetch_one = MagicMock(return_value=10.0)
+        variant_df = pd.DataFrame({
+            "variant_id": ["clinvar:1:1000:A:T"],
+            "source_db":  ["clinvar"],
+            "chrom": ["1"], "pos": [1000], "ref": ["A"], "alt": ["T"],
+        })
+        result = connector.fetch(variant_df=variant_df)
+        assert "_lookup_key" not in result.columns
+
+    def test_cadd_phred_used_by_engineer_features_when_present(self):
+        from src.models.variant_ensemble import engineer_features
+        df = pd.DataFrame({
+            "variant_id":  ["clinvar:17:43071077:G:T"],
+            "source_db":   ["clinvar"],
+            "chrom":       ["17"],
+            "pos":         [43071077],
+            "ref":         ["G"],
+            "alt":         ["T"],
+            "consequence": ["missense_variant"],
+            "allele_freq": [0.001],
+            "cadd_phred":  [35.0],
+        })
+        feats = engineer_features(df)
+        assert feats.iloc[0]["cadd_phred"] == pytest.approx(35.0)
+
+    def test_cadd_phred_uses_median_when_absent(self):
+        from src.models.variant_ensemble import engineer_features
+        df = pd.DataFrame({
+            "variant_id":  ["clinvar:1:925952:G:A"],
+            "source_db":   ["clinvar"],
+            "chrom":       ["1"],
+            "pos":         [925952],
+            "ref":         ["G"],
+            "alt":         ["A"],
+            "consequence": ["missense_variant"],
+            "allele_freq": [0.05],
+        })
+        feats = engineer_features(df)
+        assert feats.iloc[0]["cadd_phred"] == pytest.approx(15.0)
+
+    def test_cadd_phred_in_tabular_features(self):
+        from src.models.variant_ensemble import TABULAR_FEATURES, PHASE_2_FEATURES
+        assert "cadd_phred" in TABULAR_FEATURES
+        assert "cadd_phred" not in PHASE_2_FEATURES
