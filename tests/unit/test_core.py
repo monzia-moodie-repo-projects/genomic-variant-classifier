@@ -949,3 +949,258 @@ class TestCADDConnector:
         from src.models.variant_ensemble import TABULAR_FEATURES, PHASE_2_FEATURES
         assert "cadd_phred" in TABULAR_FEATURES
         assert "cadd_phred" not in PHASE_2_FEATURES
+ 
+ 
+# ---------------------------------------------------------------------------
+# Tests: src/data/revel.py  (Connector 4 — Phase 2)
+# ---------------------------------------------------------------------------
+class TestREVELConnector:
+    """
+    All tests use an in-memory synthetic index to avoid the 1.3 GB data file.
+    The `_inject_index` helper bypasses _load_index so the file path is never
+    required.
+    """
+ 
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _make_connector(rows: list[tuple]) -> "REVELConnector":
+        """
+        Return a REVELConnector pre-loaded with a synthetic index.
+ 
+        rows: list of (chrom, pos, ref, alt, score) tuples — no file needed.
+        """
+        from src.data.revel import REVELConnector
+        conn = REVELConnector(revel_file=None)
+        conn._index = {
+            (str(chrom), int(pos), ref.upper(), alt.upper()): float(score)
+            for chrom, pos, ref, alt, score in rows
+        }
+        return conn
+ 
+    @staticmethod
+    def _canonical_df(**overrides) -> pd.DataFrame:
+        """Minimal canonical-schema DataFrame for one variant."""
+        base = dict(
+            chrom=["17"],
+            pos=[43071077],
+            ref=["G"],
+            alt=["T"],
+            gene_symbol=["BRCA1"],
+        )
+        base.update({k: [v] for k, v in overrides.items()})
+        return pd.DataFrame(base)
+ 
+    # ------------------------------------------------------------------
+    # Basic lookup
+    # ------------------------------------------------------------------
+    def test_known_variant_returns_real_score(self):
+        """A variant present in the index returns its exact score."""
+        conn = self._make_connector([("17", 43071077, "G", "T", 0.853)])
+        score = conn.get_score("17", 43071077, "G", "T")
+        assert abs(score - 0.853) < 1e-6
+ 
+    def test_missing_variant_returns_default(self):
+        """A variant absent from the index returns DEFAULT_SCORE."""
+        from src.data.revel import DEFAULT_SCORE
+        conn = self._make_connector([])
+        score = conn.get_score("1", 100, "A", "C")
+        assert score == DEFAULT_SCORE
+ 
+    def test_custom_missing_value_honoured(self):
+        """caller-supplied missing_value overrides DEFAULT_SCORE."""
+        conn = self._make_connector([])
+        score = conn.get_score("1", 100, "A", "C", missing_value=-1.0)
+        assert score == -1.0
+ 
+    # ------------------------------------------------------------------
+    # Chromosome normalisation
+    # ------------------------------------------------------------------
+    def test_chr_prefix_stripped_on_get_score(self):
+        """'chr17' and '17' resolve to the same index entry."""
+        conn = self._make_connector([("17", 43071077, "G", "T", 0.75)])
+        assert conn.get_score("chr17", 43071077, "G", "T") == 0.75
+ 
+    def test_lowercase_chrom_accepted(self):
+        """'chr1', 'Chr1', 'CHR1' all normalise correctly."""
+        conn = self._make_connector([("1", 925952, "G", "A", 0.3)])
+        for prefix in ("chr1", "Chr1", "CHR1", "1"):
+            assert conn.get_score(prefix, 925952, "G", "A") == pytest.approx(0.3)
+ 
+    def test_chrM_maps_to_MT(self):
+        """Mitochondrial chromosome normalises to 'MT'."""
+        conn = self._make_connector([("MT", 1234, "A", "G", 0.1)])
+        assert conn.get_score("chrM", 1234, "A", "G") == pytest.approx(0.1)
+        assert conn.get_score("M", 1234, "A", "G") == pytest.approx(0.1)
+ 
+    def test_sex_chromosome_X(self):
+        conn = self._make_connector([("X", 50000, "C", "T", 0.65)])
+        assert conn.get_score("chrX", 50000, "C", "T") == pytest.approx(0.65)
+ 
+    # ------------------------------------------------------------------
+    # Case normalisation for alleles
+    # ------------------------------------------------------------------
+    def test_lowercase_alleles_accepted(self):
+        """Allele case should not affect lookup."""
+        conn = self._make_connector([("1", 100, "A", "C", 0.5)])
+        assert conn.get_score("1", 100, "a", "c") == pytest.approx(0.5)
+ 
+    # ------------------------------------------------------------------
+    # annotate_dataframe
+    # ------------------------------------------------------------------
+    def test_annotate_adds_revel_score_column(self):
+        """annotate_dataframe must add a 'revel_score' column."""
+        conn = self._make_connector([("17", 43071077, "G", "T", 0.853)])
+        df = self._canonical_df()
+        result = conn.annotate_dataframe(df)
+        assert "revel_score" in result.columns
+ 
+    def test_annotate_returns_copy(self):
+        """annotate_dataframe must not mutate the input DataFrame."""
+        conn = self._make_connector([])
+        df = self._canonical_df()
+        original_cols = list(df.columns)
+        _ = conn.annotate_dataframe(df)
+        assert list(df.columns) == original_cols
+ 
+    def test_annotate_correct_score_for_hit(self):
+        """Matched variant gets the real score, not the default."""
+        conn = self._make_connector([("17", 43071077, "G", "T", 0.853)])
+        df = self._canonical_df()
+        result = conn.annotate_dataframe(df)
+        assert result.loc[0, "revel_score"] == pytest.approx(0.853)
+ 
+    def test_annotate_default_for_miss(self):
+        """Unmatched variant gets DEFAULT_SCORE."""
+        from src.data.revel import DEFAULT_SCORE
+        conn = self._make_connector([])
+        df = self._canonical_df()
+        result = conn.annotate_dataframe(df)
+        assert result.loc[0, "revel_score"] == DEFAULT_SCORE
+ 
+    def test_annotate_mixed_hits_and_misses(self):
+        """Per-row resolution — one hit, one miss in the same DataFrame."""
+        from src.data.revel import DEFAULT_SCORE
+        conn = self._make_connector([("17", 43071077, "G", "T", 0.90)])
+        df = pd.DataFrame({
+            "chrom": ["17", "1"],
+            "pos":   [43071077, 999999],
+            "ref":   ["G", "A"],
+            "alt":   ["T", "C"],
+        })
+        result = conn.annotate_dataframe(df)
+        assert result.loc[0, "revel_score"] == pytest.approx(0.90)
+        assert result.loc[1, "revel_score"] == DEFAULT_SCORE
+ 
+    def test_annotate_preserves_existing_columns(self):
+        """All original columns must survive annotation."""
+        conn = self._make_connector([])
+        df = self._canonical_df()
+        result = conn.annotate_dataframe(df)
+        for col in df.columns:
+            assert col in result.columns
+ 
+    def test_annotate_no_nans(self):
+        """Output 'revel_score' column must have no NaNs."""
+        conn = self._make_connector([])
+        df = self._canonical_df()
+        result = conn.annotate_dataframe(df)
+        assert not result["revel_score"].isnull().any()
+ 
+    def test_annotate_score_range(self):
+        """REVEL scores must be in [0, 1]."""
+        rows = [
+            ("1", 100, "A", "C", 0.0),
+            ("2", 200, "G", "T", 0.5),
+            ("3", 300, "C", "A", 1.0),
+        ]
+        conn = self._make_connector(rows)
+        df = pd.DataFrame({
+            "chrom": ["1", "2", "3"],
+            "pos":   [100, 200, 300],
+            "ref":   ["A", "G", "C"],
+            "alt":   ["C", "T", "A"],
+        })
+        result = conn.annotate_dataframe(df)
+        assert (result["revel_score"] >= 0.0).all()
+        assert (result["revel_score"] <= 1.0).all()
+ 
+    def test_annotate_replaces_existing_revel_score(self):
+        """If the DataFrame already has a 'revel_score' column it is overwritten."""
+        conn = self._make_connector([("17", 43071077, "G", "T", 0.85)])
+        df = self._canonical_df()
+        df["revel_score"] = 0.0          # stale placeholder
+        result = conn.annotate_dataframe(df)
+        assert result.loc[0, "revel_score"] == pytest.approx(0.85)
+ 
+    # ------------------------------------------------------------------
+    # Stub-mode (no file supplied)
+    # ------------------------------------------------------------------
+    def test_stub_mode_returns_default_without_crash(self):
+        """REVELConnector(None) must not raise — it returns DEFAULT_SCORE."""
+        from src.data.revel import REVELConnector, DEFAULT_SCORE
+        conn = REVELConnector(revel_file=None)
+        # Force-inject empty index so _load_index (file I/O) is not called.
+        conn._index = {}
+        score = conn.get_score("1", 100, "A", "C")
+        assert score == DEFAULT_SCORE
+ 
+    # ------------------------------------------------------------------
+    # _df_to_index utility
+    # ------------------------------------------------------------------
+    def test_df_to_index_keys_are_normalised(self):
+        """_df_to_index must normalise chromosome and upper-case alleles."""
+        from src.data.revel import REVELConnector
+        df = pd.DataFrame({
+            "chrom":       ["chr1", "chrX"],
+            "pos":         [100,    200],
+            "ref":         ["a",    "g"],
+            "alt":         ["c",    "t"],
+            "revel_score": [0.3,    0.8],
+        })
+        index = REVELConnector._df_to_index(df)
+        assert ("1", 100, "A", "C") in index
+        assert ("X", 200, "G", "T") in index
+ 
+    def test_df_to_index_values_are_float(self):
+        from src.data.revel import REVELConnector
+        df = pd.DataFrame({
+            "chrom": ["1"], "pos": [100],
+            "ref": ["A"], "alt": ["C"],
+            "revel_score": ["0.753"],   # string in raw CSV
+        })
+        index = REVELConnector._df_to_index(df)
+        val = index[("1", 100, "A", "C")]
+        assert isinstance(val, float)
+        assert val == pytest.approx(0.753)
+ 
+    # ------------------------------------------------------------------
+    # Integration with engineer_features
+    # ------------------------------------------------------------------
+    def test_revel_score_flows_into_feature_matrix(self, sample_canonical_df):
+        """
+        After annotation, engineer_features must use the real revel_score
+        rather than the 0.5 median fill-in default.
+        """
+        from src.data.revel import REVELConnector, _normalise_chrom
+        from src.models.variant_ensemble import engineer_features
+
+        conn = REVELConnector(revel_file=None)
+        conn._index = {
+            (_normalise_chrom(sample_canonical_df.loc[0, "chrom"]),
+             int(sample_canonical_df.loc[0, "pos"]),
+             sample_canonical_df.loc[0, "ref"].upper(),
+             sample_canonical_df.loc[0, "alt"].upper()): 0.999,
+        }
+
+        annotated = conn.annotate_dataframe(sample_canonical_df)
+        feats = engineer_features(annotated)
+
+        assert feats.loc[0, "revel_score"] == pytest.approx(0.999)
+        assert feats.loc[1, "revel_score"] == pytest.approx(0.5)
+ 
+ 
+# ---------------------------------------------------------------------------
+# Tests: src/data/revel.py  (Connector 4 — Phase 2)
+# ---------------------------------------------------------------------------

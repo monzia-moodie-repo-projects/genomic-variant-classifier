@@ -11,6 +11,7 @@ import pandas as pd
 import yaml
 from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.preprocessing import StandardScaler, LabelEncoder
+from src.utils.helpers import load_config
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -78,10 +79,7 @@ class GnomADLoader:
 class VariantDataPipeline:
     """Main data pipeline for integrating variant data."""
     def __init__(self, config_path=None):
-        self.config = {}
-        if config_path:
-            with open(config_path, "r") as f:
-                self.config = yaml.safe_load(f)
+        self.config = load_config() if config_path is None else yaml.safe_load(open(config_path))
         self.clinvar_loader = ClinVarLoader()
         self.gnomad_loader = GnomADLoader()
         self.merged_data = None

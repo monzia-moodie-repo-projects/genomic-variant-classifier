@@ -1,4 +1,3 @@
-```
 # Python
 __pycache__/
 *.pyc
@@ -58,3 +57,27 @@ Thumbs.db
 # Logs
 *.log
 genomic_variant_classifier/logs/
+
+# Scratch / temp files
+test_revel_block.py
+test_run_pre_commit.txt
+
+# ── Large data files ──────────────────────────────────────────────
+data/external/
+data/processed/
+data/models/
+data/synthetic/
+
+# ── Generated caches ──────────────────────────────────────────────
+*.csv.gz
+*.h5
+*.pkl
+
+# ── Model checkpoints ─────────────────────────────────────────────
+models/
+*.pt
+*.pth
+
+# ── Environment ───────────────────────────────────────────────────
+.env.local
+.pytest_cache/
