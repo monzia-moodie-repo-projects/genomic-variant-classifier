@@ -74,6 +74,7 @@ TABULAR_FEATURES = [
     "polyphen2_score",          # PolyPhen-2 HDIV score
     "revel_score",              # REVEL ensemble score
     "phylop_score",             # phyloP conservation score
+    "gerp_score",               # GERP++ rejected substitutions score; added Connector 7
     # Coding context
     "in_coding_region",         # 1 if in coding region
     "in_splice_site",           # 1 if within 2 bp of exon boundary
@@ -132,8 +133,8 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
 
     Input columns used:
         allele_freq, ref, alt, consequence, cadd_phred, sift_score,
-        polyphen2_score, revel_score, phylop_score, gene_constraint_oe,
-        num_pathogenic_in_gene, in_active_site, in_domain
+        polyphen2_score, revel_score, phylop_score, gerp_score,
+        gene_constraint_oe, num_pathogenic_in_gene, in_active_site, in_domain
 
     All missing columns are filled with population-median defaults so the
     function is safe to call on partially-populated DataFrames.
@@ -167,6 +168,7 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
         "polyphen2_score": 0.5,
         "revel_score":     0.5,
         "phylop_score":    0.0,
+        "gerp_score":      0.0,   # GERP++ RS; 0 = neutral; range roughly -12 to +6
     }
     for col, default in score_defaults.items():
         feats[col] = df.get(col, pd.Series([default] * len(df), index=df.index)).fillna(default).astype(float)

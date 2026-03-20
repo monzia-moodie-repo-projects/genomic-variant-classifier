@@ -502,7 +502,385 @@ class TestSIFTPolyPhenConnector:
 
     def test_polyphen2_score_in_tabular_features(self):
         from src.models.variant_ensemble import TABULAR_FEATURES
-        assert "polyphen2_score" in TABULAR_FEATURES        
+        assert "polyphen2_score" in TABULAR_FEATURES 
+        
+# ---------------------------------------------------------------------------
+# Tests: dbnsfp.py (Connector 7)
+# ---------------------------------------------------------------------------
+class TestDbNSFPConnector:
+    """
+    Unit tests for DbNSFPConnector (full-width dbNSFP annotator).
+
+    The ``connector`` fixture injects a small synthetic index directly,
+    bypassing file I/O.  All six scores are tested in every dimension.
+    """
+
+    @pytest.fixture
+    def connector(self):
+        """Connector with a synthetic in-memory index covering four variants."""
+        from src.data.dbnsfp import DbNSFPConnector, DbNSFPScores
+        c = DbNSFPConnector(dbnsfp_file=None)
+        c._index = {
+            # BRCA1 missense — deleterious across all tools
+            ("17", 43071077, "G", "T"): DbNSFPScores(
+                sift_score=0.03, polyphen2_score=0.95, revel_score=0.87,
+                cadd_phred=28.4, phylop_score=7.2, gerp_score=5.1,
+            ),
+            # AGRN benign — tolerated across all tools
+            ("1", 925952, "G", "A"): DbNSFPScores(
+                sift_score=0.21, polyphen2_score=0.12, revel_score=0.11,
+                cadd_phred=8.3, phylop_score=0.3, gerp_score=-1.2,
+            ),
+            # X chromosome variant
+            ("X", 153296777, "C", "T"): DbNSFPScores(
+                sift_score=0.08, polyphen2_score=0.55, revel_score=0.44,
+                cadd_phred=17.1, phylop_score=3.1, gerp_score=2.8,
+            ),
+        }
+        return c
+
+    @pytest.fixture
+    def minimal_df(self):
+        return pd.DataFrame({
+            "chrom": ["17", "1", "X", "2"],
+            "pos":   [43071077, 925952, 153296777, 999999],
+            "ref":   ["G", "G", "C", "A"],
+            "alt":   ["T", "A", "T", "C"],
+        })
+
+    # ------------------------------------------------------------------
+    # Import + constants
+    # ------------------------------------------------------------------
+
+    def test_module_imports_cleanly(self):
+        from src.data.dbnsfp import DbNSFPConnector
+        assert DbNSFPConnector is not None
+
+    def test_score_defaults_exported(self):
+        from src.data.dbnsfp import (
+            DEFAULT_SIFT, DEFAULT_PP2, DEFAULT_REVEL,
+            DEFAULT_CADD, DEFAULT_PHYLOP, DEFAULT_GERP,
+        )
+        assert DEFAULT_SIFT   == 0.5
+        assert DEFAULT_PP2    == 0.5
+        assert DEFAULT_REVEL  == 0.5
+        assert DEFAULT_CADD   == 15.0
+        assert DEFAULT_PHYLOP == 0.0
+        assert DEFAULT_GERP   == 0.0
+
+    def test_source_name(self):
+        from src.data.dbnsfp import DbNSFPConnector
+        assert DbNSFPConnector.source_name == "dbnsfp"
+
+    def test_dbnsfp_scores_dataclass(self):
+        from src.data.dbnsfp import DbNSFPScores, DEFAULT_SIFT, DEFAULT_GERP
+        s = DbNSFPScores()
+        assert s.sift_score  == DEFAULT_SIFT
+        assert s.gerp_score  == DEFAULT_GERP
+        assert isinstance(s.to_dict(), dict)
+        assert set(s.to_dict().keys()) == {
+            "sift_score", "polyphen2_score", "revel_score",
+            "cadd_phred", "phylop_score", "gerp_score",
+        }
+
+    def test_dbnsfp_scores_is_frozen(self):
+        from src.data.dbnsfp import DbNSFPScores
+        s = DbNSFPScores(sift_score=0.1)
+        with pytest.raises((AttributeError, TypeError)):
+            s.sift_score = 0.9  # type: ignore[misc]
+
+    # ------------------------------------------------------------------
+    # Stub mode
+    # ------------------------------------------------------------------
+
+    def test_stub_mode_get_scores_returns_defaults(self):
+        from src.data.dbnsfp import DbNSFPConnector, _DEFAULT_SCORES
+        c = DbNSFPConnector(dbnsfp_file=None)
+        scores = c.get_scores("17", 43071077, "G", "T")
+        assert scores == _DEFAULT_SCORES
+
+    def test_stub_mode_annotate_fills_all_columns(self, minimal_df):
+        from src.data.dbnsfp import (
+            DbNSFPConnector,
+            DEFAULT_SIFT, DEFAULT_PP2, DEFAULT_REVEL,
+            DEFAULT_CADD, DEFAULT_PHYLOP, DEFAULT_GERP,
+        )
+        c = DbNSFPConnector(dbnsfp_file=None)
+        result = c.annotate_dataframe(minimal_df)
+        assert (result["sift_score"]      == DEFAULT_SIFT).all()
+        assert (result["polyphen2_score"] == DEFAULT_PP2).all()
+        assert (result["revel_score"]     == DEFAULT_REVEL).all()
+        assert (result["cadd_phred"]      == DEFAULT_CADD).all()
+        assert (result["phylop_score"]    == DEFAULT_PHYLOP).all()
+        assert (result["gerp_score"]      == DEFAULT_GERP).all()
+
+    # ------------------------------------------------------------------
+    # get_scores — correctness
+    # ------------------------------------------------------------------
+
+    def test_known_variant_returns_all_real_scores(self, connector):
+        scores = connector.get_scores("17", 43071077, "G", "T")
+        assert scores.sift_score      == pytest.approx(0.03)
+        assert scores.polyphen2_score == pytest.approx(0.95)
+        assert scores.revel_score     == pytest.approx(0.87)
+        assert scores.cadd_phred      == pytest.approx(28.4)
+        assert scores.phylop_score    == pytest.approx(7.2)
+        assert scores.gerp_score      == pytest.approx(5.1)
+
+    def test_missing_variant_returns_defaults(self, connector):
+        from src.data.dbnsfp import _DEFAULT_SCORES
+        scores = connector.get_scores("2", 999999, "A", "C")
+        assert scores == _DEFAULT_SCORES
+
+    def test_chr_prefix_stripped(self, connector):
+        no_prefix  = connector.get_scores("17",    43071077, "G", "T")
+        chr_prefix = connector.get_scores("chr17", 43071077, "G", "T")
+        assert no_prefix == chr_prefix
+
+    def test_lowercase_chrom_accepted(self, connector):
+        scores = connector.get_scores("chr17", 43071077, "G", "T")
+        assert scores.sift_score == pytest.approx(0.03)
+
+    def test_lowercase_alleles_accepted(self, connector):
+        upper = connector.get_scores("17", 43071077, "G", "T")
+        lower = connector.get_scores("17", 43071077, "g", "t")
+        assert upper == lower
+
+    def test_sex_chromosome_X(self, connector):
+        scores = connector.get_scores("X", 153296777, "C", "T")
+        assert scores.sift_score  == pytest.approx(0.08)
+        assert scores.gerp_score  == pytest.approx(2.8)
+
+    def test_negative_gerp_returned_correctly(self, connector):
+        scores = connector.get_scores("1", 925952, "G", "A")
+        assert scores.gerp_score == pytest.approx(-1.2)
+
+    # ------------------------------------------------------------------
+    # annotate_dataframe — output correctness
+    # ------------------------------------------------------------------
+
+    def test_annotate_adds_all_six_columns(self, connector, minimal_df):
+        result = connector.annotate_dataframe(minimal_df)
+        for col in ["sift_score", "polyphen2_score", "revel_score",
+                    "cadd_phred", "phylop_score", "gerp_score"]:
+            assert col in result.columns, f"Missing column: {col}"
+
+    def test_annotate_returns_copy(self, connector, minimal_df):
+        result = connector.annotate_dataframe(minimal_df)
+        assert result is not minimal_df
+
+    def test_annotate_does_not_mutate_input(self, connector, minimal_df):
+        original_cols = set(minimal_df.columns)
+        _ = connector.annotate_dataframe(minimal_df)
+        assert set(minimal_df.columns) == original_cols
+
+    def test_annotate_correct_scores_for_hit(self, connector, minimal_df):
+        result = connector.annotate_dataframe(minimal_df)
+        assert result.loc[0, "sift_score"]      == pytest.approx(0.03)
+        assert result.loc[0, "polyphen2_score"] == pytest.approx(0.95)
+        assert result.loc[0, "revel_score"]     == pytest.approx(0.87)
+        assert result.loc[0, "cadd_phred"]      == pytest.approx(28.4)
+        assert result.loc[0, "phylop_score"]    == pytest.approx(7.2)
+        assert result.loc[0, "gerp_score"]      == pytest.approx(5.1)
+
+    def test_annotate_defaults_for_miss(self, connector, minimal_df):
+        from src.data.dbnsfp import DEFAULT_SIFT, DEFAULT_CADD, DEFAULT_GERP
+        result = connector.annotate_dataframe(minimal_df)
+        # Row 3 = chr2:999999 A>C — not in synthetic index
+        assert result.loc[3, "sift_score"]  == DEFAULT_SIFT
+        assert result.loc[3, "cadd_phred"]  == DEFAULT_CADD
+        assert result.loc[3, "gerp_score"]  == DEFAULT_GERP
+
+    def test_annotate_preserves_existing_columns(self, connector, minimal_df):
+        result = connector.annotate_dataframe(minimal_df)
+        for col in minimal_df.columns:
+            assert col in result.columns
+
+    def test_annotate_no_nans(self, connector, minimal_df):
+        result = connector.annotate_dataframe(minimal_df)
+        for col in ["sift_score", "polyphen2_score", "revel_score",
+                    "cadd_phred", "phylop_score", "gerp_score"]:
+            assert not result[col].isna().any(), f"NaN in {col}"
+
+    def test_annotate_replaces_existing_columns(self, connector):
+        df = pd.DataFrame({
+            "chrom": ["17"], "pos": [43071077], "ref": ["G"], "alt": ["T"],
+            "gerp_score": [99.0],   # stale — must be overwritten
+        })
+        result = connector.annotate_dataframe(df)
+        assert result.loc[0, "gerp_score"] == pytest.approx(5.1)
+
+    def test_missing_value_override(self, connector):
+        """annotate_dataframe must honour per-column default overrides."""
+        from src.data.dbnsfp import DbNSFPConnector
+        c = DbNSFPConnector(dbnsfp_file=None)   # stub — all variants missing
+        df = pd.DataFrame({
+            "chrom": ["2"], "pos": [999999], "ref": ["A"], "alt": ["C"],
+        })
+        result = c.annotate_dataframe(df, cadd_phred=99.0, gerp_score=-99.0)
+        assert result.loc[0, "cadd_phred"]  == 99.0
+        assert result.loc[0, "gerp_score"]  == -99.0
+
+    # ------------------------------------------------------------------
+    # _df_to_index
+    # ------------------------------------------------------------------
+
+    def test_df_to_index_keys_normalised(self):
+        from src.data.dbnsfp import DbNSFPConnector
+        df = pd.DataFrame({
+            "chrom":         ["chr17"],
+            "pos":           [43071077],
+            "ref":           ["g"],
+            "alt":           ["t"],
+            "sift_score":    [0.03],
+            "polyphen2_score": [0.95],
+            "revel_score":   [0.87],
+            "cadd_phred":    [28.4],
+            "phylop_score":  [7.2],
+            "gerp_score":    [5.1],
+        })
+        index = DbNSFPConnector._df_to_index(df)
+        assert ("17", 43071077, "G", "T") in index
+
+    def test_df_to_index_values_are_dbnsfp_scores(self):
+        from src.data.dbnsfp import DbNSFPConnector, DbNSFPScores
+        df = pd.DataFrame({
+            "chrom":         ["17"],
+            "pos":           [43071077],
+            "ref":           ["G"],
+            "alt":           ["T"],
+            "sift_score":    [0.03],
+            "polyphen2_score": [0.95],
+            "revel_score":   [0.87],
+            "cadd_phred":    [28.4],
+            "phylop_score":  [7.2],
+            "gerp_score":    [5.1],
+        })
+        index = DbNSFPConnector._df_to_index(df)
+        val = index[("17", 43071077, "G", "T")]
+        assert isinstance(val, DbNSFPScores)
+        assert val.gerp_score == pytest.approx(5.1)
+
+    # ------------------------------------------------------------------
+    # File-based integration (synthetic TSV — no real dbNSFP needed)
+    # ------------------------------------------------------------------
+
+    def test_file_based_annotation(self, tmp_path):
+        from src.data.dbnsfp import DbNSFPConnector, DEFAULT_GERP
+        content = (
+            "#chr\tpos(1-based)\tref\talt\t"
+            "SIFT_score\tPolyphen2_HDIV_score\tREVEL_score\t"
+            "CADD_phred\tphyloP100way_vertebrate\tGERP++_RS\n"
+            "17\t43071077\tG\tT\t0.03\t0.95\t0.87\t28.4\t7.2\t5.1\n"
+            "1\t925952\tG\tA\t0.21\t0.12\t0.11\t8.3\t0.3\t-1.2\n"
+            "13\t32338271\tT\tA\t.\t.\t.\t.\t.\t.\n"
+        )
+        tsv = tmp_path / "test_dbnsfp_full.tsv"
+        tsv.write_text(content)
+
+        c = DbNSFPConnector(dbnsfp_file=tsv)
+        df = pd.DataFrame({
+            "chrom": ["17", "1", "13"],
+            "pos":   [43071077, 925952, 32338271],
+            "ref":   ["G", "G", "T"],
+            "alt":   ["T", "A", "A"],
+        })
+        result = c.annotate_dataframe(df)
+
+        assert result.loc[0, "sift_score"]   == pytest.approx(0.03)
+        assert result.loc[0, "gerp_score"]   == pytest.approx(5.1)
+        assert result.loc[1, "revel_score"]  == pytest.approx(0.11)
+        assert result.loc[1, "gerp_score"]   == pytest.approx(-1.2)
+        # All-dot row → defaults
+        assert result.loc[2, "gerp_score"]   == DEFAULT_GERP
+
+    def test_missing_score_column_gracefully_defaults(self, tmp_path):
+        """File missing GERP++_RS column must still annotate other scores."""
+        from src.data.dbnsfp import DbNSFPConnector, DEFAULT_GERP
+        content = (
+            "#chr\tpos(1-based)\tref\talt\t"
+            "SIFT_score\tPolyphen2_HDIV_score\tREVEL_score\t"
+            "CADD_phred\tphyloP100way_vertebrate\n"   # no GERP column
+            "17\t43071077\tG\tT\t0.03\t0.95\t0.87\t28.4\t7.2\n"
+        )
+        tsv = tmp_path / "no_gerp.tsv"
+        tsv.write_text(content)
+
+        c = DbNSFPConnector(dbnsfp_file=tsv)
+        df = pd.DataFrame({
+            "chrom": ["17"], "pos": [43071077], "ref": ["G"], "alt": ["T"],
+        })
+        result = c.annotate_dataframe(df)
+
+        assert result.loc[0, "sift_score"]  == pytest.approx(0.03)
+        assert result.loc[0, "gerp_score"]  == DEFAULT_GERP   # graceful default
+
+    def test_parquet_cache_written_and_reused(self, tmp_path):
+        from src.data.dbnsfp import DbNSFPConnector
+        content = (
+            "#chr\tpos(1-based)\tref\talt\t"
+            "SIFT_score\tPolyphen2_HDIV_score\tREVEL_score\t"
+            "CADD_phred\tphyloP100way_vertebrate\tGERP++_RS\n"
+            "17\t43071077\tG\tT\t0.03\t0.95\t0.87\t28.4\t7.2\t5.1\n"
+        )
+        tsv = tmp_path / "dbnsfp_full.tsv"
+        tsv.write_text(content)
+
+        c1 = DbNSFPConnector(dbnsfp_file=tsv, cache_dir=tmp_path)
+        c1.get_scores("17", 43071077, "G", "T")
+        cache_file = tmp_path / "dbnsfp_full_index.parquet"
+        assert cache_file.exists(), "Parquet cache not written"
+
+        tsv.unlink()
+        c2 = DbNSFPConnector(dbnsfp_file=tsv, cache_dir=tmp_path)
+        scores = c2.get_scores("17", 43071077, "G", "T")
+        assert scores.sift_score == pytest.approx(0.03)
+
+    def test_cache_filename_does_not_collide_with_connector6(self, tmp_path):
+        """Connector 7 cache must not overwrite Connector 6 cache."""
+        from src.data.dbnsfp import DbNSFPConnector
+        from src.data.sift_polyphen import SIFTPolyPhenConnector
+        c6_cache = tmp_path / "dbnsfp_sift_pp2_index.parquet"
+        c7_cache = tmp_path / "dbnsfp_full_index.parquet"
+        assert c6_cache != c7_cache
+
+    # ------------------------------------------------------------------
+    # End-to-end: all six scores flow through engineer_features
+    # ------------------------------------------------------------------
+
+    def test_all_scores_flow_into_feature_matrix(self, connector):
+        from src.models.variant_ensemble import engineer_features, TABULAR_FEATURES
+        df = pd.DataFrame({
+            "chrom":       ["17"],
+            "pos":         [43071077],
+            "ref":         ["G"],
+            "alt":         ["T"],
+            "consequence": ["missense_variant"],
+            "allele_freq": [0.0001],
+        })
+        annotated = connector.annotate_dataframe(df)
+        feats = engineer_features(annotated)
+
+        assert feats.shape == (1, len(TABULAR_FEATURES))
+        assert not feats.isnull().any().any()
+        assert feats.loc[0, "sift_score"]      == pytest.approx(0.03)
+        assert feats.loc[0, "polyphen2_score"] == pytest.approx(0.95)
+        assert feats.loc[0, "revel_score"]     == pytest.approx(0.87)
+        assert feats.loc[0, "cadd_phred"]      == pytest.approx(28.4)
+        assert feats.loc[0, "phylop_score"]    == pytest.approx(7.2)
+        assert feats.loc[0, "gerp_score"]      == pytest.approx(5.1)
+
+    def test_gerp_score_in_tabular_features(self):
+        from src.models.variant_ensemble import TABULAR_FEATURES
+        assert "gerp_score" in TABULAR_FEATURES
+
+    def test_helpers_imported_from_connector6(self):
+        """Connector 7 must import helpers from sift_polyphen, not redefine them."""
+        import inspect
+        import src.data.dbnsfp as m
+        from src.data.sift_polyphen import _normalise_chrom, _parse_multival
+        assert m._normalise_chrom is _normalise_chrom
+        assert m._parse_multival  is _parse_multival               
 
 
 # ---------------------------------------------------------------------------
