@@ -1525,13 +1525,15 @@ class TestSpliceAIConnector:
  
     # ── Integration with variant_ensemble.py ─────────────────────────────
  
-    def test_splice_ai_score_in_phase2_features(self):
-        from src.models.variant_ensemble import PHASE_2_FEATURES
-        assert "splice_ai_score" in PHASE_2_FEATURES
- 
-    def test_splice_ai_score_not_in_tabular_features(self):
+    def test_splice_ai_score_in_tabular_features(self):
+        """Connector is live -- splice_ai_score promoted to TABULAR_FEATURES."""
         from src.models.variant_ensemble import TABULAR_FEATURES
-        assert "splice_ai_score" not in TABULAR_FEATURES
+        assert "splice_ai_score" in TABULAR_FEATURES
+
+    def test_splice_ai_score_not_in_phase2_features(self):
+        """After promotion, splice_ai_score must no longer be in PHASE_2_FEATURES."""
+        from src.models.variant_ensemble import PHASE_2_FEATURES
+        assert "splice_ai_score" not in PHASE_2_FEATURES
 
 # ---------------------------------------------------------------------------
 # Tests: src/data/cadd.py -- Phase 2 Pillar 1, Connector 3
