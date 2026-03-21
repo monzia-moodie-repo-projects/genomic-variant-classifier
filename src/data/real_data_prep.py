@@ -321,7 +321,7 @@ class DataPrepPipeline:
         # Precomputed functional scores
         score_defaults = {
             "cadd_phred":      15.0,
-            "sift_score":       0.05,
+            "sift_score":       0.5,
             "polyphen2_score":  0.5,
             "revel_score":      0.5,
             "phylop_score":     0.0,
