@@ -25,6 +25,10 @@ CHANGES FROM PHASE 1:
   - from __future__ import annotations added (Issue N).
   - Module-level logging.basicConfig removed (Issue L).
   - VariantEnsemble.fit() / evaluate() now robust when CNN/NN are excluded.
+  # CHANGES IN PHASE 2:
+#   - splice_ai_score promoted from PHASE_2_FEATURES → TABULAR_FEATURES.
+#     The SpliceAI connector is live and end-to-end tested (commit 72de60e).
+#     Default 0.0 (no predicted splice impact) when column absent.
 """
 
 from __future__ import annotations
@@ -74,6 +78,7 @@ TABULAR_FEATURES = [
     "polyphen2_score",          # PolyPhen-2 HDIV score
     "revel_score",              # REVEL ensemble score
     "phylop_score",             # phyloP conservation score
+    "splice_ai_score",          # SpliceAI max delta score (0–1); 0 = no impact
     "gerp_score",               # GERP++ rejected substitutions score; added Connector 7
     # Coding context
     "in_coding_region",         # 1 if in coding region
@@ -92,9 +97,9 @@ TABULAR_FEATURES = [
 
 # Features planned for Phase 2 (require VEP annotation or external tools)
 PHASE_2_FEATURES = [
-    "codon_position",             # 1, 2, or 3 -- requires VEP
-    "splice_ai_score",            # SpliceAI delta score
-    "alphamissense_score",        # AlphaMissense pathogenicity score
+    "codon_position",           # 1, 2, or 3 — requires VEP
+    "alphamissense_score",       # AlphaMissense pathogenicity score
+    # splice_ai_score promoted to TABULAR_FEATURES (connector live, commit 72de60e)
     # GTEx (RNA expression) -- Phase 2, Pillar 1
     "gtex_max_tpm",               # max median TPM across tissues (gene level)
     "gtex_n_tissues_expressed",   # tissues with median TPM >= 1.0 (gene level)
@@ -133,7 +138,7 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
 
     Input columns used:
         allele_freq, ref, alt, consequence, cadd_phred, sift_score,
-        polyphen2_score, revel_score, phylop_score, gerp_score,
+        polyphen2_score, revel_score, phylop_score, splice_ai_score, gerp_score,
         gene_constraint_oe, num_pathogenic_in_gene, in_active_site, in_domain
 
     All missing columns are filled with population-median defaults so the
@@ -163,12 +168,13 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
 
     # Precomputed scores — fill with population median if missing
     score_defaults = {
-        "cadd_phred":     15.0,
-        "sift_score":      0.5,
-        "polyphen2_score": 0.5,
-        "revel_score":     0.5,
-        "phylop_score":    0.0,
-        "gerp_score":      0.0,   # GERP++ RS; 0 = neutral; range roughly -12 to +6
+        "cadd_phred":      15.0,
+        "sift_score":       0.5,
+        "polyphen2_score":  0.5,
+        "revel_score":      0.5,
+        "phylop_score":     0.0,
+        "splice_ai_score":  0.0,  # 0 = no predicted splice disruption
+        "gerp_score":       0.0,  # GERP++ RS; 0 = neutral; range roughly -12 to +6
     }
     for col, default in score_defaults.items():
         feats[col] = df.get(col, pd.Series([default] * len(df), index=df.index)).fillna(default).astype(float)
@@ -182,7 +188,6 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     feats["in_domain"]      = df.get("in_domain",      pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
 
     # Validate
-    feats = feats[TABULAR_FEATURES]
     feats = feats[TABULAR_FEATURES]
     assert list(feats.columns) == TABULAR_FEATURES, (
         f"Feature column mismatch. Expected {TABULAR_FEATURES}, got {list(feats.columns)}"
