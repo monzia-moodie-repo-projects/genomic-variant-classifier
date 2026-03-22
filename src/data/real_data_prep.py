@@ -140,10 +140,13 @@ class AnnotationConfig:
     1.5 s/variant. Enable only for small batches or when the pre-computed
     file is available (PHASE_2_PLACEHOLDER).
     """
-    dbnsfp_path:   Optional[Path] = None
-    phylop_path:   Optional[Path] = None
-    spliceai_path: Optional[Path] = None
-    annotate_cadd: bool           = False
+    dbnsfp_path:        Optional[Path] = None
+    phylop_path:        Optional[Path] = None
+    spliceai_path:      Optional[Path] = None
+    alphamissense_path: Optional[Path] = None
+    annotate_cadd:      bool           = False
+    gtex_genes:         list[str]      = field(default_factory=list)
+    gtex_tissues:       list[str]      = field(default_factory=list)
 # ---------------------------------------------------------------------------
 # Core pipeline
 # ---------------------------------------------------------------------------
@@ -358,8 +361,45 @@ class DataPrepPipeline:
         spliceai = SpliceAIConnector(vcf_path=ac.spliceai_path)
         df = spliceai.fetch(variant_df=df)
         logger.info(
-            "Score annotation 4/4 (SpliceAI): %d variants with splice_ai_score > 0.",
+            "Score annotation 4/6 (SpliceAI): %d variants with splice_ai_score > 0.",
             (df.get("splice_ai_score", pd.Series([0.0] * len(df), index=df.index)) > 0).sum(),
+        )
+
+        # 5. AlphaMissense: missense pathogenicity scores
+        if ac.alphamissense_path is not None:
+            from src.data.alphamissense import AlphaMissenseConnector
+            am = AlphaMissenseConnector(tsv_path=ac.alphamissense_path)
+            df = am.fetch(variant_df=df)
+        else:
+            df["alphamissense_score"] = 0.5   # ambiguous default; safe for _engineer_features
+        logger.info(
+            "Score annotation 5/6 (AlphaMissense): %d variants annotated (score != 0.5).",
+            (df.get("alphamissense_score",
+                    pd.Series([0.5] * len(df), index=df.index)) != 0.5).sum(),
+        )
+
+        # 6. GTEx: expression and eQTL features
+        if ac.gtex_genes:
+            from src.data.gtex import GTExConnector, build_gtex_feature_df
+            gtex = GTExConnector()
+            gtex.fetch(
+                gene_symbols=ac.gtex_genes,
+                tissues=ac.gtex_tissues if ac.gtex_tissues else None,
+            )
+            df = build_gtex_feature_df(gtex, df)
+        else:
+            for col, val in [
+                ("gtex_max_tpm",             0.0),
+                ("gtex_n_tissues_expressed", 0),
+                ("gtex_tissue_specificity",  0.0),
+                ("gtex_is_eqtl",             0),
+                ("gtex_min_eqtl_pval",       0.0),
+                ("gtex_max_abs_effect",      0.0),
+            ]:
+                df[col] = val
+        logger.info(
+            "Score annotation 6/6 (GTEx): %d eQTL variants.",
+            int(df.get("gtex_is_eqtl", pd.Series([0]*len(df), index=df.index)).sum()),
         )
 
         return df
@@ -410,12 +450,13 @@ class DataPrepPipeline:
 
         # Precomputed functional scores
         score_defaults = {
-            "cadd_phred":      15.0,
-            "sift_score":       0.5,
-            "polyphen2_score":  0.5,
-            "revel_score":      0.5,
-            "phylop_score":     0.0,
-            "gerp_score":       0.0,
+            "cadd_phred":            15.0,
+            "sift_score":             0.5,
+            "polyphen2_score":        0.5,
+            "revel_score":            0.5,
+            "phylop_score":           0.0,
+            "gerp_score":             0.0,
+            "alphamissense_score":    0.5,   # 0.5 = ambiguous / not covered
         }
         for col, default in score_defaults.items():
             feats[col] = df.get(col, pd.Series([default] * len(df), index=df.index)).fillna(default).astype(float)
@@ -438,6 +479,23 @@ class DataPrepPipeline:
         # Protein features (UniProt-derived)
         feats["has_uniprot_annotation"] = df.get("has_uniprot_annotation", pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
         feats["n_known_pathogenic_protein_variants"] = df.get("n_known_pathogenic_protein_variants", pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
+
+        # GTEx expression / regulatory features (populated by _annotate_scores step 6)
+        gtex_defaults = {
+            "gtex_max_tpm":             0.0,
+            "gtex_n_tissues_expressed": 0,
+            "gtex_tissue_specificity":  0.0,
+            "gtex_is_eqtl":             0,
+            "gtex_min_eqtl_pval":       0.0,
+            "gtex_max_abs_effect":      0.0,
+        }
+        for col, default in gtex_defaults.items():
+            feats[col] = (
+                df.get(col, pd.Series([default] * len(df), index=df.index))
+                .fillna(default)
+            )
+        for col in ["gtex_n_tissues_expressed", "gtex_is_eqtl"]:
+            feats[col] = feats[col].astype(int)
 
         # Chromosome features
         chrom = df.get("chrom", pd.Series(["0"] * len(df), index=df.index)).fillna("0").astype(str)

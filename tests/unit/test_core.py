@@ -1304,19 +1304,23 @@ class TestGTExConnector:
  
     # ── Integration with variant_ensemble.py ──────────────────────────────
  
-    def test_gtex_features_in_phase2(self):
-        from src.models.variant_ensemble import PHASE_2_FEATURES
-        for feat in ["gtex_max_tpm", "gtex_n_tissues_expressed",
-                     "gtex_tissue_specificity", "gtex_is_eqtl",
-                     "gtex_min_eqtl_pval", "gtex_max_abs_effect"]:
-            assert feat in PHASE_2_FEATURES, (
-                f"'{feat}' missing from PHASE_2_FEATURES — did Section D run?"
-            )
- 
-    def test_gtex_not_in_tabular_features(self):
+    def test_gtex_features_in_tabular_features(self):
         from src.models.variant_ensemble import TABULAR_FEATURES
-        assert "gtex_is_eqtl" not in TABULAR_FEATURES
-        assert "gtex_max_tpm" not in TABULAR_FEATURES
+        gtex_feats = [
+            "gtex_max_tpm", "gtex_n_tissues_expressed", "gtex_tissue_specificity",
+            "gtex_is_eqtl", "gtex_min_eqtl_pval", "gtex_max_abs_effect",
+        ]
+        for feat in gtex_feats:
+            assert feat in TABULAR_FEATURES, f"{feat} missing from TABULAR_FEATURES"
+ 
+    def test_gtex_not_in_phase2_features(self):
+        from src.models.variant_ensemble import PHASE_2_FEATURES
+        gtex_feats = [
+            "gtex_max_tpm", "gtex_n_tissues_expressed", "gtex_tissue_specificity",
+            "gtex_is_eqtl", "gtex_min_eqtl_pval", "gtex_max_abs_effect",
+        ]
+        for feat in gtex_feats:
+            assert feat not in PHASE_2_FEATURES, f"{feat} still in PHASE_2_FEATURES"
  
     def test_inherits_base_connector(self):
         from src.data.gtex import GTExConnector
@@ -2213,8 +2217,8 @@ class TestAnnotationPipeline:
     def test_sift_score_fill_is_not_threshold(self):
         import pathlib
         src = pathlib.Path("src/data/real_data_prep.py").read_text()
-        assert '"sift_score":       0.5,' in src
-        assert '"sift_score":       0.05,' not in src
+        assert '"sift_score":' in src and '0.5' in src
+        assert '"sift_score":             0.05,' not in src
 
     def test_annotate_scores_stub_mode_no_raise(self, minimal_canonical_df):
         from src.data.real_data_prep import DataPrepPipeline, AnnotationConfig

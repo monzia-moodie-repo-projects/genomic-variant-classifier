@@ -112,9 +112,9 @@ def test_splice_ai_zero_score_not_replaced_by_default():
 # 5. engineer_features output shape / no NaNs
 # ---------------------------------------------------------------------------
 def test_tabular_features_length():
-    """TABULAR_FEATURES must have exactly 20 entries after promotion."""
-    assert len(TABULAR_FEATURES) == 20, (
-        f"Expected 20 TABULAR_FEATURES, got {len(TABULAR_FEATURES)}: {TABULAR_FEATURES}"
+    """TABULAR_FEATURES must have exactly 26 entries after GTEx + AlphaMissense promotion."""
+    assert len(TABULAR_FEATURES) == 27, (
+        f"Expected 27 TABULAR_FEATURES, got {len(TABULAR_FEATURES)}: {TABULAR_FEATURES}"
     )
 
 

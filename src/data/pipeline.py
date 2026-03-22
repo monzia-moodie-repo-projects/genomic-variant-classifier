@@ -13,7 +13,7 @@ from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from src.utils.helpers import load_config
 
-logging.basicConfig(level=logging.INFO)
+
 logger = logging.getLogger(__name__)
 
 @dataclass
@@ -120,3 +120,4 @@ if __name__ == "__main__":
     pipeline.merged_data = sample
     X_train, X_test, y_train, y_test = pipeline.prepare_data()
     print(f"Train: {len(X_train)}, Test: {len(X_test)}")
+    

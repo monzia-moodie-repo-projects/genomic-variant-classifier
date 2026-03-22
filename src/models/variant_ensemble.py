@@ -79,12 +79,13 @@ TABULAR_FEATURES = [
     "revel_score",              # REVEL ensemble score
     "phylop_score",             # phyloP conservation score
     "splice_ai_score",          # SpliceAI max delta score (0–1); 0 = no impact
-    "gerp_score",               # GERP++ rejected substitutions score; added Connector 7
+    "gerp_score",               # GERP++ RS; 0 = neutral
+    "alphamissense_score",      # AlphaMissense pathogenicity (0–1); 0.5 = not covered
     # Coding context
     "in_coding_region",         # 1 if in coding region
     "in_splice_site",           # 1 if within 2 bp of exon boundary
     # NOTE: codon_position removed — was always 0 (placeholder never filled).
-    #       Will be added in Phase 2 after VEP annotation. (Issue P)
+    #       Requires HGVSc + VEP; NOT derivable from HGVSp alone. (Issue P)
     "is_missense",              # 1 if missense variant
     "is_nonsense",              # 1 if stop-gain / nonsense
     # Gene-level
@@ -93,20 +94,23 @@ TABULAR_FEATURES = [
     # Protein features (from UniProt)
     "in_active_site",           # 1 if overlaps active site annotation
     "in_domain",                # 1 if overlaps annotated protein domain
+    # Expression / regulatory (GTEx v8)
+    "gtex_max_tpm",             # max median TPM across tissues (gene level)
+    "gtex_n_tissues_expressed", # tissues with median TPM >= 1.0 (gene level)
+    "gtex_tissue_specificity",  # 1 - mean_tpm/max_tpm (gene level)
+    "gtex_is_eqtl",             # 1 if variant is significant eQTL in any tissue
+    "gtex_min_eqtl_pval",       # max -log10(p) eQTL across tissues
+    "gtex_max_abs_effect",      # max |beta| eQTL effect size across tissues
 ]
 
-# Features planned for Phase 2 (require VEP annotation or external tools)
+# Features requiring tools not yet integrated (VEP/HGVSc)
 PHASE_2_FEATURES = [
-    "codon_position",           # 1, 2, or 3 — requires VEP
-    "alphamissense_score",       # AlphaMissense pathogenicity score
-    # splice_ai_score promoted to TABULAR_FEATURES (connector live, commit 72de60e)
-    # GTEx (RNA expression) -- Phase 2, Pillar 1
-    "gtex_max_tpm",               # max median TPM across tissues (gene level)
-    "gtex_n_tissues_expressed",   # tissues with median TPM >= 1.0 (gene level)
-    "gtex_tissue_specificity",    # 1 - mean_tpm/max_tpm (gene level)
-    "gtex_is_eqtl",               # 1 if variant is significant eQTL in any tissue
-    "gtex_min_eqtl_pval",         # max -log10(p) eQTL across tissues
-    "gtex_max_abs_effect",        # max |beta| eQTL effect size across tissues
+    "codon_position",           # 1, 2, or 3 nucleotide position within codon
+                                # requires HGVSc + VEP annotation pipeline
+    # Promoted to TABULAR_FEATURES:
+    # splice_ai_score       — commit 66b2740
+    # alphamissense_score   — this commit
+    # gtex_*  (6 features)  — this commit
 ]
 
 SEQUENCE_FEATURES = ["fasta_seq"]   # 101 bp context window, one-hot encoded
@@ -168,13 +172,14 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
 
     # Precomputed scores — fill with population median if missing
     score_defaults = {
-        "cadd_phred":      15.0,
-        "sift_score":       0.5,
-        "polyphen2_score":  0.5,
-        "revel_score":      0.5,
-        "phylop_score":     0.0,
-        "splice_ai_score":  0.0,  # 0 = no predicted splice disruption
-        "gerp_score":       0.0,  # GERP++ RS; 0 = neutral; range roughly -12 to +6
+        "cadd_phred":            15.0,
+        "sift_score":             0.5,
+        "polyphen2_score":        0.5,
+        "revel_score":            0.5,
+        "phylop_score":           0.0,
+        "splice_ai_score":        0.0,   # 0 = no predicted splice disruption
+        "gerp_score":             0.0,   # GERP++ RS; 0 = neutral
+        "alphamissense_score":    0.5,   # 0.5 = ambiguous / not covered
     }
     for col, default in score_defaults.items():
         feats[col] = df.get(col, pd.Series([default] * len(df), index=df.index)).fillna(default).astype(float)
@@ -186,6 +191,23 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     # Protein annotations
     feats["in_active_site"] = df.get("in_active_site", pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
     feats["in_domain"]      = df.get("in_domain",      pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
+
+    # GTEx expression / regulatory features (populated by _annotate_scores step 6)
+    gtex_defaults = {
+        "gtex_max_tpm":             0.0,
+        "gtex_n_tissues_expressed": 0,
+        "gtex_tissue_specificity":  0.0,
+        "gtex_is_eqtl":             0,
+        "gtex_min_eqtl_pval":       0.0,
+        "gtex_max_abs_effect":      0.0,
+    }
+    for col, default in gtex_defaults.items():
+        feats[col] = (
+            df.get(col, pd.Series([default] * len(df), index=df.index))
+            .fillna(default)
+        )
+    for col in ["gtex_n_tissues_expressed", "gtex_is_eqtl"]:
+        feats[col] = feats[col].astype(int)
 
     # Validate
     feats = feats[TABULAR_FEATURES]
