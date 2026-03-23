@@ -178,6 +178,7 @@ class DataPrepPipeline:
         logger.info("=== DataPrepPipeline: starting ===")
 
         df = self._load_and_label(clinvar_path)
+        df = enrich_gene_counts(df)
         logger.info(
             "After label filtering: %d variants (%d pathogenic, %d benign).",
             len(df), int(df["label"].sum()), int((df["label"] == 0).sum()),
@@ -408,7 +409,7 @@ class DataPrepPipeline:
         feats = pd.DataFrame(index=df.index)
 
         # Allele frequency
-        af = df.get("allele_freq", pd.Series(0.0, index=df.index)).fillna(0.0).clip(lower=0)
+        af = df.get("allele_freq", pd.Series(0.0, index=df.index)).fillna(0.0).astype(float).clip(lower=0)
         feats["af_raw"]          = af
         feats["af_log10"]        = np.log10(af + 1e-8)
         feats["af_is_absent"]    = (af == 0).astype(int)
