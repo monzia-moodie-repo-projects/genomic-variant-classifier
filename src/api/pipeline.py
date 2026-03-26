@@ -216,6 +216,70 @@ class InferencePipeline:
         ])
         return self.meta_learner.predict_proba(base_preds)[:, 1]
 
+    def predict_proba_with_uncertainty(
+        self, df: pd.DataFrame
+    ) -> dict[str, np.ndarray]:
+        """
+        Return pathogenicity scores and uncertainty estimates.
+
+        Returns
+        -------
+        dict with keys:
+          proba                  (n,) mean pathogenicity probability
+          uncertainty_epistemic  (n,) variance across base models (model uncertainty;
+                                      high when base models disagree)
+          uncertainty_aleatoric  (n,) binary entropy of meta-learner output
+                                      (data uncertainty; high near decision boundary)
+
+        Epistemic uncertainty is useful for flagging variants where the
+        ensemble members strongly disagree -- a signal to collect more
+        evidence before reporting.  Aleatoric uncertainty is inherent to
+        the data; it cannot be reduced by training more models.
+        """
+        enriched = df.copy()
+
+        if self.gnn_scorer is not None:
+            try:
+                gene_symbols = enriched.get(
+                    "gene_symbol",
+                    pd.Series([""] * len(enriched), index=enriched.index),
+                ).fillna("")
+                enriched["gnn_score"] = gene_symbols.map(
+                    lambda g: self.gnn_scorer.score(g)
+                )
+            except Exception as exc:
+                logger.warning("GNNScorer failed (%s) -- defaulting gnn_score to 0.5.", exc)
+                enriched["gnn_score"] = 0.5
+
+        X = engineer_features(enriched)
+        if self.scaler is not None:
+            X = pd.DataFrame(
+                self.scaler.transform(X),
+                columns=X.columns,
+                index=X.index,
+            )
+        X_np = X[INFERENCE_FEATURE_COLUMNS].values
+
+        base_preds = np.column_stack([
+            model.predict_proba(X_np)[:, 1]
+            for model in self.trained_models.values()
+        ])  # shape (n_variants, n_base_models)
+
+        # Epistemic: variance across base model predictions
+        uncertainty_epistemic = base_preds.var(axis=1)
+
+        proba = self.meta_learner.predict_proba(base_preds)[:, 1]
+
+        # Aleatoric: binary entropy of the final probability
+        p = np.clip(proba, 1e-7, 1.0 - 1e-7)
+        uncertainty_aleatoric = -(p * np.log(p) + (1.0 - p) * np.log(1.0 - p))
+
+        return {
+            "proba": proba,
+            "uncertainty_epistemic": uncertainty_epistemic,
+            "uncertainty_aleatoric": uncertainty_aleatoric,
+        }
+
     # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------

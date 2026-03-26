@@ -1,8 +1,8 @@
-# Genomic Variant Classifier — Project Roadmap
+# Genomic Variant Classifier -- Project Roadmap
 
-**Author:** Monzia Moodie  
-**Repository:** `monzia-moodie/genomic-variant-classifier`  
-**Last updated:** March 2026 — Phase 2 complete
+**Author:** Monzia Moodie
+**Repository:** `monzia-moodie/genomic-variant-classifier`
+**Last updated:** March 2026 -- Phase 7/8 complete, Phase 4 in progress
 
 ---
 
@@ -21,250 +21,155 @@ A production-grade, multi-modal genomic variant pathogenicity classifier that:
 
 ## Current State (March 2026)
 
-| Item | Status |
-|------|--------|
-| Phase 1 bugs fixed | 235 tests passing, 3 skipped |
-| 8-model ensemble + stacking meta-learner | done |
-| ClinVar connector + parquet pipeline | done — 4.4M variants |
-| gnomAD, UniProt, OMIM connectors | done |
-| dbNSFP, SpliceAI, AlphaMissense, GTEx connectors | done |
-| TABULAR_FEATURES (27 features) | done |
-| Baseline AUROC (ClinVar only, no external scores) | 0.72 |
-| **Final AUROC (holdout, tier-2, gnomAD + AlphaMissense)** | **0.9847** |
-| **Phase 2 status** | **COMPLETE** |
+| Item                                                                   | Status                    |
+| ---------------------------------------------------------------------- | ------------------------- |
+| 64-feature tabular ensemble (LightGBM, XGBoost, RF, GBM, LR)          | **Done**                  |
+| Holdout AUROC (gene-stratified, 154K variants)                         | **0.9847**                |
+| RNA splice pipeline (MaxEntScan; 4 features)                           | **Done**                  |
+| Protein structure pipeline (AlphaFold/UniProt; 4 features)             | **Done**                  |
+| FastAPI REST service (/predict, /batch, /health, /gene, /rsid, /info)  | **Done**                  |
+| X-API-Key auth + slowapi rate limiting                                 | **Done**                  |
+| Structured JSON logging + Prometheus /metrics                          | **Done**                  |
+| Multi-stage Dockerfile + docker-compose (api / trainer / monitoring)   | **Done**                  |
+| GitHub Actions CI (lockfile check, pytest, docker build)               | **Done**                  |
+| Docker image pushed to GHCR                                            | **Done -- v2.0.0**        |
+| Conformal prediction intervals (scripts/conformal_prediction.py)       | **Done**                  |
+| External validation script (scripts/validate_external.py)             | **Done**                  |
+| Calibration analysis (scripts/calibration_analysis.py)                | **Done**                  |
+| METHODS.md (publication-ready methods section)                         | **Done**                  |
+| dbSNP index parquet (2.87M ClinVar-matched rs-IDs)                     | **Done**                  |
+| ESM-2 connector (src/data/esm2.py)                                     | **Done -- ready for retrain** |
+| MC Dropout / Deep Ensemble uncertainty (src/models/mc_dropout.py)      | **Done**                  |
+| KAN classifier (src/models/kan.py)                                     | **Done**                  |
+| Algorithm benchmark framework (src/evaluation/benchmark.py)            | **Done**                  |
+| Model retrain incorporating Phase 4 features                           | Pending data + compute    |
 
 ---
 
-## Phase 2 — Core Classifier Completion
+## Phase 4 -- Algorithm Expansion and Benchmarking
 
-**Goal:** AUROC >= 0.90 on real ClinVar data with external functional scores.
+**Goal:** Rigorous comparison of ML families; add ESM-2 and uncertainty features.
 
-### 2A — External Score Downloads
+### 4A -- ESM-2 Sequence Embeddings
 
-| File | Size | Source | Status |
-|------|------|--------|--------|
-| AlphaMissense_hg38.tsv.gz | 0.61 GB | GCS (free) | **Done** |
-| spliceai_scores.masked.snv.hg38.vcf.gz | ~2.6 GB | Zenodo (free) | Pending |
-| gnomad.exomes.v4.1.sites.chr*.vcf.bgz | ~40 GB (chr1-22+X) | GCS (free) | **Done** |
-| dbNSFP4.7a.zip | ~30 GB | Google Drive (registration) | Pending |
-
-### 2B — Pipeline Completion Checklist
-
-- [x] Run full eval with AlphaMissense wired — 206k variants annotated
-- [x] Build gnomAD parquet from VCF; run eval with --gnomad — 2.9M loci, 60.2% join rate
-- [ ] Register for dbNSFP; run eval with SIFT/REVEL/CADD/GERP populated
-- [x] Confirm allele_freq appears in top 3 of feature_importance.csv — af_raw is #2
-- [x] AUROC >= 0.90 on full holdout set — **0.9847** on 154k gene-stratified val variants
-- [x] Validation split added to DataPrepPipeline (gene-aware, 70/10/20 train/val/test)
-- [x] ClinVar alleles patched — 99.5% of variants now have real REF/ALT
-- [ ] REST API (src/api/) — FastAPI with /predict, /batch, /health
-- [ ] Docker deployment (infrastructure/docker/)
-- [ ] codon_position from HGVSc + VEP (final PHASE_2_FEATURES item)
-
-### 2C — AUROC Trajectory (actual)
-
-| Configuration | AUROC | Key driver |
-|---------------|-------|------------|
-| ClinVar only, no external scores | 0.72 | n_pathogenic_in_gene |
-| + real REF/ALT (patch_clinvar_alleles) | 0.98 | consequence_severity, len_diff unlocked |
-| + AlphaMissense | 0.9776 | alphamissense_score (#2 feature) |
-| + gnomAD AF | 0.9821 | af_raw (#2), more robust to novel genes |
-| **Tier-2 labels, full data, gnomAD + AlphaMissense** | **0.9847** | Cleaner labels + all signals |
-
----
-
-## Phase 3 — Data Expansion
-
-**Goal:** Train and validate on diverse real-world genomic data beyond ClinVar.
-
-### 3A — Population Controls (Healthy, Open Access)
-
-| Source | Data | Access | Integration |
-|--------|------|--------|-------------|
-| 1000 Genomes Project (IGSR) | WGS 2,504 individuals 26 populations 30x | Open, IGSR portal | allele_freq calibration |
-| IGSR expanded panels | ~5,000 genomes, continuously updated | Open | Ancestry-stratified AF |
-| Simons Genome Diversity Project | 279 WGS 130 populations 43x+ | Open | Rare variant calibration |
-
-Integration: Extract per-locus AF from VCF using the existing _join_gnomad
-locus-key pattern. Add population_1kg_af column. No new connector needed.
-
-### 3B — Disease Cohorts (Controlled Access)
-
-Apply for these in parallel — each takes 2-8 weeks for approval.
-
-| Source | Data | Application | Priority |
-|--------|------|-------------|----------|
-| dbGaP / NCBI | Gateway to TOPMed (300K WGS), CMG rare disease | eRA Commons + institutional | High |
-| EGA | European cancer + rare disease WGS | Data Access Agreement | High |
-| CMG (Centers for Mendelian Genomics) | High-quality rare disease trios | Via dbGaP / AnVIL | High — best labels |
-| CCDG | Cardiovascular, neuropsychiatric WGS | Via dbGaP / AnVIL | Medium |
-| Genomics England 100K Genomes | 100K WGS rare disease + cancer | Research access agreement | High |
-| UK Biobank | 470K WES + 200K WGS | Formal application | Medium-high |
-| All of Us | 250K+ WGS diverse ancestry | Researcher Workbench (free) | Medium |
-
-### 3C — Cancer Cohorts
-
-| Source | Data | Access |
-|--------|------|--------|
-| TCGA (GDC) | Tumor/normal WGS + MAF files | Open tier free; controlled via dbGaP |
-| PCAWG | 2,658 WGS across 38 tumor types | ICGC portal |
-
-### 3D — Compute Strategy for WGS Scale
-
-Raw WGS is too large to download locally. Use cloud analysis platforms:
-- NHGRI AnVIL (Terra / Google Cloud) — hosts 1KGP, GTEx, CMG, CCDG
-- GDC API — already stubbed in config.yaml as gdc_base
-- All of Us Researcher Workbench — cloud-only, no local download needed
-
-The existing Spark ETL pipeline (src/data/spark_etl.py) accepts a master URL
-that can point to a cloud Dataproc cluster.
-
----
-
-## Phase 4 — Algorithm Expansion and Benchmarking
-
-**Goal:** Rigorous comparison of ML families on genomic variant classification.
-
-### 4A — ESM-2 Sequence Embeddings (Highest ROI, lowest effort)
-
-Frozen inference from Meta's protein language model (ESM-2, pretrained on
-UniRef90). Embedding delta (wildtype vs. mutant) is one of the strongest
-missense pathogenicity signals available, independent of conservation scores.
-
-Complexity: O(L * s^2 * d_model) inference per sequence. Tractable in frozen
-mode — no fine-tuning needed.
+- [x] `src/data/esm2.py` connector -- HuggingFace transformers backend, SQLite cache
+- [x] `esm2_delta_norm` added to `PHASE_4_FEATURES` (ready for next retrain)
+- [ ] Install `transformers torch` in training environment and run annotation
+- [ ] Retrain ensemble with 65-feature set; measure AUROC lift (+0.03-0.06 expected)
 
 Expected AUROC lift: +0.03-0.06 on missense variants.
+Install: `pip install transformers torch`
 
-Integration: src/data/esm2.py connector; add esm2_delta_norm to TABULAR_FEATURES.
+### 4B -- KAN (Kolmogorov-Arnold Network)
 
-### 4B — KAN (Kolmogorov-Arnold Network)
+- [x] `src/models/kan.py` -- pykan / efficient-kan backends; MLP fallback
+- [x] sklearn-compatible interface; `plot_edge_functions()` for interpretability
+- [ ] Run in benchmark framework; compare OOF AUROC against MLP
 
-Replaces fixed activation functions with learnable spline functions on edges.
-More interpretable than MLPs; learned univariate functions can be visualized
-directly, extending the SHAP explainability story.
+Install: `pip install pykan`
 
-Complexity: O(n * L * H^2 * G) where G is spline grid size (~5-20).
-Constant-factor overhead over equivalent MLP; same asymptotic class.
+### 4C -- Bayesian Uncertainty Quantification
 
-Integration: Replace TabularNNClassifier in VariantEnsemble with KANClassifier
-from pykan. Compare OOF AUROC and feature attribution side-by-side with SHAP.
+- [x] `src/models/mc_dropout.py` -- MCDropoutWrapper + DeepEnsembleWrapper
+- [x] Uncertainty decomposition: epistemic (variance) + aleatoric (entropy)
+- [x] `annotate_uncertainty()` helper for DataFrame annotation
+- [ ] Run DeepEnsembleWrapper(LightGBM, n_members=5) on holdout; measure ECE improvement
+- [ ] Annotate VUS subset with uncertainty flags; export for clinical review
 
-### 4C — Bayesian Uncertainty Quantification
+### 4D -- GNN over Protein-Protein Interaction Network
 
-MC Dropout on neural branches; Deep Ensembles on the stacking meta-learner.
-Produces calibrated probability estimates with epistemic and aleatoric
-uncertainty decomposition.
+- [x] `src/models/gnn.py` -- GAT convolutions over STRING DB graph
+- [ ] Wire STRING DB edge weights into GNN training (currently uses uniform weights)
+- [ ] Late fusion: concat GNN gene embedding with TABULAR_FEATURES before stacking
 
-Clinically essential: a classifier reporting "pathogenic: 0.87" must be right
-~87% of the time. VUS handling requires honest uncertainty.
+### 4E -- Algorithm Comparison Framework
 
-Metrics to add: Expected Calibration Error (ECE), reliability diagrams,
-uncertainty decomposition on VUS subset.
+- [x] `src/evaluation/benchmark.py` -- cross-validated benchmark across all families
+- [x] Metrics: AUROC, AUPRC, Brier, ECE, train time, inference latency, memory
+- [ ] Run full benchmark on ClinVar holdout
+- [ ] Produce comparison table for METHODS.md / manuscript
 
-Complexity: O(T * L * H^2) inference for T dropout passes (T ~ 50).
-No additional parameters over the base model.
+Run:
 
-### 4D — GNN over Protein-Protein Interaction Network
-
-Graph Neural Network with STRING DB interaction graph. Variant-level node
-features; PPI edges weighted by combined interaction score.
-
-src/models/gnn.py already implements StringDBGraph with GAT convolutions.
-Needs integration with the variant feature matrix as node attributes.
-
-Complexity: O(G * (V + E) * d) — linear in graph size, independent of n.
-Runs on a single GPU alongside the Spark pipeline.
-
-Integration: STRING DB graph + TABULAR_FEATURES as node attributes
--> GAT (2-3 layers) -> gene-level pathogenicity embedding
--> late fusion with ensemble stacker.
-
-### 4E — Contrastive Learning for Histopathology (TCGA branch)
-
-DINO (self-distillation with no labels) applied to TCGA whole-slide image
-patches. Produces tile-level embeddings without per-patch labels.
-Current state-of-the-art in computational pathology.
-
-### 4F — Algorithm Comparison Framework
-
-src/evaluation/
-    benchmark.py        run all models on same train/test split
-    calibration.py      ECE, reliability diagrams
-    complexity.py       wall-clock time and memory profiling per algorithm
-
-Algorithms to benchmark on identical splits:
-
-| Family | Algorithms |
-|--------|-----------|
-| Tabular ensemble | XGBoost, LightGBM, Random Forest, GBM |
-| Linear | Logistic Regression, MCP-regularized LR |
-| Neural tabular | MLP (TabularNN), KAN |
-| Sequence | 1D-CNN, ESM-2 embeddings |
-| Graph | GAT (STRING DB) |
-| Probabilistic | MC Dropout ensemble, Deep Ensemble |
-
-Evaluation dimensions:
-- Predictive: AUROC, AUPRC, Brier score, ECE
-- Computational: training time, inference latency, memory footprint
-- Interpretability: SHAP consistency, feature attribution stability
-- Robustness: performance on VUS, rare vs. common disease, ancestry subsets
+```bash
+python -m src.evaluation.benchmark \
+    --parquet data/processed/clinvar_grch38.parquet \
+    --output  outputs/benchmark \
+    --n-folds 5
+```
 
 ---
 
-## Phase 5 — Clinical Validation and Deployment
+## Phase 3 -- Data Expansion
+
+### 3A -- Population Controls
+
+| Source                      | Data           | Status                                          |
+| --------------------------- | -------------- | ----------------------------------------------- |
+| 1000 Genomes Project (IGSR) | 2,504 WGS      | `data/external/1000genomes/` empty -- pending   |
+| gnomAD v4.1 exomes          | ~730M variants | Done (filtered parquet)                         |
+
+`population_1kg_af` added to `PHASE_4_FEATURES`; pending data download.
+
+### 3B -- Disease Cohorts (Controlled Access)
+
+Apply for these in parallel -- each takes 2-8 weeks for approval.
+
+| Source                          | Data                                    | Application                      | Priority    |
+| ------------------------------- | --------------------------------------- | -------------------------------- | ----------- |
+| dbGaP / NCBI                    | TOPMed (300K WGS), CMG rare disease     | eRA Commons + institutional      | High        |
+| EGA                             | European cancer + rare disease WGS      | Data Access Agreement            | High        |
+| CMG (Centers for Mendelian Genomics) | High-quality rare disease trios    | Via dbGaP / AnVIL                | High        |
+| UK Biobank                      | 470K WES + 200K WGS                     | Formal application               | Medium-high |
+| All of Us                       | 250K+ WGS diverse ancestry              | Researcher Workbench (free)      | Medium      |
+
+### 3C -- Pending Downloads
+
+| File                    | Size     | Source                              | Status  |
+| ----------------------- | -------- | ----------------------------------- | ------- |
+| dbNSFP4.7a.zip          | ~30 GB   | Google Drive (registration required) | Pending |
+| 1000G VCF chr*.vcf.gz   | ~100 GB  | IGSR portal (free)                  | Pending |
+| SpliceAI scored VCF     | 27 GB    | On Drive                            | Done    |
+
+---
+
+## Phase 5 -- Clinical Validation and Deployment
 
 - [ ] Prospective validation on gene panels (BRCA1/2, TP53, PTEN, ATM)
 - [ ] Comparison against ClinVar star-rating on expert-reviewed variants
-- [ ] REST API: FastAPI /predict /batch /health /model-card
-- [ ] Docker: multi-stage build, API image + training image
 - [ ] Model card: training data, known limitations, ancestry coverage
-- [ ] Manuscript draft: multi-modal genomic variant classifier with
-      algorithm benchmarking study
-
----
-
-## Complexity Reference
-
-Key Big-O for algorithm selection at genomic scale.
-n=variants, d=features, s=sequence length, V/E=graph nodes/edges.
-
-| Algorithm | Training | Genomic scale |
-|-----------|----------|--------------|
-| GBTs (XGBoost/LightGBM) | O(I*n*d*log n) | Excellent |
-| MLP / KAN | O(n*L*H^2[*G]) | Good |
-| ESM-2 (frozen inference) | N/A | Excellent |
-| GNN (sparse PPI) | O(G*(V+E)*d) | Excellent — independent of n |
-| Transformer (fine-tune) | O(n*L*s^2*d) | Sequence-length limited |
-| SVM (RBF) | O(n^2) | INFEASIBLE above ~100K samples |
-| Exact GP | O(n^3) | Infeasible; use sparse approximation |
-| UMAP | O(n*log n) | Excellent |
-
-SVM is excluded from all production runs (n > 100K).
+- [ ] Manuscript draft: multi-modal genomic variant classifier with algorithm benchmarking
 
 ---
 
 ## Feature Roadmap
 
-TABULAR_FEATURES (27, live):
-  allele_freq, ref_len, alt_len, is_snv, is_indel
-  cadd_phred, sift_score, polyphen2_score, revel_score
-  phylop_score, splice_ai_score, gerp_score, alphamissense_score
-  in_coding_region, in_splice_site, is_missense, is_nonsense
-  gene_constraint_oe, num_pathogenic_in_gene
-  in_active_site, in_domain
-  gtex_max_tpm, gtex_n_tissues_expressed, gtex_tissue_specificity
-  gtex_is_eqtl, gtex_min_eqtl_pval, gtex_max_abs_effect
+**Live (64 features -- current model):**
+see `TABULAR_FEATURES` in `src/models/variant_ensemble.py`
 
-PHASE_2_FEATURES (1, pending VEP):
-  codon_position — requires HGVSc + VEP annotation pipeline
+**PHASE_4_FEATURES (pending retrain):**
 
-PHASE_3_FEATURES (planned):
-  population_1kg_af     — 1000 Genomes allele frequency
-  esm2_delta_norm       — ESM-2 embedding distance (wt vs. mut)
-  ppi_network_score     — GNN-derived neighborhood pathogenicity
-  uncertainty_epistemic — MC Dropout epistemic uncertainty
-  uncertainty_aleatoric — MC Dropout aleatoric uncertainty
+```text
+esm2_delta_norm       -- ESM-2 embedding L2 distance (wt vs. mut); ~+0.03-0.06 AUROC
+population_1kg_af     -- 1000 Genomes allele frequency
+uncertainty_epistemic -- Deep Ensemble epistemic uncertainty (inference-time)
+uncertainty_aleatoric -- Deep Ensemble aleatoric uncertainty (inference-time)
+```
+
+---
+
+## Complexity Reference
+
+| Algorithm                | Training           | Genomic scale                  |
+| ------------------------ | ------------------ | ------------------------------ |
+| GBTs (XGBoost/LightGBM)  | O(I\*n\*d\*log n)  | Excellent                      |
+| MLP / KAN                | O(n\*L\*H^2[\*G])  | Good                           |
+| ESM-2 (frozen inference) | N/A                | Excellent                      |
+| GNN (sparse PPI)         | O(G\*(V+E)\*d)     | Excellent -- independent of n  |
+| Deep Ensemble (M members)| O(M \* base)       | Good                           |
+| SVM (RBF)                | O(n^2)             | INFEASIBLE above ~100K samples |
+
+SVM is excluded from all production runs (n > 100K).
 
 ---
 

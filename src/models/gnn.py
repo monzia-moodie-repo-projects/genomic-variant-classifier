@@ -210,18 +210,24 @@ def build_pyg_dataset(
             if gene in gene_index:
                 gene_features[gene_index[gene], feat_idx] = float(val)
 
-    # Build COO edge tensor from graph (both directions for undirected)
-    edge_pairs = [
-        [gene_index[u], gene_index[v]]
-        for u, v in graph.edges()
-        if u in gene_index and v in gene_index
-    ]
+    # Build COO edge tensor + edge weights from graph (both directions for undirected)
+    edge_pairs: list[list[int]] = []
+    edge_weights: list[float] = []
+    for u, v, attrs in graph.edges(data=True):
+        if u in gene_index and v in gene_index:
+            w = float(attrs.get("weight", 0.4))  # default 400/1000 if weight absent
+            edge_pairs.append([gene_index[u], gene_index[v]])
+            edge_weights.append(w)
+
     if edge_pairs:
-        edge_index = torch.tensor(edge_pairs, dtype=torch.long).t().contiguous()
+        ei = torch.tensor(edge_pairs, dtype=torch.long).t().contiguous()
+        ew = torch.tensor(edge_weights, dtype=torch.float).unsqueeze(1)
         # Add reverse edges for undirected message passing
-        edge_index = torch.cat([edge_index, edge_index.flip(0)], dim=1)
+        edge_index = torch.cat([ei, ei.flip(0)], dim=1)
+        edge_attr  = torch.cat([ew, ew], dim=0)  # same weight for both directions
     else:
         edge_index = torch.zeros((2, 0), dtype=torch.long)
+        edge_attr  = torch.zeros((0, 1), dtype=torch.float)
 
     dataset: list[Data] = []
     labeled = variant_df[variant_df[label_col].notna()]
@@ -240,6 +246,7 @@ def build_pyg_dataset(
         data = Data(
             x=x,
             edge_index=edge_index,
+            edge_attr=edge_attr,
             y=torch.tensor([int(row[label_col])], dtype=torch.long),
             gene_idx=gene_index[gene],
             variant_id=str(row.get("variant_id", "")),
@@ -276,9 +283,9 @@ class VariantGAT(nn.Module):
         super().__init__()
         self.dropout = dropout
 
-        self.conv1 = GATConv(in_channels,          hidden_channels, heads=heads, dropout=dropout)
-        self.conv2 = GATConv(hidden_channels * heads, hidden_channels, heads=heads, dropout=dropout)
-        self.conv3 = GATConv(hidden_channels * heads, out_channels,  heads=1,    concat=False, dropout=dropout)
+        self.conv1 = GATConv(in_channels,             hidden_channels, heads=heads, dropout=dropout, edge_dim=1)
+        self.conv2 = GATConv(hidden_channels * heads, hidden_channels, heads=heads, dropout=dropout, edge_dim=1)
+        self.conv3 = GATConv(hidden_channels * heads, out_channels,    heads=1,    concat=False, dropout=dropout, edge_dim=1)
 
         self.classifier = nn.Sequential(
             nn.Linear(out_channels, 32),
@@ -292,12 +299,13 @@ class VariantGAT(nn.Module):
         x: torch.Tensor,
         edge_index: torch.Tensor,
         gene_idx: torch.Tensor,
+        edge_attr: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        x = F.elu(self.conv1(x, edge_index))
+        x = F.elu(self.conv1(x, edge_index, edge_attr=edge_attr))
         x = F.dropout(x, p=self.dropout, training=self.training)
-        x = F.elu(self.conv2(x, edge_index))
+        x = F.elu(self.conv2(x, edge_index, edge_attr=edge_attr))
         x = F.dropout(x, p=self.dropout, training=self.training)
-        x = self.conv3(x, edge_index)
+        x = self.conv3(x, edge_index, edge_attr=edge_attr)
 
         focal_embeddings = x[gene_idx]  # (batch, out_channels)
         return self.classifier(focal_embeddings)
@@ -340,7 +348,8 @@ class GNNTrainer:
         for batch in loader:
             batch = batch.to(self.device)
             self.optimizer.zero_grad()
-            out = self.model(batch.x, batch.edge_index, batch.gene_idx)
+            out = self.model(batch.x, batch.edge_index, batch.gene_idx,
+                             edge_attr=getattr(batch, "edge_attr", None))
             loss = F.cross_entropy(out, batch.y)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
@@ -359,7 +368,8 @@ class GNNTrainer:
 
         for batch in loader:
             batch = batch.to(self.device)
-            out = self.model(batch.x, batch.edge_index, batch.gene_idx)
+            out = self.model(batch.x, batch.edge_index, batch.gene_idx,
+                             edge_attr=getattr(batch, "edge_attr", None))
             proba = F.softmax(out, dim=-1)[:, 1].cpu().numpy()
             all_proba.extend(proba.tolist())
             all_labels.extend(batch.y.cpu().numpy().tolist())

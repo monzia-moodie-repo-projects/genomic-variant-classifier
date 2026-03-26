@@ -232,6 +232,32 @@ class VariantPrediction(BaseModel):
         default=None,
         description="SHAP values or model importances for the top-5 features.",
     )
+    # Uncertainty decomposition
+    uncertainty_epistemic: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        description=(
+            "Variance across base model predictions (epistemic / model uncertainty). "
+            "High values indicate ensemble members disagree — collect additional "
+            "functional evidence before reporting."
+        ),
+    )
+    uncertainty_aleatoric: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        description=(
+            "Binary entropy of the final pathogenicity probability (aleatoric / data "
+            "uncertainty). Peaks near score=0.5; irreducible by further training."
+        ),
+    )
+    # Conformal prediction interval
+    coverage_interval: Optional[list[float]] = Field(
+        default=None,
+        description=(
+            "[lo, hi] conformal prediction interval at 90% coverage. "
+            "None when conformal calibration config is not loaded."
+        ),
+    )
 
 
 class PredictResponse(BaseModel):

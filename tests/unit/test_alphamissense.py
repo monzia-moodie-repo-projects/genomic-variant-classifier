@@ -228,8 +228,10 @@ def test_annotate_chr_prefixed_chrom_normalised():
 # ---------------------------------------------------------------------------
 
 def test_fetch_round_trip(tmp_path):
+    from src.data.database_connectors import FetchConfig
     path = _make_tsv_gz(tmp_path)
-    connector = AlphaMissenseConnector(tsv_path=path)
+    # Isolate cache to tmp_path so a shared real-data cache cannot pollute the test
+    connector = AlphaMissenseConnector(tsv_path=path, config=FetchConfig(cache_dir=tmp_path))
     df = pd.DataFrame({
         "chrom": ["17", "13", "99"],
         "pos":   [43071077, 32936732, 1],
