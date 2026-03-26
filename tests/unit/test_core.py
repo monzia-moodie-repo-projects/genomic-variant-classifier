@@ -941,16 +941,16 @@ class TestFeatureEngineering:
         feats = engineer_features(sample_canonical_df)
         # Row 0 = missense_variant
         assert feats.loc[0, "is_missense"] == 1
-        # Row 1 = stop_gained
-        assert feats.loc[1, "is_nonsense"] == 1
-        # Row 3 = splice_donor_variant
-        assert feats.loc[3, "in_splice_site"] == 1
+        # Row 1 = stop_gained → captured by is_loss_of_function
+        assert feats.loc[1, "is_loss_of_function"] == 1
+        # Row 3 = splice_donor_variant → captured by is_splice
+        assert feats.loc[3, "is_splice"] == 1
 
-    def test_codon_position_not_in_tabular_features(self):
-        """codon_position was always 0 — it was removed from TABULAR_FEATURES (Issue P)."""
+    def test_codon_position_in_tabular_features(self):
+        """codon_position was promoted to TABULAR_FEATURES in Phase 4 (VEP connector)."""
         from src.models.variant_ensemble import TABULAR_FEATURES, PHASE_2_FEATURES
-        assert "codon_position" not in TABULAR_FEATURES
-        assert "codon_position" in PHASE_2_FEATURES
+        assert "codon_position" in TABULAR_FEATURES
+        assert "codon_position" not in PHASE_2_FEATURES
 
     def test_encode_sequence_shape(self):
         from src.models.variant_ensemble import encode_sequence
@@ -2216,7 +2216,7 @@ class TestAnnotationPipeline:
 
     def test_sift_score_fill_is_not_threshold(self):
         import pathlib
-        src = pathlib.Path("src/data/real_data_prep.py").read_text()
+        src = pathlib.Path("src/data/real_data_prep.py").read_text(encoding="utf-8")
         assert '"sift_score":' in src and '0.5' in src
         assert '"sift_score":             0.05,' not in src
 

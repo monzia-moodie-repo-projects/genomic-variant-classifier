@@ -148,6 +148,12 @@ class AnnotationConfig:
     annotate_cadd:      bool           = False
     gtex_genes:         list[str]      = field(default_factory=list)
     gtex_tissues:       list[str]      = field(default_factory=list)
+    vep_path:           Optional[Path] = None
+    omim_path:          Optional[Path] = None
+    clingen_path:       Optional[Path] = None
+    dbsnp_path:         Optional[Path] = None
+    eve_path:           Optional[Path] = None
+    hgmd_path:          Optional[Path] = None
 # ---------------------------------------------------------------------------
 # Core pipeline
 # ---------------------------------------------------------------------------
@@ -347,7 +353,15 @@ class DataPrepPipeline:
           1. DbNSFPConnector   -- 6 scores for missense SNVs in dbNSFP
           2. PhyloPConnector   -- overwrites phylop_score for all positions
           3. CADDConnector     -- cadd_phred via REST (skipped by default)
-          4. SpliceAIConnector -- splice_ai_score (PHASE_2_FEATURES)
+          4. SpliceAIConnector -- splice_ai_score
+          5. AlphaMissense     -- alphamissense_score for missense variants
+          6. GTEx              -- expression and eQTL features
+          7. VEP               -- codon_position (from protein_change column)
+          8. OMIM              -- omim_n_diseases, omim_is_autosomal_dominant
+          9. ClinGen           -- clingen_validity_score
+         10. dbSNP             -- dbsnp_af (AF supplement for gnomAD-absent variants)
+         11. EVE               -- eve_score (evolutionary model)
+         12. HGMD              -- hgmd_is_disease_mutation, hgmd_n_reports
 
         All connectors run in stub mode when their file is absent.
         """
@@ -424,8 +438,66 @@ class DataPrepPipeline:
             ]:
                 df[col] = val
         logger.info(
-            "Score annotation 6/6 (GTEx): %d eQTL variants.",
+            "Score annotation 6/12 (GTEx): %d eQTL variants.",
             int(df.get("gtex_is_eqtl", pd.Series([0]*len(df), index=df.index)).sum()),
+        )
+
+        # 7. VEP: codon_position (from protein_change column — no file required)
+        from src.data.vep import VEPConnector
+        vep = VEPConnector()
+        df = vep.annotate_dataframe(df)
+        logger.info(
+            "Score annotation 7/12 (VEP): %d variants with non-zero codon_position.",
+            int((df.get("codon_position", pd.Series([0]*len(df), index=df.index)) > 0).sum()),
+        )
+
+        # 8. OMIM: gene-disease features
+        from src.data.omim import OMIMConnector
+        omim = OMIMConnector(mim2gene_path=ac.omim_path)
+        df = omim.annotate_dataframe(df)
+        logger.info(
+            "Score annotation 8/12 (OMIM): %d variants with omim_n_diseases > 0.",
+            int((df.get("omim_n_diseases", pd.Series([0]*len(df), index=df.index)) > 0).sum()),
+        )
+
+        # 9. ClinGen: gene validity score
+        from src.data.clingen import ClinGenConnector
+        clingen = ClinGenConnector(csv_path=ac.clingen_path)
+        df = clingen.annotate_dataframe(df)
+        logger.info(
+            "Score annotation 9/12 (ClinGen): %d variants with clingen_validity_score > 0.",
+            int((df.get("clingen_validity_score", pd.Series([0]*len(df), index=df.index)) > 0).sum()),
+        )
+
+        # 10. dbSNP: supplemental allele frequency
+        from src.data.dbsnp import DbSNPConnector
+        dbsnp = DbSNPConnector(parquet_path=ac.dbsnp_path)
+        df = dbsnp.annotate_dataframe(df)
+        logger.info(
+            "Score annotation 10/12 (dbSNP): %d variants with dbsnp_af > 0.",
+            int((df.get("dbsnp_af", pd.Series([0.0]*len(df), index=df.index)) > 0).sum()),
+        )
+
+        # 11. EVE: evolutionary model score
+        from src.data.eve import EVEConnector
+        eve = EVEConnector(eve_path=ac.eve_path)
+        df = eve.annotate_dataframe(df)
+        logger.info(
+            "Score annotation 11/12 (EVE): %d variants covered (score != 0.5).",
+            int((df.get("eve_score", pd.Series([0.5]*len(df), index=df.index)) != 0.5).sum()),
+        )
+
+        # 12. HGMD: disease mutation annotation (requires institutional license)
+        if ac.hgmd_path is not None:
+            from src.data.hgmd import HGMDConnector
+            hgmd = HGMDConnector(hgmd_path=ac.hgmd_path)
+            df = hgmd.annotate_dataframe(df)
+        else:
+            df["hgmd_is_disease_mutation"] = 0
+            df["hgmd_n_reports"] = 0
+        logger.info(
+            "Score annotation 12/12 (HGMD): %d variants flagged as disease mutations.",
+            int((df.get("hgmd_is_disease_mutation", pd.Series([0]*len(df), index=df.index)) == 1).sum()),
         )
 
         return df
@@ -483,6 +555,8 @@ class DataPrepPipeline:
             "phylop_score":           0.0,
             "gerp_score":             0.0,
             "alphamissense_score":    0.5,   # 0.5 = ambiguous / not covered
+            "splice_ai_score":        0.0,   # 0.0 = no splice disruption
+            "eve_score":              0.5,   # 0.5 = not covered / ambiguous
         }
         for col, default in score_defaults.items():
             feats[col] = df.get(col, pd.Series([default] * len(df), index=df.index)).fillna(default).astype(float)
@@ -522,6 +596,19 @@ class DataPrepPipeline:
             )
         for col in ["gtex_n_tissues_expressed", "gtex_is_eqtl"]:
             feats[col] = feats[col].astype(int)
+
+        # Variant coding context (2 features)
+        feats["codon_position"] = df.get("codon_position", pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
+        feats["dbsnp_af"] = df.get("dbsnp_af", pd.Series([0.0] * len(df), index=df.index)).fillna(0.0).astype(float).clip(lower=0)
+
+        # Gene-disease annotation (3 features)
+        feats["omim_n_diseases"]            = df.get("omim_n_diseases",            pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
+        feats["omim_is_autosomal_dominant"] = df.get("omim_is_autosomal_dominant", pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
+        feats["clingen_validity_score"]     = df.get("clingen_validity_score",     pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
+
+        # HGMD features (2 features)
+        feats["hgmd_is_disease_mutation"] = df.get("hgmd_is_disease_mutation", pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
+        feats["hgmd_n_reports"]           = df.get("hgmd_n_reports",           pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
 
         # Chromosome features
         chrom = df.get("chrom", pd.Series(["0"] * len(df), index=df.index)).fillna("0").astype(str)

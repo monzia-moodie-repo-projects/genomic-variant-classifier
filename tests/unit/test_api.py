@@ -94,7 +94,7 @@ def _make_pipeline(proba: float = 0.85):
         metadata       = PipelineMetadata(
             val_auroc     = 0.9847,
             n_train       = 1_197_216,
-            n_features    = 46,
+            n_features    = 55,
             model_version = "phase2",
         ),
     )
@@ -353,13 +353,13 @@ class TestEngineerFeatures:
         assert feats["af_is_absent"].iloc[0]  == 0
         assert feats["af_is_common"].iloc[0]  == 1
 
-    def test_codon_position_not_in_tabular_features(self):
-        """codon_position requires VEP/HGVSc — remains in PHASE_2_FEATURES, not active."""
-        from src.models.variant_ensemble import TABULAR_FEATURES
-        assert "codon_position" not in TABULAR_FEATURES, (
-            "codon_position was promoted without VEP integration. "
-            "Remove this assertion only after VEP is wired in."
+    def test_codon_position_in_tabular_features(self):
+        """codon_position is derived by VEPConnector (Phase 4) and is now in TABULAR_FEATURES."""
+        from src.models.variant_ensemble import TABULAR_FEATURES, PHASE_2_FEATURES
+        assert "codon_position" in TABULAR_FEATURES, (
+            "codon_position should be in TABULAR_FEATURES after Phase 4 VEP promotion."
         )
+        assert "codon_position" not in PHASE_2_FEATURES
 
     def test_batch_consistency(self):
         """engineer_features must produce identical rows regardless of batch size."""
@@ -530,17 +530,19 @@ class TestInfoEndpoint:
         assert body["model_version"]     == "phase2-v1"
         assert body["pipeline_version"]  == "1.0.0"
         assert body["training_auroc"]    == pytest.approx(0.9780)
-        assert body["n_features"]        == 46
-        assert len(body["feature_names"]) == 46
-        assert any("codon_position" in s for s in body["phase2_features_remaining"])
+        assert body["n_features"]        == 55
+        assert len(body["feature_names"]) == 55
+        # Phase 4: all features promoted, phase2_features_remaining is now empty
+        assert isinstance(body["phase2_features_remaining"], list)
 
-    def test_info_lists_phase2_remaining(self, client):
+    def test_info_phase2_remaining_is_empty(self, client):
+        """All Phase 2 features have been promoted to TABULAR_FEATURES in Phase 4."""
         r = client.get("/info")
         remaining = r.json()["phase2_features_remaining"]
         assert isinstance(remaining, list)
-        assert len(remaining) >= 1
-        combined = " ".join(remaining).lower()
-        assert "codon_position" in combined
+        assert len(remaining) == 0, (
+            f"Expected empty phase2_features_remaining, got: {remaining}"
+        )
 
 
 class TestPredictEndpoint:

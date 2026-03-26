@@ -35,13 +35,13 @@ from src.models.variant_ensemble import TABULAR_FEATURES, engineer_features
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Feature contract — locked to the exact 46 columns from X_train.parquet
+# Feature contract — locked to the exact 55 columns from X_train.parquet
 # ---------------------------------------------------------------------------
 
 INFERENCE_FEATURE_COLUMNS: list[str] = list(TABULAR_FEATURES)
-assert len(INFERENCE_FEATURE_COLUMNS) == 46, (
+assert len(INFERENCE_FEATURE_COLUMNS) == 55, (
     f"INFERENCE_FEATURE_COLUMNS has {len(INFERENCE_FEATURE_COLUMNS)} entries; "
-    "expected 46.  Update TABULAR_FEATURES in src/models/variant_ensemble.py."
+    "expected 55.  Update TABULAR_FEATURES in src/models/variant_ensemble.py."
 )
 
 
@@ -69,7 +69,7 @@ class InferencePipeline:
     Wraps fitted tabular base models + stacking meta-learner for deployment.
 
     At inference time the pipeline:
-      1. Calls engineer_features() to derive the 46 INFERENCE_FEATURE_COLUMNS
+      1. Calls engineer_features() to derive the 55 INFERENCE_FEATURE_COLUMNS
       2. Applies the StandardScaler (if present)
       3. Drives each base model with a numpy array → stacks predictions
       4. Feeds the stack to the meta-learner

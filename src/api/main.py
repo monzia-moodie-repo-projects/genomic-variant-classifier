@@ -33,14 +33,16 @@ Implementation notes
   singleton.  Concurrent requests share it read-only (joblib artifacts are
   thread-safe after load).
 * Feature engineering is delegated to the InferencePipeline wrapper
-  (``src/api/pipeline.py``), which replicates the 46-feature logic from
+  (``src/api/pipeline.py``), which replicates the 55-feature logic from
   ``DataPrepPipeline._engineer_features`` without any I/O side-effects.
 * SHAP explanations are computed only when the request payload is small
   (≤ 10 variants) or when explicitly requested, to keep p99 latency low.
 
-PHASE_2_FEATURES remaining (not yet in active feature set):
-  - codon_position    (requires VEP annotation)
-  - splice_ai_score   (requires SpliceAI or pre-scored TSV)
+Phase 4 features added (all now in active feature set):
+  - splice_ai_score, eve_score (functional scores)
+  - codon_position, dbsnp_af (coding context)
+  - omim_n_diseases, omim_is_autosomal_dominant, clingen_validity_score (gene-disease)
+  - hgmd_is_disease_mutation, hgmd_n_reports (HGMD, requires institutional license)
 """
 
 from __future__ import annotations
@@ -229,6 +231,15 @@ def _variant_to_row(req: VariantRequest) -> dict:
         "phylop_score":           req.phylop_score,
         "gerp_score":             req.gerp_score,
         "alphamissense_score":    req.alphamissense_score,
+        "splice_ai_score":            req.splice_ai_score,
+        "eve_score":                  req.eve_score,
+        "codon_position":             req.codon_position,
+        "dbsnp_af":                   req.dbsnp_af,
+        "omim_n_diseases":            req.omim_n_diseases,
+        "omim_is_autosomal_dominant": req.omim_is_autosomal_dominant,
+        "clingen_validity_score":     req.clingen_validity_score,
+        "hgmd_is_disease_mutation":   req.hgmd_is_disease_mutation,
+        "hgmd_n_reports":             req.hgmd_n_reports,
         "gene_constraint_oe":     req.gene_constraint_oe,
         "n_pathogenic_in_gene":   (
             req.n_pathogenic_in_gene
@@ -305,10 +316,7 @@ async def info() -> InfoResponse:
         holdout_auroc             = HOLDOUT_AUROC,
         n_features                = n_features,
         feature_names             = feature_names,
-        phase2_features_remaining = [
-            "codon_position (requires VEP)",
-            "splice_ai_score (requires SpliceAI or pre-scored TSV)",
-        ],
+        phase2_features_remaining = [],  # all features promoted in Phase 4
         description=(
             "LightGBM / XGBoost / GBM / RF / LR ensemble with stacking "
             "meta-learner.  Trained on 1.2 M tier-2 ClinVar variants with "

@@ -28,6 +28,12 @@ CHANGES FROM PHASE 1:
   # CHANGES IN PHASE 2:
 #   - alphamissense_score and GTEx features promoted to TABULAR_FEATURES.
 #   - splice_ai_score remains in PHASE_2_FEATURES (SpliceAI connector pending).
+  # CHANGES IN PHASE 4:
+#   - splice_ai_score and eve_score promoted to TABULAR_FEATURES (functional scores).
+#   - codon_position, dbsnp_af, omim_n_diseases, omim_is_autosomal_dominant,
+#     clingen_validity_score, hgmd_is_disease_mutation, hgmd_n_reports added.
+#   - PHASE_2_FEATURES cleared (all planned features now promoted).
+#   - Total: 55 features.
 """
 
 from __future__ import annotations
@@ -62,7 +68,7 @@ logger = logging.getLogger(__name__)
 warnings.filterwarnings("ignore", category=UserWarning)
 
 # ---------------------------------------------------------------------------
-# Feature definitions  (46 features — must match DataPrepPipeline._engineer_features)
+# Feature definitions  (55 features — must match DataPrepPipeline._engineer_features)
 # ---------------------------------------------------------------------------
 
 # VEP consequence → ordinal severity (shared with real_data_prep.py)
@@ -118,7 +124,7 @@ TABULAR_FEATURES = [
     "is_synonymous",        # synonymous_variant
     "is_splice",            # any splice consequence
     "in_coding",            # missense / synonymous / stop / frameshift / inframe / splice
-    # Functional scores (7)
+    # Functional scores (9)
     "cadd_phred",           # CADD PHRED (higher = more deleterious); default 15.0
     "sift_score",           # SIFT (lower = more deleterious); default 0.5
     "polyphen2_score",      # PolyPhen-2 HDIV score; default 0.5
@@ -126,6 +132,8 @@ TABULAR_FEATURES = [
     "phylop_score",         # phyloP conservation; default 0.0
     "gerp_score",           # GERP++ RS; default 0.0
     "alphamissense_score",  # AlphaMissense pathogenicity; 0.5 = not covered
+    "splice_ai_score",      # SpliceAI max delta score; 0.0 = no splice disruption
+    "eve_score",            # EVE evolutionary model; 0.5 = not covered/ambiguous
     # Binary score flags + meta-score (5)
     "cadd_high",                    # cadd_phred ≥ 20
     "sift_deleterious",             # sift_score < 0.05
@@ -147,17 +155,25 @@ TABULAR_FEATURES = [
     "gtex_is_eqtl",             # 1 if significant eQTL in any tissue
     "gtex_min_eqtl_pval",       # max −log10(p) eQTL across tissues
     "gtex_max_abs_effect",      # max |beta| eQTL effect size
+    # Variant coding context (2)
+    "codon_position",           # position within codon (1, 2, 3); 0 = non-coding
+    "dbsnp_af",                 # dbSNP AF supplement for variants absent from gnomAD
+    # Gene-disease annotation (3)
+    "omim_n_diseases",              # number of OMIM phenotype entries for the gene
+    "omim_is_autosomal_dominant",   # 1 if gene has autosomal dominant OMIM phenotype
+    "clingen_validity_score",       # ClinGen Gene Validity score (0-5)
+    # HGMD (2)
+    "hgmd_is_disease_mutation",     # 1 if classified DM in HGMD
+    "hgmd_n_reports",               # number of HGMD records for this variant
     # Chromosome context (3)
     "is_autosome",              # chrom in 1–22
     "is_sex_chrom",             # chrom in X, Y
     "is_mitochondrial",         # chrom in MT, M
 ]
-# Total: 6 + 7 + 6 + 7 + 5 + 4 + 2 + 6 + 3 = 46
+# Total: 6+7+6+9+5+4+2+6+2+3+2+3 = 55
 
-# Features requiring tools not yet integrated
-PHASE_2_FEATURES = [
-    "codon_position",   # requires HGVSc + VEP annotation pipeline
-]
+# All planned features have been promoted — PHASE_2_FEATURES is now empty
+PHASE_2_FEATURES: list[str] = []
 
 SEQUENCE_FEATURES = ["fasta_seq"]   # 101 bp context window, one-hot encoded
 
@@ -184,7 +200,7 @@ class EnsembleConfig:
 # ---------------------------------------------------------------------------
 def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Derive the 46 tabular features from a raw variant DataFrame.
+    Derive the 55 tabular features from a raw variant DataFrame.
 
     Mirrors DataPrepPipeline._engineer_features() in src/data/real_data_prep.py.
     All missing columns are filled with population-median defaults so the
@@ -194,10 +210,14 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
         allele_freq, ref, alt, consequence,
         cadd_phred, sift_score, polyphen2_score, revel_score,
         phylop_score, gerp_score, alphamissense_score,
+        splice_ai_score, eve_score,
         gene_constraint_oe, n_pathogenic_in_gene,
         has_uniprot_annotation, n_known_pathogenic_protein_variants,
         gtex_max_tpm, gtex_n_tissues_expressed, gtex_tissue_specificity,
         gtex_is_eqtl, gtex_min_eqtl_pval, gtex_max_abs_effect,
+        codon_position, dbsnp_af,
+        omim_n_diseases, omim_is_autosomal_dominant, clingen_validity_score,
+        hgmd_is_disease_mutation, hgmd_n_reports,
         chrom
     """
     feats = pd.DataFrame(index=df.index)
@@ -243,7 +263,7 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
         "missense|synonymous|stop|frameshift|inframe|splice", case=False, na=False,
     ).astype(int)
 
-    # --- Functional scores (7 features) ---
+    # --- Functional scores (9 features) ---
     score_defaults = {
         "cadd_phred":         15.0,
         "sift_score":          0.5,
@@ -252,6 +272,8 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
         "phylop_score":        0.0,
         "gerp_score":          0.0,
         "alphamissense_score": 0.5,
+        "splice_ai_score":     0.0,
+        "eve_score":           0.5,
     }
     for col, default in score_defaults.items():
         feats[col] = df.get(col, pd.Series([default] * len(df), index=df.index)).fillna(default).astype(float)
@@ -289,6 +311,19 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
         feats[col] = df.get(col, pd.Series([default] * len(df), index=df.index)).fillna(default)
     for col in ["gtex_n_tissues_expressed", "gtex_is_eqtl"]:
         feats[col] = feats[col].astype(int)
+
+    # --- Variant coding context (2 features) ---
+    feats["codon_position"] = df.get("codon_position", pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
+    feats["dbsnp_af"] = df.get("dbsnp_af", pd.Series([0.0] * len(df), index=df.index)).fillna(0.0).astype(float).clip(lower=0)
+
+    # --- Gene-disease annotation (3 features) ---
+    feats["omim_n_diseases"]            = df.get("omim_n_diseases",            pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
+    feats["omim_is_autosomal_dominant"] = df.get("omim_is_autosomal_dominant", pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
+    feats["clingen_validity_score"]     = df.get("clingen_validity_score",     pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
+
+    # --- HGMD (2 features) ---
+    feats["hgmd_is_disease_mutation"] = df.get("hgmd_is_disease_mutation", pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
+    feats["hgmd_n_reports"]           = df.get("hgmd_n_reports",           pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
 
     # --- Chromosome context (3 features) ---
     chrom = df.get("chrom", pd.Series(["0"] * len(df), index=df.index)).fillna("0").astype(str)
