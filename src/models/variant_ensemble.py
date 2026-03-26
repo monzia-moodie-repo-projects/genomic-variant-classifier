@@ -35,7 +35,7 @@ from __future__ import annotations
 
 import logging
 import warnings
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
@@ -63,54 +63,101 @@ logger = logging.getLogger(__name__)
 warnings.filterwarnings("ignore", category=UserWarning)
 
 # ---------------------------------------------------------------------------
-# Feature definitions
+# Feature definitions  (46 features — must match DataPrepPipeline._engineer_features)
 # ---------------------------------------------------------------------------
-TABULAR_FEATURES = [
-    # Allele / variant properties
-    "allele_freq",              # population AF from gnomAD
-    "ref_len",                  # length of reference allele
-    "alt_len",                  # length of alternate allele
-    "is_snv",                   # 1 if single nucleotide variant
-    "is_indel",                 # 1 if insertion or deletion
-    # Functional scores
-    "cadd_phred",               # CADD PHRED (higher = more deleterious)
-    "sift_score",               # SIFT (lower = more deleterious)
-    "polyphen2_score",          # PolyPhen-2 HDIV score
-    "revel_score",              # REVEL ensemble score
-    "phylop_score",             # phyloP conservation score
-    "splice_ai_score",          # SpliceAI max delta score (0–1); 0 = no impact
-    "gerp_score",               # GERP++ RS; 0 = neutral
-    "alphamissense_score",      # AlphaMissense pathogenicity (0–1); 0.5 = not covered
-    # Coding context
-    "in_coding_region",         # 1 if in coding region
-    "in_splice_site",           # 1 if within 2 bp of exon boundary
-    # NOTE: codon_position removed — was always 0 (placeholder never filled).
-    #       Requires HGVSc + VEP; NOT derivable from HGVSp alone. (Issue P)
-    "is_missense",              # 1 if missense variant
-    "is_nonsense",              # 1 if stop-gain / nonsense
-    # Gene-level
-    "gene_constraint_oe",       # gnomAD pLoF observed/expected ratio
-    "num_pathogenic_in_gene",   # ClinVar count of pathogenic variants in gene
-    # Protein features (from UniProt)
-    "in_active_site",           # 1 if overlaps active site annotation
-    "in_domain",                # 1 if overlaps annotated protein domain
-    # Expression / regulatory (GTEx v8)
-    "gtex_max_tpm",             # max median TPM across tissues (gene level)
-    "gtex_n_tissues_expressed", # tissues with median TPM >= 1.0 (gene level)
-    "gtex_tissue_specificity",  # 1 - mean_tpm/max_tpm (gene level)
-    "gtex_is_eqtl",             # 1 if variant is significant eQTL in any tissue
-    "gtex_min_eqtl_pval",       # max -log10(p) eQTL across tissues
-    "gtex_max_abs_effect",      # max |beta| eQTL effect size across tissues
-]
 
-# Features requiring tools not yet integrated (VEP/HGVSc)
+# VEP consequence → ordinal severity (shared with real_data_prep.py)
+CONSEQUENCE_SEVERITY: dict[str, int] = {
+    "transcript_ablation":                  10,
+    "splice_acceptor_variant":               9,
+    "splice_donor_variant":                  9,
+    "stop_gained":                           9,
+    "frameshift_variant":                    8,
+    "stop_lost":                             8,
+    "start_lost":                            8,
+    "transcript_amplification":              7,
+    "inframe_insertion":                     6,
+    "inframe_deletion":                      6,
+    "missense_variant":                      5,
+    "protein_altering_variant":              5,
+    "splice_region_variant":                 4,
+    "incomplete_terminal_codon_variant":     3,
+    "start_retained_variant":                3,
+    "stop_retained_variant":                 3,
+    "synonymous_variant":                    2,
+    "coding_sequence_variant":               2,
+    "5_prime_UTR_variant":                   2,
+    "3_prime_UTR_variant":                   2,
+    "non_coding_transcript_exon_variant":    1,
+    "intron_variant":                        1,
+    "NMD_transcript_variant":                1,
+    "upstream_gene_variant":                 0,
+    "downstream_gene_variant":               0,
+    "intergenic_variant":                    0,
+}
+
+TABULAR_FEATURES = [
+    # Allele frequency (6)
+    "af_raw",               # gnomAD v4 allele frequency (raw)
+    "af_log10",             # log10(af + 1e-8)
+    "af_is_absent",         # 1 if AF == 0 (absent from gnomAD)
+    "af_is_ultra_rare",     # 1 if AF < 0.0001
+    "af_is_rare",           # 1 if 0.0001 ≤ AF < 0.001
+    "af_is_common",         # 1 if AF ≥ 0.01
+    # Variant type (7)
+    "ref_len",              # length of reference allele
+    "alt_len",              # length of alternate allele
+    "len_diff",             # |alt_len − ref_len|
+    "is_snv",               # 1 if single nucleotide variant
+    "is_insertion",         # 1 if alt longer than ref
+    "is_deletion",          # 1 if ref longer than alt
+    "is_indel",             # 1 if insertion or deletion
+    # Consequence (6)
+    "consequence_severity", # ordinal: 0 (intergenic) → 10 (transcript ablation)
+    "is_loss_of_function",  # stop_gained / frameshift / splice_donor|acceptor / start|stop_lost
+    "is_missense",          # missense_variant
+    "is_synonymous",        # synonymous_variant
+    "is_splice",            # any splice consequence
+    "in_coding",            # missense / synonymous / stop / frameshift / inframe / splice
+    # Functional scores (7)
+    "cadd_phred",           # CADD PHRED (higher = more deleterious); default 15.0
+    "sift_score",           # SIFT (lower = more deleterious); default 0.5
+    "polyphen2_score",      # PolyPhen-2 HDIV score; default 0.5
+    "revel_score",          # REVEL ensemble score; default 0.5
+    "phylop_score",         # phyloP conservation; default 0.0
+    "gerp_score",           # GERP++ RS; default 0.0
+    "alphamissense_score",  # AlphaMissense pathogenicity; 0.5 = not covered
+    # Binary score flags + meta-score (5)
+    "cadd_high",                    # cadd_phred ≥ 20
+    "sift_deleterious",             # sift_score < 0.05
+    "polyphen_probably_damaging",   # polyphen2_score ≥ 0.908
+    "revel_pathogenic",             # revel_score ≥ 0.5
+    "n_tools_pathogenic",           # count of the 4 binary flags above
+    # Gene-level (4)
+    "gene_constraint_oe",           # gnomAD pLoF observed/expected ratio
+    "gene_is_constrained",          # gene_constraint_oe < 0.35
+    "n_pathogenic_in_gene",         # ClinVar pathogenic variant count in this gene
+    "gene_has_known_disease",       # n_pathogenic_in_gene > 0
+    # Protein features (UniProt) (2)
+    "has_uniprot_annotation",               # gene has any UniProt annotation
+    "n_known_pathogenic_protein_variants",  # known pathogenic protein variants
+    # Expression / regulatory (GTEx v8) (6)
+    "gtex_max_tpm",             # max median TPM across tissues (gene level)
+    "gtex_n_tissues_expressed", # tissues with median TPM ≥ 1.0
+    "gtex_tissue_specificity",  # 1 − mean_tpm/max_tpm
+    "gtex_is_eqtl",             # 1 if significant eQTL in any tissue
+    "gtex_min_eqtl_pval",       # max −log10(p) eQTL across tissues
+    "gtex_max_abs_effect",      # max |beta| eQTL effect size
+    # Chromosome context (3)
+    "is_autosome",              # chrom in 1–22
+    "is_sex_chrom",             # chrom in X, Y
+    "is_mitochondrial",         # chrom in MT, M
+]
+# Total: 6 + 7 + 6 + 7 + 5 + 4 + 2 + 6 + 3 = 46
+
+# Features requiring tools not yet integrated
 PHASE_2_FEATURES = [
-    "codon_position",           # 1, 2, or 3 nucleotide position within codon
-                                # requires HGVSc + VEP annotation pipeline
-    # Promoted to TABULAR_FEATURES:
-    # splice_ai_score       — commit 66b2740
-    # alphamissense_score   — this commit
-    # gtex_*  (6 features)  — this commit
+    "codon_position",   # requires HGVSc + VEP annotation pipeline
 ]
 
 SEQUENCE_FEATURES = ["fasta_seq"]   # 101 bp context window, one-hot encoded
@@ -138,61 +185,99 @@ class EnsembleConfig:
 # ---------------------------------------------------------------------------
 def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Derive tabular features from a canonical variant DataFrame.
+    Derive the 46 tabular features from a raw variant DataFrame.
 
-    Input columns used:
-        allele_freq, ref, alt, consequence, cadd_phred, sift_score,
-        polyphen2_score, revel_score, phylop_score, splice_ai_score, gerp_score,
-        gene_constraint_oe, num_pathogenic_in_gene, in_active_site, in_domain
-
+    Mirrors DataPrepPipeline._engineer_features() in src/data/real_data_prep.py.
     All missing columns are filled with population-median defaults so the
     function is safe to call on partially-populated DataFrames.
+
+    Input columns consumed (all optional with safe defaults):
+        allele_freq, ref, alt, consequence,
+        cadd_phred, sift_score, polyphen2_score, revel_score,
+        phylop_score, gerp_score, alphamissense_score,
+        gene_constraint_oe, n_pathogenic_in_gene,
+        has_uniprot_annotation, n_known_pathogenic_protein_variants,
+        gtex_max_tpm, gtex_n_tissues_expressed, gtex_tissue_specificity,
+        gtex_is_eqtl, gtex_min_eqtl_pval, gtex_max_abs_effect,
+        chrom
     """
     feats = pd.DataFrame(index=df.index)
 
-    # Allele frequency
-    feats["allele_freq"] = df.get("allele_freq", 0.0).fillna(0.0)
+    # --- Allele frequency (6 features) ---
+    af = df.get("allele_freq", pd.Series([0.0] * len(df), index=df.index)).fillna(0.0).astype(float).clip(lower=0)
+    feats["af_raw"]           = af
+    feats["af_log10"]         = np.log10(af + 1e-8)
+    feats["af_is_absent"]     = (af == 0).astype(int)
+    feats["af_is_ultra_rare"] = (af < 0.0001).astype(int)
+    feats["af_is_rare"]       = ((af >= 0.0001) & (af < 0.001)).astype(int)
+    feats["af_is_common"]     = (af >= 0.01).astype(int)
 
-    # Allele length
-    ref_col = df.get("ref", pd.Series(["A"] * len(df), index=df.index)).fillna("A")
-    alt_col = df.get("alt", pd.Series(["A"] * len(df), index=df.index)).fillna("A")
-    feats["ref_len"] = ref_col.str.len().fillna(1).astype(int)
-    feats["alt_len"] = alt_col.str.len().fillna(1).astype(int)
-    feats["is_snv"]   = ((feats["ref_len"] == 1) & (feats["alt_len"] == 1)).astype(int)
-    feats["is_indel"] = (feats["is_snv"] == 0).astype(int)
+    # --- Variant type (7 features) ---
+    ref = df.get("ref", pd.Series(["A"] * len(df), index=df.index)).fillna("A")
+    alt = df.get("alt", pd.Series(["A"] * len(df), index=df.index)).fillna("A")
+    ref_len = ref.str.len().clip(lower=1)
+    alt_len = alt.str.len().clip(lower=1)
+    feats["ref_len"]      = ref_len
+    feats["alt_len"]      = alt_len
+    feats["len_diff"]     = (alt_len - ref_len).abs()
+    feats["is_snv"]       = ((ref_len == 1) & (alt_len == 1)).astype(int)
+    feats["is_insertion"] = (alt_len > ref_len).astype(int)
+    feats["is_deletion"]  = (ref_len > alt_len).astype(int)
+    feats["is_indel"]     = (feats["is_insertion"] | feats["is_deletion"]).astype(int)
 
-    # Consequence-based booleans
+    # --- Consequence (6 features) ---
     consequence = df.get("consequence", pd.Series([""] * len(df), index=df.index)).fillna("")
-    feats["is_missense"]     = consequence.str.contains("missense",                case=False).astype(int)
-    feats["is_nonsense"]     = consequence.str.contains("stop_gained|nonsense",    case=False).astype(int)
-    feats["in_splice_site"]  = consequence.str.contains("splice",                  case=False).astype(int)
-    feats["in_coding_region"] = consequence.str.contains(
-        "missense|synonymous|stop|frameshift|inframe", case=False
+    feats["consequence_severity"] = consequence.map(
+        lambda c: max(
+            (CONSEQUENCE_SEVERITY.get(term, 0) for term in str(c).split("&")),
+            default=0,
+        )
+    )
+    feats["is_loss_of_function"] = consequence.str.contains(
+        "stop_gained|frameshift|splice_donor|splice_acceptor|start_lost|stop_lost",
+        case=False, na=False,
+    ).astype(int)
+    feats["is_missense"]   = consequence.str.contains("missense",   case=False, na=False).astype(int)
+    feats["is_synonymous"] = consequence.str.contains("synonymous", case=False, na=False).astype(int)
+    feats["is_splice"]     = consequence.str.contains("splice",     case=False, na=False).astype(int)
+    feats["in_coding"]     = consequence.str.contains(
+        "missense|synonymous|stop|frameshift|inframe|splice", case=False, na=False,
     ).astype(int)
 
-    # Precomputed scores — fill with population median if missing
+    # --- Functional scores (7 features) ---
     score_defaults = {
-        "cadd_phred":            15.0,
-        "sift_score":             0.5,
-        "polyphen2_score":        0.5,
-        "revel_score":            0.5,
-        "phylop_score":           0.0,
-        "splice_ai_score":        0.0,   # 0 = no predicted splice disruption
-        "gerp_score":             0.0,   # GERP++ RS; 0 = neutral
-        "alphamissense_score":    0.5,   # 0.5 = ambiguous / not covered
+        "cadd_phred":         15.0,
+        "sift_score":          0.5,
+        "polyphen2_score":     0.5,
+        "revel_score":         0.5,
+        "phylop_score":        0.0,
+        "gerp_score":          0.0,
+        "alphamissense_score": 0.5,
     }
     for col, default in score_defaults.items():
         feats[col] = df.get(col, pd.Series([default] * len(df), index=df.index)).fillna(default).astype(float)
 
-    # Gene constraint
-    feats["gene_constraint_oe"]    = df.get("gene_constraint_oe",    pd.Series([1.0] * len(df), index=df.index)).fillna(1.0)
-    feats["num_pathogenic_in_gene"] = df.get("num_pathogenic_in_gene", pd.Series([0]   * len(df), index=df.index)).fillna(0)
+    # --- Binary score flags + meta-score (5 features) ---
+    feats["cadd_high"]                  = (feats["cadd_phred"]     >= 20).astype(int)
+    feats["sift_deleterious"]           = (feats["sift_score"]      < 0.05).astype(int)
+    feats["polyphen_probably_damaging"] = (feats["polyphen2_score"] >= 0.908).astype(int)
+    feats["revel_pathogenic"]           = (feats["revel_score"]     >= 0.5).astype(int)
+    feats["n_tools_pathogenic"] = (
+        feats["cadd_high"] + feats["sift_deleterious"] +
+        feats["polyphen_probably_damaging"] + feats["revel_pathogenic"]
+    )
 
-    # Protein annotations
-    feats["in_active_site"] = df.get("in_active_site", pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
-    feats["in_domain"]      = df.get("in_domain",      pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
+    # --- Gene-level (4 features) ---
+    feats["gene_constraint_oe"]  = df.get("gene_constraint_oe",  pd.Series([1.0] * len(df), index=df.index)).fillna(1.0)
+    feats["gene_is_constrained"] = (feats["gene_constraint_oe"] < 0.35).astype(int)
+    feats["n_pathogenic_in_gene"]  = df.get("n_pathogenic_in_gene", pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
+    feats["gene_has_known_disease"] = (feats["n_pathogenic_in_gene"] > 0).astype(int)
 
-    # GTEx expression / regulatory features (populated by _annotate_scores step 6)
+    # --- Protein features (2 features) ---
+    feats["has_uniprot_annotation"] = df.get("has_uniprot_annotation", pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
+    feats["n_known_pathogenic_protein_variants"] = df.get("n_known_pathogenic_protein_variants", pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
+
+    # --- GTEx expression / regulatory (6 features) ---
     gtex_defaults = {
         "gtex_max_tpm":             0.0,
         "gtex_n_tissues_expressed": 0,
@@ -202,19 +287,26 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
         "gtex_max_abs_effect":      0.0,
     }
     for col, default in gtex_defaults.items():
-        feats[col] = (
-            df.get(col, pd.Series([default] * len(df), index=df.index))
-            .fillna(default)
-        )
+        feats[col] = df.get(col, pd.Series([default] * len(df), index=df.index)).fillna(default)
     for col in ["gtex_n_tissues_expressed", "gtex_is_eqtl"]:
         feats[col] = feats[col].astype(int)
 
-    # Validate
+    # --- Chromosome context (3 features) ---
+    chrom = df.get("chrom", pd.Series(["0"] * len(df), index=df.index)).fillna("0").astype(str)
+    feats["is_autosome"]      = chrom.isin([str(i) for i in range(1, 23)]).astype(int)
+    feats["is_sex_chrom"]     = chrom.isin(["X", "Y"]).astype(int)
+    feats["is_mitochondrial"] = chrom.isin(["MT", "M"]).astype(int)
+
+    n_nan = feats.isnull().sum().sum()
+    if n_nan > 0:
+        logger.warning("%d NaN values in feature matrix — filling with 0.", n_nan)
+        feats = feats.fillna(0.0)
+
     feats = feats[TABULAR_FEATURES]
     assert list(feats.columns) == TABULAR_FEATURES, (
-        f"Feature column mismatch. Expected {TABULAR_FEATURES}, got {list(feats.columns)}"
+        f"Feature column mismatch.\nExpected: {TABULAR_FEATURES}\nGot: {list(feats.columns)}"
     )
-    return feats
+    return feats.reset_index(drop=True)
 
 
 def encode_sequence(seq: str, window: int = 101) -> np.ndarray:
