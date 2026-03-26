@@ -184,8 +184,20 @@ TABULAR_FEATURES = [
 ]
 # Total: 6+7+6+9+5+4+2+6+2+3+2+3+1+4+4 = 64
 
-# All planned features have been promoted — PHASE_2_FEATURES is now empty
+# All planned features have been promoted -- PHASE_2_FEATURES is now empty
 PHASE_2_FEATURES: list[str] = []
+
+# Phase 4 features -- ready for next model retrain; NOT in TABULAR_FEATURES yet
+# (current deployed model was trained on 64 features above)
+PHASE_4_FEATURES: list[str] = [
+    # Phase 4A -- ESM-2 protein language model
+    "esm2_delta_norm",          # L2 dist of per-residue embedding wt vs. mut; 0 = not missense
+    # Phase 4C -- MC Dropout uncertainty (produced at inference, not training)
+    "uncertainty_epistemic",    # variance across ensemble members / MC passes
+    "uncertainty_aleatoric",    # mean prediction entropy (data uncertainty)
+    # Phase 3A -- 1000 Genomes AF (pending data download)
+    "population_1kg_af",        # 1000G allele frequency; 0 = absent
+]
 
 SEQUENCE_FEATURES = ["fasta_seq"]   # 101 bp context window, one-hot encoded
 
