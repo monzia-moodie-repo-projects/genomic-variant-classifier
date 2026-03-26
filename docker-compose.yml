@@ -1,0 +1,135 @@
+# ============================================================================
+# Genomic Variant Classifier — docker-compose
+# ============================================================================
+#
+# Services
+# --------
+#   api       FastAPI inference service (always started)
+#   api-dev   Hot-reload dev server on port 8001 (--profile dev)
+#   trainer   Batch training job       (run with: docker compose run trainer)
+#
+# Quick start
+# -----------
+#   # 1. Build
+#   docker compose build api
+#
+#   # 2. Place the trained pipeline artefact:
+#   #    Run scripts/export_model.py first, then:
+#   #    cp outputs/phase2_with_gnomad/phase2_pipeline.joblib models/
+#
+#   # 3. Start
+#   docker compose up api
+#
+#   # 4. Test
+#   curl http://localhost:8000/health
+#   curl -X POST http://localhost:8000/predict \
+#        -H "Content-Type: application/json" \
+#        -d '{"chrom":"17","pos":41276045,"ref":"C","alt":"T","gene_symbol":"BRCA1"}'
+#
+# Volumes
+# -------
+#   ./models   → /app/models   (inference pipeline artefact; read-only for api)
+#   ./data     → /app/data     (raw / processed data; trainer only)
+#   ./outputs  → /app/outputs  (trainer writes here)
+# ============================================================================
+
+version: "3.9"
+
+services:
+
+  # --------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      target: api
+      dockerfile: Dockerfile
+    image: genomic-variant-api:phase2-v1
+    container_name: genomic-variant-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      MODEL_PATH:         /app/models/phase2_pipeline.joblib
+      # Uncomment to enable live gnomAD AF lookup (large file — 8 GB memory):
+      # GNOMAD_INDEX_PATH: /app/data/processed/gnomad_v4_exomes.parquet
+      LOG_LEVEL:          INFO
+      WORKERS:            "2"
+    volumes:
+      - ./models:/app/models:ro
+      # Mount source for local development hot-reload (remove in production):
+      # - ./src:/app/src:ro
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request, sys; r = urllib.request.urlopen('http://localhost:8000/health', timeout=4); sys.exit(0 if r.status == 200 else 1)"]
+      interval: 30s
+      timeout:  10s
+      retries:   3
+      start_period: 20s
+    networks:
+      - app-net
+
+  # --------------------------------------------------------------------------
+  # API with hot-reload for local development
+  # --------------------------------------------------------------------------
+  api-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    image: genomic-variant-api:dev
+    container_name: genomic-variant-api-dev
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./models:/app/models:ro
+      - ./src:/app/src          # live-reload source changes
+    environment:
+      MODEL_PATH: /app/models/phase2_pipeline.joblib
+      PYTHONPATH: /app
+      PYTHONUNBUFFERED: "1"
+    command: >
+      /opt/venv/bin/uvicorn src.api.main:app
+        --host 0.0.0.0 --port 8000 --reload
+    profiles:
+      - dev                     # only starts with: docker compose --profile dev up
+    networks:
+      - app-net
+
+  # --------------------------------------------------------------------------
+  # Trainer — run on demand: docker compose run --rm trainer
+  # --------------------------------------------------------------------------
+  trainer:
+    build:
+      context: .
+      target: trainer
+      dockerfile: Dockerfile
+    image: genomic-variant-trainer:phase2-v1
+    container_name: genomic-variant-trainer
+    profiles:
+      - training               # not started by default; use --profile training
+    environment:
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ./data:/app/data:ro
+      - ./outputs:/app/outputs
+      - ./models:/app/models   # trainer writes the exported pipeline here
+    networks:
+      - app-net
+    # Override CMD to export the pipeline after training:
+    command: >
+      sh -c "
+        python scripts/run_phase2_eval.py
+          --clinvar       data/processed/clinvar_grch38.parquet
+          --alphamissense data/external/alphamissense/AlphaMissense_hg38.tsv.gz
+          --gnomad        data/processed/gnomad_v4_exomes.parquet
+          --skip-nn --skip-svm
+          --min-review-tier 2
+          --output outputs/latest
+        && python scripts/export_model.py
+          --input  outputs/latest
+          --output models/phase2_pipeline.joblib
+      "
+
+networks:
+  app-net:
+    driver: bridge

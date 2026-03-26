@@ -1,0 +1,69 @@
+# Git
+.git
+.gitignore
+.github
+
+# Python caches
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Data and outputs (bind-mounted at runtime; not baked into image)
+data/
+outputs/
+notebooks/
+*.parquet
+*.vcf.gz
+*.tsv.gz
+
+# Jupyter / notebooks
+*.ipynb
+.ipynb_checkpoints/
+
+# Test artefacts
+tests/
+*.test.py
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# Documentation source
+docs/
+*.md
+
+# Logs
+*.log
+logs/
+
+# Model artefacts (bind-mounted at runtime)
+models/
+
+# Secrets — never bake into image
+.env
+*.env
+*.pem
+*.key
