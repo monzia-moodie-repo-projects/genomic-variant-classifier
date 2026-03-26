@@ -81,6 +81,58 @@ class VariantRequest(BaseModel):
         le=1.0,
         description="AlphaMissense pathogenicity score (0 = benign, 1 = pathogenic).",
     )
+    splice_ai_score: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="SpliceAI max delta score (0 = no splice disruption, 1 = high confidence).",
+    )
+    eve_score: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="EVE evolutionary model pathogenicity score (0=benign, 1=pathogenic; 0.5=not covered).",
+    )
+    codon_position: Optional[int] = Field(
+        default=None,
+        ge=0,
+        le=3,
+        description="Position within codon (1, 2, or 3); 0 for non-coding variants.",
+    )
+    dbsnp_af: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="dbSNP population allele frequency (supplement for variants absent from gnomAD).",
+    )
+    omim_n_diseases: Optional[int] = Field(
+        default=None,
+        ge=0,
+        description="Number of OMIM disease phenotypes for this gene.",
+    )
+    omim_is_autosomal_dominant: Optional[int] = Field(
+        default=None,
+        ge=0,
+        le=1,
+        description="1 if gene has any autosomal dominant OMIM phenotype.",
+    )
+    clingen_validity_score: Optional[int] = Field(
+        default=None,
+        ge=0,
+        le=5,
+        description="ClinGen Gene Validity score (0=no evidence, 5=Definitive).",
+    )
+    hgmd_is_disease_mutation: Optional[int] = Field(
+        default=None,
+        ge=0,
+        le=1,
+        description="1 if variant is classified as DM in HGMD.",
+    )
+    hgmd_n_reports: Optional[int] = Field(
+        default=None,
+        ge=0,
+        description="Number of HGMD reports for this variant.",
+    )
 
     # --- Optional: gene-level constraint and ClinVar gene reputation --------
     gene_constraint_oe: Optional[float] = Field(
