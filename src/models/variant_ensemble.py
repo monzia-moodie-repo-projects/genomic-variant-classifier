@@ -26,9 +26,8 @@ CHANGES FROM PHASE 1:
   - Module-level logging.basicConfig removed (Issue L).
   - VariantEnsemble.fit() / evaluate() now robust when CNN/NN are excluded.
   # CHANGES IN PHASE 2:
-#   - splice_ai_score promoted from PHASE_2_FEATURES → TABULAR_FEATURES.
-#     The SpliceAI connector is live and end-to-end tested (commit 72de60e).
-#     Default 0.0 (no predicted splice impact) when column absent.
+#   - alphamissense_score and GTEx features promoted to TABULAR_FEATURES.
+#   - splice_ai_score remains in PHASE_2_FEATURES (SpliceAI connector pending).
 """
 
 from __future__ import annotations
