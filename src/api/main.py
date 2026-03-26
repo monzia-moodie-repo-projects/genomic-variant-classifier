@@ -61,6 +61,7 @@ from fastapi.responses import JSONResponse
 from src.api.schemas import (
     BatchPredictRequest,
     BatchPredictResponse,
+    GeneLookupResponse,
     HealthResponse,
     InfoResponse,
     PredictResponse,
@@ -79,10 +80,14 @@ MODEL_PATH: Path = Path(os.environ.get("MODEL_PATH", "models/phase2_pipeline.job
 GNOMAD_INDEX_PATH: Optional[Path] = (
     Path(p) if (p := os.environ.get("GNOMAD_INDEX_PATH")) else None
 )
+GENE_COUNTS_PATH: Optional[Path] = Path(
+    os.environ.get("GENE_COUNTS_PATH", "data/processed/gene_pathogenic_counts.parquet")
+)
 
 # Filled at startup
 _PIPELINE: Any = None                        # InferencePipeline instance
 _GNOMAD_INDEX: Optional[pd.DataFrame] = None
+_GENE_COUNTS: Optional[pd.Series] = None    # gene_symbol → n_pathogenic_in_gene
 _START_TIME: float = time.monotonic()
 
 # Model provenance — update after each training run
@@ -99,8 +104,8 @@ HOLDOUT_AUROC    = 0.9847   # gene-stratified, 154 K variants
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Load model and optional gnomAD index at startup."""
-    global _PIPELINE, _GNOMAD_INDEX
+    """Load model, optional gnomAD index, and gene counts at startup."""
+    global _PIPELINE, _GNOMAD_INDEX, _GENE_COUNTS
 
     # --- Load inference pipeline ---
     if MODEL_PATH.exists():
@@ -128,6 +133,21 @@ async def lifespan(app: FastAPI):
             logger.info("Loaded gnomAD AF index: %d loci", len(_GNOMAD_INDEX))
         except Exception as exc:
             logger.warning("Could not load gnomAD index: %s", exc)
+
+    # --- Load gene pathogenic counts (optional, but strongly recommended) ---
+    if GENE_COUNTS_PATH and GENE_COUNTS_PATH.exists():
+        try:
+            _df = pd.read_parquet(GENE_COUNTS_PATH)
+            _GENE_COUNTS = _df.set_index("gene_symbol")["n_pathogenic_in_gene"]
+            logger.info("Loaded gene counts: %d genes", len(_GENE_COUNTS))
+        except Exception as exc:
+            logger.warning("Could not load gene counts: %s", exc)
+    else:
+        logger.warning(
+            "GENE_COUNTS_PATH %s not found — n_pathogenic_in_gene will default to 0 "
+            "when callers omit it.  Run: python -c \"...\" to build the table.",
+            GENE_COUNTS_PATH,
+        )
 
     yield  # app is running
 
@@ -161,6 +181,16 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _lookup_gene_count(gene_symbol: str) -> Optional[int]:
+    """Return ClinVar pathogenic variant count for a gene, or None if unknown."""
+    if _GENE_COUNTS is None or not gene_symbol:
+        return None
+    try:
+        return int(_GENE_COUNTS.loc[gene_symbol])
+    except KeyError:
+        return 0   # gene not in ClinVar — treat as no known pathogenic variants
+
 
 def _lookup_gnomad_af(variant_id: str) -> Optional[float]:
     """Try to resolve allele frequency from the in-memory gnomAD index."""
@@ -201,7 +231,11 @@ def _variant_to_row(req: VariantRequest) -> dict:
         "gerp_score":             req.gerp_score,
         "alphamissense_score":    req.alphamissense_score,
         "gene_constraint_oe":     req.gene_constraint_oe,
-        "n_pathogenic_in_gene":   req.n_pathogenic_in_gene,
+        "n_pathogenic_in_gene":   (
+            req.n_pathogenic_in_gene
+            if req.n_pathogenic_in_gene is not None
+            else _lookup_gene_count(req.gene_symbol or "")
+        ),
         "has_uniprot_annotation": req.has_uniprot_annotation or 0,
         "n_known_pathogenic_protein_variants": req.n_known_pathogenic_protein_variants or 0,
         # GTEx features omitted — engineer_features() defaults all to 0
@@ -245,6 +279,7 @@ async def health() -> HealthResponse:
         status              = "ok" if _PIPELINE is not None else "degraded",
         model_loaded        = _PIPELINE is not None,
         gnomad_index_loaded = _GNOMAD_INDEX is not None,
+        gene_counts_loaded  = _GENE_COUNTS is not None,
         uptime_seconds      = round(time.monotonic() - _START_TIME, 1),
     )
 
@@ -357,6 +392,30 @@ async def batch_predict(request: BatchPredictRequest) -> BatchPredictResponse:
         n_uncertain      = sum(1 for c in classes if "Uncertain" in c),
         model_version    = MODEL_VERSION,
         pipeline_version = PIPELINE_VERSION,
+    )
+
+
+@app.get(
+    "/genes/{gene_symbol}",
+    response_model=GeneLookupResponse,
+    summary="ClinVar pathogenic variant count for a gene",
+    tags=["reference"],
+)
+async def gene_lookup(gene_symbol: str) -> GeneLookupResponse:
+    if _GENE_COUNTS is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Gene counts table not loaded.  Check GENE_COUNTS_PATH.",
+        )
+    count = _lookup_gene_count(gene_symbol)
+    if count is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Gene counts table not loaded.",
+        )
+    return GeneLookupResponse(
+        gene_symbol          = gene_symbol,
+        n_pathogenic_in_gene = count,
     )
 
 
