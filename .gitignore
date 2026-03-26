@@ -65,7 +65,8 @@ test_run_pre_commit.txt
 
 # ── Large data files ──────────────────────────────────────────────
 data/external/
-data/processed/
+data/processed/*
+!data/processed/gene_pathogenic_counts.parquet
 data/models/
 data/synthetic/
 

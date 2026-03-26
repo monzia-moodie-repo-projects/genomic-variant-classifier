@@ -205,7 +205,14 @@ class HealthResponse(BaseModel):
     status: str  # "ok" | "degraded"
     model_loaded: bool
     gnomad_index_loaded: bool
+    gene_counts_loaded: bool
     uptime_seconds: float
+
+
+class GeneLookupResponse(BaseModel):
+    gene_symbol: str
+    n_pathogenic_in_gene: int
+    source: str = "ClinVar (training set)"
 
 
 class InfoResponse(BaseModel):

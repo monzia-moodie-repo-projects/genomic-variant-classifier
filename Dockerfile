@@ -102,6 +102,7 @@ USER appuser
 
 # Default environment
 ENV MODEL_PATH=/app/models/phase2_pipeline.joblib \
+    GENE_COUNTS_PATH=/app/data/processed/gene_pathogenic_counts.parquet \
     LOG_LEVEL=INFO \
     WORKERS=2 \
     PORT=8000
