@@ -139,7 +139,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Re-use builder venv but install full training stack on top
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH" \
-    JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+    JAVA_HOME=/usr/lib/jvm/default-java
 
 WORKDIR /app
 
