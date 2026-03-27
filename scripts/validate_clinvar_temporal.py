@@ -412,10 +412,18 @@ def main() -> None:
     )
 
     # -----------------------------------------------------------------------
-    # Score
+    # Score in batches to avoid OOM in engineer_features at 2M+ scale
     # -----------------------------------------------------------------------
-    logger.info("Scoring %d variants ...", len(labeled))
-    y_proba = pipeline.predict_proba(labeled)
+    BATCH = 50_000
+    n = len(labeled)
+    logger.info("Scoring %d variants in batches of %d ...", n, BATCH)
+    proba_parts: list[np.ndarray] = []
+    for start in range(0, n, BATCH):
+        batch = labeled.iloc[start : start + BATCH]
+        proba_parts.append(pipeline.predict_proba(batch))
+        if (start // BATCH + 1) % 10 == 0:
+            logger.info("  Scored %d / %d ...", start + len(batch), n)
+    y_proba = np.concatenate(proba_parts)
     y_true  = labeled[label_col].values.astype(int)
 
     # -----------------------------------------------------------------------
