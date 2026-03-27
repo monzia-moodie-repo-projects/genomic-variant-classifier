@@ -368,15 +368,22 @@ def main() -> None:
 
     # -----------------------------------------------------------------------
     # Deduplicate against training set
+    # For gz input, temporal filtering already excludes training data; skip
+    # the isin check (which is O(n*m) and OOM-prone at 2M+ x 4M+ scale).
     # -----------------------------------------------------------------------
-    if "variant_id" in new_variants.columns and train_ids:
+    if not already_filtered and "variant_id" in new_variants.columns and train_ids:
         before = len(new_variants)
-        new_variants = new_variants[
-            ~new_variants["variant_id"].astype(str).isin(train_ids)
-        ].copy()
+        # Convert to regular Python strings via list to avoid Arrow memory spike
+        vid_list = new_variants["variant_id"].tolist()
+        keep_mask = [v not in train_ids for v in vid_list]
+        new_variants = new_variants[keep_mask].copy()
         logger.info(
             "After removing training overlap: %d (removed %d)",
             len(new_variants), before - len(new_variants),
+        )
+    else:
+        logger.info(
+            "Temporal filter guarantees no training overlap — skipping variant_id dedup."
         )
 
     # -----------------------------------------------------------------------
