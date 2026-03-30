@@ -230,10 +230,16 @@ class InferencePipeline:
                     X[col] = 0.0
 
         X_np = X[model_features].values
-        base_preds = np.column_stack([
-            model.predict_proba(X_np)[:, 1]
-            for model in self.trained_models.values()
-        ])
+        X_df_cat = None   # lazy — only built if catboost is in trained_models
+        base_preds_list = []
+        for name, model in self.trained_models.items():
+            if name == "catboost":
+                if X_df_cat is None:
+                    X_df_cat = X[model_features]   # DataFrame preserves column names
+                base_preds_list.append(model.predict_proba(X_df_cat)[:, 1])
+            else:
+                base_preds_list.append(model.predict_proba(X_np)[:, 1])
+        base_preds = np.column_stack(base_preds_list)
         return self.meta_learner.predict_proba(base_preds)[:, 1]
 
     def predict_proba_with_uncertainty(
@@ -294,11 +300,16 @@ class InferencePipeline:
                     X[col] = 0.0
 
         X_np = X[model_features].values
-
-        base_preds = np.column_stack([
-            model.predict_proba(X_np)[:, 1]
-            for model in self.trained_models.values()
-        ])  # shape (n_variants, n_base_models)
+        X_df_cat = None   # lazy — only built if catboost is in trained_models
+        base_preds_list = []
+        for name, model in self.trained_models.items():
+            if name == "catboost":
+                if X_df_cat is None:
+                    X_df_cat = X[model_features]   # DataFrame preserves column names
+                base_preds_list.append(model.predict_proba(X_df_cat)[:, 1])
+            else:
+                base_preds_list.append(model.predict_proba(X_np)[:, 1])
+        base_preds = np.column_stack(base_preds_list)  # shape (n_variants, n_base_models)
 
         # Epistemic: variance across base model predictions
         uncertainty_epistemic = base_preds.var(axis=1)
