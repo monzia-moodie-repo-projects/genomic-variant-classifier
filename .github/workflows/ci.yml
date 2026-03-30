@@ -70,7 +70,7 @@ jobs:
           else
             pip install -r requirements.txt -r requirements-api.txt
           fi
-          pip install -r requirements-dev.txt httpx seaborn jinja2
+          pip install -r requirements-dev.txt
 
       - name: Run unit tests
         run: |
@@ -157,6 +157,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
 
 
 
