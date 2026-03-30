@@ -147,6 +147,7 @@ def main() -> int:
 
         import joblib
         joblib.dump(prep.scaler, outdir / "scaler.joblib")
+        _write_model_manifest(outdir / "scaler.joblib")
         logger.info("Scaler saved to %s/scaler.joblib", outdir)
 
         # ── Optional GNN training (5.2) ───────────────────────────────────
@@ -191,6 +192,7 @@ def main() -> int:
                     batch_size=32,
                 )
                 joblib.dump(gnn_model, outdir / "models" / "gnn_model.joblib")
+                    _write_model_manifest(outdir / "models" / "gnn_model.joblib")
 
                 # Build a GNNScorer for inference-time gene-level scoring
                 builder = StringDBGraph(combined_score_threshold=string_threshold)
@@ -198,6 +200,7 @@ def main() -> int:
                 full_dataset = build_pyg_dataset(gnn_df, graph, node_feat_cols)
                 gnn_scorer = GNNScorer.from_trainer(gnn_trainer, full_dataset, gnn_df)
                 joblib.dump(gnn_scorer, outdir / "models" / "gnn_scorer.joblib")
+                    _write_model_manifest(outdir / "models" / "gnn_scorer.joblib")
 
                 # Overwrite gnn_score in feature matrices with real GNN predictions
                 for split_name, split_df, X_split in [
@@ -296,7 +299,10 @@ def _save_feature_importance(
     for name, model in ensemble.trained_models_.items():
         base = getattr(model, "base_estimator", model)
         if hasattr(base, "feature_importances_"):
-            imps[name] = list(base.feature_importances_)
+            fi = base.feature_importances_
+            if callable(fi):
+                fi = fi()
+            imps[name] = list(fi)
     if not imps:
         return
     avg = (

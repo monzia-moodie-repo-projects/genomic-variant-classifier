@@ -84,3 +84,6 @@ data/synthetic/
 # ── Environment ───────────────────────────────────────────────────
 .env.local
 .pytest_cache/
+
+# Track model manifests (small JSON, not binary artifacts)
+!models/*.manifest.json
