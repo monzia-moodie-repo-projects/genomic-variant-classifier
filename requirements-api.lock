@@ -1,10 +1,150 @@
+annotated-types==0.7.0
+    # via pydantic
+anyio==4.13.0
+    # via
+    #   starlette
+    #   watchfiles
+catboost==1.2.10
+    # via -r requirements-api.txt
 certifi==2026.2.25
     # via requests
 charset-normalizer==3.4.6
     # via requests
+click==8.3.1
+    # via uvicorn
+colorama==0.4.6
+    # via
+    #   click
+    #   uvicorn
+contourpy==1.3.3
+    # via matplotlib
+cycler==0.12.1
+    # via matplotlib
+deprecated==1.3.1
+    # via limits
+fastapi==0.119.1
+    # via -r requirements-api.txt
+fonttools==4.62.1
+    # via matplotlib
+graphviz==0.21
+    # via catboost
+gunicorn==23.0.0
+    # via -r requirements-api.txt
+h11==0.16.0
+    # via uvicorn
+httptools==0.7.1
+    # via uvicorn
 idna==3.11
-    # via requests
+    # via
+    #   anyio
+    #   requests
+joblib==1.5.3
+    # via
+    #   -r requirements-api.txt
+    #   scikit-learn
+kiwisolver==1.5.0
+    # via matplotlib
+lightgbm==4.6.0
+    # via -r requirements-api.txt
+limits==5.8.0
+    # via slowapi
+matplotlib==3.10.8
+    # via catboost
+narwhals==2.18.1
+    # via plotly
+numpy==2.4.4
+    # via
+    #   -r requirements-api.txt
+    #   catboost
+    #   contourpy
+    #   lightgbm
+    #   matplotlib
+    #   pandas
+    #   scikit-learn
+    #   scipy
+    #   xgboost
+packaging==26.0
+    # via
+    #   gunicorn
+    #   limits
+    #   matplotlib
+    #   plotly
+pandas==2.3.3
+    # via
+    #   -r requirements-api.txt
+    #   catboost
+pillow==12.1.1
+    # via matplotlib
+plotly==6.6.0
+    # via catboost
+prometheus-client==0.24.1
+    # via prometheus-fastapi-instrumentator
+prometheus-fastapi-instrumentator==7.1.0
+    # via -r requirements-api.txt
+pyarrow==19.0.1
+    # via -r requirements-api.txt
+pydantic==2.12.5
+    # via
+    #   -r requirements-api.txt
+    #   fastapi
+pydantic-core==2.41.5
+    # via pydantic
+pyparsing==3.3.2
+    # via matplotlib
+python-dateutil==2.9.0.post0
+    # via
+    #   matplotlib
+    #   pandas
+python-dotenv==1.2.2
+    # via uvicorn
+python-json-logger==3.3.0
+    # via -r requirements-api.txt
+pytz==2026.1.post1
+    # via pandas
+pyyaml==6.0.3
+    # via uvicorn
 requests==2.33.0
     # via -r requirements-api.txt
+scikit-learn==1.8.0
+    # via -r requirements-api.txt
+scipy==1.17.1
+    # via
+    #   catboost
+    #   lightgbm
+    #   scikit-learn
+    #   xgboost
+six==1.17.0
+    # via
+    #   catboost
+    #   python-dateutil
+slowapi==0.1.9
+    # via -r requirements-api.txt
+starlette==0.48.0
+    # via
+    #   fastapi
+    #   prometheus-fastapi-instrumentator
+threadpoolctl==3.6.0
+    # via scikit-learn
+typing-extensions==4.15.0
+    # via
+    #   fastapi
+    #   limits
+    #   pydantic
+    #   pydantic-core
+    #   typing-inspection
+typing-inspection==0.4.2
+    # via pydantic
+tzdata==2025.3
+    # via pandas
 urllib3==2.6.3
     # via requests
+uvicorn==0.34.3
+    # via -r requirements-api.txt
+watchfiles==1.1.1
+    # via uvicorn
+websockets==16.0
+    # via uvicorn
+wrapt==2.1.2
+    # via deprecated
+xgboost==2.1.4
+    # via -r requirements-api.txt
