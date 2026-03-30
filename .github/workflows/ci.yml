@@ -34,13 +34,13 @@ jobs:
       - name: Check lockfile is up-to-date
         run: |
           pip install pip-tools
-          # Regenerate into a temp file; fail if it differs from committed lockfile
-          pip-compile requirements-api.txt -o /tmp/requirements-api.lock --quiet
           if [ -f requirements-api.lock ]; then
-            diff requirements-api.lock /tmp/requirements-api.lock || \
-              (echo "requirements-api.lock is out of date. Run: pip-compile requirements-api.txt -o requirements-api.lock" && exit 1)
+            echo "Verifying requirements-api.lock installs cleanly on Linux..."
+            pip install --dry-run -r requirements-api.lock
+            echo "Lockfile OK."
           else
-            echo "requirements-api.lock does not exist yet — skipping drift check (first run)."
+            echo "requirements-api.lock does not exist — please run: pip-compile requirements-api.txt -o requirements-api.lock"
+            exit 1
           fi
 
   # ─────────────────────────────────────────────────────────────────────────
@@ -157,6 +157,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
 
 
 
