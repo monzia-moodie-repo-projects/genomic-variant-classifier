@@ -64,6 +64,13 @@ from sklearn.svm import SVC
 import xgboost as xgb
 import lightgbm as lgb
 
+try:
+    from src.models.catboost_wrapper import CatBoostVariantClassifier as _CatBoostVC
+    _CATBOOST_AVAILABLE = True
+except ImportError:
+    _CATBOOST_AVAILABLE = False
+    logger.debug("catboost not installed — catboost base model will be skipped.")
+
 logger = logging.getLogger(__name__)
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -213,6 +220,7 @@ class EnsembleConfig:
     class_weight:   str   = "balanced"   # handles class imbalance
     n_jobs:         int   = -1
     model_dir:      Path  = Path("models/ensemble")
+    skip_catboost:  bool  = False    # set True if catboost not installed or --skip-catboost
 
     def __post_init__(self) -> None:
         self.model_dir = Path(self.model_dir)
@@ -650,6 +658,21 @@ class VariantEnsemble:
                 n_estimators=200, max_depth=4, learning_rate=0.05,
                 subsample=0.8, random_state=cfg.random_state,
             ),
+            **({
+                "catboost": _CatBoostVC(
+                    iterations=1000,
+                    learning_rate=0.05,
+                    depth=6,
+                    l2_leaf_reg=3.0,
+                    auto_class_weights="Balanced",
+                    task_type="CPU",
+                    cat_feature_names=[
+                        "gene_symbol", "consequence", "chrom", "review_status"
+                    ],
+                    random_seed=cfg.random_state,
+                    verbose=0,
+                )
+            } if _CATBOOST_AVAILABLE and not cfg.skip_catboost else {}),
             "tabular_nn": TabularNNClassifier(random_state=cfg.random_state),
             "cnn_1d":     CNN1DClassifier(random_state=cfg.random_state),
         }
@@ -687,7 +710,14 @@ class VariantEnsemble:
 
         for model_idx, (name, model) in enumerate(self.base_estimators.items()):
             logger.info("  Training %s ...", name)
-            X_input = X_seq if name == "cnn_1d" else X_tab.values
+            # CatBoost receives the DataFrame (for native categorical columns);
+            # CNN receives the sequence series; all others receive numpy values.
+            if name == "cnn_1d":
+                X_input = X_seq
+            elif name == "catboost":
+                X_input = X_tab          # DataFrame — preserves column names
+            else:
+                X_input = X_tab.values   # numpy — faster for tree/linear models
 
             try:
                 oof = cross_val_predict(
@@ -728,7 +758,12 @@ class VariantEnsemble:
             raise RuntimeError("Call fit() before predict_proba().")
         base_preds = np.zeros((len(X_tab), len(self.trained_models_)))
         for i, (name, model) in enumerate(self.trained_models_.items()):
-            X_input = X_seq if name == "cnn_1d" else X_tab.values
+            if name == "cnn_1d":
+                X_input = X_seq
+            elif name == "catboost":
+                X_input = X_tab          # DataFrame for native categoricals
+            else:
+                X_input = X_tab.values
             base_preds[:, i] = model.predict_proba(X_input)[:, 1]
         return self.meta_learner.predict_proba(base_preds)
 
