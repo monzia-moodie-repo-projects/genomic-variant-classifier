@@ -609,6 +609,30 @@ class TabularNNClassifier(BaseEstimator, ClassifierMixin):
 # ---------------------------------------------------------------------------
 # Ensemble orchestrator
 # ---------------------------------------------------------------------------
+
+def _write_model_manifest(artifact_path):
+    """Write a JSON manifest recording the library versions used to create this artifact."""
+    import json, platform, importlib.metadata
+    from datetime import datetime, timezone
+    artifact_path = Path(artifact_path)
+    libraries = [
+        "numpy", "scikit-learn", "catboost", "lightgbm",
+        "xgboost", "joblib", "pandas", "scipy",
+    ]
+    manifest = {
+        "artifact":   artifact_path.name,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "python":     platform.python_version(),
+        "platform":   platform.platform(),
+        "libraries":  {
+            lib: importlib.metadata.version(lib)
+            for lib in libraries
+        },
+    }
+    manifest_path = artifact_path.with_suffix(".manifest.json")
+    manifest_path.write_text(json.dumps(manifest, indent=2))
+    return manifest_path
+
 class VariantEnsemble:
     """
     Orchestrates training and evaluation of all base classifiers
@@ -817,6 +841,7 @@ class VariantEnsemble:
         path = Path(path or self.config.model_dir / "ensemble.joblib")
         path.parent.mkdir(parents=True, exist_ok=True)
         joblib.dump(self, path)
+        _write_model_manifest(path)
         logger.info("Ensemble saved to %s", path)
 
     @classmethod
