@@ -57,7 +57,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Create an isolated virtualenv
 RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+ENV MODEL_PATH=models/phase4_pipeline.joblib
 
 COPY requirements.txt requirements-api.txt requirements-api.lock* ./
 
@@ -86,7 +86,7 @@ LABEL maintainer="monzia-moodie" \
 
 # Copy virtualenv from builder
 COPY --from=builder /opt/venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+ENV MODEL_PATH=models/phase4_pipeline.joblib
 
 RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 && rm -rf /var/lib/apt/lists/*
 
@@ -107,7 +107,7 @@ RUN adduser --disabled-password --gecos "" appuser \
 USER appuser
 
 # Default environment
-ENV MODEL_PATH=/app/models/phase2_pipeline.joblib \
+ENV MODEL_PATH=/app/models/phase4_pipeline.joblib \
     GENE_SUMMARY_PATH=/app/data/processed/gene_summary.parquet \
     LOG_LEVEL=INFO \
     WORKERS=2 \
@@ -139,14 +139,14 @@ FROM python:${PYTHON_VERSION}-slim AS trainer
 LABEL description="Genomic Variant Classifier — training image (Phase 2)"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        openjdk-17-jre-headless \
+        openjdk-21-jre-headless \
         procps \
     && rm -rf /var/lib/apt/lists/*
 
 # Re-use builder venv but install full training stack on top
 COPY --from=builder /opt/venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH" \
-    JAVA_HOME=/usr/lib/jvm/default-java
+ENV MODEL_PATH=models/phase4_pipeline.joblib \
+    JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
 
 WORKDIR /app
 
@@ -163,3 +163,6 @@ CMD ["python", "scripts/run_phase2_eval.py", \
      "--skip-nn", "--skip-svm", \
      "--min-review-tier", "2", \
      "--output",        "outputs/latest"]
+
+
+
