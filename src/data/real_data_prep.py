@@ -17,10 +17,15 @@ CHANGES FROM PHASE 1:
   - Module-level logging.basicConfig removed (Issue L).
   - Pre-split class balance validation with helpful error message (Issue I).
 
+CHANGES — LOVD integration:
+  - lovd_path added to AnnotationConfig
+  - LOVDConnector wired into _annotate_scores() as step 15
+  - lovd_variant_class added to _engineer_features()
+
 Usage:
     from src.data.real_data_prep import DataPrepPipeline
     pipeline = DataPrepPipeline()
-    X_train, X_test, y_train, y_test, meta_test = pipeline.run(
+    X_train, X_val, X_test, y_train, y_val, y_test, meta_val, meta_test = pipeline.run(
         clinvar_path="data/processed/clinvar_grch38.parquet",
     )
 """
@@ -92,7 +97,7 @@ CONSEQUENCE_SEVERITY: dict[str, int] = {
     "3_prime_UTR_variant":                   2,
     "non_coding_transcript_exon_variant":    1,
     "intron_variant":                        1,
-    "NMD_transcript_variant":                1,
+    "NMD_transcript_variant":               1,
     "upstream_gene_variant":                 0,
     "downstream_gene_variant":               0,
     "intergenic_variant":                    0,
@@ -120,8 +125,6 @@ class DataPrepConfig:
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
 
-
-
 @dataclass
 class AnnotationConfig:
     """
@@ -132,14 +135,25 @@ class AnnotationConfig:
     annotation.
 
     Sequence when run:
-      1. DbNSFPConnector(dbnsfp_path)     -- 6 scores for missense SNVs
-      2. PhyloPConnector(phylop_path)     -- phylop_score for all positions
-      3. CADDConnector()                  -- cadd_phred via REST (if annotate_cadd=True)
-      4. SpliceAIConnector(spliceai_path) -- splice_ai_score (PHASE_2_FEATURES)
+      1.  DbNSFPConnector(dbnsfp_path)     -- 6 scores for missense SNVs
+      2.  PhyloPConnector(phylop_path)     -- phylop_score for all positions
+      3.  CADDConnector()                  -- cadd_phred via REST (if annotate_cadd=True)
+      4.  SpliceAIConnector(spliceai_path) -- splice_ai_score
+      5.  AlphaMissense                   -- alphamissense_score for missense variants
+      6.  GTEx                            -- expression and eQTL features
+      7.  VEP                             -- codon_position
+      8.  OMIM                            -- omim_n_diseases, omim_is_autosomal_dominant
+      9.  ClinGen                         -- clingen_validity_score
+      10. dbSNP                           -- dbsnp_af
+      11. EVE                             -- eve_score
+      12. HGMD                            -- hgmd_is_disease_mutation, hgmd_n_reports
+      13. RNASpliceIsoformPipeline        -- RNA splice-context features (Phase 6.1)
+      14. ProteinStructurePipeline        -- protein structure features (Phase 6.2)
+      15. LOVDConnector(lovd_path)        -- lovd_variant_class (ordinal 0-4)
 
     annotate_cadd is False by default because the CADD REST API requires
     1.5 s/variant. Enable only for small batches or when the pre-computed
-    file is available (PHASE_2_PLACEHOLDER).
+    file is available.
     """
     dbnsfp_path:        Optional[Path] = None
     phylop_path:        Optional[Path] = None
@@ -155,8 +169,12 @@ class AnnotationConfig:
     eve_path:           Optional[Path] = None
     hgmd_path:          Optional[Path] = None
     kg_path:            Optional[Path] = None   # 1000 Genomes Phase 3 AF parquet
+    finngen_path:       Optional[Path] = None   # FinnGen R10 annotated variants TSV
+    lovd_path:          Optional[Path] = None   # LOVD all-variants parquet
     rna_pipeline:       bool           = True   # Phase 6.1: RNA splice-context features
     protein_cache_dir:  Optional[Path] = None   # Phase 6.2: AlphaFold/UniProt cache dir
+
+
 # ---------------------------------------------------------------------------
 # Core pipeline
 # ---------------------------------------------------------------------------
@@ -166,7 +184,11 @@ class DataPrepPipeline:
     from the canonical parquet format produced by database_connectors.py.
     """
 
-    def __init__(self, config: Optional[DataPrepConfig] = None, annotation_config: Optional[AnnotationConfig] = None) -> None:
+    def __init__(
+        self,
+        config: Optional[DataPrepConfig] = None,
+        annotation_config: Optional[AnnotationConfig] = None,
+    ) -> None:
         self.config            = config or DataPrepConfig()
         self.annotation_config = annotation_config or AnnotationConfig()
         self.scaler            = StandardScaler()
@@ -189,8 +211,8 @@ class DataPrepPipeline:
 
         Split fractions (gene-aware, no gene straddles splits):
             train : 1 - test_fraction - val_fraction  (~70%)
-            val   : val_fraction                       (~10%)  ← clean holdout
-            test  : test_fraction                      (~20%)  ← dev/tuning set
+            val   : val_fraction                       (~10%)  <- clean holdout
+            test  : test_fraction                      (~20%)  <- dev/tuning set
         """
         logger.info("=== DataPrepPipeline: starting ===")
 
@@ -206,7 +228,6 @@ class DataPrepPipeline:
         if uniprot_path:
             df = self._join_uniprot(df, uniprot_path)
 
-        # Score annotation (Phase 2 connectors)
         logger.info("=== Score annotation: starting ===")
         df = self._annotate_scores(df)
         logger.info("=== Score annotation: complete ===")
@@ -215,13 +236,12 @@ class DataPrepPipeline:
         y      = df["label"].reset_index(drop=True)
         groups = df[self.config.group_column].fillna("unknown").reset_index(drop=True)
 
-        logger.info("Feature matrix: %d rows × %d features.", X.shape[0], X.shape[1])
+        logger.info("Feature matrix: %d rows x %d features.", X.shape[0], X.shape[1])
 
-        # CHANGE: validate class balance BEFORE splitting for a useful error (Issue I)
         if self.config.require_both_classes:
             if set(y.unique()) != {0, 1}:
                 raise ValueError(
-                    f"Dataset missing classes — found only {set(y.unique())}. "
+                    f"Dataset missing classes -- found only {set(y.unique())}. "
                     "Lower min_review_tier or increase dataset size."
                 )
 
@@ -241,7 +261,7 @@ class DataPrepPipeline:
         logger.info("=== DataPrepPipeline: complete ===")
         return X_train, X_val, X_test, y_train, y_val, y_test, meta_val, meta_test
 
-    # ── Stage 1: Load and label ────────────────────────────────────────────
+    # -- Stage 1: Load and label -------------------------------------------
 
     def _load_and_label(self, clinvar_path: str) -> pd.DataFrame:
         df = pd.read_parquet(clinvar_path)
@@ -256,7 +276,7 @@ class DataPrepPipeline:
         df = df[df["label"].notna()].copy()
         df["label"] = df["label"].astype(int)
         logger.info(
-            "Label filtering: %d → %d (%d VUS/conflicting removed).",
+            "Label filtering: %d -> %d (%d VUS/conflicting removed).",
             n_before, len(df), n_before - len(df),
         )
 
@@ -269,7 +289,7 @@ class DataPrepPipeline:
             before = len(df)
             df = df[df["review_tier"] <= self.config.min_review_tier]
             logger.info(
-                "Review tier filter (≤%d): %d → %d.",
+                "Review tier filter (<=%d): %d -> %d.",
                 self.config.min_review_tier, before, len(df),
             )
 
@@ -281,7 +301,7 @@ class DataPrepPipeline:
 
         return df.reset_index(drop=True)
 
-    # ── Stage 2: Enrich with gnomAD AFs ───────────────────────────────────
+    # -- Stage 2: Enrich with gnomAD AFs ----------------------------------
 
     def _join_gnomad(
         self,
@@ -291,11 +311,8 @@ class DataPrepPipeline:
     ) -> pd.DataFrame:
         gnomad = pd.read_parquet(gnomad_path, columns=["variant_id", "allele_freq"]).copy()
 
-        # Build (chrom, pos, ref, alt) join keys from variant_id
-        # Handles both "gnomad:1:69134:A:G" and "1:69134:A:G" formats
-        def _parse_locus(vid: str) -> tuple[str, str, str, str] | None:
+        def _parse_locus(vid: str):
             parts = str(vid).split(":")
-            # strip source prefix if present (non-numeric first part)
             if not parts[0].replace("X","").replace("Y","").replace("M","").isdigit():
                 parts = parts[1:]
             if len(parts) < 4:
@@ -311,7 +328,6 @@ class DataPrepPipeline:
                         [["_chrom","_pos","_ref","_alt","allele_freq"]]
                         .rename(columns={"allele_freq": "gnomad_af"}))
 
-        # Build matching keys on ClinVar side
         df["_chrom"] = df["chrom"].astype(str)
         df["_pos"]   = df["pos"].astype(str)
         df["_ref"]   = df["ref"].astype(str)
@@ -328,7 +344,6 @@ class DataPrepPipeline:
         logger.info("After gnomAD join: %d / %d variants have AF (%.1f%%).",
                     n_matched, len(df), n_matched / len(df) * 100)
 
-        # ── 1000 Genomes Phase 3 fallback for still-null AFs ──────────────
         n_null = int(df["allele_freq"].isna().sum())
         if n_null > 0:
             if kg_path:
@@ -336,20 +351,28 @@ class DataPrepPipeline:
                 kg = ThousandGenomesConnector(kg_path)
                 df = kg.fill_missing_af(df)
                 n_filled = n_null - int(df["allele_freq"].isna().sum())
-                logger.info(
-                    "1000G fallback: filled %d / %d null AFs.",
-                    n_filled, n_null,
-                )
+                logger.info("1000G fallback: filled %d / %d null AFs.", n_filled, n_null)
             else:
                 logger.info(
                     "%d variants still have null AF after gnomAD join. "
-                    "Pass kg_path for 1000 Genomes fallback.",
-                    n_null,
+                    "Pass kg_path for 1000 Genomes fallback.", n_null,
                 )
+
+        # FinnGen R10: third-tier AF fallback after gnomAD and 1KGP
+        if self.annotation_config.finngen_path:
+            from src.data.finngen import FinnGenConnector
+            finngen = FinnGenConnector(tsv_path=self.annotation_config.finngen_path)
+            df = finngen.annotate(df)
+        else:
+            from src.data.finngen import FinnGenConnector, FINNGEN_COLUMNS
+            for col in FINNGEN_COLUMNS:
+                if col not in df.columns:
+                    df[col] = 0.0
+            df["finngen_enrichment"] = 1.0
 
         return df
 
-    # ── Stage 3: Enrich with UniProt protein features ─────────────────────
+    # -- Stage 3: Enrich with UniProt protein features --------------------
 
     def _join_uniprot(self, df: pd.DataFrame, uniprot_path: str) -> pd.DataFrame:
         uniprot = pd.read_parquet(uniprot_path)
@@ -371,35 +394,18 @@ class DataPrepPipeline:
         )
         return df
 
-    # ── Stage 4: Feature engineering ──────────────────────────────────────
+    # -- Stage 4: Score annotation ----------------------------------------
 
     def _annotate_scores(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Annotate df with pre-computed pathogenicity and conservation scores.
 
-        Sequence:
-          1. DbNSFPConnector             -- 6 scores for missense SNVs in dbNSFP
-          2. PhyloPConnector             -- overwrites phylop_score for all positions
-          3. CADDConnector               -- cadd_phred via REST (skipped by default)
-          4. SpliceAIConnector           -- splice_ai_score
-          5. AlphaMissense               -- alphamissense_score for missense variants
-          6. GTEx                        -- expression and eQTL features
-          7. VEP                         -- codon_position (from protein_change column)
-          8. OMIM                        -- omim_n_diseases, omim_is_autosomal_dominant
-          9. ClinGen                     -- clingen_validity_score
-         10. dbSNP                       -- dbsnp_af (AF supplement for gnomAD-absent variants)
-         11. EVE                         -- eve_score (evolutionary model)
-         12. HGMD                        -- hgmd_is_disease_mutation, hgmd_n_reports
-         13. RNASpliceIsoformPipeline    -- maxentscan_score, dist_to_splice_site,
-                                           exon_number, is_canonical_splice (Phase 6.1)
-         14. ProteinStructurePipeline    -- alphafold_plddt, solvent_accessibility,
-                                           secondary_structure_context, dist_to_active_site (Phase 6.2)
-
-        All connectors run in stub mode when their file is absent.
+        Steps 1-14 are unchanged. Step 15 adds LOVD variant classifications.
+        All connectors run in stub mode (0 / default) when their file is absent.
         """
         ac = self.annotation_config
 
-        # 1. dbNSFP: SIFT, PP2, REVEL, CADD, PhyloP, GERP for missense SNVs
+        # 1. dbNSFP
         dbnsfp = DbNSFPConnector(dbnsfp_file=ac.dbnsfp_path)
         df = dbnsfp.annotate_dataframe(df)
         logger.info(
@@ -407,7 +413,7 @@ class DataPrepPipeline:
             (df.get("sift_score", pd.Series([0.5] * len(df), index=df.index)) != 0.5).sum(),
         )
 
-        # 2. PhyloP: conservation for non-missense positions
+        # 2. PhyloP
         phylop = PhyloPConnector(phylop_file=ac.phylop_path)
         df = phylop.annotate_dataframe(df)
         logger.info(
@@ -424,12 +430,9 @@ class DataPrepPipeline:
                 (df.get("cadd_phred", pd.Series([15.0] * len(df), index=df.index)) != 15.0).sum(),
             )
         else:
-            logger.debug(
-                "Score annotation 3/4 skipped (CADD disabled; "
-                "set annotate_cadd=True to enable)."
-            )
+            logger.debug("Score annotation 3/4 skipped (CADD disabled).")
 
-        # 4. SpliceAI: splice disruption scores (PHASE_2_FEATURES)
+        # 4. SpliceAI
         spliceai = SpliceAIConnector(vcf_path=ac.spliceai_path)
         df = spliceai.fetch(variant_df=df)
         logger.info(
@@ -437,20 +440,20 @@ class DataPrepPipeline:
             (df.get("splice_ai_score", pd.Series([0.0] * len(df), index=df.index)) > 0).sum(),
         )
 
-        # 5. AlphaMissense: missense pathogenicity scores
+        # 5. AlphaMissense
         if ac.alphamissense_path is not None:
             from src.data.alphamissense import AlphaMissenseConnector
             am = AlphaMissenseConnector(tsv_path=ac.alphamissense_path)
             df = am.fetch(variant_df=df)
         else:
-            df["alphamissense_score"] = 0.5   # ambiguous default; safe for _engineer_features
+            df["alphamissense_score"] = 0.5
         logger.info(
             "Score annotation 5/6 (AlphaMissense): %d variants annotated (score != 0.5).",
             (df.get("alphamissense_score",
                     pd.Series([0.5] * len(df), index=df.index)) != 0.5).sum(),
         )
 
-        # 6. GTEx: expression and eQTL features
+        # 6. GTEx
         if ac.gtex_genes:
             from src.data.gtex import GTExConnector, build_gtex_feature_df
             gtex = GTExConnector()
@@ -474,7 +477,7 @@ class DataPrepPipeline:
             int(df.get("gtex_is_eqtl", pd.Series([0]*len(df), index=df.index)).sum()),
         )
 
-        # 7. VEP: codon_position (from protein_change column — no file required)
+        # 7. VEP
         from src.data.vep import VEPConnector
         vep = VEPConnector()
         df = vep.annotate_dataframe(df)
@@ -483,7 +486,7 @@ class DataPrepPipeline:
             int((df.get("codon_position", pd.Series([0]*len(df), index=df.index)) > 0).sum()),
         )
 
-        # 8. OMIM: gene-disease features
+        # 8. OMIM
         from src.data.omim import OMIMConnector
         omim = OMIMConnector(mim2gene_path=ac.omim_path)
         df = omim.annotate_dataframe(df)
@@ -492,7 +495,7 @@ class DataPrepPipeline:
             int((df.get("omim_n_diseases", pd.Series([0]*len(df), index=df.index)) > 0).sum()),
         )
 
-        # 9. ClinGen: gene validity score
+        # 9. ClinGen
         from src.data.clingen import ClinGenConnector
         clingen = ClinGenConnector(csv_path=ac.clingen_path)
         df = clingen.annotate_dataframe(df)
@@ -501,7 +504,7 @@ class DataPrepPipeline:
             int((df.get("clingen_validity_score", pd.Series([0]*len(df), index=df.index)) > 0).sum()),
         )
 
-        # 10. dbSNP: supplemental allele frequency
+        # 10. dbSNP
         from src.data.dbsnp import DbSNPConnector
         dbsnp = DbSNPConnector(parquet_path=ac.dbsnp_path)
         df = dbsnp.annotate_dataframe(df)
@@ -510,7 +513,7 @@ class DataPrepPipeline:
             int((df.get("dbsnp_af", pd.Series([0.0]*len(df), index=df.index)) > 0).sum()),
         )
 
-        # 11. EVE: evolutionary model score
+        # 11. EVE
         from src.data.eve import EVEConnector
         eve = EVEConnector(eve_path=ac.eve_path)
         df = eve.annotate_dataframe(df)
@@ -519,7 +522,7 @@ class DataPrepPipeline:
             int((df.get("eve_score", pd.Series([0.5]*len(df), index=df.index)) != 0.5).sum()),
         )
 
-        # 12. HGMD: disease mutation annotation (requires institutional license)
+        # 12. HGMD
         if ac.hgmd_path is not None:
             from src.data.hgmd import HGMDConnector
             hgmd = HGMDConnector(hgmd_path=ac.hgmd_path)
@@ -559,6 +562,15 @@ class DataPrepPipeline:
             int(df.get("is_missense", pd.Series([0]*len(df), index=df.index)).sum()),
         )
 
+        # 15. LOVD: variant classification (ordinal 0-4)
+        from src.data.lovd import LOVDConnector
+        lovd = LOVDConnector(parquet_path=ac.lovd_path)
+        df = lovd.annotate_dataframe(df)
+        logger.info(
+            "Score annotation 15/15 (LOVD): %d variants with lovd_variant_class > 0.",
+            int((df.get("lovd_variant_class", pd.Series([0]*len(df), index=df.index)) > 0).sum()),
+        )
+
         return df
 
     def _engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -566,25 +578,25 @@ class DataPrepPipeline:
 
         # Allele frequency
         af = df.get("allele_freq", pd.Series(0.0, index=df.index)).fillna(0.0).astype(float).clip(lower=0)
-        feats["af_raw"]          = af
-        feats["af_log10"]        = np.log10(af + 1e-8)
-        feats["af_is_absent"]    = (af == 0).astype(int)
+        feats["af_raw"]           = af
+        feats["af_log10"]         = np.log10(af + 1e-8)
+        feats["af_is_absent"]     = (af == 0).astype(int)
         feats["af_is_ultra_rare"] = (af < 0.0001).astype(int)
-        feats["af_is_rare"]      = ((af >= 0.0001) & (af < 0.001)).astype(int)
-        feats["af_is_common"]    = (af >= 0.01).astype(int)
+        feats["af_is_rare"]       = ((af >= 0.0001) & (af < 0.001)).astype(int)
+        feats["af_is_common"]     = (af >= 0.01).astype(int)
 
         # Variant type
         ref = df.get("ref", pd.Series([""] * len(df), index=df.index)).fillna("")
         alt = df.get("alt", pd.Series([""] * len(df), index=df.index)).fillna("")
         ref_len = ref.str.len().clip(lower=1)
         alt_len = alt.str.len().clip(lower=1)
-        feats["ref_len"]    = ref_len
-        feats["alt_len"]    = alt_len
-        feats["len_diff"]   = (alt_len - ref_len).abs()
-        feats["is_snv"]     = ((ref_len == 1) & (alt_len == 1)).astype(int)
+        feats["ref_len"]      = ref_len
+        feats["alt_len"]      = alt_len
+        feats["len_diff"]     = (alt_len - ref_len).abs()
+        feats["is_snv"]       = ((ref_len == 1) & (alt_len == 1)).astype(int)
         feats["is_insertion"] = (alt_len > ref_len).astype(int)
         feats["is_deletion"]  = (ref_len > alt_len).astype(int)
-        feats["is_indel"]   = (feats["is_insertion"] | feats["is_deletion"]).astype(int)
+        feats["is_indel"]     = (feats["is_insertion"] | feats["is_deletion"]).astype(int)
 
         # Consequence severity
         consequence = df.get("consequence", pd.Series([""] * len(df), index=df.index)).fillna("")
@@ -605,7 +617,7 @@ class DataPrepPipeline:
             "missense|synonymous|stop|frameshift|inframe|splice", case=False, na=False,
         ).astype(int)
 
-        # Precomputed functional scores
+        # Functional scores
         score_defaults = {
             "cadd_phred":            15.0,
             "sift_score":             0.5,
@@ -613,9 +625,9 @@ class DataPrepPipeline:
             "revel_score":            0.5,
             "phylop_score":           0.0,
             "gerp_score":             0.0,
-            "alphamissense_score":    0.5,   # 0.5 = ambiguous / not covered
-            "splice_ai_score":        0.0,   # 0.0 = no splice disruption
-            "eve_score":              0.5,   # 0.5 = not covered / ambiguous
+            "alphamissense_score":    0.5,
+            "splice_ai_score":        0.0,
+            "eve_score":              0.5,
         }
         for col, default in score_defaults.items():
             feats[col] = df.get(col, pd.Series([default] * len(df), index=df.index)).fillna(default).astype(float)
@@ -630,16 +642,16 @@ class DataPrepPipeline:
         )
 
         # Gene-level
-        feats["gene_constraint_oe"]  = df.get("gene_constraint_oe",  pd.Series([1.0] * len(df), index=df.index)).fillna(1.0)
-        feats["gene_is_constrained"] = (feats["gene_constraint_oe"] < 0.35).astype(int)
-        feats["n_pathogenic_in_gene"]  = df.get("n_pathogenic_in_gene", pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
+        feats["gene_constraint_oe"]     = df.get("gene_constraint_oe",  pd.Series([1.0] * len(df), index=df.index)).fillna(1.0)
+        feats["gene_is_constrained"]    = (feats["gene_constraint_oe"] < 0.35).astype(int)
+        feats["n_pathogenic_in_gene"]   = df.get("n_pathogenic_in_gene", pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
         feats["gene_has_known_disease"] = (feats["n_pathogenic_in_gene"] > 0).astype(int)
 
         # Protein features (UniProt-derived)
-        feats["has_uniprot_annotation"] = df.get("has_uniprot_annotation", pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
+        feats["has_uniprot_annotation"]              = df.get("has_uniprot_annotation",              pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
         feats["n_known_pathogenic_protein_variants"] = df.get("n_known_pathogenic_protein_variants", pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
 
-        # GTEx expression / regulatory features (populated by _annotate_scores step 6)
+        # GTEx expression / regulatory features
         gtex_defaults = {
             "gtex_max_tpm":             0.0,
             "gtex_n_tissues_expressed": 0,
@@ -649,84 +661,61 @@ class DataPrepPipeline:
             "gtex_max_abs_effect":      0.0,
         }
         for col, default in gtex_defaults.items():
-            feats[col] = (
-                df.get(col, pd.Series([default] * len(df), index=df.index))
-                .fillna(default)
-            )
+            feats[col] = df.get(col, pd.Series([default] * len(df), index=df.index)).fillna(default)
         for col in ["gtex_n_tissues_expressed", "gtex_is_eqtl"]:
             feats[col] = feats[col].astype(int)
 
-        # Variant coding context (2 features)
+        # Variant coding context
         feats["codon_position"] = df.get("codon_position", pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
-        feats["dbsnp_af"] = df.get("dbsnp_af", pd.Series([0.0] * len(df), index=df.index)).fillna(0.0).astype(float).clip(lower=0)
+        feats["dbsnp_af"]       = df.get("dbsnp_af",       pd.Series([0.0] * len(df), index=df.index)).fillna(0.0).astype(float).clip(lower=0)
 
-        # Gene-disease annotation (3 features)
+        # Gene-disease annotation
         feats["omim_n_diseases"]            = df.get("omim_n_diseases",            pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
         feats["omim_is_autosomal_dominant"] = df.get("omim_is_autosomal_dominant", pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
         feats["clingen_validity_score"]     = df.get("clingen_validity_score",     pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
 
-        # HGMD features (2 features)
+        # HGMD
         feats["hgmd_is_disease_mutation"] = df.get("hgmd_is_disease_mutation", pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
         feats["hgmd_n_reports"]           = df.get("hgmd_n_reports",           pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
 
+        # LOVD classification (ordinal 0-4; 0 = not in LOVD)
+        feats["lovd_variant_class"] = (
+            df.get("lovd_variant_class", pd.Series([0] * len(df), index=df.index))
+            .fillna(0).astype(int).clip(lower=0, upper=4)
+        )
+
         # Chromosome features
         chrom = df.get("chrom", pd.Series(["0"] * len(df), index=df.index)).fillna("0").astype(str)
-        feats["is_autosome"]     = chrom.isin([str(i) for i in range(1, 23)]).astype(int)
-        feats["is_sex_chrom"]    = chrom.isin(["X", "Y"]).astype(int)
+        feats["is_autosome"]      = chrom.isin([str(i) for i in range(1, 23)]).astype(int)
+        feats["is_sex_chrom"]     = chrom.isin(["X", "Y"]).astype(int)
         feats["is_mitochondrial"] = chrom.isin(["MT", "M"]).astype(int)
 
-        # GNN-derived score (pass-through; 0.5 = no GNN / ambiguous)
+        # GNN-derived score
         feats["gnn_score"] = (
             df.get("gnn_score", pd.Series([0.5] * len(df), index=df.index))
-            .fillna(0.5)
-            .astype(float)
-            .clip(lower=0.0, upper=1.0)
+            .fillna(0.5).astype(float).clip(lower=0.0, upper=1.0)
         )
 
         # RNA splice-context features (Phase 6.1)
-        feats["maxentscan_score"] = (
-            df.get("maxentscan_score", pd.Series([0.0] * len(df), index=df.index))
-            .fillna(0.0).astype(float)
-        )
-        feats["dist_to_splice_site"] = (
-            df.get("dist_to_splice_site", pd.Series([50] * len(df), index=df.index))
-            .fillna(50).astype(int)
-        )
-        feats["exon_number"] = (
-            df.get("exon_number", pd.Series([0] * len(df), index=df.index))
-            .fillna(0).astype(int)
-        )
-        feats["is_canonical_splice"] = (
-            df.get("is_canonical_splice", pd.Series([0] * len(df), index=df.index))
-            .fillna(0).astype(int)
-        )
+        feats["maxentscan_score"]    = df.get("maxentscan_score",    pd.Series([0.0] * len(df), index=df.index)).fillna(0.0).astype(float)
+        feats["dist_to_splice_site"] = df.get("dist_to_splice_site", pd.Series([50]  * len(df), index=df.index)).fillna(50).astype(int)
+        feats["exon_number"]         = df.get("exon_number",         pd.Series([0]   * len(df), index=df.index)).fillna(0).astype(int)
+        feats["is_canonical_splice"] = df.get("is_canonical_splice", pd.Series([0]   * len(df), index=df.index)).fillna(0).astype(int)
 
         # Protein structure features (Phase 6.2)
-        feats["alphafold_plddt"] = (
-            df.get("alphafold_plddt", pd.Series([50.0] * len(df), index=df.index))
-            .fillna(50.0).astype(float).clip(lower=0.0, upper=100.0)
-        )
-        feats["solvent_accessibility"] = (
-            df.get("solvent_accessibility", pd.Series([0.5] * len(df), index=df.index))
-            .fillna(0.5).astype(float).clip(lower=0.0, upper=1.0)
-        )
-        feats["secondary_structure_context"] = (
-            df.get("secondary_structure_context", pd.Series([0] * len(df), index=df.index))
-            .fillna(0).astype(int).clip(lower=0, upper=2)
-        )
-        feats["dist_to_active_site"] = (
-            df.get("dist_to_active_site", pd.Series([100.0] * len(df), index=df.index))
-            .fillna(100.0).astype(float).clip(lower=0.0)
-        )
+        feats["alphafold_plddt"]             = df.get("alphafold_plddt",             pd.Series([50.0] * len(df), index=df.index)).fillna(50.0).astype(float).clip(lower=0.0, upper=100.0)
+        feats["solvent_accessibility"]       = df.get("solvent_accessibility",       pd.Series([0.5]  * len(df), index=df.index)).fillna(0.5).astype(float).clip(lower=0.0, upper=1.0)
+        feats["secondary_structure_context"] = df.get("secondary_structure_context", pd.Series([0]    * len(df), index=df.index)).fillna(0).astype(int).clip(lower=0, upper=2)
+        feats["dist_to_active_site"]         = df.get("dist_to_active_site",         pd.Series([100.0]* len(df), index=df.index)).fillna(100.0).astype(float).clip(lower=0.0)
 
         n_nan = feats.isnull().sum().sum()
         if n_nan > 0:
-            logger.warning("%d NaN values in feature matrix — filling with 0.", n_nan)
+            logger.warning("%d NaN values in feature matrix -- filling with 0.", n_nan)
             feats = feats.fillna(0.0)
 
         return feats.reset_index(drop=True)
 
-    # ── Stage 5: Gene-aware split ──────────────────────────────────────────
+    # -- Stage 5: Gene-aware split ----------------------------------------
 
     def _gene_aware_split(
         self,
@@ -734,17 +723,6 @@ class DataPrepPipeline:
         y: pd.Series,
         groups: pd.Series,
     ) -> tuple:
-        """
-        Gene-aware three-way split: train / val / test.
-        All variants of a gene land in the same split — no leakage.
-
-        Step 1: carve test from full data at test_fraction.
-        Step 2: carve val from remaining data.
-                val_fraction is expressed as fraction of the full dataset,
-                so the effective fraction of the remaining pool is
-                val_fraction / (1 - test_fraction).
-        """
-        # Step 1: test split
         splitter = GroupShuffleSplit(
             n_splits=1,
             test_size=self.config.test_fraction,
@@ -752,7 +730,6 @@ class DataPrepPipeline:
         )
         trainval_idx, test_idx = next(splitter.split(X, y, groups=groups))
 
-        # Step 2: val split from the train+val pool
         val_size_of_pool = self.config.val_fraction / (1.0 - self.config.test_fraction)
         val_splitter = GroupShuffleSplit(
             n_splits=1,
@@ -764,7 +741,6 @@ class DataPrepPipeline:
         groups_pool = groups.iloc[trainval_idx]
         rel_train_idx, rel_val_idx = next(val_splitter.split(X_pool, y_pool, groups=groups_pool))
 
-        # Map back to absolute indices
         train_idx = trainval_idx[rel_train_idx]
         val_idx   = trainval_idx[rel_val_idx]
 
@@ -786,7 +762,7 @@ class DataPrepPipeline:
 
         return X_train, X_test, X_val, y_train, y_test, y_val, train_idx, test_idx, val_idx
 
-    # ── Stage 6: Scaling ───────────────────────────────────────────────────
+    # -- Stage 6: Scaling -------------------------------------------------
 
     def _scale(
         self, X_train: pd.DataFrame, X_test: pd.DataFrame, X_val: pd.DataFrame
@@ -797,7 +773,7 @@ class DataPrepPipeline:
         X_val_scaled   = pd.DataFrame(self.scaler.transform(X_val),       columns=cols)
         return X_train_scaled, X_test_scaled, X_val_scaled
 
-    # ── Stage 7: Save ──────────────────────────────────────────────────────
+    # -- Stage 7: Save ----------------------------------------------------
 
     def _save_splits(
         self,
@@ -806,17 +782,17 @@ class DataPrepPipeline:
         meta_val: pd.DataFrame, meta_test: pd.DataFrame,
     ) -> None:
         out = self.config.output_dir
-        X_train.to_parquet(out / "X_train.parquet",       index=False)
-        X_val.to_parquet(out   / "X_val.parquet",         index=False)
-        X_test.to_parquet(out  / "X_test.parquet",        index=False)
-        y_train.to_frame("label").to_parquet(out / "y_train.parquet",    index=False)
-        y_val.to_frame("label").to_parquet(out   / "y_val.parquet",      index=False)
-        y_test.to_frame("label").to_parquet(out  / "y_test.parquet",     index=False)
-        meta_val.to_parquet(out  / "meta_val.parquet",    index=False)
-        meta_test.to_parquet(out / "meta_test.parquet",   index=False)
+        X_train.to_parquet(out / "X_train.parquet",  index=False)
+        X_val.to_parquet(out   / "X_val.parquet",    index=False)
+        X_test.to_parquet(out  / "X_test.parquet",   index=False)
+        y_train.to_frame("label").to_parquet(out / "y_train.parquet",  index=False)
+        y_val.to_frame("label").to_parquet(out   / "y_val.parquet",    index=False)
+        y_test.to_frame("label").to_parquet(out  / "y_test.parquet",   index=False)
+        meta_val.to_parquet(out  / "meta_val.parquet",  index=False)
+        meta_test.to_parquet(out / "meta_test.parquet", index=False)
         logger.info("Splits saved to %s/", out)
 
-    # ── Utilities ──────────────────────────────────────────────────────────
+    # -- Utilities --------------------------------------------------------
 
     def _report_split_stats(
         self,
@@ -827,22 +803,13 @@ class DataPrepPipeline:
         train_genes = groups.iloc[train_idx].nunique()
         test_genes  = groups.iloc[test_idx].nunique()
         val_genes   = groups.iloc[val_idx].nunique()
-        logger.info("─" * 55)
+        logger.info("-" * 55)
         logger.info("%-12s %10s %12s %8s", "Split", "Variants", "Pathogenic", "Genes")
-        logger.info("─" * 55)
-        logger.info(
-            "%-12s %10d %11d (%4.1f%%)  %8d",
-            "Train", len(y_train), y_train.sum(), y_train.mean() * 100, train_genes,
-        )
-        logger.info(
-            "%-12s %10d %11d (%4.1f%%)  %8d",
-            "Val",   len(y_val),   y_val.sum(),   y_val.mean()   * 100, val_genes,
-        )
-        logger.info(
-            "%-12s %10d %11d (%4.1f%%)  %8d",
-            "Test",  len(y_test),  y_test.sum(),  y_test.mean()  * 100, test_genes,
-        )
-        logger.info("─" * 55)
+        logger.info("-" * 55)
+        logger.info("%-12s %10d %11d (%4.1f%%)  %8d", "Train", len(y_train), y_train.sum(), y_train.mean() * 100, train_genes)
+        logger.info("%-12s %10d %11d (%4.1f%%)  %8d", "Val",   len(y_val),   y_val.sum(),   y_val.mean()   * 100, val_genes)
+        logger.info("%-12s %10d %11d (%4.1f%%)  %8d", "Test",  len(y_test),  y_test.sum(),  y_test.mean()  * 100, test_genes)
+        logger.info("-" * 55)
 
     def get_class_weights(self, y: pd.Series) -> dict[int, float]:
         weights = compute_class_weight(
@@ -865,6 +832,8 @@ def enrich_gene_counts(df: pd.DataFrame) -> pd.DataFrame:
     Must be computed on the FULL labeled dataset BEFORE splitting to avoid
     information leakage (the count uses only labeled rows, not the test set).
     """
+    if "n_pathogenic_in_gene" in df.columns:
+        return df  # already present in enriched parquet -- skip duplicate merge
     gene_path_counts = (
         df[df["label"] == 1]
         .groupby("gene_symbol")
@@ -875,8 +844,3 @@ def enrich_gene_counts(df: pd.DataFrame) -> pd.DataFrame:
     df = df.merge(gene_path_counts, on="gene_symbol", how="left")
     df["n_pathogenic_in_gene"] = df["n_pathogenic_in_gene"].fillna(0).astype(int)
     return df
-
-
-
-
-

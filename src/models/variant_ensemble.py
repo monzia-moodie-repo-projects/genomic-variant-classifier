@@ -206,8 +206,12 @@ TABULAR_FEATURES = [
     "af_1kg_eas",
     "af_1kg_sas",
     "af_1kg_amr",
+    # FinnGen R10 population AF (3)
+    "finngen_af_fin",
+    "finngen_af_nfsee",
+    "finngen_enrichment",
 ]
-# Total: 6+7+6+9+5+4+2+6+2+3+2+1+3+1+4+4+5 = 70
+# Total: 6+7+6+9+5+4+2+6+2+3+2+1+3+1+4+4+5+3 = 73 (includes 3 FinnGen AF)
 
 PHASE_2_FEATURES: list[str] = []
 
@@ -394,6 +398,16 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     if n_nan > 0:
         logger.warning("%d NaN values in feature matrix -- filling with 0.", n_nan)
         feats = feats.fillna(0.0)
+
+    # FinnGen R10 population AF (three columns)
+    for _col, _default in [
+        ("finngen_af_fin",     0.0),
+        ("finngen_af_nfsee",   0.0),
+        ("finngen_enrichment", 1.0),
+    ]:
+        feats[_col] = df.get(
+            _col, pd.Series([_default] * len(df), index=df.index)
+        ).fillna(_default).astype(float)
 
     feats = feats[TABULAR_FEATURES]
     assert list(feats.columns) == TABULAR_FEATURES, (
