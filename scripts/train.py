@@ -112,6 +112,16 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     p.add_argument(
+        "--finngen-path",
+        default=None,
+        metavar="PATH",
+        help=(
+            "FinnGen R10 annotated variants TSV (gzipped). "
+            "Adds finngen_af_fin, finngen_af_nfsee, finngen_enrichment features. "
+            "Default: None (stub mode, finngen_af_fin=0.0 for all variants)."
+        ),
+    )
+    p.add_argument(
         "--skip-svm",
         action="store_true",
         default=False,
@@ -184,6 +194,7 @@ def main() -> None:
     annotation_config = AnnotationConfig(
         alphamissense_path=Path(args.alphamissense) if args.alphamissense else None,
         lovd_path=Path(args.lovd_path) if args.lovd_path else None,
+        finngen_path=Path(args.finngen_path) if args.finngen_path else None,
     )
 
     pipeline = DataPrepPipeline(config=config, annotation_config=annotation_config)
