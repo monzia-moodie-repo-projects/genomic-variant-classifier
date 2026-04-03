@@ -708,6 +708,18 @@ class DataPrepPipeline:
         feats["secondary_structure_context"] = df.get("secondary_structure_context", pd.Series([0]    * len(df), index=df.index)).fillna(0).astype(int).clip(lower=0, upper=2)
         feats["dist_to_active_site"]         = df.get("dist_to_active_site",         pd.Series([100.0]* len(df), index=df.index)).fillna(100.0).astype(float).clip(lower=0.0)
 
+        # 1KGP population-stratified AF (5)
+        for _col in ("af_1kg_afr", "af_1kg_eur", "af_1kg_eas", "af_1kg_sas", "af_1kg_amr"):
+            feats[_col] = df.get(_col, pd.Series([0.0] * len(df), index=df.index)).fillna(0.0).astype(float).clip(lower=0)
+
+        # FinnGen R10 population AF (3)
+        for _col, _default in [
+            ("finngen_af_fin",     0.0),
+            ("finngen_af_nfsee",   0.0),
+            ("finngen_enrichment", 1.0),
+        ]:
+            feats[_col] = df.get(_col, pd.Series([_default] * len(df), index=df.index)).fillna(_default).astype(float)
+
         n_nan = feats.isnull().sum().sum()
         if n_nan > 0:
             logger.warning("%d NaN values in feature matrix -- filling with 0.", n_nan)
