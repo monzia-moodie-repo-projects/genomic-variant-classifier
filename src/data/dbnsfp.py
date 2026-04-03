@@ -371,7 +371,7 @@ class DbNSFPConnector:
 
     def _get_index(
         self,
-    ) -> dict[tuple[str, int, str, str], DbNSFPScores]:
+    ) -> pd.DataFrame:
         if self._index is None:
             self._index = self._load_index()
         return self._index
@@ -383,7 +383,7 @@ class DbNSFPConnector:
 
     def _load_index(
         self,
-    ) -> dict[tuple[str, int, str, str], DbNSFPScores]:
+    ) -> pd.DataFrame:
         """
         Build the (chrom, pos, ref, alt) → DbNSFPScores index.
 
@@ -399,7 +399,7 @@ class DbNSFPConnector:
                 "DbNSFP: loading index from parquet cache: %s", cache
             )
             cdf = pd.read_parquet(cache)
-            return self._df_to_index(cdf)
+            return cdf
 
         # 2. Raw file
         if self._path is None or not self._path.exists():
@@ -519,7 +519,7 @@ class DbNSFPConnector:
             except Exception as exc:
                 logger.warning("DbNSFP: could not write cache (%s).", exc)
 
-        return self._df_to_index(full)
+        return full
 
     @staticmethod
     def _df_to_index(
