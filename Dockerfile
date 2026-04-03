@@ -81,7 +81,7 @@ RUN /opt/venv/bin/pip install --upgrade pip \
 FROM python:${PYTHON_VERSION}-slim AS api
 
 LABEL maintainer="monzia-moodie" \
-      description="Genomic Variant Pathogenicity API — Phase 2 (AUROC 0.9847)" \
+      description="Genomic Variant Pathogenicity API — Phase 4 (AUROC 0.9847 val / 0.7927 LOVD ext)" \
       org.opencontainers.image.source="https://github.com/monzia-moodie/genomic-variant-classifier"
 
 # Copy virtualenv from builder
