@@ -384,7 +384,7 @@ class DbNSFPConnector:
     def _cache_path(self) -> Optional[Path]:
         if self._cache_dir is None:
             return None
-        return self._cache_dir / "dbnsfp_full_index.parquet"
+        return self._cache_dir / "dbnsfp_clinvar_index.parquet"
 
     def _load_index(
         self,
