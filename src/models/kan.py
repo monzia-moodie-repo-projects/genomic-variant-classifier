@@ -156,7 +156,13 @@ class KANClassifier(BaseEstimator, ClassifierMixin):
         X_t = torch.tensor(X, dtype=torch.float32)
         y_t = torch.tensor(y.reshape(-1, 1), dtype=torch.float32)
 
-        dataset = {"train_input": X_t, "train_label": y_t}
+        # pykan >= 0.2.x requires both train and test splits in the dataset dict
+        dataset = {
+            "train_input": X_t,
+            "train_label": y_t,
+            "test_input":  X_t,
+            "test_label":  y_t,
+        }
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             self._kan.fit(

@@ -145,12 +145,12 @@ class FinnGenConnector:
                 comment=None,
                 chunksize=self.chunksize,
                 compression=compression,
-                usecols=["#chrom", "pos", "ref", "alt", "af_fin", "af_nfsee"],
-                dtype={"#chrom": str, "pos": int, "ref": str, "alt": str,
-                       "af_fin": float, "af_nfsee": float},
+                usecols=["chr", "pos", "ref", "alt", "GENOME_AF_fin", "GENOME_AF_nfe"],
+                dtype={"chr": str, "pos": int, "ref": str, "alt": str,
+                       "GENOME_AF_fin": float, "GENOME_AF_nfe": float},
             )
             for chunk in reader:
-                chunk.rename(columns={"#chrom": "chrom"}, inplace=True)
+                chunk.rename(columns={"chr": "chrom", "GENOME_AF_fin": "af_fin", "GENOME_AF_nfe": "af_nfsee"}, inplace=True)
                 chunk["chrom"] = chunk["chrom"].map(_normalise_chrom)
                 mask = (
                     chunk["chrom"].isin(query_chroms)

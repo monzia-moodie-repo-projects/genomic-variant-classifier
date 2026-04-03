@@ -355,7 +355,7 @@ class CatBoostVariantClassifier(BaseEstimator, ClassifierMixin):
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         self._model.save_model(str(path))
-        logger.info("CatBoost native model saved → %s", path)
+        logger.info("CatBoost native model saved to %s", path)
 
     @classmethod
     def load_catboost_model(
@@ -501,3 +501,4 @@ def catboost_optuna_search(
     best["random_seed"]        = random_state
     logger.info("Optuna best AUROC: %.4f — params: %s", study.best_value, best)
     return best
+
