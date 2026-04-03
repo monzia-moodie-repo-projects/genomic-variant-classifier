@@ -267,7 +267,11 @@ class DbNSFPConnector:
             Copy of *df* with all six score columns added / replaced.
         """
         out = df.copy()
-        index_df = self._get_index()
+        # Extract unique normalised chromosomes to filter parquet cache
+        _chroms: set[str] = set(
+            df["chrom"].astype(str).apply(_normalise_chrom).unique()
+        ) if "chrom" in df.columns else set()
+        index_df = self._get_index(filter_chroms=_chroms if _chroms else None)
 
         # Resolve effective defaults (module defaults + any overrides)
         effective_defaults = dict(_DEFAULTS)
@@ -371,9 +375,10 @@ class DbNSFPConnector:
 
     def _get_index(
         self,
+        filter_chroms: Optional[set[str]] = None,
     ) -> pd.DataFrame:
         if self._index is None:
-            self._index = self._load_index()
+            self._index = self._load_index(filter_chroms=filter_chroms)
         return self._index
 
     def _cache_path(self) -> Optional[Path]:
@@ -383,6 +388,7 @@ class DbNSFPConnector:
 
     def _load_index(
         self,
+        filter_chroms: Optional[set[str]] = None,
     ) -> pd.DataFrame:
         """
         Build the (chrom, pos, ref, alt) → DbNSFPScores index.
@@ -398,7 +404,15 @@ class DbNSFPConnector:
             logger.info(
                 "DbNSFP: loading index from parquet cache: %s", cache
             )
-            cdf = pd.read_parquet(cache)
+            import pyarrow.parquet as pq
+            import pyarrow as pa
+            chroms = list(filter_chroms) if filter_chroms else None
+            if chroms:
+                filters = [("chrom", "in", chroms)]
+                cdf = pq.read_table(cache, filters=filters).to_pandas()
+            else:
+                cdf = pd.read_parquet(cache)
+            logger.info("DbNSFP: loaded %d variants from cache.", len(cdf))
             return cdf
 
         # 2. Raw file
