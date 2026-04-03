@@ -122,6 +122,16 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     p.add_argument(
+        "--dbnsfp-path",
+        default=None,
+        metavar="PATH",
+        help=(
+            "dbNSFP4 TSV file (raw or gzipped, GRCh38 build). "
+            "Adds SIFT, PolyPhen-2, REVEL, MutationTaster, FATHMM, CADD scores. "
+            "Default: None (stub mode, all scores receive population-median defaults)."
+        ),
+    )
+    p.add_argument(
         "--skip-svm",
         action="store_true",
         default=False,
@@ -195,6 +205,7 @@ def main() -> None:
         alphamissense_path=Path(args.alphamissense) if args.alphamissense else None,
         lovd_path=Path(args.lovd_path) if args.lovd_path else None,
         finngen_path=Path(args.finngen_path) if args.finngen_path else None,
+        dbnsfp_path=Path(args.dbnsfp_path) if args.dbnsfp_path else None,
     )
 
     pipeline = DataPrepPipeline(config=config, annotation_config=annotation_config)
