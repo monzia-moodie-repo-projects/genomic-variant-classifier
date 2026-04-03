@@ -267,43 +267,48 @@ class DbNSFPConnector:
             Copy of *df* with all six score columns added / replaced.
         """
         out = df.copy()
-        index = self._get_index()
+        index_df = self._get_index()
 
         # Resolve effective defaults (module defaults + any overrides)
         effective_defaults = dict(_DEFAULTS)
         effective_defaults.update(missing_overrides)
 
-        # Accumulate scores per column across all rows
-        col_scores: dict[str, list[float]] = {col: [] for col in _DEFAULTS}
+        if index_df.empty:
+            for col_name, default in effective_defaults.items():
+                out[col_name] = default
+            return out
 
-        for _, row in df.iterrows():
-            chrom = _normalise_chrom(str(row.get("chrom", "")))
-            try:
-                pos = int(row.get("pos", -1))
-            except (TypeError, ValueError):
-                pos = -1
-            ref = str(row.get("ref", "")).upper()
-            alt = str(row.get("alt", "")).upper()
-            key = (chrom, pos, ref, alt)
-            scores = index.get(key, _DEFAULT_SCORES)
-            for col_name, val in scores.to_dict().items():
-                col_scores[col_name].append(
-                    val if val != _DEFAULTS[col_name]
-                    else effective_defaults[col_name]
-                )
+        # Normalise join keys on left side
+        left = out[["chrom", "pos", "ref", "alt"]].copy()
+        left["_chrom"] = left["chrom"].astype(str).apply(_normalise_chrom)
+        left["_pos"]   = pd.to_numeric(left["pos"], errors="coerce").astype("Int64")
+        left["_ref"]   = left["ref"].astype(str).str.upper()
+        left["_alt"]   = left["alt"].astype(str).str.upper()
 
-        for col_name, values in col_scores.items():
-            out[col_name] = values
+        # Normalise join keys on right side
+        right = index_df[["chrom", "pos", "ref", "alt"] + list(_OUTPUT_COLS.values())].copy()
+        right = right.rename(columns={
+            "chrom": "_chrom", "pos": "_pos", "ref": "_ref", "alt": "_alt"
+        })
+        right["_chrom"] = right["_chrom"].astype(str).apply(_normalise_chrom)
+        right["_pos"]   = pd.to_numeric(right["_pos"], errors="coerce").astype("Int64")
+        right["_ref"]   = right["_ref"].astype(str).str.upper()
+        right["_alt"]   = right["_alt"].astype(str).str.upper()
 
-        n_hit = sum(
-            1 for _, row in df.iterrows()
-            if (
-                _normalise_chrom(str(row.get("chrom", ""))),
-                int(row.get("pos", -1)) if str(row.get("pos", "")).isdigit() else -1,
-                str(row.get("ref", "")).upper(),
-                str(row.get("alt", "")).upper(),
-            ) in index
-        )
+        # Vectorised merge
+        left = left.reset_index(drop=False).rename(columns={"index": "_orig_idx"})
+        merged = left.merge(
+            right,
+            on=["_chrom", "_pos", "_ref", "_alt"],
+            how="left",
+        ).set_index("_orig_idx")
+
+        score_cols = list(_OUTPUT_COLS.values())
+        for col_name in score_cols:
+            default = effective_defaults.get(col_name, 0.0)
+            out[col_name] = merged[col_name].fillna(default).values
+
+        n_hit = int(merged[score_cols[0]].notna().sum())
         logger.debug(
             "DbNSFP: annotated %d/%d variants with real scores.",
             n_hit, len(df),
@@ -337,8 +342,28 @@ class DbNSFPConnector:
             All six scores.  Fields equal their DEFAULT_* constant for
             variants absent from the index.
         """
-        key = (_normalise_chrom(chrom), int(pos), ref.upper(), alt.upper())
-        return self._get_index().get(key, _DEFAULT_SCORES)
+        index_df = self._get_index()
+        if index_df.empty:
+            return _DEFAULT_SCORES
+        chrom_n = _normalise_chrom(chrom)
+        mask = (
+            (index_df["chrom"].apply(_normalise_chrom) == chrom_n) &
+            (index_df["pos"] == int(pos)) &
+            (index_df["ref"].str.upper() == ref.upper()) &
+            (index_df["alt"].str.upper() == alt.upper())
+        )
+        rows = index_df[mask]
+        if rows.empty:
+            return _DEFAULT_SCORES
+        row = rows.iloc[0]
+        return DbNSFPScores(
+            sift_score=float(row.get("sift_score",      DEFAULT_SIFT)),
+            polyphen2_score=float(row.get("polyphen2_score", DEFAULT_PP2)),
+            revel_score=float(row.get("revel_score",    DEFAULT_REVEL)),
+            cadd_phred=float(row.get("cadd_phred",      DEFAULT_CADD)),
+            phylop_score=float(row.get("phylop_score",  DEFAULT_PHYLOP)),
+            gerp_score=float(row.get("gerp_score",      DEFAULT_GERP)),
+        )
 
     # ------------------------------------------------------------------
     # Index management
