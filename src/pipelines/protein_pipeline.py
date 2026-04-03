@@ -506,3 +506,14 @@ class ProteinStructurePipeline:
             active_sites = []
 
         return _extract_residue_features(residues, residue_pos, active_sites)
+def get_alphafold_features(uniprot_id: str, aa_position: int) -> dict:
+    """Convenience wrapper matching the Phase 6.2 roadmap stub signature."""
+    pipeline = ProteinStructurePipeline()
+    accession_df = pd.DataFrame([{"gene_symbol": uniprot_id, "protein_change": f"p.X{aa_position}X", "is_missense": 1}])
+    result = pipeline.annotate_dataframe(accession_df)
+    return {
+        "alphafold_plddt":            float(result["alphafold_plddt"].iloc[0]),
+        "secondary_structure_context": int(result["secondary_structure_context"].iloc[0]),
+        "solvent_accessibility":       float(result["solvent_accessibility"].iloc[0]),
+        "dist_to_active_site":         float(result["dist_to_active_site"].iloc[0]),
+    }

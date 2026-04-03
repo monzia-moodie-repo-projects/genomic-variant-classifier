@@ -109,17 +109,8 @@ jobs:
             --name smoke-api \
             -p 8000:8000 \
             genomic-variant-api:smoke
-          sleep 3
-          if ! docker ps --filter "name=smoke-api" --filter "status=running" | grep -q smoke-api; then
-            echo "=== CONTAINER CRASHED — LOGS ==="
-            docker logs smoke-api 2>&1 || echo "No logs available"
-            docker rm smoke-api 2>/dev/null || true
-            exit 1
-          fi
-          sleep 17
-          echo "=== Container logs ==="
-          docker logs smoke-api
-          curl --fail --silent http://localhost:8000/health
+          sleep 15
+          curl --fail --silent http://localhost:8000/health | grep -q '"status"'
           docker rm -f smoke-api
 
   # ─────────────────────────────────────────────────────────────────────────
@@ -163,6 +154,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
 
 
 

@@ -48,13 +48,13 @@ services:
       context: .
       target: api
       dockerfile: Dockerfile
-    image: genomic-variant-api:phase2-v1
+    image: genomic-variant-api:phase4-v1
     container_name: genomic-variant-api
     restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
-      MODEL_PATH:         /app/models/phase2_pipeline.joblib
+      MODEL_PATH:         /app/models/phase4_pipeline.joblib
       GENE_SUMMARY_PATH:  /app/data/processed/gene_summary.parquet
       # Uncomment to enable live gnomAD AF lookup (large file — 8 GB memory):
       # GNOMAD_INDEX_PATH: /app/data/processed/gnomad_v4_exomes.parquet
@@ -92,7 +92,7 @@ services:
       - ./models:/app/models:ro
       - ./src:/app/src          # live-reload source changes
     environment:
-      MODEL_PATH: /app/models/phase2_pipeline.joblib
+      MODEL_PATH: /app/models/phase4_pipeline.joblib
       PYTHONPATH: /app
       PYTHONUNBUFFERED: "1"
     command: >
