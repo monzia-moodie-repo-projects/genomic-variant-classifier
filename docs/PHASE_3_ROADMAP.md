@@ -89,3 +89,37 @@ LOEUF=0.449 — correctly identified as LoF-intolerant.
 | Ensemble AUROC | ≥ 0.9941 | ≥ 0.9955 |
 | MCC | ≥ 0.930 | ≥ 0.940 |
 | ECE | ≤ 0.006 | ≤ 0.005 |
+
+## Phase 3D — Architecture Upgrades ✅
+
+- STRING DB v12 graph built: 16,201 nodes, 236,930 edges at threshold=700
+- Edge attributes upgraded 1-dim → 3-dim: [experimental, database, coexpression]
+  Textmining excluded to prevent label leakage from disease papers
+- VariantGAT: edge_dim=1 → edge_dim=3 across all 3 GATConv layers
+- GNN training wired into run_phase2_eval.py via --string-db flag
+- gnn_score injected into X_train/X_val/X_test after GNN training
+- Bayesian UQ: predict_proba_with_uncertainty() now called by _predict_df()
+  uncertainty_epistemic + uncertainty_aleatoric returned in every /predict response
+- BRCA1-ERCC1 edge: database=0.54, coexpression=0.055 (experimental=0.0 expected)
+
+## Phase 3E — Agentic Layer ✅
+
+- DataFreshnessAgent: POST_DOWNLOAD_HOOKS list runs before Spark ETL
+  Hook 1: patch_clinvar_alleles.py (mandatory — prevents AUROC collapse)
+  Hook 2: MD5 checksum validation of downloaded VCFs
+- InterpretabilityAgent: CatBoost SHAP branch added
+  Uses model.get_feature_importance(Pool(X_df), type='ShapValues')
+  Strips bias column; returns (n, f, 1) array consistent with XGB/LGB shape
+  Rankings persisted in shared state for stability comparison
+- TrainingLifecycleAgent: deferred to avoid EWC duplication
+- LiteratureScoutAgent: deferred to Phase 4
+
+## Run 5 Readiness
+
+All Phase 3 code complete. Ready to train with:
+- 78 features (73 original + ESM-2 + pli_score + loeuf + syn_z + mis_z)
+- --string-db 700 flag for GNN training
+- gnomAD constraint TSV at data/external/gnomad/
+- CatBoost isotonic calibration active
+- Nelder-Mead blend weights replacing LR stacker
+- ESM-2 stub mode (0.0) until transformers+torch installed in training env
