@@ -124,3 +124,7 @@ tumor gene data.txt
 variant_ensemble_cff925c.py
 
 data/external/dbnsfp/
+
+experiments/**/*.joblib
+experiments/**/*.cbm
+experiments/**/*.pkl
