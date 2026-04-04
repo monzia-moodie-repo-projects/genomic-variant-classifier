@@ -75,10 +75,15 @@ class StringDBGraph:
         self,
         cache_dir: Path = Path("data/raw/cache"),
         combined_score_threshold: int = 700,
+        local_links_path: Optional[Path] = None,
+        local_info_path: Optional[Path] = None,
     ) -> None:
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.threshold = combined_score_threshold
+        # Pre-downloaded local files (skip HTTP download if provided)
+        self.local_links_path = Path(local_links_path) if local_links_path else None
+        self.local_info_path = Path(local_info_path) if local_info_path else None
         self.graph: Optional[nx.Graph] = None
         self._protein_to_gene: dict[str, str] = {}
 
@@ -109,11 +114,22 @@ class StringDBGraph:
         cache = self.cache_dir / "string_names.parquet"
         if cache.exists():
             df = pd.read_parquet(cache)
+        elif self.local_info_path and self.local_info_path.exists():
+            logger.info("Loading STRING protein info from %s", self.local_info_path)
+            import gzip as _gz
+
+            with _gz.open(self.local_info_path, "rt") as fh:
+                df = pd.read_csv(fh, sep="\t")
+            df.to_parquet(cache, index=False)
         else:
             df = self._download_gz(STRING_NAMES_URL)
             df.to_parquet(cache, index=False)
         # STRING format: "#string_protein_id", "preferred_name", ...
-        id_col = "#string_protein_id" if "#string_protein_id" in df.columns else df.columns[0]
+        id_col = (
+            "#string_protein_id"
+            if "#string_protein_id" in df.columns
+            else df.columns[0]
+        )
         name_col = "preferred_name" if "preferred_name" in df.columns else df.columns[1]
         return dict(zip(df[id_col], df[name_col]))
 
@@ -137,6 +153,13 @@ class StringDBGraph:
         cache_links = self.cache_dir / "string_links.parquet"
         if cache_links.exists() and not force_refresh:
             links_df = pd.read_parquet(cache_links)
+        elif self.local_links_path and self.local_links_path.exists():
+            logger.info("Loading STRING links from %s", self.local_links_path)
+            import gzip as _gz
+
+            with _gz.open(self.local_links_path, "rt") as fh:
+                links_df = pd.read_csv(fh, sep=" ")
+            links_df.to_parquet(cache_links, index=False)
         else:
             links_df = self._download_gz(STRING_URL)
             links_df.to_parquet(cache_links, index=False)
@@ -145,17 +168,34 @@ class StringDBGraph:
         links_df = links_df[links_df["combined_score"] >= self.threshold]
         logger.info("After threshold=%d: %d edges.", self.threshold, len(links_df))
 
+        # Use only high-quality channels — exclude textmining to prevent label
+        # leakage (disease gene papers inflate textmining scores).
+        # Edge attribute vector: [experimental, database, coexpression] / 1000
+        _CHANNELS = ["experiments", "database", "coexpression"]
+        for ch in _CHANNELS:
+            if ch not in links_df.columns:
+                links_df[ch] = 0
+
         G = nx.Graph()
         for _, row in links_df.iterrows():
             p1 = self._protein_to_gene.get(row["protein1"], row["protein1"])
             p2 = self._protein_to_gene.get(row["protein2"], row["protein2"])
-            G.add_edge(p1, p2, weight=row["combined_score"] / 1000.0)
+            G.add_edge(
+                p1,
+                p2,
+                weight=float(row["combined_score"]) / 1000.0,
+                experimental=float(row["experiments"]) / 1000.0,
+                database=float(row["database"]) / 1000.0,
+                coexpression=float(row["coexpression"]) / 1000.0,
+            )
 
         self.graph = G
         self._save_graph(G, cache_path)
         logger.info(
             "STRING graph: %d nodes, %d edges. Saved to %s.",
-            G.number_of_nodes(), G.number_of_edges(), cache_path,
+            G.number_of_nodes(),
+            G.number_of_edges(),
+            cache_path,
         )
         return G
 
@@ -212,22 +252,28 @@ def build_pyg_dataset(
 
     # Build COO edge tensor + edge weights from graph (both directions for undirected)
     edge_pairs: list[list[int]] = []
-    edge_weights: list[float] = []
+    edge_attrs_list: list[list[float]] = []
     for u, v, attrs in graph.edges(data=True):
         if u in gene_index and v in gene_index:
-            w = float(attrs.get("weight", 0.4))  # default 400/1000 if weight absent
+            # 3-channel edge attribute: [experimental, database, coexpression]
+            # Falls back to uniform 0.4 if the graph was built without channel data.
+            ea = [
+                float(attrs.get("experimental", attrs.get("weight", 0.4))),
+                float(attrs.get("database", attrs.get("weight", 0.4))),
+                float(attrs.get("coexpression", attrs.get("weight", 0.4))),
+            ]
             edge_pairs.append([gene_index[u], gene_index[v]])
-            edge_weights.append(w)
+            edge_attrs_list.append(ea)
 
     if edge_pairs:
         ei = torch.tensor(edge_pairs, dtype=torch.long).t().contiguous()
-        ew = torch.tensor(edge_weights, dtype=torch.float).unsqueeze(1)
+        ea = torch.tensor(edge_attrs_list, dtype=torch.float)  # (n_edges, 3)
         # Add reverse edges for undirected message passing
         edge_index = torch.cat([ei, ei.flip(0)], dim=1)
-        edge_attr  = torch.cat([ew, ew], dim=0)  # same weight for both directions
+        edge_attr = torch.cat([ea, ea], dim=0)  # (2*n_edges, 3)
     else:
         edge_index = torch.zeros((2, 0), dtype=torch.long)
-        edge_attr  = torch.zeros((0, 1), dtype=torch.float)
+        edge_attr = torch.zeros((0, 3), dtype=torch.float)
 
     dataset: list[Data] = []
     labeled = variant_df[variant_df[label_col].notna()]
@@ -283,9 +329,26 @@ class VariantGAT(nn.Module):
         super().__init__()
         self.dropout = dropout
 
-        self.conv1 = GATConv(in_channels,             hidden_channels, heads=heads, dropout=dropout, edge_dim=1)
-        self.conv2 = GATConv(hidden_channels * heads, hidden_channels, heads=heads, dropout=dropout, edge_dim=1)
-        self.conv3 = GATConv(hidden_channels * heads, out_channels,    heads=1,    concat=False, dropout=dropout, edge_dim=1)
+        # edge_dim=3: experimental, database, coexpression channels from STRING DB.
+        # Backward-compatible: single-dim edge_attr is zero-padded by GATConv.
+        self.conv1 = GATConv(
+            in_channels, hidden_channels, heads=heads, dropout=dropout, edge_dim=3
+        )
+        self.conv2 = GATConv(
+            hidden_channels * heads,
+            hidden_channels,
+            heads=heads,
+            dropout=dropout,
+            edge_dim=3,
+        )
+        self.conv3 = GATConv(
+            hidden_channels * heads,
+            out_channels,
+            heads=1,
+            concat=False,
+            dropout=dropout,
+            edge_dim=3,
+        )
 
         self.classifier = nn.Sequential(
             nn.Linear(out_channels, 32),
@@ -327,13 +390,18 @@ class GNNTrainer:
         device: Optional[str] = None,
         checkpoint_path: str = "models/best_gat.pt",
     ) -> None:
-        self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
+        self.device = torch.device(
+            device or ("cuda" if torch.cuda.is_available() else "cpu")
+        )
         self.model = model.to(self.device)
         self.optimizer = torch.optim.Adam(
-            model.parameters(), lr=learning_rate, weight_decay=weight_decay,
+            model.parameters(),
+            lr=learning_rate,
+            weight_decay=weight_decay,
         )
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            self.optimizer, T_max=epochs,
+            self.optimizer,
+            T_max=epochs,
         )
         self.epochs = epochs
         self.batch_size = batch_size
@@ -348,8 +416,12 @@ class GNNTrainer:
         for batch in loader:
             batch = batch.to(self.device)
             self.optimizer.zero_grad()
-            out = self.model(batch.x, batch.edge_index, batch.gene_idx,
-                             edge_attr=getattr(batch, "edge_attr", None))
+            out = self.model(
+                batch.x,
+                batch.edge_index,
+                batch.gene_idx,
+                edge_attr=getattr(batch, "edge_attr", None),
+            )
             loss = F.cross_entropy(out, batch.y)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
@@ -368,8 +440,12 @@ class GNNTrainer:
 
         for batch in loader:
             batch = batch.to(self.device)
-            out = self.model(batch.x, batch.edge_index, batch.gene_idx,
-                             edge_attr=getattr(batch, "edge_attr", None))
+            out = self.model(
+                batch.x,
+                batch.edge_index,
+                batch.gene_idx,
+                edge_attr=getattr(batch, "edge_attr", None),
+            )
             proba = F.softmax(out, dim=-1)[:, 1].cpu().numpy()
             all_proba.extend(proba.tolist())
             all_labels.extend(batch.y.cpu().numpy().tolist())
@@ -395,8 +471,10 @@ class GNNTrainer:
         val_dataset: list[Data],
         patience: int = 15,
     ) -> list[dict]:
-        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
-        val_loader   = DataLoader(val_dataset,   batch_size=self.batch_size)
+        train_loader = DataLoader(
+            train_dataset, batch_size=self.batch_size, shuffle=True
+        )
+        val_loader = DataLoader(val_dataset, batch_size=self.batch_size)
 
         best_val_auc = 0.0
         no_improve = 0
@@ -424,12 +502,17 @@ class GNNTrainer:
             if epoch % 10 == 0:
                 logger.info(
                     "Epoch %3d | Train Loss: %.4f | Val Loss: %.4f | Val AUC: %.4f",
-                    epoch, train_loss, val_loss, val_auc,
+                    epoch,
+                    train_loss,
+                    val_loss,
+                    val_auc,
                 )
 
             if no_improve >= patience:
                 logger.info(
-                    "Early stopping at epoch %d. Best Val AUC: %.4f", epoch, best_val_auc,
+                    "Early stopping at epoch %d. Best Val AUC: %.4f",
+                    epoch,
+                    best_val_auc,
                 )
                 break
 
@@ -480,7 +563,9 @@ def train_gnn_pipeline(
     graph = builder.build()
 
     dataset = build_pyg_dataset(variant_df, graph, node_feature_cols)
-    train_data, val_data = train_test_split(dataset, test_size=test_split, random_state=42)
+    train_data, val_data = train_test_split(
+        dataset, test_size=test_split, random_state=42
+    )
 
     # +1 for the focal-gene indicator column appended in build_pyg_dataset
     in_channels = len(node_feature_cols) + 1
@@ -516,7 +601,7 @@ class GNNScorer:
         score = scorer.score("BRCA1")   # -> float in [0, 1]
     """
 
-    DEFAULT_SCORE = 0.5   # ambiguous / gene not in training set
+    DEFAULT_SCORE = 0.5  # ambiguous / gene not in training set
 
     def __init__(self, gene_scores: dict[str, float]) -> None:
         self.gene_scores = gene_scores
@@ -546,7 +631,7 @@ class GNNScorer:
         variant_df : pd.DataFrame
             Raw variant DataFrame with a gene_symbol column.
         """
-        proba = trainer.predict_proba(dataset)   # (n_variants,)
+        proba = trainer.predict_proba(dataset)  # (n_variants,)
 
         vid_to_gene: dict[str, str] = {}
         if "variant_id" in variant_df.columns and "gene_symbol" in variant_df.columns:
@@ -565,8 +650,7 @@ class GNNScorer:
                 gene_accumulator.setdefault(gene, []).append(float(score))
 
         gene_scores = {
-            gene: float(np.mean(scores))
-            for gene, scores in gene_accumulator.items()
+            gene: float(np.mean(scores)) for gene, scores in gene_accumulator.items()
         }
         logger.info(
             "GNNScorer built for %d genes (mean score %.3f).",

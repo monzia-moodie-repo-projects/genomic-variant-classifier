@@ -72,7 +72,7 @@ data/processed/*
 data/models/
 data/synthetic/
 data/external/gnomad/
-
+data/external/string/
 # ── Generated caches ──────────────────────────────────────────────
 *.csv.gz
 *.h5
