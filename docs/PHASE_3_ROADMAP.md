@@ -66,3 +66,26 @@ UK Biobank/TOPMed AFs
 - Missing else branch after conditional assignment is a silent failure —
   models succeed but are never stored; always verify trained_models_ keys
   in debug runs before assuming a model is skipped
+
+  ## Phase 3C — New Biological Signals ✅
+
+| Feature group | Columns | Source | Status |
+|---|---|---|---|
+| ESM-2 protein LM delta norm | esm2_delta_norm (1) | HuggingFace / fair-esm | Live (stub 0.0 without torch) |
+| gnomAD v4.1 gene constraint | pli_score, loeuf, syn_z, mis_z (4) | gnomad.v4.1.constraint_metrics.tsv | Live — 91 MB TSV downloaded |
+| LOVD variant classification | lovd_variant_class | LOVD REST | Blocked — IP ban pending lift |
+| UK Biobank / TOPMed AFs | af_ukb, af_topmed | Controlled access | Pending application |
+
+Feature count: 73 → 74 (ESM-2) → 78 (gnomAD constraint)
+
+Key finding: BRCA1 pLI=0.000 (LoF-tolerant, second-hit mechanism), mis_z=2.338 
+(missense-constrained — correctly reflects BRCA1 biology). TP53 pLI=0.998, 
+LOEUF=0.449 — correctly identified as LoF-intolerant.
+
+## Run 6 Targets (after 3C features active)
+
+| Metric | Run 5 target | Run 6 target |
+|---|---|---|
+| Ensemble AUROC | ≥ 0.9941 | ≥ 0.9955 |
+| MCC | ≥ 0.930 | ≥ 0.940 |
+| ECE | ≤ 0.006 | ≤ 0.005 |
