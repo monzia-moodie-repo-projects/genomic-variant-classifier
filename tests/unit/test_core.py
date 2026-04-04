@@ -826,7 +826,7 @@ class TestDbNSFPConnector:
 
         c1 = DbNSFPConnector(dbnsfp_file=tsv, cache_dir=tmp_path)
         c1.get_scores("17", 43071077, "G", "T")
-        cache_file = tmp_path / "dbnsfp_full_index.parquet"
+        cache_file = tmp_path / "dbnsfp_clinvar_index.parquet"
         assert cache_file.exists(), "Parquet cache not written"
 
         tsv.unlink()
@@ -839,7 +839,7 @@ class TestDbNSFPConnector:
         from src.data.dbnsfp import DbNSFPConnector
         from src.data.sift_polyphen import SIFTPolyPhenConnector
         c6_cache = tmp_path / "dbnsfp_sift_pp2_index.parquet"
-        c7_cache = tmp_path / "dbnsfp_full_index.parquet"
+        c7_cache = tmp_path / "dbnsfp_clinvar_index.parquet"
         assert c6_cache != c7_cache
 
     # ------------------------------------------------------------------
