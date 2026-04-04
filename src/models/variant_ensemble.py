@@ -541,6 +541,34 @@ class TabularNNClassifier(BaseEstimator, ClassifierMixin):
 # Ensemble orchestrator
 # ---------------------------------------------------------------------------
 
+class _IsotonicCalibrator:
+    """
+    Wraps a pre-fitted base model with isotonic regression calibration.
+
+    Replaces CalibratedClassifierCV(cv="prefit") which was removed from
+    sklearn's valid parameter set in versions shipped with Python 3.11 CI
+    runners. IsotonicRegression is stable across all sklearn versions.
+    """
+
+    def __init__(self, base_model) -> None:
+        from sklearn.isotonic import IsotonicRegression
+        self._base = base_model
+        self._iso  = IsotonicRegression(out_of_bounds="clip")
+
+    def fit(self, X_cal: np.ndarray, y_cal: np.ndarray) -> "_IsotonicCalibrator":
+        raw = self._base.predict_proba(X_cal)[:, 1]
+        self._iso.fit(raw, y_cal)
+        return self
+
+    def predict_proba(self, X) -> np.ndarray:
+        raw = self._base.predict_proba(X)[:, 1]
+        p   = self._iso.predict(raw)
+        return np.column_stack([1.0 - p, p])
+
+    def predict(self, X) -> np.ndarray:
+        return (self.predict_proba(X)[:, 1] >= 0.5).astype(int)
+
+
 def _write_model_manifest(artifact_path):
     import json, platform, importlib.metadata
     from datetime import datetime, timezone
@@ -706,7 +734,10 @@ class VariantEnsemble:
                 X_input_fit = X_seq_fit
                 X_input_cal = X_seq_cal
             elif name == "catboost":
-                X_input_fit = X_tab_fit          # DataFrame — preserves column names
+                # Always pass DataFrame — CatBoost needs column names for
+                # categorical feature resolution. Handles numeric-only
+                # DataFrames correctly when no cat columns are present.
+                X_input_fit = X_tab_fit
                 X_input_cal = X_tab_cal
             else:
                 X_input_fit = X_tab_fit.values
@@ -727,11 +758,7 @@ class VariantEnsemble:
 
             if name in _RECALIBRATE:
                 logger.info("  %s — applying isotonic calibration ...", name)
-                cal_model = CalibratedClassifierCV(
-                    estimator=model,
-                    method="isotonic",
-                    cv="prefit",
-                )
+                cal_model = _IsotonicCalibrator(model)
                 cal_model.fit(X_input_cal, y_cal)
                 self.trained_models_[name] = cal_model
             else:
@@ -773,7 +800,12 @@ class VariantEnsemble:
             raise RuntimeError("Call fit() before predict_proba().")
         base_preds = np.zeros((len(X_tab), len(self.trained_models_)))
         for i, (name, model) in enumerate(self.trained_models_.items()):
-            X_input = X_seq if name == "cnn_1d" else (X_tab if name == "catboost" else X_tab.values)
+            if name == "cnn_1d":
+                X_input = X_seq
+            elif name == "catboost":
+                X_input = X_tab
+            else:
+                X_input = X_tab.values
             base_preds[:, i] = model.predict_proba(X_input)[:, 1]
 
         # Prefer Nelder-Mead convex blend; fall back to LR stacker for
