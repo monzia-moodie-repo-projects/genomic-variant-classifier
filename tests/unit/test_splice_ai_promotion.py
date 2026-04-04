@@ -103,8 +103,8 @@ def test_phase_2_features_is_empty():
 # ---------------------------------------------------------------------------
 
 def test_tabular_features_length():
-    """TABULAR_FEATURES must have exactly 74 entries (70 existing + 3 FinnGen)."""
-    assert len(TABULAR_FEATURES) == 74, (
+    """TABULAR_FEATURES must have exactly 78 entries (70 existing + 3 FinnGen)."""
+    assert len(TABULAR_FEATURES) == 78, (
         f"Expected 74 TABULAR_FEATURES, got {len(TABULAR_FEATURES)}: {TABULAR_FEATURES}"
     )
 

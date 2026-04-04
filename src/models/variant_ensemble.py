@@ -212,8 +212,13 @@ TABULAR_FEATURES = [
     "finngen_enrichment",
     # ESM-2 protein language model delta norm (1) — Phase 3C
     "esm2_delta_norm",
+    # gnomAD v4.1 gene constraint metrics (4) — Phase 3C
+    "pli_score",
+    "loeuf",
+    "syn_z",
+    "mis_z",
 ]
-# Total: 6+7+6+9+5+4+2+6+2+3+2+1+3+1+4+4+5+3+1 = 74 (includes ESM-2)
+# Total: 6+7+6+9+5+4+2+6+2+3+2+1+3+1+4+4+5+3+1+4 = 78 (includes ESM-2 + gnomAD constraint)
 
 PHASE_2_FEATURES: list[str] = []
 
@@ -415,6 +420,24 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     feats["esm2_delta_norm"] = (
         df.get("esm2_delta_norm", pd.Series([0.0] * len(df), index=df.index))
         .fillna(0.0).astype(float).clip(lower=0.0)
+    )
+
+    # gnomAD v4.1 gene constraint (4) — safe defaults when connector absent
+    feats["pli_score"] = (
+        df.get("pli_score", pd.Series([0.0] * len(df), index=df.index))
+        .fillna(0.0).astype(float).clip(0.0, 1.0)
+    )
+    feats["loeuf"] = (
+        df.get("loeuf", pd.Series([1.0] * len(df), index=df.index))
+        .fillna(1.0).astype(float).clip(0.0, 5.0)
+    )
+    feats["syn_z"] = (
+        df.get("syn_z", pd.Series([0.0] * len(df), index=df.index))
+        .fillna(0.0).astype(float)
+    )
+    feats["mis_z"] = (
+        df.get("mis_z", pd.Series([0.0] * len(df), index=df.index))
+        .fillna(0.0).astype(float)
     )
 
     feats = feats[TABULAR_FEATURES]
