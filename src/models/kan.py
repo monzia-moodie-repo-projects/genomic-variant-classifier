@@ -125,6 +125,7 @@ class KANClassifier(BaseEstimator, ClassifierMixin):
         batch_size: int = 256,
         random_state: int = 42,
         scale: bool = True,
+        max_fit_samples: int = 100_000,
     ) -> None:
         self.hidden_sizes = hidden_sizes or [64, 32]
         self.spline_degree = spline_degree
@@ -134,6 +135,7 @@ class KANClassifier(BaseEstimator, ClassifierMixin):
         self.batch_size = batch_size
         self.random_state = random_state
         self.scale = scale
+        self.max_fit_samples = max_fit_samples
 
     # ------------------------------------------------------------------
     # Internal fit helpers
@@ -143,6 +145,31 @@ class KANClassifier(BaseEstimator, ClassifierMixin):
         import torch
 
         self._backend_used = "pykan"
+
+        # pykan materialises [n_samples, grid_size, n_features] in one shot.
+        # At 1.2M samples this exceeds 17 GB. Subsample to max_fit_samples
+        # using stratified sampling to preserve class balance.
+        if X.shape[0] > self.max_fit_samples:
+            rng = np.random.default_rng(self.random_state)
+            pos_idx = np.where(y == 1)[0]
+            neg_idx = np.where(y == 0)[0]
+            n_pos = int(self.max_fit_samples * len(pos_idx) / len(y))
+            n_neg = self.max_fit_samples - n_pos
+            chosen = np.concatenate([
+                rng.choice(pos_idx, min(n_pos, len(pos_idx)), replace=False),
+                rng.choice(neg_idx, min(n_neg, len(neg_idx)), replace=False),
+            ])
+            rng.shuffle(chosen)
+            X, y = X[chosen], y[chosen]
+            logger.info(
+                "KAN (pykan): subsampled %d → %d samples to avoid OOM "
+                "(max_fit_samples=%d). Peak RAM ≈ %.1f GB.",
+                len(chosen) + (X.shape[0] - len(chosen)),
+                len(chosen),
+                self.max_fit_samples,
+                len(chosen) * self.grid_size * X.shape[1] * 4 / 1e9,
+            )
+
         n_features = X.shape[1]
         widths = [n_features] + list(self.hidden_sizes) + [1]
 
