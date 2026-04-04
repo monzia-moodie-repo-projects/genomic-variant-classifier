@@ -79,7 +79,7 @@ CONSTRAINT_DEFAULTS: dict[str, float] = {
 }
 
 DEFAULT_TSV_PATH = Path(
-    "data/external/gnomad/gnomad.v4.1.constraint_metrics.tsv.bgz"
+    "data/external/gnomad/gnomad.v4.1.constraint_metrics.tsv"
 )
 _CACHE_SUFFIX = ".constraint_index.parquet"
 
