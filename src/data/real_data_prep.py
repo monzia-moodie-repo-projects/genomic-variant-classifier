@@ -150,6 +150,8 @@ class AnnotationConfig:
       13. RNASpliceIsoformPipeline        -- RNA splice-context features (Phase 6.1)
       14. ProteinStructurePipeline        -- protein structure features (Phase 6.2)
       15. LOVDConnector(lovd_path)        -- lovd_variant_class (ordinal 0-4)
+      16. ESM2Connector                   -- esm2_delta_norm for missense variants (Phase 3C)
+      17. GnomADConstraintConnector       -- pli_score, loeuf, syn_z, mis_z (Phase 3C)
 
     annotate_cadd is False by default because the CADD REST API requires
     1.5 s/variant. Enable only for small batches or when the pre-computed
@@ -173,8 +175,9 @@ class AnnotationConfig:
     lovd_path:          Optional[Path] = None   # LOVD all-variants parquet
     rna_pipeline:       bool           = True   # Phase 6.1: RNA splice-context features
     protein_cache_dir:  Optional[Path] = None   # Phase 6.2: AlphaFold/UniProt cache dir
-    esm2_model_name:    str            = "esm2_t6_8M_UR50D"   # Phase 3C: ESM-2 model
-    esm2_cache_path:    Optional[Path] = None                  # Phase 3C: SQLite cache
+    esm2_model_name:          str            = "esm2_t6_8M_UR50D"   # Phase 3C: ESM-2 model
+    esm2_cache_path:          Optional[Path] = None                  # Phase 3C: SQLite cache
+    gnomad_constraint_path:   Optional[Path] = None                  # Phase 3C: gnomAD constraint TSV
 
 
 # ---------------------------------------------------------------------------
@@ -411,7 +414,7 @@ class DataPrepPipeline:
         dbnsfp = DbNSFPConnector(dbnsfp_file=ac.dbnsfp_path)
         df = dbnsfp.annotate_dataframe(df)
         logger.info(
-            "Score annotation 1/4 (DbNSFP): %d variants with real SIFT scores.",
+            "Score annotation 1/17 (DbNSFP): %d variants with real SIFT scores.",
             (df.get("sift_score", pd.Series([0.5] * len(df), index=df.index)) != 0.5).sum(),
         )
 
@@ -419,7 +422,7 @@ class DataPrepPipeline:
         phylop = PhyloPConnector(phylop_file=ac.phylop_path)
         df = phylop.annotate_dataframe(df)
         logger.info(
-            "Score annotation 2/4 (PhyloP): %d variants with non-zero phylop_score.",
+            "Score annotation 2/17 (PhyloP): %d variants with non-zero phylop_score.",
             (df.get("phylop_score", pd.Series([0.0] * len(df), index=df.index)) != 0.0).sum(),
         )
 
@@ -428,7 +431,7 @@ class DataPrepPipeline:
             cadd = CADDConnector()
             df = cadd.fetch(variant_df=df)
             logger.info(
-                "Score annotation 3/4 (CADD): %d variants with non-median cadd_phred.",
+                "Score annotation 3/17 (CADD): %d variants with non-median cadd_phred.",
                 (df.get("cadd_phred", pd.Series([15.0] * len(df), index=df.index)) != 15.0).sum(),
             )
         else:
@@ -582,8 +585,17 @@ class DataPrepPipeline:
         )
         df = esm2.annotate_dataframe(df)
         logger.info(
-            "Score annotation 16/16 (ESM-2): %d missense variants with esm2_delta_norm > 0.",
+            "Score annotation 16/17 (ESM-2): %d missense variants with esm2_delta_norm > 0.",
             int((df.get("esm2_delta_norm", pd.Series([0.0]*len(df), index=df.index)) > 0).sum()),
+        )
+
+        # 17. gnomAD v4.1 gene constraint (pLI, LOEUF, syn_z, mis_z) — Phase 3C
+        from src.data.connectors.connector_gnomad_constraint import GnomADConstraintConnector
+        constraint = GnomADConstraintConnector(tsv_path=ac.gnomad_constraint_path)
+        df = constraint.annotate_dataframe(df)
+        logger.info(
+            "Score annotation 17/17 (gnomAD constraint): %d genes with pLI > 0.",
+            int((df.get("pli_score", pd.Series([0.0]*len(df), index=df.index)) > 0).sum()),
         )
 
         return df
@@ -726,7 +738,8 @@ class DataPrepPipeline:
         # 1KGP population-stratified AF (5)
         for _col in ("af_1kg_afr", "af_1kg_eur", "af_1kg_eas", "af_1kg_sas", "af_1kg_amr"):
             feats[_col] = df.get(_col, pd.Series([0.0] * len(df), index=df.index)).fillna(0.0).astype(float).clip(lower=0)
-# FinnGen R10 population AF (3)
+
+        # FinnGen R10 population AF (3)
         for _col, _default in [
             ("finngen_af_fin",     0.0),
             ("finngen_af_nfsee",   0.0),
@@ -738,6 +751,24 @@ class DataPrepPipeline:
         feats["esm2_delta_norm"] = (
             df.get("esm2_delta_norm", pd.Series([0.0] * len(df), index=df.index))
             .fillna(0.0).astype(float).clip(lower=0.0)
+        )
+
+        # gnomAD v4.1 gene constraint (4) — Phase 3C
+        feats["pli_score"] = (
+            df.get("pli_score", pd.Series([0.0] * len(df), index=df.index))
+            .fillna(0.0).astype(float).clip(0.0, 1.0)
+        )
+        feats["loeuf"] = (
+            df.get("loeuf", pd.Series([1.0] * len(df), index=df.index))
+            .fillna(1.0).astype(float).clip(0.0, 5.0)
+        )
+        feats["syn_z"] = (
+            df.get("syn_z", pd.Series([0.0] * len(df), index=df.index))
+            .fillna(0.0).astype(float)
+        )
+        feats["mis_z"] = (
+            df.get("mis_z", pd.Series([0.0] * len(df), index=df.index))
+            .fillna(0.0).astype(float)
         )
 
         n_nan = feats.isnull().sum().sum()
