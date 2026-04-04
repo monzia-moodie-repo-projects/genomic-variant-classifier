@@ -1,0 +1,1 @@
+python scripts/train.py --clinvar data/processed/clinvar_grch38.parquet --gnomad data/processed/gnomad_v4_exomes.parquet --out-dir models/v1 --skip-svm --skip-nn --lovd-path data/external/lovd/lovd_all_variants.parquet --finngen-path data/external/finngen/finnge_R12_annotated_variants_v1.gz --dbnsfp-path data/external/dbnsfp/dbNSFP5.3.1a_grch38.gz
