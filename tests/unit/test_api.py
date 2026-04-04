@@ -384,7 +384,10 @@ class TestInferencePipeline:
     def test_predict_single_returns_keys(self):
         pipe   = _make_pipeline(proba=0.85)
         result = pipe.predict_single({"chrom": "17", "pos": 43094692, "ref": "G", "alt": "A"})
-        assert set(result.keys()) == {"pathogenicity_score", "classification", "confidence"}
+        assert set(result.keys()) == {
+            "pathogenicity_score", "classification", "confidence",
+            "uncertainty_epistemic", "uncertainty_aleatoric",
+        }
 
     def test_predict_single_high_score_pathogenic(self):
         pipe   = _make_pipeline(proba=0.95)
