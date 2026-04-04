@@ -629,37 +629,92 @@ class VariantEnsemble:
         self.trained_models_: dict = {}
 
     def fit(self, X_tab: pd.DataFrame, X_seq: pd.Series, y: pd.Series) -> "VariantEnsemble":
+        from sklearn.model_selection import train_test_split as _tts
+
         y_arr = np.asarray(y)
-        logger.info("Training ensemble: %d samples, %d pathogenic.", len(y_arr), int(y_arr.sum()))
-        cv = StratifiedKFold(n_splits=self.config.n_folds, shuffle=True, random_state=self.config.random_state)
-        oof_preds = np.zeros((len(y_arr), len(self.base_estimators)))
+        logger.info(
+            "Training ensemble: %d samples, %d pathogenic.",
+            len(y_arr), int(y_arr.sum()),
+        )
+
+        # Carve out 15% calibration split using index-based split so that
+        # X_tab stays a DataFrame (required for CatBoost column-name dispatch).
+        idx = np.arange(len(y_arr))
+        idx_fit, idx_cal = _tts(
+            idx,
+            test_size=0.15,
+            stratify=y_arr,
+            random_state=self.config.random_state,
+        )
+        X_tab_fit = X_tab.iloc[idx_fit].reset_index(drop=True)
+        X_tab_cal = X_tab.iloc[idx_cal].reset_index(drop=True)
+        X_seq_fit = X_seq.iloc[idx_fit].reset_index(drop=True)
+        X_seq_cal = X_seq.iloc[idx_cal].reset_index(drop=True)
+        y_fit     = y_arr[idx_fit]
+        y_cal     = y_arr[idx_cal]
+
+        cv = StratifiedKFold(
+            n_splits=self.config.n_folds, shuffle=True,
+            random_state=self.config.random_state,
+        )
+
+        oof_preds = np.zeros((len(y_fit), len(self.base_estimators)))
+        # Models that receive post-hoc isotonic calibration.
+        _RECALIBRATE = {"xgboost", "lightgbm", "random_forest"}
 
         for model_idx, (name, model) in enumerate(self.base_estimators.items()):
             logger.info("  Training %s ...", name)
+
+            # Mirror the same 3-way dispatch used in predict_proba().
             if name == "cnn_1d":
-                X_input = X_seq
+                X_input_fit = X_seq_fit
+                X_input_cal = X_seq_cal
             elif name == "catboost":
-                X_input = X_tab
+                X_input_fit = X_tab_fit          # DataFrame — preserves column names
+                X_input_cal = X_tab_cal
             else:
-                X_input = X_tab.values
+                X_input_fit = X_tab_fit.values
+                X_input_cal = X_tab_cal.values
 
             try:
-                oof = cross_val_predict(model, X_input, y_arr, cv=cv, method="predict_proba", n_jobs=1)[:, 1]
+                oof = cross_val_predict(
+                    model, X_input_fit, y_fit,
+                    cv=cv, method="predict_proba", n_jobs=1,
+                )[:, 1]
             except Exception as exc:
-                logger.error("  %s OOF failed: %s -- skipping.", name, exc)
+                logger.error("  %s OOF failed: %s — skipping.", name, exc)
                 oof_preds[:, model_idx] = 0.5
                 continue
 
             oof_preds[:, model_idx] = oof
-            model.fit(X_input, y_arr)
-            self.trained_models_[name] = model
-            logger.info("  %s OOF AUROC: %.4f", name, roc_auc_score(y_arr, oof))
+            model.fit(X_input_fit, y_fit)
 
-        valid_cols = [i for i, name in enumerate(self.base_estimators) if name in self.trained_models_]
+            if name in _RECALIBRATE:
+                logger.info("  %s — applying isotonic calibration ...", name)
+                cal_model = CalibratedClassifierCV(
+                    estimator=model,
+                    method="isotonic",
+                    cv="prefit",
+                )
+                cal_model.fit(X_input_cal, y_cal)
+                self.trained_models_[name] = cal_model
+            else:
+                self.trained_models_[name] = model
+
+            logger.info("  %s OOF AUROC: %.4f", name, roc_auc_score(y_fit, oof))
+
+        # Drop columns for any model that failed and was skipped.
+        valid_cols = [
+            i for i, n in enumerate(self.base_estimators)
+            if n in self.trained_models_
+        ]
         oof_preds = oof_preds[:, valid_cols]
+
         logger.info("Training meta-learner on %d base-model OOF columns ...", len(valid_cols))
-        self.meta_learner.fit(oof_preds, y_arr)
+        self.meta_learner.fit(oof_preds, y_fit)
         self.feature_names_ = list(self.trained_models_.keys())
+
+        # Free unfitted base_estimators from memory (Issue H).
         self.base_estimators.clear()
         return self
 
