@@ -54,12 +54,9 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="1000 Genomes Phase 3 AF parquet for gnomAD AF fallback",
     )
-    p.add_argument(
-        "--string-db",
-        default=None,
-        help="Enable GNN training. Value = STRING combined_score threshold "
-        "(int, default 700) or 'auto'.  Requires torch + torch_geometric.",
-    )
+    p.add_argument("--gnomad-constraint", default=None,
+                   help="Path to gnomAD v4.1 constraint TSV "
+                        "(data/external/gnomad/gnomad.v4.1.constraint_metrics.tsv)")
     p.add_argument("--skip-nn", action="store_true")
     p.add_argument(
         "--skip-svm",
@@ -121,6 +118,9 @@ def main() -> int:
             alphamissense_path=Path(args.alphamissense) if args.alphamissense else None,
             gtex_genes=args.gtex_genes or [],
             kg_path=Path(args.kg) if args.kg else None,
+            gnomad_constraint_path=(
+                Path(args.gnomad_constraint) if args.gnomad_constraint else None
+            ),
         )
         prep = DataPrepPipeline(
             config=DataPrepConfig(
@@ -160,8 +160,12 @@ def main() -> int:
         ens_cfg = EnsembleConfig(n_folds=args.n_folds, model_dir=outdir / "models")
         ensemble = VariantEnsemble(ens_cfg)
         if args.skip_nn:
-            ensemble.base_estimators.pop("cnn_1d", None)
+            ensemble.base_estimators.pop("cnn_1d",     None)
             ensemble.base_estimators.pop("tabular_nn", None)
+        # KAN crashes the process at >100K samples via hard C++ OOM (not caught
+        # by Python except). Skip unconditionally until pykan memory is resolved.
+        ensemble.base_estimators.pop("kan", None)
+        logger.info("KAN skipped: process-killing OOM at scale (pykan limitation).")
         if args.skip_svm or len(y_train) > 100_000:
             ensemble.base_estimators.pop("svm", None)
             logger.info(
