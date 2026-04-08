@@ -58,6 +58,8 @@ def parse_args() -> argparse.Namespace:
                    help="Path to gnomAD v4.1 constraint TSV "
                         "(data/external/gnomad/gnomad.v4.1.constraint_metrics.tsv)")
     p.add_argument("--skip-nn", action="store_true")
+    p.add_argument("--string-db", default=None,
+                   help="Path to STRING DB file, or 'auto' to use config default")
     p.add_argument(
         "--skip-svm",
         action="store_true",
