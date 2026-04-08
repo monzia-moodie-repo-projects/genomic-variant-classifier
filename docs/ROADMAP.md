@@ -239,3 +239,45 @@ n2-highmem-32 and is faster for GPU workloads.
 
 **Note:** `--metadata="install-nvidia-driver=True"` is required on Deep Learning
 VM images to trigger automatic NVIDIA driver installation on first boot.
+
+---
+
+## Run 7 — Completed 2026-04-08
+
+**Holdout AUROC: 0.9862** | 78 features | CPU-only (n2-highmem-32, no GPU)
+
+### Results
+- Holdout AUROC: 0.9862 | AUPRC: 0.9460 | F1: 0.9224 | MCC: 0.8478
+- Train: 1,197,216 | Val: 154,404 | Test: 349,067 | Time: 198s
+- Models saved to: gs://genomic-variant-prod-outputs/run7/models/v1/
+
+### Top 10 Features (vs Run 6)
+1. n_pathogenic_in_gene  568.3  (unchanged #1)
+2. loeuf                 418.2  (gnomAD constraint — new high impact)
+3. syn_z                 370.5  (gnomAD constraint — new high impact)
+4. mis_z                 352.4  (gnomAD constraint — new high impact)
+5. consequence_severity  242.7
+6. pli_score             218.4  (gnomAD constraint)
+7. alphamissense_score   189.7  (confirmed meaningful contribution)
+8. af_raw                173.5
+9. af_log10              105.5
+10. len_diff              86.5
+
+gnomAD v4.1 constraint features now occupy 4 of the top 6 positions.
+
+### Why AUROC Unchanged from Run 6 (0.9862)
+- GNN still did not contribute — CPU-only VM, no GPU acceleration
+- Same 78 features, same data, same ensemble weights expected
+
+### Infrastructure Issues (documented for Run 8)
+- n2-highmem-32 is CPU-only — GPU must be explicitly attached at create time
+- venv torch install fails with libcusparseLt.so.0 missing on this image
+- Fix: remove pip-installed torch from venv, bridge to system torch via .pth
+- Startup script git pull fails as root — requires git safe.directory fix first
+
+### Run 8 Priorities
+1. Use T4 GPU instance (command in Infrastructure section above)
+2. GNN training will activate with GPU — expect AUROC improvement
+3. Add git safe.directory fix to startup script before git pull
+4. Add .pth bridge to startup script to avoid torch/venv conflict
+5. Budget: at 50% monthly GCP budget after Run 7 — stop VM immediately after training
