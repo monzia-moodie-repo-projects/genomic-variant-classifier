@@ -386,3 +386,20 @@ real money spent. They must be consulted before every GCP training run.
   LiteratureScoutAgent will monitor pykan releases.
 - n_pathogenic_in_gene is #1 feature by large margin in every run.
   Must always be present in VariantRequest.
+
+---
+
+## GPU Quota — Status 2026-04-08
+
+GPU quota request (GPUS_ALL_REGIONS = 1) was denied on 2026-04-08.
+Root cause: new account with insufficient billing history.
+
+Action: reapply on or after 2026-04-15 with detailed justification.
+Justification to use:
+  "Production genomic variant pathogenicity classification research.
+   Active billing history from CPU runs on 2026-04-08 (genomic-variant-prod).
+   Requesting 1 GPU for ML ensemble training (CatBoost, LightGBM, XGBoost,
+   PyTorch Geometric GNN). CPU runs take 3-4 hrs; GPU target <1 hr per run."
+
+Run 8 is fully staged and ready — single command to launch once quota approved.
+create_run8.cmd contains the L4 instance create command (g2-standard-8).
