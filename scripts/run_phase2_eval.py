@@ -160,22 +160,27 @@ def main() -> int:
             logger.info("Subsampled training set to %d", args.max_train)
 
         ens_cfg = EnsembleConfig(n_folds=args.n_folds, model_dir=outdir / "models")
-        ensemble = VariantEnsemble(ens_cfg)
-        if args.skip_nn:
-            ensemble.base_estimators.pop("cnn_1d",     None)
-            ensemble.base_estimators.pop("tabular_nn", None)
-        # KAN crashes the process at >100K samples via hard C++ OOM (not caught
-        # by Python except). Skip unconditionally until pykan memory is resolved.
-        ensemble.base_estimators.pop("kan", None)
-        logger.info("KAN skipped: process-killing OOM at scale (pykan limitation).")
-        if args.skip_svm or len(y_train) > 100_000:
-            ensemble.base_estimators.pop("svm", None)
-            logger.info(
-                "SVM skipped: training set %d > 100K (O(n²) infeasible)", len(y_train)
-            )
-
-        ensemble.fit(X_train, seq_tr, y_train)
-        ensemble.save(outdir / "models" / "ensemble.joblib")
+        _ensemble_path = outdir / "models" / "ensemble.joblib"
+        if _ensemble_path.exists():
+            import joblib as _jl
+            logger.info("Resuming: loading existing ensemble from %s", _ensemble_path)
+            ensemble = _jl.load(_ensemble_path)
+        else:
+            ensemble = VariantEnsemble(ens_cfg)
+            if args.skip_nn:
+                ensemble.base_estimators.pop("cnn_1d",     None)
+                ensemble.base_estimators.pop("tabular_nn", None)
+            # KAN crashes the process at >100K samples via hard C++ OOM (not caught
+            # by Python except). Skip unconditionally until pykan memory is resolved.
+            ensemble.base_estimators.pop("kan", None)
+            logger.info("KAN skipped: process-killing OOM at scale (pykan limitation).")
+            if args.skip_svm or len(y_train) > 100_000:
+                ensemble.base_estimators.pop("svm", None)
+                logger.info(
+                    "SVM skipped: training set %d > 100K (O(n²) infeasible)", len(y_train)
+                )
+            ensemble.fit(X_train, seq_tr, y_train)
+            ensemble.save(_ensemble_path)
 
         import joblib
 
