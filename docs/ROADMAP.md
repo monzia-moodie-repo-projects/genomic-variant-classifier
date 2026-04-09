@@ -424,3 +424,29 @@ Implementation notes:
   - Use pl.from_pandas() / .to_pandas() at ETL boundaries
   - Keep pandas for sklearn/model interfaces (no conversion overhead in hot path)
   - Benchmark script: scripts/benchmark_polars.py
+
+---
+
+## Spectral Path Regression — Candidate Ensemble Member (Run 9)
+
+Paper: "Spectral Path Regression: Directional Chebyshev Harmonics for
+Interpretable Tabular Learning" (Coombs, 2025)
+Code: https://github.com/MiloCoombs2002/spectral-paths
+
+Relevance: Cancer Drug Response benchmark (N=475, D=698) is directly
+analogous to our ClinVar/gnomAD/CADD/AlphaMissense tabular feature set.
+Result: R²=0.438 vs XGBoost 0.331 — 33% relative improvement in the
+high-dimensional regime. Analytic sensitivity complements SHAP.
+
+Implementation plan (Run 9 prep):
+  1. Clone spectral-paths, audit code quality
+  2. Write src/models/spectral_path_classifier.py — sklearn wrapper
+     with predict_proba via Platt scaling on regression output
+  3. Add "spectral_path" to base_estimators in run_phase2_eval.py
+  4. Benchmark against 78-feature set on synthetic data first
+  5. Evaluate AUROC delta vs 0.9862 Run 7/8 baseline
+
+Key technical note: paper uses tanh((x-c)/s) robust preprocessing
+before arccos — this must be preserved in the wrapper. Classification
+extension is listed in paper's Further Work, so predict_proba requires
+care around the calibration boundary.
