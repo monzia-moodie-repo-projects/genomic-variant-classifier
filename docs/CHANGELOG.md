@@ -105,3 +105,29 @@ Format per entry:
   where not all dependencies are always installed.
 - PowerShell `<` operator is reserved — never use `<placeholder>` syntax in commands.
   Always use a real value or `PLACEHOLDER_VALUE` without angle brackets.
+
+---
+
+## 2026-04-09 (post-session) — Local file cleanup + SpliceAI GCS fix
+
+### Fixed
+- SpliceAI GCS index was wrong file: `processed/spliceai_index.parquet` in GCS
+  was the raw 28.7GiB VCF accidentally uploaded under the wrong name.
+  Root cause: `Rename-Item` failed silently (target already existed), so
+  `data\processed\spliceai_index.parquet` was still the 29GB file when
+  `gcloud storage cp` ran. The correct 336.8MB filtered parquet was still
+  named `spliceai_index_test.parquet`.
+  Fix: uploaded `spliceai_index_test.parquet` directly to GCS as `spliceai_index.parquet`.
+  GCS now confirmed: 336.83MiB / 353,196,691 bytes at 2026-04-09T23:15Z.
+  Local: deleted 29GB wrong file, renamed _test.parquet → spliceai_index.parquet.
+
+### Cleaned up local files (all confirmed in GCS before deletion)
+  - data\external\spliceai_scores.masked.snv.hg38.vcf.gz     27.5 GB (duplicate)
+  - data\external\dbnsfp\dbNSFP5.3.1a_grch38.gz             47.9 GB ✓ GCS
+  - data\external\finngen\finnge_R12_annotated_variants_v1.gz 30.6 GB ✓ GCS
+  - data\external\spliceai\spliceai_scores.masked.snv.hg38.vcf.gz 27.5 GB ✓ GCS
+  - data\external\alphamissense\AlphaMissense_hg38.tsv\       5.2 GB (GCS has .gz)
+  - data\raw\cache\alphamissense_scores_hg38.parquet          740 MB (regeneratable)
+  - data\external\clinvar_fresh\variant_summary.txt.gz        415 MB ✓ GCS
+  - data\raw\clinvar\variant_summary.txt.gz                   415 MB (duplicate)
+  Total recovered: ~142 GB
