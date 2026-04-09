@@ -37,6 +37,7 @@ from base_agent import AgentResult
 from data_freshness_agent import DataFreshnessAgent
 from interpretability_agent import InterpretabilityAgent
 from literature_scout_agent import LiteratureScoutAgent
+from version_monitor_agent import VersionMonitorAgent
 from training_lifecycle_agent import TrainingLifecycleAgent
 from config import AUDIT_LOG_DIR, LOG_LEVEL, REQUIRE_HUMAN_APPROVAL
 from shared_state import SharedState
@@ -100,6 +101,9 @@ PIPELINE_REGISTRY: dict[str, list] = {
     "interpretability": [
         (InterpretabilityAgent,  lambda _: True),
     ],
+    "version_monitor": [
+        (VersionMonitorAgent,    lambda _: True),
+    ],
     "literature": [
         (LiteratureScoutAgent,   lambda _: True),
     ],
@@ -108,6 +112,7 @@ PIPELINE_REGISTRY: dict[str, list] = {
         (TrainingLifecycleAgent, _should_run_training),
         (InterpretabilityAgent,  _should_run_interpretability),
         (LiteratureScoutAgent,   _should_run_literature),
+        (VersionMonitorAgent,    _should_run_literature),
     ],
 }
 
@@ -262,3 +267,4 @@ def _configure_root_logger() -> None:
         ch = logging.StreamHandler()
         ch.setFormatter(fmt)
         root.addHandler(ch)
+
