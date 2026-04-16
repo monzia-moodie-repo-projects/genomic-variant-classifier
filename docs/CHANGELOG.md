@@ -131,3 +131,39 @@ Format per entry:
   - data\external\clinvar_fresh\variant_summary.txt.gz        415 MB ✓ GCS
   - data\raw\clinvar\variant_summary.txt.gz                   415 MB (duplicate)
   Total recovered: ~142 GB
+
+---
+
+## 2026-04-16 — Lambda A10 setup; Phase 2 feature promotion; SyntaxError fix; 205 tests green
+
+### Attempted
+- Launch Lambda Labs gpu_1x_a10 as GCP GPU quota substitute (quota still 0).
+- Fix SyntaxError in variant_ensemble.py blocking all imports.
+- Sync TABULAR_FEATURES (21) to match engineer_features() output (78 columns).
+- Provision Lambda Python environment and authenticate GCS service account.
+
+### Failed
+- ssh-keygen -N "" in PowerShell: silent parse failure. Fix: run interactively, Enter twice.
+- SyntaxError fix via python -c inline: PowerShell tokenizer mangled nested quotes/backslashes.
+  Fix: write repair script to .py file via Set-Content, execute, remove.
+- Repair script string-match failure: file used em-dash in comment; script used ASCII --.
+  Fix: locate block by structural markers (feats line + return line) not literal text.
+- Lambda pip: --index-url replaces PyPI entirely; all non-torch packages returned 404.
+  Fix: --extra-index-url for torch; separate pip invocation for everything else.
+
+### Fixed
+- SyntaxError line 524 variant_ensemble.py: Phase 2 feature blocks pasted inside unclosed
+  assert ( expression. Removed broken fragment; clean assert added after all features computed.
+- TABULAR_FEATURES mismatch (21 declared vs 78 produced): engineer_features() grew across
+  Phase 2 sessions but list was frozen. Updated to full 78-feature list in 20 groups.
+- Lambda torch environment: torch 2.11.0+cu130, CUDA True, pandas 2.3.3, PyG 2.7.0.
+- GCS access on Lambda: SA key scp'd, gcloud authenticated, bucket accessible.
+
+### Learned
+- assert ( multiline is valid Python. Assignments inside cause SyntaxError on =.
+  Compute all features first, assert last.
+- --index-url is destructive (replaces PyPI). --extra-index-url is additive.
+- TABULAR_FEATURES and engineer_features() must stay in sync.
+  The assert at end of the function is the single guard.
+- Write all multi-line Python repair scripts to .py files, not inline python -c strings.
+- Lambda instance billing starts at launch. Have all code pushed before creating the instance.
