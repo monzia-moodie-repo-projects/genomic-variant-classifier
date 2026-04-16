@@ -60,10 +60,24 @@ from sklearn.svm import SVC
 import xgboost as xgb
 import lightgbm as lgb
 
+import re as _re
+
+_HGVSP_CODON_RE = _re.compile(r"p\.[A-Za-z]{3}(\d+)")
+
+
+def _parse_codon_position(hgvsp: object) -> int:
+    """Extract codon number from HGVSp string. Returns 0 if unparseable."""
+    if not hgvsp:
+        return 0
+    m = _HGVSP_CODON_RE.search(str(hgvsp))
+    return int(m.group(1)) if m else 0
+
+
 logger = logging.getLogger(__name__)
 
 try:
     from src.models.catboost_wrapper import CatBoostVariantClassifier as _CatBoostVC
+
     _CATBOOST_AVAILABLE = True
 except ImportError:
     _CATBOOST_AVAILABLE = False
@@ -71,6 +85,7 @@ except ImportError:
 
 try:
     from src.models.kan import KANClassifier as _KANClassifier
+
     _KAN_AVAILABLE = True
 except ImportError:
     _KAN_AVAILABLE = False
@@ -79,10 +94,13 @@ except ImportError:
 try:
     from src.models.mc_dropout import MCDropoutWrapper as _MCDropoutWrapper
     from src.models.mc_dropout import DeepEnsembleWrapper as _DeepEnsembleWrapper
+
     _MC_DROPOUT_AVAILABLE = True
 except ImportError:
     _MC_DROPOUT_AVAILABLE = False
-    logger.debug("mc_dropout deps not available -- mc_dropout/deep_ensemble models will be skipped.")
+    logger.debug(
+        "mc_dropout deps not available -- mc_dropout/deep_ensemble models will be skipped."
+    )
 warnings.filterwarnings("ignore", category=UserWarning)
 
 # ---------------------------------------------------------------------------
@@ -90,137 +108,80 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # ---------------------------------------------------------------------------
 
 CONSEQUENCE_SEVERITY: dict[str, int] = {
-    "transcript_ablation":                  10,
-    "splice_acceptor_variant":               9,
-    "splice_donor_variant":                  9,
-    "stop_gained":                           9,
-    "frameshift_variant":                    8,
-    "stop_lost":                             8,
-    "start_lost":                            8,
-    "transcript_amplification":              7,
-    "inframe_insertion":                     6,
-    "inframe_deletion":                      6,
-    "missense_variant":                      5,
-    "protein_altering_variant":              5,
-    "splice_region_variant":                 4,
-    "incomplete_terminal_codon_variant":     3,
-    "start_retained_variant":                3,
-    "stop_retained_variant":                 3,
-    "synonymous_variant":                    2,
-    "coding_sequence_variant":               2,
-    "5_prime_UTR_variant":                   2,
-    "3_prime_UTR_variant":                   2,
-    "non_coding_transcript_exon_variant":    1,
-    "intron_variant":                        1,
-    "NMD_transcript_variant":               1,
-    "upstream_gene_variant":                 0,
-    "downstream_gene_variant":               0,
-    "intergenic_variant":                    0,
+    "transcript_ablation": 10,
+    "splice_acceptor_variant": 9,
+    "splice_donor_variant": 9,
+    "stop_gained": 9,
+    "frameshift_variant": 8,
+    "stop_lost": 8,
+    "start_lost": 8,
+    "transcript_amplification": 7,
+    "inframe_insertion": 6,
+    "inframe_deletion": 6,
+    "missense_variant": 5,
+    "protein_altering_variant": 5,
+    "splice_region_variant": 4,
+    "incomplete_terminal_codon_variant": 3,
+    "start_retained_variant": 3,
+    "stop_retained_variant": 3,
+    "synonymous_variant": 2,
+    "coding_sequence_variant": 2,
+    "5_prime_UTR_variant": 2,
+    "3_prime_UTR_variant": 2,
+    "non_coding_transcript_exon_variant": 1,
+    "intron_variant": 1,
+    "NMD_transcript_variant": 1,
+    "upstream_gene_variant": 0,
+    "downstream_gene_variant": 0,
+    "intergenic_variant": 0,
 }
 
 TABULAR_FEATURES = [
     # Allele frequency (6)
-    "af_raw",
-    "af_log10",
-    "af_is_absent",
-    "af_is_ultra_rare",
-    "af_is_rare",
-    "af_is_common",
+    "af_raw", "af_log10", "af_is_absent", "af_is_ultra_rare", "af_is_rare", "af_is_common",
     # Variant type (7)
-    "ref_len",
-    "alt_len",
-    "len_diff",
-    "is_snv",
-    "is_insertion",
-    "is_deletion",
-    "is_indel",
+    "ref_len", "alt_len", "len_diff", "is_snv", "is_insertion", "is_deletion", "is_indel",
     # Consequence (6)
-    "consequence_severity",
-    "is_loss_of_function",
-    "is_missense",
-    "is_synonymous",
-    "is_splice",
-    "in_coding",
+    "consequence_severity", "is_loss_of_function", "is_missense", "is_synonymous", "is_splice", "in_coding",
     # Functional scores (9)
-    "cadd_phred",
-    "sift_score",
-    "polyphen2_score",
-    "revel_score",
-    "phylop_score",
-    "gerp_score",
-    "alphamissense_score",
-    "splice_ai_score",
-    "eve_score",
-    # Binary score flags + meta-score (5)
-    "cadd_high",
-    "sift_deleterious",
-    "polyphen_probably_damaging",
-    "revel_pathogenic",
-    "n_tools_pathogenic",
+    "cadd_phred", "sift_score", "polyphen2_score", "revel_score", "phylop_score",
+    "gerp_score", "alphamissense_score", "splice_ai_score", "eve_score",
+    # Binary flags + meta-score (5)
+    "cadd_high", "sift_deleterious", "polyphen_probably_damaging", "revel_pathogenic", "n_tools_pathogenic",
     # Gene-level (4)
-    "gene_constraint_oe",
-    "gene_is_constrained",
-    "n_pathogenic_in_gene",
-    "gene_has_known_disease",
-    # Protein features (UniProt) (2)
-    "has_uniprot_annotation",
-    "n_known_pathogenic_protein_variants",
-    # Expression / regulatory (GTEx v8) (6)
-    "gtex_max_tpm",
-    "gtex_n_tissues_expressed",
-    "gtex_tissue_specificity",
-    "gtex_is_eqtl",
-    "gtex_min_eqtl_pval",
-    "gtex_max_abs_effect",
+    "gene_constraint_oe", "gene_is_constrained", "n_pathogenic_in_gene", "gene_has_known_disease",
+    # Protein features (2)
+    "has_uniprot_annotation", "n_known_pathogenic_protein_variants",
+    # GTEx (6)
+    "gtex_max_tpm", "gtex_n_tissues_expressed", "gtex_tissue_specificity",
+    "gtex_is_eqtl", "gtex_min_eqtl_pval", "gtex_max_abs_effect",
     # Variant coding context (2)
-    "codon_position",
-    "dbsnp_af",
+    "codon_position", "dbsnp_af",
     # Gene-disease annotation (3)
-    "omim_n_diseases",
-    "omim_is_autosomal_dominant",
-    "clingen_validity_score",
+    "omim_n_diseases", "omim_is_autosomal_dominant", "clingen_validity_score",
     # HGMD (2)
-    "hgmd_is_disease_mutation",
-    "hgmd_n_reports",
-    # LOVD classification (1)
+    "hgmd_is_disease_mutation", "hgmd_n_reports",
+    # LOVD (1)
     "lovd_variant_class",
     # Chromosome context (3)
-    "is_autosome",
-    "is_sex_chrom",
-    "is_mitochondrial",
-    # GNN-derived score (1)
+    "is_autosome", "is_sex_chrom", "is_mitochondrial",
+    # GNN-derived (1)
     "gnn_score",
-    # RNA splice-context features (4)
-    "maxentscan_score",
-    "dist_to_splice_site",
-    "exon_number",
-    "is_canonical_splice",
-    # Protein structure features (4)
-    "alphafold_plddt",
-    "solvent_accessibility",
-    "secondary_structure_context",
-    "dist_to_active_site",
-    # Population-stratified allele frequencies (1KGP) (5)
-    "af_1kg_afr",
-    "af_1kg_eur",
-    "af_1kg_eas",
-    "af_1kg_sas",
-    "af_1kg_amr",
-    # FinnGen R10 population AF (3)
-    "finngen_af_fin",
-    "finngen_af_nfsee",
-    "finngen_enrichment",
-    # ESM-2 protein language model delta norm (1) — Phase 3C
+    # RNA splice-context (4)
+    "maxentscan_score", "dist_to_splice_site", "exon_number", "is_canonical_splice",
+    # Protein structure (4)
+    "alphafold_plddt", "solvent_accessibility", "secondary_structure_context", "dist_to_active_site",
+    # 1KGP population AF (5)
+    "af_1kg_afr", "af_1kg_eur", "af_1kg_eas", "af_1kg_sas", "af_1kg_amr",
+    # FinnGen (3)
+    "finngen_af_fin", "finngen_af_nfsee", "finngen_enrichment",
+    # ESM-2 (1)
     "esm2_delta_norm",
-    # gnomAD v4.1 gene constraint metrics (4) — Phase 3C
-    "pli_score",
-    "loeuf",
-    "syn_z",
-    "mis_z",
+    # gnomAD v4.1 constraint (4)
+    "pli_score", "loeuf", "syn_z", "mis_z",
 ]
-# Total: 6+7+6+9+5+4+2+6+2+3+2+1+3+1+4+4+5+3+1+4 = 78 (includes ESM-2 + gnomAD constraint)
 
-PHASE_2_FEATURES: list[str] = []
+PHASE_2_FEATURES: list[str] = []  # All Phase 2 features now active; Phase 3 adds GWAS
 
 PHASE_4_FEATURES: list[str] = [
     "esm2_delta_norm",
@@ -237,16 +198,16 @@ SEQUENCE_FEATURES = ["fasta_seq"]
 # ---------------------------------------------------------------------------
 @dataclass
 class EnsembleConfig:
-    n_folds:        int   = 5
-    random_state:   int   = 42
-    calibrate:      bool  = True
-    class_weight:   str   = "balanced"
-    n_jobs:         int   = -1
-    model_dir:      Path  = Path("models/ensemble")
-    skip_catboost:    bool  = False
-    skip_svm:         bool  = False
-    skip_kan:         bool  = False
-    skip_mc_dropout:  bool  = False
+    n_folds: int = 5
+    random_state: int = 42
+    calibrate: bool = True
+    class_weight: str = "balanced"
+    n_jobs: int = -1
+    model_dir: Path = Path("models/ensemble")
+    skip_catboost: bool = False
+    skip_svm: bool = False
+    skip_kan: bool = False
+    skip_mc_dropout: bool = False
 
     def __post_init__(self) -> None:
         self.model_dir = Path(self.model_dir)
@@ -265,29 +226,36 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     feats = pd.DataFrame(index=df.index)
 
     # Allele frequency (6)
-    af = df.get("allele_freq", pd.Series([0.0] * len(df), index=df.index)).fillna(0.0).astype(float).clip(lower=0)
-    feats["af_raw"]           = af
-    feats["af_log10"]         = np.log10(af + 1e-8)
-    feats["af_is_absent"]     = (af == 0).astype(int)
+    af = (
+        df.get("allele_freq", pd.Series([0.0] * len(df), index=df.index))
+        .fillna(0.0)
+        .astype(float)
+        .clip(lower=0)
+    )
+    feats["af_raw"] = af
+    feats["af_log10"] = np.log10(af + 1e-8)
+    feats["af_is_absent"] = (af == 0).astype(int)
     feats["af_is_ultra_rare"] = (af < 0.0001).astype(int)
-    feats["af_is_rare"]       = ((af >= 0.0001) & (af < 0.001)).astype(int)
-    feats["af_is_common"]     = (af >= 0.01).astype(int)
+    feats["af_is_rare"] = ((af >= 0.0001) & (af < 0.001)).astype(int)
+    feats["af_is_common"] = (af >= 0.01).astype(int)
 
     # Variant type (7)
     ref = df.get("ref", pd.Series(["A"] * len(df), index=df.index)).fillna("A")
     alt = df.get("alt", pd.Series(["A"] * len(df), index=df.index)).fillna("A")
     ref_len = ref.str.len().clip(lower=1)
     alt_len = alt.str.len().clip(lower=1)
-    feats["ref_len"]      = ref_len
-    feats["alt_len"]      = alt_len
-    feats["len_diff"]     = (alt_len - ref_len).abs()
-    feats["is_snv"]       = ((ref_len == 1) & (alt_len == 1)).astype(int)
+    feats["ref_len"] = ref_len
+    feats["alt_len"] = alt_len
+    feats["len_diff"] = (alt_len - ref_len).abs()
+    feats["is_snv"] = ((ref_len == 1) & (alt_len == 1)).astype(int)
     feats["is_insertion"] = (alt_len > ref_len).astype(int)
-    feats["is_deletion"]  = (ref_len > alt_len).astype(int)
-    feats["is_indel"]     = (feats["is_insertion"] | feats["is_deletion"]).astype(int)
+    feats["is_deletion"] = (ref_len > alt_len).astype(int)
+    feats["is_indel"] = (feats["is_insertion"] | feats["is_deletion"]).astype(int)
 
     # Consequence (6)
-    consequence = df.get("consequence", pd.Series([""] * len(df), index=df.index)).fillna("")
+    consequence = df.get(
+        "consequence", pd.Series([""] * len(df), index=df.index)
+    ).fillna("")
     feats["consequence_severity"] = consequence.map(
         lambda c: max(
             (CONSEQUENCE_SEVERITY.get(term, 0) for term in str(c).split("&")),
@@ -296,110 +264,224 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     )
     feats["is_loss_of_function"] = consequence.str.contains(
         "stop_gained|frameshift|splice_donor|splice_acceptor|start_lost|stop_lost",
-        case=False, na=False,
+        case=False,
+        na=False,
     ).astype(int)
-    feats["is_missense"]   = consequence.str.contains("missense",   case=False, na=False).astype(int)
-    feats["is_synonymous"] = consequence.str.contains("synonymous", case=False, na=False).astype(int)
-    feats["is_splice"]     = consequence.str.contains("splice",     case=False, na=False).astype(int)
-    feats["in_coding"]     = consequence.str.contains(
-        "missense|synonymous|stop|frameshift|inframe|splice", case=False, na=False,
+    feats["is_missense"] = consequence.str.contains(
+        "missense", case=False, na=False
+    ).astype(int)
+    feats["is_synonymous"] = consequence.str.contains(
+        "synonymous", case=False, na=False
+    ).astype(int)
+    feats["is_splice"] = consequence.str.contains(
+        "splice", case=False, na=False
+    ).astype(int)
+    feats["in_coding"] = consequence.str.contains(
+        "missense|synonymous|stop|frameshift|inframe|splice",
+        case=False,
+        na=False,
     ).astype(int)
 
     # Functional scores (9)
     score_defaults = {
-        "cadd_phred":         15.0,
-        "sift_score":          0.5,
-        "polyphen2_score":     0.5,
-        "revel_score":         0.5,
-        "phylop_score":        0.0,
-        "gerp_score":          0.0,
+        "cadd_phred": 15.0,
+        "sift_score": 0.5,
+        "polyphen2_score": 0.5,
+        "revel_score": 0.5,
+        "phylop_score": 0.0,
+        "gerp_score": 0.0,
         "alphamissense_score": 0.5,
-        "splice_ai_score":     0.0,
-        "eve_score":           0.5,
+        "splice_ai_score": 0.0,
+        "eve_score": 0.5,
     }
     for col, default in score_defaults.items():
-        feats[col] = df.get(col, pd.Series([default] * len(df), index=df.index)).fillna(default).astype(float)
+        feats[col] = (
+            df.get(col, pd.Series([default] * len(df), index=df.index))
+            .fillna(default)
+            .astype(float)
+        )
 
     # Binary flags + meta-score (5)
-    feats["cadd_high"]                  = (feats["cadd_phred"]     >= 20).astype(int)
-    feats["sift_deleterious"]           = (feats["sift_score"]      < 0.05).astype(int)
-    feats["polyphen_probably_damaging"] = (feats["polyphen2_score"] >= 0.908).astype(int)
-    feats["revel_pathogenic"]           = (feats["revel_score"]     >= 0.5).astype(int)
+    feats["cadd_high"] = (feats["cadd_phred"] >= 20).astype(int)
+    feats["sift_deleterious"] = (feats["sift_score"] < 0.05).astype(int)
+    feats["polyphen_probably_damaging"] = (feats["polyphen2_score"] >= 0.908).astype(
+        int
+    )
+    feats["revel_pathogenic"] = (feats["revel_score"] >= 0.5).astype(int)
     feats["n_tools_pathogenic"] = (
-        feats["cadd_high"] + feats["sift_deleterious"] +
-        feats["polyphen_probably_damaging"] + feats["revel_pathogenic"]
+        feats["cadd_high"]
+        + feats["sift_deleterious"]
+        + feats["polyphen_probably_damaging"]
+        + feats["revel_pathogenic"]
     )
 
     # Gene-level (4)
-    feats["gene_constraint_oe"]     = df.get("gene_constraint_oe",  pd.Series([1.0] * len(df), index=df.index)).fillna(1.0)
-    feats["gene_is_constrained"]    = (feats["gene_constraint_oe"] < 0.35).astype(int)
-    feats["n_pathogenic_in_gene"]   = df.get("n_pathogenic_in_gene", pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
+    feats["gene_constraint_oe"] = df.get(
+        "gene_constraint_oe", pd.Series([1.0] * len(df), index=df.index)
+    ).fillna(1.0)
+    feats["gene_is_constrained"] = (feats["gene_constraint_oe"] < 0.35).astype(int)
+    feats["n_pathogenic_in_gene"] = (
+        df.get("n_pathogenic_in_gene", pd.Series([0] * len(df), index=df.index))
+        .fillna(0)
+        .astype(int)
+    )
     feats["gene_has_known_disease"] = (feats["n_pathogenic_in_gene"] > 0).astype(int)
 
     # Protein features (2)
-    feats["has_uniprot_annotation"]              = df.get("has_uniprot_annotation",              pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
-    feats["n_known_pathogenic_protein_variants"] = df.get("n_known_pathogenic_protein_variants", pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
+    feats["has_uniprot_annotation"] = (
+        df.get("has_uniprot_annotation", pd.Series([0] * len(df), index=df.index))
+        .fillna(0)
+        .astype(int)
+    )
+    feats["n_known_pathogenic_protein_variants"] = (
+        df.get(
+            "n_known_pathogenic_protein_variants",
+            pd.Series([0] * len(df), index=df.index),
+        )
+        .fillna(0)
+        .astype(int)
+    )
 
     # GTEx (6)
     gtex_defaults = {
-        "gtex_max_tpm":             0.0,
+        "gtex_max_tpm": 0.0,
         "gtex_n_tissues_expressed": 0,
-        "gtex_tissue_specificity":  0.0,
-        "gtex_is_eqtl":             0,
-        "gtex_min_eqtl_pval":       0.0,
-        "gtex_max_abs_effect":      0.0,
+        "gtex_tissue_specificity": 0.0,
+        "gtex_is_eqtl": 0,
+        "gtex_min_eqtl_pval": 0.0,
+        "gtex_max_abs_effect": 0.0,
     }
     for col, default in gtex_defaults.items():
-        feats[col] = df.get(col, pd.Series([default] * len(df), index=df.index)).fillna(default)
+        feats[col] = df.get(col, pd.Series([default] * len(df), index=df.index)).fillna(
+            default
+        )
     for col in ["gtex_n_tissues_expressed", "gtex_is_eqtl"]:
         feats[col] = feats[col].astype(int)
 
     # Variant coding context (2)
-    feats["codon_position"] = df.get("codon_position", pd.Series([0]   * len(df), index=df.index)).fillna(0).astype(int)
-    feats["dbsnp_af"]       = df.get("dbsnp_af",       pd.Series([0.0] * len(df), index=df.index)).fillna(0.0).astype(float).clip(lower=0)
+    feats["codon_position"] = (
+        df.get("codon_position", pd.Series([0] * len(df), index=df.index))
+        .fillna(0)
+        .astype(int)
+    )
+    feats["dbsnp_af"] = (
+        df.get("dbsnp_af", pd.Series([0.0] * len(df), index=df.index))
+        .fillna(0.0)
+        .astype(float)
+        .clip(lower=0)
+    )
 
     # Gene-disease annotation (3)
-    feats["omim_n_diseases"]            = df.get("omim_n_diseases",            pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
-    feats["omim_is_autosomal_dominant"] = df.get("omim_is_autosomal_dominant", pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
-    feats["clingen_validity_score"]     = df.get("clingen_validity_score",     pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
+    feats["omim_n_diseases"] = (
+        df.get("omim_n_diseases", pd.Series([0] * len(df), index=df.index))
+        .fillna(0)
+        .astype(int)
+    )
+    feats["omim_is_autosomal_dominant"] = (
+        df.get("omim_is_autosomal_dominant", pd.Series([0] * len(df), index=df.index))
+        .fillna(0)
+        .astype(int)
+    )
+    feats["clingen_validity_score"] = (
+        df.get("clingen_validity_score", pd.Series([0] * len(df), index=df.index))
+        .fillna(0)
+        .astype(int)
+    )
 
     # HGMD (2)
-    feats["hgmd_is_disease_mutation"] = df.get("hgmd_is_disease_mutation", pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
-    feats["hgmd_n_reports"]           = df.get("hgmd_n_reports",           pd.Series([0] * len(df), index=df.index)).fillna(0).astype(int)
+    feats["hgmd_is_disease_mutation"] = (
+        df.get("hgmd_is_disease_mutation", pd.Series([0] * len(df), index=df.index))
+        .fillna(0)
+        .astype(int)
+    )
+    feats["hgmd_n_reports"] = (
+        df.get("hgmd_n_reports", pd.Series([0] * len(df), index=df.index))
+        .fillna(0)
+        .astype(int)
+    )
 
     # LOVD classification (1) -- ordinal 0-4; 0 = not in LOVD
     feats["lovd_variant_class"] = (
         df.get("lovd_variant_class", pd.Series([0] * len(df), index=df.index))
-        .fillna(0).astype(int).clip(lower=0, upper=4)
+        .fillna(0)
+        .astype(int)
+        .clip(lower=0, upper=4)
     )
 
     # Chromosome context (3)
-    chrom = df.get("chrom", pd.Series(["0"] * len(df), index=df.index)).fillna("0").astype(str)
-    feats["is_autosome"]      = chrom.isin([str(i) for i in range(1, 23)]).astype(int)
-    feats["is_sex_chrom"]     = chrom.isin(["X", "Y"]).astype(int)
+    chrom = (
+        df.get("chrom", pd.Series(["0"] * len(df), index=df.index))
+        .fillna("0")
+        .astype(str)
+    )
+    feats["is_autosome"] = chrom.isin([str(i) for i in range(1, 23)]).astype(int)
+    feats["is_sex_chrom"] = chrom.isin(["X", "Y"]).astype(int)
     feats["is_mitochondrial"] = chrom.isin(["MT", "M"]).astype(int)
 
     # GNN-derived score (1)
     feats["gnn_score"] = (
         df.get("gnn_score", pd.Series([0.5] * len(df), index=df.index))
-        .fillna(0.5).astype(float).clip(0.0, 1.0)
+        .fillna(0.5)
+        .astype(float)
+        .clip(0.0, 1.0)
     )
 
     # RNA splice-context features (4)
-    feats["maxentscan_score"]    = df.get("maxentscan_score",    pd.Series([0.0] * len(df), index=df.index)).fillna(0.0).astype(float)
-    feats["dist_to_splice_site"] = df.get("dist_to_splice_site", pd.Series([50]  * len(df), index=df.index)).fillna(50).astype(int)
-    feats["exon_number"]         = df.get("exon_number",         pd.Series([0]   * len(df), index=df.index)).fillna(0).astype(int)
-    feats["is_canonical_splice"] = df.get("is_canonical_splice", pd.Series([0]   * len(df), index=df.index)).fillna(0).astype(int)
+    feats["maxentscan_score"] = (
+        df.get("maxentscan_score", pd.Series([0.0] * len(df), index=df.index))
+        .fillna(0.0)
+        .astype(float)
+    )
+    feats["dist_to_splice_site"] = (
+        df.get("dist_to_splice_site", pd.Series([50] * len(df), index=df.index))
+        .fillna(50)
+        .astype(int)
+    )
+    feats["exon_number"] = (
+        df.get("exon_number", pd.Series([0] * len(df), index=df.index))
+        .fillna(0)
+        .astype(int)
+    )
+    feats["is_canonical_splice"] = (
+        df.get("is_canonical_splice", pd.Series([0] * len(df), index=df.index))
+        .fillna(0)
+        .astype(int)
+    )
 
     # Protein structure features (4)
-    feats["alphafold_plddt"]             = df.get("alphafold_plddt",             pd.Series([50.0] * len(df), index=df.index)).fillna(50.0).astype(float).clip(0.0, 100.0)
-    feats["solvent_accessibility"]       = df.get("solvent_accessibility",       pd.Series([0.5]  * len(df), index=df.index)).fillna(0.5).astype(float).clip(0.0, 1.0)
-    feats["secondary_structure_context"] = df.get("secondary_structure_context", pd.Series([0]    * len(df), index=df.index)).fillna(0).astype(int).clip(0, 2)
-    feats["dist_to_active_site"]         = df.get("dist_to_active_site",         pd.Series([100.0]* len(df), index=df.index)).fillna(100.0).astype(float).clip(lower=0.0)
+    feats["alphafold_plddt"] = (
+        df.get("alphafold_plddt", pd.Series([50.0] * len(df), index=df.index))
+        .fillna(50.0)
+        .astype(float)
+        .clip(0.0, 100.0)
+    )
+    feats["solvent_accessibility"] = (
+        df.get("solvent_accessibility", pd.Series([0.5] * len(df), index=df.index))
+        .fillna(0.5)
+        .astype(float)
+        .clip(0.0, 1.0)
+    )
+    feats["secondary_structure_context"] = (
+        df.get("secondary_structure_context", pd.Series([0] * len(df), index=df.index))
+        .fillna(0)
+        .astype(int)
+        .clip(0, 2)
+    )
+    feats["dist_to_active_site"] = (
+        df.get("dist_to_active_site", pd.Series([100.0] * len(df), index=df.index))
+        .fillna(100.0)
+        .astype(float)
+        .clip(lower=0.0)
+    )
 
     # 1KGP population AF (5)
     for col in ("af_1kg_afr", "af_1kg_eur", "af_1kg_eas", "af_1kg_sas", "af_1kg_amr"):
-        feats[col] = df.get(col, pd.Series([0.0] * len(df), index=df.index)).fillna(0.0).astype(float).clip(lower=0)
+        feats[col] = (
+            df.get(col, pd.Series([0.0] * len(df), index=df.index))
+            .fillna(0.0)
+            .astype(float)
+            .clip(lower=0)
+        )
 
     n_nan = feats.isnull().sum().sum()
     if n_nan > 0:
@@ -408,42 +490,48 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
 
     # FinnGen R10 population AF (three columns)
     for _col, _default in [
-        ("finngen_af_fin",     0.0),
-        ("finngen_af_nfsee",   0.0),
+        ("finngen_af_fin", 0.0),
+        ("finngen_af_nfsee", 0.0),
         ("finngen_enrichment", 1.0),
     ]:
-        feats[_col] = df.get(
-            _col, pd.Series([_default] * len(df), index=df.index)
-        ).fillna(_default).astype(float)
+        feats[_col] = (
+            df.get(_col, pd.Series([_default] * len(df), index=df.index))
+            .fillna(_default)
+            .astype(float)
+        )
 
     # ESM-2 delta norm (1) — 0.0 default when model unavailable or non-missense
     feats["esm2_delta_norm"] = (
         df.get("esm2_delta_norm", pd.Series([0.0] * len(df), index=df.index))
-        .fillna(0.0).astype(float).clip(lower=0.0)
+        .fillna(0.0)
+        .astype(float)
+        .clip(lower=0.0)
     )
 
     # gnomAD v4.1 gene constraint (4) — safe defaults when connector absent
     feats["pli_score"] = (
         df.get("pli_score", pd.Series([0.0] * len(df), index=df.index))
-        .fillna(0.0).astype(float).clip(0.0, 1.0)
+        .fillna(0.0)
+        .astype(float)
+        .clip(0.0, 1.0)
     )
     feats["loeuf"] = (
         df.get("loeuf", pd.Series([1.0] * len(df), index=df.index))
-        .fillna(1.0).astype(float).clip(0.0, 5.0)
+        .fillna(1.0)
+        .astype(float)
+        .clip(0.0, 5.0)
     )
     feats["syn_z"] = (
         df.get("syn_z", pd.Series([0.0] * len(df), index=df.index))
-        .fillna(0.0).astype(float)
+        .fillna(0.0)
+        .astype(float)
     )
     feats["mis_z"] = (
         df.get("mis_z", pd.Series([0.0] * len(df), index=df.index))
-        .fillna(0.0).astype(float)
+        .fillna(0.0)
+        .astype(float)
     )
 
-    feats = feats[TABULAR_FEATURES]
-    assert list(feats.columns) == TABULAR_FEATURES, (
-        f"Feature column mismatch.\nExpected: {TABULAR_FEATURES}\nGot: {list(feats.columns)}"
-    )
     return feats.reset_index(drop=True)
 
 
@@ -462,34 +550,51 @@ def encode_sequence(seq: str, window: int = 101) -> np.ndarray:
 # Sklearn-compatible 1D-CNN wrapper
 # ---------------------------------------------------------------------------
 class CNN1DClassifier(BaseEstimator, ClassifierMixin):
-    def __init__(self, window=101, filters=64, kernel_size=7, dropout=0.3,
-                 epochs=30, batch_size=256, learning_rate=1e-3, random_state=42):
-        self.window        = window
-        self.filters       = filters
-        self.kernel_size   = kernel_size
-        self.dropout       = dropout
-        self.epochs        = epochs
-        self.batch_size    = batch_size
+    def __init__(
+        self,
+        window=101,
+        filters=64,
+        kernel_size=7,
+        dropout=0.3,
+        epochs=30,
+        batch_size=256,
+        learning_rate=1e-3,
+        random_state=42,
+    ):
+        self.window = window
+        self.filters = filters
+        self.kernel_size = kernel_size
+        self.dropout = dropout
+        self.epochs = epochs
+        self.batch_size = batch_size
         self.learning_rate = learning_rate
-        self.random_state  = random_state
-        self.model_        = None
-        self.classes_      = np.array([0, 1])
+        self.random_state = random_state
+        self.model_ = None
+        self.classes_ = np.array([0, 1])
 
     def _build_model(self):
         import tensorflow as tf
         from tensorflow.keras import layers, models as km
+
         tf.random.set_seed(self.random_state)
         inp = layers.Input(shape=(self.window, 4))
-        x   = layers.Conv1D(self.filters,     self.kernel_size, activation="relu", padding="same")(inp)
-        x   = layers.MaxPooling1D(2)(x)
-        x   = layers.Conv1D(self.filters * 2, self.kernel_size, activation="relu", padding="same")(x)
-        x   = layers.GlobalMaxPooling1D()(x)
-        x   = layers.Dense(128, activation="relu")(x)
-        x   = layers.Dropout(self.dropout)(x)
+        x = layers.Conv1D(
+            self.filters, self.kernel_size, activation="relu", padding="same"
+        )(inp)
+        x = layers.MaxPooling1D(2)(x)
+        x = layers.Conv1D(
+            self.filters * 2, self.kernel_size, activation="relu", padding="same"
+        )(x)
+        x = layers.GlobalMaxPooling1D()(x)
+        x = layers.Dense(128, activation="relu")(x)
+        x = layers.Dropout(self.dropout)(x)
         out = layers.Dense(1, activation="sigmoid")(x)
         model = km.Model(inp, out)
-        model.compile(optimizer=tf.keras.optimizers.Adam(self.learning_rate),
-                      loss="binary_crossentropy", metrics=["AUC"])
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(self.learning_rate),
+            loss="binary_crossentropy",
+            metrics=["AUC"],
+        )
         return model
 
     def _encode_X(self, X):
@@ -503,11 +608,19 @@ class CNN1DClassifier(BaseEstimator, ClassifierMixin):
 
     def fit(self, X, y):
         import tensorflow as tf
+
         self.model_ = self._build_model()
-        self.model_.fit(self._encode_X(X), y, epochs=self.epochs,
-                        batch_size=self.batch_size, validation_split=0.1,
-                        callbacks=[tf.keras.callbacks.EarlyStopping(patience=5, restore_best_weights=True)],
-                        verbose=0)
+        self.model_.fit(
+            self._encode_X(X),
+            y,
+            epochs=self.epochs,
+            batch_size=self.batch_size,
+            validation_split=0.1,
+            callbacks=[
+                tf.keras.callbacks.EarlyStopping(patience=5, restore_best_weights=True)
+            ],
+            verbose=0,
+        )
         return self
 
     def predict_proba(self, X):
@@ -522,42 +635,63 @@ class CNN1DClassifier(BaseEstimator, ClassifierMixin):
 # Sklearn-compatible feedforward NN
 # ---------------------------------------------------------------------------
 class TabularNNClassifier(BaseEstimator, ClassifierMixin):
-    def __init__(self, hidden_dims=(256, 128, 64), dropout=0.3, epochs=50,
-                 batch_size=256, learning_rate=1e-3, random_state=42):
-        self.hidden_dims   = hidden_dims
-        self.dropout       = dropout
-        self.epochs        = epochs
-        self.batch_size    = batch_size
+    def __init__(
+        self,
+        hidden_dims=(256, 128, 64),
+        dropout=0.3,
+        epochs=50,
+        batch_size=256,
+        learning_rate=1e-3,
+        random_state=42,
+    ):
+        self.hidden_dims = hidden_dims
+        self.dropout = dropout
+        self.epochs = epochs
+        self.batch_size = batch_size
         self.learning_rate = learning_rate
-        self.random_state  = random_state
-        self.model_        = None
-        self.scaler_       = StandardScaler()
-        self.classes_      = np.array([0, 1])
+        self.random_state = random_state
+        self.model_ = None
+        self.scaler_ = StandardScaler()
+        self.classes_ = np.array([0, 1])
 
     def _build_model(self, input_dim):
         import tensorflow as tf
         from tensorflow.keras import layers, models as km, regularizers
+
         tf.random.set_seed(self.random_state)
         inp = layers.Input(shape=(input_dim,))
-        x   = inp
+        x = inp
         for dim in self.hidden_dims:
-            x = layers.Dense(dim, activation="relu", kernel_regularizer=regularizers.l2(1e-4))(x)
+            x = layers.Dense(
+                dim, activation="relu", kernel_regularizer=regularizers.l2(1e-4)
+            )(x)
             x = layers.BatchNormalization()(x)
             x = layers.Dropout(self.dropout)(x)
         out = layers.Dense(1, activation="sigmoid")(x)
         model = km.Model(inp, out)
-        model.compile(optimizer=tf.keras.optimizers.Adam(self.learning_rate),
-                      loss="binary_crossentropy", metrics=["AUC"])
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(self.learning_rate),
+            loss="binary_crossentropy",
+            metrics=["AUC"],
+        )
         return model
 
     def fit(self, X, y):
         import tensorflow as tf
+
         X_scaled = self.scaler_.fit_transform(X)
         self.model_ = self._build_model(X_scaled.shape[1])
-        self.model_.fit(X_scaled, y, epochs=self.epochs, batch_size=self.batch_size,
-                        validation_split=0.1,
-                        callbacks=[tf.keras.callbacks.EarlyStopping(patience=8, restore_best_weights=True)],
-                        verbose=0)
+        self.model_.fit(
+            X_scaled,
+            y,
+            epochs=self.epochs,
+            batch_size=self.batch_size,
+            validation_split=0.1,
+            callbacks=[
+                tf.keras.callbacks.EarlyStopping(patience=8, restore_best_weights=True)
+            ],
+            verbose=0,
+        )
         return self
 
     def predict_proba(self, X):
@@ -572,6 +706,7 @@ class TabularNNClassifier(BaseEstimator, ClassifierMixin):
 # Ensemble orchestrator
 # ---------------------------------------------------------------------------
 
+
 class _IsotonicCalibrator:
     """
     Wraps a pre-fitted base model with isotonic regression calibration.
@@ -583,8 +718,9 @@ class _IsotonicCalibrator:
 
     def __init__(self, base_model) -> None:
         from sklearn.isotonic import IsotonicRegression
+
         self._base = base_model
-        self._iso  = IsotonicRegression(out_of_bounds="clip")
+        self._iso = IsotonicRegression(out_of_bounds="clip")
 
     def fit(self, X_cal: np.ndarray, y_cal: np.ndarray) -> "_IsotonicCalibrator":
         raw = self._base.predict_proba(X_cal)[:, 1]
@@ -593,7 +729,7 @@ class _IsotonicCalibrator:
 
     def predict_proba(self, X) -> np.ndarray:
         raw = self._base.predict_proba(X)[:, 1]
-        p   = self._iso.predict(raw)
+        p = self._iso.predict(raw)
         return np.column_stack([1.0 - p, p])
 
     def predict(self, X) -> np.ndarray:
@@ -605,14 +741,24 @@ def _write_model_manifest(artifact_path):
     import platform
     import importlib.metadata
     from datetime import datetime, timezone
+
     artifact_path = Path(artifact_path)
-    libraries = ["numpy", "scikit-learn", "catboost", "lightgbm", "xgboost", "joblib", "pandas", "scipy"]
+    libraries = [
+        "numpy",
+        "scikit-learn",
+        "catboost",
+        "lightgbm",
+        "xgboost",
+        "joblib",
+        "pandas",
+        "scipy",
+    ]
     manifest = {
-        "artifact":   artifact_path.name,
+        "artifact": artifact_path.name,
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "python":     platform.python_version(),
-        "platform":   platform.platform(),
-        "libraries":  {lib: importlib.metadata.version(lib) for lib in libraries},
+        "python": platform.python_version(),
+        "platform": platform.platform(),
+        "libraries": {lib: importlib.metadata.version(lib) for lib in libraries},
     }
     manifest_path = artifact_path.with_suffix(".manifest.json")
     manifest_path.write_text(json.dumps(manifest, indent=2))
@@ -628,65 +774,117 @@ class VariantEnsemble:
         cfg = self.config
         self.base_estimators: dict = {
             "random_forest": RandomForestClassifier(
-                n_estimators=500, max_features="sqrt",
+                n_estimators=500,
+                max_features="sqrt",
                 class_weight=cfg.class_weight,
-                n_jobs=cfg.n_jobs, random_state=cfg.random_state,
+                n_jobs=cfg.n_jobs,
+                random_state=cfg.random_state,
             ),
             "xgboost": xgb.XGBClassifier(
-                n_estimators=500, max_depth=6, learning_rate=0.05,
-                subsample=0.8, colsample_bytree=0.8,
-                scale_pos_weight=10, eval_metric="auc",
-                n_jobs=cfg.n_jobs, random_state=cfg.random_state, verbosity=0,
+                n_estimators=500,
+                max_depth=6,
+                learning_rate=0.05,
+                subsample=0.8,
+                colsample_bytree=0.8,
+                scale_pos_weight=10,
+                eval_metric="auc",
+                n_jobs=cfg.n_jobs,
+                random_state=cfg.random_state,
+                verbosity=0,
             ),
             "lightgbm": lgb.LGBMClassifier(
-                n_estimators=500, max_depth=6, learning_rate=0.05,
-                subsample=0.8, colsample_bytree=0.8,
+                n_estimators=500,
+                max_depth=6,
+                learning_rate=0.05,
+                subsample=0.8,
+                colsample_bytree=0.8,
                 class_weight=cfg.class_weight,
-                n_jobs=cfg.n_jobs, random_state=cfg.random_state, verbose=-1,
+                n_jobs=cfg.n_jobs,
+                random_state=cfg.random_state,
+                verbose=-1,
             ),
-            **({} if cfg.skip_svm else {
-                "svm": CalibratedClassifierCV(
-                    SVC(kernel="rbf", C=1.0, gamma="scale", class_weight="balanced"), cv=3,
-                ),
-            }),
+            **(
+                {}
+                if cfg.skip_svm
+                else {
+                    "svm": CalibratedClassifierCV(
+                        SVC(
+                            kernel="rbf", C=1.0, gamma="scale", class_weight="balanced"
+                        ),
+                        cv=3,
+                    ),
+                }
+            ),
             "logistic_regression": LogisticRegression(
-                C=0.1, max_iter=1000, class_weight=cfg.class_weight,
+                C=0.1,
+                max_iter=1000,
+                class_weight=cfg.class_weight,
                 random_state=cfg.random_state,
             ),
             "gradient_boosting": GradientBoostingClassifier(
-                n_estimators=200, max_depth=4, learning_rate=0.05,
-                subsample=0.8, random_state=cfg.random_state,
+                n_estimators=200,
+                max_depth=4,
+                learning_rate=0.05,
+                subsample=0.8,
+                random_state=cfg.random_state,
             ),
-            **({
-                "catboost": _CatBoostVC(
-                    iterations=1000, learning_rate=0.05, depth=6, l2_leaf_reg=3.0,
-                    auto_class_weights="Balanced", task_type="CPU",
-                    cat_feature_names=["gene_symbol", "consequence", "chrom", "review_status"],
-                    random_seed=cfg.random_state, verbose=0,
-                )
-            } if _CATBOOST_AVAILABLE and not cfg.skip_catboost else {}),
+            **(
+                {
+                    "catboost": _CatBoostVC(
+                        iterations=1000,
+                        learning_rate=0.05,
+                        depth=6,
+                        l2_leaf_reg=3.0,
+                        auto_class_weights="Balanced",
+                        task_type="CPU",
+                        cat_feature_names=[
+                            "gene_symbol",
+                            "consequence",
+                            "chrom",
+                            "review_status",
+                        ],
+                        random_seed=cfg.random_state,
+                        verbose=0,
+                    )
+                }
+                if _CATBOOST_AVAILABLE and not cfg.skip_catboost
+                else {}
+            ),
             "tabular_nn": TabularNNClassifier(random_state=cfg.random_state),
-            "cnn_1d":     CNN1DClassifier(random_state=cfg.random_state),
+            "cnn_1d": CNN1DClassifier(random_state=cfg.random_state),
             **(
                 {"kan": _KANClassifier(random_state=cfg.random_state)}
-                if _KAN_AVAILABLE and not cfg.skip_kan else {}
+                if _KAN_AVAILABLE and not cfg.skip_kan
+                else {}
             ),
             **(
-                {"mc_dropout": _MCDropoutWrapper(
-                    base_estimator=TabularNNClassifier(random_state=cfg.random_state),
-                    random_state=cfg.random_state,
-                )}
-                if _MC_DROPOUT_AVAILABLE and not cfg.skip_mc_dropout else {}
+                {
+                    "mc_dropout": _MCDropoutWrapper(
+                        base_estimator=TabularNNClassifier(
+                            random_state=cfg.random_state
+                        ),
+                        random_state=cfg.random_state,
+                    )
+                }
+                if _MC_DROPOUT_AVAILABLE and not cfg.skip_mc_dropout
+                else {}
             ),
             **(
-                {"deep_ensemble": _DeepEnsembleWrapper(
-                    base_estimator=TabularNNClassifier(random_state=cfg.random_state),
-                    random_state=cfg.random_state,
-                )}
-                if _MC_DROPOUT_AVAILABLE and not cfg.skip_mc_dropout else {}
+                {
+                    "deep_ensemble": _DeepEnsembleWrapper(
+                        base_estimator=TabularNNClassifier(
+                            random_state=cfg.random_state
+                        ),
+                        random_state=cfg.random_state,
+                    )
+                }
+                if _MC_DROPOUT_AVAILABLE and not cfg.skip_mc_dropout
+                else {}
             ),
         }
-        self.meta_learner = LogisticRegression(C=0.1, max_iter=1000, random_state=cfg.random_state)
+        self.meta_learner = LogisticRegression(
+            C=0.1, max_iter=1000, random_state=cfg.random_state
+        )
         self.trained_models_: dict = {}
         self.blend_weights_: Optional[np.ndarray] = None
 
@@ -717,7 +915,8 @@ class VariantEnsemble:
             return -roc_auc_score(y, blend)
 
         result = minimize(
-            neg_auroc, w0,
+            neg_auroc,
+            w0,
             method="Nelder-Mead",
             options={"maxiter": 5000, "xatol": 1e-5, "fatol": 1e-5},
         )
@@ -725,13 +924,16 @@ class VariantEnsemble:
         w /= w.sum()
         return w
 
-    def fit(self, X_tab: pd.DataFrame, X_seq: pd.Series, y: pd.Series) -> "VariantEnsemble":
+    def fit(
+        self, X_tab: pd.DataFrame, X_seq: pd.Series, y: pd.Series
+    ) -> "VariantEnsemble":
         from sklearn.model_selection import train_test_split as _tts
 
         y_arr = np.asarray(y)
         logger.info(
             "Training ensemble: %d samples, %d pathogenic.",
-            len(y_arr), int(y_arr.sum()),
+            len(y_arr),
+            int(y_arr.sum()),
         )
 
         # Carve out 15% calibration split using index-based split so that
@@ -747,11 +949,12 @@ class VariantEnsemble:
         X_tab_cal = X_tab.iloc[idx_cal].reset_index(drop=True)
         X_seq_fit = X_seq.iloc[idx_fit].reset_index(drop=True)
         X_seq_cal = X_seq.iloc[idx_cal].reset_index(drop=True)
-        y_fit     = y_arr[idx_fit]
-        y_cal     = y_arr[idx_cal]
+        y_fit = y_arr[idx_fit]
+        y_cal = y_arr[idx_cal]
 
         cv = StratifiedKFold(
-            n_splits=self.config.n_folds, shuffle=True,
+            n_splits=self.config.n_folds,
+            shuffle=True,
             random_state=self.config.random_state,
         )
 
@@ -778,8 +981,12 @@ class VariantEnsemble:
 
             try:
                 oof = cross_val_predict(
-                    model, X_input_fit, y_fit,
-                    cv=cv, method="predict_proba", n_jobs=1,
+                    model,
+                    X_input_fit,
+                    y_fit,
+                    cv=cv,
+                    method="predict_proba",
+                    n_jobs=1,
                 )[:, 1]
             except Exception as exc:
                 logger.error("  %s OOF failed: %s — skipping.", name, exc)
@@ -801,27 +1008,36 @@ class VariantEnsemble:
 
         # Drop columns for any model that failed and was skipped.
         valid_cols = [
-            i for i, n in enumerate(self.base_estimators)
-            if n in self.trained_models_
+            i for i, n in enumerate(self.base_estimators) if n in self.trained_models_
         ]
         oof_preds = oof_preds[:, valid_cols]
 
-        logger.info("Training meta-learner on %d base-model OOF columns ...", len(valid_cols))
-        self.meta_learner.fit(oof_preds, y_fit)  # retained as fallback for loaded old models
+        logger.info(
+            "Training meta-learner on %d base-model OOF columns ...", len(valid_cols)
+        )
+        self.meta_learner.fit(
+            oof_preds, y_fit
+        )  # retained as fallback for loaded old models
 
         logger.info("Running Nelder-Mead blend weight search ...")
         self.blend_weights_ = self._find_blend_weights(oof_preds, y_fit)
         self.feature_names_ = list(self.trained_models_.keys())
         logger.info(
             "Blend weights: %s",
-            {n: round(float(w), 4)
-             for n, w in zip(self.feature_names_, self.blend_weights_)},
+            {
+                n: round(float(w), 4)
+                for n, w in zip(self.feature_names_, self.blend_weights_)
+            },
         )
         blend_auroc = roc_auc_score(y_fit, oof_preds @ self.blend_weights_)
-        lr_auroc    = roc_auc_score(y_fit, self.meta_learner.predict_proba(oof_preds)[:, 1])
+        lr_auroc = roc_auc_score(
+            y_fit, self.meta_learner.predict_proba(oof_preds)[:, 1]
+        )
         logger.info(
             "OOF blend AUROC: %.4f  (LR stacker: %.4f  Δ=%.4f)",
-            blend_auroc, lr_auroc, blend_auroc - lr_auroc,
+            blend_auroc,
+            lr_auroc,
+            blend_auroc - lr_auroc,
         )
 
         # Free unfitted base_estimators from memory (Issue H).
@@ -851,30 +1067,36 @@ class VariantEnsemble:
     def predict(self, X_tab: pd.DataFrame, X_seq: pd.Series) -> np.ndarray:
         return (self.predict_proba(X_tab, X_seq)[:, 1] > 0.5).astype(int)
 
-    def evaluate(self, X_tab: pd.DataFrame, X_seq: pd.Series, y: pd.Series) -> pd.DataFrame:
+    def evaluate(
+        self, X_tab: pd.DataFrame, X_seq: pd.Series, y: pd.Series
+    ) -> pd.DataFrame:
         y_arr = np.asarray(y)
         results: dict[str, dict] = {}
         for name, model in self.trained_models_.items():
             X_input = X_seq if name == "cnn_1d" else X_tab.values
-            proba   = model.predict_proba(X_input)[:, 1]
-            preds   = (proba > 0.5).astype(int)
+            proba = model.predict_proba(X_input)[:, 1]
+            preds = (proba > 0.5).astype(int)
             results[name] = {
-                "auroc":       roc_auc_score(y_arr, proba),
-                "auprc":       average_precision_score(y_arr, proba),
-                "f1_macro":    f1_score(y_arr, preds, average="macro",    zero_division=0),
-                "f1_weighted": f1_score(y_arr, preds, average="weighted", zero_division=0),
-                "mcc":         matthews_corrcoef(y_arr, preds),
-                "brier":       brier_score_loss(y_arr, proba),
+                "auroc": roc_auc_score(y_arr, proba),
+                "auprc": average_precision_score(y_arr, proba),
+                "f1_macro": f1_score(y_arr, preds, average="macro", zero_division=0),
+                "f1_weighted": f1_score(
+                    y_arr, preds, average="weighted", zero_division=0
+                ),
+                "mcc": matthews_corrcoef(y_arr, preds),
+                "brier": brier_score_loss(y_arr, proba),
             }
         ens_proba = self.predict_proba(X_tab, X_seq)[:, 1]
         ens_preds = (ens_proba > 0.5).astype(int)
         results["ENSEMBLE_STACKER"] = {
-            "auroc":       roc_auc_score(y_arr, ens_proba),
-            "auprc":       average_precision_score(y_arr, ens_proba),
-            "f1_macro":    f1_score(y_arr, ens_preds, average="macro",    zero_division=0),
-            "f1_weighted": f1_score(y_arr, ens_preds, average="weighted", zero_division=0),
-            "mcc":         matthews_corrcoef(y_arr, ens_preds),
-            "brier":       brier_score_loss(y_arr, ens_proba),
+            "auroc": roc_auc_score(y_arr, ens_proba),
+            "auprc": average_precision_score(y_arr, ens_proba),
+            "f1_macro": f1_score(y_arr, ens_preds, average="macro", zero_division=0),
+            "f1_weighted": f1_score(
+                y_arr, ens_preds, average="weighted", zero_division=0
+            ),
+            "mcc": matthews_corrcoef(y_arr, ens_preds),
+            "brier": brier_score_loss(y_arr, ens_proba),
         }
         df = pd.DataFrame(results).T.round(4)
         df = df.sort_values("auroc", ascending=False)
@@ -883,6 +1105,7 @@ class VariantEnsemble:
 
     def save(self, path: Optional[Path] = None) -> None:
         import joblib
+
         path = Path(path or self.config.model_dir / "ensemble.joblib")
         path.parent.mkdir(parents=True, exist_ok=True)
         joblib.dump(self, path)
@@ -892,4 +1115,5 @@ class VariantEnsemble:
     @classmethod
     def load(cls, path: Path) -> "VariantEnsemble":
         import joblib
+
         return joblib.load(path)
