@@ -186,3 +186,46 @@ Format per entry:
 ### Pending
 - Training in progress — detached in tmux, running unattended.
 - Check results in ~2-3 hours for final AUROC/AUPRC/MCC.
+## 2026-04-16 — Run 8 COMPLETE — AUROC 0.9863, 1.8GB artifacts saved to GCS
+
+### Final Results
+  AUROC  0.9863 (holdout)  0.9833 (test)   PASS (target >= 0.9)
+  AUPRC  0.9461 (holdout)  0.9436 (test)
+  MCC    0.8482 (holdout)  0.8178 (test)
+  F1     0.9226 (holdout)  0.9052 (test)
+  Brier  0.0358 (holdout)  0.0479 (test)
+  Time:  4270s on Vast.ai RTX 4090 ($0.388/hr)
+
+### OOF AUROCs (5-fold CV)
+  RF 0.9921 | XGB 0.9932 | LGB 0.9930 | GBM 0.9891 | CatBoost 0.9930 | LR 0.9846
+  Blend: 0.9938 | Weights: RF 0.391, LGB 0.255, CatBoost 0.319, XGB 0.035
+
+### Top 10 Features
+  n_pathogenic_in_gene 568.1 | loeuf 418.2 | syn_z 370.5 | mis_z 352.4
+  consequence_severity 242.7 | pli_score 218.3 | alphamissense_score 189.7
+  af_raw 174.2 | af_log10 105.3 | len_diff 86.7
+
+### AlphaMissense confirmed contributing
+  206,131 / 1,700,687 variants annotated | ranked 7th of 78 features
+
+### Bugs discovered (fix in Run 9)
+  GNN: ValueError: invalid literal for int() with base 10: path string passed where
+       protein ID int expected. GNN did not contribute to Run 8.
+  TF models: tabular_nn, cnn_1d, mc_dropout, deep_ensemble all skipped —
+             no tensorflow on Vast PyTorch image. Use PyTorch equivalents.
+  ESM-2: stub mode (transformers not installed) — all esm2_delta_norm = 0.0
+
+### GCS artifacts (gs://genomic-variant-prod-outputs/run8/)
+  models/run8/models/ensemble.joblib         main ensemble
+  models/run8/scaler.joblib
+  models/run8/metrics.json
+  models/run8/per_model_metrics.csv / _val.csv
+  models/run8/feature_importance.csv
+  models/run8/splits/X_train|val|test.parquet
+  logs/run8.log
+  19 files, 1.8 GiB total
+
+### Infrastructure notes
+  - Vast.ai auto-tmux protects from SSH drops (unlike Lambda foreground sessions)
+  - sudo shutdown fails in Vast containers (no systemd) — container exits naturally
+  - SA key permissions: parallel composite upload GET check fails — non-blocking
