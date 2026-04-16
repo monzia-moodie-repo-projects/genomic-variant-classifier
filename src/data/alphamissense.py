@@ -106,11 +106,25 @@ class AlphaMissenseConnector(BaseConnector):
             "(first run -- takes ~3 minutes for the full 71M-row file)...",
             self.tsv_path,
         )
-        lookup = self._parse_tsv(self.tsv_path)
+        if str(self.tsv_path).endswith(".parquet"):
+            lookup = self._parse_parquet(self.tsv_path)
+        else:
+            lookup = self._parse_tsv(self.tsv_path)
         if not lookup.empty:
             self._save_cache(cache_key, lookup)
             logger.info("AlphaMissense: cached %d variant scores.", len(lookup))
         return lookup
+
+    def _parse_parquet(self, path: Path) -> pd.DataFrame:
+        """Read pre-built AlphaMissense parquet index (chrom/pos/ref/alt/alphamissense_score)."""
+        df = pd.read_parquet(path, columns=["chrom", "pos", "ref", "alt", "alphamissense_score"])
+        df["chrom"] = df["chrom"].astype(str).str.replace("^chr", "", regex=True)
+        df["POS"] = df["pos"].astype("int32")
+        df["CHROM"] = df["chrom"]
+        df["REF"] = df["ref"].astype(str)
+        df["ALT"] = df["alt"].astype(str)
+        df["am_pathogenicity"] = df["alphamissense_score"].astype("float32")
+        return df[["CHROM", "POS", "REF", "ALT", "am_pathogenicity"]].copy()
 
     def _parse_tsv(self, path: Path) -> pd.DataFrame:
         _COL_NAMES = [
