@@ -136,12 +136,52 @@ class SpliceAIConnector(BaseConnector):
             "(first run -- may take 10-20 minutes for the full file)...",
             self.vcf_path,
         )
-        lookup = self._parse_vcf(self.vcf_path)
+        if str(self.vcf_path).endswith(".parquet"):
+            lookup = self._parse_parquet(self.vcf_path)
+        else:
+            lookup = self._parse_vcf(self.vcf_path)
         if not lookup.empty:
             self._save_cache(cache_key, lookup)
             logger.info("SpliceAI: cached %d variant scores.", len(lookup))
         return lookup
  
+    def _parse_parquet(self, path: Path) -> pd.DataFrame:
+        """
+        Read a pre-built SpliceAI parquet index and return the standard
+        lookup DataFrame with columns: lookup_key, splice_ai_score,
+        ds_ag, ds_al, ds_dg, ds_dl.
+
+        Expected parquet schema (from build_spliceai_index.py):
+          chrom, pos, ref, alt, ds_ag, ds_al, ds_dg, ds_dl,
+          splice_ai_score, symbol
+        """
+        cols = ["chrom", "pos", "ref", "alt",
+                "ds_ag", "ds_al", "ds_dg", "ds_dl", "splice_ai_score"]
+        df = pd.read_parquet(path, columns=cols)
+        df["chrom"] = df["chrom"].astype(str).str.lstrip("chr")
+        df["ref"]   = df["ref"].astype(str)
+        df["alt"]   = df["alt"].astype(str)
+        df["lookup_key"] = (
+            df["chrom"] + ":" +
+            df["pos"].astype(str) + ":" +
+            df["ref"] + ":" +
+            df["alt"]
+        )
+        df["splice_ai_score"] = df["splice_ai_score"].astype("float32")
+        for col in ["ds_ag", "ds_al", "ds_dg", "ds_dl"]:
+            df[col] = df[col].astype("float32")
+        df = (
+            df[["lookup_key", "splice_ai_score", "ds_ag", "ds_al", "ds_dg", "ds_dl"]]
+            .sort_values("splice_ai_score", ascending=False)
+            .drop_duplicates(subset=["lookup_key"], keep="first")
+            .reset_index(drop=True)
+        )
+        logger.info(
+            "SpliceAI: loaded %d scores from parquet index (%d with score > 0).",
+            len(df), (df["splice_ai_score"] > 0).sum(),
+        )
+        return df
+
     def _parse_vcf(self, path: Path) -> pd.DataFrame:
         """
         Parse SpliceAI VCF into a lookup DataFrame.
