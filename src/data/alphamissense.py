@@ -116,15 +116,26 @@ class AlphaMissenseConnector(BaseConnector):
         return lookup
 
     def _parse_parquet(self, path: Path) -> pd.DataFrame:
-        """Read pre-built AlphaMissense parquet index (chrom/pos/ref/alt/alphamissense_score)."""
+        """Read pre-built AlphaMissense parquet index and return lookup_key/alphamissense_score."""
         df = pd.read_parquet(path, columns=["chrom", "pos", "ref", "alt", "alphamissense_score"])
-        df["chrom"] = df["chrom"].astype(str).str.replace("^chr", "", regex=True)
-        df["POS"] = df["pos"].astype("int32")
-        df["CHROM"] = df["chrom"]
-        df["REF"] = df["ref"].astype(str)
-        df["ALT"] = df["alt"].astype(str)
-        df["am_pathogenicity"] = df["alphamissense_score"].astype("float32")
-        return df[["CHROM", "POS", "REF", "ALT", "am_pathogenicity"]].copy()
+        df["chrom"] = df["chrom"].astype(str).str.lstrip("chr")
+        df["ref"]   = df["ref"].astype(str).str.upper()
+        df["alt"]   = df["alt"].astype(str).str.upper()
+        df["lookup_key"] = (
+            df["chrom"] + ":" +
+            df["pos"].astype(str) + ":" +
+            df["ref"] + ":" +
+            df["alt"]
+        )
+        df = df[["lookup_key", "alphamissense_score"]].copy()
+        df["alphamissense_score"] = df["alphamissense_score"].astype("float32")
+        df = (
+            df
+            .sort_values("alphamissense_score", ascending=False)
+            .drop_duplicates(subset=["lookup_key"], keep="first")
+            .reset_index(drop=True)
+        )
+        return df
 
     def _parse_tsv(self, path: Path) -> pd.DataFrame:
         _COL_NAMES = [
