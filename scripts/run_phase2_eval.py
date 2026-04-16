@@ -199,9 +199,13 @@ def main() -> int:
                     train_gnn_pipeline,
                 )
 
-                string_threshold = (
-                    700 if args.string_db == "auto" else int(args.string_db)
-                )
+                # string_db may be a file path or a threshold integer string
+                _sd = args.string_db
+                if _sd == "auto" or not _sd.lstrip("-").isdigit():
+                    string_threshold = 700
+                else:
+                    string_threshold = int(_sd)
+                string_db_path = None if _sd == "auto" else _sd
                 logger.info(
                     "GNN training: STRING threshold=%d, epochs=100", string_threshold
                 )
@@ -223,8 +227,11 @@ def main() -> int:
                     gnn_df = X_train.copy()
                     gnn_df["acmg_label"] = y_train.values
 
-                _local_links = Path(
-                    "data/external/string/9606.protein.links.detailed.v12.0.txt.gz"
+                # Resolve STRING DB links file: prefer explicit --string-db path
+                _local_links = (
+                    Path(string_db_path)
+                    if string_db_path and Path(string_db_path).exists()
+                    else Path("data/external/string/9606.protein.links.detailed.v12.0.txt.gz")
                 )
                 _local_info = Path(
                     "data/external/string/9606.protein.info.v12.0.txt.gz"
