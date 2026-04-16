@@ -167,3 +167,22 @@ Format per entry:
   The assert at end of the function is the single guard.
 - Write all multi-line Python repair scripts to .py files, not inline python -c strings.
 - Lambda instance billing starts at launch. Have all code pushed before creating the instance.
+
+## 2026-04-16 (continued) — AlphaMissense parquet fix; Run 8 training launched on Vast.ai RTX 4090
+
+### Fixed
+- alphamissense.py _parse_parquet returned raw 5-column schema instead of
+  lookup_key/alphamissense_score. Fix: build lookup_key = CHROM:POS:REF:ALT,
+  deduplicate, return 2-column df matching _parse_tsv output schema.
+- Stale parquet cache (wrong schema from first broken run) deleted on Vast.ai.
+- Result: 206,131 / 1,700,687 variants now annotated by AlphaMissense.
+
+### Infrastructure
+- Vast.ai RTX 4090 instance: 175.155.64.225:19863, $0.388/hr
+- Vast.ai auto-starts tmux on login — no manual tmux new-session needed.
+- All 7 data files pulled from GCS in ~3 minutes (vs 25 min scp previously).
+- Training launched 20:13:40 UTC with full 78-feature set including AlphaMissense.
+
+### Pending
+- Training in progress — detached in tmux, running unattended.
+- Check results in ~2-3 hours for final AUROC/AUPRC/MCC.
