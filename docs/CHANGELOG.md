@@ -252,3 +252,86 @@ All known bugs from Run 8 are now fixed:
 Expected Run 9 active models: RF, XGB, LGB, GBM, CatBoost, LR,
   tabular_nn, cnn_1d, mc_dropout, deep_ensemble, GNN (10 base models + GNN)
 Expected new feature signals: SpliceAI scores, ESM-2 (if HGVSp populated)
+---
+
+## 2026-04-17 — SpliceAI silent-zero fix, test isolation, GCS audit
+
+### Attempted
+- Verify Run 8 SpliceAI parquet was actually in GCS (could not be
+  confirmed from prior sessions because gsutil kept returning 401).
+- Patch `SpliceAIConnector` to default to the production parquet
+  instead of silently returning 0.0 for all variants.
+- Add regression test and confirm no regressions across the unit
+  suite.
+
+### Failed
+- gsutil returned `401 Anonymous caller` on every GCS list attempt.
+  Root cause: gsutil and `gcloud storage` have separate credential
+  stores; gsutil's were stale. The SpliceAI parquet was in fact in
+  GCS the whole time (since 2026-04-09). This cost multiple sessions
+  of uncertainty.
+- v1 test patch monkeypatched `FetchConfig.cache_dir` as a class
+  attribute, which has no effect on dataclass instance fields.
+  Individual test appeared to pass in 61s but sibling tests rebuilt
+  the 430 MB production cache on the next `TestAnnotationPipeline`
+  run.
+- v2 test patch (short-circuiting `_load_cache` for one test) didn't
+  cover the other 15 tests in the class. Full class run hit a
+  5-minute timeout mid-import while building the cache.
+
+### Fixed
+- `src/data/spliceai.py`: renamed `DEFAULT_VCF_PATH` to
+  `DEFAULT_SPLICEAI_PATH` pointing at
+  `data/external/spliceai/spliceai_index.parquet`. `__init__` now
+  falls through to this default when `vcf_path=None` is passed. This
+  closes the Run 8 silent-zero failure mode - the connector no
+  longer returns 0.0 for all variants when `AnnotationConfig()` is
+  constructed with defaults.
+- `tests/unit/test_spliceai_parquet_default.py`: new regression test
+  (~3-7s runtime) that builds a 3-row synthetic parquet, instantiates
+  `SpliceAIConnector()` with no args, and asserts at least one
+  non-zero `splice_ai_score`.
+- `tests/unit/test_core.py`: added class-scoped `autouse=True`
+  fixture `_isolate_spliceai` at the top of `TestAnnotationPipeline`.
+  Monkeypatches `DEFAULT_SPLICEAI_PATH` (nonexistent tmp file) and
+  `BaseConnector._load_cache` (returns None), short-circuiting
+  SpliceAI disk I/O for all 16 tests in the class. Full class runs in
+  2:28 instead of timing out.
+- `scripts/verify_spliceai_index.py`: parquet integrity/schema/null
+  checks. Used at session start to confirm the production parquet
+  (45,549,300 rows, 10 columns, no nulls outside of MT chromosome).
+- `docs/CHANGELOG.md`: deduplicated the triplicated
+  `## 2026-04-16 (final)` heading caused by PowerShell heredoc
+  collision on session close. Net -46 lines.
+
+### Learned
+- Silent-zero connector fallbacks are bugs, not features. Future
+  connectors should assert file existence at startup, not silently
+  return defaults at runtime.
+- `gsutil` is deprecated and has a separate credential store from
+  `gcloud`. Use `gcloud storage ls` exclusively for authoritative
+  GCS-state checks. Never trust `gsutil 401` as evidence of absence.
+- Dataclass fields cannot be monkeypatched via
+  `setattr(Class, "field", value)` - patching has no effect on new
+  instances. Patch instance methods or module constants instead.
+- Class-scoped `autouse=True` fixtures are the right tool for
+  preventing disk-I/O side effects across every test in a class,
+  including future tests that don't yet exist.
+- Run scoped tests (`pytest path::Class::test -v --timeout=N`) before
+  full suites when iterating on fixes. A 20-minute suite is the
+  worst feedback loop.
+- PowerShell heredocs (`@'...'@ | Add-Content`) corrupt reliably when
+  content contains triple-quoted Python or literal commit messages.
+  Use standalone `.py` files instead.
+- `Get-Content | Add-Content` can silently fail with empty pipelines
+  or encoding conflicts on existing files. For reliable appends,
+  read and write in a single .NET call via
+  `[System.IO.File]::AppendAllText`.
+
+### Commits
+- `9ba3127` feat(spliceai): default to parquet index; add regression
+  tests; dedupe changelog (5 files changed, 191 insertions, 50
+  deletions).
+- `8b12f76` docs: session 2026-04-17 - SpliceAI default path fix
+  (session doc only; CHANGELOG append failed silently and was
+  applied in a follow-up commit).
