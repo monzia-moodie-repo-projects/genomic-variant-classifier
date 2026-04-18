@@ -335,3 +335,108 @@ Expected new feature signals: SpliceAI scores, ESM-2 (if HGVSp populated)
 - `8b12f76` docs: session 2026-04-17 - SpliceAI default path fix
   (session doc only; CHANGELOG append failed silently and was
   applied in a follow-up commit).
+
+
+
+## 2026-04-17 (afternoon, take 2) --- Run 9 infra + ESM-2 silent-zero discovery
+
+(Note: the earlier afternoon CHANGELOG entry was draft; this supersedes
+it. Kept in-place because the ESM-2 discovery materially changed the
+story and file contents.)
+
+### Added
+
+- `scripts/preflight_check.py` (local, pre-launch gate): scripted
+  enforcement of standing rule #1. Checks git tree, HEAD == origin/main,
+  full pytest suite, local data files, GCS objects via `gcloud storage
+  ls` (2026-04-17 rule), GITHUB_TOKEN from .env/session/Windows-User-env,
+  transformers+torch importable, no tensorflow, SpliceAI test-cache
+  absence. Allowlists two pre-existing carry-overs
+  (`scripts/gcp_run6_startup.sh`, `ROADMAP_PSYCH_GWAS_ENTRY.md`).
+  Supports `--skip-pytest` and `--skip-gcs` flags for fast iteration.
+  Three revisions this session to work around Windows `.cmd` shim
+  handling in subprocess.
+
+- `scripts/preflight_vm.sh` (on-VM, post-SSH gate): checks nvidia-smi,
+  `torch.cuda.is_available()`, data-file presence on container FS,
+  transformers>=4.40, git HEAD, and all critical Python imports.
+
+- `tests/unit/test_esm2_activation.py`: three-test regression module
+  for ESM-2 stub-mode detection. Skipped on machines without
+  transformers. When transformers is present: gates API drift, gates
+  the real-mode path (passes when all four required columns are
+  present and backend+network available), and explicitly documents
+  the current stub-mode expected-behavior via a separate test that
+  fails loud if the connector ever starts silently inferring the
+  parsed columns.
+
+- `scripts/run9_launch.md`: operational runbook for Run 9. Updated
+  to explicitly expect ESM-2 stub mode in training logs per the
+  INCIDENT doc. Pins `transformers>=4.40,<5.0` on Vast.ai installs.
+
+- `docs/incidents/INCIDENT_2026-04-17_esm2-hgvsp-parser.md`: full
+  root-cause record for the ESM-2 silent-zero that affected Runs
+  6-8. The training pipeline never populated `wt_aa`/`mut_aa`/
+  `protein_pos` (grep of `src/` returned only esm2.py as reader,
+  nothing as writer); the connector logged an INFO message and
+  returned all zeros. Remediation plan: add `src/data/hgvsp_parser.py`
+  in Run 10.
+
+### Discovered
+
+- **ESM-2 has been inert in Runs 6, 7, and 8**. Root cause: pipeline
+  does not populate the four columns the connector requires
+  (`gene_symbol`, `protein_pos`, `wt_aa`, `mut_aa`). Connector emits
+  an INFO-level log ("columns missing -- defaulting to 0.0") that was
+  not being grepped. Feature-importance rankings showed ESM-2 below
+  top 20, which was indistinguishable from "feature contributes
+  literally zero" vs "feature contributes weakly".
+
+- **EVE is almost certainly in the same state**. Same column-pattern:
+  `eve.py:232` reads `wt_aa`/`mt_aa`/`position`/`mutations_protein_name`;
+  none written by pipeline. Full diagnosis deferred to Run 10, when
+  the HGVSp parser can populate both ESM-2 and EVE inputs.
+
+### Design notes
+
+- **Dual-layer preflight** (local + on-VM) is the minimum correctness
+  boundary for Run 9, not redundancy.
+
+- **Connector fallbacks with INFO logs are silent**. For any connector
+  with a graceful fallback path, preflight should test that the
+  fallback fails loud. SpliceAI got this in commit 9ba3127; ESM-2 got
+  it in this session. Audit other connectors (EVE, AlphaMissense,
+  CADD) for the same pattern as a Run 10 prerequisite.
+
+- **Zero-fraction audit belongs in the agent layer**. Feature-importance
+  alone cannot distinguish "weak feature" from "inert feature".
+  Planned: nightly job that prints zero-fraction per feature per
+  dataset and alerts when a feature flips to 1.0 zero-fraction.
+
+### Learned
+
+- Read connector source before writing its test. First ESM-2 test
+  draft assumed 1280-dim embedding columns; actual API is a scalar.
+- Windows gcloud subprocess requires `shell=True` when the cmd token
+  is a bare name without explicit path or `.exe`. subprocess cannot
+  resolve `.cmd` shims via `CreateProcess`.
+- `[System.IO.File]::AppendAllText` does not add a separator before
+  the appended content. If the target file doesn't end with `\n`, the
+  append gets concatenated onto the final line. Fix: include `\n\n`
+  prefix in the appended content, or check-and-add-newline first.
+
+### Commits queued
+
+- `feat(run9): scripts/preflight_check.py + scripts/preflight_vm.sh + ESM-2 smoke test + launch runbook`
+- `docs(run9): INCIDENT for missing HGVSp parser + session doc + CHANGELOG`
+
+### Run 9 readiness after this session
+
+- [x] local preflight script on disk (3rd revision, all bugs fixed)
+- [x] VM preflight script on disk
+- [x] ESM-2 smoke test on disk (matches actual connector schema)
+- [x] launch runbook on disk (expects ESM-2 stub)
+- [x] INCIDENT doc filed
+- [ ] Vast.ai instance provisioned (user action)
+- [ ] on-VM preflight passes (requires live instance)
+- [ ] training launched and final metrics captured
