@@ -10,6 +10,19 @@
 #   See the companion PowerShell block at the bottom of this file.
 set -euo pipefail
 
+# ── PATH fix for vastai/pytorch mini image (2026-05-23) ───────────────────
+# The mini image ships /venv/main/bin/python{,3,3.12} but does NOT prepend
+# /venv/main/bin to non-interactive PATH. Without this, bare `python` fails.
+# Prepending here (instead of relying on .bashrc) makes the fix robust to
+# any shell-init quirk.
+if [ -d /venv/main/bin ] && ! echo "$PATH" | grep -q "/venv/main/bin"; then
+    export PATH="/venv/main/bin:$PATH"
+fi
+# Hard fallback: pin PY so every later invocation is explicit even if PATH
+# is somehow clobbered downstream (e.g. by sourced repo scripts).
+PY="$(command -v python || command -v python3 || echo /venv/main/bin/python)"
+echo "==> Python interpreter: $PY ($($PY --version 2>&1))"
+
 LOG=/workspace/run10a_master.log
 OUTDIR=/workspace/outputs/run10a/full
 REPO=/workspace/genomic-variant-classifier
