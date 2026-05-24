@@ -1,5 +1,41 @@
-﻿
-# CHANGELOG
+## 2026-05-24 - Run 10b launch, premature destroy, local salvage to TEST AUROC 0.9970
+
+### Attempted
+- Full Run 10b training with `launch_run10b_skip_kan_v2.sh` (KAN disabled, 10 base estimators)
+- Phase 1.7.1 incremental per-model checkpoint patch (commit f147112) tested in production
+- End-to-end SCP + destroy + commit sequence in single PowerShell paste block
+- Approximate meta-learner stacking from saved OOF arrays + y_train
+
+### Failed
+- **Premature `vastai destroy`**: destroy command shared paste block with SCP; PowerShell ran all sequentially, killing instance 37429606 at ~06:00 UTC while deep_ensemble member 5/5 was fitting. Lost deep_ensemble + meta-learner + GNN + cloud test eval. See INCIDENT_2026-05-24_run10b-premature-destroy.md
+- **OOF meta-learner alignment**: OOF arrays stored in CV-prediction order, not X_train row order. Pairing OOF with `y_train[:1017633]` gave reconstructed AUROC ~0.50 across all 8 models. Sanity check caught this; fell back to simple-average.
+- **cnn_1d cross-platform unpickle**: `joblib.load` of cloud Linux-saved cnn_1d.joblib fails on local Windows with `TypeError: NoneType.__new__(X)` due to nested-class closure. See INCIDENT_2026-05-24_cnn1d-cross-platform-unpickle.md
+
+### Fixed / Worked as designed
+- **Phase 1.7.1 patch fully validated** in disaster recovery scenario. Per-model joblib + OOF + meta JSON saved right after each AUROC log preserved 9 of 10 base models when the instance died unexpectedly. Without the patch, Run 10b would have been a total loss.
+- **Phase 2 v2 auto-discovery** located splits at `full/splits/` despite Phase 1 inventory's wrong assumption of `full/` root
+- **Alignment sanity check** in Phase 2 v2 correctly detected misaligned OOF rows and prevented false meta-learner results from being published
+
+### Learned
+- **STANDING RULE #30**: Irreversible cloud commands NEVER share a paste block with preceding setup/copy commands. Always isolate in a separate code block requiring explicit re-paste after manual verification.
+- **OOF row indices need sidecar**: To enable post-hoc meta-learner reconstruction, the per-fold prediction-to-row mapping must be saved alongside OOF arrays (`{name}_oof_indices.npy`).
+- **Closure-defined classes are pickle-fragile**: `_CNN1D._build_model.<locals>._CNN1D` doesn't survive cross-process pickle. Run 11 must move `_CNN1D` to module-level.
+- **Split parquets live at `<run_dir>/splits/`**, not `<run_dir>/` directly.
+- **Local CPU inference is fast enough**: 503K rows x 8 models in 2.3 min wall-clock; the no-local-training rule applies to training only, inference is fine.
+- **mc_dropout + deep_ensemble are real estimators**: They were hidden behind the KAN dam in Run 10a. With `--skip-kan` we see 10 base estimators, not 8.
+
+### Outcome
+Locked **TEST AUROC = 0.9970** on 349,067 variants via simple-average ensemble of 8 working base models. Matches best-single performance (catboost, lightgbm both at 0.9970). Mean OOF->TEST degradation -0.0009 across 8 working models indicates healthy generalization.
+
+### Commits
+- `f147112` Phase 1.7.1 incremental checkpoint patch (pre-launch)
+- `927e8d6` Run 10b launch script committed (post-destroy)
+- `9b1400e` Run 10b-partial salvage results
+- `8e1b21f` (CHANGELOG blank-line modification only; superseded by this commit)
+
+﻿# CHANGELOG
+
+
 
 ## 2026-05-23 â€” Run 10a deployment & no-checkpoint reckoning
 
@@ -1664,6 +1700,9 @@ The recovery file includes:
 ### Cost
 - Vast.ai instance 36853443: ~$7Ã¢â‚¬â€œ9 (12 hr training + ~2 hr idle/debug)
 - Prior destroyed instance 36853984: ~$1 (auto-destroyed by preflight trap)
+
+
+
 
 
 
