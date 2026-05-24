@@ -1107,11 +1107,11 @@ class DataPrepPipeline:
         if n_nan > 0:
             logger.warning("%d NaN values in feature matrix -- filling with 0.", n_nan)
             feats = feats.fillna(0.0)
-            # Phase 2 features — now active
-        protein_change = df.get("protein_change", pd.Series([None]*len(df), index=df.index))
-        feats["codon_position"]       = protein_change.apply(_parse_codon_position).astype(int)
-        feats["splice_ai_score"]      = df.get("splice_ai_score",      pd.Series([0.0]*len(df), index=df.index)).fillna(0.0).astype(float)
-        feats["alphamissense_score"]  = df.get("alphamissense_score",   pd.Series([0.5]*len(df), index=df.index)).fillna(0.5).astype(float)
+            # Phase 2 features — codon_position, splice_ai_score, alphamissense_score
+        # are already computed above in their respective sections.
+        # The redundant block that was here (overwriting codon_position via
+        # _parse_codon_position on unpopulated protein_change column) was
+        # removed in Run 11 Phase 0 — see RUN_11_FINDINGS F4.
 
         return feats.reset_index(drop=True)
 
@@ -1204,9 +1204,9 @@ class DataPrepPipeline:
         meta_train: pd.DataFrame | None = None,
     ) -> None:
         out = self.config.output_dir
-        X_train.to_parquet(out / "X_train.parquet", index=False)
-        X_val.to_parquet(out / "X_val.parquet", index=False)
-        X_test.to_parquet(out / "X_test.parquet", index=False)
+        X_train.to_parquet(out / "X_train.parquet", index=False, compression="zstd")  # Run 11 I8
+        X_val.to_parquet(out / "X_val.parquet", index=False, compression="zstd")  # Run 11 I8
+        X_test.to_parquet(out / "X_test.parquet", index=False, compression="zstd")  # Run 11 I8
         y_train.to_frame("label").to_parquet(out / "y_train.parquet", index=False)
         y_val.to_frame("label").to_parquet(out / "y_val.parquet", index=False)
         y_test.to_frame("label").to_parquet(out / "y_test.parquet", index=False)

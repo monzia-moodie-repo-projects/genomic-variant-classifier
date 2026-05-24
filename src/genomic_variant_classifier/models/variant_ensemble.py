@@ -78,6 +78,13 @@ def _parse_codon_position(hgvsp: object) -> int:
 
 logger = logging.getLogger(__name__)
 
+# Run 11 I3: GPU GBDT auto-detection
+try:
+    import torch as _torch
+    _GPU_AVAILABLE = _torch.cuda.is_available()
+except ImportError:
+    _GPU_AVAILABLE = False
+
 try:
     from genomic_variant_classifier.models.catboost_wrapper import CatBoostVariantClassifier as _CatBoostVC
 
@@ -967,6 +974,8 @@ class VariantEnsemble:
                 n_jobs=cfg.n_jobs,
                 random_state=cfg.random_state,
                 verbosity=0,
+                # Run 11 I3: GPU acceleration (auto-detected)
+                **({"device": "cuda", "tree_method": "hist"} if _GPU_AVAILABLE else {}),
             ),
             "lightgbm": lgb.LGBMClassifier(
                 n_estimators=500,
@@ -978,6 +987,8 @@ class VariantEnsemble:
                 n_jobs=cfg.n_jobs,
                 random_state=cfg.random_state,
                 verbose=-1,
+                # Run 11 I3: GPU acceleration (auto-detected)
+                **({"device_type": "gpu", "gpu_use_dp": False} if _GPU_AVAILABLE else {}),
             ),
             **(
                 {}
@@ -1012,7 +1023,7 @@ class VariantEnsemble:
                         depth=6,
                         l2_leaf_reg=3.0,
                         auto_class_weights="Balanced",
-                        task_type="CPU",
+                        task_type="GPU" if _GPU_AVAILABLE else "CPU",  # Run 11 I3
                         cat_feature_names=[
                             "gene_symbol",
                             "consequence",
@@ -1191,6 +1202,12 @@ class VariantEnsemble:
                 _meta_path = _ckpt_dir / f"{name}_meta.json"
                 joblib.dump(self.trained_models_[name], _model_path, compress=3)
                 np.save(_oof_path, oof)
+                # Run 11 carried-forward 3.2: OOF row-index sidecar
+                # Saves the per-fold prediction-to-row mapping so meta-learner
+                # can be reconstructed from saved OOF arrays in disaster recovery.
+                _oof_idx_path = _ckpt_dir / f"{name}_oof_indices.npy"
+                _fold_indices = [test_idx for _, test_idx in cv.split(X_input_fit, y_fit)]
+                np.save(_oof_idx_path, np.concatenate(_fold_indices))
                 with open(_meta_path, "w") as _f:
                     json.dump({
                         "name": name,
