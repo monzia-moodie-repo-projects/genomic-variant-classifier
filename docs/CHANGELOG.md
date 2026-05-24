@@ -1,3 +1,5 @@
+# CHANGELOG
+
 ## 2026-05-24 - Run 10b launch, premature destroy, local salvage to TEST AUROC 0.9970
 
 ### Attempted
@@ -32,10 +34,6 @@ Locked **TEST AUROC = 0.9970** on 349,067 variants via simple-average ensemble o
 - `927e8d6` Run 10b launch script committed (post-destroy)
 - `9b1400e` Run 10b-partial salvage results
 - `8e1b21f` (CHANGELOG blank-line modification only; superseded by this commit)
-
-﻿# CHANGELOG
-
-
 
 ## 2026-05-23 â€” Run 10a deployment & no-checkpoint reckoning
 
@@ -81,7 +79,6 @@ Locked **TEST AUROC = 0.9970** on 349,067 variants via simple-average ensemble o
 6. Add `tests/unit/test_cnn_1d_wrapper.py` with AUROC > 0.55 gate
 7. SCP outputs back, destroy instance
 8. File all session docs to `docs/sessions/` and `docs/incidents/`
-
 
 ---
 
@@ -423,8 +420,6 @@ Expected new feature signals: SpliceAI scores, ESM-2 (if HGVSp populated)
   (session doc only; CHANGELOG append failed silently and was
   applied in a follow-up commit).
 
-
-
 ## 2026-04-17 (afternoon, take 2) --- Run 9 infra + ESM-2 silent-zero discovery
 
 (Note: the earlier afternoon CHANGELOG entry was draft; this supersedes
@@ -713,7 +708,6 @@ Docker build smoke test).
 - [ ] KAN scalability pre-flight at 10K and 100K rows on GPU before full run
 - [ ] training launched and final metrics captured
 
-
 ## 2026-04-30
 
 ### Attempted
@@ -943,7 +937,6 @@ Docker build smoke test).
 - Operational tooling (in `agent_data/`, NOT in repo):
   `c4_fix_install_compat.py`, `c4_diagnose_walk.py`, `c4_fix_bare_imports.py`,
   `c4_batch_C36_through_4.ps1`, `c4_batch_commits.ps1`
-
 
 ## 2026-05-09 (continuation) â€” C5 layout-migration cleanup
 
@@ -1534,7 +1527,6 @@ Phase 1 regression suite GREEN end-to-end. Ready to advance to Phase 1.6
 (`sequence_context.py` stub + optional FinnGen INFO log) or directly to
 Phase 1.7 (launch script + requirements pinning).
 
-
 # Phase 1.7 CHANGELOG entry
 
 Append this block to `docs/CHANGELOG.md` (after the existing
@@ -1652,8 +1644,6 @@ The recovery file includes:
 - Time-to-result: ~12h from SCP-up to locked test AUROC in
   `outputs/run10/full/metrics.json`
 
-
-
 ---
 
 ## 2026-05-16 Ã¢â‚¬â€ Run 10: locked test AUROC produced
@@ -1700,9 +1690,4 @@ The recovery file includes:
 ### Cost
 - Vast.ai instance 36853443: ~$7Ã¢â‚¬â€œ9 (12 hr training + ~2 hr idle/debug)
 - Prior destroyed instance 36853984: ~$1 (auto-destroyed by preflight trap)
-
-
-
-
-
 

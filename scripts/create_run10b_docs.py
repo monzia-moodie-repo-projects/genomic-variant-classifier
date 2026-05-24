@@ -545,7 +545,8 @@ def main() -> int:
         new_content = "# CHANGELOG\n\n" + CHANGELOG_ENTRY
         print(f"\n  CHANGELOG.md missing -> creating new with entry")
     else:
-        current = CHANGELOG.read_text(encoding="utf-8")
+        current = CHANGELOG.read_text(encoding="utf-8-sig")
+        current = current.replace("\ufeff", "")  # belt-and-suspenders strip embedded BOMs
         # Strip leading whitespace (cleans up the blank-line creep from earlier botched prepends)
         original_len = len(current)
         current = current.lstrip()
