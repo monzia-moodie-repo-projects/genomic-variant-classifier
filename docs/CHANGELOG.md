@@ -1,3 +1,53 @@
+# CHANGELOG
+
+## 2026-05-23 — Run 10a deployment & no-checkpoint reckoning
+
+### Attempted
+- Run 10a regen+train on Vast.ai inst 37429606 (RTX 4090, $0.76/hr) with LOVD + DbNSFP wired
+- Mid-run salvage planning when KAN cycle 3 of 6 still active at 16h
+
+### Fixed (empirically validated)
+- LOVD silent-zero: annotation 15/16 returns 369 variants (was 0). Commit `66593d6` confirmed correct.
+- DbNSFP silent-zero: annotation 1/17 delivers 204,384 real SIFT scores.
+- KAN pykan 0.2.x compatibility: `dataset` dict with `train_input/train_label/test_input/test_label` keys works.
+- KAN OOM safeguard: 100K stratified subsample with `max_fit_samples=100_000` allocates 0.2 GB peak instead of 17.9 GB.
+
+### Failed
+- `ensemble.save()` and per-model persistence: NO `.pkl`/`.joblib`/`.cbm` files exist anywhere in /workspace after 16 hours of training. Phase 1.7 patch (`66593d6`) created `model_dir` but did not add per-model writes. Same architectural omission as Run 9.
+- `cnn_1d` wrapper: OOF AUROC = 0.5000 (constant predictions). Regression introduced between Run 9 and Run 10a, likely from post-C5 namespace refactor breaking the inner `_CNN1D._build_model.<locals>._CNN1D` closure.
+- 4090 GPU utilization for KAN: 0% steady — KAN is CPU-bound. ~$10/run wasted on wrong hardware tier.
+
+### Learned
+- Standing pre-flight rule did NOT catch the no-checkpoint failure mode because it didn't require runtime verification.
+- cnn_1d is a 1-D convolution over the 78-feature tabular vector, not an image model. Image data acquisition remains unscheduled (correctly so) — Phase 0 baseline + ablation matrix come first.
+- KAN's 6-cycle pattern confirmed: 5-fold OOF CV + 1 final fit on full data. Each cycle ~4h 25m + ~1h 30m inter-cycle gap = ~5h 55m wall-clock per cycle.
+- PowerShell→SSH→bash quoting: `---` separators + single-word grep patterns are the only reliable shape. Never embed `"..."` inside `'...'`.
+
+### Memory rules updated
+- Memory edit #29 replaced with: incremental checkpointing mandatory on all >30 min cloud training; pre-flight must verify checkpoint files appear within first 30 min; abort if first base model finishes with no checkpoint emission.
+
+### Incidents filed
+- `INCIDENT_2026-05-23_run10a-no-checkpoints.md` — structural fix via `variant_ensemble.py` patch
+- `INCIDENT_2026-05-23_cnn1d-0.5-auroc.md` — closure regression, unit test gate required
+
+### Costs
+- Run 10a so far: $13.02 (15h 53m × $0.76 + $0.95 setup)
+- Run 10a remaining if completed: +$14.44 → $27.46 total
+- Run 10c (kill+patch+restart with --skip-kan) projection: +$2.50 → $15.50 total
+
+### Next-session deliverables
+1. Apply `variant_ensemble_incremental_save_patch.py` to local repo
+2. Commit + push
+3. Kill Run 10a, relaunch on patched code with `--skip-kan`
+4. Verify checkpoints appear within first 30 min
+5. Add `tests/integration/test_ensemble_persistence.py`
+6. Add `tests/unit/test_cnn_1d_wrapper.py` with AUROC > 0.55 gate
+7. SCP outputs back, destroy instance
+8. File all session docs to `docs/sessions/` and `docs/incidents/`
+
+
+---
+
 # Changelog — Genomic Variant Classifier
 
 Append-only. One entry per session. Captures what was attempted, what
@@ -1613,3 +1663,5 @@ The recovery file includes:
 ### Cost
 - Vast.ai instance 36853443: ~$7â€“9 (12 hr training + ~2 hr idle/debug)
 - Prior destroyed instance 36853984: ~$1 (auto-destroyed by preflight trap)
+
+

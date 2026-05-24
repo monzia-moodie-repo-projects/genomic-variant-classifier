@@ -61,6 +61,9 @@ import xgboost as xgb
 import lightgbm as lgb
 
 import re as _re
+import joblib
+import json
+from datetime import datetime
 
 _HGVSP_CODON_RE = _re.compile(r"p\.[A-Za-z]{3}(\d+)")
 
@@ -1179,6 +1182,27 @@ class VariantEnsemble:
 
             logger.info("  %s OOF AUROC: %.4f", name, roc_auc_score(y_fit, oof))
 
+            # === incremental checkpoint patch (INCIDENT_2026-05-23) ===
+            try:
+                _ckpt_dir = self.config.model_dir
+                _ckpt_dir.mkdir(parents=True, exist_ok=True)
+                _model_path = _ckpt_dir / f"{name}.joblib"
+                _oof_path = _ckpt_dir / f"{name}_oof.npy"
+                _meta_path = _ckpt_dir / f"{name}_meta.json"
+                joblib.dump(self.trained_models_[name], _model_path, compress=3)
+                np.save(_oof_path, oof)
+                with open(_meta_path, "w") as _f:
+                    json.dump({
+                        "name": name,
+                        "oof_auroc": float(roc_auc_score(y_fit, oof)),
+                        "saved_at_utc": datetime.utcnow().isoformat(),
+                        "n_samples": int(len(y_fit)),
+                    }, _f, indent=2)
+                _size_mb = _model_path.stat().st_size / 1e6
+                logger.info("    %s checkpoint saved: %s (%.1f MB)", name, _model_path.name, _size_mb)
+            except Exception as _save_exc:
+                logger.error("    %s checkpoint FAILED to save: %s", name, _save_exc, exc_info=True)
+            # === end incremental checkpoint patch ===
         # Drop columns for any model that failed and was skipped.
         valid_cols = [
             i for i, n in enumerate(self.base_estimators) if n in self.trained_models_
