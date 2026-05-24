@@ -1,0 +1,18 @@
+{
+  "status": "CONFIRMED",
+  "regen_log_path": "outputs\\run9_ready\\regen.log",
+  "regen_log_lines": 229,
+  "regen_log_bytes": 22760,
+  "lovd_annotation_step_found": true,
+  "lovd_annotation_step_line": 58,
+  "lovd_annotation_step_text": "2026-04-30 04:47:05  INFO      src.data.real_data_prep  Score annotation 15/16 (LOVD): 0 variants with lovd_variant_class > 0.",
+  "no_parquet_warning_found": true,
+  "no_parquet_warning_line": 57,
+  "no_parquet_warning_text": "2026-04-30 04:47:04  WARNING   src.data.lovd  LOVDConnector: no parquet loaded \ufffd all variants will receive lovd_variant_class=0. Set parquet_path to activate LOVD annotation.",
+  "lovd_nonzero_count": 0,
+  "case": "a",
+  "fix_commit": "66593d6",
+  "fix_description": "Phase 1 B1: adds --lovd-path argument to scripts/run_phase2_eval.py",
+  "verification_timestamp": "2026-05-24T14:12:24.610207Z",
+  "case_description": "Case (a): LOVDConnector invoked without parquet_path. All variants received lovd_variant_class=0. Fix: commit 66593d6 adds --lovd-path argument."
+}
