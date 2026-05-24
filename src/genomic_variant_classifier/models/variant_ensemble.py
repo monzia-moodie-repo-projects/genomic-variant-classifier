@@ -85,13 +85,6 @@ try:
 except ImportError:
     _GPU_AVAILABLE = False
 
-# Run 11 I3: GPU GBDT auto-detection
-try:
-    import torch as _torch
-    _GPU_AVAILABLE = _torch.cuda.is_available()
-except ImportError:
-    _GPU_AVAILABLE = False
-
 try:
     from genomic_variant_classifier.models.catboost_wrapper import CatBoostVariantClassifier as _CatBoostVC
 
@@ -1209,12 +1202,6 @@ class VariantEnsemble:
                 _meta_path = _ckpt_dir / f"{name}_meta.json"
                 joblib.dump(self.trained_models_[name], _model_path, compress=3)
                 np.save(_oof_path, oof)
-                # Run 11 carried-forward 3.2: OOF row-index sidecar
-                # Saves the per-fold prediction-to-row mapping so meta-learner
-                # can be reconstructed from saved OOF arrays in disaster recovery.
-                _oof_idx_path = _ckpt_dir / f"{name}_oof_indices.npy"
-                _fold_indices = [test_idx for _, test_idx in cv.split(X_input_fit, y_fit)]
-                np.save(_oof_idx_path, np.concatenate(_fold_indices))
                 # Run 11 carried-forward 3.2: OOF row-index sidecar
                 # Saves the per-fold prediction-to-row mapping so meta-learner
                 # can be reconstructed from saved OOF arrays in disaster recovery.
