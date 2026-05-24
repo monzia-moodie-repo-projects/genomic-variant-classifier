@@ -1,0 +1,92 @@
+{
+  "base_dir": "C:\\Projects\\genomic-variant-classifier\\outputs\\run10b_final\\full",
+  "splits_present": false,
+  "models_expected": [
+    "catboost",
+    "cnn_1d",
+    "gradient_boosting",
+    "lightgbm",
+    "logistic_regression",
+    "mc_dropout",
+    "random_forest",
+    "tabular_nn",
+    "xgboost"
+  ],
+  "models_present": [
+    "catboost",
+    "cnn_1d",
+    "gradient_boosting",
+    "lightgbm",
+    "logistic_regression",
+    "mc_dropout",
+    "random_forest",
+    "tabular_nn",
+    "xgboost"
+  ],
+  "models_missing": [],
+  "per_model": [
+    {
+      "model": "catboost",
+      "oof_auroc": 0.9977226636193556,
+      "n_samples": 1017633,
+      "oof_length": 1017633,
+      "oof_dtype": "float64"
+    },
+    {
+      "model": "cnn_1d",
+      "oof_auroc": 0.5000012128644846,
+      "n_samples": 1017633,
+      "oof_length": 1017633,
+      "oof_dtype": "float32"
+    },
+    {
+      "model": "gradient_boosting",
+      "oof_auroc": 0.9970201495209131,
+      "n_samples": 1017633,
+      "oof_length": 1017633,
+      "oof_dtype": "float64"
+    },
+    {
+      "model": "lightgbm",
+      "oof_auroc": 0.9978492587578398,
+      "n_samples": 1017633,
+      "oof_length": 1017633,
+      "oof_dtype": "float64"
+    },
+    {
+      "model": "logistic_regression",
+      "oof_auroc": 0.9952230884453036,
+      "n_samples": 1017633,
+      "oof_length": 1017633,
+      "oof_dtype": "float64"
+    },
+    {
+      "model": "mc_dropout",
+      "oof_auroc": 0.9970642527177778,
+      "n_samples": 1017633,
+      "oof_length": 1017633,
+      "oof_dtype": "float32"
+    },
+    {
+      "model": "random_forest",
+      "oof_auroc": 0.9960981335349613,
+      "n_samples": 1017633,
+      "oof_length": 1017633,
+      "oof_dtype": "float64"
+    },
+    {
+      "model": "tabular_nn",
+      "oof_auroc": 0.9970642527177778,
+      "n_samples": 1017633,
+      "oof_length": 1017633,
+      "oof_dtype": "float32"
+    },
+    {
+      "model": "xgboost",
+      "oof_auroc": 0.9978783876953947,
+      "n_samples": 1017633,
+      "oof_length": 1017633,
+      "oof_dtype": "float32"
+    }
+  ]
+}

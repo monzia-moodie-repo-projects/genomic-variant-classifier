@@ -1,0 +1,190 @@
+==> Run 10b launch @ 2026-05-24 03:25:44 UTC
+==> [1/5] Data file preflight
+==> OK: /workspace/data/processed/clinvar_grch38.parquet (135 MB)
+==> OK: /workspace/data/processed/gnomad_v4_exomes.parquet (37 MB)
+==> OK: /workspace/data/external/spliceai/spliceai_index.parquet (336 MB)
+==> OK: /workspace/data/external/alphamissense/AlphaMissense_hg38.tsv.gz (613 MB)
+==> OK: /workspace/data/external/lovd/lovd_all_variants.parquet (0 MB)
+==> OK: /workspace/data/external/dbnsfp/dbnsfp_clinvar_index.parquet (34 MB)
+==> [2/5] Patch verification (code-signature based)
+==> Patch verified: import=1, checkpoint=1
+==> HEAD: f147112
+==> [3/5] Clearing stale .pyc cache under /workspace/genomic-variant-classifier/src
+==> .pyc cleared
+==> [4/5] Smoke import test (should print 'OK' in <5s)
+OK
+==> [5/5] STRING DB setup
+==> STRING DB wired (GNN enabled)
+==> ALL PREFLIGHT PASSED. Starting run_phase2_eval.py with --skip-kan @ 2026-05-24 03:25:48 UTC
+2026-05-24 03:25:49  INFO      run_phase2_eval  Configuration:
+2026-05-24 03:25:49  INFO      run_phase2_eval    clinvar:               /workspace/data/processed/clinvar_grch38.parquet
+2026-05-24 03:25:49  INFO      run_phase2_eval    gnomad:                /workspace/data/processed/gnomad_v4_exomes.parquet
+2026-05-24 03:25:49  INFO      run_phase2_eval    spliceai:              /workspace/data/external/spliceai/spliceai_index.parquet
+2026-05-24 03:25:49  INFO      run_phase2_eval    alphamissense:         /workspace/data/external/alphamissense/AlphaMissense_hg38.tsv.gz
+2026-05-24 03:25:49  INFO      run_phase2_eval    gtex_genes:            ['BRCA1', 'BRCA2', 'TP53', 'PTEN', 'ATM']
+2026-05-24 03:25:49  INFO      run_phase2_eval    kg:                    None
+2026-05-24 03:25:49  INFO      run_phase2_eval    gnomad_constraint:     None
+2026-05-24 03:25:49  INFO      run_phase2_eval    lovd_path:             /workspace/data/external/lovd/lovd_all_variants.parquet
+2026-05-24 03:25:49  INFO      run_phase2_eval    dbnsfp_path:           /workspace/data/external/dbnsfp/dbnsfp_clinvar_index.parquet
+2026-05-24 03:25:49  INFO      run_phase2_eval    finngen_path:          None
+2026-05-24 03:25:49  INFO      run_phase2_eval    skip_nn:               False
+2026-05-24 03:25:49  INFO      run_phase2_eval    string_db:             auto
+2026-05-24 03:25:49  INFO      run_phase2_eval    skip_svm:              False
+2026-05-24 03:25:49  INFO      run_phase2_eval    skip_kan:              True
+2026-05-24 03:25:49  INFO      run_phase2_eval    max_train:             None
+2026-05-24 03:25:49  INFO      run_phase2_eval    n_folds:               5
+2026-05-24 03:25:49  INFO      run_phase2_eval    min_review_tier:       3
+2026-05-24 03:25:49  INFO      run_phase2_eval    auroc_target:          0.9
+2026-05-24 03:25:49  INFO      run_phase2_eval    output:                /workspace/outputs/run10a/full
+2026-05-24 03:25:52  INFO      genomic_variant_classifier.data.real_data_prep  === DataPrepPipeline: starting ===
+2026-05-24 03:25:55  INFO      genomic_variant_classifier.data.real_data_prep  Loaded 4420180 rows from /workspace/data/processed/clinvar_grch38.parquet.
+2026-05-24 03:25:56  INFO      genomic_variant_classifier.data.real_data_prep  Label filtering: 4420180 -> 1700687 (2719493 VUS/conflicting removed).
+2026-05-24 03:25:57  INFO      genomic_variant_classifier.data.real_data_prep  After label filtering: 1700687 variants (340971 pathogenic, 1359716 benign).
+2026-05-24 03:26:03  INFO      genomic_variant_classifier.data.real_data_prep  After gnomAD join: 1024298 / 1700687 variants have AF (60.2%).
+2026-05-24 03:26:03  INFO      genomic_variant_classifier.data.real_data_prep  676389 variants still have null AF after gnomAD join. Pass kg_path for 1000 Genomes fallback.
+2026-05-24 03:26:03  INFO      genomic_variant_classifier.data.real_data_prep  === Score annotation: starting ===
+2026-05-24 03:26:04  INFO      genomic_variant_classifier.data.dbnsfp  DbNSFP: loading index from parquet cache: /workspace/data/external/dbnsfp/dbnsfp_clinvar_index.parquet
+2026-05-24 03:26:04  INFO      genomic_variant_classifier.data.dbnsfp  DbNSFP: loaded 2687077 variants from cache.
+2026-05-24 03:26:08  INFO      genomic_variant_classifier.data.real_data_prep  Score annotation 1/17 (DbNSFP): 204384 variants with real SIFT scores.
+2026-05-24 03:26:55  INFO      genomic_variant_classifier.data.real_data_prep  Score annotation 2/17 (PhyloP): 0 variants with non-zero phylop_score.
+2026-05-24 03:26:55  INFO      genomic_variant_classifier.data.database_connectors  Loading spliceai cache: data/raw/cache/spliceai_scores_snv.parquet
+2026-05-24 03:26:57  INFO      genomic_variant_classifier.data.spliceai  SpliceAI: loaded 44688180 scores from parquet cache.
+2026-05-24 03:27:12  INFO      genomic_variant_classifier.data.spliceai  SpliceAI: 148378 / 1700687 variants have score > 0  (50773 high-confidence >= 0.5).
+2026-05-24 03:27:12  INFO      genomic_variant_classifier.data.real_data_prep  Score annotation 4/6 (SpliceAI): 148378 variants with splice_ai_score > 0.
+2026-05-24 03:27:12  INFO      genomic_variant_classifier.data.database_connectors  Loading alphamissense cache: data/raw/cache/alphamissense_scores_hg38.parquet
+2026-05-24 03:27:16  INFO      genomic_variant_classifier.data.alphamissense  AlphaMissense: loaded 71034269 scores from parquet cache.
+2026-05-24 03:27:46  INFO      genomic_variant_classifier.data.alphamissense  AlphaMissense: 206131 / 1700687 variants annotated (62885 likely_pathogenic >= 0.564, 131661 likely_benign <= 0.340).
+2026-05-24 03:27:46  INFO      genomic_variant_classifier.data.real_data_prep  Score annotation 5/6 (AlphaMissense): 206131 variants annotated (score != 0.5).
+2026-05-24 03:27:46  INFO      genomic_variant_classifier.data.database_connectors  Loading gtex cache: data/raw/cache/gtex_gene_BRCA1.parquet
+2026-05-24 03:27:46  INFO      genomic_variant_classifier.data.database_connectors  Loading gtex cache: data/raw/cache/gtex_gene_BRCA2.parquet
+2026-05-24 03:27:46  INFO      genomic_variant_classifier.data.database_connectors  Loading gtex cache: data/raw/cache/gtex_gene_TP53.parquet
+2026-05-24 03:27:46  INFO      genomic_variant_classifier.data.database_connectors  Loading gtex cache: data/raw/cache/gtex_gene_PTEN.parquet
+2026-05-24 03:27:46  INFO      genomic_variant_classifier.data.database_connectors  Loading gtex cache: data/raw/cache/gtex_gene_ATM.parquet
+2026-05-24 03:27:46  INFO      genomic_variant_classifier.data.gtex  GTEx: resolved 5 / 5 gene symbols to Gencode IDs.
+2026-05-24 03:27:46  INFO      genomic_variant_classifier.data.gtex  GTEx: processing BRCA1 (ENSG00000012048.20)
+2026-05-24 03:27:46  INFO      genomic_variant_classifier.data.database_connectors  Loading gtex cache: data/raw/cache/gtex_expr_ENSG00000012048.20.parquet
+2026-05-24 03:27:48  INFO      genomic_variant_classifier.data.database_connectors  Loading gtex cache: data/raw/cache/gtex_eqtl_ENSG00000012048.20_Liver.parquet
+2026-05-24 03:27:52  INFO      genomic_variant_classifier.data.gtex  GTEx: processing BRCA2 (ENSG00000139618.14)
+2026-05-24 03:27:52  INFO      genomic_variant_classifier.data.database_connectors  Loading gtex cache: data/raw/cache/gtex_expr_ENSG00000139618.14.parquet
+2026-05-24 03:27:55  INFO      genomic_variant_classifier.data.database_connectors  Loading gtex cache: data/raw/cache/gtex_eqtl_ENSG00000139618.14_Lung.parquet
+2026-05-24 03:27:56  INFO      genomic_variant_classifier.data.gtex  GTEx: processing TP53 (ENSG00000141510.16)
+2026-05-24 03:27:56  INFO      genomic_variant_classifier.data.database_connectors  Loading gtex cache: data/raw/cache/gtex_expr_ENSG00000141510.16.parquet
+2026-05-24 03:27:59  INFO      genomic_variant_classifier.data.database_connectors  Loading gtex cache: data/raw/cache/gtex_eqtl_ENSG00000141510.16_Kidney_Cortex.parquet
+2026-05-24 03:28:01  INFO      genomic_variant_classifier.data.gtex  GTEx: processing PTEN (ENSG00000171862.10)
+2026-05-24 03:28:01  INFO      genomic_variant_classifier.data.database_connectors  Loading gtex cache: data/raw/cache/gtex_expr_ENSG00000171862.10.parquet
+2026-05-24 03:28:06  INFO      genomic_variant_classifier.data.gtex  GTEx: processing ATM (ENSG00000149311.18)
+2026-05-24 03:28:06  INFO      genomic_variant_classifier.data.database_connectors  Loading gtex cache: data/raw/cache/gtex_expr_ENSG00000149311.18.parquet
+2026-05-24 03:28:06  INFO      genomic_variant_classifier.data.database_connectors  Loading gtex cache: data/raw/cache/gtex_eqtl_ENSG00000149311.18_Whole_Blood.parquet
+2026-05-24 03:28:09  INFO      genomic_variant_classifier.data.database_connectors  Loading gtex cache: data/raw/cache/gtex_eqtl_ENSG00000149311.18_Heart_Left_Ventricle.parquet
+2026-05-24 03:28:09  INFO      genomic_variant_classifier.data.database_connectors  Loading gtex cache: data/raw/cache/gtex_eqtl_ENSG00000149311.18_Lung.parquet
+2026-05-24 03:28:10  INFO      genomic_variant_classifier.data.database_connectors  Loading gtex cache: data/raw/cache/gtex_eqtl_ENSG00000149311.18_Muscle_Skeletal.parquet
+2026-05-24 03:28:11  INFO      genomic_variant_classifier.data.real_data_prep  Score annotation 6/12 (GTEx): 0 eQTL variants.
+2026-05-24 03:28:12  INFO      genomic_variant_classifier.data.real_data_prep  Score annotation 7/12 (VEP): 0 variants with non-zero codon_position.
+2026-05-24 03:28:12  WARNING   genomic_variant_classifier.data.omim  OMIMConnector: mim2gene_path not set — returning default values (omim_n_diseases=0, omim_is_autosomal_dominant=0).  Download mim2gene.txt from https://omim.org/downloads.
+2026-05-24 03:28:12  INFO      genomic_variant_classifier.data.real_data_prep  Score annotation 8/12 (OMIM): 0 variants with omim_n_diseases > 0.
+2026-05-24 03:28:12  WARNING   genomic_variant_classifier.data.clingen  ClinGenConnector: csv_path not set — returning default values (clingen_validity_score=0).  Download from https://search.clinicalgenome.org/kb/gene-validity.
+2026-05-24 03:28:13  INFO      genomic_variant_classifier.data.real_data_prep  Score annotation 9/12 (ClinGen): 0 variants with clingen_validity_score > 0.
+2026-05-24 03:28:13  WARNING   genomic_variant_classifier.data.dbsnp  DbSNPConnector: parquet_path not set — returning dbsnp_af=0.0.  Download dbSNP build 156 from https://ftp.ncbi.nlm.nih.gov/snp/.
+2026-05-24 03:28:13  INFO      genomic_variant_classifier.data.real_data_prep  Score annotation 10/12 (dbSNP): 0 variants with dbsnp_af > 0.
+2026-05-24 03:28:13  WARNING   genomic_variant_classifier.data.eve  EVEConnector: eve_path not set — returning eve_score=0.5 (not covered).  Download EVE scores from https://evemodel.org.
+2026-05-24 03:28:13  INFO      genomic_variant_classifier.data.real_data_prep  Score annotation 11/12 (EVE): 0 variants covered (score != 0.5).
+2026-05-24 03:28:13  INFO      genomic_variant_classifier.data.real_data_prep  Score annotation 12/14 (HGMD): 0 variants flagged as disease mutations.
+2026-05-24 03:28:14  INFO      genomic_variant_classifier.data.real_data_prep  Score annotation 13/14 (RNA splice): 0 splice-gated variants annotated.
+2026-05-24 03:28:14  INFO      genomic_variant_classifier.data.real_data_prep  Score annotation 14/14 (protein structure): 0 missense variants annotated.
+2026-05-24 03:28:14  INFO      genomic_variant_classifier.data.lovd  LOVDConnector: loaded 18006 variants from /workspace/data/external/lovd/lovd_all_variants.parquet.
+2026-05-24 03:28:16  INFO      genomic_variant_classifier.data.lovd  LOVDConnector: 369 / 1700687 variants annotated (lovd_variant_class > 0).
+2026-05-24 03:28:16  INFO      genomic_variant_classifier.data.real_data_prep  Score annotation 15/16 (LOVD): 369 variants with lovd_variant_class > 0.
+2026-05-24 03:28:16  INFO      genomic_variant_classifier.data.esm2  ESM-2: neither 'transformers+torch' nor 'fair-esm' installed. Running in stub mode (esm2_delta_norm = 0.0). Install: pip install transformers torch
+2026-05-24 03:28:16  WARNING   genomic_variant_classifier.data.esm2  ESM-2 stub mode -- all esm2_delta_norm values = 0.0
+2026-05-24 03:28:16  INFO      genomic_variant_classifier.data.real_data_prep  Score annotation 16/17 (ESM-2): 0 missense variants with esm2_delta_norm > 0.
+2026-05-24 03:28:17  INFO      genomic_variant_classifier.data.real_data_prep  Score annotation 17/17 (gnomAD constraint): 0 genes with pLI > 0.
+2026-05-24 03:28:17  INFO      genomic_variant_classifier.data.real_data_prep  === Score annotation: complete ===
+2026-05-24 03:28:28  INFO      genomic_variant_classifier.data.real_data_prep  Feature matrix: 1700687 rows x 78 features.
+2026-05-24 03:28:39  INFO      genomic_variant_classifier.data.real_data_prep  Splits saved to /workspace/outputs/run10a/full/splits/
+2026-05-24 03:28:39  INFO      genomic_variant_classifier.data.real_data_prep  -------------------------------------------------------
+2026-05-24 03:28:39  INFO      genomic_variant_classifier.data.real_data_prep  Split          Variants   Pathogenic    Genes
+2026-05-24 03:28:39  INFO      genomic_variant_classifier.data.real_data_prep  -------------------------------------------------------
+2026-05-24 03:28:39  INFO      genomic_variant_classifier.data.real_data_prep  Train           1197216      243540 (20.3%)     16240
+2026-05-24 03:28:39  INFO      genomic_variant_classifier.data.real_data_prep  Val              154404       27640 (17.9%)      2320
+2026-05-24 03:28:39  INFO      genomic_variant_classifier.data.real_data_prep  Test             349067       69791 (20.0%)      4641
+2026-05-24 03:28:39  INFO      genomic_variant_classifier.data.real_data_prep  -------------------------------------------------------
+2026-05-24 03:28:39  INFO      genomic_variant_classifier.data.real_data_prep  === DataPrepPipeline: complete ===
+2026-05-24 03:28:39  INFO      run_phase2_eval  Data prep: train=1197216 val=154404 test=349067 features=78
+2026-05-24 03:28:39  INFO      run_phase2_eval  KAN skipped: --skip-kan flag set.
+2026-05-24 03:28:39  INFO      run_phase2_eval  SVM skipped: training set 1197216 > 100K (O(n²) infeasible)
+2026-05-24 03:28:39  INFO      genomic_variant_classifier.models.variant_ensemble  Training ensemble: 1197216 samples, 243540 pathogenic.
+2026-05-24 03:28:40  INFO      genomic_variant_classifier.models.variant_ensemble    Training random_forest ...
+2026-05-24 03:33:51  INFO      genomic_variant_classifier.models.variant_ensemble    random_forest — applying isotonic calibration ...
+2026-05-24 03:33:52  INFO      genomic_variant_classifier.models.variant_ensemble    random_forest OOF AUROC: 0.9961
+2026-05-24 03:34:04  INFO      genomic_variant_classifier.models.variant_ensemble      random_forest checkpoint saved: random_forest.joblib (301.9 MB)
+2026-05-24 03:34:04  INFO      genomic_variant_classifier.models.variant_ensemble    Training xgboost ...
+2026-05-24 03:34:52  INFO      genomic_variant_classifier.models.variant_ensemble    xgboost — applying isotonic calibration ...
+2026-05-24 03:34:52  INFO      genomic_variant_classifier.models.variant_ensemble    xgboost OOF AUROC: 0.9979
+2026-05-24 03:34:53  INFO      genomic_variant_classifier.models.variant_ensemble      xgboost checkpoint saved: xgboost.joblib (0.7 MB)
+2026-05-24 03:34:53  INFO      genomic_variant_classifier.models.variant_ensemble    Training lightgbm ...
+2026-05-24 03:35:28  INFO      genomic_variant_classifier.models.variant_ensemble    lightgbm — applying isotonic calibration ...
+2026-05-24 03:35:29  INFO      genomic_variant_classifier.models.variant_ensemble    lightgbm OOF AUROC: 0.9978
+2026-05-24 03:35:29  INFO      genomic_variant_classifier.models.variant_ensemble      lightgbm checkpoint saved: lightgbm.joblib (0.8 MB)
+2026-05-24 03:35:29  INFO      genomic_variant_classifier.models.variant_ensemble    Training logistic_regression ...
+2026-05-24 03:36:58  INFO      genomic_variant_classifier.models.variant_ensemble    logistic_regression OOF AUROC: 0.9952
+2026-05-24 03:36:58  INFO      genomic_variant_classifier.models.variant_ensemble      logistic_regression checkpoint saved: logistic_regression.joblib (0.0 MB)
+2026-05-24 03:36:58  INFO      genomic_variant_classifier.models.variant_ensemble    Training gradient_boosting ...
+2026-05-24 04:14:32  INFO      genomic_variant_classifier.models.variant_ensemble    gradient_boosting OOF AUROC: 0.9970
+2026-05-24 04:14:32  INFO      genomic_variant_classifier.models.variant_ensemble      gradient_boosting checkpoint saved: gradient_boosting.joblib (0.2 MB)
+2026-05-24 04:14:32  INFO      genomic_variant_classifier.models.variant_ensemble    Training catboost ...
+2026-05-24 04:14:58  INFO      genomic_variant_classifier.models.catboost_wrapper  CatBoost fit: best_iteration=1000, categorical_features=0/78
+2026-05-24 04:15:27  INFO      genomic_variant_classifier.models.catboost_wrapper  CatBoost fit: best_iteration=1000, categorical_features=0/78
+2026-05-24 04:15:55  INFO      genomic_variant_classifier.models.catboost_wrapper  CatBoost fit: best_iteration=1000, categorical_features=0/78
+2026-05-24 04:16:20  INFO      genomic_variant_classifier.models.catboost_wrapper  CatBoost fit: best_iteration=1000, categorical_features=0/78
+2026-05-24 04:16:46  INFO      genomic_variant_classifier.models.catboost_wrapper  CatBoost fit: best_iteration=1000, categorical_features=0/78
+2026-05-24 04:17:19  INFO      genomic_variant_classifier.models.catboost_wrapper  CatBoost fit: best_iteration=1000, categorical_features=0/78
+2026-05-24 04:17:19  INFO      genomic_variant_classifier.models.variant_ensemble    catboost OOF AUROC: 0.9977
+2026-05-24 04:17:19  INFO      genomic_variant_classifier.models.variant_ensemble      catboost checkpoint saved: catboost.joblib (0.5 MB)
+2026-05-24 04:17:19  INFO      genomic_variant_classifier.models.variant_ensemble    Training tabular_nn ...
+2026-05-24 04:38:01  INFO      genomic_variant_classifier.models.variant_ensemble    tabular_nn OOF AUROC: 0.9971
+2026-05-24 04:38:01  INFO      genomic_variant_classifier.models.variant_ensemble      tabular_nn checkpoint saved: tabular_nn.joblib (0.2 MB)
+2026-05-24 04:38:01  INFO      genomic_variant_classifier.models.variant_ensemble    Training cnn_1d ...
+2026-05-24 04:59:40  INFO      genomic_variant_classifier.models.variant_ensemble    cnn_1d OOF AUROC: 0.5000
+2026-05-24 04:59:40  INFO      genomic_variant_classifier.models.variant_ensemble      cnn_1d checkpoint saved: cnn_1d.joblib (0.3 MB)
+2026-05-24 04:59:40  INFO      genomic_variant_classifier.models.variant_ensemble    Training mc_dropout ...
+2026-05-24 05:08:33  WARNING   genomic_variant_classifier.models.mc_dropout  MCDropoutWrapper: TabularNNClassifier does not expose _predict_proba_single_pass(). Uncertainty estimates will be zero. Consider using DeepEnsembleWrapper instead.
+2026-05-24 05:20:43  WARNING   genomic_variant_classifier.models.mc_dropout  MCDropoutWrapper: TabularNNClassifier does not expose _predict_proba_single_pass(). Uncertainty estimates will be zero. Consider using DeepEnsembleWrapper instead.
+2026-05-24 05:26:46  WARNING   genomic_variant_classifier.models.mc_dropout  MCDropoutWrapper: TabularNNClassifier does not expose _predict_proba_single_pass(). Uncertainty estimates will be zero. Consider using DeepEnsembleWrapper instead.
+2026-05-24 05:29:45  WARNING   genomic_variant_classifier.models.mc_dropout  MCDropoutWrapper: TabularNNClassifier does not expose _predict_proba_single_pass(). Uncertainty estimates will be zero. Consider using DeepEnsembleWrapper instead.
+2026-05-24 05:33:03  WARNING   genomic_variant_classifier.models.mc_dropout  MCDropoutWrapper: TabularNNClassifier does not expose _predict_proba_single_pass(). Uncertainty estimates will be zero. Consider using DeepEnsembleWrapper instead.
+2026-05-24 05:36:58  WARNING   genomic_variant_classifier.models.mc_dropout  MCDropoutWrapper: TabularNNClassifier does not expose _predict_proba_single_pass(). Uncertainty estimates will be zero. Consider using DeepEnsembleWrapper instead.
+2026-05-24 05:36:58  INFO      genomic_variant_classifier.models.variant_ensemble    mc_dropout OOF AUROC: 0.9971
+2026-05-24 05:36:59  INFO      genomic_variant_classifier.models.variant_ensemble      mc_dropout checkpoint saved: mc_dropout.joblib (0.2 MB)
+2026-05-24 05:36:59  INFO      genomic_variant_classifier.models.variant_ensemble    Training deep_ensemble ...
+2026-05-24 05:36:59  INFO      genomic_variant_classifier.models.mc_dropout  DeepEnsemble: fitting member 1/5 ...
+2026-05-24 05:40:17  INFO      genomic_variant_classifier.models.mc_dropout  DeepEnsemble: fitting member 2/5 ...
+2026-05-24 05:45:23  INFO      genomic_variant_classifier.models.mc_dropout  DeepEnsemble: fitting member 3/5 ...
+2026-05-24 05:49:02  INFO      genomic_variant_classifier.models.mc_dropout  DeepEnsemble: fitting member 4/5 ...
+2026-05-24 05:52:31  INFO      genomic_variant_classifier.models.mc_dropout  DeepEnsemble: fitting member 5/5 ...
+/workspace/genomic-variant-classifier/src/genomic_variant_classifier/models/mc_dropout.py:87: RuntimeWarning: divide by zero encountered in log
+  entropy_per_pass = -(clipped * np.log(clipped) + (1 - clipped) * np.log(1 - clipped))
+/workspace/genomic-variant-classifier/src/genomic_variant_classifier/models/mc_dropout.py:87: RuntimeWarning: invalid value encountered in multiply
+  entropy_per_pass = -(clipped * np.log(clipped) + (1 - clipped) * np.log(1 - clipped))
+2026-05-24 05:55:48  INFO      genomic_variant_classifier.models.mc_dropout  DeepEnsemble: fitting member 1/5 ...
+2026-05-24 05:59:45  INFO      genomic_variant_classifier.models.mc_dropout  DeepEnsemble: fitting member 2/5 ...
+2026-05-24 06:03:32  INFO      genomic_variant_classifier.models.mc_dropout  DeepEnsemble: fitting member 3/5 ...
+2026-05-24 06:07:01  INFO      genomic_variant_classifier.models.mc_dropout  DeepEnsemble: fitting member 4/5 ...
+2026-05-24 06:09:35  INFO      genomic_variant_classifier.models.mc_dropout  DeepEnsemble: fitting member 5/5 ...
+/workspace/genomic-variant-classifier/src/genomic_variant_classifier/models/mc_dropout.py:87: RuntimeWarning: divide by zero encountered in log
+  entropy_per_pass = -(clipped * np.log(clipped) + (1 - clipped) * np.log(1 - clipped))
+/workspace/genomic-variant-classifier/src/genomic_variant_classifier/models/mc_dropout.py:87: RuntimeWarning: invalid value encountered in multiply
+  entropy_per_pass = -(clipped * np.log(clipped) + (1 - clipped) * np.log(1 - clipped))
+2026-05-24 06:13:12  INFO      genomic_variant_classifier.models.mc_dropout  DeepEnsemble: fitting member 1/5 ...
+2026-05-24 06:16:06  INFO      genomic_variant_classifier.models.mc_dropout  DeepEnsemble: fitting member 2/5 ...
+2026-05-24 06:20:10  INFO      genomic_variant_classifier.models.mc_dropout  DeepEnsemble: fitting member 3/5 ...
+2026-05-24 06:22:15  INFO      genomic_variant_classifier.models.mc_dropout  DeepEnsemble: fitting member 4/5 ...
+2026-05-24 06:24:29  INFO      genomic_variant_classifier.models.mc_dropout  DeepEnsemble: fitting member 5/5 ...
+/workspace/genomic-variant-classifier/src/genomic_variant_classifier/models/mc_dropout.py:87: RuntimeWarning: divide by zero encountered in log
+  entropy_per_pass = -(clipped * np.log(clipped) + (1 - clipped) * np.log(1 - clipped))
+/workspace/genomic-variant-classifier/src/genomic_variant_classifier/models/mc_dropout.py:87: RuntimeWarning: invalid value encountered in multiply
+  entropy_per_pass = -(clipped * np.log(clipped) + (1 - clipped) * np.log(1 - clipped))
+2026-05-24 06:27:50  INFO      genomic_variant_classifier.models.mc_dropout  DeepEnsemble: fitting member 1/5 ...
+2026-05-24 06:30:51  INFO      genomic_variant_classifier.models.mc_dropout  DeepEnsemble: fitting member 2/5 ...
+2026-05-24 06:35:01  INFO      genomic_variant_classifier.models.mc_dropout  DeepEnsemble: fitting member 3/5 ...
+2026-05-24 06:37:17  INFO      genomic_variant_classifier.models.mc_dropout  DeepEnsemble: fitting member 4/5 ...
+2026-05-24 06:40:25  INFO      genomic_variant_classifier.models.mc_dropout  DeepEnsemble: fitting member 5/5 ...

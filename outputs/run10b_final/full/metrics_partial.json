@@ -1,0 +1,167 @@
+{
+  "status": "partial \u2014 Run 10b instance destroyed mid-pipeline at ~06:00 UTC",
+  "lost": [
+    "deep_ensemble.joblib",
+    "GNN",
+    "cloud-computed test AUROC"
+  ],
+  "recovered_via": "local CPU inference on 9 base models from --skip-kan checkpoints",
+  "wall_time_seconds": 137.0,
+  "discovered_splits": {
+    "X_train.parquet": "C:\\Projects\\genomic-variant-classifier\\outputs\\run10b_final\\full\\splits\\X_train.parquet",
+    "X_val.parquet": "C:\\Projects\\genomic-variant-classifier\\outputs\\run10b_final\\full\\splits\\X_val.parquet",
+    "X_test.parquet": "C:\\Projects\\genomic-variant-classifier\\outputs\\run10b_final\\full\\splits\\X_test.parquet",
+    "y_train.parquet": "C:\\Projects\\genomic-variant-classifier\\outputs\\run10b_final\\full\\splits\\y_train.parquet",
+    "y_val.parquet": "C:\\Projects\\genomic-variant-classifier\\outputs\\run10b_final\\full\\splits\\y_val.parquet",
+    "y_test.parquet": "C:\\Projects\\genomic-variant-classifier\\outputs\\run10b_final\\full\\splits\\y_test.parquet"
+  },
+  "per_model": [
+    {
+      "model": "catboost",
+      "oof_auroc": 0.9977226636193556,
+      "val_auroc": 0.997218867743612,
+      "test_auroc": 0.9970183124949734,
+      "val_ap": 0.9898075223529359,
+      "test_ap": 0.9895212459485999,
+      "test_brier": 0.018092715988856235,
+      "load_seconds": 3.94,
+      "predict_seconds": 0.77
+    },
+    {
+      "model": "cnn_1d",
+      "error": "TypeError: NoneType.__new__(X): X is not a type object (NoneType)"
+    },
+    {
+      "model": "gradient_boosting",
+      "oof_auroc": 0.9970201495209131,
+      "val_auroc": 0.9965512684989427,
+      "test_auroc": 0.9965115258923158,
+      "val_ap": 0.9876208865504036,
+      "test_ap": 0.9882344159693959,
+      "test_brier": 0.013985420762297454,
+      "load_seconds": 0.01,
+      "predict_seconds": 5.11
+    },
+    {
+      "model": "lightgbm",
+      "oof_auroc": 0.9978492587578398,
+      "val_auroc": 0.9971779413889483,
+      "test_auroc": 0.996953016118241,
+      "val_ap": 0.9889560079295091,
+      "test_ap": 0.98847190437488,
+      "test_brier": 0.013875216716012552,
+      "load_seconds": 0.04,
+      "predict_seconds": 5.99
+    },
+    {
+      "model": "logistic_regression",
+      "oof_auroc": 0.9952230884453036,
+      "val_auroc": 0.9948731111475266,
+      "test_auroc": 0.9936901851527872,
+      "val_ap": 0.9765780695684994,
+      "test_ap": 0.9765236748149365,
+      "test_brier": 0.024223515339795748,
+      "load_seconds": 0.0,
+      "predict_seconds": 0.12
+    },
+    {
+      "model": "mc_dropout",
+      "oof_auroc": 0.9970642527177778,
+      "val_auroc": 0.9968350371824877,
+      "test_auroc": 0.9969105365344293,
+      "val_ap": 0.9881570527060477,
+      "test_ap": 0.9889047230119264,
+      "test_brier": 0.014211216941475868,
+      "load_seconds": 0.06,
+      "predict_seconds": 18.34
+    },
+    {
+      "model": "random_forest",
+      "oof_auroc": 0.9960981335349613,
+      "val_auroc": 0.9939836714587647,
+      "test_auroc": 0.9941579766860057,
+      "val_ap": 0.9798622502002228,
+      "test_ap": 0.979484754685327,
+      "test_brier": 0.020383204694074803,
+      "load_seconds": 16.39,
+      "predict_seconds": 32.87
+    },
+    {
+      "model": "tabular_nn",
+      "oof_auroc": 0.9970642527177778,
+      "val_auroc": 0.9968350371824877,
+      "test_auroc": 0.9969105365344293,
+      "val_ap": 0.9881570527060477,
+      "test_ap": 0.9889047230119264,
+      "test_brier": 0.014211216941475868,
+      "load_seconds": 0.09,
+      "predict_seconds": 15.74
+    },
+    {
+      "model": "xgboost",
+      "oof_auroc": 0.9978783876953947,
+      "val_auroc": 0.9970577318524971,
+      "test_auroc": 0.9968244206762144,
+      "val_ap": 0.9888597272640659,
+      "test_ap": 0.9879393337356079,
+      "test_brier": 0.014408264309167862,
+      "load_seconds": 0.13,
+      "predict_seconds": 3.2
+    }
+  ],
+  "ensembles": {
+    "all": {
+      "members": [
+        "catboost",
+        "gradient_boosting",
+        "lightgbm",
+        "logistic_regression",
+        "mc_dropout",
+        "random_forest",
+        "tabular_nn",
+        "xgboost"
+      ],
+      "n_members": 8,
+      "val_auroc": 0.997013898047312,
+      "test_auroc": 0.9969833990118413,
+      "test_ap": 0.9897270955966927,
+      "test_brier": 0.014109303349586317
+    },
+    "useful_no_cnn1d": {
+      "members": [
+        "catboost",
+        "gradient_boosting",
+        "lightgbm",
+        "logistic_regression",
+        "mc_dropout",
+        "random_forest",
+        "tabular_nn",
+        "xgboost"
+      ],
+      "n_members": 8,
+      "val_auroc": 0.997013898047312,
+      "test_auroc": 0.9969833990118413,
+      "test_ap": 0.9897270955966927,
+      "test_brier": 0.014109303349586317
+    }
+  },
+  "stacking_oof": {
+    "error": "OOF rows not aligned with y_train row order",
+    "max_delta": 0.49728780465853883,
+    "misaligned_models": [
+      "catboost",
+      "gradient_boosting",
+      "lightgbm",
+      "logistic_regression",
+      "mc_dropout",
+      "random_forest",
+      "tabular_nn",
+      "xgboost"
+    ],
+    "suggestion": "Use simple-average ensemble TEST AUROC as the headline metric"
+  },
+  "test_size": 349067,
+  "val_size": 154404,
+  "test_prevalence": 0.19993582893828404,
+  "val_prevalence": 0.1790109064532007
+}
