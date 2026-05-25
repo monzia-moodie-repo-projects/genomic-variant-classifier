@@ -184,7 +184,9 @@ ARGS="$ARGS --output $OUTDIR"
 GNOMAD_CONSTRAINT="$DATA/external/gnomad/gnomad.v4.1.constraint_metrics.tsv"
 if [ -f "$GNOMAD_CONSTRAINT" ]; then
     ARGS="$ARGS --gnomad-constraint $GNOMAD_CONSTRAINT"
-    echo "==> gnomAD constraint wired (recovers 4 features)" | tee -a "$LOG"
+    echo "==> gnomAD constraint wired (recovers 4 features)"
+ARGS="$ARGS --skip-cnn"
+echo "==> CNN_1D skipped (no fasta_seq data available)" | tee -a "$LOG" | tee -a "$LOG"
 else
     echo "==> WARN: gnomAD constraint TSV not found — pli/loeuf/syn_z/mis_z will be 0" | tee -a "$LOG"
 fi

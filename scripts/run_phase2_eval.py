@@ -109,6 +109,11 @@ def parse_args() -> argparse.Namespace:
         "(do not hardcode removal again).",
     )
     p.add_argument(
+        "--skip-cnn",
+        action="store_true",
+        help="Exclude CNN_1D (requires fasta_seq data not yet available).",
+    )
+    p.add_argument(
         "--max-train",
         type=int,
         default=None,
@@ -222,6 +227,9 @@ def main() -> int:
             if args.skip_nn:
                 ensemble.base_estimators.pop("cnn_1d", None)
                 ensemble.base_estimators.pop("tabular_nn", None)
+            if getattr(args, "skip_cnn", False) and not args.skip_nn:
+                ensemble.base_estimators.pop("cnn_1d", None)
+                logger.info("CNN_1D skipped: --skip-cnn (no fasta_seq data).")
             # Historical note: KAN was unconditionally removed after Run 4's
             # 17.9 GB C++ OOM at 1.2M samples (commit 2389ee2 on 2026-04-04).
             # Commit 2389ee2 shipped a 100K stratified subsample gate in
