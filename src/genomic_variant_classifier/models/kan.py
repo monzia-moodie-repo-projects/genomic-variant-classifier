@@ -42,14 +42,15 @@ from sklearn.utils.validation import check_is_fitted
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Backend detection -- Run 11: FastKAN first
+# Backend detection -- Run 12: imodelsx (efficient-kan based) first
 # ---------------------------------------------------------------------------
 _KAN_BACKEND: Optional[str] = None
+_ImodelsxKAN = None  # type: ignore[assignment]
 
 try:
-    from fastkan import FastKAN as _FastKAN  # type: ignore[import]
-    _KAN_BACKEND = "fastkan"
-    logger.debug("KAN backend: fastkan (Run 11 primary)")
+    from imodelsx import KANClassifier as _ImodelsxKAN  # type: ignore[import]
+    _KAN_BACKEND = "imodelsx"
+    logger.debug("KAN backend: imodelsx (efficient-kan, Run 12 primary)")
 except ImportError:
     pass
 
@@ -62,18 +63,10 @@ if _KAN_BACKEND is None:
         pass
 
 if _KAN_BACKEND is None:
-    try:
-        from efficient_kan import KAN as _EfficientKAN  # type: ignore[import]
-        _KAN_BACKEND = "efficient-kan"
-        logger.debug("KAN backend: efficient-kan (fallback)")
-    except ImportError:
-        pass
-
-if _KAN_BACKEND is None:
     logger.info(
-        "KAN: no KAN backend installed (tried fastkan, pykan, efficient-kan). "
+        "KAN: no KAN backend installed (tried imodelsx, pykan). "
         "Falling back to sklearn MLPClassifier. "
-        "Install: pip install fastkan"
+        "Install: pip install imodelsx"
     )
 
 
@@ -157,70 +150,36 @@ class KANClassifier(BaseEstimator, ClassifierMixin):
     # ------------------------------------------------------------------
     # Backend-specific fit
     # ------------------------------------------------------------------
-    def _fit_fastkan(self, X: np.ndarray, y: np.ndarray) -> None:
-        """FastKAN backend -- Run 11 primary. 3.7x faster than pykan."""
-        import torch
-        import torch.nn as nn
-        import torch.optim as optim
-        from torch.utils.data import DataLoader, TensorDataset
+    def _fit_imodelsx(self, X: np.ndarray, y: np.ndarray) -> None:
+        """imodelsx backend -- Run 12 primary. Uses efficient-kan internally."""
+        self._backend_used = "imodelsx"
 
-        self._backend_used = "fastkan"
-        X, y = self._subsample_if_needed(X, y)
+        # Subsample gate (inherited from Run 10a safeguard)
+        if len(X) > self.max_fit_samples:
+            logger.info(
+                "KAN (imodelsx): subsampling %d -> %d for training",
+                len(X), self.max_fit_samples,
+            )
+            from sklearn.utils import resample
+            X, y = resample(
+                X, y,
+                n_samples=self.max_fit_samples,
+                stratify=y,
+                random_state=getattr(self, "random_state", 42),
+            )
 
-        torch.manual_seed(self.random_state)
-        n_features = X.shape[1]
-        layers_dims = [n_features] + list(self.hidden_sizes) + [1]
-
-        self._kan = _FastKAN(
-            layers_dims,
-            grid_min=-2.0,
-            grid_max=2.0,
-            num_grids=self.grid_size,
+        # Map our params to imodelsx params
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        self._imodelsx_model = _ImodelsxKAN(
+            hidden_layer_sizes=self.hidden_sizes,
+            device=device,
+            regularize_activation=1.0,
+            regularize_entropy=1.0,
         )
-
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self._kan = self._kan.to(device)
-
-        optimizer = optim.Adam(self._kan.parameters(), lr=self.learning_rate)
-        criterion = nn.BCEWithLogitsLoss()
-
-        X_t = torch.tensor(X, dtype=torch.float32)
-        y_t = torch.tensor(y, dtype=torch.float32).unsqueeze(1)
-        loader = DataLoader(
-            TensorDataset(X_t, y_t),
-            batch_size=self.batch_size,
-            shuffle=True,
-        )
-
-        self._kan.train()
-        best_loss = float("inf")
-        patience_ctr = 0
-        for epoch in range(self.max_iter):
-            epoch_loss = 0.0
-            n_batches = 0
-            for xb, yb in loader:
-                xb, yb = xb.to(device), yb.to(device)
-                optimizer.zero_grad()
-                loss = criterion(self._kan(xb), yb)
-                loss.backward()
-                optimizer.step()
-                epoch_loss += loss.item()
-                n_batches += 1
-            avg_loss = epoch_loss / max(n_batches, 1)
-            if avg_loss < best_loss - 1e-4:
-                best_loss = avg_loss
-                patience_ctr = 0
-            else:
-                patience_ctr += 1
-                if patience_ctr >= 10:
-                    logger.info("KAN (fastkan): early stopping at epoch %d", epoch)
-                    break
-
-        self._kan.eval()
-        self._kan = self._kan.to("cpu")
+        self._imodelsx_model.fit(X, y)
         logger.info(
-            "KAN (fastkan): trained %d epochs, final loss %.4f",
-            min(epoch + 1, self.max_iter), best_loss,
+            "KAN (imodelsx/efficient-kan): trained on %d samples, device=%s",
+            len(X), device,
         )
 
     def _fit_pykan(self, X: np.ndarray, y: np.ndarray) -> None:
@@ -313,12 +272,10 @@ class KANClassifier(BaseEstimator, ClassifierMixin):
         else:
             self.scaler_ = None
 
-        if _KAN_BACKEND == "fastkan":
-            self._fit_fastkan(X, y)
+        if _KAN_BACKEND == "imodelsx":
+            self._fit_imodelsx(X, y)
         elif _KAN_BACKEND == "pykan":
             self._fit_pykan(X, y)
-        elif _KAN_BACKEND == "efficient-kan":
-            self._fit_efficient_kan(X, y)
         else:
             self._fit_mlp(X, y)
 
@@ -334,6 +291,9 @@ class KANClassifier(BaseEstimator, ClassifierMixin):
 
         if backend == "mlp":
             return self._mlp.predict_proba(X)[:, 1]
+
+        if backend == "imodelsx":
+            return self._imodelsx_model.predict_proba(X)[:, 1]
 
         import torch
 
