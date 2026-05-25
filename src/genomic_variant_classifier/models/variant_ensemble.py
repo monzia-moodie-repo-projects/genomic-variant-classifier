@@ -988,7 +988,7 @@ class VariantEnsemble:
                 random_state=cfg.random_state,
                 verbose=-1,
                 # Run 11 I3: GPU acceleration (auto-detected)
-                **({"device_type": "gpu", "gpu_use_dp": False} if _GPU_AVAILABLE else {}),
+                **({"device_type": "cuda"} if _GPU_AVAILABLE else {}),
             ),
             **(
                 {}

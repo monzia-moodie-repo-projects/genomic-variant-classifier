@@ -144,3 +144,9 @@ xgboost==3.2.0
     # via -r requirements.in
 
 jinja2>=3.1,<4.0
+
+# Run 11 Standard-scope dependencies (Standing Rule 31)
+fastkan>=0.2.0
+optuna>=4.0
+polars>=1.0
+duckdb>=1.0
