@@ -169,6 +169,7 @@ class KANClassifier(BaseEstimator, ClassifierMixin):
             )
 
         # Map our params to imodelsx params
+        import torch
         device = "cuda" if torch.cuda.is_available() else "cpu"
         self._imodelsx_model = _ImodelsxKAN(
             hidden_layer_sizes=self.hidden_sizes,
