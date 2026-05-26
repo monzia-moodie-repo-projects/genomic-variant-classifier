@@ -1,0 +1,288 @@
+﻿{
+    "run_number":  14,
+    "run_start_utc":  "2026-05-26T10:38:56Z",
+    "run_end_utc":  "2026-05-26T13:53:31Z",
+    "run_duration_seconds":  11654.7,
+    "git_head":  "80ac62ca7e83d35638274a01170d4c8f4f62c418",
+    "python_version":  "Python 3.11.10",
+    "vm":  {
+               "instance_id":  "37897784",
+               "ssh_host":  "ssh6.vast.ai",
+               "ssh_port":  17784,
+               "region":  "Texas, US",
+               "host_id":  60400,
+               "machine_id":  33069,
+               "gpu":  "NVIDIA GeForce RTX 4090, 24564 MiB, 570.86.16",
+               "hourly_rate_usd":  0.6694,
+               "estimated_cost_usd":  2.17,
+               "image":  "pytorch/pytorch:2.5.1-cuda12.4-cudnn9-devel"
+           },
+    "dataset":  {
+                    "n_train":  1197216,
+                    "n_val":  154404,
+                    "n_test":  349067,
+                    "n_features":  78
+                },
+    "stacker_metrics_test":  {
+                                 "auroc":  0.9975,
+                                 "auprc":  0.9914,
+                                 "f1_macro":  0.9775,
+                                 "mcc":  0.955,
+                                 "brier":  0.013
+                             },
+    "stacker_metrics_val":  {
+                                "auroc":  0.9974,
+                                "auprc":  0.9903,
+                                "f1_macro":  0.9785,
+                                "mcc":  0.9569,
+                                "brier":  0.0111
+                            },
+    "oof_blend_auroc_from_log":  0.9985,
+    "lr_stacker_auroc_from_log":  0.9984,
+    "per_model_oof_auroc_from_log":  {
+                                         "random_forest":  0.9978,
+                                         "xgboost":  0.9984,
+                                         "lightgbm":  0.9983,
+                                         "logistic_regression":  0.9955,
+                                         "gradient_boosting":  0.9974,
+                                         "catboost":  0.9982,
+                                         "tabular_nn":  0.9975,
+                                         "kan":  0.9921,
+                                         "mc_dropout":  0.9975,
+                                         "deep_ensemble":  0.9977
+                                     },
+    "per_model_test_metrics":  [
+                                   {
+                                       "model":  "catboost",
+                                       "auroc":  "0.9975",
+                                       "auprc":  "0.9912",
+                                       "f1_macro":  "0.9632",
+                                       "f1_weighted":  "0.9761",
+                                       "mcc":  "0.9276",
+                                       "brier":  "0.0166"
+                                   },
+                                   {
+                                       "model":  "ENSEMBLE_STACKER",
+                                       "auroc":  "0.9975",
+                                       "auprc":  "0.9914",
+                                       "f1_macro":  "0.9775",
+                                       "f1_weighted":  "0.9855",
+                                       "mcc":  "0.955",
+                                       "brier":  "0.013"
+                                   },
+                                   {
+                                       "model":  "xgboost",
+                                       "auroc":  "0.9974",
+                                       "auprc":  "0.9906",
+                                       "f1_macro":  "0.9769",
+                                       "f1_weighted":  "0.9852",
+                                       "mcc":  "0.9539",
+                                       "brier":  "0.012"
+                                   },
+                                   {
+                                       "model":  "lightgbm",
+                                       "auroc":  "0.9974",
+                                       "auprc":  "0.9906",
+                                       "f1_macro":  "0.9769",
+                                       "f1_weighted":  "0.9852",
+                                       "mcc":  "0.9538",
+                                       "brier":  "0.012"
+                                   },
+                                   {
+                                       "model":  "deep_ensemble",
+                                       "auroc":  "0.9973",
+                                       "auprc":  "0.99",
+                                       "f1_macro":  "0.9771",
+                                       "f1_weighted":  "0.9854",
+                                       "mcc":  "0.9542",
+                                       "brier":  "0.012"
+                                   },
+                                   {
+                                       "model":  "mc_dropout",
+                                       "auroc":  "0.9971",
+                                       "auprc":  "0.9894",
+                                       "f1_macro":  "0.9765",
+                                       "f1_weighted":  "0.985",
+                                       "mcc":  "0.9531",
+                                       "brier":  "0.0125"
+                                   },
+                                   {
+                                       "model":  "tabular_nn",
+                                       "auroc":  "0.9971",
+                                       "auprc":  "0.9894",
+                                       "f1_macro":  "0.9765",
+                                       "f1_weighted":  "0.985",
+                                       "mcc":  "0.9531",
+                                       "brier":  "0.0125"
+                                   },
+                                   {
+                                       "model":  "gradient_boosting",
+                                       "auroc":  "0.9968",
+                                       "auprc":  "0.9898",
+                                       "f1_macro":  "0.9752",
+                                       "f1_weighted":  "0.9842",
+                                       "mcc":  "0.9505",
+                                       "brier":  "0.0126"
+                                   },
+                                   {
+                                       "model":  "random_forest",
+                                       "auroc":  "0.9964",
+                                       "auprc":  "0.9866",
+                                       "f1_macro":  "0.9648",
+                                       "f1_weighted":  "0.9773",
+                                       "mcc":  "0.9301",
+                                       "brier":  "0.0165"
+                                   },
+                                   {
+                                       "model":  "logistic_regression",
+                                       "auroc":  "0.9942",
+                                       "auprc":  "0.9781",
+                                       "f1_macro":  "0.9578",
+                                       "f1_weighted":  "0.9727",
+                                       "mcc":  "0.9165",
+                                       "brier":  "0.0228"
+                                   },
+                                   {
+                                       "model":  "kan",
+                                       "auroc":  "0.9896",
+                                       "auprc":  "0.968",
+                                       "f1_macro":  "0.9422",
+                                       "f1_weighted":  "0.9628",
+                                       "mcc":  "0.8847",
+                                       "brier":  "0.03"
+                                   }
+                               ],
+    "per_model_val_metrics":  [
+                                  {
+                                      "model":  "catboost",
+                                      "auroc":  "0.9975",
+                                      "auprc":  "0.9908",
+                                      "f1_macro":  "0.9739",
+                                      "f1_weighted":  "0.9845",
+                                      "mcc":  "0.948",
+                                      "brier":  "0.0132"
+                                  },
+                                  {
+                                      "model":  "lightgbm",
+                                      "auroc":  "0.9974",
+                                      "auprc":  "0.9895",
+                                      "f1_macro":  "0.9779",
+                                      "f1_weighted":  "0.987",
+                                      "mcc":  "0.9559",
+                                      "brier":  "0.0107"
+                                  },
+                                  {
+                                      "model":  "xgboost",
+                                      "auroc":  "0.9974",
+                                      "auprc":  "0.9896",
+                                      "f1_macro":  "0.9776",
+                                      "f1_weighted":  "0.9869",
+                                      "mcc":  "0.9552",
+                                      "brier":  "0.0109"
+                                  },
+                                  {
+                                      "model":  "ENSEMBLE_STACKER",
+                                      "auroc":  "0.9974",
+                                      "auprc":  "0.9903",
+                                      "f1_macro":  "0.9785",
+                                      "f1_weighted":  "0.9873",
+                                      "mcc":  "0.9569",
+                                      "brier":  "0.0111"
+                                  },
+                                  {
+                                      "model":  "deep_ensemble",
+                                      "auroc":  "0.9971",
+                                      "auprc":  "0.9889",
+                                      "f1_macro":  "0.9764",
+                                      "f1_weighted":  "0.9861",
+                                      "mcc":  "0.9527",
+                                      "brier":  "0.0116"
+                                  },
+                                  {
+                                      "model":  "mc_dropout",
+                                      "auroc":  "0.9969",
+                                      "auprc":  "0.9886",
+                                      "f1_macro":  "0.9759",
+                                      "f1_weighted":  "0.9858",
+                                      "mcc":  "0.9517",
+                                      "brier":  "0.0117"
+                                  },
+                                  {
+                                      "model":  "gradient_boosting",
+                                      "auroc":  "0.9969",
+                                      "auprc":  "0.989",
+                                      "f1_macro":  "0.9761",
+                                      "f1_weighted":  "0.986",
+                                      "mcc":  "0.9523",
+                                      "brier":  "0.0113"
+                                  },
+                                  {
+                                      "model":  "tabular_nn",
+                                      "auroc":  "0.9969",
+                                      "auprc":  "0.9886",
+                                      "f1_macro":  "0.9759",
+                                      "f1_weighted":  "0.9858",
+                                      "mcc":  "0.9517",
+                                      "brier":  "0.0117"
+                                  },
+                                  {
+                                      "model":  "random_forest",
+                                      "auroc":  "0.9964",
+                                      "auprc":  "0.9871",
+                                      "f1_macro":  "0.9705",
+                                      "f1_weighted":  "0.9826",
+                                      "mcc":  "0.941",
+                                      "brier":  "0.0129"
+                                  },
+                                  {
+                                      "model":  "logistic_regression",
+                                      "auroc":  "0.9953",
+                                      "auprc":  "0.9776",
+                                      "f1_macro":  "0.9607",
+                                      "f1_weighted":  "0.9766",
+                                      "mcc":  "0.9225",
+                                      "brier":  "0.0185"
+                                  },
+                                  {
+                                      "model":  "kan",
+                                      "auroc":  "0.9914",
+                                      "auprc":  "0.9722",
+                                      "f1_macro":  "0.9606",
+                                      "f1_weighted":  "0.9771",
+                                      "mcc":  "0.9218",
+                                      "brier":  "0.0189"
+                                  }
+                              ],
+    "artifact_sha256":  {
+                            "ensemble_joblib":  "82eed09bdedc945d92bb69c1764598b989a9274cdbe069098da2fd2aa96d6314",
+                            "ensemble_manifest_json":  "be818fed4c8cea08b284a490aa719eeec97eb8fc690c489a4b87ffab86d47aaf"
+                        },
+    "h1_status":  "CONFIRMED — KAN trained via imodelsx backend on CUDA, OOF 0.9921, test 0.9896 (gap 0.0025 indicates subsample overfitting)",
+    "h1_diversity_finding":  "Stacker test AUROC 0.9975 = catboost test AUROC 0.9975, but stacker dominates on f1_macro (0.9775 vs 0.9632), MCC (0.9550 vs 0.9276), Brier (0.0130 vs 0.0166). Ensemble lift is in calibration and threshold-quality, not ranking power.",
+    "observability":  {
+                          "dead_features":  34,
+                          "artifacts_total_mb":  1837.8,
+                          "errors":  0,
+                          "report_md":  "outputs/run14_observability/run14_observability.md",
+                          "report_json":  "outputs/run14_observability/run14_observability.json"
+                      },
+    "artifacts":  {
+                      "master_log":  "outputs/run14/run14_master.log",
+                      "outputs_dir":  "outputs/run14/full",
+                      "observability":  "outputs/run14_observability",
+                      "pip_freeze_vm":  "outputs/run14/pip_freeze_vm.txt",
+                      "ensemble_joblib_path":  "outputs/run14/full/models/ensemble.joblib",
+                      "ensemble_manifest_path":  "outputs/run14/full/models/ensemble.manifest.json"
+                  },
+    "anomalies_logged":  [
+                             "A1_np_log_zero",
+                             "A2_mc_dropout_uncertainty",
+                             "A3_imodelsx_patch_dup_echo",
+                             "A4_kan_subsample_12pct",
+                             "A5_score_anno_numbering",
+                             "A6_silent_zero_5_sources",
+                             "A7_obs_kan_backend_undetected",
+                             "A8_postflight_path_assumption"
+                         ],
+    "session_notes":  "Instance destroy command was inadvertently executed despite Block B gate showing FAIL on ensemble.* files. Subsequent locator (Block I) confirmed all 73 files including ensemble.joblib and ensemble.manifest.json present locally at outputs/run14/full/models/. No data loss. Root cause: Block B gate used fixed Test-Path; files lived one directory deeper than assumed. Anomaly A8 captured; Charter v1.2 patch (recursive locator + separate destroy script) in Run 15 backlog."
+}

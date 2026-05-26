@@ -1,0 +1,480 @@
+{
+  "generated_at": "2026-05-26T14:25:41.146790+00:00",
+  "instance_id": "37897784",
+  "hourly_rate": 0.6694,
+  "log_path": "/workspace/run11_master.log",
+  "outputs_dir": "/workspace/outputs/run11/full",
+  "log_size_bytes": 61722,
+  "git": {
+    "raw": "80ac62ca7e83d35638274a01170d4c8f4f62c418\nmain\n80ac62c docs(run14): plan, results template, session log, reference card; observability + preflight/postflight scripts"
+  },
+  "host": {
+    "hostname": "3392d83e3f9c",
+    "uname": "Linux 3392d83e3f9c 5.15.0-131-generic #141-Ubuntu SMP Fri Jan 10 21:18:28 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux",
+    "python_version": "3.11.10",
+    "cuda_devices": "NVIDIA GeForce RTX 4090, 24564 MiB, 570.86.16",
+    "disk_workspace": "overlay         100G  6.9G   94G   7% /",
+    "pip_versions": "catboost                   1.2.10\nimodelsx                   1.0.13\nlightgbm                   4.6.0\nnetworkx                   3.4.2\nnumpy                      2.4.4\npandas                     2.3.3\npykan                      0.2.8\nscikit-learn               1.8.0\ntorch                      2.5.1+cu124\nxgboost                    3.2.0"
+  },
+  "timing": {
+    "first": "2026-05-26 10:38:56",
+    "last": "2026-05-26 13:53:31",
+    "elapsed_seconds": 11675.0
+  },
+  "per_model": {
+    "random_forest": {},
+    "xgboost": {},
+    "lightgbm": {},
+    "gradient_boosting": {},
+    "logistic_regression": {},
+    "catboost": {},
+    "tabular_nn": {},
+    "mc_dropout": {},
+    "deep_ensemble": {},
+    "kan": {},
+    "cnn_1d": {}
+  },
+  "kan": {
+    "patch_applied": true,
+    "patch_message": "fixed 3 bare-name refs",
+    "backend_used": null,
+    "fit_succeeded": null,
+    "error": null
+  },
+  "lightgbm": {
+    "device": null,
+    "cuda_attempted": false,
+    "fit_succeeded": null
+  },
+  "cnn_1d": {
+    "skipped": true,
+    "reason": "no fasta_seq data",
+    "auroc": null
+  },
+  "errors": [],
+  "artifacts": {
+    "exists": true,
+    "files": [
+      {
+        "path": "scaler.joblib",
+        "size_mb": 0.004
+      },
+      {
+        "path": "scaler.manifest.json",
+        "size_mb": 0.0
+      },
+      {
+        "path": "metrics.json",
+        "size_mb": 0.0
+      },
+      {
+        "path": "per_model_metrics.csv",
+        "size_mb": 0.001
+      },
+      {
+        "path": "per_model_metrics_val.csv",
+        "size_mb": 0.001
+      },
+      {
+        "path": "X_test.parquet",
+        "size_mb": 7.016
+      },
+      {
+        "path": "meta_test.parquet",
+        "size_mb": 16.686
+      },
+      {
+        "path": "meta_val.parquet",
+        "size_mb": 7.734
+      },
+      {
+        "path": "feature_importance.csv",
+        "size_mb": 0.002
+      },
+      {
+        "path": "oof_predictions.parquet",
+        "size_mb": 64.072
+      },
+      {
+        "path": "data_quality_audit.csv",
+        "size_mb": 0.009
+      },
+      {
+        "path": "data_quality_audit.json",
+        "size_mb": 0.032
+      },
+      {
+        "path": "splits/X_train.parquet",
+        "size_mb": 22.209
+      },
+      {
+        "path": "splits/X_val.parquet",
+        "size_mb": 2.952
+      },
+      {
+        "path": "splits/X_test.parquet",
+        "size_mb": 6.073
+      },
+      {
+        "path": "splits/y_train.parquet",
+        "size_mb": 0.093
+      },
+      {
+        "path": "splits/y_val.parquet",
+        "size_mb": 0.014
+      },
+      {
+        "path": "splits/y_test.parquet",
+        "size_mb": 0.029
+      },
+      {
+        "path": "splits/meta_val.parquet",
+        "size_mb": 7.734
+      },
+      {
+        "path": "splits/meta_test.parquet",
+        "size_mb": 16.686
+      },
+      {
+        "path": "splits/meta_train.parquet",
+        "size_mb": 58.506
+      },
+      {
+        "path": "models/random_forest.joblib",
+        "size_mb": 289.676
+      },
+      {
+        "path": "models/random_forest_oof.npy",
+        "size_mb": 7.764
+      },
+      {
+        "path": "models/random_forest_oof_indices.npy",
+        "size_mb": 7.764
+      },
+      {
+        "path": "models/random_forest_meta.json",
+        "size_mb": 0.0
+      },
+      {
+        "path": "models/xgboost.joblib",
+        "size_mb": 0.68
+      },
+      {
+        "path": "models/xgboost_oof.npy",
+        "size_mb": 3.882
+      },
+      {
+        "path": "models/xgboost_oof_indices.npy",
+        "size_mb": 7.764
+      },
+      {
+        "path": "models/xgboost_meta.json",
+        "size_mb": 0.0
+      },
+      {
+        "path": "models/lightgbm.joblib",
+        "size_mb": 0.749
+      },
+      {
+        "path": "models/lightgbm_oof.npy",
+        "size_mb": 7.764
+      },
+      {
+        "path": "models/lightgbm_oof_indices.npy",
+        "size_mb": 7.764
+      },
+      {
+        "path": "models/lightgbm_meta.json",
+        "size_mb": 0.0
+      },
+      {
+        "path": "models/logistic_regression.joblib",
+        "size_mb": 0.001
+      },
+      {
+        "path": "models/logistic_regression_oof.npy",
+        "size_mb": 7.764
+      },
+      {
+        "path": "models/logistic_regression_oof_indices.npy",
+        "size_mb": 7.764
+      },
+      {
+        "path": "models/logistic_regression_meta.json",
+        "size_mb": 0.0
+      },
+      {
+        "path": "models/gradient_boosting.joblib",
+        "size_mb": 0.169
+      },
+      {
+        "path": "models/gradient_boosting_oof.npy",
+        "size_mb": 7.764
+      },
+      {
+        "path": "models/gradient_boosting_oof_indices.npy",
+        "size_mb": 7.764
+      },
+      {
+        "path": "models/gradient_boosting_meta.json",
+        "size_mb": 0.0
+      },
+      {
+        "path": "models/catboost.joblib",
+        "size_mb": 0.473
+      },
+      {
+        "path": "models/catboost_oof.npy",
+        "size_mb": 7.764
+      },
+      {
+        "path": "models/catboost_oof_indices.npy",
+        "size_mb": 7.764
+      },
+      {
+        "path": "models/catboost_meta.json",
+        "size_mb": 0.0
+      },
+      {
+        "path": "models/tabular_nn.joblib",
+        "size_mb": 0.209
+      },
+      {
+        "path": "models/tabular_nn_oof.npy",
+        "size_mb": 3.882
+      },
+      {
+        "path": "models/tabular_nn_oof_indices.npy",
+        "size_mb": 7.764
+      },
+      {
+        "path": "models/tabular_nn_meta.json",
+        "size_mb": 0.0
+      },
+      {
+        "path": "models/kan.joblib",
+        "size_mb": 0.258
+      },
+      {
+        "path": "models/kan_oof.npy",
+        "size_mb": 3.882
+      },
+      {
+        "path": "models/kan_oof_indices.npy",
+        "size_mb": 7.764
+      },
+      {
+        "path": "models/kan_meta.json",
+        "size_mb": 0.0
+      },
+      {
+        "path": "models/mc_dropout.joblib",
+        "size_mb": 0.209
+      },
+      {
+        "path": "models/mc_dropout_oof.npy",
+        "size_mb": 3.882
+      },
+      {
+        "path": "models/mc_dropout_oof_indices.npy",
+        "size_mb": 7.764
+      },
+      {
+        "path": "models/mc_dropout_meta.json",
+        "size_mb": 0.0
+      },
+      {
+        "path": "models/deep_ensemble.joblib",
+        "size_mb": 1.049
+      },
+      {
+        "path": "models/deep_ensemble_oof.npy",
+        "size_mb": 3.882
+      },
+      {
+        "path": "models/deep_ensemble_oof_indices.npy",
+        "size_mb": 7.764
+      },
+      {
+        "path": "models/deep_ensemble_meta.json",
+        "size_mb": 0.0
+      },
+      {
+        "path": "models/ensemble.joblib",
+        "size_mb": 85.405
+      },
+      {
+        "path": "models/ensemble.manifest.json",
+        "size_mb": 0.0
+      },
+      {
+        "path": "models/ensemble_models/random_forest.joblib",
+        "size_mb": 1105.996
+      },
+      {
+        "path": "models/ensemble_models/xgboost.joblib",
+        "size_mb": 1.927
+      },
+      {
+        "path": "models/ensemble_models/lightgbm.joblib",
+        "size_mb": 1.703
+      },
+      {
+        "path": "models/ensemble_models/logistic_regression.joblib",
+        "size_mb": 0.001
+      },
+      {
+        "path": "models/ensemble_models/gradient_boosting.joblib",
+        "size_mb": 0.48
+      },
+      {
+        "path": "models/ensemble_models/catboost.joblib",
+        "size_mb": 1.057
+      },
+      {
+        "path": "models/ensemble_models/tabular_nn.joblib",
+        "size_mb": 0.253
+      },
+      {
+        "path": "models/ensemble_models/kan.joblib",
+        "size_mb": 0.287
+      },
+      {
+        "path": "models/ensemble_models/mc_dropout.joblib",
+        "size_mb": 0.253
+      },
+      {
+        "path": "models/ensemble_models/deep_ensemble.joblib",
+        "size_mb": 1.26
+      }
+    ],
+    "total_size_mb": 1837.8,
+    "file_count": 73
+  },
+  "feature_nonzero": {
+    "available": true,
+    "features": {
+      "af_raw": 1.0,
+      "af_log10": 1.0,
+      "af_is_absent": 1.0,
+      "af_is_ultra_rare": 1.0,
+      "af_is_rare": 1.0,
+      "af_is_common": 1.0,
+      "ref_len": 1.0,
+      "alt_len": 1.0,
+      "len_diff": 1.0,
+      "is_snv": 1.0,
+      "is_insertion": 1.0,
+      "is_deletion": 1.0,
+      "is_indel": 1.0,
+      "consequence_severity": 1.0,
+      "is_loss_of_function": 1.0,
+      "is_missense": 1.0,
+      "is_synonymous": 1.0,
+      "is_splice": 1.0,
+      "in_coding": 1.0,
+      "cadd_phred": 1.0,
+      "sift_score": 1.0,
+      "polyphen2_score": 1.0,
+      "revel_score": 1.0,
+      "phylop_score": 0.0,
+      "gerp_score": 1.0,
+      "alphamissense_score": 1.0,
+      "splice_ai_score": 1.0,
+      "eve_score": 0.0,
+      "cadd_high": 1.0,
+      "sift_deleterious": 1.0,
+      "polyphen_probably_damaging": 1.0,
+      "revel_pathogenic": 1.0,
+      "n_tools_pathogenic": 1.0,
+      "gene_constraint_oe": 0.0,
+      "gene_is_constrained": 0.0,
+      "n_pathogenic_in_gene": 1.0,
+      "gene_has_known_disease": 1.0,
+      "has_uniprot_annotation": 0.0,
+      "n_known_pathogenic_protein_variants": 0.0,
+      "gtex_max_tpm": 1.0,
+      "gtex_n_tissues_expressed": 1.0,
+      "gtex_tissue_specificity": 1.0,
+      "gtex_is_eqtl": 0.0,
+      "gtex_min_eqtl_pval": 0.0,
+      "gtex_max_abs_effect": 0.0,
+      "codon_position": 0.0,
+      "dbsnp_af": 0.0,
+      "omim_n_diseases": 0.0,
+      "omim_is_autosomal_dominant": 0.0,
+      "clingen_validity_score": 0.0,
+      "hgmd_is_disease_mutation": 0.0,
+      "hgmd_n_reports": 0.0,
+      "lovd_variant_class": 1.0,
+      "is_autosome": 1.0,
+      "is_sex_chrom": 1.0,
+      "is_mitochondrial": 1.0,
+      "gnn_score": 0.0,
+      "maxentscan_score": 0.0,
+      "dist_to_splice_site": 0.0,
+      "exon_number": 0.0,
+      "is_canonical_splice": 0.0,
+      "alphafold_plddt": 0.0,
+      "solvent_accessibility": 0.0,
+      "secondary_structure_context": 0.0,
+      "dist_to_active_site": 0.0,
+      "af_1kg_afr": 0.0,
+      "af_1kg_eur": 0.0,
+      "af_1kg_eas": 0.0,
+      "af_1kg_sas": 0.0,
+      "af_1kg_amr": 0.0,
+      "finngen_af_fin": 0.0,
+      "finngen_af_nfsee": 0.0,
+      "finngen_enrichment": 0.0,
+      "esm2_delta_norm": 0.0,
+      "pli_score": 1.0,
+      "loeuf": 1.0,
+      "syn_z": 1.0,
+      "mis_z": 1.0
+    },
+    "n_rows": 1197216,
+    "n_cols": 78,
+    "x_train_path": "/workspace/outputs/run11/full/splits/X_train.parquet",
+    "dead_features": [
+      "phylop_score",
+      "eve_score",
+      "gene_constraint_oe",
+      "gene_is_constrained",
+      "has_uniprot_annotation",
+      "n_known_pathogenic_protein_variants",
+      "gtex_is_eqtl",
+      "gtex_min_eqtl_pval",
+      "gtex_max_abs_effect",
+      "codon_position",
+      "dbsnp_af",
+      "omim_n_diseases",
+      "omim_is_autosomal_dominant",
+      "clingen_validity_score",
+      "hgmd_is_disease_mutation",
+      "hgmd_n_reports",
+      "gnn_score",
+      "maxentscan_score",
+      "dist_to_splice_site",
+      "exon_number",
+      "is_canonical_splice",
+      "alphafold_plddt",
+      "solvent_accessibility",
+      "secondary_structure_context",
+      "dist_to_active_site",
+      "af_1kg_afr",
+      "af_1kg_eur",
+      "af_1kg_eas",
+      "af_1kg_sas",
+      "af_1kg_amr",
+      "finngen_af_fin",
+      "finngen_af_nfsee",
+      "finngen_enrichment",
+      "esm2_delta_norm"
+    ],
+    "dead_feature_count": 34
+  },
+  "blend_weights": {
+    "available": false
+  }
+}

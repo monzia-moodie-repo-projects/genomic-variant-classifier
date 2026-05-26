@@ -1,7 +1,85 @@
-﻿# CHANGELOG â€” Run 14 entry
+﻿## 2026-05-26 â€” Run 14 complete + Preflight Charter v1.1 + v1.2 patch
 
-> Append the block below to `docs/CHANGELOG.md` after the existing Run 13 entry.
-> Edit TBD slots in place once results arrive.
+### Attempted
+- Run 14 launch on Vast.ai instance 37897784 (Texas, RTX 4090, $0.6694/hr) after 4-bug KAN remediation chain.
+- Production of locked test AUROC on 349K-variant held-out set with 10 base learners (first run where KAN trains).
+
+### Failed
+- Launch #1 (10:12 UTC): nohup+tee redirect collision corrupted log to binary.
+- Launch #2 (10:32 UTC): `ModuleNotFoundError: genomic_variant_classifier`; launch script assumed pre-installed package on fresh VM.
+- Launch #3: PowerShell escaping error on inline Python smoke test (no run impact).
+- Postflight Block B gate (A8): used fixed `Test-Path` on flat paths; reported FAIL on `ensemble.manifest.json` and `ensemble.joblib` even though both were SCPed to `\full\models\` (one directory deeper). Destroy command was inadvertently executed despite the FAIL â€” recovery confirmed files locally via recursive locator. No data loss. Procedural lesson logged.
+
+### Fixed
+- Launch #4 (10:38:56 UTC): tmux send-keys with manually pre-installed deps â†’ ALL PREFLIGHT PASSED.
+- KAN trained successfully via imodelsx/efficient-kan backend on CUDA, OOF 0.9921 (3 CV folds Ã— 100K subsample).
+- Run completed clean exit 0 at 13:53:31 UTC.
+- Charter v1.2 patch: `scripts/Run14_Postflight.ps1` now uses `Test-ArtifactPresent` helper (recursive `Get-ChildItem -Filter`) instead of fixed `Test-Path`. A8 closed.
+
+### Headline metrics (locked test set, 349,067 variants)
+- Test AUROC: **0.9975** (Run 13 0.9974, Î” +0.0001)
+- Test AUPRC: 0.9914, f1_macro: 0.9775, f1_weighted: 0.9855, MCC: 0.9550, Brier: 0.0130
+- OOF blend AUROC: 0.9985 (LR stacker: 0.9984)
+- Wall-clock: 3 h 14 m 35 s (Run 13 was 6.3 h â†’ -49%)
+- Cost: $2.17 (Run 13 was $4.90 â†’ -56%, project low-water mark)
+
+### Per-model OOF AUROC (10 base learners â€” all 10 trained successfully)
+random_forest 0.9978, xgboost 0.9984, lightgbm 0.9983, logistic_regression 0.9955, gradient_boosting 0.9974, catboost 0.9982, tabular_nn 0.9975, **kan 0.9921 (NEW)**, mc_dropout 0.9975, deep_ensemble 0.9977.
+
+### Per-model TEST AUROC (key finding)
+- **catboost test AUROC 0.9975 = ENSEMBLE_STACKER test AUROC 0.9975** (tied on ranking power)
+- Stacker dominates on threshold-dependent: f1_macro 0.9775 vs 0.9632 (Î” +0.0143), MCC 0.9550 vs 0.9276 (Î” +0.0274), Brier 0.0130 vs 0.0166 (lower = better calibrated)
+- KAN test AUROC 0.9896 (OOFâ†’test gap 0.0025, ~3.5Ã— catboost's gap â†’ 100K subsample overfits)
+
+### Learned
+1. **H1 confirmed technically but diversity-marginal on AUROC**: ensemble's lift is in **calibration and threshold quality**, not ranking. catboost alone is competitive for AUROC use cases.
+2. **34 of 78 features are dead** (observability collector quantification). 8 connector/parser gaps map to specific Run-15 work items.
+3. **Procedural failure mode A8 closed**: postflight gates must use recursive locators because output directories nest by 1-3 levels. Charter v1.2 patch enforces this in `Run14_Postflight.ps1`.
+4. **Charter SR #38 queued for Run-15 prep**: separate `Vastai_Destroy_Confirmed.ps1` that requires gate exit 0 and refuses `echo y |` auto-confirmation, so destroys can never follow a failed gate in the same shell session.
+
+### Charter v1.1 deployed
+6 artifacts installed:
+- `docs/PREFLIGHT_CHARTER.md`, `docs/templates/RUN_N_PLAN_TEMPLATE.md`
+- `scripts/Run_Preflight_Local.ps1`, `Run_Preflight_VM.ps1`, `Run_Monitor.ps1`, `Run_Postflight.ps1`
+
+6 new standing rules SR #32 â€“ #37 added.
+
+### Charter v1.2 patch deployed
+- `Test-ArtifactPresent` helper inserted into `scripts/Run14_Postflight.ps1` (and `Run_Postflight.ps1` if present).
+- Closes A8.
+
+### Open backlog (â†’ Run 15)
+- A1: `np.log(0)` at `mc_dropout.py:87` â€” clip BEFORE log
+- A2: implement `_predict_proba_single_pass()` on TabularNNClassifier OR migrate uncertainty to DeepEnsembleWrapper
+- A3: deduplicate `imodelsx_patch` echo in `launch_run11_vm.sh`
+- A4: scale KAN subsample 100K â†’ 250K-500K
+- A5: normalize score annotation step numbering
+- A6 (data): build STRING parquet, 1KGP AF parquet, transfer FinnGen, evaluate PrimateAI-3D license, build CNN fasta or `--skip-cnn`
+- A7: fix `scripts/run14_observability.py` per_model log-parsing patterns (currently extracts nothing despite log lines being present)
+- SR #38 (queued): separate destroy script with gate-exit-0 prerequisite
+- HGVSp parser â†’ unlocks ESM-2 + EVE
+- Populate `RUN_15_PLAN.md` from template; run G1+G2 gates before any Vast.ai create
+
+### Artifacts (committed)
+- `outputs/run14/full/metrics.json` (322 bytes) â€” stacker AUROC/AUPRC/F1/MCC/Brier for test + val
+- `outputs/run14/full/per_model_metrics.csv` (629 bytes) â€” 11-row test-set table
+- `outputs/run14/full/per_model_metrics_val.csv` (636 bytes)
+- `outputs/run14/full/feature_importance.csv`, `data_quality_audit.{csv,json}`
+- `outputs/run14/full/models/ensemble.manifest.json`, `outputs/run14/full/scaler.manifest.json`
+- `outputs/run14/run14_master.log` (61,722 bytes)
+- `outputs/run14/pip_freeze_vm.txt` (216 packages)
+- `outputs/run14/reproducibility_manifest.json` (16,268 bytes â€” full metrics + per-model + SHA-256 + session_notes)
+- `outputs/run14_observability/run14_observability.{md,json}`
+
+### Artifacts (deliberately NOT committed â€” too large; on local disk only)
+- `outputs/run14/full/models/*.joblib` (10 base + ensemble.joblib = ~520 MB)
+- `outputs/run14/full/models/*_oof.npy` and `*_oof_indices.npy` (~160 MB)
+- `outputs/run14/full/models/ensemble_models/*.joblib` (~1.1 GB; full-data refits)
+- `outputs/run14/full/splits/*.parquet`, `outputs/run14/full/oof_predictions.parquet`, `meta_*.parquet` (~150 MB)
+
+### HEAD progression
+`f4dbeed` â†’ `0d4ea7b` â†’ `bf2f665` â†’ `35b9e44` â†’ `80ac62c` â†’ (this commit)
+
 
 ## 2026-05-26 â€” Run 14
 
@@ -1737,5 +1815,6 @@ The recovery file includes:
 ### Cost
 - Vast.ai instance 36853443: ~$7ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“9 (12 hr training + ~2 hr idle/debug)
 - Prior destroyed instance 36853984: ~$1 (auto-destroyed by preflight trap)
+
 
 

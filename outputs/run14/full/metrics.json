@@ -1,0 +1,17 @@
+{
+  "auroc": 0.9975,
+  "auprc": 0.9914,
+  "f1": 0.9775,
+  "mcc": 0.955,
+  "brier": 0.013,
+  "val_auroc": 0.9974,
+  "val_auprc": 0.9903,
+  "val_f1": 0.9785,
+  "val_mcc": 0.9569,
+  "val_brier": 0.0111,
+  "elapsed_seconds": 11654.685046320315,
+  "n_train": 1197216,
+  "n_val": 154404,
+  "n_test": 349067,
+  "n_features": 78
+}
