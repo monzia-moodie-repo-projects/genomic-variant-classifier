@@ -177,6 +177,10 @@ class KANClassifier(BaseEstimator, ClassifierMixin):
             regularize_activation=1.0,
             regularize_entropy=1.0,
         )
+        # Set attrs missing from imodelsx KANClassifier.__init__ (v1.0.13 bug)
+        self._imodelsx_model.test_size = 0.2
+        self._imodelsx_model.random_state = getattr(self, "random_state", 42)
+        self._imodelsx_model.shuffle = True
         self._imodelsx_model.fit(X, y)
         logger.info(
             "KAN (imodelsx/efficient-kan): trained on %d samples, device=%s",
