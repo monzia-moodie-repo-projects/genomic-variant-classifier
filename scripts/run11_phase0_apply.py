@@ -29,7 +29,7 @@ Usage:
 All patches use str.replace() with unique anchors. If any anchor is not
 found, the script aborts with a clear error. No partial writes.
 
-Author: Claude Opus 4.6 for Monzia Moodie
+Author: Monzia Moodie
 Date: 2026-05-24
 """
 

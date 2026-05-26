@@ -80,43 +80,6 @@ random_forest 0.9978, xgboost 0.9984, lightgbm 0.9983, logistic_regression 0.995
 ### HEAD progression
 `f4dbeed` â†’ `0d4ea7b` â†’ `bf2f665` â†’ `35b9e44` â†’ `80ac62c` â†’ (this commit)
 
-
-## 2026-05-26 â€” Run 14
-
-### Attempted
-
-- First end-to-end run with all 10 base models trained (RF, XGB, LightGBM, GBM, LR, CatBoost, TabularNN, MC Dropout, Deep Ensemble, KAN).
-- KAN remediation chain validation: imodelsx v1.0.13 package patch (sed) + attribute injection (kan.py) under real 100K-row training.
-- Maximum-information capture via `scripts/run14_observability.py` for per-model timing, KAN backend confirmation, LightGBM device, feature non-zero rates, blend weights, and artifact inventory.
-
-### Failed
-- (not recorded at the time; see corresponding session doc in docs/sessions/ for context)
-### Fixed
-- (not recorded at the time; see corresponding session doc in docs/sessions/ for context)
-### Learned
-- (not recorded at the time; see corresponding session doc in docs/sessions/ for context)
-### Commits in this session
-
-```
-TBD â€” append commits as they land
-bf2f665 fix(run14): add imodelsx package patch to launch script for Vast.ai  (prior session)
-```
-
-### Run summary
-
-- Instance: Vast.ai `<id>`, RTX 4090, `<region>`, $`<rate>`/hr
-- Elapsed: TBD h
-- Cost: ~$TBD
-- Test AUROC: TBD
-- AUPRC: TBD
-- F1: TBD
-- MCC: TBD
-- Brier: TBD
-- Models trained: TBD / 10
-- KAN backend: TBD
-- Dead features: TBD / 78
-
-
 # CHANGELOG
 
 ## 2026-05-24 - Run 10b launch, premature destroy, local salvage to TEST AUROC 0.9970

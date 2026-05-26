@@ -6,7 +6,7 @@ scope: Standard (8 integrations + carried-forward Run 10 items)
 predecessor_run: 10b (TEST AUROC 0.9970 on 349,067 variants, simple-average 8 models)
 head_commit: 5e94f4c (Run 10b salvage docs)
 repository: monzia-moodie-repo-projects/genomic-variant-classifier
-author: Claude Opus 4.6 for Monzia Moodie
+author: Monzia Moodie
 ---
 
 # Run 11 Master Plan — Genomic Variant Classifier

@@ -17,7 +17,7 @@ Outputs:
 This script uses Polars for fast scanning. Falls back to pandas if Polars
 is not installed (slower but functional).
 
-Author: Claude Opus 4.6 for Monzia Moodie
+Author: Monzia Moodie
 Date: 2026-05-24
 Run: 11 (pre-training baseline audit)
 """
