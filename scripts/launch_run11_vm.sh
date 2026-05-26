@@ -186,7 +186,18 @@ if [ -f "$GNOMAD_CONSTRAINT" ]; then
     ARGS="$ARGS --gnomad-constraint $GNOMAD_CONSTRAINT"
     echo "==> gnomAD constraint wired (recovers 4 features)"
 ARGS="$ARGS --skip-cnn"
-echo "==> CNN_1D skipped (no fasta_seq data available)" | tee -a "$LOG" | tee -a "$LOG"
+echo "==> CNN_1D skipped (no fasta_seq data available)" | tee -a "$LOG"
+
+# --- imodelsx v1.0.13 bug fix (bare-name references in KANClassifier.fit) ---
+IMODELSX_KAN=$(python -c "import imodelsx.kan.kan_sklearn as m; print(m.__file__)" 2>/dev/null)
+if [ -n "$IMODELSX_KAN" ] && grep -q "test_size=test_size" "$IMODELSX_KAN"; then
+    sed -i 's/test_size=test_size/test_size=self.test_size/g' "$IMODELSX_KAN"
+    sed -i 's/random_state=random_state/random_state=self.random_state/g' "$IMODELSX_KAN"
+    sed -i 's/shuffle=shuffle/shuffle=self.shuffle/g' "$IMODELSX_KAN"
+    echo "==> imodelsx_patch: fixed 3 bare-name refs in $IMODELSX_KAN" | tee -a "$LOG"
+else
+    echo "==> imodelsx_patch: already patched or not installed" | tee -a "$LOG"
+fi | tee -a "$LOG"
 else
     echo "==> WARN: gnomAD constraint TSV not found — pli/loeuf/syn_z/mis_z will be 0" | tee -a "$LOG"
 fi
