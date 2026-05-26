@@ -1,4 +1,4 @@
-# =============================================================================
+﻿# =============================================================================
 # Run14_Postflight.ps1
 # =============================================================================
 # Purpose:  After Run 14 training completes on Vast.ai, this script:
@@ -33,6 +33,13 @@ param(
     [string]$RemoteReport = "/workspace/run14_report",
     [string]$LocalReport  = ""  # default: $RepoRoot\outputs\run14_report
 )
+
+# ─── Charter v1.2 (2026-05-26): A8 closure ───────────────────────────────────
+# Dot-source recursive locator helper. Use Test-ArtifactPresent in gate checks
+# instead of fixed Test-Path to avoid path-assumption failures when artifacts
+# live in nested subdirectories (see scripts/Test-ArtifactPresent.ps1).
+. "$PSScriptRoot\Test-ArtifactPresent.ps1"
+
 
 $ErrorActionPreference = "Stop"
 if (-not $LocalReport) { $LocalReport = Join-Path $RepoRoot "outputs\run14_report" }
@@ -128,7 +135,7 @@ if (Test-Path $mdPath) {
 }
 
 # -----------------------------------------------------------------------------
-# 6. Emit destroy command — DO NOT execute here
+# 6. Emit destroy command â€” DO NOT execute here
 # -----------------------------------------------------------------------------
 Write-Host "`n[6/6] Destroy command (paste SEPARATELY after verifying local artifacts):" -ForegroundColor Cyan
 Write-Host ""

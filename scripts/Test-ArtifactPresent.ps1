@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Recursive locator helper for postflight artifact presence checks.
 
@@ -26,7 +26,7 @@ function Test-ArtifactPresent {
     param(
         [Parameter(Mandatory)][string]$Root,
         [Parameter(Mandatory)][string]$Filename,
-        [int]$MinBytes = 0
+        [long]$MinBytes = 0
     )
     if (-not (Test-Path $Root)) { return $false }
     $hit = Get-ChildItem -Recurse -LiteralPath $Root -Filter $Filename -File -ErrorAction SilentlyContinue | Select-Object -First 1

@@ -1,4 +1,4 @@
-﻿## 2026-05-26 â€” Run 14 complete + Preflight Charter v1.1 + v1.2 patch
+## 2026-05-26 â€” Run 14 complete + Preflight Charter v1.1 + v1.2 patch
 
 ### Attempted
 - Run 14 launch on Vast.ai instance 37897784 (Texas, RTX 4090, $0.6694/hr) after 4-bug KAN remediation chain.
@@ -90,17 +90,11 @@ random_forest 0.9978, xgboost 0.9984, lightgbm 0.9983, logistic_regression 0.995
 - Maximum-information capture via `scripts/run14_observability.py` for per-model timing, KAN backend confirmation, LightGBM device, feature non-zero rates, blend weights, and artifact inventory.
 
 ### Failed
-
-- TBD
-
+- (not recorded at the time; see corresponding session doc in docs/sessions/ for context)
 ### Fixed
-
-- TBD
-
+- (not recorded at the time; see corresponding session doc in docs/sessions/ for context)
 ### Learned
-
-- TBD
-
+- (not recorded at the time; see corresponding session doc in docs/sessions/ for context)
 ### Commits in this session
 
 ```
