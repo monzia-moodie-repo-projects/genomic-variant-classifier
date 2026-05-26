@@ -143,3 +143,9 @@ agent_data/
 # Post-C1 paths for moved agent_layer/ runtime state (was anchored at old path)
 src/genomic_variant_classifier/agent_layer/agent_state.json
 src/genomic_variant_classifier/agent_layer/out.txt
+
+# Run outputs — large artifacts excluded; only manifests + CSVs + JSONs committed
+outputs/**/*.joblib
+outputs/**/*.npy
+outputs/**/*.parquet
+outputs/**/.run*_state.json

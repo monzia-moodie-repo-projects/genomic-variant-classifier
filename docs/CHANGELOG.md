@@ -1,3 +1,50 @@
+﻿# CHANGELOG â€” Run 14 entry
+
+> Append the block below to `docs/CHANGELOG.md` after the existing Run 13 entry.
+> Edit TBD slots in place once results arrive.
+
+## 2026-05-26 â€” Run 14
+
+### Attempted
+
+- First end-to-end run with all 10 base models trained (RF, XGB, LightGBM, GBM, LR, CatBoost, TabularNN, MC Dropout, Deep Ensemble, KAN).
+- KAN remediation chain validation: imodelsx v1.0.13 package patch (sed) + attribute injection (kan.py) under real 100K-row training.
+- Maximum-information capture via `scripts/run14_observability.py` for per-model timing, KAN backend confirmation, LightGBM device, feature non-zero rates, blend weights, and artifact inventory.
+
+### Failed
+
+- TBD
+
+### Fixed
+
+- TBD
+
+### Learned
+
+- TBD
+
+### Commits in this session
+
+```
+TBD â€” append commits as they land
+bf2f665 fix(run14): add imodelsx package patch to launch script for Vast.ai  (prior session)
+```
+
+### Run summary
+
+- Instance: Vast.ai `<id>`, RTX 4090, `<region>`, $`<rate>`/hr
+- Elapsed: TBD h
+- Cost: ~$TBD
+- Test AUROC: TBD
+- AUPRC: TBD
+- F1: TBD
+- MCC: TBD
+- Brier: TBD
+- Models trained: TBD / 10
+- KAN backend: TBD
+- Dead features: TBD / 78
+
+
 # CHANGELOG
 
 ## 2026-05-24 - Run 10b launch, premature destroy, local salvage to TEST AUROC 0.9970
@@ -35,7 +82,7 @@ Locked **TEST AUROC = 0.9970** on 349,067 variants via simple-average ensemble o
 - `9b1400e` Run 10b-partial salvage results
 - `8e1b21f` (CHANGELOG blank-line modification only; superseded by this commit)
 
-## 2026-05-23 â€” Run 10a deployment & no-checkpoint reckoning
+## 2026-05-23 Ã¢â‚¬â€ Run 10a deployment & no-checkpoint reckoning
 
 ### Attempted
 - Run 10a regen+train on Vast.ai inst 37429606 (RTX 4090, $0.76/hr) with LOVD + DbNSFP wired
@@ -50,25 +97,25 @@ Locked **TEST AUROC = 0.9970** on 349,067 variants via simple-average ensemble o
 ### Failed
 - `ensemble.save()` and per-model persistence: NO `.pkl`/`.joblib`/`.cbm` files exist anywhere in /workspace after 16 hours of training. Phase 1.7 patch (`66593d6`) created `model_dir` but did not add per-model writes. Same architectural omission as Run 9.
 - `cnn_1d` wrapper: OOF AUROC = 0.5000 (constant predictions). Regression introduced between Run 9 and Run 10a, likely from post-C5 namespace refactor breaking the inner `_CNN1D._build_model.<locals>._CNN1D` closure.
-- 4090 GPU utilization for KAN: 0% steady â€” KAN is CPU-bound. ~$10/run wasted on wrong hardware tier.
+- 4090 GPU utilization for KAN: 0% steady Ã¢â‚¬â€ KAN is CPU-bound. ~$10/run wasted on wrong hardware tier.
 
 ### Learned
 - Standing pre-flight rule did NOT catch the no-checkpoint failure mode because it didn't require runtime verification.
-- cnn_1d is a 1-D convolution over the 78-feature tabular vector, not an image model. Image data acquisition remains unscheduled (correctly so) â€” Phase 0 baseline + ablation matrix come first.
+- cnn_1d is a 1-D convolution over the 78-feature tabular vector, not an image model. Image data acquisition remains unscheduled (correctly so) Ã¢â‚¬â€ Phase 0 baseline + ablation matrix come first.
 - KAN's 6-cycle pattern confirmed: 5-fold OOF CV + 1 final fit on full data. Each cycle ~4h 25m + ~1h 30m inter-cycle gap = ~5h 55m wall-clock per cycle.
-- PowerShellâ†’SSHâ†’bash quoting: `---` separators + single-word grep patterns are the only reliable shape. Never embed `"..."` inside `'...'`.
+- PowerShellÃ¢â€ â€™SSHÃ¢â€ â€™bash quoting: `---` separators + single-word grep patterns are the only reliable shape. Never embed `"..."` inside `'...'`.
 
 ### Memory rules updated
 - Memory edit #29 replaced with: incremental checkpointing mandatory on all >30 min cloud training; pre-flight must verify checkpoint files appear within first 30 min; abort if first base model finishes with no checkpoint emission.
 
 ### Incidents filed
-- `INCIDENT_2026-05-23_run10a-no-checkpoints.md` â€” structural fix via `variant_ensemble.py` patch
-- `INCIDENT_2026-05-23_cnn1d-0.5-auroc.md` â€” closure regression, unit test gate required
+- `INCIDENT_2026-05-23_run10a-no-checkpoints.md` Ã¢â‚¬â€ structural fix via `variant_ensemble.py` patch
+- `INCIDENT_2026-05-23_cnn1d-0.5-auroc.md` Ã¢â‚¬â€ closure regression, unit test gate required
 
 ### Costs
-- Run 10a so far: $13.02 (15h 53m Ã— $0.76 + $0.95 setup)
-- Run 10a remaining if completed: +$14.44 â†’ $27.46 total
-- Run 10c (kill+patch+restart with --skip-kan) projection: +$2.50 â†’ $15.50 total
+- Run 10a so far: $13.02 (15h 53m Ãƒâ€” $0.76 + $0.95 setup)
+- Run 10a remaining if completed: +$14.44 Ã¢â€ â€™ $27.46 total
+- Run 10c (kill+patch+restart with --skip-kan) projection: +$2.50 Ã¢â€ â€™ $15.50 total
 
 ### Next-session deliverables
 1. Apply `variant_ensemble_incremental_save_patch.py` to local repo
@@ -82,23 +129,23 @@ Locked **TEST AUROC = 0.9970** on 349,067 variants via simple-average ensemble o
 
 ---
 
-# Changelog â€” Genomic Variant Classifier
+# Changelog Ã¢â‚¬â€ Genomic Variant Classifier
 
 Append-only. One entry per session. Captures what was attempted, what
 failed (with exact errors and root causes), what was fixed, and what was
 learned. Searchable: paste any error string to find the root cause and fix.
 
 Format per entry:
-  ## YYYY-MM-DD â€” <one-line summary>
+  ## YYYY-MM-DD Ã¢â‚¬â€ <one-line summary>
   ### Attempted | Failed | Fixed | Learned
 
 ---
 
-## 2026-04-08 â€” Runs 6 & 7, GPU quota request, Run 8 startup script
+## 2026-04-08 Ã¢â‚¬â€ Runs 6 & 7, GPU quota request, Run 8 startup script
 
 ### Attempted
 - Run 6: full training on GCP (n2-highmem-32, CPU-only). Holdout AUROC 0.9862.
-- Run 7: repeat with gnomAD v4.1 constraint features wired in. AUROC 0.9862 (unchanged â€” GNN still CPU-only).
+- Run 7: repeat with gnomAD v4.1 constraint features wired in. AUROC 0.9862 (unchanged Ã¢â‚¬â€ GNN still CPU-only).
 - GPU quota request: GPUS_ALL_REGIONS = 1.
 - Run 8 VM create: L4 (g2-standard-8).
 
@@ -108,7 +155,7 @@ Format per entry:
   `&&` only fires on success; VM was already off by the time we checked GCS.
 - GPU quota denied. Code: GPUS_ALL_REGIONS = 0 (new account, no billing history).
 - Run 8 VM create failed: `ZONE_RESOURCE_POOL_EXHAUSTED` across all US zones.
-  Root cause: quota was 0 â€” zone exhaustion was a red herring.
+  Root cause: quota was 0 Ã¢â‚¬â€ zone exhaustion was a red herring.
 - venv torch install on Deep Learning VM: `libcusparseLt.so.0` not found.
   Root cause: venv doesn't have access to the system CUDA libraries.
   Fix: uninstall pip torch from venv; add .pth bridge to system torch.
@@ -121,7 +168,7 @@ Format per entry:
 - Startup script: replaced `&&` chaining with `trap 'upload && shutdown' EXIT`.
   Fires on ANY exit: success, failure, crash, OOM.
 - Git safe.directory: `git config --global --add safe.directory $REPO_DIR`
-  (startup runs as root; repo cloned as monzi â€” git refuses pull otherwise).
+  (startup runs as root; repo cloned as monzi Ã¢â‚¬â€ git refuses pull otherwise).
 - Parallel composite upload disabled: `gcloud config set storage/parallel_composite_upload_enabled False`.
   Was causing 401 auth failures on large files when OAuth token expired mid-upload.
 - argparse `--string-db` flag: was missing from `run_phase2_eval.py`.
@@ -137,7 +184,7 @@ Format per entry:
 
 ---
 
-## 2026-04-09 â€” Inter-run items 1-8, inter-agent message bus (Phase 4)
+## 2026-04-09 Ã¢â‚¬â€ Inter-run items 1-8, inter-agent message bus (Phase 4)
 
 ### Attempted
 - SpliceAI index build from full hg38 VCF (28.8GB compressed).
@@ -151,7 +198,7 @@ Format per entry:
 
 ### Failed
 - SpliceAI VCF was misidentified as masked SNV (~72M lines).
-  Actual: full unmasked hg38 VCF including indels â€” 1.1B+ lines, 2.5+ hours.
+  Actual: full unmasked hg38 VCF including indels Ã¢â‚¬â€ 1.1B+ lines, 2.5+ hours.
   Root cause: filename says "masked.snv" but file is full genome-wide.
   Result: still correct and more complete than expected. Build still running at session end.
 - Docker smoke test: Docker Desktop not running (Linux engine pipe not found).
@@ -181,18 +228,18 @@ Format per entry:
   graceful degradation where ewc_utils/feedparser not on path.
 
 ### Learned
-- SpliceAI "masked.snv" filename is misleading â€” always check file size first.
+- SpliceAI "masked.snv" filename is misleading Ã¢â‚¬â€ always check file size first.
   28.8GB compressed = full genome-wide VCF, not masked SNVs only.
 - Polars join 3.3x faster than pandas merge on gnomAD constraint join (500K variants).
   Integration approved for Phase 3 ETL bottlenecks.
 - Inter-agent messaging with lazy imports is the correct pattern for an agent layer
   where not all dependencies are always installed.
-- PowerShell `<` operator is reserved â€” never use `<placeholder>` syntax in commands.
+- PowerShell `<` operator is reserved Ã¢â‚¬â€ never use `<placeholder>` syntax in commands.
   Always use a real value or `PLACEHOLDER_VALUE` without angle brackets.
 
 ---
 
-## 2026-04-09 (post-session) â€” Local file cleanup + SpliceAI GCS fix
+## 2026-04-09 (post-session) Ã¢â‚¬â€ Local file cleanup + SpliceAI GCS fix
 
 ### Fixed
 - SpliceAI GCS index was wrong file: `processed/spliceai_index.parquet` in GCS
@@ -203,22 +250,22 @@ Format per entry:
   named `spliceai_index_test.parquet`.
   Fix: uploaded `spliceai_index_test.parquet` directly to GCS as `spliceai_index.parquet`.
   GCS now confirmed: 336.83MiB / 353,196,691 bytes at 2026-04-09T23:15Z.
-  Local: deleted 29GB wrong file, renamed _test.parquet â†’ spliceai_index.parquet.
+  Local: deleted 29GB wrong file, renamed _test.parquet Ã¢â€ â€™ spliceai_index.parquet.
 
 ### Cleaned up local files (all confirmed in GCS before deletion)
   - data\external\spliceai_scores.masked.snv.hg38.vcf.gz     27.5 GB (duplicate)
-  - data\external\dbnsfp\dbNSFP5.3.1a_grch38.gz             47.9 GB âœ“ GCS
-  - data\external\finngen\finnge_R12_annotated_variants_v1.gz 30.6 GB âœ“ GCS
-  - data\external\spliceai\spliceai_scores.masked.snv.hg38.vcf.gz 27.5 GB âœ“ GCS
+  - data\external\dbnsfp\dbNSFP5.3.1a_grch38.gz             47.9 GB Ã¢Å“â€œ GCS
+  - data\external\finngen\finnge_R12_annotated_variants_v1.gz 30.6 GB Ã¢Å“â€œ GCS
+  - data\external\spliceai\spliceai_scores.masked.snv.hg38.vcf.gz 27.5 GB Ã¢Å“â€œ GCS
   - data\external\alphamissense\AlphaMissense_hg38.tsv\       5.2 GB (GCS has .gz)
   - data\raw\cache\alphamissense_scores_hg38.parquet          740 MB (regeneratable)
-  - data\external\clinvar_fresh\variant_summary.txt.gz        415 MB âœ“ GCS
+  - data\external\clinvar_fresh\variant_summary.txt.gz        415 MB Ã¢Å“â€œ GCS
   - data\raw\clinvar\variant_summary.txt.gz                   415 MB (duplicate)
   Total recovered: ~142 GB
 
 ---
 
-## 2026-04-16 â€” Lambda A10 setup; Phase 2 feature promotion; SyntaxError fix; 205 tests green
+## 2026-04-16 Ã¢â‚¬â€ Lambda A10 setup; Phase 2 feature promotion; SyntaxError fix; 205 tests green
 
 ### Attempted
 - Launch Lambda Labs gpu_1x_a10 as GCP GPU quota substitute (quota still 0).
@@ -252,7 +299,7 @@ Format per entry:
 - Write all multi-line Python repair scripts to .py files, not inline python -c strings.
 - Lambda instance billing starts at launch. Have all code pushed before creating the instance.
 
-## 2026-04-16 (continued) â€” AlphaMissense parquet fix; Run 8 training launched on Vast.ai RTX 4090
+## 2026-04-16 (continued) Ã¢â‚¬â€ AlphaMissense parquet fix; Run 8 training launched on Vast.ai RTX 4090
 
 ### Fixed
 - alphamissense.py _parse_parquet returned raw 5-column schema instead of
@@ -263,14 +310,14 @@ Format per entry:
 
 ### Infrastructure
 - Vast.ai RTX 4090 instance: 175.155.64.225:19863, $0.388/hr
-- Vast.ai auto-starts tmux on login â€” no manual tmux new-session needed.
+- Vast.ai auto-starts tmux on login Ã¢â‚¬â€ no manual tmux new-session needed.
 - All 7 data files pulled from GCS in ~3 minutes (vs 25 min scp previously).
 - Training launched 20:13:40 UTC with full 78-feature set including AlphaMissense.
 
 ### Pending
-- Training in progress â€” detached in tmux, running unattended.
+- Training in progress Ã¢â‚¬â€ detached in tmux, running unattended.
 - Check results in ~2-3 hours for final AUROC/AUPRC/MCC.
-## 2026-04-16 â€” Run 8 COMPLETE â€” AUROC 0.9863, 1.8GB artifacts saved to GCS
+## 2026-04-16 Ã¢â‚¬â€ Run 8 COMPLETE Ã¢â‚¬â€ AUROC 0.9863, 1.8GB artifacts saved to GCS
 
 ### Final Results
   AUROC  0.9863 (holdout)  0.9833 (test)   PASS (target >= 0.9)
@@ -295,9 +342,9 @@ Format per entry:
 ### Bugs discovered (fix in Run 9)
   GNN: ValueError: invalid literal for int() with base 10: path string passed where
        protein ID int expected. GNN did not contribute to Run 8.
-  TF models: tabular_nn, cnn_1d, mc_dropout, deep_ensemble all skipped â€”
+  TF models: tabular_nn, cnn_1d, mc_dropout, deep_ensemble all skipped Ã¢â‚¬â€
              no tensorflow on Vast PyTorch image. Use PyTorch equivalents.
-  ESM-2: stub mode (transformers not installed) â€” all esm2_delta_norm = 0.0
+  ESM-2: stub mode (transformers not installed) Ã¢â‚¬â€ all esm2_delta_norm = 0.0
 
 ### GCS artifacts (gs://genomic-variant-prod-outputs/run8/)
   models/run8/models/ensemble.joblib         main ensemble
@@ -311,17 +358,17 @@ Format per entry:
 
 ### Infrastructure notes
   - Vast.ai auto-tmux protects from SSH drops (unlike Lambda foreground sessions)
-  - sudo shutdown fails in Vast containers (no systemd) â€” container exits naturally
-  - SA key permissions: parallel composite upload GET check fails â€” non-blocking
-## 2026-04-16 (final) â€” SpliceAI + PyTorch NN fixes committed
+  - sudo shutdown fails in Vast containers (no systemd) Ã¢â‚¬â€ container exits naturally
+  - SA key permissions: parallel composite upload GET check fails Ã¢â‚¬â€ non-blocking
+## 2026-04-16 (final) Ã¢â‚¬â€ SpliceAI + PyTorch NN fixes committed
 
 ### Fixed
 - SpliceAI: _get_lookup now detects .parquet and calls _parse_parquet()
   instead of _parse_vcf(). Fixes 0 variants annotated in Run 8.
   Schema: chrom:pos:ref:alt lookup_key, dedup by max score.
-- CNN1DClassifier: migrated TF/Keras â†’ PyTorch (Conv1d, AdaptiveMaxPool1d,
+- CNN1DClassifier: migrated TF/Keras Ã¢â€ â€™ PyTorch (Conv1d, AdaptiveMaxPool1d,
   early stopping patience=5, CUDA-aware)
-- TabularNNClassifier: migrated TF/Keras â†’ PyTorch (BatchNorm1d, Dropout,
+- TabularNNClassifier: migrated TF/Keras Ã¢â€ â€™ PyTorch (BatchNorm1d, Dropout,
   weight_decay=1e-4, early stopping patience=8, CUDA-aware)
 - All 466 tests passing after all three fixes.
 
@@ -330,7 +377,7 @@ All known bugs from Run 8 are now fixed:
   GNN string_db path bug          FIXED (0a02e5d)
   AlphaMissense parquet schema    FIXED (5297711)
   SpliceAI parquet branch         FIXED (this commit)
-  CNN1D / TabularNN TFâ†’PyTorch    FIXED (38656bc)
+  CNN1D / TabularNN TFÃ¢â€ â€™PyTorch    FIXED (38656bc)
   transformers installed          DONE
 
 Expected Run 9 active models: RF, XGB, LGB, GBM, CatBoost, LR,
@@ -338,7 +385,7 @@ Expected Run 9 active models: RF, XGB, LGB, GBM, CatBoost, LR,
 Expected new feature signals: SpliceAI scores, ESM-2 (if HGVSp populated)
 ---
 
-## 2026-04-17 â€” SpliceAI silent-zero fix, test isolation, GCS audit
+## 2026-04-17 Ã¢â‚¬â€ SpliceAI silent-zero fix, test isolation, GCS audit
 
 ### Attempted
 - Verify Run 8 SpliceAI parquet was actually in GCS (could not be
@@ -523,7 +570,7 @@ story and file contents.)
 - [ ] on-VM preflight passes (requires live instance)
 - [ ] training launched and final metrics captured
 
-## 2026-04-20 â€” KAN reinstatement, ensemble OOF fix, CI recovery
+## 2026-04-20 Ã¢â‚¬â€ KAN reinstatement, ensemble OOF fix, CI recovery
 
 Entered session investigating a CI failure (`pytest (3.11)` red since
 2026-04-19). The failing test surfaced a pre-existing bug in
@@ -531,7 +578,7 @@ Entered session investigating a CI failure (`pytest (3.11)` red since
 harness at ~10 hours of CPU time. Fix verified with a 500-row synthetic
 probe in under 2 minutes. Separately, investigation of the local
 `skip_kan` behaviour during that probe revealed the `KAN unconditionally
-removed` status was 15 days out of date â€” the underlying OOM was
+removed` status was 15 days out of date Ã¢â‚¬â€ the underlying OOM was
 fixed in commit 2389ee2 on 2026-04-04. With Vast.ai GPU access for
 Run 9, the remaining reason to keep KAN disabled evaporated. Three
 atomic commits shipped, all CI green.
@@ -540,7 +587,7 @@ atomic commits shipped, all CI green.
 
 - `src/models/variant_ensemble.py` (b1c1150): removed stale duplicate
   `self.meta_learner.fit(oof_preds, y_arr)` call at line 1159. The
-  correct call one block below used `y_fit` (length 0.85 Ã— N, matching
+  correct call one block below used `y_fit` (length 0.85 Ãƒâ€” N, matching
   `oof_preds`) but never ran because the stale call crashed first with
   `ValueError: Found input variables with inconsistent numbers of
   samples: [N*0.85, N]`. Pre-existing bug from a botched earlier
@@ -593,7 +640,7 @@ atomic commits shipped, all CI green.
 - **The Dockerfile trainer CMD has been broken since 2026-04-09.**
   Commit 671e48d added `--skip-kan` to the `scripts/run_phase2_eval.py`
   invocation at Dockerfile line 166. Until today, `run_phase2_eval.py`
-  did not accept that flag â€” argparse would have errored with
+  did not accept that flag Ã¢â‚¬â€ argparse would have errored with
   `unrecognized arguments: --skip-kan` and exit 2. Undetected for 11
   days because Runs 6-8 used startup scripts on GCP/Lambda/Vast.ai
   (`scripts/gcp_run6_startup.sh` etc.), not Docker. The trainer
@@ -630,7 +677,7 @@ atomic commits shipped, all CI green.
   by adding `no_kan` to `ABLATION_MASKS` with an empty prefix list
   and gating execution on both `--ablation no_kan` AND `--skip-kan`.
   Without the runtime guard, `--ablation no_kan` alone would zero
-  zero columns and train KAN anyway â€” a silent ~10-hour no-op on a
+  zero columns and train KAN anyway Ã¢â‚¬â€ a silent ~10-hour no-op on a
   GPU instance. The guard returns exit 2 with an explanatory message.
 
 - **The KAN Re-enablement Checklist in ROADMAP.md was the right spec.**
@@ -689,7 +736,7 @@ Docker build smoke test).
   instrumentation, but runtime behaviour when instantiating the
   FastAPI app is untested. Fix: upgrade
   `prometheus-fastapi-instrumentator` to a version supporting
-  starlette â‰¥1.0, or pin `starlette<1.0` in `requirements.txt`.
+  starlette Ã¢â€°Â¥1.0, or pin `starlette<1.0` in `requirements.txt`.
   File INCIDENT after Run 9 completes per user instruction.
 
 ### Run 9 readiness after this session
@@ -702,7 +749,7 @@ Docker build smoke test).
 - [x] KAN Re-enablement Checklist items 207-211 complete (ROADMAP.md)
 - [ ] splits regenerated against current 78-col schema (user action)
 - [ ] Vast.ai instance provisioned (user action)
-- [ ] Python 3.12 venv locally (optional; deferred â€” Vast.ai handles its own Python)
+- [ ] Python 3.12 venv locally (optional; deferred Ã¢â‚¬â€ Vast.ai handles its own Python)
 - [ ] Step C: verify Patch 6a `--string-db auto` branch triggers GNN injection
 - [ ] on-VM preflight passes (requires live instance)
 - [ ] KAN scalability pre-flight at 10K and 100K rows on GPU before full run
@@ -753,7 +800,7 @@ Docker build smoke test).
 
 ---
 
-## 2026-05-02 â€” Gene-scope expansion deferred to Run 10; LOVD silent-zero confirmed
+## 2026-05-02 Ã¢â‚¬â€ Gene-scope expansion deferred to Run 10; LOVD silent-zero confirmed
 
 ### Attempted
 - Review of request to add additional gene variants beyond the canonical
@@ -775,14 +822,14 @@ Docker build smoke test).
   - Diagnostic merge (replicating the connector's exact key construction
     against `models/v1/clinvar_enriched.parquet`) yielding 5,553 inner-
     join matches in isolation.
-  Root cause is at one of the runtime join boundaries inside the ETL â€”
+  Root cause is at one of the runtime join boundaries inside the ETL Ã¢â‚¬â€
   either Cause 1 (downstream column overwrite) or Cause 2 (upstream
   coordinate transformation by one of the 14 prior `annotate_dataframe`
   steps). Distinguished by the integer in the log line at
-  `real_data_prep.py:740â€“748` (`"Score annotation 15/16 (LOVD): %d
+  `real_data_prep.py:740Ã¢â‚¬â€œ748` (`"Score annotation 15/16 (LOVD): %d
   variants with lovd_variant_class > 0."`); resolution deferred to R10-A.
   Full record: `docs/incidents/INCIDENT_2026-05-02_lovd-silent-zero.md`.
-- Initial hypothesis (floatâ†’str trailing `.0` on the `pos` join key)
+- Initial hypothesis (floatÃ¢â€ â€™str trailing `.0` on the `pos` join key)
   falsified by direct dtype check: `pos` is int64, conversion is clean.
 
 ### Fixed
@@ -795,8 +842,8 @@ Docker build smoke test).
   `effect_reported`/`effect_concluded` (functional). Per ACMG/AMP 2015
   framework, functional evidence (PS3/BS3) is one input to a clinical
   classification combining multiple categories, not the classification
-  itself. ClinVar tier-2 â†’ LOVD-API-derived is a label-quality
-  downgrade. Earlier-session "30Ã— more rows" framing was rhetorical
+  itself. ClinVar tier-2 Ã¢â€ â€™ LOVD-API-derived is a label-quality
+  downgrade. Earlier-session "30Ãƒâ€” more rows" framing was rhetorical
   and was flagged as such mid-session.
 - Silent-zero discovery requires checking the *trained* feature matrix
   value distribution, not just connector logs. Connector logged the
@@ -808,7 +855,7 @@ Docker build smoke test).
   LOVD; same pattern likely affects other connectors on the 30+
   all-zero list from `SESSION_2026-04-30.md` Finding #4.
 - `scripts/process_lovd.py` is dead code. Live LOVD merge is
-  `scripts/build_lovd_index.py` â†’ `lovd_all_variants.parquet`. The
+  `scripts/build_lovd_index.py` Ã¢â€ â€™ `lovd_all_variants.parquet`. The
   schema mismatch between the two scripts (`lovd_variants.parquet` vs
   `lovd_all_variants.parquet`, `pathogenicity` vs `classification_raw`)
   is a dead-code artifact, not a live bug. Cleanup candidate for a
@@ -818,14 +865,14 @@ Docker build smoke test).
   and the Vast.ai onstart script must reference the actual
   `outputs/run9_ready/` path before Vast.ai launch.
 - 4/1 raw LOVD download integrity confirmed against admin's logged
-  ban window. TP53/PTEN/RB1 `.txt` files at 5:38â€“5:39 AM Eastern are
+  ban window. TP53/PTEN/RB1 `.txt` files at 5:38Ã¢â‚¬â€œ5:39 AM Eastern are
   genuine; BRCA1/BRCA2/APC/MLH1/MSH2/MSH6/NF1 `.txt` files at the
-  same time are 96â€“98 byte error pages contemporaneous with the ban
-  (`[01/Apr/2026:10:53â€“12:34 +0200]` â†’ 4:53â€“6:34 AM Eastern). 6:56 PM
+  same time are 96Ã¢â‚¬â€œ98 byte error pages contemporaneous with the ban
+  (`[01/Apr/2026:10:53Ã¢â‚¬â€œ12:34 +0200]` Ã¢â€ â€™ 4:53Ã¢â‚¬â€œ6:34 AM Eastern). 6:56 PM
   `.json` files are post-unblock manual saves of
   `?format=application/json` views, currently unconsumed by
   `build_lovd_index.py`.
-- rclone Drive remote renamed `gvc` â†’ `genvarcla`. `agent_data/`
+- rclone Drive remote renamed `gvc` Ã¢â€ â€™ `genvarcla`. `agent_data/`
   namespace recreated on Drive with 5 subfolders (events, litcache,
   drift_reports, modelscout, trainlifecycle). Local `agent_data/`
   directory created. Smoke test (21-byte file round-trip) clean.
@@ -842,11 +889,11 @@ Docker build smoke test).
   (upstream coordinate transformation).
 - **R10-B:** Patch identified cause. Add unit test asserting
   `(df["lovd_variant_class"] > 0).sum() > 0` after the LOVD step on a
-  3Ã—5 fixture with 1 expected match. Pattern modeled on
+  3Ãƒâ€”5 fixture with 1 expected match. Pattern modeled on
   `tests/unit/test_spliceai_parquet_default.py` (commit 9ba3127) and
   `tests/unit/test_esm2_activation.py` (2026-04-17).
 - **R10-C:** Re-regen splits on Vast.ai with LOVD live (no local
-  retraining per standing rule #19). Post-condition: ~4,500â€“5,500 of
+  retraining per standing rule #19). Post-condition: ~4,500Ã¢â‚¬â€œ5,500 of
   5,553 inner-join matches in train.
 - **R10-D:** Originally-requested gene scope expansion (Paths 1+2: LOVD
   raw + gnomAD/UniProt per-gene). Manual browser only per LOVD admin
@@ -860,7 +907,7 @@ Docker build smoke test).
   this INCIDENT as a known-pending item before Run 9 launch but not as
   a launch blocker.
 - All four files for this session committed in a single commit:
-  `docs(session): 2026-05-02 â€” gene-scope expansion deferred; LOVD silent-zero INCIDENT`.
+  `docs(session): 2026-05-02 Ã¢â‚¬â€ gene-scope expansion deferred; LOVD silent-zero INCIDENT`.
 
 ## 2026-05-09: C3.6 hotfix + C4-prep complete
 
@@ -885,7 +932,7 @@ Docker build smoke test).
   6 walk_failures from bare imports in `base_agent`, `data_freshness_agent`,
   `interpretability_agent`, `literature_scout_agent`, `training_lifecycle_agent`,
   and `orchestrator`. C3 regex sweep had missed these.
-- Stage 3 reported `WARN: column count 81 != 78` â€” false alarm; PowerShell `-match`
+- Stage 3 reported `WARN: column count 81 != 78` Ã¢â‚¬â€ false alarm; PowerShell `-match`
   against a multi-line string array does NOT populate `$Matches`; stale value from
   prior smoke test `SRC=81` capture was used. Fixture is verified 78 cols by the
   python output itself (`COLS=78`).
@@ -925,7 +972,7 @@ Docker build smoke test).
   `genomic_variant_classifier/`, those bare names broke. C3 regex sweep should
   have caught all instances; missed 8 files. Root cause for the miss is not
   fully diagnosed (C3 spec patterns are correct; possibly file-glob omission or
-  later re-introduction during C3.x hotfixes â€” neither verified).
+  later re-introduction during C3.x hotfixes Ã¢â‚¬â€ neither verified).
 
 ### Refs
 - Commits: `e0f4c6e` (C3.6 hotfix), `e34ce7b` (C4-prep)
@@ -938,7 +985,7 @@ Docker build smoke test).
   `c4_fix_install_compat.py`, `c4_diagnose_walk.py`, `c4_fix_bare_imports.py`,
   `c4_batch_C36_through_4.ps1`, `c4_batch_commits.ps1`
 
-## 2026-05-09 (continuation) â€” C5 layout-migration cleanup
+## 2026-05-09 (continuation) Ã¢â‚¬â€ C5 layout-migration cleanup
 
 ### Attempted
 - C5.1: rewrite stale `src/X` refs in README L196/L223, ci.yml L77, narrow .gitignore cleanup
@@ -949,23 +996,23 @@ Docker build smoke test).
 - C5.3b: remove 8 stale `.gitignore` rules
 
 ### Failed
-- **C5.3a v1** (Stage 3, no commit, recovered): post-apply stale-ref count 9 â‰  4 expected. Path-style regex `src/(SUBPKG)/` required trailing slash; missed 5 line-level hits where slash was absent (`src/api + src/models` in Dockerfile L10, bare `src/evaluation`/`src/reports`/`src/utils` at end of L2 in three `__init__.py` files, bare `src/` in `test_1kgp.py` L409). Working tree dirty with 51 partial writes; recovered via `git checkout -- .`.
+- **C5.3a v1** (Stage 3, no commit, recovered): post-apply stale-ref count 9 Ã¢â€°Â  4 expected. Path-style regex `src/(SUBPKG)/` required trailing slash; missed 5 line-level hits where slash was absent (`src/api + src/models` in Dockerfile L10, bare `src/evaluation`/`src/reports`/`src/utils` at end of L2 in three `__init__.py` files, bare `src/` in `test_1kgp.py` L409). Working tree dirty with 51 partial writes; recovered via `git checkout -- .`.
 
 ### Fixed
 - **C5.3a v2:** loosened path-style regex to `src/(SUBPKG)(?![A-Za-z0-9_])` (word-boundary lookahead instead of required slash). Catches all 5 v1-missed hits except bare-`src/` in test_1kgp.py L409 (intentional incidental).
-- **Stage 1 arithmetic-sanity check** added to v2 batch: parses helper output and asserts `actual_substitutions == baseline_lines - deliberate_skip_lines - incidental_lines + multi_match_extras` (C5.3a v2: `83 == 87 - 4 - 1 + 1`, where `+1` is Dockerfile L10's multi-match adjustment) BEFORE Stage 2 apply. Catches the v1 class of regex-undershoot at dry-run time. See SESSION_2026-05-09_C5.md Â§Lesson 1 for the full term-by-term derivation.
+- **Stage 1 arithmetic-sanity check** added to v2 batch: parses helper output and asserts `actual_substitutions == baseline_lines - deliberate_skip_lines - incidental_lines + multi_match_extras` (C5.3a v2: `83 == 87 - 4 - 1 + 1`, where `+1` is Dockerfile L10's multi-match adjustment) BEFORE Stage 2 apply. Catches the v1 class of regex-undershoot at dry-run time. See SESSION_2026-05-09_C5.md Ã‚Â§Lesson 1 for the full term-by-term derivation.
 
 ### Learned
-- **STANDING RULE â€” apply-batch arithmetic sanity:** every mechanical-rewrite batch must assert at Stage 1 (dry-run) that `actual_substitutions == expected_substitutions`, where `expected = baseline_lines - deliberate_skip_lines - incidental_lines + multi_match_extras` (the last term reconciles match-count vs line-count: each non-skipped line with N>1 matches contributes N-1 extras). Without this check, a too-strict regex undershoots silently; the failure surfaces only at Stage 3 post-apply verification, after partial writes. Codify in every future apply helper template.
+- **STANDING RULE Ã¢â‚¬â€ apply-batch arithmetic sanity:** every mechanical-rewrite batch must assert at Stage 1 (dry-run) that `actual_substitutions == expected_substitutions`, where `expected = baseline_lines - deliberate_skip_lines - incidental_lines + multi_match_extras` (the last term reconciles match-count vs line-count: each non-skipped line with N>1 matches contributes N-1 extras). Without this check, a too-strict regex undershoots silently; the failure surfaces only at Stage 3 post-apply verification, after partial writes. Codify in every future apply helper template.
 - **Path-style regex form:** `src/(SUBPKG)(?![A-Za-z0-9_])` (word-boundary lookahead) is more robust than `src/(SUBPKG)/` (required slash).
 - **Recovery enforced by pre-flight:** apply batches' pre-flight rejects dirty working trees, ensuring `git checkout -- .` recovery happens before any retry.
-- **Substitutions â‰  line-level diff:** helper substitution count and git diff stat can differ when a single line has multiple substitutions (Dockerfile L10: 2 substitutions, +1/-1 in diff).
+- **Substitutions Ã¢â€°Â  line-level diff:** helper substitution count and git diff stat can differ when a single line has multiple substitutions (Dockerfile L10: 2 substitutions, +1/-1 in diff).
 
 ### Commits
-- `d7ed38e` â€” C5.1
-- `4eb1205` â€” C5.2
-- `6a38ee3` â€” C5.3a (v2): 55 files, 83 substitutions, +82/-82
-- `6443af7` â€” C5.3b: 8 .gitignore deletions
+- `d7ed38e` Ã¢â‚¬â€ C5.1
+- `4eb1205` Ã¢â‚¬â€ C5.2
+- `6a38ee3` Ã¢â‚¬â€ C5.3a (v2): 55 files, 83 substitutions, +82/-82
+- `6443af7` Ã¢â‚¬â€ C5.3b: 8 .gitignore deletions
 
 ### Refs
 - `agent_data/c5_3_discovery.ps1`
@@ -977,7 +1024,7 @@ Docker build smoke test).
 
 ---
 
-## 2026-05-10 â€” Architectural cleanup: GCS retirement (Commits 1-4 of cleanup arc)
+## 2026-05-10 Ã¢â‚¬â€ Architectural cleanup: GCS retirement (Commits 1-4 of cleanup arc)
 
 ### Attempted
 - Complete the SCP-only architectural pivot started by the 2026-04-29 GCP project deletion (`INCIDENT_2026-04-29_gcp-billing-deletion.md`). Required four ordered commits: incident formalization, runtime GCS strip, operational docs rewrite, and session log + CHANGELOG cap.
@@ -988,24 +1035,24 @@ Docker build smoke test).
 - **Save procedure silent failure** (state corruption, recovered): `Move-Item -Force` from `~\Downloads` to `agent_data\` removes the source. Subsequent re-attempts find the source missing and silently no-op, leaving `agent_data\` with no file at all. Fixed by adding a `Test-Path` source check BEFORE removing the destination.
 
 ### Fixed
-- **Commit 1/4 (`b15a625`)** â€” `docs(incident): formalize 2026-04-29 GCP project deletion + SCP-only architectural pivot`. Created `docs/incidents/INCIDENT_2026-04-29_gcp-billing-deletion.md` (4065 bytes); deleted stale `secrets/gcp-sa-key.json`.
-- **Commit 2/4 (`aad8f5a`)** â€” `chore(arch): strip GCS from active runtime code`. Removed `upload_to_gcs()` (`prediction_artifacts.py`), `gcloud auth` block (`preflight_check.py`), GCS bucket config (`agent_layer/config.py`), GCS-mode pytest assertions (`agent_layer/test_message_bus.py`). 4 files, 5 insertions, 90 deletions. Live `upload_to_gcs` callers post-strip: 0.
-- **Commit 3/4 (`feece15`)** â€” `docs(arch): rewrite operational docs for SCP-only architecture`. 4 files, 20 atomic patches, 30 GCS hit-lines removed: `scripts/run9_launch.md` (11), `docs/HANDOFF_run9_launch.md` (2), `docs/RUN9_OPERATIONS_PLAYBOOK.md` (9), `docs/RUN9_SCIENTIFIC_DESIGN.md` (8). 62 insertions, 62 deletions (balanced textual rewrite). Post-patch GCS hit count across all four files: 0.
-- **Commit 4/4 (this commit)** â€” session log + CHANGELOG cap.
+- **Commit 1/4 (`b15a625`)** Ã¢â‚¬â€ `docs(incident): formalize 2026-04-29 GCP project deletion + SCP-only architectural pivot`. Created `docs/incidents/INCIDENT_2026-04-29_gcp-billing-deletion.md` (4065 bytes); deleted stale `secrets/gcp-sa-key.json`.
+- **Commit 2/4 (`aad8f5a`)** Ã¢â‚¬â€ `chore(arch): strip GCS from active runtime code`. Removed `upload_to_gcs()` (`prediction_artifacts.py`), `gcloud auth` block (`preflight_check.py`), GCS bucket config (`agent_layer/config.py`), GCS-mode pytest assertions (`agent_layer/test_message_bus.py`). 4 files, 5 insertions, 90 deletions. Live `upload_to_gcs` callers post-strip: 0.
+- **Commit 3/4 (`feece15`)** Ã¢â‚¬â€ `docs(arch): rewrite operational docs for SCP-only architecture`. 4 files, 20 atomic patches, 30 GCS hit-lines removed: `scripts/run9_launch.md` (11), `docs/HANDOFF_run9_launch.md` (2), `docs/RUN9_OPERATIONS_PLAYBOOK.md` (9), `docs/RUN9_SCIENTIFIC_DESIGN.md` (8). 62 insertions, 62 deletions (balanced textual rewrite). Post-patch GCS hit count across all four files: 0.
+- **Commit 4/4 (this commit)** Ã¢â‚¬â€ session log + CHANGELOG cap.
 
 ### Learned
-- **STANDING RULE â€” PowerShell variable-colon hazard:** in double-quoted strings, `"$varname:..."` parses as scope/drive prefix (matches `$env:`, `$global:`, `$script:` family). Use `"${varname}:..."` when followed by a literal colon. Add the brace-delimited form to the standing-rules list of PowerShell hygiene patterns.
-- **STANDING RULE â€” EOF-newline anchor:** multi-line `replace` anchors at or near EOF must not include a terminal `\n`. The anchor without trailing newline matches both `text.` (EOF) and `text.\n[more]` cases via Python's `str.count(old)`. P1.6's failure proved this empirically; the file ends without a trailing newline.
-- **STANDING RULE â€” Move-Item is destructive:** Windows `Move-Item -Force` removes the source after the move. Save procedures must `Test-Path` the source BEFORE removing the destination. Pattern: verify Downloads has the file â†’ only then delete `agent_data\` â†’ then move.
-- **STANDING RULE â€” SHA-256 fingerprint verification:** byte-count alone can miss "downloaded the cached pre-fix version" failures (two file versions can share a byte count by coincidence). Each chat-delivered file should carry a SHA-256 fingerprint the user verifies before save.
+- **STANDING RULE Ã¢â‚¬â€ PowerShell variable-colon hazard:** in double-quoted strings, `"$varname:..."` parses as scope/drive prefix (matches `$env:`, `$global:`, `$script:` family). Use `"${varname}:..."` when followed by a literal colon. Add the brace-delimited form to the standing-rules list of PowerShell hygiene patterns.
+- **STANDING RULE Ã¢â‚¬â€ EOF-newline anchor:** multi-line `replace` anchors at or near EOF must not include a terminal `\n`. The anchor without trailing newline matches both `text.` (EOF) and `text.\n[more]` cases via Python's `str.count(old)`. P1.6's failure proved this empirically; the file ends without a trailing newline.
+- **STANDING RULE Ã¢â‚¬â€ Move-Item is destructive:** Windows `Move-Item -Force` removes the source after the move. Save procedures must `Test-Path` the source BEFORE removing the destination. Pattern: verify Downloads has the file Ã¢â€ â€™ only then delete `agent_data\` Ã¢â€ â€™ then move.
+- **STANDING RULE Ã¢â‚¬â€ SHA-256 fingerprint verification:** byte-count alone can miss "downloaded the cached pre-fix version" failures (two file versions can share a byte count by coincidence). Each chat-delivered file should carry a SHA-256 fingerprint the user verifies before save.
 - Helper writes with `newline="\n"` for deterministic LF output; Git `core.autocrlf=true` on Windows produces benign `LF will be replaced by CRLF` warnings at staging. Repo content remains LF-normalized; the warnings have no functional impact.
-- Architectural state after cleanup arc: GCP project `genomic-variant-prod` permanently destroyed; no remote object storage; data flow is local Windows source-of-truth â†” Vast.ai GPU scratch (SCP via `id_lambda_run8`) â†” Drive via rclone `genvarcla:` for agent-layer durability only. `INCIDENT_2026-04-29` is the canonical verification-rule supersession of the 2026-04-17 GCS-receipt rule.
+- Architectural state after cleanup arc: GCP project `genomic-variant-prod` permanently destroyed; no remote object storage; data flow is local Windows source-of-truth Ã¢â€ â€ Vast.ai GPU scratch (SCP via `id_lambda_run8`) Ã¢â€ â€ Drive via rclone `genvarcla:` for agent-layer durability only. `INCIDENT_2026-04-29` is the canonical verification-rule supersession of the 2026-04-17 GCS-receipt rule.
 
 ### Commits
-- `b15a625` â€” Commit 1/4: incident formalization (4065 bytes of incident doc, secret deleted)
-- `aad8f5a` â€” Commit 2/4: runtime GCS strip (4 files, +5/-90)
-- `feece15` â€” Commit 3/4: operational docs rewrite (4 files, +62/-62)
-- (this commit) â€” Commit 4/4: session log + CHANGELOG cap
+- `b15a625` Ã¢â‚¬â€ Commit 1/4: incident formalization (4065 bytes of incident doc, secret deleted)
+- `aad8f5a` Ã¢â‚¬â€ Commit 2/4: runtime GCS strip (4 files, +5/-90)
+- `feece15` Ã¢â‚¬â€ Commit 3/4: operational docs rewrite (4 files, +62/-62)
+- (this commit) Ã¢â‚¬â€ Commit 4/4: session log + CHANGELOG cap
 
 ### Refs
 - `agent_data/arch_cleanup_stage3_discovery.ps1` (5266 bytes)
@@ -1016,18 +1063,18 @@ Docker build smoke test).
 - Session doc: `docs/sessions/SESSION_2026-05-10_arch-cleanup.md`
 - Incident doc: `docs/incidents/INCIDENT_2026-04-29_gcp-billing-deletion.md`
 
-## 2026-05-10 â€” SpliceAI cache leak fix (path-aware conftest.py)
+## 2026-05-10 Ã¢â‚¬â€ SpliceAI cache leak fix (path-aware conftest.py)
 
 ### Attempted
 - Move class-scoped `_isolate_spliceai` fixture from `TestAnnotationPipeline` (test_core.py L2167) to a module-scoped autouse fixture in `tests/unit/conftest.py`, add `_save_cache` patch to plug the 430 MB `data/raw/cache/spliceai_scores_snv.parquet` regeneration leak.
 
 ### Failed
-- **Attempt 1** (Stage 2 abort, no commit): helper's in-line post-apply check used a loose grep `if "_isolate_spliceai" in final_tc` that false-positived on the NEW class docstring's legitimate cross-reference to the new fixture location. Same-pattern-bug as the batch verification fix moments earlier â€” fixed one location, missed the identical pattern in the other.
-- **Attempt 2** (Stage 3b abort, no commit): fixture's UNCONDITIONAL `_save_cache â†’ no-op` blocked the legitimate cache write in `test_parquet_cache_used_on_second_call`, which uses `FetchConfig(cache_dir=tmp_path / "cache")` â€” a tmp-scoped cache that does NOT touch the production dir. Test failed `assert score == 0.42 â†’ got 0.0`. Cache mtime UNCHANGED throughout (leak prevention was working; over-blocking was the issue).
-- **Pre-check B** (non-fatal): Python helper structural validation via `& python -c @"..."@` errored on `f'{\"X\" if ok else \"Y\"}'` â€” PS here-strings pass `\"` literally; backslashes inside Python f-string `{expr}` are forbidden. Other pre-checks confirmed file state independently.
+- **Attempt 1** (Stage 2 abort, no commit): helper's in-line post-apply check used a loose grep `if "_isolate_spliceai" in final_tc` that false-positived on the NEW class docstring's legitimate cross-reference to the new fixture location. Same-pattern-bug as the batch verification fix moments earlier Ã¢â‚¬â€ fixed one location, missed the identical pattern in the other.
+- **Attempt 2** (Stage 3b abort, no commit): fixture's UNCONDITIONAL `_save_cache Ã¢â€ â€™ no-op` blocked the legitimate cache write in `test_parquet_cache_used_on_second_call`, which uses `FetchConfig(cache_dir=tmp_path / "cache")` Ã¢â‚¬â€ a tmp-scoped cache that does NOT touch the production dir. Test failed `assert score == 0.42 Ã¢â€ â€™ got 0.0`. Cache mtime UNCHANGED throughout (leak prevention was working; over-blocking was the issue).
+- **Pre-check B** (non-fatal): Python helper structural validation via `& python -c @"..."@` errored on `f'{\"X\" if ok else \"Y\"}'` Ã¢â‚¬â€ PS here-strings pass `\"` literally; backslashes inside Python f-string `{expr}` are forbidden. Other pre-checks confirmed file state independently.
 
 ### Fixed
-- **Attempt 3 commit `a01eef3`**: path-aware fixture design. New `_is_prod_cache_path(cache_path)` helper resolves the cache target and tests `relative_to(_PROD_CACHE_DIR.resolve())`; load/save are blocked only when path resolves under `data/raw/cache/`. tmp_path-scoped FetchConfigs are unaffected and exercise the real loadâ†’saveâ†’load flow. `_orig_load_cache` and `_orig_save_cache` captured before patch, called for non-prod paths.
+- **Attempt 3 commit `a01eef3`**: path-aware fixture design. New `_is_prod_cache_path(cache_path)` helper resolves the cache target and tests `relative_to(_PROD_CACHE_DIR.resolve())`; load/save are blocked only when path resolves under `data/raw/cache/`. tmp_path-scoped FetchConfigs are unaffected and exercise the real loadÃ¢â€ â€™saveÃ¢â€ â€™load flow. `_orig_load_cache` and `_orig_save_cache` captured before patch, called for non-prod paths.
 - Helper's in-line post-apply check tightened to `def _isolate_spliceai(` (the method definition) instead of the bare name (which legitimately appears in the new docstring's cross-reference).
 
 ### Verified
@@ -1039,11 +1086,11 @@ Docker build smoke test).
 ### Learned
 - **Autouse + unconditional patching is dangerous.** Fixtures that null out shared infrastructure must be conditional/path-aware, not blanket no-ops. Cost of over-blocking: silent test failures that look like real bugs.
 - **Same-pattern-bug-different-location.** When fixing a pattern, grep the entire change-set for similar instances. Fixing the batch verification but missing the identical helper internal check cost an iteration.
-- **CRLF/UTF-8 byte-delta surprises.** Disk byte delta differs from Python char delta by `num_CRLF_lines + 2*multibyte_chars`. Existing `[WARN] -500 to -1500` bounds in the batch are tight; should widen to roughly `python_char_delta âˆ’ num_lines_with_CRLF + 2*multibyte_char_count` in future batches.
+- **CRLF/UTF-8 byte-delta surprises.** Disk byte delta differs from Python char delta by `num_CRLF_lines + 2*multibyte_chars`. Existing `[WARN] -500 to -1500` bounds in the batch are tight; should widen to roughly `python_char_delta Ã¢Ë†â€™ num_lines_with_CRLF + 2*multibyte_char_count` in future batches.
 - **PS here-string + Python f-string interaction.** Inside `@"..."@`, `\"` is passed literally; backslashes in Python f-string `{expr}` are syntax errors. Use single quotes inside double-quoted f-strings.
 
 ### Commits
-- `a01eef3` â€” `test(spliceai): move _isolate_spliceai fixture to conftest.py and add _save_cache patch to prevent 430 MB cache regeneration`
+- `a01eef3` Ã¢â‚¬â€ `test(spliceai): move _isolate_spliceai fixture to conftest.py and add _save_cache patch to prevent 430 MB cache regeneration`
 
 ### Refs
 - Helper: `agent_data/spliceai_cache_fix_code.py` (SHA `3ca0cca1cddaea0b0f46ec56be012482dae3fe8448875ad36cdc8b00b36d5d1e`)
@@ -1051,7 +1098,7 @@ Docker build smoke test).
 - Session doc: `docs/sessions/SESSION_2026-05-10_spliceai-cache-fix.md`
 - New conftest: `tests/unit/conftest.py`
 - Prior session (arch cleanup, same day): `docs/sessions/SESSION_2026-05-10_arch-cleanup.md`
-## 2026-05-12 â€” Run 9: 11.4h training on Vast.ai RTX 4090, ensemble.save() crash, no test AUROC
+## 2026-05-12 Ã¢â‚¬â€ Run 9: 11.4h training on Vast.ai RTX 4090, ensemble.save() crash, no test AUROC
 
 ### Attempted
 - Launch Run 9 as 6-ablation suite (`full + 5 feature-group ablations`)
@@ -1088,12 +1135,12 @@ Docker build smoke test).
   per-model checkpoints exist; locked test AUROC never produced.
 
 ### Fixed (this session)
-- Workflow-aware preflight (commits `8a3785a` + `bd75ed5`) â€” landed
+- Workflow-aware preflight (commits `8a3785a` + `bd75ed5`) Ã¢â‚¬â€ landed
   before final launch attempt.
-- Path mismatch â€” manual `mv` data into repo + symlink
-  `/workspace/{data,outputs}` â†’ repo paths (workaround; canonical fix
+- Path mismatch Ã¢â‚¬â€ manual `mv` data into repo + symlink
+  `/workspace/{data,outputs}` Ã¢â€ â€™ repo paths (workaround; canonical fix
   deferred to Phase 1.5 launch-script unified patch).
-- Symlink trap â€” `rm -rf` before `ln -s` when destination might be
+- Symlink trap Ã¢â‚¬â€ `rm -rf` before `ln -s` when destination might be
   recreated as directory.
 
 ### Drafted (shipped in 2026-05-13 follow-up session as `run10_phase1_v2.zip`)
@@ -1105,7 +1152,7 @@ Docker build smoke test).
   whole ensemble. `load()` back-compat with legacy single-joblib format.
 - Patch A3: `evaluate()` CatBoost dispatch fix (was missing the
   DataFrame branch that `fit`/`predict_proba` correctly include).
-- Patch B1: `scripts/run_phase2_eval.py` â€” added `--lovd-path`,
+- Patch B1: `scripts/run_phase2_eval.py` Ã¢â‚¬â€ added `--lovd-path`,
   `--dbnsfp-path`, `--finngen-path` CLI args + `AnnotationConfig`
   wiring (mirrors `scripts/train.py:167-172`). Closes the
   silent-zero gap for three connectors that were unknowingly absent
@@ -1123,8 +1170,8 @@ Docker build smoke test).
 - OOF blend AUROC: **0.9916**
 - LR stacker AUROC: 0.9911
 - Best single base (lightgbm): 0.9911
-- **Î” blend over best single: +0.0005 â€” within noise floor** pending
-  bootstrap CI per `SESSION_2026-05-12.md` Run 10 plan Â§3.
+- **ÃŽâ€ blend over best single: +0.0005 Ã¢â‚¬â€ within noise floor** pending
+  bootstrap CI per `SESSION_2026-05-12.md` Run 10 plan Ã‚Â§3.
 - No test-set AUROC: script crashed at save before test evaluation
   ran. Phase 1 patch B2 moves test eval before save to prevent
   recurrence.
@@ -1136,36 +1183,36 @@ Docker build smoke test).
   svm, kan, tabular_nn, cnn_1d (skipped in 04-30 regen). 11-dim
   Nelder-Mead weight dict NOT recoverable beyond qualitative statement
   (kan/tabular_nn/logistic_regression 0%, cnn_1d ~10%). See
-  `INCIDENT_2026-05-12_no-per-model-checkpoint.md` Â§Recovery status.
+  `INCIDENT_2026-05-12_no-per-model-checkpoint.md` Ã‚Â§Recovery status.
 - **Scientific finding from proxy comparison:** 04-30 8-model blend
   was 0.9915 vs Run 9 11-model blend 0.9916. Adding 4 models
-  (svm/kan/tabular_nn/cnn_1d) moved blend by **+0.0001** â€” at or below
-  noise floor. Supports the Â§2 keep-all decision being conditional on
+  (svm/kan/tabular_nn/cnn_1d) moved blend by **+0.0001** Ã¢â‚¬â€ at or below
+  noise floor. Supports the Ã‚Â§2 keep-all decision being conditional on
   bootstrap CI.
 
 ### Scientific implications (preliminary; full analysis in Run 10)
 - The 11-model ensemble adds essentially nothing over a single tuned
-  lightgbm in OOF blend. Î”=+0.0005 must be confirmed via bootstrap CI
+  lightgbm in OOF blend. ÃŽâ€=+0.0005 must be confirmed via bootstrap CI
   before any pruning decision.
 - KAN (8h compute) received 0% blend weight. Drop candidate for
-  Run 10, deferred pending bootstrap CI per SESSION Â§2 amendment.
+  Run 10, deferred pending bootstrap CI per SESSION Ã‚Â§2 amendment.
 - tabular_nn and logistic_regression received 0% blend weight.
 - cnn_1d received ~10% blend weight despite OOF AUROC ~0.5 (broken
-  signal â€” fed placeholder sequences per
+  signal Ã¢â‚¬â€ fed placeholder sequences per
   `INCIDENT_2026-05-12_cnn1d-pickle-nested-class.md`). Investigate
   whether this generalizes after pickle fix; Sequence Branch
   (real FASTA) wiring deferred to Run 11.
 - Standing concern about gene-prevalence + external-score
   memorization remains unresolved.
 
-### Learned (7 new standing rules â€” see SESSION doc Â§Learned)
+### Learned (7 new standing rules Ã¢â‚¬â€ see SESSION doc Ã‚Â§Learned)
 1. Vast.ai SCP destinations must be repo-relative or include explicit
    symlink step in runbook.
-2. `vastai destroy â‰¥1.0.12` is interactive; auto-destroy in scripts
+2. `vastai destroy Ã¢â€°Â¥1.0.12` is interactive; auto-destroy in scripts
    MUST pipe `yes` or `echo y`.
 3. `ln -s` does NOT replace existing real directories; use `rm -rf`
    first when destination may have been recreated between fix attempts.
-4. PowerShell strips inner `"..."` from ssh command args â€” use single
+4. PowerShell strips inner `"..."` from ssh command args Ã¢â‚¬â€ use single
    quotes ONLY inside ssh wrappers, never double quotes.
 5. STOP putting bash code inside `ssh ... '<bash>'` from PowerShell.
    Use `@'...'@ | ssh ... bash -s` with `-replace "`r`n", "`n"` to
@@ -1183,11 +1230,11 @@ Docker build smoke test).
 - Productive: ~$5.40 | Idle: ~$4.30
 
 ### Commits
-- `3cfc039` â€” `docs(session): Run 9 launch, training, pickle crash, results`
+- `3cfc039` Ã¢â‚¬â€ `docs(session): Run 9 launch, training, pickle crash, results`
 
 ### Refs
 - Session doc: `docs/sessions/SESSION_2026-05-12.md`
-  (amended 2026-05-13 â€” Â§2 of Run 10 plan revised to keep-all; OOF
+  (amended 2026-05-13 Ã¢â‚¬â€ Ã‚Â§2 of Run 10 plan revised to keep-all; OOF
   AUROC/blend-weight placeholders annotated with recovery pointer)
 - INCIDENTs (filed in 2026-05-13 follow-up session):
   - `docs/incidents/INCIDENT_2026-05-12_cnn1d-pickle-nested-class.md`
@@ -1197,7 +1244,7 @@ Docker build smoke test).
 - LOVD INCIDENT 2026-05-13 amendment: launch-script wiring gap
   identified as actual root cause; supersedes Cause 1 + Cause 2
   candidates. See `INCIDENT_2026-05-02_lovd-silent-zero.md`
-  Â§"2026-05-13 Update".
+  Ã‚Â§"2026-05-13 Update".
 - Phase 1 patch bundle: `run10_phase1_v2.zip` (shipped 2026-05-13)
 - Run 9 outputs audit: `scripts/run9_outputs_audit.ps1` (placed
   2026-05-13)
@@ -1205,20 +1252,20 @@ Docker build smoke test).
 # Phase 1.5b CHANGELOG entry
 
 Append this block to `docs/CHANGELOG.md` (after the existing
-`## 2026-05-12 â€” Run 9:` entry).
+`## 2026-05-12 Ã¢â‚¬â€ Run 9:` entry).
 
 ---
 
-## 2026-05-13 (post-1.5) â€” Phase 1.5b: test fixes + FinnGen wiring correction
+## 2026-05-13 (post-1.5) Ã¢â‚¬â€ Phase 1.5b: test fixes + FinnGen wiring correction
 
-### Test fixes â€” commit 66593d6 shipped 2 broken tests
+### Test fixes Ã¢â‚¬â€ commit 66593d6 shipped 2 broken tests
 
 The Phase 1 patch bundle (`run10_phase1_v2.zip`, commit 66593d6) shipped 4
 regression tests with 2 sandbox-only assumptions that broke under production
 pytest:
 
 **1.** `tests/unit/test_variant_ensemble_save_load.py::test_ensemble_save_creates_per_model_checkpoints`
-and `::test_ensemble_load_roundtrip` called `ens.fit_minimal(X_tab, X_seq, y)` â€”
+and `::test_ensemble_load_roundtrip` called `ens.fit_minimal(X_tab, X_seq, y)` Ã¢â‚¬â€
 a helper method that exists in Claude's sandbox draft but was never shipped to
 production `variant_ensemble.py`.
 
@@ -1234,7 +1281,7 @@ specifically to exercise the A1 pickle-fix code path.
 
 **2.** `tests/unit/test_lovd_annotation_reaches_training_matrix.py::test_lovd_annotation_reaches_training_matrix`
 and `::test_lovd_annotation_silent_zero_when_path_omitted` used a 5-row gene
-fixture (TP53Ã—2, GENE_X, BRCA2, APC) that `GroupShuffleSplit` cannot partition
+fixture (TP53Ãƒâ€”2, GENE_X, BRCA2, APC) that `GroupShuffleSplit` cannot partition
 into class-balanced train/val/test splits.
 
 ```
@@ -1251,7 +1298,7 @@ Tests 1 and 2 (`test_cnn1d_module_class_is_module_level` and
 directly validate the A1 pickle fix and remain the most important regression
 guards.
 
-### FinnGen wiring â€” commit 66593d6 message was incorrect
+### FinnGen wiring Ã¢â‚¬â€ commit 66593d6 message was incorrect
 
 The 66593d6 commit message stated:
 
@@ -1282,16 +1329,16 @@ satisfies the line 419 conditional and invokes `FinnGenConnector.annotate()`
 at line 422. Same fix shape as LOVD and DbNSFP.
 
 The reason no FinnGen entries appear in Run 9's `outputs/run9_ready/regen.log`
-is **NOT** a wiring gap â€” it's that the `else` branch at line 425-430 silently
+is **NOT** a wiring gap Ã¢â‚¬â€ it's that the `else` branch at line 425-430 silently
 fills defaults (`finngen_af_fin=0`, `finngen_af_nfsee=0`, `finngen_enrichment=1`)
 with **no log emission at all**. This is a *worse* silent-zero pattern than
 LOVD or DbNSFP (which at least emit a WARNING that audit greps catch).
 
 FinnGen is wired into the **AF-fallback** stage (line ~418, third tier after
-gnomAD and 1KGP) â€” NOT into the **score-annotation** stage (line 504+). The
+gnomAD and 1KGP) Ã¢â‚¬â€ NOT into the **score-annotation** stage (line 504+). The
 "Score annotation N/M" log series covers the 17 score connectors only.
 That's why `Select-String "Score annotation"` against `real_data_prep.py`
-shows 17 score steps with FinnGen absent â€” that absence is structural, not
+shows 17 score steps with FinnGen absent Ã¢â‚¬â€ that absence is structural, not
 a bug.
 
 **Phase 1.6 follow-up (deferred, optional):** add an `INFO` log to the
@@ -1308,16 +1355,16 @@ alongside LOVD and DbNSFP.
 # Phase 1.5c CHANGELOG entry
 
 Append this block to `docs/CHANGELOG.md` (after the existing
-`## 2026-05-13 (post-1.5) â€” Phase 1.5b:` entry).
+`## 2026-05-13 (post-1.5) Ã¢â‚¬â€ Phase 1.5b:` entry).
 
 ---
 
-## 2026-05-13 (post-1.5b) â€” Phase 1.5c: LOVD anchor fix + sklearn/lightgbm skew workaround
+## 2026-05-13 (post-1.5b) Ã¢â‚¬â€ Phase 1.5c: LOVD anchor fix + sklearn/lightgbm skew workaround
 
 Phase 1.5b shipped two fixes but only one landed cleanly (commit `f64c024`).
 This entry corrects the remaining failures.
 
-### Issue 1 â€” Phase 1.5b LOVD anchors didn't match production indentation
+### Issue 1 Ã¢â‚¬â€ Phase 1.5b LOVD anchors didn't match production indentation
 
 The `apply_phase1_5b.py` applier used `str_replace`-style anchors with fixed
 8-space body indentation, which assumed tests were wrapped in a `class TestLOVDPropagation:`.
@@ -1333,17 +1380,17 @@ dynamically from the block itself, and inserts `require_both_classes=False`
 with matching indent. Works for both top-level functions (4-space body) and
 class-wrapped methods (8-space body). Sandbox-verified against both layouts.
 
-### Issue 2 â€” lightgbm OOF silently dropped due to sklearn 1.6+ API rename
+### Issue 2 Ã¢â‚¬â€ lightgbm OOF silently dropped due to sklearn 1.6+ API rename
 
 The Phase 1.5b ensemble test fitted `lightgbm` + `cnn_1d` and asserted both
 landed in `trained_models_`. Production run logged:
 
 ```
 ERROR  lightgbm OOF failed:
-  check_X_y() got an unexpected keyword argument 'force_all_finite' â€” skipping.
+  check_X_y() got an unexpected keyword argument 'force_all_finite' Ã¢â‚¬â€ skipping.
 ```
 
-`scikit-learn` 1.6 renamed `force_all_finite` â†’ `ensure_all_finite`. lightgbm
+`scikit-learn` 1.6 renamed `force_all_finite` Ã¢â€ â€™ `ensure_all_finite`. lightgbm
 versions before 4.4 still call sklearn with the old argument name. The
 `VariantEnsemble.fit()` OOF loop catches the exception, logs an `ERROR`,
 and silently continues with the model dropped from `trained_models_`. The
@@ -1355,13 +1402,13 @@ Vast.ai produced `lightgbm OOF AUROC: 0.9911` (`outputs/run9_ready/regen.log`
 line 88), so the Vast.ai venv had a compatible combo at the time. The local
 venv must have drifted (likely sklearn pulled forward as a transitive dep).
 
-**Fix (1.5c, test only):** swap `lightgbm` â†’ `random_forest` in
+**Fix (1.5c, test only):** swap `lightgbm` Ã¢â€ â€™ `random_forest` in
 `test_ensemble_save_load_with_cnn1d`. Random forest is pure-sklearn, so
 no skew is possible. The test still exercises both the tabular dispatch
 (via random_forest) and the sequence dispatch (via cnn_1d, which is what
 the A1 pickle fix actually targets).
 
-**Run 10 implication â€” DO NOT IGNORE.** Before Run 10 launch, verify the
+**Run 10 implication Ã¢â‚¬â€ DO NOT IGNORE.** Before Run 10 launch, verify the
 Vast.ai venv has a compatible sklearn/lightgbm combo. The diagnostic is:
 
 ```powershell
@@ -1385,11 +1432,11 @@ single-model was lightgbm; losing it for Run 10 would be a major regression.
 # Phase 1.5d CHANGELOG entry
 
 Append this block to `docs/CHANGELOG.md` (after the existing
-`## 2026-05-13 (post-1.5b) â€” Phase 1.5c:` entry).
+`## 2026-05-13 (post-1.5b) Ã¢â‚¬â€ Phase 1.5c:` entry).
 
 ---
 
-## 2026-05-13 (post-1.5c) â€” Phase 1.5d: positive LOVD test scope fix
+## 2026-05-13 (post-1.5c) Ã¢â‚¬â€ Phase 1.5d: positive LOVD test scope fix
 
 Phase 1.5c successfully added `require_both_classes=False` to both
 `DataPrepConfig` blocks in `test_lovd_annotation_reaches_training_matrix.py`.
@@ -1400,13 +1447,13 @@ AssertionError: Expected at least one row with lovd_variant_class > 0
 in training matrix; got 0. value_counts: {0: 1}
 ```
 
-### Root cause â€” test scope assertion bug
+### Root cause Ã¢â‚¬â€ test scope assertion bug
 
 The positive test (`test_lovd_annotation_reaches_training_matrix`) was
 asserting on `X_train["lovd_variant_class"] > 0`, but the 5-row fixture
-has 5 distinct genes (TP53Ã—2, GENE_X, BRCA2, APC). With:
-- `test_fraction=0.4` â†’ 2 genes in test
-- default `val_fraction` â†’ ~1 gene in val
+has 5 distinct genes (TP53Ãƒâ€”2, GENE_X, BRCA2, APC). With:
+- `test_fraction=0.4` Ã¢â€ â€™ 2 genes in test
+- default `val_fraction` Ã¢â€ â€™ ~1 gene in val
 - `GroupShuffleSplit` doing gene-aware random splitting
 
 the LOVD-matching TP53 row can land in *any* of train/val/test depending
@@ -1415,9 +1462,9 @@ went to val or test, and X_train ended up with 1 row (different gene)
 that wasn't LOVD-annotated.
 
 The test's actual post-condition is "LOVD annotation reached SOME output
-matrix" â€” i.e. the connector ran, the merge happened, and the column
+matrix" Ã¢â‚¬â€ i.e. the connector ran, the merge happened, and the column
 survived feature engineering through to the output. The correct scope
-is the **union of X_train âˆª X_val âˆª X_test**, not X_train alone.
+is the **union of X_train Ã¢Ë†Âª X_val Ã¢Ë†Âª X_test**, not X_train alone.
 
 ### Fix (1.5d)
 
@@ -1427,7 +1474,7 @@ Rewrote the assertion block to:
 3. Concatenate via `pd.concat([X_train, X_val, X_test], ignore_index=True)` and assert at least one row across the union has `lovd_variant_class > 0`
 
 The inverse test (`test_lovd_annotation_silent_zero_when_path_omitted`)
-already passes because `0 == 0` in any split â€” it remains untouched.
+already passes because `0 == 0` in any split Ã¢â‚¬â€ it remains untouched.
 
 ### Local venv version skew was a stale `.pyc`, not a real issue
 
@@ -1442,12 +1489,12 @@ lightgbm 4.5.0
 Both versions ship the `ensure_all_finite` rename, so they're compatible.
 The Phase 1.5b error (`force_all_finite` complaint) was likely from a
 stale `__pycache__/` that survived the Phase 1 cache-clear. The Phase 1.5c
-test using `random_forest` instead of `lightgbm` is fine to keep â€” it's
+test using `random_forest` instead of `lightgbm` is fine to keep Ã¢â‚¬â€ it's
 not strictly necessary for skew-avoidance now, but it makes the test more
 robust to any future version drift.
 
 **Run 10 implication is REDUCED but not eliminated.** The Vast.ai venv
-still needs version pinning before launch â€” sklearn or lightgbm
+still needs version pinning before launch Ã¢â‚¬â€ sklearn or lightgbm
 floating could re-introduce the issue. Track in Phase 1.7
 (`scripts/launch_run10_vm.sh` + `requirements*.txt` review).
 
@@ -1463,11 +1510,11 @@ INFO log) or directly to Phase 1.7 (launch script rewrite).
 # Phase 1.5e CHANGELOG entry
 
 Append this block to `docs/CHANGELOG.md` (after the existing
-`## 2026-05-13 (post-1.5c) â€” Phase 1.5d:` entry).
+`## 2026-05-13 (post-1.5c) Ã¢â‚¬â€ Phase 1.5d:` entry).
 
 ---
 
-## 2026-05-13 (post-1.5d) â€” Phase 1.5e: module-level pandas import for LOVD test
+## 2026-05-13 (post-1.5d) Ã¢â‚¬â€ Phase 1.5e: module-level pandas import for LOVD test
 
 Phase 1.5d's assertion rewrite used `pd.concat([X_train, X_val, X_test], ignore_index=True)`
 at module/test-function scope, but the test file imports pandas only
@@ -1497,7 +1544,7 @@ start with `re.MULTILINE` to detect only module-level imports.
 Single-purpose applier `apply_phase1_5e.py` that:
 
 1. Checks for **module-level** `import pandas` via
-   `re.compile(r'^import pandas(\s|$)', re.MULTILINE)` â€” distinguishes
+   `re.compile(r'^import pandas(\s|$)', re.MULTILINE)` Ã¢â‚¬â€ distinguishes
    `import pandas as pd` at column 0 from `    import pandas as pd`
    inside a function body
 2. If absent, inserts `import pandas as pd` at the best available
@@ -1511,7 +1558,7 @@ Sandbox-verified against four scenarios: in-fixture-only (production
 state), already-module-level, no-`__future__`, bare file with neither
 docstring nor `__future__`. All produce correct insertion or no-op.
 
-### Lesson learned â€” future appliers
+### Lesson learned Ã¢â‚¬â€ future appliers
 
 Any future applier that depends on a module-level import being present
 should check with `re.compile(r'^import <pkg>', re.MULTILINE)` rather
@@ -1530,14 +1577,14 @@ Phase 1.7 (launch script + requirements pinning).
 # Phase 1.7 CHANGELOG entry
 
 Append this block to `docs/CHANGELOG.md` (after the existing
-`## 2026-05-13 (post-1.5d) Ã¢â‚¬â€ Phase 1.5e:` entry).
+`## 2026-05-13 (post-1.5d) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Phase 1.5e:` entry).
 
 ---
 
-## 2026-05-13 (post-1.5e) Ã¢â‚¬â€ Phase 1.7: Run 10 launch readiness
+## 2026-05-13 (post-1.5e) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Phase 1.7: Run 10 launch readiness
 
 Three artifacts shipped to prepare for Run 10 launch. Phase 1.6
-(sequence_context stub + FinnGen INFO log) is deferred Ã¢â‚¬â€ neither is a
+(sequence_context stub + FinnGen INFO log) is deferred ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â neither is a
 Run 10 blocker.
 
 ### 1. NEW: `scripts/launch_run10_vm.sh`
@@ -1545,23 +1592,23 @@ Run 10 blocker.
 Evolves `scripts/launch_run9_vm.sh` (97 lines) into a Run 10 launch
 script. Diffs from the Run 9 source:
 
-- **Non-interactive `vastai destroy`** Ã¢â‚¬â€ Run 9's launch script called
+- **Non-interactive `vastai destroy`** ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Run 9's launch script called
   `vastai destroy instance "$INSTANCE_ID"` directly. `vastai` 1.0.12 is
   interactive and would hang on a y/N prompt without TTY, defeating
   auto-destroy on setup failure. Phase 1.7 pipes `echo y |` per memory
   rule 30(c).
-- **Run 10 paths** Ã¢â‚¬â€ `OUT_BASE=/workspace/outputs/run10`, `RUN_ID=run10`,
+- **Run 10 paths** ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â `OUT_BASE=/workspace/outputs/run10`, `RUN_ID=run10`,
   per-ablation log `logs/run10_${ABL}.log`.
-- **Single 'full' ablation** Ã¢â‚¬â€ Run 10's narrow goal is the locked test
+- **Single 'full' ablation** ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Run 10's narrow goal is the locked test
   AUROC that Run 9 lost to `save()` crash. The Run 9 6-ablation matrix
   (`full no_spliceai no_gnn no_alphamissense no_conservation
   no_population_af`) is collapsed to `for ABL in full`. Run 10a will
   extend the loop.
-- **Post-success expected-outputs banner** Ã¢â‚¬â€ points at the new per-model
+- **Post-success expected-outputs banner** ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â points at the new per-model
   joblib layout shipped by Phase 1 A2:
   `models/<name>.joblib` + `models/orchestrator.joblib`. A future
   observer of the Vast.ai log can confirm which files to SCP back.
-- **No SCP-back automation** Ã¢â‚¬â€ the existing manual SCP + manual destroy
+- **No SCP-back automation** ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the existing manual SCP + manual destroy
   pattern is preserved per INCIDENT_2026-04-29 (local-landing-receipt
   rule). Server-side SCP-back-to-local requires a return tunnel the VM
   doesn't have; the right place for that automation is the local
@@ -1580,16 +1627,16 @@ parquet before adding `--finngen-path`.
 Four new sections inserted between section 8 (Critical Python imports)
 and the Summary section:
 
-- **Ã‚Â§9 LOVD parquet** Ã¢â‚¬â€ `du -k` size threshold Ã¢â€°Â¥ 100 KB at the canonical
+- **Ãƒâ€šÃ‚Â§9 LOVD parquet** ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â `du -k` size threshold ÃƒÂ¢Ã¢â‚¬Â°Ã‚Â¥ 100 KB at the canonical
   path `data/external/lovd/lovd_all_variants.parquet`. WARN (not FAIL)
-  if absent Ã¢â‚¬â€ Run 10 tolerates the silent-zero pattern; Run 10a/10b
+  if absent ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Run 10 tolerates the silent-zero pattern; Run 10a/10b
   require it.
-- **Ã‚Â§10 DbNSFP parquet** Ã¢â‚¬â€ `du -m` size threshold Ã¢â€°Â¥ 20 MB at the
-  canonical path. WARN-on-absent contract matches Ã‚Â§9.
-- **Ã‚Â§11 FinnGen TSV (optional, warn-only)** Ã¢â‚¬â€ present-or-warn at the
+- **Ãƒâ€šÃ‚Â§10 DbNSFP parquet** ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â `du -m` size threshold ÃƒÂ¢Ã¢â‚¬Â°Ã‚Â¥ 20 MB at the
+  canonical path. WARN-on-absent contract matches Ãƒâ€šÃ‚Â§9.
+- **Ãƒâ€šÃ‚Â§11 FinnGen TSV (optional, warn-only)** ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â present-or-warn at the
   canonical 30 GB path. Run 10b will tighten this to FAIL once the
   pre-indexed parquet is the deployment artifact.
-- **Ã‚Â§12 sklearn + lightgbm 1000-row LGBMClassifier smoke fit** Ã¢â‚¬â€
+- **Ãƒâ€šÃ‚Â§12 sklearn + lightgbm 1000-row LGBMClassifier smoke fit** ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â
   catches the Phase 1.5b false-alarm pattern (`check_X_y() got an
   unexpected keyword argument 'force_all_finite'`) BEFORE GPU billing
   starts. The OOF wrapper in `variant_ensemble.py` silently downgrades
@@ -1625,7 +1672,7 @@ The recovery file includes:
   have failed silently at fit time. The Phase 1 A1 fix repairs the
   pickle path but doesn't address a hypothetical fit-side bug. Worth
   checking after Run 10's locked test result is in.
-- **`requirements-api.lock` vs `requirements.txt` version split** Ã¢â‚¬â€
+- **`requirements-api.lock` vs `requirements.txt` version split** ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â
   `fastapi==0.119.1` / `starlette==0.48.0` in the lock file vs
   `fastapi==0.135.2` / `starlette==1.0.0` in `requirements.txt`. Driven
   by `prometheus-fastapi-instrumentator==7.1.0` requiring `starlette<1.0`.
@@ -1639,14 +1686,14 @@ The recovery file includes:
 - Full unit-test sweep: **501/501 GREEN** (unchanged since 1.5e)
 - Launch readiness: scripts in place, preflight covers all Run 10
   failure modes seen to date
-- Cost-budget for Run 10: ~$10Ã¢â‚¬â€œ12 for ~11h on Vast.ai RTX 4090
+- Cost-budget for Run 10: ~$10ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“12 for ~11h on Vast.ai RTX 4090
   (matches Run 9 wall-clock; no regen step in Run 10)
 - Time-to-result: ~12h from SCP-up to locked test AUROC in
   `outputs/run10/full/metrics.json`
 
 ---
 
-## 2026-05-16 Ã¢â‚¬â€ Run 10: locked test AUROC produced
+## 2026-05-16 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Run 10: locked test AUROC produced
 
 ### Attempted
 - Launch Run 10 on Vast.ai (instance 36853443, RTX 4090, datacenter 1647
@@ -1654,11 +1701,11 @@ The recovery file includes:
 - 4 launch attempts before successful training start (path mismatch, missing
   meta parquets, missing pykan, symlink fix).
 - Full 11-model ensemble training (~12 hr): RF, XGB, LGB, LR, GBM, CatBoost,
-  TabularNN, CNN1D, KAN (200 epochs), MC_Dropout, DeepEnsemble (5 members Ãƒâ€” 5
+  TabularNN, CNN1D, KAN (200 epochs), MC_Dropout, DeepEnsemble (5 members ÃƒÆ’Ã¢â‚¬â€ 5
   folds).
 
 ### Failed
-- Launches 1Ã¢â‚¬â€œ3: `FileNotFoundError` on split files. Root cause: launch script
+- Launches 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“3: `FileNotFoundError` on split files. Root cause: launch script
   uses `SPLITS_DIR=/workspace/outputs/run9_ready/splits` but SCP put files at
   `/workspace/genomic-variant-classifier/outputs/run9_ready/splits/`. Fix:
   symlink.
@@ -1669,12 +1716,12 @@ The recovery file includes:
   `INCIDENT_2026-05-16_oof-export-length-mismatch.md`.
 
 ### Fixed / Achieved
-- **Locked test AUROC: 0.98163** (95% CI: 0.98126Ã¢â‚¬â€œ0.98197).
+- **Locked test AUROC: 0.98163** (95% CI: 0.98126ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“0.98197).
 - OOF blend AUROC: 0.9916. Test-to-OOF gap ~0.01 (healthy).
 - All 11 per-model checkpoints + ensemble.joblib saved and SCP'd locally
   (~4.2 GB total).
 - Evaluation artifacts saved: `eval_report.json`, `test_predictions.parquet`
-  (349,067 rows Ãƒâ€” 20 cols), `calibration.parquet`, `manifest.json`.
+  (349,067 rows ÃƒÆ’Ã¢â‚¬â€ 20 cols), `calibration.parquet`, `manifest.json`.
 - Instance destroyed after full artifact retrieval.
 
 ### Learned
@@ -1688,6 +1735,7 @@ The recovery file includes:
   use the web console instead.
 
 ### Cost
-- Vast.ai instance 36853443: ~$7Ã¢â‚¬â€œ9 (12 hr training + ~2 hr idle/debug)
+- Vast.ai instance 36853443: ~$7ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“9 (12 hr training + ~2 hr idle/debug)
 - Prior destroyed instance 36853984: ~$1 (auto-destroyed by preflight trap)
+
 
