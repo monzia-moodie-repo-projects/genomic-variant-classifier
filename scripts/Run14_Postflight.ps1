@@ -8,7 +8,7 @@
 #           4. Prints the EXACT vastai destroy command (run it MANUALLY after
 #              verifying artifacts are local)
 #
-# Author:   Claude, for Monzia Moodie
+# Author:   Monzia Moodie
 # Created:  2026-05-26
 #
 # CRITICAL: This script DOES NOT call vastai destroy. The destroy command is

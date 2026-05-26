@@ -5,7 +5,7 @@
 #           genomic-variant-classifier. Runs BEFORE any Vast.ai instance
 #           is created. Designed to fail fast and loud if anything is off.
 #
-# Author:   Claude, for Monzia Moodie
+# Author:   Monzia Moodie
 # Created:  2026-05-26
 # Target commit: bf2f665
 #

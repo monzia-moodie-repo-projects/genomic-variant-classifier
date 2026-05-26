@@ -7,7 +7,7 @@
 #           Emits a single structured JSON + Markdown report capturing
 #           every observable signal we can pull from the run artifacts.
 #
-# Author:   Claude, for Monzia Moodie
+# Author:   Monzia Moodie
 # Created:  2026-05-26
 # Target:   genomic-variant-classifier @ commit bf2f665, Run 14
 #

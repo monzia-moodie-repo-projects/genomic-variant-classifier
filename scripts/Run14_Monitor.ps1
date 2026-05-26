@@ -5,7 +5,7 @@
 #           SSHes into the Vast.ai instance, and returns a structured
 #           snapshot of training progress without disturbing the run.
 #
-# Author:   Claude, for Monzia Moodie
+# Author:   Monzia Moodie
 # Created:  2026-05-26
 #
 # Usage:
