@@ -1,3 +1,45 @@
+## 2026-05-27 — A3 closure: launch script imodelsx_patch tee dedupe (PM session 2)
+
+### Attempted
+- Anomaly A3 close: dedupe imodelsx_patch logging in `scripts/launch_run11_vm.sh`.
+- Phase C of Run 15 plan continued (A3 follows A7, per Phase-C ordering decision).
+- Empirical hypothesis confirmation against `outputs/run14/run14_master.log`.
+
+### Failed
+- First paste's pre-fix `bash -n scripts/launch_run11_vm.sh` raised: `syntax error near unexpected token $'{\r''` on L31 `cleanup() {`. Root cause is NOT the script itself: line-ending diagnostic in session 2 showed CRLF=274 / LF-only=0 in the local working tree. Git's autocrlf is active (`warning: in the working copy of 'scripts/launch_run11_vm.sh', CRLF will be replaced by LF the next time Git touches it`). The committed blob is LF (verified by `git ls-files --eol` semantics and the fact that Run 14 launched successfully on Vast.ai via git-clone). Bash on Windows cannot parse CRLF shell scripts; this is a tooling artifact, not a real syntax error.
+- First paste's post-fix `bash -n` failed for the same CRLF reason. Post-fix throw fired inside the Phase 3 `& { }` block but did NOT halt subsequent phases at top scope (PowerShell `throw` exits the script block, not the interactive paste). Phases 4-6 ran anyway and committed `9628463`. This worked correctly because the 5/5 verbatim-source sanity checks PASSED for the actual edit; but it is a **real safety gap** for future pastes if a real syntax error ever needs catching.
+- Second paste (refined version with line-ending diagnostic + empirical Run-14 log check) was re-pasted while session 1's commit had already landed. All defensive safety nets fired correctly: HEAD-drift check threw (expected 526cb3f, got 9628463), anchor uniqueness threw (count=0 because file already patched), Python patcher's A3 marker idempotency check exited 1 with "ABORT: patch already applied (A3 marker present)", and stage-set check threw (empty stage). No corruption, no double-application.
+
+### Fixed
+- Root cause (structurally confirmed + empirically verified 2026-05-27): `scripts/launch_run11_vm.sh` L200 had `fi | tee -a "$LOG"` after an if/else block (L193-200) where each inner echo (L197 success branch, L199 else branch) already piped to `tee -a "$LOG"`. The outer tee re-tee'd the inner echoes' already-tee'd output. Effect: each imodelsx_patch status line logged to `run11_master.log` twice.
+- Empirical evidence (Phase 2a of refined paste): in `outputs/run14/run14_master.log` (61722 bytes), `'fixed 3 bare-name refs'` appears 2 times and `'already patched'` appears 0 times. Hypothesis confirmed: success branch fired once and was logged twice.
+- Implemented: replace L200 `fi | tee -a "$LOG"` with `fi  # A3 fix 2026-05-27: removed redundant outer tee`. Inner echoes preserved; outer-else WARN echo at L202 preserved. 1-line change, idempotent on retry (patcher refuses to re-apply if the A3 marker is already present).
+- Defense-in-depth verification: 5 verbatim-source-substring sanity checks (PS), 9 internal Python patcher post-conditions (idempotency, anchor count = 1, no-op refusal, anchor gone post-replace, 3 collateral integrity checks, length delta sanity), PS-level anchor uniqueness pre-check. All passed on session 1's first apply. All defensive checks correctly refused session 2's redundant re-application.
+
+### Headline empirical verification
+- Run 14 log `imodelsx_patch: fixed 3 bare-name refs` count: **2** (should have been 1)
+- Run 14 log `imodelsx_patch: already patched` count: **0** (else branch did not fire)
+- Net hypothesis: success branch logged twice, confirming tee-dup structurally and empirically
+- Post-fix expected: each imodelsx_patch line logged once
+
+### Commits (1 this session, pushed)
+- `9628463` — fix(scripts): A3 close - dedupe imodelsx_patch logging in launch_run11_vm.sh (1 insertion, 1 deletion)
+
+### Learned
+1. **PowerShell `throw` inside `& { ... }` exits ONLY the script block, not the surrounding interactive paste.** Subsequent top-level statements continue executing. For paste safety, either (a) wrap the entire paste in `try { ... } catch { Write-Host "ABORT: $_" -ForegroundColor Red; return }`, or (b) set a `$script:abort = $true` flag and check it at the entry of every subsequent phase. For A3 this manifested benignly (the script edit was correct; bash -n failed only for CRLF reasons), but a future paste with a real edit error would commit corrupt code.
+2. **`scripts/launch_run11_vm.sh` has CRLF line endings in the local working tree but LF in the committed blob.** Git's autocrlf normalization keeps the repo clean for Linux consumers (Vast.ai via git-clone gets LF and works fine), but Windows-side `bash -n` cannot parse the working-tree CRLF copy. Follow-up: add a `.gitattributes` rule pinning `*.sh` to `text eol=lf` and re-checkout. Local working-tree CRLF will also break any direct SCP from the working tree to a Linux box (caller should always SCP from a fresh git-clone or normalize on transfer).
+3. **Idempotency-by-marker is a strong defense.** The patcher's first check is `if "A3 fix 2026-05-27" in src: sys.exit(1)`. Combined with the PS-level anchor-uniqueness check (Phase 2d, counts `'fi | tee -a "$LOG"'` occurrences via `[regex]::Matches`), session 2's redundant re-paste was caught at 4 independent layers (HEAD drift, anchor count = 0, patcher marker exit, empty-stage throw). This is the level of defense-in-depth that paste discipline should target.
+4. **Empirical verification of structural hypotheses is cheap and high-value.** Phase 2a of the refined paste (`[regex]::Matches` on the Run 14 master log for both branch messages) took milliseconds and converted a structural argument into a measurement. Should be standard for any future "X line is duplicated/missing" claim.
+
+### Open follow-up
+- **Phase C remaining**: C.5-C.7 (postflight + destroy script infrastructure; Charter SR #38, #39, Test-ArtifactPresent wiring); A2 (B.O3, C.2) `TabularNNClassifier._predict_proba_single_pass`; A4 (B.O1) KAN subsample decision; A6 (B.D1-B.D6) 6 data-source decisions; E budget; H_Run15 hypothesis.
+- **D15** (queued for next session): codify the two new memory learnings: (a) PowerShell `throw` scoping in pasted blocks, (b) shell-script line-ending hygiene with .gitattributes recommendation.
+- **D16** (separate small commit): add `.gitattributes` rule `*.sh text eol=lf` and `*.ps1 text eol=crlf`, then re-checkout `scripts/launch_run11_vm.sh` to normalize the working tree. Will resolve the bash -n local-machine reliability gap.
+- **Phase E**: `scripts/Run_Preflight_Local.ps1` and `scripts/Run_Preflight_VM.ps1` (Charter v1.1 templates exist; need authoring).
+- **Phase F**: Vast.ai provision → SCP up → train → SCP back → destroy.
+
+---
+
 ## 2026-05-27 — A7 closure: observability per_model parser rewrite (PM session)
 
 ### Attempted

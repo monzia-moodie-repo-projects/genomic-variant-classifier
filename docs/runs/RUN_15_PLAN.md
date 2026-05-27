@@ -47,7 +47,7 @@ This plan must be fully populated and Charter v1.1 gates G1 + G2 must PASS befor
 - **C.1** mc_dropout.py:87 np.log(0) clip: <DECISION: yes | no>
 - **C.2** TabularNNClassifier._predict_proba_single_pass(): <DECISION: implement | drop MC-dropout from base learners>
 - **C.3** scripts/run14_observability.py per_model parser: **rewrite — closed in da41f27** (read structured files preferentially; log-grep fallback with relaxed regex)
-- **C.4** scripts/launch_run11_vm.sh imodelsx_patch dedupe (A3): <DECISION>
+- **C.4** scripts/launch_run11_vm.sh imodelsx_patch dedupe (A3): **closed in 9628463** (removed redundant outer tee on L200; inner echoes at L197/L199 preserved). Empirical evidence (verified 2026-05-27 against `outputs/run14/run14_master.log`): the success-branch message `imodelsx_patch: fixed 3 bare-name refs` appears **2 times** in the Run 14 master log despite the branch firing only once, confirming the double-tee bug structurally and empirically.
 - **C.5** Run15_Postflight.ps1 uses Test-ArtifactPresent for ALL gate checks: <DECISION: required | skip>
 - **C.6** Run15_Postflight.ps1 must `exit 1` on any FAIL (SR #39): <DECISION>
 - **C.7** Separate Vastai_Destroy_Confirmed.ps1 requiring gate exit 0, refusing `echo y |` (SR #38): <DECISION>
@@ -56,7 +56,7 @@ This plan must be fully populated and Charter v1.1 gates G1 + G2 must PASS befor
 
 - A1 np.log(0) in mc_dropout.py:87  → see B.O2/C.1
 - A2 mc_dropout uncertainty degenerate → see B.O3/C.2
-- A3 imodelsx_patch echo dup in launch script → see C.4
+- A3 imodelsx_patch echo dup in launch script → CLOSED at 9628463 (redundant outer tee on L200; see C.4)
 - A4 KAN trained on 12% subsample → see B.O1
 - A5 score annotation step numbering inconsistency → cosmetic, defer
 - A6 5 silent-zero data sources → see B.D1-B.D6
@@ -95,3 +95,5 @@ This plan must be fully populated and Charter v1.1 gates G1 + G2 must PASS befor
 (Append decisions here as they are made, with date + rationale.)
 
 - **2026-05-27 — A7 (B.O4 / C.3) decision: rewrite** (commit `da41f27`). Rationale: the training script already writes structured per-model metrics to `per_model_metrics.csv`, `per_model_metrics_val.csv`, and `models/*_meta.json`; log-grep was over-fitted to the shell launch script's "==>" echo style and never matched the Python-logger output. Rewrite reads those structured sources first; log-grep regex relaxed (drop "==>" prefix requirement) as fallback. Closes A7 with no regression to other observability outputs (feature_nonzero, KAN status, LightGBM status, artifact inventory all unchanged). Regression test: `tests/unit/test_run14_observability.py` (7 cases, all passing).
+
+- **2026-05-27 — A3 (C.4) decision: removed redundant outer tee** (commit `9628463`). Rationale: `scripts/launch_run11_vm.sh` L200 had `fi | tee -a "$LOG"` after an if/else where each inner echo (L197 success branch, L199 else branch) already piped to `tee -a "$LOG"`. Effect: each imodelsx_patch status line logged to `run11_master.log` twice (empirically confirmed: success-branch message appears 2x in Run 14 log; else-branch message appears 0x). Fix: replace L200 outer-tee with bare `fi` plus forensic comment `# A3 fix 2026-05-27: removed redundant outer tee`. Inner echoes preserved; outer-else WARN echo at L202 preserved. Verified by 5/5 PS sanity checks (verbatim source substrings) + 9 internal patcher post-conditions + PS-level anchor uniqueness pre-check (defense in depth proven during session 2 re-paste: idempotency check fired correctly and patcher refused to re-apply).
