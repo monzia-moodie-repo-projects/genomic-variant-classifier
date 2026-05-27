@@ -1,3 +1,58 @@
+## 2026-05-27 PM6 — A2/B.O3/C.2 closure: TabularNNClassifier._predict_proba_single_pass implementation
+
+### Attempted
+- Close A2 (mc_dropout uncertainty degenerate) by implementing `_predict_proba_single_pass()` on `TabularNNClassifier`, satisfying MCDropoutWrapper's L216 hasattr contract so the wrapper produces real epistemic + aleatoric uncertainty instead of the L238-241 degenerate fallback returning `(proba, zeros, zeros)`.
+- Add comprehensive unit test suite covering: API contract, stochasticity, side-effect isolation, MCDropoutWrapper integration, and 5 scientific properties (AUROC floor on linearly separable, mean-of-K ≈ deterministic, aleatoric bounded by log(2), aleatoric peaks at decision boundary, higher dropout → higher epistemic).
+- Stub integration tests for post-Run-15 calibration work (OOD epistemic elevation, uncertainty-error correlation, ECE improvement, MC convergence).
+
+### Failed (and recovered)
+- **Initial design relied on memory, not probed source.** First-draft paste embedded 3 unverified assumptions: MCDropoutWrapper constructor parameter names (`base_estimator` vs `estimator`), public method signatures (`predict_with_uncertainty`), and whether `_decompose_uncertainty` was importable as a module-level function. Audit phase before execution surfaced this as standing-rule-#3 violation (probe before assume).
+- **CRLF line-ending mismatch would have aborted the patcher at exit code 2.** `variant_ensemble.py` uses CRLF; initial OLD anchor used LF (`\n`). Patcher's `read_bytes().decode('utf-8')` yields CRLF in the string; LF-only anchor would not have matched. Caught at Step 0 verification probe before any mutation.
+- **`caplog` scoping false-negative risk.** Initial test used bare `caplog.at_level(logging.WARNING)` (root logger). `mc_dropout.py:218` uses module logger `genomic_variant_classifier.models.mc_dropout`. If that logger ever sets `propagate = False`, the regression-guard test would have silently passed even when the warning was actually emitted. Caught at audit; fixed via explicit `logger=MC_DROPOUT_LOGGER` constant.
+- **`docs/CHANGELOG.md` path assumption.** Step F-0 probe checked project root for `CHANGELOG.md` → NOT FOUND. Phase 6 grep revealed canonical location at `docs/CHANGELOG.md`. Had Step F proceeded with the assumed project-root path, would have created a duplicate file outside the docs tree.
+
+### Fixed
+- **`src/genomic_variant_classifier/models/variant_ensemble.py`** (c60e842, 53322 → 55749 bytes, CRLF preserved): added `_predict_proba_single_pass(self, X, seed=None)` between L874 `predict_proba` and L884 `predict`. Selective dropout activation pattern:
+  - `model_.eval()` puts whole network in inference mode (running-stats BatchNorm)
+  - Loop `model_.modules()` and selectively `.train()` only `nn.Dropout` instances → stochastic dropout mask without per-batch BatchNorm corruption
+  - `try/finally` ensures `.eval()` restoration so subsequent `predict_proba` calls aren't left dropout-active
+  - `torch.manual_seed(int(seed))` controls mask determinism per pass for MC sampling reproducibility
+  - `raise ValueError` if `model_ is None` (explicit failure vs. silent `.modules()` AttributeError)
+- **`tests/unit/test_tabular_nn_mc_dropout.py`** (new, 261 lines, 12143 bytes): 15 tests, 5 classes:
+  - `TestPredictProbaSinglePassContract` (3): method exists, returns (n,2), probabilities valid
+  - `TestPredictProbaSinglePassStochasticity` (3): same-seed deterministic, different-seed stochastic, K-pass variance non-zero
+  - `TestPredictProbaSinglePassSideEffects` (2): no leak to predict_proba, single-row no NaN (BatchNorm preserved)
+  - `TestMCDropoutWrapperIntegration` (2): no missing-method warning (caplog scoped to mc_dropout logger), end-to-end epistemic > 0
+  - `TestPredictProbaSinglePassScientificProperties` (5): AUROC floor 0.85 on linearly separable, mean K ≈ predict_proba, aleatoric bounded by log(2), aleatoric peaks at boundary, dropout-rate sensitivity (5 epochs to allow training divergence)
+- **`tests/integration/test_mc_dropout_calibration.py`** (new, 100 lines, 4800 bytes): 5 stubbed tests across 4 classes (`@pytest.mark.skip` + `raise NotImplementedError`) preserving threads for post-Run-15: `TestOODEpistemicElevation`, `TestUncertaintyErrorCorrelation` (Spearman + quartile binning), `TestCalibrationImprovement` (ECE, paper P2), `TestMonteCarloConvergence` (1/K variance scaling).
+
+### Headline verification
+- pytest: **14 passed, 6 skipped, 0 failed, 0 errors** in 96.03s.
+  - 1 unit test skipped: `test_aleatoric_higher_near_decision_boundary` — synthetic corpus didn't span both p≈0.5 (boundary) and p≈0/1 (extreme) prediction regions; `pytest.skip` guard fired as designed.
+  - 5 integration stubs skipped (deliberate, awaiting Run 15 cohort).
+- 19/19 PowerShell sanity checks PASS (including audit-added "VE preserves CRLF" and "caplog scoped to mc_dropout logger" gates).
+- `.venv312` confirmed active via `python -c "import sys; print(sys.executable)"` pre-check.
+
+### Commits (1 this session, pushed)
+- `c60e842` feat(tabular_nn): A2/B.O3/C.2 close - implement _predict_proba_single_pass for MC-dropout
+
+### Learned
+1. **Standing rule #3 (probe before write) is non-negotiable, not optional.** Initial implementation paste embedded 3 unverified assumptions (CRLF, caplog scope, MCDropoutWrapper API). Step 0 verification probe caught the CRLF blocker; audit caught the caplog scope risk; only the API assumptions turned out correct — probed, not guessed. Discipline ladder: probe first → audit second → execute third. Skipping any tier is a self-inflicted cycle loss.
+2. **`docs/CHANGELOG.md` is the canonical path for this project, not `CHANGELOG.md` at root.** Step F-0 probe returned NOT FOUND for project-root path; Phase 6 grep revealed canonical location. Memory updated to canonicalize this going forward.
+3. **`pytest.skip()` is a coverage gap signal worth tracking.** The aleatoric-peaks-at-boundary test skipped because the model trained well enough that predictions cluster at extremes. The calibration property of `_decompose_uncertainty` was NOT exercised by this commit's unit tests. Mitigation: `tests/integration/test_mc_dropout_calibration.py::TestCalibrationImprovement` covers similar territory against Run 15 holdout when data is available.
+4. **Selective dropout activation is canonical for networks with BatchNorm.** Naive `model.train()` corrupts single-row/small-batch inference via per-batch BatchNorm stats. The `isinstance(m, nn.Dropout)` filter preserves running-stats BatchNorm while enabling stochastic dropout masks. Caught at design phase because BatchNorm1d was visible in the probed L815 architecture; would have caused NaN on the single-row test otherwise.
+5. **Probe outputs are the only ground truth.** I claimed PyTorch architecture for `TabularNNClassifier` from memory; project knowledge held a stale TensorFlow snapshot; current code IS PyTorch (probe confirmed). The session compaction summary and project knowledge can BOTH be stale; only the live `view`/probe is authoritative.
+
+### Open follow-ups
+- **C.1** (np.log(0) defensive clip at mc_dropout.py:87): pending. Per B.O2 closure, the line is already safe via L86 `np.clip(probs_stack, 1e-8, 1.0 - 1e-8)`; C.1 decides whether to add a SECOND defensive clip at L87 as belt-and-suspenders.
+- **B.D1–B.D6** (6 data-source decisions): pending in Phase C decision queue.
+- **H_Run15** primary hypothesis: pending.
+- **E budget** (GPU hours / cost USD / hard ceiling at RUN_15_PLAN.md L68-70): pending.
+- **Coverage gap**: `test_aleatoric_higher_near_decision_boundary` skipped this session; documented; deferred to integration tests against Run 15 holdout.
+- **Pre-existing mojibake in older CHANGELOG entries** (e.g., L1993, L2008, L2012 etc. from 2026-05-16 Run 10): double-encoded UTF-8 artifacts (`ÃÂ¢` for en-dash etc.). Out of scope this commit; flagged for future maintenance pass.
+
+---
+
 ## 2026-05-27 PM5 — A4/B.O1 KAN decision (250K Run 15, 500K Run 16 staged)
 
 **Decided** scale KAN subsample to 250K for Run 15 (Option A1). Option A2 (500K) reserved for Run 16 if Run 15 OOF→test gap remains >0.001.
