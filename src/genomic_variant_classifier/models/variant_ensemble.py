@@ -881,6 +881,65 @@ class TabularNNClassifier(BaseEstimator, ClassifierMixin):
             proba = self.model_(X_t).squeeze(-1).numpy()
         return np.column_stack([1 - proba, proba])
 
+    def _predict_proba_single_pass(self, X, seed=None):
+        """Single stochastic forward pass with dropout ACTIVE.
+
+        Used by MCDropoutWrapper for MC-dropout uncertainty estimation.
+        Unlike predict_proba() which disables dropout via .eval(), this
+        method keeps Dropout layers active (.train()) but selectively
+        keeps BatchNorm layers in eval (uses running stats, not per-batch
+        stats). Without this BatchNorm split, per-batch statistics on the
+        inference set would corrupt forward passes for small batches or
+        distribution-shifted batches.
+
+        Closes A2 (mc_dropout uncertainty degenerate) per RUN_15_PLAN.md
+        B.O3 / C.2.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            Input features. Scaled via self.scaler_ before forward pass.
+        seed : int, optional
+            Seed for PyTorch's global RNG (controls dropout mask). When
+            called by MCDropoutWrapper, this is unique per pass so that
+            the n_passes stochastic samples are reproducible but distinct.
+
+        Returns
+        -------
+        proba : ndarray of shape (n_samples, 2)
+            Column 0: P(class=0) = 1 - sigmoid output.
+            Column 1: P(class=1) = sigmoid output.
+        """
+        import torch
+
+        if self.model_ is None:
+            raise ValueError(
+                "TabularNNClassifier not fitted; call .fit() before "
+                "_predict_proba_single_pass()."
+            )
+
+        if seed is not None:
+            torch.manual_seed(int(seed))
+
+        # Selective dropout activation: BatchNorm stays in eval (uses
+        # running stats); only Dropout layers get .train() so they
+        # produce a stochastic mask.
+        self.model_.eval()
+        for module in self.model_.modules():
+            if isinstance(module, torch.nn.Dropout):
+                module.train()
+
+        try:
+            X_scaled = self.scaler_.transform(X)
+            X_t = torch.tensor(X_scaled, dtype=torch.float32)
+            with torch.no_grad():
+                proba = self.model_(X_t).squeeze(-1).numpy()
+            return np.column_stack([1 - proba, proba])
+        finally:
+            # Restore full eval mode so subsequent predict_proba() calls
+            # are not left with dropout still active.
+            self.model_.eval()
+
     def predict(self, X):
         return (self.predict_proba(X)[:, 1] > 0.5).astype(int)
 
