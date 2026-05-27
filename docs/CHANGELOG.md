@@ -1,3 +1,55 @@
+## 2026-05-27 - Pytest sys.modules pollution diagnosed + testpaths fix landed
+
+### Attempted
+- Phase B.1-B.8: systematic diagnosis of 12 pytest collection errors that surfaced on 2026-05-26 after phylop relocation cleared an earlier NameError mask.
+- Phase B.9: commit + push pyproject.toml fix (9eec8eb).
+- Phase B.11: write SESSION_2026-05-27.md (54c29fe).
+- Phase D13: append corrections to INCIDENT_2026-05-26_scipy-torch-array-api-compat.md while preserving the original 87 lines (919920c).
+
+### Failed
+- INCIDENT_2026-05-26 hypothesis #1 ("torch is partially or incorrectly installed") proved wrong. B.1.3 verified torch installs cleanly: `python -c "import torch; print(torch.__file__, torch.__version__, torch.__spec__, torch.Tensor)"` all work in plain Python.
+- B.11.2 first attempt wrote the SESSION file to C:\Users\monzi\docs\sessions\ because `[System.IO.File]::WriteAllText` resolves relative paths against .NET `Environment.CurrentDirectory` (the PS-startup dir), not PS `Get-Location`. Recovered in B.11.RETRY with `[Environment]::CurrentDirectory = $pwd.Path` and absolute paths.
+- D13.RETRY threw at STEP 5 marker check on a paraphrased regex (`sys.modules["torch"] = MagicMock` as one literal sequence) that does not appear in the source - the code block uses `sys.modules[_mod]` (loop variable) and the prose uses `sys.modules["torch"]` separated by words. File content was always correct; D13.RECOVER verified with 16 markers chosen from verbatim source substrings.
+
+### Fixed
+- Verified root cause (B.5.5 + B.6.1 + B.6.4): `src/genomic_variant_classifier/agent_layer/test_message_bus.py` L87-89 stubs `sys.modules[_mod] = MagicMock()` at module level for a loop spanning ewc_utils/shap/torch/feedparser/requests. pytest's default `test_*.py` auto-discovery imports this file during full-suite collection, polluting torch for the rest of the collection. scipy.stats's array_api_compat `_issubclass_fast` then calls `getattr(sys.modules["torch"], "Tensor")` and gets back a MagicMock (hashable so it passes scipy's lru_cache key check, but NOT a class), causing the subsequent issubclass() to raise TypeError. The test_esm2_activation.py `ValueError: torch.__spec__ is not set` is the same pollution viewed via a different lookup path.
+- B.6.4 decisive: full suite minus `test_message_bus.py` drops errors from 12 to 0 and increases tests from 416 to 552 (+136 = exactly the 12 victim files' counts 17+10+10+3+18+10+2+7+10+11+22+16).
+- Commit `9eec8eb` added `[tool.pytest.ini_options]` with `testpaths = ["tests"]` to pyproject.toml. Restricts pytest auto-discovery to canonical tests/ tree. test_message_bus.py is unmodified and remains runnable by explicit path.
+- Side effect (B.8.1): root-level `test_catboost.py` (17718 B, untracked per .gitignore:95, in "Scratch and generated files" section per .gitignore:92) is no longer auto-discovered. Correctness improvement - cloud/CI runs on Vast.ai never saw this untracked file anyway, so local pytest now matches cloud pytest behavior. Canonical tracked `tests/unit/test_catboost.py` (20551 B) remains in default discovery.
+- A1 regression test gap closed: `tests/unit/test_mc_dropout_uncertainty.py` (7 tests) shipped in `3a166f6` on 2026-05-26 but never actually ran under pytest until 2026-05-27 because it was among the 12 erroring files. Now 7 passed in 5.35s.
+
+### Headline metrics (G1 gate verification)
+- `python -m pytest --collect-only -q`: **526 tests, 0 errors** (was 416 collected + 12 errors).
+- A1 regression (test_mc_dropout_uncertainty.py): 7 passed in 5.35s.
+- Spot-checks: alphamissense 17 passed, eve 18 passed, prediction_artifacts 11 passed.
+- Memory rule #4 (G1 gate: local pytest collection errors = 0): **GREEN**.
+
+### Commits (5+1 this session, all on main)
+- `088797a` - fix(tests): relocate test_phylop_block.py and remove duplicate broken test (carried over from 2026-05-26 close)
+- `8662597` - fix(gitignore): anchor scratch-file patterns to root, completing 088797a relocation
+- `9eec8eb` - fix(pytest): restrict discovery to tests/ to stop sys.modules["torch"] pollution
+- `54c29fe` - docs(session): SESSION_2026-05-27 - B.1-B.9 testpaths fix diagnosis + remediation
+- `919920c` - docs(incident): D13 - correct INCIDENT_2026-05-26 with verified root cause
+- (this commit) - docs(changelog): catch CHANGELOG up with 2026-05-27 session
+
+### Learned
+1. **G1 gate paid for itself.** Run 15 would have launched on Vast.ai (Linux, where the polluter file is also importable) and discovered this issue only after compute spend. The standing rule strengthened on 2026-05-27 (memory rule #4: ALL prior-run anomalies CLOSED or DEFERRED-with-justification, local pytest collection errors = 0) is doing its job in pre-flight.
+2. **`pytest --collect-only -q` silently suppresses files with 0 tests AND 0 errors.** test_message_bus.py was imported (running its sys.modules pollution) but wasn't enumerated in -q output, hiding the polluter from grep on pytest logs. The smoking gun came from greping the SOURCE FILE for `sys.modules[`, not the pytest log. Future audits: `--collect-only -v` for per-file visibility.
+3. **PowerShell array splat is `@var`, never `@$var`.** Wrong form gives silent 1.4s no-op (B.5.1-B.5.3 false negative). Validation rule: pytest invocation <2s elapsed time = red flag.
+4. **`Select-String` regex misses produce empty arrays silently.** Downstream foreach over the empty array runs zero times silently. Defensive pattern: count results, throw if empty when non-empty expected.
+5. **`Get-Content -Raw` after `Out-File -Encoding utf8` introduces CRLF on Windows.** B.9.8.1 false-negative on FIX block caused by exactly this. For inspecting commit-message bodies: keep the array of lines, or pipe through `-replace "\r",""`.
+6. **`[System.IO.File]` uses .NET CWD, not PowerShell `Get-Location`.** B.11.2 wrote to `C:\Users\monzi\docs\sessions\` instead of project root because the relative path resolved against .NET's startup CWD. Fix: absolute paths everywhere with .NET APIs, or `[Environment]::CurrentDirectory = (Get-Location).Path` at session start. Memory rule was already present; failure to apply it cost one paste cycle. D14 re-codification queued.
+7. **Marker regexes must use verbatim source substrings, not paraphrased forms.** D13.RETRY's STEP 5 failed because the regex looked for a phrase that does not exist as one literal sequence in the source. Defensive: pick distinctive phrases that exist as exact byte sequences (preferably section headers or code-block lines).
+
+### Open follow-up (next session)
+- **D12** (post-Run-15): refactor test_message_bus.py L87-89 sys.modules pollution into pytest `monkeypatch.setitem` fixtures with proper teardown.
+- **D14** (this session, queued): codify lessons 2-7 above into memory via `memory_user_edits`.
+- **Phase C** (next session): anomaly sweep A2-A8 (21 `<DECISION>` placeholders in RUN_15_PLAN.md). Per memory recommend A7 first.
+- **Phase E** (next session): `scripts/preflight_run15.py` G1-G15 master gate script.
+- **Phase F** (next session): Vast.ai provision -> SCP up -> train -> SCP back -> destroy.
+
+---
+
 ## 2026-05-26 â€” Run 14 complete + Preflight Charter v1.1 + v1.2 patch
 
 ### Attempted
