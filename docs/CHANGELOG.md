@@ -1,3 +1,51 @@
+## 2026-05-27 PM10 — E budget decision: triple resolved (docs-only)
+
+### Attempted
+- Resolve final 3 actual placeholders in RUN_15_PLAN.md E section (L68 GPU hours, L69 cost USD, L70 hard ceiling) grounded in actual Run-14 baseline + Vast.ai pricing data + Run 15 scope decision (Interpretation B' hybrid per Monzia 2026-05-27).
+
+### Fixed
+- **`docs/runs/RUN_15_PLAN.md`** L68: GPU hours estimate = ~10h (range 8–12h).
+- **`docs/runs/RUN_15_PLAN.md`** L69: cost estimate = ~$7 (range $5–9).
+- **`docs/runs/RUN_15_PLAN.md`** L70: hard ceiling = 24h wall-clock OR $20 USD, whichever first.
+- **`docs/runs/RUN_15_PLAN.md`** Decision log: PM10 entry appended after PM9.
+- **`docs/CHANGELOG.md`**: this PM10 entry prepended.
+
+### Scope
+Interpretation B' (hybrid) per Monzia 2026-05-27:
+- Run 15 trains base ensemble: 10 models (catboost, lightgbm, xgboost, random_forest, gradient_boosting, tabular_nn, mc_dropout, deep_ensemble, kan-250k, gnn) — cnn_1d still --skip-cnn per B.D6 PM8.
+- Run 15 ALSO runs unseen_gene_holdout ablation INLINE (one additional full retrain on gene-stratified split).
+- Other 12 ablations from the planned matrix (lookup_only, feature_permutation, true_generalization, etc.) DEFERRED to post-hoc analysis on saved models/OOF preds (separate session).
+
+### Estimate basis
+- **Run 14 baseline (CHANGELOG L483/L502/L503)**: 3.24h wall-clock @ $0.6694/hr = $2.17 on Vast.ai Texas RTX 4090 instance 37897784. 10-model ensemble incl. KAN via imodelsx. No GNN, no cnn_1d, no ablations.
+- **Run 15 base estimate**: 3.24h + ~30–60 min KAN-100K → KAN-250K delta + ~30–60 min GNN-FREE → GNN-enabled delta ≈ 4.5–5.5h.
+- **Inline unseen_gene_holdout retrain**: ~4.5–5.5h (same components, gene-stratified split).
+- **Total**: ~9–11h, midpoint 10h.
+- **Cost**: 10h × $0.67–0.77/hr (Run 13 was $0.771/hr; Run 14 was $0.6694/hr) = $6.70–$7.70, midpoint $7.
+- **Hard ceiling**: 24h is ~2.4× expected wall-clock; $20 is ~2.9× expected cost. Either trigger → manual destroy and post-mortem.
+
+### Pre-launch code dependencies (NOT this commit)
+- **B.D3 enable: pipeline-side gene_symbol fix in `build_pyg_dataset` caller** (memory #27 Patch 6b root cause). UNLOCKS BOTH GNN training AND unseen_gene_holdout ablation — single change, double payoff. **Required**.
+- **unseen_gene_holdout evaluator** in training pipeline (new code; leverages B.D3's gene_symbol availability for the gene-stratified split). **Required**.
+- **cnn_1d closure refactor** per INCIDENT_2026-05-24 (currently --skip-cnn). **Optional**; not required by C3 hypothesis (which references the 10-model ensemble incl. KAN, not 11 incl. cnn_1d).
+
+### Commits (1 this session, pushed)
+- `XXXXXXX` docs(plan,changelog): E budget triple resolved — Interpretation B' hybrid (PM10)
+
+### Learned
+1. **Run 14 set a new project low-water mark**: 3.24h / $2.17 vs Run 11's 7.9h / $5.60 (-59% wall-clock, -61% cost). The dlperf≥80 pcie_bw≥12 filter (memory #30) plus the Texas instance ($0.6694/hr — cheapest of the post-filter runs) drove the cost reduction. Run 15 budgeting should use Run 14 as the reference, not the Run 11–13 average.
+2. **B.D3 pipeline-side gene_symbol fix has a hidden double payoff**: same code change unlocks GNN training (memory #27 root cause) AND unseen_gene_holdout ablation (gene-stratified split requires gene_symbol). Implementing it for B.D3 also satisfies the unseen_gene_holdout prerequisite. Document this in pre-launch code-change planning so it's not redundantly scheduled.
+3. **The 13-ablation matrix is a PLAN, not implemented code**: src/ has no ABLATION_MASKS / run_ablation references (probe Phase 9: 0 hits). The only ablation code on disk is `scripts/run9_ablations.py` (one-off for Run 9's 6-ablation matrix, CHANGELOG L2117). Future ablations beyond unseen_gene_holdout will require either generalizing run9_ablations.py or building a proper src/ablations.py — separate code work, post-Run-15.
+
+### Open follow-ups
+- **PM11 — Pre-launch code commits** (NOT docs): B.D3 enable + unseen_gene_holdout evaluator (bundled, shared gene_symbol dependency) + (optional) cnn_1d closure refactor. Each commit separate per discipline (one decision per commit).
+- **G1 + G2 pre-flight gates** per Charter v1.1 (RUN_15_PLAN.md L74–L82).
+- **Run 15 launch** (Vast.ai SCP up → train → SCP back → destroy immediately, per memory #7 and #29b).
+- **Post-Run-15 ablation matrix** — separate session, separate budget. Generalize scripts/run9_ablations.py or build src/ablations.py for the 12 deferred ablations.
+- **L77 backtick-doc-pattern** — the `- [ ]` checklist line literally contains the placeholder marker in backticks. After PM10, this is the only remaining placeholder substring in the plan. Per PM9 Learned item 3, this is documentation, not an unresolved decision. Monzia checks the box manually as part of pre-flight. Note also that L77 gate text says "All B.O* and C.* decisions filled" — narrowly scoped wording; A (Hypothesis) and E (Budget) decisions are implicitly required even though L77's text doesn't enumerate them.
+
+---
+
 ## 2026-05-27 PM9 — H_Run15 decision: Option C3 hybrid hypothesis (docs-only)
 
 ### Attempted
