@@ -19,7 +19,7 @@ This plan must be fully populated and Charter v1.1 gates G1 + G2 must PASS befor
 - **B.O1** KAN status: <DECISION: scale subsample 100K→250K-500K | drop from base learners | keep at 100K>
   - Justification: Run 14 OOF→test gap was 0.0025 (~3.5× catboost's gap), indicating 100K subsample overfits.
 
-- **B.O2** A1 fix (np.log(0) at mc_dropout.py:87): <DECISION: clip before log in this commit | defer | accept as-is>
+- **B.O2** A1 (np.log(0) at mc_dropout.py:87): **CLOSED — verified false anomaly (2026-05-26)**. Line 86 already does `clipped = np.clip(probs_stack, 1e-8, 1.0 - 1e-8)`, so line 87 never sees log(0). At the worst-case boundary, log(1e-8) ≈ -18.42 and 1e-8 * log(1e-8) ≈ -1.84e-7 are finite. Behaviour locked by tests/unit/test_mc_dropout_uncertainty.py (7 cases, all green). Probe in scripts/probe_a1_boundary.py confirms with the real function. No source code change required.
 
 - **B.O3** A2 fix (mc_dropout uncertainty degenerate, missing _predict_proba_single_pass): <DECISION>
 
