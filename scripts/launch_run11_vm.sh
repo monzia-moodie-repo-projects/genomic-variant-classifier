@@ -197,7 +197,7 @@ if [ -n "$IMODELSX_KAN" ] && grep -q "test_size=test_size" "$IMODELSX_KAN"; then
     echo "==> imodelsx_patch: fixed 3 bare-name refs in $IMODELSX_KAN" | tee -a "$LOG"
 else
     echo "==> imodelsx_patch: already patched or not installed" | tee -a "$LOG"
-fi | tee -a "$LOG"
+fi  # A3 fix 2026-05-27: removed redundant outer tee
 else
     echo "==> WARN: gnomAD constraint TSV not found — pli/loeuf/syn_z/mis_z will be 0" | tee -a "$LOG"
 fi
