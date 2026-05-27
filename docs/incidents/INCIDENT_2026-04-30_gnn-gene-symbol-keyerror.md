@@ -1,8 +1,21 @@
 # INCIDENT 2026-04-30 — GNN training silent-zero (gene_symbol KeyError)
 
 ## Status
-DIAGNOSED. Fix drafted as Patch 6b (scripts/apply_patch_6b.py).
-NOT YET RESOLVED — fix not committed.
+RESOLVED 2026-05-27. Patch 6b applied in both files; verified by regression test.
+
+### Resolution
+- `src/genomic_variant_classifier/data/real_data_prep.py` L1194-L1216: `_save_splits` accepts optional `meta_train` parameter and writes `meta_train.parquet` to `output_dir`.
+- `src/genomic_variant_classifier/data/real_data_prep.py` L278+L283-L286: `run()` builds `meta_train = df.iloc[train_idx]` and threads it through `self._save_splits(..., meta_train=meta_train)`.
+- `scripts/run_phase2_eval.py` L292-L317: reads `meta_train.parquet`, merges `gene_symbol` into `gnn_df`, raises `FileNotFoundError` if missing (no silent fallback).
+- `outputs/run9_ready/splits/meta_train.parquet`: 41.81 MB on disk.
+- `tests/unit/test_patch_6b_meta_train.py`: 3 regression tests.
+
+### Verification (PM11a 2026-05-27)
+- Probe: both files show Patch 6b code in place; X_train_raw pattern absent; FileNotFoundError on missing meta_train; `build_pyg_dataset` and `train_gnn_pipeline` referenced in run_phase2_eval.py.
+- Regression test: `pytest tests/unit/test_patch_6b_meta_train.py -v` PASSES 3/3.
+- Run 15 entry point (`scripts/launch_run11_vm.sh` L229: `python scripts/run_phase2_eval.py $ARGS`) exercises the patched path.
+
+### Original diagnostic content (unchanged below)
 
 ## Symptoms
 - outputs/phase2_full/splits/X_train.parquet (4/16): gnn_score=0 std=0

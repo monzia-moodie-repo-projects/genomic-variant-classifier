@@ -1,3 +1,47 @@
+## 2026-05-27 PM11a — B.D3 verification + INCIDENT_2026-04-30 closure (test + docs)
+
+### Attempted
+- Verify B.D3 (pipeline-side gene_symbol fix) state on disk before pre-launch code work.
+- Close stale INCIDENT_2026-04-30_gnn-gene-symbol-keyerror.md (Status was "NOT YET RESOLVED" since 2026-04-30; in fact Patch 6b is fully applied).
+- Add regression test guarding the _save_splits / meta_train.parquet contract so future refactors don't silently regress the fix.
+
+### Fixed
+- **CREATED** `tests/unit/test_patch_6b_meta_train.py`: 3 regression tests
+  1. `test_save_splits_writes_meta_train_parquet` — asserts meta_train.parquet is written when meta_train is provided.
+  2. `test_save_splits_meta_train_preserves_gene_symbol` — asserts gene_symbol survives the parquet roundtrip.
+  3. `test_save_splits_meta_train_optional_when_none` — asserts backward compat: meta_train=None still writes meta_val/meta_test, no meta_train.parquet.
+- **UPDATED** `docs/incidents/INCIDENT_2026-04-30_gnn-gene-symbol-keyerror.md`: Status DIAGNOSED → RESOLVED 2026-05-27 with Resolution section listing exact file/line refs + verification artifacts.
+- **UPDATED** `docs/CHANGELOG.md`: this PM11a entry prepended.
+
+### Discovered state (probe evidence)
+- **`src/.../data/real_data_prep.py` L1194-L1216**: `_save_splits` signature already includes `meta_train: pd.DataFrame | None = None`; body writes `meta_train.to_parquet(out / "meta_train.parquet", ...)` when not None.
+- **`src/.../data/real_data_prep.py` L278+L283-L286**: `run()` builds `meta_train = df.iloc[train_idx].reset_index(drop=True)` and threads it through `self._save_splits(..., meta_train=meta_train)`.
+- **`scripts/run_phase2_eval.py` L292-L317**: literal `# Patch 6b (2026-04-30):` comment + meta_train.parquet read + gene_symbol merge into gnn_df + `raise FileNotFoundError(_meta_train_path)` for missing file.
+- **`outputs/run9_ready/splits/meta_train.parquet`**: 41,839,799 bytes (41.81 MB) on disk.
+- **`scripts/launch_run11_vm.sh` L229**: `python scripts/run_phase2_eval.py $ARGS` — the Run 14/15 VM-side entry point (file mtime 2026-05-27).
+
+### Scope clarification (consequences for RUN_15_PLAN B.D3)
+PM10 entry stated "B.D3 enable: pipeline-side gene_symbol fix — REQUIRED before Run 15." PM11a probe shows the fix is **already enabled** in both files. **No code change required for B.D3.** Run 15 launching `scripts/launch_run11_vm.sh` will exercise the patched path automatically; GNN training is implicit when running run_phase2_eval.py with splits that include meta_train.parquet.
+
+The "GNN-FREE" status carried in memory (Runs 9-14) is therefore due to either ablation choice (run9_ablations.py), pre-Patch-6b splits, or other unrelated reasons. For Run 15 with `outputs/run9_ready/splits/meta_train.parquet` present and Patch 6b code applied, GNN should train.
+
+### Commits (1 this session, pushed)
+- `XXXXXXX` docs(incident,changelog) + test(unit): close INCIDENT_2026-04-30 + Patch 6b regression test (PM11a)
+
+### Learned
+1. **Sticky-stale-incident-doc pattern**: the INCIDENT was written 2026-04-30 with "NOT YET RESOLVED"; Patch 6b was committed at some point in subsequent days, but the INCIDENT Status was never updated. Future-Claude (and this Claude, earlier in session) inherited the stale doc as ground truth and almost re-implemented an already-applied fix. **Lesson: when an INCIDENT references a specific patch script and reading the target files shows the patched state, the INCIDENT is closed regardless of its own self-report.** Always verify by reading the target file.
+2. **Memory rule #27 (Patch 6b root cause) is now OBSOLETE**: the rule describes a future fix that has already happened. Worth updating memory after PM11 series complete so future-Claude doesn't re-investigate.
+3. **Entry-point chain audit is mandatory before code work on a Run-affecting path**: the chain `Run14_Preflight.ps1` (Windows) → `scripts/launch_run11_vm.sh` (VM-side bash) → `python scripts/run_phase2_eval.py` was non-obvious; needed 3 separate file reads to confirm. The newer-looking `scripts/train.py` (2026-05-09) is NOT in the current launch path.
+4. **Patcher needle audit lesson**: PM11a v1 used `**2026-05-27 PM11a` (bold-text pattern from RUN_15_PLAN Decision log) as the CHANGELOG header check needle, but CHANGELOG uses `## 2026-05-27 PM11a` (level-2 heading). The two project conventions are syntactically distinct (`**bold**` vs `## header`); rule #28.17 (verbatim needles) requires distinguishing them. Fixed v2 uses `## 2026-05-27 PM11a` matching the actual content.
+
+### Open follow-ups
+- **PM11b** — wire existing `unseen_gene_holdout_split` (data/splits.py L117) into `scripts/run_phase2_eval.py` with `--unseen-gene-holdout` flag. Adds inline ablation pass during Run 15 (per C3 hypothesis falsifier b).
+- **PM11c** (optional) — cnn_1d closure refactor per INCIDENT_2026-05-24 (currently --skip-cnn; not required by C3 hypothesis).
+- **Memory update** (after PM11 series) — mark memory #27 Patch 6b as "applied, INCIDENT closed PM11a 2026-05-27"; remove "B.D3 enable" from pre-launch items.
+- **RUN_15_PLAN.md B.D3 status** — plan's B.D3 line currently implies "build/enable" is pending. Should be updated to "verified complete via PM11a" in a docs-only follow-up (low priority; not blocking launch).
+
+---
+
 ## 2026-05-27 PM10 — E budget decision: triple resolved (docs-only)
 
 ### Attempted
