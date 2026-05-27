@@ -85,3 +85,71 @@ sweep without benefit.
   and indirectly surfaced this incident).
 - Phylop relocation commit (follow-up to 3a166f6) — directly surfaced this
   issue by clearing the test_phylop_block.py NameError.
+
+---
+
+## Corrections (2026-05-27)
+
+**Status**: OPEN -> RESOLVED.
+**Verified by**: Phase B.1-B.9 of session 2026-05-27.
+**Fix commit**: `9eec8eb` - fix(pytest): restrict discovery to tests/ to stop sys.modules["torch"] pollution.
+**Session record**: `docs/sessions/SESSION_2026-05-27.md`.
+
+### Root Cause Hypotheses (L28-39 above) - all DISPROVED
+
+| # | Original hypothesis | Status | Disproved by |
+|---|---|---|---|
+| 1 | torch is partially or incorrectly installed | DISPROVED | B.1.3 of session 2026-05-27: `python -c "import torch; print(torch.__file__, torch.__version__, torch.__spec__, torch.Tensor)"` all work cleanly in plain Python. torch is fully and correctly installed. |
+| 2 | scipy upgraded with eager docstring evaluation | NOT investigated, IRRELEVANT given actual root cause | n/a |
+| 3 | numpy major-version change broke torch metadata | NOT investigated, IRRELEVANT given actual root cause | n/a |
+
+### Verified Root Cause
+
+`src/genomic_variant_classifier/agent_layer/test_message_bus.py` at L87-89 contains module-level code:
+
+    for _mod in ("ewc_utils", "shap", "torch", "feedparser", "requests"):
+        if _mod not in sys.modules:
+            sys.modules[_mod] = MagicMock()
+
+This file matches pytest's default `test_*.py` auto-discovery pattern. During full-suite collection, pytest imports it. The import runs the L87-89 loop, replacing `sys.modules["torch"]` with a MagicMock. Subsequent collection of 12 downstream test files triggers scipy.stats's array_api_compat `_issubclass_fast`, which calls `getattr(sys.modules["torch"], "Tensor")` and gets back a MagicMock - hashable so it passes scipy's lru_cache key check, but NOT a class, so the `issubclass(cls, parent_cls)` call raises TypeError.
+
+The `test_esm2_activation.py` `ValueError: torch.__spec__ is not set` (the alternate failure noted in the original Symptom section above) is the same pollution viewed via a different lookup path.
+
+### Proof (B.6.4 of session 2026-05-27)
+
+| Run | Tests collected | Errors |
+|---|---|---|
+| Baseline (full rootdir) | 416 | 12 |
+| Minus `test_message_bus.py` | 552 | 0 |
+
+The +136 tests = exactly the 12 victim files' counts (17+10+10+3+18+10+2+7+10+11+22+16 from per-file collection in B.4.1). Test-count arithmetic decisive.
+
+### Fix Applied (commit 9eec8eb)
+
+`pyproject.toml` gained `[tool.pytest.ini_options]` with `testpaths = ["tests"]`. This restricts pytest's auto-discovery to the canonical `tests/` tree. `test_message_bus.py` is unmodified and remains runnable by explicit path:
+
+    python -m pytest src/genomic_variant_classifier/agent_layer/test_message_bus.py
+    python src/genomic_variant_classifier/agent_layer/test_message_bus.py
+
+The "Planned Resolution" at L57-67 above is NOT what was done. No `pip install --force-reinstall torch` was needed - torch was never broken. No scipy or array_api_compat pinning was needed.
+
+### Side Effect (B.8.1)
+
+Root-level `test_catboost.py` (17718 B, untracked per `.gitignore:95`, in "Scratch and generated files" section per `.gitignore:92`) is no longer auto-discovered. It contains 26 scratch tests, still runnable by explicit path. This is a correctness improvement - cloud/CI runs (Vast.ai) never saw this file because it is untracked. Local pytest behavior now aligns with cloud pytest behavior. The canonical tracked file at `tests/unit/test_catboost.py` (20551 B) remains in default discovery.
+
+### Verified Post-Fix
+
+- `python -m pytest --collect-only -q`: 526 tests, 0 errors (was 416 collected + 12 errors).
+- `tests/unit/test_mc_dropout_uncertainty.py`: 7 passed in 5.35s (A1 regression - shipped in 3a166f6 on 2026-05-26 but never actually ran under pytest until 2026-05-27 because it was among the 12 erroring files).
+- `tests/unit/test_alphamissense.py`: 17 passed in 20.28s.
+- `tests/unit/test_eve.py`: 18 passed in 20.73s.
+- `tests/unit/test_prediction_artifacts.py`: 11 passed in 5.13s.
+
+### Deferred Follow-ups
+
+- **D12**: Refactor `test_message_bus.py` L87-89 sys.modules pollution into pytest `monkeypatch.setitem` fixtures with proper teardown. The current module-level design pollutes sys.modules even when the file is run standalone (`python test_message_bus.py`). Post-Run-15 cleanup.
+- **D14**: Codify the 6 process lessons from `docs/sessions/SESSION_2026-05-27.md` section 9 into standing rules (memory).
+
+### Lesson on Incident Documentation
+
+This file preserves the original hypotheses (L28-39 above) and "Planned Resolution" (L57-67) in their original form. Future readers can see the diagnostic trail of "what we believed on 2026-05-26 vs what turned out to be true on 2026-05-27". Incident docs should APPEND corrections, not rewrite earlier content. Archaeological context is valuable for future debuggers facing similar symptoms.
