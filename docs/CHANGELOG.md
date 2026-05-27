@@ -1,3 +1,15 @@
+## 2026-05-27 PM5 — A4/B.O1 KAN decision (250K Run 15, 500K Run 16 staged)
+
+**Decided** scale KAN subsample to 250K for Run 15 (Option A1). Option A2 (500K) reserved for Run 16 if Run 15 OOF→test gap remains >0.001.
+
+**Justification**: Run 14 at 100K showed OOF→test gap 0.0025 (≈3.5x catboost's gap), indicating overfit. Staged scaling tests whether 2.5x more training data (250K) closes the gap; if not, Run 16 escalates 5x (500K). Memory #18: KAN reinstated 2026-04-20 with 80GB GPU access (A100/H100 tier); 250K and 500K both tractable. Option B (drop) rejected: would lose KAN diversity contribution without testing the overfit-vs-sample-size hypothesis. Option C (keep 100K) rejected: empirically overfits.
+
+**Files**: docs/runs/RUN_15_PLAN.md (B.O1 line + Decision log append), docs/CHANGELOG.md (this entry).
+
+**Next**: H_Run15 hypothesis + E budget (items 2-3 of session's Phase C decision queue).
+
+---
+
 ## 2026-05-27 — D17 closure: scripts/run15_observability.py + tests for Run 15 (PM session 4)
 
 ### Attempted
