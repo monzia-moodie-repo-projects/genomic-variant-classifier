@@ -91,8 +91,10 @@ def parse_log_for_per_model_metrics(log_text: str) -> dict[str, dict[str, Any]]:
     """
     out: dict[str, dict[str, Any]] = {m: {} for m in MODEL_NAMES}
 
-    # Pattern A: "==> <model> OOF AUROC: 0.NNNN"
-    pat_a = re.compile(r"==>\s+(\w+)\s+OOF\s+AUROC[:=]\s*([0-9.]+)", re.IGNORECASE)
+    # Pattern A: "<model> OOF AUROC: 0.NNNN" (with or without "==>" prefix).
+    # A7 fix 2026-05-27: the Python logger emits without "==>"; original regex
+    # required it and matched nothing on real training logs.
+    pat_a = re.compile(r"\b(\w+)\s+OOF\s+AUROC[:=]\s*([0-9.]+)", re.IGNORECASE)
     for m in pat_a.finditer(log_text):
         name, val = m.group(1).lower(), float(m.group(2))
         if name in out:
@@ -121,6 +123,91 @@ def parse_log_for_per_model_metrics(log_text: str) -> dict[str, dict[str, Any]]:
             out[name]["train_time_raw"] = m.group(2).strip()
 
     return out
+
+
+def read_per_model_metrics_files(outputs_dir: Path) -> dict[str, dict[str, Any]]:
+    """
+    A7 fix 2026-05-27: prefer structured outputs over log-grep.
+    Reads:
+      - {outputs_dir}/per_model_metrics.csv      -> test metrics (auroc, auprc, f1_macro, f1_weighted, mcc, brier)
+      - {outputs_dir}/per_model_metrics_val.csv  -> val metrics (same schema)
+      - {outputs_dir}/models/*_meta.json         -> OOF AUROC + saved_at_utc + n_samples
+
+    Returns dict keyed by model name with merged metrics. Returns empty dict
+    if no source files are present (caller should fall back to log-grep).
+    """
+    import csv as _csv  # local import to avoid changing top-level imports
+    out: dict[str, dict[str, Any]] = {}
+
+    if not outputs_dir.exists():
+        return out
+
+    # OOF AUROC from per-model meta JSONs
+    models_dir = outputs_dir / "models"
+    if models_dir.exists():
+        for meta_path in sorted(models_dir.glob("*_meta.json")):
+            try:
+                meta = json.loads(meta_path.read_text(encoding="utf-8"))
+                name = meta.get("name") or meta_path.stem.replace("_meta", "")
+                d = out.setdefault(name, {})
+                if "oof_auroc" in meta:
+                    d["oof_auroc"] = float(meta["oof_auroc"])
+                if "saved_at_utc" in meta:
+                    d["saved_at_utc"] = meta["saved_at_utc"]
+                if "n_samples" in meta:
+                    d["n_samples"] = int(meta["n_samples"])
+            except Exception as e:
+                # Don't let one bad meta-json break the whole read
+                out.setdefault(f"_error_{meta_path.stem}", {})["error"] = f"{type(e).__name__}: {e}"
+
+    # Test metrics from per_model_metrics.csv
+    test_csv = outputs_dir / "per_model_metrics.csv"
+    if test_csv.exists():
+        try:
+            with test_csv.open("r", encoding="utf-8", newline="") as fp:
+                reader = _csv.reader(fp)
+                header = next(reader, None)
+                if header:
+                    metric_cols = [h.strip() for h in header[1:]]
+                    for row in reader:
+                        if not row or not row[0].strip():
+                            continue
+                        name = row[0].strip()
+                        d = out.setdefault(name, {})
+                        for i, metric in enumerate(metric_cols, start=1):
+                            if i < len(row):
+                                try:
+                                    d[f"test_{metric}"] = float(row[i])
+                                except ValueError:
+                                    pass
+        except Exception as e:
+            out.setdefault("_error_test_csv", {})["error"] = f"{type(e).__name__}: {e}"
+
+    # Val metrics from per_model_metrics_val.csv
+    val_csv = outputs_dir / "per_model_metrics_val.csv"
+    if val_csv.exists():
+        try:
+            with val_csv.open("r", encoding="utf-8", newline="") as fp:
+                reader = _csv.reader(fp)
+                header = next(reader, None)
+                if header:
+                    metric_cols = [h.strip() for h in header[1:]]
+                    for row in reader:
+                        if not row or not row[0].strip():
+                            continue
+                        name = row[0].strip()
+                        d = out.setdefault(name, {})
+                        for i, metric in enumerate(metric_cols, start=1):
+                            if i < len(row):
+                                try:
+                                    d[f"val_{metric}"] = float(row[i])
+                                except ValueError:
+                                    pass
+        except Exception as e:
+            out.setdefault("_error_val_csv", {})["error"] = f"{type(e).__name__}: {e}"
+
+    return out
+
 
 
 def parse_log_for_kan_backend(log_text: str) -> dict[str, Any]:
@@ -344,9 +431,13 @@ def write_markdown_report(report: dict[str, Any], path: Path) -> None:
     lines.append("| Model | OOF AUROC | Test AUROC | AUPRC | F1 | MCC | Brier | Train time |")
     lines.append("|---|---|---|---|---|---|---|---|")
     for m, d in report["per_model"].items():
+        if m.startswith("_"):
+            continue  # skip error buckets
+        # A7 fix: prefer f1_macro (CSV schema) then fall back to f1 (log-scrape schema)
+        f1_val = d.get("test_f1_macro", d.get("test_f1", "—"))
         lines.append(
             f"| {m} | {d.get('oof_auroc', '—')} | {d.get('test_auroc', '—')} | "
-            f"{d.get('test_auprc', '—')} | {d.get('test_f1', '—')} | "
+            f"{d.get('test_auprc', '—')} | {f1_val} | "
             f"{d.get('test_mcc', '—')} | {d.get('test_brier', '—')} | "
             f"{d.get('train_time_raw', '—')} |"
         )
@@ -472,7 +563,7 @@ def main():
         "git": git_info(repo_dir),
         "host": host_info(),
         "timing": parse_log_for_timestamps(log_text),
-        "per_model": parse_log_for_per_model_metrics(log_text),
+        "per_model": None,  # filled below; structured-files preferred (A7 fix 2026-05-27)
         "kan": parse_log_for_kan_backend(log_text),
         "lightgbm": parse_log_for_lightgbm_device(log_text),
         "cnn_1d": parse_log_for_cnn_skip(log_text),
@@ -481,6 +572,15 @@ def main():
         "feature_nonzero": feature_nonzero_rate(outputs_dir),
         "blend_weights": blend_weights(outputs_dir),
     }
+
+    # A7 fix 2026-05-27: prefer structured outputs over log-grep
+    per_model_structured = read_per_model_metrics_files(outputs_dir)
+    if per_model_structured:
+        report["per_model"] = per_model_structured
+        report["per_model_source"] = "structured"
+    else:
+        report["per_model"] = parse_log_for_per_model_metrics(log_text)
+        report["per_model_source"] = "log_scrape"
 
     json_path = report_dir / "run14_observability.json"
     md_path = report_dir / "run14_observability.md"
