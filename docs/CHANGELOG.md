@@ -1,3 +1,50 @@
+## 2026-05-27 — A7 closure: observability per_model parser rewrite (PM session)
+
+### Attempted
+- Anomaly A7 close: rewrite `scripts/run14_observability.py` per_model parser to read structured outputs.
+- Phase C of Run 15 plan launched (A7 first per Phase-C ordering decision).
+- Local verification by regenerating observability against `outputs/run14/full/` and `outputs/run14/run14_master.log`.
+
+### Failed
+- V1 audit check `'No old hardcoded regex'` was uninformative due to a backslash-escaping error in the PS regex pattern. The check used too many backslashes, so the .NET regex looked for double-backslashes in the file source, but the file source has single backslashes for regex metachars. Result: the check always passed regardless of whether the old pattern was present. V2 audit fixed this with correct backslash counts and added a symmetric `'Old per_model call gone'` check for the main() body.
+- V2 paste's `'main placeholder set (3a)'` audit check raised a false-positive FAIL because V1 (which actually ran the patcher) wrote `# filled below; structured-files preferred (A7 fix 2026-05-27)` as the placeholder comment, while V2's audit expected `# A7 fix` literally after the `#`. The patch is functionally correct; only the audit check was over-specific to V2's exact text. Investigated and confirmed via relaxed re-check (`"per_model": None,\s*#`) plus 3/3 functional verification (per_model_source=structured, catboost.test_auroc=0.9975, kan.oof_auroc populated) before commit.
+
+### Fixed
+- Root cause (verified 2026-05-27): `parse_log_for_per_model_metrics` Pattern A regex required the "==>" prefix on metric lines. `outputs/run14/run14_master.log` shows 45 "==>" lines (all from shell launch echos like `==> [1/7] Data file preflight`) and 11 OOF AUROC lines (all via Python logger format like `2026-05-26 10:49:47  INFO  ...  random_forest OOF AUROC: 0.9978`) with zero overlap. The regex matched 0 of 11 metric lines.
+- Implemented: new `read_per_model_metrics_files(outputs_dir)` function reads three structured sources atomically: `per_model_metrics.csv` (test metrics), `per_model_metrics_val.csv` (val metrics), `models/*_meta.json` (OOF AUROC + saved_at_utc + n_samples). `main()` prefers structured files and falls back to log-grep if absent. JSON adds `per_model_source` key with values `"structured"` or `"log_scrape"`. Pattern A regex relaxed to accept Python-logger format (defense in depth for the fallback path). `write_markdown_report` uses `test_f1_macro` fallback (CSV column name; pre-A7 log-grep produced `test_f1`).
+- Regression test `tests/unit/test_run14_observability.py` (7 cases, all passing): 5 cases for the structured-file reader (OOF/test/val/missing-dir/empty-dir), 2 cases for the log-grep fallback (Python-logger format match + legacy "==>" backward compat).
+
+### Headline verification (local regen against outputs/run14/full/)
+- `per_model_source: structured`
+- catboost: OOF=0.9981844462249252 TEST=0.9975 VAL=0.9975 — matches 2026-05-26 Run 14 entry
+- kan: OOF=0.9921137643927214 TEST=0.9896 VAL=0.9914 — matches
+- xgboost: OOF=0.9983895442721538 TEST=0.9974 — matches
+- ENSEMBLE_STACKER present (TEST=0.9975, val=0.9974) — new vs pre-A7 (log-grep never matched ensemble row)
+- All 11 entries from per_model_metrics.csv populate (10 base learners + ensemble stacker)
+
+### Commits (1 this session, pushed)
+- `da41f27` — fix(observability): A7 close - rewrite per_model parser to read structured files (236 insertions, 4 deletions; includes 132-line regression test file)
+
+### Learned
+1. **PowerShell single-quote regex pitfall.** PS single-quote literals preserve characters verbatim. .NET regex requires two backslashes to match one literal backslash. So matching one literal backslash + s in a PS regex pattern needs 3 chars (`\s`), not 5 chars (`\\s`). Writing too many backslashes never matches anything, and `-not (never matches)` always returns true — the check looks fine but tests nothing. Verbatim-source-substring marker rule (D13.RETRY, 2026-05-27) covers the underlying discipline.
+2. **Audit checks must match what the patcher actually writes, not what an alternative patcher revision would write.** V2's audit check expected V2's text; V1 ran and wrote different text. False-positive FAIL is recoverable but wastes a verification round. When a check fails on a patch that appears working, INVESTIGATE the check vs file content before reverting — the patch may be correct.
+3. **Run14_Postflight.ps1 consumes the observability MD report (L129-131), not the JSON schema.** Changing JSON schema (added `per_model_source` key) is safe as long as MD renders correctly. No Postflight changes needed.
+4. **Structured outputs beat log-grep for any post-hoc analysis.** Even when the regex is correct, structured files don't depend on logger format, have higher precision (full-float meta-json vs rounded log values), survive log truncation, and are atomic per-model. Future observability code should always prefer structured > log-grep > nothing.
+
+### Test count baseline correction
+- The compacted summary referenced "552 tests" from B.6.4 proof; today's count is 533. Re-reading the 2026-05-27 AM CHANGELOG entry (L22) shows the real testpaths-fix baseline was **526 tests**, not 552. The 552 figure was the B.6.4 hypothetical (full suite minus the polluter file). 526 + 7 new A7 tests = 533 today. **No discrepancy.**
+
+### Open follow-up
+- **A3** (next Phase C item): `scripts/launch_run11_vm.sh` imodelsx_patch echo dedupe (C.4 in plan; ~30 min).
+- **C.5-C.7**: postflight + destroy script infrastructure (Charter SR #38, #39, Test-ArtifactPresent wiring).
+- **A2** (B.O3, C.2): implement `TabularNNClassifier._predict_proba_single_pass()` OR drop MC-dropout from base learners (2-4 hr).
+- **A4** (B.O1): KAN subsample decision (30 min decision; GPU-expensive action).
+- **A6** (B.D1-B.D6): 6 data-source decisions; some need license review.
+- **E budget**: GPU hours, cost USD, hard ceiling.
+- **H_Run15 hypothesis**: last item to lock.
+
+---
+
 ## 2026-05-27 - Pytest sys.modules pollution diagnosed + testpaths fix landed
 
 ### Attempted

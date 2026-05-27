@@ -23,7 +23,7 @@ This plan must be fully populated and Charter v1.1 gates G1 + G2 must PASS befor
 
 - **B.O3** A2 fix (mc_dropout uncertainty degenerate, missing _predict_proba_single_pass): <DECISION>
 
-- **B.O4** A7 fix (observability per_model dict empty): <DECISION>
+- **B.O4** A7 fix (observability per_model dict empty): **CLOSED — rewrite to read structured files (2026-05-27, da41f27)**. Run 14 master log emits per-model metrics via Python's logging module without the "==>" prefix the regex required. Fix: new `read_per_model_metrics_files()` reads `per_model_metrics.csv` + `per_model_metrics_val.csv` + `models/*_meta.json`; log-grep retained as fallback. Verified locally: `per_model_source: structured`, catboost OOF=0.9982 TEST=0.9975 VAL=0.9975 matches CHANGELOG Run 14. Regression test: `tests/unit/test_run14_observability.py` (7 cases).
 
 ### B.D — Data Source Decisions
 - **B.D1** 1KGP AF parquet build: <DECISION: build before Run 15 | defer to Run 16>
@@ -46,7 +46,7 @@ This plan must be fully populated and Charter v1.1 gates G1 + G2 must PASS befor
 
 - **C.1** mc_dropout.py:87 np.log(0) clip: <DECISION: yes | no>
 - **C.2** TabularNNClassifier._predict_proba_single_pass(): <DECISION: implement | drop MC-dropout from base learners>
-- **C.3** scripts/run14_observability.py per_model parser: <DECISION: rewrite | retire script>
+- **C.3** scripts/run14_observability.py per_model parser: **rewrite — closed in da41f27** (read structured files preferentially; log-grep fallback with relaxed regex)
 - **C.4** scripts/launch_run11_vm.sh imodelsx_patch dedupe (A3): <DECISION>
 - **C.5** Run15_Postflight.ps1 uses Test-ArtifactPresent for ALL gate checks: <DECISION: required | skip>
 - **C.6** Run15_Postflight.ps1 must `exit 1` on any FAIL (SR #39): <DECISION>
@@ -60,7 +60,7 @@ This plan must be fully populated and Charter v1.1 gates G1 + G2 must PASS befor
 - A4 KAN trained on 12% subsample → see B.O1
 - A5 score annotation step numbering inconsistency → cosmetic, defer
 - A6 5 silent-zero data sources → see B.D1-B.D6
-- A7 observability per_model dict empty → see B.O4/C.3
+- A7 observability per_model dict empty → CLOSED at da41f27 (rewrite to read structured files; see B.O4/C.3)
 - A8 postflight gate path assumption → CLOSED at dc95dab (Test-ArtifactPresent helper); follow-up wiring in C.5
 
 ## E. Wall-clock + cost budget
@@ -93,3 +93,5 @@ This plan must be fully populated and Charter v1.1 gates G1 + G2 must PASS befor
 ## Decision log
 
 (Append decisions here as they are made, with date + rationale.)
+
+- **2026-05-27 — A7 (B.O4 / C.3) decision: rewrite** (commit `da41f27`). Rationale: the training script already writes structured per-model metrics to `per_model_metrics.csv`, `per_model_metrics_val.csv`, and `models/*_meta.json`; log-grep was over-fitted to the shell launch script's "==>" echo style and never matched the Python-logger output. Rewrite reads those structured sources first; log-grep regex relaxed (drop "==>" prefix requirement) as fallback. Closes A7 with no regression to other observability outputs (feature_nonzero, KAN status, LightGBM status, artifact inventory all unchanged). Regression test: `tests/unit/test_run14_observability.py` (7 cases, all passing).
