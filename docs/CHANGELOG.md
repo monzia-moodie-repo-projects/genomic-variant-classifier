@@ -1,3 +1,65 @@
+## 2026-05-27 PM8 — B.D batch decisions: 6 data-source decisions resolved + 3 plan factual corrections (docs-only)
+
+### Attempted
+- Resolve B.D1–B.D6 placeholders in RUN_15_PLAN.md L29–43 with HIGH-confidence rationale grounded in actual on-disk connector code + data files + recent incident docs.
+- Correct 3 factual inaccuracies in plan wording discovered during the 4-phase B.D probe sequence (Option B: comprehensive).
+
+### Failed (and recovered)
+- **B.D probe v1 (Phase 2 abort)**: PowerShell operator-precedence bug. `$bdStart -ge 0 -and $i -gt $bdStart -and ... -match '^### ' -or ... -match '^## '` parsed as `(A -and B -and C) -or D`, so the `-or D` clause fired on the first `## ` header anywhere in the file BEFORE `$bdStart` was set, causing the section finder to early-exit with bdStart still -1. Memory rule #21.12 added: "`-and` tighter than `-or`; paren OR groups in AND chains else early-exit". Probe was read-only; no recovery needed.
+- **B.D probe v2 path miss**: Phase 4 per-item probe paths used guessed filenames (`onekgp.py`, `kgp.py`, `primateai.py`, `primateai_3d.py`) that don't exist on disk; actual filenames are `thousandgenomes.py` and `primateai3d.py`. Phase 3 directory listing DID surface the real filenames but Phase 4 ran with guesses in parallel. Methodology lesson: directory listing must INFORM per-item probe paths, not run alongside them. Probe was read-only; no recovery needed.
+- **PM8 patcher first attempt (Phase E abort, exit 10)**: delta count expected 6, got 5. Root cause: PM8_ENTRY contained a literal `<DECISION>` token ("...avoid precedence traps. [token] count in plan: 11 -> 5...") as a meta-mention, which collided with the Phase E `plan_lf.count("<DECISION")` validation. Atomic patcher worked correctly — Phase F never ran, so no files were modified. Fix: reworded PM8_ENTRY to use "Plan placeholder count" instead of the literal `<DECISION>` token. New lesson logged as PM8_ENTRY item (4).
+- **PM8 patcher second attempt (Phase E abort, exit 17)**: cl_checks needle #12 was "Directory listing must INFORM per-item probes" but actual CL_ENTRY Learned item 2 uses lowercase "inform". Frankenstein needle mixed casing from two different occurrences. Phase F never ran, no files modified. Fix: corrected needle to match Learned item 2 exactly. Logged as Learned item 10.
+- **3 plan inaccuracies discovered by probe** (corrected in this commit per Option B):
+  1. B.D1 sub-bullet "Unlocks 5 dead features (af_1kg_{afr,eur,eas,sas,amr})" was wrong — `thousandgenomes.py` outputs single `allele_freq` column (gnomAD AF fallback), not 5 per-population features. Corrected.
+  2. B.D6 heading "CNN-fasta input" was based on misconception per INCIDENT_2026-05-23: cnn_1d is a 1-D CNN over the 78-dim tabular feature vector (input shape `(78, 1)`), NOT a sequence model. Corrected heading + DECISION text.
+  3. B.D2 plan claim "transfer" was outdated: 30.6 GB is already on disk at `data/external/finngen/finnge_R12_annotated_variants_v1.gz`. Two issues: filename typo ("finnge" missing 'n') and version mismatch (R12 vs connector-expected R10). Added detail to DECISION rationale.
+
+### Fixed (6 decisions + 3 corrections committed)
+- **`docs/runs/RUN_15_PLAN.md`** L29 (B.D1): DECISION resolved (defer to Run 16) with connector-scope clarification.
+- **`docs/runs/RUN_15_PLAN.md`** L30 (B.D1 sub-bullet): rewritten from "5 features" claim to accurate "single `allele_freq` column" description.
+- **`docs/runs/RUN_15_PLAN.md`** L32 (B.D2): DECISION resolved (defer) with filename typo + R12/R10 version mismatch detail.
+- **`docs/runs/RUN_15_PLAN.md`** L35 (B.D3): DECISION resolved (build, enable GNN path) with cache evidence + Run 9 root cause attribution to pipeline-side gnn_df overwrite.
+- **`docs/runs/RUN_15_PLAN.md`** L38 (B.D4): DECISION resolved (defer) referencing INCIDENT_2026-04-17 and the new-code-work scope.
+- **`docs/runs/RUN_15_PLAN.md`** L41 (B.D5): DECISION resolved (defer with license-review subtrack continuing); "drop" option from plan token explicitly NOT used per memory rule #20 (never propose dropping techniques/features).
+- **`docs/runs/RUN_15_PLAN.md`** L43 (B.D6): heading corrected from "CNN-fasta input" to "cnn_1d fasta input misconception" + DECISION resolved (--skip-cnn) per INCIDENT_2026-05-23 cnn_1d clarification.
+- **`docs/runs/RUN_15_PLAN.md`** Decision log: PM8 entry appended after PM7.
+- **`docs/CHANGELOG.md`**: this PM8 entry prepended at top.
+
+### Headline verification (probe outputs cited)
+- **`thousandgenomes.py` L13-15** (read live 2026-05-27): "Expected parquet schema (same format as gnomAD AF parquet): variant_id str, allele_freq float Global alternate AF across all 1000G super-populations". Single column — confirms B.D1 correction.
+- **`finngen.py` L18-21**: "Feature columns produced: finngen_af_fin, finngen_af_nfsee, finngen_enrichment". B.D2 plan claim was correct on feature names but wrong on transfer status.
+- **`data/external/finngen/finnge_R12_annotated_variants_v1.gz`** (30638.3 MB): filename typo + R12 version visible from `Get-ChildItem` output.
+- **`primateai3d.py` L26-28** (PHASE_2_PLACEHOLDER) + **L41** ("must match TABULAR_FEATURES when wired"): connector exists but not yet integrated.
+- **`data/raw/cache/string_links.parquet`** (13,715,404 rows; columns include `combined_score`) + **`string_names.parquet`** (19,699 rows) + **`string_graph_700.pkl`** (17.2 MB): STRING data + graph pickle fully cached.
+- **`gnn.py`** L640-644: defensive gene_symbol handling with empty-string defaults — Run 9 GNN-FREE was pipeline-side gnn_df overwrite, not gnn.py.
+- **INCIDENT_2026-05-23** L18-20: "`cnn_1d` is a 1-D convolutional network operating on the 78-dim tabular feature vector. It is NOT an image classifier. Input shape is `(78, 1)`. ... no image data is required, was ever required, or will fix the regression. The bug is in the wrapper code." — confirms B.D6 misconception.
+- **INCIDENT_2026-05-24** L27-35: CNN1D model class defined as a closure inside `_build_model` method, causing joblib unpickle failure cross-platform.
+
+### Commits (1 this session, pushed)
+- `XXXXXXX` docs(plan,changelog): B.D1-B.D6 batch decisions + 3 plan factual corrections (PM8)
+
+### Learned
+1. **Plan wording can be inaccurate.** B.D1 "5 features" claim and B.D6 "CNN-fasta" framing both contradicted the actual source on disk. Probe-first discipline (memory #11) caught both before they were committed as "resolved".
+2. **Directory listing must inform per-item probes**, not run parallel with guessed paths. My Phase 4 used filename guesses that don't exist on disk, despite Phase 3 directory listing surfacing the real filenames. This is a methodology refinement on memory rule #11.
+3. **PowerShell `-and` binds tighter than `-or`** (memory #21.12 added earlier today) — caught a B.D probe v1 abort. Pattern: never put `-and ... -or` in section-finder loop conditions without parenthesizing the OR group.
+4. **Two-loop section finders** are safer than single-loop with mixed conditions — single-purpose loops have no operator-precedence ambiguity.
+5. **gnn.py is defensively coded.** The Run 9 GNN-FREE issue is pipeline-side, NOT in gnn.py. This changes the scope of "fix GNN" work — the fix is upstream in the caller, not in graph construction.
+6. **INCIDENT docs are authoritative.** INCIDENT_2026-05-23 conclusively states cnn_1d is tabular, not sequence. Without reading the incident doc we would have committed wrong B.D6 reasoning. Reaffirms memory rule #11 (read project files first).
+7. **The 30.6 GB FinnGen file is a half-finished transfer**: filename typo + version drift mean the data is on disk but unusable by current finngen.py code. "Transfer" was the wrong label; "integrate after R12 schema validation" is the real next step.
+8. **Atomic patcher pattern (Phase A read → B idempotency → C anchors → D build → E validate → F write) scales to 6 simultaneous decisions** without partial-mutation risk. Validated by Phase E catching the PM8 meta-collision (v1) and cl_checks needle case mismatch (v2) — Phase F never ran in either failure, no files modified, no `git checkout` recovery needed.
+9. **Validation needles must not appear in NEW content.** PM8 v1: embedded `<DECISION>` as meta-mention while Phase E counted `<DECISION>` as delta-validation marker. Result: count drift by 1, abort exit 10. Fix: reword to avoid the literal.
+10. **Validation needles must EXACTLY match content (case-sensitive).** PM8 v2: cl_checks needle was "Directory listing must INFORM per-item probes" but Learned item 2 has lowercase "inform" — frankenstein needle mixing caps from two different sentences. Result: substring not found, abort exit 17. Fix: align needle to one specific occurrence exactly. Pattern: every check needle should be copy-pasted verbatim from a unique occurrence in NEW content, not synthesized.
+
+### Open follow-ups
+- **H_Run15** primary hypothesis (L13): pending.
+- **E budget** GPU hours / cost USD / hard ceiling (L68-70): pending (3 sub-placeholders).
+- **GNN pipeline-side gene_symbol fix**: required before B.D3 "build" is actionable in Run 15 pre-flight. Code change in `build_pyg_dataset` caller (likely `variant_ensemble.py` or `pipeline.py`).
+- **cnn_1d closure refactor**: bug from post-C5 commit ac64665 still present. Needs code change to refactor `_CNN1D` class out of `_build_model` method closure (per INCIDENT_2026-05-24 root cause).
+- **B.D2 R12 schema validation**: separate task to grep FinnGen R12 file headers and confirm column compatibility with finngen.py R10 expectations. If columns match, B.D2 reopens as quick-integrate; if not, needs code update.
+- **Run 15 launch**: 4 remaining decisions (H_Run15 + 3 E sub-placeholders), then pre-flight + Vast.ai SCP up → train → SCP back → destroy immediately.
+
+---
+
 ## 2026-05-27 PM7 — C.1 decision: decline np.log(0) defensive clip at mc_dropout.py:87 (docs-only)
 
 ### Attempted
