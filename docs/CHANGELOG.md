@@ -1,3 +1,54 @@
+## 2026-05-27 PM7 — C.1 decision: decline np.log(0) defensive clip at mc_dropout.py:87 (docs-only)
+
+### Attempted
+- Resolve C.1 placeholder in RUN_15_PLAN.md L47 (`<DECISION: yes | no>` for adding a defensive `np.clip` at `mc_dropout.py:87`).
+- Confirm safety via live probe of `_decompose_uncertainty` (mc_dropout.py L65-90) before committing to a decline rationale grounded in actual source rather than memory.
+
+### Failed (and recovered)
+- **C.1 probe Phase 4 aborted**: `A hash table can only be added to another hash table`. Root cause: PowerShell automatic variable `$matches` is set by the `-match` regex operator to a hashtable of capture groups; my probe used `$matches = @()` (array) and then `$matches += "..."` after a regex match, which stomped my array and produced a hashtable += string error. Phases 1-3 succeeded before the abort (state pin, full code at L60-100, boundary probe script presence); Phase 5 (placeholder enumeration) did not execute.
+- **First C.1 implementation paste aborted at exit 11**: `marker not in new CHANGELOG`. Root cause #1 (proximate): MARKER was defined as `"C.1 decision: no"` which appeared in plan PM7_ENTRY but NOT in CHANGELOG C1_ENTRY (which used `"C.1 decision: decline np.log(0)..."`). Post-condition `if MARKER not in new_cl_lf: sys.exit(11)` fired correctly. Root cause #2 (amplifier): patcher wrote the plan BEFORE validating the CHANGELOG, so the plan was modified on disk while CHANGELOG was untouched — partial mutation requiring `git checkout HEAD --` revert. Memory rule #28 expanded: (14) multi-file patchers must build+validate ALL files before writing ANY; (15) marker strings must appear VERBATIM in ALL touched files' new content. Fixed paste: MARKER `"2026-05-27 PM7 — C.1 decision"` appears in both PM7_ENTRY and C1_ENTRY header; restructured patcher into Phase A (read), B (idempotency), C (anchors), D (build), E (validate), F (write).
+- **Recovery (both above)**: probe was read-only — no probe-time mutations. First paste required `git checkout HEAD -- docs/runs/RUN_15_PLAN.md` to revert the partial plan write. CHANGELOG was unchanged in both failures.
+
+### Fixed (decision rationale committed)
+- **`docs/runs/RUN_15_PLAN.md`** (L47): `<DECISION: yes | no>` → DECLINED marker citing mathematical + empirical evidence.
+- **`docs/runs/RUN_15_PLAN.md`** (Decision log): append PM7 C.1 entry after PM6 A2 entry.
+- **`docs/CHANGELOG.md`**: prepend this PM7 entry at top (reverse-chronological).
+
+### Headline verification
+- **Live probe** of `src/genomic_variant_classifier/models/mc_dropout.py`: 313 lines, 11694 bytes, **CRLF: False** (LF-only — different from `variant_ensemble.py`'s CRLF). L82-88 reads:
+
+      L82: mean_prob = probs_stack.mean(axis=0)
+      L83: epistemic = probs_stack.var(axis=0)
+      L85: eps = 1e-8
+      L86: clipped = np.clip(probs_stack, eps, 1.0 - eps)
+      L87: entropy_per_pass = -(clipped * np.log(clipped) + (1 - clipped) * np.log(1 - clipped))
+      L88: aleatoric = entropy_per_pass.mean(axis=0)
+
+  Critical observation: **L87 uses `clipped` (NOT raw `probs_stack`)** in both `np.log` calls. Boundary safety is structurally enforced via variable reuse, not just side-clipping.
+- **Mathematical guarantee**: `clipped ∈ [1e-8, 1-1e-8]` (enforced by L86 assignment) ⇒ `log(clipped) ∈ [log(1e-8), log(1-1e-8)] ≈ [-18.42, -1e-8]` (finite); `log(1-clipped) ≈ [-18.42, -1e-8]` (finite by symmetry); products are bounded products of finite values (finite).
+- **Empirical**: Runs 11/12/13/14 all included mc_dropout (OOF AUROC 0.9971/0.9971/0.9971/~0.9968) with **zero log(0) crashes** across roughly 4 × 1.2M samples × 5 folds = 24M+ inference passes.
+- **Regression suite**: `tests/unit/test_mc_dropout_uncertainty.py` (7 cases, all green per B.O2 closure 2026-05-26) + `scripts/probe_a1_boundary.py` (2956 bytes, present locally, callable for any future verification).
+
+### Commits (1 this session, pushed)
+- `XXXXXXX` docs(plan,changelog): C.1 decline - np.log(0) clip not needed at mc_dropout.py:87 (line structurally safe)
+
+### Learned
+1. **Standing rule #3 (probe before assume) caught one more case.** The visible L87 code uses `clipped` not raw `probs_stack`. Had we relied on B.O2 closure summary alone, the argument would be implicit; the live probe shows the bound is structurally enforced via variable reuse.
+2. **PS automatic variable `$matches` is a recurring trap.** Set by `-match` operator to capture-group hashtable. Memory rule #21 expanded with full auto-var blocklist.
+3. **mc_dropout.py uses LF, not CRLF.** `variant_ensemble.py` uses CRLF. Future patchers must detect line endings per-file. The `read_bytes/decode/normalize-LF/restore-CRLF/encode/write_bytes` pattern handles this correctly.
+4. **Redundant defensive code is anti-pattern when tests + production evidence exist.** A second clip at L87 would clip already-clipped values to the same bounds — pure no-op.
+5. **SESSION START PK queries (memory #11):** today's PK searches surfaced SESSION_2026-05-25 with full Run 11/12/13 context that should have informed Phase C framing earlier in the day.
+6. **Markdown rendering pitfall.** Nested triple-backtick fences inside a Python string inside a PowerShell heredoc inside a chat markdown response close the outer fence prematurely. Fix: use 4-space indented code blocks inside the Python string.
+7. **NEW (memory #28 items 14+15): Multi-file patcher atomicity + cross-file marker consistency.** Failed C.1 paste demonstrated both. (14) Build+validate ALL files before writing ANY — prevents partial mutations when later validation fails. (15) Marker strings must appear VERBATIM in ALL touched files' new content — a marker present only in one file but checked against another causes guaranteed false-positive aborts. Combined fix: restructured patcher into Phase A read → B idempotency (both) → C anchors (both) → D build (both) → E validate (both) → F write (both, only after all green).
+
+### Open follow-ups
+- **B.D1–B.D6** (6 data-source decisions): next in Phase C queue.
+- **H_Run15** primary hypothesis: pending.
+- **E budget** (GPU hours / cost USD / hard ceiling at RUN_15_PLAN.md L68-70): pending.
+- **After all decisions close**: Run 15 launch.
+
+---
+
 ## 2026-05-27 PM6 — A2/B.O3/C.2 closure: TabularNNClassifier._predict_proba_single_pass implementation
 
 ### Attempted
