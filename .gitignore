@@ -51,9 +51,9 @@ Thumbs.db
 *.log
 
 # Scratch / temp files
-test_revel_block.py
-test_phylop_block.py
-test_run_pre_commit.txt
+/test_revel_block.py
+/test_phylop_block.py
+/test_run_pre_commit.txt
 
 # ── Large data files ──────────────────────────────────────────────
 data/external/
@@ -92,7 +92,7 @@ data/external/finngen/finnge_R12*.gz
 # Scratch and generated files
 catboost_info/
 catboost_wrapper.py
-test_catboost.py
+/test_catboost.py
 download_finngen.py
 patch_finngen_wiring.py
 requirements-current.txt
