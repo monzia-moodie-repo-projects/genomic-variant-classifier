@@ -1,3 +1,45 @@
+## 2026-05-27 PM9 — H_Run15 decision: Option C3 hybrid hypothesis (docs-only)
+
+### Attempted
+- Resolve H_Run15 placeholder at RUN_15_PLAN.md L13 with a falsifiable primary hypothesis grounded in actual Run 15 scope (post-PM5/PM6/PM7/PM8 decisions) and the project's central scientific concern (gene-prevalence memorization).
+- Update L14 stale examples line, which referenced pre-decision scope (5 silent-zero gaps closed, KAN at 814K) contradicted by today's PM5/PM8 decisions.
+
+### Fixed
+- **`docs/runs/RUN_15_PLAN.md`** L13: H_Run15 set to Option C3 hybrid hypothesis (conjunctive: gap test + gene-memorization test).
+- **`docs/runs/RUN_15_PLAN.md`** L14: stale examples line replaced with concise falsification summary + Decision log pointer.
+- **`docs/runs/RUN_15_PLAN.md`** Decision log: PM9 entry appended after PM8.
+- **`docs/CHANGELOG.md`**: this PM9 entry prepended.
+
+### Rationale
+- Hybrid C3 covers BOTH the gap test (encoded in B.O1 PM5 threshold 0.001) AND the central scientific concern (gene-prevalence memorization given n_pathogenic_in_gene importance 3.3× next feature, per memory #12).
+- Falsifier (a): OOF→test gap > 0.0010 — escalates B.O1 to Option A2 (500K KAN) in Run 16.
+- Falsifier (b): unseen_gene_holdout AUROC < 0.95 — flags gene-memorization dominance; deeper ablation required before claiming variant-level discriminative skill.
+- Alternative candidates explicitly considered and rejected: C1 (gene-memo only — missed the gap criterion already encoded in B.O1), C2 (gap only — missed central scientific concern), C4 (orthogonality — supporting goal, not primary classification goal).
+- Conjunctive AND criterion is strictly harder to confirm than either C1 or C2 alone, yielding stronger evidence if it holds.
+
+### Run 15 actual scope (deltas vs Run 14)
+- KAN: 100K → 250K (B.O1 PM5, L103 of plan).
+- MC-dropout: degenerate fallback → real epistemic+aleatoric (B.O3 PM6, commit c60e842, L24/L104 of plan).
+- GNN: GNN-FREE → enabled conditional on pipeline-side gene_symbol fix (B.D3 PM8, L106 of plan; memory #27 root cause Patch 6b).
+- cnn_1d: still --skip-cnn (B.D6 PM8 confirms; closure bug INCIDENT_2026-05-24 unresolved, L106 of plan).
+- 5 silent-zero features still dead: B.D1/B.D2/B.D4/B.D5 deferred (PM8 L106).
+
+### Commits (1 this session, pushed)
+- `XXXXXXX` docs(plan,changelog): H_Run15 decision — Option C3 hybrid hypothesis (PM9)
+
+### Learned
+1. **Hypothesis text must reflect ACTUAL run scope at time of decision.** L14 example hypotheses were written at Run 14 close-out (2026-05-26) and predated PM5/PM6/PM7/PM8 decisions — by today they contradicted the actual scope (4 of 5 silent-zero gaps deferred, KAN at 250K not 814K). Plan-template scaffolding should be removed or updated as decisions land, not left as historical clutter that contradicts current state.
+2. **Conjunctive (AND) hypotheses are strictly harder to confirm but yield stronger evidence than disjunctive (OR) or single-criterion hypotheses.** C3 requires BOTH (a) AND (b) to confirm; either failure refutes. Vs C1 or C2 alone, C3 leaves less room for misinterpretation at close-out.
+3. **The L77 meta-reference (backtick-wrapped placeholder pattern) is a documentation pattern, not an unresolved decision.** Future validation tools that count the placeholder substring should skip backtick-wrapped occurrences or accept that the residual count after all decisions = 1 (the L77 doc-pattern). This is the same pattern-vs-literal collision class as PM8 v1 (memory rule #28.16).
+
+### Open follow-ups
+- **E budget (L68/L69/L70)** — next decision (PM10). Will probe SESSION_2026-05-25.md and CHANGELOG for Run 11/12/13/14 actual wall-clocks before proposing GPU-hr / USD / hard-ceiling triple.
+- **B.D3 enable: pipeline-side gene_symbol fix in `build_pyg_dataset` caller** — required before Run 15 launch if C3 hypothesis is to test GNN ensemble contribution. Memory #27 root cause Patch 6b: `X_train_raw = pd.read_parquet(outdir/'splits'/X_train.parquet)` clobbers gnn_df with 78-col matrix lacking gene_symbol. Fix: source gene_symbol from df via train_idx, or persist meta_train.parquet alongside meta_val/meta_test in DataPrepPipeline._save_splits.
+- **cnn_1d closure refactor** per INCIDENT_2026-05-24 — currently --skip-cnn; if refactored before launch, Run 15 could include cnn_1d as 10th-or-11th ensemble member. Not strictly required by C3 hypothesis (which references the existing 10-model ensemble).
+- **Run 15 pre-flight gates G1+G2** per Charter v1.1 (plan L72–L82).
+
+---
+
 ## 2026-05-27 PM8 — B.D batch decisions: 6 data-source decisions resolved + 3 plan factual corrections (docs-only)
 
 ### Attempted
