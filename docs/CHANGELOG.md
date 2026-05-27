@@ -1,3 +1,58 @@
+## 2026-05-27 — D17 closure: scripts/run15_observability.py + tests for Run 15 (PM session 4)
+
+### Attempted
+- D17 closure: clone scripts/run14_observability.py to scripts/run15_observability.py + matching test file.
+- Required by Run15_Postflight.ps1 L80 (exit 1 if missing locally). Last hard blocker for Run 15 launch from a code-presence standpoint.
+- Codify the four distinct failure modes encountered across iterations into the lessons block.
+
+### Failed
+- **Attempt 1**: Patcher used `Path.read_text(encoding="utf-8", newline="")`. TypeError — `Path.read_text` accepts `newline=` only since Python 3.13; env is 3.12.10 (`Path.write_text(newline=)` works since 3.10, asymmetric API gap). Top-level try/catch halted cleanly before any file writes.
+- **Attempt 2**: Patcher fixed (`read_bytes` + decode + replace + encode + `write_bytes`). Patcher succeeded; files written. Phase 4 verification false-failed on all 4 `0 occurrences of X` checks: pattern `($newScript.Split('run14').Length - 1) -eq 0` was broken because PS 5.1 (.NET Framework 4.x) lacks the `String.Split(string)` overload added in .NET 5+. `.Split('run14')` resolved to the `params char[]` overload — splits on any of chars `r`/`u`/`n`/`1`/`4`. Throw fired correctly; files left on disk (catch printed recovery commands but did not execute them).
+- **Attempt 3**: Verification fixed (`-not <var>.Contains('substr')`). State pin tree-clean check threw at start because prior attempt's untracked files were still present. Pattern: "print recovery, hope human runs it" is structurally unreliable when next paste is re-paste of same block.
+- **Attempt 4**: SUCCESS. Self-healing Phase 1 added: detects exactly the known-stale `?? scripts/run15_observability.py` + `?? tests/unit/test_run15_observability.py` entries and selectively cleans them. Refuses for any unexpected dirty entry.
+
+### Fixed
+- **`scripts/run15_observability.py`** (`486c680`, 602 lines, 25065 bytes): byte-level clone via Python patcher with 4 deterministic string-replace transforms.
+  - Global `run14` -> `run15` (4 lines: L3 header banner, L30 usage example, L33 `--report-dir` example path, L585/586 output filenames `.json` + `.md`).
+  - Global `Run 14` -> `Run 15` (3 lines: L5 purpose, L12 target, L406 markdown title).
+  - Date: `Created:  2026-05-26` -> `Created:  2026-05-27`.
+  - Target ref: `genomic-variant-classifier @ commit bf2f665, Run 14` -> `genomic-variant-classifier, Run 15 (commit set at launch)`.
+  - Byte arithmetic: net delta +6 bytes from longer target line; all other transforms length-preserving. Matches patcher's reported `25059 -> 25065`.
+
+- **`tests/unit/test_run15_observability.py`** (`486c680`, 132 lines, 5947 bytes): clone with single targeted replacement `run14_observability` -> `run15_observability` (4 occurrences: L1 docstring, L24 SCRIPT_PATH, L28 import docstring, L30 module spec name).
+  - **INTENTIONALLY PRESERVED**: `outputs/run14/`, `run14_master.log`, `Run 14 log format`, `run14_synth`. These reference the test DATA SOURCE (real Run 14 log lines used as canonical sample format), not the script under test. Parser is invariant across runs.
+  - Byte delta: 0 (run14_observability and run15_observability are same length); 4 length-preserving substitutions.
+
+- **Patcher idiom now canonical for Python <= 3.12**: `Path.read_bytes()` -> `.decode("utf-8")` -> string `.replace()` -> `.encode("utf-8")` -> `Path.write_bytes()`. Bypasses the `read_text(newline=)` 3.13 API gap AND any local autocrlf line-ending interference (byte layer is opaque to autocrlf which operates on text-mode I/O only).
+
+- **PowerShell sanity-check pattern correction**: substring-presence checks must use `-not $var.Contains('substr')` (PS 5.1-safe). DO NOT use `$var.Split('substr').Length - 1` on PowerShell 5.1.
+
+- **Self-healing Phase 1 pattern**: when known-stale untracked artifacts from a prior failed apply might be present, state-pin should (a) match against exact known-stale entries, (b) refuse for any unexpected dirty entry, (c) selectively `Remove-Item -Force` and re-verify clean.
+
+### Headline verification
+- 19/19 Contains-based sanity checks PASS (PS 5.1 safe).
+- `python -m py_compile` PASS on both new files.
+- pytest: 14/14 PASS in 7.67s (both regression-on-old and functional-equivalence-on-new).
+- Git: HEAD `d8baaa9` -> `486c680`; local == remote after push.
+- Byte arithmetic: script +6, test +0, both match patcher reported sizes exactly.
+
+### Commits (1 this session, pushed)
+- `486c680` — feat(scripts): D17 - scripts/run15_observability.py + tests for Run 15 (734 insertions, 2 files)
+
+### Learned
+1. **Python 3.12 vs 3.13 API gap**: `Path.read_text()` accepts `newline=` only since 3.13. `Path.write_text(newline=)` works since 3.10. For Python <= 3.12 portability, use `Path.read_bytes()` + `.decode("utf-8")` for reads and `.encode("utf-8")` + `Path.write_bytes()` for writes. Bypasses the asymmetric API gap AND preserves exact source byte structure regardless of autocrlf.
+2. **PowerShell 5.1 `String.Split(string)` is the char-array overload**: `$str.Split('run14')` on PS 5.1 (.NET Framework 4.x) splits on **any** of chars `r`/`u`/`n`/`1`/`4`, NOT on the substring "run14". The single-string overload was added in .NET 5+ and is only available in PowerShell 7+. For substring-presence on PS 5.1, use `-not $str.Contains('substr')`.
+3. **"Print recovery, hope human runs it" is structurally unreliable**: when a catch handler prints recovery commands as text but does not execute them, the next paste typically re-runs the same block, which re-throws the same way. Build self-healing into the state-pin phase: detect the exact known-stale artifacts, REFUSE if any unexpected dirty entry exists, and selectively clean.
+4. **Audit-finding pattern**: when memory or older session notes claim an item is OPEN but the repo shows otherwise, verify against `git log --oneline -- path/to/file` and `git show <commit>`. Today's D16 turned out to already be CLOSED in `bd75ed5` (2026-05-11). The CHANGELOG entries on L54 and L98 of d8baaa9 are stale as a result; per append-only convention they are NOT modified, but this entry documents the audit finding for future grep.
+5. **Recursive `__pycache__` cleanup scope**: `Get-ChildItem -Path . -Recurse -Directory -Filter __pycache__` from project root traverses INTO `.venv312/` and clears site-packages pycache too (720 dirs cleared in this session). Functionally harmless (pytest re-generates), but wasteful. Future canonical idiom: filter out `\.venv*` paths from the cleanup list.
+
+### Open follow-ups
+- **D15** (memory codification): codify today's 5 lessons into memory_user_edits; remove any stale "D16 is open" entries from memory. Requires user confirmation per memory tool standing rule. Est 10 min.
+- **SESSION_2026-05-27.md** update: append today's late-session events (D17 closure + D16 audit finding). Est 10 min.
+- **Phase C remaining decision-only items**: A2 (TabularNN MC-dropout), A4 (KAN subsample), A6 (data sources x6), E budget, H_Run15. None block Run 15 launch from a code-presence standpoint; A4 + E budget + H_Run15 should be locked before launch.
+
+---
+
 ## 2026-05-27 — C.5+C.6+C.7 closure: postflight + destroy infrastructure (PM session 3)
 
 ### Attempted
