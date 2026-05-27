@@ -30,3 +30,18 @@ Homepage = "https://github.com/monzia-moodie/genomic-variant-classifier"
 where = ["src"]
 include = ["genomic_variant_classifier*"]
 namespaces = true
+
+[tool.pytest.ini_options]
+# Restrict pytest auto-discovery to tests/. Without this, pytest walks the
+# entire rootdir and imports src/genomic_variant_classifier/agent_layer/
+# test_message_bus.py during collection. That file's module-level code at
+# L87-89 stubs sys.modules["torch"] = MagicMock() (and shap/ewc_utils/etc.),
+# which pollutes torch for the remainder of the collection, causing scipy.
+# stats's array_api_compat._issubclass_fast(ndarray, "torch", "Tensor") to
+# return a MagicMock instead of torch.Tensor and raise TypeError on the
+# downstream issubclass() check. See:
+#   docs/incidents/INCIDENT_2026-05-26_scipy-torch-array-api-compat.md
+# The agent_layer integration test is designed as a standalone script
+# (per its docstring L10-14: "Run from agent_layer/: python
+# test_message_bus.py") and remains runnable by explicit path.
+testpaths = ["tests"]
