@@ -1,3 +1,26 @@
+## 2026-05-28 PM14 - G1 local pre-flight gate built and CLEARED (PM13 chain)
+
+### Attempted
+- Build Charter v1.1 gate G1 (scripts/Run_Preflight_Local.ps1) from the Run14_Preflight.ps1 basis, run it, and clear it green before Run 15.
+
+### Fixed
+- NEW scripts/Run_Preflight_Local.ps1 (PM13, 3cf287a): 14-section local pre-flight; S1 verifies HEAD==origin/main (no hash pin). Data flow confirmed = re-prep-from-raw on VM (run9_ready splits not used; meta_train.parquet is a runtime output).
+- MODIFIED Run_Preflight_Local.ps1 S7/S10 (PM13b, 8dd3285): LOVD floor 1 -> 0.1 MB (0.254 MB / 18,006 variants / 10 genes is the legit gene-scoped extract); pykan import probe -> kan (PyPI dist pykan imports as module kan).
+- MODIFIED src/genomic_variant_classifier/models/kan.py docstrings L6/L81 (PM13c, ee06b08): corrected stale "FastKAN is primary" to imodelsx (efficient-kan) primary; behavior unchanged.
+- MODIFIED Run_Preflight_Local.ps1 S6 (PM13e, 3cfdd4d): renamed locals to nFail/nPass/nSkip to fix a case-insensitive collision with $script:Failed/$script:Passed that crashed the harness; skip-aware gate (0 failed AND >=560 passed AND collected>=566).
+
+### Achieved
+- G1 CLEARED: 54 pass / 1 warn / 0 fail (exit 0) at 3cfdd4d. pytest 560 passed / 6 skipped / 0 failed (all 6 skips intentional: MC-dropout calibration TODOs pending Run 15 + 1 coverage skip).
+
+### Learned
+- PowerShell variable names are case-insensitive: a local $failed IS $script:Failed; never reuse an accumulator's bare name as a local.
+- pytest "collected" != "passed"; a pass-count gate must tolerate intentional skips (gate on 0-failed + passed-floor + collected-floor).
+- A pre-flight harness can carry its own logic bugs a parser self-test will not catch; only the full real-path run surfaces them.
+
+### Findings (logged, not fixed)
+- docs/CHANGELOG.md contains encoding mojibake (em/en-dashes, multiplication signs) from prior default-encoding writes; future bulk cleanup. New entries written ASCII-clean + no-BOM UTF-8.
+- variant_ensemble.py L435-465 pandas .fillna downcasting FutureWarning; meta-learner lbfgs ConvergenceWarning on small fixtures.
+
 ## 2026-05-27 PM11b — unseen_gene_holdout ablation wired into run_phase2_eval.py (C3 falsifier b)
 
 ### Attempted
