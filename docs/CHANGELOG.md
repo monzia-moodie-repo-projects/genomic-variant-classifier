@@ -1,3 +1,24 @@
+## 2026-05-28 PM-G2 - KAN deep-audit + G2 VM env gate built; KAN eval persisted
+
+### Attempted
+- Verify KAN memory/correctness from source before Run 15; build Charter gate G2 (VM env preflight); persist the KAN backend decision.
+
+### Fixed / Added
+- NEW scripts/Run_Preflight_VM.sh (4989a70): lean G2 env/hardware gate (GPU+CUDA hard gate + VRAM floor, torch_geometric+networkx, imodelsx+KANClassifier imports, disk/RAM floors, repo HEAD w/ optional EXPECTED_HEAD). Complements launch's data/code preflight; no overlap. LF/no-BOM; bash -n clean.
+- MODIFIED scripts/launch_run11_vm.sh (4989a70): corrected stale "FastKAN" comments (L8, L119) to imodelsx/dependency, matching kan.py PM13c. Comment-only.
+- MODIFIED docs/runs/RUN_15_PLAN.md (4989a70): gate-F live checklist Run_Preflight_VM.ps1 -> .sh (historical entry untouched).
+- MODIFIED scripts/preflight_vm.sh (4989a70): DEPRECATED-for-Run-15 header (stale ClinVar-VCF contract + relative data paths); kept as optional deep data audit.
+- NEW docs/research/KAN_BACKEND_EVAL_2026-05-28.md (6c192c1, PM13d): KAN backend decision of record.
+
+### Learned / Verified
+- imodelsx KANClassifier.fit() batches (batch_size=512, DataLoader, CPU-resident data) -> memory-safe at any N; the Run-10a 17.9 GB runaway was pykan-specific. No pre-Run-15 backend swap needed; FastKAN = future speed only.
+- KAN max_fit_samples default = 100_000; _fit_imodelsx subsample is stratified (stratify=y). No override in src/scripts.
+- launch §5 GPU/dep block is WARN-only and never checks torch_geometric; G2 supplies the hard gates. Repo reaches the VM via SCP of the whole working tree (.git present), so git rev-parse works.
+- preflight_vm.sh (2026-05-13) already had a CUDA hard gate + PyG check but is stale for the Run 15 data layout; kept as a deprecated optional audit rather than wired into Run 15.
+
+### Cost
+- $0 (local only; no GPU provisioned this session).
+
 ## 2026-05-28 PM14 - G1 local pre-flight gate built and CLEARED (PM13 chain)
 
 ### Attempted
