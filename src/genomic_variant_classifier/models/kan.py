@@ -3,7 +3,7 @@ src/genomic_variant_classifier/models/kan.py
 =================
 KAN (Kolmogorov-Arnold Network) classifier -- Run 11 Integration 2.
 
-Run 11 change: FastKAN replaces pykan as primary backend.
+Run 12 change: imodelsx (efficient-kan based) is the primary backend; pykan is a fallback.
 FastKAN is 3.7x faster in benchmarks with identical API shape.
 pykan caused Run 10a KAN runaway (19h 22m, $14.72 wasted).
 
@@ -78,7 +78,7 @@ class KANClassifier(BaseEstimator, ClassifierMixin):
     Sklearn-compatible KAN classifier for tabular genomic data.
 
     Run 11 changes:
-    - FastKAN is the primary backend (3.7x faster than pykan)
+    - imodelsx (efficient-kan based) is the primary backend (pykan and efficient-kan are fallbacks)
     - max_fit_samples=100_000 maintained (Run 10a OOM safeguard)
     - Module-level class definition for pickle safety (Run 10b lesson)
 
