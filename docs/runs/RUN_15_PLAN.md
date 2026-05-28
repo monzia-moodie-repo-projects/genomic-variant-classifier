@@ -74,7 +74,7 @@ This plan must be fully populated and Charter v1.1 gates G1 + G2 must PASS befor
 ## F. Pre-launch gates (Charter v1.1)
 
 - [ ] G1 (local): run `scripts/Run_Preflight_Local.ps1` — must PASS all checks
-- [ ] G2 (VM): run `scripts/Run_Preflight_VM.ps1` on instance — must PASS all checks
+- [ ] G2 (VM): run `scripts/Run_Preflight_VM.sh` on instance — must PASS all checks
 - [ ] Working tree clean, HEAD pushed to origin/main
 - [ ] All B.O* and C.* decisions filled (no `<DECISION>` placeholders)
 - [ ] All A1-A7 either fixed in code commits OR explicitly accepted in this plan

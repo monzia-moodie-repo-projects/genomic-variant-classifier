@@ -15,6 +15,18 @@
 # this one prevents misconfiguration after the container is built.
 # =========================================================================
 
+# -------------------------------------------------------------------------
+# DEPRECATED for Run 15+ (2026-05-28, G2-A decision). The data-path defaults
+# below (relative data/external/...) and the ClinVar contract (raw VCF at
+# data/raw/clinvar/...) predate the Run 15 layout: repo at
+# /workspace/genomic-variant-classifier, data at /workspace/data, ClinVar as a
+# PROCESSED parquet (data/processed/clinvar_grch38.parquet). Run unmodified
+# against a Run 15 VM this would false-FAIL section 5 and the data-file checks.
+#   - Run 15 env/hardware gate -> scripts/Run_Preflight_VM.sh (G2)
+#   - Run 15 data-file checks  -> handled inside scripts/launch_run11_vm.sh
+# Retained only as an OPTIONAL deep data audit (size thresholds, silent-zero
+# warnings) when invoked with explicit *_PATH env overrides.
+# -------------------------------------------------------------------------
 set -euo pipefail
 
 # Colors (best-effort; some terminals may not honor them)

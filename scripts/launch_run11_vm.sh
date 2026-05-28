@@ -5,7 +5,7 @@
 #   - Added --gnomad-constraint (FINDING F1: recovers 4 top-5 features)
 #   - Added --finngen-path (FINDING F2: recovers 3 features)
 #   - Added --kg (FINDING F3: recovers 5 1KGP population AF features)
-#   - --skip-kan REMOVED: FastKAN replaces pykan (Integration 2)
+#   - --skip-kan REMOVED: KAN always on; imodelsx/efficient-kan primary backend (Integration 2)
 #   - GPU GBDT auto-detected by torch.cuda (Integration 3)
 #   - BF16 auto-detected by torch.cuda.is_bf16_supported (Integration 7)
 #   - Parquet ZSTD compression (Integration 8)
@@ -116,7 +116,7 @@ print('OK: VariantEnsemble + DataPrepPipeline importable')
     exit 4
 fi
 
-# ── 5. GPU + BF16 + FastKAN check ────────────────────────────────────────
+# ── 5. GPU + BF16 + dependency check ────────────────────────────────────────
 echo "==> [5/7] GPU / BF16 / dependency check" | tee -a "$LOG"
 python -c "
 import torch
