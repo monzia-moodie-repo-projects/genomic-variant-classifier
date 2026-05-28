@@ -202,6 +202,9 @@ else
     echo "==> WARN: gnomAD constraint TSV not found — pli/loeuf/syn_z/mis_z will be 0" | tee -a "$LOG"
 fi
 
+# PM11b (2026-05-27): C3 hypothesis falsifier (b) - unseen-gene-holdout ablation flag
+ARGS="$ARGS --unseen-gene-holdout"
+
 # FINDING F2: FinnGen (recovers finngen_af_fin, finngen_af_nfsee, finngen_enrichment)
 FINNGEN="$DATA/external/finngen/finnge_R12_annotated_variants_v1.gz"
 if [ -f "$FINNGEN" ]; then

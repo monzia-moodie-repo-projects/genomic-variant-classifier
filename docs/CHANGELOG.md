@@ -1,3 +1,56 @@
+## 2026-05-27 PM11b — unseen_gene_holdout ablation wired into run_phase2_eval.py (C3 falsifier b)
+
+### Attempted
+- Wire unseen_gene_holdout_split (data/splits.py L117) into scripts/run_phase2_eval.py as a --unseen-gene-holdout flag, satisfying RUN_15_PLAN H_Run15 C3 hypothesis falsifier (b).
+- Add the flag to scripts/launch_run11_vm.sh ARGS so Run 15 runs the ablation by default.
+- Make parse_args() testable via an optional argv parameter.
+
+### Fixed
+- **MODIFIED** scripts/run_phase2_eval.py (4 changes):
+  1. parse_args signature now accepts argv=None (backward-compatible; testable).
+  2. parse_args returns p.parse_args(argv).
+  3. Added --unseen-gene-holdout flag (action=store_true) after --skip-cnn.
+  4. Added try/except-wrapped ablation block after _save_feature_importance:
+     - Reads outdir/splits/meta_train.parquet (Patch 6b dependency, PM11a-closed).
+     - Calls unseen_gene_holdout_split(holdout_frac=0.2, seed=42).
+     - Builds separate EnsembleConfig (model_dir=outdir/models_unseen_gene_holdout).
+     - Mirrors main ensemble's model-removal logic (skip_nn/skip_cnn/skip_kan/skip_svm).
+     - Calls ensemble.fit(X_sub, seq_sub, y_sub); evaluates on held-out genes.
+     - Saves unseen_gene_holdout_metrics.json + unseen_gene_holdout_per_model.csv.
+     - Logs C3 falsifier (b) PASS/FAIL vs 0.95 AUROC threshold.
+- **MODIFIED** scripts/launch_run11_vm.sh:
+  - Added the --unseen-gene-holdout ARGS append AFTER L203 fi (outside the L185 GNOMAD_CONSTRAINT if-block, so it is unconditional, unlike --skip-cnn at L188).
+- **CREATED** tests/unit/test_run_phase2_eval_flag.py:
+  - 3 smoke tests: flag present, flag default False, store_true rejects values.
+
+### Discovered state (Probes 1-3 + pre-flight, 2026-05-27)
+- unseen_gene_holdout_split(df, holdout_frac=0.2, seed=42, gene_col, n_buckets=100) returns (train_idx, holdout_idx); SHA-256 hash-stable partition (data/splits.py L117).
+- prep.run() at L186 returns X_train, X_val, X_test, y_train, y_val, y_test, meta_val, meta. meta_train is NOT a local var; ablation reads it from outdir/splits/meta_train.parquet (same pattern as Patch 6b GNN block at L296-L298).
+- ensemble.fit(X, seq, y) signature (L249); ens_cfg = EnsembleConfig(n_folds, model_dir, skip_kan) at L214.
+- seq_tr = pd.Series(["A"*101] * len(y_train)) at L199 (placeholder; subsetting via .iloc safe).
+- Ablation inserted after _save_feature_importance(L510) so all primary metrics persist BEFORE the ablation retrain begins (defensive: an ablation crash cannot lose main results).
+- launch_run11_vm.sh L185 if [ -f GNOMAD_CONSTRAINT ] spans through L203 fi (else L201). --unseen-gene-holdout inserted after L203 to be unconditional.
+
+### Scope note (flagged, not fixed in PM11b)
+--skip-cnn at launch_run11_vm.sh L188 is inside the L185-L203 GNOMAD_CONSTRAINT if-block, making it conditional on that file existing. May be intentional or a latent bug. PM11d candidate to investigate; not blocking Run 15.
+
+### Commits (1 this session, pushed)
+- `XXXXXXX` feat(eval,launch,tests): wire unseen_gene_holdout ablation (PM11b)
+
+### Learned
+1. Three-probe lifecycle + a no-mutation pre-flight caught every anchor risk before touching the tree. Pre-flight verified all 5 anchors count==1 and 4 idempotency conditions; the real patcher then ran with zero anchor surprises.
+2. Bash indentation is decorative, not syntactic: launch_run11_vm.sh L188 LOOKS outside the if-block but is inside it (fi at L203). Cross-referencing if/fi token positions (Probe 3) is the only reliable way to read bash control flow.
+3. meta_train must be read from disk: Probe 3 B3 scan confirmed meta_train is never a local var in run_phase2_eval.py. The Patch 6b (PM11a) meta_train.parquet persistence is a hard dependency of this ablation.
+4. The ablation reuses ens_cfg parameters but with a separate model_dir (models_unseen_gene_holdout) to avoid clobbering the main ensemble's saved joblib artifacts.
+
+### Open follow-ups
+- **PM11c** (optional) - cnn_1d closure refactor per INCIDENT_2026-05-24.
+- **PM11d** (defer) - investigate --skip-cnn conditional coupling in launch_run11_vm.sh.
+- **Memory update** (after PM11 series) - see PM11a entry for stale items to correct; add "PM11b: unseen_gene_holdout wired" status.
+- **Run 15 launch readiness** - B.D3 + unseen_gene_holdout wiring both complete. Next: G1+G2 pre-flight gates per Charter v1.1, then Vast.ai provision -> SCP -> train -> SCP back -> destroy.
+
+---
+
 ## 2026-05-27 PM11a — B.D3 verification + INCIDENT_2026-04-30 closure (test + docs)
 
 ### Attempted

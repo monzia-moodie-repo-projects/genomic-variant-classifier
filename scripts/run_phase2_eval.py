@@ -42,7 +42,7 @@ logging.basicConfig(
 logger = logging.getLogger("run_phase2_eval")
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv=None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Phase 2 evaluation on real ClinVar data")
     p.add_argument("--clinvar", required=True)
     p.add_argument("--gnomad", default=None)
@@ -114,6 +114,14 @@ def parse_args() -> argparse.Namespace:
         help="Exclude CNN_1D (requires fasta_seq data not yet available).",
     )
     p.add_argument(
+        "--unseen-gene-holdout",
+        action="store_true",
+        help=(
+            "Run unseen-gene-holdout ablation after main training "
+            "(C3 hypothesis falsifier b, RUN_15_PLAN.md). Adds ~5h runtime."
+        ),
+    )
+    p.add_argument(
         "--max-train",
         type=int,
         default=None,
@@ -123,7 +131,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--min-review-tier", type=int, default=3)
     p.add_argument("--auroc-target", type=float, default=0.90)
     p.add_argument("--output", default="outputs/phase2_eval")
-    return p.parse_args()
+    return p.parse_args(argv)
 
 
 def main() -> int:
@@ -508,6 +516,113 @@ def main() -> int:
         meta.to_parquet(outdir / "meta_test.parquet", index=False)
         meta_val.to_parquet(outdir / "meta_val.parquet", index=False)
         _save_feature_importance(ensemble, list(X_train.columns), outdir)
+
+        # PM11b (2026-05-27): Unseen-gene-holdout ablation - C3 hypothesis
+        # falsifier (b) per RUN_15_PLAN.md. When --unseen-gene-holdout is set,
+        # retrain the ensemble on a gene-stratified subset of training data and
+        # evaluate on held-out genes. AUROC under 0.95 falsifies the claim that
+        # Run 15's enhancements reflect genuine generalization rather than
+        # gene-prevalence memorization. Wrapped in try/except so an ablation
+        # failure never compromises the main run's persisted metrics.
+        if getattr(args, "unseen_gene_holdout", False):
+            logger.info("[UGH] --unseen-gene-holdout set: running ablation post-training")
+            try:
+                from genomic_variant_classifier.data.splits import (
+                    unseen_gene_holdout_split,
+                )
+
+                _meta_train_path = outdir / "splits" / "meta_train.parquet"
+                if not _meta_train_path.exists():
+                    raise FileNotFoundError(
+                        f"unseen_gene_holdout requires {_meta_train_path}; "
+                        "ensure DataPrepPipeline persists meta_train (Patch 6b, "
+                        "INCIDENT_2026-04-30, closed PM11a)."
+                    )
+                _meta_train_ugh = pd.read_parquet(_meta_train_path)
+
+                sub_train_idx, holdout_idx = unseen_gene_holdout_split(
+                    _meta_train_ugh, holdout_frac=0.2, seed=42, gene_col="gene_symbol"
+                )
+                n_train_genes = int(
+                    _meta_train_ugh.iloc[sub_train_idx]["gene_symbol"].nunique()
+                )
+                n_holdout_genes = int(
+                    _meta_train_ugh.iloc[holdout_idx]["gene_symbol"].nunique()
+                )
+                logger.info(
+                    "[UGH] split: %d train rows (%d genes) / %d holdout rows (%d genes)",
+                    len(sub_train_idx), n_train_genes, len(holdout_idx), n_holdout_genes,
+                )
+
+                X_train_ugh = X_train.iloc[sub_train_idx].reset_index(drop=True)
+                y_train_ugh = y_train.iloc[sub_train_idx].reset_index(drop=True)
+                seq_tr_ugh = seq_tr.iloc[sub_train_idx].reset_index(drop=True)
+                X_holdout = X_train.iloc[holdout_idx].reset_index(drop=True)
+                y_holdout = y_train.iloc[holdout_idx].reset_index(drop=True)
+                seq_holdout = seq_tr.iloc[holdout_idx].reset_index(drop=True)
+
+                ens_cfg_ugh = EnsembleConfig(
+                    n_folds=args.n_folds,
+                    model_dir=outdir / "models_unseen_gene_holdout",
+                    skip_kan=args.skip_kan,
+                )
+                ensemble_ugh = VariantEnsemble(ens_cfg_ugh)
+
+                # Mirror the main ensemble's model-removal logic for a fair compare.
+                if args.skip_nn:
+                    ensemble_ugh.base_estimators.pop("cnn_1d", None)
+                    ensemble_ugh.base_estimators.pop("tabular_nn", None)
+                if getattr(args, "skip_cnn", False) and not args.skip_nn:
+                    ensemble_ugh.base_estimators.pop("cnn_1d", None)
+                if args.skip_kan:
+                    ensemble_ugh.base_estimators.pop("kan", None)
+                if args.skip_svm or len(y_train_ugh) > 100_000:
+                    ensemble_ugh.base_estimators.pop("svm", None)
+
+                t0_ugh = time.perf_counter()
+                logger.info("[UGH] training ensemble on %d samples", len(y_train_ugh))
+                ensemble_ugh.fit(X_train_ugh, seq_tr_ugh, y_train_ugh)
+                elapsed_ugh = time.perf_counter() - t0_ugh
+                logger.info("[UGH] training done in %.2fs", elapsed_ugh)
+
+                ugh_results = ensemble_ugh.evaluate(X_holdout, seq_holdout, y_holdout)
+                ugh_row = ugh_results.loc["ENSEMBLE_STACKER"]
+
+                m_ugh = {
+                    "auroc": float(ugh_row["auroc"]),
+                    "auprc": float(ugh_row["auprc"]),
+                    "f1": float(ugh_row["f1_macro"]),
+                    "mcc": float(ugh_row["mcc"]),
+                    "brier": float(ugh_row["brier"]),
+                    "n_holdout": int(len(y_holdout)),
+                    "n_train_subset": int(len(y_train_ugh)),
+                    "n_train_genes": n_train_genes,
+                    "n_holdout_genes": n_holdout_genes,
+                    "holdout_frac_actual": float(
+                        len(y_holdout) / (len(y_holdout) + len(y_train_ugh))
+                    ),
+                    "seed": 42,
+                    "elapsed_seconds": elapsed_ugh,
+                }
+                (outdir / "unseen_gene_holdout_metrics.json").write_text(
+                    json.dumps(m_ugh, indent=2)
+                )
+                ugh_results.to_csv(outdir / "unseen_gene_holdout_per_model.csv")
+                logger.info(
+                    "[UGH] DONE. ENSEMBLE_STACKER AUROC=%.4f on %d-sample (%d-gene) holdout",
+                    m_ugh["auroc"], len(y_holdout), n_holdout_genes,
+                )
+                logger.info(
+                    "[UGH] C3 falsifier (b) %s: AUROC %.4f vs 0.95 threshold",
+                    "PASS" if m_ugh["auroc"] >= 0.95 else "FAIL",
+                    m_ugh["auroc"],
+                )
+            except Exception as exc:
+                logger.warning(
+                    "[UGH] unseen-gene-holdout ablation FAILED: %s - main results unchanged.",
+                    exc,
+                    exc_info=True,
+                )
 
         # OOF predictions for downstream ablation tooling. Already on
         # ensemble.oof_predictions_ but pinning to parquet decouples
