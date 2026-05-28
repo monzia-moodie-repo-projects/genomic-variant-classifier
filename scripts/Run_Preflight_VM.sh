@@ -31,6 +31,14 @@ MIN_DISK_GB="${MIN_DISK_GB:-150}"
 MIN_RAM_GB="${MIN_RAM_GB:-50}"
 EXPECTED_HEAD="${EXPECTED_HEAD:-${1:-}}"
 
+# PATH fix for vastai/pytorch images (mirror launch_run11_vm.sh) so G2 checks the
+# SAME interpreter the training run will use, not a stray system python.
+if [ -d /venv/main/bin ] && ! echo "$PATH" | grep -q "/venv/main/bin"; then
+  export PATH="/venv/main/bin:$PATH"
+fi
+PY="$(command -v python || command -v python3 || echo /venv/main/bin/python)"
+echo "=== interpreter: $PY ==="
+
 C_RED=$'\033[31m'; C_GRN=$'\033[32m'; C_YLW=$'\033[33m'; C_RST=$'\033[0m'
 PASS_COUNT=0; FAIL_COUNT=0; FAILURES=()
 pass() { printf "%s[PASS]%s %s\n" "$C_GRN" "$C_RST" "$1"; PASS_COUNT=$((PASS_COUNT+1)); }
@@ -56,7 +64,7 @@ else
   fail "nvidia-smi not found on PATH -- no GPU, ABORT"
 fi
 
-if python -c "import torch; assert torch.cuda.is_available(); print('torch', torch.__version__, 'cuda', torch.version.cuda)" 2>/dev/null; then
+if "$PY" -c "import torch; assert torch.cuda.is_available(); print('torch', torch.__version__, 'cuda', torch.version.cuda)" 2>/dev/null; then
   pass "torch.cuda.is_available() == True"
 else
   fail "torch.cuda.is_available() == False -- driver/CUDA mismatch or torch is CPU-only"
@@ -64,7 +72,7 @@ fi
 
 # ----- 2. GNN dependencies (torch_geometric, networkx) -----
 echo "=== [2/6] GNN dependencies ==="
-if python -c "import torch_geometric, networkx; print('torch_geometric', torch_geometric.__version__, 'networkx', networkx.__version__)" 2>/dev/null; then
+if "$PY" -c "import torch_geometric, networkx; print('torch_geometric', torch_geometric.__version__, 'networkx', networkx.__version__)" 2>/dev/null; then
   pass "torch_geometric + networkx importable (GNN / run_phase2_eval path)"
 else
   fail "torch_geometric/networkx import failed -- GNN cannot run in run_phase2_eval mode"
@@ -72,12 +80,12 @@ fi
 
 # ----- 3. KAN backend dependencies (imodelsx + project KANClassifier) -----
 echo "=== [3/6] KAN dependencies ==="
-if python -c "import imodelsx.kan.kan_sklearn" 2>/dev/null; then
+if "$PY" -c "import imodelsx.kan.kan_sklearn" 2>/dev/null; then
   pass "imodelsx.kan.kan_sklearn importable (KAN primary backend)"
 else
   fail "imodelsx.kan.kan_sklearn import failed -- KAN primary backend unavailable"
 fi
-if python -c "from genomic_variant_classifier.models.kan import KANClassifier" 2>/dev/null; then
+if "$PY" -c "from genomic_variant_classifier.models.kan import KANClassifier" 2>/dev/null; then
   pass "genomic_variant_classifier.models.kan.KANClassifier importable"
 else
   fail "KANClassifier import failed -- check namespace/install"
