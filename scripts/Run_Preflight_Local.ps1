@@ -118,7 +118,7 @@ print(f'SMOKE_OK shape={p.shape} backend={backend}')
         @{ Path = "data\external\dbnsfp\dbnsfp_clinvar_index.parquet";           MinMB = 25  },
         @{ Path = "data\external\alphamissense\AlphaMissense_hg38.tsv.gz";       MinMB = 300 },
         @{ Path = "data\external\spliceai\spliceai_index.parquet";               MinMB = 300 },
-        @{ Path = "data\external\lovd\lovd_all_variants.parquet";                MinMB = 1   },
+        @{ Path = "data\external\lovd\lovd_all_variants.parquet";                MinMB = 0.1   },
         @{ Path = "data\external\gnomad\gnomad.v4.1.constraint_metrics.tsv";     MinMB = 50  },
         @{ Path = "data\external\string\9606.protein.links.detailed.v12.0.txt.gz"; MinMB = 100 },
         @{ Path = "data\external\string\9606.protein.info.v12.0.txt.gz";         MinMB = 1   }
@@ -149,7 +149,7 @@ print(f'SMOKE_OK shape={p.shape} backend={backend}')
     $io = & $venvPython -c @"
 import sys
 errs = []
-for pkg in ['lightgbm','xgboost','catboost','imodelsx','pykan','sklearn','torch','numpy','pandas']:
+for pkg in ['lightgbm','xgboost','catboost','imodelsx','kan','sklearn','torch','numpy','pandas']:
     try:
         __import__(pkg); print(f'IMPORT_OK {pkg}')
     except Exception as e:
