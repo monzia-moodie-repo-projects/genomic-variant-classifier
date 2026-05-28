@@ -101,14 +101,16 @@ print(f'SMOKE_OK shape={p.shape} backend={backend}')
         Get-ChildItem -Recurse -Filter "__pycache__" -Directory -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch 'venv' } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
         $po = & $venvPython -m pytest tests/ -q --no-header --tb=line 2>&1
         $tail = ($po | Select-Object -Last 6) -join "`n"
-        $failed = 0; $passed = 0
-        if ($tail -match '(\d+) failed') { $failed = [int]$Matches[1] }
-        if ($tail -match '(\d+) error')  { $failed += [int]$Matches[1] }
-        if ($tail -match '(\d+) passed') { $passed = [int]$Matches[1] }
-        if ($failed -gt 0) { Fail "pytest: $failed failed/errored, $passed passed. Tail:`n$tail" }
-        elseif ($passed -ge $MinPytest) { Pass "pytest: $passed passed, 0 failed (>= $MinPytest)" }
-        elseif ($passed -gt 0) { Fail "pytest: only $passed passed (< $MinPytest). Tail:`n$tail" }
-        else { Fail "pytest output unparseable. Tail:`n$tail" }
+        $nFail = 0; $nPass = 0; $nSkip = 0
+        if ($tail -match '(\d+) failed')  { $nFail = [int]$Matches[1] }
+        if ($tail -match '(\d+) error')   { $nFail += [int]$Matches[1] }
+        if ($tail -match '(\d+) passed')  { $nPass = [int]$Matches[1] }
+        if ($tail -match '(\d+) skipped') { $nSkip = [int]$Matches[1] }
+        $collected = $nPass + $nSkip
+        $minPass = 560   # 566 collected minus 6 known-intentional skips (MC-dropout calibration TODOs pending Run 15; 1 coverage skip)
+        if ($nFail -gt 0) { Fail "pytest: $nFail failed/errored ($nPass passed, $nSkip skipped). Tail:`n$tail" }
+        elseif ($nPass -ge $minPass -and $collected -ge $MinPytest) { Pass "pytest: $nPass passed, $nSkip skipped, 0 failed (>= $minPass passed, collected $collected >= $MinPytest)" }
+        else { Fail "pytest: $nPass passed / $nSkip skipped / collected $collected (expected >= $minPass passed and >= $MinPytest collected). Tail:`n$tail" }
     }
 
     Section "7. Run 15 prep-input data files (raw; SCP'd up for on-VM prep)"
