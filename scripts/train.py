@@ -257,19 +257,39 @@ def main() -> None:
     logger.info("Models to train: %s", list(ensemble.base_estimators.keys()))
 
     # -- 3. Handle sequence data for CNN ------------------------------------
+    # PM11d fix: sequences MUST be realigned to the gene-aware split, not
+    # sliced positionally from the pre-split raw_df. meta_test carries the
+    # split-aligned fasta_seq directly (df.iloc[test_idx]); the old
+    # raw_df["fasta_seq"].iloc[:len(y_test)] paired sequences with the WRONG
+    # labels after the shuffling GroupShuffleSplit. See
+    # docs/incidents/INCIDENT_2026-05-30_train-sequence-misalignment.md
     has_sequences = (
-        "fasta_seq" in raw_df.columns
-        and raw_df["fasta_seq"].notna().sum() > 100
+        "fasta_seq" in meta_test.columns
+        and meta_test["fasta_seq"].notna().sum() > 100
     )
     if not has_sequences:
-        logger.info("No sequence data -- removing CNN from ensemble.")
+        logger.info("No usable sequence data -- removing CNN from ensemble.")
         ensemble.base_estimators.pop("cnn_1d", None)
-        placeholder_seq = pd.Series(["A" * 101] * len(y_train))
-        X_seq_train = placeholder_seq
+        # CNN is the only sequence consumer; with it removed these series are
+        # inert placeholders that satisfy the seq-aware fit/evaluate/predict
+        # signatures but are never used for any prediction.
+        X_seq_train = pd.Series(["A" * 101] * len(y_train))
         X_seq_test  = pd.Series(["A" * 101] * len(y_test))
     else:
-        X_seq_train = raw_df["fasta_seq"].iloc[: len(y_train)].reset_index(drop=True)
-        X_seq_test  = raw_df["fasta_seq"].iloc[: len(y_test)].reset_index(drop=True)
+        # Test side: meta_test["fasta_seq"] is split-aligned by construction.
+        X_seq_test = meta_test["fasta_seq"].reset_index(drop=True)
+        # Train side: run() does not return meta_train and X_train carries no
+        # variant_id key, so there is NO signature-free way to realign train
+        # sequences here. Rather than silently misalign (the PM11d defect),
+        # fail loudly. Enabling real training sequences requires plumbing
+        # meta_train out of DataPrepPipeline.run() first (Option-B-wide).
+        raise NotImplementedError(
+            "Real training sequences detected, but train-side sequence "
+            "alignment requires meta_train, which DataPrepPipeline.run() "
+            "does not currently return. Plumb meta_train through run() "
+            "before enabling CNN training on real sequences. See "
+            "INCIDENT_2026-05-30_train-sequence-misalignment.md."
+        )
 
     # -- 4. Train -----------------------------------------------------------
     logger.info("PHASE 3: Training")

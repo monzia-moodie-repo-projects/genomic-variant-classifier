@@ -1,3 +1,43 @@
+## 2026-05-30 PM11c/PM11d - train.py sequence/label realignment + train-side guard
+
+### Attempted
+- Close carried tech-debt PM11c (cnn_1d dummy-sequence closure) and PM11d
+  (decouple sequence handling from the positional iloc slice) before building
+  the Run-15 correctness harness, so the harness is not validating broken behavior.
+
+### Failed (pre-fix, now proven)
+- scripts/train.py sourced CNN sequences via raw_df["fasta_seq"].iloc[:len(y_test)]
+  -- a positional head of the PRE-split frame paired with labels from the
+  gene-aware (shuffling) GroupShuffleSplit. Regression test
+  test_old_iloc_logic_misaligns_sequences PASSES (seq<->label agreement < 0.85),
+  proving the misalignment is real, not theoretical.
+
+### Fixed
+- Test side: X_seq_test now sourced from meta_test["fasta_seq"].reset_index(drop=True),
+  which run() returns split-aligned by construction (meta_test = df.iloc[test_idx]).
+  Verified ALIGNED: meta_test 349067 == y_test 349067.
+- Train side: raises NotImplementedError if real training sequences are enabled,
+  because run() does not return meta_train and X_train carries no variant_id key
+  (X_train shape 1197216x73, zero identity columns) -- no signature-free realignment
+  exists. Converts silent corruption into a loud, safe failure.
+- has_sequences check moved from raw_df to meta_test (the split-aligned source).
+- PM11c: dummy-placeholder series retained ONLY on the no-sequence path (the
+  production path), with a comment clarifying they are inert once cnn_1d is popped.
+
+### Learned / Verified
+- Latent in production: data/processed/clinvar_grch38.parquet has fasta_seq present
+  but notna=0, so has_sequences is always False in prod -> CNN always popped -> the
+  train-side misalignment has never fired. Live only on synthetic / real-sequence runs.
+- meta_train is NOT persisted in models/v1/splits (Test-Path False) and run() does
+  not return it; the Option-B-wide signature change was deliberately deferred.
+
+### Tests
+- NEW tests/unit/test_train_sequence_alignment.py (2 tests, both pass).
+- Full suite: 562 passed, 1 skipped, 0 failed (327s). No regression.
+
+### Cost
+- $0 (local only; no GPU).
+
 ## 2026-05-28 PM-G2 - KAN deep-audit + G2 VM env gate built; KAN eval persisted
 
 ### Attempted
