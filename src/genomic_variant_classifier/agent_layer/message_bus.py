@@ -85,12 +85,14 @@ DATA_UPDATED = "DATA_UPDATED"
 CHECKPOINT_READY = "CHECKPOINT_READY"
 FEATURE_INSTABILITY = "FEATURE_INSTABILITY"
 FEATURE_CANDIDATE_ADDED = "FEATURE_CANDIDATE_ADDED"
+ARTIFACT_PUBLISHED = "ARTIFACT_PUBLISHED"
 
 ALL_SUBJECTS = {
     DATA_UPDATED,
     CHECKPOINT_READY,
     FEATURE_INSTABILITY,
     FEATURE_CANDIDATE_ADDED,
+    ARTIFACT_PUBLISHED,
 }
 
 # Subjects that require human approval before the recipient acts on them.
@@ -98,6 +100,7 @@ ALL_SUBJECTS = {
 APPROVAL_REQUIRED_SUBJECTS = {
     DATA_UPDATED,  # triggers Spark ingest + retrain
     CHECKPOINT_READY,  # triggers SHAP audit
+    ARTIFACT_PUBLISHED,  # artifact publish events require human approval
 }
 
 # ---------------------------------------------------------------------------

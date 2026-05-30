@@ -163,6 +163,9 @@ class Orchestrator:
         # --- NEW: log pre-run message state ---
         self._deliver_pending_messages(pipeline_name, agent_names)
 
+        # --- Task 3: ScienceClaw artifact gate (integrity + authorization) ---
+        self.enforce_artifact_gate(agent_names)
+
         results: dict[str, dict] = {}
 
         for agent_name in agent_names:
@@ -196,6 +199,58 @@ class Orchestrator:
         logger.info(_DIVIDER)
 
         return results
+
+    # ------------------------------------------------------------------
+    # ScienceClaw artifact gate (Task 3) -- integrity + authorization
+    # ------------------------------------------------------------------
+
+    def enforce_artifact_gate(self, agent_names: list[str]) -> None:
+        """
+        Before agents run, gate each agent's actionable artifact-referencing
+        messages. A message references an artifact when its payload carries BOTH
+        artifact_id and artifact_sha256. For each such message the on-disk SHA-256
+        is computed from the LEDGER ROW's uri and passed into the pure gate
+        evaluate(). On DENY the message is rejected (so the agent will not act on
+        it this run) and a human-review item is added. Messages without an
+        artifact reference are untouched.
+        """
+        from genomic_variant_classifier.agent_layer.science_claw import (
+            ScienceClawLedger,
+            evaluate,
+            compute_sha256,
+        )
+
+        led = ScienceClawLedger(self._state)
+        entries = led.entries()
+        for name in agent_names:
+            for msg in self._bus.get_actionable(name):
+                payload = msg.get("payload", {})
+                if not (
+                    isinstance(payload, dict)
+                    and payload.get("artifact_id") is not None
+                    and payload.get("artifact_sha256") is not None
+                ):
+                    continue
+                row = led.lookup(payload["artifact_id"])
+                computed = None
+                if row is not None:
+                    try:
+                        computed = compute_sha256(row.get("uri"))
+                    except (OSError, FileNotFoundError, TypeError):
+                        computed = None
+                verdict = evaluate(entries, msg, computed)
+                if not verdict.allow:
+                    self._bus.reject(msg["id"])
+                    self._state.add_review_item(
+                        "ScienceClaw gate DENY for artifact '%s': %s"
+                        % (payload.get("artifact_id"), "; ".join(verdict.reasons))
+                    )
+                    logger.warning(
+                        "ScienceClaw gate DENY: artifact '%s' message %s rejected (%s)",
+                        payload.get("artifact_id"),
+                        msg["id"][:8],
+                        "; ".join(verdict.reasons),
+                    )
 
     # ------------------------------------------------------------------
     # NEW: pre-run message delivery summary

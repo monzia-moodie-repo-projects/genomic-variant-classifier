@@ -1,3 +1,41 @@
+## 2026-05-30 -- ScienceClaw artifact ledger + deterministic policy gate (Task 3)
+
+**Added:**
+- `src/genomic_variant_classifier/agent_layer/science_claw/ledger.py` -- append-only
+  hash-chained `ScienceClawLedger` over the SharedState `artifact_ledger` key;
+  caller-side `compute_sha256`; and the PURE gate
+  `evaluate(ledger_entries, message, computed_sha) -> Verdict` enforcing BOTH
+  integrity (artifact present in ledger + recorded hash == on-disk hash) AND
+  authorization (requires_approval implies approved is True). No I/O or clock in the
+  gate, so identical inputs yield identical verdicts.
+- `src/genomic_variant_classifier/agent_layer/science_claw/__init__.py` -- exports
+  ScienceClawLedger, evaluate, Verdict, compute_sha256, LedgerError.
+- `tests/unit/test_science_claw_ledger.py` -- 21 tests (subject wiring, append-only
+  chain, tamper detection, determinism, integrity, authorization, combined, no-op).
+- `tests/unit/test_science_claw_orchestrator_gate.py` -- 7 tests with real fixtures
+  (no mock patching): method exists, run_pipeline invokes the gate, DENY blocks a
+  tampered/missing artifact (message rejected + review item), ALLOW for a valid
+  artifact, no-op for non-artifact messages, ignores unapproved messages.
+
+**Changed:**
+- `message_bus.py` -- new canonical subject `ARTIFACT_PUBLISHED`, added to both
+  `ALL_SUBJECTS` and `APPROVAL_REQUIRED_SUBJECTS` (requires approval by default).
+- `shared_state.py` -- `_default_state()` gains `artifact_ledger: []`; existing state
+  files backfill transparently via `_migrate`.
+- `orchestrator.py` -- new `enforce_artifact_gate(agent_names)` runs inside
+  `run_pipeline` before the agent loop; on a gate DENY for an artifact-referencing
+  actionable message it rejects the message (DENY blocks) and adds a human-review
+  item. No agent code changed.
+
+**Verified:** full unit tree 588 -> 595 passed (1 skipped). Ledger suite 21/21;
+orchestrator-gate suite 7/7.
+
+**Found (pre-existing, separate INCIDENTs, out of scope):**
+- test_message_bus.py Group 4 stale patch-target (legacy `agents.` import path).
+- test_message_bus.py "history ordering" timing flakiness (equal-microsecond ties).
+Both proven independent of Task 3 by stashing all three edits and reproducing the
+identical failures at commit 553d5b6.
+
 ## 2026-05-30 -- Correctness harness (Task 2) + G1 Section 14
 
 **Attempted:** Add an AutoKernel-style 5-stage correctness harness that gates model

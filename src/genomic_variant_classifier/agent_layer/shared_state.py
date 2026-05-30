@@ -119,6 +119,8 @@ def _default_state() -> dict:
         "review_items": [],
         # --- New: inter-agent message bus ---
         "agent_messages": {},
+        # --- ScienceClaw artifact provenance ledger (append-only, hash-chained) ---
+        "artifact_ledger": [],
     }
 
 
