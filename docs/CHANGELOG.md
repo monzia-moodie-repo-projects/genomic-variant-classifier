@@ -1,3 +1,45 @@
+## 2026-05-30 -- Correctness harness (Task 2) + G1 Section 14
+
+**Attempted:** Add an AutoKernel-style 5-stage correctness harness that gates model
+correctness before any AUROC is recorded, and wire it as Section 14 of the G1 local
+pre-flight gate.
+
+**Added:**
+- `src/genomic_variant_classifier/agent_layer/harness/correctness_harness.py` -- 5
+  stages (smoke / config / sanity / determinism / zero-audit);
+  `run_correctness_harness(raw_df, ...) -> HarnessReport`.
+- `src/genomic_variant_classifier/agent_layer/harness/__init__.py` -- exports
+  run_correctness_harness, HarnessReport, build_reference_slice, KNOWN_ZERO_DEFAULT.
+- `tests/unit/test_correctness_harness.py` -- 5 failing-first tests, all green. Suite
+  562 -> 567 passed (1 skipped).
+- Module-level `build_reference_slice()` (fully-populated synthetic frame) +
+  `KNOWN_ZERO_DEFAULT` (21-col dead-connector allowlist), shared as single source of
+  truth by the test and G1. Verified: residual silent-zero set == allowlist exactly
+  (symmetric diff []; n=21) at HEAD 25b5eaf.
+- `scripts/Run_Preflight_Local.ps1` Section 14: hard-fail on any stage 1-4 failure or
+  any stage-5 finding outside KNOWN_ZERO_DEFAULT; warn on the 21 known-dead columns.
+  Live-verified (3 PASS + 1 WARN; G1 summary 54/4/1).
+- `docs/incidents/INCIDENT_2026-05-30_clingen-int-truncation.md`.
+
+**Found (latent):** `clingen_validity_score` is truncated to 0 by `.astype(int)` in
+`engineer_features` (~L169) when fed fractional input (ClinGen's real 0-1 scale).
+Empirically: integer input survives, `uniform(0.1,1.0)` -> nonzero fraction 0.0.
+Contrast `pli_score` (`.astype(float).clip(0,1)`, survives). Kept OUT of the allowlist
+so the harness hard-fails if it ever silently zeroes on real data. Fix deferred to
+R10-G. (INCIDENT filed.)
+
+**Fixed (during build):** G1 Section 14 harness invocation. Passing multi-line Python
+with embedded `"..."`/regex through `& $venvPython -c $harnessPy` mangled the inner
+double-quotes at the PowerShell->native arg boundary (`r"feature '([^']+)'"` ->
+`rfeature`, "'(' was never closed"). Neither expandable `@"..."@` nor literal
+`@'...'@` here-strings fixed it. Resolved by writing `$harnessPy` to a temp `.py`
+(UTF-8 no-BOM, try/finally) and running the file: `& $venvPython $harnessTmp`.
+
+**Learned:** Never pass multi-line Python with embedded quotes through `python -c`
+from PowerShell. A static probe that extracts the here-string body to a file and runs
+the file will NOT catch this (it bypasses `-c`); only a live in-script run reproduces
+it. Always dry-run the actual gate, not just a parse check.
+
 ## 2026-05-30 PM11c/PM11d - train.py sequence/label realignment + train-side guard
 
 ### Attempted

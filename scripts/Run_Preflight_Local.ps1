@@ -196,6 +196,48 @@ sys.exit(0 if not errs else 1)
         if ($dc -le 1) { Pass "RUN_15_PLAN.md: $dc literal <DECISION> (<=1 gate-mention, OK)" } else { Fail "RUN_15_PLAN.md: $dc <DECISION> tokens (unfilled)" }
     } else { Fail "RUN_15_PLAN.md missing" }
 
+    Section "14. Correctness harness (stages 1-5; gates correctness before AUROC)"
+    $harnessPy = @'
+import json, re as _re
+from genomic_variant_classifier.agent_layer.harness import (
+    build_reference_slice, run_correctness_harness, KNOWN_ZERO_DEFAULT,
+)
+rep = run_correctness_harness(build_reference_slice())
+non5 = [f for f in rep.failures if not f.startswith('[stage 5]')]
+flagged = set()
+for f in rep.failures:
+    m = _re.search(r"feature '([^']+)'", f)
+    if m:
+        flagged.add(m.group(1))
+unexpected = sorted(flagged - set(KNOWN_ZERO_DEFAULT))
+print('HARNESS_JSON ' + json.dumps({
+    'stages': list(rep.stages_run),
+    'non_stage5': non5,
+    'unexpected_zero': unexpected,
+    'allowlist_hits': sorted(flagged & set(KNOWN_ZERO_DEFAULT)),
+}))
+'@
+    $harnessTmp = Join-Path $env:TEMP ("g1_harness_{0}.py" -f $PID)
+    [System.IO.File]::WriteAllText($harnessTmp, $harnessPy, (New-Object System.Text.UTF8Encoding($false)))
+    try {
+        $hraw = & $venvPython $harnessTmp 2>&1
+    } finally {
+        Remove-Item $harnessTmp -Force -ErrorAction SilentlyContinue
+    }
+    $hline = $hraw | Where-Object { $_ -match '^HARNESS_JSON ' } | Select-Object -First 1
+    if (-not $hline) {
+        Fail "Correctness harness did not emit a verdict. Output:`n$($hraw -join "`n")"
+    } else {
+        $hj = ($hline -replace '^HARNESS_JSON ', '') | ConvertFrom-Json
+        if ($hj.stages.Count -ne 5) { Fail "Harness did not run all 5 stages (ran: $($hj.stages -join ','))" }
+        else { Pass "Harness ran all 5 stages" }
+        if ($hj.non_stage5.Count -gt 0) { Fail "Harness stages 1-4 FAILED: $($hj.non_stage5 -join '; ')" }
+        else { Pass "Harness stages 1-4 (smoke/config/sanity/determinism) green" }
+        if ($hj.unexpected_zero.Count -gt 0) { Fail "Stage 5 flagged NON-allowlist silent-zero(s): $($hj.unexpected_zero -join ', ')" }
+        else { Pass "Stage 5: no silent-zeros outside known dead-connector allowlist" }
+        if ($hj.allowlist_hits.Count -gt 0) { Warn "Stage 5: $($hj.allowlist_hits.Count) known dead-connector default(s) still zero (expected; 2026-04-30 audit)" }
+    }
+
 } finally { Pop-Location }
 
 Section "PRE-FLIGHT SUMMARY (G1 local)"
