@@ -451,7 +451,7 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     feats["clingen_validity_score"] = (
         df.get("clingen_validity_score", pd.Series([0] * len(df), index=df.index))
         .fillna(0)
-        .astype(int)
+        .astype(float)
     )
 
     # HGMD (2)

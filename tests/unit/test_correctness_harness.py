@@ -170,3 +170,34 @@ def report_stage(failure_msg: str) -> int:
     import re
     m = re.match(r"\[stage (\d+)\]", failure_msg)
     return int(m.group(1)) if m else -1
+
+
+def test_clingen_validity_score_preserves_fractional_input():
+    """Regression (INCIDENT clingen int-truncation): engineer_features must NOT
+    truncate fractional clingen_validity_score to int. Fractional ClinGen
+    confidence (e.g. 2.5, 0.7) must survive into the engineered feature."""
+    from genomic_variant_classifier.models.variant_ensemble import engineer_features
+
+    df = pd.DataFrame(
+        {
+            "variant_id": ["v0", "v1", "v2", "v3"],
+            "gene_symbol": ["GENE0", "GENE1", "GENE2", "GENE3"],
+            "chrom": ["1", "2", "7", "X"],
+            "pos": [100, 200, 300, 400],
+            "ref": ["A", "C", "G", "T"],
+            "alt": ["T", "G", "C", "A"],
+            "consequence": [
+                "missense_variant", "synonymous_variant",
+                "stop_gained", "intron_variant",
+            ],
+            "allele_freq": [1e-4, 1e-3, 1e-2, 0.0],
+            "fasta_seq": ["ACGT" * 25 + "A"] * 4,
+            "clingen_validity_score": [2.5, 0.7, 3.2, 0.0],
+        }
+    )
+    out = engineer_features(df)
+    got = list(out["clingen_validity_score"])
+    assert got == [2.5, 0.7, 3.2, 0.0], (
+        "clingen_validity_score was truncated/altered; expected fractional values "
+        f"preserved, got {got}"
+    )

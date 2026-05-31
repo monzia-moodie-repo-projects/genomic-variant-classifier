@@ -303,11 +303,12 @@ def run_correctness_harness(
 # derived by running engineer_features on build_reference_slice() at HEAD
 # 25b5eaf, 2026-05-30).
 #
-# NOTE: clingen_validity_score is deliberately NOT in this set. It survives when
-# fed INTEGER input; engineer_features casts it via .astype(int)
-# (variant_ensemble.py ~L169), truncating fractional ClinGen scores to 0. That
-# is flagged as a likely latent bug (see SESSION_2026-05-30 / INCIDENT), not a
-# legitimate dead connector, so it must stay outside the allowlist.
+# NOTE: clingen_validity_score is deliberately NOT in this set. It is a populated
+# connector cast via .astype(float) (variant_ensemble.py clingen block), so it is
+# non-zero on any populated input (integer or fractional). The earlier .astype(int)
+# truncation of fractional ClinGen scores to 0 was fixed 2026-05-30 (see
+# INCIDENT_2026-05-30_clingen-int-truncation); it is a live feature, not a dead
+# connector, so it must stay outside the allowlist.
 KNOWN_ZERO_DEFAULT: frozenset[str] = frozenset({
     "af_1kg_afr", "af_1kg_amr", "af_1kg_eas", "af_1kg_eur", "af_1kg_sas",
     "cadd_high", "finngen_af_fin", "finngen_af_nfsee", "gene_is_constrained",

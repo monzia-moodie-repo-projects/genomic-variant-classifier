@@ -1,7 +1,7 @@
 ---
 incident_id: INCIDENT_2026-05-30_clingen-int-truncation
 date: 2026-05-30
-status: OPEN
+status: RESOLVED (2026-05-30; .astype(int) -> .astype(float); regression test added; full suite 596 passed)
 severity: latent (no current production impact; activates at R10-G)
 component: src/genomic_variant_classifier/models/variant_ensemble.py (engineer_features)
 related: INCIDENT_2026-04-29 (GCS deletion), 2026-04-30 connector silent-zero audit, R10-G (ClinGen integration)
