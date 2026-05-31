@@ -2618,3 +2618,28 @@ The recovery file includes:
 - Establish honest baseline (clean cohort, GNN on via --string-db auto, --skip-cnn) before Run-15
   multi-modal build. See docs/incidents/INCIDENT_2026-05-31_run14-split-leakage.md +
   INCIDENT_2026-05-31_gnn-score-zero.md.
+
+## 2026-05-31 -- Run-15 baseline path: defects closed + cohort-guard resilience
+
+### Fixed
+- run10a-no-checkpoints (INCIDENT_2026-05-23): per-model incremental checkpointing verified by
+  tests/unit/test_ensemble_persistence.py (4-file quartet {name}.joblib/_oof.npy/_oof_indices.npy/
+  _meta.json + OOF/index length parity per base model). RESOLVED.
+- cohort-guard LOVD regression (self-inflicted, commit 1720c0a): _assert_clean_cohort raised
+  KeyError 'variant_id' on inputs lacking that column (raw ClinVar / tiny LOVD fixtures). The
+  duplicate-identity check now prefers variant_id and otherwise derives the key from the
+  chrom:pos:ref:alt locus, preserving fail-loud behaviour on a dirty production cohort. Locked by
+  tests/unit/test_cohort_guard_resilience.py (4 cases); the two LOVD post-condition tests pass again.
+- test_cohort_guard.py::test_duplicate_variant_id_raises relaxed to a wording-agnostic match
+  ("duplicate variant") after the guard message changed to "duplicate variant identity".
+
+### Reclassified (missing-feature scope, signed off -- not defects)
+- cnn1d-0.5-auroc (INCIDENT_2026-05-23) + cnn1d-cross-platform-unpickle (INCIDENT_2026-05-24):
+  cnn_1d is a sequence CNN whose fasta_seq input is unpopulated upstream (constant poly-A ->
+  AUROC 0.5). Honestly excluded from the baseline via --skip-cnn; re-enabled in Phase B once
+  fasta_seq (reference-genome 101-bp window) is extracted, which also unlocks the RNA pipeline.
+
+### Learned
+- Before renaming a user-facing string/message, grep tests for assertions on it.
+- Verify a model's input contract from code before writing tests (cnn_1d is sequence, not tabular).
+- Run the full unit suite (no -x) from repo root before pushing, to match CI exactly.

@@ -37,5 +37,5 @@ def test_null_or_bad_allele_raises(df: pd.DataFrame) -> None:
 
 def test_duplicate_variant_id_raises() -> None:
     df = pd.DataFrame({"ref": ["A", "A"], "alt": ["T", "T"], "variant_id": ["dup", "dup"]})
-    with pytest.raises(ValueError, match="duplicate variant_id"):
+    with pytest.raises(ValueError, match="duplicate variant"):
         DataPrepPipeline._assert_clean_cohort(df, "dup")

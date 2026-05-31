@@ -7,11 +7,11 @@ affected_runs: [Run 9, Run 10a]
 related_commits: [66593d6, ac64665]
 ---
 
-# Run 10a — sixteen hours of training, zero recoverable model artifacts
+# Run 10a -- sixteen hours of training, zero recoverable model artifacts
 
 ## One-line summary
 
-A 16-hour, $13 Vast.ai run produced seven valid OOF AUROCs in the log, then was killed mid-KAN — and *no model checkpoints existed on disk anywhere in /workspace*. Same root cause as the Run 9 PicklingError: the ensemble persists only at pipeline end, never mid-training.
+A 16-hour, $13 Vast.ai run produced seven valid OOF AUROCs in the log, then was killed mid-KAN -- and *no model checkpoints existed on disk anywhere in /workspace*. Same root cause as the Run 9 PicklingError: the ensemble persists only at pipeline end, never mid-training.
 
 ## What happened (timeline, UTC)
 
@@ -46,7 +46,7 @@ def __post_init__(self) -> None:
     self.model_dir.mkdir(parents=True, exist_ok=True)
 ```
 
-Persistence happens only at end-of-pipeline `ensemble.save()`. In Run 9 that call raised PicklingError on the nested `_CNN1D._build_model.<locals>._CNN1D` class and lost all training. In Run 10a the run was killed before reaching the save call — same outcome.
+Persistence happens only at end-of-pipeline `ensemble.save()`. In Run 9 that call raised PicklingError on the nested `_CNN1D._build_model.<locals>._CNN1D` class and lost all training. In Run 10a the run was killed before reaching the save call -- same outcome.
 
 The Phase 1.7 patch (commit `66593d6`) was documented as "per-model checkpoint" but empirically does not write per-model. It appears to have only added the `model_dir.mkdir` line plus the pickle fix for the nested CNN class.
 
@@ -56,11 +56,11 @@ The Phase 1.7 patch (commit `66593d6`) was documented as "per-model checkpoint" 
 |-----|------|-------|----------------------|
 | Run 9  | ~$9.70 | 11.4 | Log file only |
 | Run 10a | ~$13.00 | 16+ | Log file only |
-| **Total wasted** | **~$22.70** | **27.4 hr** | — |
+| **Total wasted** | **~$22.70** | **27.4 hr** | -- |
 
 Two consecutive runs lost all training work to the same architectural omission. The standing pre-flight rule did not catch it because the rule did not require *runtime verification* that checkpoints actually fire.
 
-## The fix — incremental persistence patch
+## The fix -- incremental persistence patch
 
 Append to the training loop in `variant_ensemble.py`, immediately after the OOF AUROC log line:
 
@@ -89,7 +89,7 @@ try:
     logger.info(f"    {name} checkpoint saved: {model_path.name} ({size_mb:.1f} MB)")
 except Exception as exc:
     logger.error(f"    {name} checkpoint FAILED to save: {exc}", exc_info=True)
-    # do not abort — training continues, but flag the failure
+    # do not abort -- training continues, but flag the failure
 ```
 
 After the loop finishes, the stacker and GNN train against the full `oof_preds` array. If any pipeline step crashes after that, all base models and their OOF arrays are already on disk and the stacker can be retrained offline in seconds.
@@ -118,9 +118,9 @@ If after first base model completes (visible by "Training xgboost ..." appearing
 
 This issue has a documented history. The same root cause hit Run 9 and was filed two weeks ago:
 
-- `docs/incidents/INCIDENT_2026-05-12_no-per-model-checkpoint.md` — first occurrence, Run 9 (May 12). PicklingError raised by `ensemble.save()` on the nested `_CNN1D._build_model.<locals>._CNN1D` class, losing all training.
-- `docs/incidents/INCIDENT_2026-05-12_cnn1d-pickle-nested-class.md` — related root cause for the pickle failure.
-- `docs/incidents/INCIDENT_2026-05-13_phase17-apply-failure.md` — attempt to apply the Phase 1.7 patch failed to actually add per-model writes; only `model_dir.mkdir()` made it in.
+- `docs/incidents/INCIDENT_2026-05-12_no-per-model-checkpoint.md` -- first occurrence, Run 9 (May 12). PicklingError raised by `ensemble.save()` on the nested `_CNN1D._build_model.<locals>._CNN1D` class, losing all training.
+- `docs/incidents/INCIDENT_2026-05-12_cnn1d-pickle-nested-class.md` -- related root cause for the pickle failure.
+- `docs/incidents/INCIDENT_2026-05-13_phase17-apply-failure.md` -- attempt to apply the Phase 1.7 patch failed to actually add per-model writes; only `model_dir.mkdir()` made it in.
 
 Today's run is the third occurrence of "long expensive training, no salvageable checkpoints." The standing rule added in memory (#29) closes the gap going forward.
 ## Status
@@ -133,4 +133,13 @@ Today's run is the third occurrence of "long expensive training, no salvageable 
 - [ ] Unit test added under tests/integration/
 - [ ] Pre-flight extension committed
 
+## Status update (2026-05-31): RESOLVED
 
+Per-model incremental checkpointing is present in the base-model loop of
+`variant_ensemble.py`: immediately after each model's OOF AUROC is logged it writes
+`{name}.joblib`, `{name}_oof.npy`, `{name}_oof_indices.npy`, and `{name}_meta.json`
+(with `saved_at_utc`) to `config.model_dir`, inside a log-but-do-not-abort try/except.
+Locked by `tests/unit/test_ensemble_persistence.py::test_per_model_checkpoints_written`,
+which fits a fast-tabular ensemble on a 300-row fixture and asserts the four-file quartet
+plus OOF/index length parity for every base model. A regression that drops the emission
+fails CI. Closed.

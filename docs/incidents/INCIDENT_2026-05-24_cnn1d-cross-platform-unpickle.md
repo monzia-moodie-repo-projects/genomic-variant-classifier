@@ -147,3 +147,12 @@ def test_cnn1d_roundtrip_pickle():
   time instead of load time
 - `INCIDENT_2026-05-23_cnn1d-0.5-auroc.md` - cnn_1d functional regression
   (different bug, also deferred to Run 11)
+
+## Status update (2026-05-31): DEFERRED with cnn_1d (Phase B)
+
+This incident concerns persisting/unpickling the `cnn_1d` model across platforms. Since `cnn_1d`
+is excluded from the Run-15 baseline pending `fasta_seq` population (see
+INCIDENT_2026-05-23_cnn1d-0.5-auroc.md), cross-platform unpickling of that model is not on the
+baseline path and carries no baseline risk. It will be resolved together with the cnn_1d
+re-enablement in Phase B (move the wrapper's model class to module level / persist via
+state_dict). Tracked, not a baseline blocker.

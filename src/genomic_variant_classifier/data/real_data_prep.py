@@ -315,9 +315,18 @@ class DataPrepPipeline:
                 f"{n_bad} rows have null/empty ref or alt in {source}; "
                 "run scripts/clean_cohort.py --apply and use clinvar_grch38_clean.parquet."
             )
-        if bool(df["variant_id"].duplicated().any()):
+        if "variant_id" in df.columns:
+            _key = df["variant_id"]
+        elif all(c in df.columns for c in ("chrom", "pos", "ref", "alt")):
+            _key = (
+                df["chrom"].astype(str) + ":" + df["pos"].astype(str)
+                + ":" + df["ref"].astype(str) + ":" + df["alt"].astype(str)
+            )
+        else:
+            _key = None
+        if _key is not None and bool(_key.duplicated().any()):
             raise ValueError(
-                f"duplicate variant_id in {source}; run scripts/clean_cohort.py --apply."
+                f"duplicate variant identity in {source}; run scripts/clean_cohort.py --apply."
             )
 
     def _load_and_label(self, clinvar_path: str) -> pd.DataFrame:
