@@ -149,3 +149,6 @@ outputs/**/*.joblib
 outputs/**/*.npy
 outputs/**/*.parquet
 outputs/**/.run*_state.json
+
+# local backups from in-place patchers
+*.bak_*

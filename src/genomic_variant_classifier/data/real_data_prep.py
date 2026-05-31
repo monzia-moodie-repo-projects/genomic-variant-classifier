@@ -293,9 +293,37 @@ class DataPrepPipeline:
 
     # -- Stage 1: Load and label -------------------------------------------
 
+    @staticmethod
+    def _assert_clean_cohort(df: pd.DataFrame, source: str) -> None:
+        """Fail loud on null/empty alleles or duplicate variant_id.
+
+        See docs/incidents/INCIDENT_2026-05-31_null-key-leak.md. The clean cohort
+        guarantees these properties; this guard prevents silent reintroduction of
+        the leak by a future ClinVar re-pull (astype(str) below would otherwise
+        collapse null alleles onto shared join keys).
+        """
+        _bad_tokens = ["", "nan", "none", "na", ".", "null", "-"]
+        bad = (
+            df["ref"].isna()
+            | df["alt"].isna()
+            | df["ref"].astype(str).str.strip().str.lower().isin(_bad_tokens)
+            | df["alt"].astype(str).str.strip().str.lower().isin(_bad_tokens)
+        )
+        n_bad = int(bad.sum())
+        if n_bad:
+            raise ValueError(
+                f"{n_bad} rows have null/empty ref or alt in {source}; "
+                "run scripts/clean_cohort.py --apply and use clinvar_grch38_clean.parquet."
+            )
+        if bool(df["variant_id"].duplicated().any()):
+            raise ValueError(
+                f"duplicate variant_id in {source}; run scripts/clean_cohort.py --apply."
+            )
+
     def _load_and_label(self, clinvar_path: str) -> pd.DataFrame:
         df = pd.read_parquet(clinvar_path)
         logger.info("Loaded %d rows from %s.", len(df), clinvar_path)
+        self._assert_clean_cohort(df, clinvar_path)
 
         df["clinical_sig"] = df["clinical_sig"].fillna("").str.strip()
         df["label"] = np.nan

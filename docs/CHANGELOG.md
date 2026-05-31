@@ -174,7 +174,7 @@ it. Always dry-run the actual gate, not just a parse check.
 - docs/CHANGELOG.md contains encoding mojibake (em/en-dashes, multiplication signs) from prior default-encoding writes; future bulk cleanup. New entries written ASCII-clean + no-BOM UTF-8.
 - variant_ensemble.py L435-465 pandas .fillna downcasting FutureWarning; meta-learner lbfgs ConvergenceWarning on small fixtures.
 
-## 2026-05-27 PM11b — unseen_gene_holdout ablation wired into run_phase2_eval.py (C3 falsifier b)
+## 2026-05-27 PM11b -- unseen_gene_holdout ablation wired into run_phase2_eval.py (C3 falsifier b)
 
 ### Attempted
 - Wire unseen_gene_holdout_split (data/splits.py L117) into scripts/run_phase2_eval.py as a --unseen-gene-holdout flag, satisfying RUN_15_PLAN H_Run15 C3 hypothesis falsifier (b).
@@ -227,7 +227,7 @@ it. Always dry-run the actual gate, not just a parse check.
 
 ---
 
-## 2026-05-27 PM11a — B.D3 verification + INCIDENT_2026-04-30 closure (test + docs)
+## 2026-05-27 PM11a -- B.D3 verification + INCIDENT_2026-04-30 closure (test + docs)
 
 ### Attempted
 - Verify B.D3 (pipeline-side gene_symbol fix) state on disk before pre-launch code work.
@@ -236,9 +236,9 @@ it. Always dry-run the actual gate, not just a parse check.
 
 ### Fixed
 - **CREATED** `tests/unit/test_patch_6b_meta_train.py`: 3 regression tests
-  1. `test_save_splits_writes_meta_train_parquet` — asserts meta_train.parquet is written when meta_train is provided.
-  2. `test_save_splits_meta_train_preserves_gene_symbol` — asserts gene_symbol survives the parquet roundtrip.
-  3. `test_save_splits_meta_train_optional_when_none` — asserts backward compat: meta_train=None still writes meta_val/meta_test, no meta_train.parquet.
+  1. `test_save_splits_writes_meta_train_parquet` -- asserts meta_train.parquet is written when meta_train is provided.
+  2. `test_save_splits_meta_train_preserves_gene_symbol` -- asserts gene_symbol survives the parquet roundtrip.
+  3. `test_save_splits_meta_train_optional_when_none` -- asserts backward compat: meta_train=None still writes meta_val/meta_test, no meta_train.parquet.
 - **UPDATED** `docs/incidents/INCIDENT_2026-04-30_gnn-gene-symbol-keyerror.md`: Status DIAGNOSED → RESOLVED 2026-05-27 with Resolution section listing exact file/line refs + verification artifacts.
 - **UPDATED** `docs/CHANGELOG.md`: this PM11a entry prepended.
 
@@ -247,10 +247,10 @@ it. Always dry-run the actual gate, not just a parse check.
 - **`src/.../data/real_data_prep.py` L278+L283-L286**: `run()` builds `meta_train = df.iloc[train_idx].reset_index(drop=True)` and threads it through `self._save_splits(..., meta_train=meta_train)`.
 - **`scripts/run_phase2_eval.py` L292-L317**: literal `# Patch 6b (2026-04-30):` comment + meta_train.parquet read + gene_symbol merge into gnn_df + `raise FileNotFoundError(_meta_train_path)` for missing file.
 - **`outputs/run9_ready/splits/meta_train.parquet`**: 41,839,799 bytes (41.81 MB) on disk.
-- **`scripts/launch_run11_vm.sh` L229**: `python scripts/run_phase2_eval.py $ARGS` — the Run 14/15 VM-side entry point (file mtime 2026-05-27).
+- **`scripts/launch_run11_vm.sh` L229**: `python scripts/run_phase2_eval.py $ARGS` -- the Run 14/15 VM-side entry point (file mtime 2026-05-27).
 
 ### Scope clarification (consequences for RUN_15_PLAN B.D3)
-PM10 entry stated "B.D3 enable: pipeline-side gene_symbol fix — REQUIRED before Run 15." PM11a probe shows the fix is **already enabled** in both files. **No code change required for B.D3.** Run 15 launching `scripts/launch_run11_vm.sh` will exercise the patched path automatically; GNN training is implicit when running run_phase2_eval.py with splits that include meta_train.parquet.
+PM10 entry stated "B.D3 enable: pipeline-side gene_symbol fix -- REQUIRED before Run 15." PM11a probe shows the fix is **already enabled** in both files. **No code change required for B.D3.** Run 15 launching `scripts/launch_run11_vm.sh` will exercise the patched path automatically; GNN training is implicit when running run_phase2_eval.py with splits that include meta_train.parquet.
 
 The "GNN-FREE" status carried in memory (Runs 9-14) is therefore due to either ablation choice (run9_ablations.py), pre-Patch-6b splits, or other unrelated reasons. For Run 15 with `outputs/run9_ready/splits/meta_train.parquet` present and Patch 6b code applied, GNN should train.
 
@@ -264,62 +264,62 @@ The "GNN-FREE" status carried in memory (Runs 9-14) is therefore due to either a
 4. **Patcher needle audit lesson**: PM11a v1 used `**2026-05-27 PM11a` (bold-text pattern from RUN_15_PLAN Decision log) as the CHANGELOG header check needle, but CHANGELOG uses `## 2026-05-27 PM11a` (level-2 heading). The two project conventions are syntactically distinct (`**bold**` vs `## header`); rule #28.17 (verbatim needles) requires distinguishing them. Fixed v2 uses `## 2026-05-27 PM11a` matching the actual content.
 
 ### Open follow-ups
-- **PM11b** — wire existing `unseen_gene_holdout_split` (data/splits.py L117) into `scripts/run_phase2_eval.py` with `--unseen-gene-holdout` flag. Adds inline ablation pass during Run 15 (per C3 hypothesis falsifier b).
-- **PM11c** (optional) — cnn_1d closure refactor per INCIDENT_2026-05-24 (currently --skip-cnn; not required by C3 hypothesis).
-- **Memory update** (after PM11 series) — mark memory #27 Patch 6b as "applied, INCIDENT closed PM11a 2026-05-27"; remove "B.D3 enable" from pre-launch items.
-- **RUN_15_PLAN.md B.D3 status** — plan's B.D3 line currently implies "build/enable" is pending. Should be updated to "verified complete via PM11a" in a docs-only follow-up (low priority; not blocking launch).
+- **PM11b** -- wire existing `unseen_gene_holdout_split` (data/splits.py L117) into `scripts/run_phase2_eval.py` with `--unseen-gene-holdout` flag. Adds inline ablation pass during Run 15 (per C3 hypothesis falsifier b).
+- **PM11c** (optional) -- cnn_1d closure refactor per INCIDENT_2026-05-24 (currently --skip-cnn; not required by C3 hypothesis).
+- **Memory update** (after PM11 series) -- mark memory #27 Patch 6b as "applied, INCIDENT closed PM11a 2026-05-27"; remove "B.D3 enable" from pre-launch items.
+- **RUN_15_PLAN.md B.D3 status** -- plan's B.D3 line currently implies "build/enable" is pending. Should be updated to "verified complete via PM11a" in a docs-only follow-up (low priority; not blocking launch).
 
 ---
 
-## 2026-05-27 PM10 — E budget decision: triple resolved (docs-only)
+## 2026-05-27 PM10 -- E budget decision: triple resolved (docs-only)
 
 ### Attempted
 - Resolve final 3 actual placeholders in RUN_15_PLAN.md E section (L68 GPU hours, L69 cost USD, L70 hard ceiling) grounded in actual Run-14 baseline + Vast.ai pricing data + Run 15 scope decision (Interpretation B' hybrid per Monzia 2026-05-27).
 
 ### Fixed
-- **`docs/runs/RUN_15_PLAN.md`** L68: GPU hours estimate = ~10h (range 8–12h).
-- **`docs/runs/RUN_15_PLAN.md`** L69: cost estimate = ~$7 (range $5–9).
+- **`docs/runs/RUN_15_PLAN.md`** L68: GPU hours estimate = ~10h (range 8--12h).
+- **`docs/runs/RUN_15_PLAN.md`** L69: cost estimate = ~$7 (range $5--9).
 - **`docs/runs/RUN_15_PLAN.md`** L70: hard ceiling = 24h wall-clock OR $20 USD, whichever first.
 - **`docs/runs/RUN_15_PLAN.md`** Decision log: PM10 entry appended after PM9.
 - **`docs/CHANGELOG.md`**: this PM10 entry prepended.
 
 ### Scope
 Interpretation B' (hybrid) per Monzia 2026-05-27:
-- Run 15 trains base ensemble: 10 models (catboost, lightgbm, xgboost, random_forest, gradient_boosting, tabular_nn, mc_dropout, deep_ensemble, kan-250k, gnn) — cnn_1d still --skip-cnn per B.D6 PM8.
+- Run 15 trains base ensemble: 10 models (catboost, lightgbm, xgboost, random_forest, gradient_boosting, tabular_nn, mc_dropout, deep_ensemble, kan-250k, gnn) -- cnn_1d still --skip-cnn per B.D6 PM8.
 - Run 15 ALSO runs unseen_gene_holdout ablation INLINE (one additional full retrain on gene-stratified split).
 - Other 12 ablations from the planned matrix (lookup_only, feature_permutation, true_generalization, etc.) DEFERRED to post-hoc analysis on saved models/OOF preds (separate session).
 
 ### Estimate basis
 - **Run 14 baseline (CHANGELOG L483/L502/L503)**: 3.24h wall-clock @ $0.6694/hr = $2.17 on Vast.ai Texas RTX 4090 instance 37897784. 10-model ensemble incl. KAN via imodelsx. No GNN, no cnn_1d, no ablations.
-- **Run 15 base estimate**: 3.24h + ~30–60 min KAN-100K → KAN-250K delta + ~30–60 min GNN-FREE → GNN-enabled delta ≈ 4.5–5.5h.
-- **Inline unseen_gene_holdout retrain**: ~4.5–5.5h (same components, gene-stratified split).
-- **Total**: ~9–11h, midpoint 10h.
-- **Cost**: 10h × $0.67–0.77/hr (Run 13 was $0.771/hr; Run 14 was $0.6694/hr) = $6.70–$7.70, midpoint $7.
+- **Run 15 base estimate**: 3.24h + ~30--60 min KAN-100K → KAN-250K delta + ~30--60 min GNN-FREE → GNN-enabled delta ≈ 4.5--5.5h.
+- **Inline unseen_gene_holdout retrain**: ~4.5--5.5h (same components, gene-stratified split).
+- **Total**: ~9--11h, midpoint 10h.
+- **Cost**: 10h × $0.67--0.77/hr (Run 13 was $0.771/hr; Run 14 was $0.6694/hr) = $6.70--$7.70, midpoint $7.
 - **Hard ceiling**: 24h is ~2.4× expected wall-clock; $20 is ~2.9× expected cost. Either trigger → manual destroy and post-mortem.
 
 ### Pre-launch code dependencies (NOT this commit)
-- **B.D3 enable: pipeline-side gene_symbol fix in `build_pyg_dataset` caller** (memory #27 Patch 6b root cause). UNLOCKS BOTH GNN training AND unseen_gene_holdout ablation — single change, double payoff. **Required**.
+- **B.D3 enable: pipeline-side gene_symbol fix in `build_pyg_dataset` caller** (memory #27 Patch 6b root cause). UNLOCKS BOTH GNN training AND unseen_gene_holdout ablation -- single change, double payoff. **Required**.
 - **unseen_gene_holdout evaluator** in training pipeline (new code; leverages B.D3's gene_symbol availability for the gene-stratified split). **Required**.
 - **cnn_1d closure refactor** per INCIDENT_2026-05-24 (currently --skip-cnn). **Optional**; not required by C3 hypothesis (which references the 10-model ensemble incl. KAN, not 11 incl. cnn_1d).
 
 ### Commits (1 this session, pushed)
-- `XXXXXXX` docs(plan,changelog): E budget triple resolved — Interpretation B' hybrid (PM10)
+- `XXXXXXX` docs(plan,changelog): E budget triple resolved -- Interpretation B' hybrid (PM10)
 
 ### Learned
-1. **Run 14 set a new project low-water mark**: 3.24h / $2.17 vs Run 11's 7.9h / $5.60 (-59% wall-clock, -61% cost). The dlperf≥80 pcie_bw≥12 filter (memory #30) plus the Texas instance ($0.6694/hr — cheapest of the post-filter runs) drove the cost reduction. Run 15 budgeting should use Run 14 as the reference, not the Run 11–13 average.
+1. **Run 14 set a new project low-water mark**: 3.24h / $2.17 vs Run 11's 7.9h / $5.60 (-59% wall-clock, -61% cost). The dlperf≥80 pcie_bw≥12 filter (memory #30) plus the Texas instance ($0.6694/hr -- cheapest of the post-filter runs) drove the cost reduction. Run 15 budgeting should use Run 14 as the reference, not the Run 11--13 average.
 2. **B.D3 pipeline-side gene_symbol fix has a hidden double payoff**: same code change unlocks GNN training (memory #27 root cause) AND unseen_gene_holdout ablation (gene-stratified split requires gene_symbol). Implementing it for B.D3 also satisfies the unseen_gene_holdout prerequisite. Document this in pre-launch code-change planning so it's not redundantly scheduled.
-3. **The 13-ablation matrix is a PLAN, not implemented code**: src/ has no ABLATION_MASKS / run_ablation references (probe Phase 9: 0 hits). The only ablation code on disk is `scripts/run9_ablations.py` (one-off for Run 9's 6-ablation matrix, CHANGELOG L2117). Future ablations beyond unseen_gene_holdout will require either generalizing run9_ablations.py or building a proper src/ablations.py — separate code work, post-Run-15.
+3. **The 13-ablation matrix is a PLAN, not implemented code**: src/ has no ABLATION_MASKS / run_ablation references (probe Phase 9: 0 hits). The only ablation code on disk is `scripts/run9_ablations.py` (one-off for Run 9's 6-ablation matrix, CHANGELOG L2117). Future ablations beyond unseen_gene_holdout will require either generalizing run9_ablations.py or building a proper src/ablations.py -- separate code work, post-Run-15.
 
 ### Open follow-ups
-- **PM11 — Pre-launch code commits** (NOT docs): B.D3 enable + unseen_gene_holdout evaluator (bundled, shared gene_symbol dependency) + (optional) cnn_1d closure refactor. Each commit separate per discipline (one decision per commit).
-- **G1 + G2 pre-flight gates** per Charter v1.1 (RUN_15_PLAN.md L74–L82).
+- **PM11 -- Pre-launch code commits** (NOT docs): B.D3 enable + unseen_gene_holdout evaluator (bundled, shared gene_symbol dependency) + (optional) cnn_1d closure refactor. Each commit separate per discipline (one decision per commit).
+- **G1 + G2 pre-flight gates** per Charter v1.1 (RUN_15_PLAN.md L74--L82).
 - **Run 15 launch** (Vast.ai SCP up → train → SCP back → destroy immediately, per memory #7 and #29b).
-- **Post-Run-15 ablation matrix** — separate session, separate budget. Generalize scripts/run9_ablations.py or build src/ablations.py for the 12 deferred ablations.
-- **L77 backtick-doc-pattern** — the `- [ ]` checklist line literally contains the placeholder marker in backticks. After PM10, this is the only remaining placeholder substring in the plan. Per PM9 Learned item 3, this is documentation, not an unresolved decision. Monzia checks the box manually as part of pre-flight. Note also that L77 gate text says "All B.O* and C.* decisions filled" — narrowly scoped wording; A (Hypothesis) and E (Budget) decisions are implicitly required even though L77's text doesn't enumerate them.
+- **Post-Run-15 ablation matrix** -- separate session, separate budget. Generalize scripts/run9_ablations.py or build src/ablations.py for the 12 deferred ablations.
+- **L77 backtick-doc-pattern** -- the `- [ ]` checklist line literally contains the placeholder marker in backticks. After PM10, this is the only remaining placeholder substring in the plan. Per PM9 Learned item 3, this is documentation, not an unresolved decision. Monzia checks the box manually as part of pre-flight. Note also that L77 gate text says "All B.O* and C.* decisions filled" -- narrowly scoped wording; A (Hypothesis) and E (Budget) decisions are implicitly required even though L77's text doesn't enumerate them.
 
 ---
 
-## 2026-05-27 PM9 — H_Run15 decision: Option C3 hybrid hypothesis (docs-only)
+## 2026-05-27 PM9 -- H_Run15 decision: Option C3 hybrid hypothesis (docs-only)
 
 ### Attempted
 - Resolve H_Run15 placeholder at RUN_15_PLAN.md L13 with a falsifiable primary hypothesis grounded in actual Run 15 scope (post-PM5/PM6/PM7/PM8 decisions) and the project's central scientific concern (gene-prevalence memorization).
@@ -333,9 +333,9 @@ Interpretation B' (hybrid) per Monzia 2026-05-27:
 
 ### Rationale
 - Hybrid C3 covers BOTH the gap test (encoded in B.O1 PM5 threshold 0.001) AND the central scientific concern (gene-prevalence memorization given n_pathogenic_in_gene importance 3.3× next feature, per memory #12).
-- Falsifier (a): OOF→test gap > 0.0010 — escalates B.O1 to Option A2 (500K KAN) in Run 16.
-- Falsifier (b): unseen_gene_holdout AUROC < 0.95 — flags gene-memorization dominance; deeper ablation required before claiming variant-level discriminative skill.
-- Alternative candidates explicitly considered and rejected: C1 (gene-memo only — missed the gap criterion already encoded in B.O1), C2 (gap only — missed central scientific concern), C4 (orthogonality — supporting goal, not primary classification goal).
+- Falsifier (a): OOF→test gap > 0.0010 -- escalates B.O1 to Option A2 (500K KAN) in Run 16.
+- Falsifier (b): unseen_gene_holdout AUROC < 0.95 -- flags gene-memorization dominance; deeper ablation required before claiming variant-level discriminative skill.
+- Alternative candidates explicitly considered and rejected: C1 (gene-memo only -- missed the gap criterion already encoded in B.O1), C2 (gap only -- missed central scientific concern), C4 (orthogonality -- supporting goal, not primary classification goal).
 - Conjunctive AND criterion is strictly harder to confirm than either C1 or C2 alone, yielding stronger evidence if it holds.
 
 ### Run 15 actual scope (deltas vs Run 14)
@@ -346,34 +346,34 @@ Interpretation B' (hybrid) per Monzia 2026-05-27:
 - 5 silent-zero features still dead: B.D1/B.D2/B.D4/B.D5 deferred (PM8 L106).
 
 ### Commits (1 this session, pushed)
-- `XXXXXXX` docs(plan,changelog): H_Run15 decision — Option C3 hybrid hypothesis (PM9)
+- `XXXXXXX` docs(plan,changelog): H_Run15 decision -- Option C3 hybrid hypothesis (PM9)
 
 ### Learned
-1. **Hypothesis text must reflect ACTUAL run scope at time of decision.** L14 example hypotheses were written at Run 14 close-out (2026-05-26) and predated PM5/PM6/PM7/PM8 decisions — by today they contradicted the actual scope (4 of 5 silent-zero gaps deferred, KAN at 250K not 814K). Plan-template scaffolding should be removed or updated as decisions land, not left as historical clutter that contradicts current state.
+1. **Hypothesis text must reflect ACTUAL run scope at time of decision.** L14 example hypotheses were written at Run 14 close-out (2026-05-26) and predated PM5/PM6/PM7/PM8 decisions -- by today they contradicted the actual scope (4 of 5 silent-zero gaps deferred, KAN at 250K not 814K). Plan-template scaffolding should be removed or updated as decisions land, not left as historical clutter that contradicts current state.
 2. **Conjunctive (AND) hypotheses are strictly harder to confirm but yield stronger evidence than disjunctive (OR) or single-criterion hypotheses.** C3 requires BOTH (a) AND (b) to confirm; either failure refutes. Vs C1 or C2 alone, C3 leaves less room for misinterpretation at close-out.
 3. **The L77 meta-reference (backtick-wrapped placeholder pattern) is a documentation pattern, not an unresolved decision.** Future validation tools that count the placeholder substring should skip backtick-wrapped occurrences or accept that the residual count after all decisions = 1 (the L77 doc-pattern). This is the same pattern-vs-literal collision class as PM8 v1 (memory rule #28.16).
 
 ### Open follow-ups
-- **E budget (L68/L69/L70)** — next decision (PM10). Will probe SESSION_2026-05-25.md and CHANGELOG for Run 11/12/13/14 actual wall-clocks before proposing GPU-hr / USD / hard-ceiling triple.
-- **B.D3 enable: pipeline-side gene_symbol fix in `build_pyg_dataset` caller** — required before Run 15 launch if C3 hypothesis is to test GNN ensemble contribution. Memory #27 root cause Patch 6b: `X_train_raw = pd.read_parquet(outdir/'splits'/X_train.parquet)` clobbers gnn_df with 78-col matrix lacking gene_symbol. Fix: source gene_symbol from df via train_idx, or persist meta_train.parquet alongside meta_val/meta_test in DataPrepPipeline._save_splits.
-- **cnn_1d closure refactor** per INCIDENT_2026-05-24 — currently --skip-cnn; if refactored before launch, Run 15 could include cnn_1d as 10th-or-11th ensemble member. Not strictly required by C3 hypothesis (which references the existing 10-model ensemble).
-- **Run 15 pre-flight gates G1+G2** per Charter v1.1 (plan L72–L82).
+- **E budget (L68/L69/L70)** -- next decision (PM10). Will probe SESSION_2026-05-25.md and CHANGELOG for Run 11/12/13/14 actual wall-clocks before proposing GPU-hr / USD / hard-ceiling triple.
+- **B.D3 enable: pipeline-side gene_symbol fix in `build_pyg_dataset` caller** -- required before Run 15 launch if C3 hypothesis is to test GNN ensemble contribution. Memory #27 root cause Patch 6b: `X_train_raw = pd.read_parquet(outdir/'splits'/X_train.parquet)` clobbers gnn_df with 78-col matrix lacking gene_symbol. Fix: source gene_symbol from df via train_idx, or persist meta_train.parquet alongside meta_val/meta_test in DataPrepPipeline._save_splits.
+- **cnn_1d closure refactor** per INCIDENT_2026-05-24 -- currently --skip-cnn; if refactored before launch, Run 15 could include cnn_1d as 10th-or-11th ensemble member. Not strictly required by C3 hypothesis (which references the existing 10-model ensemble).
+- **Run 15 pre-flight gates G1+G2** per Charter v1.1 (plan L72--L82).
 
 ---
 
-## 2026-05-27 PM8 — B.D batch decisions: 6 data-source decisions resolved + 3 plan factual corrections (docs-only)
+## 2026-05-27 PM8 -- B.D batch decisions: 6 data-source decisions resolved + 3 plan factual corrections (docs-only)
 
 ### Attempted
-- Resolve B.D1–B.D6 placeholders in RUN_15_PLAN.md L29–43 with HIGH-confidence rationale grounded in actual on-disk connector code + data files + recent incident docs.
+- Resolve B.D1--B.D6 placeholders in RUN_15_PLAN.md L29--43 with HIGH-confidence rationale grounded in actual on-disk connector code + data files + recent incident docs.
 - Correct 3 factual inaccuracies in plan wording discovered during the 4-phase B.D probe sequence (Option B: comprehensive).
 
 ### Failed (and recovered)
 - **B.D probe v1 (Phase 2 abort)**: PowerShell operator-precedence bug. `$bdStart -ge 0 -and $i -gt $bdStart -and ... -match '^### ' -or ... -match '^## '` parsed as `(A -and B -and C) -or D`, so the `-or D` clause fired on the first `## ` header anywhere in the file BEFORE `$bdStart` was set, causing the section finder to early-exit with bdStart still -1. Memory rule #21.12 added: "`-and` tighter than `-or`; paren OR groups in AND chains else early-exit". Probe was read-only; no recovery needed.
 - **B.D probe v2 path miss**: Phase 4 per-item probe paths used guessed filenames (`onekgp.py`, `kgp.py`, `primateai.py`, `primateai_3d.py`) that don't exist on disk; actual filenames are `thousandgenomes.py` and `primateai3d.py`. Phase 3 directory listing DID surface the real filenames but Phase 4 ran with guesses in parallel. Methodology lesson: directory listing must INFORM per-item probe paths, not run alongside them. Probe was read-only; no recovery needed.
-- **PM8 patcher first attempt (Phase E abort, exit 10)**: delta count expected 6, got 5. Root cause: PM8_ENTRY contained a literal `<DECISION>` token ("...avoid precedence traps. [token] count in plan: 11 -> 5...") as a meta-mention, which collided with the Phase E `plan_lf.count("<DECISION")` validation. Atomic patcher worked correctly — Phase F never ran, so no files were modified. Fix: reworded PM8_ENTRY to use "Plan placeholder count" instead of the literal `<DECISION>` token. New lesson logged as PM8_ENTRY item (4).
+- **PM8 patcher first attempt (Phase E abort, exit 10)**: delta count expected 6, got 5. Root cause: PM8_ENTRY contained a literal `<DECISION>` token ("...avoid precedence traps. [token] count in plan: 11 -> 5...") as a meta-mention, which collided with the Phase E `plan_lf.count("<DECISION")` validation. Atomic patcher worked correctly -- Phase F never ran, so no files were modified. Fix: reworded PM8_ENTRY to use "Plan placeholder count" instead of the literal `<DECISION>` token. New lesson logged as PM8_ENTRY item (4).
 - **PM8 patcher second attempt (Phase E abort, exit 17)**: cl_checks needle #12 was "Directory listing must INFORM per-item probes" but actual CL_ENTRY Learned item 2 uses lowercase "inform". Frankenstein needle mixed casing from two different occurrences. Phase F never ran, no files modified. Fix: corrected needle to match Learned item 2 exactly. Logged as Learned item 10.
 - **3 plan inaccuracies discovered by probe** (corrected in this commit per Option B):
-  1. B.D1 sub-bullet "Unlocks 5 dead features (af_1kg_{afr,eur,eas,sas,amr})" was wrong — `thousandgenomes.py` outputs single `allele_freq` column (gnomAD AF fallback), not 5 per-population features. Corrected.
+  1. B.D1 sub-bullet "Unlocks 5 dead features (af_1kg_{afr,eur,eas,sas,amr})" was wrong -- `thousandgenomes.py` outputs single `allele_freq` column (gnomAD AF fallback), not 5 per-population features. Corrected.
   2. B.D6 heading "CNN-fasta input" was based on misconception per INCIDENT_2026-05-23: cnn_1d is a 1-D CNN over the 78-dim tabular feature vector (input shape `(78, 1)`), NOT a sequence model. Corrected heading + DECISION text.
   3. B.D2 plan claim "transfer" was outdated: 30.6 GB is already on disk at `data/external/finngen/finnge_R12_annotated_variants_v1.gz`. Two issues: filename typo ("finnge" missing 'n') and version mismatch (R12 vs connector-expected R10). Added detail to DECISION rationale.
 
@@ -389,13 +389,13 @@ Interpretation B' (hybrid) per Monzia 2026-05-27:
 - **`docs/CHANGELOG.md`**: this PM8 entry prepended at top.
 
 ### Headline verification (probe outputs cited)
-- **`thousandgenomes.py` L13-15** (read live 2026-05-27): "Expected parquet schema (same format as gnomAD AF parquet): variant_id str, allele_freq float Global alternate AF across all 1000G super-populations". Single column — confirms B.D1 correction.
+- **`thousandgenomes.py` L13-15** (read live 2026-05-27): "Expected parquet schema (same format as gnomAD AF parquet): variant_id str, allele_freq float Global alternate AF across all 1000G super-populations". Single column -- confirms B.D1 correction.
 - **`finngen.py` L18-21**: "Feature columns produced: finngen_af_fin, finngen_af_nfsee, finngen_enrichment". B.D2 plan claim was correct on feature names but wrong on transfer status.
 - **`data/external/finngen/finnge_R12_annotated_variants_v1.gz`** (30638.3 MB): filename typo + R12 version visible from `Get-ChildItem` output.
 - **`primateai3d.py` L26-28** (PHASE_2_PLACEHOLDER) + **L41** ("must match TABULAR_FEATURES when wired"): connector exists but not yet integrated.
 - **`data/raw/cache/string_links.parquet`** (13,715,404 rows; columns include `combined_score`) + **`string_names.parquet`** (19,699 rows) + **`string_graph_700.pkl`** (17.2 MB): STRING data + graph pickle fully cached.
-- **`gnn.py`** L640-644: defensive gene_symbol handling with empty-string defaults — Run 9 GNN-FREE was pipeline-side gnn_df overwrite, not gnn.py.
-- **INCIDENT_2026-05-23** L18-20: "`cnn_1d` is a 1-D convolutional network operating on the 78-dim tabular feature vector. It is NOT an image classifier. Input shape is `(78, 1)`. ... no image data is required, was ever required, or will fix the regression. The bug is in the wrapper code." — confirms B.D6 misconception.
+- **`gnn.py`** L640-644: defensive gene_symbol handling with empty-string defaults -- Run 9 GNN-FREE was pipeline-side gnn_df overwrite, not gnn.py.
+- **INCIDENT_2026-05-23** L18-20: "`cnn_1d` is a 1-D convolutional network operating on the 78-dim tabular feature vector. It is NOT an image classifier. Input shape is `(78, 1)`. ... no image data is required, was ever required, or will fix the regression. The bug is in the wrapper code." -- confirms B.D6 misconception.
 - **INCIDENT_2026-05-24** L27-35: CNN1D model class defined as a closure inside `_build_model` method, causing joblib unpickle failure cross-platform.
 
 ### Commits (1 this session, pushed)
@@ -404,14 +404,14 @@ Interpretation B' (hybrid) per Monzia 2026-05-27:
 ### Learned
 1. **Plan wording can be inaccurate.** B.D1 "5 features" claim and B.D6 "CNN-fasta" framing both contradicted the actual source on disk. Probe-first discipline (memory #11) caught both before they were committed as "resolved".
 2. **Directory listing must inform per-item probes**, not run parallel with guessed paths. My Phase 4 used filename guesses that don't exist on disk, despite Phase 3 directory listing surfacing the real filenames. This is a methodology refinement on memory rule #11.
-3. **PowerShell `-and` binds tighter than `-or`** (memory #21.12 added earlier today) — caught a B.D probe v1 abort. Pattern: never put `-and ... -or` in section-finder loop conditions without parenthesizing the OR group.
-4. **Two-loop section finders** are safer than single-loop with mixed conditions — single-purpose loops have no operator-precedence ambiguity.
-5. **gnn.py is defensively coded.** The Run 9 GNN-FREE issue is pipeline-side, NOT in gnn.py. This changes the scope of "fix GNN" work — the fix is upstream in the caller, not in graph construction.
+3. **PowerShell `-and` binds tighter than `-or`** (memory #21.12 added earlier today) -- caught a B.D probe v1 abort. Pattern: never put `-and ... -or` in section-finder loop conditions without parenthesizing the OR group.
+4. **Two-loop section finders** are safer than single-loop with mixed conditions -- single-purpose loops have no operator-precedence ambiguity.
+5. **gnn.py is defensively coded.** The Run 9 GNN-FREE issue is pipeline-side, NOT in gnn.py. This changes the scope of "fix GNN" work -- the fix is upstream in the caller, not in graph construction.
 6. **INCIDENT docs are authoritative.** INCIDENT_2026-05-23 conclusively states cnn_1d is tabular, not sequence. Without reading the incident doc we would have committed wrong B.D6 reasoning. Reaffirms memory rule #11 (read project files first).
 7. **The 30.6 GB FinnGen file is a half-finished transfer**: filename typo + version drift mean the data is on disk but unusable by current finngen.py code. "Transfer" was the wrong label; "integrate after R12 schema validation" is the real next step.
-8. **Atomic patcher pattern (Phase A read → B idempotency → C anchors → D build → E validate → F write) scales to 6 simultaneous decisions** without partial-mutation risk. Validated by Phase E catching the PM8 meta-collision (v1) and cl_checks needle case mismatch (v2) — Phase F never ran in either failure, no files modified, no `git checkout` recovery needed.
+8. **Atomic patcher pattern (Phase A read → B idempotency → C anchors → D build → E validate → F write) scales to 6 simultaneous decisions** without partial-mutation risk. Validated by Phase E catching the PM8 meta-collision (v1) and cl_checks needle case mismatch (v2) -- Phase F never ran in either failure, no files modified, no `git checkout` recovery needed.
 9. **Validation needles must not appear in NEW content.** PM8 v1: embedded `<DECISION>` as meta-mention while Phase E counted `<DECISION>` as delta-validation marker. Result: count drift by 1, abort exit 10. Fix: reword to avoid the literal.
-10. **Validation needles must EXACTLY match content (case-sensitive).** PM8 v2: cl_checks needle was "Directory listing must INFORM per-item probes" but Learned item 2 has lowercase "inform" — frankenstein needle mixing caps from two different sentences. Result: substring not found, abort exit 17. Fix: align needle to one specific occurrence exactly. Pattern: every check needle should be copy-pasted verbatim from a unique occurrence in NEW content, not synthesized.
+10. **Validation needles must EXACTLY match content (case-sensitive).** PM8 v2: cl_checks needle was "Directory listing must INFORM per-item probes" but Learned item 2 has lowercase "inform" -- frankenstein needle mixing caps from two different sentences. Result: substring not found, abort exit 17. Fix: align needle to one specific occurrence exactly. Pattern: every check needle should be copy-pasted verbatim from a unique occurrence in NEW content, not synthesized.
 
 ### Open follow-ups
 - **H_Run15** primary hypothesis (L13): pending.
@@ -423,7 +423,7 @@ Interpretation B' (hybrid) per Monzia 2026-05-27:
 
 ---
 
-## 2026-05-27 PM7 — C.1 decision: decline np.log(0) defensive clip at mc_dropout.py:87 (docs-only)
+## 2026-05-27 PM7 -- C.1 decision: decline np.log(0) defensive clip at mc_dropout.py:87 (docs-only)
 
 ### Attempted
 - Resolve C.1 placeholder in RUN_15_PLAN.md L47 (`<DECISION: yes | no>` for adding a defensive `np.clip` at `mc_dropout.py:87`).
@@ -431,8 +431,8 @@ Interpretation B' (hybrid) per Monzia 2026-05-27:
 
 ### Failed (and recovered)
 - **C.1 probe Phase 4 aborted**: `A hash table can only be added to another hash table`. Root cause: PowerShell automatic variable `$matches` is set by the `-match` regex operator to a hashtable of capture groups; my probe used `$matches = @()` (array) and then `$matches += "..."` after a regex match, which stomped my array and produced a hashtable += string error. Phases 1-3 succeeded before the abort (state pin, full code at L60-100, boundary probe script presence); Phase 5 (placeholder enumeration) did not execute.
-- **First C.1 implementation paste aborted at exit 11**: `marker not in new CHANGELOG`. Root cause #1 (proximate): MARKER was defined as `"C.1 decision: no"` which appeared in plan PM7_ENTRY but NOT in CHANGELOG C1_ENTRY (which used `"C.1 decision: decline np.log(0)..."`). Post-condition `if MARKER not in new_cl_lf: sys.exit(11)` fired correctly. Root cause #2 (amplifier): patcher wrote the plan BEFORE validating the CHANGELOG, so the plan was modified on disk while CHANGELOG was untouched — partial mutation requiring `git checkout HEAD --` revert. Memory rule #28 expanded: (14) multi-file patchers must build+validate ALL files before writing ANY; (15) marker strings must appear VERBATIM in ALL touched files' new content. Fixed paste: MARKER `"2026-05-27 PM7 — C.1 decision"` appears in both PM7_ENTRY and C1_ENTRY header; restructured patcher into Phase A (read), B (idempotency), C (anchors), D (build), E (validate), F (write).
-- **Recovery (both above)**: probe was read-only — no probe-time mutations. First paste required `git checkout HEAD -- docs/runs/RUN_15_PLAN.md` to revert the partial plan write. CHANGELOG was unchanged in both failures.
+- **First C.1 implementation paste aborted at exit 11**: `marker not in new CHANGELOG`. Root cause #1 (proximate): MARKER was defined as `"C.1 decision: no"` which appeared in plan PM7_ENTRY but NOT in CHANGELOG C1_ENTRY (which used `"C.1 decision: decline np.log(0)..."`). Post-condition `if MARKER not in new_cl_lf: sys.exit(11)` fired correctly. Root cause #2 (amplifier): patcher wrote the plan BEFORE validating the CHANGELOG, so the plan was modified on disk while CHANGELOG was untouched -- partial mutation requiring `git checkout HEAD --` revert. Memory rule #28 expanded: (14) multi-file patchers must build+validate ALL files before writing ANY; (15) marker strings must appear VERBATIM in ALL touched files' new content. Fixed paste: MARKER `"2026-05-27 PM7 -- C.1 decision"` appears in both PM7_ENTRY and C1_ENTRY header; restructured patcher into Phase A (read), B (idempotency), C (anchors), D (build), E (validate), F (write).
+- **Recovery (both above)**: probe was read-only -- no probe-time mutations. First paste required `git checkout HEAD -- docs/runs/RUN_15_PLAN.md` to revert the partial plan write. CHANGELOG was unchanged in both failures.
 
 ### Fixed (decision rationale committed)
 - **`docs/runs/RUN_15_PLAN.md`** (L47): `<DECISION: yes | no>` → DECLINED marker citing mathematical + empirical evidence.
@@ -440,7 +440,7 @@ Interpretation B' (hybrid) per Monzia 2026-05-27:
 - **`docs/CHANGELOG.md`**: prepend this PM7 entry at top (reverse-chronological).
 
 ### Headline verification
-- **Live probe** of `src/genomic_variant_classifier/models/mc_dropout.py`: 313 lines, 11694 bytes, **CRLF: False** (LF-only — different from `variant_ensemble.py`'s CRLF). L82-88 reads:
+- **Live probe** of `src/genomic_variant_classifier/models/mc_dropout.py`: 313 lines, 11694 bytes, **CRLF: False** (LF-only -- different from `variant_ensemble.py`'s CRLF). L82-88 reads:
 
       L82: mean_prob = probs_stack.mean(axis=0)
       L83: epistemic = probs_stack.var(axis=0)
@@ -461,20 +461,20 @@ Interpretation B' (hybrid) per Monzia 2026-05-27:
 1. **Standing rule #3 (probe before assume) caught one more case.** The visible L87 code uses `clipped` not raw `probs_stack`. Had we relied on B.O2 closure summary alone, the argument would be implicit; the live probe shows the bound is structurally enforced via variable reuse.
 2. **PS automatic variable `$matches` is a recurring trap.** Set by `-match` operator to capture-group hashtable. Memory rule #21 expanded with full auto-var blocklist.
 3. **mc_dropout.py uses LF, not CRLF.** `variant_ensemble.py` uses CRLF. Future patchers must detect line endings per-file. The `read_bytes/decode/normalize-LF/restore-CRLF/encode/write_bytes` pattern handles this correctly.
-4. **Redundant defensive code is anti-pattern when tests + production evidence exist.** A second clip at L87 would clip already-clipped values to the same bounds — pure no-op.
+4. **Redundant defensive code is anti-pattern when tests + production evidence exist.** A second clip at L87 would clip already-clipped values to the same bounds -- pure no-op.
 5. **SESSION START PK queries (memory #11):** today's PK searches surfaced SESSION_2026-05-25 with full Run 11/12/13 context that should have informed Phase C framing earlier in the day.
 6. **Markdown rendering pitfall.** Nested triple-backtick fences inside a Python string inside a PowerShell heredoc inside a chat markdown response close the outer fence prematurely. Fix: use 4-space indented code blocks inside the Python string.
-7. **NEW (memory #28 items 14+15): Multi-file patcher atomicity + cross-file marker consistency.** Failed C.1 paste demonstrated both. (14) Build+validate ALL files before writing ANY — prevents partial mutations when later validation fails. (15) Marker strings must appear VERBATIM in ALL touched files' new content — a marker present only in one file but checked against another causes guaranteed false-positive aborts. Combined fix: restructured patcher into Phase A read → B idempotency (both) → C anchors (both) → D build (both) → E validate (both) → F write (both, only after all green).
+7. **NEW (memory #28 items 14+15): Multi-file patcher atomicity + cross-file marker consistency.** Failed C.1 paste demonstrated both. (14) Build+validate ALL files before writing ANY -- prevents partial mutations when later validation fails. (15) Marker strings must appear VERBATIM in ALL touched files' new content -- a marker present only in one file but checked against another causes guaranteed false-positive aborts. Combined fix: restructured patcher into Phase A read → B idempotency (both) → C anchors (both) → D build (both) → E validate (both) → F write (both, only after all green).
 
 ### Open follow-ups
-- **B.D1–B.D6** (6 data-source decisions): next in Phase C queue.
+- **B.D1--B.D6** (6 data-source decisions): next in Phase C queue.
 - **H_Run15** primary hypothesis: pending.
 - **E budget** (GPU hours / cost USD / hard ceiling at RUN_15_PLAN.md L68-70): pending.
 - **After all decisions close**: Run 15 launch.
 
 ---
 
-## 2026-05-27 PM6 — A2/B.O3/C.2 closure: TabularNNClassifier._predict_proba_single_pass implementation
+## 2026-05-27 PM6 -- A2/B.O3/C.2 closure: TabularNNClassifier._predict_proba_single_pass implementation
 
 ### Attempted
 - Close A2 (mc_dropout uncertainty degenerate) by implementing `_predict_proba_single_pass()` on `TabularNNClassifier`, satisfying MCDropoutWrapper's L216 hasattr contract so the wrapper produces real epistemic + aleatoric uncertainty instead of the L238-241 degenerate fallback returning `(proba, zeros, zeros)`.
@@ -504,7 +504,7 @@ Interpretation B' (hybrid) per Monzia 2026-05-27:
 
 ### Headline verification
 - pytest: **14 passed, 6 skipped, 0 failed, 0 errors** in 96.03s.
-  - 1 unit test skipped: `test_aleatoric_higher_near_decision_boundary` — synthetic corpus didn't span both p≈0.5 (boundary) and p≈0/1 (extreme) prediction regions; `pytest.skip` guard fired as designed.
+  - 1 unit test skipped: `test_aleatoric_higher_near_decision_boundary` -- synthetic corpus didn't span both p≈0.5 (boundary) and p≈0/1 (extreme) prediction regions; `pytest.skip` guard fired as designed.
   - 5 integration stubs skipped (deliberate, awaiting Run 15 cohort).
 - 19/19 PowerShell sanity checks PASS (including audit-added "VE preserves CRLF" and "caplog scoped to mc_dropout logger" gates).
 - `.venv312` confirmed active via `python -c "import sys; print(sys.executable)"` pre-check.
@@ -513,7 +513,7 @@ Interpretation B' (hybrid) per Monzia 2026-05-27:
 - `c60e842` feat(tabular_nn): A2/B.O3/C.2 close - implement _predict_proba_single_pass for MC-dropout
 
 ### Learned
-1. **Standing rule #3 (probe before write) is non-negotiable, not optional.** Initial implementation paste embedded 3 unverified assumptions (CRLF, caplog scope, MCDropoutWrapper API). Step 0 verification probe caught the CRLF blocker; audit caught the caplog scope risk; only the API assumptions turned out correct — probed, not guessed. Discipline ladder: probe first → audit second → execute third. Skipping any tier is a self-inflicted cycle loss.
+1. **Standing rule #3 (probe before write) is non-negotiable, not optional.** Initial implementation paste embedded 3 unverified assumptions (CRLF, caplog scope, MCDropoutWrapper API). Step 0 verification probe caught the CRLF blocker; audit caught the caplog scope risk; only the API assumptions turned out correct -- probed, not guessed. Discipline ladder: probe first → audit second → execute third. Skipping any tier is a self-inflicted cycle loss.
 2. **`docs/CHANGELOG.md` is the canonical path for this project, not `CHANGELOG.md` at root.** Step F-0 probe returned NOT FOUND for project-root path; Phase 6 grep revealed canonical location. Memory updated to canonicalize this going forward.
 3. **`pytest.skip()` is a coverage gap signal worth tracking.** The aleatoric-peaks-at-boundary test skipped because the model trained well enough that predictions cluster at extremes. The calibration property of `_decompose_uncertainty` was NOT exercised by this commit's unit tests. Mitigation: `tests/integration/test_mc_dropout_calibration.py::TestCalibrationImprovement` covers similar territory against Run 15 holdout when data is available.
 4. **Selective dropout activation is canonical for networks with BatchNorm.** Naive `model.train()` corrupts single-row/small-batch inference via per-batch BatchNorm stats. The `isinstance(m, nn.Dropout)` filter preserves running-stats BatchNorm while enabling stochastic dropout masks. Caught at design phase because BatchNorm1d was visible in the probed L815 architecture; would have caused NaN on the single-row test otherwise.
@@ -521,7 +521,7 @@ Interpretation B' (hybrid) per Monzia 2026-05-27:
 
 ### Open follow-ups
 - **C.1** (np.log(0) defensive clip at mc_dropout.py:87): pending. Per B.O2 closure, the line is already safe via L86 `np.clip(probs_stack, 1e-8, 1.0 - 1e-8)`; C.1 decides whether to add a SECOND defensive clip at L87 as belt-and-suspenders.
-- **B.D1–B.D6** (6 data-source decisions): pending in Phase C decision queue.
+- **B.D1--B.D6** (6 data-source decisions): pending in Phase C decision queue.
 - **H_Run15** primary hypothesis: pending.
 - **E budget** (GPU hours / cost USD / hard ceiling at RUN_15_PLAN.md L68-70): pending.
 - **Coverage gap**: `test_aleatoric_higher_near_decision_boundary` skipped this session; documented; deferred to integration tests against Run 15 holdout.
@@ -529,7 +529,7 @@ Interpretation B' (hybrid) per Monzia 2026-05-27:
 
 ---
 
-## 2026-05-27 PM5 — A4/B.O1 KAN decision (250K Run 15, 500K Run 16 staged)
+## 2026-05-27 PM5 -- A4/B.O1 KAN decision (250K Run 15, 500K Run 16 staged)
 
 **Decided** scale KAN subsample to 250K for Run 15 (Option A1). Option A2 (500K) reserved for Run 16 if Run 15 OOF→test gap remains >0.001.
 
@@ -541,7 +541,7 @@ Interpretation B' (hybrid) per Monzia 2026-05-27:
 
 ---
 
-## 2026-05-27 — D17 closure: scripts/run15_observability.py + tests for Run 15 (PM session 4)
+## 2026-05-27 -- D17 closure: scripts/run15_observability.py + tests for Run 15 (PM session 4)
 
 ### Attempted
 - D17 closure: clone scripts/run14_observability.py to scripts/run15_observability.py + matching test file.
@@ -549,8 +549,8 @@ Interpretation B' (hybrid) per Monzia 2026-05-27:
 - Codify the four distinct failure modes encountered across iterations into the lessons block.
 
 ### Failed
-- **Attempt 1**: Patcher used `Path.read_text(encoding="utf-8", newline="")`. TypeError — `Path.read_text` accepts `newline=` only since Python 3.13; env is 3.12.10 (`Path.write_text(newline=)` works since 3.10, asymmetric API gap). Top-level try/catch halted cleanly before any file writes.
-- **Attempt 2**: Patcher fixed (`read_bytes` + decode + replace + encode + `write_bytes`). Patcher succeeded; files written. Phase 4 verification false-failed on all 4 `0 occurrences of X` checks: pattern `($newScript.Split('run14').Length - 1) -eq 0` was broken because PS 5.1 (.NET Framework 4.x) lacks the `String.Split(string)` overload added in .NET 5+. `.Split('run14')` resolved to the `params char[]` overload — splits on any of chars `r`/`u`/`n`/`1`/`4`. Throw fired correctly; files left on disk (catch printed recovery commands but did not execute them).
+- **Attempt 1**: Patcher used `Path.read_text(encoding="utf-8", newline="")`. TypeError -- `Path.read_text` accepts `newline=` only since Python 3.13; env is 3.12.10 (`Path.write_text(newline=)` works since 3.10, asymmetric API gap). Top-level try/catch halted cleanly before any file writes.
+- **Attempt 2**: Patcher fixed (`read_bytes` + decode + replace + encode + `write_bytes`). Patcher succeeded; files written. Phase 4 verification false-failed on all 4 `0 occurrences of X` checks: pattern `($newScript.Split('run14').Length - 1) -eq 0` was broken because PS 5.1 (.NET Framework 4.x) lacks the `String.Split(string)` overload added in .NET 5+. `.Split('run14')` resolved to the `params char[]` overload -- splits on any of chars `r`/`u`/`n`/`1`/`4`. Throw fired correctly; files left on disk (catch printed recovery commands but did not execute them).
 - **Attempt 3**: Verification fixed (`-not <var>.Contains('substr')`). State pin tree-clean check threw at start because prior attempt's untracked files were still present. Pattern: "print recovery, hope human runs it" is structurally unreliable when next paste is re-paste of same block.
 - **Attempt 4**: SUCCESS. Self-healing Phase 1 added: detects exactly the known-stale `?? scripts/run15_observability.py` + `?? tests/unit/test_run15_observability.py` entries and selectively cleans them. Refuses for any unexpected dirty entry.
 
@@ -580,7 +580,7 @@ Interpretation B' (hybrid) per Monzia 2026-05-27:
 - Byte arithmetic: script +6, test +0, both match patcher reported sizes exactly.
 
 ### Commits (1 this session, pushed)
-- `486c680` — feat(scripts): D17 - scripts/run15_observability.py + tests for Run 15 (734 insertions, 2 files)
+- `486c680` -- feat(scripts): D17 - scripts/run15_observability.py + tests for Run 15 (734 insertions, 2 files)
 
 ### Learned
 1. **Python 3.12 vs 3.13 API gap**: `Path.read_text()` accepts `newline=` only since 3.13. `Path.write_text(newline=)` works since 3.10. For Python <= 3.12 portability, use `Path.read_bytes()` + `.decode("utf-8")` for reads and `.encode("utf-8")` + `Path.write_bytes()` for writes. Bypasses the asymmetric API gap AND preserves exact source byte structure regardless of autocrlf.
@@ -596,7 +596,7 @@ Interpretation B' (hybrid) per Monzia 2026-05-27:
 
 ---
 
-## 2026-05-27 — C.5+C.6+C.7 closure: postflight + destroy infrastructure (PM session 3)
+## 2026-05-27 -- C.5+C.6+C.7 closure: postflight + destroy infrastructure (PM session 3)
 
 ### Attempted
 - Anomaly closures for Run 15 plan C.5 (Test-ArtifactPresent wiring), C.6 (`exit 1` on any FAIL), and C.7 (separate destroy script refusing automation).
@@ -605,9 +605,9 @@ Interpretation B' (hybrid) per Monzia 2026-05-27:
 
 ### Failed
 - First paste (f7febbb) had 2 sanity checks that false-positive FAILed:
-  - `'No direct vastai destroy command'` used regex `'vastai\s+destroy'` against the full file. The CRITICAL header comment correctly states "This script DOES NOT call vastai destroy." — which the over-broad regex matched. Should have walked lines and skipped `^\s*#` comments.
+  - `'No direct vastai destroy command'` used regex `'vastai\s+destroy'` against the full file. The CRITICAL header comment correctly states "This script DOES NOT call vastai destroy." -- which the over-broad regex matched. Should have walked lines and skipped `^\s*#` comments.
   - `'Has exit 1 path on any FAIL (C.6) >= 5'` used `(?m)^\s*exit\s+1` which only matches line-starting `exit 1`. The script has 5 total `exit 1` paths but 2 are inline in one-line `if (...) { ...; exit 1 }` patterns at L91 and L113. Should have used `\bexit\s+1\b` (word boundary, any position).
-- PS-throw-scoping bug recurred (documented in 2026-05-27 A3 closure as Finding 2): the Phase 3 `throw` exited only the `& { }` block, not the surrounding paste. Phase 4 parser self-test PASSed (strong syntactic guarantee), Phase 5 committed f7febbb anyway. **The commit was correct** (parser PASS plus 10/12 sanity OK and 2 false-positive FAILs), but the procedural failure mode is real — a future paste with a real syntactic error and the same sanity-check design would commit broken code.
+- PS-throw-scoping bug recurred (documented in 2026-05-27 A3 closure as Finding 2): the Phase 3 `throw` exited only the `& { }` block, not the surrounding paste. Phase 4 parser self-test PASSed (strong syntactic guarantee), Phase 5 committed f7febbb anyway. **The commit was correct** (parser PASS plus 10/12 sanity OK and 2 false-positive FAILs), but the procedural failure mode is real -- a future paste with a real syntactic error and the same sanity-check design would commit broken code.
 
 ### Fixed
 - **`scripts/Run15_Postflight.ps1`** (`f7febbb`, 194 lines / 10789 bytes): based on `Run14_Postflight.ps1` structure with explicit artifact-presence gates section. Closes C.5 + C.6.
@@ -625,7 +625,7 @@ Interpretation B' (hybrid) per Monzia 2026-05-27:
   - **Layer 4**: interactive `Read-Host` with `-cne "DESTROY"` case-sensitive comparison. Typo-resistant; "destroy" lowercase fails.
   - On layer pass: pipes `'y' |` to `& vastai destroy instance $InstanceId` to handle CLI ≥1.0.12's interactive confirmation prompt (per INCIDENT_2026-05-12). Exit 5 if CLI itself returns non-zero.
 
-- **Procedural fix applied in second paste**: wrapped entire paste body in `try { ... } catch { Write-Host "ABORT: $_" -ForegroundColor Red; return }` at top scope. This definitively halts the paste on any throw — the PS-throw-scoping issue from Finding 2 is now fixed by paste discipline. Pattern proven in production by this session's paste (no catch fired because no phase threw; the wrapper was in place as the safety net).
+- **Procedural fix applied in second paste**: wrapped entire paste body in `try { ... } catch { Write-Host "ABORT: $_" -ForegroundColor Red; return }` at top scope. This definitively halts the paste on any throw -- the PS-throw-scoping issue from Finding 2 is now fixed by paste discipline. Pattern proven in production by this session's paste (no catch fired because no phase threw; the wrapper was in place as the safety net).
 
 - **Sanity-check design fix**: corrected check patterns for Vastai_Destroy_Confirmed.ps1:
   - Word-boundary regex (`\bexit\s+N\b`) instead of line-starting (`(?m)^\s*exit\s+N`).
@@ -638,26 +638,26 @@ Interpretation B' (hybrid) per Monzia 2026-05-27:
 - Both commits pushed clean; local == remote at each step.
 
 ### Commits (2 this session, both pushed)
-- `f7febbb` — feat(scripts): C.5+C.6 - Run15_Postflight.ps1 with Test-ArtifactPresent gates (194 lines, 1 file)
-- `6107e56` — feat(scripts): C.7 - Vastai_Destroy_Confirmed.ps1 with 4-layer refusal (114 lines, 1 file)
+- `f7febbb` -- feat(scripts): C.5+C.6 - Run15_Postflight.ps1 with Test-ArtifactPresent gates (194 lines, 1 file)
+- `6107e56` -- feat(scripts): C.7 - Vastai_Destroy_Confirmed.ps1 with 4-layer refusal (114 lines, 1 file)
 
 ### Learned
-1. **Sanity-check design is its own quality dimension.** Over-specified anchors (line-starting requirements, whole-file regex matches that don't distinguish code from comments) produce false positives that erode trust in the check suite and — worse — disguise the next paste's real problems. Use word boundaries; walk lines for comment classification; prefer narrow, defensible single-feature checks over count-thresholds.
+1. **Sanity-check design is its own quality dimension.** Over-specified anchors (line-starting requirements, whole-file regex matches that don't distinguish code from comments) produce false positives that erode trust in the check suite and -- worse -- disguise the next paste's real problems. Use word boundaries; walk lines for comment classification; prefer narrow, defensible single-feature checks over count-thresholds.
 2. **Top-level `try { ... } catch { ... return }` definitively fixes PS-throw-scoping in pasted blocks.** When any phase throws, control jumps to the catch, the `return` exits the script context, and subsequent statements do not execute. Verified in production usage in the C.7 paste (the wrapper did not fire only because nothing threw). This is the fix promised in the A3 closure CHANGELOG (Finding 2) and should be the default paste idiom from this session forward.
 3. **The Run 14 procedural-fail class (A8) had two root causes, not one.** The first was the `Test-Path` flat-path assumption in the postflight gate (closed in Charter v1.2 patch via Test-ArtifactPresent helper). The second was that `models/` was not SCPed at all, so the helper had nothing to find. C.5 closes the second root cause by adding `models/` to the SCP list.
-4. **Defense in depth at 4 layers is the right cardinality for an irreversible cloud command.** Each layer catches a distinct failure mode and uses a distinct exit code, so debug effort is bounded. Cumulative refusal probability under normal operation: stdin-not-redirected (interactive shell) + gate-file-exists (postflight ran) + gate-content-is-zero (postflight passed) + DESTROY-typed-exactly (intentional human action) — each independently necessary.
+4. **Defense in depth at 4 layers is the right cardinality for an irreversible cloud command.** Each layer catches a distinct failure mode and uses a distinct exit code, so debug effort is bounded. Cumulative refusal probability under normal operation: stdin-not-redirected (interactive shell) + gate-file-exists (postflight ran) + gate-content-is-zero (postflight passed) + DESTROY-typed-exactly (intentional human action) -- each independently necessary.
 
 ### Open follow-up
 - **D15** (memory updates, queued from A3 closure + A7 closure): codify PS-throw-scoping resolved via top-level try/catch; codify sanity-check design lessons; codify the `models/` SCP requirement. Estimated 10-15 min.
-- **D16** (.gitattributes `*.sh text eol=lf`): pin shell-script line endings to LF in the repo so local Windows working tree matches the committed blob — resolves the bash -n unreliability on Windows. Estimated 15 min.
+- **D16** (.gitattributes `*.sh text eol=lf`): pin shell-script line endings to LF in the repo so local Windows working tree matches the committed blob -- resolves the bash -n unreliability on Windows. Estimated 15 min.
 - **D17** (Run 15 prep): create `scripts/run15_observability.py`. Run15_Postflight.ps1 L80 references this and will exit 1 if absent. Hard blocker for Run 15 launch. Copy from `scripts/run14_observability.py` and adapt paths/run id. Estimated 1-2 hr.
-- **Phase C remaining decision-only items**: A4 (KAN subsample), A2 (TabularNN MC-dropout implementation vs drop), A6 (6 data-source decisions — some need license review), E budget, H_Run15 hypothesis.
-- **Phase E**: author `scripts/Run_Preflight_Local.ps1` and `scripts/Run_Preflight_VM.ps1` (Charter v1.1 templates planned but never committed — see earlier audit finding).
+- **Phase C remaining decision-only items**: A4 (KAN subsample), A2 (TabularNN MC-dropout implementation vs drop), A6 (6 data-source decisions -- some need license review), E budget, H_Run15 hypothesis.
+- **Phase E**: author `scripts/Run_Preflight_Local.ps1` and `scripts/Run_Preflight_VM.ps1` (Charter v1.1 templates planned but never committed -- see earlier audit finding).
 - **Phase F**: Vast.ai provision → SCP up → train → SCP back → invoke Vastai_Destroy_Confirmed.ps1.
 
 ---
 
-## 2026-05-27 — A3 closure: launch script imodelsx_patch tee dedupe (PM session 2)
+## 2026-05-27 -- A3 closure: launch script imodelsx_patch tee dedupe (PM session 2)
 
 ### Attempted
 - Anomaly A3 close: dedupe imodelsx_patch logging in `scripts/launch_run11_vm.sh`.
@@ -682,7 +682,7 @@ Interpretation B' (hybrid) per Monzia 2026-05-27:
 - Post-fix expected: each imodelsx_patch line logged once
 
 ### Commits (1 this session, pushed)
-- `9628463` — fix(scripts): A3 close - dedupe imodelsx_patch logging in launch_run11_vm.sh (1 insertion, 1 deletion)
+- `9628463` -- fix(scripts): A3 close - dedupe imodelsx_patch logging in launch_run11_vm.sh (1 insertion, 1 deletion)
 
 ### Learned
 1. **PowerShell `throw` inside `& { ... }` exits ONLY the script block, not the surrounding interactive paste.** Subsequent top-level statements continue executing. For paste safety, either (a) wrap the entire paste in `try { ... } catch { Write-Host "ABORT: $_" -ForegroundColor Red; return }`, or (b) set a `$script:abort = $true` flag and check it at the entry of every subsequent phase. For A3 this manifested benignly (the script edit was correct; bash -n failed only for CRLF reasons), but a future paste with a real edit error would commit corrupt code.
@@ -699,7 +699,7 @@ Interpretation B' (hybrid) per Monzia 2026-05-27:
 
 ---
 
-## 2026-05-27 — A7 closure: observability per_model parser rewrite (PM session)
+## 2026-05-27 -- A7 closure: observability per_model parser rewrite (PM session)
 
 ### Attempted
 - Anomaly A7 close: rewrite `scripts/run14_observability.py` per_model parser to read structured outputs.
@@ -717,18 +717,18 @@ Interpretation B' (hybrid) per Monzia 2026-05-27:
 
 ### Headline verification (local regen against outputs/run14/full/)
 - `per_model_source: structured`
-- catboost: OOF=0.9981844462249252 TEST=0.9975 VAL=0.9975 — matches 2026-05-26 Run 14 entry
-- kan: OOF=0.9921137643927214 TEST=0.9896 VAL=0.9914 — matches
-- xgboost: OOF=0.9983895442721538 TEST=0.9974 — matches
-- ENSEMBLE_STACKER present (TEST=0.9975, val=0.9974) — new vs pre-A7 (log-grep never matched ensemble row)
+- catboost: OOF=0.9981844462249252 TEST=0.9975 VAL=0.9975 -- matches 2026-05-26 Run 14 entry
+- kan: OOF=0.9921137643927214 TEST=0.9896 VAL=0.9914 -- matches
+- xgboost: OOF=0.9983895442721538 TEST=0.9974 -- matches
+- ENSEMBLE_STACKER present (TEST=0.9975, val=0.9974) -- new vs pre-A7 (log-grep never matched ensemble row)
 - All 11 entries from per_model_metrics.csv populate (10 base learners + ensemble stacker)
 
 ### Commits (1 this session, pushed)
-- `da41f27` — fix(observability): A7 close - rewrite per_model parser to read structured files (236 insertions, 4 deletions; includes 132-line regression test file)
+- `da41f27` -- fix(observability): A7 close - rewrite per_model parser to read structured files (236 insertions, 4 deletions; includes 132-line regression test file)
 
 ### Learned
-1. **PowerShell single-quote regex pitfall.** PS single-quote literals preserve characters verbatim. .NET regex requires two backslashes to match one literal backslash. So matching one literal backslash + s in a PS regex pattern needs 3 chars (`\s`), not 5 chars (`\\s`). Writing too many backslashes never matches anything, and `-not (never matches)` always returns true — the check looks fine but tests nothing. Verbatim-source-substring marker rule (D13.RETRY, 2026-05-27) covers the underlying discipline.
-2. **Audit checks must match what the patcher actually writes, not what an alternative patcher revision would write.** V2's audit check expected V2's text; V1 ran and wrote different text. False-positive FAIL is recoverable but wastes a verification round. When a check fails on a patch that appears working, INVESTIGATE the check vs file content before reverting — the patch may be correct.
+1. **PowerShell single-quote regex pitfall.** PS single-quote literals preserve characters verbatim. .NET regex requires two backslashes to match one literal backslash. So matching one literal backslash + s in a PS regex pattern needs 3 chars (`\s`), not 5 chars (`\\s`). Writing too many backslashes never matches anything, and `-not (never matches)` always returns true -- the check looks fine but tests nothing. Verbatim-source-substring marker rule (D13.RETRY, 2026-05-27) covers the underlying discipline.
+2. **Audit checks must match what the patcher actually writes, not what an alternative patcher revision would write.** V2's audit check expected V2's text; V1 ran and wrote different text. False-positive FAIL is recoverable but wastes a verification round. When a check fails on a patch that appears working, INVESTIGATE the check vs file content before reverting -- the patch may be correct.
 3. **Run14_Postflight.ps1 consumes the observability MD report (L129-131), not the JSON schema.** Changing JSON schema (added `per_model_source` key) is safe as long as MD renders correctly. No Postflight changes needed.
 4. **Structured outputs beat log-grep for any post-hoc analysis.** Even when the regex is correct, structured files don't depend on logger format, have higher precision (full-float meta-json vs rounded log values), survive log truncation, and are atomic per-model. Future observability code should always prefer structured > log-grep > nothing.
 
@@ -812,7 +812,7 @@ Interpretation B' (hybrid) per Monzia 2026-05-27:
 
 ### Fixed
 - Launch #4 (10:38:56 UTC): tmux send-keys with manually pre-installed deps â†’ ALL PREFLIGHT PASSED.
-- KAN trained successfully via imodelsx/efficient-kan backend on CUDA, OOF 0.9921 (3 CV folds Ã— 100K subsample).
+- KAN trained successfully via imodelsx/efficient-kan backend on CUDA, OOF 0.9921 (3 CV folds Ã-- 100K subsample).
 - Run completed clean exit 0 at 13:53:31 UTC.
 - Charter v1.2 patch: `scripts/Run14_Postflight.ps1` now uses `Test-ArtifactPresent` helper (recursive `Get-ChildItem -Filter`) instead of fixed `Test-Path`. A8 closed.
 
@@ -829,7 +829,7 @@ random_forest 0.9978, xgboost 0.9984, lightgbm 0.9983, logistic_regression 0.995
 ### Per-model TEST AUROC (key finding)
 - **catboost test AUROC 0.9975 = ENSEMBLE_STACKER test AUROC 0.9975** (tied on ranking power)
 - Stacker dominates on threshold-dependent: f1_macro 0.9775 vs 0.9632 (Î” +0.0143), MCC 0.9550 vs 0.9276 (Î” +0.0274), Brier 0.0130 vs 0.0166 (lower = better calibrated)
-- KAN test AUROC 0.9896 (OOFâ†’test gap 0.0025, ~3.5Ã— catboost's gap â†’ 100K subsample overfits)
+- KAN test AUROC 0.9896 (OOFâ†’test gap 0.0025, ~3.5Ã-- catboost's gap â†’ 100K subsample overfits)
 
 ### Learned
 1. **H1 confirmed technically but diversity-marginal on AUROC**: ensemble's lift is in **calibration and threshold quality**, not ranking. catboost alone is competitive for AUROC use cases.
@@ -2575,3 +2575,46 @@ The recovery file includes:
 
 
 
+
+## 2026-05-31 â€” Phase 0: cohort de-leak (Run 15 prep)
+
+### Attempted
+- Resolve the null-key cohort leak (B1) at source before Run 15 split regeneration.
+
+### Fixed
+- Added `scripts/clean_cohort.py` (introspective, fail-loud, --audit/--apply) and
+  `tests/unit/test_clean_cohort.py` (synthetic; 2 passed).
+- Quarantined 21,091 allele-less rows â†’ `data/processed/clinvar_grch38_structural.parquet`.
+- Emitted `data/processed/clinvar_grch38_clean.parquet` (4,399,089 rows; 0 null, 0 dup).
+- `clinvar_grch38_conflicts.parquet` written (0 irreducible conflicts after quarantine).
+- Reconciliation identity verified exact (4,420,180 = 21,091 + 4,399,089).
+
+### Learned
+- The 4,203 duplicate `variant_id`s were entirely within the allele-less bucket; quarantine
+  alone yields a unique-key clean cohort with no label-conflict surgery required.
+- Root mechanism: `astype(str)` on null alleles in the gnomAD join collapses distinct
+  region records onto shared keys (see INCIDENT_2026-05-31_null-key-leak.md).
+- ~48 coding/splice variants carry null alleles upstream (ingestion gap); recovery
+  candidate in the ClinVar re-pull.
+
+### Open follow-ons
+- Harden the gnomAD-join key (null-safe) in `real_data_prep.py`.
+- Regenerate splits from the clean cohort; repoint the pipeline input.
+- GNN `gnn_score` confirmed 100% zero across all Run-14 splits (separate incident pending
+  trace-branch identification).
+
+## 2026-05-31 -- Leakage audit quantified + Run-14 provenance/ensemble findings
+
+### Found
+- Run-14 split leakage quantified: within-split dup train 2,125/val 129/test 409;
+  cross-split overlap train&test 247/train&val 115/val&test 46; structural-in-splits 11,320.
+- Main split IS gene-disjoint (gene overlap train&test = 0; GroupShuffleSplit by gene 42/43).
+- Provenance mismatch: outputs/run14/run14_master.log reports output=/workspace/outputs/run11/full.
+- Reduced ensemble in 05-26 run: skip_cnn=True (cnn_1d closure bug B.D6) and string_db=None (GNN off).
+
+### Decided
+- Regenerate splits from clinvar_grch38_clean.parquet (gene-disjointness preserved; all three
+  contamination classes removed). Cohort guard enforces clean input.
+- Establish honest baseline (clean cohort, GNN on via --string-db auto, --skip-cnn) before Run-15
+  multi-modal build. See docs/incidents/INCIDENT_2026-05-31_run14-split-leakage.md +
+  INCIDENT_2026-05-31_gnn-score-zero.md.
