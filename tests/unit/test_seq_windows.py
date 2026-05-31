@@ -115,3 +115,41 @@ def test_pyfaidx_adapter_agrees_with_dict(tmp_path):
     rw_dict = sw.extract_ref_window(REF, "c1", pos)
     rw_fa = sw.extract_ref_window(ref_fa, "c1", pos)
     assert rw_fa == rw_dict
+
+
+import random as _r
+
+_rng = _r.Random(12345)
+RREF = {"r1": "".join(_rng.choice("ACGT") for _ in range(400))}  # non-periodic
+
+
+def test_find_anchor_exact_single_base():
+    pos = 60
+    assert sw.find_anchor(RREF, "r1", pos, RREF["r1"][pos - 1]) == pos
+
+
+def test_find_anchor_deletion_resolves_minus_one():
+    # 8-base ref (unique in random DNA) that actually sits at pos-1
+    pos = 60
+    ref = RREF["r1"][(pos - 1) - 1: (pos - 1) - 1 + 8]
+    assert sw.find_anchor(RREF, "r1", pos, ref) == pos - 1
+
+
+def test_find_anchor_single_base_mismatch_returns_none():
+    pos = 60
+    wrong = "A" if RREF["r1"][pos - 1] != "A" else "C"
+    assert sw.find_anchor(RREF, "r1", pos, wrong) is None  # no ambiguous search for L==1
+
+
+def test_find_anchor_absent_multibase_returns_none():
+    # an 8-mer taken from far away (~pos 300) is not within +/-3 of pos 60
+    pos = 60
+    far = RREF["r1"][300: 308]
+    assert sw.find_anchor(RREF, "r1", pos, far, max_shift=3) is None
+
+
+def test_find_anchor_respects_max_shift():
+    pos = 60
+    ref = RREF["r1"][(pos - 1) - 4: (pos - 1) - 4 + 8]  # sits at delta -4
+    assert sw.find_anchor(RREF, "r1", pos, ref, max_shift=3) is None
+    assert sw.find_anchor(RREF, "r1", pos, ref, max_shift=4) == pos - 4

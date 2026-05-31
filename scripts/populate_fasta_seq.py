@@ -3,9 +3,9 @@
 
 Examples
 --------
-Smoke test on the first 50k rows (fast; verifies the real mismatch rate)::
+Smoke test on the first 100k rows (fast; verifies anchoring rates)::
 
-    python scripts/populate_fasta_seq.py --limit 50000 \
+    python scripts/populate_fasta_seq.py --limit 100000 \
         --out data/processed/clinvar_grch38_clean_seq.smoke.parquet
 
 Full pass (~0.5 GB output; budget several minutes -- per-row pyfaidx seeks)::
@@ -35,10 +35,12 @@ def main(argv=None) -> int:
     p.add_argument("--fasta", default=DEF_FASTA)
     p.add_argument("--out", default=DEF_OUT)
     p.add_argument("--batch-size", type=int, default=100_000)
-    p.add_argument("--abort-mismatch", type=float, default=0.02,
-                   help="abort if ref-allele mismatch rate (resolvable contigs) exceeds this")
+    p.add_argument("--abort-unanchored", type=float, default=0.02,
+                   help="abort if the fraction of resolvable rows with no confident anchor exceeds this")
     p.add_argument("--abort-degenerate", type=float, default=0.01,
-                   help="abort if poly-A degenerate rate (resolvable contigs) exceeds this")
+                   help="abort if poly-A degenerate rate (anchored rows) exceeds this")
+    p.add_argument("--max-shift", type=int, default=3,
+                   help="bounded +/- search to anchor multi-base ref alleles")
     p.add_argument("--progress-every", type=int, default=200_000)
     p.add_argument("--limit", type=int, default=None,
                    help="process only the first N rows (smoke test); rounds up to a batch")
@@ -54,8 +56,9 @@ def main(argv=None) -> int:
         stats = populate(
             args.cohort, args.fasta, args.out,
             batch_size=args.batch_size,
-            abort_mismatch=args.abort_mismatch,
+            abort_unanchored=args.abort_unanchored,
             abort_degenerate=args.abort_degenerate,
+            max_shift=args.max_shift,
             progress_every=args.progress_every,
             limit=args.limit,
         )
@@ -67,10 +70,13 @@ def main(argv=None) -> int:
         return 3
 
     logging.info(
-        "OK  total=%s resolvable=%s unmapped=%s mismatch_rate=%.5f "
-        "degenerate_rate=%.5f elapsed=%.1fs -> %s",
-        f"{stats['total']:,}", f"{stats['n_resolvable']:,}", f"{stats['n_unmapped']:,}",
-        stats["mismatch_rate"], stats["degenerate_rate"], stats["elapsed_s"], args.out,
+        "OK  total=%s resolvable=%s shifted=%s(%.4f) unanchored=%s(%.5f) "
+        "unmapped=%s degenerate=%.5f elapsed=%.1fs -> %s",
+        f"{stats['total']:,}", f"{stats['n_resolvable']:,}",
+        f"{stats['n_shifted']:,}", stats["shift_rate"],
+        f"{stats['n_unanchored']:,}", stats["unanchored_rate"],
+        f"{stats['n_unmapped']:,}", stats["degenerate_rate"],
+        stats["elapsed_s"], args.out,
     )
     return 0
 

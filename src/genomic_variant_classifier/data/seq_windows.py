@@ -153,6 +153,44 @@ def ref_matches(
     return core == ref_allele.upper()
 
 
+def find_anchor(
+    ref: Mapping,
+    chrom: str,
+    pos1: int,
+    ref_allele: str,
+    max_shift: int = 3,
+) -> Optional[int]:
+    """1-based position where ``ref_allele`` matches the genome, or ``None``.
+
+    Prefers ``pos1`` itself (delta 0); if that fails and the ref allele is
+    multi-base, searches +/- ``max_shift`` (by increasing |delta|, negative
+    first -- deletions sit one base before the cohort's first-deleted-base
+    coordinate). Single-base ref alleles require an exact delta-0 match, because
+    a lone base matches ambiguously at many nearby offsets.
+    """
+    if not ref_allele:
+        return None
+    L = len(ref_allele)
+    target = ref_allele.upper()
+
+    def _matches(p1: int) -> bool:
+        res = _safe_slice(ref, chrom, p1 - 1, p1 - 1 + L)
+        if res is None:
+            return False
+        left_pad, core, right_pad = res
+        return left_pad == 0 and right_pad == 0 and core == target
+
+    if _matches(pos1):
+        return pos1
+    if L == 1:
+        return None
+    for d in range(1, max_shift + 1):
+        for cand in (pos1 - d, pos1 + d):
+            if _matches(cand):
+                return cand
+    return None
+
+
 def open_reference(fasta_path):
     """Open a decompressed FASTA for random access via pyfaidx (lazy import)."""
     from pyfaidx import Fasta
