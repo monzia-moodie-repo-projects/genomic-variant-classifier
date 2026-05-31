@@ -242,6 +242,12 @@ class MessageBus:
         }
 
         messages = self._load_all()
+        # Monotonic per-message sequence for deterministic history ordering when
+        # two messages share a timestamp (equal-microsecond tie). Derived from the
+        # current total message count, so it is persisted in state and survives
+        # reloads. ASSUMPTION: messages are append-only (no deletion); if a delete
+        # path is ever added, switch to a persisted counter to avoid seq collisions.
+        message["seq"] = sum(len(_inbox) for _inbox in messages.values())
         self._ensure_inbox(messages, to_agent)
         messages[to_agent].append(message)
         self._save_all(messages)
@@ -387,8 +393,10 @@ class MessageBus:
         if subject_filter:
             all_msgs = [m for m in all_msgs if m["subject"] == subject_filter]
 
-        # Sort by timestamp descending (most recent first)
-        all_msgs.sort(key=lambda m: m["timestamp"], reverse=True)
+        # Sort by (timestamp, seq) descending (most recent first). The seq
+        # tiebreak makes ordering deterministic when timestamps collide;
+        # .get(seq, 0) tolerates legacy messages written before seq existed.
+        all_msgs.sort(key=lambda m: (m["timestamp"], m.get("seq", 0)), reverse=True)
         return all_msgs[:limit]
 
     def agent_list(self) -> list[str]:

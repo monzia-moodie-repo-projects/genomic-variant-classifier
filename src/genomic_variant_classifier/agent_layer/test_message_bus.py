@@ -247,6 +247,35 @@ def _test_history_ordering():
         assert history[2]["subject"] == DATA_UPDATED
 
 
+def _test_history_ordering_deterministic_on_timestamp_tie():
+    """Regression (INCIDENT history-ordering flakiness): when multiple messages
+    share an identical timestamp, history() ordering must be deterministic via the
+    monotonic seq tiebreak. We force the tie by freezing datetime.now()."""
+    import datetime as _dt
+    from unittest.mock import patch
+
+    class _FrozenDateTime(_dt.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return _dt.datetime(2026, 5, 30, 18, 0, 0, tzinfo=tz)
+
+    with _TempState() as state:
+        bus = _make_bus(state)
+        with patch("genomic_variant_classifier.agent_layer.message_bus.datetime", _FrozenDateTime):
+            bus.send("A", "B", DATA_UPDATED)
+            bus.send("A", "B", CHECKPOINT_READY)
+            bus.send("A", "B", FEATURE_INSTABILITY, requires_approval=False)
+        # All three share the frozen timestamp; seq must still order them.
+        hist = bus.history("B", limit=10)
+        assert [m["subject"] for m in hist] == [
+            FEATURE_INSTABILITY, CHECKPOINT_READY, DATA_UPDATED
+        ], f"non-deterministic order on timestamp tie: {[m['subject'] for m in hist]}"
+        # seq must be present and strictly increasing in send order
+        inbox = bus.get_inbox("B")
+        seqs = [m["seq"] for m in inbox]
+        assert seqs == sorted(seqs) and len(set(seqs)) == 3, f"seq not monotonic/unique: {seqs}"
+
+
 def _test_agent_list():
     with _TempState() as state:
         bus = _make_bus(state)
@@ -1023,6 +1052,7 @@ TESTS = [
     ),
     ("1 MessageBus core", "pending_approval list", _test_pending_approval_list),
     ("1 MessageBus core", "history ordering", _test_history_ordering),
+    ("1 MessageBus core", "history ordering deterministic tie", _test_history_ordering_deterministic_on_timestamp_tie),
     ("1 MessageBus core", "agent_list", _test_agent_list),
     ("1 MessageBus core", "invalid subject raises", _test_invalid_subject_raises),
     ("1 MessageBus core", "mark_all_read", _test_mark_all_read),
