@@ -45,6 +45,12 @@ logger = logging.getLogger("run_phase2_eval")
 def parse_args(argv=None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Phase 2 evaluation on real ClinVar data")
     p.add_argument("--clinvar", required=True)
+    p.add_argument(
+        "--seq-windows",
+        default="data/processed/clinvar_grch38_clean_seq.parquet",
+        help="Parquet with fasta_seq_ref/fasta_seq_alt delta windows keyed by "
+        "chrom:pos:ref:alt, used by the sequence CNN. Pass empty to force poly-A.",
+    )
     p.add_argument("--gnomad", default=None)
     p.add_argument("--spliceai", default=None)
     p.add_argument("--alphamissense", default=None)
@@ -111,7 +117,8 @@ def parse_args(argv=None) -> argparse.Namespace:
     p.add_argument(
         "--skip-cnn",
         action="store_true",
-        help="Exclude CNN_1D (requires fasta_seq data not yet available).",
+        help="Exclude CNN_1D from the ensemble (sequence branch). Windows are wired "
+        "via --seq-windows; use this only for CNN-free ablations.",
     )
     p.add_argument(
         "--unseen-gene-holdout",
@@ -203,10 +210,30 @@ def main() -> int:
             X_train.shape[1],
         )
 
-        _poly_a = "A" * 101
-        seq_tr = pd.Series([_poly_a] * len(y_train))
-        seq_te = pd.Series([_poly_a] * len(y_test))
-        seq_val = pd.Series([_poly_a] * len(y_val))
+        from genomic_variant_classifier.data.seq_window_join import attach_delta_windows
+
+        _seq_win = Path(args.seq_windows) if getattr(args, "seq_windows", None) else None
+        if _seq_win is not None and not _seq_win.exists():
+            logger.warning("seq-windows parquet not found: %s (falling back to poly-A)", _seq_win)
+            _seq_win = None
+        _meta_train_seq = pd.read_parquet(outdir / "splits" / "meta_train.parquet")
+        seq_tr, _u_tr = attach_delta_windows(_meta_train_seq, _seq_win)
+        seq_te, _u_te = attach_delta_windows(meta, _seq_win)        # meta == meta_test
+        seq_val, _u_val = attach_delta_windows(meta_val, _seq_win)
+        _u_tot = _u_tr + _u_te + _u_val
+        _n_tot = len(seq_tr) + len(seq_te) + len(seq_val)
+        logger.info(
+            "Sequence windows: train=%d test=%d val=%d unmapped=%d/%d (%.4f%%)",
+            len(seq_tr), len(seq_te), len(seq_val), _u_tot, _n_tot,
+            100.0 * _u_tot / max(_n_tot, 1),
+        )
+        if not getattr(args, "skip_cnn", False) and _u_tot > 0.005 * _n_tot:
+            logger.error(
+                "Sequence-window coverage too low (%d/%d unmapped > 0.5%%); aborting to "
+                "avoid training cnn_1d on misaligned windows. Check --clinvar/--seq-windows.",
+                _u_tot, _n_tot,
+            )
+            return 2
 
         if args.max_train and len(y_train) > args.max_train:
             idx = (
