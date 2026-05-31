@@ -631,51 +631,72 @@ def encode_sequence(seq: str, window: int = 101) -> np.ndarray:
 _CNN1DModule = None  # populated by _ensure_cnn1d_module_class() on first use
 
 
+REF_WIN_COL = "fasta_seq_ref"
+ALT_WIN_COL = "fasta_seq_alt"
+
+
 def _ensure_cnn1d_module_class():
-    """Define _CNN1DModule at module level on first call; idempotent."""
+    """Define the siamese-delta _CNN1DModule at module level on first call; idempotent.
+
+    Evolved from the single-window net to a *siamese* encoder shared across the
+    reference and alternate windows, with the head fed [e_alt, e_alt - e_ref].
+    The delta term forces the model to key on how the variant changes local
+    sequence rather than on reference context alone (anti-memorization). Built
+    lazily for the same reasons as before: graceful degradation without torch
+    and a stable pickle qualname.
+    """
     global _CNN1DModule
     if _CNN1DModule is not None:
         return _CNN1DModule
 
+    import torch
     import torch.nn as nn
 
-    class _CNN1DModule(nn.Module):  # noqa: F811 — intentional global shadow
-        def __init__(self, filters, kernel_size, dropout):
+    class _CNN1DModule(nn.Module):  # noqa: F811 -- intentional global shadow
+        def __init__(self, filters, kernel_size, dropout, embed=128):
             super().__init__()
-            self.net = nn.Sequential(
-                nn.Conv1d(4, filters, kernel_size, padding=kernel_size // 2),
+            pad = kernel_size // 2
+            self.encoder = nn.Sequential(
+                nn.Conv1d(4, filters, kernel_size, padding=pad),
                 nn.ReLU(),
                 nn.MaxPool1d(2),
-                nn.Conv1d(
-                    filters, filters * 2, kernel_size, padding=kernel_size // 2
-                ),
+                nn.Conv1d(filters, filters * 2, kernel_size, padding=pad),
                 nn.ReLU(),
                 nn.AdaptiveMaxPool1d(1),
                 nn.Flatten(),
-                nn.Linear(filters * 2, 128),
+                nn.Linear(filters * 2, embed),
                 nn.ReLU(),
+            )
+            self.head = nn.Sequential(
                 nn.Dropout(dropout),
-                nn.Linear(128, 1),
-                nn.Sigmoid(),
+                nn.Linear(embed * 2, 64),
+                nn.ReLU(),
+                nn.Linear(64, 1),
             )
 
-        def forward(self, x):
-            return self.net(x).squeeze(-1)
+        def forward(self, ref, alt):
+            e_ref = self.encoder(ref)
+            e_alt = self.encoder(alt)
+            feats = torch.cat([e_alt, e_alt - e_ref], dim=1)
+            return self.head(feats).squeeze(-1)  # logits (BCEWithLogitsLoss)
 
-    # Crucial for pickle: fix the qualname so it resolves to the module-level
-    # name, not the nested-function locals path.
     _CNN1DModule.__name__ = "_CNN1DModule"
     _CNN1DModule.__qualname__ = "_CNN1DModule"
     _CNN1DModule.__module__ = __name__
-
     globals()["_CNN1DModule"] = _CNN1DModule
     return _CNN1DModule
 
 
 # ---------------------------------------------------------------------------
-# Sklearn-compatible 1D-CNN wrapper
+# Sklearn-compatible siamese-delta 1D-CNN wrapper
 # ---------------------------------------------------------------------------
 class CNN1DClassifier(BaseEstimator, ClassifierMixin):
+    """Siamese delta CNN over (ref, alt) windows.
+
+    X may be a DataFrame with [fasta_seq_ref, fasta_seq_alt] (delta mode) or a
+    Series / single 'fasta_seq' column (back-compat: ref == alt, zero delta).
+    """
+
     def __init__(
         self,
         window=101,
@@ -686,6 +707,9 @@ class CNN1DClassifier(BaseEstimator, ClassifierMixin):
         batch_size=256,
         learning_rate=1e-3,
         random_state=42,
+        embed=128,
+        val_fraction=0.1,
+        patience=5,
     ):
         self.window = window
         self.filters = filters
@@ -695,28 +719,35 @@ class CNN1DClassifier(BaseEstimator, ClassifierMixin):
         self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.random_state = random_state
+        self.embed = embed
+        self.val_fraction = val_fraction
+        self.patience = patience
         self.model_ = None
         self.classes_ = np.array([0, 1])
 
     def _build_model(self):
-        # Run 10 fix: module-level _CNN1DModule (was nested local class in
-        # Run 9 -> PicklingError crashed ensemble.save() at the end of the
-        # 11.4h training run). See docs/incidents/
-        # INCIDENT_2026-05-12_cnn1d-pickle-nested-class.md
-        import torch  # noqa: F401  (kept for torch.manual_seed below)
+        import torch  # noqa: F401
         torch.manual_seed(self.random_state)
         cls = _ensure_cnn1d_module_class()
-        return cls(self.filters, self.kernel_size, self.dropout)
+        return cls(self.filters, self.kernel_size, self.dropout, self.embed)
 
-    def _encode_X(self, X):
-        if isinstance(X, pd.Series):
-            seqs = X.fillna("A" * self.window)
-        elif isinstance(X, pd.DataFrame) and "fasta_seq" in X.columns:
-            seqs = X["fasta_seq"].fillna("A" * self.window)
+    def _pair_arrays(self, X):
+        win = "A" * self.window
+        if isinstance(X, pd.DataFrame):
+            if REF_WIN_COL in X.columns and ALT_WIN_COL in X.columns:
+                ref, alt = X[REF_WIN_COL], X[ALT_WIN_COL]
+            elif "fasta_seq" in X.columns:
+                ref = alt = X["fasta_seq"]
+            else:
+                ref = alt = X.iloc[:, 0]
+            ref, alt = ref.fillna(win), alt.fillna(win)
+        elif isinstance(X, pd.Series):
+            ref = alt = X.fillna(win)
         else:
-            seqs = pd.Series(X).fillna("A" * self.window)
-        arr = np.stack([encode_sequence(s, window=self.window) for s in seqs])
-        return arr.transpose(0, 2, 1)  # (N, 4, window) for Conv1d
+            ref = alt = pd.Series(X).fillna(win)
+        r = np.stack([encode_sequence(s, window=self.window) for s in ref]).transpose(0, 2, 1)
+        a = np.stack([encode_sequence(s, window=self.window) for s in alt]).transpose(0, 2, 1)
+        return r, a  # each (N, 4, window)
 
     def fit(self, X, y):
         import torch
@@ -726,40 +757,42 @@ class CNN1DClassifier(BaseEstimator, ClassifierMixin):
         torch.manual_seed(self.random_state)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        X_enc = torch.tensor(self._encode_X(X), dtype=torch.float32)
+        r, a = self._pair_arrays(X)
+        ref_t = torch.tensor(r, dtype=torch.float32)
+        alt_t = torch.tensor(a, dtype=torch.float32)
         y_t = torch.tensor(np.asarray(y), dtype=torch.float32)
 
-        n_val = max(1, int(0.1 * len(X_enc)))
-        idx = torch.randperm(len(X_enc))
-        X_val, y_val = X_enc[idx[:n_val]].to(device), y_t[idx[:n_val]].to(device)
-        X_tr, y_tr = X_enc[idx[n_val:]].to(device), y_t[idx[n_val:]].to(device)
+        n_val = max(1, int(self.val_fraction * len(y_t)))
+        idx = torch.randperm(len(y_t))
+        v, t = idx[:n_val], idx[n_val:]
+        ref_val, alt_val, y_val = ref_t[v].to(device), alt_t[v].to(device), y_t[v].to(device)
 
         loader = DataLoader(
-            TensorDataset(X_tr, y_tr), batch_size=self.batch_size, shuffle=True
+            TensorDataset(ref_t[t], alt_t[t], y_t[t]),
+            batch_size=self.batch_size, shuffle=True,
         )
         self.model_ = self._build_model().to(device)
         opt = torch.optim.Adam(self.model_.parameters(), lr=self.learning_rate)
-        loss_fn = nn.BCELoss()
+        loss_fn = nn.BCEWithLogitsLoss()
 
         best_val, best_state, patience_ctr = float("inf"), None, 0
         for _epoch in range(self.epochs):
             self.model_.train()
-            for xb, yb in loader:
+            for rb, ab, yb in loader:
+                rb, ab, yb = rb.to(device), ab.to(device), yb.to(device)
                 opt.zero_grad()
-                loss_fn(self.model_(xb), yb).backward()
+                loss_fn(self.model_(rb, ab), yb).backward()
                 opt.step()
             self.model_.eval()
             with torch.no_grad():
-                val_loss = loss_fn(self.model_(X_val), y_val).item()
+                val_loss = loss_fn(self.model_(ref_val, alt_val), y_val).item()
             if val_loss < best_val - 1e-4:
                 best_val = val_loss
-                best_state = {
-                    k: v.cpu().clone() for k, v in self.model_.state_dict().items()
-                }
+                best_state = {k: vv.cpu().clone() for k, vv in self.model_.state_dict().items()}
                 patience_ctr = 0
             else:
                 patience_ctr += 1
-                if patience_ctr >= 5:
+                if patience_ctr >= self.patience:
                     break
         if best_state is not None:
             self.model_.load_state_dict(best_state)
@@ -769,14 +802,45 @@ class CNN1DClassifier(BaseEstimator, ClassifierMixin):
     def predict_proba(self, X):
         import torch
 
+        if self.model_ is None:
+            raise RuntimeError("Call fit() before predict_proba().")
         self.model_.eval()
-        X_enc = torch.tensor(self._encode_X(X), dtype=torch.float32)
+        r, a = self._pair_arrays(X)
+        out = np.empty(len(r), dtype=np.float32)
+        bs = self.batch_size
         with torch.no_grad():
-            proba = self.model_(X_enc).numpy()
-        return np.column_stack([1 - proba, proba])
+            for i in range(0, len(r), bs):
+                rb = torch.tensor(r[i:i + bs], dtype=torch.float32)
+                ab = torch.tensor(a[i:i + bs], dtype=torch.float32)
+                out[i:i + len(rb)] = torch.sigmoid(self.model_(rb, ab)).numpy()
+        return np.column_stack([1.0 - out, out])
 
     def predict(self, X):
         return (self.predict_proba(X)[:, 1] > 0.5).astype(int)
+
+    # Portable state_dict pickling: rebuilds via the factory on load, so it does
+    # not depend on the module-global _CNN1DModule being pre-populated in a fresh
+    # process (more robust than relying on qualname alone across machines).
+    def __getstate__(self):
+        try:
+            st = dict(super().__getstate__())
+        except AttributeError:
+            st = self.__dict__.copy()
+        m = st.pop("model_", None)
+        st["_model_state"] = None if m is None else {k: v.cpu() for k, v in m.state_dict().items()}
+        return st
+
+    def __setstate__(self, st):
+        st = dict(st)
+        ms = st.pop("_model_state", None)
+        try:
+            super().__setstate__(st)
+        except AttributeError:
+            self.__dict__.update(st)
+        self.model_ = None
+        if ms is not None:
+            self.model_ = self._build_model()
+            self.model_.load_state_dict(ms)
 
 
 # ---------------------------------------------------------------------------
