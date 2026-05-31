@@ -416,8 +416,11 @@ def _test_data_freshness_emits_data_updated():
         agent = DataFreshnessAgent(state)
 
         # Patch all network calls; gnomAD returns a different ETag
-        with patch("agents.data_freshness_agent.requests") as mock_req, patch(
-            "agents.data_freshness_agent.ftplib"
+        mock_req = sys.modules["requests"]
+        mock_req.reset_mock(return_value=True, side_effect=True)
+        mock_req.RequestException = Exception
+        with patch(
+            "genomic_variant_classifier.agent_layer.agents.data_freshness_agent.ftplib"
         ) as mock_ftp:
 
             # gnomAD HEAD → new ETag
@@ -462,8 +465,11 @@ def _test_data_freshness_dry_run_no_message():
 
         agent = DataFreshnessAgent(state)
 
-        with patch("agents.data_freshness_agent.requests") as mock_req, patch(
-            "agents.data_freshness_agent.ftplib"
+        mock_req = sys.modules["requests"]
+        mock_req.reset_mock(return_value=True, side_effect=True)
+        mock_req.RequestException = Exception
+        with patch(
+            "genomic_variant_classifier.agent_layer.agents.data_freshness_agent.ftplib"
         ) as mock_ftp:
 
             resp = MagicMock()

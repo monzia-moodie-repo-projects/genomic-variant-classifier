@@ -1,7 +1,7 @@
 # INCIDENT 2026-05-30 -- test_message_bus.py Group 4 stale patch-target (pre-existing)
 
 ## Status
-OPEN. Pre-existing; NOT introduced by Task 3. Fix deferred to a follow-up commit.
+RESOLVED 2026-05-30. Both Group-4 tests repointed: requests is configured on the shared sys.modules stub the agent's lazy import binds to (RequestException set to Exception), and ftplib is patched at the full package path genomic_variant_classifier.agent_layer.agents.data_freshness_agent.ftplib. Bus self-suite now 34/34; pytest tests/unit/ unchanged at 595 passed.
 
 ## Summary
 Running the message-bus self-suite via its __main__ harness
