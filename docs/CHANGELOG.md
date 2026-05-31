@@ -33,6 +33,13 @@ orchestrator-gate suite 7/7.
 **Found (pre-existing, separate INCIDENTs, out of scope):**
 - test_message_bus.py Group 4 stale patch-target (legacy `agents.` import path).
 - test_message_bus.py "history ordering" timing flakiness (equal-microsecond ties).
+
+**RESOLVED 2026-05-31 -- all three pre-existing INCIDENTs closed this session:**
+- Group-4 stale patch-target -> commit 0d218a8 (requests stub + ftplib path).
+- "history ordering" flakiness -> commit 7da885c (monotonic `seq` + `(timestamp, seq)`
+  sort; deterministic-tie test; bus suite 35/35).
+- clingen int-truncation -> commit 8a86e3e (see above).
+All three INCIDENT files carry RESOLVED status; G1 PASS (57/2/0) at HEAD 7da885c.
 Both proven independent of Task 3 by stashing all three edits and reproducing the
 identical failures at commit 553d5b6.
 
@@ -65,6 +72,11 @@ Empirically: integer input survives, `uniform(0.1,1.0)` -> nonzero fraction 0.0.
 Contrast `pli_score` (`.astype(float).clip(0,1)`, survives). Kept OUT of the allowlist
 so the harness hard-fails if it ever silently zeroes on real data. Fix deferred to
 R10-G. (INCIDENT filed.)
+
+**RESOLVED 2026-05-31 (commit 8a86e3e).** Cast changed to `.astype(float)` (NOT the
+`.clip(0,1)` originally sketched -- the harness fixture uses 0-4 ordinal ClinGen values,
+so clipping would be wrong; float preserves fractional and ordinal inputs alike).
+Failing-first regression test added; full suite 596 passed.
 
 **Fixed (during build):** G1 Section 14 harness invocation. Passing multi-line Python
 with embedded `"..."`/regex through `& $venvPython -c $harnessPy` mangled the inner
