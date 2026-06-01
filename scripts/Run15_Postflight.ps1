@@ -33,8 +33,8 @@ param(
     [Parameter(Mandatory=$true)] [double]$HourlyRate,
     [string]$SshKey       = "C:\Users\monzi\.ssh\id_lambda_run8",
     [string]$RepoRoot     = "C:\Projects\genomic-variant-classifier",
-    [string]$RemoteLog    = "/workspace/run15_master.log",
-    [string]$RemoteOutputs= "/workspace/genomic-variant-classifier/outputs/run15_fresh",
+    [string]$RemoteLog    = "/workspace/run15_baseline_master.log",
+    [string]$RemoteOutputs= "/workspace/genomic-variant-classifier/outputs/run15_baseline/full",
     [string]$RemoteReport = "/workspace/run15_report",
     [string]$LocalReport  = ""
 )
