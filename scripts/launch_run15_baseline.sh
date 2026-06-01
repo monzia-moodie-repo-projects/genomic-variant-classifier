@@ -8,9 +8,9 @@
 # This is a NEW script, NOT a reuse of launch_run11_vm.sh. Differences (each one
 # fixes a defect or Run-11-ism in that script):
 #   - clinvar_grch38_clean.parquet (de-leaked), NOT the dirty clinvar_grch38.parquet
-#   - --skip-cnn is UNCONDITIONAL. launch_run11_vm.sh nested --skip-cnn (and the
-#     imodelsx patch) inside the `if gnomAD-constraint exists` then-branch, so it
-#     only applied when that TSV was present -- a latent logic bug.
+#   - sequence CNN ENABLED: --seq-windows points at clinvar_grch38_clean_seq.parquet
+#     (ref/alt delta windows). The cnn_1d base estimator trains on real windows;
+#     run_phase2_eval aborts if window coverage < 99.5% (no silent poly-A fallback).
 #   - no LOVD / dbNSFP required: the honest-baseline input set only.
 #   - no --unseen-gene-holdout: that is the C3 ablation (a second full retrain),
 #     not the baseline.
@@ -56,6 +56,7 @@ echo "==> [1/6] Data preflight" | tee -a "$LOG"
 FAIL=0
 for f in \
     "$DATA/processed/clinvar_grch38_clean.parquet" \
+    "$DATA/processed/clinvar_grch38_clean_seq.parquet" \
     "$DATA/processed/gnomad_v4_exomes.parquet" \
     "$DATA/external/spliceai/spliceai_index.parquet" \
     "$DATA/external/alphamissense/AlphaMissense_hg38.tsv.gz" \
@@ -125,7 +126,8 @@ ARGS="$ARGS --gnomad $DATA/processed/gnomad_v4_exomes.parquet"
 ARGS="$ARGS --spliceai $DATA/external/spliceai/spliceai_index.parquet"
 ARGS="$ARGS --alphamissense $DATA/external/alphamissense/AlphaMissense_hg38.tsv.gz"
 ARGS="$ARGS --string-db auto"
-ARGS="$ARGS --min-review-tier 3 --n-folds 5 --skip-cnn"
+ARGS="$ARGS --seq-windows $DATA/processed/clinvar_grch38_clean_seq.parquet"
+ARGS="$ARGS --min-review-tier 3 --n-folds 5"
 ARGS="$ARGS --output $OUTDIR"
 echo "==> ARGS: $ARGS" | tee -a "$LOG"
 
