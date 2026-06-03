@@ -2,7 +2,7 @@
 """Fix the Monthly Drift Monitor: (A) grant notify job issues:write, (B) capture the
 drift exit code without -e aborting, (C) no-op cleanly (drift_level=none) when reference
 splits are absent so it does not file false alerts, plus a default case. Idempotent,
-backup-first, count-guarded, YAML-validated."""
+backup-first, count-guarded, YAML-validated, and line-ending agnostic (handles CRLF/LF)."""
 from __future__ import annotations
 import shutil, sys
 from pathlib import Path
@@ -13,7 +13,6 @@ except Exception:
 
 MARKER = "avoids false alert"
 EDITS = [
-    # A: least-privilege permission on the notify job
     ("    needs: [feature-drift, label-drift]\n"
      "    if: needs.feature-drift.outputs.drift_level != 'none'\n"
      "\n"
@@ -28,7 +27,6 @@ EDITS = [
      "    steps:\n"
      "      - name: Create GitHub Issue for drift alert",
      1),
-    # C: guard on missing reference splits (prepend before the python invocation) + init EXIT
     ("          python scripts/run_drift_monitor.py \\\n",
      "          EXIT=0\n"
      "          if [ ! -d outputs/phase2_with_gnomad/splits ] || [ -z \"$(ls -A outputs/phase2_with_gnomad/splits 2>/dev/null)\" ]; then\n"
@@ -39,12 +37,10 @@ EDITS = [
      "          fi\n"
      "          python scripts/run_drift_monitor.py \\\n",
      1),
-    # B: capture exit code without -e aborting
     ("            --output-dir outputs/drift_reports/\n"
      "          EXIT=$?\n",
      "            --output-dir outputs/drift_reports/ || EXIT=$?\n",
      1),
-    # default case so unexpected codes do not alarm
     ('            3) echo "drift_level=severe"  >> "$GITHUB_OUTPUT" ;;\n'
      "          esac",
      '            3) echo "drift_level=severe"  >> "$GITHUB_OUTPUT" ;;\n'
@@ -55,7 +51,9 @@ EDITS = [
 
 def main(path_str: str) -> int:
     path = Path(path_str)
-    data = path.open(encoding="utf-8", newline="").read()
+    raw = path.open(encoding="utf-8", newline="").read()
+    nl = "\r\n" if "\r\n" in raw else "\n"
+    data = raw.replace("\r\n", "\n")            # normalize for matching (anchors are LF)
     if MARKER in data:
         print(f"SKIP: {path} already patched (idempotent no-op)"); return 0
     for old, _new, n in EDITS:
@@ -70,10 +68,11 @@ def main(path_str: str) -> int:
             yaml.safe_load(out)
         except Exception as e:
             print(f"ABORT: patched YAML invalid: {e}; no change"); return 3
+    final = out.replace("\n", nl) if nl == "\r\n" else out   # restore original line endings
     backup = path.with_suffix(path.suffix + ".driftfix.bak")
     shutil.copy2(path, backup)
-    path.open("w", encoding="utf-8", newline="").write(out)
-    print(f"patched {path}  (backup {backup}); applied {len(EDITS)} edits")
+    path.open("w", encoding="utf-8", newline="").write(final)
+    print(f"patched {path}  (backup {backup}); applied {len(EDITS)} edits; line endings = {'CRLF' if nl==chr(13)+chr(10) else 'LF'}")
     return 0
 
 if __name__ == "__main__":

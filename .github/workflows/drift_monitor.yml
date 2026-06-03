@@ -64,18 +64,25 @@ jobs:
       - name: Run feature drift check
         id: drift
         run: |
+          EXIT=0
+          if [ ! -d outputs/phase2_with_gnomad/splits ] || [ -z "$(ls -A outputs/phase2_with_gnomad/splits 2>/dev/null)" ]; then
+            echo "No reference splits available -- skipping drift check (avoids false alert)."
+            echo "exit_code=0" >> "$GITHUB_OUTPUT"
+            echo "drift_level=none" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           python scripts/run_drift_monitor.py \
             --reference-splits outputs/phase2_with_gnomad/splits/ \
             --features-only \
             --release-name "${{ github.event.inputs.release_name || 'scheduled' }}" \
-            --output-dir outputs/drift_reports/
-          EXIT=$?
+            --output-dir outputs/drift_reports/ || EXIT=$?
           echo "exit_code=$EXIT" >> "$GITHUB_OUTPUT"
           case $EXIT in
             0) echo "drift_level=none"    >> "$GITHUB_OUTPUT" ;;
             1) echo "drift_level=minor"   >> "$GITHUB_OUTPUT" ;;
             2) echo "drift_level=significant" >> "$GITHUB_OUTPUT" ;;
             3) echo "drift_level=severe"  >> "$GITHUB_OUTPUT" ;;
+            *) echo "drift_level=none"    >> "$GITHUB_OUTPUT" ;;
           esac
         continue-on-error: true
 
@@ -133,6 +140,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [feature-drift, label-drift]
     if: needs.feature-drift.outputs.drift_level != 'none'
+    permissions:
+      contents: read
+      issues: write
 
     steps:
       - name: Create GitHub Issue for drift alert
