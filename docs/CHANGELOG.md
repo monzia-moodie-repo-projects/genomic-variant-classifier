@@ -2643,3 +2643,51 @@ The recovery file includes:
 - Before renaming a user-facing string/message, grep tests for assertions on it.
 - Verify a model's input contract from code before writing tests (cnn_1d is sequence, not tabular).
 - Run the full unit suite (no -x) from repo root before pushing, to match CI exactly.
+
+## [2026-06-03] â€” D.1 Correctness Patches + D.2 Science Additions
+
+### Added
+- `src/genomic_variant_classifier/data/splits.py` â€” hash-based gene-stratified
+  splits (`gene_stratified_split`, `unseen_gene_holdout_split`, `split_summary`).
+  Replaces `GroupShuffleSplit` with `hashlib.md5` gene-hash for Rule 6 stability:
+  holdout genes are stable as dataset grows (C3 gate / `test_hash_stability_across_data_versions`).
+- `src/genomic_variant_classifier/evaluation/ntqr_evaluator.py` â€” NTQR r2 accuracy
+  bounds (stub mode when `ntqr` absent; SR #31 check required before requirements.txt).
+- `src/genomic_variant_classifier/features/topological_ph.py` â€” PH features over
+  STRING v12 (Adopt #20; train-subgraph leakage guard; stub when `gudhi` absent).
+- `scripts/ablation_npig_permutation.py` â€” C3 permutation ablation for
+  `n_pathogenic_in_gene`. Uses shuffled-label npig recomputation (F-10 fix).
+- `tests/unit/test_d1_d2.py` â€” 42-test battery for D.1+D.2.
+- `docs/preflight/ntqr_sr31_check.ps1` â€” SR #31 smoke test for ntqr.
+- `docs/preflight/gudhi_sr31_check.ps1` â€” SR #31 smoke test for gudhi.
+- `src/genomic_variant_classifier/features/__init__.py` â€” new package init.
+
+### Fixed (D.1 patches â€” real_data_prep.py + run_phase2_eval.py)
+- **F-02** `_assert_clean_cohort` silent-skip: `else: _key = None` replaced by
+  `raise ValueError` when neither `variant_id` nor locus columns exist.
+- **F-05** `run_phase2_eval.py`: auto-enables `--skip-cnn` when seq-windows file
+  absent (prevents false exit-2 from unmapped-coverage gate).
+- **F-06** `_annotate_scores` log step numbers normalised to N/17 throughout
+  (12 individual log strings corrected: 3/4â†’3/17 through 14/14â†’14/17).
+- **F-07** `_join_gnomad` position coerced to `int` via `pd.to_numeric` for robust
+  locus matching (avoids leading-zero string mismatch).
+- **F-13** OOF sidecar (`oof_predictions.parquet`) now includes `_train_row_idx`
+  column for downstream meta-learner reconstruction alignment.
+
+### Fixed (splits.py API compliance)
+- Added `gene_stratified_split` and `split_summary` (were missing; caused
+  `test_splits.py` collection error / `ImportError`).
+- `unseen_gene_holdout_split`: changed `KeyError` â†’ `ValueError` for missing
+  gene column; added `holdout_frac` bounds validation (raises `ValueError`
+  matching `holdout_frac` for values outside (0,1)).
+
+### Fixed (test_d1_d2.py API alignment)
+- `test_missing_gene_col_raises_key_error` â†’ `test_missing_gene_col_raises_value_error`
+  (aligns with `test_splits.py` expectation and new `ValueError` contract).
+- Removed `test_missing_label_col_raises_key_error` (label column no longer
+  required by `unseen_gene_holdout_split`).
+
+### Test results
+- `tests/unit/test_splits.py`: 12/12 PASS (was: collection ERROR)
+- `tests/unit/test_d1_d2.py`: 42/42 PASS (new)
+- Full suite: 693 passed / 6 skipped / 0 failed (was: 596/1/0 + 1 collection error)

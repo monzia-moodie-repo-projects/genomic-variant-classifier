@@ -2,35 +2,66 @@
 # =====================================
 # Standing Rule #31 smoke test for gudhi.
 #
-# Run BEFORE adding gudhi to requirements.txt.
-# Expected output (PASS):
-#   gudhi SR31 PASS  version: X.Y.Z
-#   SimplexTree API: PASS
+# gudhi 3.12.0 PASSES this test (confirmed 2026-06-03).
+# Safe to add to requirements.txt once this script reports PASS.
 #
-# Usage (from repo root):
-#   .\docs\preflight\gudhi_sr31_check.ps1
+# FIX vs original: the original used (Get-Job).ChildJobs[0].State -eq "Completed"
+# which is unreliable because PS 5.1 job State = "Completed" for any job that
+# ran to completion, regardless of Python exit code. The fix uses text-based
+# detection: check whether the Python output contains the PASS marker.
+#
+# Run from repo root:
+#   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+#   & ".\docs\preflight\gudhi_sr31_check.ps1"
 
-$job = Start-Job -ScriptBlock {
-    # 1. Pip dry-run.
-    $dryRun = & pip install gudhi --break-system-packages --dry-run 2>&1 |
-              Select-String "Would install|already satisfied"
-    if ($dryRun) {
-        Write-Host "pip dry-run: $dryRun" -ForegroundColor Cyan
-    } else {
-        Write-Host "WARNING: gudhi not found on PyPI -- check package name" -ForegroundColor Yellow
-    }
+param([string]$PipArgs = "--break-system-packages")
 
-    # 2. Install.
-    pip install gudhi --break-system-packages -q 2>&1 |
-        Select-String "Successfully installed|already satisfied" | Write-Host
+Set-StrictMode -Version 1
+$ErrorActionPreference = "Stop"
 
-    # 3. Import test + SimplexTree API contract.
-    $pyScript = @"
+$pol = Get-ExecutionPolicy -Scope Process
+if ($pol -eq "Restricted") {
+    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+}
+
+Write-Host "gudhi SR #31 smoke test" -ForegroundColor Cyan
+Write-Host "========================" -ForegroundColor Cyan
+
+# ---------------------------------------------------------------------------
+# 1. Pip dry-run: confirm package resolves
+# ---------------------------------------------------------------------------
+Write-Host ""
+Write-Host "Step 1: pip dry-run ..."
+$dryOut = (pip install gudhi $PipArgs --dry-run 2>&1) -join " "
+if ($dryOut -match "Would install|already satisfied") {
+    Write-Host ("  pip: {0}" -f ($dryOut | Select-String "Would install|already satisfied" |
+        ForEach-Object { $_.Matches[0].Value + " (gudhi)" })) -ForegroundColor Green
+} else {
+    Write-Host "  WARNING: could not confirm gudhi on PyPI" -ForegroundColor Yellow
+    Write-Host ("  dry-run output: {0}" -f $dryOut[0..200])
+}
+
+# ---------------------------------------------------------------------------
+# 2. Install
+# ---------------------------------------------------------------------------
+Write-Host ""
+Write-Host "Step 2: pip install gudhi ..."
+pip install gudhi $PipArgs -q 2>&1 |
+    Select-String "Successfully installed|already satisfied" |
+    ForEach-Object { Write-Host ("  {0}" -f $_) -ForegroundColor Green }
+
+# ---------------------------------------------------------------------------
+# 3. Write Python test to temp file and run it
+# ---------------------------------------------------------------------------
+Write-Host ""
+Write-Host "Step 3: API smoke test ..."
+
+$tmpPy = [System.IO.Path]::GetTempFileName() + ".py"
+$pyTest = @'
 import sys
 try:
     import gudhi
-    print(f'gudhi SR31 PASS  version: {gudhi.__version__}')
-    # Minimal API contract: build a SimplexTree, insert edges, compute persistence.
+    print("gudhi SR31 PASS  version: " + str(gudhi.__version__))
     st = gudhi.SimplexTree()
     st.insert([0], filtration=0.0)
     st.insert([1], filtration=0.0)
@@ -40,33 +71,51 @@ try:
     st.make_filtration_non_decreasing()
     st.compute_persistence()
     ph = st.persistence()
-    assert isinstance(ph, list), 'persistence() must return a list'
-    print('SimplexTree API: PASS')
-    print(f'  persistence intervals: {ph}')
+    assert isinstance(ph, list), "persistence() must return a list"
+    assert len(ph) >= 1, "expected at least 1 persistence interval"
+    print("SimplexTree API: PASS")
+    print("  persistence intervals: " + str(ph[:3]))
     sys.exit(0)
 except ImportError as e:
-    print(f'SR31 FAIL (ImportError): {e}', file=sys.stderr)
+    print("SR31 FAIL (ImportError): " + str(e), file=sys.stderr)
     sys.exit(1)
 except Exception as e:
-    print(f'SR31 FAIL ({type(e).__name__}): {e}', file=sys.stderr)
+    print("SR31 FAIL (" + type(e).__name__ + "): " + str(e), file=sys.stderr)
     sys.exit(2)
-"@
-    $tmp = [System.IO.Path]::GetTempFileName() + ".py"
-    [System.IO.File]::WriteAllText($tmp, $pyScript, [System.Text.UTF8Encoding]::new($false))
-    python $tmp
-    $exit = $LASTEXITCODE
-    Remove-Item $tmp -ErrorAction SilentlyContinue
-    exit $exit
-}
+'@
 
-Wait-Job $job -Timeout 120 | Out-Null
-Receive-Job $job
-$exitCode = (Get-Job -Id $job.Id).ChildJobs[0].State
-Remove-Job $job
+[System.IO.File]::WriteAllText($tmpPy, $pyTest, [System.Text.UTF8Encoding]::new($false))
 
-if ($exitCode -eq "Completed") {
-    Write-Host "`ngudhi SR31 check: PASS -- safe to add gudhi to requirements.txt" -ForegroundColor Green
+# Capture stdout and stderr separately, and the exit code
+$psi = New-Object System.Diagnostics.ProcessStartInfo
+$psi.FileName = "python"
+$psi.Arguments = $tmpPy
+$psi.RedirectStandardOutput = $true
+$psi.RedirectStandardError  = $true
+$psi.UseShellExecute = $false
+
+$proc = [System.Diagnostics.Process]::Start($psi)
+$stdout = $proc.StandardOutput.ReadToEnd()
+$stderr = $proc.StandardError.ReadToEnd()
+$proc.WaitForExit()
+$exitCode = $proc.ExitCode
+
+Remove-Item $tmpPy -ErrorAction SilentlyContinue
+
+# Print captured output
+if ($stdout) { Write-Host $stdout.TrimEnd() }
+if ($stderr) { Write-Host $stderr.TrimEnd() -ForegroundColor Red }
+
+# ---------------------------------------------------------------------------
+# 4. Verdict: text-based detection (not job state)
+# ---------------------------------------------------------------------------
+Write-Host ""
+if ($exitCode -eq 0 -and $stdout -match "SR31 PASS") {
+    Write-Host "gudhi SR31 check: PASS -- safe to add gudhi to requirements.txt" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "To add gudhi: append 'gudhi' to requirements.txt and commit." -ForegroundColor Cyan
 } else {
-    Write-Host "`ngudhi SR31 check: FAIL -- do NOT add gudhi to requirements.txt" -ForegroundColor Red
+    Write-Host "gudhi SR31 check: FAIL -- do NOT add gudhi to requirements.txt" -ForegroundColor Red
+    Write-Host ("  Python exit code: {0}" -f $exitCode)
     exit 1
 }
