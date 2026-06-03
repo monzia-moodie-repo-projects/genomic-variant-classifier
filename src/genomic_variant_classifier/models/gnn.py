@@ -49,7 +49,7 @@ import torch.nn.functional as F
 from torch import nn
 from torch_geometric.nn import GATConv
 
-from genomic_variant_classifier.models.gnn_optim import bf16_autocast
+from genomic_variant_classifier.models.gnn_optim import bf16_autocast, denoise_string_edges
 
 logger = logging.getLogger(__name__)
 
@@ -231,6 +231,8 @@ def build_pyg_dataset(
     graph: nx.Graph,
     node_feature_cols: list[str],
     label_col: str = "acmg_label",
+    edge_denoise: str = "none",
+    edge_denoise_tau: float = 0.0,
 ) -> SharedFocalGraph:
     """
     Build a single shared-graph dataset for transductive focal-node training.
@@ -276,6 +278,10 @@ def build_pyg_dataset(
     else:
         edge_index = torch.zeros((2, 0), dtype=torch.long)
         edge_attr = torch.zeros((0, 3), dtype=torch.float)
+
+    edge_index, edge_attr = denoise_string_edges(
+        edge_index, edge_attr, mode=edge_denoise, tau=edge_denoise_tau
+    )
 
     x = torch.tensor(gene_features, dtype=torch.float)
 
@@ -478,6 +484,8 @@ def train_gnn_pipeline(
     batch_size: int = 32,
     graph: Optional[nx.Graph] = None,
     precision: str = "fp32",
+    edge_denoise: str = "none",
+    edge_denoise_tau: float = 0.0,
 ) -> tuple[VariantGAT, GNNTrainer, list[dict]]:
     """End-to-end GNN training pipeline (transductive, shared graph)."""
     from sklearn.model_selection import train_test_split
@@ -488,7 +496,10 @@ def train_gnn_pipeline(
         builder = StringDBGraph(**_kwargs)
         graph = builder.build()
 
-    ds = build_pyg_dataset(variant_df, graph, node_feature_cols)
+    ds = build_pyg_dataset(
+        variant_df, graph, node_feature_cols,
+        edge_denoise=edge_denoise, edge_denoise_tau=edge_denoise_tau,
+    )
     n = len(ds)
     if n < 4:
         raise ValueError(f"Too few labeled focal samples for GNN training: {n}")
