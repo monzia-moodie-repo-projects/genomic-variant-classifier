@@ -49,7 +49,7 @@ import torch.nn.functional as F
 from torch import nn
 from torch_geometric.nn import GATConv
 
-from genomic_variant_classifier.models.gnn_optim import bf16_autocast, denoise_string_edges
+from genomic_variant_classifier.models.gnn_optim import bf16_autocast, denoise_string_edges, VariantGATGPS
 
 logger = logging.getLogger(__name__)
 
@@ -486,6 +486,7 @@ def train_gnn_pipeline(
     precision: str = "fp32",
     edge_denoise: str = "none",
     edge_denoise_tau: float = 0.0,
+    layer_type: str = "gat",
 ) -> tuple[VariantGAT, GNNTrainer, list[dict]]:
     """End-to-end GNN training pipeline (transductive, shared graph)."""
     from sklearn.model_selection import train_test_split
@@ -512,7 +513,12 @@ def train_gnn_pipeline(
     train_ds, val_ds = ds.subset(train_pos), ds.subset(val_pos)
 
     in_channels = len(node_feature_cols)  # focal indicator dropped (Option B)
-    model = VariantGAT(in_channels=in_channels, hidden_channels=128, heads=8)
+    if layer_type == "gps":
+        model = VariantGATGPS(in_channels=in_channels, hidden_channels=128, heads=4)
+    elif layer_type == "gat":
+        model = VariantGAT(in_channels=in_channels, hidden_channels=128, heads=8)
+    else:
+        raise ValueError(f"unknown layer_type: {layer_type!r} (expected 'gat' or 'gps')")
     trainer = GNNTrainer(model, epochs=epochs, batch_size=batch_size, precision=precision)
     history = trainer.fit(train_ds, val_ds)
     return model, trainer, history

@@ -28,3 +28,58 @@ class EdgeGate(nn.Module):
     def forward(self, edge_attr):
         gate = torch.sigmoid(self.lin(edge_attr))
         return edge_attr * gate, gate
+
+# ---------------------------------------------------------------------------
+# GraphGPS hybrid variant: local edge-aware GATConv + global Performer attention.
+# Drop-in for VariantGAT (identical forward signature) so GNNTrainer/GNNScorer
+# need no changes. Opt-in via train_gnn_pipeline(layer_type="gps").
+# ---------------------------------------------------------------------------
+from torch_geometric.nn import GATConv as _GATConv, GPSConv as _GPSConv
+
+
+class VariantGATGPS(nn.Module):
+    """GraphGPS hybrid: per layer, a local edge-aware GATConv plus global Performer
+    (linear) attention. forward(x, edge_index, gene_idx, edge_attr) -> (n_focal, 2)."""
+
+    def __init__(
+        self,
+        in_channels: int,
+        hidden_channels: int = 128,
+        num_layers: int = 3,
+        heads: int = 4,
+        dropout: float = 0.3,
+        attn_type: str = "performer",
+        gate_edges: bool = False,
+    ) -> None:
+        super().__init__()
+        self.dropout = dropout
+        self.input_proj = nn.Linear(in_channels, hidden_channels)
+        self.edge_gate = EdgeGate(edge_dim=3) if gate_edges else None
+        self.convs = nn.ModuleList()
+        for _ in range(num_layers):
+            local = _GATConv(
+                hidden_channels, hidden_channels, heads=heads, concat=False,
+                dropout=dropout, edge_dim=3, add_self_loops=False,
+            )
+            self.convs.append(
+                _GPSConv(
+                    channels=hidden_channels, conv=local, heads=heads,
+                    dropout=dropout, attn_type=attn_type,
+                    attn_kwargs={"dropout": dropout},
+                )
+            )
+        self.classifier = nn.Sequential(
+            nn.Linear(hidden_channels, 32),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(32, 2),
+        )
+
+    def forward(self, x, edge_index, gene_idx, edge_attr=None):
+        if self.edge_gate is not None and edge_attr is not None and edge_attr.numel() > 0:
+            edge_attr, _ = self.edge_gate(edge_attr)
+        h = self.input_proj(x)
+        for conv in self.convs:
+            h = conv(h, edge_index, edge_attr=edge_attr)
+        focal = h[gene_idx]
+        return self.classifier(focal)
