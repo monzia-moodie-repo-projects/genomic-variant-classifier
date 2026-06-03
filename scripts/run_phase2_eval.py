@@ -671,7 +671,23 @@ def main() -> int:
                 # reconstruction aligns OOF rows to meta_train.parquet
                 # even when --max-train subsampling is active (F-13).
                 if args.max_train and len(y_train) == args.max_train:
-                    _oof_df.insert(0, "_train_row_idx", idx)
+                    if len(idx) == len(_oof_df):
+                        _oof_df.insert(0, "_train_row_idx", idx)
+                    else:
+                        # Length mismatch: VariantEnsemble stores a
+                        # subset of OOF rows (e.g. stacker training split).
+                        # Fall back to sequential indices within oof_df.
+                        logger.warning(
+                            "OOF idx length mismatch: idx=%d oof=%d "
+                            "-- using sequential indices (subsampled "
+                            "minitest run; does not affect Run 15 "
+                            "where max_train is not set).",
+                            len(idx), len(_oof_df),
+                        )
+                        _oof_df.insert(
+                            0, "_train_row_idx",
+                            _np.arange(len(_oof_df), dtype=_np.int64),
+                        )
                 else:
                     _oof_df.insert(
                         0, "_train_row_idx",
