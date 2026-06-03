@@ -117,10 +117,21 @@ def test_esm2_not_in_stub_mode(esm2_connector):
             "Real-mode test not applicable."
         )
 
-    if not _has_network():
+    # Probe the ACTUAL dependencies rather than a TCP-only reachability check:
+    # a 443 handshake does not prove the HF model weights downloaded or that
+    # UniProt returned a sequence -- the gap that made CI #250 a false regression.
+    conn = esm2_connector._get_conn()
+    if esm2_mod._embed_sequence(
+        "MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQ", esm2_connector.model_name, conn
+    ) is None:
         pytest.xfail(
-            "rest.uniprot.org unreachable -- network flake, not a regression. "
-            "ESM-2 connector needs UniProt to fetch canonical sequences."
+            "ESM-2 model weights could not be loaded/run here (e.g. HuggingFace "
+            "download failed/timed out) -- environmental, not a regression."
+        )
+    if esm2_mod._fetch_uniprot_sequence("TP53", esm2_connector.request_timeout) is None:
+        pytest.xfail(
+            "UniProt sequence fetch failed or returned empty -- environmental, "
+            "not a regression. ESM-2 needs UniProt canonical sequences."
         )
 
     df = _variant_frame_with_parsed_columns()
