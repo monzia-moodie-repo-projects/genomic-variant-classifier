@@ -49,6 +49,8 @@ import torch.nn.functional as F
 from torch import nn
 from torch_geometric.nn import GATConv
 
+from genomic_variant_classifier.models.gnn_optim import bf16_autocast
+
 logger = logging.getLogger(__name__)
 
 STRING_URL = (
@@ -361,6 +363,7 @@ class GNNTrainer:
         batch_size: int = 32,  # accepted for API compatibility; full-batch by default
         device: Optional[str] = None,
         checkpoint_path: str = "models/best_gat.pt",
+        precision: str = "fp32",
     ) -> None:
         self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
         self.model = model.to(self.device)
@@ -370,14 +373,22 @@ class GNNTrainer:
         self.batch_size = batch_size
         self.checkpoint_path = Path(checkpoint_path)
         self.checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+        self.precision = precision
         self.history: list[dict] = []
 
     def _graph_tensors(self, ds: SharedFocalGraph):
-        return (
-            ds.x.to(self.device),
-            ds.edge_index.to(self.device),
-            ds.edge_attr.to(self.device),
-        )
+        cache = getattr(self, "_gt_cache", None)
+        if cache is None:
+            cache = {}
+            self._gt_cache = cache
+        key = id(ds)
+        if key not in cache:
+            cache[key] = (
+                ds.x.to(self.device),
+                ds.edge_index.to(self.device),
+                ds.edge_attr.to(self.device),
+            )
+        return cache[key]
 
     def train_epoch(self, ds: SharedFocalGraph) -> float:
         self.model.train()
@@ -385,8 +396,9 @@ class GNNTrainer:
         focal = ds.focal_idx.to(self.device)
         y = ds.y.to(self.device)
         self.optimizer.zero_grad()
-        out = self.model(x, ei, focal, edge_attr=ea)   # one forward over the whole graph
-        loss = F.cross_entropy(out, y)
+        with bf16_autocast(self.device, enabled=(self.precision == "bf16")):
+            out = self.model(x, ei, focal, edge_attr=ea)   # one forward over the whole graph
+            loss = F.cross_entropy(out, y)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
         self.optimizer.step()
@@ -399,8 +411,9 @@ class GNNTrainer:
         self.model.eval()
         x, ei, ea = self._graph_tensors(ds)
         focal = ds.focal_idx.to(self.device)
-        out = self.model(x, ei, focal, edge_attr=ea)
-        proba = F.softmax(out, dim=-1)[:, 1].cpu().numpy()
+        with bf16_autocast(self.device, enabled=(self.precision == "bf16")):
+            out = self.model(x, ei, focal, edge_attr=ea)
+        proba = F.softmax(out.float(), dim=-1)[:, 1].cpu().numpy()
         labels = ds.y.cpu().numpy()
         auc = roc_auc_score(labels, proba) if len(np.unique(labels)) > 1 else 0.0
         logits = np.stack([1 - proba, proba], axis=1)
@@ -447,8 +460,9 @@ class GNNTrainer:
         with torch.no_grad():
             x, ei, ea = self._graph_tensors(ds)
             focal = ds.focal_idx.to(self.device)
-            out = self.model(x, ei, focal, edge_attr=ea)
-            return F.softmax(out, dim=-1)[:, 1].cpu().numpy()
+            with bf16_autocast(self.device, enabled=(self.precision == "bf16")):
+                out = self.model(x, ei, focal, edge_attr=ea)
+            return F.softmax(out.float(), dim=-1)[:, 1].cpu().numpy()
 
 
 # ---------------------------------------------------------------------------
@@ -463,6 +477,7 @@ def train_gnn_pipeline(
     epochs: int = 100,
     batch_size: int = 32,
     graph: Optional[nx.Graph] = None,
+    precision: str = "fp32",
 ) -> tuple[VariantGAT, GNNTrainer, list[dict]]:
     """End-to-end GNN training pipeline (transductive, shared graph)."""
     from sklearn.model_selection import train_test_split
@@ -487,7 +502,7 @@ def train_gnn_pipeline(
 
     in_channels = len(node_feature_cols)  # focal indicator dropped (Option B)
     model = VariantGAT(in_channels=in_channels, hidden_channels=128, heads=8)
-    trainer = GNNTrainer(model, epochs=epochs, batch_size=batch_size)
+    trainer = GNNTrainer(model, epochs=epochs, batch_size=batch_size, precision=precision)
     history = trainer.fit(train_ds, val_ds)
     return model, trainer, history
 
