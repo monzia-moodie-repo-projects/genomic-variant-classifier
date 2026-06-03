@@ -2691,3 +2691,26 @@ The recovery file includes:
 - `tests/unit/test_splits.py`: 12/12 PASS (was: collection ERROR)
 - `tests/unit/test_d1_d2.py`: 42/42 PASS (new)
 - Full suite: 693 passed / 6 skipped / 0 failed (was: 596/1/0 + 1 collection error)
+
+## 2026-06-03 — Session 2026-06-01/06-03 (correctness, verification, audit)
+
+### Fixed
+- mc_dropout NaN entropy: float32 eps=1e-8 below machine epsilon rounded clip bound to 1.0 → log(0) → NaN. Replaced with exact binary entropy (0*log(0):=0). See INCIDENT_2026-06-01_mc-dropout-nan-entropy.md.
+- GNN 64 GB OOM: build_pyg_dataset replicated the full STRING graph per variant. Option B single-shared-graph + batched focal readout. Validated on real 16,201-node graph (no OOM, gnn_score std 0.0302). See INCIDENT_2026-06-01_gnn-oom.md.
+
+### Added
+- scripts/preflight_gate.py: pre-flight config gate (8/8 tests). Hard-fails falsy --string-db, empty --seq-windows, missing source paths, missing --unseen-gene-holdout, forbidden --skip-nn/--skip-cnn/--skip-kan; warns on missing --skip-svm; requires --ack-omit for optional-source omissions. --emit confirmed all 8 rich-run inputs present.
+- scripts/inspect_clinvar_header.py: ClinVar VCF header provenance reader (date/review-status), early-break at first data row.
+
+### Verified
+- Rich sources work (silent-zeros were missing paths): dbNSFP 204,384 SIFT; gnomAD-constraint 94.6%; LOVD 369. Rich config cut n_pathogenic_in_gene importance 1213.5→272.3.
+- Full unit suite: 651 passed, 1 skipped, 0 failed.
+
+### Audited
+- Run 14 AUROC 0.9975 untrustworthy (GNN skipped, no gene-disjoint holdout, leakage proxy dominant). See INCIDENT_2026-06-03_run14-audit.md.
+- data/ is a junction to G:\My Drive\...; repo/code/git are local. ClinVar fileDate 2026-03-15, GRCh38, three review-status fields.
+
+### Open
+- SVM auto-skip conflict (--help says --skip-svm required >100k vs manifest auto-skip).
+- Scope: germline vs oncogenic/somatic.
+- Commit + push the two fixes (run-id trailer); GNN GPU epoch-timing probe before rich run.
