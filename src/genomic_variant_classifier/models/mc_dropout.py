@@ -82,9 +82,12 @@ def _decompose_uncertainty(
     mean_prob = probs_stack.mean(axis=0)
     epistemic = probs_stack.var(axis=0)
 
-    eps = 1e-8
-    clipped = np.clip(probs_stack, eps, 1.0 - eps)
-    entropy_per_pass = -(clipped * np.log(clipped) + (1 - clipped) * np.log(1 - clipped))
+    # Exact binary entropy (nats) with 0*log(0):=0 -- a fully-confident pass has
+    # EXACTLY 0 uncertainty: no clip floor, no float32 log(0)=NaN, no warnings, no deps.
+    _p = np.clip(probs_stack, 0.0, 1.0)
+    _safe_p = np.where(_p > 0.0, _p, 1.0)
+    _safe_1m = np.where(_p < 1.0, 1.0 - _p, 1.0)
+    entropy_per_pass = -(_p * np.log(_safe_p) + (1.0 - _p) * np.log(_safe_1m))
     aleatoric = entropy_per_pass.mean(axis=0)
 
     return mean_prob, epistemic, aleatoric

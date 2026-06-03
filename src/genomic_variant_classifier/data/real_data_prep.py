@@ -323,8 +323,13 @@ class DataPrepPipeline:
                 + ":" + df["ref"].astype(str) + ":" + df["alt"].astype(str)
             )
         else:
-            _key = None
-        if _key is not None and bool(_key.duplicated().any()):
+            raise ValueError(
+                f"Cannot construct variant identity key in {source}: "
+                "expected 'variant_id' column or all of "
+                "(chrom, pos, ref, alt). "
+                "This is required for the dedup assertion."
+            )
+        if bool(_key.duplicated().any()):
             raise ValueError(
                 f"duplicate variant identity in {source}; run scripts/clean_cohort.py --apply."
             )
@@ -415,9 +420,12 @@ class DataPrepPipeline:
         )
 
         df["_chrom"] = df["chrom"].astype(str)
-        df["_pos"] = df["pos"].astype(str)
-        df["_ref"] = df["ref"].astype(str)
-        df["_alt"] = df["alt"].astype(str)
+        df["_pos"]   = pd.to_numeric(df["pos"], errors="coerce").fillna(0).astype(int)
+        df["_ref"]   = df["ref"].astype(str)
+        df["_alt"]   = df["alt"].astype(str)
+        # Align gnomAD _pos to int for robust locus matching (avoids
+        # leading-zero string mismatch — FINDING F-07).
+        gnomad["_pos"] = pd.to_numeric(gnomad["_pos"], errors="coerce").fillna(0).astype(int)
 
         df = df.merge(gnomad, on=["_chrom", "_pos", "_ref", "_alt"], how="left")
         df = df.drop(columns=["_chrom", "_pos", "_ref", "_alt"])
@@ -582,13 +590,13 @@ class DataPrepPipeline:
                 ).sum(),
             )
         else:
-            logger.debug("Score annotation 3/4 skipped (CADD disabled).")
+            logger.debug("Score annotation 3/17 skipped (CADD disabled).")
 
         # 4. SpliceAI
         spliceai = SpliceAIConnector(vcf_path=ac.spliceai_path)
         df = spliceai.fetch(variant_df=df)
         logger.info(
-            "Score annotation 4/6 (SpliceAI): %d variants with splice_ai_score > 0.",
+            "Score annotation 4/17 (SpliceAI): %d variants with splice_ai_score > 0.",
             (
                 df.get("splice_ai_score", pd.Series([0.0] * len(df), index=df.index))
                 > 0
@@ -604,7 +612,7 @@ class DataPrepPipeline:
         else:
             df["alphamissense_score"] = 0.5
         logger.info(
-            "Score annotation 5/6 (AlphaMissense): %d variants annotated (score != 0.5).",
+            "Score annotation 5/17 (AlphaMissense): %d variants annotated (score != 0.5).",
             (
                 df.get(
                     "alphamissense_score", pd.Series([0.5] * len(df), index=df.index)
@@ -634,7 +642,7 @@ class DataPrepPipeline:
             ]:
                 df[col] = val
         logger.info(
-            "Score annotation 6/12 (GTEx): %d eQTL variants.",
+            "Score annotation 6/17 (GTEx): %d eQTL variants.",
             int(df.get("gtex_is_eqtl", pd.Series([0] * len(df), index=df.index)).sum()),
         )
 
@@ -644,7 +652,7 @@ class DataPrepPipeline:
         vep = VEPConnector()
         df = vep.annotate_dataframe(df)
         logger.info(
-            "Score annotation 7/12 (VEP): %d variants with non-zero codon_position.",
+            "Score annotation 7/17 (VEP): %d variants with non-zero codon_position.",
             int(
                 (
                     df.get("codon_position", pd.Series([0] * len(df), index=df.index))
@@ -659,7 +667,7 @@ class DataPrepPipeline:
         omim = OMIMConnector(mim2gene_path=ac.omim_path)
         df = omim.annotate_dataframe(df)
         logger.info(
-            "Score annotation 8/12 (OMIM): %d variants with omim_n_diseases > 0.",
+            "Score annotation 8/17 (OMIM): %d variants with omim_n_diseases > 0.",
             int(
                 (
                     df.get("omim_n_diseases", pd.Series([0] * len(df), index=df.index))
@@ -674,7 +682,7 @@ class DataPrepPipeline:
         clingen = ClinGenConnector(csv_path=ac.clingen_path)
         df = clingen.annotate_dataframe(df)
         logger.info(
-            "Score annotation 9/12 (ClinGen): %d variants with clingen_validity_score > 0.",
+            "Score annotation 9/17 (ClinGen): %d variants with clingen_validity_score > 0.",
             int(
                 (
                     df.get(
@@ -692,7 +700,7 @@ class DataPrepPipeline:
         dbsnp = DbSNPConnector(parquet_path=ac.dbsnp_path)
         df = dbsnp.annotate_dataframe(df)
         logger.info(
-            "Score annotation 10/12 (dbSNP): %d variants with dbsnp_af > 0.",
+            "Score annotation 10/17 (dbSNP): %d variants with dbsnp_af > 0.",
             int(
                 (
                     df.get("dbsnp_af", pd.Series([0.0] * len(df), index=df.index)) > 0
@@ -706,7 +714,7 @@ class DataPrepPipeline:
         eve = EVEConnector(eve_path=ac.eve_path)
         df = eve.annotate_dataframe(df)
         logger.info(
-            "Score annotation 11/12 (EVE): %d variants covered (score != 0.5).",
+            "Score annotation 11/17 (EVE): %d variants covered (score != 0.5).",
             int(
                 (
                     df.get("eve_score", pd.Series([0.5] * len(df), index=df.index))
@@ -725,7 +733,7 @@ class DataPrepPipeline:
             df["hgmd_is_disease_mutation"] = 0
             df["hgmd_n_reports"] = 0
         logger.info(
-            "Score annotation 12/14 (HGMD): %d variants flagged as disease mutations.",
+            "Score annotation 12/17 (HGMD): %d variants flagged as disease mutations.",
             int(
                 (
                     df.get(
@@ -744,7 +752,7 @@ class DataPrepPipeline:
             rna = RNASpliceIsoformPipeline()
             df = rna.annotate_dataframe(df)
             logger.info(
-                "Score annotation 13/14 (RNA splice): %d splice-gated variants annotated.",
+                "Score annotation 13/17 (RNA splice): %d splice-gated variants annotated.",
                 int(
                     df.get("is_splice", pd.Series([0] * len(df), index=df.index)).sum()
                 ),
@@ -764,7 +772,7 @@ class DataPrepPipeline:
         protein = ProteinStructurePipeline(cache_dir=ac.protein_cache_dir)
         df = protein.annotate_dataframe(df)
         logger.info(
-            "Score annotation 14/14 (protein structure): %d missense variants annotated.",
+            "Score annotation 14/17 (protein structure): %d missense variants annotated.",
             int(df.get("is_missense", pd.Series([0] * len(df), index=df.index)).sum()),
         )
 

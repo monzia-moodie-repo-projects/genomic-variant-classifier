@@ -214,8 +214,14 @@ def main() -> int:
 
         _seq_win = Path(args.seq_windows) if getattr(args, "seq_windows", None) else None
         if _seq_win is not None and not _seq_win.exists():
-            logger.warning("seq-windows parquet not found: %s (falling back to poly-A)", _seq_win)
+            logger.warning(
+                "seq-windows parquet not found: %s -- automatically enabling --skip-cnn. "
+                "Poly-A fallback would fail the >0.5%% unmapped gate. "
+                "Pass --seq-windows <path> or --skip-cnn explicitly to silence this.",
+                _seq_win,
+            )
             _seq_win = None
+            args.skip_cnn = True
         _meta_train_seq = pd.read_parquet(outdir / "splits" / "meta_train.parquet")
         seq_tr, _u_tr = attach_delta_windows(_meta_train_seq, _seq_win)
         seq_te, _u_te = attach_delta_windows(meta, _seq_win)        # meta == meta_test
@@ -387,6 +393,7 @@ def main() -> int:
                     variant_df=gnn_df,
                     node_feature_cols=node_feat_cols,
                     string_threshold=string_threshold,
+                    string_kwargs=_string_kwargs,
                     test_split=0.15,
                     epochs=100,
                     batch_size=32,
@@ -407,8 +414,8 @@ def main() -> int:
                     "[GNN-TRACE] gnn_scorer built (type=%s); "
                     "graph_nodes=%d graph_edges=%d",
                     type(gnn_scorer).__name__,
-                    int(getattr(graph, "num_nodes", -1)),
-                    int(getattr(graph, "num_edges", -1)),
+                    graph.number_of_nodes(),
+                    graph.number_of_edges(),
                 )
                 joblib.dump(gnn_scorer, outdir / "models" / "gnn_scorer.joblib")
                 _write_model_manifest(outdir / "models" / "gnn_scorer.joblib")
@@ -656,14 +663,27 @@ def main() -> int:
         # ablation harnesses from joblib reload success.
         try:
             import numpy as _np  # noqa: F811
-            _oof = getattr(ensemble, "oof_predictions_", None)
+            _oof   = getattr(ensemble, "oof_predictions_", None)
             _names = getattr(ensemble, "oof_model_names_", None)
             if _oof is not None and _names is not None:
                 _oof_df = pd.DataFrame(_oof, columns=list(_names))
+                # Persist training row indices so downstream meta-learner
+                # reconstruction aligns OOF rows to meta_train.parquet
+                # even when --max-train subsampling is active (F-13).
+                if args.max_train and len(y_train) == args.max_train:
+                    _oof_df.insert(0, "_train_row_idx", idx)
+                else:
+                    _oof_df.insert(
+                        0, "_train_row_idx",
+                        _np.arange(len(_oof_df), dtype=_np.int64),
+                    )
                 _oof_df.to_parquet(outdir / "oof_predictions.parquet",
                                    index=False)
-                logger.info("OOF predictions flushed to %s/oof_predictions.parquet",
-                            outdir)
+                logger.info(
+                    "OOF predictions flushed to %s/oof_predictions.parquet "
+                    "(shape=%s, _train_row_idx included)",
+                    outdir, _oof_df.shape,
+                )
         except Exception as _exc:
             logger.warning("Could not flush OOF predictions: %s", _exc)
 
