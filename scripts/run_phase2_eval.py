@@ -102,6 +102,24 @@ def parse_args(argv=None) -> argparse.Namespace:
         help="Path to STRING DB file, or 'auto' to use config default",
     )
     p.add_argument(
+        "--layer-type",
+        choices=["gat", "gps"],
+        default="gat",
+        help="GNN layer type: gat (default) or gps (GraphGPS hybrid).",
+    )
+    p.add_argument(
+        "--edge-denoise",
+        choices=["none", "threshold"],
+        default="none",
+        help="STRING edge denoising applied before GNN train AND score.",
+    )
+    p.add_argument(
+        "--edge-denoise-tau",
+        type=float,
+        default=0.0,
+        help="Weighted-mean STRING confidence cutoff for --edge-denoise threshold.",
+    )
+    p.add_argument(
         "--skip-svm",
         action="store_true",
         help="Exclude SVM (RBF kernel is O(n²) — required at >100k samples)",
@@ -397,6 +415,9 @@ def main() -> int:
                     test_split=0.15,
                     epochs=100,
                     batch_size=32,
+                    layer_type=args.layer_type,
+                    edge_denoise=args.edge_denoise,
+                    edge_denoise_tau=args.edge_denoise_tau,
                 )
                 logger.info(
                     "[GNN-TRACE] train_gnn_pipeline done in %.2fs",
@@ -408,7 +429,11 @@ def main() -> int:
                 # Build a GNNScorer for inference-time gene-level scoring
                 builder = StringDBGraph(**_string_kwargs)
                 graph = builder.build()
-                full_dataset = build_pyg_dataset(gnn_df, graph, node_feat_cols)
+                full_dataset = build_pyg_dataset(
+                    gnn_df, graph, node_feat_cols,
+                    edge_denoise=args.edge_denoise,
+                    edge_denoise_tau=args.edge_denoise_tau,  # scorer-consistency
+                )
                 gnn_scorer = GNNScorer.from_trainer(gnn_trainer, full_dataset, gnn_df)
                 logger.info(
                     "[GNN-TRACE] gnn_scorer built (type=%s); "
