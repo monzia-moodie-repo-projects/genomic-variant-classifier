@@ -9,6 +9,8 @@ import pandas as pd
 import pytest
 import torch
 
+import pytest
+pytest.importorskip("torch_geometric")  # GNN tests need PyG; skip where absent (e.g. CI)
 from genomic_variant_classifier.models.gnn import (
     train_gnn_pipeline, GNNTrainer, VariantGAT, build_pyg_dataset,
 )
