@@ -75,6 +75,9 @@ def main() -> int:
     ap.add_argument("--epochs", type=int, default=2)
     ap.add_argument("--subsample", type=int, default=8000)
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--layer-type", choices=["gat", "gps"], default="gat")
+    ap.add_argument("--edge-denoise", choices=["none", "threshold"], default="none")
+    ap.add_argument("--edge-denoise-tau", type=float, default=0.0)
     a = ap.parse_args()
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -91,14 +94,23 @@ def main() -> int:
     if device == "cuda":
         torch.cuda.reset_peak_memory_stats()
     t0 = time.perf_counter()
-    model, trainer, hist = train_gnn_pipeline(df, feat, graph=graph, epochs=a.epochs, test_split=0.2)
+    model, trainer, hist = train_gnn_pipeline(
+        df, feat, graph=graph, epochs=a.epochs, test_split=0.2,
+        layer_type=a.layer_type, edge_denoise=a.edge_denoise, edge_denoise_tau=a.edge_denoise_tau,
+    )
     wall = time.perf_counter() - t0
     peak = (torch.cuda.max_memory_allocated() / 1024**2) if device == "cuda" else 0.0
 
-    full = build_pyg_dataset(df, graph, feat)
+    full = build_pyg_dataset(
+        df, graph, feat,
+        edge_denoise=a.edge_denoise, edge_denoise_tau=a.edge_denoise_tau,  # scorer-consistency
+    )
     sc = GNNScorer.from_trainer(trainer, full, df).score_dataframe(df)
 
     row = summarize(a.tag, hist, float(sc.std()), peak, wall, len(df), device)
+    row["layer_type"] = a.layer_type
+    row["edge_denoise"] = a.edge_denoise
+    row["edge_denoise_tau"] = a.edge_denoise_tau
     OUT.mkdir(parents=True, exist_ok=True)
     path = OUT / f"ablation_{a.tag}.json"
     path.write_text(json.dumps(row, indent=2))
