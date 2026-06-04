@@ -136,6 +136,19 @@ Get-ChildItem $LocalReport -Recurse -File |
 # 5. ARTIFACT GATES (C.5 + C.6) — use Test-ArtifactPresent for ALL checks
 # -----------------------------------------------------------------------------
 Write-Host "`n[5/7] Artifact-presence gates (C.5)..." -ForegroundColor Yellow
+# GNN-score non-degeneracy gate (Run-14 silent-GNN guard). The split parquets
+# carrying the injected gnn_score live on the VM; verify there via SSH rather
+# than SCP ~GB of parquets back. A degenerate gnn_score fails this gate and
+# BLOCKS Vastai_Destroy_Confirmed.ps1 (which refuses on gate exit != 0).
+Write-Host "  GNN-score non-degeneracy (VM-side verify)..." -ForegroundColor Yellow
+$gnnCmd = "cd /workspace/genomic-variant-classifier && python3 scripts/verify_gnn_score.py $RemoteOutputs/splits; echo VGS_EXIT:`$?"
+$gnnVerifyOut = Invoke-Ssh $gnnCmd
+Write-Host ($gnnVerifyOut | Out-String) -ForegroundColor Gray
+if (($gnnVerifyOut -join "`n") -match 'VGS_EXIT:(\d+)') {
+    $gnnVerifyOk = ([int]$Matches[1] -eq 0)
+} else {
+    $gnnVerifyOk = $false   # no exit marker => SSH/verify did not complete => FAIL
+}
 $gateResults = [ordered]@{}
 $gateResults['master_log']            = Test-ArtifactPresent -Root $LocalReport -Filename "run15_master.log" -MinBytes 1000
 $gateResults['observability_md']      = Test-ArtifactPresent -Root $LocalReport -Filename "run15_observability.md" -MinBytes 100
@@ -144,6 +157,7 @@ $gateResults['per_model_metrics_csv'] = Test-ArtifactPresent -Root $LocalReport 
 $gateResults['ensemble_joblib']       = Test-ArtifactPresent -Root $LocalReport -Filename "ensemble.joblib" -MinBytes 1000000
 $gateResults['ensemble_manifest']     = Test-ArtifactPresent -Root $LocalReport -Filename "ensemble.manifest.json" -MinBytes 100
 $gateResults['blend_weights']         = Test-ArtifactPresent -Root $LocalReport -Filename "blend_weights.json" -MinBytes 50
+$gateResults['gnn_score_nondegenerate'] = $gnnVerifyOk
 
 $gateFails = @($gateResults.Keys | Where-Object { -not $gateResults[$_] })
 foreach ($gate in $gateResults.Keys) {

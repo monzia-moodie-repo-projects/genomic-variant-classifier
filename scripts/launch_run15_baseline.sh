@@ -169,5 +169,24 @@ echo "==> model .joblib count: $N_MODELS" | tee -a "$LOG"
 if [ -f "$OUTDIR/metrics.json" ]; then
     python -c "import json; m=json.load(open('$OUTDIR/metrics.json')); print('==> TEST AUROC:', m.get('auroc','N/A'), '| VAL AUROC:', m.get('val_auroc','N/A'))" 2>&1 | tee -a "$LOG"
 fi
+# -- GNN-score non-degeneracy gate (makes the 'validates gnn_score std > 0'
+# -- contract real; catches a GNN swallowed by run_phase2_eval's except
+# -- BEFORE the instance is destroyed) ----------------------------------------
+echo "==> [post] GNN-score non-degeneracy gate" | tee -a "$LOG"
+set +e
+python scripts/verify_gnn_score.py "$OUTDIR/splits" 2>&1 | tee -a "$LOG"
+GNN_VERIFY_RC=${PIPESTATUS[0]}
+set -e
+if [ "$GNN_VERIFY_RC" -eq 0 ]; then
+    echo "==> gnn_score: OK (non-degenerate)" | tee -a "$LOG"
+    rm -f "$OUTDIR/GNN_VERIFY_FAILED" 2>/dev/null || true
+else
+    echo "==> ############################################################" | tee -a "$LOG"
+    echo "==> ## gnn_score DEGENERATE (verify rc=$GNN_VERIFY_RC): the GNN was" | tee -a "$LOG"
+    echo "==> ## swallowed; do NOT trust this run GNN contribution. Inspect" | tee -a "$LOG"
+    echo "==> ## [GNN-TRACE] lines above BEFORE destroying the instance." | tee -a "$LOG"
+    echo "==> ############################################################" | tee -a "$LOG"
+    echo "gnn_score degenerate; verify rc=$GNN_VERIFY_RC; $(date -u +'%F %T') UTC" > "$OUTDIR/GNN_VERIFY_FAILED"
+fi
 echo "==> NEXT (laptop, SEPARATE paste blocks): Run15_Postflight.ps1 -> Vastai_Destroy_Confirmed.ps1" | tee -a "$LOG"
 exit "$RUN_RC"
