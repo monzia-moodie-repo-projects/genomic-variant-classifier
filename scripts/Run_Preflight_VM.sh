@@ -4,9 +4,9 @@
 # G2 - On-VM ENVIRONMENT/HARDWARE pre-flight for Run 15 (Charter v1.1 gate G2).
 #
 # Runs ON the Vast.ai instance AFTER SCP-up of the repo, BEFORE
-# scripts/launch_run11_vm.sh. This is the hardware+environment COMPLEMENT to
-# launch_run11_vm.sh's built-in data/code preflight, with NO overlap:
-#   - launch_run11_vm.sh owns: data-file presence (under $DATA), patch verify,
+# scripts/launch_run15_baseline.sh. This is the hardware+environment COMPLEMENT to
+# launch_run15_baseline.sh's built-in data/code preflight, with NO overlap:
+#   - launch_run15_baseline.sh owns: data-file presence (under $DATA), patch verify,
 #     import smoke (VariantEnsemble/DataPrepPipeline), 1000-row LGBM smoke.
 #   - THIS script owns: GPU/CUDA hard gate, GNN deps (torch_geometric,
 #     networkx), KAN deps (imodelsx, KANClassifier), VRAM/disk/RAM floors,
@@ -17,7 +17,7 @@
 #
 # Usage (on the instance, from /workspace/genomic-variant-classifier):
 #   bash scripts/Run_Preflight_VM.sh [EXPECTED_HEAD]
-#   # exit 0 = environment green; proceed to launch_run11_vm.sh
+#   # exit 0 = environment green; proceed to launch_run15_baseline.sh
 #   # exit 1 = abort; do NOT start the run
 #
 # Env overrides: REPO, MIN_VRAM_MIB, MIN_DISK_GB, MIN_RAM_GB, EXPECTED_HEAD
@@ -31,7 +31,7 @@ MIN_DISK_GB="${MIN_DISK_GB:-150}"
 MIN_RAM_GB="${MIN_RAM_GB:-50}"
 EXPECTED_HEAD="${EXPECTED_HEAD:-${1:-}}"
 
-# PATH fix for vastai/pytorch images (mirror launch_run11_vm.sh) so G2 checks the
+# PATH fix for vastai/pytorch images (mirror launch_run15_baseline.sh) so G2 checks the
 # SAME interpreter the training run will use, not a stray system python.
 if [ -d /venv/main/bin ] && ! echo "$PATH" | grep -q "/venv/main/bin"; then
   export PATH="/venv/main/bin:$PATH"
@@ -144,8 +144,8 @@ if [[ "$FAIL_COUNT" -gt 0 ]]; then
   echo "FAILURES:"
   for f in "${FAILURES[@]}"; do echo "  - $f"; done
   echo ""
-  echo "DO NOT launch. Fix the above, then re-run G2 before launch_run11_vm.sh."
+  echo "DO NOT launch. Fix the above, then re-run G2 before launch_run15_baseline.sh."
   exit 1
 fi
-echo "G2 GREEN -- environment ready. Proceed to: bash scripts/launch_run11_vm.sh"
+echo "G2 GREEN -- environment ready. Proceed to: bash scripts/launch_run15_baseline.sh"
 exit 0
