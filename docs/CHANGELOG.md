@@ -2714,3 +2714,25 @@ The recovery file includes:
 - SVM auto-skip conflict (--help says --skip-svm required >100k vs manifest auto-skip).
 - Scope: germline vs oncogenic/somatic.
 - Commit + push the two fixes (run-id trailer); GNN GPU epoch-timing probe before rich run.
+
+## 2026-06-03 - Path A: --min-review-tier silent no-op (HIGH)
+
+**Fixed**
+- `_load_and_label` silently skipped the review-tier filter on every run (incl. Run
+  14's 0.9975) because neither clean nor dirty cohort had a `ReviewStatus` column;
+  `--min-review-tier 3` was a no-op for the whole project history.
+- Part 1 (f24bfc6, 6142d87): `augment_reviewstatus.py` attaches `ReviewStatus` to the
+  clean cohort from the ClinVar VCF (underscores->spaces). non-empty=3,974,573;
+  tier<=3 KEEP=1,490,014. `probe_review_status.py` read-only diagnostic.
+- Parts 2-3 (b494544): fail-loud guard (raise if `min_review_tier<5` and no
+  `ReviewStatus`); drop `review_tier` after filtering (no feature leak);
+  `test_review_tier_filter.py`; LOVD tests `0->5`.
+- Part 4: `preflight_run15_baseline.py` ReviewStatus present+populated NO-GO gate.
+
+**Learned**
+- A `if col in df.columns:` filter with no else fails open (silent). Column-name
+  conventions (`ReviewStatus` vs `review_status`) must be asserted, not assumed.
+- Run 14's 0.9975 was both leakage-inflated and never tier-filtered; Run 15
+  (tier<=3, ~1.49M) is the first honest-cohort baseline.
+
+**Tests**: full unit suite 713 -> 716 passed, 1 skipped, 0 failed.

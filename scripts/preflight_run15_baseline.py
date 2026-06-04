@@ -7,6 +7,8 @@ Verifies every hard gate before any VM spend:
      (catches a non-applied guard AND an accidental double-apply)
   3. STRING DB links + info present and non-empty (GNN can run)
   4. cohort guard unit-test file present
+  5. ReviewStatus column present + populated (so --min-review-tier actually
+     filters and does not RAISE at run start)
 Plus an informational git-status line. Exit 0 = GO, 1 = NO-GO.
 """
 from __future__ import annotations
@@ -34,6 +36,26 @@ def check_clean_cohort() -> tuple[bool, str]:
     n_null = int(d["ref"].isna().sum() + d["alt"].isna().sum())
     n_dup = int(d["variant_id"].duplicated().sum())
     return (n_null == 0 and n_dup == 0), f"rows={len(d):,} null={n_null} dup={n_dup}"
+
+
+def check_review_status() -> tuple[bool, str]:
+    p = Path(CLEAN)
+    if not p.exists():
+        return False, f"missing {CLEAN}"
+    try:
+        import pyarrow.parquet as pq
+
+        names = pq.read_schema(p).names
+    except Exception as e:  # noqa: BLE001
+        return False, f"could not read parquet schema ({e})"
+    if "ReviewStatus" not in names:
+        return False, (
+            "ReviewStatus ABSENT -> --min-review-tier would RAISE at run start "
+            "(run scripts/augment_reviewstatus.py to attach it)"
+        )
+    d = pd.read_parquet(p, columns=["ReviewStatus"])
+    n_nonempty = int((d["ReviewStatus"].fillna("").astype(str).str.len() > 0).sum())
+    return n_nonempty > 0, f"present; non-empty={n_nonempty:,}/{len(d):,}"
 
 
 def check_guard_once() -> tuple[bool, str]:
@@ -74,6 +96,7 @@ def git_status() -> str:
 def main() -> int:
     checks = [
         ("clean cohort (0 null / 0 dup)", *check_clean_cohort()),
+        ("ReviewStatus present + populated (tier filter)", *check_review_status()),
         ("cohort guard present exactly once", *check_guard_once()),
         ("STRING DB present (GNN gate)", *check_string()),
         ("cohort guard test file present", *check_guard_test()),
