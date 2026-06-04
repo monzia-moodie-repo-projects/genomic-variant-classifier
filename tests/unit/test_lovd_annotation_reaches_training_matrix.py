@@ -130,7 +130,7 @@ def test_lovd_annotation_reaches_training_matrix(
     """
     ann = AnnotationConfig(lovd_path=Path(tiny_lovd_parquet))
     cfg = DataPrepConfig(
-        min_review_tier=0,  # accept the fixture's review_status
+        min_review_tier=5,  # 5 = tier filter disabled; fixture's lowercase 'review_status' never matched 'ReviewStatus', and the fail-loud guard now rejects tier<5 without it
         output_dir=tmp_path / "splits",
         scale_features=False,
         test_fraction=0.4,
@@ -179,7 +179,7 @@ def test_lovd_annotation_silent_zero_when_path_omitted(
     """
     ann = AnnotationConfig()  # no lovd_path -> silent zero
     cfg = DataPrepConfig(
-        min_review_tier=0,
+        min_review_tier=5,  # tier filter disabled (no ReviewStatus col); avoids fail-loud guard
         output_dir=tmp_path / "splits_no_lovd",
         scale_features=False,
         test_fraction=0.4,

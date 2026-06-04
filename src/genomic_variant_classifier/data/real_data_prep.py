@@ -373,6 +373,17 @@ class DataPrepPipeline:
                 len(df),
             )
 
+            df = df.drop(columns=["review_tier"])
+        elif self.config.min_review_tier < 5:
+            raise ValueError(
+                f"min_review_tier={self.config.min_review_tier} requested but "
+                "the cohort has no 'ReviewStatus' column, so the review-tier "
+                "filter cannot be applied (it would silently keep all review "
+                "levels). Re-build the cohort with ReviewStatus "
+                "(scripts/augment_reviewstatus.py) or set min_review_tier=5 "
+                "to disable tier filtering explicitly."
+            )
+
         if self.config.exclude_conflicting:
             before = len(df)
             df = df[~df["clinical_sig"].str.contains("onflict", na=False)]
