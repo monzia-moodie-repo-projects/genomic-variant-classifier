@@ -11,9 +11,10 @@
 #   - sequence CNN ENABLED: --seq-windows points at clinvar_grch38_clean_seq.parquet
 #     (ref/alt delta windows). The cnn_1d base estimator trains on real windows;
 #     run_phase2_eval aborts if window coverage < 99.5% (no silent poly-A fallback).
-#   - no LOVD / dbNSFP required: the honest-baseline input set only.
-#   - no --unseen-gene-holdout: that is the C3 ablation (a second full retrain),
-#     not the baseline.
+#   - FULL-SIGNAL (RUN_15_PLAN v2 B7/B8/B9): gnomAD-constraint + dbNSFP +
+#     LOVD(if present) wired so the honest baseline holds Run-14's feature
+#     set CONSTANT and isolates the de-leaking effect, not a feature change.
+#   - --unseen-gene-holdout ON (B5, C3 gate >= 0.95): adds ~5h (second retrain).
 #   - no brittle source-grep patch checks (launch_run11's `_CNN1DModule>=2` and
 #     `joblib.dump(self.trained_models_)` greps would falsely abort on HEAD).
 #     The run10a checkpoint mechanism is verified in CI by
@@ -60,6 +61,8 @@ for f in \
     "$DATA/processed/gnomad_v4_exomes.parquet" \
     "$DATA/external/spliceai/spliceai_index.parquet" \
     "$DATA/external/alphamissense/AlphaMissense_hg38.tsv.gz" \
+    "$DATA/external/gnomad/gnomad.v4.1.constraint_metrics.tsv" \
+    "$DATA/external/dbnsfp/dbnsfp_clinvar_index.parquet" \
 ; do
     if [ ! -f "$f" ]; then
         echo "==> MISSING (required): $f" | tee -a "$LOG"; FAIL=1
@@ -128,6 +131,17 @@ ARGS="$ARGS --alphamissense $DATA/external/alphamissense/AlphaMissense_hg38.tsv.
 ARGS="$ARGS --string-db auto"
 ARGS="$ARGS --seq-windows $DATA/processed/clinvar_grch38_clean_seq.parquet"
 ARGS="$ARGS --min-review-tier 3 --n-folds 5"
+ARGS="$ARGS --gnomad-constraint $DATA/external/gnomad/gnomad.v4.1.constraint_metrics.tsv"
+ARGS="$ARGS --dbnsfp-path $DATA/external/dbnsfp/dbnsfp_clinvar_index.parquet"
+# LOVD is ON-if-present (RUN_15_PLAN B9): guard so absence never silently zeroes it.
+LOVD_PARQUET="$DATA/external/lovd/lovd_all_variants.parquet"
+if [ -f "$LOVD_PARQUET" ]; then
+    ARGS="$ARGS --lovd-path $LOVD_PARQUET"
+    echo "==> LOVD wired: $LOVD_PARQUET" | tee -a "$LOG"
+else
+    echo "==> LOVD absent ($LOVD_PARQUET); proceeding without it (B9 if-present)" | tee -a "$LOG"
+fi
+ARGS="$ARGS --unseen-gene-holdout"
 ARGS="$ARGS --output $OUTDIR"
 echo "==> ARGS: $ARGS" | tee -a "$LOG"
 
