@@ -112,7 +112,7 @@ if ($LASTEXITCODE -ne 0) { Write-Host "  scp report failed" -ForegroundColor Red
 & scp @scpBase -r "root@${SshHost}:${RemoteOutputs}/test_eval" "$LocalReport\test_eval" 2>$null
 
 # 3e. Feature importance / blend weights
-& scp @scpBase -r "root@${SshHost}:${RemoteOutputs}/blend_weights.json" "$LocalReport\" 2>$null
+& scp @scpBase "root@${SshHost}:${RemoteOutputs}/unseen_gene_holdout_metrics.json" "$LocalReport\" 2>$null   # repurposed from blend_weights.json (never emitted); pulls the --unseen-gene-holdout C3 result
 & scp @scpBase -r "root@${SshHost}:${RemoteOutputs}/feature_importance.csv" "$LocalReport\" 2>$null
 
 # 3f. NEW (Run 14 oversight fix): SCP models/ directory — contains ensemble.joblib
@@ -156,7 +156,10 @@ $gateResults['observability_json']    = Test-ArtifactPresent -Root $LocalReport 
 $gateResults['per_model_metrics_csv'] = Test-ArtifactPresent -Root $LocalReport -Filename "per_model_metrics.csv" -MinBytes 100
 $gateResults['ensemble_joblib']       = Test-ArtifactPresent -Root $LocalReport -Filename "ensemble.joblib" -MinBytes 1000000
 $gateResults['ensemble_manifest']     = Test-ArtifactPresent -Root $LocalReport -Filename "ensemble.manifest.json" -MinBytes 100
-$gateResults['blend_weights']         = Test-ArtifactPresent -Root $LocalReport -Filename "blend_weights.json" -MinBytes 50
+    # blend_weights gate REMOVED 2026-06-05: run_phase2_eval.py never writes blend_weights.json.
+    # ensemble.blend_weights_ is pickled INSIDE ensemble.joblib (variant_ensemble.py:1499-1500),
+    # which is gated by $gateResults['ensemble_joblib'] above -> coverage unchanged. Gating on a
+    # never-emitted file guaranteed a false FAIL and blocked Vastai_Destroy_Confirmed.ps1.
 $gateResults['gnn_score_nondegenerate'] = $gnnVerifyOk
 
 $gateFails = @($gateResults.Keys | Where-Object { -not $gateResults[$_] })
