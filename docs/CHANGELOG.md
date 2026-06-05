@@ -1,3 +1,245 @@
+## 2026-06-05 â€” Run 15 all-models smoke: first GREEN on real data (instance 39619871 @ 18da19e)
+
+### Fixed
+- KAN runs end-to-end on real data (imodelsx bare-name patch held; OOF AUROC 0.8488, device=cuda).
+- Both SVMs run without the old ">100k auto-skip": ScalableSVM NystrÃ¶m `svm` (OOF 0.9804) +
+  `svm_bagged_rbf` (OOF 0.9717).
+- GNN `gnn_score` no longer all-zero: inductive `from_full_graph` scored 16,201 genes (mean 0.161,
+  std 0.0208), injected into train/val/test with `nonzero_frac=1.0000`. Run 14/15 merge-back bug closed.
+- Run15_Smoke.ps1: provision-failure now retries next offer; `PYTHONUNBUFFERED=1`+`-u`; streamed
+  `run_phase2_eval.py` directly; `SmokeTimeoutMin` 90â†’180; `Ssh1` poll given `ConnectTimeout=20` (fixes
+  the ~47-min apparent hang after the smoke had actually finished).
+
+### Attempted / observed
+- Full 13-model + stacker pipeline on `--max-train 3000 --n-folds 3 --min-review-tier 3 --string-db auto`.
+  `SMOKE_EXIT=0`; Dev(test) AUROC 0.9831, Holdout(val) 0.9791 (PASS â‰¥0.9); total 767 s.
+- Data prep is the dominant, `--max-train`-independent cost (~6.5 min): 4.40M raw â†’ 1.49M after
+  label+tier filters; train 1.04M / val 146k / test 305k.
+
+### Failed / flagged (open)
+- **GNN near-chance** as a classifier; 50k probe: Best Val AUC 0.5240 (3k) â†’ 0.5095 (50k) â€” does NOT improve
+  with scale â‡’ architectural, roadmap Tier-1/2 item, not a gate blocker (scorer fix is correct/non-degenerate).
+- **svm_bagged_rbf scaling cost** (NEW â€” train AND predict): 1 bag @3k â†’ 25 bags @50k @ ~4 min/fold (train);
+  the 50k held-out eval then spent ~31 min in `svm_bagged_rbf.predict_proba` (25 bags Ã— ~15k SVs Ã— 451k rows;
+  126% CPU / 9.3 GB RSS / GPU idle). It completed (total probe 4,373 s â‰ˆ 73 min) but dominated the run.
+  Projected @1.04M (~70 bags): hours for train+predict. KEEP (comparison is the goal) but cap bags (~10â€“15)
+  and/or parallelize predict for Run 15. NystrÃ¶m `svm` unaffected.
+- Smoke ran with dbnsfp/lovd/constraint = None â†’ 13 annotators all-zero (expected; paths not passed).
+  Run 15 must wire available paths or they silently zero.
+- `real_data_prep.py:444` `.fillna` downcasting FutureWarning (was :388; file moved).
+- Annotation counter: `3/17` never logged (PhyloP 2/17 â†’ SpliceAI 4/17); LOVD logs `15/16` not `/17`.
+- Review-tier filter applied as `<=3` (reads like a lower bound) â€” verify intended semantics.
+
+### Resolved by 50k probe (instance 39619871, /tmp/probe50k)
+- **cnn_1d is scale-limited, NOT broken**: OOF 0.4936 (3k) â†’ 0.6039 (50k). Pre-flight blocker cleared; Run 15
+  may include it. Scientific note: 101bp one-hot CNN may plateau below tabular models â€” keep + study.
+- **kan scales**: OOF 0.8488 (3k) â†’ 0.9309 (50k).
+- **GNN is architectural-not-data**: 49,303 focal samples @50k (17Ã— the 3k count), 50 epochs, Val AUC flat
+  ~0.50â€“0.51 â€” more data does not help. Roadmap Tier-1/2; not a blocker (gnn_score non-degenerate).
+- Full 3kâ†’50k OOF: rf .9776â†’.9849 Â· xgb .9831â†’.9895 Â· lgbm .9825â†’.9899 Â· svm .9804â†’.9848 Â·
+  svm_bagged_rbf .9717â†’.9780 Â· lr .9741â†’.9836 Â· gbm .9817â†’.9888 Â· catboost .9829â†’.9881 Â· tabular_nn .9835â†’.9869 Â·
+  cnn_1d .4936â†’.6039 Â· kan .8488â†’.9309 Â· mc_dropout .9835â†’.9869 Â· deep_ensemble .9838â†’.9871.
+- 50k held-out scorecard (recovered): Dev(test) AUROC 0.9848, Holdout(val) 0.9817 (PASS; up from 3k 0.9831/0.9791).
+
+### Learned
+- `smoke_all_models.py` captures its `run_phase2_eval.py` subprocess â†’ blind poll + the wrapper's
+  degenerate-OOF gate is bypassed when we run the eval directly for visibility. Trade visibility vs
+  automated gating consciously; re-add a per-model degenerate assertion if running direct.
+- A 3,000-row smoke validates that models RUN, not that data-hungry models (cnn_1d, GNN, KAN, deep nets)
+  LEARN. Trees hit ~0.98 at 3k; neural/graph/spline models need a mid-scale probe before trusting the
+  full run.
+- vast.ai offers are ephemeral: a chosen `ask` can be taken between search and create
+  (`error 404/3603 no_such_ask`); retry the next offer.
+- New PowerShell session â‡’ `$key` unset â‡’ `ssh -i $key` collapses to `ssh -i -p â€¦` (`-i` eats `-p`).
+  Always re-set `$key` per shell before ssh/scp.
+
+## 2026-06-05 â€” Run 15 all-models smoke: first GREEN on real data (instance 39619871 @ 18da19e)
+
+### Fixed
+- KAN runs end-to-end on real data (imodelsx bare-name patch held; OOF AUROC 0.8488, device=cuda).
+- Both SVMs run without the old ">100k auto-skip": ScalableSVM NystrÃ¶m `svm` (OOF 0.9804) +
+  `svm_bagged_rbf` (OOF 0.9717).
+- GNN `gnn_score` no longer all-zero: inductive `from_full_graph` scored 16,201 genes (mean 0.161,
+  std 0.0208), injected into train/val/test with `nonzero_frac=1.0000`. Run 14/15 merge-back bug closed.
+- Run15_Smoke.ps1: provision-failure now retries next offer; `PYTHONUNBUFFERED=1`+`-u`; streamed
+  `run_phase2_eval.py` directly; `SmokeTimeoutMin` 90â†’180; `Ssh1` poll given `ConnectTimeout=20` (fixes
+  the ~47-min apparent hang after the smoke had actually finished).
+
+### Attempted / observed
+- Full 13-model + stacker pipeline on `--max-train 3000 --n-folds 3 --min-review-tier 3 --string-db auto`.
+  `SMOKE_EXIT=0`; Dev(test) AUROC 0.9831, Holdout(val) 0.9791 (PASS â‰¥0.9); total 767 s.
+- Data prep is the dominant, `--max-train`-independent cost (~6.5 min): 4.40M raw â†’ 1.49M after
+  label+tier filters; train 1.04M / val 146k / test 305k.
+
+### Failed / flagged (open)
+- **GNN near-chance** as a classifier; 50k probe: Best Val AUC 0.5240 (3k) â†’ 0.5095 (50k) â€” does NOT improve
+  with scale â‡’ architectural, roadmap Tier-1/2 item, not a gate blocker (scorer fix is correct/non-degenerate).
+- **svm_bagged_rbf scaling cost** (NEW â€” train AND predict): 1 bag @3k â†’ 25 bags @50k @ ~4 min/fold (train);
+  the 50k held-out eval then FROZE 25+ min in `svm_bagged_rbf.predict_proba` (25 bags Ã— ~15k SVs Ã— 451k rows).
+  Probe killed there (OOF numbers already captured). Projected @1.04M (~70 bags): hours for train+predict.
+  KEEP (comparison is the goal) but cap bags (~10â€“15) and/or parallelize predict for Run 15. NystrÃ¶m `svm` unaffected.
+- Smoke ran with dbnsfp/lovd/constraint = None â†’ 13 annotators all-zero (expected; paths not passed).
+  Run 15 must wire available paths or they silently zero.
+- `real_data_prep.py:444` `.fillna` downcasting FutureWarning (was :388; file moved).
+- Annotation counter: `3/17` never logged (PhyloP 2/17 â†’ SpliceAI 4/17); LOVD logs `15/16` not `/17`.
+- Review-tier filter applied as `<=3` (reads like a lower bound) â€” verify intended semantics.
+
+### Resolved by 50k probe (instance 39619871, /tmp/probe50k)
+- **cnn_1d is scale-limited, NOT broken**: OOF 0.4936 (3k) â†’ 0.6039 (50k). Pre-flight blocker cleared; Run 15
+  may include it. Scientific note: 101bp one-hot CNN may plateau below tabular models â€” keep + study.
+- **kan scales**: OOF 0.8488 (3k) â†’ 0.9309 (50k).
+- **GNN is architectural-not-data**: 49,303 focal samples @50k (17Ã— the 3k count), 50 epochs, Val AUC flat
+  ~0.50â€“0.51 â€” more data does not help. Roadmap Tier-1/2; not a blocker (gnn_score non-degenerate).
+- Full 3kâ†’50k OOF: rf .9776â†’.9849 Â· xgb .9831â†’.9895 Â· lgbm .9825â†’.9899 Â· svm .9804â†’.9848 Â·
+  svm_bagged_rbf .9717â†’.9780 Â· lr .9741â†’.9836 Â· gbm .9817â†’.9888 Â· catboost .9829â†’.9881 Â· tabular_nn .9835â†’.9869 Â·
+  cnn_1d .4936â†’.6039 Â· kan .8488â†’.9309 Â· mc_dropout .9835â†’.9869 Â· deep_ensemble .9838â†’.9871.
+
+### Learned
+- `smoke_all_models.py` captures its `run_phase2_eval.py` subprocess â†’ blind poll + the wrapper's
+  degenerate-OOF gate is bypassed when we run the eval directly for visibility. Trade visibility vs
+  automated gating consciously; re-add a per-model degenerate assertion if running direct.
+- A 3,000-row smoke validates that models RUN, not that data-hungry models (cnn_1d, GNN, KAN, deep nets)
+  LEARN. Trees hit ~0.98 at 3k; neural/graph/spline models need a mid-scale probe before trusting the
+  full run.
+- vast.ai offers are ephemeral: a chosen `ask` can be taken between search and create
+  (`error 404/3603 no_such_ask`); retry the next offer.
+- New PowerShell session â‡’ `$key` unset â‡’ `ssh -i $key` collapses to `ssh -i -p â€¦` (`-i` eats `-p`).
+  Always re-set `$key` per shell before ssh/scp.
+
+## 2026-06-05 â€” Run 15 all-models smoke: first GREEN on real data (instance 39619871 @ 18da19e)
+
+### Fixed
+- KAN runs end-to-end on real data (imodelsx bare-name patch held; OOF AUROC 0.8488, device=cuda).
+- Both SVMs run without the old ">100k auto-skip": ScalableSVM NystrÃ¶m `svm` (OOF 0.9804) +
+  `svm_bagged_rbf` (OOF 0.9717).
+- GNN `gnn_score` no longer all-zero: inductive `from_full_graph` scored 16,201 genes (mean 0.161,
+  std 0.0208), injected into train/val/test with `nonzero_frac=1.0000`. Run 14/15 merge-back bug closed.
+- Run15_Smoke.ps1: provision-failure now retries next offer; `PYTHONUNBUFFERED=1`+`-u`; streamed
+  `run_phase2_eval.py` directly; `SmokeTimeoutMin` 90â†’180; `Ssh1` poll given `ConnectTimeout=20` (fixes
+  the ~47-min apparent hang after the smoke had actually finished).
+
+### Attempted / observed
+- Full 13-model + stacker pipeline on `--max-train 3000 --n-folds 3 --min-review-tier 3 --string-db auto`.
+  `SMOKE_EXIT=0`; Dev(test) AUROC 0.9831, Holdout(val) 0.9791 (PASS â‰¥0.9); total 767 s.
+- Data prep is the dominant, `--max-train`-independent cost (~6.5 min): 4.40M raw â†’ 1.49M after
+  label+tier filters; train 1.04M / val 146k / test 305k.
+
+### Failed / flagged (open)
+- **GNN near-chance** as a classifier; 50k probe: Best Val AUC 0.5240 (3k) â†’ 0.5095 (50k) â€” does NOT improve
+  with scale â‡’ architectural, roadmap Tier-1/2 item, not a gate blocker (scorer fix is correct/non-degenerate).
+- **svm_bagged_rbf scaling cost** (NEW): exact-RBF bagged SVM, 1 bag @3k â†’ 25 bags @50k @ ~4 min/fold;
+  ~70 bags/fold projected @1.04M â‡’ ~30â€“60+ min for this model alone. Budget for Run 15; candidate for bag cap.
+- Smoke ran with dbnsfp/lovd/constraint = None â†’ 13 annotators all-zero (expected; paths not passed).
+  Run 15 must wire available paths or they silently zero.
+- `real_data_prep.py:444` `.fillna` downcasting FutureWarning (was :388; file moved).
+- Annotation counter: `3/17` never logged (PhyloP 2/17 â†’ SpliceAI 4/17); LOVD logs `15/16` not `/17`.
+- Review-tier filter applied as `<=3` (reads like a lower bound) â€” verify intended semantics.
+
+### Resolved by 50k probe (instance 39619871, /tmp/probe50k)
+- **cnn_1d is scale-limited, NOT broken**: OOF 0.4936 (3k) â†’ 0.6039 (50k). Pre-flight blocker cleared; Run 15
+  may include it. Scientific note: 101bp one-hot CNN may plateau below tabular models â€” keep + study.
+- **kan scales**: OOF 0.8488 (3k) â†’ 0.9309 (50k).
+
+### Learned
+- `smoke_all_models.py` captures its `run_phase2_eval.py` subprocess â†’ blind poll + the wrapper's
+  degenerate-OOF gate is bypassed when we run the eval directly for visibility. Trade visibility vs
+  automated gating consciously; re-add a per-model degenerate assertion if running direct.
+- A 3,000-row smoke validates that models RUN, not that data-hungry models (cnn_1d, GNN, KAN, deep nets)
+  LEARN. Trees hit ~0.98 at 3k; neural/graph/spline models need a mid-scale probe before trusting the
+  full run.
+- vast.ai offers are ephemeral: a chosen `ask` can be taken between search and create
+  (`error 404/3603 no_such_ask`); retry the next offer.
+- New PowerShell session â‡’ `$key` unset â‡’ `ssh -i $key` collapses to `ssh -i -p â€¦` (`-i` eats `-p`).
+  Always re-set `$key` per shell before ssh/scp.
+
+## 2026-06-05 â€” Run 15 all-models smoke: first GREEN on real data (instance 39619871 @ 18da19e)
+
+### Fixed
+- KAN runs end-to-end on real data (imodelsx bare-name patch held; OOF AUROC 0.8488, device=cuda).
+- Both SVMs run without the old ">100k auto-skip": ScalableSVM NystrÃ¶m `svm` (OOF 0.9804) +
+  `svm_bagged_rbf` (OOF 0.9717).
+- GNN `gnn_score` no longer all-zero: inductive `from_full_graph` scored 16,201 genes (mean 0.161,
+  std 0.0208), injected into train/val/test with `nonzero_frac=1.0000`. Run 14/15 merge-back bug closed.
+- Run15_Smoke.ps1: provision-failure now retries next offer; `PYTHONUNBUFFERED=1`+`-u`; streamed
+  `run_phase2_eval.py` directly; `SmokeTimeoutMin` 90â†’180; `Ssh1` poll given `ConnectTimeout=20` (fixes
+  the ~47-min apparent hang after the smoke had actually finished).
+
+### Attempted / observed
+- Full 13-model + stacker pipeline on `--max-train 3000 --n-folds 3 --min-review-tier 3 --string-db auto`.
+  `SMOKE_EXIT=0`; Dev(test) AUROC 0.9831, Holdout(val) 0.9791 (PASS â‰¥0.9); total 767 s.
+- Data prep is the dominant, `--max-train`-independent cost (~6.5 min): 4.40M raw â†’ 1.49M after
+  label+tier filters; train 1.04M / val 146k / test 305k.
+
+### Failed / flagged (open)
+- **GNN near-chance** as a classifier; 50k probe: Best Val AUC 0.5240 (3k) â†’ 0.5095 (50k) â€” does NOT improve
+  with scale â‡’ architectural, roadmap Tier-1/2 item, not a gate blocker (scorer fix is correct/non-degenerate).
+- **svm_bagged_rbf scaling cost** (NEW): exact-RBF bagged SVM, 1 bag @3k â†’ 25 bags @50k @ ~4 min/fold;
+  ~70 bags/fold projected @1.04M â‡’ ~30â€“60+ min for this model alone. Budget for Run 15; candidate for bag cap.
+- Smoke ran with dbnsfp/lovd/constraint = None â†’ 13 annotators all-zero (expected; paths not passed).
+  Run 15 must wire available paths or they silently zero.
+- `real_data_prep.py:444` `.fillna` downcasting FutureWarning (was :388; file moved).
+- Annotation counter: `3/17` never logged (PhyloP 2/17 â†’ SpliceAI 4/17); LOVD logs `15/16` not `/17`.
+- Review-tier filter applied as `<=3` (reads like a lower bound) â€” verify intended semantics.
+
+### Resolved by 50k probe (instance 39619871, /tmp/probe50k)
+- **cnn_1d is scale-limited, NOT broken**: OOF 0.4936 (3k) â†’ 0.6039 (50k). Pre-flight blocker cleared; Run 15
+  may include it. Scientific note: 101bp one-hot CNN may plateau below tabular models â€” keep + study.
+- **kan scales**: OOF 0.8488 (3k) â†’ 0.9309 (50k).
+
+### Learned
+- `smoke_all_models.py` captures its `run_phase2_eval.py` subprocess â†’ blind poll + the wrapper's
+  degenerate-OOF gate is bypassed when we run the eval directly for visibility. Trade visibility vs
+  automated gating consciously; re-add a per-model degenerate assertion if running direct.
+- A 3,000-row smoke validates that models RUN, not that data-hungry models (cnn_1d, GNN, KAN, deep nets)
+  LEARN. Trees hit ~0.98 at 3k; neural/graph/spline models need a mid-scale probe before trusting the
+  full run.
+- vast.ai offers are ephemeral: a chosen `ask` can be taken between search and create
+  (`error 404/3603 no_such_ask`); retry the next offer.
+- New PowerShell session â‡’ `$key` unset â‡’ `ssh -i $key` collapses to `ssh -i -p â€¦` (`-i` eats `-p`).
+  Always re-set `$key` per shell before ssh/scp.
+
+## 2026-06-05 â€” Run 15 all-models smoke: first GREEN on real data (instance 39619871 @ 18da19e)
+
+### Fixed
+- KAN runs end-to-end on real data (imodelsx bare-name patch held; OOF AUROC 0.8488, device=cuda).
+- Both SVMs run without the old ">100k auto-skip": ScalableSVM NystrÃ¶m `svm` (OOF 0.9804) +
+  `svm_bagged_rbf` (OOF 0.9717).
+- GNN `gnn_score` no longer all-zero: inductive `from_full_graph` scored 16,201 genes (mean 0.161,
+  std 0.0208), injected into train/val/test with `nonzero_frac=1.0000`. Run 14/15 merge-back bug closed.
+- Run15_Smoke.ps1: provision-failure now retries next offer; `PYTHONUNBUFFERED=1`+`-u`; streamed
+  `run_phase2_eval.py` directly; `SmokeTimeoutMin` 90â†’180; `Ssh1` poll given `ConnectTimeout=20` (fixes
+  the ~47-min apparent hang after the smoke had actually finished).
+
+### Attempted / observed
+- Full 13-model + stacker pipeline on `--max-train 3000 --n-folds 3 --min-review-tier 3 --string-db auto`.
+  `SMOKE_EXIT=0`; Dev(test) AUROC 0.9831, Holdout(val) 0.9791 (PASS â‰¥0.9); total 767 s.
+- Data prep is the dominant, `--max-train`-independent cost (~6.5 min): 4.40M raw â†’ 1.49M after
+  label+tier filters; train 1.04M / val 146k / test 305k.
+
+### Failed / flagged (open)
+- **cnn_1d degenerate at smoke scale**: OOF 0.4936, test 0.4595, holdout 0.4819 (<0.5), MCC 0.0000.
+  First run with sequence data wired (`unmapped=0/1490014`). Scale artifact vs defect UNRESOLVED â†’
+  50k probe. Blocks Run 15 per pre-flight law until understood.
+- **GNN near-chance** as a classifier (Best Val AUC 0.5240, 2,915 focal samples, early-stop ep16).
+  Scorer fix is correct; discriminative power is a roadmap Tier-1/2 item, not a gate blocker.
+- Smoke ran with dbnsfp/lovd/constraint = None â†’ 13 annotators all-zero (expected; paths not passed).
+  Run 15 must wire available paths or they silently zero.
+- `real_data_prep.py:444` `.fillna` downcasting FutureWarning (was :388; file moved).
+- Annotation counter: `3/17` never logged (PhyloP 2/17 â†’ SpliceAI 4/17); LOVD logs `15/16` not `/17`.
+- Review-tier filter applied as `<=3` (reads like a lower bound) â€” verify intended semantics.
+
+### Learned
+- `smoke_all_models.py` captures its `run_phase2_eval.py` subprocess â†’ blind poll + the wrapper's
+  degenerate-OOF gate is bypassed when we run the eval directly for visibility. Trade visibility vs
+  automated gating consciously; re-add a per-model degenerate assertion if running direct.
+- A 3,000-row smoke validates that models RUN, not that data-hungry models (cnn_1d, GNN, KAN, deep nets)
+  LEARN. Trees hit ~0.98 at 3k; neural/graph/spline models need a mid-scale probe before trusting the
+  full run.
+- vast.ai offers are ephemeral: a chosen `ask` can be taken between search and create
+  (`error 404/3603 no_such_ask`); retry the next offer.
+- New PowerShell session â‡’ `$key` unset â‡’ `ssh -i $key` collapses to `ssh -i -p â€¦` (`-i` eats `-p`).
+  Always re-set `$key` per shell before ssh/scp.
+
 ## 2026-05-30 -- ScienceClaw artifact ledger + deterministic policy gate (Task 3)
 
 **Added:**
