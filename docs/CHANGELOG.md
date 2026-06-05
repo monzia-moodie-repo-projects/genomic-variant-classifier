@@ -2736,3 +2736,51 @@ The recovery file includes:
   (tier<=3, ~1.49M) is the first honest-cohort baseline.
 
 **Tests**: full unit suite 713 -> 716 passed, 1 skipped, 0 failed.
+
+
+## 2026-06-04 — Run 15 (de-leaked gene-disjoint baseline)
+
+**Attempted**
+- Full-signal Run 15 on Vast.ai (RTX 4090, instance 39391596) via
+  `launch_run15_baseline.sh` + self-stop teardown wrapper: 12-model ensemble,
+  `--string-db auto` GNN, `--unseen-gene-holdout`, n_folds 5, tier 3, all
+  signal connectors wired (gnomAD-constraint, dbNSFP, LOVD, SpliceAI,
+  AlphaMissense).
+
+**Result**
+- `TRAIN_OK after 29525s | GNN_FAIL` (~8.2 h, ~$8). Self-stop clean.
+- Test AUROC 0.9983 / val 0.9984 / **unseen-gene holdout 0.9988** (213,436 rows,
+  2,407 genes). Cross-gene generalization holds; C3 falsifier (b) PASS.
+- Per-model best single = catboost (test 0.9984); stacker 0.9983 (no lift at
+  saturation); cnn_1d 0.8219 (sequence-only). 10 of 12 models compared.
+- Data: tar MD5 `fefa30910559a89b2b62aa133d7b7e1c`, 121 files, verified,
+  retrieved, backed up to Drive. Instance destroyed; exposed key rotated.
+
+**Failed**
+- KAN failed in both ensembles (`name 'test_size' is not defined`) — imodelsx
+  patch (launch_run11_vm.sh:193-194) not ported into baseline launcher.
+- GNN `gnn_score` degenerate (0.5, std=0, all splits): `gnn_df` lacks
+  `variant_id` → `GNNScorer.from_trainer` builds empty `gene_scores` → 0.5
+  default everywhere; gene-disjoint split compounds it. GNN trained fine (val
+  AUC 0.6509) but scores never reached the matrix.
+
+**Fixed**
+- (Process) Replaced the "skip heavy models" mini-test standing law with an
+  ALL-MODELS smoke gate (no `--skip`, fails launch if any model
+  errors/skips/degenerate). Recorded the multi-goal project charter
+  (`docs/PROJECT_GOALS.md`).
+
+**Learned**
+- A pre-launch test that skips fragile models gives false confidence; exercise
+  every model at tiny scale before paying for GPU time.
+- An informational GNN gate detects degeneracy but does not prevent a wasted
+  run — the injection must hard-abort on `std≈0`.
+- ~38 of 78 features carry zero importance (unpopulated connectors); the
+  effective matrix is ~40 features. Quantified for the data roadmap.
+
+**Open (next session, behind smoke gate)**
+- KAN sed patch in baseline launcher; GNN inductive all-node scorer +
+  `std>0` hard-abort; SVM Nyström/RFF + bagged secondary;
+  `n_pathogenic_in_gene` ablation. See
+  `INCIDENT_2026-06-04_kan-test-size-baseline-launcher.md` and
+  `INCIDENT_2026-06-04_gnn-score-injection-degenerate.md`.
