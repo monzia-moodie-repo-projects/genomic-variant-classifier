@@ -209,6 +209,7 @@ class SharedFocalGraph:
     focal_idx: torch.Tensor   # (n_samples,) long — node index of each sample's gene
     y: torch.Tensor           # (n_samples,) long — binary label
     variant_ids: list[str]    # (n_samples,)
+    node_genes: list[str]     # (n_nodes,) gene symbol at each node index (Option C)
 
     def __len__(self) -> int:
         return int(self.focal_idx.numel())
@@ -223,6 +224,7 @@ class SharedFocalGraph:
             focal_idx=self.focal_idx[idx_t],
             y=self.y[idx_t],
             variant_ids=[self.variant_ids[i] for i in idx_t.tolist()],
+            node_genes=self.node_genes,
         )
 
 
@@ -304,6 +306,7 @@ def build_pyg_dataset(
         focal_idx=torch.tensor(focal, dtype=torch.long),
         y=torch.tensor(labels, dtype=torch.long),
         variant_ids=vids,
+        node_genes=list(all_genes),
     )
     logger.info(
         "Built shared-graph dataset: %d nodes, %d directed edges, %d labeled focal samples.",
@@ -470,6 +473,23 @@ class GNNTrainer:
                 out = self.model(x, ei, focal, edge_attr=ea)
             return F.softmax(out.float(), dim=-1)[:, 1].cpu().numpy()
 
+    @torch.no_grad()
+    def score_all_nodes(self, ds: SharedFocalGraph) -> np.ndarray:
+        """P(pathogenic) for EVERY node in the shared graph (inductive).
+
+        Forwards the trained model once over the whole graph with the focal
+        index set to all node indices, so every gene in STRING gets a score
+        regardless of whether it was a labeled training focal sample. This is
+        what lets gene-disjoint val/test rows receive real, varying
+        gnn_score values (INCIDENT_2026-06-04_gnn-score-injection-degenerate).
+        """
+        self.model.eval()
+        x, ei, ea = self._graph_tensors(ds)
+        all_idx = torch.arange(x.shape[0], device=self.device)
+        with bf16_autocast(self.device, enabled=(self.precision == "bf16")):
+            out = self.model(x, ei, all_idx, edge_attr=ea)
+        return F.softmax(out.float(), dim=-1)[:, 1].cpu().numpy()
+
 
 # ---------------------------------------------------------------------------
 # Convenience entry point
@@ -564,6 +584,41 @@ class GNNScorer:
             "GNNScorer built for %d genes (mean score %.3f).",
             len(gene_scores),
             float(np.mean(list(gene_scores.values()))) if gene_scores else 0.5,
+        )
+        return cls(gene_scores)
+
+    @classmethod
+    def from_full_graph(
+        cls,
+        trainer: "GNNTrainer",
+        dataset: SharedFocalGraph,
+    ) -> "GNNScorer":
+        """Inductive scorer: one score per STRING node, keyed by gene symbol.
+
+        Replaces from_trainer's variant_id-keyed accumulation (which produced an
+        empty map when gnn_df lacked a variant_id column, collapsing every
+        gnn_score to the 0.5 default in Run 15). Scores ALL graph nodes, so
+        gene-disjoint val/test genes also receive real values.
+        """
+        if not getattr(dataset, "node_genes", None):
+            raise ValueError(
+                "from_full_graph requires dataset.node_genes; rebuild the "
+                "SharedFocalGraph with build_pyg_dataset after the Option C patch."
+            )
+        node_scores = trainer.score_all_nodes(dataset)
+        genes = dataset.node_genes
+        if len(genes) != len(node_scores):
+            raise ValueError(
+                f"node_genes ({len(genes)}) != node_scores ({len(node_scores)})"
+            )
+        gene_scores = {str(g): float(s) for g, s in zip(genes, node_scores)}
+        _vals = (
+            np.fromiter(gene_scores.values(), dtype=float)
+            if gene_scores else np.zeros(1)
+        )
+        logger.info(
+            "GNNScorer.from_full_graph: %d gene scores (mean=%.3f std=%.4f).",
+            len(gene_scores), float(_vals.mean()), float(_vals.std()),
         )
         return cls(gene_scores)
 

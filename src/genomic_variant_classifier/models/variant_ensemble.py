@@ -60,6 +60,8 @@ from sklearn.svm import SVC
 import xgboost as xgb
 import lightgbm as lgb
 
+from genomic_variant_classifier.models.scalable_svm import ScalableSVM
+
 import re as _re
 import joblib
 import json
@@ -1117,11 +1119,15 @@ class VariantEnsemble:
                 {}
                 if cfg.skip_svm
                 else {
-                    "svm": CalibratedClassifierCV(
-                        SVC(
-                            kernel="rbf", C=1.0, gamma="scale", class_weight="balanced"
-                        ),
-                        cv=3,
+                    "svm": ScalableSVM(
+                        mode="nystrom", n_components=1024, gamma="scale",
+                        C=1.0, class_weight=cfg.class_weight,
+                        random_state=cfg.random_state,
+                    ),
+                    "svm_bagged_rbf": ScalableSVM(
+                        mode="bagged_rbf", svm_max_subsample=15_000, svm_n_bags=25,
+                        gamma="scale", C=1.0, class_weight=cfg.class_weight,
+                        random_state=cfg.random_state,
                     ),
                 }
             ),

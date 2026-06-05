@@ -299,8 +299,9 @@ def main() -> int:
             if args.skip_kan:
                 ensemble.base_estimators.pop("kan", None)
                 logger.info("KAN skipped: --skip-kan flag set.")
-            if args.skip_svm or len(y_train) > 100_000:
+            if args.skip_svm:
                 ensemble.base_estimators.pop("svm", None)
+                ensemble.base_estimators.pop("svm_bagged_rbf", None)
                 logger.info(
                     "SVM skipped: training set %d > 100K (O(n²) infeasible)",
                     len(y_train),
@@ -434,7 +435,10 @@ def main() -> int:
                     edge_denoise=args.edge_denoise,
                     edge_denoise_tau=args.edge_denoise_tau,  # scorer-consistency
                 )
-                gnn_scorer = GNNScorer.from_trainer(gnn_trainer, full_dataset, gnn_df)
+                # Option C (INCIDENT_2026-06-04): inductive all-node scorer.
+                # from_trainer keyed on variant_id (absent from gnn_df) -> empty
+                # gene_scores -> constant 0.5. from_full_graph scores every node.
+                gnn_scorer = GNNScorer.from_full_graph(gnn_trainer, full_dataset)
                 logger.info(
                     "[GNN-TRACE] gnn_scorer built (type=%s); "
                     "graph_nodes=%d graph_edges=%d",
@@ -532,6 +536,21 @@ def main() -> int:
                 "ENTIRE GNN BLOCK skipped",
                 getattr(args, "string_db", None),
             )
+
+        # GNN non-degeneracy hard gate (INCIDENT_2026-06-04): if the GNN was
+        # requested, a constant gnn_score means the injection silently failed
+        # (e.g. empty scorer). Fail the run (exit 2) instead of finishing with a
+        # dead feature; verify_gnn_score.py is the post-hoc mirror of this.
+        if args.string_db:
+            _gnn_col = X_train["gnn_score"]
+            if _gnn_col.nunique() <= 1 or float(_gnn_col.std()) == 0.0:
+                logger.error(
+                    "GNN requested (--string-db=%r) but gnn_score is DEGENERATE "
+                    "on X_train (nunique=%d std=%.6f). Aborting (exit 2). See "
+                    "INCIDENT_2026-06-04_gnn-score-injection-degenerate.md.",
+                    args.string_db, int(_gnn_col.nunique()), float(_gnn_col.std()),
+                )
+                return 2
 
         # Run 10 ordering fix (INCIDENT_2026-05-12_no-per-model-checkpoint
         # and INCIDENT_2026-05-12_oof-blend-vs-locked-test): perform
@@ -635,8 +654,9 @@ def main() -> int:
                     ensemble_ugh.base_estimators.pop("cnn_1d", None)
                 if args.skip_kan:
                     ensemble_ugh.base_estimators.pop("kan", None)
-                if args.skip_svm or len(y_train_ugh) > 100_000:
+                if args.skip_svm:
                     ensemble_ugh.base_estimators.pop("svm", None)
+                    ensemble_ugh.base_estimators.pop("svm_bagged_rbf", None)
 
                 t0_ugh = time.perf_counter()
                 logger.info("[UGH] training ensemble on %d samples", len(y_train_ugh))
