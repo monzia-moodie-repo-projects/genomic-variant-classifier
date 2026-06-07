@@ -48,7 +48,11 @@ if (-not $LocalReport) { $LocalReport = Join-Path $RepoRoot "outputs\run15_repor
 $sshBase = @("-i", $SshKey, "-p", $SshPort, "-o", "StrictHostKeyChecking=no", "root@$SshHost")
 $scpBase = @("-i", $SshKey, "-P", $SshPort, "-o", "StrictHostKeyChecking=no")
 
-function Invoke-Ssh($cmd) { & ssh @sshBase $cmd 2>&1 }
+function Invoke-Ssh($cmd) {
+    $ErrorActionPreference = 'Continue'
+    $out = & ssh @sshBase $cmd 2>&1 | Out-String
+    return $out
+}
 
 Write-Host "=== Run 15 Postflight ===" -ForegroundColor Cyan
 Write-Host "Target: ${SshHost}:${SshPort}, Instance $InstanceId, ${HourlyRate}/hr" -ForegroundColor Gray
