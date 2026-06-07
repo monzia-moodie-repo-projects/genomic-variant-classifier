@@ -243,6 +243,24 @@ class ScalableSVM(BaseEstimator, ClassifierMixin):
         return self
 
     # ------------------------------------------------------------------
+    def _resolve_n_jobs(self, n_tasks: int) -> int:
+        """Resource-safe joblib worker count. -1 -> cpu_count, then capped by
+        env GVC_SVM_NJOBS (default 4) and by n_tasks. Prevents WinError 1450
+        (resource exhaustion) when fanning out bag prediction over a large X."""
+        import os
+        n = self.n_jobs
+        if n is None or n < 0:
+            n = os.cpu_count() or 1
+        cap = 4
+        env = os.environ.get("GVC_SVM_NJOBS")
+        if env:
+            try:
+                cap = max(1, int(env))
+            except ValueError:
+                pass
+        n = min(n, cap)
+        return max(1, min(int(n), int(n_tasks)))
+
     def predict_proba(self, X) -> np.ndarray:
         check_is_fitted(self, "classes_")
         X = np.asarray(X, dtype=float)
@@ -250,9 +268,17 @@ class ScalableSVM(BaseEstimator, ClassifierMixin):
             if len(self._bagged) == 1:
                 p = _predict_one_bag(self._bagged[0], X)
             else:
-                parts = Parallel(n_jobs=self.n_jobs)(
-                    delayed(_predict_one_bag)(clf, X) for clf in self._bagged
-                )
+                nj = self._resolve_n_jobs(len(self._bagged))
+                try:
+                    parts = Parallel(n_jobs=nj)(
+                        delayed(_predict_one_bag)(clf, X) for clf in self._bagged
+                    )
+                except OSError:
+                    logger.warning(
+                        "ScalableSVM: parallel predict hit OSError (insufficient "
+                        "system resources); falling back to serial bag prediction."
+                    )
+                    parts = [_predict_one_bag(clf, X) for clf in self._bagged]
                 p = np.mean(parts, axis=0)
             return np.column_stack([1.0 - p, p])
         return self._estimator.predict_proba(X)

@@ -719,6 +719,24 @@ class DataPrepPipeline:
             ),
         )
 
+        # 10b. Protein coordinates (AlphaMissense) -> protein_pos / wt_aa / mut_aa
+        # Unblocks ESM-2 (and readies EVE); also clears codon_position.
+        from genomic_variant_classifier.data.protein_coords import ProteinCoordConnector
+
+        pc = ProteinCoordConnector(alphamissense_file=ac.alphamissense_path)
+        df = pc.annotate_dataframe(df)
+        if "consequence" in df.columns:
+            df["is_missense"] = (
+                df["consequence"].fillna("").str.contains("missense", case=False).astype(int)
+            )
+        if "protein_pos" in df.columns:
+            df["codon_position"] = df["protein_pos"].fillna(0).astype(int)
+        logger.info(
+            "Score annotation 10b (protein coords): %d variants with protein_pos.",
+            int(df.get("protein_pos", pd.Series([pd.NA] * len(df), index=df.index)).notna().sum()),
+        )
+
+
         # 11. EVE
         from genomic_variant_classifier.data.eve import EVEConnector
 

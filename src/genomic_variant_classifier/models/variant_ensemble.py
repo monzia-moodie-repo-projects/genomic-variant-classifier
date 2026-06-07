@@ -33,6 +33,7 @@ CHANGES -- LOVD integration:
 """
 
 from __future__ import annotations
+from datetime import timezone
 
 import logging
 import warnings
@@ -1341,7 +1342,7 @@ class VariantEnsemble:
                     json.dump({
                         "name": name,
                         "oof_auroc": float(roc_auc_score(y_fit, oof)),
-                        "saved_at_utc": datetime.utcnow().isoformat(),
+                        "saved_at_utc": datetime.now(timezone.utc).isoformat(),
                         "n_samples": int(len(y_fit)),
                     }, _f, indent=2)
                 _size_mb = _model_path.stat().st_size / 1e6

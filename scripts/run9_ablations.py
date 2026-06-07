@@ -159,6 +159,24 @@ logger = logging.getLogger("run9_ablations")
 ABLATION_MASKS: dict[str, list[str]] = {
     # ── Baseline ──────────────────────────────────────────────────────────
     "full": [],
+    # -- Run 15: gene-prevalence memorization probes ----------------------
+    "no_gene_prevalence": [
+        # n_pathogenic_in_gene is computed from the gene's ClinVar pathogenic
+        # counts -> directly circular with the label. Strict single-column
+        # ablation (top feature every run; importance 391 in Run 15).
+        "n_pathogenic_in_gene",
+    ],
+    "no_gene_level": [
+        # Broader gene-identity test. Run this if no_gene_prevalence barely
+        # moves AUROC, to check proxy-recovery via the disease-gene flag.
+        # gene_constraint_oe / gene_is_constrained are currently dead but are
+        # included for completeness. Does NOT include pli/loeuf/syn_z/mis_z,
+        # which are legitimate constraint biology, not label-derived.
+        "n_pathogenic_in_gene",
+        "gene_has_known_disease",
+        "gene_constraint_oe",
+        "gene_is_constrained",
+    ],
     # ── Run 9 core LOCO (6) ───────────────────────────────────────────────
     "no_spliceai": [
         # SpliceAI delta-score column only. `is_splice` stays live because
@@ -521,6 +539,14 @@ def main() -> int:
     p.add_argument("--skip-permutation", action="store_true")
     p.add_argument("--n-folds", type=int, default=5)
     p.add_argument(
+        "--max-train",
+        type=int,
+        default=None,
+        help="Subsample the TRAIN split to this many rows (val/test untouched) "
+        "for fast local ablation probes; deterministic given --seed. "
+        "Omit for the full split.",
+    )
+    p.add_argument(
         "--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"]
     )
     args = p.parse_args()
@@ -558,6 +584,18 @@ def main() -> int:
     X_train, X_val, X_test = splits["X_train"], splits["X_val"], splits["X_test"]
     y_train, y_val, y_test = splits["y_train"], splits["y_val"], splits["y_test"]
     meta_val, meta_test = splits["meta_val"], splits["meta_test"]
+
+    # -- Run 15: optional TRAIN subsample for fast local probes -----------
+    # Deterministic given --seed so both ablation arms share the same rows.
+    if getattr(args, "max_train", None) and len(y_train) > args.max_train:
+        import numpy as _np
+        _rng = _np.random.RandomState(args.seed)
+        _idx = _np.sort(_rng.choice(len(y_train), size=args.max_train, replace=False))
+        X_train = X_train.iloc[_idx].reset_index(drop=True)
+        y_train = y_train.iloc[_idx].reset_index(drop=True)
+        logger.info(
+            "Subsampled TRAIN to %d rows (seed=%d) for fast probe", args.max_train, args.seed
+        )
 
     logger.info(
         "Splits loaded: train=%d val=%d test=%d features=%d",
