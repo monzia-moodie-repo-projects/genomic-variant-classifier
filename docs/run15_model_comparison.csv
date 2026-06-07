@@ -1,0 +1,16 @@
+model,family,oof_auroc_main,test_auroc,test_auprc,test_f1,test_mcc,test_brier,ugh_oof_auroc,role
+xgboost,gradient_boosted_trees,0.9991,0.9982,0.9924,0.9819,0.9639,0.0071,0.9991,base_top
+lightgbm,gradient_boosted_trees,0.9990,0.9982,0.9923,0.9819,0.9639,0.0071,0.9990,base_top
+catboost,gradient_boosted_trees,0.9989,0.9984,0.9936,0.9778,0.9559,0.0091,0.9989,base_top
+deep_ensemble,neural_tabular_seed_avg,0.9986,0.9982,0.9926,0.9816,0.9633,0.0073,0.9987,base_strong
+tabular_nn,neural_tabular,0.9985,0.9981,0.9924,0.9811,0.9622,0.0075,0.9985,base_strong
+mc_dropout,neural_tabular_bayesian,0.9985,0.9981,0.9923,0.9810,0.9621,0.0075,0.9985,base_strong
+random_forest,bagged_trees,0.9985,0.9977,0.9913,0.9815,0.9631,0.0074,0.9985,base_strong
+gradient_boosting,gradient_boosted_trees,0.9983,0.9979,0.9915,0.9806,0.9612,0.0075,0.9984,base_strong
+svm,kernel_nystroem,0.9979,0.9973,0.9882,0.9782,0.9564,0.0084,0.9980,base_mid
+svm_bagged_rbf,kernel_rbf_bagged,0.9973,0.9965,0.9860,0.9682,0.9366,0.0110,0.9974,base_mid
+logistic_regression,linear,0.9969,0.9963,0.9841,0.9686,0.9379,0.0137,0.9971,base_baseline
+kan,kolmogorov_arnold_imodelsx_cuda,0.9968,0.9961,0.9866,0.9720,0.9441,0.0109,0.9970,base_baseline_newarch
+cnn_1d,conv1d,0.8536,0.8219,0.5670,0.7161,0.4616,0.0909,0.8448,base_weak_scale_sensitive
+ENSEMBLE_STACKER,meta_learner,,0.9984,0.9936,0.9826,0.9652,0.0069,0.9988,ensemble
+gnn,graph_attention_standalone,0.6509,,,,,,,feature_source_not_classifier

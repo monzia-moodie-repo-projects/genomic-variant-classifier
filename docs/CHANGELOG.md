@@ -3026,3 +3026,32 @@ The recovery file includes:
   `n_pathogenic_in_gene` ablation. See
   `INCIDENT_2026-06-04_kan-test-size-baseline-launcher.md` and
   `INCIDENT_2026-06-04_gnn-score-injection-degenerate.md`.
+
+## 2026-06-06 — Run 15 sealed (corrected re-run)
+
+**Result.** Main ensemble AUROC 0.9984 (AUPRC 0.9936, F1m 0.9826, MCC 0.9652, Brier
+0.0069); unseen-gene holdout 0.9988 (2,407 genes / 213,436 rows), C3 falsifier PASS vs
+0.95. All 13 base models trained with OOF + checkpoints. Cohort 1,490,014
+(210,549 path / 1,279,465 benign); splits 1,038,974 / 146,329 / 304,711; 78 features.
+~11.2 h, ~$6.3. Box 39653192 destroyed clean.
+
+**Fixed.** (1) KAN ran (prior crash resolved). (2) GNN non-degenerate (gnn_score std
+0.099, nonzero_frac 1.0, range [0.0012, 0.5000]) vs Run 14 all-zero; post-run gate PASS
+on all splits. (3) Slow cloud smoke root-caused (`--max-train` subsamples after full
+annotation; no split cache) and fixed via stratified 80 k clinvar subset; smoke GREEN.
+(4) Postflight `Invoke-Ssh` SSH-banner halt fixed (function-scope EAP=Continue + Out-String).
+
+**Learned.** (1) cnn_1d 0.52 @3k -> 0.85 @1.49M is a pure data-scale artifact, not a
+wiring bug — validates proceeding past smoke degeneracy. (2) GNN is a weak standalone
+classifier (val AUC 0.6509); its value is the non-degenerate gnn_score ensemble feature.
+(3) dbNSFP now live (188,023 SIFT); PhyloP and RNA-splice still 0 (unwired stubs).
+(4) Review-tier <=3 retained 88% (1,686,333 -> 1,490,014); tier semantics vs Run 14 a
+standing audit item. (5) Unseen-gene 0.9988 ≈ in-distribution 0.9984 = no generalization
+collapse, but NOT proof of leakage-free: gene-level features (n_pathogenic_in_gene 391
+top, pLI, LOEUF) may inform holdout genes; attribution awaits the n_pathogenic_in_gene
+ablation. Do NOT record 0.9988 as "leakage disproven."
+
+**Pending.** Run15_FullRun.ps1 launch-rc parse + Run15_Smoke.ps1 poll/Gate SMOKE_EXIT
+detection (both SSH-stderr-banner faults, source needed). --splits-dir load-cache.
+n_pathogenic_in_gene ablation. Time-disjoint re-pull. PhyloP/RNA-splice wiring.
+_meta.json location audit. real_data_prep.py:444 fillna FutureWarning.
