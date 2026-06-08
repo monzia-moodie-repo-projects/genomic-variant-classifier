@@ -197,6 +197,7 @@ class AnnotationConfig:
     esm2_model_name: str = "esm2_t6_8M_UR50D"  # Phase 3C: ESM-2 model
     esm2_cache_path: Optional[Path] = None  # Phase 3C: SQLite cache
     gnomad_constraint_path: Optional[Path] = None  # Phase 3C: gnomAD constraint TSV
+    reactome_path: Optional[Path] = None  # Phase D: Reactome gene pathway-count parquet
 
 
 # ---------------------------------------------------------------------------
@@ -867,6 +868,24 @@ class DataPrepPipeline:
             ),
         )
 
+        # 18. Reactome gene pathway count (Phase D)
+        from genomic_variant_classifier.data.reactome import ReactomeConnector
+
+        reactome = ReactomeConnector(pathway_path=ac.reactome_path)
+        df = reactome.annotate_dataframe(df)
+        logger.info(
+            "Score annotation 18/18 (Reactome): %d variants with reactome_pathway_count > 0.",
+            int(
+                (
+                    df.get(
+                        "reactome_pathway_count",
+                        pd.Series([0] * len(df), index=df.index),
+                    )
+                    > 0
+                ).sum()
+            ),
+        )
+
         return df
 
     def _engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -1183,6 +1202,14 @@ class DataPrepPipeline:
             df.get("mis_z", pd.Series([0.0] * len(df), index=df.index))
             .fillna(0.0)
             .astype(float)
+        )
+
+        # Reactome pathway membership (1) - Phase D
+        feats["reactome_pathway_count"] = (
+            df.get("reactome_pathway_count", pd.Series([0] * len(df), index=df.index))
+            .fillna(0)
+            .astype(int)
+            .clip(lower=0)
         )
 
         n_nan = feats.isnull().sum().sum()

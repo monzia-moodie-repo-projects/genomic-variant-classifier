@@ -365,7 +365,14 @@ class ProteinStructurePipeline:
         cache_dir: str | Path | None = None,
     ) -> None:
         self.cache_dir = Path(cache_dir) if cache_dir is not None else Path("data/raw/cache/alphafold")
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+        except FileExistsError as _exc:  # 'data/' shadowed by a non-dir
+            raise NotADirectoryError(
+                f"Cannot create {self.cache_dir!s}: a path component exists as a "
+                f"non-directory (stray file or dangling symlink/junction shadowing "
+                f"data/). Remove or rename it and restore data/ from git, then retry."
+            ) from _exc
         self._uniprot = _UniProtMapper(self.cache_dir / "gene_uniprot_map.json")
         self._struct_cache: dict[str, Optional[pd.DataFrame]] = {}
         self._active_cache: dict[str, list[int]] = {}

@@ -248,6 +248,8 @@ TABULAR_FEATURES = [
     "loeuf",
     "syn_z",
     "mis_z",
+    # Reactome pathway membership (1) - Phase D
+    "reactome_pathway_count",
 ]
 
 PHASE_2_FEATURES: list[str] = []  # All Phase 2 features now active; Phase 3 adds GWAS
@@ -599,6 +601,14 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
         df.get("mis_z", pd.Series([0.0] * len(df), index=df.index))
         .fillna(0.0)
         .astype(float)
+    )
+
+    # Reactome pathway membership (1) - Phase D
+    feats["reactome_pathway_count"] = (
+        df.get("reactome_pathway_count", pd.Series([0] * len(df), index=df.index))
+        .fillna(0)
+        .astype(int)
+        .clip(lower=0)
     )
 
     return feats.reset_index(drop=True)
