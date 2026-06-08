@@ -3066,3 +3066,7 @@ _meta.json location audit. real_data_prep.py:444 fillna FutureWarning.
 - fix(gnn) 89c07ed: parse STRING protein.info as TSV on _download_gz download path (latent; verified on GPU).
 - fix(gnn) 63a2fb7: use STRING column 'experimental' not 'experiments' for edge channel (was silently zeroed).
 - OPEN: requirements.txt websockets==16.0 vs langgraph ResolutionImpossible (bootstrap workaround only).
+## 2026-06-08 (deps follow-up)
+- Finding #1 CLOSED: requirements.txt websockets pin commented (af9978e). Clean resolve validated; pip selects websockets-15.0.1 (langgraph-sdk requires <16,>=14). requirements.txt is manually maintained (pip-compile-under-3.14 output + manual edits; header forbids auto-regen), so the edit is durable.
+- Finding #4 NON-BLOCKING: requirements.lock pins websockets==16.0 but, being pip-compiled from requirements.in before imodelsx/langchain entered the tree, contains no langgraph-sdk and thus no <16 constraint -- it would install without ResolutionImpossible and is referenced by no install path. Not hand-edited (hashed lock).
+- DRIFT -> Phase-2 dep-consolidation: requirements.in/.lock are stale vs requirements.txt (missing imodelsx + langchain); requirements.txt compiled under 3.14 not 3.12 (PHASE_2_FEATURES.pipcompile_python312_migration); multiple requirements-{api,dev,agents} files of varied vintage. A single pip-compile-under-3.12 pass regenerating all locks resolves the stale websockets automatically.
