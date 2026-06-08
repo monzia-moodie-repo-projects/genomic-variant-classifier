@@ -35,13 +35,13 @@ from genomic_variant_classifier.models.variant_ensemble import TABULAR_FEATURES,
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Feature contract — locked to the exact 55 columns from X_train.parquet
+# Feature contract — locked to the exact 79 columns from X_train.parquet
 # ---------------------------------------------------------------------------
 
 INFERENCE_FEATURE_COLUMNS: list[str] = list(TABULAR_FEATURES)
-assert len(INFERENCE_FEATURE_COLUMNS) == 78, (
+assert len(INFERENCE_FEATURE_COLUMNS) == 79, (
     f"INFERENCE_FEATURE_COLUMNS has {len(INFERENCE_FEATURE_COLUMNS)} entries; "
-    "expected 74.  Update TABULAR_FEATURES in src/genomic_variant_classifier/models/variant_ensemble.py."
+    "expected 79.  Update TABULAR_FEATURES in src/genomic_variant_classifier/models/variant_ensemble.py."
 )
 
 

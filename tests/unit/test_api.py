@@ -94,7 +94,7 @@ def _make_pipeline(proba: float = 0.85):
         metadata       = PipelineMetadata(
             val_auroc     = 0.9847,
             n_train       = 1_197_216,
-            n_features    = 78,
+            n_features    = 79,
             model_version = "phase2",
         ),
     )
@@ -533,8 +533,8 @@ class TestInfoEndpoint:
         assert body["model_version"]     == "phase2-v1"
         assert body["pipeline_version"]  == "1.0.0"
         assert body["training_auroc"]    == pytest.approx(0.9780)
-        assert body["n_features"]        == 78
-        assert len(body["feature_names"]) == 78
+        assert body["n_features"]        == 79
+        assert len(body["feature_names"]) == 79
         # Phase 4: all features promoted, phase2_features_remaining is now empty
         assert isinstance(body["phase2_features_remaining"], list)
 
