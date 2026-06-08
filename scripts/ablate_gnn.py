@@ -35,7 +35,7 @@ OUT = Path("outputs/gnn_ablation")
 def _assemble(subsample: int, seed: int) -> tuple[pd.DataFrame, list[str]]:
     X = pd.read_parquet(SPLITS / "X_train.parquet").reset_index(drop=True)
     meta = pd.read_parquet(SPLITS / "meta_train.parquet").reset_index(drop=True)
-    feat = [c for c in X.columns if pd.api.types.is_numeric_dtype(X[c])]
+    feat = [c for c in X.columns if pd.api.types.is_numeric_dtype(X[c]) and c != "gnn_score"]
     df = X.copy()
     df["gene_symbol"] = meta["gene_symbol"].values
     df["variant_id"] = (meta["variant_id"].values if "variant_id" in meta.columns
