@@ -84,13 +84,13 @@ class StringDBGraph:
         self.graph: Optional[nx.Graph] = None
         self._protein_to_gene: dict[str, str] = {}
 
-    def _download_gz(self, url: str) -> pd.DataFrame:
+    def _download_gz(self, url: str, sep: str = " ") -> pd.DataFrame:
         logger.info("Downloading %s...", url)
         resp = requests.get(url, stream=True, timeout=120)
         resp.raise_for_status()
         raw = b"".join(resp.iter_content(chunk_size=1 << 20))
         with gzip.open(io.BytesIO(raw), "rt") as fh:
-            return pd.read_csv(fh, sep=" ")
+            return pd.read_csv(fh, sep=sep)
 
     def _save_graph(self, G: nx.Graph, path: Path) -> None:
         with open(path, "wb") as fh:
@@ -112,7 +112,7 @@ class StringDBGraph:
                 df = pd.read_csv(fh, sep="\t")
             df.to_parquet(cache, index=False)
         else:
-            df = self._download_gz(STRING_NAMES_URL)
+            df = self._download_gz(STRING_NAMES_URL, sep="\t")
             df.to_parquet(cache, index=False)
         id_col = (
             "#string_protein_id"
