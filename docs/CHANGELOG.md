@@ -3061,3 +3061,8 @@ _meta.json location audit. real_data_prep.py:444 fillna FutureWarning.
 - Failed:    feature-count addition tripped 4 hardcoded 78-guards (pipeline.py assert, test_splice_ai length test, KNOWN_ZERO_DEFAULT frozenset, test_api /info mock literal + 2 assertions); test_api n_features/feature_names diverged because the mock literal is hardcoded while feature_names tracks INFERENCE_FEATURE_COLUMNS.
 - Fixed:     bumped all 4 guards to 79; added reactome_pathway_count to KNOWN_ZERO_DEFAULT (21->22); synced /info mock literal so n_features == len(feature_names) == 79. Suite: 788 passed, 6 skipped. `== 78` sweep returns zero.
 - Learned:   feature count is hardcoded in >=4 places (prod + tests); centralize into one EXPECTED_TABULAR_FEATURE_COUNT before COSMIC/TCGA/KEGG repeat the cascade. Reactome is the validated gene-level connector template.
+## 2026-06-08 (GNN GPU probe)
+- GNN probe PASS on RTX 4090: gnn_score_std=0.0214, device=cuda, all_finite, graph 16201 nodes/236930 edges, peak_vram 13.9GB, s/epoch 1.2 (instance 40109189, <$0.50). Answers the Run-14 dead-gnn_score question: path is alive.
+- fix(gnn) 89c07ed: parse STRING protein.info as TSV on _download_gz download path (latent; verified on GPU).
+- fix(gnn) <CHANNEL_SHA>: use STRING column 'experimental' not 'experiments' for edge channel (was silently zeroed).
+- OPEN: requirements.txt websockets==16.0 vs langgraph ResolutionImpossible (bootstrap workaround only).
