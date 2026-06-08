@@ -138,7 +138,7 @@ uvicorn==0.42.0
     # via -r requirements.in
 watchfiles==1.1.1
     # via uvicorn
-websockets==16.0
+# websockets==16.0  # disabled 2026-06-08: hard pin conflicts with the langgraph-sdk transitive websockets requirement (pip ResolutionImpossible on a clean install). websockets is transitive-only; the resolver selects a compatible version.
     # via uvicorn
 xgboost==3.2.0
     # via -r requirements.in
