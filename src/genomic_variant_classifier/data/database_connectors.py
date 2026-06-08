@@ -36,6 +36,34 @@ import requests
 
 logger = logging.getLogger(__name__)
 
+
+def ensure_dir(directory: Path) -> Path:
+    """Create *directory* (and parents) idempotently, with an actionable error
+    if a path component exists as a non-directory.
+
+    pathlib's ``mkdir(parents=True, exist_ok=True)`` raises a cryptic
+    ``FileExistsError: [WinError 183]`` when an ancestor (e.g. a stray file
+    named 'data' shadowing the data/ tree, or a dangling symlink/junction) is
+    not a directory. We surface a clear message so the failure is never silent.
+    """
+    directory = Path(directory)
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+    except FileExistsError as exc:  # an ancestor exists but is not a directory
+        offender = next(
+            (p for p in [directory, *directory.parents]
+             if p.exists() and not p.is_dir()),
+            directory,
+        )
+        raise NotADirectoryError(
+            f"Cannot create directory {directory!s}: path component "
+            f"{offender!s} exists but is not a directory. Remove or rename it "
+            f"(and restore the real directory from git: "
+            f"`git checkout HEAD -- data`), then retry."
+        ) from exc
+    return directory
+
+
 # ---------------------------------------------------------------------------
 # Canonical schema — every connector maps output to these columns
 # ---------------------------------------------------------------------------
@@ -68,8 +96,14 @@ class FetchConfig:
     rate_limit_delay: float = 0.34   # ~3 req/sec for NCBI compliance
 
     def __post_init__(self) -> None:
+        # Side-effect-free construction: do NOT mkdir here. The cache dir
+        # is created lazily in _save_cache right before the first write.
+        # Eager mkdir made every connector construction (incl. stub-mode
+        # and unit tests) perform CWD-relative filesystem I/O, which
+        # detonated the suite when a stray file named 'data' shadowed the
+        # data/ directory (WinError 183). See
+        # tests/unit/test_data_dir_not_shadowed.py.
         self.cache_dir = Path(self.cache_dir)
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
 
 
 # ---------------------------------------------------------------------------
@@ -114,8 +148,9 @@ class BaseConnector:
         return None
 
     def _save_cache(self, key: str, df: pd.DataFrame) -> None:
-        self._cache_path(key).parent.mkdir(parents=True, exist_ok=True)
-        df.to_parquet(self._cache_path(key), index=False)
+        path = self._cache_path(key)
+        ensure_dir(path.parent)
+        df.to_parquet(path, index=False)
 
     def fetch(self, **kwargs) -> pd.DataFrame:
         raise NotImplementedError

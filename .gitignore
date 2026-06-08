@@ -152,3 +152,6 @@ outputs/**/.run*_state.json
 
 # local backups from in-place patchers
 *.bak_*
+
+# patcher backups
+*.bak_*

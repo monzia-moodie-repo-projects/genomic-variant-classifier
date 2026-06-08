@@ -132,7 +132,15 @@ class DataPrepConfig:
 
     def __post_init__(self) -> None:
         self.output_dir = Path(self.output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+        except FileExistsError as _exc:  # 'data/' shadowed by a non-dir
+            raise NotADirectoryError(
+                f"Cannot create {self.output_dir!s}: a path component "
+                f"exists as a non-directory (stray file or dangling "
+                f"symlink/junction shadowing data/). Remove or rename it "
+                f"and restore data/ from git, then retry."
+            ) from _exc
 
 
 @dataclass
