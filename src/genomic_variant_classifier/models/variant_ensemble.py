@@ -386,7 +386,7 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
 
     # Gene-level (4)
     feats["gene_constraint_oe"] = df.get(
-        "gene_constraint_oe", pd.Series([1.0] * len(df), index=df.index)
+        "gene_constraint_oe", df.get("loeuf", pd.Series([1.0] * len(df), index=df.index))
     ).fillna(1.0)
     feats["gene_is_constrained"] = (feats["gene_constraint_oe"] < 0.35).astype(int)
     feats["n_pathogenic_in_gene"] = (
