@@ -206,15 +206,20 @@ def _fetch_uniprot_sequence(gene: str, timeout: int = _REQUEST_TIMEOUT) -> Optio
 _model_cache: dict[str, object] = {}
 
 
-def _load_transformers_model(model_name: str) -> tuple:
-    """Load and cache ESM-2 tokenizer + model via HuggingFace."""
-    key = f"hf_{model_name}"
+def _load_transformers_model(model_name: str, device: str = "cpu") -> tuple:
+    """Load and cache ESM-2 tokenizer + model via HuggingFace.
+
+    device="cpu" reproduces the original behavior exactly (model stays on CPU).
+    """
+    key = f"hf_{model_name}_{device}"
     if key not in _model_cache:
-        logger.info("Loading ESM-2 (%s) via HuggingFace ...", model_name)
+        logger.info("Loading ESM-2 (%s) via HuggingFace on %s ...", model_name, device)
         hf_name = f"facebook/{model_name}"
         tok = AutoTokenizer.from_pretrained(hf_name)
         mdl = EsmModel.from_pretrained(hf_name)
         mdl.eval()
+        if device != "cpu":
+            mdl = mdl.to(device)
         _model_cache[key] = (tok, mdl)
         logger.info("ESM-2 loaded.")
     return _model_cache[key]
@@ -249,6 +254,31 @@ def _embed_sequence_transformers(seq: str, model_name: str) -> np.ndarray:
     # last_hidden_state: (1, seq_len+2, hidden) -- strip BOS/EOS tokens
     emb = outputs.last_hidden_state[0, 1:-1, :].cpu().numpy()
     return emb.astype(np.float32)
+
+
+def _embed_sequences_transformers(seqs: list, model_name: str, device: str = "cpu") -> list:
+    """Batched per-residue embeddings for a list of sequences.
+
+    Returns a list of (len_i, hidden) arrays aligned to *seqs*. Pads the batch
+    and passes attention_mask to the model; extracts each sequence's residues
+    with a LENGTH-AWARE strip ([1 : real_len - 1] from attention_mask.sum()),
+    not a fixed [1:-1] which is wrong under right-padding.
+    """
+    import torch
+
+    tokenizer, model = _load_transformers_model(model_name, device=device)
+    enc = tokenizer(list(seqs), return_tensors="pt", add_special_tokens=True, padding=True)
+    enc = {k: v.to(device) for k, v in enc.items()}
+    with torch.no_grad():
+        outputs = model(**enc)
+    hidden = outputs.last_hidden_state  # (B, Lmax, H)
+    mask = enc["attention_mask"]
+    out = []
+    for i in range(hidden.shape[0]):
+        real_len = int(mask[i].sum().item())  # includes BOS + EOS
+        emb = hidden[i, 1:real_len - 1, :].cpu().numpy().astype(np.float32)
+        out.append(emb)
+    return out
 
 
 def _embed_sequence_fairesm(seq: str, model_name: str) -> np.ndarray:
@@ -290,6 +320,60 @@ def _embed_sequence(seq: str, model_name: str, conn: sqlite3.Connection) -> Opti
 # ---------------------------------------------------------------------------
 # Delta computation
 # ---------------------------------------------------------------------------
+
+def _make_windows(full_sequence: str, protein_pos: int, wt_aa: str, mut_aa: str):
+    """Build (wt_ctx, mut_ctx, local_idx) for the +/-_CONTEXT_WINDOW window.
+
+    Mirrors _compute_delta's window construction exactly. Returns None for an
+    out-of-range position (matching _compute_delta's 0.0). Like _compute_delta,
+    it does NOT zero on a wt/UniProt mismatch (that is patch #2's concern).
+    """
+    seq_len = len(full_sequence)
+    idx = protein_pos - 1
+    if idx < 0 or idx >= seq_len:
+        return None
+    lo = max(0, idx - _CONTEXT_WINDOW)
+    hi = min(seq_len, idx + _CONTEXT_WINDOW + 1)
+    wt_ctx = full_sequence[lo:hi]
+    mut_ctx = wt_ctx[: idx - lo] + mut_aa + wt_ctx[idx - lo + 1 :]
+    return wt_ctx, mut_ctx, idx - lo
+
+
+def _embed_sequences(seqs: list, model_name: str, conn: sqlite3.Connection,
+                     device: str = "cpu", batch_size: int = 64) -> list:
+    """Cache-aware BATCHED embedding. Returns embeddings aligned to *seqs*.
+
+    Dedupes internally; SQLite cache hits (same flat layout as _embed_sequence)
+    are served without a forward; misses are embedded in batches of batch_size.
+    Falls back to per-sequence _embed_sequence for the fair-esm backend.
+    """
+    uniq = list(dict.fromkeys(seqs))
+    result: dict = {}
+    misses: list = []
+    for s in uniq:
+        cached = _cache_get_embedding(conn, _hash_seq(s), model_name)
+        if cached is not None and len(s) > 0 and len(cached) % len(s) == 0:
+            result[s] = cached.reshape(-1, len(cached) // len(s))
+        else:
+            misses.append(s)
+    if misses:
+        if _BACKEND == "transformers":
+            for i in range(0, len(misses), batch_size):
+                chunk = misses[i:i + batch_size]
+                try:
+                    embs = _embed_sequences_transformers(chunk, model_name, device=device)
+                except Exception as exc:
+                    logger.debug("ESM-2 batched embedding failed: %s", exc)
+                    embs = [None] * len(chunk)
+                for s, e in zip(chunk, embs):
+                    if e is not None:
+                        _cache_put_embedding(conn, _hash_seq(s), model_name, e.flatten())
+                    result[s] = e
+        else:
+            for s in misses:
+                result[s] = _embed_sequence(s, model_name, conn)
+    return [result.get(s) for s in seqs]
+
 
 def _compute_delta(
     full_sequence: str,
@@ -361,10 +445,14 @@ class ESM2Connector:
         model_name: str = _DEFAULT_MODEL,
         cache_path: Path | str | None = None,
         request_timeout: int = _REQUEST_TIMEOUT,
+        device: str = "cpu",
+        batch_size: int = 64,
     ) -> None:
         self.model_name = model_name
         self.cache_path = Path(cache_path) if cache_path else _DEFAULT_CACHE
         self.request_timeout = request_timeout
+        self.device = device
+        self.batch_size = batch_size
         self._conn: Optional[sqlite3.Connection] = None
 
     def _get_conn(self) -> sqlite3.Connection:
@@ -416,9 +504,26 @@ class ESM2Connector:
 
         logger.info("Computing ESM-2 delta for %d missense variants ...", len(candidates))
 
-        seq_cache: dict[str, Optional[str]] = {}
-        scores: dict[int, float] = {}
+        if _BACKEND == "transformers":
+            scores = self._score_batched(candidates)
+        else:
+            scores = self._score_per_variant(candidates)
 
+        for idx, score in scores.items():
+            df.at[idx, "esm2_delta_norm"] = score
+
+        n_scored = sum(1 for v in scores.values() if v > 0.0)
+        logger.info("ESM-2: %d/%d variants scored (>0).", n_scored, len(candidates))
+        return df
+
+    def _score_per_variant(self, candidates: pd.DataFrame) -> dict:
+        """Oracle scorer: one (wt, mut) embedding pair per variant (unbatched).
+
+        This is the exact loop annotate_dataframe used before patch #1; it is the
+        reference the batched path is checked against.
+        """
+        seq_cache: dict = {}
+        scores: dict = {}
         for row in candidates.itertuples():
             gene = str(row.gene_symbol) if hasattr(row, "gene_symbol") and row.gene_symbol else ""
             if not gene:
@@ -443,10 +548,56 @@ class ESM2Connector:
                 scores[row.Index] = delta
             except Exception as exc:
                 logger.debug("ESM-2 delta failed for %s: %s", getattr(row, "gene_symbol", "?"), exc)
+        return scores
 
-        for idx, score in scores.items():
-            df.at[idx, "esm2_delta_norm"] = score
+    def _score_batched(self, candidates: pd.DataFrame) -> dict:
+        """Batched scorer: build + dedupe every (wt, mut) context window across
+        candidates, embed the unique windows in batches on self.device, then
+        compute deltas. Numerically equivalent to _score_per_variant
+        (tests/unit/test_esm2_batched_equivalence.py).
+        """
+        seq_cache: dict = {}
+        plan: list = []          # (row_index, wt_ctx, mut_ctx, local_idx)
+        windows: dict = {}       # ordered set of unique context windows
+        for row in candidates.itertuples():
+            gene = str(row.gene_symbol) if hasattr(row, "gene_symbol") and row.gene_symbol else ""
+            if not gene:
+                continue
 
-        n_scored = sum(1 for v in scores.values() if v > 0.0)
-        logger.info("ESM-2: %d/%d variants scored (>0).", n_scored, len(candidates))
-        return df
+            if gene not in seq_cache:
+                seq_cache[gene] = self._get_sequence(gene)
+
+            seq = seq_cache[gene]
+            if seq is None:
+                continue
+
+            try:
+                w = _make_windows(seq, int(row.protein_pos), str(row.wt_aa), str(row.mut_aa))
+            except Exception as exc:
+                logger.debug("ESM-2 window build failed for %s: %s", getattr(row, "gene_symbol", "?"), exc)
+                continue
+            if w is None:
+                continue
+            wt_ctx, mut_ctx, local_idx = w
+            windows.setdefault(wt_ctx, None)
+            windows.setdefault(mut_ctx, None)
+            plan.append((row.Index, wt_ctx, mut_ctx, local_idx))
+
+        if not plan:
+            return {}
+
+        uniq = list(windows.keys())
+        embs = _embed_sequences(
+            uniq, self.model_name, self._get_conn(),
+            device=self.device, batch_size=self.batch_size,
+        )
+        emap = {u: e for u, e in zip(uniq, embs)}
+
+        scores: dict = {}
+        for idx, wt_ctx, mut_ctx, local_idx in plan:
+            ew = emap.get(wt_ctx)
+            em = emap.get(mut_ctx)
+            if ew is None or em is None or ew.ndim == 1 or em.ndim == 1:
+                continue
+            scores[idx] = float(np.linalg.norm(em[local_idx] - ew[local_idx]))
+        return scores
