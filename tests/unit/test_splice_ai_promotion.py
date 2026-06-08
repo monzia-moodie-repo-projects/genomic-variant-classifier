@@ -32,6 +32,7 @@ import pytest
 
 from genomic_variant_classifier.models.variant_ensemble import (
     TABULAR_FEATURES,
+    EXPECTED_TABULAR_FEATURE_COUNT,
     PHASE_2_FEATURES,
     engineer_features,
 )
@@ -103,9 +104,9 @@ def test_phase_2_features_is_empty():
 # ---------------------------------------------------------------------------
 
 def test_tabular_features_length():
-    """TABULAR_FEATURES must have exactly 79 entries (70 existing + 3 FinnGen)."""
-    assert len(TABULAR_FEATURES) == 79, (
-        f"Expected 79 TABULAR_FEATURES, got {len(TABULAR_FEATURES)}: {TABULAR_FEATURES}"
+    """TABULAR_FEATURES length must equal EXPECTED_TABULAR_FEATURE_COUNT (single source of truth)."""
+    assert len(TABULAR_FEATURES) == EXPECTED_TABULAR_FEATURE_COUNT, (
+        f"Expected {EXPECTED_TABULAR_FEATURE_COUNT} TABULAR_FEATURES, got {len(TABULAR_FEATURES)}: {TABULAR_FEATURES}"
     )
 
 

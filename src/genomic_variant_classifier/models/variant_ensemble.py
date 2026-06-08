@@ -149,6 +149,12 @@ CONSEQUENCE_SEVERITY: dict[str, int] = {
     "intergenic_variant": 0,
 }
 
+# Single source of truth for the per-variant tabular feature count.
+# Bump by +/-1 whenever you add or remove an entry in TABULAR_FEATURES below.
+# Enforced by tests/unit/test_feature_count_contract.py against both the list
+# length and INFERENCE_FEATURE_COLUMNS; that test is the deliberate-bump tripwire.
+EXPECTED_TABULAR_FEATURE_COUNT = 79
+
 TABULAR_FEATURES = [
     # Allele frequency (6)
     "af_raw",

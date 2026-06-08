@@ -39,10 +39,9 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 INFERENCE_FEATURE_COLUMNS: list[str] = list(TABULAR_FEATURES)
-assert len(INFERENCE_FEATURE_COLUMNS) == 79, (
-    f"INFERENCE_FEATURE_COLUMNS has {len(INFERENCE_FEATURE_COLUMNS)} entries; "
-    "expected 79.  Update TABULAR_FEATURES in src/genomic_variant_classifier/models/variant_ensemble.py."
-)
+# INFERENCE_FEATURE_COLUMNS is derived from TABULAR_FEATURES above; its length
+# is enforced by tests/unit/test_feature_count_contract.py rather than asserted
+# at import time (a feature edit must not crash the API on import).
 
 
 # ---------------------------------------------------------------------------
@@ -105,7 +104,7 @@ class InferencePipeline:
 
     At inference time the pipeline:
       1. Optionally scores variants via GNNScorer → adds gnn_score column
-      2. Calls engineer_features() to derive the 64 INFERENCE_FEATURE_COLUMNS
+      2. Calls engineer_features() to derive the INFERENCE_FEATURE_COLUMNS
       3. Applies the StandardScaler (if present)
       4. Drives each base model with a numpy array → stacks predictions
       5. Feeds the stack to the meta-learner

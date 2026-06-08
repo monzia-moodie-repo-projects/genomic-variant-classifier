@@ -29,6 +29,7 @@ import pandas as pd
 import pytest
 from unittest.mock import MagicMock
 from pathlib import Path
+from genomic_variant_classifier.models.variant_ensemble import EXPECTED_TABULAR_FEATURE_COUNT
 
 
 # ---------------------------------------------------------------------------
@@ -94,7 +95,7 @@ def _make_pipeline(proba: float = 0.85):
         metadata       = PipelineMetadata(
             val_auroc     = 0.9847,
             n_train       = 1_197_216,
-            n_features    = 79,
+            n_features    = EXPECTED_TABULAR_FEATURE_COUNT,
             model_version = "phase2",
         ),
     )
@@ -533,8 +534,8 @@ class TestInfoEndpoint:
         assert body["model_version"]     == "phase2-v1"
         assert body["pipeline_version"]  == "1.0.0"
         assert body["training_auroc"]    == pytest.approx(0.9780)
-        assert body["n_features"]        == 79
-        assert len(body["feature_names"]) == 79
+        assert body["n_features"]        == EXPECTED_TABULAR_FEATURE_COUNT
+        assert len(body["feature_names"]) == EXPECTED_TABULAR_FEATURE_COUNT
         # Phase 4: all features promoted, phase2_features_remaining is now empty
         assert isinstance(body["phase2_features_remaining"], list)
 
