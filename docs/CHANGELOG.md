@@ -3064,5 +3064,5 @@ _meta.json location audit. real_data_prep.py:444 fillna FutureWarning.
 ## 2026-06-08 (GNN GPU probe)
 - GNN probe PASS on RTX 4090: gnn_score_std=0.0214, device=cuda, all_finite, graph 16201 nodes/236930 edges, peak_vram 13.9GB, s/epoch 1.2 (instance 40109189, <$0.50). Answers the Run-14 dead-gnn_score question: path is alive.
 - fix(gnn) 89c07ed: parse STRING protein.info as TSV on _download_gz download path (latent; verified on GPU).
-- fix(gnn) <CHANNEL_SHA>: use STRING column 'experimental' not 'experiments' for edge channel (was silently zeroed).
+- fix(gnn) 63a2fb7: use STRING column 'experimental' not 'experiments' for edge channel (was silently zeroed).
 - OPEN: requirements.txt websockets==16.0 vs langgraph ResolutionImpossible (bootstrap workaround only).
