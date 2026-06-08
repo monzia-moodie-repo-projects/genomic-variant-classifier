@@ -149,7 +149,7 @@ class StringDBGraph:
         links_df = links_df[links_df["combined_score"] >= self.threshold]
         logger.info("After threshold=%d: %d edges.", self.threshold, len(links_df))
 
-        _CHANNELS = ["experiments", "database", "coexpression"]
+        _CHANNELS = ["experimental", "database", "coexpression"]
         for ch in _CHANNELS:
             if ch not in links_df.columns:
                 links_df[ch] = 0
@@ -162,7 +162,7 @@ class StringDBGraph:
                 p1,
                 p2,
                 weight=float(row["combined_score"]) / 1000.0,
-                experimental=float(row["experiments"]) / 1000.0,
+                experimental=float(row["experimental"]) / 1000.0,
                 database=float(row["database"]) / 1000.0,
                 coexpression=float(row["coexpression"]) / 1000.0,
             )
