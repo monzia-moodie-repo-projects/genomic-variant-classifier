@@ -105,7 +105,7 @@ def main() -> int:
         df, graph, feat,
         edge_denoise=a.edge_denoise, edge_denoise_tau=a.edge_denoise_tau,  # scorer-consistency
     )
-    sc = GNNScorer.from_trainer(trainer, full, df).score_dataframe(df)
+    sc = GNNScorer.from_full_graph(trainer, full).score_dataframe(df)
 
     row = summarize(a.tag, hist, float(sc.std()), peak, wall, len(df), device)
     row["layer_type"] = a.layer_type
