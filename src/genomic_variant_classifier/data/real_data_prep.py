@@ -1054,7 +1054,7 @@ class DataPrepPipeline:
         feats["clingen_validity_score"] = (
             df.get("clingen_validity_score", pd.Series([0] * len(df), index=df.index))
             .fillna(0)
-            .astype(int)
+            .astype(float)  # match inference builder (variant_ensemble); int truncated a future fractional score
         )
 
         # HGMD
