@@ -63,6 +63,7 @@ for f in \
     "$DATA/external/alphamissense/AlphaMissense_hg38.tsv.gz" \
     "$DATA/external/gnomad/gnomad.v4.1.constraint_metrics.tsv" \
     "$DATA/external/dbnsfp/dbnsfp_clinvar_index.parquet" \
+    "$DATA/external/uniprot/uniprot_human_reviewed.parquet" \
 ; do
     if [ ! -f "$f" ]; then
         echo "==> MISSING (required): $f" | tee -a "$LOG"; FAIL=1
@@ -130,6 +131,7 @@ ARGS="$ARGS --spliceai $DATA/external/spliceai/spliceai_index.parquet"
 ARGS="$ARGS --alphamissense $DATA/external/alphamissense/AlphaMissense_hg38.tsv.gz"
 ARGS="$ARGS --string-db auto"
 ARGS="$ARGS --seq-windows $DATA/processed/clinvar_grch38_clean_seq.parquet"
+ARGS="$ARGS --esm2-uniprot-index $DATA/external/uniprot/uniprot_human_reviewed.parquet"
 ARGS="$ARGS --min-review-tier 3 --n-folds 5"
 ARGS="$ARGS --gnomad-constraint $DATA/external/gnomad/gnomad.v4.1.constraint_metrics.tsv"
 ARGS="$ARGS --dbnsfp-path $DATA/external/dbnsfp/dbnsfp_clinvar_index.parquet"
