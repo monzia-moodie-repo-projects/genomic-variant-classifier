@@ -201,6 +201,50 @@ def _fetch_uniprot_sequence(gene: str, timeout: int = _REQUEST_TIMEOUT) -> Optio
 
 
 # ---------------------------------------------------------------------------
+# Device resolution + local UniProt sequence index (Phase 3C hardening)
+# ---------------------------------------------------------------------------
+def _cuda_available() -> bool:
+    """True only when the transformers/torch backend is active AND a CUDA
+    device is visible. Never raises."""
+    if _BACKEND != "transformers":
+        return False
+    try:
+        import torch
+        return bool(torch.cuda.is_available())
+    except Exception:
+        return False
+
+
+def _resolve_device(device: Optional[str]) -> str:
+    """None/'auto' -> 'cuda' when available else 'cpu'; explicit value passes through."""
+    if device is None or device == "auto":
+        return "cuda" if _cuda_available() else "cpu"
+    return device
+
+
+_UNIPROT_INDEX_CACHE: dict[str, dict] = {}
+
+
+def _load_uniprot_index(path: Path) -> dict:
+    """Load a pre-built UniProt sequence index (parquet with columns
+    gene_symbol, uniprot_id, sequence) into a {GENE_UPPER: sequence} dict so
+    sequences are served locally with NO run-time UniProt REST calls. Cached
+    per-path; first row per gene wins (canonical reviewed entry)."""
+    key = str(path)
+    if key in _UNIPROT_INDEX_CACHE:
+        return _UNIPROT_INDEX_CACHE[key]
+    idx: dict[str, str] = {}
+    df = pd.read_parquet(path, columns=["gene_symbol", "sequence"])
+    for gene, seq in zip(df["gene_symbol"].astype(str), df["sequence"].astype(str)):
+        g = gene.strip().upper()
+        if g and g not in idx and seq and seq.lower() != "nan":
+            idx[g] = seq
+    _UNIPROT_INDEX_CACHE[key] = idx
+    logger.info("ESM-2: loaded UniProt index (%d genes) from %s", len(idx), path)
+    return idx
+
+
+# ---------------------------------------------------------------------------
 # Model loading (lazy, module-level singleton)
 # ---------------------------------------------------------------------------
 _model_cache: dict[str, object] = {}
@@ -445,15 +489,27 @@ class ESM2Connector:
         model_name: str = _DEFAULT_MODEL,
         cache_path: Path | str | None = None,
         request_timeout: int = _REQUEST_TIMEOUT,
-        device: str = "cpu",
+        device: Optional[str] = None,
         batch_size: int = 64,
+        uniprot_index_path: Path | str | None = None,
+        allow_network: Optional[bool] = None,
     ) -> None:
         self.model_name = model_name
         self.cache_path = Path(cache_path) if cache_path else _DEFAULT_CACHE
         self.request_timeout = request_timeout
-        self.device = device
+        self.device = _resolve_device(device)
         self.batch_size = batch_size
+        self.uniprot_index_path = (
+            Path(uniprot_index_path) if uniprot_index_path else None
+        )
+        # When a local index is supplied, default to NO live UniProt calls so a
+        # missing gene fails loud (0.0) instead of stalling the run on REST I/O.
+        self.allow_network = (
+            (self.uniprot_index_path is None) if allow_network is None else allow_network
+        )
         self._conn: Optional[sqlite3.Connection] = None
+        self._uniprot_index: Optional[dict] = None
+        self._warned_missing = False
 
     def _get_conn(self) -> sqlite3.Connection:
         if self._conn is None:
@@ -465,6 +521,28 @@ class ESM2Connector:
         cached = _cache_get_sequence(conn, gene)
         if cached:
             return cached[1]
+
+        # Prefer the pre-built local UniProt index -- no run-time network.
+        if self.uniprot_index_path is not None:
+            if self._uniprot_index is None:
+                self._uniprot_index = _load_uniprot_index(self.uniprot_index_path)
+            seq = self._uniprot_index.get(str(gene).strip().upper())
+            if seq:
+                _cache_put_sequence(conn, gene, "", seq)
+                return seq
+            if not self.allow_network:
+                if not self._warned_missing:
+                    logger.warning(
+                        "ESM-2: gene(s) absent from the UniProt index and network "
+                        "disabled -- those variants get esm2_delta_norm=0.0 "
+                        "(first missing: %s).", gene,
+                    )
+                    self._warned_missing = True
+                return None
+
+        # Legacy / fallback: live UniProt REST, only when explicitly allowed.
+        if not self.allow_network:
+            return None
         result = _fetch_uniprot_sequence(gene, self.request_timeout)
         if result:
             uid, seq = result

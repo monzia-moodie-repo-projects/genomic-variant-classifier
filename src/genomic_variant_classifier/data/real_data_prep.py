@@ -196,6 +196,8 @@ class AnnotationConfig:
     protein_cache_dir: Optional[Path] = None  # Phase 6.2: AlphaFold/UniProt cache dir
     esm2_model_name: str = "esm2_t6_8M_UR50D"  # Phase 3C: ESM-2 model
     esm2_cache_path: Optional[Path] = None  # Phase 3C: SQLite cache
+    esm2_uniprot_index_path: Optional[Path] = None  # Phase 3C: local UniProt seq index (no run-time REST)
+    esm2_device: Optional[str] = None  # Phase 3C: None/'auto' -> cuda if available, else cpu
     gnomad_constraint_path: Optional[Path] = None  # Phase 3C: gnomAD constraint TSV
     reactome_path: Optional[Path] = None  # Phase D: Reactome gene pathway-count parquet
 
@@ -838,6 +840,8 @@ class DataPrepPipeline:
         esm2 = ESM2Connector(
             model_name=ac.esm2_model_name,
             cache_path=ac.esm2_cache_path,
+            uniprot_index_path=ac.esm2_uniprot_index_path,
+            device=ac.esm2_device,
         )
         df = esm2.annotate_dataframe(df)
         logger.info(

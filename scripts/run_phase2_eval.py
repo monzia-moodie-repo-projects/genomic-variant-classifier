@@ -54,6 +54,13 @@ def parse_args(argv=None) -> argparse.Namespace:
     p.add_argument("--gnomad", default=None)
     p.add_argument("--spliceai", default=None)
     p.add_argument("--alphamissense", default=None)
+    p.add_argument(
+        "--esm2-uniprot-index",
+        default=None,
+        help="Local UniProt sequence index parquet (gene_symbol,uniprot_id,sequence) "
+        "so ESM-2 serves sequences offline with NO run-time REST. Built by "
+        "scripts/build_uniprot_index.py. Omit or pass '' to use live UniProt REST.",
+    )
     p.add_argument("--gtex-genes", nargs="*", default=[])
     p.add_argument(
         "--kg",
@@ -196,8 +203,25 @@ def main() -> int:
             _write_model_manifest,
         )
 
+        # ESM-2 UniProt sequence index (Phase 3C): required for the no-network
+        # ESM-2 path. Abort loudly if requested but absent -- a silent fallback
+        # to live UniProt REST is what stalled the Run-15 smoke (instance
+        # 40187155); do not reintroduce it. Pass '' to opt back into live REST.
+        _esm2_index = None
+        if args.esm2_uniprot_index:
+            _esm2_index = Path(args.esm2_uniprot_index)
+            if not _esm2_index.exists():
+                logger.error(
+                    "ESM-2 UniProt index not found: %s -- build it with "
+                    "scripts/build_uniprot_index.py, or pass --esm2-uniprot-index '' "
+                    "to use the (slow) live REST path.",
+                    _esm2_index,
+                )
+                return 2
+
         ann = AnnotationConfig(
             spliceai_path=Path(args.spliceai) if args.spliceai else None,
+            esm2_uniprot_index_path=_esm2_index,
             alphamissense_path=Path(args.alphamissense) if args.alphamissense else None,
             gtex_genes=args.gtex_genes or [],
             kg_path=Path(args.kg) if args.kg else None,
