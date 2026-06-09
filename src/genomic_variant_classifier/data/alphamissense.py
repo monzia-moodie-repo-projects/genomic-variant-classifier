@@ -75,7 +75,13 @@ class AlphaMissenseConnector(BaseConnector):
             df["alphamissense_score"] = AM_DEFAULT_SCORE
             return df
 
-        lookup = self._get_lookup()
+        # Build the cohort's lookup keys up front so the (huge) source file can
+        # be filtered to just these variants DURING parsing. This bounds the
+        # in-memory lookup to the cohort size (<=27k smoke / <=2.5M full) instead
+        # of materialising + sorting + de-duplicating all ~71M rows -- the cause
+        # of the Run-15 smoke OOM/swap hang (instance 40170927).
+        cohort_keys = self._cohort_keys(variant_df)
+        lookup = self._get_lookup(cohort_keys)
         if lookup.empty:
             df = variant_df.copy()
             df["alphamissense_score"] = AM_DEFAULT_SCORE
@@ -83,7 +89,17 @@ class AlphaMissenseConnector(BaseConnector):
 
         return self._annotate(variant_df, lookup)
 
-    def _get_lookup(self) -> pd.DataFrame:
+    @staticmethod
+    def _cohort_keys(variant_df: pd.DataFrame) -> set[str]:
+        """Lookup keys for the cohort, normalised IDENTICALLY to _parse_*/_annotate."""
+        return set(
+            variant_df["chrom"].astype(str).str.lstrip("chr") + ":" +
+            variant_df["pos"].astype(str)                      + ":" +
+            variant_df["ref"].astype(str).str.upper()          + ":" +
+            variant_df["alt"].astype(str).str.upper()
+        )
+
+    def _get_lookup(self, cohort_keys: Optional[set[str]] = None) -> pd.DataFrame:
         cache_key = "scores_hg38"
         cached = self._load_cache(cache_key)
         if cached is not None and not cached.empty:
@@ -107,15 +123,26 @@ class AlphaMissenseConnector(BaseConnector):
             self.tsv_path,
         )
         if str(self.tsv_path).endswith(".parquet"):
-            lookup = self._parse_parquet(self.tsv_path)
+            lookup = self._parse_parquet(self.tsv_path, cohort_keys)
         else:
-            lookup = self._parse_tsv(self.tsv_path)
-        if not lookup.empty:
+            lookup = self._parse_tsv(self.tsv_path, cohort_keys)
+        # Only the FULL (cohort-independent) lookup may be written under the
+        # cohort-independent cache key. A cohort-filtered lookup written there
+        # would be silently served to a LATER run with a different cohort and
+        # truncate its scores -- so we never cache it under this key.
+        if not lookup.empty and cohort_keys is None:
             self._save_cache(cache_key, lookup)
             logger.info("AlphaMissense: cached %d variant scores.", len(lookup))
+        elif not lookup.empty:
+            logger.info(
+                "AlphaMissense: cohort-filtered lookup (%d rows) -- not cached "
+                "under the cohort-independent key.", len(lookup)
+            )
         return lookup
 
-    def _parse_parquet(self, path: Path) -> pd.DataFrame:
+    def _parse_parquet(
+        self, path: Path, cohort_keys: Optional[set[str]] = None
+    ) -> pd.DataFrame:
         """Read pre-built AlphaMissense parquet index and return lookup_key/alphamissense_score."""
         df = pd.read_parquet(path, columns=["chrom", "pos", "ref", "alt", "alphamissense_score"])
         df["chrom"] = df["chrom"].astype(str).str.lstrip("chr")
@@ -129,6 +156,8 @@ class AlphaMissenseConnector(BaseConnector):
         )
         df = df[["lookup_key", "alphamissense_score"]].copy()
         df["alphamissense_score"] = df["alphamissense_score"].astype("float32")
+        if cohort_keys is not None:
+            df = df[df["lookup_key"].isin(cohort_keys)]
         df = (
             df
             .sort_values("alphamissense_score", ascending=False)
@@ -137,7 +166,9 @@ class AlphaMissenseConnector(BaseConnector):
         )
         return df
 
-    def _parse_tsv(self, path: Path) -> pd.DataFrame:
+    def _parse_tsv(
+        self, path: Path, cohort_keys: Optional[set[str]] = None
+    ) -> pd.DataFrame:
         _COL_NAMES = [
             "CHROM", "POS", "REF", "ALT", "genome",
             "uniprot_id", "transcript_id", "protein_variant",
@@ -174,11 +205,13 @@ class AlphaMissenseConnector(BaseConnector):
                     chunk["REF"]               + ":" +
                     chunk["ALT"]
                 )
-                chunks.append(
-                    chunk[["lookup_key", "am_pathogenicity"]].rename(
-                        columns={"am_pathogenicity": "alphamissense_score"}
-                    )
+                sub = chunk[["lookup_key", "am_pathogenicity"]].rename(
+                    columns={"am_pathogenicity": "alphamissense_score"}
                 )
+                if cohort_keys is not None:
+                    sub = sub[sub["lookup_key"].isin(cohort_keys)]
+                if not sub.empty:
+                    chunks.append(sub)
                 n_rows += len(chunk)
                 if n_rows % 10_000_000 == 0:
                     logger.info(
@@ -186,6 +219,11 @@ class AlphaMissenseConnector(BaseConnector):
                     )
 
         logger.info("AlphaMissense: finished parsing -- %d rows total.", n_rows)
+        if cohort_keys is not None:
+            logger.info(
+                "AlphaMissense: cohort filter active -- retained rows for up to "
+                "%d cohort keys.", len(cohort_keys)
+            )
 
         if not chunks:
             return pd.DataFrame(columns=["lookup_key", "alphamissense_score"])
