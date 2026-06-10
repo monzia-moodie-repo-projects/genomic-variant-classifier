@@ -3092,3 +3092,45 @@ _meta.json location audit. real_data_prep.py:444 fillna FutureWarning.
   conditional fix restores them. Full suite re-verified: 817 passed, 1 skipped.
 - Added diagnostic scripts: probe_protein_coord_cache.py, probe_split_esm2.py,
   probe_coord_merge_repro.py.
+
+## 2026-06-10 (cont.): Phase 0 gene-resolution + Phase 1 ESM-2 LLR feature
+
+- Phase 0 (commit fd5e293): new data/gene_symbols.py (normalize_gene_symbol,
+  gene_symbol_candidates; full symbol then ;-split components; never splits '-',
+  protecting HLA-A / NKX2-1 / readthrough fusions). Wired into esm2 (_get_sequence
+  candidate loop + _missing_genes aggregate log), eve (fixed a real case-drift bug:
+  variant _gene_symbol .fillna("") un-upper-cased vs an upper-cased lookup; now
+  normalizes both keys + drops empty-gene rows), protein_pipeline (get_accession
+  candidate loop). Suite 849 passed / 1 skipped.
+- Phase 1 (commit fd612e9): ESM-2 650M LLR scorer + esm2_llr feature.
+  - Scorer (data/esm2.py): _load_transformers_mlm (EsmForMaskedLM logits head,
+    distinct from the EsmModel embedding loader); _llr_from_logit_row
+    (logit[mut]-logit[wt]; partition function cancels -> normalization-domain-
+    invariant); _score_llr (WT-marginal = 1 pass/protein default; masked-marginal
+    opt-in; skips wt_aa-vs-sequence mismatches, counted); annotate_llr.
+  - CPU correctness gate (scripts/probe_esm2_llr.py) PASS: TP53 R175H/R248Q/R273H
+    WT-marginal -9.13 / -11.04 / -9.61 (pathogenic, negative); benign P72R -6.09;
+    every wt_aa matched the residue at its token index; WT- and masked-marginal
+    agree in sign.
+  - CALIBRATION: LLR sign is NOT a class label -- benign P72R also scores negative,
+    just less so. esm2_llr is a CONTINUOUS feature; the ensemble learns the
+    threshold (never a hard LLR<0 => pathogenic cutoff).
+  - Feature wired 79 -> 80: TABULAR_FEATURES += esm2_llr (after esm2_delta_norm);
+    EXPECTED_TABULAR_FEATURE_COUNT 79->80; INFERENCE_FEATURE_COLUMNS auto-derived
+    (list(TABULAR_FEATURES)). Assembled at BOTH sites (real_data_prep +
+    variant_ensemble) SIGNED with NO clip -- clipping would have silently zeroed the
+    pathogenic signal; a regression test fails loudly if a clip is reintroduced.
+  - Harness reference slice (correctness_harness.build_reference_slice) now
+    populates esm2_llr with a signed range -- a live feature, NOT added to
+    KNOWN_ZERO_DEFAULT (that set is dead-connectors only).
+  - Model default stays esm2_t6_8M_UR50D (CI fast, no 2.5GB download); regen MUST
+    set esm2_model_name=esm2_t33_650M_UR50D (printed in the step-16b log).
+  - Full suite 862 passed / 1 skipped.
+- Repo hygiene (commit a59d728): tracked prior-session diagnostics
+  (probe_uniprot_index, diagnose_esm2_coverage, clinvar_name_probe) + the step-10b
+  coverage-gate patcher (patch_add_protein_coord_coverage_gate, for committed
+  34e125a); .gitignore += *_bak_* (consolidation backups used _bak_, escaping the
+  existing *.bak_*).
+- Carried: Phase 2 = ESM C 600M (Cambrian, "Built with ESM"); Phase 3 = GPU regen +
+  LLR recalibration (signed-feature scaling); stale step-count log denominators
+  (/16, /17 vs 18 steps) cleanup; clingen int/float dtype drift before regen.
