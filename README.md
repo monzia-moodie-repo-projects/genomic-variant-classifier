@@ -5,20 +5,21 @@
 [![Holdout AUROC](https://img.shields.io/badge/Holdout%20AUROC-0.9984-brightgreen.svg)]()
 [![Variants](https://img.shields.io/badge/Training%20variants-1.49M-blue.svg)]()
 [![Features](https://img.shields.io/badge/Tabular%20features-80-blue.svg)]()
-[![Agents](https://img.shields.io/badge/Autonomous%20agents-13-blueviolet.svg)]()
+[![Agents](https://img.shields.io/badge/Core%20agents-7-blueviolet.svg)]()
 [![Tests](https://img.shields.io/badge/Tests-862%20passing-success.svg)]()
 
 A production-grade, multi-modal machine learning system for the five-tier clinical
 classification of human genomic variants -- **Pathogenic, Likely Pathogenic, Uncertain
 Significance, Likely Benign, and Benign** -- in accordance with ACMG/AMP guidelines.
 
-The system integrates genomic sequence data, population-stratified allele frequencies
-from eighteen biological databases, protein structural annotations, tissue-specific
-gene expression, variant co-classification evidence, and whole-slide histopathology
-imaging from The Cancer Genome Atlas into a unified stacking ensemble architecture,
-deployed as a production FastAPI REST service and continuously supervised by an
-autonomous agent layer of thirteen specialised monitoring agents communicating
-over a typed inter-agent message bus.
+The system integrates genomic sequence data, population-stratified allele frequencies,
+protein structural annotations, tissue-specific gene expression, and variant
+co-classification evidence from a suite of biological databases into a unified
+stacking-ensemble architecture, deployed as a production FastAPI REST service and
+continuously supervised by an autonomous agent layer of seven core monitoring agents
+-- plus a committed drift-detection suite -- over a typed inter-agent message bus.
+Whole-slide histopathology imaging (TCGA) is a future multi-modal phase tracked in
+`docs/ROADMAP.md`.
 
 **Run 15 (sealed 2026-06-09, commit 032a2ab): Test AUROC 0.9984 / Val 0.9983 / unseen-gene-holdout 0.9988** on gene-stratified expert-reviewed ClinVar variants (Test n=304,711).
 The model trains on a ~1.49 M-variant cohort drawn from ~2.49 M ClinVar missense variants, now a
@@ -36,7 +37,7 @@ a roster of up to twelve base classifiers: Random Forest, XGBoost, LightGBM, Cat
 Gradient Boosting, Logistic Regression, a Kolmogorov-Arnold Network (KAN), a
 PyTorch tabular neural network, a PyTorch 1D-CNN, Monte-Carlo Dropout, Deep Ensemble
 Wrapper, and a Graph Attention Network over the STRING protein-protein interaction
-graph. Input features span **80 dimensions** drawn from eighteen biological databases.
+graph. Input features span **80 dimensions** drawn from a suite of biological databases (further sources are being wired in the current data-expansion phase).
 
 **Sequence Branch** -- A PyTorch 1D-CNN operating over 101 bp genomic context windows
 (one-hot encoded) combined with ESM-2 protein-language-model features (HuggingFace
@@ -48,10 +49,10 @@ enters the ensemble as a CONTINUOUS feature -- its sign is not a class label (ev
 variants score negative), so the model learns the threshold. ESM-2 silent-zero failure
 modes are detected by `tests/unit/test_esm2_activation.py` per `INCIDENT_2026-04-17`.
 
-**Histopathology Branch** -- A ResNet-50 CNN fine-tuned on TCGA whole-slide image tiles
-(224x224 px at 20x magnification) across TCGA-BRCA, TCGA-LUAD, and TCGA-COAD cohorts,
-providing phenotypic validation that anchors molecular classifications in observable
-tissue-level consequences.
+**Histopathology Branch (planned -- future multi-modal expansion).** A ResNet-50 branch
+over TCGA whole-slide tiles is a roadmap ambition for the multi-modal program; it is not
+yet implemented. The current system is the tabular variant classifier described above.
+Image, RNA, and protein-structure modalities are tracked as future phases in `docs/ROADMAP.md`.
 
 ```
 ClinVar . gnomAD v4.1 . FinnGen R12 . 1000 Genomes . AlphaMissense . SpliceAI
@@ -73,7 +74,7 @@ cnn_1d . MCDrop                                 PyTorch 1D-CNN
      |                        |                        |
      +-----------+------------+----------------+-------+
                               |
-                    ResNet-50 Histopathology Branch
+                    ResNet-50 Histopathology Branch [PLANNED - see ROADMAP]
                     TCGA-BRCA . TCGA-LUAD . TCGA-COAD
                     224x224 tiles . 20x magnification
                               |
@@ -88,7 +89,7 @@ cnn_1d . MCDrop                                 PyTorch 1D-CNN
      +------------------------+------------------------+
      |                                                 |
   FastAPI REST API                       Autonomous Agent Layer
-  7 endpoints . auth . rate-limit        13 monitoring agents
+  7 endpoints . auth . rate-limit        7 core agents + drift suite
   Docker . GHCR . CI/CD                  typed inter-agent message bus
   Prometheus . Grafana                   shared state + orchestrator
                                          continual learning + EWC
@@ -121,10 +122,10 @@ gene-disease knowledge bases (OMIM, ClinGen, LOVD, HGMD), protein structure
 (MaxEntScan), variant identity (dbSNP b156, dbNSFP v4.7), and protein-protein
 interaction topology (STRING DB v12).
 
-**Phenotypically grounded** -- The TCGA histopathology branch provides an empirical
-link between variant pathogenicity classification and observable tumor-tissue
-morphology, validated across breast, lung adenocarcinoma, and colorectal cancer
-cohorts.
+**Phenotypically grounded (planned).** A future TCGA histopathology branch will link
+variant pathogenicity classification to observable tumor-tissue morphology across breast,
+lung adenocarcinoma, and colorectal cancer cohorts -- a multi-modal capability on the
+roadmap (`docs/ROADMAP.md`), not yet implemented.
 
 **Production deployed** -- FastAPI service on port 8000, multi-stage Dockerfile
 (builder / api / trainer targets), image published to GHCR
@@ -266,11 +267,11 @@ Prometheus `/metrics` instrumentation via `prometheus-fastapi-instrumentator`.
 
 Evaluated on **349,067 held-out variants** (gene-stratified; no gene appears in both
 train and test). Training cohort: 1,197,216 variants (20.3% pathogenic) at the
-publication snapshot; recent runs use the full 1.70 M-variant matrix.
+Run 8 baseline; recent runs (Run 14/15) use the full ~1.49 M-variant cohort.
 
 | Metric | Value |
 |--------|-------|
-| Holdout AUROC (publication snapshot) | **0.9847** |
+| Holdout AUROC (Run 8 baseline) | **0.9847** |
 | Brier score | 0.0584 |
 | Sensitivity @ 90% specificity | 0.900 |
 | Specificity @ 90% sensitivity | 0.918 |
@@ -278,7 +279,7 @@ publication snapshot; recent runs use the full 1.70 M-variant matrix.
 | Training set | 1,197,216 variants |
 | Label source | ClinVar expert-reviewed (tier 2+) |
 
-### Per-model performance (validation set, publication snapshot)
+### Per-model performance (validation set, Run 8 baseline)
 
 | Model | AUROC | AUPRC | F1 (macro) | MCC | Brier |
 |-------|-------|-------|-----------|-----|-------|
@@ -294,11 +295,6 @@ publication snapshot; recent runs use the full 1.70 M-variant matrix.
 
 | Run | Date | Hardware | Holdout AUROC | Notes |
 |-----|------|----------|--------------:|-------|
-| Run 6 | 2026-04 | GCP n2-highmem-32 (CPU) | 0.9862 | First full 78-feature run; ESM-2 silently inert |
-| Run 7 | 2026-04 | GCP n2-highmem-32 (CPU) | 0.9862 | gnomAD v4.1 constraint wired; GNN still CPU-only |
-| **Run 8** | **2026-04-16** | **Vast.ai RTX 4090** | **0.9863** (test 0.9833) | **AUPRC 0.9461, MCC 0.8482, Brier 0.0358; AlphaMissense ranked 7/78** |
-| Run 9 | 2026-05-09 | Vast.ai RTX 4090 | OOF 0.9916 (blend) | Best single LightGBM OOF 0.9911; locked test lost to `save()` PicklingError |
-| Run 10 | scheduled | Vast.ai RTX 4090 | -- | Phase-1.7 launch script + dual-layer preflight; targets locked test recovery |
 | Run 14 | 2026-06-03 | Vast.ai RTX 4090 | 0.9975 | commit eb11029; SNV/indel leakage traced entirely to null ref/alt records (no real-allele leakage) |
 | **Run 15** | **2026-06-09** | **Vast.ai RTX 4090** | **0.9984** (test) | **commit 032a2ab; Val 0.9983 / unseen-gene-holdout 0.9988; 79 features. ESM-2 650M LLR + 80-feature contract added 2026-06-10 (Phase 1), realized at next regen** |
 
