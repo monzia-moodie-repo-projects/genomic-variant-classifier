@@ -3070,3 +3070,10 @@ _meta.json location audit. real_data_prep.py:444 fillna FutureWarning.
 - Finding #1 CLOSED: requirements.txt websockets pin commented (af9978e). Clean resolve validated; pip selects websockets-15.0.1 (langgraph-sdk requires <16,>=14). requirements.txt is manually maintained (pip-compile-under-3.14 output + manual edits; header forbids auto-regen), so the edit is durable.
 - Finding #4 NON-BLOCKING: requirements.lock pins websockets==16.0 but, being pip-compiled from requirements.in before imodelsx/langchain entered the tree, contains no langgraph-sdk and thus no <16 constraint -- it would install without ResolutionImpossible and is referenced by no install path. Not hand-edited (hashed lock).
 - DRIFT -> Phase-2 dep-consolidation: requirements.in/.lock are stale vs requirements.txt (missing imodelsx + langchain); requirements.txt compiled under 3.14 not 3.12 (PHASE_2_FEATURES.pipcompile_python312_migration); multiple requirements-{api,dev,agents} files of varied vintage. A single pip-compile-under-3.12 pass regenerating all locks resolves the stale websockets automatically.
+## 2026-06-09 - Run 15
+
+- Run 15 SEALED (commit 032a2ab): Test AUROC 0.9984 / Val 0.9983 / unseen-gene-holdout 0.9988 (C3 falsifier PASS). 79 features, 1.49M cohort, ~11.5h RTX 4090, ~$6.
+- ESM-2 stall fixed + shipped (local UniProt index, no run-time REST, GPU auto-detect). Coverage only ~3,451/~1.49M -> HGVSp parser promoted to top Phase-D unblock; current AUROCs rest on tabular + constraint features.
+- AlphaMissense 71.7M-row OOM re-validated (cohort-filter-during-parse, 325b0d2).
+- gene_constraint_oe revived (Run-14 all-zero -> #2 feature); gnn_score confirmed real; cnn_1d (0.85) and kan (0.996) recovered.
+- Infra: SSH background launch needs < /dev/null; read-only checks use -n/ConnectTimeout/BatchMode; Run15_Smoke.ps1 poll-bail bug + clingen dtype drift flagged.
