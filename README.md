@@ -412,7 +412,7 @@ docker compose up api
   the in-flight HGVSp parser (Run 10), run KAN through the benchmark harness
   against MLP, integrate Deep Ensemble uncertainty into VUS flagging, and
   fuse GNN gene embeddings with `TABULAR_FEATURES` before stacking. Tracked
-  in `ROADMAP.md`.
+  in `docs/ROADMAP.md`.
 - **Phase 5 -- Clinical validation and manuscript.** Prospective validation
   on BRCA1/2, TP53, PTEN, ATM panels; comparison against ClinVar star-rating
   on expert-reviewed variants; model card; manuscript draft.
