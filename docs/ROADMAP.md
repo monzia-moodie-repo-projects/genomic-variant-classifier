@@ -324,3 +324,21 @@ SVM is excluded from all production runs (n > 100K).
 
 *This roadmap is a living document. Update after each phase gate.*
 
+
+## Backlog additions -- 2026-06-10 (agent layer)
+
+- **Populate drift-agent reference baselines** (moves the 8 drift agents from
+  awaiting_baseline -> active detection). Per agent, supply its inputs:
+  - SchemaDriftMonitorAgent: expected schema baseline (expected_dtypes + hash) + current matrix.
+  - ConceptDriftMonitorAgent: NannyML CBPE estimated AUROC + BBSE p-value.
+  - LabelShiftMonitorAgent: reference confusion matrix + p_train + a prediction-log window.
+  - CalibrationDriftMonitorAgent: labeled predictions with per-class posteriors + baseline ECE.
+  - InfrastructureDriftMonitorAgent: pinned packages + expected DAG hash + golden set + replay.
+  - FairnessSubgroupMonitorAgent: per-stratum p_train + predictions + axis columns.
+  - AdversarialSubmissionMonitorAgent: weekly ClinVar submission feeds + baselines.
+  - AnnotationPolicyMonitorAgent: SVI publication feed + ClinVar review-status deltas + submitter history.
+  Note: data/reference/ recorded absent on 2026-05-07 -- create it first.
+- **README registry-table precision** (optional): rename the 8 detector rows to the registered
+  *MonitorAgent wrapper class names.
+- **alibi-detect**: install only if a future detector imports it (none do today).
+- Ref: docs/incidents/INCIDENT_2026-06-10_agent_layer_regression.md.

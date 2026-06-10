@@ -158,3 +158,4 @@ outputs/**/.run*_state.json
 
 # consolidation/other backups use _bak_ (not .bak_); complements *.bak_*
 *_bak_*
+split_health.csv

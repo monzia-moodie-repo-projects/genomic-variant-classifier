@@ -3134,3 +3134,34 @@ _meta.json location audit. real_data_prep.py:444 fillna FutureWarning.
 - Carried: Phase 2 = ESM C 600M (Cambrian, "Built with ESM"); Phase 3 = GPU regen +
   LLR recalibration (signed-feature scaling); stale step-count log denominators
   (/16, /17 vs 18 steps) cleanup; clingen int/float dtype drift before regen.
+
+## 2026-06-10 -- Agent layer re-wiring (4 -> 13 operational)
+
+### Fixed
+- Restored the orchestrated agent layer from 4 to 13 operational agents. The April->May
+  decomposition of DriftMonitorAgent into 8 detectors plus the C1 migration orchestrator
+  rewrite had left the 8 detectors orphaned (no BaseAgent/run(), unregistered) and dropped
+  VersionMonitorAgent's class.
+  - DriftMonitorBase adapter + 8 thin wrappers (Schema/Concept/LabelShift/Calibration/
+    Infrastructure/Fairness/Adversarial/AnnotationPolicy MonitorAgent) over the existing
+    detect()/persist(); detectors now COMPOSED, not orphaned. Wrappers report
+    status='awaiting_baseline' until reference inputs exist.
+  - Restored VersionMonitorAgent as a BaseAgent wrapper over the existing module-level
+    upstream-release watch targets.
+  - Registered all 9 in Orchestrator._register_agents().
+
+### Added
+- scripts/audit_agent_roster.py, scripts/audit_agent_operational.py (AST audit tooling).
+- scripts/patch_register_drift_agents.py, patch_add_version_monitor_agent.py, patch_readme_agent_count.py.
+- tests/unit/test_drift_monitor_agents.py, test_schema_drift_monitor_agent.py, test_version_monitor_agent.py.
+- docs/incidents/INCIDENT_2026-06-10_agent_layer_regression.md.
+
+### Changed
+- README: agent count reconciled 7 -> 13; stale "Py 3.14.3" -> "Python 3.12.10".
+
+### Verification
+- 11 new agent tests pass; full suite 872 passed / 6 skipped.
+- Gate: operational=13 composed=8 orphaned=0 total=21.
+
+### Commits
+- 8619afc (drift re-wiring), 21e835d (VersionMonitorAgent + README). Pushed to origin/main.
