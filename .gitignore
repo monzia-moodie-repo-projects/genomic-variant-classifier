@@ -155,3 +155,6 @@ outputs/**/.run*_state.json
 
 # patcher backups
 *.bak_*
+
+# consolidation/other backups use _bak_ (not .bak_); complements *.bak_*
+*_bak_*
