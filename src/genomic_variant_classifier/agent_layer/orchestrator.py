@@ -118,6 +118,7 @@ class Orchestrator:
         from genomic_variant_classifier.agent_layer.agents.training_lifecycle_agent import TrainingLifecycleAgent
         from genomic_variant_classifier.agent_layer.agents.interpretability_agent import InterpretabilityAgent
         from genomic_variant_classifier.agent_layer.agents.literature_scout_agent import LiteratureScoutAgent
+        from genomic_variant_classifier.agent_layer.agents.version_monitor_agent import VersionMonitorAgent
         from genomic_variant_classifier.agent_layer.agents.concept_drift_monitor_agent import ConceptDriftMonitorAgent
         from genomic_variant_classifier.agent_layer.agents.label_shift_monitor_agent import LabelShiftMonitorAgent
         from genomic_variant_classifier.agent_layer.agents.calibration_drift_monitor_agent import CalibrationDriftMonitorAgent
@@ -132,6 +133,7 @@ class Orchestrator:
             "TrainingLifecycleAgent": TrainingLifecycleAgent,
             "InterpretabilityAgent": InterpretabilityAgent,
             "LiteratureScoutAgent": LiteratureScoutAgent,
+            "VersionMonitorAgent": VersionMonitorAgent,
             "ConceptDriftMonitorAgent": ConceptDriftMonitorAgent,
             "LabelShiftMonitorAgent": LabelShiftMonitorAgent,
             "CalibrationDriftMonitorAgent": CalibrationDriftMonitorAgent,

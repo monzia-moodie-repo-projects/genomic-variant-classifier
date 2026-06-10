@@ -33,6 +33,8 @@ Conventions:
 
 from __future__ import annotations
 
+from genomic_variant_classifier.agent_layer.agents.base_agent import BaseAgent
+
 import gzip
 import hashlib
 import json
@@ -336,6 +338,38 @@ def run(*, dry_run: bool = False) -> dict[str, Any]:
     return all_updates
 
 
+
+_run_watch_targets = run  # module-level watch-target orchestrator (aliased before the method below)
+
+
+class VersionMonitorAgent(BaseAgent):
+    """Upstream-release monitor: pykan / ClinVar / AlphaMissense / torch-geometric.
+
+    Distinct from InfrastructureDriftAgent (which diffs *installed* package versions):
+    this watches for *new upstream releases*. BaseAgent adapter over the module-level
+    watch-target functions; surfaces a summary into the 'version_monitor' section.
+    """
+
+    def run(self, dry_run: bool = False) -> dict:
+        self._log_start(dry_run)
+        updates = _run_watch_targets(dry_run=dry_run)
+        alerts = updates.get("literature_scout.alerts", [])
+        result = {
+            "status": "ok",
+            "n_alerts": len(alerts),
+            "alerts": alerts,
+            "pykan_installed": updates.get("literature_scout.pykan_installed"),
+            "pykan_latest": updates.get("literature_scout.pykan_latest"),
+            "pykan_alert": updates.get("literature_scout.pykan_alert", False),
+            "last_run": updates.get("literature_scout.last_run"),
+            "checked_at": self._now_iso(),
+            "dry_run": dry_run,
+        }
+        self._update_section("version_monitor", result)
+        self._log_finish(result)
+        return result
+
+
 if __name__ == "__main__":
     import argparse
     logging.basicConfig(
@@ -343,7 +377,7 @@ if __name__ == "__main__":
         format="%(asctime)s  %(levelname)-8s %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    p = argparse.ArgumentParser(description="LiteratureScoutAgent")
+    p = argparse.ArgumentParser(description="VersionMonitorAgent")
     p.add_argument("--dry-run", action="store_true",
                    help="Print results without writing to agent_state.json")
     args = p.parse_args()

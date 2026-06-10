@@ -5,7 +5,7 @@
 [![Holdout AUROC](https://img.shields.io/badge/Holdout%20AUROC-0.9984-brightgreen.svg)]()
 [![Variants](https://img.shields.io/badge/Training%20variants-1.49M-blue.svg)]()
 [![Features](https://img.shields.io/badge/Tabular%20features-80-blue.svg)]()
-[![Agents](https://img.shields.io/badge/Core%20agents-7-blueviolet.svg)]()
+[![Agents](https://img.shields.io/badge/Core%20agents-13-blueviolet.svg)]()
 [![Tests](https://img.shields.io/badge/Tests-862%20passing-success.svg)]()
 
 A production-grade, multi-modal machine learning system for the five-tier clinical
@@ -16,7 +16,7 @@ The system integrates genomic sequence data, population-stratified allele freque
 protein structural annotations, tissue-specific gene expression, and variant
 co-classification evidence from a suite of biological databases into a unified
 stacking-ensemble architecture, deployed as a production FastAPI REST service and
-continuously supervised by an autonomous agent layer of seven core monitoring agents
+continuously supervised by an autonomous agent layer of thirteen specialised agents
 -- plus a committed drift-detection suite -- over a typed inter-agent message bus.
 Whole-slide histopathology imaging (TCGA) is a future multi-modal phase tracked in
 `docs/ROADMAP.md`.
@@ -89,7 +89,7 @@ cnn_1d . MCDrop                                 PyTorch 1D-CNN
      +------------------------+------------------------+
      |                                                 |
   FastAPI REST API                       Autonomous Agent Layer
-  7 endpoints . auth . rate-limit        7 core agents + drift suite
+  7 endpoints . auth . rate-limit        13 specialised agents
   Docker . GHCR . CI/CD                  typed inter-agent message bus
   Prometheus . Grafana                   shared state + orchestrator
                                          continual learning + EWC
@@ -132,7 +132,7 @@ roadmap (`docs/ROADMAP.md`), not yet implemented.
 plus a scheduled GitHub Actions drift-monitoring workflow. Publishing the image to a
 container registry such as GHCR and a full build/test CI pipeline are roadmap items.
 
-**Autonomously maintained** -- A monitoring layer of seven core agents plus a committed drift-detection suite (DataFreshnessAgent,
+**Autonomously maintained** -- A monitoring layer of thirteen specialised agents (DataFreshnessAgent,
 VersionMonitorAgent, SchemaDriftAgent, ConceptDriftAgent, LabelShiftAgent,
 CalibrationDriftAgent, InfrastructureDriftAgent, FairnessSubgroupAgent,
 AdversarialSubmissionAgent, AnnotationPolicyAgent, InterpretabilityAgent,
@@ -245,7 +245,7 @@ inheriting from `BaseAgent` and communicating over a typed `message_bus`.
 
 `agent_layer/orchestrator.py` schedules agent execution and routes typed messages;
 `agent_layer/shared_state.py` provides a JSON-persisted shared blackboard;
-`agent_layer/test_message_bus.py` exercises the bus (34/34 passing on Py 3.14.3).
+`agent_layer/test_message_bus.py` exercises the bus (34/34 passing on Python 3.12.10).
 
 ## REST API
 
