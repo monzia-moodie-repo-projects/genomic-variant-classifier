@@ -118,12 +118,28 @@ class Orchestrator:
         from genomic_variant_classifier.agent_layer.agents.training_lifecycle_agent import TrainingLifecycleAgent
         from genomic_variant_classifier.agent_layer.agents.interpretability_agent import InterpretabilityAgent
         from genomic_variant_classifier.agent_layer.agents.literature_scout_agent import LiteratureScoutAgent
+        from genomic_variant_classifier.agent_layer.agents.concept_drift_monitor_agent import ConceptDriftMonitorAgent
+        from genomic_variant_classifier.agent_layer.agents.label_shift_monitor_agent import LabelShiftMonitorAgent
+        from genomic_variant_classifier.agent_layer.agents.calibration_drift_monitor_agent import CalibrationDriftMonitorAgent
+        from genomic_variant_classifier.agent_layer.agents.infrastructure_drift_monitor_agent import InfrastructureDriftMonitorAgent
+        from genomic_variant_classifier.agent_layer.agents.fairness_subgroup_monitor_agent import FairnessSubgroupMonitorAgent
+        from genomic_variant_classifier.agent_layer.agents.adversarial_submission_monitor_agent import AdversarialSubmissionMonitorAgent
+        from genomic_variant_classifier.agent_layer.agents.annotation_policy_monitor_agent import AnnotationPolicyMonitorAgent
+        from genomic_variant_classifier.agent_layer.agents.schema_drift_monitor_agent import SchemaDriftMonitorAgent
 
         self._agent_registry = {
             "DataFreshnessAgent": DataFreshnessAgent,
             "TrainingLifecycleAgent": TrainingLifecycleAgent,
             "InterpretabilityAgent": InterpretabilityAgent,
             "LiteratureScoutAgent": LiteratureScoutAgent,
+            "ConceptDriftMonitorAgent": ConceptDriftMonitorAgent,
+            "LabelShiftMonitorAgent": LabelShiftMonitorAgent,
+            "CalibrationDriftMonitorAgent": CalibrationDriftMonitorAgent,
+            "InfrastructureDriftMonitorAgent": InfrastructureDriftMonitorAgent,
+            "FairnessSubgroupMonitorAgent": FairnessSubgroupMonitorAgent,
+            "AdversarialSubmissionMonitorAgent": AdversarialSubmissionMonitorAgent,
+            "AnnotationPolicyMonitorAgent": AnnotationPolicyMonitorAgent,
+            "SchemaDriftMonitorAgent": SchemaDriftMonitorAgent,
         }
 
     # ------------------------------------------------------------------
