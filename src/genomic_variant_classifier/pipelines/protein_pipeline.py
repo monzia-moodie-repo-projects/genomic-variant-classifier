@@ -67,6 +67,8 @@ import numpy as np
 import pandas as pd
 import requests
 
+from genomic_variant_classifier.data.gene_symbols import gene_symbol_candidates
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -112,15 +114,18 @@ class _UniProtMapper:
             return self._cache[gene_symbol]
 
         accession: Optional[str] = None
-        try:
-            url = UNIPROT_LOOKUP.format(symbol=gene_symbol)
-            resp = requests.get(url, timeout=_REQUEST_TIMEOUT)
-            if resp.ok:
-                lines = resp.text.strip().splitlines()
-                if len(lines) > 1:   # header + at least one result
-                    accession = lines[1].strip()
-        except Exception as exc:
-            logger.debug("UniProt lookup failed for %s: %s", gene_symbol, exc)
+        for _cand in gene_symbol_candidates(gene_symbol):
+            try:
+                url = UNIPROT_LOOKUP.format(symbol=_cand)
+                resp = requests.get(url, timeout=_REQUEST_TIMEOUT)
+                if resp.ok:
+                    lines = resp.text.strip().splitlines()
+                    if len(lines) > 1:   # header + at least one result
+                        accession = lines[1].strip()
+                        if accession:
+                            break
+            except Exception as exc:
+                logger.debug("UniProt lookup failed for %s: %s", _cand, exc)
 
         self._cache[gene_symbol] = accession
         if self._cache_path:

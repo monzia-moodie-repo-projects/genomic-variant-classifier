@@ -70,6 +70,11 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
+from genomic_variant_classifier.data.gene_symbols import (
+    gene_symbol_candidates,
+    normalize_gene_symbol,
+)
+
 _DEFAULT_MODEL = os.environ.get("ESM2_MODEL_NAME", "esm2_t6_8M_UR50D")
 _DEFAULT_CACHE = Path(
     os.environ.get("ESM2_CACHE_PATH", "data/raw/cache/esm2_cache.sqlite")
@@ -510,6 +515,7 @@ class ESM2Connector:
         self._conn: Optional[sqlite3.Connection] = None
         self._uniprot_index: Optional[dict] = None
         self._warned_missing = False
+        self._missing_genes: set = set()
 
     def _get_conn(self) -> sqlite3.Connection:
         if self._conn is None:
@@ -526,16 +532,22 @@ class ESM2Connector:
         if self.uniprot_index_path is not None:
             if self._uniprot_index is None:
                 self._uniprot_index = _load_uniprot_index(self.uniprot_index_path)
-            seq = self._uniprot_index.get(str(gene).strip().upper())
+            seq = None
+            for _cand in gene_symbol_candidates(gene):
+                seq = self._uniprot_index.get(_cand)
+                if seq:
+                    break
             if seq:
                 _cache_put_sequence(conn, gene, "", seq)
                 return seq
             if not self.allow_network:
+                self._missing_genes.add(normalize_gene_symbol(gene))
                 if not self._warned_missing:
                     logger.warning(
-                        "ESM-2: gene(s) absent from the UniProt index and network "
-                        "disabled -- those variants get esm2_delta_norm=0.0 "
-                        "(first missing: %s).", gene,
+                        "ESM-2: one or more gene symbols are absent from the "
+                        "UniProt index and network is disabled -- those variants "
+                        "get esm2_delta_norm=0.0 (first: %s). Aggregate count is "
+                        "logged at the end of annotate_dataframe.", gene,
                     )
                     self._warned_missing = True
                 return None
@@ -592,6 +604,15 @@ class ESM2Connector:
 
         n_scored = sum(1 for v in scores.values() if v > 0.0)
         logger.info("ESM-2: %d/%d variants scored (>0).", n_scored, len(candidates))
+        if self._missing_genes:
+            _missing_norm = candidates["gene_symbol"].map(normalize_gene_symbol)
+            _n_missing_var = int(_missing_norm.isin(self._missing_genes).sum())
+            logger.warning(
+                "ESM-2: %d gene symbol(s) absent from the UniProt index -> %d "
+                "candidate missense variant(s) scored 0.0. Examples: %s",
+                len(self._missing_genes), _n_missing_var,
+                ", ".join(sorted(self._missing_genes)[:10]),
+            )
         return df
 
     def _score_per_variant(self, candidates: pd.DataFrame) -> dict:

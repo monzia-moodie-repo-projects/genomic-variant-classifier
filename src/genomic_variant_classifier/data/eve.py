@@ -41,6 +41,10 @@ from typing import Optional
 import pandas as pd
 
 from genomic_variant_classifier.data.database_connectors import BaseConnector, FetchConfig
+from genomic_variant_classifier.data.gene_symbols import (
+    gene_symbol_candidates,
+    normalize_gene_symbol,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -300,7 +304,6 @@ class EVEConnector(BaseConnector):
             "gene_symbol",
             pd.Series([""] * len(result), index=result.index),
         ).fillna("")
-        result["_gene_symbol"] = gene_symbol
 
         # Only attempt to join for rows with a valid aa_change
         has_key = result["_aa_change"].notna()
@@ -308,6 +311,25 @@ class EVEConnector(BaseConnector):
         score_table = lookup.rename(
             columns={"gene_symbol": "_gene_symbol", "aa_change": "_aa_change"}
         )
+        # Normalize the lookup gene key so case/whitespace never blocks a
+        # match, and drop unusable empty-gene rows so they cannot spuriously
+        # match an empty variant gene_symbol.
+        score_table["_gene_symbol"] = score_table["_gene_symbol"].map(
+            normalize_gene_symbol
+        )
+        score_table = score_table[score_table["_gene_symbol"] != ""]
+        _lookup_genes = set(score_table["_gene_symbol"])
+
+        def _resolve_gene(_raw: object) -> str:
+            # First candidate present in the EVE lookup wins: recovers
+            # semicolon-joined multi-gene symbols and fixes case drift.
+            # Never splits on "-".
+            for _cand in gene_symbol_candidates(_raw):
+                if _cand in _lookup_genes:
+                    return _cand
+            return normalize_gene_symbol(_raw)
+
+        result["_gene_symbol"] = gene_symbol.map(_resolve_gene)
 
         result = result.merge(
             score_table,

@@ -56,7 +56,7 @@ ClinVar (labels+cohort), gnomAD v4 (LOEUF, pLI, AF, **mis_z, syn_z, gene_constra
 
 | **Source** | **Dead/partial column(s)** | **Access** | **Note** |
 | --- | --- | --- | --- |
-| ESM-2 | esm2_delta_norm | local model+index | MECHANICALLY ACTIVE; coverage ~3,451 only -> **gated on HGVSp parser** |
+| ESM-2 | esm2_delta_norm | local model+index | code-FIXED 2026-06-10: the ~3,451 cap was a STALE protein-coord index (gate 34e125a; local ceiling 96.6%); gene-resolution hardened (Phase 0); realizes ~2.4M scores after the Run 16 coord-sync; LLR + 650M/ESM C migration in progress |
 | PhyloP | phylop_score | free bigWig | conservation |
 | GTEx | gtex_* (6) | free | eQTL/expression |
 | 1000 Genomes | af_1kg_* (5) | free VCF | population AF |
@@ -79,7 +79,7 @@ Strong fits: AlphaFold DB (DO), RefSNP/dbSNP (DO), COSMIC (DO, academic; feature
 
 # 5. Immediate plan
 
-- **HGVSp parser (highest leverage, empirically confirmed by Run 15):** populate protein_pos/wt_aa/mut_aa across the cohort to lift ESM-2 (and EVE) coverage from ~3,451 to ~1M. Until then ESM-2 carries no real full-run signal.
+- **ESM-2 coverage (RESOLVED 2026-06-10):** the ~3,451 cap was a stale AlphaMissense protein-coord index on the training box, not an HGVSp-parser gap (protein_pos/wt_aa/mut_aa are populated by step 10b; hgvsp_parser.py / protein_coords.py already exist). Coverage gate shipped (34e125a; local ceiling 96.6%); Run 16 prereq is an operational coord-index sync. Method/model migration to LLR + ESM-2 650M -> ESM C 600M now in progress (Phase 1).
 
 - **n_pathogenic_in_gene computation-scope audit:** confirm train-only-per-fold vs corpus-wide; recompute train-only if corpus-wide, to close the leakage question the UGH 0.9988 result left open.
 
