@@ -2,11 +2,11 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Holdout AUROC](https://img.shields.io/badge/Holdout%20AUROC-0.9847-brightgreen.svg)]()
-[![Variants](https://img.shields.io/badge/Training%20variants-1.70M-blue.svg)]()
-[![Features](https://img.shields.io/badge/Tabular%20features-78-blue.svg)]()
+[![Holdout AUROC](https://img.shields.io/badge/Holdout%20AUROC-0.9984-brightgreen.svg)]()
+[![Variants](https://img.shields.io/badge/Training%20variants-1.49M-blue.svg)]()
+[![Features](https://img.shields.io/badge/Tabular%20features-80-blue.svg)]()
 [![Agents](https://img.shields.io/badge/Autonomous%20agents-13-blueviolet.svg)]()
-[![Tests](https://img.shields.io/badge/Tests-501%20passing-success.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-862%20passing-success.svg)]()
 
 A production-grade, multi-modal machine learning system for the five-tier clinical
 classification of human genomic variants -- **Pathogenic, Likely Pathogenic, Uncertain
@@ -20,9 +20,9 @@ deployed as a production FastAPI REST service and continuously supervised by an
 autonomous agent layer of thirteen specialised monitoring agents communicating
 over a typed inter-agent message bus.
 
-**Holdout AUROC: 0.9847** on 154,404 gene-stratified expert-reviewed ClinVar variants.
-Run-8 holdout AUROC **0.9863** / test AUROC **0.9833** on the full 1.70 M-variant
-78-feature matrix (Vast.ai RTX 4090, 4,270 s wall-clock, 1.8 GB artifacts).
+**Run 15 (sealed 2026-06-09, commit 032a2ab): Test AUROC 0.9984 / Val 0.9983 / unseen-gene-holdout 0.9988** on gene-stratified expert-reviewed ClinVar variants (Test n=304,711).
+The model trains on a ~1.49 M-variant cohort drawn from ~2.49 M ClinVar missense variants, now a
+80-feature matrix (Run 15: Vast.ai RTX 4090, ~11.5 h, ~$6). Earlier Run-8: holdout 0.9863 / test 0.9833 on 78 features.
 
 ---
 
@@ -36,13 +36,17 @@ a roster of up to twelve base classifiers: Random Forest, XGBoost, LightGBM, Cat
 Gradient Boosting, Logistic Regression, a Kolmogorov-Arnold Network (KAN), a
 PyTorch tabular neural network, a PyTorch 1D-CNN, Monte-Carlo Dropout, Deep Ensemble
 Wrapper, and a Graph Attention Network over the STRING protein-protein interaction
-graph. Input features span **78 dimensions** drawn from eighteen biological databases.
+graph. Input features span **80 dimensions** drawn from eighteen biological databases.
 
 **Sequence Branch** -- A PyTorch 1D-CNN operating over 101 bp genomic context windows
-(one-hot encoded) combined with ESM-2 protein language model embeddings (HuggingFace
-`transformers` backend, SQLite cache, scalar L2-delta embedding) capturing evolutionary
-and structural variant context. ESM-2 silent-zero failure modes are explicitly
-detected by `tests/unit/test_esm2_activation.py` per `INCIDENT_2026-04-17`.
+(one-hot encoded) combined with ESM-2 protein-language-model features (HuggingFace
+`transformers` backend). Two signals are derived: the scalar L2 embedding-delta
+(`esm2_delta_norm`, secondary) and -- as of Phase 1 -- the primary log-likelihood-ratio
+`esm2_llr` (`logit[mut] - logit[wt]` from the ESM-2 650M masked-LM head; WT-marginal by
+default, masked-marginal opt-in). `esm2_llr` is SIGNED (negative = more damaging) and
+enters the ensemble as a CONTINUOUS feature -- its sign is not a class label (even benign
+variants score negative), so the model learns the threshold. ESM-2 silent-zero failure
+modes are detected by `tests/unit/test_esm2_activation.py` per `INCIDENT_2026-04-17`.
 
 **Histopathology Branch** -- A ResNet-50 CNN fine-tuned on TCGA whole-slide image tiles
 (224x224 px at 20x magnification) across TCGA-BRCA, TCGA-LUAD, and TCGA-COAD cohorts,
@@ -161,9 +165,9 @@ a structured `docs/incidents/` directory record every root cause and fix.
 | Neural -- sequence | `CNN1DClassifier` (PyTorch, Conv1d + AdaptiveMaxPool1d) | Migrated TF -> PyTorch (Run 8 final) |
 | Bayesian uncertainty | `MCDropoutWrapper`, `DeepEnsembleWrapper` | epistemic + aleatoric decomposition |
 | Graph | 3-layer GAT over STRING PPI (gene-level prior) | Production |
-| Foundation model | ESM-2 scalar L2 delta (HF transformers, SQLite cache) | Active when HGVSp populated |
+| Foundation model | ESM-2 650M: `esm2_llr` LLR (primary) + scalar L2 delta (secondary), HF transformers | Phase 1 done; full-cohort scoring after Run-16 coord-sync |
 
-## Feature set (78 features)
+## Feature set (80 features)
 
 | Group | Count | Key features |
 |-------|-------|-------------|
@@ -185,7 +189,8 @@ a structured `docs/incidents/` directory record every root cause and fix.
 | Protein structure | 4 | alphafold_plddt, solvent_accessibility, secondary_structure_context, dist_to_active_site |
 | 1000 Genomes AF | 5 | af_1kg_afr, af_1kg_eur, af_1kg_eas, af_1kg_sas, af_1kg_amr |
 | FinnGen R12 AF | 3 | finngen_af_fin, finngen_af_nfsee, finngen_enrichment |
-| ESM-2 (pending HGVSp parser, Run 10) | 1 | esm2_delta_norm |
+| Reactome | 1 | reactome_pathway_count |
+| ESM-2 (650M) | 2 | esm2_delta_norm (secondary), esm2_llr (primary, signed LLR) |
 | Reserved (Deep Ensemble) | 2 | uncertainty_epistemic, uncertainty_aleatoric |
 
 `TABULAR_FEATURES` and `engineer_features()` are kept in sync by a runtime
@@ -246,7 +251,7 @@ inheriting from `BaseAgent` and communicating over a typed `message_bus`.
 
 ```
 GET  /health          Liveness + readiness
-GET  /info            Model metadata, 78 features, drift status
+GET  /info            Model metadata, 80 features, drift status
 GET  /metrics         Prometheus metrics
 GET  /gene/{symbol}   Gene-level feature lookup
 GET  /rsid/{rs_id}    rs-ID resolution + prediction
@@ -294,6 +299,8 @@ publication snapshot; recent runs use the full 1.70 M-variant matrix.
 | **Run 8** | **2026-04-16** | **Vast.ai RTX 4090** | **0.9863** (test 0.9833) | **AUPRC 0.9461, MCC 0.8482, Brier 0.0358; AlphaMissense ranked 7/78** |
 | Run 9 | 2026-05-09 | Vast.ai RTX 4090 | OOF 0.9916 (blend) | Best single LightGBM OOF 0.9911; locked test lost to `save()` PicklingError |
 | Run 10 | scheduled | Vast.ai RTX 4090 | -- | Phase-1.7 launch script + dual-layer preflight; targets locked test recovery |
+| Run 14 | 2026-06-03 | Vast.ai RTX 4090 | 0.9975 | commit eb11029; SNV/indel leakage traced entirely to null ref/alt records (no real-allele leakage) |
+| **Run 15** | **2026-06-09** | **Vast.ai RTX 4090** | **0.9984** (test) | **commit 032a2ab; Val 0.9983 / unseen-gene-holdout 0.9988; 79 features. ESM-2 650M LLR + 80-feature contract added 2026-06-10 (Phase 1), realized at next regen** |
 
 Per-run details live in `docs/sessions/SESSION_<date>.md` and root-cause records
 in `docs/incidents/INCIDENT_<date>_<topic>.md`.
@@ -333,7 +340,7 @@ src/genomic_variant_classifier/
   api/           - FastAPI service (7 endpoints), auth, schemas, InferencePipeline
   data/          - 18 database connectors + Spark ETL + DataPrepPipeline + real_data_prep
   evaluation/    - ClinicalEvaluator, benchmark framework, conformal prediction, metrics
-  features/      - engineer_features (78-column pipeline, runtime sync assertion)
+  features/      - engineer_features (80-column pipeline, runtime sync assertion)
   models/        - VariantEnsemble, GNN (GAT), KAN, MC-Dropout, CatBoost wrapper
   monitoring/    - DriftDetector, ClinVarTracker, ModelRegistry
   pipelines/     - RNA splice pipeline, protein structure pipeline
@@ -388,7 +395,7 @@ python scripts/run_drift_monitor.py \
   --output-dir   outputs/drift_reports/2024_07/ \
   --auto-retrain
 
-# Train (full ensemble, 78 features)
+# Train (full ensemble, 80 features)
 python scripts/run_phase2_eval.py \
   --parquet data/processed/clinvar_grch38.parquet \
   --output  outputs/run10/full \
@@ -408,11 +415,12 @@ docker compose up api
   annotation pipeline; benchmark already shows ~3.3x speedup on the
   gnomAD-constraint join (500 K variants). See `scripts/benchmark_polars.py`
   and `docs/PHASE_3_ROADMAP.md`.
-- **Phase 4 -- Algorithm expansion and benchmarking.** Wire ESM-2 fully via
-  the in-flight HGVSp parser (Run 10), run KAN through the benchmark harness
-  against MLP, integrate Deep Ensemble uncertainty into VUS flagging, and
-  fuse GNN gene embeddings with `TABULAR_FEATURES` before stacking. Tracked
-  in `docs/ROADMAP.md`.
+- **Phase 4 -- Algorithm expansion and benchmarking.** ESM-2 upgraded to the 650M
+  masked-LM with a log-likelihood-ratio feature (`esm2_llr`, Phase 1 -- done); next are
+  ESM C 600M and a full-cohort regen after the Run-16 coordinate-index sync. Run KAN
+  through the benchmark harness against MLP, integrate Deep Ensemble uncertainty into
+  VUS flagging, and fuse GNN gene embeddings with `TABULAR_FEATURES` before stacking.
+  Tracked in `docs/ROADMAP.md`.
 - **Phase 5 -- Clinical validation and manuscript.** Prospective validation
   on BRCA1/2, TP53, PTEN, ATM panels; comparison against ClinVar star-rating
   on expert-reviewed variants; model card; manuscript draft.
