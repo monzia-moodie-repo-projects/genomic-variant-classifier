@@ -60,6 +60,51 @@ def _parse_codon_position(hgvsp: object) -> int:
     m = _HGVSP_CODON_RE.search(str(hgvsp))
     return int(m.group(1)) if m else 0
 
+
+def _protein_coord_source_present(cache_path: Path, am_path: object) -> bool:
+    """True iff a protein-coord SOURCE is available (a built cache file, or the
+    AlphaMissense TSV) -- i.e. the connector is NOT in stub mode. The coverage gate
+    is enforced ONLY when this is True. Stub mode (no source) is a valid path --
+    unit tests and boxes without the 613 MB TSV -- and must never raise; the
+    connector already warns there.
+    """
+    if am_path is not None and Path(str(am_path)).exists():
+        return True
+    return Path(str(cache_path)).exists()
+
+
+def _assert_protein_coord_coverage(df: pd.DataFrame, min_cov: float) -> float:
+    """Fail loud if the AlphaMissense protein-coordinate merge covered too few
+    missense variants.
+
+    AlphaMissense supplies (protein_pos, wt_aa, mut_aa) for ~97% of canonical
+    missense SNVs, so a near-zero coverage WHEN A SOURCE IS PRESENT means the coord
+    index is stale or mismatched on this box -- the silent ESM-2 zero that capped
+    Run 15 at 3,451 of ~2.49M missense. Aborts BEFORE any model trains. Returns the
+    coverage fraction. (Only called when _protein_coord_source_present is True.)
+    """
+    is_mm = (
+        df.get("is_missense", pd.Series([0] * len(df), index=df.index))
+        .fillna(0)
+        .astype(int)
+    )
+    n_mm = int(is_mm.sum())
+    if n_mm == 0:
+        return 1.0
+    pp = df.get("protein_pos", pd.Series([pd.NA] * len(df), index=df.index))
+    n_pp_mm = int((is_mm.astype(bool) & pp.notna()).sum())
+    cov = n_pp_mm / n_mm
+    if cov < min_cov:
+        raise ValueError(
+            f"Protein-coord coverage {cov:.4f} ({n_pp_mm}/{n_mm} missense) < "
+            f"min_protein_coord_coverage={min_cov}. A protein-coord source IS present "
+            f"but covers almost no missense -- the AlphaMissense index "
+            f"(data/external/alphamissense/alphamissense_protein_index.parquet) is stale "
+            f"or mismatched for THIS cohort/box (expected ~0.97). Rebuild and ship it to "
+            f"the training box before training -- see ESM-2 coverage incident."
+        )
+    return cov
+
 # ---------------------------------------------------------------------------
 # ClinVar label vocabulary
 # ---------------------------------------------------------------------------
@@ -200,6 +245,7 @@ class AnnotationConfig:
     esm2_device: Optional[str] = None  # Phase 3C: None/'auto' -> cuda if available, else cpu
     gnomad_constraint_path: Optional[Path] = None  # Phase 3C: gnomAD constraint TSV
     reactome_path: Optional[Path] = None  # Phase D: Reactome gene pathway-count parquet
+    min_protein_coord_coverage: float = 0.50  # Phase D: fail-loud gate on step-10b coord coverage WHEN a source is present (observed ~0.97; <0.50 => stale/mismatched index)
 
 
 # ---------------------------------------------------------------------------
@@ -746,6 +792,13 @@ class DataPrepPipeline:
             "Score annotation 10b (protein coords): %d variants with protein_pos.",
             int(df.get("protein_pos", pd.Series([pd.NA] * len(df), index=df.index)).notna().sum()),
         )
+        # Coverage gate -- enforce ONLY when a coord source is present (NOT in stub
+        # mode). A source present + near-zero coverage is the Run 15 silent-zero.
+        if _protein_coord_source_present(pc.cache_path, ac.alphamissense_path):
+            _coord_cov = _assert_protein_coord_coverage(df, ac.min_protein_coord_coverage)
+            logger.info("Protein-coord coverage gate PASS: %.4f of missense have coords.", _coord_cov)
+        else:
+            logger.info("Protein-coord coverage gate SKIPPED (stub mode: no AlphaMissense source present).")
 
 
         # 11. EVE

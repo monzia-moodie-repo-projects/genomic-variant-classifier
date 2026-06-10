@@ -3077,3 +3077,18 @@ _meta.json location audit. real_data_prep.py:444 fillna FutureWarning.
 - AlphaMissense 71.7M-row OOM re-validated (cohort-filter-during-parse, 325b0d2).
 - gene_constraint_oe revived (Run-14 all-zero -> #2 feature); gnn_score confirmed real; cnn_1d (0.85) and kan (0.996) recovered.
 - Infra: SSH background launch needs < /dev/null; read-only checks use -n/ConnectTimeout/BatchMode; Run15_Smoke.ps1 poll-bail bug + clingen dtype drift flagged.
+## 2026-06-10: ESM-2 coverage gate + stale coord-index root cause
+
+- Root-caused Run 15 ESM-2 = 3,451 / 2.49M missense: the Vast box merged step-10b
+  protein coordinates against a stale alphamissense_protein_index.parquet. Local
+  index is healthy (96.6% missense coverage). See
+  docs/incidents/INCIDENT_2026-06-10_esm2-coverage-stale-coord-cache.md.
+- Added fail-loud coverage gate to real_data_prep step 10b
+  (_protein_coord_source_present + _assert_protein_coord_coverage;
+  AnnotationConfig.min_protein_coord_coverage = 0.50). Enforced only when a coord
+  source is present; skipped in stub mode.
+- Added tests/unit/test_protein_coord_coverage_gate.py (13 cases).
+- Regression: v1 gate raised unconditionally and broke 12 stub-mode tests; v2
+  conditional fix restores them. Full suite re-verified: 817 passed, 1 skipped.
+- Added diagnostic scripts: probe_protein_coord_cache.py, probe_split_esm2.py,
+  probe_coord_merge_repro.py.
