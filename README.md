@@ -113,7 +113,7 @@ what features predict pathogenicity -- and when drift exceeds configurable thres
 adaptive retraining is triggered automatically using Elastic Weight Consolidation
 (EWC) to prevent catastrophic forgetting of stable biological signal.
 
-**Scientifically current** -- Integrates 18 biological databases spanning population
+**Scientifically current** -- Integrates a broad suite of biological databases spanning population
 genetics (gnomAD v4.1, FinnGen R12 with 500,348 Finnish individuals, 1000 Genomes
 Phase 3 across 5 continental strata), evolutionary conservation (PhyloP, GERP, EVE),
 deep learning functional predictions (AlphaMissense, SpliceAI, ESM-2, CADD v1.7),
@@ -127,13 +127,12 @@ variant pathogenicity classification to observable tumor-tissue morphology acros
 lung adenocarcinoma, and colorectal cancer cohorts -- a multi-modal capability on the
 roadmap (`docs/ROADMAP.md`), not yet implemented.
 
-**Production deployed** -- FastAPI service on port 8000, multi-stage Dockerfile
-(builder / api / trainer targets), image published to GHCR
-(`ghcr.io/monzia-moodie/genomic-variant-api`), CI/CD via GitHub Actions with
-lockfile checks, full pytest sweep, Docker smoke tests, and monthly scheduled
-drift monitoring.
+**Containerised** -- FastAPI service on port 8000 with a multi-stage Dockerfile
+(builder / api / trainer targets) that builds the `genomic-variant-api` image locally,
+plus a scheduled GitHub Actions drift-monitoring workflow. Publishing the image to a
+container registry such as GHCR and a full build/test CI pipeline are roadmap items.
 
-**Autonomously maintained** -- A 13-agent monitoring layer (DataFreshnessAgent,
+**Autonomously maintained** -- A monitoring layer of seven core agents plus a committed drift-detection suite (DataFreshnessAgent,
 VersionMonitorAgent, SchemaDriftAgent, ConceptDriftAgent, LabelShiftAgent,
 CalibrationDriftAgent, InfrastructureDriftAgent, FairnessSubgroupAgent,
 AdversarialSubmissionAgent, AnnotationPolicyAgent, InterpretabilityAgent,
