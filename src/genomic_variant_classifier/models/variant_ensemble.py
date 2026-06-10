@@ -153,7 +153,7 @@ CONSEQUENCE_SEVERITY: dict[str, int] = {
 # Bump by +/-1 whenever you add or remove an entry in TABULAR_FEATURES below.
 # Enforced by tests/unit/test_feature_count_contract.py against both the list
 # length and INFERENCE_FEATURE_COLUMNS; that test is the deliberate-bump tripwire.
-EXPECTED_TABULAR_FEATURE_COUNT = 79
+EXPECTED_TABULAR_FEATURE_COUNT = 80
 
 TABULAR_FEATURES = [
     # Allele frequency (6)
@@ -247,8 +247,9 @@ TABULAR_FEATURES = [
     "finngen_af_fin",
     "finngen_af_nfsee",
     "finngen_enrichment",
-    # ESM-2 (1)
+    # ESM-2 (2)
     "esm2_delta_norm",
+    "esm2_llr",
     # gnomAD v4.1 constraint (4)
     "pli_score",
     "loeuf",
@@ -583,6 +584,13 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
         .fillna(0.0)
         .astype(float)
         .clip(lower=0.0)
+    )
+
+    # ESM-2 LLR (1) -- SIGNED feature (negative => damaging); NO clip
+    feats["esm2_llr"] = (
+        df.get("esm2_llr", pd.Series([0.0] * len(df), index=df.index))
+        .fillna(0.0)
+        .astype(float)
     )
 
     # gnomAD v4.1 gene constraint (4) — safe defaults when connector absent

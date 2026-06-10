@@ -363,6 +363,7 @@ def build_reference_slice(n: int = 200, seed: int = 7) -> pd.DataFrame:
         "mis_z": rng.uniform(-3, 5, n), "loeuf": rng.uniform(0.05, 2, n),
         "dbsnp_af": rng.uniform(1e-4, 0.5, n), "maxentscan_score": rng.uniform(-5, 12, n),
         "solvent_accessibility": rng.uniform(0, 1, n), "esm2_delta_norm": rng.uniform(0.1, 5, n),
+        "esm2_llr": rng.uniform(-12, 4, n),  # SIGNED (neg=damaging); live feature, NOT allowlisted
         "alphafold_plddt": rng.uniform(20, 95, n), "gnn_score": rng.uniform(0.1, 0.9, n),
         "dist_to_active_site": rng.uniform(1, 500, n), "dist_to_splice_site": rng.uniform(1, 500, n),
         "clingen_validity_score": rng.integers(1, 5, n), "codon_position": rng.integers(1, 4, n),

@@ -289,6 +289,51 @@ def _load_fairesm_model(model_name: str) -> tuple:
 
 
 # ---------------------------------------------------------------------------
+# LLR (log-likelihood-ratio) scoring -- masked-LM head (Phase 1)
+# ---------------------------------------------------------------------------
+def _load_transformers_mlm(model_name: str, device: str = "cpu"):
+    """Load EsmForMaskedLM (per-position logits over the AA vocab) for LLR
+    scoring. Distinct from _load_transformers_model, which loads EsmModel
+    (embeddings) for the delta feature."""
+    from transformers import AutoTokenizer, EsmForMaskedLM
+
+    key = f"hf_mlm_{model_name}_{device}"
+    if key not in _model_cache:
+        hf_name = f"facebook/{model_name}"
+        logger.info("Loading ESM-2 MLM (%s) via HuggingFace on %s ...", model_name, device)
+        tok = AutoTokenizer.from_pretrained(hf_name)
+        mdl = EsmForMaskedLM.from_pretrained(hf_name)
+        mdl.eval()
+        if device != "cpu":
+            mdl = mdl.to(device)
+        _model_cache[key] = (tok, mdl)
+        logger.info("ESM-2 MLM loaded.")
+    return _model_cache[key]
+
+
+def _llr_from_logit_row(logit_row, wt_id: int, mut_id: int) -> float:
+    """LLR = logit[mut] - logit[wt]. The softmax partition function cancels in
+    the difference, so this equals the log-softmax difference over the full
+    vocab or over the 20 amino acids. Negative => mut less likely than wt =>
+    damaging."""
+    return float(logit_row[mut_id] - logit_row[wt_id])
+
+
+def _mlm_logit_matrix(tok, mdl, seq: str, mask_token_idx: Optional[int] = None):
+    """Single forward pass; returns the (L+2, vocab) logit matrix as numpy.
+    If mask_token_idx is given, that token is masked first (masked-marginal)."""
+    import torch
+
+    enc = tok(seq, return_tensors="pt", add_special_tokens=True)
+    if mask_token_idx is not None:
+        enc["input_ids"][0, mask_token_idx] = tok.mask_token_id
+    enc = {k: v.to(mdl.device) for k, v in enc.items()}
+    with torch.no_grad():
+        out = mdl(**enc)
+    return out.logits[0].float().cpu().numpy()
+
+
+# ---------------------------------------------------------------------------
 # Embedding computation
 # ---------------------------------------------------------------------------
 
@@ -700,3 +745,85 @@ class ESM2Connector:
                 continue
             scores[idx] = float(np.linalg.norm(em[local_idx] - ew[local_idx]))
         return scores
+
+    def _score_llr(self, candidates: pd.DataFrame, method: str = "wt") -> dict:
+        """LLR per variant. WT-marginal (method="wt", default): ONE forward
+        pass per protein scores all its variants. Masked-marginal
+        (method="masked"): one pass per unique masked position (rigorous,
+        ~L x more passes). Skips wt_aa-vs-sequence mismatches (counted in
+        self._llr_n_mismatch)."""
+        tok, mdl = _load_transformers_mlm(self.model_name, device=self.device)
+        unk_id = tok.unk_token_id
+        scores: dict = {}
+        self._llr_n_mismatch = 0
+
+        by_gene: dict = {}
+        for row in candidates.itertuples():
+            gene = str(row.gene_symbol) if getattr(row, "gene_symbol", "") else ""
+            if gene:
+                by_gene.setdefault(gene, []).append(row)
+
+        for gene, rows in by_gene.items():
+            seq = self._get_sequence(gene)
+            if seq is None:
+                continue
+            seqlen = len(seq)
+            wt_mat = _mlm_logit_matrix(tok, mdl, seq) if method == "wt" else None
+            masked_cache: dict = {}
+            for row in rows:
+                pos1 = int(row.protein_pos)
+                wt_aa = str(row.wt_aa)
+                mut_aa = str(row.mut_aa)
+                # BOS at token index 0 -> residue pos1 (1-based) at token index pos1.
+                if not (1 <= pos1 <= seqlen) or seq[pos1 - 1] != wt_aa:
+                    self._llr_n_mismatch += 1
+                    continue
+                wt_id = tok.convert_tokens_to_ids(wt_aa)
+                mut_id = tok.convert_tokens_to_ids(mut_aa)
+                if wt_id == unk_id or mut_id == unk_id:
+                    self._llr_n_mismatch += 1
+                    continue
+                if method == "wt":
+                    logit_row = wt_mat[pos1]
+                else:
+                    if pos1 not in masked_cache:
+                        masked_cache[pos1] = _mlm_logit_matrix(
+                            tok, mdl, seq, mask_token_idx=pos1
+                        )[pos1]
+                    logit_row = masked_cache[pos1]
+                scores[row.Index] = _llr_from_logit_row(logit_row, wt_id, mut_id)
+        return scores
+
+    def annotate_llr(self, df: pd.DataFrame, method: str = "wt") -> pd.DataFrame:
+        """Add ``esm2_llr`` (log-likelihood-ratio; NEGATIVE => damaging) to
+        *df*. 0.0 = neutral / unscored. esm2_llr is a CONTINUOUS feature: even
+        benign variants score negative, so the downstream model must learn the
+        threshold -- never treat sign as a class label. Requires the
+        transformers backend."""
+        df = df.copy()
+        df["esm2_llr"] = 0.0
+        if _BACKEND != "transformers":
+            logger.warning("ESM-2 LLR needs the transformers backend; esm2_llr all 0.0 (neutral).")
+            return df
+        required = {"gene_symbol", "protein_pos", "wt_aa", "mut_aa"}
+        miss = required - set(df.columns)
+        if miss:
+            logger.info("ESM-2 LLR: columns %s absent -- esm2_llr=0.0.", miss)
+            return df
+        is_missense = df.get("is_missense", pd.Series(1, index=df.index)).astype(bool)
+        candidates = df[is_missense & df["protein_pos"].notna() & df["wt_aa"].notna() & df["mut_aa"].notna()]
+        if candidates.empty:
+            return df
+        logger.info("Computing ESM-2 LLR (%s-marginal) for %d missense variants ...", method, len(candidates))
+        scores = self._score_llr(candidates, method=method)
+        for idx, s in scores.items():
+            df.at[idx, "esm2_llr"] = s
+        logger.info("ESM-2 LLR: %d/%d variants scored.", len(scores), len(candidates))
+        if getattr(self, "_llr_n_mismatch", 0):
+            logger.warning("ESM-2 LLR: %d variant(s) skipped on wt_aa-vs-sequence mismatch.", self._llr_n_mismatch)
+        if self._missing_genes:
+            logger.warning(
+                "ESM-2 LLR: %d gene(s) unresolved -> esm2_llr=0.0. Examples: %s",
+                len(self._missing_genes), ", ".join(sorted(self._missing_genes)[:10]),
+            )
+        return df

@@ -897,6 +897,13 @@ class DataPrepPipeline:
             device=ac.esm2_device,
         )
         df = esm2.annotate_dataframe(df)
+        df = esm2.annotate_llr(df)
+        logger.info(
+            "Score annotation 16b (ESM-2 LLR, model=%s): %d missense "
+            "variants scored (esm2_llr != 0).",
+            ac.esm2_model_name,
+            int((df.get("esm2_llr", pd.Series([0.0] * len(df), index=df.index)) != 0).sum()),
+        )
         logger.info(
             "Score annotation 16/17 (ESM-2): %d missense variants with esm2_delta_norm > 0.",
             int(
@@ -1235,6 +1242,13 @@ class DataPrepPipeline:
             .fillna(0.0)
             .astype(float)
             .clip(lower=0.0)
+        )
+
+        # ESM-2 LLR (1) -- SIGNED feature (negative => damaging); NO clip
+        feats["esm2_llr"] = (
+            df.get("esm2_llr", pd.Series([0.0] * len(df), index=df.index))
+            .fillna(0.0)
+            .astype(float)
         )
 
         # gnomAD v4.1 gene constraint (4) — Phase 3C
