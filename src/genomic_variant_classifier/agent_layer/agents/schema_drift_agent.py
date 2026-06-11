@@ -42,6 +42,27 @@ class SchemaDriftAgent:
         canonical = json.dumps(sorted(dtypes.items()), separators=(",", ":"))
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
+    @classmethod
+    def from_baseline(cls, baseline_path, output_dir):
+        """Reconstruct a detector from a schema-baseline JSON.
+
+        The pandera schema is rebuilt from expected_dtypes with nullable columns so that
+        degenerate-but-present (all-NaN) columns do not raise false nullability violations
+        against their own baseline. pandera is imported lazily (optional dep).
+        """
+        import pandera.pandas as pa
+        data = json.loads(Path(baseline_path).read_text(encoding="utf-8"))
+        expected_dtypes = {str(k): str(v) for k, v in data["expected_dtypes"].items()}
+        schema = pa.DataFrameSchema(
+            {col: pa.Column(dtype, nullable=True) for col, dtype in expected_dtypes.items()}
+        )
+        return cls(
+            schema=schema,
+            expected_dtypes=expected_dtypes,
+            expected_schema_hash=data["expected_schema_hash"],
+            output_dir=Path(output_dir),
+        )
+
     def detect(self, df: pd.DataFrame) -> SchemaDriftResult:
         import pandera.pandas as pa  # lazy: required only when detection runs
         observed_dtypes = {c: str(df[c].dtype) for c in df.columns}
