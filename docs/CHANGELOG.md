@@ -3187,3 +3187,37 @@ _meta.json location audit. real_data_prep.py:444 fillna FutureWarning.
 
 ### Commit
 - 92ff4a2 (origin/main).
+
+## 2026-06-11 -- Schema-drift activation + preflight gate
+
+### Added
+- scripts/build_schema_baseline.py -- captures the sealed Run-15 X_train schema to
+  data/reference/schema/schema_baseline.json (ordered expected_dtypes + sha256 hash + provenance).
+  Contract: 78 columns, all float64, hash db43fd918bdfa4d0...
+- SchemaDriftAgent.from_baseline(baseline_path, output_dir) -- classmethod that rebuilds the
+  pandera schema from the baseline with nullable=True, so Run-15's degenerate (all-NaN) columns do
+  not false-trip against their own baseline. pandera imported lazily (keeps the layer CI-importable).
+- scripts/run_schema_drift_check.py -- standalone preflight schema gate: load baseline -> head-read
+  a feature matrix (first parquet batch; dtype-exact, memory-bounded) -> print column/dtype diff ->
+  exit 0 (green) / 2 (drift) / 3 (usage/env). Run before any regen or training to catch
+  dropped/renamed/retyped columns before they silently zero a feature.
+- data/reference/schema/schema_baseline.json committed as a VERSIONED contract (not gitignored);
+  future schema changes now surface as a reviewable one-file diff.
+- tests/unit/test_schema_drift_activation.py (ok/green, ok/red, default-still-awaiting_baseline);
+  tests/unit/test_run_schema_drift_check.py (exit-code contract 0/2/3).
+- scripts/patch_add_from_baseline.py (idempotent, py_compile-gated patcher).
+
+### Verification
+- Real-data smoke: gate on Run-15 X_train -> green/0 (byte-identical hash); on meta_train -> red/2
+  (18 added, 38 removed, 15 dtype changes, 53 pandera violations) -- proves the gate fires on real data.
+- Full suite 873 -> 876 (e0a76a1) -> 880 (21d94c4) passed, 6 skipped; simulate_ci gate exit 0.
+- New tests importorskip pandera/pyarrow -> skip in CI, run locally (repo convention).
+
+### Findings (see docs/sessions/SESSION_2026-06-11_ci-and-schema-gate.md and ROADMAP backlog 2026-06-11)
+- Agent-layer drift agents registered but invoked by no pipeline; drift_monitor.yml inert (GDrive
+  stub + stale phase2_with_gnomad path); run_drift_monitor.py covers distributional+label drift but
+  not schema. Feature-count spread 64/78/79 flagged TO VERIFY; af_1kg_* present-vs-placeholder TO VERIFY.
+
+### Commits
+- e0a76a1 (from_baseline + activation tests + builder), 21d94c4 (preflight gate + versioned baseline).
+  Both on origin/main.

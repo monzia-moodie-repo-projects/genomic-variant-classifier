@@ -342,3 +342,47 @@ SVM is excluded from all production runs (n > 100K).
   *MonitorAgent wrapper class names.
 - **alibi-detect**: install only if a future detector imports it (none do today).
 - Ref: docs/incidents/INCIDENT_2026-06-10_agent_layer_regression.md.
+
+
+## Backlog additions -- 2026-06-11 (drift wiring + schema gate)
+
+**Delivered this session (first delivery against the 2026-06-10 "Populate drift-agent reference
+baselines" item):** SchemaDriftMonitorAgent now has a versioned baseline
+(`data/reference/schema/schema_baseline.json`, 78 cols / all float64), a `from_baseline` loader,
+and a standalone preflight gate (`scripts/run_schema_drift_check.py`, exit 0/2/3). The schema agent
+is the worked example; the other seven drift agents still await their reference inputs.
+
+### Drift-wiring findings (recorded 2026-06-11)
+- The eight agent-layer drift MonitorAgents are registered in `Orchestrator._register_agents` but
+  invoked by nothing (absent from `PIPELINE_DEFINITIONS`; `run_agents.py --pipeline full` runs only
+  the four framework agents).
+- `.github/workflows/drift_monitor.yml` is effectively inert: GDrive download is a stub, so the job
+  skips via "No reference splits available"; it also points at the stale
+  `outputs/phase2_with_gnomad/splits/` path (pre-Run-15).
+- `scripts/run_drift_monitor.py` covers distributional (PSI/KS/MMD) + label drift but NOT
+  schema/column/dtype drift. The new gate is additive.
+
+### Proposed action items (NOT done -- deliberate design decisions for a future session)
+- [ ] **Pipeline-wire the drift agents.** Add a `drift` key to `PIPELINE_DEFINITIONS` listing the
+  eight MonitorAgents, reachable via `run_agents.py --pipeline drift`. They are registered but
+  currently unreachable from any CLI path.
+- [ ] **Fix `drift_monitor.yml`.** Repoint the stale `outputs/phase2_with_gnomad/splits/` ->
+  `outputs/run15_rerun_report/full/splits/`, and replace the GDrive-download stub (a no-op that
+  makes the monthly job skip) with a real fetch or an honest hard-skip that is logged, not silent.
+- [ ] **Add the schema gate as a `drift_monitor.yml` step.** Run `scripts/run_schema_drift_check.py`
+  (exit-2 gates the job) so schema drift -- which `run_drift_monitor.py` does not cover -- is checked
+  monthly alongside PSI/label drift.
+- [ ] **Reconcile the two parallel drift systems.** The agent-layer drift agents and the
+  `src/monitoring/` + `run_drift_monitor.py` system overlap conceptually; consolidate into one
+  documented entrypoint so "drift monitoring" has a single source of truth.
+
+### Feature-count reconciliation (TO VERIFY -- not asserted)
+- [ ] Reconcile the **64 / 78 / 79** spread: notes say 79; on-disk `X_train` is 78 (verified green
+  by the gate); this ROADMAP still says "Live (64 features)". Identifier/label/target columns live in
+  `meta_*`, separate from the 78 `X_*` features. Settle the canonical count.
+- [ ] Verify whether `af_1kg_afr/amr/eas/eur/sas` (present in the 78-col `X_train` per the gate diff)
+  are populated or placeholder-zero, and reconcile against `population_1kg_af` being listed under
+  PHASE_4_FEATURES (pending).
+
+- Ref: docs/sessions/SESSION_2026-06-11_ci-and-schema-gate.md;
+  docs/incidents/INCIDENT_2026-06-11_ci-optional-deps.md.
