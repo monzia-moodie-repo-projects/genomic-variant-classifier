@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Optional
 
 import pandas as pd
-import pandera.pandas as pa
 
 
 @dataclass(frozen=True)
@@ -44,6 +43,7 @@ class SchemaDriftAgent:
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
     def detect(self, df: pd.DataFrame) -> SchemaDriftResult:
+        import pandera.pandas as pa  # lazy: required only when detection runs
         observed_dtypes = {c: str(df[c].dtype) for c in df.columns}
         observed_hash = self.hash_schema(observed_dtypes)
         expected_cols = set(self.expected_dtypes)

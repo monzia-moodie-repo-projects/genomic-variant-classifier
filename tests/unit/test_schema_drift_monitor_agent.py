@@ -3,7 +3,8 @@ from __future__ import annotations
 import hashlib, json
 from pathlib import Path
 import pandas as pd
-import pandera.pandas as pa
+import pytest
+pa = pytest.importorskip("pandera.pandas")
 
 from genomic_variant_classifier.agent_layer.shared_state import SharedState
 from genomic_variant_classifier.agent_layer.agents.schema_drift_agent import SchemaDriftAgent

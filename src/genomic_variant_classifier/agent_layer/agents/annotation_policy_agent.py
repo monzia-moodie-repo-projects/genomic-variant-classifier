@@ -7,7 +7,10 @@ from pathlib import Path
 from typing import Optional
 
 import pandas as pd
-from river import drift as river_drift
+try:
+    from river import drift as river_drift
+except ModuleNotFoundError:  # optional dep: required only when detection runs
+    river_drift = None
 
 
 @dataclass(frozen=True)
