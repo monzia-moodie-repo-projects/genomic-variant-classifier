@@ -3165,3 +3165,25 @@ _meta.json location audit. real_data_prep.py:444 fillna FutureWarning.
 
 ### Commits
 - 8619afc (drift re-wiring), 21e835d (VersionMonitorAgent + README). Pushed to origin/main.
+
+## 2026-06-11 -- CI fix: agent-layer optional deps (pandera, river)
+
+### Fixed
+- CI was red (#302-#303): schema_drift_agent (pandera) and annotation_policy_agent (river)
+  imported undeclared optional libs at module level; the orchestrator imports every wrapper, so
+  the whole agent layer was un-importable in CI. Local passed (deps in .venv312); CI failed (deps
+  absent). pytest -x masked the river failure behind pandera.
+  - pandera (schema, into detect()) and river (annotation, try/except guard) are now lazy imports.
+  - test_schema_drift_monitor_agent.py uses pytest.importorskip (repo convention).
+  - No requirements changed; ok-path detection tests skip in CI and run locally; registration runs in both.
+
+### Added
+- scripts/simulate_ci_no_optional_deps.py -- reproduces the lib-absent CI env in-process to validate
+  import-safety before pushing.
+- scripts/patch_schema_lazy_pandera.py, patch_annotation_lazy_river.py, patch_test_schema_importorskip.py.
+
+### Verification
+- Local full suite 873/6 unchanged; simulate gate exit 0; CI #304 (92ff4a2) green on 3.11 + 3.12.
+
+### Commit
+- 92ff4a2 (origin/main).
