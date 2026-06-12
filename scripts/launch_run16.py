@@ -142,6 +142,17 @@ def parse_show(text: str) -> dict:
             "ssh_host": obj.get("ssh_host"), "ssh_port": obj.get("ssh_port")}
 
 
+def parse_rate(text: str) -> float | None:
+    try:
+        obj = json.loads(text)
+        if isinstance(obj, list):
+            obj = obj[0] if obj else {}
+        v = obj.get("dph_total")
+        return float(v) if v is not None else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 # ---------- state ----------
 def state_path(root: Path) -> Path:
     return root / OUT_REL / ".launch_state.json"
@@ -247,7 +258,8 @@ def phase_up(args) -> int:
 
     info = wait_running(cid if not dry else 0, dry)
     st = {"instance_id": cid, "ssh_user": "root", "ssh_host": info["ssh_host"],
-          "ssh_port": str(info["ssh_port"]), "image": IMAGE, "train_log": TRAIN_LOG, "steps": steps}
+          "ssh_port": str(info["ssh_port"]), "image": IMAGE, "train_log": TRAIN_LOG,
+          "steps": steps, "launched_at": (prev or {}).get("launched_at") or time.time()}
     url = f"ssh://{st['ssh_user']}@{st['ssh_host']}:{st['ssh_port']}"
     save_state(root, st)
 
@@ -297,15 +309,24 @@ def phase_up(args) -> int:
         steps["launched"] = True
         save_state(root, st)
 
+    name = Path(__file__).name
     print(f"[up] DONE. training on instance {cid}.")
-    print(f"     monitor:  python {Path(__file__).name} status --ssh-key {args.ssh_key}")
-    print(f"     finish:   python {Path(__file__).name} down --destroy --ssh-key {args.ssh_key}")
+    print(f"     monitor:       python {name} status")
+    print(f"     fetch+verify:  python {name} down      (non-destructive; prints the destroy "
+          "command only after a clean fetch)")
     return 0
 
 
 def phase_status(args) -> int:
     root = Path(args.repo_root).resolve()
     st = load_state(root)
+    if not args.dry_run:
+        rc0, out0, _ = vastai(["show", "instance", str(st["instance_id"]), "--raw"], dry=False)
+        rate = parse_rate(out0)
+        if rate and st.get("launched_at"):
+            hrs = (time.time() - st["launched_at"]) / 3600.0
+            print(f"[status] uptime ~{hrs:.1f}h  rate ${rate:.4f}/hr  "
+                  f"cost so far ~${hrs * rate:.2f}  (approx; billed from instance create)")
     rc, out, err = ssh_bash(st, args.ssh_key, f"tail -n 25 {st['train_log']}", args.dry_run, timeout=120)
     if args.dry_run:
         return 0
@@ -322,10 +343,36 @@ def phase_status(args) -> int:
     return 0
 
 
+def _train_state(st: dict, key: str, dry: bool) -> tuple[bool, bool]:
+    """Return (running, completed) by inspecting the box: pgrep for the train process and a
+    completion-marker count in the log."""
+    if dry:
+        return False, True
+    probe = (f"if pgrep -f 'scripts/train.py' >/dev/null 2>&1; then echo TRAIN_RUNNING; "
+             f"else echo TRAIN_IDLE; fi; "
+             f"echo DONE_COUNT=$(grep -c '{DONE_MARK}' {st['train_log']} 2>/dev/null || echo 0)")
+    rc, out, _ = ssh_bash(st, key, probe, dry=False, timeout=120)
+    running = "TRAIN_RUNNING" in out
+    m = re.search(r"DONE_COUNT=(\d+)", out)
+    completed = bool(m and int(m.group(1)) > 0)
+    return running, completed
+
+
 def phase_down(args) -> int:
     root = Path(args.repo_root).resolve()
     dry = args.dry_run
     st = load_state(root)
+    name = Path(__file__).name
+
+    running, completed = _train_state(st, args.ssh_key, dry)
+    if not dry:
+        print(f"[down] training: {'RUNNING' if running else 'not running'}; "
+              f"completion marker: {'present' if completed else 'ABSENT'}")
+    # Never touch a live run when a destroy was requested.
+    if args.destroy and running:
+        print("[down] training is STILL RUNNING -- refusing to fetch/destroy. "
+              "Wait until 'status' shows DONE, then re-run.")
+        return 3
 
     print("[down] Sec.4 gates on the box")
     rc, out, err = ssh_bash(st, args.ssh_key, GATES, dry, timeout=1800)
@@ -333,7 +380,7 @@ def phase_down(args) -> int:
     if not dry:
         print(out)
     if not gates_ok:
-        print("[down] GATES NOT GREEN -- NOT destroying. Inspect on the box.")
+        print("[down] GATES NOT GREEN.")
 
     print("[down] fetch outputs")
     local_out = str(root / "outputs")
@@ -346,13 +393,30 @@ def phase_down(args) -> int:
         print(f"[down] FETCH FAILED ({err or rc}) -- NOT destroying.")
         return 2
 
-    if args.destroy and gates_ok and fetch_ok:
-        print(f"[down] destroying instance {st['instance_id']}")
-        vastai(["destroy", "instance", str(st["instance_id"])], dry, stdin="y\n")
-        print("[down] destroyed.")
-    else:
-        print(f"[down] outputs fetched. Instance {st['instance_id']} LEFT UP "
-              f"(destroy manually: vastai destroy instance {st['instance_id']}).")
+    # Non-destructive default: fetch + verify, leave the box up, surface the destroy command.
+    if not args.destroy:
+        print(f"[down] outputs fetched + verified. Instance {st['instance_id']} LEFT UP.")
+        print("[down] when results look right, destroy as a SEPARATE deliberate step:")
+        print(f"         python {name} down --destroy")
+        return 0
+
+    # Destroy path: every guard must pass.
+    if not (gates_ok and fetch_ok):
+        print(f"[down] gates/fetch not clean -- NOT destroying. Instance {st['instance_id']} left up.")
+        return 2
+    if not completed and not args.force:
+        print("[down] no completion marker and --force not set -- NOT destroying "
+              "(run may have crashed; inspect). Instance left up.")
+        return 2
+    if not args.yes and not dry:
+        ans = input(f"[down] type the instance id ({st['instance_id']}) to DESTROY, "
+                    "or press Enter to keep it up: ").strip()
+        if ans != str(st["instance_id"]):
+            print("[down] destroy NOT confirmed; instance left up.")
+            return 0
+    print(f"[down] destroying instance {st['instance_id']}")
+    vastai(["destroy", "instance", str(st["instance_id"])], dry, stdin="y\n")
+    print("[down] destroyed.")
     return 0
 
 
@@ -372,6 +436,7 @@ def phase_watch(args) -> int:
             print("[watch] failure detected; stopping (instance left up).")
             return 2
     args.destroy = True
+    args.yes = True
     return phase_down(args)
 
 
@@ -387,6 +452,8 @@ def main() -> int:
                     help="upload the local ESM-2 cache instead of box-side HF download (offline boxes)")
     ap.add_argument("--disk", type=int, default=200)
     ap.add_argument("--destroy", action="store_true", help="(down/watch) destroy after verified fetch")
+    ap.add_argument("--yes", action="store_true", help="(down) skip the typed destroy confirmation")
+    ap.add_argument("--force", action="store_true", help="(down) destroy even without a completion marker")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--poll-every", type=int, default=120)
     ap.add_argument("--max-polls", type=int, default=600)
