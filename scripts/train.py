@@ -132,6 +132,17 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     p.add_argument(
+        "--gnomad-constraint",
+        default=None,
+        metavar="PATH",
+        help=(
+            "gnomAD v4.1 gene-constraint TSV (gnomad.v4.1.constraint_metrics.tsv.bgz). "
+            "Adds pli_score, loeuf, syn_z, mis_z; loeuf revives gene_constraint_oe "
+            "(Run-15 #2 feature). Default: None (stub mode -> constant defaults -> the "
+            "feature silently deadzones)."
+        ),
+    )
+    p.add_argument(
         "--skip-svm",
         action="store_true",
         default=False,
@@ -239,6 +250,7 @@ def main() -> None:
         lovd_path=Path(args.lovd_path) if args.lovd_path else None,
         finngen_path=Path(args.finngen_path) if args.finngen_path else None,
         dbnsfp_path=Path(args.dbnsfp_path) if args.dbnsfp_path else None,
+        gnomad_constraint_path=Path(args.gnomad_constraint) if args.gnomad_constraint else None,
         esm2_model_name=args.esm2_model,
         esm2_uniprot_index_path=Path(args.esm2_uniprot_index) if args.esm2_uniprot_index else None,
         esm2_cache_path=Path(args.esm2_cache) if args.esm2_cache else None,
@@ -418,6 +430,7 @@ def main() -> None:
                     "alphamissense": str(args.alphamissense) if args.alphamissense else None,
                     "finngen": str(args.finngen_path) if args.finngen_path else None,
                     "dbnsfp": str(args.dbnsfp_path) if args.dbnsfp_path else None,
+                    "gnomad_constraint": str(args.gnomad_constraint) if args.gnomad_constraint else None,
                     "esm2_model": args.esm2_model,
                     "esm2_uniprot_index": str(args.esm2_uniprot_index) if args.esm2_uniprot_index else None,
                     "lovd":         str(args.lovd_path) if args.lovd_path else None,
