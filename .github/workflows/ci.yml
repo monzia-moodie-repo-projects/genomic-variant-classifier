@@ -71,8 +71,14 @@ jobs:
           pip install -e .
 
       - name: Run unit tests
+        env:
+          # ESM-2 weights are never downloaded in CI: forcing offline makes any
+          # model-needing test fail fast with OSError (caught -> skip) instead of
+          # flaking on HuggingFace Hub 429 rate-limits. See INCIDENT_2026-06-12.
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
         run: |
-          pytest tests/unit/ -x -q \
+          pytest tests/unit/ --maxfail=5 -q \
             --tb=short \
             --cov=genomic_variant_classifier \
             --cov-report=term-missing \
