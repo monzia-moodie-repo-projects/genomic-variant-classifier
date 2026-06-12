@@ -109,6 +109,20 @@ Format: ID | first seen | symptom | root cause | fix | status (FIXED / MITIGATED
   to 90 s. Validated: `[ -f ]` distinguishes deleted-regular (true) from pipe (false); bash -n;
   all reads timeout-wrapped; parse/verdict for running/pipe/no-log without hang | FIXED (v6).
 
+- L19 | run 16 | v6 `status` returned fast but reported a confident "PHASE 1 ... GPU activity =
+  ESM-2 work" verdict for a process that was almost certainly doing nothing | the box showed
+  GPU 0%/1MiB/23C (idle), CWD=/root (our launch runs from the repo), FD1/FD2=pipe, no log file
+  anywhere, no outputs/splits at 25 min -- yet the verdict ASSERTED GPU activity it never read
+  (same class of bug as asserting state without verifying). status also could not say WHAT the
+  process was doing because it only tried to tail a log | v7: `status` is now a forensic probe --
+  it reads the process CMDLINE, STATE, sampled CPU%, RSS, threads, wchan, open data-file fds, and
+  socket count, parses the GPU utilization number, and discovers any *.log via find. The verdict
+  synthesizes GPU+CPU: idle GPU AND low CPU AND no splits/outputs/log => *** SUSPECT *** (stalled
+  or started outside the orchestrator) with a pkill + `up` relaunch remedy; genuine CPU- or
+  GPU-active prep => PHASE 1 ACTIVE; STATE=Z => zombie. Validated: bash -n, 6 verdict scenarios,
+  live-process forensic block. Also: cost line now labeled proc-time with a billed-time caveat;
+  empty-dir `|| echo` dead-code replaced with explicit `[ -d ]` tests | FIXED (v7).
+
 ## Known OPEN / watch (carry forward)
 
 - W03 | run 16 | instance 40728494 was reachable after launch but /workspace content (log, and

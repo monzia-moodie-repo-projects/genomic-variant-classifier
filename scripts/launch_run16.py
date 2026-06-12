@@ -17,7 +17,7 @@ Phases: up | status | down | watch.  Always preview with --dry-run first.  Autho
 """
 from __future__ import annotations
 
-__version__ = "6.0"  # rich monitor; bump on every change so deploy is verifiable
+__version__ = "7.0"  # rich monitor; bump on every change so deploy is verifiable
 
 import argparse
 import json
@@ -267,6 +267,63 @@ def _scripts_dir() -> Path:
     return Path(__file__).resolve().parent
 
 
+PROBE_TMPL = r'''echo PROBE_OK
+PID=$(pgrep -f 'scripts/train.py' | head -1)
+if [ -n "$PID" ]; then echo TRAIN=RUNNING; echo PID=$PID; else echo TRAIN=IDLE; fi
+echo DATA=$([ -d __DATA_DIR__ ] && echo present || echo ABSENT)
+echo SPLITS=$([ -d __SPLITS_DIR__ ] && echo present || echo absent)
+CWD=""
+if [ -n "$PID" ]; then
+  CWD=$(readlink /proc/$PID/cwd 2>/dev/null)
+  echo CWD=$CWD
+  echo ELAPSED=$(ps -o etime= -p $PID 2>/dev/null | tr -d ' ')
+  echo CMDLINE=$(tr '\0' ' ' < /proc/$PID/cmdline 2>/dev/null | cut -c1-320)
+  echo STATE=$(awk '/^State:/{print $2,$3}' /proc/$PID/status 2>/dev/null)
+  echo PPID=$(awk '/^PPid:/{print $2}' /proc/$PID/status 2>/dev/null)
+  echo THREADS=$(awk '/^Threads:/{print $2}' /proc/$PID/status 2>/dev/null)
+  echo RSS_MB=$(awk '/^VmRSS:/{print int($2/1024)}' /proc/$PID/status 2>/dev/null)
+  echo WCHAN=$(cat /proc/$PID/wchan 2>/dev/null)
+  echo FD1=$(readlink /proc/$PID/fd/1 2>/dev/null)
+  echo FD2=$(readlink /proc/$PID/fd/2 2>/dev/null)
+  echo SOCKETS=$(ls -l /proc/$PID/fd 2>/dev/null | grep -c 'socket:')
+  for fd in /proc/$PID/fd/*; do t=$(readlink "$fd" 2>/dev/null); case "$t" in *.log*) echo "LOGFD $fd -> $t";; esac; done
+  S1=$(cat /proc/$PID/stat 2>/dev/null); R1=${S1#*) }; U1=$(echo "$R1" | awk '{print $12+$13}')
+  sleep 2
+  S2=$(cat /proc/$PID/stat 2>/dev/null); R2=${S2#*) }; U2=$(echo "$R2" | awk '{print $12+$13}')
+  HZ=$(getconf CLK_TCK 2>/dev/null); HZ=${HZ:-100}
+  echo CPU_PCT=$(awk "BEGIN{d=($U2)-($U1); if(d<0)d=0; print int(d*100/($HZ*2))}")
+  echo '----- open data files (non-pipe/socket) -----'
+  ls -l /proc/$PID/fd 2>/dev/null | sed -n 's/.*-> //p' | grep -vE 'pipe:|socket:|anon_inode|/dev/|/proc/' | head -10
+fi
+LOGSRC=""
+for cand in "$CWD/logs/train.log" /root/logs/train.log __INTERNAL_LOG__ __RLOG__ /proc/$PID/fd/1 /proc/$PID/fd/2; do
+  if [ -z "$LOGSRC" ] && [ -f "$cand" ]; then LOGSRC="$cand"; fi
+done
+if [ -z "$LOGSRC" ] && [ -n "$PID" ]; then
+  for fd in /proc/$PID/fd/*; do t=$(readlink "$fd" 2>/dev/null); case "$t" in *.log*) if [ -f "$fd" ]; then LOGSRC="$fd"; break; fi;; esac; done
+fi
+if [ -z "$LOGSRC" ]; then
+  CAND=$(timeout 8 find /workspace /root -maxdepth 4 -name '*.log' -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+  if [ -n "$CAND" ] && [ -f "$CAND" ]; then LOGSRC="$CAND"; fi
+fi
+echo LOGSRC="$LOGSRC"
+if [ -n "$LOGSRC" ]; then
+  echo DONE_COUNT=$(timeout 5 grep -ac '__DONE_MARK__' "$LOGSRC" 2>/dev/null | head -1)
+  echo AUROC_COUNT=$(timeout 5 grep -acE 'OOF AUROC|Test AUROC' "$LOGSRC" 2>/dev/null | head -1)
+else
+  echo DONE_COUNT=0
+  echo AUROC_COUNT=0
+fi
+echo '----- GPU -----'
+timeout 8 nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader 2>/dev/null || echo '(nvidia-smi unavailable/timed out)'
+echo '----- progress markers -----'
+if [ -n "$LOGSRC" ]; then timeout 5 grep -aE 'PHASE|Data Prep|annotat|enrich|ESM|download|OOF AUROC|Test AUROC|fitting member|deep_ensemble|stacker|ENSEMBLE|blend weight|KAN|Traceback|OutOfMemory|CUDA out of memory|ABORT' "$LOGSRC" 2>/dev/null | tail -25; else echo '(no readable log file)'; fi
+echo '----- live log tail (last 40) -----'
+if [ -n "$LOGSRC" ]; then timeout 5 tail -n 40 "$LOGSRC" 2>/dev/null; else echo '(no readable log file; see CMDLINE/STATE/open-files/GPU above)'; fi
+if [ -d __OUTDIR__ ]; then echo '----- outputs/run16 -----'; timeout 5 ls -lat __OUTDIR__ 2>/dev/null | head -8; else echo '----- outputs/run16 ----- (absent)'; fi
+if [ -d __SPLITS_DIR__ ]; then echo '----- splits -----'; timeout 5 ls -lat __SPLITS_DIR__ 2>/dev/null | head -6; else echo '----- splits ----- (absent -> no PHASE-3 yet)'; fi'''
+
+
 def phase_up(args) -> int:
     print(f"[up] launch_run16.py v{__version__}")
     root = Path(args.repo_root).resolve()
@@ -339,100 +396,82 @@ def phase_status(args) -> int:
     st = load_state(root)
     name = Path(__file__).name
     if args.dry_run:
-        print("  DRY> hang-proof monitor probe (regular-file log only, timeout-wrapped reads)")
+        print("  DRY> v7 forensic probe (process cmdline/CPU/state/open-files + GPU-aware verdict)")
         return 0
 
     rc0, out0, _ = vastai(["show", "instance", str(st["instance_id"]), "--raw"], dry=False)
     rate = parse_rate(out0)
-
     rlog = st["train_log"]
-    # Hang-proof: only read a source that passes [ -f ] (regular file, incl. deleted-but-open);
-    # NEVER read a pipe/socket/tty fd (that blocks). Every read is wrapped in `timeout`.
-    probe = f"""echo PROBE_OK
-PID=$(pgrep -f 'scripts/train.py' | head -1)
-if [ -n "$PID" ]; then echo TRAIN=RUNNING; echo PID=$PID; else echo TRAIN=IDLE; fi
-echo DATA=$([ -d {DATA_DIR} ] && echo present || echo ABSENT)
-echo SPLITS=$([ -d {SPLITS_DIR} ] && echo present || echo absent)
-CWD=""
-if [ -n "$PID" ]; then
-  CWD=$(readlink /proc/$PID/cwd 2>/dev/null)
-  echo CWD=$CWD
-  echo ELAPSED=$(ps -o etime= -p $PID 2>/dev/null | tr -d ' ')
-  echo FD1=$(readlink /proc/$PID/fd/1 2>/dev/null)
-  echo FD2=$(readlink /proc/$PID/fd/2 2>/dev/null)
-  for fd in /proc/$PID/fd/*; do t=$(readlink "$fd" 2>/dev/null); case "$t" in *.log*) echo "LOGFD $fd -> $t";; esac; done
-fi
-LOGSRC=""
-for cand in "$CWD/logs/train.log" {INTERNAL_LOG} {rlog} /proc/$PID/fd/1 /proc/$PID/fd/2; do
-  if [ -z "$LOGSRC" ] && [ -f "$cand" ]; then LOGSRC="$cand"; fi
-done
-if [ -z "$LOGSRC" ] && [ -n "$PID" ]; then
-  for fd in /proc/$PID/fd/*; do t=$(readlink "$fd" 2>/dev/null); case "$t" in *.log*) if [ -f "$fd" ]; then LOGSRC="$fd"; break; fi;; esac; done
-fi
-echo LOGSRC="$LOGSRC"
-if [ -n "$LOGSRC" ]; then
-  echo DONE_COUNT=$(timeout 5 grep -ac '{DONE_MARK}' "$LOGSRC" 2>/dev/null | head -1)
-  echo AUROC_COUNT=$(timeout 5 grep -acE 'OOF AUROC|Test AUROC' "$LOGSRC" 2>/dev/null | head -1)
-else
-  echo DONE_COUNT=0
-  echo AUROC_COUNT=0
-fi
-echo '----- GPU -----'
-timeout 8 nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader 2>/dev/null || echo '(nvidia-smi unavailable/timed out)'
-echo '----- progress markers -----'
-if [ -n "$LOGSRC" ]; then timeout 5 grep -aE 'PHASE|Data Prep|annotat|enrich|OOF AUROC|Test AUROC|fitting member|deep_ensemble|stacker|ENSEMBLE|blend weight|KAN|subsampling|Traceback|OutOfMemory|CUDA out of memory|ABORT' "$LOGSRC" 2>/dev/null | tail -25 || echo '(none yet)'; else echo '(no readable log file)'; fi
-echo '----- live log tail (last 40) -----'
-if [ -n "$LOGSRC" ]; then timeout 5 tail -n 40 "$LOGSRC" 2>/dev/null || echo '(tail timed out)'; else echo '(no readable log file; stdout is a pipe/tty and no cwd/logs/train.log -- see FD1/LOGFD above)'; fi
-echo '----- outputs/run16 -----'
-timeout 5 ls -lat {OUTDIR} 2>/dev/null | head -8 || echo '(no outdir)'
-echo '----- splits -----'
-timeout 5 ls -lat {SPLITS_DIR} 2>/dev/null | head -6 || echo '(no splits yet -> PHASE 1 data prep)'"""
+    probe = (PROBE_TMPL
+             .replace("__DATA_DIR__", DATA_DIR)
+             .replace("__SPLITS_DIR__", SPLITS_DIR)
+             .replace("__INTERNAL_LOG__", INTERNAL_LOG)
+             .replace("__RLOG__", rlog)
+             .replace("__DONE_MARK__", DONE_MARK)
+             .replace("__OUTDIR__", OUTDIR))
     rc, out, err = ssh_bash(st, args.ssh_key, probe, dry=False, timeout=90)
     if "PROBE_OK" not in out:
         print(f"[status] no PROBE_OK from instance {st['instance_id']} within 90s -- box "
               f"slow/unreachable or auth issue: {err or out or rc}")
         return 2
 
+    def grab(rx, cast=str, default=None):
+        m = re.search(rx, out)
+        return cast(m.group(1)) if m else default
+
     running = "TRAIN=RUNNING" in out
     data_present = "DATA=present" in out
     splits_present = "SPLITS=present" in out
-    md = re.search(r"DONE_COUNT=(\d+)", out)
-    done = bool(md and int(md.group(1)) > 0)
-    ma = re.search(r"AUROC_COUNT=(\d+)", out)
-    n_auroc = int(ma.group(1)) if ma else 0
-    me = re.search(r"ELAPSED=([0-9:\-]+)", out)
-    elapsed = me.group(1) if me else None
+    done = (grab(r"DONE_COUNT=(\d+)", int, 0) or 0) > 0
+    n_auroc = grab(r"AUROC_COUNT=(\d+)", int, 0) or 0
+    elapsed = grab(r"ELAPSED=([0-9:\-]+)")
+    state = grab(r"STATE=([A-Za-z]+)")
+    cpu_pct = grab(r"CPU_PCT=(\d+)", int, None)
+    gpu_util = grab(r"-----\sGPU\s-----\n\s*(\d+)\s*%", int, None)
     crashed = bool(re.search(r"Traceback|CUDA out of memory|OutOfMemory|ABORT", out))
+    gpu_active = gpu_util is not None and gpu_util > 5
+    cpu_active = cpu_pct is not None and cpu_pct > 20
+    active = gpu_active or cpu_active
 
     hrs = etime_to_hours(elapsed) if elapsed else None
-    if hrs is None and st.get("launched_at"):
-        hrs = (time.time() - st["launched_at"]) / 3600.0
     if rate and hrs is not None:
-        print(f"[status] run elapsed ~{hrs:.1f}h  rate ${rate:.4f}/hr  cost so far ~${hrs * rate:.2f}")
+        print(f"[status] train process elapsed ~{hrs:.1f}h  rate ${rate:.4f}/hr  "
+              f"proc-time cost ~${hrs * rate:.2f}  (billed instance time may exceed this if the box restarted)")
     elif rate:
-        print(f"[status] rate ${rate:.4f}/hr")
+        print(f"[status] rate ${rate:.4f}/hr  (no process elapsed parsed)")
 
     print(out)
     print("-" * 60)
+    gpu_s = f"GPU {gpu_util}%" if gpu_util is not None else "GPU ?"
+    cpu_s = f"CPU {cpu_pct}%" if cpu_pct is not None else "CPU ?"
     if done:
-        print(f"[status] VERDICT: training COMPLETE. Next: python {name} down "
-              "(fetch+verify; then a separate down --destroy).")
-    elif running and not splits_present:
-        print(f"[status] VERDICT: PHASE 1 (data prep / annotation), running"
-              f"{' ' + elapsed if elapsed else ''}. Splits not written yet; no models trained. "
-              "GPU activity above = ESM-2 / annotation work. This is the long phase.")
-    elif running and splits_present:
-        print(f"[status] VERDICT: PHASE 3 (training). {n_auroc} model(s) reported AUROC so far "
-              f"(of ~13). Splits written. Running{' ' + elapsed if elapsed else ''}.")
+        print(f"[status] VERDICT: training COMPLETE. Next: python {name} down (fetch+verify), "
+              "then a separate down --destroy.")
+    elif state == "Z":
+        print(f"[status] VERDICT: process {state} (ZOMBIE/defunct) -- NOT doing work. "
+              f"On the box: pkill -f scripts/train.py; then python {name} up to relaunch cleanly.")
     elif crashed:
-        print("[status] VERDICT: train NOT running and the log shows an error -- inspect markers/"
-              "tail above; do NOT destroy until the log is saved.")
+        print("[status] VERDICT: log shows an error -- inspect markers/tail above; do NOT destroy "
+              "until the log is saved.")
+    elif running and splits_present:
+        print(f"[status] VERDICT: PHASE 3 (training). {n_auroc} model(s) reported AUROC (of ~13). "
+              f"Running{' ' + elapsed if elapsed else ''}; {gpu_s} {cpu_s}.")
+    elif running and not splits_present and active:
+        print(f"[status] VERDICT: PHASE 1 (data prep / ESM-2 / annotation), ACTIVE ({gpu_s} {cpu_s}), "
+              f"running{' ' + elapsed if elapsed else ''}. Splits not written yet. This is the long phase.")
+    elif running and not splits_present and not active:
+        print(f"[status] VERDICT: *** SUSPECT *** process is alive but {gpu_s} idle and {cpu_s} low, "
+              f"with no splits/outputs/log after {elapsed or 'a while'} (STATE={state}). It is most "
+              f"likely STALLED or was started outside the orchestrator (check CMDLINE/CWD/open-files "
+              f"above -- our launch runs from {REMOTE_REPO} and redirects to {rlog}). "
+              f"If stalled: on the box `pkill -f scripts/train.py`, then `python {name} up "
+              f"--instance-id {st['instance_id']}` to relaunch cleanly (known log path).")
     elif not data_present:
-        print(f"[status] VERDICT: box looks RESET (no data, train not running). Re-run "
-              f"'python {name} up' to re-stage + relaunch.")
+        print(f"[status] VERDICT: box looks RESET (no data, train not running). "
+              f"Re-run python {name} up --instance-id {st['instance_id']} to re-stage + relaunch.")
     else:
         print(f"[status] VERDICT: train not running, data present -- launch did not persist. "
-              f"Re-run 'python {name} up' to relaunch (staging skips present files).")
+              f"Re-run python {name} up --instance-id {st['instance_id']} (staging skips present files).")
     return 0
 
 def _train_state(st: dict, key: str, dry: bool) -> tuple[bool, bool]:
