@@ -3339,3 +3339,19 @@ _meta.json location audit. real_data_prep.py:444 fillna FutureWarning.
   rebuild -> 18.64 MB, full-cohort coverage 0.9665 (2,405,448/2,488,889 missense).
 - Confirmed: Run-16 `--alphamissense` = TSV (not the scores parquet); 96.65% full-cohort
   protein-coord coverage means ESM-2 will populate.
+
+<!-- session: run16-smoke-gate 2026-06-12 -->
+### 2026-06-12 -- Run-16 all-models smoke gate CLEARED
+- Fixed: gnomAD-constraint wiring (0af34f3) + preflight #5 (76519f6); ReviewStatus cohort
+  re-augment + preflight #6 (a7fe43e); AlphaMissense 16 GiB cache OOM (move-aside + ship-TSV
+  regen strategy); cp1252 encoding crash via UTF-8 stdio (5f068dc) + ASCII-clean
+  variant_ensemble (9c037f1).
+- Result: complete `--fast` smoke (724.0s) -- all 13 models, 81 features, both classes, every
+  deadzone live; ENSEMBLE_STACKER test AUROC 0.9934, AUPRC 0.9543, MCC 0.8572, Brier 0.0267.
+- Learned: the input preflight is necessary but NOT sufficient -- it passed exit 0 over cohorts
+  the regen aborts on (ReviewStatus; protein-coord coverage). The `--fast` all-models smoke is
+  the authoritative gate. AlphaMissense cache load is cohort-independent (16 GiB) -> ship the TSV.
+- Watch (full regen): cnn_1d ~0.5 and kan ~0.74 (smoke-size; verify at 1.49M); gene-level top
+  features (re-confirm gene-disjoint splits + no cross-fold count leakage); protein-structure stub.
+- Commits: 0af34f3, 76519f6, a7fe43e, 5f068dc, 9c037f1. See
+  docs/sessions/SESSION_2026-06-12_run16-smoke-gate.md.

@@ -481,3 +481,21 @@ is the worked example; the other seven drift agents still await their reference 
   `--alphamissense` dir so the regen loads it (no 613 MB TSV re-scan).
 - Open: decouple the protein-coord source from `--alphamissense` (elegant fix removing
   the scores-parquet-vs-TSV trap); fold a coverage/size check into the preflight.
+
+<!-- roadmap-delta: run16-smoke-gate 2026-06-12 -->
+## ROADMAP delta -- 2026-06-12 (Run-16 smoke gate cleared)
+- Run-16 all-models smoke: COMPLETE end-to-end (724s); ENSEMBLE_STACKER test AUROC 0.9934.
+  The `--fast` smoke is the authoritative gate; the input preflight (now 6 checks) is a fast
+  necessary pre-screen only.
+- Run-16 launch contract (mandatory data-feeding flags): `--clinvar` clinvar_grch38_clean_seq
+  (ref/alt + ReviewStatus); `--esm2-model esm2_t33_650M_UR50D`; `--esm2-uniprot-index
+  uniprot_human_reviewed.parquet`; `--alphamissense AlphaMissense_hg38.tsv.gz` (TSV, NOT the
+  scores parquet -- the parquet cache OOMs at 16 GiB); `--gnomad-constraint
+  gnomad.v4.1.constraint_metrics.tsv`.
+- Data staging: ship the TSV (not the 740 MB scores cache) + the 18.64 MB protein-coord index
+  co-located under data/external/alphamissense/.
+- Open decisions: production optional flags (--gnomad allele-freq, --uniprot, --dbnsfp-path,
+  --lovd-path, --finngen-path) + paths; optional AlphaMissense cohort-filtered cache read;
+  optional decouple of protein-coord source from --alphamissense.
+- Watch (full regen): cnn_1d (~0.5) and kan (~0.74) at scale; gene-disjoint splits + cross-fold
+  count leakage on gene-level features; AlphaFold-structure stub (pLDDT=50.0 default).
