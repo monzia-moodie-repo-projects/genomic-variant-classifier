@@ -86,6 +86,7 @@ _UNIPROT_GENE_SEARCH = (
     "&fields=accession,sequence&format=json&size=1"
 )
 _CONTEXT_WINDOW = 21  # residues either side of the mutation
+_MLM_MAX_RESIDUES = 1022  # ESM-2 context (1024 tokens) minus BOS/EOS; bounds LLR forward-pass length
 _REQUEST_TIMEOUT = 10
 
 # ---------------------------------------------------------------------------
@@ -331,6 +332,28 @@ def _mlm_logit_matrix(tok, mdl, seq: str, mask_token_idx: Optional[int] = None):
     with torch.no_grad():
         out = mdl(**enc)
     return out.logits[0].float().cpu().numpy()
+
+
+def _windowed_logit_row(tok, mdl, seq: str, pos1: int, mask: bool = False,
+                        max_residues: int = _MLM_MAX_RESIDUES):
+    """Logit row for 1-based residue ``pos1``, scored within a window of at most
+    ``max_residues`` residues centered on ``pos1``.
+
+    A full-sequence pass on a long protein both exceeds ESM-2's ~1024-token
+    positional range and explodes the O(L^2) attention (TTN ~34k aa -> ~94 GB).
+    Windowing bounds the pass and keeps the residue inside the model range. For
+    ``len(seq) <= max_residues`` the window is the whole sequence and the read
+    index equals ``pos1`` -- i.e. identical to ``_mlm_logit_matrix(...)[pos1]``.
+    """
+    idx0 = pos1 - 1
+    half = max_residues // 2
+    lo = max(0, idx0 - half)
+    hi = min(len(seq), lo + max_residues)
+    lo = max(0, hi - max_residues)            # re-anchor near the C-terminus
+    window = seq[lo:hi]
+    local_pos1 = idx0 - lo + 1                 # 1-based pos within window (BOS at token 0)
+    mask_idx = local_pos1 if mask else None
+    return _mlm_logit_matrix(tok, mdl, window, mask_token_idx=mask_idx)[local_pos1]
 
 
 # ---------------------------------------------------------------------------
@@ -768,7 +791,12 @@ class ESM2Connector:
             if seq is None:
                 continue
             seqlen = len(seq)
-            wt_mat = _mlm_logit_matrix(tok, mdl, seq) if method == "wt" else None
+            long_protein = seqlen > _MLM_MAX_RESIDUES
+            wt_mat = (
+                _mlm_logit_matrix(tok, mdl, seq)
+                if method == "wt" and not long_protein
+                else None
+            )
             masked_cache: dict = {}
             for row in rows:
                 pos1 = int(row.protein_pos)
@@ -784,12 +812,21 @@ class ESM2Connector:
                     self._llr_n_mismatch += 1
                     continue
                 if method == "wt":
-                    logit_row = wt_mat[pos1]
+                    logit_row = (
+                        _windowed_logit_row(tok, mdl, seq, pos1)
+                        if long_protein
+                        else wt_mat[pos1]
+                    )
                 else:
                     if pos1 not in masked_cache:
-                        masked_cache[pos1] = _mlm_logit_matrix(
-                            tok, mdl, seq, mask_token_idx=pos1
-                        )[pos1]
+                        if long_protein:
+                            masked_cache[pos1] = _windowed_logit_row(
+                                tok, mdl, seq, pos1, mask=True
+                            )
+                        else:
+                            masked_cache[pos1] = _mlm_logit_matrix(
+                                tok, mdl, seq, mask_token_idx=pos1
+                            )[pos1]
                     logit_row = masked_cache[pos1]
                 scores[row.Index] = _llr_from_logit_row(logit_row, wt_id, mut_id)
         return scores
