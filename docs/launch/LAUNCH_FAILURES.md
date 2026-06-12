@@ -98,6 +98,17 @@ Format: ID | first seen | symptom | root cause | fix | status (FIXED / MITIGATED
   filename (launch_run16_v5.py) to avoid the Downloads name-collision; deploy procedure verifies
   the version AND that git shows the file modified BEFORE committing | FIXED (v5 + procedure).
 
+- L18 | run 16 | the v5 rich `status` HUNG for the full 180 s ssh timeout | it set
+  LOGSRC=/proc/PID/fd/1 unconditionally and ran grep/tail on it, but on this box that fd is a
+  PIPE (readlink shows `pipe:[...]`), and grep/tail on a pipe block waiting for EOF the live
+  process never sends. The sandbox proof had only covered the regular-file (deleted-but-open)
+  case, which is seekable -- the blocking path was untested | v6: choose LOGSRC only from sources
+  that pass `[ -f ]` (regular file, incl. deleted-but-open -- a pipe fails `[ -f ]`), prefer the
+  FileHandler log at the process's REAL cwd (`$(readlink /proc/PID/cwd)/logs/train.log`), wrap
+  every read in `timeout`, dump fd0/1/2 + any *.log fd for diagnosis, and drop the ssh timeout
+  to 90 s. Validated: `[ -f ]` distinguishes deleted-regular (true) from pipe (false); bash -n;
+  all reads timeout-wrapped; parse/verdict for running/pipe/no-log without hang | FIXED (v6).
+
 ## Known OPEN / watch (carry forward)
 
 - W03 | run 16 | instance 40728494 was reachable after launch but /workspace content (log, and

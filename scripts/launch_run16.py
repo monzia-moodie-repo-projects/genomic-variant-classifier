@@ -17,7 +17,7 @@ Phases: up | status | down | watch.  Always preview with --dry-run first.  Autho
 """
 from __future__ import annotations
 
-__version__ = "5.0"  # rich monitor; bump on every change so deploy is verifiable
+__version__ = "6.0"  # rich monitor; bump on every change so deploy is verifiable
 
 import argparse
 import json
@@ -339,52 +339,58 @@ def phase_status(args) -> int:
     st = load_state(root)
     name = Path(__file__).name
     if args.dry_run:
-        print("  DRY> rich monitor probe (pgrep/proc-fd live log + GPU + markers + file phase)")
+        print("  DRY> hang-proof monitor probe (regular-file log only, timeout-wrapped reads)")
         return 0
 
     rc0, out0, _ = vastai(["show", "instance", str(st["instance_id"]), "--raw"], dry=False)
     rate = parse_rate(out0)
 
     rlog = st["train_log"]
-    probe = (
-        "echo PROBE_OK\n"
-        "PID=$(pgrep -f 'scripts/train.py' | head -1)\n"
-        'if [ -n "$PID" ]; then echo TRAIN=RUNNING; echo PID=$PID; else echo TRAIN=IDLE; fi\n'
-        f"echo DATA=$([ -d {DATA_DIR} ] && echo present || echo ABSENT)\n"
-        f"echo SPLITS=$([ -d {SPLITS_DIR} ] && echo present || echo absent)\n"
-        'if [ -n "$PID" ]; then\n'
-        "  echo CWD=$(readlink /proc/$PID/cwd 2>/dev/null)\n"
-        "  echo ELAPSED=$(ps -o etime= -p $PID 2>/dev/null | tr -d ' ')\n"
-        "  echo FD1=$(readlink /proc/$PID/fd/1 2>/dev/null)\n"
-        "  LOGSRC=/proc/$PID/fd/1\n"
-        "else\n"
-        f"  LOGSRC={rlog}\n"
-        "fi\n"
-        f"echo DONE_COUNT=$(grep -ac '{DONE_MARK}' \"$LOGSRC\" 2>/dev/null | head -1)\n"
-        "echo AUROC_COUNT=$(grep -acE 'OOF AUROC|Test AUROC' \"$LOGSRC\" 2>/dev/null | head -1)\n"
-        "echo '----- FileHandler log fd -----'\n"
-        'if [ -n "$PID" ]; then for fd in /proc/$PID/fd/*; do t=$(readlink "$fd" 2>/dev/null); '
-        'case "$t" in *train*.log*) echo "$fd -> $t";; esac; done; fi\n'
-        "echo '----- GPU -----'\n"
-        "nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu "
-        "--format=csv,noheader 2>/dev/null || echo '(no nvidia-smi)'\n"
-        "echo '----- progress markers -----'\n"
-        "grep -aE 'PHASE|Data Prep|annotat|enrich|OOF AUROC|Test AUROC|fitting member|"
-        "deep_ensemble|stacker|ENSEMBLE|blend weight|KAN|subsampling|Traceback|"
-        "OutOfMemory|CUDA out of memory|ABORT' \"$LOGSRC\" 2>/dev/null | tail -25 "
-        "|| echo '(no markers yet)'\n"
-        "echo '----- live log tail (last 40) -----'\n"
-        'tail -n 40 "$LOGSRC" 2>/dev/null || echo "(no readable log)"\n'
-        "echo '----- outputs/run16 (newest first) -----'\n"
-        f"ls -lat {OUTDIR} 2>/dev/null | head -8 || echo '(no outdir yet)'\n"
-        "echo '----- splits -----'\n"
-        f"ls -lat {SPLITS_DIR} 2>/dev/null | head -6 "
-        "|| echo '(no splits yet -> still PHASE 1 data prep)'"
-    )
-    rc, out, err = ssh_bash(st, args.ssh_key, probe, dry=False, timeout=180)
+    # Hang-proof: only read a source that passes [ -f ] (regular file, incl. deleted-but-open);
+    # NEVER read a pipe/socket/tty fd (that blocks). Every read is wrapped in `timeout`.
+    probe = f"""echo PROBE_OK
+PID=$(pgrep -f 'scripts/train.py' | head -1)
+if [ -n "$PID" ]; then echo TRAIN=RUNNING; echo PID=$PID; else echo TRAIN=IDLE; fi
+echo DATA=$([ -d {DATA_DIR} ] && echo present || echo ABSENT)
+echo SPLITS=$([ -d {SPLITS_DIR} ] && echo present || echo absent)
+CWD=""
+if [ -n "$PID" ]; then
+  CWD=$(readlink /proc/$PID/cwd 2>/dev/null)
+  echo CWD=$CWD
+  echo ELAPSED=$(ps -o etime= -p $PID 2>/dev/null | tr -d ' ')
+  echo FD1=$(readlink /proc/$PID/fd/1 2>/dev/null)
+  echo FD2=$(readlink /proc/$PID/fd/2 2>/dev/null)
+  for fd in /proc/$PID/fd/*; do t=$(readlink "$fd" 2>/dev/null); case "$t" in *.log*) echo "LOGFD $fd -> $t";; esac; done
+fi
+LOGSRC=""
+for cand in "$CWD/logs/train.log" {INTERNAL_LOG} {rlog} /proc/$PID/fd/1 /proc/$PID/fd/2; do
+  if [ -z "$LOGSRC" ] && [ -f "$cand" ]; then LOGSRC="$cand"; fi
+done
+if [ -z "$LOGSRC" ] && [ -n "$PID" ]; then
+  for fd in /proc/$PID/fd/*; do t=$(readlink "$fd" 2>/dev/null); case "$t" in *.log*) if [ -f "$fd" ]; then LOGSRC="$fd"; break; fi;; esac; done
+fi
+echo LOGSRC="$LOGSRC"
+if [ -n "$LOGSRC" ]; then
+  echo DONE_COUNT=$(timeout 5 grep -ac '{DONE_MARK}' "$LOGSRC" 2>/dev/null | head -1)
+  echo AUROC_COUNT=$(timeout 5 grep -acE 'OOF AUROC|Test AUROC' "$LOGSRC" 2>/dev/null | head -1)
+else
+  echo DONE_COUNT=0
+  echo AUROC_COUNT=0
+fi
+echo '----- GPU -----'
+timeout 8 nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader 2>/dev/null || echo '(nvidia-smi unavailable/timed out)'
+echo '----- progress markers -----'
+if [ -n "$LOGSRC" ]; then timeout 5 grep -aE 'PHASE|Data Prep|annotat|enrich|OOF AUROC|Test AUROC|fitting member|deep_ensemble|stacker|ENSEMBLE|blend weight|KAN|subsampling|Traceback|OutOfMemory|CUDA out of memory|ABORT' "$LOGSRC" 2>/dev/null | tail -25 || echo '(none yet)'; else echo '(no readable log file)'; fi
+echo '----- live log tail (last 40) -----'
+if [ -n "$LOGSRC" ]; then timeout 5 tail -n 40 "$LOGSRC" 2>/dev/null || echo '(tail timed out)'; else echo '(no readable log file; stdout is a pipe/tty and no cwd/logs/train.log -- see FD1/LOGFD above)'; fi
+echo '----- outputs/run16 -----'
+timeout 5 ls -lat {OUTDIR} 2>/dev/null | head -8 || echo '(no outdir)'
+echo '----- splits -----'
+timeout 5 ls -lat {SPLITS_DIR} 2>/dev/null | head -6 || echo '(no splits yet -> PHASE 1 data prep)'"""
+    rc, out, err = ssh_bash(st, args.ssh_key, probe, dry=False, timeout=90)
     if "PROBE_OK" not in out:
-        print(f"[status] SSH to instance {st['instance_id']} did NOT respond (truly unreachable "
-              f"/ auth issue): {err or out or rc}")
+        print(f"[status] no PROBE_OK from instance {st['instance_id']} within 90s -- box "
+              f"slow/unreachable or auth issue: {err or out or rc}")
         return 2
 
     running = "TRAIN=RUNNING" in out
@@ -398,13 +404,11 @@ def phase_status(args) -> int:
     elapsed = me.group(1) if me else None
     crashed = bool(re.search(r"Traceback|CUDA out of memory|OutOfMemory|ABORT", out))
 
-    # cost: prefer process elapsed (real run time); fall back to launched_at
     hrs = etime_to_hours(elapsed) if elapsed else None
     if hrs is None and st.get("launched_at"):
         hrs = (time.time() - st["launched_at"]) / 3600.0
     if rate and hrs is not None:
-        print(f"[status] run elapsed ~{hrs:.1f}h  rate ${rate:.4f}/hr  "
-              f"cost so far ~${hrs * rate:.2f}")
+        print(f"[status] run elapsed ~{hrs:.1f}h  rate ${rate:.4f}/hr  cost so far ~${hrs * rate:.2f}")
     elif rate:
         print(f"[status] rate ${rate:.4f}/hr")
 
@@ -418,11 +422,11 @@ def phase_status(args) -> int:
               f"{' ' + elapsed if elapsed else ''}. Splits not written yet; no models trained. "
               "GPU activity above = ESM-2 / annotation work. This is the long phase.")
     elif running and splits_present:
-        print(f"[status] VERDICT: PHASE 3 (training). {n_auroc} model(s) have reported AUROC so "
-              f"far (of ~13). Splits are written. Running{' ' + elapsed if elapsed else ''}.")
+        print(f"[status] VERDICT: PHASE 3 (training). {n_auroc} model(s) reported AUROC so far "
+              f"(of ~13). Splits written. Running{' ' + elapsed if elapsed else ''}.")
     elif crashed:
-        print("[status] VERDICT: train NOT running and the log shows an error -- inspect the "
-              "markers/tail above; do NOT destroy until you have saved the log.")
+        print("[status] VERDICT: train NOT running and the log shows an error -- inspect markers/"
+              "tail above; do NOT destroy until the log is saved.")
     elif not data_present:
         print(f"[status] VERDICT: box looks RESET (no data, train not running). Re-run "
               f"'python {name} up' to re-stage + relaunch.")
