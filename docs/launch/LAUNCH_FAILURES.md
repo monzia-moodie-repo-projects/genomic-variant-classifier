@@ -154,6 +154,18 @@ Format: ID | first seen | symptom | root cause | fix | status (FIXED / MITIGATED
   LESSON: a port must be >= the original -- never silently drop a safeguard when reusing a proven
   script; carry forward the gates, add to them | FIXED (vm.sh env gate).
 
+- L22 | run 16 | env gate passed (ENV_OK torch cuda True) and train.py reached PHASE 1, then died:
+  ModuleNotFoundError: No module named 'genomic_variant_classifier' | the project is a src-layout
+  package (src/genomic_variant_classifier/, pyproject where=["src"]); requirements.txt installs
+  DEPENDENCIES only, never the project itself, and neither launch_run11_vm.sh nor Run_Preflight_VM.sh
+  installs it. The vm.sh ENV gate verified third-party imports but NOT the project package, so it
+  passed and launched train.py into the project-import failure | vm.sh now (i) exports
+  PYTHONPATH="$REPO/src" right after cd (no build step -- bulletproof), (ii) includes
+  genomic_variant_classifier in ENV_CHECK so the gate catches a missing package, (iii) runs
+  pip install -e . --no-deps (editable, per pyproject where=src) in the recovery branch. Immediate
+  start without redeploy: `export PYTHONPATH=$PWD/src` before re-running the vm.sh (inherited by the
+  train.py child). LESSON: an env gate must verify the PROJECT package imports, not only deps | FIXED (vm.sh PYTHONPATH + gate).
+
 ## Known OPEN / watch (carry forward)
 
 - W03 | run 16 | instance 40728494 was reachable after launch but /workspace content (log, and

@@ -27,6 +27,10 @@ LOG=/workspace/run16_master.log
 REPO=/workspace/genomic-variant-classifier
 cd "$REPO" || { echo "==> ABORT: repo not found at $REPO"; exit 1; }
 
+# src-layout package: make genomic_variant_classifier importable without a build step.
+# requirements.txt installs deps only, NOT the project itself (L22).
+export PYTHONPATH="$REPO/src:${PYTHONPATH:-}"
+
 if [ -d /venv/main/bin ] && ! echo "$PATH" | grep -q "/venv/main/bin"; then
     export PATH="/venv/main/bin:$PATH"
 fi
@@ -52,10 +56,11 @@ fi
 
 # --- ENV GATE (the dropped [4/7] gate, restored + self-healing) -------------------
 # Exactly the deps train.py imports (NOT torch_geometric -- run16 does not use GNN).
-ENV_CHECK='import pandas,numpy,sklearn,catboost,lightgbm,xgboost,imodelsx,transformers,torch; assert torch.cuda.is_available()'
+ENV_CHECK='import pandas,numpy,sklearn,catboost,lightgbm,xgboost,imodelsx,transformers,torch,genomic_variant_classifier; assert torch.cuda.is_available()'
 if ! $PY -c "$ENV_CHECK" 2>/dev/null; then
     echo "==> deps missing/incomplete -> pip install -r requirements.txt (one-time, ~3-5 min)" | tee -a "$LOG"
     $PY -m pip install -r requirements.txt --break-system-packages 2>&1 | tail -8 | tee -a "$LOG"
+    $PY -m pip install -e . --no-deps 2>&1 | tail -4 | tee -a "$LOG"   # editable install of src/ package
 fi
 if $PY -c "$ENV_CHECK; import torch; print('==> ENV_OK torch', torch.__version__, 'cuda', torch.cuda.is_available())" 2>&1 | tee -a "$LOG" | grep -q '==> ENV_OK'; then
     :
