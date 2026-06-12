@@ -154,6 +154,39 @@ def parse_args() -> argparse.Namespace:
         "--skip-nn", action="store_true",
         help="Skip neural network models (faster without TensorFlow/GPU)",
     )
+    p.add_argument(
+        "--esm2-model",
+        default="esm2_t6_8M_UR50D",
+        metavar="NAME",
+        help=(
+            "ESM-2 model for esm2_delta_norm / esm2_llr (HuggingFace facebook/<NAME>). "
+            "Default esm2_t6_8M_UR50D (fast, for smoke tests). Set "
+            "esm2_t33_650M_UR50D for production runs."
+        ),
+    )
+    p.add_argument(
+        "--esm2-uniprot-index",
+        default=None,
+        metavar="PATH",
+        help=(
+            "Local UniProt sequence index parquet for ESM-2 (e.g. "
+            "data/external/uniprot/uniprot_human_reviewed.parquet). When set, "
+            "ESM-2 resolves sequences offline with NO run-time UniProt REST. "
+            "Default None -> live REST per gene (slow; not for large regens)."
+        ),
+    )
+    p.add_argument(
+        "--esm2-cache",
+        default=None,
+        metavar="PATH",
+        help="SQLite cache path for ESM-2 sequences/embeddings. Default None -> connector default.",
+    )
+    p.add_argument(
+        "--esm2-device",
+        default=None,
+        metavar="DEV",
+        help="Device for ESM-2 ('cpu','cuda','auto'). Default None -> cuda if available else cpu.",
+    )
     return p.parse_args()
 
 
@@ -206,6 +239,10 @@ def main() -> None:
         lovd_path=Path(args.lovd_path) if args.lovd_path else None,
         finngen_path=Path(args.finngen_path) if args.finngen_path else None,
         dbnsfp_path=Path(args.dbnsfp_path) if args.dbnsfp_path else None,
+        esm2_model_name=args.esm2_model,
+        esm2_uniprot_index_path=Path(args.esm2_uniprot_index) if args.esm2_uniprot_index else None,
+        esm2_cache_path=Path(args.esm2_cache) if args.esm2_cache else None,
+        esm2_device=args.esm2_device,
     )
 
     pipeline = DataPrepPipeline(config=config, annotation_config=annotation_config)
@@ -363,6 +400,10 @@ def main() -> None:
                 "feature_names":       feature_names,
                 "annotation_sources":  {
                     "alphamissense": str(args.alphamissense) if args.alphamissense else None,
+                    "finngen": str(args.finngen_path) if args.finngen_path else None,
+                    "dbnsfp": str(args.dbnsfp_path) if args.dbnsfp_path else None,
+                    "esm2_model": args.esm2_model,
+                    "esm2_uniprot_index": str(args.esm2_uniprot_index) if args.esm2_uniprot_index else None,
                     "lovd":         str(args.lovd_path) if args.lovd_path else None,
                 },
                 "metrics":             metrics_dict,
