@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "run_label": "run15",
-  "captured_from": "outputs/run15_rerun_report/full/splits/X_train.parquet",
-  "captured_at": "2026-06-11T14:27:18.585708+00:00",
-  "n_columns": 78,
-  "expected_schema_hash": "db43fd918bdfa4d0b096ba7df1c9c045bc5563e072803586b538200639df65bc",
+  "run_label": "run16b-smoke",
+  "captured_from": "models/smoke_run16b/splits/X_train.parquet",
+  "captured_at": "2026-06-12T09:59:15.429521+00:00",
+  "n_columns": 81,
+  "expected_schema_hash": "93f6e0bc9e13275c0671f7b19a35efe4179f82597af030c4f82b6edde4f429ef",
   "expected_dtypes": {
     "af_raw": "float64",
     "af_log10": "float64",
@@ -64,6 +64,7 @@
     "is_mitochondrial": "float64",
     "gnn_score": "float64",
     "maxentscan_score": "float64",
+    "maxentscan_delta": "float64",
     "dist_to_splice_site": "float64",
     "exon_number": "float64",
     "is_canonical_splice": "float64",
@@ -80,9 +81,11 @@
     "finngen_af_nfsee": "float64",
     "finngen_enrichment": "float64",
     "esm2_delta_norm": "float64",
+    "esm2_llr": "float64",
     "pli_score": "float64",
     "loeuf": "float64",
     "syn_z": "float64",
-    "mis_z": "float64"
+    "mis_z": "float64",
+    "reactome_pathway_count": "float64"
   }
 }
