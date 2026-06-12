@@ -3328,3 +3328,14 @@ _meta.json location audit. real_data_prep.py:444 fillna FutureWarning.
 ### Commits
 - fee2e63 (test skip-guard, already on origin/main); this close (ci.yml hardening + docs).
 - See docs/incidents/INCIDENT_2026-06-12_ci-esm2-hub-flake.md.
+
+<!-- incident: protein-coord-index-corruption 2026-06-12 -->
+### 2026-06-12 -- protein-coord index corruption + repair
+- Failed: probe v1 re-run after `Remove-Item` of the cache rebuilt the protein-coord
+  index from a 50k sample, overwriting the full 17.8 MB index with a 0.29 MB one.
+- Learned: `ProteinCoordConnector._build_index` filters to the passed cohort and writes
+  the canonical cache; diagnostics must be read-only. Validate the cache by size.
+- Fixed: probe v2 (read-only default + size guard + explicit `--rebuild-full`); full
+  rebuild -> 18.64 MB, full-cohort coverage 0.9665 (2,405,448/2,488,889 missense).
+- Confirmed: Run-16 `--alphamissense` = TSV (not the scores parquet); 96.65% full-cohort
+  protein-coord coverage means ESM-2 will populate.

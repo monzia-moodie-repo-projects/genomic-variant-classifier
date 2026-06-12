@@ -469,3 +469,15 @@ is the worked example; the other seven drift agents still await their reference 
 ### Note (unchanged, benign)
 - 0xc0000139 torch_scatter/torch_sparse dumps during collection are the known-benign
   importorskip path (missing PyG C-extensions on the CPU box); suite exit stays 0.
+
+<!-- roadmap-delta: protein-coord-rebuild 2026-06-12 -->
+## ROADMAP delta -- 2026-06-12 (protein-coord index repair + Run-16 input contract)
+- Protein-coord index rebuilt full-cohort: 18.64 MB, 0.9665 coverage (ESM-2 ready).
+- Run-16 launch contract (mandatory flags): `--clinvar` clean_seq cohort (ref/alt);
+  `--esm2-model esm2_t33_650M_UR50D`; `--esm2-uniprot-index uniprot_human_reviewed.parquet`;
+  `--alphamissense data/external/alphamissense/AlphaMissense_hg38.tsv.gz` (TSV, NOT the
+  scores parquet); `--gnomad-constraint data/external/gnomad/gnomad.v4.1.constraint_metrics.tsv`.
+- Data staging: ship the 18.64 MB protein-coord index to Vast.ai co-located with the
+  `--alphamissense` dir so the regen loads it (no 613 MB TSV re-scan).
+- Open: decouple the protein-coord source from `--alphamissense` (elegant fix removing
+  the scores-parquet-vs-TSV trap); fold a coverage/size check into the preflight.
