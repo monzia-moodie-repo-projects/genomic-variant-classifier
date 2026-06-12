@@ -17,6 +17,8 @@ Phases: up | status | down | watch.  Always preview with --dry-run first.  Autho
 """
 from __future__ import annotations
 
+__version__ = "5.0"  # rich monitor; bump on every change so deploy is verifiable
+
 import argparse
 import json
 import os
@@ -34,7 +36,8 @@ TRAIN_LOG = "/workspace/run16_full.log"
 OUT_REL = "outputs/run16"
 INTERNAL_LOG = "/workspace/genomic-variant-classifier/logs/train.log"  # train.py FileHandler
 DATA_DIR = "/workspace/genomic-variant-classifier/data/processed"
-SPLITS_DIR = "/workspace/genomic-variant-classifier/" + OUT_REL + "/splits"
+OUTDIR = "/workspace/genomic-variant-classifier/" + OUT_REL
+SPLITS_DIR = OUTDIR + "/splits"
 DONE_MARK = "Training complete"
 HF_MODEL = "facebook/esm2_t33_650M_UR50D"
 TRANSFER_TIMEOUT = 14400   # 4 h -- staging + output fetch (multi-GB over a home uplink)
@@ -156,6 +159,25 @@ def parse_rate(text: str) -> float | None:
         return None
 
 
+def etime_to_hours(s: str) -> float | None:
+    """Parse ps etime ([[DD-]HH:]MM:SS) to fractional hours."""
+    s = s.strip()
+    if not s or ":" not in s:
+        return None
+    try:
+        days = 0
+        if "-" in s:
+            d, s = s.split("-", 1)
+            days = int(d)
+        parts = [int(x) for x in s.split(":")]
+        while len(parts) < 3:
+            parts.insert(0, 0)
+        h, m, sec = parts
+        return days * 24 + h + m / 60.0 + sec / 3600.0
+    except Exception:  # noqa: BLE001
+        return None
+
+
 # ---------- state ----------
 def state_path(root: Path) -> Path:
     return root / OUT_REL / ".launch_state.json"
@@ -246,6 +268,7 @@ def _scripts_dir() -> Path:
 
 
 def phase_up(args) -> int:
+    print(f"[up] launch_run16.py v{__version__}")
     root = Path(args.repo_root).resolve()
     dry = args.dry_run
     prev = read_state(root)
@@ -311,65 +334,101 @@ def phase_up(args) -> int:
     return 0
 
 def phase_status(args) -> int:
+    print(f"[status] launch_run16.py v{__version__}")
     root = Path(args.repo_root).resolve()
     st = load_state(root)
     name = Path(__file__).name
     if args.dry_run:
-        print("  DRY> ssh diagnostic probe (pgrep / logs / data / splits) + cost readout")
+        print("  DRY> rich monitor probe (pgrep/proc-fd live log + GPU + markers + file phase)")
         return 0
-    # cost readout (best-effort)
+
     rc0, out0, _ = vastai(["show", "instance", str(st["instance_id"]), "--raw"], dry=False)
     rate = parse_rate(out0)
-    if rate and st.get("launched_at"):
-        hrs = (time.time() - st["launched_at"]) / 3600.0
-        print(f"[status] uptime ~{hrs:.1f}h  rate ${rate:.4f}/hr  "
-              f"cost so far ~${hrs * rate:.2f}  (approx; billed from instance create)")
-    elif rate:
-        print(f"[status] rate ${rate:.4f}/hr  (no launch timestamp in state; cost not computed)")
 
     rlog = st["train_log"]
     probe = (
-        "echo PROBE_OK; "
-        "if pgrep -f 'scripts/train.py' >/dev/null 2>&1; then echo TRAIN=RUNNING; "
-        "else echo TRAIN=IDLE; fi; "
-        f"echo DONE_COUNT=$(grep -c '{DONE_MARK}' {rlog} 2>/dev/null || echo 0); "
-        f"echo DATA=$([ -d {DATA_DIR} ] && echo present || echo ABSENT); "
-        f"echo SPLITS=$([ -d {SPLITS_DIR} ] && echo present || echo absent); "
-        f"echo REDIR_LOG=$([ -f {rlog} ] && echo present || echo ABSENT); "
-        f"echo INNER_LOG=$([ -f {INTERNAL_LOG} ] && echo present || echo absent); "
-        "echo '----- last log lines -----'; "
-        f"(tail -n 25 {rlog} 2>/dev/null || tail -n 25 {INTERNAL_LOG} 2>/dev/null "
-        "|| echo '(no log file found)')"
+        "echo PROBE_OK\n"
+        "PID=$(pgrep -f 'scripts/train.py' | head -1)\n"
+        'if [ -n "$PID" ]; then echo TRAIN=RUNNING; echo PID=$PID; else echo TRAIN=IDLE; fi\n'
+        f"echo DATA=$([ -d {DATA_DIR} ] && echo present || echo ABSENT)\n"
+        f"echo SPLITS=$([ -d {SPLITS_DIR} ] && echo present || echo absent)\n"
+        'if [ -n "$PID" ]; then\n'
+        "  echo CWD=$(readlink /proc/$PID/cwd 2>/dev/null)\n"
+        "  echo ELAPSED=$(ps -o etime= -p $PID 2>/dev/null | tr -d ' ')\n"
+        "  echo FD1=$(readlink /proc/$PID/fd/1 2>/dev/null)\n"
+        "  LOGSRC=/proc/$PID/fd/1\n"
+        "else\n"
+        f"  LOGSRC={rlog}\n"
+        "fi\n"
+        f"echo DONE_COUNT=$(grep -ac '{DONE_MARK}' \"$LOGSRC\" 2>/dev/null | head -1)\n"
+        "echo AUROC_COUNT=$(grep -acE 'OOF AUROC|Test AUROC' \"$LOGSRC\" 2>/dev/null | head -1)\n"
+        "echo '----- FileHandler log fd -----'\n"
+        'if [ -n "$PID" ]; then for fd in /proc/$PID/fd/*; do t=$(readlink "$fd" 2>/dev/null); '
+        'case "$t" in *train*.log*) echo "$fd -> $t";; esac; done; fi\n'
+        "echo '----- GPU -----'\n"
+        "nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu "
+        "--format=csv,noheader 2>/dev/null || echo '(no nvidia-smi)'\n"
+        "echo '----- progress markers -----'\n"
+        "grep -aE 'PHASE|Data Prep|annotat|enrich|OOF AUROC|Test AUROC|fitting member|"
+        "deep_ensemble|stacker|ENSEMBLE|blend weight|KAN|subsampling|Traceback|"
+        "OutOfMemory|CUDA out of memory|ABORT' \"$LOGSRC\" 2>/dev/null | tail -25 "
+        "|| echo '(no markers yet)'\n"
+        "echo '----- live log tail (last 40) -----'\n"
+        'tail -n 40 "$LOGSRC" 2>/dev/null || echo "(no readable log)"\n'
+        "echo '----- outputs/run16 (newest first) -----'\n"
+        f"ls -lat {OUTDIR} 2>/dev/null | head -8 || echo '(no outdir yet)'\n"
+        "echo '----- splits -----'\n"
+        f"ls -lat {SPLITS_DIR} 2>/dev/null | head -6 "
+        "|| echo '(no splits yet -> still PHASE 1 data prep)'"
     )
-    rc, out, err = ssh_bash(st, args.ssh_key, probe, dry=False, timeout=120)
+    rc, out, err = ssh_bash(st, args.ssh_key, probe, dry=False, timeout=180)
     if "PROBE_OK" not in out:
-        print(f"[status] SSH to instance {st['instance_id']} did NOT respond as expected "
-              f"(truly unreachable / auth issue): {err or out or rc}")
+        print(f"[status] SSH to instance {st['instance_id']} did NOT respond (truly unreachable "
+              f"/ auth issue): {err or out or rc}")
         return 2
-    print(out)
+
     running = "TRAIN=RUNNING" in out
-    m = re.search(r"DONE_COUNT=(\d+)", out)
-    done = bool(m and int(m.group(1)) > 0)
     data_present = "DATA=present" in out
-    any_log = "REDIR_LOG=present" in out or "INNER_LOG=present" in out
-    crashed = bool(re.search(r"Traceback|Error:|FAILED", out))
+    splits_present = "SPLITS=present" in out
+    md = re.search(r"DONE_COUNT=(\d+)", out)
+    done = bool(md and int(md.group(1)) > 0)
+    ma = re.search(r"AUROC_COUNT=(\d+)", out)
+    n_auroc = int(ma.group(1)) if ma else 0
+    me = re.search(r"ELAPSED=([0-9:\-]+)", out)
+    elapsed = me.group(1) if me else None
+    crashed = bool(re.search(r"Traceback|CUDA out of memory|OutOfMemory|ABORT", out))
+
+    # cost: prefer process elapsed (real run time); fall back to launched_at
+    hrs = etime_to_hours(elapsed) if elapsed else None
+    if hrs is None and st.get("launched_at"):
+        hrs = (time.time() - st["launched_at"]) / 3600.0
+    if rate and hrs is not None:
+        print(f"[status] run elapsed ~{hrs:.1f}h  rate ${rate:.4f}/hr  "
+              f"cost so far ~${hrs * rate:.2f}")
+    elif rate:
+        print(f"[status] rate ${rate:.4f}/hr")
+
+    print(out)
     print("-" * 60)
     if done:
         print(f"[status] VERDICT: training COMPLETE. Next: python {name} down "
               "(fetch+verify; then a separate down --destroy).")
-    elif running:
-        print("[status] VERDICT: training RUNNING.")
-    elif not data_present and not any_log:
-        print("[status] VERDICT: box looks RESET (no data, no log, train not running). "
-              f"Re-run 'python {name} up' to re-stage + relaunch, or destroy and 'up' fresh.")
-    elif data_present and not any_log:
-        print("[status] VERDICT: data present but no log and train not running -- the launch did "
-              f"not persist. Re-run 'python {name} up' to relaunch (staging skips present files).")
+    elif running and not splits_present:
+        print(f"[status] VERDICT: PHASE 1 (data prep / annotation), running"
+              f"{' ' + elapsed if elapsed else ''}. Splits not written yet; no models trained. "
+              "GPU activity above = ESM-2 / annotation work. This is the long phase.")
+    elif running and splits_present:
+        print(f"[status] VERDICT: PHASE 3 (training). {n_auroc} model(s) have reported AUROC so "
+              f"far (of ~13). Splits are written. Running{' ' + elapsed if elapsed else ''}.")
     elif crashed:
-        print("[status] VERDICT: train not running and the log shows an error -- inspect the tail "
-              "above; do NOT destroy until you have saved the log.")
+        print("[status] VERDICT: train NOT running and the log shows an error -- inspect the "
+              "markers/tail above; do NOT destroy until you have saved the log.")
+    elif not data_present:
+        print(f"[status] VERDICT: box looks RESET (no data, train not running). Re-run "
+              f"'python {name} up' to re-stage + relaunch.")
     else:
-        print("[status] VERDICT: train not running, no completion marker -- inspect the tail above.")
+        print(f"[status] VERDICT: train not running, data present -- launch did not persist. "
+              f"Re-run 'python {name} up' to relaunch (staging skips present files).")
     return 0
 
 def _train_state(st: dict, key: str, dry: bool) -> tuple[bool, bool]:
@@ -471,7 +530,7 @@ def phase_watch(args) -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Run 16 one-command launch orchestrator (v2).")
-    ap.add_argument("phase", choices=["up", "status", "down", "watch"])
+    ap.add_argument("phase", choices=["up", "status", "down", "watch", "version"])
     ap.add_argument("--repo-root", default=".")
     ap.add_argument("--ssh-key", default=os.path.expanduser(r"~/.ssh/id_lambda_run8"))
     ap.add_argument("--offer-id", help="explicit offer (skip auto-select)")
@@ -487,7 +546,11 @@ def main() -> int:
     ap.add_argument("--poll-every", type=int, default=120)
     ap.add_argument("--max-polls", type=int, default=600)
     args = ap.parse_args()
-    return {"up": phase_up, "status": phase_status, "down": phase_down, "watch": phase_watch}[args.phase](args)
+    if args.phase == "version":
+        print(f"launch_run16.py v{__version__}")
+        return 0
+    return {"up": phase_up, "status": phase_status, "down": phase_down,
+            "watch": phase_watch}[args.phase](args)
 
 
 if __name__ == "__main__":

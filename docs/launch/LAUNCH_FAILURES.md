@@ -89,6 +89,15 @@ Format: ID | first seen | symptom | root cause | fix | status (FIXED / MITIGATED
   shows GPU util/mem, greps progress markers, counts models that reported AUROC, reads the
   outputs/splits file state, infers the PHASE, and computes cost from process elapsed time | FIXED (v5).
 
+- L17 | run 16 | a "rich status" commit changed status output not at all -- the deployed
+  launcher stayed on the prior version | `Copy-Item "$HOME\Downloads\launch_run16.py"` copied a
+  STALE same-named file from Downloads (many prior downloads of the same name); the commit then
+  reported "1 file changed, 8 insertions" (the docs entry only) and nobody checked that
+  scripts/launch_run16.py was in the diff -- a silent no-op deploy | launcher now carries
+  `__version__` + a `version` command + a banner on up/status; deploy uses a VERSIONED download
+  filename (launch_run16_v5.py) to avoid the Downloads name-collision; deploy procedure verifies
+  the version AND that git shows the file modified BEFORE committing | FIXED (v5 + procedure).
+
 ## Known OPEN / watch (carry forward)
 
 - W03 | run 16 | instance 40728494 was reachable after launch but /workspace content (log, and
