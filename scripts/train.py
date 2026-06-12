@@ -56,6 +56,23 @@ import pandas as pd
 
 # -- Logging must be configured before any pipeline imports -----------------
 Path("logs").mkdir(exist_ok=True)
+def _force_utf8_stdio(streams=None):
+    """Make stdout/stderr UTF-8 so Unicode in reports/logs does not crash a
+    Windows cp1252 console. No-op where .reconfigure is unavailable."""
+    if streams is None:
+        streams = (sys.stdout, sys.stderr)
+    for _stream in streams:
+        _reconfigure = getattr(_stream, "reconfigure", None)
+        if _reconfigure is not None:
+            try:
+                _reconfigure(encoding="utf-8", errors="replace")
+            except (ValueError, OSError):
+                pass
+
+
+_force_utf8_stdio()
+
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
