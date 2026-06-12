@@ -1,0 +1,61 @@
+"""Tests for the Run-16 input preflight gate (scripts/preflight_run16_inputs.py).
+
+CI-safe: importorskip pyarrow; the cohort checks use tmp parquets. Mirrors the
+exit-code-contract style of test_run_schema_drift_check.py. Author: Monzia Moodie.
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pandas as pd
+import pytest
+
+pytest.importorskip("pyarrow")
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+import preflight_run16_inputs as pf  # noqa: E402
+
+_REF = "ACGT" * 25 + "A"
+_ALT = _REF[:50] + "C" + _REF[51:]
+_POLY = "A" * 101
+
+
+def test_cohort_with_ref_alt_passes(tmp_path):
+    p = tmp_path / "good.parquet"
+    pd.DataFrame({"fasta_seq_ref": [_REF] * 500, "fasta_seq_alt": [_ALT] * 500}).to_parquet(p)
+    ok, _ = pf.check_cohort_ref_alt(str(p))
+    assert ok is True
+
+
+def test_cohort_missing_ref_alt_fails(tmp_path):
+    p = tmp_path / "noref.parquet"
+    pd.DataFrame({"fasta_seq": [None] * 500, "x": range(500)}).to_parquet(p)
+    ok, msg = pf.check_cohort_ref_alt(str(p))
+    assert ok is False and "INERT" in msg
+
+
+def test_cohort_all_dummy_fails(tmp_path):
+    p = tmp_path / "dummy.parquet"
+    pd.DataFrame({"fasta_seq_ref": [_POLY] * 500, "fasta_seq_alt": [_POLY] * 500}).to_parquet(p)
+    ok, _ = pf.check_cohort_ref_alt(str(p))
+    assert ok is False
+
+
+def test_missing_cohort_file_fails():
+    ok, _ = pf.check_cohort_ref_alt("does_not_exist_12345.parquet")
+    assert ok is False
+
+
+def test_aggregate_exit_codes():
+    assert pf.aggregate([(True, "a"), (True, "b")]) == 0
+    assert pf.aggregate([(True, "a"), (False, "b")]) == 2
+    assert pf.aggregate([(True, "a"), (None, "b")]) == 3
+    assert pf.aggregate([(False, "a"), (None, "b")]) == 2   # fail dominates env
+
+
+def test_check_exists(tmp_path):
+    p = tmp_path / "f.txt"
+    p.write_text("x")
+    assert pf.check_exists("f", str(p))[0] is True
+    assert pf.check_exists("f", str(tmp_path / "nope"))[0] is False
+    assert pf.check_exists("f", None, required=True)[0] is False
