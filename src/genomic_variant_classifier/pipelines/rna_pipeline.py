@@ -256,7 +256,7 @@ class RNASpliceIsoformPipeline:
 
         Returns
         -------
-        pd.DataFrame with four new columns.
+        pd.DataFrame with five new columns.
         """
         result = df.copy()
         n = len(result)
@@ -269,6 +269,7 @@ class RNASpliceIsoformPipeline:
 
         # Initialise with defaults
         result["maxentscan_score"]    = self.DEFAULT_MAXENTSCAN
+        result["maxentscan_delta"]    = self.DEFAULT_MAXENTSCAN
         result["dist_to_splice_site"] = self.DEFAULT_DIST_TO_SPLICE
         result["exon_number"]         = self.DEFAULT_EXON_NUMBER
         result["is_canonical_splice"] = self.DEFAULT_IS_CANONICAL
@@ -316,45 +317,57 @@ class RNASpliceIsoformPipeline:
                 for i in result.index[splice_mask]
             ]
 
-        # --- MaxEntScan from fasta_seq context ---
-        if "fasta_seq" in df.columns:
-            fasta_col = df["fasta_seq"].fillna("")
+        # --- MaxEntScan delta from ref/alt context windows ---
+        # Prefer variant-resolved [fasta_seq_ref, fasta_seq_alt] windows; the
+        # delta = score(alt) - score(ref) is the splice-disruption signal.
+        # Fall back to the legacy single fasta_seq (ref == alt -> delta 0),
+        # then to defaults. NOTE: donor/acceptor selection is bounds-based
+        # (always donor for a 101-bp window); fixing that is tracked separately.
+        def _window_score(seq):
+            center = len(seq) // 2
+            donor_start, donor_end = center - 3, center + 6
+            acceptor_start, acceptor_end = center - 20, center + 3
+            if donor_start >= 0 and donor_end <= len(seq):
+                return _score_donor(seq[donor_start:donor_end])
+            if acceptor_start >= 0 and acceptor_end <= len(seq):
+                return _score_acceptor(seq[acceptor_start:acceptor_end])
+            return self.DEFAULT_MAXENTSCAN
+
+        if "fasta_seq_ref" in df.columns and "fasta_seq_alt" in df.columns:
+            ref_col = df["fasta_seq_ref"].fillna("")
+            alt_col = df["fasta_seq_alt"].fillna("")
+        elif "fasta_seq" in df.columns:
+            ref_col = alt_col = df["fasta_seq"].fillna("")
+        else:
+            ref_col = None
+
+        if ref_col is not None:
             splice_idx = result.index[splice_mask]
-
-            scores = []
+            ref_scores = []
+            delta_scores = []
             for i in splice_idx:
-                seq = str(fasta_col.iloc[i] if isinstance(i, int) else fasta_col.loc[i])
-                center = len(seq) // 2   # variant position in 101-bp window
-
-                # Try donor score (variant at position +1 of GT)
-                donor_start  = center - 3
-                donor_end    = center + 6
-                acceptor_start = center - 20
-                acceptor_end   = center + 3
-
-                score = self.DEFAULT_MAXENTSCAN
-                if donor_start >= 0 and donor_end <= len(seq):
-                    seq9  = seq[donor_start:donor_end]
-                    score = _score_donor(seq9)
-                elif acceptor_start >= 0 and acceptor_end <= len(seq):
-                    seq23 = seq[acceptor_start:acceptor_end]
-                    score = _score_acceptor(seq23)
-                scores.append(score)
-
-            result.loc[splice_idx, "maxentscan_score"] = scores
-
+                rseq = str(ref_col.iloc[i] if isinstance(i, int) else ref_col.loc[i])
+                aseq = str(alt_col.iloc[i] if isinstance(i, int) else alt_col.loc[i])
+                rs = _window_score(rseq) if rseq else self.DEFAULT_MAXENTSCAN
+                alt_s = _window_score(aseq) if aseq else rs
+                ref_scores.append(rs)
+                delta_scores.append(alt_s - rs)
+            result.loc[splice_idx, "maxentscan_score"] = ref_scores
+            result.loc[splice_idx, "maxentscan_delta"] = delta_scores
         else:
             logger.warning(
-                "RNASpliceIsoformPipeline: 'fasta_seq' column absent — "
-                "maxentscan_score will use default 0.0 for %d splice variants.",
+                "RNASpliceIsoformPipeline: no fasta_seq_ref/fasta_seq_alt or "
+                "fasta_seq column -- maxentscan_score/delta default to 0.0 "
+                "for %d splice variants.",
                 n_splice,
             )
 
         logger.info(
             "RNASpliceIsoformPipeline: annotated %d / %d splice variants "
-            "(mean maxentscan=%.2f).",
+            "(mean maxentscan=%.2f, mean |delta|=%.3f).",
             n_splice,
             n,
             float(result.loc[splice_mask, "maxentscan_score"].mean()),
+            float(result.loc[splice_mask, "maxentscan_delta"].abs().mean()),
         )
         return result

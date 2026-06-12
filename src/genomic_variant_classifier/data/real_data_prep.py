@@ -853,6 +853,7 @@ class DataPrepPipeline:
         else:
             for col, val in [
                 ("maxentscan_score", 0.0),
+                ("maxentscan_delta", 0.0),
                 ("dist_to_splice_site", 50),
                 ("exon_number", 0),
                 ("is_canonical_splice", 0),
@@ -1162,6 +1163,11 @@ class DataPrepPipeline:
         # RNA splice-context features (Phase 6.1)
         feats["maxentscan_score"] = (
             df.get("maxentscan_score", pd.Series([0.0] * len(df), index=df.index))
+            .fillna(0.0)
+            .astype(float)
+        )
+        feats["maxentscan_delta"] = (
+            df.get("maxentscan_delta", pd.Series([0.0] * len(df), index=df.index))
             .fillna(0.0)
             .astype(float)
         )

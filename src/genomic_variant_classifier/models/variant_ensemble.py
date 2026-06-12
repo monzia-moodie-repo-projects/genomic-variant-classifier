@@ -153,7 +153,7 @@ CONSEQUENCE_SEVERITY: dict[str, int] = {
 # Bump by +/-1 whenever you add or remove an entry in TABULAR_FEATURES below.
 # Enforced by tests/unit/test_feature_count_contract.py against both the list
 # length and INFERENCE_FEATURE_COLUMNS; that test is the deliberate-bump tripwire.
-EXPECTED_TABULAR_FEATURE_COUNT = 80
+EXPECTED_TABULAR_FEATURE_COUNT = 81
 
 TABULAR_FEATURES = [
     # Allele frequency (6)
@@ -227,8 +227,9 @@ TABULAR_FEATURES = [
     "is_mitochondrial",
     # GNN-derived (1)
     "gnn_score",
-    # RNA splice-context (4)
+    # RNA splice-context (5)
     "maxentscan_score",
+    "maxentscan_delta",
     "dist_to_splice_site",
     "exon_number",
     "is_canonical_splice",
@@ -504,9 +505,14 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
         .clip(0.0, 1.0)
     )
 
-    # RNA splice-context features (4)
+    # RNA splice-context features (5)
     feats["maxentscan_score"] = (
         df.get("maxentscan_score", pd.Series([0.0] * len(df), index=df.index))
+        .fillna(0.0)
+        .astype(float)
+    )
+    feats["maxentscan_delta"] = (
+        df.get("maxentscan_delta", pd.Series([0.0] * len(df), index=df.index))
         .fillna(0.0)
         .astype(float)
     )

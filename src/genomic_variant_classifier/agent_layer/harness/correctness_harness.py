@@ -361,7 +361,7 @@ def build_reference_slice(n: int = 200, seed: int = 7) -> pd.DataFrame:
         "fasta_seq": ["".join(rng.choice(list("ACGT"), 101)) for _ in range(n)],
         "pli_score": rng.uniform(0.1, 0.9, n), "syn_z": rng.uniform(-3, 5, n),
         "mis_z": rng.uniform(-3, 5, n), "loeuf": rng.uniform(0.05, 2, n),
-        "dbsnp_af": rng.uniform(1e-4, 0.5, n), "maxentscan_score": rng.uniform(-5, 12, n),
+        "dbsnp_af": rng.uniform(1e-4, 0.5, n), "maxentscan_score": rng.uniform(-5, 12, n), "maxentscan_delta": rng.uniform(-10, 10, n),
         "solvent_accessibility": rng.uniform(0, 1, n), "esm2_delta_norm": rng.uniform(0.1, 5, n),
         "esm2_llr": rng.uniform(-12, 4, n),  # SIGNED (neg=damaging); live feature, NOT allowlisted
         "alphafold_plddt": rng.uniform(20, 95, n), "gnn_score": rng.uniform(0.1, 0.9, n),
