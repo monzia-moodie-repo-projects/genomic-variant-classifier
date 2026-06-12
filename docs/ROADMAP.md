@@ -386,3 +386,31 @@ is the worked example; the other seven drift agents still await their reference 
 
 - Ref: docs/sessions/SESSION_2026-06-11_ci-and-schema-gate.md;
   docs/incidents/INCIDENT_2026-06-11_ci-optional-deps.md.
+
+<!-- docs-close: ecd0474 esm2-llr+train-wiring -->
+## ROADMAP delta -- 2026-06-11 (PM)
+
+### Done
+- [x] ESM-2 LLR long-protein OOM fixed via windowing (1db43f1)
+- [x] ESM-2 650M activation validated on real data (CPU probe GREEN)
+- [x] DECISION resolved: ESM-2 650M for Run 16 (ESM C 600M = later A/B)
+- [x] train.py ESM-2 wiring: model + offline index + cache + device flags (ecd0474)
+- [x] metrics annotation_sources provenance extended (esm2/finngen/dbnsfp)
+
+### Run 16 launch contract (preflight MUST Test-Path each)
+- --esm2-model esm2_t33_650M_UR50D
+- --esm2-uniprot-index data\external\uniprot\uniprot_human_reviewed.parquet
+- --alphamissense <AlphaMissense scores path>
+
+### Open -- blocking Run 16
+- [ ] CNN train-sequence NotImplementedError: verify cohort fasta_seq density; plumb
+      meta_train (Option-B-wide) or keep CNN on placeholder seqs (INCIDENT_2026-05-30).
+- [ ] ONE preflight script (3 mandatory paths + instance/SSH/key vars, validated).
+- [ ] Standing run gates: all-models smoke, full suite green, zero known bugs.
+
+### Open -- post-regen / parallel
+- [ ] Schema baseline refresh 78 -> 79 (esm2_llr newly live).
+- [ ] EVE activation (EVE_scores_ASM acquisition) -- separate data track.
+- [ ] Doc drift: AnnotationConfig docstring 17 vs code 18 steps (Reactome already runs);
+      reconcile per-step log labels (15/16, 16/17, 17/17, 18/18).
+- [ ] Hygiene: non-ASCII em-dash in real_data_prep.py esm2_delta_norm comment.

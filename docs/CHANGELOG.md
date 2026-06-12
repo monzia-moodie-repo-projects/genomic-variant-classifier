@@ -3221,3 +3221,29 @@ _meta.json location audit. real_data_prep.py:444 fillna FutureWarning.
 ### Commits
 - e0a76a1 (from_baseline + activation tests + builder), 21d94c4 (preflight gate + versioned baseline).
   Both on origin/main.
+
+<!-- docs-close: ecd0474 esm2-llr+train-wiring -->
+## 2026-06-11 (PM) -- ESM-2 650M LLR fix + train.py wiring
+
+### Fixed
+- ESM-2 LLR forward-pass OOM on long proteins (TTN ~34k aa, ~94 GB O(L^2) attention):
+  added _MLM_MAX_RESIDUES=1022 + _windowed_logit_row; long proteins window the WT- and
+  masked-marginal reads, short proteins unchanged (1db43f1).
+
+### Added
+- scripts/train.py: --esm2-model / --esm2-uniprot-index / --esm2-cache / --esm2-device,
+  threaded into AnnotationConfig; metrics annotation_sources now records
+  esm2_model/esm2_uniprot_index/finngen/dbnsfp (ecd0474).
+- scripts/probe_esm2_650m_activation.py: CPU activation probe (caught the OOM pre-GPU).
+- tests: test_esm2_llr_windowing.py, test_train_esm2_wiring.py.
+
+### Decided
+- Run 16 uses ESM-2 650M (esm2_t33_650M_UR50D); ESM C 600M deferred to a later
+  controlled A/B (single-variable discipline; ESM C = net-new connector code).
+
+### Learned
+- ESM-2 650M activates non-zero on real data: delta nonzero_frac=0.967, llr=0.960 (CPU probe).
+- PowerShell 5.1 has no heredoc; multi-line commit messages must use git commit -F <file>.
+- Wired != populated != non-zero: train.py constructed AnnotationConfig but never
+  overrode the 8M / live-REST defaults, so a regen would have silently produced the
+  wrong feature at production scale.
