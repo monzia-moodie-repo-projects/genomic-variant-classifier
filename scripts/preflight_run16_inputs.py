@@ -66,6 +66,18 @@ def check_feature_count():
     return ok, f"feature count: {'PASS' if ok else 'FAIL'} (EXPECTED_TABULAR_FEATURE_COUNT={C}, want {EXPECTED_COUNT})"
 
 
+def check_gnomad_constraint(path, min_mb=1.0):
+    if path is None:
+        return False, "gnomad constraint: FAIL (not supplied -- gene_constraint_oe would deadzone via stub mode)"
+    p = Path(path)
+    if not p.exists():
+        return False, f"gnomad constraint: FAIL (not found: {path} -- stub mode -> gene_constraint_oe deadzones)"
+    mb = p.stat().st_size / 1e6
+    ok = mb >= min_mb
+    return ok, (f"gnomad constraint: {'PASS' if ok else 'FAIL'} "
+                f"({path}, {mb:.1f} MB, need >= {min_mb} MB)")
+
+
 def aggregate(results):
     any_fail = any(ok is False for ok, _ in results)
     any_env = any(ok is None for ok, _ in results)
@@ -81,12 +93,16 @@ def main(argv=None):
     ap.add_argument("--clinvar", default="data/processed/clinvar_grch38_clean_seq.parquet")
     ap.add_argument("--esm2-uniprot-index", default="data/external/uniprot/uniprot_human_reviewed.parquet")
     ap.add_argument("--alphamissense", default=None, help="AlphaMissense scores parquet (required)")
+    ap.add_argument("--gnomad-constraint",
+                    default="data/external/gnomad/gnomad.v4.1.constraint_metrics.tsv",
+                    help="gnomAD v4.1 constraint TSV (revives gene_constraint_oe via loeuf)")
     args = ap.parse_args(argv)
 
     results = [
         check_cohort_ref_alt(args.clinvar),
         check_exists("esm2 uniprot index", args.esm2_uniprot_index),
         check_exists("alphamissense", args.alphamissense),
+        check_gnomad_constraint(args.gnomad_constraint),
         check_feature_count(),
     ]
     print("=== Run-16 input preflight ===")

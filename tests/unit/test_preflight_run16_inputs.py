@@ -59,3 +59,27 @@ def test_check_exists(tmp_path):
     assert pf.check_exists("f", str(p))[0] is True
     assert pf.check_exists("f", str(tmp_path / "nope"))[0] is False
     assert pf.check_exists("f", None, required=True)[0] is False
+
+
+def test_gnomad_constraint_present_passes(tmp_path):
+    p = tmp_path / "constraint.tsv"
+    p.write_bytes(b"x" * 2_000_000)  # 2 MB
+    ok, _ = pf.check_gnomad_constraint(str(p))
+    assert ok is True
+
+
+def test_gnomad_constraint_missing_fails():
+    ok, _ = pf.check_gnomad_constraint("nope_constraint_12345.tsv")
+    assert ok is False
+
+
+def test_gnomad_constraint_stub_too_small_fails(tmp_path):
+    p = tmp_path / "stub.tsv"
+    p.write_bytes(b"x" * 1000)  # 1 KB -> below min
+    ok, _ = pf.check_gnomad_constraint(str(p))
+    assert ok is False
+
+
+def test_gnomad_constraint_none_fails():
+    ok, _ = pf.check_gnomad_constraint(None)
+    assert ok is False
