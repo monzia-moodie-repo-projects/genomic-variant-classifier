@@ -3247,3 +3247,56 @@ _meta.json location audit. real_data_prep.py:444 fillna FutureWarning.
 - Wired != populated != non-zero: train.py constructed AnnotationConfig but never
   overrode the 8M / live-REST defaults, so a regen would have silently produced the
   wrong feature at production scale.
+
+<!-- docs-close: e3bcd79 cnn-rna-activation -->
+## 2026-06-11 (late PM) -- CNN real-sequence + RNA MaxEntScan-delta activation
+
+### Fixed
+- 1D-CNN trained on poly-A placeholders: train.py gated the CNN on the deprecated,
+  empty single `fasta_seq` column (notna=0 cohort-wide) and raised NotImplementedError
+  on the real-sequence path. Repointed the gate and X_seq plumbing to the live
+  [fasta_seq_ref, fasta_seq_alt] delta windows -- test-side from meta_test, train-side
+  from the already-persisted meta_train.parquet (gene-split-aligned to X_train via the
+  shared train_idx). NotImplementedError removed; NO DataPrepPipeline.run() signature
+  change (fb12c0f).
+- RNA-splice maxentscan_score dead (default 0.0 for every variant): rna_pipeline read the
+  same empty single `fasta_seq`. Repointed to score the ref/alt windows and emit a NEW
+  variant-specific feature maxentscan_delta = score(alt) - score(ref) (e3bcd79).
+
+### Added
+- maxentscan_delta registered in TABULAR_FEATURES, BOTH _engineer_features blocks
+  (variant_ensemble.py and real_data_prep.py), and the RNA-off default-fill tuple;
+  EXPECTED_TABULAR_FEATURE_COUNT 80 -> 81. INFERENCE_FEATURE_COLUMNS auto-derives
+  (list(TABULAR_FEATURES)); the feature-count contract is green at 81/81.
+- Correctness-harness reference slice now populates maxentscan_delta (non-zero synthetic)
+  so stage-5 silent-zero detection stays honest -- deliberately NOT allowlisted in
+  KNOWN_ZERO_DEFAULT (it is a live feature that should carry signal).
+- tests/unit/test_train_cnn_activation.py; tests/unit/test_rna_maxentscan_delta.py.
+- Idempotent patchers: patch_train_cnn_activation.py and patch_rna/ve/rdp/
+  correctness_harness_maxentscan_delta.py.
+
+### Verification
+- Full suite 893 passed / 6 skipped (e3bcd79). The torch-gated CNN test trains end-to-end
+  on a 2-column ref/alt delta frame and returns finite probabilities. maxentscan_delta is
+  nonzero for a real ref!=alt splice variant and 0 for ref==alt / non-splice / legacy
+  single-fasta_seq fallback.
+- The correctness harness caught the one defect this session: maxentscan_delta added without
+  its reference-slice entry tripped stage-5 (all-zero outside the dead-connector allowlist);
+  py_compile, the feature-count contract, and the targeted tests all passed it through.
+
+### Learned
+- Activation precondition (load-bearing): real_data_prep NEVER adds fasta_seq* columns; they
+  ride ONLY from the input parquet (_load_and_label preserves all input columns). Both the CNN
+  and maxentscan_delta activate ONLY when Run 16 uses
+  --clinvar data\processed\clinvar_grch38_clean_seq.parquet (the ref/alt cohort). With the
+  default clinvar_grch38.parquet they degrade SILENTLY to inert (CNN dropped to placeholders,
+  maxentscan_delta all-zero) -- no crash, no signal.
+- New standing run-gate: every new tabular feature must appear, POPULATED, in the correctness-
+  harness reference slice; it was the only gate that caught this session's feature/slice drift.
+- The always-donor MaxEntScan selection bug does NOT collapse the delta (the variant base at
+  window center lies inside the donor 9-mer); biology-correct donor/acceptor selection is a
+  separate tracked fix.
+
+### Commits
+- fb12c0f (CNN real-sequence activation), e3bcd79 (maxentscan_delta + harness slice + contract
+  bump). Both on origin/main.

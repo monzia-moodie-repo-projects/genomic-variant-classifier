@@ -414,3 +414,38 @@ is the worked example; the other seven drift agents still await their reference 
 - [ ] Doc drift: AnnotationConfig docstring 17 vs code 18 steps (Reactome already runs);
       reconcile per-step log labels (15/16, 16/17, 17/17, 18/18).
 - [ ] Hygiene: non-ASCII em-dash in real_data_prep.py esm2_delta_norm comment.
+
+## ROADMAP delta -- 2026-06-11 (late PM, CNN + RNA activation)
+
+### Done
+- [x] 1D-CNN activated on real [fasta_seq_ref, fasta_seq_alt] delta windows; train-side via the
+  persisted meta_train.parquet (gene-split-aligned to X_train); NotImplementedError removed
+  (fb12c0f). SUPERSEDES the "Open -- blocking Run 16" item "CNN train-sequence
+  NotImplementedError ... (INCIDENT_2026-05-30)".
+- [x] RNA MaxEntScan activated: maxentscan_delta = score(alt) - score(ref), a NEW
+  variant-specific splice-disruption feature. The MaxEntScan source moves from Section 4B
+  (Scaffolded but DEAD/partial) to LIVE. maxentscan_score keeps its meaning (ref-window score).
+  EXPECTED_TABULAR_FEATURE_COUNT 80 -> 81 (e3bcd79).
+
+### Run 16 launch contract -- ADDITION (preflight MUST Test-Path)
+- --clinvar data\processed\clinvar_grch38_clean_seq.parquet  (the ref/alt cohort). Without it
+  BOTH the CNN and maxentscan_delta degrade to inert: _load_and_label preserves input columns,
+  but real_data_prep never adds fasta_seq* itself, so the ref/alt windows exist on the frame
+  ONLY if the input cohort carries them. Joins the existing --esm2-model esm2_t33_650M_UR50D,
+  --esm2-uniprot-index, and --alphamissense requirements.
+
+### Open -- post-regen / parallel (updated)
+- [ ] Schema baseline refresh: regenerate data/reference/schema/schema_baseline.json from the
+  post-Run-16 X_train. Target = EXPECTED_TABULAR_FEATURE_COUNT (now 81: +esm2_llr +maxentscan_delta
+  vs the sealed-78 baseline). SUPERSEDES the earlier "Schema baseline refresh 78 -> 79" line. The
+  pre-existing 78/79/80 spread (Feature-count reconciliation, TO VERIFY) reconciles AT this regen
+  by diffing actual X_train columns against TABULAR_FEATURES -- not asserted here.
+- [ ] Always-donor MaxEntScan selection bug: donor/acceptor choice is bounds-based (always donor
+  for a 101bp window), so maxentscan_delta measures a donor perturbation even for acceptor-region
+  variants. Biology-correct selection (drive from dist_to_donor/dist_to_acceptor) is the next RNA
+  item. Does NOT block Run 16.
+
+### Standing discipline -- ADDITION
+- Every new tabular feature must appear, POPULATED (non-zero / non-degenerate), in the
+  correctness-harness reference slice (build_reference_slice). This session the harness stage-5
+  silent-zero tripwire was the ONLY gate that caught a feature added without its slice entry.
