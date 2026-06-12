@@ -300,32 +300,48 @@ def main() -> None:
     # raw_df["fasta_seq"].iloc[:len(y_test)] paired sequences with the WRONG
     # labels after the shuffling GroupShuffleSplit. See
     # docs/incidents/INCIDENT_2026-05-30_train-sequence-misalignment.md
+    # CNN sequence input: the live 2-column [fasta_seq_ref, fasta_seq_alt] delta
+    # windows. The legacy single 'fasta_seq' column is deprecated and empty.
+    from genomic_variant_classifier.data.seq_window_join import (
+        attach_delta_windows,
+        REF_WIN_COL,
+        ALT_WIN_COL,
+    )
+
     has_sequences = (
-        "fasta_seq" in meta_test.columns
-        and meta_test["fasta_seq"].notna().sum() > 100
+        REF_WIN_COL in meta_test.columns
+        and ALT_WIN_COL in meta_test.columns
+        and meta_test[REF_WIN_COL].notna().sum() > 100
     )
     if not has_sequences:
-        logger.info("No usable sequence data -- removing CNN from ensemble.")
+        logger.info("No usable ref/alt sequence windows -- removing CNN from ensemble.")
         ensemble.base_estimators.pop("cnn_1d", None)
-        # CNN is the only sequence consumer; with it removed these series are
-        # inert placeholders that satisfy the seq-aware fit/evaluate/predict
-        # signatures but are never used for any prediction.
+        # CNN is the only sequence consumer; with it removed these placeholders
+        # satisfy the seq-aware fit/evaluate/predict signatures but are unused.
         X_seq_train = pd.Series(["A" * 101] * len(y_train))
         X_seq_test  = pd.Series(["A" * 101] * len(y_test))
     else:
-        # Test side: meta_test["fasta_seq"] is split-aligned by construction.
-        X_seq_test = meta_test["fasta_seq"].reset_index(drop=True)
-        # Train side: run() does not return meta_train and X_train carries no
-        # variant_id key, so there is NO signature-free way to realign train
-        # sequences here. Rather than silently misalign (the PM11d defect),
-        # fail loudly. Enabling real training sequences requires plumbing
-        # meta_train out of DataPrepPipeline.run() first (Option-B-wide).
-        raise NotImplementedError(
-            "Real training sequences detected, but train-side sequence "
-            "alignment requires meta_train, which DataPrepPipeline.run() "
-            "does not currently return. Plumb meta_train through run() "
-            "before enabling CNN training on real sequences. See "
-            "INCIDENT_2026-05-30_train-sequence-misalignment.md."
+        # Test side: meta_test carries ref/alt, structurally split-aligned to X_test.
+        X_seq_test, _n_unmapped_test = attach_delta_windows(meta_test)
+        # Train side: meta_train is persisted by _save_splits, gene-split-aligned to
+        # X_train (both df.iloc[train_idx].reset_index). Read it -- no run() change.
+        meta_train_path = config.output_dir / "meta_train.parquet"
+        if not meta_train_path.exists():
+            raise FileNotFoundError(
+                f"meta_train.parquet not found at {meta_train_path}; required for "
+                "CNN train-side sequences (DataPrepPipeline._save_splits writes it)."
+            )
+        _meta_train = pd.read_parquet(meta_train_path)
+        if len(_meta_train) != len(y_train):
+            raise ValueError(
+                f"meta_train rows ({len(_meta_train)}) != y_train ({len(y_train)}); "
+                "split misalignment -- aborting to avoid PM11d-style label mismatch."
+            )
+        X_seq_train, _n_unmapped_train = attach_delta_windows(_meta_train)
+        logger.info(
+            "CNN sequences active (delta mode): train=%d (unmapped=%d), "
+            "test=%d (unmapped=%d).",
+            len(X_seq_train), _n_unmapped_train, len(X_seq_test), _n_unmapped_test,
         )
 
     # -- 4. Train -----------------------------------------------------------
