@@ -132,6 +132,13 @@ def upload(t: Transport, root: Path, remote_repo: str) -> bool:
             print(f"  [FAIL] local missing: {rel}")
             ok = False
             continue
+        lsize = local.stat().st_size
+        # idempotent resume: skip scp if the box already holds a byte-identical copy
+        if not t.dry:
+            _, rpre, _ = t.ssh(f"stat -c %s {rp} 2>/dev/null || echo MISSING")
+            if rpre.isdigit() and int(rpre) == lsize:
+                print(f"  [skip] {rel}  ({lsize/1048576:.1f} MB already present)")
+                continue
         rc, out, err = t.scp(str(local), rp)
         if not t.dry and rc != 0:
             print(f"  [FAIL] scp {rel}: {err or out}")
@@ -140,7 +147,6 @@ def upload(t: Transport, root: Path, remote_repo: str) -> bool:
         # verify remote size matches local
         if not t.dry:
             rc2, rout, _ = t.ssh(f"stat -c %s {rp} 2>/dev/null || echo MISSING")
-            lsize = local.stat().st_size
             if rout == "MISSING" or not rout.isdigit() or int(rout) != lsize:
                 print(f"  [FAIL] size mismatch {rel}: local {lsize} vs remote {rout}")
                 ok = False
