@@ -499,3 +499,17 @@ is the worked example; the other seven drift agents still await their reference 
   optional decouple of protein-coord source from --alphamissense.
 - Watch (full regen): cnn_1d (~0.5) and kan (~0.74) at scale; gene-disjoint splits + cross-fold
   count leakage on gene-level features; AlphaFold-structure stub (pLDDT=50.0 default).
+
+## 2026-06-12 -- Run 16 launch-ready; Run 17 scope committed
+
+Run 16 (tabular): VALIDATED + launch-ready. Flag set frozen
+(docs/launch/LAUNCH_CONTRACT_run16.md). Schema sealed at 81 (run16b-smoke). gnn_score,
+af_1kg_*, and uniprot features dormant-by-design (sealed, will activate later).
+
+Run 17 (COMMITTED, not deferred -- docs/roadmap/RUN17_SCOPE.md):
+- Track A: 1000 Genomes AF -- build_1kg_parquet.py + --kg-path + validate AF-fill;
+  resolve af_1kg_* per-population stubs (wire or formally retire).
+- Track B: STRING-DB GNN -- gnn_score live + LEAKAGE-FREE via gene-disjoint cross-fitting,
+  held-out-gene no-leak check, WITH/WITHOUT ablation.
+Both gated by full-scale feature-population audit + schema drift-check + gene-disjoint
+integrity verification before Run 17 trains.

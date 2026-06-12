@@ -3355,3 +3355,25 @@ _meta.json location audit. real_data_prep.py:444 fillna FutureWarning.
   features (re-confirm gene-disjoint splits + no cross-fold count leakage); protein-structure stub.
 - Commits: 0af34f3, 76519f6, a7fe43e, 5f068dc, 9c037f1. See
   docs/sessions/SESSION_2026-06-12_run16-smoke-gate.md.
+
+## 2026-06-12 -- Run-16b smoke gate + schema re-seal + source finalization
+
+Fixed:
+- dbNSFP cache-name docstring drift (dbnsfp.py): said dbnsfp_full_index.parquet; code
+  hard-codes dbnsfp_clinvar_index.parquet. Corrected (patch_dbnsfp_docstring.py).
+- Quarantined stale clinvar_grch38_clean_seq (1).parquet (18-col, no ReviewStatus).
+
+Added (validated via models/smoke_run16b: 962s, ENSEMBLE_STACKER test AUROC 0.9994):
+- Run-16 production flag set: --gnomad, --dbnsfp-path (ClinVar index; OOM-safe),
+  --lovd-path (lovd_all_variants.parquet). --uniprot omitted (wrong on-disk schema).
+- Schema baseline re-sealed 78 -> 81 (run16b-smoke): +esm2_llr, +maxentscan_delta,
+  +reactome_pathway_count (latter two dormant). Green vs all 3 smoke splits.
+
+Learned:
+- DbNSFPConnector._cache_path hard-codes dbnsfp_clinvar_index.parquet; the 895 MB full
+  index is never read (no OOM risk from the connector).
+- ThousandGenomesConnector fills only combined allele_freq; af_1kg_* have no source wired.
+- GNN (gnn.py) is complete but unwired; gnn_score is a placeholder; live integration
+  needs gene-disjoint cross-fitting to avoid leakage.
+- Feature-population audit must target splits/X_*.parquet (not the pre-scoring checkpoint)
+  and use varies-checks on standard-scaled data.
