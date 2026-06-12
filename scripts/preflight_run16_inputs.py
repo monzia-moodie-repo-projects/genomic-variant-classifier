@@ -55,6 +55,23 @@ def check_cohort_ref_alt(clinvar_path, sample_rows=4000, min_real_frac=0.5):
                 f"{real}/{n} = {frac:.1%} real windows in sample, need >= {min_real_frac:.0%})")
 
 
+def check_cohort_reviewstatus(clinvar_path):
+    p = Path(clinvar_path)
+    if not p.exists():
+        return False, f"cohort ReviewStatus: FAIL (not found: {clinvar_path})"
+    try:
+        import pyarrow.parquet as pq
+    except ImportError:
+        return None, "cohort ReviewStatus: ENV (pyarrow not importable)"
+    cols = set(pq.ParquetFile(p).schema.names)
+    ok = "ReviewStatus" in cols
+    return ok, (
+        "cohort ReviewStatus: " + ("PASS (present)" if ok else
+         "FAIL (MISSING -- train.py min_review_tier=3 aborts at _load_and_label; "
+         "run scripts/augment_reviewstatus.py)")
+    )
+
+
 def check_feature_count():
     try:
         from genomic_variant_classifier.models.variant_ensemble import (
@@ -100,6 +117,7 @@ def main(argv=None):
 
     results = [
         check_cohort_ref_alt(args.clinvar),
+        check_cohort_reviewstatus(args.clinvar),
         check_exists("esm2 uniprot index", args.esm2_uniprot_index),
         check_exists("alphamissense", args.alphamissense),
         check_gnomad_constraint(args.gnomad_constraint),

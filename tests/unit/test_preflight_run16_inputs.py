@@ -83,3 +83,29 @@ def test_gnomad_constraint_stub_too_small_fails(tmp_path):
 def test_gnomad_constraint_none_fails():
     ok, _ = pf.check_gnomad_constraint(None)
     assert ok is False
+
+
+def _write_cohort_rev(tmp_path, with_review):
+    cols = {"chrom": ["1"], "pos": [100], "ref": ["A"], "alt": ["C"],
+            "fasta_seq_ref": [_REF], "fasta_seq_alt": [_ALT]}
+    if with_review:
+        cols["ReviewStatus"] = ["criteria_provided,_multiple_submitters"]
+    name = "rev.parquet" if with_review else "norev.parquet"
+    p = tmp_path / name
+    pd.DataFrame(cols).to_parquet(p)
+    return str(p)
+
+
+def test_reviewstatus_present_passes(tmp_path):
+    ok, _ = pf.check_cohort_reviewstatus(_write_cohort_rev(tmp_path, True))
+    assert ok is True
+
+
+def test_reviewstatus_absent_fails(tmp_path):
+    ok, _ = pf.check_cohort_reviewstatus(_write_cohort_rev(tmp_path, False))
+    assert ok is False
+
+
+def test_reviewstatus_missing_file_fails():
+    ok, _ = pf.check_cohort_reviewstatus("nope_cohort_98765.parquet")
+    assert ok is False
