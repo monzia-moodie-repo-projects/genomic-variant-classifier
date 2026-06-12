@@ -584,7 +584,7 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
             .astype(float)
         )
 
-    # ESM-2 delta norm (1) — 0.0 default when model unavailable or non-missense
+    # ESM-2 delta norm (1) - 0.0 default when model unavailable or non-missense
     feats["esm2_delta_norm"] = (
         df.get("esm2_delta_norm", pd.Series([0.0] * len(df), index=df.index))
         .fillna(0.0)
@@ -599,7 +599,7 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
         .astype(float)
     )
 
-    # gnomAD v4.1 gene constraint (4) — safe defaults when connector absent
+    # gnomAD v4.1 gene constraint (4) - safe defaults when connector absent
     feats["pli_score"] = (
         df.get("pli_score", pd.Series([0.0] * len(df), index=df.index))
         .fillna(0.0)
@@ -1317,7 +1317,7 @@ class VariantEnsemble:
                 X_input_fit = X_seq_fit
                 X_input_cal = X_seq_cal
             elif name == "catboost":
-                # Always pass DataFrame — CatBoost needs column names for
+                # Always pass DataFrame - CatBoost needs column names for
                 # categorical feature resolution. Handles numeric-only
                 # DataFrames correctly when no cat columns are present.
                 X_input_fit = X_tab_fit
@@ -1336,7 +1336,7 @@ class VariantEnsemble:
                     n_jobs=1,
                 )[:, 1]
             except Exception as exc:
-                logger.error("  %s OOF failed: %s — skipping.", name, exc)
+                logger.error("  %s OOF failed: %s - skipping.", name, exc)
                 oof_preds[:, model_idx] = 0.5
                 continue
 
@@ -1344,7 +1344,7 @@ class VariantEnsemble:
             model.fit(X_input_fit, y_fit)
 
             if name in _RECALIBRATE:
-                logger.info("  %s — applying isotonic calibration ...", name)
+                logger.info("  %s - applying isotonic calibration ...", name)
                 cal_model = _IsotonicCalibrator(model)
                 cal_model.fit(X_input_cal, y_cal)
                 self.trained_models_[name] = cal_model
@@ -1414,7 +1414,7 @@ class VariantEnsemble:
             y_fit, self.meta_learner.predict_proba(oof_preds)[:, 1]
         )
         logger.info(
-            "OOF blend AUROC: %.4f  (LR stacker: %.4f  Δ=%.4f)",
+            "OOF blend AUROC: %.4f  (LR stacker: %.4f  delta=%.4f)",
             blend_auroc,
             lr_auroc,
             blend_auroc - lr_auroc,
