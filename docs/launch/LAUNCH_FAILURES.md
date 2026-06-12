@@ -81,6 +81,14 @@ Format: ID | first seen | symptom | root cause | fix | status (FIXED / MITIGATED
   byte-present files, re-uploads if wiped), and a pgrep-guarded launch, so it converges any box
   state and is a safe no-op on a healthy run | FIXED (v4).
 
+- L16 | run 16 | `status` showed almost nothing ("no log file found") even though training was
+  running | it tailed one fixed log PATH, but that path had been unlinked (the box restarted
+  once, deleting /workspace/run16_full.log while the train process kept the fd open), and it did
+  not inspect the process, GPU, or output files | `status` is now a rich monitor matching the
+  Run 10/11/14 SSH probe: it recovers the LIVE log from /proc/PID/fd/1 (works after unlink),
+  shows GPU util/mem, greps progress markers, counts models that reported AUROC, reads the
+  outputs/splits file state, infers the PHASE, and computes cost from process elapsed time | FIXED (v5).
+
 ## Known OPEN / watch (carry forward)
 
 - W03 | run 16 | instance 40728494 was reachable after launch but /workspace content (log, and
