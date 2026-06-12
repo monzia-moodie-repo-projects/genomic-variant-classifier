@@ -250,6 +250,7 @@ def main() -> int:
     ap.add_argument("--repo-root", default=".")
     ap.add_argument("--skip-remote", action="store_true", help="local readiness only")
     ap.add_argument("--ssh-host")
+    ap.add_argument("--ssh-url", help="ssh://user@host:port from 'vastai ssh-url'; overrides --ssh-host/--ssh-port/--remote-user")
     ap.add_argument("--ssh-port", default="22")
     ap.add_argument("--ssh-key",
                     default=os.path.expanduser(r"~/.ssh/id_lambda_run8"))
@@ -262,6 +263,17 @@ def main() -> int:
                     help="also probe remote torch/cuda (only meaningful post-setup)")
     ap.add_argument("--min-disk-gb", type=int, default=25)
     args = ap.parse_args()
+    if getattr(args, "ssh_url", None):
+        _u = args.ssh_url.strip()
+        if _u.startswith("ssh://"):
+            _u = _u[6:]
+        if "@" in _u:
+            args.remote_user, _u = _u.split("@", 1)
+        _host, _sep, _port = _u.partition(":")
+        if _host:
+            args.ssh_host = _host
+        if _port:
+            args.ssh_port = _port
 
     root = Path(args.repo_root).resolve()
     print("=" * 78)
