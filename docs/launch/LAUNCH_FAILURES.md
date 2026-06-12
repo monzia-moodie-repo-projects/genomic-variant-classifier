@@ -123,6 +123,37 @@ Format: ID | first seen | symptom | root cause | fix | status (FIXED / MITIGATED
   live-process forensic block. Also: cost line now labeled proc-time with a billed-time caveat;
   empty-dir `|| echo` dead-code replaced with explicit `[ -d ]` tests | FIXED (v7).
 
+- L20 | run 16 | ROOT CAUSE of the whole session: `status` reported TRAIN=RUNNING and `up`
+  refused to (re)launch for ~hours, but Run 16 was NEVER training | `pgrep -f "scripts/train.py"`
+  matches ANY process whose cmdline contains that string -- including the status probe itself
+  (it runs `pgrep -f scripts/train.py`) and ORPHANED probes left stuck on `pipe_read` by the v5
+  hang (reparented to init, PPID=1). So: (a) status matched a dead probe and called it training;
+  (b) up\'s pgrep guard matched the same phantom and printed TRAIN_ALREADY_RUNNING, skipping every
+  relaunch; (c) v7\'s broad `find ... *.log` then surfaced outputs/run14/run14_master.log (May 26)
+  as if it were Run 16; (d) the `crashed` check regex-scanned the whole probe output, matching the
+  probe\'s OWN echoed grep pattern (Traceback|...|ABORT) in CMDLINE | v8: match ONLY a process whose
+  /proc/PID/comm is python* (the probes are bash) in up/status/down; `up` sweeps orphaned probes
+  (`pkill -f \'echo PROBE_OK\'`) before the guard; log discovery is Run-16-scoped (no cross-run find);
+  `crashed` comes from a CRASH_HITS count grepped from the log only; status reports ORPHANS.
+  Validated: live comm-filter picks python and rejects a bash proc whose cmdline contains
+  scripts/train.py; bash -n; 5 verdict scenarios incl. no-real-train and the crash false positive | FIXED (v8).
+
+- L21 | run 16 | the run16 vm.sh launched scripts/train.py straight into
+  ModuleNotFoundError (catboost, then pandas) | TWO causes: (a) project deps were NEVER installed
+  on this box -- up's phantom-pgrep guard (L20) exited at TRAIN_ALREADY_RUNNING *before* its pip
+  step every time, and a restart had wiped the env; the pytorch image python is /opt/conda
+  (3.11.10) with only torch present. (b) REGRESSION: my slim port of launch_run11_vm.sh DROPPED
+  its [4/7] import-smoke gate that ABORTS on failure, so the launcher ran train.py despite the
+  env check printing ModuleNotFoundError | vm.sh now has an ENV GATE that (i) checks the EXACT
+  deps train.py imports -- pandas,numpy,sklearn,catboost,lightgbm,xgboost,imodelsx,transformers,
+  torch + torch.cuda (NOT torch_geometric: Run_Preflight_VM.sh gates GNN deps the run16 train.py
+  path does not use, so it must not be the run16 gate), (ii) self-heals via pip install -r
+  requirements.txt if deps are missing, (iii) ABORTS (exit 4) before launch if still not green,
+  (iv) applies the KAN patch only after install, (v) verifies train.py is alive 3s post-launch.
+  requirements.txt does NOT pin torch, so the install does not clobber the image CUDA build.
+  LESSON: a port must be >= the original -- never silently drop a safeguard when reusing a proven
+  script; carry forward the gates, add to them | FIXED (vm.sh env gate).
+
 ## Known OPEN / watch (carry forward)
 
 - W03 | run 16 | instance 40728494 was reachable after launch but /workspace content (log, and

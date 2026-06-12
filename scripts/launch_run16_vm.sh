@@ -2,17 +2,23 @@
 # =============================================================================
 # launch_run16_vm.sh -- Run 16 on-box launcher.
 #
-# Modeled on the established scripts/launch_run11_vm.sh (Runs 11-15): writes a
-# real master log the monitor greps, frames steps with "==>", applies the
-# imodelsx KAN patch, and refuses to double-launch. Differs from run11 only
-# where Run 16 differs: entrypoint is scripts/train.py (NOT run_phase2_eval.py)
-# and the flag set is the verbatim LAUNCH_CONTRACT_run16.md command.
+# Modeled on scripts/launch_run11_vm.sh (Runs 11-15), with the lessons from this
+# session folded in (improvement, not a copy):
+#   * ENV GATE that ABORTS before launch if imports or CUDA fail (launch_run11
+#     had this as [4/7]; an earlier slim port of mine dropped it -> train.py was
+#     launched into ModuleNotFoundError. Restored AND made self-healing: it pip-
+#     installs requirements.txt if deps are missing, because this box's deps were
+#     never installed -- up's phantom-pgrep guard exited before its pip step).
+#   * comm=python guard + orphan-probe sweep (fixes L20; launch_run11 lacked it).
+#   * Checks the deps train.py ACTUALLY imports -- NOT the GNN deps that
+#     Run_Preflight_VM.sh gates on (run16 train.py does not use the GNN path).
+#   * Writes a real master log the monitor greps; runs the VERBATIM
+#     LAUNCH_CONTRACT_run16 train.py command (entrypoint is train.py, not
+#     run_phase2_eval.py).
 #
 # Author:  Monzia Moodie
 #
-# Run it (from the box, repo cloned, data staged):
 #   nohup bash scripts/launch_run16_vm.sh >/dev/null 2>&1 &
-# Then monitor from the laptop:
 #   .\scripts\Run16_Monitor.ps1 -SshHost ssh8.vast.ai -SshPort 18494 -Mode Quick
 # =============================================================================
 set -u
@@ -24,18 +30,16 @@ cd "$REPO" || { echo "==> ABORT: repo not found at $REPO"; exit 1; }
 if [ -d /venv/main/bin ] && ! echo "$PATH" | grep -q "/venv/main/bin"; then
     export PATH="/venv/main/bin:$PATH"
 fi
-PY="$(command -v python || command -v python3 || echo /venv/main/bin/python)"
+PY="$(command -v python || command -v python3 || echo /opt/conda/bin/python)"
 
 echo "==> Run 16 launch @ $(date -u +'%Y-%m-%d %H:%M:%S') UTC" | tee "$LOG"
 echo "==> HEAD: $(git rev-parse --short HEAD 2>/dev/null)" | tee -a "$LOG"
 echo "==> Python: $PY ($($PY --version 2>&1))" | tee -a "$LOG"
 
-# --- sweep orphaned status probes (L20): their cmdline contains 'scripts/train.py'
-#     and 'echo PROBE_OK'; they are bash, not python, and can confuse pgrep guards.
+# --- sweep orphaned status probes (L20): bash, cmdline contains 'echo PROBE_OK' ---
 pkill -f 'echo PROBE_OK' 2>/dev/null || true
 
-# --- double-launch guard: accept ONLY a real python train.py (comm=python), never
-#     a bash probe whose cmdline merely contains the string 'scripts/train.py'.
+# --- double-launch guard: accept ONLY a real python train.py (comm=python) ---
 RUNNING=""
 for p in $(pgrep -f "scripts/train\.py" 2>/dev/null); do
     c=$(cat "/proc/$p/comm" 2>/dev/null)
@@ -46,7 +50,22 @@ if [ -n "$RUNNING" ]; then
     exit 0
 fi
 
-# --- imodelsx v1.0.13 KAN bug fix (verbatim from launch_run11_vm.sh) ---
+# --- ENV GATE (the dropped [4/7] gate, restored + self-healing) -------------------
+# Exactly the deps train.py imports (NOT torch_geometric -- run16 does not use GNN).
+ENV_CHECK='import pandas,numpy,sklearn,catboost,lightgbm,xgboost,imodelsx,transformers,torch; assert torch.cuda.is_available()'
+if ! $PY -c "$ENV_CHECK" 2>/dev/null; then
+    echo "==> deps missing/incomplete -> pip install -r requirements.txt (one-time, ~3-5 min)" | tee -a "$LOG"
+    $PY -m pip install -r requirements.txt --break-system-packages 2>&1 | tail -8 | tee -a "$LOG"
+fi
+if $PY -c "$ENV_CHECK; import torch; print('==> ENV_OK torch', torch.__version__, 'cuda', torch.cuda.is_available())" 2>&1 | tee -a "$LOG" | grep -q '==> ENV_OK'; then
+    :
+else
+    echo "==> ABORT (exit 4): environment not ready -- imports or CUDA failed. NOT launching train.py." | tee -a "$LOG"
+    echo "==>   debug: $PY -c \"$ENV_CHECK\"" | tee -a "$LOG"
+    exit 4
+fi
+
+# --- imodelsx v1.0.13 KAN bug fix (AFTER install, so imodelsx exists) ---
 IMODELSX_KAN=$($PY -c "import imodelsx.kan.kan_sklearn as m; print(m.__file__)" 2>/dev/null || true)
 if [ -n "$IMODELSX_KAN" ] && grep -q "test_size=test_size" "$IMODELSX_KAN"; then
     sed -i 's/test_size=test_size/test_size=self.test_size/g' "$IMODELSX_KAN"
@@ -54,15 +73,12 @@ if [ -n "$IMODELSX_KAN" ] && grep -q "test_size=test_size" "$IMODELSX_KAN"; then
     sed -i 's/shuffle=shuffle/shuffle=self.shuffle/g' "$IMODELSX_KAN"
     echo "==> imodelsx_patch: fixed 3 bare-name refs in $IMODELSX_KAN" | tee -a "$LOG"
 else
-    echo "==> imodelsx_patch: already patched or not installed" | tee -a "$LOG"
+    echo "==> imodelsx_patch: already patched or marker absent" | tee -a "$LOG"
 fi
 
-# --- env + GPU smoke check ---
-$PY -c "import catboost,lightgbm,xgboost,torch; print('==> ENV_OK cuda=', torch.cuda.is_available())" 2>&1 | tee -a "$LOG"
 nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader 2>&1 | tee -a "$LOG"
 
-# --- LAUNCH: verbatim LAUNCH_CONTRACT_run16.md command, unbuffered (-u) so the
-#     master log updates live, redirected to the master log the monitor reads.
+# --- LAUNCH: verbatim LAUNCH_CONTRACT_run16 command, unbuffered, to the master log ---
 echo "==> Launching scripts/train.py (run16 contract) @ $(date -u +'%Y-%m-%d %H:%M:%S') UTC" | tee -a "$LOG"
 nohup $PY -u scripts/train.py \
   --clinvar            data/processed/clinvar_grch38_clean_seq.parquet \
@@ -79,4 +95,10 @@ nohup $PY -u scripts/train.py \
 
 TRAIN_PID=$!
 echo "==> TRAIN_PID=$TRAIN_PID" | tee -a "$LOG"
-echo "==> launched. monitor: scripts/Run16_Monitor.ps1 -Mode Quick  (log: $LOG)" | tee -a "$LOG"
+# verify it is still alive 3s later (not an instant import crash like before)
+sleep 3
+if kill -0 "$TRAIN_PID" 2>/dev/null; then
+    echo "==> train.py alive 3s after launch (PID $TRAIN_PID). monitor: Run16_Monitor.ps1 -Mode Tail" | tee -a "$LOG"
+else
+    echo "==> WARN: train.py exited within 3s -- check the tail above for a traceback." | tee -a "$LOG"
+fi
