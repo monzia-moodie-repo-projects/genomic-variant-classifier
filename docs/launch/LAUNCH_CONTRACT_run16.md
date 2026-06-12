@@ -140,6 +140,15 @@ After full data-prep produces outputs/run16/splits/, BEFORE model training:
 - DORMANT-by-design (NOT bugs): gnn_score, af_1kg_*, and uniprot features = 0. Will
   activate in Run 17 (gnn) / a 1KGP build. The schema baseline already seals them.
 - real_data_prep.py:501 FutureWarning (gnomAD fillna downcast) -- tech debt.
+- BLEND WEIGHTS: the Nelder-Mead blend returned exactly uniform 0.0769 (=1/13) across
+  all 13 models, tying the LR stacker (delta -0.0000). Smoke-scale objective is ~flat,
+  so this may be legitimate, and the deployed combiner is the LR stacker, not the
+  blend. At full scale, confirm the weights DIVERGE from uniform; still-exact 0.0769
+  means the blend-weight search is a silent no-op to investigate.
+- CALIBRATION: ensemble ECE 0.0711 but MCE 0.5340 (one badly-miscalibrated bin); with
+  kan Brier 0.2223 this is the soft spot. Ranking (what the stacker consumes) is
+  unaffected, but add an isotonic/Platt pass + per-bin reliability to the metrics
+  glossary at full scale.
 
 ---
 
