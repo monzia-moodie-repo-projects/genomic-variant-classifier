@@ -449,3 +449,23 @@ is the worked example; the other seven drift agents still await their reference 
 - Every new tabular feature must appear, POPULATED (non-zero / non-degenerate), in the
   correctness-harness reference slice (build_reference_slice). This session the harness stage-5
   silent-zero tripwire was the ONLY gate that caught a feature added without its slice entry.
+
+## ROADMAP delta -- 2026-06-12 (CI ESM-2 Hub flake resolved)
+
+### Done
+- [x] CI restored to green. test_llr_long_protein_scores_finite_without_oom was loading
+  the real ESM-2 8M from HF Hub; CI (no cache, 429) flaked red while local (cached) passed.
+  fee2e63 skip-guards the live load; ci.yml now forces HF offline and uses --maxfail=5.
+  See docs/incidents/INCIDENT_2026-06-12_ci-esm2-hub-flake.md.
+
+### Standing disciplines -- ADDITIONS
+- Offline-suite gate: before trusting "suite green", run tests/unit under an empty offline
+  HF cache (HF_HOME=<empty>, HF_HUB_OFFLINE=1, TRANSFORMERS_OFFLINE=1). Anything that ERRORS
+  (vs passes/skips) is a network-coupled test to guard. Local-green != CI-green for any test
+  that loads an ESM-2 model (the local cache hides the dependency).
+- CI surfaces failures broadly: pytest -x replaced by --maxfail=5 so a break is not reported
+  as a single isolated failure with the rest of the suite hidden.
+
+### Note (unchanged, benign)
+- 0xc0000139 torch_scatter/torch_sparse dumps during collection are the known-benign
+  importorskip path (missing PyG C-extensions on the CPU box); suite exit stays 0.
