@@ -21,7 +21,7 @@ Pick the `ID` of a cheap offer with enough RAM for full-cohort data-prep (>= 32 
 preferred; the 1.49M-row pandas/feature step is memory-heavy). Then (edit the quoted value):
 
 ```powershell
-$OfferId = "37194516"   # the ID column from YOUR fresh search (this is just an example)
+$OfferId = "38381901"   # EXAMPLE ONLY -- offers expire; pick a FRESH verified offer with >= 64 GB RAM (prefer ~128) to avoid data-prep OOM
 vastai create instance $OfferId --image pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime --disk 200 --ssh --direct --label run16
 ```
 
@@ -113,8 +113,18 @@ Then (bash, on the box):
 ```bash
 cd /workspace/genomic-variant-classifier
 pip install -r requirements.txt --break-system-packages
-# Apply your standing imodelsx v1.0.13 KAN workaround here if it is not already in
-# requirements (else the kan base estimator errors at fit()).
+# imodelsx v1.0.13 KAN bug fix (bare-name refs in KANClassifier.fit). The kan.py
+# attribute fix is already in the repo; this patches the INSTALLED package file.
+# Self-guarding (only patches if the bug is present) and idempotent.
+IMODELSX_KAN=$(python -c "import imodelsx.kan.kan_sklearn as m; print(m.__file__)" 2>/dev/null)
+if [ -n "$IMODELSX_KAN" ] && grep -q "test_size=test_size" "$IMODELSX_KAN"; then
+  sed -i 's/test_size=test_size/test_size=self.test_size/g' "$IMODELSX_KAN"
+  sed -i 's/random_state=random_state/random_state=self.random_state/g' "$IMODELSX_KAN"
+  sed -i 's/shuffle=shuffle/shuffle=self.shuffle/g' "$IMODELSX_KAN"
+  echo "imodelsx_patch: fixed 3 bare-name refs in $IMODELSX_KAN"
+else
+  echo "imodelsx_patch: already patched or not installed"
+fi
 python -c "import catboost, lightgbm, xgboost, torch; print('env OK', torch.cuda.is_available())"
 ```
 
