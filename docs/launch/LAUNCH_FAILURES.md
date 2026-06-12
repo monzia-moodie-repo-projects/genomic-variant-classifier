@@ -66,7 +66,28 @@ Format: ID | first seen | symptom | root cause | fix | status (FIXED / MITIGATED
   uses .NET CWD; em-dash -> mojibake) | platform behavior | ASCII-only, no-BOM, newline-
   preserving, count-guarded idempotent patchers | STANDING.
 
+## Diagnosis / state integrity
+
+- L14 | run 16 | `status` reported `cannot reach instance ... it may be down` when the box was
+  actually reachable | it treated any non-zero ssh exit as unreachable; a missing log made
+  `tail` exit 1 (the `Welcome to vast.ai` banner in the output was a SUCCESSFUL login) | `status`
+  is now a marker-based diagnostic (`PROBE_OK`): it separates SSH-unreachable from a reachable
+  box, and reports train-process state, data/splits presence, and BOTH logs (the nohup redirect
+  /workspace/run16_full.log and train.py's own /workspace/.../logs/train.log) | FIXED (v4).
+- L15 | run 16 | step-tracked state (`steps.bootstrap/staged/launched`) would let a re-`up` SKIP
+  staging on a box whose /workspace had been wiped, trusting stale "done" flags | premature
+  optimization; the flags did not reflect actual box state | removed step-skipping; `up` is now
+  idempotent + self-healing -- it always runs bootstrap (clone-if-absent + pull), stage (skips
+  byte-present files, re-uploads if wiped), and a pgrep-guarded launch, so it converges any box
+  state and is a safe no-op on a healthy run | FIXED (v4).
+
 ## Known OPEN / watch (carry forward)
+
+- W03 | run 16 | instance 40728494 was reachable after launch but /workspace content (log, and
+  likely data + repo) was GONE -- most consistent with a container/host restart on that host,
+  not a training crash (a crash leaves the redirect log behind). Resolution: run the v4 `status`
+  diagnostic to confirm (RESET vs running vs crashed); `up` self-heals a reset box; if the host
+  resets repeatedly, destroy and `up` fresh onto a new offer. Watching whether this recurs.
 
 - W01 | gnomAD `constraint_index.parquet` absent -> box regenerates from the TSV (slower).
   Pre-building and shipping it would shave data-prep time. Non-blocking.

@@ -32,6 +32,9 @@ IMAGE = "pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime"
 LABEL = "run16"
 TRAIN_LOG = "/workspace/run16_full.log"
 OUT_REL = "outputs/run16"
+INTERNAL_LOG = "/workspace/genomic-variant-classifier/logs/train.log"  # train.py FileHandler
+DATA_DIR = "/workspace/genomic-variant-classifier/data/processed"
+SPLITS_DIR = "/workspace/genomic-variant-classifier/" + OUT_REL + "/splits"
 DONE_MARK = "Training complete"
 HF_MODEL = "facebook/esm2_t33_650M_UR50D"
 TRANSFER_TIMEOUT = 14400   # 4 h -- staging + output fetch (multi-GB over a home uplink)
@@ -84,7 +87,7 @@ python scripts/run_schema_drift_check.py --matrix {OUT_REL}/splits/X_train.parqu
 python scripts/audit_smoke_feature_population.py {OUT_REL}/splits; echo "POP_RC=$?\""""
 
 SSH_OPTS = ["-o", "BatchMode=yes", "-o", "ConnectTimeout=15",
-            "-o", "StrictHostKeyChecking=accept-new"]
+            "-o", "StrictHostKeyChecking=accept-new", "-o", "LogLevel=ERROR"]
 
 
 # ---------- subprocess plumbing ----------
@@ -250,31 +253,28 @@ def phase_up(args) -> int:
         cid = int(args.instance_id)
     elif prev and not args.fresh and prev.get("instance_id"):
         cid = int(prev["instance_id"])
-        print(f"[up] resuming from state: instance {cid}")
+        print(f"[up] reusing instance {cid} from state")
     else:
         cid = resolve_instance(args, dry)
-    same = bool(prev) and not args.fresh and int(prev.get("instance_id", -1)) == int(cid or -1)
-    steps = dict(prev.get("steps", {})) if same else {}
 
     info = wait_running(cid if not dry else 0, dry)
     st = {"instance_id": cid, "ssh_user": "root", "ssh_host": info["ssh_host"],
           "ssh_port": str(info["ssh_port"]), "image": IMAGE, "train_log": TRAIN_LOG,
-          "steps": steps, "launched_at": (prev or {}).get("launched_at") or time.time()}
+          "launched_at": (prev or {}).get("launched_at") or time.time()}
     url = f"ssh://{st['ssh_user']}@{st['ssh_host']}:{st['ssh_port']}"
     save_state(root, st)
 
     def fail(msg):
-        raise SystemExit(f"{msg}\n  instance {cid} LEFT UP; fix, then re-run 'up' to resume.")
+        raise SystemExit(f"{msg}\n  instance {cid} LEFT UP; fix, then re-run 'up'.")
 
-    if steps.get("bootstrap"):
-        print("[up] bootstrap: already done (state); skipping")
-    else:
-        print("[up] bootstrap (clone @ HEAD)")
-        rc, out, err = ssh_bash(st, args.ssh_key, BOOTSTRAP, dry)
-        if not dry and "BOOTSTRAP_DONE" not in out:
-            fail(f"bootstrap failed: {err or out}")
-        steps["bootstrap"] = True
-        save_state(root, st)
+    # Every step is idempotent + self-healing. Re-running 'up' converges the box to the correct
+    # state: bootstrap re-clones/pulls; stage skips byte-present files (or re-uploads if the box
+    # was reset); SETUP_TRAIN relaunches ONLY if no train process is alive (pgrep guard). So a
+    # wiped /workspace auto-recovers, and a healthy run is a safe no-op.
+    print("[up] bootstrap (clone @ HEAD; idempotent)")
+    rc, out, err = ssh_bash(st, args.ssh_key, BOOTSTRAP, dry)
+    if not dry and "BOOTSTRAP_DONE" not in out:
+        fail(f"bootstrap failed: {err or out}")
 
     print("[up] preflight gate")
     rc, *_ = sh([sys.executable, str(_scripts_dir() / "preflight_run16.py"), "--repo-root", str(root),
@@ -282,32 +282,26 @@ def phase_up(args) -> int:
     if rc != 0:
         fail(f"preflight RED (rc={rc}); not staging")
 
-    if steps.get("staged"):
-        print("[up] stage: already done (state); skipping")
-    else:
-        print("[up] stage data (box pulls ESM-2 from HF; no 2.5 GB cache upload)")
-        cmd = [sys.executable, str(_scripts_dir() / "stage_run16.py"), "--repo-root", str(root),
-               "--ssh-url", url, "--ssh-key", args.ssh_key, "--yes"]
-        if args.scp_hf_cache:
-            cmd.append("--scp-hf-cache")
-        rc, *_ = sh(cmd, dry, capture=False, timeout=TRANSFER_TIMEOUT)
-        if rc != 0:
-            fail(f"staging failed (rc={rc}); re-run 'up' to resume (present files skip)")
-        steps["staged"] = True
-        save_state(root, st)
+    print("[up] stage data (skips byte-present files; box pulls ESM-2 from HF)")
+    cmd = [sys.executable, str(_scripts_dir() / "stage_run16.py"), "--repo-root", str(root),
+           "--ssh-url", url, "--ssh-key", args.ssh_key, "--yes"]
+    if args.scp_hf_cache:
+        cmd.append("--scp-hf-cache")
+    rc, *_ = sh(cmd, dry, capture=False, timeout=TRANSFER_TIMEOUT)
+    if rc != 0:
+        fail(f"staging failed (rc={rc}); re-run 'up' to resume")
 
-    if steps.get("launched"):
-        print("[up] train: already launched (state); skipping. Use 'status'.")
-    else:
-        print("[up] env setup + ESM-2 prefetch + launch training")
-        rc, out, err = ssh_bash(st, args.ssh_key, SETUP_TRAIN, dry, timeout=SETUP_TIMEOUT)
-        if not dry and "TRAIN_LAUNCHED" not in out and "TRAIN_ALREADY_RUNNING" not in out:
-            fail(f"train launch failed: {err or out}")
-        if not dry:
-            m = re.search(r"TRAIN_PID=(\d+)", out)
-            st["train_pid"] = m.group(1) if m else None
-        steps["launched"] = True
-        save_state(root, st)
+    print("[up] env setup + ESM-2 prefetch + launch training (pgrep-guarded)")
+    rc, out, err = ssh_bash(st, args.ssh_key, SETUP_TRAIN, dry, timeout=SETUP_TIMEOUT)
+    if not dry and "TRAIN_LAUNCHED" not in out and "TRAIN_ALREADY_RUNNING" not in out:
+        fail(f"train launch failed: {err or out}")
+    if not dry:
+        if "TRAIN_ALREADY_RUNNING" in out:
+            print("[up] training already running; no relaunch (guard)")
+        m = re.search(r"TRAIN_PID=(\d+)", out)
+        if m:
+            st["train_pid"] = m.group(1)
+    save_state(root, st)
 
     name = Path(__file__).name
     print(f"[up] DONE. training on instance {cid}.")
@@ -316,32 +310,67 @@ def phase_up(args) -> int:
           "command only after a clean fetch)")
     return 0
 
-
 def phase_status(args) -> int:
     root = Path(args.repo_root).resolve()
     st = load_state(root)
-    if not args.dry_run:
-        rc0, out0, _ = vastai(["show", "instance", str(st["instance_id"]), "--raw"], dry=False)
-        rate = parse_rate(out0)
-        if rate and st.get("launched_at"):
-            hrs = (time.time() - st["launched_at"]) / 3600.0
-            print(f"[status] uptime ~{hrs:.1f}h  rate ${rate:.4f}/hr  "
-                  f"cost so far ~${hrs * rate:.2f}  (approx; billed from instance create)")
-    rc, out, err = ssh_bash(st, args.ssh_key, f"tail -n 25 {st['train_log']}", args.dry_run, timeout=120)
+    name = Path(__file__).name
     if args.dry_run:
+        print("  DRY> ssh diagnostic probe (pgrep / logs / data / splits) + cost readout")
         return 0
-    if rc != 0:
-        print(f"[status] cannot reach instance {st['instance_id']} ({err or rc}); it may be down.")
-        return 2
-    print(out or err)
-    if DONE_MARK in out:
-        print("[status] DONE -- run 'down --destroy' to fetch + teardown.")
-    elif re.search(r"Traceback|Error|FAILED", out):
-        print("[status] possible FAILURE -- inspect the log before teardown.")
-    else:
-        print("[status] still running.")
-    return 0
+    # cost readout (best-effort)
+    rc0, out0, _ = vastai(["show", "instance", str(st["instance_id"]), "--raw"], dry=False)
+    rate = parse_rate(out0)
+    if rate and st.get("launched_at"):
+        hrs = (time.time() - st["launched_at"]) / 3600.0
+        print(f"[status] uptime ~{hrs:.1f}h  rate ${rate:.4f}/hr  "
+              f"cost so far ~${hrs * rate:.2f}  (approx; billed from instance create)")
+    elif rate:
+        print(f"[status] rate ${rate:.4f}/hr  (no launch timestamp in state; cost not computed)")
 
+    rlog = st["train_log"]
+    probe = (
+        "echo PROBE_OK; "
+        "if pgrep -f 'scripts/train.py' >/dev/null 2>&1; then echo TRAIN=RUNNING; "
+        "else echo TRAIN=IDLE; fi; "
+        f"echo DONE_COUNT=$(grep -c '{DONE_MARK}' {rlog} 2>/dev/null || echo 0); "
+        f"echo DATA=$([ -d {DATA_DIR} ] && echo present || echo ABSENT); "
+        f"echo SPLITS=$([ -d {SPLITS_DIR} ] && echo present || echo absent); "
+        f"echo REDIR_LOG=$([ -f {rlog} ] && echo present || echo ABSENT); "
+        f"echo INNER_LOG=$([ -f {INTERNAL_LOG} ] && echo present || echo absent); "
+        "echo '----- last log lines -----'; "
+        f"(tail -n 25 {rlog} 2>/dev/null || tail -n 25 {INTERNAL_LOG} 2>/dev/null "
+        "|| echo '(no log file found)')"
+    )
+    rc, out, err = ssh_bash(st, args.ssh_key, probe, dry=False, timeout=120)
+    if "PROBE_OK" not in out:
+        print(f"[status] SSH to instance {st['instance_id']} did NOT respond as expected "
+              f"(truly unreachable / auth issue): {err or out or rc}")
+        return 2
+    print(out)
+    running = "TRAIN=RUNNING" in out
+    m = re.search(r"DONE_COUNT=(\d+)", out)
+    done = bool(m and int(m.group(1)) > 0)
+    data_present = "DATA=present" in out
+    any_log = "REDIR_LOG=present" in out or "INNER_LOG=present" in out
+    crashed = bool(re.search(r"Traceback|Error:|FAILED", out))
+    print("-" * 60)
+    if done:
+        print(f"[status] VERDICT: training COMPLETE. Next: python {name} down "
+              "(fetch+verify; then a separate down --destroy).")
+    elif running:
+        print("[status] VERDICT: training RUNNING.")
+    elif not data_present and not any_log:
+        print("[status] VERDICT: box looks RESET (no data, no log, train not running). "
+              f"Re-run 'python {name} up' to re-stage + relaunch, or destroy and 'up' fresh.")
+    elif data_present and not any_log:
+        print("[status] VERDICT: data present but no log and train not running -- the launch did "
+              f"not persist. Re-run 'python {name} up' to relaunch (staging skips present files).")
+    elif crashed:
+        print("[status] VERDICT: train not running and the log shows an error -- inspect the tail "
+              "above; do NOT destroy until you have saved the log.")
+    else:
+        print("[status] VERDICT: train not running, no completion marker -- inspect the tail above.")
+    return 0
 
 def _train_state(st: dict, key: str, dry: bool) -> tuple[bool, bool]:
     """Return (running, completed) by inspecting the box: pgrep for the train process and a
