@@ -215,7 +215,7 @@ class DbNSFPConnector:
         file for testing.  Pass *None* to operate in stub mode.
     cache_dir:
         Directory for the parquet index cache.  Defaults to the directory
-        containing *dbnsfp_file*.  Cache filename: ``dbnsfp_full_index.parquet``.
+        containing *dbnsfp_file*.  Cache filename: ``dbnsfp_clinvar_index.parquet``.
     """
 
     source_name = "dbnsfp"
