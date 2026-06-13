@@ -178,6 +178,29 @@ def _suppress_fillna_downcast(_fn):
     return _wrapper
 
 
+def _variant_key(
+    df: pd.DataFrame,
+    cols: tuple = ("chrom", "pos", "ref", "alt"),
+    sep: str = ":",
+    missing: str = "",
+) -> pd.Series:
+    """Build a version-stable colon-joined variant key.
+
+    Each component is cast to str with missing (None/NaN) mapped to a single
+    sentinel BEFORE the cast. Bare astype(str) yields 'None'/'nan' on pandas
+    2.x but NaN on pandas 3.x (new default string dtype), and a NaN in any
+    component poisons the whole concatenated key. This keeps the key
+    byte-identical across pandas versions and unifies None vs NaN. The
+    clean-cohort guard already rejects null alleles upstream; this is
+    null-safe-by-construction defense-in-depth, independent of that guard.
+    """
+    parts = [df[c].where(df[c].notna(), missing).astype(str) for c in cols]
+    key = parts[0]
+    for part in parts[1:]:
+        key = key + sep + part
+    return key
+
+
 @dataclass
 class DataPrepConfig:
     min_review_tier: int = 3  # exclude tier 4-5 (no criteria)
@@ -391,10 +414,7 @@ class DataPrepPipeline:
         if "variant_id" in df.columns:
             _key = df["variant_id"]
         elif all(c in df.columns for c in ("chrom", "pos", "ref", "alt")):
-            _key = (
-                df["chrom"].astype(str) + ":" + df["pos"].astype(str)
-                + ":" + df["ref"].astype(str) + ":" + df["alt"].astype(str)
-            )
+            _key = _variant_key(df)
         else:
             raise ValueError(
                 f"Cannot construct variant identity key in {source}: "
@@ -505,8 +525,8 @@ class DataPrepPipeline:
 
         df["_chrom"] = df["chrom"].astype(str)
         df["_pos"]   = pd.to_numeric(df["pos"], errors="coerce").fillna(0).astype(int)
-        df["_ref"]   = df["ref"].astype(str)
-        df["_alt"]   = df["alt"].astype(str)
+        df["_ref"]   = df["ref"].fillna("").astype(str)
+        df["_alt"]   = df["alt"].fillna("").astype(str)
         # Align gnomAD _pos to int for robust locus matching (avoids
         # leading-zero string mismatch — FINDING F-07).
         gnomad["_pos"] = pd.to_numeric(gnomad["_pos"], errors="coerce").fillna(0).astype(int)
