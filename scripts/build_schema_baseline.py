@@ -19,15 +19,15 @@ import pandas as pd
 
 from genomic_variant_classifier.agent_layer.agents.schema_drift_agent import SchemaDriftAgent
 
-DEFAULT_MATRIX = Path("outputs/run15_rerun_report/full/splits/X_train.parquet")
 DEFAULT_OUT = Path("data/reference/schema/schema_baseline.json")
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Build schema-baseline JSON from a reference feature matrix.")
-    ap.add_argument("--matrix", type=Path, default=DEFAULT_MATRIX, help="reference feature-matrix parquet")
+    ap.add_argument("--matrix", type=Path, required=True, help="reference feature-matrix parquet (REQUIRED; no default -- a stale default risked regressing the baseline)")
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT, help="output baseline JSON")
     ap.add_argument("--run-label", default="run15", help="provenance label for the source run")
+    ap.add_argument("--allow-schema-change", action="store_true", help="permit a column-set change vs the existing baseline (otherwise a mismatch ABORTS to prevent silent regression)")
     args = ap.parse_args()
 
     if not args.matrix.exists():
@@ -40,6 +40,23 @@ def main() -> int:
         print("ABORT: matrix has no columns")
         return 1
     expected_hash = SchemaDriftAgent.hash_schema(expected_dtypes)
+
+    # Regression guard: refuse to silently change the committed baseline's column SET.
+    # (Original footgun: a stale --matrix would drop columns and shrink the baseline 81->78.)
+    if args.out.exists() and not args.allow_schema_change:
+        try:
+            _prev_cols = set(json.loads(args.out.read_text(encoding="utf-8")).get("expected_dtypes", {}))
+        except (json.JSONDecodeError, OSError):
+            _prev_cols = set()
+        _new_cols = set(expected_dtypes)
+        if _prev_cols and _new_cols != _prev_cols:
+            print(
+                f"ABORT: column set differs from the existing baseline "
+                f"({len(_prev_cols)} -> {len(_new_cols)} columns). "
+                f"removed={sorted(_prev_cols - _new_cols)} added={sorted(_new_cols - _prev_cols)}. "
+                f"This would change the schema; re-run with --allow-schema-change if intentional."
+            )
+            return 1
 
     payload = {
         "schema_version": 1,
