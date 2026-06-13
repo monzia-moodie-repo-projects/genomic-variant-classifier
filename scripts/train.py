@@ -385,12 +385,34 @@ def main() -> None:
     from genomic_variant_classifier.evaluation.evaluator import ClinicalEvaluator
     evaluator = ClinicalEvaluator()
     ensemble_proba = ensemble.predict_proba(X_test, X_seq_test)[:, 1]
+    # meta_test drives the per-consequence and per-gene breakdowns; both
+    # silently return [] if their required columns are absent, so verify
+    # row-alignment and column names explicitly rather than fail quietly.
+    assert len(meta_test) == len(y_test) == len(ensemble_proba), (
+        f"meta_test ({len(meta_test)}) not aligned to "
+        f"y_test ({len(y_test)}) / proba ({len(ensemble_proba)})"
+    )
+    _missing = [c for c in ("consequence", "gene_symbol")
+                if c not in meta_test.columns]
+    if _missing:
+        logger.warning(
+            "meta_test missing %s; those breakdowns will be empty. "
+            "Columns present: %s", _missing, list(meta_test.columns),
+        )
     eval_report = evaluator.evaluate(
         y_true=y_test,
         y_proba=ensemble_proba,
-        meta=None,  # reconstruct from meta_test if per-gene analysis needed
+        meta=meta_test,
         model_name="EnsembleStacker",
     )
+    if not eval_report.consequence_breakdown:
+        logger.warning(
+            "consequence_breakdown EMPTY - check meta_test 'consequence' column"
+        )
+    if not eval_report.gene_errors:
+        logger.warning(
+            "gene_errors EMPTY - check meta_test 'gene_symbol' column"
+        )
     evaluator.save_report(eval_report, out_dir / "eval_report.json")
 
     # -- 6. Save (before feature importance so a crash there never loses the model)
