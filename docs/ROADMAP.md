@@ -83,7 +83,7 @@ Strong fits: AlphaFold DB (DO), RefSNP/dbSNP (DO), COSMIC (DO, academic; feature
 
 - **n_pathogenic_in_gene computation-scope audit:** confirm train-only-per-fold vs corpus-wide; recompute train-only if corpus-wide, to close the leakage question the UGH 0.9988 result left open.
 
-- **Fix clingen_validity_score dtype drift** (int in real_data_prep vs float in variant_ensemble) before the next regen.
+- **clingen_validity_score dtype drift (RESOLVED 2026-06-13):** both builders cast to float (variant_ensemble.engineer_features and real_data_prep._engineer_features, the latter with a "match inference builder" comment); verified aligned -- no regen blocker remains.
 
 - Remaining Phase-D connectors: activate dbSNP + AlphaFold-structure stub steps (data + config), then build COSMIC / TCGA / KEGG.
 
