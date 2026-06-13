@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import logging
 import re as _re
+import functools
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Tuple
@@ -162,6 +163,21 @@ CONSEQUENCE_SEVERITY: dict[str, int] = {
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
+def _suppress_fillna_downcast(_fn):
+    """Opt into pandas' future no-silent-downcasting inside the wrapped builder.
+
+    Silences the pandas 2.x .fillna object-downcast FutureWarning with no value
+    or dtype change: the explicit .astype() calls still set each column's dtype
+    and still raise on genuinely non-numeric input. No-op on pandas >= 3.
+    """
+    @functools.wraps(_fn)
+    def _wrapper(*args, **kwargs):
+        with pd.option_context("future.no_silent_downcasting", True):
+            return _fn(*args, **kwargs)
+
+    return _wrapper
+
+
 @dataclass
 class DataPrepConfig:
     min_review_tier: int = 3  # exclude tier 4-5 (no criteria)
@@ -953,6 +969,7 @@ class DataPrepPipeline:
 
         return df
 
+    @_suppress_fillna_downcast
     def _engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
         feats = pd.DataFrame(index=df.index)
 

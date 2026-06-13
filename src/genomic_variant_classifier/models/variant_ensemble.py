@@ -37,6 +37,7 @@ from datetime import timezone
 
 import logging
 import warnings
+import functools
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -296,6 +297,22 @@ class EnsembleConfig:
 # ---------------------------------------------------------------------------
 # Feature engineering
 # ---------------------------------------------------------------------------
+def _suppress_fillna_downcast(_fn):
+    """Opt into pandas' future no-silent-downcasting inside the wrapped builder.
+
+    Silences the pandas 2.x .fillna object-downcast FutureWarning with no value
+    or dtype change: the explicit .astype() calls still set each column's dtype
+    and still raise on genuinely non-numeric input. No-op on pandas >= 3.
+    """
+    @functools.wraps(_fn)
+    def _wrapper(*args, **kwargs):
+        with pd.option_context("future.no_silent_downcasting", True):
+            return _fn(*args, **kwargs)
+
+    return _wrapper
+
+
+@_suppress_fillna_downcast
 def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     """
     Derive the 65 tabular features from a raw variant DataFrame.
