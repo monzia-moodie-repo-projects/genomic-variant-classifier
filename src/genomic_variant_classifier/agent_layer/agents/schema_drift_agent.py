@@ -11,6 +11,27 @@ from typing import Optional
 import pandas as pd
 
 
+
+_STRING_DTYPE_FAMILY = frozenset({
+    "object", "string", "str",
+    "string[python]", "string[pyarrow]", "string[pyarrow_numpy]",
+    "large_string[pyarrow]",
+})
+
+
+def _dtype_family(dtype: str) -> str:
+    """Collapse equivalent string-dtype spellings to one family token.
+
+    pandas 3.0 defaults the inferred-string dtype to 'str'/'string' where 2.x used
+    'object'; treating those as one family keeps a string column from registering as
+    drift purely because of the pandas version. IDENTITY for every other dtype, so
+    genuine retyping (float64 -> int64) is still caught and numeric-only baselines
+    hash identically (no rebuild)."""
+    if str(dtype).strip().lower() in _STRING_DTYPE_FAMILY:
+        return "string"
+    return str(dtype)
+
+
 @dataclass(frozen=True)
 class SchemaDriftResult:
     timestamp: str
@@ -39,7 +60,10 @@ class SchemaDriftAgent:
 
     @staticmethod
     def hash_schema(dtypes: dict[str, str]) -> str:
-        canonical = json.dumps(sorted(dtypes.items()), separators=(",", ":"))
+        canonical = json.dumps(
+            sorted((str(k), _dtype_family(v)) for k, v in dtypes.items()),
+            separators=(",", ":"),
+        )
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
     @classmethod
@@ -54,7 +78,13 @@ class SchemaDriftAgent:
         data = json.loads(Path(baseline_path).read_text(encoding="utf-8"))
         expected_dtypes = {str(k): str(v) for k, v in data["expected_dtypes"].items()}
         schema = pa.DataFrameSchema(
-            {col: pa.Column(dtype, nullable=True) for col, dtype in expected_dtypes.items()}
+            {
+                col: pa.Column(
+                    None if _dtype_family(dtype) == "string" else dtype,
+                    nullable=True,
+                )
+                for col, dtype in expected_dtypes.items()
+            }
         )
         return cls(
             schema=schema,
@@ -73,7 +103,7 @@ class SchemaDriftAgent:
         removed = tuple(sorted(expected_cols - observed_cols))
         changed: list[tuple[str, str, str]] = []
         for col in expected_cols & observed_cols:
-            if observed_dtypes[col] != self.expected_dtypes[col]:
+            if _dtype_family(observed_dtypes[col]) != _dtype_family(self.expected_dtypes[col]):
                 changed.append((col, self.expected_dtypes[col], observed_dtypes[col]))
         violations: list[str] = []
         try:
