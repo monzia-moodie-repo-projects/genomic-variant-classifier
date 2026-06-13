@@ -13,11 +13,19 @@
 #   .\Run16_Monitor.ps1 -SshHost ssh8.vast.ai -SshPort 18494 -Mode Quick
 #   .\Run16_Monitor.ps1 -SshHost ssh8.vast.ai -SshPort 18494 -Mode Full
 #   .\Run16_Monitor.ps1 -SshHost ssh8.vast.ai -SshPort 18494 -Mode KAN
+#   .\Run16_Monitor.ps1 -SshHost ssh8.vast.ai -SshPort 18494 -Mode Errors
+#   .\Run16_Monitor.ps1 -SshHost ssh8.vast.ai -SshPort 18494 -Mode Tail -TailLines 80
 #
 # Modes:
-#   Quick - AUROC lines from master log + nvidia-smi one-shot
-#   Full  - Quick + disk usage + python process status + recent errors
-#   KAN   - Targeted KAN status: backend used, fit success/fail, OOF AUROC
+#   Quick  - AUROC lines + models-done count + nvidia-smi one-shot
+#   Full   - Quick + disk usage + python process status + recent errors
+#   KAN    - Targeted KAN status: backend used, fit success/fail, OOF AUROC
+#   Errors - All errors / warnings / failures from the master log
+#   Tail   - Last N lines of the master log (-TailLines, default 50)
+#
+# Note:  Invoke-Ssh suppresses the vast.ai proxy banner ("Welcome to vast.ai",
+#        "Have fun!") that ssh writes to stderr, and flattens any stderr record
+#        to plain text so PowerShell never renders it as a red error block.
 # =============================================================================
 
 [CmdletBinding()]
@@ -39,7 +47,23 @@ if (-not (Test-Path $SshKey)) {
 $sshBase = @("-i", $SshKey, "-p", $SshPort, "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=15", "root@$SshHost")
 
 function Invoke-Ssh($cmd) {
-    & ssh @sshBase $cmd 2>&1
+    # Merge stderr (2>&1); flatten every item to a plain string with "$_" so an
+    # ErrorRecord (the vast.ai banner on stderr) is never rendered as a red
+    # NativeCommandError block; then drop the banner lines. What remains is only
+    # the remote command's real output. If nothing remains, say so plainly.
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $out = & ssh @sshBase $cmd 2>&1 | ForEach-Object { "$_" } | Where-Object {
+            ($_ -notmatch 'Welcome to vast\.ai') -and
+            ($_ -notmatch 'If authentication fails') -and
+            ($_ -notmatch '^\s*Have fun\.?\s*$')
+        }
+        if ($out) { $out } else { '  (no matching lines yet)' }
+    }
+    finally {
+        $ErrorActionPreference = $prev
+    }
 }
 
 Write-Host "=== Run 16 Monitor [$Mode] @ $(Get-Date -Format 'HH:mm:ss') ===" -ForegroundColor Cyan
@@ -51,6 +75,9 @@ switch ($Mode) {
         Write-Host "[AUROC lines from master log]" -ForegroundColor Yellow
         Invoke-Ssh "grep -iE 'auroc|kan|lightgbm|cnn_1d|^==>' $LogPath 2>/dev/null | tail -25"
 
+        Write-Host "`n[base models with OOF AUROC logged (of 13)]" -ForegroundColor Yellow
+        Invoke-Ssh "grep -c 'OOF AUROC' $LogPath 2>/dev/null"
+
         Write-Host "`n[GPU + memory snapshot]" -ForegroundColor Yellow
         Invoke-Ssh "nvidia-smi --query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv 2>/dev/null"
     }
@@ -58,6 +85,9 @@ switch ($Mode) {
     'Full' {
         Write-Host "[AUROC lines from master log]" -ForegroundColor Yellow
         Invoke-Ssh "grep -iE 'auroc|kan|lightgbm|cnn_1d|^==>' $LogPath 2>/dev/null | tail -40"
+
+        Write-Host "`n[base models with OOF AUROC logged (of 13)]" -ForegroundColor Yellow
+        Invoke-Ssh "grep -c 'OOF AUROC' $LogPath 2>/dev/null"
 
         Write-Host "`n[GPU + memory snapshot]" -ForegroundColor Yellow
         Invoke-Ssh "nvidia-smi --query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv 2>/dev/null"
