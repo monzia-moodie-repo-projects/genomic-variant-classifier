@@ -57,7 +57,7 @@ function Invoke-Ssh($cmd) {
         $out = & ssh @sshBase $cmd 2>&1 | ForEach-Object { "$_" } | Where-Object {
             ($_ -notmatch 'Welcome to vast\.ai') -and
             ($_ -notmatch 'If authentication fails') -and
-            ($_ -notmatch '^\s*Have fun\.?\s*$')
+            ($_ -notmatch 'Have fun')
         }
         if ($out) { $out } else { '  (no matching lines yet)' }
     }
