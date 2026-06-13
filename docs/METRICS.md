@@ -83,6 +83,11 @@ of pathogenicity; positives = pathogenic; Run 15 class balance = 210,549 pathoge
   range [0.0012, 0.5000] - gate PASS on all three splits.
 - **Feature importance:** model-reported per-feature contribution ("Top 10 features").
   Run 15 top = n_pathogenic_in_gene (391) - the standing signal-vs-memorization concern.
+- **n_input_features:** number of matrix columns each model actually consumes. Trees / LR /
+  CatBoost / KAN see the full 81; the masked neural models (tabular_nn, mc_dropout,
+  deep_ensemble) report their post-variance-mask width (constant columns dropped at fit
+  time); cnn_1d (sequence) and the stacking meta-learner report n/a. Surfaced in the
+  per-model table of the run report (NOT a library log line).
 
 ---
 

@@ -482,6 +482,14 @@ def main() -> None:
     logger.info("Metrics saved to %s", metrics_path)
 
     # -- 8. Markdown summary ------------------------------------------------
+    from genomic_variant_classifier.evaluation.model_introspect import model_input_width
+    _model_map = getattr(ensemble, "trained_models_", None)
+    if not _model_map:
+        _model_map = ensemble.base_estimators
+    metrics_df["n_input_features"] = [
+        model_input_width(_model_map.get(name)) for name in metrics_df.index
+    ]
+
     md_path = out_dir / "METRICS.md"
     write_metrics_markdown(metrics_df, y_train, y_test, md_path)
     logger.info("README-ready markdown saved to %s", md_path)
@@ -576,18 +584,21 @@ def write_metrics_markdown(
         f"using a **gene-aware train/test split** "
         f"(no gene appears in both train and test).\n",
         "",
-        "| Model | AUROC | AUPRC | F1 (macro) | MCC | Brier |",
-        "|-------|-------|-------|-----------|-----|-------|",
+        "| Model | AUROC | AUPRC | F1 (macro) | MCC | Brier | Input features |",
+        "|-------|-------|-------|-----------|-----|-------|----------------|",
     ]
     for model_name, row in metrics_df.iterrows():
         bold = "**" if row["auroc"] == best_auroc else ""
+        _nif = row.get("n_input_features", None)
+        _nif_s = "n/a" if pd.isna(_nif) else str(int(_nif))
         lines.append(
             f"| {bold}{model_name}{bold} "
             f"| {bold}{row['auroc']:.4f}{bold} "
             f"| {row['auprc']:.4f} "
             f"| {row['f1_macro']:.4f} "
             f"| {row['mcc']:.4f} "
-            f"| {row['brier']:.4f} |"
+            f"| {row['brier']:.4f} "
+            f"| {_nif_s} |"
         )
     lines += [
         "",
