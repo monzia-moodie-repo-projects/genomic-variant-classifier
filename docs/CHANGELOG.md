@@ -3383,3 +3383,30 @@ Learned:
 - Fixed: L22 launcher PYTHONPATH=src (f349fae); monitor vast.ai banner (fff4c09).
 - Deferred/known: eval_report consequence_breakdown + gene_errors EMPTY (meta_test not passed to evaluator.evaluate) -> one-line fix next run; cnn_1d weak (0.82/0.567); 35/81 features constant; correct teardown is "vastai destroy instance <id>".
 - Learned: "nothing to commit" ambiguous -> verify origin/main; audit nondefault counter unreliable on standardized matrix; OOF .npy is in idx_fit order from cross_val_predict over an 85pct fit subsample; ensemble reserves 15pct of train as isotonic calibration holdout (train_test_split test_size=0.15 stratify rs=42), so OOF covers 883127 of 1038974 train rows. meta/X/y_train are the full train split; reproduce idx_fit to map OOF back. NOT a bug.
+### 2026-06-13 -- TabularNN variance mask (after reverting the 81->51 schema trim)
+
+**Attempted:** Trim `TABULAR_FEATURES` 81 -> 51 by relocating 29 constant +
+`codon_position` (protein_pos duplicate) to `PHASE_2_FEATURES`, unifying both
+feature builders on a fail-loud select. Patcher was conservation-checked and
+green on the contract + API tests.
+
+**Failed:** The full suite surfaced 40 failures across 10 files. They were not
+patcher bugs -- they are the deliberate Phase-4 contract firing: a fixed,
+fully-promoted schema with connector -> matrix wiring + safe defaults
+(`test_*_in_tabular_features`, `test_*_flows_into_feature_matrix`,
+`test_phase_2_features_is_empty`, `test_new_features_in_tabular_features`,
+`test_reactome_is_last_feature_and_columns_match_tabular`). Reverted via
+`git checkout --`; suite restored to **916 passed / 6 skipped / 0 failed**.
+
+**Fixed / Learned:** Constant columns are a data-availability state, not dead
+code, and the connector-flow tests are silent-failure guards worth keeping. The
+real concern (constant neural inputs) is now handled in the model layer:
+`TabularNNClassifier` gains a fit-time variance mask (`var > 0`) applied at
+predict, inherited by `mc_dropout` / `deep_ensemble`; `cnn_1d`/trees/LR/CatBoost/
+KAN untouched. No schema, contract, inference, or schema-baseline change. Backward
+compatible with pre-mask pickles. See `docs/design/neural_variance_mask.md`.
+
+**Noted (pre-existing, not this change):** `test_ablate_gnn` skips locally on a
+`torch_scatter`/`torch_sparse` `0xc0000139` DLL load failure (GNN coverage absent
+on this machine -- confirm elsewhere); pandas `.fillna` downcasting `FutureWarning`
+in `variant_ensemble.py` (score_defaults loop) wants an explicit cast.

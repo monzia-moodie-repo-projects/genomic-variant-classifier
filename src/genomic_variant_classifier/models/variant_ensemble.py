@@ -917,6 +917,24 @@ class TabularNNClassifier(BaseEstimator, ClassifierMixin):
         layers_list += [nn.Linear(in_dim, 1), nn.Sigmoid()]
         return nn.Sequential(*layers_list)
 
+    def _apply_feature_mask(self, X):
+        """Select the columns kept at fit time (mirrors self.scaler_).
+
+        Returns X unchanged when feature_mask_ is absent, so estimators
+        pickled before the mask existed still score correctly.
+        """
+        X = np.asarray(X, dtype=float)
+        mask = getattr(self, "feature_mask_", None)
+        if mask is None:
+            return X
+        n_in = getattr(self, "n_features_in_", X.shape[1])
+        if X.shape[1] != n_in:
+            raise ValueError(
+                f"TabularNNClassifier got {X.shape[1]} columns at predict time "
+                f"but saw {n_in} at fit time."
+            )
+        return X[:, mask]
+
     def fit(self, X, y):
         import torch
         import torch.nn as nn
@@ -925,6 +943,12 @@ class TabularNNClassifier(BaseEstimator, ClassifierMixin):
         torch.manual_seed(self.random_state)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+        X = np.asarray(X, dtype=float)
+        self.n_features_in_ = X.shape[1]
+        self.feature_mask_ = X.var(axis=0) > 0.0
+        if not self.feature_mask_.any():            # degenerate: keep all, never 0-width
+            self.feature_mask_ = np.ones(X.shape[1], dtype=bool)
+        X = X[:, self.feature_mask_]
         X_scaled = self.scaler_.fit_transform(X)
         X_t = torch.tensor(X_scaled, dtype=torch.float32)
         y_t = torch.tensor(np.asarray(y), dtype=torch.float32)
@@ -972,7 +996,7 @@ class TabularNNClassifier(BaseEstimator, ClassifierMixin):
         import torch
 
         self.model_.eval()
-        X_scaled = self.scaler_.transform(X)
+        X_scaled = self.scaler_.transform(self._apply_feature_mask(X))
         X_t = torch.tensor(X_scaled, dtype=torch.float32)
         with torch.no_grad():
             proba = self.model_(X_t).squeeze(-1).numpy()
@@ -1027,7 +1051,7 @@ class TabularNNClassifier(BaseEstimator, ClassifierMixin):
                 module.train()
 
         try:
-            X_scaled = self.scaler_.transform(X)
+            X_scaled = self.scaler_.transform(self._apply_feature_mask(X))
             X_t = torch.tensor(X_scaled, dtype=torch.float32)
             with torch.no_grad():
                 proba = self.model_(X_t).squeeze(-1).numpy()
