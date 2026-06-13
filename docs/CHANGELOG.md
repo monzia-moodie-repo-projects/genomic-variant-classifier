@@ -3377,3 +3377,9 @@ Learned:
   needs gene-disjoint cross-fitting to avoid leakage.
 - Feature-population audit must target splits/X_*.parquet (not the pre-scoring checkpoint)
   and use varies-checks on standard-scaled data.
+
+## 2026-06-13 - Run 16 complete
+- Result: ENSEMBLE_STACKER test AUROC 0.99835 [0.99816-0.99852], AUPRC 0.99358, ECE 0.0054, MCE 0.118. Gene-disjoint (12385 train / 3539 test genes, 0 overlap). Runtime 13.9h, ~$7.
+- Fixed: L22 launcher PYTHONPATH=src (f349fae); monitor vast.ai banner (fff4c09).
+- Deferred/known: eval_report consequence_breakdown + gene_errors EMPTY (meta_test not passed to evaluator.evaluate) -> one-line fix next run; cnn_1d weak (0.82/0.567); 35/81 features constant; correct teardown is "vastai destroy instance <id>".
+- Learned: "nothing to commit" ambiguous -> verify origin/main; audit nondefault counter unreliable on standardized matrix; OOF .npy is in split-row order (do not re-index by oof_indices).
