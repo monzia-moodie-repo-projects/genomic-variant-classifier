@@ -3382,4 +3382,4 @@ Learned:
 - Result: ENSEMBLE_STACKER test AUROC 0.99835 [0.99816-0.99852], AUPRC 0.99358, ECE 0.0054, MCE 0.118. Gene-disjoint (12385 train / 3539 test genes, 0 overlap). Runtime 13.9h, ~$7.
 - Fixed: L22 launcher PYTHONPATH=src (f349fae); monitor vast.ai banner (fff4c09).
 - Deferred/known: eval_report consequence_breakdown + gene_errors EMPTY (meta_test not passed to evaluator.evaluate) -> one-line fix next run; cnn_1d weak (0.82/0.567); 35/81 features constant; correct teardown is "vastai destroy instance <id>".
-- Learned: "nothing to commit" ambiguous -> verify origin/main; audit nondefault counter unreliable on standardized matrix; OOF .npy is in split-row order (do not re-index by oof_indices).
+- Learned: "nothing to commit" ambiguous -> verify origin/main; audit nondefault counter unreliable on standardized matrix; OOF .npy is in idx_fit order from cross_val_predict over an 85pct fit subsample; ensemble reserves 15pct of train as isotonic calibration holdout (train_test_split test_size=0.15 stratify rs=42), so OOF covers 883127 of 1038974 train rows. meta/X/y_train are the full train split; reproduce idx_fit to map OOF back. NOT a bug.
