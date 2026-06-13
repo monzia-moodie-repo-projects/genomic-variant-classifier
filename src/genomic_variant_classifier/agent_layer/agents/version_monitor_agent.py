@@ -12,6 +12,9 @@ Watch targets (Phase 3 initial set):
   3. gnomAD         — watch for v4.2+ constraint metrics column changes
   4. AlphaMissense  — watch for new hg38 TSV releases
   5. torch-geometric — watch for version bumps matching system torch
+  6. Python          — running interpreter vs latest patch / series / EOL
+  7. ALL packages    — pip list --outdated; flags major bumps (e.g. pandas 2->3)
+  8. PyG companions  — torch_scatter/torch_sparse ABI health vs installed torch
 
 SharedState keys written:
   literature_scout.last_run          ISO timestamp of last check
@@ -39,6 +42,7 @@ import gzip
 import hashlib
 import json
 import logging
+import platform
 import subprocess
 import sys
 import urllib.request
@@ -267,6 +271,143 @@ def _check_torch_geometric() -> dict[str, Any]:
     return updates
 
 # ---------------------------------------------------------------------------
+# Watch target 5: running Python vs latest patch / series / EOL
+# ---------------------------------------------------------------------------
+PYTHON_EOL_URL = "https://endoflife.date/api/python.json"
+
+def _check_python() -> dict[str, Any]:
+    """Compare the running interpreter against the latest patch in its series and
+    the newest stable series (endoflife.date). Network-optional; degrades to just
+    the running version on any failure."""
+    updates: dict[str, Any] = {}
+    running = platform.python_version()
+    updates["literature_scout.python_running"] = running
+    series = ".".join(running.split(".")[:2])
+    try:
+        with urllib.request.urlopen(PYTHON_EOL_URL, timeout=15) as resp:
+            cycles = json.loads(resp.read())
+        latest_series = cycles[0].get("cycle", "") if cycles else ""
+        latest_patch = next(
+            (c.get("latest", "") for c in cycles if c.get("cycle") == series), ""
+        )
+        eol = next((c.get("eol") for c in cycles if c.get("cycle") == series), None)
+        updates["literature_scout.python_latest_series"] = latest_series
+        updates["literature_scout.python_latest_patch"] = latest_patch
+        updates["literature_scout.python_eol"] = eol
+        parts = []
+        if latest_patch and latest_patch != running:
+            parts.append(f"patch {running} -> {latest_patch} in {series}")
+        if latest_series and latest_series != series:
+            parts.append(f"newer series {latest_series} available (running {series})")
+        today = datetime.now(timezone.utc).date().isoformat()
+        if eol is True or (isinstance(eol, str) and eol < today):
+            parts.append(f"series {series} is EOL ({eol})")
+        updates["literature_scout.python_alert"] = "; ".join(parts)
+    except Exception as exc:
+        logger.debug("Python version check failed: %s", exc)
+        updates["literature_scout.python_alert"] = ""
+        updates["literature_scout.python_check_error"] = str(exc)
+    return updates
+
+# ---------------------------------------------------------------------------
+# Watch target 6: ALL installed packages vs PyPI (pip list --outdated)
+# ---------------------------------------------------------------------------
+def _is_major_bump(current: str, latest: str) -> bool:
+    """True iff latest's major version exceeds current's (e.g. pandas 2.x -> 3.x)."""
+    try:
+        return int(str(latest).split(".")[0]) > int(str(current).split(".")[0])
+    except (ValueError, IndexError, AttributeError):
+        return False
+
+def _check_dependencies() -> dict[str, Any]:
+    """Scan every installed package against PyPI via 'pip list --outdated'.
+    Surfaces the full outdated set plus the major-version-bump subset (the
+    migration-sensitive ones). Subprocess/network-bound; graceful with a generous
+    timeout. Distinct from InfrastructureDriftAgent (installed-vs-recorded drift);
+    this is installed-vs-latest-upstream."""
+    updates: dict[str, Any] = {}
+    outdated: list = []
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "list", "--outdated", "--format=json"],
+            capture_output=True, text=True, timeout=180,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            outdated = json.loads(result.stdout)
+    except Exception as exc:
+        logger.debug("pip list --outdated failed: %s", exc)
+        updates["literature_scout.deps_check_error"] = str(exc)
+
+    rows = [
+        {"name": p.get("name", ""), "installed": p.get("version", ""),
+         "latest": p.get("latest_version", "")}
+        for p in outdated
+    ]
+    major = [
+        f"{r['name']} {r['installed']} -> {r['latest']}"
+        for r in rows if _is_major_bump(r["installed"], r["latest"])
+    ]
+    updates["literature_scout.deps_outdated_count"] = len(rows)
+    updates["literature_scout.deps_outdated"] = rows
+    updates["literature_scout.deps_major_bumps"] = major
+    return updates
+
+# ---------------------------------------------------------------------------
+# Watch target 7: PyG companion ABI health (torch_scatter/torch_sparse vs torch)
+# ---------------------------------------------------------------------------
+_PYG_COMPANIONS = ("torch_scatter", "torch_sparse", "torch_cluster", "torch_spline_conv")
+
+def _installed_version(dist: str):
+    """Installed version via importlib.metadata; None if absent."""
+    try:
+        from importlib.metadata import version, PackageNotFoundError
+        try:
+            return version(dist)
+        except PackageNotFoundError:
+            return None
+    except Exception:
+        return None
+
+def _try_import(module_name: str):
+    """Import *module_name*; return (ok, error). Catches OSError/SystemError too --
+    a CUDA/CPU or torch-version ABI mismatch raises those (WinError 127 /
+    0xc0000139), not ImportError, when the compiled .pyd fails to load."""
+    import importlib
+    try:
+        importlib.import_module(module_name)
+        return True, ""
+    except Exception as exc:
+        return False, f"{type(exc).__name__}: {exc}"
+
+def _check_pyg_abi() -> dict[str, Any]:
+    """Detect torch_scatter/torch_sparse built against a different torch than the
+    installed one -- the failure that silently breaks GNN test collection. Absent
+    companions are FINE (modern PyG uses native scatter)."""
+    updates: dict[str, Any] = {}
+    torch_ver = _installed_version("torch")
+    updates["literature_scout.torch_version"] = torch_ver or "not_installed"
+    companions: dict[str, str] = {}
+    alert = ""
+    for comp in _PYG_COMPANIONS:
+        ver = _installed_version(comp)
+        if ver is None:
+            companions[comp] = "absent"
+            continue
+        ok, err = _try_import(comp)
+        if ok:
+            companions[comp] = f"ok ({ver})"
+        else:
+            companions[comp] = f"BROKEN ({ver}): {err[:90]}"
+            alert = (
+                f"{comp} {ver} fails to load against torch {torch_ver} "
+                "(build/ABI mismatch). Uninstall it (PyG falls back to native "
+                "scatter) or reinstall a build matching the installed torch."
+            )
+    updates["literature_scout.pyg_companions"] = companions
+    updates["literature_scout.pyg_abi_alert"] = alert
+    return updates
+
+# ---------------------------------------------------------------------------
 # Main agent entry point
 # ---------------------------------------------------------------------------
 def run(*, dry_run: bool = False) -> dict[str, Any]:
@@ -320,6 +461,28 @@ def run(*, dry_run: bool = False) -> dict[str, Any]:
     if pyg_updates.get("literature_scout.pyg_alert"):
         alerts.append(f"[PyG] {pyg_updates['literature_scout.pyg_alert']}")
 
+    # Python version
+    py_updates = _check_python()
+    all_updates.update(py_updates)
+    if py_updates.get("literature_scout.python_alert"):
+        alerts.append(f"[Python] {py_updates['literature_scout.python_alert']}")
+
+    # ALL installed packages vs PyPI
+    dep_updates = _check_dependencies()
+    all_updates.update(dep_updates)
+    _major = dep_updates.get("literature_scout.deps_major_bumps", [])
+    for _mb in _major:
+        alerts.append(f"[deps:major] {_mb}")
+    _n_out = dep_updates.get("literature_scout.deps_outdated_count", 0)
+    if _n_out and not _major:
+        alerts.append(f"[deps] {_n_out} package(s) have newer releases (no major bumps)")
+
+    # PyG companion ABI health
+    abi_updates = _check_pyg_abi()
+    all_updates.update(abi_updates)
+    if abi_updates.get("literature_scout.pyg_abi_alert"):
+        alerts.append(f"[PyG-ABI] {abi_updates['literature_scout.pyg_abi_alert']}")
+
     all_updates["literature_scout.alerts"] = alerts
 
     if alerts:
@@ -361,6 +524,11 @@ class VersionMonitorAgent(BaseAgent):
             "pykan_installed": updates.get("literature_scout.pykan_installed"),
             "pykan_latest": updates.get("literature_scout.pykan_latest"),
             "pykan_alert": updates.get("literature_scout.pykan_alert", False),
+            "python_running": updates.get("literature_scout.python_running"),
+            "python_alert": updates.get("literature_scout.python_alert", ""),
+            "deps_outdated_count": updates.get("literature_scout.deps_outdated_count", 0),
+            "deps_major_bumps": updates.get("literature_scout.deps_major_bumps", []),
+            "pyg_abi_alert": updates.get("literature_scout.pyg_abi_alert", ""),
             "last_run": updates.get("literature_scout.last_run"),
             "checked_at": self._now_iso(),
             "dry_run": dry_run,
