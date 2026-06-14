@@ -35,7 +35,7 @@ class LabelShiftAgent:
     Regularized variant (RLLS): Azizzadenesheli et al., ICLR 2019.
     """
 
-    reference_confusion: np.ndarray  # shape (K, K), rows=true, cols=pred
+    reference_confusion: np.ndarray  # shape (K, K), C[pred, true] = P(pred|true), column-stochastic
     classes: tuple[str, ...]  # ("B", "LB", "VUS", "LP", "P")
     p_train: np.ndarray  # shape (K,)
     output_dir: Path
@@ -44,6 +44,30 @@ class LabelShiftAgent:
     abs_shift_red: float = 0.10
     rlls_lambda: float = 1e-3
     logger: Optional[Logger] = field(default=None, repr=False)
+
+    @classmethod
+    def from_baseline(cls, baseline_path, output_dir, **kw) -> "LabelShiftAgent":
+        """Reconstruct a detector from a label-shift baseline JSON.
+
+        The JSON carries classes, p_train, and reference_confusion (column-stochastic
+        C[pred, true] = P(pred|true), so reference_confusion @ p_train is the expected
+        predicted marginal; see estimate_test_marginal / detect). The baseline is
+        produced by build_label_shift_baseline.py from a model's validation predictions
+        (a Run-17 artifact -- the confusion matrix needs a trained model).
+        """
+        import json
+
+        data = json.loads(Path(baseline_path).read_text(encoding="utf-8"))
+        classes = tuple(str(c) for c in data["classes"])
+        p_train = np.asarray(data["p_train"], dtype=float)
+        reference_confusion = np.asarray(data["reference_confusion"], dtype=float)
+        return cls(
+            reference_confusion=reference_confusion,
+            classes=classes,
+            p_train=p_train,
+            output_dir=Path(output_dir),
+            **kw,
+        )
 
     def estimate_test_marginal(
         self, predicted_labels: np.ndarray
