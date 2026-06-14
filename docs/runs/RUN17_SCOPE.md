@@ -16,7 +16,7 @@ Test AUROC 0.9984). Its **single new purpose** is to **activate two feature grou
 present-but-constant** in the current schema:
 
 - **`gnn_score`** — via `--string-db auto` (STRING-DB v12, GNN over the PPI graph).
-- **`af_1kg_afr/eur/eas/sas/amr`** (5 cols) — via `--kg <1000G_phase3_AF.parquet>`.
+- **`af_1kg_afr/eur/eas/sas/amr`** (5 cols) — via `--kg <1000G_phase3_AF.parquet>` (the parquet MUST carry per-superpopulation AF columns; fill_population_af reads them -- connector landed 2026-06-13, a0ce407).
 
 **This is a VALUE activation, not a schema change.** Both groups are already among the
 81 columns in `data/reference/schema/schema_baseline.json`; Run 17 turns their values from

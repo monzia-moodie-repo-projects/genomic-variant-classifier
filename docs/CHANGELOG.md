@@ -3410,3 +3410,35 @@ compatible with pre-mask pickles. See `docs/design/neural_variance_mask.md`.
 `torch_scatter`/`torch_sparse` `0xc0000139` DLL load failure (GNN coverage absent
 on this machine -- confirm elsewhere); pandas `.fillna` downcasting `FutureWarning`
 in `variant_ensemble.py` (score_defaults loop) wants an explicit cast.
+
+## 2026-06-13 -- Leakage L1+L2 closed, AdaptationAgent, af_1kg resurrected, hetero-GNN engine + KG connectors, commit-history hygiene
+
+Six clean commits on 5d69182: 689787f (L1) -> 6b38985 (L2) -> 636c6df (AdaptationAgent)
+-> a0ce407 (af_1kg) -> 54158f7 (hetero-GNN engine) -> 8c19f9b (KG connectors). Suite 989
+passed / 6 skipped / 41 warnings (all pre-existing; zero new).
+
+### Fixed
+- **Level-1 leakage (689787f):** n_pathogenic_in_gene was computed corpus-wide PRE the gene-disjoint
+  split. Recompute train-only post-split in _gene_aware_split; unseen genes -> 0; gene_has_known_disease
+  in lockstep. Probe (scripts/audit_npathogenic_leakage.py) 0.7181 -> ~0.50. +4 tests.
+- **Level-2 leakage (6b38985):** inner OOF used StratifiedKFold over a full-train count. Switched to
+  gene-disjoint GroupKFold + per-fold train-only recompute. Leaky 0.7755 vs leak-free 0.6633. +4 tests.
+
+### Added
+- **AdaptationAgent (636c6df):** consumes version_monitor alerts; isolated-venv evaluate/plan + JSONL
+  ledger; wired version_monitor + adaptation pipelines (VersionMonitorAgent was registered-but-unran). +10 tests.
+- **af_1kg_* resurrected (a0ce407):** fill_population_af populates 5 dead super-pop AF columns from a
+  1000G parquet (path+mtime cache, [0,1] clip, all-zero guard); build_1kg_parquet.py builder. +5 tests.
+- **Hetero-KG GNN engine (54158f7):** models/hetero_gnn.py -- HeteroConv multi-relation gene graph
+  (builder + model), robust to messy/empty/edgeless graphs; additive. +5 tests.
+- **KG edge-connectors (8c19f9b):** data/kg_edges.py -- co-membership primitive (explosion guard,
+  cohort restrict) + Reactome/KEGG/GO/OMIM/ClinGen adapters; KG_SOURCES registry. +5 tests.
+
+### Process / hygiene
+- af_1kg _join_gnomad wiring initially landed in the L1 commit; relocated to the af_1kg commit via a
+  hardened rebase (per-commit content count 0 then 1; tree byte-identical). See
+  docs/incidents/INCIDENT_2026-06-13_rebase-noop.md.
+
+### Impact note (expected, not a regression)
+- After L1+L2 + regen + retrain, reported AUROCs will DROP below the sealed Run-15 0.9984 -- honest
+  leak-free numbers, not a regression.
