@@ -111,9 +111,11 @@ REGISTRY: tuple[Source, ...] = (
            None, None, "Phase 3", "connector_1kgp.py",
            "TODO. data/external/1kgp + 1000genomes dirs are EMPTY on disk -> kg_path silent-zero."),
     Source("finngen", "FinnGen", Category.POPULATION, Verdict.ACTIVE, Check.MANUAL,
-           "data/external/finngen/finnge_R12_annotated_variants_v1.gz", None, "R12",
-           "FinnGen connector",
-           "29.9GB (74% of corpus). FILENAME TYPO 'finnge'; memory said R10 -> actual R12. TODO confirm upstream."),
+           "data/external/finngen/finnge_R12_annotated_variants_v1.gz", None, "R12 local / R14 upstream",
+           "FinnGen Sandbox + green bucket gs://finngen-production-library-green/ (partner) else public per-release",
+           "Local R12 (29.9GB, 74% of corpus; FILENAME TYPO 'finnge'). Upstream R14 = DF14 Feb-2026 freeze under "
+           "FinnGen's 1-YEAR PARTNER EMBARGO -> not public until ~2027 unless a FinnGen partner; newest PUBLIC "
+           "freeze is R13 (released ~mid-2026). Re-acquire R14 via Sandbox/green-bucket if partner, else R13."),
     Source("dbsnp", "dbSNP", Category.POPULATION, Verdict.ACTIVE, Check.MANUAL,
            "data/processed/dbsnp_index.parquet", None, None, "dbSNP connector (stub step 10)",
            "TODO confirm upstream (NCBI). index parquet present + data/raw/cache/dbsnp_af_lookup.parquet."),
