@@ -30,61 +30,13 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
+
+from genomic_variant_classifier.data.feature_health import col_health as _col_health
 
 # substring tags for features we specifically want eyes on (no exact-name assumptions)
 _WATCH = ["esm2", "eve", "gnn", "phylop", "gtex", "splice", "alphamiss",
           "cadd", "loeuf", "gerp", "pli", "sift", "revel", "pathogenic_in_gene"]
-
-
-def _unique_and_top(nn: pd.Series):
-    """n_unique and top-value frequency, safe against unhashable cells
-    (dict/list/ndarray) by stringifying ONLY for the count -- numeric stats
-    are computed separately on the real values."""
-    if len(nn) == 0:
-        return 0, 0.0, False
-    try:
-        nu = int(nn.nunique())
-        top = float(nn.value_counts(normalize=True).iloc[0])
-        return nu, top, False
-    except TypeError:
-        ss = nn.map(lambda v: repr(v))  # deterministic, hashable
-        nu = int(ss.nunique())
-        top = float(ss.value_counts(normalize=True).iloc[0])
-        return nu, top, True
-
-
-def _col_health(s: pd.Series, near_constant: float) -> dict:
-    n = int(len(s))
-    n_null = int(s.isna().sum())
-    nn = s.dropna()
-    n_unique, top_frac, unhashable = _unique_and_top(nn)
-    out = {"n": n, "null_pct": round(100.0 * n_null / n, 3) if n else 0.0,
-           "n_unique": n_unique, "dtype": str(s.dtype),
-           "unhashable": unhashable}
-    is_num = pd.api.types.is_numeric_dtype(s)
-    if is_num and len(nn):
-        arr = nn.to_numpy(dtype=float)
-        out.update({"zero_pct": round(100.0 * float((arr == 0).sum()) / len(arr), 3),
-                    "min": float(np.min(arr)), "max": float(np.max(arr)),
-                    "mean": float(np.mean(arr)), "std": float(np.std(arr))})
-    else:
-        out.update({"zero_pct": np.nan, "min": np.nan, "max": np.nan,
-                    "mean": np.nan, "std": np.nan})
-    # degeneracy
-    reasons = []
-    if len(nn) == 0:
-        reasons.append("ALL_NULL")
-    else:
-        if n_unique <= 1:
-            reasons.append("CONSTANT")
-        elif top_frac >= near_constant:
-            reasons.append(f"NEAR_CONSTANT({top_frac:.4f})")
-        if is_num and out.get("zero_pct", 0) == 100.0:
-            reasons.append("ALL_ZERO")
-    out["degenerate"] = ";".join(reasons) if reasons else ""
-    return out
 
 
 def main(argv: list[str] | None = None) -> int:
