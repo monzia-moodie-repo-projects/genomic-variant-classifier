@@ -127,6 +127,21 @@ def parse_args(argv=None) -> argparse.Namespace:
         help="Weighted-mean STRING confidence cutoff for --edge-denoise threshold.",
     )
     p.add_argument(
+        "--hetero-gnn",
+        action="store_true",
+        help="Build hetero_gnn_score via the heterogeneous KG-GNN (STRING interacts_with "
+        "+ --kg-edges relations). Opt-in; needs --string-db and/or --kg-edges. Separate "
+        "from gnn_score to preserve the homogeneous-vs-heterogeneous comparison.",
+    )
+    p.add_argument(
+        "--kg-edges",
+        nargs="*",
+        default=[],
+        help="KG edge sources for --hetero-gnn as 'source:path' (source in "
+        "reactome/kegg/go/clingen/omim), e.g. "
+        "reactome:data/external/reactome/ReactomePathways.gmt",
+    )
+    p.add_argument(
         "--skip-svm",
         action="store_true",
         help="Exclude SVM (RBF kernel is O(n²) — required at >100k samples)",
@@ -583,6 +598,125 @@ def main() -> int:
                     args.string_db, int(_gnn_col.nunique()), float(_gnn_col.std()),
                 )
                 return 2
+
+        # --- Optional heterogeneous-KG GNN (hetero_gnn_score) ---
+        # Parallel to the gnn_score block above: build a HeteroGNNScorer from
+        # STRING interacts_with + KG relations and overwrite hetero_gnn_score.
+        # Opt-in (--hetero-gnn); SEPARATE from gnn_score to preserve the
+        # homogeneous-vs-heterogeneous comparison (a first-class project goal).
+        if getattr(args, "hetero_gnn", False):
+            try:
+                import joblib
+                from genomic_variant_classifier.models.hetero_gnn_scorer import (
+                    HeteroGNNScorer,
+                    HeteroGNNTrainer,
+                    build_hetero_focal_graph,
+                    load_kg_edge_specs,
+                    string_graph_to_edges,
+                )
+
+                _ht_meta = outdir / "splits" / "meta_train.parquet"
+                if not _ht_meta.exists():
+                    raise FileNotFoundError(_ht_meta)
+                _ht_mt = pd.read_parquet(_ht_meta)
+                hetero_df = X_train.copy().reset_index(drop=True)
+                hetero_df["gene_symbol"] = _ht_mt["gene_symbol"].fillna("").reset_index(drop=True)
+                hetero_df["acmg_label"] = y_train.values
+
+                # node features exclude BOTH score columns (no self-feeding)
+                hetero_feat_cols = [
+                    c for c in X_train.columns if c not in ("gnn_score", "hetero_gnn_score")
+                ]
+                cohort_genes = sorted({g for g in hetero_df["gene_symbol"] if g})
+
+                # STRING interacts_with edges (from --string-db, cohort-restricted)
+                string_edges = []
+                if args.string_db:
+                    from genomic_variant_classifier.models.gnn import StringDBGraph
+                    _hsd = args.string_db
+                    _hthr = 700 if (_hsd == "auto" or not _hsd.lstrip("-").isdigit()) else int(_hsd)
+                    _hlinks = (
+                        Path(_hsd) if (_hsd != "auto" and Path(_hsd).exists())
+                        else Path("data/external/string/9606.protein.links.detailed.v12.0.txt.gz")
+                    )
+                    _hinfo = Path("data/external/string/9606.protein.info.v12.0.txt.gz")
+                    _hsg = StringDBGraph(
+                        combined_score_threshold=_hthr,
+                        local_links_path=_hlinks if _hlinks.exists() else None,
+                        local_info_path=_hinfo if _hinfo.exists() else None,
+                    ).build()
+                    string_edges = string_graph_to_edges(_hsg, restrict_to=cohort_genes)
+                    logger.info("[HETERO-GNN] STRING interacts_with edges (cohort): %d", len(string_edges))
+
+                # KG relations from --kg-edges specs
+                kg_by_rel = (
+                    load_kg_edge_specs(args.kg_edges, cohort_genes) if args.kg_edges else {}
+                )
+                logger.info("[HETERO-GNN] KG relations: %s", {r: len(e) for r, e in kg_by_rel.items()})
+                if not string_edges and not kg_by_rel:
+                    raise ValueError(
+                        "hetero_gnn requested but no edges available; pass --string-db "
+                        "and/or --kg-edges source:path."
+                    )
+
+                fg = build_hetero_focal_graph(
+                    hetero_df, string_edges, kg_by_rel, hetero_feat_cols, label_col="acmg_label",
+                )
+                logger.info("[HETERO-GNN] graph nodes=%d relations=%s focal=%d",
+                            len(fg.node_genes), fg.relations, int(fg.focal_idx.numel()))
+                _htr = HeteroGNNTrainer(
+                    in_dim=len(hetero_feat_cols), relations=fg.relations,
+                    hidden=64, n_layers=2, epochs=100,
+                )
+                _hloss = _htr.train(fg)
+                hetero_scorer = HeteroGNNScorer.from_trained(_htr, fg)
+                logger.info("[HETERO-GNN] trained (final loss=%.4f, %d gene scores)",
+                            _hloss, len(hetero_scorer.gene_scores))
+                joblib.dump(hetero_scorer, outdir / "models" / "hetero_gnn_scorer.joblib")
+                _write_model_manifest(outdir / "models" / "hetero_gnn_scorer.joblib")
+
+                # Overwrite hetero_gnn_score per split (val/test meta from disk; row-aligned)
+                _hmv = outdir / "splits" / "meta_val.parquet"
+                _hmte = outdir / "splits" / "meta_test.parquet"
+                _hmv_df = pd.read_parquet(_hmv) if _hmv.exists() else None
+                _hmte_df = pd.read_parquet(_hmte) if _hmte.exists() else None
+                for _hn, _hmeta, _hX in [
+                    ("train", hetero_df, X_train),
+                    ("val", _hmv_df, X_val),
+                    ("test", _hmte_df, X_test),
+                ]:
+                    if _hmeta is not None and "gene_symbol" in _hmeta.columns:
+                        _hX["hetero_gnn_score"] = (
+                            _hmeta["gene_symbol"].fillna("").map(hetero_scorer.score).values
+                        )
+                        _hcol = _hX["hetero_gnn_score"]
+                        logger.info("[HETERO-GNN] %s injected mean=%.3f std=%.4f nunique=%d",
+                                    _hn, float(_hcol.mean()), float(_hcol.std()), int(_hcol.nunique()))
+                    else:
+                        logger.warning("[HETERO-GNN] %s split MISSING gene_symbol; "
+                                       "hetero_gnn_score stays at default.", _hn)
+
+                _hsplits = outdir / "splits"
+                if _hsplits.exists():
+                    X_train.to_parquet(_hsplits / "X_train.parquet", index=False)
+                    X_val.to_parquet(_hsplits / "X_val.parquet", index=False)
+                    X_test.to_parquet(_hsplits / "X_test.parquet", index=False)
+                    logger.info("[HETERO-GNN] hetero-updated splits re-persisted to %s/", _hsplits)
+
+                # Non-degeneracy WARNING (not a hard exit -- hetero_gnn_score is a
+                # comparison feature, so surface a silent-injection failure without aborting).
+                _hchk = X_train["hetero_gnn_score"]
+                if _hchk.nunique() <= 1 or float(_hchk.std()) == 0.0:
+                    logger.warning(
+                        "[HETERO-GNN] hetero_gnn_score is DEGENERATE on X_train "
+                        "(nunique=%d std=%.6f) -- injection likely produced no signal; investigate.",
+                        int(_hchk.nunique()), float(_hchk.std()),
+                    )
+            except ImportError as exc:
+                logger.warning("[HETERO-GNN] ImportError: %s -- install torch/torch-geometric; skipping.", exc)
+            except Exception as exc:
+                logger.warning("[HETERO-GNN] failed: %s: %s -- continuing without hetero_gnn_score.",
+                               type(exc).__name__, exc, exc_info=True)
 
         # Run 10 ordering fix (INCIDENT_2026-05-12_no-per-model-checkpoint
         # and INCIDENT_2026-05-12_oof-blend-vs-locked-test): perform

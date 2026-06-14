@@ -192,3 +192,48 @@ class HeteroGNNScorer:
 
     def score_dataframe(self, df: pd.DataFrame) -> pd.Series:
         return df["gene_symbol"].astype(str).map(self.score)
+
+
+# ---------------------------------------------------------------------------
+# Live-wiring helpers (run_phase2_eval): KG edge specs + STRING edge extraction
+# ---------------------------------------------------------------------------
+def load_kg_edge_specs(specs, cohort_genes, *, max_set_size: int = 200) -> dict:
+    """Load per-relation gene-gene edges from 'source:path' specs, restricted to
+    cohort_genes. source in {reactome, kegg, go, clingen, omim}; sources mapping to
+    the same relation are merged + de-duplicated. Returns {relation: [(a, b), ...]}.
+    """
+    from genomic_variant_classifier.data import kg_edges as _kg
+    adapters = {
+        "reactome": (_kg.reactome_edges, "shares_pathway"),
+        "kegg": (_kg.kegg_edges, "shares_pathway"),
+        "go": (_kg.go_edges, "shares_function"),
+        "clingen": (_kg.clingen_edges, "shares_disease"),
+        "omim": (_kg.omim_edges, "shares_disease"),
+    }
+    cohort = {str(g) for g in cohort_genes}
+    by_rel: dict[str, set] = {}
+    for spec in specs:
+        if ":" not in spec:
+            raise ValueError(f"KG edge spec must be 'source:path', got {spec!r}")
+        source, path = spec.split(":", 1)
+        source = source.strip().lower()
+        if source not in adapters:
+            raise ValueError(f"unknown KG source {source!r}; known: {sorted(adapters)}")
+        fn, relation = adapters[source]
+        edges = fn(path, restrict_to=cohort, max_set_size=max_set_size)
+        by_rel.setdefault(relation, set()).update(edges)
+        logger.info("KG edges: %s -> %s (%d edges, cohort-restricted)", source, relation, len(edges))
+    return {rel: sorted(edges) for rel, edges in by_rel.items()}
+
+
+def string_graph_to_edges(graph, *, restrict_to=None) -> list:
+    """Extract (gene_a, gene_b) edges from a StringDBGraph nx.Graph, optionally
+    restricted to a cohort gene set (both endpoints must be in the cohort)."""
+    allow = {str(g) for g in restrict_to} if restrict_to is not None else None
+    out = []
+    for a, b in graph.edges():
+        a, b = str(a), str(b)
+        if allow is not None and (a not in allow or b not in allow):
+            continue
+        out.append((a, b))
+    return out
