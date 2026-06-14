@@ -74,6 +74,8 @@ PIPELINE_DEFINITIONS: dict[str, list[str]] = {
     "training": ["TrainingLifecycleAgent"],
     "interpretability": ["InterpretabilityAgent"],
     "literature": ["LiteratureScoutAgent"],
+    "version_monitor": ["VersionMonitorAgent"],
+    "adaptation": ["VersionMonitorAgent", "AdaptationAgent"],
     "full": [
         "DataFreshnessAgent",
         "TrainingLifecycleAgent",
@@ -126,6 +128,7 @@ class Orchestrator:
         from genomic_variant_classifier.agent_layer.agents.fairness_subgroup_monitor_agent import FairnessSubgroupMonitorAgent
         from genomic_variant_classifier.agent_layer.agents.adversarial_submission_monitor_agent import AdversarialSubmissionMonitorAgent
         from genomic_variant_classifier.agent_layer.agents.annotation_policy_monitor_agent import AnnotationPolicyMonitorAgent
+        from genomic_variant_classifier.agent_layer.agents.adaptation_agent import AdaptationAgent
         from genomic_variant_classifier.agent_layer.agents.schema_drift_monitor_agent import SchemaDriftMonitorAgent
 
         self._agent_registry = {
@@ -142,6 +145,7 @@ class Orchestrator:
             "AdversarialSubmissionMonitorAgent": AdversarialSubmissionMonitorAgent,
             "AnnotationPolicyMonitorAgent": AnnotationPolicyMonitorAgent,
             "SchemaDriftMonitorAgent": SchemaDriftMonitorAgent,
+            "AdaptationAgent": AdaptationAgent,
         }
 
     # ------------------------------------------------------------------
