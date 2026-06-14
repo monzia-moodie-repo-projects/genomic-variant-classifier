@@ -3759,3 +3759,16 @@ environmental data/ incident caught by the fail-loud guard.
   offers snapshot, estimates cost, checks a budget cap, and emits the launch command for the human. Autonomous
   provisioning is a deliberate NON-GOAL pending a separate sign-off with full guardrails.
 - No money-adjacent code written. Awaiting Monzia's confirmation of direction before building.
+
+
+## 2026-06-14 -- Run-17 launch-readiness audit + Gate-F preflight
+- Audited Run 17 before launch (HEAD 7c444d6). Entrypoint verified (run_phase2_eval.py has all
+  flags); Gate-A DECISION confirmed CLOSED; suite 1194/7 (doc said 956). Real blocker: the 1000G
+  per-superpop AF parquet is not built (1kgp dirs empty per registry.py:112) -> af_1kg_* cannot
+  activate without a data build. DECISION: build the kg parquet, or defer af_1kg_* to Run 18 and
+  run gnn_score-only.
+- Built scripts/preflight_run17.py (Gate F): composes preflight_gate.validate + kg gate
+  (activate-healthy-parquet XOR conscious --defer-kg) + 81-col schema gate + hard-gate-scripts
+  check; emits the exact launch command (flags derived from preflight_gate, drift-proof). 15 tests.
+- Reconciled the two RUN17_SCOPE copies: docs/roadmap/RUN17_SCOPE.md (stale --kg-path/train.py) ->
+  pointer; docs/runs/RUN17_SCOPE.md is canonical + carries the audit addendum.

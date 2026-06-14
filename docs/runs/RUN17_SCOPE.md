@@ -180,3 +180,45 @@ python scripts/run_phase2_eval.py `
 - [ ] Per-model algorithm comparison + metrics glossary update (`docs/METRICS.md`).
 - [ ] `docs/ROADMAP.md` §3 snapshot + §9 changelog updated; Run 17 sealed-commit recorded.
 - [ ] If `gnn_score`/`af_1kg_*` now real: move them out of the "deferred/constant" census line.
+
+
+---
+
+## AUDIT ADDENDUM 2026-06-14 (launch-readiness audit @ HEAD 7c444d6)
+
+A full readiness audit was run before launch. Verdict: **NOT a one-command go yet** -- the
+entrypoint and gating code are ready, but af_1kg_* activation depends on data that is not on disk,
+and Gate F had no script. Findings, each verified against the code (not memory):
+
+- **Entrypoint VERIFIED.** scripts/run_phase2_eval.py carries every Run-17 flag: --kg (L66),
+  --string-db (L62), --unseen-gene-holdout (L119), --max-train (L127), --gnomad-constraint,
+  --dbnsfp-path, plus GNN knobs (--layer-type/--edge-denoise/--hetero-gnn/--kg-edges). The earlier
+  worry that these were missing was a single-line grep artifact (the calls are multi-line). The
+  doc's section 2 command surface is accurate.
+- **Gate A DECISION is CLOSED (stale checkbox fixed).** n_pathogenic_in_gene computation-scope was
+  RESOLVED 2026-06-13 (train-only at L1 689787f + L2 6b38985; ROADMAP s5/s84/s140). The section-3
+  checkbox that still reads OPEN is stale.
+- **Test count stale.** Section 3 says 956/6; the suite is now **1194 passed / 7 skipped** (HEAD
+  7c444d6, +1 from the FinOps encoding regression).
+- **Gate C -- KG DATA IS THE REAL BLOCKER.** registry.py:112 documents the 1kgp/1000genomes dirs as
+  EMPTY on disk -> kg_path silent-zero. The per-superpop connector code exists (thousandgenomes.py
+  _POP_TARGETS, landed a0ce407), but **the parquet with af_afr/eur/eas/sas/amr columns is not built.**
+  locate_1kg.py only checks the combined `allele_freq` column (its docstring predates a0ce407), so it
+  cannot validate a Run-17 kg parquet. **DECISION required:** (A) build the per-superpop 1000G AF
+  parquet (build_1kg_parquet.py extended to emit the 5 columns) then run with --kg; or (B) defer
+  af_1kg_* to Run 18 and run Run 17 with gnn_score-only (--defer-kg). Option B unblocks the GNN
+  activation now without waiting on 1000G data.
+- **Gate F RESOLVED -- scripts/preflight_run17.py BUILT.** The single Run-17 pre-flight now exists:
+  composes preflight_gate.validate + a KG gate (activate-with-healthy-parquet XOR conscious
+  --defer-kg) + an 81-col schema gate + a hard-gate-scripts-present check; emits the exact launch
+  command for either mode with flags derived from preflight_gate's contract (drift-proof). 15 unit
+  tests; read-only, no spend.
+- **build_schema_baseline.py FOOTGUN (unchanged).** DEFAULT_MATRIX still points at the stale run15
+  78-col matrix; re-running it WITHOUT --matrix would silently overwrite the good 81-col baseline.
+  The Run-17 preflight schema gate catches the regressed baseline after the fact; do not re-run
+  build_schema_baseline.py without an explicit --matrix.
+
+Gate status after this audit: A green (suite 1194, DECISION closed); B baseline intact (81 cols,
+run16b-smoke, hash 93f6e0bc); C **BLOCKED on the kg decision**; D run via smoke_all_models.py on the
+box; E vastai + FinOpsAdvisorAgent at run time; **F now satisfied (preflight_run17.py)**; G via
+Vastai_Destroy_Confirmed.ps1.
