@@ -55,7 +55,7 @@ from sklearn.metrics import (
     matthews_corrcoef,
     roc_auc_score,
 )
-from sklearn.model_selection import StratifiedKFold, cross_val_predict
+from sklearn.model_selection import StratifiedKFold, GroupKFold, cross_val_predict
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 
@@ -1312,8 +1312,49 @@ class VariantEnsemble:
         w /= w.sum()
         return w
 
+    def _leakfree_oof(self, name, model, X_tab_fit, X_seq_fit, y_fit,
+                      gene_fit, cv_splits):
+        """Leak-free OOF for the stacking meta-learner (Level 2). Per
+        gene-disjoint inner fold: recompute n_pathogenic_in_gene (+
+        gene_has_known_disease) from fold-train rows only (unseen fold-val genes
+        -> 0), clone the estimator, fit on fold-train, predict fold-val. Mirrors
+        the cnn_1d/catboost/else dispatch used in fit()."""
+        from sklearn.base import clone
+
+        y_fit = np.asarray(y_fit)
+        oof = np.zeros(len(y_fit))
+        npig, ghkd = "n_pathogenic_in_gene", "gene_has_known_disease"
+        has_npig = npig in X_tab_fit.columns
+        for tr, va in cv_splits:
+            if has_npig and name != "cnn_1d":
+                Xtr = X_tab_fit.iloc[tr].copy()
+                Xva = X_tab_fit.iloc[va].copy()
+                g_tr = gene_fit.iloc[tr]
+                counts = pd.Series((y_fit[tr] == 1).astype(int)).groupby(g_tr.values).sum()
+                tr_map = gene_fit.iloc[tr].map(counts).fillna(0).astype(int).to_numpy()
+                va_map = gene_fit.iloc[va].map(counts).fillna(0).astype(int).to_numpy()
+                Xtr[npig] = tr_map
+                Xva[npig] = va_map
+                if ghkd in Xtr.columns:
+                    Xtr[ghkd] = (tr_map > 0).astype(int)
+                    Xva[ghkd] = (va_map > 0).astype(int)
+            else:
+                Xtr = X_tab_fit.iloc[tr]
+                Xva = X_tab_fit.iloc[va]
+            if name == "cnn_1d":
+                Xtr_in, Xva_in = X_seq_fit.iloc[tr], X_seq_fit.iloc[va]
+            elif name == "catboost":
+                Xtr_in, Xva_in = Xtr, Xva
+            else:
+                Xtr_in, Xva_in = Xtr.values, Xva.values
+            m = clone(model)
+            m.fit(Xtr_in, y_fit[tr])
+            oof[va] = m.predict_proba(Xva_in)[:, 1]
+        return oof
+
     def fit(
-        self, X_tab: pd.DataFrame, X_seq: pd.Series, y: pd.Series
+        self, X_tab: pd.DataFrame, X_seq: pd.Series, y: pd.Series,
+        gene_symbol: "pd.Series | None" = None,
     ) -> "VariantEnsemble":
         from sklearn.model_selection import train_test_split as _tts
 
@@ -1340,11 +1381,33 @@ class VariantEnsemble:
         y_fit = y_arr[idx_fit]
         y_cal = y_arr[idx_cal]
 
-        cv = StratifiedKFold(
-            n_splits=self.config.n_folds,
-            shuffle=True,
-            random_state=self.config.random_state,
-        )
+        # Level 2 (INCIDENT_2026-06-13): gene-disjoint inner CV + per-fold
+        # train-only n_pathogenic_in_gene recompute when gene labels are
+        # available; otherwise the legacy StratifiedKFold path (unchanged).
+        gene_fit = None
+        _gf = (pd.Series(np.asarray(gene_symbol)[idx_fit]).reset_index(drop=True)
+               if gene_symbol is not None else None)
+        if _gf is not None and _gf.nunique() >= self.config.n_folds:
+            gene_fit = _gf
+            cv = GroupKFold(n_splits=self.config.n_folds)
+            cv_splits = list(cv.split(X_tab_fit, y_fit, groups=gene_fit))
+            logger.info(
+                "Level 2: gene-disjoint inner CV + per-fold train-only "
+                "n_pathogenic_in_gene recompute (%d genes in fit set).",
+                gene_fit.nunique(),
+            )
+        else:
+            if _gf is not None:
+                logger.warning(
+                    "Level 2: only %d genes in fit set (< n_folds=%d) -- using "
+                    "StratifiedKFold inner CV.", _gf.nunique(), self.config.n_folds
+                )
+            cv = StratifiedKFold(
+                n_splits=self.config.n_folds,
+                shuffle=True,
+                random_state=self.config.random_state,
+            )
+            cv_splits = list(cv.split(X_tab_fit, y_fit))
 
         oof_preds = np.zeros((len(y_fit), len(self.base_estimators)))
         # Models that receive post-hoc isotonic calibration.
@@ -1368,14 +1431,19 @@ class VariantEnsemble:
                 X_input_cal = X_tab_cal.values
 
             try:
-                oof = cross_val_predict(
-                    model,
-                    X_input_fit,
-                    y_fit,
-                    cv=cv,
-                    method="predict_proba",
-                    n_jobs=1,
-                )[:, 1]
+                if gene_fit is not None:
+                    oof = self._leakfree_oof(
+                        name, model, X_tab_fit, X_seq_fit, y_fit, gene_fit, cv_splits
+                    )
+                else:
+                    oof = cross_val_predict(
+                        model,
+                        X_input_fit,
+                        y_fit,
+                        cv=cv,
+                        method="predict_proba",
+                        n_jobs=1,
+                    )[:, 1]
             except Exception as exc:
                 logger.error("  %s OOF failed: %s - skipping.", name, exc)
                 oof_preds[:, model_idx] = 0.5
@@ -1407,7 +1475,7 @@ class VariantEnsemble:
                 # Saves the per-fold prediction-to-row mapping so meta-learner
                 # can be reconstructed from saved OOF arrays in disaster recovery.
                 _oof_idx_path = _ckpt_dir / f"{name}_oof_indices.npy"
-                _fold_indices = [test_idx for _, test_idx in cv.split(X_input_fit, y_fit)]
+                _fold_indices = [test_idx for _, test_idx in cv_splits]
                 np.save(_oof_idx_path, np.concatenate(_fold_indices))
                 with open(_meta_path, "w") as _f:
                     json.dump({

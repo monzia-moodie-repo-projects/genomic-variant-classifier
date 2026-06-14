@@ -330,7 +330,15 @@ def main() -> int:
                     "SVM skipped: training set %d > 100K (O(n²) infeasible)",
                     len(y_train),
                 )
-            ensemble.fit(X_train, seq_tr, y_train)
+            # Level 2 (INCIDENT_2026-06-13): thread gene_symbol so the
+            # stacking OOF uses gene-disjoint inner CV + per-fold train-only
+            # n_pathogenic_in_gene recompute. Row-aligned with X_train.
+            _meta_tr_path = outdir / "splits" / "meta_train.parquet"
+            _gene_sym = (
+                pd.read_parquet(_meta_tr_path)["gene_symbol"]
+                if _meta_tr_path.exists() else None
+            )
+            ensemble.fit(X_train, seq_tr, y_train, gene_symbol=_gene_sym)
             ensemble.save(_ensemble_path)
 
         import joblib
