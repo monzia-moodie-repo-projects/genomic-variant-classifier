@@ -82,6 +82,62 @@ _TRAINING_AGENT = "TrainingLifecycleAgent"
 _COMPILED_PATTERNS = [re.compile(p, re.I) for p in LITERATURE_FEATURE_PATTERNS]
 
 
+def _el_text(el) -> str:
+    return el.text if (el is not None and el.text is not None) else ""
+
+
+def _parse_pubmed_pub_date(article) -> str:
+    """ISO-ish date from a PubmedArticle: ArticleDate -> PubDate (Year[-Month])
+    -> MedlineDate. Returns '' if none found."""
+    ad = article.find(".//ArticleDate")
+    if ad is not None:
+        y, m, d = _el_text(ad.find("Year")), _el_text(ad.find("Month")), _el_text(ad.find("Day"))
+        if y:
+            parts = [y]
+            if m:
+                parts.append(m.zfill(2))
+            if d:
+                parts.append(d.zfill(2))
+            return "-".join(parts)
+    pd_el = article.find(".//Journal/JournalIssue/PubDate")
+    if pd_el is not None:
+        y, m = _el_text(pd_el.find("Year")), _el_text(pd_el.find("Month"))
+        if y:
+            return f"{y}-{m}" if m else y
+        medline = _el_text(pd_el.find("MedlineDate"))
+        if medline:
+            return medline
+    return ""
+
+
+def _parse_pubmed_article(article) -> dict:
+    """Parse one <PubmedArticle> into a paper dict incl. journal/authors/publication_date."""
+    pmid = _el_text(article.find(".//PMID"))
+    title = _el_text(article.find(".//ArticleTitle"))
+    abstract = " ".join((t.text or "") for t in article.findall(".//AbstractText")).strip()
+    journal = (_el_text(article.find(".//Journal/Title"))
+               or _el_text(article.find(".//Journal/ISOAbbreviation")))
+    authors = []
+    for au in article.findall(".//AuthorList/Author"):
+        last = _el_text(au.find("LastName"))
+        if last:
+            authors.append(f"{last} {_el_text(au.find('Initials'))}".strip())
+        else:
+            coll = _el_text(au.find("CollectiveName"))
+            if coll:
+                authors.append(coll)
+    return {
+        "source": "PubMed",
+        "pmid": pmid,
+        "title": title,
+        "abstract": abstract,
+        "url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/",
+        "journal": journal,
+        "authors": "; ".join(authors),
+        "publication_date": _parse_pubmed_pub_date(article),
+    }
+
+
 class LiteratureScoutAgent(BaseAgent):
     """
     Monitors genomic literature and surfaces new feature candidates,
@@ -161,6 +217,9 @@ class LiteratureScoutAgent(BaseAgent):
                     "pmid_or_doi": paper_id,
                     "paper_title": paper.get("title", ""),
                     "literature_source": paper.get("source", "unknown"),
+                    "authors": paper.get("authors", ""),
+                    "publication_date": paper.get("publication_date", ""),
+                    "journal": paper.get("journal", ""),
                     "relevance_score": round(score, 3),
                     "extracted_at": now,
                     "reviewed": False,
@@ -240,6 +299,9 @@ class LiteratureScoutAgent(BaseAgent):
             "literature_source": candidate["literature_source"],
             "pmid_or_doi": candidate.get("pmid_or_doi"),
             "paper_title": candidate.get("paper_title", ""),
+            "authors": candidate.get("authors", ""),
+            "publication_date": candidate.get("publication_date", ""),
+            "journal": candidate.get("journal", ""),
             "relevance_score": candidate.get("relevance_score", 0.0),
             "extracted_at": candidate.get("extracted_at"),
         }
@@ -323,21 +385,7 @@ class LiteratureScoutAgent(BaseAgent):
                 root = ET.fromstring(fetch_resp.content)
 
                 for article in root.findall(".//PubmedArticle"):
-                    pmid_el = article.find(".//PMID")
-                    title_el = article.find(".//ArticleTitle")
-                    abstract_el = article.find(".//AbstractText")
-                    pmid = pmid_el.text if pmid_el is not None else ""
-                    title = title_el.text if title_el is not None else ""
-                    abstract = abstract_el.text if abstract_el is not None else ""
-                    papers.append(
-                        {
-                            "source": "PubMed",
-                            "pmid": pmid,
-                            "title": title,
-                            "abstract": abstract,
-                            "url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/",
-                        }
-                    )
+                    papers.append(_parse_pubmed_article(article))
 
             self.logger.info("PubMed: %d paper(s) fetched.", len(papers))
         except Exception as exc:
@@ -364,6 +412,10 @@ class LiteratureScoutAgent(BaseAgent):
                             "title": getattr(entry, "title", ""),
                             "abstract": getattr(entry, "summary", ""),
                             "url": getattr(entry, "link", ""),
+                            "journal": "bioRxiv",
+                            "authors": getattr(entry, "author", ""),
+                            "publication_date": getattr(entry, "published", "")
+                            or getattr(entry, "updated", ""),
                         }
                     )
             self.logger.info("bioRxiv: %d paper(s) fetched.", len(papers))
@@ -398,6 +450,10 @@ class LiteratureScoutAgent(BaseAgent):
                         ),
                         "abstract": record.get("notes", ""),
                         "url": record.get("url", ""),
+                        "journal": "ClinGen",
+                        "authors": "",
+                        "publication_date": record.get("scoreDate", "")
+                        or record.get("date", ""),
                     }
                 )
             self.logger.info("ClinGen: %d record(s) fetched.", len(papers))
