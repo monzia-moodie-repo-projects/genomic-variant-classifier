@@ -319,6 +319,9 @@ BIORXIV_RSS_FEEDS: list[str] = [
 # ClinGen Evidence Repository
 CLINGEN_API_BASE       = "https://search.clinicalgenome.org/kb/gene-validity"
 
+# Zenodo (preprints, datasets, software with DOIs)
+ZENODO_API_BASE        = "https://zenodo.org/api"
+
 # PubMed search queries run on each scout cycle.
 LITERATURE_PUBMED_QUERIES: list[tuple[str, int]] = [
     ("variant pathogenicity prediction deep learning",                    15),
@@ -332,6 +335,14 @@ LITERATURE_PUBMED_QUERIES: list[tuple[str, int]] = [
     ("TP53 MLH1 MSH2 variant interpretation 2024",                         6),
     ("tumor histopathology genomic variant multimodal",                    8),
     ("whole slide image genomic feature prediction",                       6),
+    ("graph neural network gene interaction pathogenicity",               8),
+    ("knowledge graph variant effect prediction",                         6),
+    ("self-supervised learning genomic representation",                   6),
+    ("contrastive learning protein variant",                             6),
+    ("foundation model genomics variant",                                6),
+    ("model calibration uncertainty variant pathogenicity",              6),
+    ("AlphaFold protein structure variant effect",                       6),
+    ("RNA splicing deep learning prediction",                            6),
 ]
 
 LITERATURE_MAX_PAPERS_PER_RUN  = int(os.getenv("GVC_LIT_MAX_PAPERS", "80"))
@@ -356,7 +367,31 @@ LITERATURE_RELEVANCE_KEYWORDS: list[str] = [
     "tumor", "histopathology", "whole slide", "tcga",
     "continual learning", "catastrophic forgetting", "elastic weight",
     "federated", "multimodal", "multi-modal",
+    "graph neural network", "knowledge graph", "self-supervised",
+    "contrastive", "foundation model", "attention", "calibration",
+    "uncertainty", "ensemble", "gradient boosting", "graph attention",
+    "protein structure", "alphafold", "splicing",
 ]
+
+# Zenodo search queries run on each scout cycle (preprints / datasets / software).
+LITERATURE_ZENODO_QUERIES: list[tuple[str, int]] = [
+    ("variant pathogenicity machine learning", 10),
+    ("genomic deep learning model", 8),
+    ("protein language model variant effect", 6),
+    ("graph neural network gene", 6),
+]
+
+# High-signal venues -- a modest relevance boost (journal is captured per-source).
+LITERATURE_JOURNAL_ALLOWLIST: set[str] = {
+    "nature methods", "nature genetics", "nature biotechnology",
+    "nature machine intelligence", "nature communications", "nature reviews genetics",
+    "nucleic acids research", "genome biology", "genome research", "genome medicine",
+    "american journal of human genetics", "genetics in medicine",
+    "plos computational biology", "plos genetics", "briefings in bioinformatics",
+    "bmc bioinformatics", "molecular systems biology", "cell systems",
+    "cell reports methods", "bioinformatics",
+}
+LITERATURE_JOURNAL_BOOST = float(os.getenv("GVC_LIT_JOURNAL_BOOST", "0.15"))
 
 LITERATURE_FEATURE_PATTERNS: list[str] = [
     r"we (?:propose|present|introduce|develop) (?P<name>[A-Z][A-Za-z0-9_\-]{2,30})",

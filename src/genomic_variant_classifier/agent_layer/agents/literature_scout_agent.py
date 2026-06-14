@@ -62,8 +62,12 @@ from genomic_variant_classifier.agent_layer.config import (
     LITERATURE_KNOWN_TOOLS,
     LITERATURE_MAX_PAPERS_PER_RUN,  # was LITERATURE_MAX_RESULTS
     LITERATURE_MIN_RELEVANCE,  # was LITERATURE_RELEVANCE_THRESHOLD
+    LITERATURE_JOURNAL_ALLOWLIST,
+    LITERATURE_JOURNAL_BOOST,
     LITERATURE_PUBMED_QUERIES,
     LITERATURE_RELEVANCE_KEYWORDS,  # was LITERATURE_KEYWORDS
+    LITERATURE_ZENODO_QUERIES,
+    ZENODO_API_BASE,
     NCBI_API_KEY,
     NCBI_EUTILS_BASE,
 )
@@ -138,6 +142,45 @@ def _parse_pubmed_article(article) -> dict:
     }
 
 
+def _strip_html(text: str) -> str:
+    """Strip HTML tags, then decode entities (order matters so &lt; survives)."""
+    t = re.sub(r"<[^>]+>", " ", text or "")
+    t = html.unescape(t)
+    t = re.sub(r"\s+", " ", t)
+    t = re.sub(r"\s+([,.;:!?])", r"\1", t)
+    return t.strip()
+
+
+def _parse_zenodo_hit(hit: dict) -> dict:
+    """Parse one Zenodo /api/records hit into a provenance-complete paper dict."""
+    meta = hit.get("metadata", {}) or {}
+    doi = hit.get("doi") or meta.get("doi") or (f"zenodo:{hit.get('id')}" if hit.get("id") else "")
+    title = meta.get("title") or hit.get("title", "")
+    abstract = _strip_html(meta.get("description", ""))
+    links = hit.get("links", {}) or {}
+    url = (links.get("html") or hit.get("doi_url")
+           or (f"https://doi.org/{doi}" if doi and not str(doi).startswith("zenodo:") else ""))
+    authors = "; ".join(c.get("name", "") for c in meta.get("creators", []) if c.get("name"))
+    return {
+        "source": "Zenodo",
+        "doi": doi,
+        "title": title,
+        "abstract": abstract,
+        "url": url,
+        "journal": "Zenodo",
+        "authors": authors,
+        "publication_date": meta.get("publication_date", ""),
+    }
+
+
+def _journal_relevance_boost(journal: str) -> float:
+    """Modest boost when the paper's journal is a high-signal allow-listed venue."""
+    j = (journal or "").lower()
+    if j and any(name in j for name in LITERATURE_JOURNAL_ALLOWLIST):
+        return LITERATURE_JOURNAL_BOOST
+    return 0.0
+
+
 class LiteratureScoutAgent(BaseAgent):
     """
     Monitors genomic literature and surfaces new feature candidates,
@@ -174,7 +217,8 @@ class LiteratureScoutAgent(BaseAgent):
         pubmed_papers = self._fetch_pubmed()
         biorxiv_papers = self._fetch_biorxiv()
         clingen_papers = self._fetch_clingen()
-        all_papers = pubmed_papers + biorxiv_papers + clingen_papers
+        zenodo_papers = self._fetch_zenodo()
+        all_papers = pubmed_papers + biorxiv_papers + clingen_papers + zenodo_papers
         self.logger.info("Total papers fetched: %d", len(all_papers))
 
         # ----------------------------------------------------------
@@ -462,6 +506,30 @@ class LiteratureScoutAgent(BaseAgent):
         return papers
 
     # ------------------------------------------------------------------
+    # Zenodo fetch
+    # ------------------------------------------------------------------
+
+    def _fetch_zenodo(self) -> list[dict]:
+        self.logger.info("Fetching Zenodo records ...")
+        papers: list[dict] = []
+        try:
+            import requests
+
+            for query, size in LITERATURE_ZENODO_QUERIES:
+                resp = requests.get(
+                    f"{ZENODO_API_BASE}/records",
+                    params={"q": query, "size": size, "sort": "mostrecent"},
+                    timeout=20,
+                )
+                resp.raise_for_status()
+                for hit in resp.json().get("hits", {}).get("hits", []):
+                    papers.append(_parse_zenodo_hit(hit))
+            self.logger.info("Zenodo: %d record(s) fetched.", len(papers))
+        except Exception as exc:
+            self.logger.warning("Zenodo fetch failed: %s", exc)
+        return papers
+
+    # ------------------------------------------------------------------
     # Relevance scoring — unchanged
     # ------------------------------------------------------------------
 
@@ -473,6 +541,7 @@ class LiteratureScoutAgent(BaseAgent):
             score += text.count(kw_lower) * (
                 0.3 if kw_lower in paper.get("title", "").lower() else 0.1
             )
+        score += _journal_relevance_boost(paper.get("journal", ""))
         return min(score, 1.0)
 
     # ------------------------------------------------------------------
