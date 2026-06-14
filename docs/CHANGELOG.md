@@ -3477,3 +3477,35 @@ Three clean commits on 32bb9ef: 547e2dc (hetero scorer + 82nd feature) -> a42e72
   NOT edited in place (would attach 82 cols to an 81-col captured_from). No unit test depends on it.
 - run_phase2_eval live overwrite: HeteroGNNScorer from STRING + KG files fills hetero_gnn_score with real
   values; until then it is a 0.5 constant, exactly mirroring gnn_score's default-until-activated behavior.
+
+## 2026-06-14 -- hetero_gnn_score live eval-overwrite + SchemaDriftMonitorAgent activation
+
+Continues the 2026-06-13 (v2) hetero + drift work; two feature commits landed on top of 23f0034.
+
+**hetero_gnn_score live eval-overwrite (a54ef38).** run_phase2_eval gains opt-in --hetero-gnn +
+--kg-edges 'source:path'. A new block (after the gnn non-degeneracy gate, before ensemble eval),
+PARALLEL to and SEPARATE from the gnn_score block, builds a HeteroGNNScorer from STRING
+interacts_with (--string-db) + KG relations (--kg-edges reactome/kegg/go/clingen/omim), excludes
+BOTH gnn_score and hetero_gnn_score from node features (no self-feeding), trains, scores every gene,
+overwrites hetero_gnn_score per split (val/test gene_symbol from meta_*.parquet), re-persists the
+split parquets, and WARNS (not exit) on a degenerate result. Two testable helpers in
+hetero_gnn_scorer.py: load_kg_edge_specs (cohort-restricted, multi-source-per-relation merge) +
+string_graph_to_edges (nx.Graph -> cohort-restricted edges). Until run with --hetero-gnn,
+hetero_gnn_score stays the 0.5 default (mirrors gnn_score). +4 tests (test_hetero_kg_wiring.py).
+Run-17 activation: --string-db auto --hetero-gnn --kg-edges reactome:data/external/reactome/ReactomePathways.gmt.
+ONLY REMAINING hetero item: schema_baseline regen 81->82 from the real matrix.
+
+**SchemaDriftMonitorAgent activation (6a05481).** First delivery against "populate the 8 drift agents'
+reference baselines": SchemaDriftMonitorAgent.from_default_baseline loads the SchemaDriftAgent detector
+from the canonical baseline (data/reference/schema/schema_baseline.json), and Orchestrator now prefers
+from_default_baseline(state) when the class defines it (else cls(state)) -- the single generic enabler
+the other seven drift agents reuse. The schema agent runs active detection once a matrix is supplied
+(arg -> GVC_SCHEMA_CURRENT_MATRIX env); awaiting only its run-time matrix, not its baseline. Buildability
+split for the seven: BUILDABLE NOW (no trained model) = LabelShift (reference label distribution),
+Infrastructure (pinned packages + DAG hash), likely AnnotationPolicy + AdversarialSubmission
+(config/heuristic); RUN-17-DEPENDENT (need predictions) = Concept (NannyML CBPE + BBSE), Calibration
+(per-class posteriors + ECE), FairnessSubgroup (per-subgroup predictions). +5 tests
+(test_schema_drift_baseline.py: green/red/awaiting/env/bare).
+
+Suite 1000 -> 1004 (hetero wiring) -> 1009 (schema activation), 6 skipped, 41 warnings (all pre-existing:
+LGBM feature-names, n_components>n_samples, lbfgs ConvergenceWarning; zero new). HEAD 6a05481 on origin/main.

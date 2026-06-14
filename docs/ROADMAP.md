@@ -87,7 +87,7 @@ Strong fits: AlphaFold DB (DO), RefSNP/dbSNP (DO), COSMIC (DO, academic; feature
 
 - Remaining Phase-D connectors: activate dbSNP + AlphaFold-structure stub steps (data + config), then build COSMIC / TCGA / KEGG.
 
-- **Heterogeneous-KG modeling track (2026-06-13):** hetero-GNN ENGINE done (models/hetero_gnn.py, HeteroConv multi-relation gene graph, 54158f7) + KG edge-connectors done (data/kg_edges.py co-membership primitive + Reactome/KEGG/GO/OMIM/ClinGen adapters, 8c19f9b). SCORER + SCHEMA DONE 2026-06-13: HeteroGNNScorer (547e2dc, mirrors GNNScorer; torch-free assembly + PyG train/score) and hetero_gnn_score landed as the 82nd feature (Option A -- SEPARATE from gnn_score to preserve the homogeneous-vs-heterogeneous comparison; EXPECTED_TABULAR_FEATURE_COUNT 81->82, both builders lockstep, reactome stays last; contract green, suite 1000). NEXT (Run-17): live eval-overwrite in run_phase2_eval (HeteroGNNScorer from STRING + KG files, opt-in flag) -- until then hetero_gnn_score is 0.5-constant, mirroring gnn_score's default-until-activated; plus schema_baseline regen 81->82 from the real matrix.
+- **Heterogeneous-KG modeling track (2026-06-13):** hetero-GNN ENGINE done (models/hetero_gnn.py, HeteroConv multi-relation gene graph, 54158f7) + KG edge-connectors done (data/kg_edges.py co-membership primitive + Reactome/KEGG/GO/OMIM/ClinGen adapters, 8c19f9b). SCORER + SCHEMA DONE 2026-06-13: HeteroGNNScorer (547e2dc, mirrors GNNScorer; torch-free assembly + PyG train/score) and hetero_gnn_score landed as the 82nd feature (Option A -- SEPARATE from gnn_score to preserve the homogeneous-vs-heterogeneous comparison; EXPECTED_TABULAR_FEATURE_COUNT 81->82, both builders lockstep, reactome stays last; contract green, suite 1000). EVAL-OVERWRITE DONE 2026-06-14 (a54ef38): run_phase2_eval --hetero-gnn + --kg-edges source:path builds HeteroGNNScorer from STRING interacts_with + KG relations and overwrites hetero_gnn_score per split (opt-in; until run with the flag it stays the 0.5 default, mirroring gnn_score). ONLY REMAINING (Run-17): schema_baseline regen 81->82 from the real matrix.
 - **af_1kg_* WIRED (2026-06-13, a0ce407):** fill_population_af + build_1kg_parquet.py; activate at Run 17 via --kg <1000G per-superpopulation AF parquet>.
 - **LiteratureScout broadened (2026-06-13, a42e723 + a9c0326):** provenance (authors/publication_date/journal across PubMed/bioRxiv/ClinGen/Zenodo) + new Zenodo source (_fetch_zenodo) + PubMed queries 11->19 / keywords 32->46 into architecture/methodology gaps + journal allow-list relevance boost. +8 tests.
 
@@ -369,6 +369,20 @@ baselines" item):** SchemaDriftMonitorAgent now has a versioned baseline
 (`data/reference/schema/schema_baseline.json`, 78 cols / all float64), a `from_baseline` loader,
 and a standalone preflight gate (`scripts/run_schema_drift_check.py`, exit 0/2/3). The schema agent
 is the worked example; the other seven drift agents still await their reference inputs.
+
+**Delivered 2026-06-14 (6a05481) -- schema agent ACTIVATED + generic enabler:**
+`SchemaDriftMonitorAgent.from_default_baseline` loads the `SchemaDriftAgent` detector from the canonical
+baseline (`data/reference/schema/schema_baseline.json`; same path as `run_schema_drift_check.py` +
+`build_schema_baseline.py`), and `Orchestrator` now prefers `from_default_baseline(state)` when the class
+defines it (else `cls(state)`). The schema agent runs active detection once a matrix is supplied
+(arg -> `GVC_SCHEMA_CURRENT_MATRIX` env); it is no longer awaiting its *baseline*, only its run-time
+*matrix*. The orchestrator hook is the single generic enabler the other seven reuse -- each just defines
+`from_default_baseline`. **Buildability split for the seven:** BUILDABLE NOW (no trained model) =
+LabelShift (reference label distribution from cohort labels), Infrastructure (pinned packages + DAG hash),
+likely AnnotationPolicy + AdversarialSubmission (config/heuristic references); RUN-17-DEPENDENT (need
+predictions) = Concept (NannyML CBPE AUROC + BBSE), Calibration (per-class posteriors + ECE),
+FairnessSubgroup (per-subgroup predictions). Verified end-to-end: `test_schema_drift_baseline.py`
+(5 tests -- green/red/awaiting/env/bare), suite 1009.
 
 ### Drift-wiring findings (recorded 2026-06-11)
 - The eight agent-layer drift MonitorAgents are registered in `Orchestrator._register_agents` but
