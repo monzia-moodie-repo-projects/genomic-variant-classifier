@@ -62,3 +62,29 @@ def test_analyze_ok_vs_attention():
     pend = {"training": {"last_run": NOW.isoformat()}, "review_items": [],
             "agent_messages": {"A": [{"read": True, "requires_approval": True, "approved": None}]}}
     assert D.analyze(pend, now=NOW)["ops_status"] == "ATTENTION"
+
+
+def test_scan_run_telemetry_error_rate_and_drift():
+    state = {"agent_runs": {
+        "Flaky": [{"status": "ok", "duration_ms": 10}, {"status": "error", "duration_ms": 12},
+                  {"status": "ok", "duration_ms": 11}, {"status": "error", "duration_ms": 13}],
+        "Slowing": [{"status": "ok", "duration_ms": d} for d in [10, 10, 11, 30, 32, 31]],
+    }}
+    t = {x.agent: x for x in D.scan_run_telemetry(state)}
+    assert t["Flaky"].n_runs == 4 and t["Flaky"].n_errors == 2 and t["Flaky"].error_rate == 0.5
+    assert t["Slowing"].drift_pct is not None and t["Slowing"].drift_pct >= D.PERF_DRIFT_PCT   # +210%
+
+
+def test_telemetry_flags_error_and_drift():
+    state = {"agent_runs": {"Flaky": [{"status": "error", "duration_ms": 5}, {"status": "ok", "duration_ms": 5}]}}
+    flags = D.telemetry_flags(D.scan_run_telemetry(state))
+    assert any(f.startswith("AGENT_ERRORS[Flaky]") for f in flags)
+
+
+def test_analyze_attention_on_agent_error():
+    fresh = (NOW - timedelta(hours=1)).isoformat()
+    state = {"training": {"last_run": fresh}, "review_items": [], "agent_messages": {},
+             "agent_runs": {"X": [{"status": "error", "duration_ms": 5}]}}
+    res = D.analyze(state, now=NOW)
+    assert res["ops_status"] == "ATTENTION"
+    assert any("AGENT_ERRORS" in f for f in res["flags"]) and res["telemetry"]

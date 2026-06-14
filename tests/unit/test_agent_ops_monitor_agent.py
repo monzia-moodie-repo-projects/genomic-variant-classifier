@@ -51,3 +51,16 @@ def test_self_heartbeat_appears_on_second_run(tmp_path):
     res2 = agent.run(dry_run=True)                                  # now agent_ops is one of the sections scanned
     sections = {b.section for b in D.analyze(ss.load())["heartbeats"]}
     assert "agent_ops" in sections and res2["ops_status"] in ("OK", "ATTENTION")
+
+
+def test_telemetry_surfaced_in_report_and_state(tmp_path):
+    agent, ss = _agent(tmp_path)
+    ss.update_section("training", {"last_run": _now_iso(1)})
+    ss.update_section("agent_runs", {"Flaky": [{"status": "error", "duration_ms": 5},
+                                               {"status": "ok", "duration_ms": 6}]})
+    res = agent.run(dry_run=True)
+    assert res["ops_status"] == "ATTENTION"                         # agent error -> attention
+    rpt = list((tmp_path / "reports" / "agent_ops").glob("OPS_*.md"))[0].read_text()
+    assert "Run telemetry" in rpt and "Flaky" in rpt
+    sec = ss.get_section(_SECTION)
+    assert "Flaky" in sec["agents_with_errors"]

@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import logging
 import sys
+import time
 from datetime import datetime, timezone
 
 from genomic_variant_classifier.agent_layer.config import REQUIRE_HUMAN_APPROVAL
@@ -50,6 +51,8 @@ from genomic_variant_classifier.agent_layer.message_bus import MessageBus
 from genomic_variant_classifier.agent_layer.shared_state import SharedState
 
 logger = logging.getLogger("Orchestrator")
+
+_TELEMETRY_CAP = 50  # per-agent run-telemetry records kept in agent_state.json (bounded)
 logger.propagate = False
 if not logger.handlers:
     _h = logging.StreamHandler()
@@ -245,6 +248,8 @@ class Orchestrator:
                 agent = agent_cls.from_default_baseline(self._state)
             else:
                 agent = agent_cls(self._state)
+            _t0 = time.monotonic()
+            _err = None
             try:
                 result = agent.run(dry_run=self._dry_run)
             except Exception as exc:
@@ -254,9 +259,14 @@ class Orchestrator:
                     exc,
                     exc_info=True,
                 )
+                _err = str(exc)
                 result = {"action": "error", "error": str(exc)}
 
             results[agent_name] = result
+            if not self._dry_run:
+                self._record_run_telemetry(
+                    agent_name, result, (time.monotonic() - _t0) * 1000.0, _err
+                )
 
         # --- NEW: log post-run message state ---
         self._report_message_status()
@@ -269,6 +279,28 @@ class Orchestrator:
         logger.info(_DIVIDER)
 
         return results
+
+    def _record_run_telemetry(self, agent_name: str, result: dict,
+                              duration_ms: float, error) -> None:
+        """Append one run-telemetry record (status/duration/error) to the 'agent_runs' state section.
+
+        Non-invasive: never changes the agent result and never raises -- a telemetry failure must not break a
+        pipeline run. Capped at the last _TELEMETRY_CAP records per agent so state stays bounded. The caller
+        records only real (non-dry-run) executions.
+        """
+        try:
+            status = "error" if error is not None else str(result.get("action", "ok"))
+            section = self._state.get_section("agent_runs")
+            history = list(section.get(agent_name, []))
+            history.append({
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "status": status,
+                "duration_ms": round(float(duration_ms), 1),
+                "error": error,
+            })
+            self._state.update_section("agent_runs", {agent_name: history[-_TELEMETRY_CAP:]})
+        except Exception as exc:  # telemetry must never break a pipeline run
+            logger.warning("run-telemetry record failed for %s: %s", agent_name, exc)
 
     # ------------------------------------------------------------------
     # ScienceClaw artifact gate (Task 3) -- integrity + authorization

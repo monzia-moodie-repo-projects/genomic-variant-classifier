@@ -48,6 +48,9 @@ class AgentOpsMonitorAgent(BaseAgent):
             "inbox_backlog_agents": [s.agent for s in analysis["inbox"]],
             "unresolved_reviews": analysis["unresolved_reviews"],
             "flags": analysis["flags"],
+            "agents_with_errors": [t.agent for t in analysis["telemetry"] if t.n_errors],
+            "perf_drift_agents": [t.agent for t in analysis["telemetry"]
+                                  if t.drift_pct is not None and t.drift_pct >= D.PERF_DRIFT_PCT],
             "report": str(report_path),
         })
 
@@ -87,7 +90,16 @@ class AgentOpsMonitorAgent(BaseAgent):
         lines += ["", f"## Unresolved review items: {analysis['unresolved_reviews']}", "",
                   "## Surfaced problem flags", ""]
         lines += [f"- {f}" for f in analysis["flags"]] if analysis["flags"] else ["- none"]
-        lines += ["", "Not reported (no telemetry persisted): per-agent error-rate, run-duration/perf-drift. "
-                  "These need an orchestrator change to record run telemetry (future 'agent_runs' section).", ""]
+        lines += ["", "## Run telemetry (from 'agent_runs'; real runs only)", ""]
+        if analysis["telemetry"]:
+            lines += ["| agent | runs | errors | error-rate | median ms | drift % |",
+                      "| --- | --- | --- | --- | --- | --- |"]
+            for t in analysis["telemetry"]:
+                med = "--" if t.median_ms is None else f"{t.median_ms:.1f}"
+                drift = "--" if t.drift_pct is None else f"{t.drift_pct:+.1f}"
+                lines.append(f"| {t.agent} | {t.n_runs} | {t.n_errors} | {t.error_rate:.0%} | {med} | {drift} |")
+        else:
+            lines.append("- no run telemetry recorded yet (agents run via the orchestrator on real, non-dry-run executions)")
+        lines.append("")
         out.write_text("\n".join(lines) + "\n", encoding="utf-8")
         return out
