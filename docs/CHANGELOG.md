@@ -3567,3 +3567,34 @@ Drift-baseline set 6 of 8 active/wired (+ FeatureCoverageSentinel as a 9th): Sch
 AnnotationPolicy, AdversarialSubmission, FeatureCoverageSentinel ACTIVE; LabelShift machinery-ready.
 Remaining Concept/Calibration/FairnessSubgroup are RUN-17-DEPENDENT (need model predictions) -- machinery
 next. Suite 1009 -> 1063 passed / 6 skipped / 41 warnings (all pre-existing; zero new). HEAD 376aa2e on origin/main.
+
+## 2026-06-14 (continued, trio) -- Concept + Calibration + FairnessSubgroup activation (19fb2a0)
+
+Completed the drift-baseline campaign's three RUN-17-DEPENDENT detectors with the standard activation
+machinery (detector from_baseline + monitor from_default_baseline; orchestrator hook 6a05481 routes them).
+12 files, +693, 20 new tests (7 concept / 6 calibration / 7 fairness). Suite 1063 -> 1083 passed / 6 skipped.
+- Concept: baseline = cbpe_baseline_auroc + cbpe_baseline_sigma (NannyML CBPE reference window); monitor
+  resolves cbpe_estimated_auroc / bbse_pvalue / n_samples from args or GVC_CONCEPT_* env.
+- Calibration: baseline = classes + baseline_ece, computed by build_calibration_baseline.py via the
+  detector's OWN detect() (baseline_ece=0) so reference + monitored ECE share one code path; monitor
+  resolves labeled_predictions from arg or GVC_CALIBRATION_LABELED_PREDICTIONS parquet.
+- FairnessSubgroup: baseline = classes + p_train_per_stratum (predicted-class count vector per
+  (axis,stratum); tuple keys serialized as records; high_priority_strata list -> frozenset); monitor
+  resolves predictions (GVC_FAIRNESS_PREDICTIONS parquet) + axes (GVC_FAIRNESS_AXES JSON).
+- STUBS FLAGGED (PHASE_2_FEATURES, pre-existing, NOT changed): FairnessSubgroupAgent per-stratum AUROC is a
+  confidence proxy; max_dpd_change is hardcoded 0.0. test_dpd_stub_is_zero pins the 0.0 so a future DPD
+  wiring trips a failing assert.
+
+Drift-baseline set now 8 of 8 WIRED (+ FeatureCoverageSentinel 9th): Schema, Infrastructure, AnnotationPolicy,
+AdversarialSubmission, FeatureCoverageSentinel ACTIVE; LabelShift, Concept, Calibration, FairnessSubgroup
+machinery-complete (awaiting Run-17 model artifacts to build their baselines).
+
+KNOWN-WARNING FINDING (audit of the 19fb2a0 gate run): two back-to-back `pytest -q` runs reported 41 then
+141 warnings. The 100-warning delta is a PRE-EXISTING, benign, FLAKY sklearn UserWarning
+("sklearn.utils.parallel.delayed should be used with sklearn.utils.parallel.Parallel", parallel.py:144) from
+test_correctness_harness.py: run_correctness_harness builds VariantEnsemble(EnsembleConfig(skip_svm=...)) with
+the default n_jobs=-1, so the Stage-1 smoke fits the tiny slice via sklearn's loky Parallel; loky emits the
+warning per worker dispatch, surfacing 0..~100 times depending on worker spawn/reuse. NOT a trio regression
+(the trio tests use no sklearn parallelism) and no pass/fail impact (1083 passed both runs). The DETERMINISTIC
+warning baseline remains 41. Root-cause fix proposed (separate follow-up): force n_jobs=1 in the harness smoke
+(tiny-slice parallelism is pointless -> deterministic, faster, no loky warning). HEAD 19fb2a0 on origin/main.

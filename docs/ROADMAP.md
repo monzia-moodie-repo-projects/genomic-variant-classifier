@@ -394,6 +394,24 @@ orchestrator wiring + the `drift` pipeline (376aa2e). REMAINING (RUN-17-DEPENDEN
 Concept (NannyML CBPE + BBSE), Calibration (per-class posteriors + ECE), FairnessSubgroup (per-subgroup
 predictions) -- machinery next. Suite 1009 -> 1063.
 
+**Delivered 2026-06-14 (trio) -- Concept + Calibration + FairnessSubgroup activated (19fb2a0):** the three
+RUN-17-DEPENDENT detectors gained detector from_baseline + monitor from_default_baseline (same pattern as
+Schema/LabelShift/FeatureCoverage; orchestrator hook 6a05481 routes them). Builders: build_concept_baseline.py
+(thin writer for the two CBPE scalars), build_calibration_baseline.py (computes baseline_ece via the detector's
+OWN detect() -> single code path), build_fairness_baseline.py (p_train_per_stratum from reference predictions +
+axes). 20 tests; suite 1063 -> 1083. DRIFT SET NOW 8 of 8 WIRED + FeatureCoverageSentinel (9th): 5 ACTIVE,
+4 machinery-complete (LabelShift + the trio) awaiting Run-17 model artifacts. FairnessSubgroup PHASE_2 stubs
+unchanged + documented (per-stratum AUROC proxy; max_dpd_change=0.0 pinned by test_dpd_stub_is_zero).
+
+- **Test-gate finding (2026-06-14): flaky pre-existing warning inflates the count.** Two back-to-back
+  `pytest -q` runs gave 41 then 141 warnings. The +100 is a benign, FLAKY sklearn UserWarning
+  (`sklearn.utils.parallel.delayed` ... parallel.py:144) from `test_correctness_harness.py`:
+  `run_correctness_harness` builds `EnsembleConfig(skip_svm=...)` with the default `n_jobs=-1`, so the Stage-1
+  smoke fits the tiny slice via loky Parallel; loky emits the warning per worker dispatch (0..~100). NOT a
+  regression; no pass/fail impact. The DETERMINISTIC baseline stays 41. **Proposed fix:** pass `n_jobs=1` into
+  the harness smoke's `EnsembleConfig` (tiny-slice parallelism is pointless) -> deterministic + faster + no
+  loky warning. Low-risk, single-line, separate follow-up commit.
+
 ### Drift-wiring findings (recorded 2026-06-11)
 - The eight agent-layer drift MonitorAgents are registered in `Orchestrator._register_agents` but
   invoked by nothing (absent from `PIPELINE_DEFINITIONS`; `run_agents.py --pipeline full` runs only
