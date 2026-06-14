@@ -92,6 +92,7 @@ PIPELINE_DEFINITIONS: dict[str, list[str]] = {
         "AdversarialSubmissionMonitorAgent",
         "AnnotationPolicyMonitorAgent",
         "FeatureCoverageSentinelMonitorAgent",
+        "ReclassificationSentinelMonitorAgent",
     ],
 }
 
@@ -142,6 +143,7 @@ class Orchestrator:
         from genomic_variant_classifier.agent_layer.agents.adaptation_agent import AdaptationAgent
         from genomic_variant_classifier.agent_layer.agents.schema_drift_monitor_agent import SchemaDriftMonitorAgent
         from genomic_variant_classifier.agent_layer.agents.feature_coverage_sentinel_monitor_agent import FeatureCoverageSentinelMonitorAgent
+        from genomic_variant_classifier.agent_layer.agents.reclassification_sentinel_monitor_agent import ReclassificationSentinelMonitorAgent
 
         self._agent_registry = {
             "DataFreshnessAgent": DataFreshnessAgent,
@@ -158,6 +160,7 @@ class Orchestrator:
             "AnnotationPolicyMonitorAgent": AnnotationPolicyMonitorAgent,
             "SchemaDriftMonitorAgent": SchemaDriftMonitorAgent,
             "FeatureCoverageSentinelMonitorAgent": FeatureCoverageSentinelMonitorAgent,
+            "ReclassificationSentinelMonitorAgent": ReclassificationSentinelMonitorAgent,
             "AdaptationAgent": AdaptationAgent,
         }
 
