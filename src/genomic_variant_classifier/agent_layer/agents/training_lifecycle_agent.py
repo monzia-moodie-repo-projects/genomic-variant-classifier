@@ -76,13 +76,10 @@ from genomic_variant_classifier.agent_layer.message_bus import (
 )
 from genomic_variant_classifier.agent_layer.shared_state import SharedState
 
-# EWC retraining job — assembled from config dataproc components.
-_MODEL_RETRAIN_SCRIPT = (
-    f"gcloud dataproc jobs submit pyspark {DATAPROC_BUCKET}/jobs/train_ewc.py "
-    f"--cluster={DATAPROC_CLUSTER_NAME} "
-    f"--region={GCP_REGION} "
-    f"--project={GCP_PROJECT_ID}"
-)
+# RETIRED 2026-04-29 (INCIDENT_2026-04-29): remote Dataproc EWC retraining was decommissioned with the
+# GCP project. EWC retraining is now operator-driven on Vast.ai (RTX 4090) per the run gates; the dead
+# gcloud command is removed and no remote job is launched.
+_MODEL_RETRAIN_SCRIPT = None  # RETIRED 2026-04-29
 
 logger = logging.getLogger(__name__)
 logger.propagate = False
@@ -397,35 +394,18 @@ class TrainingLifecycleAgent(BaseAgent):
             },
         )
 
-        try:
-            result = subprocess.run(
-                _MODEL_RETRAIN_SCRIPT,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=7200,
-            )
-            if result.returncode != 0:
-                self.logger.error(
-                    "Training script failed (exit %d):\n%s",
-                    result.returncode,
-                    result.stderr[:1000],
-                )
-                return None
-
-            self.logger.info("Training completed successfully.")
-            checkpoint_path = self._locate_latest_checkpoint()
-            if checkpoint_path:
-                self._update_section("training", {"last_checkpoint": checkpoint_path})
-                self.logger.info("Checkpoint saved: %s", checkpoint_path)
-            return checkpoint_path
-
-        except subprocess.TimeoutExpired:
-            self.logger.error("Training timed out after 7200s.")
-            return None
-        except Exception as exc:
-            self.logger.error("Training error: %s", exc)
-            return None
+        # RETIRED 2026-04-29 (INCIDENT_2026-04-29): remote Dataproc training was decommissioned with the
+        # GCP project. EWC retraining is operator-driven on Vast.ai per the run gates; this agent no longer
+        # executes the dead gcloud command. It surfaces the most recent LOCAL checkpoint (if any) without
+        # launching a remote job.
+        self.logger.warning(
+            "Remote Dataproc EWC retraining is RETIRED (INCIDENT_2026-04-29); no remote job launched. "
+            "Run EWC retraining on Vast.ai per the run gates, then rclone the checkpoint to genvarcla:."
+        )
+        checkpoint_path = self._locate_latest_checkpoint()
+        if checkpoint_path:
+            self._update_section("training", {"last_checkpoint": checkpoint_path})
+        return checkpoint_path
 
     def _locate_latest_checkpoint(self) -> str | None:
         """

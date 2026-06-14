@@ -67,13 +67,11 @@ _GNOMAD_FINGERPRINT_URL = (
     "release/4.0/vcf/exomes/gnomad.exomes.v4.0.sites.chr1.vcf.bgz.tbi"
 )
 
-# Spark ingest command — assembled from config components.
-_SPARK_INGEST_CMD = (
-    f"gcloud dataproc jobs submit pyspark {SPARK_INGEST_JOB_PATH} "
-    f"--cluster={DATAPROC_CLUSTER_NAME} "
-    f"--region={GCP_REGION} "
-    f"--project={GCP_PROJECT_ID}"
-)
+# RETIRED 2026-04-29 (INCIDENT_2026-04-29): the GCS/Dataproc ingest was decommissioned with the GCP
+# project. The data flow is now Windows local <-> Vast.ai (SCP) <-> Google Drive (rclone). The dead
+# gcloud command is removed; re-acquisition is operator-driven (see _trigger_spark_ingest below and the
+# registry-driven DatabaseFreshnessMonitorAgent).
+_SPARK_INGEST_CMD = None  # RETIRED 2026-04-29
 
 logger = logging.getLogger(__name__)
 logger.propagate = False
@@ -368,26 +366,13 @@ class DataFreshnessAgent(BaseAgent):
     # ------------------------------------------------------------------
 
     def _trigger_spark_ingest(self) -> None:
-        import subprocess
-
-        self.logger.info("Triggering Spark ingest: %s", _SPARK_INGEST_CMD)
-        try:
-            result = subprocess.run(
-                _SPARK_INGEST_CMD,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=3600,
-            )
-            if result.returncode == 0:
-                self.logger.info("Spark ingest completed successfully.")
-            else:
-                self.logger.error(
-                    "Spark ingest failed (exit %d): %s",
-                    result.returncode,
-                    result.stderr[:500],
-                )
-        except subprocess.TimeoutExpired:
-            self.logger.error("Spark ingest timed out after 3600s.")
-        except Exception as exc:
-            self.logger.error("Spark ingest error: %s", exc)
+        # RETIRED 2026-04-29 (INCIDENT_2026-04-29). The remote GCS/Dataproc ingest was decommissioned with
+        # the GCP project; executing the old `gcloud dataproc` command would fail against deleted infra. We
+        # no longer execute any remote ingest -- re-acquisition is operator-driven on the current
+        # local <-> Vast.ai <-> rclone(genvarcla:) architecture. Registry-driven freshness + HITL
+        # re-acquisition now live in DatabaseFreshnessMonitorAgent.
+        self.logger.warning(
+            "Remote Spark/Dataproc ingest is RETIRED (INCIDENT_2026-04-29); no remote ingest executed. "
+            "Re-acquire via the local connectors / data-prep on Vast.ai, then rclone to genvarcla:. "
+            "See DatabaseFreshnessMonitorAgent for registry-driven re-acquisition."
+        )

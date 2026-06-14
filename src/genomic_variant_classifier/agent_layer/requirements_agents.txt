@@ -16,7 +16,6 @@ shap>=0.45
 matplotlib>=3.8
 
 # GCP (only needed for Dataproc + GCS checkpoint push)
-google-cloud-dataproc>=5.8
 google-cloud-storage>=2.14
 
 # Monitoring / experiment tracking (optional but recommended)
