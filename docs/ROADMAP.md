@@ -651,3 +651,9 @@ integrity verification before Run 17 trains.
   orchestrator-recorded telemetry (was the documented gap). Only GpuOrchestratorAgent/FinOps (#3) remains --
   highest risk (provisions paid infra); recommend a design review before building (ground the existing Vast.ai
   workflow + RunPod gap + cost-safety guardrails: HITL-approve before spend, budget caps, confirm-on-terminate).
+
+
+## Proposed-agent roadmap -- update 2026-06-14
+- GpuOrchestratorAgent/FinOps (#3): DESIGN REVIEW landed (docs/design/GPU_FINOPS_DESIGN.md). Decision pending --
+  recommend-only/emit-only advisor (zero spend, reuses launch_run16.pick_offer) recommended as the first slice;
+  autonomous provisioning gated behind a separate sign-off. No money-adjacent code until confirmed.

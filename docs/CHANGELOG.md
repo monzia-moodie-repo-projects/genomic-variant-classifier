@@ -3746,3 +3746,16 @@ environmental data/ incident caught by the fail-loud guard.
   obsolete "no telemetry" footer. This closes the documented gap from the AgentOpsMonitorAgent ship (13cd9f6).
 - Tests: orchestrator telemetry 4 (new file), detector +3, monitor +1 (8 new). run_pipeline loop tests stay
   green; collection 884.
+
+
+## 2026-06-14 -- design review: GpuOrchestratorAgent / FinOps (proposed agent #3)
+- Added docs/design/GPU_FINOPS_DESIGN.md: grounded review of the last + only HIGH-risk proposed agent (touches
+  PAID infra). Findings: the optimal-selection logic already exists as a pure, tested helper
+  (launch_run16.pick_offer: cheapest single-GPU 4090 by price/reliability/cpu_ram), the cost model is hours*$/hr,
+  auto-destroy + confirm-on-terminate exist (launch_run*_vm.sh, Vastai_Destroy_Confirmed.ps1), and the --emit /
+  --dry HITL "recommended command" pattern is established. RunPod is net-new (docs-only, zero code).
+- Pivotal decision documented: autonomous provisioning (spends real money) vs recommend-only / emit-only (zero
+  spend, zero live calls). RECOMMENDATION: recommend-only first -- a FinOps advisor that reuses pick_offer over an
+  offers snapshot, estimates cost, checks a budget cap, and emits the launch command for the human. Autonomous
+  provisioning is a deliberate NON-GOAL pending a separate sign-off with full guardrails.
+- No money-adjacent code written. Awaiting Monzia's confirmation of direction before building.
