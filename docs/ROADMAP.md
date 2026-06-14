@@ -384,10 +384,21 @@ predictions) = Concept (NannyML CBPE AUROC + BBSE), Calibration (per-class poste
 FairnessSubgroup (per-subgroup predictions). Verified end-to-end: `test_schema_drift_baseline.py`
 (5 tests -- green/red/awaiting/env/bare), suite 1009.
 
+**Delivered 2026-06-14 (continued) -- drift-baseline campaign + FeatureCoverageSentinel (c0dec47, a7abca0,
+469a7b6, e4f96df, e61a2dc, 8206673, 376aa2e):** the buildability split above is resolved. ACTIVE NOW
+(model-free / config-threshold): Infrastructure (a7abca0), AnnotationPolicy + AdversarialSubmission
+(469a7b6), plus Schema. MACHINERY-READY (real baseline at Run-17): LabelShift (c0dec47). A NINTH drift
+agent, FeatureCoverageSentinel, was built/tested/wired/activated against the split-health audit reference
+(54/42/96): feature_health shared module (e4f96df), detector (e61a2dc), builder + monitor (8206673),
+orchestrator wiring + the `drift` pipeline (376aa2e). REMAINING (RUN-17-DEPENDENT, need model predictions):
+Concept (NannyML CBPE + BBSE), Calibration (per-class posteriors + ECE), FairnessSubgroup (per-subgroup
+predictions) -- machinery next. Suite 1009 -> 1063.
+
 ### Drift-wiring findings (recorded 2026-06-11)
 - The eight agent-layer drift MonitorAgents are registered in `Orchestrator._register_agents` but
   invoked by nothing (absent from `PIPELINE_DEFINITIONS`; `run_agents.py --pipeline full` runs only
-  the four framework agents).
+  the four framework agents). **[RESOLVED 2026-06-14 (376aa2e):
+  `PIPELINE_DEFINITIONS["drift"]` now lists all 9 drift agents; reachable via --pipeline drift.]**
 - `.github/workflows/drift_monitor.yml` is effectively inert: GDrive download is a stub, so the job
   skips via "No reference splits available"; it also points at the stale
   `outputs/phase2_with_gnomad/splits/` path (pre-Run-15).
@@ -395,9 +406,10 @@ FairnessSubgroup (per-subgroup predictions). Verified end-to-end: `test_schema_d
   schema/column/dtype drift. The new gate is additive.
 
 ### Proposed action items (NOT done -- deliberate design decisions for a future session)
-- [ ] **Pipeline-wire the drift agents.** Add a `drift` key to `PIPELINE_DEFINITIONS` listing the
-  eight MonitorAgents, reachable via `run_agents.py --pipeline drift`. They are registered but
-  currently unreachable from any CLI path.
+- [x] **Pipeline-wire the drift agents -- DONE 2026-06-14 (376aa2e).** `PIPELINE_DEFINITIONS["drift"]`
+  now lists all NINE drift MonitorAgents (the eight + FeatureCoverageSentinelMonitorAgent), reachable via
+  `run_agents.py --pipeline drift` (run_agents builds --pipeline choices from PIPELINE_DEFINITIONS.keys()).
+  Verified live: the dry-run drift pipeline runs all 9 agents.
 - [ ] **Fix `drift_monitor.yml`.** Repoint the stale `outputs/phase2_with_gnomad/splits/` ->
   `outputs/run15_rerun_report/full/splits/`, and replace the GDrive-download stub (a no-op that
   makes the monthly job skip) with a real fetch or an honest hard-skip that is logged, not silent.

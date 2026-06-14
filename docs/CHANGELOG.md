@@ -3509,3 +3509,61 @@ Infrastructure (pinned packages + DAG hash), likely AnnotationPolicy + Adversari
 
 Suite 1000 -> 1004 (hetero wiring) -> 1009 (schema activation), 6 skipped, 41 warnings (all pre-existing:
 LGBM feature-names, n_components>n_samples, lbfgs ConvergenceWarning; zero new). HEAD 6a05481 on origin/main.
+
+
+## 2026-06-14 (continued) -- drift-baseline campaign + FeatureCoverageSentinel built, wired, activated
+
+Continues the 2026-06-14 schema-activation entry above. Seven feature commits on top of 6a05481 move the
+"populate the 8 drift agents' reference baselines" item to 6 of 8 active/wired (the remaining three need a
+trained model) and add a NINTH drift agent.
+
+**LabelShift activation machinery (c0dec47).** LabelShiftAgent.from_baseline (classes + p_train +
+reference_confusion) + a comment fix: reference_confusion is C[pred,true], COLUMN-stochastic (matching the
+BBSE math; the old "rows=true" comment was wrong). LabelShiftMonitorAgent.from_default_baseline (canonical
+data/reference/label_shift/label_shift_baseline.json; prediction_log arg -> GVC_LABEL_SHIFT_PREDICTION_LOG).
+scripts/build_label_shift_baseline.py. RUN-17-DEPENDENT (reference_confusion needs the model's validation
+matrix); machinery + builder land now. +5 tests. Suite 1009 -> 1014.
+
+**Infrastructure activation (a7abca0) -- first FULLY model-free agent.** current_package_versions
+(importlib.metadata; shared by builder + monitor) + from_baseline (pinned_packages + expected_dag_hash +
+golden_set records). from_default_baseline auto-resolves current_packages from the live env; current_dag_spec
+(GVC_INFRA_DAG_SPEC) + replayed_features (GVC_INFRA_REPLAYED_FEATURES parquet) supplied.
+scripts/build_infrastructure_baseline.py defaults to the full monitored_packages set so the pinned set
+matches auto-resolve (a subset baseline reads unpinned packages as spurious drift -- caught by the
+auto-resolve test). +8 tests. Suite 1014 -> 1022. ACTIVE NOW.
+
+**AnnotationPolicy + AdversarialSubmission activation (469a7b6) -- model-free, config-threshold.** Both have
+NO data baseline; their reference is literature-derived threshold config (Yang et al. outlier rate; SVI
+review-status bands; bulk/flip/coordination floors). from_default_baseline ALWAYS constructs the detector
+and resolves run-time inputs; an optional thresholds JSON tunes the defaults. No builder, no from_baseline.
+AnnotationPolicy's per-submitter Page-Hinkley scan needs river (lazy; empty-history path river-free; river
+confirmed present on the box -- the river test ran, suite 1032 not 1031). +10 tests. Suite 1022 -> 1032.
+BOTH ACTIVE NOW. Drift-baseline set 5 of 8.
+
+**FeatureCoverageSentinel -- the silent-failure auditor, built/tested/wired/activated as a NINTH drift agent
+(e4f96df, e61a2dc, 8206673, 376aa2e).** Catches a column healthy at reference time that has gone degenerate
+now (the 34/78 and 38/78 dead-feature regressions of Run 14 / Run 10b) BEFORE it reaches training. Reference
+= the split-health audit (54 healthy / 42 degenerate / 96 total), the user's choice.
+- feature_health refactor (e4f96df): the audit's _col_health + _unique_and_top extracted verbatim into a
+  shared single source of truth src/genomic_variant_classifier/data/feature_health.py (col_health + verdict +
+  is_degenerate). Behavior-preserving -- the refactored audit emits a byte-identical health CSV and the same
+  verdict; proven against the real Run-15 splits (54/42/96 unchanged). +8 tests. Suite 1032 -> 1040.
+- detector (e61a2dc): FeatureCoverageSentinelAgent.detect scores a current matrix with the SAME col_health +
+  the SAME near_constant_frac the reference carries, classifying each column into regressed (healthy ->
+  degenerate; RED), dropped (RED), recovered, still_degenerate, new (AMBER). from_reference pins the canonical
+  reference-JSON contract. +10 tests. Suite 1040 -> 1050.
+- builder + monitor (8206673): build_feature_coverage_baseline.py replicates the audit's cross-file
+  aggregation EXACTLY (degenerate in ANY split file -> first sorted reason; else healthy), guarding the
+  empty-degenerate -> NaN re-read pitfall (a naive degenerate!='' would mark every healthy column degenerate).
+  FeatureCoverageSentinelMonitorAgent.from_default_baseline (canonical
+  data/reference/feature_coverage/feature_coverage_baseline.json; current_matrix arg -> GVC_FEATURE_MATRIX
+  parquet env). +10 tests. Suite 1050 -> 1060.
+- wiring + activation (376aa2e): registered in the orchestrator + PIPELINE_DEFINITIONS["drift"] = all 9 drift
+  agents, reachable via run_agents.py --pipeline drift (run_agents reads PIPELINE_DEFINITIONS.keys()). Verified
+  LIVE: the dry-run drift pipeline runs all 9 agents. +3 tests. Suite 1060 -> 1063. Closes the 2026-06-11
+  "drift agents registered but in no pipeline" gap.
+
+Drift-baseline set 6 of 8 active/wired (+ FeatureCoverageSentinel as a 9th): Schema, Infrastructure,
+AnnotationPolicy, AdversarialSubmission, FeatureCoverageSentinel ACTIVE; LabelShift machinery-ready.
+Remaining Concept/Calibration/FairnessSubgroup are RUN-17-DEPENDENT (need model predictions) -- machinery
+next. Suite 1009 -> 1063 passed / 6 skipped / 41 warnings (all pre-existing; zero new). HEAD 376aa2e on origin/main.
