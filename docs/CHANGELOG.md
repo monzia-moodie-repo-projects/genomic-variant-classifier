@@ -3772,3 +3772,14 @@ environmental data/ incident caught by the fail-loud guard.
   check; emits the exact launch command (flags derived from preflight_gate, drift-proof). 15 tests.
 - Reconciled the two RUN17_SCOPE copies: docs/roadmap/RUN17_SCOPE.md (stale --kg-path/train.py) ->
   pointer; docs/runs/RUN17_SCOPE.md is canonical + carries the audit addendum.
+
+
+## 2026-06-14 -- fix: Run-17 preflight parser ate Windows backslash paths (posix shlex)
+- preflight_gate._parse_candidate used shlex.split in POSIX mode, where '\' is an escape char, so on
+  Windows --kg C:\data\kg.parquet -> C:datakg.parquet (path "does not exist") and --output
+  outputs\run17 -> outputsrun17. This failed 3 preflight_run17 kg tests on Windows (the Linux
+  sandbox uses forward slashes -> invisible there) and would have spuriously failed every path when
+  the documented RUN17_SCOPE section-4 backslash command was fed to `preflight_run17.py --check`.
+- Fix: parse with posix=False (backslashes survive) + strip surrounding quotes posix=False leaves on
+  quoted tokens. Cross-platform; forward-slash paths unaffected. Only shlex.split in scripts/src;
+  only preflight_run17 imports the parser. +1 platform-independent regression test (16 total).
