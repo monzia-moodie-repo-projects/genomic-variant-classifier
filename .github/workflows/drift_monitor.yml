@@ -53,11 +53,11 @@ jobs:
           python -c "
           import json, base64, os
           creds = json.loads(base64.b64decode(os.environ['GDRIVE_SERVICE_ACCOUNT']))
-          print('Drive credentials loaded')
+          print('Drive credentials present; real download NOT wired yet (placeholder).')
           # gdown or google-auth based download here
           # For now, skip if splits not available
           import pathlib
-          pathlib.Path('outputs/phase2_with_gnomad/splits').mkdir(parents=True, exist_ok=True)
+          pathlib.Path('outputs/run15_rerun_report/full/splits').mkdir(parents=True, exist_ok=True)
           "
         continue-on-error: true
 
@@ -65,14 +65,14 @@ jobs:
         id: drift
         run: |
           EXIT=0
-          if [ ! -d outputs/phase2_with_gnomad/splits ] || [ -z "$(ls -A outputs/phase2_with_gnomad/splits 2>/dev/null)" ]; then
+          if [ ! -d outputs/run15_rerun_report/full/splits ] || [ -z "$(ls -A outputs/run15_rerun_report/full/splits 2>/dev/null)" ]; then
             echo "No reference splits available -- skipping drift check (avoids false alert)."
             echo "exit_code=0" >> "$GITHUB_OUTPUT"
             echo "drift_level=none" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           python scripts/run_drift_monitor.py \
-            --reference-splits outputs/phase2_with_gnomad/splits/ \
+            --reference-splits outputs/run15_rerun_report/full/splits/ \
             --features-only \
             --release-name "${{ github.event.inputs.release_name || 'scheduled' }}" \
             --output-dir outputs/drift_reports/ || EXIT=$?
@@ -84,6 +84,25 @@ jobs:
             3) echo "drift_level=severe"  >> "$GITHUB_OUTPUT" ;;
             *) echo "drift_level=none"    >> "$GITHUB_OUTPUT" ;;
           esac
+        continue-on-error: true
+
+      - name: Run schema drift gate
+        # Validate the reference feature matrix's column/dtype schema against the committed baseline
+        # (run_schema_drift_check.py: exit 0 green / 2 drift / 3 usage). Skips honestly when the baseline
+        # or the matrix is absent (e.g. GitHub-hosted CI with no data). run_drift_monitor.py covers
+        # PSI/KS/MMD distributional drift but NOT schema/column/dtype drift -- this gate is additive.
+        run: |
+          BASELINE=data/reference/schema/schema_baseline.json
+          MATRIX=outputs/run15_rerun_report/full/splits/X_train.parquet
+          if [ ! -f "$BASELINE" ]; then
+            echo "No schema baseline ($BASELINE) -- skipping schema gate."
+            exit 0
+          fi
+          if [ ! -f "$MATRIX" ]; then
+            echo "No reference matrix ($MATRIX) -- skipping schema gate (no data in hosted CI)."
+            exit 0
+          fi
+          python scripts/run_schema_drift_check.py --baseline "$BASELINE" --matrix "$MATRIX"
         continue-on-error: true
 
       - name: Upload drift report
@@ -128,7 +147,7 @@ jobs:
           echo "Run manually: python scripts/run_drift_monitor.py --new-clinvar ... --old-clinvar ..."
         # In a self-hosted runner with data access, replace with:
         # python scripts/run_drift_monitor.py \
-        #   --reference-splits outputs/phase2_with_gnomad/splits/ \
+        #   --reference-splits outputs/run15_rerun_report/full/splits/ \
         #   --new-clinvar data/processed/clinvar_grch38_latest.parquet \
         #   --old-clinvar data/processed/clinvar_grch38_previous.parquet \
         #   --release-name "${{ github.event.inputs.release_name || 'scheduled' }}" \
@@ -178,7 +197,7 @@ jobs:
               '3. If retraining is warranted, run:',
               '```powershell',
               '.venv\\Scripts\\python scripts\\run_drift_monitor.py \\',
-              '    --reference-splits outputs/phase2_with_gnomad/splits/ \\',
+              '    --reference-splits outputs/run15_rerun_report/full/splits/ \\',
               '    --new-clinvar data/processed/clinvar_grch38_latest.parquet \\',
               '    --old-clinvar data/processed/clinvar_grch38_previous.parquet \\',
               '    --auto-retrain',
