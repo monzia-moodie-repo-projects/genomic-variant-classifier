@@ -61,3 +61,16 @@ def test_pick_offer_parity_with_launch_script():
     import launch_run16
     assert launch_run16.pick_offer(OFFERS) == D.pick_offer(OFFERS)
     assert launch_run16.pick_offer([]) == D.pick_offer([])
+
+
+def test_load_offers_snapshot_tolerates_bom_encodings(tmp_path):
+    # PowerShell 5.1 `> offers.json` writes UTF-16-LE-with-BOM; Out-File utf8 writes a UTF-8 BOM. Both must load.
+    import json as _json
+    for enc, name in [("utf-16", "ps_redirect.json"), ("utf-8-sig", "outfile_utf8.json"), ("utf-8", "plain.json")]:
+        p = tmp_path / name
+        p.write_bytes(_json.dumps(OFFERS).encode(enc))
+        loaded = D.load_offers_snapshot(p)
+        assert len(loaded) == 4, f"{name} ({enc}) failed to load"
+    # and the recommendation still works off a UTF-16 snapshot
+    p16 = tmp_path / "u16.json"; p16.write_bytes(_json.dumps(OFFERS).encode("utf-16"))
+    assert D.recommend(D.load_offers_snapshot(p16))["chosen_id"] == 3

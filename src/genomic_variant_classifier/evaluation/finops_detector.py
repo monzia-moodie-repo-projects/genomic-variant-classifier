@@ -39,8 +39,13 @@ def estimate_cost(hours: float, dph: float) -> float:
 
 
 def load_offers_snapshot(path: str | Path) -> list[dict]:
-    """Parse a `vastai search offers --raw` JSON dump (a list, or {'offers': [...]}). Returns [] on anything odd."""
-    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    """Parse a `vastai search offers --raw` JSON dump (a list, or {'offers': [...]}). Returns [] on anything odd.
+
+    Read as BYTES so json auto-detects the encoding (UTF-8/16/32, with or without BOM). This matters on Windows:
+    PowerShell 5.1 `... > offers.json` writes UTF-16-LE-with-BOM, and `Out-File -Encoding utf8` writes a UTF-8 BOM;
+    a strict utf-8 text read would reject both (0xff / 0xef at position 0).
+    """
+    data = json.loads(Path(path).read_bytes())
     if isinstance(data, dict):
         data = data.get("offers", [])
     return [o for o in data if isinstance(o, dict)] if isinstance(data, list) else []
