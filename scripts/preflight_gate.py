@@ -56,7 +56,11 @@ def _build_mirror_parser() -> argparse.ArgumentParser:
 
 
 def _parse_candidate(command: str) -> argparse.Namespace:
-    toks = shlex.split(command)
+    # posix=False so Windows backslash paths (data\\processed\\x.parquet, C:\\...) survive -- POSIX shlex
+    # treats '\\' as an escape and silently eats it, mangling the path so it "does not exist". Then strip any
+    # surrounding quotes posix=False leaves on quoted tokens. Forward-slash paths are unaffected (cross-platform).
+    toks = shlex.split(command, posix=False)
+    toks = [t[1:-1] if len(t) >= 2 and t[0] == t[-1] and t[0] in "\"'" else t for t in toks]
     # drop everything up to and including the script name, if present
     for i, t in enumerate(toks):
         if t.endswith("run_phase2_eval.py"):

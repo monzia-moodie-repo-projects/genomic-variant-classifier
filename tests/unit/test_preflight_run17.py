@@ -137,3 +137,16 @@ def test_run_all_flags_forbidden_skip(tmp_path):
     rows = P.run_all(cmd, str(tmp_path), 1000, defer_kg=False, baseline_path=b, scripts_dir=_SCRIPTS)
     assert any(lv == "FAIL" and "--skip-nn" in m for lv, m in rows)  # forbidden skip caught
     assert any(lv == "OK" and "per-superpop" in m for lv, m in rows)  # kg still validated
+
+
+def test_parse_candidate_preserves_windows_backslash_paths():
+    # Regression: POSIX shlex eats backslashes, which silently mangled Windows --kg/--output paths and
+    # failed 3 kg tests on Windows (this Linux sandbox uses forward slashes, so it passed here -- the
+    # blind spot). Platform-independent: uses a literal backslash string so it runs identically anywhere.
+    import sys
+    sys.path.insert(0, str(_SCRIPTS))
+    import preflight_gate as gate
+    cmd = r"python scripts/run_phase2_eval.py --kg C:\data\1kg\kg.parquet --output outputs\run17"
+    ns = gate._parse_candidate(cmd)
+    assert vars(ns)["kg"] == r"C:\data\1kg\kg.parquet"
+    assert vars(ns)["output"] == r"outputs\run17"
