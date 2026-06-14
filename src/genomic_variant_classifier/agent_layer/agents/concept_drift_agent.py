@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from logging import Logger
@@ -40,6 +41,23 @@ class ConceptDriftAgent:
     auroc_drop_red: float = 0.03
     bbse_alpha: float = 0.05
     logger: Optional[Logger] = field(default=None, repr=False)
+
+    @classmethod
+    def from_baseline(cls, baseline_path, output_dir, **overrides) -> "ConceptDriftAgent":
+        """Load cbpe_baseline_auroc + cbpe_baseline_sigma (+ optional thresholds) from a baseline JSON.
+
+        The two scalars come from NannyML CBPE on the model's reference window (the estimated AUROC and
+        its confidence sigma) -- a Run-17 artifact. Mirrors LabelShiftAgent.from_baseline.
+        """
+        data = json.loads(Path(baseline_path).read_text(encoding="utf-8"))
+        kw = {k: float(data[k]) for k in ("sigma_drop_amber", "auroc_drop_red", "bbse_alpha") if k in data}
+        kw.update(overrides)
+        return cls(
+            cbpe_baseline_auroc=float(data["cbpe_baseline_auroc"]),
+            cbpe_baseline_sigma=float(data["cbpe_baseline_sigma"]),
+            output_dir=Path(output_dir),
+            **kw,
+        )
 
     def detect(
         self,

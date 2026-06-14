@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from logging import Logger
@@ -121,6 +122,32 @@ class FairnessSubgroupAgent:
             tpr = tp / max(tp + fn, 1)
             fpr = fp / max(fp + tn, 1)
         return SubgroupMetric(axis, stratum, n, auroc_est, float(ece), psi, tpr, fpr)
+
+    @classmethod
+    def from_baseline(cls, baseline_path, output_dir, **overrides) -> "FairnessSubgroupAgent":
+        """Load classes + p_train_per_stratum (+ optional thresholds) from a baseline JSON.
+
+        p_train_per_stratum has tuple (axis, stratum) keys, serialized as records
+        [{"axis":..., "stratum":..., "p_train":[...]}] -- the reference predicted-class count vector
+        per stratum (Run-17), matching _stratum_metric's `observed`. high_priority_strata (a JSON
+        list) -> frozenset. NOTE: the detector's AUROC proxy + max_dpd_change=0.0 stub are unchanged
+        (PHASE_2_FEATURES).
+        """
+        data = json.loads(Path(baseline_path).read_text(encoding="utf-8"))
+        ptps = {
+            (rec["axis"], rec["stratum"]): np.asarray(rec["p_train"], dtype=float)
+            for rec in data["p_train_per_stratum"]
+        }
+        kw = {k: float(data[k]) for k in ("eod_amber", "auroc_below_overall_sigma", "ece_red") if k in data}
+        if "high_priority_strata" in data:
+            kw["high_priority_strata"] = frozenset(data["high_priority_strata"])
+        kw.update(overrides)
+        return cls(
+            classes=tuple(data["classes"]),
+            p_train_per_stratum=ptps,
+            output_dir=Path(output_dir),
+            **kw,
+        )
 
     def detect(self, predictions: pd.DataFrame, axes: dict[str, str]) -> FairnessResult:
         """`axes` maps axis_name -> column name in `predictions`.

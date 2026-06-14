@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from logging import Logger
@@ -61,6 +62,24 @@ class CalibrationDriftAgent:
             ece += (count / n) * gap
             mce = max(mce, gap)
         return float(ece), float(mce)
+
+    @classmethod
+    def from_baseline(cls, baseline_path, output_dir, **overrides) -> "CalibrationDriftAgent":
+        """Load classes + baseline_ece (+ optional n_bins/thresholds) from a baseline JSON.
+
+        baseline_ece is the model's reference top-label ECE (Run-17), computed by the builder via this
+        same detector's detect() so the reference and the monitored ECE share one code path.
+        """
+        data = json.loads(Path(baseline_path).read_text(encoding="utf-8"))
+        kw = {k: data[k] for k in ("n_bins",) if k in data}
+        kw.update({k: float(data[k]) for k in ("ece_amber", "ece_red", "mce_red", "per_class_red") if k in data})
+        kw.update(overrides)
+        return cls(
+            classes=tuple(data["classes"]),
+            baseline_ece=float(data["baseline_ece"]),
+            output_dir=Path(output_dir),
+            **kw,
+        )
 
     def detect(self, labeled_predictions: pd.DataFrame) -> CalibrationResult:
         """Compute ECE/MCE on a labeled chunk.
