@@ -3697,3 +3697,15 @@ environmental data/ incident caught by the fail-loud guard.
   entry is appended ASCII-only in binary mode so it is not worsened. A dedicated mojibake cleanup is a separate
   (risky) task -- TRACKED, not done here.
 - reports/ added to .gitignore (generated freshness reports; durable record = CHANGELOG + agent_state.json).
+
+
+## 2026-06-14 -- feat(evaluation): ModelInsightsAgent (per-model comparison + integrity monitor)
+- Added ModelInsightsAgent: a read-only BaseAgent that reads the latest run's oof_predictions.parquet, computes
+  per-model AUROC/AUPRC/MCC/Brier with the same sklearn functions as evaluator.py, writes a documented report
+  (reports/model_insights/INSIGHTS_<date>.md), records to SharedState 'model_insights', and emits one
+  informational FEATURE_INSTABILITY to TrainingLifecycleAgent only on a serious integrity flag.
+- Integrity flags: LEAKAGE_SUSPICION (AUROC>=0.99 -> run a gene-disjoint / n_pathogenic_in_gene ablation),
+  DEGENERATE_OOF, AUROC_AUPRC_GAP, GENE_DISJOINT_VIOLATION (per-fold gene overlap).
+- Guardrail: diagnostics + flags only; ranks by MCC, never AUROC; never tunes hyperparameters.
+- Wiring: 'model_insights' pipeline + added to 'full'; auto-included in 'all' (now 18 agents).
+- Tests: detector 7, adapter 4, wiring 3 (14 new). Full pipeline surface green; collection 852.

@@ -619,3 +619,10 @@ integrity verification before Run 17 trains.
    confirm-on-terminate; never auto-spend. Build LAST + most carefully.
 4. AgentOpsMonitor (meta): ONE FLAT heartbeat/last-run/error-rate monitor over agent_state.json (alerts on
    staleness/error/conflict/perf-drift); monitors itself too. NOT recursive (no agent-of-agent tower).
+
+
+## Proposed-agent roadmap -- update 2026-06-14
+- [DONE] ModelInsightsAgent (was: proposed #1, HIGH value / LOW risk). Shipped read-only per-model comparison +
+  integrity monitor over run OOF. Next proposed agents remain: DataReadinessAgent (#2, pre-run gate orchestrating
+  existing audits), GpuOrchestratorAgent/FinOps (#3, cross-platform Vast.ai+RunPod, cost-safety HITL, build LAST),
+  AgentOpsMonitor (#4, flat heartbeat/error-rate meta-monitor over agent_state.json).
