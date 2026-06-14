@@ -76,6 +76,7 @@ PIPELINE_DEFINITIONS: dict[str, list[str]] = {
     "interpretability": ["InterpretabilityAgent"],
     "model_insights": ["ModelInsightsAgent"],
     "data_readiness": ["DataReadinessAgent"],
+    "agent_ops": ["AgentOpsMonitorAgent"],
     "literature": ["LiteratureScoutAgent"],
     "version_monitor": ["VersionMonitorAgent"],
     "adaptation": ["VersionMonitorAgent", "AdaptationAgent"],
@@ -87,6 +88,7 @@ PIPELINE_DEFINITIONS: dict[str, list[str]] = {
         "DatabaseFreshnessMonitorAgent",
         "ModelInsightsAgent",
         "DataReadinessAgent",
+        "AgentOpsMonitorAgent",
     ],
     "drift": [
         "SchemaDriftMonitorAgent",
@@ -163,6 +165,7 @@ class Orchestrator:
         from genomic_variant_classifier.agent_layer.agents.database_freshness_monitor_agent import DatabaseFreshnessMonitorAgent
         from genomic_variant_classifier.agent_layer.agents.model_insights_agent import ModelInsightsAgent
         from genomic_variant_classifier.agent_layer.agents.data_readiness_agent import DataReadinessAgent
+        from genomic_variant_classifier.agent_layer.agents.agent_ops_monitor_agent import AgentOpsMonitorAgent
 
         self._agent_registry = {
             "DataFreshnessAgent": DataFreshnessAgent,
@@ -183,6 +186,7 @@ class Orchestrator:
             "DatabaseFreshnessMonitorAgent": DatabaseFreshnessMonitorAgent,
             "ModelInsightsAgent": ModelInsightsAgent,
             "DataReadinessAgent": DataReadinessAgent,
+            "AgentOpsMonitorAgent": AgentOpsMonitorAgent,
             "AdaptationAgent": AdaptationAgent,
         }
 
