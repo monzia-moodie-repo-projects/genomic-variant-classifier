@@ -196,7 +196,13 @@ class Orchestrator:
                 logger.error("Unknown agent '%s' — skipping.", agent_name)
                 continue
 
-            agent = agent_cls(self._state)
+            if hasattr(agent_cls, "from_default_baseline"):
+                # Drift agents expose from_default_baseline to load their reference
+                # baseline (e.g. schema_baseline.json) and run active detection
+                # instead of reporting awaiting_baseline; falls back gracefully.
+                agent = agent_cls.from_default_baseline(self._state)
+            else:
+                agent = agent_cls(self._state)
             try:
                 result = agent.run(dry_run=self._dry_run)
             except Exception as exc:

@@ -7,6 +7,8 @@ supplied. Author: Monzia Moodie.
 """
 from __future__ import annotations
 
+import logging
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -16,6 +18,8 @@ from genomic_variant_classifier.agent_layer.agents.schema_drift_agent import (
     SchemaDriftAgent,
     SchemaDriftResult,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class SchemaDriftMonitorAgent(DriftMonitorBase):
@@ -31,6 +35,53 @@ class SchemaDriftMonitorAgent(DriftMonitorBase):
         super().__init__(shared_state)
         self._detector = detector
         self._matrix_path = Path(matrix_path) if matrix_path is not None else None
+
+    @classmethod
+    def from_default_baseline(
+        cls,
+        shared_state: SharedState,
+        *,
+        matrix_path: Optional[Path] = None,
+        baseline_path: Optional[Path] = None,
+        output_dir: Optional[Path] = None,
+    ) -> "SchemaDriftMonitorAgent":
+        """Construct an active agent from the canonical schema baseline.
+
+        Loads the SchemaDriftAgent detector from the versioned baseline
+        (data/reference/schema/schema_baseline.json by default) so the agent is no
+        longer awaiting_baseline. The current feature matrix to validate is taken
+        from matrix_path, else the GVC_SCHEMA_CURRENT_MATRIX env var, else left None
+        (the agent reports awaiting_baseline until a matrix is supplied at run time).
+        A missing baseline file yields an inactive agent (graceful) rather than raising.
+        """
+        bp = (
+            Path(baseline_path)
+            if baseline_path is not None
+            else Path("data/reference/schema/schema_baseline.json")
+        )
+        od = (
+            Path(output_dir)
+            if output_dir is not None
+            else Path("outputs/drift_reports/schema")
+        )
+        if matrix_path is None:
+            _env_mx = os.getenv("GVC_SCHEMA_CURRENT_MATRIX")
+            matrix_path = Path(_env_mx) if _env_mx else None
+        if not bp.exists():
+            logger.info(
+                "SchemaDriftMonitorAgent.from_default_baseline: baseline absent (%s); "
+                "returning inactive agent (awaiting_baseline).",
+                bp,
+            )
+            return cls(shared_state)
+        detector = SchemaDriftAgent.from_baseline(bp, output_dir=od)
+        logger.info(
+            "SchemaDriftMonitorAgent.from_default_baseline: detector loaded from %s "
+            "(matrix=%s).",
+            bp,
+            matrix_path,
+        )
+        return cls(shared_state, detector=detector, matrix_path=matrix_path)
 
     def _load_matrix(self):
         if self._matrix_path is None or not self._matrix_path.exists():
