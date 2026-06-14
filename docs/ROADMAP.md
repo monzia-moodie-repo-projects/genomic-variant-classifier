@@ -626,3 +626,11 @@ integrity verification before Run 17 trains.
   integrity monitor over run OOF. Next proposed agents remain: DataReadinessAgent (#2, pre-run gate orchestrating
   existing audits), GpuOrchestratorAgent/FinOps (#3, cross-platform Vast.ai+RunPod, cost-safety HITL, build LAST),
   AgentOpsMonitor (#4, flat heartbeat/error-rate meta-monitor over agent_state.json).
+
+
+## Proposed-agent roadmap -- update 2026-06-14
+- [DONE] DataReadinessAgent (was: proposed #2). Shipped verify-only pre-run readiness gate (assets + feature
+  health -> GO/NO_GO, HITL override). Remaining: AgentOpsMonitor (#4, flat heartbeat/error-rate meta-monitor over
+  agent_state.json -- LOWER risk, recommended next) and GpuOrchestratorAgent/FinOps (#3, cross-platform
+  Vast.ai+RunPod, cost-safety HITL -- HIGHEST risk, build LAST). Optional follow-up for DataReadinessAgent:
+  active-invocation mode (shell out to smoke_all_models / preflight_gate with HITL) if desired.

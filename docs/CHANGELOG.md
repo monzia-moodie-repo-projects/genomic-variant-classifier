@@ -3709,3 +3709,16 @@ environmental data/ incident caught by the fail-loud guard.
 - Guardrail: diagnostics + flags only; ranks by MCC, never AUROC; never tunes hyperparameters.
 - Wiring: 'model_insights' pipeline + added to 'full'; auto-included in 'all' (now 18 agents).
 - Tests: detector 7, adapter 4, wiring 3 (14 new). Full pipeline surface green; collection 852.
+
+
+## 2026-06-14 -- feat(agents): DataReadinessAgent (verify-only pre-run readiness gate)
+- Added DataReadinessAgent: aggregates critical-asset presence (registry.critical_assets()) + optional feature
+  health (data.feature_health.col_health over a discoverable splits parquet) into ONE advisory GO /
+  GO_WITH_WARNINGS / NO_GO verdict, writes reports/data_readiness/READINESS_<date>.md, records SharedState
+  'data_readiness', and opens a HITL override gate on NO_GO.
+- Verify-only: never runs real_data_prep.py / smoke / preflight_gate; complements preflight_gate.py (which
+  validates the launch COMMAND) by checking DATA/ENVIRONMENT readiness.
+- Thresholds (documented): >=50% degenerate feature cols -> NO_GO; any degeneracy -> GO_WITH_WARNINGS. The
+  current ~44%-degenerate stale splits correctly land as GO_WITH_WARNINGS, not a block.
+- Wiring: 'data_readiness' pipeline + 'full'; auto in 'all' (now 19 agents). Tests: detector 6, adapter 4,
+  wiring 3 (13 new). Full pipeline surface green; collection 865.
