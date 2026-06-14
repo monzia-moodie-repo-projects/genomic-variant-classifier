@@ -23,9 +23,10 @@ def test_drift_pipeline_includes_reclassification():
     assert "ReclassificationSentinelMonitorAgent" in drift, "reclass sentinel not wired into the drift pipeline"
     assert EXPECTED_DRIFT <= set(drift), f"missing drift agents: {EXPECTED_DRIFT - set(drift)}"
     assert len(drift) == len(set(drift)), "duplicate drift agents in the pipeline"
-    # reclass sentinel must not leak into any other pipeline
+    # reclass sentinel must not leak into any other pipeline -- except the deliberate auto-derived
+    # 'all' superset (every agent appearing in any pipeline), which is not a hand-curated cadence pipeline.
     for name, agents in PIPELINE_DEFINITIONS.items():
-        if name != "drift":
+        if name not in ("drift", "all"):
             assert "ReclassificationSentinelMonitorAgent" not in agents
 
 
