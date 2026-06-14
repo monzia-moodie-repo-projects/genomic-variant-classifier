@@ -410,7 +410,7 @@ unchanged + documented (per-stratum AUROC proxy; max_dpd_change=0.0 pinned by te
   smoke fits the tiny slice via loky Parallel; loky emits the warning per worker dispatch (0..~100). NOT a
   regression; no pass/fail impact. The DETERMINISTIC baseline stays 41. **Proposed fix:** pass `n_jobs=1` into
   the harness smoke's `EnsembleConfig` (tiny-slice parallelism is pointless) -> deterministic + faster + no
-  loky warning. Low-risk, single-line, separate follow-up commit.
+  loky warning. Low-risk, single-line. **FIXED 2026-06-14 (fe2289d)** -- both back-to-back `pytest -q` runs now stable at 1083 passed / 6 skipped / 41 warnings (the +100 parallel.delayed block gone); the 5 test_correctness_harness stages still pass.
 
 ### Drift-wiring findings (recorded 2026-06-11)
 - The eight agent-layer drift MonitorAgents are registered in `Orchestrator._register_agents` but
@@ -428,10 +428,10 @@ unchanged + documented (per-stratum AUROC proxy; max_dpd_change=0.0 pinned by te
   now lists all NINE drift MonitorAgents (the eight + FeatureCoverageSentinelMonitorAgent), reachable via
   `run_agents.py --pipeline drift` (run_agents builds --pipeline choices from PIPELINE_DEFINITIONS.keys()).
   Verified live: the dry-run drift pipeline runs all 9 agents.
-- [ ] **Fix `drift_monitor.yml`.** Repoint the stale `outputs/phase2_with_gnomad/splits/` ->
+- [x] **Fix `drift_monitor.yml` -- DONE 2026-06-14 (partial; path + honest GDrive skip).** Stale `outputs/phase2_with_gnomad/splits/` -> `outputs/run15_rerun_report/full/splits/` (6 occurrences); GDrive stub no longer fabricates a 'credentials loaded' message (the skip is logged). REMAINING: a real rclone/gdown fetch (still a placeholder). Original note: Repoint the stale `outputs/phase2_with_gnomad/splits/` ->
   `outputs/run15_rerun_report/full/splits/`, and replace the GDrive-download stub (a no-op that
   makes the monthly job skip) with a real fetch or an honest hard-skip that is logged, not silent.
-- [ ] **Add the schema gate as a `drift_monitor.yml` step.** Run `scripts/run_schema_drift_check.py`
+- [x] **Add the schema gate as a `drift_monitor.yml` step -- DONE 2026-06-14.** A GUARDED step runs `scripts/run_schema_drift_check.py --matrix .../X_train.parquet` (exit 0/2/3), skipping honestly when baseline/matrix are absent. REMAINING: tighten to gate-the-job on exit-2 (currently continue-on-error, matching the job's notify-not-fail design). Original note: Run `scripts/run_schema_drift_check.py`
   (exit-2 gates the job) so schema drift -- which `run_drift_monitor.py` does not cover -- is checked
   monthly alongside PSI/label drift.
 - [ ] **Reconcile the two parallel drift systems.** The agent-layer drift agents and the

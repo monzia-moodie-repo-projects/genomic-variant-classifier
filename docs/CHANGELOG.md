@@ -3598,3 +3598,20 @@ warning per worker dispatch, surfacing 0..~100 times depending on worker spawn/r
 (the trio tests use no sklearn parallelism) and no pass/fail impact (1083 passed both runs). The DETERMINISTIC
 warning baseline remains 41. Root-cause fix proposed (separate follow-up): force n_jobs=1 in the harness smoke
 (tiny-slice parallelism is pointless -> deterministic, faster, no loky warning). HEAD 19fb2a0 on origin/main.
+
+## 2026-06-14 (continued) -- harness warning fix (fe2289d) + drift CI repair
+
+- **fe2289d (harness):** pinned n_jobs=1 in the correctness-harness Stage-1 smoke
+  (EnsembleConfig(skip_svm=..., n_jobs=1)). sklearn now uses the SequentialBackend -> no loky, no flaky
+  parallel.delayed warning. VERIFIED: test_correctness_harness alone 6 passed / 8 warnings (lbfgs only);
+  two back-to-back full `pytest -q` runs BOTH 1083 passed / 6 skipped / 41 warnings (the +100 block gone).
+  The 41-warning gate baseline is now DETERMINISTIC.
+- **drift_monitor.yml repair (2026-06-14):** the monthly job was inert (always "No reference splits
+  available -- skipping"). Repointed the stale pre-Run-15 path outputs/phase2_with_gnomad/splits ->
+  outputs/run15_rerun_report/full/splits (6 occurrences, incl. the double on the guard line); made the GDrive
+  step honest (no fabricated "credentials loaded"; skip is logged); added a GUARDED schema-drift gate step
+  (run_schema_drift_check.py on the reference X_train.parquet, exit 0/2/3; skips honestly when baseline or
+  matrix absent, e.g. GitHub-hosted CI with no data). YAML-validated (safe_load). CI EXECUTION validated only
+  via workflow_dispatch (no Actions runner in-sandbox). REMAINING: real GDrive/rclone fetch; tighten the
+  schema gate to gate-the-job on exit-2 (or feed the notify job); reconcile agent-layer drift vs
+  run_drift_monitor.py. HEAD fe2289d (+ the yml repair) on origin/main.
