@@ -3722,3 +3722,15 @@ environmental data/ incident caught by the fail-loud guard.
   current ~44%-degenerate stale splits correctly land as GO_WITH_WARNINGS, not a block.
 - Wiring: 'data_readiness' pipeline + 'full'; auto in 'all' (now 19 agents). Tests: detector 6, adapter 4,
   wiring 3 (13 new). Full pipeline surface green; collection 865.
+
+
+## 2026-06-14 -- feat(agents): AgentOpsMonitorAgent (flat agent-layer ops monitor)
+- Added AgentOpsMonitorAgent: read-only meta-monitor over agent_state.json. Schema-agnostic heartbeats (newest
+  timestamp + age per section, stale only beyond ~5 weeks), per-agent inbox backlog (unread + pending-approval),
+  unresolved review_items, and surfaced problem flags (data_readiness verdict != GO, instability_flags,
+  model_insights flags) -> OK / ATTENTION. Writes reports/agent_ops/OPS_<date>.md; records its own 'agent_ops'
+  heartbeat (self-monitoring, non-recursive).
+- Documented gap (not a silent stub): per-agent error-rate and run-duration/perf-drift are NOT reported --
+  agent_state.json persists no run telemetry; reporting them needs an orchestrator change ('agent_runs' section).
+- Wiring: 'agent_ops' pipeline + 'full'; auto in 'all' (now 20 agents). Tests: detector 4, adapter 4, wiring 3
+  (11 new). Full pipeline surface green; collection 876.

@@ -634,3 +634,13 @@ integrity verification before Run 17 trains.
   agent_state.json -- LOWER risk, recommended next) and GpuOrchestratorAgent/FinOps (#3, cross-platform
   Vast.ai+RunPod, cost-safety HITL -- HIGHEST risk, build LAST). Optional follow-up for DataReadinessAgent:
   active-invocation mode (shell out to smoke_all_models / preflight_gate with HITL) if desired.
+
+
+## Proposed-agent roadmap -- update 2026-06-14
+- [DONE] AgentOpsMonitorAgent (was: proposed #4). Shipped flat heartbeat/backlog/flags meta-monitor. Only
+  GpuOrchestratorAgent/FinOps (#3) remains: cross-platform Vast.ai+RunPod preflight + optimal instance selection
+  + auto-terminate + billing -- HIGHEST risk (provisions paid infra), build LAST and only behind cost-safety
+  guardrails (HITL-approve before spend, budget caps, confirm-on-terminate, never auto-spend). Recommend a design
+  review before building it.
+- Optional follow-up (enables AgentOpsMonitor error-rate/perf-drift): add orchestrator run-telemetry to a new
+  'agent_runs' state section (per-run status/duration/error), then extend the ops detector.
