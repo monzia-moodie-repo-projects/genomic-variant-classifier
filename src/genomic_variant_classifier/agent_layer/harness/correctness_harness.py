@@ -68,7 +68,7 @@ def _enumerate_estimators(skip_svm: bool = True) -> dict[str, Any]:
         VariantEnsemble,
     )
 
-    ens = VariantEnsemble(EnsembleConfig(skip_svm=skip_svm))
+    ens = VariantEnsemble(EnsembleConfig(skip_svm=skip_svm, n_jobs=1))
     # base_estimators is populated by _build_estimators() at construction.
     return dict(getattr(ens, "base_estimators", {}) or {})
 
