@@ -1213,6 +1213,14 @@ class DataPrepPipeline:
             .clip(lower=0.0, upper=1.0)
         )
 
+        # Hetero-KG GNN-derived score
+        feats["hetero_gnn_score"] = (
+            df.get("hetero_gnn_score", pd.Series([0.5] * len(df), index=df.index))
+            .fillna(0.5)
+            .astype(float)
+            .clip(lower=0.0, upper=1.0)
+        )
+
         # RNA splice-context features (Phase 6.1)
         feats["maxentscan_score"] = (
             df.get("maxentscan_score", pd.Series([0.0] * len(df), index=df.index))

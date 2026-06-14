@@ -154,7 +154,7 @@ CONSEQUENCE_SEVERITY: dict[str, int] = {
 # Bump by +/-1 whenever you add or remove an entry in TABULAR_FEATURES below.
 # Enforced by tests/unit/test_feature_count_contract.py against both the list
 # length and INFERENCE_FEATURE_COLUMNS; that test is the deliberate-bump tripwire.
-EXPECTED_TABULAR_FEATURE_COUNT = 81
+EXPECTED_TABULAR_FEATURE_COUNT = 82
 
 TABULAR_FEATURES = [
     # Allele frequency (6)
@@ -228,6 +228,8 @@ TABULAR_FEATURES = [
     "is_mitochondrial",
     # GNN-derived (1)
     "gnn_score",
+    # Hetero-KG GNN-derived (1) - Phase D
+    "hetero_gnn_score",
     # RNA splice-context (5)
     "maxentscan_score",
     "maxentscan_delta",
@@ -517,6 +519,14 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     # GNN-derived score (1)
     feats["gnn_score"] = (
         df.get("gnn_score", pd.Series([0.5] * len(df), index=df.index))
+        .fillna(0.5)
+        .astype(float)
+        .clip(0.0, 1.0)
+    )
+
+    # Hetero-KG GNN-derived score (1)
+    feats["hetero_gnn_score"] = (
+        df.get("hetero_gnn_score", pd.Series([0.5] * len(df), index=df.index))
         .fillna(0.5)
         .astype(float)
         .clip(0.0, 1.0)
