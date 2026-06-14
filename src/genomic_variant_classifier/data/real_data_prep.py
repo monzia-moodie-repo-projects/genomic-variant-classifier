@@ -564,6 +564,22 @@ class DataPrepPipeline:
                     n_null,
                 )
 
+        # 1KGP super-population AFs (af_1kg_*) -- population-specific FEATURE
+        # columns, distinct from the allele_freq fallback above. Populated
+        # whenever a 1000G parquet is configured, regardless of n_null.
+        if kg_path:
+            from genomic_variant_classifier.data.thousandgenomes import ThousandGenomesConnector
+            df = ThousandGenomesConnector(kg_path).fill_population_af(df)
+        _af1kg_cols = ["af_1kg_afr", "af_1kg_eur", "af_1kg_eas", "af_1kg_sas", "af_1kg_amr"]
+        for _c in _af1kg_cols:
+            if _c not in df.columns:
+                df[_c] = 0.0
+        if df[_af1kg_cols].to_numpy().sum() == 0:
+            logger.warning(
+                "af_1kg_* all zero after gnomAD/1KGP join -- pass --kg with a "
+                "1000G parquet carrying per-population AFs to activate them."
+            )
+
         # FinnGen R10: third-tier AF fallback after gnomAD and 1KGP
         if self.annotation_config.finngen_path:
             from genomic_variant_classifier.data.finngen import FinnGenConnector

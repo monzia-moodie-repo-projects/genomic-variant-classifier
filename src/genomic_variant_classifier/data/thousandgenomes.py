@@ -40,6 +40,18 @@ from genomic_variant_classifier.data.database_connectors import BaseConnector, F
 
 logger = logging.getLogger(__name__)
 
+import hashlib  # path+mtime-keyed pop-AF lookup cache
+
+# af_1kg_* target column -> candidate source-column names in the kg parquet
+# (1000G VCF INFO style first, then lowercase, then already-named targets).
+_POP_TARGETS = {
+    "af_1kg_afr": ("af_afr", "AFR_AF", "afr_af", "af_1kg_afr"),
+    "af_1kg_eur": ("af_eur", "EUR_AF", "eur_af", "af_1kg_eur"),
+    "af_1kg_eas": ("af_eas", "EAS_AF", "eas_af", "af_1kg_eas"),
+    "af_1kg_sas": ("af_sas", "SAS_AF", "sas_af", "af_1kg_sas"),
+    "af_1kg_amr": ("af_amr", "AMR_AF", "amr_af", "af_1kg_amr"),
+}
+
 
 class ThousandGenomesConnector(BaseConnector):
     """
@@ -192,4 +204,89 @@ class ThousandGenomesConnector(BaseConnector):
             "(%d still null after fill).",
             n_filled, n_still_null,
         )
+        return result
+
+    # ------------------------------------------------------------------
+    # af_1kg_* super-population fill (Phase 5.1b -- resurrects dead features)
+    # ------------------------------------------------------------------
+
+    def _resolve_pop_columns(self, available) -> dict:
+        """Map each af_1kg_* target to the first matching source column present."""
+        avail = set(available)
+        out = {}
+        for tgt, candidates in _POP_TARGETS.items():
+            for c in candidates:
+                if c in avail:
+                    out[tgt] = c
+                    break
+        return out
+
+    def _get_pop_lookup(self):
+        """Per-population AF lookup keyed by _kg_key (one _pop_<target> column per
+        population present), or None if unavailable. Cached."""
+        if self.parquet_path is None or not self.parquet_path.exists():
+            return None
+        try:
+            _mt = int(self.parquet_path.stat().st_mtime)
+        except OSError:
+            _mt = 0
+        cache_key = "kg_pop_af_" + hashlib.md5(
+            f"{self.parquet_path}:{_mt}".encode()).hexdigest()[:12]
+        cached = self._load_cache(cache_key)
+        if cached is not None and not cached.empty:
+            return cached
+        try:
+            head = pd.read_parquet(self.parquet_path)
+        except Exception as exc:
+            logger.error("fill_population_af: failed to read parquet: %s", exc)
+            return None
+        colmap = self._resolve_pop_columns(head.columns)
+        if not colmap or "variant_id" not in head.columns:
+            return None
+        lookup = head[["variant_id", *colmap.values()]].copy()
+        lookup = lookup.dropna(subset=["variant_id"]).drop_duplicates(subset=["variant_id"])
+        lookup = lookup.rename(columns={"variant_id": "_kg_key",
+                                        **{src: f"_pop_{tgt}" for tgt, src in colmap.items()}})
+        self._save_cache(cache_key, lookup)
+        return lookup
+
+    def fill_population_af(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Populate af_1kg_afr/eur/eas/sas/amr from the 1000G parquet. Distinct
+        from fill_missing_af (global allele_freq fallback): these are the
+        population-specific FEATURE columns. Runs regardless of allele_freq
+        nullity. Missing/empty parquet or absent populations -> those columns
+        stay 0.0 with a loud WARNING (never silent)."""
+        result = df.copy()
+        for tgt in _POP_TARGETS:
+            if tgt not in result.columns:
+                result[tgt] = 0.0
+        if result.empty:
+            return result
+        lookup = self._get_pop_lookup()
+        if lookup is None or lookup.empty:
+            logger.warning(
+                "fill_population_af: no usable 1000G population-AF columns "
+                "(parquet=%s) -- af_1kg_* remain 0 for %d rows.",
+                self.parquet_path, len(result),
+            )
+            return result
+        present = [t for t in _POP_TARGETS if f"_pop_{t}" in lookup.columns]
+        missing = [t for t in _POP_TARGETS if t not in present]
+        if missing:
+            logger.warning("fill_population_af: populations absent from parquet, "
+                           "left at 0: %s", missing)
+        chrom = result.get("chrom", pd.Series([""] * len(result), index=result.index)) \
+                      .astype(str).str.replace(r"^chr", "", regex=True)
+        result["_kg_key"] = (chrom + ":" + result["pos"].astype(str) + ":" +
+                             result["ref"].astype(str) + ":" + result["alt"].astype(str))
+        result = result.merge(lookup, on="_kg_key", how="left")
+        n_matched = 0
+        for tgt in present:
+            src = f"_pop_{tgt}"
+            n_matched = max(n_matched, int(result[src].notna().sum()))
+            result[tgt] = (pd.to_numeric(result[src], errors="coerce")
+                           .clip(0.0, 1.0).fillna(0.0).to_numpy())
+        result = result.drop(columns=["_kg_key", *[f"_pop_{t}" for t in present]])
+        logger.info("fill_population_af: matched %d/%d rows; populated=%s.",
+                    n_matched, len(result), present)
         return result
