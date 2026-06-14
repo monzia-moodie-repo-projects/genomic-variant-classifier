@@ -3442,3 +3442,38 @@ passed / 6 skipped / 41 warnings (all pre-existing; zero new).
 ### Impact note (expected, not a regression)
 - After L1+L2 + regen + retrain, reported AUROCs will DROP below the sealed Run-15 0.9984 -- honest
   leak-free numbers, not a regression.
+
+## 2026-06-13 (v2) -- hetero_gnn_score 82nd feature + scorer; LiteratureScout broadening (provenance + Zenodo + scope)
+
+Three clean commits on 32bb9ef: 547e2dc (hetero scorer + 82nd feature) -> a42e723
+(LiteratureScout provenance) -> a9c0326 (LiteratureScout Zenodo + scope). Suite 992 ->
+1000 passed / 6 skipped / 41 warnings (all pre-existing; zero new).
+
+### Added
+- **hetero-GNN trainer/scorer (547e2dc):** models/hetero_gnn_scorer.py -- faithful hetero sibling of
+  GNNTrainer/GNNScorer. Builds one shared multi-relation gene graph (STRING interacts_with + KG relations
+  from kg_edges), trains HeteroVariantGNN with a focal-node loss, scores every gene node, exposes a
+  gene_symbol -> score map with the same 0.5-default contract as GNNScorer. Torch-free assembly core
+  (gene-mean node features + focal/label alignment) unit-tested without PyG; train/score path PyG-gated. +3 tests.
+- **hetero_gnn_score = 82nd tabular feature (547e2dc):** EXPECTED_TABULAR_FEATURE_COUNT 81 -> 82; inserted
+  into TABULAR_FEATURES immediately after gnn_score (reactome_pathway_count stays LAST); 0.5-default builder
+  block in BOTH engineer_features and _engineer_features in the same position so
+  list(feats.columns) == TABULAR_FEATURES holds (set AND order). Option A (SEPARATE from gnn_score, NOT a
+  replacement) preserves the homogeneous-vs-heterogeneous comparison. Contract verified: the two
+  len==EXPECTED guards + three list==TABULAR order guards + reactome-last + no-NaN all hold; focused re-check 107 passed.
+- **LiteratureScout provenance (a42e723):** authors / publication_date / journal captured from all three
+  existing sources (testable PubMed efetch helpers: _parse_pubmed_article w/ Title->ISOAbbreviation journal,
+  authors incl. CollectiveName, multi-AbstractText; _parse_pubmed_pub_date w/ ArticleDate->PubDate->MedlineDate)
+  and carried into the SharedState candidate record + emitted FEATURE_CANDIDATE_ADDED event. Additive; +3 tests.
+- **LiteratureScout Zenodo + scope + journal allow-list (a9c0326):** new _fetch_zenodo (Zenodo /api/records,
+  try/except -> logged warning, never a crash) + _parse_zenodo_hit (provenance-complete, defensive); PubMed
+  queries 11 -> 19 and relevance keywords 32 -> 46 into the architecture/methodology gaps (GNN, knowledge graph,
+  self-supervised, contrastive, foundation model, calibration/uncertainty, AlphaFold-structure, splicing);
+  LITERATURE_JOURNAL_ALLOWLIST (20 venues) + boost (0.15, env-overridable) in _relevance_score. _strip_html
+  strips tags BEFORE decoding entities so &lt;/&gt; survive. +5 tests.
+
+### Deferred (Run-17 prep, tracked -- both need the real 82-col matrix)
+- schema_baseline.json regen 81 -> 82 from the real matrix (build_schema_baseline.py --allow-schema-change);
+  NOT edited in place (would attach 82 cols to an 81-col captured_from). No unit test depends on it.
+- run_phase2_eval live overwrite: HeteroGNNScorer from STRING + KG files fills hetero_gnn_score with real
+  values; until then it is a 0.5 constant, exactly mirroring gnn_score's default-until-activated behavior.

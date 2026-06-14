@@ -87,8 +87,9 @@ Strong fits: AlphaFold DB (DO), RefSNP/dbSNP (DO), COSMIC (DO, academic; feature
 
 - Remaining Phase-D connectors: activate dbSNP + AlphaFold-structure stub steps (data + config), then build COSMIC / TCGA / KEGG.
 
-- **Heterogeneous-KG modeling track (2026-06-13):** hetero-GNN ENGINE done (models/hetero_gnn.py, HeteroConv multi-relation gene graph, 54158f7) + KG edge-connectors done (data/kg_edges.py co-membership primitive + Reactome/KEGG/GO/OMIM/ClinGen adapters, 8c19f9b). NEXT: live hetero_gnn_score wiring -- a HeteroGNNScorer mirroring GNNScorer, plus the schema decision (hetero_gnn_score as a guarded 82nd feature, both builders in lockstep + EXPECTED_TABULAR_FEATURE_COUNT 81->82, vs enriching the gnn_score graph in place).
+- **Heterogeneous-KG modeling track (2026-06-13):** hetero-GNN ENGINE done (models/hetero_gnn.py, HeteroConv multi-relation gene graph, 54158f7) + KG edge-connectors done (data/kg_edges.py co-membership primitive + Reactome/KEGG/GO/OMIM/ClinGen adapters, 8c19f9b). SCORER + SCHEMA DONE 2026-06-13: HeteroGNNScorer (547e2dc, mirrors GNNScorer; torch-free assembly + PyG train/score) and hetero_gnn_score landed as the 82nd feature (Option A -- SEPARATE from gnn_score to preserve the homogeneous-vs-heterogeneous comparison; EXPECTED_TABULAR_FEATURE_COUNT 81->82, both builders lockstep, reactome stays last; contract green, suite 1000). NEXT (Run-17): live eval-overwrite in run_phase2_eval (HeteroGNNScorer from STRING + KG files, opt-in flag) -- until then hetero_gnn_score is 0.5-constant, mirroring gnn_score's default-until-activated; plus schema_baseline regen 81->82 from the real matrix.
 - **af_1kg_* WIRED (2026-06-13, a0ce407):** fill_population_af + build_1kg_parquet.py; activate at Run 17 via --kg <1000G per-superpopulation AF parquet>.
+- **LiteratureScout broadened (2026-06-13, a42e723 + a9c0326):** provenance (authors/publication_date/journal across PubMed/bioRxiv/ClinGen/Zenodo) + new Zenodo source (_fetch_zenodo) + PubMed queries 11->19 / keywords 32->46 into architecture/methodology gaps + journal allow-list relevance boost. +8 tests.
 
 - One comprehensive GPU regen after the accessible public connectors are wired; measure-first probe; ALL-MODELS smoke before any billable retrain.
 
@@ -453,7 +454,7 @@ is the worked example; the other seven drift agents still await their reference 
 
 ### Open -- post-regen / parallel (updated)
 - [ ] Schema baseline refresh: regenerate data/reference/schema/schema_baseline.json from the
-  post-Run-16 X_train. Target = EXPECTED_TABULAR_FEATURE_COUNT (now 81: +esm2_llr +maxentscan_delta
+  post-Run-16 X_train. Target = EXPECTED_TABULAR_FEATURE_COUNT (now 82: +esm2_llr +maxentscan_delta +hetero_gnn_score
   vs the sealed-78 baseline). SUPERSEDES the earlier "Schema baseline refresh 78 -> 79" line. The
   pre-existing 78/79/80 spread (Feature-count reconciliation, TO VERIFY) reconciles AT this regen
   by diffing actual X_train columns against TABULAR_FEATURES -- not asserted here.
