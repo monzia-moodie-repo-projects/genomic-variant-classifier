@@ -438,6 +438,24 @@ unchanged + documented (per-stratum AUROC proxy; max_dpd_change=0.0 pinned by te
   `src/monitoring/` + `run_drift_monitor.py` system overlap conceptually; consolidate into one
   documented entrypoint so "drift monitoring" has a single source of truth.
 
+- **Delivered 2026-06-14 -- ReclassificationSentinel (10th drift agent).** clinvar_tracker-backed label-drift
+  sentinel (b6e5958 detector / 9662569 monitor + reference builder / 0c6c049 wiring); 17 tests. DRIFT SET NOW
+  10 of 10 WIRED. Run-17-gated: the (variant_id, split) reference (build_reclassification_reference.py against
+  the real splits) + the OLD/NEW ClinVar release parquets.
+- **Reconcile finding (a) -- pandera effectively required.** The agent-layer drift pipeline cannot construct
+  SchemaDriftMonitorAgent.from_default_baseline without pandera (from_baseline imports it), despite the
+  "optional dep" docstring. No functional gap (the monthly job uses run_drift_monitor.py), but graceful
+  from_baseline/detect degradation is a decision for this reconcile work. CI tests guard it with
+  importorskip("pandera") (5a6b0d0); see INCIDENT_2026-06-11 + its 2026-06-14 recurrence.
+- **Reconcile finding (b) -- legacy meta_TEST mislabel.** run_drift_monitor.run_label_drift reads
+  meta_TEST.parquet and assigns those ids to training_variant_ids, so its flip_rate_training is the TEST-set
+  rate. The new ReclassificationSentinel does per-split extraction correctly; consolidate the two.
+- **Infra note (2026-06-14).** The repo's data/ was a Windows Junction -> G:\My Drive\...\data (Google Drive
+  for Desktop) and dangled when G: was unmounted, failing 20 tests via the fail-loud guard. Restored via
+  git checkout -- data/ -> data/ is now a PLAIN LOCAL dir (see INCIDENT_2026-06-14_data-junction-dangling).
+  Large untracked assets remain on G: -- re-hydrate before any real run. Recommend local data//outputs/ +
+  rclone genvarcla: for durability, NOT a live G: junction. Check outputs/ for the same dangling condition.
+
 ### Feature-count reconciliation (TO VERIFY -- not asserted)
 - [ ] Reconcile the **64 / 78 / 79** spread: notes say 79; on-disk `X_train` is 78 (verified green
   by the gate); this ROADMAP still says "Live (64 features)". Identifier/label/target columns live in

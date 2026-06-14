@@ -56,3 +56,22 @@ scipy (label_shift) was NOT a problem -- it is declared (requirements.txt:108).
   declaring a suite sealed whenever agent-layer / optional-dep code changed.
 - Optional follow-up: declare pandera + river in requirements-dev.txt so CI RUNS (not skips) the
   schema/annotation ok-path tests -- pending confirmation that requirements-dev.txt is not pip-compiled.
+
+
+## Recurrence 2026-06-14 (376aa2e -> 5a6b0d0)
+The FeatureCoverageSentinel wiring (376aa2e) added test_feature_coverage_wiring.py::test_drift_pipeline_runs,
+which calls run_pipeline("drift"). That triggers SchemaDriftMonitorAgent.from_default_baseline ->
+SchemaDriftAgent.from_baseline, whose LAZY `import pandera.pandas` (the 2026-06-11 fix moved it off the module
+top, but it still fires at run time). pandera is absent in CI, so the test failed with ModuleNotFoundError --
+the single CI failure on every commit from 376aa2e through 0c6c049 (10 commits), masked locally because pandera
+is installed in .venv312. The reclassification wiring (0c6c049) added a second instance
+(test_run_pipeline_drift_runs_reclassification) plus an unrelated exact-set assertion failure.
+
+Fix (5a6b0d0): extend the established importorskip("pandera") convention to the two full-pipeline-RUN wiring
+tests, and make the drift-membership assertions robust (subset + no-dup, not exact-set). Verified: pandera
+present -> 6 wiring tests pass; pandera hidden -> 4 pass + 2 skip, 0 failed.
+
+Lesson: the 2026-06-11 fix guarded module-level imports + the schema unit tests, but ANY NEW test that RUNS
+run_pipeline("drift") (not just imports a module) must also guard the optional dep, because the lazy pandera
+import fires during the run. Tracked under ROADMAP "reconcile the two parallel drift systems": the agent drift
+pipeline effectively requires pandera; graceful degradation in from_baseline/detect is the alternative.

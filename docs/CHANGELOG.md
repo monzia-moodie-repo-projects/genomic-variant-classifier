@@ -3615,3 +3615,50 @@ warning baseline remains 41. Root-cause fix proposed (separate follow-up): force
   via workflow_dispatch (no Actions runner in-sandbox). REMAINING: real GDrive/rclone fetch; tighten the
   schema gate to gate-the-job on exit-2 (or feed the notify job); reconcile agent-layer drift vs
   run_drift_monitor.py. HEAD fe2289d (+ the yml repair) on origin/main.
+
+
+## 2026-06-14 (continued) -- ReclassificationSentinel (10th drift agent) + CI repair + data/-junction incident
+
+The tenth drift agent built detector-first and wired; a CI repair that closed a 10-commit red streak; then an
+environmental data/ incident caught by the fail-loud guard.
+
+- **ReclassificationSentinel (b6e5958 detector, 9662569 monitor + reference builder, 0c6c049 wiring):** a
+  ClinVar label-drift sentinel wrapping monitoring.clinvar_tracker.ClinVarTracker (single source of truth for
+  the flip accounting + urgency). detect(old_path, new_path) runs ClinVarTracker.compare(output_dir=None) (no
+  file side effects) and maps urgency -> severity (none->green, monitor->amber, retrain/urgent->red).
+  ReclassificationSentinelMonitorAgent.from_default_baseline loads a compact (variant_id, split) reference
+  (data/reference/reclassification/reclassification_reference.parquet) and resolves the OLD/NEW ClinVar release
+  parquets arg -> GVC_RECLASS_OLD_RELEASE/NEW_RELEASE -> None (set-but-missing -> awaiting_baseline; missing
+  reference -> inactive). build_reclassification_reference.py extracts (variant_id, split) from
+  meta_{train,val,test}.parquet (column 'variant_id', confirmed on-disk), skipping missing/wrong-col splits
+  with a printed note. 17 tests (8 detector + 6 builder/monitor + 3 wiring). DRIFT SET: 10 of 10 wired.
+  Run-17-gated: the reference (build against the real splits) + the OLD/NEW release parquets.
+
+- **CI repair (5a6b0d0):** the suite had gone red two ways. (1) test_feature_coverage_wiring::
+  test_drift_pipeline_defined hard-pinned the drift set (== 9, len 9); the 10th agent broke it. Made both
+  wiring tests' membership checks robust (known agents subset -> catches DROPS; no-dup; additions tolerated).
+  (2) test_drift_pipeline_runs (376aa2e) + the reclass run-test call run_pipeline("drift"), which lazily
+  imports pandera (optional, absent in CI) -> ModuleNotFoundError -- the SINGLE CI failure on every commit
+  since 376aa2e, a RECURRENCE of INCIDENT_2026-06-11 (the 2026-06-11 fix guarded module-level imports + the
+  schema tests; the new full-pipeline-RUN wiring tests fire the lazy import at run time and were unguarded).
+  5a6b0d0 extends the importorskip("pandera") convention to those run tests. Reproduced both modes in a clean
+  checkout; verified pandera present -> 6 wiring tests pass, pandera hidden -> 4 pass + 2 skip, 0 failed. CI
+  green for the first time since 376aa2e.
+
+- **Observations (tracked under "reconcile the two parallel drift systems"):** (a) the agent-layer drift
+  pipeline effectively REQUIRES pandera at runtime (SchemaDriftMonitorAgent.from_baseline imports it) despite
+  the "optional dep" docstring -- the monthly workflow uses run_drift_monitor.py, not the orchestrator, so no
+  functional gap, but graceful degradation is an open decision. (b) legacy run_drift_monitor.run_label_drift
+  reads meta_TEST.parquet and assigns those ids to training_variant_ids, so its "flip_rate_training" is the
+  test-set rate; the new sentinel does per-split extraction correctly.
+
+- **data/-junction incident (environmental, NOT code -- INCIDENT_2026-06-14_data-junction-dangling):** after
+  5a6b0d0 the full suite showed 20 failures, ALL the codebase's own fail-loud guard (real_data_prep.py:222,
+  protein_pipeline.py:376). The repo's data/ was a Windows Junction -> G:\My Drive\...\data (Google Drive for
+  Desktop) and DANGLED when G: was unmounted. No src/ code writes a bare data file (verified by grep). Removed
+  the dangling junction + git checkout -- data/ (restored the 6 tracked files incl schema_baseline.json) ->
+  1100 passed / 6 skipped / 41 warnings. NOTE: data/ is now a PLAIN LOCAL directory; the large untracked assets
+  (spliceai_index.parquet 336.8 MB, dbNSFP, gnomAD, caches) remain only on G: and must be re-hydrated before
+  any real-data run, or connectors silent-stub. Recommend local data//outputs/ + rclone genvarcla:, not a live
+  G: junction.
+
