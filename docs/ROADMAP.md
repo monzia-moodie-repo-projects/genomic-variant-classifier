@@ -644,3 +644,10 @@ integrity verification before Run 17 trains.
   review before building it.
 - Optional follow-up (enables AgentOpsMonitor error-rate/perf-drift): add orchestrator run-telemetry to a new
   'agent_runs' state section (per-run status/duration/error), then extend the ops detector.
+
+
+## Proposed-agent roadmap -- update 2026-06-14
+- [DONE] agent_runs telemetry follow-up: AgentOpsMonitor error-rate + perf-drift now backed by real
+  orchestrator-recorded telemetry (was the documented gap). Only GpuOrchestratorAgent/FinOps (#3) remains --
+  highest risk (provisions paid infra); recommend a design review before building (ground the existing Vast.ai
+  workflow + RunPod gap + cost-safety guardrails: HITL-approve before spend, budget caps, confirm-on-terminate).

@@ -3734,3 +3734,15 @@ environmental data/ incident caught by the fail-loud guard.
   agent_state.json persists no run telemetry; reporting them needs an orchestrator change ('agent_runs' section).
 - Wiring: 'agent_ops' pipeline + 'full'; auto in 'all' (now 20 agents). Tests: detector 4, adapter 4, wiring 3
   (11 new). Full pipeline surface green; collection 876.
+
+
+## 2026-06-14 -- feat(agents): agent_runs telemetry -> AgentOps error-rate + perf-drift
+- Orchestrator run_pipeline now records per-agent run telemetry (ts/status/duration_ms/error) to a new
+  'agent_runs' state section via _record_run_telemetry: real runs only, capped at 50/agent, non-invasive (never
+  changes the agent result, never raises).
+- agent_ops_detector: scan_run_telemetry (error-rate + perf-drift = recent-half vs older-half median duration) +
+  telemetry_flags (AGENT_ERRORS, PERF_DRIFT >= +50%); analyze folds them into flags/ATTENTION + a telemetry list.
+- agent_ops_monitor_agent: report Run-telemetry table + records agents_with_errors/perf_drift_agents; removed the
+  obsolete "no telemetry" footer. This closes the documented gap from the AgentOpsMonitorAgent ship (13cd9f6).
+- Tests: orchestrator telemetry 4 (new file), detector +3, monitor +1 (8 new). run_pipeline loop tests stay
+  green; collection 884.
