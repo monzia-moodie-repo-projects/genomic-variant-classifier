@@ -1389,6 +1389,30 @@ class DataPrepPipeline:
                         "Try lowering min_review_tier or increasing dataset size."
                     )
 
+        # --- Leakage fix (INCIDENT_2026-06-13): train-only n_pathogenic_in_gene
+        # enrich_gene_counts() computes this count corpus-wide (train+val+test)
+        # PRE-split. With the gene-disjoint GroupShuffleSplit above, a held-out
+        # gene's count would derive entirely from its own held-out labels and
+        # leak (probe 2026-06-13: lone-feature test AUROC 0.7181 corpus vs
+        # 0.5000 train-only). Recompute from TRAIN rows only, remap onto every
+        # split (unseen genes -> 0), and recompute the derived
+        # gene_has_known_disease in lockstep so it cannot go stale.
+        if "n_pathogenic_in_gene" in X.columns:
+            _y_tr_pos = (np.asarray(y_train) == 1).astype(int)
+            _g_tr = groups.iloc[train_idx].reset_index(drop=True)
+            _train_counts = pd.Series(_y_tr_pos).groupby(_g_tr.values).sum()
+            for _Xs, _ix in (
+                (X_train, train_idx),
+                (X_test, test_idx),
+                (X_val, val_idx),
+            ):
+                _g = groups.iloc[_ix].reset_index(drop=True)
+                _cnt = _g.map(_train_counts).fillna(0).astype(int)
+                _Xs["n_pathogenic_in_gene"] = _cnt.to_numpy()
+                if "gene_has_known_disease" in _Xs.columns:
+                    _Xs["gene_has_known_disease"] = (_cnt.to_numpy() > 0).astype(int)
+        # --- end leakage fix ---
+
         return (
             X_train,
             X_test,
