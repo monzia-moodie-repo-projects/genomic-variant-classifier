@@ -98,6 +98,16 @@ PIPELINE_DEFINITIONS: dict[str, list[str]] = {
     ],
 }
 
+# Pipelines are organised by CADENCE, not exhaustiveness:
+#   'full'             = the per-run framework bundle (data freshness, training lifecycle,
+#                        interpretability, literature, database monitor) -- run around a training run.
+#   'drift'            = the 10-agent drift suite -- scheduled MONTHLY (drift_monitor.yml); needs baselines.
+#   'database_monitor' = registry-driven data freshness -- scheduled WEEKLY (data_freshness.yml).
+# 'all' chains EVERY agent appearing in any pipeline (auto-maintained -> never drifts when an agent is added).
+PIPELINE_DEFINITIONS["all"] = sorted(
+    {a for agents in PIPELINE_DEFINITIONS.values() for a in agents}
+)
+
 
 # ---------------------------------------------------------------------------
 # Orchestrator

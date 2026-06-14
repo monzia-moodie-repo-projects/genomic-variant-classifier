@@ -593,3 +593,29 @@ Run 17 (COMMITTED, not deferred -- docs/roadmap/RUN17_SCOPE.md):
   held-out-gene no-leak check, WITH/WITHOUT ablation.
 Both gated by full-scale feature-population audit + schema drift-check + gene-disjoint
 integrity verification before Run 17 trains.
+
+## 2026-06-14 (continued) -- data-source registry, freshness monitor, dead-agent audit, proposed-agent roadmap
+
+### Delivered (wired + healthy)
+- monitoring/registry.py: single source of truth, 24 sources (11 ACTIVE, 7 probeable). FinnGen R12->R14 (embargo).
+- DatabaseFreshnessMonitorAgent: registry-driven HITL freshness over ALL DBs; 'database_monitor' pipeline +
+  'full' + weekly workflow + documented FRESHNESS report. Supersedes DataFreshnessAgent's 4-source polling.
+- Dead-agent audit closed: both gcloud-dataproc dead paths neutralized; InterpretabilityAgent tested; dead dep
+  dropped. 'all' pipeline + cadence semantics documented. No dead agents.
+
+### Proposed agents (Phase D/E -- assessed 2026-06-14, NOT yet built; awaiting go-ahead) -- priority order:
+1. ModelInsightsAgent (HIGH value, LOW risk, read-only): post-run, ingest each base model's OOF + metrics
+   (AUROC/AUPRC/MCC/Brier/calibration) + SHAP + the per-model algorithm comparison; produce a DOCUMENTED per-model
+   comparison report, alert significant findings, FLAG leakage/over-fit (e.g. suspiciously high AUROC ->
+   n_pathogenic_in_gene-style memorization). GUARDRAIL: diagnostics + integrity flags only; does NOT auto-tune
+   toward higher AUROC (scientific-integrity-over-metrics). Reuses evaluator.py + shap_utils + metrics glossary.
+2. DataReadinessAgent (HIGH value, MED risk): pre-run, orchestrate the existing audits (feature-health, smoke
+   population, schema-drift, FeatureCoverageSentinel) + freshness monitor + critical_assets() into ONE documented
+   pre-run readiness gate; HITL-block a run if data is stale/degenerate/silent-stubbed. INVOKES + VERIFIES +
+   DOCUMENTS real_data_prep.py (no silent data mutation).
+3. GpuOrchestratorAgent / FinOps (HIGH value, HIGH risk): cross-platform (Vast.ai + RunPod) preflight + optimal
+   instance selection ($/hr x reliability x dlperf x mem) + run init + auto-terminate + billing report. RunPod is
+   NET-NEW (zero code today). COST-SAFETY: HITL-approve before provisioning (real money); budget caps;
+   confirm-on-terminate; never auto-spend. Build LAST + most carefully.
+4. AgentOpsMonitor (meta): ONE FLAT heartbeat/last-run/error-rate monitor over agent_state.json (alerts on
+   staleness/error/conflict/perf-drift); monitors itself too. NOT recursive (no agent-of-agent tower).

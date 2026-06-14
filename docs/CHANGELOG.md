@@ -3662,3 +3662,38 @@ environmental data/ incident caught by the fail-loud guard.
   any real-data run, or connectors silent-stub. Recommend local data//outputs/ + rclone genvarcla:, not a live
   G: junction.
 
+
+## 2026-06-14 (continued) -- data-source registry + freshness monitor (all 24 DBs) + FinnGen R14 + dead-agent audit
+
+### Added
+- monitoring/registry.py (93efac3): 0-byte stub -> declarative single-source-of-truth for all 24 data sources.
+  Source(key,name,category,verdict,check,local_path,upstream_url,version,acquire,notes); all_sources/by_key/
+  probeable/by_verdict/critical_assets. 9 integrity tests incl the no-fabricated-URL invariant (check==MANUAL
+  <=> upstream_url is None).
+- DatabaseFreshnessMonitorAgent (371cb3d): registry-driven HITL data-freshness over ALL 24 sources (vs
+  DataFreshnessAgent's 4 hardcoded polls). Pure detector (ftp_listing/http_etag/http_hash/github_release;
+  MANUAL->manual_skip; probe failure->unreachable, never raises; local present/missing/cruft) + BaseAgent
+  adapter (writes reports/data_freshness/FRESHNESS_<date>.md; HITL re-acquire via registry.acquire; emits
+  DATA_UPDATED). Wired: 'database_monitor' pipeline + 'full' + scripts/run_data_freshness.py +
+  .github/workflows/data_freshness.yml (weekly Mon 07:00 UTC + dispatch). 15 tests. Live box run: sources=24
+  changes=5 (clinvar/alphamissense/gnomad/gnomad_constraint/esm2 reachable; alphafold/lovd unreachable ->
+  correctly not flagged).
+- FinnGen R14 (registry): local R12 -> upstream R14 (DF14 Feb-2026) under the 1-YEAR PARTNER EMBARGO (not public
+  until ~2027 unless a FinnGen partner); newest PUBLIC freeze is R13. gs://finngen-production-library-green/.
+  Grounded in the FinnGen Handbook (no fabricated URL).
+- 'all' pipeline (auto-maintained: every agent in any pipeline, 17) + a cadence comment in PIPELINE_DEFINITIONS.
+
+### Fixed (no dead agents -- e128fb5)
+- Exhaustive dead-agent audit: 17 registered agents, all reachable, all pipelines dry-run clean. Three gaps closed:
+- DataFreshnessAgent._trigger_spark_ingest: neutralized the DEAD gcloud-dataproc ingest (GCP deleted 2026-04-29);
+  logs the operator re-acquisition path (local<->Vast.ai<->rclone) + points at DatabaseFreshnessMonitorAgent.
+- TrainingLifecycleAgent EWC retrain: removed _MODEL_RETRAIN_SCRIPT (gcloud dataproc train_ewc.py) + subprocess.run;
+  surfaces the latest LOCAL checkpoint instead (operator-driven on Vast.ai). 0 gcloud strings remain.
+- InterpretabilityAgent: was the ONLY untested registered agent -> test_interpretability_agent.py (3 tests).
+- requirements_agents.txt: dropped the dead google-cloud-dataproc>=5.8 pin.
+
+### Observed / flagged (not changed)
+- docs/CHANGELOG.md has pre-existing MOJIBAKE (em-dash, Nystrom, arrows) from earlier PowerShell writes; this
+  entry is appended ASCII-only in binary mode so it is not worsened. A dedicated mojibake cleanup is a separate
+  (risky) task -- TRACKED, not done here.
+- reports/ added to .gitignore (generated freshness reports; durable record = CHANGELOG + agent_state.json).
