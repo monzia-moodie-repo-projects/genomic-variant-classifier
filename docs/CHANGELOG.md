@@ -3793,3 +3793,14 @@ environmental data/ incident caught by the fail-loud guard.
 - preflight_run17.py now has string_db_gate: derives threshold from --string-db, checks the cached
   -> links -> local chain, OK if any present, WARN (naming the download dependency) if none.
   --string-cache-dir/--string-links overrides for box paths. +8 tests (preflight suite 24).
+
+
+## 2026-06-14 -- fix: smoke streams live + Run17_Monitor.ps1
+- smoke_all_models.py used subprocess.run(capture_output=True): on a CPU box the child runs the FULL
+  DataPrepPipeline (--max-train only subsamples tabular train rows AFTER prep) + 100-epoch GNN, so the
+  smoke could run hours emitting nothing and looked hung. Now _stream_child streams the child live to
+  console + outdir/smoke.log and accumulates text for the assertions; PYTHONUNBUFFERED=1; prints
+  outdir/log up front; 3 pre-existing em-dashes -> ASCII. +3 tests. (smoke streams live)
+- The all-models smoke runs full-cohort prep -> belongs on the GPU box, not the CPU laptop.
+- Added scripts/Run17_Monitor.ps1 (adapted from Run16_Monitor.ps1) with a GNN mode for the
+  [GNN-TRACE] / STRING-source / Best-val-AUC / gnn_score-non-degeneracy signals.
