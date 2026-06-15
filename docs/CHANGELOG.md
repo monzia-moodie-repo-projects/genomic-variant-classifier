@@ -3837,3 +3837,11 @@ environmental data/ incident caught by the fail-loud guard.
   never materialised, stream from https URL or local path (no >2GB local file needed), optional cohort
   filter to a small output, chunked pyarrow writing (memory bounded), and an all-zero COVERAGE GATE that
   aborts rather than writing a dead parquet. +6 tests.
+
+
+## 2026-06-15 -- fix: parse_gmt rejects binary/zip payloads (no silent garbage edges)
+- The Reactome GMT is distributed only as ReactomePathways.gmt.zip; a file saved from the .gmt URL is the
+  raw ZIP (PK magic + NUL bytes). The prior errors='replace' decode turned that into 233 junk pathways and
+  322 binary-garbage edges that printed "OK". parse_gmt now inspects the leading bytes: ZIP (PK) and
+  NUL-binary inputs raise a clear ValueError (telling you to extract the .zip), gzip (.gz) is transparently
+  decompressed, and a parse yielding 0 gene sets raises instead of returning empty. +5 tests.

@@ -48,11 +48,37 @@ def parse_gmt(path) -> dict[str, list[str]]:
     Each line: set_name <TAB> description <TAB> gene1 <TAB> gene2 ...
     Returns {set_name: [unique genes]}. Blank/short (<3 field) lines are skipped
     with a warning; duplicate set names are merged; genes de-duplicated in order.
+
+    Rejects non-text input LOUDLY rather than parsing garbage: Reactome ships
+    ReactomePathways.gmt.zip, so a file saved straight from that URL is a ZIP
+    (PK magic) or otherwise binary (NUL bytes); a gzip (.gz) is transparently
+    decompressed. Raises ValueError if zero gene sets are parsed.
     """
-    sets: dict[str, list[str]] = {}
     p = Path(path)
-    with p.open("r", encoding="utf-8", errors="replace") as fh:
+    with p.open("rb") as _bf:
+        head = _bf.read(8192)
+    if head[:4] == b"PK\x03\x04" or head[:4] == b"PK\x05\x06":
+        raise ValueError(
+            f"{p.name} is a ZIP archive, not a text GMT. Reactome distributes "
+            "ReactomePathways.gmt.zip -- extract ReactomePathways.gmt from it first "
+            "(e.g. Expand-Archive ReactomePathways.gmt.zip)."
+        )
+    if head[:2] == b"\x1f\x8b":
+        import gzip as _gzip
+        _open = lambda: _gzip.open(p, "rt", encoding="utf-8", errors="replace")
+    elif b"\x00" in head:
+        raise ValueError(
+            f"{p.name} contains NUL bytes -- it is binary, not a text GMT. "
+            "Check the download (it may be a compressed/HTML/error payload saved as .gmt)."
+        )
+    else:
+        _open = lambda: p.open("r", encoding="utf-8", errors="replace")
+
+    sets: dict[str, list[str]] = {}
+    n_lines = 0
+    with _open() as fh:
         for ln, raw in enumerate(fh, 1):
+            n_lines = ln
             line = raw.rstrip("\r\n")
             if not line.strip():
                 continue
@@ -68,6 +94,11 @@ def parse_gmt(path) -> dict[str, list[str]]:
             sets[name].extend(genes)
     for name, genes in sets.items():
         sets[name] = list(dict.fromkeys(genes))  # de-dup, preserve order
+    if not sets:
+        raise ValueError(
+            f"{p.name}: parsed 0 gene sets from {n_lines} lines -- not a valid GMT "
+            "(wrong/empty/binary file?)."
+        )
     logger.info("parse_gmt %s: %d sets.", p.name, len(sets))
     return sets
 
