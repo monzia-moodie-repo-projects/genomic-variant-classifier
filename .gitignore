@@ -161,3 +161,7 @@ outputs/**/.run*_state.json
 *_bak_*
 split_health.csv
 data/agent_state.json
+
+# FinOps scratch artifacts (vastai offers snapshot + ad-hoc probe; never source)
+/offers.json
+/try_finops.py
