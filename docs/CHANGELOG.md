@@ -3824,3 +3824,16 @@ environmental data/ incident caught by the fail-loud guard.
   and moved the preflight schema-gate test + fixtures to 82. reactome_pathway_count and af_1kg_* were
   already in the 81 baseline -- the sole delta was hetero_gnn_score. Verified: a synthetic 82-col matrix
   matching the baseline produces zero schema drift (added/removed/dtype_changed all empty).
+
+
+## 2026-06-15 -- fix: no-defer kg + Reactome data prep (GRCh38 AF_<POP>, parse_gmt encoding)
+- Inspecting the real files caught two silent-failure traps. (a) The Reactome ReactomePathways.gmt has
+  non-UTF-8 bytes in pathway names; parse_gmt opened it as strict utf-8 and raised UnicodeDecodeError,
+  which would crash --kg-edges reactome at run. Now decodes with errors='replace' (ASCII gene symbols
+  intact). (b) The GRCh38 30x high-coverage 1000G panels (20220422_3202) use INFO AF_AFR/AF_EUR/AF_EAS/
+  AF_SAS/AF_AMR (uppercase) -- which build_1kg_parquet (AFR_AF) and connector_1kgp (AF_afr) BOTH missed,
+  yielding silent all-zero af_1kg_*. Reworked build_1kg_parquet: multi-naming INFO candidates (GRCh38
+  AF_AFR / GRCh37 AFR_AF / lowercase), INFO-only parse via split(maxsplit=8) so 3202-sample genotypes are
+  never materialised, stream from https URL or local path (no >2GB local file needed), optional cohort
+  filter to a small output, chunked pyarrow writing (memory bounded), and an all-zero COVERAGE GATE that
+  aborts rather than writing a dead parquet. +6 tests.

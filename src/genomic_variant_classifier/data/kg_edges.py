@@ -51,7 +51,7 @@ def parse_gmt(path) -> dict[str, list[str]]:
     """
     sets: dict[str, list[str]] = {}
     p = Path(path)
-    with p.open("r", encoding="utf-8") as fh:
+    with p.open("r", encoding="utf-8", errors="replace") as fh:
         for ln, raw in enumerate(fh, 1):
             line = raw.rstrip("\r\n")
             if not line.strip():
