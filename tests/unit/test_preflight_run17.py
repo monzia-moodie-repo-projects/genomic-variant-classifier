@@ -150,3 +150,59 @@ def test_parse_candidate_preserves_windows_backslash_paths():
     ns = gate._parse_candidate(cmd)
     assert vars(ns)["kg"] == r"C:\data\1kg\kg.parquet"
     assert vars(ns)["output"] == r"outputs\run17"
+
+
+# ---- STRING-DB gate (gnn_score prerequisite) ----
+def test_string_gate_cached_graph_ok(tmp_path):
+    cache = tmp_path / "cache"; cache.mkdir()
+    (cache / "string_graph_700.pkl").write_text("x")
+    rows = P.string_db_gate(700, cache, tmp_path / "nolinks.txt.gz")
+    assert rows[0][0] == "OK" and "cached graph" in rows[0][1]
+
+
+def test_string_gate_cached_links_ok(tmp_path):
+    cache = tmp_path / "cache"; cache.mkdir()
+    (cache / "string_links.parquet").write_text("x")
+    rows = P.string_db_gate(700, cache, tmp_path / "nolinks.txt.gz")
+    assert rows[0][0] == "OK" and "cached links" in rows[0][1]
+
+
+def test_string_gate_local_txtgz_ok(tmp_path):
+    cache = tmp_path / "cache"; cache.mkdir()
+    local = tmp_path / "9606.protein.links.detailed.v12.0.txt.gz"; local.write_text("x")
+    rows = P.string_db_gate(700, cache, local)
+    assert rows[0][0] == "OK" and "local links file" in rows[0][1]
+
+
+def test_string_gate_none_present_warns_about_download(tmp_path):
+    cache = tmp_path / "cache"; cache.mkdir()
+    rows = P.string_db_gate(700, cache, tmp_path / "absent.txt.gz")
+    assert rows[0][0] == "WARN" and "DOWNLOAD STRING" in rows[0][1]
+
+
+def test_string_threshold_from_auto_is_700():
+    ns = _parse("python scripts/run_phase2_eval.py --string-db auto")
+    assert P._string_threshold_from_ns(ns) == 700
+
+
+def test_string_threshold_from_numeric():
+    ns = _parse("python scripts/run_phase2_eval.py --string-db 400")
+    assert P._string_threshold_from_ns(ns) == 400
+
+
+def test_string_gate_threshold_picks_matching_pkl(tmp_path):
+    # a 700 pkl must NOT satisfy a 400-threshold run (different cache file)
+    cache = tmp_path / "cache"; cache.mkdir()
+    (cache / "string_graph_700.pkl").write_text("x")
+    rows = P.string_db_gate(400, cache, tmp_path / "absent.txt.gz")
+    assert rows[0][0] == "WARN"
+
+
+def test_run_all_includes_string_gate(tmp_path):
+    b = tmp_path / "schema_baseline.json"; _baseline(b, 81)
+    cache = tmp_path / "cache"; cache.mkdir()
+    (cache / "string_graph_700.pkl").write_text("x")
+    cmd = P.emit_command(None, "outputs/run17", None)
+    rows = P.run_all(cmd, str(tmp_path), 1000, defer_kg=True, baseline_path=b,
+                     scripts_dir=_SCRIPTS, cache_dir=cache, local_links=tmp_path / "absent.txt.gz")
+    assert any(lv == "OK" and "cached graph" in m for lv, m in rows)

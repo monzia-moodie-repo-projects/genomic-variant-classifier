@@ -52,6 +52,15 @@ EXPECTED_SCHEMA_COLS = 81
 SCHEMA_BASELINE_REL = "data/reference/schema/schema_baseline.json"
 HARD_GATE_SCRIPTS = ("verify_gnn_score.py", "run_schema_drift_check.py", "smoke_all_models.py")
 
+# gnn_score (THE Run-17 deliverable) source chain for --string-db auto. run_phase2_eval maps
+# 'auto' -> threshold 700; gnn.py StringDBGraph.build() resolves a STRING source in this order:
+#   cache_dir/string_graph_<thr>.pkl  ->  cache_dir/string_links.parquet  ->  local .txt.gz  ->  DOWNLOAD.
+# If all local sources are absent the GNN downloads STRING v12 from stringdb-downloads.org ON THE GPU
+# BOX (network + time dependency on a paid instance). The preflight verifies a local source exists.
+STRING_CACHE_DIR = "data/raw/cache"
+STRING_LOCAL_LINKS = "data/external/string/9606.protein.links.detailed.v12.0.txt.gz"
+STRING_DEFAULT_THRESHOLD = 700
+
 
 def _parquet_columns(path: Path) -> list[str]:
     """Read-only parquet column names from the footer schema (no row read)."""
@@ -128,14 +137,47 @@ def scripts_gate(scripts_dir: str | Path = "scripts") -> list[tuple[str, str]]:
     return rows
 
 
+def _string_threshold_from_ns(ns) -> int:
+    """Mirror run_phase2_eval: 'auto' or non-digit --string-db -> 700, else the int value."""
+    sd = vars(ns).get("string_db")
+    if not sd or sd == "auto" or not str(sd).lstrip("-").isdigit():
+        return STRING_DEFAULT_THRESHOLD
+    return int(sd)
+
+
+def string_db_gate(threshold: int = STRING_DEFAULT_THRESHOLD,
+                   cache_dir: str | Path = STRING_CACHE_DIR,
+                   local_links: str | Path = STRING_LOCAL_LINKS) -> list[tuple[str, str]]:
+    """gnn_score is THE Run-17 deliverable. Verify a LOCAL STRING source exists for the run's threshold
+    so the GNN doesn't fall back to a mid-run download from stringdb-downloads.org on the paid GPU box.
+    Resolution order mirrors gnn.py StringDBGraph.build(): cached graph pkl -> cached links parquet ->
+    local .txt.gz -> download."""
+    graph_pkl = Path(cache_dir) / f"string_graph_{threshold}.pkl"
+    links_pq = Path(cache_dir) / "string_links.parquet"
+    local = Path(local_links)
+    if graph_pkl.exists():
+        return [("OK", f"STRING: cached graph present ({graph_pkl}) -> gnn_score uses it directly, no download")]
+    if links_pq.exists():
+        return [("OK", f"STRING: cached links parquet present ({links_pq}) -> graph rebuilt locally, no download")]
+    if local.exists():
+        return [("OK", f"STRING: local links file present ({local}) -> parsed locally, no download")]
+    return [("WARN", f"STRING: no local source for threshold {threshold} ("
+                     f"{graph_pkl}, {links_pq}, {local} all absent) -> gnn_score will DOWNLOAD STRING v12 from "
+                     f"stringdb-downloads.org ON THE GPU BOX (network + time dependency). Pre-stage one of those "
+                     f"files, or confirm the box has outbound network, before launch.")]
+
+
 def run_all(command: str, data_root: str, n_train: int, defer_kg: bool,
             baseline_path: str | Path = SCHEMA_BASELINE_REL,
-            scripts_dir: str | Path = "scripts") -> list[tuple[str, str]]:
+            scripts_dir: str | Path = "scripts",
+            cache_dir: str | Path = STRING_CACHE_DIR,
+            local_links: str | Path = STRING_LOCAL_LINKS) -> list[tuple[str, str]]:
     """All Run-17 gates, composed. Pure -> unit-testable."""
     ns = gate._parse_candidate(command)
     # let preflight_gate own command-structure + data-path existence; ack kg/finngen (kg_gate is authority on kg)
     rows = list(gate.validate(ns, data_root, n_train, ack={"kg", "finngen"}))
     rows += kg_gate(ns, defer_kg, data_root)
+    rows += string_db_gate(_string_threshold_from_ns(ns), cache_dir, local_links)
     rows += schema_gate(baseline_path)
     rows += scripts_gate(scripts_dir)
     return rows
@@ -177,6 +219,10 @@ def main() -> int:
     ap.add_argument("--emit-defer", action="store_true", help="emit the gnn_score-only launch command")
     ap.add_argument("--output", default="outputs/run17")
     ap.add_argument("--max-train", type=int, default=None)
+    ap.add_argument("--string-cache-dir", default=STRING_CACHE_DIR,
+                    help="dir holding string_graph_<thr>.pkl / string_links.parquet")
+    ap.add_argument("--string-links", default=STRING_LOCAL_LINKS,
+                    help="local STRING links .txt.gz path")
     a = ap.parse_args()
 
     if a.emit_kg or a.emit_defer:
@@ -186,7 +232,8 @@ def main() -> int:
         print("nothing to do: pass --check \"<command>\", or --emit-kg <parquet> / --emit-defer", file=sys.stderr)
         return 2
 
-    rows = run_all(a.check, a.data_root, a.n_train, a.defer_kg, a.baseline)
+    rows = run_all(a.check, a.data_root, a.n_train, a.defer_kg, a.baseline,
+                   cache_dir=a.string_cache_dir, local_links=a.string_links)
     order = {"FAIL": 0, "WARN": 1, "ACK-NEEDED": 1, "OK": 2}
     for level, msg in sorted(rows, key=lambda r: order.get(r[0], 1)):
         print(f"  {level:<10} {msg}")
