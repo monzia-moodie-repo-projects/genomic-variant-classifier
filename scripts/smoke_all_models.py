@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-scripts/smoke_all_models.py — ALL-MODELS pre-launch smoke gate.
+scripts/smoke_all_models.py -- ALL-MODELS pre-launch smoke gate.
 
 Standing law (2026-06-04): before every full/cloud run, fit EVERY ensemble model
 at tiny scale with NO --skip flags and FAIL the launch if any model is missing,
@@ -36,13 +36,40 @@ Usage (on the VM, from repo root, before launching the full run):
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 
 import pandas as pd
+
+
+def _stream_child(cmd: list[str], cwd: Path, log_path: Path) -> tuple[int, str]:
+    """Run cmd, streaming its merged stdout/stderr LIVE to this console AND to log_path, while also
+    accumulating the full text for the post-run assertions. Replaces capture_output=True, which buffered
+    everything until the child exited (a multi-hour smoke then looked hung -- no output, hidden temp log).
+    PYTHONUNBUFFERED=1 is forced so the child flushes promptly.
+    """
+    env = dict(os.environ, PYTHONUNBUFFERED="1")
+    lines: list[str] = []
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(log_path, "w", encoding="utf-8") as logf:
+        proc = subprocess.Popen(
+            cmd, cwd=str(cwd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True, bufsize=1, env=env,
+        )
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            sys.stdout.write(line)
+            sys.stdout.flush()
+            logf.write(line)
+            logf.flush()
+            lines.append(line)
+        proc.wait()
+    return proc.returncode, "".join(lines)
 
 # Models that must always be in the roster at smoke scale (no skips, n<100k).
 _ALWAYS = {
@@ -181,9 +208,12 @@ def main(argv=None) -> int:
     # NOTE: deliberately NO --skip-* flags. That is the whole point.
 
     print(f"[run] {' '.join(cmd)}")
-    proc = subprocess.run(cmd, cwd=str(repo), capture_output=True, text=True)
-    log_text = proc.stdout + "\n" + proc.stderr
-    (outdir / "smoke.log").write_text(log_text, encoding="utf-8")
+    print(f"[outdir] {outdir}")
+    print(f"[log] {outdir / 'smoke.log'}  (tailing this also works while the smoke runs)")
+    print("[note] full DataPrepPipeline runs on the FULL cohort before --max-train applies; on a CPU-only\n"
+          "       box this can take hours. Output streams live below; on a GPU box it is fast.", flush=True)
+    rc, log_text = _stream_child(cmd, repo, outdir / "smoke.log")
+    proc = SimpleNamespace(returncode=rc)
 
     ok = True
     if proc.returncode != 0:
@@ -215,7 +245,7 @@ def main(argv=None) -> int:
     else:
         print(f"[info] smoke outputs kept at {outdir}")
 
-    print("\nRESULT:", "GREEN — safe to launch" if ok else "BLOCKED — do NOT launch")
+    print("\nRESULT:", "GREEN -- safe to launch" if ok else "BLOCKED -- do NOT launch")
     return 0 if ok else 1
 
 
