@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "run_label": "run16b-smoke",
-  "captured_from": "models/smoke_run16b/splits/X_train.parquet",
-  "captured_at": "2026-06-12T09:59:15.429521+00:00",
-  "n_columns": 81,
-  "expected_schema_hash": "93f6e0bc9e13275c0671f7b19a35efe4179f82597af030c4f82b6edde4f429ef",
+  "run_label": "run17-preflight",
+  "captured_from": "derived: run16b-smoke baseline + hetero_gnn_score(float64) for Run 17",
+  "captured_at": "2026-06-15T18:27:48.147753+00:00",
+  "n_columns": 82,
+  "expected_schema_hash": "c7e47d4983652b77774c1b51ac6d600571902f0fcf68bc42eccd0715a3febf02",
   "expected_dtypes": {
     "af_raw": "float64",
     "af_log10": "float64",
@@ -86,6 +86,7 @@
     "loeuf": "float64",
     "syn_z": "float64",
     "mis_z": "float64",
-    "reactome_pathway_count": "float64"
+    "reactome_pathway_count": "float64",
+    "hetero_gnn_score": "float64"
   }
 }

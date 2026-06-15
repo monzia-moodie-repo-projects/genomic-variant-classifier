@@ -3813,3 +3813,14 @@ environmental data/ incident caught by the fail-loud guard.
   loud SMOKE-ONLY log + distinct-gene count). Recommended fast laptop smoke: --clinvar-sample-n 50000
   (or run the full smoke on the GPU box). +3 tests. Shipped as a single idempotent patcher after a
   reboot left the original files undownloaded.
+
+
+## 2026-06-15 -- fix: schema baseline 81 -> 82 (hetero_gnn_score) so Run-17 Gate-B passes
+- TABULAR_FEATURES + EXPECTED_TABULAR_FEATURE_COUNT have been 82 since the 2026-06-13 hetero-GNN work
+  (hetero_gnn_score added after gnn_score; float64, default 0.5), but schema_baseline.json and
+  preflight_run17's EXPECTED_SCHEMA_COLS were left at 81. The run-time schema-drift gate would have
+  reported an added column at launch. Rebuilt the baseline 81 -> 82 (+hetero_gnn_score: float64,
+  expected_schema_hash recomputed via SchemaDriftAgent.hash_schema), bumped EXPECTED_SCHEMA_COLS to 82,
+  and moved the preflight schema-gate test + fixtures to 82. reactome_pathway_count and af_1kg_* were
+  already in the 81 baseline -- the sole delta was hetero_gnn_score. Verified: a synthetic 82-col matrix
+  matching the baseline produces zero schema drift (added/removed/dtype_changed all empty).

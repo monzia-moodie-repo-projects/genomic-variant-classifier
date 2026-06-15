@@ -48,7 +48,7 @@ POP_TARGET_CANDIDATES = {
     "af_1kg_sas": ("af_sas", "SAS_AF", "sas_af", "af_1kg_sas"),
     "af_1kg_amr": ("af_amr", "AMR_AF", "amr_af", "af_1kg_amr"),
 }
-EXPECTED_SCHEMA_COLS = 81
+EXPECTED_SCHEMA_COLS = 82
 SCHEMA_BASELINE_REL = "data/reference/schema/schema_baseline.json"
 HARD_GATE_SCRIPTS = ("verify_gnn_score.py", "run_schema_drift_check.py", "smoke_all_models.py")
 
@@ -111,7 +111,7 @@ def kg_gate(ns, defer_kg: bool, data_root: str) -> list[tuple[str, str]]:
 
 def schema_gate(baseline_path: str | Path = SCHEMA_BASELINE_REL,
                 expected: int = EXPECTED_SCHEMA_COLS) -> list[tuple[str, str]]:
-    """The 81-col baseline must be intact (guards the build_schema_baseline DEFAULT_MATRIX footgun)."""
+    """The 82-col baseline must be intact (guards the build_schema_baseline DEFAULT_MATRIX footgun)."""
     p = Path(baseline_path)
     if not p.exists():
         return [("FAIL", f"schema baseline not found: {p}")]
