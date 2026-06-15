@@ -71,6 +71,23 @@ def _stream_child(cmd: list[str], cwd: Path, log_path: Path) -> tuple[int, str]:
         proc.wait()
     return proc.returncode, "".join(lines)
 
+
+def _subset_clinvar(clinvar_path: str, n: int, outdir: Path) -> str:
+    """SMOKE-ONLY: random-sample the ClinVar parquet to n rows and write it under outdir, so the full
+    DataPrepPipeline (which is NOT bounded by --max-train) runs on a tiny cohort. Returns the subset path,
+    or the original path unchanged if it already has <= n rows. Loud + logged; never silent."""
+    src = pd.read_parquet(clinvar_path)
+    if len(src) <= n:
+        print(f"[smoke-subset] --clinvar already has {len(src)} <= {n} rows; using it as-is")
+        return clinvar_path
+    sub = src.sample(n=n, random_state=42).reset_index(drop=True)
+    out = outdir / "clinvar_smoke_sample.parquet"
+    sub.to_parquet(out, index=False)
+    g = sub["gene_symbol"].nunique() if "gene_symbol" in sub.columns else "n/a"
+    print(f"[smoke-subset] *** SMOKE ONLY *** capped --clinvar {len(src)} -> {n} variants "
+          f"({g} distinct genes) -> {out}. NOT a real run.")
+    return str(out)
+
 # Models that must always be in the roster at smoke scale (no skips, n<100k).
 _ALWAYS = {
     "random_forest", "xgboost", "lightgbm", "logistic_regression",
@@ -155,6 +172,9 @@ def main(argv=None) -> int:
     ap.add_argument("--lovd-path", dest="lovd_path")
     ap.add_argument("--string-db", dest="string_db", default="auto")
     ap.add_argument("--smoke-n", type=int, default=3000)
+    ap.add_argument("--clinvar-sample-n", dest="clinvar_sample_n", type=int, default=None,
+                    help="SMOKE-ONLY: random-sample the --clinvar parquet to N variants BEFORE prep so the "
+                         "full DataPrepPipeline runs tiny (minutes, not hours). Never use for a real run.")
     ap.add_argument("--n-folds", dest="n_folds", type=int, default=3)
     ap.add_argument("--min-review-tier", dest="min_review_tier", type=int, default=3)
     ap.add_argument("--keep-output", action="store_true")
@@ -188,9 +208,12 @@ def main(argv=None) -> int:
     print(f"[ok] backends available; expecting roster: {sorted(expected)}")
 
     outdir = Path(tempfile.mkdtemp(prefix="smoke_all_models_"))
+    clinvar_for_cmd = args.clinvar
+    if args.clinvar_sample_n:
+        clinvar_for_cmd = _subset_clinvar(args.clinvar, args.clinvar_sample_n, outdir)
     cmd = [
         sys.executable, str(eval_py),
-        "--clinvar", args.clinvar,
+        "--clinvar", clinvar_for_cmd,
         "--string-db", args.string_db,
         "--max-train", str(args.smoke_n),
         "--n-folds", str(args.n_folds),

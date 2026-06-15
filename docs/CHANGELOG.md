@@ -3804,3 +3804,12 @@ environmental data/ incident caught by the fail-loud guard.
 - The all-models smoke runs full-cohort prep -> belongs on the GPU box, not the CPU laptop.
 - Added scripts/Run17_Monitor.ps1 (adapted from Run16_Monitor.ps1) with a GNN mode for the
   [GNN-TRACE] / STRING-source / Best-val-AUC / gnn_score-non-degeneracy signals.
+
+
+## 2026-06-15 -- feat: smoke --clinvar-sample-n (fast smoke via tiny prep cohort)
+- The all-models smoke runs the FULL DataPrepPipeline (--max-train only caps tabular train rows after
+  prep), so on CPU it takes hours. --clinvar-sample-n N random-samples --clinvar to N variants before
+  prep (smoke-only, off by default, contained in the smoke wrapper so it can never reach a real run,
+  loud SMOKE-ONLY log + distinct-gene count). Recommended fast laptop smoke: --clinvar-sample-n 50000
+  (or run the full smoke on the GPU box). +3 tests. Shipped as a single idempotent patcher after a
+  reboot left the original files undownloaded.

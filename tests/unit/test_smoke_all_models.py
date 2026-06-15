@@ -38,3 +38,36 @@ def test_stream_child_creates_log_parent(tmp_path):
     log = tmp_path / "nested" / "dir" / "smoke.log"  # parent does not exist yet
     rc, _ = SM._stream_child([sys.executable, str(child)], tmp_path, log)
     assert rc == 0 and log.exists()
+
+
+def test_subset_clinvar_caps_rows_and_preserves_columns(tmp_path):
+    import pandas as pd
+    df = pd.DataFrame({
+        "variant_id": [f"v{i}" for i in range(5000)],
+        "gene_symbol": [f"GENE{i % 300}" for i in range(5000)],
+        "clnsig": [i % 2 for i in range(5000)],
+    })
+    src = tmp_path / "clinvar_full.parquet"; df.to_parquet(src, index=False)
+    out = SM._subset_clinvar(str(src), 500, tmp_path)
+    got = pd.read_parquet(out)
+    assert len(got) == 500
+    assert list(got.columns) == ["variant_id", "gene_symbol", "clnsig"]
+    assert got["gene_symbol"].nunique() > 1
+
+
+def test_subset_clinvar_returns_original_when_already_small(tmp_path):
+    import pandas as pd
+    df = pd.DataFrame({"variant_id": ["a", "b"], "gene_symbol": ["G1", "G2"]})
+    src = tmp_path / "small.parquet"; df.to_parquet(src, index=False)
+    assert SM._subset_clinvar(str(src), 1000, tmp_path) == str(src)
+
+
+def test_subset_clinvar_deterministic(tmp_path):
+    import pandas as pd
+    df = pd.DataFrame({"variant_id": [f"v{i}" for i in range(2000)],
+                       "gene_symbol": [f"G{i % 50}" for i in range(2000)]})
+    src = tmp_path / "c.parquet"; df.to_parquet(src, index=False)
+    da = tmp_path / "a"; da.mkdir(); db = tmp_path / "b"; db.mkdir()
+    a = pd.read_parquet(SM._subset_clinvar(str(src), 200, da))
+    b = pd.read_parquet(SM._subset_clinvar(str(src), 200, db))
+    assert a["variant_id"].tolist() == b["variant_id"].tolist()
