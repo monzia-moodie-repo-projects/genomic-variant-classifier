@@ -3783,3 +3783,13 @@ environmental data/ incident caught by the fail-loud guard.
 - Fix: parse with posix=False (backslashes survive) + strip surrounding quotes posix=False leaves on
   quoted tokens. Cross-platform; forward-slash paths unaffected. Only shlex.split in scripts/src;
   only preflight_run17 imports the parser. +1 platform-independent regression test (16 total).
+
+
+## 2026-06-14 -- feat: STRING source preflight gate for gnn_score (Gate C hardening)
+- gnn_score is the Run-17 deliverable; --string-db auto resolves threshold 700 and gnn.py builds the
+  graph from data/raw/cache/string_graph_700.pkl -> string_links.parquet -> local .txt.gz -> DOWNLOAD.
+  With no local source the GNN downloads STRING v12 on the paid GPU box mid-run; if the box has no
+  network gnn_score is constant and the run halts after GPU spend.
+- preflight_run17.py now has string_db_gate: derives threshold from --string-db, checks the cached
+  -> links -> local chain, OK if any present, WARN (naming the download dependency) if none.
+  --string-cache-dir/--string-links overrides for box paths. +8 tests (preflight suite 24).
