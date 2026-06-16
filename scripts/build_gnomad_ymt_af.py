@@ -1,23 +1,25 @@
 """build_gnomad_ymt_af.py -- Monzia Moodie
 
-Fetch gnomAD population allele frequencies for the cohort's chrY and chrMT variants -- the two
-chromosomes that are absent from gnomad_v4_exomes.parquet (its build omitted the Y/MT genes) AND from
-the 1000G high-coverage panel (no Y/MT in that release). Without this, ~6,300 cohort variants carry a
-silent allele_freq of 0 from every source.
+Fetch gnomAD population allele frequencies for the cohort's chrY and chrMT variants -- absent from both
+gnomad_v4_exomes.parquet (its gene list omitted Y/MT) and the 1000G high-coverage panel. Without this,
+~6,300 cohort variants carry a silent allele_freq=0 from every source.
 
-  Y  : gnomAD exome (genome fallback) AF via gene(gene_symbol){ variants } -- per Y gene_symbol.
-  MT : gnomAD mtDNA homoplasmic AF computed as ac_hom/an via region(chrom:"M"){ mitochondrial_variants }
-       in ONE call (~10,850 mtDNA variants total). af_hom is the ACMG-standard mtDNA population frequency.
+  Y  : gene(gene_symbol){ variants } -> exome.af (genome fallback). The cohort gene_symbol is dirty for Y
+       (semicolon-joined multi-gene strings + free-text), so symbols are CLEANED (split on ;/, drop
+       free-text) and queried in ALIASED BATCHES with retry+backoff -- gnomAD rate-limits rapid serial
+       calls and returns non-JSON, which must be retried, never silently skipped.
+  MT : region(chrom:"M"){ mitochondrial_variants } in ONE call -> af_hom = ac_hom/an (the ACMG-standard
+       mtDNA population frequency; af_hom/af_het are NOT API fields, so computed from counts).
 
-Output: data/processed/gnomad_ymt_af.parquet (variant_id, allele_freq) -- identical schema to the main
-gnomAD parquet -- plus an optional dedup-merge onto gnomad_v4_exomes.parquet so the existing --gnomad
-join fills Y/MT with no connector change.
+Output data/processed/gnomad_ymt_af.parquet (variant_id, allele_freq) + optional dedup-merge onto
+gnomad_v4_exomes.parquet so the existing --gnomad join fills Y/MT with no connector change.
 
 Author: Monzia Moodie
 """
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 import time
 from pathlib import Path
@@ -26,51 +28,79 @@ import pandas as pd
 
 GNOMAD_API = "https://gnomad.broadinstitute.org/api"
 
-_Y_QUERY = (
-    "query($s:String!,$ds:DatasetId!){ gene(gene_symbol:$s, reference_genome:GRCh38){"
-    " variants(dataset:$ds){ variant_id exome{af} genome{af} } } }"
-)
 _MT_REGION_QUERY = (
     "query($ds:DatasetId!){ region(chrom:\"M\", start:1, stop:16569, reference_genome:GRCh38){"
     " mitochondrial_variants(dataset:$ds){ variant_id an ac_hom ac_het } } }"
 )
+_VALID_SYM = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 
 # ---------------------------------------------------------------- pure helpers (unit-tested)
 def norm_key(gnomad_vid: str) -> str:
-    """gnomAD 'Y-12904862-A-G' / 'M-3308-T-C' -> bare 'chrom:pos:ref:alt'.
-    chrom: strip a leading 'chr', and map mitochondrial 'M' -> 'MT' to match the ClinVar cohort."""
+    """gnomAD 'Y-12904862-A-G' / 'M-3308-T-C' -> bare 'chrom:pos:ref:alt' (strip 'chr'; map 'M' -> 'MT')."""
     parts = str(gnomad_vid).split("-")
     if len(parts) < 4:
         return str(gnomad_vid)
     chrom = parts[0][3:] if parts[0].startswith("chr") else parts[0]
     if chrom == "M":
         chrom = "MT"
-    pos, ref = parts[1], parts[2]
-    alt = "-".join(parts[3:])  # alt should not contain '-', but be safe
-    return f"{chrom}:{pos}:{ref}:{alt}"
+    return f"{chrom}:{parts[1]}:{parts[2]}:{'-'.join(parts[3:])}"
 
 
-def parse_y_af(payload: dict) -> dict:
-    """gene.variants payload -> {bare_key: af}. af = exome.af if present else genome.af; skip null AF."""
-    out: dict[str, float] = {}
-    gene = (payload.get("data") or {}).get("gene") or {}
-    for v in gene.get("variants") or []:
-        vid = v.get("variant_id")
-        if not vid:
+def clean_y_genes(raw_symbols) -> list:
+    """Cohort Y gene_symbol is dirty (';'-joined multi-gene + free-text). Split on ;/, keep only valid
+    single symbols (no spaces; alnum/._-), drop '-'/'nan'/free-text. -> sorted unique gene symbols."""
+    genes: set = set()
+    for gs in raw_symbols:
+        gs = str(gs).strip()
+        if not gs or gs == "-" or gs.lower() == "nan":
             continue
-        af = (v.get("exome") or {}).get("af")
-        if af is None:
-            af = (v.get("genome") or {}).get("af")
-        if af is None:
+        for tok in re.split(r"[;,]", gs):
+            tok = tok.strip()
+            if tok and " " not in tok and _VALID_SYM.match(tok):
+                genes.add(tok)
+    return sorted(genes)
+
+
+def build_y_batch_query(genes) -> str:
+    """Aliased multi-gene query (one HTTP call per ~8 genes -> avoids rate-limiting). Symbols are embedded
+    inline (GraphQL aliases can't be variables); callers MUST pass clean_y_genes output (validated safe)."""
+    parts = [
+        f'a{i}: gene(gene_symbol: "{g}", reference_genome: GRCh38) '
+        f"{{ variants(dataset: $ds) {{ variant_id exome {{ af }} genome {{ af }} }} }}"
+        for i, g in enumerate(genes)
+    ]
+    return "query($ds: DatasetId!) { " + " ".join(parts) + " }"
+
+
+def _af_from_variant(v) -> float:
+    af = (v.get("exome") or {}).get("af")
+    if af is None:
+        af = (v.get("genome") or {}).get("af")
+    return None if af is None else float(af)
+
+
+def parse_y_batch(payload: dict) -> dict:
+    """Aliased gene-batch payload -> {bare_key: af}. Null aliases (gene-not-found) are skipped, so a
+    partial response with per-alias errors still yields every gene that DID resolve."""
+    out: dict = {}
+    for _alias, gene in (payload.get("data") or {}).items():
+        if not gene:
             continue
-        out[norm_key(vid)] = float(af)
+        for v in gene.get("variants") or []:
+            vid = v.get("variant_id")
+            if not vid:
+                continue
+            af = _af_from_variant(v)
+            if af is None:
+                continue
+            out[norm_key(vid)] = af
     return out
 
 
 def parse_mt_af(payload: dict) -> dict:
     """region.mitochondrial_variants payload -> {bare_key: af_hom}. af_hom = ac_hom/an (an>0)."""
-    out: dict[str, float] = {}
+    out: dict = {}
     region = (payload.get("data") or {}).get("region") or {}
     for v in region.get("mitochondrial_variants") or []:
         vid = v.get("variant_id")
@@ -83,9 +113,8 @@ def parse_mt_af(payload: dict) -> dict:
 
 
 def build_ymt_frame(cohort_keys: set, y_af: dict, mt_af: dict) -> pd.DataFrame:
-    """Rows (variant_id='gnomad:'+key, allele_freq) for keys present in BOTH gnomAD and the cohort.
-    MT wins over Y on the impossible event of a key collision (disjoint chroms -> never happens)."""
-    af_map: dict[str, float] = {}
+    """Rows (variant_id='gnomad:'+key, allele_freq) for keys present in BOTH gnomAD and the cohort."""
+    af_map: dict = {}
     for k, v in y_af.items():
         if k in cohort_keys:
             af_map[k] = v
@@ -106,7 +135,7 @@ def merge_into_gnomad(ymt_df: pd.DataFrame, base_path: str, out_path: str) -> tu
 
 
 def cohort_ymt(clinvar_path: str) -> tuple:
-    """-> (set of bare Y/MT keys, sorted list of distinct Y gene_symbols). Reads variant_id + gene_symbol."""
+    """-> (set of bare Y/MT keys, sorted distinct raw Y gene_symbols). Reads variant_id + gene_symbol."""
     cols = pd.read_parquet(clinvar_path, columns=["variant_id", "gene_symbol"])
     vid = cols["variant_id"].astype(str)
     toks = vid.str.split(":", expand=True)
@@ -117,39 +146,52 @@ def cohort_ymt(clinvar_path: str) -> tuple:
     is_y = chrom == "Y"
     is_mt = chrom.isin(["MT", "M"])
     keys = set(key[is_y | is_mt])
-    y_genes = sorted({g for g in cols.loc[is_y, "gene_symbol"].dropna().astype(str) if g and g.lower() != "nan"})
-    return keys, y_genes
+    y_raw = sorted({str(g) for g in cols.loc[is_y, "gene_symbol"].dropna()})
+    return keys, y_raw
 
 
 # ---------------------------------------------------------------- network (thin; lazy requests import)
-def _post(session, query: str, variables: dict, timeout: int = 120) -> dict:
-    r = session.post(GNOMAD_API, json={"query": query, "variables": variables}, timeout=timeout)
-    j = r.json()
-    if j.get("errors"):
-        raise RuntimeError(f"gnomAD GraphQL errors: {j['errors']}")
-    return j
+def _post_retry(session, query: str, variables: dict, max_retries: int = 6, base_pause: float = 2.0) -> dict:
+    """POST with retry+exponential backoff. gnomAD rate-limits -> non-200 or non-JSON 200; both are RETRIED
+    (never silently skipped). Returns parsed JSON on the first 200-with-valid-JSON (per-alias 'errors' in
+    the body are tolerated -- partial data is used). Raises only after exhausting retries."""
+    last = "?"
+    for attempt in range(max_retries):
+        try:
+            r = session.post(GNOMAD_API, json={"query": query, "variables": variables}, timeout=180)
+            if r.status_code == 200:
+                try:
+                    return r.json()
+                except ValueError:
+                    last = "non-JSON 200 (throttled)"
+            else:
+                last = f"HTTP {r.status_code}"
+        except Exception as e:  # noqa: BLE001
+            last = repr(e)
+        time.sleep(base_pause * (2 ** attempt))  # 2,4,8,16,32,64s
+    raise RuntimeError(f"gnomAD throttled/failed after {max_retries} retries: {last}")
 
 
-def fetch_y_af(y_genes, dataset: str, pause: float = 0.5) -> dict:
+def fetch_y_af(clean_genes, dataset: str, batch_size: int = 8, pause: float = 3.0) -> dict:
     import requests
     s = requests.Session()
-    out: dict[str, float] = {}
-    for i, g in enumerate(y_genes, 1):
+    out: dict = {}
+    batches = [clean_genes[i:i + batch_size] for i in range(0, len(clean_genes), batch_size)]
+    for bi, batch in enumerate(batches, 1):
         try:
-            out.update(parse_y_af(_post(s, _Y_QUERY, {"s": g, "ds": dataset})))
-        except Exception as e:  # noqa: BLE001 -- loud, never silent
-            print(f"  [WARN] Y gene {g}: {e}", file=sys.stderr)
+            out.update(parse_y_batch(_post_retry(s, build_y_batch_query(batch), {"ds": dataset})))
+        except Exception as e:  # noqa: BLE001 -- loud after retries, never silent
+            print(f"  [WARN] Y batch {bi} ({batch[0]}..{batch[-1]}): {e}", file=sys.stderr)
+        print(f"  ...Y batch {bi}/{len(batches)} ({len(batch)} genes), {len(out)} variants so far")
         if pause:
             time.sleep(pause)
-        if i % 5 == 0:
-            print(f"  ...{i}/{len(y_genes)} Y genes, {len(out)} variants so far")
     return out
 
 
 def fetch_mt_af(dataset: str) -> dict:
     import requests
     s = requests.Session()
-    return parse_mt_af(_post(s, _MT_REGION_QUERY, {"ds": dataset}))
+    return parse_mt_af(_post_retry(s, _MT_REGION_QUERY, {"ds": dataset}))
 
 
 def main(argv=None) -> int:
@@ -159,33 +201,43 @@ def main(argv=None) -> int:
                     help="existing gnomAD parquet to merge onto (variant_id, allele_freq)")
     ap.add_argument("--out", default="data/processed/gnomad_ymt_af.parquet")
     ap.add_argument("--merged-out", default=None,
-                    help="if set, write base+Y/MT dedup-merged parquet here (e.g. gnomad_v4_exomes_ymt.parquet)")
+                    help="if set, write base+Y/MT dedup-merged parquet here")
     ap.add_argument("--dataset", default="gnomad_r4")
-    ap.add_argument("--pause", type=float, default=0.5, help="seconds between Y-gene calls (rate-limit courtesy)")
+    ap.add_argument("--batch-size", type=int, default=8, help="Y genes per aliased request")
+    ap.add_argument("--pause", type=float, default=3.0, help="seconds between Y batches (rate-limit courtesy)")
+    ap.add_argument("--min-y-cover", type=float, default=0.5,
+                    help="warn if matched Y fraction < this (catches a silent throttle/clean regression)")
     a = ap.parse_args(argv)
 
-    keys, y_genes = cohort_ymt(a.clinvar)
-    n_y = sum(1 for k in keys if k.split(":", 1)[0] == "Y")
-    n_mt = len(keys) - n_y
-    print(f"[cohort] {len(keys)} Y/MT variants ({n_y} Y / {n_mt} MT); {len(y_genes)} distinct Y genes")
+    keys, y_raw = cohort_ymt(a.clinvar)
+    y_keys = {k for k in keys if k.split(":", 1)[0] == "Y"}
+    mt_keys = keys - y_keys
+    y_genes = clean_y_genes(y_raw)
+    print(f"[cohort] {len(keys)} Y/MT keys ({len(y_keys)} Y / {len(mt_keys)} MT); "
+          f"{len(y_raw)} raw Y gene strings -> {len(y_genes)} clean Y genes")
 
     print("[fetch] gnomAD mtDNA region (one call) ...")
     mt_af = fetch_mt_af(a.dataset)
-    print(f"  mtDNA: {len(mt_af)} gnomAD variants returned")
-    print(f"[fetch] gnomAD Y genes ({len(y_genes)}) ...")
-    y_af = fetch_y_af(y_genes, a.dataset, a.pause)
-    print(f"  Y: {len(y_af)} gnomAD variants returned")
+    print(f"  mtDNA: {len(mt_af)} gnomAD variants")
+    print(f"[fetch] gnomAD Y genes in batches of {a.batch_size} ...")
+    y_af = fetch_y_af(y_genes, a.dataset, a.batch_size, a.pause)
+    print(f"  Y: {len(y_af)} gnomAD variants")
 
     df = build_ymt_frame(keys, y_af, mt_af)
     cov_y = sum(1 for v in df["variant_id"] if v.startswith("gnomad:Y:"))
     cov_mt = len(df) - cov_y
+    print(f"[coverage] Y {cov_y}/{len(y_keys)} ({cov_y / max(len(y_keys),1):.0%}) | "
+          f"MT {cov_mt}/{len(mt_keys)} ({cov_mt / max(len(mt_keys),1):.0%})")
+    if len(df) == 0:
+        print("[ERROR] zero matches -- check dataset/chrom before merging", file=sys.stderr)
+        return 1
+    if cov_y / max(len(y_keys), 1) < a.min_y_cover:
+        print(f"[WARN] Y coverage below {a.min_y_cover:.0%} -- possible throttle or gene-clean regression; "
+              "inspect before merging.", file=sys.stderr)
+
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(a.out, index=False)
-    print(f"[write] {a.out}: {len(df)} cohort Y/MT variants matched gnomAD ({cov_y} Y / {cov_mt} MT)")
-    if len(df) == 0:
-        print("[ERROR] zero matches -- check dataset id / chrom naming before merging", file=sys.stderr)
-        return 1
-
+    print(f"[write] {a.out}: {len(df)} rows")
     if a.merged_out:
         nb, ny, nc = merge_into_gnomad(df, a.gnomad, a.merged_out)
         print(f"[merge] {a.gnomad} ({nb}) + Y/MT ({ny}) -> {a.merged_out} ({nc} unique)")
