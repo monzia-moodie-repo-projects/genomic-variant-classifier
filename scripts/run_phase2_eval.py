@@ -177,6 +177,11 @@ def parse_args(argv=None) -> argparse.Namespace:
     p.add_argument("--n-folds", type=int, default=5)
     p.add_argument("--min-review-tier", type=int, default=3)
     p.add_argument("--auroc-target", type=float, default=0.90)
+    p.add_argument(
+        "--gnn-epochs", type=int, default=100,
+        help="GNN + hetero-GNN training epochs (default 100 = real-run value; lower e.g. 10 ONLY to "
+             "speed a full-flag laptop smoke -- NOT a GNN deferral).",
+    )
     p.add_argument("--output", default="outputs/phase2_eval")
     return p.parse_args(argv)
 
@@ -390,7 +395,7 @@ def main() -> int:
                     string_threshold = int(_sd)
                 string_db_path = None if _sd == "auto" else _sd
                 logger.info(
-                    "GNN training: STRING threshold=%d, epochs=100", string_threshold
+                    "GNN training: STRING threshold=%d, epochs=%d", string_threshold, args.gnn_epochs
                 )
                 # Use the 55 tabular feature columns as node features
                 node_feat_cols = [c for c in X_train.columns if c != "gnn_score"]
@@ -461,7 +466,7 @@ def main() -> int:
                     string_threshold=string_threshold,
                     string_kwargs=_string_kwargs,
                     test_split=0.15,
-                    epochs=100,
+                    epochs=args.gnn_epochs,
                     batch_size=32,
                     layer_type=args.layer_type,
                     edge_denoise=args.edge_denoise,
@@ -666,7 +671,7 @@ def main() -> int:
                             len(fg.node_genes), fg.relations, int(fg.focal_idx.numel()))
                 _htr = HeteroGNNTrainer(
                     in_dim=len(hetero_feat_cols), relations=fg.relations,
-                    hidden=64, n_layers=2, epochs=100,
+                    hidden=64, n_layers=2, epochs=args.gnn_epochs,
                 )
                 _hloss = _htr.train(fg)
                 hetero_scorer = HeteroGNNScorer.from_trained(_htr, fg)

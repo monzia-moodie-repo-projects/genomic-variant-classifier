@@ -3845,3 +3845,11 @@ environmental data/ incident caught by the fail-loud guard.
   322 binary-garbage edges that printed "OK". parse_gmt now inspects the leading bytes: ZIP (PK) and
   NUL-binary inputs raise a clear ValueError (telling you to extract the .zip), gzip (.gz) is transparently
   decompressed, and a parse yielding 0 gene sets raises instead of returning empty. +5 tests.
+
+
+## 2026-06-15 -- feat: --gnn-epochs cap (fast full-flag smoke; real run unchanged)
+- run_phase2_eval gains --gnn-epochs (default 100 == prior hardcoded value -> real launch byte-identical),
+  threaded through the GNN log line, the main GNN train_gnn_pipeline call, and the hetero-GNN trainer.
+- smoke_all_models gains --gnn-epochs, forwarded to run_phase2_eval ONLY when set, via an extracted pure
+  _build_eval_cmd helper (unit-tested). Lets a full-flag laptop smoke run ~10 epochs instead of 100.
+- +5 tests (tests/unit/test_gnn_epochs_flag.py). Not a GNN deferral.

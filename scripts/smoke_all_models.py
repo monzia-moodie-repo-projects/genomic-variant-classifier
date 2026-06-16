@@ -159,6 +159,30 @@ def check_outputs(outdir: Path, log_text: str, expected: set[str]) -> tuple[bool
     return ok, msgs
 
 
+def _build_eval_cmd(args, eval_py, clinvar_for_cmd, outdir):
+    """Build the run_phase2_eval argv (pure + unit-testable). Optional path flags are forwarded only
+    when set; --gnn-epochs is forwarded only when explicitly provided (default None -> eval keeps 100)."""
+    cmd = [
+        sys.executable, str(eval_py),
+        "--clinvar", clinvar_for_cmd,
+        "--string-db", args.string_db,
+        "--max-train", str(args.smoke_n),
+        "--n-folds", str(args.n_folds),
+        "--min-review-tier", str(args.min_review_tier),
+        "--output", str(outdir),
+    ]
+    for flag, val in [
+        ("--gnomad", args.gnomad), ("--spliceai", args.spliceai),
+        ("--alphamissense", args.alphamissense), ("--seq-windows", args.seq_windows),
+        ("--gnomad-constraint", args.gnomad_constraint),
+        ("--dbnsfp-path", args.dbnsfp_path), ("--lovd-path", args.lovd_path),
+        ("--gnn-epochs", str(args.gnn_epochs) if getattr(args, "gnn_epochs", None) is not None else ""),
+    ]:
+        if val:
+            cmd += [flag, val]
+    return cmd
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="All-models pre-launch smoke gate")
     ap.add_argument("--repo", default=".")
@@ -177,6 +201,9 @@ def main(argv=None) -> int:
                          "full DataPrepPipeline runs tiny (minutes, not hours). Never use for a real run.")
     ap.add_argument("--n-folds", dest="n_folds", type=int, default=3)
     ap.add_argument("--min-review-tier", dest="min_review_tier", type=int, default=3)
+    ap.add_argument("--gnn-epochs", dest="gnn_epochs", type=int, default=None,
+                    help="Forward --gnn-epochs to run_phase2_eval (e.g. 10) to speed a full-flag "
+                         "smoke; omitted by default so the smoke uses the real 100.")
     ap.add_argument("--keep-output", action="store_true")
     args = ap.parse_args(argv)
 
@@ -211,23 +238,7 @@ def main(argv=None) -> int:
     clinvar_for_cmd = args.clinvar
     if args.clinvar_sample_n:
         clinvar_for_cmd = _subset_clinvar(args.clinvar, args.clinvar_sample_n, outdir)
-    cmd = [
-        sys.executable, str(eval_py),
-        "--clinvar", clinvar_for_cmd,
-        "--string-db", args.string_db,
-        "--max-train", str(args.smoke_n),
-        "--n-folds", str(args.n_folds),
-        "--min-review-tier", str(args.min_review_tier),
-        "--output", str(outdir),
-    ]
-    for flag, val in [
-        ("--gnomad", args.gnomad), ("--spliceai", args.spliceai),
-        ("--alphamissense", args.alphamissense), ("--seq-windows", args.seq_windows),
-        ("--gnomad-constraint", args.gnomad_constraint),
-        ("--dbnsfp-path", args.dbnsfp_path), ("--lovd-path", args.lovd_path),
-    ]:
-        if val:
-            cmd += [flag, val]
+    cmd = _build_eval_cmd(args, eval_py, clinvar_for_cmd, outdir)
     # NOTE: deliberately NO --skip-* flags. That is the whole point.
 
     print(f"[run] {' '.join(cmd)}")
