@@ -3853,3 +3853,16 @@ environmental data/ incident caught by the fail-loud guard.
 - smoke_all_models gains --gnn-epochs, forwarded to run_phase2_eval ONLY when set, via an extracted pure
   _build_eval_cmd helper (unit-tested). Lets a full-flag laptop smoke run ~10 epochs instead of 100.
 - +5 tests (tests/unit/test_gnn_epochs_flag.py). Not a GNN deferral.
+
+
+## 2026-06-15 -- data: 1000G af_1kg parquet built + ACTIVE (chr1-22 + X, 437,668 variants)
+- Built data/external/1kgp/kg_grch38_af.parquet from the 1000G high-coverage phased panel
+  (20220422_3202_phased_SNV_INDEL_SV) via per-chromosome streamed cohort-filtered shards + merge:
+  chr1-22 (426,358) + chrX (11,310; .v2 panel, AF_<POP> + AC_Hemi_* male ploidy) = 437,668 unique
+  variants, ~9.9% of the 4.42M cohort (the ~90% absent are rare/private to 1000G -- af_1kg=0 is honest,
+  not a dead feature). 5 super-pops non-zero (AFR 291432 / EUR 205292 / EAS 154084 / SAS 188461 /
+  AMR 251739). 6.7 MB. fill_population_af join verified (bare chrom:pos:ref:alt key, ^chr strip).
+- chrY/MT NOT in the 1000G high-coverage panel (autosomes + X only; chrY URL 404-confirmed). af_1kg_* is
+  structurally 0 for the 3,191 Y + 3,124 MT cohort variants -- a 1000G data-availability limit, not a
+  pipeline gap. gnomAD Y/MT coverage UNDER AUDIT (project source is v4.1 EXOMES: excludes MT, Y exonic-only).
+- Durability: rclone genvarcla: (parquet + shards) + committed (26342e9, force-add past data/ gitignore).
