@@ -1,13 +1,19 @@
 # INCIDENT 2026-06-16 — hetero `hetero_gnn_score` inert (0.5 default) in val/test under gene-disjoint splits
 
 ## Status
-DIAGNOSED — root cause confirmed against live source (`scripts/run_phase2_eval.py`
-hetero block; `src/genomic_variant_classifier/models/hetero_gnn_scorer.py`;
-`models/hetero_gnn.py`). FIX IMPLEMENTED and validated torch-free; in-env smoke
-confirmation pending (no torch in the diagnosis sandbox). The **per-split audit
-detection has LANDED**; the scorer/eval fix ships as `apply_hetero_inductive_fix.py`
-(pending the in-env smoke + push). The full-flag Run-17 smoke printed
-`RESULT: GREEN -- safe to launch` despite the defect.
+RESOLVED (2026-06-16) — root cause confirmed against live source
+(`scripts/run_phase2_eval.py` hetero block;
+`src/genomic_variant_classifier/models/hetero_gnn_scorer.py`; `models/hetero_gnn.py`).
+Fix committed `38364a2` (`fix(hetero-gnn): score val/test inductively via
+from_full_graph`); per-split audit detection `b19581e`; torch-gated PyG regression
+`b4d438b` (`tests/unit/test_hetero_inductive_pyg.py`) confirms `from_full_graph`
+scores gene-disjoint val/test through the **real HeteroConv forward** (not the 0.5
+default) and that the legacy train-only node set leaves them inert (2 passed under
+`.venv312`). Full suite 1283 passed / 7 skipped. The full-flag `--hetero-gnn` smoke
+remains the standing pre-Run-17 pre-flight gate, but the fix itself is now confirmed
+by the regression test. (The original full-flag smoke printed
+`RESULT: GREEN -- safe to launch` despite the defect; the per-split audit fix closes
+that detection gap.)
 
 ## Symptoms
 The `--hetero-gnn` full-flag smoke injected real scores into train but the **0.5
@@ -131,11 +137,16 @@ only feeds the hetero graph, not the feature). Regression: `tests/unit/test_run1
   zero features + train-only focal; `HeteroGNNScorer` over a union map resolves
   val/test; existing hetero suite (`test_hetero_gnn*`, `test_preflight_hetero_gate`)
   unchanged; patcher is EOL-agnostic and idempotent on LF and CRLF trees.
-- **In-env (pending, the real gate):** run the full-flag smoke with `--hetero-gnn`;
-  the log must show `[HETERO-GNN] node set spans all splits: union=...` and
-  `val`/`test injected ... nunique > 1` (not `nunique=1, std=0.0000`); then
-  `python scripts\audit_smoke_feature_population.py <outdir>\splits --run17` must read
-  `hetero_gnn_score ... train=ok val=ok test=ok`; full `pytest -q` green.
+- **In-env (CONFIRMED 2026-06-16):** the torch-gated regression
+  `tests/unit/test_hetero_inductive_pyg.py` ran under `.venv312` (torch_geometric
+  present) and **passed 2/2** — `from_full_graph` scores gene-disjoint val/test through
+  the real HeteroConv forward (not the 0.5 default), and the legacy train-only node set
+  leaves them inert. Full `pytest -q` green (1283 passed / 7 skipped). RETAINED as the
+  standing pre-Run-17 pre-flight gate: the full-flag `--hetero-gnn` smoke log must show
+  `[HETERO-GNN] node set spans all splits: union=...` and `val`/`test injected ...
+  nunique > 1` (not `nunique=1, std=0.0000`), then
+  `python scripts\audit_smoke_feature_population.py <SMOKE_OUTDIR>\splits --run17`
+  must read `hetero_gnn_score ... train=ok val=ok test=ok`.
 
 ## Relationship to INCIDENT_2026-06-04 (gnn-score-injection-degenerate)
 Same class of bug, parallel modality. The 2026-06-04 fix added
@@ -154,6 +165,6 @@ train.**
 - `src/genomic_variant_classifier/models/hetero_gnn.py` — `build_hetero_gene_graph`
   (`node_genes = list(genes)`; edge-only sanitization).
 - `scripts/audit_smoke_feature_population.py` — per-split detection (`_load_splits`).
-- `tests/unit/test_hetero_inductive_fix.py`, `tests/unit/test_run17_audit_persplit.py`.
+- `tests/unit/test_hetero_inductive_fix.py` (torch-free), `tests/unit/test_hetero_inductive_pyg.py` (torch-gated PyG), `tests/unit/test_run17_audit_persplit.py`.
 - `docs/incidents/INCIDENT_2026-06-04_gnn-score-injection-degenerate.md` — homogeneous sibling.
 - `docs/incidents/INCIDENT_2026-04-30_gnn-gene-symbol-keyerror.md` — Patch 6b (GNN training input).
