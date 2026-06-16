@@ -91,6 +91,7 @@ def build_hetero_focal_graph(
     node_feature_cols: Sequence[str],
     *,
     label_col: str = "acmg_label",
+    genes: Sequence[str] | None = None,
 ) -> HeteroFocalGraph:
     """Assemble the shared training graph: node type 'gene', relations
     'interacts_with' (STRING) + the KG relations; gene-mean node features;
@@ -98,9 +99,17 @@ def build_hetero_focal_graph(
     """
     import torch
 
-    genes = sorted({str(g) for g in variant_df["gene_symbol"].dropna()})
+    # genes override (inductive full-graph scoring, INCIDENT_2026-06-16): when supplied, the
+    # node set spans ALL splits (train+val+test) so gene-disjoint val/test genes become real
+    # nodes and get scored. Node features + focal are still computed from variant_df (TRAIN),
+    # so val/test nodes are zero-feature and scored by graph structure -- no label leak, and
+    # methodologically identical to GNNScorer.from_full_graph.
+    if genes is None:
+        genes = sorted({str(g) for g in variant_df["gene_symbol"].dropna()})
+    else:
+        genes = sorted({str(g) for g in genes if str(g)})
     if not genes:
-        raise ValueError("variant_df has no non-null gene_symbol values.")
+        raise ValueError("no genes for the hetero graph (variant_df gene_symbol empty and no genes= override).")
     feats, focal, ys = assemble_node_features_and_focal(
         variant_df, genes, node_feature_cols, label_col
     )
@@ -183,6 +192,28 @@ class HeteroGNNScorer:
                 if gene_scores else np.zeros(1))
         logger.info(
             "HeteroGNNScorer: %d gene scores (mean=%.3f std=%.4f).",
+            len(gene_scores), float(vals.mean()), float(vals.std()),
+        )
+        return cls(gene_scores)
+
+    @classmethod
+    def from_full_graph(cls, trainer: HeteroGNNTrainer, fg: HeteroFocalGraph) -> "HeteroGNNScorer":
+        """Inductive scorer: one hetero_gnn_score per graph node, keyed by gene symbol.
+
+        Mirror of GNNScorer.from_full_graph. When fg is built over the union of all split
+        genes (genes= override in build_hetero_focal_graph), this scores gene-disjoint
+        val/test genes too -- fixing the train-only deadness where focal-graph scoring left
+        hetero_gnn_score at the 0.5 default for val/test (INCIDENT_2026-06-16).
+        """
+        node_scores = trainer.score_all_nodes(fg)
+        genes = fg.node_genes
+        if len(genes) != len(node_scores):
+            raise ValueError(f"node_genes ({len(genes)}) != node_scores ({len(node_scores)})")
+        gene_scores = {str(g): float(s) for g, s in zip(genes, node_scores)}
+        vals = (np.fromiter(gene_scores.values(), dtype=float) if gene_scores else np.zeros(1))
+        logger.info(
+            "HeteroGNNScorer.from_full_graph: %d gene scores covering all graph nodes "
+            "(mean=%.3f std=%.4f).",
             len(gene_scores), float(vals.mean()), float(vals.std()),
         )
         return cls(gene_scores)

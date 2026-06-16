@@ -632,7 +632,25 @@ def main() -> int:
                 hetero_feat_cols = [
                     c for c in X_train.columns if c not in ("gnn_score", "hetero_gnn_score")
                 ]
-                cohort_genes = sorted({g for g in hetero_df["gene_symbol"] if g})
+                # Inductive full-graph node set (INCIDENT_2026-06-16): span train+val+test
+                # genes so the HeteroGNNScorer covers gene-disjoint val/test (was train-only
+                # -> hetero_gnn_score=0.5 default in val/test, dead at eval/inference).
+                _hmv = outdir / "splits" / "meta_val.parquet"
+                _hmte = outdir / "splits" / "meta_test.parquet"
+                _hmv_df = pd.read_parquet(_hmv) if _hmv.exists() else None
+                _hmte_df = pd.read_parquet(_hmte) if _hmte.exists() else None
+                _val_genes = ({str(g) for g in _hmv_df["gene_symbol"].dropna() if str(g)}
+                              if _hmv_df is not None and "gene_symbol" in _hmv_df.columns else set())
+                _test_genes = ({str(g) for g in _hmte_df["gene_symbol"].dropna() if str(g)}
+                               if _hmte_df is not None and "gene_symbol" in _hmte_df.columns else set())
+                _train_genes = {g for g in hetero_df["gene_symbol"] if g}
+                cohort_genes = sorted(_train_genes | _val_genes | _test_genes)
+                logger.info(
+                    "[HETERO-GNN] node set spans all splits: union=%d (train-only=%d, "
+                    "val+test added=%d)",
+                    len(cohort_genes), len(_train_genes),
+                    len(cohort_genes) - len(_train_genes),
+                )
 
                 # STRING interacts_with edges (from --string-db, cohort-restricted)
                 string_edges = []
@@ -665,7 +683,8 @@ def main() -> int:
                     )
 
                 fg = build_hetero_focal_graph(
-                    hetero_df, string_edges, kg_by_rel, hetero_feat_cols, label_col="acmg_label",
+                    hetero_df, string_edges, kg_by_rel, hetero_feat_cols,
+                    label_col="acmg_label", genes=cohort_genes,
                 )
                 logger.info("[HETERO-GNN] graph nodes=%d relations=%s focal=%d",
                             len(fg.node_genes), fg.relations, int(fg.focal_idx.numel()))
@@ -674,17 +693,13 @@ def main() -> int:
                     hidden=64, n_layers=2, epochs=args.gnn_epochs,
                 )
                 _hloss = _htr.train(fg)
-                hetero_scorer = HeteroGNNScorer.from_trained(_htr, fg)
+                hetero_scorer = HeteroGNNScorer.from_full_graph(_htr, fg)
                 logger.info("[HETERO-GNN] trained (final loss=%.4f, %d gene scores)",
                             _hloss, len(hetero_scorer.gene_scores))
                 joblib.dump(hetero_scorer, outdir / "models" / "hetero_gnn_scorer.joblib")
                 _write_model_manifest(outdir / "models" / "hetero_gnn_scorer.joblib")
 
-                # Overwrite hetero_gnn_score per split (val/test meta from disk; row-aligned)
-                _hmv = outdir / "splits" / "meta_val.parquet"
-                _hmte = outdir / "splits" / "meta_test.parquet"
-                _hmv_df = pd.read_parquet(_hmv) if _hmv.exists() else None
-                _hmte_df = pd.read_parquet(_hmte) if _hmte.exists() else None
+                # Overwrite hetero_gnn_score per split (val/test meta loaded above; row-aligned)
                 for _hn, _hmeta, _hX in [
                     ("train", hetero_df, X_train),
                     ("val", _hmv_df, X_val),
@@ -708,15 +723,19 @@ def main() -> int:
                     X_test.to_parquet(_hsplits / "X_test.parquet", index=False)
                     logger.info("[HETERO-GNN] hetero-updated splits re-persisted to %s/", _hsplits)
 
-                # Non-degeneracy WARNING (not a hard exit -- hetero_gnn_score is a
-                # comparison feature, so surface a silent-injection failure without aborting).
-                _hchk = X_train["hetero_gnn_score"]
-                if _hchk.nunique() <= 1 or float(_hchk.std()) == 0.0:
-                    logger.warning(
-                        "[HETERO-GNN] hetero_gnn_score is DEGENERATE on X_train "
-                        "(nunique=%d std=%.6f) -- injection likely produced no signal; investigate.",
-                        int(_hchk.nunique()), float(_hchk.std()),
-                    )
+                # Non-degeneracy WARNING across ALL splits (not a hard exit). The old check
+                # inspected ONLY X_train and so missed the val/test deadness the from_full_graph
+                # union node set now fixes (INCIDENT_2026-06-16); surface per-split so a future
+                # regression is loud rather than silent.
+                for _hn, _hX in (("train", X_train), ("val", X_val), ("test", X_test)):
+                    _hchk = _hX["hetero_gnn_score"]
+                    if _hchk.nunique() <= 1 or float(_hchk.std()) == 0.0:
+                        logger.warning(
+                            "[HETERO-GNN] hetero_gnn_score is DEGENERATE on %s split "
+                            "(nunique=%d std=%.6f) -- the scoring graph did not span this split; "
+                            "verify the train+val+test union node set reached score_all_nodes.",
+                            _hn, int(_hchk.nunique()), float(_hchk.std()),
+                        )
             except ImportError as exc:
                 logger.warning("[HETERO-GNN] ImportError: %s -- install torch/torch-geometric; skipping.", exc)
             except Exception as exc:
