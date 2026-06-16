@@ -48,47 +48,86 @@ def _via_python_docx(md: Path, docx: Path) -> None:
         )
 
     doc = Document()
-    in_code = False
-    code_buf: list[str] = []
     bold = re.compile(r"\*\*(.+?)\*\*")
     code_inline = re.compile(r"`([^`]+)`")
-
-    def flush_code() -> None:
-        nonlocal code_buf
-        if code_buf:
-            p = doc.add_paragraph()
-            run = p.add_run("\n".join(code_buf))
-            run.font.name = "Consolas"
-            code_buf = []
+    cell_sep = re.compile(r"^:?-{1,}:?$")
 
     def clean(s: str) -> str:
         return code_inline.sub(r"\1", bold.sub(r"\1", s))
 
-    for raw in md.read_text(encoding="utf-8").splitlines():
-        line = raw.rstrip("\n")
-        if line.strip().startswith("```"):
+    def split_cells(row: str) -> list[str]:
+        return [c.strip() for c in row.strip().strip("|").split("|")]
+
+    def is_sep(row: str) -> bool:
+        parts = [c for c in split_cells(row) if c != ""]
+        return bool(parts) and all(cell_sep.match(c) for c in parts)
+
+    def add_table(header: list[str], rows: list[list[str]]) -> None:
+        n = len(header)
+        if n == 0:
+            return
+        t = doc.add_table(rows=1, cols=n)
+        try:
+            t.style = "Table Grid"        # built-in; always present in the default template
+        except KeyError:
+            pass
+        for j, h in enumerate(header):
+            t.rows[0].cells[j].paragraphs[0].add_run(clean(h)).bold = True
+        for r in rows:
+            rc = t.add_row().cells
+            for j in range(n):
+                rc[j].text = clean(r[j]) if j < len(r) else ""
+
+    lines = md.read_text(encoding="utf-8").splitlines()
+    i = 0
+    in_code = False
+    code_buf: list[str] = []
+
+    def flush_code() -> None:
+        if code_buf:
+            p = doc.add_paragraph()
+            p.add_run("\n".join(code_buf)).font.name = "Consolas"
+            code_buf.clear()
+
+    while i < len(lines):
+        line = lines[i].rstrip("\n")
+        st = line.strip()
+        if st.startswith("```"):
             if in_code:
                 flush_code()
             in_code = not in_code
+            i += 1
             continue
         if in_code:
             code_buf.append(line)
+            i += 1
             continue
-        s = line.strip()
-        if not s:
+        if not st:
+            i += 1
             continue
-        if s.startswith("### "):
-            doc.add_heading(clean(s[4:].strip()), level=3)
-        elif s.startswith("## "):
-            doc.add_heading(clean(s[3:].strip()), level=2)
-        elif s.startswith("# "):
-            doc.add_heading(clean(s[2:].strip()), level=1)
-        elif re.match(r"^[-*+]\s+", s):
-            doc.add_paragraph(clean(s[2:].strip()), style="List Bullet")
-        elif re.match(r"^\d+\.\s+", s):
-            doc.add_paragraph(clean(re.sub(r"^\d+\.\s+", "", s)), style="List Number")
+        # GFM table: a leading-pipe header row immediately followed by a separator row
+        if st.startswith("|") and i + 1 < len(lines) and is_sep(lines[i + 1]):
+            header = split_cells(st)
+            i += 2
+            body: list[list[str]] = []
+            while i < len(lines) and lines[i].strip().startswith("|"):
+                body.append(split_cells(lines[i].strip()))
+                i += 1
+            add_table(header, body)
+            continue
+        if st.startswith("### "):
+            doc.add_heading(clean(st[4:].strip()), level=3)
+        elif st.startswith("## "):
+            doc.add_heading(clean(st[3:].strip()), level=2)
+        elif st.startswith("# "):
+            doc.add_heading(clean(st[2:].strip()), level=1)
+        elif re.match(r"^[-*+]\s+", st):
+            doc.add_paragraph(clean(st[2:].strip()), style="List Bullet")
+        elif re.match(r"^\d+\.\s+", st):
+            doc.add_paragraph(clean(re.sub(r"^\d+\.\s+", "", st)), style="List Number")
         else:
-            doc.add_paragraph(clean(s))
+            doc.add_paragraph(clean(st))
+        i += 1
     flush_code()
     doc.save(str(docx))
 
