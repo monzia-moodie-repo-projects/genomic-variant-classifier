@@ -180,10 +180,18 @@ def _build_eval_cmd(args, eval_py, clinvar_for_cmd, outdir):
     ]:
         if val:
             cmd += [flag, val]
+    # Run-17 no-defer activations (getattr-safe: legacy/test namespaces omit these attrs)
+    if getattr(args, "kg", None):
+        cmd += ["--kg", args.kg]
+    if getattr(args, "hetero_gnn", False):
+        cmd += ["--hetero-gnn"]
+    if getattr(args, "kg_edges", None):
+        cmd += ["--kg-edges", *args.kg_edges]
     return cmd
 
 
-def main(argv=None) -> int:
+def parse_args(argv=None):
+    """Build + parse the smoke CLI (extracted so tests can exercise the real parser)."""
     ap = argparse.ArgumentParser(description="All-models pre-launch smoke gate")
     ap.add_argument("--repo", default=".")
     ap.add_argument("--clinvar", required=True)
@@ -205,8 +213,17 @@ def main(argv=None) -> int:
                     help="Forward --gnn-epochs to run_phase2_eval (e.g. 10) to speed a full-flag "
                          "smoke; omitted by default so the smoke uses the real 100.")
     ap.add_argument("--keep-output", action="store_true")
-    args = ap.parse_args(argv)
+    ap.add_argument("--kg", default=None,
+                    help="Forward --kg <1000G AF parquet> to run_phase2_eval (activates af_1kg_*).")
+    ap.add_argument("--hetero-gnn", dest="hetero_gnn", action="store_true",
+                    help="Forward --hetero-gnn (activates hetero_gnn_score).")
+    ap.add_argument("--kg-edges", dest="kg_edges", nargs="*", default=None,
+                    help="Forward --kg-edges source:path ... (activates reactome_pathway_count etc).")
+    return ap.parse_args(argv)
 
+
+def main(argv=None) -> int:
+    args = parse_args(argv)
     repo = Path(args.repo).resolve()
     eval_py = repo / "scripts" / "run_phase2_eval.py"
     verify_py = repo / "scripts" / "verify_gnn_score.py"

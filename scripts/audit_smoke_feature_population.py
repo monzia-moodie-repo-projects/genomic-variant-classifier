@@ -19,7 +19,7 @@ WARN (exit 0):      LOVD all-default at smoke scale.
 
 STRICTLY READ-ONLY.
 
-Usage:  python scripts/audit_smoke_feature_population.py [splits_dir_or_parquet]
+Usage:  python scripts/audit_smoke_feature_population.py [splits_dir_or_parquet] [--run17]
         default: models/smoke_run16b/splits
 Author: Monzia Moodie."""
 from __future__ import annotations
@@ -36,6 +36,28 @@ EXPECT = {
     "n_tools_pathogenic": (0,    "fail", "dbNSFP"),
     "lovd_variant_class": (0,    "warn", "LOVD"),
 }
+# Run-17 no-defer feature set. Score/AF features use the "varies" (nunique>1) check (default=None) so
+# the audit does not depend on exact default constants (verified defaults: gnn/hetero 0.5, reactome 0,
+# af_1kg 0.0). dbNSFP/LOVD keep explicit-default checks. Valid against a FULL-FLAG smoke
+# (--kg --hetero-gnn --kg-edges --string-db auto). is_mitochondrial / chrY-MT gnomAD af are NOT asserted
+# here -- their density is a full-Run-17-scale property (MT ~0.07% of cohort => ~2 rows at smoke_n=3000).
+EXPECT_RUN17 = {
+    "af_log10":               (None, "fail", "gnomAD"),
+    "gnn_score":              (None, "fail", "STRGNN"),
+    "hetero_gnn_score":       (None, "fail", "hGNN"),
+    "reactome_pathway_count": (None, "fail", "Reactm"),
+    "af_1kg_afr":             (None, "fail", "1000G"),
+    "af_1kg_eur":             (None, "fail", "1000G"),
+    "af_1kg_eas":             (None, "fail", "1000G"),
+    "af_1kg_sas":             (None, "fail", "1000G"),
+    "af_1kg_amr":             (None, "fail", "1000G"),
+    "cadd_phred":             (15.0, "fail", "dbNSFP"),
+    "sift_score":             (0.5,  "fail", "dbNSFP"),
+    "revel_score":            (0.5,  "fail", "dbNSFP"),
+    "n_tools_pathogenic":     (0,    "fail", "dbNSFP"),
+    "lovd_variant_class":     (0,    "warn", "LOVD"),
+}
+
 SPLIT_FILES = ["X_train.parquet", "X_val.parquet", "X_test.parquet"]
 
 
@@ -58,9 +80,13 @@ def _load_matrix(path: Path):
 def main() -> int:
     import pandas as pd
 
-    arg = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("models/smoke_run16b/splits")
+    run17 = "--run17" in sys.argv[1:]
+    argv = [a for a in sys.argv[1:] if a != "--run17"]
+    expect = EXPECT_RUN17 if run17 else EXPECT
+    label = "Run-17 full-flag" if run17 else "Run-16b"
+    arg = Path(argv[0]) if argv else Path("models/smoke_run16b/splits")
     print("=" * 78)
-    print(f" Run-16b feature-matrix population audit: {arg}")
+    print(f" {label} feature-matrix population audit: {arg}")
     print("=" * 78)
     df, src = _load_matrix(arg)
     if df is None:
@@ -72,7 +98,7 @@ def main() -> int:
     present = set(df.columns)
     hard_fail = False
     print("\n[newly-activated source features]")
-    for col, (default, severity, source) in EXPECT.items():
+    for col, (default, severity, source) in expect.items():
         if col not in present:
             print(f"  {col:<20} ({source:<6}) ABSENT  -> not in feature matrix  [{severity.upper()}]")
             if severity == "fail":
