@@ -45,7 +45,7 @@ EXPECT_RUN17 = {
     "af_log10":               (None, "fail", "gnomAD"),
     "gnn_score":              (None, "fail", "STRGNN"),
     "hetero_gnn_score":       (None, "fail", "hGNN"),
-    "reactome_pathway_count": (None, "fail", "Reactm"),
+    "reactome_pathway_count": (None, "warn", "Reactm"),
     "af_1kg_afr":             (None, "fail", "1000G"),
     "af_1kg_eur":             (None, "fail", "1000G"),
     "af_1kg_eas":             (None, "fail", "1000G"),
@@ -61,20 +61,40 @@ EXPECT_RUN17 = {
 SPLIT_FILES = ["X_train.parquet", "X_val.parquet", "X_test.parquet"]
 
 
-def _load_matrix(path: Path):
+def _load_splits(path: Path):
+    """Return [(split_name, df), ...] -- PER SPLIT, so a feature alive in train but dead in val/test
+    (e.g. a focal-only gene score under gene-disjoint splits) is caught instead of being masked by
+    concatenation. A single parquet file is returned as one ("matrix") split."""
     import pandas as pd
     if path.is_dir():
-        parts = []
+        out = []
         for fn in SPLIT_FILES:
             fp = path / fn
             if fp.exists():
-                parts.append(pd.read_parquet(fp))
-        if not parts:
-            return None, f"no X_*.parquet found in {path}"
-        return pd.concat(parts, ignore_index=True), f"{len(parts)} split file(s) under {path}"
+                out.append((fn.replace("X_", "").replace(".parquet", ""), pd.read_parquet(fp)))
+        return (out, f"{len(out)} split file(s) under {path}") if out else (None, f"no X_*.parquet in {path}")
     if path.is_file():
-        return __import__("pandas").read_parquet(path), str(path)
+        return [("matrix", __import__("pandas").read_parquet(path))], str(path)
     return None, f"path not found: {path}"
+
+
+# Activation hints for features that are dead-by-data (not a wiring bug) or have a known failure mode.
+NOTES = {
+    "reactome_pathway_count": "needs the Reactome parquet (scripts/build_reactome_parquet.py); "
+                              "--kg-edges reactome:...gmt only feeds the hetero-GNN graph, NOT this feature",
+    "lovd_variant_class": "very sparse (~369 cohort variants) -- near-zero at smoke scale",
+    "hetero_gnn_score": "must be scored inductively across ALL splits; focal/train-only scoring leaves "
+                        "val/test at the 0.5 default under gene-disjoint splits",
+}
+
+
+def _is_populated(series, default) -> bool:
+    s = series.dropna()
+    if len(s) == 0:
+        return False
+    if default is None:
+        return s.nunique() > 1
+    return int((s != default).sum()) > 0
 
 
 def main() -> int:
@@ -86,62 +106,58 @@ def main() -> int:
     label = "Run-17 full-flag" if run17 else "Run-16b"
     arg = Path(argv[0]) if argv else Path("models/smoke_run16b/splits")
     print("=" * 78)
-    print(f" {label} feature-matrix population audit: {arg}")
+    print(f" {label} feature-matrix population audit (PER-SPLIT): {arg}")
     print("=" * 78)
-    df, src = _load_matrix(arg)
-    if df is None:
+    splits, src = _load_splits(arg)
+    if splits is None:
         print(f" FAIL: {src}")
-        print("       (point me at the splits dir, e.g. models\\smoke_run16b\\splits)")
         return 2
-    print(f" matrix: {len(df)} rows x {df.shape[1]} cols  ({src})")
+    names = [n for n, _ in splits]
+    total = sum(len(d) for _, d in splits)
+    print(f" matrix: {total} rows across splits {names}  ({src})")
 
-    present = set(df.columns)
     hard_fail = False
-    print("\n[newly-activated source features]")
+    print("\n[newly-activated source features -- checked in EACH split]")
     for col, (default, severity, source) in expect.items():
-        if col not in present:
-            print(f"  {col:<20} ({source:<6}) ABSENT  -> not in feature matrix  [{severity.upper()}]")
-            if severity == "fail":
-                hard_fail = True
-            continue
-        s = df[col]
-        n = len(s)
-        n_null = int(s.isna().sum())
-        nun = s.dropna()
-        n_distinct = int(nun.nunique())
-        if default is None:
-            populated = n_distinct > 1
-            metric = f"distinct={n_distinct}"
-        else:
-            n_nondefault = int((nun != default).sum())
-            populated = n_nondefault > 0
-            metric = f"nondefault={n_nondefault} (default={default})"
-        rng = f"[{nun.min():.4g}, {nun.max():.4g}]" if len(nun) else "[n/a]"
-        verdict = "POPULATED" if populated else ("ALL-NULL" if n_null == n else "ALL-DEFAULT")
+        statuses = []
+        dead_splits = []
+        absent_splits = []
+        for sname, sdf in splits:
+            if col not in sdf.columns:
+                absent_splits.append(sname)
+                statuses.append(f"{sname}=ABSENT")
+                continue
+            ok = _is_populated(sdf[col], default)
+            statuses.append(f"{sname}={'ok' if ok else 'DEAD'}")
+            if not ok:
+                dead_splits.append(sname)
+        bad = bool(dead_splits or absent_splits)
         flag = ""
-        if not populated:
-            flag = f"  <-- {severity.upper()}"
+        if bad:
             if severity == "fail":
                 hard_fail = True
-        print(f"  {col:<20} ({source:<6}) {verdict:<11} {metric:<28} null={n_null:<5} range={rng}{flag}")
+                flag = "  <-- FAIL"
+            else:
+                flag = "  <-- WARN"
+        print(f"  {col:<22} ({source:<6}) {' '.join(statuses):<34}{flag}")
+        if bad and col in NOTES:
+            print(f"      note: {NOTES[col]}")
 
-    print("\n[all-constant numeric scan (supplementary)]")
-    num = df.select_dtypes("number")
+    # supplementary: per-split constant scan on the concatenated frame
+    cat = pd.concat([d for _, d in splits], ignore_index=True)
+    print("\n[concatenated all-constant numeric scan (supplementary)]")
+    num = cat.select_dtypes("number")
     consts = [c for c in num.columns if num[c].nunique(dropna=True) <= 1]
-    if consts:
-        for c in consts:
-            val = num[c].dropna().iloc[0] if num[c].notna().any() else "all-null"
-            print(f"  CONSTANT  {c} = {val}")
-    else:
-        print("  (none -- every numeric column varies)")
+    print(("  " + ", ".join(consts)) if consts else "  (none -- every numeric column varies across the pool)")
 
     print("\n" + "=" * 78)
     if hard_fail:
-        print(" VERDICT: FAIL -- a FAIL-severity source feature is dead in the matrix.")
-        print("          Do NOT promote to the full regen; check that source's log hit-count.")
+        print(" VERDICT: FAIL -- a FAIL-severity feature is dead/absent in at least one split.")
+        print("          A feature alive only in train (e.g. focal-only gene scores) is NOT acceptable:")
+        print("          it is inert at val/test/inference. Fix before promoting to the full regen.")
         return 1
-    print(" VERDICT: PASS -- all FAIL-severity new sources reached the matrix. A LOVD WARN")
-    print("          is expected at smoke scale; re-confirm lovd_variant_class>0 at full scale.")
+    print(" VERDICT: PASS -- every FAIL-severity feature is populated in ALL splits.")
+    print("          WARN features (LOVD sparsity, Reactome-needs-parquet) are expected; see notes.")
     return 0
 
 
