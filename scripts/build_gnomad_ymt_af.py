@@ -53,6 +53,37 @@ def norm_key(gnomad_vid: str) -> str:
     return f"{chrom}:{parts[1]}:{parts[2]}:{'-'.join(parts[3:])}"
 
 
+# GRCh38 pseudoautosomal regions (1-based). gnomAD canonicalises PAR variants to chromosome X, but
+# ClinVar annotates them on Y, so a PAR gene query returns 'X-pos-ref-alt' that must be re-keyed to Y to
+# match the cohort. PAR1 is identical on X and Y; PAR2 is shifted. Coords: GRC / UCSC hg38 / Wikipedia.
+_PAR1 = (10001, 2781479)             # X == Y on PAR1
+_PAR2_X = (155701383, 156030895)     # X coordinates of PAR2
+_PAR2_SHIFT = 98813480               # Y_pos = X_pos - shift  (155701383 - 56887903)
+
+
+def y_key(gnomad_vid: str):
+    """Map a gnomAD variant_id to a bare 'Y:pos:ref:alt' key matching the ClinVar cohort. Handles gnomAD
+    reporting PAR variants on chromosome X: PAR1 keeps the coordinate (X==Y), PAR2 shifts X->Y. Returns
+    None for a genuine non-PAR X variant (not a Y variant) or a malformed id, so callers skip it."""
+    parts = str(gnomad_vid).split("-")
+    if len(parts) < 4:
+        return None
+    chrom = parts[0][3:] if parts[0].startswith("chr") else parts[0]
+    pos, ref, alt = parts[1], parts[2], "-".join(parts[3:])
+    if chrom == "Y":
+        return f"Y:{pos}:{ref}:{alt}"
+    if chrom == "X":
+        try:
+            ip = int(pos)
+        except (TypeError, ValueError):
+            return None
+        if _PAR1[0] <= ip <= _PAR1[1]:
+            return f"Y:{ip}:{ref}:{alt}"                     # PAR1: identical coordinate on X and Y
+        if _PAR2_X[0] <= ip <= _PAR2_X[1]:
+            return f"Y:{ip - _PAR2_SHIFT}:{ref}:{alt}"       # PAR2: shift X coordinate to Y
+    return None
+
+
 def clean_y_genes(raw_symbols) -> list:
     """Cohort Y gene_symbol is dirty (';'-joined multi-gene + free-text). Split on ;/, keep only valid
     single symbols (no spaces; alnum/._-), drop '-'/'nan'/free-text. -> sorted unique gene symbols."""
@@ -76,8 +107,9 @@ def _af_from_variant(v) -> float:
 
 
 def parse_y_af(payload: dict) -> dict:
-    """Single-gene gene.variants payload -> {bare_key: af}. exome.af preferred, genome fallback; null AF
-    and a null gene (gene-not-found) are skipped (returns {})."""
+    """Single-gene gene.variants payload -> {Y-key: af}. exome.af preferred, genome fallback; null AF, a
+    null gene (gene-not-found), and genuine non-PAR X variants are skipped. PAR variants that gnomAD
+    reports on X are re-keyed to Y via y_key so they match the cohort's Y-annotated PAR variants."""
     out: dict = {}
     gene = (payload.get("data") or {}).get("gene") or {}
     for v in gene.get("variants") or []:
@@ -87,7 +119,10 @@ def parse_y_af(payload: dict) -> dict:
         af = _af_from_variant(v)
         if af is None:
             continue
-        out[norm_key(vid)] = af
+        k = y_key(vid)
+        if k is None:
+            continue
+        out[k] = af
     return out
 
 
@@ -209,8 +244,9 @@ def main(argv=None) -> int:
     ap.add_argument("--dataset", default="gnomad_r4")
     ap.add_argument("--pause", type=float, default=6.0,
                     help="seconds between serial Y-gene calls (rate-limit courtesy; ~10/min at 6s)")
-    ap.add_argument("--min-y-cover", type=float, default=0.5,
-                    help="warn if matched Y fraction < this (catches a silent throttle/clean regression)")
+    ap.add_argument("--min-y-cover", type=float, default=0.10,
+                    help="warn if matched Y fraction < this. chrY's honest overlap is modest (gnomAD "
+                         "callability + no-allele cohort entries); this is a regression tripwire, not a target")
     a = ap.parse_args(argv)
 
     keys, y_raw = cohort_ymt(a.clinvar)

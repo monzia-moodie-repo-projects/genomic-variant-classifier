@@ -23,17 +23,40 @@ def test_norm_key_y_mt_and_chr_prefix():
     assert B.norm_key("chrY-100-A-G") == "Y:100:A:G"
 
 
-def test_parse_y_af_single_gene_prefers_exome_then_genome_skips_null():
+def test_y_key_msy_passthrough_and_par_mapping():
+    # MSY (male-specific Y) stays on Y
+    assert B.y_key("Y-12709505-C-A") == "Y:12709505:C:A"
+    assert B.y_key("chrY-100-A-G") == "Y:100:A:G"
+    # PAR1: gnomAD reports on X, identical coordinate -> Y (the exact real-data failure case)
+    assert B.y_key("X-1285848-G-A") == "Y:1285848:G:A"
+    assert B.y_key("X-10001-A-G") == "Y:10001:A:G"        # PAR1 start (inclusive)
+    assert B.y_key("X-2781479-A-G") == "Y:2781479:A:G"    # PAR1 end (inclusive)
+    # PAR2: gnomAD reports on X, shifted by 98,813,480 -> Y
+    assert B.y_key("X-155701383-A-G") == "Y:56887903:A:G"  # PAR2 start
+    assert B.y_key("X-156030895-A-G") == "Y:57217415:A:G"  # PAR2 end
+
+
+def test_y_key_rejects_non_par_x_and_malformed():
+    assert B.y_key("X-10000-A-G") is None        # 1 before PAR1
+    assert B.y_key("X-2781480-A-G") is None       # 1 after PAR1
+    assert B.y_key("X-155701382-A-G") is None     # 1 before PAR2
+    assert B.y_key("X-156030896-A-G") is None     # 1 after PAR2
+    assert B.y_key("X-50000000-A-G") is None      # generic non-PAR X
+    assert B.y_key("Y-100") is None               # malformed
+
+
+def test_parse_y_af_maps_par_x_to_y_and_drops_nonpar_x():
     payload = {"data": {"gene": {"variants": [
-        {"variant_id": "Y-100-A-G", "exome": {"af": 0.002}, "genome": {"af": 0.5}},  # exome wins
-        {"variant_id": "Y-200-C-T", "exome": None, "genome": {"af": 0.01}},          # genome fallback
-        {"variant_id": "Y-300-G-A", "exome": {"af": None}, "genome": None},          # null -> skip
+        {"variant_id": "X-1285848-G-A", "exome": {"af": 0.003}, "genome": None},   # PAR1 X -> Y
+        {"variant_id": "Y-100-A-G", "exome": {"af": 0.002}, "genome": {"af": 0.5}},  # MSY, exome wins
+        {"variant_id": "Y-200-C-T", "exome": None, "genome": {"af": 0.01}},          # MSY genome fallback
+        {"variant_id": "Y-300-G-A", "exome": {"af": None}, "genome": None},          # null AF -> skip
+        {"variant_id": "X-50000000-A-G", "exome": {"af": 0.2}, "genome": None},      # non-PAR X -> drop
     ]}}}
-    assert B.parse_y_af(payload) == {"Y:100:A:G": 0.002, "Y:200:C:T": 0.01}
+    assert B.parse_y_af(payload) == {"Y:1285848:G:A": 0.003, "Y:100:A:G": 0.002, "Y:200:C:T": 0.01}
 
 
 def test_parse_y_af_gene_not_found_is_empty_not_error():
-    # gene-not-found comes back as a 200 with a null gene -> {} (no raise)
     assert B.parse_y_af({"data": {"gene": None}, "errors": [{"message": "Gene not found"}]}) == {}
 
 
