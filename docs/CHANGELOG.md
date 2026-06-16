@@ -3866,3 +3866,27 @@ environmental data/ incident caught by the fail-loud guard.
   structurally 0 for the 3,191 Y + 3,124 MT cohort variants -- a 1000G data-availability limit, not a
   pipeline gap. gnomAD Y/MT coverage UNDER AUDIT (project source is v4.1 EXOMES: excludes MT, Y exonic-only).
 - Durability: rclone genvarcla: (parquet + shards) + committed (26342e9, force-add past data/ gitignore).
+
+## 2026-06-16 -- data: gnomAD Y/MT allele_freq closure (PAR X->Y fix, commit 112967d)
+
+### Fixed
+- chrY/chrMT `allele_freq` no longer silently 0. gnomAD v4 Y/MT frequencies are now built by
+  `scripts/build_gnomad_ymt_af.py` and merged into `data/processed/gnomad_v4_exomes.parquet`, so the
+  existing `--gnomad` join fills Y/MT with no connector change. Final coverage **Y 1047/3155 (33%)**,
+  **MT 2731/3124 (87%)**.
+- Root cause of the Y 91/3155 under-match: pseudoautosomal canonicalisation. gnomAD reports PAR variants
+  on chromosome X; ClinVar annotates them on Y, so PAR gene queries returned X-keyed variant_ids that never
+  matched cohort Y keys. `y_key()` now remaps gnomAD PAR X->Y (PAR1 X 10,001-2,781,479 identical; PAR2 X
+  shifted by 98,813,480 to Y 56,887,903-57,217,415; MSY pass-through; non-PAR X dropped). The 14-gene probe
+  intersection jumped 59 -> 501.
+
+### Verified
+- Cohort real-SNV Y: 2891 (PAR1 1892 / PAR2 344 / MSY 655); 264 of 3155 are `na:na` structural with no SNV
+  alleles (unmatchable by design -- gnomAD short-variant API does not carry CNV/SV). `allele_freq=0` for the
+  uncovered remainder is honest absence/non-callability, not a dead feature.
+- MT dataset sanity: `an=56434` == gnomAD's 56,434 v3 mitochondrial genomes.
+- `tests/unit/test_build_gnomad_ymt_af.py` 15 passed; full suite 1260 passed, 7 skipped.
+
+### Data state
+- Production `gnomad_v4_exomes.parquet` = 2,951,148 rows; backup `.bak_pre_ymt` = 2,947,370 (clean original);
+  rclone `genvarcla:` re-synced.
