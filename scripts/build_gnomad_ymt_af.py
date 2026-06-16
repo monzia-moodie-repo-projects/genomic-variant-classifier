@@ -4,10 +4,12 @@ Fetch gnomAD population allele frequencies for the cohort's chrY and chrMT varia
 gnomad_v4_exomes.parquet (its gene list omitted Y/MT) and the 1000G high-coverage panel. Without this,
 ~6,300 cohort variants carry a silent allele_freq=0 from every source.
 
-  Y  : gene(gene_symbol){ variants } -> exome.af (genome fallback). The cohort gene_symbol is dirty for Y
-       (semicolon-joined multi-gene strings + free-text), so symbols are CLEANED (split on ;/, drop
-       free-text) and queried in ALIASED BATCHES with retry+backoff -- gnomAD rate-limits rapid serial
-       calls and returns non-JSON, which must be retried, never silently skipped.
+  Y  : gene(gene_symbol){ variants } -> exome.af (genome fallback), ONE gene per request. The cohort
+       gene_symbol is dirty for Y (';'-joined multi-gene + free-text), so symbols are CLEANED first.
+       Requests are SERIAL (not aliased-batched): gnomAD enforces a per-query COST ceiling and rejects
+       multi-'variants' queries with HTTP 400, so one gene per request is the cost-safe unit. Pacing +
+       retry/backoff absorb gnomAD's request-rate throttle (non-JSON 200 / 429), which must be retried,
+       never silently skipped.
   MT : region(chrom:"M"){ mitochondrial_variants } in ONE call -> af_hom = ac_hom/an (the ACMG-standard
        mtDNA population frequency; af_hom/af_het are NOT API fields, so computed from counts).
 
@@ -28,6 +30,10 @@ import pandas as pd
 
 GNOMAD_API = "https://gnomad.broadinstitute.org/api"
 
+_Y_QUERY = (
+    "query($s:String!,$ds:DatasetId!){ gene(gene_symbol:$s, reference_genome:GRCh38){"
+    " variants(dataset:$ds){ variant_id exome{af} genome{af} } } }"
+)
 _MT_REGION_QUERY = (
     "query($ds:DatasetId!){ region(chrom:\"M\", start:1, stop:16569, reference_genome:GRCh38){"
     " mitochondrial_variants(dataset:$ds){ variant_id an ac_hom ac_het } } }"
@@ -62,17 +68,6 @@ def clean_y_genes(raw_symbols) -> list:
     return sorted(genes)
 
 
-def build_y_batch_query(genes) -> str:
-    """Aliased multi-gene query (one HTTP call per ~8 genes -> avoids rate-limiting). Symbols are embedded
-    inline (GraphQL aliases can't be variables); callers MUST pass clean_y_genes output (validated safe)."""
-    parts = [
-        f'a{i}: gene(gene_symbol: "{g}", reference_genome: GRCh38) '
-        f"{{ variants(dataset: $ds) {{ variant_id exome {{ af }} genome {{ af }} }} }}"
-        for i, g in enumerate(genes)
-    ]
-    return "query($ds: DatasetId!) { " + " ".join(parts) + " }"
-
-
 def _af_from_variant(v) -> float:
     af = (v.get("exome") or {}).get("af")
     if af is None:
@@ -80,21 +75,19 @@ def _af_from_variant(v) -> float:
     return None if af is None else float(af)
 
 
-def parse_y_batch(payload: dict) -> dict:
-    """Aliased gene-batch payload -> {bare_key: af}. Null aliases (gene-not-found) are skipped, so a
-    partial response with per-alias errors still yields every gene that DID resolve."""
+def parse_y_af(payload: dict) -> dict:
+    """Single-gene gene.variants payload -> {bare_key: af}. exome.af preferred, genome fallback; null AF
+    and a null gene (gene-not-found) are skipped (returns {})."""
     out: dict = {}
-    for _alias, gene in (payload.get("data") or {}).items():
-        if not gene:
+    gene = (payload.get("data") or {}).get("gene") or {}
+    for v in gene.get("variants") or []:
+        vid = v.get("variant_id")
+        if not vid:
             continue
-        for v in gene.get("variants") or []:
-            vid = v.get("variant_id")
-            if not vid:
-                continue
-            af = _af_from_variant(v)
-            if af is None:
-                continue
-            out[norm_key(vid)] = af
+        af = _af_from_variant(v)
+        if af is None:
+            continue
+        out[norm_key(vid)] = af
     return out
 
 
@@ -151,39 +144,50 @@ def cohort_ymt(clinvar_path: str) -> tuple:
 
 
 # ---------------------------------------------------------------- network (thin; lazy requests import)
-def _post_retry(session, query: str, variables: dict, max_retries: int = 6, base_pause: float = 2.0) -> dict:
-    """POST with retry+exponential backoff. gnomAD rate-limits -> non-200 or non-JSON 200; both are RETRIED
-    (never silently skipped). Returns parsed JSON on the first 200-with-valid-JSON (per-alias 'errors' in
-    the body are tolerated -- partial data is used). Raises only after exhausting retries."""
+def _post_retry(session, query: str, variables: dict, max_retries: int = 8, base_pause: float = 2.0) -> dict:
+    """POST with retry+exponential backoff (capped 60s). RETRYABLE: non-JSON 200 (throttle), HTTP 429,
+    HTTP 5xx, connection errors -- never silently skipped. NON-RETRYABLE: other 4xx (e.g. 400 cost-limit,
+    404) -> raise immediately with a body snippet (retrying a deterministic client error is futile). Per-
+    alias/per-gene 'errors' inside a 200 body are tolerated (partial data used). Raises after exhausting."""
     last = "?"
     for attempt in range(max_retries):
         try:
             r = session.post(GNOMAD_API, json={"query": query, "variables": variables}, timeout=180)
-            if r.status_code == 200:
+            sc = r.status_code
+            if sc == 200:
                 try:
                     return r.json()
                 except ValueError:
                     last = "non-JSON 200 (throttled)"
+            elif sc == 429 or 500 <= sc < 600:
+                last = f"HTTP {sc} (retryable)"
             else:
-                last = f"HTTP {r.status_code}"
-        except Exception as e:  # noqa: BLE001
+                snippet = (r.text or "")[:160].replace("\n", " ")
+                raise RuntimeError(f"HTTP {sc} (non-retryable): {snippet}")
+        except RuntimeError:
+            raise
+        except Exception as e:  # noqa: BLE001 -- network errors are retryable
             last = repr(e)
-        time.sleep(base_pause * (2 ** attempt))  # 2,4,8,16,32,64s
+        time.sleep(min(base_pause * (2 ** attempt), 60.0))
     raise RuntimeError(f"gnomAD throttled/failed after {max_retries} retries: {last}")
 
 
-def fetch_y_af(clean_genes, dataset: str, batch_size: int = 8, pause: float = 3.0) -> dict:
+def fetch_y_af(clean_genes, dataset: str, pause: float = 6.0) -> dict:
+    """SERIAL one-gene-per-request (cost-safe). Pacing keeps us under gnomAD's request-rate throttle;
+    _post_retry absorbs any throttle that still occurs. A gene-not-found is a 200 with a null gene and
+    contributes {} (no raise); a persistent throttle on a gene raises -> logged loud, not silent."""
     import requests
     s = requests.Session()
     out: dict = {}
-    batches = [clean_genes[i:i + batch_size] for i in range(0, len(clean_genes), batch_size)]
-    for bi, batch in enumerate(batches, 1):
+    n = len(clean_genes)
+    for i, g in enumerate(clean_genes, 1):
         try:
-            out.update(parse_y_batch(_post_retry(s, build_y_batch_query(batch), {"ds": dataset})))
+            out.update(parse_y_af(_post_retry(s, _Y_QUERY, {"s": g, "ds": dataset})))
         except Exception as e:  # noqa: BLE001 -- loud after retries, never silent
-            print(f"  [WARN] Y batch {bi} ({batch[0]}..{batch[-1]}): {e}", file=sys.stderr)
-        print(f"  ...Y batch {bi}/{len(batches)} ({len(batch)} genes), {len(out)} variants so far")
-        if pause:
+            print(f"  [WARN] Y gene {g}: {e}", file=sys.stderr)
+        if i % 10 == 0 or i == n:
+            print(f"  ...{i}/{n} Y genes, {len(out)} variants so far")
+        if pause and i < n:
             time.sleep(pause)
     return out
 
@@ -203,8 +207,8 @@ def main(argv=None) -> int:
     ap.add_argument("--merged-out", default=None,
                     help="if set, write base+Y/MT dedup-merged parquet here")
     ap.add_argument("--dataset", default="gnomad_r4")
-    ap.add_argument("--batch-size", type=int, default=8, help="Y genes per aliased request")
-    ap.add_argument("--pause", type=float, default=3.0, help="seconds between Y batches (rate-limit courtesy)")
+    ap.add_argument("--pause", type=float, default=6.0,
+                    help="seconds between serial Y-gene calls (rate-limit courtesy; ~10/min at 6s)")
     ap.add_argument("--min-y-cover", type=float, default=0.5,
                     help="warn if matched Y fraction < this (catches a silent throttle/clean regression)")
     a = ap.parse_args(argv)
@@ -213,14 +217,15 @@ def main(argv=None) -> int:
     y_keys = {k for k in keys if k.split(":", 1)[0] == "Y"}
     mt_keys = keys - y_keys
     y_genes = clean_y_genes(y_raw)
+    eta = len(y_genes) * a.pause / 60.0
     print(f"[cohort] {len(keys)} Y/MT keys ({len(y_keys)} Y / {len(mt_keys)} MT); "
-          f"{len(y_raw)} raw Y gene strings -> {len(y_genes)} clean Y genes")
+          f"{len(y_raw)} raw Y gene strings -> {len(y_genes)} clean Y genes (~{eta:.0f} min at {a.pause:.0f}s/gene)")
 
     print("[fetch] gnomAD mtDNA region (one call) ...")
     mt_af = fetch_mt_af(a.dataset)
     print(f"  mtDNA: {len(mt_af)} gnomAD variants")
-    print(f"[fetch] gnomAD Y genes in batches of {a.batch_size} ...")
-    y_af = fetch_y_af(y_genes, a.dataset, a.batch_size, a.pause)
+    print(f"[fetch] gnomAD Y genes serially ({len(y_genes)} genes @ {a.pause:.0f}s) ...")
+    y_af = fetch_y_af(y_genes, a.dataset, a.pause)
     print(f"  Y: {len(y_af)} gnomAD variants")
 
     df = build_ymt_frame(keys, y_af, mt_af)
