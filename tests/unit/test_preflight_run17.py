@@ -106,7 +106,7 @@ def test_scripts_gate_missing_fails(tmp_path):
 # ---- emit + integration ----
 def test_emit_defer_has_no_kg_and_required_flags():
     cmd = P.emit_command(None, "outputs/run17", None)
-    assert "--kg" not in cmd
+    assert "--kg " not in cmd  # af_1kg parquet flag; --kg-edges is always present (no-defer)
     assert "--string-db auto" in cmd and "--unseen-gene-holdout" in cmd and "--min-review-tier 3" in cmd
 
 

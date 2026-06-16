@@ -167,6 +167,31 @@ def string_db_gate(threshold: int = STRING_DEFAULT_THRESHOLD,
                      f"files, or confirm the box has outbound network, before launch.")]
 
 
+REACTOME_GMT_REL = "external/reactome/ReactomePathways.gmt"
+
+
+def hetero_gate(ns, data_root: str) -> list[tuple[str, str]]:
+    """hetero_gnn_score is a Run-17 no-defer deliverable. --hetero-gnn must be set AND --kg-edges must carry
+    a reactome:<gmt> whose file exists, else the hetero-GNN has nothing to build and the column silently
+    stays at its 0.5 default. Mirrors kg_gate (loud FAIL, never silent)."""
+    rows: list[tuple[str, str]] = []
+    if not getattr(ns, "hetero_gnn", False):
+        rows.append(("FAIL", "--hetero-gnn absent -> hetero_gnn_score stays the 0.5 default (Run-17 "
+                             "no-defer deliverable). Add --hetero-gnn."))
+    edges = getattr(ns, "kg_edges", None) or []
+    reactome = [e for e in edges if str(e).startswith("reactome:")]
+    if not reactome:
+        rows.append(("FAIL", "--kg-edges reactome:<gmt> absent -> the hetero-GNN has no KG relations to "
+                             "overwrite hetero_gnn_score. Add --kg-edges reactome:<path>."))
+    else:
+        path = str(reactome[0]).split(":", 1)[1]
+        if not Path(path).exists():
+            rows.append(("FAIL", f"--kg-edges reactome path not found: {path}"))
+        else:
+            rows.append(("OK", f"--hetero-gnn + --kg-edges reactome present ({path})"))
+    return rows
+
+
 def run_all(command: str, data_root: str, n_train: int, defer_kg: bool,
             baseline_path: str | Path = SCHEMA_BASELINE_REL,
             scripts_dir: str | Path = "scripts",
@@ -177,6 +202,7 @@ def run_all(command: str, data_root: str, n_train: int, defer_kg: bool,
     # let preflight_gate own command-structure + data-path existence; ack kg/finngen (kg_gate is authority on kg)
     rows = list(gate.validate(ns, data_root, n_train, ack={"kg", "finngen"}))
     rows += kg_gate(ns, defer_kg, data_root)
+    rows += hetero_gate(ns, data_root)
     rows += string_db_gate(_string_threshold_from_ns(ns), cache_dir, local_links)
     rows += schema_gate(baseline_path)
     rows += scripts_gate(scripts_dir)
@@ -200,6 +226,8 @@ def _fixed_flags() -> list[str]:
 def emit_command(kg_parquet: str | None, output: str, max_train: int | None,
                  data_root: str = "data") -> str:
     parts = ["python scripts/run_phase2_eval.py"] + _data_flags(data_root) + _fixed_flags()
+    parts.append("--hetero-gnn")
+    parts.append("--kg-edges reactome:" + Path(data_root).joinpath(REACTOME_GMT_REL).as_posix())
     if kg_parquet:
         parts.append(f"--kg {kg_parquet}")
     if max_train:

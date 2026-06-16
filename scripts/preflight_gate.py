@@ -50,6 +50,8 @@ def _build_mirror_parser() -> argparse.ArgumentParser:
               "--auroc-target", "--output"):
         p.add_argument(f)
     p.add_argument("--gtex-genes", nargs="*", default=[])
+    p.add_argument("--kg-edges", nargs="*", default=[])
+    p.add_argument("--hetero-gnn", action="store_true")
     for f in STORE_TRUE:
         p.add_argument(f, action="store_true")
     return p
