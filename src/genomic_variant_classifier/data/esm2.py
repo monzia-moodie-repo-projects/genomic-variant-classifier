@@ -852,7 +852,21 @@ class ESM2Connector:
         if candidates.empty:
             return df
         logger.info("Computing ESM-2 LLR (%s-marginal) for %d missense variants ...", method, len(candidates))
-        scores = self._score_llr(candidates, method=method)
+        try:
+            scores = self._score_llr(candidates, method=method)
+        except OSError as exc:
+            # Model weights unavailable (offline / no HuggingFace cache). Fail CLOSED
+            # to the neutral 0.0 default rather than crash the pipeline -- mirrors the
+            # _BACKEND-absent and missing-column stub paths above, and the per-row
+            # guard in annotate_dataframe. On the training box the weights are cached
+            # so this never trips; if it does, the loud warning plus an all-zero
+            # esm2_llr surface in the feature-health audit (not a silent zero).
+            logger.warning(
+                "ESM-2 LLR: model weights unavailable (%s) -- esm2_llr left 0.0 "
+                "(neutral). Cache facebook/%s on the training box to activate.",
+                exc, self.model_name,
+            )
+            return df
         for idx, s in scores.items():
             df.at[idx, "esm2_llr"] = s
         logger.info("ESM-2 LLR: %d/%d variants scored.", len(scores), len(candidates))
