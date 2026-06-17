@@ -82,7 +82,7 @@ sources:
     acquire: "Ensembl -- Homo_sapiens.GRCh38.dna.primary_assembly.fa(.gz) + samtools faidx for .fai"
     regenerate: ""
     sync: false
-    notes: "Reference genome FASTA (~3.8GB). CODE-REFERENCED at data/external/reference -- do NOT rename. Redundant .fa AND .fa.gz present; keep only the form the pipeline reads. Distinct from the top-level data/reference/ schema dir. Public but slow to re-download -- consider sync:true."
+    notes: "Reference genome FASTA. Read form: the UNCOMPRESSED data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa (+ .fai), opened by seq_windows.open_reference (pyfaidx, rebuild=False) in populate_fasta_seq. The redundant unindexed .fa.gz (841MB Ensembl download form; pyfaidx cannot read plain gzip) was dropped 2026-06-17 to reclaim disk. CODE-REFERENCED -- do NOT rename. Distinct from the top-level data/reference/ schema dir. Public but slow to re-download (~3GB) -- consider sync:true now."
   dbnsfp:
     location: external
     tier: academic
