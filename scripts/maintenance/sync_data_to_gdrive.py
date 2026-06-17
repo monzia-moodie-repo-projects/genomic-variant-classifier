@@ -62,7 +62,9 @@ def main(argv: list[str]) -> int:
     dest = f"{remote}{base}"
     verb = "sync" if args.mirror else "copy"
     cmd = ["rclone", verb, str(args.data_dir) + "/", dest,
-           "--filter-from", str(args.filter), "--progress", "--track-renames"]
+           "--filter-from", str(args.filter), "--progress"]
+    if args.mirror:
+        cmd.append("--track-renames")  # only valid for 'rclone sync', not copy/move
     if not args.execute:
         cmd.append("--dry-run")
 
