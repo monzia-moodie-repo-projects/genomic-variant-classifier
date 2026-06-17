@@ -299,7 +299,7 @@ def run_correctness_harness(
 # columns that remain ~all-zero on a fully-populated input are those whose
 # default is zero/sub-threshold and which no input column can currently
 # populate. That set is the silent-zero / connector-dead class from the
-# 2026-04-30 audit, recorded here as KNOWN_ZERO_DEFAULT (22 columns, empirically
+# 2026-04-30 audit, recorded here as KNOWN_ZERO_DEFAULT (27 columns, empirically
 # derived by running engineer_features on build_reference_slice() at HEAD
 # 25b5eaf, 2026-05-30).
 #
@@ -311,6 +311,11 @@ def run_correctness_harness(
 # connector, so it must stay outside the allowlist.
 KNOWN_ZERO_DEFAULT: frozenset[str] = frozenset({
     "reactome_pathway_count",  # Phase D: stub-zero until reactome parquet built
+    # rnaseq_* (commit 1f3c2e0): gene-level, stub-zero until an --rnaseq-path
+    # parquet is supplied; populated via annotate_rnaseq_from_parquet, not
+    # engineer_features inputs -- same dead-connector status as gtex_* above.
+    "rnaseq_mean_log_tpm", "rnaseq_detection_rate", "rnaseq_log2_cv",
+    "rnaseq_log2fc", "rnaseq_de_neglog10p",
     "af_1kg_afr", "af_1kg_amr", "af_1kg_eas", "af_1kg_eur", "af_1kg_sas",
     "cadd_high", "finngen_af_fin", "finngen_af_nfsee", "gene_is_constrained",
     "gerp_score", "gtex_is_eqtl", "gtex_max_abs_effect", "gtex_max_tpm",

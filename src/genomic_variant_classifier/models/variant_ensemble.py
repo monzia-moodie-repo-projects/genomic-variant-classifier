@@ -154,7 +154,7 @@ CONSEQUENCE_SEVERITY: dict[str, int] = {
 # Bump by +/-1 whenever you add or remove an entry in TABULAR_FEATURES below.
 # Enforced by tests/unit/test_feature_count_contract.py against both the list
 # length and INFERENCE_FEATURE_COLUMNS; that test is the deliberate-bump tripwire.
-EXPECTED_TABULAR_FEATURE_COUNT = 82
+EXPECTED_TABULAR_FEATURE_COUNT = 87
 
 TABULAR_FEATURES = [
     # Allele frequency (6)
