@@ -35,6 +35,7 @@ __all__ = [
     "parse_hgvsp",
     "parse_am_protein_variant",
     "add_protein_columns",
+    "fill_protein_columns_from_hgvsp",
     "THREE_TO_ONE",
 ]
 
@@ -153,3 +154,44 @@ def add_protein_columns(df: pd.DataFrame, source_col: str = "protein_change") ->
     df["wt_aa"] = pd.array([p[1] for p in parsed], dtype="object")
     df["mut_aa"] = pd.array([p[2] for p in parsed], dtype="object")
     return df
+
+
+def fill_protein_columns_from_hgvsp(
+    df: pd.DataFrame, source_col: str = "protein_change"
+) -> tuple[pd.DataFrame, int]:
+    """NA-only fallback fill of ``protein_pos``/``wt_aa``/``mut_aa`` from an HGVSp
+    ``source_col`` for rows a prior (e.g. AlphaMissense) coordinate source left
+    unset. Rows that already carry a non-null ``protein_pos`` are PRESERVED
+    untouched. Only missense rows are considered when an ``is_missense`` column is
+    present. Returns ``(df, n_filled)``. Pure: mutates ``df`` in place, no logging
+    (the caller logs the count).
+
+    Extends ESM-2 / EVE coverage past the AlphaMissense ceiling without overwriting
+    AlphaMissense coords. ESM-2's own wt_aa-vs-sequence cross-check rejects any HGVSp
+    coord that does not match the canonical isoform, so a wrong isoform can only fail
+    closed (stay stub-zero), never corrupt a feature.
+    """
+    n = len(df)
+    if "protein_pos" not in df.columns:
+        df["protein_pos"] = pd.array([pd.NA] * n, dtype="Int64")
+    if "wt_aa" not in df.columns:
+        df["wt_aa"] = pd.array([None] * n, dtype="object")
+    if "mut_aa" not in df.columns:
+        df["mut_aa"] = pd.array([None] * n, dtype="object")
+    if source_col not in df.columns:
+        return df, 0
+    need = df["protein_pos"].isna()
+    if "is_missense" in df.columns:
+        need = need & (df["is_missense"].fillna(0).astype(int) == 1)
+    idx = list(df.index[need])
+    if not idx:
+        return df, 0
+    filled = 0
+    for i, val in zip(idx, df.loc[idx, source_col].tolist()):
+        pos, wt, mut = parse_hgvsp(val)
+        if pos is not None:
+            df.at[i, "protein_pos"] = pos
+            df.at[i, "wt_aa"] = wt
+            df.at[i, "mut_aa"] = mut
+            filled += 1
+    return df, filled

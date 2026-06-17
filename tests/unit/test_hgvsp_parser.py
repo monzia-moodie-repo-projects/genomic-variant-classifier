@@ -105,3 +105,41 @@ def test_missense_fraction_is_nonzero_on_realistic_sample():
 )
 def test_parse_am_protein_variant(s, expected):
     assert parse_am_protein_variant(s) == expected
+
+
+def test_fill_protein_columns_from_hgvsp_na_only_and_preserves():
+    import pandas as pd
+    from genomic_variant_classifier.data.hgvsp_parser import fill_protein_columns_from_hgvsp
+    df = pd.DataFrame({
+        "is_missense": [1, 1, 1, 1, 0],
+        "protein_change": ["p.Asp1692Asn", "p.Arg1699Gln", "p.Arg175Ter", None, "p.Gly12Val"],
+        "protein_pos": pd.array([100, pd.NA, pd.NA, pd.NA, pd.NA], dtype="Int64"),
+        "wt_aa": ["Z", None, None, None, None],
+        "mut_aa": ["Z", None, None, None, None],
+    })
+    out, n = fill_protein_columns_from_hgvsp(df.copy())
+    assert n == 1                                       # only the AM-missing missense row fills
+    assert out.loc[0, "protein_pos"] == 100 and out.loc[0, "wt_aa"] == "Z"   # AM row preserved
+    assert out.loc[1, "protein_pos"] == 1699 and out.loc[1, "wt_aa"] == "R" and out.loc[1, "mut_aa"] == "Q"
+    assert pd.isna(out.loc[2, "protein_pos"])           # nonsense rejected
+    assert pd.isna(out.loc[3, "protein_pos"])           # None source
+    assert pd.isna(out.loc[4, "protein_pos"])           # non-missense skipped
+
+
+def test_fill_protein_columns_from_hgvsp_missing_source_col():
+    import pandas as pd
+    from genomic_variant_classifier.data.hgvsp_parser import fill_protein_columns_from_hgvsp
+    df = pd.DataFrame({"is_missense": [1, 1]})
+    out, n = fill_protein_columns_from_hgvsp(df.copy())
+    assert n == 0 and "protein_pos" in out.columns and out["protein_pos"].isna().all()
+
+
+def test_fill_protein_columns_from_hgvsp_no_is_missense_col():
+    import pandas as pd
+    from genomic_variant_classifier.data.hgvsp_parser import fill_protein_columns_from_hgvsp
+    df = pd.DataFrame({
+        "protein_change": ["p.Asp1692Asn", "p.Asp1692Asp"],   # 2nd synonymous
+        "protein_pos": pd.array([pd.NA, pd.NA], dtype="Int64"),
+    })
+    out, n = fill_protein_columns_from_hgvsp(df.copy())
+    assert n == 1 and out.loc[0, "protein_pos"] == 1692 and pd.isna(out.loc[1, "protein_pos"])

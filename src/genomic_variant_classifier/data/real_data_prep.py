@@ -869,6 +869,26 @@ class DataPrepPipeline:
         else:
             logger.info("Protein-coord coverage gate SKIPPED (stub mode: no AlphaMissense source present).")
 
+        # 10c. HGVSp fallback -- fill protein_pos/wt_aa/mut_aa for missense variants
+        # AlphaMissense did not cover, from the ClinVar-derived protein_change (HGVSp)
+        # string. NA-only: AlphaMissense coords are preserved. Runs AFTER the coverage
+        # gate so the gate still measures pure AlphaMissense coverage (its stale-index
+        # tripwire). ESM-2's wt_aa-vs-sequence cross-check makes a wrong-isoform coord
+        # fail closed, so this can only extend coverage, never corrupt a feature.
+        from genomic_variant_classifier.data.hgvsp_parser import (
+            fill_protein_columns_from_hgvsp,
+        )
+
+        df, _n_hgvsp_fill = fill_protein_columns_from_hgvsp(df, source_col="protein_change")
+        if _n_hgvsp_fill:
+            if "protein_pos" in df.columns:
+                df["codon_position"] = df["protein_pos"].fillna(0).astype(int)
+            logger.info(
+                "Score annotation 10c (HGVSp fallback): +%d missense coords from "
+                "protein_change beyond AlphaMissense.",
+                _n_hgvsp_fill,
+            )
+
 
         # 11. EVE
         from genomic_variant_classifier.data.eve import EVEConnector
