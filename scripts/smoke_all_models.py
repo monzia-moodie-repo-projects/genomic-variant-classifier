@@ -176,6 +176,7 @@ def _build_eval_cmd(args, eval_py, clinvar_for_cmd, outdir):
         ("--alphamissense", args.alphamissense), ("--seq-windows", args.seq_windows),
         ("--gnomad-constraint", args.gnomad_constraint),
         ("--dbnsfp-path", args.dbnsfp_path), ("--lovd-path", args.lovd_path),
+        ("--reactome-path", getattr(args, "reactome_path", None)),
         ("--gnn-epochs", str(args.gnn_epochs) if getattr(args, "gnn_epochs", None) is not None else ""),
     ]:
         if val:
@@ -202,6 +203,7 @@ def parse_args(argv=None):
     ap.add_argument("--gnomad-constraint", dest="gnomad_constraint")
     ap.add_argument("--dbnsfp-path", dest="dbnsfp_path")
     ap.add_argument("--lovd-path", dest="lovd_path")
+    ap.add_argument("--reactome-path", dest="reactome_path")
     ap.add_argument("--string-db", dest="string_db", default="auto")
     ap.add_argument("--smoke-n", type=int, default=3000)
     ap.add_argument("--clinvar-sample-n", dest="clinvar_sample_n", type=int, default=None,
@@ -218,7 +220,9 @@ def parse_args(argv=None):
     ap.add_argument("--hetero-gnn", dest="hetero_gnn", action="store_true",
                     help="Forward --hetero-gnn (activates hetero_gnn_score).")
     ap.add_argument("--kg-edges", dest="kg_edges", nargs="*", default=None,
-                    help="Forward --kg-edges source:path ... (activates reactome_pathway_count etc).")
+                    help="Forward --kg-edges source:path ... (feeds the hetero-GNN "
+                         "shares_pathway relation; does NOT populate the "
+                         "reactome_pathway_count FEATURE -- use --reactome-path for that).")
     return ap.parse_args(argv)
 
 

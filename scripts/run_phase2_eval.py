@@ -95,6 +95,16 @@ def parse_args(argv=None) -> argparse.Namespace:
         "population-median defaults (Run 9 bug).",
     )
     p.add_argument(
+        "--reactome-path",
+        default=None,
+        help="Reactome per-gene pathway-count parquet "
+        "(data/external/reactome_gene_pathways.parquet), built by "
+        "scripts/build_reactome_parquet.py --gmt ...; gene-level join. When "
+        "omitted, reactome_pathway_count is identically 0 (feature stubbed). "
+        "NOTE: --kg-edges reactome:... feeds only the hetero-GNN graph, NOT "
+        "this feature.",
+    )
+    p.add_argument(
         "--finngen-path",
         default=None,
         help="FinnGen R12 annotated variants TSV (gzipped) "
@@ -251,6 +261,7 @@ def main() -> int:
             # Run 10 wiring fix (3 connectors silent-zero in Run 9)
             lovd_path=Path(args.lovd_path) if args.lovd_path else None,
             dbnsfp_path=Path(args.dbnsfp_path) if args.dbnsfp_path else None,
+            reactome_path=Path(args.reactome_path) if args.reactome_path else None,
             finngen_path=Path(args.finngen_path) if args.finngen_path else None,
         )
         prep = DataPrepPipeline(

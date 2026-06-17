@@ -38,11 +38,18 @@ def test_omits_run17_flags_by_default():
     assert "--kg" not in cmd
     assert "--hetero-gnn" not in cmd
     assert "--kg-edges" not in cmd
+    assert "--reactome-path" not in cmd
 
 
 def test_forwards_kg():
     cmd = smoke_all_models._build_eval_cmd(_smoke_args(kg="kg.parquet"), "eval.py", "c.parquet", "/tmp/o")
     assert "--kg" in cmd and cmd[cmd.index("--kg") + 1] == "kg.parquet"
+
+
+def test_forwards_reactome_path():
+    cmd = smoke_all_models._build_eval_cmd(
+        _smoke_args(reactome_path="reactome.parquet"), "eval.py", "c.parquet", "/tmp/o")
+    assert "--reactome-path" in cmd and cmd[cmd.index("--reactome-path") + 1] == "reactome.parquet"
 
 
 def test_forwards_hetero_gnn():
@@ -87,6 +94,13 @@ def test_parser_run17_flags_default_off():
     assert parsed.kg is None
     assert parsed.hetero_gnn is False
     assert parsed.kg_edges is None
+    assert parsed.reactome_path is None
+
+
+def test_parser_accepts_reactome_path():
+    parsed = smoke_all_models.parse_args(
+        ["--clinvar", "c.parquet", "--reactome-path", "r.parquet"])
+    assert parsed.reactome_path == "r.parquet"
 
 
 # ----------------------------------------------------------------------------- EXPECT_RUN17 coverage

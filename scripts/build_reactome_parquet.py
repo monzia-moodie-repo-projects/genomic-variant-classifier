@@ -107,19 +107,76 @@ def build(
     return agg
 
 
+def build_from_gmt(gmt_path: Path, out_path: Path) -> pd.DataFrame:
+    """Count distinct Reactome pathways per gene straight from a GMT gene-set file.
+
+    Uses the SAME ReactomePathways.gmt that feeds the hetero-GNN shares_pathway
+    edges (genomic_variant_classifier.data.kg_edges.parse_gmt), so the
+    reactome_pathway_count FEATURE and the graph relation derive from one
+    consistent source. The GMT is already HGNC-keyed, so no Reactome download or
+    source-id->HGNC symbol map is needed. Each GMT line is one pathway;
+    reactome_pathway_count[gene] is the number of DISTINCT pathways the gene
+    appears in. parse_gmt fails LOUDLY on a ZIP/binary/empty file.
+    """
+    try:
+        from genomic_variant_classifier.data.kg_edges import parse_gmt
+    except Exception as exc:  # pragma: no cover - import-environment guard
+        raise SystemExit(
+            "--gmt mode needs genomic_variant_classifier on PYTHONPATH (src/): "
+            f"{exc}"
+        )
+    from collections import Counter
+
+    sets = parse_gmt(gmt_path)  # {pathway_name: [unique genes]}
+    counter: Counter = Counter()
+    for genes in sets.values():
+        for g in set(genes):  # distinct genes within a pathway -> +1 each
+            counter[g] += 1
+
+    agg = pd.DataFrame(
+        {
+            "gene_symbol": list(counter.keys()),
+            "reactome_pathway_count": list(counter.values()),
+        }
+    )
+    agg["reactome_pathway_count"] = agg["reactome_pathway_count"].astype(int)
+    agg = agg[agg["gene_symbol"].astype(str).str.len() > 0]
+    agg = agg.sort_values("gene_symbol").reset_index(drop=True)
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    agg.to_parquet(out_path, index=False)
+    return agg
+
+
 def main(argv: list[str]) -> None:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--input", required=True, type=Path)
+    src = ap.add_mutually_exclusive_group(required=True)
+    src.add_argument(
+        "--input", type=Path, default=None,
+        help="Reactome *2Reactome_All_Levels.txt mapping TSV "
+        "(requires --symbol-map or --source-is-symbol).",
+    )
+    src.add_argument(
+        "--gmt", type=Path, default=None,
+        help="ReactomePathways.gmt (HGNC-keyed gene-set file). Counts distinct "
+        "pathways/gene directly -- no download or symbol map needed. SAME file "
+        "used for the hetero-GNN shares_pathway edges, so feature and graph stay "
+        "consistent.",
+    )
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--symbol-map", type=Path, default=None)
     ap.add_argument("--source-is-symbol", action="store_true")
     ap.add_argument("--species", default="Homo sapiens")
     args = ap.parse_args(argv)
 
-    if not args.input.exists():
-        raise SystemExit(f"--input not found: {args.input}")
-
-    agg = build(args.input, args.out, args.symbol_map, args.source_is_symbol, args.species)
+    if args.gmt is not None:
+        if not args.gmt.exists():
+            raise SystemExit(f"--gmt not found: {args.gmt}")
+        agg = build_from_gmt(args.gmt, args.out)
+    else:
+        if not args.input.exists():
+            raise SystemExit(f"--input not found: {args.input}")
+        agg = build(args.input, args.out, args.symbol_map, args.source_is_symbol, args.species)
     print(f"Wrote {args.out}  ({len(agg)} genes; "
           f"max pathways/gene={int(agg['reactome_pathway_count'].max()) if len(agg) else 0}).")
 
