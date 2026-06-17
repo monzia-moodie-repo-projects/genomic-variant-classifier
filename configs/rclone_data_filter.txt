@@ -3,6 +3,7 @@
 # usage: rclone sync data/ <remote>:<base> --filter-from this_file
 + /external/gtex_gene_expression/**
 + /external/reactome_gene_pathways/**
++ /external/reference/**
 + /external/rnaseq/**
 + /external/rnaseq_gene_expression/**
 + /external/validation_cohort/**
