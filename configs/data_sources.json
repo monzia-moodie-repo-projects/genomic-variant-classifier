@@ -1,0 +1,12 @@
+{
+  "data_root": "G:\\My Drive\\genomic-variant-data",
+  "external": {
+    "gencode": "G:\\My Drive\\genomic-variant-data\\external\\gencode",
+    "gtex": "G:\\My Drive\\genomic-variant-data\\external\\gtex",
+    "hgnc": "G:\\My Drive\\genomic-variant-data\\external\\hgnc"
+  },
+  "manifests": {
+    "source_assets": "G:\\My Drive\\genomic-variant-data\\manifests\\source_assets_manifest.json",
+    "gtex_v11": "G:\\My Drive\\genomic-variant-data\\manifests\\gtex_v11_manifest.json"
+  }
+}
