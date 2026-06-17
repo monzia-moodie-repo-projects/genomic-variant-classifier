@@ -39,6 +39,7 @@ def test_omits_run17_flags_by_default():
     assert "--hetero-gnn" not in cmd
     assert "--kg-edges" not in cmd
     assert "--reactome-path" not in cmd
+    assert "--rnaseq-path" not in cmd
     assert "--gtex-path" not in cmd
 
 
@@ -51,6 +52,12 @@ def test_forwards_reactome_path():
     cmd = smoke_all_models._build_eval_cmd(
         _smoke_args(reactome_path="reactome.parquet"), "eval.py", "c.parquet", "/tmp/o")
     assert "--reactome-path" in cmd and cmd[cmd.index("--reactome-path") + 1] == "reactome.parquet"
+
+
+def test_forwards_rnaseq_path():
+    cmd = smoke_all_models._build_eval_cmd(
+        _smoke_args(rnaseq_path="rnaseq.parquet"), "eval.py", "c.parquet", "/tmp/o")
+    assert "--rnaseq-path" in cmd and cmd[cmd.index("--rnaseq-path") + 1] == "rnaseq.parquet"
 
 
 def test_forwards_gtex_path():
@@ -108,6 +115,12 @@ def test_parser_accepts_reactome_path():
     parsed = smoke_all_models.parse_args(
         ["--clinvar", "c.parquet", "--reactome-path", "r.parquet"])
     assert parsed.reactome_path == "r.parquet"
+
+
+def test_parser_accepts_rnaseq_path():
+    parsed = smoke_all_models.parse_args(
+        ["--clinvar", "c.parquet", "--rnaseq-path", "rs.parquet"])
+    assert parsed.rnaseq_path == "rs.parquet"
 
 
 def test_parser_accepts_gtex_path():

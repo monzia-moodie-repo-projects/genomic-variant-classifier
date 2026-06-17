@@ -101,6 +101,16 @@ def parse_args(argv=None) -> argparse.Namespace:
         "population-median defaults (Run 9 bug).",
     )
     p.add_argument(
+        "--rnaseq-path",
+        default=None,
+        help="RNA-seq gene-expression parquet "
+        "(data/external/rnaseq_gene_expression.parquet), built by "
+        "scripts/build_rnaseq_parquet.py from a gene/transcript x sample matrix; "
+        "gene-level join. When omitted, rnaseq_* features are identically 0. If "
+        "it carries DE columns, that RNA-seq cohort MUST be independent of the "
+        "variant-label cohort (else leakage).",
+    )
+    p.add_argument(
         "--reactome-path",
         default=None,
         help="Reactome per-gene pathway-count parquet "
@@ -269,6 +279,7 @@ def main() -> int:
             lovd_path=Path(args.lovd_path) if args.lovd_path else None,
             dbnsfp_path=Path(args.dbnsfp_path) if args.dbnsfp_path else None,
             reactome_path=Path(args.reactome_path) if args.reactome_path else None,
+            rnaseq_path=Path(args.rnaseq_path) if args.rnaseq_path else None,
             finngen_path=Path(args.finngen_path) if args.finngen_path else None,
         )
         prep = DataPrepPipeline(

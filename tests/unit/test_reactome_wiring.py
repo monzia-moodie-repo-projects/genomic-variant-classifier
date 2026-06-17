@@ -49,6 +49,8 @@ def test_engineer_features_reactome_real_value_passes_through():
 def test_reactome_is_last_feature_and_columns_match_tabular():
     # Both builders append reactome last; lock the contract: engineer_features
     # output equals TABULAR_FEATURES exactly (set AND order).
-    assert TABULAR_FEATURES[-1] == "reactome_pathway_count"
+    # reactome was last until the rnaseq family (Phase D) was appended after it
+    assert "reactome_pathway_count" in TABULAR_FEATURES
+    assert TABULAR_FEATURES[-1] == "rnaseq_de_neglog10p"
     feats = engineer_features(_engineer_df())
     assert list(feats.columns) == TABULAR_FEATURES

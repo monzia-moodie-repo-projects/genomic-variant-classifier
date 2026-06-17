@@ -261,6 +261,12 @@ TABULAR_FEATURES = [
     "mis_z",
     # Reactome pathway membership (1) - Phase D
     "reactome_pathway_count",
+    # RNA-seq gene expression (5) - Phase D
+    "rnaseq_mean_log_tpm",
+    "rnaseq_detection_rate",
+    "rnaseq_log2_cv",
+    "rnaseq_log2fc",
+    "rnaseq_de_neglog10p",
 ]
 
 PHASE_2_FEATURES: list[str] = []  # All Phase 2 features now active; Phase 3 adds GWAS
@@ -657,6 +663,20 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
         .astype(int)
         .clip(lower=0)
     )
+
+    # RNA-seq gene expression (5) - Phase D
+    for _rc in (
+        "rnaseq_mean_log_tpm",
+        "rnaseq_detection_rate",
+        "rnaseq_log2_cv",
+        "rnaseq_log2fc",
+        "rnaseq_de_neglog10p",
+    ):
+        feats[_rc] = (
+            df.get(_rc, pd.Series([0.0] * len(df), index=df.index))
+            .fillna(0.0)
+            .astype(float)
+        )
 
     return feats.reset_index(drop=True)
 

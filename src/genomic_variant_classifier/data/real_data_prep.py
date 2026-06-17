@@ -285,6 +285,7 @@ class AnnotationConfig:
     esm2_device: Optional[str] = None  # Phase 3C: None/'auto' -> cuda if available, else cpu
     gnomad_constraint_path: Optional[Path] = None  # Phase 3C: gnomAD constraint TSV
     reactome_path: Optional[Path] = None  # Phase D: Reactome gene pathway-count parquet
+    rnaseq_path: Optional[Path] = None  # Phase D: RNA-seq gene-expression parquet (build_rnaseq_parquet.py)
     min_protein_coord_coverage: float = 0.50  # Phase D: fail-loud gate on step-10b coord coverage WHEN a source is present (observed ~0.97; <0.50 => stale/mismatched index)
 
 
@@ -1007,12 +1008,29 @@ class DataPrepPipeline:
         reactome = ReactomeConnector(pathway_path=ac.reactome_path)
         df = reactome.annotate_dataframe(df)
         logger.info(
-            "Score annotation 18/18 (Reactome): %d variants with reactome_pathway_count > 0.",
+            "Score annotation 18/19 (Reactome): %d variants with reactome_pathway_count > 0.",
             int(
                 (
                     df.get(
                         "reactome_pathway_count",
                         pd.Series([0] * len(df), index=df.index),
+                    )
+                    > 0
+                ).sum()
+            ),
+        )
+
+        # 19. RNA-seq gene expression (Phase D)
+        from genomic_variant_classifier.data.rnaseq import annotate_rnaseq_from_parquet
+
+        df = annotate_rnaseq_from_parquet(df, ac.rnaseq_path)
+        logger.info(
+            "Score annotation 19/19 (RNA-seq): %d variants with rnaseq expression.",
+            int(
+                (
+                    df.get(
+                        "rnaseq_mean_log_tpm",
+                        pd.Series([0.0] * len(df), index=df.index),
                     )
                     > 0
                 ).sum()
@@ -1365,6 +1383,20 @@ class DataPrepPipeline:
             .astype(int)
             .clip(lower=0)
         )
+
+        # RNA-seq gene expression (5) - Phase D
+        for _rc in (
+            "rnaseq_mean_log_tpm",
+            "rnaseq_detection_rate",
+            "rnaseq_log2_cv",
+            "rnaseq_log2fc",
+            "rnaseq_de_neglog10p",
+        ):
+            feats[_rc] = (
+                df.get(_rc, pd.Series([0.0] * len(df), index=df.index))
+                .fillna(0.0)
+                .astype(float)
+            )
 
         n_nan = feats.isnull().sum().sum()
         if n_nan > 0:
