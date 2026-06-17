@@ -267,6 +267,7 @@ class AnnotationConfig:
     annotate_cadd: bool = False
     gtex_genes: list[str] = field(default_factory=list)
     gtex_tissues: list[str] = field(default_factory=list)
+    gtex_path: Optional[Path] = None  # RNA expression: bulk GTEx median-TPM parquet (build_gtex_parquet.py)
     vep_path: Optional[Path] = None
     omim_path: Optional[Path] = None
     clingen_path: Optional[Path] = None
@@ -742,7 +743,22 @@ class DataPrepPipeline:
         )
 
         # 6. GTEx
-        if ac.gtex_genes:
+        if ac.gtex_path:
+            # RNA expression (offline bulk): gene-level median-TPM features for the
+            # whole cohort with no per-gene API calls. eQTL trio stays at defaults.
+            from genomic_variant_classifier.data.gtex import (
+                annotate_gtex_expression_from_parquet,
+            )
+
+            df = annotate_gtex_expression_from_parquet(df, ac.gtex_path)
+            for col, val in [
+                ("gtex_is_eqtl", 0),
+                ("gtex_min_eqtl_pval", 0.0),
+                ("gtex_max_abs_effect", 0.0),
+            ]:
+                if col not in df.columns:
+                    df[col] = val
+        elif ac.gtex_genes:
             from genomic_variant_classifier.data.gtex import GTExConnector, build_gtex_feature_df
 
             gtex = GTExConnector()

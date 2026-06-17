@@ -62,6 +62,12 @@ def parse_args(argv=None) -> argparse.Namespace:
         "scripts/build_uniprot_index.py. Omit or pass '' to use live UniProt REST.",
     )
     p.add_argument("--gtex-genes", nargs="*", default=[])
+    p.add_argument("--gtex-path", default=None,
+                   help="Bulk GTEx gene-expression parquet "
+                        "(data/external/gtex_gene_expression.parquet), built by "
+                        "scripts/build_gtex_parquet.py --gct ...; gene-level join, "
+                        "no API. Populates gtex_max_tpm/n_tissues_expressed/"
+                        "tissue_specificity. Takes precedence over --gtex-genes.")
     p.add_argument(
         "--kg",
         default=None,
@@ -254,6 +260,7 @@ def main() -> int:
             esm2_uniprot_index_path=_esm2_index,
             alphamissense_path=Path(args.alphamissense) if args.alphamissense else None,
             gtex_genes=args.gtex_genes or [],
+            gtex_path=Path(args.gtex_path) if args.gtex_path else None,
             kg_path=Path(args.kg) if args.kg else None,
             gnomad_constraint_path=(
                 Path(args.gnomad_constraint) if args.gnomad_constraint else None

@@ -33,6 +33,7 @@ from __future__ import annotations
  
 import logging
 import time
+from pathlib import Path
 from typing import Optional
  
 import numpy as np
@@ -442,3 +443,84 @@ def build_gtex_feature_df(
     df["gtex_min_eqtl_pval"]       = df["gtex_min_eqtl_pval"].fillna(0.0)
     df["gtex_max_abs_effect"]      = df["gtex_max_abs_effect"].fillna(0.0)
     return df
+
+
+# ---------------------------------------------------------------------------
+# Offline bulk-expression path (no per-gene API calls)
+# ---------------------------------------------------------------------------
+_GTEX_BULK_EXPR_COLS = [
+    "gtex_max_tpm",
+    "gtex_n_tissues_expressed",
+    "gtex_tissue_specificity",
+]
+
+
+def annotate_gtex_expression_from_parquet(
+    df: pd.DataFrame, parquet_path: "str | Path"
+) -> pd.DataFrame:
+    """Gene-level left-join of bulk GTEx expression features.
+
+    Reads the per-gene parquet built offline by scripts/build_gtex_parquet.py
+    (from the GTEx median-TPM GCT) and populates the three gene-level expression
+    features cohort-wide, with NO per-gene GTEx API calls. The variant-level eQTL
+    trio (gtex_is_eqtl / gtex_min_eqtl_pval / gtex_max_abs_effect) is left
+    untouched (it needs the eQTL bulk files). NaN-safe and defensive against
+    pre-existing columns (no _x/_y suffixes on re-run).
+    """
+    result = df.copy()
+    pth = Path(parquet_path)
+    if not pth.exists():
+        logger.warning(
+            "GTEx bulk: parquet not found at '%s' -- expression features default to 0.",
+            pth,
+        )
+        for col, default in (("gtex_max_tpm", 0.0),
+                             ("gtex_n_tissues_expressed", 0),
+                             ("gtex_tissue_specificity", 0.0)):
+            result[col] = default
+        return result
+
+    try:
+        lookup = pd.read_parquet(pth, columns=["gene_symbol"] + _GTEX_BULK_EXPR_COLS)
+    except Exception as exc:
+        logger.error("GTEx bulk: failed to read parquet '%s': %s", pth, exc)
+        for col, default in (("gtex_max_tpm", 0.0),
+                             ("gtex_n_tissues_expressed", 0),
+                             ("gtex_tissue_specificity", 0.0)):
+            result[col] = default
+        return result
+
+    lookup = (
+        lookup.dropna(subset=["gene_symbol"]).drop_duplicates(subset=["gene_symbol"])
+    )
+
+    for col in _GTEX_BULK_EXPR_COLS:
+        if col in result.columns:
+            result = result.drop(columns=[col])
+
+    gene = result.get(
+        "gene_symbol", pd.Series([""] * len(result), index=result.index)
+    ).astype(str)
+    result["_gene_key"] = gene
+    lk = lookup.rename(columns={"gene_symbol": "_gene_key"})
+    result = result.merge(lk, on="_gene_key", how="left").drop(columns=["_gene_key"])
+
+    result["gtex_max_tpm"] = pd.to_numeric(
+        result["gtex_max_tpm"], errors="coerce"
+    ).fillna(0.0)
+    result["gtex_n_tissues_expressed"] = (
+        pd.to_numeric(result["gtex_n_tissues_expressed"], errors="coerce")
+        .fillna(0)
+        .astype(int)
+    )
+    result["gtex_tissue_specificity"] = pd.to_numeric(
+        result["gtex_tissue_specificity"], errors="coerce"
+    ).fillna(0.0)
+
+    n_expr = int((result["gtex_max_tpm"] > 0).sum())
+    logger.info(
+        "GTEx bulk: %d / %d variants have gtex_max_tpm > 0 (gene-level expression).",
+        n_expr,
+        len(result),
+    )
+    return result

@@ -39,6 +39,7 @@ def test_omits_run17_flags_by_default():
     assert "--hetero-gnn" not in cmd
     assert "--kg-edges" not in cmd
     assert "--reactome-path" not in cmd
+    assert "--gtex-path" not in cmd
 
 
 def test_forwards_kg():
@@ -50,6 +51,12 @@ def test_forwards_reactome_path():
     cmd = smoke_all_models._build_eval_cmd(
         _smoke_args(reactome_path="reactome.parquet"), "eval.py", "c.parquet", "/tmp/o")
     assert "--reactome-path" in cmd and cmd[cmd.index("--reactome-path") + 1] == "reactome.parquet"
+
+
+def test_forwards_gtex_path():
+    cmd = smoke_all_models._build_eval_cmd(
+        _smoke_args(gtex_path="gtex.parquet"), "eval.py", "c.parquet", "/tmp/o")
+    assert "--gtex-path" in cmd and cmd[cmd.index("--gtex-path") + 1] == "gtex.parquet"
 
 
 def test_forwards_hetero_gnn():
@@ -101,6 +108,12 @@ def test_parser_accepts_reactome_path():
     parsed = smoke_all_models.parse_args(
         ["--clinvar", "c.parquet", "--reactome-path", "r.parquet"])
     assert parsed.reactome_path == "r.parquet"
+
+
+def test_parser_accepts_gtex_path():
+    parsed = smoke_all_models.parse_args(
+        ["--clinvar", "c.parquet", "--gtex-path", "g.parquet"])
+    assert parsed.gtex_path == "g.parquet"
 
 
 # ----------------------------------------------------------------------------- EXPECT_RUN17 coverage

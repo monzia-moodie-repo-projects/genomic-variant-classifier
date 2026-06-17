@@ -177,6 +177,7 @@ def _build_eval_cmd(args, eval_py, clinvar_for_cmd, outdir):
         ("--gnomad-constraint", args.gnomad_constraint),
         ("--dbnsfp-path", args.dbnsfp_path), ("--lovd-path", args.lovd_path),
         ("--reactome-path", getattr(args, "reactome_path", None)),
+        ("--gtex-path", getattr(args, "gtex_path", None)),
         ("--gnn-epochs", str(args.gnn_epochs) if getattr(args, "gnn_epochs", None) is not None else ""),
     ]:
         if val:
@@ -204,6 +205,7 @@ def parse_args(argv=None):
     ap.add_argument("--dbnsfp-path", dest="dbnsfp_path")
     ap.add_argument("--lovd-path", dest="lovd_path")
     ap.add_argument("--reactome-path", dest="reactome_path")
+    ap.add_argument("--gtex-path", dest="gtex_path")
     ap.add_argument("--string-db", dest="string_db", default="auto")
     ap.add_argument("--smoke-n", type=int, default=3000)
     ap.add_argument("--clinvar-sample-n", dest="clinvar_sample_n", type=int, default=None,
