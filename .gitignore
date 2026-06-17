@@ -165,3 +165,7 @@ data/agent_state.json
 # FinOps scratch artifacts (vastai offers snapshot + ad-hoc probe; never source)
 /offers.json
 /try_finops.py
+
+# Data-layout audit reports (audit_data_tree.py --json; manual structure dump)
+/data_audit_*.json
+/project_structure_audit.txt
