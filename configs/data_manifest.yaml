@@ -1,0 +1,337 @@
+# configs/data_manifest.yaml
+# =============================================================================
+# Canonical registry of every data source under data/. Single source of truth
+# for the data-layout standard: the auditor, setup, and sync scripts all read it.
+# See docs/standards/DATA_LAYOUT_STANDARD.md for the full convention.
+#
+# Per-source fields:
+#   location : external | raw | processed         (which top-level data/ subtree)
+#   tier     : public | academic | controlled     (controlled/licensed => NEVER personal cloud)
+#   class    : irreplaceable | regenerable_expensive | regenerable_cheap | public_redownloadable
+#   aliases  : [old/non-canonical dir names the auditor should flag for rename]
+#   version  : free-text provenance
+#   acquire  : how to (re)obtain it
+#   regenerate : command that rebuilds it (empty if not regenerable)
+#   sync     : back this up to G drive? (auto-policy: true only for irreplaceable +
+#              regenerable_expensive AND tier != controlled; explicit here so you can override)
+#   notes    : license / DUA / caveats
+# =============================================================================
+version: 1
+gdrive:
+  remote: "genvarcla:"                       # rclone remote (Google Drive)
+  base: "genomic-variant-classifier/data"    # path under the remote (the mirror root)
+
+sources:
+  # ---- EXTERNAL: third-party reference data (read-only inputs) ----
+  clinvar:
+    location: external
+    tier: public
+    class: public_redownloadable
+    aliases: [clinvar_fresh]
+    version: "GRCh38 2024-07"
+    acquire: "NCBI ClinVar VCF -- https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/"
+    regenerate: ""
+    sync: false
+    notes: "Public; re-downloadable. Large; regenerate rather than back up."
+  gnomad:
+    location: external
+    tier: public
+    class: public_redownloadable
+    aliases: []
+    version: "v4.1 exomes"
+    acquire: "gnomAD downloads -- https://gnomad.broadinstitute.org/downloads"
+    regenerate: ""
+    sync: false
+    notes: "Public; very large; re-downloadable."
+  gtex:
+    location: external
+    tier: public
+    class: public_redownloadable
+    aliases: []
+    version: "v10 gene median TPM (GCT)"
+    acquire: "https://gtexportal.org/home/downloads/adult-gtex (GTEx_Analysis_*_gene_median_tpm.gct.gz)"
+    regenerate: ""
+    sync: false
+    notes: "Public reference (healthy tissue) -- leakage-safe."
+  1kgp:
+    location: external
+    tier: public
+    class: public_redownloadable
+    aliases: [1000g, onekg, 1000genomes]
+    version: "GRCh38 AF"
+    acquire: "1000 Genomes Project -- https://www.internationalgenome.org/data"
+    regenerate: ""
+    sync: false
+    notes: "kg_grch38_af.parquet is small + tracked in git."
+  ensembl:
+    location: external
+    tier: public
+    class: public_redownloadable
+    aliases: []
+    version: ""
+    acquire: "Ensembl / VEP -- https://www.ensembl.org/info/data/ftp/"
+    regenerate: ""
+    sync: false
+    notes: "Gene annotations / VEP cache. CONFIRM exact contents + version."
+  dbnsfp:
+    location: external
+    tier: academic
+    class: public_redownloadable
+    aliases: []
+    version: "4.x"
+    acquire: "https://www.dbnsfp.org/ (academic license)"
+    regenerate: ""
+    sync: false
+    notes: "Academic license. Confirm terms before any cloud copy."
+  spliceai:
+    location: external
+    tier: public
+    class: public_redownloadable
+    aliases: [spliceai_scores]
+    version: "precomputed SNV"
+    acquire: "Illumina SpliceAI precomputed scores (Basespace/Zenodo)."
+    regenerate: ""
+    sync: false
+    notes: ""
+  alphamissense:
+    location: external
+    tier: public
+    class: public_redownloadable
+    aliases: []
+    version: "hg38"
+    acquire: "https://zenodo.org/records/8208688 (AlphaMissense)"
+    regenerate: ""
+    sync: false
+    notes: "CC BY-NC-SA 4.0 (non-commercial)."
+  string:
+    location: external
+    tier: public
+    class: public_redownloadable
+    aliases: []
+    version: "v12.0 (9606)"
+    acquire: "https://string-db.org/cgi/download"
+    regenerate: ""
+    sync: false
+    notes: ""
+  reactome:
+    location: external
+    tier: public
+    class: public_redownloadable
+    aliases: []
+    version: "ReactomePathways.gmt"
+    acquire: "https://reactome.org/download-data"
+    regenerate: "python scripts/build_reactome_parquet.py --gmt data/external/reactome/ReactomePathways.gmt --out data/external/reactome_gene_pathways.parquet"
+    sync: false
+    notes: "GMT is small; the built reactome_gene_pathways.parquet is regenerable_expensive (see below)."
+  finngen:
+    location: external
+    tier: public
+    class: public_redownloadable
+    aliases: []
+    version: "R12"
+    acquire: "https://www.finngen.fi/en/access_results"
+    regenerate: ""
+    sync: false
+    notes: ""
+  rnaseq:
+    location: external
+    tier: review
+    class: irreplaceable
+    aliases: []
+    version: "user-supplied matrix"
+    acquire: "Your own gene/transcript x sample quantification, OR recount3/ARCHS4."
+    regenerate: "python scripts/build_rnaseq_parquet.py --matrix <matrix> [--tx-map ..] [--sample-meta ..] --out data/external/rnaseq_gene_expression.parquet"
+    sync: true
+    notes: "If your OWN cohort -> irreplaceable, back up. CONFIRM tier: a disease cohort may be controlled-access (then sync:false)."
+  revel:
+    location: external
+    tier: public
+    class: public_redownloadable
+    aliases: []
+    version: ""
+    acquire: "https://sites.google.com/site/revelgenomics/"
+    regenerate: ""
+    sync: false
+    notes: ""
+  eve:
+    location: external
+    tier: public
+    class: public_redownloadable
+    aliases: []
+    version: ""
+    acquire: "https://evemodel.org/ (Zenodo)"
+    regenerate: ""
+    sync: false
+    notes: ""
+  uniprot:
+    location: external
+    tier: public
+    class: public_redownloadable
+    aliases: []
+    version: ""
+    acquire: "https://www.uniprot.org/"
+    regenerate: ""
+    sync: false
+    notes: ""
+  primateai3d:
+    location: external
+    tier: academic
+    class: public_redownloadable
+    aliases: []
+    version: ""
+    acquire: "PrimateAI-3D (registration)."
+    regenerate: ""
+    sync: false
+    notes: "Confirm license."
+  lovd:
+    location: external
+    tier: public
+    class: public_redownloadable
+    aliases: []
+    version: ""
+    acquire: "https://www.lovd.nl/"
+    regenerate: ""
+    sync: false
+    notes: ""
+  alphafold:
+    location: external
+    tier: public
+    class: public_redownloadable
+    aliases: []
+    version: ""
+    acquire: "EBI AlphaFold DB REST -- https://alphafold.ebi.ac.uk/api/"
+    regenerate: ""
+    sync: false
+    notes: ""
+  dbsnp:
+    location: external
+    tier: public
+    class: public_redownloadable
+    aliases: [dbsnp156]
+    version: "b156"
+    acquire: "https://ftp.ncbi.nih.gov/snp/"
+    regenerate: ""
+    sync: false
+    notes: ""
+  phylop:
+    location: external
+    tier: public
+    class: public_redownloadable
+    aliases: []
+    version: ""
+    acquire: "UCSC phyloP bigWig -- https://hgdownload.soe.ucsc.edu/"
+    regenerate: ""
+    sync: false
+    notes: ""
+  clingen:
+    location: external
+    tier: public
+    class: public_redownloadable
+    aliases: ["ClinGen-Gene-Disease-Summary"]
+    version: ""
+    acquire: "https://clinicalgenome.org/ (Gene-Disease Validity summary)"
+    regenerate: ""
+    sync: false
+    notes: "Rename the stray top-level ClinGen-Gene-Disease-Summary.csv into clingen/."
+  mim2gene:
+    location: external
+    tier: public
+    class: public_redownloadable
+    aliases: []
+    version: ""
+    acquire: "https://omim.org/downloads (mim2gene.txt is the FREE gene map)"
+    regenerate: ""
+    sync: false
+    notes: "Free OMIM gene map (distinct from licensed OMIM below)."
+  validation_cohort:
+    location: external
+    tier: review
+    class: irreplaceable
+    aliases: []
+    version: ""
+    acquire: "Project-internal."
+    regenerate: ""
+    sync: true
+    notes: "CONFIRM tier + whether it is independent of the label cohort (leakage)."
+  # ---- CONTROLLED / LICENSED -- NEVER sync to a personal Google Drive ----
+  omim:
+    location: external
+    tier: controlled
+    class: irreplaceable
+    aliases: []
+    version: ""
+    acquire: "https://omim.org/ (institutional license)"
+    regenerate: ""
+    sync: false
+    notes: "LICENSED. Do NOT place on personal cloud."
+  hgmd:
+    location: external
+    tier: controlled
+    class: irreplaceable
+    aliases: [hgmd_pro]
+    version: "Professional"
+    acquire: "QIAGEN HGMD Professional (paid license)."
+    regenerate: ""
+    sync: false
+    notes: "LICENSED (paid). Do NOT place on personal cloud. REVEL/VEST4/FATHMM/MutPred2 trained on HGMD-DM -- not usable as labels if HGMD is also a label source."
+  cosmic:
+    location: external
+    tier: controlled
+    class: irreplaceable
+    aliases: []
+    version: ""
+    acquire: "https://cancer.sanger.ac.uk/cosmic (registration; commercial license)"
+    regenerate: ""
+    sync: false
+    notes: "Licensed. Somatic -- domain-mismatched for germline labels."
+  tcga:
+    location: external
+    tier: controlled
+    class: irreplaceable
+    aliases: []
+    version: ""
+    acquire: "GDC; controlled-access via dbGaP + PI sponsorship."
+    regenerate: ""
+    sync: false
+    notes: "CONTROLLED-ACCESS (dbGaP DUA). Personal-cloud storage likely BREACHES the DUA. Open-tier GDC manifests only without login."
+  topmed:
+    location: external
+    tier: controlled
+    class: irreplaceable
+    aliases: []
+    version: "BRAVO Freeze 10"
+    acquire: "BRAVO summary via Google login; individual-level requires signing official + PI."
+    regenerate: ""
+    sync: false
+    notes: "Individual-level is CONTROLLED. Summary (BRAVO) is browse-only."
+  # ---- BUILT ARTIFACTS (live at code-referenced paths; regenerable) ----
+  reactome_gene_pathways:
+    location: external
+    tier: public
+    class: regenerable_expensive
+    aliases: []
+    version: "built parquet"
+    acquire: ""
+    regenerate: "python scripts/build_reactome_parquet.py --gmt data/external/reactome/ReactomePathways.gmt --out data/external/reactome_gene_pathways.parquet"
+    sync: true
+    notes: "Built artifact (data/external/reactome_gene_pathways.parquet). Path is code-referenced -- do NOT move."
+  gtex_gene_expression:
+    location: external
+    tier: public
+    class: regenerable_expensive
+    aliases: []
+    version: "built parquet"
+    acquire: ""
+    regenerate: "python scripts/build_gtex_parquet.py --gct data/external/gtex/<gct.gz> --out data/external/gtex_gene_expression.parquet"
+    sync: true
+    notes: "Built artifact. Path is code-referenced -- do NOT move."
+  rnaseq_gene_expression:
+    location: external
+    tier: review
+    class: regenerable_expensive
+    aliases: []
+    version: "built parquet"
+    acquire: ""
+    regenerate: "python scripts/build_rnaseq_parquet.py --matrix <..> --out data/external/rnaseq_gene_expression.parquet"
+    sync: true
+    notes: "Built artifact. If derived from a controlled cohort, set sync:false."
