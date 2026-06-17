@@ -3890,3 +3890,32 @@ environmental data/ incident caught by the fail-loud guard.
 ### Data state
 - Production `gnomad_v4_exomes.parquet` = 2,951,148 rows; backup `.bak_pre_ymt` = 2,947,370 (clean original);
   rclone `genvarcla:` re-synced.
+
+## 2026-06-17 -- Data-layout standard shipped + CI feature-count drift fixed
+
+### Added
+- Reusable data-layout standard: `docs/standards/DATA_LAYOUT_STANDARD.md`, migration runbook,
+  `configs/data_manifest.yaml` (32 sources), `configs/rclone_data_filter.txt`, and five
+  `scripts/maintenance/` tools (setup, audit, consolidate_aliases, sync_data_to_gdrive,
+  preflight_data_guard). Security-aware backup buckets; controlled sources never cloud-synced.
+  data/ confirmed a real local dir; empty aliases 1000genomes/clinvar_fresh removed; GRCh38
+  reference genome (data/external/reference, ~3.8GB) registered. Audit VERDICT CLEAN. (47bc887, 40f16f0)
+
+### Fixed
+- CI red since 1f3c2e0: Fork C widened TABULAR_FEATURES 82 -> 87 (5 rnaseq_* cols) without bumping
+  EXPECTED_TABULAR_FEATURE_COUNT or the KNOWN_ZERO_DEFAULT dead-connector allowlist. A local subset
+  pytest run masked it; the full suite failed 5 tests. Bumped the constant 82 -> 87 and allowlisted the
+  five rnaseq_* columns (stub-zero until --rnaseq-path supplied). Guardrails only; no feature logic
+  changed. (11e14a3) See docs/incidents/INCIDENT_2026-06-17_feature-count-drift.md.
+- setup_data_tree.py no longer writes an ignore-all .gitignore into the TRACKED reference/ subtree.
+
+### Verified
+- Data audit CLEAN (32 sources; reference 3.8GB recognized; no aliases/orphans/violations).
+- Full unit suite 1309 passed, 2 skipped, 41 warnings (all pre-existing). CI run #442 Success
+  (lockfile drift, pytest 3.11, pytest 3.12, Docker smoke).
+
+### Open
+- external/reference carries both .fa (3005MB +.fai) and .fa.gz (841MB) -- unindexed duplicate; nothing
+  in src/ references it yet (likely the unwired source for empty fasta_seq features). Verify config/
+  scripts/notebooks before dropping the re-derivable .fa.gz. Consider reference sync:true.
+- GTEx bulk + RNA-seq parquets still to build; reactome activation (c61ede6) not yet smoke-verified.
