@@ -30,6 +30,8 @@ from pathlib import Path
 import yaml
 
 _SUBTREES = ["external", "raw", "raw/cache", "processed", "reference", "interim", "splits"]
+# reference/ holds small TRACKED schemas/manifests -- it must NOT be ignore-all.
+_TRACKED_SUBTREES = {"reference"}
 _GITIGNORE = "# Ignore all data files -- directory tracked by this file\n*\n!.gitignore\n"
 
 
@@ -64,6 +66,8 @@ def main(argv: list[str]) -> int:
             do(f"mkdir {d}")
             if not args.dry_run:
                 d.mkdir(parents=True, exist_ok=True)
+        if sub in _TRACKED_SUBTREES:
+            continue  # tracked-content subtree: do not write an ignore-all .gitignore
         gi = d / ".gitignore"
         if not gi.exists():
             do(f"write {gi}")

@@ -73,6 +73,16 @@ sources:
     regenerate: ""
     sync: false
     notes: "Gene annotations / VEP cache. CONFIRM exact contents + version."
+  reference:
+    location: external
+    tier: public
+    class: public_redownloadable
+    aliases: []
+    version: "GRCh38 primary assembly (Ensembl)"
+    acquire: "Ensembl -- Homo_sapiens.GRCh38.dna.primary_assembly.fa(.gz) + samtools faidx for .fai"
+    regenerate: ""
+    sync: false
+    notes: "Reference genome FASTA (~3.8GB). CODE-REFERENCED at data/external/reference -- do NOT rename. Redundant .fa AND .fa.gz present; keep only the form the pipeline reads. Distinct from the top-level data/reference/ schema dir. Public but slow to re-download -- consider sync:true."
   dbnsfp:
     location: external
     tier: academic
