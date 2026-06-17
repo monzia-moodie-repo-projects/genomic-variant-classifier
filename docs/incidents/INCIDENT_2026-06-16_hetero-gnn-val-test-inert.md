@@ -141,7 +141,12 @@ only feeds the hetero graph, not the feature). Regression: `tests/unit/test_run1
   `tests/unit/test_hetero_inductive_pyg.py` ran under `.venv312` (torch_geometric
   present) and **passed 2/2** — `from_full_graph` scores gene-disjoint val/test through
   the real HeteroConv forward (not the 0.5 default), and the legacy train-only node set
-  leaves them inert. Full `pytest -q` green (1283 passed / 7 skipped). RETAINED as the
+  leaves them inert. Full `pytest -q` green (1283 passed / 7 skipped). The full-flag
+  `--hetero-gnn` real-cohort smoke (outdir `smoke_all_models_bs_3rk9y`, 2026-06-16)
+  then confirmed end-to-end: hetero node union=2653 (1413 train + 1240 val/test added),
+  `from_full_graph` scored all 2653 genes, and hetero_gnn_score went from the pre-fix
+  nunique=1 (0.5 default) to val nunique=352 std=0.0305 / test nunique=716 std=0.0294;
+  the per-split audit read hetero_gnn_score train=ok val=ok test=ok -> PASS. RETAINED as the
   standing pre-Run-17 pre-flight gate: the full-flag `--hetero-gnn` smoke log must show
   `[HETERO-GNN] node set spans all splits: union=...` and `val`/`test injected ...
   nunique > 1` (not `nunique=1, std=0.0000`), then
