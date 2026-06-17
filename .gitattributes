@@ -1,6 +1,38 @@
-requirements-api.lock text eol=lf
+# Default text normalization.
+* text=auto
+
+# Python and project source/config files should stay LF across platforms.
+*.py text eol=lf
+*.toml text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.lock text eol=lf
 
 # Shell scripts run on Linux VMs - force LF endings regardless of core.autocrlf.
 # Without this, Windows checkouts CRLF-ify the working tree and bash on the VM
 # fails with /bin/bash^M: bad interpreter.
 *.sh text eol=lf
+
+# Windows-native scripts may use CRLF.
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Data/binary artifacts must never be line-ending normalized.
+*.gz binary
+*.zip binary
+*.sqlite binary
+*.db binary
+*.pkl binary
+*.joblib binary
+*.parquet binary
+*.feather binary
+*.npy binary
+*.npz binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary
