@@ -115,6 +115,14 @@ def main() -> int:
     names = [n for n, _ in splits]
     total = sum(len(d) for _, d in splits)
     print(f" matrix: {total} rows across splits {names}  ({src})")
+    # staleness guard: surface when the splits were written so a stale/unrelated run (e.g. a
+    # smoke that predates a fix) cannot be silently misread from the verdict alone.
+    if arg.is_dir():
+        import datetime as _dt
+        _mt = [(arg / fn).stat().st_mtime for fn in SPLIT_FILES if (arg / fn).exists()]
+        if _mt:
+            print(f" splits written: {_dt.datetime.fromtimestamp(max(_mt)):%Y-%m-%d %H:%M} "
+                  "-- confirm this is the post-fix run you intend (a stale dir misleads the verdict)")
 
     hard_fail = False
     print("\n[newly-activated source features -- checked in EACH split]")

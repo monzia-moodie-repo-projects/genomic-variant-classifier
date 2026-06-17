@@ -72,3 +72,14 @@ def test_lovd_sparse_is_warn_not_fail(tmp_path):
 
 def test_reactome_severity_is_warn():
     assert audit.EXPECT_RUN17["reactome_pathway_count"][1] == "warn"
+
+
+def test_audit_header_surfaces_splits_write_time(tmp_path, capsys):
+    # staleness guard: the header must report when the splits were written, so a stale pre-fix
+    # directory cannot be silently misread from the verdict (INCIDENT_2026-06-16 follow-up:
+    # a pre-fix smoke dir was audited and FAILed correctly, but opaquely).
+    d = tmp_path / "s"
+    _write(d)
+    _run(d)
+    out = capsys.readouterr().out
+    assert "splits written:" in out
