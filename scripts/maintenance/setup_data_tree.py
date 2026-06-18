@@ -91,10 +91,11 @@ def main(argv: list[str]) -> int:
     for canon, meta in sorted(sources.items()):
         if meta.get("sync") and meta.get("tier") != "controlled":
             loc = meta.get("location", "external")
-            lines.append(f"+ /{loc}/{canon}/**")
+            lines.append(f"+ /{loc}/{canon}/**")   # directory artifact
+            lines.append(f"+ /{loc}/{canon}.*")    # file artifact (e.g. built parquet)
     lines.append("- *")
     filt = "\n".join(lines) + "\n"
-    do(f"write {args.filter_out} ({sum(1 for l in lines if l.startswith('+'))} included sources)")
+    do(f"write {args.filter_out} ({sum(1 for l in lines if l.endswith('/**'))} included sources)")
     if not args.dry_run:
         args.filter_out.parent.mkdir(parents=True, exist_ok=True)
         args.filter_out.write_text(filt, encoding="utf-8")
