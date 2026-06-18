@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "run_label": "run17-preflight",
-  "captured_from": "derived: run16b-smoke baseline + hetero_gnn_score(float64) for Run 17",
-  "captured_at": "2026-06-15T18:27:48.147753+00:00",
-  "n_columns": 82,
-  "expected_schema_hash": "c7e47d4983652b77774c1b51ac6d600571902f0fcf68bc42eccd0715a3febf02",
+  "captured_from": "derived: run16b-smoke baseline + hetero_gnn_score(float64) for Run 17 + 5 rnaseq_* (float64) surgically added for Run-17 RNA-seq branch",
+  "captured_at": "2026-06-18T23:33:33.282709+00:00",
+  "n_columns": 87,
+  "expected_schema_hash": "efca0d85a28df1004190ab1df049d547b0bc8de5b8a7d227d8e1767afbc3b0ca",
   "expected_dtypes": {
     "af_raw": "float64",
     "af_log10": "float64",
@@ -87,6 +87,11 @@
     "syn_z": "float64",
     "mis_z": "float64",
     "reactome_pathway_count": "float64",
+    "rnaseq_mean_log_tpm": "float64",
+    "rnaseq_detection_rate": "float64",
+    "rnaseq_log2_cv": "float64",
+    "rnaseq_log2fc": "float64",
+    "rnaseq_de_neglog10p": "float64",
     "hetero_gnn_score": "float64"
   }
 }

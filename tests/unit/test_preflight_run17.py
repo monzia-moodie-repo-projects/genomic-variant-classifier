@@ -75,10 +75,10 @@ def test_kg_parquet_absent_path_fails(tmp_path):
 
 
 # ---- schema gate ----
-def test_schema_gate_82_ok(tmp_path):
-    b = tmp_path / "schema_baseline.json"; _baseline(b, 82)
+def test_schema_gate_87_ok(tmp_path):
+    b = tmp_path / "schema_baseline.json"; _baseline(b, 87)
     rows = P.schema_gate(b)
-    assert rows[0][0] == "OK" and "n_columns=82" in rows[0][1]
+    assert rows[0][0] == "OK" and "n_columns=87" in rows[0][1]
 
 
 def test_schema_gate_78_fails(tmp_path):
@@ -129,7 +129,7 @@ def test_emitted_command_passes_command_level_gate(tmp_path, monkeypatch):
 
 
 def test_run_all_flags_forbidden_skip(tmp_path):
-    b = tmp_path / "schema_baseline.json"; _baseline(b, 82)
+    b = tmp_path / "schema_baseline.json"; _baseline(b, 87)
     kg = tmp_path / "kg.parquet"
     _kg_parquet(kg, ["variant_id", "allele_freq", "AFR_AF", "EUR_AF", "EAS_AF", "SAS_AF", "AMR_AF"])
     cmd = (f"python scripts/run_phase2_eval.py --clinvar c --string-db auto --min-review-tier 3 "
@@ -199,7 +199,7 @@ def test_string_gate_threshold_picks_matching_pkl(tmp_path):
 
 
 def test_run_all_includes_string_gate(tmp_path):
-    b = tmp_path / "schema_baseline.json"; _baseline(b, 82)
+    b = tmp_path / "schema_baseline.json"; _baseline(b, 87)
     cache = tmp_path / "cache"; cache.mkdir()
     (cache / "string_graph_700.pkl").write_text("x")
     cmd = P.emit_command(None, "outputs/run17", None)
