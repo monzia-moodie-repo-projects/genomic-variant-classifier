@@ -151,6 +151,14 @@ if [ -f "$GTEX_PARQUET" ]; then
 else
     echo "==> GTEx bulk ABSENT ($GTEX_PARQUET); gtex_* features will be ZERO" | tee -a "$LOG"
 fi
+# Reactome pathway counts ON-if-present (guard so absence never silently zeroes reactome_pathway_count).
+REACTOME_PARQUET="$DATA/external/reactome_gene_pathways.parquet"
+if [ -f "$REACTOME_PARQUET" ]; then
+    ARGS="$ARGS --reactome-path $REACTOME_PARQUET"
+    echo "==> Reactome wired: $REACTOME_PARQUET" | tee -a "$LOG"
+else
+    echo "==> Reactome ABSENT ($REACTOME_PARQUET); reactome_pathway_count will be ZERO" | tee -a "$LOG"
+fi
 ARGS="$ARGS --unseen-gene-holdout"
 ARGS="$ARGS --output $OUTDIR"
 echo "==> ARGS: $ARGS" | tee -a "$LOG"
