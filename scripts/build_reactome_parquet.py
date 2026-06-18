@@ -68,12 +68,44 @@ def _load_symbol_map(path: Path) -> pd.DataFrame:
     return m[["source_id", "gene_symbol"]].dropna().drop_duplicates()
 
 
+def _load_hgnc_symbols(path: Path) -> "set[str]":
+    """Union of approved + alias + prev HGNC symbols from hgnc_complete_set.txt.
+
+    Drops non-HGNC junk keys (rRNA names, fragments, comma-composites) from the
+    reactome gene_symbol space. Pipe-separated alias_symbol/prev_symbol are split.
+    """
+    h = pd.read_csv(path, sep="\t", dtype=str, low_memory=False)
+    syms: "set[str]" = set()
+    if "symbol" in h.columns:
+        syms |= set(h["symbol"].dropna().astype(str))
+    for col in ("alias_symbol", "prev_symbol"):
+        if col in h.columns:
+            for cell in h[col].dropna().astype(str):
+                syms |= {s for s in cell.split("|") if s}
+    syms.discard("")
+    if not syms:
+        raise SystemExit(f"--hgnc-path {path}: no symbols parsed (need a 'symbol' column).")
+    return syms
+
+
+def _filter_to_hgnc(agg: "pd.DataFrame", hgnc: "set[str]") -> "pd.DataFrame":
+    before = len(agg)
+    kept = agg[agg["gene_symbol"].astype(str).isin(hgnc)].reset_index(drop=True)
+    print(f"[hgnc-filter] kept {len(kept)} / {before} gene_symbols "
+          f"({before - len(kept)} non-HGNC keys dropped)")
+    if kept.empty:
+        raise SystemExit("[hgnc-filter] every gene_symbol dropped -- key-space mismatch "
+                         "(is the parquet symbol-keyed? is --hgnc-path correct?).")
+    return kept
+
+
 def build(
     input_path: Path,
     out_path: Path,
     symbol_map: Path | None,
     source_is_symbol: bool,
     species: str,
+    hgnc_symbols: "set[str] | None" = None,
 ) -> pd.DataFrame:
     raw = pd.read_csv(
         input_path, sep="\t", header=None, names=_DEFAULT_COLS,
@@ -101,13 +133,15 @@ def build(
     )
     agg["reactome_pathway_count"] = agg["reactome_pathway_count"].astype(int)
     agg = agg[agg["gene_symbol"].astype(str).str.len() > 0]
+    if hgnc_symbols is not None:
+        agg = _filter_to_hgnc(agg, hgnc_symbols)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     agg.to_parquet(out_path, index=False)
     return agg
 
 
-def build_from_gmt(gmt_path: Path, out_path: Path) -> pd.DataFrame:
+def build_from_gmt(gmt_path: Path, out_path: Path, hgnc_symbols: "set[str] | None" = None) -> pd.DataFrame:
     """Count distinct Reactome pathways per gene straight from a GMT gene-set file.
 
     Uses the SAME ReactomePathways.gmt that feeds the hetero-GNN shares_pathway
@@ -141,6 +175,8 @@ def build_from_gmt(gmt_path: Path, out_path: Path) -> pd.DataFrame:
     )
     agg["reactome_pathway_count"] = agg["reactome_pathway_count"].astype(int)
     agg = agg[agg["gene_symbol"].astype(str).str.len() > 0]
+    if hgnc_symbols is not None:
+        agg = _filter_to_hgnc(agg, hgnc_symbols)
     agg = agg.sort_values("gene_symbol").reset_index(drop=True)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -167,16 +203,24 @@ def main(argv: list[str]) -> None:
     ap.add_argument("--symbol-map", type=Path, default=None)
     ap.add_argument("--source-is-symbol", action="store_true")
     ap.add_argument("--species", default="Homo sapiens")
+    ap.add_argument("--hgnc-path", type=Path, default=None,
+                    help="hgnc_complete_set.txt; filter gene_symbol to HGNC symbols (drops non-HGNC junk).")
     args = ap.parse_args(argv)
+
+    hgnc_symbols = None
+    if args.hgnc_path is not None:
+        if not args.hgnc_path.exists():
+            raise SystemExit(f"--hgnc-path not found: {args.hgnc_path}")
+        hgnc_symbols = _load_hgnc_symbols(args.hgnc_path)
 
     if args.gmt is not None:
         if not args.gmt.exists():
             raise SystemExit(f"--gmt not found: {args.gmt}")
-        agg = build_from_gmt(args.gmt, args.out)
+        agg = build_from_gmt(args.gmt, args.out, hgnc_symbols)
     else:
         if not args.input.exists():
             raise SystemExit(f"--input not found: {args.input}")
-        agg = build(args.input, args.out, args.symbol_map, args.source_is_symbol, args.species)
+        agg = build(args.input, args.out, args.symbol_map, args.source_is_symbol, args.species, hgnc_symbols)
     print(f"Wrote {args.out}  ({len(agg)} genes; "
           f"max pathways/gene={int(agg['reactome_pathway_count'].max()) if len(agg) else 0}).")
 
