@@ -143,6 +143,14 @@ if [ -f "$LOVD_PARQUET" ]; then
 else
     echo "==> LOVD absent ($LOVD_PARQUET); proceeding without it (B9 if-present)" | tee -a "$LOG"
 fi
+# GTEx bulk expression is ON-if-present (guard so absence never silently zeroes gtex_*).
+GTEX_PARQUET="$DATA/external/gtex_gene_expression.parquet"
+if [ -f "$GTEX_PARQUET" ]; then
+    ARGS="$ARGS --gtex-path $GTEX_PARQUET"
+    echo "==> GTEx bulk wired: $GTEX_PARQUET" | tee -a "$LOG"
+else
+    echo "==> GTEx bulk ABSENT ($GTEX_PARQUET); gtex_* features will be ZERO" | tee -a "$LOG"
+fi
 ARGS="$ARGS --unseen-gene-holdout"
 ARGS="$ARGS --output $OUTDIR"
 echo "==> ARGS: $ARGS" | tee -a "$LOG"
