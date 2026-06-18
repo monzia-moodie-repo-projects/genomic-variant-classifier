@@ -48,8 +48,8 @@ sources:
     tier: public
     class: public_redownloadable
     aliases: []
-    version: "v10 gene median TPM (GCT)"
-    acquire: "https://gtexportal.org/home/downloads/adult-gtex (GTEx_Analysis_*_gene_median_tpm.gct.gz)"
+    version: "v11 gene median TPM (GCT)"
+    acquire: "https://gtexportal.org/home/downloads/adult-gtex (GTEx_Analysis_2025-08-22_v11_RNASeQCv2.4.3_gene_median_tpm.gct.gz)"
     regenerate: ""
     sync: false
     notes: "Public reference (healthy tissue) -- leakage-safe."
@@ -332,7 +332,7 @@ sources:
     aliases: []
     version: "built parquet"
     acquire: ""
-    regenerate: "python scripts/build_gtex_parquet.py --gct data/external/gtex/<gct.gz> --out data/external/gtex_gene_expression.parquet"
+    regenerate: 'python scripts/build_gtex_parquet.py --gct "G:/My Drive/genomic-variant-data/external/gtex/GTEx_Analysis_2025-08-22_v11_RNASeQCv2.4.3_gene_median_tpm.gct.gz" --out data/processed/gtex/gtex_v11_gene_expression.parquet'
     sync: true
     notes: "Built artifact. Path is code-referenced -- do NOT move."
   rnaseq_gene_expression:
