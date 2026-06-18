@@ -3,10 +3,14 @@
   "external": {
     "gencode": "G:\\My Drive\\genomic-variant-data\\external\\gencode",
     "gtex": "G:\\My Drive\\genomic-variant-data\\external\\gtex",
-    "hgnc": "G:\\My Drive\\genomic-variant-data\\external\\hgnc"
+    "hgnc": "G:\\My Drive\\genomic-variant-data\\external\\hgnc",
+    "rnaseq_designs": "G:\\My Drive\\genomic-variant-data\\external\\rnaseq\\designs",
+    "rnaseq_gtex_design_matrix": "G:\\My Drive\\genomic-variant-data\\external\\rnaseq\\gtex_v11_Brain_Cortex_vs_Whole_Blood.gene_tpm.tsv",
+    "rnaseq_gtex_de_features": "G:\\My Drive\\genomic-variant-data\\external\\rnaseq\\gtex_v11_Brain_Cortex_vs_Whole_Blood.de_features.tsv"
   },
   "manifests": {
     "source_assets": "G:\\My Drive\\genomic-variant-data\\manifests\\source_assets_manifest.json",
-    "gtex_v11": "G:\\My Drive\\genomic-variant-data\\manifests\\gtex_v11_manifest.json"
+    "gtex_v11": "G:\\My Drive\\genomic-variant-data\\manifests\\gtex_v11_manifest.json",
+    "rnaseq_gtex_de_features": "G:\\My Drive\\genomic-variant-data\\external\\rnaseq\\gtex_v11_Brain_Cortex_vs_Whole_Blood.de_features.manifest.json"
   }
 }
