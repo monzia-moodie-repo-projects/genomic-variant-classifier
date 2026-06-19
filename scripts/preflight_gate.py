@@ -33,6 +33,7 @@ REQUIRED_PATHS = {
     "--lovd-path":         "external/lovd/lovd_all_variants.parquet",
     "--gtex-path":         "external/gtex_gene_expression.parquet",
     "--reactome-path":     "external/reactome_gene_pathways.parquet",
+    "--rnaseq-path":       "external/rnaseq_gene_expression.parquet",
 }
 REQUIRED_VALUES = {"--string-db": "auto", "--min-review-tier": "3", "--n-folds": "5"}
 REQUIRED_PRESENT_VALUE = ["--output"]            # must be present, value free
@@ -49,7 +50,8 @@ def _build_mirror_parser() -> argparse.ArgumentParser:
     for f in ("--clinvar", "--seq-windows", "--gnomad", "--spliceai", "--alphamissense",
               "--kg", "--gnomad-constraint", "--lovd-path", "--dbnsfp-path", "--finngen-path",
               "--string-db", "--max-train", "--n-folds", "--min-review-tier",
-              "--auroc-target", "--output", "--gtex-path", "--reactome-path"):
+              "--auroc-target", "--output", "--gtex-path", "--reactome-path",
+              "--rnaseq-path"):
         p.add_argument(f)
     p.add_argument("--gtex-genes", nargs="*", default=[])
     p.add_argument("--kg-edges", nargs="*", default=[])

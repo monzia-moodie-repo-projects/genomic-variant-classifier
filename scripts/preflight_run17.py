@@ -3,7 +3,7 @@
 
 Run 17 activates two present-but-constant feature groups WITHOUT changing the schema:
   * gnn_score        via --string-db auto   (STRING-DB v12 GNN over the PPI graph)
-  * af_1kg_{afr,eur,eas,sas,amr}  via --kg <1000G Phase-3 AF parquet>
+  * af_1kg_{afr,eur,eas,sas,amr}  via --kg <1000G 30x high-coverage GRCh38 AF parquet>
 
 This is the ONE script that fills/validates every launch variable so nothing is hand-typed
 and nothing fails silently. It COMPOSES the validated command-level gate (preflight_gate.py)
@@ -15,9 +15,9 @@ and adds the three Run-17-specific checks the older gates miss:
      --kg pointed at the EMPTY 1kgp/1000genomes dirs the registry warns about) would leave
      af_1kg_* constant with no signal. locate_1kg.py only checks the combined `allele_freq`
      column, not the per-superpop columns -- so it cannot validate a Run-17 kg parquet either.
-  2. Schema gate -- the 81-column baseline (data/reference/schema/schema_baseline.json,
-     n_columns must be 81). Guards the build_schema_baseline.py DEFAULT_MATRIX footgun that
-     would silently regress the baseline 81 -> 78.
+  2. Schema gate -- the 87-column baseline (data/reference/schema/schema_baseline.json,
+     n_columns must be 87). Guards the build_schema_baseline.py DEFAULT_MATRIX footgun that
+     would silently regress the baseline 87 -> 78.
   3. Hard-gate scripts present -- verify_gnn_score.py / run_schema_drift_check.py /
      smoke_all_models.py must exist (they back Gates B and D).
 

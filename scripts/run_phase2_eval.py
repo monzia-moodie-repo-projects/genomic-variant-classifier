@@ -350,10 +350,11 @@ def main() -> int:
         )
         _ensemble_path = outdir / "models" / "ensemble.joblib"
         if _ensemble_path.exists():
-            import joblib as _jl
-
             logger.info("Resuming: loading existing ensemble from %s", _ensemble_path)
-            ensemble = _jl.load(_ensemble_path)
+            # Reconstruct the VariantEnsemble from the format_version=2 orchestrator dict.
+            # A raw joblib.load() returns the dict (no .evaluate()) and crashed every resume
+            # after data-prep (AttributeError: 'dict' object has no attribute 'evaluate').
+            ensemble = VariantEnsemble.load(_ensemble_path)
         else:
             ensemble = VariantEnsemble(ens_cfg)
             if args.skip_nn:
