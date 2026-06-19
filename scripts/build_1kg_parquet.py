@@ -134,7 +134,9 @@ def _load_cohort_keys(clinvar_path: str) -> set:
 
 def build(sources: list, out_path: str, cohort_keys=None, chunk_size: int = 2_000_000) -> None:
     cols = ["variant_id", "allele_freq", *_POP_OUT]
+    out_path = str(out_path)
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = out_path + ".tmp"  # atomic: stream to tmp, os.replace into place only on success
     writer = None
     total = 0
     nonzero = {c: 0 for c in _POP_OUT}
@@ -151,42 +153,66 @@ def build(sources: list, out_path: str, cohort_keys=None, chunk_size: int = 2_00
             nonzero[c] += int((df[c] > 0).sum())
         table = pa.Table.from_pandas(df, preserve_index=False)
         if writer is None:
-            writer = pq.ParquetWriter(out_path, table.schema)
+            writer = pq.ParquetWriter(tmp_path, table.schema)
         writer.write_table(table)
         total += len(df)
         buf = []
 
+    def _discard_tmp():
+        try:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        except OSError:
+            pass
+
     try:
-        for src in sources:
-            for line in _iter_lines(src):
-                if line.startswith("#"):
-                    continue
-                buf.extend(rows_from_vcf_line(line, cohort_keys))
-                if len(buf) >= chunk_size:
-                    flush()
-            flush()
-            logger.info("  %s -> running total %d (kept)", os.path.basename(src.rstrip('/')), total)
-    finally:
-        if writer is not None:
-            writer.close()
+        try:
+            for src in sources:
+                for line in _iter_lines(src):
+                    if line.startswith("#"):
+                        continue
+                    buf.extend(rows_from_vcf_line(line, cohort_keys))
+                    if len(buf) >= chunk_size:
+                        flush()
+                flush()
+                logger.info("  %s -> running total %d (kept)", os.path.basename(src.rstrip('/')), total)
+        finally:
+            if writer is not None:
+                writer.close()
+    except BaseException:
+        _discard_tmp()  # never leave a partial tmp on crash/interrupt; prior out_path stays intact
+        raise
 
     if total == 0:
+        _discard_tmp()
         raise SystemExit("No records written (cohort filter matched nothing, or no parseable lines).")
     if all(nonzero[c] == 0 for c in _POP_OUT):
+        _discard_tmp()
         raise SystemExit(
             "COVERAGE GATE FAILED: every super-pop AF column is all-zero -- the INFO field names did not "
             "match any candidate. Inspect the VCF header (inspect_1kg_header.py) and extend _POP_CANDIDATES."
         )
-    logger.info("Wrote %d variants -> %s", total, out_path)
+
+    # Atomic publish + semantic-hash skip-guard (mirrors merge_1kg_parquets.py).
     try:
         import sys as _sys
         _sys.path.insert(0, str(Path(__file__).resolve().parent))
         from kg_semantic_hash import semantic_hash as _sh
+        if os.path.exists(out_path) and _sh(tmp_path) == _sh(out_path):
+            _discard_tmp()
+            logger.info("1KGP AF semantic hash unchanged; not rewriting parquet")
+            logger.info("Non-zero super-pop AF counts: %s", nonzero)
+            return
+        os.replace(tmp_path, out_path)  # atomic publish
+        logger.info("Wrote %d variants -> %s", total, out_path)
         logger.info("1KGP AF semantic hash: %s", _sh(out_path))
     except Exception as e:  # noqa: BLE001
-        logger.warning("kg semantic hash log skipped: %s", e)
+        # hash/import failure must neither strand tmp nor lose the build
+        if os.path.exists(tmp_path):
+            os.replace(tmp_path, out_path)
+            logger.info("Wrote %d variants -> %s", total, out_path)
+        logger.warning("kg semantic hash step skipped: %s", e)
     logger.info("Non-zero super-pop AF counts: %s", nonzero)
-
 
 def _sources(args) -> list:
     if args.url_list:
