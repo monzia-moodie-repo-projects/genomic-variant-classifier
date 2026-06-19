@@ -103,6 +103,15 @@ if ! python -c "from genomic_variant_classifier.models.variant_ensemble import V
 fi
 echo "==> HEAD: $(git rev-parse --short HEAD)" | tee -a "$LOG"
 
+# -- 2b. imodelsx KAN package patch (idempotent) ------------------------------
+# patch_imodelsx_kan.py docstring: "the smoke gate invokes it first, and the launcher should too."
+# Unpatched, imodelsx KANClassifier.fit raises NameError -> KAN drops from BOTH ensemble fits, an
+# invalid model-comparison run. The full launcher has no other KAN guard (only the smoke gate does).
+echo "==> [2b/6] imodelsx KAN patch" | tee -a "$LOG"
+if ! python scripts/patch_imodelsx_kan.py 2>&1 | tee -a "$LOG"; then
+    echo "==> ABORT (exit 3): imodelsx KAN patch failed (KAN would drop from the ensemble)" | tee -a "$LOG"; exit 3
+fi
+
 # -- 3. Stale .pyc cleanup ----------------------------------------------------
 echo "==> [3/6] Clear stale .pyc" | tee -a "$LOG"
 find "$REPO/src" -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
