@@ -18,6 +18,9 @@ import argparse, os, sys
 from pathlib import Path
 import pandas as pd
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from kg_semantic_hash import semantic_hash, KGSchemaError
+
 SUPERPOP = ["AFR_AF", "EUR_AF", "EAS_AF", "SAS_AF", "AMR_AF"]
 
 
@@ -66,6 +69,13 @@ def main(argv=None) -> int:
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
+    if out.exists():
+        try:
+            if semantic_hash(out) == semantic_hash(merged):
+                print("1KGP AF semantic hash unchanged; not rewriting parquet")
+                return 0
+        except KGSchemaError as e:
+            print(f"[kg-guard] existing parquet not comparable ({e}); rewriting", file=sys.stderr)
     tmp = out.with_suffix(out.suffix + ".tmp")
     merged.to_parquet(tmp, index=False)
     os.replace(tmp, out)  # atomic; safe even if out was an input

@@ -178,6 +178,13 @@ def build(sources: list, out_path: str, cohort_keys=None, chunk_size: int = 2_00
             "match any candidate. Inspect the VCF header (inspect_1kg_header.py) and extend _POP_CANDIDATES."
         )
     logger.info("Wrote %d variants -> %s", total, out_path)
+    try:
+        import sys as _sys
+        _sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from kg_semantic_hash import semantic_hash as _sh
+        logger.info("1KGP AF semantic hash: %s", _sh(out_path))
+    except Exception as e:  # noqa: BLE001
+        logger.warning("kg semantic hash log skipped: %s", e)
     logger.info("Non-zero super-pop AF counts: %s", nonzero)
 
 

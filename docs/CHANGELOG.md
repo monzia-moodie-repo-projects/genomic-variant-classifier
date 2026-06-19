@@ -3971,10 +3971,13 @@ environmental data/ incident caught by the fail-loud guard.
 ### Open
 - Gene-shuffle ablation unsettled at this scale -- re-run at Run-17 scale (full feature set, larger
   `--max-train`, >=3 seeds) to settle non-gene-specific vs gene-specific.
-- **RECONCILE**: the 2026-06-15 CHANGELOG entry already documents this exact 437,668 kg build (26342e9). This
-  session's parquet is content-equivalent (identical variant count + super-pop counts; only parquet-container
-  bytes differ), so 988439c added a duplicate ~6 MB blob. Confirm whether 06-18/19 was a planned
-  reproducibility re-derivation (so the data build is not double-counted -- the 06-19 deliverable is the
-  launch-kit/integration). Consider a content-hash guard before re-committing the parquet, or Git LFS.
+- **RESOLVED -- reproducibility rebuild (not a new data version):** 2026-06-18/19 re-derived the 1KGP
+  GRCh38 AF parquet during reconciliation/preflight work; output matched the prior 2026-06-15 build
+  (26342e9) -- 437,668 variants, identical super-population counts. Commit 988439c is therefore
+  content-equivalent and operationally redundant (6,672,110 -> 6,677,510 bytes, 0 logical change), not a
+  new dataset. FIX SHIPPED: `scripts/kg_semantic_hash.py` (semantic hash over sorted key + AF columns,
+  parquet container bytes ignored) + `write_parquet_if_changed` wired into `merge_1kg_parquets.py`
+  (build logs the hash); the merge step now skips the rewrite when the semantic hash is unchanged,
+  preventing future equivalent re-commits. Regression: `tests/unit/test_kg_semantic_hash.py` (8 passed).
 - GPU provisioning (Run 17) pending: `Run_Preflight_VM.sh` exit 0 -> all-models smoke (`--max-train ~3000`,
   no `--skip` beyond `--skip-svm`, `--string-db auto`) before any spend.
