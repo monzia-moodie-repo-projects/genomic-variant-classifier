@@ -27,6 +27,7 @@ Data source:
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from pathlib import Path
 from typing import Optional
@@ -115,7 +116,19 @@ class DbSNPConnector(BaseConnector):
 
     def _get_lookup(self) -> pd.DataFrame:
         """Return lookup DataFrame, using parquet cache when available."""
-        cache_key = "af_lookup"
+        stat = self.parquet_path.stat() if self.parquet_path and self.parquet_path.exists() else None
+        head_digest = "missing"
+        if self.parquet_path and self.parquet_path.exists():
+            h = hashlib.sha256()
+            with self.parquet_path.open("rb") as fh:
+                h.update(fh.read(1024 * 1024))
+            head_digest = h.hexdigest()
+
+        cache_basis = (
+            f"{self.parquet_path.resolve()}|{stat.st_size if stat else 'missing'}|"
+            f"{stat.st_mtime_ns if stat else 'missing'}|{head_digest}"
+        )
+        cache_key = "af_lookup_" + hashlib.sha256(cache_basis.encode("utf-8")).hexdigest()[:16]
         cached = self._load_cache(cache_key)
         if cached is not None and not cached.empty:
             logger.info(

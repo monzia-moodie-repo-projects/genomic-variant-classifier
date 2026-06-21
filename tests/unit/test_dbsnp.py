@@ -186,3 +186,58 @@ def test_engineer_features_dbsnp_real_value_passes_through():
     df = _engineer_df(dbsnp_af=0.0035)
     feats = engineer_features(df)
     assert feats.loc[0, "dbsnp_af"] == pytest.approx(0.0035)
+
+
+def test_dbsnp_cache_key_is_parquet_sensitive(tmp_path):
+    p1 = tmp_path / "dbsnp_a.parquet"
+    p2 = tmp_path / "dbsnp_b.parquet"
+
+    pd.DataFrame({
+        "variant_id": ["17:43070000:C:A"],
+        "allele_freq": [0.001],
+    }).to_parquet(p1, index=False)
+
+    pd.DataFrame({
+        "variant_id": ["17:43070000:C:A"],
+        "allele_freq": [0.009],
+    }).to_parquet(p2, index=False)
+
+    df = pd.DataFrame({
+        "chrom": ["17"],
+        "pos": [43070000],
+        "ref": ["C"],
+        "alt": ["A"],
+    })
+
+    out1 = DbSNPConnector(parquet_path=p1).annotate_dataframe(df)
+    out2 = DbSNPConnector(parquet_path=p2).annotate_dataframe(df)
+
+    assert out1.loc[0, "dbsnp_af"] == pytest.approx(0.001)
+    assert out2.loc[0, "dbsnp_af"] == pytest.approx(0.009)
+
+
+def test_dbsnp_cache_key_changes_when_same_path_rewritten(tmp_path):
+    p = tmp_path / "dbsnp.parquet"
+
+    pd.DataFrame({
+        "variant_id": ["17:43070000:C:A"],
+        "allele_freq": [0.001],
+    }).to_parquet(p, index=False)
+
+    df = pd.DataFrame({
+        "chrom": ["17"],
+        "pos": [43070000],
+        "ref": ["C"],
+        "alt": ["A"],
+    })
+
+    first = DbSNPConnector(parquet_path=p).annotate_dataframe(df)
+    assert first.loc[0, "dbsnp_af"] == pytest.approx(0.001)
+
+    pd.DataFrame({
+        "variant_id": ["17:43070000:C:A"],
+        "allele_freq": [0.009],
+    }).to_parquet(p, index=False)
+
+    second = DbSNPConnector(parquet_path=p).annotate_dataframe(df)
+    assert second.loc[0, "dbsnp_af"] == pytest.approx(0.009)
