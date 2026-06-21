@@ -215,3 +215,25 @@ def test_engineer_features_eve_real_score_passes_through():
     df = _engineer_df(eve_score=0.92)
     feats = engineer_features(df)
     assert feats.loc[0, "eve_score"] == pytest.approx(0.92)
+
+
+def test_parse_single_csv_without_mutations_protein_name_uses_filename_gene(tmp_path):
+    """Real EVE bulk CSV schema lacks mutations_protein_name; gene comes from filename."""
+    path = tmp_path / "BRCA2_HUMAN.csv"
+    path.write_text(
+        "wt_aa,position,mt_aa,EVE_scores_ASM\n"
+        "S,1982,R,0.616074\n"
+        "M,1,A,\n",
+        encoding="utf-8",
+    )
+
+    connector = EVEConnector()
+    lookup = connector._parse_single_csv(path)
+
+    assert set(["gene_symbol", "aa_change", "eve_score"]).issubset(lookup.columns)
+
+    row = lookup[lookup["aa_change"] == "S1982R"]
+    assert len(row) == 1
+    assert row.iloc[0]["gene_symbol"] == "BRCA2"
+    assert row.iloc[0]["eve_score"] == pytest.approx(0.616074)
+    assert "M1A" not in set(lookup["aa_change"])
