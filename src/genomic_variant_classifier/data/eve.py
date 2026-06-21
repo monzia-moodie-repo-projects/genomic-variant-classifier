@@ -33,6 +33,7 @@ Default: eve_score = 0.5 (ambiguous / not covered).
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import re
 from pathlib import Path
@@ -168,7 +169,9 @@ class EVEConnector(BaseConnector):
 
     def _get_lookup(self) -> pd.DataFrame:
         """Return EVE lookup DataFrame (gene_symbol + aa_change → eve_score)."""
-        cache_key = "eve_lookup"
+        stat = self.eve_path.stat() if self.eve_path and self.eve_path.exists() else None
+        cache_basis = f"{self.eve_path.resolve()}|{stat.st_size if stat else 'missing'}|{stat.st_mtime_ns if stat else 'missing'}"
+        cache_key = "eve_lookup_" + hashlib.sha256(cache_basis.encode("utf-8")).hexdigest()[:16]
         cached = self._load_cache(cache_key)
         if cached is not None and not cached.empty:
             logger.info("EVEConnector: loaded %d EVE scores from cache.", len(cached))
@@ -233,7 +236,7 @@ class EVEConnector(BaseConnector):
         raw = pd.read_csv(csv_file, dtype=str)
         raw.columns = [c.strip() for c in raw.columns]
 
-        required = {"mutations_protein_name", "position", "wt_aa", "mt_aa", "EVE_scores_ASM"}
+        required = {"position", "wt_aa", "mt_aa", "EVE_scores_ASM"}
         if not required.issubset(raw.columns):
             logger.warning(
                 "EVEConnector: %s missing required columns %s (found: %s).",
@@ -245,8 +248,11 @@ class EVEConnector(BaseConnector):
         raw["EVE_scores_ASM"] = pd.to_numeric(raw["EVE_scores_ASM"], errors="coerce")
         raw = raw.dropna(subset=["position", "EVE_scores_ASM"])
 
-        # Extract gene symbol from protein name (e.g. "TP53_HUMAN" → "TP53")
-        raw["gene_symbol"] = raw["mutations_protein_name"].str.split("_").str[0]
+        # Extract gene symbol from protein name when present, otherwise from filename.
+        if "mutations_protein_name" in raw.columns:
+            raw["gene_symbol"] = raw["mutations_protein_name"].astype(str).str.split("_").str[0]
+        else:
+            raw["gene_symbol"] = csv_file.stem.split("_")[0]
 
         raw["aa_change"] = (
             raw["wt_aa"].str.strip() +
