@@ -145,7 +145,9 @@ class OMIMConnector(BaseConnector):
             return pd.DataFrame(columns=["gene_symbol", "omim_n_diseases", "omim_is_autosomal_dominant"])
 
         cache_key = f"gene_table:mim2gene={self.mim2gene_path}:genemap2={self.genemap2_path}"
-        cached = self._load_cache(cache_key)
+        cached = None
+        if self.genemap2_path is None:
+            cached = self._load_cache(cache_key)
         if cached is not None and not cached.empty:
             logger.info("OMIMConnector: loaded gene table from cache (%d genes).", len(cached))
             return cached
@@ -170,8 +172,11 @@ class OMIMConnector(BaseConnector):
                     gene_table["omim_is_autosomal_dominant"].fillna(DEFAULT_IS_AD).astype(int)
                 )
         if not gene_table.empty:
-            self._save_cache(cache_key, gene_table)
-            logger.info("OMIMConnector: parsed and cached %d genes.", len(gene_table))
+            if self.genemap2_path is None:
+                self._save_cache(cache_key, gene_table)
+                logger.info("OMIMConnector: parsed and cached %d genes.", len(gene_table))
+            else:
+                logger.info("OMIMConnector: parsed %d genes with genemap2 cache bypass.", len(gene_table))
         return gene_table
 
     def _parse_mim2gene(self, path: Path) -> pd.DataFrame:
