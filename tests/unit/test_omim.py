@@ -327,4 +327,3 @@ def _write_genemap2(tmp_path: Path, content: str | None = None) -> Path:
     path = tmp_path / "genemap2.txt"
     path.write_text(content, encoding="utf-8")
     return path
-

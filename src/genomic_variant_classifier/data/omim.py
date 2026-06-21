@@ -160,17 +160,12 @@ class OMIMConnector(BaseConnector):
         gene_table = self._parse_mim2gene(self.mim2gene_path)
         if self.genemap2_path is not None and self.genemap2_path.exists():
             ad_table = self._parse_genemap2_autosomal_dominant(self.genemap2_path)
-            if not ad_table.empty and not gene_table.empty:
+            if not ad_table.empty:
                 gene_table = gene_table.drop(columns=["omim_is_autosomal_dominant"], errors="ignore")
-                gene_table = gene_table.merge(ad_table, on="gene_symbol", how="left")
-                gene_table["omim_is_autosomal_dominant"] = (
-                    gene_table["omim_is_autosomal_dominant"].fillna(DEFAULT_IS_AD).astype(int)
+                gene_table = gene_table.merge(ad_table, on="gene_symbol", how="outer")
+                gene_table["omim_n_diseases"] = (
+                    gene_table["omim_n_diseases"].fillna(DEFAULT_N_DISEASES).astype(int)
                 )
-        if self.genemap2_path is not None and self.genemap2_path.exists():
-            ad_table = self._parse_genemap2_autosomal_dominant(self.genemap2_path)
-            if not ad_table.empty and not gene_table.empty:
-                gene_table = gene_table.drop(columns=["omim_is_autosomal_dominant"], errors="ignore")
-                gene_table = gene_table.merge(ad_table, on="gene_symbol", how="left")
                 gene_table["omim_is_autosomal_dominant"] = (
                     gene_table["omim_is_autosomal_dominant"].fillna(DEFAULT_IS_AD).astype(int)
                 )
@@ -278,4 +273,3 @@ class OMIMConnector(BaseConnector):
             x.groupby("gene_symbol", as_index=False)["omim_is_autosomal_dominant"]
             .max()
         )
-
