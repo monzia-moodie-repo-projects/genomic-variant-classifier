@@ -62,12 +62,16 @@ class OMIMConnector(BaseConnector):
     def __init__(
         self,
         mim2gene_path: Optional[str | Path] = None,
+        genemap2_path: Optional[str | Path] = None,
         api_key: Optional[str] = None,
         config: Optional[FetchConfig] = None,
     ) -> None:
         super().__init__(config)
         self.mim2gene_path: Optional[Path] = (
             Path(mim2gene_path) if mim2gene_path is not None else None
+        )
+        self.genemap2_path: Optional[Path] = (
+            Path(genemap2_path) if genemap2_path is not None else None
         )
         self.api_key = api_key   # reserved for future REST mode
 
@@ -140,7 +144,7 @@ class OMIMConnector(BaseConnector):
             )
             return pd.DataFrame(columns=["gene_symbol", "omim_n_diseases", "omim_is_autosomal_dominant"])
 
-        cache_key = "gene_table"
+        cache_key = f"gene_table:mim2gene={self.mim2gene_path}:genemap2={self.genemap2_path}"
         cached = self._load_cache(cache_key)
         if cached is not None and not cached.empty:
             logger.info("OMIMConnector: loaded gene table from cache (%d genes).", len(cached))
@@ -154,6 +158,22 @@ class OMIMConnector(BaseConnector):
             return pd.DataFrame(columns=["gene_symbol", "omim_n_diseases", "omim_is_autosomal_dominant"])
 
         gene_table = self._parse_mim2gene(self.mim2gene_path)
+        if self.genemap2_path is not None and self.genemap2_path.exists():
+            ad_table = self._parse_genemap2_autosomal_dominant(self.genemap2_path)
+            if not ad_table.empty and not gene_table.empty:
+                gene_table = gene_table.drop(columns=["omim_is_autosomal_dominant"], errors="ignore")
+                gene_table = gene_table.merge(ad_table, on="gene_symbol", how="left")
+                gene_table["omim_is_autosomal_dominant"] = (
+                    gene_table["omim_is_autosomal_dominant"].fillna(DEFAULT_IS_AD).astype(int)
+                )
+        if self.genemap2_path is not None and self.genemap2_path.exists():
+            ad_table = self._parse_genemap2_autosomal_dominant(self.genemap2_path)
+            if not ad_table.empty and not gene_table.empty:
+                gene_table = gene_table.drop(columns=["omim_is_autosomal_dominant"], errors="ignore")
+                gene_table = gene_table.merge(ad_table, on="gene_symbol", how="left")
+                gene_table["omim_is_autosomal_dominant"] = (
+                    gene_table["omim_is_autosomal_dominant"].fillna(DEFAULT_IS_AD).astype(int)
+                )
         if not gene_table.empty:
             self._save_cache(cache_key, gene_table)
             logger.info("OMIMConnector: parsed and cached %d genes.", len(gene_table))
@@ -203,3 +223,59 @@ class OMIMConnector(BaseConnector):
             len(raw), len(gene_counts),
         )
         return gene_counts
+
+
+    def _parse_genemap2_autosomal_dominant(self, path: Path) -> pd.DataFrame:
+        """Parse genemap2.txt into gene-level autosomal-dominant flags."""
+        try:
+            lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError as exc:
+            logger.error("OMIMConnector: failed to read genemap2 %s: %s", path, exc)
+            return pd.DataFrame(columns=["gene_symbol", "omim_is_autosomal_dominant"])
+
+        header_idx = None
+        for i, line in enumerate(lines):
+            if line.startswith("# Chromosome") and "Approved Gene Symbol" in line and "Phenotypes" in line:
+                header_idx = i
+                break
+
+        if header_idx is None:
+            logger.warning("OMIMConnector: could not find genemap2 header in %s.", path)
+            return pd.DataFrame(columns=["gene_symbol", "omim_is_autosomal_dominant"])
+
+        header = lines[header_idx].lstrip("# ").split("\t")
+        rows = []
+
+        for line in lines[header_idx + 1:]:
+            if not line or line.startswith("#"):
+                continue
+            parts = line.split("\t")
+            if len(parts) == len(header):
+                rows.append(parts)
+
+        if not rows:
+            return pd.DataFrame(columns=["gene_symbol", "omim_is_autosomal_dominant"])
+
+        raw = pd.DataFrame(rows, columns=header)
+        required = {"Approved Gene Symbol", "Phenotypes"}
+        if not required.issubset(raw.columns):
+            logger.warning("OMIMConnector: genemap2 missing required columns in %s.", path)
+            return pd.DataFrame(columns=["gene_symbol", "omim_is_autosomal_dominant"])
+
+        x = raw[["Approved Gene Symbol", "Phenotypes"]].copy()
+        x = x.rename(columns={"Approved Gene Symbol": "gene_symbol"})
+        x["gene_symbol"] = x["gene_symbol"].astype(str).str.strip()
+        x["Phenotypes"] = x["Phenotypes"].astype(str)
+        x = x[x["gene_symbol"].str.len() > 0].copy()
+
+        x["omim_is_autosomal_dominant"] = (
+            x["Phenotypes"]
+            .str.contains("Autosomal dominant", case=False, na=False)
+            .astype(int)
+        )
+
+        return (
+            x.groupby("gene_symbol", as_index=False)["omim_is_autosomal_dominant"]
+            .max()
+        )
+
