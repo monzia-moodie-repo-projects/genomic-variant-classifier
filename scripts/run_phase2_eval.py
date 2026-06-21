@@ -111,6 +111,15 @@ def parse_args(argv=None) -> argparse.Namespace:
         "variant-label cohort (else leakage).",
     )
     p.add_argument(
+        "--clingen-path",
+        default=None,
+        help=(
+            "ClinGen Gene-Disease Validity CSV; when omitted, "
+            "clingen_validity_score defaults to 0."
+        ),
+    )
+
+    p.add_argument(
         "--reactome-path",
         default=None,
         help="Reactome per-gene pathway-count parquet "
@@ -279,6 +288,7 @@ def main() -> int:
             lovd_path=Path(args.lovd_path) if args.lovd_path else None,
             dbnsfp_path=Path(args.dbnsfp_path) if args.dbnsfp_path else None,
             reactome_path=Path(args.reactome_path) if args.reactome_path else None,
+            clingen_path=Path(args.clingen_path) if args.clingen_path else None,
             rnaseq_path=Path(args.rnaseq_path) if args.rnaseq_path else None,
             finngen_path=Path(args.finngen_path) if args.finngen_path else None,
         )
