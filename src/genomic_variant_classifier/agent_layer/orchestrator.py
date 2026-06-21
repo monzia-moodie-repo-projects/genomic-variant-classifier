@@ -81,6 +81,7 @@ PIPELINE_DEFINITIONS: dict[str, list[str]] = {
     "data_readiness": ["DataReadinessAgent"],
     "agent_ops": ["AgentOpsMonitorAgent"],
     "finops": ["FinOpsAdvisorAgent"],
+    "provision": ["ProvisioningAgent"],
     "literature": ["LiteratureScoutAgent"],
     "version_monitor": ["VersionMonitorAgent"],
     "adaptation": ["VersionMonitorAgent", "AdaptationAgent"],
@@ -172,6 +173,7 @@ class Orchestrator:
         from genomic_variant_classifier.agent_layer.agents.data_readiness_agent import DataReadinessAgent
         from genomic_variant_classifier.agent_layer.agents.agent_ops_monitor_agent import AgentOpsMonitorAgent
         from genomic_variant_classifier.agent_layer.agents.finops_advisor_agent import FinOpsAdvisorAgent
+        from genomic_variant_classifier.agent_layer.agents.provisioning_agent import ProvisioningAgent
 
         self._agent_registry = {
             "DataFreshnessAgent": DataFreshnessAgent,
@@ -195,6 +197,7 @@ class Orchestrator:
             "AgentOpsMonitorAgent": AgentOpsMonitorAgent,
             "FinOpsAdvisorAgent": FinOpsAdvisorAgent,
             "AdaptationAgent": AdaptationAgent,
+            "ProvisioningAgent": ProvisioningAgent,
         }
 
     # ------------------------------------------------------------------

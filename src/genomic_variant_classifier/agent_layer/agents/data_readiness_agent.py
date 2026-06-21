@@ -26,15 +26,16 @@ import pandas as pd
 from genomic_variant_classifier.agent_layer.agents.base_agent import BaseAgent
 from genomic_variant_classifier.evaluation import data_readiness_detector as D
 from genomic_variant_classifier.monitoring import registry as R
+from genomic_variant_classifier.agent_layer.config import PROJECT_ROOT
 
 _SECTION = "data_readiness"
 _META_COLS = {"variant_id", "gene_symbol", "fold", "label", "chrom", "pos", "ref", "alt", "consequence"}
 
 
 class DataReadinessAgent(BaseAgent):
-    def __init__(self, shared_state, root: str = ".", splits_path: str | None = None) -> None:
+    def __init__(self, shared_state, root: str | None = None, splits_path: str | None = None) -> None:
         super().__init__(shared_state)
-        self._root = root
+        self._root = root if root is not None else str(PROJECT_ROOT)
         self._splits_path = splits_path
 
     def run(self, dry_run: bool = False) -> dict:
