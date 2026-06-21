@@ -7,7 +7,14 @@
     "rnaseq_designs": "G:\\My Drive\\genomic-variant-data\\external\\rnaseq\\designs",
     "rnaseq_gtex_design_matrix": "G:\\My Drive\\genomic-variant-data\\external\\rnaseq\\gtex_v11_Brain_Cortex_vs_Whole_Blood.gene_tpm.tsv",
     "rnaseq_gtex_de_features": "G:\\My Drive\\genomic-variant-data\\external\\rnaseq\\gtex_v11_Brain_Cortex_vs_Whole_Blood.de_features.tsv",
-    "rnaseq_gene_expression_parquet": "G:\\My Drive\\genomic-variant-data\\external\\rnaseq\\gtex_v11_Brain_Cortex_vs_Whole_Blood.rnaseq_gene_expression.parquet"
+    "rnaseq_gene_expression_parquet": "G:\\My Drive\\genomic-variant-data\\external\\rnaseq\\gtex_v11_Brain_Cortex_vs_Whole_Blood.rnaseq_gene_expression.parquet",
+    "omim_mim2gene": "G:\\My Drive\\genomic-variant-data\\external\\omim\\mim2gene.txt",
+    "omim_genemap2": "G:\\My Drive\\genomic-variant-data\\external\\omim\\genemap2.txt",
+    "clingen_gene_validity_csv": "G:\\My Drive\\genomic-variant-data\\external\\clingen\\gene_disease_validity_curations.csv",
+    "dbsnp_vcf_gz": "G:\\My Drive\\genomic-variant-data\\external\\dbsnp\\GCF_000001405.40.gz",
+    "phyloP100way_bw": "G:\\My Drive\\genomic-variant-data\\external\\ucsc\\phyloP\\hg38.phyloP100way.bw",
+    "eve_bulk_zip": "G:\\My Drive\\genomic-variant-data\\external\\eve\\EVE_all_data.zip",
+    "eve_bulk_dir": "G:\\My Drive\\genomic-variant-data\\external\\eve\\EVE_all_data"
   },
   "manifests": {
     "source_assets": "G:\\My Drive\\genomic-variant-data\\manifests\\source_assets_manifest.json",
