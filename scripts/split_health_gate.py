@@ -1,29 +1,33 @@
 #!/usr/bin/env python3
 """split_health_gate.py -- Author: Monzia Moodie
 
-A precise GO/NO_GO gate on split feature health, to run AFTER a data-prep/re-prep
-and BEFORE training (locally or on the VM). It improves on the DataReadiness
-">=50% degenerate" heuristic, which conflates known stubs with real breakage and
-could pass a split where a CORE predictor silently died (as long as <50% overall
-are dead). This gate sorts hard-degenerate columns (ALL_ZERO / ALL_NULL / CONSTANT)
-into three buckets:
+GO/NO_GO gate on split feature health, to run AFTER a prep/re-prep and BEFORE
+training (locally via regen_splits_local.py, or in-run via gate_frames()). It sorts
+hard-degenerate columns (ALL_ZERO / ALL_NULL / CONSTANT) into buckets and accounts
+for the pipeline's real staging semantics so it does not false-alarm:
 
-  * CORE_FEATURES degenerate          -> NO_GO (a predictor we rely on is dead)
-  * UNEXPECTED degenerate             -> NO_GO (a should-be-live feature is dead,
-                                          e.g. a re-prep that did not actually revive gtex_*/af_1kg_*)
-  * EXPECTED_ZERO (known stubs) deg.  -> allowed (eve/alphafold/clingen/omim/hgmd/phylop, etc.)
+  * CORE_FEATURES degenerate                  -> NO_GO (a predictor we rely on is dead)
+  * CORE absent (silent dropout)              -> NO_GO
+  * UNEXPECTED degenerate                     -> NO_GO (a should-be-live feature is dead)
+  * EXPECTED_ZERO (known stubs/unwired) deg.  -> allowed
 
-NEAR_CONSTANT (naturally-rare binaries like is_mitochondrial) is a WARNING, not a
-gate failure. This is the automated form of "rerun on the new splits to confirm
-the dead columns came alive": after re-prep the only degenerate columns should be
-EXPECTED_ZERO stubs, and CORE + the previously-stale families must be healthy.
+Staging semantics (verified against real_data_prep.py @9f9ced7):
+  * GNN_STAGE_FEATURES (gnn_score, hetero_gnn_score) are written as 0.5 placeholders by
+    prep.run() and overwritten by the GNN training stage. Under --prep-only they are
+    exempt from BOTH the presence and the degeneracy checks.
+  * TRAIN_ONLY_FEATURES (n_pathogenic_in_gene, gene_has_known_disease) are recomputed
+    train-only post-split (leakage fix INCIDENT_2026-06-13); with gene-disjoint splits
+    they are legitimately zero in val/test. They are scored on the TRAIN frame ONLY.
 
-The classify() core is pure/import-free and unit-tested. main() globs the splits
-and scores columns via genomic_variant_classifier.data.feature_health.col_health
-(the same library DataReadiness + audit_split_feature_health use).
+NEAR_CONSTANT (naturally-rare binaries like is_mitochondrial) is a WARNING, not a gate
+failure. The classify() core is pure and unit-tested.
+
+EXPECTED_ZERO is wiring-dependent and MUST be updated as sources activate (e.g. when
+--eve-path / --omim-path are wired into run_phase2_eval, move eve_score/omim_* OUT of
+EXPECTED_ZERO into enforced columns). See the per-entry notes.
 
 Usage:
-  python scripts/split_health_gate.py --splits-dir outputs/<run>/full/splits
+  python scripts/split_health_gate.py --splits-dir outputs/<run>/full/splits [--prep-only]
 Exit: 0 GO | 1 NO_GO | 2 splits not found.
 """
 from __future__ import annotations
@@ -32,24 +36,33 @@ import argparse
 import sys
 from pathlib import Path
 
-# Columns permitted to be degenerate even after a full re-prep: data is genuinely
-# absent/blocked (registry STUB/BLOCKED) or the column is a non-numeric id/seq that
-# should not be a model feature (flagged for removal from X, not a training blocker).
+# Columns permitted to be degenerate: data genuinely absent/blocked, the source is not
+# wired into run_phase2_eval yet, or the column is a non-numeric id/seq not used as a
+# model feature. Each entry notes WHY + what would move it out of this set.
 EXPECTED_ZERO = {
-    # genuine stub / blocked / absent-data sources
-    "eve_score",                                                     # EVE (needs HGVSp + EVE data)
+    # --- genuine stub / blocked / no-data sources (no near-term activation) ---
     "alphafold_plddt", "dist_to_active_site", "solvent_accessibility",
-    "secondary_structure_context",                                  # AlphaFold structure (stub)
-    "clingen_validity_score",                                       # ClinGen (stub / 404)
-    "omim_n_diseases", "omim_is_autosomal_dominant",                # OMIM (stub)
-    "hgmd_is_disease_mutation", "hgmd_n_reports",                   # HGMD (procurement-blocked)
-    "phylop_score",                                                 # PhyloP (absent)
-    "esm2_delta_norm",                                             # ESM-2 (gated on HGVSp parser, still outstanding)
-    # non-numeric id/sequence columns that should not be model features (investigate: drop from X)
+    "secondary_structure_context",                                 # AlphaFold structure (no bulk .cif)
+    "clingen_validity_score",                                      # ClinGen (no data / unwired)
+    "hgmd_is_disease_mutation", "hgmd_n_reports",                  # HGMD (procurement-blocked)
+    "phylop_score",                                               # PhyloP (no bigWig yet)
+    # --- IN SCOPE to wire this cycle: data available, arg just not wired -> move OUT once wired ---
+    "eve_score",                                                  # EVE: connector fixed; needs --eve-path + HGVSp for coverage
+    "omim_n_diseases", "omim_is_autosomal_dominant",              # OMIM: license held; needs --omim-path (mim2gene)
+    "dbsnp_af",                                                   # dbSNP: GCF file in Downloads; needs move + --dbsnp-path
+    "has_uniprot_annotation", "n_known_pathogenic_protein_variants",  # UniProt gene features: prep.run() not passed uniprot_path
+    # --- VEP / sequence dependent (RNA pipeline defaults; need VEP exon + dist_to_donor/acceptor + fasta_seq) ---
+    "codon_position", "exon_number", "dist_to_splice_site", "is_canonical_splice",
+    "maxentscan_score", "maxentscan_delta",
+    # --- GTEx eQTL trio: bulk --gtex-path mode provides expression only; eQTL defaults to 0 BY DESIGN ---
+    "gtex_is_eqtl", "gtex_min_eqtl_pval", "gtex_max_abs_effect",
+    # --- ESM-2 derived (stubbed pending HGVSp parser) ---
+    "esm2_delta_norm", "esm2_llr",
+    # --- non-numeric id/sequence columns (not model features; investigate dropping from X) ---
     "fasta_seq", "protein_change", "transcript_id", "source_db", "lovd_variant_class",
 }
 
-# Predictors that MUST be healthy; any degeneracy here is an immediate NO_GO.
+# Predictors that MUST be healthy (in the appropriate frame); degeneracy -> NO_GO.
 CORE_FEATURES = {
     "alphamissense_score", "revel_score", "revel_pathogenic", "sift_score",
     "sift_deleterious", "cadd_phred", "cadd_high", "splice_ai_score", "is_splice",
@@ -57,13 +70,14 @@ CORE_FEATURES = {
     "pli_score", "consequence_severity",
 }
 
-# Core features that prep.run() does NOT emit -- they are written during the GNN
-# training stage (run_phase2_eval re-persists X_* with gnn_score/hetero_gnn_score).
-# In a prep-only validation these are legitimately ABSENT, so their absence must
-# not trip the presence check; in a full post-training split they must be present.
+# Written as 0.5 placeholders by prep.run(); overwritten at the GNN stage. Exempt from
+# presence AND degeneracy under --prep-only.
 GNN_STAGE_FEATURES = {"gnn_score", "hetero_gnn_score"}
 
-# Reasons that count as HARD degeneracy (gating). NEAR_CONSTANT is a soft warning.
+# Recomputed train-only post-split (leakage fix); zero in val/test by design with
+# gene-disjoint splits. Scored on the TRAIN frame only.
+TRAIN_ONLY_FEATURES = {"n_pathogenic_in_gene", "gene_has_known_disease"}
+
 _HARD = ("ALL_ZERO", "ALL_NULL", "CONSTANT")
 
 
@@ -71,19 +85,13 @@ def is_hard_degenerate(reason: str) -> bool:
     """True for ALL_ZERO/ALL_NULL/CONSTANT; False for NEAR_CONSTANT-only / healthy."""
     if not reason:
         return False
-    # "CONSTANT" matches, but a bare "NEAR_CONSTANT(..)" must NOT count as CONSTANT.
     tokens = {t.split("(")[0] for t in reason.split(";")}
     return any(h in tokens for h in _HARD)
 
 
 def reason_from_health(health) -> str:
-    """Extract the degeneracy-reason STRING from a feature_health.col_health() return.
-
-    The library contract is: ``col_health(s, near_constant) -> dict`` whose
-    ``"degenerate"`` key is ``";".join(reasons)`` (or ``""`` when healthy). We require
-    that exact shape and raise LOUDLY if it ever changes, so a future feature_health
-    refactor can never silently neuter this gate (passing the raw dict downstream is
-    precisely the bug this guards against)."""
+    """Extract the degeneracy-reason STRING from feature_health.col_health()'s dict.
+    Raises LOUDLY if the contract changes, so a refactor cannot silently neuter the gate."""
     if not isinstance(health, dict) or "degenerate" not in health:
         raise TypeError(
             "col_health() must return a dict with a 'degenerate' key; got "
@@ -93,22 +101,21 @@ def reason_from_health(health) -> str:
 
 def classify(degenerate: dict[str, str], *, present=None, prep_only: bool = False,
              expected_zero=EXPECTED_ZERO, core_features=CORE_FEATURES,
-             max_unexpected: int = 0) -> dict:
-    """degenerate: {column: reason}. ``present`` (optional) is the set of all column
-    names seen across the splits; when supplied, a CORE feature that is silently
-    ABSENT (not just degenerate) is a NO_GO -- absence is a failure mode too. In
-    ``prep_only`` mode the GNN-stage features are exempt from the presence check
-    (prep.run() does not emit them; they are added during GNN training). Pure."""
+             gnn_stage=GNN_STAGE_FEATURES, max_unexpected: int = 0) -> dict:
+    """degenerate: {column: reason} (already train-only-aware; see _accumulate). Pure."""
     hard = {c for c, r in degenerate.items() if is_hard_degenerate(r)}
     near = sorted(c for c, r in degenerate.items()
                   if c not in hard and "NEAR_CONSTANT" in (r or ""))
+    if prep_only:
+        hard = hard - set(gnn_stage)               # placeholders, filled at GNN stage
+
     core_deg = sorted(hard & set(core_features))
     expected_deg = sorted(hard & set(expected_zero))
     unexpected_deg = sorted(hard - set(expected_zero) - set(core_features))
 
     missing_core: list[str] = []
     if present is not None:
-        exempt = GNN_STAGE_FEATURES if prep_only else set()
+        exempt = set(gnn_stage) if prep_only else set()
         missing_core = sorted((set(core_features) - exempt) - set(present))
 
     reasons, verdict = [], "GO"
@@ -117,29 +124,51 @@ def classify(degenerate: dict[str, str], *, present=None, prep_only: bool = Fals
         reasons.append(f"{len(core_deg)} CORE feature(s) degenerate: {core_deg}")
     if missing_core:
         verdict = "NO_GO"
-        reasons.append(f"{len(missing_core)} CORE feature(s) ABSENT from splits "
-                       f"(silent dropout): {missing_core}")
+        reasons.append(f"{len(missing_core)} CORE feature(s) ABSENT (silent dropout): {missing_core}")
     if len(unexpected_deg) > max_unexpected:
         verdict = "NO_GO"
         reasons.append(f"{len(unexpected_deg)} unexpected degenerate (not known stubs) -- "
                        f"re-prep did not revive these: {unexpected_deg}")
     if verdict == "GO":
         reasons.append(f"GO: only {len(expected_deg)} expected-stub column(s) degenerate; "
-                       f"core features + previously-stale families healthy")
+                       f"core + previously-stale families healthy")
     return {"verdict": verdict, "core_degenerate": core_deg, "missing_core": missing_core,
             "unexpected_degenerate": unexpected_deg, "expected_degenerate": expected_deg,
             "near_constant_warnings": near, "reasons": reasons}
 
 
-# ----------------------------------------------------------------------------- main
-def _score_splits(splits_dir: Path, near_constant_frac: float,
-                  glob: str = "X_*.parquet") -> tuple[dict[str, str], set]:
-    """Score the FEATURE MATRIX (X_*) columns. Returns (degenerate, present) where a
-    column degenerate in ANY split file is reported degenerate (matching
-    audit_split_feature_health) and ``present`` is every column seen. Reads fail
-    LOUDLY -- an unreadable split must halt the gate, never be silently skipped."""
-    import pandas as pd
+# ----------------------------------------------------------------------------- scoring
+def _accumulate(degenerate: dict, present: set, frame_name: str, df,
+                near_constant_frac: float, train_only=TRAIN_ONLY_FEATURES) -> None:
+    """Fold one split frame into (degenerate, present). TRAIN_ONLY_FEATURES are scored
+    only on the train frame (zero in val/test is by design with gene-disjoint splits)."""
     from genomic_variant_classifier.data.feature_health import col_health
+    is_train = "train" in frame_name.lower()
+    present.update(map(str, df.columns))
+    for c in df.columns:
+        if c in train_only and not is_train:
+            continue
+        why = reason_from_health(col_health(df[c], near_constant_frac))
+        if why:
+            degenerate[c] = degenerate.get(c) or why
+
+
+def gate_frames(frames, *, near_constant_frac: float = 0.999,
+                prep_only: bool = False, max_unexpected: int = 0) -> dict:
+    """Score in-memory frames (e.g. {'X_train':df,'X_val':df,'X_test':df}) and classify.
+    For the post-prep, pre-train gate inside run_phase2_eval. Use prep_only=True there."""
+    degenerate: dict[str, str] = {}
+    present: set = set()
+    for name, df in frames.items():
+        _accumulate(degenerate, present, name, df, near_constant_frac)
+    return classify(degenerate, present=present, prep_only=prep_only,
+                    max_unexpected=max_unexpected)
+
+
+def _score_splits(splits_dir, near_constant_frac: float,
+                  glob: str = "X_*.parquet") -> tuple[dict[str, str], set]:
+    """Score the feature matrix (X_*) files. Reads fail LOUDLY (no silent skip)."""
+    import pandas as pd
     splits_dir = Path(splits_dir)
     degenerate: dict[str, str] = {}
     present: set = set()
@@ -149,29 +178,23 @@ def _score_splits(splits_dir: Path, near_constant_frac: float,
     for f in files:
         try:
             df = pd.read_parquet(f)
-        except Exception as e:                       # loud, not silent-skip
+        except Exception as e:
             raise RuntimeError(f"failed reading split parquet {f}: {e}") from e
-        present.update(map(str, df.columns))
-        for c in df.columns:
-            why = reason_from_health(col_health(df[c], near_constant_frac))
-            if why:                                  # degenerate in THIS file
-                degenerate[c] = degenerate.get(c) or why
+        _accumulate(degenerate, present, f.stem, df, near_constant_frac)
     return degenerate, present
 
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--splits-dir", required=True)
-    ap.add_argument("--glob", default="X_*.parquet",
-                    help="parquet glob for the feature matrix (default X_*.parquet)")
+    ap.add_argument("--glob", default="X_*.parquet")
     ap.add_argument("--near-constant-frac", type=float, default=0.999)
     ap.add_argument("--max-unexpected", type=int, default=0)
     ap.add_argument("--prep-only", action="store_true",
                     help="splits came from prep.run() without the GNN stage; exempt "
-                         "gnn_score/hetero_gnn_score from the core-presence check")
+                         "gnn_score/hetero_gnn_score from presence + degeneracy checks")
     args = ap.parse_args(argv)
 
-    # sanity: the two curated sets must be disjoint
     overlap = EXPECTED_ZERO & CORE_FEATURES
     if overlap:
         print(f"CONFIG ERROR: EXPECTED_ZERO and CORE_FEATURES overlap: {sorted(overlap)}")
@@ -189,8 +212,7 @@ def main(argv=None) -> int:
     res = classify(degenerate, present=present, prep_only=args.prep_only,
                    max_unexpected=args.max_unexpected)
 
-    print(f"split-health gate  --  {sd.resolve()}"
-          + ("  [prep-only]" if args.prep_only else ""))
+    print(f"split-health gate  --  {sd.resolve()}" + ("  [prep-only]" if args.prep_only else ""))
     print(f"  VERDICT: {res['verdict']}")
     for r in res["reasons"]:
         print(f"   - {r}")

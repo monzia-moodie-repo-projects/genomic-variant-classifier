@@ -169,3 +169,9 @@ data/agent_state.json
 # Data-layout audit reports (audit_data_tree.py --json; manual structure dump)
 /data_audit_*.json
 /project_structure_audit.txt
+
+# session hygiene: runtime state + scratch (do not version)
+offers.txt
+src/genomic_variant_classifier/agent_layer/data/
+src/genomic_variant_classifier/agent_layer/logs/
+*.diff

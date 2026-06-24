@@ -166,6 +166,9 @@ ARGS="$ARGS --gtex-path $GTEX_PARQUET"
 ARGS="$ARGS --reactome-path $REACTOME_PARQUET"
 ARGS="$ARGS --rnaseq-path $RNASEQ_PARQUET"
 ARGS="$ARGS --kg $KG_PARQUET"
+FINNGEN_FILE="$DATA/external/finngen/finnge_R12_annotated_variants_v1.gz"  # registry typo 'finnge'
+if [ -f "$FINNGEN_FILE" ]; then ARGS="$ARGS --finngen-path $FINNGEN_FILE"; echo "==> FinnGen wired: $FINNGEN_FILE" | tee -a "$LOG"; else echo "==> ABORT: FinnGen file missing: $FINNGEN_FILE" | tee -a "$LOG"; exit 7; fi
+
 ARGS="$ARGS --string-db auto"
 ARGS="$ARGS --hetero-gnn --kg-edges reactome:$REACTOME_GMT"
 ARGS="$ARGS --min-review-tier 3 --n-folds 5"
