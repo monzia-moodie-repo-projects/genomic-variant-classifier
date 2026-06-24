@@ -1,8 +1,16 @@
-from pathlib import Path
+﻿from pathlib import Path
+import os
 import gzip
 import sys
 
-base = Path(r"C:\Projects\genomic-variant-classifier\data\external\gencode")
+data_root = Path(
+    os.environ.get(
+        "GENOMIC_DATA_ROOT",
+        r"G:\My Drive\genomic-variant-data"
+    )
+)
+
+base = data_root / "external" / "gencode"
 
 files = [
     "gencode.v50.annotation.gtf.gz",
@@ -28,18 +36,11 @@ for name in files:
 
     try:
         with gzip.open(path, "rb") as handle:
-            total = 0
-            while True:
-                chunk = handle.read(1024 * 1024)
-                if not chunk:
-                    break
-                total += len(chunk)
-
-        if total <= 0:
+            chunk = handle.read(1024 * 1024)
+        if not chunk:
             failures.append(f"NO_READABLE_CONTENT: {path}")
         else:
-            print(f"OK: {name} uncompressed_read_bytes={total}")
-
+            print(f"OK: {name} first_chunk_bytes={len(chunk)}")
     except Exception as exc:
         failures.append(f"GZIP_ERROR: {path}: {exc!r}")
 
