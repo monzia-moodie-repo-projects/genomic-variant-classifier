@@ -178,3 +178,6 @@ src/genomic_variant_classifier/agent_layer/logs/
 source.txt
 dest.txt
 drive_md5.txt
+
+# regenerable layout-audit output (build_data_layout_manifest.py)
+manifests/
