@@ -175,3 +175,6 @@ offers.txt
 src/genomic_variant_classifier/agent_layer/data/
 src/genomic_variant_classifier/agent_layer/logs/
 *.diff
+source.txt
+dest.txt
+drive_md5.txt
