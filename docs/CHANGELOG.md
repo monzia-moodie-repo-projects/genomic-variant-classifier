@@ -4008,3 +4008,30 @@ environmental data/ incident caught by the fail-loud guard.
 - `rclone lsf --files-only` needs `-R` for nested counts; whole-dir `--dry-run` enumerates nothing; `lsjson --recursive` (ID/Size/IsDir) is the tool for diagnosing "lists-but-won't-resolve" Drive objects (usually a path mismatch, not corruption).
 - DataFreshnessAgent is verified/wired/active; the registry-driven DatabaseFreshnessMonitorAgent supersedes it (whole-registry, dated reports, MISSING/CRUFT flags, HITL re-acquire, DATA_UPDATED).
 - Registry has real coverage gaps: gnomAD URL stale at v4.0 (silent-miss for v4.1â†’v4.2); ~10 publicly-pollable sources left MANUAL with empty URL; STUB verdicts drifted from on-disk reality; `.OOMbak` cruft marker false-positives the intentionally-kept dbnsfp OOM workaround. All staged for post-Run-17 patch with unit tests.
+
+## 2026-06-25 — Drive root consolidation + agent freshness audit
+
+### Attempted
+- Unify two Drive roots (`genomic-variant-data/` + `genomic-variant-classifier/`) into a single canonical store under `genomic-variant-classifier/`.
+- Migrate external datasets, trained models, run/experiment outputs, provenance manifests, and esm2 cache to their correct repo-level homes (no scatter).
+- Verify gnomAD 24/24 exome VCFs (all chromosomes) intact in the new canonical home.
+- Audit + verify/wire/activate DataFreshnessAgent and the registry-driven DatabaseFreshnessMonitorAgent.
+
+### Failed (and why)
+- Early whole-dir `rclone move --dry-run` enumerated nothing ("Skipped server-side directory move") — dir-level dry-run reveals no contents. Switched to file-level `lsf -R` inspection.
+- finngen count read "1" via `lsf --files-only` (no `-R`) — false alarm; `-R` showed R12+R13+9 docs all present.
+- REVEL zip delete/move repeatedly "object not found" — path mismatch: file was under `external/` not `external/revel/`. `lsjson --recursive` revealed true path+ID; `moveto` with corrected path succeeded.
+- Duplicate `model/` gitignore entry accidentally appended (already at line 99) — reverted via `git checkout .gitignore`, re-added only `manifests/`.
+
+### Fixed
+- Source root `genomic-variant-data/` fully migrated and RETIRED (verified empty).
+- gnomAD 24/24 re-verified in canonical `data/external/gnomad/` — 3 MD5s exact (chrY `d500cf5a…`, chr7 `c41cd525…`, chrX `5b7b17d3…`). No gaps.
+- finngen R12+R13+9 docs, reference FASTA (hash-dedup), REVEL (uncompressed + zip archive), eve 14,933, gtex/dbsnp/clingen/omim/gencode all in canonical `data/external/`.
+- models→`models/`, runs/experiments→`outputs/`, manifests→`results/manifests/`, cache→`data/cache/` (anti-scatter placement).
+- `.gitignore`: `manifests/` (regenerable layout-audit output) ignored. Commit caf5ecd, pushed.
+
+### Learned
+- `genvarcla:` = Google Drive (Google One), NOT paid GCS. G:/DriveFS is a streaming cache-view, not a disk — never bulk-write large files through it; use rclone Drive-API server-side moves.
+- `rclone lsf --files-only` needs `-R` for nested counts; whole-dir `--dry-run` enumerates nothing; `lsjson --recursive` (ID/Size/IsDir) is the tool for diagnosing "lists-but-won't-resolve" Drive objects (usually a path mismatch, not corruption).
+- DataFreshnessAgent is verified/wired/active; the registry-driven DatabaseFreshnessMonitorAgent supersedes it (whole-registry, dated reports, MISSING/CRUFT flags, HITL re-acquire, DATA_UPDATED).
+- Registry has real coverage gaps: gnomAD URL stale at v4.0 (silent-miss for v4.1→v4.2); ~10 publicly-pollable sources left MANUAL with empty URL; STUB verdicts drifted from on-disk reality; `.OOMbak` cruft marker false-positives the intentionally-kept dbnsfp OOM workaround. All staged for post-Run-17 patch with unit tests.
