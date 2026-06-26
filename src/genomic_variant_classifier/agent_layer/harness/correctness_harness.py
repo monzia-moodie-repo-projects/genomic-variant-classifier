@@ -355,6 +355,8 @@ def build_reference_slice(n: int = 200, seed: int = 7) -> pd.DataFrame:
     cons = rng.choice(
         ["missense_variant", "synonymous_variant", "stop_gained",
          "splice_donor_variant", "intron_variant"], n)
+    # feature #88: molecular-basis disease count, bounded by total (molecular <= total).
+    omim_nd = rng.integers(0, 10, n)
     return pd.DataFrame({
         "variant_id": [f"syn:{i}" for i in range(n)],
         "gene_symbol": rng.choice([f"GENE{i}" for i in range(8)], n),
@@ -374,7 +376,8 @@ def build_reference_slice(n: int = 200, seed: int = 7) -> pd.DataFrame:
         "clingen_validity_score": rng.integers(1, 5, n), "codon_position": rng.integers(1, 4, n),
         "exon_number": rng.integers(1, 30, n), "lovd_variant_class": rng.integers(1, 6, n),
         "hgmd_n_reports": rng.integers(0, 20, n), "hgmd_is_disease_mutation": rng.integers(0, 2, n),
-        "omim_n_diseases": rng.integers(0, 10, n), "omim_is_autosomal_dominant": rng.integers(0, 2, n),
+        "omim_n_diseases": omim_nd, "omim_is_autosomal_dominant": rng.integers(0, 2, n),
+        "omim_n_diseases_molecular": np.minimum(omim_nd, rng.integers(0, 10, n)),  # feature #88; molecular<=total; keeps fixture "fully-populated"
         "secondary_structure_context": rng.integers(1, 4, n), "n_pathogenic_in_gene": rng.integers(0, 50, n),
         "has_uniprot_annotation": rng.integers(0, 2, n), "is_canonical_splice": rng.integers(0, 2, n),
         "label": label,
