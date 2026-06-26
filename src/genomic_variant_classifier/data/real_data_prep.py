@@ -270,9 +270,11 @@ class AnnotationConfig:
     gtex_path: Optional[Path] = None  # RNA expression: bulk GTEx median-TPM parquet (build_gtex_parquet.py)
     vep_path: Optional[Path] = None
     omim_path: Optional[Path] = None
+    omim_genemap2_path: Optional[Path] = None  # OMIM genemap2.txt -> real omim_is_autosomal_dominant (else hard-0)
     clingen_path: Optional[Path] = None
     dbsnp_path: Optional[Path] = None
     eve_path: Optional[Path] = None
+    eve_entry_map_path: Optional[Path] = None  # UniProt index parquet (entry_name col) for EVE entry-name -> HGNC
     hgmd_path: Optional[Path] = None
     kg_path: Optional[Path] = None  # 1000 Genomes Phase 3 AF parquet
     finngen_path: Optional[Path] = None  # FinnGen R10 annotated variants TSV
@@ -801,13 +803,23 @@ class DataPrepPipeline:
         # 8. OMIM
         from genomic_variant_classifier.data.omim import OMIMConnector
 
-        omim = OMIMConnector(mim2gene_path=ac.omim_path)
+        omim = OMIMConnector(
+            mim2gene_path=ac.omim_path,
+            genemap2_path=ac.omim_genemap2_path,
+        )
         df = omim.annotate_dataframe(df)
         logger.info(
-            "Score annotation 8/17 (OMIM): %d variants with omim_n_diseases > 0.",
+            "Score annotation 8/17 (OMIM): %d variants with omim_n_diseases > 0, "
+            "%d with omim_is_autosomal_dominant > 0.",
             int(
                 (
                     df.get("omim_n_diseases", pd.Series([0] * len(df), index=df.index))
+                    > 0
+                ).sum()
+            ),
+            int(
+                (
+                    df.get("omim_is_autosomal_dominant", pd.Series([0] * len(df), index=df.index))
                     > 0
                 ).sum()
             ),
@@ -893,7 +905,7 @@ class DataPrepPipeline:
         # 11. EVE
         from genomic_variant_classifier.data.eve import EVEConnector
 
-        eve = EVEConnector(eve_path=ac.eve_path)
+        eve = EVEConnector(eve_path=ac.eve_path, entry_map_path=ac.eve_entry_map_path)
         df = eve.annotate_dataframe(df)
         logger.info(
             "Score annotation 11/17 (EVE): %d variants covered (score != 0.5).",
@@ -1213,6 +1225,11 @@ class DataPrepPipeline:
         # Gene-disease annotation
         feats["omim_n_diseases"] = (
             df.get("omim_n_diseases", pd.Series([0] * len(df), index=df.index))
+            .fillna(0)
+            .astype(int)
+        )
+        feats["omim_n_diseases_molecular"] = (
+            df.get("omim_n_diseases_molecular", pd.Series([0] * len(df), index=df.index))
             .fillna(0)
             .astype(int)
         )

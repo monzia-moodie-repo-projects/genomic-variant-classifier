@@ -41,6 +41,7 @@ disk; a missing path makes that connector return defaults (logged loudly).
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 import time
 from pathlib import Path
@@ -61,6 +62,16 @@ def parse_args(argv=None):
         default=None,
         help="ClinGen Gene-Disease Validity CSV; when omitted, clingen_validity_score defaults to 0.",
     )
+    p.add_argument("--omim-path", default=None,
+                   help="OMIM mim2gene file; when omitted, omim_* default to 0.")
+    p.add_argument("--omim-genemap2-path", default=None,
+                   help="OMIM genemap2.txt; REQUIRED for omim_n_diseases/"
+                        "omim_n_diseases_molecular/omim_is_autosomal_dominant "
+                        "(when omitted, all three default to 0).")
+    p.add_argument("--phylop-path", default=None,
+                   help="PhyloP conservation source (.bw/.parquet); when omitted, phylop_score=0.0.")
+    p.add_argument("--dbsnp-path", default=None,
+                   help="dbSNP allele-frequency parquet; when omitted, dbsnp_af=0.0.")
 
     p.add_argument("--reactome-path", default=None)
     p.add_argument("--rnaseq-path", default=None)
@@ -68,6 +79,8 @@ def parse_args(argv=None):
     p.add_argument("--finngen-path", default=None)
     p.add_argument("--lovd-path", default=None)
     p.add_argument("--esm2-uniprot-index", default=None)
+    p.add_argument("--eve-path", default=None)
+    p.add_argument("--eve-entry-map", default=None)
     p.add_argument("--min-review-tier", type=int, default=3)
     p.add_argument("--output", default="outputs/run17_prepcheck/full")
     p.add_argument("--run-protein-esm2", action="store_true",
@@ -104,6 +117,18 @@ def _install_cpu_stubs() -> None:
 
 
 def main(argv=None) -> int:
+    # Stream the library's per-step coverage logs (every "Score annotation N/17"
+    # line, ProteinCoord/EVE coverage, etc.) to stderr. DataPrepPipeline emits these
+    # via logging.getLogger(__name__) at INFO; without a basicConfig here Python's
+    # last-resort handler drops INFO (keeping only WARNING+), so prep coverage was
+    # invisible and had to be reverse-engineered from parquet columns. The script
+    # (not the library) owns logging config, per the 'logging out of library
+    # modules' convention. Honour an existing root config if one is already set.
+    if not logging.getLogger().handlers:
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        )
     args = parse_args(argv)
     t0 = time.perf_counter()
 
@@ -149,6 +174,13 @@ def main(argv=None) -> int:
         clingen_path=Path(args.clingen_path) if args.clingen_path else None,
         rnaseq_path=Path(args.rnaseq_path) if args.rnaseq_path else None,
         finngen_path=Path(args.finngen_path) if args.finngen_path else None,
+        # Run 17 wiring parity with run_phase2_eval (omim/phylop/dbsnp were missing)
+        omim_path=Path(args.omim_path) if args.omim_path else None,
+        omim_genemap2_path=Path(args.omim_genemap2_path) if args.omim_genemap2_path else None,
+        phylop_path=Path(args.phylop_path) if args.phylop_path else None,
+        dbsnp_path=Path(args.dbsnp_path) if args.dbsnp_path else None,
+        eve_path=Path(args.eve_path) if args.eve_path else None,
+        eve_entry_map_path=Path(args.eve_entry_map) if args.eve_entry_map else None,
     )
     prep = DataPrepPipeline(
         config=DataPrepConfig(

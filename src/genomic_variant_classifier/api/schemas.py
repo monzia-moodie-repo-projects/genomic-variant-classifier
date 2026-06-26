@@ -110,6 +110,11 @@ class VariantRequest(BaseModel):
         ge=0,
         description="Number of OMIM disease phenotypes for this gene.",
     )
+    omim_n_diseases_molecular: Optional[int] = Field(
+        default=None,
+        ge=0,
+        description="Number of OMIM phenotypes with a confirmed molecular basis (mapping key '(3)').",
+    )
     omim_is_autosomal_dominant: Optional[int] = Field(
         default=None,
         ge=0,

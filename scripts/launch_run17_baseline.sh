@@ -15,7 +15,8 @@
 #   - --skip-svm ON (run_phase2_eval --help: required >100k; n_train ~1.2M, RBF is O(n^2)).
 #   - gtex/reactome/kg/rnaseq ELEVATED to REQUIRED (hard-fail), matching the no-zero-feature directive
 #     (Run 15 treated gtex/reactome as if-present). LOVD stays if-present (low-coverage, optional).
-#   - --esm2-uniprot-index intentionally NOT wired: ESM-2/EVE stay stubbed until the HGVSp parser
+#   - --esm2-uniprot-index AND --eve-entry-map both wired to $UNIPROT_INDEX (HGVSp parser delivered);
+#     EVE resolves per-protein entry-name filenames (1433G_HUMAN) to HGNC (YWHAG) via the index.
 #     lands (roadmap; INCIDENT_2026-04-17). Wiring it now would add a KNOWN-zero feature, not signal.
 #   - OUTDIR pinned to outputs/run17_baseline/full.
 
@@ -132,6 +133,16 @@ LGBMClassifier(n_estimators=10, verbose=-1).fit(X, y)
 print('lightgbm smoke fit OK')
 " 2>&1 | tee -a "$LOG"
 
+# -- 4b. pybigtools (PhyloP BigWig reader): install-if-missing + HARD verify.
+#     launch activates a prebuilt /venv/main that may predate this dep; without it
+#     PhyloPConnector ImportErrors -> silent phylop_score=0.0. Idempotent install,
+#     then a hard import gate (exit 4) so a failed install is LOUD, never silent.
+echo "==> [4b/6] pybigtools (PhyloP) install + verify" | tee -a "$LOG"
+$PY -m pip install 'pybigtools>=0.3.0' --quiet 2>&1 | tail -3 | tee -a "$LOG" || true
+if ! python -c "import pybigtools; print('pybigtools', pybigtools.__version__ if hasattr(pybigtools,'__version__') else 'OK')" 2>&1 | tee -a "$LOG"; then
+    echo "==> ABORT (exit 4): pybigtools import failed -- PhyloP would silent-zero. Install pybigtools>=0.3.0 on the VM." | tee -a "$LOG"; exit 4
+fi
+
 # -- 5. KG + rnaseq + STRING wiring sanity (read-only column probes) -----------
 echo "==> [5/6] KG + rnaseq column probes" | tee -a "$LOG"
 mkdir -p "$OUTDIR"
@@ -169,6 +180,70 @@ ARGS="$ARGS --kg $KG_PARQUET"
 FINNGEN_FILE="$DATA/external/finngen/finnge_R12_annotated_variants_v1.gz"  # registry typo 'finnge'
 if [ -f "$FINNGEN_FILE" ]; then ARGS="$ARGS --finngen-path $FINNGEN_FILE"; echo "==> FinnGen wired: $FINNGEN_FILE" | tee -a "$LOG"; else echo "==> ABORT: FinnGen file missing: $FINNGEN_FILE" | tee -a "$LOG"; exit 7; fi
 
+# --- Run 17 EVE/ESM-2 wiring (HGVSp parser delivered -> EVE/ESM-2 now carry REAL
+#     signal). Plus omim/phylop/dbsnp/clingen, whose CLI flags exist but the launch
+#     script never passed (silent-zero). Hard-fail if a configured source is missing
+#     on the VM; each echoes the exact file picked (a wrong pick is LOUD, not silent).
+# EVE: directory of per-protein score CSVs (gene_symbol + HGVSp-derived aa_change).
+# The 3,211 score CSVs live in EVE_all_data/variant_files (NOT the bundle root,
+# which has 0 top-level CSVs). EVE's glob is non-recursive, so point at the leaf
+# dir and ABORT on 0 CSVs -- the old `ls -A` check passed on the CSV-less bundle
+# root and would have silently scored every variant 0.5.
+EVE_DIR="$DATA/external/eve/EVE_all_data/variant_files"
+_EVE_CSVN=$(ls "$EVE_DIR"/*.csv 2>/dev/null | wc -l)
+if [ -d "$EVE_DIR" ] && [ "$_EVE_CSVN" -gt 0 ]; then
+    ARGS="$ARGS --eve-path $EVE_DIR"; echo "==> EVE wired: $EVE_DIR ($_EVE_CSVN CSVs)" | tee -a "$LOG"
+else
+    echo "==> ABORT: EVE variant_files missing or no CSVs: $EVE_DIR ($_EVE_CSVN found; expected ~3211). Stage variant_files to the VM." | tee -a "$LOG"; exit 8
+fi
+# ESM-2 UniProt sequence index (offline; else slow live REST per gene).
+UNIPROT_INDEX="$DATA/external/uniprot/uniprot_human_reviewed.parquet"
+if [ -f "$UNIPROT_INDEX" ]; then
+    ARGS="$ARGS --esm2-uniprot-index $UNIPROT_INDEX"; echo "==> ESM-2 UniProt index wired: $UNIPROT_INDEX" | tee -a "$LOG"
+    ARGS="$ARGS --eve-entry-map $UNIPROT_INDEX"; echo "==> EVE entry-name map wired: $UNIPROT_INDEX (resolves 1433G_HUMAN -> YWHAG)" | tee -a "$LOG"
+else
+    echo "==> ABORT: UniProt index missing: $UNIPROT_INDEX" | tee -a "$LOG"; exit 8
+fi
+# OMIM: prefer a mim2gene file (OMIMConnector(mim2gene_path=...)); else first file.
+OMIM_FILE="$(ls "$DATA"/external/omim/*mim2gene* 2>/dev/null | head -n1 || true)"
+if [ -z "$OMIM_FILE" ]; then OMIM_FILE="$(ls "$DATA"/external/omim/* 2>/dev/null | grep -v -i 'readme\|checksum\|md5' | head -n1 || true)"; fi
+if [ -n "$OMIM_FILE" ] && [ -f "$OMIM_FILE" ]; then
+    ARGS="$ARGS --omim-path $OMIM_FILE"; echo "==> OMIM wired: $OMIM_FILE" | tee -a "$LOG"
+else
+    echo "==> ABORT: OMIM file missing under $DATA/external/omim/" | tee -a "$LOG"; exit 8
+fi
+# OMIM genemap2: the SOLE source for omim_n_diseases / omim_n_diseases_molecular /
+# omim_is_autosomal_dominant after the connector rewrite (mim2gene is inert now).
+# Without --omim-genemap2-path, all three OMIM columns silent-zero across the cohort.
+OMIM_GENEMAP2_FILE="$(ls "$DATA"/external/omim/*genemap2* 2>/dev/null | head -n1 || true)"
+if [ -n "$OMIM_GENEMAP2_FILE" ] && [ -f "$OMIM_GENEMAP2_FILE" ]; then
+    ARGS="$ARGS --omim-genemap2-path $OMIM_GENEMAP2_FILE"; echo "==> OMIM genemap2 wired: $OMIM_GENEMAP2_FILE" | tee -a "$LOG"
+else
+    echo "==> ABORT: OMIM genemap2.txt missing under $DATA/external/omim/ (omim_n_diseases/omim_n_diseases_molecular/omim_is_autosomal_dominant would silent-zero)" | tee -a "$LOG"; exit 8
+fi
+# PhyloP: single source file.
+PHYLOP_FILE="$(ls "$DATA"/external/phylop/* 2>/dev/null | grep -v -i 'readme\|checksum\|md5' | head -n1 || true)"
+if [ -n "$PHYLOP_FILE" ] && [ -f "$PHYLOP_FILE" ]; then
+    ARGS="$ARGS --phylop-path $PHYLOP_FILE"; echo "==> PhyloP wired: $PHYLOP_FILE" | tee -a "$LOG"
+else
+    echo "==> ABORT: PhyloP file missing under $DATA/external/phylop/" | tee -a "$LOG"; exit 8
+fi
+# dbSNP: DbSNPConnector(parquet_path=...) wants a parquet.
+DBSNP_FILE="$(ls "$DATA"/external/dbsnp/*.parquet 2>/dev/null | head -n1 || true)"
+if [ -n "$DBSNP_FILE" ] && [ -f "$DBSNP_FILE" ]; then
+    ARGS="$ARGS --dbsnp-path $DBSNP_FILE"; echo "==> dbSNP wired: $DBSNP_FILE" | tee -a "$LOG"
+else
+    echo "==> ABORT: dbSNP parquet missing under $DATA/external/dbsnp/" | tee -a "$LOG"; exit 8
+fi
+# ClinGen: Gene-Disease Validity CSV (flag existed but launch never passed it -> silent 0).
+CLINGEN_FILE="$(ls "$DATA"/external/clingen/*.csv 2>/dev/null | head -n1 || true)"
+if [ -n "$CLINGEN_FILE" ] && [ -f "$CLINGEN_FILE" ]; then
+    ARGS="$ARGS --clingen-path $CLINGEN_FILE"; echo "==> ClinGen wired: $CLINGEN_FILE" | tee -a "$LOG"
+else
+    echo "==> ABORT: ClinGen CSV missing under $DATA/external/clingen/" | tee -a "$LOG"; exit 8
+fi
+# end Run 17 EVE/ESM-2 wiring
+
 ARGS="$ARGS --string-db auto"
 ARGS="$ARGS --hetero-gnn --kg-edges reactome:$REACTOME_GMT"
 ARGS="$ARGS --min-review-tier 3 --n-folds 5"
@@ -186,7 +261,7 @@ ARGS="$ARGS --output $OUTDIR"
 echo "==> rnaseq wired: $RNASEQ_PARQUET" | tee -a "$LOG"
 echo "==> kg wired: $KG_PARQUET" | tee -a "$LOG"
 echo "==> hetero-GNN edges: reactome:$REACTOME_GMT" | tee -a "$LOG"
-echo "==> NOTE: --esm2-uniprot-index intentionally absent (ESM-2/EVE stubbed pending HGVSp parser)" | tee -a "$LOG"
+echo "==> NOTE: ESM-2/EVE ACTIVE (HGVSp parser delivered; protein_pos/wt_aa/mut_aa populated for missense)" | tee -a "$LOG"
 echo "==> ARGS: $ARGS" | tee -a "$LOG"
 
 ( sleep 2700

@@ -402,6 +402,7 @@ def _variant_to_row(req: VariantRequest) -> dict:
         "codon_position":             req.codon_position,
         "dbsnp_af":                   req.dbsnp_af,
         "omim_n_diseases":            req.omim_n_diseases,
+        "omim_n_diseases_molecular":  req.omim_n_diseases_molecular,
         "omim_is_autosomal_dominant": req.omim_is_autosomal_dominant,
         "clingen_validity_score":     req.clingen_validity_score,
         "hgmd_is_disease_mutation":   req.hgmd_is_disease_mutation,

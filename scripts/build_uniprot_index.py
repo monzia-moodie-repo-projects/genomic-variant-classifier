@@ -9,7 +9,7 @@ live REST call at run time (the cause of the Run-15 smoke stall, instance
 entries, ~30 MB), parsed to:
 
     data/external/uniprot/uniprot_human_reviewed.parquet
-    columns: gene_symbol, uniprot_id, sequence   (one canonical row per gene)
+    columns: gene_symbol, uniprot_id, entry_name, sequence   (one canonical row per gene)
 
 Run once, locally, then SCP the parquet up with the other Run-15 inputs:
     python scripts/build_uniprot_index.py
@@ -28,7 +28,7 @@ import requests
 _URL = (
     "https://rest.uniprot.org/uniprotkb/stream"
     "?query=organism_id:9606+AND+reviewed:true"
-    "&fields=accession,gene_primary,sequence"
+    "&fields=id,accession,gene_primary,sequence"
     "&format=tsv&compressed=true"
 )
 _OUT = Path("data/external/uniprot/uniprot_human_reviewed.parquet")
@@ -36,11 +36,13 @@ _TIMEOUT = 600  # the stream can take a minute or two
 
 
 def parse_uniprot_tsv(text: str) -> pd.DataFrame:
-    """Parse a UniProt TSV (accession, gene_primary, sequence) into a deduped
-    [gene_symbol, uniprot_id, sequence] frame. First row per gene wins."""
+    """Parse a UniProt TSV (id, accession, gene_primary, sequence) into a deduped
+    [gene_symbol, uniprot_id, entry_name, sequence] frame. First row per gene wins.
+    entry_name is UniProt's 'id' (e.g. 1433G_HUMAN); EVE keys per-protein files on it."""
     df = pd.read_csv(io.StringIO(text), sep="\t", dtype=str).fillna("")
     cols = {c.lower(): c for c in df.columns}
     acc = cols.get("entry", list(df.columns)[0])
+    entry_col = cols.get("entry name")  # UniProt 'id' field -> 'Entry Name' (e.g. 1433G_HUMAN)
     gene_col = next((cols[c] for c in cols if "gene" in c), None)
     seq_col = next((cols[c] for c in cols if "sequence" in c), None)
     if gene_col is None or seq_col is None:
@@ -54,8 +56,9 @@ def parse_uniprot_tsv(text: str) -> pd.DataFrame:
         if not g or not s or g in seen:
             continue
         seen.add(g)
-        rows.append((g, str(r[acc]).strip(), s))
-    return pd.DataFrame(rows, columns=["gene_symbol", "uniprot_id", "sequence"])
+        en = str(r[entry_col]).strip().upper() if entry_col else ""
+        rows.append((g, str(r[acc]).strip(), en, s))
+    return pd.DataFrame(rows, columns=["gene_symbol", "uniprot_id", "entry_name", "sequence"])
 
 
 def main() -> int:

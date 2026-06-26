@@ -154,7 +154,7 @@ CONSEQUENCE_SEVERITY: dict[str, int] = {
 # Bump by +/-1 whenever you add or remove an entry in TABULAR_FEATURES below.
 # Enforced by tests/unit/test_feature_count_contract.py against both the list
 # length and INFERENCE_FEATURE_COLUMNS; that test is the deliberate-bump tripwire.
-EXPECTED_TABULAR_FEATURE_COUNT = 87
+EXPECTED_TABULAR_FEATURE_COUNT = 88
 
 TABULAR_FEATURES = [
     # Allele frequency (6)
@@ -213,8 +213,9 @@ TABULAR_FEATURES = [
     # Variant coding context (2)
     "codon_position",
     "dbsnp_af",
-    # Gene-disease annotation (3)
+    # Gene-disease annotation (4)
     "omim_n_diseases",
+    "omim_n_diseases_molecular",
     "omim_is_autosomal_dominant",
     "clingen_validity_score",
     # HGMD (2)
@@ -478,6 +479,11 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     # Gene-disease annotation (3)
     feats["omim_n_diseases"] = (
         df.get("omim_n_diseases", pd.Series([0] * len(df), index=df.index))
+        .fillna(0)
+        .astype(int)
+    )
+    feats["omim_n_diseases_molecular"] = (
+        df.get("omim_n_diseases_molecular", pd.Series([0] * len(df), index=df.index))
         .fillna(0)
         .astype(int)
     )

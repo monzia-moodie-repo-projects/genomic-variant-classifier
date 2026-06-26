@@ -137,6 +137,53 @@ def parse_args(argv=None) -> argparse.Namespace:
         "When omitted, finngen_af_fin/finngen_af_nfsee/finngen_enrichment "
         "default to 0/0/1 (Run 9 bug).",
     )
+    # --- Run 17 annotation wiring (omim/phylop/dbsnp/eve): these AnnotationConfig
+    # fields + their connectors already exist; run_phase2_eval simply never exposed
+    # a CLI flag, so they took the silent-stub branch on every run (same class as the
+    # Run-10 lovd/dbnsfp/reactome fix). HGVSp parser (delivered) populates the
+    # protein_pos/wt_aa/mut_aa that EVE/ESM-2 key on, so EVE now carries real signal.
+    p.add_argument(
+        "--omim-genemap2-path",
+        default=None,
+        help="OMIM genemap2.txt (data/external/omim/genemap2.txt). REQUIRED for "
+        "omim_n_diseases/omim_n_diseases_molecular/omim_is_autosomal_dominant; when "
+        "omitted all three OMIM columns default to 0 (silent stub).",
+    )
+    p.add_argument(
+        "--omim-path",
+        default=None,
+        help="OMIM mim2gene/genemap2 file (data/external/omim/...). When omitted, "
+        "omim_n_diseases/omim_is_autosomal_dominant default to 0 (silent stub).",
+    )
+    p.add_argument(
+        "--phylop-path",
+        default=None,
+        help="PhyloP conservation source (data/external/phylop/...). When omitted, "
+        "phylop_score defaults to 0.0 (silent stub).",
+    )
+    p.add_argument(
+        "--dbsnp-path",
+        default=None,
+        help="dbSNP allele-frequency parquet (data/external/dbsnp/...). When "
+        "omitted, dbsnp_af defaults to 0.0 (silent stub).",
+    )
+    p.add_argument(
+        "--eve-path",
+        default=None,
+        help="EVE scores: directory of per-protein CSVs (data/external/eve/) or a "
+        "merged parquet. Matched by gene_symbol + one-letter aa_change derived from "
+        "the HGVSp-parsed protein_change. When omitted, eve_score defaults to 0.5 "
+        "(silent stub). Covers missense substitutions only.",
+    )
+    p.add_argument(
+        "--eve-entry-map",
+        default=None,
+        help="UniProt index parquet (entry_name column) resolving EVE per-protein "
+        "filenames (UniProt entry names, e.g. 1433G_HUMAN) to HGNC symbols (YWHAG). "
+        "Without it EVE keys on the entry-name prefix and misses an HGNC-keyed cohort "
+        "(eve_score stuck at 0.5). Independent of --esm2-uniprot-index; the launch "
+        "script points both at the same UniProt index.",
+    )
     p.add_argument("--skip-nn", action="store_true")
     p.add_argument(
         "--string-db",
@@ -291,6 +338,13 @@ def main() -> int:
             clingen_path=Path(args.clingen_path) if args.clingen_path else None,
             rnaseq_path=Path(args.rnaseq_path) if args.rnaseq_path else None,
             finngen_path=Path(args.finngen_path) if args.finngen_path else None,
+            # Run 17 annotation wiring (see --omim-path/--phylop-path/--dbsnp-path/--eve-path)
+            omim_path=Path(args.omim_path) if args.omim_path else None,
+            omim_genemap2_path=Path(args.omim_genemap2_path) if args.omim_genemap2_path else None,
+            phylop_path=Path(args.phylop_path) if args.phylop_path else None,
+            dbsnp_path=Path(args.dbsnp_path) if args.dbsnp_path else None,
+            eve_path=Path(args.eve_path) if args.eve_path else None,
+            eve_entry_map_path=Path(args.eve_entry_map) if args.eve_entry_map else None,
         )
         prep = DataPrepPipeline(
             config=DataPrepConfig(

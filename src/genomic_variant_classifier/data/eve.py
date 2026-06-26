@@ -51,6 +51,62 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_SCORE = 0.5
 
+# EVE per-protein files are named by UniProt ENTRY NAME (e.g. "1433G_HUMAN"), not by
+# HGNC symbol. The cohort keys on HGNC ("YWHAG"), so the filename stem must be resolved
+# entry-name -> HGNC before keying the lookup, else the join silently misses (eve_score
+# stays 0.5 everywhere). The map comes from the UniProt index parquet's entry_name column
+# (built by scripts/build_uniprot_index.py). Below this fraction of files resolving via
+# the map, the connector logs a LOUD warning rather than silently keying on entry names.
+_EVE_MIN_RESOLVED_FRACTION = 0.80
+
+
+def _eve_stem_to_entry_name(stem: object) -> str:
+    """EVE filename stem -> UniProt entry name.
+    "1433G_HUMAN" -> "1433G_HUMAN"; "TP53_HUMAN_singles_scores" -> "TP53_HUMAN".
+    Returns "" for null-ish input."""
+    s = "" if stem is None else str(stem).strip().upper()
+    if not s:
+        return ""
+    i = s.find("_HUMAN")
+    return s[: i + len("_HUMAN")] if i != -1 else s
+
+
+def load_eve_entry_map(parquet_path: object) -> dict[str, str]:
+    """Build {ENTRY_NAME_UPPER: HGNC_UPPER} from the UniProt index parquet.
+    Returns {} if the path is missing or the parquet lacks an entry_name column
+    (e.g. an index built before entry_name was added); the caller logs that loudly."""
+    if parquet_path is None:
+        return {}
+    p = Path(parquet_path)
+    if not p.exists():
+        return {}
+    try:
+        df = pd.read_parquet(p)
+    except Exception as exc:  # pragma: no cover - I/O guard
+        logger.warning("EVEConnector: failed to read entry-name map %s: %s", p, exc)
+        return {}
+    if "entry_name" not in df.columns or "gene_symbol" not in df.columns:
+        return {}
+    out: dict[str, str] = {}
+    for en, g in zip(df["entry_name"].astype(str), df["gene_symbol"].astype(str)):
+        en = en.strip().upper()
+        g = g.strip().upper()
+        if en and g and en not in out:
+            out[en] = g
+    return out
+
+
+def resolve_eve_gene(stem: object, entry_map: dict[str, str]) -> tuple[str, bool]:
+    """Resolve an EVE filename stem to (HGNC_symbol, resolved_via_map).
+    Falls back to the legacy prefix-before-"_" (so HGNC-named files still work),
+    with resolved_via_map=False so callers can count + fail loud on mass misses."""
+    entry = _eve_stem_to_entry_name(stem)
+    hgnc = entry_map.get(entry) if entry else None
+    if hgnc:
+        return normalize_gene_symbol(hgnc), True
+    return normalize_gene_symbol(str(stem).split("_")[0]), False
+
+
 # Standard one-letter amino acid codes for three-letter → one-letter mapping
 _THREE_TO_ONE: dict[str, str] = {
     "Ala": "A", "Arg": "R", "Asn": "N", "Asp": "D", "Cys": "C",
@@ -114,11 +170,17 @@ class EVEConnector(BaseConnector):
         self,
         eve_path: Optional[str | Path] = None,
         config: Optional[FetchConfig] = None,
+        entry_map_path: Optional[str | Path] = None,
     ) -> None:
         super().__init__(config)
         self.eve_path: Optional[Path] = (
             Path(eve_path) if eve_path is not None else None
         )
+        # UniProt index parquet (entry_name column) for entry-name -> HGNC resolution.
+        self.entry_map_path: Optional[Path] = (
+            Path(entry_map_path) if entry_map_path is not None else None
+        )
+        self._last_csv_resolved: bool = False
 
     # ------------------------------------------------------------------
     # Public API
@@ -211,16 +273,50 @@ class EVEConnector(BaseConnector):
             )
             return pd.DataFrame(columns=["gene_symbol", "aa_change", "eve_score"])
 
+        # Build the entry-name -> HGNC map once; pass it to every per-file parse so
+        # filenames (UniProt entry names) resolve to the cohort's HGNC symbols.
+        entry_map = load_eve_entry_map(self.entry_map_path)
+        n_resolved = 0
+        n_fallback = 0
+        unresolved_sample: list[str] = []
         parts = []
         for csv_file in csv_files:
             try:
-                part = self._parse_single_csv(csv_file)
+                self._last_csv_resolved = False
+                part = self._parse_single_csv(csv_file, entry_map)
+                if self._last_csv_resolved:
+                    n_resolved += 1
+                else:
+                    n_fallback += 1
+                    if len(unresolved_sample) < 5:
+                        unresolved_sample.append(csv_file.stem)
                 if not part.empty:
                     parts.append(part)
             except Exception as exc:
                 logger.warning(
                     "EVEConnector: failed to parse %s: %s", csv_file.name, exc
                 )
+        # Fail loud if too few files resolved entry-name -> HGNC (stale/missing index).
+        _total = n_resolved + n_fallback
+        _frac = (n_resolved / _total) if _total else 0.0
+        if not entry_map:
+            logger.warning(
+                "EVEConnector: entry-name map empty (entry_map_path=%s); keying EVE by "
+                "filename prefix -> near-zero HGNC coverage. Rebuild the UniProt index "
+                "with the entry_name column (scripts/build_uniprot_index.py).",
+                self.entry_map_path,
+            )
+        elif _frac < _EVE_MIN_RESOLVED_FRACTION:
+            logger.warning(
+                "EVEConnector: only %d/%d (%.1f%%) EVE files resolved entry-name -> HGNC "
+                "(min %.0f%%). Sample unresolved: %s. Check the UniProt index entry_name column.",
+                n_resolved, _total, 100 * _frac, 100 * _EVE_MIN_RESOLVED_FRACTION, unresolved_sample,
+            )
+        else:
+            logger.info(
+                "EVEConnector: resolved %d/%d (%.1f%%) EVE files entry-name -> HGNC.",
+                n_resolved, _total, 100 * _frac,
+            )
 
         if not parts:
             return pd.DataFrame(columns=["gene_symbol", "aa_change", "eve_score"])
@@ -231,7 +327,7 @@ class EVEConnector(BaseConnector):
         )
         return combined
 
-    def _parse_single_csv(self, csv_file: Path) -> pd.DataFrame:
+    def _parse_single_csv(self, csv_file: Path, entry_map: Optional[dict] = None) -> pd.DataFrame:
         """Parse a single per-protein EVE CSV file."""
         raw = pd.read_csv(csv_file, dtype=str)
         raw.columns = [c.strip() for c in raw.columns]
@@ -248,11 +344,15 @@ class EVEConnector(BaseConnector):
         raw["EVE_scores_ASM"] = pd.to_numeric(raw["EVE_scores_ASM"], errors="coerce")
         raw = raw.dropna(subset=["position", "EVE_scores_ASM"])
 
-        # Extract gene symbol from protein name when present, otherwise from filename.
+        # Extract gene symbol from protein name when present, otherwise resolve the
+        # filename entry-name (e.g. 1433G_HUMAN) to its HGNC symbol via the UniProt map.
         if "mutations_protein_name" in raw.columns:
             raw["gene_symbol"] = raw["mutations_protein_name"].astype(str).str.split("_").str[0]
+            self._last_csv_resolved = True
         else:
-            raw["gene_symbol"] = csv_file.stem.split("_")[0]
+            _hgnc, _resolved = resolve_eve_gene(csv_file.stem, entry_map or {})
+            raw["gene_symbol"] = _hgnc
+            self._last_csv_resolved = _resolved
 
         raw["aa_change"] = (
             raw["wt_aa"].str.strip() +
@@ -299,12 +399,47 @@ class EVEConnector(BaseConnector):
         """Left-join EVE scores onto variant_df by gene_symbol + aa_change."""
         result = variant_df.copy()
 
-        # Derive aa_change from protein_change
+        # Derive aa_change for the EVE join. The lookup side builds its key as
+        # wt_aa + position + mt_aa (see _parse_single_csv); build the SAME key on
+        # the variant side from the populated coordinate triple
+        # (wt_aa / protein_pos / mut_aa, filled by AlphaMissense step 10b) FIRST,
+        # then fall back to parsing protein_change (HGVSp) for cohorts that carry
+        # it instead. Coordinate-first is load-bearing: the whole-genome ClinVar
+        # cohort has protein_change 100% null, so a protein_change-only key left
+        # eve_score at 0.5 for every variant despite coords being present.
+        def _eve_key_from_triple(_wt: object, _pos: object, _mut: object) -> Optional[str]:
+            if _wt is None or _mut is None or pd.isna(_pos):
+                return None
+            _wt_s = str(_wt).strip()
+            _mut_s = str(_mut).strip()
+            if not _wt_s or not _mut_s:
+                return None
+            try:
+                return f"{_wt_s}{int(_pos)}{_mut_s}"
+            except (TypeError, ValueError):
+                return None
+
+        if {"wt_aa", "protein_pos", "mut_aa"}.issubset(result.columns):
+            _triple_key = [
+                _eve_key_from_triple(_w, _p, _m)
+                for _w, _p, _m in zip(
+                    result["wt_aa"], result["protein_pos"], result["mut_aa"]
+                )
+            ]
+        else:
+            _triple_key = [None] * len(result)
+
         protein_change = result.get(
             "protein_change",
             pd.Series([""] * len(result), index=result.index),
         ).fillna("")
-        result["_aa_change"] = protein_change.map(_hgvsp_to_eve_key)
+        _hgvsp_key = protein_change.map(_hgvsp_to_eve_key)
+
+        # Coordinate triple wins where present; HGVSp fills the remaining rows.
+        result["_aa_change"] = [
+            _t if _t is not None else _h
+            for _t, _h in zip(_triple_key, _hgvsp_key)
+        ]
 
         gene_symbol = result.get(
             "gene_symbol",

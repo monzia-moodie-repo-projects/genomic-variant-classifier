@@ -181,3 +181,7 @@ drive_md5.txt
 
 # regenerable layout-audit output (build_data_layout_manifest.py)
 manifests/
+
+# Run-17 staging + working bundles (large SCP payloads + scratch; never commit)
+data/_vm_stage/
+_run17_wiring_bundle/

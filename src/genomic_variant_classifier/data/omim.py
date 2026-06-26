@@ -95,6 +95,7 @@ class OMIMConnector(BaseConnector):
         if df.empty:
             result = df.copy()
             result["omim_n_diseases"]           = pd.Series(dtype=int)
+            result["omim_n_diseases_molecular"] = pd.Series(dtype=int)
             result["omim_is_autosomal_dominant"] = pd.Series(dtype=int)
             return result
 
@@ -103,6 +104,7 @@ class OMIMConnector(BaseConnector):
         result = df.copy()
         if gene_table.empty:
             result["omim_n_diseases"]           = DEFAULT_N_DISEASES
+            result["omim_n_diseases_molecular"] = DEFAULT_N_DISEASES
             result["omim_is_autosomal_dominant"] = DEFAULT_IS_AD
             return result
 
@@ -114,6 +116,9 @@ class OMIMConnector(BaseConnector):
         )
         result["omim_n_diseases"] = (
             result["omim_n_diseases"].fillna(DEFAULT_N_DISEASES).astype(int)
+        )
+        result["omim_n_diseases_molecular"] = (
+            result["omim_n_diseases_molecular"].fillna(DEFAULT_N_DISEASES).astype(int)
         )
         result["omim_is_autosomal_dominant"] = (
             result["omim_is_autosomal_dominant"].fillna(DEFAULT_IS_AD).astype(int)
@@ -135,48 +140,37 @@ class OMIMConnector(BaseConnector):
     # ------------------------------------------------------------------
 
     def _get_gene_table(self) -> pd.DataFrame:
-        """Return a gene-level summary DataFrame, or empty if unavailable."""
-        if self.mim2gene_path is None:
-            logger.warning(
-                "OMIMConnector: mim2gene_path not set — returning default values "
-                "(omim_n_diseases=0, omim_is_autosomal_dominant=0).  "
-                "Download mim2gene.txt from https://omim.org/downloads."
-            )
-            return pd.DataFrame(columns=["gene_symbol", "omim_n_diseases", "omim_is_autosomal_dominant"])
+        """Return a gene-level summary DataFrame, or empty if unavailable.
 
-        cache_key = f"gene_table:mim2gene={self.mim2gene_path}:genemap2={self.genemap2_path}"
-        cached = None
-        if self.genemap2_path is None:
-            cached = self._load_cache(cache_key)
+        genemap2.txt is the PRIMARY (and sufficient) source: it carries the
+        gene->phenotype relationships from which omim_n_diseases,
+        omim_n_diseases_molecular and omim_is_autosomal_dominant are all derived.
+        mim2gene.txt is an ID cross-reference whose own header states it is NOT a
+        gene-phenotype table, so it is no longer used for the disease count.
+        """
+        empty_cols = ["gene_symbol", "omim_n_diseases",
+                      "omim_n_diseases_molecular", "omim_is_autosomal_dominant"]
+
+        if self.genemap2_path is None or not self.genemap2_path.exists():
+            logger.warning(
+                "OMIMConnector: genemap2.txt not available (path=%s) — returning default "
+                "values (omim_n_diseases=0, omim_n_diseases_molecular=0, "
+                "omim_is_autosomal_dominant=0).  Download genemap2.txt from "
+                "https://omim.org/downloads.",
+                self.genemap2_path,
+            )
+            return pd.DataFrame(columns=empty_cols)
+
+        cache_key = f"gene_table:genemap2={self.genemap2_path}"
+        cached = self._load_cache(cache_key)
         if cached is not None and not cached.empty:
             logger.info("OMIMConnector: loaded gene table from cache (%d genes).", len(cached))
             return cached
 
-        if not self.mim2gene_path.exists():
-            logger.warning(
-                "OMIMConnector: mim2gene.txt not found at '%s' — returning default values.",
-                self.mim2gene_path,
-            )
-            return pd.DataFrame(columns=["gene_symbol", "omim_n_diseases", "omim_is_autosomal_dominant"])
-
-        gene_table = self._parse_mim2gene(self.mim2gene_path)
-        if self.genemap2_path is not None and self.genemap2_path.exists():
-            ad_table = self._parse_genemap2_autosomal_dominant(self.genemap2_path)
-            if not ad_table.empty:
-                gene_table = gene_table.drop(columns=["omim_is_autosomal_dominant"], errors="ignore")
-                gene_table = gene_table.merge(ad_table, on="gene_symbol", how="outer")
-                gene_table["omim_n_diseases"] = (
-                    gene_table["omim_n_diseases"].fillna(DEFAULT_N_DISEASES).astype(int)
-                )
-                gene_table["omim_is_autosomal_dominant"] = (
-                    gene_table["omim_is_autosomal_dominant"].fillna(DEFAULT_IS_AD).astype(int)
-                )
+        gene_table = self._parse_genemap2(self.genemap2_path)
         if not gene_table.empty:
-            if self.genemap2_path is None:
-                self._save_cache(cache_key, gene_table)
-                logger.info("OMIMConnector: parsed and cached %d genes.", len(gene_table))
-            else:
-                logger.info("OMIMConnector: parsed %d genes with genemap2 cache bypass.", len(gene_table))
+            self._save_cache(cache_key, gene_table)
+            logger.info("OMIMConnector: parsed and cached %d genes from genemap2.", len(gene_table))
         return gene_table
 
     def _parse_mim2gene(self, path: Path) -> pd.DataFrame:
@@ -225,13 +219,56 @@ class OMIMConnector(BaseConnector):
         return gene_counts
 
 
-    def _parse_genemap2_autosomal_dominant(self, path: Path) -> pd.DataFrame:
-        """Parse genemap2.txt into gene-level autosomal-dominant flags."""
+    @staticmethod
+    def _count_phenotypes(phenotypes: str) -> "tuple[int, int, int]":
+        """Return (n_diseases_all, n_diseases_molecular, is_autosomal_dominant)
+        for one gene's genemap2 Phenotypes string.
+
+        - n_diseases_all:       count of ;-separated entries that are real diseases
+                                (EXCLUDES [non-disease] bracketed entries: biomarkers/QTLs).
+                                INCLUDES plain, {susceptibility}, and ?provisional entries.
+        - n_diseases_molecular: count of entries containing the (3) mapping key
+                                = molecular basis of the disorder is known (confirmed gene).
+        - is_autosomal_dominant: 1 if any entry mentions "Autosomal dominant".
+
+        Counting entries that CONTAIN "(3)" is robust to the 2/8953 entries that
+        embed a stray "(N)" inside disease text (verified against live genemap2).
+        """
+        import re as _re
+        s = str(phenotypes).strip()
+        if not s:
+            return 0, 0, 0
+        n_all = 0
+        n_mol = 0
+        is_ad = 0
+        for entry in s.split(";"):
+            e = entry.strip()
+            if not e:
+                continue
+            if e.startswith("["):          # [non-disease] — exclude from disease counts entirely
+                continue
+            n_all += 1
+            if _re.search(r"\(3\)", e):
+                n_mol += 1
+            if "autosomal dominant" in e.lower():
+                is_ad = 1
+        return n_all, n_mol, is_ad
+
+    def _parse_genemap2(self, path: Path) -> pd.DataFrame:
+        """Parse genemap2.txt into gene-level OMIM features.
+
+        Returns gene_symbol, omim_n_diseases, omim_n_diseases_molecular,
+        omim_is_autosomal_dominant (one row per gene; aggregated across the gene's
+        genemap2 rows). genemap2.txt is the file that actually carries
+        gene->phenotype relationships (mim2gene.txt explicitly is NOT).
+        """
+        empty_cols = ["gene_symbol", "omim_n_diseases",
+                      "omim_n_diseases_molecular", "omim_is_autosomal_dominant"]
         try:
             lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
         except OSError as exc:
             logger.error("OMIMConnector: failed to read genemap2 %s: %s", path, exc)
-            return pd.DataFrame(columns=["gene_symbol", "omim_is_autosomal_dominant"])
+            return pd.DataFrame(columns=empty_cols)
 
         header_idx = None
         for i, line in enumerate(lines):
@@ -241,7 +278,7 @@ class OMIMConnector(BaseConnector):
 
         if header_idx is None:
             logger.warning("OMIMConnector: could not find genemap2 header in %s.", path)
-            return pd.DataFrame(columns=["gene_symbol", "omim_is_autosomal_dominant"])
+            return pd.DataFrame(columns=empty_cols)
 
         header = lines[header_idx].lstrip("# ").split("\t")
         rows = []
@@ -254,13 +291,13 @@ class OMIMConnector(BaseConnector):
                 rows.append(parts)
 
         if not rows:
-            return pd.DataFrame(columns=["gene_symbol", "omim_is_autosomal_dominant"])
+            return pd.DataFrame(columns=empty_cols)
 
         raw = pd.DataFrame(rows, columns=header)
         required = {"Approved Gene Symbol", "Phenotypes"}
         if not required.issubset(raw.columns):
             logger.warning("OMIMConnector: genemap2 missing required columns in %s.", path)
-            return pd.DataFrame(columns=["gene_symbol", "omim_is_autosomal_dominant"])
+            return pd.DataFrame(columns=empty_cols)
 
         x = raw[["Approved Gene Symbol", "Phenotypes"]].copy()
         x = x.rename(columns={"Approved Gene Symbol": "gene_symbol"})
@@ -268,13 +305,24 @@ class OMIMConnector(BaseConnector):
         x["Phenotypes"] = x["Phenotypes"].astype(str)
         x = x[x["gene_symbol"].str.len() > 0].copy()
 
-        x["omim_is_autosomal_dominant"] = (
-            x["Phenotypes"]
-            .str.contains("Autosomal dominant", case=False, na=False)
-            .astype(int)
-        )
+        counts = x["Phenotypes"].map(self._count_phenotypes)
+        x["omim_n_diseases"]            = counts.map(lambda t: t[0]).astype(int)
+        x["omim_n_diseases_molecular"]  = counts.map(lambda t: t[1]).astype(int)
+        x["omim_is_autosomal_dominant"] = counts.map(lambda t: t[2]).astype(int)
 
-        return (
-            x.groupby("gene_symbol", as_index=False)["omim_is_autosomal_dominant"]
-            .max()
+        # One gene may appear on multiple genemap2 rows: take max per gene so a
+        # gene's disease count / AD flag reflect its richest annotation.
+        agg = (
+            x.groupby("gene_symbol", as_index=False)[
+                ["omim_n_diseases", "omim_n_diseases_molecular", "omim_is_autosomal_dominant"]
+            ].max()
         )
+        logger.info(
+            "OMIMConnector: parsed genemap2 -> %d genes; %d with >=1 disease, "
+            "%d with >=1 molecular (3) disease, %d autosomal-dominant.",
+            len(agg),
+            int((agg["omim_n_diseases"] > 0).sum()),
+            int((agg["omim_n_diseases_molecular"] > 0).sum()),
+            int((agg["omim_is_autosomal_dominant"] > 0).sum()),
+        )
+        return agg
