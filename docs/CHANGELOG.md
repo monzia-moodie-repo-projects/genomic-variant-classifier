@@ -1,3 +1,50 @@
+## 2026-06-26 -- OMIM 88-bug fix + genemap2 rewrite, molecular feature #88, PhyloP pybigtools, launch invocation audit
+
+### Attempted
+- Diagnose why `omim_n_diseases` was non-zero for only ~88 of 4.4M variants across every prior run.
+- Rewrite OMIMConnector to source all OMIM columns from genemap2.txt.
+- Add `omim_n_diseases_molecular` (mapping-key (3), confirmed molecular basis) as feature #88.
+- Audit the launch invocation to confirm every proven source is actually passed in `$ARGS`.
+- Close the PhyloP pybigtools dependency gap on the VM.
+
+### Failed (and why)
+- Predicted `omim_n_diseases_molecular` would diverge from `omim_n_diseases`; it did not (Pearson 0.9999,
+  3,207 differing variants / 0.07%). Cause: genemap2 (3) key dominates (86% of 8,953 entries), non-(3)
+  entries concentrate in low-disease-count susceptibility genes. Recorded as an honest empirical result;
+  column kept (correct, harmless, semantically distinct).
+- PowerShell verify one-liner with `\x27`-escaped quotes inside an inline `for: print()` raised SyntaxError
+  (no file touched). Re-run with a quote-free list form passed 7/7.
+
+### Fixed
+- OMIM 88-bug root cause: connector read mim2gene.txt (explicitly NOT a gene-phenotype table) through a
+  self-contradictory PHENOTYPE_TYPES filter ('phenotype' rows carry 0/8637 HGNC symbols). Rewrote
+  genemap2-driven. Live re-probe: omim_n_diseases 88 -> 3,155,973 (71.74%), graded 0-16;
+  omim_is_autosomal_dominant held 36.99% (no regression).
+- New feature #88 omim_n_diseases_molecular wired through connector, training builder (real_data_prep),
+  inference builder (variant_ensemble), and API (schemas + main row builder). Contract 87 -> 88;
+  test_feature_count_contract tripwire green.
+- Launch invocation audit: `--omim-genemap2-path` was never in `$ARGS` (OMIM would silent-zero) AND the
+  hard-fail guard checked inert mim2gene instead of essential genemap2. Both closed: genemap2 file-pick +
+  `--omim-genemap2-path` in ARGS + exit-8 guard mirroring the EVE/PhyloP/dbSNP/ClinGen pattern. mim2gene
+  --omim-path kept for backward-compat (ignored by connector).
+- pybigtools (PhyloP BigWig reader) was absent from BOTH requirements.in and requirements.txt -> PhyloP
+  would silent-zero on the VM. Added pybigtools>=0.3.0 to both, plus a launch step-4b idempotent install +
+  hard import verify (exit 4). PyPI-confirmed cp39-cp313 manylinux wheels (binary, no Rust build).
+- 7 patchers applied + verified; 2 new unit tests; FINAL-1 19/19 pass; FINAL-2 all 6 modules import with
+  contract at 88. bash -n PASS on the real launch script.
+
+### Learned
+- A non-zero-but-tiny annotation count (88) is a silent-zero in disguise: it passes naive zero-checks. The
+  right guard is a coverage-rate floor, not a not-zero check.
+- mim2gene.txt is not a gene-phenotype source; genemap2.txt Phenotypes column (semicolon entries, (N)
+  mapping-keys) is. (3) = confirmed molecular basis; (3) dominates at 86% of entries, which is why the
+  molecular count is near-collinear with the all-diseases count.
+- A CLI flag that argparse accepts but the launch script never passes is a silent-zero; the invocation
+  audit (cross-checking $ARGS against the accepted flags) is the gate that catches it. A hard-fail guard
+  must check the file the code actually needs now, not a file that became inert after a rewrite.
+- Local dependency proof does not transfer to the VM (different machine); a dep must be in the requirements
+  file the VM installs from AND, for a prebuilt venv that skips install, verified at launch.
+
 ## 2026-06-05 â€” Run 15 all-models smoke: first GREEN on real data (instance 39619871 @ 18da19e)
 
 ### Fixed
