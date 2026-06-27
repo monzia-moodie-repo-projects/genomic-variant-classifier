@@ -49,10 +49,13 @@ def test_kg_and_rnaseq_are_required_inputs(text):
     assert 'ABORT (exit 2): missing required inputs' in text
 
 
-def test_esm2_consciously_absent(text):
+def test_esm2_uniprot_index_wired(text):
+    # ESM-2 is now deliberately wired (HGVSp parser delivered -> ESM-2 carries real signal).
+    # launch_run17_baseline.sh appends --esm2-uniprot-index to ARGS; assert its PRESENCE.
     arg_lines = [ln for ln in text.splitlines()
                  if "ARGS=" in ln and not ln.strip().startswith("#")]
-    assert all("--esm2-uniprot-index" not in ln for ln in arg_lines)
+    assert any("--esm2-uniprot-index" in ln for ln in arg_lines), \
+        "--esm2-uniprot-index expected in ARGS (ESM-2 wired this session)"
 
 
 def test_outdir_pinned(text):
