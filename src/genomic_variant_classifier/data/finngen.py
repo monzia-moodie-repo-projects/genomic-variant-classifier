@@ -30,6 +30,19 @@ FINNGEN_COLUMNS = [
     "finngen_enrichment",
 ]
 
+
+def finngen_columns(column_prefix: str = "") -> list[str]:
+    """The three FinnGen output column names for a given release prefix.
+
+    prefix=""      -> finngen_af_fin / finngen_af_nfsee / finngen_enrichment (R12)
+    prefix="r13_"  -> finngen_r13_af_fin / finngen_r13_af_nfsee / finngen_r13_enrichment
+    """
+    return [
+        f"finngen_{column_prefix}af_fin",
+        f"finngen_{column_prefix}af_nfsee",
+        f"finngen_{column_prefix}enrichment",
+    ]
+
 _CHROM_NORMALISE = {str(i): str(i) for i in range(1, 23)}
 _CHROM_NORMALISE.update({"X": "X", "Y": "Y", "MT": "MT", "M": "MT"})
 
@@ -57,9 +70,16 @@ class FinnGenConnector:
         self,
         tsv_path: Optional[str | Path] = None,
         chunksize: int = 500_000,
+        column_prefix: str = "",
     ) -> None:
         self.tsv_path = Path(tsv_path) if tsv_path else None
         self.chunksize = chunksize
+        self.column_prefix = column_prefix
+        # Output column names; default prefix "" reproduces the R12 names exactly.
+        self._out_fin = f"finngen_{column_prefix}af_fin"
+        self._out_nfsee = f"finngen_{column_prefix}af_nfsee"
+        self._out_enrich = f"finngen_{column_prefix}enrichment"
+        self._out_cols = [self._out_fin, self._out_nfsee, self._out_enrich]
         self._index: Optional[pd.DataFrame] = None
 
     # ------------------------------------------------------------------
@@ -73,7 +93,7 @@ class FinnGenConnector:
 
         Variants with no FinnGen match receive 0.0 / 0.0 / 1.0 defaults.
         """
-        for col in FINNGEN_COLUMNS:
+        for col in self._out_cols:
             if col not in df.columns:
                 df[col] = 0.0
 
@@ -84,14 +104,14 @@ class FinnGenConnector:
                 "Download from https://r10.finngen.fi/",
                 self.tsv_path,
             )
-            df["finngen_enrichment"] = 1.0
+            df[self._out_enrich] = 1.0
             return df
 
         if self._index is None:
             self._index = self._build_index(df)
 
         if self._index.empty:
-            df["finngen_enrichment"] = 1.0
+            df[self._out_enrich] = 1.0
             return df
 
         # Join on chrom / pos / ref / alt
@@ -104,13 +124,13 @@ class FinnGenConnector:
             how="left",
         )
 
-        df["finngen_af_fin"]   = merged["af_fin"].fillna(0.0).values
-        df["finngen_af_nfsee"] = merged["af_nfsee"].fillna(0.0).values
-        df["finngen_enrichment"] = (
-            df["finngen_af_fin"] / (df["finngen_af_nfsee"] + 1e-9)
+        df[self._out_fin]   = merged["af_fin"].fillna(0.0).values
+        df[self._out_nfsee] = merged["af_nfsee"].fillna(0.0).values
+        df[self._out_enrich] = (
+            df[self._out_fin] / (df[self._out_nfsee] + 1e-9)
         ).clip(upper=1000.0)
 
-        n_annotated = (df["finngen_af_fin"] > 0).sum()
+        n_annotated = (df[self._out_fin] > 0).sum()
         logger.info(
             "FinnGen annotation: %d / %d variants matched (%.1f%%).",
             n_annotated, len(df), 100 * n_annotated / max(len(df), 1),
