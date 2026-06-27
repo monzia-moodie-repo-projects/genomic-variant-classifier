@@ -130,6 +130,14 @@ def parse_args(argv=None) -> argparse.Namespace:
         "this feature.",
     )
     p.add_argument(
+        "--finngen-r13-path",
+        default=None,
+        help="FinnGen R13 annotated variants (gzipped) "
+        "(data/external/finngen/finngen_R13_annotated_variants_v0.gz). "
+        "Dual-release experiment: annotates finngen_r13_af_fin/af_nfsee/enrichment "
+        "via an independent connector pass with column_prefix='r13_'.",
+    )
+    p.add_argument(
         "--finngen-path",
         default=None,
         help="FinnGen R12 annotated variants TSV (gzipped) "
@@ -338,6 +346,7 @@ def main() -> int:
             clingen_path=Path(args.clingen_path) if args.clingen_path else None,
             rnaseq_path=Path(args.rnaseq_path) if args.rnaseq_path else None,
             finngen_path=Path(args.finngen_path) if args.finngen_path else None,
+            finngen_r13_path=Path(args.finngen_r13_path) if args.finngen_r13_path else None,
             # Run 17 annotation wiring (see --omim-path/--phylop-path/--dbsnp-path/--eve-path)
             omim_path=Path(args.omim_path) if args.omim_path else None,
             omim_genemap2_path=Path(args.omim_genemap2_path) if args.omim_genemap2_path else None,

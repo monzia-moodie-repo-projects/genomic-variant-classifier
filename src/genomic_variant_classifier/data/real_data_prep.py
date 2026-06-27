@@ -278,6 +278,7 @@ class AnnotationConfig:
     hgmd_path: Optional[Path] = None
     kg_path: Optional[Path] = None  # 1000 Genomes Phase 3 AF parquet
     finngen_path: Optional[Path] = None  # FinnGen R10 annotated variants TSV
+    finngen_r13_path: Optional[Path] = None  # FinnGen R13 annotated variants (dual-release experiment)
     lovd_path: Optional[Path] = None  # LOVD all-variants parquet
     rna_pipeline: bool = True  # Phase 6.1: RNA splice-context features
     protein_cache_dir: Optional[Path] = None  # Phase 6.2: AlphaFold/UniProt cache dir
@@ -597,6 +598,22 @@ class DataPrepPipeline:
                 if col not in df.columns:
                     df[col] = 0.0
             df["finngen_enrichment"] = 1.0
+
+        # FinnGen R13 (dual-release experiment): independent second pass, prefixed columns
+        if self.annotation_config.finngen_r13_path:
+            from genomic_variant_classifier.data.finngen import FinnGenConnector
+
+            finngen_r13 = FinnGenConnector(
+                tsv_path=self.annotation_config.finngen_r13_path, column_prefix="r13_"
+            )
+            df = finngen_r13.annotate(df)
+        else:
+            from genomic_variant_classifier.data.finngen import finngen_columns
+
+            for col in finngen_columns("r13_"):
+                if col not in df.columns:
+                    df[col] = 0.0
+            df["finngen_r13_enrichment"] = 1.0
 
         return df
 

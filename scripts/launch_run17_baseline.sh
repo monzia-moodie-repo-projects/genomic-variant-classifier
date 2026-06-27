@@ -179,6 +179,8 @@ ARGS="$ARGS --rnaseq-path $RNASEQ_PARQUET"
 ARGS="$ARGS --kg $KG_PARQUET"
 FINNGEN_FILE="$DATA/external/finngen/finnge_R12_annotated_variants_v1.gz"  # registry typo 'finnge'
 if [ -f "$FINNGEN_FILE" ]; then ARGS="$ARGS --finngen-path $FINNGEN_FILE"; echo "==> FinnGen wired: $FINNGEN_FILE" | tee -a "$LOG"; else echo "==> ABORT: FinnGen file missing: $FINNGEN_FILE" | tee -a "$LOG"; exit 7; fi
+FINNGEN_R13_FILE="$DATA/external/finngen/finngen_R13_annotated_variants_v0.gz"  # R13 dual-release (correct spelling, _v0)
+if [ -f "$FINNGEN_R13_FILE" ]; then ARGS="$ARGS --finngen-r13-path $FINNGEN_R13_FILE"; echo "==> FinnGen R13 wired: $FINNGEN_R13_FILE" | tee -a "$LOG"; else echo "==> ABORT: FinnGen R13 file missing: $FINNGEN_R13_FILE" | tee -a "$LOG"; exit 7; fi
 
 # --- Run 17 EVE/ESM-2 wiring (HGVSp parser delivered -> EVE/ESM-2 now carry REAL
 #     signal). Plus omim/phylop/dbsnp/clingen, whose CLI flags exist but the launch
