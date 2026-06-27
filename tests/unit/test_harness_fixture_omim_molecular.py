@@ -49,7 +49,9 @@ def test_molecular_not_in_allowlist():
 
 
 def test_allowlist_unchanged_size():
-    # Option B must NOT grow the allowlist (that would be Option A).
-    assert len(KNOWN_ZERO_DEFAULT) == 27, (
-        f"KNOWN_ZERO_DEFAULT must stay 27 (Option B feeds the fixture, does not allowlist); "
-        f"got {len(KNOWN_ZERO_DEFAULT)}.")
+    # Option B feeds finngen in the fixture; the two R12 AF columns
+    # (finngen_af_fin, finngen_af_nfsee) were therefore REMOVED from the allowlist
+    # (27 -> 25). R13 AF is also fed, never allowlisted. enrichment never zeros.
+    assert len(KNOWN_ZERO_DEFAULT) == 25, (
+        f"KNOWN_ZERO_DEFAULT must be 25 (Option B feeds finngen R12+R13 AF, does not "
+        f"allowlist them); got {len(KNOWN_ZERO_DEFAULT)}.")

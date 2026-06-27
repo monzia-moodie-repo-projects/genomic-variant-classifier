@@ -317,11 +317,7 @@ KNOWN_ZERO_DEFAULT: frozenset[str] = frozenset({
     "rnaseq_mean_log_tpm", "rnaseq_detection_rate", "rnaseq_log2_cv",
     "rnaseq_log2fc", "rnaseq_de_neglog10p",
     "af_1kg_afr", "af_1kg_amr", "af_1kg_eas", "af_1kg_eur", "af_1kg_sas",
-    "cadd_high", "finngen_af_fin", "finngen_af_nfsee", "gene_is_constrained",
-    # R13 dual-release: same fixture-zero status as the R12 AF twins above
-    # (build_reference_slice synthesizes no finngen_* column). enrichment omitted
-    # (defaults to 1.0, never zeros -- like finngen_enrichment).
-    "finngen_r13_af_fin", "finngen_r13_af_nfsee",
+    "cadd_high", "gene_is_constrained",
     "gerp_score", "gtex_is_eqtl", "gtex_max_abs_effect", "gtex_max_tpm",
     "gtex_min_eqtl_pval", "gtex_n_tissues_expressed", "gtex_tissue_specificity",
     "n_known_pathogenic_protein_variants", "phylop_score",
@@ -376,6 +372,12 @@ def build_reference_slice(n: int = 200, seed: int = 7) -> pd.DataFrame:
         "solvent_accessibility": rng.uniform(0, 1, n), "esm2_delta_norm": rng.uniform(0.1, 5, n),
         "esm2_llr": rng.uniform(-12, 4, n),  # SIGNED (neg=damaging); live feature, NOT allowlisted
         "alphafold_plddt": rng.uniform(20, 95, n), "gnn_score": rng.uniform(0.1, 0.9, n),
+        # FinnGen R12 + R13 population AF -- FED (Option B): zero-audit actively checks
+        # these (direct passthrough via df.get in engineer_features). NOT allowlisted.
+        "finngen_af_fin": rng.uniform(0, 0.5, n), "finngen_af_nfsee": rng.uniform(0, 0.5, n),
+        "finngen_enrichment": rng.uniform(0.5, 5, n),
+        "finngen_r13_af_fin": rng.uniform(0, 0.5, n), "finngen_r13_af_nfsee": rng.uniform(0, 0.5, n),
+        "finngen_r13_enrichment": rng.uniform(0.5, 5, n),
         "dist_to_active_site": rng.uniform(1, 500, n), "dist_to_splice_site": rng.uniform(1, 500, n),
         "clingen_validity_score": rng.integers(1, 5, n), "codon_position": rng.integers(1, 4, n),
         "exon_number": rng.integers(1, 30, n), "lovd_variant_class": rng.integers(1, 6, n),
