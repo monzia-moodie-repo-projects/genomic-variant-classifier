@@ -154,7 +154,7 @@ CONSEQUENCE_SEVERITY: dict[str, int] = {
 # Bump by +/-1 whenever you add or remove an entry in TABULAR_FEATURES below.
 # Enforced by tests/unit/test_feature_count_contract.py against both the list
 # length and INFERENCE_FEATURE_COLUMNS; that test is the deliberate-bump tripwire.
-EXPECTED_TABULAR_FEATURE_COUNT = 88
+EXPECTED_TABULAR_FEATURE_COUNT = 91
 
 TABULAR_FEATURES = [
     # Allele frequency (6)
@@ -252,6 +252,9 @@ TABULAR_FEATURES = [
     "finngen_af_fin",
     "finngen_af_nfsee",
     "finngen_enrichment",
+    "finngen_r13_af_fin",
+    "finngen_r13_af_nfsee",
+    "finngen_r13_enrichment",
     # ESM-2 (2)
     "esm2_delta_norm",
     "esm2_llr",
@@ -616,6 +619,9 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
         ("finngen_af_fin", 0.0),
         ("finngen_af_nfsee", 0.0),
         ("finngen_enrichment", 1.0),
+        ("finngen_r13_af_fin", 0.0),
+        ("finngen_r13_af_nfsee", 0.0),
+        ("finngen_r13_enrichment", 1.0),
     ]:
         feats[_col] = (
             df.get(_col, pd.Series([_default] * len(df), index=df.index))

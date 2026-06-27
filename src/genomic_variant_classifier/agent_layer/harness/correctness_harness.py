@@ -318,6 +318,10 @@ KNOWN_ZERO_DEFAULT: frozenset[str] = frozenset({
     "rnaseq_log2fc", "rnaseq_de_neglog10p",
     "af_1kg_afr", "af_1kg_amr", "af_1kg_eas", "af_1kg_eur", "af_1kg_sas",
     "cadd_high", "finngen_af_fin", "finngen_af_nfsee", "gene_is_constrained",
+    # R13 dual-release: same fixture-zero status as the R12 AF twins above
+    # (build_reference_slice synthesizes no finngen_* column). enrichment omitted
+    # (defaults to 1.0, never zeros -- like finngen_enrichment).
+    "finngen_r13_af_fin", "finngen_r13_af_nfsee",
     "gerp_score", "gtex_is_eqtl", "gtex_max_abs_effect", "gtex_max_tpm",
     "gtex_min_eqtl_pval", "gtex_n_tissues_expressed", "gtex_tissue_specificity",
     "n_known_pathogenic_protein_variants", "phylop_score",
