@@ -1,15 +1,16 @@
 # =============================================================================
 # Run_Preflight_Local.ps1  -  Charter v1.1 gate G1 (LOCAL pre-launch validation)
-# Run 15, genomic-variant-classifier. Runs BEFORE any Vast.ai instance create.
+# Run 17, genomic-variant-classifier. Runs BEFORE any Vast.ai instance create.
 # Adapted from Run14_Preflight.ps1 (PM13, 2026-05-27). Exit: 0 green / 1 fail.
 # =============================================================================
 [CmdletBinding()]
+# [G1-RUN17-ADAPTED] Run-15 -> Run-17 (2026-06-27): launch path, kan.py imodelsx, test floor 1485/1480, FinnGen R12+R13 required, Run17 postflight+plan, agent liveness.
 param(
     [string]$RepoRoot     = "C:\Projects\genomic-variant-classifier",
     [string]$VenvName     = ".venv312",
     [string]$SshKey       = "C:\Users\monzi\.ssh\id_lambda_run8",
     [string]$ExpectedHead = "",
-    [int]$MinPytest       = 566,
+    [int]$MinPytest       = 1485,
     [switch]$SkipPytest,
     [switch]$SkipKanSmoke
 )
@@ -54,13 +55,18 @@ try {
         if ($ia -gt 0 -and $if -gt $ia) { Pass "kan.py: attribute injection BEFORE .fit()" } else { Fail "kan.py: injection order wrong/missing" }
     }
 
-    Section "3. imodelsx patch in launch script"
-    $launchPath = "scripts\launch_run11_vm.sh"
+    Section "3. imodelsx patch in kan.py (Run-17: patch moved from launch script)"
+    $launchPath = "scripts\launch_run17_baseline.sh"
     if (-not (Test-Path $launchPath)) { Fail "$launchPath missing" }
+    else { Pass "launch script present: $launchPath" }
+    # Run-17: the imodelsx patch moved from the launch script into kan.py (FA2 2026-06-27).
+    # Verify the integration lives in kan.py now, not the launcher.
+    $kanPath = "src\genomic_variant_classifier\models\kan.py"
+    if (-not (Test-Path $kanPath)) { Fail "$kanPath missing" }
     else {
-        $lc = Get-Content $launchPath -Raw
-        foreach ($t in @('imodelsx_patch','test_size=self.test_size','random_state=self.random_state','shuffle=self.shuffle')) {
-            if ($lc.Contains($t)) { Pass "launch script contains: $t" } else { Fail "launch script missing: $t" }
+        $kc2 = Get-Content $kanPath -Raw
+        foreach ($t in @('self._imodelsx_model.test_size','self._imodelsx_model.fit(X, y)')) {
+            if ($kc2.Contains($t)) { Pass "kan.py imodelsx integration: $t" } else { Fail "kan.py missing imodelsx integration: $t" }
         }
     }
 
@@ -107,13 +113,13 @@ print(f'SMOKE_OK shape={p.shape} backend={backend}')
         if ($tail -match '(\d+) passed')  { $nPass = [int]$Matches[1] }
         if ($tail -match '(\d+) skipped') { $nSkip = [int]$Matches[1] }
         $collected = $nPass + $nSkip
-        $minPass = 560   # 566 collected minus 6 known-intentional skips (MC-dropout calibration TODOs pending Run 15; 1 coverage skip)
+        $minPass = 1480  # Run-17: 1483 passed / 2 skipped / 1485 collected (2026-06-27); 3-test headroom below 1483
         if ($nFail -gt 0) { Fail "pytest: $nFail failed/errored ($nPass passed, $nSkip skipped). Tail:`n$tail" }
         elseif ($nPass -ge $minPass -and $collected -ge $MinPytest) { Pass "pytest: $nPass passed, $nSkip skipped, 0 failed (>= $minPass passed, collected $collected >= $MinPytest)" }
         else { Fail "pytest: $nPass passed / $nSkip skipped / collected $collected (expected >= $minPass passed and >= $MinPytest collected). Tail:`n$tail" }
     }
 
-    Section "7. Run 15 prep-input data files (raw; SCP'd up for on-VM prep)"
+    Section "7. Run 17 prep-input data files (raw; SCP'd up for on-VM prep)"
     $reqData = @(
         @{ Path = "data\processed\clinvar_grch38.parquet";                       MinMB = 100 },
         @{ Path = "data\processed\gnomad_v4_exomes.parquet";                     MinMB = 30  },
@@ -129,10 +135,19 @@ print(f'SMOKE_OK shape={p.shape} backend={backend}')
         if (Test-Path $f.Path) {
             $mb = [math]::Round((Get-Item $f.Path).Length / 1MB, 1)
             if ($mb -ge $f.MinMB) { Pass "$($f.Path) -> $mb MB" } else { Fail "$($f.Path) -> $mb MB (expected >= $($f.MinMB))" }
-        } else { Fail "$($f.Path) MISSING (required for Run 15 prep)" }
+        } else { Fail "$($f.Path) MISSING (required for Run 17 prep)" }
     }
-    foreach ($opt in @("data\external\finngen\finnge_R12_annotated_variants_v1.gz","data\external\1kg\1kg_phase3_af.parquet")) {
-        if (Test-Path $opt) { Pass "(optional) $opt present" } else { Warn "(optional, deferred B.D1/B.D2) $opt absent - features 0" }
+    # Run-17: FinnGen is WIRED + REQUIRED (dual-release R12+R13). Hard-fail on absence to match
+    # the launcher's exit-7 guard (launch_run17_baseline.sh L181/L183) -- no silent-zero annotation.
+    foreach ($fg in @("data\external\finngen\finnge_R12_annotated_variants_v1.gz","data\external\finngen\finngen_R13_annotated_variants_v0.gz")) {
+        if (Test-Path $fg) {
+            $fgmb = [math]::Round((Get-Item $fg).Length / 1MB, 1)
+            Pass "FinnGen (required, dual-release) $fg -> $fgmb MB"
+        } else { Fail "FinnGen REQUIRED file MISSING: $fg (launcher exits 7; dual-release needs both R12+R13)" }
+    }
+    # 1KGP AF parquet stays optional (still deferred per RUN_15 B.D1).
+    foreach ($opt in @("data\external\1kg\1kg_phase3_af.parquet")) {
+        if (Test-Path $opt) { Pass "(optional) $opt present" } else { Warn "(optional, deferred B.D1) $opt absent - features 0" }
     }
 
     Section "8. SSH key + Vast.ai CLI"
@@ -179,22 +194,31 @@ sys.exit(0 if not errs else 1)
     if (Test-Path "tests\unit\test_patch_6b_meta_train.py") { Pass "C.8 regression test present" } else { Warn "C.8 regression test missing" }
 
     Section "12. Postflight / destroy gate infrastructure (plan L79-81)"
-    $postPath = "scripts\Run15_Postflight.ps1"
+    $postPath = "scripts\Run17_Postflight.ps1"
     if (Test-Path $postPath) {
         $pc = Get-Content $postPath -Raw
-        if ($pc -match '(?m)exit 1') { Pass "Run15_Postflight.ps1: exit 1 on FAIL (L80)" } else { Fail "Run15_Postflight.ps1: no exit 1 (L80)" }
-        if ($pc.Contains('Test-ArtifactPresent')) { Pass "Run15_Postflight.ps1: Test-ArtifactPresent wired (L79)" } else { Fail "Run15_Postflight.ps1: Test-ArtifactPresent NOT wired (L79)" }
-    } else { Fail "Run15_Postflight.ps1 missing (L80)" }
+        if ($pc -match '(?m)exit 1') { Pass "Run17_Postflight.ps1: exit 1 on FAIL" } else { Fail "Run17_Postflight.ps1: no exit 1" }
+        if ($pc.Contains('Test-ArtifactPresent')) { Pass "Run17_Postflight.ps1: Test-ArtifactPresent wired" } else { Fail "Run17_Postflight.ps1: Test-ArtifactPresent NOT wired" }
+    } else { Warn "Run17_Postflight.ps1 NOT YET BUILT -- required before launch (adapt from Run15_Postflight.ps1)" }
     if (Test-Path "scripts\Test-ArtifactPresent.ps1") { Pass "Test-ArtifactPresent.ps1 present (L79)" } else { Fail "Test-ArtifactPresent.ps1 missing (L79)" }
     if (Test-Path "scripts\Vastai_Destroy_Confirmed.ps1") { Pass "Vastai_Destroy_Confirmed.ps1 present (L81)" } else { Fail "Vastai_Destroy_Confirmed.ps1 missing (L81)" }
 
-    Section "13. RUN_15_PLAN.md decision completeness (plan L77)"
-    $planPath = "docs\runs\RUN_15_PLAN.md"
+    Section "13. RUN_17_PLAN.md decision completeness"
+    $planPath = "docs\runs\RUN_17_PLAN.md"
     if (Test-Path $planPath) {
         $plan = Get-Content $planPath -Raw
         $dc = ([regex]::Matches($plan, [regex]::Escape('<DECISION>'))).Count
-        if ($dc -le 1) { Pass "RUN_15_PLAN.md: $dc literal <DECISION> (<=1 gate-mention, OK)" } else { Fail "RUN_15_PLAN.md: $dc <DECISION> tokens (unfilled)" }
-    } else { Fail "RUN_15_PLAN.md missing" }
+        if ($dc -le 1) { Pass "RUN_17_PLAN.md: $dc literal <DECISION> (<=1 gate-mention, OK)" } else { Fail "RUN_17_PLAN.md: $dc <DECISION> tokens (unfilled)" }
+    } else { Fail "RUN_17_PLAN.md missing" }
+
+    Section "13b. Agent-layer liveness (check_agents_active.py)"
+    $agentChk = "scripts\check_agents_active.py"
+    if (-not (Test-Path $agentChk)) { Fail "$agentChk missing (agent-liveness gate)" }
+    else {
+        $ao = & $venvPython $agentChk 2>&1
+        if ($LASTEXITCODE -eq 0) { Pass "agent liveness: all agents registered + scheduled" }
+        else { Fail "agent liveness FAILED (exit $LASTEXITCODE): $(($ao | Select-Object -Last 3) -join '; ')" }
+    }
 
     Section "14. Correctness harness (stages 1-5; gates correctness before AUROC)"
     $harnessPy = @'
