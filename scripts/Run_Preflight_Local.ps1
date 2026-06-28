@@ -113,7 +113,7 @@ print(f'SMOKE_OK shape={p.shape} backend={backend}')
         if ($tail -match '(\d+) passed')  { $nPass = [int]$Matches[1] }
         if ($tail -match '(\d+) skipped') { $nSkip = [int]$Matches[1] }
         $collected = $nPass + $nSkip
-        $minPass = 1485  # Run-17 post-move: 1498 collected / 1491 passed / 7 skipped local (2026-06-28); CI passes ~1487 (4 pwsh tests skip w/o PowerShell) -> floor keyed to CI case
+        $minPass = 1485  # Run-17 post-move (2026-06-28): preflight runs FULL tests/ locally = 1498 collected / 1491 passed / 7 skipped; floor gates THIS run. 2-pass headroom below 1491 (lower if any pwsh-dependent test skips on a pwsh-less full-suite host). NB: CI is a separate job (pytest tests/unit/ --maxfail=5, no count-floor) and does not read this value.
         if ($nFail -gt 0) { Fail "pytest: $nFail failed/errored ($nPass passed, $nSkip skipped). Tail:`n$tail" }
         elseif ($nPass -ge $minPass -and $collected -ge $MinPytest) { Pass "pytest: $nPass passed, $nSkip skipped, 0 failed (>= $minPass passed, collected $collected >= $MinPytest)" }
         else { Fail "pytest: $nPass passed / $nSkip skipped / collected $collected (expected >= $minPass passed and >= $MinPytest collected). Tail:`n$tail" }
