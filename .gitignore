@@ -185,3 +185,5 @@ manifests/
 # Run-17 staging + working bundles (large SCP payloads + scratch; never commit)
 data/_vm_stage/
 _run17_wiring_bundle/
+# Probe/diagnostic transcripts dropped directly in logs/ (e.g. Start-Transcript output)
+logs/*.txt
