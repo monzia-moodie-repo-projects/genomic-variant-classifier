@@ -23,7 +23,17 @@ from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[1]
+def _find_repo_root(start: Path) -> Path:
+    # Ancestor-walk for the dir containing scripts/launch_run17_baseline.sh (mirrors
+    # tests/conftest.py: walk ancestors, do not hardcode depth -- survives tests/ moves).
+    here = start.resolve()
+    for anc in (here.parent, *here.parents):
+        if (anc / "scripts" / "launch_run17_baseline.sh").is_file():
+            return anc
+    raise RuntimeError(f"repo root (dir with scripts/launch_run17_baseline.sh) not found from {start}")
+
+
+REPO = _find_repo_root(Path(__file__))
 SCRIPTS = REPO / "scripts"
 POSTFLIGHT = SCRIPTS / "Run17_Postflight.ps1"
 

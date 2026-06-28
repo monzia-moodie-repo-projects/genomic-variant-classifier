@@ -10,7 +10,7 @@ param(
     [string]$VenvName     = ".venv312",
     [string]$SshKey       = "C:\Users\monzi\.ssh\id_lambda_run8",
     [string]$ExpectedHead = "",
-    [int]$MinPytest       = 1485,
+    [int]$MinPytest       = 1496,
     [switch]$SkipPytest,
     [switch]$SkipKanSmoke
 )
@@ -113,7 +113,7 @@ print(f'SMOKE_OK shape={p.shape} backend={backend}')
         if ($tail -match '(\d+) passed')  { $nPass = [int]$Matches[1] }
         if ($tail -match '(\d+) skipped') { $nSkip = [int]$Matches[1] }
         $collected = $nPass + $nSkip
-        $minPass = 1480  # Run-17: 1483 passed / 2 skipped / 1485 collected (2026-06-27); 3-test headroom below 1483
+        $minPass = 1485  # Run-17 post-move: 1498 collected / 1491 passed / 7 skipped local (2026-06-28); CI passes ~1487 (4 pwsh tests skip w/o PowerShell) -> floor keyed to CI case
         if ($nFail -gt 0) { Fail "pytest: $nFail failed/errored ($nPass passed, $nSkip skipped). Tail:`n$tail" }
         elseif ($nPass -ge $minPass -and $collected -ge $MinPytest) { Pass "pytest: $nPass passed, $nSkip skipped, 0 failed (>= $minPass passed, collected $collected >= $MinPytest)" }
         else { Fail "pytest: $nPass passed / $nSkip skipped / collected $collected (expected >= $minPass passed and >= $MinPytest collected). Tail:`n$tail" }
