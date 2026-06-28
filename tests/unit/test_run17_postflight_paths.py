@@ -19,6 +19,7 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -114,10 +115,19 @@ def _run_dryrun(config: str) -> str:
         "-DryRun",
     ]
     res = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+    # Surface a real failure instead of letting an empty stdout fail a content assertion
+    # with no context (CI #485: a Windows-targeted .ps1 erroring under a non-Windows pwsh
+    # produced empty stdout). On Windows (where these tests run) this makes a genuine
+    # PowerShell breakage show the actual error.
+    if res.returncode != 0 or not res.stdout.strip():
+        raise AssertionError(
+            f"-DryRun produced no usable output for config={config} "
+            f"(exit {res.returncode}). stderr:\n{res.stderr}"
+        )
     return res.stdout
 
 
-@pytest.mark.skipif(PWSH is None, reason="pwsh/powershell not available")
+@pytest.mark.skipif(sys.platform != "win32", reason="Run17_Postflight.ps1 is Windows-targeted; path-derivation is validated on the Windows preflight host (CI/Linux runs the pure-Python launcher cross-check instead)")
 @pytest.mark.parametrize("config,stem", CONFIG_STEMS.items())
 def test_dryrun_derives_expected_paths(config, stem):
     out = _run_dryrun(config)
@@ -130,7 +140,7 @@ def test_dryrun_derives_expected_paths(config, stem):
     assert "No SSH/SCP/destroy performed" in out, f"{config}: DryRun didn't short-circuit\n{out}"
 
 
-@pytest.mark.skipif(PWSH is None, reason="pwsh/powershell not available")
+@pytest.mark.skipif(sys.platform != "win32", reason="Run17_Postflight.ps1 is Windows-targeted; ValidateSet rejection is validated on the Windows preflight host")
 def test_invalid_config_rejected():
     cmd = [
         PWSH, "-NoProfile", "-File", str(POSTFLIGHT),
