@@ -1,3 +1,52 @@
+## 2026-06-29 -- pandas 3.0.4 upgrade attempted + rolled back (date_range Windows-wheel segfault); 3 fixes kept, proven equivalent on 2.3.3
+
+### Attempted
+- Upgrade pandas 2.3.3 -> 3.0.4 (reversing the 2026-04-29 pin that avoided the pandas-3 string-dtype break).
+- Build an evidence-gated equivalence harness (`scripts/pandas3_equivalence_harness.py`): captures feature
+  matrix + per-column dtypes + per-merge join-match counts + a canonical feature_hash + a warnings ledger,
+  on a fixed seed=42 2,000-variant cohort, and compares two bundles for byte-level equivalence.
+- Prove the string-dtype change (the original reason for the pin) does not alter the feature matrix.
+
+### Failed (and why)
+- pandas 3.0.4's Windows cp312 wheel SEGFAULTS `pd.date_range` (0xC0000005 access violation, at
+  `pandas/core/indexes/datetimes.py:1442`). Reproducible with a 2-line minimal repro under faulthandler.
+- Hypothesized a numpy<->pandas C-ABI mismatch; DISPROVEN empirically: `date_range` segfaulted under all 7
+  numpy versions tested (2.0.2, 2.1.3, 2.2.0, 2.2.6, 2.3.0, 2.3.2, 2.3.3). A numpy downgrade does not fix it
+  -> the defect is in the pandas 3.0.4 Windows wheel itself, not the pairing.
+- A clean `--force-reinstall --no-cache-dir` of pandas 3.0.4 did not fix it (rules out a corrupt cached wheel).
+- Decision: roll back to pandas 2.3.3 (known-good; `date_range` works there). pandas-3 is BLOCKED on this
+  platform pending a fixed Windows wheel. Retry trigger: pandas > 3.0.4.
+- Two self-inflicted bugs caught in-sandbox before delivery and corrected: (1) the equivalence harness first
+  keyed merges by file:line, producing a false "string-dtype break" when a patch shifted a merge's line number
+  (fixed: line-insensitive merge identity); (2) the first allele_freq fix only moved the downcast warning to
+  the inner .fillna line instead of eliminating it (fixed: cast both operands to numeric BEFORE the fillna).
+
+### Fixed (kept on 2.3.3; each proven feature-hash-identical 49e98393... + warnings empty)
+- `real_data_prep._join_gnomad` allele_freq: cast both operands to numeric before `.fillna` so the object
+  column is never downcast. Eliminates the only pandas object-downcast FutureWarning in the data-prep path
+  (was the single warnings.json entry at real_data_prep.py:542). Value-identical on pandas 2.x and 3.x.
+- `_suppress_fillna_downcast` made pandas-version-aware: on pandas >= 3 it no-ops the
+  `pd.option_context("future.no_silent_downcasting", True)` (that behavior is the 3.0 default, and the option
+  is deprecated toward pandas 4.0 -- it emitted a Pandas4Warning on 3.0.4). Honors the decorator's own
+  docstring ("No-op on pandas >= 3"). No behavior change on 2.3.3.
+- `test_annotation_policy_baseline.py::test_submitter_scan_runs_with_river` fixture: build the daily date
+  column with `pd.Timestamp + pd.Timedelta` instead of `pd.date_range` (which segfaults on the 3.0.4 wheel).
+  `date_range` is used NOWHERE in runtime code (src/ + scripts/ greps both empty) -- only this test fixture.
+  The test's assertion is unchanged; the fixture is now robust to the wheel defect.
+
+### Learned
+- A core pandas API (`date_range`) can segfault in one platform's wheel while adjacent datetime paths
+  (`DatetimeIndex`, `Timestamp`) and numpy's own datetime64 work fine -- so "pandas imports + most ops work"
+  is NOT sufficient validation for a major-version bump. Exercise the actual code paths.
+- The data-prep pipeline is fully equivalent on pandas 3.0.4 (feature_hash 49e98393..., all 7 merges 709 rows,
+  the April string-dtype break does NOT occur). The upgrade is blocked solely by the `date_range` wheel bug,
+  which the pipeline never hits -- so the equivalence work is preserved and re-usable when a fixed wheel ships.
+- river/nannyml/evidently (drift-monitor toolchain) conflict with pandas-3 but are contained to standalone
+  scripts; all 22 scheduled agents import + report live under pandas 3.0.4 (the river import is ModuleNotFound-
+  guarded; the drift agents use an internal DriftMonitorBase, not the external libs at module load).
+- Empirically disproving your own hypothesis (the numpy-ABI theory) with a cheap probe is cheaper than
+  shipping a fix built on it. The 7-version numpy sweep took minutes and saved a wrong "pin numpy" commit.
+
 ## 2026-06-26 -- OMIM 88-bug fix + genemap2 rewrite, molecular feature #88, PhyloP pybigtools, launch invocation audit
 
 ### Attempted

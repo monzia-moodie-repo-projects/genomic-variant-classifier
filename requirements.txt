@@ -1,4 +1,7 @@
 #MANUAL EDIT 2026-04-29 (Monzia): pandas pinned to 2.3.3 to avoid pandas 3.0 string-dtype break.
+# 2026-06-29: pandas 3.0.4 upgrade ATTEMPTED + rolled back. Data-prep proven byte-equivalent on
+# 3.0.4 (string-dtype break does NOT occur), but pandas 3.0.4's Windows cp312 wheel segfaults
+# pd.date_range (0xC0000005) across all numpy 2.0.2-2.3.3. BLOCKED; retry when pandas > 3.0.4.
 # fastapi 0.136.1 verified current per PyPI 2026-04-23. starlette 1.0.0 coherent with fastapi 0.135.2/0.136.1.
 # DO NOT regenerate this file with pip-compile under Python 3.14.
 # Future: re-run pip-compile under Python 3.12 once .venv312 is bootstrapped (PHASE_2_FEATURES.pipcompile_python312_migration).

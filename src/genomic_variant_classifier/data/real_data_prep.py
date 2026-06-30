@@ -163,6 +163,11 @@ CONSEQUENCE_SEVERITY: dict[str, int] = {
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
+# pandas major version, used to no-op _suppress_fillna_downcast on pandas >= 3.0
+# (where no-silent-downcasting is the default and the option_context is deprecated).
+_PANDAS_MAJOR = int(pd.__version__.split(".")[0])
+
+
 def _suppress_fillna_downcast(_fn):
     """Opt into pandas' future no-silent-downcasting inside the wrapped builder.
 
@@ -172,6 +177,10 @@ def _suppress_fillna_downcast(_fn):
     """
     @functools.wraps(_fn)
     def _wrapper(*args, **kwargs):
+        # pandas >= 3.0: no-silent-downcasting is the default AND the option is deprecated
+        # toward pandas 4.0 (entering the context emits a Pandas4Warning). Call directly.
+        if _PANDAS_MAJOR >= 3:
+            return _fn(*args, **kwargs)
         with pd.option_context("future.no_silent_downcasting", True):
             return _fn(*args, **kwargs)
 
@@ -539,7 +548,16 @@ class DataPrepPipeline:
         df = df.merge(gnomad, on=["_chrom", "_pos", "_ref", "_alt"], how="left")
         df = df.drop(columns=["_chrom", "_pos", "_ref", "_alt"])
 
-        df["allele_freq"] = df["allele_freq"].fillna(df.get("gnomad_af", float("nan")))
+        # pandas-3 readiness: allele_freq is an allele frequency (always float). Cast BOTH
+        # operands to numeric BEFORE the fillna so it never runs on an object column (which
+        # is what triggers the pandas object-downcast: silent in 2.x, removed in 3.0).
+        # Value-identical on both pandas 2.x and 3.x; see pandas3_equivalence_harness.py
+        # (feature_hash unchanged).
+        _af = pd.to_numeric(df["allele_freq"], errors="coerce")
+        _gf = pd.to_numeric(
+            df.get("gnomad_af", pd.Series(float("nan"), index=df.index)), errors="coerce"
+        )
+        df["allele_freq"] = _af.fillna(_gf)
         if "gnomad_af" in df.columns:
             df = df.drop(columns=["gnomad_af"])
 

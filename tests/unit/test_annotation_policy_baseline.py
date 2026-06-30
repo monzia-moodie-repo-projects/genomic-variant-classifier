@@ -80,7 +80,14 @@ def test_awaiting_when_input_missing(tmp_path):
 def test_submitter_scan_runs_with_river(tmp_path):
     pytest.importorskip("river")
     hist = pd.DataFrame({"submitter_id": ["S1"] * 40,
-                         "date": pd.date_range("2026-01-01", periods=40, freq="D"),
+                         # Build the daily date column WITHOUT pd.date_range, which hits a
+                         # pandas-3.0.4 tslibs C-ABI segfault on this platform. Timestamp +
+                         # Timedelta rolls months correctly and avoids the range-generator
+                         # path; the agent only needs a sortable daily column.
+                         "date": [
+                             pd.Timestamp("2026-01-01") + pd.Timedelta(days=d)
+                             for d in range(40)
+                         ],
                          "outlier_rate": [0.0] * 5 + [1.0] * 35})
     agent = AnnotationPolicyMonitorAgent.from_default_baseline(
         _state(tmp_path), new_svi_pubs=[], clinvar_status_changes=pd.DataFrame({"variant_id": []}),
