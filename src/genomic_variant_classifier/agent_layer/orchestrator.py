@@ -40,6 +40,7 @@ are completely unchanged.
 """
 
 from __future__ import annotations
+from genomic_variant_classifier.agent_layer._lazy_agent import _Lazy
 
 import logging
 import sys
@@ -152,52 +153,34 @@ class Orchestrator:
     # ------------------------------------------------------------------
 
     def _register_agents(self) -> None:
-        from genomic_variant_classifier.agent_layer.agents.data_freshness_agent import DataFreshnessAgent
-        from genomic_variant_classifier.agent_layer.agents.training_lifecycle_agent import TrainingLifecycleAgent
-        from genomic_variant_classifier.agent_layer.agents.interpretability_agent import InterpretabilityAgent
-        from genomic_variant_classifier.agent_layer.agents.literature_scout_agent import LiteratureScoutAgent
-        from genomic_variant_classifier.agent_layer.agents.version_monitor_agent import VersionMonitorAgent
-        from genomic_variant_classifier.agent_layer.agents.concept_drift_monitor_agent import ConceptDriftMonitorAgent
-        from genomic_variant_classifier.agent_layer.agents.label_shift_monitor_agent import LabelShiftMonitorAgent
-        from genomic_variant_classifier.agent_layer.agents.calibration_drift_monitor_agent import CalibrationDriftMonitorAgent
-        from genomic_variant_classifier.agent_layer.agents.infrastructure_drift_monitor_agent import InfrastructureDriftMonitorAgent
-        from genomic_variant_classifier.agent_layer.agents.fairness_subgroup_monitor_agent import FairnessSubgroupMonitorAgent
-        from genomic_variant_classifier.agent_layer.agents.adversarial_submission_monitor_agent import AdversarialSubmissionMonitorAgent
-        from genomic_variant_classifier.agent_layer.agents.annotation_policy_monitor_agent import AnnotationPolicyMonitorAgent
-        from genomic_variant_classifier.agent_layer.agents.adaptation_agent import AdaptationAgent
-        from genomic_variant_classifier.agent_layer.agents.schema_drift_monitor_agent import SchemaDriftMonitorAgent
-        from genomic_variant_classifier.agent_layer.agents.feature_coverage_sentinel_monitor_agent import FeatureCoverageSentinelMonitorAgent
-        from genomic_variant_classifier.agent_layer.agents.reclassification_sentinel_monitor_agent import ReclassificationSentinelMonitorAgent
-        from genomic_variant_classifier.agent_layer.agents.database_freshness_monitor_agent import DatabaseFreshnessMonitorAgent
-        from genomic_variant_classifier.agent_layer.agents.model_insights_agent import ModelInsightsAgent
-        from genomic_variant_classifier.agent_layer.agents.data_readiness_agent import DataReadinessAgent
-        from genomic_variant_classifier.agent_layer.agents.agent_ops_monitor_agent import AgentOpsMonitorAgent
-        from genomic_variant_classifier.agent_layer.agents.finops_advisor_agent import FinOpsAdvisorAgent
-        from genomic_variant_classifier.agent_layer.agents.provisioning_agent import ProvisioningAgent
-
+        # >>> PHASE1_LAZY_REGISTRY <<<
+        # Lazy registry: values are _Lazy("module:Class") -- NO agent module is
+        # imported at construction. Each agent (and its heavy transitive deps) is
+        # imported on first use in run_pipeline. Keys stay string literals so the
+        # AST liveness checker (scripts/check_agents_active.py) still finds all agents.
         self._agent_registry = {
-            "DataFreshnessAgent": DataFreshnessAgent,
-            "TrainingLifecycleAgent": TrainingLifecycleAgent,
-            "InterpretabilityAgent": InterpretabilityAgent,
-            "LiteratureScoutAgent": LiteratureScoutAgent,
-            "VersionMonitorAgent": VersionMonitorAgent,
-            "ConceptDriftMonitorAgent": ConceptDriftMonitorAgent,
-            "LabelShiftMonitorAgent": LabelShiftMonitorAgent,
-            "CalibrationDriftMonitorAgent": CalibrationDriftMonitorAgent,
-            "InfrastructureDriftMonitorAgent": InfrastructureDriftMonitorAgent,
-            "FairnessSubgroupMonitorAgent": FairnessSubgroupMonitorAgent,
-            "AdversarialSubmissionMonitorAgent": AdversarialSubmissionMonitorAgent,
-            "AnnotationPolicyMonitorAgent": AnnotationPolicyMonitorAgent,
-            "SchemaDriftMonitorAgent": SchemaDriftMonitorAgent,
-            "FeatureCoverageSentinelMonitorAgent": FeatureCoverageSentinelMonitorAgent,
-            "ReclassificationSentinelMonitorAgent": ReclassificationSentinelMonitorAgent,
-            "DatabaseFreshnessMonitorAgent": DatabaseFreshnessMonitorAgent,
-            "ModelInsightsAgent": ModelInsightsAgent,
-            "DataReadinessAgent": DataReadinessAgent,
-            "AgentOpsMonitorAgent": AgentOpsMonitorAgent,
-            "FinOpsAdvisorAgent": FinOpsAdvisorAgent,
-            "AdaptationAgent": AdaptationAgent,
-            "ProvisioningAgent": ProvisioningAgent,
+            "DataFreshnessAgent": _Lazy("genomic_variant_classifier.agent_layer.agents.data_freshness_agent:DataFreshnessAgent"),
+            "TrainingLifecycleAgent": _Lazy("genomic_variant_classifier.agent_layer.agents.training_lifecycle_agent:TrainingLifecycleAgent"),
+            "InterpretabilityAgent": _Lazy("genomic_variant_classifier.agent_layer.agents.interpretability_agent:InterpretabilityAgent"),
+            "LiteratureScoutAgent": _Lazy("genomic_variant_classifier.agent_layer.agents.literature_scout_agent:LiteratureScoutAgent"),
+            "VersionMonitorAgent": _Lazy("genomic_variant_classifier.agent_layer.agents.version_monitor_agent:VersionMonitorAgent"),
+            "ConceptDriftMonitorAgent": _Lazy("genomic_variant_classifier.agent_layer.agents.concept_drift_monitor_agent:ConceptDriftMonitorAgent"),
+            "LabelShiftMonitorAgent": _Lazy("genomic_variant_classifier.agent_layer.agents.label_shift_monitor_agent:LabelShiftMonitorAgent"),
+            "CalibrationDriftMonitorAgent": _Lazy("genomic_variant_classifier.agent_layer.agents.calibration_drift_monitor_agent:CalibrationDriftMonitorAgent"),
+            "InfrastructureDriftMonitorAgent": _Lazy("genomic_variant_classifier.agent_layer.agents.infrastructure_drift_monitor_agent:InfrastructureDriftMonitorAgent"),
+            "FairnessSubgroupMonitorAgent": _Lazy("genomic_variant_classifier.agent_layer.agents.fairness_subgroup_monitor_agent:FairnessSubgroupMonitorAgent"),
+            "AdversarialSubmissionMonitorAgent": _Lazy("genomic_variant_classifier.agent_layer.agents.adversarial_submission_monitor_agent:AdversarialSubmissionMonitorAgent"),
+            "AnnotationPolicyMonitorAgent": _Lazy("genomic_variant_classifier.agent_layer.agents.annotation_policy_monitor_agent:AnnotationPolicyMonitorAgent"),
+            "SchemaDriftMonitorAgent": _Lazy("genomic_variant_classifier.agent_layer.agents.schema_drift_monitor_agent:SchemaDriftMonitorAgent"),
+            "FeatureCoverageSentinelMonitorAgent": _Lazy("genomic_variant_classifier.agent_layer.agents.feature_coverage_sentinel_monitor_agent:FeatureCoverageSentinelMonitorAgent"),
+            "ReclassificationSentinelMonitorAgent": _Lazy("genomic_variant_classifier.agent_layer.agents.reclassification_sentinel_monitor_agent:ReclassificationSentinelMonitorAgent"),
+            "DatabaseFreshnessMonitorAgent": _Lazy("genomic_variant_classifier.agent_layer.agents.database_freshness_monitor_agent:DatabaseFreshnessMonitorAgent"),
+            "ModelInsightsAgent": _Lazy("genomic_variant_classifier.agent_layer.agents.model_insights_agent:ModelInsightsAgent"),
+            "DataReadinessAgent": _Lazy("genomic_variant_classifier.agent_layer.agents.data_readiness_agent:DataReadinessAgent"),
+            "AgentOpsMonitorAgent": _Lazy("genomic_variant_classifier.agent_layer.agents.agent_ops_monitor_agent:AgentOpsMonitorAgent"),
+            "FinOpsAdvisorAgent": _Lazy("genomic_variant_classifier.agent_layer.agents.finops_advisor_agent:FinOpsAdvisorAgent"),
+            "AdaptationAgent": _Lazy("genomic_variant_classifier.agent_layer.agents.adaptation_agent:AdaptationAgent"),
+            "ProvisioningAgent": _Lazy("genomic_variant_classifier.agent_layer.agents.provisioning_agent:ProvisioningAgent"),
         }
 
     # ------------------------------------------------------------------
@@ -248,16 +231,21 @@ class Orchestrator:
                 logger.error("Unknown agent '%s' — skipping.", agent_name)
                 continue
 
-            if hasattr(agent_cls, "from_default_baseline"):
-                # Drift agents expose from_default_baseline to load their reference
-                # baseline (e.g. schema_baseline.json) and run active detection
-                # instead of reporting awaiting_baseline; falls back gracefully.
-                agent = agent_cls.from_default_baseline(self._state)
-            else:
-                agent = agent_cls(self._state)
+            # >>> PHASE1_GUARDED_CONSTRUCTION <<<
             _t0 = time.monotonic()
             _err = None
             try:
+                # Construction may import the agent module on first use (lazy registry),
+                # so it is inside the guard: a missing optional dependency or a broken
+                # agent import is isolated to THIS agent and never crashes the pipeline.
+
+                if hasattr(agent_cls, "from_default_baseline"):
+                    # Drift agents expose from_default_baseline to load their reference
+                    # baseline (e.g. schema_baseline.json) and run active detection
+                    # instead of reporting awaiting_baseline; falls back gracefully.
+                    agent = agent_cls.from_default_baseline(self._state)
+                else:
+                    agent = agent_cls(self._state)
                 result = agent.run(dry_run=self._dry_run)
             except Exception as exc:
                 logger.error(
