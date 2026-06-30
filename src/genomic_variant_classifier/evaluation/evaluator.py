@@ -45,14 +45,38 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
-from sklearn.calibration import calibration_curve
-from sklearn.metrics import (
-    average_precision_score,
-    matthews_corrcoef,
-    roc_auc_score,
-    roc_curve,
-    precision_recall_curve,
-)
+# PHASE5: lazy sklearn loader + first-class F1
+# sklearn is imported on first use (not at module import) so this module imports cleanly in
+# minimal environments without scikit-learn. _ensure_sklearn() binds the seven symbols into module
+# globals once; the two methods that use them call it at entry, so all call sites below stay
+# byte-identical (bare names resolve as module globals after the first call).
+_SKLEARN_LOADED = False
+
+
+def _ensure_sklearn() -> None:
+    """Import the sklearn symbols once and bind them into module globals (idempotent)."""
+    global _SKLEARN_LOADED
+    if _SKLEARN_LOADED:
+        return
+    from sklearn.calibration import calibration_curve as _calibration_curve
+    from sklearn.metrics import (
+        average_precision_score as _average_precision_score,
+        f1_score as _f1_score,
+        matthews_corrcoef as _matthews_corrcoef,
+        roc_auc_score as _roc_auc_score,
+        roc_curve as _roc_curve,
+        precision_recall_curve as _precision_recall_curve,
+    )
+    globals().update({
+        "calibration_curve": _calibration_curve,
+        "average_precision_score": _average_precision_score,
+        "f1_score": _f1_score,
+        "matthews_corrcoef": _matthews_corrcoef,
+        "roc_auc_score": _roc_auc_score,
+        "roc_curve": _roc_curve,
+        "precision_recall_curve": _precision_recall_curve,
+    })
+    _SKLEARN_LOADED = True
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +143,7 @@ class EvaluationReport:
     auprc_ci_lo: float
     auprc_ci_hi: float
     mcc:         float
+    f1:          float
     brier_score: float
 
     # Calibration
@@ -193,10 +218,12 @@ class ClinicalEvaluator:
             model_name, n, n_pos, n_pos / n * 100,
         )
 
+        _ensure_sklearn()  # PHASE5: load sklearn symbols into module globals
         # Core metrics
         auroc = roc_auc_score(y, p)
         auprc = average_precision_score(y, p)
         mcc   = matthews_corrcoef(y, (p >= 0.5).astype(int))
+        f1    = f1_score(y, (p >= 0.5).astype(int))  # PHASE5: same 0.5 threshold as MCC
         brier = float(np.mean((p - y) ** 2))
 
         auroc_ci = self._bootstrap_ci(y, p, roc_auc_score)
@@ -233,6 +260,7 @@ class ClinicalEvaluator:
             auprc_ci_lo=round(auprc_ci[0], 5),
             auprc_ci_hi=round(auprc_ci[1], 5),
             mcc=round(mcc, 5),
+            f1=round(f1, 5),
             brier_score=round(brier, 5),
             calibration_ece=round(ece, 5),
             calibration_mce=round(mce, 5),
@@ -401,6 +429,7 @@ class ClinicalEvaluator:
         meta: pd.DataFrame,
     ) -> list[ConsequenceBreakdown]:
         """AUROC and AUPRC broken down by coarsened consequence category."""
+        _ensure_sklearn()  # PHASE5: load sklearn symbols into module globals
         if "consequence" not in meta.columns:
             return []
 
@@ -513,6 +542,7 @@ class ClinicalEvaluator:
             f"[95% CI: {r.auprc_ci_lo:.4f}–{r.auprc_ci_hi:.4f}]"
         )
         print(f"  MCC     : {r.mcc:.4f}")
+        print(f"  F1      : {r.f1:.4f}")
         print(
             f"  Brier   : {r.brier_score:.4f}  "
             f"(ECE: {r.calibration_ece:.4f}, MCE: {r.calibration_mce:.4f})"
@@ -587,6 +617,7 @@ def compare_models(
             "auroc_95ci":        f"[{r.auroc_ci_lo:.4f}, {r.auroc_ci_hi:.4f}]",
             "auprc":             r.auprc,
             "mcc":               r.mcc,
+            "f1":                r.f1,
             "brier":             r.brier_score,
             "ece":               r.calibration_ece,
             "sens_at_90_spec":   r.at_sensitivity_90.specificity if r.at_sensitivity_90 else None,
