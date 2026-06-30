@@ -44,7 +44,8 @@ Processing order inside run()
   3. Process FEATURE_INSTABILITY → log flagged features into SharedState.
   4. Process FEATURE_CANDIDATE_ADDED → log candidates into SharedState.
   5. Mark all processed messages as read.
-  6. Run existing EWC / drift-detection logic.
+  6. Retrain triggering is inbox-driven; statistical drift detection is owned
+     by the dedicated DriftMonitorBase agents (no drift logic runs here).
   7. If retrain triggered and approved → train, checkpoint, emit CHECKPOINT_READY.
 """
 
@@ -52,7 +53,6 @@ from __future__ import annotations
 
 import logging
 import os
-import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -125,16 +125,7 @@ class TrainingLifecycleAgent(BaseAgent):
         processed_ids = self._process_inbox(dry_run)
 
         # ----------------------------------------------------------
-        # Step 2: Drift detection (existing EWC logic)
-        # ----------------------------------------------------------
-        self._log_section("Drift Detection")
-        drift_detected = self._check_drift(dry_run)
-        if drift_detected and not self._retrain_flag:
-            self._retrain_flag = True
-            self._trigger_reason = "drift_detected"
-
-        # ----------------------------------------------------------
-        # Step 3: Decide whether to retrain
+        # Step 2: Decide whether to retrain
         # ----------------------------------------------------------
         retrained = False
         checkpoint_path = None
@@ -157,7 +148,7 @@ class TrainingLifecycleAgent(BaseAgent):
                 retrained = checkpoint_path is not None
 
                 # --------------------------------------------------
-                # Step 4 [NEW]: Emit CHECKPOINT_READY to InterpretabilityAgent
+                # Step 3 [NEW]: Emit CHECKPOINT_READY to InterpretabilityAgent
                 # --------------------------------------------------
                 if retrained and not dry_run:
                     self._emit_checkpoint_ready(checkpoint_path, dry_run)
@@ -177,7 +168,6 @@ class TrainingLifecycleAgent(BaseAgent):
 
         result = {
             "action": "ewc_lifecycle",
-            "drift_detected": drift_detected,
             "retrain_triggered": self._retrain_flag,
             "retrained": retrained,
             "checkpoint": checkpoint_path,
@@ -351,27 +341,6 @@ class TrainingLifecycleAgent(BaseAgent):
     # ------------------------------------------------------------------
     # EWC training logic — unchanged from existing implementation
     # ------------------------------------------------------------------
-
-    def _check_drift(self, dry_run: bool) -> bool:
-        """
-        Run drift detection against the most recent variant batch.
-        Returns True if drift is detected above threshold.
-        """
-        self.logger.info("Running drift detection …")
-        try:
-            from ewc_utils import detect_drift
-
-            drift = detect_drift(self._get_section("training"))
-            if drift:
-                self.logger.info("Drift detected above threshold — retrain warranted.")
-            else:
-                self.logger.info("Drift within acceptable bounds.")
-            return drift
-        except Exception as exc:
-            self.logger.warning(
-                "Drift detection failed: %s — treating as no drift.", exc
-            )
-            return False
 
     def _run_training(self, dry_run: bool) -> str | None:
         """
