@@ -28,21 +28,14 @@ Test groups
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 import tempfile
-import traceback
-import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-# ---------------------------------------------------------------------------
-# Path setup — allow running from project root or agent_layer/
-# ---------------------------------------------------------------------------
-_HERE = Path(__file__).parent
-if str(_HERE) not in sys.path:
-    sys.path.insert(0, str(_HERE))
+import pytest
+
 
 # ---------------------------------------------------------------------------
 # Minimal config stub — prevents ImportError when config.py is absent
@@ -80,13 +73,11 @@ def _make_config_stub() -> types.ModuleType:
     return cfg
 
 
-if "config" not in sys.modules:
-    sys.modules["config"] = _make_config_stub()
-
-# Stub heavy optional dependencies so tests don't require them installed
-for _mod in ("ewc_utils", "shap", "torch", "feedparser", "requests"):
-    if _mod not in sys.modules:
-        sys.modules[_mod] = MagicMock()
+# NOTE (D12 / INCIDENT_2026-05-26): the module-level `config` stub and the
+# heavy-optional-dependency stubs formerly injected here are now applied
+# PER-TEST via the autouse `_isolated_optional_deps` fixture below, which is
+# teardown-safe. Injecting a MagicMock `torch` at import time leaked into the
+# whole pytest collection and broke scipy's array-api import in 12 files.
 
 # Now safe to import project modules
 from genomic_variant_classifier.agent_layer.message_bus import (
@@ -129,29 +120,36 @@ def _make_bus(state: SharedState) -> MessageBus:
     return MessageBus(state)
 
 
+@pytest.fixture(autouse=True)
+def _isolated_optional_deps(monkeypatch):
+    """D12 fix. Replaces the former MODULE-LEVEL sys.modules mutation with
+    per-test, teardown-safe stubs. monkeypatch.setitem restores the real modules
+    (and real torch) after each test, so nothing leaks into the collection of the
+    12 downstream files that import scipy. Reproduces the standalone-passing env
+    per test: the Group-4 agent lazily imports `requests` and binds this mock; the
+    interpretability/literature tests mock their dep-using methods, so mock
+    torch/shap/feedparser are never actually exercised."""
+    monkeypatch.setitem(sys.modules, "config", _make_config_stub())
+    for _mod in ("ewc_utils", "shap", "torch", "feedparser", "requests"):
+        monkeypatch.setitem(sys.modules, _mod, MagicMock())
+
+
+@pytest.fixture(autouse=True)
+def _no_interactive_input(monkeypatch):
+    """Guardrail: no test may EVER block on input(). Any unmocked approval prompt
+    hard-fails loudly instead of hanging the run (CI has no TTY; a human lost
+    hours to exactly this silent prompt)."""
+    def _boom(*_a, **_k):
+        raise AssertionError(
+            "input() called during a test -- an approval gate was not mocked"
+        )
+    monkeypatch.setattr("builtins.input", _boom)
+
+
 # ---------------------------------------------------------------------------
 # Test results tracker
 # ---------------------------------------------------------------------------
 
-_PASS = "PASS"
-_FAIL = "FAIL"
-_ERROR = "ERROR"
-_results: list[tuple[str, str, str]] = []  # (group, name, status)
-
-
-def _run(group: str, name: str, fn):
-    try:
-        fn()
-        _results.append((group, name, _PASS))
-        print(f"  ✓ {name}")
-    except AssertionError as exc:
-        _results.append((group, name, _FAIL))
-        print(f"  ✗ {name}  FAIL: {exc}")
-    except Exception as exc:
-        _results.append((group, name, _ERROR))
-        print(f"  ✗ {name}  ERROR: {exc}")
-        if "-v" in sys.argv:
-            traceback.print_exc()
 
 
 # ===========================================================================
@@ -159,7 +157,7 @@ def _run(group: str, name: str, fn):
 # ===========================================================================
 
 
-def _test_send_creates_inbox():
+def test_send_creates_inbox():
     with _TempState() as state:
         bus = _make_bus(state)
         bus.send("AgentA", "AgentB", DATA_UPDATED, {"source": "gnomAD"})
@@ -170,14 +168,14 @@ def _test_send_creates_inbox():
         assert inbox[0]["payload"]["source"] == "gnomAD"
 
 
-def _test_send_returns_uuid():
+def test_send_returns_uuid():
     with _TempState() as state:
         bus = _make_bus(state)
         msg_id = bus.send("A", "B", CHECKPOINT_READY)
         assert isinstance(msg_id, str) and len(msg_id) == 36
 
 
-def _test_unread_filter():
+def test_unread_filter():
     with _TempState() as state:
         bus = _make_bus(state)
         id1 = bus.send("A", "B", DATA_UPDATED)
@@ -188,7 +186,7 @@ def _test_unread_filter():
         assert unread[0]["id"] == id2
 
 
-def _test_get_actionable_respects_approval():
+def test_get_actionable_respects_approval():
     with _TempState() as state:
         bus = _make_bus(state)
         # DATA_UPDATED requires approval by default
@@ -201,7 +199,7 @@ def _test_get_actionable_respects_approval():
         assert id1 not in ids, "Unapproved message should NOT be actionable"
 
 
-def _test_approve_makes_actionable():
+def test_approve_makes_actionable():
     with _TempState() as state:
         bus = _make_bus(state)
         msg_id = bus.send("A", "B", DATA_UPDATED)
@@ -212,7 +210,7 @@ def _test_approve_makes_actionable():
         assert actionable[0]["id"] == msg_id
 
 
-def _test_reject_stays_non_actionable():
+def test_reject_stays_non_actionable():
     with _TempState() as state:
         bus = _make_bus(state)
         msg_id = bus.send("A", "B", DATA_UPDATED)
@@ -223,7 +221,7 @@ def _test_reject_stays_non_actionable():
         assert inbox[0]["approved"] is False
 
 
-def _test_pending_approval_list():
+def test_pending_approval_list():
     with _TempState() as state:
         bus = _make_bus(state)
         id1 = bus.send("A", "B", DATA_UPDATED)
@@ -235,7 +233,7 @@ def _test_pending_approval_list():
         assert id2 in pending_ids
 
 
-def _test_history_ordering():
+def test_history_ordering():
     with _TempState() as state:
         bus = _make_bus(state)
         bus.send("A", "B", DATA_UPDATED)
@@ -247,7 +245,7 @@ def _test_history_ordering():
         assert history[2]["subject"] == DATA_UPDATED
 
 
-def _test_history_ordering_deterministic_on_timestamp_tie():
+def test_history_ordering_deterministic_on_timestamp_tie():
     """Regression (INCIDENT history-ordering flakiness): when multiple messages
     share an identical timestamp, history() ordering must be deterministic via the
     monotonic seq tiebreak. We force the tie by freezing datetime.now()."""
@@ -276,7 +274,7 @@ def _test_history_ordering_deterministic_on_timestamp_tie():
         assert seqs == sorted(seqs) and len(set(seqs)) == 3, f"seq not monotonic/unique: {seqs}"
 
 
-def _test_agent_list():
+def test_agent_list():
     with _TempState() as state:
         bus = _make_bus(state)
         bus.send("A", "AgentX", DATA_UPDATED)
@@ -286,7 +284,7 @@ def _test_agent_list():
         assert "AgentY" in agents
 
 
-def _test_invalid_subject_raises():
+def test_invalid_subject_raises():
     with _TempState() as state:
         bus = _make_bus(state)
         try:
@@ -296,7 +294,7 @@ def _test_invalid_subject_raises():
             pass
 
 
-def _test_mark_all_read():
+def test_mark_all_read():
     with _TempState() as state:
         bus = _make_bus(state)
         bus.send("A", "B", DATA_UPDATED)
@@ -311,7 +309,7 @@ def _test_mark_all_read():
 # ===========================================================================
 
 
-def _test_migration_adds_agent_messages():
+def test_migration_adds_agent_messages():
     """Existing state file without agent_messages gets it added silently."""
     with _TempState() as state:
         # Write old-style state without agent_messages
@@ -329,7 +327,7 @@ def _test_migration_adds_agent_messages():
         assert isinstance(loaded["agent_messages"], dict)
 
 
-def _test_default_state_has_agent_messages():
+def test_default_state_has_agent_messages():
     with _TempState() as state:
         # Fresh state (file doesn't exist yet)
         loaded = state.load()
@@ -337,7 +335,7 @@ def _test_default_state_has_agent_messages():
         assert loaded["agent_messages"] == {}
 
 
-def _test_save_is_atomic(tmp_path=None):
+def test_save_is_atomic(tmp_path=None):
     """Saving should not corrupt existing data."""
     with _TempState() as state:
         original = state.load()
@@ -348,7 +346,7 @@ def _test_save_is_atomic(tmp_path=None):
         assert "agent_messages" in reloaded
 
 
-def _test_summary_includes_message_counts():
+def test_summary_includes_message_counts():
     with _TempState() as state:
         bus = _make_bus(state)
         bus.send("A", "B", DATA_UPDATED)  # requires approval → pending
@@ -376,7 +374,7 @@ def _make_test_agent(state: SharedState):
     return _TestAgent(state)
 
 
-def _test_agent_send_message():
+def test_agent_send_message():
     with _TempState() as state:
         agent = _make_test_agent(state)
         msg_id = agent.send_message(
@@ -392,7 +390,7 @@ def _test_agent_send_message():
         assert inbox[0]["from_agent"] == "_TestAgent"
 
 
-def _test_agent_get_actionable():
+def test_agent_get_actionable():
     with _TempState() as state:
         bus = _make_bus(state)
         # Send a non-approval message to our test agent
@@ -405,7 +403,7 @@ def _test_agent_get_actionable():
         assert actionable[0]["subject"] == FEATURE_CANDIDATE_ADDED
 
 
-def _test_agent_mark_message_read():
+def test_agent_mark_message_read():
     with _TempState() as state:
         bus = _make_bus(state)
         msg_id = bus.send(
@@ -421,7 +419,7 @@ def _test_agent_mark_message_read():
 # ===========================================================================
 
 
-def _test_data_freshness_emits_data_updated():
+def test_data_freshness_emits_data_updated():
     """
     Simulate a gnomAD fingerprint change and verify DATA_UPDATED is sent
     to TrainingLifecycleAgent.
@@ -450,7 +448,9 @@ def _test_data_freshness_emits_data_updated():
         mock_req.RequestException = Exception
         with patch(
             "genomic_variant_classifier.agent_layer.agents.data_freshness_agent.ftplib"
-        ) as mock_ftp:
+        ) as mock_ftp, patch.object(
+            DataFreshnessAgent, "_require_approval", return_value=True
+        ):
 
             # gnomAD HEAD → new ETag
             gnomad_resp = MagicMock()
@@ -487,7 +487,7 @@ def _test_data_freshness_emits_data_updated():
         assert "ingest_approved" in payload
 
 
-def _test_data_freshness_dry_run_no_message():
+def test_data_freshness_dry_run_no_message():
     """dry_run=True must not send any real messages."""
     with _TempState() as state:
         from genomic_variant_classifier.agent_layer.agents.data_freshness_agent import DataFreshnessAgent
@@ -526,7 +526,7 @@ def _test_data_freshness_dry_run_no_message():
 # ===========================================================================
 
 
-def _test_training_processes_data_updated():
+def test_training_processes_data_updated():
     """
     Place an approved DATA_UPDATED in inbox; verify retrain is flagged
     and CHECKPOINT_READY is sent to InterpretabilityAgent.
@@ -550,7 +550,7 @@ def _test_training_processes_data_updated():
 
         agent = TrainingLifecycleAgent(state)
 
-        with patch.object(agent, "_check_drift", return_value=False), patch.object(
+        with patch.object(
             agent, "_run_training", return_value="/tmp/checkpoints/model.pt"
         ), patch.object(agent, "_require_approval", return_value=True):
 
@@ -567,7 +567,7 @@ def _test_training_processes_data_updated():
         assert cp_msgs[0]["payload"]["data_sources"] == ["gnomAD"]
 
 
-def _test_training_defers_on_unapproved_data_updated():
+def test_training_defers_on_unapproved_data_updated():
     """Unapproved DATA_UPDATED must not trigger retraining."""
     with _TempState() as state:
         bus = _make_bus(state)
@@ -587,8 +587,7 @@ def _test_training_defers_on_unapproved_data_updated():
 
         agent = TrainingLifecycleAgent(state)
 
-        with patch.object(agent, "_check_drift", return_value=False):
-            result = agent.run(dry_run=False)
+        result = agent.run(dry_run=False)
 
         assert result["retrain_triggered"] is False
         # No CHECKPOINT_READY should exist
@@ -596,7 +595,7 @@ def _test_training_defers_on_unapproved_data_updated():
         assert inbox == []
 
 
-def _test_training_stores_instability_flags():
+def test_training_stores_instability_flags():
     """FEATURE_INSTABILITY messages are persisted into SharedState."""
     with _TempState() as state:
         bus = _make_bus(state)
@@ -616,8 +615,7 @@ def _test_training_stores_instability_flags():
 
         agent = TrainingLifecycleAgent(state)
 
-        with patch.object(agent, "_check_drift", return_value=False):
-            result = agent.run(dry_run=False)
+        result = agent.run(dry_run=False)
 
         loaded = state.load()
         flags = loaded.get("training", {}).get("instability_flags", [])
@@ -626,7 +624,7 @@ def _test_training_stores_instability_flags():
         assert "bad_feature" in flag_names
 
 
-def _test_training_stores_feature_candidates():
+def test_training_stores_feature_candidates():
     """FEATURE_CANDIDATE_ADDED messages are persisted into SharedState."""
     with _TempState() as state:
         bus = _make_bus(state)
@@ -648,8 +646,7 @@ def _test_training_stores_feature_candidates():
 
         agent = TrainingLifecycleAgent(state)
 
-        with patch.object(agent, "_check_drift", return_value=False):
-            agent.run(dry_run=False)
+        agent.run(dry_run=False)
 
         loaded = state.load()
         candidates = loaded.get("training", {}).get("pending_feature_candidates", [])
@@ -662,7 +659,7 @@ def _test_training_stores_feature_candidates():
 # ===========================================================================
 
 
-def _test_interpretability_processes_checkpoint_ready():
+def test_interpretability_processes_checkpoint_ready():
     """
     Place an approved CHECKPOINT_READY in inbox; verify SHAP runs against
     that checkpoint and FEATURE_INSTABILITY is sent back on flagged features.
@@ -713,7 +710,7 @@ def _test_interpretability_processes_checkpoint_ready():
         assert instability[0].get("requires_approval") is False
 
 
-def _test_interpretability_skips_duplicate_checkpoint():
+def test_interpretability_skips_duplicate_checkpoint():
     """If the checkpoint was already audited, skip — don't emit duplicate."""
     with _TempState() as state:
         # Mark checkpoint as already audited
@@ -746,7 +743,7 @@ def _test_interpretability_skips_duplicate_checkpoint():
         assert bus.get_inbox("TrainingLifecycleAgent") == []
 
 
-def _test_interpretability_no_flag_no_message():
+def test_interpretability_no_flag_no_message():
     """Clean SHAP audit must not emit FEATURE_INSTABILITY."""
     with _TempState() as state:
         bus = _make_bus(state)
@@ -781,7 +778,7 @@ def _test_interpretability_no_flag_no_message():
 # ===========================================================================
 
 
-def _test_literature_emits_candidate_per_new_entry():
+def test_literature_emits_candidate_per_new_entry():
     with _TempState() as state:
         from genomic_variant_classifier.agent_layer.agents.literature_scout_agent import LiteratureScoutAgent
 
@@ -825,7 +822,7 @@ def _test_literature_emits_candidate_per_new_entry():
         )
 
 
-def _test_literature_dry_run_no_message():
+def test_literature_dry_run_no_message():
     with _TempState() as state:
         from genomic_variant_classifier.agent_layer.agents.literature_scout_agent import LiteratureScoutAgent
 
@@ -863,12 +860,12 @@ def _test_literature_dry_run_no_message():
 # ===========================================================================
 
 
-def _test_orchestrator_approve_message():
+def test_orchestrator_approve_message():
     with _TempState() as state:
         bus = _make_bus(state)
         msg_id = bus.send("A", "B", DATA_UPDATED)
 
-        from orchestrator import Orchestrator
+        from genomic_variant_classifier.agent_layer.orchestrator import Orchestrator
 
         orch = Orchestrator(state, dry_run=True)
         orch.approve_message(msg_id)
@@ -877,12 +874,12 @@ def _test_orchestrator_approve_message():
         assert inbox[0]["approved"] is True
 
 
-def _test_orchestrator_reject_message():
+def test_orchestrator_reject_message():
     with _TempState() as state:
         bus = _make_bus(state)
         msg_id = bus.send("A", "B", CHECKPOINT_READY)
 
-        from orchestrator import Orchestrator
+        from genomic_variant_classifier.agent_layer.orchestrator import Orchestrator
 
         orch = Orchestrator(state, dry_run=True)
         orch.reject_message(msg_id)
@@ -891,7 +888,7 @@ def _test_orchestrator_reject_message():
         assert inbox[0]["approved"] is False
 
 
-def _test_orchestrator_print_inbox_runs(capsys=None):
+def test_orchestrator_print_inbox_runs(capsys=None):
     """Smoke test: print_inbox must not raise for a known agent name."""
     with _TempState() as state:
         bus = _make_bus(state)
@@ -899,7 +896,7 @@ def _test_orchestrator_print_inbox_runs(capsys=None):
             "X", "DataFreshnessAgent", FEATURE_CANDIDATE_ADDED, requires_approval=False
         )
 
-        from orchestrator import Orchestrator
+        from genomic_variant_classifier.agent_layer.orchestrator import Orchestrator
 
         orch = Orchestrator(state, dry_run=True)
         try:
@@ -908,12 +905,12 @@ def _test_orchestrator_print_inbox_runs(capsys=None):
             assert False, f"print_inbox raised: {exc}"
 
 
-def _test_orchestrator_status_includes_messages():
+def test_orchestrator_status_includes_messages():
     with _TempState() as state:
         bus = _make_bus(state)
         bus.send("A", "B", DATA_UPDATED)  # 1 unread, 1 pending approval
 
-        from orchestrator import Orchestrator
+        from genomic_variant_classifier.agent_layer.orchestrator import Orchestrator
 
         orch = Orchestrator(state, dry_run=True)
         summary = state.summary()
@@ -926,7 +923,7 @@ def _test_orchestrator_status_includes_messages():
 # ===========================================================================
 
 
-def _test_full_signal_chain():
+def test_full_signal_chain():
     """
     Simulate the complete message flow:
       DataFreshness → DATA_UPDATED → TrainingLifecycle
@@ -960,8 +957,6 @@ def _test_full_signal_chain():
         train_agent = TrainingLifecycleAgent(state)
 
         with patch.object(
-            train_agent, "_check_drift", return_value=False
-        ), patch.object(
             train_agent, "_run_training", return_value="/tmp/checkpoints/chain_test.pt"
         ), patch.object(
             train_agent, "_require_approval", return_value=True
@@ -1030,148 +1025,3 @@ def _test_full_signal_chain():
         assert FEATURE_CANDIDATE_ADDED in final_subjects
 
 
-# ===========================================================================
-# Runner
-# ===========================================================================
-
-TESTS = [
-    # Group 1 — MessageBus core
-    ("1 MessageBus core", "send creates inbox", _test_send_creates_inbox),
-    ("1 MessageBus core", "send returns UUID", _test_send_returns_uuid),
-    ("1 MessageBus core", "unread filter", _test_unread_filter),
-    (
-        "1 MessageBus core",
-        "get_actionable respects approval",
-        _test_get_actionable_respects_approval,
-    ),
-    ("1 MessageBus core", "approve makes actionable", _test_approve_makes_actionable),
-    (
-        "1 MessageBus core",
-        "reject stays non-actionable",
-        _test_reject_stays_non_actionable,
-    ),
-    ("1 MessageBus core", "pending_approval list", _test_pending_approval_list),
-    ("1 MessageBus core", "history ordering", _test_history_ordering),
-    ("1 MessageBus core", "history ordering deterministic tie", _test_history_ordering_deterministic_on_timestamp_tie),
-    ("1 MessageBus core", "agent_list", _test_agent_list),
-    ("1 MessageBus core", "invalid subject raises", _test_invalid_subject_raises),
-    ("1 MessageBus core", "mark_all_read", _test_mark_all_read),
-    # Group 2 — SharedState migration
-    (
-        "2 SharedState",
-        "migration adds agent_messages",
-        _test_migration_adds_agent_messages,
-    ),
-    (
-        "2 SharedState",
-        "default state has agent_messages",
-        _test_default_state_has_agent_messages,
-    ),
-    ("2 SharedState", "save is atomic", _test_save_is_atomic),
-    (
-        "2 SharedState",
-        "summary includes message counts",
-        _test_summary_includes_message_counts,
-    ),
-    # Group 3 — BaseAgent helpers
-    ("3 BaseAgent", "send_message", _test_agent_send_message),
-    ("3 BaseAgent", "get_actionable", _test_agent_get_actionable),
-    ("3 BaseAgent", "mark_message_read", _test_agent_mark_message_read),
-    # Group 4 — DataFreshnessAgent
-    (
-        "4 DataFreshness",
-        "emits DATA_UPDATED on change",
-        _test_data_freshness_emits_data_updated,
-    ),
-    (
-        "4 DataFreshness",
-        "dry_run sends no message",
-        _test_data_freshness_dry_run_no_message,
-    ),
-    # Group 5 — TrainingLifecycleAgent
-    (
-        "5 Training",
-        "processes DATA_UPDATED approved",
-        _test_training_processes_data_updated,
-    ),
-    (
-        "5 Training",
-        "defers on unapproved DATA_UPDATED",
-        _test_training_defers_on_unapproved_data_updated,
-    ),
-    ("5 Training", "stores instability flags", _test_training_stores_instability_flags),
-    (
-        "5 Training",
-        "stores feature candidates",
-        _test_training_stores_feature_candidates,
-    ),
-    # Group 6 — InterpretabilityAgent
-    (
-        "6 Interpretability",
-        "processes CHECKPOINT_READY",
-        _test_interpretability_processes_checkpoint_ready,
-    ),
-    (
-        "6 Interpretability",
-        "skips duplicate checkpoint",
-        _test_interpretability_skips_duplicate_checkpoint,
-    ),
-    (
-        "6 Interpretability",
-        "no flag → no message",
-        _test_interpretability_no_flag_no_message,
-    ),
-    # Group 7 — LiteratureScoutAgent
-    (
-        "7 Literature",
-        "emits FEATURE_CANDIDATE_ADDED",
-        _test_literature_emits_candidate_per_new_entry,
-    ),
-    ("7 Literature", "dry_run sends no message", _test_literature_dry_run_no_message),
-    # Group 8 — Orchestrator
-    ("8 Orchestrator", "approve_message delegate", _test_orchestrator_approve_message),
-    ("8 Orchestrator", "reject_message delegate", _test_orchestrator_reject_message),
-    ("8 Orchestrator", "print_inbox smoke test", _test_orchestrator_print_inbox_runs),
-    (
-        "8 Orchestrator",
-        "status includes message counts",
-        _test_orchestrator_status_includes_messages,
-    ),
-    # Group 9 — Full chain
-    ("9 Full chain", "end-to-end signal flow", _test_full_signal_chain),
-]
-
-
-def main():
-    verbose = "-v" in sys.argv
-    current_group = None
-
-    for group, name, fn in TESTS:
-        if group != current_group:
-            current_group = group
-            print(f"\n── {group} ──")
-        _run(group, name, fn)
-
-    # Summary
-    total = len(_results)
-    passed = sum(1 for _, _, s in _results if s == _PASS)
-    failed = sum(1 for _, _, s in _results if s == _FAIL)
-    errors = sum(1 for _, _, s in _results if s == _ERROR)
-
-    print(f"\n{'═'*55}")
-    print(f"  Results: {passed}/{total} passed  " f"({failed} failed, {errors} errors)")
-    print(f"{'═'*55}")
-
-    if failed > 0 or errors > 0:
-        print("\nFailed / errored tests:")
-        for group, name, status in _results:
-            if status != _PASS:
-                print(f"  [{status}]  {group} — {name}")
-        sys.exit(1)
-    else:
-        print("\n  All tests passed. ✓")
-        sys.exit(0)
-
-
-if __name__ == "__main__":
-    main()

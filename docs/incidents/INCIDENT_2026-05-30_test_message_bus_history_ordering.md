@@ -1,7 +1,14 @@
 # INCIDENT 2026-05-30 -- test_message_bus.py "history ordering" timing flakiness (pre-existing)
 
 ## Status
-OPEN. Pre-existing; NOT introduced by Task 3. Fix deferred to a follow-up commit.
+RESOLVED 2026-07-01 (Unit 2). Production MessageBus.send already stamps a monotonic
+per-message seq and MessageBus.history sorts by (timestamp, seq), so ordering is
+deterministic under a timestamp tie. Both history-ordering tests (the strict-order
+test and the frozen-clock tie test), renamed from the _test_ prefix to test_, now
+pass under collected pytest at tests/unit/test_message_bus.py. Verified this run:
+35/35 message-bus tests pass collected (exit 0); full suite 1545 passed, 7 skipped.
+No production message_bus.py change was required to close this; the deterministic
+seq tiebreak was already present.
 
 ## Summary
 The message-bus self-suite (run via its __main__ harness,
