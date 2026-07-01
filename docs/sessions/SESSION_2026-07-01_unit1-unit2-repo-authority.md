@@ -51,16 +51,30 @@ Continuation of the orchestrator-redesign arc. Two units landed; one process gap
   and the corrective rule: any remote/repo-identity change MUST be documented in
   incidents + session log AT THE TIME it happens.
 
-## Ensemble roster (VERIFIED from variant_ensemble.py, 2026-07-01)
-Confirmed by reading the code (base_models dict): 8 base models --
-random_forest, xgboost, lightgbm, svm (RBF, calibrated), logistic_regression,
-gradient_boosting, tabular_nn, cnn_1d -- with a Logistic Regression stacking
-meta-learner trained on OOF predictions, plus a separate GNN branch (STRING DB) in
-gnn.py. Two neural networks are present in the base ensemble: tabular_nn and cnn_1d
-(1D-CNN). All implemented models continue to be used; the roster is additive (more
-models may be added in future phases). Correction: an earlier working assumption of a
-larger roster (CatBoost/KAN/MC-Dropout/Deep Ensemble/svm_bagged_rbf) did not match
-this codebase; the code is authoritative and lists the 8 base models above.
+## Ensemble roster (VERIFIED from Run 16 training log + ROADMAP, 2026-07-01)
+Authoritative source: logs/training/run16_master.log line 104 -- the actual Run 16
+"Models to train" list -- and docs/ROADMAP.md L13/L99. The ensemble is 13 base models:
+
+  random_forest, xgboost, lightgbm, svm, svm_bagged_rbf, logistic_regression,
+  gradient_boosting, catboost, tabular_nn, cnn_1d, kan, mc_dropout, deep_ensemble
+
+plus a Logistic Regression stacking meta-learner (ENSEMBLE_STACKER) trained on OOF
+predictions, plus a separate STRING-DB Graph Attention Network branch (gnn.py).
+Run 16 logged per-model OOF AUROCs for all 13 (e.g. rf 0.9984, xgb 0.9990,
+lgbm 0.9990, svm_bagged_rbf 0.9973, catboost 0.9989, tabular_nn 0.9985). SVM has two
+variants: svm (Nystrom/RFF full-data) and svm_bagged_rbf (exact-RBF bagged secondary).
+cnn_1d is a 1-D CNN over the tabular feature vector (per INCIDENT_2026-05-23), not an
+image/sequence model. All 13 models are permanent members -- measuring and comparing
+every model on large complex data is a CORE project goal; none is ever dropped. The
+roster is additive (more models may be added in future phases).
+
+CORRECTION (supersedes the roster line committed in a7eefd7): an earlier revision of
+this file stated "8 base models" and claimed the larger roster did not match the
+codebase. THAT WAS WRONG. The error came from reading a stale Phase-1-era snapshot of
+variant_ensemble.py (which listed only 8 base_models) instead of the current run
+records. CatBoost, KAN, MC-Dropout, Deep Ensemble, and svm_bagged_rbf are all real,
+trained (Run 14/15/16), and permanent. The Run 16 log and ROADMAP are authoritative;
+the stale snapshot is not. This corrects the record.
 
 ## Open / next
 - Settle repo authority via the resolution gate in the incident doc; record outcome.
