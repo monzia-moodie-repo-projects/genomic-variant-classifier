@@ -187,3 +187,7 @@ data/_vm_stage/
 _run17_wiring_bundle/
 # Probe/diagnostic transcripts dropped directly in logs/ (e.g. Start-Transcript output)
 logs/*.txt
+
+# --- session hygiene 2026-07-01: agent factory-state backups + pandas3 scratch ---
+*.factory_state_*
+data/_pandas3/
