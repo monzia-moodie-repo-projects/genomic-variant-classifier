@@ -60,7 +60,7 @@ ClinVar (labels+cohort), gnomAD v4 (LOEUF, pLI, AF, **mis_z, syn_z, gene_constra
 | PhyloP | phylop_score | free bigWig | conservation |
 | GTEx | gtex_* (6) | free | eQTL/expression |
 | 1000 Genomes | af_1kg_* (5) | free VCF | population AF -- ACTIVE 2026-06-15: kg_grch38_af.parquet built (chr1-22 + X, 437,668 variants = ~9.9% cohort; 5 super-pops non-zero); activate via --kg. chrY/MT structurally absent from the 1000G high-coverage panel (404-confirmed) -> 3,191 Y + 3,124 MT cohort variants get af_1kg=0; gnomAD Y/MT allele_freq RESOLVED 2026-06-16 (PAR X->Y fix): Y 1047/3155, MT 2731/3124 |
-| dbSNP/RefSNP | dbsnp_af | free | stub-mode step; activation = data + config |
+| dbSNP/RefSNP | dbsnp_af | free | DONE+VERIFIED 2026-06-26 (build_dbsnp_parquet.py; dbsnp157_cohort.parquet 3.75M rows, 46% AF>0). End-to-end audit 2026-07-01: 37.45% cohort coverage, dbsnp_af>0 confirmed through DbSNPConnector. Wired: --dbsnp-path -> AnnotationConfig -> real_data_prep step 10. |
 | AlphaFold structure | alphafold_plddt, solvent_accessibility, secondary_structure_context, dist_to_active_site, has_uniprot_annotation | free (AlphaFold DB) | stub-mode step; activation = data + config |
 | OMIM | omim_* (2) | free academic w/ reg. | disease/inheritance |
 | ClinGen | clingen_validity_score | free API | **dtype drift: int vs float across prep/inference - fix before regen** |
@@ -85,7 +85,7 @@ Strong fits: AlphaFold DB (DO), RefSNP/dbSNP (DO), COSMIC (DO, academic; feature
 
 - **clingen_validity_score dtype drift (RESOLVED 2026-06-13):** both builders cast to float (variant_ensemble.engineer_features and real_data_prep._engineer_features, the latter with a "match inference builder" comment); verified aligned -- no regen blocker remains.
 
-- Remaining Phase-D connectors: activate dbSNP + AlphaFold-structure stub steps (data + config), then build COSMIC / TCGA / KEGG.
+- Remaining Phase-D connectors: AlphaFold-structure stub steps (data + config), then build COSMIC / TCGA / KEGG. (dbSNP DONE+VERIFIED 2026-06-26; see the dbSNP row above and the 2026-07-01 end-to-end coverage audit.)
 
 - **Heterogeneous-KG modeling track (2026-06-13):** hetero-GNN ENGINE done (models/hetero_gnn.py, HeteroConv multi-relation gene graph, 54158f7) + KG edge-connectors done (data/kg_edges.py co-membership primitive + Reactome/KEGG/GO/OMIM/ClinGen adapters, 8c19f9b). SCORER + SCHEMA DONE 2026-06-13: HeteroGNNScorer (547e2dc, mirrors GNNScorer; torch-free assembly + PyG train/score) and hetero_gnn_score landed as the 82nd feature (Option A -- SEPARATE from gnn_score to preserve the homogeneous-vs-heterogeneous comparison; EXPECTED_TABULAR_FEATURE_COUNT 81->82, both builders lockstep, reactome stays last; contract green, suite 1000). EVAL-OVERWRITE DONE 2026-06-14 (a54ef38): run_phase2_eval --hetero-gnn + --kg-edges source:path builds HeteroGNNScorer from STRING interacts_with + KG relations and overwrites hetero_gnn_score per split (opt-in; until run with the flag it stays the 0.5 default, mirroring gnn_score). ONLY REMAINING (Run-17): schema_baseline regen 81->82 from the real matrix.
 - **af_1kg_* ACTIVE (2026-06-15):** kg_grch38_af.parquet built chr1-22 + X (437,668 variants, 6.7 MB) via build_1kg_parquet.py per-chr shards + merge; activate via --kg. chrY/MT not in the 1000G high-coverage panel (404-confirmed -> af_1kg=0 for 3,191 Y + 3,124 MT cohort variants; gnomAD Y/MT allele_freq RESOLVED 2026-06-16). WIRED 2026-06-13 (a0ce407).
