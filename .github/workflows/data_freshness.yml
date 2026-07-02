@@ -20,7 +20,10 @@ jobs:
       - name: Install minimal deps
         run: |
           python -m pip install --upgrade pip
-          pip install numpy pandas pyarrow scipy
+          # pinned to requirements.txt versions (project rolled back from pandas 3.0.x;
+          # see requirements.txt + docs re: pandas 3.0.4 date_range segfault). Keep this
+          # cron minimal -- the freshness agent needs no heavy ML deps.
+          pip install numpy==2.4.4 pandas==2.3.3 pyarrow==23.0.1 scipy==1.17.1
           pip install -e .
       - name: Run registry-driven freshness monitor (dry-run)
         run: |
