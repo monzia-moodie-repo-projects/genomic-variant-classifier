@@ -297,6 +297,8 @@ class AnnotationConfig:
     esm2_device: Optional[str] = None  # Phase 3C: None/'auto' -> cuda if available, else cpu
     gnomad_constraint_path: Optional[Path] = None  # Phase 3C: gnomAD constraint TSV
     reactome_path: Optional[Path] = None  # Phase D: Reactome gene pathway-count parquet
+    alphafold_path: Optional[Path] = None  # Phase D: AlphaFold cohort structural-feature parquet
+    alphafold_uniprot_index_path: Optional[Path] = None  # Phase D: UniProt index (gene->accession + sequence) for AF wt_aa cross-check
     rnaseq_path: Optional[Path] = None  # Phase D: RNA-seq gene-expression parquet (build_rnaseq_parquet.py)
     min_protein_coord_coverage: float = 0.50  # Phase D: fail-loud gate on step-10b coord coverage WHEN a source is present (observed ~0.97; <0.50 => stale/mismatched index)
 
@@ -999,6 +1001,19 @@ class DataPrepPipeline:
         # 14. Protein structure pipeline (Phase 6.2)
         from genomic_variant_classifier.pipelines.protein_pipeline import ProteinStructurePipeline
 
+        # 14a. AlphaFold structural features (Phase D) -- parquet-first path.
+        # When ac.alphafold_path is set, the prebuilt cohort parquet supplies
+        # alphafold_plddt / solvent_accessibility / secondary_structure_context /
+        # dist_to_active_site via a residue-level join on the canonical protein_pos
+        # with a wt_aa cross-check (fail-closed). The ProteinStructurePipeline below
+        # then only fills residues the parquet did not cover.
+        if ac.alphafold_path is not None:
+            from genomic_variant_classifier.data.alphafold import AlphaFoldConnector
+            _af = AlphaFoldConnector(
+                parquet_path=ac.alphafold_path,
+                uniprot_index_path=ac.alphafold_uniprot_index_path,
+            )
+            df = _af.annotate_dataframe(df)
         protein = ProteinStructurePipeline(cache_dir=ac.protein_cache_dir)
         df = protein.annotate_dataframe(df)
         logger.info(

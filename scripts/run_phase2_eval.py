@@ -176,6 +176,20 @@ def parse_args(argv=None) -> argparse.Namespace:
         "omitted, dbsnp_af defaults to 0.0 (silent stub).",
     )
     p.add_argument(
+        "--alphafold-path",
+        default=None,
+        help="AlphaFold cohort structural-feature parquet "
+        "(data/external/alphafold/alphafold_cohort.parquet). When omitted, the "
+        "four AF features default to sentinel constants (silent stub).",
+    )
+    p.add_argument(
+        "--alphafold-uniprot-index",
+        default=None,
+        help="UniProt index parquet (gene_symbol,uniprot_id,sequence) for the "
+        "AlphaFold gene->accession map and wt_aa cross-check. Typically the same "
+        "file as --esm2-uniprot-index.",
+    )
+    p.add_argument(
         "--eve-path",
         default=None,
         help="EVE scores: directory of per-protein CSVs (data/external/eve/) or a "
@@ -352,6 +366,11 @@ def main() -> int:
             omim_genemap2_path=Path(args.omim_genemap2_path) if args.omim_genemap2_path else None,
             phylop_path=Path(args.phylop_path) if args.phylop_path else None,
             dbsnp_path=Path(args.dbsnp_path) if args.dbsnp_path else None,
+            # Phase D AlphaFold wiring
+            alphafold_path=Path(args.alphafold_path) if args.alphafold_path else None,
+            alphafold_uniprot_index_path=(
+                Path(args.alphafold_uniprot_index) if args.alphafold_uniprot_index else None
+            ),
             eve_path=Path(args.eve_path) if args.eve_path else None,
             eve_entry_map_path=Path(args.eve_entry_map) if args.eve_entry_map else None,
         )

@@ -237,6 +237,17 @@ if [ -n "$DBSNP_FILE" ] && [ -f "$DBSNP_FILE" ]; then
 else
     echo "==> ABORT: dbSNP parquet missing under $DATA/external/dbsnp/" | tee -a "$LOG"; exit 8
 fi
+# AlphaFold (Phase D): cohort structural-feature parquet + UniProt index for the
+# gene->accession map and wt_aa cross-check. Flag exists in run_phase2_eval.py; the
+# connector defaults to sentinel stubs if unpassed, so wire it explicitly and ABORT
+# loudly if the built parquet is missing (a wrong/absent pick must be LOUD, not silent).
+ALPHAFOLD_FILE="$(ls "$DATA"/external/alphafold/*.parquet 2>/dev/null | head -n1 || true)"
+if [ -n "$ALPHAFOLD_FILE" ] && [ -f "$ALPHAFOLD_FILE" ]; then
+    ARGS="$ARGS --alphafold-path $ALPHAFOLD_FILE"; echo "==> AlphaFold wired: $ALPHAFOLD_FILE" | tee -a "$LOG"
+    ARGS="$ARGS --alphafold-uniprot-index $UNIPROT_INDEX"; echo "==> AlphaFold UniProt index wired: $UNIPROT_INDEX" | tee -a "$LOG"
+else
+    echo "==> ABORT: AlphaFold parquet missing under $DATA/external/alphafold/ (build with scripts/build_alphafold_parquet.py)" | tee -a "$LOG"; exit 8
+fi
 # ClinGen: Gene-Disease Validity CSV (flag existed but launch never passed it -> silent 0).
 CLINGEN_FILE="$(ls "$DATA"/external/clingen/*.csv 2>/dev/null | head -n1 || true)"
 if [ -n "$CLINGEN_FILE" ] && [ -f "$CLINGEN_FILE" ]; then

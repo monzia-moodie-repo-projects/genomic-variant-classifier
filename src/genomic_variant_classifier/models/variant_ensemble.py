@@ -273,7 +273,7 @@ TABULAR_FEATURES = [
     "rnaseq_de_neglog10p",
 ]
 
-PHASE_2_FEATURES: list[str] = []  # All Phase 2 features now active; Phase 3 adds GWAS
+PHASE_2_FEATURES: list[str] = []  # AF features (alphafold_plddt/solvent_accessibility/secondary_structure_context/dist_to_active_site) are locked TABULAR_FEATURES; real once the AlphaFold parquet is built and --alphafold-path is wired, else sentinel stubs. Phase 3 adds GWAS.
 
 PHASE_4_FEATURES: list[str] = [
     "esm2_delta_norm",
