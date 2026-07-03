@@ -185,7 +185,10 @@ def _download_cif(accession: str, cache_dir: Path, canonical_seq: str) -> Option
                      accession, len(text))
         return None
     cache_file = cache_dir / cif_url.rsplit("/", 1)[-1]
-    cache_file.write_text(text, encoding="utf-8")
+    import uuid as _uuid
+    _tmp = cache_file.with_name(cache_file.name + "." + _uuid.uuid4().hex + ".tmp")
+    _tmp.write_text(text, encoding="utf-8")
+    _tmp.replace(cache_file)
     time.sleep(_POLITE_DELAY_S)
     return cache_file
 
@@ -275,6 +278,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     ap.add_argument("--cohort", default="data/processed/clinvar_grch38_clean.parquet")
     ap.add_argument("--uniprot-index", default="data/external/uniprot/uniprot_human_reviewed.parquet")
     ap.add_argument("--out", default="data/external/alphafold/alphafold_cohort.parquet")
+    ap.add_argument("--workers", type=int, default=8,
+                    help="parallel download workers (I/O-bound fetch phase); 1 = serial")
     ap.add_argument("--cache-dir", default="data/raw/cache/alphafold")
     ap.add_argument("--max-genes", type=int, default=None, help="cap number of genes (resumable chunks)")
     ap.add_argument("--genes-from", default=None, help="file with one gene symbol per line")
@@ -313,6 +318,44 @@ def main(argv: Optional[list[str]] = None) -> int:
     n_done = 0
     n_struct = 0
     n_total = len(acc_map)
+
+    # --- Phase 1: parallel, I/O-bound fetch (resolve+download CIF, fetch active
+    # sites). No shared-state writes here; results are keyed by gene and consumed
+    # in original order below, so output is deterministic and identical to serial.
+    # Chunked so the mid-run disk guard still fires periodically during downloads.
+    try:
+        _workers = int(args.workers)
+    except Exception:
+        _workers = 8
+
+    def _fetch_gene(_item):
+        _gene, _acc = _item
+        _cseq = acc_to_seq.get(_acc, "")
+        _cif = _download_cif(_acc, cache_dir, _cseq)
+        _sites = _fetch_active_sites(_acc, cache_dir) if _cif is not None else []
+        return _gene, _acc, _cif, _sites
+
+    _fetch_results: dict = {}
+    _items = list(acc_map.items())
+    _chunk = max(1, _workers * 8)
+    import concurrent.futures as _cf
+    for _cstart in range(0, len(_items), _chunk):
+        if _free_gb(cache_dir) < _MIN_FREE_GB:
+            logger.error("ABORT: free space below %.1f GB threshold during fetch. "
+                         "Cached progress retained; re-run to resume.", _MIN_FREE_GB)
+            return 3
+        _batch = _items[_cstart:_cstart + _chunk]
+        if _workers > 1:
+            with _cf.ThreadPoolExecutor(max_workers=_workers) as _ex:
+                for _r in _ex.map(_fetch_gene, _batch):
+                    _fetch_results[_r[0]] = _r
+        else:
+            for _it in _batch:
+                _r = _fetch_gene(_it)
+                _fetch_results[_r[0]] = _r
+
+    # --- Phase 2: serial, ordered consume (single-writer; disk guard, coverage,
+    # extraction, dedup exactly as before), fed pre-fetched results.
     for _i_gene, (gene, acc) in enumerate(acc_map.items(), 1):
         logger.info("gene %d/%d: %s (%s)", _i_gene, n_total, gene, acc)
         # mid-run disk guard
@@ -321,8 +364,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             logger.error("ABORT: free space %.1f GB < %.1f GB threshold on cache volume. "
                          "Cached progress retained; re-run to resume.", free, _MIN_FREE_GB)
             return 3
-        canonical_seq = acc_to_seq.get(acc, "")
-        cif_path = _download_cif(acc, cache_dir, canonical_seq)
+        _g, _a, cif_path, _sites = _fetch_results[gene]
         n_done += 1
         if cif_path is None:
             coverage[gene] = {"accession": acc, "status": "no_canonical_structure",
@@ -330,8 +372,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             continue
         coverage[gene] = {"accession": acc, "status": "ok",
                           "cif": cif_path.name}
-        active_sites = _fetch_active_sites(acc, cache_dir)
-        rows = _extract_one(acc, cif_path, active_sites)
+        rows = _extract_one(acc, cif_path, _sites)
         if rows:
             all_rows.extend(rows)
             n_struct += 1
