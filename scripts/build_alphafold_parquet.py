@@ -390,6 +390,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     assert df["plddt"].between(0, 100).all(), "pLDDT out of [0,100]"
     assert df["rsa"].between(0, 1).all(), "RSA out of [0,1] (should be clamped)"
     assert df["ss"].isin([0, 1, 2]).all(), "ss not in {0,1,2}"
+    df = df.sort_values(list(df.columns)).reset_index(drop=True)
     df.to_parquet(out_path, index=False)
     # Coverage report: which genes got a canonical structure vs. were unusable
     # (giants over the AFDB length ceiling, isoform-only entries, or absent). Written
