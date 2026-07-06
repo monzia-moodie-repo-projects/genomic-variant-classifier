@@ -1,1 +1,0 @@
-    ap.add_argument("--out", default="data/external/alphafold/alphafold_cohort.parquet")

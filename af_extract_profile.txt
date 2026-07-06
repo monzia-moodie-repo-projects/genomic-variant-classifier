@@ -1,7 +1,0 @@
-parse_atom_site 0.04s (11496 atoms)
-per_residue_plddt 0.00s (1474 res)
-per_residue_ca 0.00s
-per_residue_secondary_structure 0.00s
-per_residue_rsa 21.66s
-_dist_to_active 0.02s
-DONE

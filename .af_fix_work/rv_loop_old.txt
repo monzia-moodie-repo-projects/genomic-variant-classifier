@@ -1,2 +1,0 @@
-    for gene, acc in acc_map.items():
-        # mid-run disk guard

@@ -1,4 +1,0 @@
-    df.to_parquet(out_path, index=False)
-    logger.info("WROTE %s : %d residue rows across %d structures (%.1f%% of resolvable genes).",
-                out_path, len(df), n_struct, 100.0 * n_struct / max(1, len(acc_map)))
-    return 0

@@ -1,7 +1,0 @@
-FAIL 1 usage: build_alphafold_parquet.py [-h] [--cohort COHORT]
-                                  [--uniprot-index UNIPROT_INDEX] [--out OUT]
-                                  [--cache-dir CACHE_DIR]
-                                  [--max-genes MAX_GENES]
-                                  [--genes-from GENES_FROM] [--audit]
-build_alphafold_parquet.py: error: unrecognized arguments: --workers 1
-

@@ -1,2 +1,0 @@
-    cache_file = cache_dir / cif_url.rsplit("/", 1)[-1]
-    cache_file.write_text(text, encoding="utf-8")

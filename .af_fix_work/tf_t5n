@@ -1,2 +1,0 @@
-_CIF_URL = "https://alphafold.ebi.ac.uk/files/AF-P04637-F1-model_v6.cif"
-_CANON = "MEEPQSDPSV"  # stand-in canonical sequence for fetch-path mocks (post canonical-select fix)

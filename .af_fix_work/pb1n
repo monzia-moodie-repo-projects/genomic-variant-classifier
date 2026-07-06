@@ -1,5 +1,0 @@
-    cache_file = cache_dir / cif_url.rsplit("/", 1)[-1]
-    import uuid as _uuid
-    _tmp = cache_file.with_name(cache_file.name + "." + _uuid.uuid4().hex + ".tmp")
-    _tmp.write_text(text, encoding="utf-8")
-    _tmp.replace(cache_file)

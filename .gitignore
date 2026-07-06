@@ -191,3 +191,32 @@ logs/*.txt
 # --- session hygiene 2026-07-01: agent factory-state backups + pandas3 scratch ---
 *.factory_state_*
 data/_pandas3/
+
+# --- session hygiene 2026-07-06: scratch dirs + diagnostic dumps swept by git add -A ---
+.af_fix_work/
+.wiring_backup/
+.mypy_cache/
+renv/
+*.cif
+data/**/*.tar.gz
+# root-level probe/verify/install/diag scratch dumps
+af_*.txt
+*_install.txt
+*_verify.txt
+*_verify[0-9].txt
+*_probe.txt
+*_diag.txt
+state.txt
+matrix_truth.txt
+feature_count_truth.txt
+feature91_contract.txt
+run17_cmd_verbatim.txt
+wiring_targets.txt
+wiring_verify.txt
+disk_inventory.txt
+connector_paths.txt
+string_resolve.txt
+missing_inputs_hunt.txt
+alphafold_build_verify*.txt
+amtsv_install.txt
+*_cache_install.txt

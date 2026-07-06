@@ -1,1 +1,0 @@
-ALPHAFOLD_PREDICTION_API = "https://alphafold.ebi.ac.uk/api/prediction/{accession}"

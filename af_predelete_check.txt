@@ -1,8 +1,0 @@
-=== 1. does eve.py reference MSAs at all? (expect no) ===
-
-=== 2. is the live dbNSFP index present + loadable (so .OOMbak is disposable)? ===
-live index exists=False size_GB=NA
-=== 3. is the extracted EVE tree intact (so the zip is redundant)? file count + variant_files present ===
-EVE_all_data file count=14932
-variant_files dir exists=True
-vcf_files dir exists=True

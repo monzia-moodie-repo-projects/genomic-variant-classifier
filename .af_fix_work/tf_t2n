@@ -1,9 +1,0 @@
-    def fake_get(url, timeout=None, **kw):
-        if "api/prediction" in url:
-            return _FakeResp(200, payload=[{"uniprotSequence": _CANON, "cifUrl": _CIF_URL}])
-        if url == _CIF_URL:
-            return _FakeResp(200, text="<html><body>404 Not Found</body></html>")
-        return _FakeResp(404)
-
-    monkeypatch.setattr(bap.requests, "get", fake_get)
-    out = bap._download_cif("P04637", tmp_path, _CANON)

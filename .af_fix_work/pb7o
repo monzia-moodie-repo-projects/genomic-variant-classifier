@@ -1,1 +1,0 @@
-    df.to_parquet(out_path, index=False)

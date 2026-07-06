@@ -1,5 +1,0 @@
-    monkeypatch.setattr(
-        bap.requests, "get",
-        lambda url, timeout=None, **kw: _FakeResp(200, payload=[{"cifUrl": _CIF_URL}]),
-    )
-    assert bap._resolve_cif_url("P04637") == _CIF_URL

@@ -1,9 +1,0 @@
-        canonical_seq = acc_to_seq.get(acc, "")
-        cif_path = _download_cif(acc, cache_dir, canonical_seq)
-        n_done += 1
-        if cif_path is None:
-            coverage[gene] = {"accession": acc, "status": "no_canonical_structure",
-                              "n_variants": None}
-            continue
-        coverage[gene] = {"accession": acc, "status": "ok",
-                          "cif": cif_path.name}

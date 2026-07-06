@@ -1,3 +1,0 @@
-        canonical_seq = acc_to_seq.get(acc, "")
-        cif_path = _download_cif(acc, cache_dir, canonical_seq)
-        n_done += 1

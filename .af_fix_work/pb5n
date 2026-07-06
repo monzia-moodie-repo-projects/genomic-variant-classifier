@@ -1,2 +1,0 @@
-        _g, _a, cif_path, _sites = _fetch_results[gene]
-        n_done += 1

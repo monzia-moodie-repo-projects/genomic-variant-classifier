@@ -1,1 +1,0 @@
-def _resolve_cif_url(accession: str, canonical_seq: str) -> Optional[str]:
