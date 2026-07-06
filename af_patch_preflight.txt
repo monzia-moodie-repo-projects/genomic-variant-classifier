@@ -1,0 +1,59 @@
+=== A. fixture presence (are @requires_cif tests passing or SKIPPING?) ===
+data/raw/cache/alphafold/AF-E7ENB7-F1-model_v4.cif exists=True size=101171
+AF-E7ENB7-F1-model_v4.cif exists=True size=101171
+=== B. explicit skip check ===
+...............                                                          [100%]
+15 passed in 10.13s
+=== C. exact bytes of anchor lines 71 + 101 ===
+71|ALPHAFOLD_CIF_URL = "https://alphafold.ebi.ac.uk/files/AF-{accession}-F1-model_v4.cif"|
+101|    cache_file = cache_dir / f"AF-{accession}-F1-model_v4.cif"|
+=== D. module header (imports + constants, 50-98) ===
+50: import logging
+51: import shutil
+52: import sys
+53: import time
+54: from pathlib import Path
+55: from typing import Optional
+56: 
+57: import pandas as pd
+58: import requests
+59: 
+60: # The script adds src/ to sys.path so it can import the package when run directly.
+61: _REPO_ROOT = Path(__file__).resolve().parents[1]
+62: _SRC = _REPO_ROOT / "src"
+63: if str(_SRC) not in sys.path:
+64:     sys.path.insert(0, str(_SRC))
+65: 
+66: from genomic_variant_classifier.data import alphafold_features as aff  # noqa: E402
+67: 
+68: logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+69: logger = logging.getLogger("build_alphafold_parquet")
+70: 
+71: ALPHAFOLD_CIF_URL = "https://alphafold.ebi.ac.uk/files/AF-{accession}-F1-model_v4.cif"
+72: UNIPROT_FEATURES_API = "https://www.ebi.ac.uk/proteins/api/features/{accession}"
+73: _REQUEST_TIMEOUT = 30
+74: _MIN_FREE_GB = 5.0            # mid-run disk guard threshold
+75: _POLITE_DELAY_S = 0.5        # between network downloads (rate-limit courtesy)
+76: 
+77: 
+78: def _free_gb(path: Path) -> float:
+79:     usage = shutil.disk_usage(str(path))
+80:     return usage.free / (1024 ** 3)
+81: 
+82: 
+83: def _load_cohort_genes(cohort_path: Path) -> list[str]:
+84:     """Distinct missense-bearing gene symbols from the cohort parquet."""
+85:     df = pd.read_parquet(cohort_path, columns=["gene_symbol", "consequence"])
+86:     mis = df[df["consequence"].fillna("").astype(str).str.contains("missense", case=False, na=False)]
+87:     genes = sorted(set(mis["gene_symbol"].dropna().astype(str)) - {""})
+88:     return genes
+89: 
+90: 
+91: def _resolve_accessions(genes: list[str], uniprot_index_path: Path) -> dict[str, str]:
+92:     """gene_symbol -> canonical UniProt accession, via the local reviewed parquet (1:1)."""
+93:     up = pd.read_parquet(uniprot_index_path, columns=["gene_symbol", "uniprot_id"])
+94:     up = up.dropna(subset=["gene_symbol", "uniprot_id"])
+95:     gmap = dict(zip(up["gene_symbol"].astype(str), up["uniprot_id"].astype(str)))
+96:     return {g: gmap[g] for g in genes if g in gmap}
+97: 
+98: 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from typing import Optional
@@ -108,7 +109,7 @@ class FinnGenConnector:
             return df
 
         if self._index is None:
-            self._index = self._build_index(df)
+            self._index = self._load_full_index()
 
         if self._index.empty:
             df[self._out_enrich] = 1.0
@@ -141,23 +142,52 @@ class FinnGenConnector:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _build_index(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _load_full_index(self) -> pd.DataFrame:
         """
-        Read only the rows from the FinnGen TSV that overlap with *df*'s
-        chrom/pos range. Avoids loading the full ~20M row file into memory.
-        """
-        logger.info("FinnGen: building in-memory index from %s ...", self.tsv_path)
+        Load the COMPLETE FinnGen release index (all variants), using a parquet
+        cache for fast warm starts.
 
-        # Compute query bounding box for early filtering
-        query_chroms = set(
-            df["chrom"].astype(str).map(_normalise_chrom).unique()
+        The first call extracts the full ``.gz`` once (~20M rows) and writes a
+        parquet cache plus a sidecar signature file; every subsequent call loads
+        the parquet in seconds. The cache is invalidated automatically if the
+        source ``.gz`` size or mtime changes.
+
+        The exact (chrom, pos, ref, alt) left-join in :meth:`annotate` makes a
+        bounding-box pre-filter unnecessary: a full index yields identical
+        matches while being reusable across any cohort.
+        """
+        pq_path, meta_path = self._cache_paths()
+        sig = self._source_signature()
+
+        # 1. Warm start: a valid, matching cache -> load parquet.
+        if pq_path.exists() and meta_path.exists():
+            try:
+                cached_sig = json.loads(meta_path.read_text())
+                if (
+                    cached_sig.get("size") == sig["size"]
+                    and cached_sig.get("mtime_ns") == sig["mtime_ns"]
+                ):
+                    idx = pd.read_parquet(pq_path)
+                    logger.info(
+                        "FinnGen: loaded %d variants from cache %s.",
+                        len(idx), pq_path,
+                    )
+                    return idx
+                logger.info(
+                    "FinnGen: cache stale (source changed) -> rebuilding %s.",
+                    pq_path,
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "FinnGen: cache read failed (%s) -> rebuilding.", exc
+                )
+
+        # 2. Cold start: extract the FULL release (no bounding box) and cache it.
+        logger.info(
+            "FinnGen: building FULL index from %s (one-time) ...", self.tsv_path
         )
-        pos_min = int(df["pos"].min()) - 1
-        pos_max = int(df["pos"].max()) + 1
-
-        chunks = []
         compression = "gzip" if str(self.tsv_path).endswith(".gz") else "infer"
-
+        chunks = []
         try:
             reader = pd.read_csv(
                 self.tsv_path,
@@ -170,28 +200,52 @@ class FinnGenConnector:
                        "GENOME_AF_fin": float, "GENOME_AF_nfe": float},
             )
             for chunk in reader:
-                chunk.rename(columns={"chr": "chrom", "GENOME_AF_fin": "af_fin", "GENOME_AF_nfe": "af_nfsee"}, inplace=True)
-                chunk["chrom"] = chunk["chrom"].map(_normalise_chrom)
-                mask = (
-                    chunk["chrom"].isin(query_chroms)
-                    & chunk["pos"].between(pos_min, pos_max)
+                chunk.rename(
+                    columns={"chr": "chrom", "GENOME_AF_fin": "af_fin",
+                             "GENOME_AF_nfe": "af_nfsee"},
+                    inplace=True,
                 )
-                filtered = chunk[mask]
-                if not filtered.empty:
-                    chunks.append(filtered)
-
-        except Exception as exc:
+                chunk["chrom"] = chunk["chrom"].map(_normalise_chrom)
+                chunks.append(chunk)
+        except Exception as exc:  # noqa: BLE001
             logger.error("FinnGen: failed to read TSV: %s", exc)
             return pd.DataFrame(columns=["chrom", "pos", "ref", "alt",
                                          "af_fin", "af_nfsee"])
 
         if not chunks:
-            logger.warning("FinnGen: no variants matched in TSV.")
+            logger.warning("FinnGen: no rows read from TSV.")
             return pd.DataFrame(columns=["chrom", "pos", "ref", "alt",
                                          "af_fin", "af_nfsee"])
 
         index = pd.concat(chunks, ignore_index=True).drop_duplicates(
             subset=["chrom", "pos", "ref", "alt"]
         )
-        logger.info("FinnGen index: %d unique variants loaded.", len(index))
+
+        # Write cache (best-effort; a cache-write failure is never fatal).
+        try:
+            pq_path.parent.mkdir(parents=True, exist_ok=True)
+            index.to_parquet(pq_path, index=False)
+            meta_path.write_text(json.dumps(sig))
+            logger.info(
+                "FinnGen: wrote full-index cache -> %s (%d variants).",
+                pq_path, len(index),
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("FinnGen: could not write cache (%s).", exc)
+
         return index
+
+    def _cache_paths(self) -> tuple[Path, Path]:
+        """(parquet, sidecar) paths for this release's full-index cache."""
+        cache_dir = Path("data/raw/cache")
+        stem = f"finngen_{self.column_prefix}full_index"
+        return cache_dir / f"{stem}.parquet", cache_dir / f"{stem}.meta.json"
+
+    def _source_signature(self) -> dict:
+        """Size + mtime of the source .gz, used for cache invalidation."""
+        st = Path(self.tsv_path).stat()
+        return {
+            "size": st.st_size,
+            "mtime_ns": st.st_mtime_ns,
+            "source": str(self.tsv_path),
+        }

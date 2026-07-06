@@ -1,0 +1,31 @@
+
+=== L88 and surrounding lines (the 'activate dbSNP' line to update) ===
+  84| - **n_pathogenic_in_gene computation-scope audit (RESOLVED 2026-06-13):** was corpus-wide; recomputed train-only at Level 1 (data prep, 689787f) and Level 2 (stacking OOF, 6b38985). Lone-feature probe 0.7181 -> ~0.50; leaky vs leak-free inner-OOF 0.7755 vs 0.6633. Run-17 Gate-A leakage decision CLOSED.
+  85| 
+  86| - **clingen_validity_score dtype drift (RESOLVED 2026-06-13):** both builders cast to float (variant_ensemble.engineer_features and real_data_prep._engineer_features, the latter with a "match inference builder" comment); verified aligned -- no regen blocker remains.
+  87| 
+  88| - Remaining Phase-D connectors: activate dbSNP + AlphaFold-structure stub steps (data + config), then build COSMIC / TCGA / KEGG.
+  89| 
+  90| - **Heterogeneous-KG modeling track (2026-06-13):** hetero-GNN ENGINE done (models/hetero_gnn.py, HeteroConv multi-relation gene graph, 54158f7) + KG edge-connectors done (data/kg_edges.py co-membership primitive + Reactome/KEGG/GO/OMIM/ClinGen adapters, 8c19f9b). SCORER + SCHEMA DONE 2026-06-13: HeteroGNNScorer (547e2dc, mirrors GNNScorer; torch-free assembly + PyG train/score) and hetero_gnn_score landed as the 82nd feature (Option A -- SEPARATE from gnn_score to preserve the homogeneous-vs-heterogeneous comparison; EXPECTED_TABULAR_FEATURE_COUNT 81->82, both builders lockstep, reactome stays last; contract green, suite 1000). EVAL-OVERWRITE DONE 2026-06-14 (a54ef38): run_phase2_eval --hetero-gnn + --kg-edges source:path builds HeteroGNNScorer from STRING interacts_with + KG relations and overwrites hetero_gnn_score per split (opt-in; until run with the flag it stays the 0.5 default, mirroring gnn_score). ONLY REMAINING (Run-17): schema_baseline regen 81->82 from the real matrix.
+  91| - **af_1kg_* ACTIVE (2026-06-15):** kg_grch38_af.parquet built chr1-22 + X (437,668 variants, 6.7 MB) via build_1kg_parquet.py per-chr shards + merge; activate via --kg. chrY/MT not in the 1000G high-coverage panel (404-confirmed -> af_1kg=0 for 3,191 Y + 3,124 MT cohort variants; gnomAD Y/MT allele_freq RESOLVED 2026-06-16). WIRED 2026-06-13 (a0ce407).
+  92| - **gnomAD Y/MT allele_freq ACTIVE (2026-06-16):** PAR canonicalisation fix -- gnomAD reports PAR variants on X, ClinVar on Y; `y_key()` remaps PAR1 X->Y identical + PAR2 X-98,813,480 + MSY pass-through. `build_gnomad_ymt_af.py` merges Y/MT frequencies into `gnomad_v4_exomes.parquet`: Y 1047/3155 (33% = honest gnomAD ceiling; remainder = gnomAD-uncalled Y positions + 264 na:na structural), MT 2731/3124 (87%). Commit 112967d.
+  93| - **LiteratureScout broadened (2026-06-13, a42e723 + a9c0326):** provenance (authors/publication_date/journal across PubMed/bioRxiv/ClinGen/Zenodo) + new Zenodo source (_fetch_zenodo) + PubMed queries 11->19 / keywords 32->46 into architecture/methodology gaps + journal allow-list relevance boost. +8 tests.
+  94| 
+  95| - One comprehensive GPU regen after the accessible public connectors are wired; measure-first probe; ALL-MODELS smoke before any billable retrain.
+  96| 
+  97| # 6. Modeling & infra roadmap
+
+=== every dbSNP mention in ROADMAP.md (to catch all stale references, not just L88) ===
+
+LineNumber Line
+---------- ----
+        63 | dbSNP/RefSNP | dbsnp_af | free | stub-mode step; activation = data + config |
+        78 Strong fits: AlphaFold DB (DO), RefSNP/dbSNP (DO), COSMIC (DO, academic; feature NOT label), TCGA (OPTIONAL), Reactome (DONE), KEGG (OPTIONAL, overlaps Reactome). BioGRID overlaps STRING. dbGaP is an access prerequisite (blocked), not a connector. ProteomeXchange / SRA / ENA / DDBJ DRA / SILVA out o…
+        88 - Remaining Phase-D connectors: activate dbSNP + AlphaFold-structure stub steps (data + config), then build COSMIC / TCGA / KEGG.
+       207 | dbSNP index parquet (2.87M ClinVar-matched rs-IDs)                     | **Done**                  |
+
+
+=== is ROADMAP.docx also present (must update both per living-doc rule)? ===
+ROADMAP.docx present? -> True
+
+=== DONE -- upload roadmap_dbsnp_context.txt ===

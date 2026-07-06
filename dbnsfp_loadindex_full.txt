@@ -1,0 +1,160 @@
+=== dbnsfp.py relevant regions (566 lines total) ===
+
+--- L384-540: _cache_path + _load_index full ---
+384:     def _cache_path(self) -> Optional[Path]:
+385:         if self._cache_dir is None:
+386:             return None
+387:         return self._cache_dir / "dbnsfp_clinvar_index.parquet"
+388: 
+389:     def _load_index(
+390:         self,
+391:         filter_chroms: Optional[set[str]] = None,
+392:     ) -> pd.DataFrame:
+393:         """
+394:         Build the (chrom, pos, ref, alt) → DbNSFPScores index.
+395: 
+396:         Precedence:
+397:           1. Parquet cache  (~5 s warm start).
+398:           2. Raw dbNSFP flat file (~90–180 s; writes cache afterward).
+399:           3. Empty dict (stub mode).
+400:         """
+401:         # 1. Parquet cache
+402:         cache = self._cache_path()
+403:         if cache is not None and cache.exists():
+404:             logger.info(
+405:                 "DbNSFP: loading index from parquet cache: %s", cache
+406:             )
+407:             import pyarrow.parquet as pq
+408:             import pyarrow as pa
+409:             chroms = list(filter_chroms) if filter_chroms else None
+410:             if chroms:
+411:                 filters = [("chrom", "in", chroms)]
+412:                 cdf = pq.read_table(cache, filters=filters).to_pandas()
+413:             else:
+414:                 cdf = pd.read_parquet(cache)
+415:             logger.info("DbNSFP: loaded %d variants from cache.", len(cdf))
+416:             return cdf
+417: 
+418:         # 2. Raw file
+419:         if self._path is None or not self._path.exists():
+420:             logger.warning(
+421:                 "DbNSFP: no data file supplied or file not found (%s). "
+422:                 "All variants will receive default scores. "
+423:                 "Download from https://sites.google.com/site/jpopgen/dbNSFP",
+424:                 self._path,
+425:             )
+426:             return pd.DataFrame(columns=["chrom", "pos", "ref", "alt"] + list(_OUTPUT_COLS.values()))
+427: 
+428:         logger.info(
+429:             "DbNSFP: parsing %s (this may take 90–180 s) …", self._path
+430:         )
+431: 
+432:         compression: str = "infer"
+433:         suffix = "".join(self._path.suffixes).lower()
+434:         if suffix.endswith(".zip"):
+435:             compression = "zip"
+436:         elif suffix.endswith(".gz"):
+437:             compression = "gzip"
+438: 
+439:         # Columns we need: coordinate keys + all six score columns
+440:         # Guard: some dbNSFP columns may be absent in older versions;
+441:         # we discover which are actually present from the file header.
+442:         usecols_wanted = [
+443:             _COL_CHROM, _COL_POS, _COL_REF, _COL_ALT,
+444:         ] + _ALL_SCORE_COLS
+445: 
+446:         chunks: list[pd.DataFrame] = []
+447:         try:
+448:             # Peek at header to determine which score columns are actually present
+449:             header_df = pd.read_csv(
+450:                 self._path,
+451:                 sep="\t",
+452:                 compression=compression,
+453:                 nrows=0,
+454:                 dtype=str,
+455:             )
+456:             available_score_cols = [
+457:                 c for c in _ALL_SCORE_COLS if c in header_df.columns
+458:             ]
+459:             missing_from_file = set(_ALL_SCORE_COLS) - set(available_score_cols)
+460:             if missing_from_file:
+461:                 logger.warning(
+462:                     "DbNSFP: columns absent from file (will use defaults): %s",
+463:                     missing_from_file,
+464:                 )
+465:             usecols = [_COL_CHROM, _COL_POS, _COL_REF, _COL_ALT] + available_score_cols
+466: 
+467:             reader = pd.read_csv(
+468:                 self._path,
+469:                 sep="\t",
+470:                 compression=compression,
+471:                 usecols=usecols,
+472:                 dtype=str,
+473:                 na_values=[".", "", "NA"],
+474:                 chunksize=CHUNK_SIZE,
+475:                 low_memory=False,
+476:             )
+477: 
+478:             for chunk in reader:
+479:                 chunk = chunk.rename(columns={_COL_CHROM: "chrom", _COL_POS: "pos"})
+480:                 chunk = chunk.dropna(subset=["pos"])
+481:                 chunk["pos"] = pd.to_numeric(chunk["pos"], errors="coerce")
+482:                 chunk = chunk.dropna(subset=["pos"])
+483:                 chunk["pos"]   = chunk["pos"].astype("int64")
+484:                 chunk["chrom"] = chunk["chrom"].apply(_normalise_chrom)
+485:                 chunk["ref"]   = chunk["ref"].str.upper()
+486:                 chunk["alt"]   = chunk["alt"].str.upper()
+487: 
+488:                 # SNVs only
+489:                 snv = (
+490:                     chunk["ref"].str.len() == 1
+491:                 ) & (
+492:                     chunk["alt"].str.len() == 1
+493:                 )
+494:                 chunk = chunk.loc[snv].copy()
+495: 
+496:                 # Parse and aggregate multi-transcript score fields
+497:                 for raw_col in available_score_cols:
+498:                     out_col = _OUTPUT_COLS[raw_col]
+499:                     agg     = _AGG[raw_col]
+500:                     default = _DEFAULTS[out_col]
+501:                     chunk[out_col] = chunk[raw_col].apply(
+502:                         lambda v, a=agg: _parse_multival(v, a)
+503:                     )
+504:                     chunk[out_col] = chunk[out_col].fillna(default)
+505: 
+506:                 # Add default columns for any score columns absent from this file
+507:                 for raw_col in _ALL_SCORE_COLS:
+508:                     out_col = _OUTPUT_COLS[raw_col]
+509:                     if out_col not in chunk.columns:
+510:                         chunk[out_col] = _DEFAULTS[out_col]
+511: 
+512:                 keep = ["chrom", "pos", "ref", "alt"] + list(_OUTPUT_COLS.values())
+513:                 chunks.append(chunk[keep].copy())
+514: 
+515:         except Exception as exc:
+516:             logger.error("DbNSFP: failed to parse %s: %s", self._path, exc)
+517:             return pd.DataFrame(columns=["chrom", "pos", "ref", "alt"] + list(_OUTPUT_COLS.values()))
+518: 
+519:         if not chunks:
+520:             logger.warning("DbNSFP: no valid rows parsed from %s.", self._path)
+521:             return pd.DataFrame(columns=["chrom", "pos", "ref", "alt"] + list(_OUTPUT_COLS.values()))
+522: 
+523:         full = pd.concat(chunks, ignore_index=True)
+524:         full = full.drop_duplicates(subset=["chrom", "pos", "ref", "alt"])
+525:         logger.info("DbNSFP: indexed %d variants.", len(full))
+526: 
+527:         # Write parquet cache
+528:         if cache is not None:
+529:             try:
+530:                 cache.parent.mkdir(parents=True, exist_ok=True)
+531:                 full.to_parquet(cache, index=False)
+532:                 logger.info("DbNSFP: wrote parquet cache → %s", cache)
+533:             except Exception as exc:
+534:                 logger.warning("DbNSFP: could not write cache (%s).", exc)
+535: 
+536:         return full
+537: 
+538:     @staticmethod
+539:     def _df_to_index(
+540:         df: pd.DataFrame,

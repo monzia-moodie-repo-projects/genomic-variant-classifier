@@ -1,0 +1,20 @@
+=== inputs the --help revealed as feature-populating (verify existence) ===
+  [OK  ] reactome_gene_pathways.parquet (--reactome-path FEATURE)        0.1MB  data/external/reactome_gene_pathways.parquet
+  [OK  ] reactome GMT (--kg-edges only)                                  1.0MB  data/external/reactome/ReactomePathways.gmt
+  [OK  ] gtex (--gtex-path, gtex_* #40-45)                               1.1MB  data/external/gtex_gene_expression.parquet
+  [OK  ] lovd (--lovd-path #54)                                          0.3MB  data/external/lovd/lovd_all_variants.parquet
+  [OK  ] eve dir (--eve-path #28)                                          dir  data/external/eve/EVE_all_data
+  [OK  ] uniprot index (--esm2-uniprot-index / --alphafold-uniprot-index)     11.7MB  data/external/uniprot/uniprot_human_reviewed.parquet
+  [MISS] seq-windows (--seq-windows, CNN)                                    -  data/processed/seq_windows.parquet
+  [OK  ] dbnsfp full (user choice)                                     939.3MB  data/external/dbnsfp/dbnsfp_full_index.parquet
+  [OK  ] dbnsfp clinvar (help default)                                  36.2MB  data/external/dbnsfp/dbnsfp_clinvar_index.parquet
+  [OK  ] clinvar eval input                                            142.0MB  data/processed/clinvar_grch38.parquet
+
+=== builders for missing feature inputs ===
+  [OK] scripts/build_reactome_parquet.py
+  [OK] scripts/build_gtex_parquet.py
+  [OK] scripts/build_uniprot_index.py
+
+=== eve entry-map: does uniprot index have entry_name? ===
+  uniprot index columns: ['gene_symbol', 'uniprot_id', 'entry_name', 'sequence']
+  has entry_name: True

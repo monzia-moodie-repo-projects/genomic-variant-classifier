@@ -1,0 +1,42 @@
+
+=== does the canonical Drive data root have an external/dbsnp path already? ===
+.gitignore
+1000genomes/
+1kgp/
+alphamissense/
+clingen/
+clinvar/
+clinvar_fresh/
+dbnsfp/
+dbsnp/
+ensembl/
+eve/
+finngen/
+gencode/
+gnomad/
+gtex/
+gtex_gene_expression.parquet
+hgnc/
+lovd/
+omim/
+phylop/
+reactome_gene_pathways.parquet
+reference/
+revel/
+rnaseq/
+spliceai/
+string/
+uniprot/
+--- and is a dbsnp parquet already backed up there? ---
+GCF_000001405.40.gz
+GCF_000001405.40.gz.md5
+GCF_000001405.40.gz.tbi
+GCF_000001405.40.gz.tbi.md5
+=== local file to back up (size + md5 for post-copy verify) ===
+
+Hash                             Path
+----                             ----
+54B2FB253D8CDC78B27AB80914EF65A8 C:\Projects\genomic-variant-classifier\data\external\dbsnp\dbsnp157_cohort.parquet
+
+
+=== DONE -- upload drive_dbsnp_dest.txt ===

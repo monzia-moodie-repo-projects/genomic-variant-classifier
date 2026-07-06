@@ -1,0 +1,1 @@
+    acc_map = _resolve_accessions(genes, uniprot_index_path)

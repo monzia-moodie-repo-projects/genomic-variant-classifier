@@ -1,0 +1,62 @@
+=== DBNSFP PATH-OVERRIDE DIAGNOSTIC ===
+SYMPTOM: passed --dbnsfp-path dbnsfp_full_index.parquet (85.3M rows),
+but log loaded dbnsfp_clinvar_index.parquet (2.68M). Flag silently overridden.
+
+--- run_phase2_eval.py: dbnsfp references ---
+  L96: "--dbnsfp-path",
+  L98: help="DbNSFP4 ClinVar-intersected parquet cache "
+  L99: "(data/external/dbnsfp/dbnsfp_clinvar_index.parquet). "
+  L100: "When omitted, all dbNSFP-backed scores fall back to "
+  L358: dbnsfp_path=Path(args.dbnsfp_path) if args.dbnsfp_path else None,
+
+--- real_data_prep.py: dbnsfp references ---
+  L48: from genomic_variant_classifier.data.dbnsfp import DbNSFPConnector
+  L249: 1.  DbNSFPConnector(dbnsfp_path)     -- 6 scores for missense SNVs
+  L272: dbnsfp_path: Optional[Path] = None
+  L722: dbnsfp = DbNSFPConnector(dbnsfp_file=ac.dbnsfp_path)
+  L723: df = dbnsfp.annotate_dataframe(df)
+  L725: "Score annotation 1/17 (DbNSFP): %d variants with real SIFT scores.",
+
+--- dbnsfp.py: path selection / hard-coded defaults ---
+  L19: receives its population-median default, identical to the fill-ins used by
+  L64: First call parses the raw file in chunks, writes a parquet cache, then
+  L69: Pass dbnsfp_file=None.  Every lookup returns default scores and a
+  L152: _DEFAULTS: dict[str, float] = {
+  L195: _DEFAULT_SCORES = DbNSFPScores()
+  L207: an in-memory dict index backed by a parquet cache for fast warm starts.
+  L216: cache_dir:
+  L217: Directory for the parquet index cache.  Defaults to the directory
+  L218: containing *dbnsfp_file*.  Cache filename: ``dbnsfp_clinvar_index.parquet``.
+  L226: cache_dir: Optional[str | Path] = None,
+  L231: self._cache_dir: Optional[Path] = (
+  L232: Path(cache_dir) if cache_dir
+  L260: Optional per-column default overrides, e.g.
+  L277: effective_defaults = dict(_DEFAULTS)
+  L278: effective_defaults.update(missing_overrides)
+  L281: for col_name, default in effective_defaults.items():
+  L282: out[col_name] = default
+  L312: default = effective_defaults.get(col_name, 0.0)
+  L313: out[col_name] = merged[col_name].fillna(default).values
+  L351: return _DEFAULT_SCORES
+  L361: return _DEFAULT_SCORES
+  L384: def _cache_path(self) -> Optional[Path]:
+  L385: if self._cache_dir is None:
+  L387: return self._cache_dir / "dbnsfp_clinvar_index.parquet"
+  L397: 1. Parquet cache  (~5 s warm start).
+  L398: 2. Raw dbNSFP flat file (~90–180 s; writes cache afterward).
+  L402: cache = self._cache_path()
+  L403: if cache is not None and cache.exists():
+  L405: "DbNSFP: loading index from parquet cache: %s", cache
+  L412: cdf = pq.read_table(cache, filters=filters).to_pandas()
+  L414: cdf = pd.read_parquet(cache)
+  L415: logger.info("DbNSFP: loaded %d variants from cache.", len(cdf))
+  L422: "All variants will receive default scores. "
+  L462: "DbNSFP: columns absent from file (will use defaults): %s",
+  L500: default = _DEFAULTS[out_col]
+  L504: chunk[out_col] = chunk[out_col].fillna(default)
+  L510: chunk[out_col] = _DEFAULTS[out_col]
+  L528: if cache is not None:
+  L530: cache.parent.mkdir(parents=True, exist_ok=True)
+  L531: full.to_parquet(cache, index=False)
+  L532: logger.info("DbNSFP: wrote parquet cache → %s", cache)
+  L534: logger.warning("DbNSFP: could not write cache (%s).", exc)

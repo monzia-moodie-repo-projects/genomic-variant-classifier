@@ -1,0 +1,86 @@
+
+
+# ---------------------------------------------------------------------------
+# Fetch-path tests (offline, mocked) -- added with the v6/API URL fix.
+# These close the gap that let a stale v4 URL pass 15/15 while the live build
+# fetched zero structures: no prior test exercised _download_cif.
+# ---------------------------------------------------------------------------
+import importlib.util as _ilu
+
+_BUILDER = Path(__file__).resolve().parents[2] / "scripts" / "build_alphafold_parquet.py"
+
+
+def _load_builder():
+    spec = _ilu.spec_from_file_location("build_alphafold_parquet", _BUILDER)
+    mod = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class _FakeResp:
+    def __init__(self, status=200, text="", payload=None):
+        self.status_code = status
+        self.ok = 200 <= status < 300
+        self.text = text
+        self._payload = payload
+
+    def json(self):
+        if self._payload is None:
+            raise ValueError("no json body")
+        return self._payload
+
+
+_CIF_BODY = (
+    "data_AF-P04637-F1\n#\nloop_\n_atom_site.group_PDB\n_atom_site.type_symbol\n"
+    "ATOM C CA MET 1 0.0 0.0 0.0 90.0\n#\n"
+)
+_CIF_URL = "https://alphafold.ebi.ac.uk/files/AF-P04637-F1-model_v6.cif"
+
+
+def test_download_cif_resolves_api_and_writes_server_version(tmp_path, monkeypatch):
+    bap = _load_builder()
+
+    def fake_get(url, timeout=None, **kw):
+        if "api/prediction" in url:
+            return _FakeResp(200, payload=[{"cifUrl": _CIF_URL}])
+        if url == _CIF_URL:
+            return _FakeResp(200, text=_CIF_BODY)
+        return _FakeResp(404)
+
+    monkeypatch.setattr(bap.requests, "get", fake_get)
+    out = bap._download_cif("P04637", tmp_path)
+    assert out is not None
+    assert out.name == "AF-P04637-F1-model_v6.cif", "must save under server version, not v4"
+    assert out.read_text().lstrip().startswith("data_")
+
+
+def test_download_cif_rejects_non_cif_payload(tmp_path, monkeypatch):
+    bap = _load_builder()
+
+    def fake_get(url, timeout=None, **kw):
+        if "api/prediction" in url:
+            return _FakeResp(200, payload=[{"cifUrl": _CIF_URL}])
+        if url == _CIF_URL:
+            return _FakeResp(200, text="<html><body>404 Not Found</body></html>")
+        return _FakeResp(404)
+
+    monkeypatch.setattr(bap.requests, "get", fake_get)
+    out = bap._download_cif("P04637", tmp_path)
+    assert out is None, "an HTML error page must never be accepted as a CIF"
+    assert list(tmp_path.glob("*.cif")) == [], "nothing may be written on rejection"
+
+
+def test_download_cif_api_miss_returns_none(tmp_path, monkeypatch):
+    bap = _load_builder()
+    monkeypatch.setattr(bap.requests, "get", lambda url, timeout=None, **kw: _FakeResp(404))
+    assert bap._download_cif("NOSUCH", tmp_path) is None
+    assert list(tmp_path.glob("*.cif")) == []
+
+
+def test_resolve_cif_url_reads_current_version(tmp_path, monkeypatch):
+    bap = _load_builder()
+    monkeypatch.setattr(
+        bap.requests, "get",
+        lambda url, timeout=None, **kw: _FakeResp(200, payload=[{"cifUrl": _CIF_URL}]),
+    )
+    assert bap._resolve_cif_url("P04637") == _CIF_URL

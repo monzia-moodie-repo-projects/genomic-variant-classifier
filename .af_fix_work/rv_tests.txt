@@ -1,0 +1,107 @@
+
+
+# ---------------------------------------------------------------------------
+# RSA vectorization guards (added with the O(n) Shrake-Rupley fix).
+# The fast cKDTree+numpy path MUST equal the naive O(n^2) path bit-for-bit,
+# and must be clearly faster (regression tripwire against reverting to O(n^2)).
+# ---------------------------------------------------------------------------
+import random as _random
+import time as _time
+
+
+def _synth_atoms(n_res, seed=7):
+    _random.seed(seed)
+    comps = list(aff._MAX_ASA)
+    elems = ["C", "C", "C", "N", "O", "C", "C", "S"]
+    atoms = []
+    side = int(round(n_res ** (1 / 3))) + 1
+    idx = 0
+    for r in range(1, n_res + 1):
+        cx = (idx % side) * 3.8
+        cy = ((idx // side) % side) * 3.8
+        cz = (idx // (side * side)) * 3.8
+        idx += 1
+        comp = comps[r % len(comps)]
+        for k in range(8):
+            atoms.append({
+                "element": elems[k], "comp": comp, "seq_id": r,
+                "x": cx + _random.uniform(-1.5, 1.5),
+                "y": cy + _random.uniform(-1.5, 1.5),
+                "z": cz + _random.uniform(-1.5, 1.5),
+            })
+    return atoms
+
+
+def _rsa_naive(atoms):
+    """Independent O(n^2) reference: the pre-optimization Shrake-Rupley, inline."""
+    import math as _m
+    n = len(atoms)
+    radii = [aff._VDW_RADII.get(a["element"], aff._DEFAULT_VDW) + aff._WATER_PROBE for a in atoms]
+    xs = [a["x"] for a in atoms]
+    ys = [a["y"] for a in atoms]
+    zs = [a["z"] for a in atoms]
+    sasa_res = {}
+    for i in range(n):
+        ri = radii[i]
+        xi, yi, zi = xs[i], ys[i], zs[i]
+        neigh = []
+        for j in range(n):
+            if j == i:
+                continue
+            cutoff = ri + radii[j]
+            dx = xi - xs[j]
+            dy = yi - ys[j]
+            dz = zi - zs[j]
+            if dx * dx + dy * dy + dz * dz < cutoff * cutoff:
+                neigh.append(j)
+        accessible = 0
+        for (sx, sy, sz) in aff._SPHERE:
+            px = xi + ri * sx
+            py = yi + ri * sy
+            pz = zi + ri * sz
+            buried = False
+            for j in neigh:
+                dx = px - xs[j]
+                dy = py - ys[j]
+                dz = pz - zs[j]
+                if dx * dx + dy * dy + dz * dz < radii[j] * radii[j]:
+                    buried = True
+                    break
+            if not buried:
+                accessible += 1
+        area = 4.0 * _m.pi * ri * ri * accessible / float(len(aff._SPHERE))
+        seq = atoms[i]["seq_id"]
+        sasa_res[seq] = sasa_res.get(seq, 0.0) + area
+    comp = aff.per_residue_comp(atoms)
+    rsa = {}
+    for seq, sasa in sasa_res.items():
+        max_asa = aff._MAX_ASA.get(comp.get(seq, ""), None)
+        if not max_asa:
+            rsa[seq] = aff.DEFAULT_RSA
+            continue
+        raw = sasa / max_asa
+        if raw < 0.0 or raw > aff._RSA_FAIL_LOUD_MAX:
+            raise aff.CIFParseError("naive reference geometry failure")
+        rsa[seq] = min(1.0, max(0.0, raw))
+    return rsa
+
+
+def test_rsa_vectorized_matches_naive_reference():
+    atoms = _synth_atoms(120)
+    fast = aff.per_residue_rsa(atoms)
+    slow = _rsa_naive(atoms)
+    assert set(fast) == set(slow), "residue key sets diverge"
+    maxdiff = max(abs(fast[k] - slow[k]) for k in fast)
+    assert maxdiff < 1e-12, f"vectorized RSA diverges from naive by {maxdiff:.2e}"
+
+
+def test_rsa_empty_input_returns_empty():
+    assert aff.per_residue_rsa([]) == {}
+
+
+def test_rsa_performance_beats_naive():
+    """Regression tripwire: reverting to O(n^2) makes fast==naive (ratio ~1.0)."""
+    atoms = _synth_atoms(500)
+    t = _time.time(); aff.per_residue_rsa(atoms); t_fast = _time.time() - t
+    t = _time.time(); _rsa_naive(atoms); t_slow = _time.time() - t
+    assert t_fast < 0.80 * t_slow, f"fast={t_fast:.2f}s not < 0.80*naive={t_slow:.2f}s (O(n^2) regression?)"

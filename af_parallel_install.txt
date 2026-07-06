@@ -1,0 +1,16 @@
+=== Install_alphafold_parallel (v3) :: preflight ===
+backup builder SHA256: EE698BBAF9CC7A35BDD058DDB05D7E60C334F29589213C068A88112A9F0C5A2E
+=== applying patch (6 guarded edits) ===
+6 guarded edits applied
+=== post-check 1: byte-compile ===
+compile OK
+=== post-check 2: full AF unit suite (expect 25 passed, 0 skipped) ===
+.........................                                                [100%]
+25 passed in 62.85s (0:01:02)
+
+25 passed, 0 skipped -- OK
+=== post-check 3: LIVE identity gate (50-gene: --workers 1, then 8; STREAMS progress) ===
+--- run A: --workers 1 (serial) ---
+2026-07-03 00:20:54,119 INFO cohort missense genes: 19383
+2026-07-03 00:20:54,457 INFO resolved to accession: 18302 ; unresolvable: 1081
+2026-07-03 00:20:54,501 INFO --max-genes: limiting to 50 genes

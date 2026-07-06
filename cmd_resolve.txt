@@ -1,0 +1,67 @@
+=== RUN17_SCOPE.md L149-195 (full second command block + notes) ===
+149: python scripts/run_phase2_eval.py `
+150:   --clinvar data\processed\clinvar_grch38.parquet `
+151:   --gnomad data\processed\gnomad_v4_exomes.parquet `
+152:   --spliceai data\external\spliceai\spliceai_index.parquet `
+153:   --alphamissense <alphamissense_index> `
+154:   --gnomad-constraint data\external\gnomad\gnomad.v4.1.constraint_metrics.tsv `
+155:   --dbnsfp-path data\external\dbnsfp\dbnsfp_clinvar_index.parquet `
+156:   --string-db auto `
+157:   --kg <1000G_phase3_AF.parquet> `
+158:   --unseen-gene-holdout `
+159:   --n-folds 5 `
+160:   --output outputs\run17
+161: ```
+162: (On the GPU box, paths are the symlinked `/workspace/...` equivalents.)
+163: 
+164: ---
+165: 
+166: ## 5. Open decisions & risks (resolve before launch)
+167: - **`<DECISION>` — `n_pathogenic_in_gene` computation scope** (roadmap §5): confirm
+168:   train-only-per-fold vs corpus-wide; if corpus-wide, recompute train-only to close the
+169:   leakage question the UGH 0.9988 result left open. **Gate A blocks on this.**
+170: - **1000G parquet existence** (Gate C): if absent → Run 17 = `gnn_score` only; `af_1kg_*`
+171:   slips to Run 18.
+172: - **GNN local smoke feasibility** (Gate D): probe first; may force the smoke onto GPU.
+173: - **`DEFAULT_MATRIX` footgun** (Gate B): repoint or always pass `--matrix`.
+174: 
+175: ---
+176: 
+177: ## 6. Post-run documentation (non-negotiable, roadmap §7)
+178: - [ ] `docs/CHANGELOG.md` append (Attempted/Failed/Fixed/Learned).
+179: - [ ] `docs/sessions/SESSION_2026-…_run17.md`.
+180: - [ ] Per-model algorithm comparison + metrics glossary update (`docs/METRICS.md`).
+181: - [ ] `docs/ROADMAP.md` §3 snapshot + §9 changelog updated; Run 17 sealed-commit recorded.
+182: - [ ] If `gnn_score`/`af_1kg_*` now real: move them out of the "deferred/constant" census line.
+183: 
+184: 
+185: ---
+186: 
+187: ## AUDIT ADDENDUM 2026-06-14 (launch-readiness audit @ HEAD 7c444d6)
+188: 
+189: A full readiness audit was run before launch. Verdict: **NOT a one-command go yet** -- the
+190: entrypoint and gating code are ready, but af_1kg_* activation depends on data that is not on disk,
+191: and Gate F had no script. Findings, each verified against the code (not memory):
+192: 
+193: - **Entrypoint VERIFIED.** scripts/run_phase2_eval.py carries every Run-17 flag: --kg (L66),
+194:   --string-db (L62), --unseen-gene-holdout (L119), --max-train (L127), --gnomad-constraint,
+195:   --dbnsfp-path, plus GNN knobs (--layer-type/--edge-denoise/--hetero-gnn/--kg-edges). The earlier
+
+=== resolve placeholder paths ===
+  alphamissense_index         : data/processed/alphamissense_index.parquet
+  clinvar_grch38 (eval input) : data/processed/clinvar_grch38.parquet
+  1kg_af                      : data/external/1kgp/kg_grch38_af.parquet
+  gnomad_exomes               : data/processed/gnomad_v4_exomes.parquet
+  rnaseq_dir                  : NONE of ['data/external/rnaseq']
+  reactome_gmt                : data/external/reactome/ReactomePathways.gmt
+  clingen_csv                 : data/external/clingen/gene_disease_validity_curations.csv
+  omim_genemap2               : data/external/omim/genemap2.txt
+  finngen_r12                 : data/external/finngen/finnge_R12_annotated_variants_v1.gz
+  finngen_r13                 : data/external/finngen/finngen_R13_annotated_variants_v0.gz
+  dbnsfp_full                 : data/external/dbnsfp/dbnsfp_full_index.parquet
+  dbnsfp_clinvar              : data/external/dbnsfp/dbnsfp_clinvar_index.parquet
+  dbsnp_cohort                : data/external/dbsnp/dbsnp157_cohort.parquet
+  alphafold_cohort            : data/external/alphafold/alphafold_cohort.parquet
+  alphafold_uniprot_index     : data/external/uniprot/uniprot_human_reviewed.parquet
+  gnomad_constraint           : data/external/gnomad/gnomad.v4.1.constraint_metrics.tsv
+  spliceai_index              : data/external/spliceai/spliceai_index.parquet

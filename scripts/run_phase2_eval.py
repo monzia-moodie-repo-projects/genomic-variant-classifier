@@ -54,6 +54,9 @@ def parse_args(argv=None) -> argparse.Namespace:
     p.add_argument("--gnomad", default=None)
     p.add_argument("--spliceai", default=None)
     p.add_argument("--alphamissense", default=None)
+    p.add_argument("--cosmic-path", default=None, help="COSMIC CMC AllData TSV (.tsv.gz), GRCh38 somatic-recurrence features")
+    p.add_argument("--kegg-path", default=None, help="KEGG gene->pathway parquet (kegg_gene_pathways.parquet)")
+    p.add_argument("--alphamissense-tsv", default=None, help="Raw AlphaMissense TSV (.tsv.gz) for protein-coordinate extraction; defaults to the canonical data/external/alphamissense/AlphaMissense_hg38.tsv.gz")
     p.add_argument(
         "--esm2-uniprot-index",
         default=None,
@@ -346,7 +349,11 @@ def main() -> int:
         ann = AnnotationConfig(
             spliceai_path=Path(args.spliceai) if args.spliceai else None,
             esm2_uniprot_index_path=_esm2_index,
+            genomiclm_seq_windows_path=(Path(args.seq_windows) if getattr(args, "seq_windows", None) else None),
+            cosmic_path=Path(args.cosmic_path) if getattr(args, "cosmic_path", None) else None,
+            kegg_path=Path(args.kegg_path) if getattr(args, "kegg_path", None) else None,
             alphamissense_path=Path(args.alphamissense) if args.alphamissense else None,
+        alphamissense_tsv_path=(Path(args.alphamissense_tsv) if args.alphamissense_tsv else Path(r"data/external/alphamissense/AlphaMissense_hg38.tsv.gz")),
             gtex_genes=args.gtex_genes or [],
             gtex_path=Path(args.gtex_path) if args.gtex_path else None,
             kg_path=Path(args.kg) if args.kg else None,

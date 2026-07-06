@@ -1,0 +1,50 @@
+=== A. _download_cif verbatim (96-118) ===
+96:     return {g: gmap[g] for g in genes if g in gmap}
+97: 
+98: 
+99: def _download_cif(accession: str, cache_dir: Path) -> Optional[Path]:
+100:     """Download+cache an AlphaFold CIF; reuse if present. Returns path or None."""
+101:     cache_file = cache_dir / f"AF-{accession}-F1-model_v4.cif"
+102:     if cache_file.exists() and cache_file.stat().st_size > 0:
+103:         return cache_file
+104:     url = ALPHAFOLD_CIF_URL.format(accession=accession)
+105:     try:
+106:         resp = requests.get(url, timeout=_REQUEST_TIMEOUT)
+107:     except Exception as exc:
+108:         logger.debug("download failed for %s: %s", accession, exc)
+109:         return None
+110:     if not resp.ok or not resp.text:
+111:         return None
+112:     cache_file.write_text(resp.text, encoding="utf-8")
+113:     time.sleep(_POLITE_DELAY_S)
+114:     return cache_file
+115: 
+116: 
+117: def _fetch_active_sites(accession: str, cache_dir: Path) -> list[int]:
+118:     """UniProt active/binding-site residue positions (cached JSON). [] on failure."""
+
+=== B. request constants + any status guard ===
+73: _REQUEST_TIMEOUT = 30
+74: _MIN_FREE_GB = 5.0            # mid-run disk guard threshold
+110: if not resp.ok or not resp.text:
+131: if resp.ok:
+
+=== C. live version + API probe (P04637 = TP53) ===
+DIRECT v4 status=404 content_length=127
+DIRECT v5 status=404 content_length=127
+DIRECT v6 status=200 content_length=79398
+API status 200
+API keys: ['allVersions', 'amAnnotationsHg19Url', 'amAnnotationsHg38Url', 'amAnnotationsUrl', 'bcifUrl', 'chainId', 'cifUrl', 'entityType', 'entryId', 'fractionPlddtConfident', 'fractionPlddtLow', 'fractionPlddtVeryHigh', 'fractionPlddtVeryLow', 'gene', 'globalMetricValue', 'isComplex', 'isReferenceProteome', 'isReviewed', 'isUniProt', 'isUniProtReferenceProteome', 'isUniProtReviewed', 'latestVersion', 'modelCreatedDate', 'modelEntityId', 'msaUrl', 'organismScientificName', 'paeDocUrl', 'paeImageUrl', 'pdbUrl', 'plddtDocUrl', 'providerId', 'sequence', 'sequenceChecksum', 'sequenceEnd', 'sequenceStart', 'sequenceVersionDate', 'taxId', 'toolUsed', 'uniprotAccession', 'uniprotDescription', 'uniprotEnd', 'uniprotId', 'uniprotSequence', 'uniprotStart']
+  sequenceVersionDate = 2009-11-24T00:00:00Z
+  latestVersion = 6
+  allVersions = [1, 2, 3, 4, 5, 6]
+  bcifUrl = https://alphafold.ebi.ac.uk/files/AF-P04637-F1-model_v6.bcif
+  cifUrl = https://alphafold.ebi.ac.uk/files/AF-P04637-F1-model_v6.cif
+  pdbUrl = https://alphafold.ebi.ac.uk/files/AF-P04637-F1-model_v6.pdb
+  paeImageUrl = https://alphafold.ebi.ac.uk/files/AF-P04637-F1-predicted_aligned_error_v6.png
+  msaUrl = https://alphafold.ebi.ac.uk/files/msa/AF-P04637-F1-msa_v6.a3m
+  plddtDocUrl = https://alphafold.ebi.ac.uk/files/AF-P04637-F1-confidence_v6.json
+  paeDocUrl = https://alphafold.ebi.ac.uk/files/AF-P04637-F1-predicted_aligned_error_v6.json
+  amAnnotationsUrl = https://alphafold.ebi.ac.uk/files/AF-P04637-F1-aa-substitutions.csv
+  amAnnotationsHg19Url = https://alphafold.ebi.ac.uk/files/AF-P04637-F1-hg19.csv
+  amAnnotationsHg38Url = https://alphafold.ebi.ac.uk/files/AF-P04637-F1-hg38.csv

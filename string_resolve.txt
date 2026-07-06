@@ -1,0 +1,60 @@
+=== StringDBGraph: how 'auto' resolves (download? cache path?) ===
+  L70: """Builds a NetworkX protein-interaction graph from STRING DB."""
+  L72: def __init__(
+  L74: cache_dir: Path = Path("data/raw/cache"),
+  L76: local_links_path: Optional[Path] = None,
+  L77: local_info_path: Optional[Path] = None,
+  L79: self.cache_dir = Path(cache_dir)
+  L80: self.cache_dir.mkdir(parents=True, exist_ok=True)
+  L82: self.local_links_path = Path(local_links_path) if local_links_path else None
+  L83: self.local_info_path = Path(local_info_path) if local_info_path else None
+  L85: self._protein_to_gene: dict[str, str] = {}
+  L87: def _download_gz(self, url: str, sep: str = " ") -> pd.DataFrame:
+  L95: def _save_graph(self, G: nx.Graph, path: Path) -> None:
+  L96: with open(path, "wb") as fh:
+  L99: def _load_graph(self, path: Path) -> nx.Graph:
+  L100: with open(path, "rb") as fh:
+  L103: def _load_protein_names(self) -> dict[str, str]:
+  L104: cache = self.cache_dir / "string_names.parquet"
+  L105: if cache.exists():
+  L106: df = pd.read_parquet(cache)
+  L107: elif self.local_info_path and self.local_info_path.exists():
+  L108: logger.info("Loading STRING protein info from %s", self.local_info_path)
+  L111: with _gz.open(self.local_info_path, "rt") as fh:
+  L113: df.to_parquet(cache, index=False)
+  L115: df = self._download_gz(STRING_NAMES_URL, sep="\t")
+  L116: df.to_parquet(cache, index=False)
+  L118: "#string_protein_id"
+  L119: if "#string_protein_id" in df.columns
+  L126: cache_path = self.cache_dir / f"string_graph_{self.threshold}.pkl"
+  L127: if cache_path.exists() and not force_refresh:
+  L128: logger.info("Loading cached STRING graph from %s", cache_path)
+  L129: self.graph = self._load_graph(cache_path)
+  L132: self._protein_to_gene = self._load_protein_names()
+  L134: cache_links = self.cache_dir / "string_links.parquet"
+  L135: if cache_links.exists() and not force_refresh:
+  L136: links_df = pd.read_parquet(cache_links)
+  L137: elif self.local_links_path and self.local_links_path.exists():
+  L138: logger.info("Loading STRING links from %s", self.local_links_path)
+  L141: with _gz.open(self.local_links_path, "rt") as fh:
+  L142: links_df = pd.read_csv(fh, sep=" ")
+  L143: links_df.to_parquet(cache_links, index=False)
+  L145: links_df = self._download_gz(STRING_URL)
+  L146: links_df.to_parquet(cache_links, index=False)
+  L148: logger.info("Raw interactions: %d", len(links_df))
+  L149: links_df = links_df[links_df["combined_score"] >= self.threshold]
+  L150: logger.info("After threshold=%d: %d edges.", self.threshold, len(links_df))
+  L154: if ch not in links_df.columns:
+  L155: links_df[ch] = 0
+  L158: for _, row in links_df.iterrows():
+  L159: p1 = self._protein_to_gene.get(row["protein1"], row["protein1"])
+  L160: p2 = self._protein_to_gene.get(row["protein2"], row["protein2"])
+  L171: self._save_graph(G, cache_path)
+  L173: "STRING graph: %d nodes, %d edges. Saved to %s.",
+  L174: G.number_of_nodes(), G.number_of_edges(), cache_path,
+  L199: A single protein-interaction graph plus the labeled focal-gene samples.
+
+=== STRING files anywhere under data/ ===
+  data\external\string\9606.protein.info.v12.0.txt.gz  (2.0 MB)
+  data\external\string\9606.protein.links.detailed.v12.0.txt.gz  (139.6 MB)
+  data\raw\cache\string_graph_700.pkl  (18.1 MB)

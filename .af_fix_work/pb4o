@@ -1,0 +1,3 @@
+    n_total = len(acc_map)
+    for _i_gene, (gene, acc) in enumerate(acc_map.items(), 1):
+        logger.info("gene %d/%d: %s (%s)", _i_gene, n_total, gene, acc)

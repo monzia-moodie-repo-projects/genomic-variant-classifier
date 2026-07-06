@@ -1,0 +1,83 @@
+=== Section 5 Immediate plan + Section 8 Blockers (lines 80-160) ===
+80: # 5. Immediate plan
+81: 
+82: - **ESM-2 coverage (RESOLVED 2026-06-10):** the ~3,451 cap was a stale AlphaMissense protein-coord index on the training box, not an HGVSp-parser gap (protein_pos/wt_aa/mut_aa are populated by step 10b; hgvsp_parser.py / protein_coords.py already exist). Coverage gate shipped (34e125a; local ceiling 96.6%); Run 16 prereq is an operational coord-index sync. Method/model migration to LLR + ESM-2 650M -> ESM C 600M now in progress (Phase 1).
+83: 
+84: - **n_pathogenic_in_gene computation-scope audit (RESOLVED 2026-06-13):** was corpus-wide; recomputed train-only at Level 1 (data prep, 689787f) and Level 2 (stacking OOF, 6b38985). Lone-feature probe 0.7181 -> ~0.50; leaky vs leak-free inner-OOF 0.7755 vs 0.6633. Run-17 Gate-A leakage decision CLOSED.
+85: 
+86: - **clingen_validity_score dtype drift (RESOLVED 2026-06-13):** both builders cast to float (variant_ensemble.engineer_features and real_data_prep._engineer_features, the latter with a "match inference builder" comment); verified aligned -- no regen blocker remains.
+87: 
+88: - Remaining Phase-D connectors: AlphaFold-structure stub steps (data + config), then build COSMIC / TCGA / KEGG. (dbSNP DONE+VERIFIED 2026-06-26; see the dbSNP row above and the 2026-07-01 end-to-end coverage audit.)
+89: 
+90: - **Heterogeneous-KG modeling track (2026-06-13):** hetero-GNN ENGINE done (models/hetero_gnn.py, HeteroConv multi-relation gene graph, 54158f7) + KG edge-connectors done (data/kg_edges.py co-membership primitive + Reactome/KEGG/GO/OMIM/ClinGen adapters, 8c19f9b). SCORER + SCHEMA DONE 2026-06-13: HeteroGNNScorer (547e2dc, mirrors GNNScorer; torch-free assembly + PyG train/score) and hetero_gnn_score landed as the 82nd feature (Option A -- SEPARATE from gnn_score to preserve the homogeneous-vs-heterogeneous comparison; EXPECTED_TABULAR_FEATURE_COUNT 81->82, both builders lockstep, reactome stays last; contract green, suite 1000). EVAL-OVERWRITE DONE 2026-06-14 (a54ef38): run_phase2_eval --hetero-gnn + --kg-edges source:path builds HeteroGNNScorer from STRING interacts_with + KG relations and overwrites hetero_gnn_score per split (opt-in; until run with the flag it stays the 0.5 default, mirroring gnn_score). ONLY REMAINING (Run-17): schema_baseline regen 81->82 from the real matrix.
+91: - **af_1kg_* ACTIVE (2026-06-15):** kg_grch38_af.parquet built chr1-22 + X (437,668 variants, 6.7 MB) via build_1kg_parquet.py per-chr shards + merge; activate via --kg. chrY/MT not in the 1000G high-coverage panel (404-confirmed -> af_1kg=0 for 3,191 Y + 3,124 MT cohort variants; gnomAD Y/MT allele_freq RESOLVED 2026-06-16). WIRED 2026-06-13 (a0ce407).
+92: - **gnomAD Y/MT allele_freq ACTIVE (2026-06-16):** PAR canonicalisation fix -- gnomAD reports PAR variants on X, ClinVar on Y; `y_key()` remaps PAR1 X->Y identical + PAR2 X-98,813,480 + MSY pass-through. `build_gnomad_ymt_af.py` merges Y/MT frequencies into `gnomad_v4_exomes.parquet`: Y 1047/3155 (33% = honest gnomAD ceiling; remainder = gnomAD-uncalled Y positions + 264 na:na structural), MT 2731/3124 (87%). Commit 112967d.
+93: - **LiteratureScout broadened (2026-06-13, a42e723 + a9c0326):** provenance (authors/publication_date/journal across PubMed/bioRxiv/ClinGen/Zenodo) + new Zenodo source (_fetch_zenodo) + PubMed queries 11->19 / keywords 32->46 into architecture/methodology gaps + journal allow-list relevance boost. +8 tests.
+94: 
+95: - One comprehensive GPU regen after the accessible public connectors are wired; measure-first probe; ALL-MODELS smoke before any billable retrain.
+96: 
+97: # 6. Modeling & infra roadmap
+98: 
+99: - Ensemble: RF, XGBoost, LightGBM, SVM (nystrom + bagged_rbf), LR, GBM, 1D-CNN, TabularNN + meta-learner; CatBoost; MC-Dropout; Deep Ensemble; KAN. Per-model comparison every run.
+100: 
+101: - GNN (Phase D/A): bf16 AMP, PyG SparseTensor/CSR, GraphGPS, Laplacian PE/RWSE, 3-channel STRING weights. GPU-only; 2-epoch probe first.
+102: 
+103: - CatBoost GPU-memory hardening (empty_cache between families / expandable_segments / order before torch models).
+104: 
+105: - Performance (P): Polars; Rust inference service. Advanced (A): Julia, VAE, Bayesian UQ. Productionization (X): REST API, Docker, clinical eval/report.
+106: 
+107: # 7. Standing disciplines
+108: 
+109: - Pre-flight gate; local mini-test before cloud; goal realignment each run.
+110: 
+111: - Measure-first (no estimates without a probe); ALL-MODELS smoke before training.
+112: 
+113: - Incremental checkpointing; irreversible/cloud cmds in separate re-paste blocks.
+114: 
+115: - Count-guarded, backup-first, idempotent, sandbox-validated patchers; byte-IO on Windows.
+116: 
+117: - **Background launch over SSH uses `< /dev/null`; read-only SSH checks use `-n -o ConnectTimeout=20 -o BatchMode=yes`; single-quoted SSH bodies; single-word grep patterns.**
+118: 
+119: - Document every run (algorithm comparison + metrics glossary); keep this roadmap current.
+120: 
+121: - Never drop models/features; scope ambiguity -> STOP + ask with options + pros/cons.
+122: 
+123: # 8. Blockers
+124: 
+125: - HGMD Professional - procurement; REVEL/VEST4/FATHMM/MutPred2 not labels if HGMD is a label source.
+126: 
+127: - dbGaP / TOPMed / controlled-TCGA / CPTAC-protected - need institutional Signing Official; blocked w/o R1 faculty sponsor.
+128: 
+129: - EVE - needs score files + HGVSp coords before eve_score is real.
+130: 
+131: # 9. Changelog
+132: 
+133: - 2026-06-13 (session 2, pandas-3.0 future-proofing & agent hardening): four commits; full suite 924 -> 956 passed / 6 skipped, zero new warnings.
+134:   * Null-safe, pandas-version-stable variant/merge key construction (commit 36348fd): module-level _variant_key() maps missing alleles to a "" sentinel BEFORE astype(str), and the gnomAD merge keys now match the SpliceAI fillna("") pattern. Byte-identical keys validated under pandas 2.3.3 AND 3.0.2. DEFENSE-IN-DEPTH only: the clean-cohort guard (real_data_prep.py L378-390, INCIDENT_2026-05-31) already raises on null ref/alt, so the 3.0 key-collapse was already mitigated in production; this removes reliance on that guard. +4 tests.
+135:   * VersionMonitorAgent extended to watch Python + ALL installed packages + the PyG companion ABI (commit 8ff2310): _check_python (running vs latest patch/series/EOL via endoflife.date), _check_dependencies (pip list --outdated; _is_major_bump flags major jumps e.g. pandas 2->3), _check_pyg_abi (import-tests torch_scatter/torch_sparse, catching the OSError / 0xc0000139 ABI break it previously missed). 5 -> 8 watch targets; all new state under literature_scout.*; no roster/coordinator change. +13 tests. First live run: pandas 2.3.3 -> 3.0.3 flagged [deps:major] (migration now self-monitoring); torch 2.11 -> 2.12 correctly NOT major; pyg_abi_alert empty (companions absent post-fix); 99 outdated / 19 major bumps.
+136:   * dtype-family-aware schema gate (commit 37d60be): _dtype_family() collapses the string family (object/string/str/pyarrow variants) to one token and is IDENTITY for every numeric dtype; wired into hash_schema + detect + the pandera schema. object<->pandas-3.0 string no longer reads as drift, while float64<->int64 is still RED. The committed baseline (81x float64) hashes IDENTICALLY -> NO rebuild. Validated end-to-end under real pandas 2.3.3 + pandera 0.31.1. +5 tests. data/agent_state.json gitignored (runtime state).
+137:   * FINDING -- neither named "pandas-3.0 blocker" is actually live: (a) the variant-key collapse is clean-cohort-guard-mitigated; (b) the schema baseline is 81/81 float64, so the object->string flip cannot occur on the current matrix. Both fixes are defense-in-depth, NOT live-bug fixes; this corrects the earlier "unmitigated blocker" framing. pandas stays PINNED at 2.3.3; the migration is future scope, now agent-monitored.
+138:   * RESOLVES the two "Carried" items from the 2026-06-13 (variance mask) entry below: (a) test_ablate_gnn now PASSES locally (3 passed) after uninstalling the mismatched torch_scatter 2.1.2+pt25cu124 / torch_sparse wheels -> PyG falls back to native scatter (ENV-ONLY, no commit; the Vast.ai GPU box keeps its CUDA companions); now guarded by the VersionMonitorAgent pyg_abi watch so it cannot silently recur. (b) the .fillna downcasting FutureWarning was fixed in commit 4d56423 (@_suppress_fillna_downcast on both feature builders; suite warnings 220 -> 41).
+139:   * Run 17 pre-flight gate authored (commit 94bf6ae; docs/runs/RUN17_SCOPE.md): activates gnn_score (--string-db auto) + af_1kg_* (--kg <1000G Phase-3 AF parquet>) via scripts/run_phase2_eval.py (NOT train.py). Corrected flag discrepancies: the real flag is --kg (a parquet), not --kg-path (a VCF). VALUE activation only -> 81-col schema + hash unchanged; no baseline rebuild.
+140:   * FINDING -- schema baseline provenance + DEFAULT_MATRIX footgun: the committed schema_baseline.json was captured from models/smoke_run16b/splits/X_train.parquet (run16b-smoke, 81 cols) and is GREEN against that matrix; it is RED against outputs/run15_rerun_report/full/splits/X_train.parquet, which is STALE (78 cols; predates esm2_llr / maxentscan_delta / reactome_pathway_count). build_schema_baseline.py DEFAULT_MATRIX still points at the stale run15 path, so a no-arg rebuild would regress 81 -> 78. Fixed in a follow-up (--matrix required + column-count regression guard).
+141:   * RESOLVED <DECISION> (2026-06-13): n_pathogenic_in_gene is now train-only at Level 1 (689787f) and Level 2 (6b38985); the Run-17 Gate-A leakage decision is CLOSED. Lone-feature probe 0.7181 -> ~0.50; leaky vs leak-free inner-OOF 0.7755 vs 0.6633.
+142: - 2026-06-13: neural variance mask landed (commit 5de7806); 81->51 schema trim attempted then REVERTED.
+143:   * Run 16 census: 37/81 matrix columns constant on the gene-disjoint test split (29 unpopulated/stub/blocked, codon_position == protein_pos, plus deferred gnn_score / af_1kg_* / sparse-real is_mitochondrial / lovd_variant_class).
+144:   * Attempted to relocate 30 columns TABULAR_FEATURES -> PHASE_2_FEATURES (81->51), unifying both feature builders on a fail-loud select. Unit-green (contract + test_api at 51/80) but the full suite raised 40 failures across 10 files. Those are the deliberate Phase-4 contract (fully-promoted schema + connector->matrix wiring + safe defaults; the *_in_tabular_features / *_flows_into_feature_matrix / phase_2_is_empty tests are silent-failure guards). REVERTED; schema stays 81-col.
+145:   * Learned: a constant column is a data-availability state, not dead code. The real risk (constant neural inputs) is handled in the MODEL layer: TabularNNClassifier learns a fit-time variance mask (var>0) applied at predict, inherited by mc_dropout/deep_ensemble; cnn_1d/trees/LR/CatBoost/KAN untouched. No schema/contract/inference/schema-baseline change; backward-compatible with pre-mask pickles; no OOF leakage (per-fold recompute). Suite 924 passed / 6 skipped, zero new warnings. See docs/design/neural_variance_mask.md and docs/sessions/SESSION_2026-06-13_feature-trim-and-variance-mask.md.
+146:   * Carried: test_ablate_gnn skips locally on torch_scatter/torch_sparse 0xc0000139 (GNN coverage absent on the Windows box) -- confirm runnable before Run 17 activates gnn_score; pandas .fillna downcasting FutureWarning in variant_ensemble.py wants an explicit cast.
+147: - 2026-06-10: ESM-2 coverage root-caused + gated; UniProt gap measured; protein-LM upgrade decided; roadmap consolidated.
+148:   * ESM-2 ~3,451-of-2.49M coverage cap was a STALE AlphaMissense protein-coord index on the training box -- NOT the HGVSp parser. Local coord index covers 96.6% of missense. Step-10b fail-loud coverage gate shipped (commit 34e125a). Run 16 prereq is an operational coord-index sync, not parser work. SUPERSEDES the Section 4B "gated on HGVSp parser" line and the Section 5 "HGVSp parser (highest leverage)" item: protein_pos/wt_aa/mut_aa are already populated by step 10b from AlphaMissense, and hgvsp_parser.py / protein_coords.py already exist.
+149:   * UniProt gene-symbol gap measured at 0.27% (6,742/2.49M missense; index healthy at 20,190 genes; MYH11/NDE1 PRESENT). "MYH11;NDE1" was a semicolon-joined multi-gene symbol, not a missing gene. Not a blocker; observability patch (aggregate unmatched-gene logging + safe ;-split) planned (Phase 0).
+150:   * Protein-LM upgrade decision (research-backed): switch scoring METHOD embedding-delta -> log-likelihood-ratio (LLR, WT-marginal); switch MODEL esm2_t6_8M -> ESM-2 650M baseline (config-only via ESM2_MODEL_NAME; facebook/{name} mapping confirmed in _load_transformers_model) -> ESM C 600M (Cambrian Non-Commercial License; "Built with ESM" attribution). esm2_delta_norm demoted to SECONDARY; new esm2_llr primary feature (feature count +1, lockstep). ESM3-open / ESM C 6B reserved as future escalation. Cloud: RunPod added alongside Vast.ai (provider-agnostic layer; pin one provider during validation).
+151:   * Roadmap consolidation: the pre-rebaseline repo-root ROADMAP.md archived verbatim into Appendix A and removed from repo root; *.bak_* gitignored; README live-link disambiguated. Single ground-truth living roadmap.
+152:   * Phase 0 (commit fd5e293): shared gene_symbols.py resolution helper wired into esm2/eve/protein_pipeline; aggregate missing-gene logging; fixed a real eve case-drift bug; safe ;-join recovery. Suite 849 passed.
+153:   * Phase 1: ESM-2 650M LLR scorer (annotate_llr; EsmForMaskedLM logits head; WT-marginal default, masked opt-in) + esm2_llr feature wired (TABULAR_FEATURES 79->80, both assembly sites, SIGNED/NOT clipped; INFERENCE_FEATURE_COLUMNS auto-derived). CPU sign/index gate PASS (TP53 hotspots negative; benign P72R less negative). CALIBRATION: LLR sign != class -> continuous feature (no hard cutoff). Harness reference slice populates esm2_llr (live, NOT allowlisted). Suite 862 passed / 1 skipped. Model default stays 8M; regen sets esm2_model_name=esm2_t33_650M_UR50D (visible in step-16b log).
+154: - 2026-06-09 (v2): Run 15 sealed (Test 0.9984 / Val 0.9983 / UGH 0.9988). ESM-2 stall fixed + shipped (local index + GPU), but coverage ~3,451 -> HGVSp parser promoted to top Phase-D item. AlphaMissense OOM re-validated. gene_constraint_oe revived (#2 feature); gnn_score confirmed real; cnn_1d/kan recovered. Infra lessons (SSH stdin-detach, fast-fail flags, poll-bail bug) recorded. clingen dtype drift flagged.
+155: 
+156: - 2026-06-08 (v1 re-baseline): roadmap reconstructed; phase model proposed; data-source registry added (incl. out-of-scope determinations + dbGaP clarification); split-health audit + constraint vestige recorded; ESM-2 GPU-regen plan set.
+157: 
+158: 
+159: ---
+160: 
+161: ## Appendix A -- Archived pre-rebaseline roadmap (Mar-May 2026, SUPERSEDED)

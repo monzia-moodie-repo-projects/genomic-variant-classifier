@@ -1,0 +1,11 @@
+=== D: drive details ===
+
+DriveLetter FileSystemLabel FileSystem DriveType FreeGB TotalGB
+----------- --------------- ---------- --------- ------ -------
+          D My Passport     exFAT      Fixed     676.00  931.30
+
+
+=== confirm D: is writable + not the same as C: ===
+D: is writable
+=== largest FinnGen file (must fit filesystem per-file limit) ===
+FinnGen R12 = 29.9GB, R13 = 27.7GB (both >4GB -> FAT32 would FAIL; need exFAT or NTFS)

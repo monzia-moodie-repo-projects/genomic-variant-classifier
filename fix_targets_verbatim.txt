@@ -1,0 +1,262 @@
+===== phylop HEADER/imports :: src/genomic_variant_classifier/data/phylop.py L1-20 (file has 328 lines) =====
+1: """
+2: src/genomic_variant_classifier/data/phylop.py
+3: ==================
+4: PhyloP evolutionary conservation score connector.
+5: Phase 2, Pillar 1, Connector 5.
+6: 
+7: PhyloP (Phylogenetic P-values) measures conservation at individual genomic
+8: positions by comparing observed versus expected substitution rates under a
+9: neutral model across 100 vertebrate genomes (phyloP100way, GRCh38).
+10: 
+11:     Score > 0   conserved      (slower evolution than expected)
+12:     Score = 0   neutral
+13:     Score < 0   accelerated    (faster evolution than expected)
+14:     Range:       approximately −30 to +30
+15: 
+16: Data source — manual download required (~9 GB BigWig, or pre-extracted TSV):
+17:     BigWig:  https://hgdownload.soe.ucsc.edu/goldenPath/hg38/phyloP100way/
+18:              hg38.phyloP100way.bw
+19:     Pre-extracted TSV (recommended for this pipeline):
+20:              Produce with bigWigToWig or extract via pyBigWig/pybigtools.
+
+===== phylop _query_bigwig FULL :: src/genomic_variant_classifier/data/phylop.py L226-243 (file has 328 lines) =====
+226:     def _query_bigwig(self, chrom: str, pos: int, missing_value: float) -> float:
+227:         """Fetch a single position from the BigWig file (1-based pos → 0-based interval)."""
+228:         try:
+229:             bw = self._open_bigwig()
+230:             # pyBigWig / pybigtools use 0-based half-open intervals
+231:             chrom_bw = f"chr{chrom}" if not chrom.startswith("chr") else chrom
+232:             if self._bw_type == "pybigwig":
+233:                 vals = bw.values(chrom_bw, pos - 1, pos)
+234:                 if vals and vals[0] is not None:
+235:                     return float(vals[0])
+236:             else:
+237:                 vals = list(bw.values(chrom_bw, pos - 1, pos))
+238:                 if vals and vals[0] is not None:
+239:                     return float(vals[0])
+240:         except Exception as exc:
+241:             logger.debug("PhyloP BigWig query failed for %s:%d — %s", chrom, pos, exc)
+242:         return missing_value
+243: 
+
+===== finngen __init__ + annotate :: src/genomic_variant_classifier/data/finngen.py L55-145 (file has 197 lines) =====
+55: class FinnGenConnector:
+56:     """
+57:     Annotates a variant DataFrame with FinnGen R10 population AF columns.
+58: 
+59:     Parameters
+60:     ----------
+61:     tsv_path:
+62:         Path to the FinnGen R10 annotated variants TSV (gzipped or plain).
+63:         Download from https://r10.finngen.fi/
+64:         Expected columns: #chrom, pos, ref, alt, af_fin, af_nfsee
+65:     chunksize:
+66:         Rows per chunk when reading the large TSV. Default 500_000.
+67:     """
+68: 
+69:     def __init__(
+70:         self,
+71:         tsv_path: Optional[str | Path] = None,
+72:         chunksize: int = 500_000,
+73:         column_prefix: str = "",
+74:     ) -> None:
+75:         self.tsv_path = Path(tsv_path) if tsv_path else None
+76:         self.chunksize = chunksize
+77:         self.column_prefix = column_prefix
+78:         # Output column names; default prefix "" reproduces the R12 names exactly.
+79:         self._out_fin = f"finngen_{column_prefix}af_fin"
+80:         self._out_nfsee = f"finngen_{column_prefix}af_nfsee"
+81:         self._out_enrich = f"finngen_{column_prefix}enrichment"
+82:         self._out_cols = [self._out_fin, self._out_nfsee, self._out_enrich]
+83:         self._index: Optional[pd.DataFrame] = None
+84: 
+85:     # ------------------------------------------------------------------
+86:     # Public API
+87:     # ------------------------------------------------------------------
+88: 
+89:     def annotate(self, df: pd.DataFrame) -> pd.DataFrame:
+90:         """
+91:         Add finngen_af_fin, finngen_af_nfsee, finngen_enrichment columns
+92:         to *df* in-place and return it.
+93: 
+94:         Variants with no FinnGen match receive 0.0 / 0.0 / 1.0 defaults.
+95:         """
+96:         for col in self._out_cols:
+97:             if col not in df.columns:
+98:                 df[col] = 0.0
+99: 
+100:         if self.tsv_path is None or not Path(self.tsv_path).exists():
+101:             logger.warning(
+102:                 "FinnGenConnector: tsv_path not set or file not found (%s). "
+103:                 "All variants will receive finngen_af_fin=0.0. "
+104:                 "Download from https://r10.finngen.fi/",
+105:                 self.tsv_path,
+106:             )
+107:             df[self._out_enrich] = 1.0
+108:             return df
+109: 
+110:         if self._index is None:
+111:             self._index = self._build_index(df)
+112: 
+113:         if self._index.empty:
+114:             df[self._out_enrich] = 1.0
+115:             return df
+116: 
+117:         # Join on chrom / pos / ref / alt
+118:         query_keys = df[["chrom", "pos", "ref", "alt"]].copy()
+119:         query_keys["chrom"] = query_keys["chrom"].astype(str).map(_normalise_chrom)
+120: 
+121:         merged = query_keys.merge(
+122:             self._index,
+123:             on=["chrom", "pos", "ref", "alt"],
+124:             how="left",
+125:         )
+126: 
+127:         df[self._out_fin]   = merged["af_fin"].fillna(0.0).values
+128:         df[self._out_nfsee] = merged["af_nfsee"].fillna(0.0).values
+129:         df[self._out_enrich] = (
+130:             df[self._out_fin] / (df[self._out_nfsee] + 1e-9)
+131:         ).clip(upper=1000.0)
+132: 
+133:         n_annotated = (df[self._out_fin] > 0).sum()
+134:         logger.info(
+135:             "FinnGen annotation: %d / %d variants matched (%.1f%%).",
+136:             n_annotated, len(df), 100 * n_annotated / max(len(df), 1),
+137:         )
+138:         return df
+139: 
+140:     # ------------------------------------------------------------------
+141:     # Internal helpers
+142:     # ------------------------------------------------------------------
+143: 
+144:     def _build_index(self, df: pd.DataFrame) -> pd.DataFrame:
+145:         """
+
+===== finngen _build_index FULL :: src/genomic_variant_classifier/data/finngen.py L144-197 (file has 197 lines) =====
+144:     def _build_index(self, df: pd.DataFrame) -> pd.DataFrame:
+145:         """
+146:         Read only the rows from the FinnGen TSV that overlap with *df*'s
+147:         chrom/pos range. Avoids loading the full ~20M row file into memory.
+148:         """
+149:         logger.info("FinnGen: building in-memory index from %s ...", self.tsv_path)
+150: 
+151:         # Compute query bounding box for early filtering
+152:         query_chroms = set(
+153:             df["chrom"].astype(str).map(_normalise_chrom).unique()
+154:         )
+155:         pos_min = int(df["pos"].min()) - 1
+156:         pos_max = int(df["pos"].max()) + 1
+157: 
+158:         chunks = []
+159:         compression = "gzip" if str(self.tsv_path).endswith(".gz") else "infer"
+160: 
+161:         try:
+162:             reader = pd.read_csv(
+163:                 self.tsv_path,
+164:                 sep="\t",
+165:                 comment=None,
+166:                 chunksize=self.chunksize,
+167:                 compression=compression,
+168:                 usecols=["chr", "pos", "ref", "alt", "GENOME_AF_fin", "GENOME_AF_nfe"],
+169:                 dtype={"chr": str, "pos": int, "ref": str, "alt": str,
+170:                        "GENOME_AF_fin": float, "GENOME_AF_nfe": float},
+171:             )
+172:             for chunk in reader:
+173:                 chunk.rename(columns={"chr": "chrom", "GENOME_AF_fin": "af_fin", "GENOME_AF_nfe": "af_nfsee"}, inplace=True)
+174:                 chunk["chrom"] = chunk["chrom"].map(_normalise_chrom)
+175:                 mask = (
+176:                     chunk["chrom"].isin(query_chroms)
+177:                     & chunk["pos"].between(pos_min, pos_max)
+178:                 )
+179:                 filtered = chunk[mask]
+180:                 if not filtered.empty:
+181:                     chunks.append(filtered)
+182: 
+183:         except Exception as exc:
+184:             logger.error("FinnGen: failed to read TSV: %s", exc)
+185:             return pd.DataFrame(columns=["chrom", "pos", "ref", "alt",
+186:                                          "af_fin", "af_nfsee"])
+187: 
+188:         if not chunks:
+189:             logger.warning("FinnGen: no variants matched in TSV.")
+190:             return pd.DataFrame(columns=["chrom", "pos", "ref", "alt",
+191:                                          "af_fin", "af_nfsee"])
+192: 
+193:         index = pd.concat(chunks, ignore_index=True).drop_duplicates(
+194:             subset=["chrom", "pos", "ref", "alt"]
+195:         )
+196:         logger.info("FinnGen index: %d unique variants loaded.", len(index))
+197:         return index
+
+===== dbnsfp __init__ cache_dir :: src/genomic_variant_classifier/data/dbnsfp.py L205-235 (file has 566 lines) =====
+205: 
+206:     Reads a dbNSFP flat file (tab-delimited, GRCh38 coordinates) and builds
+207:     an in-memory dict index backed by a parquet cache for fast warm starts.
+208:     Behaviour is identical to REVELConnector and SIFTPolyPhenConnector.
+209: 
+210:     Parameters
+211:     ----------
+212:     dbnsfp_file:
+213:         Path to the dbNSFP flat file (plain text, gzip, or zip).  Accepts
+214:         a single concatenated file (all chromosomes) or a single-chromosome
+215:         file for testing.  Pass *None* to operate in stub mode.
+216:     cache_dir:
+217:         Directory for the parquet index cache.  Defaults to the directory
+218:         containing *dbnsfp_file*.  Cache filename: ``dbnsfp_clinvar_index.parquet``.
+219:     """
+220: 
+221:     source_name = "dbnsfp"
+222: 
+223:     def __init__(
+224:         self,
+225:         dbnsfp_file: Optional[str | Path] = None,
+226:         cache_dir: Optional[str | Path] = None,
+227:     ) -> None:
+228:         self._path: Optional[Path] = (
+229:             Path(dbnsfp_file) if dbnsfp_file else None
+230:         )
+231:         self._cache_dir: Optional[Path] = (
+232:             Path(cache_dir) if cache_dir
+233:             else (self._path.parent if self._path else None)
+234:         )
+235:         self._index: Optional[dict[tuple[str, int, str, str], DbNSFPScores]] = None
+
+===== dbnsfp _cache_path + load precedence :: src/genomic_variant_classifier/data/dbnsfp.py L384-420 (file has 566 lines) =====
+384:     def _cache_path(self) -> Optional[Path]:
+385:         if self._cache_dir is None:
+386:             return None
+387:         return self._cache_dir / "dbnsfp_clinvar_index.parquet"
+388: 
+389:     def _load_index(
+390:         self,
+391:         filter_chroms: Optional[set[str]] = None,
+392:     ) -> pd.DataFrame:
+393:         """
+394:         Build the (chrom, pos, ref, alt) → DbNSFPScores index.
+395: 
+396:         Precedence:
+397:           1. Parquet cache  (~5 s warm start).
+398:           2. Raw dbNSFP flat file (~90–180 s; writes cache afterward).
+399:           3. Empty dict (stub mode).
+400:         """
+401:         # 1. Parquet cache
+402:         cache = self._cache_path()
+403:         if cache is not None and cache.exists():
+404:             logger.info(
+405:                 "DbNSFP: loading index from parquet cache: %s", cache
+406:             )
+407:             import pyarrow.parquet as pq
+408:             import pyarrow as pa
+409:             chroms = list(filter_chroms) if filter_chroms else None
+410:             if chroms:
+411:                 filters = [("chrom", "in", chroms)]
+412:                 cdf = pq.read_table(cache, filters=filters).to_pandas()
+413:             else:
+414:                 cdf = pd.read_parquet(cache)
+415:             logger.info("DbNSFP: loaded %d variants from cache.", len(cdf))
+416:             return cdf
+417: 
+418:         # 2. Raw file
+419:         if self._path is None or not self._path.exists():
+420:             logger.warning(

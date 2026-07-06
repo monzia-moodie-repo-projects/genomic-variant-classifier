@@ -1,4 +1,4 @@
-"""Unit tests for the siamese delta sequence CNN (CNN1DClassifier)."""
+"""Unit tests for the dilated-residual delta sequence CNN (CNN1DClassifier, Tier-1)."""
 import io
 import numpy as np
 import pandas as pd
@@ -35,14 +35,21 @@ def test_registry_construct():
     assert clf.window == 101 and clf.embed == 128
 
 
-def test_pair_arrays_dispatch():
+def test_encode_batch_dispatch():
+    # Tier-1 (2026-07-05) replaced the old (ref, alt) pair-encoder -- which
+    # returned two (N, 4, W) arrays -- with _encode_batch, returning ONE fused
+    # (N, C, W) tensor: channels 0:4 = ref one-hot, 4:8 = alt one-hot,
+    # 8:12 = alt-ref delta, 12 = positional marker. Same intent as the old test:
+    # delta mode -> ref != alt and a non-zero delta; a lone Series -> zero delta.
     clf = CNN1DClassifier()
     df = pd.DataFrame({REF_WIN_COL: ["A" * W], ALT_WIN_COL: ["C" + "A" * (W - 1)]})
-    r, a = clf._pair_arrays(df)
-    assert r.shape == (1, 4, W) and a.shape == (1, 4, W)
-    assert not np.array_equal(r, a)
-    r2, a2 = clf._pair_arrays(pd.Series(["A" * W]))
-    assert np.array_equal(r2, a2)                 # single series -> zero delta
+    x = clf._encode_batch(df)
+    assert x.shape == (1, clf._in_channels(), W)
+    ref_oh, alt_oh, delta = x[:, 0:4, :], x[:, 4:8, :], x[:, 8:12, :]
+    assert not np.array_equal(ref_oh, alt_oh)        # ref != alt in delta mode
+    assert np.abs(delta).sum() > 0                   # non-zero delta present
+    x2 = clf._encode_batch(pd.Series(["A" * W]))
+    assert np.abs(x2[:, 8:12, :]).sum() == 0.0       # single series -> zero delta
 
 
 def test_learns_delta_signal():

@@ -1,0 +1,26 @@
+    df.to_parquet(out_path, index=False)
+    # Coverage report: which genes got a canonical structure vs. were unusable
+    # (giants over the AFDB length ceiling, isoform-only entries, or absent). Written
+    # next to the cohort parquet so any researcher can audit the structural gap.
+    import json as _json
+    n_ok = sum(1 for v in coverage.values() if v.get("status") == "ok")
+    n_miss = len(coverage) - n_ok
+    coverage_path = out_path.parent / "alphafold_coverage.json"
+    with open(coverage_path, "w", encoding="utf-8", newline="\n") as _fh:
+        _json.dump({"n_genes": len(coverage), "n_canonical_ok": n_ok,
+                    "n_unusable": n_miss, "genes": coverage}, _fh, indent=2)
+    usable_frac = n_ok / max(1, len(acc_map))
+    logger.info("WROTE %s : %d residue rows across %d structures (%d/%d genes usable, %.1f%%).",
+                out_path, len(df), n_struct, n_ok, len(acc_map), 100.0 * usable_frac)
+    logger.info("WROTE %s : coverage report (%d unusable genes -> sentinel).",
+                coverage_path, n_miss)
+    # Hard gate: dormant in normal operation (~98% usable observed). Trips only if
+    # canonical selection catastrophically regresses (e.g. an API/schema change makes
+    # matching fail wholesale), so a broken run cannot masquerade as success.
+    _MIN_USABLE_FRACTION = 0.90
+    if usable_frac < _MIN_USABLE_FRACTION:
+        logger.error("ABORT: usable-gene fraction %.3f < %.2f threshold -- canonical "
+                     "selection may be broken. Parquet + coverage written for inspection.",
+                     usable_frac, _MIN_USABLE_FRACTION)
+        return 5
+    return 0

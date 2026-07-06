@@ -1,0 +1,16 @@
+ 233| # dbSNP: DbSNPConnector(parquet_path=...) wants a parquet.
+ 234| DBSNP_FILE="$(ls "$DATA"/external/dbsnp/*.parquet 2>/dev/null | head -n1 || true)"
+ 235| if [ -n "$DBSNP_FILE" ] && [ -f "$DBSNP_FILE" ]; then
+ 236|     ARGS="$ARGS --dbsnp-path $DBSNP_FILE"; echo "==> dbSNP wired: $DBSNP_FILE" | tee -a "$LOG"
+ 237| else
+ 238|     echo "==> ABORT: dbSNP parquet missing under $DATA/external/dbsnp/" | tee -a "$LOG"; exit 8
+ 239| fi
+ 240| # ClinGen: Gene-Disease Validity CSV (flag existed but launch never passed it -> silent 0).
+ 241| CLINGEN_FILE="$(ls "$DATA"/external/clingen/*.csv 2>/dev/null | head -n1 || true)"
+ 242| if [ -n "$CLINGEN_FILE" ] && [ -f "$CLINGEN_FILE" ]; then
+ 243|     ARGS="$ARGS --clingen-path $CLINGEN_FILE"; echo "==> ClinGen wired: $CLINGEN_FILE" | tee -a "$LOG"
+ 244| else
+ 245|     echo "==> ABORT: ClinGen CSV missing under $DATA/external/clingen/" | tee -a "$LOG"; exit 8
+ 246| fi
+ 247| # end Run 17 EVE/ESM-2 wiring
+ 248| 

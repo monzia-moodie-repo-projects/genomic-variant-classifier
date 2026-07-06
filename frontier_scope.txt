@@ -1,0 +1,43 @@
+
+=== AlphaFold: any existing module/stub/tests? ===
+
+FullName
+--------
+C:\Projects\genomic-variant-classifier\src\genomic_variant_classifier\agent_layer\agents\infrastructure_drift_agent.py
+C:\Projects\genomic-variant-classifier\src\genomic_variant_classifier\agent_layer\agents\infrastructure_drift_monitor_agent.py
+C:\Projects\genomic-variant-classifier\scripts\build_infrastructure_baseline.py
+C:\Projects\genomic-variant-classifier\tests\unit\test_infrastructure_baseline.py
+
+
+F
+-
+config.py
+real_data_prep.py
+variant_ensemble.py
+registry.py
+__init__.py
+protein_pipeline.py
+
+
+=== KEGG: any existing module/stub/tests? ===
+
+F
+-
+kg_edges.py
+hetero_gnn_scorer.py
+
+
+=== both: what does ROADMAP say about each (scope/priority)? ===
+
+LineNumber Line
+---------- ----
+        64 | AlphaFold structure | alphafold_plddt, solvent_accessibility, secondary_structure_context, dist_to_active_site, has_uniprot_annotation | free (AlphaFold DB) | stub-mode step; activation = data + config |
+        78 Strong fits: AlphaFold DB (DO), RefSNP/dbSNP (DO), COSMIC (DO, academic; feature NOT label), TCGA (OPTIONAL), Reactome (DONE), KEGG (OPTIONAL, overlaps Reactome). BioGRID overlaps STRING. dbGaP is an access prerequisite (blocked), not a connector. ProteomeXchange / SRA / ENA / DDBJ DRA / SILVA out o…
+        88 - Remaining Phase-D connectors: activate dbSNP + AlphaFold-structure stub steps (data + config), then build COSMIC / TCGA / KEGG.
+        90 - **Heterogeneous-KG modeling track (2026-06-13):** hetero-GNN ENGINE done (models/hetero_gnn.py, HeteroConv multi-relation gene graph, 54158f7) + KG edge-connectors done (data/kg_edges.py co-membership primitive + Reactome/KEGG/GO/OMIM/ClinGen adapters, 8c19f9b). SCORER + SCHEMA DONE 2026-06-13: He…
+       127 - dbGaP / TOPMed / controlled-TCGA / CPTAC-protected - need institutional Signing Official; blocked w/o R1 faculty sponsor.
+       196 | Protein structure pipeline (AlphaFold/UniProt; 4 features)             | **Done**                  |
+       582   count leakage on gene-level features; AlphaFold-structure stub (pLDDT=50.0 default).
+
+
+=== DONE -- upload frontier_scope.txt ===

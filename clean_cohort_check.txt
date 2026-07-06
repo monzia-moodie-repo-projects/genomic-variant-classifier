@@ -1,0 +1,8 @@
+clean cohort exists: True
+rows=4399089 cols=17
+columns=['variant_id', 'source_db', 'chrom', 'pos', 'gene_symbol', 'transcript_id', 'pathogenicity', 'allele_freq', 'clinical_sig', 'protein_change', 'fasta_seq', 'source_id', 'metadata', 'ref', 'alt', 'consequence', 'ReviewStatus']
+  ref: nulls=0 empties=0
+  alt: nulls=0 empties=0
+VERDICT: CLEAN (no null/empty ref/alt)
+
+auto-resolved seq_windows path exists: True (549.1MB)

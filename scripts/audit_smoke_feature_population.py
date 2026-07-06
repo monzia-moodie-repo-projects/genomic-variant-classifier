@@ -56,6 +56,12 @@ EXPECT_RUN17 = {
     "revel_score":            (0.5,  "fail", "dbNSFP"),
     "n_tools_pathogenic":     (0,    "fail", "dbNSFP"),
     "lovd_variant_class":     (0,    "warn", "LOVD"),
+    "genomiclm_delta_norm":     (None, "fail", "NT"),
+    "genomiclm_llr":            (None, "warn", "NT"),
+    "cosmic_recurrence":        (None, "warn", "COSMIC"),
+    "cosmic_sig_tier":          (None, "warn", "COSMIC"),
+    "kegg_pathway_count":       (None, "fail", "KEGG"),
+    "kegg_disease_pathway_flag":(None, "warn", "KEGG"),
 }
 
 SPLIT_FILES = ["X_train.parquet", "X_val.parquet", "X_test.parquet"]
@@ -83,6 +89,8 @@ NOTES = {
     "reactome_pathway_count": "needs the Reactome parquet (scripts/build_reactome_parquet.py); "
                               "--kg-edges reactome:...gmt only feeds the hetero-GNN graph, NOT this feature",
     "lovd_variant_class": "very sparse (~369 cohort variants) -- near-zero at smoke scale",
+    "cosmic_recurrence": "somatic; overlap with germline ClinVar is partial (~22% at 50k) -- warn, not fail, at 3k smoke scale",
+    "kegg_disease_pathway_flag": "hsa05xxx disease-map membership; ~53% cohort -- warn at smoke scale",
     "hetero_gnn_score": "must be scored inductively across ALL splits; focal/train-only scoring leaves "
                         "val/test at the 0.5 default under gene-disjoint splits",
 }

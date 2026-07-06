@@ -1,0 +1,66 @@
+=== robocopy FinnGen -> D: ===
+
+-------------------------------------------------------------------------------
+   ROBOCOPY     ::     Robust File Copy for Windows                              
+-------------------------------------------------------------------------------
+
+  Started : Friday, July 3, 2026 10:02:46 PM
+   Source : C:\Projects\genomic-variant-classifier\data\external\finngen\
+     Dest = D:\GenAssoc-backup\2026-07-03\finngen\
+
+    Files : *.*
+	    
+  Options : *.* /NDL /TEE /S /E /DCOPY:DA /COPY:DAT /J /NP /R:3 /W:5 
+
+------------------------------------------------------------------------------
+
+	    New File  		     205	C:\Projects\genomic-variant-classifier\data\external\finngen\CHECKSUMS.sha256
+	    New File  		  27.7 g	C:\Projects\genomic-variant-classifier\data\external\finngen\finngen_R13_annotated_variants_v0.gz
+	    New File  		  29.9 g	C:\Projects\genomic-variant-classifier\data\external\finngen\finnge_R12_annotated_variants_v1.gz
+
+------------------------------------------------------------------------------
+
+               Total    Copied   Skipped  Mismatch    FAILED    Extras
+    Dirs :         1         0         1         0         0         0
+   Files :         3         3         0         0         0         0
+   Bytes :  57.644 g  57.644 g         0         0         0         0
+   Times :   0:09:54   0:09:54                       0:00:00   0:00:00
+
+
+   Speed :           104,167,513 Bytes/sec.
+   Speed :             5,960.513 MegaBytes/min.
+   Ended : Friday, July 3, 2026 10:12:40 PM
+
+robocopy_finngen_exit=1
+=== robocopy phyloP -> D: ===
+
+-------------------------------------------------------------------------------
+   ROBOCOPY     ::     Robust File Copy for Windows                              
+-------------------------------------------------------------------------------
+
+  Started : Friday, July 3, 2026 10:12:41 PM
+   Source : C:\Projects\genomic-variant-classifier\data\external\phylop\
+     Dest = D:\GenAssoc-backup\2026-07-03\phylop\
+
+    Files : *.*
+	    
+  Options : *.* /NDL /TEE /S /E /DCOPY:DA /COPY:DAT /J /NP /R:3 /W:5 
+
+------------------------------------------------------------------------------
+
+	    New File  		   9.1 g	C:\Projects\genomic-variant-classifier\data\external\phylop\hg38.phyloP100way.bw
+
+------------------------------------------------------------------------------
+
+               Total    Copied   Skipped  Mismatch    FAILED    Extras
+    Dirs :         1         0         1         0         0         0
+   Files :         1         1         0         0         0         0
+   Bytes :   9.192 g   9.192 g         0         0         0         0
+   Times :   0:01:36   0:01:36                       0:00:00   0:00:00
+
+
+   Speed :           102,174,463 Bytes/sec.
+   Speed :             5,846.470 MegaBytes/min.
+   Ended : Friday, July 3, 2026 10:14:17 PM
+
+robocopy_phylop_exit=1

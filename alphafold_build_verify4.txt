@@ -1,0 +1,101 @@
+=== STAGE 0: prerequisites + cohort schema ===
+data/processed/clinvar_grch38_clean.parquet: exists=True 135MB
+data/external/uniprot/uniprot_human_reviewed.parquet: exists=True 11MB
+cohort has gene_symbol: True
+cohort has consequence: True
+uniprot has gene_symbol: True | uniprot_id: True | sequence: True
+  STAGE 0 PASS
+
+=== STAGE 1: --audit (no downloads) ===
+2026-07-02 19:52:56,890 INFO cohort missense genes: 19383
+2026-07-02 19:52:56,961 INFO resolved to accession: 18302 ; unresolvable: 1081
+2026-07-02 19:52:56,963 INFO AUDIT MODE: 18302 genes resolve to 18302 distinct accessions; no download performed.
+  audit exit=0, elapsed=4.0s
+  STAGE 1 PASS
+
+=== STAGE 2: --max-genes 50 (REAL downloads, ~2-3 min) ===
+2026-07-02 19:53:00,822 INFO cohort missense genes: 19383
+2026-07-02 19:53:00,878 INFO resolved to accession: 18302 ; unresolvable: 1081
+2026-07-02 19:53:00,895 INFO --max-genes: limiting to 50 genes
+2026-07-02 19:53:00,895 INFO gene 1/50: A1BG (P04217)
+2026-07-02 19:53:01,531 INFO gene 2/50: A1CF (Q9NQ94)
+2026-07-02 19:53:02,233 INFO gene 3/50: A2M (P01023)
+2026-07-02 19:53:04,233 INFO gene 4/50: A2ML1 (A8K2U0)
+2026-07-02 19:53:06,202 INFO gene 5/50: A3GALT2 (U3KPV4)
+2026-07-02 19:53:06,704 INFO gene 6/50: A4GALT (Q9NPC4)
+2026-07-02 19:53:07,187 INFO gene 7/50: A4GNT (Q9UNA3)
+2026-07-02 19:53:07,686 INFO gene 8/50: AAAS (Q9NRG9)
+2026-07-02 19:53:08,394 INFO gene 9/50: AACS (Q86V21)
+2026-07-02 19:53:09,342 INFO gene 10/50: AADAC (P22760)
+2026-07-02 19:53:09,938 INFO gene 11/50: AADACL2 (Q6P093)
+2026-07-02 19:53:10,543 INFO gene 12/50: AADACL3 (Q5VUY0)
+2026-07-02 19:53:11,141 INFO gene 13/50: AADACL4 (Q5VUY2)
+2026-07-02 19:53:11,748 INFO gene 14/50: AADAT (Q8N5Z0)
+2026-07-02 19:53:12,375 INFO gene 15/50: AAGAB (Q6PD74)
+2026-07-02 19:53:12,778 INFO gene 16/50: AAK1 (Q2M2I8)
+2026-07-02 19:53:13,782 INFO gene 17/50: AAMDC (Q9H7C9)
+2026-07-02 19:53:13,967 INFO gene 18/50: AAMP (Q13685)
+2026-07-02 19:53:14,523 INFO gene 19/50: AANAT (Q16613)
+2026-07-02 19:53:14,811 INFO gene 20/50: AAR2 (Q9Y312)
+2026-07-02 19:53:15,328 INFO gene 21/50: AARD (Q4LEZ3)
+2026-07-02 19:53:15,515 INFO gene 22/50: AARS1 (P49588)
+2026-07-02 19:53:16,927 INFO gene 23/50: AARS2 (Q5JTZ9)
+2026-07-02 19:53:18,291 INFO gene 24/50: AASDH (Q4L235)
+2026-07-02 19:53:19,823 INFO gene 25/50: AASDHPPT (Q9NRN7)
+2026-07-02 19:53:20,275 INFO gene 26/50: AASS (Q9UDR5)
+2026-07-02 19:53:21,584 INFO gene 27/50: AATF (Q9NY61)
+2026-07-02 19:53:22,249 INFO gene 28/50: AATK (Q6ZMQ8)
+2026-07-02 19:53:23,568 INFO gene 29/50: ABAT (P80404)
+2026-07-02 19:53:24,276 INFO gene 30/50: ABCA1 (O95477)
+2026-07-02 19:53:27,454 INFO gene 31/50: ABCA10 (Q8WWZ4)
+2026-07-02 19:53:29,641 INFO gene 32/50: ABCA12 (Q86UK0)
+2026-07-02 19:53:33,233 INFO gene 33/50: ABCA13 (Q86UQ4)
+2026-07-02 19:53:33,679 INFO gene 34/50: ABCA2 (Q9BZC7)
+2026-07-02 19:53:36,903 INFO gene 35/50: ABCA3 (Q99758)
+2026-07-02 19:53:39,380 INFO gene 36/50: ABCA4 (P78363)
+2026-07-02 19:53:42,640 INFO gene 37/50: ABCA5 (Q8WWZ7)
+2026-07-02 19:53:45,906 INFO gene 38/50: ABCA6 (Q8N139)
+2026-07-02 19:53:49,187 INFO gene 39/50: ABCA7 (Q8IZY2)
+2026-07-02 19:53:53,173 INFO gene 40/50: ABCA8 (O94911)
+2026-07-02 19:53:56,404 INFO gene 41/50: ABCA9 (Q8IUA7)
+2026-07-02 19:53:59,468 INFO gene 42/50: ABCB1 (P08183)
+2026-07-02 19:54:01,874 INFO gene 43/50: ABCB10 (Q9NRK6)
+2026-07-02 19:54:03,155 INFO gene 44/50: ABCB11 (O95342)
+2026-07-02 19:54:05,727 INFO gene 45/50: ABCB4 (P21439)
+2026-07-02 19:54:08,140 INFO gene 46/50: ABCB5 (Q2M3G0)
+2026-07-02 19:54:10,498 INFO gene 47/50: ABCB6 (Q9NP58)
+2026-07-02 19:54:12,105 INFO gene 48/50: ABCB7 (O75027)
+2026-07-02 19:54:13,593 INFO gene 49/50: ABCB8 (Q9NUT2)
+2026-07-02 19:54:14,983 INFO gene 50/50: ABCB9 (Q9NP78)
+2026-07-02 19:54:16,503 INFO WROTE data\raw\cache\alphafold\_probe50\probe50.parquet : 48043 residue rows across 49 structures (49/50 genes usable, 98.0%).
+2026-07-02 19:54:16,503 INFO WROTE data\raw\cache\alphafold\_probe50\alphafold_coverage.json : coverage report (1 unusable genes -> sentinel).
+  build exit=0, elapsed=79.1s
+
+  --- validate the 50-gene probe parquet ---
+rows: 48043 | structures: 49
+cols: ['uniprot_accession', 'residue_pos', 'plddt', 'rsa', 'ss', 'dist_active']
+plddt in [0,100]: True
+rsa in [0,1]: True
+ss in {0,1,2}: True
+plddt distinct: 794 | rsa distinct: 100 | ss distinct: [np.int64(0), np.int64(1), np.int64(2)]
+non-degenerate: True
+frac plddt==50.0: 0.000 | frac rsa==0.5: 0.000
+sentinel fraction < 0.5: True
+dist_active min: 0.0 max: 181.32 | has 0.0: True | has >0: True
+  STAGE 2 PASS
+
+  --- cache growth (raw CIFs kept?) ---
+cached CIFs now: 52
+  --- probe parquet size ---
+  probe50.parquet: 739,865 bytes (throwaway; NOT in launcher glob path)
+
+=== VERDICT ===
+  ALL STAGES PASS. The build path is proven end-to-end on real data.
+  Estimated full build: ~18,302 structures, ~9-18 GB raw CIFs, ~2.5-5h.
+  The probe parquet is a THROWAWAY under data/raw/cache/alphafold/_probe50/ --
+  it is NOT in the launcher glob path, so it cannot be mistaken for the real
+  cohort parquet. The full build writes data/external/alphafold/alphafold_cohort.parquet.
+  Full build is the NEXT explicit decision.
+
+=== DONE -- upload alphafold_build_verify.txt ===
+Wrote alphafold_build_verify.txt

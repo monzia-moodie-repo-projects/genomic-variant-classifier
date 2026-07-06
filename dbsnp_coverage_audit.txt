@@ -1,0 +1,28 @@
+
+=== 1. parquet shape + AF distribution (is it real signal or all-zero?) ===
+rows: 3747129
+cols: ['variant_id', 'allele_freq']
+af>0 count: 1733937
+af>0 frac: 0.4627
+count    3.747129e+06
+mean     8.201913e-03
+std      6.553484e-02
+min      0.000000e+00
+25%      0.000000e+00
+50%      0.000000e+00
+75%      5.400000e-05
+max      1.000000e+00
+Name: allele_freq, dtype: float64
+
+=== 2. does the parquet key format match what DbSNPConnector builds? (spot-check 5 keys) ===
+['1:69134:A:G', '1:69241:C:T', '1:69314:T:G', '1:69404:T:C', '1:69423:G:A']
+
+=== 3. END-TO-END: annotate a real cohort sample through the connector, confirm dbsnp_af>0 coverage ===
+sample=50000 dbsnp_af>0=18723 (37.45%)
+OK: real coverage
+
+=== 4. is the parquet tracked/committed, or local-only? (durability) ===
+ls-files exit: 0
+data/external/dbsnp/dbsnp157_cohort.parquet
+
+=== DONE -- upload dbsnp_coverage_audit.txt ===

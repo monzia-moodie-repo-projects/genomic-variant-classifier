@@ -1,0 +1,54 @@
+=== _fetch_active_sites (verbatim, full) ===
+193: def _fetch_active_sites(accession: str, cache_dir: Path) -> list[int]:
+194:     """UniProt active/binding-site residue positions (cached JSON). [] on failure."""
+195:     cache_file = cache_dir / f"uniprot_features_{accession}.json"
+196:     if cache_file.exists():
+197:         try:
+198:             return json.loads(cache_file.read_text()).get("active_sites", [])
+199:         except Exception:
+200:             pass
+201:     sites: list[int] = []
+202:     try:
+203:         resp = requests.get(
+204:             UNIPROT_FEATURES_API.format(accession=accession),
+205:             timeout=_REQUEST_TIMEOUT, headers={"Accept": "application/json"},
+206:         )
+207:         if resp.ok:
+208:             for feat in resp.json().get("features", []):
+209:                 if feat.get("type", "").upper() in ("ACT_SITE", "BINDING"):
+210:                     pos = feat.get("begin") or feat.get("location", {}).get("start", {}).get("value")
+211:                     if pos:
+212:                         try:
+213:                             sites.append(int(pos))
+214:                         except (ValueError, TypeError):
+215:                             pass
+216:         cache_file.write_text(json.dumps({"active_sites": sites}))
+217:         time.sleep(_POLITE_DELAY_S)
+218:     except Exception as exc:
+219:         logger.debug("feature fetch failed for %s: %s", accession, exc)
+220:     return sites
+221: 
+222: 
+223: def _dist_to_active(ca: dict, active_sites: list[int]) -> dict[int, float]:
+224:     """3-D C-alpha distance (Angstrom) from each residue to the nearest active site."""
+225:     import math
+226:     out: dict[int, float] = {}
+227:     site_xyz = [ca[s] for s in active_sites if s in ca]
+228:     for seq, (x, y, z) in ca.items():
+229:         if not site_xyz:
+230:             out[seq] = aff.DEFAULT_DIST_ACTIVE
+231:             continue
+232:         best = min(
+=== _download_cif write context (185-195) ===
+185:                      accession, len(text))
+186:         return None
+187:     cache_file = cache_dir / cif_url.rsplit("/", 1)[-1]
+188:     cache_file.write_text(text, encoding="utf-8")
+189:     time.sleep(_POLITE_DELAY_S)
+190:     return cache_file
+191: 
+192: 
+193: def _fetch_active_sites(accession: str, cache_dir: Path) -> list[int]:
+194:     """UniProt active/binding-site residue positions (cached JSON). [] on failure."""
+195:     cache_file = cache_dir / f"uniprot_features_{accession}.json"
+196:     if cache_file.exists():

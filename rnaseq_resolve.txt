@@ -1,0 +1,31 @@
+=== does data/external/rnaseq_gene_expression.parquet exist locally? ===
+  [OK] data/external/rnaseq_gene_expression.parquet  (1.7 MB)
+  [ABSENT] data/external/rnaseq/rnaseq_gene_expression.parquet
+
+=== build_rnaseq_parquet.py: inputs/outputs/argparse ===
+  L6: RNASeqConnector consumes. Handles BOTH input forms robustly:
+  L30: Inputs: TSV/CSV/parquet (text inputs are gzip-aware). This script does not
+  L37: --out data/external/rnaseq_gene_expression.parquet
+  L42: --out data/external/rnaseq_gene_expression.parquet
+  L66: if suf.endswith(".parquet") or suf.endswith(".pq"):
+  L67: return pd.read_parquet(path)
+  L74: f"{path.name}: unrecognised matrix extension (use .tsv/.csv/.parquet[.gz])."
+  L218: ap.add_argument("--matrix", required=True, type=Path,
+  L220: ap.add_argument("--out", required=True, type=Path)
+  L221: ap.add_argument("--tx-map", type=Path, default=None,
+  L223: ap.add_argument("--sample-meta", type=Path, default=None,
+  L225: ap.add_argument("--id-col", default=None,
+  L227: ap.add_argument("--min-detect", type=float, default=1.0,
+  L258: agg.to_parquet(args.out, index=False)
+
+=== real_data_prep.py: rnaseq consumption (what shape it reads) ===
+  L302: rnaseq_path: Optional[Path] = None  # Phase D: RNA-seq gene-expression parquet (build_rnaseq_parquet.py)
+  L1106: from genomic_variant_classifier.data.rnaseq import annotate_rnaseq_from_parquet
+  L1108: df = annotate_rnaseq_from_parquet(df, ac.rnaseq_path)
+  L1110: "Score annotation 19/19 (RNA-seq): %d variants with rnaseq expression.",
+  L1114: "rnaseq_mean_log_tpm",
+  L1476: "rnaseq_mean_log_tpm",
+  L1477: "rnaseq_detection_rate",
+  L1478: "rnaseq_log2_cv",
+  L1479: "rnaseq_log2fc",
+  L1480: "rnaseq_de_neglog10p",

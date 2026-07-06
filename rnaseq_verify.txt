@@ -1,0 +1,34 @@
+=== rnaseq input: data\external\rnaseq_gene_expression.parquet ===
+exists=True size_MB=1.70
+rows=39486 cols=6
+columns=['gene_symbol', 'rnaseq_mean_log_tpm', 'rnaseq_detection_rate', 'rnaseq_log2_cv', 'rnaseq_log2fc', 'rnaseq_de_neglog10p']
+dtypes:
+gene_symbol               object
+rnaseq_mean_log_tpm      float64
+rnaseq_detection_rate    float64
+rnaseq_log2_cv           float64
+rnaseq_log2fc            float64
+rnaseq_de_neglog10p      float64
+head(3):
+  gene_symbol  rnaseq_mean_log_tpm  rnaseq_detection_rate  rnaseq_log2_cv  rnaseq_log2fc  rnaseq_de_neglog10p
+0     5S_rRNA             0.087516                   0.03        1.825455      -0.011987             0.491843
+1   5_8S_rRNA             0.004829                   0.00        3.018929      -0.002715             0.080803
+2         7SK             0.015161                   0.00        2.037939       0.039754             2.375679
+
+=== rnaseq.py: annotate_rnaseq_from_parquet expectations ===
+  L10: rnaseq_mean_log_tpm    float  mean log1p(TPM) across samples
+  L16: Gene-level join: by HGNC gene_symbol (mirrors gnomAD-constraint / Reactome /
+  L17: GTEx-bulk join key, not the variant-level chrom:pos:ref:alt key).
+  L20: defaults (all 0.0 except the int-typed columns) and a WARNING is logged; the
+  L39: "rnaseq_mean_log_tpm",
+  L54: def annotate_rnaseq_from_parquet(
+  L57: """Gene-level left-join of the bulk RNA-seq expression features.
+  L59: NaN-safe and defensive against pre-existing columns (no _x/_y suffixes on a
+  L74: lookup = pd.read_parquet(pth, columns=["gene_symbol"] + RNASEQ_FEATURES)
+  L79: lookup = lookup.dropna(subset=["gene_symbol"]).drop_duplicates(
+  L80: subset=["gene_symbol"]
+  L84: if col in result.columns:
+  L85: result = result.drop(columns=[col])
+  L91: lk = lookup.rename(columns={"gene_symbol": "_gene_key"})
+  L92: result = result.merge(lk, on="_gene_key", how="left").drop(columns=["_gene_key"])
+  L97: n_expr = int((result["rnaseq_mean_log_tpm"] > 0).sum())

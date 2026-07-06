@@ -273,6 +273,7 @@ class AnnotationConfig:
     phylop_path: Optional[Path] = None
     spliceai_path: Optional[Path] = None
     alphamissense_path: Optional[Path] = None
+    alphamissense_tsv_path: Optional[Path] = None  # Phase D: raw AlphaMissense TSV (protein_variant col) for ProteinCoordConnector; parquet index lacks it
     annotate_cadd: bool = False
     gtex_genes: list[str] = field(default_factory=list)
     gtex_tissues: list[str] = field(default_factory=list)
@@ -295,6 +296,12 @@ class AnnotationConfig:
     esm2_cache_path: Optional[Path] = None  # Phase 3C: SQLite cache
     esm2_uniprot_index_path: Optional[Path] = None  # Phase 3C: local UniProt seq index (no run-time REST)
     esm2_device: Optional[str] = None  # Phase 3C: None/'auto' -> cuda if available, else cpu
+    genomiclm_model_name: str = "InstaDeepAI/nucleotide-transformer-v2-100m-multi-species"  # Phase 2: NT DNA-LM
+    genomiclm_cache_path: Optional[Path] = None  # Phase 2: NT score-cache parquet
+    genomiclm_seq_windows_path: Optional[Path] = None  # Phase 2: ref/alt seq-window parquet
+    genomiclm_device: Optional[str] = None  # Phase 2: None/'auto' -> cuda if available, else cpu
+    cosmic_path: Optional[Path] = None  # Phase 2: COSMIC CMC AllData TSV (GRCh38 somatic recurrence)
+    kegg_path: Optional[Path] = None  # Phase 2: KEGG gene->pathway parquet
     gnomad_constraint_path: Optional[Path] = None  # Phase 3C: gnomAD constraint TSV
     reactome_path: Optional[Path] = None  # Phase D: Reactome gene pathway-count parquet
     alphafold_path: Optional[Path] = None  # Phase D: AlphaFold cohort structural-feature parquet
@@ -898,7 +905,8 @@ class DataPrepPipeline:
         # Unblocks ESM-2 (and readies EVE); also clears codon_position.
         from genomic_variant_classifier.data.protein_coords import ProteinCoordConnector
 
-        pc = ProteinCoordConnector(alphamissense_file=ac.alphamissense_path)
+        _am_tsv = ac.alphamissense_tsv_path or Path(r"data/external/alphamissense/AlphaMissense_hg38.tsv.gz")
+        pc = ProteinCoordConnector(alphamissense_file=_am_tsv)
         df = pc.annotate_dataframe(df)
         if "consequence" in df.columns:
             df["is_missense"] = (
@@ -912,7 +920,7 @@ class DataPrepPipeline:
         )
         # Coverage gate -- enforce ONLY when a coord source is present (NOT in stub
         # mode). A source present + near-zero coverage is the Run 15 silent-zero.
-        if _protein_coord_source_present(pc.cache_path, ac.alphamissense_path):
+        if _protein_coord_source_present(pc.cache_path, _am_tsv):
             _coord_cov = _assert_protein_coord_coverage(df, ac.min_protein_coord_coverage)
             logger.info("Protein-coord coverage gate PASS: %.4f of missense have coords.", _coord_cov)
         else:
@@ -1062,6 +1070,73 @@ class DataPrepPipeline:
                 (
                     df.get(
                         "esm2_delta_norm", pd.Series([0.0] * len(df), index=df.index)
+                    )
+                    > 0
+                ).sum()
+            ),
+        )
+
+        # 16c. Nucleotide Transformer DNA language model delta + LLR (Phase 2)
+        # Stub mode (genomiclm_* = 0.0) when transformers/torch not installed; windows
+        # come from the seq-window parquet via genomiclm_seq_windows_path.
+        from genomic_variant_classifier.data.genomic_lm import (
+            NucleotideTransformerConnector,
+        )
+
+        genomiclm = NucleotideTransformerConnector(
+            model_name=ac.genomiclm_model_name,
+            cache_path=ac.genomiclm_cache_path,
+            seq_windows_path=ac.genomiclm_seq_windows_path,
+            device=ac.genomiclm_device,
+        )
+        df = genomiclm.annotate_dataframe(df)
+        df = genomiclm.annotate_llr(df)
+        logger.info(
+            "Score annotation 16c (Nucleotide Transformer, model=%s): %d variants "
+            "with genomiclm_delta_norm > 0.",
+            ac.genomiclm_model_name,
+            int(
+                (
+                    df.get(
+                        "genomiclm_delta_norm", pd.Series([0.0] * len(df), index=df.index)
+                    )
+                    > 0
+                ).sum()
+            ),
+        )
+
+        # 16d. COSMIC Cancer Mutation Census somatic recurrence (Phase 2)
+        # Stub mode (cosmic_* = 0.0) when --cosmic-path absent; feature-not-label
+        # (raw recurrence + significance tier only; CLINVAR/SIFT/GERP never read).
+        from genomic_variant_classifier.data.connectors.connector_cosmic import (
+            CosmicCmcConnector,
+        )
+
+        cosmic = CosmicCmcConnector(cosmic_path=ac.cosmic_path)
+        df = cosmic.annotate_dataframe(df)
+        logger.info(
+            "Score annotation 16d (COSMIC CMC): %d variants with cosmic_recurrence > 0.",
+            int(
+                (
+                    df.get(
+                        "cosmic_recurrence", pd.Series([0.0] * len(df), index=df.index)
+                    )
+                    > 0
+                ).sum()
+            ),
+        )
+
+        # 16e. KEGG pathway membership (Phase 2) - gene-level; feature-not-label
+        from genomic_variant_classifier.data.kegg import KEGGConnector
+
+        kegg = KEGGConnector(kegg_path=ac.kegg_path)
+        df = kegg.annotate_dataframe(df)
+        logger.info(
+            "Score annotation 16e (KEGG): %d variants with kegg_pathway_count > 0.",
+            int(
+                (
+                    df.get(
+                        "kegg_pathway_count", pd.Series([0.0] * len(df), index=df.index)
                     )
                     > 0
                 ).sum()
@@ -1417,6 +1492,9 @@ class DataPrepPipeline:
             ("finngen_af_fin", 0.0),
             ("finngen_af_nfsee", 0.0),
             ("finngen_enrichment", 1.0),
+            ("finngen_r13_af_fin", 0.0),
+            ("finngen_r13_af_nfsee", 0.0),
+            ("finngen_r13_enrichment", 1.0),
         ]:
             feats[_col] = (
                 df.get(_col, pd.Series([_default] * len(df), index=df.index))
@@ -1437,6 +1515,47 @@ class DataPrepPipeline:
             df.get("esm2_llr", pd.Series([0.0] * len(df), index=df.index))
             .fillna(0.0)
             .astype(float)
+        )
+
+        # Nucleotide Transformer DNA-LM (2) - Phase 2; 0.0 when model/window unavailable
+        feats["genomiclm_delta_norm"] = (
+            df.get("genomiclm_delta_norm", pd.Series([0.0] * len(df), index=df.index))
+            .fillna(0.0)
+            .astype(float)
+            .clip(lower=0.0)
+        )
+        feats["genomiclm_llr"] = (  # SIGNED feature; NO clip
+            df.get("genomiclm_llr", pd.Series([0.0] * len(df), index=df.index))
+            .fillna(0.0)
+            .astype(float)
+        )
+
+        # COSMIC CMC (2) - Phase 2; 0.0 when --cosmic-path absent / non-substitution
+        feats["cosmic_recurrence"] = (
+            df.get("cosmic_recurrence", pd.Series([0.0] * len(df), index=df.index))
+            .fillna(0.0)
+            .astype(float)
+            .clip(lower=0.0)
+        )
+        feats["cosmic_sig_tier"] = (
+            df.get("cosmic_sig_tier", pd.Series([0.0] * len(df), index=df.index))
+            .fillna(0.0)
+            .astype(float)
+            .clip(lower=0.0)
+        )
+
+        # KEGG pathway membership (2) - Phase 2; 0.0 when --kegg-path absent
+        feats["kegg_pathway_count"] = (
+            df.get("kegg_pathway_count", pd.Series([0.0] * len(df), index=df.index))
+            .fillna(0.0)
+            .astype(float)
+            .clip(lower=0.0)
+        )
+        feats["kegg_disease_pathway_flag"] = (
+            df.get("kegg_disease_pathway_flag", pd.Series([0.0] * len(df), index=df.index))
+            .fillna(0.0)
+            .astype(float)
+            .clip(lower=0.0)
         )
 
         # gnomAD v4.1 gene constraint (4) — Phase 3C
@@ -1494,6 +1613,23 @@ class DataPrepPipeline:
         # The redundant block that was here (overwriting codon_position via
         # _parse_codon_position on unpopulated protein_change column) was
         # removed in Run 11 Phase 0 — see RUN_11_FINDINGS F4.
+
+        # Fail-loud feature-count guard (Correctness Fix 2026-07-05): the training
+        # feature builder and variant_ensemble.engineer_features must agree on the
+        # contract count. A mismatch means the two have drifted -- HALT rather than
+        # silently ship a wrong-width matrix (this is how the 88-vs-91 R13 drift
+        # went unnoticed for a full 13-hour run).
+        from genomic_variant_classifier.models.variant_ensemble import (
+            EXPECTED_TABULAR_FEATURE_COUNT as _EXPECTED_FEATS,
+        )
+        _n_feats = feats.shape[1]
+        if _n_feats != _EXPECTED_FEATS:
+            raise ValueError(
+                f"_engineer_features produced {_n_feats} features but the contract "
+                f"(EXPECTED_TABULAR_FEATURE_COUNT) is {_EXPECTED_FEATS}. The two "
+                f"feature builders have drifted -- refusing to proceed with a "
+                f"wrong-width matrix. Columns: {sorted(feats.columns.tolist())}"
+            )
 
         return feats.reset_index(drop=True)
 

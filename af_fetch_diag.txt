@@ -1,0 +1,101 @@
+=== A. URL template + fetch/extract in builder ===
+8: (cached to disk; raw CIFs KEPT), extracts four per-residue structural features, and
+9: writes a parquet keyed on (uniprot_accession, residue_pos):
+12: residue_pos        int    1-based (matches AlphaMissense/HGVSp protein_pos)
+18: Feature extraction is delegated to
+22: beyond the fail-loud bound raises rather than being silently clamped.
+26: * KEEP raw CIFs: downloaded structures are retained under the cache dir so features can
+27: be re-extracted later without re-downloading (Drive-backed).
+28: * Mid-run disk guard: aborts cleanly if free space on the cache volume drops below a
+30: * Resumable: an already-cached CIF is reused; re-running continues where it stopped.
+58: import requests
+71: ALPHAFOLD_CIF_URL = "https://alphafold.ebi.ac.uk/files/AF-{accession}-F1-model_v4.cif"
+72: UNIPROT_FEATURES_API = "https://www.ebi.ac.uk/proteins/api/features/{accession}"
+99: def _download_cif(accession: str, cache_dir: Path) -> Optional[Path]:
+100: """Download+cache an AlphaFold CIF; reuse if present. Returns path or None."""
+101: cache_file = cache_dir / f"AF-{accession}-F1-model_v4.cif"
+102: if cache_file.exists() and cache_file.stat().st_size > 0:
+103: return cache_file
+106: resp = requests.get(url, timeout=_REQUEST_TIMEOUT)
+107: except Exception as exc:
+112: cache_file.write_text(resp.text, encoding="utf-8")
+114: return cache_file
+117: def _fetch_active_sites(accession: str, cache_dir: Path) -> list[int]:
+118: """UniProt active/binding-site residue positions (cached JSON). [] on failure."""
+119: cache_file = cache_dir / f"uniprot_features_{accession}.json"
+120: if cache_file.exists():
+122: return json.loads(cache_file.read_text()).get("active_sites", [])
+123: except Exception:
+127: resp = requests.get(
+132: for feat in resp.json().get("features", []):
+133: if feat.get("type", "").upper() in ("ACT_SITE", "BINDING"):
+134: pos = feat.get("begin") or feat.get("location", {}).get("start", {}).get("value")
+138: except (ValueError, TypeError):
+140: cache_file.write_text(json.dumps({"active_sites": sites}))
+142: except Exception as exc:
+148: """3-D C-alpha distance (Angstrom) from each residue to the nearest active site."""
+155: continue
+164: def _extract_one(accession: str, cif_path: Path, active_sites: list[int]) -> list[dict]:
+165: """Extract per-residue feature rows for one structure. [] if unparseable."""
+169: except aff.CIFParseError as exc:
+172: plddt = aff.per_residue_plddt(atoms)
+173: ca = aff.per_residue_ca(atoms)
+174: ss = aff.per_residue_secondary_structure(cif_text, atoms)
+176: rsa = aff.per_residue_rsa(atoms)
+177: except aff.CIFParseError as exc:
+188: "residue_pos": int(seq),
+190: "rsa": float(rsa.get(seq, aff.DEFAULT_RSA)),
+191: "ss": int(ss.get(seq, 0)),  # residues not in _struct_conf -> loop
+192: "dist_active": float(dist.get(seq, aff.DEFAULT_DIST_ACTIVE)),
+202: ap.add_argument("--cache-dir", default="data/raw/cache/alphafold")
+211: cache_dir = Path(args.cache_dir)
+212: cache_dir.mkdir(parents=True, exist_ok=True)
+239: free = _free_gb(cache_dir)
+241: logger.error("ABORT: free space %.1f GB < %.1f GB threshold on cache volume. "
+242: "Cached progress retained; re-run to resume.", free, _MIN_FREE_GB)
+244: cif_path = _download_cif(acc, cache_dir)
+247: continue
+248: active_sites = _fetch_active_sites(acc, cache_dir)
+249: rows = _extract_one(acc, cif_path, active_sites)
+254: logger.info("progress: %d/%d genes processed, %d structures, %d residue rows, free=%.1fGB",
+255: n_done, len(acc_map), n_struct, len(all_rows), _free_gb(cache_dir))
+258: logger.error("ABORT: zero residue features extracted from %d genes. "
+262: df = pd.DataFrame(all_rows).drop_duplicates(subset=["uniprot_accession", "residue_pos"])
+268: logger.info("WROTE %s : %d residue rows across %d structures (%.1f%% of resolvable genes).",
+274: raise SystemExit(main())
+
+=== B. connector fetch path (alphafold.py) ===
+182: except Exception as exc:
+202: except Exception as exc:
+230: gene_col = df.get("gene_symbol", pd.Series([""] * len(df), index=df.index)).fillna("").astype(str)
+231: pos_col = df.get("protein_pos", pd.Series([pd.NA] * len(df), index=df.index))
+232: wt_col = df.get("wt_aa", pd.Series([""] * len(df), index=df.index)).fillna("").astype(str)
+246: acc = gene_to_acc.get(gene)
+254: except (ValueError, TypeError):
+256: feat = feat_index.get((acc, pos))
+264: wt1 = _AA3_TO_1.get(wt, wt if len(wt) == 1 else "")
+265: seq = acc_to_seq.get(acc, "")
+
+=== C. single-gene live fetch probe: TP53 / P04637, full error surfaced ===
+Traceback (most recent call last):
+PROBE_URL https://alphafold.ebi.ac.uk/files/AF-P04637-F1-model_v4.cif
+FETCH_FAILED HTTPError HTTP Error 404: Not Found
+  File "<stdin>", line 7, in <module>
+  File "C:\Users\monzi\AppData\Local\Programs\Python\Python312\Lib\urllib\request.py", line 215, in urlopen
+    return opener.open(url, data, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\monzi\AppData\Local\Programs\Python\Python312\Lib\urllib\request.py", line 521, in open
+    response = meth(req, response)
+               ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\monzi\AppData\Local\Programs\Python\Python312\Lib\urllib\request.py", line 630, in http_response
+    response = self.parent.error(
+               ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\monzi\AppData\Local\Programs\Python\Python312\Lib\urllib\request.py", line 559, in error
+    return self._call_chain(*args)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\monzi\AppData\Local\Programs\Python\Python312\Lib\urllib\request.py", line 492, in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+  File "C:\Users\monzi\AppData\Local\Programs\Python\Python312\Lib\urllib\request.py", line 639, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 404: Not Found

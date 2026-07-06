@@ -52,6 +52,7 @@ CHANGES:
 
 from __future__ import annotations
 
+import math
 import logging
 from pathlib import Path
 from typing import Optional
@@ -231,11 +232,11 @@ class PhyloPConnector:
             chrom_bw = f"chr{chrom}" if not chrom.startswith("chr") else chrom
             if self._bw_type == "pybigwig":
                 vals = bw.values(chrom_bw, pos - 1, pos)
-                if vals and vals[0] is not None:
+                if vals and vals[0] is not None and not math.isnan(vals[0]):
                     return float(vals[0])
             else:
-                vals = list(bw.values(chrom_bw, pos - 1, pos))
-                if vals and vals[0] is not None:
+                vals = list(bw.values(chrom_bw, pos - 1, pos, fillna=0.0))
+                if vals and vals[0] is not None and not math.isnan(vals[0]):
                     return float(vals[0])
         except Exception as exc:
             logger.debug("PhyloP BigWig query failed for %s:%d — %s", chrom, pos, exc)

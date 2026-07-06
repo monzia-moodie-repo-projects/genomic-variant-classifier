@@ -1,0 +1,71 @@
+=== top 25 largest files under project (>100MB) ===
+
+   GB FullName
+   -- --------
+29.92 C:\Projects\genomic-variant-classifier\data\external\finngen\finnge_R12_annotated_variants_v1.gz
+27.72 C:\Projects\genomic-variant-classifier\data\external\finngen\finngen_R13_annotated_variants_v0.gz
+ 9.19 C:\Projects\genomic-variant-classifier\data\external\phylop\hg38.phyloP100way.bw
+ 8.91 C:\Projects\genomic-variant-classifier\data\external\eve\EVE_all_data.zip
+ 1.19 C:\Projects\genomic-variant-classifier\data\_vm_stage\eve_variant_files.tar.gz
+ 0.97 C:\Projects\genomic-variant-classifier\outputs\run15_rerun_report\run15_full.tgz
+ 0.87 C:\Projects\genomic-variant-classifier\data\external\dbnsfp\dbnsfp_full_index.parquet.OOMbak
+ 0.73 C:\Projects\genomic-variant-classifier\outputs\run15_baseline\full\models\ensemble_models\random_forest.joblib
+ 0.73 C:\Projects\genomic-variant-classifier\outputs\run15_rerun_report\full\models\ensemble_models\random_forest.joblib
+ 0.69 C:\Projects\genomic-variant-classifier\outputs\run16\ensemble_v1_models\random_forest.joblib
+ 0.60 C:\Projects\genomic-variant-classifier\data\external\alphamissense\AlphaMissense_hg38.tsv.gz
+ 0.51 C:\Projects\genomic-variant-classifier\data\processed\clinvar_grch38_clean_seq.parquet
+ 0.42 C:\Projects\genomic-variant-classifier\data\raw\cache\spliceai_scores_snv.parquet
+ 0.41 C:\Projects\genomic-variant-classifier\data\raw\cache\eve_eve_lookup_5c147a0fdaba4b1d.parquet
+ 0.41 C:\Projects\genomic-variant-classifier\data\raw\cache\eve_eve_lookup_d24b674cd7ff366d.parquet
+ 0.34 C:\Projects\genomic-variant-classifier\data\processed\alphamissense_index.parquet
+ 0.33 C:\Projects\genomic-variant-classifier\data\processed\spliceai_index.parquet
+ 0.33 C:\Projects\genomic-variant-classifier\data\external\spliceai\spliceai_index.parquet
+ 0.31 C:\Projects\genomic-variant-classifier\.venv312\Lib\site-packages\catboost\_catboost.pyd
+ 0.28 C:\Projects\genomic-variant-classifier\outputs\run13\full\models\random_forest.joblib
+ 0.28 C:\Projects\genomic-variant-classifier\outputs\run12\full\models\random_forest.joblib
+ 0.28 C:\Projects\genomic-variant-classifier\outputs\run14\full\models\random_forest.joblib
+ 0.28 C:\Projects\genomic-variant-classifier\outputs\run11\full\models\random_forest.joblib
+ 0.28 C:\Projects\genomic-variant-classifier\outputs\run10b_final\full\models\random_forest.joblib
+ 0.25 C:\Projects\genomic-variant-classifier\.venv312\Lib\site-packages\torch\lib\torch_cpu.dll
+
+
+=== size by top-level project subfolder ===
+
+Folder          GB
+------          --
+data        148.88
+outputs      12.63
+.venv312      2.77
+renv          0.39
+models        0.19
+.mypy_cache   0.05
+experiments   0.05
+secrets       0.00
+scripts       0.00
+reports       0.00
+notebooks     0.00
+model         0.00
+manifests     0.00
+logs          0.00
+docs          0.00
+
+
+=== data/ subtree breakdown ===
+
+Path                                                             GB
+----                                                             --
+.\data\external\finngen                                       57.64
+.\data\external\eve\EVE_all_data\vcf_files_missense_mutations 28.70
+.\data\external\eve\EVE_all_data\MSAs                         24.15
+.\data\external\eve\EVE_all_data\variant_files                 9.92
+.\data\external\phylop                                         9.19
+.\data\external\eve                                            8.91
+.\data\raw\cache\alphafold                                     2.47
+.\data\processed                                               1.63
+.\data\raw\cache                                               1.41
+.\data\_vm_stage                                               1.19
+.\data\external\dbnsfp                                         0.91
+.\data\external\alphamissense                                  0.63
+.\data\external\gencode                                        0.59
+
+

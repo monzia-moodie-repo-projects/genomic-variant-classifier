@@ -56,6 +56,8 @@ echo "==> [1/6] Data preflight" | tee -a "$LOG"
 FAIL=0
 KG_PARQUET="$DATA/external/1kgp/kg_grch38_af.parquet"
 RNASEQ_PARQUET="$DATA/external/rnaseq_gene_expression.parquet"
+COSMIC_TSV="$DATA/external/cosmic/CancerMutationCensus_AllData_v104_GRCh37.tsv.gz"  # Phase 2: COSMIC CMC (GRCh38 col inside the GRCh37 release)
+KEGG_PARQUET="$DATA/external/kegg_gene_pathways.parquet"  # Phase 2: KEGG gene->pathway mapping
 GTEX_PARQUET="$DATA/external/gtex_gene_expression.parquet"
 REACTOME_PARQUET="$DATA/external/reactome_gene_pathways.parquet"
 REACTOME_GMT="$DATA/external/reactome/ReactomePathways.gmt"
@@ -72,6 +74,8 @@ for f in \
     "$REACTOME_GMT" \
     "$KG_PARQUET" \
     "$RNASEQ_PARQUET" \
+    "$COSMIC_TSV" \
+    "$KEGG_PARQUET" \
 ; do
     if [ ! -f "$f" ]; then
         echo "==> MISSING (required): $f" | tee -a "$LOG"; FAIL=1
@@ -163,6 +167,13 @@ print('rnaseq cols:', rs)
 if miss_rs:
     print('ABORT: rnaseq parquet missing cols', miss_rs); sys.exit(5)
 print('kg + rnaseq column contracts OK')
+kegg = pq.ParquetFile(r'$KEGG_PARQUET').schema_arrow.names
+need_kegg = ['gene_symbol','kegg_pathway_count','kegg_disease_pathway_flag']
+miss_kegg = [c for c in need_kegg if c not in kegg]
+print('kegg cols:', kegg)
+if miss_kegg:
+    print('ABORT: kegg parquet missing cols', miss_kegg); sys.exit(6)
+print('kegg column contract OK')
 " 2>&1 | tee -a "$LOG"
 echo "==> STRING links $(stat -c%s "$STRING_LINKS") bytes; info $(stat -c%s "$STRING_INFO") bytes" | tee -a "$LOG"
 
@@ -179,6 +190,8 @@ ARGS="$ARGS --gtex-path $GTEX_PARQUET"
 ARGS="$ARGS --reactome-path $REACTOME_PARQUET"
 ARGS="$ARGS --rnaseq-path $RNASEQ_PARQUET"
 ARGS="$ARGS --kg $KG_PARQUET"
+ARGS="$ARGS --cosmic-path $COSMIC_TSV"
+ARGS="$ARGS --kegg-path $KEGG_PARQUET"
 FINNGEN_FILE="$DATA/external/finngen/finnge_R12_annotated_variants_v1.gz"  # registry typo 'finnge'
 if [ -f "$FINNGEN_FILE" ]; then ARGS="$ARGS --finngen-path $FINNGEN_FILE"; echo "==> FinnGen wired: $FINNGEN_FILE" | tee -a "$LOG"; else echo "==> ABORT: FinnGen file missing: $FINNGEN_FILE" | tee -a "$LOG"; exit 7; fi
 # R13 INTENTIONALLY EXCLUDED (r12only ablation): no --finngen-r13-path passed.
@@ -239,6 +252,17 @@ if [ -n "$DBSNP_FILE" ] && [ -f "$DBSNP_FILE" ]; then
     ARGS="$ARGS --dbsnp-path $DBSNP_FILE"; echo "==> dbSNP wired: $DBSNP_FILE" | tee -a "$LOG"
 else
     echo "==> ABORT: dbSNP parquet missing under $DATA/external/dbsnp/" | tee -a "$LOG"; exit 8
+fi
+# AlphaFold (Phase D): cohort structural-feature parquet + UniProt index for the
+# gene->accession map and wt_aa cross-check. Flag exists in run_phase2_eval.py; the
+# connector defaults to sentinel stubs if unpassed, so wire it explicitly and ABORT
+# loudly if the built parquet is missing (a wrong/absent pick must be LOUD, not silent).
+ALPHAFOLD_FILE="$(ls "$DATA"/external/alphafold/*.parquet 2>/dev/null | head -n1 || true)"
+if [ -n "$ALPHAFOLD_FILE" ] && [ -f "$ALPHAFOLD_FILE" ]; then
+    ARGS="$ARGS --alphafold-path $ALPHAFOLD_FILE"; echo "==> AlphaFold wired: $ALPHAFOLD_FILE" | tee -a "$LOG"
+    ARGS="$ARGS --alphafold-uniprot-index $UNIPROT_INDEX"; echo "==> AlphaFold UniProt index wired: $UNIPROT_INDEX" | tee -a "$LOG"
+else
+    echo "==> ABORT: AlphaFold parquet missing under $DATA/external/alphafold/ (build with scripts/build_alphafold_parquet.py)" | tee -a "$LOG"; exit 8
 fi
 # ClinGen: Gene-Disease Validity CSV (flag existed but launch never passed it -> silent 0).
 CLINGEN_FILE="$(ls "$DATA"/external/clingen/*.csv 2>/dev/null | head -n1 || true)"

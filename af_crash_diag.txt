@@ -1,0 +1,47 @@
+=== A. direct 50-gene run, full traceback ===
+2026-07-02 17:34:33,194 INFO cohort missense genes: 19383
+2026-07-02 17:34:33,236 INFO resolved to accession: 18302 ; unresolvable: 1081
+2026-07-02 17:34:33,248 INFO --max-genes: limiting to 50 genes
+=== B. driver loop 275-300 ===
+275:     if args.max_genes is not None:
+276:         limited = dict(list(acc_map.items())[: args.max_genes])
+277:         logger.info("--max-genes: limiting to %d genes", len(limited))
+278:         acc_map = limited
+279: 
+280:     if args.audit:
+281:         logger.info("AUDIT MODE: %d genes resolve to %d distinct accessions; no download performed.",
+282:                     len(acc_map), len(set(acc_map.values())))
+283:         return 0
+284: 
+285:     all_rows: list[dict] = []
+286:     n_done = 0
+287:     n_struct = 0
+288:     for gene, acc in acc_map.items():
+289:         # mid-run disk guard
+290:         free = _free_gb(cache_dir)
+291:         if free < _MIN_FREE_GB:
+292:             logger.error("ABORT: free space %.1f GB < %.1f GB threshold on cache volume. "
+293:                          "Cached progress retained; re-run to resume.", free, _MIN_FREE_GB)
+294:             return 3
+295:         cif_path = _download_cif(acc, cache_dir)
+296:         n_done += 1
+297:         if cif_path is None:
+298:             continue
+299:         active_sites = _fetch_active_sites(acc, cache_dir)
+300:         rows = _extract_one(acc, cif_path, active_sites)
+=== C. _dist_to_active head 198-212 ===
+198: def _dist_to_active(ca: dict, active_sites: list[int]) -> dict[int, float]:
+199:     """3-D C-alpha distance (Angstrom) from each residue to the nearest active site."""
+200:     import math
+201:     out: dict[int, float] = {}
+202:     site_xyz = [ca[s] for s in active_sites if s in ca]
+203:     for seq, (x, y, z) in ca.items():
+204:         if not site_xyz:
+205:             out[seq] = aff.DEFAULT_DIST_ACTIVE
+206:             continue
+207:         best = min(
+208:             math.sqrt((x - sx) ** 2 + (y - sy) ** 2 + (z - sz) ** 2)
+209:             for (sx, sy, sz) in site_xyz
+210:         )
+211:         out[seq] = round(best, 3)
+212:     return out

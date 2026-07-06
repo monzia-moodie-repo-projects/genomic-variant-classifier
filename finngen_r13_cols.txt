@@ -1,0 +1,6 @@
+=== R13: data/external/finngen/finngen_R13_annotated_variants_v0.gz exists=True ===
+  n_cols=1025
+  coordinate-like: ['chr', 'pos', 'ref', 'alt']
+  summary AF cols present: ['EXOME_AF_fin', 'EXOME_AF_nfe', 'GENOME_AF_fin', 'GENOME_AF_nfe']
+  current-code needed cols: ['chr', 'pos', 'ref', 'alt', 'GENOME_AF_fin', 'GENOME_AF_nfe']
+  MISSING from R13: NONE (current code works for R13)

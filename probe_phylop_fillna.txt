@@ -1,0 +1,39 @@
+=== PHYLOP fillna DIAGNOSTIC ===
+phylop.py: 328 lines
+
+--- L225-250 (the bw.values call + surrounding NaN/fill handling) ---
+  L225: 
+  L226:     def _query_bigwig(self, chrom: str, pos: int, missing_value: float) -> float:
+  L227:         """Fetch a single position from the BigWig file (1-based pos → 0-based interval)."""
+  L228:         try:
+  L229:             bw = self._open_bigwig()
+  L230:             # pyBigWig / pybigtools use 0-based half-open intervals
+  L231:             chrom_bw = f"chr{chrom}" if not chrom.startswith("chr") else chrom
+  L232:             if self._bw_type == "pybigwig":
+  L233:                 vals = bw.values(chrom_bw, pos - 1, pos)
+  L234:                 if vals and vals[0] is not None:
+  L235:                     return float(vals[0])
+  L236:             else:
+  L237:                 vals = list(bw.values(chrom_bw, pos - 1, pos))
+  L238:                 if vals and vals[0] is not None:
+  L239:                     return float(vals[0])
+  L240:         except Exception as exc:
+  L241:             logger.debug("PhyloP BigWig query failed for %s:%d — %s", chrom, pos, exc)
+  L242:         return missing_value
+  L243: 
+  L244:     # ------------------------------------------------------------------
+  L245:     # Flat-file index (TSV / parquet)
+  L246:     # ------------------------------------------------------------------
+  L247: 
+  L248:     def _get_index(self) -> dict[tuple[str, int], float]:
+  L249:         """Return (building if necessary) the in-memory position → score index."""
+  L250:         if self._index is not None:
+
+--- all lines mentioning fillna / nan / dropna / values( ---
+  L233: vals = bw.values(chrom_bw, pos - 1, pos)
+  L237: vals = list(bw.values(chrom_bw, pos - 1, pos))
+  L295: chunk = chunk.dropna(subset=["pos", "phylop_score"])
+
+--- pybigtools / pyBigWig version ---
+  pybigtools 0.3.0
+  pyBigWig: No module named 'pyBigWig'

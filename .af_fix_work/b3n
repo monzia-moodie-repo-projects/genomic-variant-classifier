@@ -1,0 +1,1 @@
+def _download_cif(accession: str, cache_dir: Path, canonical_seq: str) -> Optional[Path]:

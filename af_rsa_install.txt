@@ -1,0 +1,26 @@
+=== Install_alphafold_rsa_vectorize :: preflight ===
+backup features SHA256: 4CB2622EF5033CB8499CA68F7E3589E42BD4907E8BD7934FF735248985B2EBC6
+backup builder  SHA256: 785964FBBB112D820DF7F69503A1B6DCAE03EA8B97C89E8312CD2FED73BBDC4B
+backup tests    SHA256: 89E84D4AAA12F41B00B68E57DFB3C77C30C913B67596AD624ECF6EED7B370E21
+=== applying patch (guarded, count==1) ===
+features: imports inserted
+features: RSA loop vectorized
+builder: per-gene progress logging added
+tests: RSA guards appended
+=== post-check 1: byte-compile ===
+compile OK
+=== post-check 2: full AF unit suite (expect 22 passed, 0 skipped) ===
+......................                                                   [100%]
+22 passed in 17.69s
+
+22 passed, 0 skipped -- OK
+=== post-check 3: LIVE A2M extraction (identity of row count + speedup) ===
+A2M extract_one 2.0s -> 1474 rows
+LIVE_OK
+=== final hashes ===
+features SHA256: 2014C893D6C80A7F00A3FF292EFB67F6ABC773C23AF6AB02E6039E6AFCEFFBEF
+builder  SHA256: E126C9A0C4E7A0AE9353FAFFBF46A305C601F10DDD6ED5A2AD1BA67920E69966
+tests    SHA256: 041EEB1FEE7737D6A233A0ADE65ADACBAFFBD8E94C1E19BD7A5C92D4A79A8AEB
+
+PATCH COMPLETE. Backups in C:\Projects\genomic-variant-classifier\.af_fix_work
+NEXT: re-run Stage 2 (50-gene probe) -- now with per-gene progress logging.

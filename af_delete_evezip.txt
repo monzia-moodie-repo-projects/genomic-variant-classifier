@@ -1,0 +1,8 @@
+=== pre-delete safety assertions ===
+1. local zip exists=True size_GB=8.91
+2. extracted tree still intact (must be True to delete zip): True
+3. verifying zip is on Drive before deleting...
+EVE_all_data.zip
+=== DELETE only if all three above are satisfied ===
+DELETED data\external\eve\EVE_all_data.zip — reclaimed ~8.9GB. New free space:
+39.2

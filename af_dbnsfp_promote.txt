@@ -1,0 +1,16 @@
+=== pre-copy assertions ===
+bak exists=True ; live currently missing=True
+free space before (GB)=39.1897811889648
+=== COPY .OOMbak -> live name (keeps .OOMbak as fallback) ===
+COPIED -> data\external\dbnsfp\dbnsfp_full_index.parquet
+=== VERIFY the restored live file loads with full rows + schema ===
+live rows 85299339 cols 10 row_groups 82
+OK
+=== both files present now? ===
+
+Name                               GB
+----                               --
+dbnsfp_full_index.parquet        0.87
+dbnsfp_full_index.parquet.OOMbak 0.87
+
+

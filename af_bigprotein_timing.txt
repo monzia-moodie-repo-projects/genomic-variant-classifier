@@ -1,0 +1,7 @@
+MUC16    Q9UKN1 approx= 14507  download FAILED/None (td=0.4s)
+TTN      Q8WZ42 approx= 34350  download FAILED/None (td=0.4s)
+OBSCN    Q5VST9 approx=  7968  download FAILED/None (td=0.4s)
+MUC5AC   P98088 approx=  5654  download FAILED/None (td=0.5s)
+DYST     Q03001 approx=  7570  download=  1.6s  extract=   3.6s  rows=2649
+MYH9     P35579 approx=  1960  download=  1.8s  extract=   2.7s  rows=1960
+DONE

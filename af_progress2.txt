@@ -1,0 +1,5 @@
+=== cache size + newest file age ===
+cache_GB=8.77 file_count=36161
+newest_file=uniprot_features_Q8IYH5.json age_sec=28748.6
+cif_count=18079
+sites_json_count=18079

@@ -1,0 +1,28 @@
+2026-07-04 04:09:11  INFO    FinnGen cache pre-build starting (2 releases).
+2026-07-04 04:09:11  INFO    ======================================================================
+2026-07-04 04:09:11  INFO    [R12] source: data/external/finngen/finnge_R12_annotated_variants_v1.gz
+2026-07-04 04:09:11  INFO    [R12] target cache: data\raw\cache\finngen_full_index.parquet
+2026-07-04 04:09:11  INFO    FinnGen: building FULL index from data\external\finngen\finnge_R12_annotated_variants_v1.gz (one-time) ...
+2026-07-04 04:29:17  INFO    FinnGen: wrote full-index cache -> data\raw\cache\finngen_full_index.parquet (21331644 variants).
+2026-07-04 04:29:17  INFO    [R12] _load_full_index returned 21331644 rows in 1206.4s (BUILT)
+2026-07-04 04:29:17  INFO    [R12] schema OK: ['chrom', 'pos', 'ref', 'alt', 'af_fin', 'af_nfsee']
+2026-07-04 04:29:17  INFO    [R12] row count OK: 21331644
+2026-07-04 04:29:17  INFO    [R12] cache parquet 325.4 MB; sidecar source=finnge_R12_annotated_variants_v1.gz size=32126590987
+2026-07-04 04:29:21  INFO    FinnGen: loaded 21331644 variants from cache data\raw\cache\finngen_full_index.parquet.
+2026-07-04 04:29:21  INFO    [R12] fast reload OK: 3.9s, 21331644 rows
+2026-07-04 04:29:21  INFO    [R12] VERDICT: PASS
+2026-07-04 04:29:22  INFO    ======================================================================
+2026-07-04 04:29:22  INFO    [R13] source: data/external/finngen/finngen_R13_annotated_variants_v0.gz
+2026-07-04 04:29:22  INFO    [R13] target cache: data\raw\cache\finngen_r13_full_index.parquet
+2026-07-04 04:29:22  INFO    FinnGen: building FULL index from data\external\finngen\finngen_R13_annotated_variants_v0.gz (one-time) ...
+2026-07-04 04:46:48  INFO    FinnGen: wrote full-index cache -> data\raw\cache\finngen_r13_full_index.parquet (21331644 variants).
+2026-07-04 04:46:48  INFO    [R13] _load_full_index returned 21331644 rows in 1046.2s (BUILT)
+2026-07-04 04:46:48  INFO    [R13] schema OK: ['chrom', 'pos', 'ref', 'alt', 'af_fin', 'af_nfsee']
+2026-07-04 04:46:48  INFO    [R13] row count OK: 21331644
+2026-07-04 04:46:48  INFO    [R13] cache parquet 412.5 MB; sidecar source=finngen_R13_annotated_variants_v0.gz size=29768495399
+2026-07-04 04:46:52  INFO    FinnGen: loaded 21331644 variants from cache data\raw\cache\finngen_r13_full_index.parquet.
+2026-07-04 04:46:52  INFO    [R13] fast reload OK: 3.7s, 21331644 rows
+2026-07-04 04:46:52  INFO    [R13] VERDICT: PASS
+2026-07-04 04:46:52  INFO    ======================================================================
+2026-07-04 04:46:52  INFO    SUMMARY: {'R12': 'PASS', 'R13': 'PASS'}
+2026-07-04 04:46:52  INFO    ALL CACHES READY

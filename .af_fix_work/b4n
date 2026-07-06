@@ -1,0 +1,1 @@
+    cif_url = _resolve_cif_url(accession, canonical_seq)

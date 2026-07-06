@@ -1,0 +1,37 @@
+=== real_data_prep: AlphaFold step-14a wiring (stub or real?) ===
+
+ref
+---
+293: protein_cache_dir: Optional[Path] = None  # Phase 6.2: AlphaFold/UniProt cache dir
+300: alphafold_path: Optional[Path] = None  # Phase D: AlphaFold cohort structural-feature parquet
+301: alphafold_uniprot_index_path: Optional[Path] = None  # Phase D: UniProt index (gene->accession + sequence) for AF wt_aa cross-check
+1004: # 14a. AlphaFold structural features (Phase D) -- parquet-first path.
+1005: # When ac.alphafold_path is set, the prebuilt cohort parquet supplies
+1006: # alphafold_plddt / solvent_accessibility / secondary_structure_context /
+1010: if ac.alphafold_path is not None:
+1011: from genomic_variant_classifier.data.alphafold import AlphaFoldConnector
+1012: _af = AlphaFoldConnector(
+1013: parquet_path=ac.alphafold_path,
+1014: uniprot_index_path=ac.alphafold_uniprot_index_path,
+1373: feats["alphafold_plddt"] = (
+1374: df.get("alphafold_plddt", pd.Series([50.0] * len(df), index=df.index))
+
+
+=== how is real_data_prep invoked? argparse args ===
+
+=== scripts that call real_data_prep ===
+
+f
+-
+apply_cohort_guard.py
+apply_d1_fixes.py
+apply_patch_6b.py
+complete_patch_6b.py
+install_docs_close_2026-06-12_run16b.py
+install_docs_close_cnn_rna.py
+pandas3_equivalence_harness.py
+patch_add_protein_coord_coverage_gate_v2.py
+patch_add_protein_coord_coverage_gate.py
+patch_allele_freq_numeric.py
+
+

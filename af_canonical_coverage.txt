@@ -1,0 +1,15 @@
+  ...100/400 elapsed=11s
+  ...200/400 elapsed=21s
+  ...300/400 elapsed=31s
+  ...400/400 elapsed=41s
+sample=400  canonical_match=393 (98.2%)  api200_no_canon=5  absent=2
+USABLE (canonical structure) rate: 98.2%
+top unusable genes by variants:
+  CDH23        Q9H251     variants=  2184 no_canon_match
+  SZT2         Q5T011     variants=  1643 no_canon_match
+  SRRM2        Q9UQ35     variants=   968 no_canon_match
+  ITPR2        Q14571     variants=   294 no_canon_match
+  GPX1         P07203     variants=    55 api404
+  DIO3         P55073     variants=    27 api404
+  LIN52        Q52LA3     variants=    15 no_canon_match
+DONE

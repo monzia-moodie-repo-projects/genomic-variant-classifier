@@ -289,6 +289,18 @@ class DbNSFPConnector:
         left["_ref"]   = left["ref"].astype(str).str.upper()
         left["_alt"]   = left["alt"].astype(str).str.upper()
 
+        # Memory-safe pre-filter: shrink the index to rows at cohort positions
+        # BEFORE materialising the six score columns below. Without this, a full
+        # dbNSFP index (85.3M rows) would copy 6 x 85.3M float64 (~3.8 GiB) into
+        # `right` and OOM. Position is a necessary condition for any (chrom,pos,
+        # ref,alt) match, so this pre-filter never drops a true match; the exact
+        # 4-key merge below still does the real matching. Vectorised int isin.
+        _cohort_pos = set(
+            pd.to_numeric(out["pos"], errors="coerce").dropna().astype("int64")
+        )
+        _idx_pos = pd.to_numeric(index_df["pos"], errors="coerce")
+        index_df = index_df.loc[_idx_pos.isin(_cohort_pos)]
+
         # Normalise join keys on right side
         right = index_df[["chrom", "pos", "ref", "alt"] + list(_OUTPUT_COLS.values())].copy()
         right = right.rename(columns={
@@ -398,7 +410,27 @@ class DbNSFPConnector:
           2. Raw dbNSFP flat file (~90–180 s; writes cache afterward).
           3. Empty dict (stub mode).
         """
-        # 1. Parquet cache
+        # 0. Explicit pre-built parquet index takes precedence.
+        #    If self._path is itself a .parquet/.pq, it IS the index -> load it
+        #    directly. This prevents a differently-named cache in the same
+        #    directory (e.g. dbnsfp_clinvar_index.parquet) from silently
+        #    shadowing an explicitly-supplied full index.
+        if self._path is not None and self._path.exists() and "".join(
+            self._path.suffixes
+        ).lower() in (".parquet", ".pq"):
+            logger.info(
+                "DbNSFP: loading explicit parquet index directly: %s", self._path
+            )
+            import pyarrow.parquet as pq  # noqa: F401
+            if filter_chroms:
+                _filters = [("chrom", "in", list(filter_chroms))]
+                pdf = pq.read_table(self._path, filters=_filters).to_pandas()
+            else:
+                pdf = pd.read_parquet(self._path)
+            logger.info(
+                "DbNSFP: loaded %d variants from explicit parquet index.", len(pdf)
+            )
+            return pdf        # 1. Parquet cache
         cache = self._cache_path()
         if cache is not None and cache.exists():
             logger.info(

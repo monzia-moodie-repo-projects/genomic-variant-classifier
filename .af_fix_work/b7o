@@ -1,0 +1,4 @@
+        cif_path = _download_cif(acc, cache_dir)
+        n_done += 1
+        if cif_path is None:
+            continue

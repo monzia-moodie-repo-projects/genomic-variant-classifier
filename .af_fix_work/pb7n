@@ -1,0 +1,2 @@
+    df = df.sort_values(list(df.columns)).reset_index(drop=True)
+    df.to_parquet(out_path, index=False)

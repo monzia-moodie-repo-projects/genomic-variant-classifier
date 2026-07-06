@@ -1,0 +1,25 @@
+=== 1. confirm live is still missing + bak exists ===
+live exists=False ; bak exists=True
+=== 2. inspect the .OOMbak: schema, row count, key columns, any obvious truncation ===
+num_row_groups 82
+metadata_rows 85299339
+cols [('chrom', 'large_string'), ('pos', 'int64'), ('ref', 'large_string'), ('alt', 'large_string'), ('sift_score', 'double'), ('polyphen2_score', 'double'), ('revel_score', 'double'), ('cadd_phred', 'double'), ('phylop_score', 'double'), ('gerp_score', 'double')]
+head:
+  chrom    pos ref
+0    10  47057   C
+1    10  47057   C
+2    10  47058   T
+=== 3. what filename does the code actually open? (confirm it's the unsuffixed live name) ===
+
+ref
+---
+registry.py:80
+install_docs_close_2026-06-12_run16b.py:41
+install_docs_close_2026-06-12_run16b.py:69
+install_docs_close_2026-06-12_run16b.py:89
+patch_dbnsfp_docstring.py:3
+patch_dbnsfp_docstring.py:14
+patch_dbnsfp_docstring.py:30
+preflight_run16.py:52
+
+

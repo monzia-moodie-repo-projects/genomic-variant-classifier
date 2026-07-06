@@ -1,0 +1,6 @@
+=== Google Drive quota (genvarcla:) ===
+Total:   5 TiB
+Used:    986.437 GiB
+Free:    4.030 TiB
+Trashed: 482.599 GiB
+Other:   7.134 GiB

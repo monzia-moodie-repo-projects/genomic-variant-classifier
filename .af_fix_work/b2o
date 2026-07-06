@@ -1,0 +1,5 @@
+    rec = data[0] if isinstance(data, list) and data else data
+    if not isinstance(rec, dict):
+        return None
+    cif_url = rec.get("cifUrl")
+    return cif_url if isinstance(cif_url, str) and cif_url else None

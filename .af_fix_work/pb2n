@@ -1,0 +1,4 @@
+    import uuid as _uuid_s
+    _tmp_s = cache_file.with_name(cache_file.name + "." + _uuid_s.uuid4().hex + ".tmp")
+    _tmp_s.write_text(json.dumps({"active_sites": sites}))
+    _tmp_s.replace(cache_file)

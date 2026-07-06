@@ -1,0 +1,11 @@
+=== running python procs ===
+
+   Id    CPU StartTime           RunMin
+   --    --- ---------           ------
+10236 849.67 7/2/2026 5:16:22 PM  15.50
+14476   0.02 7/2/2026 5:16:22 PM  15.50
+
+
+=== CIFs landing in probe cache? ===
+cif_count=0
+

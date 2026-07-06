@@ -1,0 +1,23 @@
+=== schema_baseline.json actual n_columns + provenance ===
+n_columns: 87
+run_label: run17-preflight
+captured_from: derived: run16b-smoke baseline + hetero_gnn_score(float64) for Run 17 + 5 rnaseq_* (float64) surgically added for Run-17 RNA-seq branch
+captured_at: 2026-06-18T23:33:33.282709+00:00
+=== EXPECTED_TABULAR_FEATURE_COUNT (code truth) ===
+
+ref
+---
+157: EXPECTED_TABULAR_FEATURE_COUNT = 91
+
+
+=== ALL X_train matrices on disk, newest first, with col counts ===
+2026-06-29  cols=88  .\data\_pandas3\rollback_233_verify\splits\X_train.parquet
+2026-06-29  cols=88  .\data\_pandas3\real304_postguard\splits\X_train.parquet
+2026-06-29  cols=88  .\data\_pandas3\real_pandas304\splits\X_train.parquet
+2026-06-29  cols=88  .\data\_pandas3\sim_pandas3_on_233\splits\X_train.parquet
+2026-06-29  cols=88  .\data\_pandas3\baseline2_pandas233\splits\X_train.parquet
+2026-06-29  cols=88  .\data\_pandas3\postfix2_pandas233\splits\X_train.parquet
+2026-06-29  cols=88  .\data\_pandas3\postfix_pandas233\splits\X_train.parquet
+2026-06-29  cols=88  .\data\_pandas3\baseline_pandas233\splits\X_train.parquet
+=== is there a 91-col matrix anywhere? ===
+(scan above for cols=91)

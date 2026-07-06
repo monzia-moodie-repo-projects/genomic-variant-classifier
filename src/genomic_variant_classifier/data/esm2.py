@@ -630,6 +630,74 @@ class ESM2Connector:
             return seq
         return None
 
+    # ==================================================================
+    # Score-level cache (Fix 7, 2026-07-05): (gene, pos, wt, mut, model)
+    # -> (esm2_delta_norm, esm2_llr). Deterministic + repeats across runs.
+    # ==================================================================
+    _SCORE_CACHE_COLS = [
+        "gene_symbol", "protein_pos", "wt_aa", "mut_aa", "model_name",
+        "esm2_delta_norm", "esm2_llr",
+    ]
+
+    def _score_cache_path(self) -> Path:
+        base = Path(self.cache_path).parent if self.cache_path else Path("data/raw/cache")
+        return base / "esm2_scores.parquet"
+
+    @staticmethod
+    def _score_keys(frame: pd.DataFrame, model_name: str) -> list:
+        return list(zip(
+            frame["gene_symbol"].astype(str),
+            pd.to_numeric(frame["protein_pos"], errors="coerce").astype("Int64").astype(str),
+            frame["wt_aa"].astype(str),
+            frame["mut_aa"].astype(str),
+            [str(model_name)] * len(frame),
+        ))
+
+    def _score_cache_load(self) -> pd.DataFrame:
+        p = self._score_cache_path()
+        if p.exists():
+            try:
+                return pd.read_parquet(p)
+            except Exception as exc:  # corrupt cache -> ignore, recompute
+                logger.warning("ESM-2 score cache unreadable (%s) -- ignoring.", exc)
+        return pd.DataFrame(columns=self._SCORE_CACHE_COLS)
+
+    def _score_cache_lookup(self, cache_df: pd.DataFrame, keys: list, col: str) -> dict:
+        if cache_df is None or cache_df.empty or col not in cache_df.columns:
+            return {}
+        c = cache_df.copy()
+        c["_k"] = list(zip(
+            c["gene_symbol"].astype(str),
+            pd.to_numeric(c["protein_pos"], errors="coerce").astype("Int64").astype(str),
+            c["wt_aa"].astype(str), c["mut_aa"].astype(str), c["model_name"].astype(str),
+        ))
+        sub = c[c[col].notna()]
+        want = set(keys)
+        return {k: v for k, v in zip(sub["_k"], sub[col]) if k in want}
+
+    def _score_cache_append(self, rows: list) -> None:
+        if not rows:
+            return
+        p = self._score_cache_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        existing = self._score_cache_load()
+        combined = pd.concat(
+            [existing, pd.DataFrame(rows, columns=self._SCORE_CACHE_COLS)],
+            ignore_index=True,
+        )
+        combined["_k"] = list(zip(
+            combined["gene_symbol"].astype(str),
+            pd.to_numeric(combined["protein_pos"], errors="coerce").astype("Int64").astype(str),
+            combined["wt_aa"].astype(str), combined["mut_aa"].astype(str),
+            combined["model_name"].astype(str),
+        ))
+        agg = combined.groupby("_k", sort=False).agg({
+            "gene_symbol": "first", "protein_pos": "first", "wt_aa": "first",
+            "mut_aa": "first", "model_name": "first",
+            "esm2_delta_norm": "last", "esm2_llr": "last",
+        }).reset_index(drop=True)
+        agg.to_parquet(p, index=False)
+
     def annotate_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Add ``esm2_delta_norm`` column to *df* in-place and return it.
@@ -662,13 +730,35 @@ class ESM2Connector:
 
         logger.info("Computing ESM-2 delta for %d missense variants ...", len(candidates))
 
-        if _BACKEND == "transformers":
-            scores = self._score_batched(candidates)
-        else:
-            scores = self._score_per_variant(candidates)
-
-        for idx, score in scores.items():
-            df.at[idx, "esm2_delta_norm"] = score
+        # --- score-cache: split candidates into hits (fill) and misses (compute) ---
+        _keys = self._score_keys(candidates, self.model_name)
+        _cache = self._score_cache_load()
+        _hits = self._score_cache_lookup(_cache, _keys, "esm2_delta_norm")
+        _miss_mask = [k not in _hits for k in _keys]
+        _n_hit = len(_keys) - sum(_miss_mask)
+        logger.info("ESM-2 delta cache: %d/%d hits, %d to compute.", _n_hit, len(_keys), sum(_miss_mask))
+        # fill hits directly
+        for _idx, _k in zip(candidates.index, _keys):
+            if _k in _hits:
+                df.at[_idx, "esm2_delta_norm"] = float(_hits[_k])
+        _miss = candidates[_miss_mask]
+        scores = {}
+        if not _miss.empty:
+            if _BACKEND == "transformers":
+                scores = self._score_batched(_miss)
+            else:
+                scores = self._score_per_variant(_miss)
+            for idx, score in scores.items():
+                df.at[idx, "esm2_delta_norm"] = score
+            # append freshly-computed deltas to the cache
+            _miss_keys = dict(zip(_miss.index, self._score_keys(_miss, self.model_name)))
+            _rows = []
+            for _idx, _sc in scores.items():
+                _k = _miss_keys.get(_idx)
+                if _k is not None:
+                    _rows.append([_k[0], int(_k[1]) if _k[1] != "<NA>" else None,
+                                  _k[2], _k[3], _k[4], float(_sc), None])
+            self._score_cache_append(_rows)
 
         n_scored = sum(1 for v in scores.values() if v > 0.0)
         logger.info("ESM-2: %d/%d variants scored (>0).", n_scored, len(candidates))
@@ -852,9 +942,31 @@ class ESM2Connector:
         if candidates.empty:
             return df
         logger.info("Computing ESM-2 LLR (%s-marginal) for %d missense variants ...", method, len(candidates))
-        try:
-            scores = self._score_llr(candidates, method=method)
-        except OSError as exc:
+        # --- score-cache: split candidates into hits (fill) and misses (compute) ---
+        _keys = self._score_keys(candidates, self.model_name)
+        _cache = self._score_cache_load()
+        _hits = self._score_cache_lookup(_cache, _keys, "esm2_llr")
+        _miss_mask = [k not in _hits for k in _keys]
+        _n_hit = len(_keys) - sum(_miss_mask)
+        logger.info("ESM-2 LLR cache: %d/%d hits, %d to compute.", _n_hit, len(_keys), sum(_miss_mask))
+        for _idx, _k in zip(candidates.index, _keys):
+            if _k in _hits:
+                df.at[_idx, "esm2_llr"] = float(_hits[_k])
+        _miss = candidates[_miss_mask]
+        if _miss.empty:
+            scores = {}
+        else:
+          try:
+            scores = self._score_llr(_miss, method=method)
+            _miss_keys = dict(zip(_miss.index, self._score_keys(_miss, self.model_name)))
+            _rows = []
+            for _idx, _sc in scores.items():
+                _k = _miss_keys.get(_idx)
+                if _k is not None:
+                    _rows.append([_k[0], int(_k[1]) if _k[1] != "<NA>" else None,
+                                  _k[2], _k[3], _k[4], None, float(_sc)])
+            self._score_cache_append(_rows)
+          except OSError as exc:
             # Model weights unavailable (offline / no HuggingFace cache). Fail CLOSED
             # to the neutral 0.0 default rather than crash the pipeline -- mirrors the
             # _BACKEND-absent and missing-column stub paths above, and the per-row

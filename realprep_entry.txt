@@ -1,0 +1,68 @@
+=== real_data_prep entrypoints ===
+  L58: def _parse_codon_position(hgvsp: object) -> int:
+  L65: def _protein_coord_source_present(cache_path: Path, am_path: object) -> bool:
+  L77: def _assert_protein_coord_coverage(df: pd.DataFrame, min_cov: float) -> float:
+  L171: def _suppress_fillna_downcast(_fn):
+  L190: def _variant_key(
+  L214: class DataPrepConfig:
+  L240: class AnnotationConfig:
+  L309: class DataPrepPipeline:
+  L1681: def enrich_gene_counts(df: pd.DataFrame) -> pd.DataFrame:
+
+=== scripts constructing AnnotationConfig or setting alphafold_path ===
+  pandas3_equivalence_harness.py: AnnotationConfig
+  patch_add_protein_coord_coverage_gate.py: AnnotationConfig
+  patch_add_protein_coord_coverage_gate_v2.py: AnnotationConfig
+  patch_launch_run17_eve_esm2.py: AnnotationConfig
+  patch_omim_genemap2.py: AnnotationConfig
+  patch_real_data_prep_eve_entry_map.py: AnnotationConfig
+  patch_run_phase2_eval_annotation_flags.py: AnnotationConfig, EVAL
+  patch_session_doc_phase1.py: AnnotationConfig
+  patch_stage4_finngen_r13_wiring.py: AnnotationConfig
+  regen_splits_local.py: AnnotationConfig
+  run_phase2_eval.py: alphafold_path, AnnotationConfig, EVAL
+  train.py: AnnotationConfig
+
+=== run_phase2_eval.py argparse flags ===
+  --clinvar
+  --seq-windows
+  --gnomad
+  --spliceai
+  --alphamissense
+  --esm2-uniprot-index
+  --gtex-genes
+  --gtex-path
+  --kg
+  --gnomad-constraint
+  --lovd-path
+  --dbnsfp-path
+  --rnaseq-path
+  --clingen-path
+  --reactome-path
+  --finngen-r13-path
+  --finngen-path
+  --omim-genemap2-path
+  --omim-path
+  --phylop-path
+  --dbsnp-path
+  --alphafold-path
+  --alphafold-uniprot-index
+  --eve-path
+  --eve-entry-map
+  --skip-nn
+  --string-db
+  --layer-type
+  --edge-denoise
+  --edge-denoise-tau
+  --hetero-gnn
+  --kg-edges
+  --skip-svm
+  --skip-kan
+  --skip-cnn
+  --unseen-gene-holdout
+  --max-train
+  --n-folds
+  --min-review-tier
+  --auroc-target
+  --gnn-epochs
+  --output

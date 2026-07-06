@@ -1,0 +1,58 @@
+=== FINNGEN CACHING DIAGNOSTIC ===
+finngen.py: 197 lines
+
+--- cache-related lines (parquet/cache/to_parquet/read_parquet/exists) ---
+  L83: self._index: Optional[pd.DataFrame] = None
+  L100: if self.tsv_path is None or not Path(self.tsv_path).exists():
+  L110: if self._index is None:
+  L111: self._index = self._build_index(df)
+  L113: if self._index.empty:
+  L122: self._index,
+  L144: def _build_index(self, df: pd.DataFrame) -> pd.DataFrame:
+  L193: index = pd.concat(chunks, ignore_index=True).drop_duplicates(
+
+--- 'building in-memory index' + surrounding logic ---
+  L141:     # Internal helpers
+  L142:     # ------------------------------------------------------------------
+  L143: 
+  L144:     def _build_index(self, df: pd.DataFrame) -> pd.DataFrame:
+  L145:         """
+  L146:         Read only the rows from the FinnGen TSV that overlap with *df*'s
+  L147:         chrom/pos range. Avoids loading the full ~20M row file into memory.
+  L148:         """
+  L149:         logger.info("FinnGen: building in-memory index from %s ...", self.tsv_path)
+  L150: 
+  L151:         # Compute query bounding box for early filtering
+  L152:         query_chroms = set(
+  ...
+  L188:         if not chunks:
+  L189:             logger.warning("FinnGen: no variants matched in TSV.")
+  L190:             return pd.DataFrame(columns=["chrom", "pos", "ref", "alt",
+  L191:                                          "af_fin", "af_nfsee"])
+  L192: 
+  L193:         index = pd.concat(chunks, ignore_index=True).drop_duplicates(
+  L194:             subset=["chrom", "pos", "ref", "alt"]
+  L195:         )
+  L196:         logger.info("FinnGen index: %d unique variants loaded.", len(index))
+  L197:         return index
+  ...
+
+--- FinnGen __init__ / connector signature ---
+  L55: class FinnGenConnector:
+  L69: def __init__(
+  L89: def annotate(self, df: pd.DataFrame) -> pd.DataFrame:
+
+--- FinnGen build/cache scripts ---
+  apply_finngen_wiring.py
+  download_finngen_R10_DEPRECATED.py
+  gen_finngen_checksums.py
+  launch_run17_baseline.sh.prefinngen.bak
+  patch_finngen_release_prefix.py
+  patch_harness_known_zero_finngen_r13.py
+  patch_optionB_feed_finngen.py
+  patch_stage4_finngen_r13_wiring.py
+  patch_variant_ensemble_finngen_r13.py
+  probe_finngen_sizes.py
+
+--- existing finngen cache files on disk ---
+  data\external\finngen\finngen_R13_annotated_variants_v0.gz  (29768.5 MB)

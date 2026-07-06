@@ -1,0 +1,21 @@
+=== search for 1000G af parquet (any name/location under project) ===
+  data\external\1kgp\kg_grch38_af.parquet  (6.7 MB)
+  data\external\1kgp\kg_grch38_af_chrX.parquet  (0.2 MB)
+  data\raw\cache\1000genomes_kg_af_lookup.parquet  (4.2 MB)
+  data\raw\cache\1000genomes_kg_pop_af_b033c88e14b7.parquet  (5.9 MB)
+  data\raw\cache\1000genomes_kg_pop_af_e286829fe9c6.parquet  (5.9 MB)
+  data\external\1kgp\kg_grch38_af.parquet  (6.7 MB)
+  data\external\1kgp\kg_grch38_af_chrX.parquet  (0.2 MB)
+=== search for gnomad exomes af parquet (any name/location) ===
+  data\processed\gnomad_v4_exomes.parquet  (39.5 MB)
+  data\processed\gnomad_v4_exomes.parquet  (39.5 MB)
+  data\external\gnomad\gnomad.v4.1.constraint_metrics.constraint_index.parquet  (0.6 MB)
+  data\processed\gnomad_v4_exomes.parquet  (39.5 MB)
+
+=== build scripts for the missing inputs ===
+  [OK] scripts/build_1kg_parquet.py
+  [OK] scripts/build_gnomad_ymt_af.py
+  [OK] scripts/build_dbsnp_parquet.py
+
+=== run_phase2_eval.py: --kg and --gnomad default/help (path expectations) ===
+  L54: p.add_argument("--gnomad", default=None)

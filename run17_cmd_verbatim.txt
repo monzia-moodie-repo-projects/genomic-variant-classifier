@@ -1,0 +1,94 @@
+=== RUN17_SCOPE.md command block near L97 ===
+97: python scripts/run_phase2_eval.py `
+98:   --clinvar data\processed\clinvar_grch38.parquet `
+99:   --gnomad data\processed\gnomad_v4_exomes.parquet `
+100:   --spliceai data\external\spliceai\spliceai_index.parquet `
+101:   --alphamissense <alphamissense_index> `
+102:   --gnomad-constraint data\external\gnomad\gnomad.v4.1.constraint_metrics.tsv `
+103:   --dbnsfp-path data\external\dbnsfp\dbnsfp_clinvar_index.parquet `
+104:   --string-db auto `
+105:   --kg <1000G_phase3_AF.parquet> `
+106:   --max-train 3000 `
+107:   --n-folds 5 `
+108:   --output outputs\run17_smoke 2>&1 | Tee-Object outputs\run17_smoke.log
+109: ```
+110: - [ ] **No `Traceback`, no model errors, no unexpected skips** in the log.
+111: - [ ] **Every base model produced a non-degenerate OOF** (RF, XGB, LightGBM, SVM, LR, GBM,
+112:       1D-CNN, TabularNN, CatBoost, MC-Dropout, Deep Ensemble, KAN, GNN meta).
+113: - [ ] **`gnn_score` non-degenerate (HARD GATE, `INCIDENT_2026-06-04`):** the in-run gate fires if
+114:       `gnn_score` is constant after `--string-db`. Confirm a non-zero std in the log
+115:       (`gnn_score mean=… std=…`), and as the post-hoc mirror run
+116:       `python scripts/verify_gnn_score.py` → PASS. A constant `gnn_score` = silent injection
+117:       failure = **BLOCK**.
+118: - [ ] **`af_1kg_*` non-degenerate** (if `--kg` supplied): confirm the 5 columns have real
+119:       variance, not the constant default, in the smoke matrix.
+120: - [ ] ⚠ **GNN runtime caveat (measure-first):** `--string-db auto` trains the GNN for 100 epochs
+121:       on the STRING graph regardless of `--max-train`; on the CPU laptop this may be slow. PROBE
+122:       the smoke wall-clock first (roadmap §7 "no estimates without a probe"). If infeasible locally,
+123:       run this exact smoke on the Vast.ai GPU box as a pre-billing dry run.
+124: 
+
+=== RUN17_SCOPE.md command block near L149 ===
+149: python scripts/run_phase2_eval.py `
+150:   --clinvar data\processed\clinvar_grch38.parquet `
+151:   --gnomad data\processed\gnomad_v4_exomes.parquet `
+152:   --spliceai data\external\spliceai\spliceai_index.parquet `
+153:   --alphamissense <alphamissense_index> `
+154:   --gnomad-constraint data\external\gnomad\gnomad.v4.1.constraint_metrics.tsv `
+155:   --dbnsfp-path data\external\dbnsfp\dbnsfp_clinvar_index.parquet `
+156:   --string-db auto `
+157:   --kg <1000G_phase3_AF.parquet> `
+158:   --unseen-gene-holdout `
+159:   --n-folds 5 `
+160:   --output outputs\run17
+161: ```
+162: (On the GPU box, paths are the symlinked `/workspace/...` equivalents.)
+163: 
+
+=== launch_run17_baseline.sh : run_phase2_eval invocation ===
+15: #   - --skip-svm ON (run_phase2_eval --help: required >100k; n_train ~1.2M, RBF is O(n^2)).
+16: #   - gtex/reactome/kg/rnaseq ELEVATED to REQUIRED (hard-fail), matching the no-zero-feature directive
+17: #     (Run 15 treated gtex/reactome as if-present). LOVD stays if-present (low-coverage, optional).
+18: #   - --esm2-uniprot-index AND --eve-entry-map both wired to $UNIPROT_INDEX (HGVSp parser delivered);
+19: #     EVE resolves per-protein entry-name filenames (1433G_HUMAN) to HGNC (YWHAG) via the index.
+20: #     lands (roadmap; INCIDENT_2026-04-17). Wiring it now would add a KNOWN-zero feature, not signal.
+21: #   - OUTDIR pinned to outputs/run17_baseline/full.
+22: 
+23: set -euo pipefail
+24: 
+25: if [ -d /venv/main/bin ] && ! echo "$PATH" | grep -q "/venv/main/bin"; then
+26:     export PATH="/venv/main/bin:$PATH"
+27: fi
+28: PY="$(command -v python || command -v python3 || echo /venv/main/bin/python)"
+29: 
+30: REPO=/workspace/genomic-variant-classifier
+31: DATA="$REPO/data"
+32: OUTDIR="$REPO/outputs/run17_baseline/full"
+33: LOG=/workspace/run17_baseline_master.log
+34: 
+35: cleanup() {
+36:     rc=$?
+37:     echo "============================================================" | tee -a "$LOG"
+38:     if [ "$rc" -eq 0 ]; then
+39:         echo "==> run_phase2_eval.py exit 0 (success) @ $(date -u +'%F %T') UTC" | tee -a "$LOG"
+40:     else
+41:         echo "==> run_phase2_eval.py exit $rc -- ABORT @ $(date -u +'%F %T') UTC" | tee -a "$LOG"
+42:     fi
+43:     echo "==> Checkpoints under $OUTDIR/models/:" | tee -a "$LOG"
+44:     ls -la "$OUTDIR/models/" 2>&1 | tee -a "$LOG" || true
+45:     echo "============================================================" | tee -a "$LOG"
+46: }
+47: trap cleanup EXIT
+48: 
+49: echo "==> Run 17 baseline launch @ $(date -u +'%F %T') UTC" | tee "$LOG"
+50: echo "==> Python: $PY ($($PY --version 2>&1))" | tee -a "$LOG"
+51: 
+52: # -- 1. Required data preflight (Run-17 full input set; hard-fail = no silent zero) -----------
+53: echo "==> [1/6] Data preflight" | tee -a "$LOG"
+54: FAIL=0
+55: KG_PARQUET="$DATA/external/1kgp/kg_grch38_af.parquet"
+56: RNASEQ_PARQUET="$DATA/external/rnaseq_gene_expression.parquet"
+57: GTEX_PARQUET="$DATA/external/gtex_gene_expression.parquet"
+58: REACTOME_PARQUET="$DATA/external/reactome_gene_pathways.parquet"
+59: REACTOME_GMT="$DATA/external/reactome/ReactomePathways.gmt"
+60: for f in \

@@ -1,0 +1,86 @@
+=== StringDBGraph.__init__ (L72-95) ===
+72:     def __init__(
+73:         self,
+74:         cache_dir: Path = Path("data/raw/cache"),
+75:         combined_score_threshold: int = 700,
+76:         local_links_path: Optional[Path] = None,
+77:         local_info_path: Optional[Path] = None,
+78:     ) -> None:
+79:         self.cache_dir = Path(cache_dir)
+80:         self.cache_dir.mkdir(parents=True, exist_ok=True)
+81:         self.threshold = combined_score_threshold
+82:         self.local_links_path = Path(local_links_path) if local_links_path else None
+83:         self.local_info_path = Path(local_info_path) if local_info_path else None
+84:         self.graph: Optional[nx.Graph] = None
+85:         self._protein_to_gene: dict[str, str] = {}
+86: 
+87:     def _download_gz(self, url: str, sep: str = " ") -> pd.DataFrame:
+88:         logger.info("Downloading %s...", url)
+89:         resp = requests.get(url, stream=True, timeout=120)
+90:         resp.raise_for_status()
+91:         raw = b"".join(resp.iter_content(chunk_size=1 << 20))
+92:         with gzip.open(io.BytesIO(raw), "rt") as fh:
+93:             return pd.read_csv(fh, sep=sep)
+94: 
+95:     def _save_graph(self, G: nx.Graph, path: Path) -> None:
+
+=== method signatures mentioning threshold / build / load ===
+  L75: combined_score_threshold: int = 700,
+  L81: self.threshold = combined_score_threshold
+  L125: def build(self, force_refresh: bool = False) -> nx.Graph:
+  L126: cache_path = self.cache_dir / f"string_graph_{self.threshold}.pkl"
+  L149: links_df = links_df[links_df["combined_score"] >= self.threshold]
+  L150: logger.info("After threshold=%d: %d edges.", self.threshold, len(links_df))
+  L231: def build_pyg_dataset(
+  L500: string_threshold: int = 700,
+
+=== train_gnn_pipeline (L497-545) ===
+497: def train_gnn_pipeline(
+498:     variant_df: pd.DataFrame,
+499:     node_feature_cols: list[str],
+500:     string_threshold: int = 700,
+501:     string_kwargs: Optional[dict] = None,
+502:     test_split: float = 0.2,
+503:     epochs: int = 100,
+504:     batch_size: int = 32,
+505:     graph: Optional[nx.Graph] = None,
+506:     precision: str = "fp32",
+507:     edge_denoise: str = "none",
+508:     edge_denoise_tau: float = 0.0,
+509:     layer_type: str = "gat",
+510: ) -> tuple[VariantGAT, GNNTrainer, list[dict]]:
+511:     """End-to-end GNN training pipeline (transductive, shared graph)."""
+512:     from sklearn.model_selection import train_test_split
+513: 
+514:     if graph is None:
+515:         _kwargs = dict(string_kwargs or {})
+516:         _kwargs.setdefault("combined_score_threshold", string_threshold)
+517:         builder = StringDBGraph(**_kwargs)
+518:         graph = builder.build()
+519: 
+520:     ds = build_pyg_dataset(
+521:         variant_df, graph, node_feature_cols,
+522:         edge_denoise=edge_denoise, edge_denoise_tau=edge_denoise_tau,
+523:     )
+524:     n = len(ds)
+525:     if n < 4:
+526:         raise ValueError(f"Too few labeled focal samples for GNN training: {n}")
+527: 
+528:     y_np = ds.y.numpy()
+529:     stratify = y_np if len(np.unique(y_np)) > 1 else None
+530:     train_pos, val_pos = train_test_split(
+531:         np.arange(n), test_size=test_split, random_state=42, stratify=stratify
+532:     )
+533:     train_ds, val_ds = ds.subset(train_pos), ds.subset(val_pos)
+534: 
+535:     in_channels = len(node_feature_cols)  # focal indicator dropped (Option B)
+536:     if layer_type == "gps":
+537:         model = VariantGATGPS(in_channels=in_channels, hidden_channels=128, heads=4)
+538:     elif layer_type == "gat":
+539:         model = VariantGAT(in_channels=in_channels, hidden_channels=128, heads=8)
+540:     else:
+541:         raise ValueError(f"unknown layer_type: {layer_type!r} (expected 'gat' or 'gps')")
+542:     trainer = GNNTrainer(model, epochs=epochs, batch_size=batch_size, precision=precision)
+543:     history = trainer.fit(train_ds, val_ds)
+544:     return model, trainer, history
+545: 

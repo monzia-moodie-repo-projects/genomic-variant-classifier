@@ -1,0 +1,117 @@
+
+=== 1. what records does a real AF CIF carry? (decides DSSP-dep vs parse-from-CIF) ===
+CIF categories present:
+  _citation
+  _entity
+  _entry
+  _software
+
+=== 2. does it carry secondary-structure / SASA records specifically? ===
+has _struct_conf (helix): True
+has _struct_sheet (sheet): False
+has Cartn_x coords: True
+has B_iso (pLDDT): True
+
+=== 3. uniprot parquet schema (gene->accession source for the builder) ===
+rows: 20190
+cols: ['gene_symbol', 'uniprot_id', 'entry_name', 'sequence']
+  gene_symbol  uniprot_id   entry_name                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             sequence
+0      CYP2D7  A0A087X1C5  CP2D7_HUMAN  MGLEALVPLAMIVAIFLLLVDLMHRHQRWAARYPPGPLPLPGLGNLLHVDFQNTPYCFDQLRRRFGDVFSLQLAWTPVVVLNGLAAVREAMVTRGEDTADRPPAPIYQVLGFGPRSQGVILSRYGPAWREQRRFSVSTLRNLGLGKKSLEQWVTEEAACLCAAFADQAGRPFRPNGLLDKAVSNVIASLTCGRRFEYDDPRFLRLLDLAQEGLKEESGFLREVLNAVPVLPHIPALAGKVLRFQKAFLTQLDELLTEHRMTWDPAQPPRDLTEAFLAKKEKAKGSPESSFNDENLRIVVGNLFLAGMVTTSTTLAWGLLLMILHLDVQRGRRVSPGCPIVGTHVCPVRVQQEIDDVIGQVRRPEMGDQAHMPCTTAVIHEVQHFGDIVPLGVTHMTSRDIEVQGFRIPKGTTLITNLSSVLKDEAVWKKPFRFHPEHFLDAQGHFVKPEAFLPFSAGRRACLGEPLARMELFLFFTSLLQHFSFSVAAGQPRPSHSRVVSFLVTPSPYELCAVPR
+1      SMIM26  A0A096LP01  SIM26_HUMAN                                                                                                                                                                                                                                                                                                                                                                                                                                      MYRNEFTAWYRRMSVVYGIGTWSVLGSLLYYSRTMAKSSVDQKDGSASEVPSELSERPKGFYVETVVTYKEDFVPNTEKILNYWKSWTGGPGTEP
+2     PIGBOS1  A0A0B4J2F0  PIOS1_HUMAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                               MFRRLTFAQLLFATVLGIAGGVYIFQPVFEQYAKDQKELKEKMQLVQESEEKKS
+
+=== 4. dbSNP connector as the join-pattern template (mirror for AF connector) ===
+"""
+src/genomic_variant_classifier/data/dbsnp.py
+=================
+dbSNP allele frequency supplement connector — Phase 4, Connector 4.
+
+Reads a dbSNP parquet file (derived from NCBI FTP build 156) and adds one
+variant-level feature:
+
+    dbsnp_af   float   Population allele frequency from dbSNP.
+                       Used to supplement gnomAD for variants absent from
+                       gnomAD v4.  Default: 0.0 (treat absent as ultra-rare).
+
+Variant-level join: by chrom:pos:ref:alt lookup key.
+
+Expected parquet columns:
+    variant_id    str   "chrom:pos:ref:alt" key
+    allele_freq   float Population AF
+
+Stub mode:
+    When parquet_path is None or the file does not exist, all variants receive
+    dbsnp_af = 0.0 and a WARNING is logged.
+
+Data source:
+    NCBI FTP: https://ftp.ncbi.nlm.nih.gov/snp/
+    Build 156 VCF → convert to parquet with scripts/build_dbsnp_parquet.py
+"""
+
+from __future__ import annotations
+
+import hashlib
+import logging
+from pathlib import Path
+from typing import Optional
+
+import pandas as pd
+
+from genomic_variant_classifier.data.database_connectors import BaseConnector, FetchConfig
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_AF = 0.0
+
+
+class DbSNPConnector(BaseConnector):
+    """
+    Annotates variants with dbSNP population allele frequencies.
+
+    Usage
+    -----
+        connector = DbSNPConnector(parquet_path="data/external/dbsnp156.parquet")
+        annotated_df = connector.annotate_dataframe(variant_df)
+        # annotated_df now has a dbsnp_af column
+
+    If parquet_path is None or file is absent, stub mode applies:
+    all variants receive dbsnp_af = 0.0.
+    """
+
+    source_name = "dbsnp"
+
+    def __init__(
+
+=== 5. how is the cohort's protein_change / gene_symbol / is_missense populated? (builder inputs) ===
+
+LineNumber Line
+---------- ----
+        81     AlphaMissense supplies (protein_pos, wt_aa, mut_aa) for ~97% of canonical
+        88         df.get("is_missense", pd.Series([0] * len(df), index=df.index))
+        95     pp = df.get("protein_pos", pd.Series([pd.NA] * len(df), index=df.index))
+       895         # 10b. Protein coordinates (AlphaMissense) -> protein_pos / wt_aa / mut_aa
+       902             df["is_missense"] = (
+       905         if "protein_pos" in df.columns:
+       906             df["codon_position"] = df["protein_pos"].fillna(0).astype(int)
+       908             "Score annotation 10b (protein coords): %d variants with protein_pos.",
+       909             int(df.get("protein_pos", pd.Series([pd.NA] * len(df), index=df.index)).notna().sum()),
+       919         # 10c. HGVSp fallback -- fill protein_pos/wt_aa/mut_aa for missense variants
+       920         # AlphaMissense did not cover, from the ClinVar-derived protein_change (HGVSp)
+       923         # tripwire). ESM-2's wt_aa-vs-sequence cross-check makes a wrong-isoform coord
+       929         df, _n_hgvsp_fill = fill_protein_columns_from_hgvsp(df, source_col="protein_change")
+       931             if "protein_pos" in df.columns:
+       932                 df["codon_position"] = df["protein_pos"].fillna(0).astype(int)
+       935                 "protein_change beyond AlphaMissense.",
+      1006             int(df.get("is_missense", pd.Series([0] * len(df), index=df.index)).sum()),
+      1155         feats["is_missense"] = consequence.str.contains(
+      1480         # _parse_codon_position on unpopulated protein_change column) was
+
+
+=== 6. is biotite already available? (dependency check) ===
+biotite installed: False
+
+=== 7. EXISTING run-time cost: how many distinct genes in the cohort? (build scale) ===
+distinct genes: 21386
+total variants: 4399089
+
+=== DONE -- upload af_build_scope.txt ===

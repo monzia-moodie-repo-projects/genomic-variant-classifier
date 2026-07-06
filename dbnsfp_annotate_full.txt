@@ -1,0 +1,89 @@
+=== dbnsfp.py (586 lines) ===
+--- annotate_dataframe: L241-322 ---
+241:     def annotate_dataframe(
+242:         self,
+243:         df: pd.DataFrame,
+244:         **missing_overrides: float,
+245:     ) -> pd.DataFrame:
+246:         """
+247:         Add (or replace) all six score columns on a copy of *df*.
+248: 
+249:         Columns written: ``sift_score``, ``polyphen2_score``, ``revel_score``,
+250:         ``cadd_phred``, ``phylop_score``, ``gerp_score``.
+251: 
+252:         Variants absent from the dbNSFP index receive the corresponding
+253:         DEFAULT_* constant, matching engineer_features() fill-ins exactly.
+254: 
+255:         Parameters
+256:         ----------
+257:         df:
+258:             Canonical-schema DataFrame (must have chrom, pos, ref, alt).
+259:         **missing_overrides:
+260:             Optional per-column default overrides, e.g.
+261:             ``cadd_phred=20.0`` to use a different fill for missing CADD.
+262:             Unspecified columns use their module-level DEFAULT_* values.
+263: 
+264:         Returns
+265:         -------
+266:         pd.DataFrame
+267:             Copy of *df* with all six score columns added / replaced.
+268:         """
+269:         out = df.copy()
+270:         # Extract unique normalised chromosomes to filter parquet cache
+271:         _chroms: set[str] = set(
+272:             df["chrom"].astype(str).apply(_normalise_chrom).unique()
+273:         ) if "chrom" in df.columns else set()
+274:         index_df = self._get_index(filter_chroms=_chroms if _chroms else None)
+275: 
+276:         # Resolve effective defaults (module defaults + any overrides)
+277:         effective_defaults = dict(_DEFAULTS)
+278:         effective_defaults.update(missing_overrides)
+279: 
+280:         if index_df.empty:
+281:             for col_name, default in effective_defaults.items():
+282:                 out[col_name] = default
+283:             return out
+284: 
+285:         # Normalise join keys on left side
+286:         left = out[["chrom", "pos", "ref", "alt"]].copy()
+287:         left["_chrom"] = left["chrom"].astype(str).apply(_normalise_chrom)
+288:         left["_pos"]   = pd.to_numeric(left["pos"], errors="coerce").astype("Int64")
+289:         left["_ref"]   = left["ref"].astype(str).str.upper()
+290:         left["_alt"]   = left["alt"].astype(str).str.upper()
+291: 
+292:         # Normalise join keys on right side
+293:         right = index_df[["chrom", "pos", "ref", "alt"] + list(_OUTPUT_COLS.values())].copy()
+294:         right = right.rename(columns={
+295:             "chrom": "_chrom", "pos": "_pos", "ref": "_ref", "alt": "_alt"
+296:         })
+297:         right["_chrom"] = right["_chrom"].astype(str).apply(_normalise_chrom)
+298:         right["_pos"]   = pd.to_numeric(right["_pos"], errors="coerce").astype("Int64")
+299:         right["_ref"]   = right["_ref"].astype(str).str.upper()
+300:         right["_alt"]   = right["_alt"].astype(str).str.upper()
+301: 
+302:         # Vectorised merge
+303:         left = left.reset_index(drop=False).rename(columns={"index": "_orig_idx"})
+304:         merged = left.merge(
+305:             right,
+306:             on=["_chrom", "_pos", "_ref", "_alt"],
+307:             how="left",
+308:         ).set_index("_orig_idx")
+309: 
+310:         score_cols = list(_OUTPUT_COLS.values())
+311:         for col_name in score_cols:
+312:             default = effective_defaults.get(col_name, 0.0)
+313:             out[col_name] = merged[col_name].fillna(default).values
+314: 
+315:         n_hit = int(merged[score_cols[0]].notna().sum())
+316:         logger.debug(
+317:             "DbNSFP: annotated %d/%d variants with real scores.",
+318:             n_hit, len(df),
+319:         )
+320:         return out
+321: 
+322:     def get_scores(
+
+--- _load_index signature + how annotate calls it ---
+  L241: def annotate_dataframe(
+  L381: self._index = self._load_index(filter_chroms=filter_chroms)
+  L389: def _load_index(

@@ -1,0 +1,67 @@
+def _resolve_cif_url(accession: str) -> Optional[str]:
+    """Resolve the current-version AlphaFold cif URL via the prediction API.
+
+    The per-file version suffix (model_v4 -> model_v6 -> ...) changes with each
+    AlphaFold DB release, so hard-coding it silently breaks fetching. The
+    prediction API always reports the current cifUrl for an accession; we read it
+    rather than templating a version we would have to chase. Returns None on any
+    failure (unreachable API, non-200, unparseable JSON, missing field) so the
+    caller counts the gene as a miss and the coverage gate flags systematic loss
+    loudly instead of papering over it with a guessed version.
+    """
+    try:
+        resp = requests.get(
+            ALPHAFOLD_PREDICTION_API.format(accession=accession),
+            timeout=_REQUEST_TIMEOUT,
+        )
+    except Exception as exc:
+        logger.debug("prediction API failed for %s: %s", accession, exc)
+        return None
+    if not resp.ok:
+        return None
+    try:
+        data = resp.json()
+    except Exception as exc:
+        logger.debug("prediction API non-JSON for %s: %s", accession, exc)
+        return None
+    rec = data[0] if isinstance(data, list) and data else data
+    if not isinstance(rec, dict):
+        return None
+    cif_url = rec.get("cifUrl")
+    return cif_url if isinstance(cif_url, str) and cif_url else None
+
+
+def _download_cif(accession: str, cache_dir: Path) -> Optional[Path]:
+    """Download+cache the current-version AlphaFold CIF; reuse if present.
+
+    Resolves the versioned cif URL from the prediction API, saves under the
+    server's own filename (so a v6 payload is never stored under a v4 name), and
+    rejects any non-CIF payload so an error page can never be parsed as a
+    structure. Returns the cached path, or None on any failure.
+    """
+    cached = [f for f in cache_dir.glob(f"AF-{accession}-F1-model_v*.cif")
+              if f.stat().st_size > 0]
+    if cached:
+        def _ver(p: Path) -> int:
+            stem = p.stem.rsplit("_v", 1)
+            return int(stem[1]) if len(stem) == 2 and stem[1].isdigit() else -1
+        return max(cached, key=_ver)
+    cif_url = _resolve_cif_url(accession)
+    if not cif_url:
+        return None
+    try:
+        resp = requests.get(cif_url, timeout=_REQUEST_TIMEOUT)
+    except Exception as exc:
+        logger.debug("download failed for %s: %s", accession, exc)
+        return None
+    if not resp.ok or not resp.text:
+        return None
+    text = resp.text
+    if not text.lstrip().startswith("data_") or "_atom_site" not in text:
+        logger.debug("payload for %s is not a CIF (%d bytes); rejecting",
+                     accession, len(text))
+        return None
+    cache_file = cache_dir / cif_url.rsplit("/", 1)[-1]
+    cache_file.write_text(text, encoding="utf-8")
+    time.sleep(_POLITE_DELAY_S)
+    return cache_file

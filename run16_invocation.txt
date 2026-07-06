@@ -1,0 +1,157 @@
+=== files searched ===
+  docs\runs\RUN17_SCOPE.md
+  docs\runs\RUN_14_PLAN.md
+  docs\runs\RUN_14_REFERENCE_CARD.md
+  docs\runs\RUN_14_RESULTS.md
+  docs\runs\RUN_15_PLAN.md
+  docs\runs\RUN_16_results.md
+  docs\runs\RUN_17_PLAN.md
+  scripts\audit_run17_assets.py
+  scripts\gen_run17_ablation_launchers.py
+  scripts\gen_run17_observability.py
+  scripts\launch_run17_baseline.sh
+  scripts\launch_run17_baseline.sh.preeve.bak
+  scripts\launch_run17_baseline.sh.prefinngen.bak
+  scripts\launch_run17_baseline.sh.pre_eve_entry_map.bak
+  scripts\launch_run17_baseline.sh.pre_genemap2_pybigtools.bak
+  scripts\launch_run17_baseline.sh.pre_stage4.bak
+  scripts\launch_run17_baseline.sh.pre_variant_files.bak
+  scripts\launch_run17_r12only.sh
+  scripts\launch_run17_r13only.sh
+  scripts\launch_run17_rnaseq_ablation.sh
+  scripts\patch_g1_run17_preflight.py
+  scripts\patch_launch_run17_eve_entry_map.py
+  scripts\patch_launch_run17_eve_esm2.py
+  scripts\patch_launch_run17_genemap2_pybigtools.py
+  scripts\patch_launch_run17_kan_guard.py
+  scripts\patch_preflight_run17_docstring.py
+  scripts\patch_run17_plan_doc.py
+  scripts\patch_run_preflight_vm_run17.py
+  scripts\patch_test_launch_run17_bashcheck.py
+  scripts\patch_test_launch_run17_esm2_present.py
+  scripts\preflight_run17.py
+  scripts\Run17_Monitor.ps1
+  scripts\run17_observability.py
+  scripts\Run17_Postflight.ps1
+  scripts\Stage_Run17_EVE_ESM2.ps1
+  scripts\Stage_Run17_EVE_ESM2.ps1.pre_variant_files.bak
+  scripts\gen_run17_ablation_launchers.py
+  scripts\launch_run10a_vm.sh
+  scripts\launch_run10b_vm.sh
+  scripts\launch_run10_vm.sh
+  scripts\launch_run11_vm.sh
+  scripts\launch_run15_baseline.sh
+  scripts\launch_run16.py
+  scripts\launch_run16_vm.sh
+  scripts\launch_run17_baseline.sh
+  scripts\launch_run17_baseline.sh.preeve.bak
+  scripts\launch_run17_baseline.sh.prefinngen.bak
+  scripts\launch_run17_baseline.sh.pre_eve_entry_map.bak
+  scripts\launch_run17_baseline.sh.pre_genemap2_pybigtools.bak
+  scripts\launch_run17_baseline.sh.pre_stage4.bak
+  scripts\launch_run17_baseline.sh.pre_variant_files.bak
+  scripts\launch_run17_r12only.sh
+  scripts\launch_run17_r13only.sh
+  scripts\launch_run17_rnaseq_ablation.sh
+  scripts\launch_run9_vm.sh
+  scripts\patch_g2_launcher_ref.py
+  scripts\patch_launch_contract_watchitems.py
+  scripts\patch_launch_gnn_verify.py
+  scripts\patch_launch_run15_fullsignal.py
+  scripts\patch_launch_run17_eve_entry_map.py
+  scripts\patch_launch_run17_eve_esm2.py
+  scripts\patch_launch_run17_genemap2_pybigtools.py
+  scripts\patch_launch_run17_kan_guard.py
+  scripts\patch_test_launch_run17_bashcheck.py
+  scripts\patch_test_launch_run17_esm2_present.py
+  scripts\run9_launch.md
+
+=== lines invoking run_phase2_eval (with flags) ===
+  [RUN17_SCOPE.md:97] python scripts/run_phase2_eval.py `
+  [RUN17_SCOPE.md:149] python scripts/run_phase2_eval.py `
+  [RUN17_SCOPE.md:193] - **Entrypoint VERIFIED.** scripts/run_phase2_eval.py carries every Run-17 flag: --kg (L66),
+  [RUN_15_PLAN.md:55] - **C.9** run_phase2_eval.py unseen_gene_holdout evaluator (C3 falsifier b): **closed in f4277ec (PM11b)** - --unseen-gene-holdout flag + try/except ablation block retrains the ensemble on a gene-stra
+  [RUN_15_PLAN.md:111] - **2026-05-27 PM11a+PM11b - pre-launch code dependencies CLOSED** (e0eac0e + f4277ec). PM11a (e0eac0e): Patch 6b gene_symbol fix verified on disk (meta_train.parquet sourced at run_phase2_eval.py L29
+  [RUN_15_PLAN.md:112] - **2026-06-03 -- launch-surface reconciliation + two stale-plan corrections** (docs-only, no code change). (1) B.D6 SUPERSEDED: the current honest baseline ENABLES cnn_1d as the sequence CNN via --se
+  [RUN_17_PLAN.md:41] - **C.4** `real_data_prep.py` + `run_phase2_eval.py` + `launch_run17_baseline.sh` — R13 real-data wiring (AnnotationConfig.finngen_r13_path; --finngen-r13-path flag; independent R13 connector pass col
+  [launch_run17_baseline.sh:15] #   - --skip-svm ON (run_phase2_eval --help: required >100k; n_train ~1.2M, RBF is O(n^2)).
+  [launch_run17_baseline.sh:41] echo "==> run_phase2_eval.py exit $rc -- ABORT @ $(date -u +'%F %T') UTC" | tee -a "$LOG"
+  [launch_run17_baseline.sh:291] python scripts/run_phase2_eval.py $ARGS 2>&1 | tee -a "$LOG"
+  [launch_run17_baseline.sh.preeve.bak:15] #   - --skip-svm ON (run_phase2_eval --help: required >100k; n_train ~1.2M, RBF is O(n^2)).
+  [launch_run17_baseline.sh.preeve.bak:40] echo "==> run_phase2_eval.py exit $rc -- ABORT @ $(date -u +'%F %T') UTC" | tee -a "$LOG"
+  [launch_run17_baseline.sh.preeve.bak:203] python scripts/run_phase2_eval.py $ARGS 2>&1 | tee -a "$LOG"
+  [launch_run17_baseline.sh.prefinngen.bak:15] #   - --skip-svm ON (run_phase2_eval --help: required >100k; n_train ~1.2M, RBF is O(n^2)).
+  [launch_run17_baseline.sh.prefinngen.bak:40] echo "==> run_phase2_eval.py exit $rc -- ABORT @ $(date -u +'%F %T') UTC" | tee -a "$LOG"
+  [launch_run17_baseline.sh.prefinngen.bak:200] python scripts/run_phase2_eval.py $ARGS 2>&1 | tee -a "$LOG"
+  [launch_run17_baseline.sh.pre_eve_entry_map.bak:15] #   - --skip-svm ON (run_phase2_eval --help: required >100k; n_train ~1.2M, RBF is O(n^2)).
+  [launch_run17_baseline.sh.pre_eve_entry_map.bak:40] echo "==> run_phase2_eval.py exit $rc -- ABORT @ $(date -u +'%F %T') UTC" | tee -a "$LOG"
+  [launch_run17_baseline.sh.pre_eve_entry_map.bak:252] python scripts/run_phase2_eval.py $ARGS 2>&1 | tee -a "$LOG"
+  [launch_run17_baseline.sh.pre_genemap2_pybigtools.bak:15] #   - --skip-svm ON (run_phase2_eval --help: required >100k; n_train ~1.2M, RBF is O(n^2)).
+  [launch_run17_baseline.sh.pre_genemap2_pybigtools.bak:41] echo "==> run_phase2_eval.py exit $rc -- ABORT @ $(date -u +'%F %T') UTC" | tee -a "$LOG"
+  [launch_run17_baseline.sh.pre_genemap2_pybigtools.bak:259] python scripts/run_phase2_eval.py $ARGS 2>&1 | tee -a "$LOG"
+  [launch_run17_baseline.sh.pre_stage4.bak:15] #   - --skip-svm ON (run_phase2_eval --help: required >100k; n_train ~1.2M, RBF is O(n^2)).
+  [launch_run17_baseline.sh.pre_stage4.bak:41] echo "==> run_phase2_eval.py exit $rc -- ABORT @ $(date -u +'%F %T') UTC" | tee -a "$LOG"
+  [launch_run17_baseline.sh.pre_stage4.bak:278] python scripts/run_phase2_eval.py $ARGS 2>&1 | tee -a "$LOG"
+  [launch_run17_baseline.sh.pre_variant_files.bak:15] #   - --skip-svm ON (run_phase2_eval --help: required >100k; n_train ~1.2M, RBF is O(n^2)).
+  [launch_run17_baseline.sh.pre_variant_files.bak:41] echo "==> run_phase2_eval.py exit $rc -- ABORT @ $(date -u +'%F %T') UTC" | tee -a "$LOG"
+  [launch_run17_baseline.sh.pre_variant_files.bak:254] python scripts/run_phase2_eval.py $ARGS 2>&1 | tee -a "$LOG"
+  [launch_run17_r12only.sh:17] #   - --skip-svm ON (run_phase2_eval --help: required >100k; n_train ~1.2M, RBF is O(n^2)).
+  [launch_run17_r12only.sh:43] echo "==> run_phase2_eval.py exit $rc -- ABORT @ $(date -u +'%F %T') UTC" | tee -a "$LOG"
+  [launch_run17_r12only.sh:283] python scripts/run_phase2_eval.py $ARGS 2>&1 | tee -a "$LOG"
+  [launch_run17_r13only.sh:17] #   - --skip-svm ON (run_phase2_eval --help: required >100k; n_train ~1.2M, RBF is O(n^2)).
+  [launch_run17_r13only.sh:43] echo "==> run_phase2_eval.py exit $rc -- ABORT @ $(date -u +'%F %T') UTC" | tee -a "$LOG"
+  [launch_run17_r13only.sh:283] python scripts/run_phase2_eval.py $ARGS 2>&1 | tee -a "$LOG"
+  [launch_run17_rnaseq_ablation.sh:69] python scripts/run_phase2_eval.py $COMMON --rnaseq-path "$rnaseq" --output "$out" 2>&1 | tee -a "$LOG"
+  [preflight_run17.py:27] python scripts/preflight_run17.py --check "<full run_phase2_eval.py command>" [--data-root data]
+  [preflight_run17.py:55] # gnn_score (THE Run-17 deliverable) source chain for --string-db auto. run_phase2_eval maps
+  [preflight_run17.py:141] """Mirror run_phase2_eval: 'auto' or non-digit --string-db -> 700, else the int value."""
+  [preflight_run17.py:228] parts = ["python scripts/run_phase2_eval.py"] + _data_flags(data_root) + _fixed_flags()
+  [preflight_run17.py:241] ap.add_argument("--check", help="full run_phase2_eval.py command to validate")
+  [Run17_Monitor.ps1:31] #   PYTHONUNBUFFERED=1 python scripts/run_phase2_eval.py ... 2>&1 | tee /workspace/run17_master.log
+  [Run17_Monitor.ps1:108] Invoke-Ssh "ps -eo pid,etime,pcpu,pmem,cmd --sort=-pcpu | grep -E 'run_phase2_eval|python' | grep -v grep | head -5"
+  [launch_run10a_vm.sh:118] python scripts/run_phase2_eval.py \
+  [launch_run10b_vm.sh:112] echo "==> ALL PREFLIGHT PASSED. Starting run_phase2_eval.py with --skip-kan @ $(date -u +'%Y-%m-%d %H:%M:%S') UTC" | tee -a "$LOG"
+  [launch_run10b_vm.sh:114] python scripts/run_phase2_eval.py \
+  [launch_run10_vm.sh:18] # Run 10a will re-regen splits via run_phase2_eval.py with --lovd-path +
+  [launch_run11_vm.sh:232] python scripts/run_phase2_eval.py $ARGS 2>&1 | tee -a "$LOG"
+  [launch_run15_baseline.sh:44] echo "==> run_phase2_eval.py exit $rc -- ABORT @ $(date -u +'%F %T') UTC" | tee -a "$LOG"
+  [launch_run15_baseline.sh:179] python scripts/run_phase2_eval.py $ARGS 2>&1 | tee -a "$LOG"
+  [launch_run15_baseline.sh:205] # -- contract real; catches a GNN swallowed by run_phase2_eval's except
+  [launch_run17_baseline.sh:15] #   - --skip-svm ON (run_phase2_eval --help: required >100k; n_train ~1.2M, RBF is O(n^2)).
+  [launch_run17_baseline.sh:41] echo "==> run_phase2_eval.py exit $rc -- ABORT @ $(date -u +'%F %T') UTC" | tee -a "$LOG"
+  [launch_run17_baseline.sh:291] python scripts/run_phase2_eval.py $ARGS 2>&1 | tee -a "$LOG"
+  [launch_run17_baseline.sh.preeve.bak:15] #   - --skip-svm ON (run_phase2_eval --help: required >100k; n_train ~1.2M, RBF is O(n^2)).
+  [launch_run17_baseline.sh.preeve.bak:40] echo "==> run_phase2_eval.py exit $rc -- ABORT @ $(date -u +'%F %T') UTC" | tee -a "$LOG"
+  [launch_run17_baseline.sh.preeve.bak:203] python scripts/run_phase2_eval.py $ARGS 2>&1 | tee -a "$LOG"
+  [launch_run17_baseline.sh.prefinngen.bak:15] #   - --skip-svm ON (run_phase2_eval --help: required >100k; n_train ~1.2M, RBF is O(n^2)).
+  [launch_run17_baseline.sh.prefinngen.bak:40] echo "==> run_phase2_eval.py exit $rc -- ABORT @ $(date -u +'%F %T') UTC" | tee -a "$LOG"
+  [launch_run17_baseline.sh.prefinngen.bak:200] python scripts/run_phase2_eval.py $ARGS 2>&1 | tee -a "$LOG"
+  [launch_run17_baseline.sh.pre_eve_entry_map.bak:15] #   - --skip-svm ON (run_phase2_eval --help: required >100k; n_train ~1.2M, RBF is O(n^2)).
+  [launch_run17_baseline.sh.pre_eve_entry_map.bak:40] echo "==> run_phase2_eval.py exit $rc -- ABORT @ $(date -u +'%F %T') UTC" | tee -a "$LOG"
+  [launch_run17_baseline.sh.pre_eve_entry_map.bak:252] python scripts/run_phase2_eval.py $ARGS 2>&1 | tee -a "$LOG"
+  [launch_run17_baseline.sh.pre_genemap2_pybigtools.bak:15] #   - --skip-svm ON (run_phase2_eval --help: required >100k; n_train ~1.2M, RBF is O(n^2)).
+  [launch_run17_baseline.sh.pre_genemap2_pybigtools.bak:41] echo "==> run_phase2_eval.py exit $rc -- ABORT @ $(date -u +'%F %T') UTC" | tee -a "$LOG"
+  [launch_run17_baseline.sh.pre_genemap2_pybigtools.bak:259] python scripts/run_phase2_eval.py $ARGS 2>&1 | tee -a "$LOG"
+  [launch_run17_baseline.sh.pre_stage4.bak:15] #   - --skip-svm ON (run_phase2_eval --help: required >100k; n_train ~1.2M, RBF is O(n^2)).
+  [launch_run17_baseline.sh.pre_stage4.bak:41] echo "==> run_phase2_eval.py exit $rc -- ABORT @ $(date -u +'%F %T') UTC" | tee -a "$LOG"
+  [launch_run17_baseline.sh.pre_stage4.bak:278] python scripts/run_phase2_eval.py $ARGS 2>&1 | tee -a "$LOG"
+  [launch_run17_baseline.sh.pre_variant_files.bak:15] #   - --skip-svm ON (run_phase2_eval --help: required >100k; n_train ~1.2M, RBF is O(n^2)).
+  [launch_run17_baseline.sh.pre_variant_files.bak:41] echo "==> run_phase2_eval.py exit $rc -- ABORT @ $(date -u +'%F %T') UTC" | tee -a "$LOG"
+  [launch_run17_baseline.sh.pre_variant_files.bak:254] python scripts/run_phase2_eval.py $ARGS 2>&1 | tee -a "$LOG"
+  [launch_run17_r12only.sh:17] #   - --skip-svm ON (run_phase2_eval --help: required >100k; n_train ~1.2M, RBF is O(n^2)).
+  [launch_run17_r12only.sh:43] echo "==> run_phase2_eval.py exit $rc -- ABORT @ $(date -u +'%F %T') UTC" | tee -a "$LOG"
+  [launch_run17_r12only.sh:283] python scripts/run_phase2_eval.py $ARGS 2>&1 | tee -a "$LOG"
+  [launch_run17_r13only.sh:17] #   - --skip-svm ON (run_phase2_eval --help: required >100k; n_train ~1.2M, RBF is O(n^2)).
+  [launch_run17_r13only.sh:43] echo "==> run_phase2_eval.py exit $rc -- ABORT @ $(date -u +'%F %T') UTC" | tee -a "$LOG"
+  [launch_run17_r13only.sh:283] python scripts/run_phase2_eval.py $ARGS 2>&1 | tee -a "$LOG"
+  [launch_run17_rnaseq_ablation.sh:69] python scripts/run_phase2_eval.py $COMMON --rnaseq-path "$rnaseq" --output "$out" 2>&1 | tee -a "$LOG"
+  [patch_launch_gnn_verify.py:16] "# -- contract real; catches a GNN swallowed by run_phase2_eval's except\n"
+
+=== RUN_17_PLAN.md flag mentions ===
+  ---
+
+##
+  --finngen-r13-path flag;
+  --max-train ~3000,
+  --skip flags,
+  --string-db auto;

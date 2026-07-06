@@ -1,0 +1,15 @@
+=== Install_alphafold_testfix :: preflight ===
+backup tests SHA256: B03478BA8F2E83412E19EBF6B4681225754EDBAC84EFBD2AC3E72A23D804ABC6
+=== applying test-fix (5 guarded edits) ===
+test-fix: 5 guarded edits applied
+=== post-check 1: byte-compile ===
+compile OK
+=== post-check 2: full AF unit suite (expect 25 passed, 0 skipped) ===
+.........................                                                [100%]
+25 passed in 14.73s
+
+25 passed, 0 skipped -- OK
+tests SHA256: 2A201A9B66ACFE0830244EEACD34E1C6D4C25CF9D7EB2687621FC10DCC372C8A
+
+TEST-FIX COMPLETE. Canonical selection + tests all green.
+NEXT: re-run the 50-gene probe (verify_alphafold_build.ps1).

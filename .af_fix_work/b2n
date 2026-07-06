@@ -1,0 +1,18 @@
+    recs = data if isinstance(data, list) else [data]
+    # Select the record whose UniProt sequence EXACTLY equals our canonical index
+    # sequence. AlphaFold DB returns one record per isoform (entryId AF-{acc}-{N}-F1)
+    # whose residue numbering follows THAT isoform; attaching an isoform structure to
+    # canonical protein_pos would silently mis-number features. If no record matches
+    # the canonical sequence (giants over the AFDB length ceiling, isoform-only
+    # entries), return None so the gene is a documented coverage miss -- never a
+    # partial/isoform substitute. Verified on AARS1/ABCB1 (base) and DYST/SYNE1 (None).
+    if not canonical_seq:
+        return None
+    for rec in recs:
+        if not isinstance(rec, dict):
+            continue
+        if (rec.get("uniprotSequence") or "") == canonical_seq:
+            cif_url = rec.get("cifUrl")
+            if isinstance(cif_url, str) and cif_url:
+                return cif_url
+    return None

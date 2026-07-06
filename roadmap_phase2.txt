@@ -1,0 +1,169 @@
+=== ROADMAP.md : total lines ===
+505
+=== headings / section structure ===
+1: # GenAssoc / genomic-variant-classifier - Living Roadmap
+11: # 1. Project identity & goals
+23: # 2. Phase model
+35: # 3. Current state snapshot (2026-06-10)
+49: # 4. Data-source registry
+51: ## 4A. Wired & healthy
+55: ## 4B. Scaffolded but DEAD / partial (Phase D targets)
+76: ## 4C. New candidates - verdicts (unchanged from v1)
+80: # 5. Immediate plan
+97: # 6. Modeling & infra roadmap
+107: # 7. Standing disciplines
+123: # 8. Blockers
+131: # 9. Changelog
+161: ## Appendix A -- Archived pre-rebaseline roadmap (Mar-May 2026, SUPERSEDED)
+168: # Genomic Variant Classifier -- Project Roadmap
+176: ## Vision
+189: ## Current State (March 2026)
+216: ## Phase 4 -- Algorithm Expansion and Benchmarking
+220: ### 4A -- ESM-2 Sequence Embeddings
+230: ### 4B -- KAN (Kolmogorov-Arnold Network)
+238: ### 4C -- Bayesian Uncertainty Quantification
+246: ### 4D -- GNN over Protein-Protein Interaction Network
+252: ### 4E -- Algorithm Comparison Framework
+270: ## Phase 3 -- Data Expansion
+272: ### 3A -- Population Controls
+281: ### 3B -- Disease Cohorts (Controlled Access)
+293: ### 3C -- Pending Downloads
+303: ## Phase 5 -- Clinical Validation and Deployment
+312: ## Feature Roadmap
+329: ## Complexity Reference
+347: ## Backlog additions -- 2026-06-10 (agent layer)
+366: ## Backlog additions -- 2026-06-11 (drift wiring + schema gate)
+416: ### Drift-wiring findings (recorded 2026-06-11)
+427: ### Proposed action items (NOT done -- deliberate design decisions for a future session)
+460: ### Feature-count reconciliation (TO VERIFY -- not asserted)
+472: ## ROADMAP delta -- 2026-06-11 (PM)
+474: ### Done
+481: ### Run 16 launch contract (preflight MUST Test-Path each)
+486: ### Open -- blocking Run 16
+492: ### Open -- post-regen / parallel
+499: ## ROADMAP delta -- 2026-06-11 (late PM, CNN + RNA activation)
+501: ### Done
+511: ### Run 16 launch contract -- ADDITION (preflight MUST Test-Path)
+518: ### Open -- post-regen / parallel (updated)
+529: ### Standing discipline -- ADDITION
+534: ## ROADMAP delta -- 2026-06-12 (CI ESM-2 Hub flake resolved)
+536: ### Done
+542: ### Standing disciplines -- ADDITIONS
+550: ### Note (unchanged, benign)
+555: ## ROADMAP delta -- 2026-06-12 (protein-coord index repair + Run-16 input contract)
+567: ## ROADMAP delta -- 2026-06-12 (Run-16 smoke gate cleared)
+584: ## 2026-06-12 -- Run 16 launch-ready; Run 17 scope committed
+598: ## 2026-06-14 (continued) -- data-source registry, freshness monitor, dead-agent audit, proposed-agent roadmap
+600: ### Delivered (wired + healthy)
+607: ### Proposed agents (Phase D/E -- assessed 2026-06-14, NOT yet built; awaiting go-ahead) -- priority order:
+625: ## Proposed-agent roadmap -- update 2026-06-14
+632: ## Proposed-agent roadmap -- update 2026-06-14
+640: ## Proposed-agent roadmap -- update 2026-06-14
+650: ## Proposed-agent roadmap -- update 2026-06-14
+657: ## Proposed-agent roadmap -- update 2026-06-14
+=== lines mentioning Phase 2 / Phase-D / remaining / TODO / status markers ===
+9: *v2 note: Run 15 completed (full cohort, ESM-2 mechanically active, constraint columns revived, unseen-gene-holdout ablation). Findings folded into the snapshot, data-source registry, and immediate plan below.*
+27: | F | Foundation | Bug-fixed core, ensemble+GNN+KAN, real ClinVar | Phase 1 / Phase 0 | DONE |
+28: | D | Data expansion | Wire sources; activate dead columns; add new sources | Phase 2 (partly) | IN PROGRESS |
+31: | X | Productionization | REST API, Docker, clinical eval/report | Phase 2 (API/Docker) | NOT STARTED |
+33: *We are in Phase D (data expansion). Foundation is done.*
+59: | ESM-2 | esm2_delta_norm (secondary), **esm2_llr** (primary, NEW) | local model+index | Phase 1 DONE 2026-06-10: esm2_llr LLR scorer (EsmForMaskedLM logits head; WT-marginal default, masked opt-in) + feature wired (79->80 lockstep; SIGNED, NOT clipped). CPU sign/index gate PASS; sign != class (continuous). Realizes after Run 16 coord-sync with esm2_model_name=esm2_t33_650M_UR50D. ESM C 600M = Phase 2 |
+63: | dbSNP/RefSNP | dbsnp_af | free | DONE+VERIFIED 2026-06-26 (build_dbsnp_parquet.py; dbsnp157_cohort.parquet 3.75M rows, 46% AF>0). End-to-end audit 2026-07-01: 37.45% cohort coverage, dbsnp_af>0 confirmed through DbSNPConnector. Wired: --dbsnp-path -> AnnotationConfig -> real_data_prep step 10. |
+71: | HGMD | hgmd_* (2) | PAID, blocked | label-leakage rules |
+78: Strong fits: AlphaFold DB (DO), RefSNP/dbSNP (DO), COSMIC (DO, academic; feature NOT label), TCGA (OPTIONAL), Reactome (DONE), KEGG (OPTIONAL, overlaps Reactome). BioGRID overlaps STRING. dbGaP is an access prerequisite (blocked), not a connector. ProteomeXchange / SRA / ENA / DDBJ DRA / SILVA out of scope.
+82: - **ESM-2 coverage (RESOLVED 2026-06-10):** the ~3,451 cap was a stale AlphaMissense protein-coord index on the training box, not an HGVSp-parser gap (protein_pos/wt_aa/mut_aa are populated by step 10b; hgvsp_parser.py / protein_coords.py already exist). Coverage gate shipped (34e125a; local ceiling 96.6%); Run 16 prereq is an operational coord-index sync. Method/model migration to LLR + ESM-2 650M -> ESM C 600M now in progress (Phase 1).
+88: - Remaining Phase-D connectors: AlphaFold-structure stub steps (data + config), then build COSMIC / TCGA / KEGG. (dbSNP DONE+VERIFIED 2026-06-26; see the dbSNP row above and the 2026-07-01 end-to-end coverage audit.)
+90: - **Heterogeneous-KG modeling track (2026-06-13):** hetero-GNN ENGINE done (models/hetero_gnn.py, HeteroConv multi-relation gene graph, 54158f7) + KG edge-connectors done (data/kg_edges.py co-membership primitive + Reactome/KEGG/GO/OMIM/ClinGen adapters, 8c19f9b). SCORER + SCHEMA DONE 2026-06-13: HeteroGNNScorer (547e2dc, mirrors GNNScorer; torch-free assembly + PyG train/score) and hetero_gnn_score landed as the 82nd feature (Option A -- SEPARATE from gnn_score to preserve the homogeneous-vs-heterogeneous comparison; EXPECTED_TABULAR_FEATURE_COUNT 81->82, both builders lockstep, reactome stays last; contract green, suite 1000). EVAL-OVERWRITE DONE 2026-06-14 (a54ef38): run_phase2_eval --hetero-gnn + --kg-edges source:path builds HeteroGNNScorer from STRING interacts_with + KG relations and overwrites hetero_gnn_score per split (opt-in; until run with the flag it stays the 0.5 default, mirroring gnn_score). ONLY REMAINING (Run-17): schema_baseline regen 81->82 from the real matrix.
+127: - dbGaP / TOPMed / controlled-TCGA / CPTAC-protected - need institutional Signing Official; blocked w/o R1 faculty sponsor.
+139: * Run 17 pre-flight gate authored (commit 94bf6ae; docs/runs/RUN17_SCOPE.md): activates gnn_score (--string-db auto) + af_1kg_* (--kg <1000G Phase-3 AF parquet>) via scripts/run_phase2_eval.py (NOT train.py). Corrected flag discrepancies: the real flag is --kg (a parquet), not --kg-path (a VCF). VALUE activation only -> 81-col schema + hash unchanged; no baseline rebuild.
+143: * Run 16 census: 37/81 matrix columns constant on the gene-disjoint test split (29 unpopulated/stub/blocked, codon_position == protein_pos, plus deferred gnn_score / af_1kg_* / sparse-real is_mitochondrial / lovd_variant_class).
+154: - 2026-06-09 (v2): Run 15 sealed (Test 0.9984 / Val 0.9983 / UGH 0.9988). ESM-2 stall fixed + shipped (local index + GPU), but coverage ~3,451 -> HGVSp parser promoted to top Phase-D item. AlphaMissense OOM re-validated. gene_constraint_oe revived (#2 feature); gnn_score confirmed real; cnn_1d/kan recovered. Infra lessons (SSH stdin-detach, fast-fail flags, poll-bail bug) recorded. clingen dtype drift flagged.
+172: **Last updated:** March 2026 -- Phase 7/8 complete, Phase 4 in progress
+193: | 64-feature tabular ensemble (LightGBM, XGBoost, RF, GBM, LR)          | **Done**                  |
+195: | RNA splice pipeline (MaxEntScan; 4 features)                           | **Done**                  |
+196: | Protein structure pipeline (AlphaFold/UniProt; 4 features)             | **Done**                  |
+197: | FastAPI REST service (/predict, /batch, /health, /gene, /rsid, /info)  | **Done**                  |
+198: | X-API-Key auth + slowapi rate limiting                                 | **Done**                  |
+199: | Structured JSON logging + Prometheus /metrics                          | **Done**                  |
+200: | Multi-stage Dockerfile + docker-compose (api / trainer / monitoring)   | **Done**                  |
+201: | GitHub Actions CI (lockfile check, pytest, docker build)               | **Done**                  |
+202: | Docker image pushed to GHCR                                            | **Done -- v2.0.0**        |
+203: | Conformal prediction intervals (scripts/conformal_prediction.py)       | **Done**                  |
+204: | External validation script (scripts/validate_external.py)             | **Done**                  |
+205: | Calibration analysis (scripts/calibration_analysis.py)                | **Done**                  |
+206: | METHODS.md (publication-ready methods section)                         | **Done**                  |
+207: | dbSNP index parquet (2.87M ClinVar-matched rs-IDs)                     | **Done**                  |
+208: | ESM-2 connector (src/genomic_variant_classifier/data/esm2.py)                                     | **Done -- ready for retrain** |
+209: | MC Dropout / Deep Ensemble uncertainty (src/genomic_variant_classifier/models/mc_dropout.py)      | **Done**                  |
+210: | KAN classifier (src/genomic_variant_classifier/models/kan.py)                                     | **Done**                  |
+211: | Algorithm benchmark framework (src/genomic_variant_classifier/evaluation/benchmark.py)            | **Done**                  |
+212: | Model retrain incorporating Phase 4 features                           | Pending data + compute    |
+222: - [x] `src/genomic_variant_classifier/data/esm2.py` connector -- HuggingFace transformers backend, SQLite cache
+223: - [x] `esm2_delta_norm` added to `PHASE_4_FEATURES` (ready for next retrain)
+224: - [ ] Install `transformers torch` in training environment and run annotation
+225: - [ ] Retrain ensemble with 65-feature set; measure AUROC lift (+0.03-0.06 expected)
+232: - [x] `src/genomic_variant_classifier/models/kan.py` -- pykan / efficient-kan backends; MLP fallback
+233: - [x] sklearn-compatible interface; `plot_edge_functions()` for interpretability
+234: - [ ] Run in benchmark framework; compare OOF AUROC against MLP
+240: - [x] `src/genomic_variant_classifier/models/mc_dropout.py` -- MCDropoutWrapper + DeepEnsembleWrapper
+241: - [x] Uncertainty decomposition: epistemic (variance) + aleatoric (entropy)
+242: - [x] `annotate_uncertainty()` helper for DataFrame annotation
+243: - [ ] Run DeepEnsembleWrapper(LightGBM, n_members=5) on holdout; measure ECE improvement
+244: - [ ] Annotate VUS subset with uncertainty flags; export for clinical review
+248: - [x] `src/genomic_variant_classifier/models/gnn.py` -- GAT convolutions over STRING DB graph
+249: - [ ] Wire STRING DB edge weights into GNN training (currently uses uniform weights)
+250: - [ ] Late fusion: concat GNN gene embedding with TABULAR_FEATURES before stacking
+254: - [x] `src/genomic_variant_classifier/evaluation/benchmark.py` -- cross-validated benchmark across all families
+255: - [x] Metrics: AUROC, AUPRC, Brier, ECE, train time, inference latency, memory
+256: - [ ] Run full benchmark on ClinVar holdout
+257: - [ ] Produce comparison table for METHODS.md / manuscript
+276: | 1000 Genomes Project (IGSR) | 2,504 WGS      | `data/external/1000genomes/` empty -- pending   |
+277: | gnomAD v4.1 exomes          | ~730M variants | Done (filtered parquet)                         |
+279: `population_1kg_af` added to `PHASE_4_FEATURES`; pending data download.
+293: ### 3C -- Pending Downloads
+297: | dbNSFP4.7a.zip          | ~30 GB   | Google Drive (registration required) | Pending |
+298: | 1000G VCF chr*.vcf.gz   | ~100 GB  | IGSR portal (free)                  | Pending |
+299: | SpliceAI scored VCF     | 27 GB    | On Drive                            | Done    |
+305: - [ ] Prospective validation on gene panels (BRCA1/2, TP53, PTEN, ATM)
+306: - [ ] Comparison against ClinVar star-rating on expert-reviewed variants
+307: - [ ] Model card: training data, known limitations, ancestry coverage
+308: - [ ] Manuscript draft: multi-modal genomic variant classifier with algorithm benchmarking
+317: **PHASE_4_FEATURES (pending retrain):**
+394: orchestrator wiring + the `drift` pipeline (376aa2e). REMAINING (RUN-17-DEPENDENT, need model predictions):
+404: 4 machinery-complete (LabelShift + the trio) awaiting Run-17 model artifacts. FairnessSubgroup PHASE_2 stubs
+423: `outputs/phase2_with_gnomad/splits/` path (pre-Run-15).
+427: ### Proposed action items (NOT done -- deliberate design decisions for a future session)
+428: - [x] **Pipeline-wire the drift agents -- DONE 2026-06-14 (376aa2e).** `PIPELINE_DEFINITIONS["drift"]`
+432: - [x] **Fix `drift_monitor.yml` -- DONE 2026-06-14 (partial; path + honest GDrive skip).** Stale `outputs/phase2_with_gnomad/splits/` -> `outputs/run15_rerun_report/full/splits/` (6 occurrences); GDrive stub no longer fabricates a 'credentials loaded' message (the skip is logged). REMAINING: a real rclone/gdown fetch (still a placeholder). Original note: Repoint the stale `outputs/phase2_with_gnomad/splits/` ->
+435: - [x] **Add the schema gate as a `drift_monitor.yml` step -- DONE 2026-06-14.** A GUARDED step runs `scripts/run_schema_drift_check.py --matrix .../X_train.parquet` (exit 0/2/3), skipping honestly when baseline/matrix are absent. REMAINING: tighten to gate-the-job on exit-2 (currently continue-on-error, matching the job's notify-not-fail design). Original note: Run `scripts/run_schema_drift_check.py`
+438: - [ ] **Reconcile the two parallel drift systems.** The agent-layer drift agents and the
+461: - [ ] Reconcile the **64 / 78 / 79** spread: notes say 79; on-disk `X_train` is 78 (verified green
+464: - [ ] Verify whether `af_1kg_afr/amr/eas/eur/sas` (present in the 78-col `X_train` per the gate diff)
+466: PHASE_4_FEATURES (pending).
+474: ### Done
+475: - [x] ESM-2 LLR long-protein OOM fixed via windowing (1db43f1)
+476: - [x] ESM-2 650M activation validated on real data (CPU probe GREEN)
+477: - [x] DECISION resolved: ESM-2 650M for Run 16 (ESM C 600M = later A/B)
+478: - [x] train.py ESM-2 wiring: model + offline index + cache + device flags (ecd0474)
+479: - [x] metrics annotation_sources provenance extended (esm2/finngen/dbnsfp)
+487: - [ ] CNN train-sequence NotImplementedError: verify cohort fasta_seq density; plumb
+489: - [ ] ONE preflight script (3 mandatory paths + instance/SSH/key vars, validated).
+490: - [ ] Standing run gates: all-models smoke, full suite green, zero known bugs.
+493: - [ ] Schema baseline refresh 78 -> 79 (esm2_llr newly live).
+494: - [ ] EVE activation (EVE_scores_ASM acquisition) -- separate data track.
+495: - [ ] Doc drift: AnnotationConfig docstring 17 vs code 18 steps (Reactome already runs);
+497: - [ ] Hygiene: non-ASCII em-dash in real_data_prep.py esm2_delta_norm comment.
+501: ### Done
+502: - [x] 1D-CNN activated on real [fasta_seq_ref, fasta_seq_alt] delta windows; train-side via the
+506: - [x] RNA MaxEntScan activated: maxentscan_delta = score(alt) - score(ref), a NEW
+519: - [ ] Schema baseline refresh: regenerate data/reference/schema/schema_baseline.json from the
+524: - [ ] Always-donor MaxEntScan selection bug: donor/acceptor choice is bounds-based (always donor
+536: ### Done
+537: - [x] CI restored to green. test_llr_long_protein_scores_finite_without_oom was loading
+568: - Run-16 all-models smoke: COMPLETE end-to-end (724s); ENSEMBLE_STACKER test AUROC 0.9934.
+626: - [DONE] ModelInsightsAgent (was: proposed #1, HIGH value / LOW risk). Shipped read-only per-model comparison +
+633: - [DONE] DataReadinessAgent (was: proposed #2). Shipped verify-only pre-run readiness gate (assets + feature
+634: health -> GO/NO_GO, HITL override). Remaining: AgentOpsMonitor (#4, flat heartbeat/error-rate meta-monitor over
+641: - [DONE] AgentOpsMonitorAgent (was: proposed #4). Shipped flat heartbeat/backlog/flags meta-monitor. Only
+651: - [DONE] agent_runs telemetry follow-up: AgentOpsMonitor error-rate + perf-drift now backed by real
+658: - GpuOrchestratorAgent/FinOps (#3): DESIGN REVIEW landed (docs/design/GPU_FINOPS_DESIGN.md). Decision pending --

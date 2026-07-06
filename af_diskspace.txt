@@ -1,0 +1,11 @@
+=== C: volume space ===
+
+FreeGB UsedGB TotalGB
+------ ------ -------
+ 40.20 895.40  935.60
+
+
+=== AF output sizes so far (partial until build ends) ===
+data\external\alphafold\alphafold_cohort.parquet => not present yet
+data\external\alphafold\alphafold_coverage.json => not present yet
+data\raw\cache\alphafold => 2.16 GB (8401 files)

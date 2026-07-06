@@ -1,0 +1,1 @@
+    return {g: gmap[g] for g in genes if g in gmap}

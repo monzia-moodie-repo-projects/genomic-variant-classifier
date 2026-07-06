@@ -1,0 +1,2 @@
+        active_sites = _fetch_active_sites(acc, cache_dir)
+        rows = _extract_one(acc, cif_path, active_sites)

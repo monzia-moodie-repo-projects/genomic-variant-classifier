@@ -1,0 +1,71 @@
+log total lines: 656289
+non-phylop-warning lines: 65
+
+=== last 60 non-warning lines ===
+2026-07-04 01:58:14  INFO      run_phase2_eval    alphamissense:         data\processed\alphamissense_index.parquet
+2026-07-04 01:58:14  INFO      run_phase2_eval    esm2_uniprot_index:    data\external\uniprot\uniprot_human_reviewed.parquet
+2026-07-04 01:58:14  INFO      run_phase2_eval    gtex_genes:            []
+2026-07-04 01:58:14  INFO      run_phase2_eval    gtex_path:             data\external\gtex_gene_expression.parquet
+2026-07-04 01:58:14  INFO      run_phase2_eval    kg:                    data\external\1kgp\kg_grch38_af.parquet
+2026-07-04 01:58:14  INFO      run_phase2_eval    gnomad_constraint:     data\external\gnomad\gnomad.v4.1.constraint_metrics.tsv
+2026-07-04 01:58:14  INFO      run_phase2_eval    lovd_path:             data\external\lovd\lovd_all_variants.parquet
+2026-07-04 01:58:14  INFO      run_phase2_eval    dbnsfp_path:           data\external\dbnsfp\dbnsfp_full_index.parquet
+2026-07-04 01:58:14  INFO      run_phase2_eval    rnaseq_path:           data\external\rnaseq_gene_expression.parquet
+2026-07-04 01:58:14  INFO      run_phase2_eval    clingen_path:          data\external\clingen\gene_disease_validity_curations.csv
+2026-07-04 01:58:14  INFO      run_phase2_eval    reactome_path:         data\external\reactome_gene_pathways.parquet
+2026-07-04 01:58:14  INFO      run_phase2_eval    finngen_r13_path:      data\external\finngen\finngen_R13_annotated_variants_v0.gz
+2026-07-04 01:58:14  INFO      run_phase2_eval    finngen_path:          data\external\finngen\finnge_R12_annotated_variants_v1.gz
+2026-07-04 01:58:14  INFO      run_phase2_eval    omim_genemap2_path:    data\external\omim\genemap2.txt
+2026-07-04 01:58:14  INFO      run_phase2_eval    omim_path:             None
+2026-07-04 01:58:14  INFO      run_phase2_eval    phylop_path:           data\external\phylop\hg38.phyloP100way.bw
+2026-07-04 01:58:14  INFO      run_phase2_eval    dbsnp_path:            data\external\dbsnp\dbsnp157_cohort.parquet
+2026-07-04 01:58:14  INFO      run_phase2_eval    alphafold_path:        data\external\alphafold\alphafold_cohort.parquet
+2026-07-04 01:58:14  INFO      run_phase2_eval    alphafold_uniprot_index: data\external\uniprot\uniprot_human_reviewed.parquet
+2026-07-04 01:58:14  INFO      run_phase2_eval    eve_path:              data\external\eve\EVE_all_data\variant_files
+2026-07-04 01:58:14  INFO      run_phase2_eval    eve_entry_map:         data\external\uniprot\uniprot_human_reviewed.parquet
+2026-07-04 01:58:14  INFO      run_phase2_eval    skip_nn:               False
+2026-07-04 01:58:14  INFO      run_phase2_eval    string_db:             auto
+2026-07-04 01:58:14  INFO      run_phase2_eval    layer_type:            gat
+2026-07-04 01:58:14  INFO      run_phase2_eval    edge_denoise:          none
+2026-07-04 01:58:14  INFO      run_phase2_eval    edge_denoise_tau:      0.0
+2026-07-04 01:58:14  INFO      run_phase2_eval    hetero_gnn:            True
+2026-07-04 01:58:14  INFO      run_phase2_eval    kg_edges:              ['reactome:data\\external\\reactome\\ReactomePathways.gmt']
+2026-07-04 01:58:14  INFO      run_phase2_eval    skip_svm:              False
+2026-07-04 01:58:14  INFO      run_phase2_eval    skip_kan:              False
+2026-07-04 01:58:14  INFO      run_phase2_eval    skip_cnn:              False
+2026-07-04 01:58:14  INFO      run_phase2_eval    unseen_gene_holdout:   False
+2026-07-04 01:58:14  INFO      run_phase2_eval    max_train:             3000
+2026-07-04 01:58:14  INFO      run_phase2_eval    n_folds:               5
+2026-07-04 01:58:14  INFO      run_phase2_eval    min_review_tier:       3
+2026-07-04 01:58:14  INFO      run_phase2_eval    auroc_target:          0.9
+2026-07-04 01:58:14  INFO      run_phase2_eval    gnn_epochs:            2
+2026-07-04 01:58:14  INFO      run_phase2_eval    output:                outputs\run17_smoke_stage1
+2026-07-04 01:58:21  INFO      genomic_variant_classifier.data.real_data_prep  === DataPrepPipeline: starting ===
+2026-07-04 01:58:28  INFO      genomic_variant_classifier.data.real_data_prep  Loaded 4399089 rows from data\processed\clinvar_grch38_clean.parquet.
+2026-07-04 01:58:34  INFO      genomic_variant_classifier.data.real_data_prep  Label filtering: 4399089 -> 1686333 (2712756 VUS/conflicting removed).
+2026-07-04 01:58:36  INFO      genomic_variant_classifier.data.real_data_prep  Review tier filter (<=3): 1686333 -> 1490014.
+2026-07-04 01:58:37  INFO      genomic_variant_classifier.data.real_data_prep  After label filtering: 1490014 variants (210549 pathogenic, 1279465 benign).
+2026-07-04 01:58:46  INFO      genomic_variant_classifier.data.real_data_prep  After gnomAD join: 992044 / 1490014 variants have AF (66.6%).
+2026-07-04 01:58:46  INFO      genomic_variant_classifier.data.database_connectors  Loading 1000genomes cache: data\raw\cache\1000genomes_kg_af_lookup.parquet
+2026-07-04 01:58:46  INFO      genomic_variant_classifier.data.thousandgenomes  ThousandGenomesConnector: loaded 437668 AFs from cache.
+2026-07-04 01:58:50  INFO      genomic_variant_classifier.data.thousandgenomes  ThousandGenomesConnector: filled 52144 AFs from 1000G (445826 still null after fill).
+2026-07-04 01:58:50  INFO      genomic_variant_classifier.data.real_data_prep  1000G fallback: filled 52144 / 497970 null AFs.
+2026-07-04 01:58:50  INFO      genomic_variant_classifier.data.database_connectors  Loading 1000genomes cache: data\raw\cache\1000genomes_kg_pop_af_e286829fe9c6.parquet
+2026-07-04 01:58:53  INFO      genomic_variant_classifier.data.thousandgenomes  fill_population_af: matched 277639/1490014 rows; populated=['af_1kg_afr', 'af_1kg_eur', 'af_1kg_eas', 'af_1kg_sas', 'af_1kg_amr'].
+2026-07-04 01:58:53  INFO      genomic_variant_classifier.data.finngen  FinnGen: building in-memory index from data\external\finngen\finnge_R12_annotated_variants_v1.gz ...
+2026-07-04 02:22:17  INFO      genomic_variant_classifier.data.finngen  FinnGen index: 20492395 unique variants loaded.
+2026-07-04 02:22:31  INFO      genomic_variant_classifier.data.finngen  FinnGen annotation: 119701 / 1490014 variants matched (8.0%).
+2026-07-04 02:22:31  INFO      genomic_variant_classifier.data.finngen  FinnGen: building in-memory index from data\external\finngen\finngen_R13_annotated_variants_v0.gz ...
+2026-07-04 02:53:10  INFO      genomic_variant_classifier.data.finngen  FinnGen index: 20492395 unique variants loaded.
+2026-07-04 02:53:37  INFO      genomic_variant_classifier.data.finngen  FinnGen annotation: 124113 / 1490014 variants matched (8.3%).
+2026-07-04 02:53:41  INFO      genomic_variant_classifier.data.real_data_prep  === Score annotation: starting ===
+2026-07-04 02:53:43  INFO      genomic_variant_classifier.data.dbnsfp  DbNSFP: loading index from parquet cache: data\external\dbnsfp\dbnsfp_clinvar_index.parquet
+2026-07-04 02:53:44  INFO      genomic_variant_classifier.data.dbnsfp  DbNSFP: loaded 2687077 variants from cache.
+2026-07-04 02:53:57  INFO      genomic_variant_classifier.data.real_data_prep  Score annotation 1/17 (DbNSFP): 188023 variants with real SIFT scores.
+
+=== any ERROR / Traceback / raise / Exception ? ===
+  (none found)
+
+=== completion / write signals ? ===
+L41: 2026-07-04 01:58:14  INFO      run_phase2_eval    auroc_target:          0.9
+L42: 2026-07-04 01:58:14  INFO      run_phase2_eval    gnn_epochs:            2

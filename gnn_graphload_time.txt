@@ -1,0 +1,6 @@
+cache_dir=data\raw\cache threshold=700
+expected cache pkl: data\raw\cache\string_graph_700.pkl
+cache pkl exists: True
+build() wall-clock: 0.16s (should be ~seconds from cached pkl)
+graph nodes=16201 edges=236930
+graph type=Graph

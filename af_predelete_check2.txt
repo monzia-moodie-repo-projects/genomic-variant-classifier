@@ -1,0 +1,30 @@
+=== dbnsfp dir contents (what actually exists) ===
+
+  GB Name                             LastWriteTime
+  -- ----                             -------------
+0.03 dbnsfp_clinvar_index.parquet     4/3/2026 3:33:05 PM
+0.88 dbnsfp_full_index.parquet.OOMbak 4/3/2026 9:50:50 AM
+
+
+=== is the .OOMbak loadable? ===
+OOMbak loads OK rows 85299339 cols 10
+=== does code expect dbnsfp_full_index.parquet (the missing live file)? ===
+
+Path                                                                                         LineNumber
+----                                                                                         ----------
+C:\Projects\genomic-variant-classifier\src\genomic_variant_classifier\monitoring\registry.py         80
+C:\Projects\genomic-variant-classifier\scripts\install_docs_close_2026-06-12_run16b.py               41
+C:\Projects\genomic-variant-classifier\scripts\patch_dbnsfp_docstring.py                              3
+C:\Projects\genomic-variant-classifier\scripts\preflight_run16.py                                    52
+C:\Projects\genomic-variant-classifier\scripts\prep_dbnsfp_cache.py                                   7
+
+
+=== eve.py MSA check, re-run explicitly (quote count) ===
+eve.py MSA/alignment references: 0
+
+=== rclone remotes (for the Drive backup) ===
+genvarcla:
+=== EVE sizes for backup sizing ===
+data\external\eve\EVE_all_data => 63.36 GB
+data\external\eve\EVE_all_data\MSAs => 24.15 GB
+data\external\eve\EVE_all_data.zip => 8.91 GB

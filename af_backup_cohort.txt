@@ -1,0 +1,106 @@
+=== uploading cohort parquet (110MB) + coverage json ===
+Transferred:   	          0 B / 105.114 MiB, 0%, 0 B/s, ETA -
+Transferred:            0 / 1, 0%
+Elapsed time:         0.3s
+Transferring:
+ *                      alphafold_cohort.parquet:  0% / 105.114 MiB, 0 B/s, -Transferred:   	          0 B / 105.114 MiB, 0%, 0 B/s, ETA -
+Transferred:            0 / 1, 0%
+Elapsed time:         0.8s
+Transferring:
+ *                      alphafold_cohort.parquet:  0% / 105.114 MiB, 0 B/s, -Transferred:   	          0 B / 105.114 MiB, 0%, 0 B/s, ETA -
+Transferred:            0 / 1, 0%
+Elapsed time:         1.3s
+Transferring:
+ *                      alphafold_cohort.parquet:  0% / 105.114 MiB, 0 B/s, -Transferred:   	    7.684 MiB / 105.114 MiB, 7%, 0 B/s, ETA -
+Transferred:            0 / 1, 0%
+Elapsed time:         1.8s
+Transferring:
+ *                      alphafold_cohort.parquet:  7% / 105.114 MiB, 0 B/s, -Transferred:   	   13.777 MiB / 105.114 MiB, 13%, 4 MiB/s, ETA 22s
+Transferred:            0 / 1, 0%
+Elapsed time:         2.3s
+Transferring:
+ *                      alphafold_cohort.parquet: 13% / 105.114 MiB, 4.031 MiB/sTransferred:   	   19.434 MiB / 105.114 MiB, 18%, 4 MiB/s, ETA 21s
+Transferred:            0 / 1, 0%
+Elapsed time:         2.8s
+Transferring:
+ *                      alphafold_cohort.parquet: 18% / 105.114 MiB, 4.031 MiB/sTransferred:   	   25.340 MiB / 105.114 MiB, 24%, 7.186 MiB/s, ETA 11s
+Transferred:            0 / 1, 0%
+Elapsed time:         3.3s
+Transferring:
+ *                      alphafold_cohort.parquet: 24% / 105.114 MiB, 7.186 MiB/sTransferred:   	       32 MiB / 105.114 MiB, 30%, 7.186 MiB/s, ETA 10s
+Transferred:            0 / 1, 0%
+Elapsed time:         3.8s
+Transferring:
+ *                      alphafold_cohort.parquet: 30% / 105.114 MiB, 7.186 MiB/sTransferred:   	   38.809 MiB / 105.114 MiB, 37%, 8.390 MiB/s, ETA 7s
+Transferred:            0 / 1, 0%
+Elapsed time:         4.3s
+Transferring:
+ *                      alphafold_cohort.parquet: 36% / 105.114 MiB, 8.390 MiB/sTransferred:   	   44.715 MiB / 105.114 MiB, 43%, 8.390 MiB/s, ETA 7s
+Transferred:            0 / 1, 0%
+Elapsed time:         4.8s
+Transferring:
+ *                      alphafold_cohort.parquet: 42% / 105.114 MiB, 8.390 MiB/sTransferred:   	   51.059 MiB / 105.114 MiB, 49%, 9.474 MiB/s, ETA 5s
+Transferred:            0 / 1, 0%
+Elapsed time:         5.3s
+Transferring:
+ *                      alphafold_cohort.parquet: 48% / 105.114 MiB, 9.487 MiB/sTransferred:   	   57.215 MiB / 105.114 MiB, 54%, 9.474 MiB/s, ETA 5s
+Transferred:            0 / 1, 0%
+Elapsed time:         5.8s
+Transferring:
+ *                      alphafold_cohort.parquet: 54% / 105.114 MiB, 9.487 MiB/sTransferred:   	       64 MiB / 105.114 MiB, 61%, 9.874 MiB/s, ETA 4s
+Transferred:            0 / 1, 0%
+Elapsed time:         6.3s
+Transferring:
+ *                      alphafold_cohort.parquet: 60% / 105.114 MiB, 9.880 MiB/sTransferred:   	   71.340 MiB / 105.114 MiB, 68%, 9.874 MiB/s, ETA 3s
+Transferred:            0 / 1, 0%
+Elapsed time:         6.8s
+Transferring:
+ *                      alphafold_cohort.parquet: 67% / 105.114 MiB, 9.880 MiB/sTransferred:   	       72 MiB / 105.114 MiB, 68%, 10.286 MiB/s, ETA 3s
+Transferred:            0 / 1, 0%
+Elapsed time:         7.3s
+Transferring:
+ *                      alphafold_cohort.parquet: 68% / 105.114 MiB, 10.286 MiB/Transferred:   	   78.059 MiB / 105.114 MiB, 74%, 10.286 MiB/s, ETA 2s
+Transferred:            0 / 1, 0%
+Elapsed time:         7.8s
+Transferring:
+ *                      alphafold_cohort.parquet: 74% / 105.114 MiB, 10.286 MiB/Transferred:   	   83.996 MiB / 105.114 MiB, 80%, 10 MiB/s, ETA 2s
+Transferred:            0 / 1, 0%
+Elapsed time:         8.3s
+Transferring:
+ *                      alphafold_cohort.parquet: 79% / 105.114 MiB, 10 MiB/s, 2Transferred:   	   90.434 MiB / 105.114 MiB, 86%, 10 MiB/s, ETA 1s
+Transferred:            0 / 1, 0%
+Elapsed time:         8.8s
+Transferring:
+ *                      alphafold_cohort.parquet: 86% / 105.114 MiB, 10 MiB/s, 1Transferred:   	   97.027 MiB / 105.114 MiB, 92%, 10.295 MiB/s, ETA 0s
+Transferred:            0 / 1, 0%
+Elapsed time:         9.3s
+Transferring:
+ *                      alphafold_cohort.parquet: 92% / 105.114 MiB, 10.295 MiB/Transferred:   	      104 MiB / 105.114 MiB, 99%, 10.295 MiB/s, ETA 0s
+Transferred:            0 / 1, 0%
+Elapsed time:         9.8s
+Transferring:
+ *                      alphafold_cohort.parquet: 98% / 105.114 MiB, 10.295 MiB/Transferred:   	  105.114 MiB / 105.114 MiB, 100%, 10.511 MiB/s, ETA 0s
+Transferred:            0 / 1, 0%
+Elapsed time:        10.3s
+Transferring:
+ *                      alphafold_cohort.parquet:100% / 105.114 MiB, 10.511 MiB/Transferred:   	  105.114 MiB / 105.114 MiB, 100%, 10.511 MiB/s, ETA 0s
+Transferred:            0 / 1, 0%
+Elapsed time:        10.8s
+Transferring:
+ *                      alphafold_cohort.parquet:100% / 105.114 MiB, 10.511 MiB/Transferred:   	  105.114 MiB / 105.114 MiB, 100%, 10.511 MiB/s, ETA 0s
+Transferred:            1 / 1, 100%
+Elapsed time:        10.9s
+Transferred:   	    1.998 MiB / 1.998 MiB, 100%, 0 B/s, ETA -
+Transferred:            0 / 1, 0%
+Elapsed time:         0.3s
+Transferring:
+ *                       alphafold_coverage.json:100% / 1.998 MiB, 0 B/s, -Transferred:   	    1.998 MiB / 1.998 MiB, 100%, 0 B/s, ETA -
+Transferred:            0 / 1, 0%
+Elapsed time:         0.8s
+Transferring:
+ *                       alphafold_coverage.json:100% / 1.998 MiB, 0 B/s, -Transferred:   	    1.998 MiB / 1.998 MiB, 100%, 1.998 MiB/s, ETA 0s
+Transferred:            1 / 1, 100%
+Elapsed time:         1.3s
+=== VERIFY ===
+2026/07/03 19:08:55 NOTICE: Google drive root 'GenAssoc-backup/2026-07-03/alphafold_cohort': 0 differences found
+2026/07/03 19:08:55 NOTICE: Google drive root 'GenAssoc-backup/2026-07-03/alphafold_cohort': 2 matching files

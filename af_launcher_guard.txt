@@ -1,0 +1,38 @@
+=== F. UNIPROT_INDEX definition in launcher ===
+202: UNIPROT_INDEX="$DATA/external/uniprot/uniprot_human_reviewed.parquet"
+=== G. run_phase2_eval AF argparse block (175-195) ===
+        help="dbSNP allele-frequency parquet (data/external/dbsnp/...). When "
+        "omitted, dbsnp_af defaults to 0.0 (silent stub).",
+    )
+    p.add_argument(
+        "--alphafold-path",
+        default=None,
+        help="AlphaFold cohort structural-feature parquet "
+        "(data/external/alphafold/alphafold_cohort.parquet). When omitted, the "
+        "four AF features default to sentinel constants (silent stub).",
+    )
+    p.add_argument(
+        "--alphafold-uniprot-index",
+        default=None,
+        help="UniProt index parquet (gene_symbol,uniprot_id,sequence) for the "
+        "AlphaFold gene->accession map and wt_aa cross-check. Typically the same "
+        "file as --esm2-uniprot-index.",
+    )
+    p.add_argument(
+        "--eve-path",
+        default=None,
+        help="EVE scores: directory of per-protein CSVs (data/external/eve/) or a "
+        "merged parquet. Matched by gene_symbol + one-letter aa_change derived from "
+=== H. launcher AF region (240-251) ===
+# AlphaFold (Phase D): cohort structural-feature parquet + UniProt index for the
+# gene->accession map and wt_aa cross-check. Flag exists in run_phase2_eval.py; the
+# connector defaults to sentinel stubs if unpassed, so wire it explicitly and ABORT
+# loudly if the built parquet is missing (a wrong/absent pick must be LOUD, not silent).
+ALPHAFOLD_FILE="$(ls "$DATA"/external/alphafold/*.parquet 2>/dev/null | head -n1 || true)"
+if [ -n "$ALPHAFOLD_FILE" ] && [ -f "$ALPHAFOLD_FILE" ]; then
+    ARGS="$ARGS --alphafold-path $ALPHAFOLD_FILE"; echo "==> AlphaFold wired: $ALPHAFOLD_FILE" | tee -a "$LOG"
+    ARGS="$ARGS --alphafold-uniprot-index $UNIPROT_INDEX"; echo "==> AlphaFold UniProt index wired: $UNIPROT_INDEX" | tee -a "$LOG"
+else
+    echo "==> ABORT: AlphaFold parquet missing under $DATA/external/alphafold/ (build with scripts/build_alphafold_parquet.py)" | tee -a "$LOG"; exit 8
+fi
+# ClinGen: Gene-Disease Validity CSV (flag existed but launch never passed it -> silent 0).

@@ -1,0 +1,49 @@
+
+=== is there ANY prebuilt AF parquet or structure cache anywhere? ===
+
+FullName                                                                                   Length
+--------                                                                                   ------
+C:\Projects\genomic-variant-classifier\data\raw\cache\alphafold\AF-E7ENB7-F1-model_v4.cif  101171
+C:\Projects\genomic-variant-classifier\data\raw\cache\alphafold\AF-P38398-F1-model_v4.cif 1745974
+
+cache dir exists? -> True
+
+Name                          Length
+----                          ------
+AF-E7ENB7-F1-model_v4.cif     101171
+AF-P38398-F1-model_v4.cif    1745974
+gene_uniprot_map.json             25
+uniprot_features_E7ENB7.json      26
+uniprot_features_P38398.json      26
+
+
+=== do the last run's OUTPUT features show AF columns as constant? (the real matrix, if present) ===
+processed parquets: ['alphamissense_index.parquet', 'clinvar_grch38.parquet', 'clinvar_grch38_clean.parquet', 'clinvar_grch38_clean_seq.parquet', 'clinvar_grch38_conflicts.parquet', 'clinvar_grch38_noalleles.parquet', 'clinvar_grch38_structural.parquet', 'clinvar_smoke.parquet', 'clinvar_smoke_seq.parquet', 'dbsnp_index.parquet', 'gene_pathogenic_counts.parquet', 'gene_summary.parquet', 'gnomad_v4_exomes.parquet', 'gnomad_ymt_af.parquet', 'spliceai_index.parquet']
+
+=== does run_phase2_eval expose an AF/protein CLI flag, or is it always-on/off? ===
+
+LineNumber Line
+---------- ----
+       152     # protein_pos/wt_aa/mut_aa that EVE/ESM-2 key on, so EVE now carries real signal.
+       181         help="EVE scores: directory of per-protein CSVs (data/external/eve/) or a "
+       183         "the HGVSp-parsed protein_change. When omitted, eve_score defaults to 0.5 "
+       189         help="UniProt index parquet (entry_name column) resolving EVE per-protein "
+       539                         "data/external/string/9606.protein.links.detailed.v12.0.txt.gz"
+       543                     "data/external/string/9606.protein.info.v12.0.txt.gz"
+       766                         else Path("data/external/string/9606.protein.links.detailed.v12.0.txt.gz")
+       768                     _hinfo = Path("data/external/string/9606.protein.info.v12.0.txt.gz")
+
+
+=== does the launcher wire protein-cache-dir? ===
+
+Line
+----
+#     EVE resolves per-protein entry-name filenames (1433G_HUMAN) to HGNC (YWHAG) via the index.
+STRING_LINKS="$DATA/external/string/9606.protein.links.detailed.v12.0.txt.gz"
+STRING_INFO="$DATA/external/string/9606.protein.info.v12.0.txt.gz"
+find "$REPO/src" -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+# EVE: directory of per-protein score CSVs (gene_symbol + HGVSp-derived aa_change).
+echo "==> NOTE: ESM-2/EVE ACTIVE (HGVSp parser delivered; protein_pos/wt_aa/mut_aa populated for missense)" | tee -a "$LOG"
+
+
+=== DONE -- upload af_coverage_probe.txt ===

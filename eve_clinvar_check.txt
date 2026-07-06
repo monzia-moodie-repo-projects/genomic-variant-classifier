@@ -1,0 +1,15 @@
+=== EVE dir structure (which level does --eve-path want?) ===
+  MSAs  [dir]  (3220 entries)
+  PRC_20210822  [dir]  (2775 entries)
+  ROC_20210822  [dir]  (2775 entries)
+  variant_files  [dir]  (3211 entries)
+  vcf_files_missense_mutations  [dir]  (2951 entries)
+
+=== eve.py: what --eve-path expects ===
+  L19: - A directory containing per-protein CSV files named <GENE>_HUMAN_*.csv
+  L250: if self.eve_path.is_dir():
+  L252: elif self.eve_path.suffix in (".parquet", ".pq"):
+  L269: csv_files = list(directory.glob("*.csv"))
+
+=== clinvar eval input: shape ===
+  data/processed/clinvar_grch38.parquet: 4420180 rows, 16 cols

@@ -1,0 +1,264 @@
+=== A. test_alphafold.py (full) ===
+1: """
+2: tests/unit/test_alphafold.py
+3: ============================
+4: Unit tests for the AlphaFold structural-feature connector, extractor library, and
+5: cohort coverage gate.
+6: 
+7: Coverage:
+8:   Extractor (alphafold_features):
+9:     1.  parse_atom_site on a real-format CIF -> correct atom count, 1-based seq_id
+10:     2.  per_residue_plddt -> B_iso values, correct residues
+11:     3.  parse_struct_conf (DSSP parse-first) -> helix/sheet/loop codes
+12:     4.  secondary_structure_from_coords (fallback) -> non-degenerate
+13:     5.  per_residue_rsa -> all in [0,1] (clamp), core < terminus ordering
+14:     6.  RSA fail-loud guard raises on a fabricated geometry failure
+15:     7.  3-D C-alpha distance: adjacent residues ~3.8 A
+16:     8.  residue indexing off-by-one tripwire (seq_id starts at 1, not 0)
+17:   Connector (alphafold.AlphaFoldConnector):
+18:     9.  wt_aa match -> real features attached
+19:     10. wt_aa isoform MISMATCH -> fail-closed to sentinel default
+20:     11. missing protein_pos -> default
+21:     12. empty df -> columns present, no rows
+22:     13. stub mode (no parquet) -> all defaults
+23:     14. TABULAR_FEATURES membership -> the 4 AF features present
+24:   Coverage gate:
+25:     15. AF features non-constant on a real cohort sample (fraction-at-sentinel gate)
+26: """
+27: from __future__ import annotations
+28: 
+29: import json
+30: import math
+31: from pathlib import Path
+32: 
+33: import pandas as pd
+34: import pytest
+35: 
+36: from genomic_variant_classifier.data import alphafold_features as aff
+37: from genomic_variant_classifier.data.alphafold import (
+38:     AlphaFoldConnector,
+39:     DEFAULT_PLDDT,
+40:     DEFAULT_RSA,
+41:     DEFAULT_SECONDARY,
+42:     DEFAULT_DIST_ACTIVE,
+43: )
+44: 
+45: # The two real cached CIFs live under the repo. Tests that need a real structure use
+46: # E7ENB7 (small, carries DSSP _struct_conf). Skip gracefully if absent in CI.
+47: _CIF_DIR = Path("data/raw/cache/alphafold")
+48: _E7ENB7 = _CIF_DIR / "AF-E7ENB7-F1-model_v4.cif"
+49: 
+50: 
+51: def _has_real_cif() -> bool:
+52:     return _E7ENB7.exists()
+53: 
+54: 
+55: requires_cif = pytest.mark.skipif(not _has_real_cif(), reason="real cached CIF not present")
+56: 
+57: 
+58: # ---------------------------------------------------------------------------
+59: # Extractor tests (real structure)
+60: # ---------------------------------------------------------------------------
+61: @requires_cif
+62: def test_parse_atom_site_real():
+63:     atoms = aff.parse_atom_site(_E7ENB7.read_text(encoding="utf-8", errors="replace"))
+64:     assert len(atoms) > 400
+65:     ca = aff.per_residue_ca(atoms)
+66:     assert min(ca) == 1, "auth_seq_id must be 1-based"
+67:     assert max(ca) == 98
+68: 
+69: 
+70: @requires_cif
+71: def test_plddt_real():
+72:     atoms = aff.parse_atom_site(_E7ENB7.read_text(errors="replace"))
+73:     plddt = aff.per_residue_plddt(atoms)
+74:     assert len(plddt) == 98
+75:     assert plddt[1] == pytest.approx(62.97, abs=0.01)
+76:     assert plddt[12] == pytest.approx(96.94, abs=0.01)
+77:     assert all(0 <= v <= 100 for v in plddt.values())
+78: 
+79: 
+80: @requires_cif
+81: def test_struct_conf_dssp_parse_first():
+82:     cif = _E7ENB7.read_text(errors="replace")
+83:     ss = aff.parse_struct_conf(cif)
+84:     assert ss  # non-empty: this file carries DSSP records
+85:     assert ss[3] == 1 and ss[21] == 1, "helix 3-21"
+86:     assert ss[23] == 2, "strand"
+87:     assert ss.get(22, 0) == 0, "turn -> loop"
+88: 
+89: 
+90: @requires_cif
+91: def test_secondary_structure_coord_fallback_nondegenerate():
+92:     atoms = aff.parse_atom_site(_E7ENB7.read_text(errors="replace"))
+93:     ss = aff.secondary_structure_from_coords(atoms)
+94:     codes = set(ss.values())
+95:     assert 1 in codes, "helix-rich fragment must yield some helix from coords"
+96:     assert len(ss) == 98
+97: 
+98: 
+99: @requires_cif
+100: def test_rsa_clamped_and_ordered():
+101:     atoms = aff.parse_atom_site(_E7ENB7.read_text(errors="replace"))
+102:     rsa = aff.per_residue_rsa(atoms)
+103:     assert all(0.0 <= v <= 1.0 for v in rsa.values()), "RSA must be clamped to [0,1]"
+104:     assert rsa[11] < rsa[98], "buried core (11) < exposed C-terminus (98)"
+105: 
+106: 
+107: @requires_cif
+108: def test_ca_distance_adjacent_real():
+109:     atoms = aff.parse_atom_site(_E7ENB7.read_text(errors="replace"))
+110:     ca = aff.per_residue_ca(atoms)
+111:     (x1, y1, z1), (x2, y2, z2) = ca[1], ca[2]
+112:     d = math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2 + (z1 - z2) ** 2)
+113:     assert 3.5 < d < 4.1, f"adjacent C-alpha spacing ~3.8 A, got {d:.2f}"
+114: 
+115: 
+116: def test_rsa_fail_loud_guard():
+117:     """
+118:     A corrupt record with several well-separated atoms assigned to ONE residue yields
+119:     RSA far above the fail-loud bound -> must raise, not clamp. (A single isolated atom
+120:     only reaches ~1.2, within the terminal-artefact range that is correctly clamped;
+121:     the guard fires on genuine geometry failures like this multi-atom pileup.)
+122:     """
+123:     atoms = [
+124:         {"element": "C", "atom_id": "CA", "comp": "GLY", "seq_id": 1,
+125:          "x": 0.0, "y": 0.0, "z": 0.0, "bfactor": 50.0},
+126:         {"element": "C", "atom_id": "C", "comp": "GLY", "seq_id": 1,
+127:          "x": 50.0, "y": 0.0, "z": 0.0, "bfactor": 50.0},
+128:         {"element": "C", "atom_id": "N", "comp": "GLY", "seq_id": 1,
+129:          "x": 0.0, "y": 50.0, "z": 0.0, "bfactor": 50.0},
+130:     ]
+131:     with pytest.raises(aff.CIFParseError):
+132:         aff.per_residue_rsa(atoms)
+133: 
+134: 
+135: def test_residue_indexing_off_by_one_tripwire():
+136:     """Guard against a 0-based regression: a minimal 2-residue CIF must index 1,2."""
+137:     cif = (
+138:         "data_x\n#\n"
+139:         "loop_\n_atom_site.group_PDB\n_atom_site.type_symbol\n_atom_site.label_atom_id\n"
+140:         "_atom_site.label_comp_id\n_atom_site.auth_seq_id\n_atom_site.Cartn_x\n"
+141:         "_atom_site.Cartn_y\n_atom_site.Cartn_z\n_atom_site.B_iso_or_equiv\n"
+142:         "ATOM C CA ALA 1 0.0 0.0 0.0 90.0\n"
+143:         "ATOM C CA GLY 2 3.8 0.0 0.0 80.0\n#\n"
+144:     )
+145:     plddt = aff.per_residue_plddt(aff.parse_atom_site(cif))
+146:     assert set(plddt) == {1, 2}, "residues must be 1-based (1,2), not (0,1)"
+147: 
+148: 
+149: # ---------------------------------------------------------------------------
+150: # Connector tests
+151: # ---------------------------------------------------------------------------
+152: def _write_af_parquet(tmp_path: Path) -> Path:
+153:     af = pd.DataFrame({
+154:         "uniprot_accession": ["P38398", "P38398"],
+155:         "residue_pos": [5, 11],
+156:         "plddt": [86.06, 95.88], "rsa": [0.30, 0.48], "ss": [1, 1], "dist_active": [12.5, 20.1],
+157:     })
+158:     p = tmp_path / "af.parquet"
+159:     af.to_parquet(p, index=False)
+160:     return p
+161: 
+162: 
+163: def _write_uniprot_index(tmp_path: Path) -> Path:
+164:     seq = "MDLSALRVEEV" + "A" * 90  # pos5 = A (ALA), pos11 = V (VAL)
+165:     up = pd.DataFrame({"gene_symbol": ["BRCA1"], "uniprot_id": ["P38398"], "sequence": [seq]})
+166:     p = tmp_path / "up.parquet"
+167:     up.to_parquet(p, index=False)
+168:     return p
+169: 
+170: 
+171: def test_connector_wt_match_attaches(tmp_path):
+172:     c = AlphaFoldConnector(
+173:         parquet_path=_write_af_parquet(tmp_path),
+174:         uniprot_index_path=_write_uniprot_index(tmp_path),
+175:     )
+176:     df = pd.DataFrame({"gene_symbol": ["BRCA1"], "protein_pos": [5], "wt_aa": ["ALA"]})
+177:     out = c.annotate_dataframe(df)
+178:     assert out.loc[0, "alphafold_plddt"] == pytest.approx(86.06)
+179:     assert out.loc[0, "secondary_structure_context"] == 1
+180: 
+181: 
+182: def test_connector_wt_mismatch_fails_closed(tmp_path):
+183:     c = AlphaFoldConnector(
+184:         parquet_path=_write_af_parquet(tmp_path),
+185:         uniprot_index_path=_write_uniprot_index(tmp_path),
+186:     )
+187:     # claims TRP at pos5 but the sequence has ALA -> isoform mismatch -> default
+188:     df = pd.DataFrame({"gene_symbol": ["BRCA1"], "protein_pos": [5], "wt_aa": ["TRP"]})
+189:     out = c.annotate_dataframe(df)
+190:     assert out.loc[0, "alphafold_plddt"] == DEFAULT_PLDDT
+191:     assert out.loc[0, "solvent_accessibility"] == DEFAULT_RSA
+192: 
+193: 
+194: def test_connector_missing_protein_pos_defaults(tmp_path):
+195:     c = AlphaFoldConnector(
+196:         parquet_path=_write_af_parquet(tmp_path),
+197:         uniprot_index_path=_write_uniprot_index(tmp_path),
+198:     )
+199:     df = pd.DataFrame({"gene_symbol": ["BRCA1"], "protein_pos": [None], "wt_aa": ["ALA"]})
+200:     out = c.annotate_dataframe(df)
+201:     assert out.loc[0, "alphafold_plddt"] == DEFAULT_PLDDT
+202: 
+203: 
+204: def test_connector_empty_df():
+205:     c = AlphaFoldConnector(parquet_path=None)
+206:     out = c.annotate_dataframe(pd.DataFrame(columns=["gene_symbol", "protein_pos", "wt_aa"]))
+207:     assert "alphafold_plddt" in out.columns
+208:     assert len(out) == 0
+209: 
+210: 
+211: def test_connector_stub_mode_all_defaults():
+212:     c = AlphaFoldConnector(parquet_path=None)
+213:     df = pd.DataFrame({"gene_symbol": ["BRCA1"], "protein_pos": [5], "wt_aa": ["ALA"]})
+214:     out = c.annotate_dataframe(df)
+215:     assert out.loc[0, "alphafold_plddt"] == DEFAULT_PLDDT
+216:     assert out.loc[0, "secondary_structure_context"] == DEFAULT_SECONDARY
+217:     assert out.loc[0, "dist_to_active_site"] == DEFAULT_DIST_ACTIVE
+218: 
+219: 
+220: def test_af_features_in_tabular_features():
+221:     from genomic_variant_classifier.models.variant_ensemble import TABULAR_FEATURES
+222:     for feat in ("alphafold_plddt", "solvent_accessibility",
+223:                  "secondary_structure_context", "dist_to_active_site"):
+224:         assert feat in TABULAR_FEATURES
+225: 
+226: 
+227: # ---------------------------------------------------------------------------
+228: # Coverage gate
+229: # ---------------------------------------------------------------------------
+230: @requires_cif
+231: def test_coverage_gate_features_nonconstant(tmp_path):
+232:     """
+233:     The gate that would have caught the stub-constant state: after building a small
+234:     real parquet and annotating a cohort sample, the AF features must be non-constant
+235:     (fraction at sentinel below threshold). Here we assert directly on a built parquet.
+236:     """
+237:     atoms = aff.parse_atom_site(_E7ENB7.read_text(errors="replace"))
+238:     plddt = aff.per_residue_plddt(atoms)
+239:     rsa = aff.per_residue_rsa(atoms)
+240:     ss = aff.per_residue_secondary_structure(_E7ENB7.read_text(errors="replace"), atoms)
+241:     # non-constant across residues
+242:     assert len(set(round(v, 2) for v in plddt.values())) > 5
+243:     assert len(set(round(v, 2) for v in rsa.values())) > 5
+244:     assert len(set(ss.values())) >= 2  # at least loop + helix
+245:     # fraction at sentinel default must be low (these are REAL values, not stubs)
+246:     frac_plddt_sentinel = sum(1 for v in plddt.values() if v == DEFAULT_PLDDT) / len(plddt)
+247:     assert frac_plddt_sentinel < 0.5, "most residues should have real (non-sentinel) pLDDT"
+
+=== B. residual version hard-codes + constants ===
+build_alphafold_parquet.py:71: ALPHAFOLD_CIF_URL = "https://alphafold.ebi.ac.uk/files/AF-{accession}-F1-model_v4.cif"
+build_alphafold_parquet.py:75: _POLITE_DELAY_S = 0.5        # between network downloads (rate-limit courtesy)
+build_alphafold_parquet.py:101: cache_file = cache_dir / f"AF-{accession}-F1-model_v4.cif"
+build_alphafold_parquet.py:106: resp = requests.get(url, timeout=_REQUEST_TIMEOUT)
+build_alphafold_parquet.py:127: resp = requests.get(
+test_alphafold.py:48: _E7ENB7 = _CIF_DIR / "AF-E7ENB7-F1-model_v4.cif"
+
+=== C. live active-sites endpoint (P04637) ===
+FEATURES status 200
+total_features 1523 act_or_binding 4
+   BINDING 176 
+   BINDING 179 
+   BINDING 238 
+   BINDING 242 

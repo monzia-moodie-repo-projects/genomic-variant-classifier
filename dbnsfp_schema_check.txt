@@ -1,0 +1,14 @@
+=== _OUTPUT_COLS mapping (raw->output) ===
+  _COL_SIFT:   "sift_score",
+  _COL_PP2:    "polyphen2_score",
+  _COL_REVEL:  "revel_score",
+  _COL_CADD:   "cadd_phred",
+  _COL_PHYLOP: "phylop_score",
+  _COL_GERP:   "gerp_score",
+
+=== dbnsfp_full_index.parquet actual schema ===
+  columns: ['chrom', 'pos', 'ref', 'alt', 'sift_score', 'polyphen2_score', 'revel_score', 'cadd_phred', 'phylop_score', 'gerp_score']
+
+=== dbnsfp_clinvar_index.parquet actual schema ===
+  columns: ['chrom', 'pos', 'ref', 'alt', 'sift_score', 'polyphen2_score', 'revel_score', 'cadd_phred', 'phylop_score', 'gerp_score']
+  SCHEMAS MATCH: True

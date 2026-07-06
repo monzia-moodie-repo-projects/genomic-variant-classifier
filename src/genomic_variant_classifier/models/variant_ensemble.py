@@ -154,7 +154,7 @@ CONSEQUENCE_SEVERITY: dict[str, int] = {
 # Bump by +/-1 whenever you add or remove an entry in TABULAR_FEATURES below.
 # Enforced by tests/unit/test_feature_count_contract.py against both the list
 # length and INFERENCE_FEATURE_COLUMNS; that test is the deliberate-bump tripwire.
-EXPECTED_TABULAR_FEATURE_COUNT = 91
+EXPECTED_TABULAR_FEATURE_COUNT = 97
 
 TABULAR_FEATURES = [
     # Allele frequency (6)
@@ -258,6 +258,15 @@ TABULAR_FEATURES = [
     # ESM-2 (2)
     "esm2_delta_norm",
     "esm2_llr",
+    # Nucleotide Transformer DNA-LM (2)
+    "genomiclm_delta_norm",
+    "genomiclm_llr",
+    # COSMIC CMC (2)
+    "cosmic_recurrence",
+    "cosmic_sig_tier",
+    # KEGG (2)
+    "kegg_pathway_count",
+    "kegg_disease_pathway_flag",
     # gnomAD v4.1 constraint (4)
     "pli_score",
     "loeuf",
@@ -644,6 +653,47 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
         .astype(float)
     )
 
+    # Nucleotide Transformer DNA-LM (2) - 0.0 default when model/window unavailable
+    feats["genomiclm_delta_norm"] = (
+        df.get("genomiclm_delta_norm", pd.Series([0.0] * len(df), index=df.index))
+        .fillna(0.0)
+        .astype(float)
+        .clip(lower=0.0)
+    )
+    feats["genomiclm_llr"] = (  # SIGNED feature; NO clip
+        df.get("genomiclm_llr", pd.Series([0.0] * len(df), index=df.index))
+        .fillna(0.0)
+        .astype(float)
+    )
+
+    # COSMIC CMC (2) - 0.0 default when --cosmic-path absent / non-substitution
+    feats["cosmic_recurrence"] = (
+        df.get("cosmic_recurrence", pd.Series([0.0] * len(df), index=df.index))
+        .fillna(0.0)
+        .astype(float)
+        .clip(lower=0.0)
+    )
+    feats["cosmic_sig_tier"] = (
+        df.get("cosmic_sig_tier", pd.Series([0.0] * len(df), index=df.index))
+        .fillna(0.0)
+        .astype(float)
+        .clip(lower=0.0)
+    )
+
+    # KEGG pathway membership (2) - 0.0 default when --kegg-path absent
+    feats["kegg_pathway_count"] = (
+        df.get("kegg_pathway_count", pd.Series([0.0] * len(df), index=df.index))
+        .fillna(0.0)
+        .astype(float)
+        .clip(lower=0.0)
+    )
+    feats["kegg_disease_pathway_flag"] = (
+        df.get("kegg_disease_pathway_flag", pd.Series([0.0] * len(df), index=df.index))
+        .fillna(0.0)
+        .astype(float)
+        .clip(lower=0.0)
+    )
+
     # gnomAD v4.1 gene constraint (4) - safe defaults when connector absent
     feats["pli_score"] = (
         df.get("pli_score", pd.Series([0.0] * len(df), index=df.index))
@@ -726,16 +776,104 @@ _CNN1DModule = None  # populated by _ensure_cnn1d_module_class() on first use
 REF_WIN_COL = "fasta_seq_ref"
 ALT_WIN_COL = "fasta_seq_alt"
 
+# Default dilation schedule for the residual tower. A tuple (not a list) so it is
+# hashable and round-trips cleanly through sklearn get_params/set_params and the
+# CNN1DClassifier.__getstate__ pickle path.
+CNN1D_DEFAULT_DILATIONS = (1, 2, 4, 8)
+
+
+def _build_delta_channels(
+    ref_seqs,
+    alt_seqs,
+    window: int,
+    use_delta: bool,
+    use_positional: bool,
+    positional_sigma: float,
+) -> np.ndarray:
+    """Build the fused CNN input tensor, shape (N, C, window), float32.
+
+    Channels, in fixed order (so state_dict keys stay stable across runs):
+      * ref  one-hot             (4)   -- always
+      * alt  one-hot             (4)   -- always
+      * alt - ref  signed delta  (4)   -- iff use_delta   (non-zero only where the
+                                           variant changes the base -> simultaneously
+                                           the substitution identity AND an implicit
+                                           locator of the edit)
+      * positional Gaussian bump (1)   -- iff use_positional (fixed prior centred on
+                                           the variant position = window // 2)
+
+    The delta and positional channels are the Tier-1 change: they hand the network
+    the variant signal at the *input* rather than forcing it to recover the signal
+    from an embedding-space subtraction, which is what left the previous siamese
+    net's probabilities compressed into a narrow band.
+    """
+    ref_list = list(ref_seqs)
+    alt_list = list(alt_seqs)
+    n = len(ref_list)
+    oh_ref = np.stack([encode_sequence(s, window=window) for s in ref_list])  # (N, W, 4)
+    oh_alt = np.stack([encode_sequence(s, window=window) for s in alt_list])  # (N, W, 4)
+    chans = [oh_ref, oh_alt]
+    if use_delta:
+        chans.append(oh_alt - oh_ref)  # (N, W, 4) signed
+    if use_positional:
+        centre = window // 2
+        pos = np.arange(window, dtype=np.float32)
+        bump = np.exp(-0.5 * ((pos - centre) / max(positional_sigma, 1e-6)) ** 2)
+        bump = np.broadcast_to(bump.reshape(1, window, 1), (n, window, 1)).astype(np.float32)
+        chans.append(bump)
+    stacked = np.concatenate(chans, axis=2)  # (N, W, C)
+    return np.ascontiguousarray(stacked.transpose(0, 2, 1), dtype=np.float32)  # (N, C, W)
+
+
+def _focal_loss_with_logits(logits, targets, gamma: float, alpha: float):
+    """Binary focal loss from logits (numerically stable).
+
+    FL = alpha_t * (1 - p_t)**gamma * BCE(logits, targets), with p_t the probability
+    of the true class and alpha_t the class-balanced weight. gamma down-weights easy,
+    well-classified examples so the optimiser spends capacity on the hard variants --
+    the lever that pushes the output distribution apart (decompressing the previous
+    [0.106, 0.185] band). Reduces to alpha-weighted BCE when gamma == 0.
+    """
+    import torch
+    import torch.nn.functional as F
+
+    ce = F.binary_cross_entropy_with_logits(logits, targets, reduction="none")
+    p = torch.sigmoid(logits)
+    p_t = p * targets + (1.0 - p) * (1.0 - targets)
+    modulator = (1.0 - p_t).clamp(min=1e-6) ** gamma
+    alpha_t = alpha * targets + (1.0 - alpha) * (1.0 - targets)
+    return (alpha_t * modulator * ce).mean()
+
+
+# ---------------------------------------------------------------------------
+# Module-level _CNN1DModule (Run 10 fix for INCIDENT_2026-05-12_cnn1d-pickle-
+# nested-class.md, preserved). Defined lazily so that `import variant_ensemble`
+# does not require torch, but bound to module globals on first use so pickle can
+# resolve the class by qualname `genomic_variant_classifier.models.
+# variant_ensemble._CNN1DModule`. The fitted estimator pickles only a state_dict
+# (see CNN1DClassifier.__getstate__), so the architecture is rebuilt from stored
+# hyperparameters on load -- every architectural knob below MUST therefore be a
+# constructor argument threaded through _build_model().
+# ---------------------------------------------------------------------------
+_CNN1DModule = None  # populated by _ensure_cnn1d_module_class() on first use
+
 
 def _ensure_cnn1d_module_class():
-    """Define the siamese-delta _CNN1DModule at module level on first call; idempotent.
+    """Define the dilated-residual _CNN1DModule at module level on first call; idempotent.
 
-    Evolved from the single-window net to a *siamese* encoder shared across the
-    reference and alternate windows, with the head fed [e_alt, e_alt - e_ref].
-    The delta term forces the model to key on how the variant changes local
-    sequence rather than on reference context alone (anti-memorization). Built
-    lazily for the same reasons as before: graceful degradation without torch
-    and a stable pickle qualname.
+    Tier-1 architecture (2026-07-05), replacing the siamese-delta encoder:
+      * input = fused [ref, alt, alt-ref, positional] channels (built by
+        _build_delta_channels) so the variant delta is available at the input;
+      * stem Conv1d -> GroupNorm -> GELU;
+      * a stack of residual blocks with GROWING DILATION (default 1,2,4,8) to widen
+        the receptive field across the 101 bp window without pooling the variant
+        site away early (padding keeps length constant);
+      * dual global pooling (avg + max) so the sharp single-base activation (max)
+        and the sequence context (avg) both reach the head;
+      * MLP head -> a single logit (BCE/focal applied outside).
+    GroupNorm (not BatchNorm) is used so the net is robust to singleton CPU batches
+    and behaves identically in train/eval. Built lazily for the same reasons as
+    before: graceful degradation without torch and a stable pickle qualname.
     """
     global _CNN1DModule
     if _CNN1DModule is not None:
@@ -744,33 +882,57 @@ def _ensure_cnn1d_module_class():
     import torch
     import torch.nn as nn
 
+    def _norm(channels: int) -> "nn.Module":
+        g = 8
+        while channels % g != 0 and g > 1:
+            g -= 1
+        return nn.GroupNorm(g, channels)
+
+    class _ResidualBlock(nn.Module):
+        def __init__(self, channels, kernel_size, dilation, dropout):
+            super().__init__()
+            pad = (dilation * (kernel_size - 1)) // 2
+            self.conv1 = nn.Conv1d(channels, channels, kernel_size, padding=pad, dilation=dilation)
+            self.norm1 = _norm(channels)
+            self.conv2 = nn.Conv1d(channels, channels, kernel_size, padding=pad, dilation=dilation)
+            self.norm2 = _norm(channels)
+            self.drop = nn.Dropout(dropout)
+            self.act = nn.GELU()
+
+        def forward(self, x):
+            h = self.act(self.norm1(self.conv1(x)))
+            h = self.drop(h)
+            h = self.norm2(self.conv2(h))
+            return self.act(x + h)  # residual; padding keeps length so shapes match
+
     class _CNN1DModule(nn.Module):  # noqa: F811 -- intentional global shadow
-        def __init__(self, filters, kernel_size, dropout, embed=128):
+        def __init__(self, in_channels, filters, kernel_size, dropout, dilations, embed):
             super().__init__()
             pad = kernel_size // 2
-            self.encoder = nn.Sequential(
-                nn.Conv1d(4, filters, kernel_size, padding=pad),
-                nn.ReLU(),
-                nn.MaxPool1d(2),
-                nn.Conv1d(filters, filters * 2, kernel_size, padding=pad),
-                nn.ReLU(),
-                nn.AdaptiveMaxPool1d(1),
+            self.stem = nn.Sequential(
+                nn.Conv1d(in_channels, filters, kernel_size, padding=pad),
+                _norm(filters),
+                nn.GELU(),
+            )
+            self.blocks = nn.ModuleList(
+                [_ResidualBlock(filters, kernel_size, int(d), dropout) for d in dilations]
+            )
+            self.avgpool = nn.AdaptiveAvgPool1d(1)
+            self.maxpool = nn.AdaptiveMaxPool1d(1)
+            self.head = nn.Sequential(
                 nn.Flatten(),
                 nn.Linear(filters * 2, embed),
-                nn.ReLU(),
-            )
-            self.head = nn.Sequential(
+                nn.GELU(),
                 nn.Dropout(dropout),
-                nn.Linear(embed * 2, 64),
-                nn.ReLU(),
-                nn.Linear(64, 1),
+                nn.Linear(embed, 1),
             )
 
-        def forward(self, ref, alt):
-            e_ref = self.encoder(ref)
-            e_alt = self.encoder(alt)
-            feats = torch.cat([e_alt, e_alt - e_ref], dim=1)
-            return self.head(feats).squeeze(-1)  # logits (BCEWithLogitsLoss)
+        def forward(self, x):
+            h = self.stem(x)
+            for blk in self.blocks:
+                h = blk(h)
+            pooled = torch.cat([self.avgpool(h), self.maxpool(h)], dim=1)  # (N, 2*filters, 1)
+            return self.head(pooled).squeeze(-1)  # logits -> focal/BCE outside
 
     _CNN1DModule.__name__ = "_CNN1DModule"
     _CNN1DModule.__qualname__ = "_CNN1DModule"
@@ -780,13 +942,26 @@ def _ensure_cnn1d_module_class():
 
 
 # ---------------------------------------------------------------------------
-# Sklearn-compatible siamese-delta 1D-CNN wrapper
+# Sklearn-compatible dilated-residual delta 1D-CNN wrapper (Tier-1, 2026-07-05)
 # ---------------------------------------------------------------------------
 class CNN1DClassifier(BaseEstimator, ClassifierMixin):
-    """Siamese delta CNN over (ref, alt) windows.
+    """Dilated-residual 1D-CNN over a fused (ref, alt, delta, positional) window.
 
     X may be a DataFrame with [fasta_seq_ref, fasta_seq_alt] (delta mode) or a
-    Series / single 'fasta_seq' column (back-compat: ref == alt, zero delta).
+    Series / single 'fasta_seq' column (back-compat: ref == alt -> the delta channel
+    is all-zero and the net degrades to ref-only context).
+
+    Tier-1 design (2026-07-05): the variant signal is fed at the INPUT as an explicit
+    alt-ref delta channel plus a fixed positional marker at the variant site
+    (window // 2); the tower is dilated + residual; training uses focal loss with a
+    warmup->cosine learning-rate schedule and AdamW weight decay. This replaces the
+    previous siamese-delta encoder whose outputs collapsed into a narrow probability
+    band (0.5419 AUROC / MCC 0.0 at threshold 0.5 in the 2026-07-04 run). No model is
+    dropped: this is the same `cnn_1d` estimator, re-architected in place.
+
+    NOTE: the state_dict layout differs from the pre-Tier-1 CNN, so cnn_1d checkpoints
+    pickled before 2026-07-05 will NOT load into this class and must be retrained (the
+    corrected re-run does this).
     """
 
     def __init__(
@@ -802,6 +977,15 @@ class CNN1DClassifier(BaseEstimator, ClassifierMixin):
         embed=128,
         val_fraction=0.1,
         patience=5,
+        dilations=CNN1D_DEFAULT_DILATIONS,
+        weight_decay=1e-4,
+        warmup_epochs=3,
+        lr_min=1e-5,
+        focal_gamma=2.0,
+        focal_alpha=None,
+        use_delta_channels=True,
+        use_positional=True,
+        positional_sigma=3.0,
     ):
         self.window = window
         self.filters = filters
@@ -814,16 +998,47 @@ class CNN1DClassifier(BaseEstimator, ClassifierMixin):
         self.embed = embed
         self.val_fraction = val_fraction
         self.patience = patience
+        self.dilations = dilations
+        self.weight_decay = weight_decay
+        self.warmup_epochs = warmup_epochs
+        self.lr_min = lr_min
+        self.focal_gamma = focal_gamma
+        self.focal_alpha = focal_alpha
+        self.use_delta_channels = use_delta_channels
+        self.use_positional = use_positional
+        self.positional_sigma = positional_sigma
         self.model_ = None
+        self.alpha_ = None            # resolved focal alpha (set during fit)
         self.classes_ = np.array([0, 1])
+
+    # -- architecture bookkeeping -------------------------------------------
+    def _in_channels(self) -> int:
+        """Channel count MUST match _build_delta_channels exactly (contract)."""
+        c = 8  # ref (4) + alt (4)
+        if self.use_delta_channels:
+            c += 4
+        if self.use_positional:
+            c += 1
+        return c
 
     def _build_model(self):
         import torch  # noqa: F401
         torch.manual_seed(self.random_state)
         cls = _ensure_cnn1d_module_class()
-        return cls(self.filters, self.kernel_size, self.dropout, self.embed)
+        return cls(
+            self._in_channels(),
+            self.filters,
+            self.kernel_size,
+            self.dropout,
+            tuple(int(d) for d in self.dilations),
+            self.embed,
+        )
 
-    def _pair_arrays(self, X):
+    # -- encoding ------------------------------------------------------------
+    def _encode_batch(self, X) -> np.ndarray:
+        """Return fused inputs (N, C, window). Accepts the delta-mode DataFrame
+        (fasta_seq_ref / fasta_seq_alt), a single-'fasta_seq' DataFrame, a bare first
+        column, a Series, or a raw sequence iterable (back-compat)."""
         win = "A" * self.window
         if isinstance(X, pd.DataFrame):
             if REF_WIN_COL in X.columns and ALT_WIN_COL in X.columns:
@@ -837,47 +1052,79 @@ class CNN1DClassifier(BaseEstimator, ClassifierMixin):
             ref = alt = X.fillna(win)
         else:
             ref = alt = pd.Series(X).fillna(win)
-        r = np.stack([encode_sequence(s, window=self.window) for s in ref]).transpose(0, 2, 1)
-        a = np.stack([encode_sequence(s, window=self.window) for s in alt]).transpose(0, 2, 1)
-        return r, a  # each (N, 4, window)
+        return _build_delta_channels(
+            ref, alt, self.window,
+            self.use_delta_channels, self.use_positional, self.positional_sigma,
+        )
+
+    # -- training ------------------------------------------------------------
+    def _resolve_alpha(self, y) -> float:
+        if self.focal_alpha is not None:
+            return float(self.focal_alpha)
+        y = np.asarray(y, dtype=np.float64)
+        pos_rate = float(y.mean()) if y.size else 0.5
+        # up-weight the minority class; clamp so neither class is ignored.
+        return float(np.clip(1.0 - pos_rate, 0.1, 0.9))
+
+    def _epoch_lr(self, epoch: int) -> float:
+        base, lo = self.learning_rate, self.lr_min
+        w = max(1, int(self.warmup_epochs))
+        if epoch < w:
+            return base * (epoch + 1) / w
+        span = max(1, self.epochs - w)
+        progress = min(1.0, (epoch - w) / span)
+        return lo + 0.5 * (base - lo) * (1.0 + np.cos(np.pi * progress))
 
     def fit(self, X, y):
         import torch
-        import torch.nn as nn
         from torch.utils.data import DataLoader, TensorDataset
 
         torch.manual_seed(self.random_state)
+        np.random.seed(self.random_state)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        r, a = self._pair_arrays(X)
-        ref_t = torch.tensor(r, dtype=torch.float32)
-        alt_t = torch.tensor(a, dtype=torch.float32)
+        x_all = self._encode_batch(X)                       # (N, C, W)
+        x_t = torch.tensor(x_all, dtype=torch.float32)
         y_t = torch.tensor(np.asarray(y), dtype=torch.float32)
+        self.alpha_ = self._resolve_alpha(y)
 
-        n_val = max(1, int(self.val_fraction * len(y_t)))
-        idx = torch.randperm(len(y_t))
+        n = len(y_t)
+        n_val = max(1, int(self.val_fraction * n)) if n > 1 else 0
+        gen = torch.Generator().manual_seed(self.random_state)
+        idx = torch.randperm(n, generator=gen)
         v, t = idx[:n_val], idx[n_val:]
-        ref_val, alt_val, y_val = ref_t[v].to(device), alt_t[v].to(device), y_t[v].to(device)
+        if len(t) == 0:                                     # tiny-N guard
+            t = idx
+        x_val = x_t[v].to(device) if n_val else x_t[t].to(device)
+        y_val = y_t[v].to(device) if n_val else y_t[t].to(device)
 
         loader = DataLoader(
-            TensorDataset(ref_t[t], alt_t[t], y_t[t]),
-            batch_size=self.batch_size, shuffle=True,
+            TensorDataset(x_t[t], y_t[t]),
+            batch_size=min(self.batch_size, max(1, len(t))),
+            shuffle=True,
         )
         self.model_ = self._build_model().to(device)
-        opt = torch.optim.Adam(self.model_.parameters(), lr=self.learning_rate)
-        loss_fn = nn.BCEWithLogitsLoss()
+        opt = torch.optim.AdamW(
+            self.model_.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay
+        )
 
         best_val, best_state, patience_ctr = float("inf"), None, 0
-        for _epoch in range(self.epochs):
+        for epoch in range(self.epochs):
+            for g in opt.param_groups:
+                g["lr"] = self._epoch_lr(epoch)
             self.model_.train()
-            for rb, ab, yb in loader:
-                rb, ab, yb = rb.to(device), ab.to(device), yb.to(device)
+            for xb, yb in loader:
+                xb, yb = xb.to(device), yb.to(device)
                 opt.zero_grad()
-                loss_fn(self.model_(rb, ab), yb).backward()
+                logits = self.model_(xb)
+                loss = _focal_loss_with_logits(logits, yb, self.focal_gamma, self.alpha_)
+                loss.backward()
                 opt.step()
             self.model_.eval()
             with torch.no_grad():
-                val_loss = loss_fn(self.model_(ref_val, alt_val), y_val).item()
+                val_loss = _focal_loss_with_logits(
+                    self.model_(x_val), y_val, self.focal_gamma, self.alpha_
+                ).item()
             if val_loss < best_val - 1e-4:
                 best_val = val_loss
                 best_state = {k: vv.cpu().clone() for k, vv in self.model_.state_dict().items()}
@@ -897,22 +1144,21 @@ class CNN1DClassifier(BaseEstimator, ClassifierMixin):
         if self.model_ is None:
             raise RuntimeError("Call fit() before predict_proba().")
         self.model_.eval()
-        r, a = self._pair_arrays(X)
-        out = np.empty(len(r), dtype=np.float32)
+        x_all = self._encode_batch(X)
+        out = np.empty(len(x_all), dtype=np.float32)
         bs = self.batch_size
         with torch.no_grad():
-            for i in range(0, len(r), bs):
-                rb = torch.tensor(r[i:i + bs], dtype=torch.float32)
-                ab = torch.tensor(a[i:i + bs], dtype=torch.float32)
-                out[i:i + len(rb)] = torch.sigmoid(self.model_(rb, ab)).numpy()
+            for i in range(0, len(x_all), bs):
+                xb = torch.tensor(x_all[i:i + bs], dtype=torch.float32)
+                out[i:i + len(xb)] = torch.sigmoid(self.model_(xb)).numpy()
         return np.column_stack([1.0 - out, out])
 
     def predict(self, X):
         return (self.predict_proba(X)[:, 1] > 0.5).astype(int)
 
-    # Portable state_dict pickling: rebuilds via the factory on load, so it does
-    # not depend on the module-global _CNN1DModule being pre-populated in a fresh
-    # process (more robust than relying on qualname alone across machines).
+    # Portable state_dict pickling: rebuilds via the factory on load, so it does not
+    # depend on the module-global _CNN1DModule being pre-populated in a fresh process
+    # (more robust than relying on qualname alone across machines).
     def __getstate__(self):
         try:
             st = dict(super().__getstate__())

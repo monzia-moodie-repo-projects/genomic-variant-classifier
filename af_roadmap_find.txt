@@ -1,0 +1,130 @@
+=== root-level .md/.txt files (roadmap candidates) ===
+
+      KB Modified         Name
+      -- --------         ----
+    0.10 2026-07-03 22:55 af_roadmap_find.txt
+    4.30 2026-07-03 22:45 af_roadmap_locate.txt
+    0.50 2026-07-03 22:35 af_dbnsfp_promote.txt
+    0.90 2026-07-03 22:34 af_dbnsfp_restore.txt
+    0.30 2026-07-03 22:28 af_delete_evezip.txt
+    2.90 2026-07-03 22:14 af_ext_copy.txt
+    0.20 2026-07-03 21:59 af_finngen_verify.txt
+    0.40 2026-07-03 21:58 af_ext_drive.txt
+ 4358.00 2026-07-03 21:22 af_backup_finngen_phylop_drive.txt
+   72.80 2026-07-03 19:30 af_backup_cif.txt
+    0.10 2026-07-03 19:22 af_drive_quota.txt
+    5.90 2026-07-03 19:08 af_backup_cohort.txt
+30152.40 2026-07-03 18:58 af_backup_eve.txt
+   56.00 2026-07-03 13:48 af_backup_dbnsfp.txt
+    1.50 2026-07-03 13:35 af_predelete_check2.txt
+    0.40 2026-07-03 13:23 af_predelete_check.txt
+    1.50 2026-07-03 13:12 af_dep_check.txt
+    0.50 2026-07-03 13:07 af_cohort_verify.txt
+    0.20 2026-07-03 13:04 af_progress2.txt
+ 1130.80 2026-07-03 10:10 af_full_build.txt
+    0.40 2026-07-03 02:13 af_build_status.txt
+    3.90 2026-07-03 01:56 af_bigspace.txt
+    0.30 2026-07-03 01:46 af_diskspace.txt
+    7.60 2026-07-03 00:33 af_parallel_install_v3.txt
+    0.80 2026-07-03 00:20 af_parallel_install.txt
+    0.40 2026-07-03 00:12 af_order_diag.txt
+    0.40 2026-07-02 20:51 af_parallel_probe.txt
+    2.50 2026-07-02 20:40 af_fetch_sites_body.txt
+    2.00 2026-07-02 20:30 af_parallel_final_anchors.txt
+    5.50 2026-07-02 20:23 af_parallel_anchors.txt
+    7.80 2026-07-02 20:14 af_parallel_preflight.txt
+    4.00 2026-07-02 20:06 af_commit_preflight.txt
+    5.20 2026-07-02 19:54 alphafold_build_verify4.txt
+    5.20 2026-07-02 19:54 alphafold_build_verify.txt
+    0.70 2026-07-02 19:52 af_testfix_install.txt
+    1.00 2026-07-02 19:32 af_testfix_diag.txt
+    4.10 2026-07-02 19:28 af_canonical_install.txt
+    2.50 2026-07-02 19:18 af_anchor_bytes.txt
+    2.20 2026-07-02 19:14 af_builder_tail.txt
+    0.60 2026-07-02 19:11 af_canonical_coverage.txt
+    1.30 2026-07-02 19:08 af_canonical_select.txt
+    2.20 2026-07-02 19:05 af_multirecord_diag.txt
+    0.80 2026-07-02 18:52 af_coverage_audit.txt
+    0.50 2026-07-02 18:45 af_fragment_diag.txt
+    0.40 2026-07-02 18:43 af_bigprotein_timing.txt
+    5.10 2026-07-02 18:40 alphafold_build_verify3.txt
+    1.30 2026-07-02 18:35 af_rsa_install.txt
+    3.10 2026-07-02 18:26 af_features_head.txt
+    4.90 2026-07-02 18:14 af_rsa_impl.txt
+    0.20 2026-07-02 18:07 af_extract_profile.txt
+    0.50 2026-07-02 18:05 af_timing_probe.txt
+    2.10 2026-07-02 18:04 af_crash_diag.txt
+    6.10 2026-07-02 17:33 af_mainloop.txt
+    0.90 2026-07-02 17:32 alphafold_build_verify2.txt
+    0.20 2026-07-02 17:31 af_stage2_probe.txt
+    1.00 2026-07-02 17:15 af_url_fix_install.txt
+    2.70 2026-07-02 17:07 af_patch_preflight.txt
+   11.90 2026-07-02 17:05 af_test_and_endpoints.txt
+    3.10 2026-07-02 17:00 af_url_fix_diag.txt
+    5.80 2026-07-02 16:53 af_fetch_diag.txt
+    1.60 2026-07-02 16:43 af_verify_dump.txt
+    2.10 2026-07-02 16:35 af_launcher_guard.txt
+    2.20 2026-07-02 16:30 af_paths.txt
+    2.20 2026-07-02 16:23 state.txt
+    3.20 2026-07-02 04:33 protein_interface_verify.txt
+    6.20 2026-07-02 04:28 wiring_verify.txt
+    1.00 2026-07-02 04:17 launcher_dbsnp_block.txt
+   22.10 2026-07-02 03:57 wiring_targets.txt
+    8.20 2026-07-02 00:30 af_accession_semantics.txt
+    4.90 2026-07-02 00:22 af_hybrid_verify.txt
+   13.40 2026-07-01 23:49 af_templates.txt
+    5.70 2026-07-01 23:29 disk_inventory.txt
+    0.40 2026-07-01 23:14 af_scale.txt
+    6.40 2026-07-01 23:02 af_build_scope.txt
+    2.80 2026-07-01 22:49 af_coverage_probe.txt
+   31.70 2026-07-01 22:39 alphafold_survey.txt
+    0.80 2026-07-01 21:24 drive_dbsnp_dest.txt
+    2.10 2026-07-01 21:24 frontier_scope.txt
+    4.00 2026-07-01 21:22 roadmap_dbsnp_context.txt
+    0.90 2026-07-01 21:17 dbsnp_coverage_audit.txt
+   22.60 2026-07-01 21:13 dbsnp_survey.txt
+    2.60 2026-07-01 20:54 freshness_fix_survey.txt
+    3.70 2026-06-29 23:50 requirements.txt
+    7.10 2026-06-25 18:29 RUNBOOK_EVE_EntryName.md
+ 1256.30 2026-06-24 22:47 drive_md5.txt
+    2.70 2026-06-24 18:53 dest.txt
+   12.50 2026-06-24 18:47 source.txt
+   27.10 2026-06-19 20:42 offers.txt
+  217.80 2026-06-17 15:50 project_structure_audit.txt
+   24.40 2026-06-10 14:19 README.md
+    0.20 2026-05-31 15:20 requirements-dev.txt
+    5.70 2026-05-09 22:11 ROADMAP_PSYCH_GWAS_ENTRY.md
+    0.30 2026-04-02 00:13 PHASE_2_FEATURES.md
+    0.80 2026-04-01 08:43 tumor gene data.txt
+    0.60 2026-03-30 12:43 requirements-api.txt
+    8.60 2026-03-25 22:31 METHODS.md
+    9.70 2026-03-20 05:44 test_run_pre_commit.txt
+   17.00 2026-03-14 02:47 PHASE_1_ASSESSMENT.md
+
+
+=== any file with roadmap/phase/plan in the name, anywhere but .git ===
+
+Modified   FullName
+--------   --------
+2026-07-03 C:\Projects\genomic-variant-classifier\af_roadmap_find.txt
+2026-07-03 C:\Projects\genomic-variant-classifier\af_roadmap_locate.txt
+2026-07-02 C:\Projects\genomic-variant-classifier\scripts\__pycache__\run_phase2_eval.cpython-312.pyc
+2026-07-02 C:\Projects\genomic-variant-classifier\scripts\run_phase2_eval.py
+2026-07-01 C:\Projects\genomic-variant-classifier\Install_roadmap_dbsnp_done.ps1
+2026-07-01 C:\Projects\genomic-variant-classifier\docs\ROADMAP.md
+2026-07-01 C:\Projects\genomic-variant-classifier\roadmap_dbsnp_context.txt
+2026-06-30 C:\Projects\genomic-variant-classifier\tests\unit\__pycache__\test_evaluator_phase5.cpython-312-pytest-9.0.3.pyc
+2026-06-30 C:\Projects\genomic-variant-classifier\tests\unit\test_evaluator_phase5.py
+2026-06-30 C:\Projects\genomic-variant-classifier\__pycache__\patch_evaluator_phase5.cpython-312.pyc
+2026-06-30 C:\Projects\genomic-variant-classifier\Install_phase1_lazy_registry.ps1
+2026-06-30 C:\Projects\genomic-variant-classifier\preflight_phase1_anchors.py
+2026-06-30 C:\Projects\genomic-variant-classifier\patch_orchestrator_phase1.py
+2026-06-30 C:\Projects\genomic-variant-classifier\Install_phase5_evaluator.ps1
+2026-06-28 C:\Projects\genomic-variant-classifier\scripts\patch_run17_plan_doc.py
+2026-06-28 C:\Projects\genomic-variant-classifier\docs\runs\RUN_17_PLAN.docx
+2026-06-28 C:\Projects\genomic-variant-classifier\docs\runs\RUN_17_PLAN.md
+2026-06-27 C:\Projects\genomic-variant-classifier\scripts\run_phase2_eval.py.pre_stage4.bak
+2026-06-27 C:\Projects\genomic-variant-classifier\.wiring_backup\20260702_042345_scripts_run_phase2_eval.py
+2026-06-26 C:\Projects\genomic-variant-classifier\scripts\run_phase2_eval.py.pre_genemap2_wiring.bak
+
+

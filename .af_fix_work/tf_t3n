@@ -1,0 +1,1 @@
+    assert bap._download_cif("NOSUCH", tmp_path, _CANON) is None

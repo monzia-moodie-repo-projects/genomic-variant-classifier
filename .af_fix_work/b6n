@@ -1,0 +1,3 @@
+    acc_map = _resolve_accessions(genes, uniprot_index_path)
+    acc_to_seq = _load_acc_sequences(uniprot_index_path)
+    coverage: dict[str, dict] = {}

@@ -179,6 +179,8 @@ def _build_eval_cmd(args, eval_py, clinvar_for_cmd, outdir):
         ("--reactome-path", getattr(args, "reactome_path", None)),
         ("--rnaseq-path", getattr(args, "rnaseq_path", None)),
         ("--gtex-path", getattr(args, "gtex_path", None)),
+        ("--cosmic-path", getattr(args, "cosmic_path", None)),
+        ("--kegg-path", getattr(args, "kegg_path", None)),
         ("--gnn-epochs", str(args.gnn_epochs) if getattr(args, "gnn_epochs", None) is not None else ""),
     ]:
         if val:
@@ -208,6 +210,8 @@ def parse_args(argv=None):
     ap.add_argument("--reactome-path", dest="reactome_path")
     ap.add_argument("--rnaseq-path", dest="rnaseq_path")
     ap.add_argument("--gtex-path", dest="gtex_path")
+    ap.add_argument("--cosmic-path", dest="cosmic_path")
+    ap.add_argument("--kegg-path", dest="kegg_path")
     ap.add_argument("--string-db", dest="string_db", default="auto")
     ap.add_argument("--smoke-n", type=int, default=3000)
     ap.add_argument("--clinvar-sample-n", dest="clinvar_sample_n", type=int, default=None,

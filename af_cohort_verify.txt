@@ -1,0 +1,11 @@
+rows 9960360 cols ['uniprot_accession', 'residue_pos', 'plddt', 'rsa', 'ss', 'dist_active']
+distinct accessions 18034
+residue_pos: min=1 max=2699 mean=430.3 nulls=0
+plddt: min=1.99 max=99 mean=72.78 nulls=0
+rsa: min=0 max=1 mean=0.4168 nulls=0
+ss: min=0 max=2 mean=0.6367 nulls=0
+dist_active: min=0 max=376.5 mean=78.97 nulls=0
+sentinel frac plddt==50.0: 0.0002
+sentinel frac rsa==0.5: 0.0
+coverage: n_genes 18302 usable 18034 unusable 268
+file_size_MB 110.2

@@ -1,0 +1,84 @@
+=== Install_alphafold_canonical_selection :: preflight ===
+backup builder SHA256: E126C9A0C4E7A0AE9353FAFFBF46A305C601F10DDD6ED5A2AD1BA67920E69966
+backup tests   SHA256: 041EEB1FEE7737D6A233A0ADE65ADACBAFFBD8E94C1E19BD7A5C92D4A79A8AEB
+=== applying patch (8 guarded edits, count==1) ===
+builder: 8 guarded edits applied
+tests: canonical guards appended
+=== post-check 1: byte-compile ===
+compile OK
+=== post-check 2: full AF unit suite (expect 25 passed, 0 skipped) ===
+...............FFFF......                                                [100%]
+================================== FAILURES ===================================
+__________ test_download_cif_resolves_api_and_writes_server_version ___________
+
+tmp_path = WindowsPath('C:/Users/monzi/AppData/Local/Temp/pytest-of-monzi/pytest-6/test_download_cif_resolves_api0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001C8AF6BAFC0>
+
+    def test_download_cif_resolves_api_and_writes_server_version(tmp_path, monkeypatch):
+        bap = _load_builder()
+    
+        def fake_get(url, timeout=None, **kw):
+            if "api/prediction" in url:
+                return _FakeResp(200, payload=[{"cifUrl": _CIF_URL}])
+            if url == _CIF_URL:
+                return _FakeResp(200, text=_CIF_BODY)
+            return _FakeResp(404)
+    
+        monkeypatch.setattr(bap.requests, "get", fake_get)
+>       out = bap._download_cif("P04637", tmp_path)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: _download_cif() missing 1 required positional argument: 'canonical_seq'
+
+tests\unit\test_alphafold.py:298: TypeError
+__________________ test_download_cif_rejects_non_cif_payload __________________
+
+tmp_path = WindowsPath('C:/Users/monzi/AppData/Local/Temp/pytest-of-monzi/pytest-6/test_download_cif_rejects_non_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001C8AEEA5E20>
+
+    def test_download_cif_rejects_non_cif_payload(tmp_path, monkeypatch):
+        bap = _load_builder()
+    
+        def fake_get(url, timeout=None, **kw):
+            if "api/prediction" in url:
+                return _FakeResp(200, payload=[{"cifUrl": _CIF_URL}])
+            if url == _CIF_URL:
+                return _FakeResp(200, text="<html><body>404 Not Found</body></html>")
+            return _FakeResp(404)
+    
+        monkeypatch.setattr(bap.requests, "get", fake_get)
+>       out = bap._download_cif("P04637", tmp_path)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: _download_cif() missing 1 required positional argument: 'canonical_seq'
+
+tests\unit\test_alphafold.py:315: TypeError
+___________________ test_download_cif_api_miss_returns_none ___________________
+
+tmp_path = WindowsPath('C:/Users/monzi/AppData/Local/Temp/pytest-of-monzi/pytest-6/test_download_cif_api_miss_ret0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001C8AF76FC20>
+
+    def test_download_cif_api_miss_returns_none(tmp_path, monkeypatch):
+        bap = _load_builder()
+        monkeypatch.setattr(bap.requests, "get", lambda url, timeout=None, **kw: _FakeResp(404))
+>       assert bap._download_cif("NOSUCH", tmp_path) is None
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: _download_cif() missing 1 required positional argument: 'canonical_seq'
+
+tests\unit\test_alphafold.py:323: TypeError
+_________________ test_resolve_cif_url_reads_current_version __________________
+
+tmp_path = WindowsPath('C:/Users/monzi/AppData/Local/Temp/pytest-of-monzi/pytest-6/test_resolve_cif_url_reads_cur0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001C8AF76D070>
+
+    def test_resolve_cif_url_reads_current_version(tmp_path, monkeypatch):
+        bap = _load_builder()
+        monkeypatch.setattr(
+            bap.requests, "get",
+            lambda url, timeout=None, **kw: _FakeResp(200, payload=[{"cifUrl": _CIF_URL}]),
+        )
+>       assert bap._resolve_cif_url("P04637") == _CIF_URL
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: _resolve_cif_url() missing 1 required positional argument: 'canonical_seq'
+
+tests\unit\test_alphafold.py:333: TypeError
+4 failed, 21 passed in 26.91s
+
