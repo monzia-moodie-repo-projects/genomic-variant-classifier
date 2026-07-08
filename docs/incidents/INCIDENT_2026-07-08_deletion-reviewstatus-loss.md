@@ -6,8 +6,9 @@
 **Author:** Monzia Moodie
 **Affected artifacts:** `data/processed/clinvar_grch38_clean.parquet`,
 `clinvar_grch38_clean_seq.parquet`, and every training split derived from them.
-**Affected runs:** Runs 15, 16, 17 confirmed by launcher inspection. Runs ≤14 status
-*hypothesised, unverified* (see §6).
+**Affected runs:** Runs **15, 16, 17** — deletion-censored cohort (regime v1). Runs **9–14** ran
+without any review-tier filter (regime v0): deletions present, but tier 4–6 labels included.
+Established by run-log evidence, 2026-07-08 (see §6). The two regimes are not comparable.
 
 **Reproduce:** `python scripts/probe_reviewstatus_gaps.py`,
 `python scripts/probe_tier_filter_impact.py`. Raw output in
@@ -124,17 +125,87 @@ strength of 2,210 validated examples.** This must be independently validated bef
 
 ---
 
-## 3. Mechanism — hypothesis, not yet established
+## 3. Mechanism — ESTABLISHED 2026-07-08. It is a coordinate bug, not a ReviewStatus bug.
 
-`augment_reviewstatus.py` builds a join key and maps it against a dict derived from the
-ClinVar VCF. Insertions (`ref=G, alt=GTTT`) match; deletions (`ref=GCTG, alt=G`) do not. The
-near-total, class-specific failure rules out a normalisation edge case and points at a
-representational mismatch in the key — plausibly the position convention for the padding base,
-or a left-alignment/trimming difference between the parquet and the VCF.
+`augment_reviewstatus.py` and its VCF map build the **identical** key, `chrom:pos:ref:alt`.
+There is no case, prefix, or normalisation asymmetry. The join fails because the cohort's
+`pos` is wrong.
 
-**This section is deliberately incomplete.** The mechanism will be written from
-`scripts/augment_reviewstatus.py` (4,509 bytes), not inferred from the symptom. Until that file
-is read, no claim is made about the specific defect.
+**Evidence** (`scripts/probe_pos_offset_by_representation.py`, superseding
+`probe_vcf_deletion_join.py`; raw output `outputs/probe_vcf_deletion_join.txt`):
+
+| sample group | offset −1 | offset 0 |
+|---|---:|---:|
+| deletion, `ReviewStatus` blank | **30/30** | 0 |
+| deletion, `ReviewStatus` set | 0 | 30/30 |
+| insertion | 0 | 30/30 |
+| MNV | 0 | 30/30 |
+
+**Corroboration independent of the join.** Cohort row `clinvar:17:43076593:ACTT:A` cannot have
+`ref="ACTT"` beginning at 43076593: the reference base there is `C` (a distinct VCF record, C>G,
+occupies that position). `ACTT` begins at **43076592**. The cohort's `pos` and its own `ref`
+string disagree about which base the allele starts on.
+
+**The two groups separate perfectly on allele representation, not on length:**
+
+| blank → offset −1 | matched → offset 0 |
+|---|---|
+| `ACTT:A`, `CA:C`, `GA:G`, `AC:A` — `alt == ref[0]` | `AA:C`, `CG:T`, `GG:T`, `TCAGTT…:G` — `alt != ref[0]` |
+| **VCF-padded deletions** | **delins** (the first base changes) |
+
+`2,210 / 189,468 = 1.166%` — exactly the delins fraction of the length-class "deletion".
+
+### Root cause
+
+> The cohort's `pos` is ClinVar `variant_summary`'s **`Start`**: the first *altered* reference
+> base. Its `ref`/`alt` are `ReferenceAlleleVCF`/`AlternateAlleleVCF`, which begin at
+> **`PositionVCF`**. In a padded deletion the padding base is unchanged, so
+> `Start = PositionVCF + 1`. For SNVs, delins, and insertions no reference base is removed, so
+> `Start = PositionVCF`. **Only padded deletions are shifted, by exactly one.**
+
+Corroborated by `source_id` reading 2, 3, 4 on the first cohort rows — the canonical ClinVar
+VariationIDs of the first `AP5Z1` entries in `variant_summary.txt`. A VCF is position-sorted and
+would not begin at chr7. The cohort was built from `variant_summary`, mixing its `Start` column
+with its `…VCF` allele columns.
+
+### The fix (in the cohort builder, not the artifact)
+
+```python
+is_padded_del = (alt.str.len() < ref.str.len()) & ref.str.startswith(alt)
+pos_vcf       = pos - is_padded_del.astype(int)
+variant_id    = "clinvar:" + chrom + ":" + pos_vcf.astype(str) + ":" + ref + ":" + alt
+```
+
+### Escalation — this is far larger than `ReviewStatus`
+
+`.fillna("")` did not *create* the defect; it **concealed** it, by turning a coordinate error into
+a plausible-looking review tier. The tier filter then deleted the evidence.
+
+**Every join keyed on `chrom:pos(:ref:alt)` misses these rows**: gnomAD, SpliceAI, phyloP, CADD,
+dbNSFP, 1000G, dbSNP, COSMIC, AlphaMissense. The Nucleotide-Transformer sequence windows are
+centred on `pos` and are therefore off by one for the same rows. `variant_id` embeds `pos` and is
+likewise wrong — internally consistent, but not identifying the true variant.
+
+The consequence differs by regime (§6):
+
+* **Runs 15–17 (v1)** discarded these rows at the tier filter and never saw the corruption.
+* **Runs 9–14 (v0)** *kept* them. Their positional annotations would have silently defaulted to
+  zero/NaN. Since padded deletions are enriched for loss-of-function and therefore for pathogenic
+  labels, **an all-defaults annotation signature correlated with the pathogenic class may have
+  been available to the models as a shortcut.** This is a hypothesis, not a finding; it is
+  testable against `outputs/run14/` splits and must be tested before any Run-14 number is cited.
+
+### The guard that was never written
+
+Nothing in this pipeline ever asserted
+
+```python
+genome[chrom][pos-1 : pos-1+len(ref)] == ref
+```
+
+A single reference-consistency post-condition on the cohort would have caught 187,258 rows the
+first time the cohort was built. Row counts were guarded, duplicates were guarded, null alleles
+were guarded, reconciliation was guarded — **the coordinates were not**.
 
 ---
 
@@ -199,31 +270,88 @@ fallback absorbing every mismatch.
 
 ---
 
-## 6. Scope across runs — one established, one hypothesised
+## 6. Scope across runs — RESOLVED 2026-07-08
 
-**Established:** Run 17's launcher passes `--min-review-tier 3` explicitly
-(`launch_run17_baseline.sh:275`). Runs 15 and 16 have ReviewStatus preflight checks
-(`preflight_run15_baseline.py:41`, `preflight_run16_inputs.py:58`), implying the column was
-present and the filter active.
+**Note on a prior error in this document.** An earlier revision dated the `ReviewStatus`
+augmentation to 2026-06-12, inferred from the filename
+`install_docs_close_2026-06-12_run16-smoke-gate.py`. That is a document *about* the work, not the
+work. The commit log gives the true date.
 
-**Hypothesised, requires verification.** `patch_review_tier_guard.py` records that *before*
-that patch, an absent `ReviewStatus` caused `review_tier` never to be computed and the filter
-**to silently keep every row**. The ReviewStatus augmentation is dated 2026-06-12; Run 14
-completed 2026-05-26. If that ordering holds, **Run 14 trained on the unfiltered cohort
-(pos_rate 26.7%, deletions included) while Runs 15–17 trained on a 14.1% pos_rate cohort with
-deletions absent** — a comparability break nothing in the record flags.
+### 6.1 Evidence
 
-Verification:
+```
+f24bfc6  2026-06-03 19:48:32 -0400  feat(data): attach ClinVar ReviewStatus to clean cohort
+                                    (Path A, enables --min-review-tier)
+80ac62c  2026-05-26 05:55:05 -0400  Run 14
+```
+`outputs/run14/run14_master.log` is dated 2026-05-26 10:46:42. The augmentation landed **eight days
+after Run 14 completed**, and one day before Run 15's first log (`run15_run.log`, 2026-06-04 11:31).
 
+`real_data_prep.py:485` emits `"Review tier filter (<=%d): %d -> %d."` on every run where the filter
+executed. Grepping every run log:
+
+| log | `Feature matrix: … rows` | `Review tier filter` |
+|---|:--:|:--:|
+| `run9_ready/regen.log` | yes | **no** |
+| `run10a` (×5 logs), `run10b_final` | yes | **no** |
+| `run11`, `run12`, `run13` | yes | **no** |
+| **`run14/run14_master.log`** | **yes** | **no** |
+| `run15_run.log`, `run15_full.log`, `run15_baseline_master.log` | yes | yes |
+| `run16_master.log`, `smoke_run16.log`, `smoke_run16b.log` | yes | yes |
+| `run17_smoke.log`, `run17_smoke_stage1.log`, `smoke15_vm.log`, `smoke_cnn_tier1/smoke.log` | yes | yes |
+
+**Runs 9–14 built a feature matrix and never applied the review-tier filter. Runs 15, 16, 17 did.**
+
+Residual caveat, both branches converging: the absence of the log line could in principle mean the
+`logger.info` did not yet exist rather than that the filter did not run. The filter and the log live
+inside the same `if "ReviewStatus" in df.columns:` block (`real_data_prep.py:473-490`), and the column
+did not exist before `f24bfc6`. Confirm:
 ```powershell
-git log --oneline --follow --diff-filter=A -- scripts/augment_reviewstatus.py   # when introduced
-git log -1 --format=%ci 80ac62c                                                 # Run 14 date
-Select-String -Path outputs\run14*\*.log -Pattern 'min.review.tier|ARGS:'       # what Run 14 actually ran
-Select-String -Path scripts\launch_run15*.sh, scripts\launch_run16*.sh -Pattern 'min-review-tier'
+git show 80ac62c:src/genomic_variant_classifier/data/real_data_prep.py | Select-String 'ReviewStatus|review_tier'
 ```
 
-Until this is settled, **no cross-run metric comparison in this project should be treated as
-valid.**
+### 6.2 Cohort lineage — three regimes, one undifferentiated metrics table
+
+| regime | runs | tier filter | binary rows | pos_rate | deletion share of cohort |
+|---|---|---|---:|---:|---:|
+| **v0** unfiltered | 9–14 | none (silent no-op) | ≤1,848,225 | 26.725% | 4.307% (present) |
+| **v1** censored | 15, 16, 17 | tier ≤3, VCF `ReviewStatus` | 1,490,324 | 14.145% | **0.0521%** |
+| **v2** proposed | 18+ | tier ≤3, `metadata.review_status` | 1,620,592 | 18.546% | 4.2123% |
+
+Run 14's reported test AUROC of 0.9975 was measured on **regime v0**. Run 17's Stage-1 AUROC
+0.9960/0.9963 and AUPRC 0.9852/0.9828 were measured on **regime v1**. **They are not comparable, and
+no run artifact records which regime produced it.** AUPRC's no-skill floor equals `pos_rate`; that
+floor moved from 0.267 to 0.141 across the boundary, with no annotation anywhere.
+
+**Neither v0 nor v1 is defensible.** v0 trains on tier 4–6 labels — "conflicting classifications",
+"no assertion criteria provided" — noisy labels across a complete variant spectrum. v1 trains on
+clean labels and almost no deletions. v2 is the first regime with both.
+
+The v0 row is an **upper bound**: 1,848,225 is computed before `exclude_conflicting`
+(`real_data_prep.py:503-505`), which v0 also applied. The exact figure is printed in
+`run14_master.log`. Extract it before citing:
+```powershell
+Get-ChildItem outputs,logs -Recurse -Include *.log |
+  Select-String -Pattern 'Feature matrix: ([\d,]+) rows x (\d+) features' |
+  ForEach-Object { [PSCustomObject]@{ Log=(Split-Path $_.Path -Leaf)
+                                      Rows=$_.Matches[0].Groups[1].Value
+                                      Features=$_.Matches[0].Groups[2].Value } } | Format-Table -AutoSize
+
+Get-ChildItem outputs,logs -Recurse -Include *.log |
+  Select-String -Pattern 'Review tier filter \(<=(\d+)\): ([\d,]+) -> ([\d,]+)' |
+  ForEach-Object { [PSCustomObject]@{ Log=(Split-Path $_.Path -Leaf)
+                                      Tier=$_.Matches[0].Groups[1].Value
+                                      Before=$_.Matches[0].Groups[2].Value
+                                      After=$_.Matches[0].Groups[3].Value } } | Format-Table -AutoSize
+```
+
+### 6.3 Consequence
+
+**No cross-run metric comparison in this project is valid without stating the cohort regime.** The
+Run 14 → Run 17 progression on which the roadmap rests spans a cohort boundary that changed the
+training-set size, the positive rate, the label-noise profile, and the variant-class spectrum
+simultaneously. Every future run artifact must record: cohort version, cohort MD5, schema
+fingerprint, `min_review_tier`, `pos_rate`, and per-variant-class row counts (§7, step 5).
 
 ---
 
