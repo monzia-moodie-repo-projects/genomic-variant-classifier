@@ -1,43 +1,110 @@
 """
-genomic_variant_classifier.evaluation.metrics  (2026-07-08)
-==========================================================================
-Core of the Run-17 metric stack. Pure functions over (y, score) arrays: no I/O, no
-model objects, no sklearn. Every function is independently unit-testable, and the
-test suite feeds each one the input that SHOULD trip it.
+Evaluation Module for Genomic Variant Classification
+Author: Monzia Moodie
 
-WHY THIS EXISTS
+=============================================================================
+REVISION 2026-07-08 -- METRIC STACK ADDED **ALONGSIDE** THE ORIGINAL API.
 
-    The project's declared primary metric is AUPRC. AUPRC's no-skill floor equals the
-    positive rate, so an AUPRC quoted without its `pos_rate` is uninterpretable, and
-    two AUPRCs measured at different positive rates are not comparable. Runs 9-14 ran
-    at pos_rate 20.34%; Runs 15-17 at 14.15%. Nothing in any run artifact recorded
-    which. See docs/incidents/INCIDENT_2026-07-08_deletion-reviewstatus-loss.md sec 6.
+Nothing above the "METRIC STACK" banner is changed. `compute_classification_metrics`
+and `ModelEvaluator` are restored verbatim from commit 87e32ad^, after 87e32ad
+overwrote them. Behaviour, signatures, and sklearn backing are identical.
 
-    Every metric here therefore returns `pos_rate` alongside itself, and every panel
-    is STRATIFIABLE -- because a headline number computed over a cohort that is 86%
-    SNVs and 8.5% deletions (the deletions 3.5x pathogenic-enriched and carrying
-    sixteen constant features) tells you almost nothing about either class.
+WHY THE ADDITIONS EXIST
 
-DESIGN RULES
-    * A metric that cannot be computed returns NaN and says so. It never returns 0.5
-      or 0.0 as if that were a measurement.
-    * Confidence intervals are STRATIFIED bootstrap by default: resampling positives
-      and negatives separately preserves `pos_rate`, so the CI reflects sampling
-      noise in the score, not noise in the class balance.
-    * Ties in the score are handled explicitly: average ranks for AUROC, and tied
-      scores collapsed into a single threshold for AUPRC. This matters -- every padded
-      deletion in the Run-14 splits carries sixteen literally constant features. Both
-      are cross-validated against sklearn to 1e-16 (see tests).
+  The project's declared primary metric is AUPRC, whose no-skill floor equals the
+  positive rate. An AUPRC quoted without `pos_rate` is uninterpretable, and two AUPRCs
+  measured at different positive rates are not comparable. Runs 9-14 ran at pos_rate
+  20.34%; Runs 15-17 at 14.15%. No run artifact recorded which. See
+  docs/incidents/INCIDENT_2026-07-08_deletion-reviewstatus-loss.md sec 6.
+
+  The additions also make every panel STRATIFIABLE, because a headline over a cohort
+  that is 86% SNVs and 8.5% padded deletions -- the latter 3.5x pathogenic-enriched and
+  carrying sixteen literally constant features -- describes neither class.
+
+DESIGN RULES (additions only)
+  * A metric that cannot be computed returns NaN and says so. It never returns 0.5 or
+    0.0 as if that were a measurement.
+  * Confidence intervals are STRATIFIED bootstrap by default: positives and negatives
+    resampled separately, so `pos_rate` is preserved and the CI reflects noise in the
+    score, not in the class balance.
+  * Ties are handled explicitly: average ranks for AUROC, tied scores collapsed to a
+    single threshold for AUPRC. This matters -- every padded deletion in the Run-14
+    splits carries sixteen constant features. Both cross-validated against sklearn to
+    1e-16, including all-constant scores (tests/unit/test_evaluation_metrics.py).
+
+KNOWN PRE-EXISTING WART, LEFT ALONE: `calibration_curve` is imported and never used.
+Removing it is a behaviour-neutral cleanup for a separate commit, not this one.
+=============================================================================
 """
-
-from __future__ import annotations
-
-from typing import Callable, Iterable, Sequence
-
 import numpy as np
-import pandas as pd
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score,
+    roc_auc_score, average_precision_score, brier_score_loss,
+    confusion_matrix
+)
+from sklearn.calibration import calibration_curve
+
+def compute_classification_metrics(y_true, y_pred, y_proba):
+    tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+    return {
+        "accuracy": accuracy_score(y_true, y_pred),
+        "precision": precision_score(y_true, y_pred, zero_division=0),
+        "recall": recall_score(y_true, y_pred, zero_division=0),
+        "specificity": tn / (tn + fp) if (tn + fp) > 0 else 0,
+        "f1": f1_score(y_true, y_pred, zero_division=0),
+        "auroc": roc_auc_score(y_true, y_proba),
+        "auprc": average_precision_score(y_true, y_proba),
+        "brier_score": brier_score_loss(y_true, y_proba),
+        "true_positives": int(tp),
+        "true_negatives": int(tn),
+        "false_positives": int(fp),
+        "false_negatives": int(fn),
+    }
+
+class ModelEvaluator:
+    def __init__(self, y_true, y_proba, threshold=0.5):
+        self.y_true = np.array(y_true)
+        self.y_proba = np.array(y_proba)
+        self.threshold = threshold
+        self.y_pred = (self.y_proba >= threshold).astype(int)
+
+    def get_all_metrics(self):
+        return {
+            "classification": compute_classification_metrics(
+                self.y_true, self.y_pred, self.y_proba
+            ),
+        }
+
+    def generate_report(self):
+        metrics = self.get_all_metrics()
+        clf = metrics["classification"]
+        lines = [
+            "=" * 50,
+            "MODEL EVALUATION REPORT",
+            "=" * 50,
+            f"Samples: {len(self.y_true)} ({self.y_true.sum()} positive)",
+            f"AUROC: {clf['auroc']:.4f}",
+            f"AUPRC: {clf['auprc']:.4f}",
+            f"F1: {clf['f1']:.4f}",
+            f"Precision: {clf['precision']:.4f}",
+            f"Recall: {clf['recall']:.4f}",
+            "=" * 50,
+        ]
+        return "\n".join(lines)
+
+
+# =============================================================================
+# METRIC STACK (2026-07-08) -- ADDITIVE. Pure numpy/pandas primitives, every one
+# independently unit-tested and cross-validated against sklearn.
+# =============================================================================
+
+from typing import Callable, Iterable, Sequence  # noqa: E402
+import pandas as pd  # noqa: E402
 
 __all__ = [
+    # original API -- do not remove
+    "compute_classification_metrics", "ModelEvaluator",
+    # metric stack
     "auroc", "auprc", "no_skill_auprc", "brier_score",
     "expected_calibration_error", "calibration_slope_intercept",
     "bootstrap_ci", "evaluate", "stratified_evaluate",
@@ -46,7 +113,7 @@ __all__ = [
 _EPS = 1e-12
 
 
-def _clean(y: Sequence, s: Sequence) -> tuple[np.ndarray, np.ndarray]:
+def _clean(y: Sequence, s: Sequence) -> "tuple[np.ndarray, np.ndarray]":
     y = np.asarray(y).astype(float).ravel()
     s = np.asarray(s).astype(float).ravel()
     if y.shape != s.shape:
@@ -77,14 +144,14 @@ def auprc(y: Sequence, score: Sequence) -> float:
     sixteen literally constant features, and any binary indicator ties massively. A
     row-by-row walk after an arbitrary tie-break inflates AP (it credits an ordering the
     score never expressed). Cross-checked against sklearn.average_precision_score to
-    1e-16 on balanced, 10%-imbalanced, 1%-imbalanced, near-random and heavily-tied data.
+    1e-16 on balanced, 10%- and 1%-imbalanced, near-random, heavily-tied, binary, and
+    all-constant scores.
     """
     y, s = _clean(y, score)
     if _degenerate(y):
         return float("nan")
     order = np.argsort(-s, kind="mergesort")
     yy, ss = y[order], s[order]
-    # collapse runs of equal score: keep only the last index of each run
     last_of_run = np.r_[np.flatnonzero(np.diff(ss)), yy.size - 1]
     tp = np.cumsum(yy)[last_of_run]
     fp = np.cumsum(1 - yy)[last_of_run]
@@ -122,7 +189,7 @@ def expected_calibration_error(y: Sequence, prob: Sequence, n_bins: int = 10) ->
 
 
 def calibration_slope_intercept(y: Sequence, prob: Sequence,
-                                max_iter: int = 100, tol: float = 1e-10) -> tuple[float, float]:
+                                max_iter: int = 100, tol: float = 1e-10):
     """Fit y ~ sigmoid(intercept + slope * logit(p)) by IRLS.
 
     Perfect calibration -> slope 1.0, intercept 0.0.
@@ -152,10 +219,9 @@ def calibration_slope_intercept(y: Sequence, prob: Sequence,
     return float(beta[1]), float(beta[0])  # slope, intercept
 
 
-def bootstrap_ci(fn: Callable[[np.ndarray, np.ndarray], float],
-                 y: Sequence, score: Sequence, *,
+def bootstrap_ci(fn: Callable, y: Sequence, score: Sequence, *,
                  n_boot: int = 200, alpha: float = 0.05, seed: int = 0,
-                 stratified: bool = True) -> tuple[float, float]:
+                 stratified: bool = True):
     """Percentile bootstrap CI. Stratified by class so pos_rate is preserved.
 
     n_boot defaults to 200: each replicate is O(n log n), so 1000 replicates over a
@@ -166,7 +232,7 @@ def bootstrap_ci(fn: Callable[[np.ndarray, np.ndarray], float],
         return float("nan"), float("nan")
     rng = np.random.default_rng(seed)
     pos, neg = np.flatnonzero(y == 1), np.flatnonzero(y == 0)
-    vals: list[float] = []
+    vals = []
     for _ in range(n_boot):
         if stratified:
             i = np.concatenate([rng.choice(pos, pos.size, replace=True),
@@ -183,8 +249,7 @@ def bootstrap_ci(fn: Callable[[np.ndarray, np.ndarray], float],
 
 
 def evaluate(y: Sequence, score: Sequence, *,
-             prob: Sequence | None = None,
-             n_boot: int = 0, seed: int = 0, n_bins: int = 10) -> dict:
+             prob=None, n_boot: int = 0, seed: int = 0, n_bins: int = 10) -> dict:
     """Full single-population panel.
 
     `score` ranks; `prob` (default: score) is used for calibration. Pass both when the
@@ -215,15 +280,11 @@ def evaluate(y: Sequence, score: Sequence, *,
 
 
 def stratified_evaluate(y: Sequence, score: Sequence, groups: Iterable, *,
-                        prob: Sequence | None = None,
-                        n_boot: int = 0, seed: int = 0,
-                        min_n: int = 30) -> pd.DataFrame:
+                        prob=None, n_boot: int = 0, seed: int = 0,
+                        min_n: int = 30) -> "pd.DataFrame":
     """One panel per group, plus an ALL row.
 
-    A headline metric over a cohort that is 86% SNVs and 8.5% deletions -- the latter
-    3.5x pathogenic-enriched and carrying sixteen constant features -- describes
-    neither class. Strata below `min_n` are reported with NaN metrics, never dropped
-    silently.
+    Strata below `min_n` are reported with NaN metrics, never dropped silently.
     """
     y = np.asarray(y).astype(int).ravel()
     s = np.asarray(score).astype(float).ravel()
@@ -232,7 +293,7 @@ def stratified_evaluate(y: Sequence, score: Sequence, groups: Iterable, *,
     if not (len(y) == len(s) == len(g) == len(p)):
         raise ValueError(f"length mismatch y={len(y)} s={len(s)} g={len(g)} p={len(p)}")
 
-    rows: dict[str, dict] = {"ALL": evaluate(y, s, prob=p, n_boot=n_boot, seed=seed)}
+    rows = {"ALL": evaluate(y, s, prob=p, n_boot=n_boot, seed=seed)}
     for name in sorted(g.dropna().unique(), key=str):
         m = (g == name).to_numpy()
         if m.sum() < min_n:
@@ -249,3 +310,12 @@ def stratified_evaluate(y: Sequence, score: Sequence, groups: Iterable, *,
         if c not in ("auroc_ci95", "auprc_ci95"):
             df[c] = pd.to_numeric(df[c], errors="coerce")
     return df
+
+
+if __name__ == "__main__":
+    np.random.seed(42)
+    y_true = np.random.binomial(1, 0.3, 200)
+    y_proba = 0.6 * y_true + 0.4 * np.random.beta(2, 5, 200)
+    y_proba = np.clip(y_proba, 0, 1)
+    evaluator = ModelEvaluator(y_true, y_proba)
+    print(evaluator.generate_report())

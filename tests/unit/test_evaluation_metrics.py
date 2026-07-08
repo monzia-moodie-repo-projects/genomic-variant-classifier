@@ -194,3 +194,35 @@ def test_stratified_evaluate_keeps_small_strata_with_nan_not_dropped():
 def test_stratified_evaluate_length_mismatch_raises():
     with pytest.raises(ValueError, match="length mismatch"):
         stratified_evaluate([0, 1], [0.1, 0.9], ["a"])
+
+
+# --------------------------------------------------------------------------
+# REGRESSION GUARDS -- these two tests would have caught commit 87e32ad, which
+# replaced evaluation/__init__.py with a stub and deleted the original metrics
+# API. A package's public surface is a contract; nothing asserted it.
+# --------------------------------------------------------------------------
+def test_package_reexports_are_intact():
+    """evaluation/__init__.py must keep re-exporting the clinical evaluator API."""
+    import genomic_variant_classifier.evaluation as E
+    for name in ("ClinicalEvaluator", "ConsequenceBreakdown", "EvaluationReport",
+                 "GeneErrorAnalysis", "OperatingPoint", "compare_models",
+                 "RunArtifactWriter"):
+        assert hasattr(E, name), f"public API lost: {name}"
+
+
+def test_legacy_metrics_api_is_preserved():
+    """compute_classification_metrics / ModelEvaluator predate the metric stack."""
+    from genomic_variant_classifier.evaluation.metrics import (
+        compute_classification_metrics, ModelEvaluator,
+    )
+    rng = np.random.default_rng(0)
+    y = rng.integers(0, 2, 300)
+    p = np.clip(0.6 * y + 0.4 * rng.beta(2, 5, 300), 0.0, 1.0)
+    m = compute_classification_metrics(y, (p >= 0.5).astype(int), p)
+    assert set(m) == {"accuracy", "precision", "recall", "specificity", "f1", "auroc",
+                      "auprc", "brier_score", "true_positives", "true_negatives",
+                      "false_positives", "false_negatives"}
+    assert "MODEL EVALUATION REPORT" in ModelEvaluator(y, p).generate_report()
+    # the two APIs must agree on the same data
+    assert m["auroc"] == pytest.approx(auroc(y, p), abs=1e-12)
+    assert m["auprc"] == pytest.approx(auprc(y, p), abs=1e-12)
