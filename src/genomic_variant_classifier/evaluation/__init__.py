@@ -3,9 +3,32 @@ src/genomic_variant_classifier/evaluation
 ==============
 Clinical evaluation package for the Genomic Variant Classifier.
 
-RESTORED 2026-07-08. Commit 87e32ad replaced this file with a two-line stub, silently
-removing every re-export below. Restored verbatim from 87e32ad^; the metric-stack names
-are APPENDED, not substituted.
+=============================================================================
+IMPORT CONTRACT — DO NOT IMPORT metrics.py FROM THIS FILE.
+
+  This package MUST import cleanly with scikit-learn absent. The contract is
+  locked by tests/unit/test_evaluator_phase5.py::test_module_imports_without_sklearn
+  and (since 2026-07-08) tests/unit/test_evaluation_metrics.py::test_package_imports_without_sklearn.
+
+      evaluator.py            lazy-loads sklearn via _ensure_sklearn()
+      prediction_artifacts.py imports sklearn / shap INSIDE functions only
+      metrics.py              imports sklearn AT MODULE LEVEL  <-- the trap
+
+  History. Commit 87e32ad replaced this file with a two-line stub, deleting every
+  re-export below. The restore in 015ff94 brought them back but ALSO added
+  `from ... import metrics`, which pulled sklearn eagerly and broke the Phase-5
+  contract — trading one silent failure for another. This file is now byte-exact
+  with 87e32ad^ below the docstring.
+
+  Import the metric stack directly, where sklearn is expected to be present:
+
+      from genomic_variant_classifier.evaluation.metrics import auroc, auprc, evaluate
+
+  KNOWN, DELIBERATELY UNCHANGED: `RunArtifactWriter` is imported but absent from
+  __all__, and its import sits below the __all__ assignment. Both are pre-existing.
+  Correcting them is a behaviour-visible change to `import *` and belongs in its own
+  commit, not in a restore.
+=============================================================================
 """
 
 from __future__ import annotations
@@ -28,37 +51,3 @@ __all__ = [
     "compare_models",
 ]
 from genomic_variant_classifier.evaluation.prediction_artifacts import RunArtifactWriter
-
-# --- metric stack (2026-07-08) ----------------------------------------------------
-# Additive. Nothing above is changed. `RunArtifactWriter` was imported but omitted from
-# __all__ in the original -- a pre-existing inconsistency, corrected here.
-from genomic_variant_classifier.evaluation import metrics  # noqa: E402,F401
-from genomic_variant_classifier.evaluation.metrics import (  # noqa: E402
-    auroc,
-    auprc,
-    no_skill_auprc,
-    brier_score,
-    expected_calibration_error,
-    calibration_slope_intercept,
-    bootstrap_ci,
-    evaluate,
-    stratified_evaluate,
-    compute_classification_metrics,
-    ModelEvaluator,
-)
-
-__all__ += [
-    "RunArtifactWriter",
-    "metrics",
-    "auroc",
-    "auprc",
-    "no_skill_auprc",
-    "brier_score",
-    "expected_calibration_error",
-    "calibration_slope_intercept",
-    "bootstrap_ci",
-    "evaluate",
-    "stratified_evaluate",
-    "compute_classification_metrics",
-    "ModelEvaluator",
-]

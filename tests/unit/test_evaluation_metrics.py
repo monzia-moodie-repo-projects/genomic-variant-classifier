@@ -13,6 +13,11 @@ Run: python -m pytest tests/unit/test_evaluation_metrics.py -v
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
+import textwrap
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -226,3 +231,39 @@ def test_legacy_metrics_api_is_preserved():
     # the two APIs must agree on the same data
     assert m["auroc"] == pytest.approx(auroc(y, p), abs=1e-12)
     assert m["auprc"] == pytest.approx(auprc(y, p), abs=1e-12)
+
+
+def test_package_imports_without_sklearn():
+    """evaluation/__init__.py must not EAGERLY import sklearn.
+
+    `evaluator.py` lazy-loads sklearn via `_ensure_sklearn()` and
+    `prediction_artifacts.py` imports it inside functions, so the package imports
+    cleanly in a minimal environment. `metrics.py` imports sklearn at module level.
+    Commit 015ff94 added `from ... import metrics` to __init__.py and silently broke
+    that contract, surfacing only as
+    test_evaluator_phase5.py::test_module_imports_without_sklearn.
+
+    Runs in a SUBPROCESS. Blocking sklearn by mutating this interpreter's
+    builtins.__import__ pollutes module identity for every later test -- re-imported
+    sklearn classes become new objects and unrelated pickle tests fail. See the note
+    at the top of tests/unit/test_evaluator_phase5.py.
+    """
+    code = textwrap.dedent("""
+        import builtins, importlib
+        real = builtins.__import__
+        def blk(n, *a, **k):
+            if n == "sklearn" or n.startswith("sklearn."):
+                raise ModuleNotFoundError("No module named 'sklearn' (blocked for test)")
+            return real(n, *a, **k)
+        builtins.__import__ = blk
+        m = importlib.import_module("genomic_variant_classifier.evaluation")
+        assert hasattr(m, "ClinicalEvaluator"), "ClinicalEvaluator missing"
+        assert hasattr(m, "RunArtifactWriter"), "RunArtifactWriter missing"
+        print("PKG_IMPORT_OK")
+    """)
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join(p for p in sys.path if p)}
+    r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env)
+    assert "PKG_IMPORT_OK" in r.stdout, (
+        "evaluation/__init__.py must import without sklearn -- do not import metrics.py there.\n"
+        f"STDOUT:\n{r.stdout}\nSTDERR:\n{r.stderr}"
+    )
