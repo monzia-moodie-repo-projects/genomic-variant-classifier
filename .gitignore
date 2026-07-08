@@ -222,3 +222,6 @@ amtsv_install.txt
 *_cache_install.txt
 
 gnn_probe_prep.txt
+
+# drift-check scratch (preserved old-Drive copies for schema comparison)
+data/_drift_check/
