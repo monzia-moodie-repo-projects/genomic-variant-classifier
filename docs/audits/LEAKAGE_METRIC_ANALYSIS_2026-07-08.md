@@ -1,9 +1,15 @@
 # LEAKAGE & METRIC ANALYSIS — 2026-07-08 (resolved from artifacts)
 
 **Author:** Monzia Moodie
-**Inputs:** `outputs/run14/full/splits/` (regime v0), `outputs/ablation_run15/*/`,
-`outputs/run10/full/`, `outputs/run16/` — via `scripts/probe_run14_univariate_leakage.py`,
-`scripts/evaluate_predictions.py`, `scripts/read_run_artifacts.py`.
+**Data sources (gitignored — multi-GB parquet, on disk only):** `outputs/run14/full/splits/`
+(regime v0), `outputs/ablation_run15/*/`, `outputs/run10/full/`, `outputs/run16/` — read via
+`scripts/probe_run14_univariate_leakage.py`, `scripts/evaluate_predictions.py`,
+`scripts/read_run_artifacts.py`.
+**Frozen console evidence (version-controlled):** the exact output backing every number below is
+committed under `docs/audits/evidence/2026-07-08/` —
+`run14_univariate_leakage_test.txt`, `run14_univariate_leakage_train.txt`,
+`eval_predictions_run15_by_representation.txt`, `run_artifacts_summary.txt`. The parquet inputs
+are not tracked (large and regenerable); the evidence of what they produced is.
 **Status of the investigation opened over the last six turns:** largely RESOLVED. Three of my
 own hypotheses are REFUTED by this evidence and are retracted below.
 
