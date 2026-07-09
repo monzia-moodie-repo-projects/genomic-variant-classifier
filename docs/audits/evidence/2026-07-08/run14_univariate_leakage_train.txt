@@ -1,0 +1,132 @@
+C:\Projects\genomic-variant-classifier\src\genomic_variant_classifier\evaluation\metrics.py:207: RuntimeWarning: overflow encountered in exp
+  mu = 1.0 / (1.0 + np.exp(-eta))
+======================================================================================
+UNIVARIATE LEAKAGE PANEL  (metric stack)   split=train
+  X    outputs\run14\full\splits\X_train.parquet  (23,287,493 B)
+  y    outputs\run14\full\splits\y_train.parquet
+  meta outputs\run14\full\splits\meta_train.parquet
+======================================================================================
+rows 1,197,216   features 78   pos_rate 20.3422%  (= AUPRC no-skill floor)
+
+--- DEAD FEATURES (nunique <= 1): 34 of 78 ---
+  af_1kg_afr, af_1kg_amr, af_1kg_eas, af_1kg_eur, af_1kg_sas, alphafold_plddt, clingen_validity_score, codon_position, dbsnp_af, dist_to_active_site, dist_to_splice_site, esm2_delta_norm, eve_score, exon_number, finngen_af_fin, finngen_af_nfsee, finngen_enrichment, gene_constraint_oe, gene_is_constrained, gnn_score, gtex_is_eqtl, gtex_max_abs_effect, gtex_min_eqtl_pval, has_uniprot_annotation, hgmd_is_disease_mutation, hgmd_n_reports, is_canonical_splice, maxentscan_score, n_known_pathogenic_protein_variants, omim_is_autosomal_dominant, omim_n_diseases, phylop_score, secondary_structure_context, solvent_accessibility
+  These contributed nothing. They are not zeros the model learned from;
+  they are columns that never varied.
+
+--- TOP 30 FEATURES BY STANDALONE DISCRIMINATIVE POWER ---
+  power = max(AUROC, 1-AUROC): a feature can leak in either direction
+  pct_finite < 100 means that feature's AUROC was computed on a SUBPOPULATION
+                             auroc   power   auprc  nunique  pct_finite  auprc_lift
+feature                                                                            
+af_raw                      0.2334  0.7666  0.3723   332250       100.0      1.8300
+af_log10                    0.2334  0.7666  0.3723   332250       100.0      1.8300
+cadd_phred                  0.7613  0.7613  0.6066    10695       100.0      2.9822
+n_tools_pathogenic          0.7561  0.7561  0.5341        5       100.0      2.6257
+is_loss_of_function         0.7503  0.7503  0.5965        2       100.0      2.9323
+cadd_high                   0.7401  0.7401  0.5058        2       100.0      2.4865
+af_is_absent                0.7384  0.7384  0.3500        2       100.0      1.7207
+gerp_score                  0.7224  0.7224  0.4894     4439       100.0      2.4060
+consequence_severity        0.7141  0.7141  0.6819        7       100.0      3.3524
+n_pathogenic_in_gene        0.7058  0.7058  0.3394      379       100.0      1.6684
+is_synonymous               0.3064  0.6936  0.2942        2       100.0      1.4463
+is_snv                      0.3088  0.6912  0.4106        2       100.0      2.0184
+is_indel                    0.6895  0.6895  0.4096        2       100.0      2.0134
+len_diff                    0.6883  0.6883  0.4100     1385       100.0      2.0156
+ref_len                     0.6363  0.6363  0.3594     1242       100.0      1.7667
+is_deletion                 0.6335  0.6335  0.3550        2       100.0      1.7453
+revel_score                 0.6109  0.6109  0.3442     1001       100.0      1.6923
+alphamissense_score         0.6057  0.6057  0.3378     9572       100.0      1.6604
+in_coding                   0.6047  0.6047  0.2477        2       100.0      1.2178
+polyphen2_score             0.5977  0.5977  0.3136     1001       100.0      1.5416
+af_is_ultra_rare            0.5818  0.5818  0.2339        2       100.0      1.1500
+sift_score                  0.4250  0.5750  0.3117     1001       100.0      1.5325
+sift_deleterious            0.5732  0.5732  0.2737        2       100.0      1.3453
+polyphen_probably_damaging  0.5728  0.5728  0.2818        2       100.0      1.3851
+is_splice                   0.5707  0.5707  0.3134        2       100.0      1.5407
+splice_ai_score             0.5706  0.5706  0.3363       92       100.0      1.6534
+alt_len                     0.5607  0.5607  0.2649      396       100.0      1.3023
+is_insertion                0.5560  0.5560  0.2591        2       100.0      1.2736
+gene_has_known_disease      0.5487  0.5487  0.2205        2       100.0      1.0841
+is_missense                 0.5446  0.5446  0.2258        2       100.0      1.1102
+
+--------------------------------------------------------------------------------------
+LEAK CANDIDATES (standalone power >= 0.9)
+--------------------------------------------------------------------------------------
+  (none)
+
+--- NAMED SUSPECTS ---
+  n_pathogenic_in_gene                   power 0.7058  auroc 0.7058  nuniq    379  finite 100.0%
+  n_known_pathogenic_protein_variants    DEAD (nunique=1) -- present but never varied
+  gene_has_known_disease                 power 0.5487  auroc 0.5487  nuniq      2  finite 100.0%
+  hgmd_is_disease_mutation               DEAD (nunique=1) -- present but never varied
+  hgmd_n_reports                         DEAD (nunique=1) -- present but never varied
+  lovd_variant_class                     power 0.5004  auroc 0.5004  nuniq      4  finite 100.0%
+  clingen_validity_score                 DEAD (nunique=1) -- present but never varied
+
+--------------------------------------------------------------------------------------
+DECISIVE FEATURE: n_pathogenic_in_gene
+--------------------------------------------------------------------------------------
+  nunique  : 379
+  min/max  : -0.437054 / 5.0188
+  n_finite : 1,197,216 of 1,197,216
+  standalone power : 0.7058   (auroc 0.7058)
+
+--------------------------------------------------------------------------------------
+TOP FEATURES, STRATIFIED BY VARIANT REPRESENTATION
+--------------------------------------------------------------------------------------
+
+  feature: af_raw
+                          n  pos_rate   auroc   auprc  auprc_no_skill  auprc_lift
+ALL               1197216.0    0.2034  0.7666  0.3723          0.2034      1.8300
+SNV               1031912.0    0.1275  0.7358  0.2336          0.1275      1.8328
+delins               6592.0    0.7843  0.5000  0.7843          0.7843      1.0000
+padded_deletion     98785.0    0.7061  0.5000  0.7061          0.7061      1.0000
+padded_insertion    50243.0    0.6154  0.7696  0.7795          0.6154      1.2666
+padded_other         9684.0    0.6367  0.5000  0.6367          0.6367      1.0000
+
+  feature: af_log10
+                          n  pos_rate   auroc   auprc  auprc_no_skill  auprc_lift
+ALL               1197216.0    0.2034  0.7666  0.3723          0.2034      1.8300
+SNV               1031912.0    0.1275  0.7358  0.2336          0.1275      1.8328
+delins               6592.0    0.7843  0.5000  0.7843          0.7843      1.0000
+padded_deletion     98785.0    0.7061  0.5000  0.7061          0.7061      1.0000
+padded_insertion    50243.0    0.6154  0.7696  0.7795          0.6154      1.2666
+padded_other         9684.0    0.6367  0.5000  0.6367          0.6367      1.0000
+
+  feature: cadd_phred
+                          n  pos_rate   auroc   auprc  auprc_no_skill  auprc_lift
+ALL               1197216.0    0.2034  0.7613  0.6066          0.2034      2.9822
+SNV               1031912.0    0.1275  0.9761  0.9375          0.1275      7.3548
+delins               6592.0    0.7843  0.5000  0.7843          0.7843      1.0000
+padded_deletion     98785.0    0.7061  0.5000  0.7061          0.7061      1.0000
+padded_insertion    50243.0    0.6154  0.5000  0.6154          0.6154      1.0000
+padded_other         9684.0    0.6367  0.5000  0.6367          0.6367      1.0000
+
+  feature: n_pathogenic_in_gene
+                          n  pos_rate   auroc   auprc  auprc_no_skill  auprc_lift
+ALL               1197216.0    0.2034  0.7058  0.3394          0.2034      1.6684
+SNV               1031912.0    0.1275  0.6888  0.2084          0.1275      1.6346
+delins               6592.0    0.7843  0.6753  0.8553          0.7843      1.0905
+padded_deletion     98785.0    0.7061  0.7354  0.8463          0.7061      1.1986
+padded_insertion    50243.0    0.6154  0.7424  0.7941          0.6154      1.2903
+padded_other         9684.0    0.6367  0.7507  0.8453          0.6367      1.3276
+
+  feature: gene_has_known_disease
+                          n  pos_rate   auroc   auprc  auprc_no_skill  auprc_lift
+ALL               1197216.0    0.2034  0.5487  0.2205          0.2034      1.0841
+SNV               1031912.0    0.1275  0.5490  0.1394          0.1275      1.0935
+delins               6592.0    0.7843  0.5155  0.7896          0.7843      1.0067
+padded_deletion     98785.0    0.7061  0.5257  0.7169          0.7061      1.0154
+padded_insertion    50243.0    0.6154  0.5292  0.6296          0.6154      1.0229
+padded_other         9684.0    0.6367  0.7756  0.7961          0.6367      1.2504
+
+======================================================================================
+VERDICT (C): present and varying, but not separating on its own.
+  `n_pathogenic_in_gene`: nunique=379, standalone power=0.7058 (< 0.9).
+  A pre-split leak can still contribute multivariately. Read alongside
+  docs/incidents/INCIDENT_2026-07-08... sec 6.2.3 and scripts/run9_ablations.py.
+
+  Regardless of verdict: train and test share the coordinate corruption
+  identically, so no metric computed on these splits can detect it. See
+  docs/incidents/INCIDENT_2026-07-08_deletion-reviewstatus-loss.md sec 3.
+======================================================================================

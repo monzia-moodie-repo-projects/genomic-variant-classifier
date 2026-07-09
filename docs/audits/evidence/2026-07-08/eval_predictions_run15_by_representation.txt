@@ -1,0 +1,132 @@
+========================================================================================================
+METRIC STACK APPLIED TO ENSEMBLE PREDICTIONS
+  stratify by: representation   bootstrap reps: off
+========================================================================================================
+
+--------------------------------------------------------------------------------------------------------
+full   (outputs\ablation_run15\full\test_predictions.parquet)
+  rows 304,711   label='label'   score='ensemble_prob'   pos_rate 14.7130%
+
+--------------------------------------------------------------------------------------------------------
+no_gene_prevalence   (outputs\ablation_run15\no_gene_prevalence\test_predictions.parquet)
+  rows 304,711   label='label'   score='ensemble_prob'   pos_rate 14.7130%
+
+--------------------------------------------------------------------------------------------------------
+no_gene_level   (outputs\ablation_run15\no_gene_level\test_predictions.parquet)
+  rows 304,711   label='label'   score='ensemble_prob'   pos_rate 14.7130%
+
+========================================================================================================
+HEADLINE  (auprc_lift = auprc / pos_rate -- a lift near 1.0 is a coin flip)
+========================================================================================================
+                         n  n_pos pos_rate     auroc     auprc auprc_no_skill auprc_lift     brier       ece cal_slope cal_intercept calibration_valid
+full                304711  44832  0.14713  0.998173  0.993023        0.14713   6.749311   0.00714  0.002832  1.029343     -0.357804              True
+no_gene_prevalence  304711  44832  0.14713  0.998024  0.992056        0.14713   6.742736  0.007617  0.005183  1.058916     -0.599465              True
+no_gene_level       304711  44832  0.14713  0.997834  0.991471        0.14713   6.738759  0.007644  0.001658  1.047272     -0.163422              True
+
+  NOTE: this ECE closes the top bin. `evaluator.py::_calibration_error` bins
+  [0.9, 1.0), dropping every p == 1.0 -- so eval_report.json's ECE is SMALLER
+  than the truth, by 86.5% on a 20%-pure-leaf split. Compare the two.
+
+========================================================================================================
+STRATIFIED BY REPRESENTATION
+========================================================================================================
+
+  full
+                       n  pos_rate   auroc   auprc  auprc_no_skill  auprc_lift     ece  cal_slope
+ALL               304711    0.1471  0.9982  0.9930          0.1471      6.7493  0.0028     1.0293
+SNV               290019    0.1243  0.9980  0.9921          0.1243      7.9813  0.0025     1.0200
+delins              1659    0.7589  0.9736  0.9913          0.7589      1.3062  0.0205     1.1279
+padded_insertion   13033    0.5773  0.9965  0.9971          0.5773      1.7271  0.0089     1.1239
+
+  A stratum whose auprc_lift ~= 1.0 is being predicted no better than its own
+  base rate, however high its raw AUPRC. A stratum with auroc == 0.5000 exactly
+  has a CONSTANT score there -- the model is not discriminating at all.
+
+  no_gene_prevalence
+                       n  pos_rate   auroc   auprc  auprc_no_skill  auprc_lift     ece  cal_slope
+ALL               304711    0.1471  0.9980  0.9921          0.1471      6.7427  0.0052     1.0589
+SNV               290019    0.1243  0.9979  0.9911          0.1243      7.9737  0.0048     1.0471
+delins              1659    0.7589  0.9676  0.9875          0.7589      1.3012  0.0434     1.1369
+padded_insertion   13033    0.5773  0.9951  0.9955          0.5773      1.7244  0.0127     1.1624
+
+  A stratum whose auprc_lift ~= 1.0 is being predicted no better than its own
+  base rate, however high its raw AUPRC. A stratum with auroc == 0.5000 exactly
+  has a CONSTANT score there -- the model is not discriminating at all.
+
+  no_gene_level
+                       n  pos_rate   auroc   auprc  auprc_no_skill  auprc_lift     ece  cal_slope
+ALL               304711    0.1471  0.9978  0.9915          0.1471      6.7388  0.0017     1.0473
+SNV               290019    0.1243  0.9977  0.9905          0.1243      7.9690  0.0015     1.0384
+delins              1659    0.7589  0.9665  0.9884          0.7589      1.3024  0.0282     1.0416
+padded_insertion   13033    0.5773  0.9943  0.9943          0.5773      1.7224  0.0087     1.1503
+
+  A stratum whose auprc_lift ~= 1.0 is being predicted no better than its own
+  base rate, however high its raw AUPRC. A stratum with auroc == 0.5000 exactly
+  has a CONSTANT score there -- the model is not discriminating at all.
+
+========================================================================================================
+DELTA vs 'full'   (negative => the ablation HURT; the feature was doing work)
+========================================================================================================
+
+  no_gene_prevalence  -  full
+                       n  d_auroc  d_auprc  d_auprc_lift
+ALL               304711 -0.00015 -0.00097      -0.00658
+SNV               290019 -0.00014 -0.00094      -0.00759
+delins              1659 -0.00602 -0.00381      -0.00501
+padded_insertion   13033 -0.00133 -0.00155      -0.00269
+
+  no_gene_level  -  full
+                       n  d_auroc  d_auprc  d_auprc_lift
+ALL               304711 -0.00034 -0.00155      -0.01055
+SNV               290019 -0.00034 -0.00152      -0.01223
+delins              1659 -0.00709 -0.00289      -0.00381
+padded_insertion   13033 -0.00221 -0.00272      -0.00471
+
+  A pooled delta of ~0 can hide a large per-stratum delta of opposite signs.
+  Read the strata, not the ALL row.
+
+========================================================================================================
+PER-BASE-MODEL DISCRIMINATION
+========================================================================================================
+
+  full
+                            auroc    auprc  nunique note
+model                                                   
+catboost_prob             0.99805  0.99289   156335     
+lightgbm_prob             0.99795  0.99135      447     
+xgboost_prob              0.99785  0.99114      334     
+random_forest_prob        0.99771  0.99040      247     
+gradient_boosting_prob    0.99769  0.99134    50437     
+svm_bagged_rbf_prob       0.99675  0.98552   228683     
+logistic_regression_prob  0.99622  0.98450   228677     
+
+  no_gene_prevalence
+                            auroc    auprc  nunique note
+model                                                   
+catboost_prob             0.99794  0.99190   150530     
+lightgbm_prob             0.99771  0.99035      409     
+xgboost_prob              0.99758  0.99010      376     
+gradient_boosting_prob    0.99755  0.99038    50031     
+random_forest_prob        0.99738  0.98932      154     
+svm_bagged_rbf_prob       0.99667  0.98519   228668     
+logistic_regression_prob  0.99622  0.98452   228662     
+
+  no_gene_level
+                            auroc    auprc  nunique note
+model                                                   
+catboost_prob             0.99768  0.99134   158466     
+lightgbm_prob             0.99747  0.98930      477     
+gradient_boosting_prob    0.99740  0.98993    48512     
+xgboost_prob              0.99724  0.98893      365     
+random_forest_prob        0.99722  0.98856      208     
+svm_bagged_rbf_prob       0.99632  0.98396   228660     
+logistic_regression_prob  0.99583  0.98321   228654     
+
+========================================================================================================
+BEFORE CITING ANY DELTA ABOVE, CONFIRM THE ARMS SHARE A TRAINING SET:
+  Get-Content outputs\ablation_run15\full\manifest.json               # split_hashes
+  Get-Content outputs\ablation_run15\no_gene_prevalence\manifest.json
+  fit_seconds are 16,233 / 2,293 / 1,552 at identical n_folds=3. `--max-train`
+  subsamples TRAIN and is not recorded in the config. If X_train_full hashes
+  differ across arms, the ablation table is void.
+========================================================================================================
