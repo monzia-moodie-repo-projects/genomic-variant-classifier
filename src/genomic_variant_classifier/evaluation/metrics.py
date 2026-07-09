@@ -107,7 +107,7 @@ __all__ = [
     # metric stack
     "auroc", "auprc", "no_skill_auprc", "brier_score",
     "expected_calibration_error", "calibration_slope_intercept",
-    "bootstrap_ci", "evaluate", "stratified_evaluate",
+    "bootstrap_ci", "evaluate", "stratified_evaluate", "is_probability",
 ]
 
 _EPS = 1e-12
@@ -167,13 +167,47 @@ def no_skill_auprc(y: Sequence) -> float:
     return float(y.mean()) if y.size else float("nan")
 
 
+def _sigmoid(z: np.ndarray) -> np.ndarray:
+    """Overflow-safe logistic. np.exp(-z) overflows for z << 0."""
+    out = np.empty_like(z, dtype=float)
+    pos = z >= 0
+    out[pos] = 1.0 / (1.0 + np.exp(-z[pos]))
+    ez = np.exp(z[~pos])
+    out[~pos] = ez / (1.0 + ez)
+    return out
+
+
+def is_probability(p: Sequence, tol: float = 1e-9) -> bool:
+    """True iff every finite value lies in [0, 1].
+
+    Calibration metrics -- Brier, ECE, calibration slope/intercept -- are defined only
+    for probabilities. Handed a raw standardized feature (range e.g. -0.44 .. 4.89),
+    `evaluate()` used to clip, take a logit, and report numbers. Those numbers meant
+    nothing and nothing said so. A metric that cannot be computed must say so.
+    """
+    p = np.asarray(p, dtype=float).ravel()
+    p = p[np.isfinite(p)]
+    return bool(p.size == 0 or ((p >= -tol).all() and (p <= 1.0 + tol).all()))
+
+
 def brier_score(y: Sequence, prob: Sequence) -> float:
+    """NaN if `prob` is not a probability -- Brier is undefined outside [0, 1]."""
+    if not is_probability(prob):
+        return float("nan")
     y, p = _clean(y, prob)
     return float(np.mean((p - y) ** 2)) if y.size else float("nan")
 
 
 def expected_calibration_error(y: Sequence, prob: Sequence, n_bins: int = 10) -> float:
-    """Equal-width binning. |accuracy - confidence| weighted by bin occupancy."""
+    """Equal-width binning, TOP BIN CLOSED. |accuracy - confidence| weighted by occupancy.
+
+    NaN if `prob` is not a probability. Note the closed top bin: `evaluator.py`'s
+    `_calibration_error` uses `(p >= lo) & (p < hi)` with `hi == 1.0`, so every `p == 1.0`
+    -- a pure tree leaf -- falls into no bin and is silently excluded, under-reporting ECE
+    (86.5% on a 20%-pure-leaf split). See docs/audits/EVALUATION_STACK_AUDIT_2026-07-08.md.
+    """
+    if not is_probability(prob):
+        return float("nan")
     y, p = _clean(y, prob)
     if y.size == 0:
         return float("nan")
@@ -195,6 +229,8 @@ def calibration_slope_intercept(y: Sequence, prob: Sequence,
     Perfect calibration -> slope 1.0, intercept 0.0.
     slope < 1 means over-confident; slope > 1 means under-confident.
     """
+    if not is_probability(prob):
+        return float("nan"), float("nan")
     y, p = _clean(y, prob)
     if _degenerate(y):
         return float("nan"), float("nan")
@@ -204,7 +240,7 @@ def calibration_slope_intercept(y: Sequence, prob: Sequence,
     beta = np.zeros(2)
     for _ in range(max_iter):
         eta = X @ beta
-        mu = 1.0 / (1.0 + np.exp(-eta))
+        mu = _sigmoid(eta)
         w = np.maximum(mu * (1 - mu), _EPS)
         z = eta + (y - mu) / w
         XtW = X.T * w
@@ -259,6 +295,7 @@ def evaluate(y: Sequence, score: Sequence, *,
     p = s_c if prob is None else _clean(y, prob)[1]
     base = no_skill_auprc(y_c)
     ap = auprc(y_c, s_c)
+    cal_ok = is_probability(p)
     slope, intercept = calibration_slope_intercept(y_c, p)
     out = {
         "n": int(y_c.size),
@@ -272,6 +309,7 @@ def evaluate(y: Sequence, score: Sequence, *,
         "ece": expected_calibration_error(y_c, p, n_bins=n_bins),
         "cal_slope": slope,
         "cal_intercept": intercept,
+        "calibration_valid": cal_ok,   # False => brier/ece/cal_* are NaN by design
     }
     if n_boot:
         out["auroc_ci95"] = bootstrap_ci(auroc, y_c, s_c, n_boot=n_boot, seed=seed)
@@ -302,12 +340,13 @@ def stratified_evaluate(y: Sequence, score: Sequence, groups: Iterable, *,
                                "auroc": float("nan"), "auprc": float("nan"),
                                "auprc_no_skill": float("nan"), "auprc_lift": float("nan"),
                                "brier": float("nan"), "ece": float("nan"),
-                               "cal_slope": float("nan"), "cal_intercept": float("nan")}
+                               "cal_slope": float("nan"), "cal_intercept": float("nan"),
+                               "calibration_valid": False}
             continue
         rows[str(name)] = evaluate(y[m], s[m], prob=p[m], n_boot=n_boot, seed=seed)
     df = pd.DataFrame(rows).T
     for c in df.columns:
-        if c not in ("auroc_ci95", "auprc_ci95"):
+        if c not in ("auroc_ci95", "auprc_ci95", "calibration_valid"):
             df[c] = pd.to_numeric(df[c], errors="coerce")
     return df
 

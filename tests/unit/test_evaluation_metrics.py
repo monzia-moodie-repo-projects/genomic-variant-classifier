@@ -267,3 +267,71 @@ def test_package_imports_without_sklearn():
         "evaluation/__init__.py must import without sklearn -- do not import metrics.py there.\n"
         f"STDOUT:\n{r.stdout}\nSTDERR:\n{r.stderr}"
     )
+
+
+# --------------------------------------------------------------------------
+# 2026-07-08 -- two defects surfaced by running the stack on Run 14's splits:
+#   (1) np.exp(-eta) overflowed in the IRLS loop
+#   (2) calibration metrics were silently computed on RAW STANDARDIZED FEATURES,
+#       clipped into [1e-6, 1-1e-6] and reported as if they meant something.
+# A metric that cannot be computed must say so. These tests fail before the fix.
+# --------------------------------------------------------------------------
+def test_is_probability_detects_non_probabilities():
+    from genomic_variant_classifier.evaluation.metrics import is_probability
+    assert is_probability([0.0, 0.5, 1.0])
+    assert is_probability([])
+    assert not is_probability([-0.437054, 4.88644])      # a standardized feature
+    assert not is_probability([0.0, 1.0000001 + 1e-3])
+    assert is_probability([0.5, np.nan])                 # non-finite ignored
+
+
+def test_calibration_metrics_are_nan_on_non_probability_scores():
+    """Run 14's X columns are StandardScaler output: range -0.44 .. 4.89."""
+    rng = np.random.default_rng(11)
+    y = rng.integers(0, 2, 2000)
+    feature = rng.normal(size=2000) + y * 0.8          # NOT in [0, 1]
+    assert np.isnan(brier_score(y, feature))
+    assert np.isnan(expected_calibration_error(y, feature))
+    s, i = calibration_slope_intercept(y, feature)
+    assert np.isnan(s) and np.isnan(i)
+    r = evaluate(y, feature)
+    assert r["calibration_valid"] is False
+    for k in ("brier", "ece", "cal_slope", "cal_intercept"):
+        assert np.isnan(r[k]), k
+    # discrimination is still perfectly well defined
+    assert 0.5 < r["auroc"] < 1.0
+    assert np.isfinite(r["auprc"]) and np.isfinite(r["pos_rate"])
+
+
+def test_calibration_metrics_still_computed_on_real_probabilities():
+    rng = np.random.default_rng(12)
+    p = rng.random(40000)
+    y = (rng.random(40000) < p).astype(int)
+    r = evaluate(y, p)
+    assert r["calibration_valid"] is True
+    assert r["cal_slope"] == pytest.approx(1.0, abs=0.08)
+    assert r["ece"] < 0.02
+    assert np.isfinite(r["brier"])
+
+
+def test_irls_does_not_overflow_on_extreme_logits():
+    """p == 1e-6 gives logit ~ -13.8; the old 1/(1+exp(-eta)) overflowed."""
+    rng = np.random.default_rng(13)
+    n = 5000
+    y = rng.integers(0, 2, n)
+    p = np.where(y == 1, 1 - 1e-9, 1e-9)               # near-degenerate probabilities
+    with np.errstate(over="raise"):                     # any overflow -> FloatingPointError
+        slope, intercept = calibration_slope_intercept(y, p)
+    assert np.isfinite(slope) and np.isfinite(intercept)
+
+
+def test_stratified_evaluate_marks_calibration_invalid_per_stratum():
+    rng = np.random.default_rng(14)
+    n = 1200
+    g = rng.choice(["a", "b"], n)
+    y = rng.integers(0, 2, n)
+    feature = rng.normal(size=n) + y                    # not a probability
+    df = stratified_evaluate(y, feature, g)
+    assert set(df["calibration_valid"]) == {False}
+    assert df["auroc"].notna().all()                    # discrimination survives
+    assert df["ece"].isna().all()
