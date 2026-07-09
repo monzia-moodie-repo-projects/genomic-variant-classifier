@@ -1,0 +1,26 @@
+==========================================================================
+BUILD COHORT-V2  (coordinate correction)   input data\processed\clinvar_grch38.parquet
+==========================================================================
+loaded 4,420,180 rows / 16 cols
+running reference-consistency check against data\external\grch38\GRCh38.fa ...
+  reference check: PASSED (187235/187245 = 99.9947%; 10 genuine ClinVar/reference disagreements within 0.1% tolerance; SNV control 100.00%)
+
+padded deletions corrected (pos -= 1): 187,245
+rows unchanged                       : 4,232,935
+variant_id rebuilt                   : 187,245
+schema fingerprint                   : a478a96a3aaad0f7
+reconciliation identity holds        : True
+composition (unchanged by design):
+    MNV/other            36,566
+    SNV               4,102,868
+    delins_del            2,282
+    delins_ins            1,042
+    padded_deletion     187,245
+    padded_insertion     90,177
+  NOTE: SNV control: 2000/2000 match at pos-1 (100.00%)
+  NOTE: 10 deletion mismatches written to data\processed\cohort_v2_ref_mismatches.tsv
+
+WROTE: clinvar_grch38_clean_v2_verified.parquet  (MD5 F3152F671E920A0A0C19A696563002E0)
+WROTE: cohort_v2_reconciliation.json
+
+DOWNSTREAM REQUIRED: rebuild the Nucleotide-Transformer sequence windows in clinvar_grch38_clean_seq.parquet from cohort-v2 -- they are centred on `pos` and are off by one for the 187,245 corrected rows.

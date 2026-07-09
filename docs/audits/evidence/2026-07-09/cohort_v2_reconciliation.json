@@ -1,0 +1,32 @@
+{
+  "n_rows": 4420180,
+  "n_padded_deletions_corrected": 187245,
+  "n_unchanged": 4232935,
+  "variant_id_rebuilt": 187245,
+  "reference_check": "PASSED (187235/187245 = 99.9947%; 10 genuine ClinVar/reference disagreements within 0.1% tolerance; SNV control 100.00%)",
+  "reference_mismatches": 10,
+  "nt_windows_rebuild_required": true,
+  "v1_source_md5": "741F2B26E696B13F02A9EC1DD96B9024",
+  "v2_schema_fingerprint": "a478a96a3aaad0f7",
+  "composition_before": {
+    "SNV": 4102868,
+    "padded_deletion": 187245,
+    "padded_insertion": 90177,
+    "MNV/other": 36566,
+    "delins_del": 2282,
+    "delins_ins": 1042
+  },
+  "composition_after": {
+    "SNV": 4102868,
+    "padded_deletion": 187245,
+    "padded_insertion": 90177,
+    "MNV/other": 36566,
+    "delins_del": 2282,
+    "delins_ins": 1042
+  },
+  "notes": [
+    "SNV control: 2000/2000 match at pos-1 (100.00%)",
+    "10 deletion mismatches written to data\\processed\\cohort_v2_ref_mismatches.tsv"
+  ],
+  "identity_holds": true
+}

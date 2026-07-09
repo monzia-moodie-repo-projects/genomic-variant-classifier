@@ -1,0 +1,15 @@
+==========================================================================
+GRCh38 FASTA PREFLIGHT   data\external\grch38\GRCh38.fa  (3.15 GB)
+==========================================================================
+indexing (first run builds a .fai; this can take a minute on a 3 GB file) ...
+  indexed with pyfaidx: 194 contigs
+  all 24 primary chromosomes present  (naming: plain)
+  all 24 chromosome lengths match GRCh38 exactly  -> build confirmed
+  spot-checking 500 cohort SNVs (genome[pos-1] == ref):
+    SNV match rate: 100.00%
+
+==========================================================================
+PASS -- this is the GRCh38 primary assembly, indexable, correctly named and sized.
+  Use it:  python scripts/build_cohort_v2.py --apply --genome "data\external\grch38\GRCh38.fa" \
+             --output data/processed/clinvar_grch38_clean_v2_verified.parquet
+==========================================================================

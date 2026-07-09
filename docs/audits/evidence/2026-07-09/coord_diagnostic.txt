@@ -1,0 +1,30 @@
+==============================================================================
+COORDINATE-CONVENTION DIAGNOSTIC  (pyfaidx)
+  genome data\external\grch38\GRCh38.fa
+  cohort data\processed\clinvar_grch38.parquet
+  genome contigs: 194  sample: ['1', '10', '11', '12', '13', '14']
+==============================================================================
+
+--- SNV control (n=2000): which slice convention matches ref[0]? ---
+    pos-1 (1based VCF)    2000/2000 = 100.00%  <-- WINNER
+    pos (0based)           517/2000 =  25.85%
+    pos-2                  526/2000 =  26.30%
+    pos+1                  558/2000 =  27.90%
+
+  winning convention: genome index = pos + (-1)  (0-based)
+
+--- padded deletions: does the CORRECTED pos (v2) put ref at the winning offset? ---
+  corrected pos (v2, pos-1): 500/500 = 100.00% match ref
+  original  pos (v1, pos)  : 0/500 = 0.00% match ref
+    8:38414138 TCTC: v2(pos-1)=HIT v1(pos)=miss
+    4:54698574 CTCTT: v2(pos-1)=HIT v1(pos)=miss
+    2:210647997 TCTCAGCTGTCTTG: v2(pos-1)=HIT v1(pos)=miss
+    12:120994268 AAAG: v2(pos-1)=HIT v1(pos)=miss
+    9:334228 TAAAGA: v2(pos-1)=HIT v1(pos)=miss
+
+==============================================================================
+VERDICT: convention is standard (pos-1), and the v2 correction is CORRECT.
+  Padded deletions match the genome at the corrected pos. The earlier guard
+  failure must have been the preflight's hardcoded KNOWN_BASES being wrong,
+  not the cohort. Re-run the reference check; it should pass.
+==============================================================================
