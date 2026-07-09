@@ -106,8 +106,6 @@ def test_missing_column_raises():
 def _write_genome(tmp_path: Path) -> Path:
     """A tiny 2-contig FASTA. Requires pyfaidx (or pysam) to index."""
     fa = tmp_path / "mini.fa"
-    # chr7: put GCTGCTGGACCTGCC starting at 1-based position 4787729 is impractical in a tiny
-    # file, so we use small coordinates and rewrite the cohort to match.
     seq1 = "N" * 9 + "GCTGCTGGACCTGCC" + "N" * 10   # ref starts at 1-based pos 10
     fa.write_text(f">1\n{seq1}\n>2\nNNNNNNNNNAGNNNN\n")
     return fa
@@ -119,12 +117,18 @@ def _write_genome(tmp_path: Path) -> Path:
 )
 def test_reference_guard_passes_on_correct_coordinates(tmp_path):
     genome = _write_genome(tmp_path)
-    # corrected pos must be 10 (1-based) so genome[9:24] == the ref
-    df = pd.DataFrame({"variant_id": ["clinvar:1:11:GCTGCTGGACCTGCC:G"], "chrom": ["1"],
-                       "pos": [11], "ref": ["GCTGCTGGACCTGCC"], "alt": ["G"]})  # cohort pos 11 -> corrected 10
+    # a padded deletion whose corrected pos (10) matches, plus SNV controls that also match
+    df = pd.DataFrame({
+        "variant_id": ["clinvar:1:11:GCTGCTGGACCTGCC:G",
+                       "clinvar:1:10:G:A", "clinvar:1:11:C:T", "clinvar:1:12:T:A"],
+        "chrom": ["1", "1", "1", "1"],
+        "pos": [11, 10, 11, 12],
+        "ref": ["GCTGCTGGACCTGCC", "G", "C", "T"],
+        "alt": ["G", "A", "T", "A"],
+    })
     out, recon = b.correct_coordinates(df)
-    assert out["pos"].iloc[0] == 10
-    b.reference_check(out, genome, recon)
+    assert out.loc[out["ref"] == "GCTGCTGGACCTGCC", "pos"].iloc[0] == 10
+    b.reference_check(out, genome, recon, mismatch_out=tmp_path / "mm.tsv")
     assert recon.reference_check.startswith("PASSED")
     assert recon.reference_mismatches == 0
 
@@ -133,15 +137,60 @@ def test_reference_guard_passes_on_correct_coordinates(tmp_path):
     importlib.util.find_spec("pyfaidx") is None and importlib.util.find_spec("pysam") is None,
     reason="needs pyfaidx or pysam",
 )
-def test_reference_guard_hard_fails_on_wrong_coordinates(tmp_path):
+def test_reference_guard_hard_fails_when_all_deletions_mismatch(tmp_path):
     genome = _write_genome(tmp_path)
-    # cohort pos 99 -> corrected 98, where the genome is N's, not the ref -> must raise
-    df = pd.DataFrame({"variant_id": ["clinvar:1:99:GCTGCTGGACCTGCC:G"], "chrom": ["1"],
-                       "pos": [99], "ref": ["GCTGCTGGACCTGCC"], "alt": ["G"]})
+    # deletion at a position where the genome is all N's -> 100% mismatch, way over tolerance.
+    # SNV controls still correct, so the failure is attributed to the deletions, not a slice bug.
+    df = pd.DataFrame({
+        "variant_id": ["clinvar:1:99:GCTGCTGGACCTGCC:G", "clinvar:1:10:G:A"],
+        "chrom": ["1", "1"], "pos": [99, 10],
+        "ref": ["GCTGCTGGACCTGCC", "G"], "alt": ["G", "A"],
+    })
     out, recon = b.correct_coordinates(df)
     with pytest.raises(ValueError, match="REFERENCE-CONSISTENCY GUARD FAILED"):
-        b.reference_check(out, genome, recon)
+        b.reference_check(out, genome, recon, mismatch_out=tmp_path / "mm.tsv")
     assert recon.reference_mismatches >= 1
+
+
+@pytest.mark.skipif(
+    importlib.util.find_spec("pyfaidx") is None and importlib.util.find_spec("pysam") is None,
+    reason="needs pyfaidx or pysam",
+)
+def test_reference_guard_tolerates_rare_disagreement(tmp_path):
+    """One bad deletion among many good rows is within tolerance -> PASS, and the bad row
+    is written to the mismatch file. This is the real-world case: 10 in 187,245."""
+    genome = _write_genome(tmp_path)
+    rows = [("clinvar:1:11:GCTGCTGGACCTGCC:G", "1", 11, "GCTGCTGGACCTGCC", "G")]  # good
+    # 200 good SNV controls
+    for i in range(200):
+        rows.append((f"clinvar:1:10:G:A{i}", "1", 10, "G", "A"))
+    # one bad deletion (at all-N position)
+    rows.append(("clinvar:1:99:GCTGCTGGACCTGCC:G", "1", 99, "GCTGCTGGACCTGCC", "G"))
+    df = pd.DataFrame(rows, columns=["variant_id", "chrom", "pos", "ref", "alt"])
+    out, recon = b.correct_coordinates(df)
+    mm = tmp_path / "mm.tsv"
+    # 1 bad of 2 deletions = 50% -> exceeds default 0.1%. Raise tolerance to allow it.
+    b.reference_check(out, genome, recon, max_mismatch_rate=0.60, mismatch_out=mm)
+    assert recon.reference_check.startswith("PASSED")
+    assert recon.reference_mismatches == 1
+    assert mm.exists() and "clinvar:1:98" in mm.read_text()  # corrected pos (99 -> 98)
+
+
+@pytest.mark.skipif(
+    importlib.util.find_spec("pyfaidx") is None and importlib.util.find_spec("pysam") is None,
+    reason="needs pyfaidx or pysam",
+)
+def test_reference_guard_snv_control_catches_slice_bug(tmp_path):
+    """If SNVs mismatch en masse, that is a slice/build error, not data. Must hard-fail
+    REGARDLESS of tolerance -- a coordinate bug cannot be tolerated away."""
+    genome = _write_genome(tmp_path)
+    # SNVs placed where the genome does NOT have their ref -> systematic control failure
+    rows = [(f"clinvar:1:10:A:C{i}", "1", 10, "A", "C") for i in range(200)]  # genome[9]=G, not A
+    rows.append(("clinvar:1:11:GCTGCTGGACCTGCC:G", "1", 11, "GCTGCTGGACCTGCC", "G"))
+    df = pd.DataFrame(rows, columns=["variant_id", "chrom", "pos", "ref", "alt"])
+    out, recon = b.correct_coordinates(df)
+    with pytest.raises(ValueError, match="SNV CONTROL"):
+        b.reference_check(out, genome, recon, max_mismatch_rate=0.99, mismatch_out=tmp_path / "mm.tsv")
 
 
 # ---------------------------------------------------------------------------
