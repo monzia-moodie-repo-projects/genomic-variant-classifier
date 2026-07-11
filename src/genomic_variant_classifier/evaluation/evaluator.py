@@ -316,8 +316,15 @@ class ClinicalEvaluator:
         ece = 0.0
         mce = 0.0
         n = len(y)
-        for lo, hi in zip(bin_edges[:-1], bin_edges[1:]):
-            mask = (p >= lo) & (p < hi)
+        _n_bins_used = len(bin_edges) - 1
+        for _b, (lo, hi) in enumerate(zip(bin_edges[:-1], bin_edges[1:])):
+            # Close the FINAL bin to [lo, 1.0] so predictions of exactly 1.0 (pure tree/ensemble
+            # leaves) are counted, not silently dropped. Half-open [lo, hi) elsewhere.
+            # Fixed 2026-07-10: top-bin bug under-reported ECE (see docs/incidents).
+            if _b == _n_bins_used - 1:
+                mask = (p >= lo) & (p <= hi)
+            else:
+                mask = (p >= lo) & (p < hi)
             if mask.sum() == 0:
                 continue
             accuracy   = float(y[mask].mean())
