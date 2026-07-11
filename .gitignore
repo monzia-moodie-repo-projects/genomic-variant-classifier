@@ -225,3 +225,17 @@ gnn_probe_prep.txt
 
 # drift-check scratch (preserved old-Drive copies for schema comparison)
 data/_drift_check/
+
+# seq-window build scaffolding + backups (added by hygiene_pass 2026-07-11)
+install_*.py
+data/processed/seq_windows_dryrun/
+data/processed/seq_windows/part_*.parquet
+data/processed/seq_windows/part_*.done
+data/processed/seq_windows/*.tmp.parquet
+
+# Guarded-patcher rollback backups (2026-07-11): the existing *.bak rule matches only
+# files ending exactly in '.bak'; it misses suffixed variants like .w1bak / .w2bak /
+# .w2b1bak / .w2b2bak (guarded-edit backups) and .bak2 .. .bak9 (numbered backups).
+# These patterns catch both so rollback backups are never accidentally committed.
+*.w[0-9]*bak
+*.bak[0-9]

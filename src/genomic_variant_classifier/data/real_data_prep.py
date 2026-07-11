@@ -222,6 +222,10 @@ class DataPrepConfig:
     class_weight_strategy: str = "balanced"
     scale_features: bool = True
     output_dir: Path = Path("data/splits")
+    # Split protocol selector (W2, 2026-07-11): 'legacy' = the original 3-way
+    # gene-aware split (train/val/test) via _gene_aware_split + run(); 'v2_conformal'
+    # = the 4-way gene-disjoint split (train/tune/conformal/test) via run_v2().
+    split_protocol: str = "legacy"
 
     def __post_init__(self) -> None:
         self.output_dir = Path(self.output_dir)
@@ -234,6 +238,34 @@ class DataPrepConfig:
                 f"symlink/junction shadowing data/). Remove or rename it "
                 f"and restore data/ from git, then retry."
             ) from _exc
+
+
+@dataclass
+class SplitBundle:
+    """The 4-way gene-disjoint partition produced by run_v2() (W2, 2026-07-11).
+
+    Fields are named by ROLE (not the legacy val/test naming, whose semantics are
+    inverted) so downstream routing is unambiguous:
+      train     -- model fitting
+      tune      -- gene-disjoint calibration / dev tuning (fed to the ensemble as
+                   the external calibration partition)
+      conformal -- reserved, held entirely out of fit/tune, for the conformal predictor
+      test      -- the clean, touch-once holdout for final metrics
+    """
+    X_train: "pd.DataFrame"
+    X_tune: "pd.DataFrame"
+    X_conformal: "pd.DataFrame"
+    X_test: "pd.DataFrame"
+    y_train: "pd.Series"
+    y_tune: "pd.Series"
+    y_conformal: "pd.Series"
+    y_test: "pd.Series"
+    meta_train: "pd.DataFrame"
+    meta_tune: "pd.DataFrame"
+    meta_conformal: "pd.DataFrame"
+    meta_test: "pd.DataFrame"
+    genes_train: "pd.Series"
+    genes_tune: "pd.Series"
 
 
 @dataclass
@@ -1635,6 +1667,131 @@ class DataPrepPipeline:
 
     # -- Stage 5: Gene-aware split ----------------------------------------
 
+    def run_v2(
+        self,
+        clinvar_path: str,
+        gnomad_path: "str | None" = None,
+        uniprot_path: "str | None" = None,
+        spliceai_path: "str | None" = None,
+        alphamissense_path: "str | None" = None,
+    ) -> "SplitBundle":
+        """4-way gene-disjoint pipeline (W2, 2026-07-11): train/tune/conformal/test.
+
+        Additive to the legacy run() (which is left 100% untouched). Shares the same
+        load -> enrich -> annotate -> engineer prefix, then splits with
+        split_protocol_v2 (gene-disjoint hash split) and applies the train-only
+        n_pathogenic_in_gene leakage remap (INCIDENT_2026-06-13) across all four
+        partitions. Returns a SplitBundle with role-named fields.
+        """
+        from genomic_variant_classifier.data.split_protocol_v2 import (
+            SplitProtocolV2Config,
+            split as _split_v2,
+            apply_train_only_leakage_remap as _leak_remap_v2,
+        )
+
+        logger.info("=== DataPrepPipeline.run_v2 (4-way gene-disjoint): starting ===")
+
+        # --- shared prefix (mirrors run(); duplicated to keep legacy run() untouched) ---
+        df = self._load_and_label(clinvar_path)
+        df = enrich_gene_counts(df)
+        logger.info(
+            "After label filtering: %d variants (%d pathogenic, %d benign).",
+            len(df), int(df["label"].sum()), int((df["label"] == 0).sum()),
+        )
+        if gnomad_path:
+            df = self._join_gnomad(df, gnomad_path, kg_path=self.annotation_config.kg_path)
+        if uniprot_path:
+            df = self._join_uniprot(df, uniprot_path)
+        if spliceai_path:
+            df = self._join_spliceai(df, spliceai_path)
+        if alphamissense_path:
+            df = self._join_alphamissense(df, alphamissense_path)
+        logger.info("=== Score annotation: starting ===")
+        df = self._annotate_scores(df)
+        logger.info("=== Score annotation: complete ===")
+
+        X = self._engineer_features(df)
+        y = df["label"].reset_index(drop=True)
+        groups = df[self.config.group_column].fillna("unknown").reset_index(drop=True)
+        logger.info("Feature matrix: %d rows x %d features.", X.shape[0], X.shape[1])
+        if self.config.require_both_classes and set(y.unique()) != {0, 1}:
+            raise ValueError(
+                f"Dataset missing classes -- found only {set(y.unique())}. "
+                "Lower min_review_tier or increase dataset size."
+            )
+
+        # --- 4-way gene-disjoint split + train-only leakage remap ---
+        # split_protocol_v2 reads gene_col + label_col from one frame, so assemble a
+        # combined frame (features + gene + label), split, remap, then extract per part.
+        combo = X.copy()
+        combo[self.config.group_column] = groups.to_numpy()
+        combo["label"] = y.to_numpy()
+        cfg2 = SplitProtocolV2Config(
+            gene_col=self.config.group_column,
+            label_col="label",
+            seed=self.config.random_state,
+            mode="hash",
+        )
+        result = _split_v2(combo, cfg2)
+        combo = _leak_remap_v2(combo, result.indices, cfg2)
+
+        feat_cols = [c for c in combo.columns
+                     if c not in (self.config.group_column, "label")]
+
+        def _part(name):
+            ii = result.indices[name]
+            Xp = combo.iloc[ii][feat_cols].reset_index(drop=True)
+            yp = combo.iloc[ii]["label"].reset_index(drop=True)
+            gp = combo.iloc[ii][self.config.group_column].reset_index(drop=True)
+            mp = df.iloc[ii].reset_index(drop=True)
+            return Xp, yp, gp, mp
+
+        X_train, y_train, g_train, meta_train = _part("train")
+        X_tune, y_tune, g_tune, meta_tune = _part("tune")
+        X_conformal, y_conformal, _g_conf, meta_conformal = _part("conformal")
+        X_test, y_test, _g_test, meta_test = _part("test")
+
+        if self.config.scale_features:
+            # Mirror _scale's contract (StandardScaler fit ONCE on train, transform the
+            # rest), extended to all four partitions. Leakage remap has already
+            # overwritten n_pathogenic_in_gene with train-only counts above, so the
+            # scaler is fit on the train-only feature values.
+            _cols = X_train.columns
+            X_train = pd.DataFrame(
+                self.scaler.fit_transform(X_train), columns=_cols
+            )
+            X_tune = pd.DataFrame(self.scaler.transform(X_tune), columns=_cols)
+            X_conformal = pd.DataFrame(
+                self.scaler.transform(X_conformal), columns=_cols
+            )
+            X_test = pd.DataFrame(self.scaler.transform(X_test), columns=_cols)
+
+        for _nm, _ys in [("train", y_train), ("tune", y_tune),
+                         ("conformal", y_conformal), ("test", y_test)]:
+            if self.config.require_both_classes and set(pd.Series(_ys).unique()) != {0, 1}:
+                raise ValueError(
+                    f"v2 split '{_nm}' missing class(es): {set(pd.Series(_ys).unique())}. "
+                    "Lower min_review_tier or increase dataset size."
+                )
+
+        self._save_splits(
+            X_train, X_tune, X_test, y_train, y_tune, y_test,
+            meta_val=meta_tune, meta_test=meta_test, meta_train=meta_train,
+            meta_tune=meta_tune, meta_conformal=meta_conformal,
+        )
+        logger.info(
+            "v2 split sizes: train=%d tune=%d conformal=%d test=%d.",
+            len(y_train), len(y_tune), len(y_conformal), len(y_test),
+        )
+        logger.info("=== DataPrepPipeline.run_v2: complete ===")
+        return SplitBundle(
+            X_train=X_train, X_tune=X_tune, X_conformal=X_conformal, X_test=X_test,
+            y_train=y_train, y_tune=y_tune, y_conformal=y_conformal, y_test=y_test,
+            meta_train=meta_train, meta_tune=meta_tune,
+            meta_conformal=meta_conformal, meta_test=meta_test,
+            genes_train=g_train, genes_tune=g_tune,
+        )
+
     def _gene_aware_split(
         self,
         X: pd.DataFrame,
@@ -1744,6 +1901,8 @@ class DataPrepPipeline:
         meta_val: pd.DataFrame,
         meta_test: pd.DataFrame,
         meta_train: pd.DataFrame | None = None,
+        meta_tune: pd.DataFrame | None = None,
+        meta_conformal: pd.DataFrame | None = None,
     ) -> None:
         out = self.config.output_dir
         X_train.to_parquet(out / "X_train.parquet", index=False, compression="zstd")  # Run 11 I8
@@ -1756,6 +1915,10 @@ class DataPrepPipeline:
         meta_test.to_parquet(out / "meta_test.parquet", index=False)
         if meta_train is not None:
             meta_train.to_parquet(out / "meta_train.parquet", index=False)
+        if meta_tune is not None:
+            meta_tune.to_parquet(out / "meta_tune.parquet", index=False)
+        if meta_conformal is not None:
+            meta_conformal.to_parquet(out / "meta_conformal.parquet", index=False)
         logger.info("Splits saved to %s/", out)
 
     # -- Utilities --------------------------------------------------------

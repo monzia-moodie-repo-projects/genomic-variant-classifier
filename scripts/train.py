@@ -99,6 +99,43 @@ def parse_args() -> argparse.Namespace:
         help="Processed ClinVar parquet (output of database_connectors.py)",
     )
     p.add_argument(
+        "--seq-windows",
+        default="data/processed/seq_windows",
+        help=(
+            "Directory holding the precomputed sequence delta windows "
+            "(seq_windows.parquet + seq_windows.manifest.json, from "
+            "scripts/build_seq_windows.py). Consumed by the one-dimensional "
+            "convolutional neural network (cnn_1d) via a key-join. When the "
+            "manifest is present it is verified for coherence against the "
+            "cohort and reference before training."
+        ),
+    )
+    p.add_argument(
+        "--reference",
+        default="data/external/grch38/GRCh38.fa",
+        help=(
+            "Reference genome FASTA (Genome Reference Consortium Human Build "
+            "38, GRCh38), used only to verify the sequence-window artifact "
+            "signature matches the reference the windows were built from."
+        ),
+    )
+    p.add_argument(
+        "--split-protocol",
+        choices=["legacy", "v2_conformal"],
+        default="legacy",
+        help=(
+            "Data split protocol (W2, 2026-07-11). 'legacy' = the original "
+            "3-way gene-aware split (train/val/test) via DataPrepPipeline.run(). "
+            "'v2_conformal' = the 4-way gene-disjoint split "
+            "(train/tune/conformal/test) via DataPrepPipeline.run_v2(): the "
+            "ensemble is fit on train, its post-hoc isotonic calibration is fit "
+            "on the gene-disjoint 'tune' partition (honest, gene-generalizing "
+            "probabilities), 'conformal' is reserved for the conformal "
+            "predictor, and final metrics are computed on the clean 'test' "
+            "holdout."
+        ),
+    )
+    p.add_argument(
         "--gnomad",
         default=None,
         help="Optional processed gnomAD parquet for AF enrichment",
@@ -242,6 +279,29 @@ def main() -> None:
     logger.info("Loading ClinVar from %s", args.clinvar)
     raw_df = pd.read_parquet(args.clinvar)
 
+    # -- Sequence-window coherence gate (W1, 2026-07-11) -------------------
+    # If precomputed sequence delta windows are present, verify they were
+    # built for exactly this cohort and reference BEFORE training, so the
+    # one-dimensional convolutional neural network (cnn_1d) never silently
+    # trains on stale windows or poly-A placeholders. Absent windows are a
+    # backward-compatible warning (cnn_1d will fall back to placeholders).
+    from pathlib import Path as _Path
+    _seq_win_dir = _Path(args.seq_windows)
+    if (_seq_win_dir / "seq_windows.manifest.json").exists():
+        from genomic_variant_classifier.data.seq_window_manifest import (
+            verify_seq_windows as _verify_seq_windows,
+        )
+        logger.info("Verifying sequence-window coherence at %s", _seq_win_dir)
+        _verify_seq_windows(raw_df, _seq_win_dir, args.reference).raise_if_failed()
+        logger.info("Sequence-window coherence gate: PASS")
+    else:
+        logger.warning(
+            "No sequence-window manifest at %s; cnn_1d will use placeholder "
+            "sequences (degenerate). Run scripts/build_seq_windows.py to "
+            "enable real sequence windows.",
+            _seq_win_dir,
+        )
+
     # Assign binary labels and compute gene-level pathogenic counts on the
     # full dataset BEFORE splitting, to avoid label leakage in the feature.
     raw_df["label"] = np.nan
@@ -260,6 +320,7 @@ def main() -> None:
         random_state=42,
         scale_features=True,
         output_dir=out_dir / "splits",
+        split_protocol=args.split_protocol,
     )
 
     annotation_config = AnnotationConfig(
@@ -275,11 +336,36 @@ def main() -> None:
     )
 
     pipeline = DataPrepPipeline(config=config, annotation_config=annotation_config)
-    X_train, X_val, X_test, y_train, y_val, y_test, meta_val, meta_test = pipeline.run(
-        clinvar_path=str(enriched_path),
-        gnomad_path=args.gnomad,
-        uniprot_path=args.uniprot,
-    )
+    _v2 = (args.split_protocol == "v2_conformal")
+    if _v2:
+        # 4-way gene-disjoint split (W2, 2026-07-11). Unpack the SplitBundle into
+        # the SAME variable names the legacy path uses so all downstream code
+        # (window join, fit, evaluate) is shared. Role-named fields map cleanly:
+        # bundle.X_test is the CLEAN holdout (what evaluate() runs on); bundle.X_tune
+        # is the gene-disjoint calibration partition fed to the ensemble as its
+        # external calibration fold; bundle.X_conformal is reserved.
+        _bundle = pipeline.run_v2(
+            clinvar_path=str(enriched_path),
+            gnomad_path=args.gnomad,
+            uniprot_path=args.uniprot,
+        )
+        X_train, y_train = _bundle.X_train, _bundle.y_train
+        X_test, y_test = _bundle.X_test, _bundle.y_test
+        meta_test = _bundle.meta_test
+        X_tune, y_tune, meta_tune = _bundle.X_tune, _bundle.y_tune, _bundle.meta_tune
+        genes_train, genes_tune = _bundle.genes_train, _bundle.genes_tune
+        X_conformal = _bundle.X_conformal
+        y_conformal = _bundle.y_conformal
+        meta_conformal = _bundle.meta_conformal
+        # X_val/y_val/meta_val are legacy-only names; bind to None so any stray
+        # legacy reference fails loudly rather than silently using stale data.
+        X_val = y_val = meta_val = None
+    else:
+        X_train, X_val, X_test, y_train, y_val, y_test, meta_val, meta_test = pipeline.run(
+            clinvar_path=str(enriched_path),
+            gnomad_path=args.gnomad,
+            uniprot_path=args.uniprot,
+        )
 
     logger.info(
         "Train: %d variants (%d pathogenic, %.1f%%)",
@@ -337,45 +423,101 @@ def main() -> None:
         ALT_WIN_COL,
     )
 
-    has_sequences = (
-        REF_WIN_COL in meta_test.columns
-        and ALT_WIN_COL in meta_test.columns
-        and meta_test[REF_WIN_COL].notna().sum() > 100
+    # Sequence delta windows (W1 restructure, 2026-07-11): ATTACH-then-CHECK.
+    # The windows are NOT carried on meta_test/meta_train; they are key-joined
+    # from the precomputed artifact (scripts/build_seq_windows.py) via
+    # attach_delta_windows(seq_windows_path=...). The prior code checked
+    # meta_test.columns for the window columns BEFORE the join, which was always
+    # false and popped the one-dimensional convolutional neural network (cnn_1d)
+    # before any join ran. We now join FIRST, then decide has_sequences from the
+    # count of real (non-placeholder) windows actually attached. X_seq is always
+    # a two-column [fasta_seq_ref, fasta_seq_alt] DataFrame in both branches.
+    from pathlib import Path as _Path
+    _POLY_WIN = "A" * 101
+    _seq_win_parquet = _Path(args.seq_windows) / "seq_windows.parquet"
+    _seq_win_arg = str(_seq_win_parquet) if _seq_win_parquet.exists() else None
+
+    # Test side: meta_test is in-memory, structurally split-aligned to X_test.
+    X_seq_test, _n_unmapped_test = attach_delta_windows(
+        meta_test, seq_windows_path=_seq_win_arg
     )
-    if not has_sequences:
-        logger.info("No usable ref/alt sequence windows -- removing CNN from ensemble.")
-        ensemble.base_estimators.pop("cnn_1d", None)
-        # CNN is the only sequence consumer; with it removed these placeholders
-        # satisfy the seq-aware fit/evaluate/predict signatures but are unused.
-        X_seq_train = pd.Series(["A" * 101] * len(y_train))
-        X_seq_test  = pd.Series(["A" * 101] * len(y_test))
-    else:
-        # Test side: meta_test carries ref/alt, structurally split-aligned to X_test.
-        X_seq_test, _n_unmapped_test = attach_delta_windows(meta_test)
-        # Train side: meta_train is persisted by _save_splits, gene-split-aligned to
-        # X_train (both df.iloc[train_idx].reset_index). Read it -- no run() change.
-        meta_train_path = config.output_dir / "meta_train.parquet"
-        if not meta_train_path.exists():
+    # Train side: meta_train is persisted by _save_splits, gene-split-aligned to
+    # X_train (both df.iloc[train_idx].reset_index). Read it -- no run() change.
+    meta_train_path = config.output_dir / "meta_train.parquet"
+    if not meta_train_path.exists():
+        raise FileNotFoundError(
+            f"meta_train.parquet not found at {meta_train_path}; required for "
+            "CNN train-side sequences (DataPrepPipeline._save_splits writes it)."
+        )
+    _meta_train = pd.read_parquet(meta_train_path)
+    if len(_meta_train) != len(y_train):
+        raise ValueError(
+            f"meta_train rows ({len(_meta_train)}) != y_train ({len(y_train)}); "
+            "split misalignment -- aborting to avoid PM11d-style label mismatch."
+        )
+    X_seq_train, _n_unmapped_train = attach_delta_windows(
+        _meta_train, seq_windows_path=_seq_win_arg
+    )
+    # Tune side (W2 v2 only): the gene-disjoint calibration partition also needs
+    # its sequence delta windows so the ensemble's external-cal fold has the
+    # cnn_1d-compatible two-column seq DataFrame (dispatch uniformity). meta_tune
+    # is persisted by run_v2 via _save_splits; read + guard it exactly like the
+    # train side (PM11d alignment check), then key-join the windows.
+    X_seq_tune = None
+    if _v2:
+        _meta_tune_path = config.output_dir / "meta_tune.parquet"
+        if not _meta_tune_path.exists():
             raise FileNotFoundError(
-                f"meta_train.parquet not found at {meta_train_path}; required for "
-                "CNN train-side sequences (DataPrepPipeline._save_splits writes it)."
+                f"meta_tune.parquet not found at {_meta_tune_path}; required for "
+                "v2 external-calibration sequences (run_v2 writes it)."
             )
-        _meta_train = pd.read_parquet(meta_train_path)
-        if len(_meta_train) != len(y_train):
+        _meta_tune = pd.read_parquet(_meta_tune_path)
+        if len(_meta_tune) != len(y_tune):
             raise ValueError(
-                f"meta_train rows ({len(_meta_train)}) != y_train ({len(y_train)}); "
+                f"meta_tune rows ({len(_meta_tune)}) != y_tune ({len(y_tune)}); "
                 "split misalignment -- aborting to avoid PM11d-style label mismatch."
             )
-        X_seq_train, _n_unmapped_train = attach_delta_windows(_meta_train)
+        X_seq_tune, _n_unmapped_tune = attach_delta_windows(
+            _meta_tune, seq_windows_path=_seq_win_arg
+        )
+
+    # Decide has_sequences from the ATTACHED result: count real (non-poly) windows.
+    _n_real_test = int((X_seq_test[REF_WIN_COL].astype(str) != _POLY_WIN).sum())
+    has_sequences = _n_real_test > 100
+    if not has_sequences:
+        logger.info(
+            "No usable ref/alt sequence windows after join (%d/%d real; "
+            "seq_windows=%s) -- removing CNN from ensemble.",
+            _n_real_test, len(X_seq_test), _seq_win_arg,
+        )
+        ensemble.base_estimators.pop("cnn_1d", None)
+        # X_seq_train / X_seq_test remain valid two-column poly DataFrames; with
+        # cnn_1d removed they satisfy the seq-aware signatures but are unused.
+    else:
         logger.info(
             "CNN sequences active (delta mode): train=%d (unmapped=%d), "
-            "test=%d (unmapped=%d).",
-            len(X_seq_train), _n_unmapped_train, len(X_seq_test), _n_unmapped_test,
+            "test=%d (unmapped=%d, real=%d).",
+            len(X_seq_train), _n_unmapped_train, len(X_seq_test),
+            _n_unmapped_test, _n_real_test,
         )
 
     # -- 4. Train -----------------------------------------------------------
     logger.info("PHASE 3: Training")
-    ensemble.fit(X_train, X_seq_train, y_train)
+    if _v2:
+        # PATH-1 (W2, 2026-07-11): fit on train; calibrate the tree models'
+        # isotonic step on the GENE-DISJOINT tune partition (external cal fold),
+        # and pass gene_symbol so the inner out-of-fold cross-validation is
+        # gene-disjoint (GroupKFold) rather than the label-stratified fallback.
+        ensemble.fit(
+            X_train, X_seq_train, y_train,
+            gene_symbol=genes_train,
+            X_tab_cal_ext=X_tune,
+            X_seq_cal_ext=X_seq_tune,
+            y_cal_ext=y_tune,
+            gene_symbol_cal_ext=genes_tune,
+        )
+    else:
+        ensemble.fit(X_train, X_seq_train, y_train)
 
     # -- 5. Evaluate --------------------------------------------------------
     logger.info("PHASE 4: Evaluation")

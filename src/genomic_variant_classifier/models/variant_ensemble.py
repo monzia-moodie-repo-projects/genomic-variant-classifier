@@ -1643,6 +1643,10 @@ class VariantEnsemble:
     def fit(
         self, X_tab: pd.DataFrame, X_seq: pd.Series, y: pd.Series,
         gene_symbol: "pd.Series | None" = None,
+        X_tab_cal_ext: "pd.DataFrame | None" = None,
+        X_seq_cal_ext: "pd.Series | None" = None,
+        y_cal_ext: "pd.Series | None" = None,
+        gene_symbol_cal_ext: "pd.Series | None" = None,
     ) -> "VariantEnsemble":
         from sklearn.model_selection import train_test_split as _tts
 
@@ -1653,21 +1657,42 @@ class VariantEnsemble:
             int(y_arr.sum()),
         )
 
-        # Carve out 15% calibration split using index-based split so that
-        # X_tab stays a DataFrame (required for CatBoost column-name dispatch).
-        idx = np.arange(len(y_arr))
-        idx_fit, idx_cal = _tts(
-            idx,
-            test_size=0.15,
-            stratify=y_arr,
-            random_state=self.config.random_state,
-        )
-        X_tab_fit = X_tab.iloc[idx_fit].reset_index(drop=True)
-        X_tab_cal = X_tab.iloc[idx_cal].reset_index(drop=True)
-        X_seq_fit = X_seq.iloc[idx_fit].reset_index(drop=True)
-        X_seq_cal = X_seq.iloc[idx_cal].reset_index(drop=True)
-        y_fit = y_arr[idx_fit]
-        y_cal = y_arr[idx_cal]
+        # Calibration fold selection (W2 PATH-1, 2026-07-11).
+        # If an EXTERNAL calibration partition is supplied (v2 gene-disjoint
+        # 'tune' partition), use the ENTIRE incoming data as the fit fold and
+        # the external partition as the calibration fold, so the post-hoc
+        # isotonic calibration is fit on genes the models never trained on
+        # (honest, gene-generalizing probabilities). Otherwise fall back to the
+        # legacy self-carve (15% label-stratified split of the incoming data);
+        # that path is byte-for-byte unchanged for backward compatibility.
+        if X_tab_cal_ext is not None:
+            idx_fit = np.arange(len(y_arr))
+            X_tab_fit = X_tab.reset_index(drop=True)
+            X_tab_cal = X_tab_cal_ext.reset_index(drop=True)
+            X_seq_fit = X_seq.reset_index(drop=True)
+            X_seq_cal = X_seq_cal_ext.reset_index(drop=True)
+            y_fit = y_arr
+            y_cal = np.asarray(y_cal_ext)
+            logger.info(
+                "Calibrating on EXTERNAL gene-disjoint partition: fit=%d, cal=%d.",
+                len(y_fit), len(y_cal),
+            )
+        else:
+            # Carve out 15% calibration split using index-based split so that
+            # X_tab stays a DataFrame (required for CatBoost column-name dispatch).
+            idx = np.arange(len(y_arr))
+            idx_fit, idx_cal = _tts(
+                idx,
+                test_size=0.15,
+                stratify=y_arr,
+                random_state=self.config.random_state,
+            )
+            X_tab_fit = X_tab.iloc[idx_fit].reset_index(drop=True)
+            X_tab_cal = X_tab.iloc[idx_cal].reset_index(drop=True)
+            X_seq_fit = X_seq.iloc[idx_fit].reset_index(drop=True)
+            X_seq_cal = X_seq.iloc[idx_cal].reset_index(drop=True)
+            y_fit = y_arr[idx_fit]
+            y_cal = y_arr[idx_cal]
 
         # Level 2 (INCIDENT_2026-06-13): gene-disjoint inner CV + per-fold
         # train-only n_pathogenic_in_gene recompute when gene labels are
