@@ -258,6 +258,11 @@ class ClinVarConnector(BaseConnector):
         if not isinstance(sig, str) or not sig.strip():
             return "uncertain"
         s = sig.lower()
+        # 2026-07-10 fix: ClinVar aggregate "Conflicting classifications of
+        # pathogenicity" means submitters disagree -> uncertain, NOT pathogenic.
+        # Must precede the substring checks (the phrase contains "pathogenicity").
+        if s.startswith("conflicting"):
+            return "uncertain"
         if s.startswith("pathogenic"):
             return "pathogenic"
         if s.startswith("benign"):
