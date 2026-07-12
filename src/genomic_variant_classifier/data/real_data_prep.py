@@ -1258,439 +1258,63 @@ class DataPrepPipeline:
 
     @_suppress_fillna_downcast
     def _engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        feats = pd.DataFrame(index=df.index)
+        """Build the tabular feature matrix for training.
 
-        # Allele frequency
-        af = (
-            df.get("allele_freq", pd.Series(0.0, index=df.index))
-            .fillna(0.0)
-            .astype(float)
-            .clip(lower=0)
-        )
-        feats["af_raw"] = af
-        feats["af_log10"] = np.log10(af + 1e-8)
-        feats["af_is_absent"] = (af == 0).astype(int)
-        feats["af_is_ultra_rare"] = (af < 0.0001).astype(int)
-        feats["af_is_rare"] = ((af >= 0.0001) & (af < 0.001)).astype(int)
-        feats["af_is_common"] = (af >= 0.01).astype(int)
+        SINGLE SOURCE OF TRUTH (collapsed 2026-07-11).
 
-        # Variant type
-        ref = df.get("ref", pd.Series([""] * len(df), index=df.index)).fillna("")
-        alt = df.get("alt", pd.Series([""] * len(df), index=df.index)).fillna("")
-        ref_len = ref.str.len().clip(lower=1)
-        alt_len = alt.str.len().clip(lower=1)
-        feats["ref_len"] = ref_len
-        feats["alt_len"] = alt_len
-        feats["len_diff"] = (alt_len - ref_len).abs()
-        feats["is_snv"] = ((ref_len == 1) & (alt_len == 1)).astype(int)
-        feats["is_insertion"] = (alt_len > ref_len).astype(int)
-        feats["is_deletion"] = (ref_len > alt_len).astype(int)
-        feats["is_indel"] = (feats["is_insertion"] | feats["is_deletion"]).astype(int)
+        This method used to be a ~435-line SECOND implementation of feature
+        engineering, hand-kept in sync with variant_ensemble.engineer_features via
+        comments that said "must match" and "Mirrors". That sync had already lapsed:
+        the header in variant_ensemble.py claimed 65 features while the contract held
+        97, and -- worse -- the five-stage correctness harness imports
+        engineer_features from variant_ensemble, so the gate validated a code path the
+        training pipeline never ran. A silent zero or a truncating cast introduced
+        here was structurally invisible to the gate designed to catch it.
 
-        # Consequence severity
-        consequence = df.get(
-            "consequence", pd.Series([""] * len(df), index=df.index)
-        ).fillna("")
-        feats["consequence_severity"] = consequence.map(
-            lambda c: max(
-                (CONSEQUENCE_SEVERITY.get(term, 0) for term in str(c).split("&")),
-                default=0,
-            )
-        )
-        feats["is_loss_of_function"] = consequence.str.contains(
-            "stop_gained|frameshift|splice_donor|splice_acceptor|start_lost|stop_lost",
-            case=False,
-            na=False,
-        ).astype(int)
-        feats["is_missense"] = consequence.str.contains(
-            "missense", case=False, na=False
-        ).astype(int)
-        feats["is_synonymous"] = consequence.str.contains(
-            "synonymous", case=False, na=False
-        ).astype(int)
-        feats["is_splice"] = consequence.str.contains(
-            "splice", case=False, na=False
-        ).astype(int)
-        feats["in_coding"] = consequence.str.contains(
-            "missense|synonymous|stop|frameshift|inframe|splice",
-            case=False,
-            na=False,
-        ).astype(int)
+        The two were proved equivalent before this collapse:
+        scripts/prove_engineer_features_equivalence.py -- 117 comparisons, zero
+        divergences, exact on column set, column ORDER, dtype and values (NaN positions
+        included). It included a minimal frame that forces every df.get default, and 16
+        integral columns made fractional -- among them clingen_validity_score, the exact
+        column of INCIDENT_2026-05-30_clingen-int-truncation.
+        Log: outputs/engineer_equiv_2026-07-11b.log
 
-        # Functional scores
-        score_defaults = {
-            "cadd_phred": 15.0,
-            "sift_score": 0.5,
-            "polyphen2_score": 0.5,
-            "revel_score": 0.5,
-            "phylop_score": 0.0,
-            "gerp_score": 0.0,
-            "alphamissense_score": 0.5,
-            "splice_ai_score": 0.0,
-            "eve_score": 0.5,
-        }
-        for col, default in score_defaults.items():
-            feats[col] = (
-                df.get(col, pd.Series([default] * len(df), index=df.index))
-                .fillna(default)
-                .astype(float)
-            )
-
-        feats["cadd_high"] = (feats["cadd_phred"] >= 20).astype(int)
-        feats["sift_deleterious"] = (feats["sift_score"] < 0.05).astype(int)
-        feats["polyphen_probably_damaging"] = (
-            feats["polyphen2_score"] >= 0.908
-        ).astype(int)
-        feats["revel_pathogenic"] = (feats["revel_score"] >= 0.5).astype(int)
-        feats["n_tools_pathogenic"] = (
-            feats["cadd_high"]
-            + feats["sift_deleterious"]
-            + feats["polyphen_probably_damaging"]
-            + feats["revel_pathogenic"]
-        )
-
-        # Gene-level
-        feats["gene_constraint_oe"] = df.get(
-            "gene_constraint_oe", df.get("loeuf", pd.Series([1.0] * len(df), index=df.index))
-        ).fillna(1.0)
-        feats["gene_is_constrained"] = (feats["gene_constraint_oe"] < 0.35).astype(int)
-        feats["n_pathogenic_in_gene"] = (
-            df.get("n_pathogenic_in_gene", pd.Series([0] * len(df), index=df.index))
-            .fillna(0)
-            .astype(int)
-        )
-        feats["gene_has_known_disease"] = (feats["n_pathogenic_in_gene"] > 0).astype(
-            int
-        )
-
-        # Protein features (UniProt-derived)
-        feats["has_uniprot_annotation"] = (
-            df.get("has_uniprot_annotation", pd.Series([0] * len(df), index=df.index))
-            .fillna(0)
-            .astype(int)
-        )
-        feats["n_known_pathogenic_protein_variants"] = (
-            df.get(
-                "n_known_pathogenic_protein_variants",
-                pd.Series([0] * len(df), index=df.index),
-            )
-            .fillna(0)
-            .astype(int)
-        )
-
-        # GTEx expression / regulatory features
-        gtex_defaults = {
-            "gtex_max_tpm": 0.0,
-            "gtex_n_tissues_expressed": 0,
-            "gtex_tissue_specificity": 0.0,
-            "gtex_is_eqtl": 0,
-            "gtex_min_eqtl_pval": 0.0,
-            "gtex_max_abs_effect": 0.0,
-        }
-        for col, default in gtex_defaults.items():
-            feats[col] = df.get(
-                col, pd.Series([default] * len(df), index=df.index)
-            ).fillna(default)
-        for col in ["gtex_n_tissues_expressed", "gtex_is_eqtl"]:
-            feats[col] = feats[col].astype(int)
-
-        # Variant coding context
-        feats["codon_position"] = (
-            df.get("codon_position", pd.Series([0] * len(df), index=df.index))
-            .fillna(0)
-            .astype(int)
-        )
-        feats["dbsnp_af"] = (
-            df.get("dbsnp_af", pd.Series([0.0] * len(df), index=df.index))
-            .fillna(0.0)
-            .astype(float)
-            .clip(lower=0)
-        )
-
-        # Gene-disease annotation
-        feats["omim_n_diseases"] = (
-            df.get("omim_n_diseases", pd.Series([0] * len(df), index=df.index))
-            .fillna(0)
-            .astype(int)
-        )
-        feats["omim_n_diseases_molecular"] = (
-            df.get("omim_n_diseases_molecular", pd.Series([0] * len(df), index=df.index))
-            .fillna(0)
-            .astype(int)
-        )
-        feats["omim_is_autosomal_dominant"] = (
-            df.get(
-                "omim_is_autosomal_dominant", pd.Series([0] * len(df), index=df.index)
-            )
-            .fillna(0)
-            .astype(int)
-        )
-        feats["clingen_validity_score"] = (
-            df.get("clingen_validity_score", pd.Series([0] * len(df), index=df.index))
-            .fillna(0)
-            .astype(float)  # match inference builder (variant_ensemble); int truncated a future fractional score
-        )
-
-        # HGMD
-        feats["hgmd_is_disease_mutation"] = (
-            df.get("hgmd_is_disease_mutation", pd.Series([0] * len(df), index=df.index))
-            .fillna(0)
-            .astype(int)
-        )
-        feats["hgmd_n_reports"] = (
-            df.get("hgmd_n_reports", pd.Series([0] * len(df), index=df.index))
-            .fillna(0)
-            .astype(int)
-        )
-
-        # LOVD classification (ordinal 0-4; 0 = not in LOVD)
-        feats["lovd_variant_class"] = (
-            df.get("lovd_variant_class", pd.Series([0] * len(df), index=df.index))
-            .fillna(0)
-            .astype(int)
-            .clip(lower=0, upper=4)
-        )
-
-        # Chromosome features
-        chrom = (
-            df.get("chrom", pd.Series(["0"] * len(df), index=df.index))
-            .fillna("0")
-            .astype(str)
-        )
-        feats["is_autosome"] = chrom.isin([str(i) for i in range(1, 23)]).astype(int)
-        feats["is_sex_chrom"] = chrom.isin(["X", "Y"]).astype(int)
-        feats["is_mitochondrial"] = chrom.isin(["MT", "M"]).astype(int)
-
-        # GNN-derived score
-        feats["gnn_score"] = (
-            df.get("gnn_score", pd.Series([0.5] * len(df), index=df.index))
-            .fillna(0.5)
-            .astype(float)
-            .clip(lower=0.0, upper=1.0)
-        )
-
-        # Hetero-KG GNN-derived score
-        feats["hetero_gnn_score"] = (
-            df.get("hetero_gnn_score", pd.Series([0.5] * len(df), index=df.index))
-            .fillna(0.5)
-            .astype(float)
-            .clip(lower=0.0, upper=1.0)
-        )
-
-        # RNA splice-context features (Phase 6.1)
-        feats["maxentscan_score"] = (
-            df.get("maxentscan_score", pd.Series([0.0] * len(df), index=df.index))
-            .fillna(0.0)
-            .astype(float)
-        )
-        feats["maxentscan_delta"] = (
-            df.get("maxentscan_delta", pd.Series([0.0] * len(df), index=df.index))
-            .fillna(0.0)
-            .astype(float)
-        )
-        feats["dist_to_splice_site"] = (
-            df.get("dist_to_splice_site", pd.Series([50] * len(df), index=df.index))
-            .fillna(50)
-            .astype(int)
-        )
-        feats["exon_number"] = (
-            df.get("exon_number", pd.Series([0] * len(df), index=df.index))
-            .fillna(0)
-            .astype(int)
-        )
-        feats["is_canonical_splice"] = (
-            df.get("is_canonical_splice", pd.Series([0] * len(df), index=df.index))
-            .fillna(0)
-            .astype(int)
-        )
-
-        # Protein structure features (Phase 6.2)
-        feats["alphafold_plddt"] = (
-            df.get("alphafold_plddt", pd.Series([50.0] * len(df), index=df.index))
-            .fillna(50.0)
-            .astype(float)
-            .clip(lower=0.0, upper=100.0)
-        )
-        feats["solvent_accessibility"] = (
-            df.get("solvent_accessibility", pd.Series([0.5] * len(df), index=df.index))
-            .fillna(0.5)
-            .astype(float)
-            .clip(lower=0.0, upper=1.0)
-        )
-        feats["secondary_structure_context"] = (
-            df.get(
-                "secondary_structure_context", pd.Series([0] * len(df), index=df.index)
-            )
-            .fillna(0)
-            .astype(int)
-            .clip(lower=0, upper=2)
-        )
-        feats["dist_to_active_site"] = (
-            df.get("dist_to_active_site", pd.Series([100.0] * len(df), index=df.index))
-            .fillna(100.0)
-            .astype(float)
-            .clip(lower=0.0)
-        )
-
-        # 1KGP population-stratified AF (5)
-        for _col in (
-            "af_1kg_afr",
-            "af_1kg_eur",
-            "af_1kg_eas",
-            "af_1kg_sas",
-            "af_1kg_amr",
-        ):
-            feats[_col] = (
-                df.get(_col, pd.Series([0.0] * len(df), index=df.index))
-                .fillna(0.0)
-                .astype(float)
-                .clip(lower=0)
-            )
-
-        # FinnGen R10 population AF (3)
-        for _col, _default in [
-            ("finngen_af_fin", 0.0),
-            ("finngen_af_nfsee", 0.0),
-            ("finngen_enrichment", 1.0),
-            ("finngen_r13_af_fin", 0.0),
-            ("finngen_r13_af_nfsee", 0.0),
-            ("finngen_r13_enrichment", 1.0),
-        ]:
-            feats[_col] = (
-                df.get(_col, pd.Series([_default] * len(df), index=df.index))
-                .fillna(_default)
-                .astype(float)
-            )
-
-        # ESM-2 delta norm (1) — Phase 3C; 0.0 when model unavailable or non-missense
-        feats["esm2_delta_norm"] = (
-            df.get("esm2_delta_norm", pd.Series([0.0] * len(df), index=df.index))
-            .fillna(0.0)
-            .astype(float)
-            .clip(lower=0.0)
-        )
-
-        # ESM-2 LLR (1) -- SIGNED feature (negative => damaging); NO clip
-        feats["esm2_llr"] = (
-            df.get("esm2_llr", pd.Series([0.0] * len(df), index=df.index))
-            .fillna(0.0)
-            .astype(float)
-        )
-
-        # Nucleotide Transformer DNA-LM (2) - Phase 2; 0.0 when model/window unavailable
-        feats["genomiclm_delta_norm"] = (
-            df.get("genomiclm_delta_norm", pd.Series([0.0] * len(df), index=df.index))
-            .fillna(0.0)
-            .astype(float)
-            .clip(lower=0.0)
-        )
-        feats["genomiclm_llr"] = (  # SIGNED feature; NO clip
-            df.get("genomiclm_llr", pd.Series([0.0] * len(df), index=df.index))
-            .fillna(0.0)
-            .astype(float)
-        )
-
-        # COSMIC CMC (2) - Phase 2; 0.0 when --cosmic-path absent / non-substitution
-        feats["cosmic_recurrence"] = (
-            df.get("cosmic_recurrence", pd.Series([0.0] * len(df), index=df.index))
-            .fillna(0.0)
-            .astype(float)
-            .clip(lower=0.0)
-        )
-        feats["cosmic_sig_tier"] = (
-            df.get("cosmic_sig_tier", pd.Series([0.0] * len(df), index=df.index))
-            .fillna(0.0)
-            .astype(float)
-            .clip(lower=0.0)
-        )
-
-        # KEGG pathway membership (2) - Phase 2; 0.0 when --kegg-path absent
-        feats["kegg_pathway_count"] = (
-            df.get("kegg_pathway_count", pd.Series([0.0] * len(df), index=df.index))
-            .fillna(0.0)
-            .astype(float)
-            .clip(lower=0.0)
-        )
-        feats["kegg_disease_pathway_flag"] = (
-            df.get("kegg_disease_pathway_flag", pd.Series([0.0] * len(df), index=df.index))
-            .fillna(0.0)
-            .astype(float)
-            .clip(lower=0.0)
-        )
-
-        # gnomAD v4.1 gene constraint (4) — Phase 3C
-        feats["pli_score"] = (
-            df.get("pli_score", pd.Series([0.0] * len(df), index=df.index))
-            .fillna(0.0)
-            .astype(float)
-            .clip(0.0, 1.0)
-        )
-        feats["loeuf"] = (
-            df.get("loeuf", pd.Series([1.0] * len(df), index=df.index))
-            .fillna(1.0)
-            .astype(float)
-            .clip(0.0, 5.0)
-        )
-        feats["syn_z"] = (
-            df.get("syn_z", pd.Series([0.0] * len(df), index=df.index))
-            .fillna(0.0)
-            .astype(float)
-        )
-        feats["mis_z"] = (
-            df.get("mis_z", pd.Series([0.0] * len(df), index=df.index))
-            .fillna(0.0)
-            .astype(float)
-        )
-
-        # Reactome pathway membership (1) - Phase D
-        feats["reactome_pathway_count"] = (
-            df.get("reactome_pathway_count", pd.Series([0] * len(df), index=df.index))
-            .fillna(0)
-            .astype(int)
-            .clip(lower=0)
-        )
-
-        # RNA-seq gene expression (5) - Phase D
-        for _rc in (
-            "rnaseq_mean_log_tpm",
-            "rnaseq_detection_rate",
-            "rnaseq_log2_cv",
-            "rnaseq_log2fc",
-            "rnaseq_de_neglog10p",
-        ):
-            feats[_rc] = (
-                df.get(_rc, pd.Series([0.0] * len(df), index=df.index))
-                .fillna(0.0)
-                .astype(float)
-            )
-
-        n_nan = feats.isnull().sum().sum()
-        if n_nan > 0:
-            logger.warning("%d NaN values in feature matrix -- filling with 0.", n_nan)
-            feats = feats.fillna(0.0)
-            # Phase 2 features — codon_position, splice_ai_score, alphamissense_score
-        # are already computed above in their respective sections.
-        # The redundant block that was here (overwriting codon_position via
-        # _parse_codon_position on unpopulated protein_change column) was
-        # removed in Run 11 Phase 0 — see RUN_11_FINDINGS F4.
-
-        # Fail-loud feature-count guard (Correctness Fix 2026-07-05): the training
-        # feature builder and variant_ensemble.engineer_features must agree on the
-        # contract count. A mismatch means the two have drifted -- HALT rather than
-        # silently ship a wrong-width matrix (this is how the 88-vs-91 R13 drift
-        # went unnoticed for a full 13-hour run).
+        The pipeline now trains on EXACTLY the matrix the harness validates.
+        """
+        # LOCAL import, deliberately. real_data_prep must not pull the heavy ML stack in
+        # at module-import time -- the suite asserts the package imports with sklearn and
+        # torch blocked (test_orchestrator_lazy_registry, test_evaluation_metrics).
         from genomic_variant_classifier.models.variant_ensemble import (
-            EXPECTED_TABULAR_FEATURE_COUNT as _EXPECTED_FEATS,
+            TABULAR_FEATURES as _CONTRACT,
+            engineer_features as _engineer,
         )
-        _n_feats = feats.shape[1]
-        if _n_feats != _EXPECTED_FEATS:
+
+        feats = _engineer(df)
+
+        # Fail-loud CONTRACT guard. The guard this replaces compared only the feature
+        # COUNT, and its own comment conceded that is how the 88-vs-91 R13 drift "went
+        # unnoticed for a full 13-hour run". A count cannot catch different names at the
+        # same count, nor a different column ORDER -- and order matters: an estimator
+        # fitted on a named DataFrame but fed a bare ndarray trusts position implicitly
+        # (cf. the standing "X does not have valid feature names" LightGBM warning).
+        _expected = list(_CONTRACT)
+        _actual = list(feats.columns)
+        if _actual != _expected:
+            _missing = [c for c in _expected if c not in _actual]
+            _extra = [c for c in _actual if c not in _expected]
+            _misordered = (not _missing and not _extra)
             raise ValueError(
-                f"_engineer_features produced {_n_feats} features but the contract "
-                f"(EXPECTED_TABULAR_FEATURE_COUNT) is {_EXPECTED_FEATS}. The two "
-                f"feature builders have drifted -- refusing to proceed with a "
-                f"wrong-width matrix. Columns: {sorted(feats.columns.tolist())}"
+                "engineer_features output violates the TABULAR_FEATURES contract -- "
+                "refusing to train on a wrong matrix.\n"
+                f"  expected {len(_expected)} columns, got {len(_actual)}\n"
+                f"  MISSING from output : {_missing}\n"
+                f"  UNEXPECTED in output: {_extra}\n"
+                f"  ORDER differs only  : {_misordered}"
             )
 
+        # reset_index preserved from the original method. The equivalence proof compared
+        # values via .to_numpy() and therefore never checked the INDEX; dropping this
+        # could silently misalign downstream joins and splits.
         return feats.reset_index(drop=True)
 
     # -- Stage 5: Gene-aware split ----------------------------------------

@@ -73,6 +73,17 @@ IDENTITY = ["variant_id", "gene_symbol", "chrom", "pos", "ref", "alt", "label"]
 
 failures: list[str] = []
 
+# NON-VACUITY ACCOUNTING (added 2026-07-11).
+# A proof script that silently tests NOTHING and then declares success is worse than
+# no proof at all. The first version of this file reported "EQUIVALENT -- including the
+# fractional-input int-truncation trap" without ever printing how many cases block C4
+# actually ran; had its column selector matched zero columns, that claim would have been
+# false and unfalsifiable from the output. Every block now counts its cases, prints the
+# count, and the run HARD-FAILS if any block that must do work did none.
+case_counts: dict[str, int] = {}
+# Blocks that would be meaningless at zero cases -> the run is invalid if they are empty.
+MUST_BE_NONEMPTY = ("C1", "C2", "C3", "C4", "C5", "C6", "C7")
+
 
 def _run_both(df: pd.DataFrame):
     return engineer_features(df), _PIPE._engineer_features(df)
@@ -80,6 +91,7 @@ def _run_both(df: pd.DataFrame):
 
 def compare(case: str, df: pd.DataFrame) -> None:
     """EXACT comparison: columns, order, dtypes, values (incl. NaN positions)."""
+    case_counts[case.split()[0]] = case_counts.get(case.split()[0], 0) + 1
     try:
         A, B = _run_both(df)
     except Exception as exc:  # noqa: BLE001
@@ -177,14 +189,24 @@ def main() -> int:
     # ---- C4: FRACTIONAL where the fixture uses integers ---------------------
     # Aimed squarely at INCIDENT_2026-05-30_clingen-int-truncation.
     print("\nC4  fractional inputs where the fixture is integral (the int-truncation trap)")
-    int_like = [
-        c for c in input_cols
-        if pd.api.types.is_integer_dtype(base[c]) or base[c].dropna().map(float.is_integer
-            if base[c].dtype.kind == "f" else lambda _v: False).all()
-    ]
+    # Explicit and auditable: any input column the fixture supplies as an INTEGER, or as a
+    # float whose values happen to all be whole numbers. Either way, an .astype(int) in one
+    # implementation and .astype(float) in the other would produce IDENTICAL values on the
+    # fixture and diverge only on a fractional input -- which is exactly what
+    # INCIDENT_2026-05-30_clingen-int-truncation was. We make each one fractional in turn.
+    int_like: list[str] = []
+    for c in input_cols:
+        s = base[c].dropna()
+        if s.empty:
+            continue
+        if pd.api.types.is_integer_dtype(base[c]):
+            int_like.append(c)
+        elif pd.api.types.is_float_dtype(base[c]) and bool((s % 1 == 0).all()):
+            int_like.append(c)
+    print(f"    integral input columns detected: {len(int_like)} -> {sorted(int_like)}")
     for c in sorted(set(int_like)):
         d = base.copy()
-        d[c] = base[c].astype(float) + 0.5      # make it fractional
+        d[c] = base[c].astype(float) + 0.5      # force a fractional value
         compare(f"C4 fractional {c!r}", d)
 
     # ---- C5: NaN injection ---------------------------------------------------
@@ -215,6 +237,32 @@ def main() -> int:
     print("\nC7  empty frame (0 rows)")
     compare("C7 empty", base.iloc[0:0].copy())
 
+    # ---- NON-VACUITY GATE ----------------------------------------------------
+    # Prove the proof actually did work. A block that ran zero cases invalidates the
+    # claim that block makes, so the whole run is invalid -- fail LOUD, do not pass.
+    print()
+    print(RULE)
+    print("CASES EXECUTED PER BLOCK (a zero here would invalidate this proof)")
+    print(RULE)
+    total = 0
+    empty_blocks = []
+    for blk in MUST_BE_NONEMPTY:
+        n = case_counts.get(blk, 0)
+        total += n
+        flag = "   <<< ZERO -- THIS BLOCK PROVED NOTHING" if n == 0 else ""
+        print(f"  {blk}: {n:4d} case(s){flag}")
+        if n == 0:
+            empty_blocks.append(blk)
+    print(f"  TOTAL: {total} comparison(s), each checking column set, order, dtype and values")
+
+    if empty_blocks:
+        print()
+        print(f"INVALID PROOF: block(s) {empty_blocks} executed ZERO cases.")
+        print("The 'EQUIVALENT' claim is therefore unsupported. Fix the case generator")
+        print("before trusting any verdict from this script.")
+        print(RULE)
+        return 2
+
     # ---- report --------------------------------------------------------------
     print()
     print(RULE)
@@ -229,9 +277,14 @@ def main() -> int:
         print(RULE)
         return 1
 
-    print("NO DIVERGENCE under any case -- including the minimal frame that forces every")
-    print("df.get default, the fractional-input int-truncation trap, NaN injection,")
-    print("extreme values, an empty frame, and exact dtype comparison.")
+    print(f"NO DIVERGENCE across {total} comparisons -- including the minimal frame that")
+    print("forces EVERY df.get default, the fractional-input int-truncation trap, NaN")
+    print("injection, extreme values, an empty frame, and exact dtype comparison.")
+    print()
+    print("Known, ACCEPTED, non-divergent behaviour (both implementations, identically):")
+    print("  * +/-inf input raises pandas IntCastingNaNError (an integer cast downstream).")
+    print("    Fail-loud is correct, but the message is a raw pandas internal. Logged as a")
+    print("    separate hardening item -- it is NOT a divergence and does not block this.")
     print()
     print("VERDICT: EQUIVALENT. Safe to collapse to a single implementation.")
     print(RULE)

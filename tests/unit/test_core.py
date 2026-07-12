@@ -2220,10 +2220,67 @@ class TestAnnotationPipeline:
         assert feats.loc[0, "sift_score"] == DEFAULT_SIFT == 0.5
 
     def test_sift_score_fill_is_not_threshold(self):
-        import pathlib
-        src = pathlib.Path("src/genomic_variant_classifier/data/real_data_prep.py").read_text(encoding="utf-8")
-        assert '"sift_score":' in src and '0.5' in src
-        assert '"sift_score":             0.05,' not in src
+        """An ABSENT SIFT score must never be read as 'deleterious'.
+
+        SIFT semantics: score < 0.05 == deleterious. If a missing sift_score were filled
+        with the threshold (0.05) or anything below it, EVERY unannotated variant would
+        silently acquire sift_deleterious = 1 -- a silent-PATHOGENIC default, and the
+        same species of defect as the Run-15 silent zero. The neutral fill is 0.5.
+
+        REWRITTEN 2026-07-11. This test used to assert on the SOURCE TEXT of
+        real_data_prep.py:
+
+            src = pathlib.Path("src/.../real_data_prep.py").read_text()
+            assert '"sift_score":' in src and '0.5' in src
+
+        That checked WHERE the code lived, not WHAT it did. It broke the moment the
+        duplicated feature builder was collapsed into variant_ensemble.engineer_features
+        (single-source-of-truth, 2026-07-11) even though behaviour was provably unchanged
+        -- 117-case equivalence proof, outputs/engineer_equiv_2026-07-11b.log. A test that
+        fails on a behaviour-preserving refactor, and would have passed had someone changed
+        the default in the OTHER module, is testing the wrong thing.
+
+        It is now a BEHAVIOURAL test of the invariant, asserted through BOTH entry points,
+        so it cannot be defeated by moving code again -- and it now actually catches the
+        bug it was named for.
+        """
+        from genomic_variant_classifier.data.real_data_prep import (
+            DataPrepConfig,
+            DataPrepPipeline,
+        )
+        from genomic_variant_classifier.data.sift_polyphen import DEFAULT_SIFT
+        from genomic_variant_classifier.models.variant_ensemble import engineer_features
+
+        SIFT_DELETERIOUS_THRESHOLD = 0.05
+
+        # No sift_score column at all -- the DEFAULT FILL is precisely what is under test.
+        df = pd.DataFrame({
+            "chrom": ["1"], "pos": [100], "ref": ["A"], "alt": ["T"],
+            "consequence": ["intron_variant"], "allele_freq": [0.01],
+        })
+
+        for name, feats in (
+            ("variant_ensemble.engineer_features", engineer_features(df)),
+            (
+                "DataPrepPipeline._engineer_features",
+                DataPrepPipeline(DataPrepConfig())._engineer_features(df),
+            ),
+        ):
+            fill = feats.loc[0, "sift_score"]
+
+            assert fill == DEFAULT_SIFT == 0.5, (
+                f"{name}: an absent sift_score must fill with the NEUTRAL default "
+                f"DEFAULT_SIFT={DEFAULT_SIFT}; got {fill!r}."
+            )
+            assert fill >= SIFT_DELETERIOUS_THRESHOLD, (
+                f"{name}: fill {fill!r} is at or below the SIFT deleterious threshold "
+                f"({SIFT_DELETERIOUS_THRESHOLD}). Every variant with no SIFT annotation "
+                f"would be silently called deleterious."
+            )
+            assert feats.loc[0, "sift_deleterious"] == 0, (
+                f"{name}: an ABSENT SIFT score produced sift_deleterious=1 -- a "
+                f"silent-pathogenic default."
+            )
 
     def test_annotate_scores_stub_mode_no_raise(self, minimal_canonical_df):
         from genomic_variant_classifier.data.real_data_prep import DataPrepPipeline, AnnotationConfig

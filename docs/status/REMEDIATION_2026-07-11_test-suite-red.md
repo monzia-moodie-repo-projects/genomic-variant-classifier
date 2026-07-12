@@ -631,6 +631,76 @@ print("VERDICT:", "IDENTICAL" if not (a ^ b) and not diff else "DIVERGED  <-- si
 PY
 ```
 
+### 5b.4b RESOLVED — proved equivalent, then collapsed (2026-07-11)
+
+**Step 1 — the first audit was true but weak.** `scripts/diff_engineer_features.py` compared
+the two on `build_reference_slice` and reported IDENTICAL (97/97, no set difference, no
+numeric difference, same order). Two blind spots made that insufficient to delete 435 lines:
+
+- The reference slice supplies **every** input column by contract, so **not one `df.get`
+  default is ever exercised**. Default drift was structurally invisible to it.
+- The script coerced through `pd.to_numeric(...).astype(float)`, so **dtype differences were
+  invisible** — precisely the class of `INCIDENT_2026-05-30_clingen-int-truncation`, and the
+  fixture feeds `clingen_validity_score` as an *integer*, so an int-vs-float cast difference
+  would have produced identical values and passed.
+
+**Step 2 — the real proof.** `scripts/prove_engineer_features_equivalence.py`:
+**117 comparisons, zero divergences**, exact on column set, column **order**, **dtype**, and
+values (NaN positions preserved, no float coercion):
+
+| block | cases | what it forces |
+|---|---:|---|
+| C1 | 9 | reference slice × seeds × sizes |
+| C2 | 1 | **minimal frame — every connector column absent → forces EVERY `df.get` default** |
+| C3 | 43 | single-column dropout, one default at a time |
+| C4 | 16 | integral inputs made fractional — **incl. `clingen_validity_score`**, the exact column of the 2026-05-30 truncation incident |
+| C5 | 41 | 20% NaN injection per column |
+| C6 | 6 | extremes (0, negative, ±inf, 1e300, 1e-300) |
+| C7 | 1 | empty frame |
+
+The script hard-fails (exit 2) if any block executes zero cases — an earlier version could
+have claimed "EQUIVALENT ... including the int-truncation trap" while testing nothing there,
+and that was unfalsifiable from its output. Log: `outputs/engineer_equiv_2026-07-11b.log`.
+
+**Step 3 — the collapse.** `scripts/collapse_engineer_features.py` (guarded, reversible,
+idempotent, AST-located, auto-restores on any parse failure) replaced the 435-line
+`DataPrepPipeline._engineer_features` with a delegation. **Net −376 lines.** The pipeline now
+trains on exactly the matrix the harness validates.
+
+Two things deliberately preserved, both of which the equivalence proof would NOT have caught:
+
+- **The import stays local.** `real_data_prep` must not pull the heavy ML stack in at module
+  import; the suite asserts the package imports with `sklearn`/`torch` blocked
+  (`test_orchestrator_lazy_registry`, `test_evaluation_metrics`).
+- **`.reset_index(drop=True)` is kept.** The proof compared values via `.to_numpy()`, which is
+  **index-agnostic** — it never checked the index. Dropping the reset could have silently
+  misaligned downstream joins and splits with the proof saying nothing.
+
+**The guard was upgraded, not merely relocated.** The old fail-loud check compared only the
+feature **count** against `EXPECTED_TABULAR_FEATURE_COUNT`, and its own comment conceded that
+is how "the 88-vs-91 R13 drift went unnoticed for a full 13-hour run". A count cannot catch
+different names at the same count, different values, or a different column **order** — and
+order is the quiet one, because an estimator fitted on a named DataFrame and then fed a bare
+`ndarray` trusts position implicitly (cf. the standing LightGBM feature-name warning). The new
+guard asserts **name and order** against `TABULAR_FEATURES`.
+
+**Fallout, and what it exposed.** The full suite came back `1 failed, 1813 passed`. The single
+failure was `test_core.py::test_sift_score_fill_is_not_threshold`, which asserted on the
+**source text** of `real_data_prep.py` (`'"sift_score":' in src`). It broke because the code
+*moved*, not because behaviour changed. It was testing *where* the code lived rather than
+*what it did* — and it would have passed had someone changed the default in the other module.
+
+The invariant it guarded is real and important: SIFT semantics are *score < 0.05 == deleterious*,
+so an absent SIFT score filled at or below the threshold would make **every unannotated variant
+silently deleterious** — a silent-pathogenic default, the same species as the Run-15 silent zero.
+It is now a **behavioural** test asserting the invariant through *both* entry points: the fill
+equals the neutral `DEFAULT_SIFT` (0.5), sits above the deleterious threshold, and yields
+`sift_deleterious == 0`. A repository-wide sweep confirms it was the **only** source-grep test
+in the suite.
+
+The obsolete hand-sync comments (`"must match"`, `"Mirrors ..."`, and the stale `"65 features"`
+header) are deleted rather than corrected: a count written into a comment is a fact that rots.
+
 ### 5b.5 The correct fix (ground-up, not patchwork)
 
 **One implementation, one source of truth.** `DataPrepPipeline._engineer_features` should be

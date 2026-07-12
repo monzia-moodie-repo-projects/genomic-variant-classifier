@@ -118,7 +118,14 @@ except ImportError:
 warnings.filterwarnings("ignore", category=UserWarning)
 
 # ---------------------------------------------------------------------------
-# Feature definitions (65 features -- must match DataPrepPipeline._engineer_features)
+# Feature definitions. THE contract: TABULAR_FEATURES + EXPECTED_TABULAR_FEATURE_COUNT
+# below are the single source of truth for the matrix width and column ORDER.
+#
+# Do NOT write the feature count into this comment. It used to read "(65 features --
+# must match DataPrepPipeline._engineer_features)" while the real contract held 97, and
+# it mandated a hand-sync with a SECOND feature builder in real_data_prep.py that the
+# correctness harness never validated. That second builder was proved equivalent and
+# deleted on 2026-07-11; a count in a comment is a fact that rots, so it is gone too.
 # ---------------------------------------------------------------------------
 
 CONSEQUENCE_SEVERITY: dict[str, int] = {
@@ -335,10 +342,33 @@ def _suppress_fillna_downcast(_fn):
 
 @_suppress_fillna_downcast
 def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Derive the 65 tabular features from a raw variant DataFrame.
-    Mirrors DataPrepPipeline._engineer_features() in src/genomic_variant_classifier/data/real_data_prep.py.
-    All missing columns are filled with safe defaults.
+    """Derive the tabular feature matrix from a raw variant DataFrame.
+
+    THE SINGLE SOURCE OF TRUTH for feature engineering (since 2026-07-11).
+
+    The contract is TABULAR_FEATURES / EXPECTED_TABULAR_FEATURE_COUNT -- never a number
+    written into a comment. All missing columns are filled with safe defaults (df.get),
+    and those defaults are part of the contract: e.g. an absent sift_score fills to the
+    NEUTRAL 0.5, never to the 0.05 deleterious threshold, or every unannotated variant
+    would be silently called deleterious (tests/unit/test_core.py::
+    test_sift_score_fill_is_not_threshold).
+
+    HISTORY -- read before adding a second implementation.
+    This docstring used to read "Derive the 65 tabular features ... Mirrors
+    DataPrepPipeline._engineer_features()". There were genuinely TWO implementations,
+    hand-kept in sync by that comment. They had already drifted in documentation (the
+    comment said 65; the contract held 97), and, far worse, the five-stage correctness
+    harness imports THIS function -- so the gate validated a code path the training
+    pipeline never executed. A silent zero or a truncating cast in the pipeline's copy
+    was structurally invisible to the gate built to catch exactly that.
+
+    The two were proved equivalent (117 adversarial comparisons -- exact on column set,
+    ORDER, dtype and values; forcing every df.get default and every integral-input
+    truncation path) and collapsed: DataPrepPipeline._engineer_features now delegates
+    here. See docs/status/REMEDIATION_2026-07-11_test-suite-red.md and
+    scripts/prove_engineer_features_equivalence.py.
+
+    Do not create a second feature builder. If you need a variant, parameterise this one.
     """
     feats = pd.DataFrame(index=df.index)
 
