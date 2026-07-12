@@ -64,38 +64,84 @@ def test_missing_columns_default_safely():
 
 
 # -- source-present guard (decides whether the gate runs at all) -----------
+#
+# CONTRACT CHANGE, 2026-07-11 (TRIAGE_2026-07-08_test-suite-red, cluster A).
+#
+# `_protein_coord_source_present` now takes ONE argument -- the DECLARED
+# AlphaMissense path -- and returns True iff the caller explicitly declared a
+# source AND that declared path exists.
+#
+# The old two-argument form also returned True when a *coord cache file* merely
+# existed on disk. That made the coverage gate arm itself against 2-row unit
+# fixtures on any machine that happened to have the cache (or the 613 MB
+# AlphaMissense TSV, which the caller silently substituted as a hard-coded
+# default when nothing was declared). Twelve tests were green on a clean box and
+# red on a populated one -- a suite whose verdict is a function of untracked
+# filesystem state.
+#
+# The old `test_source_present_when_cache_exists` ASSERTED that behaviour, i.e.
+# it locked in the defect. It is replaced below by its inverse, which is the
+# regression guard for cluster A.
 
-def test_source_present_when_cache_exists(tmp_path):
-    cache = tmp_path / "alphamissense_protein_index.parquet"
-    cache.write_text("x")
-    assert _protein_coord_source_present(cache, None) is True
 
-
-def test_source_present_when_am_tsv_exists(tmp_path):
+def test_declared_am_tsv_that_exists_is_a_source(tmp_path):
+    """A source the caller DECLARED, which exists -> the gate arms. Production path."""
     am = tmp_path / "AlphaMissense_hg38.tsv.gz"
     am.write_text("x")
-    assert _protein_coord_source_present(tmp_path / "nope.parquet", am) is True
+    assert _protein_coord_source_present(am) is True
 
 
-def test_stub_when_neither_present(tmp_path):
-    assert _protein_coord_source_present(tmp_path / "nope.parquet", None) is False
+def test_nothing_declared_is_stub_mode(tmp_path):
+    """Declared nothing -> stub mode. Must never raise. The unit-test path."""
+    assert _protein_coord_source_present(None) is False
 
 
-def test_stub_when_am_path_set_but_missing(tmp_path):
-    assert _protein_coord_source_present(tmp_path / "nope.parquet", tmp_path / "missing_am.tsv.gz") is False
+def test_declared_am_path_that_is_missing_is_stub_mode(tmp_path):
+    """Declared a source that is not on this box -> stub mode, not a hard failure."""
+    assert _protein_coord_source_present(tmp_path / "missing_am.tsv.gz") is False
+
+
+def test_stale_coord_cache_on_disk_is_NOT_a_source(tmp_path):
+    """REGRESSION GUARD for cluster A (the inverse of the old, defect-asserting test).
+
+    A coord cache sitting on disk -- built by a PREVIOUS run against a PREVIOUS
+    cohort -- is NOT a source wired into THIS run. Source presence is a property of
+    the DECLARED CONFIGURATION, never of the filesystem. If this ever returns True
+    again, the suite's verdict once more depends on which files happen to be on the
+    developer's disk, and the 12 cluster-A failures return.
+    """
+    cache = tmp_path / "alphamissense_protein_index.parquet"
+    cache.write_text("x")                      # the cache EXISTS ...
+    assert _protein_coord_source_present(None) is False   # ... and is still NOT a source
 
 
 # -- the exact decision the gate makes (guard + assertion together) --------
 
-def test_gate_fires_only_when_source_present_and_low_coverage(tmp_path):
-    cache = tmp_path / "alphamissense_protein_index.parquet"
-    cache.write_text("x")
+def test_gate_fires_only_when_source_declared_and_low_coverage(tmp_path):
+    """Source DECLARED + near-zero coverage -> raise before training (the Run-15 silent zero)."""
+    am = tmp_path / "AlphaMissense_hg38.tsv.gz"
+    am.write_text("x")
     df = _frame(1000, 2)
-    assert _protein_coord_source_present(cache, None) is True
+    assert _protein_coord_source_present(am) is True
     with pytest.raises(ValueError):
         _assert_protein_coord_coverage(df, 0.50)
 
 
 def test_gate_skipped_in_stub_mode_even_at_zero_coverage(tmp_path):
+    """Nothing declared + ZERO coverage -> gate is skipped, nothing raises."""
     df = _frame(1000, 0)
-    assert _protein_coord_source_present(tmp_path / "nope.parquet", None) is False
+    assert _protein_coord_source_present(None) is False
+    # and the coverage assertion is simply never reached in stub mode.
+
+
+def test_stub_mode_holds_even_when_the_am_tsv_exists_but_was_not_declared(tmp_path):
+    """The precise cluster-A mechanism, locked.
+
+    The 613 MB AlphaMissense TSV is present on this box. Before 2026-07-11 the
+    caller substituted its hard-coded path whenever nothing was declared, so the
+    gate armed and raised on unit fixtures. Declaring nothing must remain stub mode
+    REGARDLESS of what exists on disk.
+    """
+    am = tmp_path / "AlphaMissense_hg38.tsv.gz"
+    am.write_text("x")                          # the TSV EXISTS on this box ...
+    assert _protein_coord_source_present(None) is False   # ... but nothing was declared

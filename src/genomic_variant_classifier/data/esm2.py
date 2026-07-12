@@ -681,10 +681,16 @@ class ESM2Connector:
         p = self._score_cache_path()
         p.parent.mkdir(parents=True, exist_ok=True)
         existing = self._score_cache_load()
-        combined = pd.concat(
-            [existing, pd.DataFrame(rows, columns=self._SCORE_CACHE_COLS)],
-            ignore_index=True,
-        )
+        fresh = pd.DataFrame(rows, columns=self._SCORE_CACHE_COLS)
+        # Do NOT hand pandas an empty/all-NA frame: on a cold cache `existing` is the
+        # empty, dtype-less frame that _score_cache_load returns, and concatenating it
+        # emits (pandas >= 2.1) "The behavior of DataFrame concatenation with empty or
+        # all-NA entries is deprecated", and in a future pandas would silently change
+        # the resulting dtypes of the score columns. Dropping empties keeps the dtypes
+        # of `fresh` authoritative and removes the warning at its source, rather than
+        # suppressing it. (2026-07-11; surfaced by the full-suite run, esm2.py:684.)
+        _frames = [f for f in (existing, fresh) if not f.empty]
+        combined = pd.concat(_frames, ignore_index=True) if _frames else fresh
         combined["_k"] = list(zip(
             combined["gene_symbol"].astype(str),
             pd.to_numeric(combined["protein_pos"], errors="coerce").astype("Int64").astype(str),

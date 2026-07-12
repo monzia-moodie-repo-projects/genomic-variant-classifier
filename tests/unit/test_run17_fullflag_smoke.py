@@ -163,6 +163,19 @@ def _write_splits(tmp_path, overrides=None):
         "revel_score": np.linspace(0, 1, n),          # nondefault vs 0.5
         "n_tools_pathogenic": (rng % 5).astype(float),# nondefault vs 0
         "lovd_variant_class": (rng % 3).astype(float),# nonzero
+        # ---- 91->97 feature work (80eb9c8, 2026-07-06) -- added 2026-07-11 ----
+        # The docstring above promises "EVERY run17 feature is populated"; from the
+        # moment the Nucleotide-Transformer / COSMIC / KEGG connectors landed that
+        # promise was false, and audit_smoke_feature_population.py --run17 (which
+        # grades genomiclm_delta_norm and kegg_pathway_count as FAIL-severity when
+        # ABSENT) duly returned 1 while these tests asserted 0.
+        # TRIAGE_2026-07-08_test-suite-red, cluster D. Values must VARY (nunique > 1).
+        "genomiclm_delta_norm": np.linspace(0.1, 5.0, n),
+        "genomiclm_llr": np.linspace(-12.0, 4.0, n),   # SIGNED (negative => damaging)
+        "cosmic_recurrence": np.linspace(0.01, 1.0, n),
+        "cosmic_sig_tier": (rng % 4).astype(float),    # ordinal {0,1,2,3}
+        "kegg_pathway_count": (rng % 15).astype(float),
+        "kegg_disease_pathway_flag": (rng % 2).astype(float),
     })
     if overrides:
         for col, val in overrides.items():

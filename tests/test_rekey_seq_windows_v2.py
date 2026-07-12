@@ -85,10 +85,43 @@ def test_missing_column_raises():
 # --------------------------------------------------------------------------
 # THE DECISIVE TEST: the real join, before and after rekey.
 # --------------------------------------------------------------------------
-def _install_real_join(tmp_path):
+def _install_real_join(tmp_path, monkeypatch):
     """Write the real attach_delta_windows into an importable package path.
 
     Mirrors src/.../data/seq_window_join.py exactly (verified 2026-07-09).
+
+    THE SYS.PATH LEAK (fixed 2026-07-11) -- read before touching this.
+    ------------------------------------------------------------------
+    This helper writes a COUNTERFEIT `genomic_variant_classifier` package into
+    tmp_path/gvc_join/ -- a real package (it has an __init__.py) whose only
+    subpackage is `data`. It used to publish that counterfeit with
+
+        sys.path.insert(0, str(tmp_path / "gvc_join"))     # never removed
+
+    a mutation of GLOBAL interpreter state that outlived the test. From this test
+    onward, sys.path[0] pointed at a package named `genomic_variant_classifier`
+    containing no `evaluation` and no `agent_layer`.
+
+    In-process nothing broke: the real package was already in sys.modules, so it
+    was never re-resolved. But five later tests
+    (test_evaluation_metrics, test_evaluator_phase5, test_orchestrator_lazy_registry)
+    launch a CHILD interpreter with
+
+        PYTHONPATH = os.pathsep.join(p for p in sys.path if p)
+
+    The child starts with an EMPTY sys.modules, so it resolved
+    `genomic_variant_classifier` from the counterfeit -- top-level import SUCCEEDS,
+    and every subpackage import then fails:
+
+        ModuleNotFoundError: No module named 'genomic_variant_classifier.evaluation'
+        ModuleNotFoundError: No module named 'genomic_variant_classifier.agent_layer'
+
+    Green in isolation, red in the full suite -- classic order-dependent global-state
+    pollution. See TRIAGE_2026-07-08_test-suite-red cluster E / the 2026-07-11
+    remediation doc.
+
+    THE FIX: publish the counterfeit with `monkeypatch.syspath_prepend`, which pytest
+    UNDOES at teardown. Never mutate sys.path directly in a test.
     """
     pkg = tmp_path / "gvc_join" / "genomic_variant_classifier" / "data"
     pkg.mkdir(parents=True)
@@ -118,11 +151,14 @@ def attach_delta_windows(meta, seq_windows_path=None, window=101):
                              ALT_WIN_COL:a.fillna(poly).astype(str).to_numpy()}),n_unmapped
     return pd.DataFrame({REF_WIN_COL:[poly]*n,ALT_WIN_COL:[poly]*n}),n
 ''')
-    sys.path.insert(0, str(tmp_path / "gvc_join"))
+    # SCOPED: pytest reverts this at teardown, so the counterfeit package cannot leak
+    # into any later test -- nor into the PYTHONPATH those tests hand to a CHILD
+    # interpreter, which is what broke cluster E. Never use sys.path.insert here.
+    monkeypatch.syspath_prepend(str(tmp_path / "gvc_join"))
 
 
 def test_rekey_closes_the_poly_A_breakage(tmp_path, monkeypatch):
-    _install_real_join(tmp_path)
+    _install_real_join(tmp_path, monkeypatch)
 
     # cohort-v2 meta: the deletion carries the CORRECTED pos (100), SNV unchanged (200)
     cohort_v2_meta = pd.DataFrame({
@@ -147,10 +183,10 @@ def test_rekey_closes_the_poly_A_breakage(tmp_path, monkeypatch):
     assert v_after["n_unmapped_total"] == 0
 
 
-def test_coverage_gap_is_distinguished_from_key_mismatch(tmp_path):
+def test_coverage_gap_is_distinguished_from_key_mismatch(tmp_path, monkeypatch):
     """A cohort deletion with NO row in the seq parquet is a COVERAGE_GAP, not a rekey
     defect. A deletion present under a stale key is a KEY_MISMATCH."""
-    _install_real_join(tmp_path)
+    _install_real_join(tmp_path, monkeypatch)
     # cohort has TWO padded deletions; the seq parquet has a window for only one of them.
     cohort = pd.DataFrame({
         "variant_id": ["clinvar:7:100:ACTT:A", "clinvar:9:500:GTG:G"],

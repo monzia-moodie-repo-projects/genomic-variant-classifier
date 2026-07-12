@@ -62,16 +62,36 @@ def _parse_codon_position(hgvsp: object) -> int:
     return int(m.group(1)) if m else 0
 
 
-def _protein_coord_source_present(cache_path: Path, am_path: object) -> bool:
-    """True iff a protein-coord SOURCE is available (a built cache file, or the
-    AlphaMissense TSV) -- i.e. the connector is NOT in stub mode. The coverage gate
-    is enforced ONLY when this is True. Stub mode (no source) is a valid path --
-    unit tests and boxes without the 613 MB TSV -- and must never raise; the
-    connector already warns there.
+def _protein_coord_source_present(am_path: object) -> bool:
+    """True iff the caller EXPLICITLY DECLARED a protein-coord source and that
+    declared path exists on this box. The coverage gate is armed ONLY when True.
+
+    Source presence is a property of the DECLARED CONFIGURATION, never of the
+    filesystem. Two things are deliberately NOT sources:
+
+      * a default path that merely happens to exist on this machine. Until
+        2026-07-11 the caller substituted a hard-coded AlphaMissense path whenever
+        `alphamissense_tsv_path` was None, so "the caller declared nothing" became
+        "the caller declared the 613 MB TSV" -- and on any box where that TSV was
+        present the gate armed against 2-row unit fixtures whose protein_pos is
+        legitimately all-NA, computed coverage 0.0000 < 0.50, and raised.
+      * a coord cache built by a PREVIOUS run against a PREVIOUS cohort. It is not
+        a source wired into THIS run, and the gate's own error message concedes as
+        much ("stale or mismatched for THIS cohort/box").
+
+    Either made the test suite's verdict a function of which data files sat on the
+    developer's disk -- green on a clean box, red on a populated one -- which cost
+    12 tests (TRIAGE_2026-07-08_test-suite-red, cluster A). A suite whose outcome
+    depends on untracked filesystem state is not a suite.
+
+    Stub mode (nothing declared) is a valid path -- unit tests, and boxes without
+    the TSV -- and must never raise; the connector already warns there. Production
+    is unaffected: scripts/run_phase2_eval.py:356 declares the path explicitly, so
+    the gate stays armed exactly where it matters.
     """
-    if am_path is not None and Path(str(am_path)).exists():
-        return True
-    return Path(str(cache_path)).exists()
+    if am_path is None:
+        return False
+    return Path(str(am_path)).exists()
 
 
 def _assert_protein_coord_coverage(df: pd.DataFrame, min_cov: float) -> float:
@@ -937,7 +957,15 @@ class DataPrepPipeline:
         # Unblocks ESM-2 (and readies EVE); also clears codon_position.
         from genomic_variant_classifier.data.protein_coords import ProteinCoordConnector
 
-        _am_tsv = ac.alphamissense_tsv_path or Path(r"data/external/alphamissense/AlphaMissense_hg38.tsv.gz")
+        # The protein-coord source is whatever the CALLER DECLARED -- there is no
+        # hard-coded filesystem fallback here any more (2026-07-11). A default path
+        # that happens to exist on this box is not a declared source; substituting
+        # one silently armed the coverage gate against unit fixtures and made the
+        # suite's verdict depend on disk contents (TRIAGE_2026-07-08, cluster A: 12
+        # tests). Production declares it explicitly (scripts/run_phase2_eval.py:356,
+        # which supplies the default itself), so the gate stays armed there; callers
+        # that declare nothing get stub mode, which must never raise.
+        _am_tsv = ac.alphamissense_tsv_path
         pc = ProteinCoordConnector(alphamissense_file=_am_tsv)
         df = pc.annotate_dataframe(df)
         if "consequence" in df.columns:
@@ -952,7 +980,7 @@ class DataPrepPipeline:
         )
         # Coverage gate -- enforce ONLY when a coord source is present (NOT in stub
         # mode). A source present + near-zero coverage is the Run 15 silent-zero.
-        if _protein_coord_source_present(pc.cache_path, _am_tsv):
+        if _protein_coord_source_present(_am_tsv):
             _coord_cov = _assert_protein_coord_coverage(df, ac.min_protein_coord_coverage)
             logger.info("Protein-coord coverage gate PASS: %.4f of missense have coords.", _coord_cov)
         else:

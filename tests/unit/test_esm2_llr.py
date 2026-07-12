@@ -43,14 +43,43 @@ def _fake_matrix(seq, mut_high_at=None):
 
 
 @pytest.fixture
-def conn(monkeypatch):
+def conn(monkeypatch, tmp_path):
+    """A REAL, fully-constructed ESM2Connector with the model backend faked.
+
+    Construction goes through the real __init__ -- deliberately NOT
+    ESM2Connector.__new__(). The __new__ bypass this fixture used until 2026-07-11
+    produced a half-built object carrying only the four attributes the fixture
+    happened to set, so the moment annotate_llr reached any OTHER __init__
+    attribute the tests died with an AttributeError that said nothing about
+    production. That is exactly what happened when the parquet score-cache landed:
+    annotate_llr -> _score_cache_load -> _score_cache_path -> self.cache_path
+    -> AttributeError, six tests red since the day it shipped
+    (TRIAGE_2026-07-08_test-suite-red, cluster B).
+
+    Constructing properly is safe and stays torch-free:
+      * device="cpu" is passed explicitly, so _resolve_device short-circuits and
+        never touches torch.cuda (esm2.py:224-228);
+      * __init__ does no I/O -- the sqlite handle (_conn) is lazy;
+      * the model loader is monkeypatched to the fake tokenizer/model above.
+
+    cache_path is pinned under tmp_path, which also makes the tests HERMETIC: the
+    score cache is a sibling of cache_path (esm2.py:_score_cache_path), so both the
+    sqlite cache AND esm2_scores.parquet land in tmp_path. Left to the production
+    default they would read from -- and _score_cache_append would WRITE fake stub
+    scores into -- the repo's real data/raw/cache. Never point this fixture at the
+    default cache.
+
+    allow_network=False is explicit belt-and-braces: no test may reach UniProt.
+    """
     monkeypatch.setattr(E, "_BACKEND", "transformers", raising=False)
     monkeypatch.setattr(E, "_load_transformers_mlm",
                         lambda model_name, device="cpu": (_FakeTok(), _FakeMdl()))
-    c = E.ESM2Connector.__new__(E.ESM2Connector)   # bypass __init__ / index plumbing
-    c.model_name = "esm2_t33_650M_UR50D"
-    c.device = "cpu"
-    c._missing_genes = set()
+    c = E.ESM2Connector(
+        model_name="esm2_t33_650M_UR50D",
+        cache_path=tmp_path / "esm2_cache.sqlite",
+        device="cpu",
+        allow_network=False,
+    )
     # candidate-aware sequence resolver (mirrors the Phase-0 hardened _get_sequence)
     def _get_seq(gene):
         for cand in gene_symbol_candidates(gene):
@@ -58,8 +87,35 @@ def conn(monkeypatch):
                 return _SEQS[cand]
         c._missing_genes.add(str(gene).strip().upper())
         return None
-    c._get_sequence = _get_seq
+    c._get_sequence = _get_seq          # instance-level override; no UniProt, no network
     return c
+
+
+def test_fixture_is_fully_constructed_and_hermetic(conn, tmp_path):
+    """Regression guard for TRIAGE_2026-07-08 cluster B (2026-07-11).
+
+    Two invariants, both of which the old __new__ fixture violated:
+      1. The connector is FULLY constructed -- every __init__ attribute exists, so a
+         new code path in annotate_llr can never again die on a missing attribute.
+      2. The fixture is HERMETIC -- the ESM-2 score cache resolves inside tmp_path,
+         never the repository's real data/raw/cache. A leak there would let unit
+         tests read stale real scores (flaky, order-dependent) and, via
+         _score_cache_append, WRITE fake stub scores into the production cache.
+    """
+    for attr in ("model_name", "cache_path", "request_timeout", "device", "batch_size",
+                 "uniprot_index_path", "allow_network", "_conn", "_uniprot_index",
+                 "_warned_missing", "_missing_genes"):
+        assert hasattr(conn, attr), f"conn fixture must be fully constructed; missing {attr!r}"
+
+    assert conn.cache_path == tmp_path / "esm2_cache.sqlite"
+    assert conn.allow_network is False
+    assert conn.device == "cpu"
+
+    score_cache = conn._score_cache_path()
+    assert tmp_path in score_cache.parents, (
+        f"ESM-2 score cache must resolve inside tmp_path (hermetic); got {score_cache}")
+    assert "data" not in score_cache.parts, (
+        f"ESM-2 score cache must NEVER resolve into the repo data dir; got {score_cache}")
 
 
 def _passcount(monkeypatch, mut_high_at=None):

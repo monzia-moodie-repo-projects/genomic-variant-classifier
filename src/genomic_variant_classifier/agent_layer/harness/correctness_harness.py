@@ -299,25 +299,53 @@ def run_correctness_harness(
 # columns that remain ~all-zero on a fully-populated input are those whose
 # default is zero/sub-threshold and which no input column can currently
 # populate. That set is the silent-zero / connector-dead class from the
-# 2026-04-30 audit, recorded here as KNOWN_ZERO_DEFAULT (27 columns, empirically
-# derived by running engineer_features on build_reference_slice() at HEAD
-# 25b5eaf, 2026-05-30).
+# 2026-04-30 audit, recorded here as KNOWN_ZERO_DEFAULT (24 columns, empirically
+# re-derived by running engineer_features on build_reference_slice() at HEAD
+# e3e422e, 2026-07-11 -- the 97-feature contract).
 #
-# NOTE: clingen_validity_score is deliberately NOT in this set. It is a populated
+# THE RULE (invariant; see the Option-B precedent in e6447fb, 2026-06-27):
+#   live connector  -> FEED it in build_reference_slice; keep it OUT of this set,
+#                      so stage 5 actively zero-audits it and a real regression
+#                      hard-fails.
+#   dead connector  -> allowlist it here, with the reason it cannot yet populate.
+# Allowlisting a LIVE feature is forbidden: it would permanently blind stage 5 to
+# a genuine regression in that connector.
+#
+# COUNT HISTORY (each change is an audit, not a bump):
+#   21 (2026-05-30, 84eed46) -> 22 reactome (bb7c058) -> 27 rnaseq_* (1a00499)
+#   -> 29 finngen R13 (5344ddb) -> 25 Option-B feeds finngen R12+R13 (e6447fb)
+#   -> 24 (2026-07-11, this change): gene_is_constrained REMOVED -- see below.
+#
+# NOTE 1: clingen_validity_score is deliberately NOT in this set. It is a populated
 # connector cast via .astype(float) (variant_ensemble.py clingen block), so it is
 # non-zero on any populated input (integer or fractional). The earlier .astype(int)
 # truncation of fractional ClinGen scores to 0 was fixed 2026-05-30 (see
 # INCIDENT_2026-05-30_clingen-int-truncation); it is a live feature, not a dead
 # connector, so it must stay outside the allowlist.
+#
+# NOTE 2 (2026-07-11): gene_is_constrained was REMOVED from this set. It is not a
+# connector at all -- it is a DERIVED binary indicator, (gene_constraint_oe < 0.35)
+# .astype(int) at variant_ensemble.py:439. On the reference slice it takes both 0
+# and 1 (zero-rate 83.5%), so stage 5's binary-indicator exemption skips it and it
+# can never be flagged: allowlisting it was dead weight. Worse, it was actively
+# harmful -- if the constraint connector ever went dead, gene_is_constrained would
+# collapse to {0} (non-binary -> flagged) and the allowlist would have SILENTLY
+# swallowed that regression. Outside the allowlist, stage 5 now catches it.
+#
+# NOTE 3 (2026-07-11): the six KEGG / COSMIC / Nucleotide-Transformer columns added
+# by the 91->97 feature work (80eb9c8, 2026-07-06) are NOT allowlisted. They are
+# live connectors -- Run-17 real-data smoke shows them populated -- so per THE RULE
+# they are FED in build_reference_slice below. They were the entire cause of the
+# stage-5 CI failure triaged on 2026-07-08 (TRIAGE_2026-07-08_test-suite-red, C).
 KNOWN_ZERO_DEFAULT: frozenset[str] = frozenset({
     "reactome_pathway_count",  # Phase D: stub-zero until reactome parquet built
     # rnaseq_* (commit 1f3c2e0): gene-level, stub-zero until an --rnaseq-path
     # parquet is supplied; populated via annotate_rnaseq_from_parquet, not
-    # engineer_features inputs -- same dead-connector status as gtex_* above.
+    # engineer_features inputs -- same dead-connector status as gtex_* below.
     "rnaseq_mean_log_tpm", "rnaseq_detection_rate", "rnaseq_log2_cv",
     "rnaseq_log2fc", "rnaseq_de_neglog10p",
     "af_1kg_afr", "af_1kg_amr", "af_1kg_eas", "af_1kg_eur", "af_1kg_sas",
-    "cadd_high", "gene_is_constrained",
+    "cadd_high",
     "gerp_score", "gtex_is_eqtl", "gtex_max_abs_effect", "gtex_max_tpm",
     "gtex_min_eqtl_pval", "gtex_n_tissues_expressed", "gtex_tissue_specificity",
     "n_known_pathogenic_protein_variants", "phylop_score",
@@ -378,6 +406,26 @@ def build_reference_slice(n: int = 200, seed: int = 7) -> pd.DataFrame:
         "finngen_enrichment": rng.uniform(0.5, 5, n),
         "finngen_r13_af_fin": rng.uniform(0, 0.5, n), "finngen_r13_af_nfsee": rng.uniform(0, 0.5, n),
         "finngen_r13_enrichment": rng.uniform(0.5, 5, n),
+        # ---- 91->97 feature work (80eb9c8, 2026-07-06) -- FED (Option B), 2026-07-11 ----
+        # All six are direct df.get passthroughs in engineer_features (variant_ensemble
+        # .py:657-695) and are LIVE connectors on real data (Run-17 smoke), so they are
+        # fed here and deliberately NOT allowlisted -- stage 5 must keep zero-auditing
+        # them. Before this, build_reference_slice emitted none of them, so all six came
+        # out 100% zero and stage 5 flagged them: TRIAGE_2026-07-08_test-suite-red, C.
+        #
+        # Nucleotide Transformer DNA-LM (2): delta_norm is an L2 norm (>=0, clipped);
+        # llr is SIGNED (negative => damaging, no clip) -- mirrors the esm2_* pair above.
+        "genomiclm_delta_norm": rng.uniform(0.1, 5, n),
+        "genomiclm_llr": rng.uniform(-12, 4, n),
+        # COSMIC CMC (2): recurrence is SAMPLE_MUTATED/SAMPLE_TESTED in [0,1];
+        # sig_tier is the MUTATION_SIGNIFICANCE_TIER ordinal {0,1,2,3}.
+        "cosmic_recurrence": rng.uniform(0.01, 1.0, n),
+        "cosmic_sig_tier": rng.integers(0, 4, n),
+        # KEGG (2): pathway_count is a count (0 is legitimate -- some genes map to no
+        # pathway); disease_pathway_flag is a 0/1 indicator and is therefore exempt from
+        # stage 5 by the binary rule, exactly like hgmd_is_disease_mutation above.
+        "kegg_pathway_count": rng.integers(0, 15, n),
+        "kegg_disease_pathway_flag": rng.integers(0, 2, n),
         "dist_to_active_site": rng.uniform(1, 500, n), "dist_to_splice_site": rng.uniform(1, 500, n),
         "clingen_validity_score": rng.integers(1, 5, n), "codon_position": rng.integers(1, 4, n),
         "exon_number": rng.integers(1, 30, n), "lovd_variant_class": rng.integers(1, 6, n),
