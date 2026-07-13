@@ -70,16 +70,36 @@ else
     exit 4
 fi
 
-# --- imodelsx v1.0.13 KAN bug fix (AFTER install, so imodelsx exists) ---
-IMODELSX_KAN=$($PY -c "import imodelsx.kan.kan_sklearn as m; print(m.__file__)" 2>/dev/null || true)
-if [ -n "$IMODELSX_KAN" ] && grep -q "test_size=test_size" "$IMODELSX_KAN"; then
-    sed -i 's/test_size=test_size/test_size=self.test_size/g' "$IMODELSX_KAN"
-    sed -i 's/random_state=random_state/random_state=self.random_state/g' "$IMODELSX_KAN"
-    sed -i 's/shuffle=shuffle/shuffle=self.shuffle/g' "$IMODELSX_KAN"
-    echo "==> imodelsx_patch: fixed 3 bare-name refs in $IMODELSX_KAN" | tee -a "$LOG"
-else
-    echo "==> imodelsx_patch: already patched or marker absent" | tee -a "$LOG"
-fi
+# --- imodelsx v1.0.13 KAN bug: REPAIRED IN-PROCESS. The sed is GONE. (2026-07-13) ---
+#
+# This block used to `sed -i` the INSTALLED site-packages file:
+#     sed -i 's/test_size=test_size/test_size=self.test_size/g' "$IMODELSX_KAN"
+#     ... and the same for random_state and shuffle.
+#
+# WHY IT IS GONE
+# imodelsx 1.0.13's KANClassifier.__init__ accepts test_size / random_state / shuffle and
+# DISCARDS them, and its fit() reads them as BARE NAMES -> NameError. The sed redirected the
+# lookup onto `self`, and models/kan.py supplied `self.<name>`. Together they worked. But the
+# sed only ever ran HERE, in launch_run11_vm.sh, and in launch_run16.py -- never in
+# Continuous Integration, never in Docker, and NEVER in scripts/vm_bootstrap_run.sh, which
+# is the RUN 17 path.
+#
+# So the Kolmogorov-Arnold Network raised NameError in every Continuous Integration run,
+# the ensemble's bare `except Exception` swallowed it, and a TWELVE-model ensemble was
+# trained and reported as healthy. It surfaced only on 2026-07-13, when that handler was
+# made to fail loud (7d42409).
+#
+# Worse, the sed left the developer's .venv312 holding a MUTATED site-packages -- so local
+# tests exercised a code path no clean machine had, and "it passes on my machine" was
+# load-bearing from 2026-05 until 2026-07-13.
+#
+# The repair now lives in models/kan.py::_repair_imodelsx_kan_bare_names() and applies
+# IN-PROCESS, identically, in every environment. It handles both the pristine and the
+# (legacy) sed-patched source form, and is covered by tests/unit/test_kan_actually_fits.py.
+#
+# DO NOT RE-ADD THE SED. It would re-create exactly the environment divergence that hid this
+# defect for two months. scripts/vm_bootstrap_run.sh section E now FITS KANClassifier -- not
+# merely imports it -- and fails the launch if it cannot train.
 
 nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader 2>&1 | tee -a "$LOG"
 

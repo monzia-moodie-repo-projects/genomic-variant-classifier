@@ -240,6 +240,40 @@ def test_dropped_model_is_absent_from_the_comparison_artifacts(tmp_path):
     assert set(ens.dropped_models_) == {"doomed"}
 
 
+def test_completeness_is_recorded_on_a_clean_run(tmp_path):
+    """`the ensemble was complete` must be a RECORDED FACT, not an assumption.
+
+    Until 2026-07-13, "the roster has N models" and "the run trained N models" were different
+    statements and nothing checked the second. The Kolmogorov-Arnold Network had been failing
+    inside imodelsx 1.0.13 -- and being silently swallowed -- in every Continuous Integration
+    run since May, and no artifact anywhere recorded that a model was missing.
+    """
+    ens = _ensemble_with_one_exploding_model(tmp_path)
+    ens.base_estimators.pop("doomed")
+    ens.fit(*_tiny_inputs())
+
+    c = ens.ensemble_completeness_
+    assert c["complete"] is True
+    assert c["roster"] == ["healthy"] == c["trained"]
+    assert c["dropped"] == {}
+    assert c["n_roster"] == c["n_trained"] == 1
+
+
+def test_completeness_records_the_loss_when_a_model_is_dropped(tmp_path):
+    """And when the ensemble IS short, the artifact must say so -- with the cause."""
+    ens = _ensemble_with_one_exploding_model(tmp_path, allow_base_model_dropout=True)
+    ens.fit(*_tiny_inputs())
+
+    c = ens.ensemble_completeness_
+    assert c["complete"] is False, (
+        "a 2-model roster that trained 1 model must NOT report itself complete"
+    )
+    assert c["n_roster"] == 2 and c["n_trained"] == 1
+    assert c["trained"] == ["healthy"]
+    assert "doomed" in c["dropped"]
+    assert "synthetic OOF failure" in c["dropped"]["doomed"], "record the CAUSE"
+
+
 def test_total_failure_raises_a_comprehensible_error(tmp_path):
     """If EVERY model dies, say so plainly -- do not hand (n, 0) to the meta-learner."""
     ens = _ensemble_with_one_exploding_model(tmp_path, allow_base_model_dropout=True)

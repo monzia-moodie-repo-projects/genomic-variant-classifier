@@ -153,7 +153,22 @@ optuna>=4.0
 polars>=1.0
 duckdb>=1.0
 pykan>=0.2.0
-imodelsx>=1.0.13
+# PINNED EXACTLY (2026-07-13). Was `imodelsx>=1.0.13`.
+#
+# 1.0.13 is the LATEST release (there is no 1.0.14), so `>=` bought nothing but risk. This
+# project's stated first-class goal is to MEASURE AND COMPARE machine-learning algorithms;
+# a floating model library makes those measurements non-reproducible on principle -- Run 15's
+# numbers are only meaningful against a known KAN implementation.
+#
+# 1.0.13 additionally ships a hard bug: KANClassifier.fit() references `test_size`,
+# `random_state` and `shuffle` as BARE NAMES, so it raises NameError and cannot run at all.
+# It is repaired IN-PROCESS by _repair_imodelsx_kan_bare_names() in
+# src/genomic_variant_classifier/models/kan.py -- NOT by the sed-into-site-packages that
+# used to live in the launch scripts and that Continuous Integration, Docker and the Run 17
+# bootstrap never executed. If imodelsx ever ships a fixed release, RE-MEASURE before moving
+# this pin: tests/unit/test_kan_actually_fits.py will tell you whether the repair is still
+# needed.
+imodelsx==1.0.13
 
 gudhi  # SR31 PASS 2026-06-03 (v3.12.0, SimplexTree API verified)
 transformers==4.46.3

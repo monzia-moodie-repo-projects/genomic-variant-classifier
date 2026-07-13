@@ -72,13 +72,10 @@ SETUP_TRAIN = f"""set -e
 cd {REMOTE_REPO}
 if pgrep -f "scripts/train.py" >/dev/null 2>&1; then echo TRAIN_ALREADY_RUNNING; exit 0; fi
 pip install -r requirements.txt --break-system-packages
-IMODELSX_KAN=$(python -c "import imodelsx.kan.kan_sklearn as m; print(m.__file__)" 2>/dev/null || true)
-if [ -n "$IMODELSX_KAN" ] && grep -q "test_size=test_size" "$IMODELSX_KAN"; then
-  sed -i 's/test_size=test_size/test_size=self.test_size/g' "$IMODELSX_KAN"
-  sed -i 's/random_state=random_state/random_state=self.random_state/g' "$IMODELSX_KAN"
-  sed -i 's/shuffle=shuffle/shuffle=self.shuffle/g' "$IMODELSX_KAN"
-  echo "imodelsx_patch applied"
-fi
+# imodelsx 1.0.13 KAN bug: REPAIRED IN-PROCESS since 2026-07-13. The sed is GONE.
+# See models/kan.py::_repair_imodelsx_kan_bare_names(). DO NOT RE-ADD IT -- sed-ing
+# site-packages on some machines and not others is what let KAN be silently dropped from
+# every Continuous Integration run for two months.
 python -c "import catboost,lightgbm,xgboost,torch;print('ENV_OK',torch.cuda.is_available())"
 python -c "from huggingface_hub import snapshot_download; print('ESM2_CACHED', snapshot_download('{HF_MODEL}'))"
 nohup python scripts/train.py {TRAIN_FLAGS} > {TRAIN_LOG} 2>&1 &
