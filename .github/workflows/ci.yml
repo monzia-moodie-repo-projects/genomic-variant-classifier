@@ -183,9 +183,31 @@ jobs:
           # Failures are triaged into exactly two buckets -- a real bug, which is fixed, or a
           # genuine data dependency, which gets a REGISTERED marker with a printed reason.
           # No bare skips. A test that does not run must always say why (-rs, above).
+          #
+          # --assert-suite-size (2026-07-13, roadmap 6.14): THE SUITE-SIZE RATCHET.
+          #
+          # The G1 pre-flight gate carried a hand-maintained pytest floor. It rotted FIVE TIMES
+          # IN TWO DAYS -- 1485 -> 1805 -> 1842 -> 1850 -> 1853 -- every time directly beneath
+          # an all-capitals comment ordering the next person to raise it. At 1485 against a
+          # suite passing 1,815, THREE HUNDRED AND THIRTY tests could have vanished and the gate
+          # would still have said PASS. A COMMENT DOES NOT ENFORCE ITSELF.
+          #
+          # The number now lives in ONE file -- tests/EXPECTED_SUITE_SIZE -- and this flag makes
+          # pytest ABORT if the COLLECTED count disagrees with it, in EITHER direction:
+          #   fewer  -> tests have VANISHED (deleted, mis-named, lost to a collection error, or
+          #             silently skipped at module import because a dependency went missing --
+          #             which is EXACTLY how the graph-neural-network branch went untested for
+          #             508 runs; see roadmap 6.17).
+          #   more   -> tests were added and the ratchet was not bumped. Red until it is.
+          #
+          # Continuous Integration and G1 pass the same flag and read the same file, so the two
+          # gates cannot drift apart. The COLLECTED count is asserted rather than `passed`,
+          # because collected is environment-independent (1,870 on Windows and on this runner)
+          # while the passed/skipped split legitimately is not.
           pytest tests/ -q \
             -rs \
             --tb=short \
+            --assert-suite-size \
             --cov=genomic_variant_classifier \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml

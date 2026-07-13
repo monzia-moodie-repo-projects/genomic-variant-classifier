@@ -27,6 +27,109 @@ for _anc in (_here.parent, *_here.parents):
         break
 
 
+# ===========================================================================================
+# THE SUITE-SIZE RATCHET (roadmap 6.14, built 2026-07-13)
+# ===========================================================================================
+# The G1 pre-flight pytest floor rotted FIVE TIMES IN TWO DAYS -- 1485 -> 1805 -> 1842 ->
+# 1850 -> 1853 -- every time directly beneath an all-capitals comment ordering the next person
+# to raise it, written by the person who then failed to raise it. At 1485 against a suite of
+# 1,815, THREE HUNDRED AND THIRTY tests could have silently vanished and the gate would still
+# have said PASS.
+#
+# A COMMENT DOES NOT ENFORCE ITSELF. No volume of emphasis will make it. So this replaces the
+# comment with a gate: `tests/EXPECTED_SUITE_SIZE` holds ONE number, and under the explicit
+# `--assert-suite-size` flag the suite ABORTS if the collected count disagrees with it -- in
+# EITHER direction. Adding a test therefore turns the suite red until the number is bumped.
+# Forgetting is no longer possible, because forgetting FAILS.
+#
+# This is the same fail-loud pattern the project already uses successfully for features:
+# TABULAR_FEATURES is guarded by EXPECTED_TABULAR_FEATURE_COUNT, and adding a feature without
+# bumping the count is a hard error. Tests now get the same protection.
+#
+# Why COLLECTED and not PASSED: the collected count is environment-independent; the
+# passed/skipped split is not (Windows 1863p/7s vs Linux CI 1856p/13s/1xf -- both 1870
+# collected). Asserting `passed` would need two numbers and would re-create the very
+# divergence this exists to kill.
+# ===========================================================================================
+
+_SUITE_SIZE_FILE = _here.parent / "EXPECTED_SUITE_SIZE"
+
+
+def _read_expected_suite_size() -> int:
+    """Parse tests/EXPECTED_SUITE_SIZE -> int. A malformed ratchet is a DEAD ratchet."""
+    if not _SUITE_SIZE_FILE.is_file():
+        raise pytest.UsageError(
+            f"--assert-suite-size was requested but {_SUITE_SIZE_FILE} does not exist.\n"
+            f"This file is the single source of truth for the suite size (roadmap 6.14). "
+            f"Without it the ratchet cannot run, and a missing guard must NEVER degrade to a "
+            f"silent pass."
+        )
+
+    numbers = [
+        line.strip()
+        for line in _SUITE_SIZE_FILE.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    if len(numbers) != 1 or not numbers[0].isdigit() or int(numbers[0]) <= 0:
+        raise pytest.UsageError(
+            f"{_SUITE_SIZE_FILE} is MALFORMED. It must contain exactly one bare positive "
+            f"integer (comments starting with '#' and blank lines are ignored).\n"
+            f"Found these non-comment lines: {numbers!r}\n"
+            f"A ratchet that cannot be parsed is a ratchet that does not guard."
+        )
+    return int(numbers[0])
+
+
+def pytest_addoption(parser) -> None:
+    parser.addoption(
+        "--assert-suite-size",
+        action="store_true",
+        default=False,
+        help=(
+            "Fail if the number of COLLECTED tests differs from tests/EXPECTED_SUITE_SIZE. "
+            "Passed by the G1 pre-flight gate and by Continuous Integration. Off by default, "
+            "so running a subset locally (e.g. `pytest tests/unit/test_foo.py`) is unaffected."
+        ),
+    )
+
+
+def pytest_collection_modifyitems(session, config, items) -> None:
+    """THE RATCHET. Collected != expected -> abort, in either direction."""
+    if not config.getoption("--assert-suite-size"):
+        return
+
+    expected = _read_expected_suite_size()
+    collected = len(items)
+    if collected == expected:
+        return
+
+    delta = collected - expected
+    if delta > 0:
+        diagnosis = (
+            f"{delta} MORE test(s) than expected.\n"
+            f"  You ADDED tests and did not bump the ratchet. This is the intended failure:\n"
+            f"  the number cannot go stale, because adding a test turns the suite RED until\n"
+            f"  you update it. Set the value to {collected} IN THE SAME COMMIT as the tests."
+        )
+    else:
+        diagnosis = (
+            f"{-delta} FEWER test(s) than expected.\n"
+            f"  *** TESTS HAVE VANISHED. *** They were deleted, renamed out of discovery, lost\n"
+            f"  to a collection error, or silently skipped at module import (an importorskip on\n"
+            f"  a MISSING DEPENDENCY collapses N tests into ONE skip entry -- that is exactly how\n"
+            f"  the entire graph-neural-network branch went untested for 508 Continuous\n"
+            f"  Integration runs; see roadmap 6.17).\n"
+            f"  DO NOT 'fix' this by lowering the number. Find out what stopped running."
+        )
+
+    raise pytest.UsageError(
+        f"\nSUITE-SIZE RATCHET FAILED (roadmap 6.14)\n"
+        f"  expected (tests/EXPECTED_SUITE_SIZE): {expected}\n"
+        f"  actually collected:                   {collected}\n"
+        f"  {diagnosis}\n"
+    )
+
+
 # ---------------------------------------------------------------------------
 # sys.path leak guard (added 2026-07-11 -- cluster E)
 # ---------------------------------------------------------------------------

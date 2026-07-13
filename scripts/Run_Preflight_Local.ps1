@@ -5,35 +5,44 @@
 # =============================================================================
 [CmdletBinding()]
 # [G1-RUN17-ADAPTED] Run-15 -> Run-17 (2026-06-27): launch path, kan.py imodelsx, FinnGen R12+R13 required, Run17 postflight+plan, agent liveness.
-# Test floors live in ONE place only -- $MinPytest (collected) and $minPass (~line 155).
-# This header used to carry a THIRD copy ("test floor 1485/1480"), which was stale by ~370
-# tests and contradicted both of them. A number written down in three places is wrong in at
-# least two. Do not restate the floors here; read them from the parameters.
+# THERE ARE NO TEST FLOORS. The suite size lives in ONE file: tests\EXPECTED_SUITE_SIZE, and
+# it is enforced BY PYTEST ITSELF (tests/conftest.py) under --assert-suite-size, which Section
+# 6 below passes. Continuous Integration passes the same flag and reads the same file.
+#
+# This header has now been wrong TWICE about this, which is the point:
+#   * It once carried a THIRD copy of the floor ("test floor 1485/1480") -- stale by ~370
+#     tests and contradicting both live values. A number written down in three places is wrong
+#     in at least two.
+#   * It was then corrected on 2026-07-13 to say the floors "live in ONE place only --
+#     $MinPytest and $minPass" -- and within the same day those two variables were DELETED and
+#     this line became a lie again, describing parameters that no longer exist and pointing at
+#     a line number that no longer holds them.
+#
+# That is root pattern (a) -- a claim written down once and never re-derived -- committed in
+# the very change that abolished it. DO NOT RESTATE THE SUITE SIZE HERE, OR ANYWHERE ELSE.
+# One number. One file. Enforced by a gate, not by a comment. See roadmap 6.14.
 param(
     [string]$RepoRoot     = "C:\Projects\genomic-variant-classifier",
     [string]$VenvName     = ".venv312",
     [string]$SshKey       = "C:\Users\monzi\.ssh\id_lambda_run8",
     [string]$ExpectedHead = "",
-    # COLLECTED floor -- refreshed 2026-07-13 (was 1815, and before that 1496).
-    # Paired with $minPass (~line 136). A collected-floor that lags the suite lets tests
-    # VANISH silently: at 1496, three hundred tests could stop being collected -- deleted,
-    # mis-named, or lost to a collection error -- and this gate would still say PASS.
-    # RAISE BOTH WHENEVER YOU ADD TESTS.
+    # NOTE: $MinPytest and $minPass ARE GONE (2026-07-13, roadmap 6.14).
     #
-    # 2026-07-13: this floor went stale FOUR TIMES IN TWO DAYS. 1485 -> 1815 -> 1852 -> 1860,
-    # as 41 tests were added across four commits (test_base_model_dropout_is_loud 8,
-    # test_feature_name_contract 7, test_scalable_svm_map_dim 20, test_kan_actually_fits 6).
-    # Each time the emphatic "RAISE THIS" comment below failed to raise it. THE COMMENT DOES
-    # NOT ENFORCE ITSELF, and no volume of capital letters will make it. This is a DESIGN
-    # defect, not a discipline defect -- see roadmap 6.14 for the ratchet that replaces it
-    # (one committed suite-size constant, enforced by the suite itself under an explicit
-    # --assert-suite-size flag, exactly as EXPECTED_TABULAR_FEATURE_COUNT guards
-    # TABULAR_FEATURES). Until that lands, raise BY HAND in the same commit that adds tests.
-    # 2026-07-13 (later): +3 again. `mapie` was declared in NO requirements file, so
-    # tests/conformal/test_mapie_crosscheck.py -- the ONLY independent check of this
-    # project's from-scratch conformal prediction against a mature reference -- had NEVER
-    # EXECUTED on any machine. Declared and run: all 3 PASS. Suite 1,868 -> 1,870 collected.
-    [int]$MinPytest       = 1862,
+    # They were hard-coded pytest floors, and they ROTTED FIVE TIMES IN TWO DAYS:
+    #     1485 -> 1805 -> 1842 -> 1850 -> 1853
+    # Every single time, the number sat directly beneath an emphatic, all-capitals comment
+    # ordering the next person to raise it -- written by the person who then failed to raise
+    # it. At 1485 against a suite passing 1,815, THREE HUNDRED AND THIRTY tests could have
+    # silently vanished and this gate would still have reported PASS.
+    #
+    # A COMMENT DOES NOT ENFORCE ITSELF. So the comment has been replaced by a GATE: the suite
+    # size now lives in ONE file, `tests/EXPECTED_SUITE_SIZE`, and `pytest --assert-suite-size`
+    # ABORTS if the collected count disagrees with it -- in EITHER direction. Adding a test
+    # turns the suite RED until the number is bumped. Forgetting is no longer possible, because
+    # forgetting FAILS. Same fail-loud pattern as EXPECTED_TABULAR_FEATURE_COUNT guarding
+    # TABULAR_FEATURES. Section 6 below passes that flag; the number is not restated here, and
+    # must never be.
+    #
     # -SkipPytest is an ESCAPE HATCH ON A GATE THAT PROTECTS PAID COMPUTE. On 2026-07-06 the
     # project shipped 24 red tests to a rented GPU. Use it only to debug this script itself,
     # never to get a run out the door -- the gate exists precisely for the moment you are
@@ -128,63 +137,76 @@ print(f'SMOKE_OK shape={p.shape} backend={backend}')
         else { Fail "KAN smoke FAILED: $smokeOut" }
     }
 
-    Section "6. Pytest suite (>= $MinPytest passed, 0 failed/errored)"
+    Section "6. Pytest suite (full tree; SUITE-SIZE RATCHET enforced, 0 failed/errored)"
     if ($SkipPytest) { Warn "pytest skipped by flag" }
     else {
         Get-ChildItem -Recurse -Filter "__pycache__" -Directory -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch 'venv' } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-        $po = & $venvPython -m pytest tests/ -q --no-header --tb=line 2>&1
-        $tail = ($po | Select-Object -Last 6) -join "`n"
-        $nFail = 0; $nPass = 0; $nSkip = 0
+
+        # --assert-suite-size (2026-07-13, roadmap 6.14): the suite ABORTS if the number of
+        # COLLECTED tests disagrees with tests/EXPECTED_SUITE_SIZE, in EITHER direction --
+        # fewer means tests VANISHED, more means tests were added and the ratchet was not
+        # bumped. The number lives in ONE file and is NOT restated here. Continuous Integration
+        # passes the same flag and reads the same file.
+        $po = & $venvPython -m pytest tests/ -q --no-header --tb=line --assert-suite-size 2>&1
+        $rc = $LASTEXITCODE
+        $tail = ($po | Select-Object -Last 10) -join "`n"
+        $nFail = 0; $nPass = 0; $nSkip = 0; $nXfail = 0
         if ($tail -match '(\d+) failed')  { $nFail = [int]$Matches[1] }
         if ($tail -match '(\d+) error')   { $nFail += [int]$Matches[1] }
         if ($tail -match '(\d+) passed')  { $nPass = [int]$Matches[1] }
         if ($tail -match '(\d+) skipped') { $nSkip = [int]$Matches[1] }
-        $collected = $nPass + $nSkip
+        if ($tail -match '(\d+) xfailed') { $nXfail = [int]$Matches[1] }
+        $collected = $nPass + $nSkip + $nXfail
+
+        # Read the ratchet purely to REPORT it. It is ENFORCED inside pytest (conftest.py), not
+        # here -- so this gate cannot drift away from Continuous Integration's view of it.
+        $ratchetFile = Join-Path $RepoRoot "tests\EXPECTED_SUITE_SIZE"
+        $expectedSize = "?"
+        if (Test-Path $ratchetFile) {
+            $m = Get-Content $ratchetFile | Where-Object { $_ -match '^\s*\d+\s*$' } | Select-Object -First 1
+            if ($m) { $expectedSize = $m.Trim() }
+        } else {
+            Fail "tests\EXPECTED_SUITE_SIZE is MISSING. The suite-size ratchet cannot run, and a missing guard must never degrade to a silent pass (roadmap 6.14)."
+        }
         # -------------------------------------------------------------------------------
-        # PASS FLOOR -- refreshed 2026-07-13. Was 1805; before that 1485 (STALE BY ~330).
+        # THE FLOORS ARE GONE. THE RATCHET REPLACES THEM. (2026-07-13, roadmap 6.14)
         # -------------------------------------------------------------------------------
-        # The 2026-06-28 comment recorded "1498 collected / 1491 passed" and set the floor at
-        # 1485. By 2026-07-12 the suite collected 1,823 and passed 1,815 -- so a floor of 1485
-        # would have accepted the SILENT LOSS OF 330 TESTS and still reported PASS. A floor
-        # that drifts below reality is not a floor; it is a rubber stamp.
+        # This block used to hold TWO hand-maintained numbers -- $MinPytest (collected floor)
+        # and $minPass (pass floor). They rotted FIVE TIMES IN TWO DAYS:
         #
-        # IT THEN WENT STALE THREE MORE TIMES, IN TWO DAYS: 1485 -> 1805 -> 1842 -> 1850, as
-        # 41 tests were added across four commits on 2026-07-12/13. Every single time, the
-        # emphatic comment demanding the raise was sitting right here, and every single time
-        # it failed to cause one. THE COMMENT DOES NOT ENFORCE ITSELF. See roadmap 6.14: the
-        # permanent fix is a ratchet -- one committed suite-size constant, enforced by the
-        # SUITE, exactly as EXPECTED_TABULAR_FEATURE_COUNT guards TABULAR_FEATURES, so that
-        # adding a test turns the suite red until the constant is bumped. Forgetting then
-        # fails loudly instead of silently widening the gap between the floor and reality.
+        #     1485  ->  1805  ->  1842  ->  1850  ->  1853
         #
-        # Measured 2026-07-13, LATEST (full suite, Python 3.12, pristine imodelsx, mapie declared):
-        #     1,870 collected = 1,863 passed + 7 skipped, 0 failed, 0 errors, 0 WARNINGS
+        # every single time beneath an emphatic, all-capitals comment ordering the next person
+        # to raise them, written by the person who then failed to raise them. At 1485 against a
+        # suite passing 1,815, THREE HUNDRED AND THIRTY tests could have silently vanished and
+        # this gate would still have said PASS.
         #
-        # Earlier 2026-07-13 (before `mapie` was declared -- its 3 conformal cross-checks had
-        # NEVER executed on any machine, ever):
-        #     1,868 collected = 1,860 passed + 8 skipped, 0 failed, 0 errors, 0 WARNINGS
+        # There is now ONE number, in ONE file -- tests\EXPECTED_SUITE_SIZE -- and it is
+        # enforced BY PYTEST ITSELF (tests/conftest.py) under --assert-suite-size, which this
+        # gate passes above. If the collected count disagrees in EITHER direction, pytest
+        # ABORTS and this section fails on the non-zero exit code. Adding a test turns the
+        # suite RED until the number is bumped: forgetting is no longer possible, because
+        # forgetting FAILS.
         #
-        # NOTE: this is the first measurement taken against a PRISTINE imodelsx. Until
-        # 2026-07-13 the developer's .venv312 held a sed-MUTATED copy of the library, so every
-        # local number before today was measured on an environment no clean machine had -- and
-        # the Kolmogorov-Arnold Network, which raises NameError on a pristine install, was
-        # being silently dropped from every Continuous Integration run. See
-        # docs/status/REMEDIATION_2026-07-13_warnings-and-silent-model-drop.md section 9.
+        # Deliberately, the number is NOT restated here. Restating it is precisely how it came
+        # to disagree with itself in four places. This gate READS it, to report it, and never
+        # to decide with it.
         #
-        # Earlier: 2026-07-13 pre-KAN-fix 1,860 collected / 1,852 passed.
-        #          2026-07-12 1,823 collected / 1,815 passed.
-        # The suite is HERMETIC and IDEMPOTENT (88af150), so these numbers are reproducible
-        # rather than a function of what happens to sit on the developer's disk.
-        #
-        # Headroom of 10 below 1,860 absorbs legitimate environment-dependent skips (e.g. the
-        # POSIX-symlink test that cannot run on Windows). It is NOT headroom for regressions:
-        # any failure or error fails this gate outright, regardless of the count.
-        #
-        # WHEN YOU ADD TESTS, RAISE THIS. It has now gone stale FIVE TIMES in two days.
-        $minPass = 1853
-        if ($nFail -gt 0) { Fail "pytest: $nFail failed/errored ($nPass passed, $nSkip skipped). Tail:`n$tail" }
-        elseif ($nPass -ge $minPass -and $collected -ge $MinPytest) { Pass "pytest: $nPass passed, $nSkip skipped, 0 failed (>= $minPass passed, collected $collected >= $MinPytest)" }
-        else { Fail "pytest: $nPass passed / $nSkip skipped / collected $collected (expected >= $minPass passed and >= $MinPytest collected). Tail:`n$tail" }
+        # Note also: pass/skip counts are ENVIRONMENT-DEPENDENT (Windows 1863p/7s vs Linux CI
+        # 1856p/13s/1xf), which is why the old $minPass could never have been correct in both.
+        # The COLLECTED count is environment-independent -- 1,870 on both -- so that is what
+        # the ratchet asserts.
+        # -------------------------------------------------------------------------------
+        if ($rc -ne 0 -and $nFail -eq 0) {
+            # Non-zero exit with no test failures = the ratchet (or another usage error) fired.
+            Fail "pytest exited $rc with 0 test failures -- THE SUITE-SIZE RATCHET LIKELY FIRED (expected $expectedSize collected, got $collected). Read the message below and DO NOT lower the number to make it pass.`n$tail"
+        }
+        elseif ($nFail -gt 0) {
+            Fail "pytest: $nFail failed/errored ($nPass passed, $nSkip skipped). Tail:`n$tail"
+        }
+        else {
+            Pass "pytest: $nPass passed, $nSkip skipped, 0 failed; suite-size ratchet OK (collected $collected == EXPECTED_SUITE_SIZE $expectedSize)"
+        }
     }
 
     Section "7. Run 17 prep-input data files (raw; SCP'd up for on-VM prep)"

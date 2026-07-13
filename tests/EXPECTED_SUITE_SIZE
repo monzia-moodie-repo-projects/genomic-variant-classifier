@@ -1,0 +1,91 @@
+# THE SUITE-SIZE RATCHET -- the single source of truth for how many tests exist.
+# Created 2026-07-13 (roadmap 6.14).
+#
+# WHY THIS FILE EXISTS
+# -------------------
+# The G1 pre-flight gate carried a hard-coded pytest floor. It rotted FIVE TIMES IN TWO DAYS:
+#
+#     1485  ->  1805  ->  1842  ->  1850  ->  1853
+#
+# Every single time, the number sat directly beneath an emphatic, all-capitals comment
+# ordering the next person to raise it -- written by the person who then failed to raise it.
+# At 1485 against a suite of 1,815, THREE HUNDRED AND THIRTY tests could have silently
+# vanished -- deleted, mis-named, or lost to a collection error -- and the gate would still
+# have reported PASS. A floor that drifts below reality is not a floor; it is a rubber stamp.
+#
+# THE COMMENT DOES NOT ENFORCE ITSELF, AND NO VOLUME OF EMPHASIS WILL MAKE IT.
+# That is roadmap section 7, root pattern (a): a number written down once and never
+# re-derived becomes a lie on a schedule. The fix is never a louder comment. The fix is to
+# make FORGETTING FAIL.
+#
+# HOW IT WORKS
+# -----------
+# `tests/conftest.py` reads this file. Under the explicit `--assert-suite-size` flag it
+# compares the number below against the number of tests pytest actually COLLECTED, and
+# ABORTS THE RUN on any disagreement -- in either direction:
+#
+#     collected < expected   ->  tests have VANISHED. Something is silently not running.
+#     collected > expected   ->  tests were ADDED and this file was not updated.
+#
+# Both are failures. The second is the ratchet: you cannot add a test without bumping this
+# number, because the gate goes red until you do. Forgetting is no longer possible.
+#
+# G1 (`scripts/Run_Preflight_Local.ps1`) and Continuous Integration (`.github/workflows/
+# ci.yml`) BOTH pass `--assert-suite-size`, and BOTH read this file. The number therefore
+# lives in exactly ONE place. It previously lived in four, and disagreed with itself in
+# three of them.
+#
+# Running a subset locally (`pytest tests/unit/test_foo.py`) is UNAFFECTED: without the
+# explicit flag, the check does not run at all.
+#
+# WHY *COLLECTED* AND NOT *PASSED*
+# --------------------------------
+# The collected count is ENVIRONMENT-INDEPENDENT. The passed/skipped split is not:
+#
+#     2026-07-13, Windows + full data:   1863 passed +  7 skipped              = 1870
+#     2026-07-13, Linux CI runner:       1856 passed + 13 skipped + 1 xfailed  = 1870
+#
+# Same collection, different outcomes -- Continuous Integration legitimately skips the
+# Windows-targeted post-flight tests, the ESM-2 tests (HuggingFace Hub is offline by design),
+# and the tests needing gitignored cohort data. Asserting `passed` would force two numbers
+# and re-create the divergence this file exists to kill. Asserting `collected` gives ONE
+# number that is true everywhere.
+#
+# NOTE: this only works because the environments now COLLECT the same tests. Before
+# 2026-07-13 they did not -- `torch_geometric`, `pandera`, `pyspark`, `river` and `mapie`
+# were missing from Continuous Integration, and a module-level `importorskip` collapses N
+# tests into ONE skip entry, so CI collected 1825 against a local 1868. Closing that gap
+# (roadmap 6.17) is what made this ratchet possible at all.
+#
+# WHEN YOU ADD OR REMOVE TESTS
+# ----------------------------
+# Run the full suite, read the collected count (passed + skipped + xfailed + xpassed), and
+# update the number below IN THE SAME COMMIT. The suite will tell you the exact figure and
+# refuse to go green until you do.
+#
+# Format: exactly one line below that is a bare positive integer. Comments and blank lines
+# are ignored. Anything else is a hard error -- a malformed ratchet is a dead ratchet.
+#
+# HISTORY -- every change to this number, with the reason. Keep it.
+#
+#   1870  2026-07-13  first value. Windows (Python 3.12): 1863 passed + 7 skipped.
+#                     Linux runner (3.11 and 3.12): 1856 passed + 13 skipped + 1 xfailed.
+#                     Same collection, different outcomes -- hence `collected`, not `passed`.
+#
+#   1882  2026-07-13  +12: tests/unit/test_suite_size_ratchet.py -- the ratchet's own
+#                     self-test (roadmap 6.9: a guard with no self-test is a rumour).
+#
+#                     THE RATCHET'S FIRST ACT WAS TO CATCH ITS OWN AUTHOR. Adding those 12
+#                     tests without touching this number turned the suite RED immediately:
+#
+#                         SUITE-SIZE RATCHET FAILED (roadmap 6.14)
+#                           expected (tests/EXPECTED_SUITE_SIZE): 1870
+#                           actually collected:                   1882
+#                           12 MORE test(s) than expected.
+#                           Set the value to 1882 IN THE SAME COMMIT as the tests.
+#
+#                     pytest exit code 4. That is the whole design working: five times in two
+#                     days a hard-coded floor went stale beneath an all-capitals comment
+#                     ordering someone to raise it, and five times the comment did nothing.
+#                     This cannot be walked past.
+1882
