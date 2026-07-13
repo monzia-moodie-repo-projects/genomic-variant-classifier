@@ -45,3 +45,37 @@ namespaces = true
 # (per its docstring L10-14: "Run from agent_layer/: python
 # test_message_bus.py") and remains runnable by explicit path.
 testpaths = ["tests"]
+
+# ---------------------------------------------------------------------------
+# Warning filters. Add to this list ONLY with a measured justification and a test
+# that pins the premise -- never to quieten a warning that has not been understood.
+# ---------------------------------------------------------------------------
+filterwarnings = [
+    # LightGBM 4.6.0 <-> scikit-learn 1.x interaction. SPURIOUS. Investigated 2026-07-13;
+    # the full measurement lives in tests/unit/test_feature_name_contract.py, which FAILS
+    # if any premise below stops holding.
+    #
+    # LightGBM's scikit-learn wrapper populates `feature_names_in_` with SYNTHETIC names
+    # ('Column_0', 'Column_1', ...) even when fitted on a bare numpy ndarray with no names
+    # supplied. (scikit-learn's own estimators leave it unset in that situation.) At predict
+    # time, scikit-learn's `_check_feature_names` then sees an estimator that "was fitted
+    # with feature names" being given an array that has none, and warns.
+    #
+    # VariantEnsemble dispatches LightGBM the raw ndarray (`X_tab.values`) in fit, in
+    # _leakfree_oof, in predict_proba, and in evaluate -- consistently, in every direction.
+    # There is therefore no feature-name mismatch and no column-order hazard. The warning
+    # describes a condition that cannot occur here. It is noise, and it fired 11 times per
+    # suite run, training everyone to scroll past UserWarnings -- which is precisely how the
+    # convergence defect survived for weeks.
+    #
+    # DO NOT broaden this to `ignore::UserWarning`. It is pinned to this exact message so a
+    # DIFFERENT UserWarning still reaches us.
+    #
+    # DO NOT "clean this up" by passing DataFrames to LightGBM instead. That was measured on
+    # 2026-07-13 and it is ACTIVELY DANGEROUS: unlike scikit-learn (ValueError), XGBoost
+    # (ValueError), and CatBoost (reorders by name), LightGBM does NOT enforce its own
+    # feature names -- it maps columns POSITIONALLY and returns SILENTLY WRONG predictions
+    # when the column order differs (measured swing: 0.855 in predicted probability, no
+    # error, no warning). The `.values` dispatch is load-bearing, not stylistic.
+    "ignore:X does not have valid feature names, but LGBMClassifier was fitted with feature names:UserWarning",
+]

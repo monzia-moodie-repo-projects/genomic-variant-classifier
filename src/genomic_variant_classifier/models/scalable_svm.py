@@ -51,6 +51,7 @@ Design notes
 from __future__ import annotations
 
 import logging
+import math
 from typing import Optional
 
 import numpy as np
@@ -115,8 +116,12 @@ class ScalableSVM(BaseEstimator, ClassifierMixin):
     ----------
     mode : {"nystrom", "rff", "bagged_rbf"}
     n_components : int
-        Nystrom/RFF feature-map dimension D (headline modes). Capped at n_samples
-        for Nystrom (which needs n_components <= n).
+        Nystrom/RFF feature-map dimension D (headline modes). Capped at THE NUMBER OF
+        ROWS THE MAP IS ACTUALLY FITTED ON -- which, when calibrate=True (the default),
+        is a CalibratedClassifierCV *training fold*, NOT n_samples. See
+        _rows_the_map_is_fitted_on(); this docstring previously said "capped at n_samples",
+        which was the bug (corrected 2026-07-13). At production scale the cap does not
+        bind (n ~ 1.7e6 >> D = 1024), which is why the error stayed invisible.
     gamma : "scale" | "auto" | float
     C : float
     class_weight : "balanced" | dict | None
@@ -180,9 +185,70 @@ class ScalableSVM(BaseEstimator, ClassifierMixin):
         """Bag count actually fit: bounded by svm_max_bags, never grows with n."""
         return int(min(max(self.svm_n_bags, 1), max(self.svm_max_bags, 1)))
 
+    def _rows_the_map_is_fitted_on(self, n_samples: int) -> int:
+        """How many rows the feature map ACTUALLY sees -- which is NOT n_samples.
+
+        THE DEFECT THIS REPLACES (found and measured 2026-07-13)
+        --------------------------------------------------------
+        `_build_headline` used to clamp the map dimension with
+
+            d = int(min(self.n_components, max(n_samples - 1, 1)))
+
+        i.e. against the size of the FULL training set. But when `calibrate=True` (the
+        DEFAULT), the pipeline -- StandardScaler -> Nystroem -> LinearSVC -- is handed to
+        CalibratedClassifierCV, which REFITS THE WHOLE PIPELINE ON EACH CROSS-VALIDATION
+        TRAINING FOLD. Every fold is strictly smaller than n_samples. Nystroem samples
+        `n_components` ROWS from the data it is fitted on, so it requires
+        n_components <= (fold size), and scikit-learn silently reduces n_components -- with
+        a UserWarning -- whenever that is violated.
+
+        The clamp was therefore off by the cross-validation factor. Measured, n=100,
+        n_components=1024, clamp giving d=99:
+
+            calibrate=True,  calibration_cv=3   -> 3 warnings (one per fold, ~66 rows each)
+            calibrate=True,  calibration_cv=5   -> 5 warnings (one per fold, ~80 rows each)
+            calibrate=False (no CV refit)       -> 0 warnings
+
+        One warning per fold, exactly. That is the signature of a per-fold refit, and it is
+        conclusive.
+
+        WHY IT WENT UNNOTICED FOR SO LONG
+        ---------------------------------
+        At production scale the clamp never binds: n ~ 1.7e6 and D = 1024, so
+        min(1024, n - 1) = 1024 and the fold (~1.1e6 rows) dwarfs it. The bug is INVISIBLE
+        at the scale the model is actually trained at, and only surfaces on the small
+        fixtures the tests use -- where it was dismissed as "test-scale noise" rather than
+        read. It is a latent correctness bug in the clamp, not a property of the test data.
+
+        THE CORRECT DENOMINATOR
+        -----------------------
+        StratifiedKFold(k) leaves a training fold of at least n - ceil(n / k) rows (fold
+        sizes differ by at most one). That -- not n -- is the number of rows the map is
+        fitted on, and it is what the dimension must be clamped against.
+        """
+        if not self.calibrate:
+            return max(int(n_samples), 1)
+        k = max(int(self.calibration_cv), 2)
+        return max(int(n_samples) - math.ceil(int(n_samples) / k), 1)
+
+    def _map_dim(self, n_samples: int) -> int:
+        """Feature-map dimension D, clamped to the rows the map is actually fitted on.
+
+        Nystroem: a HARD mathematical requirement. It selects `n_components` rows as
+        landmarks, so n_components <= (rows fitted on) or scikit-learn silently truncates.
+
+        RBFSampler (mode="rff"): NO such requirement -- it draws D random Fourier features
+        independently of n. The clamp is retained for it as a DELIBERATE and conservative
+        efficiency guard: a map wider than the number of rows it was built from buys no
+        information and only slows LinearSVC (and, at tiny n, risks non-convergence). This
+        preserves the pre-2026-07-13 behaviour for `rff` -- which was also clamped -- while
+        correcting the denominator it is clamped against.
+        """
+        return int(min(int(self.n_components), self._rows_the_map_is_fitted_on(n_samples)))
+
     def _build_headline(self, n_samples: int, n_features: int):
         gamma_val = _resolve_gamma(self.gamma, n_features)
-        d = int(min(self.n_components, max(n_samples - 1, 1)))
+        d = self._map_dim(n_samples)
         if self.mode == "nystrom":
             fmap = Nystroem(kernel="rbf", gamma=gamma_val, n_components=d,
                             random_state=self.random_state)
@@ -238,8 +304,22 @@ class ScalableSVM(BaseEstimator, ClassifierMixin):
                         self.svm_max_bags, self.n_jobs)
         else:
             self._fit_headline(X, y)
-            logger.info("ScalableSVM[%s]: D=%d on %d rows.",
-                        self.mode, min(self.n_components, X.shape[0] - 1), X.shape[0])
+            # Report the dimension ACTUALLY used. This line used to recompute the clamp
+            # inline as `min(self.n_components, X.shape[0] - 1)` -- a second, hand-kept
+            # copy of the formula in _build_headline. When the clamp was corrected on
+            # 2026-07-13 that copy would have kept logging the OLD (wrong) D while the model
+            # trained with the new one: a log that lies. Both now read _map_dim(), which is
+            # the single source of truth for the map dimension.
+            logger.info(
+                "ScalableSVM[%s]: D=%d on %d rows (map fitted on %d rows/fold; "
+                "calibrate=%s, calibration_cv=%d).",
+                self.mode,
+                self._map_dim(X.shape[0]),
+                X.shape[0],
+                self._rows_the_map_is_fitted_on(X.shape[0]),
+                self.calibrate,
+                self.calibration_cv,
+            )
         return self
 
     # ------------------------------------------------------------------
