@@ -778,17 +778,41 @@ the drift this project spends its time hunting. Recorded plainly so the failure 
 
 | # | item | status |
 |---|---|---|
-| 6.1 | **Continuous Integration `--maxfail=5`** -- the gate stops after 5 failures. It reported **5** when the truth was **24**. It is configured never to tell you how bad it is. | OPEN |
-| 6.2 | **Continuous Integration runs `tests/unit/` only** -- `tests/conformal/` (7 files), `tests/integration/` (1), and **22 root-level `tests/test_*.py`** = **30 test files never run in Continuous Integration.** This is why the clean-clone breakage survived. | OPEN |
-| 6.3 | **The rented-GPU path bypasses Continuous Integration entirely.** `Run_Preflight_VM.sh` / `vm_bootstrap_run.sh` check GPU, CUDA, VRAM, dependencies, disk, RAM, git HEAD -- **not `pytest`**. On 2026-07-06 code shipped to paid compute with 24 red tests. | OPEN |
-| 6.4 | `RUN_17_PLAN.md` hypothesis still says **91** features; actual **97**. Fix before launch. | OPEN |
-| 6.5 | Correctness-harness sanity model **does not converge** (lbfgs, max_iter 1000 *and* 200). Stage 3 is weakened as evidence while its reference model is unconverged. | OPEN |
+| 6.1 | Continuous Integration `--maxfail=5` -- reported **5** failures when the truth was **24**. | **CLOSED 2026-07-12** (`0849da3`). Removed, and `-rs` added so every skip states its reason. |
+| 6.2 | **Continuous Integration runs `tests/unit/` only** -- `tests/conformal/` (7 files), `tests/integration/` (1), and **22 root-level `tests/test_*.py`** = **30 test files never run in Continuous Integration.** This is why the clean-clone breakage survived. Widening it will likely go RED (those files have never run on a clean runner and several probably need gitignored cohort data). **Do it on a branch.** | **OPEN — highest leverage** |
+| 6.3 | ~~"The rented-GPU path bypasses Continuous Integration entirely."~~ **CORRECTED 2026-07-12.** `Run_Preflight_Local.ps1` (G1) **does** run `pytest tests/` -- the FULL tree, more than Continuous Integration does -- and hard-fails on any failure. The gate was never missing; it had **ROTTED**: its floors were `1485/1496` against a suite of **1,823 collected / 1,815 passed**, so ~330 tests could have vanished and it would still have said PASS. Floors refreshed to `1805/1815` (`0b93d30`). **Still open:** `Run_Preflight_VM.sh` / `vm_bootstrap_run.sh` run no pytest, and G1 has a `-SkipPytest` escape hatch. | PARTLY CLOSED |
+| 6.4 | `RUN_17_PLAN.md` hypothesis said **91** features; actual **97**. | **CLOSED 2026-07-12** (`721a23e`). Corrected, and G1 §13c now **DERIVES** `EXPECTED_TABULAR_FEATURE_COUNT` from the package and hard-fails on disagreement. Negative-tested three ways: correct marker PASSES, stale marker FAILS, absent marker FAILS. |
+| 6.5 | Correctness-harness sanity model **does not converge** (lbfgs, max_iter 1000 *and* 200; reproduced on Python 3.11 and 3.12 in Continuous Integration). Stage 3 is weakened as evidence while its own reference model is unconverged. **The most scientifically substantive item left.** | OPEN |
 | 6.6 | LightGBM **feature-name mismatch** -- fitted on a named DataFrame, predicted on a bare ndarray; column order trusted implicitly. Silently wrong if it ever drifts. | OPEN |
 | 6.7 | `±inf` input raises a raw pandas `IntCastingNaNError`. Fail-loud is right; a pandas internal as the message is not. | OPEN |
-| 6.8 | **62 orphan scripts + 7 doc-only** in the working tree, unclassified. `scripts/audit_untracked_hygiene.py` computes the transitive closure. | OPEN |
-| 6.9 | Guards (`sys.path`, `data/` pollution) have **no permanent self-test**. Verified manually 2026-07-12; a guard nobody re-tests can die silently. | OPEN |
+| 6.8 | 62 orphan scripts + 7 doc-only, unclassified -- they **blocked the G1 gate** on 2026-07-12. | **CLOSED** (`0b93d30`, `5924092`). 68 archived to `scripts/forensics/` with a README; provenance trail repaired. |
+| 6.9 | Guards (`sys.path`, `data/` pollution, G1 §13c) have **no permanent self-test**. All three were negative-tested by hand on 2026-07-12 and all three fire correctly -- but a guard nobody re-tests can die silently, which is exactly how seven AlphaFold tests stayed dead for weeks. | OPEN |
 | 6.10 | Repo authority: `monzia-moodie` and `monzia-moodie-repo-projects` resolve to the **same** repository. A GitHub-side transfer, not a git command. Open **pull request #1** (`run9a-prep`). | OPEN |
 | 6.11 | **JEPA** (Joint-Embedding Predictive Architecture) -- tracked item, not started. | OPEN |
+| 6.12 | **NEW.** Disk: 8.73 GB reclaimed by deleting `data/raw/cache/alphafold` (36,073 files) -- possible for the first time, because the seven tests that silently keyed off it now use a committed 101 KB fixture. Free space 5.4 GB → 14.74 GB. Still below the 20 GB G1 recommends. | PARTLY CLOSED |
 
-**Next:** close 6.1–6.3 (the gate that hides its own failures is the highest-leverage fix in this
-list), then 6.4 before any Run-17 spend.
+## 7. THE PATTERN, stated once so it is not re-learned
+
+Every defect above is one of two shapes.
+
+**(a) A number written down once and never re-derived becomes a lie on a schedule.**
+`KNOWN_ZERO_DEFAULT` commented as 27 while the literal held 25. `variant_ensemble.py` saying
+"65 features" against a 97-feature contract. A G1 pytest floor of 1485 against a suite passing
+1815. `RUN_17_PLAN` asserting 91. Each was a guard that had quietly stopped guarding.
+**Fix: derive it at gate time. Do not store it.**
+
+**(b) A library that hard-codes a working-directory-relative writable path makes the test
+suite a function of the developer's disk.** The AlphaMissense fallback (12 tests red on a
+populated box, green on a clean one). `ESM2Connector`'s default cache. `ProteinStructurePipeline`
+downloading a structure **into the checkout**. `FinnGenConnector` with no injection point at all.
+Every one was invisible locally and visible only on a cold clone.
+**Fix: never hard-code a writable path without an override, and let a guard fail loudly if
+anything writes into `data/`.**
+
+And the meta-lesson, which cost the most: **a finding recorded in a document is a comment; a
+finding that fails a test is a gate.** `INCIDENT_2026-06-14` had already written down that
+`test_lovd_annotation_reaches_training_matrix.py` "writes to the REAL data/". Nothing happened
+for four weeks, because nothing ever failed.
+
+**Next:** 6.2 (branch; expect red — that red is information), then 6.5 (the harness's own
+sanity model does not converge, which is a scientific problem, not a hygiene one).
