@@ -39,3 +39,32 @@
 *.jpg binary
 *.jpeg binary
 *.pdf binary
+
+# ---------------------------------------------------------------------------
+# TEST FIXTURES: byte-stable across platforms (added 2026-07-12).
+# ---------------------------------------------------------------------------
+# A fixture's entire purpose is to be a FIXED, reproducible input. If git normalizes it,
+# the file a Linux Continuous Integration runner reads is NOT the file a Windows developer
+# reads, and a test can pass on one and fail on the other for reasons nothing in the test
+# explains.
+#
+# Observed 2026-07-12: tests/fixtures/alphafold/AF-E7ENB7-F1-model_v4.cif was committed as a
+# 99,647-byte blob while the working copy was 101,171 bytes -- exactly 1,524 carriage returns
+# stripped, one per line (`git show --stat` reported it as "1524 ++++", i.e. git had decided
+# it was text). Benign in this instance, because the mmCIF parser is line-ending-agnostic and
+# the tests passed on both platforms. But the carriage returns were themselves an ACCIDENT:
+# Python's write_text() runs in TEXT mode on Windows, so the connector's download cache
+# translated \n -> \r\n on the way to disk. LF is the canonical form, as served by the
+# European Bioinformatics Institute.
+#
+# Pin it. Never leave a fixture's byte-level encoding to inference -- and note that had this
+# fixture been genuinely binary (a parquet, an .npy), normalization would have SILENTLY
+# CORRUPTED it rather than merely shortening it.
+tests/fixtures/**/*.cif text eol=lf
+
+# Binary fixtures: verbatim, always. Normalization would destroy them.
+tests/fixtures/**/*.parquet binary
+tests/fixtures/**/*.npy     binary
+tests/fixtures/**/*.npz     binary
+tests/fixtures/**/*.gz      binary
+tests/fixtures/**/*.sqlite  binary

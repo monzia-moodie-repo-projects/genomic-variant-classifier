@@ -78,7 +78,25 @@ jobs:
           HF_HUB_OFFLINE: "1"
           TRANSFORMERS_OFFLINE: "1"
         run: |
-          pytest tests/unit/ --maxfail=5 -q \
+          # --maxfail REMOVED (2026-07-12). It was --maxfail=5, and it hid the truth.
+          #
+          # On 2026-07-08 the suite was RED with 24 failures across four clusters. This gate
+          # reported "5 failed, 649 passed" and stopped. Nobody knew the real number, because
+          # the gate was configured never to say it. A gate that under-reports the size of a
+          # failure is worse than a gate that fails loudly: it makes the damage look small
+          # enough to defer, and it was deferred for three days.
+          #
+          # The suite is ~5 minutes. There is no budget argument for truncating it.
+          #
+          # -rs REPORTS THE REASON FOR EVERY SKIP (2026-07-12). A skip is a test that did not
+          # run; a silent skip is a test that did not run and did not say so. Seven AlphaFold
+          # structural tests (predicted Local Distance Difference Test parsing, Relative
+          # Solvent Accessibility, Define Secondary Structure of Proteins records,
+          # alpha-carbon geometry, and the residue off-by-one tripwire) skipped in EVERY
+          # Continuous Integration run for weeks, keyed off a gitignored file, and nothing in
+          # this output ever said so. Skip reasons are now always printed.
+          pytest tests/unit/ -q \
+            -rs \
             --tb=short \
             --cov=genomic_variant_classifier \
             --cov-report=term-missing \
