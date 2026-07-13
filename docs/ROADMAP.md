@@ -658,3 +658,137 @@ integrity verification before Run 17 trains.
 - GpuOrchestratorAgent/FinOps (#3): DESIGN REVIEW landed (docs/design/GPU_FINOPS_DESIGN.md). Decision pending --
   recommend-only/emit-only advisor (zero spend, reuses launch_run16.pick_offer) recommended as the first slice;
   autonomous provisioning gated behind a separate sign-off. No money-adjacent code until confirmed.
+
+
+---
+
+<!-- roadmap-delta: 2026-06-14-to-2026-07-12 catch-up -->
+# ROADMAP delta -- 2026-07-12 (FOUR-WEEK CATCH-UP: the roadmap had gone stale)
+
+**This delta exists because the roadmap broke its own rule.** The header says *"Updated at the
+end of every session"*. Its last content entry was **2026-06-14**; the file was last touched
+**2026-07-01**. In the intervening four weeks the project ran **~130 commits**, changed the
+feature contract twice, found and fixed a cohort coordinate corruption, rebuilt the evaluation
+metric stack, and discovered that the test suite had been red for days. None of it was here.
+
+A roadmap that is not current is not a roadmap -- it is a stale snapshot that invites exactly
+the drift this project spends its time hunting. Recorded plainly so the failure is visible.
+
+## 0. CORRECTIONS to stale headline facts above
+
+| where | said | actual (2026-07-12) |
+|---|---|---|
+| §1 Project identity | "80 features" | **97** (`EXPECTED_TABULAR_FEATURE_COUNT = 97`, variant_ensemble.py:164) |
+| §3 Snapshot | "Current state snapshot (2026-06-10)"; Run 15, 79 features | superseded -- see §5 below |
+| `docs/runs/RUN_17_PLAN.md` §H_Run17 | "the expanded 91-feature contract (88 + 3 FinnGen R13 columns)" | **97** -- KEGG + COSMIC + Nucleotide Transformer landed 2026-07-06 (`80eb9c8`). The *runbook* was corrected (`61c2b04`); the *plan's hypothesis text* was not. **Open drift -- fix before Run 17 launch.** |
+
+**Feature-contract history (each step is an audit, not a bump):**
+79 → 80 (esm2_llr) → 81 → 82 (hetero_gnn_score) → 87 (rnaseq_*) → 88 (omim_n_diseases_molecular)
+→ 91 (FinnGen R13) → **97** (KEGG ×2, COSMIC ×2, Nucleotide Transformer ×2, 2026-07-06).
+
+## 1. Phase D -- data expansion: the connector wave (2026-06-15 → 2026-07-06)
+
+| source | date | commit | note |
+|---|---|---|---|
+| 1000 Genomes `af_1kg_*` | 06-15 | `bd5eecf` | chr1-22+X, 437,668 variants |
+| gnomAD chrY / chrMT allele frequency | 06-16 | `832f023` | root cause was PAR variants mapping X→Y |
+| GTEx bulk median transcripts-per-million | 06-17 | `00a58f1` | |
+| Reactome pathway count | 06-17 | `66337fc` | |
+| RNA-seq family (`rnaseq_*`) | 06-17→19 | `de19458` | recount3/GTEx differential expression; leakage-validated |
+| OMIM genemap2 + molecular feature #88 | 06-26 | `499ccc6` | fixed the "88 bug" |
+| EVE (real CSV schema) | 06-21 | `369cc61` | |
+| ClinGen wiring | 06-21 | `b79364d` | |
+| dbSNP | 07-01 | `d5791c1` | DONE + verified |
+| FinnGen R12 + R13 dual-release | 06-27→28 | `2884e9b`, `5344ddb` | contract 88 → 91 |
+| AlphaFold Phase-D | 07-02→03 | `eba5c40`, `7d49b54` | v6/API URL resolution, O(n) Relative Solvent Accessibility, canonical isoform selection, deterministic row order |
+| **KEGG + COSMIC + Nucleotide Transformer** | **07-06** | **`80eb9c8`** | **contract 91 → 97** |
+
+## 2. Cohort integrity -- the coordinate incident (2026-07-08 → 07-11). THE most consequential work of the period.
+
+- **`9df1221` (07-08) INCIDENT (critical):** deletion `ReviewStatus` loss -- the VCF join missed
+  **98.8% of deletions**.
+- **`cd9edfb` (07-08) ROOT CAUSE:** cohort `pos` is variant_summary `Start`, **not** `PositionVCF`
+  -- an off-by-one on every padded deletion.
+- **`193afa0` (07-08) → cohort-v2:** `pos -= 1` where `alt` is a padded prefix. **187,245 rows corrected.**
+- **`3ff1d13` / `6f9ebe7` (07-09) GENOME-VERIFIED against GRCh38:** 187,235 / 187,245 padded
+  deletions match at the corrected position (**99.9947%**); SNV control **2,000/2,000** (SNVs are
+  never shifted, so they are a data-derived control that a slice error could not pass). The 10
+  residual mismatches are genuine ClinVar-vs-GRCh38 disagreements → disposition **FLAG, not correct**.
+- **`ef5e909` (07-09):** guard tolerates ≤0.1% genuine disagreement, writes every mismatch to a
+  TSV, and adds an SNV control that **hard-fails on any slice/build error regardless of tolerance**
+  -- a coordinate bug cannot be tolerated away.
+- **`8626955` (07-09):** sequence windows rekeyed to cohort-v2 (pure key remap, content unchanged);
+  distinguishes COVERAGE_GAP (tolerated) from KEY_MISMATCH (hard fail).
+- **`da18481` (07-11):** ClinVar *"Conflicting classifications of pathogenicity"* → **uncertain**,
+  at the connector level.
+- **`322c23a` / `e3e422e` (07-11):** allele classification + alleleless-variant recovery + provenance.
+- **`e2e7f1a` (07-11):** **cohort-v3** -- fresh ClinVar ingestion, rebuild, and diff tooling.
+- **`07cb781` (07-11):** gene-disjoint 4-way split re-baseline + gene-disjoint external calibration.
+
+## 3. Evaluation stack rebuild (2026-07-08 → 07-11)
+
+- `959244f`, `4d7b3a5`, `e387927` -- metric core: AUROC (average-rank tie handling), AUPRC
+  (tied scores collapse correctly), Expected Calibration Error / Maximum Calibration Error.
+- `85fd6b0` -- overflow-safe sigmoid in Iteratively Reweighted Least Squares; **refuses to report**
+  Brier / Expected Calibration Error / calibration slope on non-converged fits rather than printing
+  a number nobody can trust.
+- `baddd72` -- `evaluation/__init__.py` must not eagerly import scikit-learn (a lazy-import contract).
+- `5190b50` -- **leakage question RESOLVED**: no univariate leak; top standalone feature is
+  `is_loss_of_function`.
+- `811a11b` (07-11) -- **Expected Calibration Error computation corrected**.
+
+## 4. Test + repository integrity (2026-07-08 → 07-12) -- see `docs/status/REMEDIATION_2026-07-11_test-suite-red.md` for the full write-up
+
+- **`ac47972` (07-08) TRIAGE: the suite was RED, 24 of 1,616, and had been for days.** Four clusters.
+  The standing brief said *"596 tests pass"*; it had been wrong for long enough that nobody knew when
+  it stopped being true.
+- **`a4fd129` (07-11): 24 → 0.** All four clusters plus one regression and one cluster the triage
+  never saw (a `sys.path` leak that published a counterfeit `genomic_variant_classifier` package).
+- **`aa99ac6` (07-11): SINGLE SOURCE OF TRUTH.** There were **two** hand-synced implementations of
+  the feature matrix. The five-stage correctness harness validated `variant_ensemble.engineer_features`;
+  the training pipeline ran `DataPrepPipeline._engineer_features`. **The gate audited a code path the
+  pipeline never executed** -- a silent zero there was structurally invisible. Proved equivalent over
+  **117 adversarial comparisons** (exact on column set, ORDER, dtype and values; forcing every
+  `df.get` default and every integral-input truncation path), then collapsed. **−376 lines.**
+- **`343cc66` (07-11):** four TRACKED tests imported UNTRACKED scripts -- **a clean clone had a red
+  suite**. Fixed.
+- **`88af150` (07-12): the suite is now HERMETIC and IDEMPOTENT.** It had been writing 620 KB into its
+  own repository on every cold run -- including a **live network download** from
+  `https://alphafold.ebi.ac.uk` -- and two runs of identical code disagreed (1805/17 vs 1812/10).
+  Invisible on a developer machine (warm caches write nothing) and invisible to `git status`
+  (`data/raw/` is gitignored). One defect, five instances: **a library hard-coding a
+  working-directory-relative writable path.**
+
+**Current test state (2026-07-12):** local **1815 passed / 0 failed**; cold clone **1615 passed /
+0 failed**; two consecutive runs identical; `Test-Path data/raw/cache` after a full cold run → **False**.
+
+## 5. CURRENT STATE SNAPSHOT (2026-07-12) -- supersedes §3 above
+
+- **Feature contract: 97.** Single implementation (`variant_ensemble.engineer_features`); the
+  correctness harness and the training pipeline now run **the same code**.
+- **Cohort: v3** (fresh ClinVar). v2 is genome-verified; the padded-deletion coordinate bug is closed.
+- **Run 15 remains the last SEALED run** (commit `032a2ab`; 79 features, Test AUROC 0.9984).
+  **Run 17 is planned and gated, NOT launched.**
+- **Test suite: green, hermetic, idempotent, and green on a clean clone** -- none of which was true
+  on 2026-07-08.
+- **Continuous Integration: exists and gates the container path** (`.github/workflows/ci.yml`,
+  Python 3.11 + 3.12, 508 runs). It was **RED on `e3e422e`** and merged past.
+
+## 6. OPEN -- carried forward, dated, not lost
+
+| # | item | status |
+|---|---|---|
+| 6.1 | **Continuous Integration `--maxfail=5`** -- the gate stops after 5 failures. It reported **5** when the truth was **24**. It is configured never to tell you how bad it is. | OPEN |
+| 6.2 | **Continuous Integration runs `tests/unit/` only** -- `tests/conformal/` (7 files), `tests/integration/` (1), and **22 root-level `tests/test_*.py`** = **30 test files never run in Continuous Integration.** This is why the clean-clone breakage survived. | OPEN |
+| 6.3 | **The rented-GPU path bypasses Continuous Integration entirely.** `Run_Preflight_VM.sh` / `vm_bootstrap_run.sh` check GPU, CUDA, VRAM, dependencies, disk, RAM, git HEAD -- **not `pytest`**. On 2026-07-06 code shipped to paid compute with 24 red tests. | OPEN |
+| 6.4 | `RUN_17_PLAN.md` hypothesis still says **91** features; actual **97**. Fix before launch. | OPEN |
+| 6.5 | Correctness-harness sanity model **does not converge** (lbfgs, max_iter 1000 *and* 200). Stage 3 is weakened as evidence while its reference model is unconverged. | OPEN |
+| 6.6 | LightGBM **feature-name mismatch** -- fitted on a named DataFrame, predicted on a bare ndarray; column order trusted implicitly. Silently wrong if it ever drifts. | OPEN |
+| 6.7 | `±inf` input raises a raw pandas `IntCastingNaNError`. Fail-loud is right; a pandas internal as the message is not. | OPEN |
+| 6.8 | **62 orphan scripts + 7 doc-only** in the working tree, unclassified. `scripts/audit_untracked_hygiene.py` computes the transitive closure. | OPEN |
+| 6.9 | Guards (`sys.path`, `data/` pollution) have **no permanent self-test**. Verified manually 2026-07-12; a guard nobody re-tests can die silently. | OPEN |
+| 6.10 | Repo authority: `monzia-moodie` and `monzia-moodie-repo-projects` resolve to the **same** repository. A GitHub-side transfer, not a git command. Open **pull request #1** (`run9a-prep`). | OPEN |
+| 6.11 | **JEPA** (Joint-Embedding Predictive Architecture) -- tracked item, not started. | OPEN |
+
+**Next:** close 6.1–6.3 (the gate that hides its own failures is the highest-leverage fix in this
+list), then 6.4 before any Run-17 spend.
