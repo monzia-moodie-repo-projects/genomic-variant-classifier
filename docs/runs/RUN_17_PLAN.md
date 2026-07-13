@@ -26,6 +26,57 @@ This plan must be fully populated and Charter v1.1 gates G1 + G2 must PASS befor
   prose together; G1 will not let them disagree with the code.
 -->
 
+## A0. MODEL CHANGE SINCE RUN 15 — read before comparing any per-model number
+
+**2026-07-12: `logistic_regression` is now SCALED. Its Run-17 numbers are NOT comparable to
+Run 15's for that model.** This is a **correction of a defect**, so any change is an
+improvement, not a regression — but it must not be read as an effect of the Run-17 feature
+expansion.
+
+**The defect.** `logistic_regression` was a bare `LogisticRegression` in the base-model roster,
+and `VariantEnsemble.fit` dispatches it to `X_tab.values` — the **raw** tabular matrix, where
+`pos` runs to 1,000,000 alongside `allele_freq` at 1e-6. It **did not converge**, and said so in
+every test run and every Continuous Integration run for weeks, on Python 3.11 and 3.12 alike:
+
+```
+ConvergenceWarning: lbfgs failed to converge after 1000 iteration(s)
+```
+
+A non-converged logistic regression was being fit, and its out-of-fold predictions fed the
+stacking meta-learner.
+
+**It was the only unprotected model.** Audited 2026-07-12 across the full roster:
+
+| model | scaled? |
+|---|---|
+| random_forest, xgboost, lightgbm, gradient_boosting, catboost | scale-invariant (trees) |
+| svm, svm_bagged_rbf | `ScalableSVM` → `make_pipeline(StandardScaler, …)` |
+| tabular_nn | own `StandardScaler` **and** `BatchNorm1d` |
+| mc_dropout, deep_ensemble | wrap `TabularNNClassifier`, inherit its scaler |
+| kan | own `StandardScaler` |
+| cnn_1d | consumes the **one-hot DNA sequence** (values in {0,1}) — correctly bare; scaling it would destroy the encoding |
+| **logistic_regression** | **nothing — the gap** |
+
+Every other scale-sensitive model already had a scaler. This was an oversight, not a design
+choice.
+
+**Why it matters for THIS run's hypothesis.** A stated first-class goal of the project is to
+*"empirically measure/compare/validate ML algorithms … even at small performance differences."*
+Comparing `logistic_regression` against XGBoost while it **alone** was handicapped by unscaled
+inputs measured the **defect**, not the algorithm. Any linear-versus-tree conclusion drawn from
+Run 15 or earlier is **confounded**. Run 17 is the first run in which that comparison is sound.
+
+**Also fixed (same day):** the correctness harness's own stage-3 sanity model
+(`correctness_harness.py`) was a second, separate unscaled `LogisticRegression(max_iter=200)`
+that likewise never converged. Stage 3 asserts *"the pipeline can learn a signal"* — asserting
+that with an unconverged optimiser is asserting it on unsound evidence, since an unconverged fit
+can produce near-constant probabilities for reasons unrelated to the data, which is precisely
+the condition stage 3 tests for. Both are now scaled; the harness runs warning-free.
+
+Guarded by `tests/unit/test_logistic_regression_is_scaled.py`, which **fails on a
+`ConvergenceWarning`** rather than printing one — and which also asserts that `cnn_1d` must
+**not** be scaled, so the next reader does not "fix" the one model that is correctly bare.
+
 ## A. Hypothesis
 
 > **CONTRACT CORRECTED 2026-07-12: ninety-one → ninety-seven.** This hypothesis previously

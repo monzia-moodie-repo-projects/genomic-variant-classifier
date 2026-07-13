@@ -166,11 +166,33 @@ def _stage3_sanity(
     # not let stage 3 pre-empt it.
     try:
         from sklearn.linear_model import LogisticRegression
+        from sklearn.pipeline import make_pipeline
+        from sklearn.preprocessing import StandardScaler
 
         Xv = X_tab.to_numpy(dtype=float, na_value=0.0)
         has_signal = Xv.shape[1] > 0 and float(np.nanstd(Xv)) > 0.0
         if y.nunique() >= 2 and has_signal:
-            proba = LogisticRegression(max_iter=200).fit(Xv, y.to_numpy()).predict_proba(Xv)[:, 1]
+            # SCALED (2026-07-12). This was a bare LogisticRegression(max_iter=200) fit on the
+            # RAW engineered matrix -- where `pos` runs to 1,000,000 alongside `allele_freq` at
+            # 1e-6. It did not converge, and said so in every run:
+            #
+            #     ConvergenceWarning: lbfgs failed to converge after 200 iteration(s)
+            #
+            # Stage 3 exists to assert that the pipeline CAN LEARN A SIGNAL. Asserting that
+            # with a model whose own optimiser never converged is asserting it on unsound
+            # evidence: an unconverged fit can produce near-constant probabilities for reasons
+            # that have nothing to do with the data, which is exactly the condition this stage
+            # is looking for. The check could have passed or failed for the wrong reason.
+            #
+            # The same defect existed in the ensemble's `logistic_regression` base model
+            # (variant_ensemble.py) and was fixed the same day. It was the only scale-sensitive
+            # model in the roster without a scaler; every other one already had its own.
+            # NOTE cnn_1d is deliberately NOT scaled -- it consumes a one-hot DNA encoding.
+            proba = (
+                make_pipeline(StandardScaler(), LogisticRegression(max_iter=200))
+                .fit(Xv, y.to_numpy())
+                .predict_proba(Xv)[:, 1]
+            )
             if np.allclose(proba, proba[0]):
                 # WARNING, not failure: a degenerate matrix that yields constant
                 # probabilities is a data-quality signal owned by stage 5's

@@ -56,6 +56,7 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 from sklearn.model_selection import StratifiedKFold, GroupKFold, cross_val_predict
+from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 
@@ -1521,11 +1522,44 @@ class VariantEnsemble:
                     ),
                 }
             ),
-            "logistic_regression": LogisticRegression(
-                C=0.1,
-                max_iter=1000,
-                class_weight=cfg.class_weight,
-                random_state=cfg.random_state,
+            # SCALED (2026-07-12). This was a BARE LogisticRegression, fit on the raw
+            # tabular matrix -- where `pos` runs to 1,000,000 alongside `allele_freq` at
+            # 1e-6. It did not converge, and said so in every test run and every Continuous
+            # Integration run for weeks:
+            #
+            #     ConvergenceWarning: lbfgs failed to converge after 1000 iteration(s)
+            #
+            # That warning was never noise. VariantEnsemble.fit dispatches this model to
+            # `X_tab_fit.values` -- raw, unscaled -- so a NON-CONVERGED logistic regression
+            # was being fit, and its out-of-fold predictions fed the stacking meta-learner.
+            #
+            # It was the ONLY scale-sensitive model in the roster without a scaler. Audited
+            # 2026-07-12, every other one already had its own:
+            #     svm / svm_bagged_rbf  -> ScalableSVM: make_pipeline(StandardScaler(), ...)
+            #     tabular_nn            -> TabularNNClassifier: self.scaler_ + BatchNorm1d
+            #     mc_dropout / deep_ensemble -> wrap TabularNNClassifier (inherit its scaler)
+            #     kan                   -> StandardScaler
+            #     cnn_1d                -> consumes the ONE-HOT DNA sequence (values in {0,1});
+            #                              scaling it would DESTROY the encoding. Correctly bare.
+            #     trees (rf/xgb/lgbm/gbm/catboost) -> scale-invariant by construction.
+            # So this was an oversight, not a design choice.
+            #
+            # WHY IT MATTERS BEYOND CONVERGENCE. A stated first-class goal of this project is
+            # to "empirically measure/compare/validate ML algorithms ... even at small
+            # performance differences". Comparing this model against XGBoost while it alone is
+            # handicapped by unscaled inputs measures the DEFECT, not the algorithm. Any
+            # linear-vs-tree conclusion drawn before this fix is confounded.
+            #
+            # MODEL CHANGE: logistic_regression's predictions WILL differ from Run 15's. That
+            # is a correction, not a regression. See RUN_17_PLAN.
+            "logistic_regression": make_pipeline(
+                StandardScaler(),
+                LogisticRegression(
+                    C=0.1,
+                    max_iter=1000,
+                    class_weight=cfg.class_weight,
+                    random_state=cfg.random_state,
+                ),
             ),
             "gradient_boosting": GradientBoostingClassifier(
                 n_estimators=200,
