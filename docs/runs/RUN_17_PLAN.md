@@ -10,17 +10,24 @@ This plan must be fully populated and Charter v1.1 gates G1 + G2 must PASS befor
 
 ## A. Hypothesis
 
-> **CONTRACT CORRECTED 2026-07-12: 91 → 97.** This hypothesis said *"the expanded 91-feature
-> contract (88 + 3 FinnGen R13 columns)"* — it was written on 2026-06-27 (`fbdcf4c`) and was
-> true then. On **2026-07-06** (`80eb9c8`) KEGG (×2), COSMIC (×2) and the Nucleotide Transformer
-> (×2) landed, taking the contract to **97** (`EXPECTED_TABULAR_FEATURE_COUNT`,
-> variant_ensemble.py). The *runbook* was updated (`61c2b04`); **this hypothesis was not.**
+> **CONTRACT CORRECTED 2026-07-12: ninety-one → ninety-seven.** This hypothesis previously
+> stated the contract as ninety-one columns (eighty-eight plus three FinnGen R13). That was true
+> when written (2026-06-27, `fbdcf4c`). On **2026-07-06** (`80eb9c8`) KEGG (×2), COSMIC (×2) and
+> the Nucleotide Transformer (×2) landed, taking `EXPECTED_TABULAR_FEATURE_COUNT` to
+> ninety-seven. The *runbook* was corrected (`61c2b04`); **this hypothesis was not**, and G1
+> passed the plan anyway — it checked the document for unfilled decisions, never for truth.
 >
-> Run 17 spends money and is gated against this document. A plan that misstates the contract it
-> is testing is not a plan. G1 now hard-checks this number against the code
-> (`Run_Preflight_Local.ps1`, §13c) so it cannot silently rot again.
+> Run 17 spends money and is gated against this document. G1 §13c now DERIVES the count from
+> the package and hard-fails on any disagreement.
+>
+> **The historical numbers above are spelled out in words on purpose.** Written as digits they
+> would be indistinguishable, to the guard, from a live claim — and the guard would keep failing
+> on a note explaining why it once failed. Any `<N>-feature` digit string in this file is treated
+> as a LIVE ASSERTION about the contract. Do not write one unless you mean it, and never wrap it
+> in markdown emphasis: `**97**-feature` is invisible to the check, which is precisely how a
+> number a human can read but a machine cannot verify goes stale.
 
-**H_Run17 (primary)**: The Run 17 baseline reproduces the Run 14/16 ensemble performance on the expanded **97**-feature contract (88 + 3 FinnGen R13 + 6 KEGG/COSMIC/Nucleotide-Transformer columns) without regression, while the newly-wired Run-17 annotation sources (OMIM genemap2, FinnGen R12+R13, KEGG, COSMIC, the Nucleotide Transformer, and the other CLI-wired connectors) measurably reduce the silent-zero feature count relative to Run 16.
+**H_Run17 (primary)**: The Run 17 baseline reproduces the Run 14/16 ensemble performance on the expanded 97-feature contract (88 + 3 FinnGen R13 + 6 KEGG/COSMIC/Nucleotide-Transformer columns) without regression, while the newly-wired Run-17 annotation sources (OMIM genemap2, FinnGen R12+R13, KEGG, COSMIC, the Nucleotide Transformer, and the other CLI-wired connectors) measurably reduce the silent-zero feature count relative to Run 16.
 
 **H_Run17 (dual-release sub-hypothesis — the benchmarking experiment)**: FinnGen R12 and R13, run as two independent annotation passes over the *same* variants with evolved population frequencies, produce *measurably different* feature distributions and per-model feature-importance, demonstrating that the pipeline can ingest and benchmark two releases of the same source apples-to-apples. Specifically: R13 annotates more variants than R12 (higher non-null coverage), and `finngen_r13_*` feature-importance is correlated-but-not-identical to `finngen_*`.
 

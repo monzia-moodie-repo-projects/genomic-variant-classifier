@@ -262,7 +262,17 @@ sys.exit(0 if not errs else 1)
             Fail "13c: could not read EXPECTED_TABULAR_FEATURE_COUNT from the package: $codeCount"
         } else {
             # Every "<N>-feature" claim the plan makes must agree with the code.
-            $claims = [regex]::Matches($plan, '(\d+)[- ]feature') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+            #
+            # Strip markdown emphasis/code marks FIRST. On the very first run of this check the
+            # plan had been "corrected" to read `**97**-feature` -- and the guard could not see
+            # the 97 at all, because the digit was followed by '*' rather than '-'. The only
+            # machine-readable count left in the document was the STALE one, quoted inside the
+            # note explaining the correction. The check failed, and it was right to.
+            #
+            # A number a human can read but a machine cannot verify is a number that will rot.
+            # Do not let formatting hide a claim from its own guard.
+            $planFlat = $plan -replace '[*_`~]', ''
+            $claims = [regex]::Matches($planFlat, '(\d+)[- ]feature') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
             if (-not $claims) {
                 Warn "13c: RUN_17_PLAN.md states no feature count to check (code says $codeCount)"
             } elseif ($claims -contains $codeCount -and $claims.Count -eq 1) {
