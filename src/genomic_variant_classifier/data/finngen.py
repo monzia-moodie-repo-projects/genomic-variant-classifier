@@ -72,10 +72,29 @@ class FinnGenConnector:
         tsv_path: Optional[str | Path] = None,
         chunksize: int = 500_000,
         column_prefix: str = "",
+        cache_dir: Optional[str | Path] = None,
     ) -> None:
         self.tsv_path = Path(tsv_path) if tsv_path else None
         self.chunksize = chunksize
         self.column_prefix = column_prefix
+        # cache_dir (added 2026-07-11) -- the INJECTION POINT this connector never had.
+        #
+        # _full_index_paths() used to hard-code `Path("data/raw/cache")`, a path relative to
+        # the CURRENT WORKING DIRECTORY, with no way for a caller to redirect it. So every
+        # test that annotated a cohort -- even one whose input TSV was correctly placed in
+        # tmp_path -- wrote finngen_full_index.parquet / .meta.json into the REPOSITORY's
+        # data tree. Invisible to `git status` (data/raw/ is gitignored), and enough to make
+        # the suite non-idempotent.
+        #
+        # This is the same defect as three of its siblings, all found on 2026-07-11:
+        #   * real_data_prep._am_tsv          -- hard-coded AlphaMissense fallback (12 tests)
+        #   * ProteinStructurePipeline        -- CWD-relative data/raw/cache/alphafold
+        #   * ESM2Connector._DEFAULT_CACHE    -- CWD-relative data/raw/cache/esm2_cache.sqlite
+        # A library must never hard-code a writable path with no way to override it.
+        # ESM2Connector takes cache_path; ProteinStructurePipeline takes cache_dir.
+        # This one took neither. Now it does. Production behaviour is unchanged: the default
+        # is still data/raw/cache.
+        self.cache_dir = Path(cache_dir) if cache_dir else Path("data/raw/cache")
         # Output column names; default prefix "" reproduces the R12 names exactly.
         self._out_fin = f"finngen_{column_prefix}af_fin"
         self._out_nfsee = f"finngen_{column_prefix}af_nfsee"
@@ -236,10 +255,18 @@ class FinnGenConnector:
         return index
 
     def _cache_paths(self) -> tuple[Path, Path]:
-        """(parquet, sidecar) paths for this release's full-index cache."""
-        cache_dir = Path("data/raw/cache")
+        """(parquet, sidecar) paths for this release's full-index cache.
+
+        Honours self.cache_dir (2026-07-11). This used to hard-code
+        `Path("data/raw/cache")` -- a CWD-relative path into the repository -- so a caller
+        had no way to redirect it and every test wrote its built index into the real data
+        tree. See __init__ for the full note.
+        """
         stem = f"finngen_{self.column_prefix}full_index"
-        return cache_dir / f"{stem}.parquet", cache_dir / f"{stem}.meta.json"
+        return (
+            self.cache_dir / f"{stem}.parquet",
+            self.cache_dir / f"{stem}.meta.json",
+        )
 
     def _source_signature(self) -> dict:
         """Size + mtime of the source .gz, used for cache invalidation."""

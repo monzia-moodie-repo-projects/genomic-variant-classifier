@@ -2170,6 +2170,20 @@ class TestAnnotationPipeline:
     against the production data/raw/cache/ directory (tmp_path-scoped
     FetchConfigs work normally, preserving tests like
     TestSpliceAIConnector::test_parquet_cache_used_on_second_call).
+
+    CONNECTOR-CACHE ISOLATION (2026-07-11). These tests call _annotate_scores(), which runs
+    the full 17-connector chain. With a bare AnnotationConfig() every connector falls back to
+    its repository-relative default cache, so this class was writing into the real data tree
+    on every run -- including a LIVE NETWORK DOWNLOAD of an AlphaFold structure into the
+    checkout, which made the whole suite non-idempotent.
+
+    It was invisible here because a developer's caches are WARM (nothing gets written); only
+    a COLD cache -- a fresh Continuous Integration runner or a fresh clone -- exposes it.
+
+    Isolation is now GLOBAL and autouse, in tests/conftest.py::_isolate_connector_caches,
+    with the full write-up. It is not repeated here: ten tests in this class hit that path,
+    and only two ever tripped the detector (the first WARMS the cache and the rest get hits),
+    so a per-class fix would have been one test-reordering away from regressing.
     """
 
     @pytest.fixture

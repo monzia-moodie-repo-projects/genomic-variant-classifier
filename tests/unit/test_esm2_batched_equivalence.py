@@ -117,7 +117,13 @@ def test_padding_invariance(offline_model):
         assert np.abs(res_b - res_s).max() < 1e-4
 
 
-def test_device_and_batch_size_defaults(esm2_mod):
-    c = esm2_mod.ESM2Connector()
+def test_device_and_batch_size_defaults(esm2_mod, tmp_path):
+    # cache_path pinned under tmp_path (2026-07-11). Bare ESM2Connector() falls back to
+    # _DEFAULT_CACHE = "data/raw/cache/esm2_cache.sqlite" -- a CWD-relative path into the
+    # REAL data tree -- so this test was writing the sqlite cache (and, via its sibling,
+    # the parquet score cache) into the repository on every run. Invisible to git status,
+    # because data/raw/ is gitignored. This asserts DEFAULTS for device and batch_size; it
+    # has no business also exercising the default CACHE LOCATION.
+    c = esm2_mod.ESM2Connector(cache_path=tmp_path / "esm2_cache.sqlite")
     assert c.device == "cpu"
     assert c.batch_size == 64

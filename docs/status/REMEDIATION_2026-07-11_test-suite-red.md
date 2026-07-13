@@ -278,14 +278,45 @@ audit's constant-check would fail a constant column).
 
 ---
 
-## 5. The meta-finding — restated because it is the real defect
+## 5. The meta-finding — CORRECTED 2026-07-12. I had this badly wrong.
 
-From the 2026-07-08 triage, unchanged and still open:
+**Retraction.** Throughout 2026-07-11 I asserted, repeatedly and with confidence, that *"no
+gate runs the test suite."* **That is false.** This repository has had GitHub Actions
+Continuous Integration all along — `.github/workflows/ci.yml`, **508 workflow runs**, running
+`pytest` against a matrix of Python 3.11 and Python 3.12, and *blocking* the container build
+and the push to the GitHub Container Registry (`docker-build` has `needs: test`).
 
-> **No gate runs the test suite.** `Run_Preflight_VM.sh` checks GPU, CUDA, VRAM, deps, disk,
-> RAM and git HEAD. `vm_bootstrap_run.sh` checks environment and models. **Neither runs
-> `pytest`.** On 2026-07-06 this code shipped to a rented GPU with 24 red tests and no
-> mechanism capable of saying so.
+I took the 2026-07-08 triage's true statement — that `Run_Preflight_VM.sh` and
+`vm_bootstrap_run.sh` do not run `pytest` — and generalised it into "no Continuous Integration
+exists," then repeated it as established fact for a full day without once opening
+`.github/workflows/`. That is exactly the unverified-stale-assumption failure this document
+exists to catalogue, committed by its author.
+
+### 5.1 What is ACTUALLY wrong — and it is worse in two ways, better in one
+
+**Continuous Integration exists, runs, blocks deployment of the container — and has been RED,
+and was merged past anyway.** Run **#499**, commit `e3e422e`, 2026-07-11: FAILED. The failures
+are precisely cluster B (`AttributeError: 'ESM2Connector' object has no attribute 'cache_path'`)
+and cluster C (the six stage-5 columns `cosmic_recurrence, cosmic_sig_tier,
+genomiclm_delta_norm, genomiclm_llr, kegg_disease_pathway_flag, kegg_pathway_count`).
+
+Three defects in the gate itself:
+
+| # | defect | consequence |
+|---|---|---|
+| **5.1a** | `pytest tests/unit/ --maxfail=5` — **stops after 5 failures** | The gate is configured never to tell you the truth. It reported `5 failed, 649 passed`. The real number was **24**. Nobody knew the scale because the gate cannot report it. |
+| **5.1b** | `pytest tests/unit/` — **`tests/unit/` only** | `tests/conformal/` (7 files), `tests/integration/` (1 file), and **22 root-level `tests/test_*.py` files** — 30 test files — **never run in Continuous Integration**. This is why the clean-clone breakage (tracked tests importing untracked scripts, fixed in `343cc66`) could persist indefinitely: Continuous Integration never executes those tests. |
+| **5.1c** | the rented-GPU path bypasses Continuous Integration entirely | `Run_Preflight_VM.sh` / `vm_bootstrap_run.sh` check GPU, CUDA, VRAM, dependencies, disk, RAM and git HEAD — and **do not run `pytest`**. This part of the 2026-07-08 triage was correct. On 2026-07-06 code shipped to a rented GPU with 24 red tests. Continuous Integration would have blocked the *container*; nothing blocked the *VM*. |
+
+### 5.2 Required
+
+1. **Remove `--maxfail=5`.** A gate that hides the size of the failure is worse than a gate
+   that fails loudly. Use `--maxfail=0` (report everything) or a large bound.
+2. **Widen the scope to `tests/`**, not `tests/unit/`. Thirty test files are currently
+   unguarded, including every alleleless-recovery test.
+3. **Run `pytest` in the VM preflight**, before any paid compute — the fast subset at minimum.
+4. **Derive the expected feature set from one source of truth** (done, 2026-07-11: §5b).
+5. **Do not merge past a red Continuous Integration run.** The gate worked. It was ignored.
 
 Six of the 24 (clusters C and D) were introduced by this project's own 91→97 feature work and
 went unnoticed for **two days of paid compute**. Twelve more (cluster A) had a verdict that

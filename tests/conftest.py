@@ -11,6 +11,7 @@ ancestors (rather than hardcoding depth) keeps this correct if the tests tree is
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -67,6 +68,135 @@ for _anc in (_here.parent, *_here.parents):
 #    able to cascade into the rest of the suite -- the offender fails, and only the
 #    offender. Without this, the guard would report the leak and then let it corrupt
 #    everything downstream anyway, which is the exact behaviour we are eliminating.
+# ===========================================================================
+# THE INVARIANT FOR THIS FILE (2026-07-12), and how it was learned the hard way.
+# ===========================================================================
+#   *** NO AUTOUSE FIXTURE HERE MAY REQUEST `monkeypatch`. ***
+#
+# WHY. Two fixtures below are GUARDS: they snapshot global state (sys.path; the data/raw/
+# cache tree) at setup and inspect it at teardown. For a guard to be correct, it must run
+# its check AFTER every other finaliser -- in particular after `monkeypatch` has undone what
+# a test did with `monkeypatch.syspath_prepend` / `monkeypatch.setattr`.
+#
+# Fixtures tear down in REVERSE order of setup. If an AUTOUSE fixture requests `monkeypatch`,
+# pytest hoists monkeypatch into the autouse group and sets it up BEFORE the guards -- so
+# monkeypatch's finaliser runs AFTER theirs. The sys.path guard then inspects a sys.path that
+# monkeypatch has not yet reverted, and errors a test that did nothing wrong. That is exactly
+# what happened to the two tests in tests/test_rekey_seq_windows_v2.py, which legitimately
+# publish a counterfeit package via `monkeypatch.syspath_prepend`.
+#
+# WHAT DID NOT WORK. Re-declaring the fixtures in a different order. pytest hoists an autouse
+# fixture's DEPENDENCIES regardless of where that fixture is declared, so monkeypatch was
+# still set up first and the guard still fired. Declaration order was never the lever, and a
+# comment here previously claimed it was -- it was wrong, and this replaces it.
+#
+# WHAT WORKS. `_isolate_connector_caches` saves and restores the module attributes BY HAND
+# and requests only `tmp_path`. With no autouse fixture depending on it, `monkeypatch` is
+# instantiated only when a TEST asks for it -- i.e. after every autouse fixture -- so its
+# finaliser runs FIRST, and the guards see fully-reverted global state.
+#
+# If you add an autouse fixture here and reach for `monkeypatch`, don't. Save and restore
+# explicitly, or you will silently break the guards and blame the wrong test.
+# ---------------------------------------------------------------------------
+# data/ pollution guard (added 2026-07-11) -- DETECTION.
+# ---------------------------------------------------------------------------
+# A test must not write into the repository's data/ tree. Measured, on a fresh clone:
+#
+#   run 1: 1805 passed, 17 skipped
+#   run 2: 1812 passed, 10 skipped     <- SAME checkout, SAME code
+#
+# Seven tests in test_alphafold.py skipped on run 1 ("real cached CIF not present") and
+# PASSED on run 2, because run 1 DOWNLOADED AF-E7ENB7-F1-model_v4.cif from
+# https://alphafold.ebi.ac.uk and wrote it into the checkout (ProteinStructurePipeline
+# defaults cache_dir to a CWD-relative "data/raw/cache/alphafold"). Two ESM-2 tests were
+# likewise writing esm2_cache.sqlite + esm2_scores.parquet into data/raw/cache.
+#
+# A suite whose result depends on whether it has been run before is not a suite. And none
+# of it showed up in `git status`, because data/raw/ is gitignored -- the tool that would
+# have caught it was blindfolded. cf. INCIDENT_2026-06-14_data-junction-dangling, which
+# already recorded that tests "write to the REAL data/" and was never acted on.
+#
+# This guard makes the pollution LOUD and attributes it to the test that did it. Tests
+# needing a cache must pass tmp_path; tests needing a real artifact must use a committed
+# fixture under tests/fixtures/ (see tests/unit/test_alphafold.py).
+#
+# Scope: data/raw/cache only -- the directory the suite was actually polluting. Widen it
+# if new offenders appear; do NOT widen it blindly, since some tracked data/ files are
+# legitimately read (data/external, data/processed, data/reference are all committed).
+_DATA_CACHE = Path(__file__).resolve().parent.parent / "data" / "raw" / "cache"
+
+# COST, and how the first version of this guard got it catastrophically wrong.
+#
+# v1 called _DATA_CACHE.rglob("*") and stat()ed every entry, TWICE PER TEST. That
+# directory holds 36,202 files (36,074 of them AlphaFold structures -- the 8.77 GB cache
+# recorded in docs/STORAGE_ACTION_LEDGER_2026-07-03.md). The arithmetic:
+#
+#     1,822 tests x 2 snapshots x 36,202 files = ~132,000,000 stat() calls
+#
+# The suite went from 7 minutes to 6 hours 45 minutes. A guard that costs 58x the runtime
+# it protects will simply be deleted by the next person, and then the defect returns.
+#
+# v2 is O(1) per test. It scans ONLY the immediate entries of data/raw/cache (~a handful),
+# never recursing, and relies on a filesystem invariant:
+#
+#     * a DIRECTORY's mtime changes when an entry is CREATED or REMOVED inside it,
+#     * a FILE's mtime and size change when it is REWRITTEN.
+#
+# So a new CIF inside data/raw/cache/alphafold/ is caught by that directory's mtime,
+# without ever listing its 36,074 entries. A rewrite of esm2_scores.parquet is caught by
+# that file's mtime+size.
+#
+# Known limit, stated rather than hidden: modifying an EXISTING file nested inside a
+# subdirectory (rather than creating one) may not move the parent directory's mtime and
+# can escape this guard. Creation -- the behaviour that actually broke idempotency -- is
+# always caught. Widen it only with the cost arithmetic above in front of you.
+def _fingerprint() -> frozenset:
+    if not _DATA_CACHE.is_dir():
+        return frozenset()
+    out = []
+    try:
+        with os.scandir(_DATA_CACHE) as it:
+            for e in it:
+                try:
+                    st = e.stat()
+                except OSError:
+                    continue
+                is_dir = e.is_dir()
+                out.append((e.name, is_dir, st.st_mtime_ns, 0 if is_dir else st.st_size))
+    except OSError:
+        return frozenset()
+    return frozenset(out)
+
+
+@pytest.fixture(autouse=True)
+def _no_data_dir_writes():
+    before = _fingerprint()
+    yield
+    after = _fingerprint()
+    if after == before:
+        return
+
+    # Only NOW -- on an actual violation -- do the expensive work of naming the culprit.
+    changed = sorted(
+        {n for n, *_ in (after - before)} | {n for n, *_ in (before - after)}
+    )
+    raise AssertionError(
+        "This test WROTE into the repository's data/raw/cache tree. That makes the suite "
+        "non-hermetic and NON-IDEMPOTENT: a later run sees the artifact and behaves "
+        "differently. Measured on a clean clone before this guard existed --\n"
+        "    run 1: 1805 passed, 17 skipped\n"
+        "    run 2: 1812 passed, 10 skipped   (SAME checkout, SAME code)\n"
+        "because run 1 downloaded an AlphaFold structure into the checkout and run 2's "
+        "collection-time skipif then found it.\n"
+        "None of this appears in `git status` -- data/raw/ is gitignored, so the tool that "
+        "would flag it is blindfolded.\n"
+        f"  ENTRIES CHANGED under data/raw/cache: {changed}\n"
+        "Pass an explicit cache path under tmp_path, or use a committed fixture under "
+        "tests/fixtures/ (see tests/unit/test_alphafold.py). "
+        "docs/status/REMEDIATION_2026-07-11_test-suite-red.md has the full write-up."
+    )
+
+
 @pytest.fixture(autouse=True)
 def _no_sys_path_leaks():
     before = list(sys.path)
@@ -91,3 +221,85 @@ def _no_sys_path_leaks():
                 "tests/test_rekey_seq_windows_v2.py. Full write-up: "
                 "docs/status/REMEDIATION_2026-07-11_test-suite-red.md (cluster E)."
             )
+
+
+# ---------------------------------------------------------------------------
+# Connector-cache isolation (added 2026-07-11) -- PREVENTION.
+#
+# DECLARED LAST, DELIBERATELY. It requests `monkeypatch`, which pulls monkeypatch's setup
+# earlier and therefore its TEARDOWN later. Declaring this fixture before the two guards
+# above makes monkeypatch's finalizer run AFTER theirs, so the sys.path guard sees paths
+# that monkeypatch was about to revert -- and it errored two legitimately-passing tests in
+# tests/test_rekey_seq_windows_v2.py. The guard was right; the ORDER was wrong. Keep it here.
+# ---------------------------------------------------------------------------
+# The guards above are DETECTION. This is PREVENTION. Both are kept on purpose: this fixture
+# redirects the writable defaults we KNOW about; the guards catch any NEW writable path a
+# future connector introduces, which this fixture cannot know about.
+#
+# Several connectors fall back to a CURRENT-WORKING-DIRECTORY-RELATIVE cache under
+# data/raw/cache when the caller passes nothing. Any test exercising them with a default
+# config therefore wrote into the repository -- and one made a LIVE NETWORK CALL to
+# https://alphafold.ebi.ac.uk, downloading a structure straight into the checkout.
+#
+# Measured on a COLD clone, before this existed:
+#     data/raw/cache/esm2_cache.sqlite                      126,976 bytes
+#     data/raw/cache/esm2_scores.parquet                      4,409
+#     data/raw/cache/alphafold/AF-E7ENB7-F1-model_v4.cif    101,171   <- downloaded
+#     data/raw/cache/alphafold/gene_uniprot_map.json             25
+#     data/raw/cache/alphafold/uniprot_features_E7ENB7.json      26
+#
+# and the suite was NON-IDEMPOTENT as a result:
+#     run 1: 1805 passed, 17 skipped
+#     run 2: 1812 passed, 10 skipped     (SAME checkout, SAME code)
+# because run 1 downloaded the structure and run 2's collection-time skipif then found it.
+#
+# WHY NOBODY SAW IT. On a developer machine those caches are WARM, so nothing is written and
+# nothing shows. Only a COLD cache -- a fresh Continuous Integration runner, or a fresh clone
+# -- exposes it. And `git status` is blind: data/raw/ is gitignored.
+# docs/incidents/INCIDENT_2026-06-14_data-junction-dangling.md already recorded that
+# test_lovd_annotation_reaches_training_matrix.py "writes to the REAL data/". Nothing was
+# done, because nothing ever FAILED. A finding in a document is a comment; a finding that
+# fails a test is a gate.
+#
+# The production injection points all exist and are honoured -- AnnotationConfig
+# .esm2_cache_path, .protein_cache_dir, .genomiclm_cache_path. This redirects only the
+# DEFAULTS the connectors fall back to when a test supplies none, so no test signature and
+# no production code path changes.
+@pytest.fixture(autouse=True)
+def _isolate_connector_caches(tmp_path):
+    """Redirect the connectors' writable DEFAULT caches into tmp_path.
+
+    DELIBERATELY DOES NOT REQUEST `monkeypatch`, and that is the whole point.
+
+    The first version did (`monkeypatch.setattr(...)`), and it broke two passing tests in
+    tests/test_rekey_seq_windows_v2.py. An AUTOUSE fixture that requests `monkeypatch` drags
+    monkeypatch into the autouse group, so monkeypatch is SET UP BEFORE the guard fixtures
+    -- and therefore TORN DOWN AFTER them. `_no_sys_path_leaks` then ran its check while the
+    counterfeit package that test legitimately publishes via `monkeypatch.syspath_prepend`
+    was STILL on sys.path, and errored a test that had done nothing wrong.
+
+    I first tried to fix that by re-declaring the fixtures in a different order. It did not
+    work: pytest hoists an autouse fixture's dependencies regardless of where the fixture is
+    declared, so monkeypatch was still set up first. Declaration order was never the lever.
+
+    Doing the save/restore by hand removes the dependency entirely. `monkeypatch` is then
+    instantiated only when a TEST asks for it -- i.e. after every autouse fixture -- so its
+    finalizer runs FIRST, before the guards inspect global state. The ordering hazard is
+    gone at its source rather than worked around.
+    """
+    import genomic_variant_classifier.data.esm2 as _esm2
+    from genomic_variant_classifier.pipelines import protein_pipeline as _pp
+
+    _prev_esm2 = getattr(_esm2, "_DEFAULT_CACHE", None)
+    _prev_pp = getattr(_pp, "_DEFAULT_CACHE_DIR", None)
+
+    _esm2._DEFAULT_CACHE = tmp_path / "esm2_cache.sqlite"
+    _pp._DEFAULT_CACHE_DIR = tmp_path / "alphafold_cache"
+    try:
+        yield
+    finally:
+        # Restore unconditionally, even if the test raised.
+        if _prev_esm2 is not None:
+            _esm2._DEFAULT_CACHE = _prev_esm2
+        if _prev_pp is not None:
+            _pp._DEFAULT_CACHE_DIR = _prev_pp

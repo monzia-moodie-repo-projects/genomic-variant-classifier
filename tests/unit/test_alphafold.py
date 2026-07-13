@@ -42,9 +42,40 @@ from genomic_variant_classifier.data.alphafold import (
     DEFAULT_DIST_ACTIVE,
 )
 
-# The two real cached CIFs live under the repo. Tests that need a real structure use
-# E7ENB7 (small, carries DSSP _struct_conf). Skip gracefully if absent in CI.
-_CIF_DIR = Path("data/raw/cache/alphafold")
+# The real AF-E7ENB7 structure (98-residue BRCA1 fragment, 101 KB, carries DSSP
+# _struct_conf) is VENDORED as a COMMITTED test fixture.
+#
+# FIXED 2026-07-11. This used to read:
+#
+#     _CIF_DIR = Path("data/raw/cache/alphafold")     # CWD-relative, and GITIGNORED
+#     requires_cif = pytest.mark.skipif(not _has_real_cif(),
+#                                       reason="real cached CIF not present")
+#
+# with the comment "The two real cached CIFs live under the repo ... Skip gracefully if
+# absent in CI." They do NOT live under the repo: data/raw/ is gitignored, so the CIF is
+# absent from every clean checkout. The consequences, all measured:
+#
+#   * These SEVEN tests -- the guards for pLDDT parsing, relative solvent accessibility,
+#     secondary structure, the 3-D C-alpha distance, and the residue OFF-BY-ONE tripwire
+#     -- never ran in CI and never would. A fresh checkout skips them, and CI is always
+#     fresh. They were dead everywhere except one laptop.
+#
+#   * The suite was NOT IDEMPOTENT. Run 1 on a clean clone: 1805 passed, 17 skipped.
+#     Run 2 on the SAME clone: 1812 passed, 10 skipped. Something in run 1 DOWNLOADED the
+#     CIF from https://alphafold.ebi.ac.uk (ProteinStructurePipeline defaults cache_dir to
+#     a CWD-relative "data/raw/cache/alphafold", protein_pipeline.py:372) and wrote it into
+#     the checkout; run 2's collection-time skipif then found it and the seven came alive.
+#     A suite whose result depends on whether it has been run before is not a suite.
+#
+#   * git status could not see any of it -- data/raw/ is gitignored, so the tool that
+#     would have flagged the pollution was blindfolded. cf.
+#     docs/incidents/INCIDENT_2026-06-14_data-junction-dangling.md, which already recorded
+#     that tests "write to the REAL data/".
+#
+# The fixture is now committed under tests/fixtures/, addressed RELATIVE TO THIS FILE (not
+# the working directory). The seven tests therefore run everywhere, always, deterministically:
+# no network, no ambient state, no skip.
+_CIF_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "alphafold"
 _E7ENB7 = _CIF_DIR / "AF-E7ENB7-F1-model_v4.cif"
 
 
@@ -52,7 +83,17 @@ def _has_real_cif() -> bool:
     return _E7ENB7.exists()
 
 
-requires_cif = pytest.mark.skipif(not _has_real_cif(), reason="real cached CIF not present")
+# Retained ONLY as a fail-loud tripwire. The fixture is committed, so this must never fire.
+# If it ever does, the checkout is broken -- it is NOT a normal condition to skip past.
+requires_cif = pytest.mark.skipif(
+    not _has_real_cif(),
+    reason=(
+        f"VENDORED CIF FIXTURE MISSING at {_E7ENB7}. This should be impossible -- the "
+        f"fixture is committed to the repository. A skip here means a BROKEN CHECKOUT, "
+        f"not an absent optional artifact. Do not 'fix' this by restoring the old "
+        f"data/raw/cache path: that is what made these seven tests dead in CI."
+    ),
+)
 
 
 # ---------------------------------------------------------------------------

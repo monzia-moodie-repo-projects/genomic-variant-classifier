@@ -198,6 +198,24 @@ data/_pandas3/
 .mypy_cache/
 renv/
 *.cif
+# ... but VENDORED TEST FIXTURES must be committed (2026-07-11).
+#
+# The blanket `*.cif` above exists to keep the 8.77 GB / 18,079-file AlphaFold structure
+# cache (data/raw/cache/alphafold/) out of the repository -- and it should. But it also
+# silently swallowed tests/fixtures/alphafold/AF-E7ENB7-F1-model_v4.cif, the 101 KB
+# structure the AlphaFold feature tests need.
+#
+# That mattered: `git add` on an ignored path does NOTHING and says NOTHING. The fixture
+# would never have reached Continuous Integration, and the seven tests that validate
+# pLDDT (predicted Local Distance Difference Test) parsing, RSA (Relative Solvent
+# Accessibility), DSSP (Define Secondary Structure of Proteins) records, alpha-carbon
+# geometry and the residue off-by-one tripwire would have gone on skipping there -- the
+# exact defect the fixture was vendored to fix, reintroduced invisibly by a .gitignore line.
+#
+# Negations MUST come after the rule they override. Precedent: `!tests/fixtures/*.parquet`
+# (line ~64), which covers only the top level -- this one recurses.
+!tests/fixtures/**/*.cif
+
 data/**/*.tar.gz
 # root-level probe/verify/install/diag scratch dumps
 af_*.txt

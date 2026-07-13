@@ -55,12 +55,24 @@ def _has_network() -> bool:
 
 
 @pytest.fixture
-def esm2_connector():
+def esm2_connector(tmp_path):
     """Instantiate ESM2Connector from src/genomic_variant_classifier/data/esm2.py (confirmed
-    2026-04-17)."""
+    2026-04-17).
+
+    cache_path is pinned under tmp_path (2026-07-11). Constructed bare -- ESM2Connector()
+    -- it falls back to _DEFAULT_CACHE = "data/raw/cache/esm2_cache.sqlite", a CWD-RELATIVE
+    path into the REAL data tree, and the parquet score cache is its sibling. This test was
+    therefore writing esm2_cache.sqlite (503 KB) and esm2_scores.parquet into the repository
+    on every run -- invisibly, because data/raw/ is gitignored.
+
+    That made the suite non-hermetic in both directions: it could READ real cached scores
+    (order-dependent, flaky) and it WROTE fake scores into a production cache. The
+    test_esm2_llr fixture was hardened for exactly this on 2026-07-11; this one and
+    test_esm2_batched_equivalence.py were missed in that pass.
+    """
     from genomic_variant_classifier.data.esm2 import ESM2Connector
 
-    return ESM2Connector()
+    return ESM2Connector(cache_path=tmp_path / "esm2_cache.sqlite")
 
 
 def _variant_frame_with_parsed_columns() -> pd.DataFrame:

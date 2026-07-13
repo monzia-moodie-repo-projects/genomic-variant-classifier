@@ -74,6 +74,13 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
+# Default on-disk cache for downloaded AlphaFold structures. A NAMED CONSTANT, so a test
+# can monkeypatch it (as tests already do with esm2._DEFAULT_CACHE); it was previously an
+# inline literal inside ProteinStructurePipeline.__init__, which no test could redirect.
+# It is relative to the CURRENT WORKING DIRECTORY -- callers that care must pass cache_dir.
+# See the note in ProteinStructurePipeline.__init__ (2026-07-11).
+_DEFAULT_CACHE_DIR = Path("data/raw/cache/alphafold")
+
 ALPHAFOLD_API   = "https://alphafold.ebi.ac.uk/api/prediction/{accession}"
 UNIPROT_FEAT_API = "https://www.ebi.ac.uk/proteins/api/features/{accession}"
 UNIPROT_LOOKUP  = (
@@ -369,7 +376,27 @@ class ProteinStructurePipeline:
         self,
         cache_dir: str | Path | None = None,
     ) -> None:
-        self.cache_dir = Path(cache_dir) if cache_dir is not None else Path("data/raw/cache/alphafold")
+        # The default is a NAMED MODULE CONSTANT (_DEFAULT_CACHE_DIR), not an inline
+        # literal (2026-07-11). It used to read `else Path("data/raw/cache/alphafold")`.
+        #
+        # That literal is a path relative to the CURRENT WORKING DIRECTORY, and it is where
+        # this pipeline DOWNLOADS AlphaFold structures. Any caller that did not pass
+        # cache_dir -- including tests/unit/test_core.py::TestAnnotationPipeline, which
+        # exercises the full 17-connector chain with a default AnnotationConfig -- caused a
+        # live fetch from https://alphafold.ebi.ac.uk straight into the repository.
+        #
+        # Measured on a clean clone: that write made the suite NON-IDEMPOTENT.
+        #     run 1: 1805 passed, 17 skipped
+        #     run 2: 1812 passed, 10 skipped   (SAME checkout, SAME code)
+        # because run 1 wrote AF-E7ENB7-F1-model_v4.cif into data/raw/cache/alphafold/ and
+        # run 2's collection-time skipif then found it. On the author's machine the cache
+        # was always warm, so nothing was ever written and nothing ever showed. Invisible to
+        # `git status` too -- data/raw/ is gitignored.
+        #
+        # A buried literal cannot be redirected by a test. A module constant can be
+        # monkeypatched, exactly as esm2._DEFAULT_CACHE already is. Behaviour for
+        # production callers is unchanged.
+        self.cache_dir = Path(cache_dir) if cache_dir is not None else _DEFAULT_CACHE_DIR
         try:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
         except FileExistsError as _exc:  # 'data/' shadowed by a non-dir
