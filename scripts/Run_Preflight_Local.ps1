@@ -240,6 +240,39 @@ sys.exit(0 if not errs else 1)
         if ($dc -le 1) { Pass "RUN_17_PLAN.md: $dc literal <DECISION> (<=1 gate-mention, OK)" } else { Fail "RUN_17_PLAN.md: $dc <DECISION> tokens (unfilled)" }
     } else { Fail "RUN_17_PLAN.md missing" }
 
+    # -----------------------------------------------------------------------------------
+    Section "13c. RUN_17_PLAN.md feature contract matches the CODE (added 2026-07-12)"
+    # -----------------------------------------------------------------------------------
+    # WHY THIS EXISTS. Until today the plan's primary hypothesis read "the expanded 91-feature
+    # contract (88 + 3 FinnGen R13 columns)". That was true when it was written (2026-06-27,
+    # fbdcf4c). On 2026-07-06 (80eb9c8) KEGG, COSMIC and the Nucleotide Transformer took the
+    # contract to 97. The RUNBOOK was corrected (61c2b04). The PLAN was not.
+    #
+    # G1 checked the plan for unfilled <DECISION> markers and passed it -- so the gate green-lit
+    # a paid run against a document that misstated the very contract under test. Checking a
+    # document for completeness while never checking it for TRUTH is how every stale number in
+    # this project survived: KNOWN_ZERO_DEFAULT frozen at a count that had moved, a "65 features"
+    # comment while the contract held 97, a pytest floor 330 tests below the suite.
+    #
+    # A number written down once and never re-derived becomes a lie on a schedule. So don't
+    # write it down -- DERIVE it, and fail loud when the document and the code disagree.
+    if (Test-Path $planPath) {
+        $codeCount = (& $venvPython -c "from genomic_variant_classifier.models.variant_ensemble import EXPECTED_TABULAR_FEATURE_COUNT as n; print(n)" 2>&1).Trim()
+        if ($codeCount -notmatch '^\d+$') {
+            Fail "13c: could not read EXPECTED_TABULAR_FEATURE_COUNT from the package: $codeCount"
+        } else {
+            # Every "<N>-feature" claim the plan makes must agree with the code.
+            $claims = [regex]::Matches($plan, '(\d+)[- ]feature') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+            if (-not $claims) {
+                Warn "13c: RUN_17_PLAN.md states no feature count to check (code says $codeCount)"
+            } elseif ($claims -contains $codeCount -and $claims.Count -eq 1) {
+                Pass "13c: plan feature contract ($claims) == code EXPECTED_TABULAR_FEATURE_COUNT ($codeCount)"
+            } else {
+                Fail "13c: RUN_17_PLAN.md claims feature count(s) [$($claims -join ', ')] but the code says $codeCount. The plan Run 17 is gated against misstates the contract under test. Fix the plan (or the code) before spending money."
+            }
+        }
+    }
+
     Section "13b. Agent-layer liveness (check_agents_active.py)"
     $agentChk = "scripts\check_agents_active.py"
     if (-not (Test-Path $agentChk)) { Fail "$agentChk missing (agent-liveness gate)" }
