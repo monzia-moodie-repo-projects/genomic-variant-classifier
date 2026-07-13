@@ -261,24 +261,27 @@ sys.exit(0 if not errs else 1)
         if ($codeCount -notmatch '^\d+$') {
             Fail "13c: could not read EXPECTED_TABULAR_FEATURE_COUNT from the package: $codeCount"
         } else {
-            # Every "<N>-feature" claim the plan makes must agree with the code.
+            # AUTHORITY: an explicit machine-readable assertion, NOT scraped prose.
             #
-            # Strip markdown emphasis/code marks FIRST. On the very first run of this check the
-            # plan had been "corrected" to read `**97**-feature` -- and the guard could not see
-            # the 97 at all, because the digit was followed by '*' rather than '-'. The only
-            # machine-readable count left in the document was the STALE one, quoted inside the
-            # note explaining the correction. The check failed, and it was right to.
+            # Scraping the narrative failed twice, in opposite directions:
+            #   1. The hypothesis was written `**97**-feature`. The pattern wanted a digit
+            #      followed by '-' or ' '; after 97 came '*'. The guard could not see the 97,
+            #      and the only number it COULD see was the stale one quoted in a footnote.
+            #   2. Stripping markdown to fix (1) then collapsed `finngen_r13_*` feature-importance
+            #      into "finngenr13 feature-importance" -- and the guard read THIRTEEN features,
+            #      failing a document that was correct.
             #
-            # A number a human can read but a machine cannot verify is a number that will rot.
-            # Do not let formatting hide a claim from its own guard.
-            $planFlat = $plan -replace '[*_`~]', ''
-            $claims = [regex]::Matches($planFlat, '(\d+)[- ]feature') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
-            if (-not $claims) {
-                Warn "13c: RUN_17_PLAN.md states no feature count to check (code says $codeCount)"
-            } elseif ($claims -contains $codeCount -and $claims.Count -eq 1) {
-                Pass "13c: plan feature contract ($claims) == code EXPECTED_TABULAR_FEATURE_COUNT ($codeCount)"
+            # A contract must be ASSERTED, not INFERRED. The plan carries
+            #     <!-- FEATURE_CONTRACT: 97 -->
+            # and this compares that single number against the package. Prose is for humans;
+            # this marker is for the gate. Neither can silently drift from the code again.
+            $m = [regex]::Match($plan, '<!--\s*FEATURE_CONTRACT:\s*(\d+)\s*-->')
+            if (-not $m.Success) {
+                Fail "13c: RUN_17_PLAN.md has no '<!-- FEATURE_CONTRACT: N -->' marker. The plan Run 17 is gated against makes no checkable claim about the contract under test. Add it (code says $codeCount)."
+            } elseif ($m.Groups[1].Value -ne $codeCount) {
+                Fail "13c: RUN_17_PLAN.md asserts FEATURE_CONTRACT=$($m.Groups[1].Value) but the code says $codeCount (EXPECTED_TABULAR_FEATURE_COUNT). The plan misstates the contract under test. Fix the plan (or the code) BEFORE spending money."
             } else {
-                Fail "13c: RUN_17_PLAN.md claims feature count(s) [$($claims -join ', ')] but the code says $codeCount. The plan Run 17 is gated against misstates the contract under test. Fix the plan (or the code) before spending money."
+                Pass "13c: plan FEATURE_CONTRACT ($($m.Groups[1].Value)) == code EXPECTED_TABULAR_FEATURE_COUNT ($codeCount)"
             }
         }
     }

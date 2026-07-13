@@ -8,6 +8,24 @@ This plan must be fully populated and Charter v1.1 gates G1 + G2 must PASS befor
 
 ---
 
+<!-- FEATURE_CONTRACT: 97 -->
+<!--
+  ^ THE MACHINE-READABLE CONTRACT ASSERTION. G1 §13c reads this marker and hard-fails if it
+  disagrees with EXPECTED_TABULAR_FEATURE_COUNT in the package. It is the single authority;
+  the prose below is for humans.
+
+  It exists because scraping the prose did not work, twice:
+    * The corrected hypothesis was first written `**97**-feature`. The check matched a digit
+      followed by '-' or ' ', so the '*' hid the 97 entirely and the only number it could see
+      was the stale one quoted in a footnote.
+    * Stripping markdown to fix that then collapsed `finngen_r13_*` feature-importance into
+      "finngenr13 feature-importance" -- and the guard read it as a claim of THIRTEEN features,
+      failing a correct document.
+
+  A contract must be ASSERTED, not INFERRED from narrative text. Update this number and the
+  prose together; G1 will not let them disagree with the code.
+-->
+
 ## A. Hypothesis
 
 > **CONTRACT CORRECTED 2026-07-12: ninety-one → ninety-seven.** This hypothesis previously
