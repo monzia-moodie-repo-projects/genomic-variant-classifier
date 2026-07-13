@@ -779,7 +779,9 @@ the drift this project spends its time hunting. Recorded plainly so the failure 
 | # | item | status |
 |---|---|---|
 | 6.1 | Continuous Integration `--maxfail=5` -- reported **5** failures when the truth was **24**. | **CLOSED 2026-07-12** (`0849da3`). Removed, and `-rs` added so every skip states its reason. |
-| 6.2 | **Continuous Integration runs `tests/unit/` only** -- `tests/conformal/` (7 files), `tests/integration/` (1), and **22 root-level `tests/test_*.py`** = **30 test files never run in Continuous Integration.** This is why the clean-clone breakage survived. Widening it will likely go RED (those files have never run on a clean runner and several probably need gitignored cohort data). **Do it on a branch.** | **OPEN — highest leverage** |
+| 6.2 | ~~**Continuous Integration runs `tests/unit/` only** -- `tests/conformal/` (7 files), `tests/integration/` (1), and **22 root-level `tests/test_*.py`** = **30 test files never run in Continuous Integration.**~~ Widened to `pytest tests/` on branch `ci/widen-test-scope`, pull request **#2**, merged **2026-07-13** (`0996dec`). The 30 dark files include the entire cohort-construction and data-provenance layer -- `build_cohort_*`, `clean_cohort`, `dedup_collapse`, `ingest_clinvar_snapshot`, `recover_alleleless_*`, `seq_window_manifest`, and **`split_protocol_v2`, the gene-disjoint split on which every leakage claim in this project rests**. In 508 Continuous Integration runs, none had ever executed. **PREDICTION WAS WRONG:** widening was expected to go RED; it went **GREEN with zero new failures** (1587 -> 1785 passed, +198). The only two failures were the pre-existing Kolmogorov-Arnold Network defect (6.16), which the widening did not cause and which was already failing in the narrow gate. | **CLOSED 2026-07-13** (`9f701ec`, merged `0996dec`). Continuous Integration is green on Python 3.11 + 3.12 running the FULL suite. |
+| 6.16 | **THE KOLMOGOROV-ARNOLD NETWORK HAD BEEN SILENTLY ABSENT FROM EVERY CONTINUOUS INTEGRATION RUN SINCE MAY.** Found by 6.6a's fail-loud handler on its FIRST clean run -- one day before Run 17. **Root cause is in `__init__`, not `fit`:** `imodelsx` 1.0.13 (the latest release) accepts `test_size` / `random_state` / `shuffle` and **throws them away** (verified: `hasattr(m, "test_size")` is False after construction); `fit()` then reads them as **bare names** and raises `NameError`. `KANClassifier.fit()` cannot run at all on an unmodified install. Since 2026-05 the launch scripts `sed`-ed the **installed `site-packages` file** to redirect the lookup onto `self`, and `kan.py` supplied `self.<name>` -- **two halves of one mechanism; neither works alone.** The `sed` ran on the developer's laptop and the Run 11 / Run 16 instances. It was **NEVER in Continuous Integration, NEVER in Docker, and NOT in `scripts/vm_bootstrap_run.sh` -- the Run 17 path.** So KAN raised `NameError` in every Continuous Integration run, the old bare `except Exception` ate it, and a **TWELVE-model ensemble trained and reported normal metrics**. **Run 17 would have provisioned a fresh box, PASSED EVERY PRE-FLIGHT** (section E checked that `KANClassifier` *imports* -- it imports fine; the bug is in `fit()`), **trained for eleven hours, and published a twelve-model algorithm comparison with a headline model silently missing.** Second defect: the `sed` left the developer's `.venv312` holding a **mutated `site-packages`**, so local tests exercised a code path **no clean machine had** -- *"it passes on my machine"* was structurally load-bearing for two months. | **CLOSED 2026-07-13** (`98ebd6b`). In-process repair (`kan.py::_repair_imodelsx_kan_bare_names()`, BOTH bindings, every environment); `sed` deleted from all three launch scripts + `RUN16_RUNBOOK.md`; `patch_runbook_kan_and_offer.py` refuses to run; `.venv312` restored to **pristine** (stack held: pandas 2.3.3, transformers 4.46.3); `imodelsx==1.0.13` pinned; **pre-flight now FITS every base model, not imports**; `VariantEnsemble.ensemble_completeness_` written to run artifacts. 6 tests incl. an upstream tripwire and a divergence detector. Full write-up: `docs/status/REMEDIATION_2026-07-13_warnings-and-silent-model-drop.md` section 9. |
+| 6.17 | **NEW -- THE GRAPH-NEURAL-NETWORK BRANCH IS ENTIRELY UNTESTED IN CONTINUOUS INTEGRATION.** Visible only because `-rs` was added on 2026-07-12. `torch_geometric` is not installed on the runner, so **eleven test entries skip**: `test_ablate_gnn`, `test_gnn_experimental_channel`, `test_gnn_gps`, `test_gnn_optim`, `test_gnn_shared_graph`, `test_gnn_tier2_denoise`, `test_hetero_gnn` (x2), `test_hetero_gnn_scorer` (x2), `test_hetero_inductive_pyg` (x2) -- the STRING-DB graph neural network, the hetero-graph neural network, GraphGPS, the ablation, and the inductive path. **`gnn_score` is a REAL, non-degenerate ensemble feature** (roadmap section 3: non-degeneracy gate PASS). Also skipped for missing dependencies: `pandera` (5 schema-drift tests), `pyspark` (3 in `test_core`), `river` (1), `mapie` (1 conformal cross-check). **This is the SAME DEFECT SHAPE as 6.16: a headline component whose failure the gate cannot see.** Widening 6.2 brought the FILES in; it did nothing about the DEPENDENCIES that skip them out again. Decision needed: install the dependencies in Continuous Integration (`torch_geometric` is a large, torch-version-coupled wheel -- not free), or give them a **REGISTERED marker** that declares "not covered by Continuous Integration" out loud. **The status quo -- a headline model silently untested behind a skip nobody reads -- is not acceptable.** | **OPEN -- highest leverage** |
 | 6.3 | ~~"The rented-GPU path bypasses Continuous Integration entirely."~~ **CORRECTED 2026-07-12.** `Run_Preflight_Local.ps1` (G1) **does** run `pytest tests/` -- the FULL tree, more than Continuous Integration does -- and hard-fails on any failure. The gate was never missing; it had **ROTTED**: its floors were `1485/1496` against a suite of **1,823 collected / 1,815 passed**, so ~330 tests could have vanished and it would still have said PASS. Floors refreshed to `1805/1815` (`0b93d30`). **Still open:** `Run_Preflight_VM.sh` / `vm_bootstrap_run.sh` run no pytest, and G1 has a `-SkipPytest` escape hatch. | PARTLY CLOSED |
 | 6.4 | `RUN_17_PLAN.md` hypothesis said **91** features; actual **97**. | **CLOSED 2026-07-12** (`721a23e`). Corrected, and G1 §13c now **DERIVES** `EXPECTED_TABULAR_FEATURE_COUNT` from the package and hard-fails on disagreement. Negative-tested three ways: correct marker PASSES, stale marker FAILS, absent marker FAILS. |
 | 6.5 | Correctness-harness sanity model **does not converge** (lbfgs, max_iter 1000 *and* 200; reproduced on Python 3.11 and 3.12 in Continuous Integration). Stage 3 is weakened as evidence while its own reference model is unconverged. **The most scientifically substantive item left.** | OPEN |
@@ -799,7 +801,8 @@ the drift this project spends its time hunting. Recorded plainly so the failure 
 
 ## 7. THE PATTERN, stated once so it is not re-learned
 
-Every defect above is one of two shapes.
+Every defect above is one of **four** shapes. (Two were identified on 2026-07-12; the last two
+were paid for on 2026-07-13, and they are the expensive ones.)
 
 **(a) A number written down once and never re-derived becomes a lie on a schedule.**
 `KNOWN_ZERO_DEFAULT` commented as 27 while the literal held 25. `variant_ensemble.py` saying
@@ -807,11 +810,52 @@ Every defect above is one of two shapes.
 1815. `RUN_17_PLAN` asserting 91. Each was a guard that had quietly stopped guarding.
 **Fix: derive it at gate time. Do not store it.**
 
+> **2026-07-13 addendum, and it is damning.** The G1 pytest floor rotted **four more times in
+> two days** -- 1485 -> 1805 -> 1842 -> 1850 -- *every single time* beneath an emphatic
+> all-capitals comment demanding that it be raised, written by the person who then failed to
+> raise it. **The comment does not enforce itself, and no volume of emphasis will make it.**
+> This is a DESIGN defect, not a discipline defect. See 6.14: the fix is a ratchet -- the
+> suite itself fails until the constant is bumped, exactly as `EXPECTED_TABULAR_FEATURE_COUNT`
+> guards `TABULAR_FEATURES`. **If a rule can be forgotten, it will be. Make forgetting fail.**
+
 **(b) A library that hard-codes a working-directory-relative writable path makes the test
 suite a function of the developer's disk.** The AlphaMissense fallback (12 tests red on a
 populated box, green on a clean one). `ESM2Connector`'s default cache. `ProteinStructurePipeline`
 downloading a structure **into the checkout**. `FinnGenConnector` with no injection point at all.
 Every one was invisible locally and visible only on a cold clone.
+
+**(c) A gate that checks a PROXY instead of the thing it claims to protect is not a gate.**
+G1 section 13c checked `RUN_17_PLAN.md` for *completeness* -- unfilled `<DECISION>` markers --
+and never for *truth*, so it green-lit a paid run against a document that misstated the very
+feature contract under test. `vm_bootstrap_run.sh` section E checked that `KANClassifier`
+**imports**; the bug was in `fit()`; it imports perfectly; **Run 17 would have sailed through
+green and published a twelve-model comparison with a headline model missing** (6.16). The
+five-stage correctness harness imported `engineer_features` while the training pipeline ran a
+second, drifted copy -- so the gate validated a code path the run never executed.
+**Fix: gates must assert the thing they protect. A model that imports is not a model that
+trains. A document that is complete is not a document that is correct.**
+
+**(d) A green result from a mutated environment is evidence about the environment, not about
+the code.** The developer's `.venv312` held a `sed`-patched `imodelsx` from 2026-05 until
+2026-07-13. Locally the Kolmogorov-Arnold Network trained, every test passed, and that green
+was used -- in writing, in a remediation document -- to conclude that *"no historical run has
+ever lost a model."* On Linux, where the science actually runs, KAN had been raising
+`NameError`, being silently swallowed, and vanishing from the ensemble **in every Continuous
+Integration run for two months**. The same shape produced the `sed` itself: a fix applied on
+some machines and not others, so that "works here" and "works" were quietly different claims.
+**Fix: the developer's machine must run what the runner runs. Never patch `site-packages`;
+repair in-process, in code that ships. And when a local suite is green, ask what the green is
+evidence OF.**
+
+---
+
+**The meta-rule underneath all four:** *a finding in a log is a comment; a finding in a
+document is a comment; a finding that fails a test is a gate.* `INCIDENT_2026-06-14` had
+already recorded the `data/` pollution -- nothing happened for four weeks, because nothing
+failed. The 41 warnings printed in every run for weeks and were scrolled past; **every single
+one of them turned out to be a real defect or the visible edge of one.** Nothing here was
+discovered by being clever. It was discovered by making things fail loudly and then reading
+the output.
 **Fix: never hard-code a writable path without an override, and let a guard fail loudly if
 anything writes into `data/`.**
 
