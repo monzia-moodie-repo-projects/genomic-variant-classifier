@@ -220,9 +220,17 @@ followed by a regression test against the real files.
 
 ## 8. Artifacts produced this session
 
-Scripts (in `scripts/`): `classify_alleleless_by_type.py`, `rebuild_cohort_v3_by_sid.py`,
-`recover_by_sourceid.py`, `verify_v3_against_v2.py`, and diagnostics
-`diagnose_alleleless_keys_v3.py`, `diagnose_collision_groups_v2.py`,
+**PATHS UPDATED 2026-07-12** — these scripts were untracked for weeks and were dispositioned
+on 2026-07-12 (they blocked the G1 pre-flight gate). They now live in **two** places, and the
+split is not arbitrary: anything reachable from `tests/` or `src/` stayed in `scripts/`;
+everything else was archived. See `scripts/forensics/README.md`.
+
+Live tooling, still in **`scripts/`** (a test imports each of these):
+`classify_alleleless_by_type.py`, `rebuild_cohort_v3_by_sid.py`, `recover_by_sourceid.py`.
+
+Spent diagnostics, archived to **`scripts/forensics/`** (they produced the findings recorded
+above; they are kept so this document remains reproducible, not because they are maintained):
+`verify_v3_against_v2.py`, `diagnose_alleleless_keys_v3.py`, `diagnose_collision_groups_v2.py`,
 `audit_recovery_collapse.py`, `probe_resolve_vs_sourceid.py`, `probe_sid_in_vcf.py`,
 `probe_snv_alleleless.py`.
 
