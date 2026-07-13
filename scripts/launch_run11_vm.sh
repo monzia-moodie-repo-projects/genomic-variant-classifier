@@ -188,16 +188,13 @@ if [ -f "$GNOMAD_CONSTRAINT" ]; then
 ARGS="$ARGS --skip-cnn"
 echo "==> CNN_1D skipped (no fasta_seq data available)" | tee -a "$LOG"
 
-# --- imodelsx v1.0.13 bug fix (bare-name references in KANClassifier.fit) ---
-IMODELSX_KAN=$(python -c "import imodelsx.kan.kan_sklearn as m; print(m.__file__)" 2>/dev/null)
-if [ -n "$IMODELSX_KAN" ] && grep -q "test_size=test_size" "$IMODELSX_KAN"; then
-    sed -i 's/test_size=test_size/test_size=self.test_size/g' "$IMODELSX_KAN"
-    sed -i 's/random_state=random_state/random_state=self.random_state/g' "$IMODELSX_KAN"
-    sed -i 's/shuffle=shuffle/shuffle=self.shuffle/g' "$IMODELSX_KAN"
-    echo "==> imodelsx_patch: fixed 3 bare-name refs in $IMODELSX_KAN" | tee -a "$LOG"
-else
-    echo "==> imodelsx_patch: already patched or not installed" | tee -a "$LOG"
-fi  # A3 fix 2026-05-27: removed redundant outer tee
+# --- imodelsx v1.0.13 KAN bug: REPAIRED IN-PROCESS since 2026-07-13. The sed is GONE. ---
+# The repair lives in models/kan.py::_repair_imodelsx_kan_bare_names() and applies in EVERY
+# environment. DO NOT RE-ADD THE SED: mutating site-packages on some machines and not others
+# is exactly what let the Kolmogorov-Arnold Network be silently dropped from every
+# Continuous Integration run for two months, and left the developer's virtual environment
+# holding a library no clean machine had. See tests/unit/test_kan_actually_fits.py.
+echo "==> imodelsx_patch: NOT NEEDED (repaired in-process by models/kan.py)" | tee -a "$LOG"
 else
     echo "==> WARN: gnomAD constraint TSV not found — pli/loeuf/syn_z/mis_z will be 0" | tee -a "$LOG"
 fi

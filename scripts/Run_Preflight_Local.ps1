@@ -4,18 +4,32 @@
 # Adapted from Run14_Preflight.ps1 (PM13, 2026-05-27). Exit: 0 green / 1 fail.
 # =============================================================================
 [CmdletBinding()]
-# [G1-RUN17-ADAPTED] Run-15 -> Run-17 (2026-06-27): launch path, kan.py imodelsx, test floor 1485/1480, FinnGen R12+R13 required, Run17 postflight+plan, agent liveness.
+# [G1-RUN17-ADAPTED] Run-15 -> Run-17 (2026-06-27): launch path, kan.py imodelsx, FinnGen R12+R13 required, Run17 postflight+plan, agent liveness.
+# Test floors live in ONE place only -- $MinPytest (collected) and $minPass (~line 155).
+# This header used to carry a THIRD copy ("test floor 1485/1480"), which was stale by ~370
+# tests and contradicted both of them. A number written down in three places is wrong in at
+# least two. Do not restate the floors here; read them from the parameters.
 param(
     [string]$RepoRoot     = "C:\Projects\genomic-variant-classifier",
     [string]$VenvName     = ".venv312",
     [string]$SshKey       = "C:\Users\monzi\.ssh\id_lambda_run8",
     [string]$ExpectedHead = "",
-    # COLLECTED floor -- refreshed 2026-07-12 (was 1496; the suite now collects 1,823).
+    # COLLECTED floor -- refreshed 2026-07-13 (was 1815, and before that 1496).
     # Paired with $minPass (~line 136). A collected-floor that lags the suite lets tests
     # VANISH silently: at 1496, three hundred tests could stop being collected -- deleted,
     # mis-named, or lost to a collection error -- and this gate would still say PASS.
     # RAISE BOTH WHENEVER YOU ADD TESTS.
-    [int]$MinPytest       = 1815,
+    #
+    # 2026-07-13: this floor went stale FOUR TIMES IN TWO DAYS. 1485 -> 1815 -> 1852 -> 1860,
+    # as 41 tests were added across four commits (test_base_model_dropout_is_loud 8,
+    # test_feature_name_contract 7, test_scalable_svm_map_dim 20, test_kan_actually_fits 6).
+    # Each time the emphatic "RAISE THIS" comment below failed to raise it. THE COMMENT DOES
+    # NOT ENFORCE ITSELF, and no volume of capital letters will make it. This is a DESIGN
+    # defect, not a discipline defect -- see roadmap 6.14 for the ratchet that replaces it
+    # (one committed suite-size constant, enforced by the suite itself under an explicit
+    # --assert-suite-size flag, exactly as EXPECTED_TABULAR_FEATURE_COUNT guards
+    # TABULAR_FEATURES). Until that lands, raise BY HAND in the same commit that adds tests.
+    [int]$MinPytest       = 1860,
     # -SkipPytest is an ESCAPE HATCH ON A GATE THAT PROTECTS PAID COMPUTE. On 2026-07-06 the
     # project shipped 24 red tests to a rented GPU. Use it only to debug this script itself,
     # never to get a run out the door -- the gate exists precisely for the moment you are
@@ -123,26 +137,43 @@ print(f'SMOKE_OK shape={p.shape} backend={backend}')
         if ($tail -match '(\d+) skipped') { $nSkip = [int]$Matches[1] }
         $collected = $nPass + $nSkip
         # -------------------------------------------------------------------------------
-        # PASS FLOOR -- refreshed 2026-07-12. It was 1485 and had gone STALE BY ~330 TESTS.
+        # PASS FLOOR -- refreshed 2026-07-13. Was 1805; before that 1485 (STALE BY ~330).
         # -------------------------------------------------------------------------------
-        # The old comment recorded "1498 collected / 1491 passed" (2026-06-28) and set the
-        # floor at 1485. The suite now collects 1,823 and passes 1,815. A floor of 1485 would
-        # therefore have accepted the SILENT LOSS OF 330 TESTS and still reported PASS --
-        # which is precisely the class of rotted guard this project keeps finding. A floor
+        # The 2026-06-28 comment recorded "1498 collected / 1491 passed" and set the floor at
+        # 1485. By 2026-07-12 the suite collected 1,823 and passed 1,815 -- so a floor of 1485
+        # would have accepted the SILENT LOSS OF 330 TESTS and still reported PASS. A floor
         # that drifts below reality is not a floor; it is a rubber stamp.
         #
-        # Measured 2026-07-12 (outputs/fullsuite_2026-07-12d.log and 12e, two identical runs):
-        #     1,823 collected = 1,815 passed + 8 skipped, 0 failed, 0 errors
-        # The suite is now HERMETIC and IDEMPOTENT (88af150), so this number is reproducible
+        # IT THEN WENT STALE THREE MORE TIMES, IN TWO DAYS: 1485 -> 1805 -> 1842 -> 1850, as
+        # 41 tests were added across four commits on 2026-07-12/13. Every single time, the
+        # emphatic comment demanding the raise was sitting right here, and every single time
+        # it failed to cause one. THE COMMENT DOES NOT ENFORCE ITSELF. See roadmap 6.14: the
+        # permanent fix is a ratchet -- one committed suite-size constant, enforced by the
+        # SUITE, exactly as EXPECTED_TABULAR_FEATURE_COUNT guards TABULAR_FEATURES, so that
+        # adding a test turns the suite red until the constant is bumped. Forgetting then
+        # fails loudly instead of silently widening the gap between the floor and reality.
+        #
+        # Measured 2026-07-13 (full suite, Python 3.12, PRISTINE imodelsx, cohort data present):
+        #     1,868 collected = 1,860 passed + 8 skipped, 0 failed, 0 errors, 0 WARNINGS
+        #
+        # NOTE: this is the first measurement taken against a PRISTINE imodelsx. Until
+        # 2026-07-13 the developer's .venv312 held a sed-MUTATED copy of the library, so every
+        # local number before today was measured on an environment no clean machine had -- and
+        # the Kolmogorov-Arnold Network, which raises NameError on a pristine install, was
+        # being silently dropped from every Continuous Integration run. See
+        # docs/status/REMEDIATION_2026-07-13_warnings-and-silent-model-drop.md section 9.
+        #
+        # Earlier: 2026-07-13 pre-KAN-fix 1,860 collected / 1,852 passed.
+        #          2026-07-12 1,823 collected / 1,815 passed.
+        # The suite is HERMETIC and IDEMPOTENT (88af150), so these numbers are reproducible
         # rather than a function of what happens to sit on the developer's disk.
         #
-        # Headroom of 10 below 1,815 absorbs legitimate environment-dependent skips (e.g. the
+        # Headroom of 10 below 1,860 absorbs legitimate environment-dependent skips (e.g. the
         # POSIX-symlink test that cannot run on Windows). It is NOT headroom for regressions:
         # any failure or error fails this gate outright, regardless of the count.
         #
-        # WHEN YOU ADD TESTS, RAISE THIS. A floor left behind by a growing suite silently
-        # stops guarding. It has already happened once.
-        $minPass = 1805
+        # WHEN YOU ADD TESTS, RAISE THIS. It has now gone stale FOUR TIMES.
+        $minPass = 1850
         if ($nFail -gt 0) { Fail "pytest: $nFail failed/errored ($nPass passed, $nSkip skipped). Tail:`n$tail" }
         elseif ($nPass -ge $minPass -and $collected -ge $MinPytest) { Pass "pytest: $nPass passed, $nSkip skipped, 0 failed (>= $minPass passed, collected $collected >= $MinPytest)" }
         else { Fail "pytest: $nPass passed / $nSkip skipped / collected $collected (expected >= $minPass passed and >= $MinPytest collected). Tail:`n$tail" }

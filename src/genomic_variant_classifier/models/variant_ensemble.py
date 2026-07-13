@@ -1672,6 +1672,10 @@ class VariantEnsemble:
         # the run artifacts so the incompleteness cannot be lost. See
         # EnsembleConfig.allow_base_model_dropout.
         self.dropped_models_: dict[str, str] = {}
+        # Set at the end of fit(): roster / trained / dropped / complete. Written into the run
+        # artifacts so that "the ensemble was complete" is a CHECKED, RECORDED fact rather
+        # than an assumption. See the block at the end of fit().
+        self.ensemble_completeness_: dict = {}
 
     @staticmethod
     def _find_blend_weights(oof_preds: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -1970,6 +1974,35 @@ class VariantEnsemble:
                 ", ".join(
                     f"{n} ({e})" for n, e in sorted(self.dropped_models_.items())
                 ),
+            )
+
+        # -------------------------------------------------------------------------------
+        # ENSEMBLE COMPLETENESS -- recorded, not assumed. (2026-07-13)
+        #
+        # "The run trained 13 models" and "the roster has 13 models" were DIFFERENT
+        # STATEMENTS, and nothing ever checked the first one. On 2026-07-13 it emerged that
+        # the Kolmogorov-Arnold Network had been raising NameError inside imodelsx 1.0.13 --
+        # and being silently swallowed -- in EVERY Continuous Integration run since May. The
+        # ensemble trained twelve models, reported normal metrics, and no artifact anywhere
+        # said a model was missing.
+        #
+        # This writes the roster, the models actually trained, and any dropouts onto the
+        # fitted object, so that completeness is a RECORDED FACT that downstream reporting
+        # can assert on -- not an assumption inherited from the config.
+        # -------------------------------------------------------------------------------
+        self.ensemble_completeness_ = {
+            "roster": sorted(self.base_estimators),
+            "trained": sorted(self.trained_models_),
+            "dropped": dict(sorted(self.dropped_models_.items())),
+            "n_roster": len(self.base_estimators),
+            "n_trained": len(self.trained_models_),
+            "complete": len(self.trained_models_) == len(self.base_estimators),
+        }
+        if self.ensemble_completeness_["complete"]:
+            logger.info(
+                "Ensemble COMPLETE: all %d configured base models trained (%s).",
+                len(self.base_estimators),
+                ", ".join(sorted(self.trained_models_)),
             )
 
         # Expose OOF matrix for Rule-5 artefacts (Run 9+). Downstream

@@ -1,13 +1,48 @@
 #!/usr/bin/env python3
-"""patch_runbook_kan_and_offer.py -- make two concrete edits to
-docs/launch/RUN16_RUNBOOK.md: (1) replace the vague imodelsx KAN placeholder in Sec.E
-with the exact self-guarding sed patch (from Run-11/13/14, commit bf2f665); (2) set a
-RAM-aware default offer in Sec.A. Count-guarded, idempotent, backup-first, CRLF/LF-
-preserving, ASCII-only. Run from repo root. Author: Monzia Moodie."""
+"""patch_runbook_kan_and_offer.py -- SPENT AND SUPERSEDED. DO NOT RUN. (2026-07-13)
+
+ORIGINAL PURPOSE
+    Make two edits to docs/launch/RUN16_RUNBOOK.md: (1) replace the vague imodelsx KAN
+    placeholder in Section E with the exact self-guarding `sed` patch (from Run 11/13/14,
+    commit bf2f665); (2) set a RAM-aware default offer in Section A. It did its job.
+
+WHY IT IS NEUTRALISED
+    Its KAN_BLOCK payload injects, into the runbook, an instruction to `sed -i` the INSTALLED
+    imodelsx package inside site-packages:
+
+        sed -i 's/test_size=test_size/test_size=self.test_size/g' "$IMODELSX_KAN"
+
+    That approach was REMOVED on 2026-07-13 and must not come back. The `sed` ran only in the
+    Run 11 / Run 16 launch scripts and on the developer's laptop -- never in Continuous
+    Integration, never in Docker, and never in scripts/vm_bootstrap_run.sh (the Run 17 path).
+    Consequently the Kolmogorov-Arnold Network raised NameError in every Continuous
+    Integration run, the ensemble's bare `except Exception` swallowed it, and a TWELVE-model
+    ensemble trained and reported as healthy. It also left the developer's virtual environment
+    holding a library no clean machine had.
+
+    The repair is now IN-PROCESS: models/kan.py::_repair_imodelsx_kan_bare_names(), applied
+    identically in every environment, covered by tests/unit/test_kan_actually_fits.py.
+
+    Re-running this script would re-inject the sed instruction into the runbook and re-create
+    the exact environment divergence that hid the defect for two months. It therefore refuses
+    to run.
+
+Author: Monzia Moodie.
+"""
 from __future__ import annotations
 
 import sys
 from pathlib import Path
+
+sys.exit(
+    "patch_runbook_kan_and_offer.py is SUPERSEDED and will not run (2026-07-13).\n"
+    "It injects a `sed -i` of the installed imodelsx package into RUN16_RUNBOOK.md.\n"
+    "That mechanism was removed: the KAN repair is now in-process in models/kan.py\n"
+    "(_repair_imodelsx_kan_bare_names), applied in EVERY environment. Re-running this\n"
+    "would re-create the environment divergence that silently dropped KAN from every\n"
+    "Continuous Integration run for two months. See\n"
+    "docs/status/REMEDIATION_2026-07-13_warnings-and-silent-model-drop.md."
+)
 
 TARGET = Path("docs/launch/RUN16_RUNBOOK.md")
 

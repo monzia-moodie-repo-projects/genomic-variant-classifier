@@ -196,9 +196,79 @@ PYEOF
 fi
 
 # =====================================================================
-hdr "E. IMPORT + GPU GATE (fast fail before any run)"
+hdr "E. IMPORT + FIT GATE (fast fail before any run)"
 "$PY" -c "import torch; assert torch.cuda.is_available()" 2>/dev/null && ok "torch.cuda.is_available()" || bad "CUDA not available to torch"
 "$PY" -c "from genomic_variant_classifier.models.kan import KANClassifier" 2>/dev/null && ok "KANClassifier import" || bad "KANClassifier import failed"
+
+# ---------------------------------------------------------------------
+# A MODEL THAT IMPORTS IS NOT A MODEL THAT TRAINS.  (added 2026-07-13)
+#
+# This section was called "IMPORT + GPU GATE" and it checked that imodelsx and
+# KANClassifier could be IMPORTED. Both import perfectly. The bug is in fit():
+# imodelsx 1.0.13's KANClassifier.__init__ ACCEPTS test_size / random_state / shuffle
+# and then discards them, and its fit() reads them as BARE NAMES -- so fit() raises
+# NameError on any machine that has not had its site-packages sed-ed.
+#
+# Run 11 and Run 16 sed-ed it, from their launch scripts. THIS bootstrap -- the Run 17
+# path -- never did. So Run 17 would have: provisioned the instance, installed imodelsx,
+# passed THIS GATE GREEN, trained for eleven hours, hit NameError inside KAN's
+# out-of-fold step, had it swallowed by the ensemble's bare `except Exception`, and
+# published a TWELVE-model algorithm comparison with the Kolmogorov-Arnold Network
+# silently absent -- in a project whose stated first-class goal is comparing exactly
+# these algorithms. Nothing in the run report would have said so.
+#
+# The repair now lives in-process in models/kan.py (_repair_imodelsx_kan_bare_names)
+# and applies in EVERY environment. The sed has been removed from the launch scripts.
+# This gate exists to prove the repair is actually working ON THIS BOX, before we spend
+# money -- by FITTING the model, not importing it.
+#
+# Checking that a module imports, while never checking that it works, is the same
+# defect as checking a document for completeness while never checking it for TRUTH
+# (see G1 section 13c). Gates must assert the thing they claim to protect.
+# ---------------------------------------------------------------------
+"$PY" - <<'PYFIT' 2>/dev/null && ok "KANClassifier FITS (not merely imports)" || bad "KANClassifier FAILED TO FIT -- KAN would be silently dropped from the ensemble. Do NOT launch."
+import numpy as np
+from genomic_variant_classifier.models.kan import KANClassifier, _KAN_BACKEND, _IMODELSX_KAN_REPAIR
+
+rng = np.random.default_rng(0)
+X = rng.standard_normal((40, 5))
+y = (X[:, 0] + X[:, 1] > 0).astype(int)
+
+m = KANClassifier(hidden_sizes=[8]).fit(X, y)          # this is what actually breaks
+p = m.predict_proba(X)
+assert p.shape == (40, 2), f"bad proba shape {p.shape}"
+assert np.all((p >= 0) & (p <= 1)), "probabilities out of range"
+print(f"KAN fit OK  backend={_KAN_BACKEND}  imodelsx_repair={_IMODELSX_KAN_REPAIR}")
+PYFIT
+
+# Every OTHER base model must fit too -- KAN was simply the one that was broken. A base
+# model that cannot fit is a base model that is ABSENT from the comparison, and before
+# 2026-07-13 it vanished in silence.
+"$PY" - <<'PYALL' 2>/dev/null && ok "every base model in the roster FITS" || bad "at least one base model cannot fit -- the ensemble would be INCOMPLETE. Do NOT launch."
+import numpy as np
+from sklearn.base import clone
+from genomic_variant_classifier.models.variant_ensemble import EnsembleConfig, VariantEnsemble
+
+rng = np.random.default_rng(0)
+X = rng.standard_normal((80, 6))
+y = (X[:, 0] + X[:, 1] > 0).astype(int)
+
+roster = VariantEnsemble(EnsembleConfig()).base_estimators
+failures = {}
+for name, model in roster.items():
+    if name == "cnn_1d":
+        continue                      # consumes the one-hot DNA sequence, not X_tab
+    try:
+        clone(model).fit(X, y)
+    except Exception as exc:
+        failures[name] = f"{type(exc).__name__}: {exc}"
+
+if failures:
+    for n, e in sorted(failures.items()):
+        print(f"CANNOT FIT: {n}: {e}")
+    raise SystemExit(1)
+print(f"all {len(roster)} base models fit")
+PYALL
 
 # =====================================================================
 hdr "F. HANDOFF"

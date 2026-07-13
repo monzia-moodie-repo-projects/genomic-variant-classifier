@@ -110,22 +110,49 @@ ssh -i C:\Users\monzi\.ssh\id_lambda_run8 -p $SshPort -o StrictHostKeyChecking=a
 
 Then (bash, on the box):
 
+> **CORRECTED 2026-07-13 -- DO NOT RUN THE OLD `sed` STEP.**
+>
+> This runbook used to instruct you to `sed -i` the **installed** `imodelsx` package file
+> here, rewriting `test_size=test_size` to `test_size=self.test_size` (and likewise for
+> `random_state` and `shuffle`) inside `site-packages`. **That step is gone. Do not perform
+> it by hand, and do not restore it.**
+>
+> **What it was for.** `imodelsx` 1.0.13's `KANClassifier.__init__` accepts `test_size`,
+> `random_state` and `shuffle` and then *discards* them, while its `fit()` reads them as
+> **bare names** -- so `fit()` raises `NameError` on any unmodified install. The `sed`
+> redirected the lookup onto `self`, and `models/kan.py` supplied `self.<name>`. Together
+> they worked.
+>
+> **Why it was dangerous.** The `sed` ran only in the Run 11 / Run 16 launch scripts and on
+> the developer's laptop. It **never** ran in Continuous Integration, **never** in Docker,
+> and **never** in `scripts/vm_bootstrap_run.sh` -- the Run 17 path. So the Kolmogorov-Arnold
+> Network raised `NameError` in every Continuous Integration run, the ensemble's bare
+> `except Exception` swallowed it, and a **twelve-model** ensemble was trained and reported
+> as healthy. It also left the developer's virtual environment holding a library **no clean
+> machine had**, so "it passes on my machine" was load-bearing from 2026-05 until 2026-07-13.
+>
+> **What replaces it.** The repair is now applied **in-process**, at import, by
+> `models/kan.py::_repair_imodelsx_kan_bare_names()`. It applies identically in every
+> environment, handles both the pristine and the legacy sed-patched source form, and is
+> covered by `tests/unit/test_kan_actually_fits.py`. Nothing needs to be patched by hand.
+>
+> `scripts/vm_bootstrap_run.sh` section E now **fits** `KANClassifier` (and every other base
+> model) rather than merely importing it, and refuses the launch if any of them cannot train.
+> An import check cannot see a bug in `fit()` -- which is precisely how this survived.
+
 ```bash
 cd /workspace/genomic-variant-classifier
 pip install -r requirements.txt --break-system-packages
-# imodelsx v1.0.13 KAN bug fix (bare-name refs in KANClassifier.fit). The kan.py
-# attribute fix is already in the repo; this patches the INSTALLED package file.
-# Self-guarding (only patches if the bug is present) and idempotent.
-IMODELSX_KAN=$(python -c "import imodelsx.kan.kan_sklearn as m; print(m.__file__)" 2>/dev/null)
-if [ -n "$IMODELSX_KAN" ] && grep -q "test_size=test_size" "$IMODELSX_KAN"; then
-  sed -i 's/test_size=test_size/test_size=self.test_size/g' "$IMODELSX_KAN"
-  sed -i 's/random_state=random_state/random_state=self.random_state/g' "$IMODELSX_KAN"
-  sed -i 's/shuffle=shuffle/shuffle=self.shuffle/g' "$IMODELSX_KAN"
-  echo "imodelsx_patch: fixed 3 bare-name refs in $IMODELSX_KAN"
-else
-  echo "imodelsx_patch: already patched or not installed"
-fi
+# NO imodelsx sed. The KAN repair is in-process (models/kan.py). See the note above.
 python -c "import catboost, lightgbm, xgboost, torch; print('env OK', torch.cuda.is_available())"
+# Prove KAN actually TRAINS on this box before spending money -- import is not enough:
+python -c "
+import numpy as np
+from genomic_variant_classifier.models.kan import KANClassifier, _IMODELSX_KAN_REPAIR
+rng = np.random.default_rng(0); X = rng.standard_normal((40, 5)); y = (X[:, 0] > 0).astype(int)
+KANClassifier(hidden_sizes=[8]).fit(X, y)
+print('KAN FITS; imodelsx_repair =', _IMODELSX_KAN_REPAIR)
+"
 ```
 
 Train (the LAUNCH_CONTRACT_run16.md Sec.1 flag set; nohup so it survives SSH drops):
