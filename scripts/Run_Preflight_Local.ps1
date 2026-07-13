@@ -10,7 +10,16 @@ param(
     [string]$VenvName     = ".venv312",
     [string]$SshKey       = "C:\Users\monzi\.ssh\id_lambda_run8",
     [string]$ExpectedHead = "",
-    [int]$MinPytest       = 1496,
+    # COLLECTED floor -- refreshed 2026-07-12 (was 1496; the suite now collects 1,823).
+    # Paired with $minPass (~line 136). A collected-floor that lags the suite lets tests
+    # VANISH silently: at 1496, three hundred tests could stop being collected -- deleted,
+    # mis-named, or lost to a collection error -- and this gate would still say PASS.
+    # RAISE BOTH WHENEVER YOU ADD TESTS.
+    [int]$MinPytest       = 1815,
+    # -SkipPytest is an ESCAPE HATCH ON A GATE THAT PROTECTS PAID COMPUTE. On 2026-07-06 the
+    # project shipped 24 red tests to a rented GPU. Use it only to debug this script itself,
+    # never to get a run out the door -- the gate exists precisely for the moment you are
+    # tempted to skip it.
     [switch]$SkipPytest,
     [switch]$SkipKanSmoke
 )
@@ -113,7 +122,27 @@ print(f'SMOKE_OK shape={p.shape} backend={backend}')
         if ($tail -match '(\d+) passed')  { $nPass = [int]$Matches[1] }
         if ($tail -match '(\d+) skipped') { $nSkip = [int]$Matches[1] }
         $collected = $nPass + $nSkip
-        $minPass = 1485  # Run-17 post-move (2026-06-28): preflight runs FULL tests/ locally = 1498 collected / 1491 passed / 7 skipped; floor gates THIS run. 2-pass headroom below 1491 (lower if any pwsh-dependent test skips on a pwsh-less full-suite host). NB: CI is a separate job (pytest tests/unit/ --maxfail=5, no count-floor) and does not read this value.
+        # -------------------------------------------------------------------------------
+        # PASS FLOOR -- refreshed 2026-07-12. It was 1485 and had gone STALE BY ~330 TESTS.
+        # -------------------------------------------------------------------------------
+        # The old comment recorded "1498 collected / 1491 passed" (2026-06-28) and set the
+        # floor at 1485. The suite now collects 1,823 and passes 1,815. A floor of 1485 would
+        # therefore have accepted the SILENT LOSS OF 330 TESTS and still reported PASS --
+        # which is precisely the class of rotted guard this project keeps finding. A floor
+        # that drifts below reality is not a floor; it is a rubber stamp.
+        #
+        # Measured 2026-07-12 (outputs/fullsuite_2026-07-12d.log and 12e, two identical runs):
+        #     1,823 collected = 1,815 passed + 8 skipped, 0 failed, 0 errors
+        # The suite is now HERMETIC and IDEMPOTENT (88af150), so this number is reproducible
+        # rather than a function of what happens to sit on the developer's disk.
+        #
+        # Headroom of 10 below 1,815 absorbs legitimate environment-dependent skips (e.g. the
+        # POSIX-symlink test that cannot run on Windows). It is NOT headroom for regressions:
+        # any failure or error fails this gate outright, regardless of the count.
+        #
+        # WHEN YOU ADD TESTS, RAISE THIS. A floor left behind by a growing suite silently
+        # stops guarding. It has already happened once.
+        $minPass = 1805
         if ($nFail -gt 0) { Fail "pytest: $nFail failed/errored ($nPass passed, $nSkip skipped). Tail:`n$tail" }
         elseif ($nPass -ge $minPass -and $collected -ge $MinPytest) { Pass "pytest: $nPass passed, $nSkip skipped, 0 failed (>= $minPass passed, collected $collected >= $MinPytest)" }
         else { Fail "pytest: $nPass passed / $nSkip skipped / collected $collected (expected >= $minPass passed and >= $MinPytest collected). Tail:`n$tail" }
