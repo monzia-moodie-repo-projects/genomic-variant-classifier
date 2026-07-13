@@ -50,3 +50,32 @@ torch-geometric>=2.5,<3
 networkx>=3.0,<4
 numba>=0.59,<1
 # pykan: add if your KAN code imports it directly (verify first with project_knowledge_search)
+
+# Conformal cross-check oracle (added 2026-07-13).
+# MAPIE (Model Agnostic Prediction Interval Estimator) is used ONLY as an independent
+# reference in tests/conformal/test_mapie_crosscheck.py -- never in the pipeline. It was
+# declared in NO requirements file, so that test had NEVER EXECUTED on any machine. Installed
+# and run 2026-07-13: all 3 tests PASS. Our from-scratch LAC (Least Ambiguous set-valued
+# Classifier) sets match MAPIE element-wise EXACTLY, and our APS (Adaptive Prediction Sets) is
+# confirmed a valid, tighter variant rather than a bug. The test targets the MAPIE 1.x API
+# (mapie.classification.SplitConformalClassifier), hence the >=1.4 floor.
+mapie>=1.4,<2
+
+# =============================================================================
+# WARNING -- THIS FILE'S BOUNDS ARE INCOMPLETE. See roadmap 6.18. (2026-07-13)
+# =============================================================================
+# requirements.lock is compiled from THIS file, and because two of the ranges above have NO
+# UPPER BOUND, pip-compile resolves them to versions that are KNOWN TO BREAK THIS PROJECT:
+#
+#   transformers>=4.40   -> resolves to 5.8.0. The transformers 5.x family KILLED a Run 17
+#                           smoke test: the Nucleotide Transformer fetches head-of-main remote
+#                           code that imports a symbol transformers 5.x removed. The working
+#                           pin is 4.46.3 (see requirements.txt).
+#   pandas>=2.0          -> unbounded. pandas 3.0.4's Windows cp312 wheel segfaults
+#                           pd.date_range (0xC0000005). The working pin is 2.3.3.
+#
+# requirements.lock is therefore a TRAP: it is installed by nothing today, and installing it
+# would re-introduce a break the project already paid to escape. Both ceilings must be added
+# here, the lock recompiled UNDER PYTHON 3.12, and the result verified to reproduce the
+# known-good stack EXACTLY, before requirements.lock can become the single install target.
+# That is roadmap 6.18 -- a deliberate, separately-verified change.

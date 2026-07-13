@@ -172,4 +172,64 @@ imodelsx==1.0.13
 
 gudhi  # SR31 PASS 2026-06-03 (v3.12.0, SimplexTree API verified)
 transformers==4.46.3
+
+# =============================================================================
+# THE TORCH / GRAPH-NEURAL-NETWORK / DRIFT STACK -- ADDED BY HAND 2026-07-13.
+# =============================================================================
+# These packages were MISSING from this file entirely, and their absence had been
+# silently disabling a headline model.
+#
+# HOW THEY WENT MISSING
+#   This file is a pip-compile artifact of requirements.in (see the header), and it was
+#   compiled UNDER PYTHON 3.14 -- where `torch` has no wheels. pip-compile therefore
+#   resolved the dependency graph WITHOUT the torch stack and emitted a requirements.txt
+#   with torch, torch-geometric, networkx, numba, pandera, pyspark and river simply absent.
+#   requirements.in declares every one of them (lines 38-51). requirements.lock, compiled
+#   under Python 3.12, HAS every one of them. Only this file -- the ONLY file that anything
+#   actually installs -- was missing them.
+#
+# WHAT THAT COST (measured 2026-07-13)
+#   * Continuous Integration installs requirements-api.lock + requirements.txt +
+#     requirements-dev.txt. It NEVER installs requirements.lock. So `torch_geometric` was
+#     absent from every Continuous Integration run, and ELEVEN test entries silently
+#     skipped: the STRING-DB graph neural network, the hetero-graph neural network,
+#     GraphGPS, the graph-neural-network ablation, and the inductive path. `gnn_score` is a
+#     REAL, non-degenerate feature in the ensemble. **The entire graph-neural-network branch
+#     was untested by the gate.**
+#   * The Docker TRAINING image (Dockerfile:159) also installs this file -- so it cannot run
+#     the graph neural network either.
+#   * `torch` itself reached every environment only as a TRANSITIVE dependency of imodelsx:
+#     undeclared and unpinned, in a deep-learning project.
+#   * `torch_geometric` reached the rented instance only via an ad-hoc, unpinned
+#     `pip install -q networkx torch_geometric` in vm_bootstrap_run.sh:147.
+#   * `mapie` was declared NOWHERE, so tests/conformal/test_mapie_crosscheck.py -- the ONLY
+#     independent check of this project's from-scratch conformal prediction against a mature
+#     reference implementation -- had NEVER EXECUTED, on any machine, ever. It was installed
+#     and run on 2026-07-13: all 3 tests PASS. Our LAC sets match MAPIE element-wise exactly
+#     and our APS is a valid, tighter variant. A correct test that never runs is not a test.
+#
+# WHY PINNED BY HAND RATHER THAN REGENERATED
+#   The header says: "re-run pip-compile under Python 3.12 once .venv312 is bootstrapped".
+#   .venv312 IS bootstrapped -- but requirements.in lacks the UPPER BOUNDS that this file's
+#   exact pins encode, both of them bought with real incidents:
+#       transformers  .in says >=4.40 (no ceiling) -> pip-compile resolves 5.8.0, which is
+#                     the family that KILLED a Run 17 smoke test (Nucleotide Transformer
+#                     imports a symbol transformers 5.x removed). This file pins 4.46.3.
+#       pandas        .in says >=2.0 (no ceiling). This file pins 2.3.3 after the 3.0.4
+#                     Windows cp312 date_range segfault (see line 1-4).
+#   Regenerating today would therefore re-introduce a break the project already paid to
+#   escape. Fixing requirements.in's bounds and regenerating properly is roadmap 6.18 -- a
+#   deliberate, separately-verified change, NOT a side effect of closing this gap.
+#
+# EVERY VERSION BELOW IS THE VERSION CURRENTLY INSTALLED IN .venv312, AGAINST WHICH THE FULL
+# SUITE IS GREEN (1860 passed, 0 failed, 0 warnings), AND EVERY ONE MATCHES requirements.lock
+# EXACTLY. They are measured, not chosen.
+torch==2.11.0                # undeclared until today; arrived transitively via imodelsx
+torch-geometric==2.7.0       # the GNN branch: gnn.py, gnn_optim.py, hetero_gnn*.py
+networkx==3.6.1              # STRING-DB graph construction
+numba==0.65.1
+pandera==0.24.0              # schema-drift detection (5 tests, never ran in CI)
+pyspark==3.5.8               # 3 tests in test_core (never ran in CI)
+river==0.23.0                # online drift detection (1 test, never ran in CI)
+mapie==1.4.1                 # conformal cross-check oracle -- NEVER RAN ANYWHERE until today
 pybigtools>=0.3.0  # PhyloP BigWig reader (added Run-17; cp39-cp313 wheels)

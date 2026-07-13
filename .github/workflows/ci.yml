@@ -70,6 +70,65 @@ jobs:
           pip install -r requirements-dev.txt
           pip install -e .
 
+      # -------------------------------------------------------------------------------
+      # PROVE THE DEPENDENCIES THAT MATTER ARE ACTUALLY HERE. (2026-07-13, roadmap 6.17)
+      #
+      # Until today, `torch_geometric` was absent from requirements.txt -- so it was absent
+      # from this runner -- so ELEVEN test entries covering the STRING-DB graph neural
+      # network, the hetero-graph neural network, GraphGPS, the graph-neural-network
+      # ablation and the inductive path SILENTLY SKIPPED. In 508 Continuous Integration
+      # runs. `gnn_score` is a real, non-degenerate feature in the ensemble. The entire
+      # graph-neural-network branch was untested by the gate.
+      #
+      # Likewise `pandera` (5 schema-drift tests), `pyspark` (3), `river` (1), and `mapie`
+      # (the ONLY independent check of this project's from-scratch conformal prediction --
+      # it had never executed on ANY machine, ever).
+      #
+      # A skipped test is a test that did not run. `-rs` (below) now prints every skip
+      # reason, but a reason nobody reads is not a gate. So this step FAILS THE BUILD if a
+      # dependency that is supposed to be covered has silently gone missing again -- rather
+      # than letting its tests quietly skip and the suite report green.
+      # -------------------------------------------------------------------------------
+      - name: Assert the coverage-critical dependencies are present
+        run: |
+          python - <<'PY'
+          import importlib, sys
+
+          # package -> what silently stops being tested if it is absent
+          REQUIRED = {
+              "torch":           "every neural model (tabular_nn, cnn_1d, mc_dropout, deep_ensemble, kan)",
+              "torch_geometric": "the ENTIRE graph-neural-network branch (11 test entries; gnn_score is a real ensemble feature)",
+              "networkx":        "STRING-DB graph construction",
+              "pandera":         "schema-drift detection (5 tests)",
+              "pyspark":         "3 tests in test_core",
+              "river":           "online drift detection (1 test)",
+              "mapie":           "the ONLY independent cross-check of our from-scratch conformal prediction (3 tests)",
+              "lightgbm":        "a base model",
+              "xgboost":         "a base model",
+              "catboost":        "a base model",
+              "imodelsx":        "the Kolmogorov-Arnold Network backend",
+          }
+
+          missing = {}
+          for mod, why in REQUIRED.items():
+              try:
+                  m = importlib.import_module(mod)
+                  v = getattr(m, "__version__", "?")
+                  print(f"  OK   {mod:<16} {v}")
+              except Exception as exc:
+                  missing[mod] = (why, f"{type(exc).__name__}: {exc}")
+
+          if missing:
+              print("\nMISSING COVERAGE-CRITICAL DEPENDENCIES:\n")
+              for mod, (why, err) in missing.items():
+                  print(f"  {mod}\n      silently disables: {why}\n      {err}\n")
+              print("These are declared in requirements.txt. If they are not installed here,")
+              print("their tests will SKIP and this suite will report GREEN while covering")
+              print("nothing. That is exactly how the graph-neural-network branch went")
+              print("untested for 508 runs. Failing the build instead.")
+              sys.exit(1)
+          PY
+
       - name: Run the test suite
         env:
           # ESM-2 weights are never downloaded in CI: forcing offline makes any

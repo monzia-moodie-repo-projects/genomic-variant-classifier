@@ -29,7 +29,11 @@ param(
     # (one committed suite-size constant, enforced by the suite itself under an explicit
     # --assert-suite-size flag, exactly as EXPECTED_TABULAR_FEATURE_COUNT guards
     # TABULAR_FEATURES). Until that lands, raise BY HAND in the same commit that adds tests.
-    [int]$MinPytest       = 1860,
+    # 2026-07-13 (later): +3 again. `mapie` was declared in NO requirements file, so
+    # tests/conformal/test_mapie_crosscheck.py -- the ONLY independent check of this
+    # project's from-scratch conformal prediction against a mature reference -- had NEVER
+    # EXECUTED on any machine. Declared and run: all 3 PASS. Suite 1,868 -> 1,870 collected.
+    [int]$MinPytest       = 1862,
     # -SkipPytest is an ESCAPE HATCH ON A GATE THAT PROTECTS PAID COMPUTE. On 2026-07-06 the
     # project shipped 24 red tests to a rented GPU. Use it only to debug this script itself,
     # never to get a run out the door -- the gate exists precisely for the moment you are
@@ -153,7 +157,11 @@ print(f'SMOKE_OK shape={p.shape} backend={backend}')
         # adding a test turns the suite red until the constant is bumped. Forgetting then
         # fails loudly instead of silently widening the gap between the floor and reality.
         #
-        # Measured 2026-07-13 (full suite, Python 3.12, PRISTINE imodelsx, cohort data present):
+        # Measured 2026-07-13, LATEST (full suite, Python 3.12, pristine imodelsx, mapie declared):
+        #     1,870 collected = 1,863 passed + 7 skipped, 0 failed, 0 errors, 0 WARNINGS
+        #
+        # Earlier 2026-07-13 (before `mapie` was declared -- its 3 conformal cross-checks had
+        # NEVER executed on any machine, ever):
         #     1,868 collected = 1,860 passed + 8 skipped, 0 failed, 0 errors, 0 WARNINGS
         #
         # NOTE: this is the first measurement taken against a PRISTINE imodelsx. Until
@@ -172,8 +180,8 @@ print(f'SMOKE_OK shape={p.shape} backend={backend}')
         # POSIX-symlink test that cannot run on Windows). It is NOT headroom for regressions:
         # any failure or error fails this gate outright, regardless of the count.
         #
-        # WHEN YOU ADD TESTS, RAISE THIS. It has now gone stale FOUR TIMES.
-        $minPass = 1850
+        # WHEN YOU ADD TESTS, RAISE THIS. It has now gone stale FIVE TIMES in two days.
+        $minPass = 1853
         if ($nFail -gt 0) { Fail "pytest: $nFail failed/errored ($nPass passed, $nSkip skipped). Tail:`n$tail" }
         elseif ($nPass -ge $minPass -and $collected -ge $MinPytest) { Pass "pytest: $nPass passed, $nSkip skipped, 0 failed (>= $minPass passed, collected $collected >= $MinPytest)" }
         else { Fail "pytest: $nPass passed / $nSkip skipped / collected $collected (expected >= $minPass passed and >= $MinPytest collected). Tail:`n$tail" }
