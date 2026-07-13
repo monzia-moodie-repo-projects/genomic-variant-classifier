@@ -70,7 +70,7 @@ jobs:
           pip install -r requirements-dev.txt
           pip install -e .
 
-      - name: Run unit tests
+      - name: Run the test suite
         env:
           # ESM-2 weights are never downloaded in CI: forcing offline makes any
           # model-needing test fail fast with OSError (caught -> skip) instead of
@@ -95,7 +95,36 @@ jobs:
           # alpha-carbon geometry, and the residue off-by-one tripwire) skipped in EVERY
           # Continuous Integration run for weeks, keyed off a gitignored file, and nothing in
           # this output ever said so. Skip reasons are now always printed.
-          pytest tests/unit/ -q \
+          #
+          # SCOPE WIDENED tests/unit/ -> tests/ (2026-07-13, roadmap 6.2).
+          #
+          # Until today this gate ran `pytest tests/unit/` -- 175 files. It therefore never
+          # executed, on any runner, in 508 Continuous Integration runs:
+          #
+          #     tests/*.py          22 files   cohort construction & data provenance
+          #     tests/conformal/     7 files   conformal prediction
+          #     tests/integration/   1 file    Monte-Carlo-dropout calibration
+          #     ------------------------------
+          #                         30 files   NEVER RUN IN CONTINUOUS INTEGRATION
+          #
+          # Read the names of the 22 root-level files before dismissing this as bookkeeping:
+          # build_cohort_from_source, build_cohort_v2, clean_cohort, cohort_v3_rebuild,
+          # dedup_collapse, diff_cohorts, ingest_clinvar_snapshot, recover_alleleless_*,
+          # recover_by_sourceid, rekey_seq_windows_v2, seq_window_manifest, split_protocol_v2.
+          #
+          # These test how the TRAINING DATA ITSELF is built, deduplicated, recovered and
+          # split -- including split_protocol_v2, the gene-disjoint split on which every
+          # leakage claim in this project rests. The one stage of the pipeline where a silent
+          # error contaminates EVERY downstream result is the stage the gate never checked.
+          # That is also why the clean-clone breakage (ModuleNotFoundError, fixed 2026-07-11)
+          # survived: nothing here had ever run on a runner that lacked the developer's disk.
+          #
+          # This is expected to go RED on first contact. That is the POINT: these files have
+          # never met a clean runner (no gitignored cohort data, HF_HUB_OFFLINE=1, no network).
+          # Failures are triaged into exactly two buckets -- a real bug, which is fixed, or a
+          # genuine data dependency, which gets a REGISTERED marker with a printed reason.
+          # No bare skips. A test that does not run must always say why (-rs, above).
+          pytest tests/ -q \
             -rs \
             --tb=short \
             --cov=genomic_variant_classifier \
