@@ -318,6 +318,44 @@ class EnsembleConfig:
     skip_kan: bool = False
     skip_mc_dropout: bool = False
 
+    # If a base model's out-of-fold (OOF) step raises, may the ensemble carry on WITHOUT it?
+    # DEFAULT: NO (2026-07-13).
+    #
+    # It used to. `fit()` caught EVERY exception from the OOF block, set that model's OOF
+    # column to a constant 0.5, and `continue`d -- which also skipped the `model.fit(...)`
+    # immediately below it.
+    #
+    # To be precise about the blast radius, because it was twice mis-stated during the
+    # 2026-07-13 investigation: the constant 0.5 column is NOT fed to the stacking
+    # meta-learner. The `valid_cols` filter further down drops the columns of any model
+    # missing from `trained_models_`, so the meta-learner only ever sees real columns. That
+    # part was always correct.
+    #
+    # The harm is that the model is ERASED FROM THE RUN, in silence:
+    #   * it is never fitted, and no checkpoint is written for it;
+    #   * it is absent from trained_models_, oof_model_names_, the blend, and every
+    #     downstream comparison artifact;
+    #   * a 13-model ensemble quietly becomes a 12-model ensemble;
+    #   * the surviving models report entirely normal metrics, so the run LOOKS healthy;
+    #   * the only trace is a single logger.error line in a multi-hour log.
+    #
+    # That collides head-on with a first-class goal of this project -- to measure and compare
+    # the performance of every machine-learning algorithm in the roster. A silently dropped
+    # algorithm does not appear in the report as a FAILURE. It appears as an algorithm that
+    # was never a candidate, indistinguishable from one that was never configured.
+    #
+    # And `except Exception` is broad enough to swallow an out-of-memory error, a transient
+    # data fault, or -- as actually observed on 2026-07-13 -- a merely SPURIOUS library
+    # warning (LightGBM 4.6.0 populates `feature_names_in_` even when fitted on a bare
+    # ndarray, which makes scikit-learn warn) escalated to an exception by a strict warning
+    # filter. Noise was sufficient to delete a model from a paid training run.
+    #
+    # Set True ONLY to deliberately tolerate a known-failing model. Even then the dropout is
+    # LOUD: it logs at ERROR with a full traceback and is recorded in
+    # VariantEnsemble.dropped_models_, so the run's artifacts carry the fact -- and the
+    # reason -- that the ensemble was incomplete.
+    allow_base_model_dropout: bool = False
+
     def __post_init__(self) -> None:
         self.model_dir = Path(self.model_dir)
         self.model_dir.mkdir(parents=True, exist_ok=True)
@@ -1627,6 +1665,13 @@ class VariantEnsemble:
         )
         self.trained_models_: dict = {}
         self.blend_weights_: Optional[np.ndarray] = None
+        # name -> "ExceptionType: message" for any base model that failed its out-of-fold
+        # step and was dropped under allow_base_model_dropout=True. EMPTY IS THE ONLY
+        # HEALTHY STATE: a non-empty dict means the ensemble is incomplete and any
+        # cross-algorithm comparison drawn from this run is missing a candidate. Written to
+        # the run artifacts so the incompleteness cannot be lost. See
+        # EnsembleConfig.allow_base_model_dropout.
+        self.dropped_models_: dict[str, str] = {}
 
     @staticmethod
     def _find_blend_weights(oof_preds: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -1822,7 +1867,37 @@ class VariantEnsemble:
                         n_jobs=1,
                     )[:, 1]
             except Exception as exc:
-                logger.error("  %s OOF failed: %s - skipping.", name, exc)
+                # FAIL LOUD (2026-07-13). See EnsembleConfig.allow_base_model_dropout for
+                # the full rationale. Previously this swallowed the exception, and the model
+                # vanished from the ensemble with nothing but a log line to show for it.
+                if not self.config.allow_base_model_dropout:
+                    raise RuntimeError(
+                        f"Base model {name!r} FAILED during out-of-fold (OOF) prediction, so "
+                        f"it could not be fitted and would have been silently dropped from "
+                        f"the ensemble.\n"
+                        f"  underlying error: {type(exc).__name__}: {exc}\n"
+                        f"This is now a hard stop. A dropped base model does not appear in "
+                        f"the run report as a failure -- it appears as an algorithm that was "
+                        f"never a candidate, which corrupts the model-comparison results this "
+                        f"project exists to produce.\n"
+                        f"Fix the underlying error, or -- if this model is knowingly expected "
+                        f"to fail -- set EnsembleConfig(allow_base_model_dropout=True) to "
+                        f"proceed with an explicitly incomplete, explicitly recorded ensemble."
+                    ) from exc
+
+                # Opt-in dropout: permitted, but never quiet.
+                logger.error(
+                    "  %s OOF FAILED: %s - DROPPING this model from the ensemble "
+                    "(allow_base_model_dropout=True). The ensemble is now INCOMPLETE.",
+                    name,
+                    exc,
+                    exc_info=True,
+                )
+                self.dropped_models_[name] = f"{type(exc).__name__}: {exc}"
+                # NOTE: this column is discarded by the `valid_cols` filter below (the model
+                # never enters trained_models_), so its value is immaterial. Kept explicit
+                # rather than left at the np.zeros default so a future refactor that removes
+                # the filter degrades to an uninformative prior rather than to p=0.
                 oof_preds[:, model_idx] = 0.5
                 continue
 
@@ -1871,6 +1946,31 @@ class VariantEnsemble:
             i for i, n in enumerate(self.base_estimators) if n in self.trained_models_
         ]
         oof_preds = oof_preds[:, valid_cols]
+
+        # An ensemble with no surviving base models cannot be stacked. Without this, the
+        # meta-learner would be handed a (n, 0) matrix and fail somewhere deep inside
+        # scikit-learn with an error that says nothing about the real cause.
+        if not valid_cols:
+            raise RuntimeError(
+                "EVERY base model failed its out-of-fold step; there is nothing to stack. "
+                "Dropped models and their causes:\n  "
+                + "\n  ".join(f"{n}: {e}" for n, e in self.dropped_models_.items())
+            )
+
+        # The ensemble is smaller than the roster. Say so, unmissably, in the run log --
+        # a run that quietly compares 12 algorithms when 13 were configured is a corrupt
+        # comparison, and this is the last point at which that fact is still visible.
+        if self.dropped_models_:
+            logger.error(
+                "ENSEMBLE IS INCOMPLETE: %d of %d base models were DROPPED and are absent "
+                "from this run's results: %s. Any cross-algorithm comparison from this run "
+                "is missing those candidates.",
+                len(self.dropped_models_),
+                len(self.base_estimators),
+                ", ".join(
+                    f"{n} ({e})" for n, e in sorted(self.dropped_models_.items())
+                ),
+            )
 
         # Expose OOF matrix for Rule-5 artefacts (Run 9+). Downstream
         # writers (scripts/run9_ablations.py) read these attributes.
