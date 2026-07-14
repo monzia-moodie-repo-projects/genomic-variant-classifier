@@ -171,35 +171,87 @@ def test_fetch_round_trip(tmp_path):
     assert result["hgmd_n_reports"].iloc[0] == 2
 
 
-# ---------------------------------------------------------------------------
-# 6. TABULAR_FEATURES membership
-# ---------------------------------------------------------------------------
+# ===========================================================================
+# 6-8. THE FEATURE CONTRACT: HGMD IS NOT IN IT. (rewritten 2026-07-13)
+# ===========================================================================
+#
+# These three tests previously asserted the OPPOSITE: that hgmd_is_disease_mutation and
+# hgmd_n_reports were members of TABULAR_FEATURES, and that engineer_features emitted them
+# (defaulting to 0 when absent, passing real values through when present).
+#
+# On 2026-07-13 both features were REMOVED from the feature contract
+# (EXPECTED_TABULAR_FEATURE_COUNT 97 -> 95). Two independent reasons, either sufficient:
+#
+#   1. NO ACCESS. HGMD Professional is a paid QIAGEN licence that is not held
+#      (docs/ROADMAP.md: "HGMD | hgmd_* (2) | PAID, blocked"). The connector below is fully
+#      implemented and fully tested -- but it was never WIRED: no --hgmd-path flag reaches
+#      the training pipeline and no data file exists. So `df.get("hgmd_...", 0)` in
+#      engineer_features supplied a column of zeros, and both features were CONSTANT ZERO
+#      across all 1,038,974 variants of Run 15, contributing exactly nothing while occupying
+#      two slots in the contract.
+#
+#      (They were 2 of THIRTY-SIX dead features in Run 15 -- 46% of the feature space. The
+#      published AUROC of 0.998 came from the 38 that were real. See roadmap 6.21.)
+#
+#   2. LABEL LEAKAGE -- and this reason SURVIVES the licence arriving.
+#      HGMD "DM" means *disease-causing mutation*. The training label is ClinVar Pathogenic
+#      (real_data_prep.py:512). These are the same quantity under two vendors' names, and
+#      HGMD-DM overlaps ClinVar-Pathogenic heavily. As a VARIANT-LEVEL feature it is an
+#      answer key: the gene-aware split cannot help, because the leak lives inside every fold
+#      at the variant level.
+#
+#      The deployment failure is the damning part. A novel variant of uncertain significance
+#      -- precisely what this classifier exists to score -- has no HGMD entry, so
+#      hgmd_is_disease_mutation = 0, and the model reads "not a disease mutation" and leans
+#      benign. It would post a superb AUROC on a test set of catalogued variants and
+#      systematically under-call the variants that matter.
+#
+# The CONNECTOR (src/genomic_variant_classifier/data/hgmd.py) is deliberately KEPT, and every
+# test of it above is deliberately KEPT PASSING. It is dormant, not deleted. If the licence is
+# obtained, the parsing work is done -- but the feature must be reintroduced GENE-LEVEL and
+# LEAVE-ONE-OUT (e.g. n_hgmd_dm_in_gene, counting HGMD-DM variants in the gene while EXCLUDING
+# the variant being scored), mirroring the existing n_pathogenic_in_gene. Same biological
+# signal, no answer key.
+# ===========================================================================
 
-def test_hgmd_features_in_tabular_features():
-    assert "hgmd_is_disease_mutation" in TABULAR_FEATURES
-    assert "hgmd_n_reports" in TABULAR_FEATURES
+def test_hgmd_is_NOT_in_the_feature_contract():
+    """Pinned. A two-line deletion is exactly what a well-meaning merge restores."""
+    assert "hgmd_is_disease_mutation" not in TABULAR_FEATURES, (
+        "hgmd_is_disease_mutation is back in TABULAR_FEATURES. It is a near-copy of the "
+        "ClinVar-Pathogenic training label. Reintroducing it as a VARIANT-LEVEL feature "
+        "hands the model an answer key and wrecks it on novel variants of uncertain "
+        "significance, which have no HGMD entry and would therefore read as 'not a disease "
+        "mutation'. If the licence has been obtained, wire it GENE-LEVEL and LEAVE-ONE-OUT."
+    )
+    assert "hgmd_n_reports" not in TABULAR_FEATURES
 
 
-# ---------------------------------------------------------------------------
-# 7-8. engineer_features wiring
-# ---------------------------------------------------------------------------
+def test_engineer_features_does_not_emit_hgmd_columns():
+    """The df.get(..., 0) default is gone -- and must not come back.
 
-def test_engineer_features_hgmd_default_zero_when_absent():
-    df = _engineer_df()
-    assert "hgmd_is_disease_mutation" not in df.columns
-    assert "hgmd_n_reports" not in df.columns
-    feats = engineer_features(df)
-    assert feats.loc[0, "hgmd_is_disease_mutation"] == 0
-    assert feats.loc[0, "hgmd_n_reports"] == 0
-    assert not feats["hgmd_is_disease_mutation"].isnull().any()
-    assert not feats["hgmd_n_reports"].isnull().any()
+    That pattern is what silently zeroed these two columns for the entire life of the
+    project without anyone noticing. A feature that cannot be computed must be ABSENT, not
+    fabricated as zeros and trained on.
+    """
+    feats = engineer_features(_engineer_df())
+    assert "hgmd_is_disease_mutation" not in feats.columns
+    assert "hgmd_n_reports" not in feats.columns
 
 
-def test_engineer_features_hgmd_real_values_pass_through():
+def test_engineer_features_ignores_hgmd_columns_even_when_supplied():
+    """Even if upstream hands us real HGMD values, they must NOT reach the feature matrix.
+
+    This is the leakage guard with teeth. Someone with an HGMD licence could plausibly join
+    the columns onto the input frame and expect them to flow through. They must not -- not
+    until the gene-level leave-one-out design is built.
+    """
     df = _engineer_df(hgmd_is_disease_mutation=1, hgmd_n_reports=5)
     feats = engineer_features(df)
-    assert feats.loc[0, "hgmd_is_disease_mutation"] == 1
-    assert feats.loc[0, "hgmd_n_reports"] == 5
+    assert "hgmd_is_disease_mutation" not in feats.columns, (
+        "engineer_features passed a variant-level HGMD disease-mutation flag straight into "
+        "the feature matrix. That is the training label wearing a different vendor's badge."
+    )
+    assert "hgmd_n_reports" not in feats.columns
 
 
 # ---------------------------------------------------------------------------

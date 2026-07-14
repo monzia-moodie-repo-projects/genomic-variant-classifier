@@ -289,6 +289,15 @@ def parse_args(argv=None) -> argparse.Namespace:
         help="GNN + hetero-GNN training epochs (default 100 = real-run value; lower e.g. 10 ONLY to "
              "speed a full-flag laptop smoke -- NOT a GNN deferral).",
     )
+    p.add_argument(
+        "--allow-dead-features", action="store_true",
+        help="Proceed even if the pre-training feature census finds CONSTANT-ZERO features "
+             "(roadmap 6.21). Default OFF: a dead feature means a data source silently failed "
+             "to populate, and Run 15 published a twelve-model comparison with 36 of its 78 "
+             "features (46%%) non-existent because nothing checked. You almost never want "
+             "this; fix the source's CLI flag instead. When set, the dead features are "
+             "RECORDED in the run artifacts, never hidden.",
+    )
     p.add_argument("--output", default="outputs/phase2_eval")
     return p.parse_args(argv)
 
@@ -430,6 +439,63 @@ def main() -> int:
                 _u_tot, _n_tot,
             )
             return 2
+
+        # ===================================================================================
+        # FEATURE CENSUS -- THE GATE THAT RUN 15 DID NOT HAVE (roadmap 6.21, 2026-07-13)
+        # ===================================================================================
+        # Run 15 trained, evaluated, and published with 36 of its 78 features CONSTANT ZERO --
+        # 46% of the feature space. GTEx, 1000 Genomes, FinnGen, AlphaFold/protein structure,
+        # MaxEntScan, UniProt, ESM-2, EVE, dbSNP, PhyloP, OMIM, ClinGen: all silently stubbed
+        # to 0.0 across 1,038,974 variants. The reported AUROC of 0.998 was produced by the 38
+        # features that were real. Nothing in the pipeline said a word.
+        #
+        # The launcher's abort gates cannot catch this. They assert that a FILE EXISTS, which
+        # is a PROXY. A present-but-empty file, a schema change, a renamed column, or a failed
+        # gene-symbol join all pass a file check and still hand you a column of zeros. That is
+        # root pattern (c): a gate that checks a proxy instead of the thing it protects.
+        #
+        # THIS asserts the thing itself, against the engineered matrix, on the FULL cohort --
+        # deliberately placed BEFORE the --max-train subsample, so that a sparse feature is
+        # never mistaken for a dead one because we happened to look at a small slice.
+        #
+        # It runs in the smoke test and in the real run, on the same code path, with the same
+        # flags. A source that fails to populate now costs SECONDS, not eleven hours of paid
+        # compute followed by a twelve-model algorithm comparison built on a feature space that
+        # was half imaginary.
+        from genomic_variant_classifier.models.variant_ensemble import (
+            feature_census,
+            format_feature_census,
+        )
+
+        _census = feature_census(X_train)
+        logger.info(format_feature_census(_census, len(X_train)))
+
+        if _census["dead"] or _census["missing"]:
+            if not getattr(args, "allow_dead_features", False):
+                logger.error(
+                    "ABORTING BEFORE TRAINING: %d feature(s) are DEAD (zero information) and "
+                    "%d are MISSING from the engineered matrix entirely.\n"
+                    "\n"
+                    "Every one of these is a data source that did not populate. The census "
+                    "above names the source and the CLI flag responsible for each. Fix the "
+                    "wiring and re-run.\n"
+                    "\n"
+                    "This is the gate Run 15 did not have. Run 15 trained for hours and "
+                    "published an algorithm comparison with 46%% of its feature space "
+                    "non-existent. That must not happen again.\n"
+                    "\n"
+                    "To proceed anyway (you almost certainly do not want to), pass "
+                    "--allow-dead-features. The dead features are then RECORDED in the run "
+                    "artifacts, not hidden.",
+                    len(_census["dead"]), len(_census["missing"]),
+                )
+                return 2
+            logger.error(
+                "DEAD FEATURES TOLERATED BY --allow-dead-features: %d dead, %d missing. "
+                "This run's feature space is incomplete and its algorithm comparison is "
+                "correspondingly weakened. The fact is recorded in the run artifacts.",
+                len(_census["dead"]), len(_census["missing"]),
+            )
 
         if args.max_train and len(y_train) > args.max_train:
             idx = (

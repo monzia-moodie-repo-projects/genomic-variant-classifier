@@ -2,30 +2,174 @@
 # Minimal dependencies for the API Docker image (inference only).
 # No PySpark, no TensorFlow, no training-only libs.
 
-# --- Web framework ---
-fastapi>=0.111,<0.120
-uvicorn[standard]>=0.29,<0.35
-gunicorn>=22.0,<24.0
+# =============================================================================
+# --- Web framework --- RAISED 2026-07-13 (roadmap 6.19). READ THIS BEFORE NARROWING IT.
+# =============================================================================
+# These ranges were `fastapi>=0.111,<0.120` and `uvicorn[standard]>=0.29,<0.35` -- FIFTEEN
+# minor versions behind requirements.txt, which pins:
+#
+#     fastapi==0.135.2      starlette==1.0.0      uvicorn==0.42.0      pydantic==2.12.5
+#
+# TWO CONSEQUENCES, BOTH REAL:
+#
+# 1. THE DOCKER API IMAGE WAS BUILDING WITH A DIFFERENT WEB FRAMEWORK THAN THE ONE THE API
+#    CODE IS DEVELOPED AND TESTED AGAINST. `<0.120` resolved to FastAPI 0.119.1 in the image,
+#    while src/genomic_variant_classifier/api/ runs on 0.135.2 everywhere else. Any 0.12x+
+#    feature would work in tests and fail in the container.
+#
+# 2. IT CAUSED THE ONLY REAL DEPENDENCY CONFLICT IN THE PROJECT. FastAPI 0.119.1 requires
+#    `starlette<0.49.0`; FastAPI 0.135.2 requires only `starlette>=0.46.0` (NO ceiling --
+#    verified by reading both wheels' METADATA, 2026-07-13). Continuous Integration installs
+#    requirements-api.lock FIRST, then requirements.txt -- which UPGRADES starlette to 1.0.0
+#    and thereby violates the constraint of prometheus-fastapi-instrumentator 7.1.0
+#    (`starlette<1.0.0`), which the old `<8.0` ceiling below had forced.
+#
+#    pip reported it, in an ERROR line, on EVERY ONE OF 508 CONTINUOUS INTEGRATION RUNS:
+#
+#      ERROR: ... the source of the following dependency conflicts.
+#      prometheus-fastapi-instrumentator 7.1.0 requires starlette<1.0.0,>=0.30.0,
+#          but you have starlette 1.0.0 which is incompatible.
+#
+#    ...and then exited 0. Nothing ran `pip check`. The machine said it plainly, every single
+#    time, and nothing failed. `pip check` is now a HARD GATE in .github/workflows/ci.yml.
+#
+# THE FIX IS NOT THE INSTRUMENTATOR -- IT IS THIS. Raising these ranges to MATCH requirements.txt
+# makes one coherent web stack: FastAPI 0.135.2 -> starlette 1.0.0 -> instrumentator 8.0.2
+# (which requires `starlette>=1.0.0,<2.0.0`). One starlette. No conflict.
+#
+# KEEP THESE IN STEP WITH requirements.txt. Two requirement files that both install into the
+# same environment and disagree about the web framework is a DUAL SOURCE OF TRUTH -- the same
+# defect class as requirements.in vs requirements.txt (roadmap 6.18), which cost this project
+# its entire graph-neural-network branch for 508 runs.
+# =============================================================================
+# THE SHARED WEB STACK IS PINNED EXACTLY, NOT RANGED. THIS IS DELIBERATE.
+# =============================================================================
+# First attempt (2026-07-13) used ranges: `fastapi>=0.135,<0.137`. pip-compile resolved that
+# to fastapi 0.136.3 and starlette 1.3.1 -- while requirements.txt pins fastapi 0.135.2 and
+# starlette 1.0.0. Continuous Integration installs requirements-api.lock AND requirements.txt
+# into the SAME environment, so the result was:
+#
+#     ERROR: Cannot install fastapi==0.135.2 and fastapi==0.136.3
+#            because these package versions have conflicting dependencies.
+#     ResolutionImpossible
+#
+# TWO FILES, BOTH INDIVIDUALLY VALID, INSTALLED TOGETHER, DISAGREEING ON THE WEB FRAMEWORK.
+# A RANGE here guarantees drift: the two files are compiled at different times from different
+# sources, so any package they SHARE will resolve differently and collide.
+#
+# So every package that appears in BOTH files is pinned to the SAME EXACT VERSION here as
+# requirements.txt pins there. Not a range. Not "compatible". The same number.
+#
+# WHEN requirements.txt MOVES, THIS MUST MOVE WITH IT. That is a duplicated number, and a
+# duplicated number is wrong in at least one place eventually (roadmap section 7, root
+# pattern (a)) -- so it is guarded: .github/workflows/ci.yml now runs `pip check` as a HARD
+# GATE, and `lockfile-check` recompiles this file's lock and FAILS if it differs from what is
+# committed. The permanent fix is ONE source of truth for shared pins (roadmap 6.18).
+#
+# WHY THESE EXACT VERSIONS RESOLVE:
+#     fastapi 0.135.2                            requires starlette>=0.46.0   (NO ceiling)
+#     prometheus-fastapi-instrumentator 8.0.2    requires starlette>=1.0.0,<2.0.0
+#     -> starlette 1.0.0 satisfies BOTH, and it is what requirements.txt already pins.
+#     fastapi 0.135.2                            requires pydantic>=2.9.0
+#     -> pydantic 2.12.5, which requirements.txt already pins.
+# All verified 2026-07-13 by reading each wheel's METADATA, not by assumption.
+fastapi==0.135.2                 # MUST equal requirements.txt
+starlette==1.0.0                 # MUST equal requirements.txt. Pinned EXPLICITLY: left to the
+                                 # resolver it goes to 1.3.1 and collides with requirements.txt.
+uvicorn[standard]==0.42.0        # MUST equal requirements.txt
+gunicorn>=22.0,<24.0             # not in requirements.txt -- API image only, free to range
 
 # --- Data validation ---
-pydantic>=2.6,<3.0
+pydantic==2.12.5                 # MUST equal requirements.txt (FastAPI 0.135.2 needs >=2.9.0)
+
+# =============================================================================
+# EVERY PACKAGE BELOW IS SHARED WITH requirements.txt AND IS PINNED TO THE SAME
+# EXACT VERSION. Audited and corrected 2026-07-13 (roadmap 6.19).
+# =============================================================================
+# A systematic audit of all 13 packages appearing in BOTH files found NINE mismatches:
+#
+#     package        requirements-api.txt     requirements.txt
+#     -----------    --------------------     ----------------
+#     catboost       >=1.2,<2.0               ==1.2.10
+#     joblib         >=1.3,<2.0               ==1.5.3
+#     lightgbm       >=4.3,<5.0               ==4.6.0
+#     numpy          >=2.0,<3.0               ==2.4.4
+#     pandas         >=2.2,<3.0               ==2.3.3
+#     pyarrow        >=15.0,<20.0             ==23.0.1    <-- RANGE EXCLUDES THE PIN
+#     requests       >=2.31,<3.0              ==2.33.0
+#     scikit-learn   >=1.4,<2.0               ==1.8.0
+#     xgboost        >=2.0,<3.0               ==3.2.0     <-- RANGE EXCLUDES THE PIN
+#
+# Continuous Integration installs requirements-api.lock AND requirements.txt into ONE
+# environment. `pyarrow` and `xgboost` were outright IMPOSSIBLE -- their ranges here exclude
+# the version pinned there:
+#
+#     ERROR: Cannot install pyarrow==19.0.1 and pyarrow==23.0.1
+#            because these package versions have conflicting dependencies.
+#     ResolutionImpossible
+#
+# The other seven ADMIT the pin but let pip-compile resolve to the LATEST in range, which then
+# collides. NINE LANDMINES, every one of which pip has been reporting in an ERROR line on
+# every run while exiting 0.
+#
+# A RANGE IN THIS FILE IS A BUG. Two files that both install into the same environment must
+# agree EXACTLY on every package they share. Ranges guarantee they will not.
+#
+# THIS DUPLICATES NINE NUMBERS, AND THAT IS ROOT PATTERN (a) -- a number written down twice is
+# wrong in at least one place eventually. So it is GUARDED, not trusted:
+#
+#     tests/unit/test_requirements_files_agree.py  re-derives the agreement on EVERY test run
+#                                                  and FAILS the moment they diverge.
+#     .github/workflows/ci.yml `pip check`         HARD GATE on any resolved conflict.
+#     .github/workflows/ci.yml `lockfile-check`    recompiles this file's lock and FAILS if it
+#                                                  differs from what is committed.
+#
+# The permanent fix -- ONE source of truth for shared pins -- is roadmap 6.18.
+#
+# THE API IMAGE STILL GETS A MINIMAL STACK. It just gets the SAME VERSIONS. The subsetting is
+# in WHICH packages are listed here (no torch, no torch-geometric, no pyspark, no transformers),
+# NOT in which versions of them.
 
 # --- HTTP / connectors ---
-requests>=2.31,<3.0
+requests==2.33.0                 # MUST equal requirements.txt
 
 # --- Inference stack ---
-joblib>=1.3,<2.0
-numpy>=2.0,<3.0
-pandas>=2.2,<3.0
-pyarrow>=15.0,<20.0
-scikit-learn>=1.4,<2.0
+joblib==1.5.3                    # MUST equal requirements.txt
+numpy==2.4.4                     # MUST equal requirements.txt
+pandas==2.3.3                    # MUST equal requirements.txt (3.0.4 segfaults on Windows cp312)
+pyarrow==23.0.1                  # MUST equal requirements.txt (was <20.0 -- EXCLUDED the pin)
+scikit-learn==1.8.0              # MUST equal requirements.txt
 
 # --- Gradient boosting ---
-catboost>=1.2,<2.0
-lightgbm>=4.3,<5.0
-xgboost>=2.0,<3.0
+catboost==1.2.10                 # MUST equal requirements.txt
+lightgbm==4.6.0                  # MUST equal requirements.txt. NOTE: the DRIFT environment
+                                 # pins 4.5.0 (nannyml requires <4.6) -- that is a SEPARATE
+                                 # environment and never shares a process with this one.
+xgboost==3.2.0                   # MUST equal requirements.txt (was <3.0 -- EXCLUDED the pin)
 
 # --- Production hardening ---
 slowapi>=0.1.9,<0.2
 python-json-logger>=2.0,<4.0
-prometheus-fastapi-instrumentator>=6.0,<8.0
+# RAISED 2026-07-13 (was `>=6.0,<8.0`). Roadmap 6.19.
+#
+# The `<8.0` ceiling forced prometheus-fastapi-instrumentator 7.1.0, which requires
+# `starlette<1.0.0`. This project deliberately runs starlette 1.0.0 (see requirements.txt
+# line 5: "starlette 1.0.0 coherent with fastapi 0.135.2/0.136.1"). The result was a REAL,
+# UNRESOLVED dependency conflict that pip reported on EVERY Continuous Integration run:
+#
+#   ERROR: pip's dependency resolver does not currently take into account all the packages
+#   that are installed. This behaviour is the source of the following dependency conflicts.
+#   prometheus-fastapi-instrumentator 7.1.0 requires starlette<1.0.0,>=0.30.0,
+#       but you have starlette 1.0.0 which is incompatible.
+#
+# pip prints ERROR and exits 0, and nothing ran `pip check`, so the build went GREEN for
+# 508 runs while the API's Prometheus metrics middleware ran against an unsupported
+# starlette. The machine said it plainly, every single time, and nothing failed.
+#
+# Version 8.0.2 requires `starlette (>=1.0.0,<2.0.0)` -- EXACTLY the version we run. Raising
+# the ceiling resolves the conflict outright: no downgrade, no compromise. Verified by
+# reading the wheel's METADATA, not by assumption.
+#
+# `pip check` is now a HARD GATE in .github/workflows/ci.yml. A dependency conflict that
+# nothing ever checks is the same defect as a test that nothing ever runs.
+prometheus-fastapi-instrumentator>=8.0,<9.0

@@ -50,12 +50,17 @@ import logging
 import pickle
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 import pandas as pd
 from scipy import stats
 from scipy.spatial.distance import cdist
+
+if TYPE_CHECKING:      # import-cycle-free; resolved only by type checkers
+    from genomic_variant_classifier.monitoring.drift_reference_profile import (
+        DriftReferenceProfile,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +95,16 @@ class FeatureDriftResult:
     mean_shift_sigmas: float     # (new_mean - ref_mean) / ref_std
     action:           str        # "none" | "monitor" | "retrain"
 
+    #: True when `ks_statistic` / `ks_pvalue` / `wasserstein` were computed against a
+    #: quantile-reconstructed reference rather than the real reference column -- i.e. when the
+    #: detector was driven from an aggregate-only profile (roadmap 6.20).
+    #:
+    #: `psi` and `action` are EXACT either way; they are the fields anything acts on. These
+    #: three are informational, and when this flag is set they carry the resolution of the
+    #: stored quantile grid rather than of the data. Label it, so nobody later reads an
+    #: approximate Kolmogorov-Smirnov p-value as a measured one.
+    ks_wasserstein_approximate: bool = False
+
 
 @dataclass
 class DriftReport:
@@ -100,15 +115,39 @@ class DriftReport:
     features_checked:  int
     features_drifted:  int          # PSI > PSI_RETRAIN
     features_monitored: int         # PSI in [PSI_MONITOR, PSI_RETRAIN]
-    mmd_score:         float        # joint MMD across all features
-    mmd_pvalue:        float
-    energy_statistic:  float        # Székely-Rizzo two-sample energy test
-    energy_pvalue:     float
+
+    # The joint (multivariate) tests. These are Optional[float] and may legitimately be None
+    # -- see `joint_tests_run` below. NONE MEANS "NOT COMPUTED". IT NEVER MEANS "NO DRIFT".
+    mmd_score:         Optional[float]   # joint Maximum Mean Discrepancy across all features
+    mmd_pvalue:        Optional[float]
+    energy_statistic:  Optional[float]   # Székely-Rizzo two-sample energy test
+    energy_pvalue:     Optional[float]
+
     feature_results:   list[FeatureDriftResult] = field(default_factory=list)
     top_drifted:       list[str]    = field(default_factory=list)
     action_required:   bool         = False
     recommended_action: str        = "none"  # "none"|"monitor"|"retrain"|"urgent_retrain"
     summary:           str         = ""
+
+    # ── Were the joint tests actually run? (roadmap 6.20) ──────────────────────────────
+    #
+    # The Maximum Mean Discrepancy and energy tests are MULTIVARIATE permutation tests: they
+    # need real reference SAMPLES. When the detector is driven from an aggregate-only
+    # reference profile (`DriftDetector.from_profile`, used by the monthly hosted drift
+    # monitor because a 1.4 MB committed histogram beats fetching a 23.8 MB cohort matrix
+    # from cloud storage with credentials), there are no reference rows and the joint tests
+    # CANNOT run.
+    #
+    # They are then reported as NOT RUN -- explicitly, in the report, and in every export.
+    # They are NEVER reported as passing.
+    #
+    # THIS FLAG IS LOAD-BEARING. `check()` escalates to urgent_retrain on
+    # `mmd_pvalue < 0.001`. If a profile-driven run quietly substituted a benign p-value
+    # there, that escalation would be permanently disarmed WHILE APPEARING TO WORK -- which
+    # is exactly root pattern (c): a gate that checks a proxy instead of the thing it
+    # protects is not a gate. A missing measurement must look missing.
+    joint_tests_run:    bool           = True
+    joint_tests_reason: Optional[str]  = None
 
     def to_dict(self) -> dict:
         import dataclasses
@@ -126,8 +165,18 @@ class DriftReport:
         print(f"  Features checked:    {self.features_checked}")
         print(f"  Features drifted:    {self.features_drifted}  (PSI > {PSI_RETRAIN})")
         print(f"  Features monitored:  {self.features_monitored}  (PSI > {PSI_MONITOR})")
-        print(f"  MMD score:           {self.mmd_score:.6f}  (p={self.mmd_pvalue:.4f})")
-        print(f"  Energy statistic:    {self.energy_statistic:.4f}  (p={self.energy_pvalue:.4f})")
+        if self.joint_tests_run:
+            print(f"  MMD score:           {self.mmd_score:.6f}  (p={self.mmd_pvalue:.4f})")
+            print(f"  Energy statistic:    {self.energy_statistic:.4f}  (p={self.energy_pvalue:.4f})")
+        else:
+            # Say it loudly. A joint test that did not run must never be mistaken for a joint
+            # test that found nothing.
+            print(f"  MMD score:           NOT COMPUTED")
+            print(f"  Energy statistic:    NOT COMPUTED")
+            print(f"  ^^ JOINT TESTS DID NOT RUN: {self.joint_tests_reason}")
+            print(f"     The per-feature Population Stability Index checks below DID run and")
+            print(f"     are exact. The joint multivariate escalation did NOT. This report is")
+            print(f"     NOT evidence that the joint distribution is unchanged.")
         print(f"  ACTION: {self.recommended_action.upper()}")
         if self.top_drifted:
             print(f"  Top drifted features: {', '.join(self.top_drifted[:5])}")
@@ -149,12 +198,13 @@ class DriftDetector:
 
     def __init__(
         self,
-        reference_data:  np.ndarray,
+        reference_data:  Optional[np.ndarray],
         feature_names:   list[str],
         n_bins:          int  = 10,
         mmd_n_permute:   int  = 200,
         energy_n_permute: int = 200,
         random_state:    int  = 42,
+        profile:         Optional["DriftReferenceProfile"] = None,
     ) -> None:
         self.feature_names    = list(feature_names)
         self.n_features       = len(feature_names)
@@ -162,6 +212,35 @@ class DriftDetector:
         self.mmd_n_permute    = mmd_n_permute
         self.energy_n_permute = energy_n_permute
         self.rng              = np.random.default_rng(random_state)
+
+        #: The aggregate-only reference, when there are no raw rows (roadmap 6.20).
+        #: EXACTLY ONE of `ref_data` / `profile` is populated. When `profile` is set,
+        #: `ref_data` is None and the multivariate tests cannot run -- see `check()`.
+        self.profile = profile
+
+        if profile is not None:
+            if reference_data is not None:
+                raise ValueError(
+                    "Pass EITHER reference_data OR profile, not both. Two references is two "
+                    "answers, and nothing would tell you which one a report came from."
+                )
+            self.ref_data  = None
+            self.ref_stats = None
+            self.ref_bins  = None
+            self.mmd_sigma = None      # NOT MMD_SIGMA. There is no bandwidth without samples,
+                                       # and a plausible-looking default here would let the
+                                       # joint test appear to run on data it never saw.
+            logger.info(
+                "DriftDetector initialised FROM AN AGGREGATE PROFILE: %d features, %d "
+                "reference rows summarised (source=%s, built %s). Population Stability Index "
+                "is EXACT. The joint Maximum Mean Discrepancy and energy tests CANNOT run "
+                "without reference samples and will be reported as NOT COMPUTED.",
+                self.n_features, profile.n_ref_samples, profile.source, profile.built_at_utc,
+            )
+            return
+
+        if reference_data is None:
+            raise ValueError("DriftDetector needs either reference_data or a profile.")
 
         self.ref_data   = reference_data.astype(np.float64)
         self.ref_stats  = self._compute_stats(self.ref_data)
@@ -202,6 +281,64 @@ class DriftDetector:
         return detector
 
     @classmethod
+    def from_profile(
+        cls,
+        profile: "str | Path | DriftReferenceProfile",
+        **kwargs,
+    ) -> DriftDetector:
+        """Build a detector from an AGGREGATE-ONLY reference profile (roadmap 6.20).
+
+        This is how the scheduled monthly drift monitor runs on a hosted runner: the raw
+        reference matrix (`X_train.parquet`) is 23.8 MB of variant rows that would have to be
+        fetched from cloud storage with credentials on every run. The profile is 1.4 MB of
+        histograms that lives in git. That is the whole reason it exists -- and it also means
+        no per-variant annotation from any source, academic or licensed, is ever redistributed.
+
+        (An earlier version of this docstring said the matrix could not travel because dbNSFP
+        is `tier: controlled` / "LICENSED (paid)". That was wrong: data_manifest.yaml marks
+        dbNSFP `tier: academic`; the "LICENSED (paid)" note belongs to hgmd. See
+        drift_reference_profile.py for the full correction.)
+
+        WHAT YOU GET
+            * Population Stability Index, per feature -- **EXACT**. Bit-for-bit identical to
+              the raw-data detector. Proven by tests/unit/test_drift_reference_profile.py.
+            * The per-feature action (none / monitor / retrain) -- **EXACT**, because it is a
+              function of PSI alone.
+            * Kolmogorov-Smirnov and Wasserstein -- APPROXIMATE, reconstructed from the stored
+              quantile grid, and flagged as such. Nothing depends on them.
+
+        WHAT YOU DO NOT GET
+            * The joint Maximum Mean Discrepancy and Székely-Rizzo energy tests. They are
+              multivariate permutation tests over the JOINT distribution and cannot be
+              recovered from marginal aggregates. They are reported as NOT COMPUTED, with
+              `DriftReport.joint_tests_run = False`. They are never reported as passing.
+        """
+        from genomic_variant_classifier.monitoring.drift_reference_profile import (
+            DriftReferenceProfile,
+        )
+
+        if isinstance(profile, (str, Path)):
+            profile = DriftReferenceProfile.load(profile)
+
+        if profile.n_bins != kwargs.get("n_bins", 10):
+            # Root pattern (a): a number written down in two places WILL disagree. The bin
+            # count is baked into the stored histogram; a detector using a different one would
+            # silently produce wrong PSI for every feature, with no error anywhere.
+            raise ValueError(
+                f"Profile was built with n_bins={profile.n_bins}, but this detector was asked "
+                f"for n_bins={kwargs.get('n_bins', 10)}. The reference histogram is already "
+                f"binned -- it cannot be re-binned, and using it anyway would make EVERY "
+                f"Population Stability Index wrong. Rebuild the profile."
+            )
+
+        return cls(
+            reference_data=None,
+            feature_names=profile.feature_names,
+            profile=profile,
+            **kwargs,
+        )
+
+    @classmethod
     def load(cls, path: str | Path) -> DriftDetector:
         with open(path, "rb") as fh:
             obj = pickle.load(fh)
@@ -239,15 +376,59 @@ class DriftDetector:
         timestamp = timestamp or datetime.now(timezone.utc).isoformat()
 
         if isinstance(X_new, pd.DataFrame):
+            # ── The reference must COVER the new data, or the check is a subset lie ────────
+            #
+            # `X_new[self.feature_names]` silently SELECTS the reference's columns and drops
+            # everything else. If the new matrix has features the reference has never seen,
+            # those features are never drift-checked -- and the report still says "checked",
+            # with a feature count that looks healthy.
+            #
+            # This is not hypothetical. The Run-15 reference matrix carries 78 features; the
+            # current tabular contract (EXPECTED_TABULAR_FEATURE_COUNT) is 97. Pointed at
+            # today's data, an un-guarded detector would check 78, ignore 19, and report no
+            # drift on features it never looked at. That is root pattern (c) -- a gate that
+            # checks a proxy for the thing it protects -- and it is precisely how this
+            # subsystem died the first time.
+            missing = [f for f in self.feature_names if f not in X_new.columns]
+            if missing:
+                raise KeyError(
+                    f"The new data is missing {len(missing)} feature(s) the reference "
+                    f"expects, so they cannot be compared: {missing[:10]}"
+                    f"{' ...' if len(missing) > 10 else ''}. Refusing to report partial "
+                    f"coverage as a completed drift check."
+                )
+
+            unchecked = [c for c in X_new.columns if c not in self.feature_names]
+            if unchecked:
+                logger.warning(
+                    "%d feature(s) in the new data are ABSENT FROM THE REFERENCE and are "
+                    "therefore NOT DRIFT-CHECKED: %s%s. The reference is stale relative to "
+                    "the current feature contract -- rebuild it. This report covers %d of %d "
+                    "features and is NOT evidence about the rest.",
+                    len(unchecked), unchecked[:10], " ..." if len(unchecked) > 10 else "",
+                    len(self.feature_names), X_new.shape[1],
+                )
+
             new_arr = X_new[self.feature_names].to_numpy(dtype=np.float64)
         else:
             new_arr = X_new.astype(np.float64)
+            if new_arr.shape[1] != self.n_features:
+                raise ValueError(
+                    f"New data has {new_arr.shape[1]} columns but the reference has "
+                    f"{self.n_features}. With a bare ndarray there are no names to align on, "
+                    f"so this comparison would silently pair up the WRONG features. "
+                    f"Pass a DataFrame."
+                )
+
+        from_profile = self.profile is not None
 
         feature_results = []
         for i, feat in enumerate(self.feature_names):
-            ref_col = self.ref_data[:, i]
             new_col = new_arr[:, i]
-            result  = self._check_feature(feat, ref_col, new_col)
+            if from_profile:
+                result = self._check_feature_from_profile(feat, new_col)
+            else:
+                result = self._check_feature(feat, self.ref_data[:, i], new_col)
             feature_results.append(result)
 
         # Sort by PSI descending
@@ -257,47 +438,92 @@ class DriftDetector:
         n_monitor  = sum(1 for r in feature_results if r.action == "monitor")
         top_drifted = [r.feature for r in feature_results if r.action == "retrain"][:5]
 
-        # Joint tests (subsample for speed)
-        n_sub = min(3000, len(self.ref_data), len(new_arr))
-        ref_sub = self.ref_data[self.rng.choice(len(self.ref_data), n_sub, replace=False)]
-        new_sub = new_arr[self.rng.choice(len(new_arr), n_sub, replace=False)]
+        # ── Joint (multivariate) tests ────────────────────────────────────────────────
+        #
+        # These need real reference SAMPLES. From an aggregate profile there are none, and no
+        # amount of cleverness recovers a joint distribution from marginal histograms. So they
+        # do not run -- and they SAY they did not run.
+        #
+        # The alternative -- quietly setting mmd_pvalue = 1.0 -- would have been invisible,
+        # would have looked exactly like a healthy run, and would have permanently disarmed the
+        # urgent_retrain escalation below. That is the defect this subsystem is being rescued
+        # FROM (roadmap 6.20: drift_monitor.yml reported "no drift" every month having never
+        # checked anything). A measurement that did not happen must never wear the costume of a
+        # measurement that came back clean.
+        if from_profile:
+            mmd_score = mmd_pval = energy_stat = energy_p = None
+            joint_tests_run = False
+            joint_tests_reason = (
+                "the detector was built from an aggregate-only reference profile, which "
+                "contains histograms and quantile grids but no reference rows; the Maximum "
+                "Mean Discrepancy and Székely-Rizzo energy tests are multivariate permutation "
+                "tests and require samples of the joint distribution. Run "
+                "scripts/run_drift_monitor.py with --reference-splits, on a machine that holds "
+                "the cohort matrix, to obtain them."
+            )
+            logger.warning(
+                "Joint MMD/energy tests NOT RUN: %s The per-feature Population Stability "
+                "Index checks are exact and DID run.", joint_tests_reason,
+            )
+        else:
+            n_sub = min(3000, len(self.ref_data), len(new_arr))
+            ref_sub = self.ref_data[self.rng.choice(len(self.ref_data), n_sub, replace=False)]
+            new_sub = new_arr[self.rng.choice(len(new_arr), n_sub, replace=False)]
 
-        mmd_score, mmd_pval   = self._mmd_test(ref_sub, new_sub)
-        energy_stat, energy_p = self._energy_test(ref_sub, new_sub)
+            mmd_score, mmd_pval   = self._mmd_test(ref_sub, new_sub)
+            energy_stat, energy_p = self._energy_test(ref_sub, new_sub)
+            mmd_score, mmd_pval   = float(mmd_score), float(mmd_pval)
+            energy_stat, energy_p = float(energy_stat), float(energy_p)
+            joint_tests_run = True
+            joint_tests_reason = None
 
-        # Determine overall action
-        if n_retrain > 3 or mmd_pval < 0.001:
+        # ── Overall action ────────────────────────────────────────────────────────────
+        #
+        # Written so that a MISSING mmd_pvalue can never be read as a PASSING one. `None` does
+        # not participate in the escalation; it does not suppress it either. The Population
+        # Stability Index triggers stand on their own -- which is the whole reason the profile
+        # is useful: `n_retrain` and `n_monitor` are EXACT even with no reference rows.
+        mmd_urgent = mmd_pval is not None and mmd_pval < 0.001
+        mmd_retrain = mmd_pval is not None and mmd_pval < 0.01
+
+        if n_retrain > 3 or mmd_urgent:
             action = "urgent_retrain"
-        elif n_retrain > 0 or mmd_pval < 0.01:
+        elif n_retrain > 0 or mmd_retrain:
             action = "retrain"
         elif n_monitor > 0:
             action = "monitor"
         else:
             action = "none"
 
+        joint_txt = (
+            f"Joint MMD p={mmd_pval:.4f}." if joint_tests_run
+            else "Joint MMD/energy NOT COMPUTED (aggregate-only reference; PSI checks are exact)."
+        )
         summary = (
             f"{n_retrain} features with significant drift (PSI>{PSI_RETRAIN}), "
             f"{n_monitor} under monitoring. "
-            f"Joint MMD p={mmd_pval:.4f}. "
+            f"{joint_txt} "
             f"Recommended: {action}."
         )
 
         report = DriftReport(
             timestamp          = timestamp,
-            n_ref_samples      = len(self.ref_data),
+            n_ref_samples      = self.profile.n_ref_samples if from_profile else len(self.ref_data),
             n_new_samples      = len(new_arr),
             features_checked   = self.n_features,
             features_drifted   = n_retrain,
             features_monitored = n_monitor,
-            mmd_score          = float(mmd_score),
-            mmd_pvalue         = float(mmd_pval),
-            energy_statistic   = float(energy_stat),
-            energy_pvalue      = float(energy_p),
+            mmd_score          = mmd_score,
+            mmd_pvalue         = mmd_pval,
+            energy_statistic   = energy_stat,
+            energy_pvalue      = energy_p,
             feature_results    = feature_results,
             top_drifted        = top_drifted,
             action_required    = action in ("retrain", "urgent_retrain"),
             recommended_action = action,
             summary            = summary,
+            joint_tests_run    = joint_tests_run,
+            joint_tests_reason = joint_tests_reason,
         )
 
         logger.info("Drift check complete. %s", summary)
@@ -338,6 +564,64 @@ class DriftDetector:
             new_std           = round(new_std, 5),
             mean_shift_sigmas = round(shift_sigmas, 3),
             action            = action,
+        )
+
+    def _check_feature_from_profile(
+        self, feature: str, new_col: np.ndarray
+    ) -> FeatureDriftResult:
+        """Per-feature drift with NO reference rows -- only the aggregate profile (6.20).
+
+        Mirrors `_check_feature` exactly, field for field. The Population Stability Index and
+        therefore the ACTION are EXACT -- identical to what the raw-data path would return.
+        The Kolmogorov-Smirnov and Wasserstein figures are reconstructed from the stored
+        quantile grid and are flagged approximate.
+        """
+        prof    = self.profile.features[feature]
+        new_col = new_col[np.isfinite(new_col)]
+
+        # EXACT. Same percentiles, same edges, same denominator, same clipping.
+        psi = self.profile.psi(feature, new_col)
+
+        # APPROXIMATE. The quantile grid is the reference empirical cumulative distribution
+        # function, compressed; interpolating it back gives a sample with the same
+        # distribution to grid resolution -- and nothing else. No rows, no identities, no
+        # joint structure.
+        if prof.n_finite == 0 or len(new_col) == 0:
+            ks_stat, ks_p, wasserstein = 0.0, 1.0, 0.0
+        else:
+            ref_recon = prof.reference_sample(n=min(10_000, max(prof.n_finite, 2)))
+            ks_stat, ks_p = stats.ks_2samp(ref_recon, new_col)
+            wasserstein   = float(stats.wasserstein_distance(ref_recon, new_col))
+
+        # `+ 1e-9` reproduces _check_feature line-for-line: the epsilon is applied at use, not
+        # stored. Drop it and every mean_shift_sigmas would differ in the last places -- a
+        # small, silent divergence between the two code paths, which is precisely the shape of
+        # bug this project keeps finding.
+        ref_mean, ref_std = prof.mean, prof.std + 1e-9
+        new_mean = float(np.mean(new_col)) if len(new_col) else 0.0
+        new_std  = float(np.std(new_col)) if len(new_col) else 0.0
+        shift_sigmas = (new_mean - ref_mean) / ref_std
+
+        if psi > PSI_RETRAIN:
+            action = "retrain"
+        elif psi > PSI_MONITOR:
+            action = "monitor"
+        else:
+            action = "none"
+
+        return FeatureDriftResult(
+            feature           = feature,
+            psi               = round(psi, 5),
+            ks_statistic      = round(float(ks_stat), 5),
+            ks_pvalue         = round(float(ks_p), 6),
+            wasserstein       = round(wasserstein, 5),
+            ref_mean          = round(ref_mean, 5),
+            ref_std           = round(ref_std, 5),
+            new_mean          = round(new_mean, 5),
+            new_std           = round(new_std, 5),
+            mean_shift_sigmas = round(shift_sigmas, 3),
+            action            = action,
+            ks_wasserstein_approximate = True,
         )
 
     # ── Statistical methods ────────────────────────────────────────────────

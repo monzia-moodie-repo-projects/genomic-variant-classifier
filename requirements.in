@@ -30,20 +30,70 @@ scipy>=1.12
 
 # Testing — keep separate or use requirements-dev.in
 
-# Drift monitoring (added Stage 0 — corrected pins)
-# NOTE: alibi-detect dropped — 0.13.0 (latest, Dec 2025) still pins numpy<2.0
-# and is effectively unmaintained for numpy 2.x. Functionality replaced by
-# scipy.stats (KS, chi2), nannyml (CBPE), river (online drift), evidently
-# (tabular distribution drift). See docs/hypotheses/HYP_alibi-detect-numpy2-lag.md
+# =============================================================================
+# Drift monitoring -- CORRECTED 2026-07-13 (roadmap 6.19). READ THIS BEFORE EDITING.
+# =============================================================================
+# This block used to read:
+#
+#   # NOTE: alibi-detect dropped -- ... Functionality replaced by
+#   # scipy.stats (KS, chi2), nannyml (CBPE), river (online drift), evidently
+#   # (tabular distribution drift).
+#   evidently==0.7.6
+#   nannyml==0.13.0
+#   great-expectations>=1.0,<2
+#   fairlearn==0.12.0
+#   defusedxml
+#   beautifulsoup4
+#
+# EVERY CLAIM IN THAT COMMENT WAS AUDITED ON 2026-07-13. Two of the four were false:
+#
+#   scipy.stats (PSI / Kolmogorov-Smirnov / Maximum Mean Discrepancy)  TRUE  -- monitoring/drift_detector.py
+#   river (online drift)                                               TRUE  -- agent_layer/agents/annotation_policy_agent.py
+#   nannyml (Confidence-Based Performance Estimation)                  FALSE -- NO CODE CALLED IT.
+#   evidently (tabular distribution drift)                             FALSE -- called through an API DELETED two major versions ago.
+#
+# * nannyml was imported by exactly ONE file: scripts/verify_drift_libs.py, which printed its
+#   version number. There was NO Confidence-Based Performance Estimation implementation
+#   anywhere in this codebase. The capability was claimed, never built.
+# * evidently was called via `evidently.report` / `evidently.metric_preset` /
+#   `evidently.pipeline.column_mapping` -- ALL THREE DELETED. run_drift_monitor.py caught the
+#   ImportError and logged "Evidently AI not installed. Run: pip install evidently", which was
+#   FALSE -- it WAS installed. The code misdiagnosed its own failure and the drift report was
+#   silently never produced, for months.
+# * great-expectations and fairlearn were imported by NOTHING except verify_drift_libs.py.
+#   The fairness agent (agent_layer/agents/fairness_subgroup_agent.py) does not use fairlearn.
+# * defusedxml and beautifulsoup4 were imported NOWHERE at all.
+#
+# And NONE of them were in requirements.txt -- the ONLY file Continuous Integration, Docker and
+# every launch script install -- so none of them were ever installed on a clean machine. They
+# existed solely in the developer's virtual environment, where they were the sole cause of all
+# SIX `pip check` conflicts (evidently->plotly<6; nannyml->lightgbm<4.6, plotly<6, Jinja2<3.1;
+# plus gcsfs/s3fs, which nannyml dragged in). Removing them made `pip check` clean: 6 -> 0.
+#
+# WHAT LIVES WHERE NOW
+# --------------------
+#   TRAINING (this file -> requirements.txt): pandera, river, scipy, pyspark.
+#     These are the drift components that are ACTUALLY WIRED and that ACTUALLY WORK.
+#
+#   DRIFT (requirements-drift.txt, a SEPARATE environment): nannyml, evidently.
+#     They cannot live here. nannyml requires lightgbm>=3.3,<4.6 (verified in BOTH 0.13.0 and
+#     0.13.1 METADATA) while the ensemble TRAINS on lightgbm 4.6.0 -- a BASE MODEL. Evidently
+#     requires plotly<6 while this project runs plotly 6.6.0. Downgrading a base model of the
+#     classifier to satisfy a MONITORING library would change the science to suit the
+#     instrument. That trade is refused. See roadmap 6.19.
+#
+# Confidence-Based Performance Estimation is now REAL, in the isolated environment:
+# src/genomic_variant_classifier/monitoring/performance_estimator.py, wired into
+# scripts/run_drift_monitor.py --estimate-performance, and tested in tests_drift/.
+# Verified 2026-07-13: it estimates ROC AUC on data with the labels removed.
+#
+# See docs/hypotheses/HYP_alibi-detect-numpy2-lag.md for the alibi-detect decision.
 pandera>=0.24,<0.25
-evidently==0.7.6
-nannyml==0.13.0
 river>=0.22.0,<0.24
-great-expectations>=1.0,<2
-fairlearn==0.12.0
-defusedxml
-beautifulsoup4
-pyspark>=3.5.4,<4
+pyspark>=3.5.4,<4    # NOTE: pyspark 3.5.x's pandas module calls np.NaN (REMOVED in NumPy 2.0),
+                     # which is why `import nannyml` dies on any machine where pyspark is
+                     # importable -- nannyml OPTIONALLY imports it. The drift environment
+                     # therefore installs NO pyspark. If you ever raise this to 4.x, RE-VERIFY.
 # Core ML — production deps that were missing from requirements.in (added 2026-05-07)
 torch>=2.0,<3
 torch-geometric>=2.5,<3

@@ -54,6 +54,7 @@ something that re-derives itself on every run.
 from __future__ import annotations
 
 import warnings
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -202,6 +203,72 @@ def test_catboost_corrects_mis_ordered_columns_by_name():
 # ---------------------------------------------------------------------------
 # The dispatch itself: the premise everything above rests on.
 # ---------------------------------------------------------------------------
+def _read_fit_source_from_disk() -> str:
+    """Return the text of VariantEnsemble.fit(), read STRAIGHT FROM THE SOURCE FILE.
+
+    NOT `inspect.getsource(VariantEnsemble.fit)`. That looked like the obvious way to do this
+    and it is quietly unsound.
+
+    `inspect.getsource` locates a function via `__code__.co_firstlineno`, and the code object
+    comes from the COMPILED module. If a `__pycache__` entry is stale, `co_firstlineno` still
+    holds the function's OLD line number, while `inspect` reads the CURRENT file -- so it
+    slices the new source at an old offset and hands back whatever method now happens to live
+    there.
+
+    That is not hypothetical. On 2026-07-13 this test failed with:
+
+        AssertionError: the fit() dispatch no longer special-cases catboost by name
+        assert 'name == "catboost"' in '    def _assert_no_dead_features(self, X_tab: ...
+
+    `_assert_no_dead_features` had just been inserted 74 lines above `fit`. The dispatch it
+    guards was perfectly intact -- `elif name == "catboost":` and `X_input_fit =
+    X_tab_fit.values` were both right there in `fit()`. The test was reading the wrong
+    function, and it accused the code of a defect that would have armed a 0.855-probability
+    silent-corruption bug in a clinical variant classifier.
+
+    A guard that can report a catastrophic false positive is a guard that gets disabled. And
+    a guard whose result depends on whether someone remembered to clear a bytecode cache is
+    not measuring the code -- it is measuring the cache. Root pattern (d): a result from a
+    mutated environment is evidence about the ENVIRONMENT, not the code.
+
+    So: read the file. The file is the truth. It cannot go stale.
+    """
+    import genomic_variant_classifier.models.variant_ensemble as _ve
+
+    text = Path(_ve.__file__).read_text(encoding="utf-8")
+    lines = text.splitlines()
+
+    # Find `class VariantEnsemble`, then ITS `    def fit(` -- there are several other `fit`
+    # methods in this module (the KAN wrapper, the SVM wrapper, the isotonic calibrator), and
+    # grabbing the wrong one would make this test vacuous rather than merely wrong.
+    cls = next(
+        (i for i, ln in enumerate(lines) if ln.startswith("class VariantEnsemble")),
+        None,
+    )
+    assert cls is not None, "class VariantEnsemble not found in variant_ensemble.py"
+
+    start = next(
+        (i for i in range(cls, len(lines)) if lines[i].startswith("    def fit(")),
+        None,
+    )
+    assert start is not None, "VariantEnsemble.fit( not found after `class VariantEnsemble`"
+
+    # Collect until the next method at class-body indentation, or the next top-level statement.
+    end = len(lines)
+    for i in range(start + 1, len(lines)):
+        ln = lines[i]
+        if ln.startswith("    def ") or (ln and not ln[0].isspace()):
+            end = i
+            break
+
+    body = "\n".join(lines[start:end])
+    assert len(body.splitlines()) > 20, (
+        "VariantEnsemble.fit() came back suspiciously short -- the extraction above is broken, "
+        "and every assertion built on it is vacuous."
+    )
+    return body
+
+
 def test_the_ensemble_dispatch_still_hands_lightgbm_an_ndarray():
     """LightGBM must NEVER be handed a DataFrame by VariantEnsemble.
 
@@ -209,9 +276,7 @@ def test_the_ensemble_dispatch_still_hands_lightgbm_an_ndarray():
     catboost) is exempted from `.values`. cnn_1d takes X_seq. Everything else -- lightgbm
     included -- gets the raw ndarray.
     """
-    import inspect
-
-    src = inspect.getsource(VariantEnsemble.fit)
+    src = _read_fit_source_from_disk()
 
     assert 'name == "catboost"' in src, (
         "the fit() dispatch no longer special-cases catboost by name; re-read the dispatch "

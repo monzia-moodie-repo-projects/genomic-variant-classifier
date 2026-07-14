@@ -38,6 +38,7 @@ how commands are constructed.
 | `... \| Select-Object -Last 15` | `... \| Tee-Object -FilePath $log` **then** `Select-String -Path $log` |
 | `... \| Select-Object -First 45` | capture the whole thing; search the *file* |
 | `... \| head -20`, `\| tail -n 30` | capture the whole thing; grep the *file* |
+| **a result cap on a SEARCH TOOL** (`head_limit`, `max_results`, `limit`, "first N matches") | **no cap.** If the output is large, narrow the *pattern* or the *path* — never the *number of answers*. |
 
 **Why:** you choose the window *before* you know where the signal is. It is a guess wearing the
 costume of a filter. Documented casualties, all on 2026-07-13:
@@ -48,6 +49,24 @@ costume of a filter. Documented casualties, all on 2026-07-13:
   self-criticism about a failure that never happened.
 * `158 deletions(-)` in a commit summary, read past → a corrupted `docs/ROADMAP.md` was committed
   and pushed.
+* **`head_limit: 40` on a search for `hgmd`** → the results hit the cap, and `tests/unit/test_hgmd.py`
+  and `tests/unit/test_splice_ai_promotion.py` **fell off the bottom.** The assistant then stated,
+  as measured fact, that no other HGMD references existed, removed the feature, and shipped **six
+  red tests**. There is a file *literally named* `test_hgmd.py` and the search never showed it.
+
+> **THE LAST ONE IS THE IMPORTANT ONE. It went straight through this rule.**
+>
+> The three rows above it ban *shell pipes*. A `head_limit` parameter on a search tool is not a
+> pipe, so it did not *look* like the banned thing — but it is **exactly** the banned thing: a
+> window chosen before the signal is known. **A truncation is a truncation whatever the syntax.**
+> The rule is not about `head`. It is about never deciding how much of the truth you are willing
+> to see.
+>
+> A search that is *capped* is indistinguishable, from the inside, from a search that **found
+> everything**. That is what makes it lethal: it does not look like missing data, it looks like an
+> answer. See also §1.4 — a search returning nothing may be malformed. **A search returning
+> exactly N things, where N is the cap you set, has told you NOTHING except that there are at
+> least N.**
 
 A file keeps everything. A window does not. **Capturing to a file costs nothing and truncates
 nothing.**

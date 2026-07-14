@@ -1,0 +1,142 @@
+# requirements-drift.txt -- the ISOLATED drift-monitoring environment.
+# Created 2026-07-13 (roadmap 6.19).
+#
+# =============================================================================
+# WHY THIS FILE EXISTS: the monitoring tools' dependencies must NEVER constrain
+# the model's dependencies.
+# =============================================================================
+#
+# The drift/reporting stack and the training stack have IRRECONCILABLE pins:
+#
+#   nannyml 0.13.0 AND 0.13.1   require  lightgbm >=3.3,<4.6   -- we TRAIN on lightgbm 4.6.0
+#   nannyml 0.13.0 AND 0.13.1   require  plotly   >=5.6,<6.0   -- we run     plotly   6.6.0
+#   evidently 0.7.6 AND 0.7.21  require  plotly   <6,>=5.10.0  -- we run     plotly   6.6.0
+#
+# There is NO release of nannyml that works with lightgbm 4.6.0. (Verified 2026-07-13 by
+# reading the METADATA of both 0.13.0 and 0.13.1 -- 0.13.1 relaxed Jinja2 to >=3.1, and
+# relaxed NOTHING else.)
+#
+# LightGBM is a BASE MODEL of the ensemble. Downgrading it below 4.6 to satisfy a MONITORING
+# library would change the science to suit the instrument -- and it would move the very model
+# whose silent positional-column-mapping behaviour was measured on 2026-07-13 (a 0.855
+# probability swing on mis-ordered columns; see tests/unit/test_feature_name_contract.py).
+# That trade is refused.
+#
+# So the drift monitor gets its OWN environment. The training stack keeps lightgbm==4.6.0 and
+# plotly==6.6.0, untouched and unarguable. The drift stack gets lightgbm<4.6 and plotly<6,
+# which it needs and which nothing in the model cares about.
+#
+# =============================================================================
+# CRITICAL: pyspark MUST NOT BE INSTALLED HERE.
+# =============================================================================
+# nannyml does NOT depend on pyspark -- but it OPTIONALLY IMPORTS it if present, and
+# pyspark 3.5.x's pandas-API module calls `np.NaN`, which NumPy REMOVED in 2.0. So on any
+# machine where pyspark is importable, `import nannyml` dies with:
+#
+#     File ".../pyspark/pandas/strings.py", line 1332, in StringMethods
+#         def match(self, pat, ..., na: Any = np.NaN)
+#     AttributeError: `np.NaN` was removed in the NumPy 2.0 release. Use `np.nan` instead.
+#
+# THAT is why nannyml has never imported on the developer's laptop -- not a nannyml bug, and
+# not fixed by any nannyml version. Verified 2026-07-13:
+#
+#     drift_detector   imported OK,  pyspark loaded? False
+#     clinvar_tracker  imported OK,  pyspark loaded? False
+#     package __init__ imported OK,  pyspark loaded? False
+#
+# The drift code path does NOT pull pyspark in, so omitting pyspark here is sufficient AND
+# safe. DO NOT ADD IT. If you ever need Spark in this environment, you must first move to
+# pyspark 4.x (which supports NumPy 2) and re-verify that nannyml still imports.
+#
+# =============================================================================
+# HOW TO USE IT
+# =============================================================================
+#   python -m venv .venv-drift
+#   .venv-drift\Scripts\pip install -r requirements-drift.txt
+#   .venv-drift\Scripts\pip install -e . --no-deps      # the project, WITHOUT its train stack
+#   .venv-drift\Scripts\pip check                       # MUST be clean
+#
+# `pip check` being clean is a hard requirement, not a nicety. Continuous Integration runs it
+# as a gate (roadmap 6.19): a dependency conflict that nothing ever checks is the same defect
+# as a test that nothing ever runs -- and pip reported a REAL conflict on every one of 508
+# Continuous Integration runs, in an ERROR line, while the build stayed green.
+#
+# The drift tests live in tests_drift/ -- a SEPARATE top-level directory, deliberately OUTSIDE
+# `testpaths = ["tests"]`. They cannot live in tests/: nannyml is not installable in the
+# training environment, so they would need a module-level importorskip, and a module-level
+# skip collapses N tests into ONE skip entry -- which makes the COLLECTED count
+# environment-dependent and breaks the premise of the suite-size ratchet (roadmap 6.14).
+# Enforced by configuration, not by a comment someone has to remember.
+
+# --- Confidence-Based Performance Estimation (CBPE) ---------------------------
+# Estimates model performance on NEW data BEFORE ground-truth labels exist -- i.e. on a fresh
+# ClinVar release, months before the reclassifications are adjudicated. It consumes predicted
+# probabilities, not the model, so it never unpickles a LightGBM 4.6 artifact.
+nannyml==0.13.1
+
+# --- Tabular distribution-drift reports ---------------------------------------
+# PINNED TO THE VERSION VERIFIED BY EXECUTION on 2026-07-13, not by recollection: the 0.7 API
+# was exercised end-to-end (Dataset.from_pandas -> Report.run -> Snapshot.save_html produced a
+# 3,673,052-byte report). The OLD 0.4 API that scripts/run_drift_monitor.py used --
+# `evidently.report`, `evidently.metric_preset`, `evidently.pipeline.column_mapping` -- is
+# GONE (ModuleNotFoundError on all three). The script caught the ImportError and logged
+# "Evidently AI not installed. Run: pip install evidently" -- which is FALSE. It IS installed.
+# The API was deleted. The code misdiagnosed its own failure and the drift report was silently
+# never produced.
+#
+# NOTE: Report.run() takes `current_data` FIRST and `reference_data` second -- the REVERSE of
+# the old signature. Always pass them by keyword.
+evidently==0.7.6
+
+# =============================================================================
+# THE SHARED-DATA CONTRACT -- PINNED. These are NOT free to float.
+# =============================================================================
+# First attempt (2026-07-13) left these to the resolver, on the reasoning that "pinning them
+# here would create a second place for those numbers to live". THAT REASONING WAS WRONG, and
+# the build proved it immediately. The resolver produced:
+#
+#     numpy        2.5.1      -- training pins 2.4.4
+#     pandas       3.0.3      -- training pins 2.3.3
+#     scikit-learn 1.9.0      -- training pins 1.8.0
+#     xgboost      2.1.4      -- training pins 3.2.0   (dragged in by FLAML[automl])
+#
+# pandas 3.0.3 is ONE PATCH RELEASE from a segfault this project already paid to escape:
+# requirements.txt lines 1-4 record that "pandas 3.0.4's Windows cp312 wheel SEGFAULTS
+# pd.date_range (0xC0000005). BLOCKED; retry when pandas > 3.0.4." An unpinned drift
+# environment would silently drift into it.
+#
+# And the drift monitor READS THE SAME PARQUET FILES the training pipeline writes. A pandas
+# 3.x reader against a pandas 2.3.3 writer is a data-contract mismatch waiting to happen --
+# silently, in a monitoring tool whose entire job is to notice when things change.
+#
+# Avoiding a duplicated number is NOT worth a non-reproducible environment. That trade is the
+# same one that produced `imodelsx>=1.0.13` and cost this project its Kolmogorov-Arnold
+# Network for two months. PIN THEM, and pin them to MATCH THE TRAINING STACK.
+#
+# All three satisfy nannyml (pandas>=1.4, numpy>=1.23, scikit-learn>=1.3) and evidently
+# (pandas[parquet]>=1.3.5, numpy>=1.23.0, scikit-learn>=1.1.1). Verified 2026-07-13.
+numpy==2.4.4
+pandas==2.3.3
+scikit-learn==1.8.0
+
+# nannyml's OWN caps, pinned explicitly so the environment is reproducible rather than
+# whatever the resolver felt like on the day. These are the versions that were VERIFIED to
+# import nannyml and run CBPE end-to-end on 2026-07-13.
+lightgbm==4.5.0     # nannyml requires >=3.3,<4.6. Training uses 4.6.0 -- SEE THE HEADER.
+plotly==5.24.1      # nannyml requires <6.0; evidently requires <6. Training uses 6.6.0.
+
+# =============================================================================
+# HARD BOUNDARY: THIS ENVIRONMENT MUST NEVER UNPICKLE A TRAINED MODEL.
+# =============================================================================
+# It holds scikit-learn 1.8.0 (matched), but LightGBM 4.5.0 and XGBoost 2.1.4 -- NOT the
+# 4.6.0 / 3.2.0 the ensemble is trained with. Deserialising a trained booster here would load
+# a 4.6.0 artifact into a 4.5.0 runtime: either a warning nobody reads, or silently wrong
+# deserialisation. That is precisely the "green result from a mutated environment" failure
+# (roadmap section 7, root pattern (d)).
+#
+#   drift environment  -> reads DATA and PREDICTIONS. Computes drift, CBPE, Evidently reports.
+#                         NEVER loads a model artifact.
+#   training environment -> owns model artifacts and retraining (--auto-retrain).
+#
+# Confidence-Based Performance Estimation consumes PREDICTED PROBABILITIES, not the model, so
+# this boundary costs nothing. It is asserted by a test in tests_drift/, not left to memory.

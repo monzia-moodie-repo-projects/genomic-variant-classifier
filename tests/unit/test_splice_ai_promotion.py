@@ -44,6 +44,10 @@ MODULE_SRC = (
     Path(__file__).resolve().parents[2] / "src" / "genomic_variant_classifier" / "models" / "variant_ensemble.py"
 ).read_text(encoding="utf-8")
 
+# Phase 4 originally added NINE features. Two of them -- hgmd_is_disease_mutation and
+# hgmd_n_reports -- were REMOVED from the feature contract on 2026-07-13 (no HGMD licence, and
+# variant-level label leakage against a ClinVar-Pathogenic target). See tests/unit/test_hgmd.py
+# for the full reasoning. Seven remain.
 NEW_PHASE4_FEATURES = [
     "splice_ai_score",
     "eve_score",
@@ -52,6 +56,11 @@ NEW_PHASE4_FEATURES = [
     "omim_n_diseases",
     "omim_is_autosomal_dominant",
     "clingen_validity_score",
+]
+
+#: Removed from the contract 2026-07-13. Asserted ABSENT below -- see
+#: test_hgmd_features_are_no_longer_emitted.
+REMOVED_HGMD_FEATURES = [
     "hgmd_is_disease_mutation",
     "hgmd_n_reports",
 ]
@@ -143,10 +152,28 @@ def test_engineer_features_no_nans():
 # ---------------------------------------------------------------------------
 
 def test_new_features_in_tabular_features():
-    """All 9 new Phase 4 features must be present in TABULAR_FEATURES."""
+    """All 7 surviving Phase 4 features must be present in TABULAR_FEATURES."""
     missing = [f for f in NEW_PHASE4_FEATURES if f not in TABULAR_FEATURES]
     assert not missing, (
         f"New Phase 4 features missing from TABULAR_FEATURES: {missing}"
+    )
+
+
+def test_hgmd_features_are_no_longer_in_the_contract():
+    """The two Phase 4 features that were REMOVED must stay removed.
+
+    hgmd_is_disease_mutation is, at the variant level, a near-copy of the ClinVar-Pathogenic
+    training label. It was constant zero for the life of the project (no licence, connector
+    never wired), so it contributed nothing -- but if a licence arrived and someone simply
+    restored these two lines, the model would be handed an answer key and would collapse on
+    novel variants of uncertain significance, which have no HGMD entry.
+    """
+    present = [f for f in REMOVED_HGMD_FEATURES if f in TABULAR_FEATURES]
+    assert not present, (
+        f"HGMD features are back in TABULAR_FEATURES: {present}. Removed 2026-07-13. If the "
+        f"licence has been obtained, reintroduce the signal GENE-LEVEL and LEAVE-ONE-OUT "
+        f"(n_hgmd_dm_in_gene, excluding the variant being scored) -- never as a variant-level "
+        f"flag. See tests/unit/test_hgmd.py."
     )
 
 
@@ -226,16 +253,22 @@ def test_clingen_validity_score_default_zero_when_absent():
     assert feats.loc[0, "clingen_validity_score"] == 0
 
 
-def test_hgmd_is_disease_mutation_default_zero_when_absent():
-    df = _minimal_df()
-    feats = engineer_features(df)
-    assert feats.loc[0, "hgmd_is_disease_mutation"] == 0
+def test_hgmd_features_are_no_longer_emitted():
+    """These two tests previously asserted `hgmd_* == 0` when the source column was absent.
 
+    That assertion was the DEFECT, written down as a requirement. `df.get("hgmd_...", 0)`
+    fabricated a column of zeros whenever the annotation was missing -- which it ALWAYS was,
+    because no HGMD licence was ever obtained and the connector was never wired into the
+    pipeline. So the test passed, every run, for the life of the project, while certifying
+    that a feature carrying zero information was behaving correctly.
 
-def test_hgmd_n_reports_default_zero_when_absent():
-    df = _minimal_df()
-    feats = engineer_features(df)
-    assert feats.loc[0, "hgmd_n_reports"] == 0
+    Both features were removed from the contract on 2026-07-13. A feature that cannot be
+    computed must be ABSENT from the matrix -- not fabricated as zeros, trained on, and
+    counted in the feature roster.
+    """
+    feats = engineer_features(_minimal_df())
+    assert "hgmd_is_disease_mutation" not in feats.columns
+    assert "hgmd_n_reports" not in feats.columns
 
 
 # ---------------------------------------------------------------------------

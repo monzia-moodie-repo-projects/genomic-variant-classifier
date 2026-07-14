@@ -15,9 +15,15 @@ and adds the three Run-17-specific checks the older gates miss:
      --kg pointed at the EMPTY 1kgp/1000genomes dirs the registry warns about) would leave
      af_1kg_* constant with no signal. locate_1kg.py only checks the combined `allele_freq`
      column, not the per-superpop columns -- so it cannot validate a Run-17 kg parquet either.
-  2. Schema gate -- the 87-column baseline (data/reference/schema/schema_baseline.json,
-     n_columns must be 87). Guards the build_schema_baseline.py DEFAULT_MATRIX footgun that
-     would silently regress the baseline 87 -> 78.
+  2. Schema gate -- the committed baseline (data/reference/schema/schema_baseline.json) must
+     have exactly EXPECTED_TABULAR_FEATURE_COUNT columns. That figure is IMPORTED from
+     variant_ensemble.py, not transcribed: it was hard-coded as 87 until 2026-07-13, had
+     already been hand-patched once (82 -> 87, see scripts/patch_preflight_schema_cols_87.py),
+     and was stale again at 95 -- so this gate would have failed a CORRECT baseline and
+     blamed it on corruption. Guards two things: the build_schema_baseline.py DEFAULT_MATRIX
+     footgun that silently SHRINKS the baseline (it has: 81 -> 78), and a feature added to
+     TABULAR_FEATURES without regenerating the baseline (which leaves the schema-drift gate
+     blind to that column for an entire run).
   3. Hard-gate scripts present -- verify_gnn_score.py / run_schema_drift_check.py /
      smoke_all_models.py must exist (they back Gates B and D).
 
@@ -48,7 +54,49 @@ POP_TARGET_CANDIDATES = {
     "af_1kg_sas": ("af_sas", "SAS_AF", "sas_af", "af_1kg_sas"),
     "af_1kg_amr": ("af_amr", "AMR_AF", "amr_af", "af_1kg_amr"),
 }
-EXPECTED_SCHEMA_COLS = 87
+# =========================================================================================
+# EXPECTED_SCHEMA_COLS -- DERIVED, NOT TRANSCRIBED. (2026-07-13, roadmap 6.22)
+#
+# This was `EXPECTED_SCHEMA_COLS = 87`: a hand-kept copy of the feature count, in the gate
+# that protects an eleven-hour paid training run.
+#
+# It had ALREADY been hand-patched once -- scripts/patch_preflight_schema_cols_87.py exists
+# solely to walk it from 82 to 87 -- and by 2026-07-13 it was stale AGAIN, because the feature
+# contract had moved to 95 (and the committed baseline with it). The preflight would have
+# FAILED, reporting "schema baseline n_columns=95 (expected 87); the DEFAULT_MATRIX footgun
+# may have regressed it" -- accusing a correct baseline of corruption, on the strength of a
+# number nobody had remembered to update.
+#
+# That is root pattern (a) verbatim: a number written down once and never re-derived becomes a
+# lie on a schedule. Setting it to 95 would only reset the clock. The fix is to stop keeping a
+# second copy of the number at all.
+#
+# EXPECTED_TABULAR_FEATURE_COUNT in variant_ensemble.py is the single source of truth. It is
+# already guarded in both directions (tests/unit/test_feature_count_contract.py asserts it
+# against len(TABULAR_FEATURES); tests/unit/test_schema_baseline_matches_contract.py asserts
+# the committed baseline against it). Reading it here means this gate cannot disagree with the
+# contract it is supposed to be enforcing -- ever.
+#
+# The import is deliberate and the failure is loud. A preflight that cannot establish what the
+# feature count IS must not quietly fall back to a guess and wave a paid run through.
+# =========================================================================================
+try:
+    from genomic_variant_classifier.models.variant_ensemble import (
+        EXPECTED_TABULAR_FEATURE_COUNT as EXPECTED_SCHEMA_COLS,
+    )
+except Exception as _exc:  # noqa: BLE001
+    raise SystemExit(
+        f"PREFLIGHT ABORT: cannot import EXPECTED_TABULAR_FEATURE_COUNT from "
+        f"genomic_variant_classifier.models.variant_ensemble ({_exc!r}).\n"
+        f"\n"
+        f"The schema gate needs the authoritative feature count. It will NOT fall back to a "
+        f"hard-coded number -- a stale hard-coded number is exactly the defect this import "
+        f"replaces, and waving an eleven-hour paid run through on a guess is worse than "
+        f"stopping here.\n"
+        f"\n"
+        f"Fix the environment (the package must be importable) and re-run."
+    )
+
 SCHEMA_BASELINE_REL = "data/reference/schema/schema_baseline.json"
 HARD_GATE_SCRIPTS = ("verify_gnn_score.py", "run_schema_drift_check.py", "smoke_all_models.py")
 
@@ -111,7 +159,16 @@ def kg_gate(ns, defer_kg: bool, data_root: str) -> list[tuple[str, str]]:
 
 def schema_gate(baseline_path: str | Path = SCHEMA_BASELINE_REL,
                 expected: int = EXPECTED_SCHEMA_COLS) -> list[tuple[str, str]]:
-    """The 87-col baseline must be intact (82 base + 5 rnaseq_*; guards the build_schema_baseline DEFAULT_MATRIX footgun)."""
+    """The committed schema baseline must have exactly EXPECTED_TABULAR_FEATURE_COUNT columns.
+
+    `expected` is DERIVED from the feature contract (see the block at the top of this file), so
+    this gate cannot go stale against the thing it enforces. It guards two distinct failures:
+
+      * the build_schema_baseline.py DEFAULT_MATRIX footgun -- a stale --matrix silently
+        SHRINKING the baseline (it has done this before: 81 -> 78); and
+      * a feature added to TABULAR_FEATURES without regenerating the baseline, which would
+        leave the schema-drift gate blind to that column for the whole run.
+    """
     p = Path(baseline_path)
     if not p.exists():
         return [("FAIL", f"schema baseline not found: {p}")]
@@ -121,10 +178,18 @@ def schema_gate(baseline_path: str | Path = SCHEMA_BASELINE_REL,
         return [("FAIL", f"schema baseline unreadable: {e}")]
     n = d.get("n_columns")
     if n != expected:
-        return [("FAIL", f"schema baseline n_columns={n} (expected {expected}); "
-                         f"build_schema_baseline.py DEFAULT_MATRIX footgun may have regressed it -- "
-                         f"rebuild with an explicit --matrix or restore.")]
-    return [("OK", f"schema baseline intact: n_columns={n}, run_label={d.get('run_label')!r}, "
+        return [("FAIL", f"schema baseline n_columns={n}, but the feature contract "
+                         f"(EXPECTED_TABULAR_FEATURE_COUNT) is {expected}.\n"
+                         f"    EITHER the build_schema_baseline.py DEFAULT_MATRIX footgun has "
+                         f"regressed the baseline (it has shrunk it before: 81 -> 78),\n"
+                         f"    OR features were added to TABULAR_FEATURES without regenerating "
+                         f"it -- in which case the schema-drift gate is blind to those columns.\n"
+                         f"    Rebuild, proving the dtypes against a real matrix:\n"
+                         f"      python scripts/build_schema_baseline.py --from-contract \\\n"
+                         f"          --verify-against outputs/run15_rerun_report/full/splits/X_train.parquet \\\n"
+                         f"          --run-label run17-preflight --allow-schema-change")]
+    return [("OK", f"schema baseline intact: n_columns={n} (= EXPECTED_TABULAR_FEATURE_COUNT), "
+                   f"run_label={d.get('run_label')!r}, "
                    f"hash={str(d.get('expected_schema_hash'))[:12]}...")]
 
 

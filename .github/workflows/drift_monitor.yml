@@ -16,6 +16,20 @@ on:
         description: "Trigger retraining if drift detected"
         type: boolean
         default: false
+      schema_matrix:
+        # The schema gate validates a PRODUCED feature matrix against the committed baseline.
+        # A hosted runner holds no such matrix (they are gitignored cohort artifacts), so this
+        # is empty by default and the gate then reports NOT CHECKED (exit 3) rather than
+        # inventing a verdict. Supply a path when running where a matrix exists, e.g.
+        # outputs/run17_report/full/splits/X_train.parquet
+        #
+        # It must NOT default to Run-15's matrix: the baseline now describes the 95-column
+        # Run-17 contract, and Run-15's 78-column artifact genuinely differs from it. The gate
+        # would report SCHEMA DRIFT -- correctly, about history -- and a gate that goes red on
+        # history is a gate everybody learns to ignore. (2026-07-13, roadmap 6.22)
+        description: "Feature matrix (parquet) to validate against the schema baseline. Empty = NOT CHECKED."
+        required: false
+        default: ""
 
 # Ensure only one drift monitor runs at a time
 concurrency:
@@ -40,70 +54,286 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      - name: Install inference dependencies
-        run: pip install -r requirements-api.txt scipy
-
-      - name: Download reference splits from Google Drive
-        # Uses a service account key stored in GitHub secrets
-        # Only downloads X_train.parquet (reference distribution snapshot)
-        env:
-          GDRIVE_SERVICE_ACCOUNT: ${{ secrets.GDRIVE_SERVICE_ACCOUNT }}
+      # -------------------------------------------------------------------------------
+      # THE ISOLATED DRIFT ENVIRONMENT. (fixed 2026-07-13, roadmap 6.19)
+      #
+      # This step used to be `pip install -r requirements-api.txt scipy`, which installs the
+      # INFERENCE stack. It contains NO evidently, NO nannyml, NO pandera, NO river -- and it
+      # never installed the project package at all, so `python scripts/run_drift_monitor.py`
+      # could not even have imported genomic_variant_classifier.monitoring.drift_detector.
+      #
+      # The scheduled drift monitor was therefore running WITHOUT its drift libraries and
+      # WITHOUT the code it was supposed to run.
+      # -------------------------------------------------------------------------------
+      - name: Install the ISOLATED drift environment
         run: |
-          pip install gdown
-          python -c "
-          import json, base64, os
-          creds = json.loads(base64.b64decode(os.environ['GDRIVE_SERVICE_ACCOUNT']))
-          print('Drive credentials present; real download NOT wired yet (placeholder).')
-          # gdown or google-auth based download here
-          # For now, skip if splits not available
-          import pathlib
-          pathlib.Path('outputs/run15_rerun_report/full/splits').mkdir(parents=True, exist_ok=True)
-          "
-        continue-on-error: true
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -r requirements-drift.txt
+          # --no-deps: keep torch / torch_geometric / pyspark OUT. pyspark in particular would
+          # KILL nannyml -- pyspark 3.5.x's pandas module calls np.NaN, REMOVED in NumPy 2.0,
+          # and nannyml optionally imports pyspark.
+          pip install -e . --no-deps
+          pip check
+          python scripts/verify_drift_libs.py
 
+      # ===============================================================================
+      # THE GOOGLE DRIVE DOWNLOAD IS GONE. (2026-07-13, roadmap 6.20)
+      #
+      # It used to be a step called "Download reference splits from Google Drive" that:
+      #
+      #     1. installed gdown,
+      #     2. base64-decoded a service-account secret,
+      #     3. printed "real download NOT wired yet (placeholder)",
+      #     4. mkdir -p'd an EMPTY directory,
+      #     5. and carried `continue-on-error: true`, so even a real failure was swallowed.
+      #
+      # The next step then found that empty directory and reported `drift_level=none` with a
+      # green tick. On the first of every month, for the life of this workflow, the drift
+      # monitor created an empty folder, noticed it was empty, and declared the model healthy
+      # -- having never read a single row of data.
+      #
+      # It is not replaced with a WORKING download, because a working download is the wrong
+      # answer. It would need a credential in a secret, it would move a 23.8 MB cohort matrix
+      # into a hosted runner on a public repository every month, and -- from Run 17, when the
+      # OMIM connector actually populates -- that matrix carries values derived from a
+      # controlled-tier, institutionally-licensed source (data_manifest.yaml:266-276; and
+      # :347, "Built artifact. If derived from a controlled cohort, set sync:false").
+      #
+      # Instead the reference is COMMITTED, as an aggregate profile: per-feature histogram
+      # counts and quantile grids, ~1,450 KB, no variant rows, no identifiers, no per-variant
+      # annotation values. See src/genomic_variant_classifier/monitoring/
+      # drift_reference_profile.py and scripts/build_drift_reference_profile.py.
+      #
+      # The Population Stability Index computed from it is BIT-IDENTICAL to the raw matrix.
+      # Not approximate -- identical. Measured on the real 1,038,974-variant Run-15 matrix:
+      # worst delta across all 78 features = 0.000e+00, asserted with `==` (not
+      # pytest.approx) by tests/unit/test_drift_reference_profile.py.
+      #
+      # What the profile CANNOT do -- the multivariate Maximum Mean Discrepancy and
+      # Szekely-Rizzo energy tests, which need real reference samples -- it reports as NOT
+      # COMPUTED, with joint_tests_run=false. It never reports them as passing. That
+      # distinction is the entire point of this rescue.
+      #
+      # No credential. No cloud. No download. No expiring token. It just runs.
+      # ===============================================================================
+      - name: Verify the committed drift reference profile is present
+        run: |
+          set -euo pipefail
+          PROFILE=data/reference/drift/run15_reference_profile.json
+          if [ ! -f "$PROFILE" ]; then
+            echo "::error::The committed drift reference profile is MISSING: $PROFILE"
+            echo ""
+            echo "This is NOT 'no drift'. It is 'no reference', and nothing can be compared."
+            echo "Rebuild it where the cohort matrix lives:"
+            echo ""
+            echo "    python scripts/build_drift_reference_profile.py \\"
+            echo "        --reference outputs/run15_rerun_report/full/splits/X_train.parquet \\"
+            echo "        --out $PROFILE"
+            echo ""
+            echo "See roadmap 6.20."
+            exit 3
+          fi
+          python - <<'PY'
+          from genomic_variant_classifier.monitoring.drift_reference_profile import (
+              DriftReferenceProfile,
+          )
+          p = DriftReferenceProfile.load("data/reference/drift/run15_reference_profile.json")
+          print(f"Drift reference profile OK: {len(p.feature_names)} features, "
+                f"{p.n_ref_samples:,} reference rows summarised, built {p.built_at_utc}.")
+          print(f"  source: {p.source}")
+          print("  Contains histogram counts and quantile grids ONLY -- no variant-level data.")
+          PY
+
+      # ===============================================================================
+      # "NO DRIFT DETECTED" AND "DRIFT WAS NOT CHECKED" ARE NOT THE SAME STATEMENT.
+      # Reporting the second as the first is how a monitoring system lies.
+      # (fixed 2026-07-13, roadmap 6.19)
+      # ===============================================================================
+      # THIS STEP HAD NEVER ONCE RUN A DRIFT COMPUTATION. Here is what it did:
+      #
+      #   1. The "Download reference splits" step above is a PLACEHOLDER. It prints
+      #      "real download NOT wired yet" and does nothing but `mkdir -p` an EMPTY directory.
+      #
+      #   2. This step then checked whether that directory was empty. IT ALWAYS IS. And on
+      #      finding it empty it did:
+      #
+      #          echo "No reference splits available -- skipping drift check (avoids false alert)."
+      #          echo "exit_code=0"      >> $GITHUB_OUTPUT
+      #          echo "drift_level=none" >> $GITHUB_OUTPUT
+      #          exit 0
+      #
+      # So on the first of every month this workflow fired, created an empty folder, noticed
+      # the folder was empty, and reported **drift_level=none** -- with a GREEN TICK -- having
+      # never looked at a single row of data. It did not fail. It did not warn. It reported
+      # HEALTHY. And `continue-on-error: true` meant a genuine failure would have been
+      # swallowed too.
+      #
+      # The comment justified it as "avoids false alert". It avoids ALL alerts. IT CANNOT
+      # ALERT. A clinical variant classifier has had a monthly drift monitor reporting "no
+      # drift" since the day it was written, having never once checked.
+      #
+      # This is the same defect as every other one found on 2026-07-13 -- except worse, because
+      # the others FAILED. This one SUCCEEDS. A gate that cannot fail is not a gate; it is a
+      # green tick with a reassuring name.
+      #
+      # NOW: if the reference data is unavailable, the state is UNKNOWN, and it says so, and it
+      # exits NON-ZERO. "Not checked" is never again reported as "clean".
+      # ===============================================================================
       - name: Run feature drift check
         id: drift
         run: |
+          set -uo pipefail
+          PROFILE=data/reference/drift/run15_reference_profile.json
+
           EXIT=0
-          if [ ! -d outputs/run15_rerun_report/full/splits ] || [ -z "$(ls -A outputs/run15_rerun_report/full/splits 2>/dev/null)" ]; then
-            echo "No reference splits available -- skipping drift check (avoids false alert)."
-            echo "exit_code=0" >> "$GITHUB_OUTPUT"
-            echo "drift_level=none" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
           python scripts/run_drift_monitor.py \
-            --reference-splits outputs/run15_rerun_report/full/splits/ \
+            --reference-profile "$PROFILE" \
             --features-only \
             --release-name "${{ github.event.inputs.release_name || 'scheduled' }}" \
             --output-dir outputs/drift_reports/ || EXIT=$?
+
           echo "exit_code=$EXIT" >> "$GITHUB_OUTPUT"
           case $EXIT in
-            0) echo "drift_level=none"    >> "$GITHUB_OUTPUT" ;;
-            1) echo "drift_level=minor"   >> "$GITHUB_OUTPUT" ;;
+            0) echo "drift_level=none"        >> "$GITHUB_OUTPUT" ;;
+            1) echo "drift_level=minor"       >> "$GITHUB_OUTPUT" ;;
             2) echo "drift_level=significant" >> "$GITHUB_OUTPUT" ;;
-            3) echo "drift_level=severe"  >> "$GITHUB_OUTPUT" ;;
-            *) echo "drift_level=none"    >> "$GITHUB_OUTPUT" ;;
-          esac
-        continue-on-error: true
+            3) echo "drift_level=severe"      >> "$GITHUB_OUTPUT" ;;
 
+            # ---------------------------------------------------------------------------
+            # 4 = NOT CHECKED. Its own code, deliberately (see EXIT_NOT_CHECKED in
+            # scripts/run_drift_monitor.py).
+            #
+            # The original defect was that a run which measured nothing exited 0, and 0 means
+            # "no drift" -- so this workflow reported a clean bill of health every month, with
+            # a green tick, having never read a row of data.
+            #
+            # The tempting fix is to make those paths exit 3. That is the SAME BUG IN THE
+            # OPPOSITE DIRECTION: 3 means urgent_retrain, and a check that never ran would then
+            # raise a SEVERE DRIFT alarm on a possibly-healthy model. A monitor that cries wolf
+            # is discarded just as fast as one that never barks.
+            #
+            # "I could not look" is neither "clean" nor "drifted". It gets its own outcome, it
+            # is loud, and it is non-zero.
+            # ---------------------------------------------------------------------------
+            4) echo "drift_level=UNKNOWN"     >> "$GITHUB_OUTPUT"
+               echo "::error::DRIFT WAS NOT CHECKED (exit 4). The monitor could not obtain the"
+               echo "data it needed to make a comparison. This is NOT a clean bill of health,"
+               echo "and it is NOT a drift detection. See the log above for which input was"
+               echo "missing." ;;
+
+            # An UNRECOGNISED exit code is NOT "none". It is unknown, and it is reported as
+            # unknown. The old code mapped every unexpected code to "none" -- so a crash, a
+            # segfault, or an OOM would have been reported as a clean bill of health.
+            *) echo "drift_level=UNKNOWN"     >> "$GITHUB_OUTPUT"
+               echo "::error::run_drift_monitor.py exited $EXIT -- an unrecognised code. The"
+               echo "drift state is UNKNOWN, not clean." ;;
+          esac
+          exit $EXIT
+
+      # NOTE: `continue-on-error: true` was REMOVED from this step (2026-07-13). It meant that
+      # even a genuine failure of the drift monitor was swallowed and the workflow went green.
+      # A monitor whose failures are ignored is not a monitor.
+
+      # ===============================================================================
+      # THE SCHEMA-DRIFT GATE COULD NOT FAIL. TWICE OVER. (fixed 2026-07-13, roadmap 6.20)
+      #
+      # It validates the reference feature matrix's column/dtype schema against the committed
+      # baseline. `run_schema_drift_check.py` exits 0 = green, 2 = DRIFT DETECTED, 3 = usage.
+      #
+      # As written, it reported SUCCESS in both of the cases that matter:
+      #
+      #   1. If the baseline OR the matrix was absent, it echoed "skipping schema gate" and
+      #      `exit 0`. "Not checked" reported as "clean" -- the exact lie the feature-drift
+      #      step above told every month for the life of this workflow.
+      #
+      #   2. `continue-on-error: true` meant that even when it DID run and DID detect drift
+      #      (exit 2), the failure was SWALLOWED and the workflow went green anyway.
+      #
+      # So: it could not alert when it could not see, and it could not alert when it DID see.
+      # A gate that can never fail is not a gate. It is a green tick with a reassuring name.
+      #
+      # NOW: missing inputs are reported as UNKNOWN and exit NON-ZERO. Detected drift FAILS.
+      # ===============================================================================
       - name: Run schema drift gate
-        # Validate the reference feature matrix's column/dtype schema against the committed baseline
-        # (run_schema_drift_check.py: exit 0 green / 2 drift / 3 usage). Skips honestly when the baseline
-        # or the matrix is absent (e.g. GitHub-hosted CI with no data). run_drift_monitor.py covers
-        # PSI/KS/MMD distributional drift but NOT schema/column/dtype drift -- this gate is additive.
+        # `run_drift_monitor.py` covers PSI / Kolmogorov-Smirnov / Maximum Mean Discrepancy
+        # DISTRIBUTIONAL drift. It does NOT cover schema/column/dtype drift. This gate is
+        # additive, and it is the one that catches a column being renamed, retyped or dropped
+        # out from under the model -- which is silent, and catastrophic.
         run: |
+          set -uo pipefail
           BASELINE=data/reference/schema/schema_baseline.json
-          MATRIX=outputs/run15_rerun_report/full/splits/X_train.parquet
-          if [ ! -f "$BASELINE" ]; then
-            echo "No schema baseline ($BASELINE) -- skipping schema gate."
-            exit 0
+
+          # ---------------------------------------------------------------------------------
+          # WHICH MATRIX? Deliberately NOT Run-15's. (2026-07-13, roadmap 6.22)
+          #
+          # This used to be hard-wired to outputs/run15_rerun_report/full/splits/X_train.parquet.
+          # That is now WRONG, and would produce a red gate for a non-issue:
+          #
+          #   The committed baseline describes the CURRENT feature contract -- 95 columns.
+          #   Run-15's matrix has 78. They differ by 19 features added since Run 15 (cosmic_*,
+          #   kegg_*, rnaseq_*, genomiclm_*, finngen_r13_*, hetero_gnn_score, esm2_llr,
+          #   maxentscan_delta, omim_n_diseases_molecular) and 2 removed (the HGMD pair).
+          #
+          #   Validating a Run-15 artifact against a Run-17 contract would report SCHEMA DRIFT
+          #   DETECTED -- and it would be RIGHT: they genuinely differ. But that is a fact about
+          #   history, not a defect in the current run, and a gate that goes red on history is a
+          #   gate everybody learns to ignore.
+          #
+          # The schema gate must validate the matrix THIS RUN PRODUCED. Point SCHEMA_MATRIX at
+          # it via the workflow input, or leave it empty -- in which case this step reports
+          # NOT CHECKED (exit 3) rather than inventing a verdict.
+          #
+          # NOTE the division of labour, so nothing is silently uncovered:
+          #   * That the BASELINE agrees with the feature contract is asserted on every single
+          #     Continuous Integration run by tests/unit/test_schema_baseline_matches_contract.py
+          #     (column set, column ORDER, count, and all-float64 dtypes). That check needs no
+          #     data and runs everywhere.
+          #   * That a produced MATRIX agrees with the baseline is what THIS gate is for, and it
+          #     can only run where a matrix exists.
+          # ---------------------------------------------------------------------------------
+          MATRIX="${{ github.event.inputs.schema_matrix || '' }}"
+
+          MISSING=""
+          [ -f "$BASELINE" ] || MISSING="$MISSING $BASELINE"
+
+          if [ -z "$MATRIX" ]; then
+            echo "::warning::SCHEMA DRIFT WAS NOT CHECKED -- no feature matrix was supplied."
+            echo ""
+            echo "This is NOT 'no schema drift'. It is 'no measurement', and it says so."
+            echo "This step used to echo 'skipping schema gate' and exit 0 -- reporting a clean"
+            echo "bill of health for a check it had not performed (roadmap 6.20)."
+            echo ""
+            echo "A hosted runner holds no feature matrix: they are gitignored cohort artifacts."
+            echo "The baseline-vs-CONTRACT half of this check DOES run on every CI build, in"
+            echo "tests/unit/test_schema_baseline_matches_contract.py. The baseline-vs-MATRIX"
+            echo "half runs where a matrix exists:"
+            echo ""
+            echo "    python scripts/run_schema_drift_check.py \\"
+            echo "        --baseline $BASELINE \\"
+            echo "        --matrix outputs/<this-run>/full/splits/X_train.parquet"
+            echo ""
+            echo "schema_checked=false" >> "$GITHUB_OUTPUT"
+            exit 3
           fi
-          if [ ! -f "$MATRIX" ]; then
-            echo "No reference matrix ($MATRIX) -- skipping schema gate (no data in hosted CI)."
-            exit 0
+
+          if [ -n "$MISSING" ] || [ ! -f "$MATRIX" ]; then
+            echo "::error::SCHEMA DRIFT WAS NOT CHECKED. Missing:$MISSING $MATRIX"
+            echo "This is NOT 'no schema drift'. It is 'no measurement'."
+            exit 3
           fi
+
           python scripts/run_schema_drift_check.py --baseline "$BASELINE" --matrix "$MATRIX"
-        continue-on-error: true
+          SCHEMA_EXIT=$?
+          if [ "$SCHEMA_EXIT" -eq 2 ]; then
+            echo "::error::SCHEMA DRIFT DETECTED. The reference feature matrix's columns or"
+            echo "dtypes no longer match the committed baseline. A renamed, retyped or dropped"
+            echo "column is silent and catastrophic: the model keeps predicting, on the wrong"
+            echo "data. This exit code used to be SWALLOWED by continue-on-error."
+          fi
+          exit $SCHEMA_EXIT
+        # continue-on-error REMOVED 2026-07-13. It swallowed exit 2 -- DRIFT DETECTED -- and
+        # turned it into a green tick. A gate whose alert is discarded is not a gate.
 
       - name: Upload drift report
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
@@ -129,22 +359,87 @@ jobs:
       - name: Install dependencies
         run: pip install pandas pyarrow
 
+      # ===============================================================================
+      # THIS STEP PRINTED A CLAIM IT NEVER VERIFIED. (fixed 2026-07-13, roadmap 6.20)
+      #
+      # It was:
+      #
+      #     import urllib.request, json
+      #     url = 'https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/'
+      #     print('ClinVar FTP reachable')
+      #
+      # It imported urllib, assigned a URL to a STRING VARIABLE, and printed "ClinVar FTP
+      # reachable" -- WITHOUT EVER CALLING urlopen(). It never contacted the File Transfer
+      # Protocol server. It simply asserted that it had. And `continue-on-error: true` meant
+      # that even if it had somehow failed, the failure would have been discarded.
+      #
+      # It now ACTUALLY MAKES THE REQUEST.
+      # ===============================================================================
       - name: Check for new ClinVar release
         id: clinvar_check
         run: |
-          python -c "
-          import urllib.request, json
-          # Check ClinVar FTP for a new release
-          url = 'https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/'
-          print('ClinVar FTP reachable')
-          "
-        continue-on-error: true
+          python - <<'PY'
+          import sys
+          import urllib.error
+          import urllib.request
 
-      - name: Run label drift check
+          URL = "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/"
+          try:
+              with urllib.request.urlopen(URL, timeout=30) as resp:
+                  status = resp.status
+                  body = resp.read(4096).decode("utf-8", "ignore")
+          except urllib.error.URLError as exc:
+              print(f"::error::ClinVar File Transfer Protocol server UNREACHABLE: {exc}")
+              print(f"  url: {URL}")
+              print("  This step used to PRINT 'ClinVar FTP reachable' without making the")
+              print("  request at all. It now actually checks, and says so when it cannot.")
+              sys.exit(1)
+
+          if status != 200:
+              print(f"::error::ClinVar FTP returned HTTP {status} (expected 200) for {URL}")
+              sys.exit(1)
+
+          # The listing should mention the release files. If it does not, the layout changed.
+          if "clinvar" not in body.lower():
+              print(f"::error::ClinVar FTP returned HTTP 200 but the listing does not mention")
+              print(f"  'clinvar'. The directory layout may have changed. url: {URL}")
+              print(f"  first 200 bytes: {body[:200]!r}")
+              sys.exit(1)
+
+          print(f"ClinVar File Transfer Protocol reachable: HTTP {status}, listing looks valid.")
+          PY
+
+      # ===============================================================================
+      # LABEL DRIFT IS NOT CHECKED HERE, AND IT NOW SAYS SO. (2026-07-13, roadmap 6.20)
+      #
+      # This step used to be two `echo`s -- "Label drift check requires local ClinVar
+      # parquets" and "Run manually: ..." -- followed by exit 0. A green tick for a check that
+      # was never performed and was never going to be.
+      #
+      # It is a KNOWN LIMITATION, not a bug: label drift compares two ClinVar releases, and the
+      # hosted runner has neither. But a known limitation must be REPORTED as one, not
+      # laundered into a success. It now sets an explicit output that the notification job
+      # reads, so "label drift was not checked" appears in the alert rather than being
+      # silently absent from it.
+      # ===============================================================================
+      - name: Label drift -- NOT CHECKED on the hosted runner
+        id: label_drift
         if: steps.clinvar_check.outcome == 'success'
         run: |
-          echo "Label drift check requires local ClinVar parquets."
-          echo "Run manually: python scripts/run_drift_monitor.py --new-clinvar ... --old-clinvar ..."
+          echo "::warning::LABEL DRIFT WAS NOT CHECKED."
+          echo "  Label drift compares ClinVar reclassifications between two releases. The"
+          echo "  hosted runner has neither parquet. This is a KNOWN LIMITATION (roadmap 6.20),"
+          echo "  and it is REPORTED, not laundered into a green tick."
+          echo ""
+          echo "  To run it where the data lives:"
+          echo "    python scripts/run_drift_monitor.py \\"
+          echo "      --new-clinvar data/processed/clinvar_grch38_latest.parquet \\"
+          echo "      --old-clinvar data/processed/clinvar_grch38_previous.parquet \\"
+          echo "      --reference-splits outputs/run15_rerun_report/full/splits/ \\"
+          echo "      --estimate-performance \\"
+          echo "      --reference-predictions outputs/run15_rerun_report/full/oof_predictions.parquet \\"
+          echo "      --analysis-predictions  outputs/drift_reports/new_release_predictions.parquet"
+          echo "label_drift_checked=false" >> "$GITHUB_OUTPUT"
         # In a self-hosted runner with data access, replace with:
         # python scripts/run_drift_monitor.py \
         #   --reference-splits outputs/run15_rerun_report/full/splits/ \
@@ -153,12 +448,37 @@ jobs:
         #   --release-name "${{ github.event.inputs.release_name || 'scheduled' }}" \
         #   --output-dir outputs/drift_reports/
 
-  # ── Job 3: Notify on significant drift ──────────────────────────────────
+  # ═══════════════════════════════════════════════════════════════════════════
+  # ── Job 3: Notify ──────────────────────────────────────────────────────────
+  #
+  # THIS JOB HAS NEVER RUN. NOT ONCE. (fixed 2026-07-13, roadmap 6.20)
+  #
+  # Its condition was `if: needs.feature-drift.outputs.drift_level != 'none'`.
+  #
+  # And `drift_level` was ALWAYS 'none' -- because the feature-drift step hard-coded it,
+  # without checking, every month, for the life of this workflow (the reference-splits
+  # download is a placeholder that only mkdir's an empty directory; the step saw the empty
+  # directory and reported drift_level=none with a green tick).
+  #
+  # So the alerting chain was: empty folder -> "none" -> condition false -> NO ALERT.
+  # The drift alerting system has never sent a single alert, and STRUCTURALLY COULD NOT.
+  #
+  # TWO FIXES:
+  #   1. `if: always() && ...` -- the feature-drift job now FAILS (exit 3) when it cannot see
+  #      the data, and a failed `needs` job would otherwise SKIP this one entirely. A monitor
+  #      that goes blind must SHOUT, not go quiet.
+  #   2. drift_level='UNKNOWN' is now a first-class outcome, and the issue body says
+  #      "DRIFT WAS NOT CHECKED" -- it does NOT report it as drift detected. Conflating "I
+  #      looked and saw nothing" with "I could not look" in EITHER direction is the defect.
+  # ═══════════════════════════════════════════════════════════════════════════
   notify:
     name: Drift Notification
     runs-on: ubuntu-latest
     needs: [feature-drift, label-drift]
-    if: needs.feature-drift.outputs.drift_level != 'none'
+    # always(): the feature-drift job now FAILS when it cannot see the reference data. Without
+    # always(), a failed dependency SKIPS this job -- and the monitor would go silent at exactly
+    # the moment it has something to say.
+    if: always() && needs.feature-drift.outputs.drift_level != 'none'
     permissions:
       contents: read
       issues: write
@@ -172,20 +492,42 @@ jobs:
             const exitCode   = '${{ needs.feature-drift.outputs.exit_code }}';
             const date       = new Date().toISOString().split('T')[0];
 
-            const urgency = {
+            // UNKNOWN is a first-class outcome. "I could not look" is NOT "I looked and saw
+            // nothing" -- and it is NOT "I saw drift" either. Reporting it as either is how a
+            // monitoring system lies. (roadmap 6.20)
+            const isUnknown = driftLevel === 'UNKNOWN';
+
+            const urgency = isUnknown ? '❓ NOT CHECKED' : ({
               'minor':       '⚠️ Minor',
               'significant': '🔴 Significant',
               'severe':      '🚨 SEVERE',
-            }[driftLevel] || '📊';
+            }[driftLevel] || '📊');
+
+            const headline = isUnknown
+              ? `## ❓ DRIFT WAS NOT CHECKED — ${date}`
+              : `## ${urgency} Data Drift Detected — ${date}`;
 
             const body = [
-              `## ${urgency} Data Drift Detected — ${date}`,
+              headline,
               '',
               `**Drift level:** ${driftLevel}`,
               `**Exit code:** ${exitCode}`,
               '',
               '### What this means',
-              exitCode >= 3
+              isUnknown
+                ? [
+                    '**THE MONITOR COULD NOT SEE THE DATA. This is NOT a clean bill of health.**',
+                    '',
+                    'The reference splits were absent, so no drift computation ran. Until',
+                    '2026-07-13 this condition was reported as `drift_level=none` — a green tick',
+                    'for a check that never happened — and this notification job, whose condition',
+                    'was `drift_level != none`, therefore NEVER FIRED. Not once.',
+                    '',
+                    'ROOT CAUSE: the "Download reference splits from Google Drive" step is still a',
+                    'PLACEHOLDER. It prints "real download NOT wired yet" and only creates an empty',
+                    'directory. See roadmap 6.20.',
+                  ].join('\n')
+                : exitCode >= 3
                 ? '**URGENT:** Severe distributional shift detected. Retraining should begin within 24 hours.'
                 : exitCode >= 2
                 ? 'Significant drift detected. Retraining recommended before the next ClinVar release.'
@@ -233,24 +575,61 @@ jobs:
       - name: Install API dependencies
         run: pip install -r requirements-api.txt
 
+      # ===============================================================================
+      # A SMOKE TEST THAT COULD NOT FAIL. (fixed 2026-07-13, roadmap 6.20)
+      #
+      # It was:
+      #     if not registry_path.exists(): print('No registry found - skipping'); exit(0)
+      #     if prod is None:               print('No production model');          exit(0)
+      #     if prod.auroc < 0.97:          print('WARNING: ...');                 exit(1)
+      #   ...with `continue-on-error: true`, which SWALLOWED even that exit(1).
+      #
+      # So: "no registry" = success. "no production model" = success. "production AUROC below
+      # the minimum" = success, because the failure was discarded. models/registry.json is not
+      # in the repository, so it took the FIRST branch every time and reported green having
+      # tested nothing.
+      #
+      # Three ways to pass, none of which involve the model being any good. Fourth instance of
+      # this exact defect in this one workflow file.
+      #
+      # NOW: a missing registry is UNKNOWN, not clean. A below-threshold AUROC FAILS.
+      # ===============================================================================
       - name: Smoke test registry
         run: |
-          python -c "
+          python - <<'PY'
+          import sys
           from pathlib import Path
-          registry_path = Path('models/registry.json')
+
+          MIN_AUROC = 0.97
+          registry_path = Path("models/registry.json")
+
           if not registry_path.exists():
-              print('No registry found — skipping smoke test')
-              exit(0)
+              print(f"::error::REGISTRY NOT CHECKED. {registry_path} is absent.")
+              print("  This is NOT 'the registry is fine'. It is 'the registry was not")
+              print("  examined'. This step used to print 'skipping smoke test' and exit 0 --")
+              print("  a green tick for a check that never happened. See roadmap 6.20.")
+              sys.exit(3)
+
           from genomic_variant_classifier.monitoring.registry import ModelRegistry
+
           registry = ModelRegistry.load(registry_path)
           registry.print_summary()
+
           prod = registry.current_production()
           if prod is None:
-              print('No production model in registry')
-              exit(0)
-          print(f'Production model: {prod.version}, AUROC={prod.auroc:.4f}')
-          if prod.auroc < 0.97:
-              print(f'WARNING: production AUROC {prod.auroc:.4f} < 0.97 minimum')
-              exit(1)
-          "
-        continue-on-error: true
+              print("::error::NO PRODUCTION MODEL IN THE REGISTRY.")
+              print("  This used to exit 0. A classifier with no production model is not a")
+              print("  healthy classifier -- it is one that cannot serve.")
+              sys.exit(3)
+
+          print(f"Production model: {prod.version}, AUROC={prod.auroc:.4f}")
+          if prod.auroc < MIN_AUROC:
+              print(f"::error::PRODUCTION AUROC {prod.auroc:.4f} IS BELOW THE {MIN_AUROC} MINIMUM.")
+              print("  This exit code used to be SWALLOWED by continue-on-error, and the")
+              print("  workflow went green with an under-performing model in production.")
+              sys.exit(1)
+
+          print(f"Registry smoke test PASSED: production AUROC {prod.auroc:.4f} >= {MIN_AUROC}.")
+          PY
+        # continue-on-error REMOVED 2026-07-13. It discarded the ONE failure this step could
+        # produce -- a production model whose AUROC had fallen below the minimum.

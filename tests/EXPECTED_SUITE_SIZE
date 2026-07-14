@@ -88,4 +88,137 @@
 #                     days a hard-coded floor went stale beneath an all-capitals comment
 #                     ordering someone to raise it, and five times the comment did nothing.
 #                     This cannot be walked past.
-1882
+#
+#   1891  2026-07-13  +9: tests/unit/test_requirements_files_agree.py (roadmap 6.19).
+#
+#                     THE RATCHET CAUGHT ITS AUTHOR A SECOND TIME, and again named the exact
+#                     number (expected 1882, collected 1891, exit code 4). It is not a
+#                     formality: I would have written "1891" from arithmetic and been wrong,
+#                     because the file contains a 6-way parametrised test that expands to 6
+#                     items, not 1.
+#
+#                     Those 9 tests guard a REAL defect found today: requirements-api.txt and
+#                     requirements.txt disagreed on NINE of the THIRTEEN packages they share
+#                     (pyarrow >=15,<20 vs ==23.0.1, and xgboost >=2,<3 vs ==3.2.0, were
+#                     outright ResolutionImpossible). Continuous Integration installs BOTH into
+#                     ONE environment, and pip reported the conflict in an ERROR line on every
+#                     one of 508 runs -- then exited 0. Pinning them duplicates nine numbers
+#                     across two files, which is root pattern (a); the test RE-DERIVES the
+#                     agreement on every run so the duplication is guarded, not trusted.
+#
+#   1924  2026-07-13  +33: tests/unit/test_drift_reference_profile.py (21, roadmap 6.20) and
+#                     tests/unit/test_zero_variance_guard.py (12, roadmap 6.21).
+#
+#                     THE RATCHET CAUGHT ITS AUTHOR A THIRD TIME, and again named the exact
+#                     figure (expected 1891, collected 1924, exit code 4). The number below is
+#                     COPIED FROM THE RATCHET'S OWN OUTPUT. It was not computed by hand -- the
+#                     one previous attempt to do that arithmetic was wrong, and the history
+#                     entry above says so.
+#
+#                     WHAT THE 33 GUARD:
+#
+#                     (a) 21 tests -- the aggregate-only drift reference profile (6.20). The
+#                     scheduled drift monitor could never run in hosted Continuous Integration
+#                     because its reference was a 23.8 MB cohort matrix behind a Google Drive
+#                     placeholder that was never wired. It is now a 1,450 KB committed
+#                     histogram. The central test asserts the Population Stability Index is
+#                     BIT-IDENTICAL between the profile and the raw matrix -- `==`, not
+#                     pytest.approx -- and it is verified on the REAL 1,038,974-variant Run-15
+#                     matrix, not a fixture. Measured worst delta across all 78 features:
+#                     0.000e+00. The rest assert that what the profile CANNOT compute (the
+#                     multivariate Maximum Mean Discrepancy and Szekely-Rizzo energy tests) is
+#                     reported as NOT COMPUTED and never as a benign default -- because a
+#                     silently-passing `mmd_pvalue = 1.0` would have permanently disarmed the
+#                     urgent-retrain escalation while looking perfectly healthy.
+#
+#                     (b) 12 tests -- the zero-variance / silent-zero guard (6.21). Run 15
+#                     trained, evaluated and PUBLISHED AN AUROC OF 0.998 with THIRTY-SIX of its
+#                     78 features CONSTANT ZERO -- 46% of the feature space, across 1,038,974
+#                     variants. GTEx, 1000 Genomes, FinnGen, AlphaFold/protein structure,
+#                     MaxEntScan, UniProt, ESM-2, EVE, dbSNP, PhyloP, OMIM, ClinGen: all
+#                     silently stubbed to 0.0 by connectors that return zeros instead of
+#                     raising when their source file is absent (omim.py:105 is the canonical
+#                     example). Every abort gate in the launcher checks that a FILE EXISTS,
+#                     which is a PROXY. These tests assert the FEATURE VARIES, which is the
+#                     thing itself. Root pattern (c), the most expensive one this project has.
+#
+#   1932  2026-07-13  +8: the documentation/contract gates (roadmap 6.22).
+#                     tests/unit/test_schema_baseline_matches_contract.py (5) and
+#                     tests/unit/test_methods_feature_count.py (3).
+#
+#                     THE RATCHET CAUGHT ITS AUTHOR A FOURTH TIME -- and this time the lesson
+#                     was not "you forgot to bump it" but "your arithmetic was wrong AGAIN".
+#                     I predicted +9 and wrote that in the plan. The ratchet said +8. The
+#                     difference: I counted the `baseline` pytest FIXTURE in the schema test
+#                     file as a test. It is not one. The file has 5 tests, not 6.
+#
+#                     That is a one-line error of exactly the kind this file exists to catch,
+#                     and it is the FOURTH consecutive time I have miscounted (1891 was wrong
+#                     from arithmetic; 1882 was wrong from arithmetic; 1924 I did not attempt).
+#                     The number below is COPIED FROM THE RATCHET'S OUTPUT. It is never, under
+#                     any circumstances, to be computed by hand -- the evidence that a human
+#                     cannot reliably do this is now four entries long.
+#
+#                     WHAT THE 8 GUARD -- two documents that had quietly become false:
+#
+#                     (a) 5 tests -- data/reference/schema/schema_baseline.json had drifted
+#                     TEN COLUMNS behind TABULAR_FEATURES (cosmic_recurrence, cosmic_sig_tier,
+#                     3x finngen_r13_*, 2x genomiclm_*, 2x kegg_*, omim_n_diseases_molecular).
+#                     Its own `captured_from` field confessed why: "derived: run16b-smoke
+#                     baseline + hetero_gnn_score + 5 rnaseq_* SURGICALLY ADDED". It was
+#                     hand-maintained, so it rotted. The schema-drift gate -- whose entire job
+#                     is to catch a column set that has silently changed -- WAS ITSELF a
+#                     silently-changed column set, and would have fired on Run 17 for its own
+#                     staleness. A gate that cries wolf about itself gets switched off, and
+#                     then the next real schema change goes through unseen.
+#                     Fixed by DERIVATION: build_schema_baseline.py --from-contract now runs
+#                     the real feature builder (engineer_features) over the correctness
+#                     harness fixture and asserts the column set AND ORDER equal
+#                     TABULAR_FEATURES. Regenerated 2026-07-13: 95 columns, hash a759084188...
+#
+#                     (b) 3 tests -- METHODS.md, the scientific description of this model,
+#                     claimed "a total of 64 tabular features" against a contract of 95, with
+#                     a group table that summed to 62. Three numbers, no two agreeing. It also
+#                     listed HGMD Professional as data source 12 ("Disease mutation flag,
+#                     report count") -- a source whose licence was never obtained and whose
+#                     two columns were constant zero throughout. A wrong number in a methods
+#                     document is the one that ends up in a paper.
+#
+#   1933  2026-07-13  +1: tests/unit/test_schema_baseline_matches_contract.py::
+#                     test_every_baseline_dtype_is_float64 (roadmap 6.22).
+#
+#                     Added after the FIRST version of `build_schema_baseline.py
+#                     --from-contract` -- written the same day -- captured the RAW dtypes that
+#                     engineer_features() emits, which are int64 for roughly forty columns
+#                     (the binary indicators af_is_absent, is_snv, cadd_high, ... and the
+#                     integer counts ref_len, ..., several of them explicitly `.astype(int)`).
+#
+#                     But the schema gate does NOT validate raw builder output. It validates
+#                     the PERSISTED matrix, outputs/<run>/full/splits/X_train.parquet, which is
+#                     STANDARDISED before it is written -- and scaling makes every numeric
+#                     column float64. Measured on the real Run-15 artifact: 78 of 78 columns
+#                     are float64, INCLUDING af_is_absent, ref_len, is_snv and cadd_high.
+#
+#                     SchemaDriftAgent._dtype_family is IDENTITY for numeric dtypes (it
+#                     collapses only the pandas 2.x/3.x string spellings), so that baseline
+#                     would have reported ~40 DTYPE CHANGES against a matrix with nothing
+#                     wrong with it, and the gate would have exited 2 = SCHEMA DRIFT DETECTED
+#                     on Run 17. A gate that fires on nothing teaches everyone to ignore it,
+#                     and then the next REAL schema change goes through unremarked. It would
+#                     have replaced a stale-columns bug with a wrong-dtypes bug, in a gate
+#                     whose only value is being trustworthy.
+#
+#                     THE TELL WAS ON SCREEN THE WHOLE TIME AND WAS READ PAST: the OLD baseline
+#                     recorded hgmd_is_disease_mutation as float64, even though
+#                     engineer_features cast it with `.astype(int)`. That one line said the
+#                     baseline had been captured from a PROCESSED matrix. It was quoted twice
+#                     in the session before anyone noticed what it meant.
+#
+#                     Fixed, and PROVEN rather than asserted: --from-contract now casts to
+#                     float64, and the new --verify-against <matrix> flag REFUSES to write the
+#                     baseline unless every dtype it can check matches a real persisted matrix.
+#                     Run 2026-07-13 against the Run-15 X_train: 76 columns in common, 0 dtype
+#                     mismatches, 19 columns (post-Run-15 features) reported as UNVERIFIED
+#                     rather than silently accepted. Baseline hash a759084188... (contaminated)
+#                     -> bbaba75d1f... (correct).
+1933

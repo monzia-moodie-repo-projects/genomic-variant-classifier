@@ -31,17 +31,60 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      - name: Check lockfile is up-to-date
+      # -------------------------------------------------------------------------------
+      # ASSERT THE THING IT PROTECTS, NOT A PROXY FOR IT. (fixed 2026-07-13, roadmap 6.19)
+      #
+      # This step was named "Check lockfile is up-to-date". What it actually did was
+      # `pip install --dry-run -r requirements-api.lock` -- which proves only that the lock
+      # INSTALLS. It never checked that the lock MATCHES requirements-api.txt.
+      #
+      # So on 2026-07-13, when requirements-api.txt was corrected (raising
+      # prometheus-fastapi-instrumentator past the <8.0 ceiling that forced 7.1.0, which
+      # requires starlette<1.0.0 while this project runs starlette 1.0.0), a STALE lock would
+      # have sailed through this gate green -- and the Docker API image would have kept
+      # shipping the broken pin.
+      #
+      # A gate that checks a proxy instead of the thing it protects is not a gate. That is
+      # root pattern (c) in docs/ROADMAP.md section 7, and this is its fourth instance:
+      #   * G1 section 13c checked RUN_17_PLAN.md for COMPLETENESS, never for TRUTH.
+      #   * vm_bootstrap_run.sh checked that KANClassifier IMPORTS -- the bug was in fit().
+      #   * the correctness harness validated a code path the training pipeline never ran.
+      #   * this step checked that a lock installs, not that it is the right lock.
+      #
+      # It now RECOMPILES the lock and FAILS if the result differs from what is committed.
+      # -------------------------------------------------------------------------------
+      - name: Assert the API lockfile MATCHES requirements-api.txt (not merely that it installs)
         run: |
-          pip install pip-tools
-          if [ -f requirements-api.lock ]; then
-            echo "Verifying requirements-api.lock installs cleanly on Linux..."
-            pip install --dry-run -r requirements-api.lock
-            echo "Lockfile OK."
-          else
-            echo "requirements-api.lock does not exist — please run: pip-compile requirements-api.txt -o requirements-api.lock"
+          set -euo pipefail
+          pip install -q pip-tools
+
+          if [ ! -f requirements-api.lock ]; then
+            echo "requirements-api.lock does not exist. Run:"
+            echo "    pip-compile requirements-api.txt -o requirements-api.lock"
             exit 1
           fi
+
+          cp requirements-api.lock /tmp/committed.lock
+          pip-compile --quiet --output-file=/tmp/regenerated.lock requirements-api.txt
+
+          # pip-compile writes the invoking command into a header comment, which differs
+          # between machines. Compare the PINS, not the preamble.
+          grep -v '^#' /tmp/committed.lock   | grep -v '^\s*$' | sort > /tmp/a.txt
+          grep -v '^#' /tmp/regenerated.lock | grep -v '^\s*$' | sort > /tmp/b.txt
+
+          if ! diff -u /tmp/a.txt /tmp/b.txt; then
+            echo ""
+            echo "::error::requirements-api.lock is STALE. It does not match requirements-api.txt."
+            echo "The committed lock and a fresh compile disagree (diff above)."
+            echo "Regenerate it and commit the result:"
+            echo "    pip-compile requirements-api.txt -o requirements-api.lock"
+            exit 1
+          fi
+          echo "API lockfile matches requirements-api.txt."
+
+          echo "Verifying it also installs cleanly on Linux..."
+          pip install --dry-run -r requirements-api.lock
+          echo "Lockfile OK."
 
   # ─────────────────────────────────────────────────────────────────────────
   test:
@@ -128,6 +171,54 @@ jobs:
               print("untested for 508 runs. Failing the build instead.")
               sys.exit(1)
           PY
+
+      # -------------------------------------------------------------------------------
+      # `pip check` AS A HARD GATE. (added 2026-07-13, roadmap 6.19)
+      #
+      # pip has been REPORTING a real dependency conflict on every single run, in an ERROR
+      # line, and exiting 0:
+      #
+      #   ERROR: pip's dependency resolver does not currently take into account all the
+      #   packages that are installed. This behaviour is the source of the following
+      #   dependency conflicts.
+      #   prometheus-fastapi-instrumentator 7.1.0 requires starlette<1.0.0,>=0.30.0,
+      #       but you have starlette 1.0.0 which is incompatible.
+      #
+      # `pip check` occurrences in this workflow before today: ZERO. So the build went green
+      # for 508 runs while the API's Prometheus metrics middleware ran against an unsupported
+      # starlette. The machine said it plainly, every single time, and nothing failed.
+      #
+      # A dependency conflict that nothing ever checks is the same defect as a test that
+      # nothing ever runs -- and this project has now been bitten by that shape SIX times in
+      # one day (a non-converged model, a silently-erased base model, LightGBM's positional
+      # column mapping, a wrongly-clamped Nystrom dimension, a Kolmogorov-Arnold Network
+      # absent from every run since May, and an entirely untested graph-neural-network branch).
+      # Every one was PRINTING, in plain output, and being scrolled past.
+      #
+      # The conflict is fixed (requirements-api.txt now takes
+      # prometheus-fastapi-instrumentator>=8.0, whose 8.0.2 requires starlette>=1.0.0,<2.0.0 --
+      # exactly what we run). This gate stops the next one from surviving 508 runs.
+      #
+      # NOTE: `pip check` cannot see the SIX conflicts previously reported on the developer's
+      # laptop. Those were LOCAL POLLUTION -- stray nannyml/evidently/fairlearn/
+      # great_expectations that requirements.txt never declared. Removing them took local
+      # `pip check` from 6 conflicts to 0. See roadmap 6.19.
+      # -------------------------------------------------------------------------------
+      - name: pip check -- fail on ANY dependency conflict
+        run: |
+          set -euo pipefail
+          echo "Resolved dependency graph must be internally consistent."
+          if ! pip check; then
+            echo ""
+            echo "::error::pip check found broken requirements (above)."
+            echo "pip prints these as an ERROR during install and then exits 0, so they have"
+            echo "survived 508 Continuous Integration runs unnoticed. They no longer do."
+            echo ""
+            echo "Fix the pin in requirements.txt / requirements-api.txt, regenerate the lock,"
+            echo "and re-run. Do NOT silence this gate."
+            exit 1
+          fi
+          echo "pip check: no broken requirements."
 
       - name: Run the test suite
         env:
@@ -219,6 +310,115 @@ jobs:
           name: coverage-report
           path: coverage.xml
           retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # THE ISOLATED DRIFT ENVIRONMENT. (added 2026-07-13, roadmap 6.19)
+  #
+  # A SEPARATE job, with a SEPARATE dependency set, because the monitoring stack and the
+  # model stack have IRRECONCILABLE pins:
+  #
+  #     nannyml   0.13.0 AND 0.13.1  require  lightgbm >=3.3,<4.6   -- we TRAIN on 4.6.0
+  #     nannyml   0.13.0 AND 0.13.1  require  plotly   >=5.6,<6.0   -- we run     6.6.0
+  #     evidently 0.7.6  AND 0.7.21  require  plotly   <6           -- we run     6.6.0
+  #
+  # There is NO release of nannyml compatible with lightgbm 4.6.0 (verified by reading the
+  # METADATA of both releases, 2026-07-13). LightGBM is a BASE MODEL of the ensemble.
+  # Downgrading it to satisfy a MONITORING library would change the science to suit the
+  # instrument. That trade is refused; the environments are separated instead.
+  #
+  # These tests CANNOT live in the main suite. Putting them in tests/ behind a module-level
+  # `importorskip("nannyml")` would collapse N tests into ONE skip entry, making the COLLECTED
+  # count environment-dependent -- which would silently break the suite-size ratchet (roadmap
+  # 6.14), a guard whose premise only became true this morning when the dependency gap (6.17)
+  # was closed. So: tests_drift/, a separate top-level directory OUTSIDE `testpaths`, enforced
+  # by configuration rather than by a comment someone has to remember.
+  #
+  # WHAT THIS JOB PROTECTS: Confidence-Based Performance Estimation -- estimating the model's
+  # ROC AUC on a NEW ClinVar release BEFORE the labels exist. requirements.in has claimed that
+  # capability since 2026-05. Until today it had NEVER BEEN BUILT: nannyml was imported by
+  # exactly one file, a script that printed its version number.
+  # ─────────────────────────────────────────────────────────────────────────
+  drift:
+    name: drift monitor (isolated env)
+    runs-on: ubuntu-latest
+    needs: lockfile-check
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install the ISOLATED drift environment
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -r requirements-drift.txt
+          # --no-deps: the project's TRAINING dependencies (torch, torch_geometric, pyspark,
+          # lightgbm 4.6.0) must NOT come along. pyspark in particular would KILL nannyml:
+          # pyspark 3.5.x's pandas module calls np.NaN, REMOVED in NumPy 2.0, and nannyml
+          # OPTIONALLY imports pyspark. That is why `import nannyml` has never worked on the
+          # developer's laptop.
+          pip install -e . --no-deps
+          pip install pytest packaging
+
+      - name: Assert the isolation actually holds
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import importlib.metadata as md
+          import sys
+
+          MUST_BE_ABSENT = {
+              "pyspark": "nannyml optionally imports it; pyspark 3.5.x calls np.NaN, REMOVED "
+                         "in NumPy 2.0 -- its mere PRESENCE kills `import nannyml`",
+              "torch": "training-only; this environment must never unpickle a trained model",
+              "torch_geometric": "training-only",
+          }
+          MUST_BE_PRESENT = ["nannyml", "evidently"]
+
+          bad = 0
+          for pkg, why in MUST_BE_ABSENT.items():
+              try:
+                  v = md.version(pkg)
+                  print(f"  *** {pkg} {v} IS PRESENT AND MUST NOT BE: {why}")
+                  bad += 1
+              except md.PackageNotFoundError:
+                  print(f"  OK  {pkg} absent")
+          for pkg in MUST_BE_PRESENT:
+              try:
+                  print(f"  OK  {pkg} {md.version(pkg)}")
+              except md.PackageNotFoundError:
+                  print(f"  *** {pkg} IS MISSING -- the drift capability is silently gone")
+                  bad += 1
+
+          import importlib
+          lgbm = importlib.import_module("lightgbm")
+          print(f"  OK  lightgbm {lgbm.__version__} (must be <4.6; training uses 4.6.0)")
+          if tuple(int(x) for x in lgbm.__version__.split(".")[:2]) >= (4, 6):
+              print("  *** lightgbm >= 4.6 here -- nannyml cannot work. Isolation broken.")
+              bad += 1
+
+          sys.exit(1 if bad else 0)
+          PY
+
+      - name: pip check -- the isolated env must ALSO be conflict-free
+        run: |
+          set -euo pipefail
+          pip check
+          echo "drift env: no broken requirements."
+
+      - name: Verify the drift stack reports itself honestly
+        run: python scripts/verify_drift_libs.py
+
+      - name: Run the drift tests
+        run: pytest tests_drift/ -v -rs
 
   # ─────────────────────────────────────────────────────────────────────────
   docker-build:

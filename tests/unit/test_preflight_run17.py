@@ -7,6 +7,11 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
+# THE single source of truth for the tabular feature count. Imported, never transcribed --
+# a second copy here is what turned `test_schema_gate_87_ok` into a stale test that failed a
+# correct gate on 2026-07-13. See that test's replacement below.
+from genomic_variant_classifier.models.variant_ensemble import EXPECTED_TABULAR_FEATURE_COUNT
+
 _SCRIPTS = Path(__file__).resolve().parents[2] / "scripts"
 
 
@@ -75,16 +80,60 @@ def test_kg_parquet_absent_path_fails(tmp_path):
 
 
 # ---- schema gate ----
-def test_schema_gate_87_ok(tmp_path):
-    b = tmp_path / "schema_baseline.json"; _baseline(b, 87)
+def test_schema_gate_accepts_a_baseline_that_matches_the_feature_contract(tmp_path):
+    """The gate must pass a baseline whose column count equals the CONTRACT.
+
+    This test was `test_schema_gate_87_ok`, and it hard-coded 87: it built a synthetic
+    87-column baseline and demanded the gate call it OK.
+
+    That made the TEST a second hand-kept copy of the feature count -- the very defect the gate
+    exists to catch. On 2026-07-13, when the contract moved to 95 and
+    `preflight_run17.EXPECTED_SCHEMA_COLS` was changed from a hard-coded 87 to an import of
+    EXPECTED_TABULAR_FEATURE_COUNT, this test went red: the gate correctly rejected an
+    87-column baseline, and the test insisted it should have been accepted.
+
+    The gate was right. The test was the stale copy. Rewriting the literal 87 as a literal 95
+    would simply have moved the rot, and it would have gone stale again at 96.
+
+    So the test derives the number too. Now there is exactly ONE place in the entire repository
+    where the tabular feature count is written down -- EXPECTED_TABULAR_FEATURE_COUNT in
+    variant_ensemble.py -- and the gate, the committed baseline, the METHODS.md prose, and this
+    test all re-derive it on every run. Root pattern (a) has nowhere left to hide here.
+    """
+    b = tmp_path / "schema_baseline.json"
+    _baseline(b, EXPECTED_TABULAR_FEATURE_COUNT)
     rows = P.schema_gate(b)
-    assert rows[0][0] == "OK" and "n_columns=87" in rows[0][1]
+    assert rows[0][0] == "OK", rows
+    assert f"n_columns={EXPECTED_TABULAR_FEATURE_COUNT}" in rows[0][1]
 
 
-def test_schema_gate_78_fails(tmp_path):
-    b = tmp_path / "schema_baseline.json"; _baseline(b, 78)
-    rows = P.schema_gate(b)
-    assert rows[0][0] == "FAIL" and "footgun" in rows[0][1]
+def test_schema_gate_rejects_a_baseline_that_does_not_match_the_contract(tmp_path):
+    """FAIL in BOTH directions -- a shrunken baseline AND an over-grown one.
+
+    Was `test_schema_gate_78_fails`, which only ever exercised the SHRINK direction (the
+    build_schema_baseline.py DEFAULT_MATRIX footgun, which has silently cut the baseline
+    81 -> 78 in the past).
+
+    But the other direction is a real failure too, and it is the one that was actually
+    happening: a feature is added to TABULAR_FEATURES and the baseline is not regenerated, so
+    the schema-drift gate is blind to that column for an entire run. The committed baseline was
+    TEN COLUMNS behind the contract on 2026-07-13 and nothing said a word.
+
+    87 is kept in the list on purpose: it is the exact stale value this gate carried for weeks,
+    and it must now be rejected.
+    """
+    for n in (78, 87, EXPECTED_TABULAR_FEATURE_COUNT - 1, EXPECTED_TABULAR_FEATURE_COUNT + 1):
+        b = tmp_path / f"schema_baseline_{n}.json"
+        _baseline(b, n)
+        rows = P.schema_gate(b)
+        assert rows[0][0] == "FAIL", (
+            f"a baseline with n_columns={n} was ACCEPTED against a contract of "
+            f"{EXPECTED_TABULAR_FEATURE_COUNT}. The gate is not gating."
+        )
+        assert str(EXPECTED_TABULAR_FEATURE_COUNT) in rows[0][1], (
+            "the failure message must name the count the gate actually expects, or the next "
+            "person cannot act on it"
+        )
 
 
 def test_schema_gate_missing_fails(tmp_path):

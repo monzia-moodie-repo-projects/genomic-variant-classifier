@@ -162,7 +162,144 @@ CONSEQUENCE_SEVERITY: dict[str, int] = {
 # Bump by +/-1 whenever you add or remove an entry in TABULAR_FEATURES below.
 # Enforced by tests/unit/test_feature_count_contract.py against both the list
 # length and INFERENCE_FEATURE_COLUMNS; that test is the deliberate-bump tripwire.
-EXPECTED_TABULAR_FEATURE_COUNT = 97
+# 2026-07-13: 97 -> 95. HGMD's two features (hgmd_is_disease_mutation, hgmd_n_reports) were
+# REMOVED -- no license (procurement-blocked) and, independently, variant-level label leakage
+# against a ClinVar-Pathogenic target. They were CONSTANT ZERO for the life of the project.
+# See the HGMD block inside TABULAR_FEATURES for the full reasoning and the safe (gene-level,
+# leave-one-out) way to reintroduce the signal if access is obtained.
+EXPECTED_TABULAR_FEATURE_COUNT = 95
+
+FEATURE_SOURCE = {
+    # feature-name prefix / exact name  ->  (data source, the CLI flag that populates it)
+    #
+    # Built 2026-07-13 after the Run-15 census found 36 of 78 features CONSTANT ZERO (46% of
+    # the feature space, 1,038,974 variants, AUROC 0.998 reported on the 38 that were real).
+    # Every abort gate in scripts/launch_run17_*.sh checks that a FILE EXISTS. None checked
+    # that a FEATURE POPULATED. A present-but-empty file, a schema change, or a failed
+    # gene-symbol join all sail through a file check and still deliver a column of zeros.
+    #
+    # This map exists so that when a feature IS dead, the operator is told which source and
+    # which flag to fix -- instead of being handed a list of column names and a shrug.
+    "phylop_score":                       ("PhyloP (BigWig)",        "--phylop-path (+ pybigtools)"),
+    "eve_score":                          ("EVE",                    "--eve-path / --eve-entry-map"),
+    "gene_constraint_oe":                 ("gnomAD constraint",      "--gnomad-constraint"),
+    "gene_is_constrained":                ("gnomAD constraint",      "--gnomad-constraint"),
+    "pli_score":                          ("gnomAD constraint",      "--gnomad-constraint"),
+    "loeuf":                              ("gnomAD constraint",      "--gnomad-constraint"),
+    "syn_z":                              ("gnomAD constraint",      "--gnomad-constraint"),
+    "mis_z":                              ("gnomAD constraint",      "--gnomad-constraint"),
+    "has_uniprot_annotation":             ("UniProt",                "--esm2-uniprot-index"),
+    "n_known_pathogenic_protein_variants":("UniProt",                "--esm2-uniprot-index"),
+    "gtex_max_tpm":                       ("GTEx",                   "--gtex-path"),
+    "gtex_n_tissues_expressed":           ("GTEx",                   "--gtex-path"),
+    "gtex_tissue_specificity":            ("GTEx",                   "--gtex-path"),
+    "gtex_is_eqtl":                       ("GTEx",                   "--gtex-path"),
+    "gtex_min_eqtl_pval":                 ("GTEx",                   "--gtex-path"),
+    "gtex_max_abs_effect":                ("GTEx",                   "--gtex-path"),
+    "codon_position":                     ("Ensembl/VEP",            "--clinvar (VEP annotation)"),
+    "dbsnp_af":                           ("dbSNP",                  "--dbsnp-path"),
+    "omim_n_diseases":                    ("OMIM genemap2",          "--omim-genemap2-path"),
+    "omim_n_diseases_molecular":          ("OMIM genemap2",          "--omim-genemap2-path"),
+    "omim_is_autosomal_dominant":         ("OMIM genemap2",          "--omim-genemap2-path"),
+    "clingen_validity_score":             ("ClinGen",                "--clingen-path"),
+    "lovd_variant_class":                 ("LOVD",                   "--lovd-path"),
+    "maxentscan_score":                   ("MaxEntScan (splice)",    "--spliceai / splice module"),
+    "dist_to_splice_site":                ("splice annotation",      "--spliceai / splice module"),
+    "exon_number":                        ("Ensembl/VEP",            "--clinvar (VEP annotation)"),
+    "is_canonical_splice":                ("splice annotation",      "--spliceai / splice module"),
+    "alphafold_plddt":                    ("AlphaFold",              "--alphafold-path"),
+    "solvent_accessibility":              ("protein structure",      "--alphafold-path"),
+    "secondary_structure_context":        ("protein structure",      "--alphafold-path"),
+    "dist_to_active_site":                ("protein structure",      "--alphafold-path / UniProt"),
+    "af_1kg_afr":                         ("1000 Genomes",           "--kg"),
+    "af_1kg_eur":                         ("1000 Genomes",           "--kg"),
+    "af_1kg_eas":                         ("1000 Genomes",           "--kg"),
+    "af_1kg_sas":                         ("1000 Genomes",           "--kg"),
+    "af_1kg_amr":                         ("1000 Genomes",           "--kg"),
+    "finngen_af_fin":                     ("FinnGen",                "--finngen-path"),
+    "finngen_af_nfsee":                   ("FinnGen",                "--finngen-path"),
+    "finngen_enrichment":                 ("FinnGen",                "--finngen-path / --finngen-r13-path"),
+    "esm2_delta_norm":                    ("ESM-2",                  "--esm2-uniprot-index"),
+    "gnn_score":                          ("STRING-DB GNN",          "--string-db"),
+    "cadd_phred":                         ("dbNSFP",                 "--dbnsfp-path"),
+    "sift_score":                         ("dbNSFP",                 "--dbnsfp-path"),
+    "polyphen2_score":                    ("dbNSFP",                 "--dbnsfp-path"),
+    "revel_score":                        ("dbNSFP",                 "--dbnsfp-path"),
+    "gerp_score":                         ("dbNSFP",                 "--dbnsfp-path"),
+    "alphamissense_score":                ("AlphaMissense",          "--alphamissense"),
+    "splice_ai_score":                    ("SpliceAI",               "--spliceai"),
+}
+
+
+def feature_census(X_tab: "pd.DataFrame") -> dict:
+    """Which declared-real features actually carry information? Measured, not assumed.
+
+    Returns {"live": [...], "dead": [...], "drift_blind": [...]}.
+
+    dead        : nunique == 1 across the cohort. ZERO information. The model cannot split on
+                  it, it contributes nothing, and it inflates the feature contract with
+                  something that does not exist.
+    drift_blind : varies, but the 1st and 99th percentile coincide -- so DriftDetector._psi
+                  returns 0.0 unconditionally and this feature can NEVER signal drift, no
+                  matter how far it moves.
+    live        : varies AND is drift-detectable.
+
+    In Run 15 this returned 36 dead / 4 drift-blind / 38 live, out of 78. Nobody ran it,
+    because it did not exist.
+    """
+    declared = [c for c in TABULAR_FEATURES if c in X_tab.columns]
+    dead: list[str] = []
+    drift_blind: list[str] = []
+    live: list[str] = []
+
+    for col in declared:
+        s = X_tab[col]
+        if not pd.api.types.is_numeric_dtype(s):
+            live.append(col)
+            continue
+        arr = s.to_numpy(dtype=np.float64)
+        finite = arr[np.isfinite(arr)]
+        if finite.size == 0 or len(np.unique(finite)) == 1:
+            dead.append(col)
+        elif np.percentile(finite, 1) == np.percentile(finite, 99):
+            drift_blind.append(col)
+        else:
+            live.append(col)
+
+    return {"live": live, "dead": dead, "drift_blind": drift_blind,
+            "declared": declared, "missing": [c for c in TABULAR_FEATURES
+                                              if c not in X_tab.columns]}
+
+
+def format_feature_census(census: dict, n_rows: int) -> str:
+    """A census the operator can ACT on: names the source and the flag for every dead feature."""
+    lines = [
+        "",
+        "=" * 78,
+        f"  FEATURE CENSUS  --  {n_rows:,} variants, {len(census['declared'])} declared features",
+        "=" * 78,
+        f"  LIVE (varying, drift-detectable) : {len(census['live']):3d}",
+        f"  DRIFT-BLIND (p01 == p99)         : {len(census['drift_blind']):3d}",
+        f"  DEAD (zero information)          : {len(census['dead']):3d}",
+    ]
+    if census["missing"]:
+        lines.append(f"  MISSING FROM THE MATRIX ENTIRELY : {len(census['missing']):3d}")
+
+    if census["dead"]:
+        lines += ["", "  DEAD FEATURES -- and the source/flag responsible for each:", ""]
+        by_source: dict[tuple, list[str]] = {}
+        for f in census["dead"]:
+            by_source.setdefault(FEATURE_SOURCE.get(f, ("UNMAPPED", "unknown")), []).append(f)
+        for (source, flag), feats in sorted(by_source.items()):
+            lines.append(f"    {source:24s}  {flag}")
+            for f in feats:
+                lines.append(f"        - {f}")
+    if census["drift_blind"]:
+        lines += ["", "  DRIFT-BLIND (real signal, but PSI is identically 0.0 forever):",
+                  f"    {', '.join(census['drift_blind'])}"]
+    lines.append("=" * 78)
+    return "\n".join(lines)
+
 
 TABULAR_FEATURES = [
     # Allele frequency (6)
@@ -226,9 +363,41 @@ TABULAR_FEATURES = [
     "omim_n_diseases_molecular",
     "omim_is_autosomal_dominant",
     "clingen_validity_score",
-    # HGMD (2)
-    "hgmd_is_disease_mutation",
-    "hgmd_n_reports",
+    # ---- HGMD: REMOVED 2026-07-13. Was 2 features; roster dropped 97 -> 95. ------------
+    #
+    #   "hgmd_is_disease_mutation",   # 1 if classified DM in HGMD
+    #   "hgmd_n_reports",             # number of HGMD records for this variant
+    #
+    # TWO independent reasons, either sufficient:
+    #
+    # 1. NO ACCESS. HGMD Professional is a paid QIAGEN license and is not held
+    #    (ROADMAP.md:71 -- "HGMD | hgmd_* (2) | PAID, blocked"; RUN_11_MASTER_PLAN sec. 2.5).
+    #    The connector was never wired, so both columns were CONSTANT ZERO through Run 15 --
+    #    contributing nothing, while occupying two slots in the feature contract and making
+    #    the roster overstate the science by two. They are not "pending"; they are absent.
+    #    Carrying an absent feature as a real one is the lie that root pattern (a) is about.
+    #
+    # 2. LABEL LEAKAGE -- and this one survives the license arriving.
+    #    HGMD "DM" means *disease-causing mutation*. The label here is ClinVar Pathogenic
+    #    (real_data_prep.py:512). Those are the same quantity under two vendors' names, and
+    #    HGMD-DM overlaps ClinVar-P heavily. As a VARIANT-LEVEL feature it is an answer key:
+    #    the gene-aware split cannot help, because the leak sits inside every fold at the
+    #    variant level.
+    #
+    #    The deployment failure is the damning part. A novel variant of uncertain
+    #    significance -- precisely what this classifier exists to score -- has no HGMD entry,
+    #    so hgmd_is_disease_mutation = 0, and the model reads "not a disease mutation" and
+    #    leans benign. You would publish a superb AUROC on a test set of catalogued variants
+    #    and systematically under-call the VUS that matter.
+    #
+    #    This project already draws exactly this line elsewhere: real_data_prep.py:1169 stubs
+    #    COSMIC to 0.0 and names the reason `feature-not-label`.
+    #
+    # WHEN HGMD ACCESS ARRIVES, DO NOT SIMPLY RESTORE THESE TWO LINES.
+    # Wire it GENE-LEVEL and LEAVE-ONE-OUT -- e.g. `n_hgmd_dm_in_gene`, counting HGMD-DM
+    # variants in the gene while EXCLUDING the variant being scored -- mirroring the existing
+    # `n_pathogenic_in_gene`. Same biological signal, no answer key. Then bump
+    # EXPECTED_TABULAR_FEATURE_COUNT in the same commit.
     # LOVD (1)
     "lovd_variant_class",
     # Chromosome context (3)
@@ -256,10 +425,16 @@ TABULAR_FEATURES = [
     "af_1kg_eas",
     "af_1kg_sas",
     "af_1kg_amr",
-    # FinnGen (3)
+    # FinnGen R12 (3)
     "finngen_af_fin",
     "finngen_af_nfsee",
     "finngen_enrichment",
+    # FinnGen R13 (3) -- these three were appended under the "FinnGen (3)" header without
+    # giving them one of their own, so the header said 3 while SIX features sat beneath it.
+    # Every other group in this list carries its own count; this one silently didn't. Harmless
+    # here -- EXPECTED_TABULAR_FEATURE_COUNT is derived from the list, not from these comments,
+    # so nothing broke -- but it is the same shape as the defect that has cost this project the
+    # most: a number written down once and never re-derived. Fixed 2026-07-13.
     "finngen_r13_af_fin",
     "finngen_r13_af_nfsee",
     "finngen_r13_enrichment",
@@ -355,6 +530,45 @@ class EnsembleConfig:
     # VariantEnsemble.dropped_models_, so the run's artifacts carry the fact -- and the
     # reason -- that the ensemble was incomplete.
     allow_base_model_dropout: bool = False
+
+    # ---- THE ZERO-VARIANCE (SILENT-ZERO) GUARD ---------------------------------------
+    # Added 2026-07-13 (roadmap 6.21).
+    #
+    # A connector whose source file is absent does not crash. It returns zeros -- see
+    # omim.py:105 (`if gene_table.empty: result[...] = DEFAULT_N_DISEASES; return result`)
+    # and variant_ensemble.py's own `df.get("omim_n_diseases", pd.Series([0] * len(df)))`.
+    # No warning. No error. The column arrives full of zeros and TRAINS.
+    #
+    # This has already happened, at scale. In Run 15, THIRTY-SIX of the 78 features were
+    # constant zero -- 46% of the feature space, across 1,038,974 variants. Whole sources were
+    # silently stubbed: GTEx (6), 1000 Genomes (5), FinnGen (3), AlphaFold/protein structure
+    # (4), splice/MaxEntScan (4), UniProt (2), OMIM (2), ESM-2, EVE, dbSNP, PhyloP, ClinGen,
+    # codon_position, gene constraint. The run completed, reported, and PUBLISHED AN AUROC OF
+    # 0.998 -- produced by the 38 features that were real -- with no indication that half its
+    # feature space did not exist.
+    #
+    # Those launcher gates are the right instinct but the wrong LAYER: they check that a FILE
+    # is present, which is a PROXY for the feature being populated. A present-but-empty file,
+    # a schema change, a failed join, a bad gene-symbol merge -- all sail straight through a
+    # file-existence check and still deliver a column of zeros. That is root pattern (c): a
+    # gate that checks a proxy instead of the thing it protects is not a gate.
+    #
+    # This guard asserts THE THING ITSELF: after feature engineering, at the moment of fit,
+    # every declared-real feature must actually vary. A feature that is constant across a
+    # million variants carries zero information, cannot be split on, cannot signal drift
+    # (p01 == p99 => Population Stability Index is identically 0.0, forever), and is a lie in
+    # the 97-feature contract.
+    #
+    # If a feature is genuinely not computed yet, it belongs in PHASE_2_FEATURES. That is what
+    # PHASE_2_FEATURES is FOR, and it is currently EMPTY.
+    allow_zero_variance_features: bool = False
+
+    # Below this row count, a constant column is plausibly just sampling (a small synthetic
+    # fixture can easily produce an all-zero binary flag). The guard WARNS there and RAISES
+    # above it. A constant column in a million-row cohort is not sampling; it is a dead
+    # feature. This threshold is what lets the guard be armed by default in the real run
+    # without turning every unit-test fixture red.
+    zero_variance_min_rows: int = 10_000
 
     def __post_init__(self) -> None:
         self.model_dir = Path(self.model_dir)
@@ -579,17 +793,11 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
         .astype(float)
     )
 
-    # HGMD (2)
-    feats["hgmd_is_disease_mutation"] = (
-        df.get("hgmd_is_disease_mutation", pd.Series([0] * len(df), index=df.index))
-        .fillna(0)
-        .astype(int)
-    )
-    feats["hgmd_n_reports"] = (
-        df.get("hgmd_n_reports", pd.Series([0] * len(df), index=df.index))
-        .fillna(0)
-        .astype(int)
-    )
+    # HGMD: REMOVED 2026-07-13 (no license + variant-level label leakage). See the block in
+    # TABULAR_FEATURES above for the full reasoning, and for how to wire it SAFELY
+    # (gene-level, leave-one-out) if access is ever obtained. Do not restore these two
+    # `df.get(..., 0)` lines: that pattern is precisely what silently zeroed them for the
+    # entire life of the project without anyone noticing.
 
     # LOVD classification (1) -- ordinal 0-4; 0 = not in LOVD
     feats["lovd_variant_class"] = (
@@ -1676,6 +1884,10 @@ class VariantEnsemble:
         # artifacts so that "the ensemble was complete" is a CHECKED, RECORDED fact rather
         # than an assumption. See the block at the end of fit().
         self.ensemble_completeness_: dict = {}
+        #: Features that were declared REAL but arrived constant. Empty unless
+        #: allow_zero_variance_features=True let the run proceed anyway -- in which case the
+        #: fact is RECORDED here and in the run artifacts, not merely logged and forgotten.
+        self.zero_variance_features_: list[str] = []
 
     @staticmethod
     def _find_blend_weights(oof_preds: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -1753,6 +1965,80 @@ class VariantEnsemble:
             oof[va] = m.predict_proba(Xva_in)[:, 1]
         return oof
 
+    def _assert_no_dead_features(self, X_tab: pd.DataFrame) -> None:
+        """Every feature declared REAL must actually vary. Silent-zeros die here.
+
+        A connector with a missing source file returns zeros rather than raising (omim.py:105
+        is the canonical example). The column then trains, contributes nothing, and inflates
+        the feature contract with something that does not exist. Run 15 shipped five such
+        columns and nobody knew until the drift work forced someone to look at the data.
+
+        The launcher's file-existence checks cannot catch this -- a present-but-empty file, a
+        schema change, or a failed gene-symbol join all produce zeros with the file sitting
+        right there. So the assertion is made against the FEATURE, at the moment of fit.
+
+        Raises
+        ------
+        ValueError
+            If any TABULAR_FEATURES column is constant across a cohort large enough for that
+            to be meaningful. Set EnsembleConfig.allow_zero_variance_features=True to
+            downgrade to a warning -- but the honest fix is PHASE_2_FEATURES.
+        """
+        # ONE definition of "dead", shared with scripts/run_phase2_eval.py's pre-flight census.
+        # Two copies of this rule would disagree within a month -- root pattern (a).
+        census = feature_census(X_tab)
+        declared = census["declared"]
+        dead = census["dead"]
+        n_rows = len(X_tab)
+
+        logger.info(format_feature_census(census, n_rows))
+
+        if not dead:
+            logger.info(
+                "Zero-variance guard: all %d declared tabular features vary. No silent-zeros.",
+                len(declared),
+            )
+            return
+
+        msg = (
+            f"{len(dead)} declared-real feature(s) are CONSTANT across {n_rows:,} variants "
+            f"and carry ZERO information: {dead}\n"
+            f"\n"
+            f"A constant feature cannot be split on, contributes nothing to any model, and "
+            f"can NEVER signal drift (p01 == p99 => Population Stability Index is identically "
+            f"0.0, forever). It is also a lie in the {EXPECTED_TABULAR_FEATURE_COUNT}-feature "
+            f"contract: the roster counts it, the science does not have it.\n"
+            f"\n"
+            f"This is almost always a connector that silently stubbed to zeros because its "
+            f"source file was absent, unreadable, or failed to join (see omim.py:105 -- "
+            f"'if gene_table.empty: result[...] = 0; return result', with no log and no "
+            f"raise). Check the connector's source path and its join keys.\n"
+            f"\n"
+            f"If the feature is genuinely NOT YET COMPUTED, it belongs in PHASE_2_FEATURES -- "
+            f"that is exactly what PHASE_2_FEATURES is for, and it is currently empty. Move "
+            f"it there and drop EXPECTED_TABULAR_FEATURE_COUNT accordingly.\n"
+            f"\n"
+            f"To proceed anyway, set EnsembleConfig.allow_zero_variance_features=True. Doing "
+            f"so trains models on columns that do not exist."
+        )
+
+        if n_rows < self.config.zero_variance_min_rows:
+            # Too few rows to distinguish a dead feature from an unlucky draw (a small
+            # synthetic fixture can easily produce an all-zero binary flag). Warn, don't raise.
+            logger.warning(
+                "Zero-variance guard: %d constant feature(s) in only %d rows (< %d) -- too "
+                "small to be conclusive, so this is a WARNING, not a failure: %s",
+                len(dead), n_rows, self.config.zero_variance_min_rows, dead,
+            )
+            return
+
+        if self.config.allow_zero_variance_features:
+            logger.error("ZERO-VARIANCE FEATURES TOLERATED BY CONFIG.\n%s", msg)
+            self.zero_variance_features_ = list(dead)
+            return
+
+        raise ValueError(f"ZERO-VARIANCE FEATURES (roadmap 6.21)\n\n{msg}")
+
     def fit(
         self, X_tab: pd.DataFrame, X_seq: pd.Series, y: pd.Series,
         gene_symbol: "pd.Series | None" = None,
@@ -1769,6 +2055,12 @@ class VariantEnsemble:
             len(y_arr),
             int(y_arr.sum()),
         )
+
+        # Assert every declared-real feature actually exists in the data (roadmap 6.21).
+        # This runs BEFORE any model is fitted, so a silent-zero costs a second, not eleven
+        # hours of paid compute followed by a published algorithm comparison built on a
+        # feature space that was partly imaginary.
+        self._assert_no_dead_features(X_tab)
 
         # Calibration fold selection (W2 PATH-1, 2026-07-11).
         # If an EXTERNAL calibration partition is supplied (v2 gene-disjoint

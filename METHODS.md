@@ -38,9 +38,34 @@ Variant annotations were added from the following sources, in pipeline order:
 | 9 | ClinGen | Gene validity score (curated gene–disease relationships) |
 | 10 | dbSNP build 156 | Supplemental allele frequency |
 | 11 | EVE | Evolutionary model variant effect score |
-| 12 | HGMD Professional | Disease mutation flag, report count |
-| 13 | MaxEntScan (Phase 6.1) | Splice-site strength score, distance to canonical splice site, exon number, canonical GT-AG flag |
-| 14 | AlphaFold / UniProt (Phase 6.2) | Per-residue pLDDT, relative solvent accessibility, secondary structure class, distance to active site |
+| 12 | MaxEntScan (Phase 6.1) | Splice-site strength score, distance to canonical splice site, exon number, canonical GT-AG flag |
+| 13 | AlphaFold / UniProt (Phase 6.2) | Per-residue pLDDT, relative solvent accessibility, secondary structure class, distance to active site |
+| 14 | gnomAD v4.1 constraint | pLI, LOEUF, synonymous Z, missense Z |
+| 15 | 1000 Genomes | Per-superpopulation allele frequencies (AFR, EUR, EAS, SAS, AMR) |
+| 16 | FinnGen R12 / R13 | Finnish and non-Finnish-Swedish-Estonian allele frequency, enrichment |
+| 17 | ESM-2 (Evolutionary Scale Modeling 2) | Protein language-model log-likelihood ratio, normalised delta |
+| 18 | Nucleotide Transformer | DNA language-model log-likelihood ratio, normalised delta |
+| 19 | COSMIC Cancer Mutation Census | Recurrence count, significance tier |
+| 20 | KEGG | Pathway count, disease-pathway flag |
+| 21 | Reactome | Pathway membership count |
+| 22 | RNA-seq (Phase D) | Mean log TPM, detection rate, log2 coefficient of variation, log2 fold-change, differential-expression significance |
+| 23 | STRING-DB | Gene-network pathogenicity score; heterogeneous knowledge-graph score |
+
+**HGMD (Human Gene Mutation Database) Professional is NOT a source.** An earlier version of
+this table listed it as source 12, supplying a "disease mutation flag" and a "report count".
+That was never true: the licence was never obtained (see `docs/ROADMAP.md` — "HGMD | hgmd_* (2)
+| PAID, blocked"), the connector was never wired, and both columns were CONSTANT ZERO for the
+entire life of the project — contributing nothing while the methods document credited them.
+They were removed from the feature contract on 2026-07-13.
+
+They will not be reinstated in their previous form even if the licence is obtained. HGMD's
+"DM" (disease mutation) classification is, at the variant level, a near-copy of the
+ClinVar-Pathogenic label this model is trained to predict; using it as a feature would leak the
+target, and — because a novel variant of uncertain significance has no HGMD entry — would bias
+the model toward "benign" on precisely the variants it exists to classify. Should the licence
+be obtained, HGMD will enter as a **gene-level, leave-one-out aggregate** (count of HGMD-DM
+variants in the gene, excluding the variant being scored), mirroring the existing
+`n_pathogenic_in_gene` feature.
 
 Allele frequencies were sourced primarily from gnomAD v4.1 exomes; variants
 absent from gnomAD were supplemented with 1000 Genomes Phase 3 allele
@@ -63,24 +88,44 @@ when the same gene appears in both train and test sets.
 
 ## 2. Feature Engineering
 
-A total of **64 tabular features** were derived from raw annotations. Features
-are grouped into:
+A total of **95 tabular features** are derived from raw annotations. This figure is
+`EXPECTED_TABULAR_FEATURE_COUNT` in `src/genomic_variant_classifier/models/variant_ensemble.py`,
+and it is the single source of truth: `tests/unit/test_methods_feature_count.py` fails the test
+suite if the number stated here and the number in the code ever disagree.
+
+> **Correction, 2026-07-13.** This section previously claimed **64** features, and the group
+> table below summed to 62. Both were long stale — the contract had grown to 95 while the
+> document stood still, and nothing re-derived it. Restating the number by hand would only
+> reset the clock on the same defect, so the agreement is now enforced by a test.
 
 | Group | Count | Description |
 |-------|-------|-------------|
 | Allele frequency | 6 | Raw AF, log₁₀ AF, binary rarity indicators |
 | Variant type | 7 | SNV/indel, insertion/deletion, ref/alt length |
-| Consequence | 6 | Missense, LoF, splice, coding, severity score |
-| Conservation | 9 | PhyloP, GERP, CADD, REVEL, SpliceAI, EVE |
-| Protein function | 5 | SIFT, PolyPhen-2, AlphaMissense, codon position, dbSNP AF |
-| Gene-level | 4 | n_pathogenic_in_gene, gene_constraint_oe (pLI/LOEUF proxy), UniProt annotation, n_known_pathogenic |
+| Consequence | 6 | Missense, loss-of-function, splice, coding, severity score |
+| Functional scores | 9 | CADD, SIFT, PolyPhen-2, REVEL, PhyloP, GERP++, AlphaMissense, SpliceAI, EVE |
+| Binary flags + meta-score | 5 | Thresholded predictor flags and the count of tools calling pathogenic |
+| Gene-level | 4 | n_pathogenic_in_gene, gene constraint observed/expected, gene has known disease |
+| Protein features | 2 | UniProt annotation present, count of known pathogenic protein variants |
 | GTEx expression | 6 | Max TPM, tissue breadth, specificity, eQTL flag, p-value, effect size |
-| Gene-disease | 5 | OMIM disease count, dominant inheritance, ClinGen validity, HGMD mutation flag, HGMD report count |
-| Chromosome | 2 | One-hot: autosomal, X chromosome |
-| Genomic position | 3 | Position log₁₀, GC-content proxy, repeat mask flag (via ref_len) |
-| Gene network (GNN) | 1 | Gene-level pathogenicity score from STRING protein interaction graph |
-| RNA splice context | 4 | MaxEntScan score, distance to splice site, exon number, canonical GT-AG flag |
+| Variant coding context | 2 | Codon position, dbSNP allele frequency |
+| Gene–disease annotation | 4 | OMIM disease count, OMIM molecular-basis count, OMIM dominant inheritance, ClinGen validity |
+| LOVD | 1 | LOVD variant class |
+| Chromosome context | 3 | Autosome, sex chromosome, mitochondrial |
+| Gene network | 2 | STRING-DB graph-neural-network score; heterogeneous knowledge-graph score |
+| RNA splice context | 5 | MaxEntScan score, distance to splice site, exon number, canonical GT-AG flag, splice indicator |
 | Protein structure | 4 | AlphaFold pLDDT, relative solvent accessibility, secondary structure, distance to active site |
+| 1000 Genomes population AF | 5 | AFR, EUR, EAS, SAS, AMR allele frequencies |
+| FinnGen R12 | 3 | Finnish AF, non-Finnish-Swedish-Estonian AF, enrichment |
+| FinnGen R13 | 3 | Finnish AF, non-Finnish-Swedish-Estonian AF, enrichment |
+| ESM-2 (protein language model) | 2 | Log-likelihood ratio, normalised delta |
+| Nucleotide Transformer (DNA language model) | 2 | Log-likelihood ratio, normalised delta |
+| COSMIC Cancer Mutation Census | 2 | Recurrence count, significance tier |
+| KEGG | 2 | Pathway count, disease-pathway flag |
+| Reactome | 1 | Pathway membership count |
+| gnomAD v4.1 constraint | 4 | pLI, LOEUF, synonymous Z, missense Z |
+| RNA-seq expression | 5 | Mean log TPM, detection rate, log2 coefficient of variation, log2 fold-change, differential-expression significance |
+| **Total** | **95** | = `EXPECTED_TABULAR_FEATURE_COUNT` |
 
 Missing values were imputed with biologically neutral defaults (e.g., AF = 0 for
 absent from gnomAD, SIFT = 0.5 for uncovered positions).
