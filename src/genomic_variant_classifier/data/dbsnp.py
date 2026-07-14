@@ -91,7 +91,7 @@ class DbSNPConnector(BaseConnector):
 
         if self.parquet_path is None:
             logger.warning(
-                "DbSNPConnector: parquet_path not set — returning dbsnp_af=0.0.  "
+                "DbSNPConnector: parquet_path not set -- returning dbsnp_af=0.0.  "
                 "Download dbSNP build 156 from https://ftp.ncbi.nlm.nih.gov/snp/."
             )
             result = df.copy()
@@ -138,7 +138,7 @@ class DbSNPConnector(BaseConnector):
 
         if not self.parquet_path.exists():
             logger.warning(
-                "DbSNPConnector: parquet not found at '%s' — returning dbsnp_af=0.0.",
+                "DbSNPConnector: parquet not found at '%s' -- returning dbsnp_af=0.0.",
                 self.parquet_path,
             )
             return pd.DataFrame(columns=["variant_id", "allele_freq"])

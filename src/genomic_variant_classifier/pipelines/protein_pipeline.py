@@ -444,13 +444,13 @@ class ProteinStructurePipeline:
 
         if n_missense == 0:
             logger.debug(
-                "ProteinStructurePipeline: no missense variants — defaults applied."
+                "ProteinStructurePipeline: no missense variants -- defaults applied."
             )
             return result
 
         if "gene_symbol" not in df.columns:
             logger.warning(
-                "ProteinStructurePipeline: 'gene_symbol' column absent — "
+                "ProteinStructurePipeline: 'gene_symbol' column absent -- "
                 "all %d missense variants will use default structural features.",
                 n_missense,
             )

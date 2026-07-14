@@ -76,7 +76,7 @@ class VEPConnector(BaseConnector):
         self.vep_rest  = vep_rest
         if vep_rest:
             logger.warning(
-                "VEPConnector: vep_rest=True — REST API mode is not yet fully "
+                "VEPConnector: vep_rest=True -- REST API mode is not yet fully "
                 "implemented.  codon_position will be derived from protein_change "
                 "column only.  Live VEP queries are planned for Phase 5."
             )

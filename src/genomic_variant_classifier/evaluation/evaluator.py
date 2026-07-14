@@ -531,7 +531,7 @@ class ClinicalEvaluator:
     # ── Output ─────────────────────────────────────────────────────────────
 
     def print_report(self, r: EvaluationReport) -> None:
-        sep = "─" * 60
+        sep = "-" * 60
         print(f"\n{sep}")
         print(f"  EVALUATION REPORT: {r.model_name}")
         print(sep)
@@ -542,11 +542,11 @@ class ClinicalEvaluator:
         print()
         print(
             f"  AUROC   : {r.auroc:.4f}  "
-            f"[95% CI: {r.auroc_ci_lo:.4f}–{r.auroc_ci_hi:.4f}]"
+            f"[95% CI: {r.auroc_ci_lo:.4f}-{r.auroc_ci_hi:.4f}]"
         )
         print(
             f"  AUPRC   : {r.auprc:.4f}  "
-            f"[95% CI: {r.auprc_ci_lo:.4f}–{r.auprc_ci_hi:.4f}]"
+            f"[95% CI: {r.auprc_ci_lo:.4f}-{r.auprc_ci_hi:.4f}]"
         )
         print(f"  MCC     : {r.mcc:.4f}")
         print(f"  F1      : {r.f1:.4f}")
@@ -571,7 +571,7 @@ class ClinicalEvaluator:
         if r.consequence_breakdown:
             print()
             print(f"  {'Consequence':<22} {'N':>7} {'%Path':>7} {'AUROC':>8} {'AUPRC':>8}")
-            print(f"  {'─'*22} {'─'*7} {'─'*7} {'─'*8} {'─'*8}")
+            print(f"  {'-'*22} {'-'*7} {'-'*7} {'-'*8} {'-'*8}")
             for cb in sorted(r.consequence_breakdown, key=lambda x: x.auroc, reverse=True):
                 print(
                     f"  {cb.consequence:<22} {cb.n_total:>7,} "

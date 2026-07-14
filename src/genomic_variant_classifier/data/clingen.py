@@ -137,7 +137,7 @@ class ClinGenConnector(BaseConnector):
         """Return a gene-level score DataFrame, or empty if unavailable."""
         if self.csv_path is None:
             logger.warning(
-                "ClinGenConnector: csv_path not set — returning default values "
+                "ClinGenConnector: csv_path not set -- returning default values "
                 "(clingen_validity_score=0).  "
                 "Download from https://search.clinicalgenome.org/kb/gene-validity."
             )
@@ -153,7 +153,7 @@ class ClinGenConnector(BaseConnector):
 
         if not self.csv_path.exists():
             logger.warning(
-                "ClinGenConnector: CSV not found at '%s' — returning default values.",
+                "ClinGenConnector: CSV not found at '%s' -- returning default values.",
                 self.csv_path,
             )
             return pd.DataFrame(columns=["gene_symbol", "clingen_validity_score"])
@@ -211,7 +211,7 @@ class ClinGenConnector(BaseConnector):
         )
 
         logger.info(
-            "ClinGenConnector: parsed %d gene-disease pairs → %d unique genes.",
+            "ClinGenConnector: parsed %d gene-disease pairs -> %d unique genes.",
             len(raw), len(gene_table),
         )
         return gene_table

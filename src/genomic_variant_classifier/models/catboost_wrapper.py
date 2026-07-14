@@ -499,6 +499,6 @@ def catboost_optuna_search(
     best["cat_feature_names"]  = cat_feature_names
     best["verbose"]            = 0
     best["random_seed"]        = random_state
-    logger.info("Optuna best AUROC: %.4f — params: %s", study.best_value, best)
+    logger.info("Optuna best AUROC: %.4f -- params: %s", study.best_value, best)
     return best
 

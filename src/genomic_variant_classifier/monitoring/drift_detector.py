@@ -158,7 +158,7 @@ class DriftReport:
 
     def print_summary(self) -> None:
         print(f"\n{'='*60}")
-        print(f"  DRIFT REPORT — {self.timestamp}")
+        print(f"  DRIFT REPORT -- {self.timestamp}")
         print(f"{'='*60}")
         print(f"  Reference: {self.n_ref_samples:,} samples")
         print(f"  New data:  {self.n_new_samples:,} samples")
@@ -254,7 +254,7 @@ class DriftDetector:
         self.mmd_sigma = float(np.median(pairwise[pairwise > 0])) or MMD_SIGMA
 
         logger.info(
-            "DriftDetector initialised: %d features, %d reference samples, σ_MMD=%.3f",
+            "DriftDetector initialised: %d features, %d reference samples, sigma_MMD=%.3f",
             self.n_features, len(self.ref_data), self.mmd_sigma,
         )
 
@@ -351,7 +351,7 @@ class DriftDetector:
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "wb") as fh:
             pickle.dump(self, fh, protocol=pickle.HIGHEST_PROTOCOL)
-        logger.info("DriftDetector saved → %s", path)
+        logger.info("DriftDetector saved -> %s", path)
 
     # ── Main public interface ──────────────────────────────────────────────
 
@@ -456,7 +456,7 @@ class DriftDetector:
             joint_tests_reason = (
                 "the detector was built from an aggregate-only reference profile, which "
                 "contains histograms and quantile grids but no reference rows; the Maximum "
-                "Mean Discrepancy and Székely-Rizzo energy tests are multivariate permutation "
+                "Mean Discrepancy and Szekely-Rizzo energy tests are multivariate permutation "
                 "tests and require samples of the joint distribution. Run "
                 "scripts/run_drift_monitor.py with --reference-splits, on a machine that holds "
                 "the cohort matrix, to obtain them."
@@ -781,7 +781,7 @@ class ADWINDriftDetector:
                 self.window = self.window[cut:]
                 self._drift_detected = True
                 logger.info(
-                    "ADWIN: drift detected at split %d/%d, |Δμ|=%.4f ≥ ε=%.4f",
+                    "ADWIN: drift detected at split %d/%d, |deltamu|=%.4f >= epsilon=%.4f",
                     cut, n, diff, epsilon,
                 )
                 break

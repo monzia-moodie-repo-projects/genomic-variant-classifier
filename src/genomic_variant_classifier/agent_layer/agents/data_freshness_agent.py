@@ -108,7 +108,7 @@ class DataFreshnessAgent(BaseAgent):
         self._changes = []
 
         prev = self._get_section("data_freshness")
-        self.logger.info("Polling upstream data sources …")
+        self.logger.info("Polling upstream data sources ...")
 
         clinvar_new = self._poll_clinvar(prev.get("clinvar", {}))
         gnomad_new = self._poll_gnomad(prev.get("gnomad", {}))
@@ -121,7 +121,7 @@ class DataFreshnessAgent(BaseAgent):
         if any_change:
             sources = [c["source"] for c in self._changes]
             self.logger.info(
-                "Ingest trigger: new release(s) detected — %s.",
+                "Ingest trigger: new release(s) detected -- %s.",
                 ", ".join(sources),
             )
 
@@ -147,7 +147,7 @@ class DataFreshnessAgent(BaseAgent):
             else:
                 for change in self._changes:
                     self.logger.info(
-                        "  [dry-run] Would send DATA_UPDATED → %s  [source=%s]",
+                        "  [dry-run] Would send DATA_UPDATED -> %s  [source=%s]",
                         _RECIPIENT,
                         change["source"],
                     )
@@ -233,7 +233,7 @@ class DataFreshnessAgent(BaseAgent):
     # ------------------------------------------------------------------
 
     def _poll_clinvar(self, prev: dict) -> bool:
-        self.logger.info("Polling ClinVar FTP …")
+        self.logger.info("Polling ClinVar FTP ...")
         last_seen = prev.get("last_seen")
         try:
             with ftplib.FTP(CLINVAR_FTP_ROOT, timeout=30) as ftp:
@@ -243,7 +243,7 @@ class DataFreshnessAgent(BaseAgent):
                 latest = vcf_files[-1] if vcf_files else None
 
             if latest and latest != last_seen:
-                self.logger.info("ClinVar: new VCF detected — %s.", latest)
+                self.logger.info("ClinVar: new VCF detected -- %s.", latest)
                 self._record_change("ClinVar", "new_release", last_seen, latest)
                 return True
 
@@ -260,7 +260,7 @@ class DataFreshnessAgent(BaseAgent):
     # ------------------------------------------------------------------
 
     def _poll_gnomad(self, prev: dict) -> bool:
-        self.logger.info("Polling gnomAD …")
+        self.logger.info("Polling gnomAD ...")
         last_seen = prev.get("last_seen")
         try:
             import requests
@@ -291,7 +291,7 @@ class DataFreshnessAgent(BaseAgent):
     # ------------------------------------------------------------------
 
     def _poll_lovd(self, prev: dict) -> bool:
-        self.logger.info("Polling LOVD …")
+        self.logger.info("Polling LOVD ...")
         last_seen = prev.get("last_seen")
         if not LOVD_GENES_OF_INTEREST:
             self._touch_checked("lovd")
@@ -341,7 +341,7 @@ class DataFreshnessAgent(BaseAgent):
     # ------------------------------------------------------------------
 
     def _poll_alphamissense(self, prev: dict) -> bool:
-        self.logger.info("Checking AlphaMissense manifest …")
+        self.logger.info("Checking AlphaMissense manifest ...")
         last_seen = prev.get("last_seen")
         try:
             import requests

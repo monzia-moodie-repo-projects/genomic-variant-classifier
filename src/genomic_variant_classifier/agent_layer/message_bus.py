@@ -253,7 +253,7 @@ class MessageBus:
         self._save_all(messages)
 
         logger.info(
-            "📨  %s → %s  [%s]  id=%s  approval_required=%s",
+            "[MSG]  %s -> %s  [%s]  id=%s  approval_required=%s",
             from_agent,
             to_agent,
             subject,
@@ -349,9 +349,9 @@ class MessageBus:
                 if msg["id"] == msg_id:
                     msg["approved"] = approved
                     self._save_all(messages)
-                    verb = "✅ approved" if approved else "❌ rejected"
+                    verb = "[OK] approved" if approved else "[X] rejected"
                     logger.info(
-                        "Message %s → %s  [%s]  %s",
+                        "Message %s -> %s  [%s]  %s",
                         msg_id[:8],
                         msg["to_agent"],
                         msg["subject"],
@@ -417,18 +417,18 @@ class MessageBus:
             print(f"  (no messages for {agent_name})")
             return
         for m in sorted(msgs, key=lambda x: x["timestamp"]):
-            status = "✉ unread" if not m["read"] else "✓ read  "
+            status = "[NEW] unread" if not m["read"] else "[OK] read  "
             approval = ""
             if m["requires_approval"]:
                 if m["approved"] is None:
-                    approval = " [⏳ awaiting approval]"
+                    approval = " [[WAIT] awaiting approval]"
                 elif m["approved"]:
-                    approval = " [✅ approved]"
+                    approval = " [[OK] approved]"
                 else:
-                    approval = " [❌ rejected]"
+                    approval = " [[X] rejected]"
             print(
                 f"  {status} | {m['timestamp'][:19]} | "
-                f"{m['from_agent']:<30} → {m['subject']}{approval}"
+                f"{m['from_agent']:<30} -> {m['subject']}{approval}"
             )
             if m["payload"]:
                 for k, v in m["payload"].items():
@@ -442,7 +442,7 @@ class MessageBus:
             return
         for m in pending:
             print(
-                f"  [{m['id'][:8]}] {m['from_agent']} → {m['to_agent']}  "
+                f"  [{m['id'][:8]}] {m['from_agent']} -> {m['to_agent']}  "
                 f"[{m['subject']}]  {m['timestamp'][:19]}"
             )
             if m["payload"]:

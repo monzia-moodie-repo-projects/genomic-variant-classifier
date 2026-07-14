@@ -98,7 +98,7 @@ class LOVDConnector:
         """
         if self._lookup is None:
             logger.warning(
-                "LOVDConnector: no parquet loaded — "
+                "LOVDConnector: no parquet loaded -- "
                 "all variants will receive lovd_variant_class=0. "
                 "Set parquet_path to activate LOVD annotation."
             )
@@ -142,7 +142,7 @@ class LOVDConnector:
         if self._parquet_path is None or not self._parquet_path.exists():
             if self._parquet_path is not None:
                 logger.warning(
-                    "LOVDConnector: file not found at %s — stub mode active.",
+                    "LOVDConnector: file not found at %s -- stub mode active.",
                     self._parquet_path,
                 )
             return

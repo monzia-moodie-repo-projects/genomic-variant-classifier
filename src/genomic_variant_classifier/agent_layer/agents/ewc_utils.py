@@ -110,12 +110,12 @@ def compute_fisher_diagonal(
 def save_fisher(fisher: dict[str, torch.Tensor], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     torch.save({k: v.cpu() for k, v in fisher.items()}, path)
-    log.info("Fisher diagonal saved → %s", path)
+    log.info("Fisher diagonal saved -> %s", path)
 
 
 def load_fisher(path: Path, device: torch.device) -> dict[str, torch.Tensor]:
     data = torch.load(path, map_location=device)
-    log.info("Fisher diagonal loaded ← %s", path)
+    log.info("Fisher diagonal loaded <- %s", path)
     return data
 
 
@@ -273,9 +273,9 @@ def build_resnet50(num_classes: int, pretrained_path: Path | None = None,
         if isinstance(state, dict) and "model_state_dict" in state:
             state = state["model_state_dict"]
         model.load_state_dict(state)
-        log.info("ResNet-50 weights loaded ← %s", pretrained_path)
+        log.info("ResNet-50 weights loaded <- %s", pretrained_path)
     else:
-        log.warning("No pretrained weights found at %s — using random init.", pretrained_path)
+        log.warning("No pretrained weights found at %s -- using random init.", pretrained_path)
 
     if device:
         model = model.to(device)

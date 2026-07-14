@@ -239,7 +239,7 @@ class PhyloPConnector:
                 if vals and vals[0] is not None and not math.isnan(vals[0]):
                     return float(vals[0])
         except Exception as exc:
-            logger.debug("PhyloP BigWig query failed for %s:%d — %s", chrom, pos, exc)
+            logger.debug("PhyloP BigWig query failed for %s:%d -- %s", chrom, pos, exc)
         return missing_value
 
     # ------------------------------------------------------------------

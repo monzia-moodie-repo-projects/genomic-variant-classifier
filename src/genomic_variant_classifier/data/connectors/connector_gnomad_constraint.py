@@ -146,7 +146,7 @@ class GnomADConstraintConnector:
             return ConstraintScores()
         if not self._tsv_path.exists():
             logger.warning(
-                "gnomAD constraint TSV not found at %s — returning defaults. "
+                "gnomAD constraint TSV not found at %s -- returning defaults. "
                 "Download from https://gnomad.broadinstitute.org/downloads#v4-constraint",
                 self._tsv_path,
             )
@@ -170,17 +170,17 @@ class GnomADConstraintConnector:
 
         if "gene_symbol" not in df.columns:
             logger.info(
-                "gnomAD constraint: gene_symbol column absent — returning defaults."
+                "gnomAD constraint: gene_symbol column absent -- returning defaults."
             )
             return df
 
         if self._tsv_path is None:
-            logger.debug("gnomAD constraint: stub mode — all scores are defaults.")
+            logger.debug("gnomAD constraint: stub mode -- all scores are defaults.")
             return df
 
         if not self._tsv_path.exists():
             logger.warning(
-                "gnomAD constraint TSV not found at %s — all scores are defaults.",
+                "gnomAD constraint TSV not found at %s -- all scores are defaults.",
                 self._tsv_path,
             )
             return df

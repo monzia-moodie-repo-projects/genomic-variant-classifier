@@ -458,7 +458,7 @@ class DbNSFPConnector:
             return pd.DataFrame(columns=["chrom", "pos", "ref", "alt"] + list(_OUTPUT_COLS.values()))
 
         logger.info(
-            "DbNSFP: parsing %s (this may take 90–180 s) …", self._path
+            "DbNSFP: parsing %s (this may take 90-180 s) ...", self._path
         )
 
         compression: str = "infer"
@@ -561,7 +561,7 @@ class DbNSFPConnector:
             try:
                 cache.parent.mkdir(parents=True, exist_ok=True)
                 full.to_parquet(cache, index=False)
-                logger.info("DbNSFP: wrote parquet cache → %s", cache)
+                logger.info("DbNSFP: wrote parquet cache -> %s", cache)
             except Exception as exc:
                 logger.warning("DbNSFP: could not write cache (%s).", exc)
 

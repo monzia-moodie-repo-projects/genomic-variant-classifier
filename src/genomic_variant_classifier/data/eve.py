@@ -206,7 +206,7 @@ class EVEConnector(BaseConnector):
 
         if self.eve_path is None:
             logger.warning(
-                "EVEConnector: eve_path not set — returning eve_score=0.5 (not covered).  "
+                "EVEConnector: eve_path not set -- returning eve_score=0.5 (not covered).  "
                 "Download EVE scores from https://evemodel.org."
             )
             result = df.copy()
@@ -241,7 +241,7 @@ class EVEConnector(BaseConnector):
 
         if not self.eve_path.exists():
             logger.warning(
-                "EVEConnector: eve_path '%s' does not exist — returning eve_score=0.5.",
+                "EVEConnector: eve_path '%s' does not exist -- returning eve_score=0.5.",
                 self.eve_path,
             )
             return pd.DataFrame(columns=["gene_symbol", "aa_change", "eve_score"])
@@ -253,7 +253,7 @@ class EVEConnector(BaseConnector):
             lookup = self._parse_merged_parquet(self.eve_path)
         else:
             logger.warning(
-                "EVEConnector: eve_path '%s' is not a directory or parquet — "
+                "EVEConnector: eve_path '%s' is not a directory or parquet -- "
                 "returning eve_score=0.5.",
                 self.eve_path,
             )
@@ -323,7 +323,7 @@ class EVEConnector(BaseConnector):
 
         combined = pd.concat(parts, ignore_index=True)
         logger.info(
-            "EVEConnector: parsed %d CSVs → %d EVE scores.", len(csv_files), len(combined)
+            "EVEConnector: parsed %d CSVs -> %d EVE scores.", len(csv_files), len(combined)
         )
         return combined
 

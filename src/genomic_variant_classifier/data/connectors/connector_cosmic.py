@@ -126,16 +126,16 @@ class CosmicCmcConnector:
         required = {"chrom", "pos", "ref", "alt"}
         if not required.issubset(df.columns):
             logger.info(
-                "COSMIC CMC: missing key columns %s — returning defaults.",
+                "COSMIC CMC: missing key columns %s -- returning defaults.",
                 required - set(df.columns),
             )
             return df
         if self._tsv_path is None:
-            logger.debug("COSMIC CMC: stub mode — cosmic_* are defaults (0.0).")
+            logger.debug("COSMIC CMC: stub mode -- cosmic_* are defaults (0.0).")
             return df
         if not self._tsv_path.exists():
             logger.warning(
-                "COSMIC CMC TSV not found at %s — cosmic_* are defaults. "
+                "COSMIC CMC TSV not found at %s -- cosmic_* are defaults. "
                 "Download 'Cancer Mutation Census AllData' (GRCh38) from COSMIC.",
                 self._tsv_path,
             )
@@ -144,7 +144,7 @@ class CosmicCmcConnector:
         self._ensure_index()
         idx = self._index
         if idx is None or idx.empty:
-            logger.warning("COSMIC CMC: empty index — cosmic_* are defaults.")
+            logger.warning("COSMIC CMC: empty index -- cosmic_* are defaults.")
             return df
 
         keys = _make_key(df["chrom"], df["pos"], df["ref"], df["alt"])
@@ -166,7 +166,7 @@ class CosmicCmcConnector:
         )
         if cov < self._min_coverage_warn:
             logger.warning(
-                "COSMIC CMC: match coverage %.2f%% below %.2f%% — check GRCh38 build / key.",
+                "COSMIC CMC: match coverage %.2f%% below %.2f%% -- check GRCh38 build / key.",
                 100.0 * cov, 100.0 * self._min_coverage_warn,
             )
         return df

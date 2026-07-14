@@ -211,7 +211,7 @@ class KGPConnector:
 
         if not self._vcf_path.exists():
             logger.warning(
-                "1KGP VCF not found at %s — returning default AFs.  "
+                "1KGP VCF not found at %s -- returning default AFs.  "
                 "Download from https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/"
                 "data_collections/1000G_2504_high_coverage/working/"
                 "20220422_3202_phased_SNV_INDEL_SV/"
@@ -259,7 +259,7 @@ class KGPConnector:
 
         if not self._vcf_path.exists():
             logger.warning(
-                "1KGP VCF not found at %s — all population AFs set to %.1f",
+                "1KGP VCF not found at %s -- all population AFs set to %.1f",
                 self._vcf_path, self._missing_af,
             )
             out = df.copy()
@@ -299,7 +299,7 @@ class KGPConnector:
         Triggers index build if not already loaded.
         """
         if self._vcf_path is None or not self._vcf_path.exists():
-            logger.warning("1KGP VCF not available — fetch() returns empty DataFrame.")
+            logger.warning("1KGP VCF not available -- fetch() returns empty DataFrame.")
             return pd.DataFrame(columns=["chrom", "pos", "ref", "alt"] + self.POPULATION_COLS)
 
         self._ensure_index()

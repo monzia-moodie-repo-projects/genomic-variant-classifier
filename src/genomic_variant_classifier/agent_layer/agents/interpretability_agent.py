@@ -126,7 +126,7 @@ class InterpretabilityAgent(BaseAgent):
 
         if not should_run:
             self.logger.info(
-                "SHAP audit not due — skipping. "
+                "SHAP audit not due -- skipping. "
                 "(Use --pipeline interpretability to force.)"
             )
             result = {
@@ -152,7 +152,7 @@ class InterpretabilityAgent(BaseAgent):
             )
         elif flagged and dry_run:
             self.logger.info(
-                "  [dry-run] Would emit FEATURE_INSTABILITY → %s  "
+                "  [dry-run] Would emit FEATURE_INSTABILITY -> %s  "
                 "[%d feature(s), severity=%s]",
                 _TRAINING_AGENT,
                 len(flagged),
@@ -219,7 +219,7 @@ class InterpretabilityAgent(BaseAgent):
                 data_sources = payload.get("data_sources", [])
 
                 self.logger.info(
-                    "📨  CHECKPOINT_READY from %s — checkpoint=%s  "
+                    "[MSG]  CHECKPOINT_READY from %s -- checkpoint=%s  "
                     "trigger=%s  ewc=%s  sources=%s",
                     sender,
                     checkpoint_path,
@@ -231,15 +231,15 @@ class InterpretabilityAgent(BaseAgent):
                 if checkpoint_path:
                     self._checkpoint_from_message = checkpoint_path
                     self._trigger_reason = f"checkpoint_ready ({trigger_reason})"
-                    self.logger.info("  ↳ SHAP audit will target: %s", checkpoint_path)
+                    self.logger.info("  -> SHAP audit will target: %s", checkpoint_path)
                 else:
                     self.logger.warning(
-                        "  ↳ CHECKPOINT_READY payload missing checkpoint_path "
-                        "— will fall back to latest on disk."
+                        "  -> CHECKPOINT_READY payload missing checkpoint_path "
+                        "-- will fall back to latest on disk."
                     )
             else:
                 self.logger.warning(
-                    "Unrecognised message subject '%s' from %s — skipping.",
+                    "Unrecognised message subject '%s' from %s -- skipping.",
                     subject,
                     sender,
                 )
@@ -274,7 +274,7 @@ class InterpretabilityAgent(BaseAgent):
             if self._checkpoint_from_message == last_report_checkpoint:
                 self.logger.info(
                     "CHECKPOINT_READY received but checkpoint %s was already "
-                    "audited — skipping duplicate audit.",
+                    "audited -- skipping duplicate audit.",
                     self._checkpoint_from_message,
                 )
                 return False, None
@@ -285,7 +285,7 @@ class InterpretabilityAgent(BaseAgent):
         checkpoint_path = self._find_latest_checkpoint()
         if not checkpoint_path:
             self.logger.warning(
-                "No checkpoint found in %s — cannot run SHAP audit.",
+                "No checkpoint found in %s -- cannot run SHAP audit.",
                 CHECKPOINT_DIR,
             )
             return False, None
@@ -301,7 +301,7 @@ class InterpretabilityAgent(BaseAgent):
                 return False, None
 
         self.logger.info(
-            "Scheduled SHAP audit — targeting latest checkpoint: %s",
+            "Scheduled SHAP audit -- targeting latest checkpoint: %s",
             checkpoint_path,
         )
         return True, checkpoint_path
@@ -359,7 +359,7 @@ class InterpretabilityAgent(BaseAgent):
             X_val, feature_names = self._load_validation_batch()
             if X_val is None:
                 self.logger.warning(
-                    "Could not load validation batch — SHAP audit skipped."
+                    "Could not load validation batch -- SHAP audit skipped."
                 )
                 return [], None, "low"
 
@@ -383,13 +383,13 @@ class InterpretabilityAgent(BaseAgent):
 
             if flagged:
                 self.logger.warning(
-                    "SHAP instability detected — %d feature(s) flagged "
+                    "SHAP instability detected -- %d feature(s) flagged "
                     "[severity=%s].",
                     len(flagged),
                     severity,
                 )
             else:
-                self.logger.info("SHAP audit complete — no instability detected.")
+                self.logger.info("SHAP audit complete -- no instability detected.")
 
             return flagged, report_path, severity
 
@@ -555,7 +555,7 @@ class InterpretabilityAgent(BaseAgent):
             requires_approval=False,  # informational — no approval needed
         )
         self.logger.info(
-            "→ FEATURE_INSTABILITY sent to %s  " "[%d feature(s), severity=%s]",
+            "-> FEATURE_INSTABILITY sent to %s  " "[%d feature(s), severity=%s]",
             _TRAINING_AGENT,
             len(flagged),
             severity,

@@ -98,7 +98,7 @@ def compute_ensemble_shap(
         X_df = pd.DataFrame(X, columns=feature_names)
         pool = Pool(X_df)
 
-        log.info("Computing SHAP values (catboost, %d samples) …", X.shape[0])
+        log.info("Computing SHAP values (catboost, %d samples) ...", X.shape[0])
         # shape: (n_samples, n_features + 1) — last col is bias
         shap_raw = model.get_feature_importance(pool, type="ShapValues")
         shap_values = shap_raw[:, :-1]  # strip bias column → (n_samples, n_features)
@@ -121,7 +121,7 @@ def compute_ensemble_shap(
             f"model_type must be 'xgboost', 'lightgbm', or 'catboost', got '{model_type}'"
         )
 
-    log.info("Computing SHAP values (%s, %d samples) …", model_type, X.shape[0])
+    log.info("Computing SHAP values (%s, %d samples) ...", model_type, X.shape[0])
     shap_values = explainer.shap_values(X)
 
     # Normalise shape: ensure (n_samples, n_features, n_classes)
@@ -621,7 +621,7 @@ def generate_html_report(
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(html, encoding="utf-8")
-    log.info("SHAP HTML report written → %s", output_path)
+    log.info("SHAP HTML report written -> %s", output_path)
     return output_path
 
 

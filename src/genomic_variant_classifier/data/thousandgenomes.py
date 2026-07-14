@@ -104,12 +104,12 @@ class ThousandGenomesConnector(BaseConnector):
         missing_mask = df["allele_freq"].isna()
         n_missing = int(missing_mask.sum())
         if n_missing == 0:
-            logger.debug("ThousandGenomesConnector: no null AFs — skipping.")
+            logger.debug("ThousandGenomesConnector: no null AFs -- skipping.")
             return df
 
         if self.parquet_path is None:
             logger.warning(
-                "ThousandGenomesConnector: parquet_path not set — %d variants "
+                "ThousandGenomesConnector: parquet_path not set -- %d variants "
                 "will keep null AF.  "
                 "Build it with scripts/build_1kg_parquet.py.",
                 n_missing,

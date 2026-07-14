@@ -232,7 +232,7 @@ async def lifespan(app: FastAPI):
             logger.warning("Could not load gene summary: %s", exc)
     else:
         logger.warning(
-            "GENE_SUMMARY_PATH %s not found — gene features will use defaults "
+            "GENE_SUMMARY_PATH %s not found -- gene features will use defaults "
             "when callers omit them.  Build with scripts/build_gene_summary.py.",
             GENE_SUMMARY_PATH,
         )
@@ -248,7 +248,7 @@ async def lifespan(app: FastAPI):
             logger.warning("Could not load dbSNP index: %s", exc)
     else:
         logger.info(
-            "DBSNP_INDEX_PATH %s not found — /rsid lookups will return known=false. "
+            "DBSNP_INDEX_PATH %s not found -- /rsid lookups will return known=false. "
             "Build with: python scripts/build_dbsnp_index.py",
             DBSNP_INDEX_PATH,
         )

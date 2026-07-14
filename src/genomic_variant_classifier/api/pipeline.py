@@ -232,7 +232,7 @@ class InferencePipeline:
                 )
             except Exception as exc:
                 logger.warning(
-                    "GNNScorer failed (%s) — defaulting gnn_score to 0.5.", exc
+                    "GNNScorer failed (%s) -- defaulting gnn_score to 0.5.", exc
                 )
                 enriched["gnn_score"] = 0.5
 
@@ -393,7 +393,7 @@ class InferencePipeline:
         path.parent.mkdir(parents=True, exist_ok=True)
         joblib.dump(self, path)
         _write_model_manifest(path)
-        logger.info("InferencePipeline saved → %s", path)
+        logger.info("InferencePipeline saved -> %s", path)
 
     @classmethod
     def load(cls, path: str | Path) -> "InferencePipeline":

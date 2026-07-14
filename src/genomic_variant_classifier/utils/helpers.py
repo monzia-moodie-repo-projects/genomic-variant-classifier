@@ -118,8 +118,8 @@ def log_dataframe_summary(df: pd.DataFrame, label: str = "DataFrame") -> None:
     Log shape, dtypes, null counts, and sample stats for a DataFrame.
     Useful at ETL checkpoints for debugging data quality issues.
     """
-    logger.info("─── %s ───", label)
-    logger.info("  Shape:    %d rows × %d columns", df.shape[0], df.shape[1])
+    logger.info("--- %s ---", label)
+    logger.info("  Shape:    %d rows x %d columns", df.shape[0], df.shape[1])
     null_cols = df.columns[df.isnull().any()].tolist()
     if null_cols:
         for col in null_cols:
@@ -165,11 +165,11 @@ def log_step(label: Optional[str] = None):
 
         @wraps(fn)
         def wrapper(*args, **kwargs):
-            logger.info("── START: %s ──", step_label)
+            logger.info("-- START: %s --", step_label)
             t0 = time.time()
             result = fn(*args, **kwargs)
             elapsed = time.time() - t0
-            logger.info("── DONE:  %s (%.1fs) ──", step_label, elapsed)
+            logger.info("-- DONE:  %s (%.1fs) --", step_label, elapsed)
             return result
 
         return wrapper
@@ -195,7 +195,7 @@ def retry(max_attempts: int = 3, delay: float = 1.0, exceptions: tuple = (Except
                     if attempt == max_attempts:
                         raise
                     logger.warning(
-                        "%s failed (attempt %d/%d): %s — retrying in %.1fs",
+                        "%s failed (attempt %d/%d): %s -- retrying in %.1fs",
                         fn.__name__, attempt, max_attempts, exc, delay,
                     )
                     time.sleep(delay)

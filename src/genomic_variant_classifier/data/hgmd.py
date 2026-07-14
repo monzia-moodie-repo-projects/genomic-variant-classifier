@@ -100,7 +100,7 @@ class HGMDConnector(BaseConnector):
         if self.hgmd_path is None:
             logger.debug(
                 "HGMDConnector: hgmd_path not set (expected for users without "
-                "HGMD license) — returning hgmd_is_disease_mutation=0, hgmd_n_reports=0."
+                "HGMD license) -- returning hgmd_is_disease_mutation=0, hgmd_n_reports=0."
             )
             result = df.copy()
             result["hgmd_is_disease_mutation"] = DEFAULT_IS_DM
@@ -136,7 +136,7 @@ class HGMDConnector(BaseConnector):
 
         if not self.hgmd_path.exists():
             logger.warning(
-                "HGMDConnector: HGMD file not found at '%s' — returning defaults.",
+                "HGMDConnector: HGMD file not found at '%s' -- returning defaults.",
                 self.hgmd_path,
             )
             return pd.DataFrame(
@@ -226,7 +226,7 @@ class HGMDConnector(BaseConnector):
         )
 
         logger.info(
-            "HGMDConnector: parsed %d records → %d unique loci (%d DM).",
+            "HGMDConnector: parsed %d records -> %d unique loci (%d DM).",
             len(raw),
             len(agg),
             agg["hgmd_is_disease_mutation"].sum(),

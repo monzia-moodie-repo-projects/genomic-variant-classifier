@@ -153,7 +153,7 @@ class OMIMConnector(BaseConnector):
 
         if self.genemap2_path is None or not self.genemap2_path.exists():
             logger.warning(
-                "OMIMConnector: genemap2.txt not available (path=%s) — returning default "
+                "OMIMConnector: genemap2.txt not available (path=%s) -- returning default "
                 "values (omim_n_diseases=0, omim_n_diseases_molecular=0, "
                 "omim_is_autosomal_dominant=0).  Download genemap2.txt from "
                 "https://omim.org/downloads.",
@@ -213,7 +213,7 @@ class OMIMConnector(BaseConnector):
         gene_counts["omim_is_autosomal_dominant"] = DEFAULT_IS_AD
 
         logger.info(
-            "OMIMConnector: parsed %d gene–phenotype entries → %d unique genes.",
+            "OMIMConnector: parsed %d gene-phenotype entries -> %d unique genes.",
             len(raw), len(gene_counts),
         )
         return gene_counts

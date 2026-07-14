@@ -221,4 +221,134 @@
 #                     mismatches, 19 columns (post-Run-15 features) reported as UNVERIFIED
 #                     rather than silently accepted. Baseline hash a759084188... (contaminated)
 #                     -> bbaba75d1f... (correct).
-1933
+#
+#   1940  2026-07-14  +7: tests/unit/test_readme_claims.py (roadmap 6.23).
+#                     Full diagnosis: docs/audits/README_AUDIT_2026-07-14.md
+#
+#                     THE README WAS THE LARGEST SURVIVING INSTANCE OF ROOT PATTERN (a).
+#                     It stated the FEATURE COUNT in NINE places with FOUR different values
+#                     (80 x6, 78, 79) against a true contract of 95; the TEST COUNT in THREE
+#                     places with THREE values (862 in a badge, 501/501 twice) against a true
+#                     1,926 passing; and that the message-bus suite passed on Python 3.14.3 in
+#                     one paragraph and 3.12.10 in another. It listed HGMD Professional as an
+#                     integrated data source in three places -- a source never licensed, never
+#                     wired, constant zero for the life of the project. Its training quickstart
+#                     used `--parquet`, A FLAG THAT HAS NEVER EXISTED: anyone who copied the
+#                     documented way to train this model got an argparse error.
+#
+#                     It also claimed "connector silent-zero hardening -- regression tests
+#                     assert that connector fallbacks fail loud, not silently return 0.0."
+#                     That is the EXACT OPPOSITE of the truth, and the safeguard whose absence
+#                     produced roadmap 6.21 (36 of 78 features constant zero in Run 15).
+#
+#                     All performance figures were WITHDRAWN (owner's instruction, 2026-07-14):
+#                     every one came from a run whose feature space was 46% non-existent, and
+#                     the per-model comparison table ranked twelve algorithms against each other
+#                     on it. A cross-algorithm comparison is precisely the artefact a half-empty
+#                     feature space invalidates -- model families degrade differently under
+#                     missing signal. The figures are not even restated in the withdrawal
+#                     notice: a number in a warning banner is still a number people quote.
+#
+#                     BOTH NEW TESTS FAILED ON THEIR FIRST RUN, AND BOTH WERE THE TEST'S FAULT,
+#                     NOT THE README'S -- recorded because it is the lesson:
+#
+#                     (a) The feature-count sweep matched "36 of its 78 features", "the 38
+#                         features that were real" and "GTEx (6 features)" -- HISTORICAL
+#                         statements, all true and all necessary. A sweep that cannot tell "the
+#                         model HAS n features" from "36 of its 78 features WERE zero" is not a
+#                         feature-count test; it is a ban on writing history down, in a project
+#                         whose entire method is writing history down. Replaced with an
+#                         enumerated list of claim sites, each of which MUST be present (so the
+#                         check cannot go vacuous) and each of which must say 95.
+#
+#                     (b) The quickstart flag-check filtered at CODE-BLOCK level and then
+#                         harvested every flag in the block. The quickstart is ONE block holding
+#                         FOUR commands, so it attributed `--port` (uvicorn) and five
+#                         run_drift_monitor.py flags to run_phase2_eval.py and reported six
+#                         false failures. Every one of those flags was valid -- for the script
+#                         it actually belonged to. The test was measuring the wrong thing while
+#                         looking authoritative. Now parsed PER COMMAND, following backslash
+#                         continuations, and validated against EACH script's own flags.
+#
+#   1943  2026-07-14  +3: tests/unit/test_console_strings_are_ascii.py (2, roadmap 6.24) and
+#                     tests/unit/test_readme_claims.py::
+#                     test_readme_base_model_roster_matches_the_ensemble (1, roadmap 6.23).
+#
+#                     (a) THE BASE-MODEL ROSTER. The README said the ensemble had TWELVE base
+#                     classifiers. It has THIRTEEN. The old list made two compounding errors
+#                     that nearly cancelled: it OMITTED `svm` and `svm_bagged_rbf` (-2) and
+#                     COUNTED the Graph Attention Network as a base classifier (+1) -- the GAT
+#                     produces `gnn_score`, a FEATURE, and contributes no out-of-fold column.
+#                     13 - 2 + 1 = 12.
+#
+#                     THIS IS NOT A COSMETIC COUNT. Roadmap 6.6a is the defect in which a
+#                     13-model ensemble SILENTLY BECAME a 12-model ensemble: the
+#                     Kolmogorov-Arnold Network's out-of-fold step raised, a bare
+#                     `except Exception` swallowed it, and the model vanished from
+#                     trained_models_, from the blend, and from every cross-algorithm
+#                     comparison artifact -- while the run reported normal metrics. ANYONE
+#                     CHECKING A RUN'S TWELVE MODELS AGAINST A README THAT SAID TWELVE WOULD
+#                     HAVE CONCLUDED THE ENSEMBLE WAS COMPLETE. The document would have
+#                     concealed the exact defect it took weeks to find. A roster count that
+#                     disagrees with the code is not a typo in a doc; it is a disabled alarm.
+#                     The test reads `base_estimators` from a LIVE VariantEnsemble instance --
+#                     not a regex, because a regex is exactly what missed `kan` (added via
+#                     dict-unpacking behind `_KAN_AVAILABLE and not cfg.skip_kan`) and produced
+#                     the wrong count in the first place.
+#
+#                     (b) CONSOLE STRINGS MUST BE ASCII. 181 string literals across 41 files in
+#                     src/ passed non-ASCII to logger.* / print() / warnings.warn() / raise:
+#                     73 em-dashes, 31 arrows, 13 box-drawing, plus emoji, Greek letters and
+#                     ellipses. On a Windows cp1252 console these render as MOJIBAKE.
+#
+#                     OBSERVED AND RECORDED IN RUN 16 -- docs/runs/RUN_16_results.md:84:
+#                     "Cosmetic: Reactome warning string uses an em-dash that mojibakes in
+#                     PowerShell -- switch to ASCII `--` in reactome.py." NOTHING HAPPENED.
+#                     reactome.py still carried the em-dash EIGHT WEEKS LATER, on 2026-07-14.
+#                     A finding in a document is a comment. A finding that fails a test is a
+#                     gate.
+#
+#                     Reconfiguring stdout to UTF-8 does NOT fix it -- scripts/train.py:61
+#                     already does exactly that. Python then writes correct UTF-8 BYTES and a
+#                     cp1252 console DECODES them as cp1252, producing the mojibake. Fixing it
+#                     that way would require `chcp 65001` on every machine, in every terminal,
+#                     forever. A fix whose correctness depends on the terminal's code page is
+#                     green on one box and broken on another: root pattern (d), the same shape
+#                     as the sed-patched imodelsx that silently dropped KAN from every
+#                     Continuous Integration run for two months.
+#
+#                     The project had ALREADY made this decision -- tests/unit/
+#                     test_variant_ensemble_ascii.py asserts it -- and enforced it on exactly
+#                     ONE file out of the 41 that violated it.
+#
+#                     THREE DEFECTS WERE FOUND IN THE REPAIR TOOL ITSELF, EACH RECORDED BECAUSE
+#                     EACH IS THE LESSON:
+#
+#                     (i)  BYTE-OFFSET SLICING. `ast` col_offset/end_col_offset are UTF-8 BYTE
+#                          offsets, not character offsets. The first rewriter sliced a Python
+#                          str with them. An em-dash is ONE character but THREE bytes, so every
+#                          offset after a non-ASCII character on the same line was shifted +2
+#                          per character. Measured: evaluator.py:574's three box-drawing
+#                          literals sliced to "'*7} " and "8} {'" -- garbage. The bug is
+#                          INVISIBLE on pure-ASCII lines, i.e. on exactly the lines that do not
+#                          need fixing. It had already written to 36 files before it was caught.
+#                          Fixed: encode -> slice by byte -> decode.
+#
+#                     (ii) NO STRUCTURAL PROOF. The rewriter checked only that the result still
+#                          PARSED. A mis-spliced edit can be perfectly valid Python. Added
+#                          _structural_shape(): compares both ASTs with every string value
+#                          blanked, proving the ONLY thing that changed is string content.
+#
+#                     (iii) SPLIT BRAIN. The gate was widened to catch INDIRECT console strings
+#                          (`_DIVIDER = "="*60` -> `logger.info(_DIVIDER)`) and the FIXER was
+#                          not -- so the gate flagged 21 strings in 5 files that the repair tool
+#                          was structurally incapable of repairing. A repair tool that cannot
+#                          fix what its own gate reports turns a red test into a manual chore,
+#                          and manual chores are what rot. ONE detector, shared by both.
+#
+#                     VERIFIED: two passes, 181 strings, 41 files. git diff 174 insertions /
+#                     174 deletions -- EXACTLY BALANCED, so no line was added or lost and only
+#                     string contents changed. 17 of the 21 indirect strings sat on distinct
+#                     lines (four lines carried two each), and 157 + 17 = 174 closes the
+#                     arithmetic. Gate green.
+1943

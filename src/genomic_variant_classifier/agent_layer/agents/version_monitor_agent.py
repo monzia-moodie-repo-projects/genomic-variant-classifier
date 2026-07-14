@@ -133,7 +133,7 @@ def _check_pykan() -> dict[str, Any]:
 
     if alert:
         logger.info(
-            "pykan update available: installed=%s latest=%s — "
+            "pykan update available: installed=%s latest=%s -- "
             "evaluate for KAN re-enablement (check for OOM/memory fixes)",
             installed, latest,
         )
@@ -174,7 +174,7 @@ def _check_clinvar_schema() -> dict[str, Any]:
 
         if previous_hash and new_hash != previous_hash:
             msg = (
-                "ClinVar variant_summary.txt header changed — "
+                "ClinVar variant_summary.txt header changed -- "
                 "verify column order in DataFreshnessAgent patch script"
             )
             logger.warning(msg)
@@ -488,7 +488,7 @@ def run(*, dry_run: bool = False) -> dict[str, Any]:
     if alerts:
         logger.info("LiteratureScoutAgent: %d alert(s):", len(alerts))
         for a in alerts:
-            logger.info("  • %s", a)
+            logger.info("  * %s", a)
     else:
         logger.info("LiteratureScoutAgent: no alerts.")
 

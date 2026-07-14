@@ -248,7 +248,7 @@ class REVELConnector:
             )
             return {}
  
-        logger.info("REVEL: parsing raw file %s (this may take ~30–90 s) …", self._path)
+        logger.info("REVEL: parsing raw file %s (this may take ~30-90 s) ...", self._path)
         chunks: list[pd.DataFrame] = []
  
         # Handle zip files — pandas read_csv supports zip but we need to
@@ -296,7 +296,7 @@ class REVELConnector:
             try:
                 cache.parent.mkdir(parents=True, exist_ok=True)
                 full.to_parquet(cache, index=False)
-                logger.info("REVEL: wrote parquet cache → %s", cache)
+                logger.info("REVEL: wrote parquet cache -> %s", cache)
             except Exception as exc:
                 logger.warning("REVEL: could not write cache (%s).", exc)
  

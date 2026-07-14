@@ -132,7 +132,7 @@ class BaseAgent(ABC):
         str
             The message UUID.
         """
-        self.logger.info("→ Sending [%s] to %s", subject, to)
+        self.logger.info("-> Sending [%s] to %s", subject, to)
         return self._bus.send(
             from_agent=self.name,
             to_agent=to,
@@ -160,7 +160,7 @@ class BaseAgent(ABC):
         """
         msgs = self._bus.get_actionable(self.name)
         if msgs:
-            self.logger.info("📬  %d actionable message(s) in inbox.", len(msgs))
+            self.logger.info("[INBOX]  %d actionable message(s) in inbox.", len(msgs))
         return msgs
 
     def mark_message_read(self, msg_id: str) -> None:
@@ -206,7 +206,7 @@ class BaseAgent(ABC):
             self._state.add_review_item(review_msg)
             return False
 
-        print(f"\n⚠  Human approval required\n   {prompt}")
+        print(f"\n[!]  Human approval required\n   {prompt}")
         try:
             answer = input("   Approve? [y/N]: ").strip().lower()
         except (EOFError, KeyboardInterrupt):
@@ -222,14 +222,14 @@ class BaseAgent(ABC):
     # ------------------------------------------------------------------
 
     def _log_start(self, dry_run: bool) -> None:
-        self.logger.info("▶  Starting agent: %s  [dry_run=%s]", self.name, dry_run)
+        self.logger.info(">  Starting agent: %s  [dry_run=%s]", self.name, dry_run)
 
     def _log_finish(self, result: dict) -> None:
         action = result.get("action", "unknown")
-        self.logger.info("✓  Agent finished: %s  action=%s", self.name, action)
+        self.logger.info("[OK]  Agent finished: %s  action=%s", self.name, action)
 
     def _log_section(self, label: str) -> None:
-        self.logger.info("── %s ──", label)
+        self.logger.info("-- %s --", label)
 
     # ------------------------------------------------------------------
     # SharedState convenience pass-throughs

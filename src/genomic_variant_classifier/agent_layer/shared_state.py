@@ -249,7 +249,7 @@ class SharedState:
             }
         )
         self.save(state)
-        logger.warning("⚠  Pending review item added: %s", message)
+        logger.warning("[!]  Pending review item added: %s", message)
         return idx
 
     def resolve_review_item(self, index: int) -> bool:

@@ -126,7 +126,7 @@ class LabelDriftReport:
     def print_summary(self) -> None:
         print(f"\n{'='*60}")
         print(f"  CLINVAR LABEL DRIFT REPORT")
-        print(f"  {self.old_release}  →  {self.new_release}")
+        print(f"  {self.old_release}  ->  {self.new_release}")
         print(f"{'='*60}")
         print(f"  Total variants old release:  {self.n_variants_old:,}")
         print(f"  Total variants new release:  {self.n_variants_new:,}")
@@ -205,7 +205,7 @@ class ClinVarTracker:
         new_df = pd.read_parquet(new_path, columns=cols_needed).copy()
 
         logger.info(
-            "ClinVar diff: %d variants (old) → %d variants (new)",
+            "ClinVar diff: %d variants (old) -> %d variants (new)",
             len(old_df), len(new_df),
         )
 
@@ -308,7 +308,7 @@ class ClinVarTracker:
             new_cohort_path = str(output_dir / f"clinvar_new_variants_{new_release}.parquet")
             new_cohort.to_parquet(new_cohort_path, index=False)
             logger.info(
-                "Temporal holdout cohort: %d new variants → %s",
+                "Temporal holdout cohort: %d new variants -> %s",
                 len(new_cohort), new_cohort_path,
             )
 
@@ -327,7 +327,7 @@ class ClinVarTracker:
             ])
             manifest_path = output_dir / f"reclassification_manifest_{new_release}.csv"
             manifest.to_csv(manifest_path, index=False)
-            logger.info("Reclassification manifest → %s", manifest_path)
+            logger.info("Reclassification manifest -> %s", manifest_path)
 
         summary = (
             f"{len(training_records):,} training variants reclassified "

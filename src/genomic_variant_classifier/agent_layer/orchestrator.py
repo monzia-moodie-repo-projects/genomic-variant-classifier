@@ -66,7 +66,7 @@ if not logger.handlers:
     logger.addHandler(_h)
     logger.setLevel(logging.INFO)
 
-_DIVIDER = "═" * 60
+_DIVIDER = "=" * 60
 
 
 # ---------------------------------------------------------------------------
@@ -228,7 +228,7 @@ class Orchestrator:
         for agent_name in agent_names:
             agent_cls = self._agent_registry.get(agent_name)
             if not agent_cls:
-                logger.error("Unknown agent '%s' — skipping.", agent_name)
+                logger.error("Unknown agent '%s' -- skipping.", agent_name)
                 continue
 
             # >>> PHASE1_GUARDED_CONSTRUCTION <<<
@@ -270,7 +270,7 @@ class Orchestrator:
         logger.info("Pipeline complete. Agents run: %d", len(results))
         for name, res in results.items():
             action = res.get("action", "unknown")
-            logger.info("  ✓ %-30s action=%-25s", name, action)
+            logger.info("  [OK] %-30s action=%-25s", name, action)
         logger.info(_DIVIDER)
 
         return results
@@ -383,7 +383,7 @@ class Orchestrator:
 
             if unread:
                 logger.info(
-                    "📬  %s inbox: %d unread  " "(%d actionable, %d awaiting approval)",
+                    "[INBOX]  %s inbox: %d unread  " "(%d actionable, %d awaiting approval)",
                     name,
                     len(unread),
                     len(actionable),
@@ -393,13 +393,13 @@ class Orchestrator:
                     approval_tag = ""
                     if m.get("requires_approval"):
                         if m.get("approved") is None:
-                            approval_tag = " [⏳ awaiting approval — use --approve-msg]"
+                            approval_tag = " [[WAIT] awaiting approval -- use --approve-msg]"
                         elif m.get("approved"):
-                            approval_tag = " [✅ approved]"
+                            approval_tag = " [[OK] approved]"
                         else:
-                            approval_tag = " [❌ rejected]"
+                            approval_tag = " [[X] rejected]"
                     logger.info(
-                        "   ↳ [%s] %s → %s  [%s]%s",
+                        "   -> [%s] %s -> %s  [%s]%s",
                         m["id"][:8],
                         m["from_agent"],
                         m["to_agent"],
@@ -412,7 +412,7 @@ class Orchestrator:
 
         if all_pending_approval > 0:
             logger.warning(
-                "⚠  %d message(s) awaiting approval will NOT be acted on "
+                "[!]  %d message(s) awaiting approval will NOT be acted on "
                 "until approved.  Run: python run_agents.py --pending-msgs "
                 "then: python run_agents.py --approve-msg <id>",
                 all_pending_approval,
@@ -439,14 +439,14 @@ class Orchestrator:
         if total_unread == 0:
             return
 
-        logger.info("── Post-run message summary ──")
+        logger.info("-- Post-run message summary --")
         for agent_name, inbox in agent_msgs.items():
             unread = [m for m in inbox if not m.get("read")]
             if unread:
                 logger.info("  %s: %d unread message(s)", agent_name, len(unread))
                 for m in unread:
                     logger.info(
-                        "   ↳ [%s] from %-30s  [%s]  priority=%s",
+                        "   -> [%s] from %-30s  [%s]  priority=%s",
                         m["id"][:8],
                         m["from_agent"],
                         m["subject"],
@@ -463,7 +463,7 @@ class Orchestrator:
             logger.info("Message %s approved.", msg_id[:8])
         else:
             logger.warning(
-                "Message ID '%s' not found — check --pending-msgs for IDs.",
+                "Message ID '%s' not found -- check --pending-msgs for IDs.",
                 msg_id,
             )
 
@@ -473,7 +473,7 @@ class Orchestrator:
             logger.info("Message %s rejected.", msg_id[:8])
         else:
             logger.warning(
-                "Message ID '%s' not found — check --pending-msgs for IDs.",
+                "Message ID '%s' not found -- check --pending-msgs for IDs.",
                 msg_id,
             )
 
@@ -483,12 +483,12 @@ class Orchestrator:
         if agent_name not in known:
             print(f"Unknown agent '{agent_name}'. " f"Known agents: {', '.join(known)}")
             return
-        print(f"\n📬  Inbox for {agent_name}:")
+        print(f"\n[INBOX]  Inbox for {agent_name}:")
         self._bus.print_inbox(agent_name)
 
     def print_all_pending_messages(self) -> None:
         """Pretty-print all messages awaiting approval. Called by --pending-msgs."""
-        print("\n⏳  Messages awaiting approval:")
+        print("\n[WAIT]  Messages awaiting approval:")
         self._bus.print_all_pending()
 
     def print_message_history(
@@ -501,24 +501,24 @@ class Orchestrator:
         Called by --msg-history [AgentName].
         """
         label = agent_name or "all agents"
-        print(f"\n📜  Message history ({label}, last {limit}):")
+        print(f"\n[LOG]  Message history ({label}, last {limit}):")
         msgs = self._bus.history(agent_name=agent_name, limit=limit)
         if not msgs:
             print("  (no messages)")
             return
         for m in msgs:
-            read_tag = "✓" if m["read"] else "✉"
+            read_tag = "[OK]" if m["read"] else "[NEW]"
             approval = ""
             if m.get("requires_approval"):
                 if m.get("approved") is None:
-                    approval = " [⏳]"
+                    approval = " [[WAIT]]"
                 elif m.get("approved"):
-                    approval = " [✅]"
+                    approval = " [[OK]]"
                 else:
-                    approval = " [❌]"
+                    approval = " [[X]]"
             print(
                 f"  {read_tag} [{m['id'][:8]}] {m['timestamp'][:19]}  "
-                f"{m['from_agent']:<30} → {m['to_agent']:<30}  "
+                f"{m['from_agent']:<30} -> {m['to_agent']:<30}  "
                 f"[{m['subject']}]{approval}"
             )
 
@@ -532,20 +532,20 @@ class Orchestrator:
         if not unresolved:
             return
 
-        logger.warning("⚠  %d unresolved review item(s):", len(unresolved))
+        logger.warning("[!]  %d unresolved review item(s):", len(unresolved))
         for item in unresolved:
             logger.warning(
-                "  [%d] %s — %s",
+                "  [%d] %s -- %s",
                 item["index"],
                 item["message"],
                 item["timestamp"],
             )
 
         if not sys.stdin.isatty():
-            logger.warning("Non-TTY environment — proceeding past unresolved items.")
+            logger.warning("Non-TTY environment -- proceeding past unresolved items.")
             return
 
-        print(f"\n⚠  {len(unresolved)} unresolved review item(s) exist.")
+        print(f"\n[!]  {len(unresolved)} unresolved review item(s) exist.")
         try:
             answer = input("   Proceed anyway? [y/N]: ").strip().lower()
         except (EOFError, KeyboardInterrupt):
@@ -568,13 +568,13 @@ class Orchestrator:
 
     def print_status(self) -> None:
         """Print a one-line system status summary. Called by --status."""
-        print("\n── Agent Layer Status ──")
+        print("\n-- Agent Layer Status --")
         print(f"  {self._state.summary()}")
 
     def print_reviews(self) -> None:
         """Print all unresolved review items. Called by --reviews."""
         items = self._state.unresolved_review_items()
-        print("\n── Unresolved Review Items ──")
+        print("\n-- Unresolved Review Items --")
         if not items:
             print("  (none)")
             return
@@ -589,12 +589,12 @@ class Orchestrator:
         candidates = state.get("training", {}).get(
             "pending_feature_candidates", []
         ) or state.get("literature", {}).get("feature_candidates", [])
-        print("\n── Pending Feature Candidates ──")
+        print("\n-- Pending Feature Candidates --")
         if not candidates:
             print("  (none)")
             return
         for i, c in enumerate(candidates):
-            reviewed = "✓" if c.get("reviewed") else "·"
+            reviewed = "[OK]" if c.get("reviewed") else "*"
             print(
                 f"  [{i}] {reviewed} {c.get('name', '?'):<35} "
                 f"source={c.get('literature_source', '?'):<10} "

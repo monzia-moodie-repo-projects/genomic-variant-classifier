@@ -118,7 +118,7 @@ def search_pubmed(
         )
         resp.raise_for_status()
         ids = resp.json().get("esearchresult", {}).get("idlist", [])
-        log.info("PubMed esearch '%s…': %d results", query[:50], len(ids))
+        log.info("PubMed esearch '%s...': %d results", query[:50], len(ids))
         return ids
     except requests.RequestException as exc:
         log.warning("PubMed esearch failed: %s", exc)
@@ -294,7 +294,7 @@ def fetch_biorxiv_rss(feed_url: str, since_days: int) -> list[Paper]:
         except Exception as exc:
             log.debug("bioRxiv item parse error: %s", exc)
 
-    log.info("bioRxiv RSS '%s…': %d entries (within %d days)",
+    log.info("bioRxiv RSS '%s...': %d entries (within %d days)",
              feed_url[:60], len(papers), since_days)
     return papers
 
@@ -597,5 +597,5 @@ def generate_digest_html(
 <footer>Genomic Variant Classifier · Literature Scout Agent · auto-generated</footer>
 </body></html>""", encoding="utf-8")
 
-    log.info("Digest written → %s", output_path)
+    log.info("Digest written -> %s", output_path)
     return output_path

@@ -143,7 +143,7 @@ class ContinualLearner:
         logger.info("New ClinVar: %d variants", len(new_clinvar))
 
         # ── Step 3: Feature drift detection ──────────────────────────────
-        logger.info("Running feature drift detection …")
+        logger.info("Running feature drift detection ...")
         detector = DriftDetector.from_reference(
             X_ref=X_train,
             feature_names=list(X_train.columns),
@@ -163,7 +163,7 @@ class ContinualLearner:
             drift_report.to_json(self.output_dir / f"drift_report_{release_name}.json")
 
         # ── Step 4: Label drift detection ────────────────────────────────
-        logger.info("Running ClinVar label drift check …")
+        logger.info("Running ClinVar label drift check ...")
         tracker = ClinVarTracker(
             training_variant_ids=training_ids,
             val_variant_ids=set(),
@@ -210,7 +210,7 @@ class ContinualLearner:
             },
         }
 
-        logger.info("Retraining decision: %s — %s", should_retrain, decision["reason"])
+        logger.info("Retraining decision: %s -- %s", should_retrain, decision["reason"])
 
         # ── Step 6: Optionally trigger retraining ─────────────────────────
         new_model_path = None
@@ -240,7 +240,7 @@ class ContinualLearner:
         Path(summary_path).write_text(
             json.dumps(decision, indent=2, default=str), encoding="utf-8"
         )
-        logger.info("Decision written → %s", summary_path)
+        logger.info("Decision written -> %s", summary_path)
         logger.info("=== Continual Learning Pipeline: complete ===")
         return decision
 

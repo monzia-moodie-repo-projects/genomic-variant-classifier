@@ -154,13 +154,13 @@ class TrainingLifecycleAgent(BaseAgent):
                     self._emit_checkpoint_ready(checkpoint_path, dry_run)
                 elif dry_run:
                     self.logger.info(
-                        "  [dry-run] Would emit CHECKPOINT_READY → %s",
+                        "  [dry-run] Would emit CHECKPOINT_READY -> %s",
                         _INTERPRETABILITY_AGENT,
                     )
             else:
                 self.logger.info("Retraining deferred (approval not granted).")
         else:
-            self.logger.info("No retrain trigger — skipping training run.")
+            self.logger.info("No retrain trigger -- skipping training run.")
 
         # Mark inbox messages as read now that we've acted (or decided not to)
         for msg_id in processed_ids:
@@ -204,7 +204,7 @@ class TrainingLifecycleAgent(BaseAgent):
                 change_type = payload.get("change_type", "unknown")
 
                 self.logger.info(
-                    "📨  DATA_UPDATED from %s — source=%s  ingest_approved=%s",
+                    "[MSG]  DATA_UPDATED from %s -- source=%s  ingest_approved=%s",
                     sender,
                     source,
                     ingest_approved,
@@ -216,12 +216,12 @@ class TrainingLifecycleAgent(BaseAgent):
                     self._data_sources.append(source)
                     self._trigger_reason = "data_updated"
                     self.logger.info(
-                        "  ↳ Ingest approved for %s — retrain flagged.", source
+                        "  -> Ingest approved for %s -- retrain flagged.", source
                     )
                 else:
                     # Ingest not yet approved — log signal but defer retrain
                     self.logger.info(
-                        "  ↳ Ingest NOT yet approved for %s — "
+                        "  -> Ingest NOT yet approved for %s -- "
                         "retrain deferred until ingest completes.",
                         source,
                     )
@@ -235,12 +235,12 @@ class TrainingLifecycleAgent(BaseAgent):
                 flagged = payload.get("flagged_features", [])
                 reason = payload.get("reason", "SHAP instability detected")
                 self.logger.info(
-                    "📨  FEATURE_INSTABILITY from %s — %d feature(s) flagged.",
+                    "[MSG]  FEATURE_INSTABILITY from %s -- %d feature(s) flagged.",
                     sender,
                     len(flagged),
                 )
                 for f in flagged:
-                    self.logger.info("  ↳ Flagged feature: %s", f)
+                    self.logger.info("  -> Flagged feature: %s", f)
 
                 # Persist instability flags into SharedState for next EWC run
                 state = self._state.load()
@@ -259,7 +259,7 @@ class TrainingLifecycleAgent(BaseAgent):
                     existing.extend(new_flags)
                     self._update_section("training", {"instability_flags": existing})
                     self.logger.info(
-                        "  ↳ %d new instability flag(s) written to SharedState.",
+                        "  -> %d new instability flag(s) written to SharedState.",
                         len(new_flags),
                     )
 
@@ -267,14 +267,14 @@ class TrainingLifecycleAgent(BaseAgent):
                 if payload.get("severity") == "high":
                     self._retrain_flag = True
                     self._trigger_reason = "feature_instability"
-                    self.logger.info("  ↳ High-severity instability — retrain flagged.")
+                    self.logger.info("  -> High-severity instability -- retrain flagged.")
 
             # ── FEATURE_CANDIDATE_ADDED ────────────────────────────
             elif subject == FEATURE_CANDIDATE_ADDED:
                 candidate = payload.get("candidate_name", "unknown")
                 source = payload.get("literature_source", "unknown")
                 self.logger.info(
-                    "📨  FEATURE_CANDIDATE_ADDED from %s — candidate=%s  source=%s",
+                    "[MSG]  FEATURE_CANDIDATE_ADDED from %s -- candidate=%s  source=%s",
                     sender,
                     candidate,
                     source,
@@ -296,12 +296,12 @@ class TrainingLifecycleAgent(BaseAgent):
                     "training", {"pending_feature_candidates": candidates}
                 )
                 self.logger.info(
-                    "  ↳ Feature candidate '%s' queued for review.", candidate
+                    "  -> Feature candidate '%s' queued for review.", candidate
                 )
 
             else:
                 self.logger.warning(
-                    "Unrecognised message subject '%s' from %s — skipping.",
+                    "Unrecognised message subject '%s' from %s -- skipping.",
                     subject,
                     sender,
                 )
@@ -333,7 +333,7 @@ class TrainingLifecycleAgent(BaseAgent):
             priority=PRIORITY_HIGH,
         )
         self.logger.info(
-            "→ CHECKPOINT_READY sent to %s  [checkpoint=%s]",
+            "-> CHECKPOINT_READY sent to %s  [checkpoint=%s]",
             _INTERPRETABILITY_AGENT,
             checkpoint_path,
         )

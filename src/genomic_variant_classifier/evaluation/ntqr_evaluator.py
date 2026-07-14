@@ -55,7 +55,7 @@ try:
     _NTQR_AVAILABLE = True
 except ImportError:
     logger.warning(
-        "ntqr not installed — NTQREvaluator will return stub bounds (None).  "
+        "ntqr not installed -- NTQREvaluator will return stub bounds (None).  "
         "Install: pip install ntqr --break-system-packages  "
         "(run docs/preflight/ntqr_sr31_check.ps1 first)."
     )

@@ -98,7 +98,7 @@ class ReactomeConnector(BaseConnector):
 
         if self.pathway_path is None:
             logger.warning(
-                "ReactomeConnector: pathway_path not set — returning "
+                "ReactomeConnector: pathway_path not set -- returning "
                 "reactome_pathway_count=0.  Build it from Reactome bulk data with "
                 "scripts/build_reactome_parquet.py."
             )
@@ -135,7 +135,7 @@ class ReactomeConnector(BaseConnector):
 
         if not self.pathway_path.exists():
             logger.warning(
-                "ReactomeConnector: parquet not found at '%s' — returning "
+                "ReactomeConnector: parquet not found at '%s' -- returning "
                 "reactome_pathway_count=0.",
                 self.pathway_path,
             )

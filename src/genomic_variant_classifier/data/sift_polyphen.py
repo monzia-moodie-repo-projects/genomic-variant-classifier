@@ -380,7 +380,7 @@ class SIFTPolyPhenConnector:
 
         logger.info(
             "SIFTPolyPhen: parsing raw file %s "
-            "(this may take 60–120 s) …", self._path,
+            "(this may take 60-120 s) ...", self._path,
         )
 
         compression: str = "infer"
@@ -464,7 +464,7 @@ class SIFTPolyPhenConnector:
             try:
                 cache.parent.mkdir(parents=True, exist_ok=True)
                 full.to_parquet(cache, index=False)
-                logger.info("SIFTPolyPhen: wrote parquet cache → %s", cache)
+                logger.info("SIFTPolyPhen: wrote parquet cache -> %s", cache)
             except Exception as exc:
                 logger.warning(
                     "SIFTPolyPhen: could not write cache (%s).", exc

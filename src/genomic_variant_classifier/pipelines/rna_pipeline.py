@@ -275,7 +275,7 @@ class RNASpliceIsoformPipeline:
         result["is_canonical_splice"] = self.DEFAULT_IS_CANONICAL
 
         if n_splice == 0:
-            logger.debug("RNASpliceIsoformPipeline: no splice variants — defaults applied.")
+            logger.debug("RNASpliceIsoformPipeline: no splice variants -- defaults applied.")
             return result
 
         # --- exon_number from VEP annotation string ---

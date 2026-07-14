@@ -64,7 +64,7 @@ try:
     _GUDHI_AVAILABLE = True
 except ImportError:
     logger.warning(
-        "gudhi not installed — TopologicalPHGenerator will return zero/default "
+        "gudhi not installed -- TopologicalPHGenerator will return zero/default "
         "PH features.  Install: pip install gudhi --break-system-packages  "
         "(run SR #31 smoke test first)."
     )
@@ -75,7 +75,7 @@ try:
     _NX_AVAILABLE = True
 except ImportError:
     logger.warning(
-        "networkx not installed — TopologicalPHGenerator disabled."
+        "networkx not installed -- TopologicalPHGenerator disabled."
     )
 
 # ---------------------------------------------------------------------------
@@ -176,7 +176,7 @@ class TopologicalPHGenerator:
 
         if not _GUDHI_AVAILABLE or not _NX_AVAILABLE:
             logger.warning(
-                "TopologicalPHGenerator.fit(): gudhi or networkx unavailable — "
+                "TopologicalPHGenerator.fit(): gudhi or networkx unavailable -- "
                 "fit is a no-op; transform will return defaults."
             )
             return self
@@ -184,7 +184,7 @@ class TopologicalPHGenerator:
         if self.string_path is None or not self.string_path.exists():
             logger.warning(
                 "TopologicalPHGenerator.fit(): STRING path not set or not found "
-                "(%s) — zero-fallback mode.", self.string_path
+                "(%s) -- zero-fallback mode.", self.string_path
             )
             return self
 
@@ -225,7 +225,7 @@ class TopologicalPHGenerator:
                 self._gene_ph_cache[gene] = self._compute_gene_ph(gene, G_train)
             except Exception as exc:  # noqa: BLE001
                 logger.warning(
-                    "PH computation failed for gene %s: %s — using defaults.",
+                    "PH computation failed for gene %s: %s -- using defaults.",
                     gene, exc,
                 )
                 self._gene_ph_cache[gene] = dict(_PH_DEFAULTS)

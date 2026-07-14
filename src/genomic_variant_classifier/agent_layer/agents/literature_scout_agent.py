@@ -295,7 +295,7 @@ class LiteratureScoutAgent(BaseAgent):
             else:
                 for candidate in new_candidates:
                     self.logger.info(
-                        "  [dry-run] Would send FEATURE_CANDIDATE_ADDED → %s  "
+                        "  [dry-run] Would send FEATURE_CANDIDATE_ADDED -> %s  "
                         "[candidate=%s  source=%s]",
                         _TRAINING_AGENT,
                         candidate["name"],
@@ -357,7 +357,7 @@ class LiteratureScoutAgent(BaseAgent):
             requires_approval=False,
         )
         self.logger.info(
-            "→ FEATURE_CANDIDATE_ADDED sent to %s  [candidate=%s]",
+            "-> FEATURE_CANDIDATE_ADDED sent to %s  [candidate=%s]",
             _TRAINING_AGENT,
             candidate["name"],
         )
@@ -386,7 +386,7 @@ class LiteratureScoutAgent(BaseAgent):
     # ------------------------------------------------------------------
 
     def _fetch_pubmed(self) -> list[dict]:
-        self.logger.info("Fetching PubMed papers …")
+        self.logger.info("Fetching PubMed papers ...")
         papers: list[dict] = []
         try:
             import requests
@@ -441,7 +441,7 @@ class LiteratureScoutAgent(BaseAgent):
     # ------------------------------------------------------------------
 
     def _fetch_biorxiv(self) -> list[dict]:
-        self.logger.info("Fetching bioRxiv papers …")
+        self.logger.info("Fetching bioRxiv papers ...")
         papers: list[dict] = []
         try:
             import feedparser
@@ -472,7 +472,7 @@ class LiteratureScoutAgent(BaseAgent):
     # ------------------------------------------------------------------
 
     def _fetch_clingen(self) -> list[dict]:
-        self.logger.info("Fetching ClinGen gene validity data …")
+        self.logger.info("Fetching ClinGen gene validity data ...")
         papers: list[dict] = []
         try:
             import requests
