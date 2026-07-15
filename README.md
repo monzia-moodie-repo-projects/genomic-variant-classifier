@@ -3,8 +3,8 @@
 [![Python 3.11–3.12](https://img.shields.io/badge/python-3.11--3.12-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Features](https://img.shields.io/badge/Tabular%20features-95-blue.svg)]()
-[![Agents](https://img.shields.io/badge/Core%20agents-13-blueviolet.svg)]()
-[![Tests](https://img.shields.io/badge/Tests-1926%20passing-success.svg)]()
+[![Agents](https://img.shields.io/badge/Core%20agents-22-blueviolet.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-1963%20collected-success.svg)]()
 [![Performance](https://img.shields.io/badge/Headline%20metrics-withdrawn%20pending%20Run%2017-orange.svg)]()
 
 A production-grade, multi-modal machine learning system for the five-tier clinical
@@ -15,7 +15,7 @@ The system integrates genomic sequence data, population-stratified allele freque
 protein structural annotations, tissue-specific gene expression, and variant
 co-classification evidence from a suite of biological databases into a unified
 stacking-ensemble architecture, deployed as a production FastAPI REST service and
-continuously supervised by an autonomous agent layer of thirteen specialised agents
+continuously supervised by an autonomous agent layer of 22 specialised agents
 -- plus a committed drift-detection suite -- over a typed inter-agent message bus.
 Whole-slide histopathology imaging (TCGA) is a future multi-modal phase tracked in
 `docs/ROADMAP.md`.
@@ -146,7 +146,7 @@ cnn_1d . MCDrop             base classifier      sequence branch (101 bp)
      +------------------------+------------------------+
      |                                                 |
   FastAPI REST API                       Autonomous Agent Layer
-  7 endpoints . auth . rate-limit        13 specialised agents
+  7 endpoints . auth . rate-limit        22 specialised agents
   Docker . GHCR . CI/CD                  typed inter-agent message bus
   Prometheus . Grafana                   shared state + orchestrator
                                          continual learning + EWC
@@ -209,14 +209,19 @@ roadmap (`docs/ROADMAP.md`), not yet implemented.
 plus a scheduled GitHub Actions drift-monitoring workflow. Publishing the image to a
 container registry such as GHCR and a full build/test CI pipeline are roadmap items.
 
-**Autonomously maintained** -- A monitoring layer of thirteen specialised agents (DataFreshnessAgent,
-VersionMonitorAgent, SchemaDriftAgent, ConceptDriftAgent, LabelShiftAgent,
-CalibrationDriftAgent, InfrastructureDriftAgent, FairnessSubgroupAgent,
-AdversarialSubmissionAgent, AnnotationPolicyAgent, InterpretabilityAgent,
-LiteratureScoutAgent, TrainingLifecycleAgent) communicates over a typed
-inter-agent message bus (`agent_layer/message_bus.py`, 35/35 tests passing on
-Python 3.12) to monitor upstream databases, detect distribution
-shift, trigger targeted retraining, and produce SHAP-based interpretability audits.
+**Autonomously maintained** -- A monitoring layer of **22 specialised agents** communicates over
+a typed inter-agent message bus (`agent_layer/message_bus.py`, 35/35 tests passing on
+Python 3.12) to monitor upstream databases, detect distribution shift, trigger targeted
+retraining, watch the agent layer itself, and produce SHAP-based interpretability audits. The
+roster is enumerated ONCE, in the [agent-layer section](#autonomous-agent-layer-22-specialised-agents)
+below -- this paragraph deliberately does not repeat it.
+
+> It used to. The list was inlined here AND tabulated below, and both went stale together:
+> thirteen agents against a real 22, with eight of the thirteen names wrong. A roster written
+> down twice is wrong in at least one place eventually (roadmap section 7, root pattern (a)) --
+> the same defect that had this README stating the message-bus test count as 35/35 in one place
+> and 34/34 in another. Stated once, derived from `Orchestrator._register_agents()`, and
+> gated by `tests/unit/test_readme_claims.py`. Corrected 2026-07-14.
 
 > This README previously claimed the bus suite passed on **Python 3.14.3** here, and on
 > **3.12.10** eighty lines further down. The project runs **3.11 and 3.12**. Python 3.14 is the
@@ -231,11 +236,21 @@ pytest suite, GCS object presence, and connector-importability; on-VM
 1000-row LightGBM smoke fit BEFORE GPU billing starts). Multi-cloud training
 runbooks for GCP (`gcp_run{6,7,8}_startup.sh`), Lambda Labs
 (`lambda_run8_startup.sh`), and Vast.ai (`launch_run{9,10}_vm.sh`). An
-append-only `docs/CHANGELOG.md` (1,500+ lines, searchable by error string) and
-a structured `docs/incidents/` directory record every root cause and fix.
-**1,926 tests passing** (1,933 collected, 7 skipped) at HEAD, guarded by a suite-size
-ratchet (`tests/EXPECTED_SUITE_SIZE`) that fails the build in BOTH directions — fewer means
-tests have silently vanished; more means the ratchet was not bumped.
+an append-only `docs/CHANGELOG.md` (searchable by exact error string) and a structured
+`docs/incidents/` directory record every root cause and fix.
+**1,963 tests collected** at HEAD, guarded by a suite-size ratchet
+(`tests/EXPECTED_SUITE_SIZE`) that fails the build in BOTH directions — fewer means tests have
+silently vanished; more means the ratchet was not bumped.
+
+> **COLLECTED, not passing — and the distinction is the whole point.** This README said
+> "1,926 tests passing" until 2026-07-14, which was already stale by ten, because the
+> passed/skipped split is ENVIRONMENT-DEPENDENT: 7 skips on Windows with the full cohort
+> against 13 skips plus an xfail on a hosted Linux runner, from the *same* collection. Quoting
+> a passing count forces two numbers that are each true on exactly one machine. The collected
+> count is one number that is true everywhere, and it is exactly what
+> `tests/EXPECTED_SUITE_SIZE` holds — so `tests/unit/test_readme_claims.py` now asserts this
+> figure is EQUAL to the ratchet's, with no tolerance. That reasoning was already written down
+> in `EXPECTED_SUITE_SIZE`'s own header before this README ignored it.
 
 ## Tabular model roster
 
@@ -346,30 +361,77 @@ in `TABULAR_FEATURES`, and are not part of the trained contract.
   zero-variance guard as backstop. A source that fails to populate now costs seconds in the
   smoke run, not eleven hours of paid compute followed by a published algorithm comparison.
 
-## Autonomous agent layer (13 specialised agents)
+## Autonomous agent layer (22 specialised agents)
 
-Located under `src/genomic_variant_classifier/agent_layer/`, with each agent
-inheriting from `BaseAgent` and communicating over a typed `message_bus`.
+Located under `src/genomic_variant_classifier/agent_layer/`, with each agent inheriting
+(directly or via `DriftMonitorBase`) from `BaseAgent` and communicating over a typed
+`message_bus`.
+
+**22 is the number of entries in `Orchestrator._register_agents()`** — the lazy registry
+that is the single source of truth. `tests/unit/test_readme_claims.py` reads that registry from
+a live orchestrator instance and fails the suite if this table and the code ever disagree.
+Verified 2026-07-14 by three independent methods that agree exactly: abstract-syntax-tree
+inheritance analysis (22 concrete subclasses of `BaseAgent`), the registry itself (22 entries),
+and the project's own liveness checker — `python scripts/check_agents_active.py` →
+*"22 agents (registered=22, scheduled=22) … 0 dormant/problem agent(s)"*.
 
 | Agent | Concern |
 |-------|---------|
 | `DataFreshnessAgent` | Polls ClinVar, gnomAD, AlphaMissense, SpliceAI manifests; raises when stale |
+| `DatabaseFreshnessMonitorAgent` | Registry-driven freshness scan across every declared data source |
+| `DataReadinessAgent` | Gates a run on whether its declared inputs are actually present and populated |
 | `VersionMonitorAgent` | Tracks upstream dataset version numbers and breaking-change deltas |
-| `SchemaDriftAgent` | Detects column/dtype changes in incoming connector parquets |
-| `ConceptDriftAgent` | Monitors feature -> label relationship stability via residual analysis |
-| `LabelShiftAgent` | Tracks prior class probabilities across ClinVar monthly releases |
-| `CalibrationDriftAgent` | Watches ECE / reliability diagrams over time |
-| `InfrastructureDriftAgent` | Catches dependency / runtime drift (sklearn / lightgbm / CUDA) |
-| `FairnessSubgroupAgent` | Per-ancestry, per-consequence, per-gene-tier performance audit |
-| `AdversarialSubmissionAgent` | Flags suspect or out-of-distribution prediction requests |
-| `AnnotationPolicyAgent` | Enforces source-priority and provenance rules at ingestion |
+| `SchemaDriftMonitorAgent` | Detects column/dtype changes in incoming connector parquets |
+| `ConceptDriftMonitorAgent` | Monitors feature -> label relationship stability via residual analysis |
+| `LabelShiftMonitorAgent` | Tracks prior class probabilities across ClinVar monthly releases |
+| `CalibrationDriftMonitorAgent` | Watches Expected Calibration Error / reliability diagrams over time |
+| `InfrastructureDriftMonitorAgent` | Catches dependency / runtime drift (scikit-learn / LightGBM / CUDA) |
+| `FairnessSubgroupMonitorAgent` | Per-ancestry, per-consequence, per-gene-tier performance audit |
+| `AdversarialSubmissionMonitorAgent` | Flags suspect or out-of-distribution prediction requests |
+| `AnnotationPolicyMonitorAgent` | Enforces source-priority and provenance rules at ingestion |
+| `FeatureCoverageSentinelMonitorAgent` | Watches per-feature population coverage; the silent-zero sentinel |
+| `ReclassificationSentinelMonitorAgent` | Tracks ClinVar reclassification flip rate against the training cohort |
 | `InterpretabilityAgent` | SHAP-based audit per release; persists explanations for review |
+| `ModelInsightsAgent` | Per-run model diagnostics and cross-algorithm comparison surfacing |
 | `LiteratureScoutAgent` | bioRxiv / PubMed feed for new functional-score models and ClinVar policy changes |
-| `TrainingLifecycleAgent` | Orchestrates retraining trigger -> EWC -> shadow -> promotion |
+| `TrainingLifecycleAgent` | Orchestrates retraining trigger -> Elastic Weight Consolidation -> shadow -> promotion |
+| `AdaptationAgent` | Plans the adaptation response when drift crosses a threshold |
+| `AgentOpsMonitorAgent` | Watches the agent layer itself -- dormant agents, stale runs, failed pipelines |
+| `FinOpsAdvisorAgent` | Rented-compute cost surfacing and offer evaluation |
+| `ProvisioningAgent` | Records provisioning decisions and emits the provisioning ledger |
+
+> **This table said THIRTEEN until 2026-07-14, and eight of those thirteen names were wrong.**
+> The document listed `SchemaDriftAgent`, `ConceptDriftAgent`, `LabelShiftAgent`,
+> `CalibrationDriftAgent`, `InfrastructureDriftAgent`, `FairnessSubgroupAgent`,
+> `AdversarialSubmissionAgent` and `AnnotationPolicyAgent` — none of which are the class names;
+> every one is a `...MonitorAgent`. (`SchemaDriftAgent` is especially misleading: a class by
+> that name DOES exist, but it is the schema-drift *detector* used by
+> `scripts/run_schema_drift_check.py`, not an agent — it does not descend from `BaseAgent` and
+> is not in the registry.)
+>
+> And **nine agents were entirely undocumented**: `AdaptationAgent`, `AgentOpsMonitorAgent`,
+> `DataReadinessAgent`, `DatabaseFreshnessMonitorAgent`, `FeatureCoverageSentinelMonitorAgent`,
+> `FinOpsAdvisorAgent`, `ModelInsightsAgent`, `ProvisioningAgent` and
+> `ReclassificationSentinelMonitorAgent` — a 41% undercount of the supervisory layer this
+> README calls the system's defining feature.
+>
+> The 2026-07-14 audit FOUND this and filed it as "UNRESOLVED" rather than fixing it, while
+> `scripts/check_agents_active.py` — referenced in a comment inside the very registry being
+> read — would have answered it in one command. A finding in a document is a comment. It is
+> now a test.
 
 `agent_layer/orchestrator.py` schedules agent execution and routes typed messages;
 `agent_layer/shared_state.py` provides a JSON-persisted shared blackboard;
-`agent_layer/test_message_bus.py` exercises the bus (34/34 passing on Python 3.12.10).
+`tests/unit/test_message_bus.py` exercises the bus (count stated once, above).
+
+> This line previously read *"`agent_layer/test_message_bus.py` exercises the bus (34/34
+> passing on Python 3.12.10)"* and carried **two** defects. The path was wrong — no such file
+> exists; the suite is at `tests/unit/test_message_bus.py` (verified 2026-07-14: 35 test
+> functions). And the count contradicted the one eighty lines above it, which said 35/35 —
+> because the original README stated this figure twice, in two places, and the 2026-07-14
+> audit corrected one occurrence and missed the other. **The duplicate is now deleted rather
+> than synchronised.** A number written down twice is wrong in at least one place eventually
+> (roadmap section 7, root pattern (a)); the only durable fix is to write it down once.
 
 ## REST API
 
@@ -451,9 +513,8 @@ in `docs/incidents/INCIDENT_<date>_<topic>.md`. `docs/ROADMAP.md` §6.21 is the 
 - **Session logs** -- `docs/sessions/SESSION_<date>.md` is the chronological
   record of every working day; each session entry links forward into the
   CHANGELOG and INCIDENTS.
-- **Test depth** -- 1,926 passing / 1,933 collected, including regression tests for
-  every silent-zero failure mode found to date and an inter-agent message-bus suite,
-  on Python 3.11 and 3.12.
+- **Test depth** -- 1,963 collected, including regression tests for every silent-zero
+  failure mode found to date and an inter-agent message-bus suite, on Python 3.11 and 3.12.
 - **Recovery artifacts** -- `logs/training/run9_master.log.recovery.md`
   captures the last 100 lines of a master training log after a VM destroy
   beat the SCP-back step.
@@ -462,7 +523,7 @@ in `docs/incidents/INCIDENT_<date>_<topic>.md`. `docs/ROADMAP.md` §6.21 is the 
 
 ```
 src/genomic_variant_classifier/
-  agent_layer/   - 13 specialised agents + typed message_bus + orchestrator + shared_state
+  agent_layer/   - 22 specialised agents + typed message_bus + orchestrator + shared_state
   api/           - FastAPI service (7 endpoints), auth, schemas, InferencePipeline
   data/          - 18 database connectors + Spark ETL + DataPrepPipeline + real_data_prep
   evaluation/    - ClinicalEvaluator, benchmark framework, conformal prediction, metrics
@@ -486,7 +547,7 @@ scripts/
   preflight_vm.sh           - on-VM post-SSH gate
   gcp_run{6,7,8}_startup.sh, lambda_run8_startup.sh, launch_run{9,10}_vm.sh
 docs/
-  CHANGELOG.md              - append-only session ledger (1,500+ lines)
+  CHANGELOG.md              - append-only session ledger, searchable by exact error string
   ROADMAP.md, PHASE_3_ROADMAP.md
   incidents/                - 10 root-cause records
   sessions/                 - chronological session logs

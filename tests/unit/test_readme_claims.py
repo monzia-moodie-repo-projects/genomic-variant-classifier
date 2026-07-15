@@ -186,51 +186,134 @@ def test_readme_feature_table_sums_to_the_contract(readme):
 # 2. THE TEST COUNT -- bound to the ratchet, not to a badge someone remembered
 # ---------------------------------------------------------------------------
 
-def test_readme_test_count_agrees_with_the_suite_size_ratchet(readme):
-    """The README's test count must be consistent with tests/EXPECTED_SUITE_SIZE.
+#: Every place the README CLAIMS the suite size. Enumerated for the same reason
+#: CONTRACT_CLAIM_PATTERNS is: a blanket sweep cannot tell a CLAIM from a HISTORICAL NOTE.
+#:
+#: This was learned twice, in the same file, one turn apart:
+#:   * The feature-count sweep matched "36 of its 78 features CONSTANT ZERO" and "the 38
+#:     features that were real" -- true, necessary history. Fixed by enumerating claim sites.
+#:   * The test-count check was then written as a blanket ban on the string "1,926" ... and it
+#:     fired on the CORRECTION NOTE explaining that "1,926 tests passing" was stale. The test
+#:     forbade the document from recording its own repair.
+#:
+#: A gate that cannot distinguish "the suite HAS n tests" from "this README used to SAY n" is
+#: not a test-count gate; it is a ban on writing history down, in a project whose entire
+#: method is writing history down.
+TEST_COUNT_CLAIM_PATTERNS: dict[str, str] = {
+    "shields.io badge":        r"Tests-([\d,]+)%20collected",
+    "operational-rigour line": r"\*\*([\d,]+) tests collected\*\* at HEAD",
+    "test-depth bullet":       r"\*\*Test depth\*\* -- ([\d,]+) collected",
+}
 
-    The ratchet is the ONLY place the suite size is written down (roadmap 6.14). The README
-    quotes a passing count, which is `collected - skipped` and therefore environment-dependent
-    -- so this asserts the quoted numbers are CONSISTENT WITH the ratchet, not equal to it:
-    the passing count must be at most the collected count, and within a sane skip margin.
 
-    It also HARD-BANS the three stale values (862, 501) that were in the document, so they can
-    never be reintroduced by a revert or a bad merge.
+def test_readme_test_count_equals_the_suite_size_ratchet_exactly(readme):
+    """The README's test count must EQUAL tests/EXPECTED_SUITE_SIZE. No tolerance.
+
+    THIS TEST WAS REBUILT ON 2026-07-14 BECAUSE ITS FIRST VERSION LET A STALE NUMBER THROUGH.
+    ---------------------------------------------------------------------------------------
+    The first version allowed the README to quote a PASSING count and checked it with a
+    tolerance:
+
+        assert n <= collected
+        assert collected - n <= 50      # <-- let a 17-test drift pass, silently
+
+    The README said "1,926 tests passing" while the suite had grown to 1,943 collected. The
+    gap was 17. The tolerance was 50. **The test passed and the README was wrong.**
+
+    The reasoning behind the tolerance was that a passing count is environment-dependent, so it
+    cannot be asserted exactly -- which is TRUE, and is exactly why the README must not quote
+    one. The right answer was already written down, in the header of the very file this test
+    reads (tests/EXPECTED_SUITE_SIZE):
+
+        WHY *COLLECTED* AND NOT *PASSED*
+        The collected count is ENVIRONMENT-INDEPENDENT. The passed/skipped split is not:
+            Windows + full data:   1863 passed +  7 skipped              = 1870
+            Linux CI runner:       1856 passed + 13 skipped + 1 xfailed  = 1870
+        Same collection, different outcomes ... Asserting `passed` would force two numbers and
+        re-create the divergence this file exists to kill. Asserting `collected` gives ONE
+        number that is true everywhere.
+
+    That paragraph was read, and entries were written beneath it, and then the README was made
+    to quote a passing count anyway -- with a tolerance to hide the consequence. A tolerance on
+    a number that CAN be exact is not engineering judgement; it is a place for rot to live.
+
+    So: the README states COLLECTED, and this asserts EQUALITY. One number, true on every
+    machine, checked with `==`.
     """
     collected = _expected_suite_size()
+    found: dict[str, int] = {}
+    missing: list[str] = []
 
-    for stale in ("862", "501/501", "501 "):
-        assert stale not in readme, (
-            f"README.md still contains the stale test count {stale!r}. The suite has "
-            f"{collected} collected tests (tests/EXPECTED_SUITE_SIZE). Before 2026-07-14 this "
-            f"document claimed 862 in a badge and 501/501 twice, in the same file."
-        )
+    for site, pattern in TEST_COUNT_CLAIM_PATTERNS.items():
+        m = re.search(pattern, readme)
+        if m is None:
+            missing.append(site)
+        else:
+            found[site] = int(m.group(1).replace(",", ""))
 
-    # "1,926 tests passing" / "1,926 passing" -- with or without the thousands separator.
-    # (Written as a plain loop: the first draft used a walrus rebind inside a comprehension
-    # condition, which works but depends on evaluation order to be correct. A test whose
-    # correctness rests on a subtlety of comprehension semantics is a test nobody will trust.)
-    quoted: list[int] = []
-    for raw in re.findall(r"\b(\d[\d,]{2,6})\s*(?:tests?\s+)?passing", readme):
-        digits = raw.replace(",", "")
-        if digits.isdigit():
-            quoted.append(int(digits))
-
-    assert quoted, (
-        "no test-count claim found in README.md. If the README no longer quotes one, delete "
-        "this assertion deliberately -- do not let it become vacuous by accident."
+    assert not missing, (
+        f"these test-count claim sites are no longer found in README.md: {missing}\n"
+        f"\n"
+        f"Either the README was restructured -- in which case FIX THE PATTERN in "
+        f"TEST_COUNT_CLAIM_PATTERNS -- or the claim was silently dropped. Do not delete the "
+        f"entry to make this pass."
     )
 
-    for n in quoted:
-        assert n <= collected, (
-            f"README.md claims {n} tests passing, but only {collected} are COLLECTED "
-            f"(tests/EXPECTED_SUITE_SIZE). You cannot pass more tests than exist."
-        )
-        assert collected - n <= 50, (
-            f"README.md claims {n} passing against {collected} collected -- a gap of "
-            f"{collected - n}. That is far more than the handful of environment-dependent "
-            f"skips this suite has (7 at last run). The number is probably stale."
-        )
+    wrong = {site: n for site, n in found.items() if n != collected}
+    assert not wrong, (
+        f"README.md states the wrong test count in {len(wrong)} place(s):\n"
+        + "\n".join(f"    {site:32s} says {n}" for site, n in wrong.items())
+        + f"\n\ntests/EXPECTED_SUITE_SIZE says {collected}. These must be EQUAL -- no "
+          f"tolerance. The collected count is environment-independent and is written down in "
+          f"exactly one place; the README must re-derive it, not approximate it."
+    )
+
+
+def test_readme_does_not_quote_an_environment_dependent_passing_count(readme):
+    """The README must not quote a PASSING count at all -- only COLLECTED.
+
+    Separate from the equality test above, and deliberately so. That test checks the number is
+    right; this one checks the README is quoting the RIGHT KIND OF NUMBER.
+
+    A passing count is `collected - skipped`, and the skip set differs by machine: 7 skips on
+    Windows with the full cohort, 13 plus an xfail on a hosted Linux runner, from the SAME
+    collection. Any passing count the README states is therefore true on at most one machine
+    and false on the other -- and it cannot be gated exactly, which is what pushed the first
+    version of this test into a 50-wide tolerance that then hid a real 17-test drift.
+
+    The message-bus suite's own count ("35/35 tests passing") is exempt: it is a fixed,
+    fully-deterministic file with no environment-dependent skips.
+
+    BLOCKQUOTES ARE EXEMPT, AND THAT EXEMPTION IS THE POINT.
+    -------------------------------------------------------
+    The first version of this test banned the string outright and FAILED on the README's own
+    correction note -- the blockquote that says *"This README said '1,926 tests passing' until
+    2026-07-14"*. It forbade the document from recording its own repair.
+
+    That is the identical mistake the feature-count sweep made one turn earlier, in this same
+    file, and which was fixed there by enumerating claim sites. Twice in two turns.
+
+    So: lines beginning with `>` are COMMENTARY -- the document explaining its own history --
+    and are not policed. Body text is CLAIMS, and is. That is a real, checkable distinction,
+    and it is the convention this README already follows for every correction note in it.
+    """
+    body = "\n".join(
+        line for line in readme.splitlines() if not line.lstrip().startswith(">")
+    )
+    offenders = [
+        m.group(0)
+        for m in re.finditer(r"\b\d[\d,]{2,6}\s*(?:tests?\s+)?passing", body)
+        if "/" not in m.group(0)          # allow "35/35 passing" -- see docstring
+    ]
+    assert not offenders, (
+        f"README.md quotes a PASSING test count: {offenders}\n"
+        f"\n"
+        f"Quote the COLLECTED count instead. Passing is `collected - skipped`, and the skip set "
+        f"is environment-dependent (7 on Windows, 13 + 1 xfail on the Linux runner, from the "
+        f"same collection) -- so a passing figure is true on at most one machine, and cannot be "
+        f"asserted exactly. tests/EXPECTED_SUITE_SIZE's own header has said so since it was "
+        f"written; this README ignored it and went stale by ten within a day."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -345,6 +428,123 @@ def test_readme_base_model_roster_matches_the_ensemble(readme, tmp_path):
         f"SILENTLY DROPPED base model look like normal operation -- which is exactly how a "
         f"13-model ensemble became a 12-model ensemble and published a cross-algorithm "
         f"comparison with a headline model missing."
+    )
+
+
+# ---------------------------------------------------------------------------
+# 3c. THE AGENT ROSTER -- 22, and the README must not say 13
+# ---------------------------------------------------------------------------
+
+#: Every place the README CLAIMS the agent count. Enumerated, not swept -- see
+#: CONTRACT_CLAIM_PATTERNS for why a blanket regex cannot tell a claim from a history note.
+AGENT_COUNT_CLAIM_PATTERNS: dict[str, str] = {
+    "shields.io badge":       r"Core%20agents-(\d+)",
+    "opening paragraph":      r"autonomous agent layer of (\d+) specialised agents",
+    "architecture diagram":   r"(\d+) specialised agents\n",
+    "key-properties bullet":  r"monitoring layer of \*\*(\d+) specialised agents\*\*",
+    "agent-layer heading":    r"## Autonomous agent layer \((\d+) specialised agents\)",
+    "repo-structure listing": r"agent_layer/\s+- (\d+) specialised agents",
+}
+
+
+def test_readme_agent_roster_matches_the_orchestrator_registry(readme, tmp_path):
+    """The README's agent table must equal Orchestrator's actual registry.
+
+    THE README SAID THIRTEEN. THERE ARE TWENTY-TWO. A 41% UNDERCOUNT of the supervisory layer
+    the document calls the system's defining feature -- and EIGHT of the thirteen names it did
+    give were wrong.
+
+    Verified 2026-07-14 by three independent methods that agree exactly:
+      * abstract-syntax-tree inheritance analysis -> 22 concrete subclasses of BaseAgent
+        (NOTE: a first pass returned 13 because it filtered on `"Agent" in base_name`, which
+        MISSES every agent inheriting from `DriftMonitorBase` -- a base class whose name
+        contains no "Agent". It returned exactly the README's wrong number, which is precisely
+        how a malformed search launders a wrong answer into a confirmation.)
+      * Orchestrator._register_agents() -> 22 entries
+      * scripts/check_agents_active.py -> "22 agents (registered=22, scheduled=22)"
+
+    The wrong names mattered as much as the count. The README listed `SchemaDriftAgent`, and a
+    class by that name EXISTS -- but it is the schema-drift DETECTOR used by
+    run_schema_drift_check.py, not an agent: it does not descend from BaseAgent and is not in
+    the registry. A reader auditing the agent layer against that table would have gone looking
+    for the wrong object.
+
+    This reads the registry from a LIVE orchestrator instance rather than parsing the source,
+    for the same reason the base-model roster test does: the registry is built inside a method,
+    its values are `_Lazy("module:Class")` strings, and a regex over the file is exactly the
+    kind of thing that produced the wrong count in the first place.
+    """
+    from genomic_variant_classifier.agent_layer.orchestrator import Orchestrator
+
+    # __new__ + _register_agents(): the registry is built from string literals and _Lazy
+    # wrappers only, so it needs no __init__ state -- and __init__ would touch shared_state on
+    # disk, which a unit test must not do.
+    orch = Orchestrator.__new__(Orchestrator)
+    orch._register_agents()
+    registry = set(orch._agent_registry)
+
+    assert registry, "Orchestrator registered NO agents -- the registry is empty."
+
+    # Rows look like:  | `DataFreshnessAgent` | Polls ClinVar, ... |
+    documented = set(re.findall(r"^\|\s*`([A-Za-z_0-9]+Agent)`\s*\|", readme, re.M))
+    assert documented, (
+        "no agent roster table found in README.md (expected rows like "
+        "'| `DataFreshnessAgent` | ... |'). If the table was restructured, FIX THIS PATTERN -- "
+        "do not delete the assertion."
+    )
+
+    missing = sorted(registry - documented)     # registered but undocumented
+    extra = sorted(documented - registry)       # documented but not registered
+
+    assert not missing and not extra, (
+        f"THE README'S AGENT ROSTER DISAGREES WITH Orchestrator._register_agents().\n"
+        f"\n"
+        f"  registered but NOT documented ({len(missing)}): {missing}\n"
+        f"  documented but NOT registered ({len(extra)}): {extra}\n"
+        f"\n"
+        f"  actual registry ({len(registry)}): {sorted(registry)}\n"
+        f"  README documents ({len(documented)}): {sorted(documented)}\n"
+        f"\n"
+        f"Cross-check with the project's own liveness checker, which has been able to answer "
+        f"this the whole time:\n"
+        f"    python scripts/check_agents_active.py"
+    )
+
+
+def test_readme_never_states_a_wrong_agent_count(readme, tmp_path):
+    """Every CLAIM about the agent count must equal the registry's size.
+
+    Six claim sites: a badge, the opening paragraph, the architecture diagram, a key-properties
+    bullet, the section heading, and the repository-structure listing. ALL SIX said 13. The
+    README stated this number six times and was wrong six times -- which is what a number
+    written down six times and never re-derived does.
+    """
+    from genomic_variant_classifier.agent_layer.orchestrator import Orchestrator
+
+    orch = Orchestrator.__new__(Orchestrator)
+    orch._register_agents()
+    n_agents = len(orch._agent_registry)
+
+    found: dict[str, int] = {}
+    missing: list[str] = []
+    for site, pattern in AGENT_COUNT_CLAIM_PATTERNS.items():
+        m = re.search(pattern, readme)
+        if m is None:
+            missing.append(site)
+        else:
+            found[site] = int(m.group(1))
+
+    assert not missing, (
+        f"these agent-count claim sites are no longer found in README.md: {missing}\n"
+        f"Either the README was restructured (FIX THE PATTERN) or the claim was dropped. Do "
+        f"not delete the entry to make this pass."
+    )
+
+    wrong = {site: n for site, n in found.items() if n != n_agents}
+    assert not wrong, (
+        f"README.md asserts the wrong agent count in {len(wrong)} place(s):\n"
+        + "\n".join(f"    {site:26s} says {n}" for site, n in wrong.items())
+        + f"\n\nOrchestrator._register_agents() registers {n_agents}."
     )
 
 

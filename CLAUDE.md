@@ -221,6 +221,74 @@ Verify the stack afterwards: `pandas` 2.3.3, `transformers` 4.46.3, `scikit-lear
 
 ---
 
+## 4.1 STORAGE VOCABULARY — measured 2026-07-15, and NOT a matter of memory
+
+The owner should never have to re-explain this. It is written here because CLAUDE.md is read at the
+top of every session; a convention that lives only in a past conversation is a convention that dies
+with the context window.
+
+| the owner says | it means | it does NOT mean |
+|---|---|---|
+| **"the G drive"**, **"G drive"**, **"Google Drive"** | **Google Drive** -- the owner's personal Google cloud storage. Approx. **5 TB** total, approx. **4.5 TB free** (owner-stated, 2026-07-15). Reached through the Google Drive for Desktop mount at `G:\`. | a second local hard disk. **There is no second local disk.** |
+| **"local"**, **"my hard drive"** | `C:` -- partition 3 of **Disk 0**, the ONLY physical disk. | anything else |
+
+### The measured hardware (`Get-Disk` / `Get-Partition` / `Get-Volume`, 2026-07-15)
+
+```
+Get-Disk      -> Number 0 ONLY. NVMe KXG60ZNV1T02 KIOXIA 1024GB, 953.87 GB, BusType RAID.
+Get-Partition -> EVERY partition is DiskNumber 0. C: is partition 3, 935.59 GB.
+Get-Volume    -> C: NTFS, label "== 1 T A", 935.59 GB, 6.63 GB free.
+```
+
+**There is exactly ONE physical disk in this machine and it is effectively full.** Local storage
+cannot be expanded by moving files between drive letters. There is nowhere local to move them TO.
+
+### THE TRAP THAT CAUGHT THE ASSISTANT ON 2026-07-15 -- READ THIS PART
+
+`Get-PSDrive` reported:
+
+```
+Name UsedGB FreeGB
+C    928.95   6.64
+G    929.29   6.31     <-- G: is Google Drive. This number is NOT Google Drive's capacity.
+```
+
+The assistant saw that `G:` reported almost exactly `C:`'s size and free space, concluded the two
+were the same physical volume, and told the owner his storage plan was built on a false premise.
+**The observation was right. The inference was wrong, and it was wrong in the project's signature
+way: it trusted a number without asking what the number was measuring.**
+
+`G:` **IS** Google Drive -- `Get-PSDrive C,G` prints `Description : Google Drive` in plain text, and
+`Get-Volume` does not list `G:` **at all**, because a cloud mount is not a real volume. Google Drive
+for Desktop is a **virtual, network-backed filesystem**, and it reports the **HOST DISK's** geometry
+through the `Free`/`Used` properties. It has no idea about the 5 TB quota, and it never will. The
+same machine mounts **Box** the same way -- `Get-Volume` shows a nonsensical **FAT32 volume of
+935.59 GB with 6.63 GB free** (FAT32 caps files at 4 GB; a real 935 GB FAT32 volume is not a thing).
+Two independent cloud mounts, both parroting `C:`.
+
+> **`Free` on a cloud mount is the local disk's free space wearing the cloud's drive letter.**
+> To learn Google Drive's real capacity, ASK THE OWNER or read the Drive web UI. Never
+> `Get-PSDrive G`. See §1.2: the machine said `6.31` plainly, and it was answering a different
+> question than the one being asked.
+
+### Engineering rules that follow (these are hard)
+
+1. **NEVER put the hot training path on `G:`.** Random reads, parquet row-group seeks, and
+   memory-mapping over a network filesystem will throttle or stall an 11-hour paid graphics-
+   processing-unit run. Google Drive is **archive**, not a working set.
+2. **A file on `G:` may be cloud-only.** In streaming mode it appears in a directory listing with a
+   real `Length` while **no bytes are local**. `Get-Item ... Length` therefore proves NOTHING about
+   local availability, and the first read pulls the whole file over the network. A size check is not
+   a presence check.
+3. **The rented graphics-processing-unit virtual machine cannot see `G:`.** It has no Google
+   credentials. Anything the run needs must be staged to the virtual machine explicitly.
+4. **Archive to Google Drive = large files the pipeline does not read during a run.** Everything the
+   run reads stays local, or is staged to the virtual machine.
+5. **Verify a move landed before deleting the local copy.** A cloud mount can report success while
+   the upload is still queued. Checksum the remote copy, or the "reclaim" silently destroys data.
+
+---
+
 ## 5. THE GATES, AND WHAT EACH ACTUALLY ASSERTS
 
 | gate | asserts |

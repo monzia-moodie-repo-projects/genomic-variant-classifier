@@ -351,4 +351,216 @@
 #                     string contents changed. 17 of the 21 indirect strings sat on distinct
 #                     lines (four lines carried two each), and 157 + 17 = 174 closes the
 #                     arithmetic. Gate green.
-1943
+#
+#   1944  2026-07-14  +1: tests/unit/test_readme_claims.py::
+#                     test_readme_does_not_quote_an_environment_dependent_passing_count
+#                     (roadmap 6.25).
+#
+#                     THE README QUOTED A *PASSING* COUNT, AND THE TEST GUARDING IT HAD A
+#                     TOLERANCE THAT HID THE DRIFT.
+#
+#                     The 2026-07-14 README correction wrote "1,926 tests passing". The suite
+#                     then grew to 1,943 collected. The guard asserted:
+#
+#                         assert collected - n <= 50       # 1943 - 1926 = 17. Passed. Silently.
+#
+#                     A tolerance on a number that CAN be exact is not engineering judgement;
+#                     it is a place for rot to live.
+#
+#                     AND THE ANSWER WAS ALREADY IN THIS FILE'S OWN HEADER, ABOVE. Scroll up:
+#                     "WHY *COLLECTED* AND NOT *PASSED* -- The collected count is
+#                     ENVIRONMENT-INDEPENDENT. The passed/skipped split is not ... Asserting
+#                     `passed` would force two numbers and re-create the divergence this file
+#                     exists to kill." That paragraph was read, entries were written beneath
+#                     it, and then the README was made to quote a passing count anyway.
+#
+#                     FIXED: the README states COLLECTED; one test asserts EQUALITY against
+#                     this file with no tolerance; a second BANS passing counts outright.
+#
+#                     BOTH NEW TESTS FAILED ON FIRST RUN, AND BOTH FAILURES WERE THE TEST'S
+#                     FAULT -- for the SECOND TIME IN TWO TURNS, in the SAME FILE, for the SAME
+#                     REASON. The blanket ban on the string "1,926" fired on the README's own
+#                     CORRECTION NOTE: the blockquote explaining that "1,926 tests passing" was
+#                     stale. The test forbade the document from recording its own repair --
+#                     exactly as the feature-count sweep had matched "36 of its 78 features"
+#                     one turn earlier, and had been fixed there by enumerating claim sites.
+#
+#                     Now: TEST_COUNT_CLAIM_PATTERNS enumerates the three claim sites, and the
+#                     passing-count ban skips blockquote lines. Blockquotes are COMMENTARY --
+#                     the document explaining its own history. Body text is CLAIMS. A gate that
+#                     cannot tell "the suite HAS n tests" from "this README used to SAY n" is
+#                     not a gate; it is a ban on writing history down, in a project whose whole
+#                     method is writing history down.
+#
+#                     Also corrected while here: the README stated the message-bus suite's size
+#                     as 35/35 in one place and 34/34 eighty lines later -- because the original
+#                     stated it TWICE and the 2026-07-14 audit corrected one occurrence and
+#                     missed the other. The second also pointed at
+#                     `agent_layer/test_message_bus.py`, WHICH DOES NOT EXIST (measured: the
+#                     file is tests/unit/test_message_bus.py, 35 test functions). The duplicate
+#                     is DELETED, not synchronised. And "docs/CHANGELOG.md (1,500+ lines)",
+#                     stated twice against an actual 4,133, is now stated ZERO times: a line
+#                     count conveys nothing and goes stale by construction.
+#
+#   1946  2026-07-15  +2: tests/unit/test_readme_claims.py::
+#                     test_readme_agent_roster_matches_the_orchestrator_registry and
+#                     ::test_readme_never_states_a_wrong_agent_count (roadmap 6.26).
+#
+#                     THE README SAID THE SYSTEM HAS 13 AGENTS. IT HAS 22.
+#
+#                     A 41% undercount of the supervisory layer the document calls the system's
+#                     defining feature -- stated in SIX places (badge, opening paragraph,
+#                     architecture diagram, key-properties bullet, section heading, repository
+#                     -structure listing), wrong in all six. EIGHT of the thirteen names it did
+#                     give were wrong: it listed SchemaDriftAgent, ConceptDriftAgent,
+#                     LabelShiftAgent, CalibrationDriftAgent, InfrastructureDriftAgent,
+#                     FairnessSubgroupAgent, AdversarialSubmissionAgent and
+#                     AnnotationPolicyAgent; every actual class is a ...MonitorAgent. And NINE
+#                     agents were entirely undocumented: AdaptationAgent, AgentOpsMonitorAgent,
+#                     DataReadinessAgent, DatabaseFreshnessMonitorAgent,
+#                     FeatureCoverageSentinelMonitorAgent, FinOpsAdvisorAgent,
+#                     ModelInsightsAgent, ProvisioningAgent,
+#                     ReclassificationSentinelMonitorAgent.
+#
+#                     `SchemaDriftAgent` was the most dangerous of the wrong names, because a
+#                     class by that name EXISTS -- it is the schema-drift DETECTOR used by
+#                     scripts/run_schema_drift_check.py. It does not descend from BaseAgent and
+#                     is not in the registry. Anyone auditing the agent layer against that table
+#                     would have gone looking for the wrong object and found one.
+#
+#                     THE 2026-07-14 README AUDIT FOUND THIS AND FILED IT "UNRESOLVED."
+#                     Section 4.2: "Thirteen agents are named ... Whether all thirteen are
+#                     scheduled and running is UNRESOLVED." Meanwhile
+#                     scripts/check_agents_active.py -- NAMED IN A COMMENT INSIDE THE REGISTRY
+#                     BEING READ (orchestrator.py:160) -- answers it in one command:
+#                     "22 agents (registered=22, scheduled=22) ... 0 dormant/problem agent(s)".
+#                     A finding in a document is a comment. The auditor wrote that sentence into
+#                     the roadmap four times on 2026-07-13 and then did exactly this.
+#
+#                     THREE FAILURES IN BUILDING THE FIX, each recorded because each is the
+#                     lesson:
+#
+#                     (i)   THE FIRST AST SCAN RETURNED 13 -- exactly the README's wrong number.
+#                           It filtered bases on `"Agent" in base_name`, which MISSES every agent
+#                           inheriting from `DriftMonitorBase` (a base class whose name contains
+#                           no "Agent"). A malformed search returned the wrong answer AND made it
+#                           look confirmed. It was caught only because `DriftMonitorBase` -- an
+#                           abstract base -- appeared in a list that was supposed to be agents.
+#
+#                     (ii)  THE SECOND SCAN, of the registry, returned 18 -- by regexing quoted
+#                           keys at module level and sweeping up `full`, `drift`, `ts`, `status`,
+#                           `duration_ms` and `error`, none of which are agents. The registry is
+#                           an INSTANCE attribute built inside a method.
+#
+#                     (iii) THE TESTS THEMSELVES FAILED ON `ImportError: cannot import name
+#                           'AgentOrchestrator'`. THE CLASS IS `Orchestrator`. The name was
+#                           assumed, never checked, and then propagated into NINE places --
+#                           INCLUDING TWO LINES OF THE README, which briefly documented a class
+#                           that does not exist. Twenty other files in the repository import
+#                           `Orchestrator` correctly; not one of them was read. This is the same
+#                           defect as the README's `agent_layer/test_message_bus.py` -- a
+#                           confidently-stated path to nothing -- committed inside its own fix.
+#
+#                     Now: both tests read the roster from a LIVE Orchestrator instance
+#                     (`__new__` + `_register_agents()`, no __init__ side effects), and
+#                     AGENT_COUNT_CLAIM_PATTERNS enumerates all six claim sites.
+#
+#   1963  2026-07-15  +17, closing TWO silent-zero defects that were both feeding the
+#                     sequence branch, and both of which would have reached Run 17.
+#                     MEASURED, not predicted: `pytest tests/ --collect-only -q` ->
+#                     "1963 tests collected in 39.70s", exit 0.
+#
+#                     +12  tests/unit/test_genomiclm_llr_is_computed.py  (NEW FILE)
+#                     +5   tests/unit/test_seq_window_join.py  (5 -> 10)
+#                     +0   tests/unit/test_train_cnn_activation.py  (2 rewritten, no delta)
+#
+#                     (A) genomiclm_llr HAD BEEN IDENTICALLY 0.0 FOR ALL 4,420,180 COHORT
+#                         ROWS SINCE THE CONNECTOR WAS WRITTEN. `_masked_centre_logratio`
+#                         located the variant's centre token with
+#                         `tok(win, return_offsets_mapping=True)`. Nucleotide Transformer's
+#                         tokeniser is `EsmTokenizer`; `is_fast` is False; HuggingFace
+#                         raises NotImplementedError for that argument on every SLOW
+#                         tokeniser. It raised on EVERY window. A bare `except Exception`
+#                         swallowed it into a `logger.debug` -- below the default level, so
+#                         it printed NOTHING -- and carried `# pragma: no cover`, so the
+#                         coverage tool was told not to look either. Measured 2026-07-15:
+#                         "is_fast: False | EsmTokenizer | OFFSET RAISES ->
+#                         NotImplementedError".
+#
+#                         THREE BLIND SPOTS KEPT IT GREEN. (1) `genomiclm_delta_norm` never
+#                         touches offset mapping, so the sibling feature stayed ALIVE and the
+#                         connector looked healthy. (2) `build_reference_slice` FEEDS
+#                         `genomiclm_llr` a synthetic `rng.uniform(-12, 4)`, and
+#                         engineer_features reads it as a plain `df.get` passthrough -- so the
+#                         stage-5 zero-audit graded the FIXTURE and never invoked the
+#                         connector (7c: a gate that checks a PROXY is not a gate). (3) The
+#                         harness comment asserted all six new columns were "live connectors
+#                         -- Run-17 real-data smoke shows them populated"; the smoke audit it
+#                         CITED records `genomiclm_llr` dead in all splits. The comment
+#                         contradicted its own evidence, and the 2026-07-11 handoff had warned
+#                         in bold: "if any SHOULD populate on the fixture and doesn't, that
+#                         specific one is a real regression, not an allowlist gap."
+#
+#                         Left alone this would have been caught -- by hard-failing Run 17 at
+#                         `_assert_no_dead_features`, after full data preparation, on the
+#                         rented graphics-processing-unit, on paid compute. A true gate firing
+#                         in the most expensive place available.
+#
+#                     (B) 21,814 COHORT ROWS (0.494%) CARRY FABRICATED SEQUENCE AND FOUR
+#                         SEPARATE DETECTORS COULD NOT SEE THEM. The live artifact's manifest
+#                         says n_ok 4,398,366 / n_poly 21,814 of 4,420,180: rows where
+#                         delta_window_builder could not build a window, wrote POLY = "N"*101,
+#                         and flagged `ok=False`. Every consumer instead compared window
+#                         CONTENT against "A"*101 -- the JOIN's fill, a different failure path
+#                         entirely: train.py:485, genomic_lm._poly, seq_window_join's own
+#                         fallback, and rekey_seq_windows_v2:146. Four detectors, one blind
+#                         spot, 21,814 rows through it. They reached cnn_1d as an ALL-ZERO
+#                         tensor with ref == alt (delta channels identically zero) and reached
+#                         Nucleotide Transformer as ||alt_emb - ref_emb|| == exactly 0.0 --
+#                         the value genomic_lm's own docstring defines as "window unavailable
+#                         / model unavailable". The EXIT_NOT_CHECKED bug again: "I could not
+#                         look" rendered identically to "I looked and found zero".
+#
+#                         WIDENING THE CHECKS TO ALSO MATCH "N"*101 WOULD HAVE BEEN PATCHWORK
+#                         ON AN ERROR OF PRINCIPLE. A window reading "A"*101 MAY BE REAL --
+#                         poly-A tracts are real biology. Content can never separate "the
+#                         reference genuinely says A" from "we gave up and typed A". Only
+#                         provenance can, and `build_seq_windows.py:154` had been writing an
+#                         `ok` column into the parquet the entire time. The ground truth was
+#                         in the artifact; the join simply never read it. attach_delta_windows
+#                         now returns a WindowAttachment with an explicit `usable` mask.
+#
+#                     FOUR OF THE SEVEN TESTS THAT WENT RED WERE ASSERTING THE DEFECTS.
+#                     Not stale -- WRONG, and green the whole time. test_seq_window_join
+#                     pinned the poly-A filler as the contract; test_train_cnn_activation
+#                     asserted `n_unmapped == 0` on a frame containing a None (tier 1 ended in
+#                     a hardcoded `return out, 0`, reporting zero unmapped while `.fillna`
+#                     fabricated a window for that row) and its own comment named the
+#                     fabrication approvingly: "# NaN -> poly-A fill".
+#
+#                     AND THE CHANGE SILENTLY DISARMED A LIVE GATE. rekey_seq_windows_v2's
+#                     verify_against_cohort (main() returns 6 and REFUSES TO WRITE on
+#                     key_mismatch > 0) detected unmapped rows by matching "A"*101. Moving
+#                     PLACEHOLDER_BASE to "N" made that comparison match nothing: del_unmapped
+#                     -> 0, key_mismatch -> 0, gate passes unconditionally. A working gate
+#                     became a rubber stamp, and ONLY ITS OWN TESTS CAUGHT IT.
+#
+#                     ONE OF THE SEVEN WAS THIS AUTHOR'S NEW TEST FIRING ON THIS AUTHOR'S NEW
+#                     COMMENT. test_no_pragma_no_cover_hides_the_llr_path banned the substring
+#                     "pragma: no cover", then matched the comment QUOTING the deleted handler
+#                     to explain why it was deleted. That is the THIRD time in this project a
+#                     blanket string ban has fired on the prose written to describe the rule
+#                     (see 1944: a ban on "1,926" matching its own correction note; and the
+#                     feature-count sweep matching "36 of its 78 features"). Its sibling in the
+#                     same file, written in the same sitting, parses with `ast` and got it
+#                     right. Fixed structurally -- a real pragma follows CODE, a quotation is a
+#                     whole-line comment -- and negative-tested by
+#                     test_this_files_pragma_guard_can_actually_fail.
+#
+#                     STILL OPEN, and this is the one that matters for Run 17: scripts/
+#                     train.py (441/458/480) and scripts/run_phase2_eval.py (425-427) still
+#                     unpack the deprecated lossy 2-tuple and therefore still read
+#                     usable=False rows as real. train.py feeds the CNN's X_seq. The migration
+#                     list lives in WindowAttachment.__iter__'s docstring and deletes itself
+#                     when empty.
+1963
