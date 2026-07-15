@@ -31,32 +31,62 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      # -------------------------------------------------------------------------------
-      # ASSERT THE THING IT PROTECTS, NOT A PROXY FOR IT. (fixed 2026-07-13, roadmap 6.19)
+      # ===============================================================================
+      # THIS GATE WAS REBUILT ON 2026-07-14. READ THIS BEFORE "RESTORING" THE RECOMPILE.
+      # (roadmap 6.25)
       #
-      # This step was named "Check lockfile is up-to-date". What it actually did was
-      # `pip install --dry-run -r requirements-api.lock` -- which proves only that the lock
-      # INSTALLS. It never checked that the lock MATCHES requirements-api.txt.
+      # HISTORY, in two mistakes:
       #
-      # So on 2026-07-13, when requirements-api.txt was corrected (raising
-      # prometheus-fastapi-instrumentator past the <8.0 ceiling that forced 7.1.0, which
-      # requires starlette<1.0.0 while this project runs starlette 1.0.0), a STALE lock would
-      # have sailed through this gate green -- and the Docker API image would have kept
-      # shipping the broken pin.
+      # 1. ORIGINALLY it ran `pip install --dry-run -r requirements-api.lock` and called that a
+      #    lockfile check. That proves only the lock INSTALLS -- never that it MATCHES
+      #    requirements-api.txt. A stale lock sailed through green while the Docker API image
+      #    shipped the old pin. Root pattern (c): a gate that checks a proxy is not a gate.
       #
-      # A gate that checks a proxy instead of the thing it protects is not a gate. That is
-      # root pattern (c) in docs/ROADMAP.md section 7, and this is its fourth instance:
-      #   * G1 section 13c checked RUN_17_PLAN.md for COMPLETENESS, never for TRUTH.
-      #   * vm_bootstrap_run.sh checked that KANClassifier IMPORTS -- the bug was in fit().
-      #   * the correctness harness validated a code path the training pipeline never ran.
-      #   * this step checked that a lock installs, not that it is the right lock.
+      # 2. THE FIX (2026-07-13, roadmap 6.19) OVERCORRECTED. It RECOMPILED the lock and failed
+      #    if the result differed from what is committed. That gate CANNOT STOP FAILING, for
+      #    five independent reasons, each sufficient alone:
       #
-      # It now RECOMPILES the lock and FAILS if the result differs from what is committed.
-      # -------------------------------------------------------------------------------
-      - name: Assert the API lockfile MATCHES requirements-api.txt (not merely that it installs)
+      #      a. pip-compile PRESERVES the pins of an existing output file. Compiling to a NEW
+      #         path (/tmp/regenerated.lock) has nothing to preserve, so it resolves the whole
+      #         tree to the latest on the index. MEASURED 2026-07-14, same machine, same
+      #         minute: `-o requirements-api.lock` -> slowapi 0.1.9 (preserved);
+      #         `-o /tmp/fresh.lock` -> slowapi 0.1.10 (latest). Same input, opposite answers.
+      #      b. 22 transitive packages drifted between the commit and a fresh compile MINUTES
+      #         later, with `git diff HEAD -- requirements-api.txt` EMPTY. Time passed.
+      #      c. `pip install -q pip-tools` was UNPINNED, so the resolver drifted too -- and its
+      #         --strip-extras default flips `uvicorn[standard]` to `uvicorn`, a diff by itself.
+      #      d. Environment markers make pip-compile output PLATFORM-SPECIFIC (see the Linux
+      #         assertion below -- this is the real defect the broken gate stumbled into).
+      #      e. The committed lock's header says Python 3.12; this runner is 3.11. Markers
+      #         keyed on python_version resolve differently.
+      #
+      # A GATE THAT GOES RED BECAUSE A STRANGER PUBLISHED A WHEEL IS NOT A GATE. It is a
+      # scheduled false alarm -- and a scheduled false alarm gets muted, taking the real signal
+      # with it. It failed on its FIRST real exposure (run 29374485597) and, because `test`
+      # depended on it, took the ENTIRE 1,936-test suite down with it. Zero tests ran on Linux.
+      #
+      # WHAT IT DOES NOW -- assert the two things that are actually true-or-false:
+      #   1. The lock SATISFIES requirements-api.txt. Deterministic. No network, no recompile,
+      #      no dependence on the day/platform/Python/pip-tools version. Cannot drift.
+      #      Implemented ONCE in scripts/check_lock_satisfies.py and called BOTH here and from
+      #      tests/unit/test_requirements_files_agree.py, so the gate and the test can never
+      #      disagree about the rule (the lesson of roadmap 6.24's split-brain detector).
+      #   2. The lock INSTALLS on Linux with no conflicts. Only Linux can answer that.
+      #
+      # WHAT IT DELIBERATELY DOES NOT CHECK: that the lock's transitive dependencies are the
+      # newest available. THAT IS NOT A DEFECT -- freezing a resolution is the entire purpose of
+      # a lock. Upgrading is a deliberate, reviewed act (`pip-compile --upgrade`, read the diff,
+      # run the suite, commit), not something a gate extorts every time a patch ships.
+      # ===============================================================================
+      - name: Assert the API lockfile SATISFIES requirements-api.txt (deterministic)
         run: |
           set -euo pipefail
-          pip install -q pip-tools
+          pip install -q packaging
+          python scripts/check_lock_satisfies.py --verbose
+
+      - name: Assert the API lockfile installs cleanly on Linux with no conflicts
+        run: |
+          set -euo pipefail
 
           if [ ! -f requirements-api.lock ]; then
             echo "requirements-api.lock does not exist. Run:"
@@ -64,33 +94,94 @@ jobs:
             exit 1
           fi
 
-          cp requirements-api.lock /tmp/committed.lock
-          pip-compile --quiet --output-file=/tmp/regenerated.lock requirements-api.txt
+          echo "Resolving requirements-api.lock on Linux..."
+          pip install --dry-run -r requirements-api.lock
+          echo "Lockfile installs cleanly on Linux."
 
-          # pip-compile writes the invoking command into a header comment, which differs
-          # between machines. Compare the PINS, not the preamble.
-          grep -v '^#' /tmp/committed.lock   | grep -v '^\s*$' | sort > /tmp/a.txt
-          grep -v '^#' /tmp/regenerated.lock | grep -v '^\s*$' | sort > /tmp/b.txt
+      # -------------------------------------------------------------------------------
+      # THE LOCK MUST DESCRIBE THE PLATFORM IT IS DEPLOYED TO. (2026-07-14, roadmap 6.25)
+      #
+      # Dockerfile:68-70 installs requirements-api.lock into the API image, and that image is
+      # `python:3.11-slim-bookworm` -- LINUX. But pip-compile output is PLATFORM-SPECIFIC,
+      # because environment markers are resolved at compile time, not install time. Read
+      # uvicorn 0.42.0's own wheel metadata:
+      #
+      #     colorama>=0.4;   sys_platform == "win32"  and extra == "standard"
+      #     uvloop>=0.15.1;  sys_platform != "win32"  and extra == "standard"
+      #
+      # The committed lock CONTAINS colorama and LACKS uvloop. It was compiled on WINDOWS, and
+      # it is installed on LINUX. So the production API image ships a pointless Windows
+      # terminal shim and -- far worse -- SILENTLY LOSES uvloop, the high-performance event
+      # loop that `uvicorn[standard]` exists to provide. The image runs the default asyncio
+      # loop while every document says otherwise.
+      #
+      # This is roadmap 6.18's defect class exactly: requirements.txt was compiled under
+      # Python 3.14, where torch has no wheels, and SILENTLY OMITTED THE ENTIRE TORCH STACK.
+      # Here a lock compiled under Windows silently omits uvloop. Root pattern (d): a
+      # resolution from one environment is evidence about THAT environment, not the target.
+      #
+      # This assertion is deliberately narrow and evidence-based: it names the two packages
+      # whose markers are known and measured, rather than pretending to a general theory of
+      # marker resolution.
+      # -------------------------------------------------------------------------------
+      - name: Assert the API lockfile was compiled FOR Linux (the platform it is deployed to)
+        run: |
+          set -uo pipefail
+          FAIL=0
 
-          if ! diff -u /tmp/a.txt /tmp/b.txt; then
+          # NOTE: single quotes throughout. Backticks inside a double-quoted bash string are
+          # COMMAND SUBSTITUTION -- "contains `colorama`" would try to EXECUTE colorama and
+          # substitute its output. Caught before this shipped; recorded because a workflow
+          # that mangles its own error message is a workflow nobody trusts.
+          if grep -qiE '^colorama==' requirements-api.lock; then
+            echo '::error::requirements-api.lock contains colorama, whose marker is'
+            echo 'sys_platform == "win32". This lock was compiled on WINDOWS.'
+            FAIL=1
+          fi
+
+          if ! grep -qiE '^uvloop==' requirements-api.lock; then
+            echo '::error::requirements-api.lock is MISSING uvloop, which uvicorn[standard]'
+            echo 'requires on every platform except win32. This lock was compiled on WINDOWS.'
+            FAIL=1
+          fi
+
+          if [ "$FAIL" -ne 0 ]; then
             echo ""
-            echo "::error::requirements-api.lock is STALE. It does not match requirements-api.txt."
-            echo "The committed lock and a fresh compile disagree (diff above)."
-            echo "Regenerate it and commit the result:"
-            echo "    pip-compile requirements-api.txt -o requirements-api.lock"
+            echo "The Docker API image (Dockerfile:68-70) is python:3.11-slim-bookworm -- LINUX --"
+            echo "and it installs THIS lock. A Windows-compiled lock is not a description of it:"
+            echo "uvicorn[standard] silently loses uvloop and falls back to the default asyncio"
+            echo "event loop in production."
+            echo ""
+            echo "Regenerate it ON LINUX, with the Python the image uses (3.11). From the repo root:"
+            echo "    docker run --rm -v \"\$PWD\":/w -w /w python:3.11-slim-bookworm sh -c \\"
+            echo "      'pip install -q pip-tools && pip-compile requirements-api.txt -o requirements-api.lock'"
+            echo ""
+            echo "See docs/ROADMAP.md 6.25. This is the same defect class as 6.18, where"
+            echo "requirements.txt compiled under Python 3.14 silently omitted the torch stack."
             exit 1
           fi
-          echo "API lockfile matches requirements-api.txt."
+          echo "Lockfile targets Linux: uvloop present, colorama absent."
 
-          echo "Verifying it also installs cleanly on Linux..."
-          pip install --dry-run -r requirements-api.lock
-          echo "Lockfile OK."
-
+  # ─────────────────────────────────────────────────────────────────────────
+  # `needs: lockfile-check` REMOVED 2026-07-14 (roadmap 6.25).
+  #
+  # The test suite does not depend on requirements-api.lock. It never has. That file describes
+  # the API Docker image's inference-only environment; pytest installs requirements.txt and
+  # exercises the science. They are ORTHOGONAL concerns that happened to be chained.
+  #
+  # The cost of the chain, measured: on run 29374485597 the lockfile gate failed (spuriously --
+  # see the long note on that job), and `drift monitor`, `pytest`, `Docker build smoke test`
+  # and `Push image to GHCR` ALL reported "Skipped after 0s". **1,936 tests never ran on
+  # Linux.** A dependency-hygiene check took the entire suite down with it, on the one push
+  # that most needed validating: 47 files, two commits, an HGMD removal, a feature-contract
+  # change from 97 to 95, and three new gates -- none of it verified outside Windows.
+  #
+  # A gate should fail the thing it protects. It should not fail everything else as well.
+  # Docker build still needs the lock (it installs it), so THAT dependency stays.
   # ─────────────────────────────────────────────────────────────────────────
   test:
     name: pytest
     runs-on: ubuntu-latest
-    needs: lockfile-check
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
@@ -341,7 +432,11 @@ jobs:
   drift:
     name: drift monitor (isolated env)
     runs-on: ubuntu-latest
-    needs: lockfile-check
+    # `needs: lockfile-check` REMOVED 2026-07-14 (roadmap 6.25). This job installs
+    # requirements-drift.txt into a DELIBERATELY ISOLATED environment -- the whole point of it
+    # is that it shares nothing with the API image. Chaining it behind the API lockfile gate
+    # was gratuitous, and on run 29374485597 it meant a spurious lockfile failure skipped the
+    # drift tests too. A gate should fail the thing it protects, not everything downstream.
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
@@ -424,7 +519,14 @@ jobs:
   docker-build:
     name: Docker build smoke test
     runs-on: ubuntu-latest
-    needs: test
+    # THIS job genuinely depends on the lock -- Dockerfile:68-70 installs requirements-api.lock
+    # into the image. Made EXPLICIT 2026-07-14 (roadmap 6.25): it used to inherit the
+    # dependency transitively through `test`, which is why removing `test`'s spurious
+    # `needs: lockfile-check` would otherwise have severed a REAL dependency by accident.
+    #
+    # The distinction is the whole point: pytest does not read this lock, and drift does not
+    # read this lock, so neither should wait on it. The image DOES read it, so it waits.
+    needs: [test, lockfile-check]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
