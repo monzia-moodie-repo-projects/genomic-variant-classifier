@@ -74,13 +74,56 @@ Message approval workflow
 from __future__ import annotations
 
 import argparse
-import sys
-from pathlib import Path
+import sys   # still required: sys.exit() is called 12 times in main() (lines ~295-351).
+            # `from pathlib import Path` was removed with the sys.path hack below -- it had no
+            # other use in this file. `sys` DOES have other uses, and deleting it with the hack
+            # would have turned every CLI exit into a NameError. Blast radius measured, not
+            # assumed (CLAUDE.md 6.2).
 
-# Ensure agent_layer/ is on the path when run from the project root
-sys.path.insert(0, str(Path(__file__).parent))
-
-from orchestrator import Orchestrator, PIPELINE_DEFINITIONS
+# =========================================================================================
+# THE BARE IMPORT AND THE sys.path HACK ARE GONE. (2026-07-15, roadmap 6.26)
+#
+# This file used to read:
+#
+#     # Ensure agent_layer/ is on the path when run from the project root
+#     sys.path.insert(0, str(Path(__file__).parent))
+#
+#     from orchestrator import Orchestrator, PIPELINE_DEFINITIONS
+#     from genomic_variant_classifier.agent_layer.shared_state import SharedState
+#
+# Two lines apart, the SAME PACKAGE was imported by two different names. That is not a style
+# nit -- Python keys sys.modules by the import path, so `orchestrator` and
+# `genomic_variant_classifier.agent_layer.orchestrator` become TWO DISTINCT MODULE OBJECTS:
+#
+#   * two separate `Orchestrator` CLASSES -- `isinstance(x, Orchestrator)` then returns a
+#     different answer depending on which path constructed x;
+#   * two separate `PIPELINE_DEFINITIONS`, `_TELEMETRY_CAP` and `_DIVIDER`;
+#   * two separate copies of every `_Lazy` wrapper and anything it has cached.
+#
+# Every other consumer in this repository -- 20+ files, including run_adaptation.py,
+# run_data_freshness.py, and a dozen tests -- imports the full package path. This file was the
+# only one that did not, so it was the only one that could hold a second copy.
+#
+# And `sys.path.insert(0, agent_layer/)` put this directory FIRST on the import path, ahead of
+# the standard library, so any module in it shadows a stdlib module of the same name for the
+# whole process. This project already carries tests/unit/test_data_dir_not_shadowed.py because
+# shadowing has bitten it before.
+#
+# A remediation on 2026-07-01 was written to eliminate exactly this
+# (apply_unit2_reactivate_message_bus.py; SESSION_2026-07-01 records "Repointed 4 bare `from
+# orchestrator import Orchestrator` to the full package path") -- and
+# Install_unit2_reactivate_message_bus.ps1:111 still carries the post-condition check
+# `if "from orchestrator import Orchestrator" in s: errs.append(...)`. It reported four fixed
+# and missed this one. The check existed, was correct, and was not run against this file.
+#
+# The package is installed editable (`pip install -e .`), so the full path resolves everywhere:
+# from the project root, from any cwd, under `python -m`, in the Docker trainer image, and on
+# the rented graphics-processing-unit box. The hack bought nothing and cost module identity.
+# =========================================================================================
+from genomic_variant_classifier.agent_layer.orchestrator import (
+    PIPELINE_DEFINITIONS,
+    Orchestrator,
+)
 from genomic_variant_classifier.agent_layer.shared_state import SharedState
 
 
