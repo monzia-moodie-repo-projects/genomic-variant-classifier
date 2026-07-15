@@ -142,14 +142,34 @@ def verify_against_cohort(rekeyed: pd.DataFrame, cohort_meta_path: Path) -> dict
         tmp = Path(tf.name)
     rekeyed[[*KEY_COLS, REF_WIN_COL, ALT_WIN_COL]].to_parquet(tmp, index=False)
     try:
-        wins, n_unmapped = attach_delta_windows(meta, tmp, window=101)
-        poly = "A" * 101
+        att = attach_delta_windows(meta, tmp, window=101)
+        wins, n_unmapped = att.windows, att.n_unmapped
+        # 2026-07-15 (roadmap 6.28): this used to read
+        #
+        #     poly = "A" * 101
+        #     unmapped_mask = (wins[REF_WIN_COL].to_numpy() == poly)
+        #
+        # -- the FOURTH independent content-based poly-A detector in the repository, and
+        # the only one wired into a GATE (main() returns 6 and refuses to write when
+        # key_mismatch > 0). It was wrong in the same two ways as the other three:
+        #
+        #   * it saw only the JOIN's poly-A fallback, never the BUILDER's poly-N
+        #     placeholders (21,814 rows of the live artifact), so a padded deletion that
+        #     mapped to a placeholder window counted as SUCCESSFULLY MAPPED;
+        #   * it inferred provenance from content, and a real window may legitimately
+        #     read "A"*101 -- poly-A tracts are real biology.
+        #
+        # When PLACEHOLDER_BASE became "N", this comparison stopped matching anything:
+        # del_unmapped -> 0, key_mismatch -> 0, and the gate passed unconditionally. A
+        # working gate silently became a rubber stamp. tests/test_rekey_seq_windows_v2.py
+        # caught it, which is the only reason this note exists rather than a wrong
+        # parquet. `usable` is the builder's own verdict and covers BOTH failure modes.
         del_unmapped = 0
         key_mismatch = 0
         coverage_gap = 0
         if {"ref", "alt"} <= set(meta.columns):
             del_mask = is_padded_deletion(meta["ref"], meta["alt"]).to_numpy()
-            unmapped_mask = (wins[REF_WIN_COL].to_numpy() == poly)
+            unmapped_mask = ~att.usable
             del_unmapped_mask = del_mask & unmapped_mask
             del_unmapped = int(del_unmapped_mask.sum())
             if del_unmapped:

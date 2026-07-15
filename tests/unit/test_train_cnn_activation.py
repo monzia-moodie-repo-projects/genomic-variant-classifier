@@ -23,25 +23,56 @@ _ALT = "ACGT" * 25 + "C"   # 101 bp, differs at the centre-adjacent tail -> real
 
 
 def test_attach_delta_windows_uses_meta_ref_alt():
+    """REWRITTEN 2026-07-15 (roadmap 6.28). The previous version asserted a BUG.
+
+    It read:
+
+        w, n_unmapped = attach_delta_windows(meta)
+        assert len(w) == 3 and n_unmapped == 0
+        assert w[REF_WIN_COL].iloc[2] == "A" * 101          # NaN -> poly-A fill
+
+    on a frame whose third row is None. Tier 1 of attach_delta_windows ended with a
+    hardcoded `return out, 0`, so it reported ZERO unmapped while `.fillna(poly)`
+    fabricated a full poly-A window for that null row. This test asserted both halves of
+    that -- the false zero AND the fabrication -- and its own comment named the
+    fabrication approvingly. A green test was pinning the defect in place.
+
+    A null window is not a window. It is now counted, and marked unusable.
+    """
     meta = pd.DataFrame(
         {"gene_symbol": ["G1", "G2", "G3"],
          REF_WIN_COL: [_REF, _REF, None],
          ALT_WIN_COL: [_ALT, _ALT, None]}
     )
-    w, n_unmapped = attach_delta_windows(meta)
-    assert list(w.columns) == [REF_WIN_COL, ALT_WIN_COL]
-    assert len(w) == 3 and n_unmapped == 0
-    assert w[REF_WIN_COL].iloc[0] == _REF and w[ALT_WIN_COL].iloc[0] == _ALT
-    assert w[REF_WIN_COL].iloc[2] == "A" * 101          # NaN -> poly-A fill
-    assert w[REF_WIN_COL].iloc[0] != w[ALT_WIN_COL].iloc[0]   # real delta
+    att = attach_delta_windows(meta)
+
+    assert list(att.windows.columns) == [REF_WIN_COL, ALT_WIN_COL]
+    assert att.n_rows == 3
+    assert att.n_usable == 2
+    assert att.n_unmapped == 1, "the null row was fabricated away and reported as mapped"
+    assert not att.usable[2]
+
+    # The two REAL rows are passed through byte-for-byte and carry a real delta.
+    assert att.windows[REF_WIN_COL].iloc[0] == _REF
+    assert att.windows[ALT_WIN_COL].iloc[0] == _ALT
+    assert att.windows[REF_WIN_COL].iloc[0] != att.windows[ALT_WIN_COL].iloc[0]
+    assert att.usable[0] and att.usable[1]
 
 
-def test_attach_delta_windows_poly_a_when_absent():
-    meta = pd.DataFrame({"gene_symbol": ["G1", "G2"]})   # no ref/alt
-    w, n_unmapped = attach_delta_windows(meta)
-    assert n_unmapped == 2
-    assert (w[REF_WIN_COL] == "A" * 101).all()
-    assert (w[ALT_WIN_COL] == "A" * 101).all()
+def test_attach_delta_windows_yields_nothing_usable_when_windows_absent():
+    """Renamed from `test_attach_delta_windows_poly_a_when_absent` 2026-07-15.
+
+    The old name and body asserted the FILLER's identity ("A"*101). The filler is now
+    deliberately not part of the contract -- exactly so that no consumer can grow a
+    fifth content-based poly detector. What matters is that nothing is usable.
+    """
+    meta = pd.DataFrame({"gene_symbol": ["G1", "G2"]})   # no ref/alt columns at all
+    att = attach_delta_windows(meta)
+
+    assert att.n_unmapped == 2
+    assert att.n_usable == 0
+    assert not att.usable.any()
+    assert att.provenance == "none"
 
 
 def test_meta_train_parquet_aligns_to_x_train(tmp_path):
