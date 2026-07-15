@@ -124,6 +124,75 @@ def _embed_mean_pooled(windows: list, model_name: str, device: str = "cpu") -> n
     return out
 
 
+def centre_token_index(tok, win: str, ids: list) -> Optional[int]:
+    """Index of the token spanning the window's centre base, WITHOUT offset mapping.
+
+    WHY THIS FUNCTION EXISTS -- 2026-07-15, roadmap 6.27
+    ----------------------------------------------------
+    It replaces one line, which was the single most expensive line in this module:
+
+        off = tok(win, return_offsets_mapping=True).get("offset_mapping")
+
+    Nucleotide Transformer's tokeniser is ``EsmTokenizer``, and ``EsmTokenizer.is_fast``
+    is **False** -- a pure-Python ("slow") tokeniser. HuggingFace raises
+    ``NotImplementedError`` for ``return_offsets_mapping`` on EVERY slow tokeniser;
+    only ``PreTrainedTokenizerFast`` supports it. So that call raised on EVERY window,
+    a bare ``except Exception`` two frames up swallowed it into a ``logger.debug``
+    (below the default level -> printed NOTHING), and ``genomiclm_llr`` came back
+    **identically 0.0 for all 4,420,180 cohort rows**, silently, since the connector
+    was written. Measured on the owner's box, 2026-07-15::
+
+        is_fast: False | class: EsmTokenizer
+        OFFSET RAISES -> NotImplementedError: return_offset_mapping is not available
+        when using Python tokenizers.
+
+    It was invisible for two reasons at once. ``genomiclm_delta_norm`` never touches
+    offset mapping, so the sibling feature stayed ALIVE and the connector looked
+    healthy; and ``build_reference_slice`` FEEDS ``genomiclm_llr`` a synthetic
+    ``rng.uniform(-12, 4)``, so the stage-5 zero-audit graded the fixture, never the
+    connector (roadmap 7c: a gate that checks a PROXY is not a gate).
+
+    HOW THIS WORKS, AND WHAT IT REFUSES TO ASSUME
+    ---------------------------------------------
+    Offsets are reconstructed from the TOKEN STRINGS the tokeniser actually produced.
+    It therefore assumes nothing about k-mer size, how a non-multiple-of-k remainder is
+    split, or how many special tokens are prepended -- all of which would be guesses.
+    It reads what happened.
+
+    The one assumption it DOES make -- that the non-special tokens concatenate back to
+    the input -- is **asserted, not trusted**. A mismatch raises. Silently mislocating
+    the centre would mask the WRONG base and yield a plausible, wrong log-likelihood
+    ratio for every variant in the cohort: worse than zeros, because zeros are at least
+    visibly dead.
+
+    Returns the token index, or None if the centre base is not covered by any
+    non-special token (counted and reported by the caller; never silently zeroed).
+    """
+    toks = tok.convert_ids_to_tokens(ids)
+    special = set(tok.all_special_tokens or ())
+    centre = len(win) // 2
+    cursor = 0
+    hit: Optional[int] = None
+    for j, t in enumerate(toks):
+        if t in special:
+            continue
+        span = len(t)
+        if span == 0:
+            continue
+        if hit is None and cursor <= centre < cursor + span:
+            hit = j
+        cursor += span
+    if cursor != len(win):
+        raise RuntimeError(
+            f"tokeniser round-trip mismatch: the non-special tokens span {cursor} "
+            f"characters but the window is {len(win)}. The centre-token index would be "
+            f"WRONG, so every log-likelihood ratio would score the wrong base. "
+            f"tokeniser={type(tok).__name__}, is_fast={getattr(tok, 'is_fast', '?')}. "
+            f"Refusing to guess."
+        )
+    return hit
+
+
 def _masked_centre_logratio(ref_windows: list, alt_windows: list,
                             model_name: str, device: str = "cpu") -> np.ndarray:
     """Masked-LM log-likelihood ratio at the variant-centre token, per window pair.
@@ -145,15 +214,7 @@ def _masked_centre_logratio(ref_windows: list, alt_windows: list,
     def _logp_centre(win: str) -> Optional[float]:
         enc = tok(win, return_tensors="pt")
         ids = enc["input_ids"][0]
-        # locate the token spanning the centre base via char->token offsets
-        off = tok(win, return_offsets_mapping=True).get("offset_mapping")
-        centre = len(win) // 2
-        tok_idx = None
-        if off is not None:
-            for j, (s, e) in enumerate(off):
-                if s <= centre < e and e > s:
-                    tok_idx = j
-                    break
+        tok_idx = centre_token_index(tok, win, ids.tolist())
         if tok_idx is None:
             return None
         true_id = int(ids[tok_idx])
@@ -164,14 +225,46 @@ def _masked_centre_logratio(ref_windows: list, alt_windows: list,
         logp = torch.log_softmax(logits, dim=-1)[true_id]
         return float(logp)
 
+    # NO bare `except Exception` HERE. This loop used to read:
+    #
+    #     try:
+    #         ...
+    #     except Exception as exc:  # pragma: no cover
+    #         logger.debug("NT LLR failed for pair %d: %s", i, exc)
+    #
+    # and that is precisely what hid the offset-mapping NotImplementedError for the
+    # entire life of this connector (see centre_token_index). Two compounding faults:
+    # `logger.debug` is BELOW the default level, so nothing printed; and
+    # `# pragma: no cover` told the coverage tool to stop looking. CLAUDE.md 4:
+    # "A bare `except Exception` that logs and continues is a defect, not robustness --
+    # it is exactly what erased a base model from the ensemble."
+    #
+    # Exceptions now propagate. The only tolerated outcome is a centre token that
+    # genuinely cannot be located, which is COUNTED and reported -- and if it happens
+    # to EVERY pair, that is a dead connector and it RAISES. An all-zero return is no
+    # longer reachable in silence.
+    n_unlocatable = 0
     for i, (rw, aw) in enumerate(zip(ref_windows, alt_windows)):
-        try:
-            lr = _logp_centre(rw)
-            la = _logp_centre(aw)
-            if lr is not None and la is not None:
-                out[i] = la - lr
-        except Exception as exc:  # pragma: no cover
-            logger.debug("NT LLR failed for pair %d: %s", i, exc)
+        lr = _logp_centre(rw)
+        la = _logp_centre(aw)
+        if lr is None or la is None:
+            n_unlocatable += 1
+            continue
+        out[i] = la - lr
+
+    n_pairs = len(ref_windows)
+    if n_pairs and n_unlocatable == n_pairs:
+        raise RuntimeError(
+            f"genomiclm_llr: the centre token could not be located for ANY of "
+            f"{n_pairs} window pairs (model={model_name!r}). Every score would be "
+            f"0.0, which is indistinguishable from 'no effect'. This is a dead "
+            f"connector, not a result. Refusing to return a column of zeros."
+        )
+    if n_unlocatable:
+        logger.warning(
+            "genomiclm_llr: centre token unlocatable for %d/%d pairs -> 0.0 for those "
+            "rows (model=%s)", n_unlocatable, n_pairs, model_name,
+        )
     return out
 
 
@@ -198,7 +291,10 @@ class NucleotideTransformerConnector:
         self.device = _resolve_device(device)
         self.window = int(window)
         self.min_coverage_warn = float(min_coverage_warn)
-        self._poly = "A" * self.window
+        # `self._poly = "A" * self.window` was REMOVED 2026-07-15 (roadmap 6.28) along
+        # with `_mapped_mask`, its only consumer. Window provenance now arrives as
+        # WindowAttachment.usable, read from the builder's `ok` column. Nothing in this
+        # module may infer "is this sequence real?" from the sequence's own content.
 
     # -- score cache (coordinate-keyed; mirrors the ESM-2 score cache) ---------
     def _score_cache_path(self) -> Path:
@@ -240,14 +336,35 @@ class NucleotideTransformerConnector:
 
     # -- window resolution (the verified path; identical to the CNN's) --------
     def _resolve_windows(self, df: pd.DataFrame):
+        """Return the seq_window_join.WindowAttachment for `df`.
+
+        2026-07-15 (roadmap 6.28): returns the WindowAttachment itself, not a
+        `(windows, n_unmapped)` pair. Callers must mask on `.usable`.
+        """
         from genomic_variant_classifier.data.seq_window_join import attach_delta_windows
 
-        wins, n_unmapped = attach_delta_windows(df, self.seq_windows_path, self.window)
-        return wins, n_unmapped
+        return attach_delta_windows(df, self.seq_windows_path, self.window)
 
-    def _mapped_mask(self, wins: pd.DataFrame) -> np.ndarray:
-        """A row is 'mapped' iff its ref window is not the poly-A fallback."""
-        return (wins["fasta_seq_ref"].astype(str) != self._poly).to_numpy()
+    # `_mapped_mask` IS GONE. It read:
+    #
+    #     def _mapped_mask(self, wins):
+    #         """A row is 'mapped' iff its ref window is not the poly-A fallback."""
+    #         return (wins["fasta_seq_ref"].astype(str) != self._poly).to_numpy()
+    #
+    # It was WRONG TWICE OVER, and both faults are now structurally impossible:
+    #
+    # 1. It tested for the JOIN's poly-A fallback and was blind to the BUILDER's
+    #    poly-N placeholders -- 21,814 rows (0.494%) of the live 2026-07-10 artifact.
+    #    For those rows ref and alt are BOTH poly-N, so ||alt_emb - ref_emb|| is
+    #    exactly 0.0 -- the same value this module documents as "window unavailable /
+    #    model unavailable (stub)". Three distinct conditions, one indistinguishable
+    #    number.
+    # 2. More fundamentally, it inferred provenance from CONTENT. A window that reads
+    #    "A"*101 may be real: poly-A tracts are real biology. Content can never
+    #    separate "the reference genuinely says A" from "we gave up and typed A".
+    #
+    # `WindowAttachment.usable` carries the builder's own `ok` verdict out of the
+    # parquet, which is provenance rather than a guess about a string.
 
     # -- public API -----------------------------------------------------------
     def annotate_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -259,14 +376,15 @@ class NucleotideTransformerConnector:
             logger.warning("genomiclm: missing %s; skipping", required - set(df.columns))
             return df
 
-        wins, n_unmapped = self._resolve_windows(df)
-        mapped = self._mapped_mask(wins)
-        cov = float(mapped.mean()) if len(mapped) else 0.0
+        att = self._resolve_windows(df)
+        wins, mapped = att.windows, att.usable
+        cov = att.usable_fraction
         if cov < self.min_coverage_warn:
             logger.warning(
-                "genomiclm: only %.1f%% of variants have a mapped window "
-                "(%d/%d unmapped -> genomiclm_delta_norm=0.0). Check --seq-windows.",
-                100.0 * cov, int(n_unmapped), len(df),
+                "genomiclm: only %.1f%% of variants have a USABLE window "
+                "(%d unmapped + %d builder-placeholder of %d -> "
+                "genomiclm_delta_norm=0.0 for those rows). Check --seq-windows. [%s]",
+                100.0 * cov, att.n_unmapped, att.n_placeholder, len(df), att.summary(),
             )
 
         out = np.zeros(len(df), dtype=np.float32)
@@ -304,8 +422,8 @@ class NucleotideTransformerConnector:
         required = {"chrom", "pos", "ref", "alt"}
         if not required.issubset(df.columns):
             return df
-        wins, _ = self._resolve_windows(df)
-        mapped = self._mapped_mask(wins)
+        att = self._resolve_windows(df)
+        wins, mapped = att.windows, att.usable
         out = np.zeros(len(df), dtype=np.float32)
         idx_mapped = np.where(mapped)[0]
         if len(idx_mapped):

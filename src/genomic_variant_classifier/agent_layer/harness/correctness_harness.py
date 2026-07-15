@@ -354,11 +354,38 @@ def run_correctness_harness(
 # collapse to {0} (non-binary -> flagged) and the allowlist would have SILENTLY
 # swallowed that regression. Outside the allowlist, stage 5 now catches it.
 #
-# NOTE 3 (2026-07-11): the six KEGG / COSMIC / Nucleotide-Transformer columns added
-# by the 91->97 feature work (80eb9c8, 2026-07-06) are NOT allowlisted. They are
-# live connectors -- Run-17 real-data smoke shows them populated -- so per THE RULE
-# they are FED in build_reference_slice below. They were the entire cause of the
-# stage-5 CI failure triaged on 2026-07-08 (TRIAGE_2026-07-08_test-suite-red, C).
+# NOTE 3 (2026-07-11, CORRECTED 2026-07-15): the six KEGG / COSMIC / Nucleotide-
+# Transformer columns added by the 91->97 feature work (80eb9c8, 2026-07-06) are NOT
+# allowlisted. They are FED in build_reference_slice below, per THE RULE.
+#
+# THE ORIGINAL NOTE SAID, OF ALL SIX: "live connectors -- Run-17 real-data smoke shows
+# them populated". THAT WAS FALSE, AND IT WAS FALSE ABOUT THE EVIDENCE IT CITED.
+# The Run-17 smoke audit it points at (smoke_97_audit.txt) records the opposite for one
+# of the six: `genomiclm_llr` = DEAD IN ALL SPLITS. (It also records `cosmic_sig_tier`
+# dead in val/test.) The 2026-07-11 session read that audit, wrote "shows them
+# populated", and fed all six. The handoff for that session had warned, in bold:
+# "if any SHOULD populate on the fixture and doesn't, that specific one is a real
+# regression, not an allowlist gap." It was. It was `genomiclm_llr`.
+#
+# ROOT CAUSE, found 2026-07-15 (roadmap 6.27): `genomic_lm._masked_centre_logratio`
+# called `tok(win, return_offsets_mapping=True)`, which raises NotImplementedError on
+# Nucleotide Transformer's SLOW `EsmTokenizer`; a bare `except Exception` swallowed it
+# into a below-threshold `logger.debug`. `genomiclm_llr` was identically 0.0 for all
+# 4,420,180 cohort rows, from the day the connector was written. FIXED 2026-07-15.
+#
+# WHY FEEDING IT HERE IS STILL CORRECT -- AND WHY IT IS NOT ENOUGH.
+# engineer_features reads these six via `df.get(col, default)`: a pure passthrough.
+# Stage 5 on this fixture therefore tests exactly one thing -- that engineer_features
+# does not DESTROY a value it was handed. That is worth testing and this fixture tests
+# it. What it cannot test, and never claimed to, is whether the CONNECTOR can produce
+# the value at all: the connector is never invoked here. `genomiclm_llr` sat green for
+# months in that blind spot.
+#
+# So the gap was never the allowlist and never the fixture. It was the ABSENCE of a
+# test that exercises the connector itself. That test now exists:
+# tests/unit/test_genomiclm_llr_is_computed.py -- including a source-level tripwire
+# asserting `return_offsets_mapping` never returns to this module.
+# Do NOT "fix" a dead connector by editing this fixture. Fix the connector.
 KNOWN_ZERO_DEFAULT: frozenset[str] = frozenset({
     "reactome_pathway_count",  # Phase D: stub-zero until reactome parquet built
     # rnaseq_* (commit 1f3c2e0): gene-level, stub-zero until an --rnaseq-path
