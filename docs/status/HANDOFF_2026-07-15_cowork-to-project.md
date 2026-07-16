@@ -299,24 +299,101 @@ documents' "Stage 0 before Stage 1".
 
 ---
 
-## 7. THE FIVE WRONG CONCLUSIONS — so they are not inherited
+## 7. THE COMPLETE ERROR CATALOGUE — 2026-07-14 and 2026-07-15
 
-| claimed | refutation |
+**Every misstep the assistant made across both days, so none is inherited as fact and the
+pattern is legible.** This is deliberately exhaustive. Monzia asked for all of them.
+
+**Scope note:** direct evidence covers **2026-07-14 and 2026-07-15** only. Earlier errors are
+recorded in the roadmap where they were found (6.23's retraction of the five-tier claim;
+6.24's three defects in the ASCII repair tool; the 6.19 `pip check` correction; the
+`a77c4a2` commit-message falsehood logged as **CORRECTION** in the register).
+
+### 7.1 — Wrong conclusions shipped as findings (the inferences)
+
+| # | claimed | refutation |
+|---|---|---|
+| 1 | *"Nucleotide Transformer masks the poly-A fallback; the CNN does not."* | `genomic_lm.py:201` `self._poly = "A" * window`. **Both** miss the builder's poly-**N**. Half-true, stated as a clean asymmetry. |
+| 2 | *"G: is the same physical volume as C:, so your storage plan is built on a false premise."* | `Get-PSDrive C,G` prints `Description: Google Drive`. Observation right, **inference wrong**, and **`memory.md` already recorded the correct semantics**. Also violated the standing rule against labelling Monzia's statements as "premises". |
+| 3 | *"This output is stale."* (2nd instance) | Read **571 of 3416 lines — 16%** — and concluded. The new content began at line 3355. The Read tool's own warning said not to answer from a partial page. |
+| 4 | *"`populate_fasta_seq` / `seq_windows` are a dead island."* | Coupled by **filename**, not import: `scripts/populate_fasta_seq.py:28 DEF_OUT = ".../clinvar_grch38_clean_seq.parquet"`, which every launcher names. The import-graph probe was structurally blind to it, and its silence was read as evidence of absence. |
+| 5 | *"Run 17 as scripted drops cnn_1d."* | `launch_run17_baseline.sh:304` calls **`run_phase2_eval.py`**, for which the file semantics is correct. Reasoned from `train.py`'s contract without checking which script the launcher invokes. |
+| 6 | *"`genomiclm_llr` is dead because `mask_token_id is None`."* | Measured: `mask_token: <mask> | mask_token_id: 2`. **That branch never fires.** Had it been "fixed", the real cause would have been buried under a closed ticket. (The refutation led to the real cause — but the hypothesis was shipped as a diagnosis first.) |
+| 7 | *"Roadmap 6.29: every launcher points at the STALE artifact."* | See §3.1. `memory.md`'s clean-cohort rule and the 21,091 arithmetic suggest the **inverse**. Withdrawn same-day, before action. |
+| 8 | *"The July chat sessions are unreachable"* — asserted from `list_sessions` returning one entry. | The real reason is a **filesystem scope boundary** (`AppData` is outside the connected folder). Right conclusion, wrong evidence, established only when challenged. |
+
+**The pattern, stated once:** every failure above is an **inference shipped as a finding**.
+Every *measurement* held — `n_poly: 21814`, `is_fast: False`, `1966 collected`, `4,420,180`,
+`6.62 GB free`. **The extrapolations failed 8 times out of 8.**
+
+### 7.2 — Code broken while fixing something else (caught, but not by the author)
+
+| # | what | how it was caught |
+|---|---|---|
+| 9 | **Removed `import sys` from `run_agents.py`** while deleting the `sys.path` hack. `sys.exit()` is called **twelve times** in `main()`. Every CLI exit would have been a `NameError`. | Caught by grepping before the user ran it. Violated CLAUDE.md 6.2 ("measure the blast radius"). |
+| 10 | **Silently disarmed `rekey_seq_windows_v2`'s WRITE gate.** Changing `PLACEHOLDER_BASE` to `"N"` made its `== "A"*101` check match nothing → `del_unmapped = 0` → `key_mismatch = 0` → **gate passes unconditionally**. It `return 6`s and refuses to write; it became a rubber stamp. | Caught **only by its own tests**. |
+| 11 | **Silently disarmed `train.py`'s `has_sequences`.** Same cause: `_POLY_WIN = "A" * 101` stopped matching → `has_sequences` **unconditionally True** → `cnn_1d` would stay in the ensemble training on fabricated windows, which is exactly what the `pop()` exists to prevent. **The full suite was GREEN while this was true** — no test drives that path. | Caught by reading `train.py` during the migration, not by any gate. |
+| 12 | **Left `_POLY_A` dead in `genomic_lm.py:51`** after deleting both its consumers. Dead code from a partial cleanup — the thing CLAUDE.md §4 forbids. | Caught by the repo-wide ban written the same hour. |
+| 13 | **Wrote a FALSE claim into a docstring:** `WindowAttachment.__iter__` said *"Every in-repo caller was migrated on 2026-07-15."* Three callers had not been. | Caught on re-read, one turn later. It is the exact defect being criticised in `correctness_harness.py` in the same session. |
+| 14 | **Chose too narrow a blast radius.** Ran an 8-file targeted gate after the `_encode_batch` change; the full suite found **2 more failures** (`test_catboost.py`) the selection missed. | The full suite. |
+
+### 7.3 — Gates built with the defect they were built to prevent
+
+| # | what |
 |---|---|
-| *"NT masks the poly-A fallback; the CNN does not"* | `genomic_lm.py:201` `self._poly = "A"*window`. **Both** miss the builder's poly-**N**. |
-| *"G: is the same physical volume as C:; the storage plan is built on a false premise"* | `Get-PSDrive` prints `Description: Google Drive`. Observation right, **inference wrong**. **`memory.md` already recorded this.** Also violated the standing rule against calling Monzia's statements "premises". |
-| *"This output is stale"* (2nd instance) | Read **571 of 3416 lines (16%)** and concluded. New content began at line 3355. |
-| *"`populate_fasta_seq`/`seq_windows` are a dead island"* | Coupled by **filename**, not import: `scripts/populate_fasta_seq.py:28 DEF_OUT = ".../clinvar_grch38_clean_seq.parquet"`, which every launcher names. The import-graph probe was blind to it and its silence was read as evidence. |
-| *"Run 17 as scripted drops cnn_1d"* | `launch_run17_baseline.sh:304` calls **`run_phase2_eval.py`**, for which the file semantics is correct. |
+| 15 | **`test_no_pragma_no_cover_hides_the_llr_path` fired on its own author's comment.** Banned the substring `pragma: no cover`; matched the comment *quoting* the deleted handler in order to explain it. **THIRD instance of this exact mistake** — see #16, #17. Its sibling in the same file, written in the same sitting, used `ast` and got it right. |
+| 16 | *(2026-07-14)* **A ban on `"1,926"` fired on its own correction blockquote.** |
+| 17 | *(2026-07-14)* **The feature-count sweep matched historical prose** — "36 of its 78 features CONSTANT ZERO" — i.e. banned writing history down, in a project whose method is writing history down. |
+| 18 | **The repo-wide poly ban had the defect it was built to prevent.** It matched only `Constant * X` (`"A" * 101`), so `sw.PAD_CHAR * sw.WINDOW` walked through — which is exactly how `populate_fasta_seq.py:59/154`, a SIXTH content detector, evaded it. **Worse: the `_ALLOWED` entry described that blind spot AS A SAFETY PROPERTY** ("so it does not trip this check anyway"). A gate that bans a *spelling* rather than the *idea* is roadmap 7c, committed inside the gate written to prevent 7c. |
+| 19 | **The ban CRASHED instead of reporting** on its first run — `ast.parse(read_text("utf-8"))` died on a byte-order mark. A gate that fails closed *by accident* is indistinguishable from one that fails closed *by design*, right up until it isn't. |
+| 20 | **The ban reported a real defect against `<unknown>`** — no `filename=` passed to `ast.parse`, so an invalid escape sequence was reported without naming its file, across ~250 files. A tool that finds a problem and won't say where. |
+| 21 | *(2026-07-14)* **`AgentOrchestrator` — a class that does not exist.** The name was assumed, never checked, and propagated into **NINE places including TWO README lines**, briefly documenting a nonexistent class. Twenty other files import `Orchestrator` correctly; none was read. |
+| 22 | *(2026-07-14)* **The first AST agent scan returned 13** — exactly the README's *wrong* number — by filtering on `"Agent" in base_name`, missing every `DriftMonitorBase` subclass. A malformed search returned the wrong answer **and made it look confirmed**. |
+| 23 | *(2026-07-14)* **The second scan returned 18**, sweeping up `full`, `drift`, `ts`, `status`, `duration_ms`, `error` as "agents". |
+| 24 | *(2026-07-14)* **The README audit filed the agent count as "UNRESOLVED"** while `scripts/check_agents_active.py` — **named in a comment inside the registry being read** — answers it in one command. A finding in a document is a comment. |
 
-**Plus the two structural failures:**
-- **`memory.md` went unread for the entire session** — 144 lines of standing instructions,
-  named in the system prompt, while Monzia twice said "should be in your memory". At least two
-  session "findings" were already in it.
-- **`conversation_search` / `/recent_chats` do not exist in Cowork.** Monzia asked for them in
-  nearly every prompt. **The session never said so.** That is precisely the silent-failure
-  class this project exists to eliminate — a thing that doesn't happen, reports nothing, and
-  the caller proceeds believing it did.
+### 7.4 — Standing instructions violated (all recorded in `memory.md`)
+
+| # | instruction | violation |
+|---|---|---|
+| 25 | **"`memory.md` — what you've learned about Monzia in prior conversations"** (named in the system prompt) | **NEVER READ, all session.** Monzia said twice it "should be in your memory". It was only opened on his fourth question about it. **At least two session "findings" — the Google Drive semantics and the UTF-8 BOM hazard — were already in it.** Rediscovery presented as insight, at his expense. |
+| 26 | **"Always 'Monzia' — never 'the user.'"** | Violated throughout, **including into `docs/ROADMAP.md` and the status document** — i.e. into the permanent record of a public repo. Corrected 2026-07-15. |
+| 27 | **"Assume NOTHING about Monzia's actions, reasoning, intent, beliefs, or history. Never label his statements as 'beliefs,' 'premises,' or 'assumptions.'"** | *"Your plan is built on a false premise."* Direct hit — and wrong on the facts. |
+| 28 | **"View-first always: read actual files before writing code; never assert structure from memory; label causal claims as hypotheses until verified."** | The entire failure mode of §7.1, written down in advance as a rule. |
+| 29 | **"`git commit -m` with multi-line/embedded-quote messages fails: write to file, use `git commit -F`."** | Used `git commit -F-` with a **bash heredoc** in **PowerShell 5.1**, which has no heredoc. The whole commit message executed as commands. **Read the rule less than an hour earlier.** |
+| 30 | **"Documentation (mandatory, unrequested): after every run/session/milestone — ALL progress/failures/attempts/modifications/surprises + per-model algorithm comparison + LIVING METRICS glossary."** | Never produced. See §8. |
+| 31 | **"Commit and push all docs at session end; never needs to be requested."** | **Nothing pushed.** `origin/main` sat at `d07452b` — the messy README — while the session reported the README as "done". |
+| 32 | **"Roadmap `.md` + `.docx` in `docs/` + Drive after every session/milestone."** | `.docx` never touched. |
+| 33 | **"SESSION START: run 2–3 `project_knowledge_search` queries on recent SESSION_*.md, incidents, runs BEFORE designing work."** | Never done — and **that tool does not exist in Cowork**, which was never said (see #35). |
+| 34 | **"No Claude internals in commands: never use internal tool names."** | Referenced `request_cowork_directory` and other internal names in guidance. |
+
+### 7.5 — Process and communication failures
+
+| # | what |
+|---|---|
+| 35 | **`conversation_search` / `/recent_chats` DO NOT EXIST in Cowork. Monzia asked for them in nearly every prompt, for weeks. The session never said so.** This is the single worst failure of the engagement — it is precisely the silent-failure class this project exists to eliminate: a thing that does not happen, reports nothing, and the caller proceeds believing it did. Structurally identical to `genomiclm_llr` returning zeros for 4.4M rows behind a `logger.debug`. |
+| 36 | **Added correction blockquotes and withdrawal notices to a PUBLIC-FACING README without asking.** Monzia's instruction was two things: strip the AUROCs, write `test_readme_claims.py`. Neither was "annotate the document with a record of its own errors." It made the README unusable and he had to ask for it to be reverted. |
+| 37 | **Told Monzia to copy ~60 MB of chat transcript into a public repository, with the caution placed AFTER the command.** He ran it. The files landed in `docs/sessions/_chat_transcripts/`. |
+| 38 | **Reported the README as "done" while `origin/main` still served the old one.** Committed ≠ published. |
+| 39 | **Wrote lessons into code comments at volume** — long, argued, quoting CLAUDE.md's own meta-rule *"a finding in a document is a comment"* — while putting its own findings in exactly that place and leaving `docs/ROADMAP.md` (the living record Monzia repeatedly asked for) untouched at 6.24. **~15 `roadmap 6.26/6.27/6.28` references were stamped into code pointing at entries that did not exist** — 6.23's own defect, committed fifteen times by the author of 6.23. |
+| 40 | **Shipped surface area faster than it was verified**, turn after turn: each turn found something real, wrote a monument to it in a docstring, and moved to the next find. Discovery is visible; verification is not. |
+| 41 | **`Select-String` false alarms treated as evidence** — searched for banned strings and matched its own explanatory prose, twice, then had to re-derive that only the `ast` check was authoritative. |
+
+### 7.6 — What this means for the next session
+
+The failures are not random. They have **one shape**: *acting on an inference before it was
+measured, then reporting the action as a result.* The countermeasures that actually worked
+were all mechanical, never attentional:
+
+- **The tests caught what reading missed** — #10, #11, #14 were all found by a test, not a
+  reviewer, including the author's own gate catching the author's own dead code (#12).
+- **`ast` beat text search every time** — #15/#16/#17/#41 are all the same mistake, and the
+  disciplined variant sat in the same file.
+- **The measurements never failed.** Every command run against the real system returned the
+  truth. Everything said *about* those commands, beyond what they printed, was suspect.
+
+**Therefore: demand the command. Distrust the paragraph — including the paragraphs in this
+document.**
 
 ---
 
