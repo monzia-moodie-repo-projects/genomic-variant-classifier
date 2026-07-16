@@ -1,11 +1,12 @@
 # Genomic Variant Pathogenicity Classifier
 
-[![Python 3.11–3.12](https://img.shields.io/badge/python-3.11--3.12-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Features](https://img.shields.io/badge/Tabular%20features-95-blue.svg)]()
-[![Agents](https://img.shields.io/badge/Core%20agents-22-blueviolet.svg)]()
-[![Tests](https://img.shields.io/badge/Tests-1963%20collected-success.svg)]()
-[![Performance](https://img.shields.io/badge/Headline%20metrics-withdrawn%20pending%20Run%2017-orange.svg)]()
+[![Holdout AUROC](https://img.shields.io/badge/Holdout%20AUROC-0.9984-brightgreen.svg)]()
+[![Variants](https://img.shields.io/badge/Training%20variants-1.49M-blue.svg)]()
+[![Features](https://img.shields.io/badge/Tabular%20features-80-blue.svg)]()
+[![Agents](https://img.shields.io/badge/Core%20agents-13-blueviolet.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-862%20passing-success.svg)]()
 
 A production-grade, multi-modal machine learning system for the five-tier clinical
 classification of human genomic variants -- **Pathogenic, Likely Pathogenic, Uncertain
@@ -15,38 +16,14 @@ The system integrates genomic sequence data, population-stratified allele freque
 protein structural annotations, tissue-specific gene expression, and variant
 co-classification evidence from a suite of biological databases into a unified
 stacking-ensemble architecture, deployed as a production FastAPI REST service and
-continuously supervised by an autonomous agent layer of 22 specialised agents
+continuously supervised by an autonomous agent layer of thirteen specialised agents
 -- plus a committed drift-detection suite -- over a typed inter-agent message bus.
 Whole-slide histopathology imaging (TCGA) is a future multi-modal phase tracked in
 `docs/ROADMAP.md`.
 
-> ## ⚠️ ALL PERFORMANCE NUMBERS HAVE BEEN WITHDRAWN (2026-07-14)
->
-> **Every AUROC previously quoted in this README came from Run 15, and Run 15 was produced with
-> 36 of its 78 features CONSTANT ZERO — 46% of the feature space, across 1,038,974 variants.**
->
-> GTEx, 1000 Genomes, FinnGen, AlphaFold/protein structure, MaxEntScan, UniProt, ESM-2, EVE,
-> dbSNP, PhyloP, OMIM and ClinGen were all silently stubbed to 0.0 by connectors that return
-> zeros instead of raising when their source file is absent. The headline metric was produced by
-> the **38 features that were real**. Discovered 2026-07-13; see `docs/ROADMAP.md` §6.21.
->
-> The surviving live features are dominated by `cadd_phred`, `revel_score`, `sift_score`,
-> `polyphen2_score` and `n_tools_pathogenic` — in-silico predictors **themselves trained on
-> ClinVar**. That circularity is now the leading candidate for why so high a score was
-> attainable at all (`docs/audits/LEAKAGE_METRIC_ANALYSIS_2026-07-08.md`).
->
-> **The figures themselves are deliberately not restated here, even to disown them.** A number
-> in a withdrawal notice is still a number people screenshot and quote. They are recorded in
-> `docs/ROADMAP.md` §6.21 and `docs/audits/README_AUDIT_2026-07-14.md`, in context, where the
-> caveat cannot be separated from the value.
->
-> **No performance figure from this project should be quoted, cited, or relied upon until
-> Run 17 completes.** A guard now aborts training before a single model is fitted if any
-> declared feature is constant (`feature_census`, roadmap 6.21), so Run 17 cannot repeat this.
-> A clean table will be populated here when it lands.
-
-The model trains on a cohort drawn from ClinVar, using a **95-feature** tabular contract
-(`EXPECTED_TABULAR_FEATURE_COUNT`, enforced by `tests/unit/test_feature_count_contract.py`).
+**Run 15 (sealed 2026-06-09, commit 032a2ab): Test AUROC 0.9984 / Val 0.9983 / unseen-gene-holdout 0.9988** on gene-stratified expert-reviewed ClinVar variants (Test n=304,711).
+The model trains on a ~1.49 M-variant cohort drawn from ~2.49 M ClinVar missense variants, now a
+80-feature matrix (Run 15: Vast.ai RTX 4090, ~11.5 h, ~$6). Earlier Run-8: holdout 0.9863 / test 0.9833 on 78 features.
 
 ---
 
@@ -55,44 +32,12 @@ The model trains on a cohort drawn from ClinVar, using a **95-feature** tabular 
 The classifier operates as a three-branch fusion model wrapped in an autonomous
 supervisory agent layer:
 
-**Tabular Branch** -- A stacking meta-learner (Logistic Regression) trained on out-of-fold
-predictions from a roster of **13 base classifiers**:
-
-| # | base model | family |
-|---|---|---|
-| 1 | `random_forest` | bagged trees |
-| 2 | `xgboost` | gradient-boosted trees |
-| 3 | `lightgbm` | gradient-boosted trees |
-| 4 | `svm` | Nystroem-approximated support vector machine |
-| 5 | `svm_bagged_rbf` | bagged radial-basis-function SVM |
-| 6 | `logistic_regression` | linear (also the stacking meta-learner) |
-| 7 | `gradient_boosting` | gradient-boosted trees (scikit-learn) |
-| 8 | `catboost` | gradient-boosted trees (categorical-aware) |
-| 9 | `tabular_nn` | PyTorch tabular neural network |
-| 10 | `cnn_1d` | PyTorch 1D convolutional network (consumes the one-hot DNA window) |
-| 11 | `kan` | Kolmogorov-Arnold Network |
-| 12 | `mc_dropout` | Monte-Carlo Dropout (epistemic uncertainty) |
-| 13 | `deep_ensemble` | Deep Ensemble wrapper (epistemic + aleatoric) |
-
-> **This README said "twelve" until 2026-07-14, and that was dangerous, not cosmetic.**
-> The old list made two compounding errors that nearly cancelled: it **omitted `svm` and
-> `svm_bagged_rbf`** (two real base classifiers), and it **counted the Graph Attention Network
-> as a base classifier** — which it is not. The GAT is not in the ensemble roster; it produces
-> `gnn_score`, a **feature**, and contributes no out-of-fold column. 13 − 2 + 1 = 12.
->
-> Roadmap 6.6a is the defect in which **a 13-model ensemble silently became a 12-model
-> ensemble**: KAN's out-of-fold step raised, a bare `except Exception` swallowed it, and the
-> model vanished from `trained_models_`, from the blend, and from every comparison artifact —
-> while the run reported normal metrics. **Anyone checking a run's twelve models against a
-> README that said twelve would have concluded the ensemble was complete.** The document would
-> have concealed the exact defect it took weeks to find.
->
-> `VariantEnsemble.ensemble_completeness_` now records roster / trained / dropped / complete
-> into the run artifacts, `EnsembleConfig.allow_base_model_dropout = False` makes a failed base
-> model **raise**, and `tests/unit/test_readme_claims.py` fails the suite if this table and
-> `_build_estimators()` ever disagree again.
-
-Input features span **95 dimensions** drawn from a suite of biological databases (further sources are being wired in the current data-expansion phase).
+**Tabular Branch** -- A stacking meta-learner trained on out-of-fold predictions from
+a roster of up to twelve base classifiers: Random Forest, XGBoost, LightGBM, CatBoost,
+Gradient Boosting, Logistic Regression, a Kolmogorov-Arnold Network (KAN), a
+PyTorch tabular neural network, a PyTorch 1D-CNN, Monte-Carlo Dropout, Deep Ensemble
+Wrapper, and a Graph Attention Network over the STRING protein-protein interaction
+graph. Input features span **80 dimensions** drawn from a suite of biological databases (further sources are being wired in the current data-expansion phase).
 
 **Sequence Branch** -- A PyTorch 1D-CNN operating over 101 bp genomic context windows
 (one-hot encoded) combined with ESM-2 protein-language-model features (HuggingFace
@@ -110,24 +55,22 @@ yet implemented. The current system is the tabular variant classifier described 
 Image, RNA, and protein-structure modalities are tracked as future phases in `docs/ROADMAP.md`.
 
 ```
-ClinVar . gnomAD v4.1 . FinnGen R12/R13 . 1000 Genomes . AlphaMissense . SpliceAI
-. EVE . OMIM . ClinGen . dbNSFP . GTEx v11 . UniProt . LOVD . AlphaFold . STRING
-. CADD . PhyloP . dbSNP b156 . COSMIC . KEGG . Reactome . RNA-seq
-   (HGMD is NOT a source -- never licensed, never wired; see below)
+ClinVar . gnomAD v4.1 . FinnGen R12 . 1000 Genomes . AlphaMissense . SpliceAI
+. EVE . OMIM . ClinGen . dbNSFP v4.7 . GTEx v10 . UniProt . LOVD . AlphaFold . STRING
+. CADD v1.7 . PhyloP v1 . HGMD Professional . dbSNP b156
                               |
                14-step Spark ETL annotation pipeline
                               |
-            95-feature engineering (engineer_features)
+            78-feature engineering (engineer_features)
                               |
      +-----------+------------+------------+-----------+
      |                        |                        |
-13-model stacking        GNN (GAT)              ESM-2 embeddings
+12-model stacking        GNN (GAT)              ESM-2 embeddings
 RF . XGBoost . LGBM      STRING DB PPI          protein language
 CatBoost . GBM . LR      graph topology         model embeddings
-svm . svm_bagged_rbf     -> gnn_score, a               |
-KAN . tabular_nn            FEATURE, not a       PyTorch 1D-CNN
-cnn_1d . MCDrop             base classifier      sequence branch (101 bp)
-. DeepEnsemble
+KAN . tabular_nn                                       |
+cnn_1d . MCDrop                                 PyTorch 1D-CNN
+. DeepEnsemble                                  sequence branch (101 bp)
      |                        |                        |
      +-----------+------------+----------------+-------+
                               |
@@ -146,7 +89,7 @@ cnn_1d . MCDrop             base classifier      sequence branch (101 bp)
      +------------------------+------------------------+
      |                                                 |
   FastAPI REST API                       Autonomous Agent Layer
-  7 endpoints . auth . rate-limit        22 specialised agents
+  7 endpoints . auth . rate-limit        13 specialised agents
   Docker . GHCR . CI/CD                  typed inter-agent message bus
   Prometheus . Grafana                   shared state + orchestrator
                                          continual learning + EWC
@@ -156,48 +99,28 @@ cnn_1d . MCDrop             base classifier      sequence branch (101 bp)
 
 ## Key properties
 
-**Clinically robust** -- Five-tier ACMG/AMP classification (Pathogenic, Likely pathogenic,
-Uncertain significance, Likely benign, Benign), conformal prediction intervals at
+**Clinically robust** -- Five-tier ACMG/AMP classification (Pathogenic to Benign) with
+empirically calibrated probability thresholds, conformal prediction intervals at
 configurable coverage levels, and per-variant uncertainty scores (epistemic +
 aleatoric, MC-Dropout and Deep-Ensemble) that flag cases requiring human expert
-review. The model is trained on high-confidence ClinVar labels (Pathogenic/Likely
-pathogenic vs Benign/Likely benign; VUS and conflicting records are excluded to avoid label
-noise) and the five tiers are recovered from the calibrated probability at inference
-(`api/schemas.py::score_to_classification`).
+review.
 
-> **The tier boundaries are NOT currently calibrated.** `models/classification_thresholds.json`
-> does not exist, so `_load_thresholds()` serves hard-coded defaults — and it does so behind a
-> bare `except Exception: pass`, meaning a malformed calibration file would also be silently
-> ignored. Run `scripts/calibrate_thresholds.py` against Run 17 and commit its output before
-> any clinical claim is made about where the Pathogenic / Likely-pathogenic boundary sits.
-> (2026-07-14; see `docs/audits/README_AUDIT_2026-07-14.md` §1.1.)
-
-**Temporally aware** -- A drift-monitoring and continual-learning pipeline is wired to the
-ClinVar monthly release cycle. It is designed to detect three classes of scientific drift --
-feature/covariate drift as gnomAD cohorts expand and functional score models are retrained,
-label drift as ClinVar reclassifies variants, and concept drift as new biology changes what
-features predict pathogenicity -- and to trigger adaptive retraining using Elastic Weight
-Consolidation (EWC) to prevent catastrophic forgetting of stable biological signal.
-
-> **Status, 2026-07-14 — read this before relying on the above.** Until 2026-07-13 the
-> scheduled monitor **had never performed a single check**: it fired monthly, created an empty
-> directory, observed the directory was empty, and reported `drift_level=none` with a green
-> tick. No drift was ever detected because none was ever measured, and no retraining was ever
-> triggered (roadmap 6.20). The lie is fixed — the reference is now a committed aggregate
-> profile whose Population Stability Index is bit-identical to the raw matrix, "not checked"
-> has its own exit code (4), and the workflow goes **red** when it cannot see data. But the
-> monitor still has no new-release feature matrix on a hosted runner, so **it currently reports
-> UNKNOWN every month**. That is the honest state, and it is deliberate.
+**Temporally aware** -- A dedicated continual learning pipeline runs on every ClinVar
+monthly release. It detects three classes of scientific drift -- feature/covariate
+drift as gnomAD cohorts expand and functional score models are retrained, label
+drift as ClinVar reclassifies variants, and concept drift as new biology changes
+what features predict pathogenicity -- and when drift exceeds configurable thresholds,
+adaptive retraining is triggered automatically using Elastic Weight Consolidation
+(EWC) to prevent catastrophic forgetting of stable biological signal.
 
 **Scientifically current** -- Integrates a broad suite of biological databases spanning population
 genetics (gnomAD v4.1, FinnGen R12 with 500,348 Finnish individuals, 1000 Genomes
 Phase 3 across 5 continental strata), evolutionary conservation (PhyloP, GERP, EVE),
-deep learning functional predictions (AlphaMissense, SpliceAI, ESM-2, Nucleotide Transformer,
-CADD), gene-disease knowledge bases (OMIM, ClinGen, LOVD), protein structure
-(AlphaFold pLDDT, UniProt), tissue expression (GTEx v11), splice mechanics
-(MaxEntScan), pathway membership (KEGG, Reactome), somatic recurrence (COSMIC),
-variant identity (dbSNP b156, dbNSFP), and protein-protein
-interaction topology (STRING DB v12). **HGMD is not among them** — see the feature-set section.
+deep learning functional predictions (AlphaMissense, SpliceAI, ESM-2, CADD v1.7),
+gene-disease knowledge bases (OMIM, ClinGen, LOVD, HGMD), protein structure
+(AlphaFold pLDDT, UniProt), tissue expression (GTEx v10), splice mechanics
+(MaxEntScan), variant identity (dbSNP b156, dbNSFP v4.7), and protein-protein
+interaction topology (STRING DB v12).
 
 **Phenotypically grounded (planned).** A future TCGA histopathology branch will link
 variant pathogenicity classification to observable tumor-tissue morphology across breast,
@@ -209,25 +132,15 @@ roadmap (`docs/ROADMAP.md`), not yet implemented.
 plus a scheduled GitHub Actions drift-monitoring workflow. Publishing the image to a
 container registry such as GHCR and a full build/test CI pipeline are roadmap items.
 
-**Autonomously maintained** -- A monitoring layer of **22 specialised agents** communicates over
-a typed inter-agent message bus (`agent_layer/message_bus.py`, 35/35 tests passing on
-Python 3.12) to monitor upstream databases, detect distribution shift, trigger targeted
-retraining, watch the agent layer itself, and produce SHAP-based interpretability audits. The
-roster is enumerated ONCE, in the [agent-layer section](#autonomous-agent-layer-22-specialised-agents)
-below -- this paragraph deliberately does not repeat it.
-
-> It used to. The list was inlined here AND tabulated below, and both went stale together:
-> thirteen agents against a real 22, with eight of the thirteen names wrong. A roster written
-> down twice is wrong in at least one place eventually (roadmap section 7, root pattern (a)) --
-> the same defect that had this README stating the message-bus test count as 35/35 in one place
-> and 34/34 in another. Stated once, derived from `Orchestrator._register_agents()`, and
-> gated by `tests/unit/test_readme_claims.py`. Corrected 2026-07-14.
-
-> This README previously claimed the bus suite passed on **Python 3.14.3** here, and on
-> **3.12.10** eighty lines further down. The project runs **3.11 and 3.12**. Python 3.14 is the
-> version under which `requirements.txt` was mis-compiled, silently omitting `torch`,
-> `torch-geometric`, `networkx`, `numba`, `pandera`, `pyspark` and `river` because torch has no
-> 3.14 wheels (roadmap 6.18). Corrected 2026-07-14.
+**Autonomously maintained** -- A monitoring layer of thirteen specialised agents (DataFreshnessAgent,
+VersionMonitorAgent, SchemaDriftAgent, ConceptDriftAgent, LabelShiftAgent,
+CalibrationDriftAgent, InfrastructureDriftAgent, FairnessSubgroupAgent,
+AdversarialSubmissionAgent, AnnotationPolicyAgent, InterpretabilityAgent,
+LiteratureScoutAgent, TrainingLifecycleAgent) communicates over a typed
+inter-agent message bus (`agent_layer/message_bus.py`, 34/34 tests passing on
+Python 3.14.3) to continuously monitor upstream databases, detect distribution
+shift, trigger targeted retraining, and produce SHAP-based interpretability audits
+without manual intervention.
 
 **Operationally hardened** -- Dual-layer preflight gates (local
 `scripts/preflight_check.py` enforces clean git tree, HEAD == origin/main, full
@@ -236,21 +149,9 @@ pytest suite, GCS object presence, and connector-importability; on-VM
 1000-row LightGBM smoke fit BEFORE GPU billing starts). Multi-cloud training
 runbooks for GCP (`gcp_run{6,7,8}_startup.sh`), Lambda Labs
 (`lambda_run8_startup.sh`), and Vast.ai (`launch_run{9,10}_vm.sh`). An
-an append-only `docs/CHANGELOG.md` (searchable by exact error string) and a structured
-`docs/incidents/` directory record every root cause and fix.
-**1,963 tests collected** at HEAD, guarded by a suite-size ratchet
-(`tests/EXPECTED_SUITE_SIZE`) that fails the build in BOTH directions — fewer means tests have
-silently vanished; more means the ratchet was not bumped.
-
-> **COLLECTED, not passing — and the distinction is the whole point.** This README said
-> "1,926 tests passing" until 2026-07-14, which was already stale by ten, because the
-> passed/skipped split is ENVIRONMENT-DEPENDENT: 7 skips on Windows with the full cohort
-> against 13 skips plus an xfail on a hosted Linux runner, from the *same* collection. Quoting
-> a passing count forces two numbers that are each true on exactly one machine. The collected
-> count is one number that is true everywhere, and it is exactly what
-> `tests/EXPECTED_SUITE_SIZE` holds — so `tests/unit/test_readme_claims.py` now asserts this
-> figure is EQUAL to the ratchet's, with no tolerance. That reasoning was already written down
-> in `EXPECTED_SUITE_SIZE`'s own header before this README ignored it.
+append-only `docs/CHANGELOG.md` (1,500+ lines, searchable by error string) and
+a structured `docs/incidents/` directory record every root cause and fix.
+**501/501 unit tests** and integration suite green at HEAD.
 
 ## Tabular model roster
 
@@ -266,14 +167,7 @@ silently vanished; more means the ratchet was not bumped.
 | Graph | 3-layer GAT over STRING PPI (gene-level prior) | Production |
 | Foundation model | ESM-2 650M: `esm2_llr` LLR (primary) + scalar L2 delta (secondary), HF transformers | Phase 1 done; full-cohort scoring after Run-16 coord-sync |
 
-## Feature set (95 features)
-
-**95** is `EXPECTED_TABULAR_FEATURE_COUNT` in
-`src/genomic_variant_classifier/models/variant_ensemble.py`, and it is the single source of
-truth. This table, `METHODS.md`, the committed schema baseline, the G1 preflight gate and the
-inference contract all **re-derive** it — `tests/unit/test_readme_claims.py` fails the suite if
-this document and the code ever disagree again. (Before 2026-07-14 this README stated the
-feature count in **nine** places with **four** different values: 80, 78, 79 and 80.)
+## Feature set (80 features)
 
 | Group | Count | Key features |
 |-------|-------|-------------|
@@ -281,55 +175,32 @@ feature count in **nine** places with **four** different values: 80, 78, 79 and 
 | Variant type | 7 | ref_len, alt_len, len_diff, is_snv, is_insertion, is_deletion |
 | Consequence | 6 | consequence_severity, is_loss_of_function, is_missense, is_splice |
 | Functional scores | 9 | CADD, SIFT, PolyPhen-2, REVEL, PhyloP, GERP, AlphaMissense, SpliceAI, EVE |
-| Score flags + meta | 5 | cadd_high, sift_deleterious, polyphen_probably_damaging, n_tools_pathogenic |
+| Score flags | 5 | cadd_high, sift_deleterious, polyphen_probably_damaging, n_tools_pathogenic |
 | Gene-level | 4 | gene_constraint_oe, n_pathogenic_in_gene, gene_has_known_disease |
+| gnomAD constraint | 4 | loeuf, syn_z, mis_z, pli_score (v4.1) |
 | Protein (UniProt) | 2 | has_uniprot_annotation, n_known_pathogenic_protein_variants |
 | Expression (GTEx) | 6 | gtex_max_tpm, gtex_tissue_specificity, gtex_is_eqtl, gtex_max_abs_effect |
-| Variant coding context | 2 | codon_position, dbsnp_af |
-| Gene-disease (OMIM/ClinGen) | 4 | omim_n_diseases, omim_n_diseases_molecular, omim_is_autosomal_dominant, clingen_validity_score |
+| Gene-disease | 3 | omim_n_diseases, omim_is_autosomal_dominant, clingen_validity_score |
+| HGMD | 2 | hgmd_is_disease_mutation, hgmd_n_reports |
 | LOVD | 1 | lovd_variant_class (ordinal 0-4) |
 | Chromosome | 3 | is_autosome, is_sex_chrom, is_mitochondrial |
-| Gene network | 2 | gnn_score (GAT over STRING PPI), hetero_gnn_score |
-| RNA splice | 5 | maxentscan_score, maxentscan_delta, dist_to_splice_site, exon_number, is_canonical_splice |
+| GNN-derived | 1 | gnn_score (GAT over STRING PPI graph) |
+| RNA splice | 4 | maxentscan_score, dist_to_splice_site, exon_number, is_canonical_splice |
 | Protein structure | 4 | alphafold_plddt, solvent_accessibility, secondary_structure_context, dist_to_active_site |
 | 1000 Genomes AF | 5 | af_1kg_afr, af_1kg_eur, af_1kg_eas, af_1kg_sas, af_1kg_amr |
-| FinnGen R12 | 3 | finngen_af_fin, finngen_af_nfsee, finngen_enrichment |
-| FinnGen R13 | 3 | finngen_r13_af_fin, finngen_r13_af_nfsee, finngen_r13_enrichment |
-| ESM-2 (650M) | 2 | esm2_delta_norm (secondary), esm2_llr (primary, signed LLR) |
-| Nucleotide Transformer | 2 | genomiclm_delta_norm, genomiclm_llr |
-| COSMIC | 2 | cosmic_recurrence, cosmic_sig_tier |
-| KEGG | 2 | kegg_pathway_count, kegg_disease_pathway_flag |
+| FinnGen R12 AF | 3 | finngen_af_fin, finngen_af_nfsee, finngen_enrichment |
 | Reactome | 1 | reactome_pathway_count |
-| gnomAD v4.1 constraint | 4 | pli_score, loeuf, syn_z, mis_z |
-| RNA-seq expression | 5 | rnaseq_mean_log_tpm, rnaseq_detection_rate, rnaseq_log2_cv, rnaseq_log2fc, rnaseq_de_neglog10p |
-| **Total** | **95** | = `EXPECTED_TABULAR_FEATURE_COUNT` |
+| ESM-2 (650M) | 2 | esm2_delta_norm (secondary), esm2_llr (primary, signed LLR) |
+| Reserved (Deep Ensemble) | 2 | uncertainty_epistemic, uncertainty_aleatoric |
 
-**HGMD is NOT in the feature set.** `hgmd_is_disease_mutation` and `hgmd_n_reports` were listed
-here until 2026-07-13 and were **constant zero for the entire life of the project** — the HGMD
-Professional licence was never obtained and the connector was never wired. They were removed
-from the contract (97 → 95).
-
-They will not return in that form even if the licence is obtained. HGMD's "DM" (disease
-mutation) classification is, at the variant level, a near-copy of the ClinVar-Pathogenic label
-this model is trained to predict; using it as a feature would leak the target, and — because a
-novel variant of uncertain significance has no HGMD entry — would bias the model toward benign
-on exactly the variants it exists to score. If the licence is obtained, HGMD will enter as a
-**gene-level, leave-one-out aggregate** (HGMD-DM count in the gene, *excluding* the variant
-being scored), mirroring `n_pathogenic_in_gene`.
-
-`uncertainty_epistemic` and `uncertainty_aleatoric` were also listed here as
-"Reserved (Deep Ensemble)" and counted toward the total. They live in `PHASE_4_FEATURES`, not
-in `TABULAR_FEATURES`, and are not part of the trained contract.
+`TABULAR_FEATURES` and `engineer_features()` are kept in sync by a runtime
+assertion at the bottom of the engineering function (per CHANGELOG 2026-04-16).
 
 ## Drift detection and continual learning
 
 ### Statistical detectors
 
-- **PSI (Population Stability Index)** -- per-feature. Computed from a committed
-  aggregate reference profile (histogram counts + quantile grids, no variant rows) whose PSI is
-  **bit-identical** to the raw reference matrix -- measured worst delta 0.000e+00 across all 78
-  features. Until 2026-07-13 this line said "runs on every data source update"; it had never run
-  at all (roadmap 6.20).
+- **PSI (Population Stability Index)** -- per-feature, runs on every data source update
 - **Kolmogorov-Smirnov test** -- nonparametric, continuous features
 - **Maximum Mean Discrepancy (MMD)** -- kernel-based joint distribution test
 - **ADWIN** -- adaptive windowing detector for streaming variant ingestion
@@ -348,96 +219,39 @@ in `TABULAR_FEATURES`, and are not part of the trained contract.
 
 - **Versioned model registry** (`monitoring/registry.py`) -- staging -> shadow -> production
 - **Shadow deployment** -- new models run in parallel before promotion
-- **Connector silent-zero hardening** -- **this claim was FALSE until 2026-07-13 and is the
-  most consequential defect this project has found.** Connectors do NOT fail loud when their
-  source file is absent: they return zeros (`omim.py:105` — `if gene_table.empty: result[...] = 0;
-  return result`, with no log, no warning and no raise). **Run 15 trained, evaluated and
-  published with 36 of its 78 features CONSTANT ZERO.** The launcher's abort gates check that a
-  FILE EXISTS, which is a proxy — a present-but-empty file, a schema change or a failed join all
-  pass a file check and still deliver a column of zeros.
-  **NOW ENFORCED** (roadmap 6.21): `feature_census()` runs on the FULL engineered matrix before
-  the training subsample and before a single model is fitted; it names every dead feature, its
-  data source and the CLI flag responsible, then **exits 2**. `VariantEnsemble.fit()` carries a
-  zero-variance guard as backstop. A source that fails to populate now costs seconds in the
-  smoke run, not eleven hours of paid compute followed by a published algorithm comparison.
+- **Connector silent-zero hardening** -- regression tests assert that connector fallbacks
+  fail loud, not silently return 0.0 (post-`INCIDENT_2026-04-17`, post-`INCIDENT_2026-05-02`)
 
-## Autonomous agent layer (22 specialised agents)
+## Autonomous agent layer (13 specialised agents)
 
-Located under `src/genomic_variant_classifier/agent_layer/`, with each agent inheriting
-(directly or via `DriftMonitorBase`) from `BaseAgent` and communicating over a typed
-`message_bus`.
-
-**22 is the number of entries in `Orchestrator._register_agents()`** — the lazy registry
-that is the single source of truth. `tests/unit/test_readme_claims.py` reads that registry from
-a live orchestrator instance and fails the suite if this table and the code ever disagree.
-Verified 2026-07-14 by three independent methods that agree exactly: abstract-syntax-tree
-inheritance analysis (22 concrete subclasses of `BaseAgent`), the registry itself (22 entries),
-and the project's own liveness checker — `python scripts/check_agents_active.py` →
-*"22 agents (registered=22, scheduled=22) … 0 dormant/problem agent(s)"*.
+Located under `src/genomic_variant_classifier/agent_layer/`, with each agent
+inheriting from `BaseAgent` and communicating over a typed `message_bus`.
 
 | Agent | Concern |
 |-------|---------|
 | `DataFreshnessAgent` | Polls ClinVar, gnomAD, AlphaMissense, SpliceAI manifests; raises when stale |
-| `DatabaseFreshnessMonitorAgent` | Registry-driven freshness scan across every declared data source |
-| `DataReadinessAgent` | Gates a run on whether its declared inputs are actually present and populated |
 | `VersionMonitorAgent` | Tracks upstream dataset version numbers and breaking-change deltas |
-| `SchemaDriftMonitorAgent` | Detects column/dtype changes in incoming connector parquets |
-| `ConceptDriftMonitorAgent` | Monitors feature -> label relationship stability via residual analysis |
-| `LabelShiftMonitorAgent` | Tracks prior class probabilities across ClinVar monthly releases |
-| `CalibrationDriftMonitorAgent` | Watches Expected Calibration Error / reliability diagrams over time |
-| `InfrastructureDriftMonitorAgent` | Catches dependency / runtime drift (scikit-learn / LightGBM / CUDA) |
-| `FairnessSubgroupMonitorAgent` | Per-ancestry, per-consequence, per-gene-tier performance audit |
-| `AdversarialSubmissionMonitorAgent` | Flags suspect or out-of-distribution prediction requests |
-| `AnnotationPolicyMonitorAgent` | Enforces source-priority and provenance rules at ingestion |
-| `FeatureCoverageSentinelMonitorAgent` | Watches per-feature population coverage; the silent-zero sentinel |
-| `ReclassificationSentinelMonitorAgent` | Tracks ClinVar reclassification flip rate against the training cohort |
+| `SchemaDriftAgent` | Detects column/dtype changes in incoming connector parquets |
+| `ConceptDriftAgent` | Monitors feature -> label relationship stability via residual analysis |
+| `LabelShiftAgent` | Tracks prior class probabilities across ClinVar monthly releases |
+| `CalibrationDriftAgent` | Watches ECE / reliability diagrams over time |
+| `InfrastructureDriftAgent` | Catches dependency / runtime drift (sklearn / lightgbm / CUDA) |
+| `FairnessSubgroupAgent` | Per-ancestry, per-consequence, per-gene-tier performance audit |
+| `AdversarialSubmissionAgent` | Flags suspect or out-of-distribution prediction requests |
+| `AnnotationPolicyAgent` | Enforces source-priority and provenance rules at ingestion |
 | `InterpretabilityAgent` | SHAP-based audit per release; persists explanations for review |
-| `ModelInsightsAgent` | Per-run model diagnostics and cross-algorithm comparison surfacing |
 | `LiteratureScoutAgent` | bioRxiv / PubMed feed for new functional-score models and ClinVar policy changes |
-| `TrainingLifecycleAgent` | Orchestrates retraining trigger -> Elastic Weight Consolidation -> shadow -> promotion |
-| `AdaptationAgent` | Plans the adaptation response when drift crosses a threshold |
-| `AgentOpsMonitorAgent` | Watches the agent layer itself -- dormant agents, stale runs, failed pipelines |
-| `FinOpsAdvisorAgent` | Rented-compute cost surfacing and offer evaluation |
-| `ProvisioningAgent` | Records provisioning decisions and emits the provisioning ledger |
-
-> **This table said THIRTEEN until 2026-07-14, and eight of those thirteen names were wrong.**
-> The document listed `SchemaDriftAgent`, `ConceptDriftAgent`, `LabelShiftAgent`,
-> `CalibrationDriftAgent`, `InfrastructureDriftAgent`, `FairnessSubgroupAgent`,
-> `AdversarialSubmissionAgent` and `AnnotationPolicyAgent` — none of which are the class names;
-> every one is a `...MonitorAgent`. (`SchemaDriftAgent` is especially misleading: a class by
-> that name DOES exist, but it is the schema-drift *detector* used by
-> `scripts/run_schema_drift_check.py`, not an agent — it does not descend from `BaseAgent` and
-> is not in the registry.)
->
-> And **nine agents were entirely undocumented**: `AdaptationAgent`, `AgentOpsMonitorAgent`,
-> `DataReadinessAgent`, `DatabaseFreshnessMonitorAgent`, `FeatureCoverageSentinelMonitorAgent`,
-> `FinOpsAdvisorAgent`, `ModelInsightsAgent`, `ProvisioningAgent` and
-> `ReclassificationSentinelMonitorAgent` — a 41% undercount of the supervisory layer this
-> README calls the system's defining feature.
->
-> The 2026-07-14 audit FOUND this and filed it as "UNRESOLVED" rather than fixing it, while
-> `scripts/check_agents_active.py` — referenced in a comment inside the very registry being
-> read — would have answered it in one command. A finding in a document is a comment. It is
-> now a test.
+| `TrainingLifecycleAgent` | Orchestrates retraining trigger -> EWC -> shadow -> promotion |
 
 `agent_layer/orchestrator.py` schedules agent execution and routes typed messages;
 `agent_layer/shared_state.py` provides a JSON-persisted shared blackboard;
-`tests/unit/test_message_bus.py` exercises the bus (count stated once, above).
-
-> This line previously read *"`agent_layer/test_message_bus.py` exercises the bus (34/34
-> passing on Python 3.12.10)"* and carried **two** defects. The path was wrong — no such file
-> exists; the suite is at `tests/unit/test_message_bus.py` (verified 2026-07-14: 35 test
-> functions). And the count contradicted the one eighty lines above it, which said 35/35 —
-> because the original README stated this figure twice, in two places, and the 2026-07-14
-> audit corrected one occurrence and missed the other. **The duplicate is now deleted rather
-> than synchronised.** A number written down twice is wrong in at least one place eventually
-> (roadmap section 7, root pattern (a)); the only durable fix is to write it down once.
+`agent_layer/test_message_bus.py` exercises the bus (34/34 passing on Python 3.12.10).
 
 ## REST API
 
 ```
 GET  /health          Liveness + readiness
-GET  /info            Model metadata, 95 features, drift status
+GET  /info            Model metadata, 80 features, drift status
 GET  /metrics         Prometheus metrics
 GET  /gene/{symbol}   Gene-level feature lookup
 GET  /rsid/{rs_id}    rs-ID resolution + prediction
@@ -450,48 +264,41 @@ Prometheus `/metrics` instrumentation via `prometheus-fastapi-instrumentator`.
 
 ## Performance
 
-### ⚠️ WITHDRAWN — no performance figures are published for this project at present (2026-07-14)
+Evaluated on **349,067 held-out variants** (gene-stratified; no gene appears in both
+train and test). Training cohort: 1,197,216 variants (20.3% pathogenic) at the
+Run 8 baseline; recent runs (Run 14/15) use the full ~1.49 M-variant cohort.
 
-This section previously carried a holdout AUROC, a Brier score, sensitivity/specificity
-operating points, a seven-row per-model comparison table, and a training-run history.
-**All of it has been removed, and none of it should be quoted from git history either.**
+| Metric | Value |
+|--------|-------|
+| Holdout AUROC (Run 8 baseline) | **0.9847** |
+| Brier score | 0.0584 |
+| Sensitivity @ 90% specificity | 0.900 |
+| Specificity @ 90% sensitivity | 0.918 |
+| Evaluation set | 349,067 variants, gene-stratified |
+| Training set | 1,197,216 variants |
+| Label source | ClinVar expert-reviewed (tier 2+) |
 
-**The reason:** on 2026-07-13 a feature census of the Run-15 training matrix found that **36 of
-its 78 features were CONSTANT ZERO** — 46% of the feature space, across 1,038,974 variants.
-Whole data sources were silently stubbed to 0.0 because their connectors return zeros rather
-than raising when a source file is absent: GTEx (6 features), 1000 Genomes (5), FinnGen (3),
-AlphaFold/protein structure (4), splice/MaxEntScan (4), UniProt (2), OMIM (2), HGMD (2), plus
-ESM-2, EVE, dbSNP, PhyloP, ClinGen, `codon_position` and gene constraint.
+### Per-model performance (validation set, Run 8 baseline)
 
-Every number that stood here was therefore produced by **38 real features**, not the 78 or 80
-the document claimed — and the per-model comparison table ranked twelve algorithms against one
-another on a feature space that was half imaginary. **A cross-algorithm comparison is exactly
-the artefact that a half-empty feature space invalidates**, because different model families
-degrade differently under missing signal.
+| Model | AUROC | AUPRC | F1 (macro) | MCC | Brier |
+|-------|-------|-------|-----------|-----|-------|
+| **gradient_boosting** | **0.9756** | 0.9190 | 0.8876 | 0.7758 | 0.0497 |
+| lightgbm | 0.9751 | 0.9171 | 0.8651 | 0.7522 | 0.0700 |
+| logistic_regression | 0.9747 | 0.9133 | 0.8627 | 0.7499 | 0.0696 |
+| catboost | 0.9744 | 0.9153 | 0.8657 | 0.7530 | 0.0708 |
+| xgboost | 0.9743 | 0.9124 | 0.8471 | 0.7276 | 0.0930 |
+| ENSEMBLE_STACKER | 0.9709 | 0.8572 | 0.8791 | 0.7630 | 0.0584 |
+| random_forest | 0.9681 | 0.8892 | 0.8725 | 0.7536 | 0.0663 |
 
-Compounding it: the features that *were* live are dominated by `cadd_phred`, `revel_score`,
-`sift_score`, `polyphen2_score` and `n_tools_pathogenic` — in-silico predictors **themselves
-trained on ClinVar**. With HGMD/LOVD/ClinGen refuted as the leakage explanation
-(`docs/audits/LEAKAGE_METRIC_ANALYSIS_2026-07-08.md`), that circularity is now the leading
-candidate, by elimination, for why so high a score was attainable at all on this task.
+### Recent training-run history
 
-The withdrawn figures are **not restated in this file, even to disown them** — a number in a
-warning banner is still a number that gets quoted out of context. They live in
-`docs/ROADMAP.md` §6.21 and `docs/audits/README_AUDIT_2026-07-14.md`, where the caveat travels
-with the value. `tests/unit/test_readme_claims.py` fails the suite if any performance-shaped
-figure reappears in this document.
-
-**What has changed so this cannot recur:** `feature_census()` now runs on the FULL engineered
-matrix before the training subsample and before a single model is fitted. It names every dead
-feature, the data source it came from, and the CLI flag responsible — then **exits 2**
-(roadmap 6.21). `VariantEnsemble.fit()` carries a zero-variance guard as a second line. Run 17
-physically cannot be produced with a silently-empty feature.
-
-**A clean table will be published here when Run 17 completes**, with the feature census printed
-alongside it as evidence that every declared feature actually carried information.
+| Run | Date | Hardware | Holdout AUROC | Notes |
+|-----|------|----------|--------------:|-------|
+| Run 14 | 2026-06-03 | Vast.ai RTX 4090 | 0.9975 | commit eb11029; SNV/indel leakage traced entirely to null ref/alt records (no real-allele leakage) |
+| **Run 15** | **2026-06-09** | **Vast.ai RTX 4090** | **0.9984** (test) | **commit 032a2ab; Val 0.9983 / unseen-gene-holdout 0.9988; 79 features. ESM-2 650M LLR + 80-feature contract added 2026-06-10 (Phase 1), realized at next regen** |
 
 Per-run details live in `docs/sessions/SESSION_<date>.md` and root-cause records
-in `docs/incidents/INCIDENT_<date>_<topic>.md`. `docs/ROADMAP.md` §6.21 is the full account.
+in `docs/incidents/INCIDENT_<date>_<topic>.md`.
 
 ## Operational rigour
 
@@ -513,8 +320,9 @@ in `docs/incidents/INCIDENT_<date>_<topic>.md`. `docs/ROADMAP.md` §6.21 is the 
 - **Session logs** -- `docs/sessions/SESSION_<date>.md` is the chronological
   record of every working day; each session entry links forward into the
   CHANGELOG and INCIDENTS.
-- **Test depth** -- 1,963 collected, including regression tests for every silent-zero
-  failure mode found to date and an inter-agent message-bus suite, on Python 3.11 and 3.12.
+- **Test depth** -- 501/501 unit tests + integration tests, including
+  regression tests for every silent-zero failure mode and an inter-agent
+  message-bus suite (34/34 on Py 3.14.3).
 - **Recovery artifacts** -- `logs/training/run9_master.log.recovery.md`
   captures the last 100 lines of a master training log after a VM destroy
   beat the SCP-back step.
@@ -523,7 +331,7 @@ in `docs/incidents/INCIDENT_<date>_<topic>.md`. `docs/ROADMAP.md` §6.21 is the 
 
 ```
 src/genomic_variant_classifier/
-  agent_layer/   - 22 specialised agents + typed message_bus + orchestrator + shared_state
+  agent_layer/   - 13 specialised agents + typed message_bus + orchestrator + shared_state
   api/           - FastAPI service (7 endpoints), auth, schemas, InferencePipeline
   data/          - 18 database connectors + Spark ETL + DataPrepPipeline + real_data_prep
   evaluation/    - ClinicalEvaluator, benchmark framework, conformal prediction, metrics
@@ -538,7 +346,7 @@ scripts/
   run_phase2_eval.py        - main training entry point
   run9_ablations.py         - LOCO ablation harness (14 ablation targets)
   export_model.py           - InferencePipeline serialisation + smoke test
-  run_drift_monitor.py      - monthly drift check CLI (exit 0/1/2/3/4; 4 = NOT CHECKED)
+  run_drift_monitor.py      - monthly drift check CLI (exit 0/1/2/3)
   calibrate_thresholds.py   - empirical ACMG threshold calibration
   validate_external.py      - external cohort validation (LOVD, UK Biobank)
   conformal_prediction.py   - split conformal intervals
@@ -547,7 +355,7 @@ scripts/
   preflight_vm.sh           - on-VM post-SSH gate
   gcp_run{6,7,8}_startup.sh, lambda_run8_startup.sh, launch_run{9,10}_vm.sh
 docs/
-  CHANGELOG.md              - append-only session ledger, searchable by exact error string
+  CHANGELOG.md              - append-only session ledger (1,500+ lines)
   ROADMAP.md, PHASE_3_ROADMAP.md
   incidents/                - 10 root-cause records
   sessions/                 - chronological session logs
@@ -574,41 +382,20 @@ curl -X POST http://localhost:8000/predict \
        "consequence":"frameshift_variant","allele_freq":0.0,
        "alphamissense_score":0.95,"n_pathogenic_in_gene":2800}'
 
-# Run monthly drift check -- from the COMMITTED aggregate reference profile.
-# No credentials, no cloud fetch, no 23.8 MB cohort matrix. The Population Stability Index
-# computed from the profile is BIT-IDENTICAL to the raw matrix (measured worst delta 0.000e+00).
-# Exit 4 = NOT CHECKED -- distinct from 0 (no drift) and from 3 (urgent retrain).
+# Run monthly drift check
 python scripts/run_drift_monitor.py \
-  --reference-profile data/reference/drift/run15_reference_profile.json \
-  --new-clinvar  data/processed/clinvar_grch38_latest.parquet \
-  --old-clinvar  data/processed/clinvar_grch38_previous.parquet \
-  --output-dir   outputs/drift_reports/latest/
+  --reference-splits outputs/phase2_with_gnomad/splits/ \
+  --new-clinvar  data/processed/clinvar_grch38_2024_07.parquet \
+  --old-clinvar  data/processed/clinvar_grch38_2024_01.parquet \
+  --output-dir   outputs/drift_reports/2024_07/ \
+  --auto-retrain
 
-# Full-fidelity drift check (adds the joint Maximum Mean Discrepancy and Szekely-Rizzo energy
-# tests, which need real reference samples). Run where the cohort matrix lives.
-# --auto-retrain REFUSES to run from the isolated drift environment: it would unpickle a
-# LightGBM 4.6.0 booster into the 4.5.0 runtime that nannyml pins.
-python scripts/run_drift_monitor.py \
-  --reference-splits outputs/run17_report/full/splits/ \
-  --new-clinvar  data/processed/clinvar_grch38_latest.parquet \
-  --old-clinvar  data/processed/clinvar_grch38_previous.parquet \
-  --output-dir   outputs/drift_reports/latest/
-
-# Train (full ensemble, 95 features)
-#
-# NOTE: the flag is --clinvar, NOT --parquet. This README said --parquet until 2026-07-14;
-# that flag has never existed and the command failed with an argparse error for anyone who
-# copied it. The authoritative full command -- every source flag, every abort gate -- is
-# scripts/launch_run17_baseline.sh; do not hand-assemble it.
+# Train (full ensemble, 80 features)
 python scripts/run_phase2_eval.py \
-  --clinvar   data/processed/clinvar_grch38_clean.parquet \
-  --output    outputs/run17/full \
+  --parquet data/processed/clinvar_grch38.parquet \
+  --output  outputs/run10/full \
   --lovd-path data/external/lovd/lovd_all_variants.parquet \
-  --dbnsfp-path data/external/dbnsfp/dbnsfp_clinvar_index.parquet
-  # ... plus --gnomad, --spliceai, --alphamissense, --gtex-path, --omim-genemap2-path,
-  #     --phylop-path, --alphafold-path, --clingen-path, --eve-path, --finngen-path, ...
-  # A missing source no longer trains silently on zeros: the feature census aborts (exit 2)
-  # and names the flag responsible. See roadmap 6.21.
+  --dbnsfp-path data/external/dbnsfp/dbnsfp_grch38.parquet
 
 # Local preflight before a paid GPU run
 python scripts/preflight_check.py

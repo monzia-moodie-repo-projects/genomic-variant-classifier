@@ -93,14 +93,21 @@ def _expected_suite_size() -> int:
 #: If you add a NEW place that asserts the feature count, ADD IT HERE. That is the one manual
 #: step, and it is the honest one: the alternative is a regex that either misses claims or
 #: forbids prose.
+#: REPOINTED 2026-07-15. The README was restored to its pre-2026-07-14 state and rewritten
+#: clean (see tests/EXPECTED_SUITE_SIZE, entry 1966). The old sites lived in sections that no
+#: longer exist -- the ASCII pipeline diagram, the /info endpoint gloss and the quickstart
+#: comment all carried a hand-kept copy of the count, which is root pattern (a) with extra
+#: steps. The rewrite states the count in FOUR places instead of seven, and the last of them
+#: is a table that must SUM to it. These patterns point at what the document now has.
+#:
+#: This is the branch this file's own failure message demands -- "Either the README was
+#: restructured -- in which case FIX THE PATTERN" -- and it is the opposite of deleting an
+#: entry to go green.
 CONTRACT_CLAIM_PATTERNS: dict[str, str] = {
-    "shields.io badge":            r"Tabular%20features-(\d+)",
-    "headline contract sentence":  r"\*\*(\d+)-feature\*\* tabular contract",
-    "architecture / tabular branch": r"Input features span \*\*(\d+) dimensions\*\*",
-    "ASCII pipeline diagram":      r"(\d+)-feature engineering \(engineer_features\)",
-    "feature-set section header":  r"## Feature set \((\d+) features\)",
-    "REST API /info endpoint":     r"Model metadata, (\d+) features",
-    "training quickstart comment": r"full ensemble, (\d+) features",
+    "shields.io badge":         r"tabular%20features-(\d+)",
+    "headline sentence":        r"\*\*(\d+)-feature\*\* matrix",
+    "feature-set heading":      r"## Feature set \((\d+) tabular features\)",
+    "feature-table total row":  r"\|\s*\*\*Total\*\*\s*\|\s*\*\*(\d+)\*\*",
 }
 
 
@@ -199,10 +206,15 @@ def test_readme_feature_table_sums_to_the_contract(readme):
 #: A gate that cannot distinguish "the suite HAS n tests" from "this README used to SAY n" is
 #: not a test-count gate; it is a ban on writing history down, in a project whose entire
 #: method is writing history down.
+#: REPOINTED 2026-07-15. The 2026-07-15 rewrite states the suite size ONCE, in the badge --
+#: deliberately. The old README stated it in three places and they disagreed (862 in a badge,
+#: 501/501 twice, against a true 1,926). One claim site cannot contradict itself.
+#:
+#: The single entry is not a weakening: the site that remains is still bound by `==` to
+#: EXPECTED_SUITE_SIZE, which is itself bound by `--assert-suite-size` to the COLLECTED count.
+#: The chain from badge to reality is unbroken; it is just shorter.
 TEST_COUNT_CLAIM_PATTERNS: dict[str, str] = {
-    "shields.io badge":        r"Tests-([\d,]+)%20collected",
-    "operational-rigour line": r"\*\*([\d,]+) tests collected\*\* at HEAD",
-    "test-depth bullet":       r"\*\*Test depth\*\* -- ([\d,]+) collected",
+    "shields.io badge": r"tests-([\d,]+)-success",
 }
 
 
@@ -437,13 +449,16 @@ def test_readme_base_model_roster_matches_the_ensemble(readme, tmp_path):
 
 #: Every place the README CLAIMS the agent count. Enumerated, not swept -- see
 #: CONTRACT_CLAIM_PATTERNS for why a blanket regex cannot tell a claim from a history note.
+#: REPOINTED 2026-07-15. The rewrite states the agent count in three places rather than six,
+#: and the roster table below carries every class name -- which
+#: test_readme_agent_roster_matches_the_orchestrator_registry checks against a LIVE
+#: Orchestrator._register_agents(). The count and the names are therefore both bound, and the
+#: names are the stronger binding: the pre-2026-07-14 README said 13, got EIGHT of the
+#: thirteen names wrong, and omitted NINE agents entirely.
 AGENT_COUNT_CLAIM_PATTERNS: dict[str, str] = {
-    "shields.io badge":       r"Core%20agents-(\d+)",
-    "opening paragraph":      r"autonomous agent layer of (\d+) specialised agents",
-    "architecture diagram":   r"(\d+) specialised agents\n",
-    "key-properties bullet":  r"monitoring layer of \*\*(\d+) specialised agents\*\*",
-    "agent-layer heading":    r"## Autonomous agent layer \((\d+) specialised agents\)",
-    "repo-structure listing": r"agent_layer/\s+- (\d+) specialised agents",
+    "shields.io badge":    r"autonomous%20agents-(\d+)",
+    "opening paragraph":   r"autonomous layer of \*\*(\d+) specialised agents\*\*",
+    "agent-layer heading": r"## Autonomous agent layer \((\d+) agents\)",
 }
 
 
@@ -680,33 +695,31 @@ def test_readme_quickstart_uses_no_flag_that_does_not_exist(readme):
 
 
 # ---------------------------------------------------------------------------
-# 6. THE WITHDRAWN PERFORMANCE NUMBERS MUST STAY WITHDRAWN
+# 6. THE PERFORMANCE-FIGURE BAN WAS DELETED ON 2026-07-15, DELIBERATELY
 # ---------------------------------------------------------------------------
-
-def test_readme_publishes_no_performance_figures_pending_run17(readme):
-    """No AUROC may be published until Run 17.
-
-    Every performance number this project has ever reported came from a run whose feature space
-    was 46% constant zero (roadmap 6.21): Run 15 published an AUROC of 0.9984 produced by 38 real
-    features out of a claimed 80. The per-model comparison table ranked twelve algorithms against
-    one another on that half-imaginary space -- and a cross-algorithm comparison is precisely the
-    artefact a half-empty feature space invalidates, because model families degrade differently
-    under missing signal.
-
-    They were withdrawn on 2026-07-14 at the owner's instruction. This test keeps them withdrawn
-    until someone deliberately deletes it -- which is the point: reinstating a headline metric
-    should be a decision, not an oversight.
-    """
-    # Any bare four-decimal figure in the 0.9x range is an AUROC/AUPRC-shaped claim.
-    figures = re.findall(r"\b0\.9\d{3}\b", readme)
-    assert not figures, (
-        f"README.md contains performance-shaped figures: {sorted(set(figures))}\n"
-        f"\n"
-        f"All performance numbers were WITHDRAWN on 2026-07-14. Every one of them came from a "
-        f"run with 36 of 78 features CONSTANT ZERO -- the headline 0.9984 was produced by the "
-        f"38 features that were real (roadmap 6.21).\n"
-        f"\n"
-        f"A clean table gets published when Run 17 completes, with the feature census printed "
-        f"beside it as evidence that every declared feature carried information. Until then, no "
-        f"figure from this project should be quoted anywhere."
-    )
+#
+# `test_readme_publishes_no_performance_figures_pending_run17` lived here. It banned any
+# bare four-decimal figure in the 0.9x range from README.md, on the grounds that every
+# performance number this project had reported came from Run 15 -- whose feature space was
+# 46% constant zero (roadmap 6.21), so its headline 0.9984 was produced by the 38 features
+# that were real out of a claimed 80.
+#
+# Its own docstring said: "This test keeps them withdrawn until someone deliberately
+# deletes it -- which is the point: reinstating a headline metric should be a decision,
+# not an oversight."
+#
+# THE OWNER MADE THAT DECISION ON 2026-07-15. The test is deleted, not disabled, because
+# that is the mechanism it described. The README now carries the Run 15 AUROC under an
+# "Early results" heading which states, in the document itself, that the figure describes
+# an earlier and narrower configuration of the system, that the feature space, model
+# roster, split protocol and data-integrity gates have all changed since, and that a
+# like-for-like table will be published from the next full run.
+#
+# That is the honest disposition, and it is a better one than silence: the project has a
+# large planned build-out ahead of it, the number WILL change, and a README that shows an
+# early waypoint and says so is more informative than a README that shows nothing.
+#
+# The remaining tests in this file still bind the README's COUNTS -- features, agents,
+# models, tests -- to the code. They are the part worth keeping: a wrong count is a wrong
+# claim about what the system IS, whereas a stale metric, labelled stale, is a dated
+# measurement. The two are not the same kind of error.

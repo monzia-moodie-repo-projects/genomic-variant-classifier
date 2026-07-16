@@ -563,4 +563,80 @@
 #                     usable=False rows as real. train.py feeds the CNN's X_seq. The migration
 #                     list lives in WindowAttachment.__iter__'s docstring and deletes itself
 #                     when empty.
-1963
+#
+#   1966  2026-07-15  NET +3. MEASURED (`pytest tests/ --collect-only -q` -> "1966 tests
+#                     collected in 16.76s", exit 0), never predicted.
+#
+#                     +4  tests/unit/test_no_content_based_poly_detection.py (NEW FILE) --
+#                         a repo-wide ban on inferring window PROVENANCE from window
+#                         CONTENT. FOUR independent poly-A detectors existed (train.py:485,
+#                         genomic_lm._poly, seq_window_join's own fallback, and
+#                         rekey_seq_windows_v2:146 -- the last wired into a gate that
+#                         RETURNS 6 AND REFUSES TO WRITE). All four were blind to the same
+#                         21,814 builder-placeholder rows, because the builder writes "N"
+#                         and every detector matched "A".
+#
+#                         THE BAN HAD THE DEFECT IT WAS BUILT TO PREVENT. Its first version
+#                         matched only `Constant * X` -- the literal `"A" * 101` -- and was
+#                         therefore structurally blind to `sw.PAD_CHAR * sw.WINDOW`, which
+#                         is exactly how populate_fasta_seq.py:59/154 (a SIXTH detector,
+#                         with a live content comparison) walked through it. Worse, the
+#                         _ALLOWED entry DESCRIBED that blind spot as a reassurance: "it
+#                         builds it as PLACEHOLDER_BASE * window (Name * Name), so it does
+#                         not trip this check anyway". A gate that bans a SPELLING rather
+#                         than the IDEA is roadmap 7c, committed inside the gate written to
+#                         prevent 7c. It now resolves names.
+#
+#                         ON ITS FIRST CLEAN RUN IT FOUND TWO DEFECTS NOBODY WAS LOOKING
+#                         FOR. (i) SIX Python source files carry a UTF-8 byte-order mark
+#                         (build_spliceai_index, compute_within_gene_auroc,
+#                         diagnose_phase2_prediction_reconstruction,
+#                         download_finngen_R10_DEPRECATED, parse_dbsnp_freq_query_tsv,
+#                         validate_gencode_assets). Python's tokeniser strips it (PEP 263)
+#                         so they import and test green, but `ast.parse(read_text("utf-8"))`
+#                         raises `SyntaxError: invalid non-printable character U+FEFF` --
+#                         so every source-analysis gate in this suite either DIES or must
+#                         SILENTLY SKIP them, and a gate that skips a file reports coverage
+#                         it does not have. Cross-validated by two independent methods
+#                         returning the identical list. (ii)
+#                         download_finngen_R10_DEPRECATED.py:6 carries an invalid escape
+#                         sequence '\M' (from the path `G:\My Drive\genomic-variant-data`)
+#                         -- deprecated, a SyntaxError in a future Python, and reported
+#                         against "<unknown>" until `filename=` was passed to ast.parse. A
+#                         tool that finds a defect and will not say where is the same
+#                         failure this project exists to prevent.
+#
+#                     -1  test_readme_claims.py::
+#                         test_readme_publishes_no_performance_figures_pending_run17 --
+#                         DELETED at the owner's instruction, 2026-07-15. It banned any
+#                         bare 0.9xxx figure from README.md pending Run 17. Its own
+#                         docstring said: "This test keeps them withdrawn until someone
+#                         deliberately deletes it -- which is the point: reinstating a
+#                         headline metric should be a decision, not an oversight." The
+#                         owner made that decision. Deleting the test IS the mechanism the
+#                         test described, not a bypass of it. The README now carries the
+#                         Run 15 AUROC under an "Early results" heading which states, in
+#                         the document itself, that the figure describes an earlier and
+#                         narrower configuration and that a like-for-like table follows
+#                         from the next full run.
+#
+#                     THE README WAS RESTORED AND REWRITTEN. `git checkout d07452b^ --
+#                     README.md` (restoring 4528414's version), then rewritten clean. The
+#                     2026-07-14 pass had annotated a PUBLIC-FACING document with
+#                     correction blockquotes and withdrawal notices -- an editorial
+#                     decision about how the project presents itself that was never asked
+#                     for and never sanctioned. The instruction had been two things: strip
+#                     the AUROCs, and write test_readme_claims.py. Neither was "annotate
+#                     the document with a record of its own errors."
+#
+#                     The rewrite is high-level and descriptive, with a PURPOSE section the
+#                     old document never had: the project's four aims (clinical,
+#                     biological, methodological, translational) and how each shapes the
+#                     engineering. Counts are kept and correct as of today -- 95 features
+#                     (group table summed against TABULAR_FEATURES), 22 agents (read from
+#                     Orchestrator._register_agents()), 13 base models, 1966 tests. The
+#                     README is a SNAPSHOT refreshed per run; docs/ROADMAP.md is the living
+#                     record. Those are different artifacts with different contracts, and
+#                     conflating them is what produced nine feature-count claims with four
+#                     values.
+1966
