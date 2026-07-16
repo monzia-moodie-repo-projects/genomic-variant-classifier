@@ -395,6 +395,49 @@ were all mechanical, never attentional:
 **Therefore: demand the command. Distrust the paragraph — including the paragraphs in this
 document.**
 
+### 7.7 — The endgame, 2026-07-15, AFTER §7.1–7.6 were written
+
+**Four more, in the twenty minutes after the catalogue above was committed. They are recorded
+separately because the sequence is the single most instructive thing in this document: the
+author wrote out forty-one instances of one error, and then committed that same error four
+more times, twice within one message of finishing.**
+
+| # | what happened |
+|---|---|
+| 42 | **`EXPECTED_SUITE_SIZE` was shipped at 1966 against a tree that collects 1962.** The +4 came from an UNTRACKED file. The history entry says "MEASURED ... never predicted" — and it *was* measured, on a working tree holding a file that is in no commit. **Root pattern (d), inside the ratchet built to stop pattern (a).** `git status` printed `?? tests/unit/test_no_content_based_poly_detection.py` in the same terminal, in the same minute, directly above the commit. Caught before CI reported it, but only after the push. |
+| 43 | **A finished README rewrite was DESTROYED by a parenthesised command inside a commit message.** The message line `Restored to 4528414 (git checkout d07452b^ -- README.md) and rewritten.` was fed to PowerShell via a bash heredoc. **PowerShell evaluates `( … )` as a subexpression — it EXECUTED the checkout**, reverted the file, then failed on `Restored`. A shell metacharacter in PROSE, executing as CODE — the exact hazard the author had written into `ci.yml` about backticks, one screen above the lockfile gate. Recovered only because the blob survived unreachable in the object store: `git fsck --dangling` → `741a1bb884…`. |
+| 44 | **A FALSE COMMIT MESSAGE was pushed to a PUBLIC repository.** `63e998d`'s message describes the rewrite in detail. `git diff 4528414 63e998d -- README.md` is **EMPTY** — the commit contains the revert. Same defect as `a77c4a2`, already logged as a CORRECTION in the register. |
+| 45 | **Corruption was INVENTED from a console rendering, and a destructive "fix" was ordered for it.** The README rendered as `ΓÇö` in a CP437 terminal. That was declared file corruption and a re-restore was issued. The bytes are `E2 80 94` — a correct UTF-8 em-dash — and were correct throughout. `git hash-object README.md` → `741a1bb884…`, byte-identical to the blob, settling it in one command. **The re-restore failed harmlessly; had it succeeded it would have been a no-op at best.** |
+
+**And #38 in the table above** — "reported the README as done while `origin/main` still served the old one" — was worse than stated there. `origin/main` was serving the old one **because the commit that claimed to fix it contained the revert.** The two failures were the same failure.
+
+#### What #43–#45 mean, and the one durable output of this session
+
+The chain that ends in #43 is not four mistakes. It is **one mistake, four times, in four
+costumes**, and the costume is the whole difference:
+
+- a **bash heredoc** in PowerShell → "not a real pipe, so the rule didn't seem to apply"
+- a **`head_limit`** on a search tool (2026-07-14) → "not a `head` pipe, so the rule didn't apply"
+- a **parenthesis in prose** → "not a command, so it can't run"
+- a **`ΓÇö` on screen** → "not a rendering, that's the file"
+
+CLAUDE.md §1.1 already says it: **"A truncation is a truncation whatever the syntax. The rule
+is not about `head`."** The generalisation was written down, in bold, and the next four
+instances still went through, because each one *looked like* a different thing.
+
+**THE ONE THING WORTH KEEPING FROM ALL OF THIS:**
+
+> **`git hash-object <file>` — the same hash, or it is not the same file.**
+
+It exonerated the README in one command after prose had condemned it. It is the answer to
+every "did the restore land", every "is this file intact", and — directly relevant to the
+storage plan in §4.1 of CLAUDE.md — **every "verify the archive copy before deleting the local
+one."** Not the byte size. Not the first three bytes. Not what the terminal draws. The hash.
+
+Every failure in this document is a *rendering* — a log line, a search result, a parse error,
+a terminal glyph — mistaken for the *thing*. The measurements never lied. `n_poly: 21814`,
+`is_fast: False`, `1962 tests collected`, `741a1bb884…`: every one held. **Ask for the hash.**
+
 ---
 
 ## 8. DOCUMENTATION DEBT — mandatory per memory.md, NOT DONE

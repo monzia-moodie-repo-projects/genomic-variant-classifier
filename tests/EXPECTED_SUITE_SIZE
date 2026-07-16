@@ -639,4 +639,56 @@
 #                     record. Those are different artifacts with different contracts, and
 #                     conflating them is what produced nine feature-count claims with four
 #                     values.
-1966
+#
+#                     ^^^ THE 1966 ENTRY ABOVE IS WRONG, AND IT IS KEPT SO THAT IT SAYS SO.
+#                     See the 1962 entry below. It was committed (63e998d) and PUSHED
+#                     (b1ec589) before the error was found.
+#
+#   1962  2026-07-15  -4: CORRECTING 1966, which never described any committed tree.
+#
+#                     1966 counted the +4 from tests/unit/test_no_content_based_poly_detection
+#                     .py. THAT FILE IS UNTRACKED. It has never been in a commit. It carries
+#                     TWO DELIBERATE FAILURES -- the six byte-order-marked source files and
+#                     populate_fasta_seq.py's sixth content detector, both real, both open --
+#                     so it is held back with the uncommitted sequence work rather than
+#                     committed red.
+#
+#                     The pushed tree therefore contains the -1 (the deleted README
+#                     performance-figure ban, in 63e998d) and NOT the +4. 1963 - 1 = 1962.
+#                     MEASURED, on the tree as it will be collected:
+#
+#                         Move-Item tests\unit\test_no_content_based_poly_detection.py $env:TEMP\
+#                         pytest tests/ --collect-only -q   ->  "1962 tests collected in 23.73s"
+#                         $LASTEXITCODE                     ->  0
+#
+#                     THE 1966 ENTRY SAYS "MEASURED ... never predicted", AND IT WAS MEASURED.
+#                     That is precisely the problem. `pytest --collect-only` was run on a
+#                     WORKING TREE holding an untracked file, and the resulting number was
+#                     written into a file that guards a COMMITTED tree. The measurement was
+#                     real; the thing it measured was not the thing being asserted.
+#
+#                     THIS IS ROOT PATTERN (d), IN THE RATCHET ITSELF. "A green result from a
+#                     mutated environment is evidence about the ENVIRONMENT, not the code" --
+#                     the same shape as the sed-patched imodelsx that made a local suite green
+#                     while the Kolmogorov-Arnold Network was absent from every Continuous
+#                     Integration run for two months. `git status` had printed
+#                     `?? tests/unit/test_no_content_based_poly_detection.py` in the same
+#                     terminal, in the same minute, immediately above the commit that shipped
+#                     1966.
+#
+#                     AND THE WORD "MEASURED" IS WHY IT SURVIVED REVIEW. This file's history
+#                     uses "MEASURED, not predicted" to mark the entries that are trustworthy,
+#                     because four consecutive entries record the author's arithmetic being
+#                     wrong. That convention made "MEASURED" read as a warrant. It is not one.
+#                     A measurement is only evidence about the thing it was taken FROM, and
+#                     nothing in the word records what that was. Every future entry states the
+#                     TREE the count was taken on, not merely that a count was taken.
+#
+#                     WHEN test_no_content_based_poly_detection.py IS COMMITTED, this goes to
+#                     1966 -- and the number is to be re-measured then, on that tree, not
+#                     carried forward from here.
+#
+#                     The ratchet was RIGHT and the number was WRONG. It is about to report
+#                     "4 tests VANISHED" on b1ec589, naming four tests that were never
+#                     committed. Do not touch conftest.py. Fix the number.
+1962

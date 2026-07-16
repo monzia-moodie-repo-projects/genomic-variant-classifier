@@ -1,379 +1,378 @@
 # Genomic Variant Pathogenicity Classifier
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Holdout AUROC](https://img.shields.io/badge/Holdout%20AUROC-0.9984-brightgreen.svg)]()
-[![Variants](https://img.shields.io/badge/Training%20variants-1.49M-blue.svg)]()
-[![Features](https://img.shields.io/badge/Tabular%20features-80-blue.svg)]()
-[![Agents](https://img.shields.io/badge/Core%20agents-13-blueviolet.svg)]()
-[![Tests](https://img.shields.io/badge/Tests-862%20passing-success.svg)]()
+[![Tabular features](https://img.shields.io/badge/tabular%20features-95-blue.svg)]()
+[![Base models](https://img.shields.io/badge/base%20models-13-blue.svg)]()
+[![Agents](https://img.shields.io/badge/autonomous%20agents-22-blueviolet.svg)]()
+[![Tests](https://img.shields.io/badge/tests-1962-success.svg)]()
+[![Status](https://img.shields.io/badge/status-active%20development-orange.svg)]()
 
-A production-grade, multi-modal machine learning system for the five-tier clinical
-classification of human genomic variants -- **Pathogenic, Likely Pathogenic, Uncertain
-Significance, Likely Benign, and Benign** -- in accordance with ACMG/AMP guidelines.
+A multi-modal machine learning system for the five-tier clinical classification of human
+genomic variants — **Pathogenic, Likely Pathogenic, Uncertain Significance, Likely Benign,
+and Benign** — in accordance with ACMG/AMP guidelines.
 
-The system integrates genomic sequence data, population-stratified allele frequencies,
-protein structural annotations, tissue-specific gene expression, and variant
-co-classification evidence from a suite of biological databases into a unified
-stacking-ensemble architecture, deployed as a production FastAPI REST service and
-continuously supervised by an autonomous agent layer of thirteen specialised agents
--- plus a committed drift-detection suite -- over a typed inter-agent message bus.
-Whole-slide histopathology imaging (TCGA) is a future multi-modal phase tracked in
-`docs/ROADMAP.md`.
+The system integrates genomic sequence, population-stratified allele frequencies, protein
+structure and language-model representations, gene-network topology, tissue-specific
+expression, and curated gene–disease evidence into a **95-feature** matrix, consumed by a
+**13-model** stacking ensemble. It is served as a FastAPI REST service and supervised by an
+autonomous layer of **22 specialised agents** communicating over a typed inter-agent
+message bus.
 
-**Run 15 (sealed 2026-06-09, commit 032a2ab): Test AUROC 0.9984 / Val 0.9983 / unseen-gene-holdout 0.9988** on gene-stratified expert-reviewed ClinVar variants (Test n=304,711).
-The model trains on a ~1.49 M-variant cohort drawn from ~2.49 M ClinVar missense variants, now a
-80-feature matrix (Run 15: Vast.ai RTX 4090, ~11.5 h, ~$6). Earlier Run-8: holdout 0.9863 / test 0.9833 on 78 features.
+Training draws on a cohort of over four million ClinVar variants across more than 28,000
+genes, annotated from some twenty biological databases through a multi-stage pipeline.
+
+> Figures throughout this document describe a snapshot and are refreshed after each full
+> training run. `docs/ROADMAP.md` is the authoritative, continuously maintained record.
+
+---
+
+## Purpose
+
+This is a **whole-genome** variant classifier, and it is not a benchmarking exercise. It is
+a multi-goal research system, and the goals reinforce one another.
+
+**Clinical.** To make diagnosis more accurate, more detailed, more personalised, and
+clearer — returning not a bare score but a calibrated, interpretable, honestly-bounded
+assessment that a clinician can act on and interrogate.
+
+**Biological.** To bring greater scientific understanding and insight into the contribution
+of genes to the development and progression of human disease — which genes, which variants,
+which combinations, and by what mechanism. Prediction is the instrument; understanding is
+the object.
+
+**Methodological.** To measure the performance of, and better understand, the very tools
+used to analyse genomic data. Which machine-learning models genuinely work on this problem,
+where they fail, why, and how they can be improved. Here the models are objects of study in
+their own right, not merely instruments pointed at one.
+
+**Translational.** To create new methodology that makes personalised medicine more
+scientifically rigorous, more precise, and more reliable.
+
+### How this shapes the system
+
+**Attribution over prediction.** The per-variant probability is the visible output; the
+underlying aim is to establish which genes and which evidence actually carry the signal,
+and how confidently that can be claimed.
+
+**Fair algorithm comparison.** Every base model is trained on identical folds, identical
+features, and identical splits, so the differences between them are attributable to the
+algorithms rather than to their inputs. Preserving that invariant is a first-class
+engineering concern, not a side effect.
+
+**Modality integration, not concatenation.** DNA, RNA, protein, gene networks — and, as a
+future phase, clinical imaging — each describe the same biology from a different angle. The
+long-term aim is a representation that learns the relationships between those views, rather
+than a wider feature vector.
+
+**Uncertainty as a clinical product.** A variant of uncertain significance is the case that
+matters most. The system is built so that "I do not know" is a calibrated, auditable,
+first-class output rather than a probability loitering near 0.5.
+
+**Generalisation to unseen genes.** Splits are gene-disjoint by construction. A model that
+scores well only on catalogued variants in catalogued genes has not solved the problem this
+project exists to solve.
 
 ---
 
 ## Architecture
 
-The classifier operates as a three-branch fusion model wrapped in an autonomous
-supervisory agent layer:
+The classifier is a multi-branch fusion model wrapped in an autonomous supervisory layer.
 
-**Tabular Branch** -- A stacking meta-learner trained on out-of-fold predictions from
-a roster of up to twelve base classifiers: Random Forest, XGBoost, LightGBM, CatBoost,
-Gradient Boosting, Logistic Regression, a Kolmogorov-Arnold Network (KAN), a
-PyTorch tabular neural network, a PyTorch 1D-CNN, Monte-Carlo Dropout, Deep Ensemble
-Wrapper, and a Graph Attention Network over the STRING protein-protein interaction
-graph. Input features span **80 dimensions** drawn from a suite of biological databases (further sources are being wired in the current data-expansion phase).
+### Tabular branch
 
-**Sequence Branch** -- A PyTorch 1D-CNN operating over 101 bp genomic context windows
-(one-hot encoded) combined with ESM-2 protein-language-model features (HuggingFace
-`transformers` backend). Two signals are derived: the scalar L2 embedding-delta
-(`esm2_delta_norm`, secondary) and -- as of Phase 1 -- the primary log-likelihood-ratio
-`esm2_llr` (`logit[mut] - logit[wt]` from the ESM-2 650M masked-LM head; WT-marginal by
-default, masked-marginal opt-in). `esm2_llr` is SIGNED (negative = more damaging) and
-enters the ensemble as a CONTINUOUS feature -- its sign is not a class label (even benign
-variants score negative), so the model learns the threshold. ESM-2 silent-zero failure
-modes are detected by `tests/unit/test_esm2_activation.py` per `INCIDENT_2026-04-17`.
+A stacking meta-learner trained on out-of-fold predictions from **thirteen base
+classifiers** spanning six algorithm families. The roster is deliberately diverse: the
+point is to compare families, not to find one winner and discard the evidence.
 
-**Histopathology Branch (planned -- future multi-modal expansion).** A ResNet-50 branch
-over TCGA whole-slide tiles is a roadmap ambition for the multi-modal program; it is not
-yet implemented. The current system is the tabular variant classifier described above.
-Image, RNA, and protein-structure modalities are tracked as future phases in `docs/ROADMAP.md`.
+| # | Key | Model | Family |
+|---:|---|---|---|
+| 1 | `random_forest` | Random Forest | Bagged trees |
+| 2 | `xgboost` | XGBoost | Gradient-boosted trees |
+| 3 | `lightgbm` | LightGBM | Gradient-boosted trees |
+| 4 | `catboost` | CatBoost | Gradient-boosted trees |
+| 5 | `gradient_boosting` | scikit-learn Gradient Boosting | Gradient-boosted trees |
+| 6 | `logistic_regression` | Logistic Regression — also the stacking meta-learner | Linear |
+| 7 | `svm` | Support Vector Machine | Kernel |
+| 8 | `svm_bagged_rbf` | Bagged radial-basis-function Support Vector Machine | Kernel |
+| 9 | `kan` | Kolmogorov-Arnold Network | Kolmogorov-Arnold |
+| 10 | `tabular_nn` | Tabular neural network | Neural |
+| 11 | `cnn_1d` | 1D sequence convolutional network | Neural |
+| 12 | `mc_dropout` | Monte-Carlo Dropout | Bayesian uncertainty |
+| 13 | `deep_ensemble` | Deep Ensemble | Bayesian uncertainty |
+
+Base-model predictions are combined by the logistic-regression meta-learner and calibrated
+on a gene-disjoint partition. The ensemble's composition is written into the run artifacts,
+so *which models actually trained* is a recorded fact rather than an assumption — a base
+model whose out-of-fold step fails raises, rather than quietly leaving the roster.
+
+The Graph Attention Network is deliberately **not** in this table. It contributes
+`gnn_score`, a feature, and produces no out-of-fold column; it is not a base classifier.
+
+### Sequence branch
+
+A 1D convolutional network over genomic context windows centred on the variant, encoding
+the reference and alternate alleles together with their difference — so the model sees the
+*change*, not merely the surrounding sequence. Protein-language-model representations
+(ESM-2) and DNA-language-model representations (Nucleotide Transformer) contribute
+variant-effect signals derived from masked-language-model likelihoods and embedding
+geometry.
+
+### Graph branch
+
+A Graph Attention Network over the STRING protein–protein interaction network supplies
+gene-level network context, with a heterogeneous knowledge-graph variant incorporating
+pathway membership. These yield gene-level priors that enter the tabular matrix as
+features rather than as independent classifiers.
+
+### Histopathology branch (planned)
+
+A whole-slide imaging branch over TCGA cohorts is a tracked future phase, linking
+variant-level prediction to observable tissue morphology. It is not yet implemented; see
+`docs/ROADMAP.md`.
 
 ```
-ClinVar . gnomAD v4.1 . FinnGen R12 . 1000 Genomes . AlphaMissense . SpliceAI
-. EVE . OMIM . ClinGen . dbNSFP v4.7 . GTEx v10 . UniProt . LOVD . AlphaFold . STRING
-. CADD v1.7 . PhyloP v1 . HGMD Professional . dbSNP b156
+   Population genetics . Conservation . Functional predictors . Gene-disease
+   knowledge bases . Protein structure . Expression . Splice mechanics .
+   Protein-protein interaction topology
                               |
-               14-step Spark ETL annotation pipeline
+                    Annotation pipeline
                               |
-            78-feature engineering (engineer_features)
+                    Feature engineering
                               |
-     +-----------+------------+------------+-----------+
-     |                        |                        |
-12-model stacking        GNN (GAT)              ESM-2 embeddings
-RF . XGBoost . LGBM      STRING DB PPI          protein language
-CatBoost . GBM . LR      graph topology         model embeddings
-KAN . tabular_nn                                       |
-cnn_1d . MCDrop                                 PyTorch 1D-CNN
-. DeepEnsemble                                  sequence branch (101 bp)
-     |                        |                        |
-     +-----------+------------+----------------+-------+
+     +------------+-----------+-----------+------------+
+     |            |                       |            |
+  Tabular      Sequence                 Graph      Histopathology
+  ensemble     1D-CNN over              GAT over    [PLANNED]
+  (multi-      ref/alt windows          STRING PPI
+  family)      + ESM-2 / DNA-LM         + hetero-KG
+     |            |                       |            |
+     +------------+-----------+-----------+------------+
                               |
-                    ResNet-50 Histopathology Branch [PLANNED - see ROADMAP]
-                    TCGA-BRCA . TCGA-LUAD . TCGA-COAD
-                    224x224 tiles . 20x magnification
+                  Stacking meta-learner
+                  + probability calibration
+                  + conformal prediction sets
+                  + epistemic / aleatoric uncertainty
                               |
-                  Stacking meta-learner (LR)
-                  + Platt calibration
-                  + Conformal prediction intervals
-                  + Epistemic/aleatoric uncertainty
-                              |
-              ClinicalEvaluator (AUROC, AUPRC, ECE,
-              calibration, per-consequence breakdown)
+                    Clinical evaluation
                               |
      +------------------------+------------------------+
      |                                                 |
-  FastAPI REST API                       Autonomous Agent Layer
-  7 endpoints . auth . rate-limit        13 specialised agents
-  Docker . GHCR . CI/CD                  typed inter-agent message bus
-  Prometheus . Grafana                   shared state + orchestrator
-                                         continual learning + EWC
+  FastAPI REST service                   Autonomous agent layer
+  auth . rate limiting                   typed message bus
+  Prometheus metrics                     shared state + orchestrator
+  Docker                                 continual learning + EWC
                                          versioned model registry
                                          shadow -> production promotion
 ```
 
-## Key properties
+---
 
-**Clinically robust** -- Five-tier ACMG/AMP classification (Pathogenic to Benign) with
-empirically calibrated probability thresholds, conformal prediction intervals at
-configurable coverage levels, and per-variant uncertainty scores (epistemic +
-aleatoric, MC-Dropout and Deep-Ensemble) that flag cases requiring human expert
-review.
+---
 
-**Temporally aware** -- A dedicated continual learning pipeline runs on every ClinVar
-monthly release. It detects three classes of scientific drift -- feature/covariate
-drift as gnomAD cohorts expand and functional score models are retrained, label
-drift as ClinVar reclassifies variants, and concept drift as new biology changes
-what features predict pathogenicity -- and when drift exceeds configurable thresholds,
-adaptive retraining is triggered automatically using Elastic Weight Consolidation
-(EWC) to prevent catastrophic forgetting of stable biological signal.
+## Feature set (95 tabular features)
 
-**Scientifically current** -- Integrates a broad suite of biological databases spanning population
-genetics (gnomAD v4.1, FinnGen R12 with 500,348 Finnish individuals, 1000 Genomes
-Phase 3 across 5 continental strata), evolutionary conservation (PhyloP, GERP, EVE),
-deep learning functional predictions (AlphaMissense, SpliceAI, ESM-2, CADD v1.7),
-gene-disease knowledge bases (OMIM, ClinGen, LOVD, HGMD), protein structure
-(AlphaFold pLDDT, UniProt), tissue expression (GTEx v10), splice mechanics
-(MaxEntScan), variant identity (dbSNP b156, dbNSFP v4.7), and protein-protein
-interaction topology (STRING DB v12).
+| Group | Count | Representative features |
+|---|---:|---|
+| Allele frequency | 6 | `af_raw`, `af_log10`, `af_is_absent`, `af_is_ultra_rare` |
+| Variant type | 7 | `ref_len`, `alt_len`, `is_snv`, `is_insertion`, `is_deletion` |
+| Consequence | 6 | `consequence_severity`, `is_loss_of_function`, `is_missense`, `is_splice` |
+| Functional predictors | 9 | CADD, SIFT, PolyPhen-2, REVEL, PhyloP, GERP, AlphaMissense, SpliceAI, EVE |
+| Predictor flags + meta-score | 5 | `cadd_high`, `sift_deleterious`, `n_tools_pathogenic` |
+| Gene-level | 4 | `gene_constraint_oe`, `n_pathogenic_in_gene`, `gene_has_known_disease` |
+| gnomAD constraint | 4 | `pli_score`, `loeuf`, `syn_z`, `mis_z` |
+| Protein annotation (UniProt) | 2 | `has_uniprot_annotation`, `n_known_pathogenic_protein_variants` |
+| Protein structure (AlphaFold) | 4 | `alphafold_plddt`, `solvent_accessibility`, `dist_to_active_site` |
+| Expression (GTEx) | 6 | `gtex_max_tpm`, `gtex_tissue_specificity`, `gtex_is_eqtl` |
+| RNA-seq expression | 5 | `rnaseq_mean_log_tpm`, `rnaseq_log2fc`, `rnaseq_de_neglog10p` |
+| RNA splice context | 5 | `maxentscan_score`, `maxentscan_delta`, `dist_to_splice_site` |
+| Gene–disease annotation | 4 | `omim_n_diseases`, `omim_is_autosomal_dominant`, `clingen_validity_score` |
+| LOVD | 1 | `lovd_variant_class` |
+| 1000 Genomes population AF | 5 | `af_1kg_afr`, `af_1kg_eur`, `af_1kg_eas`, `af_1kg_sas`, `af_1kg_amr` |
+| FinnGen R12 | 3 | `finngen_af_fin`, `finngen_af_nfsee`, `finngen_enrichment` |
+| FinnGen R13 | 3 | `finngen_r13_af_fin`, `finngen_r13_af_nfsee`, `finngen_r13_enrichment` |
+| ESM-2 protein language model | 2 | `esm2_delta_norm`, `esm2_llr` (signed log-likelihood ratio) |
+| Nucleotide Transformer DNA-LM | 2 | `genomiclm_delta_norm`, `genomiclm_llr` |
+| COSMIC | 2 | `cosmic_recurrence`, `cosmic_sig_tier` |
+| KEGG | 2 | `kegg_pathway_count`, `kegg_disease_pathway_flag` |
+| Reactome | 1 | `reactome_pathway_count` |
+| Graph-derived | 2 | `gnn_score` (STRING), `hetero_gnn_score` (knowledge graph) |
+| Chromosome context | 3 | `is_autosome`, `is_sex_chrom`, `is_mitochondrial` |
+| Coding context | 2 | `codon_position`, `dbsnp_af` |
+| **Total** | **95** | |
 
-**Phenotypically grounded (planned).** A future TCGA histopathology branch will link
-variant pathogenicity classification to observable tumor-tissue morphology across breast,
-lung adenocarcinoma, and colorectal cancer cohorts -- a multi-modal capability on the
-roadmap (`docs/ROADMAP.md`), not yet implemented.
+The feature count lives in exactly one place — `EXPECTED_TABULAR_FEATURE_COUNT` — and is
+enforced against the feature list at import time. A source that fails to populate causes a
+loud failure rather than a silent column of zeros.
 
-**Containerised** -- FastAPI service on port 8000 with a multi-stage Dockerfile
-(builder / api / trainer targets) that builds the `genomic-variant-api` image locally,
-plus a scheduled GitHub Actions drift-monitoring workflow. Publishing the image to a
-container registry such as GHCR and a full build/test CI pipeline are roadmap items.
+---
 
-**Autonomously maintained** -- A monitoring layer of thirteen specialised agents (DataFreshnessAgent,
-VersionMonitorAgent, SchemaDriftAgent, ConceptDriftAgent, LabelShiftAgent,
-CalibrationDriftAgent, InfrastructureDriftAgent, FairnessSubgroupAgent,
-AdversarialSubmissionAgent, AnnotationPolicyAgent, InterpretabilityAgent,
-LiteratureScoutAgent, TrainingLifecycleAgent) communicates over a typed
-inter-agent message bus (`agent_layer/message_bus.py`, 34/34 tests passing on
-Python 3.14.3) to continuously monitor upstream databases, detect distribution
-shift, trigger targeted retraining, and produce SHAP-based interpretability audits
-without manual intervention.
+## Uncertainty and conformal prediction
 
-**Operationally hardened** -- Dual-layer preflight gates (local
-`scripts/preflight_check.py` enforces clean git tree, HEAD == origin/main, full
-pytest suite, GCS object presence, and connector-importability; on-VM
-`scripts/preflight_vm.sh` validates CUDA, data files on container FS, and a
-1000-row LightGBM smoke fit BEFORE GPU billing starts). Multi-cloud training
-runbooks for GCP (`gcp_run{6,7,8}_startup.sh`), Lambda Labs
-(`lambda_run8_startup.sh`), and Vast.ai (`launch_run{9,10}_vm.sh`). An
-append-only `docs/CHANGELOG.md` (1,500+ lines, searchable by error string) and
-a structured `docs/incidents/` directory record every root cause and fix.
-**501/501 unit tests** and integration suite green at HEAD.
+Point probabilities are insufficient for clinical use, so the system carries an explicit
+uncertainty layer.
 
-## Tabular model roster
+**Calibration.** Post-hoc probability calibration is fitted on a partition of genes the
+base models never trained on, so the calibrated probabilities are honest about
+generalisation to new genes rather than to new variants in familiar genes.
 
-| Family | Implementations | Status |
-|--------|-----------------|--------|
-| Gradient-boosted trees | LightGBM, XGBoost, CatBoost, scikit-learn GBM | Production |
-| Bagged trees | Random Forest | Production |
-| Linear | Logistic Regression (also stacking meta-learner) | Production |
-| Kolmogorov-Arnold | KAN (pykan / efficient-kan; MLP fallback) | Re-enabled 2026-04-20 |
-| Neural -- tabular | `TabularNNClassifier` (PyTorch, BatchNorm1d + Dropout) | Migrated TF -> PyTorch (Run 8 final) |
-| Neural -- sequence | `CNN1DClassifier` (PyTorch, Conv1d + AdaptiveMaxPool1d) | Migrated TF -> PyTorch (Run 8 final) |
-| Bayesian uncertainty | `MCDropoutWrapper`, `DeepEnsembleWrapper` | epistemic + aleatoric decomposition |
-| Graph | 3-layer GAT over STRING PPI (gene-level prior) | Production |
-| Foundation model | ESM-2 650M: `esm2_llr` LLR (primary) + scalar L2 delta (secondary), HF transformers | Phase 1 done; full-cohort scoring after Run-16 coord-sync |
+**Conformal prediction sets.** Rather than forcing every variant into a class, the
+conformal layer emits a *set* — `{pathogenic}`, `{benign}`, `{pathogenic, benign}` (defer),
+or empty (out of domain) — with finite-sample coverage guarantees under exchangeability.
+Label-conditional (Mondrian) calibration is used so that coverage holds for the rare
+pathogenic class rather than being satisfied on average by the majority class.
 
-## Feature set (80 features)
+**Epistemic and aleatoric decomposition.** Monte-Carlo Dropout and Deep Ensemble wrappers
+separate uncertainty the model could reduce with more data from uncertainty inherent to the
+variant, flagging cases that warrant human expert review.
 
-| Group | Count | Key features |
-|-------|-------|-------------|
-| Allele frequency | 6 | af_raw, af_log10, af_is_absent, af_is_ultra_rare |
-| Variant type | 7 | ref_len, alt_len, len_diff, is_snv, is_insertion, is_deletion |
-| Consequence | 6 | consequence_severity, is_loss_of_function, is_missense, is_splice |
-| Functional scores | 9 | CADD, SIFT, PolyPhen-2, REVEL, PhyloP, GERP, AlphaMissense, SpliceAI, EVE |
-| Score flags | 5 | cadd_high, sift_deleterious, polyphen_probably_damaging, n_tools_pathogenic |
-| Gene-level | 4 | gene_constraint_oe, n_pathogenic_in_gene, gene_has_known_disease |
-| gnomAD constraint | 4 | loeuf, syn_z, mis_z, pli_score (v4.1) |
-| Protein (UniProt) | 2 | has_uniprot_annotation, n_known_pathogenic_protein_variants |
-| Expression (GTEx) | 6 | gtex_max_tpm, gtex_tissue_specificity, gtex_is_eqtl, gtex_max_abs_effect |
-| Gene-disease | 3 | omim_n_diseases, omim_is_autosomal_dominant, clingen_validity_score |
-| HGMD | 2 | hgmd_is_disease_mutation, hgmd_n_reports |
-| LOVD | 1 | lovd_variant_class (ordinal 0-4) |
-| Chromosome | 3 | is_autosome, is_sex_chrom, is_mitochondrial |
-| GNN-derived | 1 | gnn_score (GAT over STRING PPI graph) |
-| RNA splice | 4 | maxentscan_score, dist_to_splice_site, exon_number, is_canonical_splice |
-| Protein structure | 4 | alphafold_plddt, solvent_accessibility, secondary_structure_context, dist_to_active_site |
-| 1000 Genomes AF | 5 | af_1kg_afr, af_1kg_eur, af_1kg_eas, af_1kg_sas, af_1kg_amr |
-| FinnGen R12 AF | 3 | finngen_af_fin, finngen_af_nfsee, finngen_enrichment |
-| Reactome | 1 | reactome_pathway_count |
-| ESM-2 (650M) | 2 | esm2_delta_norm (secondary), esm2_llr (primary, signed LLR) |
-| Reserved (Deep Ensemble) | 2 | uncertainty_epistemic, uncertainty_aleatoric |
-
-`TABULAR_FEATURES` and `engineer_features()` are kept in sync by a runtime
-assertion at the bottom of the engineering function (per CHANGELOG 2026-04-16).
+---
 
 ## Drift detection and continual learning
 
-### Statistical detectors
+Biological reference data is not static. ClinVar reclassifies variants, gnomAD cohorts
+grow, and functional-score models are retrained upstream. A classifier that ignores this
+is accurate on the day it ships and quietly wrong thereafter.
 
-- **PSI (Population Stability Index)** -- per-feature, runs on every data source update
-- **Kolmogorov-Smirnov test** -- nonparametric, continuous features
-- **Maximum Mean Discrepancy (MMD)** -- kernel-based joint distribution test
-- **ADWIN** -- adaptive windowing detector for streaming variant ingestion
-- **Szekely-Rizzo energy statistic** -- sensitive to distribution shape changes
-- **ClinVar reclassification tracker** -- monitors flip rate in training set monthly
+**Statistical detectors.** Population Stability Index, Kolmogorov–Smirnov, Maximum Mean
+Discrepancy, the Székely–Rizzo energy statistic, and adaptive windowing for streaming
+ingestion. A reference profile is committed to the repository so drift can be measured
+against a fixed baseline without moving cohort data.
 
-### Adaptive retraining
+**"Not checked" is its own answer.** The monitor reports `0` no drift, `1` monitor,
+`2` retrain, `3` urgent retrain — and `4` **NOT CHECKED**. That fifth code exists because
+*"I looked and found nothing"* and *"I could not look"* are different statements, and
+reporting the second as the first is how a monitoring system lies. Where a test cannot be
+computed from the committed profile, it reports itself as not computed rather than as
+passing.
 
-- **EWC (Elastic Weight Consolidation)** -- protects important weights during retraining
-- **Online EWC** -- running Fisher estimate across multiple ClinVar releases
-- **LSIF importance weighting** -- density ratio estimation for sample re-weighting
-- **Temporal sample decay** -- exponentially downweights older ClinVar submissions
-- **TreeEWCProxy** -- gradient-boosted-tree analogue of EWC for non-differentiable bases
+**Three classes of drift are tracked separately** — covariate drift as upstream data
+expands, label drift as ClinVar reclassifies, and concept drift as new biology changes
+what the features mean. They have different remedies and are not conflated.
 
-### Lifecycle
+**Adaptive retraining.** When drift exceeds configured thresholds, retraining is triggered
+using Elastic Weight Consolidation to preserve stable biological signal while
+incorporating new evidence, with importance weighting and temporal decay across releases.
 
-- **Versioned model registry** (`monitoring/registry.py`) -- staging -> shadow -> production
-- **Shadow deployment** -- new models run in parallel before promotion
-- **Connector silent-zero hardening** -- regression tests assert that connector fallbacks
-  fail loud, not silently return 0.0 (post-`INCIDENT_2026-04-17`, post-`INCIDENT_2026-05-02`)
+**Lifecycle.** A versioned model registry moves candidates through staging, shadow
+deployment, and production promotion. New models run in parallel with the incumbent before
+they replace it.
 
-## Autonomous agent layer (13 specialised agents)
+---
 
-Located under `src/genomic_variant_classifier/agent_layer/`, with each agent
-inheriting from `BaseAgent` and communicating over a typed `message_bus`.
+## Autonomous agent layer (22 agents)
+
+Under `src/genomic_variant_classifier/agent_layer/`, twenty-two specialised agents inherit
+from a common `BaseAgent` and communicate over a typed message bus, with a JSON-persisted
+shared blackboard and an orchestrator that schedules execution and routes messages.
 
 | Agent | Concern |
-|-------|---------|
-| `DataFreshnessAgent` | Polls ClinVar, gnomAD, AlphaMissense, SpliceAI manifests; raises when stale |
-| `VersionMonitorAgent` | Tracks upstream dataset version numbers and breaking-change deltas |
-| `SchemaDriftAgent` | Detects column/dtype changes in incoming connector parquets |
-| `ConceptDriftAgent` | Monitors feature -> label relationship stability via residual analysis |
-| `LabelShiftAgent` | Tracks prior class probabilities across ClinVar monthly releases |
-| `CalibrationDriftAgent` | Watches ECE / reliability diagrams over time |
-| `InfrastructureDriftAgent` | Catches dependency / runtime drift (sklearn / lightgbm / CUDA) |
-| `FairnessSubgroupAgent` | Per-ancestry, per-consequence, per-gene-tier performance audit |
-| `AdversarialSubmissionAgent` | Flags suspect or out-of-distribution prediction requests |
-| `AnnotationPolicyAgent` | Enforces source-priority and provenance rules at ingestion |
-| `InterpretabilityAgent` | SHAP-based audit per release; persists explanations for review |
-| `LiteratureScoutAgent` | bioRxiv / PubMed feed for new functional-score models and ClinVar policy changes |
-| `TrainingLifecycleAgent` | Orchestrates retraining trigger -> EWC -> shadow -> promotion |
+|---|---|
+| `DataFreshnessAgent` | Polls upstream source manifests; raises when data goes stale |
+| `DatabaseFreshnessMonitorAgent` | Tracks database release cadence and staleness budgets |
+| `DataReadinessAgent` | Gates whether the inputs a run needs are actually present and sane |
+| `VersionMonitorAgent` | Watches upstream dataset versions and breaking-change deltas |
+| `SchemaDriftMonitorAgent` | Detects column and dtype changes in incoming connector data |
+| `ConceptDriftMonitorAgent` | Monitors feature→label relationship stability |
+| `LabelShiftMonitorAgent` | Tracks class priors across ClinVar releases |
+| `CalibrationDriftMonitorAgent` | Watches calibration error and reliability over time |
+| `InfrastructureDriftMonitorAgent` | Catches dependency and runtime drift |
+| `FeatureCoverageSentinelMonitorAgent` | Guards against features quietly losing coverage |
+| `ReclassificationSentinelMonitorAgent` | Monitors ClinVar reclassification flip rate |
+| `FairnessSubgroupMonitorAgent` | Per-ancestry, per-consequence, per-gene-tier auditing |
+| `AdversarialSubmissionMonitorAgent` | Flags out-of-distribution or suspect requests |
+| `AnnotationPolicyMonitorAgent` | Enforces source-priority and provenance rules |
+| `InterpretabilityAgent` | SHAP-based attribution audits, persisted per release |
+| `ModelInsightsAgent` | Surfaces model-behaviour findings for review |
+| `LiteratureScoutAgent` | Monitors preprints and publications for new methods |
+| `TrainingLifecycleAgent` | Orchestrates retrain → consolidate → shadow → promote |
+| `AdaptationAgent` | Evaluates and records candidate adaptations |
+| `AgentOpsMonitorAgent` | Monitors the agent layer itself — heartbeats, backlogs, errors |
+| `FinOpsAdvisorAgent` | Cost advisory for paid compute |
+| `ProvisioningAgent` | Provisioning for training infrastructure |
 
-`agent_layer/orchestrator.py` schedules agent execution and routes typed messages;
-`agent_layer/shared_state.py` provides a JSON-persisted shared blackboard;
-`agent_layer/test_message_bus.py` exercises the bus (34/34 passing on Python 3.12.10).
+Messages whose subjects carry consequence require explicit human approval before the
+receiving agent acts on them. The agent layer monitors itself: `AgentOpsMonitorAgent`
+exists so that a silently dead agent is a detectable condition rather than an absence
+nobody notices.
+
+---
 
 ## REST API
 
 ```
 GET  /health          Liveness + readiness
-GET  /info            Model metadata, 80 features, drift status
+GET  /info            Model metadata and drift status
 GET  /metrics         Prometheus metrics
 GET  /gene/{symbol}   Gene-level feature lookup
 GET  /rsid/{rs_id}    rs-ID resolution + prediction
-POST /predict         Single variant -> 5-tier classification + uncertainty
-POST /batch           Up to 1,000 variants
+POST /predict         Single variant -> five-tier classification + uncertainty
+POST /batch           Batch classification
 ```
 
-Auth: X-API-Key header; rate limiting via `slowapi`; structured JSON logging;
-Prometheus `/metrics` instrumentation via `prometheus-fastapi-instrumentator`.
+Authentication via `X-API-Key`; rate limiting via `slowapi`; structured JSON logging;
+Prometheus instrumentation. Served from a multi-stage Dockerfile with builder, api, and
+trainer targets.
 
-## Performance
+---
 
-Evaluated on **349,067 held-out variants** (gene-stratified; no gene appears in both
-train and test). Training cohort: 1,197,216 variants (20.3% pathogenic) at the
-Run 8 baseline; recent runs (Run 14/15) use the full ~1.49 M-variant cohort.
+## Early results
 
-| Metric | Value |
-|--------|-------|
-| Holdout AUROC (Run 8 baseline) | **0.9847** |
-| Brier score | 0.0584 |
-| Sensitivity @ 90% specificity | 0.900 |
-| Specificity @ 90% sensitivity | 0.918 |
-| Evaluation set | 349,067 variants, gene-stratified |
-| Training set | 1,197,216 variants |
-| Label source | ClinVar expert-reviewed (tier 2+) |
+**These are preliminary and will be refined as the project develops.**
 
-### Per-model performance (validation set, Run 8 baseline)
+The Run 15 baseline (sealed 2026-06-09, commit `032a2ab`) reported a test AUROC of
+**0.9984** on gene-stratified, expert-reviewed ClinVar variants, with a comparable
+unseen-gene-holdout figure. Earlier baselines reported lower values on narrower feature
+sets.
 
-| Model | AUROC | AUPRC | F1 (macro) | MCC | Brier |
-|-------|-------|-------|-----------|-----|-------|
-| **gradient_boosting** | **0.9756** | 0.9190 | 0.8876 | 0.7758 | 0.0497 |
-| lightgbm | 0.9751 | 0.9171 | 0.8651 | 0.7522 | 0.0700 |
-| logistic_regression | 0.9747 | 0.9133 | 0.8627 | 0.7499 | 0.0696 |
-| catboost | 0.9744 | 0.9153 | 0.8657 | 0.7530 | 0.0708 |
-| xgboost | 0.9743 | 0.9124 | 0.8471 | 0.7276 | 0.0930 |
-| ENSEMBLE_STACKER | 0.9709 | 0.8572 | 0.8791 | 0.7630 | 0.0584 |
-| random_forest | 0.9681 | 0.8892 | 0.8725 | 0.7536 | 0.0663 |
+These numbers describe an earlier and narrower configuration of the system than the one
+now in the repository. The feature space, the model roster, the split protocol, and the
+data-integrity gates have all changed since. Treat them as an early waypoint rather than a
+result: a like-for-like table — per-model, per-metric, with the evaluation protocol stated
+alongside — will be published from the next full training run.
 
-### Recent training-run history
-
-| Run | Date | Hardware | Holdout AUROC | Notes |
-|-----|------|----------|--------------:|-------|
-| Run 14 | 2026-06-03 | Vast.ai RTX 4090 | 0.9975 | commit eb11029; SNV/indel leakage traced entirely to null ref/alt records (no real-allele leakage) |
-| **Run 15** | **2026-06-09** | **Vast.ai RTX 4090** | **0.9984** (test) | **commit 032a2ab; Val 0.9983 / unseen-gene-holdout 0.9988; 79 features. ESM-2 650M LLR + 80-feature contract added 2026-06-10 (Phase 1), realized at next regen** |
-
-Per-run details live in `docs/sessions/SESSION_<date>.md` and root-cause records
-in `docs/incidents/INCIDENT_<date>_<topic>.md`.
-
-## Operational rigour
-
-- **Dual-layer preflight** -- `scripts/preflight_check.py` (local) gates every
-  launch against clean git, HEAD == origin/main, full pytest, GCS object
-  presence, and importability of `transformers`/`torch`. `scripts/preflight_vm.sh`
-  (on-VM) gates against CUDA, data-file presence on the container FS, and a
-  1,000-row LightGBM smoke fit -- catching the sklearn/lightgbm `force_all_finite`
-  skew BEFORE GPU billing starts.
-- **Multi-cloud training** -- runbooks for GCP (`gcp_run{6,7,8}_startup.sh`,
-  `trap EXIT`-based shutdown for guaranteed model upload), Lambda Labs
-  (`lambda_run8_startup.sh`), and Vast.ai (`launch_run{9,10}_vm.sh`,
-  non-interactive `vastai destroy`, auto-tmux session protection).
-- **Append-only CHANGELOG** -- `docs/CHANGELOG.md` is searchable by exact error
-  string; every session records *Attempted / Failed / Fixed / Learned*.
-- **INCIDENT system** -- ten root-cause records to date covering GPU quota,
-  silent-zero connectors (SpliceAI, ESM-2, EVE, LOVD), pickle nested-class
-  serialisation, GCP billing deletion, GNN key errors, and split duplicates.
-- **Session logs** -- `docs/sessions/SESSION_<date>.md` is the chronological
-  record of every working day; each session entry links forward into the
-  CHANGELOG and INCIDENTS.
-- **Test depth** -- 501/501 unit tests + integration tests, including
-  regression tests for every silent-zero failure mode and an inter-agent
-  message-bus suite (34/34 on Py 3.14.3).
-- **Recovery artifacts** -- `logs/training/run9_master.log.recovery.md`
-  captures the last 100 lines of a master training log after a VM destroy
-  beat the SCP-back step.
+---
 
 ## Repository structure
 
 ```
 src/genomic_variant_classifier/
-  agent_layer/   - 13 specialised agents + typed message_bus + orchestrator + shared_state
-  api/           - FastAPI service (7 endpoints), auth, schemas, InferencePipeline
-  data/          - 18 database connectors + Spark ETL + DataPrepPipeline + real_data_prep
-  evaluation/    - ClinicalEvaluator, benchmark framework, conformal prediction, metrics
-  features/      - engineer_features (80-column pipeline, runtime sync assertion)
-  models/        - VariantEnsemble, GNN (GAT), KAN, MC-Dropout, CatBoost wrapper
-  monitoring/    - DriftDetector, ClinVarTracker, ModelRegistry
+  agent_layer/   - specialised agents, typed message bus, orchestrator, shared state
+  api/           - FastAPI service, auth, schemas, inference pipeline
+  data/          - database connectors, ETL, split protocol, data preparation
+  evaluation/    - clinical evaluator, benchmark framework, metrics, artifacts
+  models/        - variant ensemble, graph networks, Kolmogorov-Arnold Network,
+                   uncertainty wrappers, sequence CNN
+  monitoring/    - drift detection, reference profiles, performance estimation,
+                   ClinVar tracking, model registry
   pipelines/     - RNA splice pipeline, protein structure pipeline
-  reports/       - HTML report generator
-  training/      - ContinualLearner, EWC, OnlineEWC, TreeEWCProxy
-  utils/         - helpers, shared utilities
-scripts/
-  run_phase2_eval.py        - main training entry point
-  run9_ablations.py         - LOCO ablation harness (14 ablation targets)
-  export_model.py           - InferencePipeline serialisation + smoke test
-  run_drift_monitor.py      - monthly drift check CLI (exit 0/1/2/3)
-  calibrate_thresholds.py   - empirical ACMG threshold calibration
-  validate_external.py      - external cohort validation (LOVD, UK Biobank)
-  conformal_prediction.py   - split conformal intervals
-  benchmark.py / benchmark_polars.py - algorithm and ETL benchmarks
-  preflight_check.py        - local pre-launch gate
-  preflight_vm.sh           - on-VM post-SSH gate
-  gcp_run{6,7,8}_startup.sh, lambda_run8_startup.sh, launch_run{9,10}_vm.sh
+  reports/       - HTML report generation
+  training/      - continual learner, Elastic Weight Consolidation
+  utils/         - shared helpers
+scripts/         - training entry points, preflight gates, drift monitoring,
+                   data preparation, launch runbooks, forensics
+tests/           - unit, integration, and conformal test suites
 docs/
-  CHANGELOG.md              - append-only session ledger (1,500+ lines)
-  ROADMAP.md, PHASE_3_ROADMAP.md
-  incidents/                - 10 root-cause records
-  sessions/                 - chronological session logs
-  reviews/, validated/, hypotheses/
-models/
-  registry.json             - versioned model registry
-  phase2_pipeline.joblib    - current production InferencePipeline
-  drift_reference.pkl       - DriftDetector reference snapshot
-configs/  default.yaml, config.yaml
-deploy/   grafana/, prometheus.yml
-tests/    unit/, integration/, fixtures/, smoke_test_imports.py
+  ROADMAP.md     - the living record: every change, dated, with its evidence
+  CHANGELOG.md   - append-only session ledger, searchable by error string
+  incidents/     - root-cause records
+  sessions/      - chronological working logs
+  status/        - dated status and remediation reports
+configs/         - configuration
+deploy/          - Grafana dashboards, Prometheus configuration
 ```
+
+`docs/ROADMAP.md` is the authoritative history. It preserves what was found, what was
+wrong, and what was done about it, in order.
+
+---
 
 ## Quickstart
 
 ```bash
 # Run the API
-MODEL_PATH=models/phase2_pipeline.joblib uvicorn genomic_variant_classifier.api.main:app --port 8000
+MODEL_PATH=models/phase2_pipeline.joblib \
+  uvicorn genomic_variant_classifier.api.main:app --port 8000
 
 # Classify a variant
 curl -X POST http://localhost:8000/predict \
@@ -382,56 +381,51 @@ curl -X POST http://localhost:8000/predict \
        "consequence":"frameshift_variant","allele_freq":0.0,
        "alphamissense_score":0.95,"n_pathogenic_in_gene":2800}'
 
-# Run monthly drift check
-python scripts/run_drift_monitor.py \
-  --reference-splits outputs/phase2_with_gnomad/splits/ \
-  --new-clinvar  data/processed/clinvar_grch38_2024_07.parquet \
-  --old-clinvar  data/processed/clinvar_grch38_2024_01.parquet \
-  --output-dir   outputs/drift_reports/2024_07/ \
-  --auto-retrain
-
-# Train (full ensemble, 80 features)
+# Train
 python scripts/run_phase2_eval.py \
-  --parquet data/processed/clinvar_grch38.parquet \
-  --output  outputs/run10/full \
-  --lovd-path data/external/lovd/lovd_all_variants.parquet \
-  --dbnsfp-path data/external/dbnsfp/dbnsfp_grch38.parquet
+  --clinvar data/processed/clinvar_grch38_clean.parquet \
+  --output  outputs/run/full
 
-# Local preflight before a paid GPU run
-python scripts/preflight_check.py
+# Drift check
+python scripts/run_drift_monitor.py \
+  --reference-profile data/reference/drift/reference_profile.json \
+  --output-dir        outputs/drift_reports/
+# exit 0/1/2/3/4 -- 0 no drift, 1 monitor, 2 retrain, 3 urgent_retrain,
+#                   4 NOT CHECKED (no data reached the monitor)
 
 # Docker
 docker compose up api
 ```
 
+Run `--help` on any script for its full argument set.
+
+---
+
 ## Roadmap
 
-- **Phase 3 -- Polars ETL evaluation.** Replace pandas bottlenecks in the
-  annotation pipeline; benchmark already shows ~3.3x speedup on the
-  gnomAD-constraint join (500 K variants). See `scripts/benchmark_polars.py`
-  and `docs/PHASE_3_ROADMAP.md`.
-- **Phase 4 -- Algorithm expansion and benchmarking.** ESM-2 upgraded to the 650M
-  masked-LM with a log-likelihood-ratio feature (`esm2_llr`, Phase 1 -- done); next are
-  ESM C 600M and a full-cohort regen after the Run-16 coordinate-index sync. Run KAN
-  through the benchmark harness against MLP, integrate Deep Ensemble uncertainty into
-  VUS flagging, and fuse GNN gene embeddings with `TABULAR_FEATURES` before stacking.
-  Tracked in `docs/ROADMAP.md`.
-- **Phase 5 -- Clinical validation and manuscript.** Prospective validation
-  on BRCA1/2, TP53, PTEN, ATM panels; comparison against ClinVar star-rating
-  on expert-reviewed variants; model card; manuscript draft.
-- **Deferred -- Psychiatric GWAS pleiotropy.** Integration of the OpenMed PGC
-  dataset (1.14 B rows, 52 PGC meta-analyses, 12 psychiatric conditions) as
-  five new locus-level features (`gwas_psych_min_pval`, `_hit_count`,
-  `_disorder_breadth`, `_max_neg_log10p`, `_is_lead_snp`). Pre-aggregated
-  via Polars (filter to p < 5e-8 -> per-rsID summary). Gated on Phase 3
-  Polars evaluation and Run 6+ completion; see `ROADMAP_PSYCH_GWAS_ENTRY.md`.
+- **Data expansion.** Continue wiring biological sources into the feature matrix, with
+  each source gated so that a source which fails to populate fails loudly rather than
+  contributing a column of zeros.
+- **Algorithm expansion and benchmarking.** Extend the base roster and run every member
+  through a common benchmark harness on identical folds, so cross-algorithm comparisons
+  are attributable to the algorithms.
+- **Joint-Embedding Predictive Architecture.** A self-supervised representation layer over
+  multi-modal foundation-model embeddings, benchmarked against the current stacker rather
+  than replacing it.
+- **Conformal uncertainty as a scientific instrument.** Extend the conformal layer to
+  ordinal five-class prediction sets, multi-label disease categories, and calibrated
+  gene-candidate sets; analyse where uncertainty concentrates biologically.
+- **Multi-modal expansion.** RNA and whole-slide histopathology branches.
+- **Clinical validation and manuscript.** Prospective validation on curated gene panels,
+  comparison against expert review status, model card, and manuscript.
 
-The roadmap is a living document -- see `docs/ROADMAP.md` for the live
-checklist and `docs/CHANGELOG.md` for what has actually shipped.
+See `docs/ROADMAP.md` for the live checklist and the full history.
+
+---
 
 ## Author
 
-**Monzia Moodie** -- [@monzia-moodie](https://github.com/monzia-moodie)
+**Monzia Moodie** — [@monzia-moodie](https://github.com/monzia-moodie)
 
 ## License
 
