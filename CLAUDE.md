@@ -243,7 +243,34 @@ Get-Volume    -> C: NTFS, label "== 1 T A", 935.59 GB, 6.63 GB free.
 **There is exactly ONE physical disk in this machine and it is effectively full.** Local storage
 cannot be expanded by moving files between drive letters. There is nowhere local to move them TO.
 
-### THE TRAP THAT CAUGHT THE ASSISTANT ON 2026-07-15 -- READ THIS PART
+### THIS WAS ALREADY WRITTEN DOWN. IT WAS REDISCOVERED, EXPENSIVELY, ANYWAY.
+
+The Claude Project's `memory.md` -- attached to every session in this context -- has recorded
+BOTH of the following since at least 2026-06-25:
+
+```
+Storage (canonical 2026-06-25): `genvarcla:genomic-variant-classifier/data/` = canonical
+Drive root; rclone only for Drive ops (NEVER bulk-write through G:)
+`G:` = DriveFS streaming cache only -- never bulk-write large files through it
+
+UTF-8 BOM hazard: PowerShell `Set-Content -Encoding UTF8` writes BOM; Python must read with
+`utf-8-sig`
+```
+
+On 2026-07-15 an assistant spent several turns getting the first one wrong -- telling Monzia
+his storage plan was built on a false premise -- and then presented the second as a novel
+finding after a new gate tripped over six byte-order-marked files. **Neither was new. Both
+were in `memory.md`, unread for the entire session, while the system prompt named the file
+and Monzia twice said it "should be in your memory."**
+
+The section below is kept because the MEASUREMENTS in it are real and useful. But its
+original framing -- "the trap that caught the assistant" -- was rediscovery dressed as
+insight. **READ `memory.md` FIRST. It is the standing-instruction record and it is not
+optional.** (It is authoritative on Monzia's instructions and STALE on project state -- it
+says 91 features against a contract of 95. Monzia's own rule governs: *"Artifacts beat
+memory: when project files conflict with session memory, artifacts win."*)
+
+### THE G: MEASUREMENT -- 2026-07-15
 
 `Get-PSDrive` reported:
 
