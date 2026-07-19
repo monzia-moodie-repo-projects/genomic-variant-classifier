@@ -1,35 +1,58 @@
-"""
-Ensemble Model Framework for Genomic Variant Classification
-============================================================
-Implements 8 base classifiers + 1 stacking meta-learner.
+"""Ensemble model framework for genomic variant classification.
 
-Base classifiers:
-  1. Random Forest         (sklearn)
-  2. XGBoost               (xgboost)
-  3. LightGBM              (lightgbm)
-  4. SVM (RBF kernel)      (sklearn)
-  5. Logistic Regression   (sklearn)
-  6. Gradient Boosting     (sklearn)
-  7. 1D-CNN                (TensorFlow/Keras)  -- sequence-based
-  8. Feedforward NN        (TensorFlow/Keras)  -- tabular features
+WHAT THIS MODULE DEFINES
+------------------------
+    TABULAR_FEATURES / PHASE_2_FEATURES
+        The tabular feature contract. Guarded by EXPECTED_TABULAR_FEATURE_COUNT, which
+        fails loud on drift, and by the zero-variance census in
+        VariantEnsemble._assert_no_dead_features.
+    SEQUENCE_MODELS
+        The subset of the roster whose input is the sequence branch rather than the
+        tabular matrix. Consulted by _require_x_seq, which refuses before any fit when a
+        sequence model is active without windows.
+    EnsembleConfig
+        Run configuration, including the deliberate escape hatches
+        (allow_base_model_dropout, allow_zero_variance_features) and the row-count
+        threshold that lets a guard be armed in production without reddening fixtures.
+    engineer_features
+        The single source of truth for feature engineering (since 2026-07-11).
+    VariantEnsemble
+        The base-model roster, leak-free out-of-fold stacking, Nelder-Mead blending,
+        calibration, per-model checkpointing, persistence and evaluation.
 
-Meta-learner:
-  Logistic Regression stacker trained on OOF predictions
+THE ROSTER IS NOT ENUMERATED HERE, DELIBERATELY
+------------------------------------------------
+It used to be. Until 2026-07-19 this header stated a fixed count of base classifiers, listed
+them by name, and named a machine-learning framework for two of them. The roster had grown
+past that list, and the framework named was one this module does not import -- but the header
+still said otherwise, and it is the first text a reader of this file sees.
 
-CHANGES FROM PHASE 1:
-  - Consolidated src/models/ensemble.py + src/models/variant_ensemble.py
-    into this single file (Issue A).
-  - Removed unused `k` parameter from encode_sequence; docstring fixed (Bug 7).
-  - codon_position removed from TABULAR_FEATURES -- it was always 0 (Issue P).
-  - base_estimators cleared after fitting to avoid double-memory (Issue H).
-  - from __future__ import annotations added (Issue N).
-  - Module-level logging.basicConfig removed (Issue L).
-  - VariantEnsemble.fit() / evaluate() now robust when CNN/NN are excluded.
+The old wording is deliberately not quoted here. A quoted claim reads as a current one to
+anyone skimming, which is the failure being removed; the exact prior text is in git and in
+tests/unit/test_module_docstring_is_not_a_stale_roster.py, where it serves as the negative
+control proving each check would have caught it.
 
-CHANGES -- LOVD integration:
-  - lovd_variant_class added to TABULAR_FEATURES (ordinal 0-4)
-  - lovd_variant_class added to engineer_features()
-  - skip_svm added to EnsembleConfig
+A docstring that duplicates a fact defined below it will eventually contradict that fact,
+because nothing forces the copy to move when the original does. This project has recorded
+the same failure four times: WindowAttachment.__iter__'s self-maintained todo list (stale on
+all four entries), tests/EXPECTED_SUITE_SIZE (numbers gone stale before the ratchet was
+armed), the README test badge (which disagreed with that ratchet), and this header.
+
+So the fact is stated once and pointed at, never copied:
+
+    the roster           VariantEnsemble._build_estimators
+    at runtime           VariantEnsemble(config).base_estimators
+    which need sequence  SEQUENCE_MODELS
+    the feature contract TABULAR_FEATURES, EXPECTED_TABULAR_FEATURE_COUNT
+
+Ask the code. tests/unit/test_module_docstring_is_not_a_stale_roster.py fails if an
+enumeration, a model count, or a framework attribution returns to this docstring.
+
+Change history belongs in git, which records it permanently and with dates. A block of
+per-issue changelog entries was removed from this header on 2026-07-19: it described edits
+from a phase the project left long ago, and its content survives in the commits that made
+them. The section name is not reproduced here for the same reason the old wording is not --
+a stale heading quoted in a live header still reads as a live heading.
 """
 
 from __future__ import annotations

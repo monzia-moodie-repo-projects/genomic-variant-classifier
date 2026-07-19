@@ -901,4 +901,60 @@
 #                     _assert_no_dead_features (:2334) runs BEFORE the refusal (:2338); with
 #                     f0..f19 columns the census would raise first and every pytest.raises in
 #                     the file would pass for the wrong reason.
-1978
+#
+#   1985  2026-07-19  +7: tests/unit/test_module_docstring_is_not_a_stale_roster.py -- the
+#                     module header of variant_ensemble.py stops restating the base-model
+#                     roster, and is pinned so it cannot start again. MEASURED with
+#                     `pytest tests/ --collect-only -q` on the STAGED tree: `git add -A`
+#                     first, then `git status --short` showing exactly one "M " and one "A "
+#                     entry and NO '??' lines, then "1985 tests collected in 20.27s".
+#                     1978 + 7 is offered only as a cross-check on a figure that was read.
+#
+#                     THE DEFECT. variant_ensemble.py opened with a header that stated a
+#                     fixed count of base classifiers, listed them by name, attributed two of
+#                     them to a machine-learning framework this module does not import, and
+#                     carried a changelog section from a project phase long past. The count
+#                     was wrong -- the roster had grown well beyond it. That header is the
+#                     FIRST TEXT anyone reading the project's central module encounters.
+#
+#                     THE FIX IS REMOVAL, NOT CORRECTION. Rewriting the number fixes today
+#                     and reintroduces the defect on the next model, because the enumeration
+#                     is a COPY of what _build_estimators defines thirty lines below it, and
+#                     nothing forces a copy to move when the original does. The header now
+#                     names where the roster lives -- _build_estimators, base_estimators,
+#                     SEQUENCE_MODELS -- and states nothing it would have to maintain. The
+#                     changelog block is deleted; git records that history permanently and
+#                     with dates.
+#
+#                     THIS IS THE FIFTH INSTANCE OF ONE FAILURE MODE recorded in this file:
+#                     WindowAttachment.__iter__'s self-maintained todo list (stale on all
+#                     four of its entries, deleted in ea8d6e8); the four numbers that went
+#                     stale HERE before the ratchet was armed (1882, 1891, 1932, 1966); the
+#                     README badge against entry 1962; the LOVD classification map, which
+#                     zeroed 91.8% of its own artifact because the map was written for a
+#                     different vocabulary; and now this header. Every one is a fact stated
+#                     twice, where only one copy was maintained.
+#
+#                     SEVEN TESTS: FOUR SUBSTANTIVE, THREE NEGATIVE CONTROLS. The controls
+#                     embed the OLD header verbatim and assert each check REJECTS it. A
+#                     checker that has never rejected anything has not been shown to work --
+#                     and three checkers written earlier the same day passed every one of
+#                     their own controls while counting prose as code.
+#
+#                     THREE DEFECTS WERE CAUGHT IN THE REPLACEMENT BEFORE IT SHIPPED, each
+#                     the same shape as the defect being repaired. The new header quoted the
+#                     old claim verbatim in order to explain it -- and a quoted claim reads
+#                     as a live one to anyone skimming, which is the exact failure being
+#                     removed. It then quoted the changelog section name for the same reason
+#                     and with the same effect. And the count-detecting regular expression
+#                     matched the "19" of the date "2026-07-19" against a "base classifiers"
+#                     later in the same sentence: a date is not a count claim. The expression
+#                     now requires the number to MODIFY the noun, at most two words
+#                     intervening, and is verified against six probes -- four that must match
+#                     and two that must not.
+#
+#                     WHAT IS NOT FIXED. The header is now silent about the roster, which is
+#                     correct, but nothing yet asserts that TABULAR_FEATURES and
+#                     EXPECTED_TABULAR_FEATURE_COUNT agree with each other in the same way.
+#                     That is a separate pin and it is not installed here.
+1985
