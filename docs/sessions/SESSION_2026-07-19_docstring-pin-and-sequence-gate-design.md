@@ -366,25 +366,38 @@ almost nothing.
 
 ## 4. THE TIMING SERIES, STILL UNEXPLAINED
 
-Full-suite wall-clock, in order, 2026-07-19:
+Full-suite wall-clock, every reading of 2026-07-19, in the order the runs happened:
 
 ```
-650.17  711.90  639.01  652.09  652.23  709.49  1026.25  727.99  637.60  798.38
+650.17  711.90  639.01  652.09  652.23  709.49  1026.25  727.99  637.60  798.38  657.75
 ```
 
-Ten runs, median 680.86s. The 1026.25s outlier (commit `ea8d6e8`, which REMOVED a test) sits
-51% above it; today's final run, 798.38s, sits 17% above.
+Eleven runs. **Nine sit between 637.60 and 727.99 seconds.** Two do not: 798.38s, and 1026.25s
+on commit `ea8d6e8` — a commit that REMOVED a test. The slowest run is a little over one and a
+half times the fastest.
 
-The suite grew from 1968 to 1985 collected across this span — 0.9% more tests — which does not
-account for a 22% increase over the 652s runs. Machine load remains the likeliest explanation
-and this is a laptop, but likeliest is not measured.
+The suite grew from 1968 to 1985 collected across this span, seventeen more tests. That cannot
+account for a run three hundred seconds above the cluster, and both slow runs were followed by
+runs inside it.
 
-**A methodological note, recorded because it recurred.** An earlier draft of the preceding
-session record quoted this excess as 58%, computed from six timings; it was corrected to 51%
-against eight before that document was committed; against ten it is 51% again for the outlier
-and the denominator has moved twice. A ratio against a live median is a figure that goes stale
-by construction. The right form is the raw distribution plus a plain statement — the outlier is
-roughly 1.5 times a typical run, and every other run sits between 637 and 799 seconds.
+**What is not claimed here.** Machine load is the obvious explanation and this is a laptop, but
+no measurement was taken of it. Two subsequent runs returning to normal is CONSISTENT with load
+and does not establish it. The question stays open. A suite that slows without a code reason is
+the kind of thing that gets normalised until it is ten minutes worse, so the readings are kept
+rather than the conclusion.
+
+**A methodological note, recorded because it recurred four times in one day.** This paragraph
+previously expressed the anomaly as a percentage above the median. That figure was quoted as
+58% from six timings, corrected to 51% against eight, restated as 51% against ten, and would
+now read 56% against eleven — four different numbers, one unchanging reality, and no arithmetic
+error in any of them. The computation was right every time and the FORM was wrong every time: a
+ratio against a live median goes stale by construction, because the denominator moves whenever
+another run happens.
+
+The preceding paragraph diagnosed exactly this and then published the ratio anyway. That is the
+failure section 2 catalogues — a fact stated in a form that must be maintained, where nothing
+maintains it — appearing inside the section describing it. The form above does not go stale: a
+raw series only ever gets longer, and appending to it falsifies nothing already written.
 
 ---
 
