@@ -755,4 +755,85 @@
 #                     the `ok` column, and where provenance is ABSENT they say so instead
 #                     of reporting zero. "Cannot tell" is not "clean" -- that conflation is
 #                     what let 21,814 fabricated rows train as real sequence.
-1968
+#
+#   1967  2026-07-19  -1: WindowAttachment.__iter__ and the test that pinned it, DELETED
+#                     TOGETHER. MEASURED with `pytest tests/ --collect-only -q` on the
+#                     STAGED tree: `git add -A` first, then `git status --short` showing
+#                     exactly two ` M` entries and NO '??' lines, then the collection ->
+#                     "1967 tests collected in 9.47s". Immediately before the deletion the
+#                     same command on the same staged tree reported "1968 tests collected
+#                     in 13.08s". The -1 is the difference between two measurements of two
+#                     real trees, not arithmetic. Entry 1962 above exists because that
+#                     distinction was missed once, so it is stated here explicitly.
+#
+#                     WHAT WAS DELETED
+#
+#                     src/genomic_variant_classifier/data/seq_window_join.py:136-164
+#                     (-30 lines including blank-line renormalisation) -- the back-compat
+#                     shim that let `wins, n_unmapped = attach_delta_windows(...)` continue
+#                     to unpack after 2026-07-15 changed the return type to a
+#                     WindowAttachment object. It was DELIBERATELY LOSSY: it dropped
+#                     `usable`, the provenance mask that is the entire reason the object
+#                     exists. Reading a WindowAttachment through it gave you back exactly
+#                     the blindness that let 21,814 builder-placeholder rows train as real
+#                     sequence.
+#
+#                     tests/unit/test_seq_window_join.py:193-206 (-16 lines, 10 -> 9 tests)
+#                     -- test_back_compat_iter_still_unpacks_for_unmigrated_callers. Its
+#                     docstring: "this test exists so that deleting the shim is a decision,
+#                     not an accident." Deleting it IS that decision.
+#
+#                     THE SHIM SET ITS OWN DELETION CONDITION -- "This docstring is the todo
+#                     list. When the list above is empty, delete this method" -- AND WAS
+#                     STALE ON ALL FOUR OF ITS CLAIMS:
+#
+#                       "STILL UNPACKING THE TUPLE: scripts/train.py:441,458,480"
+#                           -> train.py:439/455/477 bind the object. Migrated 2026-07-15.
+#                       "scripts/run_phase2_eval.py:425,426,427"
+#                           -> reads provenance through loop var _atts at 436-448 and GATES
+#                              on it (`return 2` at 466). The most rigorous consumer in the
+#                              tree.
+#                       "scripts/rekey_seq_windows_v2.py:145"
+#                           -> migrated 2026-07-15.
+#                       "train.py:485 ... _POLY_WIN = "A" * 101 ... PLACEHOLDER_BASE is now
+#                        "N" ... train.py must be migrated before Run 17"
+#                           -> that detector is GONE. train.py:480-511 is a commented-out
+#                              record of both its defects, and train.py:516 now reads
+#                              `has_sequences = _att_train.n_usable > 100` -- provenance,
+#                              which cannot rot when a filler changes because it never looks
+#                              at the filler.
+#
+#                     A SELF-MAINTAINED TODO LIST WENT STALE ANYWAY, and it had insisted in
+#                     its own text that it was "accurate as written, not aspirational". That
+#                     sentence is the tell: it is the same class of assurance as the
+#                     all-capitals comments that failed five times in two days above, and as
+#                     "MEASURED" in entry 1966. A claim about a document's own freshness
+#                     cannot make the document fresh. This one is now deleted rather than
+#                     corrected, which is the only durable form of the fix.
+#
+#                     THE FOUR REMAINING CALL SITES were migrated in fe4ea94 (Part 3b):
+#                     test_seq_window_join.py:36,46,152 and test_train_cnn_activation.py:101,
+#                     all to `att.windows` / `att.n_unmapped`. A FIFTH apparent site,
+#                     test_train_cnn_activation.py:30, is PROSE INSIDE A DOCSTRING quoting the
+#                     old buggy version the test was rewritten away from; patching it would
+#                     have corrupted a record of a fixed defect. It was caught by noticing its
+#                     indentation did not match the function body.
+#
+#                     THREE CHECKERS BUILT FOR THIS SEQUENCE MISCOUNTED PROSE AS CODE before
+#                     being fixed -- Part 3a's splatted-call census (it counted its own new
+#                     docstring's `ens.fit(*_tiny_inputs())` as an eighth call site), Part 3b's
+#                     first draft (the quoted unpack above), and Part 3c's blank-line check
+#                     (it demanded two blank lines before `class WindowAttachment:`, which sits
+#                     directly beneath its own `@dataclass`, and asserted GLOBAL PEP 8
+#                     cleanliness rather than asking whether the edit made spacing worse). All
+#                     three now parse with `ast` and strip docstrings before counting. That is
+#                     the fourth, fifth and sixth time in this file's history that a
+#                     string-matching gate has fired on the prose written to describe the rule
+#                     -- see 1944, 1963, and the feature-count sweep at 1940.
+#
+#                     PART 3 OF THE HYBRID, in order: ff97c34 made X_seq optional in
+#                     VariantEnsemble with a loud refusal when a SEQUENCE_MODELS member is
+#                     active without it; 58c9433 stopped three tests fabricating placeholder
+#                     sequence; fe4ea94 migrated the last four unpacks; this commit removes the
+#                     shim. The `usable`-less path no longer exists.
+1967

@@ -188,19 +188,3 @@ def test_tier1_no_longer_reports_zero_unmapped_when_rows_are_null(tmp_path):
     assert att.n_usable == 2
     assert att.n_unmapped == 1, "the null row must be counted, not fabricated away"
     assert not att.usable[2]
-
-
-def test_back_compat_iter_still_unpacks_for_unmigrated_callers():
-    """The deprecated 2-tuple shim, pinned until the last caller is migrated.
-
-    scripts/train.py, scripts/run_phase2_eval.py still unpack this way. The shim is
-    deliberately lossy -- it drops `usable` -- and this test exists so that deleting the
-    shim is a decision, not an accident. Delete both when the migration lands (6.28).
-    """
-    meta = pd.DataFrame({J.REF_WIN_COL: ["R" * W], J.ALT_WIN_COL: ["A" * W]})
-    att = J.attach_delta_windows(meta)
-
-    wins, n_unmapped = att            # the legacy call shape
-    assert list(wins.columns) == [J.REF_WIN_COL, J.ALT_WIN_COL]
-    assert n_unmapped == 0
-    assert wins.equals(att.windows)

@@ -133,36 +133,6 @@ class WindowAttachment:
             f"{self.n_placeholder} builder-placeholder"
         )
 
-    def __iter__(self):
-        """Back-compat shim: `wins, n_unmapped = attach_delta_windows(...)` unpacks.
-
-        DEPRECATED AND DELIBERATELY LOSSY -- it drops `usable`, which is the entire
-        point of this object. It exists only so that the 2026-07-15 change lands as
-        one reviewable step instead of a seven-call-site rewrite in the same commit.
-
-        MIGRATION STATUS, 2026-07-15 -- accurate as written, not aspirational:
-
-            MIGRATED to `.usable`:
-              src/genomic_variant_classifier/data/genomic_lm.py   (both call sites)
-
-            STILL UNPACKING THE TUPLE -- these read `usable=False` rows as real:
-              scripts/train.py:441,458,480          <-- feeds the CNN's X_seq. The
-                                                        one that matters for Run 17.
-              scripts/run_phase2_eval.py:425,426,427
-              scripts/rekey_seq_windows_v2.py:145   <-- verification only, low risk
-
-        `scripts/train.py:485` additionally computes its own poly-detector against
-        `_POLY_WIN = "A" * 101`. PLACEHOLDER_BASE is now "N", so that check no longer
-        matches anything and its `_n_real_test` count is now wrong in the OTHER
-        direction -- it will report every row as real. **train.py must be migrated
-        before Run 17.** Tracked as roadmap 6.28.
-
-        This docstring is the todo list. When the list above is empty, delete this
-        method and the `usable`-less path stops existing.
-        """
-        yield self.windows
-        yield self.n_unmapped
-
 
 def _make_key(df: pd.DataFrame) -> pd.Series:
     return (
