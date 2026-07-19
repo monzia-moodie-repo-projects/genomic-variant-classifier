@@ -1,0 +1,340 @@
+LOCAL STATE COLLECTION
+generated : 2026-07-18 06:09:23 local
+utc       : 2026-07-18 10:09:23 UTC
+repo      : C:\Projects\genomic-variant-classifier
+host      : MONZIA-Q9DL4AS
+powershell: 5.1.29617.1000
+
+=====================================================================================
+## 1. GIT POSITION -- where the local tree sits relative to origin
+=====================================================================================
+
+--- current branch
+$ git rev-parse --abbrev-ref HEAD
+main
+
+--- HEAD hash
+$ git rev-parse HEAD
+87b670e8dc97688a0fba0e832af5ae728b1fb34c
+
+--- origin/main hash
+$ git rev-parse origin/main
+87b670e8dc97688a0fba0e832af5ae728b1fb34c
+
+--- ahead / behind origin
+$ git rev-list --left-right --count origin/main...HEAD
+0	0
+
+--- last 8 commits
+$ git log --oneline -8
+87b670e fix(readme,ratchet): restore the rewrite 63e998d destroyed; correct 1966 -> 1962
+b1ec589 docs(handoff): replace "the five wrong conclusions" with the complete error catalogue
+18350ab docs(roadmap): 6.25-6.29, fresh 2026-07-15 state, forward plan; correct for memory.md
+63e998d docs(readme): restore and rewrite clean; showcase, not contract
+f078953 docs(readme,claude): 22 agents not 13, 1963 tests, and the storage vocabulary
+184f2c6 fix(agent-layer): remove the bare orchestrator import and the sys.path hack
+9157133 fix(seq-windows): read the builder's ok column instead of inferring from content
+8d7df86 fix(genomiclm): compute the log-likelihood ratio, which has been 0.0 since inception
+
+--- working tree status
+$ git status --short --branch
+## main...origin/main
+ M scripts/run_phase2_eval.py
+ M scripts/train.py
+ M src/genomic_variant_classifier/data/genomic_lm.py
+ M src/genomic_variant_classifier/models/variant_ensemble.py
+?? LOCAL_STATE_2026-07-18.txt
+?? tests/unit/test_no_content_based_poly_detection.py
+
+--- staged stat
+$ git diff --cached --stat
+(no output)
+
+--- unstaged stat
+$ git diff --stat
+ scripts/run_phase2_eval.py                         |  62 +++--
+ scripts/train.py                                   |  95 +++++---
+ src/genomic_variant_classifier/data/genomic_lm.py  |   8 +-
+ .../models/variant_ensemble.py                     | 260 +++++++++++++++++++--
+ 4 files changed, 362 insertions(+), 63 deletions(-)
+
+--- untracked files
+$ git ls-files --others --exclude-standard
+LOCAL_STATE_2026-07-18.txt
+tests/unit/test_no_content_based_poly_detection.py
+
+=====================================================================================
+## 2. THE FILES OF INTEREST -- existence, tracked state, and HASH
+=====================================================================================
+
+--- src\genomic_variant_classifier\models\variant_ensemble.py
+  PRESENT   : yes (120925 bytes)
+  MODIFIED  : 2026-07-15 04:49:18
+  WORKTREE  : ca916cd1fb94935abece414b9cfcd0f385ffdfa6
+  AT HEAD   : addd158a017a73991dccda463a06e40b18a6b427
+  VERDICT   : DIFFERS from HEAD
+  STATUS    : M src/genomic_variant_classifier/models/variant_ensemble.py
+
+--- src\genomic_variant_classifier\data\seq_window_join.py
+  PRESENT   : yes (12043 bytes)
+  MODIFIED  : 2026-07-15 02:03:33
+  WORKTREE  : b4b653d1bdd965686bf4a60510cecc59a1200ebf
+  AT HEAD   : b4b653d1bdd965686bf4a60510cecc59a1200ebf
+  VERDICT   : IDENTICAL to HEAD
+  STATUS    : (clean)
+
+--- src\genomic_variant_classifier\data\genomic_lm.py
+  PRESENT   : yes (20577 bytes)
+  MODIFIED  : 2026-07-15 04:06:35
+  WORKTREE  : b876aab4d985ea04fdcc4ef0a6d724f0bbe9284f
+  AT HEAD   : 4acf34fe0d3a1a86d2e5fc4f4be17076892c6496
+  VERDICT   : DIFFERS from HEAD
+  STATUS    : M src/genomic_variant_classifier/data/genomic_lm.py
+
+--- src\genomic_variant_classifier\data\populate_fasta_seq.py
+  PRESENT   : yes (8843 bytes)
+  MODIFIED  : 2026-05-31 17:13:07
+  WORKTREE  : bcd8d7230d1f6e457b072e9332846f9833ef85c5
+  AT HEAD   : bcd8d7230d1f6e457b072e9332846f9833ef85c5
+  VERDICT   : IDENTICAL to HEAD
+  STATUS    : (clean)
+
+--- scripts\train.py
+  PRESENT   : yes (35805 bytes)
+  MODIFIED  : 2026-07-15 03:34:31
+  WORKTREE  : 67c5274b07f86f642589337144b47bd33293ebad
+  AT HEAD   : 0327870e9ddb30d8073e121d19b2fcd4b1a628d9
+  VERDICT   : DIFFERS from HEAD
+  STATUS    : M scripts/train.py
+
+--- scripts\run_phase2_eval.py
+  PRESENT   : yes (61796 bytes)
+  MODIFIED  : 2026-07-15 03:55:35
+  WORKTREE  : 4260ecabd4c3f6ed6d26d7ae26abbe35986e11e4
+  AT HEAD   : 3c6907eca96e5b7b5d6b8e4880b3d1b3326dafec
+  VERDICT   : DIFFERS from HEAD
+  STATUS    : M scripts/run_phase2_eval.py
+
+--- scripts\rekey_seq_windows_v2.py
+  PRESENT   : yes (13569 bytes)
+  MODIFIED  : 2026-07-15 02:31:18
+  WORKTREE  : 7ef6b0f19fc07439f24ec4b17d1ec73c464e0d8b
+  AT HEAD   : 7ef6b0f19fc07439f24ec4b17d1ec73c464e0d8b
+  VERDICT   : IDENTICAL to HEAD
+  STATUS    : (clean)
+
+--- tests\unit\test_no_content_based_poly_detection.py
+  PRESENT   : yes (18325 bytes)
+  MODIFIED  : 2026-07-15 04:07:31
+  WORKTREE  : 64ff7658089814a43ffe506065fe890981cdbcb9
+  AT HEAD   : HEAD:tests/unit/test_no_content_based_poly_detection.py
+git.exe : fatal: path 'tests/unit/test_no_content_based_poly_detection.py' exists on disk, but not in 'HEAD'
+At C:\Users\monzi\Downloads\Collect_Local_State_2026-07-18.ps1:115 char:13
++     $hd  = (& git rev-parse "HEAD:$($f -replace '\\','/')" 2>&1 | Out ...
++             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (fatal: path 'te...t not in 'HEAD':String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+  VERDICT   : NOT IN HEAD (untracked or new)
+  STATUS    : ?? tests/unit/test_no_content_based_poly_detection.py
+
+--- tests\unit\test_seq_window_join.py
+  PRESENT   : yes (8850 bytes)
+  MODIFIED  : 2026-07-15 02:32:01
+  WORKTREE  : 7543aa2b6ed95b7b78452b3e9050275380eb8299
+  AT HEAD   : 7543aa2b6ed95b7b78452b3e9050275380eb8299
+  VERDICT   : IDENTICAL to HEAD
+  STATUS    : (clean)
+
+--- tests\unit\test_train_cnn_activation.py
+  PRESENT   : yes (5048 bytes)
+  MODIFIED  : 2026-07-15 02:32:22
+  WORKTREE  : 78411b3a9a8f02add7016844bc637250052f4791
+  AT HEAD   : 78411b3a9a8f02add7016844bc637250052f4791
+  VERDICT   : IDENTICAL to HEAD
+  STATUS    : (clean)
+
+--- tests\EXPECTED_SUITE_SIZE
+  PRESENT   : yes (50237 bytes)
+  MODIFIED  : 2026-07-15 21:10:14
+  WORKTREE  : b89f53ad265931f1673e3b6fbdd7fa4728381d8a
+  AT HEAD   : b89f53ad265931f1673e3b6fbdd7fa4728381d8a
+  VERDICT   : IDENTICAL to HEAD
+  STATUS    : (clean)
+
+=====================================================================================
+## 3. THE HALF-LANDED CHANGE -- is it still half-landed locally?
+=====================================================================================
+
+--- PLACEHOLDER_BASE
+$ git grep -n "PLACEHOLDER_BASE *=" -- src scripts
+src/genomic_variant_classifier/data/seq_window_join.py:87:PLACEHOLDER_BASE = "N"
+
+--- surviving A*101 sites
+$ git grep -n "\"A\" \* \|_POLY_WIN\|_POLY_A\|_DUMMY_SEQ" -- src scripts
+(no output)
+
+--- train.py has_sequences
+$ git grep -n "has_sequences\|_n_real_test" -- scripts/train.py
+scripts/train.py:431:    # before any join ran. We now join FIRST, then decide has_sequences from the
+scripts/train.py:480:    # -- Decide has_sequences from PROVENANCE, on the split the CNN is FITTED on --
+scripts/train.py:485:    #     _n_real_test = int((X_seq_test[REF_WIN_COL].astype(str) != _POLY_WIN).sum())
+scripts/train.py:486:    #     has_sequences = _n_real_test > 100
+scripts/train.py:492:    #     windows were real, has_sequences was True and the model trained on fabricated
+scripts/train.py:500:    #     _n_real_test became len(X_seq_test) and has_sequences became UNCONDITIONALLY
+scripts/train.py:516:    has_sequences = _att_train.n_usable > 100
+scripts/train.py:517:    if not has_sequences:
+
+--- tuple-unpack callers
+$ git grep -n "= attach_delta_windows" -- src scripts
+scripts/patch_train_cnn_activation.py:74:    "        X_seq_test, _n_unmapped_test = attach_delta_windows(meta_test)\n"
+scripts/patch_train_cnn_activation.py:89:    "        X_seq_train, _n_unmapped_train = attach_delta_windows(_meta_train)\n"
+scripts/rekey_seq_windows_v2.py:145:        att = attach_delta_windows(meta, tmp, window=101)
+scripts/run_phase2_eval.py:428:        # to read `seq_tr, _u_tr = attach_delta_windows(...)` and sum the three
+scripts/run_phase2_eval.py:436:        _att_tr = attach_delta_windows(_meta_train_seq, _seq_win)
+scripts/run_phase2_eval.py:437:        _att_te = attach_delta_windows(meta, _seq_win)          # meta == meta_test
+scripts/run_phase2_eval.py:438:        _att_val = attach_delta_windows(meta_val, _seq_win)
+scripts/train.py:439:    _att_test = attach_delta_windows(meta_test, seq_windows_path=_seq_win_arg)
+scripts/train.py:455:    _att_train = attach_delta_windows(_meta_train, seq_windows_path=_seq_win_arg)
+scripts/train.py:477:        _att_tune = attach_delta_windows(_meta_tune, seq_windows_path=_seq_win_arg)
+src/genomic_variant_classifier/data/seq_window_join.py:137:        """Back-compat shim: `wins, n_unmapped = attach_delta_windows(...)` unpacks.
+
+--- usable consumers
+$ git grep -n "\.usable\|single_sequence_mode\|_assert_no_null_windows" -- src scripts
+scripts/rekey_seq_windows_v2.py:172:            unmapped_mask = ~att.usable
+scripts/train.py:537:        if abs(_att_train.usable_fraction - _att_test.usable_fraction) > 0.05:
+scripts/train.py:542:                100.0 * _att_train.usable_fraction, 100.0 * _att_test.usable_fraction,
+src/genomic_variant_classifier/data/genomic_lm.py:302:        # WindowAttachment.usable, read from the builder's `ok` column. Nothing in this
+src/genomic_variant_classifier/data/genomic_lm.py:348:        `(windows, n_unmapped)` pair. Callers must mask on `.usable`.
+src/genomic_variant_classifier/data/genomic_lm.py:372:    # `WindowAttachment.usable` carries the builder's own `ok` verdict out of the
+src/genomic_variant_classifier/data/genomic_lm.py:386:        wins, mapped = att.windows, att.usable
+src/genomic_variant_classifier/data/genomic_lm.py:387:        cov = att.usable_fraction
+src/genomic_variant_classifier/data/genomic_lm.py:432:        wins, mapped = att.windows, att.usable
+src/genomic_variant_classifier/data/seq_window_join.py:83:#: nothing may branch on it. `WindowAttachment.usable` is the only sanctioned way to
+src/genomic_variant_classifier/data/seq_window_join.py:123:        return int(self.usable.sum())
+src/genomic_variant_classifier/data/seq_window_join.py:132:            f"({100.0 * self.usable_fraction:.3f}%), {self.n_unmapped} unmapped, "
+src/genomic_variant_classifier/data/seq_window_join.py:145:            MIGRATED to `.usable`:
+src/genomic_variant_classifier/data/seq_window_join.py:181:    Returns a WindowAttachment. Read `.usable` before trusting any row's sequence.
+src/genomic_variant_classifier/models/variant_ensemble.py:1065:    """(N, C, window) for single_sequence_mode: one-hot(4) [+ positional(1)].
+src/genomic_variant_classifier/models/variant_ensemble.py:1294:        single_sequence_mode=False,
+src/genomic_variant_classifier/models/variant_ensemble.py:1297:        single_sequence_mode: OPT-IN, 2026-07-15 (roadmap 6.28). Default False.
+src/genomic_variant_classifier/models/variant_ensemble.py:1341:        self.single_sequence_mode = single_sequence_mode
+src/genomic_variant_classifier/models/variant_ensemble.py:1370:        single_sequence_mode collapses the roster to what actually carries information:
+src/genomic_variant_classifier/models/variant_ensemble.py:1376:        if self.single_sequence_mode:
+src/genomic_variant_classifier/models/variant_ensemble.py:1442:        if self.single_sequence_mode:
+src/genomic_variant_classifier/models/variant_ensemble.py:1444:            # estimator with single_sequence_mode=True -- never because of the shape of
+src/genomic_variant_classifier/models/variant_ensemble.py:1449:                        f"single_sequence_mode expects ONE sequence column; got "
+src/genomic_variant_classifier/models/variant_ensemble.py:1451:                        f"construct with single_sequence_mode=False (the default) and "
+src/genomic_variant_classifier/models/variant_ensemble.py:1459:            self._assert_no_null_windows(seq, "sequence")
+src/genomic_variant_classifier/models/variant_ensemble.py:1474:                f"CNN1DClassifier(single_sequence_mode=True). It is then 5 honest channels, "
+src/genomic_variant_classifier/models/variant_ensemble.py:1499:        self._assert_no_null_windows(ref, REF_WIN_COL)
+src/genomic_variant_classifier/models/variant_ensemble.py:1500:        self._assert_no_null_windows(alt, ALT_WIN_COL)
+src/genomic_variant_classifier/models/variant_ensemble.py:1507:    def _assert_no_null_windows(self, s: pd.Series, label: str) -> None:
+
+=====================================================================================
+## 4. SUITE SIZE -- collected count on the LOCAL tree
+=====================================================================================
+
+--- ratchet value
+$ Get-Content tests\EXPECTED_SUITE_SIZE | Where-Object { $_ -match "^\s*\d+\s*$" }
+1962
+
+--- collect-only
+$ python -m pytest tests/ --collect-only -q 2>&1 | Select-Object -Last 6
+tests/unit/test_zero_variance_guard.py::test_small_fixtures_warn_but_do_not_raise
+tests/unit/test_zero_variance_guard.py::test_the_row_threshold_is_the_thing_that_decides
+tests/unit/test_zero_variance_guard.py::test_opt_out_does_not_raise_but_records_the_fact
+tests/unit/test_zero_variance_guard.py::test_default_config_is_armed
+
+1966 tests collected in 13.02s
+
+--- collect exit code
+$ $LASTEXITCODE
+0
+
+=====================================================================================
+## 5. FULL SUITE -- the 9 red tests, named
+=====================================================================================
+
+Running the FULL suite. Estimated 5-15 minutes.
+Full, not targeted: a targeted 8-file gate previously missed 2 real failures.
+
+--- full suite (failures only)
+$ python -m pytest tests/ -q --tb=no -rf 2>&1 | Select-Object -Last 60
+............................sssss....................................... [  3%]
+........................................................................ [  7%]
+........................................................................ [ 10%]
+........................................................................ [ 14%]
+........................................................................ [ 18%]
+........................................................................ [ 21%]
+..............................................................FF........ [ 25%]
+...................F....F........F...................................... [ 29%]
+........................................................................ [ 32%]
+........................................................................ [ 36%]
+........................................................................ [ 40%]
+........................................................................ [ 43%]
+........................................................................ [ 47%]
+........................................................................ [ 51%]
+........................................................................ [ 54%]
+........................................................................ [ 58%]
+........................................................................ [ 62%]
+........................................................................ [ 65%]
+........................................................................ [ 69%]
+......................F.F............................................... [ 73%]
+.................................................s...................... [ 76%]
+........................................................................ [ 80%]
+........................................................................ [ 84%]
+........................................................................ [ 87%]
+........................................................................ [ 91%]
+........................................................................ [ 95%]
+............s............................FF............................. [ 98%]
+......................                                                   [100%]
+============================== warnings summary ===============================
+tests/unit/test_no_content_based_poly_detection.py::test_no_live_module_fabricates_a_poly_window_literal
+  C:\Projects\genomic-variant-classifier\scripts\download_finngen_R10_DEPRECATED.py:6: SyntaxWarning: invalid escape sequence '\M'
+    G:\My Drive\genomic-variant-data
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/unit/test_catboost.py::TestEnsembleIntegration::test_catboost_receives_dataframe_in_fit
+FAILED tests/unit/test_catboost.py::TestEnsembleIntegration::test_ensemble_predict_proba_with_catboost
+FAILED tests/unit/test_cnn_1d_delta.py::test_encode_batch_dispatch - TypeErro...
+FAILED tests/unit/test_cnn_1d_delta.py::test_poly_a_series_fallback_no_crash
+FAILED tests/unit/test_cnn_tier1.py::test_single_fasta_seq_mode - ValueError:...
+FAILED tests/unit/test_no_content_based_poly_detection.py::test_no_live_module_fabricates_a_poly_window_literal
+FAILED tests/unit/test_no_content_based_poly_detection.py::test_no_source_file_carries_a_byte_order_mark
+FAILED tests/unit/test_variant_ensemble_save_load.py::test_cnn1d_pickles_after_fit
+FAILED tests/unit/test_variant_ensemble_save_load.py::test_ensemble_save_load_with_cnn1d
+9 failed, 1950 passed, 7 skipped, 1 warning in 554.17s (0:09:14)
+
+--- suite exit code
+$ $LASTEXITCODE
+1
+elapsed: 9.3 minutes
+
+=====================================================================================
+## 6. ENVIRONMENT
+=====================================================================================
+
+--- python version
+$ python --version
+Python 3.12.10
+
+--- python path
+$ (Get-Command python).Source
+C:\Projects\genomic-variant-classifier\.venv312\Scripts\python.exe
+
+--- free space on C
+$ Get-Volume -DriveLetter C | Select-Object DriveLetter,@{n="FreeGB";e={[math]::Round($_.SizeRemaining/1GB,2)}},@{n="SizeGB";e={[math]::Round($_.Size/1GB,2)}} | Format-List
+
+
+DriveLetter : C
+FreeGB      : 20.35
+SizeGB      : 935.59
+
+--- chat transcripts still on disk?
+$ if (Test-Path "docs\sessions\_chat_transcripts") { "PRESENT -- " + [math]::Round((Get-ChildItem "docs\sessions\_chat_transcripts" -Recurse -File | Measure-Object Length -Sum).Sum/1MB,2) + " MB (untracked; delete to reclaim)" } else { "absent" }
+absent
+
+=====================================================================================
+COLLECTION COMPLETE
+=====================================================================================

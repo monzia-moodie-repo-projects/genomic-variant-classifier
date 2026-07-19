@@ -123,14 +123,42 @@ def test_input_dependent(trained):
 
 
 # -- back-compat + robustness ----------------------------------------------
-def test_single_fasta_seq_mode(trained):
-    clf, Xte, _ = trained
-    Xs = pd.DataFrame({"fasta_seq": Xte["fasta_seq_alt"].values})
+def test_single_sequence_mode_is_five_honest_channels():
+    """Reference-only mode is OPT-IN and is a real architecture in its own right.
+
+    Until 2026-07-15 a 1-column frame was silently accepted by the DELTA path as
+    ref == alt, producing 13 channels of which 8 were a duplicated pair and 4 were
+    identically zero -- the delta architecture with its heart cut out, reported under
+    a name that promised the delta.
+
+    Measured end to end 2026-07-18: single_sequence_mode encodes (N, 5, WINDOW),
+    _in_channels() returns 5, and fit/predict round-trip.
+    """
+    Xtr, ytr = _make_data(200, seed=3)
+    Xs = pd.DataFrame({"fasta_seq_ref": Xtr["fasta_seq_ref"].values})
+    clf = CNN1DClassifier(
+        single_sequence_mode=True, epochs=2, batch_size=64, random_state=7,
+    ).fit(Xs, ytr)
+    assert clf._in_channels() == 5
     enc = clf._encode_batch(Xs.iloc[:8])
-    assert enc.shape == (8, 13, WINDOW)
-    assert np.abs(enc[:, 8:12, :]).sum() == 0.0  # ref == alt -> zero delta
+    assert enc.shape == (8, 5, WINDOW)
     ps = clf.predict_proba(Xs.iloc[:8])
     assert ps.shape == (8, 2) and np.allclose(ps.sum(1), 1.0, atol=1e-5)
+    # Recorded in get_params(), so the run artifact shows which architecture ran.
+    assert clf.get_params()["single_sequence_mode"] is True
+
+
+def test_delta_mode_rejects_single_column_frame(trained):
+    """The old back-compat path is now a hard error carrying a directive message.
+
+    The frame below names the legacy `fasta_seq` column, MEASURED 2026-07-15 as 100%
+    null across all 4,420,180 cohort rows. It used to be accepted here and filled with
+    fabricated poly-A.
+    """
+    clf, Xte, _ = trained
+    Xs = pd.DataFrame({"fasta_seq": Xte["fasta_seq_alt"].values})
+    with pytest.raises(ValueError, match="2-column"):
+        clf._encode_batch(Xs.iloc[:8])
 
 
 def test_predict_before_fit_raises():

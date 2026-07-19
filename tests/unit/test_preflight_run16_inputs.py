@@ -17,14 +17,33 @@ import preflight_run16_inputs as pf  # noqa: E402
 
 _REF = "ACGT" * 25 + "A"
 _ALT = _REF[:50] + "C" + _REF[51:]
-_POLY = "A" * 101
+# _POLY = "A" * 101 was removed 2026-07-18 along with its only user. The gate no longer
+# judges a window by its content, so a literal placeholder string has nothing to test.
 
 
-def test_cohort_with_ref_alt_passes(tmp_path):
+def test_cohort_with_ref_alt_and_provenance_passes(tmp_path):
+    """A healthy cohort: windows present AND the builder vouches for them."""
     p = tmp_path / "good.parquet"
-    pd.DataFrame({"fasta_seq_ref": [_REF] * 500, "fasta_seq_alt": [_ALT] * 500}).to_parquet(p)
+    pd.DataFrame({"fasta_seq_ref": [_REF] * 500, "fasta_seq_alt": [_ALT] * 500,
+                  "ok": [True] * 500}).to_parquet(p)
     ok, _ = pf.check_cohort_ref_alt(str(p))
     assert ok is True
+
+
+def test_cohort_without_provenance_fails(tmp_path):
+    """Windows present but NO `ok` column -- the gate must refuse, not assume clean.
+
+    This is the case that matters. Before 2026-07-18 the gate counted any window
+    differing from "A" * 101 as real, so once the placeholder base became "N" it passed
+    unconditionally. A cohort whose placeholder rows cannot be identified is not a
+    cohort that has been checked.
+    """
+    p = tmp_path / "noprov.parquet"
+    pd.DataFrame({"fasta_seq_ref": [_REF] * 500,
+                  "fasta_seq_alt": [_ALT] * 500}).to_parquet(p)
+    ok, msg = pf.check_cohort_ref_alt(str(p))
+    assert ok is False
+    assert "ok" in msg, msg
 
 
 def test_cohort_missing_ref_alt_fails(tmp_path):
@@ -34,11 +53,21 @@ def test_cohort_missing_ref_alt_fails(tmp_path):
     assert ok is False and "INERT" in msg
 
 
-def test_cohort_all_dummy_fails(tmp_path):
-    p = tmp_path / "dummy.parquet"
-    pd.DataFrame({"fasta_seq_ref": [_POLY] * 500, "fasta_seq_alt": [_POLY] * 500}).to_parquet(p)
-    ok, _ = pf.check_cohort_ref_alt(str(p))
+def test_cohort_mostly_placeholder_fails(tmp_path):
+    """Provenance says most windows are placeholders -> refuse.
+
+    Replaces test_cohort_all_dummy_fails, which wrote all-"A"*101 windows with no `ok`
+    column. That test still PASSED after the rewrite, but for the wrong reason: the gate
+    refused because provenance was missing, not because the windows were placeholders.
+    A test that passes for a reason unrelated to its name is not coverage. This one
+    supplies provenance so the placeholder path is genuinely exercised.
+    """
+    p = tmp_path / "placeholder.parquet"
+    pd.DataFrame({"fasta_seq_ref": [_REF] * 500, "fasta_seq_alt": [_ALT] * 500,
+                  "ok": [False] * 400 + [True] * 100}).to_parquet(p)
+    ok, msg = pf.check_cohort_ref_alt(str(p))
     assert ok is False
+    assert "placeholder" in msg, msg
 
 
 def test_missing_cohort_file_fails():

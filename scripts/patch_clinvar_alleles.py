@@ -9,7 +9,7 @@ the existing clinvar_grch38.parquet to populate those columns.
 Replaces: data/processed/clinvar_grch38.parquet  (in-place)
 
 Usage:
-  .venv\Scripts\python scripts\patch_clinvar_alleles.py \
+  .venv\\Scripts\\python scripts\\patch_clinvar_alleles.py \
       --vcf   data/raw/clinvar/clinvar_GRCh38.vcf.gz \
       --parquet data/processed/clinvar_grch38.parquet
 """

@@ -1,0 +1,121 @@
+WIRING BACKUP DISPOSITION (v2) -- does git already hold this content?
+date      : 2026-07-18
+repo      : C:\Projects\genomic-variant-classifier
+read-only : yes -- nothing is deleted; commands are printed for review
+
+Version 1 compared each backup against the working tree and git HEAD only, and
+called all four UNIQUE. That test cannot see content stored in ANY OTHER commit,
+so it reports unique whenever a backup matches a commit that is not HEAD -- which
+is the normal case for a backup taken weeks ago. This version asks the object
+database directly, which is the question that actually decides the matter.
+git       : git version 2.55.0.windows.3
+
+======================================================================================
+20260702_042345_scripts_launch_run17_baseline.sh
+======================================================================================
+  size             : 16,441 bytes, 301 line(s)
+  live counterpart : scripts/launch_run17_baseline.sh
+  at git HEAD      : 325 line(s)
+  working tree     : 325 line(s)
+
+  blob SHA-1 (raw bytes)      : 537413da9c732b596d46e8850e98fcefcb100390
+
+  IN GIT OBJECT DATABASE: YES (raw form)
+  commits containing this exact content:
+      6166fa6 chore(hygiene): un-track scratch/binary files swept by git add -A into 80eb9c8; extend .gitignore (.af_fix_work/.wiring_backup/.mypy_cache/renv/*.cif/data tars/root scratch). Files kept on disk; no history rewrite.
+      80eb9c8 Add KEGG connector (->97 feat), wire NT/COSMIC/KEGG into run17 launcher, unified leakage audit; stage cosmic+kegg to Drive; session doc
+      eba5c40 AlphaFold Phase-D: v6/API URL resolution, O(n) RSA, canonical isoform selection, coverage gate
+      77c66f5 feat(run17): wire FinnGen R13 real-data path (Stage 4, dual-release)
+
+  VERDICT: REDUNDANT -- git can reproduce these bytes exactly.
+           Recover any time with:  git show 537413da9c732b596d46e8850e98fcefcb100390
+
+======================================================================================
+20260702_042345_scripts_run_phase2_eval.py
+======================================================================================
+  size             : 53,460 bytes, 1105 line(s)
+  live counterpart : scripts/run_phase2_eval.py
+  at git HEAD      : 1197 line(s)
+  working tree     : 1231 line(s)
+
+  blob SHA-1 (raw bytes)      : 2c05a39aedd6f9daa1e799a445fcca8b87b56238
+
+  IN GIT OBJECT DATABASE: YES (raw form)
+  commits containing this exact content:
+      6166fa6 chore(hygiene): un-track scratch/binary files swept by git add -A into 80eb9c8; extend .gitignore (.af_fix_work/.wiring_backup/.mypy_cache/renv/*.cif/data tars/root scratch). Files kept on disk; no history rewrite.
+      80eb9c8 Add KEGG connector (->97 feat), wire NT/COSMIC/KEGG into run17 launcher, unified leakage audit; stage cosmic+kegg to Drive; session doc
+      eba5c40 AlphaFold Phase-D: v6/API URL resolution, O(n) RSA, canonical isoform selection, coverage gate
+      77c66f5 feat(run17): wire FinnGen R13 real-data path (Stage 4, dual-release)
+
+  VERDICT: REDUNDANT -- git can reproduce these bytes exactly.
+           Recover any time with:  git show 2c05a39aedd6f9daa1e799a445fcca8b87b56238
+
+======================================================================================
+20260702_042345_src_genomic_variant_classifier_data_real_data_prep.py
+======================================================================================
+  size             : 68,562 bytes, 1686 line(s)
+  live counterpart : src/genomic_variant_classifier/data/real_data_prep.py
+  at git HEAD      : 1652 line(s)
+  working tree     : 1652 line(s)
+
+  blob SHA-1 (raw bytes)      : 9424eccaea5c28c3d3b102c3c4f83873ae5402d8
+  blob SHA-1 (line-feed only) : bd491ffc5b1d45f0fb57fa8623f8484732d43a91
+
+  IN GIT OBJECT DATABASE: YES (line-feed-normalised form)
+  commits containing this exact content:
+      6166fa6 chore(hygiene): un-track scratch/binary files swept by git add -A into 80eb9c8; extend .gitignore (.af_fix_work/.wiring_backup/.mypy_cache/renv/*.cif/data tars/root scratch). Files kept on disk; no history rewrite.
+      80eb9c8 Add KEGG connector (->97 feat), wire NT/COSMIC/KEGG into run17 launcher, unified leakage audit; stage cosmic+kegg to Drive; session doc
+      eba5c40 AlphaFold Phase-D: v6/API URL resolution, O(n) RSA, canonical isoform selection, coverage gate
+      d1039df pandas-3 upgrade attempted + rolled back; kept 3 fixes proven equiv on 2.3.3 (date_range wheel segfault)
+
+  VERDICT: REDUNDANT -- git can reproduce these bytes exactly.
+           Recover any time with:  git show bd491ffc5b1d45f0fb57fa8623f8484732d43a91
+
+======================================================================================
+20260702_042345_src_genomic_variant_classifier_models_variant_ensemble.py
+======================================================================================
+  size             : 64,528 bytes, 1773 line(s)
+  live counterpart : src/genomic_variant_classifier/models/variant_ensemble.py
+  at git HEAD      : 2533 line(s)
+  working tree     : 2751 line(s)
+
+  blob SHA-1 (raw bytes)      : f95fdcc93aa0818c08b0ffa836c92e3ef139c936
+
+  IN GIT OBJECT DATABASE: YES (raw form)
+  commits containing this exact content:
+      6166fa6 chore(hygiene): un-track scratch/binary files swept by git add -A into 80eb9c8; extend .gitignore (.af_fix_work/.wiring_backup/.mypy_cache/renv/*.cif/data tars/root scratch). Files kept on disk; no history rewrite.
+      80eb9c8 Add KEGG connector (->97 feat), wire NT/COSMIC/KEGG into run17 launcher, unified leakage audit; stage cosmic+kegg to Drive; session doc
+      eba5c40 AlphaFold Phase-D: v6/API URL resolution, O(n) RSA, canonical isoform selection, coverage gate
+      5344ddb feat(run17): FinnGen R13 columns -- tabular contract 88->91 + harness allowlist 27->29
+
+  VERDICT: REDUNDANT -- git can reproduce these bytes exactly.
+           Recover any time with:  git show f95fdcc93aa0818c08b0ffa836c92e3ef139c936
+
+======================================================================================
+## SUMMARY
+======================================================================================
+
+  redundant (git holds the exact bytes) : 4
+      20260702_042345_scripts_launch_run17_baseline.sh
+          recover: git show 537413da9c732b596d46e8850e98fcefcb100390
+      20260702_042345_scripts_run_phase2_eval.py
+          recover: git show 2c05a39aedd6f9daa1e799a445fcca8b87b56238
+      20260702_042345_src_genomic_variant_classifier_data_real_data_prep.py
+          recover: git show bd491ffc5b1d45f0fb57fa8623f8484732d43a91
+      20260702_042345_src_genomic_variant_classifier_models_variant_ensemble.py
+          recover: git show f95fdcc93aa0818c08b0ffa836c92e3ef139c936
+  unique (only copy in existence)       : 0
+
+  Deleting ONLY the redundant files frees 202,991 bytes and loses nothing,
+  because every byte is recoverable from git:
+
+    Remove-Item -LiteralPath 'C:\Projects\genomic-variant-classifier\.wiring_backup\20260702_042345_scripts_launch_run17_baseline.sh'
+    Remove-Item -LiteralPath 'C:\Projects\genomic-variant-classifier\.wiring_backup\20260702_042345_scripts_run_phase2_eval.py'
+    Remove-Item -LiteralPath 'C:\Projects\genomic-variant-classifier\.wiring_backup\20260702_042345_src_genomic_variant_classifier_data_real_data_prep.py'
+    Remove-Item -LiteralPath 'C:\Projects\genomic-variant-classifier\.wiring_backup\20260702_042345_src_genomic_variant_classifier_models_variant_ensemble.py'
+
+  Every backup is redundant, so the directory itself can go:
+
+    Remove-Item -Recurse -LiteralPath 'C:\Projects\genomic-variant-classifier\.wiring_backup'
+
+  This script deletes nothing. Every command above is for review.

@@ -1,0 +1,127 @@
+PRE-COMMIT AUDIT -- what exactly would a commit include?
+date      : 2026-07-18
+repo      : C:\Projects\genomic-variant-classifier
+read-only : yes -- no git add, no git commit, no deletion
+
+`git add -A` swept scratch files into this repository once already (80eb9c8), and
+6166fa6 had to un-track them with no history rewrite. This runs before, not after.
+git       : git version 2.55.0.windows.3
+HEAD      : 87b670e
+
+======================================================================================
+## 1. MODIFIED TRACKED FILES
+======================================================================================
+
+  [ D] modified  scripts/populate_fasta_seq.py  (+0 / -85)
+  [ D] modified  src/genomic_variant_classifier/data/populate_fasta_seq.py  (+0 / -221)
+  [ D] modified  src/genomic_variant_classifier/data/seq_windows.py  (+0 / -197)
+  [ D] modified  tests/unit/test_populate_fasta_seq.py  (+0 / -154)
+  [ D] modified  tests/unit/test_seq_windows.py  (+0 / -155)
+  [ M] modified  .gitignore  (+3 / -0)
+  [ M] modified  scripts/build_spliceai_index.py  (+1 / -1)
+  [ M] modified  scripts/compute_within_gene_auroc.py  (+1 / -1)
+  [ M] modified  scripts/diagnose_phase2_prediction_reconstruction.py  (+1 / -1)
+  [ M] modified  scripts/download_finngen_R10_DEPRECATED.py  (+1 / -1)
+  [ M] modified  scripts/parse_dbsnp_freq_query_tsv.py  (+1 / -1)
+  [ M] modified  scripts/patch_clinvar_alleles.py  (+1 / -1)
+  [ M] modified  scripts/preflight_run16_inputs.py  (+27 / -9)
+  [ M] modified  scripts/probe_cohort_seq_density.py  (+35 / -8)
+  [ M] modified  scripts/run9_ablations.py  (+57 / -10)
+  [ M] modified  scripts/run_phase2_eval.py  (+48 / -14)
+  [ M] modified  scripts/train.py  (+68 / -27)
+  [ M] modified  scripts/validate_gencode_assets.py  (+1 / -1)
+  [ M] modified  src/genomic_variant_classifier/agent_layer/harness/correctness_harness.py  (+37 / -9)
+  [ M] modified  src/genomic_variant_classifier/data/delta_window_builder.py  (+23 / -1)
+  [ M] modified  src/genomic_variant_classifier/data/genomic_lm.py  (+7 / -1)
+  [ M] modified  src/genomic_variant_classifier/models/variant_ensemble.py  (+239 / -21)
+  [ M] modified  tests/unit/test_catboost.py  (+11 / -2)
+  [ M] modified  tests/unit/test_cnn_1d_delta.py  (+27 / -5)
+  [ M] modified  tests/unit/test_cnn_tier1.py  (+33 / -5)
+  [ M] modified  tests/unit/test_correctness_harness.py  (+40 / -4)
+  [ M] modified  tests/unit/test_preflight_run16_inputs.py  (+36 / -7)
+  [ M] modified  tests/unit/test_variant_ensemble_save_load.py  (+21 / -10)
+
+======================================================================================
+## 2. UNTRACKED FILES -- what `git add -A` WOULD ADD
+======================================================================================
+
+Anything listed here enters the permanent record. `git status --porcelain` already
+excludes ignored files, so the backups written by today's patches (*.bak_*) do not
+appear -- they were verified covered by .gitignore before this ran.
+
+  SOURCE (4)
+      scripts/build_clean_seq_from_windows.py                                10,575 bytes
+      tests/test_build_clean_seq_from_windows.py                              7,246 bytes
+      tests/test_build_seq_windows.py                                        14,963 bytes
+      tests/unit/test_no_content_based_poly_detection.py                     18,325 bytes
+
+  DOC (11)
+      docs/measurements/ALLELE_VALIDITY_2026-07-18.txt                        6,494 bytes
+      docs/measurements/ENCODE_BATCH_2026-07-18.txt                           7,936 bytes
+      docs/measurements/KEY_COVERAGE_2026-07-18.txt                           7,478 bytes
+      docs/measurements/LOCAL_STATE_2026-07-18.txt                           18,999 bytes
+      docs/measurements/OPEN_ITEMS_2026-07-18.txt                            67,148 bytes
+      docs/measurements/PHASE1_EFFECT_2026-07-18.txt                          3,385 bytes
+      docs/measurements/RED_TESTS_2026-07-18.txt                             49,374 bytes
+      docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt                      69,606 bytes
+      docs/measurements/SINGLE_SEQ_MODE_2026-07-18.txt                        7,717 bytes
+      docs/measurements/SURVIVORS_AND_DUPES_2026-07-18.txt                    3,602 bytes
+      docs/measurements/WIRING_BACKUP_DISPOSITION_2026-07-18.txt              7,812 bytes
+
+  OTHER (5)
+      docs/measurements/retired_2026-07-18/scripts_populate_fasta_seq.        3,189 bytes
+      docs/measurements/retired_2026-07-18/src_genomic_variant_classif        8,843 bytes
+      docs/measurements/retired_2026-07-18/src_genomic_variant_classif        6,696 bytes
+      docs/measurements/retired_2026-07-18/tests_unit_test_populate_fa        6,047 bytes
+      docs/measurements/retired_2026-07-18/tests_unit_test_seq_windows        5,167 bytes
+
+
+======================================================================================
+## 3. THE SUITE-SIZE RATCHET
+======================================================================================
+
+  tests/EXPECTED_SUITE_SIZE currently reads : 1962
+
+  tests/unit/test_no_content_based_poly_detection.py
+      tracked by git : False
+
+      This is the file the ratchet's own history warns about. It supplies 4
+      tests. While it is untracked, ANY working-tree count includes 4 tests the
+      committed tree does not have -- which is exactly how the 1966 entry came
+      to describe a tree that never existed.
+
+      If this commit INCLUDES it, the working-tree count becomes the committed
+      count and may be recorded. If it does not, the two differ by 4 and the
+      number must not be taken from a working-tree run.
+
+  ORDER OF OPERATIONS, from the ratchet's own instruction:
+      1. stage everything that belongs in the commit
+      2. `git stash --keep-index --include-untracked`  to set aside what does not
+      3. `pytest tests/ --collect-only -q`             MEASURE on the staged tree
+      4. write that number into tests/EXPECTED_SUITE_SIZE with a history entry
+         NAMING THE TREE, then `git stash pop`
+      Never compute the number by hand. The ratchet's history records four
+      consecutive miscounts by its own author, each caught by the ratchet.
+
+======================================================================================
+## 4. SUGGESTED SEQUENCE -- PRINTED, NOT RUN
+======================================================================================
+
+  # 1. look at everything, one screen at a time
+  git status
+
+  # 2. stage deliberately. `git add -A` is what swept 80eb9c8; prefer paths.
+  git add src/ scripts/ tests/ docs/ .gitignore
+
+  # 3. confirm the staged set is EXACTLY what you intend
+  git diff --cached --stat
+
+  # 4. measure the suite on the staged tree, then bump the ratchet in the
+  #    SAME commit (its header requires this)
+  python -m pytest tests/ --collect-only -q
+
+  # 5. commit with a message written to a file -- `git commit -m` fails on
+  #    multi-line messages with embedded quotes
+  git commit -F docs/measurements/COMMIT_MSG_2026-07-18.txt
+
+  This script runs none of the above.

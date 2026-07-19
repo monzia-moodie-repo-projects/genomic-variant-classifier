@@ -341,7 +341,12 @@ class TestEnsembleIntegration:
                 
             
             ensemble = VariantEnsemble(config=config)
-            seq      = pd.Series(["ACGT" * 25] * len(numeric_labels))
+            # 2-column delta frame. NOTE: "ACGT" * 25 is 100 chars, not 101 --
+            # encode_sequence ljust-pads the shortfall with a fabricated "A".
+            seq      = pd.DataFrame({
+                "fasta_seq_ref": ["ACGT" * 25 + "A"] * len(numeric_labels),
+                "fasta_seq_alt": ["ACGT" * 25 + "C"] * len(numeric_labels),
+            })
             ensemble.fit(numeric_variant_df, seq, pd.Series(numeric_labels))
         finally:
             CatBoostVariantClassifier.fit = orig_fit
@@ -356,7 +361,11 @@ class TestEnsembleIntegration:
         from genomic_variant_classifier.models.variant_ensemble import VariantEnsemble, EnsembleConfig
         config   = EnsembleConfig(n_folds=2, skip_catboost=False)
         ensemble = VariantEnsemble(config=config)
-        seq      = pd.Series(["ACGT" * 25] * len(numeric_labels))
+        # 2-column delta frame; 101 chars exactly (see note above).
+        seq      = pd.DataFrame({
+            "fasta_seq_ref": ["ACGT" * 25 + "A"] * len(numeric_labels),
+            "fasta_seq_alt": ["ACGT" * 25 + "C"] * len(numeric_labels),
+        })
         ensemble.fit(numeric_variant_df, seq, pd.Series(numeric_labels))
         proba = ensemble.predict_proba(numeric_variant_df, seq)
         assert proba.shape == (len(numeric_labels), 2)

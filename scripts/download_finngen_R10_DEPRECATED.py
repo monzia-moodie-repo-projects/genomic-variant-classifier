@@ -1,4 +1,4 @@
-﻿"""
+r"""
 DEPRECATED: FinnGen R10 downloader.
 
 Do not use for active data acquisition. Current FinnGen data should be stored under

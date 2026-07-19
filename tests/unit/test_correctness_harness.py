@@ -124,13 +124,49 @@ def test_stage2_config_flags_kan_missing_test_size():
     assert any("test_size" in f for f in report.failures), report.failures
 
 
-def test_stage3_sanity_flags_dummy_sequence():
-    """fasta_seq forced to the 'A'*101 dummy must be flagged (CNN-dummy class)."""
+def test_stage3_flags_placeholder_windows_by_provenance():
+    """Rows the BUILDER marked unusable must be flagged.
+
+    Replaces test_stage3_sanity_flags_dummy_sequence, removed 2026-07-18. That test set
+    fasta_seq to "A" * 101 and expected a failure naming the dummy. Stage 3a could not
+    fire on it for three independent reasons: "fasta_seq" is 100% null on the live
+    cohort (0 of 4,399,089, INCIDENT_2026-05-23); the placeholder base became "N" on
+    2026-07-15 so "A" * 101 no longer occurs; and the harness normally runs on
+    build_reference_slice(), which emits random ACGT.
+
+    Content cannot answer this question in any case -- a window of one repeated base may
+    be genuine biology. Only the builder knows, and it records that in `ok`.
+    """
     df = _tiny_slice()
-    df["fasta_seq"] = ["A" * 101] * len(df)
+    df["ok"] = [False] * len(df)
     report = harness.run_correctness_harness(df)
     assert not report.passed
-    assert any("dummy" in f.lower() or "fasta_seq" in f for f in report.failures), report.failures
+    stage3 = [f for f in report.failures if f.startswith("[stage 3]")]
+    assert any("placeholder" in f.lower() for f in stage3), report.failures
+
+
+def test_stage3_warns_when_provenance_is_absent():
+    """No `ok` column must WARN. "Cannot tell" is not "clean".
+
+    _tiny_slice() carries fasta_seq but no provenance, which is exactly the state that
+    let 21,814 fabricated rows pass as real sequence before 2026-07-15. The harness must
+    say so rather than stay silent.
+    """
+    df = _tiny_slice()
+    assert "ok" not in df.columns, "fixture precondition: the slice carries no provenance"
+    report = harness.run_correctness_harness(df)
+    stage3 = [w for w in report.warnings if w.startswith("[stage 3]")]
+    assert stage3, report.warnings
+    assert "provenance" in stage3[0], stage3
+
+
+def test_stage3_is_quiet_when_every_window_is_usable():
+    """All rows ok=True: no stage-3 failure and no stage-3 warning."""
+    df = _tiny_slice()
+    df["ok"] = [True] * len(df)
+    report = harness.run_correctness_harness(df)
+    assert not [f for f in report.failures if f.startswith("[stage 3]")], report.failures
+    assert not [w for w in report.warnings if w.startswith("[stage 3]")], report.warnings
 
 
 def test_stage5_zero_audit_flags_all_zero_nonbinary_feature():

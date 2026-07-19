@@ -691,4 +691,68 @@
 #                     The ratchet was RIGHT and the number was WRONG. It is about to report
 #                     "4 tests VANISHED" on b1ec589, naming four tests that were never
 #                     committed. Do not touch conftest.py. Fix the number.
-1962
+#
+#   1968  2026-07-18  +6 from 1962. MEASURED with `pytest tests/ --collect-only -q`
+#                     on the STAGED tree at HEAD 87b670e with 44 path(s) staged --
+#                     NOT on a bare working tree. The 1962 entry above exists because that
+#                     distinction was missed once, so it is recorded here explicitly.
+#
+#                     tests/unit/test_no_content_based_poly_detection.py IS INCLUDED IN
+#                     THIS COMMIT. The 1962 entry held the ratchet at a number that
+#                     excluded its 4 tests precisely because the file had never been
+#                     committed. It now is, which is the condition that entry set for
+#                     moving the number.
+#
+#                     WHAT CHANGED, all on 2026-07-18:
+#
+#                     RETIRED (-21) -- the superseded window builder and its driver.
+#                     src/genomic_variant_classifier/data/seq_windows.py (7 poly-ban
+#                     offenders), .../populate_fasta_seq.py, scripts/populate_fasta_seq.py,
+#                     and their two test files (16 + 5 = 21 tests). These wrote
+#                     clinvar_grch38_clean_seq.parquet with PAD_CHAR = "A" and NO
+#                     provenance column, so attach_delta_windows took its has_ok=False
+#                     branch and declared every row usable behind a logger warning.
+#                     Because "A" is a member of encode_sequence's BASES, every
+#                     placeholder position one-hot-encoded to a CONFIDENT ADENINE.
+#
+#                     A retirement audit refused this deletion earlier the same day:
+#                     scripts/populate_fasta_seq.py was the SOLE repo-resident producer of
+#                     a 534 MB artifact that 18 files consume. Retiring it then would have
+#                     left that artifact unreproducible from the repository.
+#
+#                     REPLACED (+19) -- coverage built BEFORE the deletion, not after.
+#                     tests/test_build_seq_windows.py (10) ports the surviving builder's
+#                     coverage; tests/test_build_clean_seq_from_windows.py (9) covers the
+#                     new join-based producer, whose dry run against the real 4,399,089-row
+#                     cohort reported 723 placeholder rows (668 non_acgt_allele / 53
+#                     ref_mismatch / 2 fetch_failed) -- the fourth independent re-derivation
+#                     of that split through a fourth code path.
+#
+#                     CONTRACT REALIGNED (+3) -- three blind detectors were rewritten onto
+#                     provenance, and two test files pinned the OLD behaviour:
+#                     tests/unit/test_correctness_harness.py (6 -> 8) and
+#                     tests/unit/test_preflight_run16_inputs.py (13 -> 14).
+#
+#                     A THIRD TEST WAS PASSING FOR THE WRONG REASON and pytest never said
+#                     so. test_cohort_all_dummy_fails wrote all-"A"*101 windows and
+#                     asserted the gate refused. It did refuse -- because the `ok` column
+#                     was absent, not because the windows were placeholders. A test that
+#                     passes for a reason unrelated to its name is not coverage. Replaced
+#                     by test_cohort_mostly_placeholder_fails, which supplies provenance.
+#
+#                     POLY-BAN OFFENDERS 12 -> 0. Eight lived in the retired modules. The
+#                     other four were live and all four were BLIND rather than broken:
+#                     preflight_run16_inputs.py (a LAUNCH GATE, reporting 100% real on a
+#                     cohort with 723 placeholders), probe_cohort_seq_density.py
+#                     (reporting dummy=0), correctness_harness.py stage 3a (a CORRECTNESS
+#                     GATE that was structurally incapable of firing -- wrong column,
+#                     wrong constant, and a synthetic random-ACGT fixture), and
+#                     run9_ablations.py (feeding fabricated adenine to cnn_1d).
+#
+#                     None was fixed by changing "A" to "N". Content cannot answer the
+#                     question at all: a window of one repeated base may be genuine
+#                     biology, and only the builder knows whether it gave up. All now read
+#                     the `ok` column, and where provenance is ABSENT they say so instead
+#                     of reporting zero. "Cannot tell" is not "clean" -- that conflation is
+#                     what let 21,814 fabricated rows train as real sequence.
+1968

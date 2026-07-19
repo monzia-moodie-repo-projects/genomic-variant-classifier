@@ -1,0 +1,526 @@
+RED TEST DIAGNOSIS
+generated : 2026-07-18 06:26:47 local
+utc       : 2026-07-18 10:26:47 UTC
+repo      : C:\Projects\genomic-variant-classifier
+HEAD      : 87b670e8dc97688a0fba0e832af5ae728b1fb34c
+powershell: 5.1.29617.1000
+
+=====================================================================================
+## 1. THE POLY BAN -- let the gate enumerate its own findings
+=====================================================================================
+
+--- pytest test_no_content_based_poly_detection.py -vv --tb=long
+============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.0.3, pluggy-1.6.0 -- C:\Projects\genomic-variant-classifier\.venv312\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Projects\genomic-variant-classifier
+configfile: pyproject.toml
+plugins: anyio-4.13.0, Faker-40.15.0, langsmith-0.8.5, cov-7.1.0, typeguard-4.5.1
+collecting ... collected 4 items
+
+tests/unit/test_no_content_based_poly_detection.py::test_no_live_module_fabricates_a_poly_window_literal FAILED [ 25%]
+tests/unit/test_no_content_based_poly_detection.py::test_this_ban_can_actually_fail PASSED [ 50%]
+tests/unit/test_no_content_based_poly_detection.py::test_no_source_file_carries_a_byte_order_mark FAILED [ 75%]
+tests/unit/test_no_content_based_poly_detection.py::test_the_sanctioned_modules_still_exist PASSED [100%]
+
+================================== FAILURES ===================================
+____________ test_no_live_module_fabricates_a_poly_window_literal _____________
+
+    def test_no_live_module_fabricates_a_poly_window_literal():
+        """No module outside the two sanctioned ones may construct `"A" * n` / `"N" * n`.
+    
+        This is the gate that would have caught all four detectors at once, and it is what
+        stops a fifth. It fires on CONSTRUCTION, because construction is the tell: a module
+        that builds the placeholder string is a module that intends to compare against it or
+        fill with it, and both are provenance questions it must not answer itself.
+        """
+        offenders: list[str] = []
+        for path in _live_python_files():
+            if path.name in _ALLOWED:
+                continue
+            for lineno, expr in _poly_literals(path):
+                offenders.append(f"    {path.relative_to(_REPO)}:{lineno}  {expr}")
+    
+>       assert not offenders, (
+            "These modules construct a placeholder-window literal:\n"
+            + "\n".join(offenders)
+            + "\n\n"
+            "A window whose content equals 'A'*101 MAY BE REAL -- poly-A tracts are real "
+            "biology. Content cannot distinguish 'the reference genuinely says A' from 'the "
+            "builder gave up and typed A'. Ask the artifact instead:\n\n"
+            "    att = attach_delta_windows(meta, seq_windows_path=...)\n"
+            "    usable = att.usable          # from the builder's own `ok` column\n"
+            "    att.n_usable, att.n_unmapped, att.n_placeholder, att.summary()\n\n"
+            "Four detectors did it the other way and all four were blind to the same 21,814 "
+            "rows. When PLACEHOLDER_BASE changed, two of them did not start FAILING -- they "
+            "started passing UNCONDITIONALLY, one of them a gate that refuses to write. "
+            "Content checks go quiet when they rot. If you genuinely need to fabricate a "
+            "window, add the module to _ALLOWED with the reason, and understand that you are "
+            "deciding to manufacture sequence data."
+        )
+E       AssertionError: These modules construct a placeholder-window literal:
+E             scripts\preflight_run16_inputs.py:23  'A' * ...
+E             scripts\probe_cohort_seq_density.py:19  'A' * ...
+E             scripts\run9_ablations.py:640  'A' * ...
+E             src\genomic_variant_classifier\agent_layer\harness\correctness_harness.py:39  'A' * ...
+E             src\genomic_variant_classifier\data\populate_fasta_seq.py:59  ....PAD_CHAR * ...   (a known placeholder identifier)
+E             src\genomic_variant_classifier\data\seq_windows.py:76  PAD_CHAR * ...   (a known placeholder identifier)
+E             src\genomic_variant_classifier\data\seq_windows.py:99  PAD_CHAR * ...   (a known placeholder identifier)
+E             src\genomic_variant_classifier\data\seq_windows.py:76  PAD_CHAR * ...   (a known placeholder identifier)
+E             src\genomic_variant_classifier\data\seq_windows.py:125  PAD_CHAR * ...   (a known placeholder identifier)
+E             src\genomic_variant_classifier\data\seq_windows.py:125  PAD_CHAR * ...   (a known placeholder identifier)
+E             src\genomic_variant_classifier\data\seq_windows.py:128  PAD_CHAR * ...   (a known placeholder identifier)
+E             src\genomic_variant_classifier\data\seq_windows.py:128  PAD_CHAR * ...   (a known placeholder identifier)
+E         
+E         A window whose content equals 'A'*101 MAY BE REAL -- poly-A tracts are real biology. Content cannot distinguish 'the reference genuinely says A' from 'the builder gave up and typed A'. Ask the artifact instead:
+E         
+E             att = attach_delta_windows(meta, seq_windows_path=...)
+E             usable = att.usable          # from the builder's own `ok` column
+E             att.n_usable, att.n_unmapped, att.n_placeholder, att.summary()
+E         
+E         Four detectors did it the other way and all four were blind to the same 21,814 rows. When PLACEHOLDER_BASE changed, two of them did not start FAILING -- they started passing UNCONDITIONALLY, one of them a gate that refuses to write. Content checks go quiet when they rot. If you genuinely need to fabricate a window, add the module to _ALLOWED with the reason, and understand that you are deciding to manufacture sequence data.
+E       assert not ["    scripts\\preflight_run16_inputs.py:23  'A' * ...", "    scripts\\probe_cohort_seq_density.py:19  'A' * ...", "    scripts\\run9_ablations.py:640  'A' * ...", "    src\\genomic_variant_classifier\\agent_layer\\harness\\correctness_harness.py:39  'A' * ...", '    src\\genomic_variant_classifier\\data\\populate_fasta_seq.py:59  ....PAD_CHAR * ...   (a known placeholder identifier)', '    src\\genomic_variant_classifier\\data\\seq_windows.py:76  PAD_CHAR * ...   (a known placeholder identifier)', '    src\\genomic_variant_classifier\\data\\seq_windows.py:99  PAD_CHAR * ...   (a known placeholder identifier)', '    src\\genomic_variant_classifier\\data\\seq_windows.py:76  PAD_CHAR * ...   (a known placeholder identifier)', '    src\\genomic_variant_classifier\\data\\seq_windows.py:125  PAD_CHAR * ...   (a known placeholder identifier)', '    src\\genomic_variant_classifier\\data\\seq_windows.py:125  PAD_CHAR * ...   (a known placeholder identifier)', '    src\\genomic_variant_classifier\\data\\seq_windows.py:128  PAD_CHAR * ...   (a known placeholder identifier)', '    src\\genomic_variant_classifier\\data\\seq_windows.py:128  PAD_CHAR * ...   (a known placeholder identifier)']
+
+tests\unit\test_no_content_based_poly_detection.py:205: AssertionError
+________________ test_no_source_file_carries_a_byte_order_mark ________________
+
+    def test_no_source_file_carries_a_byte_order_mark():
+        """No Python source file may begin with a UTF-8 byte-order mark (U+FEFF).
+    
+        FOUND BY ACCIDENT, 2026-07-15, and kept because accidents are evidence.
+        The poly ban above crashed on its first run:
+    
+            SyntaxError: invalid non-printable character U+FEFF
+            scripts/build_spliceai_index.py
+    
+        The mark is INVISIBLE and HARMLESS-LOOKING. Python's tokeniser strips it (PEP 263),
+        so the module imports, runs, and tests green -- it had been there long enough that
+        nobody knows when it arrived. It only surfaced because a tool read the file with
+        `utf-8` instead of `utf-8-sig` and got a different program than the interpreter does.
+    
+        That is the whole reason this is a gate. A byte-order mark is a silent divergence
+        between "what Python sees" and "what everything else sees", and this project's entire
+        method is that nothing may fail silently:
+    
+          * `ast.parse(f.read())` -- any source-analysis tool, including several in this
+            repository's own test suite -- raises rather than analysing the file. A repo-wide
+            gate that silently skips a file is worse than no gate, because it reports
+            coverage it does not have.
+          * `git diff` and merge tooling treat the mark as content on line 1.
+          * A shebang after a byte-order mark is not a shebang: the kernel reads the raw
+            bytes, sees `\\xef\\xbb\\xbf#!`, and the file is not executable as a script even
+            though it looks like it is.
+    
+        The fix is to strip the mark and save as UTF-8 without a signature. It costs three
+        bytes and removes an entire class of "why does the linter say that" from the project.
+        """
+        offenders: list[str] = []
+        for root in (_SRC, _SCRIPTS, _REPO / "tests"):
+            if not root.exists():
+                continue
+            for p in sorted(root.rglob("*.py")):
+                with p.open("rb") as fh:
+                    if fh.read(3) == b"\xef\xbb\xbf":
+                        offenders.append(f"    {p.relative_to(_REPO)}")
+    
+>       assert not offenders, (
+            "These Python source files begin with a UTF-8 byte-order mark (U+FEFF):\n"
+            + "\n".join(offenders)
+            + "\n\n"
+            "Python's tokeniser strips it, so they import and test green -- which is exactly "
+            "why this went unnoticed. But `ast.parse(path.read_text(encoding='utf-8'))` "
+            "raises `SyntaxError: invalid non-printable character U+FEFF`, so every "
+            "source-analysis gate in this suite either dies or must silently skip the file. "
+            "A gate that skips a file reports coverage it does not have.\n\n"
+            "Fix, per file (Windows-side; the sandbox must not write tracked files):\n"
+            "    $p = 'scripts/build_spliceai_index.py'\n"
+            "    $t = [IO.File]::ReadAllText($p)              # strips the mark on read\n"
+            "    [IO.File]::WriteAllText($p, $t, (New-Object Text.UTF8Encoding $false))\n"
+        )
+E       AssertionError: These Python source files begin with a UTF-8 byte-order mark (U+FEFF):
+E             scripts\build_spliceai_index.py
+E             scripts\compute_within_gene_auroc.py
+E             scripts\diagnose_phase2_prediction_reconstruction.py
+E             scripts\download_finngen_R10_DEPRECATED.py
+E             scripts\parse_dbsnp_freq_query_tsv.py
+E             scripts\validate_gencode_assets.py
+E         
+E         Python's tokeniser strips it, so they import and test green -- which is exactly why this went unnoticed. But `ast.parse(path.read_text(encoding='utf-8'))` raises `SyntaxError: invalid non-printable character U+FEFF`, so every source-analysis gate in this suite either dies or must silently skip the file. A gate that skips a file reports coverage it does not have.
+E         
+E         Fix, per file (Windows-side; the sandbox must not write tracked files):
+E             $p = 'scripts/build_spliceai_index.py'
+E             $t = [IO.File]::ReadAllText($p)              # strips the mark on read
+E             [IO.File]::WriteAllText($p, $t, (New-Object Text.UTF8Encoding $false))
+E         
+E       assert not ['    scripts\\build_spliceai_index.py', '    scripts\\compute_within_gene_auroc.py', '    scripts\\diagnose_phase2_prediction_reconstruction.py', '    scripts\\download_finngen_R10_DEPRECATED.py', '    scripts\\parse_dbsnp_freq_query_tsv.py', '    scripts\\validate_gencode_assets.py']
+
+tests\unit\test_no_content_based_poly_detection.py:314: AssertionError
+============================== warnings summary ===============================
+tests/unit/test_no_content_based_poly_detection.py::test_no_live_module_fabricates_a_poly_window_literal
+  C:\Projects\genomic-variant-classifier\scripts\download_finngen_R10_DEPRECATED.py:6: SyntaxWarning: invalid escape sequence '\M'
+    G:\My Drive\genomic-variant-data
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/unit/test_no_content_based_poly_detection.py::test_no_live_module_fabricates_a_poly_window_literal - AssertionError: These modules construct a placeholder-window literal:
+      scripts\preflight_run16_inputs.py:23  'A' * ...
+      scripts\probe_cohort_seq_density.py:19  'A' * ...
+      scripts\run9_ablations.py:640  'A' * ...
+      src\genomic_variant_classifier\agent_layer\harness\correctness_harness.py:39  'A' * ...
+      src\genomic_variant_classifier\data\populate_fasta_seq.py:59  ....PAD_CHAR * ...   (a known placeholder identifier)
+      src\genomic_variant_classifier\data\seq_windows.py:76  PAD_CHAR * ...   (a known placeholder identifier)
+      src\genomic_variant_classifier\data\seq_windows.py:99  PAD_CHAR * ...   (a known placeholder identifier)
+      src\genomic_variant_classifier\data\seq_windows.py:76  PAD_CHAR * ...   (a known placeholder identifier)
+      src\genomic_variant_classifier\data\seq_windows.py:125  PAD_CHAR * ...   (a known placeholder identifier)
+      src\genomic_variant_classifier\data\seq_windows.py:125  PAD_CHAR * ...   (a known placeholder identifier)
+      src\genomic_variant_classifier\data\seq_windows.py:128  PAD_CHAR * ...   (a known placeholder identifier)
+      src\genomic_variant_classifier\data\seq_windows.py:128  PAD_CHAR * ...   (a known placeholder identifier)
+  
+  A window whose content equals 'A'*101 MAY BE REAL -- poly-A tracts are real biology. Content cannot distinguish 'the reference genuinely says A' from 'the builder gave up and typed A'. Ask the artifact instead:
+  
+      att = attach_delta_windows(meta, seq_windows_path=...)
+      usable = att.usable          # from the builder's own `ok` column
+      att.n_usable, att.n_unmapped, att.n_placeholder, att.summary()
+  
+  Four detectors did it the other way and all four were blind to the same 21,814 rows. When PLACEHOLDER_BASE changed, two of them did not start FAILING -- they started passing UNCONDITIONALLY, one of them a gate that refuses to write. Content checks go quiet when they rot. If you genuinely need to fabricate a window, add the module to _ALLOWED with the reason, and understand that you are deciding to manufacture sequence data.
+assert not ["    scripts\\preflight_run16_inputs.py:23  'A' * ...", "    scripts\\probe_cohort_seq_density.py:19  'A' * ...", "    scripts\\run9_ablations.py:640  'A' * ...", "    src\\genomic_variant_classifier\\agent_layer\\harness\\correctness_harness.py:39  'A' * ...", '    src\\genomic_variant_classifier\\data\\populate_fasta_seq.py:59  ....PAD_CHAR * ...   (a known placeholder identifier)', '    src\\genomic_variant_classifier\\data\\seq_windows.py:76  PAD_CHAR * ...   (a known placeholder identifier)', '    src\\genomic_variant_classifier\\data\\seq_windows.py:99  PAD_CHAR * ...   (a known placeholder identifier)', '    src\\genomic_variant_classifier\\data\\seq_windows.py:76  PAD_CHAR * ...   (a known placeholder identifier)', '    src\\genomic_variant_classifier\\data\\seq_windows.py:125  PAD_CHAR * ...   (a known placeholder identifier)', '    src\\genomic_variant_classifier\\data\\seq_windows.py:125  PAD_CHAR * ...   (a known placeholder identifier)', '    src\\genomic_variant_classifier\\data\\seq_windows.py:128  PAD_CHAR * ...   (a known placeholder identifier)', '    src\\genomic_variant_classifier\\data\\seq_windows.py:128  PAD_CHAR * ...   (a known placeholder identifier)']
+FAILED tests/unit/test_no_content_based_poly_detection.py::test_no_source_file_carries_a_byte_order_mark - AssertionError: These Python source files begin with a UTF-8 byte-order mark (U+FEFF):
+      scripts\build_spliceai_index.py
+      scripts\compute_within_gene_auroc.py
+      scripts\diagnose_phase2_prediction_reconstruction.py
+      scripts\download_finngen_R10_DEPRECATED.py
+      scripts\parse_dbsnp_freq_query_tsv.py
+      scripts\validate_gencode_assets.py
+  
+  Python's tokeniser strips it, so they import and test green -- which is exactly why this went unnoticed. But `ast.parse(path.read_text(encoding='utf-8'))` raises `SyntaxError: invalid non-printable character U+FEFF`, so every source-analysis gate in this suite either dies or must silently skip the file. A gate that skips a file reports coverage it does not have.
+  
+  Fix, per file (Windows-side; the sandbox must not write tracked files):
+      $p = 'scripts/build_spliceai_index.py'
+      $t = [IO.File]::ReadAllText($p)              # strips the mark on read
+      [IO.File]::WriteAllText($p, $t, (New-Object Text.UTF8Encoding $false))
+  
+assert not ['    scripts\\build_spliceai_index.py', '    scripts\\compute_within_gene_auroc.py', '    scripts\\diagnose_phase2_prediction_reconstruction.py', '    scripts\\download_finngen_R10_DEPRECATED.py', '    scripts\\parse_dbsnp_freq_query_tsv.py', '    scripts\\validate_gencode_assets.py']
+=================== 2 failed, 2 passed, 1 warning in 4.59s ====================
+
+=====================================================================================
+## 2. THE 7 _encode_batch FAILURES -- actual exception per test
+=====================================================================================
+
+--- pytest <7 failing tests> --tb=short
+============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.0.3, pluggy-1.6.0 -- C:\Projects\genomic-variant-classifier\.venv312\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Projects\genomic-variant-classifier
+configfile: pyproject.toml
+plugins: anyio-4.13.0, Faker-40.15.0, langsmith-0.8.5, cov-7.1.0, typeguard-4.5.1
+collecting ... collected 7 items
+
+tests/unit/test_cnn_1d_delta.py::test_encode_batch_dispatch FAILED       [ 14%]
+tests/unit/test_cnn_1d_delta.py::test_poly_a_series_fallback_no_crash FAILED [ 28%]
+tests/unit/test_cnn_tier1.py::test_single_fasta_seq_mode FAILED          [ 42%]
+tests/unit/test_variant_ensemble_save_load.py::test_cnn1d_pickles_after_fit FAILED [ 57%]
+tests/unit/test_variant_ensemble_save_load.py::test_ensemble_save_load_with_cnn1d FAILED [ 71%]
+tests/unit/test_catboost.py::TestEnsembleIntegration::test_catboost_receives_dataframe_in_fit FAILED [ 85%]
+tests/unit/test_catboost.py::TestEnsembleIntegration::test_ensemble_predict_proba_with_catboost FAILED [100%]
+
+================================== FAILURES ===================================
+_________________________ test_encode_batch_dispatch __________________________
+tests\unit\test_cnn_1d_delta.py:51: in test_encode_batch_dispatch
+    x2 = clf._encode_batch(pd.Series(["A" * W]))
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\genomic_variant_classifier\models\variant_ensemble.py:1465: in _encode_batch
+    raise TypeError(
+E   TypeError: cnn_1d requires a pandas DataFrame with [fasta_seq_ref, fasta_seq_alt]; got Series. A Series or raw iterable cannot carry a ref/alt pair, so it could only ever be encoded by setting ref == alt -- which makes the delta channels identically zero and hollows out the model whose architecture is named for them.
+E   Build the frame with seq_window_join.attach_delta_windows(meta, seq_windows_path=...).windows
+E   If you genuinely want a reference-only model, ASK FOR IT explicitly: CNN1DClassifier(single_sequence_mode=True). It is then 5 honest channels, recorded in get_params() and in the run artifact -- not 13 channels of which 9 are redundant, silently selected by an argument's type.
+____________________ test_poly_a_series_fallback_no_crash _____________________
+tests\unit\test_cnn_1d_delta.py:102: in test_poly_a_series_fallback_no_crash
+    clf = CNN1DClassifier(epochs=2, batch_size=64).fit(s, np.arange(30) % 2)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\genomic_variant_classifier\models\variant_ensemble.py:1552: in fit
+    x_all = self._encode_batch(X)                       # (N, C, W)
+            ^^^^^^^^^^^^^^^^^^^^^
+src\genomic_variant_classifier\models\variant_ensemble.py:1465: in _encode_batch
+    raise TypeError(
+E   TypeError: cnn_1d requires a pandas DataFrame with [fasta_seq_ref, fasta_seq_alt]; got Series. A Series or raw iterable cannot carry a ref/alt pair, so it could only ever be encoded by setting ref == alt -- which makes the delta channels identically zero and hollows out the model whose architecture is named for them.
+E   Build the frame with seq_window_join.attach_delta_windows(meta, seq_windows_path=...).windows
+E   If you genuinely want a reference-only model, ASK FOR IT explicitly: CNN1DClassifier(single_sequence_mode=True). It is then 5 honest channels, recorded in get_params() and in the run artifact -- not 13 channels of which 9 are redundant, silently selected by an argument's type.
+_________________________ test_single_fasta_seq_mode __________________________
+tests\unit\test_cnn_tier1.py:129: in test_single_fasta_seq_mode
+    enc = clf._encode_batch(Xs.iloc[:8])
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\genomic_variant_classifier\models\variant_ensemble.py:1490: in _encode_batch
+    raise ValueError(
+E   ValueError: cnn_1d requires a 2-column [fasta_seq_ref, fasta_seq_alt] frame; missing ['fasta_seq_alt', 'fasta_seq_ref']. Got columns: ['fasta_seq'].
+E   Build it with seq_window_join.attach_delta_windows(meta, seq_windows_path=...).windows
+E   This frame carries the legacy 'fasta_seq' column. MEASURED 2026-07-15: that column is 100% NULL across all 4,420,180 cohort rows (null: 4,420,180 | non-null: 0). It used to be accepted here and filled with fabricated poly-A. SEQUENCE_FEATURES (line ~477) still names it; do not route it to this model.
+________________________ test_cnn1d_pickles_after_fit _________________________
+tests\unit\test_variant_ensemble_save_load.py:104: in test_cnn1d_pickles_after_fit
+    cnn.fit(X, y)
+src\genomic_variant_classifier\models\variant_ensemble.py:1552: in fit
+    x_all = self._encode_batch(X)                       # (N, C, W)
+            ^^^^^^^^^^^^^^^^^^^^^
+src\genomic_variant_classifier\models\variant_ensemble.py:1465: in _encode_batch
+    raise TypeError(
+E   TypeError: cnn_1d requires a pandas DataFrame with [fasta_seq_ref, fasta_seq_alt]; got Series. A Series or raw iterable cannot carry a ref/alt pair, so it could only ever be encoded by setting ref == alt -- which makes the delta channels identically zero and hollows out the model whose architecture is named for them.
+E   Build the frame with seq_window_join.attach_delta_windows(meta, seq_windows_path=...).windows
+E   If you genuinely want a reference-only model, ASK FOR IT explicitly: CNN1DClassifier(single_sequence_mode=True). It is then 5 honest channels, recorded in get_params() and in the run artifact -- not 13 channels of which 9 are redundant, silently selected by an argument's type.
+_____________________ test_ensemble_save_load_with_cnn1d ______________________
+src\genomic_variant_classifier\models\variant_ensemble.py:2373: in fit
+    oof = cross_val_predict(
+.venv312\Lib\site-packages\sklearn\utils\_param_validation.py:218: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv312\Lib\site-packages\sklearn\model_selection\_validation.py:1211: in cross_val_predict
+    predictions = parallel(
+.venv312\Lib\site-packages\sklearn\utils\parallel.py:91: in __call__
+    return super().__call__(iterable_with_config_and_warning_filters)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv312\Lib\site-packages\joblib\parallel.py:1986: in __call__
+    return output if self.return_generator else list(output)
+                                                ^^^^^^^^^^^^
+.venv312\Lib\site-packages\joblib\parallel.py:1914: in _get_sequential_output
+    res = func(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^
+.venv312\Lib\site-packages\sklearn\utils\parallel.py:184: in __call__
+    return self.function(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv312\Lib\site-packages\sklearn\model_selection\_validation.py:1299: in _fit_and_predict
+    estimator.fit(X_train, y_train, **fit_params)
+src\genomic_variant_classifier\models\variant_ensemble.py:1552: in fit
+    x_all = self._encode_batch(X)                       # (N, C, W)
+            ^^^^^^^^^^^^^^^^^^^^^
+src\genomic_variant_classifier\models\variant_ensemble.py:1465: in _encode_batch
+    raise TypeError(
+E   TypeError: cnn_1d requires a pandas DataFrame with [fasta_seq_ref, fasta_seq_alt]; got Series. A Series or raw iterable cannot carry a ref/alt pair, so it could only ever be encoded by setting ref == alt -- which makes the delta channels identically zero and hollows out the model whose architecture is named for them.
+E   Build the frame with seq_window_join.attach_delta_windows(meta, seq_windows_path=...).windows
+E   If you genuinely want a reference-only model, ASK FOR IT explicitly: CNN1DClassifier(single_sequence_mode=True). It is then 5 honest channels, recorded in get_params() and in the run artifact -- not 13 channels of which 9 are redundant, silently selected by an argument's type.
+
+The above exception was the direct cause of the following exception:
+tests\unit\test_variant_ensemble_save_load.py:153: in test_ensemble_save_load_with_cnn1d
+    ens.fit(X_tab, X_seq, y)
+src\genomic_variant_classifier\models\variant_ensemble.py:2386: in fit
+    raise RuntimeError(
+E   RuntimeError: Base model 'cnn_1d' FAILED during out-of-fold (OOF) prediction, so it could not be fitted and would have been silently dropped from the ensemble.
+E     underlying error: TypeError: cnn_1d requires a pandas DataFrame with [fasta_seq_ref, fasta_seq_alt]; got Series. A Series or raw iterable cannot carry a ref/alt pair, so it could only ever be encoded by setting ref == alt -- which makes the delta channels identically zero and hollows out the model whose architecture is named for them.
+E   Build the frame with seq_window_join.attach_delta_windows(meta, seq_windows_path=...).windows
+E   If you genuinely want a reference-only model, ASK FOR IT explicitly: CNN1DClassifier(single_sequence_mode=True). It is then 5 honest channels, recorded in get_params() and in the run artifact -- not 13 channels of which 9 are redundant, silently selected by an argument's type.
+E   This is now a hard stop. A dropped base model does not appear in the run report as a failure -- it appears as an algorithm that was never a candidate, which corrupts the model-comparison results this project exists to produce.
+E   Fix the underlying error, or -- if this model is knowingly expected to fail -- set EnsembleConfig(allow_base_model_dropout=True) to proceed with an explicitly incomplete, explicitly recorded ensemble.
+_______ TestEnsembleIntegration.test_catboost_receives_dataframe_in_fit _______
+src\genomic_variant_classifier\models\variant_ensemble.py:2373: in fit
+    oof = cross_val_predict(
+.venv312\Lib\site-packages\sklearn\utils\_param_validation.py:218: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv312\Lib\site-packages\sklearn\model_selection\_validation.py:1211: in cross_val_predict
+    predictions = parallel(
+.venv312\Lib\site-packages\sklearn\utils\parallel.py:91: in __call__
+    return super().__call__(iterable_with_config_and_warning_filters)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv312\Lib\site-packages\joblib\parallel.py:1986: in __call__
+    return output if self.return_generator else list(output)
+                                                ^^^^^^^^^^^^
+.venv312\Lib\site-packages\joblib\parallel.py:1914: in _get_sequential_output
+    res = func(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^
+.venv312\Lib\site-packages\sklearn\utils\parallel.py:184: in __call__
+    return self.function(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv312\Lib\site-packages\sklearn\model_selection\_validation.py:1299: in _fit_and_predict
+    estimator.fit(X_train, y_train, **fit_params)
+src\genomic_variant_classifier\models\variant_ensemble.py:1552: in fit
+    x_all = self._encode_batch(X)                       # (N, C, W)
+            ^^^^^^^^^^^^^^^^^^^^^
+src\genomic_variant_classifier\models\variant_ensemble.py:1465: in _encode_batch
+    raise TypeError(
+E   TypeError: cnn_1d requires a pandas DataFrame with [fasta_seq_ref, fasta_seq_alt]; got Series. A Series or raw iterable cannot carry a ref/alt pair, so it could only ever be encoded by setting ref == alt -- which makes the delta channels identically zero and hollows out the model whose architecture is named for them.
+E   Build the frame with seq_window_join.attach_delta_windows(meta, seq_windows_path=...).windows
+E   If you genuinely want a reference-only model, ASK FOR IT explicitly: CNN1DClassifier(single_sequence_mode=True). It is then 5 honest channels, recorded in get_params() and in the run artifact -- not 13 channels of which 9 are redundant, silently selected by an argument's type.
+
+The above exception was the direct cause of the following exception:
+tests\unit\test_catboost.py:345: in test_catboost_receives_dataframe_in_fit
+    ensemble.fit(numeric_variant_df, seq, pd.Series(numeric_labels))
+src\genomic_variant_classifier\models\variant_ensemble.py:2386: in fit
+    raise RuntimeError(
+E   RuntimeError: Base model 'cnn_1d' FAILED during out-of-fold (OOF) prediction, so it could not be fitted and would have been silently dropped from the ensemble.
+E     underlying error: TypeError: cnn_1d requires a pandas DataFrame with [fasta_seq_ref, fasta_seq_alt]; got Series. A Series or raw iterable cannot carry a ref/alt pair, so it could only ever be encoded by setting ref == alt -- which makes the delta channels identically zero and hollows out the model whose architecture is named for them.
+E   Build the frame with seq_window_join.attach_delta_windows(meta, seq_windows_path=...).windows
+E   If you genuinely want a reference-only model, ASK FOR IT explicitly: CNN1DClassifier(single_sequence_mode=True). It is then 5 honest channels, recorded in get_params() and in the run artifact -- not 13 channels of which 9 are redundant, silently selected by an argument's type.
+E   This is now a hard stop. A dropped base model does not appear in the run report as a failure -- it appears as an algorithm that was never a candidate, which corrupts the model-comparison results this project exists to produce.
+E   Fix the underlying error, or -- if this model is knowingly expected to fail -- set EnsembleConfig(allow_base_model_dropout=True) to proceed with an explicitly incomplete, explicitly recorded ensemble.
+______ TestEnsembleIntegration.test_ensemble_predict_proba_with_catboost ______
+src\genomic_variant_classifier\models\variant_ensemble.py:2373: in fit
+    oof = cross_val_predict(
+.venv312\Lib\site-packages\sklearn\utils\_param_validation.py:218: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv312\Lib\site-packages\sklearn\model_selection\_validation.py:1211: in cross_val_predict
+    predictions = parallel(
+.venv312\Lib\site-packages\sklearn\utils\parallel.py:91: in __call__
+    return super().__call__(iterable_with_config_and_warning_filters)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv312\Lib\site-packages\joblib\parallel.py:1986: in __call__
+    return output if self.return_generator else list(output)
+                                                ^^^^^^^^^^^^
+.venv312\Lib\site-packages\joblib\parallel.py:1914: in _get_sequential_output
+    res = func(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^
+.venv312\Lib\site-packages\sklearn\utils\parallel.py:184: in __call__
+    return self.function(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv312\Lib\site-packages\sklearn\model_selection\_validation.py:1299: in _fit_and_predict
+    estimator.fit(X_train, y_train, **fit_params)
+src\genomic_variant_classifier\models\variant_ensemble.py:1552: in fit
+    x_all = self._encode_batch(X)                       # (N, C, W)
+            ^^^^^^^^^^^^^^^^^^^^^
+src\genomic_variant_classifier\models\variant_ensemble.py:1465: in _encode_batch
+    raise TypeError(
+E   TypeError: cnn_1d requires a pandas DataFrame with [fasta_seq_ref, fasta_seq_alt]; got Series. A Series or raw iterable cannot carry a ref/alt pair, so it could only ever be encoded by setting ref == alt -- which makes the delta channels identically zero and hollows out the model whose architecture is named for them.
+E   Build the frame with seq_window_join.attach_delta_windows(meta, seq_windows_path=...).windows
+E   If you genuinely want a reference-only model, ASK FOR IT explicitly: CNN1DClassifier(single_sequence_mode=True). It is then 5 honest channels, recorded in get_params() and in the run artifact -- not 13 channels of which 9 are redundant, silently selected by an argument's type.
+
+The above exception was the direct cause of the following exception:
+tests\unit\test_catboost.py:360: in test_ensemble_predict_proba_with_catboost
+    ensemble.fit(numeric_variant_df, seq, pd.Series(numeric_labels))
+src\genomic_variant_classifier\models\variant_ensemble.py:2386: in fit
+    raise RuntimeError(
+E   RuntimeError: Base model 'cnn_1d' FAILED during out-of-fold (OOF) prediction, so it could not be fitted and would have been silently dropped from the ensemble.
+E     underlying error: TypeError: cnn_1d requires a pandas DataFrame with [fasta_seq_ref, fasta_seq_alt]; got Series. A Series or raw iterable cannot carry a ref/alt pair, so it could only ever be encoded by setting ref == alt -- which makes the delta channels identically zero and hollows out the model whose architecture is named for them.
+E   Build the frame with seq_window_join.attach_delta_windows(meta, seq_windows_path=...).windows
+E   If you genuinely want a reference-only model, ASK FOR IT explicitly: CNN1DClassifier(single_sequence_mode=True). It is then 5 honest channels, recorded in get_params() and in the run artifact -- not 13 channels of which 9 are redundant, silently selected by an argument's type.
+E   This is now a hard stop. A dropped base model does not appear in the run report as a failure -- it appears as an algorithm that was never a candidate, which corrupts the model-comparison results this project exists to produce.
+E   Fix the underlying error, or -- if this model is knowingly expected to fail -- set EnsembleConfig(allow_base_model_dropout=True) to proceed with an explicitly incomplete, explicitly recorded ensemble.
+=========================== short test summary info ===========================
+FAILED tests/unit/test_cnn_1d_delta.py::test_encode_batch_dispatch - TypeError: cnn_1d requires a pandas DataFrame with [fasta_seq_ref, fasta_seq_alt]; got Series. A Series or raw iterable cannot carry a ref/alt pair, so it could only ever be encoded by setting ref == alt -- which makes the delta channels identically zero and hollows out the model whose architecture is named for them.
+Build the frame with seq_window_join.attach_delta_windows(meta, seq_windows_path=...).windows
+If you genuinely want a reference-only model, ASK FOR IT explicitly: CNN1DClassifier(single_sequence_mode=True). It is then 5 honest channels, recorded in get_params() and in the run artifact -- not 13 channels of which 9 are redundant, silently selected by an argument's type.
+FAILED tests/unit/test_cnn_1d_delta.py::test_poly_a_series_fallback_no_crash - TypeError: cnn_1d requires a pandas DataFrame with [fasta_seq_ref, fasta_seq_alt]; got Series. A Series or raw iterable cannot carry a ref/alt pair, so it could only ever be encoded by setting ref == alt -- which makes the delta channels identically zero and hollows out the model whose architecture is named for them.
+Build the frame with seq_window_join.attach_delta_windows(meta, seq_windows_path=...).windows
+If you genuinely want a reference-only model, ASK FOR IT explicitly: CNN1DClassifier(single_sequence_mode=True). It is then 5 honest channels, recorded in get_params() and in the run artifact -- not 13 channels of which 9 are redundant, silently selected by an argument's type.
+FAILED tests/unit/test_cnn_tier1.py::test_single_fasta_seq_mode - ValueError: cnn_1d requires a 2-column [fasta_seq_ref, fasta_seq_alt] frame; missing ['fasta_seq_alt', 'fasta_seq_ref']. Got columns: ['fasta_seq'].
+Build it with seq_window_join.attach_delta_windows(meta, seq_windows_path=...).windows
+This frame carries the legacy 'fasta_seq' column. MEASURED 2026-07-15: that column is 100% NULL across all 4,420,180 cohort rows (null: 4,420,180 | non-null: 0). It used to be accepted here and filled with fabricated poly-A. SEQUENCE_FEATURES (line ~477) still names it; do not route it to this model.
+FAILED tests/unit/test_variant_ensemble_save_load.py::test_cnn1d_pickles_after_fit - TypeError: cnn_1d requires a pandas DataFrame with [fasta_seq_ref, fasta_seq_alt]; got Series. A Series or raw iterable cannot carry a ref/alt pair, so it could only ever be encoded by setting ref == alt -- which makes the delta channels identically zero and hollows out the model whose architecture is named for them.
+Build the frame with seq_window_join.attach_delta_windows(meta, seq_windows_path=...).windows
+If you genuinely want a reference-only model, ASK FOR IT explicitly: CNN1DClassifier(single_sequence_mode=True). It is then 5 honest channels, recorded in get_params() and in the run artifact -- not 13 channels of which 9 are redundant, silently selected by an argument's type.
+FAILED tests/unit/test_variant_ensemble_save_load.py::test_ensemble_save_load_with_cnn1d - RuntimeError: Base model 'cnn_1d' FAILED during out-of-fold (OOF) prediction, so it could not be fitted and would have been silently dropped from the ensemble.
+  underlying error: TypeError: cnn_1d requires a pandas DataFrame with [fasta_seq_ref, fasta_seq_alt]; got Series. A Series or raw iterable cannot carry a ref/alt pair, so it could only ever be encoded by setting ref == alt -- which makes the delta channels identically zero and hollows out the model whose architecture is named for them.
+Build the frame with seq_window_join.attach_delta_windows(meta, seq_windows_path=...).windows
+If you genuinely want a reference-only model, ASK FOR IT explicitly: CNN1DClassifier(single_sequence_mode=True). It is then 5 honest channels, recorded in get_params() and in the run artifact -- not 13 channels of which 9 are redundant, silently selected by an argument's type.
+This is now a hard stop. A dropped base model does not appear in the run report as a failure -- it appears as an algorithm that was never a candidate, which corrupts the model-comparison results this project exists to produce.
+Fix the underlying error, or -- if this model is knowingly expected to fail -- set EnsembleConfig(allow_base_model_dropout=True) to proceed with an explicitly incomplete, explicitly recorded ensemble.
+FAILED tests/unit/test_catboost.py::TestEnsembleIntegration::test_catboost_receives_dataframe_in_fit - RuntimeError: Base model 'cnn_1d' FAILED during out-of-fold (OOF) prediction, so it could not be fitted and would have been silently dropped from the ensemble.
+  underlying error: TypeError: cnn_1d requires a pandas DataFrame with [fasta_seq_ref, fasta_seq_alt]; got Series. A Series or raw iterable cannot carry a ref/alt pair, so it could only ever be encoded by setting ref == alt -- which makes the delta channels identically zero and hollows out the model whose architecture is named for them.
+Build the frame with seq_window_join.attach_delta_windows(meta, seq_windows_path=...).windows
+If you genuinely want a reference-only model, ASK FOR IT explicitly: CNN1DClassifier(single_sequence_mode=True). It is then 5 honest channels, recorded in get_params() and in the run artifact -- not 13 channels of which 9 are redundant, silently selected by an argument's type.
+This is now a hard stop. A dropped base model does not appear in the run report as a failure -- it appears as an algorithm that was never a candidate, which corrupts the model-comparison results this project exists to produce.
+Fix the underlying error, or -- if this model is knowingly expected to fail -- set EnsembleConfig(allow_base_model_dropout=True) to proceed with an explicitly incomplete, explicitly recorded ensemble.
+FAILED tests/unit/test_catboost.py::TestEnsembleIntegration::test_ensemble_predict_proba_with_catboost - RuntimeError: Base model 'cnn_1d' FAILED during out-of-fold (OOF) prediction, so it could not be fitted and would have been silently dropped from the ensemble.
+  underlying error: TypeError: cnn_1d requires a pandas DataFrame with [fasta_seq_ref, fasta_seq_alt]; got Series. A Series or raw iterable cannot carry a ref/alt pair, so it could only ever be encoded by setting ref == alt -- which makes the delta channels identically zero and hollows out the model whose architecture is named for them.
+Build the frame with seq_window_join.attach_delta_windows(meta, seq_windows_path=...).windows
+If you genuinely want a reference-only model, ASK FOR IT explicitly: CNN1DClassifier(single_sequence_mode=True). It is then 5 honest channels, recorded in get_params() and in the run artifact -- not 13 channels of which 9 are redundant, silently selected by an argument's type.
+This is now a hard stop. A dropped base model does not appear in the run report as a failure -- it appears as an algorithm that was never a candidate, which corrupts the model-comparison results this project exists to produce.
+Fix the underlying error, or -- if this model is knowingly expected to fail -- set EnsembleConfig(allow_base_model_dropout=True) to proceed with an explicitly incomplete, explicitly recorded ensemble.
+======================== 7 failed in 97.44s (0:01:37) =========================
+
+=====================================================================================
+## 3. BYTE-ORDER MARKS -- read as BYTES, not as text
+=====================================================================================
+
+--- scanning src, scripts, tests for a leading EF BB BF
+  files scanned : 809
+  BOM count     : 6
+  BOM: scripts\build_spliceai_index.py
+  BOM: scripts\compute_within_gene_auroc.py
+  BOM: scripts\diagnose_phase2_prediction_reconstruction.py
+  BOM: scripts\download_finngen_R10_DEPRECATED.py
+  BOM: scripts\parse_dbsnp_freq_query_tsv.py
+  BOM: scripts\validate_gencode_assets.py
+
+=====================================================================================
+## 4. POLY-LITERAL CROSS-CHECK -- one literal token per search, counts stated
+=====================================================================================
+
+--- literal: _DUMMY_SEQ
+  match count: 2
+  src\genomic_variant_classifier\agent_layer\harness\correctness_harness.py:39: _DUMMY_SEQ = "A" * 101
+  src\genomic_variant_classifier\agent_layer\harness\correctness_harness.py:151: if (seqs == _DUMMY_SEQ).mean() > 0.5:
+
+--- literal: _POLY_A
+  match count: 5
+  src\genomic_variant_classifier\data\genomic_lm.py:51: # `_POLY_A = "A" * DEFAULT_WINDOW` was DELETED 2026-07-15 (roadmap 6.28). It was already
+  src\genomic_variant_classifier\data\populate_fasta_seq.py:59: _POLY_A = sw.PAD_CHAR * sw.WINDOW
+  src\genomic_variant_classifier\data\populate_fasta_seq.py:119: ref_wins: List[str] = [_POLY_A] * n
+  src\genomic_variant_classifier\data\populate_fasta_seq.py:120: alt_wins: List[str] = [_POLY_A] * n
+  src\genomic_variant_classifier\data\populate_fasta_seq.py:154: if rw == _POLY_A:
+
+--- literal: _POLY_WIN
+  match count: 5
+  src\genomic_variant_classifier\data\seq_window_join.py:35: scripts/train.py:485          `X_seq_test[REF_WIN_COL] != _POLY_WIN`
+  src\genomic_variant_classifier\data\seq_window_join.py:155: `_POLY_WIN = "A" * 101`. PLACEHOLDER_BASE is now "N", so that check no longer
+  scripts\train.py:484: #     _POLY_WIN = "A" * 101
+  scripts\train.py:485: #     _n_real_test = int((X_seq_test[REF_WIN_COL].astype(str) != _POLY_WIN).sum())
+  scripts\forensics\verify_w1.py:41: chk("has_sequences from non-poly count", "_n_real_test" in src and "_POLY_WIN" in src)
+
+--- literal: PLACEHOLDER_BASE
+  match count: 7
+  src\genomic_variant_classifier\data\seq_window_join.py:87: PLACEHOLDER_BASE = "N"
+  src\genomic_variant_classifier\data\seq_window_join.py:155: `_POLY_WIN = "A" * 101`. PLACEHOLDER_BASE is now "N", so that check no longer
+  src\genomic_variant_classifier\data\seq_window_join.py:183: placeholder = PLACEHOLDER_BASE * window
+  src\genomic_variant_classifier\models\variant_ensemble.py:1422: frame is already filled with PLACEHOLDER_BASE and whose `usable` mask says
+  src\genomic_variant_classifier\models\variant_ensemble.py:1511: PLACEHOLDER_BASE and are marked usable=False, so provenance travels with the
+  scripts\rekey_seq_windows_v2.py:162: # When PLACEHOLDER_BASE became "N", this comparison stopped matching anything:
+  scripts\train.py:498: # (2) IT WAS A CONTENT CHECK, AND PLACEHOLDER_BASE IS NOW "N". The comparison
+
+--- literal: PAD_CHAR
+  match count: 8
+  src\genomic_variant_classifier\data\populate_fasta_seq.py:59: _POLY_A = sw.PAD_CHAR * sw.WINDOW
+  src\genomic_variant_classifier\data\seq_windows.py:34: PAD_CHAR: str = "A"              # matches encode_sequence's pad in variant_ensemble
+  src\genomic_variant_classifier\data\seq_windows.py:76: win = (PAD_CHAR * left_pad) + core + (PAD_CHAR * right_pad)
+  src\genomic_variant_classifier\data\seq_windows.py:77: return win[:window].ljust(window, PAD_CHAR)
+  src\genomic_variant_classifier\data\seq_windows.py:99: left = (PAD_CHAR * lp) + left_core            # length == half
+  src\genomic_variant_classifier\data\seq_windows.py:107: return win[:window].ljust(window, PAD_CHAR)
+  src\genomic_variant_classifier\data\seq_windows.py:125: return PAD_CHAR * window, PAD_CHAR * window
+  src\genomic_variant_classifier\data\seq_windows.py:128: return PAD_CHAR * window, PAD_CHAR * window
+
+--- literal: "A" *
+  match count: 14
+  src\genomic_variant_classifier\agent_layer\harness\correctness_harness.py:39: _DUMMY_SEQ = "A" * 101
+  src\genomic_variant_classifier\data\genomic_lm.py:51: # `_POLY_A = "A" * DEFAULT_WINDOW` was DELETED 2026-07-15 (roadmap 6.28). It was already
+  src\genomic_variant_classifier\data\genomic_lm.py:300: # `self._poly = "A" * self.window` was REMOVED 2026-07-15 (roadmap 6.28) along
+  src\genomic_variant_classifier\data\seq_window_join.py:17: This module used to return `(windows_df, n_unmapped)` and fabricate `"A" * window`
+  src\genomic_variant_classifier\data\seq_window_join.py:36: data/genomic_lm.py:201/250    `self._poly = "A" * self.window`; `_mapped_mask`
+  src\genomic_variant_classifier\data\seq_window_join.py:155: `_POLY_WIN = "A" * 101`. PLACEHOLDER_BASE is now "N", so that check no longer
+  src\genomic_variant_classifier\models\variant_ensemble.py:1407: This method used to open with `win = "A" * self.window` and then `.fillna(win)`
+  src\genomic_variant_classifier\models\variant_ensemble.py:1414: same day, named `win = "A" * self.window` as a defect in writing, and then moved
+  scripts\preflight_run16_inputs.py:23: POLY101 = "A" * 101
+  scripts\probe_cohort_seq_density.py:19: DUMMY = "A" * 101
+  scripts\rekey_seq_windows_v2.py:149: #     poly = "A" * 101
+  scripts\run9_ablations.py:640: poly_a = "A" * 101
+  scripts\train.py:484: #     _POLY_WIN = "A" * 101
+  scripts\forensics\verify_w1.py:35: chk("old Series poly path REMOVED", 'pd.Series(["A" * 101] * len(y_train))' not in src)
+
+--- literal: 'A' *
+  match count: 1
+  src\genomic_variant_classifier\models\variant_ensemble.py:1520: f"2026-07-15 these were silently filled with 'A' * {self.window} -- "
+
+=====================================================================================
+## 5. INVALID ESCAPE SEQUENCES -- the '\M' the suite warned about
+=====================================================================================
+
+--- compile every .py under scripts, reporting SyntaxWarning
+python : scripts\download_finngen_R10_DEPRECATED.py:6: SyntaxWarning: invalid escape sequence '\M'
+At C:\Users\monzi\Downloads\Collect_RedTests_2026-07-18.ps1:178 char:5
++     python -m compileall -q scripts 2>&1 | Select-Object -First 40
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (scripts\downloa...e sequence '\M':String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  G:\My Drive\genomic-variant-data
+scripts\patch_clinvar_alleles.py:12: SyntaxWarning: invalid escape sequence '\S'
+  .venv\Scripts\python scripts\patch_clinvar_alleles.py \
+
+=====================================================================================
+COLLECTION COMPLETE
+=====================================================================================

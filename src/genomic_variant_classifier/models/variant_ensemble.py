@@ -1059,6 +1059,34 @@ ALT_WIN_COL = "fasta_seq_alt"
 CNN1D_DEFAULT_DILATIONS = (1, 2, 4, 8)
 
 
+def _build_single_channels(
+    seq, window: int, use_positional: bool, positional_sigma: float,
+) -> np.ndarray:
+    """(N, C, window) for single_sequence_mode: one-hot(4) [+ positional(1)].
+
+    2026-07-15, roadmap 6.28. This exists so the reference-only mode is a REAL
+    architecture rather than the delta architecture with its heart cut out.
+
+    The old accidental path handed a lone Series to _build_delta_channels as
+    `ref = alt = seq`, producing 13 channels in which 4:8 was byte-identical to 0:4 and
+    8:12 was identically zero. The model then spent its capacity on eight channels
+    carrying four channels of information, plus four channels of nothing -- and reported
+    the result in the algorithm comparison under the name `cnn_1d`, whose entire premise
+    is the delta it no longer had.
+
+    Five channels that mean something beats thirteen that do not.
+    """
+    oh = np.stack([encode_sequence(str(s), window) for s in seq])   # (N, W, 4)
+    chans = [oh]
+    if use_positional:
+        pos = np.arange(window, dtype=np.float32)
+        centre = window // 2
+        bump = np.exp(-0.5 * ((pos - centre) / max(positional_sigma, 1e-6)) ** 2)
+        chans.append(np.repeat(bump[None, :, None], len(oh), axis=0))   # (N, W, 1)
+    stacked = np.concatenate(chans, axis=2)                             # (N, W, C)
+    return np.ascontiguousarray(stacked.transpose(0, 2, 1), dtype=np.float32)
+
+
 def _build_delta_channels(
     ref_seqs,
     alt_seqs,
@@ -1263,7 +1291,54 @@ class CNN1DClassifier(BaseEstimator, ClassifierMixin):
         use_delta_channels=True,
         use_positional=True,
         positional_sigma=3.0,
+        single_sequence_mode=False,
     ):
+        """
+        single_sequence_mode: OPT-IN, 2026-07-15 (roadmap 6.28). Default False.
+
+        False (default) -- DELTA MODE. `_encode_batch` requires a 2-column
+            [fasta_seq_ref, fasta_seq_alt] DataFrame and RAISES on anything else:
+            a Series, a bare column, a NaN, or the legacy `fasta_seq` column.
+            13 channels: ref(4) + alt(4) + delta(4) + positional(1).
+
+        True -- SINGLE-SEQUENCE MODE. Accepts a Series (or a 1-column frame) of one
+            sequence per row. 5 channels: one-hot(4) + positional(1). No alt, no delta.
+
+        WHY THIS IS A CONSTRUCTOR FLAG AND NOT A TYPE SNIFF
+        ---------------------------------------------------
+        Until today `_encode_batch` chose the mode from the SHAPE of whatever arrived.
+        A Series silently became `ref = alt`, which makes `oh_alt - oh_ref` identically
+        zero. The measured consequence, on the 13-channel default:
+
+            channels 0:4   ref one-hot          real
+            channels 4:8   alt one-hot          BYTE-IDENTICAL to 0:4
+            channels 8:12  delta = alt - ref    IDENTICALLY ZERO
+            channel  12    positional           constant across every row
+
+        Four unique channels, four duplicated, four dead, one constant -- reported in the
+        algorithm comparison under the name `cnn_1d`, a model whose architecture is NAMED
+        for the delta it had just deleted. It fit, it converged, it produced a number.
+
+        The mode was never the problem. CHOOSING IT BY ACCIDENT was. Since the choice
+        arrived as a type rather than a decision, nothing recorded it and nothing could:
+
+          * scripts/train.py has always passed a DataFrame (`_att_train.windows`);
+          * every test has always passed a Series, because the signature said
+            `X_seq: pd.Series` -- an annotation that was FALSE for the production path;
+          * `_encode_batch` accepted both, so the two never had to agree, and for years
+            the suite was green on a code path the run has never executed.
+
+        As a constructor argument the mode is get_params()-visible, survives the pickle
+        (see __getstate__: architecture is rebuilt from hyperparameters), and lands in
+        `ensemble_completeness_` and the run artifact. "The model was in single-sequence
+        mode" becomes a RECORDED FACT rather than an inference about a Series someone
+        passed two years ago. CLAUDE.md 2a: if a rule can be forgotten, it will be --
+        make forgetting FAIL.
+
+        And the mode is now HONEST rather than degenerate: 5 real channels, not 13 of
+        which 9 are redundant. A reference-only model that says it is one.
+        """
+        self.single_sequence_mode = single_sequence_mode
         self.window = window
         self.filters = filters
         self.kernel_size = kernel_size
@@ -1290,7 +1365,19 @@ class CNN1DClassifier(BaseEstimator, ClassifierMixin):
 
     # -- architecture bookkeeping -------------------------------------------
     def _in_channels(self) -> int:
-        """Channel count MUST match _build_delta_channels exactly (contract)."""
+        """Channel count MUST match _build_delta_channels exactly (contract).
+
+        single_sequence_mode collapses the roster to what actually carries information:
+        one-hot(4) + positional(1) = 5. It does NOT emit 13 channels of which 8 are a
+        duplicated pair and 4 are an identically-zero delta -- that was the old
+        accidental behaviour, and it is the difference between a reference-only model
+        and a delta model that has been quietly hollowed out.
+        """
+        if self.single_sequence_mode:
+            c = 4  # one-hot of the single sequence; no alt, so no ref/alt pair
+            if self.use_positional:
+                c += 1
+            return c
         c = 8  # ref (4) + alt (4)
         if self.use_delta_channels:
             c += 4
@@ -1313,26 +1400,128 @@ class CNN1DClassifier(BaseEstimator, ClassifierMixin):
 
     # -- encoding ------------------------------------------------------------
     def _encode_batch(self, X) -> np.ndarray:
-        """Return fused inputs (N, C, window). Accepts the delta-mode DataFrame
-        (fasta_seq_ref / fasta_seq_alt), a single-'fasta_seq' DataFrame, a bare first
-        column, a Series, or a raw sequence iterable (back-compat)."""
-        win = "A" * self.window
-        if isinstance(X, pd.DataFrame):
-            if REF_WIN_COL in X.columns and ALT_WIN_COL in X.columns:
-                ref, alt = X[REF_WIN_COL], X[ALT_WIN_COL]
-            elif "fasta_seq" in X.columns:
-                ref = alt = X["fasta_seq"]
+        """Return fused inputs (N, C, window) from a [fasta_seq_ref, fasta_seq_alt] frame.
+
+        THE FIFTH FABRICATOR -- 2026-07-15, roadmap 6.28.
+        =================================================
+        This method used to open with `win = "A" * self.window` and then `.fillna(win)`
+        every input it was handed. It was the FIFTH content-based poly-A site in the
+        repository and the only one INSIDE a model: the other four merely mis-detected
+        fabricated windows, while this one MANUFACTURED them, silently, at fit time.
+
+        It was found by tests/unit/test_no_content_based_poly_detection.py -- the
+        repo-wide ban -- after this author had personally read this function earlier the
+        same day, named `win = "A" * self.window` as a defect in writing, and then moved
+        on without fixing it. The gate caught what the reader had already seen and let go.
+        That is the entire argument for gates over attention.
+
+        THREE SILENT DEGRADATIONS ARE NOW THREE RAISES:
+
+        1. `.fillna(win)` -- a NaN window became a full poly-A window. Legitimate callers
+           cannot produce this: `attach_delta_windows` returns a WindowAttachment whose
+           frame is already filled with PLACEHOLDER_BASE and whose `usable` mask says
+           which rows are real. A NaN arriving here means the caller bypassed the join,
+           and fabricating 101 bases to paper over that is not robustness.
+
+        2. `elif "fasta_seq" in X.columns: ref = alt = X["fasta_seq"]` -- the legacy
+           single-window column. MEASURED 2026-07-15: `fasta_seq` is **100% NULL across
+           all 4,420,180 cohort rows** (null: 4,420,180 | non-null: 0). So this branch
+           took a column of nothing, filled it with poly-A, and set ref == alt -- which
+           makes the delta channels identically zero. Four of thirteen channels dead,
+           eight duplicated, and the model trains without complaint. SEQUENCE_FEATURES
+           (line 477) is a live constant still pointing at that empty column: a loaded
+           gun with the safety off.
+
+        3. `else: ref = alt = X.iloc[:, 0]` -- same ref == alt delta collapse, reached by
+           handing this method any frame at all.
+
+        The "tolerant adapter" was tolerant of exactly the inputs that destroy the model's
+        only reason to exist. CLAUDE.md 4: nothing fails silently. A sequence model given
+        no sequence must say so.
+        """
+        if self.single_sequence_mode:
+            # OPT-IN reference-only mode. Reached only because a caller CONSTRUCTED this
+            # estimator with single_sequence_mode=True -- never because of the shape of
+            # whatever arrived. One sequence per row; no alt; no delta.
+            if isinstance(X, pd.DataFrame):
+                if X.shape[1] != 1:
+                    raise ValueError(
+                        f"single_sequence_mode expects ONE sequence column; got "
+                        f"{X.shape[1]}: {list(X.columns)}. If you meant delta mode, "
+                        f"construct with single_sequence_mode=False (the default) and "
+                        f"pass [{REF_WIN_COL}, {ALT_WIN_COL}]."
+                    )
+                seq = X.iloc[:, 0]
+            elif isinstance(X, pd.Series):
+                seq = X
             else:
-                ref = alt = X.iloc[:, 0]
-            ref, alt = ref.fillna(win), alt.fillna(win)
-        elif isinstance(X, pd.Series):
-            ref = alt = X.fillna(win)
-        else:
-            ref = alt = pd.Series(X).fillna(win)
+                seq = pd.Series(list(X))
+            self._assert_no_null_windows(seq, "sequence")
+            return _build_single_channels(
+                seq, self.window, self.use_positional, self.positional_sigma,
+            )
+
+        if not isinstance(X, pd.DataFrame):
+            raise TypeError(
+                f"cnn_1d requires a pandas DataFrame with [{REF_WIN_COL}, {ALT_WIN_COL}]; "
+                f"got {type(X).__name__}. A Series or raw iterable cannot carry a ref/alt "
+                f"pair, so it could only ever be encoded by setting ref == alt -- which "
+                f"makes the delta channels identically zero and hollows out the model "
+                f"whose architecture is named for them.\n"
+                f"Build the frame with "
+                f"seq_window_join.attach_delta_windows(meta, seq_windows_path=...).windows\n"
+                f"If you genuinely want a reference-only model, ASK FOR IT explicitly: "
+                f"CNN1DClassifier(single_sequence_mode=True). It is then 5 honest channels, "
+                f"recorded in get_params() and in the run artifact -- not 13 channels of "
+                f"which 9 are redundant, silently selected by an argument's type."
+            )
+
+        missing = {REF_WIN_COL, ALT_WIN_COL} - set(X.columns)
+        if missing:
+            extra = ""
+            if "fasta_seq" in X.columns:
+                extra = (
+                    "\nThis frame carries the legacy 'fasta_seq' column. MEASURED "
+                    "2026-07-15: that column is 100% NULL across all 4,420,180 cohort "
+                    "rows (null: 4,420,180 | non-null: 0). It used to be accepted here "
+                    "and filled with fabricated poly-A. SEQUENCE_FEATURES (line ~477) "
+                    "still names it; do not route it to this model."
+                )
+            raise ValueError(
+                f"cnn_1d requires a 2-column [{REF_WIN_COL}, {ALT_WIN_COL}] frame; "
+                f"missing {sorted(missing)}. Got columns: {list(X.columns)}.\n"
+                f"Build it with "
+                f"seq_window_join.attach_delta_windows(meta, seq_windows_path=...).windows"
+                f"{extra}"
+            )
+
+        ref, alt = X[REF_WIN_COL], X[ALT_WIN_COL]
+        self._assert_no_null_windows(ref, REF_WIN_COL)
+        self._assert_no_null_windows(alt, ALT_WIN_COL)
+
         return _build_delta_channels(
             ref, alt, self.window,
             self.use_delta_channels, self.use_positional, self.positional_sigma,
         )
+
+    def _assert_no_null_windows(self, s: pd.Series, label: str) -> None:
+        """Nulls used to become fabricated poly-A. Now they stop the run.
+
+        `attach_delta_windows` NEVER emits nulls -- unresolvable rows carry
+        PLACEHOLDER_BASE and are marked usable=False, so provenance travels with the
+        data. A null arriving here means the join was bypassed, and inventing 101 bases
+        to cover for that is not robustness; it is manufacturing reference sequence and
+        calling it evidence.
+        """
+        n_null = int(s.isna().sum())
+        if n_null:
+            raise ValueError(
+                f"cnn_1d received {n_null}/{len(s)} null window(s) in '{label}'. Until "
+                f"2026-07-15 these were silently filled with 'A' * {self.window} -- "
+                f"fabricated sequence, indistinguishable from a real poly-A tract, fed "
+                f"to the model as data.\n"
+                f"attach_delta_windows() never emits nulls. Fix the caller."
+            )
 
     # -- training ------------------------------------------------------------
     def _resolve_alpha(self, y) -> float:
@@ -2040,13 +2229,40 @@ class VariantEnsemble:
         raise ValueError(f"ZERO-VARIANCE FEATURES (roadmap 6.21)\n\n{msg}")
 
     def fit(
-        self, X_tab: pd.DataFrame, X_seq: pd.Series, y: pd.Series,
+        self, X_tab: pd.DataFrame, X_seq: pd.DataFrame, y: pd.Series,
         gene_symbol: "pd.Series | None" = None,
         X_tab_cal_ext: "pd.DataFrame | None" = None,
-        X_seq_cal_ext: "pd.Series | None" = None,
+        X_seq_cal_ext: "pd.DataFrame | None" = None,
         y_cal_ext: "pd.Series | None" = None,
         gene_symbol_cal_ext: "pd.Series | None" = None,
     ) -> "VariantEnsemble":
+        """
+        X_seq: A 2-COLUMN [fasta_seq_ref, fasta_seq_alt] DataFrame, row-aligned to X_tab.
+               Build it with seq_window_join.attach_delta_windows(...).windows.
+
+        THE ANNOTATION USED TO SAY `X_seq: pd.Series`. IT WAS FALSE (fixed 2026-07-15,
+        roadmap 6.28) -- and its falsity is why five tests could exercise a code path
+        production has never executed.
+
+        scripts/train.py has always passed a DataFrame: `X_seq_train = _att_train.windows`.
+        Every test passed a Series, because the signature told them to. `_encode_batch`
+        accepted both, and that "tolerance" is where the two realities diverged:
+
+            DataFrame -> ref and alt are distinct -> the delta channels carry signal.
+            Series    -> ref = alt = the one column -> `oh_alt - oh_ref` is IDENTICALLY
+                         ZERO. 4 of 13 channels dead, 8 duplicated. cnn_1d degenerates to
+                         a one-hot sequence classifier with no variant information at all,
+                         fits happily, and reports a number.
+
+        So the suite was green on a mode the run never uses, for the sequence model's only
+        input, and the type hint was the instruction manual for getting there. The
+        fixture in test_ensemble_save_load_with_cnn1d is `Name: fasta_seq, dtype: object`
+        -- a Series named after the legacy column that is 100% NULL across all 4,420,180
+        cohort rows (measured 2026-07-15).
+
+        Roadmap 7c: a gate that checks a PROXY instead of the thing it protects is not a
+        gate. A test that exercises a shape production never sends is testing a proxy.
+        """
         from sklearn.model_selection import train_test_split as _tts
 
         y_arr = np.asarray(y)
@@ -2335,7 +2551,9 @@ class VariantEnsemble:
         self.base_estimators.clear()
         return self
 
-    def predict_proba(self, X_tab: pd.DataFrame, X_seq: pd.Series) -> np.ndarray:
+    def predict_proba(self, X_tab: pd.DataFrame, X_seq: pd.DataFrame) -> np.ndarray:
+        """X_seq: 2-column [fasta_seq_ref, fasta_seq_alt] frame. See fit() -- the
+        `pd.Series` annotation here was false for the production path (2026-07-15)."""
         if not self.trained_models_:
             raise RuntimeError("Call fit() before predict_proba().")
         base_preds = np.zeros((len(X_tab), len(self.trained_models_)))
@@ -2355,11 +2573,11 @@ class VariantEnsemble:
             return np.column_stack([1.0 - blend, blend])
         return self.meta_learner.predict_proba(base_preds)
 
-    def predict(self, X_tab: pd.DataFrame, X_seq: pd.Series) -> np.ndarray:
+    def predict(self, X_tab: pd.DataFrame, X_seq: pd.DataFrame) -> np.ndarray:
         return (self.predict_proba(X_tab, X_seq)[:, 1] > 0.5).astype(int)
 
     def evaluate(
-        self, X_tab: pd.DataFrame, X_seq: pd.Series, y: pd.Series
+        self, X_tab: pd.DataFrame, X_seq: pd.DataFrame, y: pd.Series
     ) -> pd.DataFrame:
         y_arr = np.asarray(y)
         results: dict[str, dict] = {}

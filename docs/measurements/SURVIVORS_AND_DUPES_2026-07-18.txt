@@ -1,0 +1,85 @@
+SURVIVING UNUSABLE ROWS, AND DUPLICATE-KEY AGREEMENT
+date      : 2026-07-18
+repo      : C:\Projects\genomic-variant-classifier
+read-only : yes -- the only file written is this report
+pandas    : 2.3.3
+
+=====================================================================================
+## 1. THE 723 SURVIVORS -- what the builder said about each
+=====================================================================================
+
+--- reading clean keys
+    clean unique keys: 4,399,089
+
+--- reading seq_windows keys + ok + reason
+    seq_windows rows : 4,420,180
+    ok=False rows    : 21,814
+
+    ok=False rows SURVIVING into clean : 723
+    ok=False rows removed by clean     : 21,091
+
+    PREDICTED (from arithmetic) vs OBSERVED (measured):
+      reason                    predicted   observed      delta
+      fetch_failed                      2          2         +0
+      non_acgt_allele                 668        668         +0
+      ref_mismatch                     53         53         +0
+
+    HYPOTHESIS CONFIRMED EXACTLY.
+
+=====================================================================================
+## 2. WHAT clean_seq CONTAINS FOR THOSE SAME ROWS
+=====================================================================================
+
+These are rows the CORRECT builder refuses. What did the SUPERSEDED builder put
+in the artifact Run 17 currently loads? If these windows look ordinary, then no
+content-based check could ever have found them -- only the `ok` column can.
+
+    survivors located in clean_seq : 723 of 723
+
+    window shape profile:
+      contains N (allele spliced in)                  382
+      ORDINARY-LOOKING (undetectable by content)      290
+      both poly-A (visibly fabricated)                 50
+      poly-N present                                    1
+
+    by builder reason:
+      fetch_failed
+        both poly-A (visibly fabricated)                2
+      non_acgt_allele
+        contains N (allele spliced in)                382
+        ORDINARY-LOOKING (undetectable by content)      285
+        poly-N present                                  1
+      ref_mismatch
+        both poly-A (visibly fabricated)               48
+        ORDINARY-LOOKING (undetectable by content)        5
+
+    ROWS NO CONTENT CHECK COULD EVER FLAG: 672
+    This number is the argument for provenance over content, stated in rows.
+
+=====================================================================================
+## 3. DUPLICATE KEYS -- do the duplicate rows agree?
+=====================================================================================
+
+seq_window_join.py:232 keeps the FIRST duplicate by file order. Harmless if and
+only if duplicates agree. Measured, not assumed.
+
+    duplicated keys      : 1,915
+    extra rows from dupes: 4,217
+    duplicate rows retrieved: 6,132
+
+    keys whose duplicates DISAGREE on `ok`           : 0
+    keys whose duplicates DISAGREE on fasta_seq_ref  : 0
+    keys whose duplicates DISAGREE on fasta_seq_alt  : 0
+
+    VERDICT: all duplicates are identical. The keep-first tie-break in
+             seq_window_join.py:232 is provably harmless. No action needed.
+
+    do any duplicated keys survive into clean?
+        duplicated keys present in clean : 0
+        -> the tie-break is never exercised on the trained cohort.
+
+=====================================================================================
+## 4. SUMMARY
+=====================================================================================
+
+elapsed: 0.8 minutes

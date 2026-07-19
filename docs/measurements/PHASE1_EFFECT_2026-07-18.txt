@@ -1,0 +1,66 @@
+PHASE 1 ACCEPTANCE TEST -- did the join actually change behaviour?
+date      : 2026-07-18
+repo      : C:\Projects\genomic-variant-classifier
+read-only : yes -- one report file is written, nothing else
+
+PLACEHOLDER_BASE in seq_window_join : 'N'
+
+====================================================================================
+## 1. LOAD THE COHORT METADATA
+====================================================================================
+
+    rows    : 4,399,089
+    elapsed : 0.5s
+
+====================================================================================
+## 2. THE REGENERATED ARTIFACT -- expect NO warning, n_placeholder = 723
+====================================================================================
+
+--- regenerated (delta_window_builder, POLY='N', has ok)
+    source: clinvar_grch38_clean_seq.parquet
+    elapsed          : 20.1s
+    provenance       : parquet+ok
+    n_usable         : 4398366
+    n_unmapped       : 0
+    n_placeholder    : 723
+    summary()        : windows[parquet+ok]: 4398366/4399089 usable (99.984%), 0 unmapped, 723 builder-placeholder
+    WARNINGS captured while attaching:
+      | 723/4399089 rows carry BUILDER-PLACEHOLDER windows (ok=False): no reference sequence exists for them. They are masked usable=False. Before 2026-07-15 these were indistinguishable from real windows and were trained on.
+
+====================================================================================
+## 3. CONTROL -- the superseded artifact, expect the warning TO fire
+====================================================================================
+
+A verification that cannot fail is not a verification. The backup is the old
+builder's output with no `ok` column. If the check below does NOT show the
+warning and n_placeholder == 0, then section 2 proves nothing.
+
+--- superseded (seq_windows.py, PAD_CHAR='A', no ok)
+    source: clinvar_grch38_clean_seq.parquet.bak_2026-07-18
+    elapsed          : 18.3s
+    provenance       : parquet
+    n_usable         : 4399089
+    n_unmapped       : 0
+    n_placeholder    : 0
+    summary()        : windows[parquet]: 4399089/4399089 usable (100.000%), 0 unmapped, 0 builder-placeholder
+    WARNINGS captured while attaching:
+      | seq windows at C:\Projects\genomic-variant-classifier\data\processed\clinvar_grch38_clean_seq.parquet.bak_2026-07-18 carry no 'ok' column: builder-placeholder rows CANNOT be identified and will be treated as usable. Rebuild with scripts/build_seq_windows.py to restore provenance.
+
+====================================================================================
+## 4. VERDICT
+====================================================================================
+
+    regenerated: warning fired?   False   (want False)
+    regenerated: n_placeholder    723   (want 723)
+    control    : warning fired?   True   (want True)
+    control    : n_placeholder    0   (want 0)
+
+    RESULT: PROVEN
+      * the regenerated artifact carries provenance and the reader uses it
+      * n_placeholder matches the 723 rows the join recorded
+      * the control reproduces the OLD behaviour, so this check can fail
+
+    All eleven consumers of clinvar_grch38_clean_seq.parquet now receive a real
+    `usable` mask instead of an unconditional array of True behind a warning.
+
+elapsed total: 0.7 minutes

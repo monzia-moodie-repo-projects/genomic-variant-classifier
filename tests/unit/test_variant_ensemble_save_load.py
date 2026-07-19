@@ -49,10 +49,14 @@ def synthetic_data():
         rng.random((n, 6)), columns=[f"f{i}" for i in range(6)],
     )
     bases = np.array(list("ACGT"))
-    X_seq = pd.Series(
-        ["".join(rng.choice(bases, 101)) for _ in range(n)],
-        name="fasta_seq",
-    )
+    # A 2-column delta frame, as attach_delta_windows(...).windows produces. The alt
+    # differs from the ref at the CENTRE base, which is where the positional channel is
+    # centred, so the delta channels carry real signal rather than being all-zero.
+    _ref = ["".join(rng.choice(bases, 101)) for _ in range(n)]
+    X_seq = pd.DataFrame({
+        "fasta_seq_ref": _ref,
+        "fasta_seq_alt": [s[:50] + ("C" if s[50] != "C" else "G") + s[51:] for s in _ref],
+    })
     return X_tab, X_seq, y
 
 
@@ -92,9 +96,13 @@ def test_cnn1d_pickles_after_fit(tmp_path):
     )
     rng = np.random.default_rng(42)
     bases = np.array(list("ACGT"))
-    X = pd.Series(
-        ["".join(rng.choice(bases, 101)) for _ in range(30)]
-    )
+    # 2-column delta frame; the Series is incidental to this test, whose subject is
+    # joblib round-tripping, not encoding.
+    _ref = ["".join(rng.choice(bases, 101)) for _ in range(30)]
+    X = pd.DataFrame({
+        "fasta_seq_ref": _ref,
+        "fasta_seq_alt": [s[:50] + ("C" if s[50] != "C" else "G") + s[51:] for s in _ref],
+    })
     y = pd.Series(np.array([0, 1] * 15))
 
     cnn = CNN1DClassifier(
@@ -152,9 +160,12 @@ def test_ensemble_save_load_with_cnn1d(synthetic_data, tmp_path):
 
     ens.fit(X_tab, X_seq, y)
 
-    # After fit(), trained_models_ should contain both. If either model
-    # was skipped (logged as "OOF failed: ... — skipping"), that's an
-    # environment issue worth investigating.
+    # After fit(), trained_models_ must contain both. A base model that fails
+    # out-of-fold prediction has been a HARD STOP since 2026-07-15 (RuntimeError
+    # from VariantEnsemble.fit), not a silent skip -- so reaching this line at all
+    # already proves neither model was dropped. The assertion below is now a
+    # belt-and-braces check rather than the only thing standing between a missing
+    # model and a run report that never mentions it.
     trained = set(ens.trained_models_.keys())
     assert trained == keep, (
         f"Expected {keep}, got {trained}. Did fit() skip a model? "

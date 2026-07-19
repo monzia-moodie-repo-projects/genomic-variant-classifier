@@ -1,0 +1,168 @@
+KEY COVERAGE AND FABRICATION-RATE MEASUREMENT
+date        : 2026-07-18
+repo        : C:\Projects\genomic-variant-classifier
+python      : 3.12.10
+read-only   : yes -- the only file written is this report
+pandas      : 2.3.3
+
+=====================================================================================
+## 0. FILE INVENTORY -- what actually exists, with row counts and columns
+=====================================================================================
+
+--- pathfix
+    path   : C:\Projects\genomic-variant-classifier\data\processed\clinvar_grch38_pathfix.parquet
+    EXISTS : yes  (135.4 MB)
+    ROWS   : 4,420,180
+    COLS   : 16 -> ['variant_id', 'source_db', 'chrom', 'pos', 'gene_symbol', 'transcript_id', 'pathogenicity', 'allele_freq', 'clinical_sig', 'protein_change', 'fasta_seq', 'source_id', 'metadata', 'ref', 'alt', 'consequence']
+    KEYCOLS: all present (none missing)
+    ok col : ABSENT
+    reason : ABSENT
+    seq col: ref=False alt=False legacy_fasta_seq=True
+
+--- clean
+    path   : C:\Projects\genomic-variant-classifier\data\processed\clinvar_grch38_clean.parquet
+    EXISTS : yes  (135.7 MB)
+    ROWS   : 4,399,089
+    COLS   : 17 -> ['variant_id', 'source_db', 'chrom', 'pos', 'gene_symbol', 'transcript_id', 'pathogenicity', 'allele_freq', 'clinical_sig', 'protein_change', 'fasta_seq', 'source_id', 'metadata', 'ref', 'alt', 'consequence', 'ReviewStatus']
+    KEYCOLS: all present (none missing)
+    ok col : ABSENT
+    reason : ABSENT
+    seq col: ref=False alt=False legacy_fasta_seq=True
+
+--- clean_seq
+    path   : C:\Projects\genomic-variant-classifier\data\processed\clinvar_grch38_clean_seq.parquet
+    EXISTS : yes  (523.6 MB)
+    ROWS   : 4,399,089
+    COLS   : 19 -> ['variant_id', 'source_db', 'chrom', 'pos', 'gene_symbol', 'transcript_id', 'pathogenicity', 'allele_freq', 'clinical_sig', 'protein_change', 'fasta_seq', 'source_id', 'metadata', 'ref', 'alt', 'consequence', 'fasta_seq_ref', 'fasta_seq_alt', 'ReviewStatus']
+    KEYCOLS: all present (none missing)
+    ok col : ABSENT
+    reason : ABSENT
+    seq col: ref=True alt=True legacy_fasta_seq=True
+
+--- seqwin
+    path   : C:\Projects\genomic-variant-classifier\data\processed\seq_windows\seq_windows.parquet
+    EXISTS : yes  (424.8 MB)
+    ROWS   : 4,420,180
+    COLS   : 8 -> ['chrom', 'pos', 'ref', 'alt', 'fasta_seq_ref', 'fasta_seq_alt', 'ok', 'reason']
+    KEYCOLS: all present (none missing)
+    ok col : PRESENT
+    reason : PRESENT
+    seq col: ref=True alt=True legacy_fasta_seq=False
+
+=====================================================================================
+## 1. KEY SETS -- is `clean` a subset of `pathfix` and of `seq_windows`?
+=====================================================================================
+
+Keys are hashed to 64-bit integers to bound memory. Collision probability for
+~4.42e6 keys in a 2^64 space is about 5.3e-7. Stated, not hidden.
+
+--- hashing keys: pathfix
+    rows hashed : 4,420,180
+    unique keys : 4,415,963
+    NOTE: 4,217 DUPLICATE KEYS -- a window join keyed on this will
+          collapse them (drop_duplicates), so row counts will not match.
+    elapsed     : 8.3s
+
+--- hashing keys: clean
+    rows hashed : 4,399,089
+    unique keys : 4,399,089
+    elapsed     : 8.1s
+
+--- hashing keys: clean_seq
+    rows hashed : 4,399,089
+    unique keys : 4,399,089
+    elapsed     : 12.7s
+
+--- hashing keys: seqwin
+    rows hashed : 4,420,180
+    unique keys : 4,415,963
+    NOTE: 4,217 DUPLICATE KEYS -- a window join keyed on this will
+          collapse them (drop_duplicates), so row counts will not match.
+    elapsed     : 15.1s
+
+--- is every key of `clean` present in `pathfix`?
+    |clean| = 4,399,089   |pathfix| = 4,415,963
+    keys in clean NOT found in pathfix : 0
+    VERDICT: clean is a STRICT SUBSET of pathfix.
+             Repointing the window source to pathfix loses no rows.
+
+--- is every key of `clean` present in `seqwin`?
+    |clean| = 4,399,089   |seqwin| = 4,415,963
+    keys in clean NOT found in seqwin : 0
+    VERDICT: clean is a STRICT SUBSET of seqwin.
+             Repointing the window source to seqwin loses no rows.
+
+--- is every key of `clean_seq` present in `seqwin`?
+    |clean_seq| = 4,399,089   |seqwin| = 4,415,963
+    keys in clean_seq NOT found in seqwin : 0
+    VERDICT: clean_seq is a STRICT SUBSET of seqwin.
+             Repointing the window source to seqwin loses no rows.
+
+=====================================================================================
+## 2. PROVENANCE -- how many `ok=False` rows, and do they reach `clean`?
+=====================================================================================
+
+--- reading ok/reason from seq_windows.parquet
+    total rows      : 4,420,180
+    ok = True       : 4,398,366
+    ok = False      : 21,814  (0.4935%)
+    reason breakdown:
+        empty_allele                     19,988
+        non_acgt_allele                   1,771
+        ref_mismatch                         53
+        fetch_failed                          2
+
+    of the 21,814 ok=False rows, how many survive into `clean`?
+        present in clean : 723
+        removed by clean : 21,091
+
+    INTERPRETATION: rows present in clean AND ok=False are rows that Run 17
+    would train on as though real IF the window source carries no `ok`
+    column. That count is the exact size of the silent-fabrication set.
+
+=====================================================================================
+## 3. FABRICATION RATE in the artifact Run 17 CURRENTLY uses
+=====================================================================================
+
+--- scanning ['fasta_seq_ref', 'fasta_seq_alt', 'fasta_seq'] in batches
+    batches read: 22
+
+    column: fasta_seq_ref
+        total rows          : 4,399,089
+        null                : 0  (0.0000%)
+        == 'A'*101 (poly-A) : 50  (0.0011%)
+        == 'N'*101 (poly-N) : 1  (0.0000%)
+        contains any 'N'    : 2  (0.0000%)
+        length != 101       : 0
+
+    column: fasta_seq_alt
+        total rows          : 4,399,089
+        null                : 0  (0.0000%)
+        == 'A'*101 (poly-A) : 50  (0.0011%)
+        == 'N'*101 (poly-N) : 0  (0.0000%)
+        contains any 'N'    : 384  (0.0087%)
+        length != 101       : 0
+
+    column: fasta_seq
+        total rows          : 4,399,089
+        null                : 4,399,089  (100.0000%)
+        == 'A'*101 (poly-A) : 0  (0.0000%)
+        == 'N'*101 (poly-N) : 0  (0.0000%)
+        contains any 'N'    : 0  (0.0000%)
+        length != 101       : 0
+
+    INTERPRETATION: a poly-A count near the 21,814 builder-placeholder figure
+    indicates this artifact encodes give-up windows as CONFIDENT ADENINE.
+    Those rows carry no `ok` column, so nothing downstream can identify them.
+    A poly-A count of ZERO would mean the fabrication is shaped differently
+    than expected and the hypothesis needs revisiting -- either way it is
+    now a measured number rather than an argument.
+
+=====================================================================================
+## 4. SUMMARY
+=====================================================================================
+
+elapsed total: 1.2 minutes
+
+This report answers ONLY key coverage and fabrication rate. It does not decide
+the disposition of seq_windows.py; that decision is Monzia's and is pending.

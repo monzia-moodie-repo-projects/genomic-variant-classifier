@@ -415,28 +415,62 @@ def main() -> int:
         if _seq_win is not None and not _seq_win.exists():
             logger.warning(
                 "seq-windows parquet not found: %s -- automatically enabling --skip-cnn. "
-                "Poly-A fallback would fail the >0.5%% unmapped gate. "
-                "Pass --seq-windows <path> or --skip-cnn explicitly to silence this.",
+                "Every row would fall back to a placeholder window and fail the >0.5%% "
+                "unusable gate. Pass --seq-windows <path> or --skip-cnn explicitly to "
+                "silence this.",
                 _seq_win,
             )
             _seq_win = None
             args.skip_cnn = True
         _meta_train_seq = pd.read_parquet(outdir / "splits" / "meta_train.parquet")
-        seq_tr, _u_tr = attach_delta_windows(_meta_train_seq, _seq_win)
-        seq_te, _u_te = attach_delta_windows(meta, _seq_win)        # meta == meta_test
-        seq_val, _u_val = attach_delta_windows(meta_val, _seq_win)
-        _u_tot = _u_tr + _u_te + _u_val
-        _n_tot = len(seq_tr) + len(seq_te) + len(seq_val)
+
+        # 2026-07-15 (roadmap 6.28): migrated off the deprecated 2-tuple. This block used
+        # to read `seq_tr, _u_tr = attach_delta_windows(...)` and sum the three
+        # `n_unmapped` counts. `n_unmapped` counts ONLY key-join misses -- rows whose key
+        # is absent from the artifact. It does NOT count BUILDER PLACEHOLDERS: rows that
+        # are present, whose key joins perfectly, and for which delta_window_builder could
+        # not construct a window and wrote POLY="N"*101 with ok=False.
+        #
+        # So the gate below -- which returns 2 and ABORTS -- was measuring the smaller of
+        # the two failure modes and calling it coverage. `n_rows - n_usable` counts both.
+        _att_tr = attach_delta_windows(_meta_train_seq, _seq_win)
+        _att_te = attach_delta_windows(meta, _seq_win)          # meta == meta_test
+        _att_val = attach_delta_windows(meta_val, _seq_win)
+        _atts = (("train", _att_tr), ("test", _att_te), ("val", _att_val))
+        seq_tr, seq_te, seq_val = _att_tr.windows, _att_te.windows, _att_val.windows
+
+        for _split_name, _a in _atts:
+            logger.info("seq windows [%-5s]: %s", _split_name, _a.summary())
+
+        _n_tot = sum(a.n_rows for _, a in _atts)
+        _unmapped_tot = sum(a.n_unmapped for _, a in _atts)
+        _placeholder_tot = sum(a.n_placeholder for _, a in _atts)
+        _unusable_tot = sum(a.n_rows - a.n_usable for _, a in _atts)
         logger.info(
-            "Sequence windows: train=%d test=%d val=%d unmapped=%d/%d (%.4f%%)",
-            len(seq_tr), len(seq_te), len(seq_val), _u_tot, _n_tot,
-            100.0 * _u_tot / max(_n_tot, 1),
+            "Sequence windows: train=%d test=%d val=%d | unusable=%d/%d (%.4f%%) "
+            "= %d unmapped + %d builder-placeholder",
+            len(seq_tr), len(seq_te), len(seq_val), _unusable_tot, _n_tot,
+            100.0 * _unusable_tot / max(_n_tot, 1), _unmapped_tot, _placeholder_tot,
         )
-        if not getattr(args, "skip_cnn", False) and _u_tot > 0.005 * _n_tot:
+        # THE 0.5% THRESHOLD IS NOW A RAZOR, AND THAT IS WORTH KNOWING BEFORE A PAID RUN.
+        # The live 2026-07-10 artifact carries n_poly = 21,814 of 4,420,180 = 0.4935%
+        # builder placeholders, cohort-wide. Against a 0.5% bound that is a margin of
+        # 0.0065 percentage points -- roughly 287 rows. Before today those 21,814 were
+        # invisible to this gate entirely (they are not "unmapped"), so the gate passed
+        # with room to spare on a number that was measuring the wrong thing. It now
+        # measures the right thing and very nearly fails. Do not "fix" that by raising the
+        # bound: the honest responses are to rebuild the windows so fewer rows are
+        # placeholders, or to decide -- explicitly, in writing -- that 0.5% of the cohort
+        # may carry fabricated sequence. A threshold quietly widened to accommodate a
+        # measurement is how a gate stops being one.
+        if not getattr(args, "skip_cnn", False) and _unusable_tot > 0.005 * _n_tot:
             logger.error(
-                "Sequence-window coverage too low (%d/%d unmapped > 0.5%%); aborting to "
-                "avoid training cnn_1d on misaligned windows. Check --clinvar/--seq-windows.",
-                _u_tot, _n_tot,
+                "Sequence-window coverage too low: %d/%d rows UNUSABLE (%.4f%%) > 0.5%% "
+                "-- %d unmapped + %d builder-placeholder. Aborting rather than training "
+                "cnn_1d on fabricated windows. Check --clinvar/--seq-windows, or rebuild "
+                "with scripts/build_seq_windows.py.",
+                _unusable_tot, _n_tot, 100.0 * _unusable_tot / max(_n_tot, 1),
+                _unmapped_tot, _placeholder_tot,
             )
             return 2
 

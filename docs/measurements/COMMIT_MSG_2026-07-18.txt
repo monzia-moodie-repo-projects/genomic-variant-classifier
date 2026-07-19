@@ -1,0 +1,82 @@
+retire the superseded window builder; move 4 blind detectors onto provenance
+
+Poly-ban offenders 12 -> 0. Suite 1962 -> 1968 (measured on the staged tree at
+HEAD 87b670e, not a bare working tree).
+
+RETIRED, after a replacement producer was built and tested:
+  src/genomic_variant_classifier/data/seq_windows.py
+  src/genomic_variant_classifier/data/populate_fasta_seq.py
+  scripts/populate_fasta_seq.py
+  tests/unit/test_seq_windows.py, tests/unit/test_populate_fasta_seq.py (21 tests)
+
+These wrote clinvar_grch38_clean_seq.parquet with PAD_CHAR = "A" and no `ok`
+column. "A" is in encode_sequence's BASES, so each placeholder position
+one-hot-encoded to a confident adenine, and attach_delta_windows -- seeing no
+provenance -- declared every row usable behind a logger warning.
+
+REPLACED:
+  scripts/build_clean_seq_from_windows.py  join-based producer (+9 tests)
+  tests/test_build_seq_windows.py          ported coverage (+10 tests)
+
+DETECTORS MOVED FROM CONTENT TO PROVENANCE:
+  scripts/preflight_run16_inputs.py        launch gate; also stopped sampling
+                                           only the first 4,000 rows
+  scripts/probe_cohort_seq_density.py      reported dummy=0 when it could not tell
+  correctness_harness.py stage 3a          wrong column, wrong constant, and a
+                                           synthetic fixture; never able to fire
+  scripts/run9_ablations.py                fabricated adenine for cnn_1d, which is
+                                           now excluded from ablations outright
+
+None was fixed by changing "A" to "N". Content cannot distinguish a genuine
+homopolymer from a builder that gave up; only the `ok` column can. Where
+provenance is absent, each now says so rather than reporting zero.
+
+Also: 2 invalid escape sequences removed (a future SyntaxError); placeholder
+construction centralised in delta_window_builder.placeholder_window().
+
+--- staged (git diff --cached --stat) ---
+  .gitignore                                         |    3 +
+   docs/measurements/ALLELE_VALIDITY_2026-07-18.txt   |  107 ++
+   docs/measurements/ENCODE_BATCH_2026-07-18.txt      |  145 +++
+   docs/measurements/KEY_COVERAGE_2026-07-18.txt      |  168 +++
+   docs/measurements/LOCAL_STATE_2026-07-18.txt       |  340 ++++++
+   docs/measurements/OPEN_ITEMS_2026-07-18.txt        | 1186 ++++++++++++++++++++
+   docs/measurements/PHASE1_EFFECT_2026-07-18.txt     |   66 ++
+   docs/measurements/PRECOMMIT_AUDIT_2026-07-18.txt   |  127 +++
+   docs/measurements/RED_TESTS_2026-07-18.txt         |  526 +++++++++
+   docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt  |  654 +++++++++++
+   docs/measurements/SINGLE_SEQ_MODE_2026-07-18.txt   |  150 +++
+   .../SURVIVORS_AND_DUPES_2026-07-18.txt             |   85 ++
+   .../WIRING_BACKUP_DISPOSITION_2026-07-18.txt       |  121 ++
+   scripts/build_clean_seq_from_windows.py            |  252 +++++
+   scripts/build_spliceai_index.py                    |    2 +-
+   scripts/compute_within_gene_auroc.py               |    2 +-
+   .../diagnose_phase2_prediction_reconstruction.py   |    2 +-
+   scripts/download_finngen_R10_DEPRECATED.py         |    2 +-
+   scripts/parse_dbsnp_freq_query_tsv.py              |    2 +-
+   scripts/patch_clinvar_alleles.py                   |    2 +-
+   scripts/populate_fasta_seq.py                      |   85 --
+   scripts/preflight_run16_inputs.py                  |   36 +-
+   scripts/probe_cohort_seq_density.py                |   43 +-
+   scripts/run9_ablations.py                          |   67 +-
+   scripts/run_phase2_eval.py                         |   62 +-
+   scripts/train.py                                   |   95 +-
+   scripts/validate_gencode_assets.py                 |    2 +-
+   .../agent_layer/harness/correctness_harness.py     |   46 +-
+   .../data/delta_window_builder.py                   |   24 +-
+   src/genomic_variant_classifier/data/genomic_lm.py  |    8 +-
+   .../data/populate_fasta_seq.py                     |  221 ----
+   src/genomic_variant_classifier/data/seq_windows.py |  197 ----
+   .../models/variant_ensemble.py                     |  260 ++++-
+   tests/test_build_clean_seq_from_windows.py         |  186 +++
+   tests/test_build_seq_windows.py                    |  353 ++++++
+   tests/unit/test_catboost.py                        |   13 +-
+   tests/unit/test_cnn_1d_delta.py                    |   32 +-
+   tests/unit/test_cnn_tier1.py                       |   38 +-
+   tests/unit/test_correctness_harness.py             |   44 +-
+   tests/unit/test_no_content_based_poly_detection.py |  341 ++++++
+   tests/unit/test_populate_fasta_seq.py              |  154 ---
+   tests/unit/test_preflight_run16_inputs.py          |   43 +-
+   tests/unit/test_seq_windows.py                     |  155 ---
+   tests/unit/test_variant_ensemble_save_load.py      |   31 +-
+   44 files changed, 5526 insertions(+), 952 deletions(-)

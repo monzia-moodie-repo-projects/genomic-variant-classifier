@@ -417,11 +417,10 @@ def main() -> None:
     # docs/incidents/INCIDENT_2026-05-30_train-sequence-misalignment.md
     # CNN sequence input: the live 2-column [fasta_seq_ref, fasta_seq_alt] delta
     # windows. The legacy single 'fasta_seq' column is deprecated and empty.
-    from genomic_variant_classifier.data.seq_window_join import (
-        attach_delta_windows,
-        REF_WIN_COL,
-        ALT_WIN_COL,
-    )
+    # 2026-07-15 (roadmap 6.28): REF_WIN_COL / ALT_WIN_COL are no longer imported.
+    # REF_WIN_COL existed solely for the content-based poly-A check below (deleted);
+    # ALT_WIN_COL was imported and NEVER USED -- dead since the W1 restructure.
+    from genomic_variant_classifier.data.seq_window_join import attach_delta_windows
 
     # Sequence delta windows (W1 restructure, 2026-07-11): ATTACH-then-CHECK.
     # The windows are NOT carried on meta_test/meta_train; they are key-joined
@@ -433,14 +432,12 @@ def main() -> None:
     # count of real (non-placeholder) windows actually attached. X_seq is always
     # a two-column [fasta_seq_ref, fasta_seq_alt] DataFrame in both branches.
     from pathlib import Path as _Path
-    _POLY_WIN = "A" * 101
     _seq_win_parquet = _Path(args.seq_windows) / "seq_windows.parquet"
     _seq_win_arg = str(_seq_win_parquet) if _seq_win_parquet.exists() else None
 
     # Test side: meta_test is in-memory, structurally split-aligned to X_test.
-    X_seq_test, _n_unmapped_test = attach_delta_windows(
-        meta_test, seq_windows_path=_seq_win_arg
-    )
+    _att_test = attach_delta_windows(meta_test, seq_windows_path=_seq_win_arg)
+    X_seq_test = _att_test.windows
     # Train side: meta_train is persisted by _save_splits, gene-split-aligned to
     # X_train (both df.iloc[train_idx].reset_index). Read it -- no run() change.
     meta_train_path = config.output_dir / "meta_train.parquet"
@@ -455,15 +452,15 @@ def main() -> None:
             f"meta_train rows ({len(_meta_train)}) != y_train ({len(y_train)}); "
             "split misalignment -- aborting to avoid PM11d-style label mismatch."
         )
-    X_seq_train, _n_unmapped_train = attach_delta_windows(
-        _meta_train, seq_windows_path=_seq_win_arg
-    )
+    _att_train = attach_delta_windows(_meta_train, seq_windows_path=_seq_win_arg)
+    X_seq_train = _att_train.windows
     # Tune side (W2 v2 only): the gene-disjoint calibration partition also needs
     # its sequence delta windows so the ensemble's external-cal fold has the
     # cnn_1d-compatible two-column seq DataFrame (dispatch uniformity). meta_tune
     # is persisted by run_v2 via _save_splits; read + guard it exactly like the
     # train side (PM11d alignment check), then key-join the windows.
     X_seq_tune = None
+    _att_tune = None
     if _v2:
         _meta_tune_path = config.output_dir / "meta_tune.parquet"
         if not _meta_tune_path.exists():
@@ -477,29 +474,73 @@ def main() -> None:
                 f"meta_tune rows ({len(_meta_tune)}) != y_tune ({len(y_tune)}); "
                 "split misalignment -- aborting to avoid PM11d-style label mismatch."
             )
-        X_seq_tune, _n_unmapped_tune = attach_delta_windows(
-            _meta_tune, seq_windows_path=_seq_win_arg
-        )
+        _att_tune = attach_delta_windows(_meta_tune, seq_windows_path=_seq_win_arg)
+        X_seq_tune = _att_tune.windows
 
-    # Decide has_sequences from the ATTACHED result: count real (non-poly) windows.
-    _n_real_test = int((X_seq_test[REF_WIN_COL].astype(str) != _POLY_WIN).sum())
-    has_sequences = _n_real_test > 100
+    # -- Decide has_sequences from PROVENANCE, on the split the CNN is FITTED on --
+    #
+    # 2026-07-15 (roadmap 6.28). This block previously read:
+    #
+    #     _POLY_WIN = "A" * 101
+    #     _n_real_test = int((X_seq_test[REF_WIN_COL].astype(str) != _POLY_WIN).sum())
+    #     has_sequences = _n_real_test > 100
+    #
+    # TWO independent defects, one of them introduced by the very fix that found it:
+    #
+    # (1) IT COUNTED THE WRONG SPLIT. cnn_1d is FITTED on X_seq_train and this decided
+    #     its fate from X_seq_test. If the train windows were placeholders and the test
+    #     windows were real, has_sequences was True and the model trained on fabricated
+    #     sequence, then predicted on real sequence. The two sides share _seq_win_arg so
+    #     they fail together in practice -- but "in practice" is not an invariant, and
+    #     the gate must assert the thing it protects (roadmap 7c). It now reads TRAIN,
+    #     and every split's provenance is logged, not just the one that decided.
+    #
+    # (2) IT WAS A CONTENT CHECK, AND PLACEHOLDER_BASE IS NOW "N". The comparison
+    #     `!= "A"*101` stopped matching anything the moment the placeholder changed, so
+    #     _n_real_test became len(X_seq_test) and has_sequences became UNCONDITIONALLY
+    #     TRUE. With no window artifact at all, tier 3 fills every row with a
+    #     placeholder and cnn_1d would have STAYED IN THE ENSEMBLE and trained on
+    #     4.4 million fabricated windows -- precisely what the pop() below exists to
+    #     prevent. The full suite was GREEN while this was true, because no test drives
+    #     this path: the same shape as rekey_seq_windows_v2's gate, which the filler
+    #     change also silently disarmed.
+    #
+    #     That is the third content-based poly detector to break this way, and it is the
+    #     argument for provenance stated as a bug report. `usable` comes from the
+    #     builder's own `ok` column; it cannot be fooled by a real poly-A tract and it
+    #     cannot rot when a filler changes, because it never looks at the filler.
+    for _split_name, _a in (("train", _att_train), ("test", _att_test), ("tune", _att_tune)):
+        if _a is not None:
+            logger.info("seq windows [%-5s]: %s", _split_name, _a.summary())
+
+    has_sequences = _att_train.n_usable > 100
     if not has_sequences:
         logger.info(
-            "No usable ref/alt sequence windows after join (%d/%d real; "
-            "seq_windows=%s) -- removing CNN from ensemble.",
-            _n_real_test, len(X_seq_test), _seq_win_arg,
+            "No usable ref/alt sequence windows on the TRAIN split after join "
+            "(%d/%d usable; seq_windows=%s) -- removing CNN from ensemble.",
+            _att_train.n_usable, _att_train.n_rows, _seq_win_arg,
         )
         ensemble.base_estimators.pop("cnn_1d", None)
-        # X_seq_train / X_seq_test remain valid two-column poly DataFrames; with
+        # X_seq_train / X_seq_test remain valid two-column placeholder DataFrames; with
         # cnn_1d removed they satisfy the seq-aware signatures but are unused.
     else:
         logger.info(
-            "CNN sequences active (delta mode): train=%d (unmapped=%d), "
-            "test=%d (unmapped=%d, real=%d).",
-            len(X_seq_train), _n_unmapped_train, len(X_seq_test),
-            _n_unmapped_test, _n_real_test,
+            "CNN sequences active (delta mode): train=%d usable of %d, "
+            "test=%d usable of %d.",
+            _att_train.n_usable, _att_train.n_rows,
+            _att_test.n_usable, _att_test.n_rows,
         )
+        # A large train/test gap in window availability is not fatal, but it is never
+        # benign: cnn_1d would be fitted and evaluated on differently-populated inputs,
+        # and its measured contribution would be an artefact of coverage rather than of
+        # biology. Say so loudly rather than let it wash into the metrics.
+        if abs(_att_train.usable_fraction - _att_test.usable_fraction) > 0.05:
+            logger.warning(
+                "SEQUENCE COVERAGE IS SPLIT-DEPENDENT: train %.3f%% usable vs test "
+                "%.3f%%. cnn_1d will be fitted and scored on differently-populated "
+                "inputs; treat its ablation delta as suspect until this is explained.",
+                100.0 * _att_train.usable_fraction, 100.0 * _att_test.usable_fraction,
+            )
 
     # -- 4. Train -----------------------------------------------------------
     logger.info("PHASE 3: Training")

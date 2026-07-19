@@ -257,3 +257,6 @@ data/processed/seq_windows/*.tmp.parquet
 # These patterns catch both so rollback backups are never accidentally committed.
 *.w[0-9]*bak
 *.bak[0-9]
+
+# Rollback backups written by guarded patch scripts (*.py.bak_YYYY-MM-DD)
+*.bak_*

@@ -20,7 +20,6 @@ from __future__ import annotations
 import argparse, sys
 from pathlib import Path
 
-POLY101 = "A" * 101
 EXPECTED_COUNT = 81
 
 
@@ -31,7 +30,7 @@ def check_exists(label, path, required=True):
     return ok, f"{label}: {'PASS' if ok else 'FAIL'} ({path})"
 
 
-def check_cohort_ref_alt(clinvar_path, sample_rows=4000, min_real_frac=0.5):
+def check_cohort_ref_alt(clinvar_path, min_real_frac=0.5):
     p = Path(clinvar_path)
     if not p.exists():
         return False, f"clinvar cohort: FAIL (not found: {clinvar_path})"
@@ -45,14 +44,33 @@ def check_cohort_ref_alt(clinvar_path, sample_rows=4000, min_real_frac=0.5):
     if missing:
         return False, (f"clinvar cohort: FAIL (missing {sorted(missing)} -- CNN + "
                        f"maxentscan_delta would be INERT; use clinvar_grch38_clean_seq.parquet)")
-    batch = next(pf.iter_batches(batch_size=sample_rows, columns=["fasta_seq_ref", "fasta_seq_alt"]))
-    ref = batch.column("fasta_seq_ref").to_pylist()
-    n = len(ref)
-    real = sum(1 for s in ref if s and str(s) != POLY101 and len(str(s)) >= 50)
-    frac = real / max(n, 1)
+    # PROVENANCE, not content, and over the WHOLE file rather than a leading sample.
+    #
+    # Until 2026-07-18 this counted a window as real when it differed from "A" * 101.
+    # Once the placeholder base became "N" every placeholder counted as real, so the gate
+    # passed unconditionally. Swapping the constant would only defer the same failure.
+    #
+    # The sample went too. Reading the first 4,000 rows and requiring >= 50% real could
+    # never detect 723 placeholders in 4,399,089 rows; it could only catch a column that
+    # was entirely placeholder, and only if the leading rows were representative. The
+    # `ok` column is a single boolean, so the whole file is cheap to read exactly.
+    if "ok" not in cols:
+        return False, ("clinvar cohort: FAIL (ref/alt present but NO `ok` column -- "
+                       "placeholder rows cannot be identified, and content cannot answer "
+                       "this. Rebuild with scripts/build_seq_windows.py then "
+                       "scripts/build_clean_seq_from_windows.py)")
+    n_total = 0
+    n_bad = 0
+    for b in pf.iter_batches(batch_size=250_000, columns=["ok"]):
+        col = b.column("ok").to_pylist()
+        n_total += len(col)
+        n_bad += sum(1 for v in col if not v)
+    n_real = n_total - n_bad
+    frac = n_real / max(n_total, 1)
     ok = frac >= min_real_frac
-    return ok, (f"clinvar cohort: {'PASS' if ok else 'FAIL'} (ref/alt present; "
-                f"{real}/{n} = {frac:.1%} real windows in sample, need >= {min_real_frac:.0%})")
+    return ok, (f"clinvar cohort: {'PASS' if ok else 'FAIL'} (ref/alt + provenance present; "
+                f"{n_real:,}/{n_total:,} = {frac:.4%} usable windows, "
+                f"{n_bad:,} builder-placeholder, need >= {min_real_frac:.0%})")
 
 
 def check_cohort_reviewstatus(clinvar_path):

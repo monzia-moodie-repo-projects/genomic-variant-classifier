@@ -1,0 +1,145 @@
+            self.dropout,
+            tuple(int(d) for d in self.dilations),
+            self.embed,
+        )
+
+    # -- encoding ------------------------------------------------------------
+    def _encode_batch(self, X) -> np.ndarray:
+        """Return fused inputs (N, C, window) from a [fasta_seq_ref, fasta_seq_alt] frame.
+
+        THE FIFTH FABRICATOR -- 2026-07-15, roadmap 6.28.
+        =================================================
+        This method used to open with `win = "A" * self.window` and then `.fillna(win)`
+        every input it was handed. It was the FIFTH content-based poly-A site in the
+        repository and the only one INSIDE a model: the other four merely mis-detected
+        fabricated windows, while this one MANUFACTURED them, silently, at fit time.
+
+        It was found by tests/unit/test_no_content_based_poly_detection.py -- the
+        repo-wide ban -- after this author had personally read this function earlier the
+        same day, named `win = "A" * self.window` as a defect in writing, and then moved
+        on without fixing it. The gate caught what the reader had already seen and let go.
+        That is the entire argument for gates over attention.
+
+        THREE SILENT DEGRADATIONS ARE NOW THREE RAISES:
+
+        1. `.fillna(win)` -- a NaN window became a full poly-A window. Legitimate callers
+           cannot produce this: `attach_delta_windows` returns a WindowAttachment whose
+           frame is already filled with PLACEHOLDER_BASE and whose `usable` mask says
+           which rows are real. A NaN arriving here means the caller bypassed the join,
+           and fabricating 101 bases to paper over that is not robustness.
+
+        2. `elif "fasta_seq" in X.columns: ref = alt = X["fasta_seq"]` -- the legacy
+           single-window column. MEASURED 2026-07-15: `fasta_seq` is **100% NULL across
+           all 4,420,180 cohort rows** (null: 4,420,180 | non-null: 0). So this branch
+           took a column of nothing, filled it with poly-A, and set ref == alt -- which
+           makes the delta channels identically zero. Four of thirteen channels dead,
+           eight duplicated, and the model trains without complaint. SEQUENCE_FEATURES
+           (line 477) is a live constant still pointing at that empty column: a loaded
+           gun with the safety off.
+
+        3. `else: ref = alt = X.iloc[:, 0]` -- same ref == alt delta collapse, reached by
+           handing this method any frame at all.
+
+        The "tolerant adapter" was tolerant of exactly the inputs that destroy the model's
+        only reason to exist. CLAUDE.md 4: nothing fails silently. A sequence model given
+        no sequence must say so.
+        """
+        if self.single_sequence_mode:
+            # OPT-IN reference-only mode. Reached only because a caller CONSTRUCTED this
+            # estimator with single_sequence_mode=True -- never because of the shape of
+            # whatever arrived. One sequence per row; no alt; no delta.
+            if isinstance(X, pd.DataFrame):
+                if X.shape[1] != 1:
+                    raise ValueError(
+                        f"single_sequence_mode expects ONE sequence column; got "
+                        f"{X.shape[1]}: {list(X.columns)}. If you meant delta mode, "
+                        f"construct with single_sequence_mode=False (the default) and "
+                        f"pass [{REF_WIN_COL}, {ALT_WIN_COL}]."
+                    )
+                seq = X.iloc[:, 0]
+            elif isinstance(X, pd.Series):
+                seq = X
+            else:
+                seq = pd.Series(list(X))
+            self._assert_no_null_windows(seq, "sequence")
+            return _build_single_channels(
+                seq, self.window, self.use_positional, self.positional_sigma,
+            )
+
+        if not isinstance(X, pd.DataFrame):
+            raise TypeError(
+                f"cnn_1d requires a pandas DataFrame with [{REF_WIN_COL}, {ALT_WIN_COL}]; "
+                f"got {type(X).__name__}. A Series or raw iterable cannot carry a ref/alt "
+                f"pair, so it could only ever be encoded by setting ref == alt -- which "
+                f"makes the delta channels identically zero and hollows out the model "
+                f"whose architecture is named for them.\n"
+                f"Build the frame with "
+                f"seq_window_join.attach_delta_windows(meta, seq_windows_path=...).windows\n"
+                f"If you genuinely want a reference-only model, ASK FOR IT explicitly: "
+                f"CNN1DClassifier(single_sequence_mode=True). It is then 5 honest channels, "
+                f"recorded in get_params() and in the run artifact -- not 13 channels of "
+                f"which 9 are redundant, silently selected by an argument's type."
+            )
+
+        missing = {REF_WIN_COL, ALT_WIN_COL} - set(X.columns)
+        if missing:
+            extra = ""
+            if "fasta_seq" in X.columns:
+                extra = (
+                    "\nThis frame carries the legacy 'fasta_seq' column. MEASURED "
+                    "2026-07-15: that column is 100% NULL across all 4,420,180 cohort "
+                    "rows (null: 4,420,180 | non-null: 0). It used to be accepted here "
+                    "and filled with fabricated poly-A. SEQUENCE_FEATURES (line ~477) "
+                    "still names it; do not route it to this model."
+                )
+            raise ValueError(
+                f"cnn_1d requires a 2-column [{REF_WIN_COL}, {ALT_WIN_COL}] frame; "
+                f"missing {sorted(missing)}. Got columns: {list(X.columns)}.\n"
+                f"Build it with "
+                f"seq_window_join.attach_delta_windows(meta, seq_windows_path=...).windows"
+                f"{extra}"
+            )
+
+        ref, alt = X[REF_WIN_COL], X[ALT_WIN_COL]
+        self._assert_no_null_windows(ref, REF_WIN_COL)
+        self._assert_no_null_windows(alt, ALT_WIN_COL)
+
+        return _build_delta_channels(
+            ref, alt, self.window,
+            self.use_delta_channels, self.use_positional, self.positional_sigma,
+        )
+
+    def _assert_no_null_windows(self, s: pd.Series, label: str) -> None:
+        """Nulls used to become fabricated poly-A. Now they stop the run.
+
+        `attach_delta_windows` NEVER emits nulls -- unresolvable rows carry
+        PLACEHOLDER_BASE and are marked usable=False, so provenance travels with the
+        data. A null arriving here means the join was bypassed, and inventing 101 bases
+        to cover for that is not robustness; it is manufacturing reference sequence and
+        calling it evidence.
+        """
+        n_null = int(s.isna().sum())
+        if n_null:
+            raise ValueError(
+                f"cnn_1d received {n_null}/{len(s)} null window(s) in '{label}'. Until "
+                f"2026-07-15 these were silently filled with 'A' * {self.window} -- "
+                f"fabricated sequence, indistinguishable from a real poly-A tract, fed "
+                f"to the model as data.\n"
+                f"attach_delta_windows() never emits nulls. Fix the caller."
+            )
+
+    # -- training ------------------------------------------------------------
+    def _resolve_alpha(self, y) -> float:
+        if self.focal_alpha is not None:
+            return float(self.focal_alpha)
+        y = np.asarray(y, dtype=np.float64)
+        pos_rate = float(y.mean()) if y.size else 0.5
+        # up-weight the minority class; clamp so neither class is ignored.
+        return float(np.clip(1.0 - pos_rate, 0.1, 0.9))
+
+    def _epoch_lr(self, epoch: int) -> float:
+        base, lo = self.learning_rate, self.lr_min
+        w = max(1, int(self.warmup_epochs))
+        if epoch < w:
+            return base * (epoch + 1) / w
+        span = max(1, self.epochs - w)

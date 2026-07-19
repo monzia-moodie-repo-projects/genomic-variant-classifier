@@ -26,6 +26,28 @@ from dataclasses import dataclass
 POLY = "N"  # placeholder base; a full poly window is POLY * window
 
 
+def placeholder_window(window: int = 101) -> str:
+    """The canonical placeholder for a window that could NOT be built.
+
+    Returns POLY repeated `window` times. POLY is absent from encode_sequence's
+    BASES ("ACGT"), so this one-hot-encodes to an all-zero vector -- an honest
+    "no information here". A placeholder built from a real base encodes instead to a
+    confident call for that base, which is how 21,814 rows came to be trained on as
+    real sequence before 2026-07-15.
+
+    Callers OUTSIDE this module must use this function rather than building the string
+    themselves. tests/unit/test_no_content_based_poly_detection.py forbids that
+    construction so that placeholder knowledge lives in exactly one place and cannot go
+    stale in five others when POLY changes.
+
+    This is NOT the padding used inside a real window that runs past a contig boundary.
+    That padding also uses POLY, but it means "outside the assembly" within a window
+    that is otherwise genuine and carries ok=True. Only a window that FAILED to build
+    is a placeholder window.
+    """
+    return POLY * window
+
+
 @dataclass
 class WindowResult:
     ref_window: str
@@ -45,7 +67,7 @@ def build_window(fetch, chrom, pos, ref, alt, window: int = 101) -> WindowResult
     0-based coordinate `start0`, or None on failure. Injecting `fetch` keeps this function pure and
     unit-testable without a real genome.
     """
-    poly = POLY * window
+    poly = placeholder_window(window)
     ref = _norm_allele(ref); alt = _norm_allele(alt)
     try:
         pos = int(pos)

@@ -1,0 +1,107 @@
+ALLELE VALIDITY AUDIT OF THE TRAINED COHORT
+date      : 2026-07-18
+repo      : C:\Projects\genomic-variant-classifier
+read-only : yes -- the only file written is this report
+method    : DIRECT scan of allele strings. seq_windows.parquet is NOT read,
+            so this is independent of the ok/reason derivation.
+pandas    : 2.3.3
+
+=====================================================================================
+## 1. DIRECT SCAN -- how many rows carry a non-ACGT allele?
+=====================================================================================
+
+    rows scanned                 : 4,399,089
+    rows with a non-ACGT allele  : 668  (0.015185%)
+
+    EXPECTED from the survivor report (derived via ok/reason): 668
+    OBSERVED here (derived directly from allele strings)    : 668
+
+    AGREEMENT. Two independent derivations give the same number. The figure
+    is corroborated, not merely repeated.
+
+=====================================================================================
+## 2. WHAT ARE THEY? -- classification of the offending alleles
+=====================================================================================
+
+    reference allele:
+        valid ACGT                              667
+        IUPAC ambiguity code                      1
+
+    alternate allele:
+        IUPAC ambiguity code                    668
+
+=====================================================================================
+## 3. DOWNSTREAM DAMAGE -- what the tabular features become
+=====================================================================================
+
+    clean_cohort.variant_class assigns purely from string length, so these rows
+    receive a variant class computed from characters that are not nucleotides.
+    ref_len, alt_len, len_diff, is_snv, is_insertion and is_deletion are all six
+    in the 95-feature contract and are all derived the same way.
+
+    variant_class the pipeline WOULD assign to the offending rows:
+        insertion                 623
+        SNV                        35
+        MNV/other                  10
+
+    worked examples (up to 40):
+      chrom           pos  ref            alt            rlen alen  ldiff  variant_class
+      9         132334624  C              N                 1    1     +0  SNV
+      X         139537059  G              N                 1    1     +0  SNV
+      11          5226577  C              N                 1    1     +0  SNV
+      11          5226739  AG             NT                2    2     +0  MNV/other
+      11          5225691  A              N                 1    1     +0  SNV
+      11          5226613  G              N                 1    1     +0  SNV
+      11          5225610  G              N                 1    1     +0  SNV
+      11          5226598  G              N                 1    1     +0  SNV
+      11          5225715  G              N                 1    1     +0  SNV
+      11          5226643  C              N                 1    1     +0  SNV
+      11          5226583  G              N                 1    1     +0  SNV
+      11          5225643  T              N                 1    1     +0  SNV
+      11          5226592  A              N                 1    1     +0  SNV
+      16           173236  C              N                 1    1     +0  SNV
+      16           173125  G              N                 1    1     +0  SNV
+      16           176759  T              N                 1    1     +0  SNV
+      20         58910817  C              N                 1    1     +0  SNV
+      7          44152363  C              N                 1    1     +0  SNV
+      12        110282700  T              TNNNNNNNNNNNNN    1   19    +18  insertion
+      4          73405117  C              N                 1    1     +0  SNV
+      4          73420262  A              N                 1    1     +0  SNV
+      15         50949868  T              TNN               1    3     +2  insertion
+      12         32625716  G              N                 1    1     +0  SNV
+      5           1282488  C              N                 1    1     +0  SNV
+      4         112647380  G              GN                1    2     +1  insertion
+      8          96145055  C              N                 1    1     +0  SNV
+      14         23413795  G              N                 1    1     +0  SNV
+      13         32339320  C              N                 1    1     +0  SNV
+      11          2585250  G              N                 1    1     +0  SNV
+      4         121822648  T              TN                1    2     +1  insertion
+      7         117611717  C              N                 1    1     +0  SNV
+      19         41978156  T              N                 1    1     +0  SNV
+      13         32336552  G              GAAAAGAAGAGGGC    1  159   +158  insertion
+      2          73860038  T              TTTTTTTTTTTTTT    1  142   +141  insertion
+      17          7669614  C              CTGAGTCAGGCCCT    1  137   +136  insertion
+      2         178792112  T              TCAGAAATTCTAGT    1  150   +149  insertion
+      9          36223504  T              TAAAAGAGAAAACA    1  235   +234  insertion
+      10         86890218  C              CTTTTTTTTTTTTT    1  172   +171  insertion
+      10         86890218  C              CATTTTTTTTTTTT    1  172   +171  insertion
+      22         42060290  A              ACATCTCCAGGTTT    1  155   +154  insertion
+
+=====================================================================================
+## 4. SUMMARY
+=====================================================================================
+
+    The defect is at the COHORT layer, not the window layer. A window-source
+    repoint marks these rows unusable for the sequence branch only; their
+    tabular features remain wrong for the other twelve base models.
+
+    The principled repair is to replace the seven-token denylist with a positive
+    allowlist -- an allele is valid if and only if it is a non-empty string over
+    {A,C,G,T} -- and to route everything else to the structural sidecar that
+    clean_cohort.py already writes (clinvar_grch38_structural.parquet).
+
+    This script does NOT make that change. It measures. The change is Monzia's
+    to authorise, and it alters cohort row counts, so it invalidates downstream
+    artifacts and must be sequenced deliberately.
+
+elapsed: 0.1 minutes

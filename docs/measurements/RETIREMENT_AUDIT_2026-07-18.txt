@@ -1,0 +1,654 @@
+RETIREMENT SAFETY AUDIT -- seq_windows.py / populate_fasta_seq.py
+date      : 2026-07-18
+repo      : C:\Projects\genomic-variant-classifier
+read-only : yes -- one report file is written, nothing else
+
+This audit does NOT trust the import graph. On 2026-07-15 an import-graph probe
+reported these modules as a 'dead island'; the coupling was by FILENAME, and the
+probe's silence was read as evidence of absence. See HANDOFF_2026-07-15:319.
+
+======================================================================================
+## 1. TARGETS -- do the files slated for retirement exist?
+======================================================================================
+
+    PRESENT  src/genomic_variant_classifier/data/seq_windows.py           6,696 bytes
+    PRESENT  src/genomic_variant_classifier/data/populate_fasta_seq.py    8,843 bytes
+    PRESENT  scripts/populate_fasta_seq.py                                3,189 bytes
+    PRESENT  tests/unit/test_seq_windows.py                               5,167 bytes
+    PRESENT  tests/unit/test_populate_fasta_seq.py                        6,047 bytes
+
+    text files scanned in this audit: 29,897
+
+======================================================================================
+## 2. IMPORT GRAPH -- who imports the target modules?
+======================================================================================
+
+Python files are parsed via the Abstract Syntax Tree, so a module named inside a
+string or a comment cannot masquerade as an import.
+
+    seq_windows -- 3 importer(s)
+        src/genomic_variant_classifier/data/populate_fasta_seq.py:51
+        tests/unit/test_populate_fasta_seq.py:10
+        tests/unit/test_seq_windows.py:14
+    populate_fasta_seq -- 2 importer(s)
+        scripts/populate_fasta_seq.py:24
+        tests/unit/test_populate_fasta_seq.py:11
+
+======================================================================================
+## 3. FILENAME COUPLING -- textual references in ANY file type
+======================================================================================
+
+This is the check the 2026-07-15 probe lacked.
+
+    'seq_windows' -- 368 reference(s) outside the retiring files themselves
+        by file type: {'.md': 16, '.py': 77, '.txt': 274, '.yaml': 1}
+        clean_cohort_check.txt:8  auto-resolved seq_windows path exists: True (549.1MB)
+        configs/data_manifest.yaml:85  notes: "Reference genome FASTA. Read form: the UNCOMPRESSED data/external/reference/Homo_sapiens
+        docs/measurements/ALLELE_VALIDITY_2026-07-18.txt:5  method    : DIRECT scan of allele strings. seq_windows.parquet is NOT read,
+        docs/measurements/KEY_COVERAGE_2026-07-18.txt:43  path   : C:\Projects\genomic-variant-classifier\data\processed\seq_windows\seq_windows.parquet
+        docs/measurements/KEY_COVERAGE_2026-07-18.txt:53  ## 1. KEY SETS -- is `clean` a subset of `pathfix` and of `seq_windows`?
+        docs/measurements/KEY_COVERAGE_2026-07-18.txt:105  --- reading ok/reason from seq_windows.parquet
+        docs/measurements/KEY_COVERAGE_2026-07-18.txt:168  the disposition of seq_windows.py; that decision is Monzia's and is pending.
+        docs/measurements/PHASE1_EFFECT_2026-07-18.txt:38  --- superseded (seq_windows.py, PAD_CHAR='A', no ok)
+        docs/measurements/RED_TESTS_2026-07-18.txt:67  E             src\genomic_variant_classifier\data\seq_windows.py:76  PAD_CHAR * ...   (a known p
+        docs/measurements/RED_TESTS_2026-07-18.txt:68  E             src\genomic_variant_classifier\data\seq_windows.py:99  PAD_CHAR * ...   (a known p
+        docs/measurements/RED_TESTS_2026-07-18.txt:69  E             src\genomic_variant_classifier\data\seq_windows.py:76  PAD_CHAR * ...   (a known p
+        docs/measurements/RED_TESTS_2026-07-18.txt:70  E             src\genomic_variant_classifier\data\seq_windows.py:125  PAD_CHAR * ...   (a known 
+        docs/measurements/RED_TESTS_2026-07-18.txt:71  E             src\genomic_variant_classifier\data\seq_windows.py:125  PAD_CHAR * ...   (a known 
+        docs/measurements/RED_TESTS_2026-07-18.txt:72  E             src\genomic_variant_classifier\data\seq_windows.py:128  PAD_CHAR * ...   (a known 
+        docs/measurements/RED_TESTS_2026-07-18.txt:73  E             src\genomic_variant_classifier\data\seq_windows.py:128  PAD_CHAR * ...   (a known 
+        docs/measurements/RED_TESTS_2026-07-18.txt:82  E       assert not ["    scripts\\preflight_run16_inputs.py:23  'A' * ...", "    scripts\\probe_
+        docs/measurements/RED_TESTS_2026-07-18.txt:171  src\genomic_variant_classifier\data\seq_windows.py:76  PAD_CHAR * ...   (a known placeholder ide
+        docs/measurements/RED_TESTS_2026-07-18.txt:172  src\genomic_variant_classifier\data\seq_windows.py:99  PAD_CHAR * ...   (a known placeholder ide
+        docs/measurements/RED_TESTS_2026-07-18.txt:173  src\genomic_variant_classifier\data\seq_windows.py:76  PAD_CHAR * ...   (a known placeholder ide
+        docs/measurements/RED_TESTS_2026-07-18.txt:174  src\genomic_variant_classifier\data\seq_windows.py:125  PAD_CHAR * ...   (a known placeholder id
+        docs/measurements/RED_TESTS_2026-07-18.txt:175  src\genomic_variant_classifier\data\seq_windows.py:125  PAD_CHAR * ...   (a known placeholder id
+        docs/measurements/RED_TESTS_2026-07-18.txt:176  src\genomic_variant_classifier\data\seq_windows.py:128  PAD_CHAR * ...   (a known placeholder id
+        docs/measurements/RED_TESTS_2026-07-18.txt:177  src\genomic_variant_classifier\data\seq_windows.py:128  PAD_CHAR * ...   (a known placeholder id
+        docs/measurements/RED_TESTS_2026-07-18.txt:186  assert not ["    scripts\\preflight_run16_inputs.py:23  'A' * ...", "    scripts\\probe_cohort_s
+        docs/measurements/RED_TESTS_2026-07-18.txt:479  src\genomic_variant_classifier\data\seq_windows.py:34: PAD_CHAR: str = "A"              # matche
+        docs/measurements/RED_TESTS_2026-07-18.txt:480  src\genomic_variant_classifier\data\seq_windows.py:76: win = (PAD_CHAR * left_pad) + core + (PAD
+        docs/measurements/RED_TESTS_2026-07-18.txt:481  src\genomic_variant_classifier\data\seq_windows.py:77: return win[:window].ljust(window, PAD_CHA
+        docs/measurements/RED_TESTS_2026-07-18.txt:482  src\genomic_variant_classifier\data\seq_windows.py:99: left = (PAD_CHAR * lp) + left_core       
+        docs/measurements/RED_TESTS_2026-07-18.txt:483  src\genomic_variant_classifier\data\seq_windows.py:107: return win[:window].ljust(window, PAD_CH
+        docs/measurements/RED_TESTS_2026-07-18.txt:484  src\genomic_variant_classifier\data\seq_windows.py:125: return PAD_CHAR * window, PAD_CHAR * win
+        docs/measurements/RED_TESTS_2026-07-18.txt:485  src\genomic_variant_classifier\data\seq_windows.py:128: return PAD_CHAR * window, PAD_CHAR * win
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:1  RETIREMENT SAFETY AUDIT -- seq_windows.py / populate_fasta_seq.py
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:14  PRESENT  src/genomic_variant_classifier/data/seq_windows.py           6,696 bytes
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:29  seq_windows -- 3 importer(s)
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:43  'seq_windows' -- 190 reference(s) outside the retiring files themselves
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:45  .wiring_backup/20260702_042345_scripts_run_phase2_eval.py:379  _seq_win = Path(args.seq_windows)
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:46  clean_cohort_check.txt:8  auto-resolved seq_windows path exists: True (549.1MB)
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:48  docs/measurements/ALLELE_VALIDITY_2026-07-18.txt:5  method    : DIRECT scan of allele strings. s
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:49  docs/measurements/KEY_COVERAGE_2026-07-18.txt:43  path   : C:\Projects\genomic-variant-classifie
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:50  docs/measurements/KEY_COVERAGE_2026-07-18.txt:53  ## 1. KEY SETS -- is `clean` a subset of `path
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:51  docs/measurements/KEY_COVERAGE_2026-07-18.txt:105  --- reading ok/reason from seq_windows.parque
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:52  docs/measurements/KEY_COVERAGE_2026-07-18.txt:168  the disposition of seq_windows.py; that decis
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:53  docs/measurements/PHASE1_EFFECT_2026-07-18.txt:38  --- superseded (seq_windows.py, PAD_CHAR='A',
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:54  docs/measurements/RED_TESTS_2026-07-18.txt:67  E             src\genomic_variant_classifier\data
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:55  docs/measurements/RED_TESTS_2026-07-18.txt:68  E             src\genomic_variant_classifier\data
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:56  docs/measurements/RED_TESTS_2026-07-18.txt:69  E             src\genomic_variant_classifier\data
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:57  docs/measurements/RED_TESTS_2026-07-18.txt:70  E             src\genomic_variant_classifier\data
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:58  docs/measurements/RED_TESTS_2026-07-18.txt:71  E             src\genomic_variant_classifier\data
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:59  docs/measurements/RED_TESTS_2026-07-18.txt:72  E             src\genomic_variant_classifier\data
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:60  docs/measurements/RED_TESTS_2026-07-18.txt:73  E             src\genomic_variant_classifier\data
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:62  docs/measurements/RED_TESTS_2026-07-18.txt:171  src\genomic_variant_classifier\data\seq_windows.
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:63  docs/measurements/RED_TESTS_2026-07-18.txt:172  src\genomic_variant_classifier\data\seq_windows.
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:64  docs/measurements/RED_TESTS_2026-07-18.txt:173  src\genomic_variant_classifier\data\seq_windows.
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:65  docs/measurements/RED_TESTS_2026-07-18.txt:174  src\genomic_variant_classifier\data\seq_windows.
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:66  docs/measurements/RED_TESTS_2026-07-18.txt:175  src\genomic_variant_classifier\data\seq_windows.
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:67  docs/measurements/RED_TESTS_2026-07-18.txt:176  src\genomic_variant_classifier\data\seq_windows.
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:68  docs/measurements/RED_TESTS_2026-07-18.txt:177  src\genomic_variant_classifier\data\seq_windows.
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:70  docs/measurements/RED_TESTS_2026-07-18.txt:479  src\genomic_variant_classifier\data\seq_windows.
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:71  docs/measurements/RED_TESTS_2026-07-18.txt:480  src\genomic_variant_classifier\data\seq_windows.
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:72  docs/measurements/RED_TESTS_2026-07-18.txt:481  src\genomic_variant_classifier\data\seq_windows.
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:73  docs/measurements/RED_TESTS_2026-07-18.txt:482  src\genomic_variant_classifier\data\seq_windows.
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:74  docs/measurements/RED_TESTS_2026-07-18.txt:483  src\genomic_variant_classifier\data\seq_windows.
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:75  docs/measurements/RED_TESTS_2026-07-18.txt:484  src\genomic_variant_classifier\data\seq_windows.
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:76  docs/measurements/RED_TESTS_2026-07-18.txt:485  src\genomic_variant_classifier\data\seq_windows.
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:77  docs/measurements/SURVIVORS_AND_DUPES_2026-07-18.txt:14  --- reading seq_windows keys + ok + rea
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:78  docs/measurements/SURVIVORS_AND_DUPES_2026-07-18.txt:15  seq_windows rows : 4,420,180
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:80  docs/ROADMAP.md:835  | Seq windows | 4,398,366 ok / **21,814 poly** (0.494%) | `seq_windows.mani
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:81  docs/ROADMAP.md:883  `run_phase2_eval.py` consume `seq_windows.parquet`'s 8-column schema?
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:82  docs/status/HANDOFF_2026-07-15_cowork-to-project.md:70  seq_windows/seq_windows.parquet        4
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:83  docs/status/HANDOFF_2026-07-15_cowork-to-project.md:83  seq_windows.manifest.json:
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:84  docs/status/HANDOFF_2026-07-15_cowork-to-project.md:150  standing rule); `seq_windows.parquet` w
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:85  docs/status/HANDOFF_2026-07-15_cowork-to-project.md:234  `seq_windows.py` ×4, `populate_fasta_se
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:86  docs/status/HANDOFF_2026-07-15_cowork-to-project.md:319  | 4 | *"`populate_fasta_seq` / `seq_win
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:87  docs/status/STATUS_2026-07-15_evidence-separated.md:62  `data/processed/seq_windows/seq_windows.
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:88  docs/status/STATUS_2026-07-15_evidence-separated.md:95  data/processed/seq_windows/seq_windows.p
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:89  docs/status/STATUS_2026-07-15_evidence-separated.md:107  train.py:102-107          "--seq-window
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:90  docs/status/STATUS_2026-07-15_evidence-separated.md:108  help="DIRECTORY holding ... seq_windows
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:91  docs/status/STATUS_2026-07-15_evidence-separated.md:109  train.py:435              _seq_win_parq
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:92  docs/status/STATUS_2026-07-15_evidence-separated.md:113  run_phase2_eval.py:414    _seq_win = Pa
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:93  docs/status/STATUS_2026-07-15_evidence-separated.md:307  1. **Does `run_phase2_eval.py` work aga
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:94  docs/status/STATUS_2026-07-15_evidence-separated.md:333  | *"`populate_fasta_seq` / `seq_windows
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:95  outputs/cleanup_applied.txt:18  DELETE     37.2MB  data/processed/seq_windows/part_00000.parquet
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:96  outputs/cleanup_applied.txt:19  DELETE     38.1MB  data/processed/seq_windows/part_00001.parquet
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:97  outputs/cleanup_applied.txt:20  DELETE     40.2MB  data/processed/seq_windows/part_00002.parquet
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:98  outputs/cleanup_applied.txt:21  DELETE     41.4MB  data/processed/seq_windows/part_00003.parquet
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:99  outputs/cleanup_applied.txt:22  DELETE     42.0MB  data/processed/seq_windows/part_00004.parquet
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:100  outputs/cleanup_applied.txt:23  DELETE     41.5MB  data/processed/seq_windows/part_00005.parquet
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:101  outputs/cleanup_deleted.txt:10  37.2MB  data/processed/seq_windows/part_00000.parquet
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:102  outputs/cleanup_deleted.txt:11  38.1MB  data/processed/seq_windows/part_00001.parquet
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:103  outputs/cleanup_deleted.txt:12  40.2MB  data/processed/seq_windows/part_00002.parquet
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:104  outputs/cleanup_deleted.txt:13  41.4MB  data/processed/seq_windows/part_00003.parquet
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:105  outputs/cleanup_deleted.txt:14  42.0MB  data/processed/seq_windows/part_00004.parquet
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:106  outputs/cleanup_deleted.txt:15  41.5MB  data/processed/seq_windows/part_00005.parquet
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:107  outputs/cleanup_deleted.txt:16  40.4MB  data/processed/seq_windows/part_00006.parquet
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:108  outputs/cleanup_deleted.txt:17  39.0MB  data/processed/seq_windows/part_00007.parquet
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:109  outputs/cleanup_deleted.txt:18  39.9MB  data/processed/seq_windows/part_00008.parquet
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:110  outputs/cleanup_deleted.txt:19  36.7MB  data/processed/seq_windows/part_00009.parquet
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:111  outputs/cleanup_deleted.txt:20  29.3MB  data/processed/seq_windows/part_00010.parquet
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:112  outputs/cleanup_deleted.txt:21  2.0B  data/processed/seq_windows/part_00000.done
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:113  outputs/cleanup_deleted.txt:22  2.0B  data/processed/seq_windows/part_00001.done
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:114  outputs/cleanup_deleted.txt:23  2.0B  data/processed/seq_windows/part_00002.done
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:115  outputs/cleanup_deleted.txt:24  2.0B  data/processed/seq_windows/part_00003.done
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:116  outputs/cleanup_deleted.txt:25  2.0B  data/processed/seq_windows/part_00004.done
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:117  outputs/cleanup_deleted.txt:26  2.0B  data/processed/seq_windows/part_00005.done
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:118  outputs/cleanup_deleted.txt:27  2.0B  data/processed/seq_windows/part_00006.done
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:119  outputs/cleanup_deleted.txt:28  2.0B  data/processed/seq_windows/part_00007.done
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:120  outputs/cleanup_deleted.txt:29  2.0B  data/processed/seq_windows/part_00008.done
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:121  outputs/cleanup_deleted.txt:30  2.0B  data/processed/seq_windows/part_00009.done
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:122  outputs/cleanup_deleted.txt:31  2.0B  data/processed/seq_windows/part_00010.done
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:123  outputs/cleanup_dryrun.txt:18  would-delete     37.2MB  data/processed/seq_windows/part_00000.pa
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:124  outputs/cleanup_dryrun.txt:19  would-delete     38.1MB  data/processed/seq_windows/part_00001.pa
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:125  outputs/cleanup_dryrun.txt:20  would-delete     40.2MB  data/processed/seq_windows/part_00002.pa
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:126  outputs/cleanup_dryrun.txt:21  would-delete     41.4MB  data/processed/seq_windows/part_00003.pa
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:127  outputs/cleanup_dryrun.txt:22  would-delete     42.0MB  data/processed/seq_windows/part_00004.pa
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:128  outputs/cleanup_dryrun.txt:23  would-delete     41.5MB  data/processed/seq_windows/part_00005.pa
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:129  outputs/cleanup_plan.txt:24  ### (C) seq_windows part_*.parquet + .done -- safe if merged seq_wi
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:130  outputs/cleanup_plan.txt:25  merged EXISTS: data\processed\seq_windows\seq_windows.parquet (424.
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:131  outputs/dbconn_diff.txt:31  +data/processed/seq_windows/part_*.parquet
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:132  outputs/dbconn_diff.txt:32  +data/processed/seq_windows/part_*.done
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:133  outputs/dbconn_diff.txt:33  +data/processed/seq_windows/*.tmp.parquet
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:134  outputs/housekeeping_audit.txt:153  424.8MB  data\processed\seq_windows\seq_windows.parquet
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:135  outputs/housekeeping_audit.txt:163  ### 7. seq_windows INTERMEDIATE PARTS (removable post-merge)
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:136  outputs/housekeeping_audit.txt:166  merged seq_windows.parquet: EXISTS 424.8MB
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:137  outputs/hygiene.txt:6  merged artifact (KEEP): data\processed\seq_windows\seq_windows.parquet  4
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:138  outputs/hygiene.txt:16  data/processed/seq_windows/part_*.parquet
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:139  outputs/hygiene.txt:17  data/processed/seq_windows/part_*.done
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:140  outputs/hygiene.txt:18  data/processed/seq_windows/*.tmp.parquet
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:141  outputs/hygiene.txt:22  - seq_windows/part_*.parquet + .done: resume safety; remove AFTER the re
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:142  outputs/hygiene.txt:23  successfully consumes seq_windows.parquet.
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:143  outputs/ingestion_source_bundle.txt:353  352:             genomiclm_seq_windows_path=(Path(args.
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:144  outputs/ingestion_source_bundle.txt:406  405:         _seq_win = Path(args.seq_windows) if getat
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:145  outputs/manifest_dump.txt:21  artifact: data\processed\seq_windows\seq_windows.parquet  (445 MB)
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:146  outputs/postcleanup_verify.txt:6  OK     424.8MB  data/processed/seq_windows/seq_windows.parquet
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:147  outputs/postcleanup_verify.txt:8  manifest files in seq_windows: ['seq_windows.manifest.json']
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:148  outputs/postcleanup_verify.txt:11  OK (gone)  seq_windows parts
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:149  outputs/postcleanup_verify.txt:12  OK (gone)  seq_windows .done
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:150  outputs/precompute_dryrun.txt:12  merged 4 parts -> seq_windows.parquet  (100,000 rows)
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:151  outputs/precompute_full.txt:5  reference: GRCh38.fa   out: data\processed\seq_windows
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:152  outputs/precompute_full.txt:19  merged 11 parts -> seq_windows.parquet  (4,420,180 rows)
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:153  outputs/precompute_resume.txt:12  merged 4 parts -> seq_windows.parquet  (100,000 rows)
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:154  outputs/trainpy.txt:30  103:         default="data/processed/seq_windows",
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:155  outputs/trainpy.txt:118  426:             "seq_windows=%s) -- removing CNN from ensemble.",
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:156  outputs/trainpy_exact.txt:4  103: '        default="data/processed/seq_windows",'
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:157  outputs/trainpy_exact.txt:7  106: '            "(seq_windows.parquet + seq_windows.manifest.json
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:158  outputs/trainpy_exact.txt:60  395: '    _seq_win_parquet = _Path(args.seq_windows) / "seq_window
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:159  outputs/w1_wiring.txt:2  W1 WIRING DUMP (exact current text to wire cnn_1d -> seq_windows + veri
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:160  outputs/w2b2_help.txt:20  windows (seq_windows.parquet +
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:161  outputs/w2b2_help.txt:21  seq_windows.manifest.json, from
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:162  outputs/w2b2_help.txt:27  data/processed/seq_windows)
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:163  scripts/apply_d1_fixes.py:263  '        _seq_win = Path(args.seq_windows) if getattr(args, "seq_
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:164  scripts/apply_d1_fixes.py:269  '        _seq_win = Path(args.seq_windows) if getattr(args, "seq_
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:171  scripts/forensics/audit_cleanup_plan.py:7  (C) redundant seq_windows part_*.parquet + .done (mer
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:172  scripts/forensics/audit_cleanup_plan.py:12  for seq_windows parts: the merged parquet exists). N
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:173  scripts/forensics/audit_cleanup_plan.py:63  # (C) redundant seq_windows parts -- safe IFF merged
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:174  scripts/forensics/audit_cleanup_plan.py:64  print("\n### (C) seq_windows part_*.parquet + .done 
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:175  scripts/forensics/audit_cleanup_plan.py:65  swd = Path("data/processed/seq_windows")
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:176  scripts/forensics/audit_cleanup_plan.py:66  merged = swd/"seq_windows.parquet"
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:177  scripts/forensics/audit_cleanup_plan.py:75  print("  merged seq_windows.parquet NOT found -> DO 
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:178  scripts/forensics/audit_housekeeping.py:5  blob), and seq_windows part files. DELETES NOTHING. A
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:179  scripts/forensics/audit_housekeeping.py:127  # 7. seq_windows part files
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:180  scripts/forensics/audit_housekeeping.py:128  print("\n### 7. seq_windows INTERMEDIATE PARTS (rem
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:181  scripts/forensics/audit_housekeeping.py:129  swdir = Path("data/processed/seq_windows")
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:182  scripts/forensics/audit_housekeeping.py:133  merged = swdir / "seq_windows.parquet"
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:183  scripts/forensics/audit_housekeeping.py:136  print(a(f"  merged seq_windows.parquet: {'EXISTS ' 
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:184  scripts/forensics/audit_housekeeping.py:138  print("  (no seq_windows dir)")
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:185  scripts/forensics/cleanup_apply.py:54  # (C) seq_windows parts + .done -- ok iff merged exists +
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:186  scripts/forensics/cleanup_apply.py:55  swd = Path("data/processed/seq_windows")
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:187  scripts/forensics/cleanup_apply.py:56  merged = swd/"seq_windows.parquet"
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:188  scripts/forensics/smoke_w1.py:65  wdir = Path("data/processed/seq_windows")
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:189  scripts/forensics/smoke_w1.py:67  if cohort_path.exists() and (wdir / "seq_windows.manifest.json
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:190  scripts/forensics/verify_postcleanup.py:3  removed ONLY the intended files and left every real a
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:191  scripts/forensics/verify_postcleanup.py:5  seq_windows part_*/.done are GONE; (4) the .OOMbak is
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:192  scripts/forensics/verify_postcleanup.py:30  "data/processed/seq_windows/seq_windows.parquet",
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:193  scripts/forensics/verify_postcleanup.py:33  # manifest: find any manifest json/parquet in seq_wi
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:194  scripts/forensics/verify_postcleanup.py:34  swd = Path("data/processed/seq_windows")
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:195  scripts/forensics/verify_postcleanup.py:40  print(a(f"  manifest files in seq_windows: {[p.name 
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:196  scripts/forensics/verify_postcleanup.py:44  ("seq_windows parts", list(swd.glob("part_*.parquet"
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:197  scripts/forensics/verify_postcleanup.py:45  ("seq_windows .done", list(swd.glob("*.done")) if sw
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:198  scripts/forensics/verify_w1.py:31  chk("gate is manifest-conditional (backward compat)", "seq_wi
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:199  scripts/hygiene_pass.py:42  "data/processed/seq_windows/part_*.parquet",
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:200  scripts/hygiene_pass.py:43  "data/processed/seq_windows/part_*.done",
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:201  scripts/hygiene_pass.py:44  "data/processed/seq_windows/*.tmp.parquet",
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:202  scripts/hygiene_pass.py:56  parts = sorted(Path("data/processed/seq_windows").glob("part_*.parqu
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:203  scripts/hygiene_pass.py:57  dones = sorted(Path("data/processed/seq_windows").glob("part_*.done"
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:204  scripts/hygiene_pass.py:58  merged = Path("data/processed/seq_windows/seq_windows.parquet")
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:205  scripts/hygiene_pass.py:107  print("  - seq_windows/part_*.parquet + .done: resume safety; remov
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:206  scripts/hygiene_pass.py:108  print("    successfully consumes seq_windows.parquet.")
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:208  scripts/run_phase2_eval.py:361  genomiclm_seq_windows_path=(Path(args.seq_windows) if getattr(ar
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:209  scripts/run_phase2_eval.py:414  _seq_win = Path(args.seq_windows) if getattr(args, "seq_windows"
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:210  scripts/smoke_all_models.py:176  ("--alphamissense", args.alphamissense), ("--seq-windows", args
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:211  scripts/smoke_all_models.py:206  ap.add_argument("--seq-windows", dest="seq_windows")
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:212  scripts/train.py:103  default="data/processed/seq_windows",
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:213  scripts/train.py:106  "(seq_windows.parquet + seq_windows.manifest.json, from "
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:214  scripts/train.py:289  _seq_win_dir = _Path(args.seq_windows)
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:215  scripts/train.py:290  if (_seq_win_dir / "seq_windows.manifest.json").exists():
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:216  scripts/train.py:435  _seq_win_parquet = _Path(args.seq_windows) / "seq_windows.parquet"
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:217  scripts/train.py:520  "(%d/%d usable; seq_windows=%s) -- removing CNN from ensemble.",
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:223  src/genomic_variant_classifier.egg-info/SOURCES.txt:113  src/genomic_variant_classifier/data/seq
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:233  tests/unit/test_gnn_epochs_flag.py:29  gnomad=None, spliceai=None, alphamissense=None, seq_windo
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:234  tests/unit/test_run17_fullflag_smoke.py:29  gnomad=None, spliceai=None, alphamissense=None, seq_
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:249  docs/status/HANDOFF_2026-07-15_cowork-to-project.md:234  `seq_windows.py` ×4, `populate_fasta_se
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:250  docs/status/HANDOFF_2026-07-15_cowork-to-project.md:319  | 4 | *"`populate_fasta_seq` / `seq_win
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:253  docs/status/STATUS_2026-07-15_evidence-separated.md:333  | *"`populate_fasta_seq` / `seq_windows
+        docs/measurements/SURVIVORS_AND_DUPES_2026-07-18.txt:14  --- reading seq_windows keys + ok + reason
+        docs/measurements/SURVIVORS_AND_DUPES_2026-07-18.txt:15  seq_windows rows : 4,420,180
+        docs/ROADMAP.md:808  | 6.29 | **CORRECTED 2026-07-15, SAME DAY, BEFORE ANY ACTION WAS TAKEN ON IT.** **The original e
+        docs/ROADMAP.md:835  | Seq windows | 4,398,366 ok / **21,814 poly** (0.494%) | `seq_windows.manifest.json`; reasons: 
+        docs/ROADMAP.md:883  `run_phase2_eval.py` consume `seq_windows.parquet`'s 8-column schema?
+        docs/status/HANDOFF_2026-07-15_cowork-to-project.md:70  seq_windows/seq_windows.parquet        4,420,180 rows | HAS fasta_seq_ref/alt + `ok` + `reason`
+        docs/status/HANDOFF_2026-07-15_cowork-to-project.md:83  seq_windows.manifest.json:
+        docs/status/HANDOFF_2026-07-15_cowork-to-project.md:150  standing rule); `seq_windows.parquet` was built from **`pathfix`, which still contains them**
+        docs/status/HANDOFF_2026-07-15_cowork-to-project.md:234  `seq_windows.py` ×4, `populate_fasta_seq.py:59`. Monzia's instruction: **fix every site,
+        docs/status/HANDOFF_2026-07-15_cowork-to-project.md:319  | 4 | *"`populate_fasta_seq` / `seq_windows` are a dead island."* | Coupled by **filename**, not
+        docs/status/STATUS_2026-07-15_evidence-separated.md:62  `data/processed/seq_windows/seq_windows.manifest.json`, read verbatim:
+        docs/status/STATUS_2026-07-15_evidence-separated.md:95  data/processed/seq_windows/seq_windows.parquet  | rows = 4,420,180 | 445,419,552 B | 7/10/2026
+        docs/status/STATUS_2026-07-15_evidence-separated.md:107  train.py:102-107          "--seq-windows", default="data/processed/seq_windows"
+        docs/status/STATUS_2026-07-15_evidence-separated.md:108  help="DIRECTORY holding ... seq_windows.parquet + seq_windows.manifest.json"
+        docs/status/STATUS_2026-07-15_evidence-separated.md:109  train.py:435              _seq_win_parquet = Path(args.seq_windows) / "seq_windows.parquet"
+        docs/status/STATUS_2026-07-15_evidence-separated.md:113  run_phase2_eval.py:414    _seq_win = Path(args.seq_windows)
+        docs/status/STATUS_2026-07-15_evidence-separated.md:307  1. **Does `run_phase2_eval.py` work against `seq_windows/seq_windows.parquet`?** Its schema is
+        docs/status/STATUS_2026-07-15_evidence-separated.md:333  | *"`populate_fasta_seq` / `seq_windows` are a dead island."* | Coupled by **filename**, not imp
+        outputs/cleanup_applied.txt:18  DELETE     37.2MB  data/processed/seq_windows/part_00000.parquet
+        outputs/cleanup_applied.txt:19  DELETE     38.1MB  data/processed/seq_windows/part_00001.parquet
+        outputs/cleanup_applied.txt:20  DELETE     40.2MB  data/processed/seq_windows/part_00002.parquet
+        outputs/cleanup_applied.txt:21  DELETE     41.4MB  data/processed/seq_windows/part_00003.parquet
+        outputs/cleanup_applied.txt:22  DELETE     42.0MB  data/processed/seq_windows/part_00004.parquet
+        outputs/cleanup_applied.txt:23  DELETE     41.5MB  data/processed/seq_windows/part_00005.parquet
+        outputs/cleanup_deleted.txt:10  37.2MB  data/processed/seq_windows/part_00000.parquet
+        outputs/cleanup_deleted.txt:11  38.1MB  data/processed/seq_windows/part_00001.parquet
+        outputs/cleanup_deleted.txt:12  40.2MB  data/processed/seq_windows/part_00002.parquet
+        outputs/cleanup_deleted.txt:13  41.4MB  data/processed/seq_windows/part_00003.parquet
+        outputs/cleanup_deleted.txt:14  42.0MB  data/processed/seq_windows/part_00004.parquet
+        outputs/cleanup_deleted.txt:15  41.5MB  data/processed/seq_windows/part_00005.parquet
+        outputs/cleanup_deleted.txt:16  40.4MB  data/processed/seq_windows/part_00006.parquet
+        outputs/cleanup_deleted.txt:17  39.0MB  data/processed/seq_windows/part_00007.parquet
+        outputs/cleanup_deleted.txt:18  39.9MB  data/processed/seq_windows/part_00008.parquet
+        outputs/cleanup_deleted.txt:19  36.7MB  data/processed/seq_windows/part_00009.parquet
+        outputs/cleanup_deleted.txt:20  29.3MB  data/processed/seq_windows/part_00010.parquet
+        outputs/cleanup_deleted.txt:21  2.0B  data/processed/seq_windows/part_00000.done
+        outputs/cleanup_deleted.txt:22  2.0B  data/processed/seq_windows/part_00001.done
+        outputs/cleanup_deleted.txt:23  2.0B  data/processed/seq_windows/part_00002.done
+        outputs/cleanup_deleted.txt:24  2.0B  data/processed/seq_windows/part_00003.done
+        outputs/cleanup_deleted.txt:25  2.0B  data/processed/seq_windows/part_00004.done
+        outputs/cleanup_deleted.txt:26  2.0B  data/processed/seq_windows/part_00005.done
+        outputs/cleanup_deleted.txt:27  2.0B  data/processed/seq_windows/part_00006.done
+        outputs/cleanup_deleted.txt:28  2.0B  data/processed/seq_windows/part_00007.done
+        outputs/cleanup_deleted.txt:29  2.0B  data/processed/seq_windows/part_00008.done
+        outputs/cleanup_deleted.txt:30  2.0B  data/processed/seq_windows/part_00009.done
+        outputs/cleanup_deleted.txt:31  2.0B  data/processed/seq_windows/part_00010.done
+        outputs/cleanup_dryrun.txt:18  would-delete     37.2MB  data/processed/seq_windows/part_00000.parquet
+        outputs/cleanup_dryrun.txt:19  would-delete     38.1MB  data/processed/seq_windows/part_00001.parquet
+        outputs/cleanup_dryrun.txt:20  would-delete     40.2MB  data/processed/seq_windows/part_00002.parquet
+        outputs/cleanup_dryrun.txt:21  would-delete     41.4MB  data/processed/seq_windows/part_00003.parquet
+        outputs/cleanup_dryrun.txt:22  would-delete     42.0MB  data/processed/seq_windows/part_00004.parquet
+        outputs/cleanup_dryrun.txt:23  would-delete     41.5MB  data/processed/seq_windows/part_00005.parquet
+        outputs/cleanup_plan.txt:24  ### (C) seq_windows part_*.parquet + .done -- safe if merged seq_windows.parquet exists ###
+        outputs/cleanup_plan.txt:25  merged EXISTS: data\processed\seq_windows\seq_windows.parquet (424.8MB) -> parts are redundant
+        outputs/dbconn_diff.txt:31  +data/processed/seq_windows/part_*.parquet
+        outputs/dbconn_diff.txt:32  +data/processed/seq_windows/part_*.done
+        outputs/dbconn_diff.txt:33  +data/processed/seq_windows/*.tmp.parquet
+        outputs/housekeeping_audit.txt:153  424.8MB  data\processed\seq_windows\seq_windows.parquet
+        outputs/housekeeping_audit.txt:163  ### 7. seq_windows INTERMEDIATE PARTS (removable post-merge) ###
+        outputs/housekeeping_audit.txt:166  merged seq_windows.parquet: EXISTS 424.8MB
+        outputs/hygiene.txt:6  merged artifact (KEEP): data\processed\seq_windows\seq_windows.parquet  445.4 MB, exists=True
+        outputs/hygiene.txt:16  data/processed/seq_windows/part_*.parquet
+        outputs/hygiene.txt:17  data/processed/seq_windows/part_*.done
+        outputs/hygiene.txt:18  data/processed/seq_windows/*.tmp.parquet
+        outputs/hygiene.txt:22  - seq_windows/part_*.parquet + .done: resume safety; remove AFTER the retrain
+        outputs/hygiene.txt:23  successfully consumes seq_windows.parquet.
+        outputs/ingestion_source_bundle.txt:353  352:             genomiclm_seq_windows_path=(Path(args.seq_windows) if getattr(args, "seq_window
+        outputs/ingestion_source_bundle.txt:406  405:         _seq_win = Path(args.seq_windows) if getattr(args, "seq_windows", None) else None
+        outputs/manifest_dump.txt:21  artifact: data\processed\seq_windows\seq_windows.parquet  (445 MB)
+        outputs/postcleanup_verify.txt:6  OK     424.8MB  data/processed/seq_windows/seq_windows.parquet
+        outputs/postcleanup_verify.txt:8  manifest files in seq_windows: ['seq_windows.manifest.json']
+        outputs/postcleanup_verify.txt:11  OK (gone)  seq_windows parts
+        outputs/postcleanup_verify.txt:12  OK (gone)  seq_windows .done
+        outputs/precompute_dryrun.txt:12  merged 4 parts -> seq_windows.parquet  (100,000 rows)
+        outputs/precompute_full.txt:5  reference: GRCh38.fa   out: data\processed\seq_windows
+        outputs/precompute_full.txt:19  merged 11 parts -> seq_windows.parquet  (4,420,180 rows)
+        outputs/precompute_resume.txt:12  merged 4 parts -> seq_windows.parquet  (100,000 rows)
+        outputs/trainpy.txt:30  103:         default="data/processed/seq_windows",
+        outputs/trainpy.txt:118  426:             "seq_windows=%s) -- removing CNN from ensemble.",
+        outputs/trainpy_exact.txt:4  103: '        default="data/processed/seq_windows",'
+        outputs/trainpy_exact.txt:7  106: '            "(seq_windows.parquet + seq_windows.manifest.json, from "'
+        outputs/trainpy_exact.txt:60  395: '    _seq_win_parquet = _Path(args.seq_windows) / "seq_windows.parquet"'
+        outputs/w1_wiring.txt:2  W1 WIRING DUMP (exact current text to wire cnn_1d -> seq_windows + verify gate)
+        outputs/w2b2_help.txt:20  windows (seq_windows.parquet +
+        outputs/w2b2_help.txt:21  seq_windows.manifest.json, from
+        outputs/w2b2_help.txt:27  data/processed/seq_windows)
+        scripts/apply_d1_fixes.py:263  '        _seq_win = Path(args.seq_windows) if getattr(args, "seq_windows", None) else None\n'
+        scripts/apply_d1_fixes.py:269  '        _seq_win = Path(args.seq_windows) if getattr(args, "seq_windows", None) else None\n'
+        scripts/build_clean_seq_from_windows.py:10  + seq_windows/seq_windows.parquet       (windows + `ok` + `reason`)
+        scripts/build_clean_seq_from_windows.py:21  (`data/seq_windows.py` + `data/populate_fasta_seq.py`, placeholder base "A") wrote this
+        scripts/build_clean_seq_from_windows.py:69  DEF_WINDOWS = "data/processed/seq_windows/seq_windows.parquet"
+        scripts/build_clean_seq_from_windows.py:92  p.add_argument("--seq-windows", dest="seq_windows", default=DEF_WINDOWS)
+        scripts/build_clean_seq_from_windows.py:116  p_win = Path(args.seq_windows)
+        scripts/build_seq_windows.py:5  cohort, writing a reusable seq_windows.parquet plus a coherence manifest, with built-in end-to-e
+        scripts/build_seq_windows.py:16  - Coherence manifest (seq_windows.manifest.json): cohort key-hash, reference .fai signature,
+        scripts/build_seq_windows.py:76  ap.add_argument("--out-dir", default="data/processed/seq_windows")
+        scripts/build_seq_windows.py:172  # Merge parts into a single seq_windows.parquet.
+        scripts/build_seq_windows.py:175  merged_path = out_dir / "seq_windows.parquet"
+        scripts/build_seq_windows.py:244  (out_dir / "seq_windows.manifest.json").write_text(json.dumps(manifest, indent=2))
+        scripts/forensics/audit_cleanup_plan.py:7  (C) redundant seq_windows part_*.parquet + .done (merged artifact exists)
+        scripts/forensics/audit_cleanup_plan.py:12  for seq_windows parts: the merged parquet exists). Nothing is deleted. ASCII-safe.
+        scripts/forensics/audit_cleanup_plan.py:63  # (C) redundant seq_windows parts -- safe IFF merged seq_windows.parquet exists
+        scripts/forensics/audit_cleanup_plan.py:64  print("\n### (C) seq_windows part_*.parquet + .done -- safe if merged seq_windows.parquet exists
+        scripts/forensics/audit_cleanup_plan.py:65  swd = Path("data/processed/seq_windows")
+        scripts/forensics/audit_cleanup_plan.py:66  merged = swd/"seq_windows.parquet"
+        scripts/forensics/audit_cleanup_plan.py:75  print("  merged seq_windows.parquet NOT found -> DO NOT remove parts")
+        scripts/forensics/audit_housekeeping.py:5  blob), and seq_windows part files. DELETES NOTHING. ASCII-safe.
+        scripts/forensics/audit_housekeeping.py:127  # 7. seq_windows part files
+        scripts/forensics/audit_housekeeping.py:128  print("\n### 7. seq_windows INTERMEDIATE PARTS (removable post-merge) ###")
+        scripts/forensics/audit_housekeeping.py:129  swdir = Path("data/processed/seq_windows")
+        scripts/forensics/audit_housekeeping.py:133  merged = swdir / "seq_windows.parquet"
+        scripts/forensics/audit_housekeeping.py:136  print(a(f"  merged seq_windows.parquet: {'EXISTS ' + human(sz(merged)) if merged.exists() else '
+        scripts/forensics/audit_housekeeping.py:138  print("  (no seq_windows dir)")
+        scripts/forensics/cleanup_apply.py:54  # (C) seq_windows parts + .done -- ok iff merged exists + non-empty
+        scripts/forensics/cleanup_apply.py:55  swd = Path("data/processed/seq_windows")
+        scripts/forensics/cleanup_apply.py:56  merged = swd/"seq_windows.parquet"
+        scripts/forensics/smoke_w1.py:65  wdir = Path("data/processed/seq_windows")
+        scripts/forensics/smoke_w1.py:67  if cohort_path.exists() and (wdir / "seq_windows.manifest.json").exists():
+        scripts/forensics/verify_postcleanup.py:3  removed ONLY the intended files and left every real artifact intact: (1) merged seq_windows.parq
+        scripts/forensics/verify_postcleanup.py:5  seq_windows part_*/.done are GONE; (4) the .OOMbak is GONE; (5) the 7 this-arc .bak are GONE; (6
+        scripts/forensics/verify_postcleanup.py:30  "data/processed/seq_windows/seq_windows.parquet",
+        scripts/forensics/verify_postcleanup.py:33  # manifest: find any manifest json/parquet in seq_windows
+        scripts/forensics/verify_postcleanup.py:34  swd = Path("data/processed/seq_windows")
+        scripts/forensics/verify_postcleanup.py:40  print(a(f"  manifest files in seq_windows: {[p.name for p in manifests] or '(none found -- check
+        scripts/forensics/verify_postcleanup.py:44  ("seq_windows parts", list(swd.glob("part_*.parquet")) if swd.exists() else []),
+        scripts/forensics/verify_postcleanup.py:45  ("seq_windows .done", list(swd.glob("*.done")) if swd.exists() else []),
+        scripts/forensics/verify_w1.py:31  chk("gate is manifest-conditional (backward compat)", "seq_windows.manifest.json" in src
+        scripts/hygiene_pass.py:42  "data/processed/seq_windows/part_*.parquet",
+        scripts/hygiene_pass.py:43  "data/processed/seq_windows/part_*.done",
+        scripts/hygiene_pass.py:44  "data/processed/seq_windows/*.tmp.parquet",
+        scripts/hygiene_pass.py:56  parts = sorted(Path("data/processed/seq_windows").glob("part_*.parquet"))
+        scripts/hygiene_pass.py:57  dones = sorted(Path("data/processed/seq_windows").glob("part_*.done"))
+        scripts/hygiene_pass.py:58  merged = Path("data/processed/seq_windows/seq_windows.parquet")
+        scripts/hygiene_pass.py:107  print("  - seq_windows/part_*.parquet + .done: resume safety; remove AFTER the retrain")
+        scripts/hygiene_pass.py:108  print("    successfully consumes seq_windows.parquet.")
+        scripts/rekey_seq_windows_v2.py:9  ref allele actually matches the genome (`seq_windows.find_anchor`), NOT to the cohort's
+        scripts/run_phase2_eval.py:361  genomiclm_seq_windows_path=(Path(args.seq_windows) if getattr(args, "seq_windows", None) else No
+        scripts/run_phase2_eval.py:414  _seq_win = Path(args.seq_windows) if getattr(args, "seq_windows", None) else None
+        scripts/smoke_all_models.py:176  ("--alphamissense", args.alphamissense), ("--seq-windows", args.seq_windows),
+        scripts/smoke_all_models.py:206  ap.add_argument("--seq-windows", dest="seq_windows")
+        scripts/train.py:103  default="data/processed/seq_windows",
+        scripts/train.py:106  "(seq_windows.parquet + seq_windows.manifest.json, from "
+        scripts/train.py:289  _seq_win_dir = _Path(args.seq_windows)
+        scripts/train.py:290  if (_seq_win_dir / "seq_windows.manifest.json").exists():
+        scripts/train.py:435  _seq_win_parquet = _Path(args.seq_windows) / "seq_windows.parquet"
+        scripts/train.py:520  "(%d/%d usable; seq_windows=%s) -- removing CNN from ensemble.",
+        src/genomic_variant_classifier/data/seq_window_join.py:21  seq_windows.manifest.json (2026-07-10 build, the artifact Run 17 will read):
+        src/genomic_variant_classifier/data/seq_window_manifest.py:61  "seq_windows verification failed:\n  - " + "\n  - ".join(self.reasons)
+        src/genomic_variant_classifier/data/seq_window_manifest.py:92  manifest_path = windows_dir / "seq_windows.manifest.json"
+        src/genomic_variant_classifier/data/seq_window_manifest.py:130  parq = windows_dir / "seq_windows.parquet"
+        src/genomic_variant_classifier/data/seq_window_manifest.py:132  record("artifact_present", False, f"no seq_windows.parquet at {parq}")
+        src/genomic_variant_classifier.egg-info/SOURCES.txt:113  src/genomic_variant_classifier/data/seq_windows.py
+        stage1_input_resolve.txt:8  [MISS] seq-windows (--seq-windows, CNN)                                    -  data/processed/seq
+        tests/test_build_clean_seq_from_windows.py:55  (proc / "seq_windows").mkdir(parents=True)
+        tests/test_build_clean_seq_from_windows.py:75  p_win = proc / "seq_windows" / "seq_windows.parquet"
+        tests/test_build_seq_windows.py:5  Phase 3 retires `data/seq_windows.py` and `data/populate_fasta_seq.py`, which are the
+        tests/test_build_seq_windows.py:272  merged = out / "seq_windows.parquet"
+        tests/test_build_seq_windows.py:281  man = json.loads((out / "seq_windows.manifest.json").read_text())
+        tests/test_build_seq_windows.py:294  df = pd.read_parquet(out / "seq_windows.parquet")
+        tests/test_build_seq_windows.py:316  df = pd.read_parquet(out / "seq_windows.parquet")
+        tests/test_seq_window_manifest.py:25  wdir = tmp_path / "seq_windows"
+        tests/test_seq_window_manifest.py:33  art.to_parquet(wdir / "seq_windows.parquet", index=False)
+        tests/test_seq_window_manifest.py:44  (wdir / "seq_windows.manifest.json").write_text(json.dumps(manifest))
+        tests/unit/test_gnn_epochs_flag.py:29  gnomad=None, spliceai=None, alphamissense=None, seq_windows=None,
+        tests/unit/test_run17_fullflag_smoke.py:29  gnomad=None, spliceai=None, alphamissense=None, seq_windows=None,
+
+    'populate_fasta_seq' -- 64 reference(s) outside the retiring files themselves
+        by file type: {'.md': 5, '.py': 10, '.txt': 48, '.yaml': 1}
+        configs/data_manifest.yaml:85  notes: "Reference genome FASTA. Read form: the UNCOMPRESSED data/external/reference/Homo_sapiens
+        docs/measurements/LOCAL_STATE_2026-07-18.txt:94  --- src\genomic_variant_classifier\data\populate_fasta_seq.py
+        docs/measurements/RED_TESTS_2026-07-18.txt:66  E             src\genomic_variant_classifier\data\populate_fasta_seq.py:59  ....PAD_CHAR * ...  
+        docs/measurements/RED_TESTS_2026-07-18.txt:82  E       assert not ["    scripts\\preflight_run16_inputs.py:23  'A' * ...", "    scripts\\probe_
+        docs/measurements/RED_TESTS_2026-07-18.txt:170  src\genomic_variant_classifier\data\populate_fasta_seq.py:59  ....PAD_CHAR * ...   (a known plac
+        docs/measurements/RED_TESTS_2026-07-18.txt:186  assert not ["    scripts\\preflight_run16_inputs.py:23  'A' * ...", "    scripts\\probe_cohort_s
+        docs/measurements/RED_TESTS_2026-07-18.txt:453  src\genomic_variant_classifier\data\populate_fasta_seq.py:59: _POLY_A = sw.PAD_CHAR * sw.WINDOW
+        docs/measurements/RED_TESTS_2026-07-18.txt:454  src\genomic_variant_classifier\data\populate_fasta_seq.py:119: ref_wins: List[str] = [_POLY_A] *
+        docs/measurements/RED_TESTS_2026-07-18.txt:455  src\genomic_variant_classifier\data\populate_fasta_seq.py:120: alt_wins: List[str] = [_POLY_A] *
+        docs/measurements/RED_TESTS_2026-07-18.txt:456  src\genomic_variant_classifier\data\populate_fasta_seq.py:154: if rw == _POLY_A:
+        docs/measurements/RED_TESTS_2026-07-18.txt:478  src\genomic_variant_classifier\data\populate_fasta_seq.py:59: _POLY_A = sw.PAD_CHAR * sw.WINDOW
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:1  RETIREMENT SAFETY AUDIT -- seq_windows.py / populate_fasta_seq.py
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:15  PRESENT  src/genomic_variant_classifier/data/populate_fasta_seq.py    8,843 bytes
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:16  PRESENT  scripts/populate_fasta_seq.py                                3,189 bytes
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:30  src/genomic_variant_classifier/data/populate_fasta_seq.py:51
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:33  populate_fasta_seq -- 2 importer(s)
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:34  scripts/populate_fasta_seq.py:24
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:85  docs/status/HANDOFF_2026-07-15_cowork-to-project.md:234  `seq_windows.py` ×4, `populate_fasta_se
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:86  docs/status/HANDOFF_2026-07-15_cowork-to-project.md:319  | 4 | *"`populate_fasta_seq` / `seq_win
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:94  docs/status/STATUS_2026-07-15_evidence-separated.md:333  | *"`populate_fasta_seq` / `seq_windows
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:236  'populate_fasta_seq' -- 29 reference(s) outside the retiring files themselves
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:239  docs/measurements/LOCAL_STATE_2026-07-18.txt:94  --- src\genomic_variant_classifier\data\populat
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:240  docs/measurements/RED_TESTS_2026-07-18.txt:66  E             src\genomic_variant_classifier\data
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:242  docs/measurements/RED_TESTS_2026-07-18.txt:170  src\genomic_variant_classifier\data\populate_fas
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:244  docs/measurements/RED_TESTS_2026-07-18.txt:453  src\genomic_variant_classifier\data\populate_fas
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:245  docs/measurements/RED_TESTS_2026-07-18.txt:454  src\genomic_variant_classifier\data\populate_fas
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:246  docs/measurements/RED_TESTS_2026-07-18.txt:455  src\genomic_variant_classifier\data\populate_fas
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:247  docs/measurements/RED_TESTS_2026-07-18.txt:456  src\genomic_variant_classifier\data\populate_fas
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:248  docs/measurements/RED_TESTS_2026-07-18.txt:478  src\genomic_variant_classifier\data\populate_fas
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:249  docs/status/HANDOFF_2026-07-15_cowork-to-project.md:234  `seq_windows.py` ×4, `populate_fasta_se
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:250  docs/status/HANDOFF_2026-07-15_cowork-to-project.md:319  | 4 | *"`populate_fasta_seq` / `seq_win
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:252  docs/status/STATUS_2026-07-15_evidence-separated.md:315  5. **Is `populate_fasta_seq.py` intende
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:253  docs/status/STATUS_2026-07-15_evidence-separated.md:333  | *"`populate_fasta_seq` / `seq_windows
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:254  outputs/clinvar_source_grep.txt:78  C:\Projects\genomic-variant-classifier\scripts\populate_fast
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:255  outputs/clinvar_source_grep.txt:79  C:\Projects\genomic-variant-classifier\scripts\populate_fast
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:256  outputs/clinvar_source_grep.txt:80  C:\Projects\genomic-variant-classifier\scripts\populate_fast
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:257  outputs/clinvar_source_grep.txt:171  C:\Projects\genomic-variant-classifier\src\genomic_variant_
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:259  src/genomic_variant_classifier.egg-info/SOURCES.txt:104  src/genomic_variant_classifier/data/pop
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:262  tests/unit/test_no_content_based_poly_detection.py:57  "of _poly_literals could not see, which i
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:263  tests/unit/test_no_content_based_poly_detection.py:81  #:     src/genomic_variant_classifier/dat
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:264  tests/unit/test_no_content_based_poly_detection.py:238  # THE HOLE THAT populate_fasta_seq.py WA
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:265  tests/unit/test_no_content_based_poly_detection.py:245  "in the same module -- this is exactly h
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:266  tests/unit/test_no_content_based_poly_detection.py:251  "populate_fasta_seq.py:59 that this gate
+        docs/measurements/RETIREMENT_AUDIT_2026-07-18.txt:278  scripts/populate_fasta_seq.py                      lines [9, 28]   <== RETIRING
+        docs/status/HANDOFF_2026-07-15_cowork-to-project.md:234  `seq_windows.py` ×4, `populate_fasta_seq.py:59`. Monzia's instruction: **fix every site,
+        docs/status/HANDOFF_2026-07-15_cowork-to-project.md:319  | 4 | *"`populate_fasta_seq` / `seq_windows` are a dead island."* | Coupled by **filename**, not
+        docs/status/HANDOFF_2026-07-15_cowork-to-project.md:347  | 18 | **The repo-wide poly ban had the defect it was built to prevent.** It matched only `Const
+        docs/status/STATUS_2026-07-15_evidence-separated.md:315  5. **Is `populate_fasta_seq.py` intended to be retired?** It is not import-dead — it *produces*
+        docs/status/STATUS_2026-07-15_evidence-separated.md:333  | *"`populate_fasta_seq` / `seq_windows` are a dead island."* | Coupled by **filename**, not imp
+        outputs/clinvar_source_grep.txt:78  C:\Projects\genomic-variant-classifier\scripts\populate_fasta_seq.py                            
+        outputs/clinvar_source_grep.txt:79  C:\Projects\genomic-variant-classifier\scripts\populate_fasta_seq.py                            
+        outputs/clinvar_source_grep.txt:80  C:\Projects\genomic-variant-classifier\scripts\populate_fasta_seq.py                            
+        outputs/clinvar_source_grep.txt:171  C:\Projects\genomic-variant-classifier\src\genomic_variant_classifier\data\populate_fasta_seq.py
+        scripts/build_clean_seq_from_windows.py:21  (`data/seq_windows.py` + `data/populate_fasta_seq.py`, placeholder base "A") wrote this
+        scripts/rekey_seq_windows_v2.py:8  `populate_fasta_seq.py` builds each window by ANCHORING to the position where the
+        src/genomic_variant_classifier.egg-info/SOURCES.txt:104  src/genomic_variant_classifier/data/populate_fasta_seq.py
+        tests/test_build_clean_seq_from_windows.py:5  `scripts/build_clean_seq_from_windows.py` replaces `scripts/populate_fasta_seq.py` as the
+        tests/test_build_seq_windows.py:5  Phase 3 retires `data/seq_windows.py` and `data/populate_fasta_seq.py`, which are the
+        tests/test_rekey_seq_windows_v2.py:30  """A seq parquet as populate_fasta_seq writes it: v1 (stale) pos, correct window content."""
+        tests/unit/test_no_content_based_poly_detection.py:57  "of _poly_literals could not see, which is how populate_fasta_seq.py's "
+        tests/unit/test_no_content_based_poly_detection.py:81  #:     src/genomic_variant_classifier/data/populate_fasta_seq.py:59
+        tests/unit/test_no_content_based_poly_detection.py:238  # THE HOLE THAT populate_fasta_seq.py WALKED THROUGH -- these MUST now fire.
+        tests/unit/test_no_content_based_poly_detection.py:245  "in the same module -- this is exactly how populate_fasta_seq.py evaded it"
+        tests/unit/test_no_content_based_poly_detection.py:251  "populate_fasta_seq.py:59 that this gate was supposed to catch"
+
+
+======================================================================================
+## 4. ARTIFACT PRODUCERS -- who WRITES clinvar_grch38_clean_seq.parquet?
+======================================================================================
+
+THE DECISIVE CHECK. If the only producer is being retired, the artifact becomes
+unreproducible from the repository and the retirement is UNSAFE until a
+replacement exists in version control -- not in a Downloads folder.
+
+    PRODUCERS -- artifact appears as an OUTPUT (2):
+        scripts/build_clean_seq_from_windows.py            lines [70]
+        scripts/populate_fasta_seq.py                      lines [9, 28]   <== RETIRING
+
+    CONSUMERS -- artifact appears as an INPUT (18):
+        Run_pandas3_full_validation.ps1                    lines [55]
+        scripts/diagnose_esm2_coverage.py                  lines [22, 159]
+        scripts/diagnose_seq_coverage_gap.py               lines [21, 53]
+        scripts/forensics/reconcile_seq_gap_discrepancy.py lines [23, 48]
+        scripts/install_docs_close_2026-06-12_run16-smoke-gate.py lines [181]
+        scripts/install_docs_close_cnn_rna.py              lines [58, 85, 148]
+        scripts/launch_run15_baseline.sh                   lines [133]
+        scripts/launch_run16_vm.sh                         lines [109]
+        scripts/launch_run17_baseline.sh                   lines [181]
+        scripts/launch_run17_r12only.sh                    lines [183]
+        scripts/launch_run17_r13only.sh                    lines [183]
+        scripts/launch_run17_rnaseq_ablation.sh            lines [42]
+        scripts/locate_1kg.py                              lines [14]
+        scripts/make_smoke_seq_cohort.py                   lines [21]
+        scripts/preflight_run16_inputs.py                  lines [128]
+        scripts/probe_protein_coord_coverage.py            lines [44]
+        scripts/rekey_seq_windows_v2.py                    lines [47, 196]
+        scripts/smoke_all_models.py                        lines [31]
+
+    MENTIONS ONLY -- prose, comments, docstrings (13):
+        scripts/audit_docs_state.ps1                       lines [25]
+        scripts/audit_run16_data_sources.py                lines [24]
+        scripts/build_cohort_v2.py                         lines [35, 371]
+        scripts/install_docs_close_2026-06-12_run16b.py    lines [68, 91]
+        scripts/launch_run16.py                            lines [52]
+        scripts/patch_run15_plan_decisionlog.py            lines [16]
+        scripts/preflight_gate.py                          lines [27]
+        scripts/preflight_run16.py                         lines [35]
+        scripts/prep_dbnsfp_cache.py                       lines [27]
+        scripts/probe_protein_coord_cache.py               lines [35]
+        scripts/run_phase2_eval.py                         lines [50]
+        src/genomic_variant_classifier/data/genomic_lm.py  lines [21]
+        tests/test_build_clean_seq_from_windows.py         lines [6, 82]
+
+    PRODUCERS THAT SURVIVE RETIREMENT: 1
+        scripts/build_clean_seq_from_windows.py
+
+======================================================================================
+## 5. ARTIFACT CONSUMERS -- who READS it?
+======================================================================================
+
+    Producers and consumers are enumerated in section 4. Blast radius by file type:
+        .py       25 file(s)
+        .txt      18 file(s)
+        .md       15 file(s)
+        .sh        6 file(s)
+        .ps1       2 file(s)
+
+        total files referencing the artifact: 66
+
+======================================================================================
+## 6. TEST IMPACT -- exactly which tests die
+======================================================================================
+
+    tests/unit/test_seq_windows.py                 16 test(s)
+        - test_deletion_pulls_downstream_left
+        - test_edge_near_contig_start_pads_left
+        - test_find_anchor_absent_multibase_returns_none
+        - test_find_anchor_deletion_resolves_minus_one
+        - test_find_anchor_exact_single_base
+        - test_find_anchor_respects_max_shift
+        - test_find_anchor_single_base_mismatch_returns_none
+        - test_insertion_pushes_downstream_right
+        - test_missing_contig_returns_polyA_zero_delta
+        - test_multibase_ref_match
+        - test_pyfaidx_adapter_agrees_with_dict
+        - test_ref_matches_true_and_false
+        - test_ref_window_centers_variant_base
+        - test_short_contig_pads_right
+        - test_snv_alt_differs_by_exactly_one_base
+        - test_window_lengths_always_101
+    tests/unit/test_populate_fasta_seq.py          5 test(s)
+        - test_contig_grouped_matches_independent_per_row
+        - test_missing_required_column_raises
+        - test_passthrough_order_windows_and_anchoring
+        - test_refuses_when_window_columns_present
+        - test_unanchored_guard_aborts_and_cleans_temp
+
+    TOTAL tests removed by retirement: 21
+    The suite ratchet DECREASES. A decrease is exactly what a ratchet exists to
+    catch, because tests usually vanish by accident. Record the reason in
+    tests/EXPECTED_SUITE_SIZE and MEASURE the new number with --collect-only.
+
+======================================================================================
+## 7. NAMING CONVENTION -- does the proposed name fit?
+======================================================================================
+
+    scripts/*.py total: 334
+
+    most common prefixes:
+        patch_         109   e.g. patch_ablate_gnn_flags.py
+        build_          30   e.g. build_1kg_parquet.py
+        probe_          19   e.g. probe_1kg_superpop_info.py
+        audit_          10   e.g. audit_agent_operational.py
+        validate_       10   e.g. validate_clinvar_temporal.py
+        verify_         10   e.g. verify_alleleless_provenance.py
+        diagnose_        8   e.g. diagnose_and_recover_alleleless.py
+        preflight_       8   e.g. preflight_check.py
+        apply_           7   e.g. apply_cohort_guard.py
+        run_             7   e.g. run_adaptation.py
+
+    existing 'build_*' scripts, the family the proposal joins:
+        build_1kg_parquet.py
+        build_alphafold_parquet.py
+        build_calibration_baseline.py
+        build_clean_seq_from_windows.py
+        build_cohort_from_source.py
+        build_cohort_v2.py
+        build_concept_baseline.py
+        build_data_layout_manifest.py
+        build_dbsnp_index.py
+        build_dbsnp_parquet.py
+        build_drift_reference_profile.py
+        build_fairness_baseline.py
+        build_feature_coverage_baseline.py
+        build_gnomad_parquet.py
+        build_gnomad_ymt_af.py
+        build_gtex_de_features.py
+        build_gtex_median_tpm_features.py
+        build_gtex_parquet.py
+        build_infrastructure_baseline.py
+        build_kegg_parquet.py
+        build_label_shift_baseline.py
+        build_lovd_index.py
+        build_reactome_parquet.py
+        build_reclassification_reference.py
+        build_rnaseq_canonical_real.py
+        build_rnaseq_parquet.py
+        build_schema_baseline.py
+        build_seq_windows.py
+        build_spliceai_index.py
+        build_uniprot_index.py
+
+======================================================================================
+## 8. COLLISION -- does the proposed path already exist?
+======================================================================================
+
+    proposed : scripts/build_clean_seq_from_windows.py
+    exists   : True
+    status   : this file PRODUCES clinvar_grch38_clean_seq.parquet -- it is the
+               replacement producer, in place. Not a collision.
+    similar existing names: ['scripts/build_clean_seq_from_windows.py', 'tests/test_build_clean_seq_from_windows.py']
+
+======================================================================================
+## 8b. IS THE REPLACEMENT PRODUCER TESTED?
+======================================================================================
+
+An untested replacement is not a replacement. Coverage must exist BEFORE the
+outgoing producer is deleted, not after.
+
+    tests/test_build_clean_seq_from_windows.py           9 test(s)
+
+======================================================================================
+## 9. VERDICT
+======================================================================================
+
+    No blocking finding. Retirement can proceed, subject to the test-count
+    decrease being recorded and MEASURED rather than assumed.
+
+Report written to: C:\Projects\genomic-variant-classifier\docs\measurements\RETIREMENT_AUDIT_2026-07-18.txt

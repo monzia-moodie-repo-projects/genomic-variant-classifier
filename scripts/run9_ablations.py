@@ -17,9 +17,28 @@ information gain, linear models see zero contribution.
 
 SCHEMA CALIBRATION — 2026-04-19
 --------------------------------
-ABLATION_MASKS in this file is calibrated against the 78-column schema
-confirmed by direct `_engineer_features` probe on 2026-04-19. Do NOT
-assume your on-disk split parquet matches this schema — check it:
+ABLATION_MASKS in this file was calibrated against the 78-column schema
+confirmed by direct `_engineer_features` probe on 2026-04-19. The tabular
+contract has since grown to 95 (variant_ensemble.EXPECTED_TABULAR_FEATURE_COUNT).
+
+COVERAGE GAP measured 2026-07-18: 32 of the 95 contract features match no
+ablation prefix. Most are core variant descriptors with no external source to
+ablate (ref_len, is_snv, consequence_severity and similar). But six external
+annotation families have NO mask at all, so their contribution cannot currently
+be measured by this harness:
+
+    RNA-seq        rnaseq_mean_log_tpm, rnaseq_detection_rate, rnaseq_log2_cv,
+                   rnaseq_log2fc, rnaseq_de_neglog10p
+    COSMIC         cosmic_recurrence, cosmic_sig_tier
+    KEGG           kegg_pathway_count, kegg_disease_pathway_flag
+    GenomicLM/NT   genomiclm_delta_norm, genomiclm_llr
+    Reactome       reactome_pathway_count
+    hetero-GNN     hetero_gnn_score   (no_gnn covers gnn_score, not this one)
+
+Adding masks for these is experimental design, not a bug fix, and is left open
+deliberately rather than guessed at.
+
+Do NOT assume your on-disk split parquet matches this schema — check it:
 
     python -c "import pandas as pd; \\
         print(pd.read_parquet('outputs/<run>/splits/X_train.parquet').shape)"
@@ -483,7 +502,9 @@ def load_splits(
 # ---------------------------------------------------------------------------
 def main() -> int:
     p = argparse.ArgumentParser(
-        description="LOCO ablation harness for Run 9+ (78-column schema)"
+        description="LOCO ablation harness for Run 9+. ABLATION_MASKS was calibrated "
+                    "against a 78-column schema on 2026-04-19; the tabular contract "
+                    "is now 95. See the module docstring for the coverage gap."
     )
     p.add_argument(
         "--splits-dir",
@@ -518,7 +539,9 @@ def main() -> int:
     p.add_argument(
         "--skip-nn",
         action="store_true",
-        help="Exclude cnn_1d and tabular_nn (smoke tests only).",
+        help="Exclude tabular_nn (smoke tests only). cnn_1d is ALWAYS excluded from "
+             "ablations: X_seq here is a constant placeholder, so a convolutional "
+             "branch cannot learn from it.",
     )
     p.add_argument("--skip-svm", action="store_true")
     p.add_argument(
@@ -578,6 +601,7 @@ def main() -> int:
     )
     from genomic_variant_classifier.evaluation.evaluator import ClinicalEvaluator
     from genomic_variant_classifier.evaluation.prediction_artifacts import RunArtifactWriter
+    from genomic_variant_classifier.data.delta_window_builder import placeholder_window
 
     # ── Load splits ───────────────────────────────────────────────────────
     splits = load_splits(args.splits_dir)
@@ -637,10 +661,22 @@ def main() -> int:
     )
 
     # ── Sequence placeholder (mirrors mainline) ───────────────────────────
-    poly_a = "A" * 101
-    seq_tr = pd.Series([poly_a] * len(y_train))
-    seq_va = pd.Series([poly_a] * len(y_val))
-    seq_te = pd.Series([poly_a] * len(y_test))
+    # Sequence is NOT the variable under test in a tabular ablation, but
+    # VariantEnsemble.fit/evaluate/predict_proba take X_seq positionally and index it
+    # unconditionally, so a value must be supplied. It is REQUESTED from the canonical
+    # helper rather than built here, so placeholder knowledge stays in one module.
+    #
+    # Before 2026-07-18 this read `poly_a = "A" * 101`. "A" is in encode_sequence's
+    # BASES, so every fabricated position one-hot-encoded to a CONFIDENT ADENINE.
+    # placeholder_window() returns POLY ("N"), which is absent from BASES and therefore
+    # encodes to all zeros -- an honest "no information here".
+    #
+    # The previous comment claimed this "mirrors mainline". It did not: scripts/train.py
+    # passes REAL windows.
+    placeholder = placeholder_window()
+    seq_tr = pd.Series([placeholder] * len(y_train))
+    seq_va = pd.Series([placeholder] * len(y_val))
+    seq_te = pd.Series([placeholder] * len(y_test))
 
     # ── Ensemble ──────────────────────────────────────────────────────────
     ens_cfg = EnsembleConfig(
@@ -654,8 +690,19 @@ def main() -> int:
 
     # Mirror mainline skip rules. KAN and mc_dropout/deep_ensemble are
     # controlled via EnsembleConfig above, not popped here.
+    # cnn_1d is ALWAYS excluded from ablations (2026-07-18). X_seq here is a single
+    # constant repeated for every row, so a convolutional branch cannot learn from its
+    # input: it would contribute a near-constant column to the stacking meta-learner and
+    # produce a per-model ablation number for a model that measured nothing. Omitting it
+    # makes the ablation report what it actually measured -- the tabular features.
+    #
+    # Restoring it needs REAL windows. The persisted splits under outputs/<run>/splits/
+    # do not carry them, and there is no meta_train to re-join on, so that is separate
+    # work rather than a flag.
+    ensemble.base_estimators.pop("cnn_1d", None)
+    logger.info("cnn_1d excluded from ablation: X_seq is a constant placeholder, so its "
+                "contribution would be uninformative by construction")
     if args.skip_nn:
-        ensemble.base_estimators.pop("cnn_1d", None)
         ensemble.base_estimators.pop("tabular_nn", None)
     if args.skip_svm or len(y_train) > 100_000:
         ensemble.base_estimators.pop("svm", None)

@@ -2,9 +2,12 @@
 """probe_cohort_seq_density.py PARQUET [PARQUET ...]
 
 READ-ONLY. Reports, for each parquet: which of fasta_seq / fasta_seq_ref /
-fasta_seq_alt exist, and how densely each is populated (notna, nonempty, dummy
-'A'*101, real). Tells us whether train.py's CNN raise can fire and which column
-form the train-side fix must consume. Does not modify anything.
+fasta_seq_alt exist, how densely each is populated (notna, nonempty, length
+range), and -- from the builder's own `ok` column -- how many rows carry a
+placeholder window. Reports placeholder counts from PROVENANCE, never from
+content: a window of one repeated base may be genuine biology, so content cannot
+distinguish it from a window the builder failed to build. Where `ok` is absent the
+probe says so explicitly rather than reporting zero. Does not modify anything.
 Author: Monzia Moodie
 """
 from __future__ import annotations
@@ -16,7 +19,7 @@ import pandas as pd
 import pyarrow.parquet as pq
 
 SEQ_COLS = ["fasta_seq", "fasta_seq_ref", "fasta_seq_alt"]
-DUMMY = "A" * 101
+PROV_COLS = ["ok", "reason"]
 
 
 def report(path: str) -> None:
@@ -33,15 +36,39 @@ def report(path: str) -> None:
         print("  -> no fasta_seq* columns present: CNN drops to placeholders "
               "(no raise; no real-sequence training). NOT a Run 16 blocker.")
         return
-    df = pd.read_parquet(p, columns=present)
+    has_prov = "ok" in schema_cols
+    df = pd.read_parquet(p, columns=present + ([c for c in PROV_COLS if c in schema_cols]
+                                               if has_prov else []))
     for c in present:
         s = df[c].astype("string")
         notna = int(s.notna().sum())
         nonempty = int((s.fillna("").str.len() > 0).sum())
-        ndummy = int((s == DUMMY).sum())
-        real = int(((s.notna()) & (s != DUMMY) & (s.fillna("").str.len() > 0)).sum())
+        lens = s.fillna("").str.len()
         print(f"  {c:16s} notna={notna}/{nrows}  nonempty={nonempty}  "
-              f"dummy={ndummy}  real={real}")
+              f"len_min={int(lens.min()) if len(lens) else 0} "
+              f"len_max={int(lens.max()) if len(lens) else 0}")
+
+    # PROVENANCE, not content. A window whose bases are one repeated letter may be real
+    # biology; only the builder knows whether it gave up. Before 2026-07-18 this block
+    # compared against "A" * 101 and reported dummy=0 once the placeholder base became
+    # "N" -- which reads as "clean" when the truth is "cannot tell".
+    if has_prov:
+        okc = df["ok"].fillna(False).astype(bool)
+        n_bad = int((~okc).sum())
+        print(f"  provenance       ok column PRESENT -> "
+              f"usable={int(okc.sum())}/{nrows}  placeholder={n_bad}")
+        if n_bad and "reason" in df.columns:
+            counts = (df.loc[~okc, "reason"].astype(str)
+                      .str.split("(").str[0].value_counts())
+            for reason, k in counts.items():
+                print(f"                     {reason:<24} {int(k):>8}")
+    else:
+        print("  provenance       ok column ABSENT -- placeholder rows CANNOT be "
+              "identified.")
+        print("                   This is NOT the same as zero placeholders. Rebuild "
+              "with")
+        print("                   scripts/build_seq_windows.py, then join with")
+        print("                   scripts/build_clean_seq_from_windows.py, to restore it.")
     if "fasta_seq" in present:
         s = df["fasta_seq"].astype("string")
         print(f"  NOTE: train.py raises when TEST-split single 'fasta_seq' notna > 100. "

@@ -10,7 +10,9 @@ Stages
 ------
   1 smoke       Each active base estimator fits on a tiny slice without raising.
   2 config      Required estimator init attributes are present (e.g. KAN.test_size).
-  3 sanity      fasta_seq is real (not the "A"*101 dummy); predictions not constant.
+  3 sanity      sequence windows are real, judged by the builder's `ok`
+                provenance column rather than by content; predictions not
+                constant.
   4 determinism Same seed -> identical ensemble probabilities.
   5 zero-audit  No non-binary engineered feature is ~all-zero (silent-zero class).
 
@@ -35,8 +37,6 @@ import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
-
-_DUMMY_SEQ = "A" * 101
 
 
 @dataclass
@@ -145,15 +145,38 @@ def _stage3_sanity(
 ) -> None:
     report.stages_run.append(3)
 
-    # 3a. fasta_seq must not be the all-dummy placeholder when present.
-    if "fasta_seq" in raw_df.columns:
-        seqs = raw_df["fasta_seq"].astype(str)
-        if (seqs == _DUMMY_SEQ).mean() > 0.5:
+    # 3a. Sequence windows must be REAL -- judged by PROVENANCE, never by content.
+    #
+    # Rewritten 2026-07-18. The previous form compared raw_df["fasta_seq"] against
+    # "A" * 101 and could not fail for three independent reasons: "fasta_seq" is 100%
+    # null on the live cohort (0 of 4,399,089, INCIDENT_2026-05-23); the placeholder
+    # base became "N" on 2026-07-15 so "A" * 101 no longer occurs; and the harness runs
+    # on build_reference_slice(), which emits random ACGT.
+    #
+    # Content cannot answer this question in any case. A window of one repeated base may
+    # be genuine biology. Only delta_window_builder knows whether it gave up, and it
+    # records that per row in `ok`.
+    _seq_cols = [c for c in ("fasta_seq_ref", "fasta_seq_alt", "fasta_seq")
+                 if c in raw_df.columns]
+    if "ok" in raw_df.columns:
+        _usable = raw_df["ok"].fillna(False).astype(bool)
+        _frac_bad = float((~_usable).mean()) if len(_usable) else 0.0
+        if _frac_bad > 0.5:
             report._fail(
                 3,
-                "fasta_seq is the dummy placeholder ('A'*101) for >50% of rows - "
-                "CNN would train on non-informative sequence (INCIDENT_2026-05-23 class)",
+                f"{_frac_bad:.1%} of rows carry a builder placeholder window (ok=False) "
+                "- the 1D convolutional branch would train on non-informative sequence "
+                "(INCIDENT_2026-05-23 class)",
             )
+    elif _seq_cols:
+        # NOT the same as a clean result. Absence of evidence is recorded, not hidden.
+        report._warn(
+            3,
+            "sequence column(s) {} present but no `ok` provenance column - placeholder "
+            "rows CANNOT be identified, and content cannot answer this. Rebuild via "
+            "scripts/build_seq_windows.py then scripts/build_clean_seq_from_windows.py"
+            .format(_seq_cols),
+        )
 
     # 3b. labels must have both classes (else AUROC is undefined / models constant).
     if y.nunique() < 2:
@@ -443,6 +466,11 @@ def build_reference_slice(n: int = 200, seed: int = 7) -> pd.DataFrame:
         "allele_freq": af, "consequence": cons,
         "alphamissense_score": label * 0.6 + rng.uniform(0, 0.4, n),
         "fasta_seq": ["".join(rng.choice(list("ACGT"), 101)) for _ in range(n)],
+        # Provenance for stage 3a. Without it the harness would WARN on every
+        # run, and a warning that always fires is a warning nobody reads.
+        # `ok` is not in TABULAR_FEATURES, so engineer_features ignores it and
+        # stage 5's zero-audit never sees it.
+        "ok": [True] * n,
         "pli_score": rng.uniform(0.1, 0.9, n), "syn_z": rng.uniform(-3, 5, n),
         "mis_z": rng.uniform(-3, 5, n), "loeuf": rng.uniform(0.05, 2, n),
         "dbsnp_af": rng.uniform(1e-4, 0.5, n), "maxentscan_score": rng.uniform(-5, 12, n), "maxentscan_delta": rng.uniform(-10, 10, n),

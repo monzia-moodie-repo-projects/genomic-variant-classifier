@@ -48,7 +48,13 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "InstaDeepAI/nucleotide-transformer-v2-100m-multi-species"
 DEFAULT_WINDOW = 101
-_POLY_A = "A" * DEFAULT_WINDOW
+# `_POLY_A = "A" * DEFAULT_WINDOW` was DELETED 2026-07-15 (roadmap 6.28). It was already
+# dead -- zero references in this module -- because its consumers (`self._poly` and
+# `_mapped_mask`) were removed earlier the same day. I MISSED IT: I deleted the two uses
+# and left the constant standing, which is exactly the "dead code left behind by a
+# partial cleanup" that CLAUDE.md 4 forbids. It was found by
+# tests/unit/test_no_content_based_poly_detection.py -- the repo-wide ban written that
+# same hour, catching its own author's incomplete work on its first clean run.
 
 _DEFAULT_SCORE_CACHE = os.environ.get(
     "GENOMICLM_SCORE_CACHE", "data/raw/cache/genomiclm_scores.parquet"

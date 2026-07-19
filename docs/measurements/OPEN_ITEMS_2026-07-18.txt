@@ -1,0 +1,1186 @@
+OPEN ITEMS FROM THE RETIREMENT AUDIT -- inventory
+date      : 2026-07-18
+repo      : C:\Projects\genomic-variant-classifier
+read-only : yes -- one report file is written; nothing is moved or deleted
+git       : git version 2.55.0.windows.3
+tracked files: 1,199
+
+======================================================================================
+## 1. SCAN BREAKDOWN -- accounting for the 29,896 files
+======================================================================================
+
+Same walk and same skip rules the retirement audit used, but reported by
+top-level directory and by extension so the total is explicable.
+
+    TOTAL text files in scan scope: 29,899
+
+    by top-level directory:
+      directory                              files         bytes
+      .venv-drift                           27,607   202,659,933
+      outputs                                  653    72,499,822
+      scripts                                  472     3,225,842
+      tests                                    226     1,434,197
+      docs                                     200     2,209,783
+      <repo root>                              187    39,299,980
+      renv                                     176     2,190,511
+      src                                      166     1,822,963
+      agent_data                                78       771,790
+      models                                    54    12,586,957
+      .af_fix_work                              19        25,064
+      reports                                   14        35,210
+      logs                                      11        25,710
+      _run17_wiring_bundle                       6        34,576
+      configs                                    5        17,477
+      .wiring_backup                             4       202,991
+      notebooks                                  4     1,501,572
+      experiments                                4    12,537,965
+      model                                      3        59,004
+      .github                                    3        68,405
+      deploy                                     2           350
+      .claude                                    1            91
+      .vscode                                    1           656
+      catboost_info                              1        99,831
+      manifests                                  1        15,433
+      tests_drift                                1        11,975
+
+    by extension:
+      .py           27,004
+      .json          1,478
+      .txt             923
+      .md              361
+      .ps1              68
+      .sh               31
+      .yml               9
+      .yaml              5
+      .bat               5
+      .cfg               4
+      .cmd               3
+      .ipynb             3
+
+    of these, TRACKED by git: 1,153
+    untracked or ignored     : 28,746
+
+    The gap is the answer to the 26x discrepancy: a source checkout contains
+    only tracked files, while the working tree also holds run outputs, caches
+    and backups that git is configured to ignore.
+
+======================================================================================
+## 2. .wiring_backup/ -- what is in it, and does it still differ?
+======================================================================================
+
+    location : C:\Projects\genomic-variant-classifier\.wiring_backup
+    files    : 4
+    size     : 202,991 bytes
+    git-ignored: YES -- .gitignore:197:.wiring_backup/	.wiring_backup
+
+    Each backup is matched to its live counterpart by decoding the stamped
+    name  YYYYMMDD_HHMMSS_<dir>_<file>  back into a repository path.
+
+      20260702_042345_scripts_launch_run17_baseline.sh
+        size 16,441 bytes   modified 2026-06-27T06:22:21
+        NOTE: the name stamps 2026-07-02 but the modification time is 2026-06-27.
+              The copy preserved the ORIGINAL file's timestamp, so
+              the stamp is when the backup was taken and the mtime
+              is when the source was last edited.
+        live counterpart : scripts/launch_run17_baseline.sh
+        DIFFERS          : YES -- content differs.
+                           backup 301 lines, live 325 lines
+                           This is a PRE-CHANGE snapshot. If the live
+                           file is one of the four uncommitted from
+                           2026-07-15, this backup shows what changed
+                           and is worth keeping until that is committed.
+
+      20260702_042345_scripts_run_phase2_eval.py
+        size 53,460 bytes   modified 2026-06-27T06:22:21
+        NOTE: the name stamps 2026-07-02 but the modification time is 2026-06-27.
+              The copy preserved the ORIGINAL file's timestamp, so
+              the stamp is when the backup was taken and the mtime
+              is when the source was last edited.
+        live counterpart : scripts/run_phase2_eval.py
+        DIFFERS          : YES -- content differs.
+                           backup 1105 lines, live 1231 lines
+                           This is a PRE-CHANGE snapshot. If the live
+                           file is one of the four uncommitted from
+                           2026-07-15, this backup shows what changed
+                           and is worth keeping until that is committed.
+
+      20260702_042345_src_genomic_variant_classifier_data_real_data_prep.py
+        size 68,562 bytes   modified 2026-06-29T02:54:48
+        NOTE: the name stamps 2026-07-02 but the modification time is 2026-06-29.
+              The copy preserved the ORIGINAL file's timestamp, so
+              the stamp is when the backup was taken and the mtime
+              is when the source was last edited.
+        live counterpart : src/genomic_variant_classifier/data/real_data_prep.py
+        DIFFERS          : YES -- content differs.
+                           backup 1686 lines, live 1652 lines
+                           This is a PRE-CHANGE snapshot. If the live
+                           file is one of the four uncommitted from
+                           2026-07-15, this backup shows what changed
+                           and is worth keeping until that is committed.
+
+      20260702_042345_src_genomic_variant_classifier_models_variant_ensemble.py
+        size 64,528 bytes   modified 2026-06-27T04:01:20
+        NOTE: the name stamps 2026-07-02 but the modification time is 2026-06-27.
+              The copy preserved the ORIGINAL file's timestamp, so
+              the stamp is when the backup was taken and the mtime
+              is when the source was last edited.
+        live counterpart : src/genomic_variant_classifier/models/variant_ensemble.py
+        DIFFERS          : YES -- content differs.
+                           backup 1773 lines, live 2751 lines
+                           This is a PRE-CHANGE snapshot. If the live
+                           file is one of the four uncommitted from
+                           2026-07-15, this backup shows what changed
+                           and is worth keeping until that is committed.
+
+
+======================================================================================
+## 3. LOOSE FILES IN THE REPOSITORY ROOT
+======================================================================================
+
+Ignored files never appear in `git status`, so nothing routinely surfaces them.
+
+    files at the top level: 238
+
+      name                                              bytes  git        note
+      .dockerignore                                       655  tracked    
+      .env                                                853  ignored    
+      .gitattributes                                    2,413  tracked    
+      .gitignore                                        6,680  tracked    
+      .markdownlint.json                                   97  tracked    
+      .Rprofile                                            27  tracked    
+      AF-E7ENB7-F1-model_v4.cif                       101,171  ignored    
+      af_accession_semantics.txt                        8,447  ignored    invisible to git status; decide keep or remove
+      af_anchor_bytes.txt                               2,521  ignored    invisible to git status; decide keep or remove
+      af_backup_cif.txt                                74,528  ignored    invisible to git status; decide keep or remove
+      af_backup_cohort.txt                              5,996  ignored    invisible to git status; decide keep or remove
+      af_backup_dbnsfp.txt                             57,332  ignored    invisible to git status; decide keep or remove
+      af_backup_eve.txt                            30,876,020  ignored    invisible to git status; decide keep or remove
+      af_backup_finngen_phylop_drive.txt            4,462,620  ignored    invisible to git status; decide keep or remove
+      af_bigprotein_timing.txt                            410  ignored    invisible to git status; decide keep or remove
+      af_bigspace.txt                                   3,963  ignored    invisible to git status; decide keep or remove
+      af_build_scope.txt                                6,588  ignored    invisible to git status; decide keep or remove
+      af_build_status.txt                                 401  ignored    invisible to git status; decide keep or remove
+      af_builder_tail.txt                               2,226  ignored    invisible to git status; decide keep or remove
+      af_canonical_coverage.txt                           645  ignored    invisible to git status; decide keep or remove
+      af_canonical_install.txt                          4,236  ignored    invisible to git status; decide keep or remove
+      af_canonical_select.txt                           1,367  ignored    invisible to git status; decide keep or remove
+      af_cohort_verify.txt                                470  ignored    invisible to git status; decide keep or remove
+      af_commit_preflight.txt                           4,085  ignored    invisible to git status; decide keep or remove
+      af_coverage_audit.txt                               784  ignored    invisible to git status; decide keep or remove
+      af_coverage_probe.txt                             2,903  ignored    invisible to git status; decide keep or remove
+      af_crash_diag.txt                                 2,189  ignored    invisible to git status; decide keep or remove
+      af_dbnsfp_promote.txt                               548  ignored    invisible to git status; decide keep or remove
+      af_dbnsfp_restore.txt                               947  ignored    invisible to git status; decide keep or remove
+      af_delete_evezip.txt                                353  ignored    invisible to git status; decide keep or remove
+      af_dep_check.txt                                  1,585  ignored    invisible to git status; decide keep or remove
+      af_diskspace.txt                                    346  ignored    invisible to git status; decide keep or remove
+      af_drive_quota.txt                                  141  ignored    invisible to git status; decide keep or remove
+      af_ext_copy.txt                                   2,956  ignored    invisible to git status; decide keep or remove
+      af_ext_drive.txt                                    451  ignored    invisible to git status; decide keep or remove
+      af_extract_profile.txt                              187  ignored    invisible to git status; decide keep or remove
+      af_features_head.txt                              3,182  ignored    invisible to git status; decide keep or remove
+      af_fetch_diag.txt                                 5,923  ignored    invisible to git status; decide keep or remove
+      af_fetch_sites_body.txt                           2,573  ignored    invisible to git status; decide keep or remove
+      af_finngen_verify.txt                               207  ignored    invisible to git status; decide keep or remove
+      af_fragment_diag.txt                                464  ignored    invisible to git status; decide keep or remove
+      af_full_build.txt                             1,157,934  ignored    invisible to git status; decide keep or remove
+      af_hybrid_verify.txt                              5,024  ignored    invisible to git status; decide keep or remove
+      af_launcher_guard.txt                             2,200  ignored    invisible to git status; decide keep or remove
+      af_mainloop.txt                                   6,261  ignored    invisible to git status; decide keep or remove
+      af_multirecord_diag.txt                           2,235  ignored    invisible to git status; decide keep or remove
+      af_order_diag.txt                                   407  ignored    invisible to git status; decide keep or remove
+      af_parallel_anchors.txt                           5,617  ignored    invisible to git status; decide keep or remove
+      af_parallel_final_anchors.txt                     2,007  ignored    invisible to git status; decide keep or remove
+      af_parallel_install.txt                             803  ignored    invisible to git status; decide keep or remove
+      af_parallel_install_v3.txt                        7,774  ignored    invisible to git status; decide keep or remove
+      af_parallel_preflight.txt                         8,034  ignored    invisible to git status; decide keep or remove
+      af_parallel_probe.txt                               375  ignored    invisible to git status; decide keep or remove
+      af_patch_preflight.txt                            2,744  ignored    invisible to git status; decide keep or remove
+      af_paths.txt                                      2,240  ignored    invisible to git status; decide keep or remove
+      af_predelete_check.txt                              377  ignored    invisible to git status; decide keep or remove
+      af_predelete_check2.txt                           1,506  ignored    invisible to git status; decide keep or remove
+      af_progress2.txt                                    169  ignored    invisible to git status; decide keep or remove
+      af_roadmap_find.txt                               6,671  ignored    invisible to git status; decide keep or remove
+      af_roadmap_locate.txt                             4,364  ignored    invisible to git status; decide keep or remove
+      af_rsa_impl.txt                                   5,023  ignored    invisible to git status; decide keep or remove
+      af_rsa_install.txt                                1,300  ignored    invisible to git status; decide keep or remove
+      af_scale.txt                                        406  ignored    invisible to git status; decide keep or remove
+      af_stage2_probe.txt                                 253  ignored    invisible to git status; decide keep or remove
+      af_templates.txt                                 13,755  ignored    invisible to git status; decide keep or remove
+      af_test_and_endpoints.txt                        12,180  ignored    invisible to git status; decide keep or remove
+      af_testfix_diag.txt                               1,071  ignored    invisible to git status; decide keep or remove
+      af_testfix_install.txt                              670  ignored    invisible to git status; decide keep or remove
+      af_timing_probe.txt                                 518  ignored    invisible to git status; decide keep or remove
+      af_url_fix_diag.txt                               3,178  ignored    invisible to git status; decide keep or remove
+      af_url_fix_install.txt                            1,060  ignored    invisible to git status; decide keep or remove
+      af_verify_dump.txt                                1,594  ignored    invisible to git status; decide keep or remove
+      alphafold_build_verify.txt                        5,285  ignored    invisible to git status; decide keep or remove
+      alphafold_build_verify2.txt                         969  ignored    invisible to git status; decide keep or remove
+      alphafold_build_verify3.txt                       5,175  ignored    invisible to git status; decide keep or remove
+      alphafold_build_verify4.txt                       5,317  ignored    invisible to git status; decide keep or remove
+      alphafold_survey.txt                             32,493  tracked    
+      amtsv_install.txt                                 2,047  ignored    invisible to git status; decide keep or remove
+      api-dryrun.log                                    8,804  ignored    
+      apply_unit1_drift_removal.py                      7,295  tracked    
+      apply_unit2_reactivate_message_bus.py            12,578  tracked    
+      ascii_dryrun.log                                    564  ignored    
+      ascii_fix.log                                       545  ignored    
+      ascii_gate.log                                      747  ignored    
+      catboost_wrapper.py                              22,180  ignored    
+      check_heavy_reachability.py                       6,454  tracked    
+      CLAUDE.md                                        20,034  tracked    
+      clean_cohort_check.txt                              430  tracked    
+      cmd_resolve.txt                                   4,002  tracked    
+      collect2.log                                    157,149  ignored    
+      collect_final.log                               157,154  ignored    
+      Commit_pandas3_investigation.ps1                  6,394  tracked    
+      connector_paths.txt                               2,102  ignored    invisible to git status; decide keep or remove
+      create_run8.cmd                                     545  ignored    
+      data_audit_after.json                             7,029  ignored    
+      data_audit_before.json                            6,902  ignored    
+      dbnsfp_annotate_full.txt                          4,023  tracked    
+      dbnsfp_loadindex_full.txt                         7,299  tracked    
+      dbnsfp_memfix_install.txt                           999  ignored    invisible to git status; decide keep or remove
+      dbnsfp_precedence_install.txt                       933  ignored    invisible to git status; decide keep or remove
+      dbnsfp_schema_check.txt                             628  tracked    
+      dbsnp_coverage_audit.txt                            915  tracked    
+      dbsnp_survey.txt                                 23,133  tracked    
+      dest.txt                                          2,762  ignored    invisible to git status; decide keep or remove
+      disk_inventory.txt                                5,790  ignored    invisible to git status; decide keep or remove
+      docker-compose.yml                                6,550  tracked    
+      docker_build.log                                 30,457  ignored    
+      Dockerfile                                        6,739  tracked    
+      drift_profile_tests.log                           2,736  ignored    
+      drive_dbsnp_dest.txt                                855  tracked    
+      drive_md5.txt                                 1,286,437  ignored    invisible to git status; decide keep or remove
+      enc.log                                          22,687  ignored    
+      enc_gate.log                                     53,410  ignored    
+      esm2_cache_install.txt                            1,910  ignored    invisible to git status; decide keep or remove
+      eval_gate.log                                     2,028  ignored    
+      eve_clinvar_check.txt                               635  tracked    
+      feature91_contract.txt                            2,356  ignored    invisible to git status; decide keep or remove
+      feature_count_truth.txt                             758  ignored    invisible to git status; decide keep or remove
+      finngen_cache_install.txt                         1,339  ignored    invisible to git status; decide keep or remove
+      finngen_columns.txt                              62,217  tracked    
+      finngen_full.txt                                  7,558  tracked    
+      finngen_prebuild.txt                              2,674  tracked    
+      finngen_r13_cols.txt                                389  tracked    
+      fix_targets_verbatim.txt                         12,088  tracked    
+      freshness_fix_survey.txt                          2,690  tracked    
+      frontier_scope.txt                                2,182  tracked    
+      genomic-variant-classifier.code-workspace         1,187  tracked    
+      gnn_api.txt                                       4,019  tracked    
+      gnn_graphload_time.txt                              233  tracked    
+      gnn_probe_prep.txt                                2,707  ignored    invisible to git status; decide keep or remove
+      install-pyg.log                                   3,974  ignored    
+      install-req.log                                  12,506  ignored    
+      install-torch.log                                 1,992  ignored    
+      Install_allele_freq_fix.ps1                       3,137  tracked    
+      Install_allele_freq_fix_v2.ps1                    4,673  tracked    
+      install_audit_history_blobs.py                    4,758  ignored    
+      Install_EVE_EntryName_Resolution.ps1              7,201  tracked    
+      install_git_gc_and_pushcheck.py                   5,268  ignored    
+      Install_hygiene_gitignore_and_stray_test.ps1      4,597  tracked    
+      Install_lazy_registration.ps1                     4,551  tracked    
+      Install_pandas3_harness.ps1                       2,810  tracked    
+      Install_pandas3_upgrade.ps1                       4,120  tracked    
+      Install_phase1_lazy_registry.ps1                  8,233  tracked    
+      Install_phase5_evaluator.ps1                      5,526  tracked    
+      Install_pin_data_freshness_deps.ps1               4,282  tracked    
+      Install_roadmap_dbsnp_done.ps1                    4,303  tracked    
+      Install_SessionDocs_2026-06-26.ps1                3,936  tracked    
+      Install_suppress_downcast_versionaware.ps1        3,190  tracked    
+      Install_unit1_drift_removal.ps1                   7,178  tracked    
+      Install_unit2_reactivate_message_bus.ps1         11,231  tracked    
+      install_verify_postcleanup.py                     5,813  ignored    
+      install_verify_postrewrite.py                     8,365  ignored    
+      launcher_dbsnp_block.txt                            978  tracked    
+      LICENSE                                             820  tracked    
+      matrix_truth.txt                                  1,188  ignored    invisible to git status; decide keep or remove
+      METHODS.md                                       12,462  tracked    
+      missing_inputs_hunt.txt                           1,105  ignored    invisible to git status; decide keep or remove
+      new_gates.log                                     3,903  ignored    
+      NOTEBOOK_CELL_FIXES.py                            3,362  tracked    
+      offers.json                                     193,178  ignored    
+      offers.txt                                       27,740  ignored    invisible to git status; decide keep or remove
+      patch_finngen_wiring.py                           6,490  ignored    
+      patch_orchestrator_phase1.py                     12,282  tracked    
+      PHASE_1_ASSESSMENT.md                            17,455  tracked    
+      PHASE_2_FEATURES.md                                 301  tracked    
+      phylop_fillna_install.txt                           872  ignored    invisible to git status; decide keep or remove
+      phylop_fix_install.txt                            1,009  ignored    invisible to git status; decide keep or remove
+      polyban.log                                      10,554  ignored    
+      polyban2.log                                     11,648  ignored    
+      preflight.log                                       613  ignored    
+      preflight_phase1_anchors.py                       2,351  tracked    
+      probe_dbnsfp_override.txt                         3,283  tracked    
+      probe_finngen_cache.txt                           2,433  tracked    
+      Probe_numpy_daterange_fix.ps1                     3,113  tracked    
+      probe_phylop_fillna.txt                           1,949  tracked    
+      profile_agent_runtimes.py                        11,640  tracked    
+      profile_build.log                                 1,337  ignored    
+      profile_rebuild.log                               1,443  ignored    
+      project_structure_audit.txt                     223,044  ignored    invisible to git status; decide keep or remove
+      protein_interface_verify.txt                      3,281  ignored    invisible to git status; decide keep or remove
+      pyproject.toml                                    4,241  tracked    
+      r13_guard_install.txt                             1,179  ignored    invisible to git status; decide keep or remove
+      ratchet.log                                         819  ignored    
+      README.md                                        21,635  tracked    
+      readme_gate.log                                  10,200  ignored    
+      readme_gate2.log                                  1,547  ignored    
+      realprep_entry.txt                                1,981  tracked    
+      realprep_iface.txt                                1,425  tracked    
+      renv.lock                                       193,717  tracked    
+      req-dryrun.log                                    7,860  ignored    
+      requirements-api.lock                             3,223  tracked    
+      requirements-api.txt                             10,513  tracked    
+      requirements-dev.in                                 164  tracked    
+      requirements-dev.lock                           310,494  tracked    
+      requirements-dev.txt                                217  tracked    
+      requirements-drift.txt                            8,684  tracked    
+      requirements.in                                   6,902  tracked    
+      requirements.in.pre_pybigtools.bak                1,213  ignored    
+      requirements.lock                               302,694  tracked    
+      requirements.txt                                  9,115  tracked    
+      requirements.txt.pre_pybigtools.bak               3,477  ignored    
+      rnaseq_drive_probe.txt                            1,315  ignored    invisible to git status; decide keep or remove
+      rnaseq_resolve.txt                                1,737  tracked    
+      rnaseq_verify.txt                                 1,997  ignored    invisible to git status; decide keep or remove
+      roadmap_dbsnp_context.txt                         4,101  tracked    
+      roadmap_phase2.txt                               16,512  tracked    
+      ROADMAP_PSYCH_GWAS_ENTRY.md                       5,790  tracked    
+      roadmap_s5_s8.txt                                14,845  tracked    
+      roadmap_s5_verbatim.txt                           7,997  tracked    
+      Rollback_to_pandas233.ps1                         4,501  tracked    
+      run16_invocation.txt                             12,959  tracked    
+      run17_cmd_verbatim.txt                            5,139  ignored    invisible to git status; decide keep or remove
+      Run_pandas3_full_validation.ps1                   4,377  tracked    
+      run_tmb.log                                      28,789  ignored    
+      RUNBOOK_EVE_EntryName.md                          7,222  tracked    
+      schema_baseline.log                               2,015  ignored    
+      source.txt                                       12,828  ignored    invisible to git status; decide keep or remove
+      split_health.csv                                 45,763  ignored    
+      split_health_before.csv                          45,763  tracked    
+      stage1_input_resolve.txt                          1,656  tracked    
+      stage1_listing.txt                               11,277  tracked    
+      stage1_log_triage.txt                             7,474  tracked    
+      state.txt                                         2,272  ignored    invisible to git status; decide keep or remove
+      string_resolve.txt                                3,360  ignored    invisible to git status; decide keep or remove
+      suite.log                                           820  ignored    
+      suite2.log                                       18,149  ignored    
+      suite_enc.log                                   123,317  ignored    
+      suite_final.log                                  18,149  ignored    
+      suite_train.log                                  18,149  ignored    
+      test_catboost.py                                 17,718  ignored    
+      test_run_pre_commit.txt                           9,942  ignored    invisible to git status; decide keep or remove
+      train_gate.log                                    5,169  ignored    
+      try_finops.py                                       370  ignored    
+      tumor gene data.txt                                 869  ignored    invisible to git status; decide keep or remove
+      validate_docs.py                                  1,299  tracked    
+      variant_ensemble_cff925c.py                      35,027  ignored    
+      wiring_targets.txt                               22,646  ignored    invisible to git status; decide keep or remove
+      wiring_verify.txt                                 6,321  ignored    invisible to git status; decide keep or remove
+
+    First lines of each ignored text file, so its purpose is legible:
+
+      --- af_accession_semantics.txt ---
+        
+        === A. is uniprot_id unique per gene, or multiple rows/accessions per gene? ===
+        total rows: 20190
+        distinct genes: 20190
+        distinct uniprot_id: 20190
+        genes with >1 row: 0
+
+      --- af_anchor_bytes.txt ---
+        === exact bytes: _resolve_cif_url signature ===
+        A|def _resolve_cif_url(accession: str) -> Optional[str]:|
+        === exact bytes: the requests.get inside _resolve_cif_url (API call line) ===
+        B112|            ALPHAFOLD_PREDICTION_API.format(accession=accession),|
+        === exact bytes: rec.get cifUrl return line ===
+        C128|    cif_url = rec.get("cifUrl")|
+
+      --- af_backup_cif.txt ---
+        === 1. build tar.gz of CIF cache (8.77GB -> ~3-4GB) ===
+        archive_size_GB=1.9
+        local_sha256=A607E7D9188435DDFFD9C9DC75C7E677C11DA604724D4DF14BD98456E6AF47A5
+        === 2. upload to Drive ===
+        Transferred:   	          0 B / 1.904 GiB, 0%, 0 B/s, ETA -
+        Transferred:            0 / 1, 0%
+
+      --- af_backup_cohort.txt ---
+        === uploading cohort parquet (110MB) + coverage json ===
+        Transferred:   	          0 B / 105.114 MiB, 0%, 0 B/s, ETA -
+        Transferred:            0 / 1, 0%
+        Elapsed time:         0.3s
+        Transferring:
+         *                      alphafold_cohort.parquet:  0% / 105.114 MiB, 0 B/s, -Transferred:   	       
+
+      --- af_backup_dbnsfp.txt ---
+        === uploading dbnsfp (0.88GB OOMbak + 0.03GB clinvar) ===
+        Transferred:   	          0 B / 930.350 MiB, 0%, 0 B/s, ETA -
+        Checks:                 0 / 0, -, Listed 2
+        Transferred:            0 / 2, 0%
+        Elapsed time:         0.4s
+        Transferring:
+
+      --- af_backup_eve.txt ---
+        === uploading EVE_all_data (63.36GB, 14932 files) + zip (8.91GB) ===
+        Transferred:   	          0 B / 65.009 GiB, 0%, 0 B/s, ETA -
+        Checks:                 0 / 0, -, Listed 14939
+        Transferred:            0 / 10013, 0%
+        Elapsed time:         0.4s
+        Transferring:
+
+      --- af_backup_finngen_phylop_drive.txt ---
+        === FinnGen (57.6GB) -> Drive ===
+        Transferred:   	          0 B / 57.644 GiB, 0%, 0 B/s, ETA -
+        Checks:                 0 / 0, -, Listed 3
+        Transferred:            0 / 3, 0%
+        Elapsed time:         0.4s
+        Transferring:
+
+      --- af_bigprotein_timing.txt ---
+        MUC16    Q9UKN1 approx= 14507  download FAILED/None (td=0.4s)
+        TTN      Q8WZ42 approx= 34350  download FAILED/None (td=0.4s)
+        OBSCN    Q5VST9 approx=  7968  download FAILED/None (td=0.4s)
+        MUC5AC   P98088 approx=  5654  download FAILED/None (td=0.5s)
+        DYST     Q03001 approx=  7570  download=  1.6s  extract=   3.6s  rows=2649
+        MYH9     P35579 approx=  1960  download=  1.8s  extract=   2.7s  rows=1960
+
+      --- af_bigspace.txt ---
+        === top 25 largest files under project (>100MB) ===
+        
+           GB FullName
+           -- --------
+        29.92 C:\Projects\genomic-variant-classifier\data\external\finngen\finnge_R12_annotated_variants_v1.
+        27.72 C:\Projects\genomic-variant-classifier\data\external\finngen\finngen_R13_annotated_variants_v0
+
+      --- af_build_scope.txt ---
+        
+        === 1. what records does a real AF CIF carry? (decides DSSP-dep vs parse-from-CIF) ===
+        CIF categories present:
+          _citation
+          _entity
+          _entry
+
+      --- af_build_status.txt ---
+        === free space NOW ===
+        
+        FreeGB
+        ------
+         39.10
+        
+
+      --- af_builder_tail.txt ---
+        === main() loop body + tail (295 to end) ===
+        295:                          "Cached progress retained; re-run to resume.", free, _MIN_FREE_GB)
+        296:             return 3
+        297:         cif_path = _download_cif(acc, cache_dir)
+        298:         n_done += 1
+        299:         if cif_path is None:
+
+      --- af_canonical_coverage.txt ---
+          ...100/400 elapsed=11s
+          ...200/400 elapsed=21s
+          ...300/400 elapsed=31s
+          ...400/400 elapsed=41s
+        sample=400  canonical_match=393 (98.2%)  api200_no_canon=5  absent=2
+        USABLE (canonical structure) rate: 98.2%
+
+      --- af_canonical_install.txt ---
+        === Install_alphafold_canonical_selection :: preflight ===
+        backup builder SHA256: E126C9A0C4E7A0AE9353FAFFBF46A305C601F10DDD6ED5A2AD1BA67920E69966
+        backup tests   SHA256: 041EEB1FEE7737D6A233A0ADE65ADACBAFFBD8E94C1E19BD7A5C92D4A79A8AEB
+        === applying patch (8 guarded edits, count==1) ===
+        builder: 8 guarded edits applied
+        tests: canonical guards appended
+
+      --- af_canonical_select.txt ---
+        ==== AARS1 P49588 canon_len 968 ====
+          [0] AF-P49588-F1 len=  968 is_base=True seq_eq_canon=True prefix_eq=True
+          [1] AF-P49588-2-F1 len=  992 is_base=False seq_eq_canon=False prefix_eq=True
+        ==== ABCB1 P08183 canon_len 1280 ====
+          [0] AF-P08183-F1 len= 1280 is_base=True seq_eq_canon=True prefix_eq=True
+          [1] AF-P08183-2-F1 len= 1216 is_base=False seq_eq_canon=False prefix_eq=True
+
+      --- af_cohort_verify.txt ---
+        rows 9960360 cols ['uniprot_accession', 'residue_pos', 'plddt', 'rsa', 'ss', 'dist_active']
+        distinct accessions 18034
+        residue_pos: min=1 max=2699 mean=430.3 nulls=0
+        plddt: min=1.99 max=99 mean=72.78 nulls=0
+        rsa: min=0 max=1 mean=0.4168 nulls=0
+        ss: min=0 max=2 mean=0.6367 nulls=0
+
+      --- af_commit_preflight.txt ---
+        === git status (short) ===
+         M scripts/launch_run17_baseline.sh
+         M scripts/run_phase2_eval.py
+         M src/genomic_variant_classifier/data/real_data_prep.py
+         M src/genomic_variant_classifier/models/variant_ensemble.py
+        ?? .af_fix_work/
+
+      --- af_coverage_audit.txt ---
+        sample=300  present=297 (99.0%)  absent=3  multi_record_present=161
+        elapsed=30s
+        absent genes by missense-variant count (top 15):
+          ZFHX3        Q15911     variants=661
+          MKI67        P46013     variants=555
+          SELENON      Q9NZV5     variants=279
+
+      --- af_coverage_probe.txt ---
+        
+        === is there ANY prebuilt AF parquet or structure cache anywhere? ===
+        
+        FullName                                                                                   Length
+        --------                                                                                   ------
+        C:\Projects\genomic-variant-classifier\data\raw\cache\alphafold\AF-E7ENB7-F1-model_v4.cif  101171
+
+      --- af_crash_diag.txt ---
+        === A. direct 50-gene run, full traceback ===
+        2026-07-02 17:34:33,194 INFO cohort missense genes: 19383
+        2026-07-02 17:34:33,236 INFO resolved to accession: 18302 ; unresolvable: 1081
+        2026-07-02 17:34:33,248 INFO --max-genes: limiting to 50 genes
+        === B. driver loop 275-300 ===
+        275:     if args.max_genes is not None:
+
+      --- af_dbnsfp_promote.txt ---
+        === pre-copy assertions ===
+        bak exists=True ; live currently missing=True
+        free space before (GB)=39.1897811889648
+        === COPY .OOMbak -> live name (keeps .OOMbak as fallback) ===
+        COPIED -> data\external\dbnsfp\dbnsfp_full_index.parquet
+        === VERIFY the restored live file loads with full rows + schema ===
+
+      --- af_dbnsfp_restore.txt ---
+        === 1. confirm live is still missing + bak exists ===
+        live exists=False ; bak exists=True
+        === 2. inspect the .OOMbak: schema, row count, key columns, any obvious truncation ===
+        num_row_groups 82
+        metadata_rows 85299339
+        cols [('chrom', 'large_string'), ('pos', 'int64'), ('ref', 'large_string'), ('alt', 'large_string'),
+
+      --- af_delete_evezip.txt ---
+        === pre-delete safety assertions ===
+        1. local zip exists=True size_GB=8.91
+        2. extracted tree still intact (must be True to delete zip): True
+        3. verifying zip is on Drive before deleting...
+        EVE_all_data.zip
+        === DELETE only if all three above are satisfied ===
+
+      --- af_dep_check.txt ---
+        === do FinnGen/EVE/phyloP raw files have processed derivatives? ===
+        --- finngen ---
+        
+        code refs to raw finngen :
+        
+        Path
+
+      --- af_diskspace.txt ---
+        === C: volume space ===
+        
+        FreeGB UsedGB TotalGB
+        ------ ------ -------
+         40.20 895.40  935.60
+        
+
+      --- af_drive_quota.txt ---
+        === Google Drive quota (genvarcla:) ===
+        Total:   5 TiB
+        Used:    986.437 GiB
+        Free:    4.030 TiB
+        Trashed: 482.599 GiB
+        Other:   7.134 GiB
+
+      --- af_ext_copy.txt ---
+        === robocopy FinnGen -> D: ===
+        
+        -------------------------------------------------------------------------------
+           ROBOCOPY     ::     Robust File Copy for Windows                              
+        -------------------------------------------------------------------------------
+        
+
+      --- af_ext_drive.txt ---
+        === D: drive details ===
+        
+        DriveLetter FileSystemLabel FileSystem DriveType FreeGB TotalGB
+        ----------- --------------- ---------- --------- ------ -------
+                  D My Passport     exFAT      Fixed     676.00  931.30
+        
+
+      --- af_extract_profile.txt ---
+        parse_atom_site 0.04s (11496 atoms)
+        per_residue_plddt 0.00s (1474 res)
+        per_residue_ca 0.00s
+        per_residue_secondary_structure 0.00s
+        per_residue_rsa 21.66s
+        _dist_to_active 0.02s
+
+      --- af_features_head.txt ---
+        === alphafold_features.py lines 1-45 (imports + module head) ===
+        1: """
+        2: src/genomic_variant_classifier/data/alphafold_features.py
+        3: =========================================================
+        4: Structure-feature extraction from AlphaFold mmCIF files -- Phase D, AlphaFold connector.
+        5: 
+
+      --- af_fetch_diag.txt ---
+        === A. URL template + fetch/extract in builder ===
+        8: (cached to disk; raw CIFs KEPT), extracts four per-residue structural features, and
+        9: writes a parquet keyed on (uniprot_accession, residue_pos):
+        12: residue_pos        int    1-based (matches AlphaMissense/HGVSp protein_pos)
+        18: Feature extraction is delegated to
+        22: beyond the fail-loud bound raises rather than being silently clamped.
+
+      --- af_fetch_sites_body.txt ---
+        === _fetch_active_sites (verbatim, full) ===
+        193: def _fetch_active_sites(accession: str, cache_dir: Path) -> list[int]:
+        194:     """UniProt active/binding-site residue positions (cached JSON). [] on failure."""
+        195:     cache_file = cache_dir / f"uniprot_features_{accession}.json"
+        196:     if cache_file.exists():
+        197:         try:
+
+      --- af_finngen_verify.txt ---
+        2026/07/03 21:59:40 NOTICE: Google drive root 'GenAssoc-backup/2026-07-03/finngen': 0 differences fo
+        2026/07/03 21:59:40 NOTICE: Google drive root 'GenAssoc-backup/2026-07-03/finngen': 3 matching files
+
+      --- af_fragment_diag.txt ---
+        ==== TTN Q8WZ42 ====
+        api_status 404
+        body head: {}
+          F1 v6 -> 404 (127)
+          F2 v6 -> 404 (127)
+          F3 v6 -> 404 (127)
+
+      --- af_full_build.txt ---
+        2026-07-03 01:09:46,374 INFO cohort missense genes: 19383
+        2026-07-03 01:09:46,447 INFO resolved to accession: 18302 ; unresolvable: 1081
+        2026-07-03 05:05:35,296 INFO gene 1/18302: A1BG (P04217)
+        2026-07-03 05:05:35,998 INFO gene 2/18302: A1CF (Q9NQ94)
+        2026-07-03 05:05:36,883 INFO gene 3/18302: A2M (P01023)
+        2026-07-03 05:05:39,671 INFO gene 4/18302: A2ML1 (A8K2U0)
+
+      --- af_hybrid_verify.txt ---
+        
+        === 1. ASSUMPTION: protein_pos is populated BEFORE step 14 (connector can consume it) ===
+        --- step 14 is at line ~999; is protein_pos filled at 10b/10c (lines ~895-935), i.e. BEFORE 14? ---
+        
+        LineNumber Line
+        ---------- ----
+
+      --- af_launcher_guard.txt ---
+        === F. UNIPROT_INDEX definition in launcher ===
+        202: UNIPROT_INDEX="$DATA/external/uniprot/uniprot_human_reviewed.parquet"
+        === G. run_phase2_eval AF argparse block (175-195) ===
+                help="dbSNP allele-frequency parquet (data/external/dbsnp/...). When "
+                "omitted, dbsnp_af defaults to 0.0 (silent stub).",
+            )
+
+      --- af_mainloop.txt ---
+        === build_alphafold_parquet.py lines 205-275 (driver loop) ===
+        205:             out[seq] = aff.DEFAULT_DIST_ACTIVE
+        206:             continue
+        207:         best = min(
+        208:             math.sqrt((x - sx) ** 2 + (y - sy) ** 2 + (z - sz) ** 2)
+        209:             for (sx, sy, sz) in site_xyz
+
+      --- af_multirecord_diag.txt ---
+        ==== DYST Q03001 ====
+        n_records 5
+          [0] entryId=AF-Q03001-3-F1 uniprotStart=1 uniprotEnd=2649 isReviewed=True seqlen=2649 cifUrl=....a
+          [1] entryId=AF-Q03001-13-F1 uniprotStart=1 uniprotEnd=905 isReviewed=True seqlen=905 cifUrl=...ac.
+          [2] entryId=AF-Q03001-12-F1 uniprotStart=1 uniprotEnd=81 isReviewed=True seqlen=81 cifUrl=...ac.uk
+          [3] entryId=AF-Q03001-11-F1 uniprotStart=1 uniprotEnd=224 isReviewed=True seqlen=224 cifUrl=...ac.
+
+      --- af_order_diag.txt ---
+        FAIL 1 usage: build_alphafold_parquet.py [-h] [--cohort COHORT]
+                                          [--uniprot-index UNIPROT_INDEX] [--out OUT]
+                                          [--cache-dir CACHE_DIR]
+                                          [--max-genes MAX_GENES]
+                                          [--genes-from GENES_FROM] [--audit]
+        build_alphafold_parquet.py: error: unrecognized arguments: --workers 1
+
+      --- af_parallel_anchors.txt ---
+        === _download_cif full body (current, post-canonical) ===
+        157: def _download_cif(accession: str, cache_dir: Path, canonical_seq: str) -> Optional[Path]:
+        158:     """Download+cache the current-version AlphaFold CIF; reuse if present.
+        159: 
+        160:     Resolves the versioned cif URL from the prediction API, saves under the
+        161:     server's own filename (so a v6 payload is never stored under a v4 name), and
+
+      --- af_parallel_final_anchors.txt ---
+        === exact current main() loop: n_total through n_struct (verbatim) ===
+        315:     n_total = len(acc_map)
+        316:     for _i_gene, (gene, acc) in enumerate(acc_map.items(), 1):
+        317:         logger.info("gene %d/%d: %s (%s)", _i_gene, n_total, gene, acc)
+        318:         # mid-run disk guard
+        319:         free = _free_gb(cache_dir)
+
+      --- af_parallel_install.txt ---
+        === Install_alphafold_parallel (v3) :: preflight ===
+        backup builder SHA256: EE698BBAF9CC7A35BDD058DDB05D7E60C334F29589213C068A88112A9F0C5A2E
+        === applying patch (6 guarded edits) ===
+        6 guarded edits applied
+        === post-check 1: byte-compile ===
+        compile OK
+
+      --- af_parallel_install_v3.txt ---
+        === Install_alphafold_parallel (v3) :: preflight ===
+        backup builder SHA256: EE698BBAF9CC7A35BDD058DDB05D7E60C334F29589213C068A88112A9F0C5A2E
+        === applying patch (6 guarded edits) ===
+        6 guarded edits applied
+        === post-check 1: byte-compile ===
+        compile OK
+
+      --- af_parallel_preflight.txt ---
+        === current main() loop + write block (280 to end) ===
+        total_lines(approx)=335
+        280:     ap.add_argument("--genes-from", default=None, help="file with one gene symbol per line")
+        281:     ap.add_argument("--audit", action="store_true", help="report resolution coverage only; no d
+        282:     args = ap.parse_args(argv)
+        283: 
+
+      --- af_parallel_probe.txt ---
+        === python procs ===
+        
+           Id    CPU StartTime           RunMin
+           --    --- ---------           ------
+         1688   0.02 7/2/2026 8:50:38 PM   1.20
+         5432 316.30 7/2/2026 8:50:38 PM   1.20
+
+      --- af_patch_preflight.txt ---
+        === A. fixture presence (are @requires_cif tests passing or SKIPPING?) ===
+        data/raw/cache/alphafold/AF-E7ENB7-F1-model_v4.cif exists=True size=101171
+        AF-E7ENB7-F1-model_v4.cif exists=True size=101171
+        === B. explicit skip check ===
+        ...............                                                          [100%]
+        15 passed in 10.13s
+
+      --- af_paths.txt ---
+        === A. alphafold_build_verify.txt meta ===
+        
+        Length        : 1281
+        LastWriteTime : 7/2/2026 4:39:59 AM
+        
+        
+
+      --- af_predelete_check.txt ---
+        === 1. does eve.py reference MSAs at all? (expect no) ===
+        
+        === 2. is the live dbNSFP index present + loadable (so .OOMbak is disposable)? ===
+        live index exists=False size_GB=NA
+        === 3. is the extracted EVE tree intact (so the zip is redundant)? file count + variant_files presen
+        EVE_all_data file count=14932
+
+      --- af_predelete_check2.txt ---
+        === dbnsfp dir contents (what actually exists) ===
+        
+          GB Name                             LastWriteTime
+          -- ----                             -------------
+        0.03 dbnsfp_clinvar_index.parquet     4/3/2026 3:33:05 PM
+        0.88 dbnsfp_full_index.parquet.OOMbak 4/3/2026 9:50:50 AM
+
+      --- af_progress2.txt ---
+        === cache size + newest file age ===
+        cache_GB=8.77 file_count=36161
+        newest_file=uniprot_features_Q8IYH5.json age_sec=28748.6
+        cif_count=18079
+        sites_json_count=18079
+
+      --- af_roadmap_find.txt ---
+        === root-level .md/.txt files (roadmap candidates) ===
+        
+              KB Modified         Name
+              -- --------         ----
+            0.10 2026-07-03 22:55 af_roadmap_find.txt
+            4.30 2026-07-03 22:45 af_roadmap_locate.txt
+
+      --- af_roadmap_locate.txt ---
+        === candidate roadmap / phase-2 docs ===
+        
+           KB Modified   FullName
+           -- --------   --------
+         0.00 2026-07-03 C:\Projects\genomic-variant-classifier\af_roadmap_locate.txt
+        53.40 2026-07-01 C:\Projects\genomic-variant-classifier\docs\ROADMAP.md
+
+      --- af_rsa_impl.txt ---
+        === A. per_residue_rsa + Shrake-Rupley impl ===
+        match at line 328: def per_residue_rsa(atoms: list[dict]) -> dict[int, float]:
+        
+        === B. full RSA region (auto: 60 lines from first rsa/sasa def) ===
+        328: def per_residue_rsa(atoms: list[dict]) -> dict[int, float]:
+        329:     """
+
+      --- af_rsa_install.txt ---
+        === Install_alphafold_rsa_vectorize :: preflight ===
+        backup features SHA256: 4CB2622EF5033CB8499CA68F7E3589E42BD4907E8BD7934FF735248985B2EBC6
+        backup builder  SHA256: 785964FBBB112D820DF7F69503A1B6DCAE03EA8B97C89E8312CD2FED73BBDC4B
+        backup tests    SHA256: 89E84D4AAA12F41B00B68E57DFB3C77C30C913B67596AD624ECF6EED7B370E21
+        === applying patch (guarded, count==1) ===
+        features: imports inserted
+
+      --- af_scale.txt ---
+        
+        === missense-bearing genes = the real build scope (not all 21386) ===
+        has is_missense col: False
+        missense variants: 2488889
+        distinct missense genes: 19383
+        
+
+      --- af_stage2_probe.txt ---
+        === running python procs ===
+        
+           Id    CPU StartTime           RunMin
+           --    --- ---------           ------
+        10236 849.67 7/2/2026 5:16:22 PM  15.50
+        14476   0.02 7/2/2026 5:16:22 PM  15.50
+
+      --- af_templates.txt ---
+        
+        === 1. FULL dbsnp.py (connector template to mirror for AlphaFoldConnector) ===
+        """
+        src/genomic_variant_classifier/data/dbsnp.py
+        =================
+        dbSNP allele frequency supplement connector — Phase 4, Connector 4.
+
+      --- af_test_and_endpoints.txt ---
+        === A. test_alphafold.py (full) ===
+        1: """
+        2: tests/unit/test_alphafold.py
+        3: ============================
+        4: Unit tests for the AlphaFold structural-feature connector, extractor library, and
+        5: cohort coverage gate.
+
+      --- af_testfix_diag.txt ---
+        === builder signatures now on disk ===
+        99: def _load_acc_sequences(uniprot_index_path: Path) -> dict[str, str]:
+        111: def _resolve_cif_url(accession: str, canonical_seq: str) -> Optional[str]:
+        157: def _download_cif(accession: str, cache_dir: Path, canonical_seq: str) -> Optional[Path]:
+        359: coverage_path = out_path.parent / "alphafold_coverage.json"
+        === stale callers in test file (old signatures) ===
+
+      --- af_testfix_install.txt ---
+        === Install_alphafold_testfix :: preflight ===
+        backup tests SHA256: B03478BA8F2E83412E19EBF6B4681225754EDBAC84EFBD2AC3E72A23D804ABC6
+        === applying test-fix (5 guarded edits) ===
+        test-fix: 5 guarded edits applied
+        === post-check 1: byte-compile ===
+        compile OK
+
+      --- af_timing_probe.txt ---
+        first 3 (gene,acc): [('A1BG', 'P04217'), ('A1CF', 'Q9NQ94'), ('A2M', 'P01023')]
+        P04217 _download_cif 1.4s -> AF-P04217-F1-model_v6.cif
+        P04217 _fetch_active_sites 1.2s -> 0 sites
+        P04217 _extract_one 3.4s -> 495 rows
+        ---
+        Q9NQ94 _download_cif 1.4s -> AF-Q9NQ94-F1-model_v6.cif
+
+      --- af_url_fix_diag.txt ---
+        === A. _download_cif verbatim (96-118) ===
+        96:     return {g: gmap[g] for g in genes if g in gmap}
+        97: 
+        98: 
+        99: def _download_cif(accession: str, cache_dir: Path) -> Optional[Path]:
+        100:     """Download+cache an AlphaFold CIF; reuse if present. Returns path or None."""
+
+      --- af_url_fix_install.txt ---
+        === Install_alphafold_url_fix :: preflight ===
+        backup builder SHA256: 4A5C9648F17837F73DAEEC446ABA1AE74F8A242E42CFE983D4C71127D4ADCF45
+        backup tests   SHA256: 954BFCA988E057568A0D6B5B44BC7C039AD56067E84B1AE3FE19A920A8536C0D
+        === applying patch (guarded, count==1) ===
+        builder patched OK
+        tests appended OK
+
+      --- af_verify_dump.txt ---
+        === VERIFY FILE: alphafold_build_verify.txt (full contents) ===
+        
+        === STAGE 0: prerequisites + cohort schema ===
+        data/processed/clinvar_grch38_clean.parquet: exists=True 135MB
+        data/external/uniprot/uniprot_human_reviewed.parquet: exists=True 11MB
+        cohort has gene_symbol: True
+
+      --- alphafold_build_verify.txt ---
+        
+        === STAGE 0: prerequisites + cohort schema ===
+        data/processed/clinvar_grch38_clean.parquet: exists=True 135MB
+        data/external/uniprot/uniprot_human_reviewed.parquet: exists=True 11MB
+        cohort has gene_symbol: True
+        cohort has consequence: True
+
+      --- alphafold_build_verify2.txt ---
+        === STAGE 0: prerequisites + cohort schema ===
+        data/processed/clinvar_grch38_clean.parquet: exists=True 135MB
+        data/external/uniprot/uniprot_human_reviewed.parquet: exists=True 11MB
+        cohort has gene_symbol: True
+        cohort has consequence: True
+        uniprot has gene_symbol: True | uniprot_id: True | sequence: True
+
+      --- alphafold_build_verify3.txt ---
+        === STAGE 0: prerequisites + cohort schema ===
+        data/processed/clinvar_grch38_clean.parquet: exists=True 135MB
+        data/external/uniprot/uniprot_human_reviewed.parquet: exists=True 11MB
+        cohort has gene_symbol: True
+        cohort has consequence: True
+        uniprot has gene_symbol: True | uniprot_id: True | sequence: True
+
+      --- alphafold_build_verify4.txt ---
+        === STAGE 0: prerequisites + cohort schema ===
+        data/processed/clinvar_grch38_clean.parquet: exists=True 135MB
+        data/external/uniprot/uniprot_human_reviewed.parquet: exists=True 11MB
+        cohort has gene_symbol: True
+        cohort has consequence: True
+        uniprot has gene_symbol: True | uniprot_id: True | sequence: True
+
+      --- amtsv_install.txt ---
+        === Install_alphamissense_tsv_path :: preflight ===
+        backups: C:\Projects\genomic-variant-classifier\src\genomic_variant_classifier\data\real_data_prep.p
+          edit OK (rp: add alphamissense_tsv_path field)
+          edit OK (rp: protein-coord uses tsv)
+          edit OK (rp: coverage-gate uses tsv)
+        real_data_prep.py patched.
+
+      --- connector_paths.txt ---
+        === connector input path existence check ===
+          [OK]      clinvar_clean                 0.142 GB  data/processed/clinvar_grch38_clean.parquet
+          [OK]      alphafold_cohort              0.110 GB  data/external/alphafold/alphafold_cohort.parquet
+          [OK]      alphafold_uniprot_index       0.012 GB  data/external/uniprot/uniprot_human_reviewed.par
+          [OK]      dbnsfp_full_index             0.939 GB  data/external/dbnsfp/dbnsfp_full_index.parquet
+          [OK]      dbsnp_cohort                  0.031 GB  data/external/dbsnp/dbsnp157_cohort.parquet
+
+      --- dbnsfp_memfix_install.txt ---
+        === Install_dbnsfp_memory_fix :: preflight ===
+        backup: C:\Projects\genomic-variant-classifier\src\genomic_variant_classifier\data\dbnsfp.py.prememf
+        backup SHA256: E8C323274FA2CD9A10B33107710D30D08348B102F9C463036907B2CF502C569C
+          insertion anchor: 1 match
+        patched file written.
+        === post-check 1: byte-compile ===
+
+      --- dbnsfp_precedence_install.txt ---
+        === Install_dbnsfp_precedence :: preflight ===
+        backup: C:\Projects\genomic-variant-classifier\src\genomic_variant_classifier\data\dbnsfp.py.preprec
+        backup SHA256: F656737E4F4615456B04995C9086726477AC23F67ECBAEDAC37C59C1F8CBF3E1
+          insertion anchor: 1 match
+        patched file written.
+        === post-check 1: byte-compile ===
+
+      --- dest.txt ---
+        ��3 5 4 0 2 3 3 0 2 8   2 0 2 6 - 0 6 - 2 4   1 1 : 0 2 : 4 9 . 3 9 2 0 0 0 0 0 0   g n o m a d . e 
+         
+         5 0 6 0 3 4 7 5 5 4   2 0 2 6 - 0 3 - 2 2   2 3 : 2 9 : 4 3 . 0 0 0 0 0 0 0 0 0   g n o m a d . e x
+         
+         2 2 5 0 3 1 9 8 0 9   2 0 2 6 - 0 3 - 2 2   2 3 : 2 7 : 4 6 . 0 0 0 0 0 0 0 0 0   g n o m a d . e x
+         
+
+      --- disk_inventory.txt ---
+        
+        === FREE SPACE on C: ===
+        
+        Used(GB) Free(GB)
+        -------- --------
+          933.10     2.50
+
+      --- drive_md5.txt ---
+        7b6baef31bf8bdccb32727ad1808f4e6  clingen/gene_disease_validity_curations.csv
+        cf180d325c9d2964549e1bc03a8aa3f0  clingen/clingen_downloads_page.html
+        af1eab40c8be47c8c7c04dc73e0333e4  gnomad/gnomad.exomes.v4.1.sites.chr13.vcf.bgz
+        43858006bdf98145b6fd239490bd0478  phylop/hg38.phyloP100way.bw
+        7ca6d51a42425b857eddb46d7bc5832d  gnomad/gnomad.exomes.v4.1.sites.chr21.vcf.bgz
+        605680cd99e469bdf5f0045bd22359c9  gnomad/gnomad.exomes.v4.1.sites.chr20.vcf.bgz
+
+      --- esm2_cache_install.txt ---
+        === Install_esm2_score_cache :: preflight ===
+        backup: C:\Projects\genomic-variant-classifier\src\genomic_variant_classifier\data\esm2.py.prescorec
+        backup SHA256: EAF55EB71E9DB8E362F6043A81BDB56C6BFCF8EFC311AA8E32C9EEB6FC01D5F8
+          edit OK (insert score-cache helper block)
+          edit OK (wrap delta scoring with cache)
+          edit OK (wrap llr scoring with cache)
+
+      --- feature91_contract.txt ---
+        EXPECTED_TABULAR_FEATURE_COUNT = 91
+        TABULAR_FEATURES literal count: 91
+          1. af_raw
+          2. af_log10
+          3. af_is_absent
+          4. af_is_ultra_rare
+
+      --- feature_count_truth.txt ---
+        === EXPECTED_TABULAR_FEATURE_COUNT in code ===
+        
+        ref
+        ---
+        variant_ensemble.py:157  EXPECTED_TABULAR_FEATURE_COUNT = 91
+        
+
+      --- finngen_cache_install.txt ---
+        === Install_finngen_cache :: preflight ===
+        backup: C:\Projects\genomic-variant-classifier\src\genomic_variant_classifier\data\finngen.py.precac
+        backup SHA256: 9548DBC4E103DBAAE1E15F09630DE925131B053B4245843561A57DA674FAD559
+          edit OK (annotate hook): 1 match
+          edit OK (add import json): 1 match
+          edit OK (replace _build_index -> 3 new methods): 1 anchor
+
+      --- gnn_probe_prep.txt ---
+        === GNNScorer / gnn training entry ===
+          [gnn.py:69] class StringDBGraph:
+          [gnn.py:72] def __init__(
+          [gnn.py:197] class SharedFocalGraph:
+          [gnn.py:321] class VariantGAT(nn.Module):
+          [gnn.py:322] """3-layer GAT with multi-head attention; focal-node readout; 2-class head."""
+
+      --- matrix_truth.txt ---
+        === schema_baseline.json actual n_columns + provenance ===
+        n_columns: 87
+        run_label: run17-preflight
+        captured_from: derived: run16b-smoke baseline + hetero_gnn_score(float64) for Run 17 + 5 rnaseq_* (f
+        captured_at: 2026-06-18T23:33:33.282709+00:00
+        === EXPECTED_TABULAR_FEATURE_COUNT (code truth) ===
+
+      --- missing_inputs_hunt.txt ---
+        === search for 1000G af parquet (any name/location under project) ===
+          data\external\1kgp\kg_grch38_af.parquet  (6.7 MB)
+          data\external\1kgp\kg_grch38_af_chrX.parquet  (0.2 MB)
+          data\raw\cache\1000genomes_kg_af_lookup.parquet  (4.2 MB)
+          data\raw\cache\1000genomes_kg_pop_af_b033c88e14b7.parquet  (5.9 MB)
+          data\raw\cache\1000genomes_kg_pop_af_e286829fe9c6.parquet  (5.9 MB)
+
+      --- offers.txt ---
+        �� [ 4 0 m  [ 9 7 m     #     I D                 C U D A       N     M o d e l           P C I E 
+         
+          [ 4 8 ; 5 ; 2 4 0 m  [ 9 7 m     1     4 0 9 2 7 2 8 4     1 2 . 2     1 x     R T X _ 4 0 9 0  
+         
+          [ 4 0 m  [ 9 7 m     2     4 1 7 4 4 0 0 4     1 3 . 2     1 x     R T X _ 4 0 9 0     2 2 . 2  
+         
+
+      --- phylop_fillna_install.txt ---
+        === Install_phylop_fillna_fix :: preflight ===
+        backup: C:\Projects\genomic-variant-classifier\src\genomic_variant_classifier\data\phylop.py.prefill
+        backup SHA256: EB12C6917AC9927AF48F682FE03A2E7A09D08455D3B572602D5C59404BFEC171
+          edit target (pybigtools branch): 1 match
+        patched file written.
+        === post-check 1: byte-compile ===
+
+      --- phylop_fix_install.txt ---
+        === Install_phylop_nan_fix :: preflight ===
+        backup written: C:\Projects\genomic-variant-classifier\src\genomic_variant_classifier\data\phylop.py
+        backup SHA256: 4AC274B2D3A3F0BB742CF998AD3F12B4CAF5B3F6AD085EA78DA52FD359F17A44
+          edit OK (pybigwig branch): 1 match
+          edit OK (pybigtools branch): 1 match
+          edit OK (add import math): 1 match
+
+      --- project_structure_audit.txt ---
+        ��= = = = =   P R O J E C T   S T R U C T U R E   A U D I T   = = = = = 
+         
+         G e n e r a t e d :   0 6 / 1 7 / 2 0 2 6   1 5 : 4 9 : 5 7 
+         
+         
+         
+
+      --- protein_interface_verify.txt ---
+        
+        === 1. ProteinStructurePipeline: does it have annotate_dataframe (what line 1018 calls)? ===
+        public methods: ['annotate_dataframe']
+        has annotate_dataframe: True
+        has annotate: False
+        
+
+      --- r13_guard_install.txt ---
+        === Install_r13_drift_and_guard :: preflight ===
+        backup: C:\Projects\genomic-variant-classifier\src\genomic_variant_classifier\data\real_data_prep.py
+        backup SHA256: 0E6C90C9F18A3072EF15DE2315FDD0613DFB80FC1219AF94C308C492087EE097
+          edit OK (add R13 FinnGen tuples)
+          edit OK (add fail-loud feature-count guard)
+        patched.
+
+      --- rnaseq_drive_probe.txt ---
+        === rnaseq on Drive: contents + sizes ===
+        ablations/
+        gtex_v11_Brain_Cortex_vs_Whole_Blood.rnaseq_gene_expression.parquet
+        gtex_v11_Brain_Cortex_vs_Whole_Blood.sample_meta.tsv
+        gtex_v11_Brain_Cortex_vs_Whole_Blood.de_features.manifest.json
+        gtex_v11_Brain_Cortex_vs_Whole_Blood.de_features.tsv
+
+      --- rnaseq_verify.txt ---
+        === rnaseq input: data\external\rnaseq_gene_expression.parquet ===
+        exists=True size_MB=1.70
+        rows=39486 cols=6
+        columns=['gene_symbol', 'rnaseq_mean_log_tpm', 'rnaseq_detection_rate', 'rnaseq_log2_cv', 'rnaseq_lo
+        dtypes:
+        gene_symbol               object
+
+      --- run17_cmd_verbatim.txt ---
+        === RUN17_SCOPE.md command block near L97 ===
+        97: python scripts/run_phase2_eval.py `
+        98:   --clinvar data\processed\clinvar_grch38.parquet `
+        99:   --gnomad data\processed\gnomad_v4_exomes.parquet `
+        100:   --spliceai data\external\spliceai\spliceai_index.parquet `
+        101:   --alphamissense <alphamissense_index> `
+
+      --- source.txt ---
+        ��                  0     2 0 2 4 - 0 4 - 1 7 T 0 0 : 0 4 : 5 5 Z     g s : / / g c p - p u b l i c 
+         
+         
+         
+         g s : / / g c p - p u b l i c - d a t a - - g n o m a d / r e l e a s e / 4 . 1 / v c f / e x o m e
+         
+
+      --- state.txt ---
+        
+        763c480
+         M scripts/launch_run17_baseline.sh
+         M scripts/run_phase2_eval.py
+         M src/genomic_variant_classifier/data/real_data_prep.py
+         M src/genomic_variant_classifier/models/variant_ensemble.py
+
+      --- string_resolve.txt ---
+        === StringDBGraph: how 'auto' resolves (download? cache path?) ===
+          L70: """Builds a NetworkX protein-interaction graph from STRING DB."""
+          L72: def __init__(
+          L74: cache_dir: Path = Path("data/raw/cache"),
+          L76: local_links_path: Optional[Path] = None,
+          L77: local_info_path: Optional[Path] = None,
+
+      --- test_run_pre_commit.txt ---
+        ============================= test session starts =============================
+        platform win32 -- Python 3.14.3, pytest-9.0.2, pluggy-1.6.0 -- C:\Projects\genomic-variant-classifie
+        cachedir: .pytest_cache
+        rootdir: C:\Projects\genomic-variant-classifier
+        plugins: anyio-4.12.1, cov-7.0.0
+        collecting ... collected 100 items
+
+      --- tumor gene data.txt ---
+        import pandas as pd
+        import numpy as np
+        
+        # Load the tumor gene data
+        tumor_gene_data_df = pd.read_csv('/content/GSM3148575_BC09_TUMOR1_barcodes.tsv', header=None, delimi
+        tumor_gene_data_df
+
+      --- wiring_targets.txt ---
+        
+        === A. real_data_prep.py : AnnotationConfig class (fields incl dbsnp_path, protein_cache_dir, min_pr
+          (AnnotationConfig starts at line 240; showing 60 lines)
+         240| class AnnotationConfig:
+         241|     """
+         242|     Paths and flags controlling which score connectors run during DataPrepPipeline.
+
+      --- wiring_verify.txt ---
+        
+        === 0. git state (untracked/modified; confirm we edited the right files) ===
+         M scripts/launch_run17_baseline.sh
+         M scripts/run_phase2_eval.py
+         M src/genomic_variant_classifier/data/real_data_prep.py
+         M src/genomic_variant_classifier/models/variant_ensemble.py
+
+======================================================================================
+## 4. SUMMARY -- decisions this enables
+======================================================================================
+
+    1. The scan total is now accounted for by directory and by tracked status.
+       No action needed; the audit's reporting gap is closed.
+    2. .wiring_backup/ -- keep any backup marked DIFFERS until the corresponding
+       uncommitted file is committed; discard the byte-identical ones. If the
+       directory is git-ignored it is not a commit hazard either way.
+    3. Root text files -- anything marked UNTRACKED is a commit hazard now.
+       Anything marked ignored is not a hazard but is invisible clutter; move it
+       to docs/measurements/ if it is evidence, delete it if it is scratch.
+
+    This script decides nothing. Every disposition is Monzia's.

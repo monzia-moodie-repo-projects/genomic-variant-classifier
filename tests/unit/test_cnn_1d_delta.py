@@ -48,8 +48,13 @@ def test_encode_batch_dispatch():
     ref_oh, alt_oh, delta = x[:, 0:4, :], x[:, 4:8, :], x[:, 8:12, :]
     assert not np.array_equal(ref_oh, alt_oh)        # ref != alt in delta mode
     assert np.abs(delta).sum() > 0                   # non-zero delta present
-    x2 = clf._encode_batch(pd.Series(["A" * W]))
-    assert np.abs(x2[:, 8:12, :]).sum() == 0.0       # single series -> zero delta
+    # 2026-07-15 (roadmap 6.28): a lone Series NO LONGER encodes as ref == alt with an
+    # identically-zero delta. That path hollowed out the very architecture the model is
+    # named for, and it is now a hard error. The sanctioned reference-only replacement is
+    # CNN1DClassifier(single_sequence_mode=True) -- 5 honest channels, recorded in
+    # get_params(), selected by construction rather than by an argument's type.
+    with pytest.raises(TypeError, match="requires a pandas DataFrame"):
+        clf._encode_batch(pd.Series(["A" * W]))
 
 
 def test_learns_delta_signal():
@@ -97,7 +102,24 @@ def test_clone_and_cross_val_predict():
     assert oof.shape == (90, 2)
 
 
-def test_poly_a_series_fallback_no_crash():
+def test_poly_a_series_fallback_now_raises():
+    """The poly-A Series fallback was REMOVED 2026-07-15 (roadmap 6.28).
+
+    It used to accept a bare Series, set ref == alt, and train without complaint on 13
+    channels of which 4 were identically zero and 8 were a duplicated pair -- then report
+    the result in the algorithm comparison under the name `cnn_1d`, whose entire premise
+    is the delta it no longer had. Passing a Series is now a hard error.
+    """
     s = pd.Series(["A" * W] * 30)
-    clf = CNN1DClassifier(epochs=2, batch_size=64).fit(s, np.arange(30) % 2)
-    assert clf.predict_proba(s).shape == (30, 2)
+    with pytest.raises(TypeError, match="requires a pandas DataFrame"):
+        CNN1DClassifier(epochs=2, batch_size=64).fit(s, np.arange(30) % 2)
+
+    # The sanctioned reference-only path still works: opt-in, 5 channels, and visible in
+    # get_params() so a run artifact records which architecture actually ran.
+    # Verified end to end 2026-07-18 (SINGLE_SEQ_MODE_2026-07-18.txt).
+    single = CNN1DClassifier(single_sequence_mode=True, epochs=2, batch_size=64)
+    df = pd.DataFrame({REF_WIN_COL: ["A" * W] * 30})
+    single.fit(df, np.arange(30) % 2)
+    assert single._in_channels() == 5
+    assert single.predict_proba(df).shape == (30, 2)
+    assert single.get_params()["single_sequence_mode"] is True
