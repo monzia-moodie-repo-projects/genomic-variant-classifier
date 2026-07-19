@@ -306,3 +306,108 @@ six branches were exercised deliberately.
 Uploaded outputs were read from disk by byte count and hash before being interpreted, because attachments
 have rendered empty intermittently throughout this session. On two occasions a file that appeared empty
 was in fact 166,702 and 159,839 bytes. Concluding from the absence would have been wrong both times.
+
+## 14. CONTINUOUS INTEGRATION CYCLE (2026-07-18, after the first push)
+
+The first push turned Continuous Integration RED, and the record would be dishonest without it.
+
+### What failed
+
+Runs #522 (`9362f2c`) and #523 (`d1c2c4e`) both failed, identically, on Python 3.11 and 3.12:
+
+```
+_______ test_readme_test_count_equals_the_suite_size_ratchet_exactly _______
+tests/unit/test_readme_claims.py:275
+E   AssertionError: README.md states the wrong test count in 1 place(s):
+E         shields.io badge              says 1962
+E     tests/EXPECTED_SUITE_SIZE says 1968. These must be EQUAL -- no tolerance.
+```
+
+Collection was CORRECT on both interpreters, which is what makes the diagnosis unambiguous:
+1,952 passed + 14 skipped + 1 xfailed + 1 failed = **1,968**. The ratchet was right. One line of
+README.md was not.
+
+### The tenth defect in this session's own deliverables
+
+Section 6 above lists nine. This is the tenth, and unlike the others it reached `origin/main`.
+
+The suite-size ratchet was bumped from 1962 to 1968 without updating the README claim BOUND to
+that number, and the post-bump suite run was placed in the delivered script's trailing "Next"
+block rather than in the command sequence actually executed. The last green local run -- 1,961
+passed, 7 skipped, zero failures -- was taken BEFORE the bump, at a moment when the README badge
+and the ratchet both said 1962 and agreed for entirely the correct reason. Moving one of the two
+numbers invalidated that agreement, and nothing re-ran to notice.
+
+**The gate did exactly what it was built to do.** `test_readme_test_count_equals_the_suite_size
+_ratchet_exactly` was written on 2026-07-14 as roadmap 6.25, specifically because its first
+version had carried a 50-wide tolerance that let a real 17-test drift pass silently. Its
+docstring says so. It fired at the first opportunity it was given, named the file, named both
+numbers, and refused to approximate. The failure was in the process feeding it, not in the gate.
+
+**The standing correction, recorded so it is not re-learned: after moving the ratchet, the full
+suite runs BEFORE the push, not after.** `tests/EXPECTED_SUITE_SIZE`'s own header already
+required the number to be bumped in the same commit as the tests; what it does not say, and what
+this session establishes, is that a second number elsewhere in the repository is bound to it and
+that only a full run surfaces the binding.
+
+### The fix
+
+`8975b1a` -- `fix(readme): re-derive the test badge from the ratchet (1968)`. One line changed.
+
+The number was **derived, never typed**: the repair reads `tests/EXPECTED_SUITE_SIZE` and writes
+that value using the SAME regular expression the test uses to read it back,
+`tests-([\d,]+)-success`. Sharing the detector between gate and fixer is deliberate -- roadmap
+6.24(iii) records a repair tool that could not fix what its own gate reported, which converts a
+red test into a manual chore, and manual chores are what rot. The repair also refuses if the
+number of matching claim sites is anything other than exactly one, so a restructured README
+causes a stop rather than a silent rewrite of the wrong line.
+
+Verified before the push this time:
+
+```
+python -m pytest tests/unit/test_readme_claims.py -q   ->  10 passed in 10.29s
+python -m pytest tests/ -q --assert-suite-size         ->  1961 passed, 7 skipped in 629.92s
+```
+
+The second command is the one that had been skipped. It runs the ratchet gate against the full
+suite rather than against a collection-only pass.
+
+### The environment split, which is the ratchet's whole argument
+
+| environment | passed | skipped | xfailed | failed | total |
+|---|---:|---:|---:|---:|---:|
+| Windows, full cohort | 1,961 | 7 | 0 | 0 | **1,968** |
+| Linux runner, Python 3.11 | 1,952 | 14 | 1 | 1 | **1,968** |
+| Linux runner, Python 3.12 | 1,952 | 14 | 1 | 1 | **1,968** |
+
+Same collection, three different pass/skip splits. This is precisely the divergence
+`EXPECTED_SUITE_SIZE`'s header cites as its reason for asserting COLLECTED and never PASSED, and
+it is why the README is forbidden from quoting a passing count at all
+(`test_readme_does_not_quote_an_environment_dependent_passing_count`). The Continuous Integration
+skips are legitimate: Windows-targeted post-flight tests, the ESM-2 tests (the HuggingFace Hub is
+offline by design), and tests needing gitignored cohort data.
+
+### Final state, 2026-07-18
+
+```
+433d2e8  docs(roadmap): 6C snapshot -- Phase 3b, suite 1968, 6.29a unknown answered   CI #525 GREEN
+8975b1a  fix(readme): re-derive the test badge from the ratchet (1968)                CI #524 GREEN
+d1c2c4e  docs: session record for 2026-07-18 (Phase 3b)                               CI #523 red
+9362f2c  chore: govern EXPECTED_SUITE_SIZE line endings explicitly                    CI #522 red
+e57835e  retire the superseded window builder; move 4 blind detectors onto provenance
+87b670e  (previous origin/main)
+```
+
+All five are on `origin/main`. Continuous Integration is GREEN for the first time since
+`87b670e`. Runs #522 and #523 are red for the README badge alone and for nothing in Phase 3b;
+they are left in the history rather than re-run, because a red run that was genuinely red is
+evidence.
+
+### One measurement worth preserving from the roadmap 6C run
+
+`clinvar_grch38_clean_seq.parquet` reported **21 columns**, against section 6.29a's recorded
+*"19 columns, NO `ok`"*. Two columns (`ok`, `reason`) were added when the artifact was
+regenerated during this session. That is what closed 6.29a's blocker, and it was confirmed by
+reading the parquet metadata at write time rather than assumed -- the 6C appender carries both
+branches and would have written "6.29a's premise CONFIRMED, still open" had the column been
+absent.

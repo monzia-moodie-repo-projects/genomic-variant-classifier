@@ -1020,7 +1020,7 @@ declared feature carried information. **None of that has been done.**
 
 **Everything here is MEASURED, the command is named, and the TREE it was measured on is named.**
 Session record: `docs/sessions/SESSION_2026-07-18_phase3b-window-builder-retirement.md`.
-Commits: `e57835e` (Phase 3b), `9362f2c` (line-ending governance), `d1c2c4e` (session record).
+Commits: `e57835e` (Phase 3b), `9362f2c` (line-ending governance), `d1c2c4e` (session record), `8975b1a` (README test badge), `433d2e8` (this section).
 
 ### What 6A now states falsely
 
