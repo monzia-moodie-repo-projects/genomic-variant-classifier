@@ -1,0 +1,402 @@
+SEQUENCE-BRANCH STATE -- read-only evidence for the next design step
+date : 2026-07-18
+repo : C:\Projects\genomic-variant-classifier
+
+This report answers no question. It gathers what is needed to answer two:
+  (1) Part 3 of the hybrid -- make X_seq optional, fail loudly if cnn_1d is active
+      without sequence.
+  (2) ROADMAP 6.29a's surviving half -- `--seq-windows` is a DIRECTORY in train.py and
+      a FILE in run_phase2_eval.py. Its FIRST half closed on 2026-07-18 when the
+      configured artifact was measured carrying an `ok` column.
+
+======================================================================================
+## 1. FILE IDENTITY
+======================================================================================
+
+  src/genomic_variant_classifier/models/variant_ensemble.py   2751 lines  sha256 589c2286527622c3
+  src/genomic_variant_classifier/data/seq_window_join.py    273 lines  sha256 aa236d739d863a60
+  src/genomic_variant_classifier/data/delta_window_builder.py    168 lines  sha256 35a1ac56b0e24b73
+  scripts/train.py                                        802 lines  sha256 f6b9783b61f866fc
+  scripts/run_phase2_eval.py                             1231 lines  sha256 4b88ccff4fcca893
+  scripts/smoke_all_models.py                             316 lines  sha256 04a14ae05e63f913
+  scripts/preflight_gate.py                               180 lines  sha256 d061df94e7bc7378
+  scripts/preflight_run16_inputs.py                       155 lines  sha256 f4bf2af812d183c6
+  scripts/run9_ablations.py                               881 lines  sha256 de25c86cb72e7d33
+
+======================================================================================
+## 2. ENSEMBLE SIGNATURES -- fit / evaluate / predict_proba
+======================================================================================
+
+Parsed with `ast`, so a signature spanning several lines is reported whole. A regex
+would report the first line and silently drop the rest -- which is how the false
+`X_seq: pd.Series` annotation survived review (ROADMAP 6.28).
+
+  line  1402: def _encode_batch(self, X) -> np.ndarray
+             """Return fused inputs (N, C, window) from a [fasta_seq_ref, fasta_seq_alt] frame."""
+  line  1544: def fit(self, X, y)
+  line  1607: def predict_proba(self, X)
+  line  1622: def predict(self, X)
+  line  1709: def fit(self, X, y)
+  line  1766: def predict_proba(self, X)
+  line  1835: def predict(self, X)
+  line  1859: def fit(self, X_cal: np.ndarray, y_cal: np.ndarray) -> '_IsotonicCalibrator'
+  line  1864: def predict_proba(self, X) -> np.ndarray
+  line  1869: def predict(self, X) -> np.ndarray
+  line  2231: def fit(self, X_tab: pd.DataFrame, X_seq: pd.DataFrame, y: pd.Series, gene_symbol: 'pd.Series | None' = None, X_tab_cal_ext: 'pd.DataFrame | None' = None, X_seq_cal_ext: 'pd.DataFrame | None' = None, y_cal_ext: 'pd.Series | None' = None, gene_symbol_cal_ext: 'pd.Series | None' = None) -> 'VariantEnsemble'
+             """X_seq: A 2-COLUMN [fasta_seq_ref, fasta_seq_alt] DataFrame, row-aligned to X_tab."""
+  line  2554: def predict_proba(self, X_tab: pd.DataFrame, X_seq: pd.DataFrame) -> np.ndarray
+             """X_seq: 2-column [fasta_seq_ref, fasta_seq_alt] frame. See fit() -- the"""
+  line  2576: def predict(self, X_tab: pd.DataFrame, X_seq: pd.DataFrame) -> np.ndarray
+  line  2579: def evaluate(self, X_tab: pd.DataFrame, X_seq: pd.DataFrame, y: pd.Series) -> pd.DataFrame
+
+======================================================================================
+## 3. EVERY REFERENCE TO X_seq
+======================================================================================
+
+The whole point of Part 3 is that these call sites currently REQUIRE a value. Each one
+below is a place that must either accept None or refuse loudly.
+
+  src/genomic_variant_classifier/agent_layer/harness/correctness_harness.py  (1 reference(s))
+         25: - VariantEnsemble.fit/evaluate/predict_proba are all (X_tab, X_seq, y).
+
+  src/genomic_variant_classifier/data/seq_window_join.py  (2 reference(s))
+         35: scripts/train.py:485          `X_seq_test[REF_WIN_COL] != _POLY_WIN`
+        149: scripts/train.py:441,458,480          <-- feeds the CNN's X_seq. The
+
+  src/genomic_variant_classifier/evaluation/prediction_artifacts.py  (6 reference(s))
+         28: writer.save_permutation_importance(ensemble, X_tab, X_seq, y)
+        343: X_seq_test: pd.Series,
+        365: X_seq_sub = X_seq_test.iloc[idx].reset_index(drop=True)
+        368: X_tab_sub, X_seq_sub, y_sub = X_tab_test, X_seq_test, y
+        371: y_sub, ensemble.predict_proba(X_tab_sub, X_seq_sub)[:, 1]
+        381: y_sub, ensemble.predict_proba(X_perm, X_seq_sub)[:, 1]
+
+  src/genomic_variant_classifier/models/variant_ensemble.py  (23 reference(s))
+       1327: `X_seq: pd.Series` -- an annotation that was FALSE for the production path;
+       2117: def _leakfree_oof(self, name, model, X_tab_fit, X_seq_fit, y_fit,
+       2147: Xtr_in, Xva_in = X_seq_fit.iloc[tr], X_seq_fit.iloc[va]
+       2232: self, X_tab: pd.DataFrame, X_seq: pd.DataFrame, y: pd.Series,
+       2235: X_seq_cal_ext: "pd.DataFrame | None" = None,
+       2240: X_seq: A 2-COLUMN [fasta_seq_ref, fasta_seq_alt] DataFrame, row-aligned to X_tab.
+       2243: THE ANNOTATION USED TO SAY `X_seq: pd.Series`. IT WAS FALSE (fixed 2026-07-15,
+       2247: scripts/train.py has always passed a DataFrame: `X_seq_train = _att_train.windows`.
+       2293: X_seq_fit = X_seq.reset_index(drop=True)
+       2294: X_seq_cal = X_seq_cal_ext.reset_index(drop=True)
+       2313: X_seq_fit = X_seq.iloc[idx_fit].reset_index(drop=True)
+       2314: X_seq_cal = X_seq.iloc[idx_cal].reset_index(drop=True)
+       2355: X_input_fit = X_seq_fit
+       2356: X_input_cal = X_seq_cal
+      ... 9 more
+
+  scripts/forensics/smoke_w2A.py  (2 reference(s))
+         50: for p in ["X_tab_cal_ext", "X_seq_cal_ext", "y_cal_ext", "gene_symbol_cal_ext"]:
+         55: for p in ["X_tab_cal_ext", "X_seq_cal_ext", "y_cal_ext", "gene_symbol_cal_ext"]
+
+  scripts/forensics/verify_w2A.py  (1 reference(s))
+         28: chk("X_seq_cal_ext param added", "X_seq_cal_ext" in src)
+
+  scripts/forensics/verify_w2b2.py  (3 reference(s))
+          3: --split-protocol arg, DataPrepConfig threading, the run()/run_v2 branch, the X_seq_tune v2 block with
+         39: chk("X_seq_tune v2 block", "Tune side (W2 v2 only)" in src)
+         45: chk("legacy fit preserved", "        ensemble.fit(X_train, X_seq_train, y_train)" in src)
+
+  scripts/install_docs_close_cnn_rna.py  (2 reference(s))
+         24: on the real-sequence path. Repointed the gate and X_seq plumbing to the live
+        129: change. The ensemble routes X_seq to the CNN via .iloc[idx].reset_index, which is DataFrame-safe,
+
+  scripts/patch_train_cnn_activation.py  (8 reference(s))
+         32: "        X_seq_train = pd.Series([\"A\" * 101] * len(y_train))\n"
+         33: "        X_seq_test  = pd.Series([\"A\" * 101] * len(y_test))\n"
+         36: "        X_seq_test = meta_test[\"fasta_seq\"].reset_index(drop=True)\n"
+         70: "        X_seq_train = pd.Series([\"A\" * 101] * len(y_train))\n"
+         71: "        X_seq_test  = pd.Series([\"A\" * 101] * len(y_test))\n"
+         74: "        X_seq_test, _n_unmapped_test = attach_delta_windows(meta_test)\n"
+         89: "        X_seq_train, _n_unmapped_train = attach_delta_windows(_meta_train)\n"
+         93: "            len(X_seq_train), _n_unmapped_train, len(X_seq_test), _n_unmapped_test,\n"
+
+  scripts/run9_ablations.py  (4 reference(s))
+        543: "ablations: X_seq here is a constant placeholder, so a convolutional "
+        665: # VariantEnsemble.fit/evaluate/predict_proba take X_seq positionally and index it
+        693: # cnn_1d is ALWAYS excluded from ablations (2026-07-18). X_seq here is a single
+        703: logger.info("cnn_1d excluded from ablation: X_seq is a constant placeholder, so its "
+
+  scripts/train.py  (15 reference(s))
+        432: # count of real (non-placeholder) windows actually attached. X_seq is always
+        440: X_seq_test = _att_test.windows
+        456: X_seq_train = _att_train.windows
+        462: X_seq_tune = None
+        478: X_seq_tune = _att_tune.windows
+        485: #     _n_real_test = int((X_seq_test[REF_WIN_COL].astype(str) != _POLY_WIN).sum())
+        490: # (1) IT COUNTED THE WRONG SPLIT. cnn_1d is FITTED on X_seq_train and this decided
+        491: #     its fate from X_seq_test. If the train windows were placeholders and the test
+        500: #     _n_real_test became len(X_seq_test) and has_sequences became UNCONDITIONALLY
+        524: # X_seq_train / X_seq_test remain valid two-column placeholder DataFrames; with
+        553: X_train, X_seq_train, y_train,
+        556: X_seq_cal_ext=X_seq_tune,
+        561: ensemble.fit(X_train, X_seq_train, y_train)
+        565: metrics_df = ensemble.evaluate(X_test, X_seq_test, y_test)
+      ... 1 more
+
+  tests/unit/test_api.py  (2 reference(s))
+        459: X_seq = pd.Series(["A" * 101] * n)
+        461: ens.fit(X_tab, X_seq, y)
+
+  tests/unit/test_base_model_dropout_is_loud.py  (3 reference(s))
+        103: fit(X_tab: DataFrame, X_seq: Series, y: Series, ...). X_seq is the DNA-sequence column
+        113: X_seq = pd.Series(["ACGT" * 8] * n)
+        114: return X_tab, X_seq, pd.Series(y)
+
+  tests/unit/test_correctness_harness.py  (1 reference(s))
+         20: - fit/evaluate/predict_proba are all (X_tab, X_seq, y).
+
+  tests/unit/test_ensemble_persistence.py  (2 reference(s))
+         30: X_seq = pd.Series(["A" * 101] * n)  # inert: cnn_1d is excluded below
+         48: ens.fit(X_tab, X_seq, y)
+
+  tests/unit/test_feature_name_contract.py  (2 reference(s))
+          9: cnn_1d    -> X_seq            (one-hot DNA sequence)
+        276: catboost) is exempted from `.values`. cnn_1d takes X_seq. Everything else -- lightgbm
+
+  tests/unit/test_logistic_regression_is_scaled.py  (2 reference(s))
+         43: Note cnn_1d: it is dispatched `X_seq`, not `X_tab` (variant_ensemble.py, the 3-way dispatch
+        153: routes `cnn_1d` to X_seq. Do not 'fix' it.
+
+  tests/unit/test_variant_ensemble_save_load.py  (6 reference(s))
+         56: X_seq = pd.DataFrame({
+         60: return X_tab, X_seq, y
+        151: X_tab, X_seq, y = synthetic_data
+        161: ens.fit(X_tab, X_seq, y)
+        194: proba1 = ens.predict_proba(X_tab, X_seq)
+        195: proba2 = ens2.predict_proba(X_tab, X_seq)
+
+  TOTAL X_seq references: 85
+
+======================================================================================
+## 4. WindowAttachment -- the contract, and its self-deleting migration list
+======================================================================================
+
+ROADMAP 6.28 records: "The migration list lives in WindowAttachment.__iter__'s docstring
+and deletes itself when empty." If that list is now empty, the deprecated lossy 2-tuple
+has no remaining callers and the back-compat path can go.
+
+  class WindowAttachment  (line 91)
+      | Windows plus the provenance needed to know which of them are real.
+      | 
+      | Attributes
+      | ----------
+      | windows:
+      |     2-column [fasta_seq_ref, fasta_seq_alt] frame, 1:1 with `meta` (reset index).
+      | usable:
+      |     Boolean array, 1:1 with `meta`. True iff the row carries sequence that came
+      |     from the reference genome. **Consumers must mask on this and nothing else.**
+      |     Never compare window CONTENT to a placeholder string: a real window may
+      |     legitimately equal any given string (poly-A tracts are real biology).
+      | n_unmapped:
+      |     Rows whose key was absent from the window source entirely.
+      | n_placeholder:
+      |     Rows present in the source but flagged `ok=False` by the builder -- i.e. the
+      |     builder could not construct a window (missing contig, out-of-range position,
+      |     non-ACGT allele). These are the 21,814 the old code could not see.
+      | provenance:
+      |     Which resolution tier produced this attachment; recorded so a run artifact can
+      |     state HOW its windows were obtained, not merely that it had some.
+      field: windows: pd.DataFrame
+      field: usable: np.ndarray
+      field: n_rows: int
+      field: n_unmapped: int
+      field: n_placeholder: int
+      field: provenance: str
+
+      def n_usable(self) -> int  (line 122)
+
+      def usable_fraction(self) -> float  (line 126)
+
+      def summary(self) -> str  (line 129)
+
+      def __iter__(self)  (line 136)
+          | Back-compat shim: `wins, n_unmapped = attach_delta_windows(...)` unpacks.
+          | 
+          | DEPRECATED AND DELIBERATELY LOSSY -- it drops `usable`, which is the entire
+          | point of this object. It exists only so that the 2026-07-15 change lands as
+          | one reviewable step instead of a seven-call-site rewrite in the same commit.
+          | 
+          | MIGRATION STATUS, 2026-07-15 -- accurate as written, not aspirational:
+          | 
+          |     MIGRATED to `.usable`:
+          |       src/genomic_variant_classifier/data/genomic_lm.py   (both call sites)
+          | 
+          |     STILL UNPACKING THE TUPLE -- these read `usable=False` rows as real:
+          |       scripts/train.py:441,458,480          <-- feeds the CNN's X_seq. The
+          |                                                 one that matters for Run 17.
+          |       scripts/run_phase2_eval.py:425,426,427
+          |       scripts/rekey_seq_windows_v2.py:145   <-- verification only, low risk
+          | 
+          | `scripts/train.py:485` additionally computes its own poly-detector against
+          | `_POLY_WIN = "A" * 101`. PLACEHOLDER_BASE is now "N", so that check no longer
+          | matches anything and its `_n_real_test` count is now wrong in the OTHER
+          | direction -- it will report every row as real. **train.py must be migrated
+          | before Run 17.** Tracked as roadmap 6.28.
+          | 
+          | This docstring is the todo list. When the list above is empty, delete this
+          | method and the `usable`-less path stops existing.
+
+======================================================================================
+## 5. THE `--seq-windows` CONTRADICTION -- both declarations, side by side
+======================================================================================
+
+ROADMAP 6.29a: train.py declares a DIRECTORY and appends /seq_windows.parquet;
+run_phase2_eval.py declares a FILE and passes it straight to attach_delta_windows.
+Read both and confirm whether that is still true on this tree.
+
+  scripts/train.py
+        102: "--seq-windows",
+        103: default="data/processed/seq_windows",
+        104: help=(
+
+        105: "Directory holding the precomputed sequence delta windows "
+
+        106: "(seq_windows.parquet + seq_windows.manifest.json, from "
+        107: "scripts/build_seq_windows.py). Consumed by the one-dimensional "
+        108: "convolutional neural network (cnn_1d) via a key-join. When the "
+
+        109: "manifest is present it is verified for coherence against the "
+
+        289: _seq_win_dir = _Path(args.seq_windows)
+        290: if (_seq_win_dir / "seq_windows.manifest.json").exists():
+        291: from genomic_variant_classifier.data.seq_window_manifest import (
+
+        292: verify_seq_windows as _verify_seq_windows,
+
+        293: )
+        294: logger.info("Verifying sequence-window coherence at %s", _seq_win_dir)
+
+        295: _verify_seq_windows(raw_df, _seq_win_dir, args.reference).raise_if_failed()
+        296: logger.info("Sequence-window coherence gate: PASS")
+        297: else:
+
+        300: "sequences (degenerate). Run scripts/build_seq_windows.py to "
+        301: "enable real sequence windows.",
+        302: _seq_win_dir,
+
+        427: # from the precomputed artifact (scripts/build_seq_windows.py) via
+        428: # attach_delta_windows(seq_windows_path=...). The prior code checked
+        429: # meta_test.columns for the window columns BEFORE the join, which was always
+
+        430: # false and popped the one-dimensional convolutional neural network (cnn_1d)
+
+        435: _seq_win_parquet = _Path(args.seq_windows) / "seq_windows.parquet"
+        436: _seq_win_arg = str(_seq_win_parquet) if _seq_win_parquet.exists() else None
+
+      ... 5 more line(s)
+
+  scripts/run_phase2_eval.py
+         49: "--seq-windows",
+         50: default="data/processed/clinvar_grch38_clean_seq.parquet",
+         51: help="Parquet with fasta_seq_ref/fasta_seq_alt delta windows keyed by "
+
+        268: "via --seq-windows; use this only for CNN-free ablations.",
+        269: )
+        270: p.add_argument(
+
+        361: genomiclm_seq_windows_path=(Path(args.seq_windows) if getattr(args, "seq_windows", None) else None),
+        362: cosmic_path=Path(args.cosmic_path) if getattr(args, "cosmic_path", None) else None,
+        363: kegg_path=Path(args.kegg_path) if getattr(args, "kegg_path", None) else None,
+
+        414: _seq_win = Path(args.seq_windows) if getattr(args, "seq_windows", None) else None
+        415: if _seq_win is not None and not _seq_win.exists():
+        416: logger.warning(
+
+        417: "seq-windows parquet not found: %s -- automatically enabling --skip-cnn. "
+        418: "Every row would fall back to a placeholder window and fail the >0.5%% "
+        419: "unusable gate. Pass --seq-windows <path> or --skip-cnn explicitly to "
+
+        420: "silence this.",
+        421: _seq_win,
+
+        470: "cnn_1d on fabricated windows. Check --clinvar/--seq-windows, or rebuild "
+        471: "with scripts/build_seq_windows.py.",
+        472: _unusable_tot, _n_tot, 100.0 * _unusable_tot / max(_n_tot, 1),
+
+        473: _unmapped_tot, _placeholder_tot,
+
+
+  scripts/smoke_all_models.py
+         13: --string-db auto, the real seq-windows, and NO --skip-* flags, into a temp
+         14: output dir. At ~3000 training rows SVM (O(n^2)) and KAN (100k self-cap) both
+         15: run, so every model's fit path is exercised cheaply.
+
+         31: --seq-windows data/processed/clinvar_grch38_clean_seq.parquet \
+         32: --gnomad-constraint data/external/gnomad/gnomad.v4.1.constraint_metrics.tsv \
+         33: --dbnsfp-path data/external/dbnsfp/dbnsfp_clinvar_index.parquet \
+
+        176: ("--alphamissense", args.alphamissense), ("--seq-windows", args.seq_windows),
+        177: ("--gnomad-constraint", args.gnomad_constraint),
+        178: ("--dbnsfp-path", args.dbnsfp_path), ("--lovd-path", args.lovd_path),
+
+        206: ap.add_argument("--seq-windows", dest="seq_windows")
+        207: ap.add_argument("--gnomad-constraint", dest="gnomad_constraint")
+        208: ap.add_argument("--dbnsfp-path", dest="dbnsfp_path")
+
+
+  scripts/preflight_gate.py
+         27: "--seq-windows":       "processed/clinvar_grch38_clean_seq.parquet",
+         28: "--gnomad":            "processed/gnomad_v4_exomes.parquet",
+         29: "--spliceai":          "external/spliceai/spliceai_index.parquet",
+
+         50: for f in ("--clinvar", "--seq-windows", "--gnomad", "--spliceai", "--alphamissense",
+         51: "--kg", "--gnomad-constraint", "--lovd-path", "--dbnsfp-path", "--finngen-path",
+         52: "--string-db", "--max-train", "--n-folds", "--min-review-tier",
+
+         91: if flag == "--seq-windows" and str(v).strip() == "":
+         92: rows.append(("FAIL", f"{flag} empty -> CNN forced to poly-A (silent CNN degradation)"))
+         93: continue
+
+
+  scripts/preflight_run16_inputs.py
+         60: "this. Rebuild with scripts/build_seq_windows.py then "
+         61: "scripts/build_clean_seq_from_windows.py)")
+         62: n_total = 0
+
+
+
+======================================================================================
+## 6. WHICH ARTIFACT DOES EACH CALLER NAME?
+======================================================================================
+
+6.29a's fix hinged on repointing everything at data/processed/seq_windows. That fix was
+justified by the configured artifact lacking provenance -- which is no longer the case.
+So: what does each one actually name today?
+
+  scripts/train.py
+        103  [data/processed/seq_windows]  default="data/processed/seq_windows",
+        106  [seq_windows.parquet]  "(seq_windows.parquet + seq_windows.manifest.json, from "
+        290  [seq_windows.manifest]  if (_seq_win_dir / "seq_windows.manifest.json").exists():
+        435  [seq_windows.parquet]  _seq_win_parquet = _Path(args.seq_windows) / "seq_windows.parquet"
+
+  scripts/run_phase2_eval.py
+         50  [clinvar_grch38_clean_seq]  default="data/processed/clinvar_grch38_clean_seq.parquet",
+
+  scripts/smoke_all_models.py
+         31  [clinvar_grch38_clean_seq]  --seq-windows data/processed/clinvar_grch38_clean_seq.parquet \
+
+  scripts/preflight_gate.py
+         27  [clinvar_grch38_clean_seq]  "--seq-windows":       "processed/clinvar_grch38_clean_seq.parquet",
+
+  scripts/preflight_run16_inputs.py
+         46  [clinvar_grch38_clean_seq]  f"maxentscan_delta would be INERT; use clinvar_grch38_clean_seq.parquet)")
+        128  [clinvar_grch38_clean_seq]  ap.add_argument("--clinvar", default="data/processed/clinvar_grch38_clean_seq.parquet")
+
+  scripts/launch_run17_baseline.sh
+         64  [clinvar_grch38_clean_seq]  "$DATA/processed/clinvar_grch38_clean_seq.parquet" \
+        181  [clinvar_grch38_clean_seq]  ARGS="$ARGS --seq-windows $DATA/processed/clinvar_grch38_clean_seq.parquet"
+
+
+======================================================================================
+## 7. IS cnn_1d IN THE LIVE ROSTER?
+======================================================================================
+
+Read from a real instance, not a regex -- ROADMAP 6.23 records that a regex missed `kan`
+because it was added via dict-unpacking and produced a wrong roster count.
+
+  base_estimators (13): catboost, cnn_1d, deep_ensemble, gradient_boosting, kan, lightgbm, logistic_regression, mc_dropout, random_forest, svm, svm_bagged_rbf, tabular_nn, xgboost
+  cnn_1d present : True

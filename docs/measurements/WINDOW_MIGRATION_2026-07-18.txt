@@ -1,0 +1,133 @@
+WINDOW MIGRATION AUDIT -- does the self-deleting todo list match the code?
+date      : 2026-07-18
+repo      : C:\Projects\genomic-variant-classifier
+read-only : yes
+
+The list lives in WindowAttachment.__iter__'s docstring and is hand-maintained. It
+claims three files still unpack the deprecated lossy tuple. Two of those files changed
+on the same day the list was written. This re-derives it from the abstract syntax tree.
+
+======================================================================================
+## 1. WHAT THE DOCSTRING CLAIMS (transcribed, not trusted)
+======================================================================================
+
+    STILL UNPACKING (claimed) : scripts/rekey_seq_windows_v2.py
+    STILL UNPACKING (claimed) : scripts/run_phase2_eval.py
+    STILL UNPACKING (claimed) : scripts/train.py
+
+  docstring read from disk: 3 of 3 claimed paths still appear in it
+
+======================================================================================
+## 2. EVERY attach_delta_windows CALL SITE, CLASSIFIED BY THE TREE
+======================================================================================
+
+  TUPLE  = lossy unpack; `usable` discarded; placeholder rows read as real
+  OBJECT = attachment bound; provenance reads reported separately
+  BARE   = value used inline or discarded
+
+  src/genomic_variant_classifier/data/genomic_lm.py   [INLINE]
+      line   352  BARE
+
+  scripts/rekey_seq_windows_v2.py   [MIGRATED]
+      line   145  OBJECT  att = attach_delta_windows(...)
+               .windows read at 146
+               provenance read: n_unmapped@146, usable@172
+
+  scripts/run_phase2_eval.py   [PARTIAL]
+      line   436  OBJECT  _att_tr = attach_delta_windows(...)
+               .windows read at 440
+               provenance read: NONE  <-- mask never consulted
+      line   437  OBJECT  _att_te = attach_delta_windows(...)
+               .windows read at 440
+               provenance read: NONE  <-- mask never consulted
+      line   438  OBJECT  _att_val = attach_delta_windows(...)
+               .windows read at 440
+               provenance read: NONE  <-- mask never consulted
+
+  scripts/train.py   [MIGRATED]
+      line   439  OBJECT  _att_test = attach_delta_windows(...)
+               .windows read at 440
+               provenance read: n_usable@531, usable_fraction@537, usable_fraction@542
+      line   455  OBJECT  _att_train = attach_delta_windows(...)
+               .windows read at 456
+               provenance read: n_usable@516, n_usable@521, n_usable@530, usable_fraction@537, usable_fraction@542
+      line   477  OBJECT  _att_tune = attach_delta_windows(...)
+               .windows read at 478
+               provenance read: NONE  <-- mask never consulted
+
+  tests/unit/test_seq_window_join.py   [UNPACKS]
+      line    36  TUPLE   out, n_un = attach_delta_windows(...)   <-- LOSSY
+      line    46  TUPLE   out, n = attach_delta_windows(...)   <-- LOSSY
+      line   152  TUPLE   out, n_un = attach_delta_windows(...)   <-- LOSSY
+      line    63  OBJECT  att = attach_delta_windows(...)
+               .windows read at 206
+               provenance read: n_unmapped@65, n_usable@67, usable@69, usable@70, n_unmapped@99, n_placeholder@100, usable@101, usable@102
+      line    97  OBJECT  att = attach_delta_windows(...)
+               .windows read at 206
+               provenance read: n_unmapped@65, n_usable@67, usable@69, usable@70, n_unmapped@99, n_placeholder@100, usable@101, usable@102
+      line   121  OBJECT  att = attach_delta_windows(...)
+               .windows read at 206
+               provenance read: n_unmapped@65, n_usable@67, usable@69, usable@70, n_unmapped@99, n_placeholder@100, usable@101, usable@102
+      line   138  OBJECT  att = attach_delta_windows(...)
+               .windows read at 206
+               provenance read: n_unmapped@65, n_usable@67, usable@69, usable@70, n_unmapped@99, n_placeholder@100, usable@101, usable@102
+      line   164  OBJECT  att = attach_delta_windows(...)
+               .windows read at 206
+               provenance read: n_unmapped@65, n_usable@67, usable@69, usable@70, n_unmapped@99, n_placeholder@100, usable@101, usable@102
+      line   185  OBJECT  att = attach_delta_windows(...)
+               .windows read at 206
+               provenance read: n_unmapped@65, n_usable@67, usable@69, usable@70, n_unmapped@99, n_placeholder@100, usable@101, usable@102
+      line   201  OBJECT  att = attach_delta_windows(...)
+               .windows read at 206
+               provenance read: n_unmapped@65, n_usable@67, usable@69, usable@70, n_unmapped@99, n_placeholder@100, usable@101, usable@102
+
+  tests/unit/test_train_cnn_activation.py   [UNPACKS]
+      line   101  TUPLE   w, n_unmapped = attach_delta_windows(...)   <-- LOSSY
+      line    47  OBJECT  att = attach_delta_windows(...)
+               .windows read at 49, 56, 57, 58
+               provenance read: n_usable@51, n_unmapped@52, usable@53, usable@59, n_unmapped@72, n_usable@73, usable@74, provenance@75
+      line    70  OBJECT  att = attach_delta_windows(...)
+               .windows read at 49, 56, 57, 58
+               provenance read: n_usable@51, n_unmapped@52, usable@53, usable@59, n_unmapped@72, n_usable@73, usable@74, provenance@75
+
+
+======================================================================================
+## 3. VERDICT ON THE TODO LIST
+======================================================================================
+
+  claimed still-unpacking : scripts/rekey_seq_windows_v2.py, scripts/run_phase2_eval.py, scripts/train.py
+  ACTUALLY unpacking      : tests/unit/test_seq_window_join.py, tests/unit/test_train_cnn_activation.py
+
+  STALE -- claimed but no longer unpacking (3):
+      scripts/rekey_seq_windows_v2.py   [MIGRATED]
+      scripts/run_phase2_eval.py   [PARTIAL]
+      scripts/train.py   [MIGRATED]
+
+      The list overstates the work remaining. That is the SAFE direction, but it
+      is still a document asserting something untrue about the code, and it is the
+      document that decides when the lossy path may be deleted.
+
+  INCOMPLETE -- unpacking but NOT claimed (2) -- THE DANGEROUS DIRECTION:
+      tests/unit/test_seq_window_join.py
+      tests/unit/test_train_cnn_activation.py
+
+      An unlisted offender is one nobody is tracking. Each reads usable=False rows
+      as real sequence.
+
+  PARTIAL -- binds the attachment but never reads its mask (1):
+      scripts/run_phase2_eval.py
+
+      The class docstring is explicit: "Consumers must mask on this and nothing
+      else." Binding the object and ignoring `usable` gets the shape right and the
+      semantics wrong, which is harder to spot than an outright tuple unpack.
+
+
+======================================================================================
+## 4. WHAT THIS MEANS FOR SCOPE
+======================================================================================
+
+  The lossy path still has consumers. `__iter__` CANNOT be deleted yet.
+  Per ROADMAP 6.28 these are a Run 17 blocker, not a cleanup:
+      scripts/run_phase2_eval.py   [PARTIAL]
+      tests/unit/test_seq_window_join.py   [UNPACKS]
+      tests/unit/test_train_cnn_activation.py   [UNPACKS]

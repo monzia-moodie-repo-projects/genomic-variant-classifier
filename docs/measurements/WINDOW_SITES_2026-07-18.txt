@@ -1,0 +1,325 @@
+WINDOW CALL SITES -- verbatim source for the regions the audit could not judge
+date      : 2026-07-18
+repo      : C:\Projects\genomic-variant-classifier
+read-only : yes
+
+The migration audit established that the WindowAttachment todo list is STALE: none of
+the three files it names unpacks the deprecated tuple. It also returned two results it
+is not competent to judge (a shim's own test flagged as violating the shim; a possible
+provenance read through indirection) and one genuine asymmetry (_att_tune). Source
+follows so those are settled by reading rather than by inferring.
+
+======================================================================================
+## scripts/run_phase2_eval.py   lines 425-500
+======================================================================================
+
+  The three attachments (436/437/438) and the unusable gate at ~470.
+  RESOLVE: is the mask consulted through a loop variable or helper? The audit could not see it.
+
+  sha256 4b88ccff4fcca893   1231 lines total
+
+    425|         _meta_train_seq = pd.read_parquet(outdir / "splits" / "meta_train.parquet")
+    426| 
+    427|         # 2026-07-15 (roadmap 6.28): migrated off the deprecated 2-tuple. This block used
+    428|         # to read `seq_tr, _u_tr = attach_delta_windows(...)` and sum the three
+    429|         # `n_unmapped` counts. `n_unmapped` counts ONLY key-join misses -- rows whose key
+    430|         # is absent from the artifact. It does NOT count BUILDER PLACEHOLDERS: rows that
+    431|         # are present, whose key joins perfectly, and for which delta_window_builder could
+    432|         # not construct a window and wrote POLY="N"*101 with ok=False.
+    433|         #
+    434|         # So the gate below -- which returns 2 and ABORTS -- was measuring the smaller of
+    435|         # the two failure modes and calling it coverage. `n_rows - n_usable` counts both.
+    436|         _att_tr = attach_delta_windows(_meta_train_seq, _seq_win)
+    437|         _att_te = attach_delta_windows(meta, _seq_win)          # meta == meta_test
+    438|         _att_val = attach_delta_windows(meta_val, _seq_win)
+    439|         _atts = (("train", _att_tr), ("test", _att_te), ("val", _att_val))
+    440|         seq_tr, seq_te, seq_val = _att_tr.windows, _att_te.windows, _att_val.windows
+    441| 
+    442|         for _split_name, _a in _atts:
+    443|             logger.info("seq windows [%-5s]: %s", _split_name, _a.summary())
+    444| 
+    445|         _n_tot = sum(a.n_rows for _, a in _atts)
+    446|         _unmapped_tot = sum(a.n_unmapped for _, a in _atts)
+    447|         _placeholder_tot = sum(a.n_placeholder for _, a in _atts)
+    448|         _unusable_tot = sum(a.n_rows - a.n_usable for _, a in _atts)
+    449|         logger.info(
+    450|             "Sequence windows: train=%d test=%d val=%d | unusable=%d/%d (%.4f%%) "
+    451|             "= %d unmapped + %d builder-placeholder",
+    452|             len(seq_tr), len(seq_te), len(seq_val), _unusable_tot, _n_tot,
+    453|             100.0 * _unusable_tot / max(_n_tot, 1), _unmapped_tot, _placeholder_tot,
+    454|         )
+    455|         # THE 0.5% THRESHOLD IS NOW A RAZOR, AND THAT IS WORTH KNOWING BEFORE A PAID RUN.
+    456|         # The live 2026-07-10 artifact carries n_poly = 21,814 of 4,420,180 = 0.4935%
+    457|         # builder placeholders, cohort-wide. Against a 0.5% bound that is a margin of
+    458|         # 0.0065 percentage points -- roughly 287 rows. Before today those 21,814 were
+    459|         # invisible to this gate entirely (they are not "unmapped"), so the gate passed
+    460|         # with room to spare on a number that was measuring the wrong thing. It now
+    461|         # measures the right thing and very nearly fails. Do not "fix" that by raising the
+    462|         # bound: the honest responses are to rebuild the windows so fewer rows are
+    463|         # placeholders, or to decide -- explicitly, in writing -- that 0.5% of the cohort
+    464|         # may carry fabricated sequence. A threshold quietly widened to accommodate a
+    465|         # measurement is how a gate stops being one.
+    466|         if not getattr(args, "skip_cnn", False) and _unusable_tot > 0.005 * _n_tot:
+    467|             logger.error(
+    468|                 "Sequence-window coverage too low: %d/%d rows UNUSABLE (%.4f%%) > 0.5%% "
+    469|                 "-- %d unmapped + %d builder-placeholder. Aborting rather than training "
+    470|                 "cnn_1d on fabricated windows. Check --clinvar/--seq-windows, or rebuild "
+    471|                 "with scripts/build_seq_windows.py.",
+    472|                 _unusable_tot, _n_tot, 100.0 * _unusable_tot / max(_n_tot, 1),
+    473|                 _unmapped_tot, _placeholder_tot,
+    474|             )
+    475|             return 2
+    476| 
+    477|         # ===================================================================================
+    478|         # FEATURE CENSUS -- THE GATE THAT RUN 15 DID NOT HAVE (roadmap 6.21, 2026-07-13)
+    479|         # ===================================================================================
+    480|         # Run 15 trained, evaluated, and published with 36 of its 78 features CONSTANT ZERO --
+    481|         # 46% of the feature space. GTEx, 1000 Genomes, FinnGen, AlphaFold/protein structure,
+    482|         # MaxEntScan, UniProt, ESM-2, EVE, dbSNP, PhyloP, OMIM, ClinGen: all silently stubbed
+    483|         # to 0.0 across 1,038,974 variants. The reported AUROC of 0.998 was produced by the 38
+    484|         # features that were real. Nothing in the pipeline said a word.
+    485|         #
+    486|         # The launcher's abort gates cannot catch this. They assert that a FILE EXISTS, which
+    487|         # is a PROXY. A present-but-empty file, a schema change, a renamed column, or a failed
+    488|         # gene-symbol join all pass a file check and still hand you a column of zeros. That is
+    489|         # root pattern (c): a gate that checks a proxy instead of the thing it protects.
+    490|         #
+    491|         # THIS asserts the thing itself, against the engineered matrix, on the FULL cohort --
+    492|         # deliberately placed BEFORE the --max-train subsample, so that a sparse feature is
+    493|         # never mistaken for a dead one because we happened to look at a small slice.
+    494|         #
+    495|         # It runs in the smoke test and in the real run, on the same code path, with the same
+    496|         # flags. A source that fails to populate now costs SECONDS, not eleven hours of paid
+    497|         # compute followed by a twelve-model algorithm comparison built on a feature space that
+    498|         # was half imaginary.
+    499|         from genomic_variant_classifier.models.variant_ensemble import (
+    500|             feature_census,
+
+======================================================================================
+## scripts/train.py   lines 470-560
+======================================================================================
+
+  _att_tune at 477 -- binds, reads .windows at 478, never reads provenance, while _att_test and _att_train both do.
+  It feeds X_seq_cal_ext, the calibration split.
+
+  sha256 f6b9783b61f866fc   802 lines total
+
+    470|             )
+    471|         _meta_tune = pd.read_parquet(_meta_tune_path)
+    472|         if len(_meta_tune) != len(y_tune):
+    473|             raise ValueError(
+    474|                 f"meta_tune rows ({len(_meta_tune)}) != y_tune ({len(y_tune)}); "
+    475|                 "split misalignment -- aborting to avoid PM11d-style label mismatch."
+    476|             )
+    477|         _att_tune = attach_delta_windows(_meta_tune, seq_windows_path=_seq_win_arg)
+    478|         X_seq_tune = _att_tune.windows
+    479| 
+    480|     # -- Decide has_sequences from PROVENANCE, on the split the CNN is FITTED on --
+    481|     #
+    482|     # 2026-07-15 (roadmap 6.28). This block previously read:
+    483|     #
+    484|     #     _POLY_WIN = "A" * 101
+    485|     #     _n_real_test = int((X_seq_test[REF_WIN_COL].astype(str) != _POLY_WIN).sum())
+    486|     #     has_sequences = _n_real_test > 100
+    487|     #
+    488|     # TWO independent defects, one of them introduced by the very fix that found it:
+    489|     #
+    490|     # (1) IT COUNTED THE WRONG SPLIT. cnn_1d is FITTED on X_seq_train and this decided
+    491|     #     its fate from X_seq_test. If the train windows were placeholders and the test
+    492|     #     windows were real, has_sequences was True and the model trained on fabricated
+    493|     #     sequence, then predicted on real sequence. The two sides share _seq_win_arg so
+    494|     #     they fail together in practice -- but "in practice" is not an invariant, and
+    495|     #     the gate must assert the thing it protects (roadmap 7c). It now reads TRAIN,
+    496|     #     and every split's provenance is logged, not just the one that decided.
+    497|     #
+    498|     # (2) IT WAS A CONTENT CHECK, AND PLACEHOLDER_BASE IS NOW "N". The comparison
+    499|     #     `!= "A"*101` stopped matching anything the moment the placeholder changed, so
+    500|     #     _n_real_test became len(X_seq_test) and has_sequences became UNCONDITIONALLY
+    501|     #     TRUE. With no window artifact at all, tier 3 fills every row with a
+    502|     #     placeholder and cnn_1d would have STAYED IN THE ENSEMBLE and trained on
+    503|     #     4.4 million fabricated windows -- precisely what the pop() below exists to
+    504|     #     prevent. The full suite was GREEN while this was true, because no test drives
+    505|     #     this path: the same shape as rekey_seq_windows_v2's gate, which the filler
+    506|     #     change also silently disarmed.
+    507|     #
+    508|     #     That is the third content-based poly detector to break this way, and it is the
+    509|     #     argument for provenance stated as a bug report. `usable` comes from the
+    510|     #     builder's own `ok` column; it cannot be fooled by a real poly-A tract and it
+    511|     #     cannot rot when a filler changes, because it never looks at the filler.
+    512|     for _split_name, _a in (("train", _att_train), ("test", _att_test), ("tune", _att_tune)):
+    513|         if _a is not None:
+    514|             logger.info("seq windows [%-5s]: %s", _split_name, _a.summary())
+    515| 
+    516|     has_sequences = _att_train.n_usable > 100
+    517|     if not has_sequences:
+    518|         logger.info(
+    519|             "No usable ref/alt sequence windows on the TRAIN split after join "
+    520|             "(%d/%d usable; seq_windows=%s) -- removing CNN from ensemble.",
+    521|             _att_train.n_usable, _att_train.n_rows, _seq_win_arg,
+    522|         )
+    523|         ensemble.base_estimators.pop("cnn_1d", None)
+    524|         # X_seq_train / X_seq_test remain valid two-column placeholder DataFrames; with
+    525|         # cnn_1d removed they satisfy the seq-aware signatures but are unused.
+    526|     else:
+    527|         logger.info(
+    528|             "CNN sequences active (delta mode): train=%d usable of %d, "
+    529|             "test=%d usable of %d.",
+    530|             _att_train.n_usable, _att_train.n_rows,
+    531|             _att_test.n_usable, _att_test.n_rows,
+    532|         )
+    533|         # A large train/test gap in window availability is not fatal, but it is never
+    534|         # benign: cnn_1d would be fitted and evaluated on differently-populated inputs,
+    535|         # and its measured contribution would be an artefact of coverage rather than of
+    536|         # biology. Say so loudly rather than let it wash into the metrics.
+    537|         if abs(_att_train.usable_fraction - _att_test.usable_fraction) > 0.05:
+    538|             logger.warning(
+    539|                 "SEQUENCE COVERAGE IS SPLIT-DEPENDENT: train %.3f%% usable vs test "
+    540|                 "%.3f%%. cnn_1d will be fitted and scored on differently-populated "
+    541|                 "inputs; treat its ablation delta as suspect until this is explained.",
+    542|                 100.0 * _att_train.usable_fraction, 100.0 * _att_test.usable_fraction,
+    543|             )
+    544| 
+    545|     # -- 4. Train -----------------------------------------------------------
+    546|     logger.info("PHASE 3: Training")
+    547|     if _v2:
+    548|         # PATH-1 (W2, 2026-07-11): fit on train; calibrate the tree models'
+    549|         # isotonic step on the GENE-DISJOINT tune partition (external cal fold),
+    550|         # and pass gene_symbol so the inner out-of-fold cross-validation is
+    551|         # gene-disjoint (GroupKFold) rather than the label-stratified fallback.
+    552|         ensemble.fit(
+    553|             X_train, X_seq_train, y_train,
+    554|             gene_symbol=genes_train,
+    555|             X_tab_cal_ext=X_tune,
+    556|             X_seq_cal_ext=X_seq_tune,
+    557|             y_cal_ext=y_tune,
+    558|             gene_symbol_cal_ext=genes_tune,
+    559|         )
+    560|     else:
+
+======================================================================================
+## src/genomic_variant_classifier/data/genomic_lm.py   lines 340-365
+======================================================================================
+
+  The INLINE call at 352.
+  The todo list claims BOTH genomic_lm call sites are migrated to `.usable`.
+  Does provenance survive an inline expression?.
+
+  sha256 6efd9abaa4925a82   443 lines total
+
+    340|         combined = combined.drop_duplicates("_k", keep="last").drop(columns="_k")
+    341|         combined.to_parquet(p, index=False)
+    342| 
+    343|     # -- window resolution (the verified path; identical to the CNN's) --------
+    344|     def _resolve_windows(self, df: pd.DataFrame):
+    345|         """Return the seq_window_join.WindowAttachment for `df`.
+    346| 
+    347|         2026-07-15 (roadmap 6.28): returns the WindowAttachment itself, not a
+    348|         `(windows, n_unmapped)` pair. Callers must mask on `.usable`.
+    349|         """
+    350|         from genomic_variant_classifier.data.seq_window_join import attach_delta_windows
+    351| 
+    352|         return attach_delta_windows(df, self.seq_windows_path, self.window)
+    353| 
+    354|     # `_mapped_mask` IS GONE. It read:
+    355|     #
+    356|     #     def _mapped_mask(self, wins):
+    357|     #         """A row is 'mapped' iff its ref window is not the poly-A fallback."""
+    358|     #         return (wins["fasta_seq_ref"].astype(str) != self._poly).to_numpy()
+    359|     #
+    360|     # It was WRONG TWICE OVER, and both faults are now structurally impossible:
+    361|     #
+    362|     # 1. It tested for the JOIN's poly-A fallback and was blind to the BUILDER's
+    363|     #    poly-N placeholders -- 21,814 rows (0.494%) of the live 2026-07-10 artifact.
+    364|     #    For those rows ref and alt are BOTH poly-N, so ||alt_emb - ref_emb|| is
+    365|     #    exactly 0.0 -- the same value this module documents as "window unavailable /
+
+======================================================================================
+## tests/unit/test_train_cnn_activation.py   lines 90-115
+======================================================================================
+
+  The tuple unpack at 101.
+  Deliberate coverage of the deprecated shim, or a stale test asserting the lossy contract? ROADMAP 6.28 records FOUR tests that were asserting the defects and green the whole time.
+
+  sha256 de978b994d19283f   122 lines total
+
+     90|     X_train = df[["feat"]].iloc[train_idx].reset_index(drop=True)
+     91|     y_train = df["label"].iloc[train_idx].reset_index(drop=True)
+     92|     meta_train = df.iloc[train_idx].reset_index(drop=True)
+     93| 
+     94|     path = tmp_path / "meta_train.parquet"
+     95|     meta_train.to_parquet(path, index=False)
+     96|     mt = pd.read_parquet(path)
+     97| 
+     98|     assert len(mt) == len(X_train) == len(y_train) == 5            # the runtime guard
+     99|     assert list(mt["key"]) == list(df["key"].iloc[train_idx])     # row order preserved
+    100|     assert list(X_train["feat"]) == list(df["feat"].iloc[train_idx])  # same ordering
+    101|     w, n_unmapped = attach_delta_windows(mt)
+    102|     assert len(w) == len(X_train) and n_unmapped == 0
+    103| 
+    104| 
+    105| def test_cnn1d_fits_on_delta_dataframe():
+    106|     """End-to-end: the CNN consumes a 2-column [ref, alt] DataFrame (delta mode),
+    107|     trains, and returns finite probabilities. Skips without torch."""
+    108|     pytest.importorskip("torch")
+    109|     from genomic_variant_classifier.models.variant_ensemble import CNN1DClassifier
+    110| 
+    111|     rng = np.random.default_rng(0)
+    112|     bases = np.array(list("ACGT"))
+    113|     refs = ["".join(rng.choice(bases, 101)) for _ in range(24)]
+    114|     alts = [r[:50] + ("C" if r[50] != "C" else "G") + r[51:] for r in refs]  # 1-bp delta
+    115|     X = pd.DataFrame({REF_WIN_COL: refs, ALT_WIN_COL: alts})
+
+======================================================================================
+## tests/unit/test_seq_window_join.py   lines 25-60
+======================================================================================
+
+  The unpacks at 36 and 46.
+  Expected to be deliberate -- this file holds test_back_compat_iter_still_unpacks_for_unmigrated_callers.
+  Confirm, do not assume.
+
+  sha256 ca351b927f3aaf5c   206 lines total
+
+     25| 
+     26| def _expected(meta):
+     27|     key = (meta.chrom.astype(str) + ":" + meta.pos.astype(str) + ":" + meta.ref + ":" + meta.alt)
+     28|     return (("R_" + key).str.slice(0, W).str.ljust(W, "x").to_numpy(),
+     29|             ("A_" + key).str.slice(0, W).str.ljust(W, "x").to_numpy())
+     30| 
+     31| 
+     32| def test_keyjoin_alignment_survives_shuffle_and_filter(tmp_path):
+     33|     cohort, p = _cohort(tmp_path)
+     34|     meta = cohort.sample(frac=0.5, random_state=7).reset_index(drop=True)
+     35|     meta_key = meta[["chrom", "pos", "ref", "alt"]].copy()
+     36|     out, n_un = J.attach_delta_windows(meta_key, p)
+     37|     er, ea = _expected(meta_key)
+     38|     assert n_un == 0
+     39|     assert (out[J.REF_WIN_COL].to_numpy() == er).all()
+     40|     assert (out[J.ALT_WIN_COL].to_numpy() == ea).all()
+     41|     assert len(out) == len(meta_key)
+     42| 
+     43| 
+     44| def test_windows_already_on_meta_used_directly(tmp_path):
+     45|     cohort, _ = _cohort(tmp_path)
+     46|     out, n = J.attach_delta_windows(cohort)
+     47|     assert n == 0
+     48|     assert (out[J.REF_WIN_COL].to_numpy() == cohort[J.REF_WIN_COL].to_numpy()).all()
+     49| 
+     50| 
+     51| def test_unmapped_rows_are_counted_and_marked_unusable(tmp_path):
+     52|     """Renamed + rewritten 2026-07-15 (roadmap 6.28).
+     53| 
+     54|     It previously asserted `out[REF_WIN_COL].iloc[-2:] == "A" * W` -- i.e. it asserted
+     55|     the FABRICATION, pinning the poly-A fill as the contract. The value of the filler is
+     56|     now explicitly not part of the contract; `usable` is. Asserting the filler is what
+     57|     let four separate consumers grow content-based poly-A detectors, none of which could
+     58|     see the builder's poly-N placeholders.
+     59|     """
+     60|     cohort, p = _cohort(tmp_path)
+
+======================================================================================
+## COLLECTION SUMMARY
+======================================================================================
+
+  regions requested : 5
+  regions returned  : 5
+  every region resolved; no clamping, no absences.
