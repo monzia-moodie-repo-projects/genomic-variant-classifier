@@ -1,0 +1,645 @@
+PART 3 TEST SURFACE -- the complete source of every test the follow-up rewrites
+date      : 2026-07-19
+repo      : C:\Projects\genomic-variant-classifier
+read-only : yes
+
+Part 3 landed in ff97c34 (Continuous Integration #530 green). This gathers the tests
+the NEXT commit touches: three that pass a pd.Series where a 2-column DataFrame
+belongs, seven splatted calls the arity audit could not see through, and the four
+tuple-unpack sites keeping WindowAttachment.__iter__ alive.
+
+======================================================================================
+## tests/unit/test_api.py
+======================================================================================
+
+  Series placeholder at :459-461
+
+  sha256 7327662bf7229687   827 lines
+
+  --- MODULE-LEVEL CONTEXT (imports, constants) ---
+     25| from __future__ import annotations
+     27| import numpy as np
+     28| import pandas as pd
+     29| import pytest
+     30| from unittest.mock import MagicMock
+     31| from pathlib import Path
+     32| from genomic_variant_classifier.models.variant_ensemble import EXPECTED_TABULAR_FEATURE_COUNT
+
+  --- test_save_and_load_roundtrip  (lines 446-472) ---
+    446|     def test_save_and_load_roundtrip(self, tmp_path):
+    447|         """Roundtrip via from_variant_ensemble — no VariantEnsemble dependency at load time."""
+    448|         from sklearn.linear_model import LogisticRegression
+    449|         from genomic_variant_classifier.api.pipeline import InferencePipeline
+    450|         from genomic_variant_classifier.models.variant_ensemble import VariantEnsemble, EnsembleConfig, TABULAR_FEATURES
+    451| 
+    452|         cfg = EnsembleConfig(n_folds=2, model_dir=tmp_path / "models")
+    453|         ens = VariantEnsemble(cfg)
+    454|         ens.base_estimators = {"logistic_regression": LogisticRegression(max_iter=50)}
+    455| 
+    456|         rng   = np.random.default_rng(42)
+    457|         n     = 20
+    458|         X_tab = pd.DataFrame(rng.random((n, len(TABULAR_FEATURES))), columns=TABULAR_FEATURES)
+    459|         X_seq = pd.Series(["A" * 101] * n)
+    460|         y     = pd.Series([0] * 10 + [1] * 10)
+    461|         ens.fit(X_tab, X_seq, y)
+    462| 
+    463|         pipe = InferencePipeline.from_variant_ensemble(ens, val_auroc=0.9847)
+    464|         out  = tmp_path / "pipeline.joblib"
+    465|         pipe.save(out)
+    466|         loaded = InferencePipeline.load(out)
+    467|         assert loaded.metadata.val_auroc == pytest.approx(0.9847)
+    468|         result = loaded.predict_single({"chrom": "1", "pos": 1, "ref": "A", "alt": "T"})
+    469|         assert result["classification"] in {
+    470|             "Pathogenic", "Likely pathogenic", "Uncertain significance",
+    471|             "Likely benign", "Benign",
+    472|         }
+
+
+======================================================================================
+## tests/unit/test_base_model_dropout_is_loud.py
+======================================================================================
+
+  Series at :113, and SEVEN splatted ens.fit(*...) the arity audit could not see
+
+  sha256 b9d6809fae69bb3a   286 lines
+
+  --- MODULE-LEVEL CONTEXT (imports, constants) ---
+     54| from __future__ import annotations
+     56| import logging
+     58| import numpy as np
+     59| import pandas as pd
+     60| import pytest
+     61| from sklearn.base import BaseEstimator, ClassifierMixin
+     63| from genomic_variant_classifier.models.variant_ensemble import (
+     64|     EnsembleConfig,
+     65|     VariantEnsemble,
+     66| )
+
+  --- _tiny_inputs  (lines 100-114) ---
+    100| def _tiny_inputs(n: int = 80, seed: int = 0):
+    101|     """The three positional arguments VariantEnsemble.fit actually takes.
+    102| 
+    103|     fit(X_tab: DataFrame, X_seq: Series, y: Series, ...). X_seq is the DNA-sequence column
+    104|     consumed ONLY by cnn_1d, which is not in this test's roster -- but the signature still
+    105|     requires it, so it is supplied and ignored. Labels are made linearly separable-ish so
+    106|     the healthy model is never the thing that fails.
+    107|     """
+    108|     rng = np.random.default_rng(seed)
+    109|     f0 = rng.standard_normal(n)
+    110|     f1 = rng.standard_normal(n)
+    111|     y = (f0 + 0.4 * rng.standard_normal(n) > 0).astype(int)
+    112|     X_tab = pd.DataFrame({"f0": f0, "f1": f1})
+    113|     X_seq = pd.Series(["ACGT" * 8] * n)
+    114|     return X_tab, X_seq, pd.Series(y)
+
+  --- _ensemble_with_one_exploding_model  (lines 117-132) ---
+    117| def _ensemble_with_one_exploding_model(tmp_path, **cfg_kw) -> VariantEnsemble:
+    118|     """Build a real VariantEnsemble, then replace the roster with 2 toys, one of which fails.
+    119| 
+    120|     We swap the roster rather than sabotage a real model so the test stays fast and stays
+    121|     honest about WHAT it is testing: the failure-handling CONTRACT in fit(), not the
+    122|     behaviour of any particular estimator.
+    123|     """
+    124|     ens = VariantEnsemble(EnsembleConfig(model_dir=tmp_path, n_folds=3, **cfg_kw))
+    125| 
+    126|     from sklearn.linear_model import LogisticRegression
+    127| 
+    128|     ens.base_estimators = {
+    129|         "healthy": LogisticRegression(max_iter=200),
+    130|         "doomed": _ExplodingModel(),
+    131|     }
+    132|     return ens
+
+  --- test_the_saboteur_is_a_valid_estimator_that_fails_where_intended  (lines 135-163) ---
+    135| def test_the_saboteur_is_a_valid_estimator_that_fails_where_intended():
+    136|     """META-TEST: guard the fixture, not the code.
+    137| 
+    138|     If `_ExplodingModel` is not a valid scikit-learn estimator, `cross_val_predict` rejects
+    139|     it during parameter validation and raises InvalidParameterError BEFORE the out-of-fold
+    140|     pass begins. The ensemble would still raise -- so the dropout tests would still go green
+    141|     -- but they would be testing scikit-learn's argument validation instead of a base model
+    142|     failing mid-training. That is exactly what happened on the first run of this file.
+    143| 
+    144|     A test whose fixture fails for the wrong reason is worse than no test: it is a gate that
+    145|     reports PASS while guarding nothing. So assert the saboteur fits cleanly, predicts
+    146|     cleanly, and detonates ONLY in predict_proba -- the place a real base model dies.
+    147|     """
+    148|     from sklearn.base import is_classifier
+    149|     from sklearn.utils.validation import check_is_fitted
+    150| 
+    151|     X, _, y = _tiny_inputs(n=20)
+    152|     m = _ExplodingModel()
+    153| 
+    154|     assert is_classifier(m), (
+    155|         "the saboteur must carry scikit-learn's classifier tag, or cross_val_predict will "
+    156|         "reject it before it can fail the way a real base model fails"
+    157|     )
+    158|     m.fit(X.values, y.values)          # must NOT raise
+    159|     check_is_fitted(m)
+    160|     assert m.predict(X.values).shape == (20,)   # must NOT raise
+    161| 
+    162|     with pytest.raises(RuntimeError, match="synthetic OOF failure"):
+    163|         m.predict_proba(X.values)      # the detonation, in the right place
+
+  --- test_a_failing_base_model_raises_by_default  (lines 166-187) ---
+    166| def test_a_failing_base_model_raises_by_default(tmp_path):
+    167|     """THE GATE. Default config: an OOF failure must be a HARD STOP, not a shrug."""
+    168|     ens = _ensemble_with_one_exploding_model(tmp_path)
+    169| 
+    170|     assert ens.config.allow_base_model_dropout is False, (
+    171|         "the default must be to FAIL LOUD; a silently incomplete ensemble must never be "
+    172|         "the path of least resistance"
+    173|     )
+    174| 
+    175|     with pytest.raises(RuntimeError) as exc:
+    176|         ens.fit(*_tiny_inputs())
+    177| 
+    178|     msg = str(exc.value)
+    179|     assert "doomed" in msg, "the error must name the model that failed"
+    180|     assert "synthetic OOF failure" in msg, (
+    181|         "the error must carry the UNDERLYING cause, not just the fact of failure -- "
+    182|         "otherwise the operator has to go hunting through the log for it"
+    183|     )
+    184|     assert exc.value.__cause__ is not None, (
+    185|         "the original exception must be chained (`raise ... from exc`) so the full "
+    186|         "traceback of the real failure survives"
+    187|     )
+
+  --- test_the_healthy_model_is_not_what_failed  (lines 190-196) ---
+    190| def test_the_healthy_model_is_not_what_failed(tmp_path):
+    191|     """Sanity: the harness itself is sound -- the roster trains fine without the saboteur."""
+    192|     ens = _ensemble_with_one_exploding_model(tmp_path)
+    193|     ens.base_estimators.pop("doomed")
+    194|     ens.fit(*_tiny_inputs())
+    195|     assert "healthy" in ens.trained_models_
+    196|     assert ens.dropped_models_ == {}, "a clean run must record ZERO dropped models"
+
+  --- test_opt_in_dropout_is_permitted_but_recorded  (lines 199-222) ---
+    199| def test_opt_in_dropout_is_permitted_but_recorded(tmp_path, caplog):
+    200|     """The escape hatch exists -- but it is LOUD, and the incompleteness is persisted."""
+    201|     ens = _ensemble_with_one_exploding_model(tmp_path, allow_base_model_dropout=True)
+    202| 
+    203|     with caplog.at_level(logging.ERROR):
+    204|         ens.fit(*_tiny_inputs())
+    205| 
+    206|     # The run completed -- but the ensemble is a model short, and SAYS SO.
+    207|     assert "healthy" in ens.trained_models_
+    208|     assert "doomed" not in ens.trained_models_
+    209|     assert "doomed" in ens.dropped_models_, (
+    210|         "a dropped model MUST be recorded on the fitted object; if it is only logged, the "
+    211|         "fact is lost the moment the log scrolls, and every downstream artifact silently "
+    212|         "misrepresents the ensemble as complete"
+    213|     )
+    214|     assert "synthetic OOF failure" in ens.dropped_models_["doomed"], (
+    215|         "record the CAUSE, not merely the name"
+    216|     )
+    217| 
+    218|     text = caplog.text
+    219|     assert "ENSEMBLE IS INCOMPLETE" in text, (
+    220|         "an incomplete ensemble must announce itself unmissably at ERROR level"
+    221|     )
+    222|     assert "doomed" in text
+
+  --- test_dropped_model_is_absent_from_the_comparison_artifacts  (lines 225-240) ---
+    225| def test_dropped_model_is_absent_from_the_comparison_artifacts(tmp_path):
+    226|     """The reason this matters: a dropped model corrupts the algorithm comparison.
+    227| 
+    228|     `oof_model_names_` is what downstream reporting reads. A dropped model is missing from
+    229|     it -- so in the report it is indistinguishable from an algorithm that was never
+    230|     configured at all. That is precisely why the default must raise.
+    231|     """
+    232|     ens = _ensemble_with_one_exploding_model(tmp_path, allow_base_model_dropout=True)
+    233|     ens.fit(*_tiny_inputs())
+    234| 
+    235|     assert ens.oof_model_names_ == ["healthy"]
+    236|     assert ens.oof_predictions_.shape[1] == 1, (
+    237|         "the OOF matrix must carry one column per SURVIVING model"
+    238|     )
+    239|     # The record of the loss lives here, and nowhere else on the object:
+    240|     assert set(ens.dropped_models_) == {"doomed"}
+
+  --- test_completeness_is_recorded_on_a_clean_run  (lines 243-259) ---
+    243| def test_completeness_is_recorded_on_a_clean_run(tmp_path):
+    244|     """`the ensemble was complete` must be a RECORDED FACT, not an assumption.
+    245| 
+    246|     Until 2026-07-13, "the roster has N models" and "the run trained N models" were different
+    247|     statements and nothing checked the second. The Kolmogorov-Arnold Network had been failing
+    248|     inside imodelsx 1.0.13 -- and being silently swallowed -- in every Continuous Integration
+    249|     run since May, and no artifact anywhere recorded that a model was missing.
+    250|     """
+    251|     ens = _ensemble_with_one_exploding_model(tmp_path)
+    252|     ens.base_estimators.pop("doomed")
+    253|     ens.fit(*_tiny_inputs())
+    254| 
+    255|     c = ens.ensemble_completeness_
+    256|     assert c["complete"] is True
+    257|     assert c["roster"] == ["healthy"] == c["trained"]
+    258|     assert c["dropped"] == {}
+    259|     assert c["n_roster"] == c["n_trained"] == 1
+
+  --- test_completeness_records_the_loss_when_a_model_is_dropped  (lines 262-274) ---
+    262| def test_completeness_records_the_loss_when_a_model_is_dropped(tmp_path):
+    263|     """And when the ensemble IS short, the artifact must say so -- with the cause."""
+    264|     ens = _ensemble_with_one_exploding_model(tmp_path, allow_base_model_dropout=True)
+    265|     ens.fit(*_tiny_inputs())
+    266| 
+    267|     c = ens.ensemble_completeness_
+    268|     assert c["complete"] is False, (
+    269|         "a 2-model roster that trained 1 model must NOT report itself complete"
+    270|     )
+    271|     assert c["n_roster"] == 2 and c["n_trained"] == 1
+    272|     assert c["trained"] == ["healthy"]
+    273|     assert "doomed" in c["dropped"]
+    274|     assert "synthetic OOF failure" in c["dropped"]["doomed"], "record the CAUSE"
+
+  --- test_total_failure_raises_a_comprehensible_error  (lines 277-286) ---
+    277| def test_total_failure_raises_a_comprehensible_error(tmp_path):
+    278|     """If EVERY model dies, say so plainly -- do not hand (n, 0) to the meta-learner."""
+    279|     ens = _ensemble_with_one_exploding_model(tmp_path, allow_base_model_dropout=True)
+    280|     ens.base_estimators = {
+    281|         "doomed_a": _ExplodingModel("first failure"),
+    282|         "doomed_b": _ExplodingModel("second failure"),
+    283|     }
+    284| 
+    285|     with pytest.raises(RuntimeError, match="EVERY base model failed"):
+    286|         ens.fit(*_tiny_inputs())
+
+
+======================================================================================
+## tests/unit/test_ensemble_persistence.py
+======================================================================================
+
+  Series at :30, passed at :48; its own comment says 'inert'
+
+  sha256 552e14807a46016c   61 lines
+
+  --- MODULE-LEVEL CONTEXT (imports, constants) ---
+     12| from __future__ import annotations
+     14| import json
+     16| import numpy as np
+     17| import pandas as pd
+     19| from genomic_variant_classifier.models.variant_ensemble import EnsembleConfig, VariantEnsemble
+     21| FAST = {"random_forest", "xgboost", "lightgbm", "logistic_regression"}
+
+  --- test_per_model_checkpoints_written  (lines 24-61) ---
+     24| def test_per_model_checkpoints_written(tmp_path):
+     25|     rng = np.random.default_rng(0)
+     26|     n, d = 300, 20
+     27|     X_tab = pd.DataFrame(rng.standard_normal((n, d)), columns=[f"f{i}" for i in range(d)])
+     28|     # mild signal so models fit sensibly (not required for the persistence assertion itself)
+     29|     y = ((X_tab["f0"] + 0.5 * X_tab["f1"] + 0.3 * rng.standard_normal(n)) > 0).astype(int)
+     30|     X_seq = pd.Series(["A" * 101] * n)  # inert: cnn_1d is excluded below
+     31| 
+     32|     cfg = EnsembleConfig(
+     33|         n_folds=3,
+     34|         random_state=0,
+     35|         model_dir=tmp_path / "models",
+     36|         skip_catboost=True,
+     37|         skip_svm=True,
+     38|         skip_kan=True,
+     39|         skip_mc_dropout=True,
+     40|     )
+     41|     ens = VariantEnsemble(cfg)
+     42|     for name in list(ens.base_estimators):
+     43|         if name not in FAST:
+     44|             ens.base_estimators.pop(name, None)
+     45|     assert ens.base_estimators and set(ens.base_estimators) <= FAST, "fixture: only fast models"
+     46| 
+     47|     trained = list(ens.base_estimators)  # snapshot: fit() clears base_estimators
+     48|     ens.fit(X_tab, X_seq, y)
+     49| 
+     50|     md = cfg.model_dir
+     51|     for name in trained:
+     52|         for suffix in (".joblib", "_oof.npy", "_oof_indices.npy", "_meta.json"):
+     53|             p = md / f"{name}{suffix}"
+     54|             assert p.exists() and p.stat().st_size > 0, f"missing/empty checkpoint: {p.name}"
+     55|         meta = json.loads((md / f"{name}_meta.json").read_text())
+     56|         assert meta["name"] == name
+     57|         assert 0.0 <= meta["oof_auroc"] <= 1.0
+     58|         assert meta["n_samples"] > 0
+     59|         oof = np.load(md / f"{name}_oof.npy")
+     60|         idx = np.load(md / f"{name}_oof_indices.npy")
+     61|         assert len(oof) == len(idx), f"{name}: OOF/index length mismatch ({len(oof)} != {len(idx)})"
+
+
+======================================================================================
+## tests/unit/test_seq_window_join.py
+======================================================================================
+
+  incidental unpacks at :36,:46 and the deliberate shim test at :152
+
+  sha256 ca351b927f3aaf5c   206 lines
+
+  --- MODULE-LEVEL CONTEXT (imports, constants) ---
+      2| import numpy as np
+      3| import pandas as pd
+      5| from genomic_variant_classifier.data import seq_window_join as J
+      7| W = 101
+
+  --- test_keyjoin_alignment_survives_shuffle_and_filter  (lines 32-41) ---
+     32| def test_keyjoin_alignment_survives_shuffle_and_filter(tmp_path):
+     33|     cohort, p = _cohort(tmp_path)
+     34|     meta = cohort.sample(frac=0.5, random_state=7).reset_index(drop=True)
+     35|     meta_key = meta[["chrom", "pos", "ref", "alt"]].copy()
+     36|     out, n_un = J.attach_delta_windows(meta_key, p)
+     37|     er, ea = _expected(meta_key)
+     38|     assert n_un == 0
+     39|     assert (out[J.REF_WIN_COL].to_numpy() == er).all()
+     40|     assert (out[J.ALT_WIN_COL].to_numpy() == ea).all()
+     41|     assert len(out) == len(meta_key)
+
+  --- test_windows_already_on_meta_used_directly  (lines 44-48) ---
+     44| def test_windows_already_on_meta_used_directly(tmp_path):
+     45|     cohort, _ = _cohort(tmp_path)
+     46|     out, n = J.attach_delta_windows(cohort)
+     47|     assert n == 0
+     48|     assert (out[J.REF_WIN_COL].to_numpy() == cohort[J.REF_WIN_COL].to_numpy()).all()
+
+  --- test_unmapped_rows_are_counted_and_marked_unusable  (lines 51-70) ---
+     51| def test_unmapped_rows_are_counted_and_marked_unusable(tmp_path):
+     52|     """Renamed + rewritten 2026-07-15 (roadmap 6.28).
+     53| 
+     54|     It previously asserted `out[REF_WIN_COL].iloc[-2:] == "A" * W` -- i.e. it asserted
+     55|     the FABRICATION, pinning the poly-A fill as the contract. The value of the filler is
+     56|     now explicitly not part of the contract; `usable` is. Asserting the filler is what
+     57|     let four separate consumers grow content-based poly-A detectors, none of which could
+     58|     see the builder's poly-N placeholders.
+     59|     """
+     60|     cohort, p = _cohort(tmp_path)
+     61|     bad = pd.DataFrame({"chrom": ["99", "99"], "pos": [1, 2], "ref": ["A", "C"], "alt": ["G", "T"]})
+     62|     mixed = pd.concat([cohort[["chrom", "pos", "ref", "alt"]].head(10), bad], ignore_index=True)
+     63|     att = J.attach_delta_windows(mixed, p)
+     64| 
+     65|     assert att.n_unmapped == 2
+     66|     assert att.n_rows == 12
+     67|     assert att.n_usable == 10
+     68|     # The two bogus keys, and ONLY those two, are unusable.
+     69|     assert not att.usable[-2:].any()
+     70|     assert att.usable[:10].all()
+
+  --- test_builder_placeholder_rows_are_unusable_even_though_they_joined  (lines 73-103) ---
+     73| def test_builder_placeholder_rows_are_unusable_even_though_they_joined(tmp_path):
+     74|     """THE REGRESSION THIS WHOLE CHANGE EXISTS FOR -- and there was no test for it.
+     75| 
+     76|     A row present in the seq parquet with `ok=False` is a BUILDER PLACEHOLDER: the window
+     77|     could not be constructed (missing contig, out-of-range position, non-ACGT allele), so
+     78|     delta_window_builder wrote POLY = "N"*101 and flagged it. The key JOINS -- n_unmapped
+     79|     is 0 -- so every content-based poly-A check in the repository declared it real.
+     80| 
+     81|     On the live 2026-07-10 artifact this is 21,814 rows (n_poly), 0.494% of the cohort.
+     82|     They reached cnn_1d as an all-zero tensor with ref == alt (delta channels identically
+     83|     zero), and reached Nucleotide Transformer as ||alt_emb - ref_emb|| == exactly 0.0 --
+     84|     the same value that module documents as "window unavailable / model unavailable".
+     85|     """
+     86|     cohort, _ = _cohort(tmp_path, n=20)
+     87|     seq = cohort.copy()
+     88|     seq[J.OK_COL] = True
+     89|     # Two rows the builder could not construct: poly-N content, ok=False, key present.
+     90|     seq.loc[0:1, J.REF_WIN_COL] = "N" * W
+     91|     seq.loc[0:1, J.ALT_WIN_COL] = "N" * W
+     92|     seq.loc[0:1, J.OK_COL] = False
+     93|     p = tmp_path / "seq_with_ok.parquet"
+     94|     seq.to_parquet(p, index=False)
+     95| 
+     96|     meta = cohort[["chrom", "pos", "ref", "alt"]]
+     97|     att = J.attach_delta_windows(meta, p)
+     98| 
+     99|     assert att.n_unmapped == 0, "every key joins -- that was never the problem"
+    100|     assert att.n_placeholder == 2, "the builder's ok=False verdict must be read"
+    101|     assert not att.usable[0:2].any()
+    102|     assert att.usable[2:].all()
+    103|     assert att.provenance == "parquet+ok"
+
+  --- test_a_real_polyA_window_is_usable  (lines 106-124) ---
+    106| def test_a_real_polyA_window_is_usable(tmp_path):
+    107|     """The reason content-matching had to go, stated as a test.
+    108| 
+    109|     Poly-A tracts are real biology. A window whose reference sequence genuinely reads
+    110|     "A"*101 is REAL DATA and must be usable. Every one of the four content-based
+    111|     detectors would have discarded it -- silently, as "unmapped".
+    112|     """
+    113|     cohort, _ = _cohort(tmp_path, n=10)
+    114|     seq = cohort.copy()
+    115|     seq[J.OK_COL] = True
+    116|     seq.loc[0, J.REF_WIN_COL] = "A" * W   # a genuine poly-A tract, built from the reference
+    117|     seq.loc[0, J.ALT_WIN_COL] = "A" * 50 + "G" + "A" * 50
+    118|     p = tmp_path / "seq_real_polya.parquet"
+    119|     seq.to_parquet(p, index=False)
+    120| 
+    121|     att = J.attach_delta_windows(cohort[["chrom", "pos", "ref", "alt"]], p)
+    122| 
+    123|     assert att.usable[0], "a real poly-A window was discarded as a fallback"
+    124|     assert att.n_usable == att.n_rows
+
+  --- test_missing_ok_column_is_reported_not_assumed_away  (lines 127-143) ---
+    127| def test_missing_ok_column_is_reported_not_assumed_away(tmp_path, caplog):
+    128|     """An artifact predating the `ok` column cannot have its placeholders identified.
+    129| 
+    130|     That must be a loud warning, not a silent assumption of health -- CLAUDE.md 1.4: a
+    131|     search that returns nothing is not a negative result.
+    132|     """
+    133|     import logging
+    134| 
+    135|     cohort, p = _cohort(tmp_path, n=10)   # _cohort writes NO ok column
+    136|     meta = cohort[["chrom", "pos", "ref", "alt"]]
+    137|     with caplog.at_level(logging.WARNING):
+    138|         att = J.attach_delta_windows(meta, p)
+    139| 
+    140|     assert att.provenance == "parquet", "absence of `ok` must be recorded in provenance"
+    141|     assert any("no 'ok' column" in r.message for r in caplog.records), (
+    142|         "the loss of provenance was not warned about"
+    143|     )
+
+  --- test_duplicate_keys_in_cohort_are_harmless  (lines 146-154) ---
+    146| def test_duplicate_keys_in_cohort_are_harmless(tmp_path):
+    147|     cohort, _ = _cohort(tmp_path)
+    148|     dup = pd.concat([cohort, cohort.head(50)], ignore_index=True)
+    149|     p = tmp_path / "dup.parquet"
+    150|     dup.to_parquet(p, index=False)
+    151|     meta = cohort[["chrom", "pos", "ref", "alt"]]
+    152|     out, n_un = J.attach_delta_windows(meta, p)
+    153|     er, _ = _expected(meta)
+    154|     assert n_un == 0 and (out[J.REF_WIN_COL].to_numpy() == er).all()
+
+  --- test_no_source_means_no_usable_windows_at_all  (lines 157-169) ---
+    157| def test_no_source_means_no_usable_windows_at_all(tmp_path):
+    158|     """Renamed from `test_no_source_polyA` 2026-07-15: the old NAME encoded the old
+    159|     design -- that the filler's identity was the thing worth testing. It is not. With no
+    160|     window source there is no sequence signal, and the only fact that matters is that
+    161|     every row is unusable and something said so."""
+    162|     cohort, _ = _cohort(tmp_path)
+    163|     meta = cohort[["chrom", "pos", "ref", "alt"]]
+    164|     att = J.attach_delta_windows(meta, None)
+    165| 
+    166|     assert att.n_unmapped == len(meta)
+    167|     assert att.n_usable == 0
+    168|     assert not att.usable.any()
+    169|     assert att.provenance == "none"
+
+  --- test_tier1_no_longer_reports_zero_unmapped_when_rows_are_null  (lines 172-190) ---
+    172| def test_tier1_no_longer_reports_zero_unmapped_when_rows_are_null(tmp_path):
+    173|     """A bug the old code shipped, found only because changing the filler broke a test.
+    174| 
+    175|     Tier 1 (windows already on `meta`) ended with a hardcoded `return out, 0` -- it
+    176|     reported ZERO unmapped unconditionally, while `.fillna(poly)` quietly fabricated a
+    177|     window for every null row. `tests/unit/test_train_cnn_activation.py` asserted exactly
+    178|     that (`n_unmapped == 0` on a frame containing a None), pinning the defect as the
+    179|     contract. A null window is not a window.
+    180|     """
+    181|     meta = pd.DataFrame({
+    182|         J.REF_WIN_COL: ["R" * W, "R" * W, None],
+    183|         J.ALT_WIN_COL: ["A" * W, "A" * W, None],
+    184|     })
+    185|     att = J.attach_delta_windows(meta)
+    186| 
+    187|     assert att.n_rows == 3
+    188|     assert att.n_usable == 2
+    189|     assert att.n_unmapped == 1, "the null row must be counted, not fabricated away"
+    190|     assert not att.usable[2]
+
+  --- test_back_compat_iter_still_unpacks_for_unmigrated_callers  (lines 193-206) ---
+    193| def test_back_compat_iter_still_unpacks_for_unmigrated_callers():
+    194|     """The deprecated 2-tuple shim, pinned until the last caller is migrated.
+    195| 
+    196|     scripts/train.py, scripts/run_phase2_eval.py still unpack this way. The shim is
+    197|     deliberately lossy -- it drops `usable` -- and this test exists so that deleting the
+    198|     shim is a decision, not an accident. Delete both when the migration lands (6.28).
+    199|     """
+    200|     meta = pd.DataFrame({J.REF_WIN_COL: ["R" * W], J.ALT_WIN_COL: ["A" * W]})
+    201|     att = J.attach_delta_windows(meta)
+    202| 
+    203|     wins, n_unmapped = att            # the legacy call shape
+    204|     assert list(wins.columns) == [J.REF_WIN_COL, J.ALT_WIN_COL]
+    205|     assert n_unmapped == 0
+    206|     assert wins.equals(att.windows)
+
+
+======================================================================================
+## tests/unit/test_train_cnn_activation.py
+======================================================================================
+
+  incidental unpack at :101
+
+  sha256 de978b994d19283f   122 lines
+
+  --- MODULE-LEVEL CONTEXT (imports, constants) ---
+      9| from __future__ import annotations
+     11| import numpy as np
+     12| import pandas as pd
+     13| import pytest
+     15| from genomic_variant_classifier.data.seq_window_join import (
+     16|     attach_delta_windows,
+     17|     REF_WIN_COL,
+     18|     ALT_WIN_COL,
+     19| )
+     21| _REF = "ACGT" * 25 + "A"   # 101 bp
+     22| _ALT = "ACGT" * 25 + "C"   # 101 bp, differs at the centre-adjacent tail -> real delta
+
+  --- test_attach_delta_windows_uses_meta_ref_alt  (lines 25-59) ---
+     25| def test_attach_delta_windows_uses_meta_ref_alt():
+     26|     """REWRITTEN 2026-07-15 (roadmap 6.28). The previous version asserted a BUG.
+     27| 
+     28|     It read:
+     29| 
+     30|         w, n_unmapped = attach_delta_windows(meta)
+     31|         assert len(w) == 3 and n_unmapped == 0
+     32|         assert w[REF_WIN_COL].iloc[2] == "A" * 101          # NaN -> poly-A fill
+     33| 
+     34|     on a frame whose third row is None. Tier 1 of attach_delta_windows ended with a
+     35|     hardcoded `return out, 0`, so it reported ZERO unmapped while `.fillna(poly)`
+     36|     fabricated a full poly-A window for that null row. This test asserted both halves of
+     37|     that -- the false zero AND the fabrication -- and its own comment named the
+     38|     fabrication approvingly. A green test was pinning the defect in place.
+     39| 
+     40|     A null window is not a window. It is now counted, and marked unusable.
+     41|     """
+     42|     meta = pd.DataFrame(
+     43|         {"gene_symbol": ["G1", "G2", "G3"],
+     44|          REF_WIN_COL: [_REF, _REF, None],
+     45|          ALT_WIN_COL: [_ALT, _ALT, None]}
+     46|     )
+     47|     att = attach_delta_windows(meta)
+     48| 
+     49|     assert list(att.windows.columns) == [REF_WIN_COL, ALT_WIN_COL]
+     50|     assert att.n_rows == 3
+     51|     assert att.n_usable == 2
+     52|     assert att.n_unmapped == 1, "the null row was fabricated away and reported as mapped"
+     53|     assert not att.usable[2]
+     54| 
+     55|     # The two REAL rows are passed through byte-for-byte and carry a real delta.
+     56|     assert att.windows[REF_WIN_COL].iloc[0] == _REF
+     57|     assert att.windows[ALT_WIN_COL].iloc[0] == _ALT
+     58|     assert att.windows[REF_WIN_COL].iloc[0] != att.windows[ALT_WIN_COL].iloc[0]
+     59|     assert att.usable[0] and att.usable[1]
+
+  --- test_attach_delta_windows_yields_nothing_usable_when_windows_absent  (lines 62-75) ---
+     62| def test_attach_delta_windows_yields_nothing_usable_when_windows_absent():
+     63|     """Renamed from `test_attach_delta_windows_poly_a_when_absent` 2026-07-15.
+     64| 
+     65|     The old name and body asserted the FILLER's identity ("A"*101). The filler is now
+     66|     deliberately not part of the contract -- exactly so that no consumer can grow a
+     67|     fifth content-based poly detector. What matters is that nothing is usable.
+     68|     """
+     69|     meta = pd.DataFrame({"gene_symbol": ["G1", "G2"]})   # no ref/alt columns at all
+     70|     att = attach_delta_windows(meta)
+     71| 
+     72|     assert att.n_unmapped == 2
+     73|     assert att.n_usable == 0
+     74|     assert not att.usable.any()
+     75|     assert att.provenance == "none"
+
+  --- test_meta_train_parquet_aligns_to_x_train  (lines 78-102) ---
+     78| def test_meta_train_parquet_aligns_to_x_train(tmp_path):
+     79|     """The fix reads meta_train.parquet for train-side sequences; this asserts
+     80|     the persisted meta_train is the same length and row order as X_train, since
+     81|     both derive from df.iloc[train_idx].reset_index(drop=True)."""
+     82|     df = pd.DataFrame(
+     83|         {"key": list(range(10)),
+     84|          "feat": np.arange(10, dtype=float),
+     85|          REF_WIN_COL: [_REF] * 10,
+     86|          ALT_WIN_COL: [_ALT] * 10,
+     87|          "label": [0, 1] * 5}
+     88|     )
+     89|     train_idx = np.array([7, 2, 9, 0, 4])   # arbitrary gene-disjoint selection
+     90|     X_train = df[["feat"]].iloc[train_idx].reset_index(drop=True)
+     91|     y_train = df["label"].iloc[train_idx].reset_index(drop=True)
+     92|     meta_train = df.iloc[train_idx].reset_index(drop=True)
+     93| 
+     94|     path = tmp_path / "meta_train.parquet"
+     95|     meta_train.to_parquet(path, index=False)
+     96|     mt = pd.read_parquet(path)
+     97| 
+     98|     assert len(mt) == len(X_train) == len(y_train) == 5            # the runtime guard
+     99|     assert list(mt["key"]) == list(df["key"].iloc[train_idx])     # row order preserved
+    100|     assert list(X_train["feat"]) == list(df["feat"].iloc[train_idx])  # same ordering
+    101|     w, n_unmapped = attach_delta_windows(mt)
+    102|     assert len(w) == len(X_train) and n_unmapped == 0
+
+  --- test_cnn1d_fits_on_delta_dataframe  (lines 105-122) ---
+    105| def test_cnn1d_fits_on_delta_dataframe():
+    106|     """End-to-end: the CNN consumes a 2-column [ref, alt] DataFrame (delta mode),
+    107|     trains, and returns finite probabilities. Skips without torch."""
+    108|     pytest.importorskip("torch")
+    109|     from genomic_variant_classifier.models.variant_ensemble import CNN1DClassifier
+    110| 
+    111|     rng = np.random.default_rng(0)
+    112|     bases = np.array(list("ACGT"))
+    113|     refs = ["".join(rng.choice(bases, 101)) for _ in range(24)]
+    114|     alts = [r[:50] + ("C" if r[50] != "C" else "G") + r[51:] for r in refs]  # 1-bp delta
+    115|     X = pd.DataFrame({REF_WIN_COL: refs, ALT_WIN_COL: alts})
+    116|     y = np.array([0, 1] * 12)
+    117| 
+    118|     clf = CNN1DClassifier(epochs=2, batch_size=8, filters=8, embed=16, random_state=0)
+    119|     clf.fit(X, y)
+    120|     proba = clf.predict_proba(X)
+    121|     assert proba.shape == (24, 2)
+    122|     assert np.isfinite(proba).all()
+
+
+======================================================================================
+## COLLECTION SUMMARY
+======================================================================================
+
+  files requested : 5
+  files returned  : 5
+  every file resolved and yielded at least one matching function.

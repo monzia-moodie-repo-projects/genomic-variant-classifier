@@ -98,8 +98,8 @@ def test_meta_train_parquet_aligns_to_x_train(tmp_path):
     assert len(mt) == len(X_train) == len(y_train) == 5            # the runtime guard
     assert list(mt["key"]) == list(df["key"].iloc[train_idx])     # row order preserved
     assert list(X_train["feat"]) == list(df["feat"].iloc[train_idx])  # same ordering
-    w, n_unmapped = attach_delta_windows(mt)
-    assert len(w) == len(X_train) and n_unmapped == 0
+    att = attach_delta_windows(mt)
+    assert len(att.windows) == len(X_train) and att.n_unmapped == 0
 
 
 def test_cnn1d_fits_on_delta_dataframe():

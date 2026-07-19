@@ -33,19 +33,19 @@ def test_keyjoin_alignment_survives_shuffle_and_filter(tmp_path):
     cohort, p = _cohort(tmp_path)
     meta = cohort.sample(frac=0.5, random_state=7).reset_index(drop=True)
     meta_key = meta[["chrom", "pos", "ref", "alt"]].copy()
-    out, n_un = J.attach_delta_windows(meta_key, p)
+    att = J.attach_delta_windows(meta_key, p)
     er, ea = _expected(meta_key)
-    assert n_un == 0
-    assert (out[J.REF_WIN_COL].to_numpy() == er).all()
-    assert (out[J.ALT_WIN_COL].to_numpy() == ea).all()
-    assert len(out) == len(meta_key)
+    assert att.n_unmapped == 0
+    assert (att.windows[J.REF_WIN_COL].to_numpy() == er).all()
+    assert (att.windows[J.ALT_WIN_COL].to_numpy() == ea).all()
+    assert len(att.windows) == len(meta_key)
 
 
 def test_windows_already_on_meta_used_directly(tmp_path):
     cohort, _ = _cohort(tmp_path)
-    out, n = J.attach_delta_windows(cohort)
-    assert n == 0
-    assert (out[J.REF_WIN_COL].to_numpy() == cohort[J.REF_WIN_COL].to_numpy()).all()
+    att = J.attach_delta_windows(cohort)
+    assert att.n_unmapped == 0
+    assert (att.windows[J.REF_WIN_COL].to_numpy() == cohort[J.REF_WIN_COL].to_numpy()).all()
 
 
 def test_unmapped_rows_are_counted_and_marked_unusable(tmp_path):
@@ -149,9 +149,9 @@ def test_duplicate_keys_in_cohort_are_harmless(tmp_path):
     p = tmp_path / "dup.parquet"
     dup.to_parquet(p, index=False)
     meta = cohort[["chrom", "pos", "ref", "alt"]]
-    out, n_un = J.attach_delta_windows(meta, p)
+    att = J.attach_delta_windows(meta, p)
     er, _ = _expected(meta)
-    assert n_un == 0 and (out[J.REF_WIN_COL].to_numpy() == er).all()
+    assert att.n_unmapped == 0 and (att.windows[J.REF_WIN_COL].to_numpy() == er).all()
 
 
 def test_no_source_means_no_usable_windows_at_all(tmp_path):
