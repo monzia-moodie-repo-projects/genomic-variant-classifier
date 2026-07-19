@@ -1014,6 +1014,147 @@ declared feature carried information. **None of that has been done.**
 
 ---
 
+---
+
+## 6C. CURRENT STATE SNAPSHOT (2026-07-18) -- SUPERSEDES 6A (2026-07-15)
+
+**Everything here is MEASURED, the command is named, and the TREE it was measured on is named.**
+Session record: `docs/sessions/SESSION_2026-07-18_phase3b-window-builder-retirement.md`.
+Commits: `e57835e` (Phase 3b), `9362f2c` (line-ending governance), `d1c2c4e` (session record).
+
+### What 6A now states falsely
+
+| 6A row | 6A said | MEASURED 2026-07-18 |
+|---|---|---|
+| Tests | 1966 collected | **1968 collected**, and the ratchet gate `--assert-suite-size` PASSES |
+| Suite status | **9 FAILING** | **0 FAILING** -- 1,961 passed, 7 skipped, 630.21s |
+
+The suite-status row is the one that mattered: it would have told a reader the tree was red when it is
+green. Both rows were true when written. Neither was re-derived. That is section 7's root pattern (a),
+and 6A is left intact above so that it says so.
+
+Unchanged and re-confirmed from 6A: 95 tabular features, 13 base models, 22 agents.
+
+### Phase 3b -- the superseded window builder is retired
+
+Two window builders existed and both were live. `delta_window_builder.py` (surviving) writes
+`POLY = "N" * 101` and records `ok=False` with a reason. `seq_windows.py` (retired) used
+`PAD_CHAR = "A"` and wrote **no provenance column at all**.
+
+`"A"` is a member of `encode_sequence`'s `BASES`, so every placeholder position one-hot-encoded to a
+**confident adenine** -- a positive assertion about the genome that nobody made. `"N"` is absent from
+`BASES` and encodes to an honest all-zero vector. And with no `ok` column, `attach_delta_windows` took
+its `has_ok=False` branch and declared every row usable behind a logger warning nothing was reading.
+
+**RETIRED** (after the replacement was built and tested, not before -- a retirement audit refused this
+same deletion earlier the same day, correctly, because `scripts/populate_fasta_seq.py` was then the sole
+repository-resident producer of a 534 MB artifact that eighteen files consume):
+
+```
+src/genomic_variant_classifier/data/seq_windows.py          197 lines, 7 poly-ban offenders
+src/genomic_variant_classifier/data/populate_fasta_seq.py   221 lines
+scripts/populate_fasta_seq.py                                85 lines
+tests/unit/test_seq_windows.py                              155 lines, 16 tests
+tests/unit/test_populate_fasta_seq.py                       154 lines,  5 tests
+```
+
+**REPLACED**: `scripts/build_clean_seq_from_windows.py` (252 lines, join-based producer, +9 tests) and
+`tests/test_build_seq_windows.py` (+10 tests porting the surviving builder's coverage).
+
+**FOUR BLIND DETECTORS MOVED FROM CONTENT TO PROVENANCE.** None was fixed by changing `"A"` to `"N"`:
+
+| file | was | is |
+|---|---|---|
+| `scripts/preflight_run16_inputs.py` | **a LAUNCH GATE** reporting 100% real on a cohort with placeholders; sampled only the first 4,000 rows against a 50% threshold | reads the whole `ok` column; says "cannot tell" when provenance is absent |
+| `scripts/probe_cohort_seq_density.py` | reported `dummy=0` when it could not know | distinguishes zero from cannot-tell |
+| `correctness_harness.py` stage 3a | **a CORRECTNESS GATE, triply dead** -- wrong column (100% null), obsolete `"A"*101` constant, synthetic random-ACGT fixture; structurally incapable of firing | three outcomes: fail >50% unusable, warn when `ok` absent, quiet when all usable |
+| `scripts/run9_ablations.py` | fed fabricated adenine to `cnn_1d` | centralised placeholder; `cnn_1d` excluded from ablations, since constant input cannot be learned from |
+
+Poly-ban offenders **12 -> 0**. Placeholder construction is centralised in
+`delta_window_builder.placeholder_window()`, so the literal exists in exactly one place. The left-edge
+padding at lines 91/128/132 (`"N" * n` with `ok=True`) is legitimate and was deliberately left alone.
+
+**A TEST WAS PASSING FOR THE WRONG REASON, AND PYTEST SAID NOTHING.**
+`test_cohort_all_dummy_fails` wrote all-`"A"*101` windows and asserted the gate refused. It did refuse --
+because the `ok` column was missing, not because the windows were placeholders. The name described a
+behaviour the body never exercised. Replaced by `test_cohort_mostly_placeholder_fails`, which supplies
+provenance so the gate is tested on the axis its name claims.
+
+### The cohort, and the reconciliation that closes 6.29a's open unknown
+
+**6.29a's PREMISE HAS CHANGED, AND IT IS THE BLOCKER THAT MOVED.** Section 6.29a records
+`clinvar_grch38_clean_seq.parquet` as *"19 columns, NO `ok`"*, and declared 6.28's entire
+provenance mechanism INERT on the path Run 17 would actually run. **MEASURED 2026-07-18: the
+artifact now carries an `ok` column** -- 21 columns, 4,399,089 rows, 4,398,366 usable, 723 placeholder
+(0.0164%) -- reasons `fetch_failed` 2, `non_acgt_allele` 668, `ref_mismatch` 53. The artifact was regenerated during this session. `attach_delta_windows` therefore
+takes its provenance branch rather than degrading `usable` to `notna()`, and the mechanism is
+LIVE on the configured path.
+
+**THE 0.5% RAZOR IN 6.29a DISSOLVES, AND THE UNKNOWN IT RESTED ON IS ANSWERED.**
+6.29a left this explicitly open: *"how many of the 21,814 placeholder rows ... even EXIST in
+`clean_seq`'s 4,399,089 ... An inference resting on an inference; do not build on it."*
+
+Answer, measured four independent ways through four code paths on 2026-07-18: **723 exist.**
+The reconciliation is exact and is recorded here so that it is never re-derived:
+
+| artifact | rows | usable | placeholder | fraction |
+|---|---:|---:|---:|---:|
+| `seq_windows.manifest.json` (pathfix) | 4,420,180 | 4,398,366 | 21,814 | 0.4935% |
+| `clinvar_grch38_clean_seq.parquet` | 4,399,089 | 4,398,366 | 723 | 0.0164% |
+| difference | 21,091 | **0** | 21,091 | |
+
+**Usable is IDENTICAL in both: 4,398,366.** Rows dropped by cleaning (21,091) equals
+placeholders dropped (21,091), exactly. Cleaning removed *only* rows that were already
+placeholders -- all 19,988 `empty_allele` plus 1,103 of the 1,771 `non_acgt`, leaving 668.
+The two figures are the same underlying truth seen through two cohorts, not a contradiction.
+
+Consequence for `run_phase2_eval`'s abort gate: the fraction is **0.0164%**, not 0.4935%.
+The old figure sat 0.0065 percentage points under the 0.5% threshold -- a razor that would have
+flipped on any small change in the cohort. It is now under by a factor of thirty. The gate is
+no longer load-bearing on a coin-toss.
+
+
+### Suite-size ratchet -- corrected with the tree named
+
+1962 -> **1968**. The 1962 entry existed because a count of 1966 taken on 2026-07-15 had included four
+tests from a file that had never been committed: *"The measurement was real; the thing it measured was
+not the thing being asserted."* That entry set a condition for moving the number -- commit the file --
+and this session met it.
+
+The number was copied from `pytest tests/ --collect-only -q` on the staged tree at `87b670e` with 44
+paths staged. It was not computed; the ratchet's history records four consecutive hand-computed values
+that were wrong (1882, 1891, 1932, 1944), each caught by the ratchet. **The gate was then run**, which is
+what separates a number that is enforced from a number that is written down.
+
+Also closed: `EXPECTED_SUITE_SIZE` had no file extension, so only `.gitattributes`'s `* text=auto`
+default matched it -- meaning carriage-return line-feed in a Windows working tree, while every other
+governed text file carries an explicit `eol=lf`. The single source of truth for suite size was the one
+governed text file without a line-ending rule. Fixed in `9362f2c`; verified with `git check-attr`
+(`text: set`, `eol: lf`, 0 carriage-return bytes) rather than by reading the file.
+
+### Still open after this session
+
+- **Part 3 of the hybrid, now UNBLOCKED**: make `X_seq` OPTIONAL in `VariantEnsemble.fit`/`evaluate`/
+  `predict_proba`, failing loudly when `cnn_1d` is active without sequence. This removes the CLASS of
+  defect rather than the instance. It was gated on committing the 2026-07-15 work, which landed in
+  `e57835e`.
+- **Run 9 ablation coverage gap**: six external annotation families have NO ablation mask -- ribonucleic
+  acid sequencing (5 features), COSMIC (2), KEGG (2), GenomicLM / Nucleotide Transformer (2), Reactome
+  (1), heterogeneous graph neural network (1; the existing `no_gnn` covers `gnn_score`, not
+  `hetero_gnn_score`). 32 of 95 contract features match no prefix, most legitimately core descriptors.
+  This bears on the project's PRIMARY goal: ablation is the instrument by which feature-class
+  contribution is quantified, and six unmeasurable families is six unanswerable questions.
+- **Session-document gap**: `docs/sessions/` runs to 2026-07-06 and then to 2026-07-18. The work of
+  07-13, 07-14 and 07-15 -- roughly four sessions, documented in the ratchet history and in
+  `docs/status/` -- has no session record. Recorded rather than backfilled: reconstructing it from the
+  ratchet alone would produce a plausible narrative rather than a measured one.
+- **`data/primateai3d.py`** remains a connector with no feature in `TABULAR_FEATURES` (6A, 2026-07-15).
+  Still undispositioned.
+- **Minor**: `test_no_content_based_poly_detection.py:238,251` cites `populate_fasta_seq.py:59`, a file
+  that no longer exists. `scripts/download_finngen_R10_DEPRECATED.py` self-declares deprecated for a
+  FinnGen release superseded in `77c66f5`. `*.bak_*` is duplicated at `.gitignore` lines 155 and 158.
+
+
 ## 7. THE PATTERN, stated once so it is not re-learned
 
 Every defect above is one of **four** shapes. (Two were identified on 2026-07-12; the last two
