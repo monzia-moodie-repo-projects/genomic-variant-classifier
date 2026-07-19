@@ -68,3 +68,7 @@ tests/fixtures/**/*.npy     binary
 tests/fixtures/**/*.npz     binary
 tests/fixtures/**/*.gz      binary
 tests/fixtures/**/*.sqlite  binary
+
+# No file extension, so only the 'text=auto' default matched it -- and that means
+# CRLF in a Windows working tree. Every other governed text file has eol=lf. 2026-07-18.
+EXPECTED_SUITE_SIZE text eol=lf
