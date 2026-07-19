@@ -1,0 +1,79 @@
+LOVD DEDUPLICATION -- remeasured exactly as LOVDConnector does it
+date      : 2026-07-19
+repo      : C:\Projects\genomic-variant-classifier
+read-only : yes
+
+LOVD = Leiden Open Variation Database.
+
+The first probe merged against the RAW artifact and did not lowercase. The connector
+lowercases, strips, maps, then GROUPS BY the join key taking max() before joining.
+This repeats the measurement faithfully so the incident record states the connector's
+numbers rather than the probe's.
+
+  map entries : 11
+  LOVD rows   : 18,006
+
+======================================================================================
+## 1. NORMALISATION CROSS-CHECK -- does lower/strip change anything?
+======================================================================================
+
+  rows mapping nonzero WITHOUT lower/strip :   1,481
+  rows mapping nonzero WITH    lower/strip :   1,481
+  rows where the two disagree              :       0
+
+  Normalisation changes NOTHING for this artifact. The earlier probe's counts stand,
+  and this is now measured rather than reasoned. It would NOT hold for an artifact
+  with mixed casing.
+
+======================================================================================
+## 2. DUPLICATE SUBMITTERS PER VARIANT
+======================================================================================
+
+  rows                          :  18,006
+  DISTINCT variant keys         :  18,006
+  keys with >1 submitter row    :       0
+  rows belonging to those keys  :       0
+  redundant rows (rows - keys)  :       0
+
+  No duplicate keys. max() is a no-op and the first probe's join count is unaffected.
+
+======================================================================================
+## 3. THE LOOKUP, BUILT EXACTLY AS THE CONNECTOR BUILDS IT
+======================================================================================
+
+  lookup rows : 18,006
+
+  ordinal  variants
+        0    16,525   <-- reads as NOT IN LOVD
+        1       313
+        3       191
+        4       977
+
+  distinct variants with a NONZERO class : 1,481
+
+======================================================================================
+## 4. THE LEFT JOIN, AS annotate_dataframe PERFORMS IT
+======================================================================================
+
+  ClinVar rows : 1,700,687
+  rows after left join : 1,700,687
+  [OK] row count preserved -- `.values` assignment is safe, which is what the
+       groupby exists to guarantee.
+
+  ClinVar variants MATCHED in LOVD        : 5,576
+  ClinVar variants with NONZERO class     : 369
+  matched but zero                        : 5,207
+
+======================================================================================
+## 5. AGAINST THE FIRST PROBE
+======================================================================================
+
+  first probe, raw merge   : 5,576 matches / 369 nonzero
+  connector-faithful       : 5,576 matches / 369 nonzero
+
+  IDENTICAL. No duplicate keys affected the result; the incident record's figures
+  stand as written, and are now confirmed by the connector's own method.
+
+  SCOPE: this measures models/v1/clinvar_enriched.parquet (1,700,687 rows), the Run 9-era
+  cohort. Coverage on data/processed/clinvar_grch38_clean_seq.parquet (4,399,089 rows)
+  remains unmeasured.

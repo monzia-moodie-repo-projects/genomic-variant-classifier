@@ -1,0 +1,98 @@
+LOVD CLASSIFICATION MAP -- reconciling 5,553 inner-join matches against 369 annotated
+date      : 2026-07-19
+repo      : C:\Projects\genomic-variant-classifier
+read-only : yes
+
+LOVD = Leiden Open Variation Database.
+
+The join is healthy: 5,553 reproduced exactly on 2026-07-19, 78 days after the incident
+recorded it. So either the loss happens after the join, or the two figures count
+different things. This measures which.
+
+======================================================================================
+## 1. _CLASSIFICATION_MAP, READ FROM THE SOURCE
+======================================================================================
+
+  11 entries, parsed from lovd.py
+
+      'benign'                                             -> 1
+      'benign/likely benign'                               -> 1
+      'likely benign'                                      -> 1
+      'conflicting'                                        -> 2
+      'conflicting interpretations of pathogenicity'       -> 2
+      'uncertain significance'                             -> 2
+      'variant of uncertain significance'                  -> 2
+      'vus'                                                -> 2
+      'likely pathogenic'                                  -> 3
+      'pathogenic/likely pathogenic'                       -> 3
+      'pathogenic'                                         -> 4
+
+  keys mapping to a NONZERO ordinal : 11
+  keys mapping to ZERO              : 0
+
+======================================================================================
+## 2. EVERY classification_raw IN THE ARTIFACT
+======================================================================================
+
+  LOVD rows: 18,006
+  distinct classification strings: 14
+
+  classification_raw                                       rows  in map?
+  ------------------------------------------------------------------------------
+  notClassified                                           7,435  NO  -> 0 (silent)
+  functionAffected                                        7,200  NO  -> 0 (silent)
+  functionNotAffected                                     1,508  NO  -> 0 (silent)
+  pathogenic                                                977  yes -> 4
+  functionProbablyAffected                                  264  NO  -> 0 (silent)
+  likely benign                                             208  yes -> 1
+  likely pathogenic                                         191  yes -> 3
+  benign                                                    105  yes -> 1
+  unknown                                                    77  NO  -> 0 (silent)
+  pathogenic (dominant)                                      26  NO  -> 0 (silent)
+  likely pathogenic (dominant)                                8  NO  -> 0 (silent)
+  nan                                                         3  NO  -> 0 (silent)
+  likely pathogenic (!)                                       2  NO  -> 0 (silent)
+  functionProbablyNotAffected                                 2  NO  -> 0 (silent)
+
+  rows whose string maps NONZERO :    1,481
+  rows whose string maps to 0    :   16,525   <-- indistinguishable from 'not in LOVD'
+
+======================================================================================
+## 3. THE 5,553 MATCHED ROWS, SPLIT BY MAPPED ORDINAL
+======================================================================================
+
+  ClinVar rows: 1,700,687
+  inner-join matches: 5,576
+  [NOTE] differs from the incident's 5,553 -- report this, do not adjust for it.
+
+  ordinal      rows
+       0     5,207   <-- reads as NOT IN LOVD
+       1        87
+       3        54
+       4       228
+
+  matched AND nonzero :      369
+  matched BUT zero    :    5,207
+
+======================================================================================
+## 4. VERDICT
+======================================================================================
+
+  incident inner-join figure : 5,553
+  measured inner-join        : 5,576
+  measured matched-nonzero   : 369
+  2026-06-01 audit figure    : 369
+
+  RECONCILED EXACTLY. The audit counted `lovd_variant_class > 0`; the incident
+  counted JOIN MATCHES. Both are correct measurements of DIFFERENT things.
+
+  But that is the finding, not an all-clear: 5,207 variants ARE present in LOVD and
+  are recorded as 0, the same value used for 'not found in LOVD'. The feature
+  cannot express 'present but unclassified'. Every consumer reads those rows as
+  absent. That is a sentinel collision -- the defect class of the original incident
+  and of PLACEHOLDER_BASE.
+
+  NOTE ON SCOPE: this uses models/v1/clinvar_enriched.parquet (1,700,687 rows), the Run 9-era
+  cohort the incident used. The CURRENT cohort is
+  data/processed/clinvar_grch38_clean_seq.parquet (4,399,089 rows). Coverage there is a
+  SEPARATE measurement and is not attempted here.

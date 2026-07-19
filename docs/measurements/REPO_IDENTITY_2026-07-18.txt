@@ -1,0 +1,64 @@
+REPOSITORY IDENTITY -- are these two URLs one repository?
+date      : 2026-07-18
+read-only : yes -- ls-remote reads advertised references only; nothing is fetched,
+            written, archived, or deleted by this script
+
+  OLD  https://github.com/monzia-moodie/genomic-variant-classifier.git
+  LIVE https://github.com/monzia-moodie-repo-projects/genomic-variant-classifier.git
+
+Context: a clone of the OLD url returned HEAD 988c082 -- the commit pushed to
+origin/main earlier the same day -- with 905 commits, 1,216 HEAD paths identical to
+the live tree, and 2,653 of 2,653 blobs shared. A five-commit February prototype
+cannot contain today's commit.
+
+======================================================================================
+## 1. ADVERTISED REFERENCES, COMPARED SHA BY SHA
+======================================================================================
+
+  OLD  : 10 reference(s)
+  LIVE : 10 reference(s)
+
+  references only on OLD  : 0
+  references only on LIVE : 0
+  shared refs with DIFFERENT commits : 0
+
+  THE REFERENCE SETS ARE BYTE-FOR-BYTE IDENTICAL.
+  Every reference name maps to the same commit on both urls.
+
+  OLD  main/HEAD : 988c0823b98c
+  LIVE main/HEAD : 988c0823b98c
+
+======================================================================================
+## 2. THE CANONICAL NAME GitHub REPORTS FOR THE OLD URL
+======================================================================================
+
+  GitHub resolves a renamed or transferred repository to its CURRENT full_name.
+  This is the decisive test: if the old slug reports the live slug, the redirect is
+  proven and the two urls are one repository.
+
+  via gh command-line interface : unavailable -- gh: Bad credentials (HTTP 401)
+  via https api.github.com (unauthenticated) : monzia-moodie-repo-projects/genomic-variant-classifier
+
+  DECISIVE: the old url resolves to the LIVE repository. They are ONE
+  repository behind a rename/transfer redirect.
+
+======================================================================================
+## 3. WHAT FOLLOWS, FOR ARCHIVING
+======================================================================================
+
+  The reference sets are identical, and a clone of the old url produced today's
+  commit. On the evidence available these are ONE repository.
+
+  *** DO NOT ARCHIVE AT THE OLD URL. ***
+
+  Archiving a redirect archives its TARGET -- the live project. It would become
+  read-only: no pushes, no Continuous Integration runs. Archiving is reversible
+  from the same settings screen, so this is recoverable rather than fatal, but it
+  should not happen by accident.
+
+  If section 2 confirmed the redirect, there is NOTHING TO ARCHIVE. There is no
+  second repository, no stale snapshot, and no duplicate name. The February 2026
+  screenshot is this same repository before the transfer and before roughly nine
+  hundred commits of work. The only remaining action is to correct any bookmark,
+  document, or project brief that still names the old path -- and even those
+  still resolve, because the redirect works.

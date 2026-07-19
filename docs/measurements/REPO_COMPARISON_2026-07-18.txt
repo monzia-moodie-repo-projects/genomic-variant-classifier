@@ -1,0 +1,62 @@
+REPOSITORY COMPARISON -- does the old repo hold anything the live one does not?
+date      : 2026-07-18
+read-only : yes -- no checkout, no fetch, no write to either repository
+
+Compared by BLOB CONTENT across ALL reachable commits in both repositories, because
+archiving preserves history and because a moved file is a rename, not unique content.
+
+======================================================================================
+## 1. REPOSITORY IDENTITY
+======================================================================================
+
+  OLD : C:\Users\monzi\Downloads\gvc-old-2026-02
+      remote   : https://github.com/monzia-moodie/genomic-variant-classifier.git
+      HEAD     : 988c082
+      commits  : 905
+      branches : main origin origin/main origin/run9a-prep
+
+  LIVE: C:\Projects\genomic-variant-classifier
+      remote   : https://github.com/monzia-moodie-repo-projects/genomic-variant-classifier.git
+      HEAD     : 988c082
+      commits  : 907
+      branches : main run9a-prep origin origin/ci/widen-test-scope origin/main origin/run9a-prep
+
+
+======================================================================================
+## 2. BLOB CENSUS (all refs, both repositories)
+======================================================================================
+
+  OLD  distinct blobs :   2,653
+  LIVE distinct blobs :   2,654
+
+  A blob is identified by SHA-1 of its CONTENT, so identical files in different
+  locations collapse to one entry and are correctly NOT counted as unique.
+
+======================================================================================
+## 3. THE ANSWER -- blobs in OLD, absent from LIVE
+======================================================================================
+
+  shared with LIVE :   2,653 of 2,653 (100.0%)
+  UNIQUE to OLD    :       0
+
+  NOTHING IN THE OLD REPOSITORY IS UNIQUE. Every blob it holds, across every
+  commit, also exists in the live repository.
+
+======================================================================================
+## 4. PATHS AT OLD HEAD NOT PRESENT AT LIVE HEAD (context, not the verdict)
+======================================================================================
+
+  A path listed here whose CONTENT is shared (section 3) is a RENAME or a MOVE, and
+  nothing is lost by archiving it. Only section 3 answers the uniqueness question.
+
+  OLD HEAD paths  : 1,216
+  LIVE HEAD paths : 1,216
+  in OLD only     : 0
+
+
+======================================================================================
+## 5. VERDICT
+======================================================================================
+
+  SAFE TO ARCHIVE, and safe to delete if that were ever wanted: the old repository
+  contains no content the live repository lacks.
