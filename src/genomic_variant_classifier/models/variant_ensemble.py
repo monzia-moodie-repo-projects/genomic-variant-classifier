@@ -1899,6 +1899,15 @@ def _write_model_manifest(artifact_path):
     return manifest_path
 
 
+# Models whose input is the SEQUENCE branch rather than the tabular matrix.
+#
+# Declared once, in one place, so that adding a second sequence model does not require
+# finding every dispatch site by hand. `_require_x_seq` is the only consumer; the three
+# `if name == "cnn_1d"` dispatches in fit/predict_proba/evaluate are deliberately left
+# alone, because changing them is a separate refactor with its own risk.
+SEQUENCE_MODELS: frozenset[str] = frozenset({"cnn_1d"})
+
+
 class VariantEnsemble:
     def __init__(self, config: Optional[EnsembleConfig] = None) -> None:
         self.config = config or EnsembleConfig()
@@ -2144,6 +2153,14 @@ class VariantEnsemble:
                 Xtr = X_tab_fit.iloc[tr]
                 Xva = X_tab_fit.iloc[va]
             if name == "cnn_1d":
+                # _require_x_seq guarantees X_seq_fit is not None whenever a
+                # SEQUENCE_MODELS member is active. Asserted rather than assumed:
+                # if the guarantee ever breaks, fail here with a clear cause
+                # instead of an AttributeError on None.
+                assert X_seq_fit is not None, (
+                    "cnn_1d reached _leakfree_oof with X_seq_fit=None; "
+                    "_require_x_seq should have refused in fit()."
+                )
                 Xtr_in, Xva_in = X_seq_fit.iloc[tr], X_seq_fit.iloc[va]
             elif name == "catboost":
                 Xtr_in, Xva_in = Xtr, Xva
@@ -2228,8 +2245,46 @@ class VariantEnsemble:
 
         raise ValueError(f"ZERO-VARIANCE FEATURES (roadmap 6.21)\n\n{msg}")
 
+    def _require_x_seq(self, X_seq, models, method: str) -> None:
+        """Refuse to run a sequence model without sequence. Raises BEFORE any fit.
+
+        X_seq is optional (2026-07-19, Part 3) so that callers with no sequence windows can
+        say so instead of manufacturing a placeholder frame to satisfy the signature --
+        `scripts/train.py:523-525` documents exactly that workaround.
+
+        Optional does not mean tolerated. If a model in SEQUENCE_MODELS is active and X_seq
+        is None, there is no honest way to proceed: fabricating a placeholder is what roadmap
+        6.28 recorded as training cnn_1d on invented sequence and reporting a number. So this
+        raises, names the model, and states the remedy.
+
+        Placed before any estimator is fitted, so a misconfigured run costs a second rather
+        than hours of paid compute.
+        """
+        if X_seq is not None:
+            return
+        active = sorted(n for n in models if n in SEQUENCE_MODELS)
+        if not active:
+            return
+        raise ValueError(
+            "{}() received X_seq=None, but these models take the sequence branch: {}.\n"
+            "\n"
+            "A sequence model cannot run without sequence windows, and a placeholder frame "
+            "is not a substitute -- it trains the model on fabricated sequence and reports a "
+            "number (roadmap 6.28).\n"
+            "\n"
+            "Either pass a 2-column [fasta_seq_ref, fasta_seq_alt] DataFrame, built with\n"
+            "    seq_window_join.attach_delta_windows(...).windows\n"
+            "or remove the sequence model(s) first:\n"
+            "    ensemble.base_estimators.pop({!r}, None)\n"
+            "Launchers expose this as --skip-cnn.\n"
+            "\n"
+            "Refused before any estimator was fitted; no compute was spent.".format(
+                method, ", ".join(active), active[0]
+            )
+        )
+
     def fit(
-        self, X_tab: pd.DataFrame, X_seq: pd.DataFrame, y: pd.Series,
+        self, X_tab: pd.DataFrame, X_seq: "pd.DataFrame | None", y: pd.Series,
         gene_symbol: "pd.Series | None" = None,
         X_tab_cal_ext: "pd.DataFrame | None" = None,
         X_seq_cal_ext: "pd.DataFrame | None" = None,
@@ -2278,6 +2333,10 @@ class VariantEnsemble:
         # feature space that was partly imaginary.
         self._assert_no_dead_features(X_tab)
 
+        # X_seq may be None (Part 3, 2026-07-19). Refuse loudly if a sequence model is
+        # active without it, before a single estimator is fitted.
+        self._require_x_seq(X_seq, self.base_estimators, "fit")
+
         # Calibration fold selection (W2 PATH-1, 2026-07-11).
         # If an EXTERNAL calibration partition is supplied (v2 gene-disjoint
         # 'tune' partition), use the ENTIRE incoming data as the fit fold and
@@ -2290,7 +2349,7 @@ class VariantEnsemble:
             idx_fit = np.arange(len(y_arr))
             X_tab_fit = X_tab.reset_index(drop=True)
             X_tab_cal = X_tab_cal_ext.reset_index(drop=True)
-            X_seq_fit = X_seq.reset_index(drop=True)
+            X_seq_fit = None if X_seq is None else X_seq.reset_index(drop=True)
             X_seq_cal = X_seq_cal_ext.reset_index(drop=True)
             y_fit = y_arr
             y_cal = np.asarray(y_cal_ext)
@@ -2310,8 +2369,10 @@ class VariantEnsemble:
             )
             X_tab_fit = X_tab.iloc[idx_fit].reset_index(drop=True)
             X_tab_cal = X_tab.iloc[idx_cal].reset_index(drop=True)
-            X_seq_fit = X_seq.iloc[idx_fit].reset_index(drop=True)
-            X_seq_cal = X_seq.iloc[idx_cal].reset_index(drop=True)
+            X_seq_fit = (None if X_seq is None
+                         else X_seq.iloc[idx_fit].reset_index(drop=True))
+            X_seq_cal = (None if X_seq is None
+                         else X_seq.iloc[idx_cal].reset_index(drop=True))
             y_fit = y_arr[idx_fit]
             y_cal = y_arr[idx_cal]
 
@@ -2551,11 +2612,14 @@ class VariantEnsemble:
         self.base_estimators.clear()
         return self
 
-    def predict_proba(self, X_tab: pd.DataFrame, X_seq: pd.DataFrame) -> np.ndarray:
+    def predict_proba(
+        self, X_tab: pd.DataFrame, X_seq: "pd.DataFrame | None" = None
+    ) -> np.ndarray:
         """X_seq: 2-column [fasta_seq_ref, fasta_seq_alt] frame. See fit() -- the
         `pd.Series` annotation here was false for the production path (2026-07-15)."""
         if not self.trained_models_:
             raise RuntimeError("Call fit() before predict_proba().")
+        self._require_x_seq(X_seq, self.trained_models_, "predict_proba")
         base_preds = np.zeros((len(X_tab), len(self.trained_models_)))
         for i, (name, model) in enumerate(self.trained_models_.items()):
             if name == "cnn_1d":
@@ -2573,12 +2637,15 @@ class VariantEnsemble:
             return np.column_stack([1.0 - blend, blend])
         return self.meta_learner.predict_proba(base_preds)
 
-    def predict(self, X_tab: pd.DataFrame, X_seq: pd.DataFrame) -> np.ndarray:
+    def predict(
+        self, X_tab: pd.DataFrame, X_seq: "pd.DataFrame | None" = None
+    ) -> np.ndarray:
         return (self.predict_proba(X_tab, X_seq)[:, 1] > 0.5).astype(int)
 
     def evaluate(
-        self, X_tab: pd.DataFrame, X_seq: pd.DataFrame, y: pd.Series
+        self, X_tab: pd.DataFrame, X_seq: "pd.DataFrame | None", y: pd.Series
     ) -> pd.DataFrame:
+        self._require_x_seq(X_seq, self.trained_models_, "evaluate")
         y_arr = np.asarray(y)
         results: dict[str, dict] = {}
         for name, model in self.trained_models_.items():
