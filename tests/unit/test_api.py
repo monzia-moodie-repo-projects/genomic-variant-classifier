@@ -456,9 +456,12 @@ class TestInferencePipeline:
         rng   = np.random.default_rng(42)
         n     = 20
         X_tab = pd.DataFrame(rng.random((n, len(TABULAR_FEATURES))), columns=TABULAR_FEATURES)
-        X_seq = pd.Series(["A" * 101] * n)
         y     = pd.Series([0] * 10 + [1] * 10)
-        ens.fit(X_tab, X_seq, y)
+        # X_seq=None: the roster on line 454 is logistic_regression only, so no
+        # model takes the sequence branch. Before Part 3 (ff97c34) the signature
+        # demanded a value and this test fabricated one -- a pd.Series, which is
+        # also the wrong shape (roadmap 6.28: production passes a 2-column frame).
+        ens.fit(X_tab, None, y)
 
         pipe = InferencePipeline.from_variant_ensemble(ens, val_auroc=0.9847)
         out  = tmp_path / "pipeline.joblib"

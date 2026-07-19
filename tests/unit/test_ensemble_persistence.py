@@ -27,7 +27,6 @@ def test_per_model_checkpoints_written(tmp_path):
     X_tab = pd.DataFrame(rng.standard_normal((n, d)), columns=[f"f{i}" for i in range(d)])
     # mild signal so models fit sensibly (not required for the persistence assertion itself)
     y = ((X_tab["f0"] + 0.5 * X_tab["f1"] + 0.3 * rng.standard_normal(n)) > 0).astype(int)
-    X_seq = pd.Series(["A" * 101] * n)  # inert: cnn_1d is excluded below
 
     cfg = EnsembleConfig(
         n_folds=3,
@@ -45,7 +44,10 @@ def test_per_model_checkpoints_written(tmp_path):
     assert ens.base_estimators and set(ens.base_estimators) <= FAST, "fixture: only fast models"
 
     trained = list(ens.base_estimators)  # snapshot: fit() clears base_estimators
-    ens.fit(X_tab, X_seq, y)
+    # X_seq=None: the FAST filter above drops every model but the fast tabular
+    # ones, so nothing takes the sequence branch. The old placeholder carried
+    # the comment "inert" -- since Part 3 (ff97c34) the code can say it instead.
+    ens.fit(X_tab, None, y)
 
     md = cfg.model_dir
     for name in trained:

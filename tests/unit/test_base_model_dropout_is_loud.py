@@ -100,18 +100,29 @@ class _ExplodingModel(ClassifierMixin, BaseEstimator):
 def _tiny_inputs(n: int = 80, seed: int = 0):
     """The three positional arguments VariantEnsemble.fit actually takes.
 
-    fit(X_tab: DataFrame, X_seq: Series, y: Series, ...). X_seq is the DNA-sequence column
-    consumed ONLY by cnn_1d, which is not in this test's roster -- but the signature still
-    requires it, so it is supplied and ignored. Labels are made linearly separable-ish so
-    the healthy model is never the thing that fails.
+    fit(X_tab: DataFrame, X_seq: DataFrame | None, y: Series, ...). X_seq feeds
+    cnn_1d and nothing else. cnn_1d is not in this test's roster, so this
+    returns None -- and since Part 3 (ff97c34) None is a legal value rather than
+    a hole to be filled.
+
+    It used to return `pd.Series(["ACGT" * 8] * n)`, and this docstring said the
+    signature "still requires it, so it is supplied and ignored". That value was
+    fabricated AND the wrong shape: the annotation claimed Series, production has
+    always passed a 2-column [fasta_seq_ref, fasta_seq_alt] DataFrame, and on a
+    Series `oh_alt - oh_ref` is identically zero (roadmap 6.28).
+
+    All seven callers use `ens.fit(*_tiny_inputs())`, so this one return
+    statement migrates every one of them.
+
+    Labels are made linearly separable-ish so the healthy model is never the
+    thing that fails.
     """
     rng = np.random.default_rng(seed)
     f0 = rng.standard_normal(n)
     f1 = rng.standard_normal(n)
     y = (f0 + 0.4 * rng.standard_normal(n) > 0).astype(int)
     X_tab = pd.DataFrame({"f0": f0, "f1": f1})
-    X_seq = pd.Series(["ACGT" * 8] * n)
-    return X_tab, X_seq, pd.Series(y)
+    return X_tab, None, pd.Series(y)
 
 
 def _ensemble_with_one_exploding_model(tmp_path, **cfg_kw) -> VariantEnsemble:
