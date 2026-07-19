@@ -1,0 +1,779 @@
+ENSEMBLE CALL SITES -- is `y` positional or keyword?
+date      : 2026-07-19
+repo      : C:\Projects\genomic-variant-classifier
+read-only : yes
+
+Part 3 makes X_seq optional. Three candidate signatures:
+  (a) reorder to fit(X_tab, y, X_seq=None)  -- REJECTED, silently misbinds positional
+      callers
+  (b) keyword-only y: fit(X_tab, X_seq=None, *, y)  -- breaks positional-y callers
+      LOUDLY, which is acceptable
+  (c) signature unchanged, X_seq simply ACCEPTS None -- zero breakage
+
+This counts which callers exist, so the choice is made on evidence.
+
+======================================================================================
+## 1. EVERY CALL, GROUPED BY FILE
+======================================================================================
+
+  `likely` marks a receiver whose name suggests an ensemble. Non-matching receivers are
+  REPORTED, not filtered -- a filter that guesses wrong hides call sites silently.
+
+  scripts/ablation_npig_permutation.py
+        191  * clf.fit(2 positional)
+             positional: X_train, y_train
+        192  * clf.predict_proba(1 positional)
+             positional: X_test
+  scripts/build_lovd_index.py
+        458    pipeline.predict_proba(1 positional)
+             positional: lovd_df
+  scripts/calibrate_thresholds.py
+        137  * model.predict_proba(1 positional)
+             positional: X_np
+        141    pipeline.meta_learner.predict_proba(1 positional)
+             positional: base_preds
+        152    lr.fit(2 positional)
+             positional: log_odds, y_val
+        338    platt.predict_proba(1 positional)
+             positional: log_odds
+  scripts/calibration_analysis.py
+        149    pipeline.predict_proba(1 positional)
+             positional: df
+  scripts/conformal_prediction.py
+        178    pipeline.predict_proba(1 positional)
+             positional: cal_df
+        212    pipeline.predict_proba(1 positional)
+             positional: test_df
+  scripts/diagnose_phase2_prediction_reconstruction.py
+         41  * model.predict_proba(1 positional)
+             positional: X
+         57    meta_learner.predict_proba(1 positional)
+             positional: B
+  scripts/export_model.py
+        209    pipeline.predict_proba(1 positional)
+             positional: pd.DataFrame(rows_in)
+  scripts/export_phase2_predictions_from_saved_models.py
+         38  * model.predict_proba(1 positional)
+             positional: x_scaled
+  scripts/migrate_pickles.py
+        328    old.predict_proba(1 positional)
+             positional: fixture_X
+        329    new.predict_proba(1 positional)
+             positional: fixture_X
+        335    old.predict(1 positional)
+             positional: fixture_X
+        336    new.predict(1 positional)
+             positional: fixture_X
+  scripts/run10b_partial_phase2_eval_v2.py
+        126  * model.predict_proba(1 positional)
+             positional: X_val
+        127  * model.predict_proba(1 positional)
+             positional: X_test
+        224    meta.fit(2 positional)
+             positional: oof_stack, y_for_meta
+        228    meta.predict_proba(1 positional)
+             positional: val_stack
+        229    meta.predict_proba(1 positional)
+             positional: test_stack
+  scripts/run11_hpo.py
+         93  * model.fit(2 positional; eval_set=[(X_val, y_val)], callbacks=[lgb.early_stopping(50, verbose=F)
+             positional: X_train, y_train
+         98  * model.predict_proba(1 positional)
+             positional: X_val
+        142  * model.fit(2 positional; eval_set=[(X_val, y_val)], verbose=False)
+             positional: X_train, y_train
+        147  * model.predict_proba(1 positional)
+             positional: X_val
+        190  * model.fit(2 positional; eval_set=(X_val, y_val), early_stopping_rounds=50)
+             positional: X_train, y_train
+        195  * model.predict_proba(1 positional)
+             positional: X_val
+  scripts/run9_ablations.py
+        713  * ensemble.fit(3 positional)
+             positional: X_train_abl, seq_tr, y_train
+        719  * ensemble.evaluate(3 positional)
+             positional: X_test_abl, seq_te, y_test
+        720  * ensemble.evaluate(3 positional)
+             positional: X_val_abl, seq_va, y_val
+        722  * ensemble.predict_proba(2 positional)
+             positional: X_test_abl, seq_te
+        729  * model.predict_proba(1 positional)
+             positional: X_input
+        734    evaluator.evaluate(0 positional; y_true=y_test, y_proba=test_proba, meta=meta_test, model_name=f'{args.)
+  scripts/run_benchmark.py
+        140  * model.fit(2 positional)
+             positional: X_train, y_train
+        146  * model.predict_proba(1 positional)
+             positional: X_val
+  scripts/run_phase2_eval.py
+        590  * ensemble.fit(3 positional; gene_symbol=_gene_sym)
+             positional: X_train, seq_tr, y_train
+        982  * ensemble.evaluate(3 positional)
+             positional: X_test, seq_te, y_test
+        983  * ensemble.evaluate(3 positional)
+             positional: X_val, seq_val, y_val
+       1082  * ensemble_ugh.fit(3 positional)
+             positional: X_train_ugh, seq_tr_ugh, y_train_ugh
+       1086  * ensemble_ugh.evaluate(3 positional)
+             positional: X_holdout, seq_holdout, y_holdout
+  scripts/test_scalable_svm.py
+         33    ScalableSVM(mode=mode, random_state=0, **kw).fit(2 positional)
+             positional: Xtr, ytr
+         34  * clf.predict_proba(1 positional)
+             positional: Xte
+         52    ScalableSVM(mode='bagged_rbf', svm_max_subsample=10000, svm_n_bags=25, random_state=0).fit(2 positional)
+             positional: Xtr, ytr
+         63    cN.predict_proba(1 positional)
+             positional: Xte
+         63    cN2.predict_proba(1 positional)
+             positional: Xte
+         69    ScalableSVM(mode='bogus').fit(2 positional)
+             positional: Xtr, ytr
+  scripts/test_scalable_svm_cap.py
+         39    ScalableSVM(mode='bagged_rbf', svm_n_bags=100, svm_max_bags=12, svm_max_subsample=400, n_jobs=1, random_state=42).fit(2 positional)
+             positional: X, y
+         46  * clf.predict_proba(1 positional)
+             positional: Xte
+         54    ScalableSVM(mode='bagged_rbf', svm_n_bags=5, svm_max_bags=12, svm_max_subsample=15000, n_jobs=1, random_state=42).fit(2 positional)
+             positional: X, y
+         63    ScalableSVM(mode='bagged_rbf', svm_max_subsample=15000, n_jobs=1, random_state=42).fit(2 positional)
+             positional: X, y
+         74    ScalableSVM(n_jobs=1, **kw).fit(X, y).predict_proba(1 positional)
+             positional: Xte
+         74    ScalableSVM(n_jobs=1, **kw).fit(2 positional)
+             positional: X, y
+         75    ScalableSVM(n_jobs=2, **kw).fit(X, y).predict_proba(1 positional)
+             positional: Xte
+         75    ScalableSVM(n_jobs=2, **kw).fit(2 positional)
+             positional: X, y
+         82    ScalableSVM(mode='bagged_rbf', svm_n_bags=6, svm_max_bags=6, svm_max_subsample=4000, n_jobs=1, random_state=7).fit(2 positional)
+             positional: X, y
+         84  * clf.predict_proba(1 positional)
+             positional: Xte
+         89    loaded.predict_proba(1 positional)
+             positional: Xte
+         95    ScalableSVM(mode='nystrom', n_components=256, random_state=42).fit(2 positional)
+             positional: X, y
+         96  * clf.predict_proba(1 positional)
+             positional: Xte
+  scripts/train.py
+        552  * ensemble.fit(3 positional; gene_symbol=genes_train, X_tab_cal_ext=X_tune, X_seq_cal_ext=X_seq_tun)
+             positional: X_train, X_seq_train, y_train
+        561  * ensemble.fit(3 positional)
+             positional: X_train, X_seq_train, y_train
+        565  * ensemble.evaluate(3 positional)
+             positional: X_test, X_seq_test, y_test
+        570  * ensemble.predict_proba(2 positional)
+             positional: X_test, X_seq_test
+        585    evaluator.evaluate(0 positional; y_true=y_test, y_proba=ensemble_proba, meta=meta_test, model_name='Ens)
+  scripts/tune_hyperparams.py
+        192  * model.fit(2 positional; eval_set=[(X_val, y_val)], callbacks=[lgb.early_stopping(50, verbose=F)
+             positional: X_train, y_train
+        197  * model.predict_proba(1 positional)
+             positional: X_val
+        234  * model.fit(2 positional; eval_set=[(X_val, y_val)], verbose=False, early_stopping_rounds=50)
+             positional: X_train, y_train
+        240  * model.predict_proba(1 positional)
+             positional: X_val
+  scripts/validate_clinvar_temporal.py
+        448    pipeline.predict_proba(1 positional)
+             positional: batch
+  scripts/validate_external.py
+        194    pipeline.predict_proba(1 positional)
+             positional: chunk
+  scripts/validate_lovd_enriched.py
+        172    pipeline.predict_proba(1 positional)
+             positional: chunk
+  src/genomic_variant_classifier/agent_layer/harness/correctness_harness.py
+         99    est.fit(2 positional)
+             positional: Xv, y.to_numpy()
+        215    make_pipeline(StandardScaler(), LogisticRegression(max_iter=200)).fit(Xv, y.to_numpy()).predict_proba(1 positional)
+             positional: Xv
+        215    make_pipeline(StandardScaler(), LogisticRegression(max_iter=200)).fit(2 positional)
+             positional: Xv, y.to_numpy()
+        239    RandomForestClassifier(n_estimators=25, random_state=42).fit(Xv, yv).predict_proba(1 positional)
+             positional: Xv
+        239    RandomForestClassifier(n_estimators=25, random_state=42).fit(2 positional)
+             positional: Xv, yv
+        240    RandomForestClassifier(n_estimators=25, random_state=42).fit(Xv, yv).predict_proba(1 positional)
+             positional: Xv
+        240    RandomForestClassifier(n_estimators=25, random_state=42).fit(2 positional)
+             positional: Xv, yv
+  src/genomic_variant_classifier/api/pipeline.py
+        276  * model.predict_proba(1 positional)
+             positional: X_df_cat
+        278  * model.predict_proba(1 positional)
+             positional: X_np
+        280  * self.meta_learner.predict_proba(1 positional)
+             positional: base_preds
+        349  * model.predict_proba(1 positional)
+             positional: X_df_cat
+        351  * model.predict_proba(1 positional)
+             positional: X_np
+        359  * self.meta_learner.predict_proba(1 positional)
+             positional: base_preds
+  src/genomic_variant_classifier/conformal/calibrate.py
+        130    scc.fit(2 positional)
+             positional: P[cal_mask], y[cal_mask]
+        142    mond.fit(2 positional)
+             positional: P[cal_mask], y[cal_mask]
+  src/genomic_variant_classifier/evaluation/benchmark.py
+        267    estimator.fit(2 positional)
+             positional: X_train, y_train
+        275    estimator.predict_proba(1 positional)
+             positional: X_test
+  src/genomic_variant_classifier/evaluation/evaluator.py
+        620    evaluator.evaluate(2 positional; meta=meta, model_name=name)
+             positional: y_true, proba
+  src/genomic_variant_classifier/evaluation/prediction_artifacts.py
+        371  * ensemble.predict_proba(2 positional)
+             positional: X_tab_sub, X_seq_sub
+        381  * ensemble.predict_proba(2 positional)
+             positional: X_perm, X_seq_sub
+  src/genomic_variant_classifier/models/catboost_wrapper.py
+        264  * self._model.fit(1 positional; eval_set=eval_pool, verbose=self.verbose)
+             positional: train_pool
+        296  * self._model.predict_proba(1 positional)
+             positional: pool
+        298  * self._model.predict_proba(1 positional)
+             positional: X_prep
+        307  * self.predict_proba(1 positional)
+             positional: X
+        412  * self._model.predict_proba(1 positional)
+             positional: train_pool
+        416  * self._calibrator.fit(2 positional)
+             positional: raw_proba, y
+        420  * self._calibrator.fit(2 positional)
+             positional: raw_proba.reshape(-1, 1), y
+        425    _inner.predict_proba(1 positional)
+             positional: np.asarray(p).reshape(-1, 1)
+  src/genomic_variant_classifier/models/gnn.py
+        445  * self.evaluate(1 positional)
+             positional: val_dataset
+        543    trainer.fit(2 positional)
+             positional: train_ds, val_ds
+        565    trainer.predict_proba(1 positional)
+             positional: dataset
+  src/genomic_variant_classifier/models/kan.py
+        355  * self._imodelsx_model.fit(2 positional)
+             positional: X, y
+        389  * self._kan.fit(1 positional; opt='Adam', lr=self.learning_rate, steps=self.max_iter, loss_fn=torch.)
+             positional: dataset
+        436  * self._mlp.fit(2 positional)
+             positional: X, y
+        469  * self._mlp.predict_proba(1 positional)
+             positional: X
+        472  * self._imodelsx_model.predict_proba(1 positional)
+             positional: X
+        488  * self.predict_proba(1 positional)
+             positional: X
+  src/genomic_variant_classifier/models/mc_dropout.py
+        141    member.fit(2 positional)
+             positional: X, y
+        152  * self.predict_proba(1 positional)
+             positional: X
+        166    m.predict_proba(1 positional)
+             positional: X
+        218  * self.estimator_.fit(2 positional)
+             positional: X, y
+        234  * self.predict_proba(1 positional)
+             positional: X
+        242  * self.estimator_.predict_proba(1 positional)
+             positional: X
+  src/genomic_variant_classifier/models/scalable_svm.py
+        103  * clf.fit(2 positional)
+             positional: Xb, yb
+        109  * clf.predict_proba(1 positional)
+             positional: X
+        271  * self._estimator.fit(2 positional)
+             positional: X, y
+        280  * clf.fit(2 positional)
+             positional: X, y
+        364  * self._estimator.predict_proba(1 positional)
+             positional: X
+        367  * self.predict_proba(1 positional)
+             positional: X
+        394    ScalableSVM(mode=mode, n_components=d, random_state=random_state, **svm_kwargs).fit(2 positional)
+             positional: Xtr, ytr
+        396  * clf.predict_proba(1 positional)
+             positional: Xva
+        424    ScalableSVM(mode='bagged_rbf', svm_n_bags=k, svm_max_bags=k, svm_max_subsample=svm_max_subsample, random_state=random_state, **svm_kwargs).fit(2 positional)
+             positional: Xtr, ytr
+        427  * clf.predict_proba(1 positional)
+             positional: Xva
+  src/genomic_variant_classifier/models/variant_ensemble.py
+       1623  * self.predict_proba(1 positional)
+             positional: X
+       1836  * self.predict_proba(1 positional)
+             positional: X
+       1860  * self._base.predict_proba(1 positional)
+             positional: X_cal
+       1861  * self._iso.fit(2 positional)
+             positional: raw, y_cal
+       1865  * self._base.predict_proba(1 positional)
+             positional: X
+       1866  * self._iso.predict(1 positional)
+             positional: raw
+       1870  * self.predict_proba(1 positional)
+             positional: X
+       2153    m.fit(2 positional)
+             positional: Xtr_in, y_fit[tr]
+       2154    m.predict_proba(1 positional)
+             positional: Xva_in
+       2417  * model.fit(2 positional)
+             positional: X_input_fit, y_fit
+       2422  * cal_model.fit(2 positional)
+             positional: X_input_cal, y_cal
+       2527  * self.meta_learner.fit(2 positional)
+             positional: oof_preds, y_fit
+       2541  * self.meta_learner.predict_proba(1 positional)
+             positional: oof_preds
+       2567  * model.predict_proba(1 positional)
+             positional: X_input
+       2574  * self.meta_learner.predict_proba(1 positional)
+             positional: base_preds
+       2577  * self.predict_proba(2 positional)
+             positional: X_tab, X_seq
+       2596  * model.predict_proba(1 positional)
+             positional: X_input
+       2608  * self.predict_proba(2 positional)
+             positional: X_tab, X_seq
+  src/genomic_variant_classifier/monitoring/performance_estimator.py
+        296    estimator.fit(1 positional)
+             positional: reference
+  src/genomic_variant_classifier/training/continual_trainer.py
+        298    lsif.fit(0 positional; X_ref=current_pipe._prepare(pd.DataFrame(X_train_new)), X_new=X_train_)
+        375    new_pipe.predict_proba(1 positional)
+             positional: X_val_new
+  src/genomic_variant_classifier/training/ewc.py
+        123  * self.predict_proba(1 positional)
+             positional: t
+        463  * old_model.predict_proba(1 positional)
+             positional: X_new
+  tests/conformal/test_grouped.py
+         24    G.GroupedConformalClassifier(alpha=0.1, score='aps', group_agg=agg, seed=seed).fit(3 positional)
+             positional: Pc, yc, gc
+         32    G.GroupedConformalClassifier(seed=7).fit(3 positional)
+             positional: Pc, yc, gc
+         33    G.GroupedConformalClassifier(seed=7).fit(3 positional)
+             positional: Pc, yc, gc
+         41  * G.GroupedConformalClassifier(group_agg='nonsense').fit(3 positional)
+             positional: Pc, yc, gc
+  tests/conformal/test_mapie_crosscheck.py
+         32    LogisticRegression(max_iter=2000).fit(2 positional)
+             positional: Xtr, ytr
+         48  * clf.predict_proba(1 positional)
+             positional: Xcal
+         48  * clf.predict_proba(1 positional)
+             positional: Xte
+         49    S.SplitConformalClassifier(alpha=0.1, score='lac', seed=0).fit(2 positional)
+             positional: Pcal, ycal
+         57  * clf.predict_proba(1 positional)
+             positional: Xcal
+         57  * clf.predict_proba(1 positional)
+             positional: Xte
+         77  * clf.predict_proba(1 positional)
+             positional: Xcal
+         77  * clf.predict_proba(1 positional)
+             positional: Xte
+  tests/conformal/test_mondrian.py
+         21    M.MondrianConformalClassifier(alpha=0.1, score='lac', group_mode='class', seed=seed).fit(2 positional)
+             positional: Pc, yc
+         36    S.SplitConformalClassifier(alpha=0.1, score='lac', seed=seed).fit(2 positional)
+             positional: Pc, yc
+         37    M.MondrianConformalClassifier(alpha=0.1, score='lac', group_mode='class', seed=seed).fit(2 positional)
+             positional: Pc, yc
+  tests/conformal/test_split.py
+         39    S.SplitConformalClassifier(alpha=0.1, score='lac', seed=seed).fit(2 positional)
+             positional: Pc, yc
+         49    S.SplitConformalClassifier(alpha=0.1, score='aps', seed=seed).fit(2 positional)
+             positional: Pc, yc
+         57    S.SplitConformalClassifier(alpha=0.1, score='aps', seed=42).fit(2 positional)
+             positional: Pc, yc
+         58    S.SplitConformalClassifier(alpha=0.1, score='aps', seed=42).fit(2 positional)
+             positional: Pc, yc
+  tests/unit/test_api.py
+        461  * ens.fit(3 positional)
+             positional: X_tab, X_seq, y
+  tests/unit/test_base_model_dropout_is_loud.py
+        158    m.fit(2 positional)
+             positional: X.values, y.values
+        160    m.predict(1 positional)
+             positional: X.values
+        163    m.predict_proba(1 positional)
+             positional: X.values
+        176  * ens.fit(1 positional)
+             positional: *_tiny_inputs()
+        194  * ens.fit(1 positional)
+             positional: *_tiny_inputs()
+        204  * ens.fit(1 positional)
+             positional: *_tiny_inputs()
+        233  * ens.fit(1 positional)
+             positional: *_tiny_inputs()
+        253  * ens.fit(1 positional)
+             positional: *_tiny_inputs()
+        265  * ens.fit(1 positional)
+             positional: *_tiny_inputs()
+        286  * ens.fit(1 positional)
+             positional: *_tiny_inputs()
+  tests/unit/test_catboost.py
+        119  * clf.fit(2 positional)
+             positional: small_variant_df, small_labels
+        136  * clf.fit(2 positional)
+             positional: small_variant_df, small_labels
+        143  * clf.fit(2 positional)
+             positional: numeric_variant_df.to_numpy(, numeric_labels
+        144  * clf.predict_proba(1 positional)
+             positional: numeric_variant_df.to_numpy(
+        148    fitted_classifier.predict_proba(1 positional)
+             positional: small_variant_df
+        152    fitted_classifier.predict_proba(1 positional)
+             positional: small_variant_df
+        156    fitted_classifier.predict_proba(1 positional)
+             positional: small_variant_df
+        160    fitted_classifier.predict(1 positional)
+             positional: small_variant_df
+        181  * clf.fit(2 positional)
+             positional: df, y
+        182  * clf.predict_proba(1 positional)
+             positional: df
+        209  * clf.fit(2 positional)
+             positional: df, y
+        246  * clf.fit(2 positional)
+             positional: small_variant_df, small_labels
+        247  * clf.predict_proba(1 positional)
+             positional: small_variant_df
+        257  * clf.fit(2 positional)
+             positional: small_variant_df, small_labels
+        258  * clf.predict_proba(1 positional)
+             positional: small_variant_df
+        268  * clf.fit(2 positional; sample_weight=weights)
+             positional: small_variant_df, small_labels
+        277    fitted_classifier.predict_proba(1 positional)
+             positional: small_variant_df
+        278    loaded.predict_proba(1 positional)
+             positional: small_variant_df
+        286  * clf.predict_proba(1 positional)
+             positional: small_variant_df
+        297  * clf.fit(2 positional)
+             positional: small_variant_df, labels
+        298  * clf.predict_proba(1 positional)
+             positional: small_variant_df
+        350  * ensemble.fit(3 positional)
+             positional: numeric_variant_df, seq, pd.Series(numeric_labels)
+        369  * ensemble.fit(3 positional)
+             positional: numeric_variant_df, seq, pd.Series(numeric_labels)
+        370  * ensemble.predict_proba(2 positional)
+             positional: numeric_variant_df, seq
+        403    pipe.predict_proba(1 positional)
+             positional: numeric_variant_df
+        427    pipe.predict_proba(1 positional)
+             positional: numeric_variant_df
+  tests/unit/test_cnn_1d_delta.py
+         63    CNN1DClassifier(epochs=10, batch_size=64, learning_rate=0.002, random_state=0).fit(2 positional)
+             positional: Xtr, ytr
+         64  * clf.predict_proba(1 positional)
+             positional: Xte
+         72    CNN1DClassifier(epochs=4, batch_size=64, random_state=3).fit(2 positional)
+             positional: X, y
+         73  * clf.predict_proba(1 positional)
+             positional: X
+         77    joblib.load(buf).predict_proba(1 positional)
+             positional: X
+         84    CNN1DClassifier(epochs=3, batch_size=64, random_state=6).fit(2 positional)
+             positional: X, y
+         85  * clf.predict_proba(1 positional)
+             positional: X
+         92  * clf2.predict_proba(1 positional)
+             positional: X
+        115    CNN1DClassifier(epochs=2, batch_size=64).fit(2 positional)
+             positional: s, np.arange(30) % 2
+        122    single.fit(2 positional)
+             positional: df, np.arange(30) % 2
+        124    single.predict_proba(1 positional)
+             positional: df
+  tests/unit/test_cnn_tier1.py
+         56    CNN1DClassifier(epochs=15, batch_size=128, random_state=7).fit(2 positional)
+             positional: Xtr, ytr
+         92  * clf.predict_proba(1 positional)
+             positional: Xte
+        103  * clf.predict_proba(1 positional)
+             positional: Xte
+        112  * clf.predict_proba(1 positional)
+             positional: Xte
+        113  * clf.predict(1 positional)
+             positional: Xte
+        122  * clf.predict_proba(1 positional)
+             positional: Xte
+        139    CNN1DClassifier(single_sequence_mode=True, epochs=2, batch_size=64, random_state=7).fit(2 positional)
+             positional: Xs, ytr
+        145  * clf.predict_proba(1 positional)
+             positional: Xs.iloc[:8]
+        166    CNN1DClassifier().predict_proba(1 positional)
+             positional: pd.DataFrame({'fasta_seq_ref
+        174  * clf.predict_proba(1 positional)
+             positional: Xte
+        179  * clf2.predict_proba(1 positional)
+             positional: Xte
+        186    CNN1DClassifier(epochs=12, batch_size=128, random_state=123).fit(2 positional)
+             positional: Xtr, ytr
+        187    CNN1DClassifier(epochs=12, batch_size=128, random_state=123).fit(2 positional)
+             positional: Xtr, ytr
+        188    a.predict_proba(1 positional)
+             positional: Xte
+        189    b.predict_proba(1 positional)
+             positional: Xte
+  tests/unit/test_core.py
+       1054    ev.evaluate(2 positional; model_name='test_model')
+             positional: y, p
+       1076    ev.evaluate(2 positional)
+             positional: y, p
+       1085    ev.evaluate(2 positional)
+             positional: y, p
+       1103    rf.fit(2 positional)
+             positional: feats, sample_labels
+       1104    rf.predict(1 positional)
+             positional: feats
+       1117    rf.fit(2 positional)
+             positional: feats, sample_labels
+       1118    rf.predict_proba(1 positional)
+             positional: feats
+  tests/unit/test_d1_d2.py
+        250    ev.evaluate(2 positional)
+             positional: y_true, y_prob
+        261    ev.evaluate(2 positional)
+             positional: y_true, y_prob
+        274    ev.evaluate(2 positional)
+             positional: np.array([0, 1, 0, 1, 0]), rng.uniform(0, 1, 5)
+        285    ev.evaluate(2 positional)
+             positional: np.array([0, 1, 0, 1]), np.array([0.1, 0.9, 0.3, 0.8
+        302    ev.evaluate(2 positional)
+             positional: np.array([0, 1]), np.array([0.1, 0.9, 0.8])
+        308    ev.evaluate(2 positional)
+             positional: np.array([0, 1, 0, 1]), np.array([0.1, 0.9, 0.4, 0.7
+        334    gen.fit(1 positional)
+             positional: ['BRCA1', 'TP53']
+        346    gen.fit(1 positional)
+             positional: ['GENE_A']
+        366    gen.fit(1 positional)
+             positional: ['GENE_A', 'GENE_B']
+        367    gen.fit(1 positional)
+             positional: ['GENE_C']
+        377    gen.fit(1 positional)
+             positional: []
+  tests/unit/test_ensemble_persistence.py
+         48  * ens.fit(3 positional)
+             positional: X_tab, X_seq, y
+  tests/unit/test_evaluator_meta.py
+         34    ClinicalEvaluator(n_bootstrap=20).evaluate(0 positional; y_true=y, y_proba=p, meta=None, model_name='t')
+         42    ClinicalEvaluator(n_bootstrap=20).evaluate(0 positional; y_true=y, y_proba=p, meta=meta, model_name='t')
+         54    ClinicalEvaluator(n_bootstrap=20).evaluate(0 positional; y_true=y, y_proba=p, meta=meta_bad, model_name='t')
+  tests/unit/test_evaluator_phase5.py
+         78    mod.ClinicalEvaluator().evaluate(2 positional; model_name='t')
+             positional: y, p
+  tests/unit/test_feature_name_contract.py
+         89  * model.fit(2 positional)
+             positional: X, y
+         90  * model.predict_proba(1 positional)
+             positional: X
+         94  * model.predict_proba(1 positional)
+             positional: X[SHUFFLED]
+        144    lgb.LGBMClassifier(n_estimators=5, verbose=-1).fit(2 positional)
+             positional: X.values, y
+        153    RandomForestClassifier(n_estimators=5, random_state=0).fit(2 positional)
+             positional: X.values, y
+  tests/unit/test_gnn_shared_graph.py
+        103    trainer.predict_proba(1 positional)
+             positional: full
+  tests/unit/test_kan_actually_fits.py
+         91    kan.fit(2 positional)
+             positional: X, y
+         93    kan.predict_proba(1 positional)
+             positional: X
+        146    kan.fit(2 positional)
+             positional: X, y
+        269  * clone(model).fit(2 positional)
+             positional: X, y
+  tests/unit/test_level2_leakfree_oof.py
+         54    super().predict_proba(1 positional)
+             positional: Xin
+         73    super().predict_proba(1 positional)
+             positional: Xin
+         92  * ens.fit(3 positional; gene_symbol=gene)
+             positional: X, seq, pd.Series(y)
+         94  * ens.predict_proba(2 positional)
+             positional: X, seq
+        103  * ens.fit(3 positional)
+             positional: X, seq, pd.Series(y)
+  tests/unit/test_logistic_regression_is_scaled.py
+        103    lr.fit(2 positional)
+             positional: Xv, y
+  tests/unit/test_model_input_width.py
+         80    TabularNNClassifier(epochs=3, random_state=0).fit(2 positional)
+             positional: X, y
+  tests/unit/test_scalable_svm_map_dim.py
+         79    ScalableSVM(**kw).fit(2 positional)
+             positional: X, y
+  tests/unit/test_tabular_nn_mc_dropout.py
+         61  * clf.fit(2 positional)
+             positional: X, y
+        125  * clf.predict_proba(1 positional)
+             positional: X[:20]
+        126  * clf.predict_proba(1 positional)
+             positional: X[:20]
+        154    wrapper.fit(2 positional)
+             positional: X, y
+        168    wrapper.fit(2 positional)
+             positional: X, y
+        187    TabularNNClassifier(hidden_dims=(32, 16), dropout=0.3, epochs=15, batch_size=32, random_state=0).fit(2 positional)
+             positional: X, y
+        191  * clf.predict_proba(1 positional)
+             positional: X
+        199  * clf.predict_proba(1 positional)
+             positional: X[:30]
+        245    TabularNNClassifier(hidden_dims=(16, 8), dropout=0.1, epochs=5, batch_size=32, random_state=0).fit(2 positional)
+             positional: X, y
+        249    TabularNNClassifier(hidden_dims=(16, 8), dropout=0.5, epochs=5, batch_size=32, random_state=0).fit(2 positional)
+             positional: X, y
+  tests/unit/test_tabularnn_variance_mask.py
+         58    TabularNNClassifier(epochs=3, random_state=0).fit(2 positional)
+             positional: X, y
+         69    TabularNNClassifier(epochs=3, random_state=0).fit(2 positional)
+             positional: X, y
+         76    TabularNNClassifier(epochs=3, random_state=0).fit(2 positional)
+             positional: X, y
+         85    TabularNNClassifier(epochs=3, random_state=0).fit(2 positional)
+             positional: X, y
+         86    m.predict_proba(1 positional)
+             positional: X
+         90    m.predict_proba(1 positional)
+             positional: X[:, :5]
+         96    TabularNNClassifier(epochs=3, random_state=0).fit(2 positional)
+             positional: X, y
+         97    m.predict_proba(1 positional)
+             positional: X
+        103    m2.predict_proba(1 positional)
+             positional: X
+        111    MCDropoutWrapper(base_estimator=TabularNNClassifier(epochs=3, random_state=0), n_passes=4, random_state=0).fit(2 positional)
+             positional: X, y
+        117    mc.predict_proba(1 positional)
+             positional: X
+        123  * DeepEnsembleWrapper(base_estimator=TabularNNClassifier(epochs=3, random_state=0), n_members=2, random_state=0).fit(2 positional)
+             positional: X, y
+        131    de.predict_proba(1 positional)
+             positional: X
+  tests/unit/test_train_cnn_activation.py
+        119  * clf.fit(2 positional)
+             positional: X, y
+        120  * clf.predict_proba(1 positional)
+             positional: X
+  tests/unit/test_variant_ensemble_save_load.py
+        112    cnn.fit(2 positional)
+             positional: X, y
+        119    cnn.predict_proba(1 positional)
+             positional: X
+        120    cnn2.predict_proba(1 positional)
+             positional: X
+        161  * ens.fit(3 positional)
+             positional: X_tab, X_seq, y
+        194  * ens.predict_proba(2 positional)
+             positional: X_tab, X_seq
+        195  * ens2.predict_proba(2 positional)
+             positional: X_tab, X_seq
+
+======================================================================================
+## 2. HOW IS `y` PASSED?
+======================================================================================
+
+  fit/evaluate calls found : 152
+
+  y passed POSITIONALLY (3+ positional args) : 22
+  y passed BY KEYWORD                        : 0
+  2 positional, no y keyword (likely not an ensemble call) : 108
+  OTHER (fewer than 2 positional, no y keyword)            : 22
+      src/genomic_variant_classifier/models/catboost_wrapper.py:264  self._model.fit(1 positional)
+      src/genomic_variant_classifier/models/gnn.py:445  self.evaluate(1 positional)
+      src/genomic_variant_classifier/models/kan.py:389  self._kan.fit(1 positional)
+      src/genomic_variant_classifier/monitoring/performance_estimator.py:296  estimator.fit(1 positional)
+      src/genomic_variant_classifier/training/continual_trainer.py:298  lsif.fit(0 positional)
+      scripts/run9_ablations.py:734  evaluator.evaluate(0 positional)
+      scripts/train.py:585  evaluator.evaluate(0 positional)
+      tests/unit/test_base_model_dropout_is_loud.py:194  ens.fit(1 positional)
+      tests/unit/test_base_model_dropout_is_loud.py:233  ens.fit(1 positional)
+      tests/unit/test_base_model_dropout_is_loud.py:253  ens.fit(1 positional)
+      tests/unit/test_base_model_dropout_is_loud.py:265  ens.fit(1 positional)
+      tests/unit/test_base_model_dropout_is_loud.py:176  ens.fit(1 positional)
+      tests/unit/test_base_model_dropout_is_loud.py:204  ens.fit(1 positional)
+      tests/unit/test_base_model_dropout_is_loud.py:286  ens.fit(1 positional)
+      tests/unit/test_d1_d2.py:334  gen.fit(1 positional)
+      tests/unit/test_d1_d2.py:346  gen.fit(1 positional)
+      tests/unit/test_d1_d2.py:366  gen.fit(1 positional)
+      tests/unit/test_d1_d2.py:367  gen.fit(1 positional)
+      tests/unit/test_d1_d2.py:377  gen.fit(1 positional)
+      tests/unit/test_evaluator_meta.py:34  ClinicalEvaluator(n_bootstrap=20).evaluate(0 positional)
+      tests/unit/test_evaluator_meta.py:42  ClinicalEvaluator(n_bootstrap=20).evaluate(0 positional)
+      tests/unit/test_evaluator_meta.py:54  ClinicalEvaluator(n_bootstrap=20).evaluate(0 positional)
+
+  accounted for: 152 of 152 -- every call is in exactly one bucket
+
+  Positional-y call sites -- these are what option (b) would break:
+      scripts/run9_ablations.py:713  ensemble.fit
+      scripts/run9_ablations.py:719  ensemble.evaluate
+      scripts/run9_ablations.py:720  ensemble.evaluate
+      scripts/run_phase2_eval.py:982  ensemble.evaluate
+      scripts/run_phase2_eval.py:983  ensemble.evaluate
+      scripts/run_phase2_eval.py:590  ensemble.fit
+      scripts/run_phase2_eval.py:1082  ensemble_ugh.fit
+      scripts/run_phase2_eval.py:1086  ensemble_ugh.evaluate
+      scripts/train.py:565  ensemble.evaluate
+      scripts/train.py:552  ensemble.fit
+      scripts/train.py:561  ensemble.fit
+      tests/conformal/test_grouped.py:41  G.GroupedConformalClassifier(group_agg='nonsense').fit
+      tests/conformal/test_grouped.py:24  G.GroupedConformalClassifier(alpha=0.1, score='aps', group_agg=agg, seed=seed).fit
+      tests/conformal/test_grouped.py:32  G.GroupedConformalClassifier(seed=7).fit
+      tests/conformal/test_grouped.py:33  G.GroupedConformalClassifier(seed=7).fit
+      tests/unit/test_api.py:461  ens.fit
+      tests/unit/test_catboost.py:369  ensemble.fit
+      tests/unit/test_catboost.py:350  ensemble.fit
+      tests/unit/test_ensemble_persistence.py:48  ens.fit
+      tests/unit/test_level2_leakfree_oof.py:92  ens.fit
+      tests/unit/test_level2_leakfree_oof.py:103  ens.fit
+      tests/unit/test_variant_ensemble_save_load.py:161  ens.fit
+
+
+======================================================================================
+## 3. WHAT SITS IN THE X_seq SLOT?
+======================================================================================
+
+  ROADMAP 6.28: three tests construct pd.Series and pass it where a 2-column DataFrame
+  is required. They are green only because cnn_1d is excluded in each. Under Part 3
+  those become X_seq=None, which is what they already mean.
+
+  X_seq slot already literal None : 0
+  X_seq slot is an INLINE pd.Series : 0
+
+  LIMITATION, stated because a zero here would otherwise mislead: this sees only
+  construction written AT the call site. The three tests in ROADMAP 6.28 do
+  `X_seq = pd.Series([...])` on one line and pass the VARIABLE on another, so they
+  appear here as a bare name and are invisible to this check. Section 1's positional
+  listing shows the argument expressions; cross-read it against the known sites
+  test_api.py:459-461, test_base_model_dropout_is_loud.py:113, and
+  test_ensemble_persistence.py:30,48 rather than trusting this count alone.
+
+======================================================================================
+## 4. WHAT THE EVIDENCE IMPLIES
+======================================================================================
+
+  EVERY fit/evaluate call passes y POSITIONALLY. No caller uses y=... .
+
+  Option (c) -- leave the signature alone and let X_seq accept None -- costs NOTHING.
+  Every existing call keeps working untouched, and a caller with no sequence writes
+  an explicit `None` in the X_seq slot. The absence becomes VISIBLE at the call site
+  rather than implied by an omitted argument, which is the stronger property for a
+  change whose entire purpose is to stop expressing absence implicitly.
+
+  Option (b) would break 22 call site(s) for no gain over (c).
+
+  NOTE: option (c) does NOT deliver a default value. If a caller must be able to OMIT
+  X_seq entirely, only (b) does that. Whether omission is a requirement or merely a
+  convenience is a scope decision, and it is Monzia's.
