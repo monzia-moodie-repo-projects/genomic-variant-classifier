@@ -836,4 +836,69 @@
 #                     active without it; 58c9433 stopped three tests fabricating placeholder
 #                     sequence; fe4ea94 migrated the last four unpacks; this commit removes the
 #                     shim. The `usable`-less path no longer exists.
-1967
+#
+#   1978  2026-07-19  +11: tests/unit/test_x_seq_refusal_contract.py -- the X_seq refusal
+#                     contract gets direct tests (Part 3d). MEASURED, and measured by THIS
+#                     FILE'S OWN GATE rather than by a separate collection run:
+#
+#                         SUITE-SIZE RATCHET FAILED (roadmap 6.14)
+#                           expected (tests/EXPECTED_SUITE_SIZE): 1967
+#                           actually collected:                   1978
+#                           11 MORE test(s) than expected.
+#
+#                     That is the number COPIED FROM THE RATCHET'S OUTPUT, which is what the
+#                     rule at the top of this file asks for. 1967 + 11 = 1978 is offered only
+#                     as a cross-check on a figure that was read, never as its source.
+#
+#                     THIS ENTRY RECORDS A FAILURE, NOT A CLEAN BUMP.
+#
+#                     The tests were committed and PUSHED WITHOUT the ratchet (67a2df4), and
+#                     Continuous Integration #535 went red on Python 3.11 with exit code 4 --
+#                     "no tests ran in 17.90s", because the gate refuses to run a suite whose
+#                     size it does not recognise. That is the SECOND time in two days: entry
+#                     1962 records 2026-07-18, where the ratchet moved and the README badge
+#                     did not.
+#
+#                     THE CAUSE WAS PROCEDURAL AND IT WAS THE ASSISTANT'S. The commit command
+#                     supplied to the operator contained an UNSUBSTITUTED PLACEHOLDER --
+#                     `-m "... ratchet <measured>"` -- which PowerShell passed through
+#                     verbatim because it sat inside a quoted string. 67a2df4's message
+#                     therefore reads "ratchet <measured>" in the permanent record until it is
+#                     amended. The same command block was presented directly beneath an
+#                     instruction to stop and report the count first; an instruction to stop,
+#                     printed above five runnable commands, is not an instruction to stop.
+#
+#                     WHAT THE GATE DID RIGHT. It cost seventeen seconds and one red run. The
+#                     alternative it prevents is a ratchet that silently stops describing the
+#                     suite -- and this file's history records four separate occasions on
+#                     which a number here went stale without anything noticing. The failure
+#                     mode being defended against is not "a red build"; it is a green build
+#                     that means nothing.
+#
+#                     WHAT THE TESTS COVER. `_require_x_seq` (variant_ensemble.py:2248) had no
+#                     direct test before this. It was exercised only through its SILENT branch
+#                     -- calls passing X_seq=None with a roster that happens to exclude cnn_1d
+#                     -- so nothing asserted the loud branch was reachable at all. A guard
+#                     whose firing path is never executed is indistinguishable from one that
+#                     has been disarmed, and three of those are already on record: the SpliceAI
+#                     silent zero (9ba3127), rekey_seq_windows_v2's gate, and train.py's
+#                     `_POLY_WIN` content detector, which went unconditionally true when
+#                     PLACEHOLDER_BASE changed from "A" to "N" while the full suite stayed
+#                     green.
+#
+#                     ELEVEN TESTS: five expect the refusal, FIVE ARE NEGATIVE CONTROLS that
+#                     must stay silent, one checks that SEQUENCE_MODELS names only models the
+#                     default roster actually builds. The pairing is the point -- a test that
+#                     only ever sees the raise cannot tell a correct guard from one that
+#                     raises always.
+#
+#                     test_fit_refuses_before_training_anything asserts BY STATE that
+#                     trained_models_ is empty and no artifact reached disk. On the 4.4M-row
+#                     cohort that property is the difference between a second and hours of
+#                     paid compute.
+#
+#                     X_tab is built from the real TABULAR_FEATURES columns because
+#                     _assert_no_dead_features (:2334) runs BEFORE the refusal (:2338); with
+#                     f0..f19 columns the census would raise first and every pytest.raises in
+#                     the file would pass for the wrong reason.
+1978
