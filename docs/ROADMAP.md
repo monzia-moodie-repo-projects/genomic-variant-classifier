@@ -38,7 +38,7 @@ Production-grade multi-modal genomic disease-association program. Core: an ACMG/
 
 - **Unseen-gene-holdout ablation: ENSEMBLE_STACKER AUROC 0.9988** on 213,436 rows / 2,407 gene-disjoint genes (C3 falsifier (b) PASS vs 0.95). Strong generalization to unseen genes; the corpus-scope leakage question on n_pathogenic_in_gene RESOLVED 2026-06-13 (train-only at L1 689787f + L2 6b38985; lone-feature probe 0.7181 -> ~0.50) (see §5).
 
-- **ESM-2 mechanically active** (local UniProt index, no run-time REST, GPU auto-detect; commits 7b267ea/032a2ab) BUT coverage is only ~3,451/~1.49M (HGVSp-parser gap). esm2_delta_norm is ~99.7% zero in the full run; current AUROCs rest on tabular + constraint features.
+- **ESM-2 mechanically active** (local UniProt index, no run-time REST, GPU auto-detect; commits 7b267ea/032a2ab). **The ~3,451 coverage cap was RESOLVED 2026-06-10 and this line previously misattributed it to an "HGVSp-parser gap" -- see 4B/section-5 note and the 2026-06-10 entry below, which SUPERSEDE that framing.** Root cause was a stale AlphaMissense protein-coord index on the training box; `hgvsp_parser.py` and `protein_coords.py` both exist, are wired (`real_data_prep.py:995`, `protein_coords.py:35`) and are tested. Local coord index covers 96.6% of missense; coverage gate shipped (34e125a). The `esm2_delta_norm ~99.7% zero` figure is a **RUN-15 measurement** and is retained as history; it predates the coord-index sync and is NOT a current statement. Re-measuring esm2 coverage on the 4,399,089-row cohort is an OPEN item.
 
 - **gene_constraint_oe REVIVED** (Run-14 all-zero -> Run-15 #2 feature) via loeuf->oe derivation patch. **gnn_score REAL** (non-degeneracy gate PASS). cnn_1d (0.85) and kan (0.996) recovered from smoke underfit.
 
@@ -1222,3 +1222,237 @@ for four weeks, because nothing ever failed.
 
 **Next:** 6.2 (branch; expect red — that red is information), then 6.5 (the harness's own
 sanity model does not converge, which is a scientific problem, not a hygiene one).
+## ROADMAP delta -- 2026-07-20 (post-3bba87e measurements)
+
+Everything in this section was MEASURED on 2026-07-20 **after** the day's three commits
+(`fb23543`, `106d107`, `3bba87e`) had landed. Each figure names the command that produced it.
+Re-run them; do not believe them.
+
+### 1. 6.29a -- the headline claim is CLOSED; the flag ambiguity is NOT
+
+6.29a records `data/processed/clinvar_grch38_clean_seq.parquet` as
+*"4,399,089 rows, 6/12/2026, **19 columns, NO `ok`**"* and concludes that every Run 17 launcher
+points at an artifact carrying no provenance, leaving 6.28's entire mechanism inert on the
+configured path.
+
+**Measured 2026-07-20** (`pyarrow.parquet.ParquetFile(...).schema_arrow.names`):
+
+    rows 4399089   cols 21
+    variant_id source_db chrom pos gene_symbol transcript_id pathogenicity allele_freq
+    clinical_sig protein_change fasta_seq source_id metadata ref alt consequence
+    ReviewStatus fasta_seq_ref fasta_seq_alt ok reason
+
+The row count matches 6.29a exactly. **The column count and the provenance claim do not.**
+The artifact gained `ok` and `reason` after 6.29a was written on 2026-07-15.
+
+`probe_window_provenance_2026-07-20.py` then ran `attach_delta_windows` against BOTH artifacts,
+keyed off the same 50,000 rows, reading the thresholds live from `EnsembleConfig`:
+
+| artifact | provenance | verified | usable | fraction | unmapped | placeholder | gate |
+|---|---|---|---|---|---|---|---|
+| `clinvar_grch38_clean_seq.parquet` (21 col) | `parquet+ok` | **True** | 49,970/50,000 | 0.999400 | 0 | 30 | **ACCEPT** |
+| `seq_windows/seq_windows.parquet` (8 col) | `parquet+ok` | **True** | 49,970/50,000 | 0.999400 | 0 | 30 | **ACCEPT** |
+
+Identical because `seq_windows.parquet` is a **superset**: 4,420,180 against 4,399,089, and the
+extra **21,091** rows are exactly the alleleless variants absent from the clean cohort
+(4,420,180 - 4,399,089 = 21,091, the same figure 6.29 reconciles against `clean_cohort.py`).
+Keying off `clean_seq` finds the same variants in both files.
+
+Provenance resolved to `parquet+ok` rather than `rows+ok` because the probe passed only
+`chrom/pos/ref/alt`, forcing the parquet tier. With `--clinvar` loading all 21 columns, the
+cohort frame carries the sequence columns itself and tier 1 `rows+ok` fires instead.
+**Both tiers are now measured as verified.**
+
+**A PREDICTION WAS MADE AND WAS WRONG.** Reading 6.29a, it was asserted that
+`seq_require_verified_provenance=True` would cause the gate shipped in `106d107` to REFUSE the
+launcher path. It does not; it accepts. The evidence was already in this session's own
+`fb23543` work, which measured that exact file resolving through tier-1 `rows+ok` -- a branch
+that cannot fire without an `ok` column. **A document was quoted over a measurement taken the
+same day.** That is the view-first rule, broken in the direction it exists to prevent.
+
+**STILL OPEN, unchanged:** `--seq-windows` means a **DIRECTORY** in `train.py:102` (default
+`data/processed/seq_windows`, appends `/seq_windows.parquet`) and a **FILE** in
+`run_phase2_eval.py:49`. One flag, one repository, opposite contracts. `run_phase2_eval.py`
+reads its value through `attach_delta_windows` at lines 436-438, and the 8-column schema is
+`chrom/pos/ref/alt/fasta_seq_ref/fasta_seq_alt/ok/reason` -- so the "NOT TESTED" blocker
+6.29a records is now answerable, and the reader is identified.
+
+### 2. THE MONITORING LAYER RUNS, SUCCEEDS, AND CANNOT REPORT A FINDING
+
+Three separate defects, none a blocker, all real. Established via the GitHub Actions
+representational-state-transfer application programming interface (public repository, no
+authentication -- the `gh auth login` token remains dead) and by reading the workflow files.
+
+**(a) `scripts/run_data_freshness.py` returns 0 unconditionally.** 28 lines; `main()` ends
+`return 0` regardless of findings. Run locally 2026-07-20: `sources=24 changes=0
+report=reports\data_freshness\FRESHNESS_2026-07-20.md`, exit code 0. `changes=24` would exit 0
+identically. Line 22 also defaults twice -- `(results or {}).get(agent, {}) or {}` -- so a
+pipeline that never ran prints `sources=None changes=None report=None` and still exits 0.
+The workflow compounds it with `if-no-files-found: warn`, so an absent report is green too.
+**The monitor can only go red by crashing**, which is what the 2026-06-22 and 2026-06-29
+scheduled failures were. Neither has an incident record.
+
+**(b) The report's own content carries two detector defects.** The 2026-07-20 report says
+`alphafold [missing] absent on disk`. It is not: `data/external/alphafold/` holds
+`alphafold_cohort.parquet` (110,220,322 bytes) and `alphafold_coverage.json` (2,094,560 bytes),
+both written 2026-07-03 -- 107.1 MB, against the 1.8 MB the same monitor reported present on
+2026-06-14. The registry entry (`monitoring/registry.py:137-140`) names
+`data/raw/cache/alphafold`, the `.cif` cache it was written for; the July build wrote elsewhere.
+**Stale registry path, not lost data.** A first reading of `[missing]` as data loss was wrong
+and is retracted here.
+Further, `database_freshness_detector.py:109` scans the PARENT directory for cruft, so sources
+sharing a directory inherit each other's clutter -- `.OOMbak` files belonging to AlphaMissense
+were reported against `hgmd`, `omim` and `clingen`. And line 107 sums a whole directory tree,
+so `gtex` and `esm2` -- which BOTH declare `local_path = "data/raw/cache"`
+(registry.py:123 and :142) -- reported byte-identical sizes on two separate dates
+(1348.4 MB on 06-14, 21071.3 MB on 07-20). Neither figure describes either source.
+
+**(c) The only scheduled automation is dry-run, so agent liveness ages permanently.**
+`orchestrator.py:261` guards `_record_run_telemetry` with `if not self._dry_run:`.
+`data_freshness.yml:30` invokes the script with no `--no-dry-run`. So five successful
+scheduled runs (06-15, 06-22, 06-29, 07-06, 07-13) wrote no `agent_runs` telemetry, and all 22
+agents still report `last=2026-06-20T02:30`. On 2026-07-20 that reached `age=30.27d`, crossing
+the `--max-age-days` default of 30.0 -- **the whole fleet turned STALE this morning.**
+`check_agents_active.py` exiting 0 is CORRECT: its docstring (lines 25, 37) defines STALE as a
+warning and the hard failures as ERRORED / DRY_RUN_ONLY / SECTION_ONLY / NEVER_RUN /
+UNSCHEDULED / MISSING_IMPL. `--strict` exits 1, verified. **An earlier claim that the checker
+was "not doing its job" was wrong and is retracted.**
+
+**The Monthly Drift Monitor's current bytes have never executed.** `drift_monitor.yml` is
+34,876 bytes, last modified 2026-07-14; its last run was 2026-07-01; the next is 2026-08-01.
+Its own comment (lines 60-66) records that the version before the repair ran *without its drift
+libraries and without the code it was supposed to run* -- and one of those three runs reported
+SUCCESS. The repair itself needed three commits (`4528414`, `68d8321`, `69b9f01`, the last
+because a patcher missed carriage-return line-feed anchors). **A fix for a silent failure,
+never executed, is not yet a fix.** All three `workflow_dispatch` inputs are inert by default
+(`release_name="manual"`, `auto_retrain=false`, `schema_matrix=""` -> NOT CHECKED, exit 3) and
+the job is concurrency-guarded, so a manual dispatch costs one hosted runner and nothing else.
+
+**Scheduling itself is reliable but late.** Both crons fire at the top of the hour, the most
+contended slot. Delays measured from the application programming interface
+(timestamps are Coordinated Universal Time, cross-checked against
+Continuous Integration #546 at 08:18 UTC = 04:18 local): Data Freshness 3h17m to 6h00m across
+five consecutive Mondays; Drift 2h05m to 5h15m across three consecutive months. **No run has
+ever been dropped.** An earlier claim of "four of five Mondays" was read off a truncated list
+and is corrected: it is five of five.
+
+### 3. JEPA V1 READINESS -- measured, not assumed
+
+`audit_jepa_readiness_2026-07-20.py` (read-only, proven by abstract-syntax-tree walk) parsed
+every modality module. **JEPA has zero code in this repository** -- three mentions, all in
+documentation (`HANDOFF_2026-07-15:119`, `REMEDIATION_2026-07-13:577`, `ROADMAP.md:814`).
+
+| modality | array-returning functions | what Milestone 1 costs |
+|---|---|---|
+| DNA `genomic_lm.py` | **0 of 15** | Nucleotide Transformer vectors never leave the function. **Restructure.** |
+| Protein `esm2.py` | 5 of 36, incl. `_embed_sequence() -> Optional[np.ndarray]` (415) and `_cache_get_embedding()` (160) | Embeddings already computed **and cached**, then discarded. **Closest to ready.** |
+| Graph `gnn.py` | 4 of 25, but `predict_proba`/`score_all_nodes` return SCORES | No hidden-state accessor. **Restructure.** |
+| RNA `rna_pipeline.py` + `rnaseq.py` | **0 of 8** | No embedding surface at all. |
+
+This confirms the roadmap's existing statement that every foundation model added so far has been
+**collapsed to two scalars**, and that step 1 is a build rather than a wiring job.
+
+**DISK IS A HARD BLOCKER.** `Get-PSDrive C` on 2026-07-20: **10.91 GB free**, 924.68 GB used.
+The roadmap's measured minimum embedding cache is **~14.7 GB** -- and that is Nucleotide
+Transformer plus ESM-2 only, **pooled only**, while the JEPA design explicitly requires
+token-level retention. Shortfall at minimum **3.79 GB**, and free space has FALLEN from the
+14.74 GB recorded at 6.12. **JEPA V1 cannot cache embeddings locally.** The embedding store must
+target Drive or cloud from the outset, not as a later migration.
+
+### 4. CONFORMAL -- EXTEND the existing package; do NOT create `uncertainty/`
+
+The conformal specification proposes `src/genomic_variant_classifier/uncertainty/` with fifteen
+modules. **`src/genomic_variant_classifier/conformal/` already exists** with six, and covers
+roughly half the specification including the harder half.
+
+| specification module | reality |
+|---|---|
+| `scores` | **EXISTS** -- `scores.py`: LAC, APS, RAPS (`*_scores_true` and `*_scores_all` for each) |
+| `binary` | **EXISTS** -- `mondrian.py::MondrianConformalClassifier(group_mode="class")` is label-conditional binary |
+| `multiclass` | **EXISTS** -- APS/RAPS via `split.py::SplitConformalClassifier(score=...)` |
+| `subgroup` | **EXISTS** -- `coverage.py::per_stratum_coverage`, `group_coverage_disjoint` |
+| `evaluation` | **EXISTS** -- `coverage.py`: marginal, per-class, set-size summary, abstention rates |
+| `splits` | **EXISTS** -- `split.py::conformal_quantile`; `calibrate.py::_gene_disjoint_mask` |
+| `config` | **PARTIAL** -- `calibrate.py::CalibrationConfig` |
+| `artifacts`, `ordinal`, `multilabel`, `gene_ranking`, `risk_control`, `monitoring` | **GENUINELY ABSENT** |
+
+`grouped.py::GroupedConformalClassifier(group_agg="max")` is precisely the specification's
+**gene-cluster conformal mode**. Both levels of guarantee -- variant-level and gene-cluster --
+already exist in code.
+
+**Six modules to add, not thirteen.** The absent six are the clinically-motivated half:
+conformal risk control, ordinal contiguous sets, multilabel, gene ranking, provenance/fail-closed
+artifacts, and drift monitoring.
+
+**A CORRECTION IS OWED HERE.** The audit's own section 4 reported `binary`, `multiclass`,
+`subgroup` and `evaluation` as ABSENT. It matched **file names**, not capability. That is the
+same failure this section documents elsewhere, committed inside the audit built to avoid it.
+
+The specification's four-partition requirement (train 60 / tune 15 / conformal 10 / test 15,
+all gene-disjoint) maps onto existing structure: the v2 gene-disjoint `tune` partition already
+feeds `X_tab_cal_ext` and does the probability-calibration job. **What is missing is
+specifically the conformal partition**, not the concept. The specification's own instruction --
+`split_protocol_v1` and `v2` in parallel until equivalence is proven, never a one-step
+overwrite -- is the right discipline and is adopted.
+
+### 5. METRIC SURFACE -- eleven files, one unused canonical module
+
+Parsed 2026-07-20. Eleven files call metrics independently; `evaluation/metrics.py` exists and
+is NOT called by `variant_ensemble.evaluate()`, which computes its own five inline
+(`roc_auc_score`, `average_precision_score`, `f1_score`, `matthews_corrcoef`,
+`brier_score_loss`). Never called anywhere: `balanced_accuracy_score`, `cohen_kappa`,
+`ndcg_score`.
+
+**The audit UNDERSTATED what exists**, because it matched scikit-learn function names only.
+`evaluation/metrics.py` additionally implements Expected Calibration Error, calibration slope
+and intercept, bootstrap confidence intervals, lift-over-floor and stratified evaluation --
+none of which is a scikit-learn call -- and carries 30 tests. The **Expanded metric stack**
+row in the measured-state table already records this as PARTIAL against section 16 of the
+conformal specification.
+
+**The work is therefore not "add metrics".** It is: one canonical module every caller routes
+through, and a living glossary GENERATED from that module rather than maintained beside it --
+so a metric cannot be defined in one place and computed differently in another. Same principle
+as the suite-size ratchet and the README badge, and the only form that does not go stale.
+
+### 6. METHODOLOGY -- twenty-one instances of one failure in a single session
+
+**A checker that string-matches or name-matches fires on something that merely resembles its
+target.** Instances on 2026-07-19/20 include: a docstring-staleness regex matching digits
+inside a date; an import check matching `torch.utils.data` because it ends in `.data`; three
+checks matching prose that DESCRIBES the rule (a refusal message, a Protocol docstring, and --
+inside the fix for the previous one -- a replacement docstring quoting the old assertion);
+`DOC.count("| 5 |")` matching cells in a reconciliation table; `\d{3}\.\d{2}` truncating
+`1026.25` to `026.25`; a destructive-call detector flagging `str.replace` by method name; and
+the conformal gap analysis above, which compared module names to a specification instead of
+comparing capabilities.
+
+**The durable lesson is not "remember to parse."** It is that **outcome-asserting checks catch
+what careful reading does not** -- most of these were found by a machine check written to
+assert a RESULT rather than to confirm an ACTION.
+
+**And the failure that is not in that class, recorded separately because it is worse:** on
+2026-07-20 a stale roadmap entry (6.29a) was quoted over a measurement taken the same day by
+this session's own commit. No checker was involved. That is root pattern (a) consumed rather
+than produced, and the defence against it is the one this project already states: read the
+artifact, not the description of the artifact.
+
+### 7. WHAT IS OPEN AFTER TODAY
+
+- **`--seq-windows` dual meaning** (6.29a's surviving half). Directory in `train.py:102`,
+  file in `run_phase2_eval.py:49`.
+- **ESM-2 coverage on the 4,399,089-row cohort is UNMEASURED.** The parser exists, is wired and
+  is tested; the coverage number is what decides whether `esm2_delta_norm` and `esm2_llr`
+  contribute signal, and whether JEPA V1's protein modality is real.
+- **Monitoring remediation, three separable fixes:** the registry's stale AlphaFold path plus
+  the detector's parent-directory and directory-total defects; an exit code that can express a
+  finding; and a scheduled run that can write telemetry. The third needs a decision, because
+  `--no-dry-run` enables human-in-the-loop prompts a hosted runner cannot answer.
+- **Monthly Drift Monitor never dispatched** since its 2026-07-14 repair.
+- **Expanded metric stack:** route eleven callers through one module; generate the glossary.
+- **Conformal:** add the six genuinely-absent modules; add the fourth partition behind
+  `split_protocol_v2`.
+- **JEPA:** blocked on storage (3.79 GB short at the absolute minimum) and on the ESM-2
+  coverage measurement.
+- **Continuous Integration #540-#546 all green**, twelve consecutive, confirmed by screenshot
+  and by the GitHub Actions application programming interface. The three red runs (#535-#537) are the 2026-07-19 ratchet-split failures.
