@@ -957,4 +957,83 @@
 #                     correct, but nothing yet asserts that TABULAR_FEATURES and
 #                     EXPECTED_TABULAR_FEATURE_COUNT agree with each other in the same way.
 #                     That is a separate pin and it is not installed here.
-1985
+#
+#   1999  2026-07-20  +14: tests/unit/test_window_attachment_derives_its_counts.py --
+#                     WindowAttachment stores its two component masks and derives every
+#                     count from them. MEASURED with `pytest tests/ --collect-only -q` on the
+#                     STAGED tree: `git add -A`, then `git status --short` showing exactly one
+#                     "M " (src/.../data/seq_window_join.py) and one "A " (the new test file)
+#                     and NO '??' lines, then "1999 tests collected in 11.08s". 1985 + 14 is
+#                     offered only as a cross-check on a figure that was read.
+#
+#                     THE DEFECT. seq_window_join.py:179, tier 1, read:
+#
+#                         att = WindowAttachment(out, usable, n, int((~usable).sum()), 0, prov)
+#                                                                |_ n_unmapped ____|  |_ n_ph
+#
+#                     In the "rows+ok" branch usable = ref.notna() & alt.notna() & ok. A row
+#                     that IS PRESENT but carries ok=False is a BUILDER PLACEHOLDER, not an
+#                     unmapped row -- yet every unusable row was attributed to n_unmapped and
+#                     n_placeholder was hardcoded to zero. Exactly inverted.
+#
+#                     data/processed/clinvar_grch38_clean_seq.parquet carries fasta_seq_ref,
+#                     fasta_seq_alt AND ok, so it resolves through precisely this tier. Its
+#                     summary() line -- what scripts/train.py:514 writes to the run log for
+#                     every split -- would have read "723 unmapped, 0 builder-placeholder"
+#                     when the truth is 0 and 723. Those 723 were measured on 2026-07-19 as
+#                     668 non-ACGT alleles, 53 reference mismatches and 2 fetch failures.
+#
+#                     WHY IT SURVIVED. No test covered tier 1 WITH an ok column. Every
+#                     existing tier-1 test supplied windows without one (test_seq_window_join
+#                     .py:185, test_train_cnn_activation.py:47/70/101); everything else was
+#                     tier 2 or 3. The defect lived in the one shape nothing exercised -- and
+#                     it is the shape the production cohort uses. Tier 2 was always correct,
+#                     because it kept `mapped` and `ok` separate.
+#
+#                     THE FIX IS STRUCTURAL, NOT ARITHMETIC. Correcting line 179 would have
+#                     fixed today and left the next tier free to repeat it. The class stored a
+#                     DERIVED value (usable) plus three SUMMARIES of masks it did not keep, so
+#                     nothing could enforce agreement -- nothing even prevented n_rows from
+#                     disagreeing with len(windows). Now four fields are stored (windows,
+#                     key_found, builder_ok, provenance) and usable, n_rows, n_usable,
+#                     n_unmapped, n_placeholder, usable_fraction and provenance_is_verified
+#                     are all properties. A tier must state BOTH masks; conflating them is
+#                     unrepresentable rather than discouraged.
+#
+#                     THIS IS THE SIXTH INSTANCE OF ONE FAILURE MODE recorded in this file:
+#                     WindowAttachment.__iter__'s self-maintained todo list; the four numbers
+#                     that went stale HERE before the ratchet was armed; the README badge
+#                     against entry 1962; the LOVD classification map; the variant_ensemble.py
+#                     module header at entry 1985; and now the counts a WindowAttachment
+#                     stored alongside the mask that defines them. Every one is a fact stated
+#                     twice where only one copy was maintained.
+#
+#                     `key_found`, NOT `mapped`. genomic_lm.py:386 and :432 bind att.usable to
+#                     a LOCAL named `mapped`. A FIELD called `mapped` meaning something else --
+#                     located, regardless of the builder's verdict -- would put two meanings on
+#                     one word in one codebase, which is how a mask gets read wrong.
+#
+#                     AND subset(). prediction_artifacts.py:365 slices X_seq before passing it
+#                     to predict_proba, so a sliced attachment must remain an attachment or the
+#                     coming sequence-provenance gate cannot cover that path. Deriving the
+#                     counts makes subset exact; under the old layout it could not have been
+#                     written honestly at all, because a slice's unmapped-versus-placeholder
+#                     breakdown is unrecoverable from a combined mask.
+#
+#                     VERIFIED BY EXECUTION, not by argument. The patch was applied to a copy
+#                     of seq_window_join.py reconstructed verbatim from a collector report and
+#                     run against a replica of the production cohort's shape: summary() moved
+#                     from "2 unmapped, 0 builder-placeholder" to "0 unmapped, 2 builder-
+#                     placeholder". Tiers 2 and 3 were confirmed unchanged on frames carrying
+#                     both failure modes. Two of the 14 tests are negative controls: one
+#                     recomputes the OLD formula and proves it disagrees on exactly this input
+#                     (a regression test that would also pass against the bug pins nothing),
+#                     and one shows an unverified "parquet" attachment still reports usable
+#                     rows -- the trap provenance_is_verified exists to expose.
+#
+#                     WHAT IS NOT DONE HERE. No caller was migrated. train.py, run_phase2_eval
+#                     .py, run9_ablations.py and prediction_artifacts.py still pass bare frames
+#                     into the ensemble, and nothing yet refuses one. That is the next commit,
+#                     and it is atomic: Protocol, gate over X_seq AND X_seq_cal_ext, every
+#                     caller, bare-DataFrame refusal, together.
+1999

@@ -91,40 +91,115 @@ PLACEHOLDER_BASE = "N"
 class WindowAttachment:
     """Windows plus the provenance needed to know which of them are real.
 
+    THE TWO MASKS ARE STORED. EVERYTHING ELSE IS DERIVED.
+
+    Until 2026-07-20 this class stored `usable` as one combined mask alongside `n_rows`,
+    `n_unmapped` and `n_placeholder` as separate integers, and asked each resolution tier to
+    compute the breakdown by hand. Tier 1 computed it wrongly: it attributed every unusable
+    row to `n_unmapped` and hardcoded `n_placeholder` to zero, so a cohort whose windows were
+    already attached WITH an `ok` column reported its builder-placeholder rows as "unmapped"
+    in the run log -- exactly inverted. No test covered that path, because no test supplied an
+    `ok` column alongside pre-attached windows.
+
+    Storing the components and deriving the aggregates makes that error unrepresentable: a
+    tier must state BOTH masks, and every count follows from them. It also removes a latent
+    inconsistency -- under the old layout nothing prevented `n_rows != len(windows)`.
+
     Attributes
     ----------
     windows:
         2-column [fasta_seq_ref, fasta_seq_alt] frame, 1:1 with `meta` (reset index).
-    usable:
-        Boolean array, 1:1 with `meta`. True iff the row carries sequence that came
-        from the reference genome. **Consumers must mask on this and nothing else.**
-        Never compare window CONTENT to a placeholder string: a real window may
-        legitimately equal any given string (poly-A tracts are real biology).
-    n_unmapped:
-        Rows whose key was absent from the window source entirely.
-    n_placeholder:
-        Rows present in the source but flagged `ok=False` by the builder -- i.e. the
-        builder could not construct a window (missing contig, out-of-range position,
-        non-ACGT allele). These are the 21,814 the old code could not see.
+    key_found:
+        Boolean array, 1:1 with `meta`. True iff a window was LOCATED for this row -- found
+        in the window source (tier 2), or already present and non-null on the frame (tier 1).
+        Says nothing about whether that window is real; `builder_ok` says that.
+
+        Named `key_found` rather than `mapped` deliberately: genomic_lm.py:386 and :432 bind
+        `att.usable` to a local called `mapped`, and one word with two meanings in one
+        codebase is how a mask gets read wrong.
+    builder_ok:
+        Boolean array, 1:1 with `meta`. The window BUILDER's own verdict -- True iff it could
+        construct a real window from the reference. False means it could not: missing contig,
+        out-of-range position, non-ACGT allele.
+
+        WHEN NO `ok` COLUMN IS AVAILABLE THIS IS FABRICATED AS ALL-TRUE, and `provenance`
+        records that. Ask `provenance_is_verified` before trusting it.
     provenance:
-        Which resolution tier produced this attachment; recorded so a run artifact can
-        state HOW its windows were obtained, not merely that it had some.
+        Which resolution tier produced this attachment, and whether the builder's verdict
+        travelled with it. Recorded so a run artifact can state HOW its windows were obtained,
+        not merely that it had some.
     """
 
     windows: pd.DataFrame
-    usable: np.ndarray
-    n_rows: int
-    n_unmapped: int
-    n_placeholder: int
+    key_found: np.ndarray
+    builder_ok: np.ndarray
     provenance: str
+
+    @property
+    def usable(self) -> np.ndarray:
+        """True iff the row carries sequence that came from the reference genome.
+
+        **Consumers must mask on this and nothing else.** Never compare window CONTENT to a
+        placeholder string: a real window may legitimately equal any given string (poly-A
+        tracts are real biology), and a filler character can change without warning.
+        """
+        return self.key_found & self.builder_ok
+
+    @property
+    def n_rows(self) -> int:
+        return len(self.windows)
 
     @property
     def n_usable(self) -> int:
         return int(self.usable.sum())
 
     @property
+    def n_unmapped(self) -> int:
+        """Rows for which no window was located at all."""
+        return int((~self.key_found).sum())
+
+    @property
+    def n_placeholder(self) -> int:
+        """Rows LOCATED but flagged unusable by the builder.
+
+        This is the count tier 1 used to report as zero while attributing these rows to
+        `n_unmapped` instead.
+        """
+        return int((self.key_found & ~self.builder_ok).sum())
+
+    @property
     def usable_fraction(self) -> float:
         return (self.n_usable / self.n_rows) if self.n_rows else 0.0
+
+    @property
+    def provenance_is_verified(self) -> bool:
+        """True iff `builder_ok` came from the builder rather than being assumed.
+
+        Tiers "rows" and "parquet" have no `ok` column to read, so they fabricate
+        `builder_ok` as all-True. `n_usable` from such an attachment counts rows nobody
+        checked. Only the "+ok" tiers carry a real verdict.
+        """
+        return self.provenance.endswith("+ok")
+
+    def subset(self, idx) -> "WindowAttachment":
+        """A row subset of this attachment -- still an attachment.
+
+        `idx` is anything both DataFrame.iloc and numpy fancy-indexing accept: an integer
+        array, a boolean mask of length n_rows, or a slice.
+
+        `provenance` is carried through UNCHANGED. Selecting rows neither improves nor
+        degrades the builder's verdict about the rows selected.
+
+        This method could not have been written honestly before the counts became derived:
+        given only a combined `usable` mask, the unmapped/placeholder breakdown of a slice is
+        unrecoverable, so any subset would have had to report a stale or invented figure.
+        """
+        return WindowAttachment(
+            windows=self.windows.iloc[idx].reset_index(drop=True),
+            key_found=np.asarray(self.key_found)[idx],
+            builder_ok=np.asarray(self.builder_ok)[idx],
+            provenance=self.provenance,
+        )
 
     def summary(self) -> str:
         return (
@@ -160,15 +235,16 @@ def attach_delta_windows(
         # to presence. Stated plainly rather than papered over: if the caller hands us
         # a frame whose windows are already placeholders, we cannot know it. Prefer
         # tier 2, which carries the builder's own verdict.
+        # A window is LOCATED for this row iff both columns are non-null. Nothing was
+        # looked up at this tier, but the window is either here or it is not.
+        key_found = ref_s.notna().to_numpy() & alt_s.notna().to_numpy()
         if OK_COL in meta.columns:
-            usable = (
-                ref_s.notna().to_numpy()
-                & alt_s.notna().to_numpy()
-                & meta[OK_COL].fillna(False).astype(bool).to_numpy()
-            )
+            builder_ok = meta[OK_COL].fillna(False).astype(bool).to_numpy()
             prov = "rows+ok"
         else:
-            usable = ref_s.notna().to_numpy() & alt_s.notna().to_numpy()
+            # No verdict travelled with the frame, so one is assumed. `provenance` records
+            # that, and provenance_is_verified reports it.
+            builder_ok = np.ones(n, dtype=bool)
             prov = "rows"
         out = pd.DataFrame(
             {
@@ -176,7 +252,7 @@ def attach_delta_windows(
                 ALT_WIN_COL: alt_s.fillna(placeholder).astype(str).to_numpy(),
             }
         )
-        att = WindowAttachment(out, usable, n, int((~usable).sum()), 0, prov)
+        att = WindowAttachment(out, key_found, builder_ok, prov)
         logger.info("%s", att.summary())
         return att
 
@@ -210,9 +286,6 @@ def attach_delta_windows(
         else:
             ok = np.ones(n, dtype=bool)
 
-        usable = mapped & ok
-        n_unmapped = int((~mapped).sum())
-        n_placeholder = int((mapped & ~ok).sum())
 
         out = pd.DataFrame(
             {
@@ -221,16 +294,15 @@ def attach_delta_windows(
             }
         )
         att = WindowAttachment(
-            out, usable, n, n_unmapped, n_placeholder,
-            "parquet+ok" if has_ok else "parquet",
+            out, mapped, ok, "parquet+ok" if has_ok else "parquet",
         )
         logger.info("%s", att.summary())
-        if n_placeholder:
+        if att.n_placeholder:
             logger.warning(
                 "%d/%d rows carry BUILDER-PLACEHOLDER windows (ok=False): no reference "
                 "sequence exists for them. They are masked usable=False. Before "
                 "2026-07-15 these were indistinguishable from real windows and were "
-                "trained on.", n_placeholder, n,
+                "trained on.", att.n_placeholder, n,
             )
         return att
 
@@ -240,4 +312,5 @@ def attach_delta_windows(
         "Any sequence model fitted on this attachment is fitting noise.", n,
     )
     out = pd.DataFrame({REF_WIN_COL: [placeholder] * n, ALT_WIN_COL: [placeholder] * n})
-    return WindowAttachment(out, np.zeros(n, dtype=bool), n, n, 0, "none")
+    _none = np.zeros(n, dtype=bool)
+    return WindowAttachment(out, _none, _none, "none")
