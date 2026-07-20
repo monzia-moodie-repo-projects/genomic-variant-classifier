@@ -343,10 +343,16 @@ class TestEnsembleIntegration:
             ensemble = VariantEnsemble(config=config)
             # 2-column delta frame. NOTE: "ACGT" * 25 is 100 chars, not 101 --
             # encode_sequence ljust-pads the shortfall with a fabricated "A".
-            seq      = pd.DataFrame({
+            from genomic_variant_classifier.data.seq_window_join import (
+                attach_delta_windows as _adw,
+            )
+            # Built through the real tier-1 path so the attachment carries genuine
+            # provenance ("rows+ok"), rather than constructing WindowAttachment directly.
+            seq      = _adw(pd.DataFrame({
                 "fasta_seq_ref": ["ACGT" * 25 + "A"] * len(numeric_labels),
                 "fasta_seq_alt": ["ACGT" * 25 + "C"] * len(numeric_labels),
-            })
+                "ok": [True] * len(numeric_labels),
+            }))
             ensemble.fit(numeric_variant_df, seq, pd.Series(numeric_labels))
         finally:
             CatBoostVariantClassifier.fit = orig_fit
@@ -362,10 +368,14 @@ class TestEnsembleIntegration:
         config   = EnsembleConfig(n_folds=2, skip_catboost=False)
         ensemble = VariantEnsemble(config=config)
         # 2-column delta frame; 101 chars exactly (see note above).
-        seq      = pd.DataFrame({
+        from genomic_variant_classifier.data.seq_window_join import (
+            attach_delta_windows as _adw,
+        )
+        seq      = _adw(pd.DataFrame({
             "fasta_seq_ref": ["ACGT" * 25 + "A"] * len(numeric_labels),
             "fasta_seq_alt": ["ACGT" * 25 + "C"] * len(numeric_labels),
-        })
+            "ok": [True] * len(numeric_labels),
+        }))
         ensemble.fit(numeric_variant_df, seq, pd.Series(numeric_labels))
         proba = ensemble.predict_proba(numeric_variant_df, seq)
         assert proba.shape == (len(numeric_labels), 2)

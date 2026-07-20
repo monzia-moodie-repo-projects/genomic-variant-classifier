@@ -53,10 +53,14 @@ def synthetic_data():
     # differs from the ref at the CENTRE base, which is where the positional channel is
     # centred, so the delta channels carry real signal rather than being all-zero.
     _ref = ["".join(rng.choice(bases, 101)) for _ in range(n)]
-    X_seq = pd.DataFrame({
+    from genomic_variant_classifier.data.seq_window_join import (
+        attach_delta_windows as _adw,
+    )
+    X_seq = _adw(pd.DataFrame({
         "fasta_seq_ref": _ref,
         "fasta_seq_alt": [s[:50] + ("C" if s[50] != "C" else "G") + s[51:] for s in _ref],
-    })
+        "ok": [True] * n,
+    }))
     return X_tab, X_seq, y
 
 
@@ -151,7 +155,12 @@ def test_ensemble_save_load_with_cnn1d(synthetic_data, tmp_path):
     X_tab, X_seq, y = synthetic_data
 
     # Build ensemble, then restrict to 2 base models BEFORE fit()
-    cfg = EnsembleConfig(n_jobs=1)
+    # seq_min_usable_rows defaults to 100 and this fixture is 60 rows, so the sequence gate
+    # refuses it (correctly -- 60 windows is not enough to fit a convolutional network on).
+    # The subject of THIS test is pickling, not coverage, so the floor is lowered for the test
+    # rather than the fixture doubled: a 120-row fixture would double a real cnn_1d fit and
+    # assert nothing extra. Same trap as test_x_seq_refusal_contract.py's `_seq(n=200)`.
+    cfg = EnsembleConfig(n_jobs=1, seq_min_usable_rows=10)
     ens = VariantEnsemble(cfg)
     keep = {"random_forest", "cnn_1d"}
     ens.base_estimators = {

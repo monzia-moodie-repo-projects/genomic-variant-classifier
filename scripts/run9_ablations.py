@@ -673,10 +673,11 @@ def main() -> int:
     #
     # The previous comment claimed this "mirrors mainline". It did not: scripts/train.py
     # passes REAL windows.
-    placeholder = placeholder_window()
-    seq_tr = pd.Series([placeholder] * len(y_train))
-    seq_va = pd.Series([placeholder] * len(y_val))
-    seq_te = pd.Series([placeholder] * len(y_test))
+    # X_seq is None here, not a fabricated placeholder. cnn_1d is popped from the roster
+    # below (2026-07-18), so no sequence model consumes this -- and since ff97c34 the
+    # signature accepts None, so there is nothing to manufacture. The comment block above
+    # describes the placeholder this replaced.
+    seq_tr = seq_va = seq_te = None
 
     # ── Ensemble ──────────────────────────────────────────────────────────
     ens_cfg = EnsembleConfig(
@@ -710,21 +711,23 @@ def main() -> int:
 
     # ── Fit ───────────────────────────────────────────────────────────────
     fit_t0 = time.perf_counter()
-    ensemble.fit(X_train_abl, seq_tr, y_train)
+    ensemble.fit(X_train_abl, None, y_train)
     fit_sec = time.perf_counter() - fit_t0
     logger.info("Fit complete in %.1f min", fit_sec / 60)
     ensemble.save(args.output_dir / "models" / "ensemble.joblib")
 
     # ── Evaluate ──────────────────────────────────────────────────────────
-    test_results = ensemble.evaluate(X_test_abl, seq_te, y_test)
-    val_results = ensemble.evaluate(X_val_abl, seq_va, y_val)
+    test_results = ensemble.evaluate(X_test_abl, None, y_test)
+    val_results = ensemble.evaluate(X_val_abl, None, y_val)
 
-    test_proba = ensemble.predict_proba(X_test_abl, seq_te)[:, 1]
+    test_proba = ensemble.predict_proba(X_test_abl, None)[:, 1]
 
     # Per-base-model test probabilities (for test_predictions.parquet)
     base_probs: dict[str, np.ndarray] = {}
     for name, model in ensemble.trained_models_.items():
-        X_input = seq_te if name == "cnn_1d" else X_test_abl.values
+        # cnn_1d was popped from base_estimators above, so it can never appear in
+        # `name`. The branch that handled it was dead code and is gone.
+        X_input = X_test_abl.values
         try:
             base_probs[name] = model.predict_proba(X_input)[:, 1]
         except Exception as exc:
@@ -828,7 +831,7 @@ def main() -> int:
             writer.save_permutation_importance(
                 ensemble,
                 X_test_abl,
-                seq_te,
+                None,
                 y_test,
                 n_repeats=5,
                 sample_size=min(50_000, len(X_test_abl)),

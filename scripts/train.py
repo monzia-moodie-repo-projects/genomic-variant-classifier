@@ -437,7 +437,7 @@ def main() -> None:
 
     # Test side: meta_test is in-memory, structurally split-aligned to X_test.
     _att_test = attach_delta_windows(meta_test, seq_windows_path=_seq_win_arg)
-    X_seq_test = _att_test.windows
+    X_seq_test = _att_test
     # Train side: meta_train is persisted by _save_splits, gene-split-aligned to
     # X_train (both df.iloc[train_idx].reset_index). Read it -- no run() change.
     meta_train_path = config.output_dir / "meta_train.parquet"
@@ -453,7 +453,7 @@ def main() -> None:
             "split misalignment -- aborting to avoid PM11d-style label mismatch."
         )
     _att_train = attach_delta_windows(_meta_train, seq_windows_path=_seq_win_arg)
-    X_seq_train = _att_train.windows
+    X_seq_train = _att_train
     # Tune side (W2 v2 only): the gene-disjoint calibration partition also needs
     # its sequence delta windows so the ensemble's external-cal fold has the
     # cnn_1d-compatible two-column seq DataFrame (dispatch uniformity). meta_tune
@@ -475,7 +475,7 @@ def main() -> None:
                 "split misalignment -- aborting to avoid PM11d-style label mismatch."
             )
         _att_tune = attach_delta_windows(_meta_tune, seq_windows_path=_seq_win_arg)
-        X_seq_tune = _att_tune.windows
+        X_seq_tune = _att_tune
 
     # -- Decide has_sequences from PROVENANCE, on the split the CNN is FITTED on --
     #
@@ -513,7 +513,9 @@ def main() -> None:
         if _a is not None:
             logger.info("seq windows [%-5s]: %s", _split_name, _a.summary())
 
-    has_sequences = _att_train.n_usable > 100
+    # Same field the ensemble's gate reads, so the caller's inclusion decision and the
+    # ensemble's refusal cannot disagree with each other.
+    has_sequences = _att_train.n_usable >= ensemble.config.seq_min_usable_rows
     if not has_sequences:
         logger.info(
             "No usable ref/alt sequence windows on the TRAIN split after join "

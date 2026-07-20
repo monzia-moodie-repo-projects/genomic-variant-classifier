@@ -7,9 +7,15 @@ X_seq_test remain valid two-column placeholder DataFrames; with cnn_1d removed t
 seq-aware signatures but are unused" -- and three tests built `pd.Series(["A" * 101] * n)` for
 the same reason, one of them annotated "# inert: cnn_1d is excluded below".
 
-Part 3 (ff97c34) made None a legal value and added the refusal this file tests:
-`SEQUENCE_MODELS` (variant_ensemble.py:1902) and `_require_x_seq` (:2248), called from
-fit (:2338), predict_proba (:2622) and evaluate (:2648).
+Part 3 (ff97c34) made None a legal value and added the refusal this file tests. On
+2026-07-20 that refusal became `_require_sequence_windows`, which takes a MAPPING of
+every sequence parameter rather than one argument -- because the predecessor checked
+X_seq alone while fit() has two, so X_seq_cal_ext went unchecked and a run could fit
+cnn_1d on real sequence while calibrating it on fabricated sequence, silently.
+
+LINE NUMBERS ARE DELIBERATELY NOT QUOTED HERE. The three this paragraph used to cite
+(1902, 2248, 2338) were all stale within a day: the module docstring rewrite at 84c6c54
+shifted the file by +23 lines. Locate by name.
 
 WHY A REFUSAL AND NOT A DEFAULT
 --------------------------------
@@ -71,15 +77,28 @@ def _labels(n: int = 40) -> pd.Series:
     return pd.Series([0] * (n // 2) + [1] * (n - n // 2))
 
 
-def _seq(n: int = 40) -> pd.DataFrame:
-    """A two-column [ref, alt] window frame -- the shape production actually passes.
+def _seq(n: int = 200):
+    """A real attachment -- what production passes, carrying its own provenance.
 
-    Deliberately NOT a pd.Series. The old annotation said Series, and on a Series
-    `oh_alt - oh_ref` is identically zero: four of thirteen channels dead, eight duplicated.
-    Using a Series here would reintroduce the shape roadmap 6.28 exists to eliminate.
+    Deliberately NOT a pd.Series, and since 2026-07-20 deliberately not a bare DataFrame
+    either. On a Series `oh_alt - oh_ref` is identically zero: four of thirteen channels
+    dead, eight duplicated. A bare frame cannot say whether its windows came from the
+    reference genome or were invented to fill a column, so the gate refuses it.
+
+    Built through the real tier-1 path -- windows plus an `ok` column, giving provenance
+    "rows+ok" -- rather than by constructing WindowAttachment directly, so the fixture
+    exercises the same resolution the production cohort does.
+
+    n defaults to 200 because EnsembleConfig.seq_min_usable_rows is 100. A 40-row fixture
+    would be refused for coverage, and a test that passes on the wrong refusal proves
+    nothing -- the same trap _tab() documents about _assert_no_dead_features.
     """
-    return pd.DataFrame({"fasta_seq_ref": ["ACGT" * 8] * n,
-                         "fasta_seq_alt": ["ACGA" * 8] * n})
+    from genomic_variant_classifier.data.seq_window_join import attach_delta_windows
+    return attach_delta_windows(pd.DataFrame({
+        "fasta_seq_ref": ["ACGT" * 8] * n,
+        "fasta_seq_alt": ["ACGA" * 8] * n,
+        "ok": [True] * n,
+    }))
 
 
 def _ens(**kw) -> VariantEnsemble:
@@ -110,7 +129,8 @@ def test_sequence_models_names_cnn1d_and_only_real_models():
 
 def test_require_x_seq_refuses_when_a_sequence_model_is_active_and_x_seq_is_none():
     with pytest.raises(ValueError) as exc:
-        _ens()._require_x_seq(None, {"cnn_1d": object(), "xgboost": object()}, "fit")
+        _ens()._require_sequence_windows(
+            {"X_seq": None}, {"cnn_1d": object(), "xgboost": object()}, "fit")
     assert "cnn_1d" in str(exc.value)
 
 
@@ -121,36 +141,44 @@ def test_require_x_seq_is_silent_when_no_sequence_model_is_active():
     bare call is indistinguishable from a stub, and this project has recorded three guards
     whose firing path was never executed.
     """
-    got = _ens()._require_x_seq(
-        None, {"xgboost": object(), "logistic_regression": object()}, "fit")
-    assert got is None, "the guard must return silently, not signal through a return value"
+    got = _ens()._require_sequence_windows(
+        {"X_seq": None}, {"xgboost": object(), "logistic_regression": object()}, "fit")
+    assert got == {"X_seq": None}, (
+        "the guard must pass every input through unchanged, not signal through a sentinel"
+    )
 
 
 def test_require_x_seq_is_silent_when_the_sequence_is_supplied():
     """NEGATIVE CONTROL. cnn_1d active WITH windows is the whole point of the branch."""
-    got = _ens()._require_x_seq(_seq(), {"cnn_1d": object()}, "fit")
-    assert got is None, "supplying the windows must satisfy the guard"
+    got = _ens()._require_sequence_windows(
+        {"X_seq": _seq()}, {"cnn_1d": object()}, "fit")
+    assert isinstance(got["X_seq"], pd.DataFrame), (
+        "a verified attachment must satisfy the guard, and the guard must resolve it to "
+        "the 2-column frame the dispatch sites consume"
+    )
 
 
 def test_require_x_seq_is_silent_on_an_empty_roster():
     """NEGATIVE CONTROL. No models means nothing to refuse on behalf of."""
-    got = _ens()._require_x_seq(None, {}, "fit")
-    assert got is None, "an empty roster has no sequence model to refuse on behalf of"
+    got = _ens()._require_sequence_windows({"X_seq": None}, {}, "fit")
+    assert got == {"X_seq": None}, (
+        "an empty roster has no sequence model to refuse on behalf of"
+    )
 
 
 def test_the_refusal_names_the_model_the_flag_and_the_remedy():
     """A guard that fires without saying what to do sends the reader to the source.
 
     Every token below is load-bearing: the model that needs sequence, the launcher flag that
-    removes it, the in-process equivalent, the column names of the frame it wants, and the
+    removes it, the in-process equivalent, how to build the input it wants, and the
     fact that nothing has been trained yet -- so the reader knows the run can simply be
     relaunched.
     """
     with pytest.raises(ValueError) as exc:
-        _ens()._require_x_seq(None, {"cnn_1d": object()}, "fit")
+        _ens()._require_sequence_windows({"X_seq": None}, {"cnn_1d": object()}, "fit")
     msg = str(exc.value)
-    for token in ("cnn_1d", "--skip-cnn", "base_estimators.pop", "fasta_seq_ref",
-                  "no compute was spent"):
+    for token in ("cnn_1d", "--skip-cnn", "base_estimators.pop", "attach_delta_windows",
+                  "not its `.windows`", "no compute was spent"):
         assert token in msg, f"the refusal message does not mention {token!r}:\n{msg}"
 
 

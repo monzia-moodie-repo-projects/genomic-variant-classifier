@@ -63,7 +63,7 @@ import warnings
 import functools
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Protocol, runtime_checkable
 
 import numpy as np
 import pandas as pd
@@ -592,6 +592,38 @@ class EnsembleConfig:
     # feature. This threshold is what lets the guard be armed by default in the real run
     # without turning every unit-test fixture red.
     zero_variance_min_rows: int = 10_000
+
+    # ---- THE SEQUENCE-PROVENANCE GATE ------------------------------------------------
+    # Added 2026-07-20. See _require_sequence_windows.
+    #
+    # BOTH THRESHOLDS ARE UNVALIDATED, AND THAT IS STATED HERE RATHER THAN IMPLIED AWAY.
+    # The statistical-power question -- how many usable 101-base-pair windows a convolutional
+    # network needs before its output means anything -- requires a learning curve and a
+    # graphics-processing unit, and has not been run. What HAS been measured is the selection
+    # bias (2026-07-19, docs/measurements/MEASUREMENT_2026-07-19_seq-window-selection-bias.md):
+    #
+    #   rows without usable windows are 7.469x enriched for pathogenic, 95% CI [7.080, 7.880],
+    #   and 7.758x enriched for truncating consequences. They are a biological class -- mostly
+    #   non-ACGT alleles and reference mismatches -- not a random sample.
+    #
+    # So a coverage threshold here is doing BIAS CONTROL, not power control. Yet on the current
+    # cohort only 723 of 4,399,089 rows are unusable, and dropping every one of them shifts
+    # pathogenic prevalence by 0.009254 percentage points. Both facts are true at once.
+    #
+    # That is why the FRACTION is the primary guard and is set high: the danger is not this
+    # cohort, it is a future run against a stale, partial or mis-keyed window artifact where
+    # coverage silently drops. An absolute floor of 100 rows would pass happily while 40% of a
+    # cohort trained on fabricated sequence.
+    seq_min_usable_fraction: float = 0.95
+
+    # Absolute floor, inherited from the pre-existing scripts/train.py:516 test (`> 100`).
+    # train.py now reads THIS field, so the caller's inclusion decision and the ensemble's
+    # refusal cannot disagree with each other.
+    seq_min_usable_rows: int = 100
+
+    # Refuse an attachment whose `ok` mask was assumed rather than read. Set False only to
+    # deliberately accept unverified windows, and expect to justify it in the run record.
+    seq_require_verified_provenance: bool = True
 
     def __post_init__(self) -> None:
         self.model_dir = Path(self.model_dir)
@@ -1931,6 +1963,44 @@ def _write_model_manifest(artifact_path):
 SEQUENCE_MODELS: frozenset[str] = frozenset({"cnn_1d"})
 
 
+@runtime_checkable
+class SequenceWindows(Protocol):
+    """What a sequence model's input must be able to say about itself.
+
+    STRUCTURAL, NOT NOMINAL. This module does not import WindowAttachment: the models layer
+    must not depend on the data layer, and any object carrying these members satisfies the
+    contract without inheriting anything.
+
+    A bare DataFrame is NOT a legacy special case. It carries no provenance at all, which makes
+    it the least-verified thing that can arrive here -- weaker than provenance="rows", which at
+    least records that no builder verdict travelled with it. One policy covers every input.
+
+    `provenance_is_verified` is the member that matters most, and the least obvious.
+    seq_window_join.py:211 sets `ok = np.ones(n, dtype=bool)` when the window source carries no
+    `ok` column, so `n_usable` from such an attachment counts rows NOBODY CHECKED. That number
+    is indistinguishable from a real one. Only provenance tells them apart.
+    """
+
+    windows: "pd.DataFrame"
+    key_found: "np.ndarray"
+    builder_ok: "np.ndarray"
+    provenance: str
+
+    @property
+    def n_rows(self) -> int: ...
+
+    @property
+    def n_usable(self) -> int: ...
+
+    @property
+    def usable_fraction(self) -> float: ...
+
+    @property
+    def provenance_is_verified(self) -> bool: ...
+
+    def subset(self, idx) -> "SequenceWindows": ...
+
+
 class VariantEnsemble:
     def __init__(self, config: Optional[EnsembleConfig] = None) -> None:
         self.config = config or EnsembleConfig()
@@ -2268,41 +2338,131 @@ class VariantEnsemble:
 
         raise ValueError(f"ZERO-VARIANCE FEATURES (roadmap 6.21)\n\n{msg}")
 
-    def _require_x_seq(self, X_seq, models, method: str) -> None:
-        """Refuse to run a sequence model without sequence. Raises BEFORE any fit.
+    def _require_sequence_windows(self, inputs: dict, models, method: str) -> dict:
+        """Refuse sequence this ensemble cannot vouch for. Raises BEFORE any fit.
 
-        X_seq is optional (2026-07-19, Part 3) so that callers with no sequence windows can
-        say so instead of manufacturing a placeholder frame to satisfy the signature --
-        `scripts/train.py:523-525` documents exactly that workaround.
+        `inputs` maps a PARAMETER NAME to whatever arrived in it, and EVERY sequence parameter
+        the method received must appear. That is the point of the mapping: the predecessor,
+        `_require_x_seq`, checked one parameter, and fit() has two. X_seq_cal_ext was declared
+        at 2313 and never checked, so a run with real train windows and a placeholder
+        calibration partition passed cleanly -- cnn_1d FITTED on real sequence and CALIBRATED
+        on fabricated sequence, silently. A per-parameter check that must be remembered for
+        each new parameter is the pattern that keeps failing; a mapping makes an omission
+        visible at the call site instead of invisible here.
 
-        Optional does not mean tolerated. If a model in SEQUENCE_MODELS is active and X_seq
-        is None, there is no honest way to proceed: fabricating a placeholder is what roadmap
-        6.28 recorded as training cnn_1d on invented sequence and reporting a number. So this
-        raises, names the model, and states the remedy.
+        Returns {name: resolved 2-column frame or None}, so callers rebind their parameters
+        once and the dispatch sites below stay unchanged.
 
-        Placed before any estimator is fitted, so a misconfigured run costs a second rather
-        than hours of paid compute.
+        FOUR REFUSALS, in the order a failure is most likely:
+
+        1. None, while a SEQUENCE_MODELS member is active. There is no honest way to proceed:
+           fabricating a placeholder is what roadmap 6.28 recorded as training cnn_1d on
+           invented sequence and reporting a number.
+
+        2. A bare DataFrame or Series. Not a legacy case -- it carries NO provenance, which
+           makes it the least-verified thing that can arrive. A Series is worse still: ref and
+           alt collapse to one column, `oh_alt - oh_ref` is identically zero, and cnn_1d
+           degenerates to a one-hot sequence classifier with no variant information, fits
+           happily, and reports a number.
+
+        3. Unverified provenance. seq_window_join.py:211 fabricates `ok` as all-True when the
+           window source has no `ok` column, so n_usable counts rows nobody checked.
+
+        4. Too few usable rows, by fraction or by absolute count. See EnsembleConfig; both
+           thresholds are UNVALIDATED and say so there.
+
+        No refusal fires when no SEQUENCE_MODELS member is active. An ensemble without cnn_1d
+        has no use for sequence and must not be blocked for lacking it.
         """
-        if X_seq is not None:
-            return
         active = sorted(n for n in models if n in SEQUENCE_MODELS)
         if not active:
-            return
-        raise ValueError(
-            "{}() received X_seq=None, but these models take the sequence branch: {}.\n"
+            return {k: self._windows_of(v) for k, v in inputs.items()}
+
+        cfg = self.config
+        for name, value in inputs.items():
+            if value is None:
+                raise ValueError(self._seq_refusal(
+                    method, name, active,
+                    "received None",
+                    "A sequence model cannot run without sequence windows, and a placeholder "
+                    "frame is not a substitute -- it trains the model on fabricated sequence "
+                    "and reports a number (roadmap 6.28).",
+                ))
+
+            if not isinstance(value, SequenceWindows):
+                raise ValueError(self._seq_refusal(
+                    method, name, active,
+                    "received a bare {} with no provenance".format(type(value).__name__),
+                    "A frame cannot say whether its windows came from the reference genome or "
+                    "were invented to fill a column, so nothing downstream can either. Pass "
+                    "the attachment itself, not its `.windows`.",
+                ))
+
+            if cfg.seq_require_verified_provenance and not value.provenance_is_verified:
+                raise ValueError(self._seq_refusal(
+                    method, name, active,
+                    "carries UNVERIFIED provenance {!r}".format(value.provenance),
+                    "That tier had no `ok` column to read, so seq_window_join fabricated one "
+                    "as all-True. Its {} 'usable' rows were never checked by the window "
+                    "builder. Rebuild the window artifact with an `ok` column, or set "
+                    "EnsembleConfig.seq_require_verified_provenance=False and justify it in "
+                    "the run record.".format(value.n_usable),
+                ))
+
+            if value.n_usable < cfg.seq_min_usable_rows:
+                raise ValueError(self._seq_refusal(
+                    method, name, active,
+                    "has {} usable rows of {}, below the floor of {}".format(
+                        value.n_usable, value.n_rows, cfg.seq_min_usable_rows),
+                    "Too little real sequence to fit a convolutional network on. Remove the "
+                    "sequence model, or supply a window artifact that covers this split.",
+                ))
+
+            if value.usable_fraction < cfg.seq_min_usable_fraction:
+                raise ValueError(self._seq_refusal(
+                    method, name, active,
+                    "is {:.4f} usable ({}/{}), below the floor of {:.4f}".format(
+                        value.usable_fraction, value.n_usable, value.n_rows,
+                        cfg.seq_min_usable_fraction),
+                    "Rows without usable windows are NOT a random sample: measured 2026-07-19 "
+                    "they are 7.469x enriched for pathogenic and 7.758x enriched for "
+                    "truncating consequences. At this coverage cnn_1d's contribution would be "
+                    "partly a measurement of variant class rather than of sequence signal. "
+                    "The usual cause is a stale, partial or mis-keyed window artifact.",
+                ))
+
+        return {k: self._windows_of(v) for k, v in inputs.items()}
+
+    @staticmethod
+    def _windows_of(value):
+        """The 2-column frame inside a sequence input, or None.
+
+        Resolved ONCE per method and rebound, so the three `if name == "cnn_1d"` dispatch
+        sites below need no knowledge of the protocol.
+        """
+        if value is None:
+            return None
+        return getattr(value, "windows", value)
+
+    def _seq_refusal(self, method: str, param: str, active: list, what: str, why: str) -> str:
+        return (
+            "{}() -- sequence input `{}` {}.\n"
             "\n"
-            "A sequence model cannot run without sequence windows, and a placeholder frame "
-            "is not a substitute -- it trains the model on fabricated sequence and reports a "
-            "number (roadmap 6.28).\n"
+            "These models take the sequence branch: {}.\n"
             "\n"
-            "Either pass a 2-column [fasta_seq_ref, fasta_seq_alt] DataFrame, built with\n"
-            "    seq_window_join.attach_delta_windows(...).windows\n"
-            "or remove the sequence model(s) first:\n"
+            "{}\n"
+            "\n"
+            "Build the input with\n"
+            "    seq_window_join.attach_delta_windows(meta, seq_windows_path=...)\n"
+            "and pass the RESULT -- not its `.windows`, which discards the provenance this "
+            "check reads.\n"
+            "\n"
+            "Or remove the sequence model(s) first:\n"
             "    ensemble.base_estimators.pop({!r}, None)\n"
             "Launchers expose this as --skip-cnn.\n"
             "\n"
             "Refused before any estimator was fitted; no compute was spent.".format(
-                method, ", ".join(active), active[0]
+                method, param, what, ", ".join(active), why, active[0]
             )
         )
 
@@ -2356,9 +2516,25 @@ class VariantEnsemble:
         # feature space that was partly imaginary.
         self._assert_no_dead_features(X_tab)
 
-        # X_seq may be None (Part 3, 2026-07-19). Refuse loudly if a sequence model is
-        # active without it, before a single estimator is fitted.
-        self._require_x_seq(X_seq, self.base_estimators, "fit")
+        # Refuse sequence this ensemble cannot vouch for, before a single estimator is
+        # fitted. X_seq_cal_ext was declared and never checked between 2026-07-19 and
+        # 2026-07-20, so a run could fit cnn_1d on real sequence and calibrate it on
+        # fabricated sequence, silently. It is checked now -- but only when there is
+        # something to check.
+        #
+        # THE CALIBRATION SEQUENCE IS REQUIRED EXACTLY WHEN A CALIBRATION PARTITION EXISTS.
+        # X_seq_cal_ext=None is the NORMAL case for the legacy self-carve path: train.py:561
+        # and run_phase2_eval.py:590 both call fit() with no *_cal_ext argument at all. The
+        # first version of this gate demanded it unconditionally and would have refused every
+        # non-v2 run; test_catboost caught it on 2026-07-20 before it reached a commit.
+        #
+        # X_tab_cal_ext is what says whether the partition exists, so that is what decides.
+        _seq_inputs = {"X_seq": X_seq}
+        if X_tab_cal_ext is not None:
+            _seq_inputs["X_seq_cal_ext"] = X_seq_cal_ext
+        _seq = self._require_sequence_windows(_seq_inputs, self.base_estimators, "fit")
+        X_seq = _seq["X_seq"]
+        X_seq_cal_ext = _seq.get("X_seq_cal_ext", self._windows_of(X_seq_cal_ext))
 
         # Calibration fold selection (W2 PATH-1, 2026-07-11).
         # If an EXTERNAL calibration partition is supplied (v2 gene-disjoint
@@ -2642,7 +2818,8 @@ class VariantEnsemble:
         `pd.Series` annotation here was false for the production path (2026-07-15)."""
         if not self.trained_models_:
             raise RuntimeError("Call fit() before predict_proba().")
-        self._require_x_seq(X_seq, self.trained_models_, "predict_proba")
+        X_seq = self._require_sequence_windows(
+            {"X_seq": X_seq}, self.trained_models_, "predict_proba")["X_seq"]
         base_preds = np.zeros((len(X_tab), len(self.trained_models_)))
         for i, (name, model) in enumerate(self.trained_models_.items()):
             if name == "cnn_1d":
@@ -2668,7 +2845,11 @@ class VariantEnsemble:
     def evaluate(
         self, X_tab: pd.DataFrame, X_seq: "pd.DataFrame | None", y: pd.Series
     ) -> pd.DataFrame:
-        self._require_x_seq(X_seq, self.trained_models_, "evaluate")
+        # Keep the attachment: the nested predict_proba() below runs the gate again, and a
+        # resolved frame would be refused there as provenance-less.
+        _x_seq_input = X_seq
+        X_seq = self._require_sequence_windows(
+            {"X_seq": X_seq}, self.trained_models_, "evaluate")["X_seq"]
         y_arr = np.asarray(y)
         results: dict[str, dict] = {}
         for name, model in self.trained_models_.items():
@@ -2695,7 +2876,7 @@ class VariantEnsemble:
                 "mcc": matthews_corrcoef(y_arr, preds),
                 "brier": brier_score_loss(y_arr, proba),
             }
-        ens_proba = self.predict_proba(X_tab, X_seq)[:, 1]
+        ens_proba = self.predict_proba(X_tab, _x_seq_input)[:, 1]
         ens_preds = (ens_proba > 0.5).astype(int)
         results["ENSEMBLE_STACKER"] = {
             "auroc": roc_auc_score(y_arr, ens_proba),

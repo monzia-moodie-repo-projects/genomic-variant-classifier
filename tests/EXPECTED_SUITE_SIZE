@@ -1036,4 +1036,109 @@
 #                     into the ensemble, and nothing yet refuses one. That is the next commit,
 #                     and it is atomic: Protocol, gate over X_seq AND X_seq_cal_ext, every
 #                     caller, bare-DataFrame refusal, together.
-1999
+#
+#   2017  2026-07-20  +18: tests/unit/test_sequence_provenance_gate.py -- THE SEQUENCE-
+#                     PROVENANCE GATE. The ensemble now refuses sequence it cannot vouch for.
+#                     MEASURED with `pytest tests/ --collect-only -q` on the STAGED tree:
+#                     `git add -A`, `git status --short` showing nine "M " and one "A " and NO
+#                     '??' lines, then "2017 tests collected in 11.27s". 1999 + 18 is offered
+#                     only as a cross-check on a figure that was read. The migrated contract
+#                     file keeps its eleven tests, so the gate file is the whole delta.
+#
+#                     WHAT WAS WRONG. `_require_x_seq` asked ONE question -- "is X_seq None?"
+#                     -- of ONE parameter, and could not tell:
+#
+#                       * a checked input from an unchecked one. fit() declares X_seq_cal_ext
+#                         and the gate was called with X_seq alone, so a run with real train
+#                         windows and a placeholder calibration partition passed cleanly:
+#                         cnn_1d FITTED on real sequence and CALIBRATED on fabricated
+#                         sequence, silently. That hole was opened by ff97c34 -- the commit
+#                         meant to close this very class of defect.
+#                       * a real window from an invented one. run9_ablations.py:677 handed it
+#                         pd.Series([placeholder] * n) and it passed, because a Series is not
+#                         None. Only the roster pop at :702 kept cnn_1d away from it.
+#                       * a verified attachment from an unverified one. seq_window_join.py:211
+#                         sets ok = np.ones(n, dtype=bool) when the window source carries no
+#                         `ok` column, so n_usable there counts rows NOBODY CHECKED. The
+#                         number is indistinguishable from a real one; only provenance tells
+#                         them apart.
+#
+#                     THE GATE. One method, `_require_sequence_windows`, ranging over a
+#                     MAPPING of every sequence parameter the call received rather than one
+#                     argument -- so omitting a parameter is visible at the call site instead
+#                     of invisible in a helper. Four refusals: None; a bare DataFrame or
+#                     Series; unverified provenance; too few usable rows by fraction or count.
+#                     Every one executed against a replica before delivery, each paired with a
+#                     negative control proving it stays silent when no SEQUENCE_MODELS member
+#                     is active.
+#
+#                     A `SequenceWindows` Protocol (@runtime_checkable) declares the contract
+#                     STRUCTURALLY, so variant_ensemble.py imports nothing from
+#                     genomic_variant_classifier.data -- asserted by parsing Import nodes, and
+#                     the models layer keeps no dependency on the data layer. A bare DataFrame
+#                     is not a legacy special case: carrying no provenance at all makes it the
+#                     LEAST-verified thing that can arrive, weaker than provenance="rows".
+#
+#                     THRESHOLDS SHIP MARKED UNVALIDATED, IN THE CONFIG ITSELF.
+#                     seq_min_usable_fraction=0.95, seq_min_usable_rows=100,
+#                     seq_require_verified_provenance=True, all per-run overridable via the
+#                     EnsembleConfig.zero_variance_min_rows idiom so a --max-train 3000 smoke
+#                     is not refused by the gate meant to protect it. The statistical-power
+#                     question -- how many usable 101-base-pair windows a convolutional network
+#                     needs before its output means anything -- requires a learning curve and a
+#                     graphics-processing unit and HAS NOT BEEN RUN.
+#
+#                     What HAS been measured (2026-07-19, docs/measurements/MEASUREMENT_
+#                     2026-07-19_seq-window-selection-bias.md) is the SELECTION BIAS: rows
+#                     without usable windows are 7.469x enriched for pathogenic, 95% CI
+#                     [7.080, 7.880], and 7.758x enriched for truncating consequences. They are
+#                     a biological class, not a random sample. Yet only 723 of 4,399,089 rows
+#                     are unusable, and dropping every one shifts pathogenic prevalence by
+#                     0.009254 percentage points. Both are true at once, and that is why the
+#                     FRACTION is the primary guard and is set high: the danger is a future
+#                     stale, partial or mis-keyed artifact, not this cohort. An absolute floor
+#                     of 100 rows would pass happily while 40% of a cohort trained on
+#                     fabricated sequence.
+#
+#                     MIGRATION, 40 edits across 9 files plus the method replaced by parsed
+#                     span. train.py sheds three `.windows` and its inclusion threshold now
+#                     reads the same config field the gate does, so caller and gate cannot
+#                     disagree. run_phase2_eval.py sheds three and its len() calls become
+#                     n_rows. run9_ablations.py stops building a placeholder Series and loses
+#                     a dead cnn_1d branch. prediction_artifacts.py sheds the false `pd.Series`
+#                     annotation -- the same falsity VariantEnsemble.fit shed on 2026-07-15,
+#                     left standing in a second place -- and both it and run_phase2_eval.py
+#                     now slice with WindowAttachment.subset().
+#
+#                     FIVE DEFECTS WERE CAUGHT BEFORE COMMIT, NONE BY READING CODE.
+#                       1. The gate was written and never wired into the installer's edit list.
+#                          _require_x_seq would have survived; the gate would never have
+#                          existed. Caught by a post-check asserting the OUTCOME.
+#                       2/3. Two installer checks string-matched and fired on prose: one on the
+#                          refusal message naming seq_window_join, one on the new gate's own
+#                          docstring explaining what its predecessor did.
+#                       4. A check matched `torch.utils.data` because it ended in ".data",
+#                          reporting an architectural violation that did not exist.
+#                       5. THE ONE THAT MATTERED: the gate demanded X_seq_cal_ext
+#                          unconditionally. None is the NORMAL case -- it means no external
+#                          calibration partition, which is what train.py:561 and
+#                          run_phase2_eval.py:590 both do. It would have refused EVERY non-v2
+#                          run. Caught by test_catboost, not by review. The rule is now
+#                          conditional on X_tab_cal_ext, with tests pinning both directions.
+#
+#                     There is a symmetry in (5) worth keeping: this gate exists because the
+#                     old check inspected TOO FEW inputs, and its first version failed by
+#                     demanding one that was NOT IN PLAY. Same root -- deciding what to check
+#                     without asking what the caller supplied.
+#
+#                     FOURTEEN OCCURRENCES OF ONE FAILURE MODE in this session, the last inside
+#                     the fix for the thirteenth: a checker that string-matches fires on the
+#                     text written to describe its own rule. Every one is now parsed. The
+#                     durable lesson is not "remember to parse" -- it is that outcome-asserting
+#                     checks catch what careful reading does not.
+#
+#                     WHAT IS NOT DONE. Both thresholds remain unvalidated pending the
+#                     learning curve. Per-split provenance and usable_fraction are not yet
+#                     recorded in the run artifact, though summary() already produces the
+#                     string.
+2017

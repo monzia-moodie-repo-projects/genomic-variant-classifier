@@ -87,18 +87,19 @@ def _light_ensemble():
 
 def test_fit_accepts_gene_symbol_and_runs():
     X, y, gene = _cohort()
-    seq = pd.Series([""] * len(y))
+    # _light_ensemble keeps only logistic_regression and random_forest, so no sequence
+    # model is active and None is the honest input. The empty-string Series this
+    # replaced was inert, but it was still a fabricated value satisfying a signature.
     ens = _light_ensemble()
-    ens.fit(X, seq, pd.Series(y), gene_symbol=gene)
+    ens.fit(X, None, pd.Series(y), gene_symbol=gene)
     assert ens.trained_models_
-    proba = ens.predict_proba(X, seq)
+    proba = ens.predict_proba(X, None)
     assert proba.shape[0] == len(y)
     assert np.isfinite(proba).all()
 
 
 def test_fit_backward_compatible_without_gene_symbol():
     X, y, gene = _cohort()
-    seq = pd.Series([""] * len(y))
     ens = _light_ensemble()
-    ens.fit(X, seq, pd.Series(y))  # gene_symbol=None -> legacy StratifiedKFold path
+    ens.fit(X, None, pd.Series(y))  # gene_symbol=None -> legacy StratifiedKFold path
     assert ens.trained_models_

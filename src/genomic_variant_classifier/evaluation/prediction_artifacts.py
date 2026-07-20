@@ -340,7 +340,7 @@ class RunArtifactWriter:
         self,
         ensemble: Any,
         X_tab_test: pd.DataFrame,
-        X_seq_test: pd.Series,
+        X_seq_test: "SequenceWindows | None",
         y_test: pd.Series | np.ndarray,
         n_repeats: int = 5,
         sample_size: int = 50_000,
@@ -362,7 +362,10 @@ class RunArtifactWriter:
         if n > sample_size:
             idx = rng.choice(n, size=sample_size, replace=False)
             X_tab_sub = X_tab_test.iloc[idx].reset_index(drop=True)
-            X_seq_sub = X_seq_test.iloc[idx].reset_index(drop=True)
+            # A slice of an attachment is still an attachment: same provenance, sliced
+            # masks, recomputed counts. `.iloc` would have returned a bare frame, which
+            # the ensemble's gate refuses as provenance-less.
+            X_seq_sub = None if X_seq_test is None else X_seq_test.subset(idx)
             y_sub = y[idx]
         else:
             X_tab_sub, X_seq_sub, y_sub = X_tab_test, X_seq_test, y

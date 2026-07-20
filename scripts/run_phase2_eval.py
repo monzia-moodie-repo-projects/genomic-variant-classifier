@@ -437,7 +437,7 @@ def main() -> int:
         _att_te = attach_delta_windows(meta, _seq_win)          # meta == meta_test
         _att_val = attach_delta_windows(meta_val, _seq_win)
         _atts = (("train", _att_tr), ("test", _att_te), ("val", _att_val))
-        seq_tr, seq_te, seq_val = _att_tr.windows, _att_te.windows, _att_val.windows
+        seq_tr, seq_te, seq_val = _att_tr, _att_te, _att_val
 
         for _split_name, _a in _atts:
             logger.info("seq windows [%-5s]: %s", _split_name, _a.summary())
@@ -449,7 +449,7 @@ def main() -> int:
         logger.info(
             "Sequence windows: train=%d test=%d val=%d | unusable=%d/%d (%.4f%%) "
             "= %d unmapped + %d builder-placeholder",
-            len(seq_tr), len(seq_te), len(seq_val), _unusable_tot, _n_tot,
+            _att_tr.n_rows, _att_te.n_rows, _att_val.n_rows, _unusable_tot, _n_tot,
             100.0 * _unusable_tot / max(_n_tot, 1), _unmapped_tot, _placeholder_tot,
         )
         # THE 0.5% THRESHOLD IS NOW A RAZOR, AND THAT IS WORTH KNOWING BEFORE A PAID RUN.
@@ -1053,10 +1053,10 @@ def main() -> int:
 
                 X_train_ugh = X_train.iloc[sub_train_idx].reset_index(drop=True)
                 y_train_ugh = y_train.iloc[sub_train_idx].reset_index(drop=True)
-                seq_tr_ugh = seq_tr.iloc[sub_train_idx].reset_index(drop=True)
+                seq_tr_ugh = seq_tr.subset(sub_train_idx)
                 X_holdout = X_train.iloc[holdout_idx].reset_index(drop=True)
                 y_holdout = y_train.iloc[holdout_idx].reset_index(drop=True)
-                seq_holdout = seq_tr.iloc[holdout_idx].reset_index(drop=True)
+                seq_holdout = seq_tr.subset(holdout_idx)
 
                 ens_cfg_ugh = EnsembleConfig(
                     n_folds=args.n_folds,
