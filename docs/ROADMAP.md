@@ -1510,3 +1510,33 @@ records the decision and its reasoning at line 698. README lines 319-332 carry t
 AUROC under "Early results" with the caveats the metric specification's Finding 5 asks for.
 **6.23 is now the stale entry** -- one day younger than the line 41 defect corrected above,
 and the same shape.
+
+## ROADMAP delta -- 2026-07-20 part three: the calibration surface
+
+Full record: `docs/sessions/SESSION_2026-07-20_calibration-defect-repair.md`.
+Commit `44511fa`, Continuous Integration #550 green, suite 2055 -> 2060.
+
+**The census that reframed the metric programme.** All 813 Python files parsed by abstract
+syntax tree. **No module under `src/` imports `evaluation/metrics.py`** -- the kernel hardened
+in `5615cd0` has no production caller. The legacy interface has zero external callers, so its
+removal is a live scope decision rather than a risk. Ten independent implementations of
+expected calibration error were found, plus three bootstrap, two rank-AUROC, three coverage.
+
+**Two defects, six files, both repaired.** The open top bin `(p >= lo) & (p < hi)` with
+`hi == 1.0` silently excludes every prediction of exactly 1.0 -- 86.7% under-report on a
+20%-pure-leaf fixture, in three files including `calibrate_thresholds.py`, which selects
+operating thresholds. And a previously undocumented misalignment where `calibration_curve`'s
+non-empty bins are zipped against `np.histogram`'s full bin counts -- correct whenever every
+bin is occupied, and **64x under-reported on sparse saturated data**. Both reached the same
+wrong number by different routes, so unanimity read as correctness.
+
+**Retraction.** `evaluator.py:305` does NOT carry the open-top defect; it was repaired
+2026-07-10. The claim came from `metrics.py`'s docstring, stale since that date -- the seventh
+recorded instance of a fact stated twice where only one copy was maintained. Corrected with
+its dates.
+
+**Open.** `calibration_drift_agent.py:45` is the tenth implementation and is UNEVALUATED --
+its constructor requires `classes`, `baseline_ece`, `output_dir`. It monitors calibration
+drift in production and is not assumed clean. Also open: `benchmark.py:125` dead
+`bin_midpoints`; three unreconciled bootstrap implementations against the 2.935x design
+effect; METHODS.md section 3.1.
