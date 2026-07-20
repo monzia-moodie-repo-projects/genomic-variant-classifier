@@ -1456,3 +1456,57 @@ artifact, not the description of the artifact.
   coverage measurement.
 - **Continuous Integration #540-#546 all green**, twelve consecutive, confirmed by screenshot
   and by the GitHub Actions application programming interface. The three red runs (#535-#537) are the 2026-07-19 ratchet-split failures.
+
+
+## ROADMAP delta -- 2026-07-20 (part two): the metric kernel
+
+The delta above was written before the metric work and does not mention it. Commit `5615cd0`,
+Continuous Integration #548 GREEN, ratchet 2017 -> 2055.
+
+**Six of seven audited defects in `evaluation/metrics.py` repaired.** Every one was verified by
+reading the file before any code was written. Full narrative in
+`docs/sessions/SESSION_2026-07-20_metric-kernel-fail-closed.md`.
+
+| defect | what it was | state |
+|---|---|---|
+| A | `evaluate()` cleaned `score` and `prob` on TWO SEPARATE MASKS -- equal lengths, different rows, calibration paired with wrong labels, silently | **FIXED** -- one joint mask, exposed as `CleanArrays.mask` |
+| B | `_clean` ended `astype(int)`; `[0,1,3]` makes `(1-y).sum()` negative and AUROC SIGNED; `[0,1,2]` fires `_degenerate` spuriously | **FIXED** -- validated, never coerced |
+| C | legacy `compute_classification_metrics` / `ModelEvaluator` unsafe: `confusion_matrix(...).ravel()` raises on single class, specificity returns 0 where undefined | **DEFERRED** -- head byte-identical; needs a call-site census |
+| D | `is_probability([])` returned True; the old test ASSERTED it (6.21a's shape) | **FIXED** |
+| E | the calibration solver could not report nonconvergence | **FIXED** -- `CalibrationFit`, iterable for compatibility |
+| F | `stratified_evaluate` dropped rows with a missing group label; strata did not partition the cohort | **FIXED** -- `__MISSING__` stratum + partition assertion |
+| G | subgroup sufficiency tested total `n` only | **FIXED** -- class-support floors with a `status` |
+
+**THE BOOTSTRAP IGNORED GENE CLUSTERING** -- found independently, confirmed by the audit.
+Resampling variants as independent understates variance, so **every confidence interval this
+project has published is anti-conservative**. `cluster_bootstrap_ci` resamples whole genes and
+REPORTS THE DESIGN EFFECT so historical intervals can be re-read. Measured where six of thirty
+genes have inverted discrimination: naive `[0.7548, 0.8439]`, clustered `[0.6611, 0.9228]`,
+**design effect 2.935x**. A control pins it near 1.0 when gene assignment is arbitrary.
+
+**Expanded metric stack: still PARTIAL.** The kernel is now fail-closed and gained `log_loss`
+and `auprc_gain`, but the registry, the typed report schema and the clinical panels are not
+built. Against the project metric specification's sixteen panels, what exists covers Panel B
+(binary discrimination) and most of Panel D (calibration). Panels A, C, E, F, G, H, I, J, K, L,
+M, N, O and P are absent, and Priority 1 -- one canonical evaluation registry -- is the next
+commit.
+
+**NEW OPEN ITEM -- METHODS.md section 3.1 is stale in three ways.** It says "Four tabular base
+models were trained on the 64-feature matrix" against a roster of thirteen and a contract of
+95; nine models are absent (catboost, cnn_1d, deep_ensemble, kan, logistic_regression,
+mc_dropout, svm, svm_bagged_rbf, tabular_nn). Line 152 says the sequence convolutional network
+is "excluded from the inference pipeline", written before its 2026-07-05 Tier-1
+re-architecture. Line 164 says STRING "combined score >= 500" while the registry caches
+`string_graph_700.pkl` -- UNVERIFIED, flagged for measurement rather than asserted.
+`test_methods_feature_count.py` passes throughout because it checks the count sentence, the
+group-table sum and HGMD's absence, and never the roster --  while
+`test_readme_claims.py:375` has read the roster from a live ensemble since 2026-07-14. The fix
+is to GENERATE section 3.1 from `VariantEnsemble.base_estimators` and widen the gate.
+
+**A CORRECTION TO ROADMAP 6.23.** It records all performance figures as WITHDRAWN 2026-07-14
+and states "the figures are not restated even in the withdrawal notice". On 2026-07-15 the
+performance-figure ban in `test_readme_claims.py` was DELETED DELIBERATELY, and the test file
+records the decision and its reasoning at line 698. README lines 319-332 carry the Run 15
+AUROC under "Early results" with the caveats the metric specification's Finding 5 asks for.
+**6.23 is now the stale entry** -- one day younger than the line 41 defect corrected above,
+and the same shape.
