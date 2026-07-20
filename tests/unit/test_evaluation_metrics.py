@@ -279,7 +279,14 @@ def test_package_imports_without_sklearn():
 def test_is_probability_detects_non_probabilities():
     from genomic_variant_classifier.evaluation.metrics import is_probability
     assert is_probability([0.0, 0.5, 1.0])
-    assert is_probability([])
+    # CHANGED 2026-07-20. This previously read `assert is_probability([])`, which pinned
+    # defect D: an EMPTY probability vector was declared a valid probability, so
+    # `calibration_valid=True` could be recorded for a vector containing nothing finite.
+    # The defect was written down as a requirement, and the test passed every run while
+    # certifying it (roadmap 6.21a names this exact shape). A missing probability vector is
+    # not a valid probability vector.
+    assert is_probability([]) is False
+    assert is_probability([float("nan"), float("nan")]) is False
     assert not is_probability([-0.437054, 4.88644])      # a standardized feature
     assert not is_probability([0.0, 1.0000001 + 1e-3])
     assert is_probability([0.5, np.nan])                 # non-finite ignored
@@ -321,8 +328,33 @@ def test_irls_does_not_overflow_on_extreme_logits():
     y = rng.integers(0, 2, n)
     p = np.where(y == 1, 1 - 1e-9, 1e-9)               # near-degenerate probabilities
     with np.errstate(over="raise"):                     # any overflow -> FloatingPointError
-        slope, intercept = calibration_slope_intercept(y, p)
-    assert np.isfinite(slope) and np.isfinite(intercept)
+        fit = calibration_slope_intercept(y, p)
+
+    # THE NAMED PURPOSE OF THIS TEST STILL HOLDS: reaching this line at all means
+    # `np.errstate(over="raise")` raised nothing, so the overflow-safe sigmoid is still
+    # doing its job. That is what "does not overflow" asserts, and it is unchanged.
+    #
+    # CHANGED 2026-07-20. The second assertion used to read
+    #     assert np.isfinite(slope) and np.isfinite(intercept)
+    # which pinned defect E. This input is PERFECTLY SEPARATED -- every positive at
+    # probability ~1, every negative at ~0 -- so the maximum-likelihood slope DOES NOT
+    # EXIST; it diverges. The old solver exhausted max_iter and returned the last iterate
+    # as though it were an answer. "Did not overflow" and "produced a number" are different
+    # claims, and this test conflated them.
+    assert fit.converged is False
+    assert np.isnan(fit.slope) and np.isnan(fit.intercept)
+    assert fit.iterations >= 1
+
+    # CONTROL: the new assertion must not be satisfiable by a solver that never converges.
+    # A well-conditioned fit still converges to finite coefficients.
+    rng2 = np.random.default_rng(29)
+    y_ok = rng2.binomial(1, 0.35, 2000)
+    p_ok = np.clip(0.35 + 0.3 * y_ok + rng2.normal(0, 0.08, 2000), 0.02, 0.98)
+    fit_ok = calibration_slope_intercept(y_ok, p_ok)
+    assert fit_ok.converged is True
+    assert np.isfinite(fit_ok.slope) and np.isfinite(fit_ok.intercept)
+    slope, intercept = fit_ok          # the tuple-unpacking contract still holds
+    assert slope == fit_ok.slope and intercept == fit_ok.intercept
 
 
 def test_stratified_evaluate_marks_calibration_invalid_per_stratum():

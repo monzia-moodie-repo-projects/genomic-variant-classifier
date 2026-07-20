@@ -1141,4 +1141,101 @@
 #                     learning curve. Per-split provenance and usable_fraction are not yet
 #                     recorded in the run artifact, though summary() already produces the
 #                     string.
-2017
+#
+#   2055  2026-07-20  +38: tests/unit/test_metric_kernel_is_fail_closed.py -- THE METRIC
+#                     KERNEL BECOMES FAIL-CLOSED. Six defects raised by an independent audit
+#                     of evaluation/metrics.py, every one verified by reading the file before
+#                     any code was written. MEASURED with `pytest tests/ --collect-only -q`
+#                     on the staged tree: "2055 tests collected in 12.37s". 2017 + 38 is
+#                     offered only as a cross-check on a figure that was read.
+#
+#                     A  ROW MISALIGNMENT BETWEEN score AND prob. `evaluate()` cleaned them
+#                        with TWO SEPARATE MASKS. A non-finite score on one row and a
+#                        non-finite probability on another produced arrays of the SAME
+#                        LENGTH describing DIFFERENT OBSERVATIONS, after which every
+#                        calibration metric paired a probability with the wrong label --
+#                        silently, because the downstream length check passed. Now one joint
+#                        mask, exposed as `CleanArrays.mask` so no caller reconstructs it.
+#
+#                     B  LABELS COERCED, NOT VALIDATED. `_clean` ended `y[ok].astype(int)`.
+#                        THE AUDIT UNDERSTATED THIS, and the first witness chosen for the
+#                        test was the WRONG ONE. Two distinct corruptions:
+#                          [0,1,2] -> y.sum() == y.size, so `_degenerate` fires SPURIOUSLY
+#                                     and the old code returned NaN by accident.
+#                          [0,1,3] -> `_degenerate` stays quiet and (1-y).sum() == -1, so
+#                                     the denominator n_pos*n_neg is NEGATIVE: a SIGNED
+#                                     AUROC. Both are now pinned, separately.
+#
+#                     D  AN EMPTY PROBABILITY VECTOR WAS "VALID". `is_probability` returned
+#                        True for size 0. tests/unit/test_evaluation_metrics.py ASSERTED
+#                        THIS -- the defect written down as a requirement (roadmap 6.21a).
+#
+#                     E  THE CALIBRATION SOLVER COULD NOT REPORT NONCONVERGENCE. It fell out
+#                        of max_iter and returned coefficients regardless, so separation and
+#                        numerical instability looked like a clean fit. Now returns
+#                        `CalibrationFit(slope, intercept, converged, iterations,
+#                        clipped_fraction)`, ITERABLE so every `slope, intercept = ...` call
+#                        site keeps working. A second old test asserted finiteness on a
+#                        PERFECTLY SEPARATED input, where the maximum-likelihood slope does
+#                        not exist; it now checks no-overflow and honest non-convergence
+#                        SEPARATELY, with a well-conditioned control so the assertion cannot
+#                        be met by a solver that simply never converges.
+#
+#                     F  ROWS WITH A MISSING SUBGROUP LABEL VANISHED. `stratified_evaluate`
+#                        iterated `g.dropna().unique()`, so those rows counted in ALL and
+#                        appeared in NO stratum -- the strata did not partition the cohort
+#                        and nothing said so. Now a `__MISSING__` stratum, with a partition
+#                        assertion that the per-stratum row counts sum to the input.
+#                        Missingness is informative here: a variant with no consequence
+#                        annotation is a different object from one annotated as missense.
+#
+#                     G  SUBGROUP SUFFICIENCY USED ONLY TOTAL n. A stratum of 1,000 rows
+#                        with ONE positive passed min_n=30 and was given an AUPRC and a
+#                        calibration slope. Positives and negatives now have their own
+#                        floors, and an insufficient stratum carries a `status` naming which
+#                        floor it failed -- never dropped, never given numbers.
+#
+#                     THE BOOTSTRAP IGNORED GENE CLUSTERING -- found independently, confirmed
+#                     by the audit. `bootstrap_ci` resamples VARIANTS, stratified by class
+#                     only. Variants within a gene share its constraint, its network
+#                     position, its curation history and often its true class. Treating them
+#                     as independent UNDERSTATES VARIANCE, so every confidence interval this
+#                     project has published is ANTI-CONSERVATIVE in a known direction.
+#                     `cluster_bootstrap_ci` resamples whole genes, optionally two-stage, and
+#                     REPORTS THE DESIGN EFFECT -- the ratio of clustered to naive width --
+#                     so historical intervals can be RE-READ rather than merely superseded.
+#                     Measured end-to-end on a cohort where six of thirty genes have inverted
+#                     discrimination: naive [0.7548, 0.8439], clustered [0.6611, 0.9228],
+#                     design effect 2.935x. A control pins the effect near 1.0 when gene
+#                     assignment is arbitrary, so the test cannot pass on a fixture that
+#                     merely adds noise.
+#
+#                     ALSO ADDED: `log_loss` (unbounded, punishes CONFIDENT errors far harder
+#                     than Brier -- the failure that costs most when a pathogenic variant is
+#                     called benign at p=0.99) and `auprc_gain` (the ABSOLUTE gain; the ratio
+#                     explodes at low prevalence, where a lift of 10 can be a gain of 0.009).
+#
+#                     NOT CHANGED: `compute_classification_metrics` and `ModelEvaluator`.
+#                     The head of the file is BYTE-IDENTICAL, verified by hashing both sides
+#                     of the banner. They are genuinely unsafe -- `confusion_matrix(...)
+#                     .ravel()` unpacks four values and raises on single-class input, and
+#                     specificity returns 0 where it is undefined -- but deprecating them
+#                     changes what every existing caller emits, and that needs a measured
+#                     call-site census of its own.
+#
+#                     THREE DEFECTS IN THE INSTALLER ITSELF, CAUGHT BEFORE DELIVERY, NONE BY
+#                     READING CODE. (1) A post-check string-matched `g.dropna().unique()` and
+#                     fired on the NEW docstring quoting it to explain the fix -- the
+#                     twenty-third occurrence this session of a checker hitting prose that
+#                     describes its own rule, inside the installer remediating an audit about
+#                     exactly this blindness; replaced with an AST walk, tested 5/5 against a
+#                     real call, a docstring, a comment, another function, and a call nested
+#                     in a loop. (2) `evaluate()` rebuilt the keep-mask by hand for the
+#                     cluster labels and ignored y's finiteness -- it would have misaligned
+#                     the clusters, which is defect A recreated inside its own repair; fixed
+#                     by exposing the mask on `CleanArrays`. (3) A test ended in `or True`.
+#
+#                     WHAT IS NOT DONE. The legacy API is not yet unified. The metric
+#                     registry, the typed report schema, and the clinical operating-point,
+#                     decision-curve and selective-prediction panels are commit 2.
+2055
