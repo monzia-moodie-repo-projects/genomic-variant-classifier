@@ -163,8 +163,15 @@ def _ece(scores: np.ndarray, y: np.ndarray, n_bins: int = 10) -> float:
     bin_edges = np.linspace(0, 1, n_bins + 1)
     ece = 0.0
     n = len(y)
-    for lo, hi in zip(bin_edges[:-1], bin_edges[1:]):
-        mask = (scores >= lo) & (scores < hi)
+    for _b, (lo, hi) in enumerate(zip(bin_edges[:-1], bin_edges[1:])):
+        # Top bin CLOSED to [lo, 1.0]. A half-open final bin drops every score of exactly
+        # 1.0 -- a pure decision-tree or ensemble leaf -- under-reporting this error by
+        # 86.7% on a fixture with 20% of rows at 1.0. Repaired 2026-07-20; the same defect
+        # was repaired in evaluator.py on 2026-07-10.
+        if _b == n_bins - 1:
+            mask = (scores >= lo) & (scores <= hi)
+        else:
+            mask = (scores >= lo) & (scores < hi)
         if mask.sum() == 0:
             continue
         ece += (mask.sum() / n) * abs(float(y[mask].mean()) - float(scores[mask].mean()))

@@ -361,10 +361,28 @@ def log_loss(y: Sequence, prob: Sequence, eps: float = 1e-15) -> float:
 def expected_calibration_error(y: Sequence, prob: Sequence, n_bins: int = 10) -> float:
     """Equal-width binning, TOP BIN CLOSED. |accuracy - confidence| weighted by occupancy.
 
-    NaN if `prob` is not a probability. Note the closed top bin: `evaluator.py`'s
-    `_calibration_error` uses `(p >= lo) & (p < hi)` with `hi == 1.0`, so every `p == 1.0`
-    -- a pure tree leaf -- falls into no bin and is silently excluded, under-reporting ECE
-    (86.5% on a 20%-pure-leaf split). See docs/audits/EVALUATION_STACK_AUDIT_2026-07-08.md.
+    Returns NaN if `prob` is not a probability.
+
+    THE CLOSED TOP BIN, AND WHY IT IS NOT OPTIONAL. A half-open final bin `(p >= lo) &
+    (p < hi)` with `hi == 1.0` drops every prediction of exactly 1.0 -- a pure decision-tree
+    or ensemble leaf -- so the rows the model is most confident about contribute nothing.
+    Measured under-report on a 20%-pure-leaf split: 86.5% when first audited on 2026-07-08,
+    86.7% when re-measured independently on 2026-07-20.
+
+    HISTORY, kept because the dates matter. The defect was diagnosed in `evaluator.py`'s
+    `_calibration_error` on 2026-07-08 (docs/audits/EVALUATION_STACK_AUDIT_2026-07-08.md)
+    and REPAIRED THERE ON 2026-07-10; see the dated comment at evaluator.py:321-323. An
+    earlier version of this docstring described that defect in the present tense and was
+    never updated, so it misstated the state of `evaluator.py` for ten days. Corrected
+    2026-07-20.
+
+    A survey on 2026-07-20 evaluated nine independent implementations of this metric on
+    identical fixtures and found the same open-top defect live in three further places --
+    scripts/calibrate_thresholds.py, scripts/validate_external.py and
+    scripts/calibration_analysis.py -- plus a second, distinct defect in three more, where
+    `calibration_curve`'s non-empty bins were zipped against `np.histogram`'s full bin
+    counts. Both were repaired on 2026-07-20 and are pinned by
+    tests/unit/test_calibration_implementations_agree.py.
     """
     if not is_probability(prob):
         return float("nan")

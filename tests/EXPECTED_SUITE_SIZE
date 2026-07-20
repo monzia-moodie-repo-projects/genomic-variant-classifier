@@ -1238,4 +1238,158 @@
 #                     WHAT IS NOT DONE. The legacy API is not yet unified. The metric
 #                     registry, the typed report schema, and the clinical operating-point,
 #                     decision-curve and selective-prediction panels are commit 2.
-2055
+#
+#   2060  2026-07-20  +5: tests/unit/test_calibration_implementations_agree.py -- TWO
+#                     CALIBRATION DEFECTS ACROSS SIX FILES, AND A DOCSTRING THAT HAD BEEN
+#                     FALSE FOR TEN DAYS. MEASURED with `pytest tests/ --collect-only -q` on
+#                     the STAGED tree: `git add -A` first, then `git status --short` showing
+#                     exactly seven "M " and one "A " and NO '??' lines, then "2060 tests
+#                     collected". 2055 + 5 is offered only as a cross-check on a figure
+#                     that was read. Entry 1962 exists because that distinction was missed
+#                     once, so it is stated here explicitly.
+#
+#                     HOW THIS WAS FOUND. A call-site census of 2026-07-20 parsed all 813
+#                     Python files under src/, scripts/ and tests/ and reported that NO MODULE
+#                     UNDER src/ IMPORTS evaluation/metrics.py -- the canonical kernel
+#                     hardened the same day at entry 2055 has, to this day, no production
+#                     caller. What it found instead was TEN independent implementations of
+#                     expected calibration error, and three of bootstrap confidence intervals.
+#
+#                     Reading them did not settle whether they agree. A probe was built to
+#                     evaluate every one on identical fixtures. It took FIVE versions, and the
+#                     failures of each taught the next: function-level isolation reached 1 of
+#                     10; sanitised-module isolation reached 6; real package identity plus
+#                     sys.modules registration reached 9. The four remaining failures were one
+#                     cause -- @dataclass calls `sys.modules.get(cls.__module__).__dict__`,
+#                     and an exec'd module is not registered there.
+#
+#                     DEFECT 1 -- THE OPEN TOP BIN, in three implementations.
+#                         scripts/calibrate_thresholds.py:167   (scores >= lo) & (scores < hi)
+#                         scripts/validate_external.py:88       (y_prob >= lo) & (y_prob < hi)
+#                         scripts/calibration_analysis.py:75    (y_prob >= lo) & (y_prob < hi)
+#
+#                     With hi == 1.0 the final bin is half-open, so every prediction of
+#                     EXACTLY 1.0 -- a pure decision-tree or ensemble leaf -- falls into NO bin
+#                     and is silently excluded. The rows the model is most confident about
+#                     contribute nothing to its measured calibration. Measured under-report on
+#                     a fixture with 20% of rows at 1.0: 86.7%, independently reproducing the
+#                     86.5% first measured on 2026-07-08.
+#                     `_calibration_summary` inherited it by delegating to `calibration_bins`.
+#                     scripts/calibrate_thresholds.py SELECTS OPERATING THRESHOLDS.
+#
+#                     DEFECT 2 -- COUNTS MISALIGNED WITH THE BINS THEY WEIGHT, in three more,
+#                     and previously undocumented anywhere.
+#                         scripts/run_benchmark.py:65-74
+#                         scripts/validate_clinvar_temporal.py:235-242
+#                         src/genomic_variant_classifier/evaluation/benchmark.py:119-132
+#
+#                         frac_pos, mean_pred = calibration_curve(y_true, y_proba, ...)
+#                         counts = np.histogram(y_proba, bins=bins)[0]
+#                         sum((c / n) * abs(fp - mp)
+#                             for fp, mp, c in zip(frac_pos, mean_pred, counts))
+#
+#                     `calibration_curve` returns statistics for ONLY THE NON-EMPTY bins.
+#                     `np.histogram` returns counts for ALL of them. `zip` truncates to the
+#                     shorter and pairs the k-th NON-EMPTY bin's statistics with the k-th
+#                     BIN's count. Correct whenever every bin is occupied -- which is why it
+#                     survived review, and why it looked right on ordinary fixtures. Measured
+#                     against a correctly aligned computation:
+#
+#                         fixture                as written   aligned    empty bins
+#                         perfectly calibrated     0.024937   0.024937            0
+#                         overconfident            0.162413   0.162413            0
+#                         20% at p == 1.0          0.118207   0.118207            0
+#                         saturated                0.125000   0.250000           13
+#                         sparse + saturated       0.004825   0.309788            9
+#
+#                     NOT merely halved. On a sparse saturated distribution it under-reports by
+#                     SIXTY-FOUR TIMES. Sparse and saturated is what a well-separated
+#                     classifier's output looks like.
+#
+#                     THE TWO DEFECTS ARRIVED AT THE SAME WRONG NUMBER BY DIFFERENT ROUTES.
+#                     Before the repair, all six returned exactly 0.125000 on the saturated
+#                     fixture against a true 0.250000 -- three because they dropped the top
+#                     bin, three because they misweighted it. A unanimous wrong answer reads as
+#                     agreement, and agreement reads as correctness.
+#
+#                     A RETRACTION, RECORDED BECAUSE IT IS THE LESSON.
+#                     src/genomic_variant_classifier/evaluation/evaluator.py:305 was cited
+#                     throughout this work as carrying the open-top defect. IT DOES NOT. It was
+#                     REPAIRED ON 2026-07-10 and carries its own dated comment at lines
+#                     321-323. The claim came from metrics.py's docstring, which stated in the
+#                     PRESENT TENSE that evaluator.py "uses (p >= lo) & (p < hi)" -- true when
+#                     written on 2026-07-08, false from 2026-07-10, never updated. A document
+#                     was quoted instead of the code being read, and the false claim was then
+#                     repeated for an entire session.
+#
+#                     THAT DOCSTRING IS THE SEVENTH INSTANCE OF ONE FAILURE MODE recorded in
+#                     this file: WindowAttachment.__iter__'s self-maintained todo list; the
+#                     four numbers that went stale HERE before the ratchet was armed; the
+#                     README badge against entry 1962; the LOVD classification map; the
+#                     variant_ensemble.py module header at entry 1985; the counts a
+#                     WindowAttachment stored alongside the mask that defines them at 1999;
+#                     and now a docstring in one module describing the CODE OF ANOTHER. Every
+#                     one is a fact stated twice where only one copy was maintained.
+#                     It is corrected here rather than deleted, WITH ITS DATES, so the ten days
+#                     it was wrong are part of the record.
+#
+#                     WHAT THE 5 TESTS PIN. Every expectation is DERIVED from a reference
+#                     implemented in the test file, at each implementation's OWN default bin
+#                     count -- zero hardcoded values -- so a change of bin count is not
+#                     mistaken for a defect and a change of definition cannot be waved through
+#                     by editing a constant. Three fixtures: 20% pure leaves, saturated, and
+#                     sparse-and-saturated. One is a CONTROL asserting the pure-leaf fixture
+#                     actually separates the two definitions, so the others cannot pass
+#                     vacuously. One asserts the fail-loud length guard is still present, so a
+#                     future edit cannot quietly restore silent misweighting.
+#
+#                     THE REPAIR, VERIFIED BY RE-RUNNING THE PROBE THAT FOUND THE DEFECTS.
+#                     On the saturated fixture all nine loaded implementations now return
+#                     0.250000, spread 0.000000. On the pure-leaf fixture the spread collapsed
+#                     from 0.099541 to 0.000545, the residue being bin count and round(x, 4).
+#                     "matches its own OPEN-top reference" reads NONE on all four fixtures.
+#                     The two fixtures that were already correct are UNCHANGED at 0.017068 and
+#                     0.022297 -- the control that matters most, since a repair that moves a
+#                     correct number is not a repair.
+#
+#                     FOUR DEFECTS IN THE PROBE ITSELF, AND ONE IN THE VALIDATION OF THE FIX,
+#                     none found by reading. (1) Arguments bound BY POSITION called
+#                     `_binned_calibration(probs, labels)` backwards; it accepted them without
+#                     complaint and returned a plausible number, producing a FALSE 20x
+#                     disagreement that was entirely the probe's calling convention. Binding is
+#                     now derived from parameter NAMES. (2) That name classifier read `eps` as
+#                     a probability because it CONTAINS "p"; one-character words now require an
+#                     exact match. (3) A 1e-9 tolerance declared `validate_external.py`, which
+#                     returns round(ece, 4), to be "computing a DIFFERENT QUANTITY"; matching
+#                     now searches for the decimal place at which the value equals the rounded
+#                     reference and reports it. (4) Comparing everything against a 10-bin
+#                     reference reported the 10-bin and 15-bin implementations as disagreeing
+#                     on fixtures where both were correct -- A PARAMETER CHOICE REPORTED AS A
+#                     DEFECT, which buries real findings under noise. (5) The check validating
+#                     the installer's replacement blocks re-indented text that was already
+#                     indented and reported SIX false failures.
+#
+#                     That last is the TWENTY-EIGHTH occurrence this session of a checker
+#                     firing on something that merely resembles its target. The durable lesson
+#                     is unchanged and is now very well evidenced: outcome-asserting checks
+#                     catch what careful reading does not.
+#
+#                     WHAT IS NOT DONE.
+#                     (a) THE TENTH IMPLEMENTATION IS STILL UNEVALUATED.
+#                         src/.../agent_layer/agents/calibration_drift_agent.py:45
+#                         `_binned_calibration` could not be reached because
+#                         CalibrationDriftAgent.__init__ requires classes, baseline_ece and
+#                         output_dir. It is the agent that MONITORS CALIBRATION DRIFT IN
+#                         PRODUCTION, it computes its own binning, and which of these two
+#                         defects it carries is UNKNOWN. Not assumed clean.
+#                     (b) benchmark.py:125 computes `bin_midpoints` and never uses it.
+#                     (c) The legacy metrics interface -- compute_classification_metrics and
+#                         ModelEvaluator -- has ZERO callers outside metrics.py itself and its
+#                         own test, measured by the same census. Removal is a live option and
+#                         is a scope decision, not an installer's.
+#                     (d) Three independent bootstrap implementations remain unreconciled:
+#                         evaluator.py:284, report_generator.py:85, and the kernel's. The
+#                         gene-cluster design effect measured at entry 2055 was 2.935x; whether
+#                         the other two share the variant-level independence assumption has not
+#                         been measured.
+2060

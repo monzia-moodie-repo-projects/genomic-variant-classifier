@@ -124,10 +124,23 @@ def _ece(y_true: np.ndarray, y_proba: np.ndarray, n_bins: int = 15) -> float:
     bin_edges = np.linspace(0.0, 1.0, n_bins + 1)
     bin_midpoints = (bin_edges[:-1] + bin_edges[1:]) / 2.0
 
-    counts = np.histogram(y_proba, bins=bin_edges)[0]
+    counts_all = np.histogram(y_proba, bins=bin_edges)[0]
+    # `calibration_curve` returns statistics for ONLY THE NON-EMPTY bins; `np.histogram`
+    # returns counts for ALL of them. Zipping the two pairs the k-th non-empty bin's
+    # statistics with the k-th bin's COUNT -- weights attached to the wrong bins. Correct
+    # whenever every bin is occupied, which is why it survived review; measured to
+    # under-report by 2x on a saturated fixture and 64x on a sparse saturated one.
+    # Select the counts of the same bins. Repaired 2026-07-20.
+    counts = counts_all[counts_all > 0]
+    if len(counts) != len(frac_positives):
+        raise ValueError(
+            "calibration bin/count mismatch: calibration_curve reported {} bins, "
+            "{} bins are occupied. Refusing to weight by misaligned counts.".format(
+                len(frac_positives), len(counts))
+        )
     ece = 0.0
     n = len(y_true)
-    for i, (fp, mp, cnt) in enumerate(zip(frac_positives, mean_predicted, counts)):
+    for fp, mp, cnt in zip(frac_positives, mean_predicted, counts):
         ece += (cnt / n) * abs(fp - mp)
     return float(ece)
 

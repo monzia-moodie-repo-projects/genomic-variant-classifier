@@ -71,8 +71,14 @@ def calibration_bins(
     ece  = 0.0
     mce  = 0.0
 
-    for lo, hi in zip(bins[:-1], bins[1:]):
-        mask = (y_prob >= lo) & (y_prob < hi)
+    for _b, (lo, hi) in enumerate(zip(bins[:-1], bins[1:])):
+        # Top bin CLOSED to [lo, 1.0]; see the note in scripts/calibrate_thresholds.py.
+        # `_calibration_summary` delegates here, so it inherited the defect and inherits
+        # this repair. Repaired 2026-07-20.
+        if _b == n_bins - 1:
+            mask = (y_prob >= lo) & (y_prob <= hi)
+        else:
+            mask = (y_prob >= lo) & (y_prob < hi)
         cnt  = int(mask.sum())
         if cnt == 0:
             rows.append({

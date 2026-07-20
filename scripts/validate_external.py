@@ -84,8 +84,13 @@ def expected_calibration_error(
     rows = []
     n   = len(y_true)
 
-    for lo, hi in zip(bins[:-1], bins[1:]):
-        mask = (y_prob >= lo) & (y_prob < hi)
+    for _b, (lo, hi) in enumerate(zip(bins[:-1], bins[1:])):
+        # Top bin CLOSED to [lo, 1.0]; see the note in scripts/calibrate_thresholds.py.
+        # Repaired 2026-07-20.
+        if _b == n_bins - 1:
+            mask = (y_prob >= lo) & (y_prob <= hi)
+        else:
+            mask = (y_prob >= lo) & (y_prob < hi)
         if mask.sum() == 0:
             continue
         frac_pos  = float(y_true[mask].mean())
