@@ -1,0 +1,186 @@
+# ---------------------------------------------------------------------------
+# CI FAILURE ALERT
+#
+# WHY THIS EXISTS
+# ---------------
+# On 2026-07-21 at 12:58 the suite-size ratchet did exactly what it was built to
+# do. Commit d7c4d35 conflated two changes, left tests/EXPECTED_SUITE_SIZE at
+# 2417 while the tree collected 2446, and CI run #562 aborted at COLLECTION time
+# with pytest.UsageError -- exit code 4, three minutes fourteen seconds against
+# the usual fourteen minutes, because no test ever ran.
+#
+# main stayed red for roughly two hours and NOBODY LOOKED.
+#
+# The detection worked perfectly. The notification loop did not exist. That is
+# the same shape as every defect removed that day: a check that fires correctly
+# and has no reader is only marginally better than no check at all.
+#
+# WHAT IT DOES
+# ------------
+# Opens a GitHub issue when CI fails on main, comments on that same issue for
+# subsequent failures rather than opening a new one, and CLOSES it when CI goes
+# green again. The issue list therefore reflects the current state of main
+# rather than accumulating a pile of stale alarms.
+#
+# WHY IT IS TESTABLE
+# ------------------
+# A guard that has never fired is a guard nobody knows works -- the exact
+# failure mode this repository keeps finding. `workflow_dispatch` exercises the
+# whole path on demand, and defaults to dry_run so exercising it does not create
+# noise. tests/unit/test_ci_failure_alert_workflow.py parses this file and pins
+# its trigger, its branch filter, its permissions and its idempotence, so the
+# wiring is checked without waiting for a real failure.
+#
+# NOTE ON workflow_run: this file must be present on the DEFAULT BRANCH to fire
+# at all. A copy on a feature branch does nothing.
+# ---------------------------------------------------------------------------
+name: CI failure alert
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Exercise the alert path without touching any issue"
+        required: false
+        default: "true"
+        type: choice
+        options: ["true", "false"]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  # Serialise so two rapid CI results cannot race and open two issues.
+  group: ci-failure-alert
+  cancel-in-progress: false
+
+jobs:
+  alert:
+    name: Surface or clear a red main
+    runs-on: ubuntu-latest
+    # workflow_dispatch always runs, so the path can be exercised deliberately.
+    # workflow_run acts only for main -- a red dev branch is not a red release.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.head_branch == 'main'
+    steps:
+      - name: Open, update or close the CI failure issue
+        uses: actions/github-script@v7
+        env:
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+        with:
+          script: |
+            const LABEL = 'ci-failure';
+            const TITLE = 'CI is failing on main';
+            const dryRun = process.env.DRY_RUN === 'true';
+            const dispatched = context.eventName === 'workflow_dispatch';
+
+            const run = context.payload.workflow_run || null;
+            // A manual dispatch has no workflow_run payload. Treat it as a
+            // FAILURE so the alert path itself is what gets exercised -- an
+            // alert only ever tested on its success branch is untested.
+            const conclusion = run ? run.conclusion : 'failure';
+            const sha        = run ? run.head_sha : context.sha;
+            const runUrl     = run
+              ? run.html_url
+              : `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions`;
+            const runNumber  = run ? run.run_number : 'n/a';
+
+            core.info(`event=${context.eventName} conclusion=${conclusion} ` +
+                      `sha=${sha.slice(0, 8)} dry_run=${dryRun}`);
+
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: LABEL,
+              per_page: 10,
+            });
+            const open = existing.data.length ? existing.data[0] : null;
+            core.info(`open ${LABEL} issue: ${open ? '#' + open.number : 'none'}`);
+
+            if (conclusion === 'success') {
+              if (!open) {
+                core.info('CI green and no open alert. Nothing to do.');
+                return;
+              }
+              const body = [
+                `CI is green again on main as of \`${sha.slice(0, 8)}\`.`,
+                '',
+                `Run: ${runUrl}`,
+                '',
+                'Closing automatically. If the underlying cause was worked around',
+                'rather than fixed, reopen this issue and say so -- a closed alert',
+                'is a claim that main is healthy.',
+              ].join('\n');
+              if (dryRun) { core.info(`[dry run] would close #${open.number}`); return; }
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: open.number, body });
+              await github.rest.issues.update({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: open.number, state: 'closed' });
+              core.info(`Closed #${open.number}`);
+              return;
+            }
+
+            if (conclusion !== 'failure') {
+              core.info(`conclusion=${conclusion} is neither success nor failure ` +
+                        '(cancelled, skipped, timed_out). Leaving state unchanged, ' +
+                        'because "the run did not finish" is not "main is broken" ' +
+                        'and it is not "main is fine" either.');
+              return;
+            }
+
+            const body = [
+              `## CI failed on main${dispatched ? ' (manual exercise of the alert path)' : ''}`,
+              '',
+              `**Commit:** \`${sha}\``,
+              `**Run:** ${runUrl} (#${runNumber})`,
+              `**Detected:** ${new Date().toISOString()}`,
+              '',
+              '### Why you are seeing this',
+              '',
+              'On 2026-07-21 the suite-size ratchet correctly turned main red at',
+              '12:58 and nobody looked for roughly two hours. The check fired; there',
+              'was no reader. This issue is the reader.',
+              '',
+              '### First thing to check',
+              '',
+              'If the failing job exited with **code 4**, that is `pytest.UsageError`,',
+              'and on this repository it almost always means the SUITE-SIZE RATCHET:',
+              'tests were added or lost without `tests/EXPECTED_SUITE_SIZE` being',
+              'updated in the same commit. A run of about three minutes rather than',
+              'fourteen confirms it -- the ratchet aborts at collection, before any',
+              'test executes.',
+              '',
+              'Do NOT lower the expected number to make it green. If the count went',
+              'DOWN, tests have vanished and the reason matters more than the colour.',
+              '',
+              '### Housekeeping',
+              '',
+              'This issue is reused for subsequent failures and closed automatically',
+              'when CI goes green on main.',
+            ].join('\n');
+
+            if (dryRun) {
+              core.info('[dry run] would have opened or commented on an issue:');
+              core.info(body);
+              return;
+            }
+
+            if (open) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: open.number, body });
+              core.info(`Commented on existing #${open.number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title: TITLE, body, labels: [LABEL] });
+              core.info(`Opened #${created.data.number}`);
+            }

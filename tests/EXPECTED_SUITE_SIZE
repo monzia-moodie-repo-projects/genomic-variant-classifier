@@ -2410,4 +2410,62 @@
 #                       an original status value changed    ->  1 failed
 #                       StrEnum reintroduced                ->  1 failed
 #
-2544
+#   2559  2026-07-21  +15: tests/unit/test_ci_failure_alert_workflow.py --
+#                     THE RATCHET TURNED main RED AND NOBODY LOOKED.
+#
+#                     WHAT HAPPENED. At 12:58 on 2026-07-21 commit d7c4d35
+#                     conflated two changes and left EXPECTED_SUITE_SIZE at 2417
+#                     while the tree collected 2446. Continuous Integration run
+#                     #562 aborted at COLLECTION time with pytest.UsageError --
+#                     exit code 4, three minutes fourteen seconds against the
+#                     usual fourteen minutes, because no test ever ran. main
+#                     stayed red for roughly two hours before anyone noticed, and
+#                     it was noticed by reading pasted local output, not by
+#                     looking at Continuous Integration.
+#
+#                     THE DETECTION WORKED PERFECTLY. THE NOTIFICATION LOOP DID
+#                     NOT EXIST. That is the same shape as every defect removed
+#                     that day: a check that fires correctly and has no reader is
+#                     only marginally better than no check at all.
+#
+#                     THE FIX. .github/workflows/ci_failure_alert.yml opens a
+#                     GitHub issue when Continuous Integration fails on main,
+#                     comments on that same issue for repeat failures instead of
+#                     opening a pile of them, and CLOSES it when main goes green
+#                     again -- so the issue list describes the current state
+#                     rather than accumulating stale alarms. A cancelled or
+#                     timed-out run changes nothing, because "the run did not
+#                     finish" is neither "main is broken" nor "main is fine";
+#                     reporting it as either is how a monitoring system lies, the
+#                     lesson the drift monitor learned when UNKNOWN was reported
+#                     as none.
+#
+#                     THE ALERT IS ITSELF TESTABLE. A guard that has never fired
+#                     is a guard nobody knows works. workflow_dispatch exercises
+#                     the whole path on demand and defaults to dry_run so
+#                     exercising it creates no noise; with no workflow_run
+#                     payload the script treats the situation as a FAILURE,
+#                     because an alert tested only on its success branch is
+#                     untested. These 15 tests parse the YAML and pin the
+#                     trigger, the main-only branch filter, the exact
+#                     permissions (contents: read, issues: write), the
+#                     concurrency group, the issue reuse, the auto-close, and the
+#                     diagnostic text naming exit code 4.
+#
+#                     A DEFECT CAUGHT IN THE TEST FILE ITSELF. The first draft
+#                     used pytest.importorskip("yaml"). PyYAML is pinned in
+#                     requirements.txt and imported at runtime by
+#                     data/pipeline.py and utils/helpers.py, so it is a HARD
+#                     dependency -- and a module-level importorskip collapses
+#                     every test in a file into ONE skip entry, which is exactly
+#                     how the graph-neural-network branch went untested for 508
+#                     Continuous Integration runs. Replaced with a direct import.
+#
+#                     PROVEN BY SABOTAGE, all five detected:
+#                       workflow name typo (never triggers) -> 1 failed
+#                       branch filter dropped              -> 1 failed
+#                       dispatch exercises success branch  -> 1 failed
+#                       permissions widened                -> 1 failed
+#                       never closes on recovery           -> 1 failed
+#
+2559
