@@ -578,6 +578,10 @@ The first is recommended. The check exists because EVE filename-to-symbol
 resolution is not obvious, and it will matter the moment the connector stops
 returning zero.
 
+**RESOLVED 2026-07-21 -- see Part Nine.** The first option was taken. This
+section is preserved as written because it records what was known at the time;
+Part Nine records what was then done and measured.
+
 ---
 
 ## PART SEVEN -- OPEN ITEMS
@@ -692,4 +696,152 @@ recorded in this project's ledger. It is now very well evidenced:
 
 ---
 
-*End of session document. Written 2026-07-20 / 2026-07-21.*
+---
+
+## PART NINE -- ADDENDUM, 2026-07-21
+
+Written after commit `a5caeba`. Everything in Parts Zero through Eight stands as
+it was recorded; this part states what happened next and supersedes the pending
+decision in section 6.4.
+
+### 9.1 Pushed
+
+```
+0208998..a5caeba  main -> main
+a5caeba (HEAD -> main, origin/main, origin/HEAD)
+```
+
+The commit landed with **1,432 insertions across 6 files**, which reconciles
+exactly against independently known figures: 281 insertions measured earlier for
+the four code and test files, plus 695 lines of session document, plus 456 lines
+of part-three handoff. The agreement confirms both documents transferred whole.
+
+### 9.2 The EVE regression is resolved
+
+The remedy recommended in section 6.4 was carried out on 2026-07-21 at 00:59:09.
+
+```
+rclone copy genvarcla:.../data/external/eve/EVE_all_data/variant_files -> local
+Transferred:  9.922 GiB / 9.922 GiB, 100%, 7.881 MiB/s
+Transferred:  3211 / 3211 files
+Elapsed:      20m55.6s
+```
+
+**The file count is itself a verification.** The test's own docstring names "the
+real 3,211 EVE filenames"; rclone transferred exactly 3,211. Had the restore been
+partial, the test could have passed at a degraded resolution fraction while
+silently covering less of the corpus.
+
+Only `EVE_all_data/variant_files` was restored. The 24.15 gibibytes of multiple
+sequence alignments in a2m format, the 28.70 gibibytes of variant call format
+files, and the 5,550 Portable Network Graphics plots remain offloaded to Google
+Drive.
+
+Module result: **17 passed, 0 skipped, 6.03 seconds**, including
+`test_real_corpus_resolution_fraction`, which asserts that at least 99 per cent
+of EVE filenames resolve from entry name to Human Genome Organisation Gene
+Nomenclature Committee symbol.
+
+### 9.3 New suite baseline
+
+```
+2064 passed, 7 skipped in 912.14s (0:15:12)
+```
+
+Collection remained 2071, so the suite-size ratchet passed rather than merely
+not firing.
+
+**Skip reconciliation, position by position.** The progress output places skip
+markers at fixed points in the run. Before the restore: five early, then one each
+at approximately 50, 76 and 95 per cent, totalling eight. After: five early, then
+one each at approximately 76 and 95 per cent, totalling seven. The marker that
+vanished sits at approximately 50 per cent, and unit tests execute in
+alphabetical order, where `test_eve_entry_name_resolution.py` falls. **Exactly one
+skip cleared, it was the EVE one, and no other skip changed position.** This is
+stronger evidence than the count alone, which could have concealed one skip
+clearing while another appeared.
+
+The seven remaining skips:
+
+| Count | Location | Reason | Class |
+|---|---|---|---|
+| 1 | `test_mc_dropout_calibration.py` | needs Run 15 cohort + gene-family-disjoint split infrastructure | infrastructure |
+| 2 | `test_mc_dropout_calibration.py` | needs Spearman rank correlation infrastructure + real holdout labels | infrastructure |
+| 1 | `test_mc_dropout_calibration.py` | needs expected calibration error infrastructure (10-15 reliability bins) + Run 15 holdout | infrastructure |
+| 1 | `test_mc_dropout_calibration.py` | requires multiple K-value runs against real cohort | infrastructure |
+| 1 | `test_preflight_data_paths.py:45` | POSIX symlink stands in for a Windows dangling junction | platform, permanent on Windows |
+| 1 | `test_tabular_nn_mc_dropout.py:232` | test corpus does not span both boundary and extreme prediction regions | degenerate fixture |
+
+**Five of the seven are waiting on the metric stack deliverable**, naming expected
+calibration error infrastructure with 10 to 15 reliability bins and Spearman rank
+correlation infrastructure. Both fall inside Panel B of the metric specification.
+Building the metric stack will re-arm five currently dormant tests, which is a
+concrete argument for its priority that does not depend on the specification
+document at all.
+
+### 9.4 Suite runtime rose 45 per cent
+
+| Run | Duration |
+|---|---|
+| Before restore (three runs) | 632.92 s, 648.62 s, 605.08 s -- mean 628.87 s |
+| After restore | **912.14 s (15 min 12 s)** |
+| Change | **+283.27 s, +45.0 per cent** |
+
+The restored module itself completes in 6.03 seconds, so it does not account for
+283 seconds. The most likely cause is real-time antivirus inspection of 3,211
+newly written files, possibly combined with directory globbing of that tree from
+more than one test. **This has not been measured and is recorded as a hypothesis.**
+It matters because a fifteen-minute suite changes what is tolerable in a
+pre-launch gate, and because a 45 per cent regression with no identified cause is
+the kind of thing that is easy to normalise and then never explain.
+
+### 9.5 Free space -- the drive is settled
+
+| | Free (GiB) | Per cent of volume |
+|---|---|---|
+| Start of session 2026-07-20 | 6.70 | 0.716 |
+| Peak after all reclamation | 91.82 | 9.81 |
+| After restoring 9.922 GiB of EVE data | **82.85** | **8.86** |
+
+Against the headroom-aware requirement of 61.48 gibibytes the margin is **+21.37
+gibibytes**. After a 14.7 gibibyte Joint Embedding Predictive Architecture
+embedding cache is allocated, 68.15 gibibytes would remain -- 7.28 per cent, still
+above the five per cent floor.
+
+**Net reclamation for the session: 76.15 gibibytes**, after returning 9.92
+gibibytes to re-arm a scientific check.
+
+### 9.6 Two small unexplained figures, logged not dismissed
+
+1. **-1.96 gibibytes** on 2026-07-20: projected 93.78 after the offloads, measured
+   91.82. Three ten-minute suite runs regenerate `__pycache__`, write
+   `.pytest_cache`, and create temporary Parquet fixtures; the ratchet installer
+   also wrote two backups. Plausible, not measured.
+2. **+0.95 gibibytes** on 2026-07-21: projected 81.90 after the restore, measured
+   82.85 -- more free space than expected. A plausible cause is pytest's temporary
+   directory factory, which retains only the three most recent temporary roots and
+   deletes older ones; further suite runs would therefore have reclaimed earlier
+   fixture output. Plausible, not measured.
+
+Neither is large enough to affect any decision. Both are recorded because a
+project that explains away small discrepancies loses the ability to notice large
+ones.
+
+### 9.7 Still open
+
+- **The rclone shared Google Drive client identifier is being retired during
+  2026.** It is July 2026. The canonical store holds the only copies of 62.6
+  gibibytes of offloaded EVE and phyloP data. If the credential lapses, every
+  operation against `genvarcla:` fails, including retrieval. Roughly ten minutes
+  of work; it should not be deferred.
+- `data/external/gtex` and `data/rnaseq` remain empty -- a hard blocker on the RNA
+  infrastructure deliverable.
+- `phylop_score`, `esm2_llr` and `eve_score` remain features in the 95-column
+  contract whose connectors return constants.
+- `split_protocol_v2` remains four-way with `legacy` as the default, and
+  probability calibration is still fitted on the `tune` partition.
+
+---
+
+*End of session document. Parts Zero through Eight written 2026-07-20; Part Nine
+added 2026-07-21.*
