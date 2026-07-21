@@ -1822,4 +1822,85 @@
 #                     versioned commit, with the orchestrator third, once it has
 #                     a legitimate partition to run on.
 #
-2270
+#   2283  2026-07-21  +13: tests/unit/test_disk_census_walker.py -- THE TOOL THAT
+#                     MEASURES THE DISK HAD BEEN WRONG THREE TIMES AND HAD NO
+#                     TESTS. scripts/forensics/audit_disk_census.py added
+#                     (renamed from a Downloads-only
+#                     audit_disk_reclaim_v3_2026-07-20.py).
+#
+#                     WHY THIS EXISTS. The census tool had reported a materially
+#                     wrong figure for data/ three versions running:
+#                       v1 2026-07-20  161.38 GiB / 15,260 files
+#                       v2 2026-07-20  every subdirectory 0.0 MiB -- the time
+#                                      budget had expired and zeros were printed
+#                                      as measurements
+#                       v3 2026-07-21    3.21 GiB -- against a true 98.75 GiB
+#                                      measured the same hour; short by 95.54 GiB
+#                     Each fix was correct as far as it went. None shipped with a
+#                     test. The tool also lived only in a Downloads folder, so
+#                     the capability that resolved the 2026-07-20 drive emergency
+#                     was one folder-clear away from being lost.
+#
+#                     DEFECT 5, THE ONE FIXED HERE. Walker keeps visited sets
+#                     keyed on (st_dev, st_ino) so a CENSUS never counts an
+#                     overlapping root twice -- without it the legacy junction
+#                     C:\Documents and Settings made the census report 5.94x the
+#                     volume. data_breakdown() then reused the SAME Walker that
+#                     had already walked the whole volume. Every subdirectory of
+#                     data/ was in _seen_dirs; size_of() skips any child already
+#                     there and never checks the root it is handed. So each
+#                     subtotal counted ONLY files sitting loose in that directory:
+#
+#                       directory        true    in subdirs  loose  v3 reported
+#                       data/external   75.18G     75.18G    0.00G     0.003G
+#                       data/processed   3.50G      0.54G    2.96G     2.950G
+#                       data/raw        19.80G     19.80G    0.00G     0.000G
+#                       data/_drift_ch   0.26G      0.00G    0.26G     0.264G
+#
+#                     Four for four -- the mechanism was characterised by
+#                     prediction, not guessed. The de-duplication was never the
+#                     bug; applying CENSUS semantics to a STANDALONE MEASUREMENT
+#                     was. size_of() now takes an explicit `independent` flag and
+#                     the two semantics are NAMED rather than implied. Cycle
+#                     safety holds in both modes; only the SCOPE of the visited
+#                     sets differs, and hardlink_savings is not mutated in
+#                     independent mode because that statistic describes the
+#                     census.
+#
+#                     WORSE THAN WRONG. The section printed "Compare the figure
+#                     above against 161.38 GiB" directly beneath its own bad
+#                     number, inviting the reader to conclude 158 GiB had been
+#                     reclaimed. Nothing had. That line is replaced by the
+#                     section's own error history, and a test asserts the old
+#                     line is gone.
+#
+#                     WHAT WOULD NOT HAVE CAUGHT IT: asserting the census total
+#                     matches the volume (it did); asserting termination (it did);
+#                     asserting no exceptions (there were none). Only measuring a
+#                     directory of KNOWN size AFTER walking its parent exposes it.
+#                     Every load-bearing test here does exactly that.
+#
+#                     PROVEN BY SABOTAGE, all four detected:
+#                       call site drops independent=True   ->  2 failed
+#                       independent shares the dir set     ->  5 failed
+#                       independent leaks into shared set  ->  5 failed
+#                       shared de-dup removed entirely     ->  2 failed
+#                     The last matters as much as the first: the tests pin the
+#                     census property too, so the fix cannot be "achieved" by
+#                     discarding the de-duplication that prevents 5.94x totals.
+#
+#                     RENAMED. A committed tool must not carry a version number
+#                     and a date in its filename -- the project's own data-layout
+#                     standard forbids version suffixes on directory names for the
+#                     same reason. "reclaim" was also wrong: it deletes nothing.
+#
+#                     MEASURED CONTEXT, 2026-07-21: C: is the ONLY fixed volume,
+#                     935.59 GiB, 83.01 free (8.87 %). data/ is 98.75 GiB, of
+#                     which data/external/finngen is 57.64 GiB in three files.
+#                     The suite showed a 1.87x wall-clock range on identical code
+#                     (605.08 s to 1131.67 s), consistent with a host below the
+#                     ten percent where Windows behaviour degrades. No storage
+#                     decision is taken in this commit; the measuring instrument
+#                     is repaired first.
+#
+2283
