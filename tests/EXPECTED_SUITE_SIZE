@@ -2531,4 +2531,97 @@
 #                       build-push-action back to v6       -> 1 failed
 #                       the regex stops matching           -> 2 failed
 #
-2624
+#   2658  2026-07-21  +34: tests/unit/test_representation_geometry.py -- PANEL R
+#                     STAGE ONE. A CLUSTER PANEL CAN RATE A DEGENERATE
+#                     REPRESENTATION AS EXCELLENT.
+#
+#                     THE MEASUREMENT. Two 128-dimensional two-class
+#                     representations, 600 rows each. One separates its classes
+#                     ANGULARLY and is near-isotropic; the other forces every
+#                     vector into a narrow cone and encodes the class ONLY in the
+#                     vector norm. Run through this repository's own Panel Q:
+#
+#                       Davies-Bouldin euclidean   3.934 -> 1.131    3.5x BETTER
+#                       Calinski-Harabasz         38.49  -> 371.6    9.7x BETTER
+#                       silhouette (euclidean)     0.057 -> 0.404    7.1x BETTER
+#                       Davies-Bouldin spherical   1.324 -> 187.98 142x WORSE
+#                       ---
+#                       mean resultant length      0.238 -> 0.870
+#                       effective rank (of 128)  105.9   -> 34.6
+#
+#                     THREE Panel Q metrics rate the DEGENERATE representation as
+#                     substantially better, because radial separation is exactly
+#                     what they reward.
+#
+#                     A CORRECTION TO THE SPECIFICATION. It listed Davies-Bouldin
+#                     among the metrics a cone collapse can pass. True of the
+#                     Euclidean variant, FALSE of the spherical one, which
+#                     already exists at clustering_metrics.py:487 and moved
+#                     142-fold. Panel R's warrant is therefore not "nothing
+#                     detects this" but ONE METRIC ALARMS AND NOTHING DIAGNOSES:
+#                     a spherical Davies-Bouldin of 188 cannot say whether the
+#                     information was destroyed or merely badly arranged.
+#
+#                     WHAT SHIPPED. R1 (directional anisotropy: mean resultant
+#                     length raw, centered, and their difference; norm mean, SD,
+#                     coefficient of variation, max-to-median, zero-norm
+#                     fraction) and R2 (effective rank, normalized effective
+#                     rank, participation ratio, spectral entropy, top-k variance
+#                     fractions, condition number). Pure functions of a matrix;
+#                     every value is a MetricResult carrying its own status.
+#
+#                     WHAT DID NOT, AND WHY IT IS NOT A STUB. R3 through R7 need
+#                     a stored representation. models/gnn.py:357 computes
+#                     focal_embeddings and returns only
+#                     classifier(focal_embeddings) -- the embedding is discarded.
+#                     Those five stages are registered through
+#                     CapabilityEvidence as NOT_IMPLEMENTED / ABSENT, and a test
+#                     asserts none can satisfy a release gate. A probe panel over
+#                     an absent representation would pass vacuously, and a green
+#                     Panel R would then be cited as proof the geometry was
+#                     checked.
+#
+#                     A DESIGN FLAW CAUGHT IN REVIEW. The first version returned
+#                     UNDETERMINED for a detected collapse, conflating "could not
+#                     evaluate" with "found a collapse and cannot classify its
+#                     mechanism". Those are different findings and a gate must
+#                     treat them differently -- it is the drift monitor's defect,
+#                     where UNKNOWN was recorded as none and the notification
+#                     never fired once. Split into COLLAPSE_UNDETERMINED and
+#                     COLLAPSE_CONE_UNRESOLVED. Five outcomes are now distinct:
+#                     healthy, common_direction_growth (linearly removable),
+#                     cone_collapse_mechanism_unresolved, undetermined, and
+#                     representation_explosion.
+#
+#                     THRESHOLDS ARE PLACEHOLDERS AND SAY SO. cone at mean
+#                     resultant length > 0.5, thin at normalized effective rank
+#                     < 0.5. Round numbers chosen in the absence of evidence, not
+#                     derived from any representation this project has produced.
+#                     Named module constants, overridable per call, with the
+#                     three-reference calibration procedure documented for when
+#                     an initialization baseline exists.
+#
+#                     A SABOTAGE THAT FAILED TO FAIL. Mutating n_zero_norm in the
+#                     INSUFFICIENT_SUPPORT branch left the suite green: every
+#                     assertion exercised the OK branch instead. A refusal must
+#                     still report HOW BAD it was -- 31 of 32 zero-norm rows and
+#                     1 of 32 are the same status and very different findings.
+#                     Test added; the sabotage now fails.
+#
+#                     A TEST THAT PASSED FOR THE WRONG REASON. The
+#                     rows-per-dimension floor was "tested" with 4 rows, which
+#                     trips the absolute floor of 8 first and never reached the
+#                     branch. Rewritten to use 100 rows against 128 dimensions,
+#                     which clears one floor and fails the other, plus a
+#                     complement proving the guard does not refuse everything.
+#
+#                     PROVEN BY SABOTAGE, all seven detected once retargeted:
+#                       non-finite silently filtered      -> 2 failed
+#                       zero-norm dropped without counting-> 1 failed
+#                       rows-per-dimension floor removed  -> 1 failed
+#                       unevaluable reports healthy       -> 4 failed
+#                       detected collapse -> UNDETERMINED -> 3 failed
+#                       an unbuilt stage claims OK        -> 3 failed
+#                       norm_cv returns 0 at zero mean    -> 2 failed
+#
+2658
