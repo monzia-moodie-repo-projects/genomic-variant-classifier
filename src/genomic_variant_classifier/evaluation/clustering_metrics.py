@@ -93,6 +93,14 @@ from typing import Any, Optional, Sequence
 
 import numpy as np
 
+from .capabilities import (  # noqa: F401  (re-exported)
+    CapabilityEvidence,
+    CapabilityState,
+    MetricStatus,
+    TargetState,
+    release_gate_satisfied,
+)
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -130,19 +138,14 @@ REASON_INSUFFICIENT_OVERLAP = "overlap_below_minimum"
 REASON_PARTITION_HAS_ONE_GROUP = "a_partition_has_fewer_than_two_groups"
 
 
-class MetricStatus(str, Enum):
-    """Why a metric does or does not carry a value.
-
-    Inheriting from str keeps these JSON-serialisable without a custom encoder,
-    which matters because Panel Q records end up in run manifests.
-    """
-
-    OK = "ok"
-    UNDEFINED = "undefined"                                # mathematically undefined
-    INSUFFICIENT_SUPPORT = "insufficient_support"          # too few observations/overlap
-    DEPENDENCY_UNAVAILABLE = "dependency_unavailable"      # package not installed
-    COMPUTATIONALLY_DEFERRED = "computationally_deferred"  # refused on cost, before allocating
-    FAILED = "failed"                                      # raised during computation
+# MetricStatus is DEFINED ONCE, in `capabilities`, and imported here. It lived
+# in this module until 2026-07-21; it moved because status vocabulary is more
+# foundational than any single panel, and because the capability contract needed
+# it without depending on clustering. Re-exported below so every existing
+# `from ...clustering_metrics import MetricStatus` keeps working -- that is a
+# re-export, not a second definition. Two enums sharing a name is the divergence
+# problem removed in b8275a0, where the legacy evaluator was deleted rather than
+# wrapped for exactly this reason.
 
 
 class CovariateType(str, Enum):

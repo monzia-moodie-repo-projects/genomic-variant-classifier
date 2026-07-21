@@ -2338,4 +2338,76 @@
 #                       frozen-block count always zero      -> 1 failed
 #                       scheme reverts to "group"           -> 3 failed
 #
-2488
+#   2544  2026-07-21  +56: tests/unit/test_capability_contract.py -- A FALSE
+#                     GREEN IS NOW STRUCTURALLY IMPOSSIBLE TO CONSTRUCT.
+#
+#                     THE PROBLEM. A validation gate over a capability that does
+#                     not exist does not block: it PASSES VACUOUSLY, because
+#                     there is nothing to check and therefore nothing to fail. A
+#                     green Panel H would then be cited as evidence a disease
+#                     head was validated, when no disease head exists. That is
+#                     the defect removed five times on 2026-07-21 --
+#                     assert_data_usable called from nowhere; a stale enumerated
+#                     role cap; a calibrator fitted on trained-on genes;
+#                     calibration_valid asserting soundness it never checked; and
+#                     n_groups_with_multiple_covariate_values with exactly one
+#                     reader in the whole repository.
+#
+#                     THE CONTRACT. Four questions are separated, because
+#                     collapsing them is what allows the false green: does the
+#                     capability exist (CapabilityState); does it produce output
+#                     (OUTPUT_AVAILABLE); is its target scientifically admissible
+#                     (TargetState); has it passed validation (VALIDATED).
+#
+#                     THE INVARIANT IS IN THE CONSTRUCTOR, NOT THE GATE.
+#                     CapabilityEvidence.__post_init__ refuses to build an OK
+#                     capability that is not VALIDATED, whose target is not
+#                     ADMISSIBLE, or which names no output artifact; and refuses
+#                     any non-OK status without a machine-readable reason. There
+#                     is no path to the object that avoids the check, so no
+#                     caller can forget to consult it -- which is exactly how a
+#                     well-tested assert_data_usable came to be called nowhere.
+#
+#                     WHY TargetState IS A TYPED AXIS AND NOT A REASON STRING.
+#                     Gene ranking has a working capability, an available output
+#                     AND an available target -- clingen_validity_score. It is
+#                     still inadmissible, because that column is one of the
+#                     model's own inputs; ranking genes with a model handed
+#                     ClinGen's verdict and scoring against ClinGen is circular.
+#                     An earlier draft encoded this in a reason STRING, where
+#                     nothing could enforce it.
+#
+#                     TWO DELIBERATE DEPARTURES FROM THE PROPOSAL, BOTH DEFECTS
+#                     FOUND BY CHECKING RATHER THAN READING:
+#                       (1) MetricStatus is defined ONCE, here, and imported by
+#                           clustering_metrics, which loses its local copy. The
+#                           proposal defined a SECOND class of the same name --
+#                           the divergence problem removed in b8275a0 that same
+#                           day, where the legacy evaluator was deleted rather
+#                           than wrapped for exactly this reason. The original
+#                           six member VALUES are frozen and tested: existing run
+#                           manifests on disk contain those strings.
+#                       (2) (str, Enum) rather than StrEnum. StrEnum arrived in
+#                           Python 3.11; pyproject declares
+#                           requires-python = ">=3.10" and the CI matrix runs
+#                           only 3.11 and 3.12, so a 3.10 install would fail at
+#                           IMPORT with nothing in the pipeline to catch it. A
+#                           test now scans the package for StrEnum and fails.
+#
+#                     THE THREE MEASURED STATES (against the repository, not
+#                     estimated): regression -> IMPLEMENTED_NO_OUTPUT + ABSENT
+#                     (gtex, rnaseq and functional_assays directories all
+#                     absent); multilabel_disease -> NOT_IMPLEMENTED + ABSENT
+#                     (ClinVar's disease field and phenotype identifiers are both
+#                     unread); gene_ranking -> OUTPUT_AVAILABLE + CONTAMINATED.
+#
+#                     PROVEN BY SABOTAGE, all seven detected:
+#                       OK invariant removed entirely       -> 27 failed
+#                       OK no longer needs admissible target->  5 failed
+#                       non-OK no longer needs a reason     -> 16 failed
+#                       gate treats non-OK as satisfied     -> 13 failed
+#                       empty release reports complete      ->  1 failed
+#                       an original status value changed    ->  1 failed
+#                       StrEnum reintroduced                ->  1 failed
+#
+2544
