@@ -215,22 +215,27 @@ def test_package_reexports_are_intact():
         assert hasattr(E, name), f"public API lost: {name}"
 
 
-def test_legacy_metrics_api_is_preserved():
-    """compute_classification_metrics / ModelEvaluator predate the metric stack."""
-    from genomic_variant_classifier.evaluation.metrics import (
-        compute_classification_metrics, ModelEvaluator,
-    )
-    rng = np.random.default_rng(0)
-    y = rng.integers(0, 2, 300)
-    p = np.clip(0.6 * y + 0.4 * rng.beta(2, 5, 300), 0.0, 1.0)
-    m = compute_classification_metrics(y, (p >= 0.5).astype(int), p)
-    assert set(m) == {"accuracy", "precision", "recall", "specificity", "f1", "auroc",
-                      "auprc", "brier_score", "true_positives", "true_negatives",
-                      "false_positives", "false_negatives"}
-    assert "MODEL EVALUATION REPORT" in ModelEvaluator(y, p).generate_report()
-    # the two APIs must agree on the same data
-    assert m["auroc"] == pytest.approx(auroc(y, p), abs=1e-12)
-    assert m["auprc"] == pytest.approx(auprc(y, p), abs=1e-12)
+def test_the_legacy_metrics_api_is_gone():
+    """REPLACES test_legacy_metrics_api_is_preserved, removed 2026-07-21.
+
+    `compute_classification_metrics` and `ModelEvaluator` predated the metric
+    stack and were deleted, not wrapped. Delegation would have preserved the
+    contract that was the actual problem: a dict of bare floats cannot express
+    undefined, insufficient support, dependency unavailable, or computationally
+    deferred. It returned `specificity: 0` for an undefined quantity, and on a
+    single-class cohort it did not even manage that -- confusion_matrix(...)
+    .ravel() yields one cell, not four, so it raised "not enough values to
+    unpack (expected 4, got 1)".
+
+    This test now pins their ABSENCE. Reintroducing a second evaluation contract
+    should require deleting a test that explains why there is only one.
+    """
+    import genomic_variant_classifier.evaluation.metrics as M
+    for name in ("compute_classification_metrics", "ModelEvaluator"):
+        assert not hasattr(M, name), (
+            f"{name} is back. There must be exactly one evaluation contract; "
+            "use evaluate(), which reports status rather than a bare float.")
+        assert name not in M.__all__
 
 
 def test_package_imports_without_sklearn():

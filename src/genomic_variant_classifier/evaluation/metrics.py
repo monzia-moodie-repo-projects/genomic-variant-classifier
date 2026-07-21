@@ -5,7 +5,7 @@ Author: Monzia Moodie
 =============================================================================
 REVISION 2026-07-08 -- METRIC STACK ADDED **ALONGSIDE** THE ORIGINAL API.
 
-Nothing above the "METRIC STACK" banner is changed. `compute_classification_metrics`
+SUPERSEDED 2026-07-21: the original API below the header -- `compute_classification_metrics`
 and `ModelEvaluator` are restored verbatim from commit 87e32ad^, after 87e32ad
 overwrote them. Behaviour, signatures, and sklearn backing are identical.
 
@@ -44,55 +44,6 @@ from sklearn.metrics import (
 )
 from sklearn.calibration import calibration_curve
 
-def compute_classification_metrics(y_true, y_pred, y_proba):
-    tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
-    return {
-        "accuracy": accuracy_score(y_true, y_pred),
-        "precision": precision_score(y_true, y_pred, zero_division=0),
-        "recall": recall_score(y_true, y_pred, zero_division=0),
-        "specificity": tn / (tn + fp) if (tn + fp) > 0 else 0,
-        "f1": f1_score(y_true, y_pred, zero_division=0),
-        "auroc": roc_auc_score(y_true, y_proba),
-        "auprc": average_precision_score(y_true, y_proba),
-        "brier_score": brier_score_loss(y_true, y_proba),
-        "true_positives": int(tp),
-        "true_negatives": int(tn),
-        "false_positives": int(fp),
-        "false_negatives": int(fn),
-    }
-
-class ModelEvaluator:
-    def __init__(self, y_true, y_proba, threshold=0.5):
-        self.y_true = np.array(y_true)
-        self.y_proba = np.array(y_proba)
-        self.threshold = threshold
-        self.y_pred = (self.y_proba >= threshold).astype(int)
-
-    def get_all_metrics(self):
-        return {
-            "classification": compute_classification_metrics(
-                self.y_true, self.y_pred, self.y_proba
-            ),
-        }
-
-    def generate_report(self):
-        metrics = self.get_all_metrics()
-        clf = metrics["classification"]
-        lines = [
-            "=" * 50,
-            "MODEL EVALUATION REPORT",
-            "=" * 50,
-            f"Samples: {len(self.y_true)} ({self.y_true.sum()} positive)",
-            f"AUROC: {clf['auroc']:.4f}",
-            f"AUPRC: {clf['auprc']:.4f}",
-            f"F1: {clf['f1']:.4f}",
-            f"Precision: {clf['precision']:.4f}",
-            f"Recall: {clf['recall']:.4f}",
-            "=" * 50,
-        ]
-        return "\n".join(lines)
-
-
 # =============================================================================
 # METRIC STACK (2026-07-08) -- ADDITIVE. Pure numpy/pandas primitives, every one
 # independently unit-tested and cross-validated against sklearn.
@@ -110,9 +61,26 @@ class ModelEvaluator:
 #   G  subgroup sufficiency tested total n only, ignoring class support
 #   +  the bootstrap resampled VARIANTS, ignoring within-gene correlation
 #
-# NOT changed here: `compute_classification_metrics` and `ModelEvaluator` above this banner.
-# They are unsafe in ways this stack explicitly rejects, and unifying them is a separate,
-# separately-measured commit. Nothing above this line is edited by the 2026-07-20 work.
+# 2026-07-21 -- THE SEPARATE COMMIT THE NOTE ABOVE ANTICIPATED.
+#
+# `compute_classification_metrics` and `ModelEvaluator` stood above this banner until
+# today, described there as "unsafe in ways this stack explicitly rejects" with their
+# unification deferred to a separate, separately-measured commit. This is it. They are
+# REMOVED, not wrapped.
+#
+# Removal rather than delegation, because delegation preserves the contract that is the
+# actual problem. The old API returned a dict of bare floats, which cannot express
+# undefined, insufficient support, dependency unavailable, or computationally deferred --
+# all first-class scientific states here. float("nan") inside such a dict is already a
+# compromise; `specificity: 0` for an undefined quantity is worse. And on a single-class
+# cohort it did neither: confusion_matrix(...).ravel() yields one cell, not four, so it
+# raised "not enough values to unpack (expected 4, got 1)".
+#
+# Neither had a production caller. One test pinned them; one notebook imported them from
+# `src.evaluation.metrics`, a package path that has not existed since the rename. Two
+# evaluation contracts in one module invite divergence, and this project was bitten four
+# times in a single day by a check reporting success where nothing was measured. Use
+# `evaluate()`: one contract, one status model, one source of truth.
 # =============================================================================
 
 from dataclasses import dataclass  # noqa: E402
@@ -120,8 +88,8 @@ from typing import Callable, Iterable, Iterator, Sequence  # noqa: E402
 import pandas as pd  # noqa: E402
 
 __all__ = [
-    # original API -- do not remove
-    "compute_classification_metrics", "ModelEvaluator",
+    # `compute_classification_metrics` and `ModelEvaluator` were removed 2026-07-21;
+    # the "do not remove" note that stood here was itself stale. See the banner above.
     # metric stack
     "auroc", "auprc", "auprc_gain", "no_skill_auprc", "brier_score", "log_loss",
     "expected_calibration_error", "calibration_slope_intercept",
@@ -593,7 +561,48 @@ def evaluate(y: Sequence, score: Sequence, *,
     y_c, s_c, p = c.y, c.score, c.probability
     base = no_skill_auprc(y_c)
     ap = auprc(y_c, s_c)
-    cal_ok = is_probability(p)
+    # CALIBRATION VALIDITY IS NOT MERELY "ARE THESE PROBABILITIES?".
+    #
+    # This gated on is_probability(p) alone until 2026-07-21, which let a single-class
+    # cohort through. Measured on y = [1,1,1,1], p = [.9,.8,.85,.95]:
+    #
+    #     auroc NaN   auprc NaN            <- correct, ranking is undefined
+    #     cal_slope NaN   cal_intercept NaN
+    #     brier 0.01875   ece 0.125        <- NUMBERS
+    #     calibration_valid True           <- asserting those numbers are sound
+    #
+    # That ECE of 0.125 is just 1 - 0.875: the gap between the mean prediction and the
+    # only label present. It says nothing about calibration across the probability
+    # range, because the reliability diagram has a single occupied row. The flag's own
+    # documented invariant -- "False => brier/log_loss/ece/cal_* are NaN by design" --
+    # was already violated in the other direction: cal_slope and cal_intercept were NaN
+    # while the flag read True, so a reader would take an undefined estimand for a
+    # failed computation.
+    #
+    # Both classes present is a HARD requirement; without it the quantity is not
+    # calibration. Thin support is REPORTED, not refused -- refusing what the
+    # predecessor accepted is the regression that broke this suite earlier today on a
+    # 427-row cohort, and small fixtures must keep working. DEFAULT_MIN_POS/NEG are the
+    # same floors stratified_evaluate already applies per subgroup, so identical data
+    # was being called insufficient as a stratum and sound on its own.
+    n_pos_c = int(y_c.sum())
+    n_neg_c = int(y_c.size - n_pos_c)
+    # Ordered most specific first. An empty cohort's problem is that it is
+    # empty, not that its (nonexistent) values are not probabilities -- and
+    # is_probability([]) is correctly False, so a naive ordering reported the
+    # less useful of two true reasons.
+    if y_c.size == 0:
+        cal_ok, cal_support = False, "insufficient_rows"
+    elif not is_probability(p):
+        cal_ok, cal_support = False, "not_probabilities"
+    elif n_pos_c == 0 or n_neg_c == 0:
+        cal_ok, cal_support = False, f"single_class:pos={n_pos_c},neg={n_neg_c}"
+    elif n_pos_c < DEFAULT_MIN_POS or n_neg_c < DEFAULT_MIN_NEG:
+        cal_ok = True
+        cal_support = (f"thin:pos={n_pos_c}(min {DEFAULT_MIN_POS}),"
+                       f"neg={n_neg_c}(min {DEFAULT_MIN_NEG})")
+    else:
+        cal_ok, cal_support = True, "sufficient"
     fit = calibration_slope_intercept(y_c, p)
     out = {
         "n": c.n,
@@ -607,14 +616,25 @@ def evaluate(y: Sequence, score: Sequence, *,
         "auprc_no_skill": base,
         "auprc_lift": (ap / base) if (base and np.isfinite(ap)) else float("nan"),
         "auprc_gain": (ap - base) if np.isfinite(ap) else float("nan"),
-        "brier": brier_score(y_c, p),
-        "log_loss": log_loss(y_c, p),
-        "ece": expected_calibration_error(y_c, p, n_bins=n_bins),
+        # ENFORCED, not merely documented. Until 2026-07-21 the comment below
+        # promised "False => ... NaN by design" while ece and brier came back as
+        # numbers for a single-class cohort, because brier_score/ECE only
+        # self-guard on is_probability. A flag that does not enforce what it
+        # asserts is the same defect it exists to prevent.
+        "brier": brier_score(y_c, p) if cal_ok else float("nan"),
+        "log_loss": log_loss(y_c, p) if cal_ok else float("nan"),
+        "ece": (expected_calibration_error(y_c, p, n_bins=n_bins)
+                if cal_ok else float("nan")),
         "cal_slope": fit.slope,
         "cal_intercept": fit.intercept,
         "cal_converged": fit.converged,
         "cal_clipped_fraction": fit.clipped_fraction,
         "calibration_valid": cal_ok,   # False => brier/log_loss/ece/cal_* are NaN by design
+        # WHY, machine-readable: "sufficient" | "thin:..." | "single_class:..." |
+        # "not_probabilities". A bare boolean cannot separate "these are not
+        # probabilities" from "this cohort has one class" from "computed, but on three
+        # positives", and a reader must respond differently to each.
+        "calibration_support": cal_support,
     }
     if n_boot:
         out["auroc_ci95"] = bootstrap_ci(auroc, y_c, s_c, n_boot=n_boot, seed=seed)
@@ -645,6 +665,7 @@ _INSUFFICIENT = {
     "log_loss": float("nan"), "ece": float("nan"), "cal_slope": float("nan"),
     "cal_intercept": float("nan"), "cal_converged": False,
     "cal_clipped_fraction": float("nan"), "calibration_valid": False,
+    "calibration_support": "insufficient_rows",
 }
 
 MISSING_STRATUM = "__MISSING__"

@@ -2184,4 +2184,73 @@
 #                     clone of c68934d -- and are artifacts of --noconftest plus
 #                     absent packages, not of this change.
 #
-2417
+#   2446  2026-07-21  +29: tests/unit/test_calibration_validity_contract.py --
+#                     TWO DEFECTS IN THE METRIC KERNEL EVERY PANEL BUILDS ON.
+#
+#                     DEFECT 1: calibration_valid asserted soundness it had not
+#                     checked. It gated on is_probability(p) alone -- whether the
+#                     values lay in [0,1] -- and never asked whether a calibration
+#                     claim was SUPPORTABLE. Measured on y=[1,1,1,1],
+#                     p=[.9,.8,.85,.95]:
+#                       auroc NaN  auprc NaN      correct, ranking undefined
+#                       cal_slope NaN  cal_intercept NaN
+#                       brier 0.01875   ece 0.125     <- NUMBERS
+#                       calibration_valid True        <- asserting they are sound
+#                     That ECE is 1 - 0.875, the gap between the mean prediction
+#                     and the only label present. The reliability diagram has one
+#                     occupied row; it says nothing about calibration across the
+#                     probability range.
+#
+#                     The flag's own documented invariant -- "False =>
+#                     brier/log_loss/ece/cal_* are NaN by design" -- was ALREADY
+#                     violated in the other direction: cal_slope and cal_intercept
+#                     were NaN while the flag read True, so a reader would take an
+#                     undefined estimand for a failed computation. The invariant is
+#                     now ENFORCED in code, not merely written in a comment.
+#
+#                     Both classes present is a HARD requirement: without it the
+#                     quantity is not calibration. Thin support is REPORTED, not
+#                     refused -- DEFAULT_MIN_POS/NEG are the same floors
+#                     stratified_evaluate already applied per subgroup, so
+#                     identical data was called insufficient as a stratum and
+#                     sound on its own. Refusing it outright would repeat the
+#                     427-row regression made earlier the same day.
+#                     New field calibration_support carries the machine-readable
+#                     reason: sufficient | thin:... | single_class:... |
+#                     not_probabilities | insufficient_rows.
+#
+#                     DEFECT 2: two evaluation contracts in one module.
+#                     compute_classification_metrics and ModelEvaluator were
+#                     REMOVED, not wrapped. The 2026-07-20 banner had called them
+#                     "unsafe in ways this stack explicitly rejects" and deferred
+#                     unification to a separate, separately-measured commit; this
+#                     is that commit. Delegation would have preserved the contract
+#                     that IS the problem: a dict of bare floats cannot express
+#                     undefined, insufficient support, dependency unavailable or
+#                     computationally deferred. It returned specificity=0 for an
+#                     undefined quantity, and on a single-class cohort it did not
+#                     even manage that -- confusion_matrix(...).ravel() yields one
+#                     cell, not four, so it raised "not enough values to unpack
+#                     (expected 4, got 1)".
+#
+#                     Neither had a production caller: one test pinned them, one
+#                     notebook imported them from src.evaluation.metrics, a package
+#                     path that has not existed since the rename. The __all__ note
+#                     reading "original API -- do not remove" was itself stale.
+#                     test_legacy_metrics_api_is_preserved is replaced 1:1 by
+#                     test_the_legacy_metrics_api_is_gone, which pins their
+#                     ABSENCE, so reintroducing a second contract requires deleting
+#                     a test that explains why there is one.
+#
+#                     CHECK ORDER. An empty cohort first reported
+#                     "not_probabilities" -- true, since is_probability([]) is
+#                     correctly False, but the less useful of two true reasons.
+#                     Checks now run most-specific first and it reports
+#                     "insufficient_rows". Found by a test, not by review.
+#
+#                     PROVEN BY SABOTAGE, all three detected:
+#                       calibration_valid reverts to is_probability -> 18 failed
+#                       invariant unenforced                        ->  5 failed
+#                       legacy evaluator restored                   ->  1 failed
+#
+2446
