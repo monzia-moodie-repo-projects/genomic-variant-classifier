@@ -1525,4 +1525,69 @@
 #                     package's public surface and belongs in its own commit with
 #                     its own test.
 #
-2128
+#   2148  2026-07-21  +20: tests/unit/test_conformal_package_exports.py -- A
+#                     LIST THAT WENT STALE TWICE NOW CANNOT GO STALE AGAIN.
+#
+#                     src/genomic_variant_classifier/conformal/__init__.py
+#                     imported five of the seven modules that existed on disk.
+#                     Verified by OUTCOME against commit c663c89:
+#                         hasattr(conformal, 'calibrate') = False
+#                         hasattr(conformal, 'ordinal')   = False
+#                     calibrate had been unreachable since roughly 2026-05.
+#                     ordinal was unreachable on the day it was added.
+#
+#                     THE FAILURE IS CONFUSING WHEN IT BITES, because the two
+#                     import forms look equivalent to a reader and are not:
+#                         from ...conformal import ordinal        -- works, Python
+#                                                                    imports the
+#                                                                    submodule
+#                         conformal.ordinal.OrdinalConformalClassifier
+#                                                                 -- AttributeError,
+#                                                                    nothing bound
+#                                                                    the name on the
+#                                                                    package object
+#
+#                     ADDING TWO NAMES WOULD HAVE FIXED TODAY AND GUARANTEED A
+#                     THIRD OCCURRENCE. That import line has gone stale twice
+#                     because nothing connected "a file exists in this directory"
+#                     to "its name appears on that line". Same shape as the Run-16
+#                     preflight gate repaired earlier the same day: a literal kept
+#                     correct by memory, with no mechanism to notice when it is not.
+#
+#                     THE DESIGN. Imports stay EXPLICIT. A pkgutil loop would never
+#                     go stale but would make the public surface implicit, defeat
+#                     static analysis and editor completion, and silently import
+#                     anything dropped into the directory -- a scratch file, a
+#                     half-finished module, an editor backup. Explicit is right; it
+#                     needed a guard, not a replacement. __all__ was added so the
+#                     public surface is declared rather than inferred.
+#
+#                     The guard is the test file. It WALKS THE PACKAGE DIRECTORY
+#                     and asserts every module found is reachable as a package
+#                     attribute, is declared in __all__, and appears in the package
+#                     docstring; plus the reverse, that __all__ declares nothing
+#                     absent from disk, which would break `import *` for every
+#                     consumer at once. Adding a submodule without exporting it now
+#                     turns the suite RED and the message names the file and the fix.
+#
+#                     VERIFIED BY SIMULATION, not by assertion: a placeholder
+#                     risk_control.py -- one of the six conformal modules the
+#                     2026-07-20 handoff lists as still missing, so a realistic
+#                     case -- was dropped into the package. Five tests failed
+#                     immediately with:
+#                         conformal.risk_control is not reachable.
+#                         src/.../conformal/risk_control.py exists on disk but
+#                         'risk_control' is missing from the import in __init__.py.
+#                         Fix: add 'risk_control' to both the `from . import (...)`
+#                         block and __all__.
+#                     The file was then removed and the suite returned to green.
+#                     A guard that has never been observed to fire is not known to
+#                     work.
+#
+#                     One test exists solely to stop the others passing vacuously:
+#                     test_the_package_directory_is_readable_and_non_empty. Every
+#                     other test here is parametrised over a directory listing, and
+#                     an empty listing would produce zero test cases and a green
+#                     suite -- the standard failure mode of data-driven tests.
+#
+2148
