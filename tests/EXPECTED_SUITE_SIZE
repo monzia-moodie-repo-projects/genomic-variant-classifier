@@ -1903,4 +1903,78 @@
 #                     decision is taken in this commit; the measuring instrument
 #                     is repaired first.
 #
-2283
+#   2328  2026-07-21  +45: tests/unit/test_storage_guard.py -- THE GUARD THAT
+#                     NEVER CHECKED FREE SPACE, AND THAT NOTHING EVER CALLED.
+#                     configs/data_manifest.yaml gains a storage: policy block;
+#                     scripts/maintenance/preflight_data_guard.py rewritten;
+#                     scripts/preflight_run17.py gains storage_gate() in run_all.
+#
+#                     TWO DEFECTS, BOTH OF OMISSION.
+#                     (1) preflight_data_guard.py verified structure -- dangling
+#                     junction, stray file shadowing data/, canonical subtrees --
+#                     and never looked at free space. The guard whose purpose is
+#                     catching storage problems before a run could not catch the
+#                     one the machine had. On 2026-07-20 the volume reached 0.716
+#                     per cent free and a FAILING RUN, not a guard, is what
+#                     noticed.
+#                     (2) NOTHING EVER CALLED IT. A repository-wide search across
+#                     every .py, .sh, .ps1 and .yaml on 2026-07-21 found ZERO
+#                     invocations of assert_data_usable. Its own docstring said it
+#                     was importable "to wire into run scripts / conftest". It
+#                     never was, from 2026-06-14 to 2026-07-21. A guard that is
+#                     not invoked is not a guard; it is a comment that happens to
+#                     be executable. Defect (2) mattered more than (1): fixing
+#                     only the first would have produced a better guard that still
+#                     never ran.
+#
+#                     MEASURED CONTEXT (2026-07-21). C: is the ONLY fixed volume:
+#                     935.59 GiB, 83.50 free, 8.925 per cent. data/ is 98.75 GiB,
+#                     LARGER than the free space, so nothing large can be staged,
+#                     duplicated or rebuilt in place. Nine suite runs on identical
+#                     code spanned 605.08 s to 1131.67 s, a 1.87x range consistent
+#                     with a host under storage pressure.
+#
+#                     THREE SEVERITIES, NOT ONE THRESHOLD. A single threshold must
+#                     choose between crying wolf and staying silent until it is too
+#                     late.
+#                       free >= required                OK
+#                       hard_floor <= free < required    WARN, run proceeds
+#                       free < hard_floor                FAIL, refuse
+#                     required = working_cache_gib + max(headroom_fraction *
+#                     volume, headroom_min_gib) = 61.48 GiB on this volume, which
+#                     reproduces EXACTLY what audit_disk_census.py printed. One
+#                     model, not two.
+#
+#                     POLICY LIVES IN THE MANIFEST. DATA_LAYOUT_STANDARD.md already
+#                     declares configs/data_manifest.yaml the single source the
+#                     auditor, setup and sync scripts read. audit_disk_census.py
+#                     keeps its OWN constants deliberately -- it must run standalone
+#                     from any directory with the repository not importable -- and
+#                     test_policy_matches_the_census_tool fails if the two ever
+#                     disagree. Duplication as a considered trade, made safe by a
+#                     test, rather than duplication by accident.
+#
+#                     WIRED AT THE POINT WHERE IT COSTS MONEY. storage_gate() joins
+#                     run_all() in preflight_run17.py, which runs before a Vast.ai
+#                     instance is created. It degrades to a FAIL ROW rather than an
+#                     exception if the guard cannot load, because a preflight that
+#                     dies on its first problem hides the second.
+#
+#                     PROVEN BY SABOTAGE, all seven detected:
+#                       DEFAULT_POLICY drifts from manifest    ->  2 failed
+#                       census constant drifts from manifest   ->  1 failed
+#                       manifest changes, code copies do not   ->  4 failed
+#                       hard floor stops being enforced        ->  6 failed
+#                       __post_init__ validation removed       ->  7 failed
+#                       storage_rows raises instead of a row   ->  1 failed
+#                       free-space row dropped entirely        ->  4 failed
+#
+#                     A PYTHON INTERACTION WORTH RECORDING: @dataclass under
+#                     `from __future__ import annotations` resolves annotations
+#                     through sys.modules[cls.__module__]. A module loaded by
+#                     importlib.util.spec_from_file_location must be REGISTERED in
+#                     sys.modules BEFORE exec_module, or the decorator raises
+#                     AttributeError on None. Both the test loader and
+#                     storage_gate() do this, with the reason written down.
+#
+2328

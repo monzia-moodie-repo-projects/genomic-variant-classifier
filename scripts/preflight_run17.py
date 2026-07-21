@@ -257,6 +257,37 @@ def hetero_gate(ns, data_root: str) -> list[tuple[str, str]]:
     return rows
 
 
+# ---- storage gate (added 2026-07-21) ----------------------------------------
+# The data guard existed since 2026-06-14 and NOTHING EVER CALLED IT. A
+# repository-wide search across every .py, .sh, .ps1 and .yaml on 2026-07-21
+# found zero invocations of assert_data_usable. Its own docstring said it was
+# importable "to wire into run scripts / conftest"; it never was. It also never
+# checked free space, so the guard whose job is catching storage problems could
+# not catch the one the machine had -- the volume reached 0.716 per cent free on
+# 2026-07-20 and a failing run, not a guard, is what noticed.
+#
+# It is wired HERE because this is where a storage problem starts costing money:
+# preflight runs before a Vast.ai instance is created. Severity is graduated, so
+# a thin disk warns and a dangerous one refuses -- see configs/data_manifest.yaml.
+def storage_gate(data_root: str = "data",
+                 manifest: str | Path = "configs/data_manifest.yaml"
+                 ) -> list[tuple[str, str]]:
+    """data/ structure + free space, in the standard row convention."""
+    try:
+        import importlib.util
+        guard_path = Path(__file__).resolve().parent / "maintenance" / "preflight_data_guard.py"
+        spec = importlib.util.spec_from_file_location("preflight_data_guard", guard_path)
+        mod = importlib.util.module_from_spec(spec)
+        # register BEFORE exec: @dataclass under `from __future__ import
+        # annotations` resolves annotations via sys.modules[cls.__module__].
+        sys.modules["preflight_data_guard"] = mod
+        spec.loader.exec_module(mod)
+    except Exception as e:  # the gate must report, never take the preflight down
+        return [("FAIL", f"storage: could not load the data guard ({type(e).__name__}: {e}). "
+                         f"Expected at scripts/maintenance/preflight_data_guard.py")]
+    return mod.storage_rows(data_root, manifest)
+
+
 def run_all(command: str, data_root: str, n_train: int, defer_kg: bool,
             baseline_path: str | Path = SCHEMA_BASELINE_REL,
             scripts_dir: str | Path = "scripts",
@@ -271,6 +302,7 @@ def run_all(command: str, data_root: str, n_train: int, defer_kg: bool,
     rows += string_db_gate(_string_threshold_from_ns(ns), cache_dir, local_links)
     rows += schema_gate(baseline_path)
     rows += scripts_gate(scripts_dir)
+    rows += storage_gate(data_root)
     return rows
 
 

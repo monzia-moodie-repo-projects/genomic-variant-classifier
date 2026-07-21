@@ -21,6 +21,41 @@ gdrive:
   remote: "genvarcla:"                       # rclone remote (Google Drive)
   base: "genomic-variant-classifier/data"    # path under the remote (the mirror root)
 
+# ---------------------------------------------------------------------------
+# STORAGE POLICY -- how much free space a run requires, and when to refuse.
+#
+# Added 2026-07-21. Until now these numbers existed only as three constants
+# inside scripts/forensics/audit_disk_census.py, and scripts/maintenance/
+# preflight_data_guard.py did not check free space at all -- so the guard whose
+# job is to catch storage problems before a run could not catch the storage
+# problem the machine had.
+#
+# Measured on 2026-07-21: C: is the ONLY fixed volume, 935.59 GiB, 83.50 free
+# (8.925 per cent). data/ alone is 98.75 GiB -- larger than the free space, so
+# there is no headroom to stage, duplicate or rebuild any large artifact in
+# place. Below ten per cent free is where Windows behaviour degrades, and the
+# test suite showed a 1.87x wall-clock range on identical code over nine runs.
+#
+# required = working_cache_gib + max(headroom_fraction * volume, headroom_min_gib)
+#
+# THREE SEVERITIES, so the gate informs long before it blocks:
+#   free >= required          OK
+#   hard_floor <= free < req  WARN  -- run proceeds; the margin is gone
+#   free < hard_floor         FAIL  -- refuse; this is where runs corrupt
+#
+# A single threshold would have to choose between crying wolf and staying
+# silent until it is too late. These numbers are POLICY and live here, not in
+# code; scripts/forensics/audit_disk_census.py keeps its own copies so it can
+# run standalone from any directory, and tests/unit/test_storage_guard.py
+# fails if the two ever disagree.
+# ---------------------------------------------------------------------------
+storage:
+  working_cache_gib: 14.7      # JEPA embedding cache built during a full run
+  headroom_fraction: 0.05      # of total volume size
+  headroom_min_gib: 20.0       # floor on the headroom term
+  hard_floor_gib: 25.0         # below this, refuse outright
+  warn_below_percent_free: 10.0  # advisory: Windows degrades under ten per cent
+
 sources:
   # ---- EXTERNAL: third-party reference data (read-only inputs) ----
   clinvar:
