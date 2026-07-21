@@ -2053,4 +2053,135 @@
 #                     partitions worked on the first probe, which is the payoff
 #                     of the schema-as-data rewrite in 5b1c82b.
 #
-2378
+#   2408  2026-07-21  +30: tests/unit/test_calibration_carve.py -- THE ISOTONIC
+#                     CALIBRATOR WAS FITTED ON GENES THE MODELS HAD TRAINED ON,
+#                     IN EVERY PRODUCTION RUN.
+#
+#                     WHERE IT LIVED. run_phase2_eval.py:590 -- the production
+#                     entry point, the one preflight_run17.emit_command() emits
+#                     and every Run 14-17 launcher uses -- calls fit() with no
+#                     *_cal_ext argument, taking the self-carve branch:
+#                       _tts(idx, test_size=0.15, stratify=y_arr, ...)
+#                     `stratify=`, no `groups=`. Measured 2026-07-21:
+#                       500 genes        319/319 cal genes also in fit; 100.0% of
+#                                        cal ROWS from trained-on genes
+#                       8,000 genes    7,856/7,864 likewise; 100.0% of cal rows
+#                     Twenty lines below, the inner CV is carefully gene-disjoint
+#                     via GroupKFold citing INCIDENT_2026-06-13. Out-of-fold
+#                     PREDICTIONS were gene-disjoint; the fold the CALIBRATOR was
+#                     fitted on was not. One function, two standards.
+#
+#                     WHAT WAS NOT THE DEFECT. train.py's v2_conformal path fits
+#                     the calibrator on `tune`, the SELECTION set -- also wrong,
+#                     but NO launcher passes --split-protocol, so it has never
+#                     run. Claude asserted three times that fixing train.py would
+#                     "correct every calibrated number the project reports". That
+#                     was WRONG: train.py is not the production entry point.
+#                     Checking emit_command() before designing the fix is the only
+#                     reason this commit touches variant_ensemble.py instead.
+#
+#                     THE FIX. EnsembleConfig.calibration_carve, default
+#                     "gene_disjoint": carve whole GENES via GroupShuffleSplit.
+#                     "legacy_stratified" reproduces the old behaviour BYTE-FOR-
+#                     BYTE (identical indices at seeds 42/7/2026) so historical
+#                     runs stay reproducible. Result: 100.0% -> 0.0% of
+#                     calibration rows from trained-on genes, both cohorts.
+#
+#                     THE ROW-VERSUS-GROUP TRAP. GroupShuffleSplit's test_size is
+#                     a proportion of GROUPS, not rows -- the same trap that
+#                     crashed 3 of 12 seeds in split_protocol_v2.group_shuffle
+#                     earlier the same day. The carve therefore VALIDATES the fold
+#                     it produced (both classes present, >= calibration_min_rows)
+#                     across a deterministic seed sequence, and RAISES with the
+#                     full attempt log if none qualifies. Realized row fraction
+#                     stayed at 14.9% and 14.7% against a 15% target.
+#
+#                     NO SILENT FALLBACK. calibration_carve_used_ records what
+#                     actually happened: gene_disjoint:seed=N,
+#                     legacy_stratified:configured, or
+#                     legacy_stratified:no_gene_labels. run_phase2_eval reads
+#                     gene_symbol from splits/meta_train.parquet, which may be
+#                     absent -- that path now warns loudly rather than degrading
+#                     in silence.
+#
+#                     WHAT THE FIX ACTUALLY BUYS, MEASURED OVER FIVE COHORTS --
+#                     AND IT IS NOT WHAT CLAUDE PREDICTED. Claude said reported
+#                     numbers would change and current values were optimistic.
+#                     Measured Brier on a locked set of ENTIRELY UNSEEN genes:
+#                       legacy        0.18063
+#                       gene-disjoint 0.18064      difference +0.00001 (+0.00%)
+#                     The REPORTED numbers barely move. What was optimistic is the
+#                     INTERNAL estimate: the legacy calibration fold overstated
+#                     its own quality in 5 of 5 cohorts, mean +0.00415 Brier;
+#                     gene-disjoint mean +0.00048, essentially unbiased.
+#                     CONSEQUENCE: Runs 14-17 reported test metrics DO NOT need
+#                     retracting. The defect corrupted a diagnostic, not the
+#                     headline. Synthetic cohorts; magnitude on the real cohort
+#                     may differ, and the first real run should re-measure.
+#
+#                     A SABOTAGE THAT FAILED TO FAIL. Removing the both-classes
+#                     guard left all 28 tests passing, because every cohort used
+#                     happened to yield both classes. A cohort where the label is
+#                     a property of the GENE (4 of 40 genes pathogenic) makes
+#                     GroupShuffleSplit at random_state=42 return an 89-row
+#                     ALL-BENIGN fold; isotonic regression on one class returns a
+#                     constant and raises nothing. Two tests now pin it, and the
+#                     fixture asserts it still forces the condition -- so the test
+#                     cannot quietly stop testing. Fifth instance of the same
+#                     lesson today, and the second in Claude's own work.
+#
+#                     PROVEN BY SABOTAGE, all six detected after the repair:
+#                       default flips back to legacy        ->  5 failed
+#                       disjoint branch uses stratified     ->  8 failed
+#                       both-classes guard removed          ->  1 failed
+#                       min-rows guard removed              ->  3 failed
+#                       missing gene labels fall back mute  ->  1 failed
+#                       legacy test_size drifts             ->  4 failed
+#
+#   2417  2026-07-21  +9 (2408 -> 2417): tests/unit/test_calibration_carve.py
+#                     grows from 30 to 39. The 2408 bump was WITHDRAWN: the
+#                     calibration carve it accompanied BROKE THE SUITE.
+#
+#                     WHAT BROKE. calibration_min_rows was a single absolute
+#                     floor of 200. test_level2_leakfree_oof uses a 427-row
+#                     cohort across 30 genes, where a 15 per cent carve of ANY
+#                     kind yields about 64 rows. The floor refused gene-disjoint
+#                     folds of 63-76 rows -- while the LEGACY stratified carve it
+#                     replaced had been using a 62-row fold on that same cohort
+#                     for the entire history of the project, without complaint.
+#                     Refusing what the predecessor accepted is a regression, not
+#                     a stricter standard. Full suite: 1 failed, 2400 passed.
+#
+#                     WHY NO TEST CAUGHT IT. Every cohort in the original 30
+#                     tests had 500 or more genes. None could exercise the small-
+#                     cohort path. The guard was correct in its intent and wrong
+#                     in its instrument.
+#
+#                     THE REPAIR. The guard now asks "did the carve deliver
+#                     roughly what was ASKED for?" rather than "is this fold
+#                     small?" -- because that is the question the row-versus-group
+#                     trap actually poses. Three thresholds:
+#                       calibration_min_rows            = 25   absolute floor
+#                       calibration_min_fraction_of_target = 0.5
+#                       calibration_max_fraction_of_target = 2.0
+#                       calibration_advisory_rows       = 200  WARN, not refuse
+#
+#                     THE TRAP RUNS BOTH WAYS -- found by probing the lower bound,
+#                     not by review. A cohort of 11,000 rows whose largest gene
+#                     held 9,000 produced a 9,300-row calibration fold against a
+#                     1,650-row target: 85 per cent of the data, leaving the
+#                     models 1,700 rows to fit on. An upper bound now refuses it.
+#
+#                     VERIFIED ACROSS THREE REGIMES:
+#                       427 rows / 30 genes      -> 76-row fold, WARNS, proceeds
+#                       11,000 rows, 1 dominant  -> REFUSED, both verdicts seen
+#                       1,201,942 rows / 8,000   -> 180,458 rows, exactly 15.0%
+#
+#                     test_level2_leakfree_oof passes again (4 passed). The 14
+#                     failures seen in the authoring sandbox for
+#                     test_reclassification_* and test_split_protocol_schema are
+#                     PRE-EXISTING there -- identical counts on an unmodified
+#                     clone of c68934d -- and are artifacts of --noconftest plus
+#                     absent packages, not of this change.
+#
+2417

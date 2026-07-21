@@ -593,6 +593,78 @@ class EnsembleConfig:
     # without turning every unit-test fixture red.
     zero_variance_min_rows: int = 10_000
 
+    # How the post-hoc isotonic calibration fold is carved when NO external
+    # calibration partition is supplied. Added 2026-07-21.
+    #
+    #   "gene_disjoint"      (DEFAULT) carve whole GENES into the calibration
+    #                        fold, so the isotonic calibrator is fitted on genes
+    #                        the base models never saw.
+    #   "legacy_stratified"  the pre-2026-07-21 behaviour, byte-for-byte: a 15
+    #                        per cent LABEL-stratified row split. Retained so
+    #                        historical runs remain exactly reproducible.
+    #
+    # THE DEFECT THIS REPLACES. run_phase2_eval.py:590 -- the production entry
+    # point, and the one every Run 14-17 launcher uses -- calls fit() with no
+    # *_cal_ext argument, so the self-carve branch runs. That carve passed
+    # `stratify=y_arr` and NO `groups=`, so genes appeared on both sides.
+    # Measured 2026-07-21 on a ClinVar-scale cohort (1,192,877 rows / 8,000
+    # genes): 7,854 of the calibration fold's 7,857 genes were also in the fit
+    # fold, and 100.0 per cent of calibration rows came from genes the models
+    # had trained on. The same number at 500-gene scale: also 100.0 per cent.
+    #
+    # Twenty lines below the carve, the inner cross-validation is carefully
+    # gene-disjoint via GroupKFold, citing INCIDENT_2026-06-13. So out-of-fold
+    # PREDICTIONS were gene-disjoint while the fold the CALIBRATOR was fitted on
+    # was not -- an inconsistency inside one function. The calibrator therefore
+    # learned the score-to-probability map in the SEEN-gene regime, and those
+    # probabilities were reported for unseen genes.
+    #
+    # Affects xgboost, lightgbm and random_forest (the _RECALIBRATE set) and,
+    # through them, the stacking meta-learner. Every Brier score, reliability
+    # curve and expected-calibration-error figure from Runs 14-17 came through
+    # this path.
+    calibration_carve: str = "gene_disjoint"
+
+    # HOW SMALL A CALIBRATION FOLD MAY BE. Three thresholds, not one.
+    #
+    # The first version of this was a single absolute floor of 200 rows, and it
+    # was WRONG -- it broke test_level2_leakfree_oof on 2026-07-21. That cohort
+    # is 417 rows across 30 genes, so a 15 per cent carve of ANY kind yields
+    # about 62 rows. The floor refused gene-disjoint folds of 63-76 rows while
+    # the legacy stratified carve it replaced had been using a 62-row fold for
+    # the entire history of the project, without complaint. Refusing what the
+    # predecessor accepted is a regression, not a stricter standard.
+    #
+    # The real question the guard exists to ask is NOT "is this fold small?" but
+    # "did this carve deliver roughly what was ASKED for?" -- because
+    # GroupShuffleSplit's test_size is a proportion of GROUPS, and a heavy-tailed
+    # gene-size distribution can turn a 15 per cent request into 3 per cent of
+    # rows. A small cohort producing a proportionally small fold is fine; a large
+    # cohort producing a fold a fraction of the requested size is the defect.
+    #
+    #   calibration_min_rows            absolute floor -- below this an isotonic
+    #                                   fit is meaningless at any cohort size
+    #   calibration_min_fraction_of_target
+    #                                   the fold must be at least this fraction
+    #                                   of test_size * n_rows; THIS is what
+    #                                   catches the row-versus-group trap
+    #   calibration_advisory_rows       not a floor: below this the fit is noisy
+    #                                   and the run says so, but proceeds
+    #   calibration_max_fraction_of_target
+    #                                   the trap runs BOTH ways. One gene holding
+    #                                   most of the rows can land wholly IN the
+    #                                   calibration fold: measured 2026-07-21, a
+    #                                   cohort of 11,000 rows whose largest gene
+    #                                   held 9,000 produced a 9,300-row
+    #                                   calibration fold against a 1,650-row
+    #                                   target -- 85 per cent of the data, leaving
+    #                                   the models 1,700 rows to fit on. Found by
+    #                                   probing the lower bound, not by review.
+    calibration_min_rows: int = 25
+    calibration_min_fraction_of_target: float = 0.5
+    calibration_max_fraction_of_target: float = 2.0
+    calibration_advisory_rows: int = 200
+
     # ---- THE SEQUENCE-PROVENANCE GATE ------------------------------------------------
     # Added 2026-07-20. See _require_sequence_windows.
     #
@@ -2466,6 +2538,138 @@ class VariantEnsemble:
             )
         )
 
+    def _carve_calibration_fold(self, idx, y_arr, gene_symbol, test_size=0.15):
+        """Choose the rows the post-hoc isotonic calibrator is fitted on.
+
+        Returns (idx_fit, idx_cal, how), where `how` records what was actually
+        done -- never a silent fallback. `how` is stored on the fitted ensemble
+        as `calibration_carve_used_` so a run can be audited after the fact.
+
+        GENE-DISJOINT MODE carves whole genes. That is the point: a calibrator
+        fitted on genes the models memorised maps scores to probabilities in the
+        seen-gene regime, and the project's entire claim is about unseen genes.
+
+        THE ROW-VERSUS-GROUP TRAP. GroupShuffleSplit interprets test_size as a
+        proportion of GROUPS, not rows. ClinVar per-gene variant counts are
+        heavy-tailed, so 15 per cent of genes can be far from 15 per cent of
+        rows -- the same defect found in split_protocol_v2.group_shuffle on
+        2026-07-21, where a row-based rescale crashed 3 of 12 seeds. Rather than
+        assume the realized size is acceptable, this tries a deterministic
+        sequence of candidate carves and takes the first that is USABLE:
+
+          * both classes present -- isotonic regression on one class is
+            degenerate and silently returns a constant;
+          * at least `calibration_min_rows` rows.
+
+        If none qualifies it raises with the full diagnostic, rather than
+        proceeding on a fold that cannot support the fit it is for.
+        """
+        from sklearn.model_selection import train_test_split as _tts
+        from sklearn.model_selection import GroupShuffleSplit
+
+        mode = getattr(self.config, "calibration_carve", "gene_disjoint")
+        if mode not in ("gene_disjoint", "legacy_stratified"):
+            raise ValueError(
+                f"calibration_carve must be 'gene_disjoint' or "
+                f"'legacy_stratified', got {mode!r}")
+
+        def _legacy(reason):
+            i_fit, i_cal = _tts(idx, test_size=test_size, stratify=y_arr,
+                                random_state=self.config.random_state)
+            return i_fit, i_cal, reason
+
+        if mode == "legacy_stratified":
+            logger.warning(
+                "Calibration fold: LEGACY label-stratified carve, by explicit "
+                "configuration. Genes appear on both sides, so the isotonic "
+                "calibrator is fitted on genes the models trained on and the "
+                "resulting probabilities are optimistic for unseen genes. This "
+                "setting exists to reproduce runs made before 2026-07-21.")
+            return _legacy("legacy_stratified:configured")
+
+        if gene_symbol is None:
+            logger.warning(
+                "Calibration fold: gene labels were NOT supplied to fit(), so a "
+                "gene-disjoint carve is impossible and the legacy "
+                "label-stratified carve is used instead. The calibrator will be "
+                "fitted on genes the models trained on. Pass gene_symbol= to "
+                "fix this; run_phase2_eval.py reads it from "
+                "splits/meta_train.parquet, which may be absent.")
+            return _legacy("legacy_stratified:no_gene_labels")
+
+        genes = pd.Series(np.asarray(gene_symbol)).reset_index(drop=True)
+        n_genes = genes.nunique()
+        # See EnsembleConfig for why this is a graduated rule and not one floor.
+        expected = test_size * len(idx)
+        floor_abs = int(getattr(self.config, "calibration_min_rows", 25))
+        floor_rel = (float(getattr(self.config,
+                                   "calibration_min_fraction_of_target", 0.5))
+                     * expected)
+        min_rows = max(floor_abs, floor_rel)
+        ceil_rel = (float(getattr(self.config,
+                                  "calibration_max_fraction_of_target", 2.0))
+                    * expected)
+        advisory = int(getattr(self.config, "calibration_advisory_rows", 200))
+        attempts = []
+        for k in range(10):
+            seed = int(self.config.random_state) + k
+            gss = GroupShuffleSplit(n_splits=1, test_size=test_size, random_state=seed)
+            try:
+                (fit_i, cal_i), = gss.split(idx, y_arr, groups=genes.to_numpy())
+            except ValueError as e:
+                attempts.append((seed, 0, set(), f"split failed: {e}"))
+                continue
+            i_fit, i_cal = idx[fit_i], idx[cal_i]
+            classes = set(np.unique(y_arr[i_cal]).tolist())
+            ok_classes = len(classes) >= 2
+            ok_rows = min_rows <= len(i_cal) <= ceil_rel
+            if not ok_classes:
+                verdict = "one class"
+            elif len(i_cal) < min_rows:
+                verdict = "too few rows"
+            elif len(i_cal) > ceil_rel:
+                verdict = "too many rows (a dominant gene landed in the fold)"
+            else:
+                verdict = "OK"
+            attempts.append((seed, len(i_cal), classes, verdict))
+            if ok_classes and ok_rows:
+                if len(i_cal) < advisory:
+                    logger.warning(
+                        "Calibration fold: only %d rows (advisory threshold %d). "
+                        "The isotonic fit will be noisy and may be worse than no "
+                        "calibration at all. This is USUALLY a small cohort, not a "
+                        "defect -- the fold is %.1f%% of the %.0f rows a %.0f%% "
+                        "carve targets. Proceeding.",
+                        len(i_cal), advisory,
+                        100.0 * len(i_cal) / max(expected, 1e-9), expected,
+                        100.0 * test_size)
+                logger.info(
+                    "Calibration fold: GENE-DISJOINT carve (seed %d): fit=%d rows / "
+                    "cal=%d rows (%.1f%% of rows, target %.0f%% of GENES); "
+                    "%d genes total, 0 shared.",
+                    seed, len(i_fit), len(i_cal),
+                    100.0 * len(i_cal) / max(len(idx), 1), 100.0 * test_size, n_genes)
+                return i_fit, i_cal, f"gene_disjoint:seed={seed}"
+
+        raise ValueError(
+            "Calibration fold: no gene-disjoint carve of "
+            f"{len(idx)} rows across {n_genes} genes produced a usable "
+            f"calibration fold in 10 attempts (need both classes and >= "
+            f"{min_rows:.0f} rows, which is max(absolute floor {floor_abs}, "
+            f"{floor_rel:.0f} = {getattr(self.config, 'calibration_min_fraction_of_target', 0.5)} "
+            f"x the {expected:.0f} rows a {100*test_size:.0f}% carve targets), "
+            f"and <= {ceil_rel:.0f} rows so a dominant gene cannot swallow the "
+            f"fold and starve the fit). "
+            f"Attempts (seed, rows, classes, verdict): "
+            f"{attempts}. This is a cohort problem, not a split problem: with "
+            "too few genes, or genes whose labels are near-constant, no "
+            "gene-disjoint fold can support an isotonic fit. Supply an external "
+            "calibration partition (X_tab_cal_ext), lower "
+            "config.calibration_min_rows deliberately, or set "
+            "config.calibration_carve='legacy_stratified' and accept that the "
+            "resulting probabilities are optimistic.")
+
+
     def fit(
         self, X_tab: pd.DataFrame, X_seq: "pd.DataFrame | None", y: pd.Series,
         gene_symbol: "pd.Series | None" = None,
@@ -2552,20 +2756,24 @@ class VariantEnsemble:
             X_seq_cal = X_seq_cal_ext.reset_index(drop=True)
             y_fit = y_arr
             y_cal = np.asarray(y_cal_ext)
+            self.calibration_carve_used_ = "external_partition"
             logger.info(
                 "Calibrating on EXTERNAL gene-disjoint partition: fit=%d, cal=%d.",
                 len(y_fit), len(y_cal),
             )
         else:
-            # Carve out 15% calibration split using index-based split so that
+            # Carve out a 15% calibration fold using an index-based split so that
             # X_tab stays a DataFrame (required for CatBoost column-name dispatch).
+            #
+            # GENE-DISJOINT since 2026-07-21. This previously passed
+            # `stratify=y_arr` with no `groups=`, so 100% of calibration rows came
+            # from genes the models trained on -- see EnsembleConfig.calibration_carve
+            # for the measurement. _carve_calibration_fold() records what it did in
+            # `how`, so a fallback can never be silent.
             idx = np.arange(len(y_arr))
-            idx_fit, idx_cal = _tts(
-                idx,
-                test_size=0.15,
-                stratify=y_arr,
-                random_state=self.config.random_state,
-            )
+            idx_fit, idx_cal, _carve_how = self._carve_calibration_fold(
+                idx, y_arr, gene_symbol, test_size=0.15)
+            self.calibration_carve_used_ = _carve_how
             X_tab_fit = X_tab.iloc[idx_fit].reset_index(drop=True)
             X_tab_cal = X_tab.iloc[idx_cal].reset_index(drop=True)
             X_seq_fit = (None if X_seq is None
