@@ -71,7 +71,7 @@ from genomic_variant_classifier.evaluation.clustering_metrics import (
     evaluate_partition_agreement,
     maximum_n_for_memory,
     permutation_null_ami,
-    permute_covariate_by_group,
+    permute_covariate_by_gene_block,
     stratified_cluster_sample,
 )
 
@@ -680,7 +680,7 @@ def test_group_permutation_moves_whole_blocks():
     which depends on seeds, numpy and scikit-learn."""
     genes = np.repeat([f"G{i}" for i in range(8)], 5)
     covariate = np.repeat(np.arange(10, 90, 10), 5)
-    out = permute_covariate_by_group(covariate, genes, np.random.default_rng(1))
+    out = permute_covariate_by_gene_block(covariate, genes, np.random.default_rng(1))
     for g in np.unique(genes):
         assert len(set(out[genes == g])) == 1, (
             f"gene {g} holds several covariate values after permutation; the "
@@ -691,13 +691,13 @@ def test_group_permutation_moves_whole_blocks():
 def test_group_permutation_actually_permutes():
     genes = np.repeat([f"G{i}" for i in range(20)], 3)
     covariate = np.repeat(np.arange(20), 3)
-    out = permute_covariate_by_group(covariate, genes, np.random.default_rng(2))
+    out = permute_covariate_by_gene_block(covariate, genes, np.random.default_rng(2))
     assert not np.array_equal(out, covariate)
 
 
 def test_group_permutation_rejects_misaligned_inputs():
     with pytest.raises(ValueError, match="covariate has"):
-        permute_covariate_by_group(np.arange(10), np.arange(11),
+        permute_covariate_by_gene_block(np.arange(10), np.arange(11),
                                    np.random.default_rng(0))
 
 
@@ -713,7 +713,11 @@ def test_the_gene_level_null_is_wider_than_the_row_level_null():
                                    n_permutations=120, seed=1)
     by_row = permutation_null_ami(clustering, laboratory, groups=None,
                                   n_permutations=120, seed=1)
-    assert by_gene["permutation_unit"] == "group"
+    # "gene_block" since 2026-07-21. The previous value, "group", named only
+    # that groups were involved -- not that whole blocks were exchanged as
+    # units, which is the property the null rests on.
+    assert by_gene["permutation_unit"] == "gene_block"
+    assert by_gene["permutation_scheme"] == "gene_block"
     assert by_row["permutation_unit"] == "row"
     assert by_gene["null_p95"] > 5 * by_row["null_p95"]
 

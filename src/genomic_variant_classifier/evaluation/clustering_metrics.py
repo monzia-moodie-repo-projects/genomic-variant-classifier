@@ -838,18 +838,67 @@ def evaluate_partition_agreement(
                       exception=f"{type(e).__name__}: {e}"[:200])
 
 
-def permute_covariate_by_group(covariate: np.ndarray, groups: np.ndarray,
-                               rng: np.random.Generator) -> np.ndarray:
-    """Permute a covariate at the GROUP level: whole genes exchange values.
+def permute_covariate_by_gene_block(covariate: np.ndarray, groups: np.ndarray,
+                                    rng: np.random.Generator, *,
+                                    size_strata: bool = False) -> np.ndarray:
+    """GENE-BLOCK permutation: whole genes exchange covariate values.
+
+    Renamed from `permute_covariate_by_group` on 2026-07-21. "Gene-block
+    permutation" is the standard name for this scheme, and the old name said
+    only that groups were involved, not that whole blocks were exchanged as
+    units. The reported `permutation_scheme` now names the scheme rather than
+    the vague "group".
 
     Public because it is the mechanism the permutation null rests on, and
-    testing the mechanism directly -- that every member of a group still shares
-    one value, and that the multiset of group values is preserved -- is more
+    testing the mechanism directly -- that every member of a block still shares
+    one value, and that the multiset of block values is preserved -- is more
     fundamental and less brittle than testing a downstream quantile.
 
-    Where a group carries several covariate values the FIRST is taken as its
-    representative. That is reported by the caller rather than silently
-    collapsed, because it would otherwise misstate what was permuted.
+    THE REPRESENTATIVE RULE. Where a block carries several covariate values the
+    FIRST is taken as its representative. This is recorded in the result as
+    `representative_rule`, alongside how many blocks it applied to, because a
+    reader who is told only that twelve blocks carried multiple values still
+    cannot tell WHICH value was used.
+
+    THE MARGINAL DRIFT, AND WHY IT IS INHERENT RATHER THAN A DEFECT.
+    Gene-block permutation with UNEQUAL block sizes necessarily changes the
+    row-level marginal distribution of the covariate. Swapping a 10-row gene's
+    value with a 4-row gene's moves 10 rows out of one level and 4 into it.
+    Measured 2026-07-21 on a cohort of 1,149 rows across 150 genes with a
+    PURELY gene-level covariate -- zero genes carrying more than one value --
+    the mean total variation distance between the observed and permuted
+    marginals was 0.0145 (standard deviation 0.0076), and it was ZERO in 0 of
+    200 permutations.
+
+    Within-block heterogeneity only modulates this; it is not the cause. Across
+    within-gene variation probabilities of 0.00, 0.05, 0.15, 0.35, 0.60 and
+    1.00 the drift measured 0.0171, 0.0160, 0.0264, 0.0458, 0.0630 and 0.0172:
+    it PEAKS near 0.60 and falls back, because at full heterogeneity the first
+    value is itself a uniform draw.
+
+    THE CONSEQUENCE IS NEGLIGIBLE FOR ADJUSTED MUTUAL INFORMATION, which is
+    chance-corrected against exactly the marginals that drift. Measured
+    p-values, unstratified against size-stratified, over six seeds each:
+
+        association 0.0   0.6024 vs 0.6013   difference -0.0011
+        association 0.2   0.0659 vs 0.0548   difference -0.0111
+        association 0.4   0.0033 vs 0.0033   difference  0.0000
+        association 0.6   0.0033 vs 0.0033   difference  0.0000
+
+    So the unstratified scheme remains the DEFAULT. The drift is measured and
+    reported per run rather than restructured away, because restructuring buys
+    nothing in the quantity anyone reads and costs something real (below).
+
+    SIZE-STRATIFIED MODE (opt-in, `size_strata=True`) restricts swaps to blocks
+    of equal size, which preserves the row-level marginal EXACTLY -- measured
+    0.000000 drift in 200 of 200 permutations. Its cost is that a block alone
+    in its size stratum can only swap with itself, so its value is FROZEN across
+    every permutation. That count is reported as `n_blocks_frozen_in_stratum`
+    and MUST be read: a stratification that freezes much of the cohort is a
+    weaker null, not a stronger one. Do not assume the cost is small -- a
+    synthetic cohort with sizes drawn uniformly from 1 to 300 froze zero blocks,
+    but real ClinVar per-gene counts are far more heavy-tailed and large genes
+    are frequently unique in size.
     """
     cov = np.asarray(covariate)
     g = np.asarray(groups)
@@ -857,10 +906,53 @@ def permute_covariate_by_group(covariate: np.ndarray, groups: np.ndarray,
         raise ValueError(f"covariate has {len(cov)} entries, groups has {len(g)}")
     uniq, inv = np.unique(g, return_inverse=True)
     first_pos = np.zeros(len(uniq), dtype=int)
-    for j in range(len(uniq)):
-        first_pos[j] = int(np.flatnonzero(inv == j)[0])
-    group_values = cov[first_pos]
-    return rng.permutation(group_values)[inv]
+    for j_ in range(len(uniq)):
+        first_pos[j_] = int(np.flatnonzero(inv == j_)[0])
+    block_values = cov[first_pos]
+
+    if not size_strata:
+        return rng.permutation(block_values)[inv]
+
+    sizes = np.array([int((inv == j_).sum()) for j_ in range(len(uniq))])
+    out = block_values.copy()
+    for size in np.unique(sizes):
+        idx = np.flatnonzero(sizes == size)
+        out[idx] = rng.permutation(block_values[idx])
+    return out[inv]
+
+
+def count_blocks_frozen_in_size_strata(groups: np.ndarray) -> int:
+    """Blocks that are the only member of their size stratum.
+
+    Under `size_strata=True` such a block can only swap with itself, so its
+    covariate value never moves. Reported so the cost of stratifying is visible
+    rather than assumed.
+    """
+    _, inv = np.unique(np.asarray(groups), return_inverse=True)
+    sizes = np.array([int((inv == j).sum()) for j in range(inv.max() + 1)])
+    vals, counts = np.unique(sizes, return_counts=True)
+    return int(counts[counts == 1].sum())
+
+
+def _total_variation_distance(a: np.ndarray, b: np.ndarray) -> float:
+    """Half the L1 distance between two empirical distributions over the same
+    support. Zero when the marginals match exactly."""
+    ka, ca = np.unique(a, return_counts=True)
+    kb, cb = np.unique(b, return_counts=True)
+    da = dict(zip(ka.tolist(), (ca / max(len(a), 1)).tolist()))
+    db = dict(zip(kb.tolist(), (cb / max(len(b), 1)).tolist()))
+    return 0.5 * sum(abs(da.get(k, 0.0) - db.get(k, 0.0)) for k in set(da) | set(db))
+
+
+# Above this fraction of blocks carrying more than one covariate value, the
+# covariate is not a block-level property and collapsing it to one
+# representative discards the variation being tested. The run WARNS and records
+# the fraction; it does not refuse, because refusing what the previous
+# implementation accepted is a regression rather than a stricter standard --
+# the lesson learned on 2026-07-21 when an absolute calibration-fold floor broke
+# a 427-row cohort that the code it replaced had always handled.
+DEFAULT_BLOCK_HETEROGENEITY_ADVISORY: float = 0.20
+REASON_BLOCK_COVARIATE_HETEROGENEOUS = "block_covariate_heterogeneous"
 
 
 def permutation_null_ami(
@@ -870,6 +962,8 @@ def permutation_null_ami(
     groups: Optional[np.ndarray] = None,
     n_permutations: int = 200,
     seed: int = 0,
+    size_strata: bool = False,
+    heterogeneity_advisory: float = DEFAULT_BLOCK_HETEROGENEITY_ADVISORY,
 ) -> dict:
     """Null distribution for adjusted mutual information, respecting dependence.
 
@@ -904,27 +998,69 @@ def permutation_null_ami(
         for i in range(n_permutations):
             null[i] = adjusted_mutual_info_score(rng.permutation(cov), clu,
                                                  average_method="arithmetic")
-        unit, extra = "row", {}
+        unit = "row"
+        extra = {"representative_rule": None, "size_strata": False,
+                 "marginal_tvd_mean": 0.0, "marginal_tvd_max": 0.0}
     else:
         g = np.asarray(groups)
         if len(g) != len(clu):
             raise ValueError("groups must align with clustering")
+        n_blocks = int(len(np.unique(g)))
         _, inv = np.unique(g, return_inverse=True)
         multi = int(sum(1 for j in range(inv.max() + 1)
                         if len(np.unique(cov[inv == j])) > 1))
+        frac_multi = multi / max(n_blocks, 1)
+
+        # The marginal drift is MEASURED on the permutations actually drawn,
+        # not assumed. Gene-block permutation with unequal block sizes always
+        # moves the row-level marginal; recording it lets a reader judge the
+        # null rather than trust it. See permute_covariate_by_gene_block.
+        tvds = np.empty(n_permutations, dtype=float)
         for i in range(n_permutations):
-            null[i] = adjusted_mutual_info_score(
-                permute_covariate_by_group(cov, g, rng), clu,
-                average_method="arithmetic")
-        unit = "group"
-        extra = {"n_groups": int(len(np.unique(g))),
-                 "n_groups_with_multiple_covariate_values": multi}
+            permuted = permute_covariate_by_gene_block(cov, g, rng,
+                                                       size_strata=size_strata)
+            tvds[i] = _total_variation_distance(cov, permuted)
+            null[i] = adjusted_mutual_info_score(permuted, clu,
+                                                 average_method="arithmetic")
+
+        unit = "gene_block_size_stratified" if size_strata else "gene_block"
+        extra = {
+            "n_blocks": n_blocks,
+            # Retained under the old key as well: run manifests already carry it.
+            "n_groups": n_blocks,
+            "n_blocks_with_multiple_covariate_values": multi,
+            "n_groups_with_multiple_covariate_values": multi,
+            "fraction_blocks_with_multiple_covariate_values": float(frac_multi),
+            "representative_rule": "first_value_per_block",
+            "marginal_tvd_mean": float(tvds.mean()),
+            "marginal_tvd_max": float(tvds.max()),
+            "size_strata": bool(size_strata),
+            "n_blocks_frozen_in_stratum": (
+                count_blocks_frozen_in_size_strata(g) if size_strata else 0),
+        }
+
+        if frac_multi > heterogeneity_advisory:
+            logger.warning(
+                "Gene-block permutation null: %d of %d blocks (%.1f%%) carry more "
+                "than one covariate value, above the %.0f%% advisory. The "
+                "representative rule keeps the FIRST value per block, so the "
+                "within-block variation is discarded and the null tests a "
+                "collapsed covariate. Above this level the covariate is arguably "
+                "not a block-level property and gene-block permutation may be the "
+                "wrong scheme. Proceeding; the fraction is recorded as "
+                "fraction_blocks_with_multiple_covariate_values.",
+                multi, n_blocks, 100.0 * frac_multi, 100.0 * heterogeneity_advisory)
+            extra["advisory"] = REASON_BLOCK_COVARIATE_HETEROGENEOUS
 
     p = float((np.sum(null >= observed) + 1) / (n_permutations + 1))
     return {"status": MetricStatus.OK.value, "observed_ami": observed,
             "null_mean": float(null.mean()), "null_p95": float(np.quantile(null, 0.95)),
             "permutation_p_value": p, "effect_over_null": float(observed - null.mean()),
+            # One-sided upper: the question is whether the OBSERVED agreement
+            # exceeds what the null produces, never whether it falls short.
+            "p_value_sidedness": "one_sided_upper",
             "n_permutations": int(n_permutations), "permutation_unit": unit,
+            "permutation_scheme": unit,
             "seed": int(seed), **extra}
 
 

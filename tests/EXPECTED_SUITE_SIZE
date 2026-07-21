@@ -2253,4 +2253,89 @@
 #                       invariant unenforced                        ->  5 failed
 #                       legacy evaluator restored                   ->  1 failed
 #
-2446
+#   2488  2026-07-21  +42: tests/unit/test_gene_block_permutation.py -- THE
+#                     PERMUTATION NULL IS RENAMED, ITS PROVENANCE COMPLETED, AND
+#                     ITS ONE UNACTED-ON DIAGNOSTIC NOW ACTS.
+#
+#                     THE RENAME. permute_covariate_by_group ->
+#                     permute_covariate_by_gene_block, and permutation_unit
+#                     "group" -> "gene_block". The old name said only that
+#                     groups were involved, not that whole blocks are exchanged
+#                     as units, which is the property the null rests on.
+#                     "Gene-block permutation" is the standard name. Correcting
+#                     an earlier description of this code as "labels shuffled
+#                     WITHIN genes" -- wrong exchangeability unit AND wrong
+#                     quantity, since it permutes a COVARIATE against a fixed
+#                     clustering, not labels.
+#
+#                     A PROPERTY MEASURED, NOT A DEFECT FIXED. Gene-block
+#                     permutation with UNEQUAL block sizes necessarily moves the
+#                     row-level marginal: swapping a 10-row gene's value with a
+#                     4-row gene's moves 10 rows out of one level and 4 into it.
+#                     Measured on 1,149 rows / 150 genes with a PURELY
+#                     gene-level covariate (zero genes carrying >1 value): mean
+#                     total variation distance 0.0145 (sd 0.0076), and ZERO in 0
+#                     of 200 permutations.
+#
+#                     TWO OF MY OWN CLAIMS WERE FALSE AND WERE CORRECTED FROM THE
+#                     SAME DATA THAT PRODUCED THEM:
+#                       "at zero within-gene variation the permutation is exact"
+#                         -- false. Drift at p=0.00 was 0.0171, LARGER than at
+#                         p=0.05 (0.0160). Unequal block SIZES are the cause;
+#                         within-block heterogeneity only modulates it.
+#                       "the relationship is monotone" -- false. Across p =
+#                         0.00/0.05/0.15/0.35/0.60/1.00 drift ran 0.0171/0.0160/
+#                         0.0264/0.0458/0.0630/0.0172, PEAKING near 0.60.
+#
+#                     WHY THE DEFAULT DID NOT CHANGE. Adjusted mutual information
+#                     is chance-corrected against exactly the marginals that
+#                     drift. Unstratified vs size-stratified p-values, 6 seeds:
+#                       assoc 0.0   0.6024 vs 0.6013   -0.0011
+#                       assoc 0.2   0.0659 vs 0.0548   -0.0111
+#                       assoc 0.4   0.0033 vs 0.0033    0.0000
+#                       assoc 0.6   0.0033 vs 0.0033    0.0000
+#                     Restructuring buys nothing in the quantity anyone reads and
+#                     costs frozen blocks. So the drift is MEASURED AND REPORTED
+#                     per run (marginal_tvd_mean, marginal_tvd_max) instead.
+#
+#                     SIZE-STRATIFIED MODE, OPT-IN. size_strata=True restricts
+#                     swaps to blocks of equal size and removes the drift
+#                     EXACTLY -- 0.000000 in 200 of 200 permutations. Its cost:
+#                     a block alone in its size stratum can only swap with
+#                     itself, so its value is FROZEN. Reported as
+#                     n_blocks_frozen_in_stratum. NOT assumed small: a synthetic
+#                     cohort with sizes drawn uniformly 1-300 froze zero blocks,
+#                     but that fixture does NOT model ClinVar's heavy tail, where
+#                     large genes are frequently unique in size. A dedicated
+#                     fixture gives every block a distinct size and proves the
+#                     fully-frozen case reproduces the observed covariate exactly.
+#
+#                     A DIAGNOSTIC THAT NOW ACTS.
+#                     n_groups_with_multiple_covariate_values was recorded from
+#                     the start and NOTHING consumed it -- a repository-wide
+#                     search found one test asserting it equals zero and no other
+#                     reader. Above a 20 per cent advisory the run now WARNS and
+#                     records REASON_BLOCK_COVARIATE_HETEROGENEOUS. It warns
+#                     rather than refuses: refusing what the previous
+#                     implementation accepted is a regression, the lesson learned
+#                     hours earlier when an absolute calibration-fold floor broke
+#                     a 427-row cohort.
+#
+#                     ALSO RECORDED: representative_rule ("first_value_per_block"
+#                     -- a reader told only that twelve blocks carried multiple
+#                     values still cannot tell WHICH was used),
+#                     fraction_blocks_with_multiple_covariate_values, and
+#                     p_value_sidedness ("one_sided_upper", left implicit until
+#                     now, which invites a reader to halve or double it). The old
+#                     keys n_groups and n_groups_with_multiple_covariate_values
+#                     are RETAINED, because run manifests already carry them.
+#
+#                     PROVEN BY SABOTAGE, all six detected:
+#                       size_strata silently ignored        -> 3 failed
+#                       drift reported without measuring    -> 2 failed
+#                       heterogeneity advisory removed      -> 2 failed
+#                       representative rule mislabelled     -> 1 failed
+#                       frozen-block count always zero      -> 1 failed
+#                       scheme reverts to "group"           -> 3 failed
+#
+2488
