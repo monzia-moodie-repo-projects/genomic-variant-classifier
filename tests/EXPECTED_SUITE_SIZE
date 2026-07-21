@@ -1688,4 +1688,138 @@
 #                     behaviour of every future run and belong in their own commit
 #                     with their own test.
 #
-2192
+#   2270  2026-07-21  +78: tests/unit/test_clustering_metrics.py -- PANEL Q,
+#                     AND FIVE REFUSALS THAT HAD TO BE PROVEN RATHER THAN
+#                     ASSERTED.
+#                     src/genomic_variant_classifier/evaluation/
+#                     clustering_metrics.py (1,189 lines) +
+#                     docs/PANEL_Q_unsupervised_structure.md (225 lines) added.
+#
+#                     WHAT PANEL Q IS. The metric specification has sixteen
+#                     panels, A through P. Verified 2026-07-21 against
+#                     project_metrics.txt (SHA-256 db987039...): the words
+#                     Davies-Bouldin, silhouette, Calinski-Harabasz and Dunn
+#                     appear ZERO times, and adjusted Rand index / adjusted
+#                     mutual information / normalized mutual information appear
+#                     nowhere as agreement metrics. Panel Q fills that gap. It
+#                     evaluates whether a REPRESENTATION has coherent structure.
+#                     It says nothing about whether predictions are correct, and
+#                     nothing it produces may be reported as clinical
+#                     superiority.
+#
+#                     THE MODULE IS ITS REFUSALS. Any of these metrics is three
+#                     lines of scikit-learn; what makes the module worth having
+#                     is that it declines to produce a number it cannot justify.
+#                     Five properties, each proven by sabotage rather than by
+#                     assertion -- the test suite passed on its first full run,
+#                     which is exactly when a suite is least trustworthy:
+#
+#                     (1) THE SILHOUETTE GUARD REFUSES BEFORE ALLOCATING, and is
+#                         expressed in MEMORY rather than a sample count because
+#                         memory is the constraint and a count silently assumes a
+#                         dtype. maximum_distance_matrix_gib=3.0 yields
+#                         floor(sqrt(3*2^30/8)) = 20,066. Measured on
+#                         1280-dimensional embeddings: 0.32 s at n=2,000; 7.53 s
+#                         at 10,000; 42.44 s and 1.0 GiB at 30,000; ~27 GiB
+#                         predicted at 60,000; 16.4 TiB at 1.5 million. A request
+#                         above the ceiling returns COMPUTATIONALLY_DEFERRED in
+#                         about a millisecond with the numbers in metadata.
+#                         Removing the ceiling check made the test HANG -- it
+#                         genuinely attempted 18.6 GiB. The failure mode the
+#                         guard prevents, reproduced by accident.
+#                     (2) NO SILENT NOT-A-NUMBER. Enforced in __post_init__, not
+#                         only in the not_ok() factory: an earlier draft guarded
+#                         one of two construction paths, so the raw dataclass
+#                         constructor could still build an unexplained failure.
+#                         aggregate() refuses to average across non-OK results
+#                         and reports the full status census including the OK
+#                         count, because numpy.nanmean would silently return the
+#                         mean of whatever happened to work.
+#                     (3) THREE EXCLUSION ROUTES, COUNTED SEPARATELY, IN A FIXED
+#                         ORDER. Non-finite, then algorithm noise, then the
+#                         minimum-cluster-size filter. A row qualifying for two
+#                         counts ONCE, in the earliest. Reconciliation alone
+#                         cannot detect a reordering because the total is
+#                         identical either way, so bucket MEMBERSHIP has its own
+#                         test. A single "noise_fraction" field would have
+#                         reported 0.15 on the fixture and concealed 0.08.
+#                     (4) THE TWO DAVIES-BOULDIN GEOMETRIES ARE DIFFERENT
+#                         ESTIMANDS. For unit-normalized vectors the squared
+#                         Euclidean distance is 2 - 2*cos, so pairwise Euclidean
+#                         and cosine are monotone -- which holds for the
+#                         silhouette coefficient and NOT for a centroid-based
+#                         index, because the Euclidean mean of points on a sphere
+#                         has norm below one and leaves the sphere. Measured on a
+#                         directional fixture: 2.9188 Euclidean-on-normalized
+#                         against 1.3538 spherical, with cluster mean norms near
+#                         0.47. Checked against INDEPENDENT implementations
+#                         written in the test file, not golden constants: a
+#                         constant catches drift, an independent implementation
+#                         catches wrongness. That is what caught the sabotage in
+#                         which the spherical centroid silently became the
+#                         arithmetic one.
+#                     (5) THE CONFOUNDER GATE IS PURE AND FAIL-CLOSED.
+#                         decide_confounder_gate() takes AgreementEstimate values
+#                         and returns a verdict with no randomness, so the
+#                         scientific policy is testable as arithmetic with
+#                         hand-written intervals; evaluate_confounder_gate()
+#                         measures, then calls it. Separating measurement from
+#                         decision means a policy change cannot be made by
+#                         accident while editing an estimator. Comparison is on
+#                         INTERVALS: upper95(covariate) < lower95(target),
+#                         strictly. Covariate upper 0.40 against target lower
+#                         0.40 refuses; 0.3999 passes. A non-finite bound is not
+#                         separation -- an unknown is not a pass.
+#
+#                     WHY A GATE AND NOT A DIAGNOSTIC. Clustering can rediscover
+#                     gene identity, laboratory provenance or missingness pattern
+#                     with considerable efficiency while looking biologically
+#                     elegant, and a lower Davies-Bouldin index is exactly what
+#                     that looks like. This cohort has a demonstrated reason for
+#                     the concern: n_pathogenic_in_gene required a permutation
+#                     ablation to establish it encoded genuine variant-level
+#                     biology (observed AUROC 0.9666 against a permuted 95th
+#                     percentile of 0.8016). Panel Q therefore refuses any
+#                     solution whose adjusted mutual information with a technical
+#                     covariate is not separated from that with the biological
+#                     target.
+#
+#                     THE PERMUTATION NULL RESPECTS DEPENDENCE. Variants within a
+#                     gene share a covariate, so permuting rows barely disturbs
+#                     the association. Measured: gene-level null 95th percentile
+#                     0.0516 against row-level 0.0011, a 47-fold difference. The
+#                     row-level null would make a spurious association look far
+#                     more significant than it is. permute_covariate_by_group is
+#                     public so the MECHANISM is tested directly -- that every
+#                     gene still holds one value and the multiset is preserved --
+#                     which is more fundamental and less brittle than asserting a
+#                     quantile that depends on seeds, numpy and scikit-learn.
+#
+#                     ONE DEFECT FOUND AND FIXED MID-BUILD. Constructing an
+#                     AgreementEstimate with a non-finite POINT estimate raised
+#                     deep inside decide_confounder_gate rather than at the
+#                     boundary. The realistic case is a finite point with a
+#                     non-finite INTERVAL -- too few usable subsample replicates
+#                     -- so __post_init__ now requires a finite point estimate
+#                     and documents that an unbounded interval is legitimate and
+#                     handled fail-closed. Found because a deliberately
+#                     unrealistic fixture exposed it.
+#
+#                     AND ONE TEST THAT COULD NOT FAIL. The first version of the
+#                     silhouette-guard check used a 500-row fixture, where
+#                     effective = min(100000, 500) = 500 is legitimately under
+#                     the ceiling. Nothing could trigger the refusal. Rewritten
+#                     against a 50,000-row cohort. This is the fourth time this
+#                     session a check has been found unable to fail.
+#
+#                     NOT DONE HERE, DELIBERATELY: PartitionRole.STRUCTURE and
+#                     the Panel Q orchestrator are absent. Panel Q's partition
+#                     policy requires a gene-disjoint STRUCTURE partition so that
+#                     cluster discovery -- which selects an algorithm, a distance,
+#                     a cluster count and an interpretation, and is therefore
+#                     model selection -- never touches the locked test set. That
+#                     changes the shipped partition schema and belongs in its own
+#                     versioned commit, with the orchestrator third, once it has
+#                     a legitimate partition to run on.
+#
+2270
