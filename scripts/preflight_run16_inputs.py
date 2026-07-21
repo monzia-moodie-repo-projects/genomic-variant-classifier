@@ -12,7 +12,10 @@ Checks:
   2. --esm2-uniprot-index exists (else ESM-2 falls back to slow live REST per gene).
   3. --alphamissense exists (else ProteinCoordConnector gets no source -> protein_pos
      empty -> esm2 deadzone).
-  4. EXPECTED_TABULAR_FEATURE_COUNT == 81 (esm2_llr + maxentscan_delta registered).
+  4. The tabular feature contract is self-consistent (count == len, no duplicates)
+     AND esm2_llr / maxentscan_delta / gene_constraint_oe are registered by NAME.
+     Repaired 2026-07-20: this check previously pinned the literal 81 and so failed
+     unconditionally once the contract advanced to 95.
 
 This is the DATA/CONFIG half of the run gate; SSH/instance/key launch vars are a
 separate operational layer. Author: Monzia Moodie."""
@@ -20,7 +23,13 @@ from __future__ import annotations
 import argparse, sys
 from pathlib import Path
 
-EXPECTED_COUNT = 81
+# The Run-16 preflight no longer pins a feature COUNT. A literal count went stale
+# at 81 while the contract advanced to 95, failing this gate unconditionally from
+# some point after the 88 bump until 2026-07-20. What this preflight actually
+# needs is that the specific features its other checks protect are REGISTERED,
+# plus the project's fail-loud contract invariant. Neither needs editing when the
+# roster grows. See docs/sessions/SESSION_2026-07-20_*.md.
+REQUIRED_RUN16_FEATURES = ("esm2_llr", "maxentscan_delta", "gene_constraint_oe")
 
 
 def check_exists(label, path, required=True):
@@ -90,15 +99,54 @@ def check_cohort_reviewstatus(clinvar_path):
     )
 
 
-def check_feature_count():
+def check_feature_contract():
+    """The tabular feature contract is INTERNALLY CONSISTENT and carries the
+    features this preflight's other checks exist to protect.
+
+    Returns the module's (ok, message) convention: True pass, False fail,
+    None environment (cannot import), which aggregate() maps to exit 0 / 2 / 3.
+
+    Three assertions, none of which is a magic number:
+      1. EXPECTED_TABULAR_FEATURE_COUNT == len(TABULAR_FEATURES)  -- the
+         project's fail-loud guard, restated at the gate.
+      2. TABULAR_FEATURES contains no duplicate names -- a duplicate would let
+         the count match while a feature was silently lost.
+      3. Every name in REQUIRED_RUN16_FEATURES is registered.
+    """
     try:
         from genomic_variant_classifier.models.variant_ensemble import (
             EXPECTED_TABULAR_FEATURE_COUNT as C,
+            TABULAR_FEATURES as F,
         )
     except Exception as e:
-        return None, f"feature count: ENV (cannot import variant_ensemble: {e})"
-    ok = C == EXPECTED_COUNT
-    return ok, f"feature count: {'PASS' if ok else 'FAIL'} (EXPECTED_TABULAR_FEATURE_COUNT={C}, want {EXPECTED_COUNT})"
+        return None, f"feature contract: ENV (cannot import variant_ensemble: {e})"
+
+    n = len(F)
+    dupes = sorted({x for x in F if list(F).count(x) > 1})
+    missing = [f for f in REQUIRED_RUN16_FEATURES if f not in F]
+
+    problems = []
+    if C != n:
+        problems.append(f"EXPECTED_TABULAR_FEATURE_COUNT={C} != len(TABULAR_FEATURES)={n}")
+    if dupes:
+        problems.append(f"duplicate feature names: {dupes}")
+    if missing:
+        problems.append(f"unregistered required features: {missing}")
+
+    if problems:
+        return False, "feature contract: FAIL (" + "; ".join(problems) + ")"
+    return True, (f"feature contract: PASS (count={C} consistent, no duplicates, "
+                  f"all {len(REQUIRED_RUN16_FEATURES)} required features registered)")
+
+
+def check_feature_count():
+    """Deprecated 2026-07-20 alias retained so any external caller keeps working.
+
+    The name is wrong -- the check is no longer about a count -- but silently
+    deleting a public name is exactly the kind of loss this project has had to
+    reverse before (see metrics.py, restored from 87e32ad^). Delegates.
+    """
+    return check_feature_contract()
 
 
 def check_gnomad_constraint(path, min_mb=1.0):

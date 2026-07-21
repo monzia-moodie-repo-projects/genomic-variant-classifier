@@ -1392,4 +1392,44 @@
 #                         gene-cluster design effect measured at entry 2055 was 2.935x; whether
 #                         the other two share the variant-level independence assumption has not
 #                         been measured.
-2060
+#   2071  2026-07-20  +11: tests/unit/test_preflight_run16_feature_contract.py -- THE
+#                     ONLY UNTESTED CHECK WAS THE ONE THAT DRIFTED.
+#                     scripts/preflight_run16_inputs.py carried five checks. Four were
+#                     covered by tests/unit/test_preflight_run16_inputs.py; the fifth,
+#                     check_feature_count, was covered by nothing. It pinned the literal
+#                     EXPECTED_COUNT = 81 and compared it for equality against
+#                     EXPECTED_TABULAR_FEATURE_COUNT, which had advanced 81 -> 88 -> 91 ->
+#                     95 through patch_ve_maxentscan_delta.py,
+#                     patch_tabular_omim_molecular.py and
+#                     patch_variant_ensemble_finngen_r13.py. Because the module's exit
+#                     convention is 0 all-pass / 2 any-fail, the ENTIRE Run-16 input
+#                     preflight returned 2 on every invocation, on a clean tree, for the
+#                     whole period after the 88 bump. A fail-loud guard that fails for a
+#                     false reason is worse than no guard: it teaches the operator to
+#                     ignore the four checks beside it that are correct.
+#
+#                     THE REPAIR DOES NOT RE-PIN THE NUMBER. Setting the literal to 95
+#                     would reproduce the defect at the next roster growth. check_feature_
+#                     contract() now asserts two properties that cannot go stale: the
+#                     project's fail-loud invariant EXPECTED_TABULAR_FEATURE_COUNT ==
+#                     len(TABULAR_FEATURES) with no duplicate names, and membership BY NAME
+#                     of esm2_llr, maxentscan_delta and gene_constraint_oe -- the three
+#                     features the gate's other checks exist to protect. A count never told
+#                     us whether the right features were present; names do. check_feature_
+#                     count() is retained as a delegating alias, because silently deleting
+#                     a public name is a loss this project has had to reverse before.
+#
+#                     The eleven tests assert OUTCOMES against synthetic contracts injected
+#                     into sys.modules, which is the only way to exercise a module that
+#                     imports xgboost, lightgbm, catboost and torch at module scope. One
+#                     case is impossible to construct any other way and is the reason the
+#                     repair is shaped as it is: a DUPLICATE feature name hidden behind a
+#                     matching count, which the old count-only gate PASSED.
+#
+#                     Recorded honestly: the first draft of the module-restore fixture in
+#                     this file wrote `del sys.modules[m]` using a comprehension variable
+#                     that does not leak in Python 3. All eleven tests reported PASSED while
+#                     teardown raised NameError. Found by running it, not by reading it --
+#                     the twenty-ninth instance of the same lesson.
+#
+2071
