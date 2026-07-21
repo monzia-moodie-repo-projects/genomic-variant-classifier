@@ -1432,4 +1432,97 @@
 #                     teardown raised NameError. Found by running it, not by reading it --
 #                     the twenty-ninth instance of the same lesson.
 #
-2071
+#   2128  2026-07-21  +57: tests/unit/test_ordinal_conformal.py -- ORDINAL
+#                     CONFORMAL PREDICTION: CONTIGUITY BY CONSTRUCTION, AND A
+#                     GUARD THAT REFUSES THE COHORT WE ACTUALLY HAVE.
+#                     src/genomic_variant_classifier/conformal/ordinal.py.
+#
+#                     THE PROBLEM. Split, Mondrian and grouped conformal all return
+#                     {k : score_k <= q_hat}. On an UNORDERED label space that is
+#                     correct. On the ACMG/AMP five-tier scale -- Benign < Likely
+#                     benign < Uncertain significance < Likely pathogenic <
+#                     Pathogenic -- nothing prevented the prediction set
+#                     {Pathogenic, Benign}: an assertion that a variant is either
+#                     the most harmful or the most harmless thing it could be and
+#                     nothing between. That is not actionable, and it is not rare;
+#                     it arises whenever the model is bimodal and the middle tier
+#                     falls just above the threshold.
+#
+#                     THE CONSTRUCTION. Nested contiguous intervals. I_0 = [mode,
+#                     mode]; each step extends to whichever neighbouring tier has
+#                     the larger probability. The nonconformity score of tier k is
+#                     the cumulative mass of the first interval containing it. Mass
+#                     is non-decreasing in the step, so the level set {k : s(k) <=
+#                     q_hat} IS one of the nested intervals -- contiguity is a
+#                     property of the score, not a post-hoc repair. Under
+#                     randomisation s(k) = u*M_(t-1) + (1-u)*M_t, a convex
+#                     combination of consecutive cumulative masses, hence monotone
+#                     in t. Contiguity is therefore structural, not empirical, and
+#                     45,000 rows across varied alpha returned zero gapped sets.
+#
+#                     THE GUARD. The metric specification (Finding 1, Panel C) is
+#                     explicit that this project has no five-class target: the
+#                     pipeline collapses P and LP to 1, B and LB to 0, and excludes
+#                     VUS. Tiers derived by thresholding one binary probability are
+#                     contiguous TRIVIALLY, so the guarantee would be vacuous while
+#                     the output looked genuine -- indistinguishable from the real
+#                     thing by inspection. fit() therefore raises OrdinalLabelError
+#                     when calibration labels carry fewer than three distinct
+#                     values. ON TODAY'S COHORT IT FIRES. That is intended.
+#                     allow_degenerate_labels exists only so the refusal can be
+#                     tested and records its own use in degenerate_labels_.
+#
+#                     TWO DEFECTS FOUND BY RUNNING THE CODE, NOT BY READING IT.
+#                     (1) An empty-set "repair" forced the modal tier into any
+#                         empty set. Measured cost, 30 trials per level:
+#                             alpha 0.05  0.9500 off -> 0.9555 on  (0.6 % forced)
+#                             alpha 0.10  0.8990 off -> 0.9147 on  (1.6 % forced)
+#                             alpha 0.20  0.7973 off -> 0.8411 on  (4.7 % forced)
+#                             alpha 0.30  0.7005 off -> 0.7822 on  (9.1 % forced)
+#                         OFF, the score is exactly calibrated at every level. ON,
+#                         coverage inflates by precisely the fraction repaired and
+#                         sets are wider than the data supports. Now opt-in via
+#                         force_nonempty and always counted in n_forced_nonempty_.
+#                         The code comment had claimed it was "recorded rather than
+#                         silent" while nothing recorded it.
+#                     (2) ordinal_report counted ABSTENTIONS as catastrophic errors,
+#                         because distance_to_set scores an empty set as K, which
+#                         exceeds any threshold. Found because n_catastrophic and
+#                         n_empty were both exactly 64. An abstention is the method
+#                         declining to assert; a catastrophic error is a confident
+#                         assertion at the far end of the scale. Penalising the
+#                         former as the latter would push a clinical system towards
+#                         answering when it should decline. Now reported separately.
+#
+#                     Also recorded: the first draft of
+#                     test_tie_break_actually_differs_on_an_exact_tie used
+#                     [0.25, 0.25, 0.50, 0.00, 0.00] and called the neighbours tied.
+#                     The modal tier is index 2, whose neighbours are 0.25 and 0.00.
+#                     Not a tie. The test failed against CORRECT code. The thirtieth
+#                     instance of the same lesson, this time with the fixture rather
+#                     than the implementation at fault.
+#
+#                     THE STRONGEST TEST is a deliberately naive plain-Python
+#                     reference implementation of the nested expansion, sharing no
+#                     code with the vectorised one, compared row by row under both
+#                     tie-break policies. An independent implementation disagreeing
+#                     is the only reliable way to catch a subtle indexing error in
+#                     vectorised code.
+#
+#                     OPEN, from the same work: per-tier coverage at alpha=0.10 was
+#                     Benign 0.882, Likely benign 0.922, Uncertain 0.918, Likely
+#                     pathogenic 0.919, Pathogenic 0.880 -- the two EXTREMES are
+#                     under-covered while the middle is over-covered. That is the
+#                     classic marginal-coverage failure and precisely what
+#                     mondrian.py exists to fix. A class-conditional ordinal variant
+#                     is the natural follow-on and it matters clinically: Pathogenic
+#                     is the tier one least wants under-covered.
+#
+#                     ALSO OPEN: conformal/__init__.py imports scores, split,
+#                     mondrian, grouped and coverage. It omits calibrate, and now
+#                     ordinal. Verified by outcome: hasattr(conformal, 'calibrate')
+#                     is False. Deliberately NOT fixed here -- it changes the
+#                     package's public surface and belongs in its own commit with
+#                     its own test.
+#
+2128
