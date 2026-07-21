@@ -1590,4 +1590,102 @@
 #                     an empty listing would produce zero test cases and a green
 #                     suite -- the standard failure mode of data-driven tests.
 #
-2148
+#   2192  2026-07-21  +44: tests/unit/test_split_protocol_schema.py -- THE
+#                     PARTITION SET BECOMES DATA, AND PROBABILITY CALIBRATION
+#                     GETS ITS OWN PARTITION.
+#                     src/genomic_variant_classifier/data/split_protocol_v2.py
+#                     rewritten; scripts/forensics/verify_dtype.py repaired.
+#
+#                     THE DEFECT. The metric specification (Finding 2; Priority 2,
+#                     "essential") requires probability calibration to be fitted on
+#                     data untouched by model, method and alpha selection. Measured
+#                     in the code 2026-07-21: scripts/train.py:131 and :550-551 fit
+#                     the isotonic calibrator on the `tune` partition, which this
+#                     module defined as "the model/method/alpha selection set". The
+#                     calibrator was therefore fitted on the selection set. That
+#                     affects every calibrated number the project reports.
+#
+#                     WHY A SCHEMA, NOT A FIFTH FRACTION FIELD. PARTITIONS was a
+#                     hard-coded module constant referenced in five places, beside
+#                     four separately-named fraction fields and a hand-written sum
+#                     check. A fifth partition meant six coordinated edits; a sixth
+#                     would mean six more. Same shape as three defects repaired the
+#                     same week: the Run-16 gate's EXPECTED_COUNT = 81, the conformal
+#                     package's five-of-seven import list, and the ratchet before it
+#                     gained drift detection. The partition set is now DATA --
+#                     PartitionSchema holds an ordered tuple of Partition(name,
+#                     fraction, role) and every function derives behaviour from it.
+#
+#                     ROLES ARE THE POINT. train.py will ask for
+#                     rows_for_role(CALIBRATE_PROBABILITY) rather than naming a
+#                     partition. Under FIVE_WAY it receives a dedicated `calib`
+#                     partition, gene-disjoint from `tune` and `conformal`. Under
+#                     FOUR_WAY it receives None -- the honest answer. A silent
+#                     fallback to `tune` would re-create the defect.
+#
+#                     BACKWARD COMPATIBILITY IS EXACT, AND WAS PROVEN AGAINST THE
+#                     PREVIOUS REVISION, not merely asserted. The old module was
+#                     loaded alongside the new one and bucket assignments compared:
+#                     identical at seeds 42/7/123/2026, identical with non-default
+#                     fractions, identical for group_shuffle on uniform gene sizes,
+#                     and tests/test_split_protocol_v2.py passes unchanged (10/10).
+#                     Had one gene moved bucket, stability invariant I8 would have
+#                     broken across the upgrade and no pre-2026-07-21 result would be
+#                     comparable to a later one. FOUR_WAY.hash_order is pinned to the
+#                     historical (test, conformal, tune, train) by a test.
+#
+#                     TWO DEFECTS REPAIRED IN THE SAME PASS.
+#                     (1) group_shuffle carve() rescaled by ROW counts while
+#                         scikit-learn's GroupShuffleSplit interprets test_size as a
+#                         proportion of GROUPS. Verified empirically: ten genes, one
+#                         holding 100 of 109 rows, test_size=0.30 carved exactly 3 of
+#                         10 genes -- 30 % of groups, 3 % of rows.
+#                         The row ratio is an UNBIASED estimator of the gene ratio, so
+#                         it is usually close; its variance grows with gene-size skew
+#                         and it OVERFLOWS when a high-row-count gene is carved early.
+#                         The clamp min(max(f, 1e-9), 1 - 1e-9) then turns it into
+#                         0.999999999 and scikit-learn raises "n_samples=340,
+#                         test_size=0.999999999", naming neither genes nor skew nor
+#                         the partition. Measured, 12 seeds:
+#                             skew                  rows           genes
+#                             uniform               0.0000         0.0000
+#                             heavy-tailed          0.0329         0.0000
+#                             one gene = 90 % rows  0.0434, 3/12   0.0065, 0/12
+#                                                   CRASH
+#                         ClinVar per-gene variant counts ARE heavy-tailed, so the
+#                         middle row is the realistic regime and the bottom row is
+#                         reachable. carve() now rescales by gene counts; the ratio is
+#                         bounded by construction so the overflow cannot arise, and
+#                         genuine infeasibility gets an actionable message.
+#                     (2) genes_are_stable_under_growth had an if/else whose branches
+#                         were IDENTICAL, under a comment implying they differed.
+#                         Dead code removed.
+#
+#                     RECORDED HONESTLY: the carve defect was hypothesised from
+#                     reading, then TESTED AND REFUTED (worst deviation 0.013, better
+#                     than hash mode at 0.038), and only found on a wider sweep over
+#                     twelve seeds. The first adversarial test used a seed that did
+#                     not trigger it. Reading produced the hypothesis; only running it
+#                     across enough cases produced the evidence.
+#
+#                     scripts/forensics/verify_dtype.py:30 asserted the literal source
+#                     text "for p in PARTITIONS:", which the schema-driven loop no
+#                     longer contains. That check verified that code LOOKED a certain
+#                     way, not that the dtype promotion WORKED -- a clean refactor
+#                     failed it, and a silent breakage with intact loop text would
+#                     have passed it. Both directions wrong. Replaced with a
+#                     behavioural check: int32 fixture, FutureWarning escalated to
+#                     error, real split, real remap, assert int64 out; plus a check
+#                     that every partition IN THE SCHEMA is remapped and that genes
+#                     unseen in train score zero (incident 2026-06-13). Proven by
+#                     sabotage: removing the promotions fails 5 checks; reintroducing
+#                     the leak is caught with 2,217 violations. The old text check
+#                     passed both.
+#
+#                     NOT DONE HERE, DELIBERATELY: train.py is untouched. Wiring the
+#                     calibrator to rows_for_role(CALIBRATE_PROBABILITY) and flipping
+#                     --split-protocol off `legacy` (train.py:126) change the
+#                     behaviour of every future run and belong in their own commit
+#                     with their own test.
+#
+2192
