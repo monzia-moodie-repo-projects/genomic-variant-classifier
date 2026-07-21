@@ -1977,4 +1977,80 @@
 #                     AttributeError on None. Both the test loader and
 #                     storage_gate() do this, with the reason written down.
 #
-2328
+#   2378  2026-07-21  +50: tests/unit/test_partition_structure_role.py --
+#                     PartitionRole.STRUCTURE and the SIX_WAY schema, which
+#                     unblock the Panel Q orchestrator; plus a stale-list defect
+#                     in PartitionSchema found while building them.
+#
+#                     WHY THE ROLE EXISTS. Panel Q's specification is explicit
+#                     that unsupervised structure analysis is a MODEL-SELECTION
+#                     activity: it chooses a representation, preprocessing,
+#                     dimensionality, distance geometry, clustering algorithm,
+#                     cluster count, noise handling, stability thresholds and a
+#                     biological interpretation. Doing that on the locked test
+#                     partition is selection on test. The specification requires
+#                     a dedicated STRUCTURE partition "gene-disjoint from train,
+#                     tune, probability calibration, conformal calibration, and
+#                     test", with test admitting only a predeclared replication
+#                     of a solution frozen on STRUCTURE. Panel Q shipped in
+#                     5dcb932 with no partition to run on.
+#
+#                     A STALE LIST, FOUND BY PROBING. PartitionSchema capped role
+#                     repetition by ENUMERATING three roles -- SELECT,
+#                     CALIBRATE_CONFORMAL, TEST. That list was already stale:
+#                     commit 5b1c82b added CALIBRATE_PROBABILITY the same morning
+#                     and did not add it here. Two partitions could both claim
+#                     it, the schema would be ACCEPTED, and name_for_role() would
+#                     silently return whichever was declared first -- train.py
+#                     fitting the probability calibrator on one partition while a
+#                     second believed it held the role. A silent ambiguity in
+#                     precisely the role the five-way schema exists to serve.
+#                     Found by probing a six-partition schema, not by review.
+#                     The repair removes the list rather than extending it: every
+#                     role except TRAIN is capped, so a future enum member cannot
+#                     be forgotten. The test is parametrized over PartitionRole
+#                     ITSELF, so roles that do not exist yet are covered.
+#
+#                     THE MIGRATION GUARANTEE, AND A TEST FAILURE THAT EARNED IT.
+#                     Hash intervals are assigned in hash_order, so a partition's
+#                     genes depend on the cumulative fraction ahead of it.
+#                     SIX_WAY keeps FIVE_WAY's first four intervals EXACTLY and
+#                     splits its train interval in two:
+#                       structure [0.45, 0.52)   train [0.52, 1.00)
+#                     Verified across seeds 42/7/123/2026, migrating FIVE_WAY ->
+#                     SIX_WAY moves EXACTLY ONE set of genes, out of train into
+#                     structure:
+#                       test, conformal, calib, tune  byte-identical
+#                       structure   precisely the genes train gave up
+#                       train       loses those and gains nothing
+#                     So the locked test set is untouched, a fitted probability
+#                     calibrator stays valid, and model selection need NOT be
+#                     repeated. Only the training set shrinks, 0.55 -> 0.48,
+#                     which is the honest cost of funding a structure partition.
+#
+#                     The FIRST hash order tried put structure between calib and
+#                     tune, which shifted tune by 0.07 and would have silently
+#                     invalidated every model-selection decision for no benefit.
+#                     A test asserting the OPPOSITE property failed, and that
+#                     failure is what found it. The guarantee is now the test.
+#
+#                     NO NEW SKIPS. An earlier draft skipped TRAIN inside the
+#                     parametrized role test -- a permanent eighth skip in every
+#                     run forever. Filtering the parametrize list instead keeps
+#                     the enum-driven property at zero skip cost.
+#
+#                     PROVEN BY SABOTAGE, all five detected:
+#                       role cap reverts to the enumerated list  ->  4 failed
+#                       structure placed before tune             ->  6 failed
+#                       structure funded from test not train     -> 13 failed
+#                       STRUCTURE removed from the enum          ->  3 errors
+#                       name_for_role substitutes instead of None-> 5 failed
+#
+#                     WHAT DID NOT CHANGE. FOUR_WAY and FIVE_WAY are untouched;
+#                     PARTITIONS still aliases FOUR_WAY.names; the existing 54
+#                     split tests pass unmodified. split(), the invariant checker
+#                     and the leakage remap needed NO changes at all -- six
+#                     partitions worked on the first probe, which is the payoff
+#                     of the schema-as-data rewrite in 5b1c82b.
+#
+2378

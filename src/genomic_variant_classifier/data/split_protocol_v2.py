@@ -116,6 +116,16 @@ class PartitionRole(str, Enum):
     on the selection set: train.py asks for CALIBRATE_PROBABILITY and, under the
     five-way schema, gets a partition no other stage has touched.
 
+    STRUCTURE was added 2026-07-21 for Panel Q. Its specification is explicit
+    that unsupervised structure analysis is a MODEL-SELECTION activity -- it
+    chooses a representation, preprocessing, dimensionality, distance geometry,
+    clustering algorithm, cluster count, noise handling, stability thresholds
+    and a biological interpretation. Performing those choices on the locked test
+    partition is selection on test. The specification therefore requires that
+    discovery occur on a dedicated partition "gene-disjoint from train, tune,
+    probability calibration, conformal calibration, and test", with test
+    admitting only a predeclared replication of a solution frozen on STRUCTURE.
+
     Inheriting from str keeps roles JSON-serialisable and printable, which
     matters because they end up in run manifests.
     """
@@ -124,6 +134,7 @@ class PartitionRole(str, Enum):
     SELECT = "select"
     CALIBRATE_PROBABILITY = "calibrate_probability"
     CALIBRATE_CONFORMAL = "calibrate_conformal"
+    STRUCTURE = "structure"
     TEST = "test"
 
 
@@ -180,10 +191,29 @@ class PartitionSchema:
                 f"{roles.count(PartitionRole.TRAIN)}. The train-only leakage remap "
                 "(incident 2026-06-13) derives every partition's counts from it, so "
                 "there must be exactly one and it must be unambiguous.")
-        for role in (PartitionRole.SELECT, PartitionRole.CALIBRATE_CONFORMAL,
-                     PartitionRole.TEST):
+        # Every role except TRAIN may appear AT MOST ONCE.
+        #
+        # This enumerated three roles until 2026-07-21 -- SELECT,
+        # CALIBRATE_CONFORMAL, TEST -- and that list was already stale. Commit
+        # 5b1c82b added CALIBRATE_PROBABILITY the same morning and did not add
+        # it here, so two partitions could both claim it, the schema would be
+        # ACCEPTED, and name_for_role() would silently return whichever was
+        # declared first. train.py would then fit the probability calibrator on
+        # one partition while a second believed it held the role -- a silent
+        # ambiguity in precisely the role the five-way schema exists to serve.
+        #
+        # Found by probing a six-partition schema on 2026-07-21, not by review.
+        # Capping EVERY role means a future enum member cannot be forgotten:
+        # the check has no list to keep in step. TRAIN is excluded because it is
+        # constrained more strictly above -- exactly one, not at most one.
+        for role in {r for r in roles if r is not PartitionRole.TRAIN}:
             if roles.count(role) > 1:
-                raise ValueError(f"role {role.value} appears {roles.count(role)} times")
+                offenders = [p.name for p in self.partitions if p.role is role]
+                raise ValueError(
+                    f"role {role.value} appears {roles.count(role)} times "
+                    f"({offenders}). Every role except TRAIN must be unique, or "
+                    "name_for_role() silently returns the first and the other "
+                    "partition is never used for the purpose it declares.")
 
     @property
     def names(self) -> tuple[str, ...]:
@@ -245,6 +275,70 @@ FIVE_WAY = PartitionSchema(
     hash_order=("test", "conformal", "calib", "tune", "train"),
     label="five_way_spec",
 )
+
+SIX_WAY = PartitionSchema(
+    partitions=(
+        Partition("train", 0.48, PartitionRole.TRAIN),
+        Partition("tune", 0.15, PartitionRole.SELECT),
+        Partition("calib", 0.10, PartitionRole.CALIBRATE_PROBABILITY),
+        Partition("conformal", 0.08, PartitionRole.CALIBRATE_CONFORMAL),
+        Partition("structure", 0.07, PartitionRole.STRUCTURE),
+        Partition("test", 0.12, PartitionRole.TEST),
+    ),
+    # `structure` sits between `tune` and `train`, and that position is
+    # LOAD-BEARING. See the migration guarantee below.
+    hash_order=("test", "conformal", "calib", "tune", "structure", "train"),
+    label="six_way_panel_q",
+)
+# WHERE THE STRUCTURE PARTITION'S GENES COME FROM, AND WHY.
+#
+# Every one of the 0.07 is taken from `train`, which drops 0.55 -> 0.48 against
+# FIVE_WAY. No evaluation partition is shrunk. That is deliberate: narrowing
+# `test`, `calib` or `conformal` to fund exploratory analysis would trade a
+# guarantee for a convenience, and each of those partitions already sits at the
+# small end of what its own estimator tolerates.
+#
+# Structure discovery needs genes the model did NOT train on -- clusters found
+# on training data reflect what the model memorised, not how the representation
+# is organised -- and it must not be the locked test set, because choosing a
+# representation, geometry and cluster count on test is selection on test. A
+# dedicated slice is the only arrangement satisfying both.
+#
+# THE MIGRATION GUARANTEE, AND WHY THE HASH ORDER IS NOT ARBITRARY.
+#
+# Hash intervals are assigned in `hash_order`, so a partition's genes depend on
+# the CUMULATIVE fraction of everything ordered before it. FIVE_WAY lays out:
+#
+#     test  [0.00, 0.12)   conformal [0.12, 0.20)   calib [0.20, 0.30)
+#     tune  [0.30, 0.45)   train     [0.45, 1.00)
+#
+# SIX_WAY keeps the first four intervals EXACTLY and splits FIVE_WAY's train
+# interval in two:
+#
+#     structure [0.45, 0.52)   train [0.52, 1.00)
+#
+# The consequence, verified across seeds 42/7/123/2026: migrating FIVE_WAY ->
+# SIX_WAY moves EXACTLY ONE set of genes, out of train and into structure.
+#
+#     test, conformal, calib, tune  byte-identical
+#     structure                     precisely the genes train gave up
+#     train                         loses those genes and gains nothing
+#
+# So the locked test set is untouched, a fitted probability calibrator stays
+# valid, the conformal calibration set is unchanged, and model selection does
+# NOT have to be repeated. Only the training set shrinks, which is the honest
+# and unavoidable cost of funding a structure partition.
+#
+# Placing `structure` anywhere earlier destroys this. With it between `calib`
+# and `tune` -- the first arrangement tried, on 2026-07-21 -- `tune` shifts by
+# 0.07 and every model-selection decision made under FIVE_WAY silently ceases to
+# apply, for no benefit whatsoever. That was found by a test asserting the
+# OPPOSITE property and failing; the failure was the finding.
+#
+# NOTE WHAT IS NOT CLAIMED. This guarantee is FIVE_WAY -> SIX_WAY only. FOUR_WAY
+# has different fractions throughout and shares nothing. Stability invariant I8
+# holds WITHIN a schema as the cohort grows and says nothing across schemas;
+# these tests establish the specific relationship above and no more.
 
 # Backward compatibility: the historical module constant, unchanged.
 PARTITIONS = FOUR_WAY.names
@@ -599,3 +693,15 @@ def five_way_config(**overrides) -> SplitProtocolV2Config:
     assembling a schema and remembering not to touch the fraction fields.
     """
     return SplitProtocolV2Config(schema=FIVE_WAY, **overrides)
+
+
+def six_way_config(**overrides) -> SplitProtocolV2Config:
+    """A configuration using SIX_WAY: five-way plus a dedicated STRUCTURE
+    partition for Panel Q discovery.
+
+    Use this for any unsupervised structure analysis. Running Panel Q discovery
+    under FOUR_WAY or FIVE_WAY means the analysis has no partition of its own,
+    and whichever partition it borrows stops being clean for its declared
+    purpose.
+    """
+    return SplitProtocolV2Config(schema=SIX_WAY, **overrides)
