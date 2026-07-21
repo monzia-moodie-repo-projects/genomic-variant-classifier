@@ -564,7 +564,8 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        # docker/login-action v4 -- runs.using: node24 (v3 was node20).
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -572,7 +573,9 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v5
+        # docker/metadata-action v6.2.0 -- node24 (v5 was node20). Outputs
+        # `tags` and `labels`, both still consumed below, are unchanged.
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
@@ -581,7 +584,11 @@ jobs:
             type=sha,prefix=sha-
 
       - name: Build and push
-        uses: docker/build-push-action@v5
+        # docker/build-push-action v7 -- node24. NOTE v6 is STILL node20, so the
+        # obvious one-major bump would have resolved nothing while the commit
+        # message claimed otherwise. Inputs context/file/target/push/tags/labels/
+        # cache-from/cache-to were each confirmed present in v7's manifest.
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
         with:
           context: .
           file: Dockerfile

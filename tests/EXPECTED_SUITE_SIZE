@@ -2468,4 +2468,67 @@
 #                       permissions widened                -> 1 failed
 #                       never closes on recovery           -> 1 failed
 #
-2559
+#   2624  2026-07-21  +65: tests/unit/test_workflow_action_pins.py -- NODE.JS 20
+#                     IS DEPRECATED, AND THE TAG IS NOT WHAT SHIPS.
+#
+#                     TRIGGER. The first run of the new CI failure alert
+#                     succeeded and carried a warning: "Node.js 20 is deprecated.
+#                     The following actions target Node.js 20 but are being
+#                     forced to run on Node.js 24: actions/github-script@v7."
+#                     Being forced onto Node 24 is a countdown, not a reprieve.
+#
+#                     THE AUDIT CORRECTED MY OWN FIRST PASS. I listed
+#                     actions/checkout@v4 and actions/setup-python@v5 as exposed.
+#                     WRONG: ci.yml and drift_monitor.yml already pinned those by
+#                     commit SHA, and resolving the SHAs showed checkout v6.0.2,
+#                     setup-python v6.2.0 and upload-artifact v7.0.0 -- all
+#                     node24 already. Only data_freshness.yml still carried
+#                     floating tags.
+#
+#                     TWO VERSION GUESSES WERE ALSO WRONG, AND BOTH WOULD HAVE
+#                     SHIPPED A FIX THAT FIXED NOTHING:
+#                       actions/upload-artifact v5 is STILL node20; v6 is the
+#                         first node24 release.
+#                       docker/build-push-action v6 is STILL node20; v7 is the
+#                         first node24 release.
+#                     Reading each action.yml AT THE EXACT SHA caught both. The
+#                     tag is not what ships.
+#
+#                     WHAT CHANGED. Seven references across four workflows now
+#                     pin node24 builds by 40-character commit SHA:
+#                       ci_failure_alert.yml  github-script  v7 -> v8.0.0
+#                       drift_monitor.yml     github-script  v7 -> v8.0.0
+#                       data_freshness.yml    checkout/setup-python/
+#                                             upload-artifact: floating tags ->
+#                                             the same SHAs ci.yml already used
+#                       ci.yml                login-action    v3 -> v4
+#                                             metadata-action v5 -> v6.2.0
+#                                             build-push-action v5 -> v7
+#                     Every docker input in use (context, file, target, push,
+#                     tags, labels, cache-from, cache-to) was confirmed present
+#                     in the target manifests, and metadata-action v6 still emits
+#                     the tags and labels outputs the next step consumes.
+#
+#                     TWO INVARIANTS, BOTH CHECKABLE OFFLINE. (1) Every non-local
+#                     `uses:` is a full commit SHA, because a tag is mutable and
+#                     re-makes a trust decision silently on every run. (2) Every
+#                     SHA appears in EXPECTED_PINS with its resolved version and
+#                     runtime, and every runtime is node24 -- so a test that only
+#                     asked "is it a SHA?" cannot accept a node20 pin and report
+#                     green. Adding a pin without recording what it resolves to
+#                     fails the suite, forcing the lookup.
+#
+#                     CAVEAT RECORDED, NOT PAPERED OVER. ci.yml's push-ghcr job
+#                     runs only on `release: published`, so the three docker
+#                     upgrades cannot be exercised by an ordinary push. They are
+#                     verified by manifest inspection, not by execution.
+#
+#                     PROVEN BY SABOTAGE, all six detected:
+#                       a floating tag reappears           -> 1 failed
+#                       an unrecorded SHA is introduced    -> 2 failed
+#                       a pin relabelled node20            -> 2 failed
+#                       upload-artifact back to v5         -> 1 failed
+#                       build-push-action back to v6       -> 1 failed
+#                       the regex stops matching           -> 2 failed
+#
+2624

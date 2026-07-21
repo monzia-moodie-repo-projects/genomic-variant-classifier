@@ -13,8 +13,11 @@ jobs:
   freshness:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      # SHA-pinned to the SAME versions ci.yml and drift_monitor.yml already use:
+      # checkout v6.0.2, setup-python v6.2.0, upload-artifact v7.0.0, all node24.
+      # This file alone still carried floating tags on Node 20.
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.12"
       - name: Install minimal deps
@@ -30,7 +33,7 @@ jobs:
           PYTHONPATH=src python scripts/run_data_freshness.py
       - name: Upload freshness report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: data-freshness-report
           path: reports/data_freshness/
