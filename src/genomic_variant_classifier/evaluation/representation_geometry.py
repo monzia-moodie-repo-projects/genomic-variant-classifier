@@ -506,8 +506,20 @@ def panel_r_capabilities() -> tuple:
     r7_blocked = ("R7 needs longitudinal downstream outcome labels, which do not "
                   "exist in the cohort.")
 
-    implemented_stages = (
+    # R3's probe protocol now exists (norm_angle_probe.py: fit_whitening on TRAIN
+    # only, norm/angular decomposition, recovery delta), so R3 advances one more
+    # rung to OUTPUT_AVAILABLE. R4 and R5 stay at IMPLEMENTED_NO_OUTPUT: their
+    # probes (a conditioning/whitening ladder for R4, a validated approximate-
+    # nearest-neighbour evaluator for R5) are not built yet.
+    r3_output_available = (
+        "norm_angle_probe.py produces the norm/angular decomposition and a "
+        "label-free recovery delta, fit on TRAIN only. The output exists; it has "
+        "not been validated against a held-out criterion, which is the next rung."
+    )
+    output_available_stages = (
         "panel_r3_norm_angle_decomposition",
+    )
+    implemented_stages = (
         "panel_r4_conditioning_recoverability",
         "panel_r5_hubness_local_geometry",
     )
@@ -517,6 +529,21 @@ def panel_r_capabilities() -> tuple:
     )
 
     evidence = []
+    for name in output_available_stages:
+        evidence.append(CapabilityEvidence(
+            capability_name=name,
+            capability_state=CapabilityState.OUTPUT_AVAILABLE,
+            target_state=TargetState.ABSENT,
+            output_artifact=None,
+            target_manifest=None,
+            # NOT MetricStatus.OK: the capabilities contract reserves OK for a
+            # VALIDATED capability with an ADMISSIBLE target and a named artifact.
+            # R3's output EXISTS but has not been validated against a held-out
+            # criterion, so its status honestly reports insufficient support for a
+            # pass -- the output being available is not the output being right.
+            status=MetricStatus.INSUFFICIENT_SUPPORT,
+            reason=r3_output_available,
+        ))
     for name in implemented_stages:
         evidence.append(CapabilityEvidence(
             capability_name=name,

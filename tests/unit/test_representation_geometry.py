@@ -396,13 +396,17 @@ def test_no_unbuilt_stage_can_satisfy_a_release_gate():
     assert not any(release_gate_satisfied(c) for c in panel_r_capabilities())
 
 
-# R3/R4/R5 advanced to IMPLEMENTED_NO_OUTPUT when the extraction boundary
-# (representation_artifact.py) landed: the representation can now be obtained and
-# persisted, but no probe/whitening/hubness metric has run against it. R6 needs a
-# checkpoint series and R7 needs longitudinal outcomes, so both stay
-# NOT_IMPLEMENTED. Updated 2026-07-21 in the same commit as the state change.
-_ADVANCED = {
-    "panel_r3_norm_angle_decomposition",
+# The Panel R stages sit at different rungs, and the tests assert each one where
+# it actually is -- updated as probes land.
+#   R3: OUTPUT_AVAILABLE  -- norm_angle_probe.py produces its decomposition and
+#       recovery delta (this commit).
+#   R4, R5: IMPLEMENTED_NO_OUTPUT -- the extraction boundary gave them a stored
+#       representation, but their own probes are not built yet.
+#   R6, R7: NOT_IMPLEMENTED -- R6 needs a checkpoint series, R7 longitudinal
+#       outcomes; neither exists.
+# Updated 2026-07-21 in the same commit as the R3 advance.
+_OUTPUT_AVAILABLE = {"panel_r3_norm_angle_decomposition"}
+_IMPLEMENTED_NO_OUTPUT = {
     "panel_r4_conditioning_recoverability",
     "panel_r5_hubness_local_geometry",
 }
@@ -412,12 +416,24 @@ _STILL_BLOCKED = {
 }
 
 
-def test_extraction_boundary_advanced_r3_r4_r5_one_rung():
+def test_r3_reached_output_available():
     caps = {c.capability_name: c for c in panel_r_capabilities()}
-    for name in _ADVANCED:
+    c = caps["panel_r3_norm_angle_decomposition"]
+    assert c.capability_state is CapabilityState.OUTPUT_AVAILABLE, (
+        "R3's probe protocol (norm_angle_probe.py) exists, so R3 advanced")
+    # OUTPUT_AVAILABLE, not VALIDATED: output exists, unverified. The contract
+    # forbids MetricStatus.OK outside VALIDATED, so the status is honestly
+    # INSUFFICIENT_SUPPORT and there is no named artifact yet.
+    assert c.status is MetricStatus.INSUFFICIENT_SUPPORT
+    assert c.output_artifact is None
+    assert c.reason
+
+
+def test_r4_r5_remain_implemented_no_output():
+    caps = {c.capability_name: c for c in panel_r_capabilities()}
+    for name in _IMPLEMENTED_NO_OUTPUT:
         assert caps[name].capability_state is CapabilityState.IMPLEMENTED_NO_OUTPUT, (
-            f"{name} should have advanced when the extraction boundary landed")
-        # advanced, but NOT verified: no output artifact, machinery-ready status.
+            f"{name} has a stored representation but no probe of its own yet")
         assert caps[name].output_artifact is None
         assert caps[name].status is MetricStatus.INSUFFICIENT_SUPPORT
         assert caps[name].reason

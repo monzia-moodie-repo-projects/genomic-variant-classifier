@@ -2868,4 +2868,57 @@
 #                     pickle, library-module logging. Built on the existing
 #                     foundation, not a parallel one.
 #
-2763
+#   2786  2026-07-21  +23: Panel R stage R3 -- the norm-angle probe. A
+#                     LABEL-FREE LINEAR MAP, FIT ON TRAIN ONLY, MEASURES WHETHER
+#                     A COLLAPSED REPRESENTATION'S GEOMETRY IS RECOVERABLE.
+#
+#                     THE SCIENTIFIC QUESTION R3 ANSWERS. R1/R2 measured
+#                     representation collapse; R3 asks whether it is recoverable.
+#                     Each embedding splits into a NORM (radial magnitude) and an
+#                     ANGLE (direction on the sphere). A cone collapse concentrates
+#                     the angles while the norms may still separate structure.
+#                     norm_angle_probe.py fits ZCA whitening -- mean and covariance,
+#                     no labels -- and measures angular concentration (mean
+#                     resultant length: 1=collapsed, 0=spread) before and after.
+#                     On a known cone collapse the concentration drops from ~0.95
+#                     to ~0.02: the collapse was a linear reparameterisation
+#                     artifact a label-free map undoes. That is the answer.
+#
+#                     THE LEAKAGE GUARD, STRUCTURAL NOT ADVISORY. The whitening
+#                     transform is fit on TRAIN only. Fitting mean/covariance on
+#                     STRUCTURE or TEST leaks the evaluation distribution into the
+#                     map EVEN WITH NO LABELS -- the second-moment structure of the
+#                     held-out set is itself information. fit_whitening reads the
+#                     RepresentationArtifact's bound partition_role and RAISES
+#                     LeakageError on any non-TRAIN artifact. The TRAIN transform
+#                     is then applied unchanged to held-out partitions via
+#                     apply_whitening, which never refits. Sabotage: remove the
+#                     guard -> 5 failed.
+#
+#                     PROVEN BY SABOTAGE, all seven detected: fit leakage guard
+#                     removed -> 5 failed; report anchor guard -> 1; whitening
+#                     identity broken -> 1; angular concentration forced to 0 -> 2;
+#                     zero-norm rows not excluded -> 2; row-order verify skipped ->
+#                     1; transform width check removed -> 1. Restored -> 22 passed.
+#
+#                     TWO TEST DEFECTS SELF-CAUGHT. Two guards (the report-level
+#                     anchor check and the transform width check) were redundantly
+#                     covered by a deeper ValueError, so removing them still raised
+#                     -- the wrong-reason pattern. Both tests were pinned to their
+#                     guards' SPECIFIC messages ("anchor", "cannot whiten shape"),
+#                     so removing either now turns the suite red and the guards are
+#                     proven to fire independently.
+#
+#                     THE LADDER. R3 advances IMPLEMENTED_NO_OUTPUT ->
+#                     OUTPUT_AVAILABLE (its probe protocol now exists), verified
+#                     legal via transition_is_legal. NOT MetricStatus.OK: the
+#                     capabilities contract reserves OK for VALIDATED with an
+#                     ADMISSIBLE target and a named artifact -- caught at
+#                     construction, corrected to INSUFFICIENT_SUPPORT, because an
+#                     output existing is not an output validated. R4/R5 stay at
+#                     IMPLEMENTED_NO_OUTPUT (their probes are unbuilt); R6/R7 stay
+#                     NOT_IMPLEMENTED. A coupled test in test_capability_lifecycle
+#                     still passes: the ladder MAP is unchanged, only R3's present
+#                     rung moved.
+#
+2786
