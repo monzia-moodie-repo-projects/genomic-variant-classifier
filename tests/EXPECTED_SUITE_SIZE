@@ -2921,4 +2921,56 @@
 #                     still passes: the ladder MAP is unchanged, only R3's present
 #                     rung moved.
 #
-2786
+#   2800  2026-07-22  +14: record the NEGATIVE R3 transfer-validation result.
+#                     THE APPARENT RECOVERY IS A MEAN-CENTERING ARTIFACT THAT DOES
+#                     NOT SURVIVE HELD-OUT VALIDATION -- AND THAT IS THE FINDING.
+#
+#                     THE SCIENCE. R3's norm-angle probe reported a large in-sample
+#                     angular recovery (~0.98 on a cone collapse). r3_validation.py
+#                     tests it held-out and null-calibrated: on TEST the same
+#                     TRAIN-fit whitening recovery is ~0 and does not exceed the
+#                     reference null. A decomposition PROVES why: centering alone
+#                     accounts for 99.6% of the in-sample drop; centering with the
+#                     TRAIN mean recovers ~0.016 on TEST while centering with TEST's
+#                     OWN mean recovers ~0.982. The "recovery" was the cone's common
+#                     direction removed as a per-partition mean, unavailable at
+#                     deployment. The capability contract WORKED: it stopped an
+#                     appealing in-sample number from being promoted.
+#
+#                     THE THREE-CONCEPT RECORD (Monzia's design). ValidationArtifact
+#                     separates implementation validity (the code computes the
+#                     intended quantity: PASS), statistical/transfer validity
+#                     (generalises held-out: FAIL), and admissibility (both: FALSE).
+#                     A non-admissible metric MUST carry a finding -- enforced at
+#                     construction. Three findings recorded: the transfer failure,
+#                     the mean-centering decomposition, and a NULL-ADEQUACY finding.
+#
+#                     NULL ADEQUACY. The current rotation-only null is EXACTLY
+#                     rotation-invariant for angular concentration (verified to
+#                     machine precision), so it cannot separate the observed
+#                     whitening from chance on this statistic. It is retained ONLY
+#                     as an invariance control; a matched-spectrum null family
+#                     (eigenvalue-permutation + random-orientation SPD, preserving
+#                     the whitening gain spectrum while randomising covariance
+#                     alignment) is the correct inferential reference and lands in a
+#                     later methodological commit. The p-value is reported as a
+#                     Monte Carlo matched-null tail probability, not an exact
+#                     permutation p-value.
+#
+#                     PROVEN BY SABOTAGE (S1-S6 all fire): admissible-ignores-
+#                     transfer, transfer-forced-True, p-value-inverted, leakage-
+#                     guard-removed (message-pinned distinct from the inner guard),
+#                     finding-requirement-dropped, own-mean-decomposition-faked.
+#                     The identity-null sabotage is intentionally reclassified: it
+#                     does not alter the rotation-invariant estimand, which is a
+#                     property of the metric, not a test gap -- addressed by the
+#                     matched-null commit. A PERMANENT REGRESSION TEST (common
+#                     direction + noise + no transferable signal) locks in that the
+#                     validator refuses to promote this class of false discovery.
+#
+#                     R3 STAYS OUTPUT_AVAILABLE (not VALIDATED): the output was
+#                     checked and found NOT admissible. Its capability reason now
+#                     cites the negative finding. Release gate unsatisfied. Nothing
+#                     hidden, nothing promoted, nothing discarded.
+#
+2800

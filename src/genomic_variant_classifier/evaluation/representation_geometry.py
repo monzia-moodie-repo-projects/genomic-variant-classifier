@@ -513,8 +513,13 @@ def panel_r_capabilities() -> tuple:
     # nearest-neighbour evaluator for R5) are not built yet.
     r3_output_available = (
         "norm_angle_probe.py produces the norm/angular decomposition and a "
-        "label-free recovery delta, fit on TRAIN only. The output exists; it has "
-        "not been validated against a held-out criterion, which is the next rung."
+        "label-free recovery delta, fit on TRAIN only. r3_validation.py has now "
+        "checked it held-out and NULL-CALIBRATED: the recovery does NOT transfer "
+        "(the in-sample gain is a per-partition mean-centering artifact, ~99.6% "
+        "attributable to centering), so the metric is NOT admissible and R3 stays "
+        "OUTPUT_AVAILABLE. The current rotation-only null is retained only as an "
+        "invariance control; a matched-spectrum null family is the next step. See "
+        "ValidationArtifact(metric_name='R3.transfer_recovery')."
     )
     output_available_stages = (
         "panel_r3_norm_angle_decomposition",
