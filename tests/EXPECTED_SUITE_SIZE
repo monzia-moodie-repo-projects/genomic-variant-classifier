@@ -3178,4 +3178,34 @@
 #                     removed, no-output-reason-guard removed, R4-promoted-to-has-
 #                     output, and R4-ladder-inheritance-text removed.
 #
-2857
+#   2860  2026-07-22  +3: message-pin the spurious scikit-learn
+#                     parallel.delayed thread-config warning, and pin the premise
+#                     with a contract test so the filter stays honest.
+#
+#                     The warning ("sklearn.utils.parallel.delayed should be used
+#                     with sklearn.utils.parallel.Parallel ... propagate the
+#                     configuration ... to the joblib workers") is emitted by
+#                     scikit-learn's OWN estimators (RandomForest n_jobs != 1) as a
+#                     thread-config-propagation note. It is not a correctness signal
+#                     and it is not this project misusing delayed. It is execution-
+#                     order dependent -- observed at 448, 2499, and 0 occurrences on
+#                     different full-suite runs, attributed to whichever file trips
+#                     it first -- which trains readers to scroll past UserWarnings.
+#                     A message-pinned filter removes it deterministically.
+#
+#                     The contract test pins the premise that makes silencing safe:
+#                     every delayed(...) in the project is paired with a joblib
+#                     Parallel(...) in the same module, and no module imports delayed
+#                     from sklearn.utils.parallel. If a future edit introduces a bare
+#                     joblib.delayed feeding a scikit-learn Parallel -- which WOULD
+#                     make the warning our own signal -- the test fails and the filter
+#                     must be reconsidered. The filter is pinned to the exact message,
+#                     never broadened to ignore::UserWarning, so a different
+#                     UserWarning still reaches us.
+#
+#                     PROVEN BY SABOTAGE (4 fire): filter removed from pyproject,
+#                     delayed() without Parallel() in a module, delayed imported from
+#                     sklearn.utils.parallel, and filter broadened to the bare
+#                     category.
+#
+2860

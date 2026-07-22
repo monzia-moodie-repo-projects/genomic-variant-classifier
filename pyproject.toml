@@ -78,4 +78,34 @@ filterwarnings = [
     # when the column order differs (measured swing: 0.855 in predicted probability, no
     # error, no warning). The `.values` dispatch is load-bearing, not stylistic.
     "ignore:X does not have valid feature names, but LGBMClassifier was fitted with feature names:UserWarning",
+
+    # scikit-learn 1.8.0 <-> joblib 1.5.3 thread-config propagation note. SPURIOUS for
+    # correctness. Investigated 2026-07-22; the premise is pinned by
+    # tests/unit/test_sklearn_parallel_warning_contract.py, which FAILS if this project
+    # ever misuses `delayed` in a way that would make this warning our own signal.
+    #
+    # scikit-learn's estimators (e.g. RandomForest with n_jobs != 1) parallelise their
+    # internal work with sklearn.utils.parallel.Parallel + sklearn.utils.parallel.delayed.
+    # When such an estimator runs inside a fold or a joblib context whose thread has not had
+    # the scikit-learn config attached, sklearn emits this UserWarning to note that the
+    # thread-local configuration may not propagate to the joblib workers. It is a
+    # PERFORMANCE/thread-config note, not a correctness signal: no prediction is wrong and
+    # no result is affected -- only the propagation of config such as `assume_finite` to
+    # worker threads is at issue, and this project does not rely on that propagation.
+    #
+    # The warning is EXECUTION-ORDER dependent: it does not fire when the emitting test file
+    # runs in isolation, and across full-suite runs it is attributed to whichever file first
+    # trips it (observed at 448, 2499, and 0 occurrences on different runs). That variance
+    # trains readers to scroll past UserWarnings, which is exactly how a real convergence
+    # defect once survived. Message-pinning removes it deterministically regardless of order.
+    #
+    # This is NOT our code misusing `delayed`. The only `delayed(...)` calls in the project
+    # are in models/scalable_svm.py, where joblib.delayed is correctly paired with
+    # joblib.Parallel (verified 2026-07-22). The pinning test asserts that pairing, so if a
+    # future edit introduces a bare joblib.delayed feeding an sklearn Parallel -- which WOULD
+    # make this warning our own signal -- the test fails and this filter must be reconsidered.
+    #
+    # DO NOT broaden this to `ignore::UserWarning`. It is pinned to this exact message so a
+    # DIFFERENT UserWarning still reaches us.
+    "ignore:.*sklearn.utils.parallel.delayed. should be used with.*:UserWarning",
 ]
