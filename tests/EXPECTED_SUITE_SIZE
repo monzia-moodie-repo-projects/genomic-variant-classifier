@@ -2973,4 +2973,28 @@
 #                     cites the negative finding. Release gate unsatisfied. Nothing
 #                     hidden, nothing promoted, nothing discarded.
 #
-2800
+#   2803  2026-07-22  +3: codify the orthogonal invariance of angular
+#                     concentration. THE STATISTIC IS EXACTLY ROTATION-INVARIANT,
+#                     WHICH IS WHY A ROTATION-ONLY NULL IS A CONTROL, NOT A TEST.
+#
+#                     mean resultant length ||mean(v/||v||)|| rotates with the
+#                     data and a norm is rotation-invariant, so an orthogonal map
+#                     leaves the value unchanged to machine precision (verified
+#                     across 4 inputs x 5 rotations, delta < 1e-10). This reframes
+#                     the earlier identity-null "sabotage": substituting identity
+#                     for a rotation null did not move the verdict because it
+#                     CANNOT -- the estimand is rotation-invariant. That is the
+#                     correct, expected result, not a gap.
+#
+#                     A contrast test shows a non-orthogonal RESCALING map DOES
+#                     change angular concentration, which is exactly why a matched-
+#                     spectrum rescaling null (preserving the whitening gain
+#                     spectrum while randomising orientation) is informative where
+#                     a rotation null is not -- motivating the null-family commits.
+#
+#                     Sabotage-verified: breaking rotation-invariance in
+#                     angular_concentration turns the two invariance tests red; the
+#                     rescaling-contrast test correctly stays green (different
+#                     property). Pure test commit, no source change.
+#
+2803

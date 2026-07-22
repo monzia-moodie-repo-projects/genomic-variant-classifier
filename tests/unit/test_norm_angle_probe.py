@@ -223,3 +223,77 @@ def test_fit_requires_two_rows():
 def test_ridge_is_recorded():
     t = fit_whitening(_artifact(_spread(), "TRAIN"), ridge=1e-4)
     assert t.ridge == 1e-4
+
+
+# --------------------------------------------------------------------------- #
+# ORTHOGONAL INVARIANCE OF ANGULAR CONCENTRATION (Commit 2, 2026-07-22)
+# --------------------------------------------------------------------------- #
+# These tests codify WHY a Haar random-orthogonal null cannot be an inferential
+# reference for angular concentration: the statistic is EXACTLY invariant under
+# any orthogonal map. The mean resultant length ||mean(v/||v||)|| rotates with
+# the data (rotating every v by Q rotates the mean direction by Q) and a norm is
+# rotation-invariant, so the value does not change at all.
+#
+# This is the POSITIVE reframing of what earlier looked like a "failed sabotage"
+# (substituting the identity for a rotation null did not move the verdict): it
+# did not move the verdict because it could not -- the estimand is rotation-
+# invariant. rotation_metric == identity_metric is the CORRECT, EXPECTED result,
+# not a gap. The contrast test then shows a rescaling (non-orthogonal) map DOES
+# change the concentration, which is exactly why a matched-spectrum rescaling
+# null (built in a later commit) is informative where a rotation null is not.
+
+
+def _haar_orthogonal(dim, rng):
+    a = rng.normal(size=(dim, dim))
+    q, r = np.linalg.qr(a)
+    return q * np.sign(np.diag(r))
+
+
+def test_angular_concentration_is_exactly_rotation_invariant():
+    """The core invariance: an orthogonal map leaves angular concentration
+    unchanged to machine precision, across many rotations and several inputs.
+    A rotation-only null is therefore an invariance CONTROL, not an inferential
+    reference -- this test is why."""
+    rng = np.random.default_rng(0)
+    for seed in range(4):
+        x = np.random.default_rng(seed).normal(size=(800, 24))
+        x[:, 0] += 2.0  # give it nontrivial concentration
+        base = angular_concentration(x)
+        assert base.status is MetricStatus.OK
+        for _ in range(5):
+            q = _haar_orthogonal(24, rng)
+            rotated = angular_concentration(x @ q)
+            assert rotated.status is MetricStatus.OK
+            assert abs(rotated.value - base.value) < 1e-10, (
+                "angular concentration must be invariant under orthogonal maps")
+
+
+def test_rotation_null_equals_identity_for_this_statistic():
+    """The reclassified S7, stated positively: applying a rotation and applying
+    nothing (identity) yield the SAME angular concentration. This is the reason a
+    rotation null adds nothing over a do-nothing baseline for this metric, and
+    the reason it is retained only as an invariance control."""
+    rng = np.random.default_rng(1)
+    x = rng.normal(size=(600, 16))
+    x[:, 0] += 3.0
+    identity_value = angular_concentration(x @ np.eye(16)).value
+    rotation_value = angular_concentration(x @ _haar_orthogonal(16, rng)).value
+    assert abs(identity_value - rotation_value) < 1e-10
+
+
+def test_a_rescaling_map_does_change_angular_concentration():
+    """The contrast that motivates a matched-spectrum null: a non-orthogonal
+    RESCALING map (stretching axes by different amounts) DOES move angular
+    concentration. So a null that preserves the whitening rescaling spectrum
+    while randomising its orientation -- unlike a pure rotation -- is a
+    genuinely informative reference. This is why Commits 3-4 exist."""
+    rng = np.random.default_rng(2)
+    x = rng.normal(size=(800, 12))
+    x[:, 0] += 3.0
+    base = angular_concentration(x).value
+    # an anisotropic diagonal rescaling: not orthogonal
+    scales = np.linspace(0.2, 5.0, 12)
+    rescaled = angular_concentration(x * scales).value
+    assert abs(rescaled - base) > 1e-3, (
+        "a rescaling map must change angular concentration; if it does not, a "
+        "matched-spectrum null would be as uninformative as a rotation")
