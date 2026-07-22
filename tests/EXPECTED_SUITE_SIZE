@@ -3041,4 +3041,38 @@
 #                     requirement-dropped, null-uses-ones-not-gains. The p-value
 #                     is a Monte Carlo matched-null tail probability, not exact.
 #
-2819
+#   2829  2026-07-22  +10: wire the matched null family into a TWO-NULL
+#                     INTERSECTION admissibility rule. A RECOVERY CLAIM MUST CLEAR
+#                     EVERY CONDITION -- NO NULL COMPENSATES FOR THE OTHER.
+#
+#                     validate_recovery_matched runs the held-out concentration
+#                     statistic against a matched-spectrum null (primary
+#                     eigenvalue-permutation or secondary orientation) instead of
+#                     the rotation-only control. On the R3 cone case all three
+#                     nulls agree: no transfer (observed ~ -0.013).
+#
+#                     decide_recovery_admissibility applies Monzia Moodie's section
+#                     14 intersection: admissible iff implementation AND transfer
+#                     AND primary-null AND secondary-null AND centering-not-dominant
+#                     AND gene-cluster-uncertainty. Verified strict: the positive
+#                     path passes only when ALL hold, and breaking ANY single one
+#                     (primary, secondary, centering, cluster CI) fails it with the
+#                     matching finding. A null passing requires a low tail
+#                     probability AND a positive observed recovery, so a transform
+#                     that makes geometry WORSE cannot be admitted on a tail fluke.
+#
+#                     UNCERTAINTY IS PENDING, NEVER DEFAULT-TRUE. The gene-cluster
+#                     bootstrap does not exist yet, so cluster_ci_low defaults to
+#                     None -> uncertainty_passed None -> admissible False with a
+#                     gene_cluster_uncertainty_pending_infrastructure finding. The
+#                     honest state is "not yet checked", which BLOCKS admissibility
+#                     rather than silently passing. A real lower confidence bound
+#                     activates the check (>0 passes, <=0 fails distinctly).
+#
+#                     PROVEN BY SABOTAGE (5 fire): PENDING-treated-as-pass,
+#                     intersection-becomes-OR, centering-condition-dropped, primary-
+#                     null-ignores-observed-sign, unknown-null-kind-silently-
+#                     defaults. Reported figures are Monte Carlo matched-null tail
+#                     probabilities, not exact permutation p-values.
+#
+2829

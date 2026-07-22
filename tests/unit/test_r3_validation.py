@@ -231,3 +231,155 @@ def test_a_genuinely_transferable_signal_can_pass():
         "null is broken (e.g. identity instead of random-orthogonal) or the "
         "transfer criterion is mis-wired")
     assert rv.observed_recovery > rv.null_mean
+
+
+# --------------------------------------------------------------------------- #
+# COMMIT 4: the matched-null family wired into a two-null intersection rule
+# --------------------------------------------------------------------------- #
+# validate_recovery_matched replaces the rotation-only null with a matched-
+# spectrum null (primary permutation or secondary orientation). decide_recovery_
+# admissibility applies the INTERSECTION rule from Monzia Moodie's design: a claim
+# is admissible only if it clears implementation AND transfer AND primary-null AND
+# secondary-null AND centering-not-dominant AND gene-cluster-uncertainty. No null
+# compensates for the other. The uncertainty term is PENDING (None) until the
+# gene-cluster bootstrap exists, and PENDING forces non-admissibility -- never a
+# silent default pass.
+from genomic_variant_classifier.evaluation.r3_validation import (
+    validate_recovery_matched, RecoveryValidationDecision,
+    decide_recovery_admissibility)
+from genomic_variant_classifier.evaluation.null_family import NullKind
+
+
+def _rv(observed, p):
+    from genomic_variant_classifier.evaluation.r3_validation import RecoveryValidation
+    return RecoveryValidation(
+        observed, 0.0, 0.1, 0.2, p, 100, 0.05,
+        bool(observed > 0 and p < 0.05), "TEST")
+
+
+def test_matched_validation_runs_both_null_kinds():
+    """Both matched null kinds evaluate on the R3 cone case and, like the rotation
+    null, correctly find NO transfer -- the negative result is robust across the
+    matched family, not an artifact of the rotation-only null."""
+    big = _cone(n=4000, d=32, seed=0)
+    train = _artifact(big[:2000], "TRAIN")
+    test = _artifact(big[2000:], "TEST")
+    prim = validate_recovery_matched(
+        train, test, null_kind=NullKind.EIGENVALUE_PERMUTATION, n_null=60)
+    sec = validate_recovery_matched(
+        train, test, null_kind=NullKind.MATCHED_SPECTRUM_ORIENTATION, n_null=60)
+    assert not prim.transfer_passed
+    assert not sec.transfer_passed
+    # observed recovery is the same statistic regardless of null kind
+    assert prim.observed_recovery == pytest.approx(sec.observed_recovery, abs=1e-9)
+
+
+def test_matched_validation_rejects_unknown_null_kind():
+    big = _cone(n=400, d=16, seed=0)
+    train = _artifact(big[:200], "TRAIN")
+    test = _artifact(big[200:], "TEST")
+    with pytest.raises(ValueError, match="unknown null_kind"):
+        validate_recovery_matched(train, test, null_kind="not_a_kind", n_null=20)
+
+
+def test_intersection_admits_only_when_all_conditions_pass():
+    prim = _rv(0.30, 0.008)
+    sec = _rv(0.28, 0.012)
+    decision = decide_recovery_admissibility(
+        implementation_passed=True, transfer_delta=0.30, minimum_transfer_delta=0.05,
+        primary_null=prim, secondary_null=sec, alpha=0.05,
+        centering_fraction=0.2, maximum_centering_fraction=0.5, cluster_ci_low=0.05)
+    assert decision.admissible is True
+    assert decision.findings == ()
+    assert decision.uncertainty_passed is True
+
+
+def test_pending_uncertainty_blocks_admissibility():
+    """cluster_ci_low None means the gene-cluster check is PENDING. It must force
+    admissible=False with a PENDING finding -- never a silent default pass, even
+    when every other condition is satisfied."""
+    prim = _rv(0.30, 0.008)
+    sec = _rv(0.28, 0.012)
+    decision = decide_recovery_admissibility(
+        implementation_passed=True, transfer_delta=0.30, minimum_transfer_delta=0.05,
+        primary_null=prim, secondary_null=sec, alpha=0.05,
+        centering_fraction=0.2, maximum_centering_fraction=0.5, cluster_ci_low=None)
+    assert decision.admissible is False
+    assert decision.uncertainty_passed is None
+    assert "gene_cluster_uncertainty_pending_infrastructure" in decision.findings
+
+
+def test_primary_null_failure_alone_blocks_admissibility():
+    """No null compensates for the other: failing ONLY the primary null blocks
+    admissibility even if the secondary passes."""
+    decision = decide_recovery_admissibility(
+        implementation_passed=True, transfer_delta=0.30, minimum_transfer_delta=0.05,
+        primary_null=_rv(0.30, 0.40), secondary_null=_rv(0.28, 0.01), alpha=0.05,
+        centering_fraction=0.2, maximum_centering_fraction=0.5, cluster_ci_low=0.05)
+    assert decision.admissible is False
+    assert "does_not_beat_eigenvalue_assignment_null" in decision.findings
+    assert "does_not_beat_matched_orientation_null" not in decision.findings
+
+
+def test_secondary_null_failure_alone_blocks_admissibility():
+    decision = decide_recovery_admissibility(
+        implementation_passed=True, transfer_delta=0.30, minimum_transfer_delta=0.05,
+        primary_null=_rv(0.30, 0.01), secondary_null=_rv(0.28, 0.40), alpha=0.05,
+        centering_fraction=0.2, maximum_centering_fraction=0.5, cluster_ci_low=0.05)
+    assert decision.admissible is False
+    assert "does_not_beat_matched_orientation_null" in decision.findings
+    assert "does_not_beat_eigenvalue_assignment_null" not in decision.findings
+
+
+def test_centering_dominant_blocks_admissibility():
+    prim = _rv(0.30, 0.008)
+    sec = _rv(0.28, 0.012)
+    decision = decide_recovery_admissibility(
+        implementation_passed=True, transfer_delta=0.30, minimum_transfer_delta=0.05,
+        primary_null=prim, secondary_null=sec, alpha=0.05,
+        centering_fraction=0.8, maximum_centering_fraction=0.5, cluster_ci_low=0.05)
+    assert decision.admissible is False
+    assert "recovery_dominated_by_centering" in decision.findings
+
+
+def test_cluster_ci_including_zero_blocks_admissibility():
+    """A supplied cluster interval whose lower bound is not above zero fails the
+    uncertainty condition (distinct from PENDING)."""
+    prim = _rv(0.30, 0.008)
+    sec = _rv(0.28, 0.012)
+    decision = decide_recovery_admissibility(
+        implementation_passed=True, transfer_delta=0.30, minimum_transfer_delta=0.05,
+        primary_null=prim, secondary_null=sec, alpha=0.05,
+        centering_fraction=0.2, maximum_centering_fraction=0.5, cluster_ci_low=-0.01)
+    assert decision.admissible is False
+    assert decision.uncertainty_passed is False
+    assert "gene_cluster_interval_includes_no_recovery" in decision.findings
+
+
+def test_negative_observed_recovery_does_not_beat_null():
+    """A matched null passing requires BOTH a low tail probability AND a positive
+    observed recovery. A negative observed recovery that happens to land in the
+    null tail (low p) is not a real recovery and must NOT count as beating the
+    null -- otherwise a transform that makes the geometry WORSE could be admitted."""
+    # negative observed recovery, but a low p-value
+    prim = _rv(-0.05, 0.01)
+    sec = _rv(-0.04, 0.01)
+    decision = decide_recovery_admissibility(
+        implementation_passed=True, transfer_delta=-0.05, minimum_transfer_delta=0.05,
+        primary_null=prim, secondary_null=sec, alpha=0.05,
+        centering_fraction=0.2, maximum_centering_fraction=0.5, cluster_ci_low=0.05)
+    assert decision.primary_null_passed is False
+    assert decision.secondary_null_passed is False
+    assert decision.admissible is False
+
+
+def test_decision_is_serialisable():
+    prim = _rv(0.30, 0.008)
+    sec = _rv(0.28, 0.012)
+    decision = decide_recovery_admissibility(
+        implementation_passed=True, transfer_delta=0.30, minimum_transfer_delta=0.05,
+        primary_null=prim, secondary_null=sec, alpha=0.05,
+        centering_fraction=0.2, maximum_centering_fraction=0.5, cluster_ci_low=0.05)
+    d = decision.to_dict()
+    assert d["admissible"] is True
+    assert isinstance(d["findings"], list)

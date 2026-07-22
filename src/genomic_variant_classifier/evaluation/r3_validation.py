@@ -58,14 +58,20 @@ import numpy as np
 from .representation_artifact import RepresentationArtifact
 from .norm_angle_probe import (
     fit_whitening, angular_concentration, WhiteningTransform, LeakageError)
+from .null_family import (
+    NullKind, eigenvalue_assignment_null, matched_spectrum_orientation_null,
+    FlatGainSpectrumError)
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
     "ValidationArtifact",
     "RecoveryValidation",
+    "RecoveryValidationDecision",
     "random_orthogonal",
     "validate_recovery",
+    "validate_recovery_matched",
+    "decide_recovery_admissibility",
     "decompose_recovery_source",
 ]
 
@@ -204,6 +210,174 @@ def validate_recovery(
         observed, float(nulls.mean()), float(nulls.std(ddof=1)),
         float(np.percentile(nulls, 95)), p_value, int(nulls.size), alpha,
         transfer_passed, test.partition_role)
+
+
+def validate_recovery_matched(
+    train: RepresentationArtifact,
+    test: RepresentationArtifact,
+    *,
+    null_kind: NullKind,
+    n_null: int = 200,
+    alpha: float = 0.05,
+    ridge: float = 1e-6,
+    seed: int = 0,
+) -> RecoveryValidation:
+    """STATISTICAL VALIDITY against a MATCHED-SPECTRUM null (the inferential
+    reference, unlike the rotation-only control in validate_recovery).
+
+    Identical protocol to validate_recovery -- fit ZCA whitening on TRAIN, apply
+    to TEST, measure the held-out concentration drop -- but the null operators are
+    drawn from the matched-spectrum family instead of a plain rotation. The
+    matched null preserves the whitening gain spectrum exactly (singular values,
+    condition number, norms) while randomising the gain-to-direction alignment,
+    so beating it means the covariance-aligned assignment of gains, not the sheer
+    strength of the transform, produced the recovery.
+
+    null_kind selects the primary (EIGENVALUE_PERMUTATION) or secondary
+    (MATCHED_SPECTRUM_ORIENTATION) null. The primary refuses a flat gain spectrum
+    (FlatGainSpectrumError propagates); the caller decides whether to fall back to
+    the orientation null. The reported p_value is a Monte Carlo matched-null tail
+    probability, not an exact permutation p-value.
+    """
+    if train.partition_role != "TRAIN":
+        raise LeakageError(
+            f"validation fits on TRAIN; got {train.partition_role!r}")
+    train.verify_row_order(train.row_keys)
+    test.verify_row_order(test.row_keys)
+
+    transform = fit_whitening(train, ridge=ridge)
+    x_test = np.asarray(test.embeddings, dtype=np.float64)
+    observed = _concentration_drop(x_test, (x_test - transform.mean) @ transform.W)
+
+    rng = np.random.default_rng(seed)
+    if null_kind is NullKind.EIGENVALUE_PERMUTATION:
+        factory = eigenvalue_assignment_null
+    elif null_kind is NullKind.MATCHED_SPECTRUM_ORIENTATION:
+        factory = matched_spectrum_orientation_null
+    else:  # defensive: an unknown kind must not silently pick a default
+        raise ValueError(f"unknown null_kind {null_kind!r}")
+
+    nulls = np.array([
+        _concentration_drop(
+            x_test, (x_test - transform.mean) @ factory(transform, rng).matrix)
+        for _ in range(n_null)
+    ])
+    nulls = nulls[np.isfinite(nulls)]
+    if nulls.size < max(10, n_null // 2):
+        return RecoveryValidation(
+            observed, float("nan"), float("nan"), float("nan"), float("nan"),
+            int(nulls.size), alpha, False, test.partition_role)
+
+    p_value = (1.0 + float((nulls >= observed).sum())) / (1.0 + nulls.size)
+    transfer_passed = bool(observed > 0.0 and p_value < alpha)
+    return RecoveryValidation(
+        observed, float(nulls.mean()), float(nulls.std(ddof=1)),
+        float(np.percentile(nulls, 95)), p_value, int(nulls.size), alpha,
+        transfer_passed, test.partition_role)
+
+
+@dataclass(frozen=True)
+class RecoveryValidationDecision:
+    """The composite admissibility verdict under the matched null FAMILY.
+
+    A recovery claim is admissible only when it clears an INTERSECTION of
+    conditions (Monzia Moodie's design, section 14): the implementation is valid,
+    the recovery transfers held-out, it beats BOTH the primary (eigenvalue-
+    permutation) and secondary (matched-orientation) nulls, it is not dominated by
+    mean centering, and the gene-cluster uncertainty interval excludes no-recovery.
+    No single null can compensate for failing the other -- this is a conjunction,
+    not an averaged score.
+
+    uncertainty_passed is Optional and defaults to None (PENDING): the gene-cluster
+    bootstrap infrastructure does not yet exist, so the honest state is "not yet
+    checked", which forces admissible=False with a PENDING finding rather than
+    silently passing. It becomes True/False only when a real cluster interval is
+    supplied.
+    """
+
+    implementation_passed: bool
+    transfer_passed: bool
+    primary_null_passed: bool
+    secondary_null_passed: bool
+    centering_not_dominant: bool
+    uncertainty_passed: Optional[bool]   # None == PENDING, never default-True
+    admissible: bool
+    findings: tuple[str, ...]
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "implementation_passed": self.implementation_passed,
+            "transfer_passed": self.transfer_passed,
+            "primary_null_passed": self.primary_null_passed,
+            "secondary_null_passed": self.secondary_null_passed,
+            "centering_not_dominant": self.centering_not_dominant,
+            "uncertainty_passed": self.uncertainty_passed,
+            "admissible": self.admissible,
+            "findings": list(self.findings),
+        }
+
+
+def decide_recovery_admissibility(
+    *,
+    implementation_passed: bool,
+    transfer_delta: float,
+    minimum_transfer_delta: float,
+    primary_null: RecoveryValidation,
+    secondary_null: RecoveryValidation,
+    alpha: float,
+    centering_fraction: float,
+    maximum_centering_fraction: float,
+    cluster_ci_low: Optional[float] = None,
+) -> RecoveryValidationDecision:
+    """Apply the intersection admissibility rule. cluster_ci_low None means the
+    gene-cluster uncertainty check is PENDING (infrastructure not yet built), so
+    uncertainty_passed is None and admissibility CANNOT be granted -- fail-loud,
+    never default-pass. Supply a real lower confidence bound to activate it."""
+    transfer_passed = transfer_delta >= minimum_transfer_delta
+    primary_null_passed = primary_null.p_value <= alpha and primary_null.observed_recovery > 0.0
+    secondary_null_passed = secondary_null.p_value <= alpha and secondary_null.observed_recovery > 0.0
+    centering_not_dominant = centering_fraction <= maximum_centering_fraction
+
+    if cluster_ci_low is None:
+        uncertainty_passed: Optional[bool] = None   # PENDING
+    else:
+        uncertainty_passed = cluster_ci_low > 0.0
+
+    admissible = bool(
+        implementation_passed
+        and transfer_passed
+        and primary_null_passed
+        and secondary_null_passed
+        and centering_not_dominant
+        and uncertainty_passed is True   # None (PENDING) and False both block
+    )
+
+    findings: list[str] = []
+    if not transfer_passed:
+        findings.append("recovery_does_not_transfer")
+    if not primary_null_passed:
+        findings.append("does_not_beat_eigenvalue_assignment_null")
+    if not secondary_null_passed:
+        findings.append("does_not_beat_matched_orientation_null")
+    if not centering_not_dominant:
+        findings.append("recovery_dominated_by_centering")
+    if uncertainty_passed is None:
+        findings.append("gene_cluster_uncertainty_pending_infrastructure")
+    elif uncertainty_passed is False:
+        findings.append("gene_cluster_interval_includes_no_recovery")
+    if not implementation_passed and not findings:
+        findings.append("implementation_validation_failed")
+
+    return RecoveryValidationDecision(
+        implementation_passed=implementation_passed,
+        transfer_passed=transfer_passed,
+        primary_null_passed=primary_null_passed,
+        secondary_null_passed=secondary_null_passed,
+        centering_not_dominant=centering_not_dominant,
+        uncertainty_passed=uncertainty_passed,
+        admissible=admissible,
+        findings=tuple(findings),
+    )
 
 
 def decompose_recovery_source(
