@@ -2624,4 +2624,71 @@
 #                       an unbuilt stage claims OK        -> 3 failed
 #                       norm_cv returns 0 at zero mean    -> 2 failed
 #
-2658
+#   2713  2026-07-21  +55: tests/unit/test_capability_lifecycle.py -- A CAPABILITY
+#                     CANNOT CLAIM VALIDATION IT NEVER CLIMBED TO.
+#
+#                     THE GAP. capabilities.py checks that a declared state is
+#                     internally consistent. It cannot check that the state was
+#                     REACHED legitimately. Those are different questions, and
+#                     only the second prevents a capability being flipped from
+#                     "not built" to "validated" in one commit -- which means it
+#                     never existed in the state where the interesting defects
+#                     live: an artifact produced but wrong, a probe that runs but
+#                     leaks, a metric computed on the wrong tensor.
+#
+#                     The instruction not to make that jump was written as prose.
+#                     PROSE DOES NOT ENFORCE ITSELF, which is the same lesson the
+#                     Continuous Integration suite-size comment taught when 330
+#                     tests could have vanished behind a hand-maintained floor
+#                     that still said PASS.
+#
+#                     THE RULE. Forward moves advance EXACTLY ONE RUNG along
+#                     NOT_IMPLEMENTED -> IMPLEMENTED_NO_OUTPUT -> OUTPUT_AVAILABLE
+#                     -> VALIDATED. Backward moves are legal at ANY distance, and
+#                     DEPRECATED is reachable from anywhere, because discovering
+#                     that an artifact is wrong must never be harder to record
+#                     than claiming it is right -- a contract that made retraction
+#                     awkward would quietly encourage not retracting. A DEPRECATED
+#                     capability cannot be revived in place; it must be
+#                     re-registered under a new name so the deprecation stays
+#                     visible in the record.
+#
+#                     TransitionVerdict is never a bare boolean: an illegal
+#                     verdict MUST carry a reason and a legal one MUST NOT, so a
+#                     reader cannot skim a passing verdict's reason and mistake it
+#                     for a warning.
+#
+#                     THE PANEL R MAP. panel_r_expected_ladder() records the rung
+#                     each of R3-R7 must climb and what unblocks each step, so a
+#                     future claim of "R3 is validated" can be checked against the
+#                     PATH TAKEN rather than accepted on trust. It is a map, not a
+#                     gate: a test asserts it does not contradict the live
+#                     NOT_IMPLEMENTED registrations in representation_geometry.py.
+#
+#                     A CORRECTION TO AN EARLIER CLAIM. Panel R stage one said
+#                     R3-R7 "cannot be built". That was an overstatement. They are
+#                     blocked by an OBSERVABILITY gap -- gnn.py returns only
+#                     classifier(focal_embeddings) -- and an observability gap is
+#                     a refactor, not an impossibility. The reason constants now
+#                     name the specific missing artifact rather than restating the
+#                     status.
+#
+#                     TEN LAZY SKIPS REMOVED BEFORE THEY SHIPPED. The first draft
+#                     parametrized backward transitions over a 4x4 cross-product
+#                     and skipped the forward and identity cases, leaving ten
+#                     permanent skips that existed only because the test was
+#                     written carelessly. Replaced with a generated pair list, plus
+#                     a guard asserting the generator yields n*(n-1)/2 pairs --
+#                     an empty list would have made every backward test pass
+#                     vacuously.
+#
+#                     PROVEN BY SABOTAGE, all seven detected:
+#                       one-rung rule relaxed to any forward -> 4 failed
+#                       a deprecated capability revived      -> 1 failed
+#                       backward moves refused               -> 6 failed
+#                       type checks removed                  -> 4 failed
+#                       R3 and R4 given different blockers   -> 1 failed
+#                       the map itself skips a rung          -> 2 failed
+#                       a legal verdict carries a reason     -> 1 failed
+#
+2713
