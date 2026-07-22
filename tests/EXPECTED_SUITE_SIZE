@@ -3128,4 +3128,26 @@
 #                     on-synthetic-only. Figures are Monte Carlo matched-null tail
 #                     probabilities. R3 as a whole is NOT validated; no genomic claim.
 #
-2846
+#   2848  2026-07-22  +2: wire the R3a/R3b split into the panel capability
+#                     reason. THE PANEL NOW REPORTS TWO SUB-CAPABILITIES, EACH
+#                     NON-ADMISSIBLE FOR ITS OWN, DISTINCT REASON.
+#
+#                     R3a (angular dispersion): does not transfer held-out (mean-
+#                     centering artifact) AND is alignment-blind under the matched
+#                     null -- non-admissible as alignment evidence, the negative
+#                     finding preserved. R3b (whitening alignment): trace-normalised
+#                     covariance-shape recovery, alignment-sensitive, beats the
+#                     matched null on synthetic fixtures (method-validated on
+#                     SYNTHETIC), but its scientific validation on real genomic data
+#                     has not been run -- also non-admissible, pending held-out
+#                     genomic data, gene-cluster uncertainty, and prespecified
+#                     thresholds. R3 as a whole stays OUTPUT_AVAILABLE and non-
+#                     releasable. The reason points to r3a_angular_dispersion_
+#                     evidence() and r3b_whitening_alignment_evidence().
+#
+#                     Sabotage-verified: removing the R3a/R3b/alignment-blind
+#                     markers from the reason, or flipping R3b to appear
+#                     scientifically validated, turns the new tests red. Reason-
+#                     string change only; no new source file.
+#
+2848

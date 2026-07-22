@@ -473,3 +473,36 @@ def test_the_summary_serialises(healthy):
     assert d["n_observations"] == N
     assert isinstance(d["reasons"], list)
     assert isinstance(s, GeometrySummary)
+
+
+# --------------------------------------------------------------------------- #
+# COMMIT 6: the panel reflects the R3a/R3b split (2026-07-22)
+# --------------------------------------------------------------------------- #
+# After the matched-null family and the alignment calibration landed, R3's panel
+# capability reason must record the split: R3a (angular dispersion) is alignment-
+# blind and non-admissible, R3b (whitening alignment) is method-validated on
+# synthetic data but not scientifically validated. Both stay non-releasable.
+def test_r3_panel_reason_reflects_the_r3a_r3b_split():
+    caps = {c.capability_name: c for c in panel_r_capabilities()}
+    r3 = next(c for name, c in caps.items() if "r3" in name)
+    # the reason names both sub-capabilities and the alignment-blindness finding
+    assert "R3a" in r3.reason
+    assert "R3b" in r3.reason
+    assert "ALIGNMENT-BLIND" in r3.reason
+    # R3 as a whole stays OUTPUT_AVAILABLE and non-releasable
+    assert not release_gate_satisfied(r3)
+
+
+def test_r3_sub_capability_records_are_non_admissible():
+    from genomic_variant_classifier.evaluation.r3_capability import (
+        r3a_angular_dispersion_evidence, r3b_whitening_alignment_evidence,
+        MethodValidationState, ScientificValidationState)
+    r3a = r3a_angular_dispersion_evidence()
+    r3b = r3b_whitening_alignment_evidence()
+    # R3a: preserved negative finding, scientific validation FAILED
+    assert r3a.admissible is False
+    assert r3a.scientific_validation is ScientificValidationState.FAILED
+    # R3b: method-validated on synthetic, scientific validation NOT evaluated
+    assert r3b.admissible is False
+    assert r3b.method_validation is MethodValidationState.PASSED_SYNTHETIC
+    assert r3b.scientific_validation is ScientificValidationState.NOT_EVALUATED

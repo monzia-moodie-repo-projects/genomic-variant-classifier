@@ -512,14 +512,23 @@ def panel_r_capabilities() -> tuple:
     # probes (a conditioning/whitening ladder for R4, a validated approximate-
     # nearest-neighbour evaluator for R5) are not built yet.
     r3_output_available = (
-        "norm_angle_probe.py produces the norm/angular decomposition and a "
-        "label-free recovery delta, fit on TRAIN only. r3_validation.py has now "
-        "checked it held-out and NULL-CALIBRATED: the recovery does NOT transfer "
-        "(the in-sample gain is a per-partition mean-centering artifact, ~99.6% "
-        "attributable to centering), so the metric is NOT admissible and R3 stays "
-        "OUTPUT_AVAILABLE. The current rotation-only null is retained only as an "
-        "invariance control; a matched-spectrum null family is the next step. See "
-        "ValidationArtifact(metric_name='R3.transfer_recovery')."
+        "R3 has been SPLIT into two sub-capabilities under the matched-spectrum "
+        "null family (see r3_capability.py). R3a (angular dispersion): the "
+        "angular-concentration recovery does NOT transfer held-out -- the in-"
+        "sample gain is a per-partition mean-centering artifact (~99.6% "
+        "attributable to centering) -- AND it is ALIGNMENT-BLIND, unable to beat a "
+        "matched-spectrum null even in principle because it responds to gain-"
+        "spectrum magnitude (which the null preserves), not gain-to-direction "
+        "alignment. R3a is NON-ADMISSIBLE as alignment evidence; the negative "
+        "finding is preserved, not erased. R3b (whitening alignment): a trace-"
+        "normalised covariance-SHAPE recovery, alignment-SENSITIVE, that beats the "
+        "matched null on synthetic transfer fixtures (Type-I controlled, power "
+        "high) -- METHOD-VALIDATED ON SYNTHETIC data only. Its SCIENTIFIC "
+        "validation on real genomic representations has NOT been run, so R3b is "
+        "also NON-ADMISSIBLE pending held-out genomic data, gene-cluster "
+        "uncertainty, and prespecified thresholds. R3 as a whole stays "
+        "OUTPUT_AVAILABLE. See r3a_angular_dispersion_evidence() and "
+        "r3b_whitening_alignment_evidence()."
     )
     output_available_stages = (
         "panel_r3_norm_angle_decomposition",
