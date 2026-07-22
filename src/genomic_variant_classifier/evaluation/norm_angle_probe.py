@@ -78,7 +78,17 @@ _EPS = 1e-12
 class LeakageError(ValueError):
     """Raised when a fit is attempted on a partition other than TRAIN. Fitting a
     transform on STRUCTURE or TEST leaks the evaluation distribution into the map
-    even without labels, so the boundary refuses rather than warns."""
+    even without labels, so the boundary refuses rather than warns.
+
+    An optional machine-readable `reason` may accompany the message. The reason is
+    the stable contract a caller can pin; the message stays readable and may
+    evolve. Backward compatible: `LeakageError("msg")` still works with
+    reason=None, and it remains a ValueError so existing handlers still catch it.
+    """
+
+    def __init__(self, message: str, *, reason: str | None = None) -> None:
+        super().__init__(message)
+        self.reason = reason
 
 
 @dataclass(frozen=True)

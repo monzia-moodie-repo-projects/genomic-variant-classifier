@@ -3075,4 +3075,57 @@
 #                     defaults. Reported figures are Monte Carlo matched-null tail
 #                     probabilities, not exact permutation p-values.
 #
-2829
+#   2846  2026-07-22  +17: separate directional dispersion from covariance-
+#                     ALIGNMENT recovery, and calibrate the matched null only
+#                     against the alignment-sensitive estimand.
+#
+#                     THE FINDING. A matched-spectrum null showed angular
+#                     concentration is ALIGNMENT-BLIND: it responds to whitening
+#                     gain-spectrum MAGNITUDE (which the null preserves), not gain-
+#                     to-direction ALIGNMENT (which the null scrambles), so it
+#                     cannot beat the matched null and cannot evidence covariance
+#                     alignment. The apparent angular "recovery" and the alignment
+#                     question are two different estimands the single word
+#                     "recovery" had conflated.
+#
+#                     THE ALIGNMENT ESTIMAND. whitening_alignment_recovery measures
+#                     held-out covariance-SHAPE recovery from a TRAIN-fitted
+#                     transform. The covariance is TRACE-NORMALISED before the
+#                     identity distance, so shape_error is EXACTLY scale-invariant
+#                     (verified: 25x rescaling leaves it unchanged) and a global
+#                     variance contraction cannot masquerade as alignment recovery;
+#                     scale is reported separately. It is fit TRAIN-only via a
+#                     FittedWhiteningTransform whose provenance makes the leaking
+#                     path (held-out mean) inexpressible; a non-TRAIN fit raises
+#                     LeakageError with a stable reason.
+#
+#                     CALIBRATION. Against the matched null the alignment statistic
+#                     controls Type-I error under isotropic no-transfer fixtures
+#                     (0/40) and has power under shared-covariance transfer (40/40),
+#                     while the angular statistic provably does NOT beat the matched
+#                     null even where the alignment statistic does. CalibrationSummary
+#                     stores numerator and denominator and refuses a rate that does
+#                     not match its counts -- the arithmetic cannot drift.
+#
+#                     COMPATIBILITY CONTRACT. RecoveryStatisticSpecification types
+#                     each statistic by sensitivity and its compatible null targets;
+#                     pairing a gain-assignment null with the alignment-blind angular
+#                     statistic RAISES, so a future reader cannot mistake structural-
+#                     zero-power for a broken implementation.
+#
+#                     CAPABILITY. R3 splits into R3a (angular dispersion: OUTPUT_
+#                     AVAILABLE, transfer FAILED, alignment-blind, non-admissible --
+#                     the negative finding preserved) and R3b (whitening alignment:
+#                     method-validated on SYNTHETIC fixtures, scientific validation
+#                     NOT evaluated, non-admissible). Two orthogonal axes
+#                     (MethodValidationState, ScientificValidationState); the base
+#                     CapabilityState enum is untouched. Admissibility requires
+#                     held-out genomic scientific validation, never synthetic alone.
+#
+#                     PROVEN BY SABOTAGE (6 fire): shape-not-trace-normalised,
+#                     leakage-guard-removed, compatibility-check-vacuous, calibration-
+#                     invariant-off, raw-covariance-uses-held-out-mean, R3b-admissible-
+#                     on-synthetic-only. Figures are Monte Carlo matched-null tail
+#                     probabilities. R3 as a whole is NOT validated; no genomic claim.
+#
+2846
