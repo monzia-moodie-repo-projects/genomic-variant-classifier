@@ -200,8 +200,14 @@ def panel_r_expected_ladder() -> dict:
              "shares R3's infrastructure; built alongside it"),
             (CapabilityState.OUTPUT_AVAILABLE, REASON_PROBE_PROTOCOL_NOT_IMPLEMENTED,
              "a whitening transform fit on STRUCTURE or TEST is leakage even "
-             "with no labels; the fit partition is the whole contract"),
-            (CapabilityState.VALIDATED, None, "transform ladder fit on TRAIN only"),
+             "with no labels; the fit partition is the whole contract. When the "
+             "probe protocol is implemented it INHERITS the R3b-validated matched-"
+             "null protocol (recovery_protocol.py: TRAIN-fitted, alignment-"
+             "sensitive shape recovery, matched-spectrum null, synthetically "
+             "calibrated) rather than re-deriving one -- see "
+             "R4_CONDITIONING_INHERITANCE"),
+            (CapabilityState.VALIDATED, None, "transform ladder fit on TRAIN only, "
+             "via the inherited R3b-validated recovery protocol"),
         ),
         "panel_r5_hubness_local_geometry": (
             (CapabilityState.NOT_IMPLEMENTED, REASON_LOCAL_GEOMETRY_EVALUATOR_ABSENT,

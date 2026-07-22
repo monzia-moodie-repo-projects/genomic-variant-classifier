@@ -3150,4 +3150,32 @@
 #                     scientifically validated, turns the new tests red. Reason-
 #                     string change only; no new source file.
 #
-2848
+#   2857  2026-07-22  +9: hand the R3b-validated recovery protocol to the R4
+#                     conditioning ladder as a binding inheritance contract --
+#                     WITHOUT fabricating output R4 does not have.
+#
+#                     R4 (conditioning recoverability) has no genomic
+#                     representation to run on, so it stays IMPLEMENTED_NO_OUTPUT.
+#                     recovery_protocol.py binds it, by contract, to REUSE the
+#                     protocol R3b validated when it is eventually implemented: a
+#                     TRAIN-fitted leakage-safe whitening transform, the alignment-
+#                     SENSITIVE trace-normalised shape-recovery statistic (not the
+#                     alignment-blind angular one), and the matched-spectrum null
+#                     family, all calibrated on synthetic fixtures. RecoveryProtocol
+#                     refuses a non-TRAIN fit and refuses an alignment-blind
+#                     statistic paired with a gain-assignment null (reusing the R3b
+#                     compatibility contract). ProtocolInheritance refuses an un-
+#                     calibrated protocol and refuses a no-output stage without a
+#                     recorded reason -- and does NOT promote R4.
+#
+#                     This is the honest completion of the seven-commit matched-
+#                     null sequence: the validated protocol is handed to the next
+#                     ladder rung as a contract, not turned into a result. R4's
+#                     ladder OUTPUT_AVAILABLE description now cites the inheritance.
+#
+#                     PROVEN BY SABOTAGE (6 fire): non-TRAIN-fit-guard removed,
+#                     compatibility-guard removed, calibration-inherit-guard
+#                     removed, no-output-reason-guard removed, R4-promoted-to-has-
+#                     output, and R4-ladder-inheritance-text removed.
+#
+2857
