@@ -2757,4 +2757,62 @@
 #                       gate downgraded from sys.exit(1)   -> 1 failed
 #                       an importorskip guard deleted      -> 1 failed
 #
-2724
+#   2740  2026-07-21  +16: tests/unit/test_gnn_typed_output.py -- THE GNN
+#                     EXPORTS ITS REPRESENTATION WITHOUT CHANGING WHAT IT
+#                     PREDICTS.
+#
+#                     THE DISCARD THIS UNDOES. models/gnn.py computed
+#                     focal_embeddings = x[gene_idx] and returned only
+#                     classifier(focal_embeddings). That single discard is why
+#                     Panel R's R3-R7 are NOT_IMPLEMENTED: every probe, whitening
+#                     ladder and trajectory needs a representation the model
+#                     never handed out.
+#
+#                     THE DESIGN, AGAINST THE REAL CALLERS. The proposal in the
+#                     specification had forward() ALWAYS return a typed output.
+#                     Reading the caller inventory ruled that out: five sites do
+#                     out = model(...); F.softmax(out) -- gnn.py:424/473/490 and
+#                     ewc.py:186/379 -- and an always-on dataclass breaks all
+#                     five in one commit. Instead a keyword-only
+#                     return_embeddings=False leaves the default return a bare
+#                     (n_focal, 2) tensor, byte-identical to before, so every
+#                     existing caller is untouched; return_embeddings=True returns
+#                     GNNOutput(logits, focal_embeddings). VariantGATGPS, the
+#                     documented drop-in with an identical signature, gets the
+#                     same treatment in lock-step so the swap stays valid.
+#
+#                     THE CONTRACT, AND THE TEST THAT PROVES IT. The exported
+#                     tensor must be THE EXACT tensor the classifier consumed --
+#                     not a copy, not an adjacent layer. A forward-pre-hook on the
+#                     classifier captures its input; the test asserts it equals
+#                     output.focal_embeddings bit-for-bit (rtol=0, atol=0). That
+#                     holds WITHIN one forward pass, so it does not depend on
+#                     dropout determinism and would catch a future refactor that
+#                     exported a different layer. Exact-logit invariance is tested
+#                     under eval() + inference_mode, where dropout is a no-op, and
+#                     the test ASSERTS eval mode rather than assuming it. Gradient
+#                     flow is checked in train mode: the encoder still receives
+#                     gradients and the exported embedding stays attached to
+#                     autograd (detachment is the extraction boundary's job, a
+#                     later commit).
+#
+#                     WHAT THIS COMMIT DOES NOT DO. It does not persist anything,
+#                     does not add R3-R7, and does not move any capability past
+#                     NOT_IMPLEMENTED. It makes the representation OBSERVABLE.
+#                     Per the capability ladder (test_capability_lifecycle.py),
+#                     the next legal step for R3-R7 is IMPLEMENTED_NO_OUTPUT, and
+#                     it is a separate commit.
+#
+#                     VERIFICATION BOUNDARY, STATED PLAINLY. These tests require
+#                     torch, which the build environment for this delivery could
+#                     not install. The control flow was verified with a mock
+#                     torch (default -> bare tensor; opt-in -> GNNOutput with the
+#                     classifier input); the numerical claims -- invariance,
+#                     gradient flow, finiteness -- are proven by the real run on
+#                     Monzia's machine before commit. The diff is exactly the
+#                     added import, a keyword-only parameter, a docstring and the
+#                     branch; the default path changes only
+#                     'return classifier(...)' into 'logits = classifier(...);
+#                     ...; return logits'.
+#
+2740

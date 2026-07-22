@@ -50,6 +50,7 @@ from torch import nn
 from torch_geometric.nn import GATConv
 
 from genomic_variant_classifier.models.gnn_optim import bf16_autocast, denoise_string_edges, VariantGATGPS
+from genomic_variant_classifier.models.gnn_outputs import GNNOutput
 
 logger = logging.getLogger(__name__)
 
@@ -347,14 +348,28 @@ class VariantGAT(nn.Module):
         edge_index: torch.Tensor,
         gene_idx: torch.Tensor,
         edge_attr: Optional[torch.Tensor] = None,
-    ) -> torch.Tensor:
+        *,
+        return_embeddings: bool = False,
+    ):
+        """Focal-node readout.
+
+        Default (return_embeddings=False) returns the (n_focal, 2) logits tensor,
+        byte-identical to the historical behaviour, so every existing caller is
+        untouched. With return_embeddings=True it returns a GNNOutput carrying
+        both the logits and the EXACT pre-classifier representation the head
+        consumed -- the object Panel R's R3-R7 need. The embedding remains
+        attached to autograd; detachment is the extraction boundary's job.
+        """
         x = F.elu(self.conv1(x, edge_index, edge_attr=edge_attr))
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = F.elu(self.conv2(x, edge_index, edge_attr=edge_attr))
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.conv3(x, edge_index, edge_attr=edge_attr)
         focal_embeddings = x[gene_idx]            # (n_focal, out_channels)
-        return self.classifier(focal_embeddings)  # (n_focal, 2)
+        logits = self.classifier(focal_embeddings)  # (n_focal, 2)
+        if return_embeddings:
+            return GNNOutput(logits=logits, focal_embeddings=focal_embeddings)
+        return logits
 
 
 # ---------------------------------------------------------------------------

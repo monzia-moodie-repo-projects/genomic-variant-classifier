@@ -36,6 +36,8 @@ class EdgeGate(nn.Module):
 # ---------------------------------------------------------------------------
 from torch_geometric.nn import GATConv as _GATConv, GPSConv as _GPSConv
 
+from genomic_variant_classifier.models.gnn_outputs import GNNOutput
+
 
 class VariantGATGPS(nn.Module):
     """GraphGPS hybrid: per layer, a local edge-aware GATConv plus global Performer
@@ -75,11 +77,19 @@ class VariantGATGPS(nn.Module):
             nn.Linear(32, 2),
         )
 
-    def forward(self, x, edge_index, gene_idx, edge_attr=None):
+    def forward(self, x, edge_index, gene_idx, edge_attr=None, *, return_embeddings=False):
+        """Same opt-in contract as VariantGAT.forward: default returns the bare
+        (n_focal, 2) logits so this stays a drop-in for GNNTrainer/GNNScorer;
+        return_embeddings=True returns a GNNOutput with the pre-classifier
+        representation. Kept in lock-step with VariantGAT so the two models
+        remain interchangeable, which is the whole point of this class."""
         if self.edge_gate is not None and edge_attr is not None and edge_attr.numel() > 0:
             edge_attr, _ = self.edge_gate(edge_attr)
         h = self.input_proj(x)
         for conv in self.convs:
             h = conv(h, edge_index, edge_attr=edge_attr)
         focal = h[gene_idx]
-        return self.classifier(focal)
+        logits = self.classifier(focal)
+        if return_embeddings:
+            return GNNOutput(logits=logits, focal_embeddings=focal)
+        return logits
