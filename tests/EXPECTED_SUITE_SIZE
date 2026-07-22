@@ -2997,4 +2997,48 @@
 #                     rescaling-contrast test correctly stays green (different
 #                     property). Pure test commit, no source change.
 #
-2803
+#   2819  2026-07-22  +16: the matched-spectrum null family. A NULL THAT
+#                     MATCHES THE WHITENING'S STRENGTH AND DESTROYS ONLY ITS
+#                     COVARIANCE ALIGNMENT -- THE RIGHT INFERENTIAL REFERENCE.
+#
+#                     WHY. A rotation null cannot test angular concentration (it
+#                     is rotation-invariant -- Commit 2). The right null preserves
+#                     the whitening GAIN SPECTRUM (singular values, determinant,
+#                     Frobenius/operator norm, condition number -- the whole
+#                     numerical character) while randomising the ALIGNMENT of the
+#                     gains with the covariance eigen-directions, the one thing
+#                     under test. Two nulls: PRIMARY eigenvalue-assignment
+#                     permutation (keep U and gains, permute the gain-to-direction
+#                     assignment -- a clean conditional-randomisation null, O(d)
+#                     per draw); SECONDARY matched-spectrum random orientation
+#                     (same gains, Haar-random orientation -- a broader alignment
+#                     test). Verified: both share the observed condition number
+#                     exactly and neither whitens the covariance (observed error
+#                     ~0, null ~40).
+#
+#                     GAIN-SPREAD PRECONDITION. Under heavy shrinkage the gains
+#                     flatten and permuting near-equal gains is uninformative. The
+#                     permutation null REFUSES a gain coefficient of variation
+#                     below a floor (FlatGainSpectrumError); the orientation null,
+#                     which reorients rather than reassigns, is the fallback and
+#                     still works. This is the robustness guard added to Monzia's
+#                     design so a flat spectrum fails loud, not silently anti-
+#                     conservative.
+#
+#                     ARCHITECTURE. WhiteningTransform gains two OPTIONAL fields
+#                     (eigenvectors, gains), populated by fit_whitening, so ONE
+#                     fitted object carries both the apply-able map and the factors
+#                     a null needs -- no parallel object to keep in sync. W is
+#                     built from the factored form so W == (U*gains)@U.T exactly. A
+#                     null built from a transform lacking the factors raises
+#                     MissingEigendecompositionError.
+#
+#                     PROVEN BY SABOTAGE (6 fire): permutation-not-permuting,
+#                     orientation-is-identity (caught by a reorientation test
+#                     asserting off-diagonal mass and draw-to-draw difference,
+#                     since a diagonal still matches the spectrum), gain-spread-
+#                     guard-removed, spectrum-match-always-passes, factor-
+#                     requirement-dropped, null-uses-ones-not-gains. The p-value
+#                     is a Monte Carlo matched-null tail probability, not exact.
+#
+2819

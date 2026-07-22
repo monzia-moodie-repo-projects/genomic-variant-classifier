@@ -94,6 +94,14 @@ class WhiteningTransform:
     fit_partition_role: str      # always "TRAIN"; recorded for provenance
     n_fit_rows: int
     ridge: float                 # the ridge added to the covariance diagonal
+    # The eigendecomposition of the (regularised) covariance, exposed so a
+    # matched-spectrum null family can re-derive alternative operators with the
+    # SAME gain spectrum but a permuted or reoriented assignment. Optional with
+    # None defaults so any prior construction remains valid; fit_whitening always
+    # populates them. eigenvectors columns are U; gains are lambda^{-1/2}, so
+    # W == (eigenvectors * gains) @ eigenvectors.T.
+    eigenvectors: Optional[np.ndarray] = None   # (dim, dim), columns are U
+    gains: Optional[np.ndarray] = None          # (dim,), lambda^{-1/2}
 
     def transform(self, x: np.ndarray) -> np.ndarray:
         x = np.asarray(x, dtype=np.float64)
@@ -129,10 +137,14 @@ def fit_whitening(artifact: RepresentationArtifact, *, ridge: float = 1e-6
     # ZCA: W = Sigma^{-1/2} via symmetric eigendecomposition (cov is symmetric PSD)
     evals, evecs = np.linalg.eigh(cov)
     evals = np.clip(evals, _EPS, None)          # guard tiny/negative from roundoff
-    W = evecs @ np.diag(1.0 / np.sqrt(evals)) @ evecs.T
+    gains = 1.0 / np.sqrt(evals)                # lambda^{-1/2}, the whitening gains
+    # Build W from the factored form so W == (evecs * gains) @ evecs.T EXACTLY,
+    # which the matched-null family relies on when it reuses evecs and gains.
+    W = (evecs * gains) @ evecs.T
     return WhiteningTransform(
         mean=mean, W=W, fit_partition_role="TRAIN",
-        n_fit_rows=int(x.shape[0]), ridge=float(ridge))
+        n_fit_rows=int(x.shape[0]), ridge=float(ridge),
+        eigenvectors=evecs, gains=gains)
 
 
 def apply_whitening(transform: WhiteningTransform,
