@@ -1,7 +1,12 @@
 import warnings
 warnings.filterwarnings("ignore")
 import pytest
-pytest.importorskip("torch_geometric")  # GNN tests need PyG; skip where absent (e.g. CI)
+pytest.importorskip("torch_geometric")  # local safety net only: PyG is PINNED
+# (torch-geometric==2.7.0, requirements.txt) and CI FAILS the build if it is not
+# importable (ci.yml "Assert the coverage-critical dependencies are present"). This
+# skip therefore fires only on an under-provisioned LOCAL machine, NEVER in CI --
+# the GNN branch is fully covered there. Do not read this as "CI may skip the GNN
+# tests": that belief is how the branch went untested for 508 runs (roadmap 6.17).
 import numpy as np
 import networkx as nx
 import pandas as pd

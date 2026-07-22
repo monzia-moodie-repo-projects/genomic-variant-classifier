@@ -2691,4 +2691,70 @@
 #                       the map itself skips a rung          -> 2 failed
 #                       a legal verdict carries a reason     -> 1 failed
 #
-2713
+#   2724  2026-07-21  +11: tests/unit/test_gnn_dependency_contract.py -- THE
+#                     GNN BRANCH IS CI-COVERED, AND ITS COMMENTS NOW SAY SO.
+#
+#                     THE STALE COMMENT. Four graph-neural-network test files
+#                     carried "# GNN tests need PyG; skip where absent (e.g. CI)"
+#                     on their pytest.importorskip("torch_geometric") line:
+#                     test_gnn_shared_graph.py, test_gnn_optim.py,
+#                     test_gnn_tier2_denoise.py, test_gnn_gps.py. As of today that
+#                     is FALSE. torch-geometric is pinned at 2.7.0 in
+#                     requirements.txt, and ci.yml carries a hard gate ("Assert
+#                     the coverage-critical dependencies are present") that
+#                     sys.exit(1)s if torch_geometric is not importable. The GNN
+#                     branch is fully covered in Continuous Integration; the skip
+#                     fires only on an under-provisioned LOCAL machine.
+#
+#                     WHY IT WAS WORTH FIXING, NOT JUST COSMETIC. The comment
+#                     asserted the exact belief that let the graph-neural-network
+#                     branch go untested for 508 runs -- that Continuous
+#                     Integration is allowed to skip these tests. A false comment
+#                     beside a real safety net is worse than none: it tells a
+#                     debugging reader the wrong thing with apparent authority.
+#
+#                     THE FIX, NOT A DELETION. The importorskip GUARD stays -- a
+#                     developer without PyG should get a clean skip, not a
+#                     collection error. The COMMENT is corrected to state the
+#                     real contract: PyG is pinned, CI fails without it, so this
+#                     skip is local-only. Each of the four diffs is one line
+#                     removed and six added; the guard line is byte-identical.
+#
+#                     THE CONTRACT IS PINNED. test_gnn_dependency_contract.py
+#                     asserts, without importing torch: (a) none of the GNN files
+#                     reintroduce the stale phrasing or any "CI may skip"
+#                     comment; (b) ci.yml's REQUIRED gate still lists
+#                     torch_geometric; (c) that gate still sys.exit(1)s. So the
+#                     comment cannot rot back to a lie, and the CI gate cannot
+#                     quietly drop the dependency.
+#
+#                     TWO DEFECTS IN THE TEST FILE, CAUGHT BY SABOTAGE. First, the
+#                     contract file matched its own test_gnn_* glob and scanned
+#                     itself -- a false positive by construction; excluded by
+#                     name. Second, the assertions searched the WHOLE ci.yml for
+#                     "torch_geometric": and "sys.exit(1)", but torch_geometric
+#                     also appears in the pip-check gate, so renaming it in the
+#                     REQUIRED set alone still passed. Rescoped to the REQUIRED
+#                     gate heredoc body, matched with an indentation-agnostic
+#                     regex rather than a hard-coded space count.
+#
+#                     A BROAD-NET TEST WAS REMOVED, NOT ADDED. An earlier draft
+#                     carried test_no_gnn_test_file_claims_ci_may_skip, a regex
+#                     matching any comment with both "CI" and "skip". It
+#                     false-positived on this project's OWN truthful comments --
+#                     "Never skips in CI" and the quote-to-refute "do not read
+#                     this as 'CI may skip'" -- and no bounded regex separates an
+#                     assertion of a falsehood from its negation or its
+#                     refutation without natural-language work. It was dropped.
+#                     The precise STALE-phrase check catches the one dead phrasing
+#                     that ever occurred; the REAL guarantee is the ci.yml gate,
+#                     pinned below. A comment is documentation; the gate is the
+#                     contract. Net test count is 11, not 12.
+#
+#                     PROVEN BY SABOTAGE, all four detected:
+#                       stale phrase reintroduced          -> 1 failed
+#                       torch_geometric removed from gate  -> 1 failed
+#                       gate downgraded from sys.exit(1)   -> 1 failed
+#                       an importorskip guard deleted      -> 1 failed
+#
+2724
