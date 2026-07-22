@@ -273,12 +273,28 @@ def test_every_reason_constant_is_distinct():
 
 
 def test_the_map_asserts_nothing_about_the_present_state():
-    """It is a MAP, not a gate. Panel R stage one registers R3-R7 as
-    NOT_IMPLEMENTED, and the map must not contradict or overwrite that."""
+    """It is a MAP, not a gate. The map records the ROUTE each Panel R stage must
+    climb; it must not be confused with, contradict, or overwrite the stages'
+    PRESENT states, which live in panel_r_capabilities() and change as code lands.
+
+    Updated 2026-07-21: when the extraction boundary landed, R3/R4/R5 advanced to
+    IMPLEMENTED_NO_OUTPUT while R6/R7 stayed NOT_IMPLEMENTED. The map is unchanged
+    -- it still describes the full NOT_IMPLEMENTED -> VALIDATED route for all five
+    -- which is precisely the point: a MAP of the whole journey does not move when
+    a traveller takes a step. This test asserts the map still covers exactly the
+    five stages and remains a static description, regardless of present state."""
     from genomic_variant_classifier.evaluation.representation_geometry import (
         panel_r_capabilities)
     live = {c.capability_name: c for c in panel_r_capabilities()}
+    # the map covers exactly the stages that exist
     assert set(live) == set(panel_r_expected_ladder())
+    # every stage's map still BEGINS at NOT_IMPLEMENTED and ENDS at VALIDATED,
+    # independent of where the stage presently sits -- that is what makes it a map.
+    for name, ladder in panel_r_expected_ladder().items():
+        states = [step[0] for step in ladder]
+        assert states[0] is C.NOT_IMPLEMENTED
+        assert states[-1] is C.VALIDATED
+    # and the present states are whatever the code has reached -- not forced to
+    # match the map's starting rung.
     for c in live.values():
-        assert c.capability_state is C.NOT_IMPLEMENTED
         assert c.target_state is TargetState.ABSENT

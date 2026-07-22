@@ -472,32 +472,69 @@ def classify_collapse(
 
 
 def panel_r_capabilities() -> tuple:
-    """The stages of Panel R that are NOT built, declared honestly.
+    """The state of each Panel R stage, declared honestly and advanced only as
+    far as the code actually reaches.
 
     Registering these as evidence rather than stubbing them is the whole point
     of the capability contract: a panel evaluating an absent representation
     would pass vacuously, and a green Panel R would then be cited as proof the
     geometry was checked.
+
+    UPDATED 2026-07-21: the extraction boundary (representation_artifact.py) now
+    persists the focal representation the model exposes via GNNOutput. That moves
+    R3, R4 and R5 exactly one rung, from NOT_IMPLEMENTED to IMPLEMENTED_NO_OUTPUT
+    -- the machinery to obtain and store the representation exists, but no probe,
+    whitening ladder or hubness metric has run against it yet. R6 and R7 do NOT
+    advance: R6 needs a checkpoint series (a time-indexed representation, not the
+    single matrix the boundary persists) and R7 needs longitudinal outcome labels
+    that do not exist. Advancing them here would be the NOT_IMPLEMENTED-to-
+    VALIDATED jump the capability ladder exists to forbid.
     """
-    absent = ("R3 through R7 need a stored representation. models/gnn.py:357 "
-              "computes focal_embeddings and returns only "
-              "classifier(focal_embeddings); the embedding is discarded.")
-    stages = (
-        ("panel_r3_norm_angle_decomposition", absent),
-        ("panel_r4_conditioning_recoverability", absent),
-        ("panel_r5_hubness_local_geometry", absent),
-        ("panel_r6_training_trajectory", absent),
-        ("panel_r7_downstream_sensitivity", absent),
+    # R3/R4/R5: the representation can now be obtained and stored, but nothing has
+    # been computed from it. INSUFFICIENT_SUPPORT (machinery ready, science not),
+    # TargetState.ABSENT (geometry has no external prediction target).
+    now_implemented = (
+        "The extraction boundary (representation_artifact.py, extract_focal_"
+        "embeddings) persists the representation GNNOutput exposes. The probe / "
+        "whitening / hubness protocol that consumes it is the next rung and has "
+        "not been built."
     )
-    return tuple(
-        CapabilityEvidence(
+    # R6/R7: still blocked on inputs the boundary does not provide.
+    r6_blocked = ("R6 needs a checkpoint series -- a representation captured across "
+                  "training epochs against a frozen sentinel cohort. The extraction "
+                  "boundary persists a single representation, not a time series.")
+    r7_blocked = ("R7 needs longitudinal downstream outcome labels, which do not "
+                  "exist in the cohort.")
+
+    implemented_stages = (
+        "panel_r3_norm_angle_decomposition",
+        "panel_r4_conditioning_recoverability",
+        "panel_r5_hubness_local_geometry",
+    )
+    not_implemented_stages = (
+        ("panel_r6_training_trajectory", r6_blocked),
+        ("panel_r7_downstream_sensitivity", r7_blocked),
+    )
+
+    evidence = []
+    for name in implemented_stages:
+        evidence.append(CapabilityEvidence(
+            capability_name=name,
+            capability_state=CapabilityState.IMPLEMENTED_NO_OUTPUT,
+            target_state=TargetState.ABSENT,
+            output_artifact=None,
+            target_manifest=None,
+            status=MetricStatus.INSUFFICIENT_SUPPORT,
+            reason=now_implemented,
+        ))
+    for name, why in not_implemented_stages:
+        evidence.append(CapabilityEvidence(
             capability_name=name,
             capability_state=CapabilityState.NOT_IMPLEMENTED,
             target_state=TargetState.ABSENT,
             output_artifact=None,
             target_manifest=None,
             status=MetricStatus.NOT_IMPLEMENTED,
-            reason=REASON_NO_OUTPUT_ARTIFACT,
-        )
-        for name, _why in stages
-    )
+            reason=why,
+        ))
+    return tuple(evidence)

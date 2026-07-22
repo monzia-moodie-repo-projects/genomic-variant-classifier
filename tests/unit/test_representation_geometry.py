@@ -380,7 +380,7 @@ def test_classify_collapse_refuses_without_the_metrics_it_needs():
 # --------------------------------------------------------------------------- #
 # 7. the unbuilt stages are declared, not stubbed
 # --------------------------------------------------------------------------- #
-def test_five_unbuilt_stages_are_registered():
+def test_all_five_stages_are_registered():
     caps = panel_r_capabilities()
     assert len(caps) == 5
     assert {c.capability_name for c in caps} == {
@@ -396,13 +396,55 @@ def test_no_unbuilt_stage_can_satisfy_a_release_gate():
     assert not any(release_gate_satisfied(c) for c in panel_r_capabilities())
 
 
-def test_every_unbuilt_stage_is_honest_about_its_state():
+# R3/R4/R5 advanced to IMPLEMENTED_NO_OUTPUT when the extraction boundary
+# (representation_artifact.py) landed: the representation can now be obtained and
+# persisted, but no probe/whitening/hubness metric has run against it. R6 needs a
+# checkpoint series and R7 needs longitudinal outcomes, so both stay
+# NOT_IMPLEMENTED. Updated 2026-07-21 in the same commit as the state change.
+_ADVANCED = {
+    "panel_r3_norm_angle_decomposition",
+    "panel_r4_conditioning_recoverability",
+    "panel_r5_hubness_local_geometry",
+}
+_STILL_BLOCKED = {
+    "panel_r6_training_trajectory",
+    "panel_r7_downstream_sensitivity",
+}
+
+
+def test_extraction_boundary_advanced_r3_r4_r5_one_rung():
+    caps = {c.capability_name: c for c in panel_r_capabilities()}
+    for name in _ADVANCED:
+        assert caps[name].capability_state is CapabilityState.IMPLEMENTED_NO_OUTPUT, (
+            f"{name} should have advanced when the extraction boundary landed")
+        # advanced, but NOT verified: no output artifact, machinery-ready status.
+        assert caps[name].output_artifact is None
+        assert caps[name].status is MetricStatus.INSUFFICIENT_SUPPORT
+        assert caps[name].reason
+
+
+def test_r6_r7_did_not_advance():
+    caps = {c.capability_name: c for c in panel_r_capabilities()}
+    for name in _STILL_BLOCKED:
+        assert caps[name].capability_state is CapabilityState.NOT_IMPLEMENTED, (
+            f"{name} needs inputs the extraction boundary does not provide "
+            "(R6: checkpoint series; R7: longitudinal outcomes)")
+        assert caps[name].status is MetricStatus.NOT_IMPLEMENTED
+
+
+def test_every_stage_is_honest_about_its_state():
     for c in panel_r_capabilities():
-        assert c.capability_state is CapabilityState.NOT_IMPLEMENTED
         assert c.target_state is TargetState.ABSENT
-        assert c.status is MetricStatus.NOT_IMPLEMENTED
         assert c.reason
         assert c.output_artifact is None
+
+
+def test_advancing_a_rung_did_not_make_any_stage_releasable():
+    # The load-bearing invariant across the advance: moving three stages up one
+    # rung must NOT make them citable as done. IMPLEMENTED_NO_OUTPUT is still
+    # a long way below VALIDATED.
+    for c in panel_r_capabilities():
+        assert not release_gate_satisfied(c)
 
 
 def test_the_summary_serialises(healthy):

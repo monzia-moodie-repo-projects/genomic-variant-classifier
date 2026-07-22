@@ -2815,4 +2815,57 @@
 #                     'return classifier(...)' into 'logits = classifier(...);
 #                     ...; return logits'.
 #
-2740
+#   2763  2026-07-21  +23: the extraction boundary. THE GNN'S FOCAL
+#                     REPRESENTATION IS NOW PERSISTED WITH IMMUTABLE PROVENANCE
+#                     AND A ROW-ORDER HASH, AND R3/R4/R5 CLIMB ONE RUNG.
+#
+#                     WHAT LANDED. src/.../evaluation/representation_artifact.py:
+#                     RepresentationArtifact (frozen dataclass) + the
+#                     extract_focal_embeddings boundary function. It turns a
+#                     GNNOutput carrying focal_embeddings into a persisted,
+#                     hashed, provenanced artifact. +20 tests in
+#                     test_representation_artifact.py. representation_geometry.py:
+#                     panel_r_capabilities advances R3/R4/R5 from NOT_IMPLEMENTED
+#                     to IMPLEMENTED_NO_OUTPUT; +3 net tests.
+#
+#                     THE FOUR GUARANTEES, EACH PROVEN FALSIFIABLE BY SABOTAGE.
+#                     (1) IDENTITY: the persisted matrix is exactly the exported
+#                     embedding, detached to CPU float64. Sabotage: skip the
+#                     detach -> 1 failed; drop float64 -> 1 failed. (2) ROW ORDER:
+#                     a SHA-256 over ordered row keys; a reorder is detectable via
+#                     verify_row_order. Sabotage: sort keys before hashing (making
+#                     it order-insensitive) -> 2 failed. (3) IMMUTABILITY: frozen
+#                     dataclass + read-only matrix. Sabotage: remove setflags ->
+#                     1 failed. (4) PARTITION ROLE travels with the matrix and is
+#                     validated. Sabotage: accept any role -> 1 failed. Plus the
+#                     no-embeddings guard -> 1 failed, and the internal hash-
+#                     consistency check -> 1 failed. All SEVEN detected; restored
+#                     -> 20 passed.
+#
+#                     TWO TEST DEFECTS SELF-CAUGHT. A first sabotage pass had two
+#                     that failed to fail. One was a MALFORMED sabotage (the
+#                     replace target used chr(10) where the source has a real
+#                     newline literal), re-run correctly and it fired. The other
+#                     was a REAL test gap: the no-embeddings test asserted "some
+#                     ValueError", and np.asarray(None, dtype=float64) yields
+#                     array([nan]) shape (1,), which trips the 2-D shape check and
+#                     raises ValueError from the WRONG place -- so removing the
+#                     guard left the test green. Pinned the test to the guard's
+#                     specific message; removing the guard now turns it red.
+#
+#                     THE LADDER DISCIPLINE. This commit PERSISTS and stops -- no
+#                     probe, no whitening, no metric (a test asserts no such
+#                     surface is exposed). Per capability_lifecycle.py the advance
+#                     is NOT_IMPLEMENTED -> IMPLEMENTED_NO_OUTPUT, one rung,
+#                     verified legal via transition_is_legal. R6 (needs a
+#                     checkpoint series) and R7 (needs longitudinal outcomes) do
+#                     NOT advance. A test asserts the advance did not make any
+#                     stage releasable -- IMPLEMENTED_NO_OUTPUT is still far below
+#                     VALIDATED.
+#
+#                     MIRRORS prediction_artifacts.py: atomic .tmp-then-rename +
+#                     fsync writes, JSON manifest with git SHA, parquet not
+#                     pickle, library-module logging. Built on the existing
+#                     foundation, not a parallel one.
+#
+2763
