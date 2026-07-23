@@ -3276,4 +3276,31 @@
 #
 #                     docs/INCIDENT_2026-07-23_rnaseq_ablation_teardown_abort.md
 #
-2874
+#   2893  2026-07-23  +19: the typed contracts for Panel S0 (Mixture-of-
+#                     Experts expert identity and mechanistic interpretive
+#                     admissibility). The FIRST code artifact of the MoE track.
+#
+#                     evaluation/moe_identity.py turns the contract parts of the
+#                     Panel S0 specification into enforced types, all constructed
+#                     NON-ADMISSIBLE. Five commitments are structural, not merely
+#                     documented: (1) the causal boundary -- BIOLOGICAL_MEDIATION
+#                     can never be admissible through Panel S0 and a request raises
+#                     InsufficientSupportError, because model-component
+#                     interventions establish reliance, not biological causation;
+#                     (2) the four routing quantities are distinct and mechanism
+#                     evidence never enters the allocation; (3) admissibility is
+#                     claim-specific and the expert-global summary is the HIGHEST
+#                     supported claim, never a hidden minimum; (4) an unvalidated
+#                     expert is expert_003 in every external report; (5) a lineage
+#                     event resets the claim ledger.
+#
+#                     A dead report-label assertion was found and removed during the
+#                     sabotage pass (a check that cannot fail is worse than none).
+#
+#                     PROVEN BY SABOTAGE (8 fire): mediation-guard removed, mechanism
+#                     evidence into allocation, admissible-needs-scientific removed,
+#                     highest-supported flipped to minimum, CONTINUED wrongly resets,
+#                     computational-teacher passes as mechanism, non-mechanism class
+#                     reaches admissible, uuid opacity removed.
+#
+2893
