@@ -3208,4 +3208,45 @@
 #                     sklearn.utils.parallel, and filter broadened to the bare
 #                     category.
 #
-2860
+#   2867  2026-07-22  +7: add the teardown-abort diagnostic -- a dispatch-only
+#                     workflow plus a probe script. NO test file was added; the
+#                     seven come from test_workflow_action_pins.py, which is
+#                     PARAMETRIZED over workflow files and over every `uses:`
+#                     reference line (1 new file + 2 tests x 3 references = 7,
+#                     measured: that file collected 65 before and 72 after).
+#
+#                     WHY. CI run 29962715186 (#585, commit 821a990) failed one
+#                     test on Python 3.12 only: a child process of
+#                     test_rnaseq_ablation_tools.py returned -6 (SIGABRT) with
+#                     "terminate called without an active exception" AFTER printing
+#                     its own success line -- the work completed and the process
+#                     aborted during interpreter finalization. Re-running the
+#                     identical commit passed, proving nondeterminism, and 730 local
+#                     reproduction attempts at the exact pinned versions (numpy
+#                     2.4.4 / pandas 2.3.3 / pyarrow 23.0.1) produced zero aborts.
+#                     The culprit library is therefore NOT identified, and no
+#                     production code is changed until it is.
+#
+#                     WHAT IT DOES. Nine parallel arms in the real CI environment.
+#                     Bisect by construction: numpy alone, pandas without parquet,
+#                     a pyarrow read, a pyarrow write, pyarrow without pandas, and
+#                     the real production script -- the smallest arm that aborts
+#                     names the culprit without symbol lookup. Bisect by mitigation:
+#                     the real script with Arrow input/output threads, OpenMP
+#                     threads, and all pools constrained to one -- an arm whose rate
+#                     collapses identifies the pool causally. Core dumps are enabled
+#                     and any core is backtraced with the GNU Debugger, which names
+#                     the aborting frame directly. Rates are reported with the
+#                     one-sided 95% rule-of-three upper bound so a zero-abort arm is
+#                     read as a bound, not as proof of safety.
+#
+#                     SAFETY. The workflow is workflow_dispatch only: it never runs
+#                     on push and cannot turn main red. The probe writes only inside
+#                     a temporary directory and always exits 0, because finding an
+#                     abort is a SUCCESS for a diagnostic; it reports, it does not
+#                     gate. The probe was sabotage-verified: an injected arm that
+#                     aborts during finalization is detected 6/6 with returncode -6,
+#                     the preceding stdout captured, and the signature grouped on
+#                     the C++ message rather than trailing faulthandler noise.
+#
+2867

@@ -1,0 +1,140 @@
+# Teardown-abort diagnostic -- evidence-gathering only, never a gate.
+#
+# WHY THIS WORKFLOW EXISTS
+# ========================
+# On 2026-07-22, Continuous Integration run 29962715186 (run number 585, commit
+# 821a990) failed exactly one test, on Python 3.12 only:
+#
+#     tests/unit/test_rnaseq_ablation_tools.py::test_full_is_unchanged
+#     child returncode -6 (SIGABRT), stderr "terminate called without an active
+#     exception", stdout carrying the script's own success line.
+#
+# The child completed its work and then aborted during interpreter finalization.
+# A re-run of the identical commit passed, proving the fault is nondeterministic,
+# and 730 local reproduction attempts at the exact pinned library versions
+# produced zero aborts. So the culprit library is NOT yet identified, and no
+# production code should be changed until it is.
+#
+# This workflow reproduces the CI environment exactly and attacks the question
+# from two directions in parallel arms: bisect by construction (which subset of
+# numpy / pandas / pyarrow is required for the abort) and bisect by mitigation
+# (which thread pool, if constrained, makes the abort stop). Any abort that does
+# occur is captured with a core dump and a GNU Debugger backtrace, which names the
+# aborting library and frame directly rather than by inference.
+#
+# It is dispatch-only. It never runs on push, so it cannot turn main red.
+name: Teardown abort diagnostic
+
+on:
+  workflow_dispatch:
+    inputs:
+      iterations:
+        description: "Child-process executions per arm (higher = tighter bound)"
+        required: false
+        default: "400"
+      python_version:
+        description: "Python version to probe (the failure was seen on 3.12)"
+        required: false
+        default: "3.12"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: probe ${{ matrix.arm }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        arm:
+          - numpy_only
+          - pandas_no_parquet
+          - pyarrow_read
+          - pyarrow_write
+          - pyarrow_direct
+          - baseline_real_script
+          - arrow_io_threads_1
+          - omp_num_threads_1
+          - all_threads_1
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up Python ${{ github.event.inputs.python_version }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: ${{ github.event.inputs.python_version }}
+          cache: pip
+
+      # Fidelity matters: the abort may depend on what else is loaded in the
+      # interpreter, so the environment is built with the SAME steps as the
+      # pytest job in ci.yml rather than a reduced set.
+      - name: Install dependencies exactly as the pytest job does
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-api.lock
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Install the GNU Debugger and enable core dumps
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gdb
+          mkdir -p "$GITHUB_WORKSPACE/diagnostics_out/cores"
+          sudo sysctl -w kernel.core_pattern="$GITHUB_WORKSPACE/diagnostics_out/cores/core.%e.%p" || true
+          ulimit -c unlimited || true
+          echo "core_pattern now: $(cat /proc/sys/kernel/core_pattern)"
+
+      - name: Record the resolved environment
+        run: |
+          mkdir -p diagnostics_out
+          python -c "import sys, numpy, pandas, pyarrow; print('python ', sys.version.split()[0]); print('numpy  ', numpy.__version__); print('pandas ', pandas.__version__); print('pyarrow', pyarrow.__version__)" | tee diagnostics_out/env.txt
+
+      - name: Run the probe arm
+        run: |
+          ulimit -c unlimited || true
+          python scripts/diagnostics/probe_teardown_abort.py \
+            --arm "${{ matrix.arm }}" \
+            --iterations "${{ github.event.inputs.iterations }}" \
+            --repo-root . \
+            --out "diagnostics_out/result_${{ matrix.arm }}.json" | tee "diagnostics_out/arm_${{ matrix.arm }}.log"
+
+      # A core dump names the aborting library and frame directly. Without this
+      # the C++ message alone would leave attribution to inference, which is the
+      # thing this whole exercise exists to avoid.
+      - name: Backtrace any core dumps
+        if: always()
+        run: |
+          shopt -s nullglob
+          cores=("$GITHUB_WORKSPACE"/diagnostics_out/cores/core.*)
+          if [ ${#cores[@]} -eq 0 ]; then
+            echo "no core dumps produced by this arm" | tee diagnostics_out/backtrace.txt
+          else
+            for c in "${cores[@]}"; do
+              echo "=== $c ===" >> diagnostics_out/backtrace.txt
+              gdb -batch -ex "thread apply all bt" "$(command -v python)" "$c" >> diagnostics_out/backtrace.txt 2>&1 || true
+            done
+            echo "captured ${#cores[@]} core dump(s)"
+          fi
+
+      - name: Summarise the arm
+        if: always()
+        run: |
+          {
+            echo "### arm \`${{ matrix.arm }}\`"
+            echo ""
+            echo '```'
+            cat "diagnostics_out/arm_${{ matrix.arm }}.log" 2>/dev/null || echo "(no log)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the arm's evidence
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: teardown-probe-${{ matrix.arm }}
+          path: diagnostics_out/
+          if-no-files-found: warn
+          retention-days: 30
