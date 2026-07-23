@@ -58,6 +58,15 @@ jobs:
           - arrow_io_threads_1
           - omp_num_threads_1
           - all_threads_1
+          # Round two (2026-07-23). Round one localised the abort to
+          # pandas.read_parquet at 45/5000; these are referenced against THAT
+          # arm, which is well powered, rather than against the real script at
+          # 1/5000, which is not.
+          - to_pandas_explicit
+          - to_pandas_no_threads
+          - read_cpu_count_1
+          - read_arrow_io_threads_1
+          - read_all_threads_1
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 

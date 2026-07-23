@@ -104,6 +104,41 @@ pq.write_table(t, sys.argv[2])
 print("[ok] pyarrow_direct", t.num_rows)
 """
 
+
+# --------------------------------------------------------------------------- #
+# Round-two children (2026-07-23). Round one localised the abort to
+# pandas.read_parquet: 45/5000 there, 0/5000 for pyarrow's own read_table plus
+# write_table. The only step that distinguishes them is the Arrow-to-pandas
+# conversion, so these children test that conversion directly, and test it with
+# its thread use switched off -- the sharpest available test of the hypothesis.
+# --------------------------------------------------------------------------- #
+
+_CHILD_TO_PANDAS = """
+import sys
+import pyarrow.parquet as pq
+table = pq.read_table(sys.argv[1])
+frame = table.to_pandas()
+print("[ok] to_pandas_explicit", int(frame.shape[0]))
+"""
+
+_CHILD_TO_PANDAS_NO_THREADS = """
+import sys
+import pyarrow.parquet as pq
+table = pq.read_table(sys.argv[1])
+frame = table.to_pandas(use_threads=False)
+print("[ok] to_pandas_no_threads", int(frame.shape[0]))
+"""
+
+_CHILD_READ_CPU_COUNT_1 = """
+import sys
+import pyarrow as pa
+pa.set_cpu_count(1)
+pa.set_io_thread_count(1)
+import pandas as pd
+frame = pd.read_parquet(sys.argv[1])
+print("[ok] read_cpu_count_1", int(frame.shape[0]))
+"""
+
 # arm name -> (child source or None to use the real script, environment overlay)
 ARMS: dict[str, tuple[str | None, dict[str, str]]] = {
     # bisect by construction
@@ -119,6 +154,25 @@ ARMS: dict[str, tuple[str | None, dict[str, str]]] = {
     "omp_num_threads_1":     (None, {"OMP_NUM_THREADS": "1"}),
     "all_threads_1":         (None, {"ARROW_IO_THREADS": "1", "OMP_NUM_THREADS": "1",
                                      "OPENBLAS_NUM_THREADS": "1", "MKL_NUM_THREADS": "1"}),
+
+    # Round two. These are referenced against pyarrow_read (45/5000 = 0.90%), not
+    # against the real script (1/5000 = 0.02%). At 5000 iterations the read arm
+    # expects about 45 events, so an arm that drops to zero is decisive, whereas
+    # the same zero measured against the real script proves nothing at all.
+    "to_pandas_explicit":     (_CHILD_TO_PANDAS, {}),
+    "to_pandas_no_threads":   (_CHILD_TO_PANDAS_NO_THREADS, {}),
+    "read_cpu_count_1":       (_CHILD_READ_CPU_COUNT_1, {}),
+    "read_arrow_io_threads_1": (_CHILD_PYARROW_READ, {"ARROW_IO_THREADS": "1"}),
+    "read_all_threads_1":     (_CHILD_PYARROW_READ, {"ARROW_IO_THREADS": "1",
+                                                     "OMP_NUM_THREADS": "1",
+                                                     "OPENBLAS_NUM_THREADS": "1",
+                                                     "MKL_NUM_THREADS": "1"}),
+}
+
+# Arms whose child takes the source parquet as its single argument.
+_ARMS_NEEDING_SOURCE = {
+    "pyarrow_read", "to_pandas_explicit", "to_pandas_no_threads",
+    "read_cpu_count_1", "read_arrow_io_threads_1", "read_all_threads_1",
 }
 
 
@@ -166,7 +220,7 @@ def _build_command(arm: str, workdir: Path, real_script: Path, index: int) -> li
     if not child_path.exists():
         child_path.write_text(child_source, encoding="utf-8", newline="\n")
     argv = [sys.executable, "-X", "faulthandler", str(child_path)]
-    if arm in ("pyarrow_read",):
+    if arm in _ARMS_NEEDING_SOURCE:
         argv.append(str(src))
     elif arm in ("pyarrow_write",):
         argv.append(str(workdir / f"w_{index % 4}.parquet"))
