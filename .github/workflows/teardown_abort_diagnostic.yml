@@ -112,11 +112,26 @@ jobs:
           if [ ${#cores[@]} -eq 0 ]; then
             echo "no core dumps produced by this arm" | tee diagnostics_out/backtrace.txt
           else
+            ls -la "$GITHUB_WORKSPACE"/diagnostics_out/cores/ >> diagnostics_out/backtrace.txt 2>&1 || true
             for c in "${cores[@]}"; do
-              echo "=== $c ===" >> diagnostics_out/backtrace.txt
-              gdb -batch -ex "thread apply all bt" "$(command -v python)" "$c" >> diagnostics_out/backtrace.txt 2>&1 || true
+              {
+                echo ""
+                echo "=================================================================="
+                echo "=== core: $c"
+                echo "=== size: $(stat -c %s "$c" 2>/dev/null) bytes"
+                echo "=================================================================="
+              } >> diagnostics_out/backtrace.txt
+              # The raw core is NOT uploaded (gigabytes). Everything needed to name
+              # the aborting library must therefore be extracted here: full frames
+              # with locals, every thread, and the loaded shared-object map.
+              gdb -batch \
+                -ex "set pagination off" \
+                -ex "info threads" \
+                -ex "thread apply all bt full" \
+                -ex "info sharedlibrary" \
+                "$(command -v python)" "$c" >> diagnostics_out/backtrace.txt 2>&1 || true
             done
-            echo "captured ${#cores[@]} core dump(s)"
+            echo "captured ${#cores[@]} core dump(s); backtraces extracted, raw cores not uploaded"
           fi
 
       - name: Summarise the arm
@@ -135,6 +150,8 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: teardown-probe-${{ matrix.arm }}
-          path: diagnostics_out/
+          path: |
+            diagnostics_out/**
+            !diagnostics_out/cores/**
           if-no-files-found: warn
           retention-days: 30
