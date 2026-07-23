@@ -19,6 +19,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pyarrow.parquet as pq
 
 RNASEQ_COLS = ["rnaseq_mean_log_tpm", "rnaseq_detection_rate", "rnaseq_log2_cv",
                "rnaseq_log2fc", "rnaseq_de_neglog10p"]
@@ -34,7 +35,27 @@ def main(argv=None) -> int:
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args(argv)
 
-    df = pd.read_parquet(args.src)
+    # NATIVE ARROW READ, NOT pandas.read_parquet (fixed 2026-07-23).
+    #
+    # pandas.read_parquet hands Arrow a PYTHON file handle, which Arrow wraps in
+    # arrow::py::PyReadableFile. That wrapper holds a Python object reference, so its
+    # destructor calls PyGILState_Ensure to release it. When the destructor runs on an
+    # Arrow background thread after interpreter finalisation has begun, CPython's
+    # take_gil (Python/ceval_gil.c:353) kills the thread with pthread_exit, the forced
+    # unwind propagates through C++ destructor frames that cannot survive it, and
+    # libstdc++ calls std::terminate -- the process aborts with SIGABRT and prints
+    # "terminate called without an active exception" AFTER the work has completed
+    # successfully. Continuous Integration run 29962715186 failed exactly this way.
+    #
+    # pq.read_table opens the file natively in C++, so no Python object is wrapped and
+    # the destructor that aborts is never constructed. This is not a workaround: it
+    # removes the faulting object rather than suppressing its symptom.
+    #
+    # Measured on the Continuous Integration runner, 5000 executions per arm, same run:
+    #   pandas.read_parquet          27 aborts / 5000
+    #   pq.read_table(path)           0 aborts / 5000   (twice, two independent arms)
+    # Evidence: docs/INCIDENT_2026-07-23_rnaseq_ablation_teardown_abort.md
+    df = pq.read_table(args.src).to_pandas()
     miss = REQUIRED - set(df.columns)
     if miss:
         print(f"ERROR: --src missing columns {sorted(miss)}; available={sorted(df.columns)}", file=sys.stderr)

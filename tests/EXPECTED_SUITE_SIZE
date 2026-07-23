@@ -3249,4 +3249,31 @@
 #                     the preceding stdout captured, and the signature grouped on
 #                     the C++ message rather than trailing faulthandler noise.
 #
-2867
+#   2874  2026-07-23  +7: fix the SIGABRT at interpreter teardown at its root.
+#
+#                     pandas.read_parquet hands Arrow a PYTHON file handle, which
+#                     Arrow wraps in arrow::py::PyReadableFile. That wrapper holds a
+#                     Python reference, so its destructor calls PyGILState_Ensure.
+#                     Running on an Arrow background thread after finalisation has
+#                     begun, CPython take_gil kills the thread with pthread_exit; the
+#                     forced unwind crosses C++ destructor frames and libstdc++ calls
+#                     std::terminate. Twenty-seven core dumps carry that exact chain,
+#                     once each.
+#
+#                     pq.read_table opens the file natively in C++, so the aborting
+#                     destructor is never constructed. Measured in ONE run at 5000
+#                     executions per arm: pandas.read_parquet 27 aborts, the native
+#                     read 0, twice, in two independent arms.
+#
+#                     The tests walk the syntax tree to prove pandas.read_parquet is
+#                     not called, compare both readers frame to frame to prove the
+#                     data is unchanged, and run all four modes end to end.
+#                     Reintroducing pandas.read_parquet turns two of them red.
+#
+#                     Two hypotheses were wrong and are recorded in the incident
+#                     note: OpenBLAS (bystander, zero frames on any abort path) and
+#                     the Arrow-to-pandas conversion (refuted, 0/5000).
+#
+#                     docs/INCIDENT_2026-07-23_rnaseq_ablation_teardown_abort.md
+#
+2874
