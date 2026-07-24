@@ -1,0 +1,128 @@
+==============================================================================
+COHORT DELTA FORENSICS
+READ-ONLY. Writes nothing.
+==============================================================================
+  repository : C:\Projects\genomic-variant-classifier
+
+==============================================================================
+MEASUREMENT 1 -- WHAT clean_cohort ACTUALLY REMOVED
+==============================================================================
+  raw rows        : 4,420,180
+  clean rows      : 4,399,089
+  removal (rows)  : 21,091
+
+  raw ref: nulls    19,988   non-null distinct    38,496
+  raw alt: nulls    19,988   non-null distinct    20,667
+
+  rows in raw whose variant_id is ABSENT from clean : 21,091
+
+  classification of every removed row, each counted once under the
+  FIRST reason that applies (so the categories sum to the total exactly):
+       19,988  null ref and/or alt
+               e.g. variant_id='clinvar:20:25383511:na:GG' ref=None alt=None
+               e.g. variant_id='clinvar:10:124404664:na:na' ref=None alt=None
+               e.g. variant_id='clinvar:13:70139384:CTG:na' ref=None alt=None
+               e.g. variant_id='clinvar:19:33387843:na:na' ref=None alt=None
+               e.g. variant_id='clinvar:17:79009664:na:na' ref=None alt=None
+        1,103  ref/alt is a rejected token
+               e.g. variant_id='clinvar:8:18400806:G:.' ref='G' alt='.'
+               e.g. variant_id='clinvar:15:28090674:A:.' ref='A' alt='.'
+               e.g. variant_id='clinvar:15:48134287:A:.' ref='A' alt='.'
+               e.g. variant_id='clinvar:12:121857429:T:.' ref='T' alt='.'
+               e.g. variant_id='clinvar:9:133635393:T:.' ref='T' alt='.'
+       21,091  TOTAL
+
+  Every removed row is accounted for by a null or rejected allele.
+
+==============================================================================
+MEASUREMENT 2 -- REVIEW-STATUS VALUES vs THE TIER MAP
+==============================================================================
+  tier map read from      : src/genomic_variant_classifier/data/review_status.py:84   (10 key(s))
+  MISSING_TOKENS read from: src/genomic_variant_classifier/data/review_status.py:107   (8 token(s))
+
+  Each value falls in exactly one bucket:
+    MAP KEY        resolves through REVIEW_STATUS_TIER
+    MISSING TOKEN  resolves to TIER_MISSING before the map is consulted
+    WOULD RAISE    neither -- this is the only bucket that is a finding
+
+  -- ReviewStatus --
+     nulls 0   non-null distinct 10
+        3,077,747  'criteria provided, single submitter'                      MAP KEY
+          621,707  'criteria provided, multiple submitters, no conflicts'     MAP KEY
+          424,516  ''                                                         MISSING TOKEN
+          157,229  'criteria provided, conflicting classifications'           MAP KEY
+           94,285  'no assertion criteria provided'                           MAP KEY
+           17,173  'reviewed by expert panel'                                 MAP KEY
+            5,752  'no classification provided'                               MAP KEY
+              512  'no classification for the single variant'                 MAP KEY
+              121  'no classifications from unflagged records'                WOULD RAISE
+               47  'practice guideline'                                       MAP KEY
+                   -- bucket totals --                                       
+        3,974,452  MAP KEY
+          424,516  MISSING TOKEN
+              121  WOULD RAISE
+
+  -- metadata.review_status --
+     nulls 0   non-null distinct 10
+        3,209,058  'criteria provided, single submitter'                      MAP KEY
+          648,425  'criteria provided, multiple submitters, no conflicts'     MAP KEY
+          245,148  '-'                                                        MISSING TOKEN
+          160,997  'criteria provided, conflicting classifications'           MAP KEY
+          106,513  'no assertion criteria provided'                           MAP KEY
+           21,333  'reviewed by expert panel'                                 MAP KEY
+            6,804  'no classification provided'                               MAP KEY
+              627  'no classification for the single variant'                 MAP KEY
+              133  'no classifications from unflagged records'                WOULD RAISE
+               51  'practice guideline'                                       MAP KEY
+                   -- bucket totals --                                       
+        4,153,808  MAP KEY
+          245,148  MISSING TOKEN
+              133  WOULD RAISE
+
+  *** FINDING: 254 row(s) carry a review status that is
+  NEITHER a tier-map key NOR a missing token. Once Step 1b makes an
+  unmatched status RAISE, the first production run over this cohort
+  aborts on exactly these rows -- and on no others. They must be given
+  a tier in the SAME commit as the raise.
+
+==============================================================================
+MEASUREMENT 3 -- THE SEQUENCE-BRANCH GATE (ok / reason)
+==============================================================================
+  rows      : 4,399,089
+  ok = true :    4,398,366  (99.984%)
+  ok = false:          723  ( 0.016%)
+  ok = null :            0  ( 0.000%)
+
+  reasons given for every row that is not ok = true:
+             668  'non_acgt_allele'
+              53  'ref_mismatch'
+               2  'fetch_failed'
+
+  *** FINDING: 723 row(s) did not produce a usable
+  sequence window. Any model consuming fasta_seq_ref or fasta_seq_alt
+  must state how these rows are handled; silently training on them is a
+  defect, and silently dropping them changes the cohort.
+
+==============================================================================
+MEASUREMENT 4 -- ARTIFACT MODIFICATION TIMES
+  created_by is identical across all three artifacts and therefore orders
+  nothing. Modification time is the only ordering evidence available, and
+  it bears on whether pathogenicity predates the 2026-07-10 mapping fix.
+==============================================================================
+  2026-03-23T01:22:45   data/processed/clinvar_grch38.parquet
+  2026-06-03T19:39:20   data/processed/clinvar_grch38_clean.parquet
+  2026-07-18T09:42:56   data/processed/clinvar_grch38_clean_seq.parquet
+
+  The 2026-07-10 mapping fix (database_connectors.py, the guard returning
+  'uncertain' for any status beginning 'conflicting') is the reference date.
+  An artifact written BEFORE it cannot carry the corrected mapping.
+
+==============================================================================
+VERDICT
+==============================================================================
+  unaccounted removed rows        : 0
+  rows whose review status is not a tier-map key : 254
+  rows without a usable sequence window          : 723
+
+  EXIT 1 -- at least one finding above requires resolution before the
+  Phase 1 repair proceeds. Each is named in its own section.

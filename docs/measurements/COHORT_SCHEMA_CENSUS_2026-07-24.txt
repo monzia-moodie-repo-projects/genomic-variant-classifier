@@ -1,0 +1,202 @@
+==============================================================================
+COHORT SCHEMA AND PROVENANCE CENSUS
+READ-ONLY. Writes nothing.
+==============================================================================
+  repository : C:\Projects\genomic-variant-classifier
+  artifacts  : 3 present, 0 absent
+    PRESENT  C:\Projects\genomic-variant-classifier\data\processed\clinvar_grch38.parquet
+    PRESENT  C:\Projects\genomic-variant-classifier\data\processed\clinvar_grch38_clean.parquet
+    PRESENT  C:\Projects\genomic-variant-classifier\data\processed\clinvar_grch38_clean_seq.parquet
+
+##############################################################################
+COHORT: C:\Projects\genomic-variant-classifier\data\processed\clinvar_grch38.parquet
+##############################################################################
+  -- file-level Parquet metadata (read without touching row data) --
+    rows            : 4,420,180
+    row groups      : 5
+    leaf columns    : 17
+    size on disk    : 135.4 MiB
+    format version  : 2.6
+    created_by      : 'parquet-cpp-arrow version 23.0.1'
+
+  -- schema, flattened, 18 path(s) --
+    variant_id                                   large_string
+    source_db                                    large_string
+    chrom                                        large_string
+    pos                                          int64
+    gene_symbol                                  large_string
+    transcript_id                                null
+    pathogenicity                                large_string
+    allele_freq                                  null
+    clinical_sig                                 large_string
+    protein_change                               null
+    fasta_seq                                    null
+    source_id                                    large_string
+    metadata                                     struct<2 field(s)>
+      metadata.review_status                       string
+      metadata.rs_id                               int64
+    ref                                          large_string
+    alt                                          large_string
+    consequence                                  large_string
+
+  -- columns the section 2 recomputation REQUIRES --
+    [PRESENT] clinical_sig               the labelling column; the whole point of the recomputation
+    [PRESENT] ref                        classify deletions -- len(ref) > len(alt)
+    [PRESENT] alt                        classify deletions -- len(ref) > len(alt)
+    [ABSENT ] ReviewStatus               the BEFORE review-status source (the VCF-derived column)
+    [PRESENT] metadata.review_status     the AFTER review-status source (the nested column)
+
+  -- columns reported for context, not required --
+    [PRESENT] variant_id                 row identity; duplicate detection
+    [ABSENT ] gene                       gene-level reporting, not required for section 2
+    [PRESENT] pathogenicity              the column section 2 was WRONGLY measured on; reported for contrast
+
+  VERDICT: this artifact CANNOT support it. Missing: ReviewStatus
+
+##############################################################################
+COHORT: C:\Projects\genomic-variant-classifier\data\processed\clinvar_grch38_clean.parquet
+##############################################################################
+  -- file-level Parquet metadata (read without touching row data) --
+    rows            : 4,399,089
+    row groups      : 5
+    leaf columns    : 18
+    size on disk    : 135.7 MiB
+    format version  : 2.6
+    created_by      : 'parquet-cpp-arrow version 23.0.1'
+
+  -- schema, flattened, 19 path(s) --
+    variant_id                                   string
+    source_db                                    string
+    chrom                                        string
+    pos                                          int64
+    gene_symbol                                  string
+    transcript_id                                null
+    pathogenicity                                string
+    allele_freq                                  null
+    clinical_sig                                 string
+    protein_change                               null
+    fasta_seq                                    null
+    source_id                                    string
+    metadata                                     struct<2 field(s)>
+      metadata.review_status                       string
+      metadata.rs_id                               int64
+    ref                                          string
+    alt                                          string
+    consequence                                  string
+    ReviewStatus                                 string
+
+  -- columns the section 2 recomputation REQUIRES --
+    [PRESENT] clinical_sig               the labelling column; the whole point of the recomputation
+    [PRESENT] ref                        classify deletions -- len(ref) > len(alt)
+    [PRESENT] alt                        classify deletions -- len(ref) > len(alt)
+    [PRESENT] ReviewStatus               the BEFORE review-status source (the VCF-derived column)
+    [PRESENT] metadata.review_status     the AFTER review-status source (the nested column)
+
+  -- columns reported for context, not required --
+    [PRESENT] variant_id                 row identity; duplicate detection
+    [ABSENT ] gene                       gene-level reporting, not required for section 2
+    [PRESENT] pathogenicity              the column section 2 was WRONGLY measured on; reported for contrast
+
+  VERDICT: this artifact CAN support the section 2 recomputation.
+
+##############################################################################
+COHORT: C:\Projects\genomic-variant-classifier\data\processed\clinvar_grch38_clean_seq.parquet
+##############################################################################
+  -- file-level Parquet metadata (read without touching row data) --
+    rows            : 4,399,089
+    row groups      : 22
+    leaf columns    : 22
+    size on disk    : 534.6 MiB
+    format version  : 2.6
+    created_by      : 'parquet-cpp-arrow version 23.0.1'
+
+  -- schema, flattened, 23 path(s) --
+    variant_id                                   string
+    source_db                                    string
+    chrom                                        string
+    pos                                          int64
+    gene_symbol                                  string
+    transcript_id                                null
+    pathogenicity                                string
+    allele_freq                                  null
+    clinical_sig                                 string
+    protein_change                               null
+    fasta_seq                                    null
+    source_id                                    string
+    metadata                                     struct<2 field(s)>
+      metadata.review_status                       string
+      metadata.rs_id                               int64
+    ref                                          string
+    alt                                          string
+    consequence                                  string
+    ReviewStatus                                 string
+    fasta_seq_ref                                string
+    fasta_seq_alt                                string
+    ok                                           bool
+    reason                                       string
+
+  -- columns the section 2 recomputation REQUIRES --
+    [PRESENT] clinical_sig               the labelling column; the whole point of the recomputation
+    [PRESENT] ref                        classify deletions -- len(ref) > len(alt)
+    [PRESENT] alt                        classify deletions -- len(ref) > len(alt)
+    [PRESENT] ReviewStatus               the BEFORE review-status source (the VCF-derived column)
+    [PRESENT] metadata.review_status     the AFTER review-status source (the nested column)
+
+  -- columns reported for context, not required --
+    [PRESENT] variant_id                 row identity; duplicate detection
+    [ABSENT ] gene                       gene-level reporting, not required for section 2
+    [PRESENT] pathogenicity              the column section 2 was WRONGLY measured on; reported for contrast
+
+  VERDICT: this artifact CAN support the section 2 recomputation.
+
+==============================================================================
+SCHEMA DELTAS BETWEEN ARTIFACTS
+==============================================================================
+
+  clinvar_grch38.parquet  ->  clinvar_grch38_clean.parquet
+    rows 4,420,180 -> 4,399,089  (delta -21,091)
+    paths 18 -> 19
+    ADDED   (1): ReviewStatus
+    REMOVED (0): none
+
+  clinvar_grch38_clean.parquet  ->  clinvar_grch38_clean_seq.parquet
+    rows 4,399,089 -> 4,399,089  (delta +0)
+    paths 19 -> 23
+    ADDED   (4): fasta_seq_alt, fasta_seq_ref, ok, reason
+    REMOVED (0): none
+
+==============================================================================
+NULL AND DISTINCT COUNTS FOR THE REQUIRED COLUMNS
+  A required column that is present but wholly null cannot support the
+  recomputation either, so presence alone is not the test.
+==============================================================================
+
+  clinvar_grch38.parquet   (4,420,180 rows)
+    clinical_sig               nulls            0 ( 0.000%)   distinct          102
+    ref                        nulls       19,988 ( 0.452%)   distinct       38,497
+    alt                        nulls       19,988 ( 0.452%)   distinct       20,668
+    ReviewStatus               ABSENT
+    metadata.review_status     nulls            0 ( 0.000%)   distinct           10
+
+  clinvar_grch38_clean.parquet   (4,399,089 rows)
+    clinical_sig               nulls            0 ( 0.000%)   distinct          100
+    ref                        nulls            0 ( 0.000%)   distinct       38,464
+    alt                        nulls            0 ( 0.000%)   distinct       20,666
+    ReviewStatus               nulls            0 ( 0.000%)   distinct           10
+    metadata.review_status     nulls            0 ( 0.000%)   distinct           10
+
+  clinvar_grch38_clean_seq.parquet   (4,399,089 rows)
+    clinical_sig               nulls            0 ( 0.000%)   distinct          100
+    ref                        nulls            0 ( 0.000%)   distinct       38,464
+    alt                        nulls            0 ( 0.000%)   distinct       20,666
+    ReviewStatus               nulls            0 ( 0.000%)   distinct           10
+    metadata.review_status     nulls            0 ( 0.000%)   distinct           10
+
+==============================================================================
+VERDICT
+==============================================================================
+  INFEASIBLE  clinvar_grch38.parquet   missing: ReviewStatus
+  FEASIBLE    clinvar_grch38_clean.parquet   missing: -
+  FEASIBLE    clinvar_grch38_clean_seq.parquet   missing: -
+
+  EXIT 0 -- the section 2 recomputation can proceed from: clinvar_grch38_clean.parquet, clinvar_grch38_clean_seq.parquet

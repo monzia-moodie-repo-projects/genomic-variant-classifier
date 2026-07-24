@@ -1,0 +1,228 @@
+==============================================================================
+LABEL COLUMN AND TERM-SET CHECK
+READ-ONLY. Writes nothing.
+==============================================================================
+  repository : C:\Projects\genomic-variant-classifier
+
+  Production's labelling contract, read from source by AST at run time
+  (never hardcoded here, so it cannot go stale):
+    column under test : 'clinical_sig'
+    tested at         : src/genomic_variant_classifier/data/real_data_prep.py:512, 513
+    match rule        : exact, case-sensitive, after .fillna("").str.strip()
+    PATHOGENIC_TERMS (src/genomic_variant_classifier/data/real_data_prep.py:142) = ['Likely pathogenic', 'Pathogenic', 'Pathogenic/Likely pathogenic']
+    BENIGN_TERMS (src/genomic_variant_classifier/data/real_data_prep.py:147) = ['Benign', 'Benign/Likely benign', 'Likely benign']
+
+  cohorts to inspect : 3
+    PRESENT  C:\Projects\genomic-variant-classifier\data\processed\clinvar_grch38.parquet
+    PRESENT  C:\Projects\genomic-variant-classifier\data\processed\clinvar_grch38_clean.parquet
+    PRESENT  C:\Projects\genomic-variant-classifier\data\processed\clinvar_grch38_clean_seq.parquet
+
+##############################################################################
+COHORT: C:\Projects\genomic-variant-classifier\data\processed\clinvar_grch38.parquet
+  size on disk: 135.4 MiB
+  label-like columns present: ['clinical_sig', 'pathogenicity']
+##############################################################################
+
+==============================================================================
+COLUMN: clinical_sig   (4,420,180 rows, 102 distinct values)
+  role: LABELLING COLUMN -- production labels from this
+==============================================================================
+  top 20 values, as Python reprs so whitespace cannot hide:
+       2,299,470  'Uncertain significance'
+       1,083,552  'Likely benign'
+         245,223  '-'
+         212,492  'Benign'
+         192,684  'Pathogenic'
+         161,366  'Conflicting classifications of pathogenicity'
+         111,659  'Likely pathogenic'
+          63,672  'Benign/Likely benign'
+          36,628  'Pathogenic/Likely pathogenic'
+           7,244  'not provided'
+           1,891  'drug response'
+           1,532  'other'
+             678  'no classification for the single variant'
+             363  'risk factor'
+             337  'association'
+             144  'Uncertain significance/Uncertain risk allele'
+             133  'no classifications from unflagged records'
+             132  'Affects'
+             132  'conflicting data from submitters'
+              95  'Pathogenic, low penetrance'
+    ... and 82 further distinct value(s), 753 row(s)
+
+  rows labelled under production's EXACT match :    1,700,687 ( 38.476%)
+  rows labelled under a NORMALISED match       :    1,700,687 ( 38.476%)
+  difference                                   :           +0
+
+  NO DIVERGENCE: the term sets match this column's values exactly.
+
+==============================================================================
+COLUMN: pathogenicity   (4,420,180 rows, 5 distinct values)
+  role: not the labelling column
+==============================================================================
+  top 20 values, as Python reprs so whitespace cannot hide:
+       2,557,540  'uncertain'
+       1,083,576  'likely_benign'
+         391,025  'pathogenic'
+         276,240  'benign'
+         111,799  'likely_pathogenic'
+
+  rows labelled under production's EXACT match :            0 (  0.000%)
+  rows labelled under a NORMALISED match       :    1,862,640 ( 42.139%)
+  difference                                   :   +1,862,640
+
+  *** DIVERGENCE -- FINDING (not a blocker) ***
+  1,862,640 row(s) would be labelled under a normalised match and
+  are NOT labelled by production's exact match. Values responsible:
+       1,083,576  'likely_benign'
+         391,025  'pathogenic'
+         276,240  'benign'
+         111,799  'likely_pathogenic'
+
+  Production does not label from this column, so no training row is
+  lost by this divergence. Record it; do not treat it as a blocker.
+
+##############################################################################
+COHORT: C:\Projects\genomic-variant-classifier\data\processed\clinvar_grch38_clean.parquet
+  size on disk: 135.7 MiB
+  label-like columns present: ['clinical_sig', 'pathogenicity']
+##############################################################################
+
+==============================================================================
+COLUMN: clinical_sig   (4,399,089 rows, 100 distinct values)
+  role: LABELLING COLUMN -- production labels from this
+==============================================================================
+  top 20 values, as Python reprs so whitespace cannot hide:
+       2,293,565  'Uncertain significance'
+       1,081,571  'Likely benign'
+         245,148  '-'
+         209,078  'Benign'
+         185,012  'Pathogenic'
+         161,319  'Conflicting classifications of pathogenicity'
+         110,527  'Likely pathogenic'
+          63,534  'Benign/Likely benign'
+          36,611  'Pathogenic/Likely pathogenic'
+           6,805  'not provided'
+           1,856  'drug response'
+           1,528  'other'
+             627  'no classification for the single variant'
+             347  'risk factor'
+             324  'association'
+             144  'Uncertain significance/Uncertain risk allele'
+             133  'no classifications from unflagged records'
+             132  'Affects'
+              93  'Likely risk allele'
+              93  'Pathogenic, low penetrance'
+    ... and 80 further distinct value(s), 642 row(s)
+
+  rows labelled under production's EXACT match :    1,686,333 ( 38.334%)
+  rows labelled under a NORMALISED match       :    1,686,333 ( 38.334%)
+  difference                                   :           +0
+
+  NO DIVERGENCE: the term sets match this column's values exactly.
+
+==============================================================================
+COLUMN: pathogenicity   (4,399,089 rows, 5 distinct values)
+  role: not the labelling column
+==============================================================================
+  top 20 values, as Python reprs so whitespace cannot hide:
+       2,550,864  'uncertain'
+       1,081,595  'likely_benign'
+         383,277  'pathogenic'
+         272,688  'benign'
+         110,665  'likely_pathogenic'
+
+  rows labelled under production's EXACT match :            0 (  0.000%)
+  rows labelled under a NORMALISED match       :    1,848,225 ( 42.014%)
+  difference                                   :   +1,848,225
+
+  *** DIVERGENCE -- FINDING (not a blocker) ***
+  1,848,225 row(s) would be labelled under a normalised match and
+  are NOT labelled by production's exact match. Values responsible:
+       1,081,595  'likely_benign'
+         383,277  'pathogenic'
+         272,688  'benign'
+         110,665  'likely_pathogenic'
+
+  Production does not label from this column, so no training row is
+  lost by this divergence. Record it; do not treat it as a blocker.
+
+##############################################################################
+COHORT: C:\Projects\genomic-variant-classifier\data\processed\clinvar_grch38_clean_seq.parquet
+  size on disk: 534.6 MiB
+  label-like columns present: ['clinical_sig', 'pathogenicity']
+##############################################################################
+
+==============================================================================
+COLUMN: clinical_sig   (4,399,089 rows, 100 distinct values)
+  role: LABELLING COLUMN -- production labels from this
+==============================================================================
+  top 20 values, as Python reprs so whitespace cannot hide:
+       2,293,565  'Uncertain significance'
+       1,081,571  'Likely benign'
+         245,148  '-'
+         209,078  'Benign'
+         185,012  'Pathogenic'
+         161,319  'Conflicting classifications of pathogenicity'
+         110,527  'Likely pathogenic'
+          63,534  'Benign/Likely benign'
+          36,611  'Pathogenic/Likely pathogenic'
+           6,805  'not provided'
+           1,856  'drug response'
+           1,528  'other'
+             627  'no classification for the single variant'
+             347  'risk factor'
+             324  'association'
+             144  'Uncertain significance/Uncertain risk allele'
+             133  'no classifications from unflagged records'
+             132  'Affects'
+              93  'Likely risk allele'
+              93  'Pathogenic, low penetrance'
+    ... and 80 further distinct value(s), 642 row(s)
+
+  rows labelled under production's EXACT match :    1,686,333 ( 38.334%)
+  rows labelled under a NORMALISED match       :    1,686,333 ( 38.334%)
+  difference                                   :           +0
+
+  NO DIVERGENCE: the term sets match this column's values exactly.
+
+==============================================================================
+COLUMN: pathogenicity   (4,399,089 rows, 5 distinct values)
+  role: not the labelling column
+==============================================================================
+  top 20 values, as Python reprs so whitespace cannot hide:
+       2,550,864  'uncertain'
+       1,081,595  'likely_benign'
+         383,277  'pathogenic'
+         272,688  'benign'
+         110,665  'likely_pathogenic'
+
+  rows labelled under production's EXACT match :            0 (  0.000%)
+  rows labelled under a NORMALISED match       :    1,848,225 ( 42.014%)
+  difference                                   :   +1,848,225
+
+  *** DIVERGENCE -- FINDING (not a blocker) ***
+  1,848,225 row(s) would be labelled under a normalised match and
+  are NOT labelled by production's exact match. Values responsible:
+       1,081,595  'likely_benign'
+         383,277  'pathogenic'
+         272,688  'benign'
+         110,665  'likely_pathogenic'
+
+  Production does not label from this column, so no training row is
+  lost by this divergence. Record it; do not treat it as a blocker.
+
+==============================================================================
+VERDICT
+==============================================================================
+  exit 3  finding -- divergence outside the labelling column
+          C:\Projects\genomic-variant-classifier\data\processed\clinvar_grch38.parquet
+  exit 3  finding -- divergence outside the labelling column
+          C:\Projects\genomic-variant-classifier\data\processed\clinvar_grch38_clean.parquet
+  exit 3  finding -- divergence outside the labelling column
+          C:\Projects\genomic-variant-classifier\data\processed\clinvar_grch38_clean_seq.parquet
+
+  AGGREGATE EXIT 3 -- the worst verdict across all cohorts inspected.
+  The labelling column is sound in every cohort inspected. The
+  divergence lies in a column production does not label from, so it
+  is a finding to record, NOT a blocker on the repair.
