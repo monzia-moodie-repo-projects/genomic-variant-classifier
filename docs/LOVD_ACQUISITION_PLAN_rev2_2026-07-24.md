@@ -1,6 +1,6 @@
 # Leiden Open Variation Database -- gene acquisition plan, revision 2, 2026-07-24
 
-**Supersedes revision 1** (`docs/LOVD_ACQUISITION_PLAN_2026-07-24.md`, SHA-256
+**Supersedes revision 1** (`docs/superseded/LOVD_ACQUISITION_PLAN_2026-07-24.md`, SHA-256
 `6662699F700C7D2CE08282A3F47AE0AB312D048CE6BE21D5013892EC06F29BD9`), which proposed batches selected by a single axis and named the wrong
 seven genes. Revision 1 should be replaced, not kept alongside.
 

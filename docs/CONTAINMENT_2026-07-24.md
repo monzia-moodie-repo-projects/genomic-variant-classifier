@@ -1,6 +1,17 @@
 # CONTAINMENT 2026-07-24 -- Phase 0
 
 **Purpose:** stop further contamination. No design changes, no repairs, no regeneration.
+
+**Superseding analysis (added 2026-07-24, metadata only):**
+`docs/CONTAINMENT_2026-07-24_R2.md`. Revision 2 was written after the artifact
+lineage sweep this document made a Phase 1 entry criterion. It amends three things:
+the AlphaFold quarantine scope, which reaches 225 artifacts over 98 days and twelve
+regime-v0 runs the deletion incident exempts; the definition of the VALID lineage
+state, which asserts nothing about content or fitness; and the smoke cohorts, which
+are affected and which gate every launch. It also reopens the ordering WITHIN Phase 1
+and adds two containment items. **This document is otherwise immutable and is
+preserved as written before the sweep, because the containment decisions below were
+taken without its evidence.**
 Phase 0 is a governance act that costs hours and is fully reversible.
 
 **Repository state:** `main` at `d2d02df0bc477e64e4172f97b254c11093d7209f`,
