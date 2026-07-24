@@ -173,8 +173,8 @@ NULL AND DISTINCT COUNTS FOR THE REQUIRED COLUMNS
 
   clinvar_grch38.parquet   (4,420,180 rows)
     clinical_sig               nulls            0 ( 0.000%)   distinct          102
-    ref                        nulls       19,988 ( 0.452%)   distinct       38,497
-    alt                        nulls       19,988 ( 0.452%)   distinct       20,668
+    ref                        nulls       19,988 ( 0.452%)   distinct       38,496
+    alt                        nulls       19,988 ( 0.452%)   distinct       20,667
     ReviewStatus               ABSENT
     metadata.review_status     nulls            0 ( 0.000%)   distinct           10
 
