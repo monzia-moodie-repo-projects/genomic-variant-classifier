@@ -75,7 +75,14 @@ def test_ensure_dir_helper_gives_clear_error_on_file_shadow(tmp_path):
     )
     ensure_dir = getattr(ed, "ensure_dir", None)
     if ensure_dir is None:
-        pytest.skip("ensure_dir not present yet (apply patch_fetchconfig_lazy_mkdir.py)")
+        pytest.skip(
+            "ensure_dir is not importable from database_connectors in this "
+            "environment. It is normally present at database_connectors.py:40; "
+            "if this skip fires, the connectors module failed to expose it, which "
+            "would disarm the data/ shadow-collision guard "
+            "(INCIDENT_2026-06-08_data-dir-shadow.md). Investigate rather than "
+            "re-applying any patch -- the lazy-mkdir patch is already in place."
+        )
 
     shadow = tmp_path / "data"
     shadow.write_text("not a directory", encoding="utf-8")  # file shadows 'data'
