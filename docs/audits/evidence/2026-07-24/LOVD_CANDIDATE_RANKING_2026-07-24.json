@@ -1,0 +1,4030 @@
+{
+  "utc": "2026-07-24T04:14:10Z",
+  "held": [
+    "APC",
+    "BRCA1",
+    "BRCA2",
+    "MLH1",
+    "MSH2",
+    "MSH6",
+    "NF1",
+    "PTEN",
+    "RB1",
+    "TP53"
+  ],
+  "config_drift": {
+    "script_only": [
+      "ATM",
+      "LDLR"
+    ],
+    "disk_only": [
+      "NF1",
+      "RB1"
+    ]
+  },
+  "tier1": [
+    {
+      "gene": "TTN",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 39316,
+      "n_vus": 16140,
+      "n_del": 3286,
+      "n_ins": 1362,
+      "n_snv": 34668
+    },
+    {
+      "gene": "ATM",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 19121,
+      "n_vus": 9789,
+      "n_del": 2236,
+      "n_ins": 1004,
+      "n_snv": 15881
+    },
+    {
+      "gene": "RYR1",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 11050,
+      "n_vus": 5676,
+      "n_del": 552,
+      "n_ins": 253,
+      "n_snv": 10245
+    },
+    {
+      "gene": "RYR2",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 9889,
+      "n_vus": 5583,
+      "n_del": 343,
+      "n_ins": 206,
+      "n_snv": 9340
+    },
+    {
+      "gene": "NEB",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 12377,
+      "n_vus": 4307,
+      "n_del": 878,
+      "n_ins": 466,
+      "n_snv": 11033
+    },
+    {
+      "gene": "PLEC",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 6668,
+      "n_vus": 4285,
+      "n_del": 171,
+      "n_ins": 86,
+      "n_snv": 6411
+    },
+    {
+      "gene": "SYNE1",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 7048,
+      "n_vus": 4111,
+      "n_del": 257,
+      "n_ins": 142,
+      "n_snv": 6649
+    },
+    {
+      "gene": "DMD",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 10058,
+      "n_vus": 3904,
+      "n_del": 850,
+      "n_ins": 409,
+      "n_snv": 8799
+    },
+    {
+      "gene": "PKD1",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 6889,
+      "n_vus": 3651,
+      "n_del": 987,
+      "n_ins": 499,
+      "n_snv": 5403
+    },
+    {
+      "gene": "ALMS1",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 7342,
+      "n_vus": 3589,
+      "n_del": 515,
+      "n_ins": 278,
+      "n_snv": 6549
+    },
+    {
+      "gene": "USH2A",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 9377,
+      "n_vus": 3521,
+      "n_del": 806,
+      "n_ins": 311,
+      "n_snv": 8260
+    },
+    {
+      "gene": "DSP",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 6084,
+      "n_vus": 3399,
+      "n_del": 448,
+      "n_ins": 205,
+      "n_snv": 5431
+    },
+    {
+      "gene": "FBN1",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 9208,
+      "n_vus": 3393,
+      "n_del": 983,
+      "n_ins": 429,
+      "n_snv": 7796
+    },
+    {
+      "gene": "FLNC",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 6168,
+      "n_vus": 3198,
+      "n_del": 348,
+      "n_ins": 152,
+      "n_snv": 5668
+    },
+    {
+      "gene": "OBSCN",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 5822,
+      "n_vus": 3142,
+      "n_del": 35,
+      "n_ins": 12,
+      "n_snv": 5775
+    },
+    {
+      "gene": "KMT2D",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 7411,
+      "n_vus": 3090,
+      "n_del": 586,
+      "n_ins": 276,
+      "n_snv": 6549
+    },
+    {
+      "gene": "SYNE2",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 4807,
+      "n_vus": 2968,
+      "n_del": 123,
+      "n_ins": 76,
+      "n_snv": 4608
+    },
+    {
+      "gene": "APOB",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 5034,
+      "n_vus": 2804,
+      "n_del": 161,
+      "n_ins": 34,
+      "n_snv": 4839
+    },
+    {
+      "gene": "ADGRV1",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 7086,
+      "n_vus": 2753,
+      "n_del": 371,
+      "n_ins": 198,
+      "n_snv": 6517
+    },
+    {
+      "gene": "PRKDC",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 5076,
+      "n_vus": 2708,
+      "n_del": 95,
+      "n_ins": 46,
+      "n_snv": 4935
+    },
+    {
+      "gene": "VPS13B",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 6545,
+      "n_vus": 2680,
+      "n_del": 508,
+      "n_ins": 257,
+      "n_snv": 5780
+    },
+    {
+      "gene": "ZNF469",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 5247,
+      "n_vus": 2676,
+      "n_del": 143,
+      "n_ins": 62,
+      "n_snv": 5042
+    },
+    {
+      "gene": "PKHD1",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 6562,
+      "n_vus": 2583,
+      "n_del": 595,
+      "n_ins": 218,
+      "n_snv": 5749
+    },
+    {
+      "gene": "DYNC1H1",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 5605,
+      "n_vus": 2534,
+      "n_del": 166,
+      "n_ins": 90,
+      "n_snv": 5349
+    },
+    {
+      "gene": "ANK2",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 4191,
+      "n_vus": 2516,
+      "n_del": 95,
+      "n_ins": 41,
+      "n_snv": 4055
+    },
+    {
+      "gene": "HMCN1",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 3858,
+      "n_vus": 2430,
+      "n_del": 83,
+      "n_ins": 38,
+      "n_snv": 3737
+    },
+    {
+      "gene": "CDH23",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 6184,
+      "n_vus": 2430,
+      "n_del": 353,
+      "n_ins": 131,
+      "n_snv": 5700
+    },
+    {
+      "gene": "DST",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 4089,
+      "n_vus": 2386,
+      "n_del": 143,
+      "n_ins": 81,
+      "n_snv": 3865
+    },
+    {
+      "gene": "COL6A3",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 3956,
+      "n_vus": 2370,
+      "n_del": 98,
+      "n_ins": 47,
+      "n_snv": 3811
+    },
+    {
+      "gene": "AKAP9",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 3653,
+      "n_vus": 2280,
+      "n_del": 145,
+      "n_ins": 60,
+      "n_snv": 3448
+    },
+    {
+      "gene": "COL12A1",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 4040,
+      "n_vus": 2277,
+      "n_del": 116,
+      "n_ins": 56,
+      "n_snv": 3868
+    },
+    {
+      "gene": "LRP2",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 5075,
+      "n_vus": 2161,
+      "n_del": 154,
+      "n_ins": 67,
+      "n_snv": 4854
+    },
+    {
+      "gene": "RELN",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 4156,
+      "n_vus": 2155,
+      "n_del": 152,
+      "n_ins": 92,
+      "n_snv": 3912
+    },
+    {
+      "gene": "TNXB",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 3627,
+      "n_vus": 2103,
+      "n_del": 91,
+      "n_ins": 43,
+      "n_snv": 3493
+    },
+    {
+      "gene": "FAT4",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 3563,
+      "n_vus": 2079,
+      "n_del": 49,
+      "n_ins": 20,
+      "n_snv": 3494
+    },
+    {
+      "gene": "CHD7",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 4419,
+      "n_vus": 2049,
+      "n_del": 328,
+      "n_ins": 176,
+      "n_snv": 3915
+    },
+    {
+      "gene": "FBN2",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 4039,
+      "n_vus": 2042,
+      "n_del": 104,
+      "n_ins": 40,
+      "n_snv": 3895
+    },
+    {
+      "gene": "DNAH5",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 6564,
+      "n_vus": 2038,
+      "n_del": 442,
+      "n_ins": 219,
+      "n_snv": 5903
+    },
+    {
+      "gene": "EYS",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 5070,
+      "n_vus": 1986,
+      "n_del": 509,
+      "n_ins": 191,
+      "n_snv": 4370
+    },
+    {
+      "gene": "COL7A1",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 6210,
+      "n_vus": 1964,
+      "n_del": 355,
+      "n_ins": 138,
+      "n_snv": 5717
+    },
+    {
+      "gene": "PCLO",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 3360,
+      "n_vus": 1947,
+      "n_del": 84,
+      "n_ins": 96,
+      "n_snv": 3180
+    },
+    {
+      "gene": "KMT2A",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 3727,
+      "n_vus": 1911,
+      "n_del": 268,
+      "n_ins": 115,
+      "n_snv": 3344
+    },
+    {
+      "gene": "DNAH11",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 6584,
+      "n_vus": 1898,
+      "n_del": 270,
+      "n_ins": 194,
+      "n_snv": 6120
+    },
+    {
+      "gene": "LAMA2",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 5420,
+      "n_vus": 1895,
+      "n_del": 418,
+      "n_ins": 207,
+      "n_snv": 4795
+    },
+    {
+      "gene": "HSPG2",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 3511,
+      "n_vus": 1883,
+      "n_del": 69,
+      "n_ins": 30,
+      "n_snv": 3412
+    },
+    {
+      "gene": "LYST",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 4056,
+      "n_vus": 1838,
+      "n_del": 186,
+      "n_ins": 82,
+      "n_snv": 3788
+    },
+    {
+      "gene": "SZT2",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 3582,
+      "n_vus": 1749,
+      "n_del": 113,
+      "n_ins": 62,
+      "n_snv": 3407
+    },
+    {
+      "gene": "VCAN",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 2481,
+      "n_vus": 1667,
+      "n_del": 40,
+      "n_ins": 11,
+      "n_snv": 2430
+    },
+    {
+      "gene": "DCHS1",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 2629,
+      "n_vus": 1659,
+      "n_del": 39,
+      "n_ins": 14,
+      "n_snv": 2576
+    },
+    {
+      "gene": "SACS",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 4872,
+      "n_vus": 1628,
+      "n_del": 508,
+      "n_ins": 189,
+      "n_snv": 4175
+    },
+    {
+      "gene": "PCNT",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 4100,
+      "n_vus": 1570,
+      "n_del": 210,
+      "n_ins": 130,
+      "n_snv": 3760
+    },
+    {
+      "gene": "AHNAK2",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 2135,
+      "n_vus": 1527,
+      "n_del": 7,
+      "n_ins": 2,
+      "n_snv": 2126
+    },
+    {
+      "gene": "SRCAP",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 2425,
+      "n_vus": 1487,
+      "n_del": 102,
+      "n_ins": 44,
+      "n_snv": 2279
+    },
+    {
+      "gene": "FRAS1",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 3606,
+      "n_vus": 1477,
+      "n_del": 155,
+      "n_ins": 70,
+      "n_snv": 3381
+    },
+    {
+      "gene": "DNAH1",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 2953,
+      "n_vus": 1399,
+      "n_del": 81,
+      "n_ins": 26,
+      "n_snv": 2846
+    },
+    {
+      "gene": "CUBN",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 2575,
+      "n_vus": 1381,
+      "n_del": 119,
+      "n_ins": 58,
+      "n_snv": 2398
+    },
+    {
+      "gene": "MUC5B",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 1952,
+      "n_vus": 1369,
+      "n_del": 12,
+      "n_ins": 2,
+      "n_snv": 1938
+    },
+    {
+      "gene": "MYO15A",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 3837,
+      "n_vus": 1355,
+      "n_del": 284,
+      "n_ins": 145,
+      "n_snv": 3408
+    },
+    {
+      "gene": "FLG",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 2123,
+      "n_vus": 1317,
+      "n_del": 95,
+      "n_ins": 16,
+      "n_snv": 2012
+    },
+    {
+      "gene": "DYNC2H1",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 4219,
+      "n_vus": 1314,
+      "n_del": 245,
+      "n_ins": 120,
+      "n_snv": 3854
+    },
+    {
+      "gene": "CPLANE1",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 2611,
+      "n_vus": 1279,
+      "n_del": 183,
+      "n_ins": 95,
+      "n_snv": 2333
+    },
+    {
+      "gene": "KMT2C",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 2584,
+      "n_vus": 1258,
+      "n_del": 124,
+      "n_ins": 73,
+      "n_snv": 2387
+    },
+    {
+      "gene": "DNAH8",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 2766,
+      "n_vus": 1240,
+      "n_del": 116,
+      "n_ins": 79,
+      "n_snv": 2571
+    },
+    {
+      "gene": "TRRAP",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 2604,
+      "n_vus": 1225,
+      "n_del": 59,
+      "n_ins": 34,
+      "n_snv": 2511
+    },
+    {
+      "gene": "LRBA",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 2489,
+      "n_vus": 1215,
+      "n_del": 123,
+      "n_ins": 52,
+      "n_snv": 2314
+    },
+    {
+      "gene": "RYR3",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 1908,
+      "n_vus": 1213,
+      "n_del": 22,
+      "n_ins": 9,
+      "n_snv": 1877
+    },
+    {
+      "gene": "ANK3",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 1844,
+      "n_vus": 1209,
+      "n_del": 46,
+      "n_ins": 24,
+      "n_snv": 1774
+    },
+    {
+      "gene": "DNAH9",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 2550,
+      "n_vus": 1202,
+      "n_del": 75,
+      "n_ins": 30,
+      "n_snv": 2445
+    },
+    {
+      "gene": "ASPM",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 2209,
+      "n_vus": 1186,
+      "n_del": 235,
+      "n_ins": 62,
+      "n_snv": 1912
+    },
+    {
+      "gene": "SPEG",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 2274,
+      "n_vus": 1176,
+      "n_del": 43,
+      "n_ins": 20,
+      "n_snv": 2211
+    },
+    {
+      "gene": "FREM2",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 2500,
+      "n_vus": 1159,
+      "n_del": 80,
+      "n_ins": 47,
+      "n_snv": 2373
+    },
+    {
+      "gene": "KMT2B",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 2621,
+      "n_vus": 1130,
+      "n_del": 92,
+      "n_ins": 60,
+      "n_snv": 2469
+    },
+    {
+      "gene": "UNC80",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 2601,
+      "n_vus": 1115,
+      "n_del": 83,
+      "n_ins": 43,
+      "n_snv": 2475
+    },
+    {
+      "gene": "LAMA5",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 2349,
+      "n_vus": 1102,
+      "n_del": 36,
+      "n_ins": 28,
+      "n_snv": 2285
+    },
+    {
+      "gene": "ITPR1",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 2285,
+      "n_vus": 1079,
+      "n_del": 58,
+      "n_ins": 27,
+      "n_snv": 2200
+    },
+    {
+      "gene": "NIPBL",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 2346,
+      "n_vus": 1049,
+      "n_del": 267,
+      "n_ins": 120,
+      "n_snv": 1959
+    },
+    {
+      "gene": "VWF",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 2046,
+      "n_vus": 1041,
+      "n_del": 135,
+      "n_ins": 78,
+      "n_snv": 1833
+    },
+    {
+      "gene": "TRIO",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 1898,
+      "n_vus": 1041,
+      "n_del": 101,
+      "n_ins": 65,
+      "n_snv": 1732
+    },
+    {
+      "gene": "HUWE1",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 2506,
+      "n_vus": 1028,
+      "n_del": 83,
+      "n_ins": 33,
+      "n_snv": 2390
+    },
+    {
+      "gene": "FAT2",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 1550,
+      "n_vus": 1022,
+      "n_del": 14,
+      "n_ins": 14,
+      "n_snv": 1522
+    },
+    {
+      "gene": "MACF1",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 2002,
+      "n_vus": 1011,
+      "n_del": 58,
+      "n_ins": 29,
+      "n_snv": 1915
+    },
+    {
+      "gene": "FAT1",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 1827,
+      "n_vus": 1002,
+      "n_del": 36,
+      "n_ins": 19,
+      "n_snv": 1772
+    },
+    {
+      "gene": "VPS13A",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 3842,
+      "n_vus": 991,
+      "n_del": 278,
+      "n_ins": 171,
+      "n_snv": 3393
+    },
+    {
+      "gene": "VPS13D",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 1828,
+      "n_vus": 970,
+      "n_del": 36,
+      "n_ins": 21,
+      "n_snv": 1771
+    },
+    {
+      "gene": "FBN3",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 1683,
+      "n_vus": 970,
+      "n_del": 32,
+      "n_ins": 8,
+      "n_snv": 1643
+    },
+    {
+      "gene": "DNAH17",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 1554,
+      "n_vus": 955,
+      "n_del": 31,
+      "n_ins": 22,
+      "n_snv": 1501
+    },
+    {
+      "gene": "FSIP2",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 1196,
+      "n_vus": 941,
+      "n_del": 15,
+      "n_ins": 3,
+      "n_snv": 1178
+    },
+    {
+      "gene": "AHNAK",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 1094,
+      "n_vus": 918,
+      "n_del": 3,
+      "n_ins": 2,
+      "n_snv": 1089
+    },
+    {
+      "gene": "MUC17",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 1003,
+      "n_vus": 904,
+      "n_del": 0,
+      "n_ins": 0,
+      "n_snv": 1003
+    },
+    {
+      "gene": "RANBP2",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 1327,
+      "n_vus": 902,
+      "n_del": 37,
+      "n_ins": 16,
+      "n_snv": 1274
+    },
+    {
+      "gene": "LAMA1",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 1700,
+      "n_vus": 902,
+      "n_del": 59,
+      "n_ins": 29,
+      "n_snv": 1612
+    },
+    {
+      "gene": "HERC2",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 1288,
+      "n_vus": 872,
+      "n_del": 14,
+      "n_ins": 4,
+      "n_snv": 1270
+    },
+    {
+      "gene": "DMXL2",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 1946,
+      "n_vus": 864,
+      "n_del": 66,
+      "n_ins": 52,
+      "n_snv": 1828
+    },
+    {
+      "gene": "HERC1",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 1807,
+      "n_vus": 853,
+      "n_del": 47,
+      "n_ins": 39,
+      "n_snv": 1721
+    },
+    {
+      "gene": "SRRM2",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 1147,
+      "n_vus": 840,
+      "n_del": 42,
+      "n_ins": 21,
+      "n_snv": 1084
+    },
+    {
+      "gene": "CSMD1",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 1050,
+      "n_vus": 795,
+      "n_del": 4,
+      "n_ins": 1,
+      "n_snv": 1045
+    },
+    {
+      "gene": "STARD9",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 969,
+      "n_vus": 779,
+      "n_del": 5,
+      "n_ins": 4,
+      "n_snv": 960
+    },
+    {
+      "gene": "WDFY3",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 1059,
+      "n_vus": 756,
+      "n_del": 44,
+      "n_ins": 17,
+      "n_snv": 998
+    },
+    {
+      "gene": "DNHD1",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 1067,
+      "n_vus": 740,
+      "n_del": 20,
+      "n_ins": 12,
+      "n_snv": 1035
+    },
+    {
+      "gene": "BPTF",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 1184,
+      "n_vus": 731,
+      "n_del": 69,
+      "n_ins": 39,
+      "n_snv": 1076
+    },
+    {
+      "gene": "SPTBN5",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 978,
+      "n_vus": 729,
+      "n_del": 4,
+      "n_ins": 2,
+      "n_snv": 972
+    },
+    {
+      "gene": "MDN1",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 952,
+      "n_vus": 721,
+      "n_del": 5,
+      "n_ins": 1,
+      "n_snv": 946
+    },
+    {
+      "gene": "ABCA13",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 930,
+      "n_vus": 720,
+      "n_del": 5,
+      "n_ins": 5,
+      "n_snv": 920
+    },
+    {
+      "gene": "TNRC18",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 956,
+      "n_vus": 713,
+      "n_del": 10,
+      "n_ins": 12,
+      "n_snv": 934
+    },
+    {
+      "gene": "PIEZO2",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 1431,
+      "n_vus": 711,
+      "n_del": 65,
+      "n_ins": 43,
+      "n_snv": 1323
+    },
+    {
+      "gene": "LAMA3",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 2281,
+      "n_vus": 701,
+      "n_del": 135,
+      "n_ins": 42,
+      "n_snv": 2104
+    },
+    {
+      "gene": "BSN",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 797,
+      "n_vus": 692,
+      "n_del": 15,
+      "n_ins": 6,
+      "n_snv": 776
+    },
+    {
+      "gene": "FCGBP",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 792,
+      "n_vus": 690,
+      "n_del": 1,
+      "n_ins": 0,
+      "n_snv": 791
+    },
+    {
+      "gene": "DNAH10",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 921,
+      "n_vus": 684,
+      "n_del": 9,
+      "n_ins": 4,
+      "n_snv": 908
+    },
+    {
+      "gene": "TG",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 2232,
+      "n_vus": 679,
+      "n_del": 85,
+      "n_ins": 32,
+      "n_snv": 2115
+    },
+    {
+      "gene": "DNAH3",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 779,
+      "n_vus": 664,
+      "n_del": 3,
+      "n_ins": 0,
+      "n_snv": 776
+    },
+    {
+      "gene": "OTOG",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 1507,
+      "n_vus": 654,
+      "n_del": 80,
+      "n_ins": 45,
+      "n_snv": 1382
+    },
+    {
+      "gene": "MYCBP2",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 841,
+      "n_vus": 654,
+      "n_del": 28,
+      "n_ins": 7,
+      "n_snv": 806
+    },
+    {
+      "gene": "CELSR1",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 944,
+      "n_vus": 654,
+      "n_del": 15,
+      "n_ins": 10,
+      "n_snv": 919
+    },
+    {
+      "gene": "ASH1L",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 959,
+      "n_vus": 649,
+      "n_del": 49,
+      "n_ins": 19,
+      "n_snv": 891
+    },
+    {
+      "gene": "NBEAL2",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 947,
+      "n_vus": 645,
+      "n_del": 24,
+      "n_ins": 20,
+      "n_snv": 903
+    },
+    {
+      "gene": "DNAH7",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 827,
+      "n_vus": 643,
+      "n_del": 15,
+      "n_ins": 7,
+      "n_snv": 805
+    },
+    {
+      "gene": "ZFHX3",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 931,
+      "n_vus": 636,
+      "n_del": 53,
+      "n_ins": 39,
+      "n_snv": 839
+    },
+    {
+      "gene": "MEGF8",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 1256,
+      "n_vus": 631,
+      "n_del": 24,
+      "n_ins": 7,
+      "n_snv": 1225
+    },
+    {
+      "gene": "PKHD1L1",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 736,
+      "n_vus": 631,
+      "n_del": 6,
+      "n_ins": 2,
+      "n_snv": 728
+    },
+    {
+      "gene": "DNAH2",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 824,
+      "n_vus": 617,
+      "n_del": 3,
+      "n_ins": 3,
+      "n_snv": 818
+    },
+    {
+      "gene": "FAT3",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 742,
+      "n_vus": 602,
+      "n_del": 0,
+      "n_ins": 0,
+      "n_snv": 742
+    },
+    {
+      "gene": "DNAH14",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 746,
+      "n_vus": 595,
+      "n_del": 37,
+      "n_ins": 9,
+      "n_snv": 700
+    },
+    {
+      "gene": "SPEN",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 956,
+      "n_vus": 594,
+      "n_del": 57,
+      "n_ins": 26,
+      "n_snv": 873
+    },
+    {
+      "gene": "NBEA",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 893,
+      "n_vus": 591,
+      "n_del": 20,
+      "n_ins": 11,
+      "n_snv": 862
+    },
+    {
+      "gene": "PKD1L1",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 1182,
+      "n_vus": 573,
+      "n_del": 41,
+      "n_ins": 17,
+      "n_snv": 1124
+    },
+    {
+      "gene": "ZFHX4",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 732,
+      "n_vus": 565,
+      "n_del": 24,
+      "n_ins": 12,
+      "n_snv": 696
+    },
+    {
+      "gene": "CENPF",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 936,
+      "n_vus": 551,
+      "n_del": 31,
+      "n_ins": 20,
+      "n_snv": 885
+    },
+    {
+      "gene": "CMYA5",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 708,
+      "n_vus": 547,
+      "n_del": 1,
+      "n_ins": 0,
+      "n_snv": 707
+    },
+    {
+      "gene": "CELSR2",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 804,
+      "n_vus": 542,
+      "n_del": 3,
+      "n_ins": 4,
+      "n_snv": 797
+    },
+    {
+      "gene": "HELZ2",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 667,
+      "n_vus": 542,
+      "n_del": 0,
+      "n_ins": 0,
+      "n_snv": 667
+    },
+    {
+      "gene": "TENM4",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 689,
+      "n_vus": 540,
+      "n_del": 3,
+      "n_ins": 2,
+      "n_snv": 684
+    },
+    {
+      "gene": "BLTP1",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 854,
+      "n_vus": 539,
+      "n_del": 24,
+      "n_ins": 15,
+      "n_snv": 815
+    },
+    {
+      "gene": "XIRP2",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 712,
+      "n_vus": 528,
+      "n_del": 2,
+      "n_ins": 0,
+      "n_snv": 710
+    },
+    {
+      "gene": "UBR4",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 782,
+      "n_vus": 525,
+      "n_del": 5,
+      "n_ins": 3,
+      "n_snv": 774
+    },
+    {
+      "gene": "DNAH6",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 760,
+      "n_vus": 524,
+      "n_del": 11,
+      "n_ins": 10,
+      "n_snv": 739
+    },
+    {
+      "gene": "BIRC6",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 711,
+      "n_vus": 514,
+      "n_del": 3,
+      "n_ins": 2,
+      "n_snv": 706
+    },
+    {
+      "gene": "ZNF292",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 850,
+      "n_vus": 501,
+      "n_del": 78,
+      "n_ins": 20,
+      "n_snv": 752
+    },
+    {
+      "gene": "UTRN",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 697,
+      "n_vus": 485,
+      "n_del": 3,
+      "n_ins": 3,
+      "n_snv": 691
+    },
+    {
+      "gene": "MKI67",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 590,
+      "n_vus": 483,
+      "n_del": 0,
+      "n_ins": 0,
+      "n_snv": 590
+    },
+    {
+      "gene": "LRP1",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 768,
+      "n_vus": 469,
+      "n_del": 7,
+      "n_ins": 2,
+      "n_snv": 759
+    },
+    {
+      "gene": "WDFY4",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 551,
+      "n_vus": 466,
+      "n_del": 1,
+      "n_ins": 0,
+      "n_snv": 550
+    },
+    {
+      "gene": "LRP1B",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 692,
+      "n_vus": 462,
+      "n_del": 6,
+      "n_ins": 5,
+      "n_snv": 681
+    },
+    {
+      "gene": "CSMD2",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 533,
+      "n_vus": 461,
+      "n_del": 1,
+      "n_ins": 1,
+      "n_snv": 531
+    },
+    {
+      "gene": "EP400",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 664,
+      "n_vus": 458,
+      "n_del": 13,
+      "n_ins": 8,
+      "n_snv": 643
+    },
+    {
+      "gene": "SVEP1",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 551,
+      "n_vus": 452,
+      "n_del": 8,
+      "n_ins": 1,
+      "n_snv": 542
+    },
+    {
+      "gene": "AKAP13",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 561,
+      "n_vus": 452,
+      "n_del": 1,
+      "n_ins": 1,
+      "n_snv": 559
+    },
+    {
+      "gene": "HECTD4",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 569,
+      "n_vus": 444,
+      "n_del": 5,
+      "n_ins": 2,
+      "n_snv": 562
+    },
+    {
+      "gene": "USP34",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 567,
+      "n_vus": 441,
+      "n_del": 5,
+      "n_ins": 0,
+      "n_snv": 562
+    },
+    {
+      "gene": "WDR87",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 601,
+      "n_vus": 435,
+      "n_del": 17,
+      "n_ins": 9,
+      "n_snv": 575
+    },
+    {
+      "gene": "TRANK1",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 496,
+      "n_vus": 434,
+      "n_del": 0,
+      "n_ins": 0,
+      "n_snv": 496
+    },
+    {
+      "gene": "DMXL1",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 579,
+      "n_vus": 431,
+      "n_del": 8,
+      "n_ins": 0,
+      "n_snv": 571
+    },
+    {
+      "gene": "RNF213",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 1095,
+      "n_vus": 427,
+      "n_del": 29,
+      "n_ins": 12,
+      "n_snv": 1054
+    },
+    {
+      "gene": "CSMD3",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 541,
+      "n_vus": 427,
+      "n_del": 5,
+      "n_ins": 1,
+      "n_snv": 535
+    },
+    {
+      "gene": "TACC2",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 530,
+      "n_vus": 424,
+      "n_del": 0,
+      "n_ins": 0,
+      "n_snv": 530
+    },
+    {
+      "gene": "PRUNE2",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 526,
+      "n_vus": 423,
+      "n_del": 3,
+      "n_ins": 1,
+      "n_snv": 522
+    },
+    {
+      "gene": "PDZD2",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 594,
+      "n_vus": 423,
+      "n_del": 1,
+      "n_ins": 0,
+      "n_snv": 593
+    },
+    {
+      "gene": "ZZEF1",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 506,
+      "n_vus": 422,
+      "n_del": 1,
+      "n_ins": 0,
+      "n_snv": 505
+    },
+    {
+      "gene": "CELSR3",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 525,
+      "n_vus": 417,
+      "n_del": 1,
+      "n_ins": 0,
+      "n_snv": 524
+    },
+    {
+      "gene": "BOD1L1",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 478,
+      "n_vus": 402,
+      "n_del": 5,
+      "n_ins": 0,
+      "n_snv": 473
+    },
+    {
+      "gene": "CEP350",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 468,
+      "n_vus": 396,
+      "n_del": 9,
+      "n_ins": 0,
+      "n_snv": 459
+    },
+    {
+      "gene": "VPS13C",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 1170,
+      "n_vus": 395,
+      "n_del": 59,
+      "n_ins": 40,
+      "n_snv": 1071
+    },
+    {
+      "gene": "TENM2",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 431,
+      "n_vus": 392,
+      "n_del": 1,
+      "n_ins": 1,
+      "n_snv": 429
+    },
+    {
+      "gene": "MAP1A",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 423,
+      "n_vus": 388,
+      "n_del": 2,
+      "n_ins": 0,
+      "n_snv": 421
+    },
+    {
+      "gene": "GOLGB1",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 440,
+      "n_vus": 383,
+      "n_del": 0,
+      "n_ins": 0,
+      "n_snv": 440
+    },
+    {
+      "gene": "HIVEP1",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 477,
+      "n_vus": 376,
+      "n_del": 0,
+      "n_ins": 0,
+      "n_snv": 477
+    },
+    {
+      "gene": "UTP20",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 448,
+      "n_vus": 363,
+      "n_del": 3,
+      "n_ins": 0,
+      "n_snv": 445
+    },
+    {
+      "gene": "FRYL",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 471,
+      "n_vus": 361,
+      "n_del": 25,
+      "n_ins": 9,
+      "n_snv": 437
+    },
+    {
+      "gene": "MXRA5",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 619,
+      "n_vus": 354,
+      "n_del": 0,
+      "n_ins": 2,
+      "n_snv": 617
+    },
+    {
+      "gene": "EPPK1",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 589,
+      "n_vus": 349,
+      "n_del": 8,
+      "n_ins": 3,
+      "n_snv": 578
+    },
+    {
+      "gene": "DNAH12",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 383,
+      "n_vus": 343,
+      "n_del": 0,
+      "n_ins": 0,
+      "n_snv": 383
+    },
+    {
+      "gene": "ZAN",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 424,
+      "n_vus": 341,
+      "n_del": 1,
+      "n_ins": 1,
+      "n_snv": 422
+    },
+    {
+      "gene": "HYDIN",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 610,
+      "n_vus": 338,
+      "n_del": 33,
+      "n_ins": 8,
+      "n_snv": 569
+    },
+    {
+      "gene": "ADGRG4",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 452,
+      "n_vus": 329,
+      "n_del": 0,
+      "n_ins": 1,
+      "n_snv": 451
+    },
+    {
+      "gene": "CHD9",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 383,
+      "n_vus": 323,
+      "n_del": 2,
+      "n_ins": 0,
+      "n_snv": 381
+    },
+    {
+      "gene": "CENPE",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 583,
+      "n_vus": 311,
+      "n_del": 20,
+      "n_ins": 12,
+      "n_snv": 551
+    },
+    {
+      "gene": "PRRC2C",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 383,
+      "n_vus": 301,
+      "n_del": 4,
+      "n_ins": 1,
+      "n_snv": 378
+    },
+    {
+      "gene": "TEX15",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 421,
+      "n_vus": 298,
+      "n_del": 14,
+      "n_ins": 4,
+      "n_snv": 403
+    },
+    {
+      "gene": "REV3L",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 471,
+      "n_vus": 296,
+      "n_del": 7,
+      "n_ins": 3,
+      "n_snv": 461
+    },
+    {
+      "gene": "HTT",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 774,
+      "n_vus": 268,
+      "n_del": 28,
+      "n_ins": 16,
+      "n_snv": 730
+    },
+    {
+      "gene": "MGAM",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 337,
+      "n_vus": 265,
+      "n_del": 2,
+      "n_ins": 0,
+      "n_snv": 335
+    },
+    {
+      "gene": "CHD6",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 346,
+      "n_vus": 260,
+      "n_del": 1,
+      "n_ins": 0,
+      "n_snv": 345
+    },
+    {
+      "gene": "ITPR2",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 364,
+      "n_vus": 259,
+      "n_del": 3,
+      "n_ins": 1,
+      "n_snv": 360
+    },
+    {
+      "gene": "UBR5",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 406,
+      "n_vus": 249,
+      "n_del": 24,
+      "n_ins": 6,
+      "n_snv": 376
+    },
+    {
+      "gene": "FRY",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 354,
+      "n_vus": 230,
+      "n_del": 2,
+      "n_ins": 0,
+      "n_snv": 352
+    },
+    {
+      "gene": "TENM1",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 730,
+      "n_vus": 219,
+      "n_del": 6,
+      "n_ins": 2,
+      "n_snv": 722
+    },
+    {
+      "gene": "CFAP46",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 239,
+      "n_vus": 172,
+      "n_del": 2,
+      "n_ins": 0,
+      "n_snv": 237
+    },
+    {
+      "gene": "DCHS2",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 258,
+      "n_vus": 107,
+      "n_del": 4,
+      "n_ins": 2,
+      "n_snv": 252
+    },
+    {
+      "gene": "MGA",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 97,
+      "n_vus": 30,
+      "n_del": 5,
+      "n_ins": 2,
+      "n_snv": 90
+    },
+    {
+      "gene": "SMG1",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 95,
+      "n_vus": 25,
+      "n_del": 1,
+      "n_ins": 0,
+      "n_snv": 94
+    },
+    {
+      "gene": "CFAP47",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 162,
+      "n_vus": 24,
+      "n_del": 2,
+      "n_ins": 0,
+      "n_snv": 160
+    },
+    {
+      "gene": "KALRN",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 145,
+      "n_vus": 17,
+      "n_del": 3,
+      "n_ins": 1,
+      "n_snv": 141
+    },
+    {
+      "gene": "MUC5AC",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 39,
+      "n_vus": 14,
+      "n_del": 0,
+      "n_ins": 0,
+      "n_snv": 39
+    },
+    {
+      "gene": "MUC4",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 433,
+      "n_vus": 6,
+      "n_del": 14,
+      "n_ins": 4,
+      "n_snv": 415
+    },
+    {
+      "gene": "MUC16",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 698,
+      "n_vus": 5,
+      "n_del": 18,
+      "n_ins": 6,
+      "n_snv": 674
+    },
+    {
+      "gene": "HRNR",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 64,
+      "n_vus": 5,
+      "n_del": 1,
+      "n_ins": 0,
+      "n_snv": 63
+    },
+    {
+      "gene": "CFAP54",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 16,
+      "n_vus": 3,
+      "n_del": 3,
+      "n_ins": 0,
+      "n_snv": 13
+    },
+    {
+      "gene": "LRTM3",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 25,
+      "n_vus": 2,
+      "n_del": 0,
+      "n_ins": 0,
+      "n_snv": 25
+    },
+    {
+      "gene": "MYO15B",
+      "verdict": "ISOFORM_ONLY",
+      "structure_lost": true,
+      "n_variants": 65,
+      "n_vus": 2,
+      "n_del": 1,
+      "n_ins": 0,
+      "n_snv": 64
+    },
+    {
+      "gene": "HMCN2",
+      "verdict": "NO_MODEL_404",
+      "structure_lost": true,
+      "n_variants": 35,
+      "n_vus": 2,
+      "n_del": 2,
+      "n_ins": 0,
+      "n_snv": 33
+    }
+  ],
+  "tier2": [
+    {
+      "gene": "POLE",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 10944,
+      "n_vus": 6301,
+      "n_del": 574,
+      "n_ins": 253,
+      "n_snv": 10117
+    },
+    {
+      "gene": "TSC2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 12260,
+      "n_vus": 5889,
+      "n_del": 1026,
+      "n_ins": 620,
+      "n_snv": 10614
+    },
+    {
+      "gene": "DICER1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 7605,
+      "n_vus": 4114,
+      "n_del": 549,
+      "n_ins": 258,
+      "n_snv": 6798
+    },
+    {
+      "gene": "ALK",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 6285,
+      "n_vus": 3894,
+      "n_del": 211,
+      "n_ins": 84,
+      "n_snv": 5990
+    },
+    {
+      "gene": "BRIP1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 6324,
+      "n_vus": 3593,
+      "n_del": 566,
+      "n_ins": 267,
+      "n_snv": 5491
+    },
+    {
+      "gene": "PALB2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 6593,
+      "n_vus": 3478,
+      "n_del": 853,
+      "n_ins": 343,
+      "n_snv": 5397
+    },
+    {
+      "gene": "MYH7",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 5778,
+      "n_vus": 3433,
+      "n_del": 237,
+      "n_ins": 98,
+      "n_snv": 5443
+    },
+    {
+      "gene": "POLD1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 5760,
+      "n_vus": 3330,
+      "n_del": 322,
+      "n_ins": 185,
+      "n_snv": 5253
+    },
+    {
+      "gene": "PMS2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 5876,
+      "n_vus": 3279,
+      "n_del": 539,
+      "n_ins": 218,
+      "n_snv": 5119
+    },
+    {
+      "gene": "PTCH1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 6216,
+      "n_vus": 3229,
+      "n_del": 443,
+      "n_ins": 210,
+      "n_snv": 5563
+    },
+    {
+      "gene": "SMARCA4",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 6577,
+      "n_vus": 3228,
+      "n_del": 268,
+      "n_ins": 120,
+      "n_snv": 6189
+    },
+    {
+      "gene": "RECQL4",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 5383,
+      "n_vus": 3092,
+      "n_del": 269,
+      "n_ins": 106,
+      "n_snv": 5008
+    },
+    {
+      "gene": "MSH3",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 5296,
+      "n_vus": 3024,
+      "n_del": 390,
+      "n_ins": 178,
+      "n_snv": 4728
+    },
+    {
+      "gene": "MET",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 4783,
+      "n_vus": 3003,
+      "n_del": 131,
+      "n_ins": 41,
+      "n_snv": 4611
+    },
+    {
+      "gene": "BLM",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 5151,
+      "n_vus": 2943,
+      "n_del": 373,
+      "n_ins": 125,
+      "n_snv": 4653
+    },
+    {
+      "gene": "FANCA",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 6461,
+      "n_vus": 2924,
+      "n_del": 405,
+      "n_ins": 182,
+      "n_snv": 5874
+    },
+    {
+      "gene": "CFTR",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 5903,
+      "n_vus": 2832,
+      "n_del": 634,
+      "n_ins": 223,
+      "n_snv": 5046
+    },
+    {
+      "gene": "TSC1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 5590,
+      "n_vus": 2826,
+      "n_del": 554,
+      "n_ins": 288,
+      "n_snv": 4748
+    },
+    {
+      "gene": "RAD50",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 4747,
+      "n_vus": 2795,
+      "n_del": 297,
+      "n_ins": 138,
+      "n_snv": 4312
+    },
+    {
+      "gene": "SCN5A",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 4996,
+      "n_vus": 2691,
+      "n_del": 241,
+      "n_ins": 107,
+      "n_snv": 4648
+    },
+    {
+      "gene": "CDH1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 5086,
+      "n_vus": 2684,
+      "n_del": 390,
+      "n_ins": 177,
+      "n_snv": 4519
+    },
+    {
+      "gene": "AXIN2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 4261,
+      "n_vus": 2582,
+      "n_del": 190,
+      "n_ins": 99,
+      "n_snv": 3972
+    },
+    {
+      "gene": "FANCM",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3876,
+      "n_vus": 2565,
+      "n_del": 158,
+      "n_ins": 59,
+      "n_snv": 3659
+    },
+    {
+      "gene": "MUTYH",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 4149,
+      "n_vus": 2564,
+      "n_del": 234,
+      "n_ins": 96,
+      "n_snv": 3819
+    },
+    {
+      "gene": "LZTR1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 4635,
+      "n_vus": 2552,
+      "n_del": 450,
+      "n_ins": 175,
+      "n_snv": 4010
+    },
+    {
+      "gene": "BARD1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 4512,
+      "n_vus": 2508,
+      "n_del": 385,
+      "n_ins": 174,
+      "n_snv": 3953
+    },
+    {
+      "gene": "RET",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 4343,
+      "n_vus": 2469,
+      "n_del": 115,
+      "n_ins": 66,
+      "n_snv": 4162
+    },
+    {
+      "gene": "POLQ",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 3686,
+      "n_vus": 2442,
+      "n_del": 3,
+      "n_ins": 2,
+      "n_snv": 3681
+    },
+    {
+      "gene": "LRRK2",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 4036,
+      "n_vus": 2429,
+      "n_del": 56,
+      "n_ins": 28,
+      "n_snv": 3952
+    },
+    {
+      "gene": "KIF1B",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3948,
+      "n_vus": 2396,
+      "n_del": 81,
+      "n_ins": 48,
+      "n_snv": 3819
+    },
+    {
+      "gene": "MYH11",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 4163,
+      "n_vus": 2348,
+      "n_del": 152,
+      "n_ins": 68,
+      "n_snv": 3943
+    },
+    {
+      "gene": "CHEK2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 4530,
+      "n_vus": 2333,
+      "n_del": 711,
+      "n_ins": 258,
+      "n_snv": 3561
+    },
+    {
+      "gene": "ATR",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 4172,
+      "n_vus": 2299,
+      "n_del": 116,
+      "n_ins": 60,
+      "n_snv": 3996
+    },
+    {
+      "gene": "MYBPC3",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 4626,
+      "n_vus": 2278,
+      "n_del": 546,
+      "n_ins": 238,
+      "n_snv": 3842
+    },
+    {
+      "gene": "PDGFRA",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3865,
+      "n_vus": 2269,
+      "n_del": 116,
+      "n_ins": 50,
+      "n_snv": 3699
+    },
+    {
+      "gene": "MLH3",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3274,
+      "n_vus": 2264,
+      "n_del": 124,
+      "n_ins": 53,
+      "n_snv": 3097
+    },
+    {
+      "gene": "CACNA1A",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 4402,
+      "n_vus": 2185,
+      "n_del": 284,
+      "n_ins": 151,
+      "n_snv": 3967
+    },
+    {
+      "gene": "NOTCH1",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 4604,
+      "n_vus": 2171,
+      "n_del": 106,
+      "n_ins": 51,
+      "n_snv": 4447
+    },
+    {
+      "gene": "RTEL1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 4580,
+      "n_vus": 2171,
+      "n_del": 179,
+      "n_ins": 59,
+      "n_snv": 4342
+    },
+    {
+      "gene": "CACNA1H",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 4185,
+      "n_vus": 2087,
+      "n_del": 110,
+      "n_ins": 47,
+      "n_snv": 4028
+    },
+    {
+      "gene": "NBN",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3740,
+      "n_vus": 2064,
+      "n_del": 322,
+      "n_ins": 142,
+      "n_snv": 3276
+    },
+    {
+      "gene": "WRN",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3848,
+      "n_vus": 2033,
+      "n_del": 255,
+      "n_ins": 121,
+      "n_snv": 3472
+    },
+    {
+      "gene": "EGFR",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3960,
+      "n_vus": 2025,
+      "n_del": 147,
+      "n_ins": 58,
+      "n_snv": 3755
+    },
+    {
+      "gene": "SCN1A",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 5165,
+      "n_vus": 2024,
+      "n_del": 564,
+      "n_ins": 223,
+      "n_snv": 4378
+    },
+    {
+      "gene": "ALPK2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3246,
+      "n_vus": 2019,
+      "n_del": 5,
+      "n_ins": 0,
+      "n_snv": 3241
+    },
+    {
+      "gene": "ALPK3",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3261,
+      "n_vus": 1966,
+      "n_del": 153,
+      "n_ins": 84,
+      "n_snv": 3024
+    },
+    {
+      "gene": "CACNA1S",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3496,
+      "n_vus": 1936,
+      "n_del": 135,
+      "n_ins": 30,
+      "n_snv": 3331
+    },
+    {
+      "gene": "ANKRD26",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2834,
+      "n_vus": 1927,
+      "n_del": 101,
+      "n_ins": 39,
+      "n_snv": 2694
+    },
+    {
+      "gene": "SCN9A",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3005,
+      "n_vus": 1903,
+      "n_del": 107,
+      "n_ins": 51,
+      "n_snv": 2847
+    },
+    {
+      "gene": "MYO7A",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 4983,
+      "n_vus": 1871,
+      "n_del": 333,
+      "n_ins": 149,
+      "n_snv": 4501
+    },
+    {
+      "gene": "TERT",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3720,
+      "n_vus": 1870,
+      "n_del": 97,
+      "n_ins": 33,
+      "n_snv": 3590
+    },
+    {
+      "gene": "FLNA",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 4379,
+      "n_vus": 1857,
+      "n_del": 172,
+      "n_ins": 85,
+      "n_snv": 4122
+    },
+    {
+      "gene": "KIT",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3372,
+      "n_vus": 1836,
+      "n_del": 116,
+      "n_ins": 51,
+      "n_snv": 3205
+    },
+    {
+      "gene": "MYH6",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2933,
+      "n_vus": 1825,
+      "n_del": 94,
+      "n_ins": 37,
+      "n_snv": 2802
+    },
+    {
+      "gene": "SDHA",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3273,
+      "n_vus": 1815,
+      "n_del": 182,
+      "n_ins": 93,
+      "n_snv": 2998
+    },
+    {
+      "gene": "CTNNA1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3513,
+      "n_vus": 1784,
+      "n_del": 181,
+      "n_ins": 133,
+      "n_snv": 3199
+    },
+    {
+      "gene": "KCNH2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3780,
+      "n_vus": 1771,
+      "n_del": 332,
+      "n_ins": 209,
+      "n_snv": 3239
+    },
+    {
+      "gene": "CASR",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3057,
+      "n_vus": 1768,
+      "n_del": 123,
+      "n_ins": 45,
+      "n_snv": 2889
+    },
+    {
+      "gene": "POLG",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3339,
+      "n_vus": 1738,
+      "n_del": 181,
+      "n_ins": 148,
+      "n_snv": 3010
+    },
+    {
+      "gene": "WNK2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2923,
+      "n_vus": 1736,
+      "n_del": 0,
+      "n_ins": 1,
+      "n_snv": 2922
+    },
+    {
+      "gene": "BAP1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3512,
+      "n_vus": 1723,
+      "n_del": 254,
+      "n_ins": 118,
+      "n_snv": 3140
+    },
+    {
+      "gene": "SAMD9",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2471,
+      "n_vus": 1684,
+      "n_del": 71,
+      "n_ins": 23,
+      "n_snv": 2377
+    },
+    {
+      "gene": "PALLD",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2615,
+      "n_vus": 1662,
+      "n_del": 37,
+      "n_ins": 31,
+      "n_snv": 2547
+    },
+    {
+      "gene": "CACNA1C",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3679,
+      "n_vus": 1652,
+      "n_del": 117,
+      "n_ins": 60,
+      "n_snv": 3502
+    },
+    {
+      "gene": "CEP290",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 4369,
+      "n_vus": 1650,
+      "n_del": 484,
+      "n_ins": 189,
+      "n_snv": 3696
+    },
+    {
+      "gene": "SAMD9L",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2313,
+      "n_vus": 1648,
+      "n_del": 61,
+      "n_ins": 18,
+      "n_snv": 2234
+    },
+    {
+      "gene": "MYLK",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2717,
+      "n_vus": 1637,
+      "n_del": 91,
+      "n_ins": 41,
+      "n_snv": 2585
+    },
+    {
+      "gene": "SPG11",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 3701,
+      "n_vus": 1616,
+      "n_del": 303,
+      "n_ins": 186,
+      "n_snv": 3212
+    },
+    {
+      "gene": "SCN10A",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2565,
+      "n_vus": 1600,
+      "n_del": 70,
+      "n_ins": 29,
+      "n_snv": 2466
+    },
+    {
+      "gene": "KIF1A",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3434,
+      "n_vus": 1592,
+      "n_del": 100,
+      "n_ins": 41,
+      "n_snv": 3293
+    },
+    {
+      "gene": "SLX4",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2641,
+      "n_vus": 1590,
+      "n_del": 94,
+      "n_ins": 34,
+      "n_snv": 2513
+    },
+    {
+      "gene": "DYSF",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 4557,
+      "n_vus": 1569,
+      "n_del": 363,
+      "n_ins": 143,
+      "n_snv": 4051
+    },
+    {
+      "gene": "NPAT",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2350,
+      "n_vus": 1555,
+      "n_del": 20,
+      "n_ins": 6,
+      "n_snv": 2324
+    },
+    {
+      "gene": "COL11A1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3418,
+      "n_vus": 1551,
+      "n_del": 158,
+      "n_ins": 97,
+      "n_snv": 3163
+    },
+    {
+      "gene": "ATP7B",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3625,
+      "n_vus": 1548,
+      "n_del": 309,
+      "n_ins": 168,
+      "n_snv": 3148
+    },
+    {
+      "gene": "HOXB13",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1909,
+      "n_vus": 1537,
+      "n_del": 183,
+      "n_ins": 164,
+      "n_snv": 1562
+    },
+    {
+      "gene": "PIEZO1",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 2699,
+      "n_vus": 1536,
+      "n_del": 89,
+      "n_ins": 53,
+      "n_snv": 2557
+    },
+    {
+      "gene": "COL3A1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3903,
+      "n_vus": 1534,
+      "n_del": 212,
+      "n_ins": 82,
+      "n_snv": 3609
+    },
+    {
+      "gene": "ANKRD11",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 3318,
+      "n_vus": 1525,
+      "n_del": 372,
+      "n_ins": 132,
+      "n_snv": 2814
+    },
+    {
+      "gene": "CBL",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2376,
+      "n_vus": 1501,
+      "n_del": 88,
+      "n_ins": 61,
+      "n_snv": 2227
+    },
+    {
+      "gene": "COL5A1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 4210,
+      "n_vus": 1493,
+      "n_del": 221,
+      "n_ins": 123,
+      "n_snv": 3866
+    },
+    {
+      "gene": "PCDH15",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3787,
+      "n_vus": 1490,
+      "n_del": 413,
+      "n_ins": 327,
+      "n_snv": 3047
+    },
+    {
+      "gene": "LDLR",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 4447,
+      "n_vus": 1474,
+      "n_del": 621,
+      "n_ins": 318,
+      "n_snv": 3508
+    },
+    {
+      "gene": "SPTAN1",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 3225,
+      "n_vus": 1473,
+      "n_del": 112,
+      "n_ins": 68,
+      "n_snv": 3045
+    },
+    {
+      "gene": "STK11",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2983,
+      "n_vus": 1472,
+      "n_del": 257,
+      "n_ins": 144,
+      "n_snv": 2582
+    },
+    {
+      "gene": "FLNB",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 2907,
+      "n_vus": 1461,
+      "n_del": 96,
+      "n_ins": 39,
+      "n_snv": 2772
+    },
+    {
+      "gene": "DSG2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2276,
+      "n_vus": 1459,
+      "n_del": 133,
+      "n_ins": 71,
+      "n_snv": 2072
+    },
+    {
+      "gene": "SCN4A",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2453,
+      "n_vus": 1455,
+      "n_del": 79,
+      "n_ins": 33,
+      "n_snv": 2341
+    },
+    {
+      "gene": "BUB1B",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2357,
+      "n_vus": 1451,
+      "n_del": 53,
+      "n_ins": 24,
+      "n_snv": 2280
+    },
+    {
+      "gene": "MEN1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3073,
+      "n_vus": 1444,
+      "n_del": 291,
+      "n_ins": 152,
+      "n_snv": 2630
+    },
+    {
+      "gene": "ABCA4",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 4557,
+      "n_vus": 1426,
+      "n_del": 409,
+      "n_ins": 132,
+      "n_snv": 4016
+    },
+    {
+      "gene": "POT1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2542,
+      "n_vus": 1426,
+      "n_del": 149,
+      "n_ins": 71,
+      "n_snv": 2322
+    },
+    {
+      "gene": "FLCN",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2850,
+      "n_vus": 1408,
+      "n_del": 246,
+      "n_ins": 115,
+      "n_snv": 2489
+    },
+    {
+      "gene": "MRE11",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2410,
+      "n_vus": 1403,
+      "n_del": 112,
+      "n_ins": 53,
+      "n_snv": 2245
+    },
+    {
+      "gene": "RBM20",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2359,
+      "n_vus": 1391,
+      "n_del": 110,
+      "n_ins": 43,
+      "n_snv": 2206
+    },
+    {
+      "gene": "WNK1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2347,
+      "n_vus": 1391,
+      "n_del": 82,
+      "n_ins": 61,
+      "n_snv": 2204
+    },
+    {
+      "gene": "SCN2A",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2978,
+      "n_vus": 1385,
+      "n_del": 156,
+      "n_ins": 64,
+      "n_snv": 2758
+    },
+    {
+      "gene": "CREBBP",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 3104,
+      "n_vus": 1384,
+      "n_del": 240,
+      "n_ins": 117,
+      "n_snv": 2747
+    },
+    {
+      "gene": "TRPM4",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2220,
+      "n_vus": 1370,
+      "n_del": 92,
+      "n_ins": 58,
+      "n_snv": 2070
+    },
+    {
+      "gene": "NRXN1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2414,
+      "n_vus": 1369,
+      "n_del": 72,
+      "n_ins": 45,
+      "n_snv": 2297
+    },
+    {
+      "gene": "BMPR1A",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2707,
+      "n_vus": 1368,
+      "n_del": 202,
+      "n_ins": 132,
+      "n_snv": 2373
+    },
+    {
+      "gene": "LAMA4",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2250,
+      "n_vus": 1343,
+      "n_del": 88,
+      "n_ins": 37,
+      "n_snv": 2125
+    },
+    {
+      "gene": "CACNA1D",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2645,
+      "n_vus": 1333,
+      "n_del": 86,
+      "n_ins": 33,
+      "n_snv": 2526
+    },
+    {
+      "gene": "ASXL1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2428,
+      "n_vus": 1323,
+      "n_del": 81,
+      "n_ins": 42,
+      "n_snv": 2305
+    },
+    {
+      "gene": "COL18A1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3233,
+      "n_vus": 1319,
+      "n_del": 208,
+      "n_ins": 117,
+      "n_snv": 2908
+    },
+    {
+      "gene": "DSC2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2080,
+      "n_vus": 1317,
+      "n_del": 115,
+      "n_ins": 67,
+      "n_snv": 1898
+    },
+    {
+      "gene": "HCN4",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2244,
+      "n_vus": 1312,
+      "n_del": 79,
+      "n_ins": 36,
+      "n_snv": 2129
+    },
+    {
+      "gene": "NOTCH2",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 2167,
+      "n_vus": 1307,
+      "n_del": 66,
+      "n_ins": 35,
+      "n_snv": 2066
+    },
+    {
+      "gene": "DIS3L2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2303,
+      "n_vus": 1307,
+      "n_del": 94,
+      "n_ins": 45,
+      "n_snv": 2164
+    },
+    {
+      "gene": "NF2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2487,
+      "n_vus": 1302,
+      "n_del": 185,
+      "n_ins": 47,
+      "n_snv": 2255
+    },
+    {
+      "gene": "COL11A2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3162,
+      "n_vus": 1302,
+      "n_del": 140,
+      "n_ins": 59,
+      "n_snv": 2963
+    },
+    {
+      "gene": "LRP5",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2477,
+      "n_vus": 1297,
+      "n_del": 98,
+      "n_ins": 70,
+      "n_snv": 2309
+    },
+    {
+      "gene": "DOCK8",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3028,
+      "n_vus": 1279,
+      "n_del": 141,
+      "n_ins": 59,
+      "n_snv": 2828
+    },
+    {
+      "gene": "SMAD4",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2579,
+      "n_vus": 1277,
+      "n_del": 186,
+      "n_ins": 124,
+      "n_snv": 2269
+    },
+    {
+      "gene": "SETX",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 2209,
+      "n_vus": 1269,
+      "n_del": 126,
+      "n_ins": 60,
+      "n_snv": 2023
+    },
+    {
+      "gene": "PKP2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2306,
+      "n_vus": 1263,
+      "n_del": 201,
+      "n_ins": 94,
+      "n_snv": 2011
+    },
+    {
+      "gene": "DEPDC5",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2703,
+      "n_vus": 1257,
+      "n_del": 207,
+      "n_ins": 86,
+      "n_snv": 2410
+    },
+    {
+      "gene": "SCN3A",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2101,
+      "n_vus": 1252,
+      "n_del": 57,
+      "n_ins": 25,
+      "n_snv": 2019
+    },
+    {
+      "gene": "COL4A4",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3638,
+      "n_vus": 1245,
+      "n_del": 299,
+      "n_ins": 168,
+      "n_snv": 3171
+    },
+    {
+      "gene": "MYOM1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2157,
+      "n_vus": 1245,
+      "n_del": 90,
+      "n_ins": 57,
+      "n_snv": 2010
+    },
+    {
+      "gene": "SCN8A",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2518,
+      "n_vus": 1239,
+      "n_del": 95,
+      "n_ins": 53,
+      "n_snv": 2370
+    },
+    {
+      "gene": "WFS1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2136,
+      "n_vus": 1237,
+      "n_del": 85,
+      "n_ins": 58,
+      "n_snv": 1993
+    },
+    {
+      "gene": "SOS1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2188,
+      "n_vus": 1233,
+      "n_del": 80,
+      "n_ins": 52,
+      "n_snv": 2056
+    },
+    {
+      "gene": "RECQL",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1794,
+      "n_vus": 1227,
+      "n_del": 128,
+      "n_ins": 60,
+      "n_snv": 1606
+    },
+    {
+      "gene": "FASN",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 2516,
+      "n_vus": 1223,
+      "n_del": 40,
+      "n_ins": 20,
+      "n_snv": 2456
+    },
+    {
+      "gene": "RP1L1",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 1731,
+      "n_vus": 1222,
+      "n_del": 33,
+      "n_ins": 31,
+      "n_snv": 1667
+    },
+    {
+      "gene": "COL4A1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2888,
+      "n_vus": 1217,
+      "n_del": 100,
+      "n_ins": 64,
+      "n_snv": 2724
+    },
+    {
+      "gene": "AGRN",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2566,
+      "n_vus": 1208,
+      "n_del": 71,
+      "n_ins": 42,
+      "n_snv": 2453
+    },
+    {
+      "gene": "GALNT12",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1709,
+      "n_vus": 1199,
+      "n_del": 57,
+      "n_ins": 26,
+      "n_snv": 1626
+    },
+    {
+      "gene": "RAD51C",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2294,
+      "n_vus": 1191,
+      "n_del": 200,
+      "n_ins": 88,
+      "n_snv": 2006
+    },
+    {
+      "gene": "ABCC8",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2917,
+      "n_vus": 1188,
+      "n_del": 185,
+      "n_ins": 58,
+      "n_snv": 2674
+    },
+    {
+      "gene": "FH",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2463,
+      "n_vus": 1181,
+      "n_del": 226,
+      "n_ins": 109,
+      "n_snv": 2128
+    },
+    {
+      "gene": "GAA",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3145,
+      "n_vus": 1180,
+      "n_del": 269,
+      "n_ins": 115,
+      "n_snv": 2761
+    },
+    {
+      "gene": "RAI1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2488,
+      "n_vus": 1179,
+      "n_del": 133,
+      "n_ins": 66,
+      "n_snv": 2289
+    },
+    {
+      "gene": "COL6A2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2349,
+      "n_vus": 1177,
+      "n_del": 141,
+      "n_ins": 81,
+      "n_snv": 2127
+    },
+    {
+      "gene": "NBAS",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2881,
+      "n_vus": 1176,
+      "n_del": 115,
+      "n_ins": 66,
+      "n_snv": 2700
+    },
+    {
+      "gene": "RINT1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1775,
+      "n_vus": 1176,
+      "n_del": 60,
+      "n_ins": 26,
+      "n_snv": 1689
+    },
+    {
+      "gene": "NSD1",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 2677,
+      "n_vus": 1165,
+      "n_del": 272,
+      "n_ins": 145,
+      "n_snv": 2260
+    },
+    {
+      "gene": "FANCC",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2244,
+      "n_vus": 1163,
+      "n_del": 152,
+      "n_ins": 72,
+      "n_snv": 2020
+    },
+    {
+      "gene": "MYO18B",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 2510,
+      "n_vus": 1163,
+      "n_del": 78,
+      "n_ins": 37,
+      "n_snv": 2395
+    },
+    {
+      "gene": "LMNA",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2419,
+      "n_vus": 1153,
+      "n_del": 187,
+      "n_ins": 83,
+      "n_snv": 2149
+    },
+    {
+      "gene": "IFT140",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2247,
+      "n_vus": 1147,
+      "n_del": 125,
+      "n_ins": 41,
+      "n_snv": 2081
+    },
+    {
+      "gene": "KCNT1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2565,
+      "n_vus": 1145,
+      "n_del": 108,
+      "n_ins": 74,
+      "n_snv": 2383
+    },
+    {
+      "gene": "RP1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1824,
+      "n_vus": 1144,
+      "n_del": 174,
+      "n_ins": 50,
+      "n_snv": 1600
+    },
+    {
+      "gene": "GRIN2A",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2372,
+      "n_vus": 1131,
+      "n_del": 102,
+      "n_ins": 40,
+      "n_snv": 2230
+    },
+    {
+      "gene": "AGL",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3014,
+      "n_vus": 1127,
+      "n_del": 273,
+      "n_ins": 134,
+      "n_snv": 2607
+    },
+    {
+      "gene": "MTOR",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 3054,
+      "n_vus": 1121,
+      "n_del": 114,
+      "n_ins": 51,
+      "n_snv": 2889
+    },
+    {
+      "gene": "DUOX2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2344,
+      "n_vus": 1110,
+      "n_del": 113,
+      "n_ins": 36,
+      "n_snv": 2195
+    },
+    {
+      "gene": "COL2A1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3500,
+      "n_vus": 1104,
+      "n_del": 310,
+      "n_ins": 143,
+      "n_snv": 3047
+    },
+    {
+      "gene": "TUBGCP6",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2308,
+      "n_vus": 1104,
+      "n_del": 94,
+      "n_ins": 67,
+      "n_snv": 2147
+    },
+    {
+      "gene": "NPHP4",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1951,
+      "n_vus": 1103,
+      "n_del": 78,
+      "n_ins": 36,
+      "n_snv": 1837
+    },
+    {
+      "gene": "A2ML1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1977,
+      "n_vus": 1102,
+      "n_del": 96,
+      "n_ins": 53,
+      "n_snv": 1828
+    },
+    {
+      "gene": "VHL",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2118,
+      "n_vus": 1098,
+      "n_del": 210,
+      "n_ins": 124,
+      "n_snv": 1784
+    },
+    {
+      "gene": "TET2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1876,
+      "n_vus": 1089,
+      "n_del": 119,
+      "n_ins": 59,
+      "n_snv": 1698
+    },
+    {
+      "gene": "RAD51D",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2043,
+      "n_vus": 1086,
+      "n_del": 175,
+      "n_ins": 65,
+      "n_snv": 1803
+    },
+    {
+      "gene": "WT1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1949,
+      "n_vus": 1078,
+      "n_del": 73,
+      "n_ins": 40,
+      "n_snv": 1836
+    },
+    {
+      "gene": "MED12",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2521,
+      "n_vus": 1066,
+      "n_del": 105,
+      "n_ins": 89,
+      "n_snv": 2327
+    },
+    {
+      "gene": "NTHL1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1769,
+      "n_vus": 1066,
+      "n_del": 103,
+      "n_ins": 51,
+      "n_snv": 1615
+    },
+    {
+      "gene": "ELP1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2593,
+      "n_vus": 1063,
+      "n_del": 162,
+      "n_ins": 79,
+      "n_snv": 2352
+    },
+    {
+      "gene": "ATRX",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 2761,
+      "n_vus": 1061,
+      "n_del": 117,
+      "n_ins": 45,
+      "n_snv": 2599
+    },
+    {
+      "gene": "SCN11A",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1690,
+      "n_vus": 1057,
+      "n_del": 76,
+      "n_ins": 32,
+      "n_snv": 1582
+    },
+    {
+      "gene": "COL4A3",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3299,
+      "n_vus": 1051,
+      "n_del": 253,
+      "n_ins": 97,
+      "n_snv": 2949
+    },
+    {
+      "gene": "SOS2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2043,
+      "n_vus": 1051,
+      "n_del": 105,
+      "n_ins": 58,
+      "n_snv": 1880
+    },
+    {
+      "gene": "FN1",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 2024,
+      "n_vus": 1049,
+      "n_del": 81,
+      "n_ins": 52,
+      "n_snv": 1891
+    },
+    {
+      "gene": "SH3TC2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1867,
+      "n_vus": 1048,
+      "n_del": 87,
+      "n_ins": 37,
+      "n_snv": 1743
+    },
+    {
+      "gene": "ABCC9",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2182,
+      "n_vus": 1048,
+      "n_del": 128,
+      "n_ins": 62,
+      "n_snv": 1992
+    },
+    {
+      "gene": "FANCI",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2429,
+      "n_vus": 1044,
+      "n_del": 185,
+      "n_ins": 77,
+      "n_snv": 2167
+    },
+    {
+      "gene": "MBD5",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1788,
+      "n_vus": 1043,
+      "n_del": 76,
+      "n_ins": 31,
+      "n_snv": 1681
+    },
+    {
+      "gene": "MPDZ",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2008,
+      "n_vus": 1041,
+      "n_del": 61,
+      "n_ins": 44,
+      "n_snv": 1903
+    },
+    {
+      "gene": "IFIH1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1747,
+      "n_vus": 1041,
+      "n_del": 89,
+      "n_ins": 32,
+      "n_snv": 1626
+    },
+    {
+      "gene": "COL5A2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2357,
+      "n_vus": 1039,
+      "n_del": 77,
+      "n_ins": 38,
+      "n_snv": 2242
+    },
+    {
+      "gene": "COL1A1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 3710,
+      "n_vus": 1035,
+      "n_del": 485,
+      "n_ins": 187,
+      "n_snv": 3038
+    },
+    {
+      "gene": "NOTCH3",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2044,
+      "n_vus": 1032,
+      "n_del": 55,
+      "n_ins": 41,
+      "n_snv": 1948
+    },
+    {
+      "gene": "MECOM",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1631,
+      "n_vus": 1032,
+      "n_del": 9,
+      "n_ins": 3,
+      "n_snv": 1619
+    },
+    {
+      "gene": "EPAS1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1833,
+      "n_vus": 1031,
+      "n_del": 7,
+      "n_ins": 15,
+      "n_snv": 1811
+    },
+    {
+      "gene": "JMJD1C",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 1604,
+      "n_vus": 1030,
+      "n_del": 44,
+      "n_ins": 18,
+      "n_snv": 1542
+    },
+    {
+      "gene": "DIAPH1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1887,
+      "n_vus": 1029,
+      "n_del": 71,
+      "n_ins": 68,
+      "n_snv": 1748
+    },
+    {
+      "gene": "ACTN2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1821,
+      "n_vus": 1029,
+      "n_del": 60,
+      "n_ins": 31,
+      "n_snv": 1730
+    },
+    {
+      "gene": "MYPN",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1933,
+      "n_vus": 1028,
+      "n_del": 65,
+      "n_ins": 28,
+      "n_snv": 1840
+    },
+    {
+      "gene": "ERCC2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2367,
+      "n_vus": 1025,
+      "n_del": 119,
+      "n_ins": 60,
+      "n_snv": 2188
+    },
+    {
+      "gene": "CHD2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2523,
+      "n_vus": 1022,
+      "n_del": 164,
+      "n_ins": 92,
+      "n_snv": 2267
+    },
+    {
+      "gene": "VCL",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1736,
+      "n_vus": 1020,
+      "n_del": 60,
+      "n_ins": 42,
+      "n_snv": 1634
+    },
+    {
+      "gene": "LOXHD1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2994,
+      "n_vus": 1019,
+      "n_del": 182,
+      "n_ins": 51,
+      "n_snv": 2761
+    },
+    {
+      "gene": "SPTA1",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 1569,
+      "n_vus": 1019,
+      "n_del": 75,
+      "n_ins": 50,
+      "n_snv": 1444
+    },
+    {
+      "gene": "ARID1B",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2680,
+      "n_vus": 1014,
+      "n_del": 366,
+      "n_ins": 241,
+      "n_snv": 2073
+    },
+    {
+      "gene": "MYH2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1706,
+      "n_vus": 1012,
+      "n_del": 69,
+      "n_ins": 29,
+      "n_snv": 1608
+    },
+    {
+      "gene": "ATP7A",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2235,
+      "n_vus": 1009,
+      "n_del": 156,
+      "n_ins": 63,
+      "n_snv": 2016
+    },
+    {
+      "gene": "EPG5",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 2664,
+      "n_vus": 1009,
+      "n_del": 124,
+      "n_ins": 61,
+      "n_snv": 2479
+    },
+    {
+      "gene": "SUFU",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1891,
+      "n_vus": 1007,
+      "n_del": 78,
+      "n_ins": 51,
+      "n_snv": 1762
+    },
+    {
+      "gene": "LDB3",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1583,
+      "n_vus": 1007,
+      "n_del": 63,
+      "n_ins": 35,
+      "n_snv": 1485
+    },
+    {
+      "gene": "MAGEL2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1358,
+      "n_vus": 1007,
+      "n_del": 96,
+      "n_ins": 46,
+      "n_snv": 1216
+    },
+    {
+      "gene": "LTBP3",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1997,
+      "n_vus": 1006,
+      "n_del": 83,
+      "n_ins": 53,
+      "n_snv": 1861
+    },
+    {
+      "gene": "CNTNAP2",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1921,
+      "n_vus": 1003,
+      "n_del": 73,
+      "n_ins": 53,
+      "n_snv": 1795
+    },
+    {
+      "gene": "RUNX1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1814,
+      "n_vus": 1002,
+      "n_del": 123,
+      "n_ins": 108,
+      "n_snv": 1583
+    },
+    {
+      "gene": "C3",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1862,
+      "n_vus": 1002,
+      "n_del": 57,
+      "n_ins": 22,
+      "n_snv": 1783
+    },
+    {
+      "gene": "JAG1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 2666,
+      "n_vus": 1001,
+      "n_del": 210,
+      "n_ins": 134,
+      "n_snv": 2322
+    },
+    {
+      "gene": "MYH3",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1912,
+      "n_vus": 996,
+      "n_del": 96,
+      "n_ins": 34,
+      "n_snv": 1782
+    },
+    {
+      "gene": "EP300",
+      "verdict": "CANONICAL_PRESENT",
+      "structure_lost": false,
+      "n_variants": 2376,
+      "n_vus": 989,
+      "n_del": 168,
+      "n_ins": 106,
+      "n_snv": 2102
+    },
+    {
+      "gene": "NLRP12",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1444,
+      "n_vus": 987,
+      "n_del": 66,
+      "n_ins": 38,
+      "n_snv": 1340
+    },
+    {
+      "gene": "BUB1",
+      "verdict": null,
+      "structure_lost": false,
+      "n_variants": 1532,
+      "n_vus": 984,
+      "n_del": 11,
+      "n_ins": 8,
+      "n_snv": 1513
+    }
+  ],
+  "problems": []
+}

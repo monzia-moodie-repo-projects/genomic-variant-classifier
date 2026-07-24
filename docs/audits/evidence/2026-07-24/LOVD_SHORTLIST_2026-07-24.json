@@ -1,0 +1,60 @@
+{
+ "utc": "2026-07-24T05:17:19Z",
+ "source": "C:\\Users\\monzi\\Downloads\\LOVD_CANDIDATE_RANKING_V2_2026-07-24.json",
+ "floor_vus": 4510,
+ "floor_del": 1241,
+ "held": [
+  "NF1",
+  "APC",
+  "MSH2",
+  "PTEN",
+  "MSH6",
+  "BRCA2",
+  "TP53",
+  "RB1",
+  "MLH1",
+  "BRCA1"
+ ],
+ "tier1_qualifying": [
+  {
+   "gene": "ATM",
+   "held": false,
+   "verdict": "NO_MODEL_404",
+   "structure_lost": true,
+   "n_variants": 19121,
+   "n_vus": 9789,
+   "n_del": 2236,
+   "n_ins": 1004,
+   "n_snv": 15881,
+   "del_fraction": 0.11693949061241567,
+   "vus_fraction": 0.5119502118090058
+  },
+  {
+   "gene": "TTN",
+   "held": false,
+   "verdict": "NO_MODEL_404",
+   "structure_lost": true,
+   "n_variants": 39316,
+   "n_vus": 16140,
+   "n_del": 3286,
+   "n_ins": 1362,
+   "n_snv": 34668,
+   "del_fraction": 0.08357920439515719,
+   "vus_fraction": 0.4105198901210703
+  }
+ ],
+ "tier2_qualifying": [],
+ "reconciliation": {
+  "census_lost": 215,
+  "held_lost": [
+   "NF1",
+   "APC",
+   "BRCA2"
+  ],
+  "tier1_candidates": 209,
+  "unaccounted": 3
+ },
+ "problems": [
+  "3 lost-structure gene(s) absent from the cohort entirely"
+ ]
+}

@@ -1,0 +1,118 @@
+{
+  "utc": "2026-07-23T17:34:51Z",
+  "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "results": {
+    "alphafold": {
+      "verdict": "UNRESOLVED",
+      "explanation": "The two forms failed differently and neither succeeded. No verdict; record both records verbatim and re-probe before changing any code.",
+      "parameterless": [
+        {
+          "url": "https://alphafold.ebi.ac.uk/api/prediction/",
+          "method": "HEAD",
+          "status": 404,
+          "reason": "Not Found",
+          "error_type": "HTTPError",
+          "error": "HTTP Error 404: Not Found",
+          "etag": null,
+          "last_modified": null,
+          "content_type": null,
+          "body_bytes": null
+        },
+        {
+          "url": "https://alphafold.ebi.ac.uk/api/prediction/",
+          "method": "GET",
+          "status": 404,
+          "reason": "Not Found",
+          "error_type": "HTTPError",
+          "error": "HTTP Error 404: Not Found",
+          "etag": null,
+          "last_modified": null,
+          "content_type": null,
+          "body_bytes": null
+        }
+      ],
+      "parameterised": [
+        {
+          "url": "https://alphafold.ebi.ac.uk/api/prediction/P38398",
+          "method": "HEAD",
+          "status": 405,
+          "reason": "Method Not Allowed",
+          "error_type": "HTTPError",
+          "error": "HTTP Error 405: Method Not Allowed",
+          "etag": null,
+          "last_modified": null,
+          "content_type": null,
+          "body_bytes": null
+        },
+        {
+          "url": "https://alphafold.ebi.ac.uk/api/prediction/P38398",
+          "method": "GET",
+          "status": 200,
+          "reason": "OK",
+          "error_type": null,
+          "error": null,
+          "etag": null,
+          "last_modified": null,
+          "content_type": "application/json",
+          "body_bytes": 31457
+        }
+      ]
+    },
+    "lovd": {
+      "verdict": "DRIFT_OR_OUTAGE",
+      "explanation": "Both forms returned HTTP 403. Malformed-request is REFUTED. Endpoint drift or a genuine outage remains open; escalate to the upstream provider's status page and change log.",
+      "parameterless": [
+        {
+          "url": "https://databases.lovd.nl/shared/api/rest.php/variants/",
+          "method": "GET",
+          "status": 403,
+          "reason": "Forbidden",
+          "error_type": "HTTPError",
+          "error": "HTTP Error 403: Forbidden",
+          "etag": null,
+          "last_modified": null,
+          "content_type": null,
+          "body_bytes": null
+        },
+        {
+          "url": "https://databases.lovd.nl/shared/api/rest.php/variants/",
+          "method": "HEAD",
+          "status": 403,
+          "reason": "Forbidden",
+          "error_type": "HTTPError",
+          "error": "HTTP Error 403: Forbidden",
+          "etag": null,
+          "last_modified": null,
+          "content_type": null,
+          "body_bytes": null
+        }
+      ],
+      "parameterised": [
+        {
+          "url": "https://databases.lovd.nl/shared/api/rest.php/variants/BRCA1",
+          "method": "GET",
+          "status": 403,
+          "reason": "Forbidden",
+          "error_type": "HTTPError",
+          "error": "HTTP Error 403: Forbidden",
+          "etag": null,
+          "last_modified": null,
+          "content_type": null,
+          "body_bytes": null
+        },
+        {
+          "url": "https://databases.lovd.nl/shared/api/rest.php/variants/BRCA1",
+          "method": "HEAD",
+          "status": 403,
+          "reason": "Forbidden",
+          "error_type": "HTTPError",
+          "error": "HTTP Error 403: Forbidden",
+          "etag": null,
+          "last_modified": null,
+          "content_type": null,
+          "body_bytes": null
+        }
+      ]
+    }
+  }
+}

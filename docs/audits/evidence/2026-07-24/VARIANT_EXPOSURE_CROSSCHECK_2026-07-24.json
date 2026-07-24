@@ -1,0 +1,186 @@
+{
+  "utc": "2026-07-24T03:45:53Z",
+  "census": "C:\\Users\\monzi\\Downloads\\ALPHAFOLD_GIANT_CENSUS_2026-07-24.json",
+  "gene_group_sizes": {
+    "ISOFORM_ONLY": 102,
+    "NO_MODEL_404": 109,
+    "SEQUENCE_VERSION_DRIFT": 4,
+    "CANONICAL_PRESENT": 81
+  },
+  "results": [
+    {
+      "path": "C:\\Projects\\genomic-variant-classifier\\data\\processed\\clinvar_grch38.parquet",
+      "rows": 4420180,
+      "gene_column": "gene_symbol",
+      "tier_column": null,
+      "full": {
+        "total": 4420180,
+        "distinct_genes": 28350,
+        "ISOFORM_ONLY": 221140,
+        "NO_MODEL_404": 339546,
+        "SEQUENCE_VERSION_DRIFT": 57,
+        "CANONICAL_PRESENT": 115095
+      },
+      "filtered": null,
+      "top_genes": []
+    },
+    {
+      "path": "C:\\Projects\\genomic-variant-classifier\\data\\processed\\clinvar_grch38_clean.parquet",
+      "rows": 4399089,
+      "gene_column": "gene_symbol",
+      "tier_column": null,
+      "full": {
+        "total": 4399089,
+        "distinct_genes": 21386,
+        "ISOFORM_ONLY": 220590,
+        "NO_MODEL_404": 339141,
+        "SEQUENCE_VERSION_DRIFT": 55,
+        "CANONICAL_PRESENT": 114993
+      },
+      "filtered": null,
+      "top_genes": []
+    },
+    {
+      "path": "C:\\Projects\\genomic-variant-classifier\\data\\processed\\clinvar_grch38_clean_seq.parquet",
+      "rows": 4399089,
+      "gene_column": "gene_symbol",
+      "tier_column": null,
+      "full": {
+        "total": 4399089,
+        "distinct_genes": 21386,
+        "ISOFORM_ONLY": 220590,
+        "NO_MODEL_404": 339141,
+        "SEQUENCE_VERSION_DRIFT": 55,
+        "CANONICAL_PRESENT": 114993
+      },
+      "filtered": null,
+      "top_genes": []
+    },
+    {
+      "path": "C:\\Projects\\genomic-variant-classifier\\data\\processed\\clinvar_grch38_clean_v2_verified.parquet",
+      "rows": 4420180,
+      "gene_column": "gene_symbol",
+      "tier_column": null,
+      "full": {
+        "total": 4420180,
+        "distinct_genes": 28350,
+        "ISOFORM_ONLY": 221140,
+        "NO_MODEL_404": 339546,
+        "SEQUENCE_VERSION_DRIFT": 57,
+        "CANONICAL_PRESENT": 115095
+      },
+      "filtered": null,
+      "top_genes": []
+    },
+    {
+      "path": "C:\\Projects\\genomic-variant-classifier\\data\\processed\\clinvar_grch38_clean_v3_verified.parquet",
+      "rows": 4400192,
+      "gene_column": "gene_symbol",
+      "tier_column": null,
+      "full": {
+        "total": 4400192,
+        "distinct_genes": 21386,
+        "ISOFORM_ONLY": 220623,
+        "NO_MODEL_404": 339184,
+        "SEQUENCE_VERSION_DRIFT": 57,
+        "CANONICAL_PRESENT": 115026
+      },
+      "filtered": null,
+      "top_genes": []
+    },
+    {
+      "path": "C:\\Projects\\genomic-variant-classifier\\data\\processed\\clinvar_grch38_fresh.parquet",
+      "rows": 4462274,
+      "gene_column": "gene_symbol",
+      "tier_column": null,
+      "full": {
+        "total": 4462274,
+        "distinct_genes": 28522,
+        "ISOFORM_ONLY": 222984,
+        "NO_MODEL_404": 342854,
+        "SEQUENCE_VERSION_DRIFT": 70,
+        "CANONICAL_PRESENT": 116071
+      },
+      "filtered": null,
+      "top_genes": []
+    },
+    {
+      "path": "C:\\Projects\\genomic-variant-classifier\\data\\processed\\clinvar_grch38_noalleles.parquet",
+      "rows": 4420180,
+      "gene_column": "gene_symbol",
+      "tier_column": null,
+      "full": {
+        "total": 4420180,
+        "distinct_genes": 28350,
+        "ISOFORM_ONLY": 221140,
+        "NO_MODEL_404": 339546,
+        "SEQUENCE_VERSION_DRIFT": 57,
+        "CANONICAL_PRESENT": 115095
+      },
+      "filtered": null,
+      "top_genes": []
+    },
+    {
+      "path": "C:\\Projects\\genomic-variant-classifier\\data\\processed\\clinvar_grch38_pathfix.parquet",
+      "rows": 4420180,
+      "gene_column": "gene_symbol",
+      "tier_column": null,
+      "full": {
+        "total": 4420180,
+        "distinct_genes": 28350,
+        "ISOFORM_ONLY": 221140,
+        "NO_MODEL_404": 339546,
+        "SEQUENCE_VERSION_DRIFT": 57,
+        "CANONICAL_PRESENT": 115095
+      },
+      "filtered": null,
+      "top_genes": []
+    },
+    {
+      "path": "C:\\Projects\\genomic-variant-classifier\\data\\processed\\cohort_fresh.parquet",
+      "rows": 4441956,
+      "gene_column": "gene_symbol",
+      "tier_column": null,
+      "full": {
+        "total": 4441956,
+        "distinct_genes": 21452,
+        "ISOFORM_ONLY": 222463,
+        "NO_MODEL_404": 342489,
+        "SEQUENCE_VERSION_DRIFT": 70,
+        "CANONICAL_PRESENT": 115999
+      },
+      "filtered": null,
+      "top_genes": []
+    },
+    {
+      "path": "C:\\Projects\\genomic-variant-classifier\\data\\processed\\cohort_stale.parquet",
+      "rows": 4399089,
+      "gene_column": "gene_symbol",
+      "tier_column": null,
+      "full": {
+        "total": 4399089,
+        "distinct_genes": 21386,
+        "ISOFORM_ONLY": 220590,
+        "NO_MODEL_404": 339141,
+        "SEQUENCE_VERSION_DRIFT": 55,
+        "CANONICAL_PRESENT": 114993
+      },
+      "filtered": null,
+      "top_genes": []
+    }
+  ],
+  "rates": {
+    "clinvar_grch38.parquet": 12.685976589188675,
+    "clinvar_grch38_clean.parquet": 12.725043753377118,
+    "clinvar_grch38_clean_seq.parquet": 12.725043753377118,
+    "clinvar_grch38_clean_v2_verified.parquet": 12.685976589188675,
+    "clinvar_grch38_clean_v3_verified.parquet": 12.723626605384492,
+    "clinvar_grch38_fresh.parquet": 12.682054037918784,
+    "clinvar_grch38_noalleles.parquet": 12.685976589188675,
+    "clinvar_grch38_pathfix.parquet": 12.685976589188675,
+    "cohort_fresh.parquet": 12.720116993504663,
+    "cohort_stale.parquet": 12.725043753377118
+  },
+  "spread_pp": 0.04298971545833474,
+  "agree": true
+}

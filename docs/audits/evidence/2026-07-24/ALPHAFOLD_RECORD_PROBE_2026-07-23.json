@@ -1,0 +1,77 @@
+{
+  "utc": "2026-07-24T03:35:17Z",
+  "results": {
+    "Q0P5N6": {
+      "gene_symbol": "ARL16",
+      "canonical_length": 173,
+      "n_records": 1,
+      "records": [
+        {
+          "index": 0,
+          "entryId": "AF-Q0P5N6-F1",
+          "modelEntityId": "AF-Q0P5N6-F1",
+          "seq_len": 197,
+          "exact_match": false,
+          "common_prefix": 1,
+          "uniprotStart": 1,
+          "uniprotEnd": 197,
+          "sequenceVersionDate": "2006-09-19T00:00:00Z",
+          "latestVersion": 6,
+          "modelCreatedDate": "2025-08-01T00:00:00Z",
+          "cifUrl": "https://alphafold.ebi.ac.uk/files/AF-Q0P5N6-F1-model_v6.cif",
+          "isReviewed": true
+        }
+      ],
+      "verdict": "SEQUENCE_VERSION_DRIFT",
+      "explanation": "A canonical AF-{acc}-F1 model EXISTS but its sequence differs from our index. Our index is the stale party. This means build_alphafold_parquet.py is ALSO failing to match and is silently recording coverage misses for genes it should cover. HYPOTHESIS B -- open a SECOND defect."
+    },
+    "Q6ZTK2": {
+      "gene_symbol": "APOLTP",
+      "canonical_length": 3320,
+      "n_records": 1,
+      "records": [
+        {
+          "index": 0,
+          "entryId": "AF-Q6ZTK2-F1",
+          "modelEntityId": "AF-Q6ZTK2-F1",
+          "seq_len": 550,
+          "exact_match": false,
+          "common_prefix": 1,
+          "uniprotStart": 1,
+          "uniprotEnd": 550,
+          "sequenceVersionDate": "2004-07-05T00:00:00Z",
+          "latestVersion": 6,
+          "modelCreatedDate": "2025-08-01T00:00:00Z",
+          "cifUrl": "https://alphafold.ebi.ac.uk/files/AF-Q6ZTK2-F1-model_v6.cif",
+          "isReviewed": true
+        }
+      ],
+      "verdict": "SEQUENCE_VERSION_DRIFT",
+      "explanation": "A canonical AF-{acc}-F1 model EXISTS but its sequence differs from our index. Our index is the stale party. This means build_alphafold_parquet.py is ALSO failing to match and is silently recording coverage misses for genes it should cover. HYPOTHESIS B -- open a SECOND defect."
+    },
+    "Q9H195": {
+      "gene_symbol": "MUC3B",
+      "canonical_length": 13477,
+      "n_records": 1,
+      "records": [
+        {
+          "index": 0,
+          "entryId": "AF-Q9H195-F1",
+          "modelEntityId": "AF-Q9H195-F1",
+          "seq_len": 1237,
+          "exact_match": false,
+          "common_prefix": 122,
+          "uniprotStart": 1,
+          "uniprotEnd": 1237,
+          "sequenceVersionDate": "2023-09-13T00:00:00Z",
+          "latestVersion": 6,
+          "modelCreatedDate": "2022-06-01T00:00:00Z",
+          "cifUrl": "https://alphafold.ebi.ac.uk/files/AF-Q9H195-F1-model_v6.cif",
+          "isReviewed": true
+        }
+      ],
+      "verdict": "SEQUENCE_VERSION_DRIFT",
+      "explanation": "A canonical AF-{acc}-F1 model EXISTS but its sequence differs from our index. Our index is the stale party. This means build_alphafold_parquet.py is ALSO failing to match and is silently recording coverage misses for genes it should cover. HYPOTHESIS B -- open a SECOND defect."
+    }
+  }
+}

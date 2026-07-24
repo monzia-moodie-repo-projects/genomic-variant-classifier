@@ -1,3 +1,93 @@
+## 2026-07-24 -- AlphaFold structural coverage quantified (12.725% of the cohort); LOVD acquisition planned; 4 inherited numeric errors corrected
+
+Full session record: docs/sessions/SESSION_2026-07-24_alphafold-coverage-and-lovd-planning.md
+Audit: docs/audits/AUDIT_2026-07-24_alphafold_structural_coverage.md
+Incident: docs/INCIDENT_2026-07-23_protein_pipeline_alphafold_fetch.md (revision 2)
+Plan: docs/LOVD_ACQUISITION_PLAN_rev2_2026-07-24.md
+
+### Attempted
+- Item 3 of the handoff queue (push S0 Commit 2), then the repository-wide
+  pandas.read_parquet call-site audit, then the two unreachable data sources.
+- The data-source work did not stop where it was pointed: a stale version string in
+  monitoring/registry.py led into the production protein pipeline.
+
+### Fixed / completed
+- S0 Commit 2 pushed as 715bcfa. Ratchet 2874 -> 2893; local 2886 passed / 7 skipped in
+  716.30s; Continuous Integration #591 green on Python 3.11 and 3.12. The skipped
+  "Push image to GHCR" job is correct by design (ci.yml:558 gates on a release event).
+- Call-site audit steps 1 and 2 complete: 326 sites in 207 files, zero parse failures,
+  classified by process shape. 15 execute at module import time -- a bucket the handoff did
+  not anticipate and the shape most exposed to the teardown abort.
+
+### Found (measured, not estimated)
+- ALPHAFOLD CEILING located at 2,699 or 2,700 residues by complete census of all 296 index
+  accessions at or above 2,400. All 81 at or below 2,699 return a canonical model; all 215
+  at or above 2,701 do not (102 isoform-only, 109 no model, 4 sequence drift). The 215
+  agrees exactly with the independent count of accessions above 2,700.
+- protein_pipeline.py:171 takes data[0] unconditionally, so an isoform structure is attached
+  to canonical residue numbering. For UBR4 (5,183 residues) data[0] is a 212-residue model
+  sharing ONE residue with the canonical sequence.
+- IMPACT: 559,786 of 4,399,089 cohort variants = 12.725%, of which 220,590 (5.014%) receive
+  WRONG structural values rather than absent ones. Cross-checked across ten cohort files,
+  spread 0.043 percentage points. On the review-tier <=3 training subset: 12.544%.
+  Gene-weighted for contrast: 215/20,190 = 1.065%. The variant-weighted figure is 11.95x
+  the gene-weighted one.
+- Four further defects in the same function: a hard-coded model_v4 cache filename that makes
+  the cache un-invalidatable; failure logging at DEBUG (lines 166, 181, 299, 536); a bare
+  except Exception: pass (275-276); zero test coverage. The identical version-hard-coding
+  defect was fixed in scripts/build_alphafold_parquet.py on 2026-07-02, with four tests
+  added and a note that zero coverage was why it survived -- and the second copy was never
+  searched for. 21 days.
+- SEQUENCE DRIFT is a separate defect: 3 cases at 173, 3,320 and 13,477 residues, with
+  AlphaFold sequence-version dates of 2006, 2004 and 2023 against an index built 2026-06-25.
+  AlphaFold's snapshot is the older one, so rebuilding the local index would not fix it.
+- BOTH freshness failures root-caused. AlphaFold 404 is a compound defect: a URL template
+  stored without its required parameter AND Check.HTTP_ETAG issuing HEAD to an endpoint that
+  returns 405 for it. LOVD 403 is the documented anti-bot challenge, not drift; the older
+  data_freshness_agent.py:306-313 already skipped honestly on 401/403 and the newer
+  registry-driven detector regressed that.
+- Registry: gnomad and gnomad_constraint share one probe URL, so constraint drift is
+  undetectable; agent_layer/config.py is a second divergent URL store that the older agent
+  reads instead of the registry; only 7 of 24 sources (29.2%) have any automated probe.
+- COHORT HYGIENE: 9 of 13 cohort parquet files are measurably NOT CLEAN, including
+  clinvar_grch38_clean_v2_verified.parquet (21,091 null/empty alleles) and
+  clinvar_grch38_clean_v3_verified.parquet (1,103). Two files named "clean ... verified"
+  would raise at real_data_prep.py:476.
+- LINE-ENDING PINS NOT IN FORCE: 277 tracked files violate their .gitattributes pin (234
+  carriage-return, 42 mixed, 1 mixed under an eol=crlf pin). A fresh Linux clone has zero.
+  Six pinning commits since 2026-03-30, none of which renormalised what was already on disk.
+- CHANGELOG defects, found while preparing this entry: 25 days stale, 263 double-encoded
+  UTF-8 sequences across 217 lines, and five entries sharing one header of which two are
+  byte-identical. None repaired here; a rewrite must not hide inside a session append.
+
+### Corrected (inherited numbers, each verified in a tool call)
+- "seven skips, four in test_mc_dropout_calibration.py" -> five skipped tests from four
+  class-level decorators.
+- "328 pandas.read_parquet call sites" -> 327 pre-fix, 326 post-fix. No counting rule at any
+  commit yields 328.
+- "19 local assets missing" -> 18. "4 sources present" while listing six -> 6.
+- Ratchet ledger audited clean: 53 entries, zero arithmetic mismatches, growth 1870 -> 2893
+  = 1023 exactly equal to the sum of stated deltas.
+
+### Learned
+- A behavioural fix should be scoped by measured exposure; a PATTERN fix must be scoped by a
+  repository-wide search. The 2026-07-02 AlphaFold remediation was correct and complete for
+  the module it touched, and left the same pattern live in production for 21 days.
+- Zero events is a bound, not proof -- and the rule of three is invalid at small n. At n = 2
+  it yields 1.5, which is not a probability. Exact binomial bounds throughout.
+- A sample can be perfectly executed and carry zero information. 50 accessions drawn by
+  sorted accession returned one record each; the defect under test cannot manifest with one
+  record, so zero mismatches were expected whether or not the defect existed.
+- Deterministic sampling is not free: random.sample with a fixed seed produces NESTED draws,
+  so a 60-draw is a strict prefix of a 300-draw and the two must never be pooled.
+- Selection methods that try to decide rather than measure kept failing. Single-axis ranking,
+  two-axis ranking, a Pareto frontier and floors at the median held gene all failed in
+  different ways; cumulative coverage worked because it shows the trade-off instead of
+  resolving it.
+- An unmeasured quantity must set a non-zero exit code. A cross-check that could not compute
+  the subset it was asked for still exited 0, which is the exact failure this project
+  corrects everywhere else.
+
 ## 2026-06-29 -- pandas 3.0.4 upgrade attempted + rolled back (date_range Windows-wheel segfault); 3 fixes kept, proven equivalent on 2.3.3
 
 ### Attempted

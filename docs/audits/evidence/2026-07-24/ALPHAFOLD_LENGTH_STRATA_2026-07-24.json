@@ -1,0 +1,2818 @@
+{
+  "utc": "2026-07-24T03:18:22Z",
+  "index": "C:\\Projects\\genomic-variant-classifier\\data\\external\\uniprot\\uniprot_human_reviewed.parquet",
+  "seed": 20260724,
+  "strata": {
+    "S1 percentile 0-50": [
+      {
+        "accession": "A0A075B6T7",
+        "gene_symbol": "TRAV6",
+        "canonical_length": "132",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          132
+        ]
+      },
+      {
+        "accession": "A6NEY8",
+        "gene_symbol": "PRORSD1P",
+        "canonical_length": "169",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          169
+        ]
+      },
+      {
+        "accession": "O43612",
+        "gene_symbol": "HCRT",
+        "canonical_length": "131",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          131
+        ]
+      },
+      {
+        "accession": "Q9UM22",
+        "gene_symbol": "EPDR1",
+        "canonical_length": "224",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          224,
+          163,
+          90
+        ]
+      },
+      {
+        "accession": "Q8WVH0",
+        "gene_symbol": "CPLX3",
+        "canonical_length": "158",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          158
+        ]
+      },
+      {
+        "accession": "Q15166",
+        "gene_symbol": "PON3",
+        "canonical_length": "354",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          354
+        ]
+      },
+      {
+        "accession": "A0A0A0MRZ8",
+        "gene_symbol": "IGKV3D-11",
+        "canonical_length": "115",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          115
+        ]
+      },
+      {
+        "accession": "Q6ZUI0",
+        "gene_symbol": "TPRG1",
+        "canonical_length": "275",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          275
+        ]
+      },
+      {
+        "accession": "A8MUU1",
+        "gene_symbol": "FABP5P3",
+        "canonical_length": "101",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          101
+        ]
+      },
+      {
+        "accession": "Q9BRA2",
+        "gene_symbol": "TXNDC17",
+        "canonical_length": "123",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          123
+        ]
+      },
+      {
+        "accession": "O43765",
+        "gene_symbol": "SGTA",
+        "canonical_length": "313",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          313
+        ]
+      },
+      {
+        "accession": "Q6IN84",
+        "gene_symbol": "MRM1",
+        "canonical_length": "353",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          353,
+          155
+        ]
+      },
+      {
+        "accession": "Q9NPC6",
+        "gene_symbol": "MYOZ2",
+        "canonical_length": "264",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          264
+        ]
+      },
+      {
+        "accession": "Q9H8S9",
+        "gene_symbol": "MOB1A",
+        "canonical_length": "216",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          216,
+          148
+        ]
+      },
+      {
+        "accession": "Q16651",
+        "gene_symbol": "PRSS8",
+        "canonical_length": "343",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          343,
+          289
+        ]
+      },
+      {
+        "accession": "Q9UJ37",
+        "gene_symbol": "ST6GALNAC2",
+        "canonical_length": "374",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          374
+        ]
+      },
+      {
+        "accession": "Q04760",
+        "gene_symbol": "GLO1",
+        "canonical_length": "184",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          184,
+          169
+        ]
+      },
+      {
+        "accession": "Q7L0Y3",
+        "gene_symbol": "TRMT10C",
+        "canonical_length": "403",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          403
+        ]
+      },
+      {
+        "accession": "Q7Z6K3",
+        "gene_symbol": "PTAR1",
+        "canonical_length": "402",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          402
+        ]
+      },
+      {
+        "accession": "Q96C74",
+        "gene_symbol": "ROPN1L",
+        "canonical_length": "230",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          230
+        ]
+      },
+      {
+        "accession": "Q9Y5V0",
+        "gene_symbol": "ZNF706",
+        "canonical_length": "76",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          76
+        ]
+      },
+      {
+        "accession": "P62333",
+        "gene_symbol": "PSMC6",
+        "canonical_length": "389",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          389
+        ]
+      },
+      {
+        "accession": "Q9BTL4",
+        "gene_symbol": "IER2",
+        "canonical_length": "223",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          223
+        ]
+      },
+      {
+        "accession": "Q0P5N6",
+        "gene_symbol": "ARL16",
+        "canonical_length": "173",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "SEQUENCE_VERSION_DRIFT",
+        "canonical_at_index": null,
+        "record_lengths": [
+          197
+        ]
+      },
+      {
+        "accession": "P23280",
+        "gene_symbol": "CA6",
+        "canonical_length": "308",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          308,
+          248,
+          313
+        ]
+      },
+      {
+        "accession": "Q8N456",
+        "gene_symbol": "LRRC18",
+        "canonical_length": "261",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          261,
+          255
+        ]
+      },
+      {
+        "accession": "O95749",
+        "gene_symbol": "GGPS1",
+        "canonical_length": "300",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          300,
+          246
+        ]
+      },
+      {
+        "accession": "Q8WZ55",
+        "gene_symbol": "BSND",
+        "canonical_length": "320",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          320
+        ]
+      },
+      {
+        "accession": "Q99961",
+        "gene_symbol": "SH3GL1",
+        "canonical_length": "368",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          368,
+          304,
+          320
+        ]
+      },
+      {
+        "accession": "Q9H756",
+        "gene_symbol": "LRRC19",
+        "canonical_length": "370",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          370
+        ]
+      },
+      {
+        "accession": "P01611",
+        "gene_symbol": "IGKV1D-12",
+        "canonical_length": "117",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          117
+        ]
+      },
+      {
+        "accession": "P01705",
+        "gene_symbol": "IGLV2-23",
+        "canonical_length": "113",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          113
+        ]
+      },
+      {
+        "accession": "P10599",
+        "gene_symbol": "TXN",
+        "canonical_length": "105",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          105,
+          85
+        ]
+      },
+      {
+        "accession": "Q9P121",
+        "gene_symbol": "NTM",
+        "canonical_length": "344",
+        "status": 200,
+        "error": null,
+        "n_records": 4,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          344,
+          355,
+          316,
+          344
+        ]
+      },
+      {
+        "accession": "Q7Z6K4",
+        "gene_symbol": "NRARP",
+        "canonical_length": "114",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          114
+        ]
+      },
+      {
+        "accession": "A5D6W6",
+        "gene_symbol": "FITM1",
+        "canonical_length": "292",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          292,
+          96
+        ]
+      },
+      {
+        "accession": "Q5QFB9",
+        "gene_symbol": "PAPPA-AS1",
+        "canonical_length": "102",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          102
+        ]
+      },
+      {
+        "accession": "P31358",
+        "gene_symbol": "CD52",
+        "canonical_length": "61",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          61
+        ]
+      },
+      {
+        "accession": "P40937",
+        "gene_symbol": "RFC5",
+        "canonical_length": "340",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          340,
+          319
+        ]
+      },
+      {
+        "accession": "Q99966",
+        "gene_symbol": "CITED1",
+        "canonical_length": "193",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          193,
+          219
+        ]
+      }
+    ],
+    "S2 percentile 50-90": [
+      {
+        "accession": "P51606",
+        "gene_symbol": "RENBP",
+        "canonical_length": "427",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          427,
+          417,
+          254
+        ]
+      },
+      {
+        "accession": "Q13882",
+        "gene_symbol": "PTK6",
+        "canonical_length": "451",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          451,
+          134
+        ]
+      },
+      {
+        "accession": "Q7Z3C6",
+        "gene_symbol": "ATG9A",
+        "canonical_length": "839",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          839,
+          528,
+          778
+        ]
+      },
+      {
+        "accession": "Q96FB5",
+        "gene_symbol": "METTL25B",
+        "canonical_length": "475",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          475,
+          277
+        ]
+      },
+      {
+        "accession": "Q9BQL6",
+        "gene_symbol": "FERMT1",
+        "canonical_length": "677",
+        "status": 200,
+        "error": null,
+        "n_records": 4,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          677,
+          495,
+          230,
+          554
+        ]
+      },
+      {
+        "accession": "Q9GZY0",
+        "gene_symbol": "NXF2;",
+        "canonical_length": "626",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          626
+        ]
+      },
+      {
+        "accession": "P05155",
+        "gene_symbol": "SERPING1",
+        "canonical_length": "500",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          500,
+          505,
+          448
+        ]
+      },
+      {
+        "accession": "Q9Y5G6",
+        "gene_symbol": "PCDHGA7",
+        "canonical_length": "932",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          932,
+          817
+        ]
+      },
+      {
+        "accession": "Q8TEA7",
+        "gene_symbol": "TBCK",
+        "canonical_length": "893",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          893,
+          830,
+          854
+        ]
+      },
+      {
+        "accession": "P25116",
+        "gene_symbol": "F2R",
+        "canonical_length": "425",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          425
+        ]
+      },
+      {
+        "accession": "A8MW95",
+        "gene_symbol": "BECN2",
+        "canonical_length": "431",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          431
+        ]
+      },
+      {
+        "accession": "Q9Y3X0",
+        "gene_symbol": "CCDC9",
+        "canonical_length": "531",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          531
+        ]
+      },
+      {
+        "accession": "Q08043",
+        "gene_symbol": "ACTN3",
+        "canonical_length": "901",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          901
+        ]
+      },
+      {
+        "accession": "Q9HCK5",
+        "gene_symbol": "AGO4",
+        "canonical_length": "861",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          861
+        ]
+      },
+      {
+        "accession": "Q7Z6J9",
+        "gene_symbol": "TSEN54",
+        "canonical_length": "526",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          526,
+          177
+        ]
+      },
+      {
+        "accession": "Q99661",
+        "gene_symbol": "KIF2C",
+        "canonical_length": "725",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          725,
+          671
+        ]
+      },
+      {
+        "accession": "Q5T1V6",
+        "gene_symbol": "DDX59",
+        "canonical_length": "619",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          619,
+          580
+        ]
+      },
+      {
+        "accession": "Q96BP3",
+        "gene_symbol": "PPWD1",
+        "canonical_length": "646",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          646,
+          490
+        ]
+      },
+      {
+        "accession": "Q96C03",
+        "gene_symbol": "MIEF2",
+        "canonical_length": "454",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          454,
+          465,
+          205
+        ]
+      },
+      {
+        "accession": "A8MYZ0",
+        "gene_symbol": "MINDY4B",
+        "canonical_length": "460",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          460
+        ]
+      },
+      {
+        "accession": "O95678",
+        "gene_symbol": "KRT75",
+        "canonical_length": "551",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          551
+        ]
+      },
+      {
+        "accession": "Q92611",
+        "gene_symbol": "EDEM1",
+        "canonical_length": "657",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          657,
+          376
+        ]
+      },
+      {
+        "accession": "O00481",
+        "gene_symbol": "BTN3A1",
+        "canonical_length": "513",
+        "status": 200,
+        "error": null,
+        "n_records": 4,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          513,
+          461,
+          378,
+          352
+        ]
+      },
+      {
+        "accession": "Q9NQV8",
+        "gene_symbol": "PRDM8",
+        "canonical_length": "689",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          689,
+          334
+        ]
+      },
+      {
+        "accession": "Q96MU8",
+        "gene_symbol": "KREMEN1",
+        "canonical_length": "473",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          473,
+          458,
+          492
+        ]
+      },
+      {
+        "accession": "Q15554",
+        "gene_symbol": "TERF2",
+        "canonical_length": "542",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          542,
+          293
+        ]
+      },
+      {
+        "accession": "Q9HA92",
+        "gene_symbol": "RSAD1",
+        "canonical_length": "442",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          442,
+          195
+        ]
+      },
+      {
+        "accession": "P10911",
+        "gene_symbol": "MCF2",
+        "canonical_length": "925",
+        "status": 200,
+        "error": null,
+        "n_records": 6,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          925,
+          821,
+          1001,
+          941,
+          985,
+          860
+        ]
+      },
+      {
+        "accession": "P01019",
+        "gene_symbol": "AGT",
+        "canonical_length": "476",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          476
+        ]
+      },
+      {
+        "accession": "Q9BYF1",
+        "gene_symbol": "ACE2",
+        "canonical_length": "805",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          805,
+          459
+        ]
+      },
+      {
+        "accession": "O43516",
+        "gene_symbol": "WIPF1",
+        "canonical_length": "503",
+        "status": 200,
+        "error": null,
+        "n_records": 4,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          503,
+          358,
+          510,
+          493
+        ]
+      },
+      {
+        "accession": "P51522",
+        "gene_symbol": "ZNF83",
+        "canonical_length": "516",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          516,
+          488
+        ]
+      },
+      {
+        "accession": "P20849",
+        "gene_symbol": "COL9A1",
+        "canonical_length": "921",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          921,
+          328,
+          678
+        ]
+      },
+      {
+        "accession": "Q9NZU1",
+        "gene_symbol": "FLRT1",
+        "canonical_length": "674",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          674,
+          646
+        ]
+      },
+      {
+        "accession": "P0DTE5",
+        "gene_symbol": "UGT2A2",
+        "canonical_length": "536",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          536,
+          492
+        ]
+      },
+      {
+        "accession": "Q8TEX9",
+        "gene_symbol": "IPO4",
+        "canonical_length": "1081",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1081,
+          1083
+        ]
+      },
+      {
+        "accession": "Q9Y5I2",
+        "gene_symbol": "PCDHA10",
+        "canonical_length": "948",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          948,
+          844,
+          685
+        ]
+      },
+      {
+        "accession": "Q16584",
+        "gene_symbol": "MAP3K11",
+        "canonical_length": "847",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          847,
+          590
+        ]
+      },
+      {
+        "accession": "O60907",
+        "gene_symbol": "TBL1X",
+        "canonical_length": "577",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          577,
+          526
+        ]
+      },
+      {
+        "accession": "Q8N393",
+        "gene_symbol": "ZNF786",
+        "canonical_length": "782",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          782,
+          745
+        ]
+      }
+    ],
+    "S3 percentile 90-99": [
+      {
+        "accession": "Q2NKQ1",
+        "gene_symbol": "SGSM1",
+        "canonical_length": "1148",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1148,
+          1093,
+          1165
+        ]
+      },
+      {
+        "accession": "P06213",
+        "gene_symbol": "INSR",
+        "canonical_length": "1382",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1382,
+          1370
+        ]
+      },
+      {
+        "accession": "P52746",
+        "gene_symbol": "ZNF142",
+        "canonical_length": "1687",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1687
+        ]
+      },
+      {
+        "accession": "P40145",
+        "gene_symbol": "ADCY8",
+        "canonical_length": "1251",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1251
+        ]
+      },
+      {
+        "accession": "Q9NQX4",
+        "gene_symbol": "MYO5C",
+        "canonical_length": "1742",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1742,
+          430
+        ]
+      },
+      {
+        "accession": "Q2VIQ3",
+        "gene_symbol": "KIF4B",
+        "canonical_length": "1234",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1234
+        ]
+      },
+      {
+        "accession": "Q86US8",
+        "gene_symbol": "SMG6",
+        "canonical_length": "1419",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1419,
+          511,
+          330
+        ]
+      },
+      {
+        "accession": "A3KN83",
+        "gene_symbol": "SBNO1",
+        "canonical_length": "1393",
+        "status": 200,
+        "error": null,
+        "n_records": 4,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1393,
+          732,
+          1391,
+          1392
+        ]
+      },
+      {
+        "accession": "Q8IZC6",
+        "gene_symbol": "COL27A1",
+        "canonical_length": "1860",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1860,
+          703,
+          827
+        ]
+      },
+      {
+        "accession": "O15014",
+        "gene_symbol": "ZNF609",
+        "canonical_length": "1411",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1411,
+          250
+        ]
+      },
+      {
+        "accession": "P09884",
+        "gene_symbol": "POLA1",
+        "canonical_length": "1462",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1462
+        ]
+      },
+      {
+        "accession": "Q6VMQ6",
+        "gene_symbol": "ATF7IP",
+        "canonical_length": "1270",
+        "status": 200,
+        "error": null,
+        "n_records": 4,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1270,
+          1269,
+          1278,
+          1105
+        ]
+      },
+      {
+        "accession": "Q9P260",
+        "gene_symbol": "RELCH",
+        "canonical_length": "1216",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1216,
+          1250
+        ]
+      },
+      {
+        "accession": "Q9Y4D7",
+        "gene_symbol": "PLXND1",
+        "canonical_length": "1925",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1925,
+          1785
+        ]
+      },
+      {
+        "accession": "Q14571",
+        "gene_symbol": "ITPR2",
+        "canonical_length": "2701",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          181
+        ]
+      },
+      {
+        "accession": "Q7KZ85",
+        "gene_symbol": "SUPT6H",
+        "canonical_length": "1726",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1726,
+          726,
+          545
+        ]
+      },
+      {
+        "accession": "Q9H7F0",
+        "gene_symbol": "ATP13A3",
+        "canonical_length": "1226",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1226,
+          701
+        ]
+      },
+      {
+        "accession": "Q9UG01",
+        "gene_symbol": "IFT172",
+        "canonical_length": "1749",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1749,
+          532,
+          1525
+        ]
+      },
+      {
+        "accession": "O43432",
+        "gene_symbol": "EIF4G3",
+        "canonical_length": "1585",
+        "status": 200,
+        "error": null,
+        "n_records": 4,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1585,
+          1305,
+          1591,
+          515
+        ]
+      },
+      {
+        "accession": "Q99758",
+        "gene_symbol": "ABCA3",
+        "canonical_length": "1704",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1704,
+          209
+        ]
+      },
+      {
+        "accession": "Q12769",
+        "gene_symbol": "NUP160",
+        "canonical_length": "1436",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1436,
+          485,
+          224
+        ]
+      },
+      {
+        "accession": "O75122",
+        "gene_symbol": "CLASP2",
+        "canonical_length": "1294",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1294,
+          1515,
+          431
+        ]
+      },
+      {
+        "accession": "Q06190",
+        "gene_symbol": "PPP2R3A",
+        "canonical_length": "1150",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1150,
+          414,
+          529
+        ]
+      },
+      {
+        "accession": "O95248",
+        "gene_symbol": "SBF1",
+        "canonical_length": "1868",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1868,
+          1893,
+          1894
+        ]
+      },
+      {
+        "accession": "Q12766",
+        "gene_symbol": "HMGXB3",
+        "canonical_length": "1292",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1292
+        ]
+      },
+      {
+        "accession": "Q9BVR0",
+        "gene_symbol": "HERC2P3",
+        "canonical_length": "1158",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1158
+        ]
+      },
+      {
+        "accession": "Q7Z392",
+        "gene_symbol": "TRAPPC11",
+        "canonical_length": "1133",
+        "status": 200,
+        "error": null,
+        "n_records": 4,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1133,
+          1018,
+          1086,
+          430
+        ]
+      },
+      {
+        "accession": "Q09MP3",
+        "gene_symbol": "RAD51AP2",
+        "canonical_length": "1159",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1159
+        ]
+      },
+      {
+        "accession": "Q4KWH8",
+        "gene_symbol": "PLCH1",
+        "canonical_length": "1693",
+        "status": 200,
+        "error": null,
+        "n_records": 4,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1693,
+          1014,
+          1002,
+          1655
+        ]
+      },
+      {
+        "accession": "Q9UKJ3",
+        "gene_symbol": "GPATCH8",
+        "canonical_length": "1502",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1502,
+          43,
+          1424
+        ]
+      },
+      {
+        "accession": "P02751",
+        "gene_symbol": "FN1",
+        "canonical_length": "2477",
+        "status": 200,
+        "error": null,
+        "n_records": 17,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          2477,
+          2240,
+          2296,
+          2446,
+          2184,
+          2211,
+          2031,
+          2355,
+          642,
+          2330,
+          657,
+          2265,
+          2267,
+          2008,
+          2386,
+          2176,
+          2386
+        ]
+      },
+      {
+        "accession": "Q9UQP3",
+        "gene_symbol": "TNN",
+        "canonical_length": "1299",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1299
+        ]
+      },
+      {
+        "accession": "Q5H9F3",
+        "gene_symbol": "BCORL1",
+        "canonical_length": "1785",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1785,
+          1655,
+          1711
+        ]
+      },
+      {
+        "accession": "P78504",
+        "gene_symbol": "JAG1",
+        "canonical_length": "1218",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1218,
+          1059
+        ]
+      },
+      {
+        "accession": "Q3T906",
+        "gene_symbol": "GNPTAB",
+        "canonical_length": "1256",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1256,
+          490
+        ]
+      },
+      {
+        "accession": "P49641",
+        "gene_symbol": "MAN2A2",
+        "canonical_length": "1150",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1150,
+          796,
+          1139
+        ]
+      },
+      {
+        "accession": "Q9UPW8",
+        "gene_symbol": "UNC13A",
+        "canonical_length": "1703",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1703
+        ]
+      },
+      {
+        "accession": "Q9BZ76",
+        "gene_symbol": "CNTNAP3",
+        "canonical_length": "1288",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1288,
+          1127
+        ]
+      },
+      {
+        "accession": "Q96NU0",
+        "gene_symbol": "CNTNAP3B",
+        "canonical_length": "1288",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1288,
+          604
+        ]
+      },
+      {
+        "accession": "Q16531",
+        "gene_symbol": "DDB1",
+        "canonical_length": "1140",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "CANONICAL_PRESENT",
+        "canonical_at_index": 0,
+        "record_lengths": [
+          1140,
+          451
+        ]
+      }
+    ],
+    "S4 percentile 99-100": [
+      {
+        "accession": "Q5SZK8",
+        "gene_symbol": "FREM2",
+        "canonical_length": "3169",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          2667
+        ]
+      },
+      {
+        "accession": "P04114",
+        "gene_symbol": "APOB",
+        "canonical_length": "4563",
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q9NYQ7",
+        "gene_symbol": "CELSR3",
+        "canonical_length": "3312",
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q6ZTK2",
+        "gene_symbol": "APOLTP",
+        "canonical_length": "3320",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "SEQUENCE_VERSION_DRIFT",
+        "canonical_at_index": null,
+        "record_lengths": [
+          550
+        ]
+      },
+      {
+        "accession": "Q8WXX0",
+        "gene_symbol": "DNAH7",
+        "canonical_length": "4024",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          501,
+          187,
+          507
+        ]
+      },
+      {
+        "accession": "Q8N3K9",
+        "gene_symbol": "CMYA5",
+        "canonical_length": "4069",
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q6V0I7",
+        "gene_symbol": "FAT4",
+        "canonical_length": "4981",
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q96JB1",
+        "gene_symbol": "DNAH8",
+        "canonical_length": "4490",
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "P50851",
+        "gene_symbol": "LRBA",
+        "canonical_length": "2863",
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "P0DPF2",
+        "gene_symbol": "NBPF20",
+        "canonical_length": "5207",
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q4G0P3",
+        "gene_symbol": "HYDIN",
+        "canonical_length": "5121",
+        "status": 200,
+        "error": null,
+        "n_records": 5,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          950,
+          708,
+          1017,
+          1098,
+          940
+        ]
+      },
+      {
+        "accession": "Q5T4S7",
+        "gene_symbol": "UBR4",
+        "canonical_length": "5183",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          212,
+          2456
+        ]
+      },
+      {
+        "accession": "Q96N23",
+        "gene_symbol": "CFAP54",
+        "canonical_length": "3096",
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q9UKN7",
+        "gene_symbol": "MYO15A",
+        "canonical_length": "3530",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          797
+        ]
+      },
+      {
+        "accession": "Q03164",
+        "gene_symbol": "KMT2A",
+        "canonical_length": "3969",
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q6KC79",
+        "gene_symbol": "NIPBL",
+        "canonical_length": "2804",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          1101,
+          2697
+        ]
+      },
+      {
+        "accession": "Q86UQ4",
+        "gene_symbol": "ABCA13",
+        "canonical_length": "5058",
+        "status": 200,
+        "error": null,
+        "n_records": 4,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          2292,
+          2217,
+          2323,
+          317
+        ]
+      },
+      {
+        "accession": "Q15911",
+        "gene_symbol": "ZFHX3",
+        "canonical_length": "3703",
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q7Z408",
+        "gene_symbol": "CSMD2",
+        "canonical_length": "3487",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          225,
+          1167
+        ]
+      },
+      {
+        "accession": "Q9NRC6",
+        "gene_symbol": "SPTBN5",
+        "canonical_length": "3674",
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q9NYC9",
+        "gene_symbol": "DNAH9",
+        "canonical_length": "4486",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          798
+        ]
+      },
+      {
+        "accession": "O60229",
+        "gene_symbol": "KALRN",
+        "canonical_length": "2986",
+        "status": 200,
+        "error": null,
+        "n_records": 4,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          1257,
+          738,
+          1289,
+          1663
+        ]
+      },
+      {
+        "accession": "Q15751",
+        "gene_symbol": "HERC1",
+        "canonical_length": "4861",
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "P46939",
+        "gene_symbol": "UTRN",
+        "canonical_length": "3433",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          1347,
+          624
+        ]
+      },
+      {
+        "accession": "Q8IZQ1",
+        "gene_symbol": "WDFY3",
+        "canonical_length": "3526",
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q9NZR2",
+        "gene_symbol": "LRP1B",
+        "canonical_length": "4599",
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q8WUY3",
+        "gene_symbol": "PRUNE2",
+        "canonical_length": "3088",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          352
+        ]
+      },
+      {
+        "accession": "Q9H251",
+        "gene_symbol": "CDH23",
+        "canonical_length": "3354",
+        "status": 200,
+        "error": null,
+        "n_records": 6,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          1079,
+          1114,
+          1212,
+          530,
+          216,
+          251
+        ]
+      },
+      {
+        "accession": "Q16787",
+        "gene_symbol": "LAMA3",
+        "canonical_length": "3333",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          1668,
+          1724
+        ]
+      },
+      {
+        "accession": "P01266",
+        "gene_symbol": "TG",
+        "canonical_length": "2768",
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q8WXG9",
+        "gene_symbol": "ADGRV1",
+        "canonical_length": "6306",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          1466,
+          2306,
+          1967
+        ]
+      },
+      {
+        "accession": "Q99102",
+        "gene_symbol": "MUC4",
+        "canonical_length": "5412",
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          1176,
+          1125
+        ]
+      },
+      {
+        "accession": "Q6ZRI0",
+        "gene_symbol": "OTOG",
+        "canonical_length": "2925",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          1508
+        ]
+      },
+      {
+        "accession": "Q9NZJ4",
+        "gene_symbol": "SACS",
+        "canonical_length": "4579",
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "O60494",
+        "gene_symbol": "CUBN",
+        "canonical_length": "3623",
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q96L91",
+        "gene_symbol": "EP400",
+        "canonical_length": "3159",
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "A0A087WUL8",
+        "gene_symbol": "NBPF19",
+        "canonical_length": "3843",
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q9UFH2",
+        "gene_symbol": "DNAH17",
+        "canonical_length": "4462",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          566
+        ]
+      },
+      {
+        "accession": "Q8IVF2",
+        "gene_symbol": "AHNAK2",
+        "canonical_length": "5795",
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          793
+        ]
+      },
+      {
+        "accession": "Q6ZTR5",
+        "gene_symbol": "CFAP47",
+        "canonical_length": "3187",
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          1927,
+          754,
+          976
+        ]
+      }
+    ],
+    "S5 the longest outright": [
+      {
+        "accession": "Q8WZ42",
+        "gene_symbol": "TTN",
+        "canonical_length": 34350,
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q8WXI7",
+        "gene_symbol": "MUC16",
+        "canonical_length": 14507,
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q9H195",
+        "gene_symbol": "MUC3B",
+        "canonical_length": 13477,
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "SEQUENCE_VERSION_DRIFT",
+        "canonical_at_index": null,
+        "record_lengths": [
+          1237
+        ]
+      },
+      {
+        "accession": "Q8NF91",
+        "gene_symbol": "SYNE1",
+        "canonical_length": 8797,
+        "status": 200,
+        "error": null,
+        "n_records": 6,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          977,
+          1725,
+          1443,
+          982,
+          476,
+          1139
+        ]
+      },
+      {
+        "accession": "P20929",
+        "gene_symbol": "NEB",
+        "canonical_length": 8525,
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q7Z5P9",
+        "gene_symbol": "MUC19",
+        "canonical_length": 8384,
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q5VST9",
+        "gene_symbol": "OBSCN",
+        "canonical_length": 7968,
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q03001",
+        "gene_symbol": "DST",
+        "canonical_length": 7570,
+        "status": 200,
+        "error": null,
+        "n_records": 5,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          2649,
+          905,
+          81,
+          224,
+          304
+        ]
+      },
+      {
+        "accession": "Q9UPN3",
+        "gene_symbol": "MACF1",
+        "canonical_length": 7388,
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q8NDH2",
+        "gene_symbol": "LRTM3",
+        "canonical_length": 7081,
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q5CZC0",
+        "gene_symbol": "FSIP2",
+        "canonical_length": 6907,
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q8WXH0",
+        "gene_symbol": "SYNE2",
+        "canonical_length": 6885,
+        "status": 200,
+        "error": null,
+        "n_records": 10,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          267,
+          285,
+          429,
+          556,
+          763,
+          855,
+          1035,
+          542,
+          451,
+          667
+        ]
+      },
+      {
+        "accession": "Q8WXG9",
+        "gene_symbol": "ADGRV1",
+        "canonical_length": 6306,
+        "status": 200,
+        "error": null,
+        "n_records": 3,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          1466,
+          2306,
+          1967
+        ]
+      },
+      {
+        "accession": "Q09666",
+        "gene_symbol": "AHNAK",
+        "canonical_length": 5890,
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          149
+        ]
+      },
+      {
+        "accession": "Q8IVF2",
+        "gene_symbol": "AHNAK2",
+        "canonical_length": 5795,
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          793
+        ]
+      },
+      {
+        "accession": "Q9HC84",
+        "gene_symbol": "MUC5B",
+        "canonical_length": 5762,
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "P98088",
+        "gene_symbol": "MUC5AC",
+        "canonical_length": 5654,
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q96RW7",
+        "gene_symbol": "HMCN1",
+        "canonical_length": 5635,
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          555
+        ]
+      },
+      {
+        "accession": "Q9NU22",
+        "gene_symbol": "MDN1",
+        "canonical_length": 5596,
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "O14686",
+        "gene_symbol": "KMT2D",
+        "canonical_length": 5537,
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q9UKN1",
+        "gene_symbol": "MUC12",
+        "canonical_length": 5478,
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q99102",
+        "gene_symbol": "MUC4",
+        "canonical_length": 5412,
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          1176,
+          1125
+        ]
+      },
+      {
+        "accession": "Q9Y6R7",
+        "gene_symbol": "FCGBP",
+        "canonical_length": 5405,
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q02817",
+        "gene_symbol": "MUC2",
+        "canonical_length": 5289,
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q63HN8",
+        "gene_symbol": "RNF213",
+        "canonical_length": 5207,
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          557,
+          1063
+        ]
+      },
+      {
+        "accession": "P0DPF2",
+        "gene_symbol": "NBPF20",
+        "canonical_length": 5207,
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "O75445",
+        "gene_symbol": "USH2A",
+        "canonical_length": 5202,
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          1546
+        ]
+      },
+      {
+        "accession": "Q5T4S7",
+        "gene_symbol": "UBR4",
+        "canonical_length": 5183,
+        "status": 200,
+        "error": null,
+        "n_records": 2,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          212,
+          2456
+        ]
+      },
+      {
+        "accession": "A2VEC9",
+        "gene_symbol": "SSPOP",
+        "canonical_length": 5150,
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          1317
+        ]
+      },
+      {
+        "accession": "Q9Y6V0",
+        "gene_symbol": "PCLO",
+        "canonical_length": 5142,
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          356
+        ]
+      },
+      {
+        "accession": "Q4G0P3",
+        "gene_symbol": "HYDIN",
+        "canonical_length": 5121,
+        "status": 200,
+        "error": null,
+        "n_records": 5,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          950,
+          708,
+          1017,
+          1098,
+          940
+        ]
+      },
+      {
+        "accession": "P58107",
+        "gene_symbol": "EPPK1",
+        "canonical_length": 5088,
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q8NDA2",
+        "gene_symbol": "HMCN2",
+        "canonical_length": 5079,
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q86UQ4",
+        "gene_symbol": "ABCA13",
+        "canonical_length": 5058,
+        "status": 200,
+        "error": null,
+        "n_records": 4,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          2292,
+          2217,
+          2323,
+          317
+        ]
+      },
+      {
+        "accession": "P21817",
+        "gene_symbol": "RYR1",
+        "canonical_length": 5038,
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q2LD37",
+        "gene_symbol": "BLTP1",
+        "canonical_length": 5005,
+        "status": 200,
+        "error": null,
+        "n_records": 1,
+        "verdict": "ISOFORM_ONLY",
+        "canonical_at_index": null,
+        "record_lengths": [
+          984
+        ]
+      },
+      {
+        "accession": "Q6V0I7",
+        "gene_symbol": "FAT4",
+        "canonical_length": 4981,
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q92736",
+        "gene_symbol": "RYR2",
+        "canonical_length": 4967,
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q8NEZ4",
+        "gene_symbol": "KMT2C",
+        "canonical_length": 4911,
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      },
+      {
+        "accession": "Q15413",
+        "gene_symbol": "RYR3",
+        "canonical_length": 4870,
+        "status": 404,
+        "error": "HTTP Error 404: Not Found",
+        "n_records": null,
+        "verdict": "NO_MODEL_404",
+        "canonical_at_index": null,
+        "record_lengths": null
+      }
+    ]
+  },
+  "summaries": {
+    "S1 percentile 0-50": {
+      "n": 40,
+      "counts": {
+        "CANONICAL_PRESENT": 39,
+        "SEQUENCE_VERSION_DRIFT": 1
+      },
+      "powered": true,
+      "defect_k": 0,
+      "missing_k": 0,
+      "defect_ci": [
+        0.0,
+        0.08809730287880237
+      ],
+      "missing_ci": [
+        0.0,
+        0.08809730287880237
+      ]
+    },
+    "S2 percentile 50-90": {
+      "n": 40,
+      "counts": {
+        "CANONICAL_PRESENT": 40
+      },
+      "powered": true,
+      "defect_k": 0,
+      "missing_k": 0,
+      "defect_ci": [
+        0.0,
+        0.08809730287880237
+      ],
+      "missing_ci": [
+        0.0,
+        0.08809730287880237
+      ]
+    },
+    "S3 percentile 90-99": {
+      "n": 40,
+      "counts": {
+        "CANONICAL_PRESENT": 39,
+        "ISOFORM_ONLY": 1
+      },
+      "powered": true,
+      "defect_k": 1,
+      "missing_k": 0,
+      "defect_ci": [
+        0.000632744932049419,
+        0.1315858584827657
+      ],
+      "missing_ci": [
+        0.0,
+        0.08809730287880237
+      ]
+    },
+    "S4 percentile 99-100": {
+      "n": 40,
+      "counts": {
+        "ISOFORM_ONLY": 20,
+        "NO_MODEL_404": 19,
+        "SEQUENCE_VERSION_DRIFT": 1
+      },
+      "powered": true,
+      "defect_k": 20,
+      "missing_k": 19,
+      "defect_ci": [
+        0.33801781373723455,
+        0.6619821862627655
+      ],
+      "missing_ci": [
+        0.3151197066349861,
+        0.6387198647359378
+      ]
+    },
+    "S5 the longest outright": {
+      "n": 40,
+      "counts": {
+        "NO_MODEL_404": 23,
+        "SEQUENCE_VERSION_DRIFT": 1,
+        "ISOFORM_ONLY": 16
+      },
+      "powered": true,
+      "defect_k": 16,
+      "missing_k": 23,
+      "defect_ci": [
+        0.24864998658774373,
+        0.5667329478067034
+      ],
+      "missing_ci": [
+        0.4089005804269633,
+        0.7295709687311371
+      ]
+    }
+  }
+}

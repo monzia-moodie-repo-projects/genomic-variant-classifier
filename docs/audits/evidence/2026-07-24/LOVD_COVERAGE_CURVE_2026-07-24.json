@@ -1,0 +1,1067 @@
+{
+ "utc": "2026-07-24T05:23:40Z",
+ "source": "C:\\Users\\monzi\\Downloads\\LOVD_CANDIDATE_RANKING_V2_2026-07-24.json",
+ "cohort_rows": 4399089,
+ "tier1_only": false,
+ "held": [
+  "NF1",
+  "APC",
+  "MSH2",
+  "PTEN",
+  "MSH6",
+  "BRCA2",
+  "TP53",
+  "RB1",
+  "MLH1",
+  "BRCA1"
+ ],
+ "baseline": {
+  "n_variants": 106561,
+  "n_vus": 49099,
+  "n_del": 15516
+ },
+ "curves": {
+  "n_variants": {
+   "baseline": 106561,
+   "rows": [
+    {
+     "rank": 1,
+     "gene": "TTN",
+     "adds": 39316,
+     "cumulative": 39316,
+     "multiple": 1.3689529940597405,
+     "pct_of_held_average": 368.95299405974043
+    },
+    {
+     "rank": 2,
+     "gene": "ATM",
+     "adds": 19121,
+     "cumulative": 58437,
+     "multiple": 1.5483901239665543,
+     "pct_of_held_average": 179.43712990681394
+    },
+    {
+     "rank": 3,
+     "gene": "NEB",
+     "adds": 12377,
+     "cumulative": 70814,
+     "multiple": 1.6645395595011307,
+     "pct_of_held_average": 116.14943553457644
+    },
+    {
+     "rank": 4,
+     "gene": "TSC2",
+     "adds": 12260,
+     "cumulative": 83074,
+     "multiple": 1.779591032366438,
+     "pct_of_held_average": 115.05147286530719
+    },
+    {
+     "rank": 5,
+     "gene": "RYR1",
+     "adds": 11050,
+     "cumulative": 94124,
+     "multiple": 1.883287506686311,
+     "pct_of_held_average": 103.69647431987312
+    },
+    {
+     "rank": 6,
+     "gene": "POLE",
+     "adds": 10944,
+     "cumulative": 105068,
+     "multiple": 1.985989245596419,
+     "pct_of_held_average": 102.70173891010784
+    },
+    {
+     "rank": 7,
+     "gene": "DMD",
+     "adds": 10058,
+     "cumulative": 115126,
+     "multiple": 2.0803764979682997,
+     "pct_of_held_average": 94.38725237188089
+    },
+    {
+     "rank": 8,
+     "gene": "RYR2",
+     "adds": 9889,
+     "cumulative": 125015,
+     "multiple": 2.1731778042623473,
+     "pct_of_held_average": 92.80130629404754
+    },
+    {
+     "rank": 9,
+     "gene": "USH2A",
+     "adds": 9377,
+     "cumulative": 134392,
+     "multiple": 2.2611743508413022,
+     "pct_of_held_average": 87.99654657895476
+    },
+    {
+     "rank": 10,
+     "gene": "FBN1",
+     "adds": 9208,
+     "cumulative": 143600,
+     "multiple": 2.3475849513424234,
+     "pct_of_held_average": 86.41060050112142
+    },
+    {
+     "rank": 11,
+     "gene": "DICER1",
+     "adds": 7605,
+     "cumulative": 151205,
+     "multiple": 2.4189525248449244,
+     "pct_of_held_average": 71.36757350250092
+    },
+    {
+     "rank": 12,
+     "gene": "KMT2D",
+     "adds": 7411,
+     "cumulative": 158616,
+     "multiple": 2.4884995448616287,
+     "pct_of_held_average": 69.54702001670404
+    },
+    {
+     "rank": 13,
+     "gene": "ALMS1",
+     "adds": 7342,
+     "cumulative": 165958,
+     "multiple": 2.5573990484323534,
+     "pct_of_held_average": 68.89950357072475
+    },
+    {
+     "rank": 14,
+     "gene": "ADGRV1",
+     "adds": 7086,
+     "cumulative": 173044,
+     "multiple": 2.623896172145532,
+     "pct_of_held_average": 66.49712371317837
+    },
+    {
+     "rank": 15,
+     "gene": "SYNE1",
+     "adds": 7048,
+     "cumulative": 180092,
+     "multiple": 2.6900366925986057,
+     "pct_of_held_average": 66.14052045307382
+    },
+    {
+     "rank": 16,
+     "gene": "PKD1",
+     "adds": 6889,
+     "cumulative": 186981,
+     "multiple": 2.7546851099370313,
+     "pct_of_held_average": 64.64841733842587
+    },
+    {
+     "rank": 17,
+     "gene": "PLEC",
+     "adds": 6668,
+     "cumulative": 193649,
+     "multiple": 2.81725959778906,
+     "pct_of_held_average": 62.57448785202841
+    },
+    {
+     "rank": 18,
+     "gene": "PALB2",
+     "adds": 6593,
+     "cumulative": 200242,
+     "multiple": 2.879130263417198,
+     "pct_of_held_average": 61.87066562813788
+    },
+    {
+     "rank": 19,
+     "gene": "DNAH11",
+     "adds": 6584,
+     "cumulative": 206826,
+     "multiple": 2.9409164703784687,
+     "pct_of_held_average": 61.786206961271006
+    },
+    {
+     "rank": 20,
+     "gene": "SMARCA4",
+     "adds": 6577,
+     "cumulative": 213403,
+     "multiple": 3.00263698726551,
+     "pct_of_held_average": 61.72051688704122
+    },
+    {
+     "rank": 21,
+     "gene": "DNAH5",
+     "adds": 6564,
+     "cumulative": 219967,
+     "multiple": 3.0642355083004102,
+     "pct_of_held_average": 61.5985210349002
+    },
+    {
+     "rank": 22,
+     "gene": "PKHD1",
+     "adds": 6562,
+     "cumulative": 226529,
+     "multiple": 3.125815260742673,
+     "pct_of_held_average": 61.579752442263114
+    },
+    {
+     "rank": 23,
+     "gene": "VPS13B",
+     "adds": 6545,
+     "cumulative": 233074,
+     "multiple": 3.187235480147521,
+     "pct_of_held_average": 61.42021940484792
+    },
+    {
+     "rank": 24,
+     "gene": "FANCA",
+     "adds": 6461,
+     "cumulative": 239535,
+     "multiple": 3.2478674186616114,
+     "pct_of_held_average": 60.63193851409052
+    },
+    {
+     "rank": 25,
+     "gene": "BRIP1",
+     "adds": 6324,
+     "cumulative": 245859,
+     "multiple": 3.307213708580062,
+     "pct_of_held_average": 59.346289918450466
+    },
+    {
+     "rank": 26,
+     "gene": "ALK",
+     "adds": 6285,
+     "cumulative": 252144,
+     "multiple": 3.3661940109420896,
+     "pct_of_held_average": 58.98030236202738
+    },
+    {
+     "rank": 27,
+     "gene": "PTCH1",
+     "adds": 6216,
+     "cumulative": 258360,
+     "multiple": 3.4245267968581374,
+     "pct_of_held_average": 58.33278591604808
+    },
+    {
+     "rank": 28,
+     "gene": "COL7A1",
+     "adds": 6210,
+     "cumulative": 264570,
+     "multiple": 3.4828032769962745,
+     "pct_of_held_average": 58.27648013813685
+    },
+    {
+     "rank": 29,
+     "gene": "CDH23",
+     "adds": 6184,
+     "cumulative": 270754,
+     "multiple": 3.540835765430129,
+     "pct_of_held_average": 58.03248843385479
+    },
+    {
+     "rank": 30,
+     "gene": "FLNC",
+     "adds": 6168,
+     "cumulative": 276922,
+     "multiple": 3.598718105122887,
+     "pct_of_held_average": 57.88233969275814
+    },
+    {
+     "rank": 31,
+     "gene": "DSP",
+     "adds": 6084,
+     "cumulative": 283006,
+     "multiple": 3.655812163924888,
+     "pct_of_held_average": 57.09405880200074
+    },
+    {
+     "rank": 32,
+     "gene": "CFTR",
+     "adds": 5903,
+     "cumulative": 288909,
+     "multiple": 3.711207665093233,
+     "pct_of_held_average": 55.395501168344886
+    },
+    {
+     "rank": 33,
+     "gene": "PMS2",
+     "adds": 5876,
+     "cumulative": 294785,
+     "multiple": 3.7663497902609775,
+     "pct_of_held_average": 55.1421251677443
+    },
+    {
+     "rank": 34,
+     "gene": "OBSCN",
+     "adds": 5822,
+     "cumulative": 300607,
+     "multiple": 3.8209851634275203,
+     "pct_of_held_average": 54.6353731665431
+    },
+    {
+     "rank": 35,
+     "gene": "MYH7",
+     "adds": 5778,
+     "cumulative": 306385,
+     "multiple": 3.8752076275560476,
+     "pct_of_held_average": 54.22246412852733
+    },
+    {
+     "rank": 36,
+     "gene": "POLD1",
+     "adds": 5760,
+     "cumulative": 312145,
+     "multiple": 3.929261174350841,
+     "pct_of_held_average": 54.0535467947936
+    },
+    {
+     "rank": 37,
+     "gene": "DYNC1H1",
+     "adds": 5605,
+     "cumulative": 317750,
+     "multiple": 3.981860155216261,
+     "pct_of_held_average": 52.59898086541981
+    },
+    {
+     "rank": 38,
+     "gene": "TSC1",
+     "adds": 5590,
+     "cumulative": 323340,
+     "multiple": 4.034318371636902,
+     "pct_of_held_average": 52.458216420641705
+    },
+    {
+     "rank": 39,
+     "gene": "LAMA2",
+     "adds": 5420,
+     "cumulative": 328760,
+     "multiple": 4.085181257683392,
+     "pct_of_held_average": 50.8628860464898
+    },
+    {
+     "rank": 40,
+     "gene": "RECQL4",
+     "adds": 5383,
+     "cumulative": 334143,
+     "multiple": 4.135696924766097,
+     "pct_of_held_average": 50.5156670827038
+    }
+   ],
+   "multiples": {
+    "1.25": [
+     1,
+     "TTN",
+     39316
+    ],
+    "1.5": [
+     2,
+     "ATM",
+     58437
+    ],
+    "2.0": [
+     7,
+     "DMD",
+     115126
+    ],
+    "3.0": [
+     20,
+     "SMARCA4",
+     213403
+    ]
+   }
+  },
+  "n_vus": {
+   "baseline": 49099,
+   "rows": [
+    {
+     "rank": 1,
+     "gene": "TTN",
+     "adds": 16140,
+     "cumulative": 16140,
+     "multiple": 1.3287235992586408,
+     "pct_of_held_average": 328.7235992586407
+    },
+    {
+     "rank": 2,
+     "gene": "ATM",
+     "adds": 9789,
+     "cumulative": 25929,
+     "multiple": 1.5280962952402288,
+     "pct_of_held_average": 199.37269598158824
+    },
+    {
+     "rank": 3,
+     "gene": "POLE",
+     "adds": 6301,
+     "cumulative": 32230,
+     "multiple": 1.6564288478380416,
+     "pct_of_held_average": 128.3325525978126
+    },
+    {
+     "rank": 4,
+     "gene": "TSC2",
+     "adds": 5889,
+     "cumulative": 38119,
+     "multiple": 1.7763701908389173,
+     "pct_of_held_average": 119.9413430008758
+    },
+    {
+     "rank": 5,
+     "gene": "RYR1",
+     "adds": 5676,
+     "cumulative": 43795,
+     "multiple": 1.8919733599462312,
+     "pct_of_held_average": 115.6031691073138
+    },
+    {
+     "rank": 6,
+     "gene": "RYR2",
+     "adds": 5583,
+     "cumulative": 49378,
+     "multiple": 2.0056823967901587,
+     "pct_of_held_average": 113.70903684392759
+    },
+    {
+     "rank": 7,
+     "gene": "NEB",
+     "adds": 4307,
+     "cumulative": 53685,
+     "multiple": 2.093403124299884,
+     "pct_of_held_average": 87.72072750972526
+    },
+    {
+     "rank": 8,
+     "gene": "PLEC",
+     "adds": 4285,
+     "cumulative": 57970,
+     "multiple": 2.1806757775107437,
+     "pct_of_held_average": 87.2726532108597
+    },
+    {
+     "rank": 9,
+     "gene": "DICER1",
+     "adds": 4114,
+     "cumulative": 62084,
+     "multiple": 2.264465671398603,
+     "pct_of_held_average": 83.78989388785924
+    },
+    {
+     "rank": 10,
+     "gene": "SYNE1",
+     "adds": 4111,
+     "cumulative": 66195,
+     "multiple": 2.3481944642457075,
+     "pct_of_held_average": 83.72879284710484
+    },
+    {
+     "rank": 11,
+     "gene": "DMD",
+     "adds": 3904,
+     "cumulative": 70099,
+     "multiple": 2.4277072852807593,
+     "pct_of_held_average": 79.51282103505164
+    },
+    {
+     "rank": 12,
+     "gene": "ALK",
+     "adds": 3894,
+     "cumulative": 73993,
+     "multiple": 2.507016436179963,
+     "pct_of_held_average": 79.30915089920364
+    },
+    {
+     "rank": 13,
+     "gene": "PKD1",
+     "adds": 3651,
+     "cumulative": 77644,
+     "multiple": 2.581376402778061,
+     "pct_of_held_average": 74.35996659809773
+    },
+    {
+     "rank": 14,
+     "gene": "BRIP1",
+     "adds": 3593,
+     "cumulative": 81237,
+     "multiple": 2.65455508258824,
+     "pct_of_held_average": 73.17867981017943
+    },
+    {
+     "rank": 15,
+     "gene": "ALMS1",
+     "adds": 3589,
+     "cumulative": 84826,
+     "multiple": 2.72765229434408,
+     "pct_of_held_average": 73.09721175584023
+    },
+    {
+     "rank": 16,
+     "gene": "USH2A",
+     "adds": 3521,
+     "cumulative": 88347,
+     "multiple": 2.7993645491761545,
+     "pct_of_held_average": 71.71225483207397
+    },
+    {
+     "rank": 17,
+     "gene": "PALB2",
+     "adds": 3478,
+     "cumulative": 91825,
+     "multiple": 2.870201022424082,
+     "pct_of_held_average": 70.83647324792767
+    },
+    {
+     "rank": 18,
+     "gene": "MYH7",
+     "adds": 3433,
+     "cumulative": 95258,
+     "multiple": 2.940120980060694,
+     "pct_of_held_average": 69.91995763661176
+    },
+    {
+     "rank": 19,
+     "gene": "DSP",
+     "adds": 3399,
+     "cumulative": 98657,
+     "multiple": 3.0093484592354223,
+     "pct_of_held_average": 69.22747917472861
+    },
+    {
+     "rank": 20,
+     "gene": "FBN1",
+     "adds": 3393,
+     "cumulative": 102050,
+     "multiple": 3.078453736328642,
+     "pct_of_held_average": 69.10527709321983
+    },
+    {
+     "rank": 21,
+     "gene": "POLD1",
+     "adds": 3330,
+     "cumulative": 105380,
+     "multiple": 3.14627589156602,
+     "pct_of_held_average": 67.82215523737754
+    },
+    {
+     "rank": 22,
+     "gene": "PMS2",
+     "adds": 3279,
+     "cumulative": 108659,
+     "multiple": 3.2130593291105725,
+     "pct_of_held_average": 66.78343754455285
+    },
+    {
+     "rank": 23,
+     "gene": "PTCH1",
+     "adds": 3229,
+     "cumulative": 111888,
+     "multiple": 3.2788244159758855,
+     "pct_of_held_average": 65.76508686531295
+    },
+    {
+     "rank": 24,
+     "gene": "SMARCA4",
+     "adds": 3228,
+     "cumulative": 115116,
+     "multiple": 3.3445691358276135,
+     "pct_of_held_average": 65.74471985172815
+    },
+    {
+     "rank": 25,
+     "gene": "FLNC",
+     "adds": 3198,
+     "cumulative": 118314,
+     "multiple": 3.4097028452717977,
+     "pct_of_held_average": 65.1337094441842
+    },
+    {
+     "rank": 26,
+     "gene": "OBSCN",
+     "adds": 3142,
+     "cumulative": 121456,
+     "multiple": 3.473696001955233,
+     "pct_of_held_average": 63.993156683435515
+    },
+    {
+     "rank": 27,
+     "gene": "RECQL4",
+     "adds": 3092,
+     "cumulative": 124548,
+     "multiple": 3.536670807959429,
+     "pct_of_held_average": 62.97480600419561
+    },
+    {
+     "rank": 28,
+     "gene": "KMT2D",
+     "adds": 3090,
+     "cumulative": 127638,
+     "multiple": 3.599604879936455,
+     "pct_of_held_average": 62.934071977026015
+    },
+    {
+     "rank": 29,
+     "gene": "MSH3",
+     "adds": 3024,
+     "cumulative": 130662,
+     "multiple": 3.6611947290168843,
+     "pct_of_held_average": 61.58984908042934
+    },
+    {
+     "rank": 30,
+     "gene": "MET",
+     "adds": 3003,
+     "cumulative": 133665,
+     "multiple": 3.7223568708120327,
+     "pct_of_held_average": 61.162141795148585
+    },
+    {
+     "rank": 31,
+     "gene": "SYNE2",
+     "adds": 2968,
+     "cumulative": 136633,
+     "multiple": 3.7828061671317137,
+     "pct_of_held_average": 60.44929631968065
+    },
+    {
+     "rank": 32,
+     "gene": "BLM",
+     "adds": 2943,
+     "cumulative": 139576,
+     "multiple": 3.842746288111774,
+     "pct_of_held_average": 59.9401209800607
+    },
+    {
+     "rank": 33,
+     "gene": "FANCA",
+     "adds": 2924,
+     "cumulative": 142500,
+     "multiple": 3.9022994358337235,
+     "pct_of_held_average": 59.55314772194954
+    },
+    {
+     "rank": 34,
+     "gene": "CFTR",
+     "adds": 2832,
+     "cumulative": 145332,
+     "multiple": 3.959978818305872,
+     "pct_of_held_average": 57.67938247214811
+    },
+    {
+     "rank": 35,
+     "gene": "TSC1",
+     "adds": 2826,
+     "cumulative": 148158,
+     "multiple": 4.017535998696511,
+     "pct_of_held_average": 57.55718039063933
+    },
+    {
+     "rank": 36,
+     "gene": "APOB",
+     "adds": 2804,
+     "cumulative": 150962,
+     "multiple": 4.074645104788285,
+     "pct_of_held_average": 57.10910609177377
+    },
+    {
+     "rank": 37,
+     "gene": "RAD50",
+     "adds": 2795,
+     "cumulative": 153757,
+     "multiple": 4.131570907757795,
+     "pct_of_held_average": 56.925802969510585
+    },
+    {
+     "rank": 38,
+     "gene": "ADGRV1",
+     "adds": 2753,
+     "cumulative": 156510,
+     "multiple": 4.187641296156745,
+     "pct_of_held_average": 56.07038839894906
+    },
+    {
+     "rank": 39,
+     "gene": "PRKDC",
+     "adds": 2708,
+     "cumulative": 159218,
+     "multiple": 4.242795168944378,
+     "pct_of_held_average": 55.15387278763315
+    },
+    {
+     "rank": 40,
+     "gene": "SCN5A",
+     "adds": 2691,
+     "cumulative": 161909,
+     "multiple": 4.2976028025010695,
+     "pct_of_held_average": 54.807633556691584
+    }
+   ],
+   "multiples": {
+    "1.25": [
+     1,
+     "TTN",
+     16140
+    ],
+    "1.5": [
+     2,
+     "ATM",
+     25929
+    ],
+    "2.0": [
+     6,
+     "RYR2",
+     49378
+    ],
+    "3.0": [
+     19,
+     "DSP",
+     98657
+    ]
+   }
+  },
+  "n_del": {
+   "baseline": 15516,
+   "rows": [
+    {
+     "rank": 1,
+     "gene": "TTN",
+     "adds": 3286,
+     "cumulative": 3286,
+     "multiple": 1.2117813869554008,
+     "pct_of_held_average": 211.78138695540088
+    },
+    {
+     "rank": 2,
+     "gene": "ATM",
+     "adds": 2236,
+     "cumulative": 5522,
+     "multiple": 1.3558906934777004,
+     "pct_of_held_average": 144.10930652229956
+    },
+    {
+     "rank": 3,
+     "gene": "TSC2",
+     "adds": 1026,
+     "cumulative": 6548,
+     "multiple": 1.4220159835009023,
+     "pct_of_held_average": 66.12529002320186
+    },
+    {
+     "rank": 4,
+     "gene": "PKD1",
+     "adds": 987,
+     "cumulative": 7535,
+     "multiple": 1.4856277391080175,
+     "pct_of_held_average": 63.61175560711524
+    },
+    {
+     "rank": 5,
+     "gene": "FBN1",
+     "adds": 983,
+     "cumulative": 8518,
+     "multiple": 1.5489816963134828,
+     "pct_of_held_average": 63.35395720546533
+    },
+    {
+     "rank": 6,
+     "gene": "NEB",
+     "adds": 878,
+     "cumulative": 9396,
+     "multiple": 1.605568445475638,
+     "pct_of_held_average": 56.5867491621552
+    },
+    {
+     "rank": 7,
+     "gene": "PALB2",
+     "adds": 853,
+     "cumulative": 10249,
+     "multiple": 1.6605439546274814,
+     "pct_of_held_average": 54.97550915184326
+    },
+    {
+     "rank": 8,
+     "gene": "DMD",
+     "adds": 850,
+     "cumulative": 11099,
+     "multiple": 1.7153261149780872,
+     "pct_of_held_average": 54.78216035060582
+    },
+    {
+     "rank": 9,
+     "gene": "USH2A",
+     "adds": 806,
+     "cumulative": 11905,
+     "multiple": 1.767272492910544,
+     "pct_of_held_average": 51.94637793245682
+    },
+    {
+     "rank": 10,
+     "gene": "CHEK2",
+     "adds": 711,
+     "cumulative": 12616,
+     "multiple": 1.8130961588038155,
+     "pct_of_held_average": 45.82366589327147
+    },
+    {
+     "rank": 11,
+     "gene": "CFTR",
+     "adds": 634,
+     "cumulative": 13250,
+     "multiple": 1.8539572054653262,
+     "pct_of_held_average": 40.861046661510706
+    },
+    {
+     "rank": 12,
+     "gene": "LDLR",
+     "adds": 621,
+     "cumulative": 13871,
+     "multiple": 1.8939804073214745,
+     "pct_of_held_average": 40.023201856148496
+    },
+    {
+     "rank": 13,
+     "gene": "PKHD1",
+     "adds": 595,
+     "cumulative": 14466,
+     "multiple": 1.9323279195668988,
+     "pct_of_held_average": 38.347512245424085
+    },
+    {
+     "rank": 14,
+     "gene": "KMT2D",
+     "adds": 586,
+     "cumulative": 15052,
+     "multiple": 1.9700953854086105,
+     "pct_of_held_average": 37.76746584171178
+    },
+    {
+     "rank": 15,
+     "gene": "POLE",
+     "adds": 574,
+     "cumulative": 15626,
+     "multiple": 2.0070894560453727,
+     "pct_of_held_average": 36.99407063676205
+    },
+    {
+     "rank": 16,
+     "gene": "BRIP1",
+     "adds": 566,
+     "cumulative": 16192,
+     "multiple": 2.0435679298788347,
+     "pct_of_held_average": 36.47847383346223
+    },
+    {
+     "rank": 17,
+     "gene": "SCN1A",
+     "adds": 564,
+     "cumulative": 16756,
+     "multiple": 2.079917504511472,
+     "pct_of_held_average": 36.34957463263728
+    },
+    {
+     "rank": 18,
+     "gene": "MECP2",
+     "adds": 555,
+     "cumulative": 17311,
+     "multiple": 2.115687032740397,
+     "pct_of_held_average": 35.76952822892498
+    },
+    {
+     "rank": 19,
+     "gene": "TSC1",
+     "adds": 554,
+     "cumulative": 17865,
+     "multiple": 2.1513921113689096,
+     "pct_of_held_average": 35.7050786285125
+    },
+    {
+     "rank": 20,
+     "gene": "RYR1",
+     "adds": 552,
+     "cumulative": 18417,
+     "multiple": 2.1869682907965973,
+     "pct_of_held_average": 35.57617942768755
+    },
+    {
+     "rank": 21,
+     "gene": "DICER1",
+     "adds": 549,
+     "cumulative": 18966,
+     "multiple": 2.2223511214230474,
+     "pct_of_held_average": 35.382830626450115
+    },
+    {
+     "rank": 22,
+     "gene": "MYBPC3",
+     "adds": 546,
+     "cumulative": 19512,
+     "multiple": 2.25754060324826,
+     "pct_of_held_average": 35.18948182521269
+    },
+    {
+     "rank": 23,
+     "gene": "PMS2",
+     "adds": 539,
+     "cumulative": 20051,
+     "multiple": 2.2922789378705852,
+     "pct_of_held_average": 34.73833462232535
+    },
+    {
+     "rank": 24,
+     "gene": "ALMS1",
+     "adds": 515,
+     "cumulative": 20566,
+     "multiple": 2.325470482083011,
+     "pct_of_held_average": 33.19154421242588
+    },
+    {
+     "rank": 25,
+     "gene": "EYS",
+     "adds": 509,
+     "cumulative": 21075,
+     "multiple": 2.358275328692962,
+     "pct_of_held_average": 32.80484660995102
+    },
+    {
+     "rank": 26,
+     "gene": "VPS13B",
+     "adds": 508,
+     "cumulative": 21583,
+     "multiple": 2.3910157257025006,
+     "pct_of_held_average": 32.74039700953854
+    },
+    {
+     "rank": 27,
+     "gene": "SACS",
+     "adds": 508,
+     "cumulative": 22091,
+     "multiple": 2.423756122712039,
+     "pct_of_held_average": 32.74039700953854
+    },
+    {
+     "rank": 28,
+     "gene": "RPGR",
+     "adds": 488,
+     "cumulative": 22579,
+     "multiple": 2.4552075277133283,
+     "pct_of_held_average": 31.451405001288997
+    },
+    {
+     "rank": 29,
+     "gene": "COL1A1",
+     "adds": 485,
+     "cumulative": 23064,
+     "multiple": 2.48646558391338,
+     "pct_of_held_average": 31.25805620005156
+    },
+    {
+     "rank": 30,
+     "gene": "CEP290",
+     "adds": 484,
+     "cumulative": 23548,
+     "multiple": 2.517659190513019,
+     "pct_of_held_average": 31.193606599639086
+    },
+    {
+     "rank": 31,
+     "gene": "LZTR1",
+     "adds": 450,
+     "cumulative": 23998,
+     "multiple": 2.546661510698634,
+     "pct_of_held_average": 29.00232018561485
+    },
+    {
+     "rank": 32,
+     "gene": "DSP",
+     "adds": 448,
+     "cumulative": 24446,
+     "multiple": 2.5755349316834235,
+     "pct_of_held_average": 28.873420984789895
+    },
+    {
+     "rank": 33,
+     "gene": "PTCH1",
+     "adds": 443,
+     "cumulative": 24889,
+     "multiple": 2.604086104666151,
+     "pct_of_held_average": 28.551172982727508
+    },
+    {
+     "rank": 34,
+     "gene": "DNAH5",
+     "adds": 442,
+     "cumulative": 25331,
+     "multiple": 2.632572828048466,
+     "pct_of_held_average": 28.48672338231503
+    },
+    {
+     "rank": 35,
+     "gene": "LAMA2",
+     "adds": 418,
+     "cumulative": 25749,
+     "multiple": 2.6595127610208817,
+     "pct_of_held_average": 26.93993297241557
+    },
+    {
+     "rank": 36,
+     "gene": "PCDH15",
+     "adds": 413,
+     "cumulative": 26162,
+     "multiple": 2.686130445991235,
+     "pct_of_held_average": 26.617684970353185
+    },
+    {
+     "rank": 37,
+     "gene": "ABCA4",
+     "adds": 409,
+     "cumulative": 26571,
+     "multiple": 2.712490332559938,
+     "pct_of_held_average": 26.359886568703278
+    },
+    {
+     "rank": 38,
+     "gene": "FANCA",
+     "adds": 405,
+     "cumulative": 26976,
+     "multiple": 2.7385924207269916,
+     "pct_of_held_average": 26.102088167053367
+    },
+    {
+     "rank": 39,
+     "gene": "MSH3",
+     "adds": 390,
+     "cumulative": 27366,
+     "multiple": 2.7637277648878578,
+     "pct_of_held_average": 25.135344160866204
+    },
+    {
+     "rank": 40,
+     "gene": "CDH1",
+     "adds": 390,
+     "cumulative": 27756,
+     "multiple": 2.788863109048724,
+     "pct_of_held_average": 25.135344160866204
+    }
+   ],
+   "multiples": {
+    "1.25": [
+     2,
+     "ATM",
+     5522
+    ],
+    "1.5": [
+     5,
+     "FBN1",
+     8518
+    ],
+    "2.0": [
+     15,
+     "POLE",
+     15626
+    ],
+    "3.0": [
+     49,
+     "FLNC",
+     31042
+    ]
+   }
+  }
+ },
+ "problems": []
+}
