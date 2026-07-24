@@ -2,6 +2,16 @@
 
 **Severity:** CRITICAL — affects the scientific validity of reported metrics.
 **Status:** OPEN. Root cause localised; mechanism pending one file read. No remediation applied.
+
+**Superseding analysis (added 2026-07-24, metadata only):**
+`docs/incidents/INCIDENT_2026-07-08_R2.md`. Revision 2 performs the file read this
+status line calls pending, and records three corrections to the text below: two cited
+commit hashes do not resolve in this repository; the residual caveat in section 6.1
+closes by the opposite mechanism to the one stated; and the affected-runs claim
+conflates smoke logs with a full training run -- Run 17 has not executed. The central
+measurement and the remedy are unchanged. **This document is otherwise immutable and
+is preserved as written on 2026-07-08.** Containment is recorded separately in
+`docs/CONTAINMENT_2026-07-24.md`.
 **Discovered:** 2026-07-08, incidentally, while investigating an unrelated schema regression.
 **Author:** Monzia Moodie
 **Affected artifacts:** `data/processed/clinvar_grch38_clean.parquet`,
