@@ -47,8 +47,9 @@ EXIT CODES
 ----------
     0  At least one artifact carries every column the recomputation requires.
        The report names which.
-    3  Every artifact is missing at least one required column. The recomputation
-       cannot proceed from any of them as they stand; the report names the gaps.
+    4  INSUFFICIENT SUPPORT. Every artifact is missing at least one required
+       column. The probe ran; its inputs could not answer the question. The
+       report names the gaps. See docs/standards/PROBE_EXIT_CODES.md.
     2  Contract or environment failure: no artifact found, or an artifact could
        not be read. An absence of measurement is never reported as a result.
 
@@ -82,7 +83,14 @@ from pathlib import Path
 
 EXIT_FEASIBLE = 0
 EXIT_ENVIRONMENT = 2
-EXIT_NOT_FEASIBLE = 3
+#: 4, not 3. Per docs/standards/PROBE_EXIT_CODES.md, 3 means a NON-BLOCKING
+#: FINDING and 4 means INSUFFICIENT SUPPORT -- the probe ran but its required
+#: inputs were absent. 'No artifact carries every required column' is the
+#: second, not the first: nothing was found, because nothing could be looked
+#: at. Changed 2026-07-24 when the shared standard was written. NOTE that
+#: pytest also exits 4 on a command-line usage error, so orchestration reading
+#: both must not treat the two as one signal.
+EXIT_NOT_FEASIBLE = 4
 
 DEFAULT_COHORTS = (
     "data/processed/clinvar_grch38.parquet",
@@ -344,10 +352,19 @@ def self_test() -> int:
                "created_by provenance string is captured", bool(c.created_by), True, failures)
 
         print("\n-- null and distinct counts, including through a struct child --")
+        # (1, 2), not (1, 3). Each fixture column holds two non-null distinct
+        # values and one null. The original expectation of 3 encoded the very
+        # defect D2 removed -- pyarrow.compute.unique counting null as a distinct
+        # value -- so this self-test ASSERTED the defective behaviour and would
+        # have gone red the moment the production path was fixed. Corrected
+        # 2026-07-24, logged as D9. Lesson: a correction is not complete until the
+        # tool's own self-test has been re-run against it.
         st = column_stats(full, "metadata.review_status")
-        _check(st == (1, 3), "nested child nulls and distinct", st, (1, 3), failures)
+        _check(st == (1, 2), "nested child: nulls and NON-NULL distinct", st, (1, 2), failures)
         st = column_stats(full, "clinical_sig")
-        _check(st == (1, 3), "top-level nulls and distinct", st, (1, 3), failures)
+        _check(st == (1, 2), "top-level: nulls and NON-NULL distinct", st, (1, 2), failures)
+        st = column_stats(full, "ref")
+        _check(st == (0, 3), "no nulls means no adjustment", st, (0, 3), failures)
 
         print("\n-- an artifact missing a required column is judged INFEASIBLE --")
         partial = root / "partial.parquet"
@@ -361,8 +378,10 @@ def self_test() -> int:
         print("\n-- exit-code discrimination --")
         _check(decide_exit([c]) == EXIT_FEASIBLE, "one feasible artifact -> 0",
                decide_exit([c]), EXIT_FEASIBLE, failures)
-        _check(decide_exit([c2]) == EXIT_NOT_FEASIBLE, "no feasible artifact -> 3",
+        _check(decide_exit([c2]) == EXIT_NOT_FEASIBLE, "no feasible artifact -> 4 (insufficient support)",
                decide_exit([c2]), EXIT_NOT_FEASIBLE, failures)
+        _check(EXIT_NOT_FEASIBLE == 4, "insufficient support is 4, not 3",
+               EXIT_NOT_FEASIBLE, 4, failures)
         _check(decide_exit([c2, c]) == EXIT_FEASIBLE, "any feasible artifact -> 0",
                decide_exit([c2, c]), EXIT_FEASIBLE, failures)
         _check(decide_exit([]) == EXIT_ENVIRONMENT, "nothing inspected -> 2",
@@ -481,8 +500,8 @@ def main(argv: list[str] | None = None) -> int:
             names = ", ".join(c.path.name for c in censuses if c.feasible)
             out.append(f"  EXIT 0 -- the section 2 recomputation can proceed from: {names}")
         else:
-            out.append("  EXIT 3 -- no artifact carries every required column. The")
-            out.append("  recomputation cannot proceed until the gap above is closed.")
+            out.append("  EXIT 4 -- INSUFFICIENT SUPPORT: no artifact carries every required")
+            out.append("  column. The recomputation cannot proceed until the gap is closed.")
         print("\n".join(out))
         return code
     except ContractError as exc:

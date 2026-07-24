@@ -79,11 +79,74 @@ MEASUREMENT 2 -- REVIEW-STATUS VALUES vs THE TIER MAP
           245,148  MISSING TOKEN
               133  WOULD RAISE
 
-  *** FINDING: 254 row(s) carry a review status that is
-  NEITHER a tier-map key NOR a missing token. Once Step 1b makes an
-  unmatched status RAISE, the first production run over this cohort
-  aborts on exactly these rows -- and on no others. They must be given
-  a tier in the SAME commit as the raise.
+  *** FINDING: 254 FIELD OCCURRENCE(S) across the two
+  columns carry a review status that is NEITHER a tier-map key NOR a
+  missing token. That total is a sum over two columns and is NOT a row
+  count -- the distinct-row union is measured in section 2b below, and
+  it is the union, not this sum, that belongs in a verdict.
+  Once Step 1b makes an unmatched status RAISE, a production run over
+  the source it consumes aborts on that column's rows.
+
+==============================================================================
+MEASUREMENT 2b -- UNMATCHED VALUES, MEASURED AS ROWS NOT OCCURRENCES
+==============================================================================
+  cohort : clinvar_grch38_clean.parquet   (4,399,089 rows)
+
+  value: 'no classifications from unflagged records'
+    ReviewStatus (legacy source)        occurrences :       121
+    metadata.review_status (repaired)   occurrences :       133
+    naive sum of the two -- NOT a row count         :       254
+    overlap  (both columns, same row)               :       121
+    old only (legacy only)                          :         0
+    new only (repaired only)                        :        12
+    UNION    (distinct rows affected)               :       133
+    reconcile  old = overlap + old_only                 OK
+    reconcile  new = overlap + new_only                 OK
+    reconcile  union = overlap + old_only + new_only    OK
+
+  The figure that belongs in a verdict is the UNION: 133 row(s).
+  The repaired production source alone would encounter the 'new' count.
+
+==============================================================================
+MEASUREMENT 2c -- SOURCE TRANSITION TABLE
+  ReviewStatus (legacy) -> metadata.review_status (repaired), by row.
+  Distinguishes a repair that FILLS a blank from one that CHANGES a
+  status the legacy source already populated. Only the first is
+  unambiguously an improvement.
+==============================================================================
+
+  19 distinct transition(s), sorted by row count:
+       3,077,747  'criteria provided, single submitter'                    == 'criteria provided, single submitter'
+         621,707  'criteria provided, multiple submitters, no conflicts'   == 'criteria provided, multiple submitters, no conflicts'
+         245,148  ''                                                       -> '-'
+         157,229  'criteria provided, conflicting classifications'         == 'criteria provided, conflicting classifications'
+         131,311  ''                                                       -> 'criteria provided, single submitter'
+          94,285  'no assertion criteria provided'                         == 'no assertion criteria provided'
+          26,718  ''                                                       -> 'criteria provided, multiple submitters, no conflicts'
+          17,173  'reviewed by expert panel'                               == 'reviewed by expert panel'
+          12,228  ''                                                       -> 'no assertion criteria provided'
+           5,752  'no classification provided'                             == 'no classification provided'
+           4,160  ''                                                       -> 'reviewed by expert panel'
+           3,768  ''                                                       -> 'criteria provided, conflicting classifications'
+           1,052  ''                                                       -> 'no classification provided'
+             512  'no classification for the single variant'               == 'no classification for the single variant'
+             121  'no classifications from unflagged records'              == 'no classifications from unflagged records'
+             115  ''                                                       -> 'no classification for the single variant'
+              47  'practice guideline'                                     == 'practice guideline'
+              12  ''                                                       -> 'no classifications from unflagged records'
+               4  ''                                                       -> 'practice guideline'
+
+  summary:
+       3,974,573  (90.350%)  unchanged
+         179,368  ( 4.077%)  FILLED (blank -> populated)
+               0  ( 0.000%)  CHANGED (populated -> different populated)
+               0  ( 0.000%)  EMPTIED (populated -> blank)
+         245,148  ( 5.573%)  blank in both
+       4,399,089  TOTAL
+
+  The repaired source only fills blanks; it changes no populated status.
+  That is the strongest form the specification's zero-disagreement claim
+  can take, and it is now measured rather than asserted.
 
 ==============================================================================
 MEASUREMENT 3 -- THE SEQUENCE-BRANCH GATE (ok / reason)
@@ -121,7 +184,12 @@ MEASUREMENT 4 -- ARTIFACT MODIFICATION TIMES
 VERDICT
 ==============================================================================
   unaccounted removed rows        : 0
-  rows whose review status is not a tier-map key : 254
+  unmatched field occurrences, summed over 2 columns: 254
+  DISTINCT ROWS affected (measured union)          : 133
+    (neither a tier-map key nor a missing token. A value in
+     MISSING_TOKENS resolves to TIER_MISSING before the map is
+     consulted, so it is NOT counted here. The first version of
+     this probe counted it and over-reported by 669,664 rows.)
   rows without a usable sequence window          : 723
 
   EXIT 1 -- at least one finding above requires resolution before the

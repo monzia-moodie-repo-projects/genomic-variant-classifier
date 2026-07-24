@@ -335,6 +335,199 @@ def classify_removed(repo: Path, out: list[str]) -> tuple[int, int]:
     return removed_total, unaccounted
 
 
+
+def _sum_mask(mask) -> int:
+    """Row count of a boolean mask, nulls counted as False."""
+    import pyarrow as pa
+    import pyarrow.compute as pc
+
+    return int(pc.sum(pc.cast(pc.fill_null(mask, False), pa.int64())).as_py() or 0)
+
+
+def source_comparison(repo: Path, tier_map: dict[str, int],
+                      missing_tokens: frozenset[str], out: list[str]) -> int:
+    """Row-level comparison of the two candidate review-status sources.
+
+    WHY THIS EXISTS -- a defect in the first version of this probe, 2026-07-24.
+    That version summed per-column unmatched counts, 121 from ReviewStatus and 133
+    from metadata.review_status, and printed the total as "254 row(s)". Those are
+    FIELD OCCURRENCES ACROSS TWO COLUMNS. The distinct-row union is bounded below
+    by 133 and above by 254 and was never measured, so the sentence asserted
+    something the arithmetic did not support. A sum of two column counts is a row
+    count only when the two conditions are disjoint, which nothing had shown.
+
+    This function measures the union directly, and reconciles it three ways so a
+    miscount cannot pass:
+
+        old_count = overlap + old_only
+        new_count = overlap + new_only
+        union     = overlap + old_only + new_only
+
+    It also builds the full transition cross-tabulation between the two sources.
+    That answers the question that actually justifies the Phase 1 source change and
+    that no measurement so far distinguishes: does the nested source FILL blanks the
+    variant-call-format join left empty, or does it CHANGE statuses the join already
+    populated? Filling is a repair. Changing is a disagreement, and a disagreement
+    between two sources of the same fact needs adjudicating before either is trusted.
+
+    Both columns are read once. The cross-tabulation is computed by encoding each
+    column to integer indices and counting the combined code, so no 4.4-million-
+    element Python list is ever materialised.
+
+    Returns the number of rows in the unmatched union, which is the figure that
+    belongs in a verdict.
+    """
+    import pyarrow as pa
+    import pyarrow.compute as pc
+    import pyarrow.parquet as pq
+
+    path = repo / CLEAN_REL
+    if not path.is_file():
+        raise ContractError(f"{path} is absent; the sources cannot be compared.")
+    require_columns(path, ("ReviewStatus", "metadata"))
+
+    table = pq.read_table(path, columns=["ReviewStatus", "metadata"])
+    rows = table.num_rows
+    old = table.column("ReviewStatus").combine_chunks()
+    meta = table.column("metadata").combine_chunks()
+    try:
+        new = meta.field("review_status")
+    except Exception as exc:                                     # noqa: BLE001
+        raise ContractError(
+            f"{path}: metadata has no review_status child ({type(exc).__name__})."
+        ) from exc
+
+    normalised_keys = {normalise(k) for k in tier_map}
+    normalised_missing = {normalise(t) for t in missing_tokens} | {""}
+
+    values = sorted({v for v in pc.unique(old).to_pylist() if v is not None} |
+                    {v for v in pc.unique(new).to_pylist() if v is not None})
+    unmatched = [v for v in values
+                 if normalise(v) not in normalised_keys
+                 and normalise(v) not in normalised_missing]
+
+    out.append("")
+    out.append("=" * 78)
+    out.append("MEASUREMENT 2b -- UNMATCHED VALUES, MEASURED AS ROWS NOT OCCURRENCES")
+    out.append("=" * 78)
+    out.append(f"  cohort : {path.name}   ({rows:,} rows)")
+    out.append("")
+    if not unmatched:
+        out.append("  No value in either column is unmatched. Nothing to reconcile.")
+        union_total = 0
+    else:
+        union_total = 0
+        for value in unmatched:
+            m_old = pc.fill_null(pc.equal(old, value), False)
+            m_new = pc.fill_null(pc.equal(new, value), False)
+            old_c = _sum_mask(m_old)
+            new_c = _sum_mask(m_new)
+            overlap = _sum_mask(pc.and_(m_old, m_new))
+            old_only = _sum_mask(pc.and_not(m_old, m_new))
+            new_only = _sum_mask(pc.and_not(m_new, m_old))
+            union = _sum_mask(pc.or_(m_old, m_new))
+            union_total += union
+            out.append(f"  value: {value!r}")
+            out.append(f"    ReviewStatus (legacy source)        occurrences : {old_c:>9,}")
+            out.append(f"    metadata.review_status (repaired)   occurrences : {new_c:>9,}")
+            out.append(f"    naive sum of the two -- NOT a row count         : {old_c + new_c:>9,}")
+            out.append(f"    overlap  (both columns, same row)               : {overlap:>9,}")
+            out.append(f"    old only (legacy only)                          : {old_only:>9,}")
+            out.append(f"    new only (repaired only)                        : {new_only:>9,}")
+            out.append(f"    UNION    (distinct rows affected)               : {union:>9,}")
+            ok1 = old_c == overlap + old_only
+            ok2 = new_c == overlap + new_only
+            ok3 = union == overlap + old_only + new_only
+            for label, ok in (("old = overlap + old_only", ok1),
+                              ("new = overlap + new_only", ok2),
+                              ("union = overlap + old_only + new_only", ok3)):
+                out.append(f"    reconcile  {label:<40} {'OK' if ok else 'FAILED'}")
+            if not (ok1 and ok2 and ok3):
+                raise ContractError(
+                    f"union reconciliation failed for {value!r}; the counts are not "
+                    f"self-consistent and no verdict is issued."
+                )
+            out.append("")
+        out.append(f"  The figure that belongs in a verdict is the UNION: {union_total:,} row(s).")
+        out.append("  The repaired production source alone would encounter the 'new' count.")
+
+    # ---- transition cross-tabulation -------------------------------------
+    out.append("")
+    out.append("=" * 78)
+    out.append("MEASUREMENT 2c -- SOURCE TRANSITION TABLE")
+    out.append("  ReviewStatus (legacy) -> metadata.review_status (repaired), by row.")
+    out.append("  Distinguishes a repair that FILLS a blank from one that CHANGES a")
+    out.append("  status the legacy source already populated. Only the first is")
+    out.append("  unambiguously an improvement.")
+    out.append("=" * 78)
+
+    vs = pa.array(values, type=pa.string())
+    k = len(values)
+    idx_old = pc.fill_null(pc.cast(pc.index_in(old, value_set=vs), pa.int64()), k)
+    idx_new = pc.fill_null(pc.cast(pc.index_in(new, value_set=vs), pa.int64()), k)
+    code = pc.add(pc.multiply(idx_old, k + 1), idx_new)
+    counts: dict[tuple[int, int], int] = {}
+    for entry in pc.value_counts(code):
+        c = entry["values"].as_py()
+        counts[(c // (k + 1), c % (k + 1))] = entry["counts"].as_py()
+    total = sum(counts.values())
+    if total != rows:
+        raise ContractError(
+            f"transition counts sum to {total:,} but the table has {rows:,} rows."
+        )
+
+    def label(i: int) -> str:
+        return "<null>" if i == k else repr(values[i])
+
+    def is_missing(i: int) -> bool:
+        return i == k or normalise(values[i]) in normalised_missing
+
+    out.append("")
+    out.append(f"  {len(counts)} distinct transition(s), sorted by row count:")
+    for (a, b), n in sorted(counts.items(), key=lambda kv: -kv[1]):
+        arrow = "==" if a == b else "->"
+        out.append(f"    {n:>12,}  {label(a):<56} {arrow} {label(b)}")
+
+    summary = {"unchanged": 0, "FILLED (blank -> populated)": 0,
+               "CHANGED (populated -> different populated)": 0,
+               "EMPTIED (populated -> blank)": 0, "blank in both": 0}
+    for (a, b), n in counts.items():
+        ma, mb = is_missing(a), is_missing(b)
+        if ma and mb:
+            summary["blank in both"] += n
+        elif ma and not mb:
+            summary["FILLED (blank -> populated)"] += n
+        elif mb and not ma:
+            summary["EMPTIED (populated -> blank)"] += n
+        elif a == b:
+            summary["unchanged"] += n
+        else:
+            summary["CHANGED (populated -> different populated)"] += n
+    out.append("")
+    out.append("  summary:")
+    for label_, n in summary.items():
+        out.append(f"    {n:>12,}  ({100.0 * n / rows:6.3f}%)  {label_}")
+    out.append(f"    {sum(summary.values()):>12,}  TOTAL")
+    if sum(summary.values()) != rows:
+        raise ContractError("transition summary does not sum to the row count.")
+    out.append("")
+    if summary["CHANGED (populated -> different populated)"]:
+        out.append("  *** FINDING: the repaired source does not only fill blanks. It assigns a")
+        out.append("  DIFFERENT status to rows the legacy source already populated. Those rows")
+        out.append("  are a disagreement between two sources of the same fact, and the")
+        out.append("  specification's claim of zero disagreement where both are populated must")
+        out.append("  be reconciled against this count before the source change lands.")
+    else:
+        out.append("  The repaired source only fills blanks; it changes no populated status.")
+        out.append("  That is the strongest form the specification's zero-disagreement claim")
+        out.append("  can take, and it is now measured rather than asserted.")
+    if summary["EMPTIED (populated -> blank)"]:
+        out.append("")
+        out.append("  *** FINDING: some rows LOSE a populated status under the repaired source.")
+        out.append("  The repair must not reduce coverage; these rows need explanation.")
+    return union_total
+
+
 def review_status_inventory(repo: Path, tier_map: dict[str, int], origin: str,
                             missing_tokens: frozenset[str], missing_origin: str,
                             out: list[str]) -> int:
@@ -401,11 +594,13 @@ def review_status_inventory(repo: Path, tier_map: dict[str, int], origin: str,
         out.append("")
 
     if uncovered_total:
-        out.append(f"  *** FINDING: {uncovered_total:,} row(s) carry a review status that is")
-        out.append("  NEITHER a tier-map key NOR a missing token. Once Step 1b makes an")
-        out.append("  unmatched status RAISE, the first production run over this cohort")
-        out.append("  aborts on exactly these rows -- and on no others. They must be given")
-        out.append("  a tier in the SAME commit as the raise.")
+        out.append(f"  *** FINDING: {uncovered_total:,} FIELD OCCURRENCE(S) across the two")
+        out.append("  columns carry a review status that is NEITHER a tier-map key NOR a")
+        out.append("  missing token. That total is a sum over two columns and is NOT a row")
+        out.append("  count -- the distinct-row union is measured in section 2b below, and")
+        out.append("  it is the union, not this sum, that belongs in a verdict.")
+        out.append("  Once Step 1b makes an unmatched status RAISE, a production run over")
+        out.append("  the source it consumes aborts on that column's rows.")
     else:
         out.append("  Every review-status value resolves, through the map or through")
         out.append("  MISSING_TOKENS. The raise introduced by Step 1b will not fire here.")
@@ -615,6 +810,49 @@ def self_test() -> int:
         _check(sequence_branch_gate(repo, out) == 0 and "absent" in "\n".join(out),
                "absent sequence artifact is stated", "stated", "stated", failures)
 
+        print("\n-- union is measured, not summed; transitions are classified --")
+        old_col = ["", "",  "a", "a", "b", "c", "c", "", "-", "a", "c", "b"]
+        new_col = ["a", "-", "a", "b", "",  "c", "a", "c", "a", "a", "c", "b"]
+        pq.write_table(pa.table({
+            "ReviewStatus": pa.array(old_col),
+            "metadata": pa.array([{"review_status": v} for v in new_col],
+                                 type=pa.struct([("review_status", pa.string())])),
+        }), repo / CLEAN_REL)
+        out = []
+        union = source_comparison(repo, {"a": 1, "b": 2}, frozenset({"", "-"}), out)
+        joined = "\n".join(out)
+        # 'c' appears in 3 legacy rows and 3 repaired rows, overlapping on 2.
+        _check(union == 4, "union is 4, not the naive sum of 6", union, 4, failures)
+        _check("naive sum of the two -- NOT a row count" in joined,
+               "the naive sum is shown and labelled as not a row count",
+               "naive sum" in joined, True, failures)
+        _check(joined.count("OK") >= 3, "all three reconciliations reported",
+               joined.count("OK") >= 3, True, failures)
+        for cat, want in (("unchanged", 5), ("FILLED (blank -> populated)", 3),
+                          ("CHANGED (populated -> different populated)", 2),
+                          ("EMPTIED (populated -> blank)", 1), ("blank in both", 1)):
+            line = [l for l in out if l.rstrip().endswith(cat)]
+            got = int(line[0].split()[0].replace(",", "")) if line else -1
+            _check(got == want, f"transition category {cat!r}", got, want, failures)
+        _check("does not only fill blanks" in joined, "a CHANGED row raises a finding",
+               "does not only fill blanks" in joined, True, failures)
+        _check("LOSE a populated status" in joined, "an EMPTIED row raises a finding",
+               "LOSE a populated status" in joined, True, failures)
+
+        print("\n-- a fill-only source produces no disagreement finding --")
+        pq.write_table(pa.table({
+            "ReviewStatus": pa.array(["", "", "a"]),
+            "metadata": pa.array([{"review_status": v} for v in ["a", "b", "a"]],
+                                 type=pa.struct([("review_status", pa.string())])),
+        }), repo / CLEAN_REL)
+        out = []
+        source_comparison(repo, {"a": 1, "b": 2}, frozenset({"", "-"}), out)
+        joined = "\n".join(out)
+        _check("only fills blanks" in joined, "fill-only is stated positively",
+               "only fills blanks" in joined, True, failures)
+        _check("does not only fill blanks" not in joined, "no false disagreement finding",
+               "does not only fill blanks" not in joined, True, failures)
+
         print("\n-- no tier map anywhere is a CONTRACT failure, not a pass --")
         (repo / "scripts/clean_cohort.py").unlink()
         try:
@@ -668,6 +906,7 @@ def main(argv: list[str] | None = None) -> int:
         missing_tokens, missing_origin = read_missing_tokens(repo)
         uncovered = review_status_inventory(repo, tier_map, origin,
                                             missing_tokens, missing_origin, out)
+        union_rows = source_comparison(repo, tier_map, missing_tokens, out)
         seq_bad = sequence_branch_gate(repo, out)
         provenance(repo, out)
 
@@ -676,7 +915,8 @@ def main(argv: list[str] | None = None) -> int:
         out.append("VERDICT")
         out.append("=" * 78)
         out.append(f"  unaccounted removed rows        : {unaccounted:,}")
-        out.append(f"  rows whose review status WOULD RAISE           : {uncovered:,}")
+        out.append(f"  unmatched field occurrences, summed over 2 columns: {uncovered:,}")
+        out.append(f"  DISTINCT ROWS affected (measured union)          : {union_rows:,}")
         out.append("    (neither a tier-map key nor a missing token. A value in")
         out.append("     MISSING_TOKENS resolves to TIER_MISSING before the map is")
         out.append("     consulted, so it is NOT counted here. The first version of")
