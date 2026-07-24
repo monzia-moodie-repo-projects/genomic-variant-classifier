@@ -1,0 +1,108 @@
+REVIEW-TIER FILTER IMPACT -- captured probe output
+date      : 2026-07-24
+repo      : C:\Projects\genomic-variant-classifier
+read-only : yes
+command   : python scripts\probe_tier_filter_impact.py --min-review-tier 3 --label-col pathogenicity
+
+============================================================================
+PROBE: review-tier filter impact   (data\processed\clinvar_grch38_clean.parquet)
+assumed production min_review_tier = 3  (VERIFY -- see docstring)
+============================================================================
+rows: 4,399,089
+
+----------------------------------------------------------------------------
+1. AGREEMENT BY VARIANT CLASS  (how well is metadata validated per class?)
+----------------------------------------------------------------------------
+    class  class_total  both_populated  agreeing  disagreeing  validation_coverage_pct
+      SNV      4101824         3865093   3865093            0                   94.229
+ deletion       189468            2210      2210            0                    1.166
+insertion        91219           90778     90778            0                   99.517
+MNV/other        16578           16492     16492            0                   99.481
+
+NOTE: metadata's DELETION values are validated only on the rows where the
+VCF join happened to succeed. Low coverage there = thin evidence for the
+very class metadata would rescue. State this in the incident report.
+
+----------------------------------------------------------------------------
+2. RETENTION BY VARIANT CLASS  (keep rows with review_tier <= t)
+----------------------------------------------------------------------------
+
+  source: ReviewStatus (current)
+    class   total  t<=1   t<=2    t<=3    t<=4    t<=5  pct_kept@3
+      SNV 4101824 14967 622459 3617151 3772094 4096744      88.184
+ deletion  189468    74    324    1938    1971  189451       1.023
+insertion   91219  1987  14035   82443   84214   90639      90.379
+MNV/other   16578   192   2109   15142   15624   16503      91.338
+
+  source: metadata (proposed)
+    class   total  t<=1   t<=2    t<=3    t<=4    t<=5  pct_kept@3
+      SNV 4101824 14967 622613 3617870 3772833 4096739      88.201
+ deletion  189468  4237  31045  163391  167171  188404      86.237
+insertion   91219  1988  14042   82463   84235   90639      90.401
+MNV/other   16578   192   2109   15143   15625   16503      91.344
+
+----------------------------------------------------------------------------
+2b. DELETION SHARE OF THE SURVIVING COHORT  (min_review_tier=3)
+----------------------------------------------------------------------------
+  ReviewStatus (current)   kept=3,716,674  deletions=1,938  deletion share=0.0521%
+  metadata (proposed)      kept=3,878,867  deletions=163,391  deletion share=4.2123%
+
+----------------------------------------------------------------------------
+3. LABEL RETENTION AND BINARY CLASS BALANCE  (min_review_tier=3)
+----------------------------------------------------------------------------
+
+  source: ReviewStatus (current)
+                     total     kept  pct_kept
+pathogenicity                                
+benign              272688   249445    91.476
+likely_benign      1081595  1030072    95.236
+likely_pathogenic   110665    78361    70.809
+pathogenic          383277   132446    34.556
+uncertain          2550864  2226350    87.278
+    binary trainable rows : 1,490,324   pos=210,807  neg=1,279,517  pos_rate=14.1450%
+
+  source: metadata (proposed)
+                     total     kept  pct_kept
+pathogenicity                                
+benign              272688   265814    97.479
+likely_benign      1081595  1054219    97.469
+likely_pathogenic   110665   100184    90.529
+pathogenic          383277   200375    52.279
+uncertain          2550864  2258275    88.530
+    binary trainable rows : 1,620,592   pos=300,559  neg=1,320,033  pos_rate=18.5462%
+
+  UNFILTERED binary rows  : 1,848,225   pos=493,942  neg=1,354,283  pos_rate=26.7252%
+  AUPRC is sensitive to pos_rate. A filter that changes it changes the
+  primary metric's baseline. Any comparison across runs must hold it fixed.
+
+----------------------------------------------------------------------------
+4. LATENT BUG: clean_cohort.py PATHOGENIC_TERMS / BENIGN_TERMS use SPACES
+----------------------------------------------------------------------------
+  actual label values          : ['benign', 'likely_benign', 'likely_pathogenic', 'pathogenic', 'uncertain']
+  matched by clean_cohort terms: ['benign', 'pathogenic']
+  matched by underscore-aware  : ['benign', 'likely_benign', 'likely_pathogenic', 'pathogenic']
+  ** clean_cohort SILENTLY maps these to -1 (uncertain): ['likely_benign', 'likely_pathogenic']
+  Currently inert (source has 0 duplicate variant_id, so the conflict
+  machinery never runs) -- but it will mis-detect conflicts the moment
+  a duplicate appears. Same defect class as the review-status underscores.
+
+----------------------------------------------------------------------------
+5. TIER SEMANTICS: substring(default 5) vs exact(default 6)
+----------------------------------------------------------------------------
+              RS_substr(real_data_prep)  RS_exact(clean_cohort)
+ReviewStatus                                                   
+1                                 17220                   17220
+2                                621707                  621707
+3                               3077747                 3077747
+4                                157229                  157229
+5                                519434                   94285
+6                                  5752                  430901
+
+  Blank ReviewStatus is tier 5 to the FILTER and tier 6 to the COHORT
+  BUILDER. Three implementations exist (clean_cohort, augment_reviewstatus,
+  real_data_prep). Reconcile into one function, one documented default.
+
+============================================================================
+This probe asserts nothing about causation in augment_reviewstatus.py.
+Read that file's join key before concluding the mechanism.
+============================================================================

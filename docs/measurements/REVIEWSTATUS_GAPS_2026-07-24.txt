@@ -1,0 +1,118 @@
+REVIEWSTATUS GAPS -- captured probe output
+date      : 2026-07-24
+repo      : C:\Projects\genomic-variant-classifier
+read-only : yes
+command   : python scripts\probe_reviewstatus_gaps.py
+
+==========================================================================
+PROBE: ReviewStatus gaps, indel bias, cohort impact   (data\processed\clinvar_grch38_clean.parquet)
+==========================================================================
+rows                                : 4,399,089
+ReviewStatus populated              : 3,974,573  (90.350%)
+metadata.review_status populated    : 4,153,941  (94.427%)
+  (missing tokens excluded: ['', '-', '.', '<na>', 'na', 'nan', 'none', 'null'])
+
+--------------------------------------------------------------------------
+1. AGREEMENT WHERE BOTH POPULATED  (the corrected metric)
+--------------------------------------------------------------------------
+rows with BOTH populated            : 3,974,573
+  agreeing                          : 3,974,573  (100.0000%)
+  disagreeing                       : 0
+
+rows RS-missing but metadata present: 179,368
+rows metadata-missing but RS present: 0
+rows both missing                   : 245,148
+
+--------------------------------------------------------------------------
+2. INDEL HYPOTHESIS  (is blank ReviewStatus enriched for indels?)
+--------------------------------------------------------------------------
+           RS_present  RS_blank  pct_blank
+row_0                                     
+MNV/other       16492        86      0.519
+SNV           3865093    236731      5.771
+deletion         2210    187258     98.834
+insertion       90778       441      0.483
+
+overall blank rate                  : 9.650%
+INTERPRETATION: if pct_blank for deletion/insertion >> SNV, the VCF join
+key mis-normalises indels and assigns them the WORST tier by accident.
+
+--------------------------------------------------------------------------
+3. SEMANTICS OF THE '-' TOKEN IN metadata.review_status
+--------------------------------------------------------------------------
+metadata == '-'                     : 245,148
+
+  ReviewStatus values where metadata == '-' (top 6):
+ReviewStatus
+    245148
+
+  variant class where metadata == '-':
+SNV          235953
+deletion       8695
+insertion       415
+MNV/other        85
+
+  metadata values where ReviewStatus is blank (top 8):
+-                                                       245148
+criteria provided, single submitter                     131311
+criteria provided, multiple submitters, no conflicts     26718
+no assertion criteria provided                           12228
+reviewed by expert panel                                  4160
+criteria provided, conflicting classifications            3768
+no classification provided                                1052
+no classification for the single variant                   115
+
+--------------------------------------------------------------------------
+4. BIAS CHECK  (does missing ReviewStatus correlate with the label?)
+--------------------------------------------------------------------------
+                   RS_present  RS_blank  pct_blank
+pathogenicity                                     
+benign                 256054     16634      6.100
+likely_benign         1056495     25100      2.321
+likely_pathogenic       85934     24731     22.348
+pathogenic             306234     77043     20.101
+uncertain             2269856    281008     11.016
+
+INTERPRETATION: a materially higher pct_blank in pathogenic/benign than
+in uncertain would mean tier filtering biases the LABEL distribution.
+
+--------------------------------------------------------------------------
+5. COHORT RETENTION BY min_review_tier  (impact of switching source)
+--------------------------------------------------------------------------
+Assumption: pipeline keeps rows with review_tier <= min_review_tier.
+CONFIRM against real_data_prep before relying on these numbers:
+  Select-String -Path src\genomic_variant_classifier\data\real_data_prep.py -Pattern 'min_review_tier' -Context 2,2
+
+ min_review_tier  keep_from_ReviewStatus  keep_from_metadata  delta_rows  delta_pct_of_cohort
+               1                   17220               21384        4164                0.095
+               2                  638927              669809       30882                0.702
+               3                 3716674             3878867      162193                3.687
+               4                 3873903             4039864      165961                3.773
+               5                 4393337             4392285       -1052               -0.024
+
+tier distribution, three ways (rows):
+   RS_substr(prod filter)  RS_exact(clean_cohort)  metadata_substr
+1                   17220                   17220            21384
+2                  621707                  621707           648425
+3                 3077747                 3077747          3209058
+4                  157229                  157229           160997
+5                  519434                   94285           352421
+6                    5752                  430901             6804
+
+NOTE: RS_substr vs RS_exact differ on blanks (5 vs 6). Three separate
+implementations of review-tier mapping exist in the codebase; they should
+be reconciled into ONE function with ONE documented default.
+
+==========================================================================
+VERDICT: sources CONSISTENT (100% agreement where both populated) and
+         metadata is a strict SUPERSET.
+  -> Fix (a) self-derivation is VIABLE and technically superior, BUT it
+     re-tiers the blank rows and therefore CHANGES THE TRAINING COHORT.
+     Adopt only as a deliberate, quantified, documented change. Runs 1-17
+     used the VCF-derived column; Run 18 would not be comparable.
+
+FIX (c) IS REQUIRED IMMEDIATELY AND UNCONDITIONALLY:
+  clean_cohort.py needs a hard PRE-condition (no resolvable review column
+  => raise, never silent all-tier-5) and a hard POST-condition (ReviewStatus
+  present in the written schema). It guards rows but not its own schema.
+==========================================================================
