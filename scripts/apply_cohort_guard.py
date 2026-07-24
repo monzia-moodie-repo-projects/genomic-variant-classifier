@@ -71,7 +71,8 @@ def main() -> int:
 
     out = norm.replace("\n", eol) if eol == "\r\n" else norm
     TARGET.write_bytes(out.encode("utf-8"))
-    print(f"APPLIED: staticmethod + call inserted (eol={'CRLF' if eol=='\\r\\n' else 'LF'}).")
+    _eol_label = "CRLF" if eol == '\\r\\n' else "LF"
+    print(f"APPLIED: staticmethod + call inserted (eol={_eol_label}).")
     print("Verify:  grep -n _assert_clean_cohort " + str(TARGET))
     return 0
 

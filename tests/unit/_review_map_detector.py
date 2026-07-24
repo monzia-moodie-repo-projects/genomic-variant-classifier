@@ -186,15 +186,27 @@ def find_tier_map_definitions(root: Path) -> tuple[str, ...]:
 
 
 def unparseable_files(root: Path) -> tuple[str, ...]:
-    """Files the detector could not parse, so a scan gap is never silent."""
+    """Files the detector could not parse, so a scan gap is never silent.
+
+    Returns "relpath: reason" for each, not just the path. The first version
+    returned bare paths, which meant a CI failure named the files but swallowed
+    the SyntaxError -- on 2026-07-24 three scripts failed under Python 3.11 with
+    "f-string expression part cannot include a backslash" (a construct PEP 701
+    permits only from 3.12), and the reason was invisible in the CI log until a
+    3.11 interpreter was run by hand. A guard that reports THAT a scan gap exists
+    but not WHY forces exactly the manual reproduction it should have spared.
+    """
     bad: list[str] = []
     for sub in SEARCH_ROOTS:
         base = root / sub
         if not base.is_dir():
             continue
         for path in sorted(base.rglob("*.py")):
+            rel = path.relative_to(root).as_posix()
             try:
                 ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-            except (SyntaxError, UnicodeDecodeError):
-                bad.append(path.relative_to(root).as_posix())
+            except SyntaxError as exc:
+                bad.append(f"{rel}: line {exc.lineno}: {exc.msg}")
+            except UnicodeDecodeError as exc:
+                bad.append(f"{rel}: not UTF-8 ({exc.reason} at byte {exc.start})")
     return tuple(bad)

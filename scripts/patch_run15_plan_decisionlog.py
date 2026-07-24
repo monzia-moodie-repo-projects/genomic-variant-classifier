@@ -42,7 +42,8 @@ def main(path_str: str) -> int:
     entry = ENTRY_TEXT.encode("utf-8")  # single logical bullet line (no embedded newlines)
     sep = b"" if data.endswith(nl) else nl
     path.write_bytes(data + sep + entry + nl)
-    print(f"appended {len(sep + entry + nl)} bytes to {path}; endings={'CRLF' if nl == b'\r\n' else 'LF'}")
+    _eol_label = "CRLF" if nl == b'\r\n' else "LF"
+    print(f"appended {len(sep + entry + nl)} bytes to {path}; endings={_eol_label}")
     return 0
 
 

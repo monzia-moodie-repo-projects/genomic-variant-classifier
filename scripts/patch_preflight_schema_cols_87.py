@@ -54,7 +54,8 @@ def patch_file(path: Path, edits) -> bool:
     except py_compile.PyCompileError as e:
         print(f"  [ABORT] py_compile failed: {e}"); return False
     path.write_bytes(out)
-    print(f"  [written] {path}  (eol={'CRLF' if eol == b'\\r\\n' else 'LF'})")
+    _eol_label = "CRLF" if eol == b'\\r\\n' else "LF"
+    print(f"  [written] {path}  (eol={_eol_label})")
     return True
 
 

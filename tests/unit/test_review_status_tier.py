@@ -404,7 +404,10 @@ def test_an_unparseable_file_is_reported_not_silently_skipped(tmp_path: Path) ->
     """A scan that cannot read a file must say so, not count it as clean."""
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "broken.py").write_text("def f(\n", encoding="utf-8")
-    assert detector.unparseable_files(tmp_path) == ("src/broken.py",)
+    reported = detector.unparseable_files(tmp_path)
+    assert len(reported) == 1
+    assert reported[0].startswith("src/broken.py:"), reported
+    assert "line" in reported[0], "the reason must name the line, not just the file"
     assert detector.find_tier_map_definitions(tmp_path) == ()
 
 
