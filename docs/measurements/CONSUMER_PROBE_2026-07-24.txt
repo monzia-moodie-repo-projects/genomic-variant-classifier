@@ -1,0 +1,156 @@
+==============================================================================
+STEP 1b CONSUMER PROBE -- 2026-07-24  (read-only)
+==============================================================================
+
+-- source-map drift check --
+  OK: src/genomic_variant_classifier/data/real_data_prep.py::REVIEW_STATUS_TIER matches transcription (7 keys)
+  OK: scripts/clean_cohort.py::REVIEW_STATUS_TIER matches transcription (10 keys)
+  OK: scripts/augment_reviewstatus.py::REVIEW_STATUS_TIER matches transcription (7 keys)
+  OK: src/genomic_variant_classifier/monitoring/clinvar_tracker.py::REVIEW_TIER matches transcription (6 keys)
+
+-- loading cohort columns: variant_id, ReviewStatus, metadata --
+  cohort columns available: 17
+  OK   column variant_id
+  OK   column ReviewStatus
+  rows: 4,399,089
+
+==============================================================================
+CONSUMER: real_data_prep
+------------------------------------------------------------------------------
+  source column         : ReviewStatus
+  map path::name        : real_data_prep.py::REVIEW_STATUS_TIER
+  map key count         : 7
+  lookup mode           : substring
+  normalizer            : norm_lower
+  unmatched fallback    : tier 5
+  legacy tier distribution:
+    tier 1:     17,220
+    tier 2:    621,707
+    tier 3:  3,077,747
+    tier 4:     94,285
+    tier 5:    588,130
+  unified tier distribution (same source column):
+    tier 1:     17,220
+    tier 2:    621,707
+    tier 3:  3,234,976
+    tier 4:     94,285
+    tier 5:    430,901
+  unified resolution-path distribution:
+    explicit_status:  3,974,573
+    missing_token:    424,516
+  unmatched under unified: NONE (WOULD_RAISE=0)
+  retention at thresholds (legacy vs unified-legacy-emulation):
+    thr 1: legacy_keep=    17,220  emul_keep=    17,220  sym_diff=       0
+    thr 2: legacy_keep=   638,927  emul_keep=   638,927  sym_diff=       0
+    thr 3: legacy_keep= 3,716,674  emul_keep= 3,873,903  sym_diff= 157,229
+    thr 4: legacy_keep= 3,810,959  emul_keep= 3,968,188  sym_diff= 157,229
+    thr 5: legacy_keep= 4,399,089  emul_keep= 4,399,089  sym_diff=       0
+
+==============================================================================
+CONSUMER: clean_cohort
+------------------------------------------------------------------------------
+  source column         : metadata.review_status
+  map path::name        : clean_cohort.py::REVIEW_STATUS_TIER
+  map key count         : 10
+  lookup mode           : exact
+  normalizer            : norm_term
+  unmatched fallback    : tier 6
+  legacy tier distribution:
+    tier 1:     21,384
+    tier 2:    648,425
+    tier 3:  3,209,058
+    tier 4:    160,997
+    tier 5:    106,513
+    tier 6:    252,712
+  unified tier distribution (same source column):
+    tier 1:     21,384
+    tier 2:    648,425
+    tier 3:  3,370,055
+    tier 4:    106,513
+    tier 5:    252,712
+  unified resolution-path distribution:
+    explicit_status:  4,153,941
+    missing_token:    245,148
+  unmatched under unified: NONE (WOULD_RAISE=0)
+  retention at thresholds (legacy vs unified-legacy-emulation):
+    thr 1: legacy_keep=    21,384  emul_keep=    21,384  sym_diff=       0
+    thr 2: legacy_keep=   669,809  emul_keep=   669,809  sym_diff=       0
+    thr 3: legacy_keep= 3,878,867  emul_keep= 4,039,864  sym_diff= 160,997
+    thr 4: legacy_keep= 4,039,864  emul_keep= 4,146,377  sym_diff= 106,513
+    thr 5: legacy_keep= 4,146,377  emul_keep= 4,399,089  sym_diff= 252,712
+
+==============================================================================
+CONSUMER: augment_reviewstatus
+------------------------------------------------------------------------------
+  source column         : ReviewStatus
+  map path::name        : augment_reviewstatus.py::REVIEW_STATUS_TIER
+  map key count         : 7
+  lookup mode           : substring
+  normalizer            : norm_lower
+  unmatched fallback    : tier 5
+  legacy tier distribution:
+    tier 1:     17,220
+    tier 2:    621,707
+    tier 3:  3,077,747
+    tier 4:     94,285
+    tier 5:    588,130
+  unified tier distribution (same source column):
+    tier 1:     17,220
+    tier 2:    621,707
+    tier 3:  3,234,976
+    tier 4:     94,285
+    tier 5:    430,901
+  unified resolution-path distribution:
+    explicit_status:  3,974,573
+    missing_token:    424,516
+  unmatched under unified: NONE (WOULD_RAISE=0)
+  retention at thresholds (legacy vs unified-legacy-emulation):
+    thr 1: legacy_keep=    17,220  emul_keep=    17,220  sym_diff=       0
+    thr 2: legacy_keep=   638,927  emul_keep=   638,927  sym_diff=       0
+    thr 3: legacy_keep= 3,716,674  emul_keep= 3,873,903  sym_diff= 157,229
+    thr 4: legacy_keep= 3,810,959  emul_keep= 3,968,188  sym_diff= 157,229
+    thr 5: legacy_keep= 4,399,089  emul_keep= 4,399,089  sym_diff=       0
+
+==============================================================================
+CONSUMER: clinvar_tracker
+------------------------------------------------------------------------------
+  source column         : review_status/ReviewStatus
+  map path::name        : clinvar_tracker.py::REVIEW_TIER
+  map key count         : 6
+  lookup mode           : substring
+  normalizer            : norm_lower
+  unmatched fallback    : tier 5
+  legacy tier distribution:
+    tier 1:     17,220
+    tier 2:    621,707
+    tier 3:  3,077,747
+    tier 4:     94,285
+    tier 5:    588,130
+  unified tier distribution (same source column):
+    tier 1:     17,220
+    tier 2:    621,707
+    tier 3:  3,234,976
+    tier 4:     94,285
+    tier 5:    430,901
+  unified resolution-path distribution:
+    explicit_status:  3,974,573
+    missing_token:    424,516
+  unmatched under unified: NONE (WOULD_RAISE=0)
+  retention at thresholds (legacy vs unified-legacy-emulation):
+    thr 1: legacy_keep=    17,220  emul_keep=    17,220  sym_diff=       0
+    thr 2: legacy_keep=   638,927  emul_keep=   638,927  sym_diff=       0
+    thr 3: legacy_keep= 3,716,674  emul_keep= 3,873,903  sym_diff= 157,229
+    thr 4: legacy_keep= 3,810,959  emul_keep= 3,968,188  sym_diff= 157,229
+    thr 5: legacy_keep= 4,399,089  emul_keep= 4,399,089  sym_diff=       0
+
+==============================================================================
+AXIS DECOMPOSITION NOTE
+------------------------------------------------------------------------------
+  Each consumer's legacy->unified delta has up to four causes:
+   A source-column (only clean_cohort reads metadata.review_status)
+   B normalization (underscore->space + ws-collapse vs bare lower)
+   C map contents  (key set; substring vs exact lookup)
+   D unmatched policy (fallback 5/6 vs raise)
+  The legacy-emulation column above holds D constant (uses the legacy fallback)
+  so any legacy-vs-emul sym_diff is attributable to A+B+C, not D. A nonzero
+  WOULD_RAISE count isolates D: those are rows the strict resolver rejects.
