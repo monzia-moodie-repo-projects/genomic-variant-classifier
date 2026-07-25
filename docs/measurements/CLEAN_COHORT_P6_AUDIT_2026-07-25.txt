@@ -1,0 +1,96 @@
+==============================================================================
+STEP 1b CLEAN_COHORT P5+P6 EVIDENCE-ADJUDICATION AUDIT -- 2026-07-25 (read-only)
+==============================================================================
+
+  cohort: clinvar_grch38.parquet
+
+-- source-map drift check --
+  OK: clean_cohort REVIEW_STATUS_TIER matches transcription (10 keys)
+  rows: 4,420,180   columns: 16
+  review column: metadata.review_status   clinical_sig column: clinical_sig
+  canonical-key fields: ('source_id', 'clinical_sig', 'ref', 'alt', 'consequence', 'gene_symbol')
+
+  WOULD_RAISE (unified rejects): 0
+
+-- clinical_sig evidence-state vocabulary check --
+  UNRECOGNISED clinical_sig values: 71 distinct (245,925 rows) -- classifier must be extended before adoption:
+       245,223  '-'
+            95  'pathogenic, low penetrance'
+            93  'likely risk allele'
+            88  'likely pathogenic, low penetrance'
+            75  'pathogenic; other'
+            41  'pathogenic; drug response'
+            22  'pathogenic; risk factor'
+            18  'benign; risk factor'
+            18  'likely pathogenic; drug response'
+            14  'vus-high'
+            13  'benign; other'
+            13  'likely pathogenic/likely risk allele'
+            12  'benign/likely benign; other'
+            11  'likely benign; other'
+            11  'uncertain significance/vus-high'
+            10  'benign; association'
+            10  'pathogenic/likely risk allele'
+            10  'uncertain significance; other'
+             8  'pathogenic; affects'
+             8  'uncertain significance; risk factor'
+             7  'uncertain significance; drug response'
+             7  'uncertain significance; association'
+             6  'pathogenic/likely pathogenic/pathogenic, low penetrance'
+             6  'pathogenic/pathogenic, low penetrance'
+             5  'likely pathogenic; risk factor'
+
+==============================================================================
+P0-P6 POLICY TABLE
+------------------------------------------------------------------------------
+  measure                                  P0       P1       P2       P3       P4       P5       P6
+  order-sensitive selections                1,610    1,612        0        0        0        0        0
+  representative-row changes vs P0              0        2      210      211      213      344      232
+  kept-row label changes vs P0                  0        1       53       54       53      185       63
+  (the line above is like-for-like: each policy's KEPT/REPR row label vs legacy)
+  quarantine changes vs P0                      0        0        0        0        3        0       22
+  trainable-row count                   1,697,3061,697,3051,697,3111,697,3101,697,3101,697,4911,697,481
+  positive count                          338,782  338,781  338,785  338,784  338,784  338,909  338,917
+  negative count                        1,358,5241,358,5241,358,5261,358,5261,358,5261,358,5821,358,564
+  explicit conflicts preserved                  -        -        -        -        -        -      112
+
+  P6 GROUP-ADJUDICATED label changes vs legacy (STRICTER, different basis): 203
+    -- P6 withholds a binary label under Rule 4 (equal-tier conflict + binary) and
+       Rule 6 (no binary at best tier). This count is NOT comparable to the kept-row
+       label line above; it reflects group-level adjudication, not row choice.
+
+==============================================================================
+LABEL-CHANGING GROUP CLASSIFICATION (7 mechanistic categories)
+------------------------------------------------------------------------------
+  Comparing legacy P0 kept-row label vs P6 canonical label, per variant.
+  1_binary_vs_explicit_conflict          14   e.g. ['clinvar:1:145439580:na:na', 'clinvar:10:17767524:na:na', 'clinvar:11:97849768:na:na']
+  2_binary_vs_uncertain                 189   e.g. ['clinvar:6:162201131:na:na', 'clinvar:9:27573529:na:na', 'clinvar:9:204193:na:na']
+
+==============================================================================
+P6 ORDER-INVARIANCE (sabotage: original / reverse / 3 random permutations)
+------------------------------------------------------------------------------
+  within-group reverse  : repr=True labels=True states=True quarantine=True  -> OK
+  within-group random1  : repr=True labels=True states=True quarantine=True  -> OK
+  within-group random2  : repr=True labels=True states=True quarantine=True  -> OK
+  within-group random3  : repr=True labels=True states=True quarantine=True  -> OK
+
+  P6 order-invariant across all permutations: True
+
+==============================================================================
+ACCEPTANCE-CRITERIA READOUT (for the v2 decision)
+------------------------------------------------------------------------------
+  unmatched review statuses (WOULD_RAISE)      : 0
+  unrecognised clinical_sig values             : 71
+  P0 order-sensitive selections                : 1610
+  P6 order-invariant                           : True
+  P6 representative-row changes vs legacy       : 232
+  P6 canonical-label changes vs legacy          : 63
+  P6 quarantine changes vs legacy               : 22
+  P6 explicit conflicts preserved (not discarded): 112
+
+  P6 separates label adjudication (from the best-tier evidence group) from
+  representative-row selection (deterministic metadata only). Neither file order
+  nor label-eligibility can manufacture, remove, or change a canonical label.
+  If order-invariant=True and every label change is explained by a declared rule
+  above, P6 is the basis for the separately-certified cohort v2. Do not adopt any
+  policy or rewire clean_cohort from this probe alone -- this is the evidence.

@@ -1,0 +1,64 @@
+==============================================================================
+STEP 1b CLEAN_COHORT ADJUDICATION AUDIT -- 2026-07-25  (read-only, path D)
+==============================================================================
+
+  cohort: clinvar_grch38.parquet
+
+-- source-map drift check --
+  OK: clean_cohort REVIEW_STATUS_TIER matches transcription (10 keys)
+  cohort columns (16): ['variant_id', 'source_db', 'chrom', 'pos', 'gene_symbol', 'transcript_id', 'pathogenicity', 'allele_freq', 'clinical_sig', 'protein_change', 'fasta_seq', 'source_id', 'metadata', 'ref', 'alt', 'consequence']
+  rows: 4,420,180
+  review column: metadata.review_status   label column: clinical_sig
+  canonical-key fields present: ('source_id', 'clinical_sig', 'ref', 'alt', 'consequence', 'gene_symbol')
+  field-delta fields present:  ('clinical_sig', 'gene_symbol', 'consequence', 'ref', 'alt', 'pathogenicity', 'source_id')
+
+  WOULD_RAISE (unified rejects): 0
+
+[Q3] duplicate groups: 1,909
+[Q3] heterogeneous equal-best-tier concordant groups (unified): 3
+  status pairs that tie at best tier (count):
+           3  ('criteria provided, conflicting classifications', 'criteria provided, single submitter')
+
+[Q5] policy comparison (kept-row identity vs P0 legacy)
+  P0 legacy      : kept=4,415,870  quarantined_groups=107
+  P1 unified+fileorder   : kept=4,415,870  sym_diff=4  changed_variants=2  label_changed_variants=1  quarantine_delta=0
+  P2 unified+nonconflict : kept=4,415,870  sym_diff=420  changed_variants=210  label_changed_variants=53  quarantine_delta=0
+  P3 unified+neutral     : kept=4,415,870  sym_diff=422  changed_variants=211  label_changed_variants=54  quarantine_delta=0
+  P4 unified+quarantine  : kept=4,415,867  sym_diff=423  changed_variants=213  label_changed_variants=56  quarantine_delta=3
+
+[Q4] order-dependence test (does file order change the P1/file-order selection?)
+  concordant tied groups tested: 1,502
+  groups where file order changes the selected row: 1,467
+  (this is the defect path D removes: P2/P3/P4 are all order-INDEPENDENT by construction)
+
+[Q1/Q2/Q6] variants whose kept row changes P0(legacy) -> P1(unified+fileorder): 2
+
+  variant_id = 'clinvar:15:66703239:na:na'  (group size 2)
+    row 430697: review='criteria provided, conflicting classifications' label=None leg_tier=4 uni_tier=3  [P1-kept]
+    row 491931: review='criteria provided, single submitter' label=1 leg_tier=3 uni_tier=3  [P0-kept]
+    [Q2] binary-label effect: CHANGED (P0 label {1}, P1 label {None})
+    [Q6] columns differing between P0-kept and P1-kept rows: ['clinical_sig', 'gene_symbol', 'source_id']
+
+  variant_id = 'clinvar:2:178621733:na:na'  (group size 2)
+    row 116637: review='criteria provided, conflicting classifications' label=None leg_tier=4 uni_tier=3  [P1-kept]
+    row 1124755: review='criteria provided, single submitter' label=None leg_tier=3 uni_tier=3  [P0-kept]
+    [Q2] binary-label effect: unchanged (P0 label {None}, P1 label {None})
+    [Q6] columns differing between P0-kept and P1-kept rows: ['clinical_sig', 'pathogenicity', 'source_id']
+
+==============================================================================
+RECOMMENDED POLICY (P2 = unified tiers + non-conflict preference + canonical key)
+------------------------------------------------------------------------------
+  rows kept differing from legacy P0: 420  (variants: 210)
+  quarantine delta vs legacy: 0
+  order-independent by construction: yes (no file-order tie-break remains)
+  => P2 differs from legacy on 210 variant(s); listed above by identity.
+     Review these before adopting; each is a deliberate representative change.
+
+==============================================================================
+ACCEPTANCE-CRITERIA READOUT (path D)
+------------------------------------------------------------------------------
+  unmatched review statuses (WOULD_RAISE)   : 0
+  input-order-dependent selections (naive)  : 1467
+  P2 selected rows differing from legacy    : 210
+  P2 label changes                          : 53
+  P2 quarantine changes                     : 0

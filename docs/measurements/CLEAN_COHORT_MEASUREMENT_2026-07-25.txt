@@ -1,0 +1,47 @@
+==============================================================================
+STEP 1b CLEAN_COHORT MEASUREMENT -- 2026-07-25  (read-only)
+does the tier rewire change which row is kept in a duplicate group?
+==============================================================================
+
+  cohort: clinvar_grch38.parquet
+
+-- source-map drift check --
+  OK: clean_cohort REVIEW_STATUS_TIER matches transcription (10 keys)
+  columns available: 16
+  rows: 4,420,180
+  review column: metadata.review_status (nested)
+  label column:  clinical_sig
+
+  WOULD_RAISE (review statuses unified rejects): 0
+
+-- duplicate-group resolution: legacy map vs unified map --
+  duplicate variant_id groups: 1,909 (6,112 rows)
+  legacy : kept=4,415,870  exact_dup_dropped=3,462  conflict_resolved_dropped=250  conflict_rows=598
+  unified: kept=4,415,870  exact_dup_dropped=3,462  conflict_resolved_dropped=250  conflict_rows=598
+
+-- KEPT-ROW IDENTITY DIVERGENCE (the certified-cohort delta) --
+  kept only under legacy : 2
+  kept only under unified: 2
+  symmetric difference   : 4
+
+  the rewire CHANGES the certified cohort. Sampling up to 10 affected groups:
+    variant_id='clinvar:15:66703239:na:na'
+      row 430697: review='criteria provided, conflicting classifications' label=None leg_tier=4 uni_tier=3  [uni-kept]
+      row 491931: review='criteria provided, single submitter' label=1 leg_tier=3 uni_tier=3  [leg-kept]
+    variant_id='clinvar:2:178621733:na:na'
+      row 116637: review='criteria provided, conflicting classifications' label=None leg_tier=4 uni_tier=3  [uni-kept]
+      row 1124755: review='criteria provided, single submitter' label=None leg_tier=3 uni_tier=3  [leg-kept]
+
+==============================================================================
+INTERPRETATION
+------------------------------------------------------------------------------
+  clean_cohort keeps the lowest-tier row per duplicate variant_id group. The only
+  map difference that can reorder is conflicting-classifications moving from tier 4
+  (legacy, strictly below single-submitter) to tier 3 (unified, tied with it). If
+  the symmetric difference above is 0, the rewire produces a byte-identical certified
+  cohort and proceeds like the augment and real_data_prep rewires. If nonzero, each
+  affected group is listed with the competing rows, and the change of representative
+  is a deliberate decision (conflicting->3 is arguably more correct, but it alters a
+  certified artifact) rather than something to fold silently into a consolidation.
+  Separately, WOULD_RAISE > 0 would mean the strict resolver aborts the build on
+  vocabulary the legacy map tolerated at tier 6 -- a contract change to weigh too.

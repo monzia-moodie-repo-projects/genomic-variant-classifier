@@ -1,0 +1,162 @@
+==============================================================================
+STEP 1b CLINICAL_SIG ONTOLOGY CENSUS + PARSER VALIDATION -- 2026-07-25 (read-only)
+ontology v1.0  binary-target-policy v2.0
+==============================================================================
+
+  cohort: clinvar_grch38.parquet
+  rows: 4,420,180   clinical_sig column: clinical_sig
+  distinct normalized clinical_sig values: 102
+
+==============================================================================
+PARSER FAIL-CLOSED GATE
+------------------------------------------------------------------------------
+  distinct values that fully parse (recognised)   : 102
+  distinct values with UNCONSUMED tokens          : 0
+  rows affected by unconsumed tokens              : 0
+  ALL values fully parse with zero unconsumed tokens. Gate SATISFIED.
+
+==============================================================================
+COMPLETE ONTOLOGY CENSUS (every distinct clinical_sig value)
+------------------------------------------------------------------------------
+  rows | variants | delim | path | pen | pgx | risk | subtype | other | conflict | present | prod | v2-inclusive
+  2,299,470 | 2,298,979 |     - | UNCERTAIN | UNS | F | NONE |    None |                  - | F | T | None |  None   'uncertain significance'
+  1,083,552 | 1,083,397 |     - |   LB | UNS | F | NONE |    None |                  - | F | T |    0 |     0   'likely benign'
+    245,223 |  245,223 |     - | NONE | UNS | F | NONE |    None |                  - | F | F | None |  None   '-'
+    212,492 |  211,814 |     - |    B | UNS | F | NONE |    None |                  - | F | T |    0 |     0   'benign'
+    192,684 |  190,971 |     - |    P | UNS | F | NONE |    None |                  - | F | T |    1 |     1   'pathogenic'
+    161,366 |  161,363 |     - | NONE | UNS | F | NONE |    None |                  - | T | T | None |  None   'conflicting classifications of pathogenicity'
+    111,659 |  111,602 |     - |   LP | UNS | F | NONE |    None |                  - | F | T |    1 |     1   'likely pathogenic'
+     63,672 |   63,662 |     - |    B | UNS | F | NONE |    None |                  - | F | T |    0 |     0   'benign/likely benign'
+     36,628 |   36,627 |     - |    P | UNS | F | NONE |    None |                  - | F | T |    1 |     1   'pathogenic/likely pathogenic'
+      7,244 |    7,207 |     - | NONE | UNS | F | NONE |    None |                  - | F | F | None |  None   'not provided'
+      1,891 |    1,891 |     - | NONE | UNS | T | NONE |    None |                  - | F | T | None |  None   'drug response'
+      1,532 |    1,532 |     - | NONE | UNS | F | NONE |    None |              other | F | T | None |  None   'other'
+        678 |      678 |     - | NONE | UNS | F | NONE |    None |                  - | F | F | None |  None   'no classification for the single variant'
+        363 |      363 |     - | NONE | UNS | F | NONE |    None |        risk_factor | F | T | None |  None   'risk factor'
+        337 |      337 |     - | NONE | UNS | F | NONE |    None |        association | F | T | None |  None   'association'
+        144 |      144 |     / | UNCERTAIN | UNS | F | UNCE |    None |                  - | F | T | None |  None   'uncertain significance/uncertain risk allele'
+        133 |      133 |     - | NONE | UNS | F | NONE |    None |                  - | F | F | None |  None   'no classifications from unflagged records'
+        132 |      132 |     - | NONE | UNS | F | NONE |    None |            affects | F | T | None |  None   'affects'
+        132 |      126 |     - | NONE | UNS | F | NONE |    None |                  - | T | T | None |  None   'conflicting data from submitters'
+         95 |       95 |     - |    P | LOW | F | NONE |    None |                  - | F | T | None |     1   'pathogenic, low penetrance'
+         93 |       93 |     - | NONE | UNS | F | LIKE |    None |                  - | F | T | None |  None   'likely risk allele'
+         88 |       88 |     - |   LP | LOW | F | NONE |    None |                  - | F | T | None |     1   'likely pathogenic, low penetrance'
+         75 |       75 |     ; |    P | UNS | F | NONE |    None |              other | F | T | None |  None   'pathogenic; other'
+         41 |       41 |     ; |    P | UNS | T | NONE |    None |                  - | F | T | None |  None   'pathogenic; drug response'
+         39 |       39 |     - | NONE | UNS | F | NONE |    None |         protective | F | T | None |  None   'protective'
+         36 |       36 |     - | NONE | UNS | F | UNCE |    None |                  - | F | T | None |  None   'uncertain risk allele'
+         22 |       22 |     ; |    P | UNS | F | NONE |    None |        risk_factor | F | T | None |  None   'pathogenic; risk factor'
+         21 |       21 |     ; | NONE | UNS | F | NONE |    None |              other | T | T | None |  None   'conflicting classifications of pathogenicity; other'
+         18 |       18 |     ; |    B | UNS | F | NONE |    None |        risk_factor | F | T | None |  None   'benign; risk factor'
+         18 |       18 |     ; |   LP | UNS | T | NONE |    None |                  - | F | T | None |  None   'likely pathogenic; drug response'
+         17 |       17 |     ; | NONE | UNS | F | NONE |    None |        risk_factor | T | T | None |  None   'conflicting classifications of pathogenicity; risk factor'
+         14 |       14 |     - | UNCERTAIN | UNS | F | NONE |    HIGH |                  - | F | T | None |  None   'vus-high'
+         13 |       13 |     ; |    B | UNS | F | NONE |    None |              other | F | T | None |  None   'benign; other'
+         13 |       13 |     / |   LP | UNS | F | LIKE |    None |                  - | F | T | None |  None   'likely pathogenic/likely risk allele'
+         12 |       12 |    ;/ |   LB | UNS | F | NONE |    None |              other | F | T | None |  None   'benign/likely benign; other'
+         11 |       11 |     ; |   LB | UNS | F | NONE |    None |              other | F | T | None |  None   'likely benign; other'
+         11 |       11 |     / | UNCERTAIN | UNS | F | NONE |    HIGH |                  - | F | T | None |  None   'uncertain significance/vus-high'
+         10 |       10 |     ; |    B | UNS | F | NONE |    None |        association | F | T | None |  None   'benign; association'
+         10 |       10 |     / |    P | UNS | F | LIKE |    None |                  - | F | T | None |  None   'pathogenic/likely risk allele'
+         10 |       10 |     ; | UNCERTAIN | UNS | F | NONE |    None |              other | F | T | None |  None   'uncertain significance; other'
+         10 |       10 |     - | NONE | UNS | F | NONE |    None | confers_sensitivity | F | T | None |  None   'confers sensitivity'
+          8 |        8 |     ; |    P | UNS | F | NONE |    None |            affects | F | T | None |  None   'pathogenic; affects'
+          8 |        8 |     ; | UNCERTAIN | UNS | F | NONE |    None |        risk_factor | F | T | None |  None   'uncertain significance; risk factor'
+          7 |        7 |     ; | NONE | UNS | F | NONE |    None |        association | T | T | None |  None   'conflicting classifications of pathogenicity; association'
+          7 |        7 |     ; | UNCERTAIN | UNS | T | NONE |    None |                  - | F | T | None |  None   'uncertain significance; drug response'
+          7 |        7 |     ; | UNCERTAIN | UNS | F | NONE |    None |        association | F | T | None |  None   'uncertain significance; association'
+          6 |        6 |    ,/ |    P | LOW | F | NONE |    None |                  - | F | T | None |     1   'pathogenic/likely pathogenic/pathogenic, low penetrance'
+          6 |        6 |    ,/ |    P | LOW | F | NONE |    None |                  - | F | T | None |     1   'pathogenic/pathogenic, low penetrance'
+          5 |        5 |     ; |   LP | UNS | F | NONE |    None |        risk_factor | F | T | None |  None   'likely pathogenic; risk factor'
+          5 |        5 |     ; |    B | UNS | T | NONE |    None |                  - | F | T | None |  None   'benign; drug response'
+          5 |        5 |     ; |   LB | UNS | T | NONE |    None |                  - | F | T | None |  None   'likely benign; drug response'
+          5 |        5 |     ; |   LP | UNS | F | NONE |    None |        association | F | T | None |  None   'likely pathogenic; association'
+          5 |        5 |    ;/ |    P | UNS | F | NONE |    None |              other | F | T | None |  None   'pathogenic/likely pathogenic; other'
+          4 |        4 |     ; | NONE | UNS | F | NONE |    None | protective,risk_factor | F | T | None |  None   'protective; risk factor'
+          4 |        4 |     ; |    B | UNS | F | NONE |    None |         protective | F | T | None |  None   'benign; protective'
+          4 |        4 |     ; |   LB | UNS | T | NONE |    None |              other | F | T | None |  None   'likely benign; drug response; other'
+          4 |        4 |     / |    P | UNS | F | LIKE |    None |                  - | F | T | None |  None   'pathogenic/likely pathogenic/likely risk allele'
+          4 |        4 |    ,/ |    P | LOW | F | NONE |    None |                  - | F | T | None |     1   'likely pathogenic/pathogenic, low penetrance'
+          4 |        4 |     ; |    P | UNS | F | NONE |    None |        association | F | T | None |  None   'pathogenic; association'
+          4 |        4 |     - | NONE | UNS | F | NONE |    None | association_not_found | F | T | None |  None   'association not found'
+          4 |        4 |    ,/ |   LP | LOW | F | NONE |    None |                  - | F | T | None |     1   'likely pathogenic/likely pathogenic, low penetrance'
+          4 |        4 |    ,/ |    P | LOW | F | NONE |    None |                  - | F | T | None |     1   'pathogenic/likely pathogenic, low penetrance'
+          3 |        3 |     ; | NONE | UNS | F | NONE |    None |  other,risk_factor | T | T | None |  None   'conflicting classifications of pathogenicity; other; risk factor'
+          3 |        3 |    ;/ |    P | UNS | F | NONE |    None |        risk_factor | F | T | None |  None   'pathogenic/likely pathogenic; risk factor'
+          3 |        3 |     ; | NONE | UNS | T | NONE |    None |                  - | T | T | None |  None   'conflicting classifications of pathogenicity; drug response'
+          3 |        3 |    ;/ |   LB | UNS | T | NONE |    None |              other | F | T | None |  None   'benign/likely benign; drug response; other'
+          3 |        3 |     ; |    B | UNS | F | NONE |    None |            affects | F | T | None |  None   'benign; affects'
+          3 |        3 |     - | UNCERTAIN | UNS | F | NONE |     MID |                  - | F | T | None |  None   'vus-mid'
+          2 |        2 |     ; | NONE | UNS | F | NONE |    None | association,risk_factor | T | T | None |  None   'conflicting classifications of pathogenicity; association; risk factor'
+          2 |        2 |     ; | UNCERTAIN | UNS | F | NONE |    None |            affects | F | T | None |  None   'uncertain significance; affects'
+          2 |        2 |    ;/ |   LB | UNS | F | NONE |    None |        association | F | T | None |  None   'benign/likely benign; association'
+          2 |        2 |     ; | NONE | UNS | T | NONE |    None |        risk_factor | F | T | None |  None   'drug response; risk factor'
+          2 |        2 |     ; | NONE | UNS | F | NONE |    None |         protective | T | T | None |  None   'conflicting classifications of pathogenicity; protective'
+          2 |        2 |     ; |    P | UNS | F | NONE |    None |         protective | F | T | None |  None   'pathogenic; protective'
+          2 |        2 |     ; |   LB | UNS | F | NONE |    None |        risk_factor | F | T | None |  None   'likely benign; risk factor'
+          2 |        2 |    ;/ |   LB | UNS | T | NONE |    None |                  - | F | T | None |  None   'benign/likely benign; drug response'
+          2 |        2 |     - | NONE | UNS | F | ESTA |    None |                  - | F | T | None |  None   'established risk allele'
+          1 |        1 |     ; | NONE | UNS | T | NONE |    None | association,risk_factor | F | T | None |  None   'association; drug response; risk factor'
+          1 |        1 |    ;/ |   LB | UNS | F | NONE |    None |  other,risk_factor | F | T | None |  None   'benign/likely benign; other; risk factor'
+          1 |        1 |     ; | NONE | UNS | T | NONE |    None |              other | F | T | None |  None   'drug response; other'
+          1 |        1 |     ; | NONE | UNS | T | NONE |    None |              other | T | T | None |  None   'conflicting classifications of pathogenicity; drug response; other'
+          1 |        1 |   ,;/ |    P | LOW | F | ESTA |    None |        risk_factor | F | T | None |  None   'pathogenic/likely pathogenic/pathogenic, low penetrance/established risk allele; risk factor'
+          1 |        1 |     ; | NONE | UNS | F | NONE |    None |  other,risk_factor | F | T | None |  None   'other; risk factor'
+          1 |        1 |   ,;/ |    P | LOW | F | NONE |    None |              other | F | T | None |  None   'pathogenic/pathogenic, low penetrance; other'
+          1 |        1 |     ; |   LB | UNS | F | NONE |    None | affects,association | F | T | None |  None   'likely benign; affects; association'
+          1 |        1 |    ;/ |    P | UNS | F | NONE |    None |                  - | F | T | None |     1   'uncertain significance; pathogenic/likely pathogenic'
+          1 |        1 |     ; | NONE | UNS | F | UNCE |    None |        risk_factor | F | T | None |  None   'uncertain risk allele; risk factor'
+          1 |        1 |    ;/ |    P | UNS | F | NONE |    None |        association | F | T | None |  None   'pathogenic/likely pathogenic; association'
+          1 |        1 |    ;/ |   LB | UNS | F | NONE |    None |        risk_factor | F | T | None |  None   'benign/likely benign; risk factor'
+          1 |        1 |     ; |    B | UNS | F | NONE |    None | confers_sensitivity | F | T | None |  None   'benign; confers sensitivity'
+          1 |        1 |     ; | NONE | UNS | F | NONE |    None | association,risk_factor | F | T | None |  None   'association; risk factor'
+          1 |        1 |     ; |    P | UNS | F | NONE |    None | confers_sensitivity | F | T | None |  None   'pathogenic; confers sensitivity'
+          1 |        1 |     ; | NONE | UNS | F | NONE |    None |            affects | T | T | None |  None   'conflicting classifications of pathogenicity; affects'
+          1 |        1 |     ; |   LP | UNS | F | NONE |    None |            affects | F | T | None |  None   'likely pathogenic; affects'
+          1 |        1 |     ; |   LB | UNS | F | NONE |    None |        association | F | T | None |  None   'likely benign; association'
+          1 |        1 |     ; |   LP | UNS | F | NONE |    None |         protective | F | T | None |  None   'likely pathogenic; protective'
+          1 |        1 |     ; |    B | UNS | F | NONE |    None | affects,association,other | F | T | None |  None   'benign; affects; association; other'
+          1 |        1 |     / |    P | UNS | F | ESTA |    None |                  - | F | T | None |  None   'pathogenic/likely pathogenic/established risk allele'
+          1 |        1 |     ; | NONE | UNS | F | NONE |    None | confers_sensitivity,other | F | T | None |  None   'confers sensitivity; other'
+          1 |        1 |     ; | NONE | UNS | F | ESTA |    None |        association | F | T | None |  None   'established risk allele; association'
+          1 |        1 |     / | UNCERTAIN | UNS | F | NONE |     MID |                  - | F | T | None |  None   'uncertain significance/vus-mid'
+          1 |        1 |     - | UNCERTAIN | UNS | F | NONE |     LOW |                  - | F | T | None |  None   'vus-low'
+
+==============================================================================
+TARGET-POLICY SENSITIVITY VIEWS (row-level label assignment)
+------------------------------------------------------------------------------
+  production  : positive=   340,971  negative= 1,359,716  withheld/None= 2,719,493
+  strict      : positive=   340,972  negative= 1,359,716  withheld/None= 2,719,492
+  inclusive   : positive=   341,179  negative= 1,359,716  withheld/None= 2,719,285
+
+  'production' = only current PATHOGENIC_TERMS/BENIGN_TERMS exact matches.
+  'strict'     = clean single P/LP or B/LB; excludes low-penetrance, risk, PGx, VUS.
+  'inclusive'  = P/LP (incl low-penetrance) -> 1, B/LB -> 0; compound w/ PGx or
+                 other assertion withheld as context-ambiguous; conflict withheld.
+  Difference (inclusive - production) positives = labels recoverable by ontology
+  repair; this is separable from the P6 order-correction gain measured earlier.
+
+==============================================================================
+EVIDENCE-AXIS ROW COVERAGE
+------------------------------------------------------------------------------
+  disease: VUS                :    2,299,678 rows
+  disease: B/LB               :    1,359,816 rows
+  disease: P/LP               :      341,401 rows
+  absent/no-classification    :      253,278 rows
+  explicit conflict           :      161,555 rows
+  other non-binary            :        2,734 rows
+  pharmacogenomic             :        1,984 rows
+  risk allele                 :          306 rows
+  penetrance: LOW             :          209 rows
+  VUS subtype                 :           30 rows
+
+==============================================================================
+ACCEPTANCE GATE READOUT
+------------------------------------------------------------------------------
+  distinct clinical_sig values                 : 102
+  values with unconsumed tokens (must be 0)    : 0
+  rows with unconsumed tokens (must be 0)      : 0
+  When both are 0, the parser is complete and the v2 ontology + binary-target
+  policy can be implemented against it. Until then, do NOT build the v2 cohort:
+  any unconsumed value would enter certified construction through an implicit
+  branch, which is exactly the silent gap this census exists to close.
