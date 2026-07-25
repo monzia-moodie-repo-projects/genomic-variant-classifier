@@ -3303,4 +3303,35 @@
 #                     computational-teacher passes as mechanism, non-mechanism class
 #                     reaches admissible, uuid opacity removed.
 #
-2950
+#   2957  2026-07-24  +7: tests/unit/test_augment_reviewstatus_strict.py -- STEP 1b
+#                     REWIRE #1. scripts/augment_reviewstatus.py stops defining its
+#                     own REVIEW_STATUS_TIER map and substring _tier_of, and consumes
+#                     the single canonical resolver in review_status.py. Unknown VCF
+#                     CLNREVSTAT vocabulary is validated in ONE aggregate strict
+#                     preflight (Option C, 2026-07-24): every distinct raw value is
+#                     resolved once, any unmatched are collected keyed by canonical
+#                     normalised form with raw spellings and counts retained, and a
+#                     SINGLE error reports the complete inventory. No allow_unmatched
+#                     path, no fabricated fallback tier, no resolver change -- so the
+#                     57 resolver tests are untouched and the whole delta is the 7
+#                     new augment tests. MEASURED under Python 3.11 with
+#                     `pytest --collect-only -q` on the new file: 7 collected.
+#
+#                     The content-based detector inventory shrinks 8 -> 7: the
+#                     augment_reviewstatus entry leaves KNOWN_TIER_MAP_DEFINITIONS,
+#                     and the detector independently finds exactly 7 maps afterward
+#                     (clean_cohort, real_data_prep, clinvar_tracker, the canonical
+#                     map, and the three read-only probe scripts). real_data_prep and
+#                     clean_cohort follow in Step 1b; clinvar_tracker moves to Step 1c
+#                     because a drift monitor must expose unknown vocabulary rather
+#                     than fail closed on it.
+#
+#                     Governing measurement (docs/measurements/CONSUMER_PROBE_
+#                     2026-07-24.txt, commit cd635b2): WOULD_RAISE = 0 for every
+#                     consumer on the 4,399,089-row cohort, so this rewire raises on
+#                     nothing present today. The acceptance test exercises
+#                     _build_strict_tier_lookup directly (the pure function that
+#                     carries the behaviour); the full main() is an integration run
+#                     against the ClinVar VCF, which lives outside the repository.
+#
+2957

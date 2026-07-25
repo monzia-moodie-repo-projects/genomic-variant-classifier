@@ -3,10 +3,20 @@
 ClinVar VCF's CLNREVSTAT, so DataPrepPipeline's --min-review-tier filter (which
 reads df["ReviewStatus"]) finally fires.
 
-CRITICAL: ClinVar VCF encodes CLNREVSTAT with underscores; the pipeline substring-
-matches SPACE-form REVIEW_STATUS_TIER keys after .lower(). So we store the
-DECODED (underscore->space) status. Unmatched variants get "" -> pipeline maps to
-tier 5 -> excluded by <=3 (conservative: only confirmed tier>=3 are kept).
+CRITICAL: ClinVar VCF encodes CLNREVSTAT with underscores; the shared resolver
+normalises underscores to spaces and lowercases before an EXACT lookup. So we
+store the DECODED (underscore->space) status. A row whose status is a recognised
+missing token ("" here) resolves to TIER_MISSING; a row whose status is real but
+unknown to the map raises -- construction fails closed rather than silently
+demoting it. See src/genomic_variant_classifier/data/review_status.py.
+
+Step 1b (2026-07-24): the local REVIEW_STATUS_TIER map and substring _tier_of were
+removed. This script now consumes the single canonical resolver. Unknown VCF
+vocabulary is validated in ONE aggregate preflight (Option C): every distinct raw
+CLNREVSTAT value is resolved once; any that the map does not recognise are
+collected and reported together in a single raise, so the fix is one map edit, not
+a fix-rerun-fix loop. No permissive resolver path is used anywhere, and no
+fallback tier is fabricated.
 
 Safety: backup-first, idempotent (skips if ReviewStatus already present), atomic
 write (tmp + os.replace), and verifies rows/null/dup unchanged + tier<=3 count.
@@ -15,21 +25,64 @@ Read VCF + write augmented cohort in place. Usage:
 """
 from __future__ import annotations
 import gzip, os, shutil, sys
+from collections import Counter
 from pathlib import Path
 import pandas as pd
 
-REVIEW_STATUS_TIER = {
-    "practice guideline": 1, "reviewed by expert panel": 1,
-    "criteria provided, multiple submitters, no conflicts": 2,
-    "criteria provided, single submitter": 3,
-    "no assertion criteria provided": 4, "no classification provided": 5,
-    "no classification for the individual variant": 5,
-}
+from genomic_variant_classifier.data.review_status import (
+    UnmatchedReviewStatusError,
+    normalise,
+    resolve,
+    tier_of,
+)
+
 PATHOGENIC_TERMS = {"Pathogenic", "Likely pathogenic", "Pathogenic/Likely pathogenic"}
 BENIGN_TERMS = {"Benign", "Likely benign", "Benign/Likely benign"}
 
+
 def _norm_chrom(c): c = str(c); return c[3:] if c.lower().startswith("chr") else c
-def _tier_of(s): s = str(s).lower(); return next((v for k, v in REVIEW_STATUS_TIER.items() if k in s), 5)
+
+
+def _build_strict_tier_lookup(series: pd.Series) -> dict[object, int]:
+    """Resolve every DISTINCT review status once and return a raw-value -> tier map.
+
+    Option C aggregate preflight: strictly resolve each distinct value; collect any
+    unmatched ones (keyed by their canonical normalised form, with raw spellings and
+    counts retained); and if any exist, raise ONCE with the complete inventory rather
+    than aborting on the first. Missing tokens resolve normally (they are recognised),
+    so a recognised absence never lands in the unmatched inventory. No fallback tier
+    is ever assigned.
+    """
+    lookup: dict[object, int] = {}
+    # normalised term -> {raw spelling -> row count}
+    unmatched: dict[str, dict[str, int]] = {}
+
+    counts = series.value_counts(dropna=False)
+    for raw_value, count in counts.items():
+        try:
+            lookup[raw_value] = tier_of(raw_value)
+        except UnmatchedReviewStatusError:
+            key = normalise(raw_value)
+            raw_repr = "<NA>" if pd.isna(raw_value) else str(raw_value)
+            unmatched.setdefault(key, {})
+            unmatched[key][raw_repr] = unmatched[key].get(raw_repr, 0) + int(count)
+
+    if unmatched:
+        blocks = []
+        for norm_key in sorted(unmatched):
+            total = sum(unmatched[norm_key].values())
+            blocks.append(f"  {norm_key!r}: {total:,} row(s)")
+            for raw_form, n in sorted(unmatched[norm_key].items(), key=lambda kv: -kv[1]):
+                blocks.append(f"      raw {raw_form!r}: {n:,}")
+        raise UnmatchedReviewStatusError(
+            "Unmatched ClinVar CLNREVSTAT vocabulary prevents cohort augmentation:\n"
+            + "\n".join(blocks)
+            + "\nAdd every normalised value to REVIEW_STATUS_TIER and "
+            "REVIEW_STATUS_SEMANTICS in\n"
+            "src/genomic_variant_classifier/data/review_status.py before rerunning."
+        )
+    return lookup
+
 
 def build_vcf_map(vcf_path: Path) -> dict[str, str]:
     m = {}
@@ -41,10 +94,11 @@ def build_vcf_map(vcf_path: Path) -> dict[str, str]:
             info = dict(kv.split("=", 1) for kv in p[7].split(";") if "=" in kv)
             rev = info.get("CLNREVSTAT")
             if not rev: continue
-            decoded = rev.replace("_", " ")  # store SPACE-form for the pipeline's matcher
+            decoded = rev.replace("_", " ")  # store SPACE-form for the resolver's matcher
             for a in p[4].split(","):
                 m[f"{_norm_chrom(p[0])}:{p[1]}:{p[3]}:{a}"] = decoded
     return m
+
 
 def main(cohort_path: str, vcf_path: str) -> int:
     cp = Path(cohort_path)
@@ -61,7 +115,7 @@ def main(cohort_path: str, vcf_path: str) -> int:
 
     key = (df["chrom"].map(_norm_chrom) + ":" + df["pos"].astype("int64").astype(str)
            + ":" + df["ref"].astype(str) + ":" + df["alt"].astype(str))
-    df["ReviewStatus"] = key.map(vmap).fillna("")  # unmatched -> "" -> tier 5
+    df["ReviewStatus"] = key.map(vmap).fillna("")  # unmatched-in-VCF -> "" -> TIER_MISSING
     n_matched = int((df["ReviewStatus"] != "").sum())
 
     # verify rows/null/dup unchanged
@@ -69,13 +123,16 @@ def main(cohort_path: str, vcf_path: str) -> int:
     assert int(df["ref"].isna().sum() + df["alt"].isna().sum()) == null0, "null changed!"
     assert int(df["variant_id"].duplicated().sum()) == dup0, "dup changed!"
 
-    # simulate the pipeline filter to confirm it WILL fire
+    # simulate the pipeline filter to confirm it WILL fire, using the strict resolver.
+    # Aggregate preflight first: every distinct labeled ReviewStatus must resolve.
     sig = df["clinical_sig"].fillna("").str.strip()
     labeled = df[sig.isin(PATHOGENIC_TERMS | BENIGN_TERMS)]
-    tier = labeled["ReviewStatus"].map(_tier_of)
+    tier_lookup = _build_strict_tier_lookup(labeled["ReviewStatus"])
+    tier = labeled["ReviewStatus"].map(tier_lookup)
     keep3 = int((tier <= 3).sum())
     print(f"rows={n0:,} (unchanged) | null={null0} dup={dup0} (unchanged)")
     print(f"ReviewStatus non-empty (matched)={n_matched:,}")
+    print(f"distinct labeled statuses resolved (unmatched=0): {len(tier_lookup):,}")
     print(f"labeled={len(labeled):,} | tier<=3 (pipeline KEEP @ min_review_tier 3)={keep3:,}")
     print(f"tier dist (labeled): {tier.value_counts().sort_index().to_dict()}")
 
@@ -90,6 +147,7 @@ def main(cohort_path: str, vcf_path: str) -> int:
     os.replace(tmp, cp)
     print(f"WROTE augmented cohort -> {cp} (+ReviewStatus, {len(df.columns)} cols)")
     return 0
+
 
 if __name__ == "__main__":
     coh = sys.argv[1] if len(sys.argv) > 1 else "data/processed/clinvar_grch38_clean.parquet"

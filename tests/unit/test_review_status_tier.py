@@ -80,7 +80,6 @@ _THIS_FILE = Path(__file__).resolve()
 #:
 #: The eighth entry is the one a name-scoped guard could not see.
 KNOWN_TIER_MAP_DEFINITIONS: tuple[str, ...] = (
-    "scripts/augment_reviewstatus.py::REVIEW_STATUS_TIER",
     "scripts/clean_cohort.py::REVIEW_STATUS_TIER",
     "scripts/probe_review_status.py::REVIEW_STATUS_TIER",
     "scripts/probe_reviewstatus_gaps.py::REVIEW_STATUS_TIER",
