@@ -81,6 +81,14 @@ _THIS_FILE = Path(__file__).resolve()
 #: The eighth entry is the one a name-scoped guard could not see.
 KNOWN_TIER_MAP_DEFINITIONS: tuple[str, ...] = (
     "scripts/clean_cohort.py::REVIEW_STATUS_TIER",
+    "scripts/probe_clean_cohort_2026-07-25.py::CLEAN_MAP",
+    "scripts/probe_clean_cohort_2026-07-25.py::UNIFIED_MAP",
+    "scripts/probe_clean_cohort_adjudication_2026-07-25.py::CLEAN_MAP",
+    "scripts/probe_clean_cohort_adjudication_2026-07-25.py::UNIFIED_MAP",
+    "scripts/probe_clean_cohort_p6_2026-07-25.py::CLEAN_MAP",
+    "scripts/probe_clean_cohort_p6_2026-07-25.py::UNIFIED_MAP",
+    "scripts/probe_label_filter_2026-07-24.py::RDP_MAP",
+    "scripts/probe_label_filter_2026-07-24.py::UNIFIED_MAP",
     "scripts/probe_review_status.py::REVIEW_STATUS_TIER",
     "scripts/probe_reviewstatus_gaps.py::REVIEW_STATUS_TIER",
     "scripts/probe_tier_filter_impact.py::REVIEW_STATUS_TIER",
