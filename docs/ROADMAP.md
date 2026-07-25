@@ -1540,3 +1540,28 @@ its constructor requires `classes`, `baseline_ece`, `output_dir`. It monitors ca
 drift in production and is not assumed clean. Also open: `benchmark.py:125` dead
 `bin_midpoints`; three unreconciled bootstrap implementations against the 2.935x design
 effect; METHODS.md section 3.1.
+
+## ROADMAP delta -- 2026-07-25: clean-cohort Phase 1b-E complete, 1b-C authorized-open
+
+Decision record: docs/measurements/DECISION_2026-07-25_cohort-v2-authorization-and-phase-split.md
+Evidence commit: docs(measurements): preserve clean-cohort adjudication and ontology evidence
+
+Phase 1b-E (clean-cohort evidence + design) -- COMPLETE. The clean_cohort builder's
+duplicate-group representative selection was measured to be input-order dependent (stable
+sort + positional .iloc[0]): 1,610 legacy order-sensitive selections, 0 under the
+deterministic P6 policy (order-invariance verified). A group-level evidence adjudicator
+(P6) over a lossless multi-axis parse of clinical_sig was designed and measurement-validated:
+14 binary-vs-explicit-conflict labels withheld, 189 binary-vs-uncertain labels recovered,
+net +175 trainable (reconciles exactly), 22 added irreducible-conflict quarantines. The
+clinical_sig ontology census is complete: 102/102 distinct values parse, 0 unconsumed
+tokens (fail-closed gate satisfied); ontology repair expands positives by +208, separable
+from the P6 order-correction gain.
+
+Phase 1b-C (certified cohort v2 construction) -- AUTHORIZED_NOT_IMPLEMENTED. Gates
+C1-C10 in the decision record. Step 1b is NOT complete until 1b-C completes.
+
+Dependency gate. CLINICAL_SIGNIFICANCE_ONTOLOGY_VERSION = 1.0 is a validated
+specification version, not a shipped module. Metric-stack IMPLEMENTATION may proceed on
+cohort-agnostic infrastructure; production metric BACKFILL/certification is
+BLOCKED_BY_COHORT_V2. v1 cohort retained for lineage, not deterministically derived, not
+to be overwritten.
