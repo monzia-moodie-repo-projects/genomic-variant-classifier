@@ -1,0 +1,55 @@
+==============================================================================
+STEP 1b LABEL-FILTER MEASUREMENT -- 2026-07-24  (read-only)
+real_data_prep rewire prerequisite: PHASE1_SPEC section 6 measurement 3
+==============================================================================
+
+-- source-map drift check --
+  OK: real_data_prep REVIEW_STATUS_TIER matches transcription (7 keys)
+  OK   column variant_id
+  OK   column ReviewStatus
+  OK   column clinical_sig
+
+  cohort rows: 4,399,089
+
+-- FILTER 1: label (clinical_sig in PATHOGENIC_TERMS | BENIGN_TERMS) --
+  cohort 4,399,089 -> labeled 1,686,333 (2,712,756 VUS/conflicting/other removed)
+  class balance: pathogenic=332,150  benign=1,354,183
+  rows with 'conflict' in clinical_sig: 161,376
+  of those, surviving the label filter: 0 (expected 0 -- conflicting significance is in neither term set)
+
+-- on the LABELED set: tier distribution, legacy vs unified --
+  legacy substring tier distribution (labeled rows):
+    tier 1:     13,374
+    tier 2:    334,529
+    tier 3:  1,142,111
+    tier 4:     56,688
+    tier 5:    139,631
+  unified resolver tier distribution (labeled rows):
+    tier 1:     13,374
+    tier 2:    334,529
+    tier 3:  1,142,111
+    tier 4:     56,688
+    tier 5:    139,631
+  unified resolution-path distribution (labeled rows):
+    explicit_status:  1,546,702
+    missing_token:    139,631
+  WOULD_RAISE on labeled rows: 0 (strict resolve rejects nothing)
+
+-- TRAINING-SET DELTA: kept-row identity, legacy vs unified, per threshold --
+  (this is the real_data_prep rewire's true impact: rows entering/leaving
+   the tier<=T training set purely because the map changed)
+    thr 1: legacy_keep=    13,374  unified_keep=    13,374  sym_diff=       0  (only_legacy=0 only_unified=0)
+    thr 2: legacy_keep=   347,903  unified_keep=   347,903  sym_diff=       0  (only_legacy=0 only_unified=0)
+    thr 3: legacy_keep= 1,490,014  unified_keep= 1,490,014  sym_diff=       0  (only_legacy=0 only_unified=0)
+    thr 4: legacy_keep= 1,546,702  unified_keep= 1,546,702  sym_diff=       0  (only_legacy=0 only_unified=0)
+    thr 5: legacy_keep= 1,686,333  unified_keep= 1,686,333  sym_diff=       0  (only_legacy=0 only_unified=0)
+
+==============================================================================
+INTERPRETATION
+------------------------------------------------------------------------------
+  The production threshold is min_review_tier=3. If sym_diff at thr 3 is 0, the
+  real_data_prep rewire moves NO training rows: substring and exact agree on
+  every review status that survives the label filter, so the map change is a
+  pure correctness improvement with no cohort-composition effect. If nonzero,
+  only_legacy and only_unified name exactly which rows change and by how much,
+  and the class balance of that delta must be examined before the rewire lands.
