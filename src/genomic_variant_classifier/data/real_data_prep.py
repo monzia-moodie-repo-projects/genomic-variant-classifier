@@ -49,6 +49,11 @@ from genomic_variant_classifier.data.dbnsfp import DbNSFPConnector
 from genomic_variant_classifier.data.phylop import PhyloPConnector
 from genomic_variant_classifier.data.cadd import CADDConnector
 from genomic_variant_classifier.data.spliceai import SpliceAIConnector
+from genomic_variant_classifier.data.review_status import (
+    UnmatchedReviewStatusError,
+    normalise,
+    tier_of,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -129,15 +134,60 @@ def _assert_protein_coord_coverage(df: pd.DataFrame, min_cov: float) -> float:
 # ---------------------------------------------------------------------------
 # ClinVar label vocabulary
 # ---------------------------------------------------------------------------
-REVIEW_STATUS_TIER: dict[str, int] = {
-    "practice guideline": 1,
-    "reviewed by expert panel": 1,
-    "criteria provided, multiple submitters, no conflicts": 2,
-    "criteria provided, single submitter": 3,
-    "no assertion criteria provided": 4,
-    "no classification provided": 5,
-    "no classification for the individual variant": 5,
-}
+# Review-status tiers come from the single canonical resolver in
+# review_status.py (imported above). The local substring map that used to live
+# here was removed on 2026-07-24 (Step 1b.2); _build_strict_review_tier_lookup
+# below applies that resolver with a strict aggregate preflight.
+
+
+def _build_strict_review_tier_lookup(series: "pd.Series") -> dict[object, int]:
+    """Resolve every distinct review status once; return a raw-value -> tier map.
+
+    Strict aggregate preflight (Step 1b.2, 2026-07-24): each distinct value is
+    resolved by the canonical resolver, which raises on vocabulary the project
+    does not recognise. Any unmatched values are collected -- keyed by their
+    canonical normalised form, with raw spellings and row counts retained -- and
+    reported together in a single error, so an unknown ClinVar review status
+    fails the cohort build loudly and completely rather than one term at a time.
+    Recognised missing tokens resolve normally and never enter the inventory. No
+    permissive fallback tier is ever assigned.
+
+    On the certified cohort this raises nothing (measured 2026-07-24: WOULD_RAISE
+    = 0 on every review status present); the preflight exists for vocabulary a
+    future ClinVar release may introduce.
+    """
+    lookup: dict[object, int] = {}
+    unmatched: dict[str, dict[str, int]] = {}
+
+    counts = series.value_counts(dropna=False)
+    for raw_value, count in counts.items():
+        try:
+            lookup[raw_value] = tier_of(raw_value)
+        except UnmatchedReviewStatusError:
+            key = normalise(raw_value)
+            raw_repr = "<NA>" if pd.isna(raw_value) else str(raw_value)
+            unmatched.setdefault(key, {})
+            unmatched[key][raw_repr] = unmatched[key].get(raw_repr, 0) + int(count)
+
+    if unmatched:
+        blocks = []
+        for norm_key in sorted(unmatched):
+            total = sum(unmatched[norm_key].values())
+            blocks.append(f"  {norm_key!r}: {total:,} row(s)")
+            for raw_form, n in sorted(
+                unmatched[norm_key].items(), key=lambda kv: -kv[1]
+            ):
+                blocks.append(f"      raw {raw_form!r}: {n:,}")
+        raise UnmatchedReviewStatusError(
+            "Unmatched ClinVar review-status vocabulary prevents cohort "
+            "construction:\n"
+            + "\n".join(blocks)
+            + "\nAdd every normalised value to REVIEW_STATUS_TIER and "
+            "REVIEW_STATUS_SEMANTICS in\n"
+            "src/genomic_variant_classifier/data/review_status.py before rerunning."
+        )
+    return lookup
+
 
 PATHOGENIC_TERMS = {
     "Pathogenic",
@@ -523,15 +573,8 @@ class DataPrepPipeline:
         )
 
         if "ReviewStatus" in df.columns:
-            df["review_tier"] = (
-                df["ReviewStatus"]
-                .str.lower()
-                .map(
-                    lambda s: next(
-                        (v for k, v in REVIEW_STATUS_TIER.items() if k in s), 5
-                    )
-                )
-            )
+            tier_lookup = _build_strict_review_tier_lookup(df["ReviewStatus"])
+            df["review_tier"] = df["ReviewStatus"].map(tier_lookup)
             before = len(df)
             df = df[df["review_tier"] <= self.config.min_review_tier]
             logger.info(

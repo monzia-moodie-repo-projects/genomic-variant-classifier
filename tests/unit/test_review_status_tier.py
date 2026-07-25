@@ -84,7 +84,6 @@ KNOWN_TIER_MAP_DEFINITIONS: tuple[str, ...] = (
     "scripts/probe_review_status.py::REVIEW_STATUS_TIER",
     "scripts/probe_reviewstatus_gaps.py::REVIEW_STATUS_TIER",
     "scripts/probe_tier_filter_impact.py::REVIEW_STATUS_TIER",
-    "src/genomic_variant_classifier/data/real_data_prep.py::REVIEW_STATUS_TIER",
     "src/genomic_variant_classifier/data/review_status.py::REVIEW_STATUS_TIER",
     "src/genomic_variant_classifier/monitoring/clinvar_tracker.py::REVIEW_TIER",
 )

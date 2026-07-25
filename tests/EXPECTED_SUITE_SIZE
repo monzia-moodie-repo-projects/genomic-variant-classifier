@@ -3303,6 +3303,36 @@
 #                     computational-teacher passes as mechanism, non-mechanism class
 #                     reaches admissible, uuid opacity removed.
 #
+#   2965  2026-07-24  +8: tests/unit/test_real_data_prep_strict.py -- STEP 1b
+#                     REWIRE #2. real_data_prep stops defining its own
+#                     REVIEW_STATUS_TIER map and the inline substring .map(lambda)
+#                     that applied it, and consumes the canonical resolver via
+#                     _build_strict_review_tier_lookup (Option C aggregate strict
+#                     preflight, same shape as the augment rewire at 2957). No
+#                     allow_unmatched path, no fabricated tier, no resolver change.
+#
+#                     The rewire was cleared by a row-identity measurement first
+#                     (docs/measurements/LABEL_FILTER_MEASUREMENT_2026-07-24.txt,
+#                     commit f4dcd7b). real_data_prep applies THREE filters in
+#                     sequence and the tier filter is the SECOND: the label filter
+#                     (keep clinical_sig in PATHOGENIC_TERMS or BENIGN_TERMS) runs
+#                     first. On the 1,686,333 label-filtered rows the tier
+#                     distribution is IDENTICAL under the old substring map and the
+#                     unified resolver, and the kept-row symmetric difference is 0
+#                     at every threshold 1..5 -- so the rewire produces a
+#                     byte-identical training cohort. The 157,229 conflicting-
+#                     classification rows the consumer probe flagged are dropped at
+#                     the label filter before the tier map runs (0 of 161,376
+#                     conflict-significance rows survive it), and zero labeled
+#                     variants carry a review status where substring and exact
+#                     disagree. A regression test pins that agreement.
+#
+#                     The content-based detector inventory shrinks 7 -> 6; the
+#                     detector independently finds exactly 6 maps afterward
+#                     (clean_cohort, clinvar_tracker, the canonical map, and the
+#                     three read-only probe scripts). clean_cohort follows next in
+#                     Step 1b; clinvar_tracker moves to Step 1c.
+#
 #   2957  2026-07-24  +7: tests/unit/test_augment_reviewstatus_strict.py -- STEP 1b
 #                     REWIRE #1. scripts/augment_reviewstatus.py stops defining its
 #                     own REVIEW_STATUS_TIER map and substring _tier_of, and consumes
@@ -3334,4 +3364,4 @@
 #                     carries the behaviour); the full main() is an integration run
 #                     against the ClinVar VCF, which lives outside the repository.
 #
-2957
+2965
