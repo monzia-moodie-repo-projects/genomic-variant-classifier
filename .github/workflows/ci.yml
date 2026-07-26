@@ -11,6 +11,13 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/genomic-variant-classifier
+  # Network resilience for every `pip install` in every job. A dropped connection
+  # mid-download from the Python Package Index (observed 2026-07-25, run 30178381817:
+  # IncompleteRead on the 23 MB nannyml wheel) failed the whole drift job with no
+  # retry. pip maps these env vars onto --retries and --timeout for EVERY invocation,
+  # so the resilience lives in ONE place rather than on a dozen install lines.
+  PIP_RETRIES: "5"
+  PIP_DEFAULT_TIMEOUT: "60"
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────
