@@ -50,7 +50,9 @@ Exit 0 on success, 2 if no usable cohort or required column is missing. Never ed
 """
 from __future__ import annotations
 
+import argparse
 import ast
+import json
 import random
 import sys
 from collections import Counter, defaultdict
@@ -323,9 +325,26 @@ def run_p6(vids, uni_tiers, sigs, revs, rowdicts, kf, order, groups):
     return repr_kept, quar, labels_out, states_out
 
 
-def main() -> int:
+def main(emit_json: "Path | None" = None) -> int:
+    """Run the audit. `emit_json`, when given, ALSO writes a machine-readable
+    capture of every counter this run produced.
+
+    THE CAPTURE IS PURELY ADDITIVE. It records values that are already computed
+    and already emitted; it changes no computation and no line of the text
+    artifact. That is asserted, not assumed: the text output is compared byte for
+    byte against a pre-change baseline on a synthetic cohort before delivery.
+
+    Why it exists (2026-07-26): the R2 provenance correction restructures this
+    probe, and a restructuring may only be trusted if it reproduces the prior
+    numbers exactly. Synthetic fixtures prove logic; they cannot prove
+    equivalence on the real evidence-generating input. This capture freezes that
+    input's answers first.
+    """
     import pyarrow.parquet as pq
     lines: list[str] = []
+    cap: dict = {"schema": 1, "generated": "probe_clean_cohort_p6_2026-07-25.py",
+                 "golden": {}, "supplementary": {}}
+    g = cap["golden"]
 
     def emit(s: str = "") -> None:
         lines.append(s); print(s)
@@ -351,6 +370,10 @@ def main() -> int:
     vid = tbl.column("variant_id").to_pylist()
     n = len(vid)
     emit(f"  rows: {n:,}   columns: {len(have)}")
+    g["rows"] = n
+    g["n_columns"] = len(have)
+    g["source_map_check"] = confirm_source_map()
+    g["cohort_file"] = cohort.name
 
     rev = None; rev_src = None
     if "metadata" in have:
@@ -377,6 +400,9 @@ def main() -> int:
     kf = tuple(f for f in CANONICAL_KEY_FIELDS if f in have)
     df_fields = tuple(f for f in DELTA_FIELDS if f in have)
     emit(f"  canonical-key fields: {kf}")
+    g["review_column"] = rev_src
+    g["clinical_sig_column"] = sig_col
+    g["canonical_key_fields"] = list(kf)
 
     need = set(kf) | set(df_fields)
     coldata = {c: tbl.column(c).to_pylist() for c in need if c in have}
@@ -388,6 +414,7 @@ def main() -> int:
     would_raise = sum(1 for t, _p in uni_pairs if t is None)
     uni_tiers = [SENTINEL_UNMATCHED if t is None else t for t, _p in uni_pairs]
     emit(f"\n  WOULD_RAISE (unified rejects): {would_raise:,}")
+    g["would_raise"] = would_raise
 
     # -- fail-loud: report any UNRECOGNISED clinical_sig vocabulary --
     unrec = Counter()
@@ -403,6 +430,9 @@ def main() -> int:
             emit(f"    {c:>10,}  {val!r}")
     else:
         emit("  all clinical_sig values classified into known evidence states (none unrecognised)")
+    g["unrecognised_clinical_sig_distinct"] = len(unrec)
+    g["unrecognised_clinical_sig_rows"] = int(sum(unrec.values()))
+    g["unrecognised_clinical_sig_all"] = [[v, int(c)] for v, c in unrec.most_common()]
 
     order = list(range(n))
 
@@ -511,6 +541,20 @@ def main() -> int:
     emit("")
     emit(f"  P6 GROUP-ADJUDICATED label changes vs legacy (STRICTER, different basis): "
          f"{p6_group_label_changes:,}")
+    g["policy_table"] = {pol: dict(rows_out[pol]) for pol in ("P0","P1","P2","P3","P4","P5","P6")}
+    g["p6_group_adjudicated_label_changes"] = p6_group_label_changes
+    g["p6_explicit_conflicts_preserved"] = p6_conflicts_preserved
+    # SUPPLEMENTARY, 2026-07-26. NOT a reproduction target -- diagnostic only.
+    # The line labelled "explicit conflicts preserved" counts WITHHELD-LABEL STATES,
+    # not preserved explicit conflicts: IRREDUCIBLE_CONFLICT is an opposed-binary
+    # group that need not contain any explicit "conflicting classifications" value
+    # at all. Decomposing it here answers, in one run, how much of the published
+    # figure is each state.
+    _state_counts = Counter(p6_states.values())
+    cap["supplementary"]["p6_state_counts"] = {k: int(v) for k, v in sorted(_state_counts.items())}
+    cap["supplementary"]["p6_quarantined_variants"] = len(p6_quar)
+    cap["supplementary"]["p6_variants_with_representative"] = len(p6_reprrow_label)
+    cap["supplementary"]["p6_variants_total"] = len(p6_labels)
     emit(f"    -- P6 withholds a binary label under Rule 4 (equal-tier conflict + binary) and")
     emit(f"       Rule 6 (no binary at best tier). This count is NOT comparable to the kept-row")
     emit(f"       label line above; it reflects group-level adjudication, not row choice.")
@@ -589,6 +633,7 @@ def main() -> int:
         perms[f"within-group random{k+1}"] = {v: rng.sample(ix, len(ix)) for v, ix in multi.items()}
 
     all_ok = True
+    _perm_results = {}
     for name, pm in perms.items():
         got = adjudicate_multi(pm)
         repr_same = (got[0] == base[0])
@@ -597,8 +642,13 @@ def main() -> int:
         st_same = (got[3] == base[3])
         ok = repr_same and lab_same and st_same and q_same
         all_ok = all_ok and ok
+        _perm_results[name] = dict(repr=bool(repr_same), labels=bool(lab_same),
+                                   states=bool(st_same), quarantine=bool(q_same),
+                                   ok=bool(ok))
         emit(f"  {name:<22}: repr={repr_same} labels={lab_same} states={st_same} quarantine={q_same}  -> {'OK' if ok else 'FAIL'}")
     emit(f"\n  P6 order-invariant across all permutations: {all_ok}")
+    g["order_invariant"] = bool(all_ok)
+    g["order_invariance_per_permutation"] = _perm_results
 
     emit("\n" + "=" * 78)
     emit("ACCEPTANCE-CRITERIA READOUT (for the v2 decision)")
@@ -621,8 +671,25 @@ def main() -> int:
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
     print(f"\nWROTE {OUT}")
+
+    if emit_json is not None:
+        emit_json.parent.mkdir(parents=True, exist_ok=True)
+        emit_json.write_text(json.dumps(cap, indent=2, sort_keys=True,
+                                        allow_nan=False) + "\n",
+                             encoding="utf-8", newline="\n")
+        print(f"WROTE {emit_json}")
     return EXIT_OK
 
 
+def _parse_args(argv=None) -> argparse.Namespace:
+    ap = argparse.ArgumentParser(
+        description="P5+P6 evidence-adjudication audit (read-only).")
+    ap.add_argument("--emit-json", metavar="PATH", default=None,
+                    help="ALSO write a machine-readable capture of every counter. "
+                         "Additive: the text artifact is unchanged.")
+    return ap.parse_args(argv)
+
+
 if __name__ == "__main__":
-    raise SystemExit(main())
+    _a = _parse_args()
+    raise SystemExit(main(Path(_a.emit_json) if _a.emit_json else None))

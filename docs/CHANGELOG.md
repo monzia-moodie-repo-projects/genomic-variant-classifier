@@ -1,3 +1,40 @@
+## 2026-07-26 (P6 R2 phase 1) -- freeze the evidence before restructuring it
+
+Full session record: docs/sessions/SESSION_2026-07-26_p6-r2-phase1-golden-capture.md
+Ratchet 3121 -> 3132 (+11).
+
+### Found, by reading the source before writing any code
+- The two disputed counters are computed over DIFFERENT universes. 63 is summed over
+  variants that HAVE a P6 representative row; 203 over EVERY variant. A quarantined
+  variant appears in the second and not the first. The roadmap's invariant
+  n01 + n11 == 203 assumed a shared universe the source does not have; it is
+  falsified and replaced by n01 + n11 + n_na1 == 203.
+- There are THREE estimands in the file, not two: representative ROW changed (232),
+  representative-row LABEL changed (63), group-adjudicated LABEL changed (203).
+- POLICY INVARIANT: every variant P6 newly quarantines necessarily has a group-label
+  change, because quarantine requires opposed binaries at the best unified tier,
+  which forces legacy to keep a binary-labelled row.
+- A SECOND overloaded label: "explicit conflicts preserved: 112" actually counts
+  withheld-label STATES. IRREDUCIBLE_CONFLICT need not contain any explicit
+  "conflicting classifications" value.
+
+### Built
+- An additive --emit-json capture on the probe. PROVEN additive: pristine baseline
+  taken from the origin/main probe via git stash, compared writing to the same output
+  path. Artifact sha256 574c8257f79cfbdb3918110a3a5fef12 identical with the capture
+  off and on; stdout gains exactly one line.
+- tests/unit/test_p6_probe_contract.py: eleven tests pinning the probe's answers on an
+  eight-variant synthetic cohort. V8 is derived from the tier maps -- "criteria
+  provided, conflicting classifications" is legacy 4 / unified 3 -- so legacy keeps a
+  row while P6 quarantines. It reproduces the falsifying population in miniature.
+
+### Near-miss recorded
+- The guard's first version used a module-level pytest.importorskip("pyarrow"), which
+  turned eleven tests into "1 skipped" on the interpreter without it. pyarrow is
+  pinned at requirements.txt:89. Replaced with a direct import. The suite-size ratchet
+  cannot catch this class, because collection precedes skipping -- the mechanism that
+  hid the graph-neural-network branch for 508 runs.
+
 ## 2026-07-26 (follow-up) -- handoff completion audit: the missing estimate pin, and a pin that could not fail
 
 Full session record: docs/sessions/SESSION_2026-07-26_bootstrap-reconciliation.md section 8

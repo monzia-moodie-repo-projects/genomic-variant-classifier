@@ -1693,7 +1693,23 @@ ORDERING (agreed 2026-07-25; status updated 2026-07-26):
   2. [done] record P6 R2 as required-before-cohort-v2-certification (this entry)
   3. [done] CanonicalVariantTable metric seam built and landed as 2e04bd9
            (Option C step 5.1). Certification of the seam itself remains open.
-  4. [next] P6 R2 probe + superseding audit (bounded provenance repair)
+  4. [in progress] P6 R2 probe + superseding audit (bounded provenance repair).
+           PHASE 1 (2026-07-26): additive --emit-json capture on the probe, proven
+           to leave the artifact byte-identical, plus an eleven-test contract guard
+           on a synthetic cohort. Freezes the current answers so the restructuring
+           can be required to reproduce them.
+           TWO PLAN CORRECTIONS FORCED BY THE SOURCE, both recorded in
+           docs/sessions/SESSION_2026-07-26_p6-r2-phase1-golden-capture.md:
+             (i)  the invariant n01 + n11 == 203 is FALSIFIED. The 63 and 203 counts
+                  are summed over different universes -- a quarantined variant has a
+                  group-adjudicated label but no representative row. Replaced by
+                  n01 + n11 + n_na1 == 203, with a two-table decomposition.
+             (ii) "five booleans" becomes four total booleans plus ONE NULLABLE
+                  comparison: representative_row_label_changed is undefined, not
+                  False, when P6 selects no representative row.
+           ALSO FOUND: "explicit conflicts preserved: 112" counts withheld-label
+           STATES, not preserved explicit conflicts -- the same overloading defect as
+           "canonical", on the acceptance readout. Decomposed by the golden capture.
   5. [done] reconcile duplicate calibration / bootstrap paths.
            Calibration was reconciled by the 2026-07-20 census and is pinned by
            test_calibration_implementations_agree.py. Bootstrap was reconciled

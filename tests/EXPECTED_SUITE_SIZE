@@ -3404,4 +3404,26 @@
 #   0.98 left it GREEN. Rewritten to call the real wrapper, it fails under
 #   that same sabotage and passes on clean code.
 #
-3121
+
+# 3132 -- 2026-07-26 -- P6 R2 phase 1: freeze the evidence before restructuring.
+#   Previous value: 3121.  Delta: +11.
+#
+#   An additive --emit-json capture on probe_clean_cohort_p6_2026-07-25.py, plus
+#   tests/unit/test_p6_probe_contract.py pinning the probe on an eight-variant
+#   synthetic cohort. The capture changes no computation: proven by comparing a
+#   pristine origin/main baseline against the modified probe writing to the same
+#   path -- artifact SHA-256 identical, stdout one line longer.
+#
+#   Reading the source first falsified a roadmap invariant. The 63 and 203 counts
+#   are summed over DIFFERENT universes: a quarantined variant has a group
+#   adjudicated label but no representative row. n01 + n11 == 203 is replaced by
+#   n01 + n11 + n_na1 == 203, and representative_row_label_changed becomes
+#   NULLABLE rather than a total boolean.
+#
+#   NEAR-MISS: the guard first used a module-level importorskip on pyarrow, which
+#   turned eleven tests into "1 skipped" on an interpreter without it. pyarrow is
+#   pinned at requirements.txt:89. The ratchet CANNOT catch that class -- collection
+#   precedes skipping -- which is how the graph-neural-network branch went untested
+#   for 508 runs. Replaced with a direct import so absence fails loudly.
+#
+3132

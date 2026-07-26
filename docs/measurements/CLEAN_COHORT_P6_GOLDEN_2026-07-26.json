@@ -1,0 +1,419 @@
+{
+  "generated": "probe_clean_cohort_p6_2026-07-25.py",
+  "golden": {
+    "canonical_key_fields": [
+      "source_id",
+      "clinical_sig",
+      "ref",
+      "alt",
+      "consequence",
+      "gene_symbol"
+    ],
+    "clinical_sig_column": "clinical_sig",
+    "cohort_file": "clinvar_grch38.parquet",
+    "n_columns": 16,
+    "order_invariance_per_permutation": {
+      "within-group random1": {
+        "labels": true,
+        "ok": true,
+        "quarantine": true,
+        "repr": true,
+        "states": true
+      },
+      "within-group random2": {
+        "labels": true,
+        "ok": true,
+        "quarantine": true,
+        "repr": true,
+        "states": true
+      },
+      "within-group random3": {
+        "labels": true,
+        "ok": true,
+        "quarantine": true,
+        "repr": true,
+        "states": true
+      },
+      "within-group reverse": {
+        "labels": true,
+        "ok": true,
+        "quarantine": true,
+        "repr": true,
+        "states": true
+      }
+    },
+    "order_invariant": true,
+    "p6_explicit_conflicts_preserved": 112,
+    "p6_group_adjudicated_label_changes": 203,
+    "policy_table": {
+      "P0": {
+        "label": 0,
+        "neg": 1358524,
+        "order": 1610,
+        "pos": 338782,
+        "quar": 0,
+        "repr": 0,
+        "trn": 1697306
+      },
+      "P1": {
+        "label": 1,
+        "neg": 1358524,
+        "order": 1612,
+        "pos": 338781,
+        "quar": 0,
+        "repr": 2,
+        "trn": 1697305
+      },
+      "P2": {
+        "label": 53,
+        "neg": 1358526,
+        "order": 0,
+        "pos": 338785,
+        "quar": 0,
+        "repr": 210,
+        "trn": 1697311
+      },
+      "P3": {
+        "label": 54,
+        "neg": 1358526,
+        "order": 0,
+        "pos": 338784,
+        "quar": 0,
+        "repr": 211,
+        "trn": 1697310
+      },
+      "P4": {
+        "label": 53,
+        "neg": 1358526,
+        "order": 0,
+        "pos": 338784,
+        "quar": 3,
+        "repr": 213,
+        "trn": 1697310
+      },
+      "P5": {
+        "label": 185,
+        "neg": 1358582,
+        "order": 0,
+        "pos": 338909,
+        "quar": 0,
+        "repr": 344,
+        "trn": 1697491
+      },
+      "P6": {
+        "label": 63,
+        "neg": 1358564,
+        "order": 0,
+        "pos": 338917,
+        "quar": 22,
+        "repr": 232,
+        "trn": 1697481
+      }
+    },
+    "review_column": "metadata.review_status",
+    "rows": 4420180,
+    "source_map_check": "OK: clean_cohort REVIEW_STATUS_TIER matches transcription (10 keys)",
+    "unrecognised_clinical_sig_all": [
+      [
+        "-",
+        245223
+      ],
+      [
+        "pathogenic, low penetrance",
+        95
+      ],
+      [
+        "likely risk allele",
+        93
+      ],
+      [
+        "likely pathogenic, low penetrance",
+        88
+      ],
+      [
+        "pathogenic; other",
+        75
+      ],
+      [
+        "pathogenic; drug response",
+        41
+      ],
+      [
+        "pathogenic; risk factor",
+        22
+      ],
+      [
+        "benign; risk factor",
+        18
+      ],
+      [
+        "likely pathogenic; drug response",
+        18
+      ],
+      [
+        "vus-high",
+        14
+      ],
+      [
+        "benign; other",
+        13
+      ],
+      [
+        "likely pathogenic/likely risk allele",
+        13
+      ],
+      [
+        "benign/likely benign; other",
+        12
+      ],
+      [
+        "likely benign; other",
+        11
+      ],
+      [
+        "uncertain significance/vus-high",
+        11
+      ],
+      [
+        "benign; association",
+        10
+      ],
+      [
+        "pathogenic/likely risk allele",
+        10
+      ],
+      [
+        "uncertain significance; other",
+        10
+      ],
+      [
+        "pathogenic; affects",
+        8
+      ],
+      [
+        "uncertain significance; risk factor",
+        8
+      ],
+      [
+        "uncertain significance; drug response",
+        7
+      ],
+      [
+        "uncertain significance; association",
+        7
+      ],
+      [
+        "pathogenic/likely pathogenic/pathogenic, low penetrance",
+        6
+      ],
+      [
+        "pathogenic/pathogenic, low penetrance",
+        6
+      ],
+      [
+        "likely pathogenic; risk factor",
+        5
+      ],
+      [
+        "benign; drug response",
+        5
+      ],
+      [
+        "likely benign; drug response",
+        5
+      ],
+      [
+        "likely pathogenic; association",
+        5
+      ],
+      [
+        "pathogenic/likely pathogenic; other",
+        5
+      ],
+      [
+        "protective; risk factor",
+        4
+      ],
+      [
+        "benign; protective",
+        4
+      ],
+      [
+        "likely benign; drug response; other",
+        4
+      ],
+      [
+        "pathogenic/likely pathogenic/likely risk allele",
+        4
+      ],
+      [
+        "likely pathogenic/pathogenic, low penetrance",
+        4
+      ],
+      [
+        "pathogenic; association",
+        4
+      ],
+      [
+        "likely pathogenic/likely pathogenic, low penetrance",
+        4
+      ],
+      [
+        "pathogenic/likely pathogenic, low penetrance",
+        4
+      ],
+      [
+        "pathogenic/likely pathogenic; risk factor",
+        3
+      ],
+      [
+        "benign/likely benign; drug response; other",
+        3
+      ],
+      [
+        "benign; affects",
+        3
+      ],
+      [
+        "vus-mid",
+        3
+      ],
+      [
+        "uncertain significance; affects",
+        2
+      ],
+      [
+        "benign/likely benign; association",
+        2
+      ],
+      [
+        "drug response; risk factor",
+        2
+      ],
+      [
+        "pathogenic; protective",
+        2
+      ],
+      [
+        "likely benign; risk factor",
+        2
+      ],
+      [
+        "benign/likely benign; drug response",
+        2
+      ],
+      [
+        "established risk allele",
+        2
+      ],
+      [
+        "association; drug response; risk factor",
+        1
+      ],
+      [
+        "benign/likely benign; other; risk factor",
+        1
+      ],
+      [
+        "drug response; other",
+        1
+      ],
+      [
+        "pathogenic/likely pathogenic/pathogenic, low penetrance/established risk allele; risk factor",
+        1
+      ],
+      [
+        "other; risk factor",
+        1
+      ],
+      [
+        "pathogenic/pathogenic, low penetrance; other",
+        1
+      ],
+      [
+        "likely benign; affects; association",
+        1
+      ],
+      [
+        "uncertain significance; pathogenic/likely pathogenic",
+        1
+      ],
+      [
+        "uncertain risk allele; risk factor",
+        1
+      ],
+      [
+        "pathogenic/likely pathogenic; association",
+        1
+      ],
+      [
+        "benign/likely benign; risk factor",
+        1
+      ],
+      [
+        "benign; confers sensitivity",
+        1
+      ],
+      [
+        "association; risk factor",
+        1
+      ],
+      [
+        "pathogenic; confers sensitivity",
+        1
+      ],
+      [
+        "likely pathogenic; affects",
+        1
+      ],
+      [
+        "likely benign; association",
+        1
+      ],
+      [
+        "likely pathogenic; protective",
+        1
+      ],
+      [
+        "benign; affects; association; other",
+        1
+      ],
+      [
+        "pathogenic/likely pathogenic/established risk allele",
+        1
+      ],
+      [
+        "confers sensitivity; other",
+        1
+      ],
+      [
+        "established risk allele; association",
+        1
+      ],
+      [
+        "uncertain significance/vus-mid",
+        1
+      ],
+      [
+        "vus-low",
+        1
+      ]
+    ],
+    "unrecognised_clinical_sig_distinct": 71,
+    "unrecognised_clinical_sig_rows": 245925,
+    "would_raise": 0
+  },
+  "schema": 1,
+  "supplementary": {
+    "p6_quarantined_variants": 85,
+    "p6_state_counts": {
+      "AMBIGUOUS_AT_BEST_TIER": 27,
+      "BENIGN": 1358564,
+      "IRREDUCIBLE_CONFLICT": 85,
+      "NO_BINARY_AT_BEST_TIER": 2718384,
+      "PATHOGENIC": 338917
+    },
+    "p6_variants_total": 4415977,
+    "p6_variants_with_representative": 4415892
+  }
+}
