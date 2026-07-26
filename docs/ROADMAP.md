@@ -1607,3 +1607,84 @@ requirements.txt, requirements-dev.txt) shares the same exposure. A single dropp
 connection anywhere in that tree fails the whole job. Hardening this with pip's
 built-in retry/timeout is tracked as a separate, deliberate commit and is not
 bundled with unrelated work.
+
+## ROADMAP delta -- 2026-07-25: P6 audit R2 provenance correction (deferred, bounded) + preemption rule
+
+Two entries recorded at the clean boundary after the CI-hardening work, before the
+metric-stack seam begins.
+
+------------------------------------------------------------------------------
+WORK ITEM: P6 audit R2 provenance correction
+  Status:          REQUIRED_PROVENANCE_CORRECTION
+  Blocks:          cohort-v2 certification (the certified v2 build must consume the
+                   corrected R2 artifact, not the ambiguous original)
+  Does NOT block:  the cohort-agnostic metric-stack seam (CanonicalVariantTable) --
+                   the seam does not consume P6 adjudication arithmetic
+  Underlying data: NOT invalid. Both measurements are correct; only the terminology
+                   is ambiguous and one figure is reported under an overloaded name.
+
+  DEFECT. docs/measurements/CLEAN_COHORT_P6_AUDIT_2026-07-25.txt uses the word
+  "canonical" for two DIFFERENT estimands:
+    * 63  = representative-row label changes vs legacy (row-selection diagnostic:
+            label on the P0-selected representative row vs the P6-selected one).
+            The POLICY TABLE line 49 and ACCEPTANCE line 87 call this
+            "kept-row / canonical-label changes".
+    * 203 = final group-adjudicated binary-label changes vs legacy output label
+            (the scientifically operative cohort-label change: 14 binary-vs-
+            explicit-conflict + 189 binary-vs-uncertain = 203, lines 66-67).
+            Line 57 calls this "GROUP-ADJUDICATED ... STRICTER, different basis ...
+            NOT comparable" to the 63 line.
+  The committed file is internally inconsistent (line 87 names 63 "canonical",
+  while lines 65-67 describe the 203-count as changes vs the "P6 canonical label").
+  An incomplete local edit (now reverted) had merged the two into a single row of
+  203 and deleted the distinction -- that was worse (self-contradictory), so it was
+  restored, not committed.
+
+  R2 CORRECTION PLAN (one focused change, when the seam is done; REGENERATE, do not
+  hand-edit):
+    1. Extend scripts/probe_clean_cohort_p6_2026-07-25.py with a typed per-variant
+       PolicyDelta (representative_row_changed, representative_row_label_changed,
+       final_adjudicated_label_changed, trainability_changed, quarantine_changed;
+       plus legacy/p6 representative and output labels). No generic label_changed.
+    2. Generate from ONE per-variant pass: the policy table, acceptance block, a
+       2x2 overlap of {representative-row label changed} x {final adjudicated label
+       changed} (reconciling n10+n11==63 and n01+n11==203), and exact label /
+       trainability / quarantine transition matrices.
+    3. Rename unambiguously: "representative-row label changes" (63) and "final
+       group-adjudicated binary-label changes" (203). Remove every unqualified
+       "canonical-label changes". Use n/a (not 0) for P0-P5 in the group-adjudicated
+       row, since those policies produce no independent group-adjudicated label.
+    4. Write docs/measurements/CLEAN_COHORT_P6_AUDIT_2026-07-25_R2.txt as a
+       SUPERSEDING artifact. Append only a short supersession pointer to the
+       original; do NOT rewrite the original evidence (preserve provenance).
+    5. Verify the probe inventory ratchet (test_review_status_tier.py) remains
+       exact after the probe change; add tests for the reconciliation asserts;
+       CI green on 3.11 and 3.12.
+
+------------------------------------------------------------------------------
+PROCESS RULE (adopted 2026-07-25): work-item preemption
+
+  PREEMPT the active task ONLY when a new finding:
+    1. invalidates an assumption of the active task, OR
+    2. can corrupt the active task's output, OR
+    3. is an immediate release / safety / data-integrity blocker, OR
+    4. cannot be safely isolated and recorded.
+  Otherwise: restore safe state, record the exact work item, continue the active
+  dependency path, and schedule the finding at the nearest clean boundary.
+
+  Rationale: this session's CI detour and the P6 discovery both showed the failure
+  mode where every discovered issue becomes the next immediate build regardless of
+  dependency. The transient drift failure was correctly recorded as isolated infra
+  drift and not mixed into unrelated work; the same discipline applies to the P6
+  correction, which is real but independent of the metric seam.
+
+------------------------------------------------------------------------------
+ORDERING (agreed 2026-07-25):
+  1. [done] restore the incomplete P6 edit
+  2. [done] record P6 R2 as required-before-cohort-v2-certification (this entry)
+  3. [next] build + certify the CanonicalVariantTable metric seam (Option C step 5.1)
+  4. P6 R2 probe + superseding audit (bounded provenance repair)
+  5. reconcile duplicate calibration / bootstrap paths
+  6. metric registry / orchestrator
+  7. certified cohort-v2 implementation under corrected P6 evidence
+  (6 and 7 may swap if cohort-v2 is prioritised before the registry.)
