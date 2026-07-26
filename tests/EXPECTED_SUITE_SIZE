@@ -3364,4 +3364,4 @@
 #                     carries the behaviour); the full main() is an integration run
 #                     against the ClinVar VCF, which lives outside the repository.
 #
-2966
+2991
