@@ -555,6 +555,60 @@ indexing a STRING returns a char. Same defect, different type, different outcome
 Both are now coerced with `@( ... )`. Rollback behaved correctly and restored all
 three files.
 
+## 8. HANDOFF COMPLETION AUDIT (2026-07-26, after the landing)
+
+The handoff was walked bullet by bullet against what landed, rather than declared
+complete. Sections 7a, 7b and 7d are satisfied. Section 7c's nine groups are all
+present. ONE requirement was missed.
+
+**Section 7c group 1 asked for five pins: estimate, endpoints, n_valid, seed,
+unit. Only four were delivered.** The point ESTIMATE was unpinned.
+
+That gap mattered more than a missing assertion. `bootstrap_metric` computes its
+own estimate internally as `fn(*_clean(y, score))`, where `fn` is whatever the
+evaluator hands it, while the evaluator reports `auroc` straight from
+scikit-learn. Had those diverged, the report would print an interval beside a
+number that interval does not bound -- and no endpoint or replicate-count
+assertion could detect it, because both would still agree with each other. The
+design choice that prevents it (wrapping the SAME scikit-learn function in
+`_nan_safe`, rather than substituting the kernel's own rank implementation) was
+asserted by nothing.
+
+**The first attempt at the missing pin was itself a check that could not fail.**
+It rebuilt the wrapper locally instead of calling
+`ClinicalEvaluator._nan_safe`, so it compared scikit-learn against scikit-learn
+and would pass whatever the evaluator did. This was proven, not suspected: the
+evaluator's wrapper was sabotaged to scale every metric by 0.98, and the new
+"pin" stayed GREEN. The only test that noticed was the pre-existing
+`test_evaluator_interval_matches_a_direct_kernel_call`. The interval-containment
+assertion did not fire either, because a two per cent shift still lands inside a
+confidence interval spanning 0.6457 to 0.8486.
+
+Rewritten to call the real wrapper, the pin fails under the same sabotage with
+`ClinicalEvaluator._nan_safe altered the metric value`, and passes on clean code.
+Three tests added; suite 3118 -> 3121.
+
+This is the third instance in one session of the same defect class -- a check
+that passes for the wrong reason. The first was the dispatcher's replicate
+accounting hidden behind a hard-coded status; the second was the installer's
+collection guard that matched 147 test names; this was the third, and it was in a
+test written specifically to close a rigour gap. The lesson recorded here is that
+a new assertion is not evidence until it has been observed to FAIL against a
+deliberate break.
+
+**INSTALLER DEFECTS, this session, all three recorded:**
+
+  1. A single-element collection unwrapped to a scalar, so indexing it yielded a
+     `[System.Char]` with no `Trim` method. The same hazard was latent in the
+     bootstrap installer and survived only because indexing an int returns the
+     int while indexing a string returns a char.
+  2. A step printed "the 27 edited test files still pass" and then ran the entire
+     `tests/unit` directory. The work done exceeded the label, but a label that
+     misdescribes what ran makes a later reader trust the wrong number.
+  3. A dead line ran a collection pass whose `$LASTEXITCODE` was overwritten
+     before it could be checked -- a silent-failure path inside a script whose
+     purpose was to catch silent failures.
+
 ---
 
 *Written 2026-07-26.*

@@ -1,3 +1,42 @@
+## 2026-07-26 (follow-up) -- handoff completion audit: the missing estimate pin, and a pin that could not fail
+
+Full session record: docs/sessions/SESSION_2026-07-26_bootstrap-reconciliation.md section 8
+Ratchet 3118 -> 3121 (+3).
+
+### Found
+- The handoff's section 7c group 1 required FIVE pins on canonical-engine agreement:
+  estimate, endpoints, n_valid, seed, unit. Only four were delivered. The point
+  ESTIMATE was unpinned, so nothing asserted that the interval bounds the number the
+  report prints beside it.
+- The first attempt to close that gap was itself a check that could not fail: it
+  rebuilt the wrapper locally instead of calling ClinicalEvaluator._nan_safe, making
+  it compare scikit-learn against scikit-learn. Proven by sabotage -- scaling the
+  evaluator's wrapper by 0.98 left the new "pin" GREEN, and only the pre-existing
+  test_evaluator_interval_matches_a_direct_kernel_call noticed. The
+  interval-containment assertion did not fire either, because a two per cent shift
+  still lands inside a CI spanning 0.6457 to 0.8486.
+- Third instance in one session of the same defect class, after the dispatcher's
+  replicate accounting behind a hard-coded status and the installer's collection
+  guard matching 147 test names.
+
+### Fixed
+- The pin now calls the real ClinicalEvaluator._nan_safe and asserts three things:
+  the wrapper is transparent on clean input, the estimate the bootstrap was built
+  around equals the reported point metric, and the stated estimate lies inside its
+  own interval. It FAILS under the sabotage with "ClinicalEvaluator._nan_safe
+  altered the metric value" and passes on clean code.
+- Two companions added: a falsifiability check that two different estimators give
+  different estimates, and a pin that the report delegate's interval contains the
+  point estimate it is meant to bound.
+
+### Recorded
+- Three installer defects from this session: the [System.Char] scalar unwrap, a step
+  whose label misdescribed what it ran, and a dead line whose $LASTEXITCODE was
+  overwritten before it could be checked.
+- README-claims verification (handoff 7d) confirmed already covered by the existing
+  tests/unit/test_readme_claims.py, which pins every numeric badge -- tabular
+  features, base models, autonomous agents and the test count -- to live code.
+
 ## 2026-07-26 -- bootstrap inference reconciled to one engine; resampling unit made explicit and typed
 
 Full session record: docs/sessions/SESSION_2026-07-26_bootstrap-reconciliation.md

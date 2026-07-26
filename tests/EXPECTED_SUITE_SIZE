@@ -3388,4 +3388,20 @@
 #   0.500 -- invisible because the status it fed was a hard-coded constant, so
 #   the prior check passed for the wrong reason.
 #
-3118
+
+# 3121 -- 2026-07-26 -- handoff completion: the missing ESTIMATE pin.
+#   Previous value: 3118.  Delta: +3.
+#
+#   Handoff section 7c group 1 required five pins on canonical-engine
+#   agreement -- estimate, endpoints, n_valid, seed, unit. Only four were
+#   delivered. Nothing asserted that the interval bounds the number the
+#   report prints beside it.
+#
+#   The FIRST attempt at the missing pin was itself a check that could not
+#   fail: it rebuilt the wrapper locally instead of calling the real
+#   ClinicalEvaluator._nan_safe, so it compared scikit-learn against
+#   scikit-learn. Proven by sabotage -- scaling the evaluator wrapper by
+#   0.98 left it GREEN. Rewritten to call the real wrapper, it fails under
+#   that same sabotage and passes on clean code.
+#
+3121

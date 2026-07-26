@@ -144,6 +144,83 @@ def test_evaluator_interval_matches_a_direct_kernel_call(clustered_fixture, cert
     assert certified_report.auroc_ci_n_valid == k.n_valid
 
 
+def test_the_evaluator_bootstraps_the_ESTIMATE_it_reports(clustered_fixture, certified_report):
+    """The fifth pin required by the canonical-engine agreement group.
+
+    `bootstrap_metric` computes its own point estimate internally as
+    `fn(*_clean(y, score))`, where `fn` is whatever the evaluator handed it.
+    The evaluator separately reports `auroc` straight from scikit-learn. If
+    those diverged, the report would print an interval beside a number that
+    interval does not bound -- a mismatch no endpoint or replicate-count
+    assertion can detect, because both would still agree with each other.
+
+    CRITICAL: this calls `ClinicalEvaluator._nan_safe`, the REAL wrapper the
+    evaluator uses. An earlier version of this test built its own local copy of
+    that wrapper, which made it compare scikit-learn against scikit-learn and
+    pass no matter what the evaluator did. A sabotage run proved it: scaling the
+    evaluator's wrapper by 0.98 left this test green. A pin that cannot fail is
+    worse than no pin, because it reports safety it does not provide.
+    """
+    from sklearn.metrics import average_precision_score, roc_auc_score
+    y, s, g = clustered_fixture
+
+    for metric, fn in (("auroc", roc_auc_score), ("auprc", average_precision_score)):
+        wrapped = ClinicalEvaluator._nan_safe(fn)
+
+        # 1. the wrapper must be TRANSPARENT on clean input: it exists only to
+        #    turn a raise into a NaN, never to change the value.
+        assert wrapped(y, s) == float(fn(y, s)), (
+            f"{metric}: ClinicalEvaluator._nan_safe altered the metric value; "
+            "it must only convert a ValueError into NaN")
+
+        # 2. the estimate the evaluator's own bootstrap was built around must be
+        #    the number the report states.
+        k = bootstrap_metric(wrapped, y, s, clusters=g, unit=BootstrapUnit.GENE,
+                             n_boot=N_BOOT, seed=derive_seed(SEED, metric))
+        reported = getattr(certified_report, metric)
+        assert reported == round(k.estimate, 5), (
+            f"{metric}: the report states {reported} but the interval was built "
+            f"around {round(k.estimate, 5)}; the interval does not bound the "
+            "number printed beside it")
+
+        # 3. and the stated estimate must lie inside its own interval.
+        lo = getattr(certified_report, f"{metric}_ci_lo")
+        hi = getattr(certified_report, f"{metric}_ci_hi")
+        assert lo <= reported <= hi, (
+            f"{metric}: the stated estimate {reported} falls outside its own "
+            f"interval [{lo}, {hi}]")
+
+
+def test_the_estimate_pin_is_falsifiable(clustered_fixture):
+    """The companion that makes the assertion above mean something.
+
+    Two different estimators must produce different point estimates, otherwise
+    the agreement assertion would pass regardless of what it measured.
+    """
+    from sklearn.metrics import average_precision_score, roc_auc_score
+    y, s, g = clustered_fixture
+    same = bootstrap_metric(lambda a, b: float(roc_auc_score(a, b)), y, s,
+                            clusters=g, n_boot=50, seed=SEED)
+    other = bootstrap_metric(lambda a, b: float(average_precision_score(a, b)), y, s,
+                             clusters=g, n_boot=50, seed=SEED)
+    assert same.estimate != other.estimate, (
+        "two different estimators produced an identical point estimate; the "
+        "agreement assertion above would pass regardless of what it measured")
+
+
+def test_the_report_delegate_bounds_its_own_estimate_too():
+    """The delegate returns only (lo, hi), so its estimate is implicit. Pin it."""
+    from sklearn.metrics import roc_auc_score
+    from genomic_variant_classifier.reports.report_generator import bootstrap_metric as shim
+    rng = np.random.default_rng(0)
+    y, p = rng.integers(0, 2, 300), rng.uniform(0, 1, 300)
+    lo, hi = shim(y, p, roc_auc_score, n_bootstrap=200, seed=SEED)
+    point = float(roc_auc_score(y, p))
+    assert lo <= point <= hi, (
+        f"the delegate's interval [{lo}, {hi}] does not contain the point "
+        f"estimate {point} it is supposed to bound")
+
+
 def test_only_one_bootstrap_implementation_remains():
     """The two retired implementations must be gone, not merely unused."""
     import inspect
