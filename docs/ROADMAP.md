@@ -1565,3 +1565,45 @@ specification version, not a shipped module. Metric-stack IMPLEMENTATION may pro
 cohort-agnostic infrastructure; production metric BACKFILL/certification is
 BLOCKED_BY_COHORT_V2. v1 cohort retained for lineage, not deterministically derived, not
 to be overwritten.
+## ROADMAP delta -- 2026-07-25: transient drift-monitor network failure (CI run 30178381817, dfa5dbe)
+
+The docs-only commit dfa5dbe ("docs(architecture): evaluation-layer wiring audit
+for metric-stack seam") produced a RED Continuous Integration run, 30178381817.
+Root cause is recorded here because a transient failure on main must not vanish
+unexplained.
+
+WHAT FAILED. Only the two `drift monitor (isolated env)` matrix legs (Python 3.11
+and 3.12). Both `pytest` legs (3.11 and 3.12), `lockfile drift check`, and
+`Docker build smoke test` all passed on the first attempt; `Push image to GHCR`
+was correctly skipped (release-only). The code was never implicated -- a docs-only
+commit cannot change what the isolated drift job installs or runs.
+
+ROOT CAUSE, from the attempt-1 log. During the step "Install the ISOLATED drift
+environment", pip was downloading nannyml-0.13.1-py3-none-any.whl (23.0 MB) and
+the connection dropped mid-stream after 1,048,576 of ~23,000,000 bytes:
+
+    pip._vendor.urllib3.exceptions.ProtocolError:
+      ('Connection broken: IncompleteRead(1048576 bytes read, 21974671 more expected)')
+    ##[error]Process completed with exit code 2.
+
+This is a transient network/CDN interruption during a large binary download from
+the Python Package Index, NOT a dependency conflict (no ResolutionImpossible / No
+matching distribution appeared -- resolution had completed and the resolved wheel
+was downloading), NOT a `pip check` conflict (that step was never reached), and
+NOT a `tests_drift/` failure (also never reached).
+
+RESOLUTION. A bare re-run of only the failed jobs (`gh run rerun 30178381817
+--failed`, attempt 2 started 2026-07-25T23:14:56Z) passed both drift legs with
+zero change to the commit or to requirements-drift.txt. A failure that clears on
+an unchanged re-run is transient by definition. Every job on run 30178381817 is
+now green.
+
+STRUCTURAL NOTE (not fixed here). The drift job installs a large dependency tree
+(nannyml, gcsfs, grpcio, google-cloud-storage, evidently, litestar and their
+transitive dependencies) fresh from the Python Package Index on every run, with
+no download retry or timeout. No `pip install` step in ci.yml currently passes
+`--retries` or `--timeout` -- the main pytest job (requirements-api.lock,
+requirements.txt, requirements-dev.txt) shares the same exposure. A single dropped
+connection anywhere in that tree fails the whole job. Hardening this with pip's
+built-in retry/timeout is tracked as a separate, deliberate commit and is not
+bundled with unrelated work.
