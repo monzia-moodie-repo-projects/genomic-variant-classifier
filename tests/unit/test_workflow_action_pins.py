@@ -204,3 +204,24 @@ def test_build_push_action_is_past_v6_not_merely_past_v5():
             major = int(version.lstrip("v").split(".")[0])
             assert major >= 7, f"{version} is node20"
             assert runtime == "node24"
+
+
+def test_ci_pip_installs_are_network_resilient():
+    """Every `pip install` in CI must tolerate a dropped PyPI download.
+
+    On 2026-07-25 CI run 30178381817 failed on a docs-only commit because pip's
+    download of the 23 MB nannyml wheel was cut mid-stream (IncompleteRead) with
+    no retry, taking the whole drift job down. No `pip install` in ci.yml passed
+    --retries or --timeout. The fix sets PIP_RETRIES and PIP_DEFAULT_TIMEOUT at
+    the workflow env level so pip retries EVERY install. This pins that they are
+    present and sane, so the resilience cannot silently regress.
+    """
+    ci = WORKFLOW_DIR / "ci.yml"
+    doc = yaml.safe_load(ci.read_text(encoding="utf-8"))
+    env = doc.get("env") or {}
+    retries = env.get("PIP_RETRIES")
+    timeout = env.get("PIP_DEFAULT_TIMEOUT")
+    assert retries is not None, "PIP_RETRIES missing from ci.yml top-level env"
+    assert timeout is not None, "PIP_DEFAULT_TIMEOUT missing from ci.yml top-level env"
+    assert int(retries) >= 3, f"PIP_RETRIES={retries!r} too low to survive a transient"
+    assert int(timeout) >= 30, f"PIP_DEFAULT_TIMEOUT={timeout!r} too low for a large wheel"
