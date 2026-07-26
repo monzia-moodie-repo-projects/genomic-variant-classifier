@@ -36,8 +36,6 @@ it. `validate_json_finite` then walks the converted payload and raises naming th
 exact field path, because `ValueError: Out of range float values are not JSON
 compliant` from `json.dumps` tells a reader that something somewhere in a
 multi-megabyte report is non-finite and nothing more.
-
-Author: written for Monzia Moodie, 2026-07-26.
 """
 from __future__ import annotations
 

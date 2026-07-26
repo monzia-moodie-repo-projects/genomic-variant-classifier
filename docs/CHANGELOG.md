@@ -3,6 +3,32 @@
 Full session record: docs/sessions/SESSION_2026-07-26_bootstrap-reconciliation.md
 Branch point: 2e04bd9. Ratchet 2991 -> 3118 (+127).
 
+### Landed
+- eca534e, pushed 2026-07-26T09:35:45-04:00. 15 files, 2943 insertions, 56 deletions.
+- Local full suite: 3111 passed, 7 skipped in 832.20s (13m 52s). 3111 + 7 = 3118 =
+  ratchet = README badge.
+- Continuous Integration #617 SUCCESS in 15m 20s. Rule D16 satisfied per job:
+  pytest (3.11) 12m 32s and pytest (3.12) 13m 40s both green; lockfile drift check 13s;
+  drift monitor (isolated env) 1m 23s and 2m 22s; Docker build smoke test 1m 34s.
+  "Push image to GHCR" skipped BY DESIGN -- the push-ghcr job gates on a published
+  release event. Artifact coverage-report, 44.3 kilobytes.
+- The run-29374485597 skip cascade did NOT recur: every job reports a real duration,
+  and the two pytest legs are proportionate to the local 13m 52s for the same 3,118
+  tests.
+- Skip surface unchanged: +127 tests, +0 skips. Neither new test file uses a
+  module-level importorskip.
+- SKIP CENSUS, measured on both platforms for the first time. Windows 7:
+  five unconditional Monte Carlo dropout stubs, one Windows-conditional, one
+  corpus-conditional. Linux 9 confirmed: the same five stubs plus four
+  Windows-only tests in test_run17_postflight_paths.py. Consequences: the five
+  Monte Carlo dropout epistemic-uncertainty tests run NOWHERE and have been
+  dormant since 2026-05-27; four tests have NO continuous-integration coverage;
+  one test never runs on the development machine. Roadmap items (i) and (j).
+- Installer defect, third of the session: a single-element collection unwrapped
+  to a scalar, so indexing it yielded a [System.Char] with no Trim method. The
+  same hazard was latent in the bootstrap installer and survived only because
+  indexing an int returns the int. Both now coerced with @( ).
+
 ### Attempted
 - Option C commit 2: collapse the three bootstrap implementations into one and make
   the resampling unit an explicit part of every confidence interval.

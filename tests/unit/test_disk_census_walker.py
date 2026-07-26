@@ -42,8 +42,6 @@ Asserting that the census total matches the volume: it did. Asserting the walker
 terminates: it did. Asserting no exceptions: there were none. Only measuring a
 directory whose true size is known, AFTER walking its parent, exposes it -- which
 is why every test below that matters does exactly that.
-
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

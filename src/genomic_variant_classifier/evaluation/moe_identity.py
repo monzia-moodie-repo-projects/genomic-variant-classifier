@@ -29,8 +29,6 @@ Five specification commitments are enforced structurally here, not merely docume
 
 The two validation axes (method, scientific) are REUSED from r3_capability.py rather
 than redefined, so Panel S0 and Panel R speak the same validation language.
-
-Author: written for Monzia Moodie, 2026-07-22.
 """
 from __future__ import annotations
 

@@ -38,8 +38,6 @@ not to extend the list but to remove it: every role except TRAIN is capped, so a
 future enum member cannot be forgotten. test_no_role_except_train_may_repeat is
 parametrized over PartitionRole itself, so it covers roles that do not exist
 yet.
-
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

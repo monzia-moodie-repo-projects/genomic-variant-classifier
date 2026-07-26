@@ -29,8 +29,6 @@ R3 splits into two sub-capabilities that this record holds side by side:
                                for VALIDATED only after real held-out genomic
                                representations, gene-cluster uncertainty, and
                                prespecified thresholds pass.
-
-Author: written for Monzia Moodie, 2026-07-22.
 """
 from __future__ import annotations
 

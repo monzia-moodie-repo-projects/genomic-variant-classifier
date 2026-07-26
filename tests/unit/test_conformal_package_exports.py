@@ -42,7 +42,6 @@ half-finished module, an editor backup. Explicit imports are the right design;
 they simply need a guard, which is what this file is.
 
 Placement: tests/unit/test_conformal_package_exports.py
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

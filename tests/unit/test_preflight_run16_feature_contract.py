@@ -15,7 +15,6 @@ assert OUTCOMES against constructed contracts rather than reading the source,
 which is the only technique that has reliably caught defects in this project.
 
 Placement: tests/unit/test_preflight_run16_feature_contract.py
-Author: written for Monzia Moodie, 2026-07-20.
 """
 from __future__ import annotations
 

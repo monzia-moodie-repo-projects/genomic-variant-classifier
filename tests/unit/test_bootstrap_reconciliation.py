@@ -17,8 +17,6 @@ for a gene-cluster one.
 Every guard is proven FALSIFIABLE: each refusal is paired with a case that must
 succeed, so a build that refused everything would fail as loudly as one that
 accepted everything.
-
-Author: written for Monzia Moodie, 2026-07-26.
 """
 from __future__ import annotations
 

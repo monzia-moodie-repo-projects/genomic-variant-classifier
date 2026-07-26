@@ -20,8 +20,6 @@ WHAT IS PINNED
   7. CalibrationSummary -- a rate cannot diverge from its numerator/denominator.
   8. R3a/R3b capability records -- two-axis validation; admissibility requires
      held-out scientific validation, never synthetic alone.
-
-Author: written for Monzia Moodie, 2026-07-22.
 """
 from __future__ import annotations
 

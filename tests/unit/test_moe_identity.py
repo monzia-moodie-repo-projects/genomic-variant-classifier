@@ -13,8 +13,6 @@ WHAT IS PINNED
   6. Lineage resets admissibility except on a pure continuation.
   7. Anchor independence: a computational teacher cannot establish mechanism alone.
   8. Only an ANCHORED_MECHANISM expert may reach an admissible state.
-
-Author: written for Monzia Moodie, 2026-07-22.
 """
 from __future__ import annotations
 

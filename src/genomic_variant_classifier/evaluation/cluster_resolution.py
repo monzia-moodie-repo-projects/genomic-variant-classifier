@@ -48,8 +48,6 @@ verifies partition equivalence and refuses when the partitions differ, because a
 frame whose two gene columns disagree about which rows belong together does not
 have one well-defined cluster structure, and choosing either would silently
 select an inferential design.
-
-Author: written for Monzia Moodie, 2026-07-26.
 """
 from __future__ import annotations
 

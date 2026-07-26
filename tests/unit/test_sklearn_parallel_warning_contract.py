@@ -20,8 +20,6 @@ The warning itself is execution-order dependent and cannot be reliably reproduce
 from a single test, so this test does NOT try to trigger it. It pins the STRUCTURAL
 premise instead: every `delayed(...)` call in the project source is paired with a
 joblib `Parallel` in the same module, never handed to a scikit-learn Parallel.
-
-Author: written for Monzia Moodie, 2026-07-22.
 """
 from __future__ import annotations
 

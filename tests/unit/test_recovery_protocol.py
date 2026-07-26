@@ -13,8 +13,6 @@ WHAT IS PINNED
   5. The R4 ladder OUTPUT_AVAILABLE description cites the inheritance.
   6. A stage cannot inherit an un-calibrated protocol.
   7. A stage without output must record a reason.
-
-Author: written for Monzia Moodie, 2026-07-22.
 """
 from __future__ import annotations
 

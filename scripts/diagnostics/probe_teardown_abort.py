@@ -47,8 +47,6 @@ Statistics are reported honestly. A zero-abort arm does not prove the arm is saf
 it bounds the rate. With no events in n trials the one-sided 95% upper bound is
 approximately 3/n (the rule of three), and that bound is reported so a negative
 arm can be read for what it is.
-
-Author: written for Monzia Moodie, 2026-07-22.
 """
 from __future__ import annotations
 

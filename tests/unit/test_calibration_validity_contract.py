@@ -38,8 +38,6 @@ numbers -- with `calibration_support` saying so.
 A bare boolean cannot separate "these are not probabilities" from "this cohort
 has one class" from "computed, but on three positives". Those demand different
 responses, so the reason is machine-readable.
-
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

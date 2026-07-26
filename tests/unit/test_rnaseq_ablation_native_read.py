@@ -26,8 +26,6 @@ times in each of two independent arms.
 These tests pin that fix. If someone reintroduces pandas.read_parquet, the abort
 returns silently and rarely -- roughly one run in two hundred -- which is exactly
 the kind of defect that survives for months. The suite says so immediately instead.
-
-Author: written for Monzia Moodie, 2026-07-23.
 """
 from __future__ import annotations
 

@@ -14,8 +14,6 @@ WHAT IS PINNED
   5. haar orthogonal -- the orientation null's random matrix is truly orthogonal.
 
 No torch. Artifacts built via the real extraction boundary.
-
-Author: written for Monzia Moodie, 2026-07-22.
 """
 from __future__ import annotations
 

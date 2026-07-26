@@ -50,8 +50,6 @@ overstated when stage one shipped: those panels are not unbuildable, they are
 blocked on a refactor that has not happened yet. `panel_r_expected_ladder()`
 below records the sequence they must climb, so the claim "R3 is validated" can
 be checked against the path taken rather than taken on trust.
-
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

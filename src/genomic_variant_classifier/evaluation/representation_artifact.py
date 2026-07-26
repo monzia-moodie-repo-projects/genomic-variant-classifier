@@ -47,8 +47,6 @@ THE FOUR GUARANTEES
 Mirrors prediction_artifacts.py: atomic .tmp-then-rename writes, a JSON manifest
 carrying the git SHA, parquet for the matrix (never pickle -- not portable, not
 auditable), and no logging configuration at module scope (library-module rule).
-
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

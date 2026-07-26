@@ -9,8 +9,6 @@ Ensembl gene identifiers and HUGO Gene Nomenclature Committee symbols name the
 same genes with different strings, and the resolver must accept them as
 interchangeable while still refusing labelings that genuinely disagree about
 which rows belong together.
-
-Author: written for Monzia Moodie, 2026-07-26.
 """
 from __future__ import annotations
 

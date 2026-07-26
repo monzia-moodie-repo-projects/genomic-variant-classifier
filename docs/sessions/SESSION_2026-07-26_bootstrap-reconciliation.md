@@ -431,4 +431,130 @@ Expected ratchet and badge after this commit: **2991 + 127 = 3118**, to be **cop
 
 ---
 
+---
+
+## 7. LANDING RECORD (2026-07-26)
+
+Recorded because a session document that stops at "ready to commit" leaves the
+next reader unable to tell whether the work landed, and under what evidence.
+
+**Commit.** `2e04bd9..eca534e`, "feat(evaluation): one bootstrap engine, explicit
+resampling unit", pushed 2026-07-26T09:35:45-04:00. Fifteen files, 2,943
+insertions, 56 deletions. No stray artifacts: no `.bak_` backups, no
+`__pycache__`, no `.pyc`, nothing under `outputs/`.
+
+**Local full suite, Windows, Python 3.12 in `.venv312`:**
+
+```
+3111 passed, 7 skipped in 832.20s (0:13:52)
+3111 + 7 = 3118 = tests/EXPECTED_SUITE_SIZE = README badge
+```
+
+**Continuous Integration run #617 -- SUCCESS, total 15m 20s.** Rule D16 satisfied
+explicitly, per job rather than per aggregate:
+
+| job | result | duration |
+|---|---|---|
+| lockfile drift check | pass | 13s |
+| pytest (3.11) | pass | 12m 32s |
+| pytest (3.12) | pass | 13m 40s |
+| drift monitor (isolated env) (3.11) | pass | 1m 23s |
+| drift monitor (isolated env) (3.12) | pass | 2m 22s |
+| Docker build smoke test | pass | 1m 34s |
+| Push image to GHCR | SKIPPED BY DESIGN | -- |
+
+`Push image to GHCR` is the `push-ghcr` job, gated on
+`github.event_name == 'release' && github.event.action == 'published'`. This was a
+push, so skipping is correct. Note that the 2026-07-24 changelog entry cites this
+gate as "ci.yml:558"; it is now line 565 because the file grew. A line number in
+prose is a fragile citation, and the JOB NAME is the durable reference.
+
+Artifact produced: `coverage-report`, 44.3 kilobytes, digest
+`sha256:46fbe3d86e8cc7940740701296ec88b530de1285777762a9f17adc3ae40e3cf2`.
+
+**The skip-cascade failure mode did NOT recur.** The comment at ci.yml:174-190
+records run 29374485597, where a spurious lockfile-gate failure caused `pytest`,
+`drift monitor`, `Docker build smoke test` and `Push image to GHCR` to ALL report
+"Skipped after 0s" and **1,936 tests never ran on Linux**. Every job in run #617
+reports a real, non-zero duration, and the two pytest legs report 12m 32s and
+13m 40s against a local 13m 52s for the same 3,118 tests -- proportionate, and
+therefore genuine execution rather than a silent skip.
+
+**Skip surface, unchanged.**
+
+```
+previous run (changelog 2026-07-24) : 2886 passed + 7 skipped = 2893 = ratchet 2893
+this run     (2026-07-26)           : 3111 passed + 7 skipped = 3118 = ratchet 3118
+
+tests added by this commit : +127
+skips added by this commit :    0
+```
+
+All 127 new tests EXECUTE. Neither new test file uses a module-level
+`pytest.importorskip`, which is the construct that collapses an entire file into
+one skip entry and is how the graph-neural-network branch went untested for 508
+Continuous Integration runs (roadmap 6.17).
+
+**SKIP CENSUS (measured 2026-07-26, both platforms).** Item (i) below asked for
+the seven skips to be named; they now are, and the answer is worse than
+bookkeeping.
+
+Windows, Monzia's machine, `pytest tests/ -q -rs` -- 7 skipped:
+
+| n | location | mechanism |
+|---|---|---|
+| 5 | tests/integration/test_mc_dropout_calibration.py | unconditional `@pytest.mark.skip` |
+| 1 | tests/unit/test_preflight_data_paths.py:45 | `skipif os.name == "nt"` |
+| 1 | tests/unit/test_tabular_nn_mc_dropout.py:232 | corpus-conditional `pytest.skip()` |
+
+Linux, the platform Continuous Integration runs, measured directly -- 9 confirmed:
+
+| n | location | mechanism |
+|---|---|---|
+| 5 | tests/integration/test_mc_dropout_calibration.py | unconditional `@pytest.mark.skip` |
+| 3 | tests/unit/test_run17_postflight_paths.py:130 | `skipif sys.platform != "win32"` |
+| 1 | tests/unit/test_run17_postflight_paths.py:143 | `skipif sys.platform != "win32"` |
+| ? | tests/unit/test_tabular_nn_mc_dropout.py:232 | corpus-conditional; not measured here |
+
+Three consequences, all previously unrecorded:
+
+  1. **FIVE MONTE CARLO DROPOUT TESTS RUN NOWHERE.** They are unconditional stubs
+     carrying TODO markers, dormant since 2026-05-27, and they skip on BOTH
+     platforms. `mc_dropout` is one of the thirteen permanent base models, and
+     these five are the tests of its epistemic-uncertainty claims:
+     `test_held_out_gene_families_have_higher_epistemic` (the core
+     out-of-distribution claim: epistemic uncertainty should be higher on
+     held-out gene families than on in-distribution variants),
+     `test_spearman_correlation_between_epistemic_and_error_positive`,
+     `test_accuracy_decreases_monotonically_across_epistemic_quartiles`,
+     `test_ece_lower_with_mc_dropout_vs_single_pass` and
+     `test_epistemic_estimate_converges_with_k`. The uncertainty quantification
+     of a permanent model is therefore asserted by nothing. They await the Run 15
+     cohort plus gene-family-disjoint splits and expected-calibration-error
+     infrastructure.
+  2. **FOUR TESTS HAVE NO CONTINUOUS-INTEGRATION COVERAGE AT ALL.** The four in
+     `test_run17_postflight_paths.py` execute only on Windows. If they regress,
+     nothing in the pipeline notices; only a local run does.
+  3. **ONE TEST NEVER RUNS ON THE DEVELOPMENT MACHINE.**
+     `test_preflight_data_paths.py:45` runs only on Linux, where it and its five
+     siblings pass.
+
+The skip COUNT was assumed stable at 7. It is not a single number: the two
+environments skip DIFFERENT tests, and Linux skips more. Neither figure was ever
+recorded alongside the other until today.
+
+**INSTALLER DEFECT, third of the session.** The landing-record installer aborted
+with "Method invocation failed because [System.Char] does not contain a method
+named 'Trim'." `Get-Content | Where-Object` returned ONE line, and PowerShell
+unwraps a single-element collection to a SCALAR, so the variable held the STRING
+"3118" rather than an array of one string. Indexing a string yields a
+`[System.Char]`, which has no `Trim`. The same hazard was latent in the
+bootstrap installer -- `Get-BareRatchetLines` returned an ArrayList that also
+unwrapped -- and survived only because indexing an INT returns the int while
+indexing a STRING returns a char. Same defect, different type, different outcome.
+Both are now coerced with `@( ... )`. Rollback behaved correctly and restored all
+three files.
+
+---
+
 *Written 2026-07-26.*

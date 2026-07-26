@@ -57,8 +57,6 @@ TWO DELIBERATE DEPARTURES FROM THE ORIGINAL PROPOSAL
    fail at IMPORT time with nothing in the pipeline to catch it. The existing
    `(str, Enum)` pattern is 3.10-safe and equally JSON-serialisable.
    `test_capability_contract.py` pins this so the floor cannot drift silently.
-
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

@@ -94,8 +94,6 @@ scale: Benign asserted for a truly Pathogenic variant, or the reverse. Ordinal
 sets make this measurable in a way unordered sets do not, because the DISTANCE
 from the true tier to the nearest element of the set is well defined.
 `ordinal_report` returns that distance distribution alongside coverage and width.
-
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

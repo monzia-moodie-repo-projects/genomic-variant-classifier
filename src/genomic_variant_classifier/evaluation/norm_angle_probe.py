@@ -45,8 +45,6 @@ applied UNCHANGED to TUNE/STRUCTURE/TEST via apply_whitening, which never refits
 This module runs, produces MetricResults, and returns a transform. It does not
 persist anything and it does not decide admissibility: that keeps R3 at
 OUTPUT_AVAILABLE, one rung above the extraction boundary, not at VALIDATED.
-
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

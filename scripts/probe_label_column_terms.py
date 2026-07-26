@@ -108,7 +108,7 @@ Acronyms on first use. AST = abstract syntax tree. ClinVar = the National Center
 for Biotechnology Information's Clinical Variation archive. VCF = variant call
 format.
 
-Author: written for Monzia Moodie, 2026-07-24. Supersedes
+Supersedes
 probe_label_column_terms_2026-07-24.py.
 """
 from __future__ import annotations

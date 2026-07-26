@@ -42,8 +42,6 @@ Two invariants, both checkable offline:
 
 The second invariant is what stops this file becoming decoration. A test that
 only checked "is it a SHA?" would happily accept a node20 SHA and report green.
-
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

@@ -114,8 +114,6 @@ USAGE (PowerShell 5.1, from the Downloads folder; no copying required)
         --json "C:\\Users\\monzi\\Downloads\\disk_census_v3_2026-07-20.json"
 
     add --full for the whole-volume walk (now terminates; 5-20 minutes)
-
-Author: written for Monzia Moodie, 2026-07-20.
 """
 from __future__ import annotations
 

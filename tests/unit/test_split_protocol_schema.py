@@ -26,7 +26,6 @@ Three things, in order of how much damage their absence would do.
    deviation from 0.0434 to 0.0065.
 
 Placement: tests/unit/test_split_protocol_schema.py
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

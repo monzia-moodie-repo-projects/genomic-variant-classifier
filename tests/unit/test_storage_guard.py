@@ -27,8 +27,6 @@ one number is exactly the stale-literal defect repaired four times on 2026-07-21
 and the census walker. The difference is that here the duplication is a
 considered trade, and test_policy_matches_the_census_tool is what makes it safe.
 Delete that test and the duplication becomes the defect again.
-
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

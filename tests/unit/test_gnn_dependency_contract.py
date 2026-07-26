@@ -30,8 +30,6 @@ Two contracts, both checkable without importing torch:
 It does NOT assert torch_geometric is importable HERE -- this file must pass in
 any environment, including one deliberately without the training stack. It
 asserts the CONTRACT that guarantees coverage where it matters, which is CI.
-
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

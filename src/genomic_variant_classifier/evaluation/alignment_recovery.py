@@ -39,8 +39,6 @@ own mean; the transformed covariance is centred at zero because TRAIN centring i
 already applied. The valid API accepts only a FittedWhiteningTransform proven to
 be fitted on TRAIN -- the leaking path (using a held-out mean) is not expressible
 through the public signature and raises LeakageError if forced.
-
-Author: written for Monzia Moodie, 2026-07-22.
 """
 from __future__ import annotations
 

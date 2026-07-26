@@ -36,7 +36,6 @@ Five properties, in order of what their absence would cost:
    is not separation.
 
 Placement: tests/unit/test_clustering_metrics.py
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

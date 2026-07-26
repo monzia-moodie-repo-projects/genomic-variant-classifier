@@ -20,8 +20,6 @@ It reads only. It never modifies the repository and never writes outside --out.
     python collect_teardown_evidence.py ^
         --input "C:\\Users\\monzi\\Downloads\\teardown_artifacts" ^
         --out   "C:\\Users\\monzi\\Downloads\\teardown_evidence.txt"
-
-Author: written for Monzia Moodie, 2026-07-23.
 """
 from __future__ import annotations
 

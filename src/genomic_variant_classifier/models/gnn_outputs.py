@@ -34,8 +34,6 @@ five in a single commit. Instead `forward(..., return_embeddings=False)` returns
 the bare logits tensor exactly as before, and only `return_embeddings=True`
 returns a GNNOutput. Every existing caller is untouched; the extraction path
 opts in explicitly.
-
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

@@ -37,8 +37,6 @@ representation, and models/gnn.py:357 computes focal_embeddings then returns
 only classifier(focal_embeddings). Those stages are registered as capability
 evidence with NOT_IMPLEMENTED / ABSENT rather than stubbed, and the tests here
 assert that NONE of them can satisfy a release gate.
-
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

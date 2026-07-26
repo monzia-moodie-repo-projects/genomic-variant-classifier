@@ -47,8 +47,6 @@ Downstream, the comparison of an observed statistic against these nulls yields a
 Monte Carlo matched-null tail probability, NOT an exact permutation p-value:
 exactness would require an established invariance/exchangeability theorem for
 this transformation family, which is not claimed here.
-
-Author: written for Monzia Moodie, 2026-07-22.
 """
 from __future__ import annotations
 

@@ -49,8 +49,6 @@ Measured against the repository on 2026-07-21:
 The third is why TargetState exists as a typed axis rather than a reason string:
 the capability works, the target is present, and the result is still
 inadmissible.
-
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

@@ -14,8 +14,6 @@ WHAT IS PINNED
 
 No torch. RepresentationArtifacts are built from numpy via the real extraction
 boundary, so these tests exercise the true artifact type.
-
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

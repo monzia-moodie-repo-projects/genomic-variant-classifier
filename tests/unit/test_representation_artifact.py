@@ -18,8 +18,6 @@ has_embeddings / focal_embeddings, so a tiny mock stands in for GNNOutput and a
 numpy array stands in for the tensor. The identity-and-detach behaviour on a real
 torch tensor is covered by test_gnn_typed_output.py's exact-classifier-input
 hook; here we pin the boundary's own logic.
-
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

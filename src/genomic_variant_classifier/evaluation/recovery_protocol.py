@@ -24,8 +24,6 @@ statistic is refused at construction.
 This is the honest completion of the R3 matched-null sequence: the validated
 protocol is HANDED to the next ladder rung as a binding contract, not fabricated
 into output R4 does not have.
-
-Author: written for Monzia Moodie, 2026-07-22.
 """
 from __future__ import annotations
 

@@ -1726,3 +1726,21 @@ ORDERING (agreed 2026-07-25; status updated 2026-07-26):
        embedding schema-discovery policy at all.
     h. the Continuous Integration matrix runs 3.11 and 3.12 only and does not
        exercise the declared 3.10 floor.
+    i. FIVE MONTE CARLO DROPOUT TESTS RUN NOWHERE. Enumerated 2026-07-26:
+       tests/integration/test_mc_dropout_calibration.py holds five unconditional
+       @pytest.mark.skip stubs, dormant since 2026-05-27, that skip on BOTH
+       Windows and Linux. mc_dropout is one of the thirteen permanent base
+       models, and these five are the tests of its epistemic-uncertainty claims,
+       including the out-of-distribution claim that epistemic uncertainty is
+       higher on held-out gene families. That model's uncertainty
+       quantification is currently asserted by nothing. Unblocking needs the
+       Run 15 cohort, gene-family-disjoint splits, and expected-calibration-error
+       infrastructure.
+    j. FOUR TESTS HAVE NO CONTINUOUS-INTEGRATION COVERAGE. The four in
+       tests/unit/test_run17_postflight_paths.py (skipif sys.platform !=
+       "win32") execute only on Windows; a regression there is invisible to the
+       pipeline. Conversely test_preflight_data_paths.py:45 runs only on Linux
+       and never on the development machine. Measured skip counts differ by
+       platform -- Windows 7, Linux 9 confirmed -- against a suite size of 3118
+       that is identical on both, because collection is platform-independent
+       while skipping is not.

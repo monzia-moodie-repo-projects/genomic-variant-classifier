@@ -31,8 +31,6 @@ mode is set rather than assuming it.
 
 Requires torch and torch_geometric, both pinned and present in Continuous
 Integration; skips only on an under-provisioned local machine.
-
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

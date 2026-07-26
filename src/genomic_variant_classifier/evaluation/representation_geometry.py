@@ -65,8 +65,6 @@ needs a second pass, because each unit vector must be recomputed as
 (x - mu)/||x - mu||, and mu is not known until the first pass finishes. That is
 stated rather than hidden, because a reader who assumes one pass will
 mis-budget a 1.5-million-row cohort.
-
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

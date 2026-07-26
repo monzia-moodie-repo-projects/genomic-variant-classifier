@@ -30,7 +30,6 @@ a statistical test that fails one run in twenty is worse than no test, because i
 trains the reader to re-run rather than investigate.
 
 Placement: tests/unit/test_ordinal_conformal.py
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

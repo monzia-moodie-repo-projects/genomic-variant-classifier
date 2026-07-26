@@ -74,7 +74,7 @@ USAGE (PowerShell 5.1)
     python "C:\\Users\\monzi\\Downloads\\probe_cohort_delta_forensics.py" `
         --repo "C:\\Projects\\genomic-variant-classifier"
 
-Author: written for Monzia Moodie, 2026-07-24. Companion to
+Companion to
 probe_label_column_terms.py and probe_cohort_schema_census.py.
 """
 from __future__ import annotations

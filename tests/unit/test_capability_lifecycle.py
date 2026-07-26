@@ -13,8 +13,6 @@ on the wrong tensor.
 The instruction "do not flip all five directly from NOT_IMPLEMENTED to OK" was
 written as prose. PROSE DOES NOT ENFORCE ITSELF. This module makes it
 structural, and these tests make sure the structure can actually refuse.
-
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

@@ -44,8 +44,6 @@ TRAIN only. The next operationalisation (leakage-safe protocol, split into a
 diagnostic in-sample gain R3A and a transferable recovery R3B) gets its own
 chance. Deprecation would be premature: one operationalisation is disproved, not
 the estimand.
-
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

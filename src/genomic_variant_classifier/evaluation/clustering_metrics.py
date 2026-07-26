@@ -80,8 +80,6 @@ denominator moves between replicates. Fixed-rate subsampling without
 replacement at the GENE level keeps the denominator fixed and prevents large
 genes from dominating -- the same dependence concern that makes the project's
 splits gene-disjoint.
-
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

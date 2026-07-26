@@ -39,8 +39,6 @@ proportion of GROUPS, not rows, and ClinVar per-gene counts are heavy-tailed --
 the same trap found in split_protocol_v2.group_shuffle on 2026-07-21, where a
 row-based rescale crashed 3 of 12 seeds. The carve therefore VALIDATES the fold
 it produced rather than assuming it is usable.
-
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

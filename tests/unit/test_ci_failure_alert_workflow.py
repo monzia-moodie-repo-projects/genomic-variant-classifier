@@ -32,8 +32,6 @@ It cannot prove GitHub will deliver the event. It checks the contract this
 repository controls: the trigger, the branch filter, the permissions, the
 idempotence, and the fact that a manual dispatch exercises the FAILURE branch
 rather than the trivially-safe success branch.
-
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 

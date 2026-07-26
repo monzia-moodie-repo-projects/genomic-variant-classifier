@@ -43,8 +43,6 @@ that drift. Unstratified against size-stratified p-values, six seeds each:
 So the drift is MEASURED AND REPORTED per run rather than restructured away.
 Size-stratified permutation is available opt-in and removes the drift exactly,
 at the cost of freezing any block alone in its size stratum.
-
-Author: written for Monzia Moodie, 2026-07-21.
 """
 from __future__ import annotations
 
