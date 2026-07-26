@@ -1,3 +1,72 @@
+## 2026-07-26 -- bootstrap inference reconciled to one engine; resampling unit made explicit and typed
+
+Full session record: docs/sessions/SESSION_2026-07-26_bootstrap-reconciliation.md
+Branch point: 2e04bd9. Ratchet 2991 -> 3118 (+127).
+
+### Attempted
+- Option C commit 2: collapse the three bootstrap implementations into one and make
+  the resampling unit an explicit part of every confidence interval.
+
+### Fixed / completed
+- ONE bootstrap engine. ClinicalEvaluator._bootstrap_ci is deleted, not deprecated;
+  reports.report_generator.bootstrap_metric is a delegate that returns endpoints
+  byte-identical to a direct kernel call. A test asserts by abstract syntax tree that
+  neither computes percentiles any more.
+- Gene-cluster resampling REQUIRED for certification. Without a gene identifier the
+  interval is withheld with a typed status and a machine-readable finding; point
+  metrics, operating points and breakdowns are unaffected. Requesting the gene design
+  without clusters RAISES rather than falling back.
+- STATUS and CERTIFICATION_ELIGIBLE separated into independent axes. An exploratory
+  variant interval is genuinely produced (status OK) and simply not admissible.
+- Gene clusters resolve through one resolver that compares induced PARTITIONS, not raw
+  identifiers, because gene_id is an Ensembl identifier and gene_symbol is a HUGO Gene
+  Nomenclature Committee symbol. Proven by three in-repository sources, including the
+  existing filter that excludes ENSG-prefixed values from the symbol column.
+- Evaluation report schema version 2: nullable endpoints, per-metric provenance,
+  construction-time invariants that make an impossible artifact unbuildable.
+- Strict artifact serialization; both writers now produce identical encodings.
+- read_run_artifacts.py reads both schema versions and NEVER retroactively certifies a
+  version-1 interval.
+
+### Found (measured, not estimated)
+- The dispatcher delivered as "proven" FAILED an existing repository guard,
+  test_no_module_uses_strenum..., and would have failed Continuous Integration on both
+  Python legs. The prior regression list did not include that test.
+- Its replicate accounting modelled the stratified row bootstrap as "draw two strata
+  with replacement", giving a single-class resample half the time: measured 0.506
+  degenerate against a theoretical 0.500 (n_valid 494 of 1000). bootstrap_ci never draws
+  that way. Invisible because the status it fed was a hard-coded constant -- a check that
+  passed for the wrong reason. After the fix, n_valid 1000 of 1000.
+- ClinicalEvaluator held ONE mutable generator shared by both intervals, so calling
+  evaluate() twice on one evaluator returned DIFFERENT intervals for identical inputs.
+- _bootstrap_ci raised IndexError on an all-degenerate input (np.percentile of an empty
+  array).
+- Both artifact writers passed default=str, silently persisting numpy integers as JSON
+  strings: {"n": np.int64(7)} became {"n": "7"}. Neither set allow_nan=False, so both
+  could emit bare NaN literals that are not valid JSON numbers.
+- roc_auc_score RAISES on a single-class resample while the kernel tests np.isfinite and
+  never catches, so the certified path would have crashed on exactly the clustered
+  cohorts it exists to serve.
+
+### Installer defects, recorded because an unverified installer is a defect
+- v1 aborted and rolled back cleanly without committing. Its collection guard searched
+  the entire --collect-only listing for "error" case-insensitively; 147 test identifiers
+  match, so it could never pass on a healthy tree. The collection it rejected was clean.
+- v1 would then have failed again: it APPENDED to tests/EXPECTED_SUITE_SIZE, which holds
+  exactly one bare integer, making the ratchet MALFORMED under conftest's parser.
+- v2 parses only the summary line, replaces the integer in place, and validates the
+  result against conftest's rule before pytest sees it. Both fixes were tested before
+  delivery. v2 installed all eleven files, measured 3118, and passed every post-check.
+
+### Verified
+- 515 tests passed across every suite touching a changed module.
+- Python 3.10.20 floor: capabilities.py, cluster_resolution.py and metrics.py IMPORT AND
+  EXECUTE, not merely parse.
+- test_core.py, test_prediction_artifacts.py and test_d1_d2.py show failures in the
+  sandbox; ALL are pre-existing, confirmed by running the identical suites against a
+  pristine 2e04bd9 clone and comparing sorted failing identifiers -- empty set difference
+  in both directions. Root causes: absent xgboost, and absent pandas parquet engine.
+
 ## 2026-07-24 -- AlphaFold structural coverage quantified (12.725% of the cohort); LOVD acquisition planned; 4 inherited numeric errors corrected
 
 Full session record: docs/sessions/SESSION_2026-07-24_alphafold-coverage-and-lovd-planning.md

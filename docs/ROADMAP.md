@@ -1478,6 +1478,15 @@ reading the file before any code was written. Full narrative in
 | G | subgroup sufficiency tested total `n` only | **FIXED** -- class-support floors with a `status` |
 
 **THE BOOTSTRAP IGNORED GENE CLUSTERING** -- found independently, confirmed by the audit.
+**RECONCILED 2026-07-26 (Option C commit 2).** One canonical engine; gene-cluster resampling is
+REQUIRED for a certified interval, variant-level resampling is explicit-only and never
+certification-eligible, and there is no silent fallback between them. Every interval now carries
+its own status, resampling unit, stratification, cluster provenance and replicate accounting.
+Evaluation report schema version 2; schema-version-1 artifacts stay readable and are NEVER read
+as certified. Two further defects were found in the dispatcher while landing this: its docstring
+failed the existing StrEnum floor guard, and its replicate accounting modelled a sampling scheme
+bootstrap_ci does not use (0.506 of replicates reported degenerate against a theoretical 0.500),
+which was invisible because the status it fed was a hard-coded constant.
 Resampling variants as independent understates variance, so **every confidence interval this
 project has published is anti-conservative**. `cluster_bootstrap_ci` resamples whole genes and
 REPORTS THE DESIGN EFFECT so historical intervals can be re-read. Measured where six of thirty
@@ -1679,12 +1688,41 @@ PROCESS RULE (adopted 2026-07-25): work-item preemption
   correction, which is real but independent of the metric seam.
 
 ------------------------------------------------------------------------------
-ORDERING (agreed 2026-07-25):
+ORDERING (agreed 2026-07-25; status updated 2026-07-26):
   1. [done] restore the incomplete P6 edit
   2. [done] record P6 R2 as required-before-cohort-v2-certification (this entry)
-  3. [next] build + certify the CanonicalVariantTable metric seam (Option C step 5.1)
-  4. P6 R2 probe + superseding audit (bounded provenance repair)
-  5. reconcile duplicate calibration / bootstrap paths
+  3. [done] CanonicalVariantTable metric seam built and landed as 2e04bd9
+           (Option C step 5.1). Certification of the seam itself remains open.
+  4. [next] P6 R2 probe + superseding audit (bounded provenance repair)
+  5. [done] reconcile duplicate calibration / bootstrap paths.
+           Calibration was reconciled by the 2026-07-20 census and is pinned by
+           test_calibration_implementations_agree.py. Bootstrap was reconciled
+           on 2026-07-26 (Option C commit 2): the three implementations became
+           one canonical engine, and the resampling unit is now an explicit,
+           typed part of every confidence interval rather than a consequence of
+           which caller produced it. Ratchet 2991 -> 3118.
+           See docs/sessions/SESSION_2026-07-26_bootstrap-reconciliation.md.
   6. metric registry / orchestrator
   7. certified cohort-v2 implementation under corrected P6 evidence
   (6 and 7 may swap if cohort-v2 is prioritised before the registry.)
+
+  CARRIED FORWARD from the 2026-07-26 bootstrap commit, each recorded rather
+  than preempted, in section 6 of that session document:
+    a. as_meta() emits gene_id but never gene_symbol, so a seam-produced frame
+       yields an EMPTY gene_errors list while its docstring claims to be the
+       frame ClinicalEvaluator.evaluate expects. Pre-existing at 2e04bd9.
+       Belongs with item 3's certification.
+    b. EVALUATION_WIRING_AUDIT_2026-07-25.md:271 attributes per-gene analysis to
+       gene_id; per-gene analysis reads gene_symbol.
+    c. ValidationMetrics carries (0.0, 0.0) interval defaults -- fabricated
+       evidence -- but is constructed nowhere. Deferred WITH a proof test that
+       fails the moment anything constructs it.
+    d. default=str remains at prediction_artifacts.py manifest and statistics
+       writers; the eval-report writer was in scope and is fixed.
+    e. metrics.py still lacks `from __future__ import annotations`.
+    f. frozen=True on EvaluationReport: proven safe (one constructor, zero
+       mutations) but an orthogonal mutability change.
+    g. a generic cluster_id projection in the seam, so ClinicalEvaluator stops
+       embedding schema-discovery policy at all.
+    h. the Continuous Integration matrix runs 3.11 and 3.12 only and does not
+       exercise the declared 3.10 floor.

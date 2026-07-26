@@ -70,10 +70,57 @@ CONFIG_KEYS_OF_INTEREST = [
 ]
 
 
+# Schema version 1 predates the certified/exploratory distinction. Its endpoints
+# came from a ROW-level bootstrap that assumed variants were independent, and the
+# measured gene-cluster design effect on the real cohort was 2.935x (suite-size
+# ratchet entry 2055), so those intervals are too narrow by roughly that factor.
+# A version-1 interval is therefore read as LEGACY_UNKNOWN provenance and is
+# NEVER reported as certified. Doing otherwise would retroactively promote every
+# historical anti-conservative interval to a gene-disjoint claim.
+LEGACY_SCHEMA_VERSION = 1
+LEGACY_PROVENANCE = "legacy_unknown"
+
+
+def _normalise_ci(d: dict, metric: str, schema_version: int) -> dict:
+    """One CI's fields, normalised across both schema versions.
+
+    Returns the same keys whichever version produced the artifact, so callers do
+    not branch on version and cannot forget to.
+    """
+    lo = d.get(f"{metric}_ci_lo")
+    hi = d.get(f"{metric}_ci_hi")
+    if schema_version >= 2:
+        return {
+            f"{metric}_ci_lo": lo,
+            f"{metric}_ci_hi": hi,
+            f"{metric}_ci_status": d.get(f"{metric}_ci_status"),
+            f"{metric}_ci_unit": d.get(f"{metric}_ci_resampling_unit"),
+            f"{metric}_ci_source": d.get(f"{metric}_ci_cluster_source"),
+            f"{metric}_ci_certified": bool(d.get(f"{metric}_ci_certification_eligible")),
+            f"{metric}_ci_n_valid": d.get(f"{metric}_ci_n_valid"),
+            f"{metric}_ci_finding": d.get(f"{metric}_ci_finding"),
+        }
+    finite = isinstance(lo, (int, float)) and isinstance(hi, (int, float))
+    return {
+        f"{metric}_ci_lo": lo if finite else None,
+        f"{metric}_ci_hi": hi if finite else None,
+        f"{metric}_ci_status": "ok" if finite else LEGACY_PROVENANCE,
+        f"{metric}_ci_unit": LEGACY_PROVENANCE,
+        f"{metric}_ci_source": LEGACY_PROVENANCE,
+        f"{metric}_ci_certified": False,   # never retroactively certified
+        f"{metric}_ci_n_valid": None,
+        f"{metric}_ci_finding": "schema_v1_predates_resampling_provenance",
+    }
+
+
 def _read_eval_report(p: Path) -> dict:
     with p.open("r", encoding="utf-8") as fh:
         d = json.load(fh)
+    schema_version = int(d.get("schema_version", LEGACY_SCHEMA_VERSION))
     row = {k: d.get(k) for k in SCALARS}
+    row["schema_version"] = schema_version
+    for metric in ("auroc", "auprc"):
+        row.update(_normalise_ci(d, metric, schema_version))
     prev = d.get("prevalence")
     ap = d.get("auprc")
     row["auprc_no_skill"] = prev
@@ -122,8 +169,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if rows:
         df = pd.DataFrame(rows).set_index("path")
-        core = ["mb", "model_name", "n_samples", "n_pathogenic", "prevalence",
+        core = ["mb", "schema_version", "model_name", "n_samples", "n_pathogenic",
+                "prevalence",
                 "auroc", "auroc_ci_lo", "auroc_ci_hi",
+                "auroc_ci_unit", "auroc_ci_certified",
                 "auprc", "auprc_no_skill", "auprc_lift"]
         print("\n--- discrimination, against the AUPRC no-skill floor ---")
         print(df[core].to_string())

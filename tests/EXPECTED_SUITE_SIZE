@@ -3364,4 +3364,28 @@
 #                     carries the behaviour); the full main() is an integration run
 #                     against the ClinVar VCF, which lives outside the repository.
 #
-2991
+
+# 3118 -- 2026-07-26 -- Option C commit 2, bootstrap inference reconciliation.
+#   Previous value: 2991.  Delta: +127.
+#
+#   One canonical bootstrap engine. The resampling unit is now an explicit,
+#   typed part of every confidence interval instead of an accident of which
+#   caller produced it. Gene-cluster resampling is REQUIRED for a certified
+#   interval; variant-level resampling is available only when asked for
+#   explicitly, is never certification-eligible, and records the assumption it
+#   rests on. There is no silent fallback between them. The gene-cluster design
+#   effect measured 2.935x on the real cohort (ratchet entry 2055), so every
+#   interval the retired row-level paths produced was too narrow by about that
+#   factor.
+#
+#   New tests: tests/unit/test_cluster_resolution.py (67) and
+#   tests/unit/test_bootstrap_reconciliation.py (60).
+#
+#   Two defects were found in the previously "proven" dispatcher while building
+#   this. Its docstring failed test_no_module_uses_strenum..., an existing
+#   guard. And its replicate accounting modelled a sampling scheme bootstrap_ci
+#   does not use, reporting 0.506 of replicates degenerate against a theoretical
+#   0.500 -- invisible because the status it fed was a hard-coded constant, so
+#   the prior check passed for the wrong reason.
+#
+3118

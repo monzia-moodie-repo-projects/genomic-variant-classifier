@@ -88,19 +88,60 @@ def bootstrap_metric(
     metric_fn,
     n_bootstrap: int = 1000,
     ci: float = 0.95,
+    *,
+    seed: int = 42,
 ) -> tuple[float, float]:
-    """Bootstrap confidence interval for a scalar classification metric."""
-    rng = np.random.default_rng(42)
-    scores: list[float] = []
-    n = len(y_true)
-    for _ in range(n_bootstrap):
-        idx = rng.integers(0, n, n)
-        if len(np.unique(y_true[idx])) < 2:
-            continue
-        scores.append(metric_fn(y_true[idx], y_proba[idx]))
-    arr = np.array(scores)
-    alpha = (1 - ci) / 2
-    return float(np.percentile(arr, 100 * alpha)), float(np.percentile(arr, 100 * (1 - alpha)))
+    """Row-level bootstrap interval. COMPATIBILITY SHIM -- delegates to the kernel.
+
+    Since 2026-07-26 this no longer implements resampling. It forwards to
+    `metrics.bootstrap_metric` with an EXPLICIT variant-level resampling unit and
+    returns the endpoints, so exactly one bootstrap engine exists in this
+    repository. Three implementations existed before that date -- here,
+    `ClinicalEvaluator._bootstrap_ci`, and the kernel -- and only the kernel
+    respected gene clustering.
+
+    THE INTERVAL THIS RETURNS IS NOT CERTIFIABLE. It resamples rows as though
+    variants were independent. They are not: variants cluster within genes, and
+    the measured design effect on the real cohort was 2.935 times (suite-size
+    ratchet entry 2055), so a row-level interval is too narrow by roughly that
+    factor. For any gene-disjoint claim use `ClinicalEvaluator.evaluate`, which
+    resamples whole genes and records the design on the report.
+
+    The `(lo, hi)` signature and tuple return are preserved deliberately: the
+    tuple carries no status channel, which is precisely why this function cannot
+    express the difference between a produced interval and a withheld one, and
+    precisely why it is a shim rather than the reconciled interface. Scheduled
+    for removal once its remaining caller moves to the kernel.
+
+    Two behavioural corrections come with the delegation. The resampling is now
+    STRATIFIED by class, matching the kernel's declared design, where the loop
+    replaced here drew unstratified indices. And an all-degenerate input returns
+    NaN endpoints instead of raising `IndexError: index -1 is out of bounds`,
+    which is what `np.percentile` on an empty array does.
+    """
+    from genomic_variant_classifier.evaluation.metrics import (
+        BootstrapUnit,
+        bootstrap_metric as _kernel_bootstrap_metric,
+    )
+
+    def _nan_safe(y_i, s_i):
+        try:
+            return float(metric_fn(y_i, s_i))
+        except ValueError:
+            return float("nan")
+
+    result = _kernel_bootstrap_metric(
+        _nan_safe, y_true, y_proba,
+        unit=BootstrapUnit.VARIANT,
+        confidence_level=ci,
+        n_boot=n_bootstrap,
+        seed=seed,
+    )
+    logger.debug(
+        "report-layer bootstrap: unit=%s certification_eligible=%s finding=%s",
+        result.resampling_unit.value, result.certification_eligible, result.finding,
+    )
+    return float(result.lower), float(result.upper)
 
 
 def compute_variant_phenotype_association(

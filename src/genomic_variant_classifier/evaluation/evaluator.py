@@ -37,14 +37,44 @@ Usage:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
+import math
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Optional
 
 import numpy as np
 import pandas as pd
+
+# Both of these are scikit-learn FREE and are therefore safe at module level.
+# `capabilities` imports only dataclasses, enum and typing; `cluster_resolution`
+# imports numpy, pandas and capabilities. Verified 2026-07-26 by importing each
+# in a subprocess with scikit-learn absent. The metric KERNEL is a different
+# matter -- metrics.py imports scikit-learn at module level, so the bootstrap
+# dispatcher is imported lazily inside evaluate(), never here. See
+# `test_evaluator_phase5.py::test_module_imports_without_sklearn`.
+from genomic_variant_classifier.evaluation.capabilities import BootstrapUnit, MetricStatus
+from genomic_variant_classifier.evaluation.cluster_resolution import (
+    ClusterResolution,
+    resolve_gene_clusters,
+)
+from genomic_variant_classifier.evaluation.serialization import dump_strict_json
+
+# Schema version of the persisted evaluation report.
+#
+#   1  auroc_ci_lo / auroc_ci_hi were always finite floats, with no record of
+#      which resampling design produced them. Historical artifacts under
+#      outputs/run10/, outputs/run16/ and the ablation arms are version 1. A
+#      version-1 interval MUST NOT be read as certified: it predates the
+#      distinction, and the row-level bootstrap that produced it is
+#      anti-conservative by a measured factor of 2.935 (ratchet entry 2055).
+#   2  endpoints are nullable, and every interval carries its own status,
+#      resampling unit, stratification, cluster provenance, replicate
+#      accounting and finding.
+EVALUATION_REPORT_SCHEMA_VERSION = 2
+
 # PHASE5: lazy sklearn loader + first-class F1
 # sklearn is imported on first use (not at module import) so this module imports cleanly in
 # minimal environments without scikit-learn. _ensure_sklearn() binds the seven symbols into module
@@ -79,6 +109,69 @@ def _ensure_sklearn() -> None:
     _SKLEARN_LOADED = True
 
 logger = logging.getLogger(__name__)
+
+
+def derive_seed(base_seed: int, namespace: str) -> int:
+    """A reproducible seed for one named quantity, derived from a base seed.
+
+    WHY THIS EXISTS. Until 2026-07-26 this class held ONE mutable generator,
+    'self.rng', and both bootstrap calls drew from it in sequence. Three
+    consequences, all measured:
+
+      * the interval for the area under the precision-recall curve depended on
+        the interval for the area under the receiver operating characteristic
+        curve having been computed first, because it inherited the advanced
+        stream;
+      * calling evaluate() twice on one evaluator returned DIFFERENT intervals
+        for identical inputs;
+      * adding, removing or reordering any bootstrap anywhere in the method
+        silently changed every interval after it.
+
+    A derived seed removes all three. Each metric addresses its own independent
+    stream, and that stream is a pure function of (base seed, name), so it is
+    stable across runs, across call order, and across processes.
+
+    hashlib rather than the builtin hash(): PYTHONHASHSEED randomises string
+    hashing per process, so builtin hash() would make the "reproducible" seed
+    vary between interpreter invocations -- the exact defect being removed.
+    """
+    if not isinstance(namespace, str) or not namespace:
+        raise ValueError("namespace must be a non-empty string naming the quantity")
+    digest = hashlib.blake2b(
+        f"{int(base_seed)}:{namespace}".encode("utf-8"), digest_size=8
+    ).digest()
+    return int.from_bytes(digest, "big") % (2 ** 32)
+
+
+def format_ci(
+    lower: Optional[float],
+    upper: Optional[float],
+    *,
+    status: MetricStatus,
+    finding: Optional[str] = None,
+) -> str:
+    """Render one interval for human reading, in ONE place.
+
+    Every rendering site calls this. The alternative -- an 'if value is None'
+    at each of the three call sites -- is how three sites come to disagree.
+
+    An unavailable interval renders as words, never as '[nan, nan]'. A
+    numeric-looking rendering of an absent result is the failure mode this
+    replaces: it looks like arithmetic went wrong rather than like no estimate
+    was made, and it is easy to skim past in a printed report.
+    """
+    if status is MetricStatus.OK:
+        if lower is None or upper is None:
+            # Unreachable through EvaluationReport, whose __post_init__ refuses
+            # this combination. Guarded anyway because this helper is public and
+            # a caller may assemble the arguments by hand.
+            raise ValueError(
+                "format_ci: status is OK but an endpoint is None. An available "
+                "interval must carry both endpoints.")
+        return f"[{lower:.4f}, {upper:.4f}]"
+    if finding:
+        return f"unavailable ({finding})"
+    return "unavailable"
 
 
 # ---------------------------------------------------------------------------
@@ -125,9 +218,121 @@ class GeneErrorAnalysis:
     error_rate:         float
 
 
+def _validate_ci_fields(
+    metric: str,
+    *,
+    lower: Optional[float],
+    upper: Optional[float],
+    status: MetricStatus,
+    unit: Optional[BootstrapUnit],
+    stratified: Optional[bool],
+    cluster_source: Optional[str],
+    partition_verified: bool,
+    certification_eligible: bool,
+    n_requested: int,
+    n_valid: int,
+    n_degenerate: int,
+    finding: Optional[str],
+) -> None:
+    """Refuse a persisted interval that cannot be true.
+
+    Enforced in __post_init__ rather than at read time, for the reason
+    capabilities.py gives for CapabilityEvidence: a check at decision time can
+    be skipped by a caller who forgets to consult it, while an invariant in the
+    constructor has no path around it. An impossible artifact -- an available
+    interval with no endpoints, a null interval that still claims certification,
+    a variant-level interval marked certifiable -- cannot be built, so no
+    downstream reader has to defend against one.
+    """
+    if not isinstance(status, MetricStatus):
+        raise TypeError(
+            f"{metric}: ci status must be a MetricStatus, got "
+            f"{type(status).__name__}. A bare string cannot be compared against "
+            "the enum and would silently miss every branch below.")
+
+    if status is MetricStatus.OK:
+        if lower is None or upper is None:
+            raise ValueError(
+                f"{metric}: an available interval requires both endpoints; got "
+                f"lower={lower!r}, upper={upper!r}.")
+        if not (math.isfinite(lower) and math.isfinite(upper)):
+            raise ValueError(
+                f"{metric}: available interval endpoints must be finite; got "
+                f"[{lower}, {upper}]. A non-finite endpoint is an absent "
+                "estimate wearing a number's clothes.")
+        if lower > upper:
+            raise ValueError(
+                f"{metric}: interval lower endpoint {lower} exceeds upper {upper}.")
+        if unit is None:
+            raise ValueError(
+                f"{metric}: an available interval requires a resampling unit. An "
+                "interval whose inferential design is unrecorded cannot be "
+                "interpreted, and would be indistinguishable from a certified one.")
+        if n_requested <= 0:
+            raise ValueError(
+                f"{metric}: an available interval requires n_requested > 0, got "
+                f"{n_requested}.")
+        if n_valid <= 0:
+            raise ValueError(
+                f"{metric}: an available interval requires n_valid > 0, got {n_valid}.")
+        if n_valid + n_degenerate != n_requested:
+            raise ValueError(
+                f"{metric}: replicate accounting does not balance: "
+                f"{n_valid} valid + {n_degenerate} degenerate != "
+                f"{n_requested} requested.")
+    else:
+        if lower is not None or upper is not None:
+            raise ValueError(
+                f"{metric}: status {status.value} must not carry endpoints; got "
+                f"lower={lower!r}, upper={upper!r}. Endpoints beside a non-OK "
+                "status are the ambiguity this schema exists to remove.")
+        if certification_eligible:
+            raise ValueError(
+                f"{metric}: status {status.value} cannot be certification "
+                "eligible. An interval that was not produced cannot be admissible.")
+        if not finding:
+            raise ValueError(
+                f"{metric}: status {status.value} requires a machine-readable "
+                "finding. 'Not available' without a reason forces every reader to "
+                "guess whether the identifier was missing, the columns "
+                "disagreed, or the replicates were too few.")
+
+    if certification_eligible:
+        if status is not MetricStatus.OK:
+            raise ValueError(
+                f"{metric}: certification requires status OK, got {status.value}.")
+        if unit is not BootstrapUnit.GENE:
+            raise ValueError(
+                f"{metric}: only gene-cluster intervals may be certification "
+                f"eligible; got unit "
+                f"{unit.value if unit is not None else None}. Row-level "
+                "resampling assumes variants are independent, which they are not.")
+        if not cluster_source:
+            raise ValueError(
+                f"{metric}: a certified interval must name the column its gene "
+                "clusters came from.")
+
+    if partition_verified and cluster_source not in {"cluster_id", "gene_id+gene_symbol"}:
+        raise ValueError(
+            f"{metric}: partition_verified is only meaningful when two cluster "
+            f"labelings were compared or a canonical column was supplied; got "
+            f"cluster_source={cluster_source!r}.")
+
+    if stratified is not None and not isinstance(stratified, bool):
+        raise TypeError(f"{metric}: stratified must be a bool or None, got {stratified!r}")
+
+
 @dataclass
 class EvaluationReport:
-    """Full evaluation report for one model."""
+    """Full evaluation report for one model.
+
+    SCHEMA VERSION 2 (2026-07-26). Interval endpoints are nullable, and each
+    interval carries the design that produced it. See
+    EVALUATION_REPORT_SCHEMA_VERSION for what changed and why a version-1
+    interval must never be read as certified.
+    """
+
+    schema_version: int
 
     model_name:   str
     n_samples:    int
@@ -137,14 +342,42 @@ class EvaluationReport:
 
     # Core discriminative metrics
     auroc:       float
-    auroc_ci_lo: float
-    auroc_ci_hi: float
+    auroc_ci_lo: Optional[float]
+    auroc_ci_hi: Optional[float]
     auprc:       float
-    auprc_ci_lo: float
-    auprc_ci_hi: float
+    auprc_ci_lo: Optional[float]
+    auprc_ci_hi: Optional[float]
     mcc:         float
     f1:          float
     brier_score: float
+
+    # Interval provenance, per metric. Deliberately NOT shared: the two metrics
+    # can fail differently on the same cohort. On a heavily imbalanced split the
+    # area under the precision-recall curve degenerates in resamples that the
+    # area under the receiver operating characteristic curve survives, so their
+    # valid-replicate counts diverge and one can be available while the other is
+    # not. One shared status would have to pick a winner.
+    auroc_ci_status:                 MetricStatus
+    auroc_ci_resampling_unit:        Optional[BootstrapUnit]
+    auroc_ci_stratified:             Optional[bool]
+    auroc_ci_cluster_source:         Optional[str]
+    auroc_ci_partition_verified:     bool
+    auroc_ci_certification_eligible: bool
+    auroc_ci_n_requested:            int
+    auroc_ci_n_valid:                int
+    auroc_ci_n_degenerate:           int
+    auroc_ci_finding:                Optional[str]
+
+    auprc_ci_status:                 MetricStatus
+    auprc_ci_resampling_unit:        Optional[BootstrapUnit]
+    auprc_ci_stratified:             Optional[bool]
+    auprc_ci_cluster_source:         Optional[str]
+    auprc_ci_partition_verified:     bool
+    auprc_ci_certification_eligible: bool
+    auprc_ci_n_requested:            int
+    auprc_ci_n_valid:                int
+    auprc_ci_n_degenerate:           int
+    auprc_ci_finding:                Optional[str]
 
     # Calibration
     calibration_ece: float  # Expected Calibration Error
@@ -167,6 +400,24 @@ class EvaluationReport:
     calibration_frac_pos:    list = field(default_factory=list)
     calibration_mean_pred:   list = field(default_factory=list)
 
+    def __post_init__(self) -> None:
+        for metric in ("auroc", "auprc"):
+            _validate_ci_fields(
+                metric,
+                lower=getattr(self, f"{metric}_ci_lo"),
+                upper=getattr(self, f"{metric}_ci_hi"),
+                status=getattr(self, f"{metric}_ci_status"),
+                unit=getattr(self, f"{metric}_ci_resampling_unit"),
+                stratified=getattr(self, f"{metric}_ci_stratified"),
+                cluster_source=getattr(self, f"{metric}_ci_cluster_source"),
+                partition_verified=getattr(self, f"{metric}_ci_partition_verified"),
+                certification_eligible=getattr(self, f"{metric}_ci_certification_eligible"),
+                n_requested=getattr(self, f"{metric}_ci_n_requested"),
+                n_valid=getattr(self, f"{metric}_ci_n_valid"),
+                n_degenerate=getattr(self, f"{metric}_ci_n_degenerate"),
+                finding=getattr(self, f"{metric}_ci_finding"),
+            )
+
 
 # ---------------------------------------------------------------------------
 # Core evaluator
@@ -183,7 +434,12 @@ class ClinicalEvaluator:
         random_state: int = 42,
     ) -> None:
         self.n_bootstrap = n_bootstrap
-        self.rng = np.random.default_rng(random_state)
+        # The BASE seed, not a generator. Until 2026-07-26 this was a single
+        # mutable np.random.Generator shared by both bootstrap calls, which made
+        # every interval depend on call order and on how many intervals had been
+        # drawn before it. Each interval now derives its own stream from this
+        # value via derive_seed(); see that function for the three defects.
+        self.random_state = int(random_state)
 
     # ── Public entry point ─────────────────────────────────────────────────
 
@@ -226,8 +482,25 @@ class ClinicalEvaluator:
         f1    = f1_score(y, (p >= 0.5).astype(int))  # PHASE5: same 0.5 threshold as MCC
         brier = float(np.mean((p - y) ** 2))
 
-        auroc_ci = self._bootstrap_ci(y, p, roc_auc_score)
-        auprc_ci = self._bootstrap_ci(y, p, average_precision_score)
+        # Gene clusters, resolved ONCE and shared by both intervals, from the
+        # same frame the breakdowns use. Deriving them separately per metric
+        # would reintroduce the alignment-defect class the canonical seam exists
+        # to prevent.
+        cluster = resolve_gene_clusters(meta)
+        if not cluster.usable:
+            logger.warning(
+                "certified bootstrap withheld: %s (%s). Point metrics are "
+                "unaffected.", cluster.status.value, cluster.finding)
+        else:
+            logger.info(
+                "gene clusters resolved from %s: %d clusters over %d rows "
+                "(partition_verified=%s)",
+                cluster.source, cluster.n_clusters, cluster.n_rows,
+                cluster.partition_verified)
+
+        ci_fields: dict = {}
+        ci_fields.update(self._interval_fields("auroc", y, p, roc_auc_score, cluster))
+        ci_fields.update(self._interval_fields("auprc", y, p, average_precision_score, cluster))
 
         # Curves
         fpr, tpr, _  = roc_curve(y, p)
@@ -250,15 +523,12 @@ class ClinicalEvaluator:
             gene_error_rows  = self._gene_error_analysis(y, p, meta, top_n=20)
 
         report = EvaluationReport(
+            schema_version=EVALUATION_REPORT_SCHEMA_VERSION,
             model_name=model_name,
             n_samples=n, n_pathogenic=n_pos, n_benign=n_neg,
             prevalence=round(n_pos / n, 4),
             auroc=round(auroc, 5),
-            auroc_ci_lo=round(auroc_ci[0], 5),
-            auroc_ci_hi=round(auroc_ci[1], 5),
             auprc=round(auprc, 5),
-            auprc_ci_lo=round(auprc_ci[0], 5),
-            auprc_ci_hi=round(auprc_ci[1], 5),
             mcc=round(mcc, 5),
             f1=round(f1, 5),
             brier_score=round(brier, 5),
@@ -275,32 +545,96 @@ class ClinicalEvaluator:
             recall_curve=rec.tolist(),
             calibration_frac_pos=frac_pos.tolist(),
             calibration_mean_pred=mean_pred.tolist(),
+            **ci_fields,
         )
         self.print_report(report)
         return report
 
     # ── Metric helpers ─────────────────────────────────────────────────────
 
-    def _bootstrap_ci(
+    @staticmethod
+    def _nan_safe(metric_fn):
+        """Return a metric that yields NaN, rather than raising, on a degenerate resample.
+
+        scikit-learn's roc_auc_score raises ValueError when a resample contains
+        one class; the kernel's resampling loops test np.isfinite on the returned
+        value and never catch. Gene-cluster resampling makes single-class draws
+        entirely reachable -- a cohort of thirty genes can easily draw thirty
+        all-benign clusters -- so without this the certified path would crash on
+        exactly the cohorts it exists to serve.
+
+        Wrapping the SAME function the point estimate uses, rather than
+        substituting the kernel's own rank implementation, keeps the interval
+        bounding precisely the quantity the report states.
+        """
+        def wrapped(y_i, s_i):
+            try:
+                return float(metric_fn(y_i, s_i))
+            except ValueError:
+                return float("nan")
+        return wrapped
+
+    def _interval_fields(
         self,
+        metric: str,
         y: np.ndarray,
         p: np.ndarray,
         metric_fn,
-        ci: float = 0.95,
-    ) -> tuple[float, float]:
-        scores: list[float] = []
-        n = len(y)
-        for _ in range(self.n_bootstrap):
-            idx = self.rng.integers(0, n, n)
-            if len(np.unique(y[idx])) < 2:
-                continue
-            scores.append(metric_fn(y[idx], p[idx]))
-        arr = np.array(scores)
-        alpha = (1 - ci) / 2
-        return (
-            float(np.percentile(arr, 100 * alpha)),
-            float(np.percentile(arr, 100 * (1 - alpha))),
+        cluster: ClusterResolution,
+    ) -> dict:
+        """Compute one certified interval and flatten it into report fields.
+
+        n_requested CONTRACT, stated explicitly because the number is otherwise
+        ambiguous: it is 0 when no bootstrap was attempted -- there was no usable
+        cluster identifier, so nothing was ever requested -- and the configured
+        replicate count when one WAS attempted, whatever its outcome. A reader
+        can therefore distinguish "we never asked" from "we asked and got too
+        few back" without consulting the finding string.
+        """
+        prefix = f"{metric}_ci_"
+
+        if not cluster.usable:
+            return {
+                prefix + "lo": None,
+                prefix + "hi": None,
+                prefix + "status": cluster.status,
+                prefix + "resampling_unit": None,
+                prefix + "stratified": None,
+                prefix + "cluster_source": cluster.source,
+                prefix + "partition_verified": cluster.partition_verified,
+                prefix + "certification_eligible": False,
+                prefix + "n_requested": 0,
+                prefix + "n_valid": 0,
+                prefix + "n_degenerate": 0,
+                prefix + "finding": cluster.finding,
+            }
+
+        # Imported HERE, not at module scope: metrics.py imports scikit-learn at
+        # module level, and this module must import without it.
+        from genomic_variant_classifier.evaluation.metrics import bootstrap_metric
+
+        result = bootstrap_metric(
+            self._nan_safe(metric_fn), y, p,
+            clusters=cluster.values,
+            unit=BootstrapUnit.GENE,
+            n_boot=self.n_bootstrap,
+            seed=derive_seed(self.random_state, metric),
         )
+        available = result.status is MetricStatus.OK
+        return {
+            prefix + "lo": round(float(result.lower), 5) if available else None,
+            prefix + "hi": round(float(result.upper), 5) if available else None,
+            prefix + "status": result.status,
+            prefix + "resampling_unit": result.resampling_unit if available else None,
+            prefix + "stratified": result.stratified if available else None,
+            prefix + "cluster_source": cluster.source,
+            prefix + "partition_verified": cluster.partition_verified,
+            prefix + "certification_eligible": result.certification_eligible,
+            prefix + "n_requested": result.n_requested,
+            prefix + "n_valid": result.n_valid,
+            prefix + "n_degenerate": result.n_degenerate,
+            prefix + "finding": result.finding,
+        }
 
     def _calibration_error(
         self,
@@ -541,13 +875,21 @@ class ClinicalEvaluator:
         )
         print()
         print(
-            f"  AUROC   : {r.auroc:.4f}  "
-            f"[95% CI: {r.auroc_ci_lo:.4f}-{r.auroc_ci_hi:.4f}]"
+            f"  AUROC   : {r.auroc:.4f}  95% CI: "
+            + format_ci(r.auroc_ci_lo, r.auroc_ci_hi,
+                        status=r.auroc_ci_status, finding=r.auroc_ci_finding)
         )
         print(
-            f"  AUPRC   : {r.auprc:.4f}  "
-            f"[95% CI: {r.auprc_ci_lo:.4f}-{r.auprc_ci_hi:.4f}]"
+            f"  AUPRC   : {r.auprc:.4f}  95% CI: "
+            + format_ci(r.auprc_ci_lo, r.auprc_ci_hi,
+                        status=r.auprc_ci_status, finding=r.auprc_ci_finding)
         )
+        if r.auroc_ci_status is MetricStatus.OK:
+            print(
+                f"            resampling unit: {r.auroc_ci_resampling_unit.value}"
+                f"  certified: {str(r.auroc_ci_certification_eligible).lower()}"
+                f"  clusters from: {r.auroc_ci_cluster_source}"
+            )
         print(f"  MCC     : {r.mcc:.4f}")
         print(f"  F1      : {r.f1:.4f}")
         print(
@@ -582,11 +924,18 @@ class ClinicalEvaluator:
         print(sep + "\n")
 
     def save_report(self, report: EvaluationReport, path: str | Path) -> None:
-        """Serialize the full report to JSON (curves included for downstream plotting)."""
+        """Serialize the full report to JSON (curves included for downstream plotting).
+
+        STRICT since 2026-07-26. The previous implementation passed
+        `default=str`, which silently rendered any NumPy integer as a JSON
+        STRING, and left `allow_nan` at its default, which wrote bare `NaN`
+        literals that are not valid JSON. Both are corrections to persisted
+        evidence, not formatting preferences. See evaluation/serialization.py.
+        """
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w") as fh:
-            json.dump(asdict(report), fh, indent=2, default=str)
+        text = dump_strict_json(asdict(report), artifact=str(path))
+        path.write_text(text, encoding="utf-8", newline="\n")
         logger.info("Evaluation report saved to %s", path)
 
 
@@ -621,7 +970,10 @@ def compare_models(
         records.append({
             "model":             name,
             "auroc":             r.auroc,
-            "auroc_95ci":        f"[{r.auroc_ci_lo:.4f}, {r.auroc_ci_hi:.4f}]",
+            "auroc_95ci":        format_ci(r.auroc_ci_lo, r.auroc_ci_hi,
+                                                status=r.auroc_ci_status,
+                                                finding=r.auroc_ci_finding),
+            "auroc_ci_certified": r.auroc_ci_certification_eligible,
             "auprc":             r.auprc,
             "mcc":               r.mcc,
             "f1":                r.f1,

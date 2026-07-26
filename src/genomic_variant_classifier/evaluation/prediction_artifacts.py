@@ -44,6 +44,8 @@ from typing import Any, Optional
 import numpy as np
 import pandas as pd
 
+from genomic_variant_classifier.evaluation.serialization import dump_strict_json
+
 logger = logging.getLogger(__name__)
 
 
@@ -216,7 +218,12 @@ class RunArtifactWriter:
             raise TypeError(f"Unsupported report type: {type(report)}")
 
         def _write(path: Path) -> None:
-            path.write_text(json.dumps(payload, indent=2, default=str))
+            # STRICT since 2026-07-26: no `default=str` (it rendered NumPy
+            # integers as JSON strings) and no bare NaN literals. This writer and
+            # ClinicalEvaluator.save_report now produce byte-identical encodings
+            # of the same report, which they previously did not guarantee.
+            path.write_text(dump_strict_json(payload, artifact=str(path)),
+                            encoding="utf-8", newline="\n")
 
         dst = self._atomic_write("eval_report.json", _write)
         logger.info("Eval report: %s", dst)

@@ -85,7 +85,12 @@ class MetricStatus(str, Enum):
     INSUFFICIENT_SUPPORT = "insufficient_support"          # too few observations/overlap
     DEPENDENCY_UNAVAILABLE = "dependency_unavailable"      # package not installed
     COMPUTATIONALLY_DEFERRED = "computationally_deferred"  # refused on cost, before allocating
-    FAILED = "failed"                                      # raised during computation
+    # Raised during computation, OR a prerequisite validated and found
+    # contradictory before the computation could begin -- for example two gene
+    # columns that induce different row partitions, so the cohort has no one
+    # cluster structure to resample. Both are attempts that could not produce a
+    # result, as distinct from attempts that were never made.
+    FAILED = "failed"
 
     # --- added 2026-07-21 -------------------------------------------------
     # The evaluator itself does not exist. RESERVED for that case alone: once a
@@ -101,6 +106,38 @@ class MetricStatus(str, Enum):
     # estimate anything. "One positive" is insufficient DATA; "the target is an
     # input feature" is insufficient SUPPORT.
     INSUFFICIENT_DATA = "insufficient_data"
+
+
+class BootstrapUnit(str, Enum):
+    """The unit a bootstrap resamples -- the inferential unit of an interval.
+
+    DEFINED HERE, at the vocabulary layer, for the same reason `MetricStatus` is:
+    it is more foundational than any panel that reports it, and panels import
+    upward. It is also the only placement that works. The kernel that consumes it
+    imports scikit-learn at module level, while `evaluator.py` is contractually
+    required to import WITHOUT scikit-learn -- locked by
+    `test_evaluator_phase5.py::test_module_imports_without_sklearn`, which runs in
+    a subprocess with the package blocked. An evaluator that must record the
+    resampling unit on every interval therefore cannot reach this enum through
+    the kernel, and this module is scikit-learn free.
+
+    `(str, Enum)` rather than `StrEnum`, per the module docstring: the declared
+    floor is Python 3.10 and `StrEnum` arrived in 3.11.
+
+    The values are LOAD-BEARING in the same way the original statuses are: they
+    are persisted in evaluation reports from schema version 2 onward.
+    """
+
+    # Whole gene clusters. The correct estimator for any gene-disjoint claim,
+    # because variants within a gene share its constraint, network position and
+    # curation history, and resampling them independently understates variance.
+    GENE = "gene"
+    # Independent rows, stratified by class. Anti-conservative whenever
+    # clustering carries signal; the measured design effect on the real cohort
+    # was 2.935x (suite-size ratchet entry 2055). Retained because it is the
+    # right estimator when rows genuinely are exchangeable, and because it is the
+    # naive term in the design effect.
+    VARIANT = "variant"
 
 
 class CapabilityState(str, Enum):

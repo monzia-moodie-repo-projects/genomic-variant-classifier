@@ -83,7 +83,12 @@ from sklearn.calibration import calibration_curve
 # `evaluate()`: one contract, one status model, one source of truth.
 # =============================================================================
 
+import math  # noqa: E402
 from dataclasses import dataclass  # noqa: E402
+from genomic_variant_classifier.evaluation.capabilities import (  # noqa: E402
+    BootstrapUnit,
+    MetricStatus,
+)
 from typing import Callable, Iterable, Iterator, Sequence  # noqa: E402
 import pandas as pd  # noqa: E402
 
@@ -94,6 +99,9 @@ __all__ = [
     "auroc", "auprc", "auprc_gain", "no_skill_auprc", "brier_score", "log_loss",
     "expected_calibration_error", "calibration_slope_intercept",
     "bootstrap_ci", "cluster_bootstrap_ci", "evaluate", "stratified_evaluate",
+    "BootstrapUnit", "BootstrapResult", "bootstrap_metric",
+    "InsufficientSupportError", "DEFAULT_MIN_VALID_REPLICATES",
+    "DEFAULT_MIN_VALID_FRACTION",
     "is_probability", "clean_arrays", "CleanArrays", "CalibrationFit",
 ]
 
@@ -543,6 +551,301 @@ def cluster_bootstrap_ci(fn: Callable, y: Sequence, score: Sequence,
     de = float((hi - lo) / naive_width) if np.isfinite(naive_width) and naive_width > 0 \
         else float("nan")
     return float(lo), float(hi), de
+
+
+# ---------------------------------------------------------------------------
+# Canonical bootstrap dispatcher. ONE engine, an EXPLICIT resampling unit.
+#
+# The resampling unit is part of every confidence interval, never an accidental
+# consequence of which caller produced it or whether metadata happened to be
+# present. Certified (clinical/release) CIs REQUIRE gene-cluster resampling;
+# variant-level resampling is available only when the caller explicitly asks for
+# it, is flagged not certification-eligible, and records that it assumes row
+# independence. There is NO silent fallback between the two -- that would let two
+# structurally identical CIs mean different things.
+#
+# This wraps the proven bootstrap_ci / cluster_bootstrap_ci above; it does not
+# reimplement the resampling mathematics.
+# ---------------------------------------------------------------------------
+
+DEFAULT_MIN_VALID_REPLICATES = 100
+
+# A second, RELATIVE floor. An absolute floor alone is satisfied by 100 valid
+# replicates out of 100,000 requested -- a run in which 99.9 per cent of
+# resamples were degenerate and the surviving 0.1 per cent are a biased
+# subsample of the ones that happened to contain both classes. Percentiles taken
+# from that set are not the percentiles of the sampling distribution. The
+# effective floor is therefore the LARGER of the two, computed in
+# `_effective_min_valid`.
+DEFAULT_MIN_VALID_FRACTION = 0.5
+
+
+def _effective_min_valid(n_boot: int, min_valid: int, min_valid_fraction: float) -> int:
+    """The binding floor on valid replicates: absolute and relative, whichever is higher."""
+    if not 0.0 <= min_valid_fraction <= 1.0:
+        raise ValueError(
+            f"min_valid_fraction must lie in [0, 1], got {min_valid_fraction}")
+    return max(int(min_valid), int(math.ceil(min_valid_fraction * n_boot)))
+
+
+class InsufficientSupportError(ValueError):
+    """A certified bootstrap was requested without the support it requires."""
+
+
+@dataclass(frozen=True)
+class BootstrapResult:
+    """A confidence interval WITH the design that produced it.
+
+    `ci_width_ratio_vs_row` is the ratio of this interval's width to the naive
+    row-level interval's width (the kernel's historical "design effect"); it is a
+    CI-WIDTH ratio, not a variance ratio. `variance_ratio_vs_row` is its square,
+    the approximate classical survey design effect, reported separately so the
+    terminology is unambiguous. Both are diagnostic; the cluster interval is the
+    inferential output.
+
+    `stratified` records whether the resampling held the class balance fixed. It
+    is False for the gene design, which draws whole clusters and cannot hold a
+    row-level quantity constant, and True for the row design, which is the
+    kernel's declared behaviour. None means no resampling was attempted.
+
+    `min_valid_effective` is the floor `n_valid` had to clear, recorded so a
+    withheld interval explains itself without the reader reconstructing the
+    policy from two constants and a call-site argument.
+
+    TWO AXES, DELIBERATELY SEPARATE:
+
+        status                  was an interval successfully produced?
+        certification_eligible  is that interval admissible for certified claims?
+
+    They are not the same question, and collapsing them is a defect in both
+    directions. An exploratory row-level interval is genuinely PRODUCED --
+    status OK -- while being inadmissible for a gene-disjoint claim, so it
+    carries certification_eligible False and a finding naming the assumption it
+    rests on. Conversely an interval withheld for too few valid replicates is
+    not merely uncertified: it does not exist, and status says so.
+    """
+
+    estimate: float
+    lower: float
+    upper: float
+    confidence_level: float
+
+    resampling_unit: BootstrapUnit
+    stratified: bool | None
+    n_observations: int
+    n_clusters: int | None
+    n_requested: int
+    n_valid: int
+    n_degenerate: int
+    min_valid_effective: int
+    random_seed: int
+
+    row_ci_width: float | None
+    cluster_ci_width: float | None
+    ci_width_ratio_vs_row: float | None
+    variance_ratio_vs_row: float | None
+
+    certification_eligible: bool
+    status: MetricStatus
+    finding: str | None
+
+
+def _cluster_draw(index_lists):
+    """Row indices for one CLUSTER replicate: whole clusters, drawn with replacement.
+
+    Mirrors `cluster_bootstrap_ci`: it draws as many cluster labels as there are
+    clusters, with replacement, and concatenates every row of each drawn cluster.
+    """
+    keys_arr = np.array(list(index_lists.keys()), dtype=object)
+
+    def draw(rng):
+        drawn = rng.choice(keys_arr, size=keys_arr.size, replace=True)
+        parts = [index_lists[k] for k in drawn]
+        return np.concatenate(parts) if parts else np.empty(0, dtype=int)
+
+    return draw
+
+
+def _stratified_row_draw(pos, neg):
+    """Row indices for one STRATIFIED ROW replicate: both strata, resampled within.
+
+    Mirrors `bootstrap_ci(stratified=True)`. It matters that BOTH strata are
+    always present. An earlier version of this accounting drew two strata from
+    {positive, negative} WITH REPLACEMENT, which yields a single-class resample
+    half the time and reported roughly 50 per cent of replicates as degenerate
+    (measured 0.506 against the theoretical 0.500 on 2026-07-26). No such
+    replicate is ever drawn by `bootstrap_ci`; the accounting was describing a
+    sampling scheme the kernel does not use, and it withheld sound intervals.
+    """
+    def draw(rng):
+        return np.concatenate([rng.choice(pos, pos.size, replace=True),
+                               rng.choice(neg, neg.size, replace=True)])
+
+    return draw
+
+
+def _count_valid_replicates(fn, y_arr, s_arr, *, draw, n_boot, seed):
+    """Replay one resampling design for accounting: valid versus degenerate.
+
+    `draw` is the design's own index generator, so the count describes the loop
+    that actually produced the interval rather than an approximation of it. The
+    generator is seeded identically to the kernel's, and `Generator.choice`
+    consumes the same stream for a given population size, so the replicates
+    counted here are the replicates that were taken.
+    """
+    rng = np.random.default_rng(seed)
+    n_valid = 0
+    n_degenerate = 0
+    for _ in range(n_boot):
+        i = draw(rng)
+        if i.size == 0:
+            n_degenerate += 1
+            continue
+        yi = y_arr[i]
+        if np.unique(yi[np.isfinite(yi)]).size < 2:
+            n_degenerate += 1
+            continue
+        v = fn(y_arr[i], s_arr[i])
+        if np.isfinite(v):
+            n_valid += 1
+        else:
+            n_degenerate += 1
+    return n_valid, n_degenerate
+
+
+def bootstrap_metric(
+    fn: Callable,
+    y: Sequence,
+    score: Sequence,
+    *,
+    clusters: Sequence | None = None,
+    unit: BootstrapUnit = BootstrapUnit.GENE,
+    confidence_level: float = 0.95,
+    n_boot: int = 1000,
+    seed: int = 42,
+    min_valid: int = DEFAULT_MIN_VALID_REPLICATES,
+    min_valid_fraction: float = DEFAULT_MIN_VALID_FRACTION,
+) -> BootstrapResult:
+    """Canonical bootstrap CI with an explicit, typed resampling unit.
+
+    unit=GENE (default, certified): requires `clusters`; resamples whole clusters.
+      Without clusters this RAISES InsufficientSupportError -- it never silently
+      falls back to row resampling.
+    unit=VARIANT (exploratory): resamples rows (stratified by class); the interval
+      is genuinely produced, so its status is OK, but it is never
+      certification-eligible and it records the assumption it rests on.
+
+    STATUS, which is about existence, is set independently of
+    CERTIFICATION_ELIGIBLE, which is about admissibility:
+
+        OK                 endpoints are finite and cleared the replicate floor
+        UNDEFINED          one class present; the metric has no value to bound
+        INSUFFICIENT_DATA  too few valid replicates to take percentiles from
+
+    A caller that reads only `certification_eligible` can never mistake an
+    exploratory interval for a certified one; a caller that reads only `status`
+    can never mistake a withheld interval for a produced one.
+    """
+    alpha = 1.0 - confidence_level
+    y_arr = np.asarray(y)
+    s_arr = np.asarray(score)
+    n_obs = int(len(y_arr))
+    est = fn(*(_clean(y_arr, s_arr)))
+    min_valid_eff = _effective_min_valid(n_boot, min_valid, min_valid_fraction)
+
+    if unit is BootstrapUnit.GENE:
+        if clusters is None:
+            raise InsufficientSupportError(
+                "Gene-cluster bootstrap (the certified design) requires gene clusters, "
+                "but none were supplied. Pass clusters=..., or request "
+                "unit=BootstrapUnit.VARIANT explicitly for an exploratory row-level CI."
+            )
+        c_arr = np.asarray(clusters)
+        if len(c_arr) != n_obs:
+            raise ValueError(f"clusters length {len(c_arr)} != n_observations {n_obs}")
+        lo, hi, de = cluster_bootstrap_ci(
+            fn, y_arr, s_arr, c_arr, n_boot=n_boot, alpha=alpha, seed=seed,
+            return_design_effect=True,
+        )
+        # accounting loop (same cluster structure)
+        uniq = np.unique(c_arr)
+        index_of = {u: np.flatnonzero(c_arr == u) for u in uniq}
+        n_valid, n_degen = _count_valid_replicates(
+            fn, y_arr, s_arr, draw=_cluster_draw(index_of), n_boot=n_boot, seed=seed)
+        n_lo, n_hi = bootstrap_ci(fn, y_arr, s_arr, n_boot=min(n_boot, 500), alpha=alpha, seed=seed)
+        row_w = (n_hi - n_lo) if (np.isfinite(n_lo) and np.isfinite(n_hi)) else None
+        clus_w = (hi - lo) if (np.isfinite(lo) and np.isfinite(hi)) else None
+        var_ratio = (de * de) if (de is not None and np.isfinite(de)) else None
+
+        if clus_w is None:
+            # Every replicate was degenerate, or the cohort carries one class.
+            # The metric has no value to bound, which is UNDEFINED rather than
+            # unsupported: the machinery ran and the mathematics has no answer.
+            status = MetricStatus.UNDEFINED
+            finding = "cluster_bootstrap_degenerate"
+        elif n_valid < min_valid_eff:
+            # The cohort is admissible and the machinery ready; there are simply
+            # too few surviving replicates to take percentiles from. That is
+            # INSUFFICIENT_DATA, distinct from INSUFFICIENT_SUPPORT, which would
+            # say the certified design was not available at all.
+            status = MetricStatus.INSUFFICIENT_DATA
+            finding = (f"only {n_valid} of {n_boot} replicates were valid "
+                       f"(floor {min_valid_eff}); certified interval withheld")
+        else:
+            status = MetricStatus.OK
+            finding = None
+
+        return BootstrapResult(
+            estimate=float(est), lower=float(lo), upper=float(hi),
+            confidence_level=confidence_level, resampling_unit=BootstrapUnit.GENE,
+            stratified=False,
+            n_observations=n_obs, n_clusters=int(uniq.size),
+            n_requested=n_boot, n_valid=n_valid, n_degenerate=n_degen,
+            min_valid_effective=min_valid_eff, random_seed=seed,
+            row_ci_width=row_w, cluster_ci_width=clus_w,
+            ci_width_ratio_vs_row=(float(de) if de is not None and np.isfinite(de) else None),
+            variance_ratio_vs_row=var_ratio,
+            certification_eligible=(status is MetricStatus.OK),
+            status=status, finding=finding,
+        )
+
+    # VARIANT (exploratory)
+    lo, hi = bootstrap_ci(fn, y_arr, s_arr, n_boot=n_boot, alpha=alpha, seed=seed)
+    y_clean, s_clean = _clean(y_arr, s_arr)
+    pos = np.flatnonzero(y_clean == 1); neg = np.flatnonzero(y_clean == 0)
+    n_valid, n_degen = _count_valid_replicates(
+        fn, y_clean, s_clean, draw=_stratified_row_draw(pos, neg),
+        n_boot=n_boot, seed=seed)
+    row_w = (hi - lo) if (np.isfinite(lo) and np.isfinite(hi)) else None
+
+    if row_w is None:
+        status = MetricStatus.UNDEFINED
+        finding = "row_bootstrap_degenerate"
+    elif n_valid < min_valid_eff:
+        status = MetricStatus.INSUFFICIENT_DATA
+        finding = (f"only {n_valid} of {n_boot} replicates were valid "
+                   f"(floor {min_valid_eff}); exploratory interval withheld")
+    else:
+        # The interval EXISTS and is reported. It is simply not admissible for a
+        # gene-disjoint claim, which is the certification axis, not the status
+        # axis. Marking it INSUFFICIENT_SUPPORT here would say no interval was
+        # produced, which is false, and would make a produced interval
+        # indistinguishable from a withheld one.
+        status = MetricStatus.OK
+        finding = "variant_level_resampling_assumes_row_independence"
+
+    return BootstrapResult(
+        estimate=float(est), lower=float(lo), upper=float(hi),
+        confidence_level=confidence_level, resampling_unit=BootstrapUnit.VARIANT,
+        stratified=True,
+        n_observations=n_obs, n_clusters=None,
+        n_requested=n_boot, n_valid=n_valid, n_degenerate=n_degen,
+        min_valid_effective=min_valid_eff, random_seed=seed,
+        row_ci_width=row_w, cluster_ci_width=None,
+        ci_width_ratio_vs_row=None, variance_ratio_vs_row=None,
+        certification_eligible=False,
+        status=status, finding=finding,
+    )
 
 
 def evaluate(y: Sequence, score: Sequence, *,
