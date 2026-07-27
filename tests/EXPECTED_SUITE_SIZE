@@ -3563,4 +3563,35 @@
 #   because it used np.float64, where numpy and math agree. Rewritten around a
 #   one-element array -- the only discriminating input -- it now fails.
 #
-3185
+
+# 3227 -- 2026-07-27 -- the declarative metric registry.
+#   Previous value: 3185.  Delta: +42.
+#
+#   Roadmap Tier 1 item 6, commit 2 of 3.
+#
+#   A FROZEN tuple of typed descriptors with import-time validation, so a
+#   malformed declaration fails the IMPORT rather than the run. Applicability
+#   is evaluated BEFORE the kernel is invoked: an inapplicable metric is never
+#   computed, proven by a test whose kernel raises if called.
+#
+#   THREE AXES KEPT SEPARATE: status, scientific interpretability, and
+#   certification eligibility. brier_score on one class is OK with
+#   certification_eligible=False.
+#
+#   SUPPORT ATTACHMENT on every result, refusals and failures included:
+#   population_scope, n_observations, n_classes_observed, and n_clusters when
+#   supplied. n_clusters is a COUNT, not an effective sample size -- that
+#   lives in BootstrapResult beside the design effect. No threshold applied.
+#
+#   population_scope is REQUIRED. Support counts alone do not identify the
+#   DENOMINATOR: 53 and 63 were both correct over universes differing by ten
+#   variants, and 85 was printed beside 107 as a breakdown of 107.
+#
+#   PRESERVE RAW STATE UNTIL DIAGNOSTICS COMPLETE. Canonicalisation occurs
+#   only after diagnostic measurements have been computed. Three defects this
+#   session shared one shape: destroy the distinction, measure the destroyed
+#   distinction, declare success.
+#
+#   metrics.evaluate() is UNTOUCHED and is not registered as a composite.
+#
+3227

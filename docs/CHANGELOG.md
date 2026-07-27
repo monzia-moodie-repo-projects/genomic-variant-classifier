@@ -1,3 +1,79 @@
+## 2026-07-27 -- the metric registry (Tier 1 item 6, commit 2/3)
+
+Ratchet 3185 -> 3227 (+42). Session record:
+docs/sessions/SESSION_2026-07-27_metric-registry.md
+
+### Built
+- evaluation/registry.py: a FROZEN declaration of typed metric descriptors,
+  mirroring monitoring/registry.py, with import-time validation over that fixed
+  tuple. A malformed declaration fails the import, not the run.
+- MetricContext validates alignment ONCE, so no descriptor reinterprets array
+  lengths -- the defect CleanArrays was built to remove.
+- APPLICABILITY IS EVALUATED BEFORE THE KERNEL IS INVOKED. An inapplicable metric
+  is never computed, proven by a test whose kernel raises if called. A post-hoc
+  NaN -> UNDEFINED rule could not catch a finite-but-unsupported value.
+- Three axes kept separate: status, scientific interpretability, and
+  certification eligibility. On a single-class cohort brier_score is OK with
+  certification_eligible=False; expected_calibration_error is
+  INSUFFICIENT_SUPPORT; ranking metrics are UNDEFINED.
+- metrics.evaluate() is UNTOUCHED and remains the legacy untyped compatibility
+  interface. It is not registered as a composite: its five metrics have five
+  different applicability rules. A test asserts the registry never calls it.
+
+### Second review: population_scope and a standing principle
+- ADOPTED: population_scope, REQUIRED on every context and carried into every
+  result. Support counts alone do not identify the DENOMINATOR. This session
+  produced 53 versus 63 (both correct, universes differing by ten variants, both
+  called "canonical") and 85 printed beside 107 as a breakdown of 107. A number
+  without its population is not evidence.
+- ADOPTED as a standing principle: PRESERVE RAW STATE UNTIL DIAGNOSTICS COMPLETE;
+  canonicalisation occurs only after diagnostic measurements have been computed.
+  Three defects shared one shape -- destroy the distinction, measure the destroyed
+  distinction, declare success.
+- ALREADY IMPLEMENTED: the recommended dedicated ApplicabilityDecision type is
+  this registry's Applicability, with an additional __post_init__ the
+  recommendation lacks. The earlier rejection was of the specification's
+  MetricResult | None, not of the concept.
+
+### Adopted and rejected from the 2026-07-27 scope documents
+- ADOPTED: support attachment. Every result records n_observations,
+  n_classes_observed and, when clusters are supplied, n_clusters -- on REFUSALS
+  and FAILURES as well as values. An INSUFFICIENT_SUPPORT on 3 rows and one on
+  300,000 point at different problems. n_clusters is a count, NOT an effective
+  sample size: that lives in BootstrapResult beside the design effect, and a
+  second weaker answer is how two numbers come to disagree. No threshold is
+  applied; inventing one silently is the class of guess this project removes.
+- REJECTED, each would degrade a correction already made: MetricResult(value=None)
+  raises TypeError against the real invariant, verified; certification_eligible=True
+  unconditionally is the defect this module already fixed; and
+  ApplicabilityRule -> MetricResult | None lets an applicability rule return an OK
+  result, making "inapplicable" and "computed" indistinguishable. All three
+  recorded in the module docstring so the decisions are durable.
+- CARRIED FORWARD: the reviewing document found that the conformal quantile
+  regression prototype sorts lower/upper with np.minimum/np.maximum BEFORE
+  measuring the crossing rate, so that rate is structurally zero and reports
+  perfect health -- the same disease as a check that cannot fail.
+
+### Recorded rather than invented
+- The design named EvaluationCapability, which does not exist in this project.
+  CapabilityState measures a different axis -- how far a capability has
+  PROGRESSED -- and a metric does not "support" NOT_IMPLEMENTED. The static
+  filter is required_inputs; the real gate is the applicability predicate.
+- The status vocabulary has NINE values, not the four assumed. NOT_APPLICABLE,
+  INSUFFICIENT_DATA and NOT_IMPLEMENTED already existed and are used.
+
+### Three defects of my own, all caught
+- The module docstring presented the single-class calibration defect as LIVE. It
+  was fixed inside evaluate() on 2026-07-21; verified against the current
+  implementation and corrected to quote it as a worked example.
+- certification_eligible was hard-coded True for every OK result, collapsing the
+  third axis into the first. Now derived, with certification_blocked_by.
+- The guard against wrapping evaluate() grepped source TEXT and failed on the
+  docstring. Rewritten to parse the syntax tree, and proven to still catch a real
+  wrap by sabotage.
+- Repeat: the StrEnum floor guard fired on a docstring saying "not StrEnum", the
+  same trip as 2026-07-26. The backticked spelling is permitted and now used.
+
 ## 2026-07-27 -- MetricResult moves to the vocabulary layer (Tier 1 item 6, commit 1/3)
 
 Ratchet 3169 -> 3185 (+16). Session record:

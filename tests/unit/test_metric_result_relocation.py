@@ -212,12 +212,14 @@ def test_the_relocation_did_not_remove_anything_else_from_clustering_metrics():
 
 
 # --------------------------------------------------------------------------- #
-# 4. No registry yet -- this commit is the vocabulary move ALONE
+# 4. The registry now exists, and still imports the ONE MetricResult
 # --------------------------------------------------------------------------- #
-def test_no_metric_registry_exists_yet():
-    """Commit 1 is the relocation on its own, so a later registry regression can
-    never be mistaken for a vocabulary regression. Delete this test in the commit
-    that introduces the registry."""
-    assert not (_SRC / "registry.py").exists(), (
-        "evaluation/registry.py exists; the vocabulary relocation was supposed to "
-        "land alone. If the registry is being added, remove this test in that commit.")
+def test_the_registry_imports_the_relocated_type():
+    """`test_no_metric_registry_exists_yet` lived here for exactly one commit and
+    was removed when the registry landed, as its own docstring instructed. What
+    replaces it is the guarantee that actually matters: the registry -- the first
+    consumer built on top of the relocation -- resolves THE SAME MetricResult,
+    not a second class that merely looks like it."""
+    from genomic_variant_classifier.evaluation import registry
+    assert registry.MetricResult is MetricResult
+    assert (_SRC / "registry.py").exists()
