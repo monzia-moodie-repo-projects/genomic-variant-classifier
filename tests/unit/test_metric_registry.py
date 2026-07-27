@@ -41,6 +41,20 @@ from genomic_variant_classifier.evaluation.registry import (
     compute,
     evaluate_registered,
 )
+from genomic_variant_classifier.evaluation.population import EvaluationPopulation
+
+# --- population scaffolding (2026-07-27) ------------------------------------
+# `MetricContext` requires an `EvaluationPopulation`, not a bare scope string: a
+# scope is a NAME and two different row sets may share one. Tests therefore build
+# a real population. The source identity is fixed so fingerprints are comparable
+# across cases within a file, and differs from production identities so a test
+# fixture can never be mistaken for a real cohort.
+_TEST_SOURCE_ID = "unit-test-frame:sha256:0000000000000000"
+
+
+def _pop(n, scope):
+    return EvaluationPopulation.full(n, scope=scope, source_id=_TEST_SOURCE_ID)
+
 
 
 def _two_class(n=400, seed=0):
@@ -48,14 +62,14 @@ def _two_class(n=400, seed=0):
     y = rng.integers(0, 2, n).astype(float)
     p = np.clip(rng.uniform(0, 1, n) * 0.5 + y * 0.4, 0, 1)
     return MetricContext(y_true=y, y_score=p, y_prob=p,
-                         population_scope="synthetic_two_class")
+                         population=_pop(n, "synthetic_two_class"))
 
 
 def _single_class():
     return MetricContext(y_true=np.array([1., 1., 1., 1.]),
                          y_score=np.array([.9, .8, .85, .95]),
                          y_prob=np.array([.9, .8, .85, .95]),
-                         population_scope="synthetic_single_class")
+                         population=_pop(4, "synthetic_single_class"))
 
 
 # --------------------------------------------------------------------------- #
@@ -123,7 +137,7 @@ def test_a_misaligned_context_is_refused_at_construction():
     before any descriptor can compute over it."""
     with pytest.raises(ValueError, match="the context is aligned ONCE"):
         MetricContext(y_true=np.array([0., 1., 0.]), y_score=np.array([0.1, 0.2]),
-                      population_scope="misaligned")
+                      population=_pop(3, "misaligned"))
 
 
 def test_derived_class_facts_are_computed_once_from_the_context():
@@ -374,7 +388,7 @@ def test_cluster_support_counts_DISTINCT_clusters():
     ctx = MetricContext(y_true=np.array([0., 1., 0., 1.]),
                         y_score=np.array([.1, .9, .2, .8]),
                         clusters=np.array(["G1", "G1", "G2", "G2"]),
-                        population_scope="two_gene_clusters")
+                        population=_pop(4, "two_gene_clusters"))
     assert ctx.n_clusters == 2
     r = evaluate_registered(ctx)["auroc"]
     assert r.metadata["n_clusters"] == 2
@@ -387,7 +401,7 @@ def test_support_applies_no_threshold_of_its_own():
     this project removes -- so a two-row cohort still reports OK, and records
     that it had two rows."""
     ctx = MetricContext(y_true=np.array([0., 1.]), y_score=np.array([.2, .8]),
-                        y_prob=np.array([.2, .8]), population_scope="two_row_cohort")
+                        y_prob=np.array([.2, .8]), population=_pop(2, "two_row_cohort"))
     r = evaluate_registered(ctx)["auroc"]
     assert r.status is MetricStatus.OK
     assert r.metadata["n_observations"] == 2
@@ -402,10 +416,16 @@ def test_effective_sample_size_is_NOT_duplicated_here():
     ctx = MetricContext(y_true=np.array([0., 1., 0., 1.]),
                         y_score=np.array([.1, .9, .2, .8]),
                         clusters=np.array(["G1", "G1", "G2", "G2"]),
-                        population_scope="two_gene_clusters")
+                        population=_pop(4, "two_gene_clusters"))
     keys = set(ctx.support())
-    assert keys == {"population_scope", "n_observations", "n_classes_observed",
-                    "n_clusters"}
+    assert keys == {"population_scope", "population_fingerprint", "n_observations",
+                    "n_classes_observed", "n_clusters"}, (
+        "the support key set is pinned EXACTLY so nothing can be added without a "
+        "deliberate decision. population_fingerprint was added 2026-07-27 with "
+        "EvaluationPopulation and is NOT an effective sample size: it identifies "
+        "WHICH rows, never how many independent ones. The prohibition this test "
+        "enforces -- no second, weaker answer to a question BootstrapResult "
+        "already answers properly -- is untouched.")
     assert not any("effective" in k or "design_effect" in k for k in keys)
 
 
@@ -431,10 +451,16 @@ def test_a_context_cannot_be_built_without_naming_its_population():
         MetricContext(y_true=np.array([0., 1.]))            # type: ignore[call-arg]
 
 
-@pytest.mark.parametrize("bad", ["", "   ", None, 7])
-def test_an_empty_or_non_string_population_scope_is_refused(bad):
-    with pytest.raises(ValueError, match="population_scope is REQUIRED"):
-        MetricContext(y_true=np.array([0., 1.]), population_scope=bad)  # type: ignore[arg-type]
+@pytest.mark.parametrize("bad", ["", "   ", None, 7, "attempted_cohort"])
+def test_a_bare_scope_string_is_refused_in_place_of_a_population(bad):
+    """REWRITTEN 2026-07-27. This previously accepted any non-empty string.
+
+    A scope NAMES a population; it does not identify one. Two different row sets
+    may both be called "attempted_cohort", so the last parameter -- a perfectly
+    well-formed scope string -- must be refused just as firmly as the empty one.
+    """
+    with pytest.raises(ValueError, match="population is REQUIRED"):
+        MetricContext(y_true=np.array([0., 1.]), population=bad)  # type: ignore[arg-type]
 
 
 def test_population_scope_is_carried_on_every_result_including_refusals():
@@ -446,12 +472,49 @@ def test_population_scope_is_carried_on_every_result_including_refusals():
 
 def test_two_results_with_equal_counts_but_different_populations_are_distinguishable():
     """The defect this field exists to prevent: identical support, different
-    denominator semantics, and nothing in the artifact to tell them apart."""
+    denominator semantics, and nothing in the artifact to tell them apart.
+
+    STRENGTHENED 2026-07-27. Scope and fingerprint answer DIFFERENT questions and
+    the test now separates them, because conflating the two would hide exactly
+    the case each is for.
+    """
     y = np.array([0., 1., 0., 1.]); p = np.array([.2, .8, .3, .9])
-    a = evaluate_registered(MetricContext(y_true=y, y_score=p,
-                                          population_scope="all_test_variants"))["auroc"]
-    b = evaluate_registered(MetricContext(y_true=y, y_score=p,
-                                          population_scope="variants_with_representative_row"))["auroc"]
+    a = evaluate_registered(MetricContext(
+        y_true=y, y_score=p, population=_pop(4, "all_test_variants")))["auroc"]
+    b = evaluate_registered(MetricContext(
+        y_true=y, y_score=p,
+        population=_pop(4, "variants_with_representative_row")))["auroc"]
+
+    # Same rows, different semantic claim: the NAMES must differ so an artifact
+    # can tell the claims apart...
     assert a.value == b.value
     assert a.metadata["n_observations"] == b.metadata["n_observations"]
     assert a.metadata["population_scope"] != b.metadata["population_scope"]
+    # ...and the FINGERPRINTS must match, because membership is identical.
+    # A fingerprint that changed with the name would be measuring the label
+    # rather than the rows, and could not support the report invariant that
+    # several metrics describe the same population.
+    assert a.population_fingerprint == b.population_fingerprint
+
+
+def test_equal_counts_over_genuinely_different_rows_are_distinguishable():
+    """The case CARDINALITY CANNOT REACH, and which scope alone cannot either.
+
+    Two four-row populations drawn from the same eight-row frame have the same
+    n_observations, and could easily be given the same scope by a careless
+    caller. Only membership separates them.
+    """
+    source = "unit-test-frame:sha256:0000000000000000"
+    frame = EvaluationPopulation.full(8, scope="frame", source_id=source)
+    first = frame.restrict(np.arange(8) < 4, scope="cohort", reason="split")
+    second = frame.restrict(np.arange(8) >= 4, scope="cohort", reason="split")
+
+    y = np.array([0., 1., 0., 1.]); p = np.array([.2, .8, .3, .9])
+    a = evaluate_registered(MetricContext(y_true=y, y_score=p, population=first))["auroc"]
+    b = evaluate_registered(MetricContext(y_true=y, y_score=p, population=second))["auroc"]
+
+    assert a.metadata["n_observations"] == b.metadata["n_observations"] == 4
+    assert a.metadata["population_scope"] == b.metadata["population_scope"]
+    assert a.population_fingerprint != b.population_fingerprint, (
+        "two disjoint four-row populations produced the same fingerprint; "
+        "equal counts and an identical scope would then be indistinguishable")

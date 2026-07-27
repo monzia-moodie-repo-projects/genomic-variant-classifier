@@ -3647,4 +3647,35 @@
 #   gate refusal from a kernel raising; a tripwire accepted its keyword
 #   from anywhere in the file) and two malformed breaks. All four closed.
 #
-3273
+#
+# 3273 -> 3318 (+45)  2026-07-27  commit 2a-1: the evaluation
+#   population contract.
+#
+#   metrics.select_finite_reference_labels is RETIRED. Label eligibility
+#   is now an explicit, recorded restriction of an EvaluationPopulation:
+#   a frozen claim about which rows a number describes, where narrowing
+#   is the only operation offered.
+#
+#   Load-bearing invariants: a restriction must STRICTLY narrow, so an
+#   unchanged population cannot acquire artificial lineage; and child
+#   membership must be a genuine SUBSET, because smaller, ordered,
+#   unique and in range is not enough -- parent [0,2,4,6] with child
+#   [1,3] satisfies all four while re-admitting removed rows.
+#
+#   The membership fingerprint reaches what cardinality cannot: two
+#   disjoint 500-row subsets have equal n, can carry an identical scope,
+#   and differ in fingerprint.
+#
+#   Sabotage: 14 breaks, 14 detected, 0 undetected. First run left two --
+#   one real test gap, one malformed break -- both closed.
+#
+#   THE MEASURED DELTA CAUGHT AN ACCIDENTAL DELETION. A test module
+#   collected 25 before and 19 after, where three removals and five
+#   additions should have given 27. An edit anchored to a test function
+#   and extended to END OF FILE destroyed three functions appended after
+#   that anchor in commit 2a -- eight test cases, including the
+#   parametrised gate test that closed the B4 gap in commit 2a own
+#   sabotage matrix. All restored verbatim. A COMPUTED ratchet would have
+#   recorded the intended number and lost them silently.
+#
+3318

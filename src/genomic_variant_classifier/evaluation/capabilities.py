@@ -211,6 +211,12 @@ class MetricMetadataKey(str, Enum):
     """
 
     POPULATION_SCOPE = "population_scope"
+    # Added 2026-07-27 with EvaluationPopulation. SCOPE is a name and is not
+    # unique: two different row sets may both be called "test_partition". The
+    # FINGERPRINT is membership itself, so an artifact can assert that several
+    # metrics describe the same rows -- the defect cardinality cannot reach,
+    # since n=980 beside n=980 says nothing about WHICH 980.
+    POPULATION_FINGERPRINT = "population_fingerprint"
     CERTIFICATION_ELIGIBLE = "certification_eligible"
     CERTIFICATION_BLOCKED_BY = "certification_blocked_by"
     N_OBSERVATIONS = "n_observations"
@@ -293,6 +299,12 @@ class MetricResult:
     # them and return None here. A stronger domain-specific contract
     # (EvaluationMetricResult) can be layered later without touching any of the
     # 53 sites.
+
+    @property
+    def population_fingerprint(self) -> Optional[str]:
+        """Deterministic identity of the rows this result describes."""
+        v = self.metadata.get(MetricMetadataKey.POPULATION_FINGERPRINT)
+        return v if isinstance(v, str) else None
 
     @property
     def population_scope(self) -> Optional[str]:

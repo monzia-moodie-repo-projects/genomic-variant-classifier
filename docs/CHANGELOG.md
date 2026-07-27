@@ -1,3 +1,68 @@
+## 2026-07-27 -- the evaluation population contract (Tier 1 item 6, commit 2a-1)
+
+Ratchet 3273 -> 3318 (+45). Session record:
+docs/sessions/SESSION_2026-07-27_evaluation-population-contract.md
+
+Completes the ruling that no numerical kernel may select, filter, normalise or
+redefine its evaluation population. Commit 2a enforced it for PREDICTIONS, which
+fail closed. Label eligibility could not simply be deleted -- withheld labels are
+first-class -- so it was parked behind the named transitional selector
+metrics.select_finite_reference_labels. That selector is now RETIRED.
+
+### Added -- EvaluationPopulation
+A frozen, immutable claim about which rows a number describes. Narrowing is the
+only operation: no widen, reorder, duplicate, relabel or repair. Twelve
+invariants, every one raising. The load-bearing ones: a restriction must STRICTLY
+narrow, and child membership must be a genuine SUBSET -- smaller, ordered, unique
+and in range is not enough, since parent [0,2,4,6] with child [1,3] satisfies all
+four while re-admitting removed rows.
+
+Membership fingerprint sha256(source_id || n_source || indices) reaches the defect
+cardinality cannot: two disjoint 500-row subsets have equal n, can carry an
+identical scope, and differ in fingerprint. Renaming leaves it unchanged.
+
+### Added -- CanonicalVariantTable.population_projection(partition)
+Source identity derived from cohort_version, partition, and the ORDERED
+variant_id sequence, length-prefixed so ["ab","c"] and ["a","bc"] cannot collide.
+NOT from partition + cohort_version alone: those name a CATEGORY of population,
+and two frames sharing both would produce identical fingerprints whenever their
+indices coincided -- which is always, since full() yields arange(n). Measured: the
+test and cal projections both occupy indices [0,1] and receive different
+identities.
+
+Deliberately independent of predictions: the same population under two models
+yields the same fingerprint, or paired comparison becomes harder rather than
+safer. Does not require a score column. Memoised per partition.
+
+### Changed -- MetricContext
+population is REQUIRED; the standalone population_scope field is REMOVED and
+derived. Two sources of truth for one fact eventually disagree. Twelve
+construction sites, all in tests. Arrays are validated against population.n, not
+n_source. support() reports population_fingerprint.
+
+### NOT done -- cohort_version validation
+Ruled out of this commit: it would combine population identity, provenance-policy
+strength and certification admissibility, and force twenty fixture edits. Audited:
+generic "v2" at 20 sites, "v2-xyz" 1, "v2-abc" 1, "v1" 1. Mitigation: the ordered
+variant_id sequence carries the discrimination. Residual: identical variants in
+identical order and partition under different label policies but the same generic
+version produce the same source id. A dataset-policy provenance defect, carried to
+the dataset_identity / cohort_policy_version / partition_identity commit.
+
+### Sabotage
+Fourteen breaks, fourteen detected, zero undetected. The first run left two: one
+real gap (the array-length guard was verified interactively but never written as a
+test) and one malformed break.
+
+### THE MEASURED DELTA CAUGHT AN ACCIDENTAL DELETION
+test_prediction_input_contract collected 25 before and 19 after, where three
+removals and five additions should have given 27. The tripwire retirement replaced
+everything from its anchor to END OF FILE, destroying three functions appended
+after that anchor in commit 2a -- eight test cases, including the parametrised gate
+test that closed the B4 gap in commit 2a's OWN sabotage matrix. All restored
+verbatim. A COMPUTED ratchet would have recorded the intended number and lost them
+silently.
+
 ## 2026-07-27 -- the fail-closed prediction-input contract (Tier 1 item 6, commit 2a)
 
 Ratchet 3247 -> 3273 (+26). Session record:

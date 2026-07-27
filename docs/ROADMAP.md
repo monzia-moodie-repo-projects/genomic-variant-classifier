@@ -1977,3 +1977,71 @@ retained unchanged for compatibility and marked non-certifiable in its docstring
 Whether it is frozen permanently as historical compatibility or gains a strict
 mode is a deliberate decision for its own commit and must not be made
 incidentally. NOT A GATE.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-27 (Tier 1 item 6, commit 2a-1)
+=====================================================================
+
+  commit 1   d3851a3   MetricResult to the vocabulary layer          LANDED
+  commit 2   a6df4ef   the typed immutable metric registry           LANDED
+  commit 2b* 974d426   controlled metadata vocabulary                LANDED
+  commit 2a  b22012a   fail-closed prediction-input contract         LANDED
+  commit 2a-1 (this)   the evaluation population contract            LANDED
+  commit 2b  --        calibration binning + register all point estimates
+  commit 3   --        schema-v3 report integration
+
+CLOSED. metrics.select_finite_reference_labels is RETIRED. Label eligibility is an
+explicit, recorded restriction of an EvaluationPopulation. Carried item (l) -- the
+transitional label mask -- is DISCHARGED, and its two tripwires were RETIRED
+AGAINST THEIR REPLACEMENT rather than deleted: they now assert the selector is
+gone and the seam states its contract in the present tense.
+
+NEW CARRIED ITEM (n) -- cohort_version IS A WEAK PROVENANCE IDENTITY.
+Deliberately NOT fixed in 2a-1; fixing it there would have combined exact
+population identity, provenance-policy strength and certification admissibility in
+one commit and forced twenty fixture edits unrelated to the population
+abstraction.
+
+    cohort_version call sites audited 2026-07-27:
+        generic "v2": 20
+        "v2-xyz": 1
+        "v2-abc": 1
+        "v1": 1
+
+    Current mitigation:
+        population_source_id also hashes the ordered variant_id sequence and
+        partition, so distinct row sets remain distinguishable.
+
+    Residual ambiguity:
+        identical variants in identical order and partition, evaluated under
+        different label/adjudication policies but the same generic
+        cohort_version, produce the same population_source_id.
+
+This is a DATASET-POLICY PROVENANCE defect, not a row-membership defect. The
+dedicated commit should introduce separate identities with separate
+responsibilities:
+
+    dataset_identity        the concrete underlying cohort artifact or release
+    cohort_policy_version   inclusion, exclusion, deduplication, label mapping,
+                            adjudication and cleaning policy
+    partition_identity      the exact split assignment and split-protocol version
+    population_source_id    hashes those identities plus the ordered variant ids
+
+Certification may then require STRONG, not merely non-blank, values -- expressed
+as structured fields and an explicit admissibility check
+(provenance.validate_for_certification), never as a string heuristic that rejects
+"v2" while accepting "v2-final", which only measures formatting. NOT A GATE on
+commit 2b or 3.
+
+CARRIED ITEM (m) UNCHANGED. metrics.evaluate remains a survivor-filtering
+compatibility path, marked non-certifiable, its label mask retained in
+clean_arrays for that path alone.
+
+PROCESS FINDING, 2026-07-27. An edit anchored to a test function and extended to
+END OF FILE destroyed three functions appended after that anchor in the previous
+commit, costing eight test cases -- including the parametrised gate test that had
+closed a gap found by the previous commit's own sabotage matrix. It was caught by
+the MEASURED collection delta (25 -> 19 where 27 was expected) and by nothing
+else. Anchored edits must bound both ends; ratchet moves are measured, never
+computed.

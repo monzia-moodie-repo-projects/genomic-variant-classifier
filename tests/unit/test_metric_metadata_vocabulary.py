@@ -32,6 +32,8 @@ import json
 from pathlib import Path
 
 import numpy as np
+
+from genomic_variant_classifier.evaluation.population import EvaluationPopulation
 import pytest
 
 from genomic_variant_classifier.evaluation import (
@@ -52,7 +54,10 @@ _SRC = Path(capabilities.__file__).parent
 
 def _ctx(**kw):
     base = dict(y_true=np.array([0., 1., 0., 1.]), y_score=np.array([.2, .8, .3, .9]),
-                y_prob=np.array([.2, .8, .3, .9]), population_scope="unit_test_cohort")
+                y_prob=np.array([.2, .8, .3, .9]),
+                population=EvaluationPopulation.full(
+                    4, scope="unit_test_cohort",
+                    source_id="unit-test-frame:sha256:0000000000000000"))
     base.update(kw)
     return MetricContext(**base)
 

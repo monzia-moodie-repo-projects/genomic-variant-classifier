@@ -20,11 +20,11 @@ DESIGN CONSTRAINTS (each traceable to a recorded defect or contract):
   * ALIGNMENT is structural. One row = one variant; every projection is a column of the
     same frame, so 'y' and 'score' cannot be masked apart (evaluation defect A).
   * MISSING labels are first-class and are represented as 'NaN' in the projected 'y',
-    NOT coerced to 0. Label eligibility is selected by the legacy label mask
-    ('metrics.select_finite_reference_labels') before metric computation. The seam
-    reuses that one selector rather than inventing a second (defect B, and acceptance
-    "one structural mask"). This label-mask behaviour is TRANSITIONAL and moves into
-    EvaluationPopulation in its own commit.
+    NOT coerced to 0. Label eligibility is a POPULATION decision and is made by
+    'EvaluationPopulation': the caller restricts an attempted population to the
+    label-eligible rows, and that restriction records its own reason and parent, so
+    what was removed and why is carried with every number computed afterwards
+    (defect B, and acceptance "one structural mask").
   * PREDICTIONS are validated, never selected. Predicted scores and probabilities are
     not silently filtered by numerical kernels. A non-finite model output is a
     validation failure: the registry refuses before dispatch and returns a FAILED
@@ -49,7 +49,9 @@ of this contract; the metric stack never reaches back into cohort construction.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, Mapping, Sequence
+from typing import Iterable, Mapping, Optional, Sequence
+
+import hashlib
 
 import numpy as np
 import pandas as pd
@@ -67,10 +69,11 @@ _ALL_COLUMNS = _REQUIRED_COLUMNS + _OPTIONAL_COLUMNS
 class CanonicalArrays:
     """A partition-scoped array projection for the metric kernel.
 
-    'y' carries 'NaN' for withheld labels; the transitional label mask selects those
-    out before computation, pending EvaluationPopulation. Non-finite scores and
-    probabilities are NOT selected out: they are validation failures. 'clusters' and
-    'groups' are 'None' when the underlying columns were not supplied.
+    'y' carries 'NaN' for withheld labels; restricting to the label-eligible rows is
+    the caller's explicit population step, performed through 'EvaluationPopulation'
+    built from 'population_projection'. Non-finite scores and probabilities are NOT
+    selected out: they are validation failures. 'clusters' and 'groups' are 'None'
+    when the underlying columns were not supplied.
     """
 
     y: np.ndarray
@@ -80,6 +83,94 @@ class CanonicalArrays:
     groups: np.ndarray | None
     n_rows: int
     partition: str
+
+
+def _derive_population_source_id(*, cohort_version: str, partition: Optional[str],
+                                 variant_ids: Sequence) -> str:
+    """Deterministic identity of ONE aligned evaluation frame.
+
+    Derived from the cohort version, the selected partition, and the ORDERED
+    `variant_id` sequence of that partition. Nothing else.
+
+    WHY NOT `partition + cohort_version` ALONE. Those identify a CATEGORY of
+    population, not an exact frame. Two tables can legitimately share both while
+    differing in row membership, row order, filtered variant set, or corrected
+    input data carrying the same human-readable version. Different frames would
+    then produce identical membership fingerprints whenever their absolute
+    indices happened to coincide -- and absolute indices coincide constantly,
+    because `EvaluationPopulation.full` always yields `arange(n)`.
+
+    WHAT IS DELIBERATELY EXCLUDED. Scope, label-eligibility masks, subgroup
+    masks, support counts, prediction values, model names and `y_true` VALUES.
+    Scope and restrictions belong to the population lineage and the membership
+    fingerprint, not to the identity of the frame. Prediction identity belongs to
+    model provenance: the same test population evaluated by two models must yield
+    the SAME population fingerprint, or paired comparison becomes harder rather
+    than safer. A label-policy change must be visible through `cohort_version`
+    rather than silently embedded in an opaque row digest.
+
+    LENGTH-PREFIXING. Every variable-length field is preceded by its byte length,
+    so `["ab", "c"]` and `["a", "bc"]` cannot serialise identically. Without it
+    the digest would be ambiguous under concatenation and two different frames
+    could collide.
+
+    THE `None` PARTITION. `arrays(None)` projects every row and labels itself
+    `"__all__"`. That string is encoded under a DISTINCT namespace from a named
+    partition, so a table containing a partition literally called `__all__` can
+    never collide with the all-rows projection.
+    """
+    digest = hashlib.sha256()
+    for namespace, value in (("cohort_version", cohort_version),
+                             ("partition" if partition is not None
+                              else "partition_all_rows",
+                              partition if partition is not None else "")):
+        encoded = value.encode("utf-8")
+        digest.update(namespace.encode("ascii"))
+        digest.update(b"\0")
+        digest.update(len(encoded).to_bytes(8, "big"))
+        digest.update(encoded)
+    digest.update(b"ordered_variant_ids\0")
+    for variant_id in variant_ids:
+        encoded = str(variant_id).encode("utf-8")
+        digest.update(len(encoded).to_bytes(8, "big"))
+        digest.update(encoded)
+    return f"canonical-variant-table:sha256:{digest.hexdigest()}"
+
+
+@dataclass(frozen=True)
+class CanonicalPopulationProjection:
+    """One aligned evaluation frame, with a deterministic identity.
+
+    This is the SOURCE that an `EvaluationPopulation` addresses. Indices are
+    positions into THIS projection -- into the arrays `arrays(partition)`
+    returns -- never into the whole multi-partition table.
+
+    That choice is deliberate. A root population must contain `arange(n_source)`,
+    so if indices addressed the whole table then a partition could not be a root
+    and would have to be a derived population whose parent was the entire table.
+    That would add lineage irrelevant to the metric estimand and force every
+    `take()` to consume full-table arrays. Addressing the projection instead
+    means `n_source` IS the attempted metric population before any label
+    restriction, `take()` consumes exactly what `arrays()` produces, and no
+    metric context can address a row in another partition.
+
+    `source_indices` records where these rows sit in the full table, so the
+    mapping back is available for provenance without being needed for
+    projection.
+    """
+
+    population_source_id: str
+    partition: str
+    cohort_version: str
+    source_indices: np.ndarray
+    variant_ids: np.ndarray
+
+    @property
+    def n(self) -> int:
+        return int(self.source_indices.size)
+
+    def __len__(self) -> int:
+        return self.n
 
 
 class CanonicalVariantTable:
@@ -99,6 +190,7 @@ class CanonicalVariantTable:
         if not isinstance(cohort_version, str) or not cohort_version.strip():
             raise ValueError("cohort_version must be a non-empty string")
         self._cohort_version = cohort_version
+        self._population_projection_cache: dict = {}
 
         frame = pd.DataFrame(data)
 
@@ -227,8 +319,9 @@ class CanonicalVariantTable:
     def arrays(self, partition: str | None = None) -> CanonicalArrays:
         """Project to kernel arrays for one partition (or all rows if 'None').
 
-        'y' carries 'NaN' for withheld labels; the transitional label mask selects
-        those out before computation, pending EvaluationPopulation. Non-finite scores
+        'y' carries 'NaN' for withheld labels; restricting to the label-eligible rows
+        is the caller's explicit population step, performed through
+        'EvaluationPopulation' built from 'population_projection'. Non-finite scores
         and probabilities are validation failures, not selections. Requires a score
         column.
         """
@@ -244,6 +337,52 @@ class CanonicalVariantTable:
             y=y, score=score, prob=prob, clusters=clusters, groups=groups,
             n_rows=len(sub), partition=partition if partition is not None else "__all__",
         )
+
+    def population_projection(self, partition: str | None = None
+                              ) -> CanonicalPopulationProjection:
+        """The aligned frame an `EvaluationPopulation` will address.
+
+        Deliberately does NOT require a score column. Population identity is a
+        property of which variants are being evaluated, not of what any model
+        predicted for them; requiring predictions would make it impossible to
+        name a population before scoring it, and would couple the identity to
+        model provenance that belongs elsewhere.
+
+        The digest is memoised per partition. Hashing the ordered `variant_id`
+        sequence is O(n) and the cohort runs to roughly 1.5 million variants, so
+        computing it for every partition at table construction would tax every
+        caller -- including the many that never build a population. Memoising
+        means each partition is hashed at most once, which is what "compute it
+        once" is for.
+        """
+        key = partition if partition is not None else None
+        cached = self._population_projection_cache.get(key)
+        if cached is not None:
+            return cached
+
+        if partition is None:
+            mask = np.ones(len(self._frame), dtype=bool)
+        else:
+            available = set(self._frame["partition"].unique().tolist())
+            if partition not in available:
+                raise ValueError(
+                    f"partition {partition!r} not present; available: "
+                    f"{sorted(available)}")
+            mask = (self._frame["partition"] == partition).to_numpy()
+
+        source_indices = np.flatnonzero(mask).astype(np.int64)
+        variant_ids = self._frame["variant_id"].to_numpy(dtype=object)[source_indices]
+        projection = CanonicalPopulationProjection(
+            population_source_id=_derive_population_source_id(
+                cohort_version=self._cohort_version, partition=partition,
+                variant_ids=variant_ids),
+            partition=partition if partition is not None else "__all__",
+            cohort_version=self._cohort_version,
+            source_indices=source_indices,
+            variant_ids=variant_ids,
+        )
+        self._population_projection_cache[key] = projection
+        return projection
 
     def gene_clusters(self, partition: str | None = None) -> np.ndarray:
         """Project the per-row gene cluster labels for 'cluster_bootstrap_ci'."""

@@ -65,8 +65,8 @@ from genomic_variant_classifier.evaluation.metrics import (
     evaluate,
     expected_calibration_error,
     log_loss,
-    select_finite_reference_labels,
 )
+from genomic_variant_classifier.evaluation.population import EvaluationPopulation
 from genomic_variant_classifier.evaluation.registry import (
     MetricContext,
     evaluate_registered,
@@ -87,8 +87,11 @@ def cohort_with_nonfinite_predictions():
 
 
 def _ctx(y, prob=None, score=None, scope="prediction_contract_cohort"):
-    return MetricContext(y_true=y, y_prob=prob, y_score=score,
-                         population_scope=scope)
+    return MetricContext(
+        y_true=y, y_prob=prob, y_score=score,
+        population=EvaluationPopulation.full(
+            np.asarray(y).size, scope=scope,
+            source_id="unit-test-frame:sha256:0000000000000000"))
 
 
 # --------------------------------------------------------------------------- #
@@ -281,61 +284,111 @@ def test_the_registry_never_routes_through_the_legacy_composite():
 # --------------------------------------------------------------------------- #
 # 4. The transitional boundary, tripwired
 # --------------------------------------------------------------------------- #
-def test_the_transitional_label_boundary_is_documented():
-    """Fails the moment the seam stops declaring the transitional state, so the
-    temporary arrangement cannot silently become permanent."""
+def test_the_label_contract_is_stated_in_the_present_tense():
+    """RETIRED AGAINST ITS REPLACEMENT, 2026-07-27.
+
+    This tripwire previously asserted that the seam DECLARED a transitional label
+    mask, so the temporary arrangement could not silently become permanent. The
+    replacement has now landed, so the assertion is inverted: the seam must state
+    the contract that is true NOW, and must no longer describe a transition that
+    is over. A tripwire deleted rather than inverted would leave nothing holding
+    the seam to its own contract.
+    """
     module_doc = canonical_module.__doc__ or ""
     assert "EvaluationPopulation" in module_doc, (
-        "the seam's MODULE docstring -- where the contract is stated -- must "
-        "name what supersedes the transitional label mask. An occurrence "
-        "elsewhere in the file does not state the contract, and a tripwire "
-        "satisfied by any occurrence anywhere is one the sabotage matrix "
-        "walked straight through.")
-    assert "TRANSITIONAL" in module_doc.upper()
+        "the seam must name the contract that makes label eligibility explicit")
     assert "PREDICTIONS are validated, never selected" in module_doc, (
-        "the seam must state the prediction contract positively, not merely "
-        "omit the false claim")
+        "the seam must state the prediction contract positively, not merely omit "
+        "the false claim")
 
     source = inspect.getsource(canonical_module)
+    assert "transitional" not in source.lower(), (
+        "the seam still describes a transitional label mask; that transition is "
+        "complete and a docstring describing a finished migration is a "
+        "code-contract divergence in executable documentation")
     assert "joint mask" not in source.lower(), (
-        "the seam still claims one joint mask over labels and predictions; "
-        "predictions are no longer selected, so that statement is false")
+        "the seam still claims one joint mask over labels and predictions")
 
 
-def test_the_transitional_label_selector_is_a_named_deletion_target():
-    """The residual population decision must be a named function, not an
-    anonymous clause inside `clean_arrays`, so the next commit has one precise
-    thing to delete."""
-    assert callable(select_finite_reference_labels)
-    mask = select_finite_reference_labels(np.array([0.0, 1.0, np.nan, 1.0]))
-    assert mask.dtype == bool
-    assert mask.tolist() == [True, True, False, True]
-
-    doc = select_finite_reference_labels.__doc__ or ""
-    assert "TRANSITIONAL" in doc.upper()
-    assert "EvaluationPopulation" in doc
-
-    clean_source = inspect.getsource(metrics_module.clean_arrays)
-    assert "select_finite_reference_labels" in clean_source, (
-        "clean_arrays must delegate the label decision to the named selector "
-        "rather than owning it")
+def test_the_transitional_label_selector_is_gone():
+    """Its whole purpose was to be a single, precise deletion target."""
+    assert not hasattr(metrics_module, "select_finite_reference_labels"), (
+        "metrics.select_finite_reference_labels still exists. It was a named "
+        "compatibility selector pending EvaluationPopulation; leaving it in "
+        "place gives callers two ways to make one population decision, and the "
+        "one that records nothing is the more convenient of the two.")
+    assert "select_finite_reference_labels" not in inspect.getsource(metrics_module)
 
 
-def test_the_label_selector_is_not_applied_to_predictions():
-    """Labels are selected; predictions are validated. Applying the selector to
-    a prediction array would reintroduce the defect under a new name."""
-    source = inspect.getsource(metrics_module)
-    kernel_bodies = [
-        inspect.getsource(fn)
-        for fn in (auroc, brier_score, log_loss, expected_calibration_error)
-    ]
-    for body in kernel_bodies:
-        assert "select_finite_reference_labels" not in body, (
-            "a kernel applies the label selector to its own inputs; kernels "
-            "must assert their prediction contract, never select on it")
-    assert "def select_finite_reference_labels" in source
+def test_label_selection_now_records_what_it_removed():
+    """The point of the migration, not merely that it happened.
+
+    The retired selector returned a bare boolean mask: it could say which rows
+    survived and nothing about why, so the reason had to be reconstructed by
+    whoever read the number later, if it could be reconstructed at all.
+    """
+    y = np.array([0.0, 1.0, np.nan, 1.0, np.nan])
+    attempted = EvaluationPopulation.full(
+        y.size, scope="attempted_cohort",
+        source_id="unit-test-frame:sha256:0000000000000000")
+    eligible = attempted.restrict(np.isfinite(y), scope="label_eligible",
+                                  reason="reference_label_withheld")
+
+    assert eligible.n == 3
+    assert eligible.n_excluded_from_parent == 2
+    assert eligible.restriction_reason == "reference_label_withheld"
+    assert eligible.parent is attempted
+    lineage = eligible.lineage()
+    assert [step["scope"] for step in lineage] == ["attempted_cohort", "label_eligible"]
+    assert lineage[0]["reason"] is None
+    assert lineage[1]["reason"] == "reference_label_withheld"
 
 
+def test_the_legacy_composite_still_carries_its_own_label_mask():
+    """`metrics.evaluate` is frozen compatibility and keeps working unchanged.
+
+    Retiring the selector must not alter the legacy path: it constructs its own
+    population and discloses the narrowing. If this breaks, the retirement
+    reached further than intended.
+    """
+    result = evaluate(
+        np.array([0.0, 1.0, np.nan, 0.0, 1.0]),
+        np.array([0.1, 0.9, 0.4, 0.2, 0.8]),
+        prob=np.array([0.1, 0.9, 0.4, 0.2, 0.8]),
+    )
+    assert result["n_input"] == 5
+    assert result["n"] == 4
+    assert result["n_dropped"] == 1
+
+
+def test_kernels_never_select_on_their_prediction_inputs():
+    """Labels are selected upstream; predictions are validated. A kernel that
+    selected on a prediction array would reintroduce the defect under a new
+    name."""
+    for fn in (auroc, brier_score, log_loss, expected_calibration_error):
+        body = inspect.getsource(fn)
+        assert "isfinite" not in body or "_require_finite" in body, (
+            f"{fn.__name__} appears to test finiteness of its own inputs rather "
+            "than asserting the contract")
+        assert "select_" not in body
+
+
+# --------------------------------------------------------------------------- #
+# RESTORED 2026-07-27. These three were destroyed accidentally during commit
+# 2a-1 and are reinstated verbatim.
+#
+# The tripwire retirement replaced everything from its anchor to the END OF THE
+# FILE, and these had been appended after that anchor in commit 2a. Eight test
+# cases went with them, including the parametrised gate test that closed the B4
+# gap found by commit 2a's own sabotage matrix -- the one asserting that a
+# refusal comes from the gate rather than from a kernel raising, which status
+# alone cannot distinguish.
+#
+# Nothing detected this but the MEASURED collection delta: 25 tests became 19
+# when the edit accounted for only three removals and five additions. A computed
+# ratchet would have recorded the number the edit intended and lost these
+# silently. This is why ratchet moves are measured.
+# --------------------------------------------------------------------------- #
 @pytest.mark.parametrize("metric_name", list(registry_module.names()))
 def test_every_metric_refuses_at_the_gate_not_by_raising(
         metric_name, cohort_with_nonfinite_predictions):
@@ -361,7 +414,6 @@ def test_every_metric_refuses_at_the_gate_not_by_raising(
     assert N_BAD in diagnostics, (
         f"{metric_name} carries no non-finite count; a gate refusal always does")
 
-
 def test_a_probability_metric_is_unaffected_by_nonfinite_scores_at_the_gate():
     """The registry-level counterpart of metric-specific validation. Catches a
     gate widened to check every prediction array regardless of descriptor."""
@@ -374,7 +426,6 @@ def test_a_probability_metric_is_unaffected_by_nonfinite_scores_at_the_gate():
         assert results[name].status is MetricStatus.OK, (
             f"{name} consumes probabilities only and must not be failed by a "
             "corrupt score array")
-
 
 def test_the_probability_range_guard_runs_before_the_finiteness_assertion():
     """ORDER IS THE CONTRACT, and it is not observable from the values alone.

@@ -209,26 +209,6 @@ def _require_finite_probabilities(probabilities: Sequence, *,
     return arr
 
 
-def select_finite_reference_labels(y_true: Sequence) -> "np.ndarray":
-    """Boolean mask of rows whose reference label is present.
-
-    TRANSITIONAL compatibility selector, pending EvaluationPopulation.
-
-    Withheld labels are first-class in this project and are carried as NaN by
-    CanonicalVariantTable. Selecting on them is a POPULATION decision, and
-    population decisions belong upstream, not inside a numerical kernel. This
-    function exists so that the residual debt is a named, single deletion target
-    rather than an anonymous clause inside `clean_arrays`: when
-    EvaluationPopulation lands, every caller of this function moves to it and
-    this function is removed.
-
-    It is deliberately NOT applied to prediction arrays. Those are validated,
-    never selected -- see `_require_finite_scores`.
-    """
-    y = np.asarray(y_true, dtype=float).ravel()
-    return np.isfinite(y)
-
-
 def clean_arrays(y: Sequence, score: Sequence,
                  probability: Sequence | None = None) -> CleanArrays:
     """Validate labels strictly; drop non-finite rows on ONE joint mask.
@@ -256,13 +236,14 @@ def clean_arrays(y: Sequence, score: Sequence,
             f"y={y_arr.shape}, score={s_arr.shape}, probability={p_arr.shape}"
         )
 
-    # The LABEL component is delegated to a named, transitional selector so the
-    # residual population decision is visible and has one deletion target when
-    # EvaluationPopulation lands. The PREDICTION components are retained here
-    # only for the legacy `evaluate` composite, which is explicitly a
-    # survivor-filtering compatibility interface; the registry never reaches
-    # this path, because it refuses non-finite predictions before dispatch.
-    fy = select_finite_reference_labels(y_arr)
+    # LEGACY PATH ONLY. Label selection is a POPULATION decision and now belongs
+    # to `EvaluationPopulation`, which records what it removed and why. The mask
+    # below survives solely for `metrics.evaluate`, the survivor-filtering
+    # compatibility composite, which constructs its own population and discloses
+    # the narrowing as n_input / n / n_dropped. The registry never reaches this
+    # code: it refuses non-finite predictions before dispatch and receives arrays
+    # already projected through a population.
+    fy = np.isfinite(y_arr)
     fs = np.isfinite(s_arr)
     fp = np.isfinite(p_arr)
     keep = fy & fs & fp

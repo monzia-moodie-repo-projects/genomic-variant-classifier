@@ -131,6 +131,7 @@ from typing import Callable, Mapping, Optional, Protocol, Sequence
 import numpy as np
 
 from .capabilities import MetricMetadataKey, MetricResult, MetricStatus
+from .population import EvaluationPopulation
 
 __all__ = [
     "MetricInput",
@@ -187,7 +188,7 @@ class MetricContext:
     """
 
     y_true: np.ndarray
-    population_scope: str
+    population: EvaluationPopulation
     y_score: Optional[np.ndarray] = None
     y_prob: Optional[np.ndarray] = None
     clusters: Optional[np.ndarray] = None
@@ -195,14 +196,25 @@ class MetricContext:
     metadata: Mapping[str, object] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        if not isinstance(self.population_scope, str) or not self.population_scope.strip():
+        if not isinstance(self.population, EvaluationPopulation):
             raise ValueError(
-                "population_scope is REQUIRED and must be a nonempty string. "
-                "Support counts alone do not identify the denominator: 53 and 63 "
-                "were both correct and described different populations, and 85 "
-                "and 107 were printed as a partition of 107. A number without its "
-                "population is not evidence.")
+                "population is REQUIRED and must be an EvaluationPopulation. A "
+                "bare scope string is a NAME, not a membership: 53 and 63 were "
+                "both correct and described different populations, and 85 and "
+                "107 were printed as a partition of 107. A number without its "
+                "population is not evidence, and a population named but not "
+                "identified cannot be compared with another.")
         n = np.asarray(self.y_true).size
+        if n != self.population.n:
+            raise ValueError(
+                f"y_true has {n} rows but the population declares "
+                f"{self.population.n}. The arrays in a context are ALREADY "
+                f"PROJECTED, so they carry the length of the population, not of "
+                f"the {self.population.n_source}-row source frame. Unprojected "
+                "arrays would compute over rows the population had excluded "
+                "while reporting the narrower count -- exactly the divergence "
+                "between a number and its stated denominator that this stack "
+                "exists to remove.")
         for name in ("y_score", "y_prob", "clusters", "sample_weight"):
             v = getattr(self, name)
             if v is not None and np.asarray(v).size != n:
@@ -210,6 +222,15 @@ class MetricContext:
                     f"{name} has {np.asarray(v).size} rows but y_true has {n}; "
                     "the context is aligned ONCE, here, so a descriptor can never "
                     "compute over a mismatched pairing")
+
+    @property
+    def population_scope(self) -> str:
+        """Derived, never stored.
+
+        A stored copy beside the population would be a second source of truth for
+        one fact, and two sources of truth for one fact eventually disagree.
+        """
+        return self.population.scope
 
     # --- derived facts every applicability predicate may use -----------------
     @property
@@ -254,6 +275,8 @@ class MetricContext:
         silently is the class of guess this project removes.
         """
         out = {MetricMetadataKey.POPULATION_SCOPE: self.population_scope,
+               MetricMetadataKey.POPULATION_FINGERPRINT:
+                   self.population.membership_fingerprint,
                MetricMetadataKey.N_OBSERVATIONS: self.n,
                MetricMetadataKey.N_CLASSES_OBSERVED: self.n_classes_observed}
         if self.clusters is not None:
