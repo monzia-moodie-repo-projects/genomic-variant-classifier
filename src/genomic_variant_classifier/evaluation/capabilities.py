@@ -60,9 +60,11 @@ TWO DELIBERATE DEPARTURES FROM THE ORIGINAL PROPOSAL
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
+
+import numpy as np
 
 
 class MetricStatus(str, Enum):
@@ -187,6 +189,98 @@ REASON_TARGET_COVERAGE_TOO_LOW = "target_coverage_too_low"
 REASON_NO_OUTPUT_ARTIFACT = "no_output_artifact"
 REASON_DISEASE_INFORMED_GRAPH = "disease_informed_graph_contaminates_target"
 REASON_KNOWLEDGE_CUTOFF_UNSAFE = "knowledge_cutoff_not_safe"
+
+
+# --------------------------------------------------------------------------- #
+# The result vocabulary.
+#
+# RELOCATED FROM clustering_metrics.py ON 2026-07-27, unchanged.
+#
+# It was defined in a 1,326-line panel module and imported by two others --
+# representation_geometry.py and norm_angle_probe.py -- so it was already a
+# SHARED contract living inside a single panel, and its __post_init__ depends on
+# MetricStatus, which lives here. The dependency ran UPWARD, from the vocabulary
+# layer into a panel.
+#
+# Same relocation BootstrapUnit received, for the same reason. The precedent for
+# the identity guarantee is test_there_is_exactly_one_metric_status_class: two
+# classes sharing a name is the divergence problem removed in b8275a0.
+# clustering_metrics.py re-exports THIS object, so no importer can obtain a
+# second, equivalent-looking type.
+#
+# np.isfinite is retained verbatim rather than swapped for math.isfinite. The two
+# were measured equivalent on every scalar input on 2026-07-27 and differ only on
+# arrays, where numpy silently ACCEPTS a one-element array as finite while math
+# rejects it. Changing that here would be a behaviour change in a relocation whose
+# acceptance criterion is that there are none.
+# --------------------------------------------------------------------------- #
+@dataclass(frozen=True)
+class MetricResult:
+    """A metric value that always knows whether it is a value.
+
+    Invariants, enforced in __post_init__ so the raw constructor cannot bypass
+    them:
+      - a non-OK status REQUIRES a nonempty reason;
+      - a non-OK status carries value NaN;
+      - an OK status carries a finite value and no reason.
+
+    Read `status` before `value`. A caller that reads `value` without checking
+    `status` is making the mistake this class exists to prevent.
+    """
+
+    value: float
+    status: MetricStatus
+    reason: Optional[str] = None
+    metadata: dict = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.status, MetricStatus):
+            raise TypeError(f"status must be a MetricStatus, got {type(self.status).__name__}")
+        if self.status is MetricStatus.OK:
+            if self.reason:
+                raise ValueError(
+                    "an OK MetricResult must not carry a reason; a reason explains "
+                    "why a value is absent")
+            if not np.isfinite(self.value):
+                raise ValueError(
+                    f"an OK MetricResult must carry a finite value, got {self.value}")
+        else:
+            if not self.reason:
+                raise ValueError(
+                    f"status {self.status.value!r} requires a nonempty reason. A "
+                    "failure without an explanation is exactly the silent NaN this "
+                    "class exists to prevent.")
+            if np.isfinite(self.value):
+                raise ValueError(
+                    f"status {self.status.value!r} must carry NaN, got {self.value}; "
+                    "a non-OK result holding a finite number invites it being used")
+
+    @property
+    def is_ok(self) -> bool:
+        return self.status is MetricStatus.OK
+
+    @classmethod
+    def ok(cls, value: float, **metadata) -> "MetricResult":
+        return cls(float(value), MetricStatus.OK, None, dict(metadata))
+
+    @classmethod
+    def not_ok(cls, status: MetricStatus, reason: str, **metadata) -> "MetricResult":
+        if status is MetricStatus.OK:
+            raise ValueError("not_ok() cannot construct an OK result")
+        return cls(float("nan"), status, reason, dict(metadata))
+
+    def to_dict(self) -> dict:
+        return {"value": self.value, "status": self.status.value,
+                "reason": self.reason, "metadata": dict(self.metadata)}
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "MetricResult":
+        """Round-trip from to_dict(). NaN does not survive strict JSON, so a
+        null value is read back as NaN rather than rejected."""
+        v = d.get("value")
+        value = float("nan") if v is None else float(v)
+        return cls(value, MetricStatus(d["status"]), d.get("reason"),
+                   dict(d.get("metadata") or {}))
 
 
 @dataclass(frozen=True)

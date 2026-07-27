@@ -3538,4 +3538,29 @@
 #   persisted joint structure. Further narrative revision is rejected unless
 #   accompanied by a failing invariant or a newly measured contradiction.
 #
-3169
+
+# 3185 -- 2026-07-27 -- MetricResult moves to the vocabulary layer.
+#   Previous value: 3169.  Delta: +16.
+#
+#   Roadmap Tier 1 item 6, commit 1 of 3. The registry is NOT here.
+#
+#   MetricResult was defined inside a 1,326-line PANEL module and imported by
+#   two others, while its __post_init__ depends on MetricStatus in the
+#   vocabulary layer -- the dependency ran upward. It now lives in
+#   capabilities.py and clustering_metrics.py re-exports THE SAME OBJECT.
+#
+#   np.isfinite kept, not swapped for math.isfinite: measured equivalent on
+#   every scalar and different only on arrays, where numpy silently ACCEPTS a
+#   one-element array as finite.
+#
+#   TWO DEFECTS OF MY OWN, both caught by tests: the first extraction ran to
+#   the next @dataclass and silently DELETED `def aggregate` between them; and
+#   cleaning a sabotage with `git checkout` restored from the INDEX and wiped
+#   the uncommitted relocation. Never use git checkout to undo a sabotage while
+#   the real work is uncommitted.
+#
+#   A GUARD THAT COULD NOT FAIL: of four sabotages, the np.isfinite one PASSED
+#   because it used np.float64, where numpy and math agree. Rewritten around a
+#   one-element array -- the only discriminating input -- it now fails.
+#
+3185

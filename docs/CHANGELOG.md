@@ -1,3 +1,46 @@
+## 2026-07-27 -- MetricResult moves to the vocabulary layer (Tier 1 item 6, commit 1/3)
+
+Ratchet 3169 -> 3185 (+16). Session record:
+docs/sessions/SESSION_2026-07-27_metric-result-relocation.md
+
+### Moved
+- MetricResult was defined at clustering_metrics.py:176, inside a 1,326-line PANEL
+  module, and imported by representation_geometry.py and norm_angle_probe.py. It
+  was already a SHARED contract living in one panel, and its __post_init__ depends
+  on MetricStatus, which lives in capabilities.py -- so the dependency ran UPWARD
+  from the vocabulary layer into a panel. It now lives in capabilities.py and
+  clustering_metrics.py re-exports THE SAME OBJECT.
+- Same relocation BootstrapUnit received. Identity is pinned exactly as
+  test_there_is_exactly_one_metric_status_class pins the status enum.
+
+### Measured, not argued
+- np.isfinite was KEPT rather than swapped for math.isfinite. The two agree on
+  every scalar input and differ only on arrays, where numpy silently ACCEPTS a
+  one-element array as finite. Changing that would be a behaviour change in a
+  relocation whose acceptance criterion is that there are none. numpy is permitted:
+  the import contract blocks sklearn only.
+
+### Two defects of my own, both caught by tests
+- The first extraction ran to the next @dataclass and silently DELETED
+  `def aggregate`, which sat between the two classes. Caught by
+  test_clustering_metrics.py with an ImportError; boundary corrected and the
+  neighbours are now pinned.
+- Cleaning a sabotage with `git checkout <file>` restored from the INDEX and wiped
+  the uncommitted relocation, leaving the package unable to import. Rebuilt; all
+  later sabotage cleanups used file copies. Standing lesson recorded.
+
+### A guard that could not fail
+- Four sabotages were run; three fired. The np.isfinite guard used np.float64,
+  where numpy and math AGREE, so it could not detect the swap it existed to detect.
+  Rewritten around the one discriminating input -- a one-element array -- it now
+  fails with TypeError. Fifth instance in three days of a check passing for the
+  wrong reason, found only because the sabotage was actually run.
+
+### Deliberately not done
+No registry, no metric behaviour change, metrics.evaluate() untouched. A test
+asserts evaluation/registry.py does NOT exist, to be deleted by the commit that
+adds it.
+
 ## 2026-07-27 -- roadmap rebuilt to ground truth: three tiers, seventeen items
 
 Documentation only. No source, test, ratchet or README change.

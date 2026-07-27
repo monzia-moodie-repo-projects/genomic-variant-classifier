@@ -94,6 +94,7 @@ import numpy as np
 from .capabilities import (  # noqa: F401  (re-exported)
     CapabilityEvidence,
     CapabilityState,
+    MetricResult,
     MetricStatus,
     TargetState,
     release_gate_satisfied,
@@ -172,73 +173,10 @@ class CovariateType(str, Enum):
     TARGET = "target"
 
 
-@dataclass(frozen=True)
-class MetricResult:
-    """A metric value that always knows whether it is a value.
-
-    Invariants, enforced in __post_init__ so the raw constructor cannot bypass
-    them:
-      - a non-OK status REQUIRES a nonempty reason;
-      - a non-OK status carries value NaN;
-      - an OK status carries a finite value and no reason.
-
-    Read `status` before `value`. A caller that reads `value` without checking
-    `status` is making the mistake this class exists to prevent.
-    """
-
-    value: float
-    status: MetricStatus
-    reason: Optional[str] = None
-    metadata: dict = field(default_factory=dict)
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.status, MetricStatus):
-            raise TypeError(f"status must be a MetricStatus, got {type(self.status).__name__}")
-        if self.status is MetricStatus.OK:
-            if self.reason:
-                raise ValueError(
-                    "an OK MetricResult must not carry a reason; a reason explains "
-                    "why a value is absent")
-            if not np.isfinite(self.value):
-                raise ValueError(
-                    f"an OK MetricResult must carry a finite value, got {self.value}")
-        else:
-            if not self.reason:
-                raise ValueError(
-                    f"status {self.status.value!r} requires a nonempty reason. A "
-                    "failure without an explanation is exactly the silent NaN this "
-                    "class exists to prevent.")
-            if np.isfinite(self.value):
-                raise ValueError(
-                    f"status {self.status.value!r} must carry NaN, got {self.value}; "
-                    "a non-OK result holding a finite number invites it being used")
-
-    @property
-    def is_ok(self) -> bool:
-        return self.status is MetricStatus.OK
-
-    @classmethod
-    def ok(cls, value: float, **metadata) -> "MetricResult":
-        return cls(float(value), MetricStatus.OK, None, dict(metadata))
-
-    @classmethod
-    def not_ok(cls, status: MetricStatus, reason: str, **metadata) -> "MetricResult":
-        if status is MetricStatus.OK:
-            raise ValueError("not_ok() cannot construct an OK result")
-        return cls(float("nan"), status, reason, dict(metadata))
-
-    def to_dict(self) -> dict:
-        return {"value": self.value, "status": self.status.value,
-                "reason": self.reason, "metadata": dict(self.metadata)}
-
-    @classmethod
-    def from_dict(cls, d: dict) -> "MetricResult":
-        """Round-trip from to_dict(). NaN does not survive strict JSON, so a
-        null value is read back as NaN rather than rejected."""
-        v = d.get("value")
-        value = float("nan") if v is None else float(v)
-        return cls(value, MetricStatus(d["status"]), d.get("reason"),
-                   dict(d.get("metadata") or {}))
+# MetricResult is DEFINED IN capabilities.py and re-exported through the import
+# block above, so every historical import path keeps working and resolves to THE
+# SAME OBJECT. See the relocation note in that module. Asserted by
+# test_there_is_exactly_one_metric_result_class.
 
 
 def aggregate(results: Sequence[MetricResult], *,
