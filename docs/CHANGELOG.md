@@ -1,3 +1,38 @@
+## 2026-07-27 -- controlled metadata vocabulary (Tier 1 item 6, commit 2b/3)
+
+Ratchet 3227 -> 3247 (+20). Session record:
+docs/sessions/SESSION_2026-07-27_metric-metadata-vocabulary.md
+
+### Built
+- MetricMetadataKey: a str-and-Enum controlled vocabulary for the seven canonical
+  MetricResult.metadata keys. NOT StrEnum, which is Python 3.11+ while the floor
+  is 3.10 and a guard test enforces it.
+- Six read-only accessors on MetricResult: population_scope,
+  certification_eligible, n_observations, n_classes_observed, n_clusters,
+  metric_name. Each returns None when the key is absent or wrongly typed; bool is
+  rejected for the counts because bool subclasses int.
+- Verified rather than assumed: enum members and their values interchange as dict
+  keys and json.dumps emits plain strings, so no artifact or reader changes.
+
+### The measurement that decided accessors over constructor fields
+53 MetricResult construction sites; 35 of the 39 in src/ are in
+representation_geometry.py and norm_angle_probe.py, POSITIONAL. Those are
+mathematical probes over embedding spaces where "population scope" has no
+epidemiological meaning. TWO SEMANTIC FAMILIES: cohort evaluation carries
+population and support; representation probes carry matrix shape and dimension.
+MetricResult stays a GENERIC contract; the registry requires the keys, probes do
+not.
+
+### The guards found one real defect and two instructive false positives
+- REAL: registry.py used "n_classes_observed" as a string literal at two sites.
+  The enum only prevents drift if the registry uses it. Fixed.
+- FALSE: prediction_artifacts.py "scope" is a table COLUMN, not metadata.
+- FALSE, and important: representation_geometry.py:209 "n_rows" IS MetricResult
+  metadata but means rows of an EMBEDDING MATRIX, not cohort observations --
+  Family B's word for a different quantity. The first forbidden list would have
+  forced a rename that made the vocabulary wrong. Narrowed to same-meaning
+  spellings only, with both findings recorded in the test file.
+
 ## 2026-07-27 -- the metric registry (Tier 1 item 6, commit 2/3)
 
 Ratchet 3185 -> 3227 (+42). Session record:

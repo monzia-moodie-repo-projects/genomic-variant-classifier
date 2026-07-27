@@ -3594,4 +3594,27 @@
 #
 #   metrics.evaluate() is UNTOUCHED and is not registered as a composite.
 #
-3227
+
+# 3247 -- 2026-07-27 -- controlled metadata vocabulary.
+#   Previous value: 3227.  Delta: +20.
+#
+#   Roadmap Tier 1 item 6, commit 2b of 3. The foundation commit 3 needs.
+#
+#   MetricMetadataKey is the single source of spelling for seven metadata
+#   keys, with six read-only accessors on MetricResult. It is a str-and-Enum,
+#   NOT StrEnum, which is Python 3.11+ while the floor is 3.10.
+#
+#   ACCESSORS, NOT CONSTRUCTOR FIELDS -- measured. 53 MetricResult
+#   construction sites; 35 of the 39 in src/ are POSITIONAL, in
+#   representation_geometry.py and norm_angle_probe.py. Those are
+#   mathematical probes over embedding spaces where population scope has no
+#   epidemiological meaning. TWO SEMANTIC FAMILIES: cohort evaluation carries
+#   population and support; representation probes carry matrix shape and
+#   dimension. MetricResult stays a GENERIC contract.
+#
+#   The guards found one REAL defect -- registry.py used
+#   "n_classes_observed" as a literal at two sites -- and two instructive
+#   false positives, of which representation_geometry.py "n_rows" is Family
+#   B's word for embedding-matrix rows, not a misspelling of n_observations.
+#
+3247

@@ -130,7 +130,7 @@ from typing import Callable, Mapping, Optional, Protocol, Sequence
 
 import numpy as np
 
-from .capabilities import MetricResult, MetricStatus
+from .capabilities import MetricMetadataKey, MetricResult, MetricStatus
 
 __all__ = [
     "MetricInput",
@@ -253,11 +253,11 @@ class MetricContext:
         should block certification is a scientific policy decision; inventing one
         silently is the class of guess this project removes.
         """
-        out = {"population_scope": self.population_scope,
-               "n_observations": self.n,
-               "n_classes_observed": self.n_classes_observed}
+        out = {MetricMetadataKey.POPULATION_SCOPE: self.population_scope,
+               MetricMetadataKey.N_OBSERVATIONS: self.n,
+               MetricMetadataKey.N_CLASSES_OBSERVED: self.n_classes_observed}
         if self.clusters is not None:
-            out["n_clusters"] = self.n_clusters
+            out[MetricMetadataKey.N_CLUSTERS] = self.n_clusters
         return out
 
     def has(self, what: "MetricInput") -> bool:
@@ -335,7 +335,7 @@ def _requires_both_classes(ctx: MetricContext) -> Applicability:
         applicable=False,
         status=MetricStatus.UNDEFINED,
         reason="binary_class_support_required",
-        metadata={"n_classes_observed": ctx.n_classes_observed,
+        metadata={MetricMetadataKey.N_CLASSES_OBSERVED: ctx.n_classes_observed,
                   "classes_observed": list(ctx.classes_observed)})
 
 
@@ -364,7 +364,7 @@ def _requires_calibration_support(ctx: MetricContext) -> Applicability:
         return Applicability(
             applicable=False, status=MetricStatus.INSUFFICIENT_SUPPORT,
             reason="calibration_requires_class_support",
-            metadata={"n_classes_observed": ctx.n_classes_observed,
+            metadata={MetricMetadataKey.N_CLASSES_OBSERVED: ctx.n_classes_observed,
                       "classes_observed": list(ctx.classes_observed),
                       "note": "a finite value here would be the gap between the "
                               "mean prediction and the only label present"})
@@ -538,14 +538,14 @@ def compute(d: MetricDescriptor, ctx: MetricContext) -> MetricResult:
         return MetricResult(
             value=nan, status=MetricStatus.NOT_APPLICABLE,
             reason="required_inputs_missing",
-            metadata={"metric_name": d.name, "missing_inputs": list(missing),
+            metadata={MetricMetadataKey.METRIC_NAME: d.name, "missing_inputs": list(missing),
                       **ctx.support()})
 
     verdict = d.applicability(ctx)
     if not verdict.applicable:
         return MetricResult(
             value=nan, status=verdict.status, reason=verdict.reason,
-            metadata={"metric_name": d.name, **ctx.support(),
+            metadata={MetricMetadataKey.METRIC_NAME: d.name, **ctx.support(),
                       **dict(verdict.metadata)})
 
     try:
@@ -554,7 +554,7 @@ def compute(d: MetricDescriptor, ctx: MetricContext) -> MetricResult:
         return MetricResult(
             value=nan, status=MetricStatus.FAILED,
             reason="metric_computation_failed",
-            metadata={"metric_name": d.name,
+            metadata={MetricMetadataKey.METRIC_NAME: d.name,
                       "exception_type": type(exc).__name__,
                       # the message is recorded for a human, but the machine-
                       # readable reason above is stable; exception text is not.
@@ -568,7 +568,7 @@ def compute(d: MetricDescriptor, ctx: MetricContext) -> MetricResult:
         return MetricResult(
             value=nan, status=MetricStatus.FAILED,
             reason="applicable_metric_returned_non_finite",
-            metadata={"metric_name": d.name, "returned": repr(raw),
+            metadata={MetricMetadataKey.METRIC_NAME: d.name, "returned": repr(raw),
                       **ctx.support()})
 
     # NUMERIC COMPUTABILITY, SCIENTIFIC INTERPRETABILITY AND CERTIFICATION
@@ -578,10 +578,11 @@ def compute(d: MetricDescriptor, ctx: MetricContext) -> MetricResult:
     # function hard-coded certification_eligible=True for every OK result, which
     # collapsed the third axis into the first.
     eligible, why = _certification_eligibility(d, ctx)
-    meta = {"metric_name": d.name, "certification_eligible": eligible,
+    meta = {MetricMetadataKey.METRIC_NAME: d.name,
+            MetricMetadataKey.CERTIFICATION_ELIGIBLE: eligible,
             **ctx.support()}
     if not eligible:
-        meta["certification_blocked_by"] = why
+        meta[MetricMetadataKey.CERTIFICATION_BLOCKED_BY] = why
     return MetricResult(value=value, status=MetricStatus.OK, metadata=meta)
 
 

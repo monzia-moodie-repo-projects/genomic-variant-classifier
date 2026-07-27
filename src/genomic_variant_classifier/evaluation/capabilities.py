@@ -191,6 +191,34 @@ REASON_DISEASE_INFORMED_GRAPH = "disease_informed_graph_contaminates_target"
 REASON_KNOWLEDGE_CUTOFF_UNSAFE = "knowledge_cutoff_not_safe"
 
 
+class MetricMetadataKey(str, Enum):
+    """The controlled vocabulary for MetricResult.metadata keys.
+
+    WHY A CONTROLLED VOCABULARY. Free-form string keys drift. Without this,
+    `population_scope`, `populationScope`, `population` and `scope` can all
+    appear across metrics and each looks correct in isolation -- the same
+    wording drift that let one word name two estimands in the P6 audit, and let
+    "explicit conflicts preserved" name a count of withheld-label states.
+
+    A `str`-and-`Enum` subclass, not `StrEnum`, which arrived in Python 3.11
+    while pyproject declares requires-python >= 3.10. Pinned by
+    test_no_module_uses_strenum_which_would_break_the_declared_python_floor.
+
+    Members interchange with their values as dictionary keys -- verified
+    2026-07-27, `hash(member) == hash(value)` -- so the enum is the canonical
+    spelling in code while serialized artifacts keep plain string keys and every
+    existing reader of `metadata["population_scope"]` keeps working.
+    """
+
+    POPULATION_SCOPE = "population_scope"
+    CERTIFICATION_ELIGIBLE = "certification_eligible"
+    CERTIFICATION_BLOCKED_BY = "certification_blocked_by"
+    N_OBSERVATIONS = "n_observations"
+    N_CLASSES_OBSERVED = "n_classes_observed"
+    N_CLUSTERS = "n_clusters"
+    METRIC_NAME = "metric_name"
+
+
 # --------------------------------------------------------------------------- #
 # The result vocabulary.
 #
@@ -232,6 +260,53 @@ class MetricResult:
     status: MetricStatus
     reason: Optional[str] = None
     metadata: dict = field(default_factory=dict)
+
+    # --- canonical accessors over validated metadata ------------------------
+    #
+    # These are PROPERTIES, not constructor fields, and that is a measured
+    # decision rather than a convenience. On 2026-07-27 there were 53
+    # construction sites, 35 of them in representation_geometry.py and
+    # norm_angle_probe.py using POSITIONAL arguments. Those are mathematical
+    # probes over embedding spaces -- effective rank, anisotropy, angular
+    # concentration -- for which "population scope" has no epidemiological
+    # meaning. Forcing the field on them would make the contract ceremonial
+    # exactly where it cannot be checked, which is weaker than not having it.
+    #
+    # So MetricResult stays a GENERIC result contract. The evaluation registry
+    # requires these keys and validates them; representation probes do not carry
+    # them and return None here. A stronger domain-specific contract
+    # (EvaluationMetricResult) can be layered later without touching any of the
+    # 53 sites.
+
+    @property
+    def population_scope(self) -> Optional[str]:
+        v = self.metadata.get(MetricMetadataKey.POPULATION_SCOPE)
+        return v if isinstance(v, str) else None
+
+    @property
+    def certification_eligible(self) -> Optional[bool]:
+        v = self.metadata.get(MetricMetadataKey.CERTIFICATION_ELIGIBLE)
+        return v if isinstance(v, bool) else None
+
+    @property
+    def n_observations(self) -> Optional[int]:
+        v = self.metadata.get(MetricMetadataKey.N_OBSERVATIONS)
+        return v if isinstance(v, int) and not isinstance(v, bool) else None
+
+    @property
+    def n_classes_observed(self) -> Optional[int]:
+        v = self.metadata.get(MetricMetadataKey.N_CLASSES_OBSERVED)
+        return v if isinstance(v, int) and not isinstance(v, bool) else None
+
+    @property
+    def n_clusters(self) -> Optional[int]:
+        v = self.metadata.get(MetricMetadataKey.N_CLUSTERS)
+        return v if isinstance(v, int) and not isinstance(v, bool) else None
+
+    @property
+    def metric_name(self) -> Optional[str]:
+        v = self.metadata.get(MetricMetadataKey.METRIC_NAME)
+        return v if isinstance(v, str) else None
 
     def __post_init__(self) -> None:
         if not isinstance(self.status, MetricStatus):
