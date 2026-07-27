@@ -1,3 +1,48 @@
+## 2026-07-27 -- roadmap rebuilt to ground truth: three tiers, seventeen items
+
+Documentation only. No source, test, ratchet or README change.
+
+### Why
+The ordering block had drifted from the project: item 4 still read [in progress]
+after closing at 4ca92d7; the expanded metric stack's PARTIAL status was described
+at line 848 but absent from the ordering; item 3's open seam certification had no
+gate; and seven new implementation workstreams were authorised with no place to sit.
+
+### The structure
+THREE TIERS, nothing previously planned dropped.
+- TIER 1 in flight, completes first: items 1-8, ending at production metric
+  backfill on cohort v2. Items 1-5 done; 6 (metric registry, cohort-agnostic) is
+  NEXT; 7 (cohort v2, gates C1-C10) is UNBLOCKED by R2's closure.
+- TIER 2 queued behind Tier 1, ALL required BEFORE Run 17: item 9 closes the
+  expanded metric stack against section 16 of the conformal specification, then
+  items 10-16 -- conformal, MOFA+, RNA foundation models, heterogeneous
+  GNN/VAE/GAN/3D CNN, KAN repositioning, fusion v1 then JEPA, and Mixture of
+  Experts -- each with its source document and its dependencies recorded.
+- TIER 3 is Run 17, which cannot launch until Tier 2 completes AND its own four
+  open pre-launch gates close (6.18 stage 2, 6.20 capability, the test_ablate_gnn
+  torch_scatter skip, the pandas fillna downcasting warning).
+
+### Dependencies recorded rather than left implicit
+- The decision record's rule is quoted verbatim: implementation may proceed,
+  backfill is blocked by cohort v2, and the DEPENDENCY -- not the session label --
+  determines the order. My 2026-07-27 recommendation to swap 6 and 7 was WRONG and
+  is recorded as such: I reasoned from a summary line, not the governing document.
+- JEPA's source imposes fusion v1 BEFORE JEPA; adopted verbatim.
+- MOFA+ must integrate through leakage-safe projection, never full-cohort
+  transductive fitting.
+- KAN is an ADDITION, not a replacement: KANEncoder alongside KANClassifier, which
+  remains one of the thirteen permanent base models. The original's fate is decided
+  AFTER Run 17. Precedent: 6.16, where KAN was silently absent from every
+  Continuous Integration run for two months.
+- Mixture of Experts requires the fusion trunk to route over.
+
+### Corrections to the record
+- Item 4 marked done with its full closure evidence, including the three plan
+  corrections the source forced and the two overloaded quantities found.
+- I claimed on 2026-07-27 that carried items (i) and (j) were missing from the
+  committed roadmap. They were present at lines 1745 and 1755; my grep used the
+  wrong indentation. Both are retained verbatim.
+
 ## 2026-07-26 (P6 R2 phase 2f) -- machine-readable sidecar; R2 closed
 
 Ratchet 3165 -> 3169 (+4). Session record section 10.

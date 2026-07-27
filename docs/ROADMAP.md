@@ -1688,42 +1688,207 @@ PROCESS RULE (adopted 2026-07-25): work-item preemption
   correction, which is real but independent of the metric seam.
 
 ------------------------------------------------------------------------------
-ORDERING (agreed 2026-07-25; status updated 2026-07-26):
-  1. [done] restore the incomplete P6 edit
-  2. [done] record P6 R2 as required-before-cohort-v2-certification (this entry)
-  3. [done] CanonicalVariantTable metric seam built and landed as 2e04bd9
-           (Option C step 5.1). Certification of the seam itself remains open.
-  4. [in progress] P6 R2 probe + superseding audit (bounded provenance repair).
-           PHASE 1 (2026-07-26): additive --emit-json capture on the probe, proven
-           to leave the artifact byte-identical, plus an eleven-test contract guard
-           on a synthetic cohort. Freezes the current answers so the restructuring
-           can be required to reproduce them.
-           TWO PLAN CORRECTIONS FORCED BY THE SOURCE, both recorded in
-           docs/sessions/SESSION_2026-07-26_p6-r2-phase1-golden-capture.md:
-             (i)  the invariant n01 + n11 == 203 is FALSIFIED. The 63 and 203 counts
-                  are summed over different universes -- a quarantined variant has a
-                  group-adjudicated label but no representative row. Replaced by
-                  n01 + n11 + n_na1 == 203, with a two-table decomposition.
-             (ii) "five booleans" becomes four total booleans plus ONE NULLABLE
-                  comparison: representative_row_label_changed is undefined, not
-                  False, when P6 selects no representative row.
-           ALSO FOUND: "explicit conflicts preserved: 112" counts withheld-label
-           STATES, not preserved explicit conflicts -- the same overloading defect as
-           "canonical", on the acceptance readout. Decomposed by the golden capture.
-  5. [done] reconcile duplicate calibration / bootstrap paths.
-           Calibration was reconciled by the 2026-07-20 census and is pinned by
-           test_calibration_implementations_agree.py. Bootstrap was reconciled
-           on 2026-07-26 (Option C commit 2): the three implementations became
-           one canonical engine, and the resampling unit is now an explicit,
-           typed part of every confidence interval rather than a consequence of
-           which caller produced it. Ratchet 2991 -> 3118.
-           See docs/sessions/SESSION_2026-07-26_bootstrap-reconciliation.md.
-  6. metric registry / orchestrator
-  7. certified cohort-v2 implementation under corrected P6 evidence
-  (6 and 7 may swap if cohort-v2 is prioritised before the registry.)
+ORDERING -- GROUND TRUTH as of 2026-07-27. Supersedes the 2026-07-25 ordering.
 
-  CARRIED FORWARD from the 2026-07-26 bootstrap commit, each recorded rather
-  than preempted, in section 6 of that session document:
+THREE TIERS. Nothing previously planned is dropped. Tier 1 is in flight and
+completes FIRST; Tier 2 is queued behind it and must be complete BEFORE Run 17;
+Tier 3 is Run 17 itself. A Tier 2 item may not start while a Tier 1 item it
+depends on is open.
+
+=====================================================================
+TIER 1 -- IN FLIGHT. These complete before anything in Tier 2 begins.
+=====================================================================
+
+  1. [done] restore the incomplete P6 edit
+  2. [done] record P6 R2 as required-before-cohort-v2-certification
+  3. [done] CanonicalVariantTable metric seam, landed as 2e04bd9 (Option C step
+           5.1). CERTIFICATION OF THE SEAM REMAINS OPEN -- see carried item (a):
+           as_meta() emits gene_id but never gene_symbol, so a seam-produced
+           frame yields an EMPTY gene_errors list while its docstring claims to
+           be the frame ClinicalEvaluator.evaluate expects.
+  4. [done 2026-07-26] P6 R2 probe + superseding audit (bounded provenance
+           repair). Closed at 4ca92d7, Continuous Integration run #621 green,
+           ratchet 3169.
+           WHAT LANDED: an additive --emit-json capture proven to leave the
+           evidence artifact byte-identical; a frozen golden reference
+           (CLEAN_COHORT_P6_GOLDEN_2026-07-26.json); a layered reconciliation
+           (ProbeConfig -> load -> compute -> summarize -> render) built on ONE
+           immutable PolicyDelta pass; Table A as a 2x2 overlap and Table B as a
+           3x2 JOINT table with every margin derived; a machine-readable sidecar
+           emitted from the SAME Reconciliation object as the text; and a
+           supersession pointer appended to the original with no number rewritten.
+           MEASURED, first time: n11 = 29, n_na1 = 17, and the joint cells
+           neither_changed = 0 against legacy_missing_only_changed = 17 -- all
+           seventeen Table B label changes fall in the legacy-missing row, a fact
+           that independent marginals could not represent.
+           THREE PLAN CORRECTIONS FORCED BY THE SOURCE:
+             (i)   n01 + n11 == 203 is FALSIFIED. The 63 and 203 counts are summed
+                   over different universes. Replaced by n01 + n11 + n_na1 == 203.
+             (ii)  "five booleans" became four total booleans plus ONE NULLABLE
+                   comparison: representative_row_label_changed is undefined, not
+                   False, when P6 selects no representative row.
+             (iii) base_quar is NOT a subset of p6_quar; the reverse holds. Legacy
+                   withholds a representative from 107 variants, P6 from 85, and
+                   P6 NEVER newly quarantines on this cohort -- it un-quarantines 22.
+           ALSO FOUND: "explicit conflicts preserved: 112" counts withheld-label
+           STATES (85 irreducible + 27 ambiguous), not preserved explicit
+           conflicts; and the published 63 counts a comparison against a MISSING
+           ROW for 10 of its members.
+  5. [done] reconcile duplicate calibration / bootstrap paths. Calibration by the
+           2026-07-20 census, pinned by test_calibration_implementations_agree.py.
+           Bootstrap on 2026-07-26 (Option C commit 2): three implementations
+           became one canonical engine and the resampling unit became an explicit,
+           typed part of every confidence interval. Ratchet 2991 -> 3118.
+  6. [NEXT] metric registry / orchestrator -- COHORT-AGNOSTIC.
+           The integration layer over panels that mostly exist already: binary
+           metrics, calibration and bootstrap (evaluation/metrics.py), conformal
+           (conformal/), capability and validation states
+           (evaluation/capabilities.py), gene-cluster resampling
+           (evaluation/cluster_resolution.py), clustering metrics, representation
+           geometry. There is NO registry or orchestrator module today.
+           ARCHITECTURAL SAFEGUARD, verified intact 2026-07-27: no module under
+           src/ imports probe code. The metric stack consumes
+           CanonicalVariantRecord; it never reaches into a probe.
+  7. certified cohort-v2 implementation under corrected P6 evidence -- gates
+           C1-C10 of DECISION_2026-07-25_cohort-v2-authorization-and-phase-split.md.
+           UNBLOCKED 2026-07-26: that decision recorded R2 as blocking v2
+           certification because "the certified v2 build must consume the
+           corrected R2 artifact, not the ambiguous original". The corrected
+           artifact now exists and is golden-verified.
+  8. production metric backfill, calibration and certification ON v2.
+
+  THE DEPENDENCY RULE, quoted from the decision record so this ordering question
+  is settled by evidence and not by whoever reads a summary line next:
+
+      Metric-stack IMPLEMENTATION may proceed on cohort-agnostic infrastructure;
+      production metric BACKFILL/certification is BLOCKED_BY_COHORT_V2.
+      ... if the next metric-stack task requires real production labels,
+      cohort-specific expected values, or the new evidence-summary fields, then
+      v2 construction moves ahead of that task. The DEPENDENCY -- not the session
+      label -- determines the order.
+
+  On 2026-07-27 I recommended swapping 6 and 7 and was WRONG: I reasoned from the
+  roadmap summary line rather than from the decision record, which distinguishes
+  implementation from backfill. A registry needs none of the three triggers, so 6
+  stays before 7. Recorded because the error is instructive.
+
+=====================================================================
+TIER 2 -- QUEUED BEHIND TIER 1. ALL REQUIRED BEFORE RUN 17.
+=====================================================================
+
+  9. EXPANDED METRIC STACK -- close the PARTIAL recorded at section line 848.
+           Present: AUROC, AUPRC with lift over floor, Brier, Expected Calibration
+           Error, calibration slope/intercept, bootstrap intervals, stratified
+           evaluation. MISSING, per section 16 of the conformal specification:
+           validity (per-class and worst-group coverage, coverage gap); efficiency
+           (set-size distribution, singleton/doubleton/empty rates); clinical
+           behaviour (pathogenic-exclusion rate, severe-error rate, deferral
+           burden, positive and negative predictive value among singletons);
+           selective prediction (risk-at-coverage, area under the risk-coverage
+           curve); multimodal robustness; shift robustness.
+
+ 10. CONFORMAL PREDICTION -- source: The_best_conformal_prediction_implementation.
+           Per-label conformal thresholds with multilabel risk control; adaptive
+           candidate-gene sets with top-K retrieval risk control;
+           modality-signature-aware calibration; missing-modality evaluation.
+           OVERLAPS item 9 -- the section-16 validity and efficiency panels ARE
+           the conformal evaluation surface. Build them once, not twice.
+
+ 11. MOFA+ MULTI-OMICS FACTOR ANALYSIS -- source: MOFA__implementation.
+           Interpretable shared and modality-specific biological programs;
+           cross-modal support and discordance; gene-program rankings; subgroup
+           structure; reconstruction anomalies; missing-view uncertainty.
+           HARD CONSTRAINT from the source: integrate through LEAKAGE-SAFE
+           PROJECTION, never full-cohort transductive fitting, and only where the
+           views share a real, explicitly defined observational axis.
+           Doubles as a rigorous linear-probabilistic benchmark for the VAE and
+           JEPA representations in items 13 and 15.
+
+ 12. RNA FOUNDATION MODELS -- source: RNA_sequence_foundation_models_implementation.
+           Two complementary families. RNA SEQUENCE: RiNALMo (priority), RNA-FM,
+           ERNIE-RNA (structural priors, relevant to splice variants).
+           TRANSCRIPTOMIC: Geneformer or scGPT.
+           New connectors plus version-keyed embedding caches. Sequencing note:
+           these feed items 14 and 15, so they land before the fusion trunk.
+
+ 13. HETEROGENEOUS GNN / VAE / GAN / 3D CNN -- source:
+           implementing_GNN_VAE_GAN_3DCNN. Four DIFFERENTIATED EVIDENCE
+           INSTRUMENTS, not four more classifiers.
+           MANDATORY per the source, and per this project's own history: graph
+           splits that defeat the named leakage mechanisms, and NEGATIVE CONTROLS
+           for gene ranking. Carried item: test_ablate_gnn currently SKIPS locally
+           on torch_scatter / torch_sparse 0xc0000139, so graph coverage is absent
+           on the Windows box -- confirm runnable before any GNN claim.
+
+ 14. KAN REPOSITIONING -- source: improved_KAN_implementat.
+           ADDITION, NOT REPLACEMENT (confirmed 2026-07-27). A KANEncoder branch
+           producing embeddings with quality and uncertainty metadata, alongside
+           the existing KANClassifier, which REMAINS one of the thirteen permanent
+           base models. FastKAN for production, pykan pinned for interpretation,
+           symbolic analysis and spline visualisation.
+           THE FATE OF THE ORIGINAL KANClassifier IS DECIDED AFTER RUN 17, NOT
+           BEFORE. Precedent: item 6.16 -- KAN was silently absent from every
+           Continuous Integration run for two months and a twelve-model ensemble
+           reported normal metrics.
+           Evaluate on scientific criteria as well as predictive: spline
+           stability, biological plausibility, agreement with established
+           attribution methods, reproducibility across retraining.
+
+ 15. FUSION v1, THEN JEPA -- source: JEPA_Implementation.
+           THE SOURCE IMPOSES THE ORDER and it is adopted verbatim: expose
+           embeddings; build masked supervised fusion v1; validate attribution;
+           benchmark against the stacker; THEN add JEPA pretraining. JEPA does not
+           start until fusion v1 is reproducible, calibrated, attribution-validated
+           and benchmarked.
+           Fusion v1 inputs, honestly scoped: Nucleotide Transformer pooled
+           embedding, ESM-2 pooled/delta embedding, GNN pre-readout node
+           embedding, TabularNN penultimate embedding, presence masks and learned
+           absent tokens. RNA, pathology images and further foundation models are
+           MASKED FUTURE SLOTS, not pretend inputs.
+           HARD RULES: gene contribution is validated, not merely interpreted;
+           Head A (pathogenicity) and Head B (disease category) attributions stay
+           SEPARATE so disease priors cannot masquerade as discovered biology;
+           disease-head evaluation is restricted to labels seen in training;
+           missingness is modelled as structured signal, never zero-filled; the
+           fusion-versus-stacker comparison is calibrated and paired; every
+           embedding cache is version-keyed and reproducible.
+
+ 16. MIXTURE OF EXPERTS -- source: moe_integration.
+           DUAL-GATE architecture. Allocation tells the system WHERE TO COMPUTE;
+           relevance estimates WHICH MECHANISMS ARE SUPPORTED; reliability
+           estimates WHETHER THE EVIDENCE IS TRUSTWORTHY. These are distinct,
+           trained under distinct constraints, calibrated separately and admitted
+           under separate gates. A normalized routing weight is NOT a relevance
+           estimate.
+           Panel S0 gates INTERPRETATION, not every later panel's execution.
+           Requires the fusion trunk from item 15 to route over.
+           See docs/PANEL_S0_ROUTING_IDENTIFIABILITY.md.
+
+=====================================================================
+TIER 3 -- RUN 17. Cannot launch until Tier 2 is complete.
+=====================================================================
+
+ 17. RUN 17 -- planned and gated, NOT launched. docs/runs/RUN17_SCOPE.md
+           (commit 94bf6ae). Last executed run: Run 16.
+           ITS OWN PRE-LAUNCH GATES, all still open:
+             * 6.18 stage 2 -- requirements.in / .lock / .txt remain a dual source
+               of truth. Add the transformers and pandas ceilings to
+               requirements.in, recompile UNDER Python 3.12, verify the new lock
+               reproduces the known-good stack exactly, extend lockfile-check to
+               the main pair, then make ONE hash-pinned file the single install
+               target. Deliberate and separately verified, never a side effect.
+             * 6.20 -- the drift monitor has an aggregate reference profile but no
+               NEW-release feature matrix on a hosted runner, so it reports
+               UNKNOWN (exit 4). Honest, red and loud, but not yet capable.
+             * test_ablate_gnn skips locally on torch_scatter / torch_sparse
+               0xc0000139 -- confirm runnable before Run 17 activates gnn_score.
+             * pandas .fillna downcasting FutureWarning in variant_ensemble.py
+               wants an explicit cast.
+
+=====================================================================
+CARRIED FORWARD -- recorded rather than preempted. Not gates on any tier.
+=====================================================================
+
     a. as_meta() emits gene_id but never gene_symbol, so a seam-produced frame
        yields an EMPTY gene_errors list while its docstring claims to be the
        frame ClinicalEvaluator.evaluate expects. Pre-existing at 2e04bd9.
@@ -1748,15 +1913,17 @@ ORDERING (agreed 2026-07-25; status updated 2026-07-26):
        Windows and Linux. mc_dropout is one of the thirteen permanent base
        models, and these five are the tests of its epistemic-uncertainty claims,
        including the out-of-distribution claim that epistemic uncertainty is
-       higher on held-out gene families. That model's uncertainty
-       quantification is currently asserted by nothing. Unblocking needs the
-       Run 15 cohort, gene-family-disjoint splits, and expected-calibration-error
-       infrastructure.
+       higher on held-out gene families. That model's uncertainty quantification
+       is currently asserted by nothing, while the README markets uncertainty as
+       a clinical product. Unblocking needs the Run 15 cohort, gene-family-
+       disjoint splits, and expected-calibration-error infrastructure.
+       LARGEST SCIENTIFIC DEBT IN THIS LIST, and it now sits in front of a much
+       longer queue than when it was recorded.
     j. FOUR TESTS HAVE NO CONTINUOUS-INTEGRATION COVERAGE. The four in
        tests/unit/test_run17_postflight_paths.py (skipif sys.platform !=
        "win32") execute only on Windows; a regression there is invisible to the
        pipeline. Conversely test_preflight_data_paths.py:45 runs only on Linux
        and never on the development machine. Measured skip counts differ by
-       platform -- Windows 7, Linux 9 confirmed -- against a suite size of 3118
-       that is identical on both, because collection is platform-independent
-       while skipping is not.
+       platform -- Windows 7, Linux 9 confirmed -- against a suite size that is
+       identical on both, because collection is platform-independent while
+       skipping is not.
