@@ -1,3 +1,148 @@
+## 2026-07-26 (P6 R2 phase 2f) -- machine-readable sidecar; R2 closed
+
+Ratchet 3165 -> 3169 (+4). Session record section 10.
+
+### Built
+- CLEAN_COHORT_P6_AUDIT_2026-07-25_R2.json, emitted beside the text report from the
+  SAME Reconciliation instance: render_report() for a reader, serialize_json() for
+  exact regression checks and audit tooling. Values are never reconstructed
+  independently.
+- It stores the ten table cells and derives every margin into a `derived` block, so
+  a post-run gate asserts typed values instead of parsing prose.
+- quarantine_direction is a stable TOKEN beside the human sentence: prose may be
+  reworded, the token may not.
+- Strict serialization with sort_keys and allow_nan=False. A run that fails the
+  golden check writes golden_reproduced: false, and a test asserts it.
+
+### Closure criterion adopted
+Prose may describe only quantities derivable from the persisted joint structure.
+Further narrative revision is rejected unless accompanied by a failing invariant or
+a newly measured contradiction.
+
+## 2026-07-26 (P6 R2 phase 2e) -- Table B becomes a 3x2 joint table
+
+Ratchet 3155 -> 3165 (+10). Session record section 9.
+
+### The defect independent marginals cannot detect
+Phase 2d produced the right partition (85 / 22 / 0 summing to 107) but stored rows
+and columns INDEPENDENTLY. A cohort whose 17 label changes fall among
+legacy-missing variants and one whose 17 fall among neither-side variants serialise
+identically. Correct margins, different science, and no invariant over those
+margins can distinguish them.
+
+### Fixed
+- TableB stores SIX joint cells; every row total, column total, universe,
+  quarantine cardinality and the direction sentence is DERIVED from them.
+- The direction sentence is computed, not hard-coded: the real cohort reports
+  P6 UN-QUARANTINES, the synthetic fixture reports P6 NEWLY QUARANTINES, and a
+  test asserts both.
+- The delta() test helper forced p6_quarantined = quar OR legacy_quar, making a
+  LEGACY-ONLY quarantine inexpressible -- exactly the 107-to-85 transition the real
+  cohort shows. A helper that cannot construct the case cannot test it. The states
+  are now independent and all four combinations are asserted.
+- PolicyDelta.__post_init__ refuses inconsistent records: applicable comparison
+  stored as None, non-applicable stored as a boolean, representative_row_changed
+  disagreeing with the row identities, quarantine_changed disagreeing with the
+  states.
+- New invariants: cells are non-negative non-boolean integers; cells sum to the
+  universe; columns sum to the universe; the universe equals total minus Table A;
+  and the availability transitions equal the quarantine symmetric difference.
+
+## 2026-07-26 (P6 R2 phase 2c) -- first successful run; a structural claim falsified
+
+Ratchet 3150 -> 3154 (+4). Session record section 8.
+
+### The run
+EXIT=0, 3 min 22.9 s, golden reproduced exactly. n11 = 29 and n_na1 = 17 measured
+for the first time, both inside the bounds the golden capture fixed. Every internal
+reconciliation closes, including the label-transition table summing to 4,415,977
+with exactly 203 changed.
+
+### What it falsified
+- The structural argument that base_quar is a subset of p6_quar is WRONG, in the
+  reverse direction: p6_quar is a STRICT SUBSET of base_quar. Legacy quarantines
+  107, P6 quarantines 85, and P6 NEVER newly quarantines -- it un-quarantines 22.
+  Table B partitions into 85 (neither side), 22 (legacy missing, P6 present) and
+  0 (newly quarantined). The mechanism: select_repr_row keeps a row only when the best
+  tier holds exactly one class AND that class is binary; a best tier of only
+  non-binary rows gives classes == {None}, which is one class but not a subset of
+  {0,1}, so legacy quarantines while the unified best tier (a superset, since the
+  map merges 4 -> 3) can include a binary row.
+- Consequently the claim "a variant P6 newly quarantines necessarily loses a binary
+  label" is true and VACUOUS. The report states the measured direction instead.
+
+### Five defects in the R2 report, all of the disease it corrects
+- "both sides had a label" was false: 29 of the 53 have a legacy row whose label is
+  None. It means both had a ROW.
+- Table B was labelled as the P6-quarantined universe; it is EITHER side missing,
+  two populations (85 and 22) reported as one.
+- Table B asserted the newly-quarantined mechanism as operative when it measures 0.
+- The overloading note was printed BETWEEN the reconciliation lines, orphaning 203.
+- TableB carried no decomposition, so the 85/22 split was unreportable.
+All five corrected; five tests added that fail if any returns.
+
+## 2026-07-26 (P6 R2 phase 2b) -- the gate fired; replay instead of derive
+
+Ratchet 3146 -> 3150 (+4). Session record section 7.
+
+### The gate worked
+- The first real run FAILED: recomputed 53 against a frozen 63, exit 1, the original
+  artifact left untouched and unsuperseded. A ten-variant disagreement in 4.4 million.
+
+### Three hypotheses falsified by reading the source, not by measuring
+- different `order`: both use list(range(n)); select_repr_row uses sorted(idxs).
+- different label-map construction: identical.
+- legacy quarantines where P6 does not: FALSE STRUCTURALLY. The legacy-to-unified
+  tier map MERGES tiers (L4->U3), so the unified best-tier set is always a superset
+  and base_quar is a subset of p6_quar.
+- a (None, False) fall-through in select_repr_row: no such path exists for P0.
+
+### The fix does not depend on the cause
+- The published figure is now REPLAYED, exactly as probe lines 464 and 514-517
+  compute it, so it is reproduced by construction. The stricter both-sides-present
+  quantity is still derived from PolicyDelta, and a BRIDGE classifies every
+  disagreement into four named categories with example variant identifiers.
+- If the bridge reports counted_but_legacy_had_NO_representative, the figure
+  published as 63 compares a label against a MISSING ROW -- a third overloaded
+  quantity in the same artifact, after "canonical" and "explicit conflicts
+  preserved". Both numbers are reported; neither is discarded.
+
+## 2026-07-26 (P6 R2 phase 2) -- the reconciliation, two tables, six invariants
+
+Full session record: docs/sessions/SESSION_2026-07-26_p6-r2-phase1-golden-capture.md section 6
+Ratchet 3132 -> 3146 (+14).
+
+### Built
+- scripts/probe_p6_r2_reconciliation.py. A typed frozen ProbeConfig, then
+  load -> compute -> summarize -> render, with the reconciliation depending on
+  neither module constants nor the command line. It IMPORTS the adjudication
+  functions from the golden probe rather than reimplementing them, so the policy
+  has one source of truth and the frozen reference is not put at risk.
+- PolicyDelta: four total booleans and ONE NULLABLE comparison. Table A is the 2x2
+  where the representative-label comparison applies; Table B is the population where
+  it does not. n10 + n11 == representative-label changes;
+  n01 + n11 + n_na1 == group-label changes.
+- The R2 artifact reports all THREE estimands under names that cannot be confused,
+  with the selection change decomposed into replaced / removed / P6-only.
+- Supersession appends a forward pointer to the original and edits none of its
+  numbers: provenance is preserved by pointing forward, never by rewriting.
+
+### The golden capture settled the open questions
+- The "112" is 85 IRREDUCIBLE_CONFLICT plus 27 AMBIGUOUS_AT_BEST_TIER. 75.9 per cent
+  of the figure published as "explicit conflicts preserved" is opposed binaries that
+  need not contain any explicit conflicting-classification value.
+- The not-applicable population is exactly 85 variants, exactly the quarantined set.
+- P6.quar = 22 is a SYMMETRIC DIFFERENCE, not a cardinality; 23 solutions are
+  feasible for the legacy quarantine size, so n_na1 is measured, never inferred.
+
+### Three defects in the new code, all caught from output rather than exit codes
+- run_single_row_policy returns two values, not three.
+- The supersession block was appended 78 times: adjacent string literals concatenate
+  before the * operator applies. Rebuilt as a list of lines.
+- It claimed golden reproduction with no golden loaded -- the checks were skipped so
+  the failure list was empty. An absent golden now prints NOT VERIFIED, exits 2, and
+  refuses to supersede.
+
 ## 2026-07-26 (P6 R2 phase 1) -- freeze the evidence before restructuring it
 
 Full session record: docs/sessions/SESSION_2026-07-26_p6-r2-phase1-golden-capture.md

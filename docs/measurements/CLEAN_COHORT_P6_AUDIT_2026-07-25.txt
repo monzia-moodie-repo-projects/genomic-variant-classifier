@@ -94,3 +94,14 @@ ACCEPTANCE-CRITERIA READOUT (for the v2 decision)
   If order-invariant=True and every label change is explained by a declared rule
   above, P6 is the basis for the separately-certified cohort v2. Do not adopt any
   policy or rewire clean_cohort from this probe alone -- this is the evidence.
+
+==============================================================================
+SUPERSEDED BY CLEAN_COHORT_P6_AUDIT_2026-07-25_R2.txt (2026-07-26).
+------------------------------------------------------------------------------
+  The counts in this file are CORRECT and are left exactly as measured.
+  What was wrong was the NAMING: the word 'canonical' was used above for two
+  different estimands -- the representative-row label change (63) and the
+  group-adjudicated label change (203). The successor renames them, adds the
+  overlap between them, and reports the third estimand (representative-row
+  SELECTION changed, 232) under a name that cannot be confused with either.
+  Nothing here is edited; provenance is preserved by pointing forward.

@@ -3426,4 +3426,116 @@
 #   precedes skipping -- which is how the graph-neural-network branch went untested
 #   for 508 runs. Replaced with a direct import so absence fails loudly.
 #
-3132
+
+# 3146 -- 2026-07-26 -- P6 R2 phase 2: the reconciliation.
+#   Previous value: 3132.  Delta: +14.
+#
+#   A typed ProbeConfig, then load -> compute -> summarize -> render. One
+#   per-variant PolicyDelta pass feeds Table A (the 2x2 where the
+#   representative-label comparison applies) and Table B (where it does not).
+#   n10 + n11 == representative-label changes;
+#   n01 + n11 + n_na1 == group-adjudicated label changes.
+#
+#   Three defects in the new code, all caught by reading output rather than
+#   exit codes: a two-value return unpacked as three; a supersession block
+#   appended SEVENTY-EIGHT times because adjacent string literals concatenate
+#   before * applies; and a report that claimed golden reproduction with no
+#   golden loaded, because the checks were skipped so the failure list was
+#   empty. An absent golden now prints NOT VERIFIED, exits 2, and refuses to
+#   supersede -- an unverified run must never supersede verified evidence.
+#
+
+# 3150 -- 2026-07-26 -- P6 R2 phase 2b: replay, do not derive.
+#   Previous value: 3146.  Delta: +4.
+#
+#   The first real reconciliation run FAILED its own gate: recomputed 53
+#   against a frozen 63, exit 1, original untouched. Three hypotheses were
+#   falsified by reading the source -- identical row order, identical label-map
+#   construction, and legacy can NEVER quarantine where P6 does not because the
+#   legacy-to-unified tier map MERGES tiers (L4->U3), making the unified
+#   best-tier set a superset. No (None, False) fall-through exists for P0.
+#
+#   So the published figure is now REPLAYED exactly as probe lines 464 and
+#   514-517 compute it, reproduced BY CONSTRUCTION, while the stricter
+#   both-sides-present quantity stays derived from PolicyDelta. A BRIDGE
+#   classifies every disagreement into four named categories with example
+#   variant identifiers, so the next run MEASURES the cause.
+#
+
+# 3154 -- 2026-07-26 -- P6 R2 phase 2c: correct the R2 report itself.
+#   Previous value: 3150.  Delta: +4.
+#
+#   The first successful run returned EXIT=0 and reproduced the golden exactly;
+#   n11 = 29 and n_na1 = 17 measured for the first time. Reading its artifact
+#   FALSIFIED a structural claim: legacy quarantines 107 and P6 quarantines 85,
+#   so P6 NEVER newly quarantines -- it un-quarantines 22. select_repr_row keeps
+#   a row only when the best tier holds one class AND that class is binary; a
+#   best tier of only non-binary rows gives {None}, one class but not a subset
+#   of {0,1}, so legacy quarantines while the unified best tier (a superset,
+#   the map merging 4 into 3) can include a binary row.
+#
+#   FIVE report defects corrected, all of the disease the artifact exists to
+#   cure: "both sides had a label" was false (29 of the 53 have a legacy row
+#   whose label is None -- it means both had a ROW); Table B was labelled the
+#   P6-quarantined universe when it is EITHER side missing, 85 and 22 reported
+#   as one; its prose asserted a mechanism that measures zero; the overloading
+#   note printed BETWEEN the reconciliation lines, orphaning the 203; and
+#   TableB carried no decomposition at all.
+#
+
+# 3155 -- 2026-07-26 -- P6 R2 phase 2d: Table B must PARTITION.
+#   Previous value: 3154.  Delta: +1.
+#
+#   The corrected report emitted TWO OVERLAPPING COUNTS under one universe:
+#   "no P6 representative 85" beside "no legacy representative 107", under a
+#   universe of 107. 85 + 107 = 192. Overlapping counts printed as a breakdown
+#   read as a partition and are not one -- the same defect the artifact exists
+#   to correct, committed while correcting it.
+#
+#   True partition, cross-checked against two independent counters
+#   (p6_only_representative = 22, quarantine symmetric difference = 22):
+#       neither side has a representative (BOTH quarantined)  85
+#       legacy missing, P6 PRESENT   (legacy-only quarantine)  22
+#       P6 missing, legacy PRESENT   (NEWLY quarantined)        0
+#   So p6_quar is a STRICT SUBSET of base_quar: legacy 107, P6 85, and P6
+#   never newly quarantines on this cohort.
+#
+#   check_invariants now REFUSES any set of Table B cells that fails to sum
+#   to the universe.
+#
+
+# 3165 -- 2026-07-26 -- P6 R2 phase 2e: Table B becomes a 3x2 JOINT table.
+#   Previous value: 3155.  Delta: +10.
+#
+#   Phase 2d produced the right partition (85 / 22 / 0 summing to 107) but
+#   stored the ROW and COLUMN marginals INDEPENDENTLY. A cohort whose 17 label
+#   changes fall among legacy-missing variants and one whose 17 fall among
+#   neither-side variants serialise IDENTICALLY. Correct margins, different
+#   science, and no invariant over those marginals can distinguish them.
+#
+#   TableB now stores SIX joint cells and derives every margin, cardinality
+#   and the direction sentence from them. The direction is COMPUTED: the real
+#   cohort reports P6 UN-QUARANTINES, the synthetic fixture reports P6 NEWLY
+#   QUARANTINES, and a test asserts both.
+#
+#   The delta() test helper forced p6_quarantined = quar OR legacy_quar, making
+#   a LEGACY-ONLY quarantine inexpressible -- exactly the 107-to-85 transition
+#   the real cohort shows. A helper that cannot construct the case cannot test
+#   it. PolicyDelta.__post_init__ now refuses inconsistent records outright.
+#
+
+# 3169 -- 2026-07-26 -- P6 R2 phase 2f: machine-readable sidecar; R2 closed.
+#   Previous value: 3165.  Delta: +4.
+#
+#   CLEAN_COHORT_P6_AUDIT_2026-07-25_R2.json is emitted beside the text report
+#   from the SAME Reconciliation instance -- render_report() for a reader,
+#   serialize_json() for exact regression checks. Values are never
+#   reconstructed independently. It stores the ten table cells and derives
+#   every margin, so a gate asserts typed values instead of parsing prose.
+#   quarantine_direction is a stable TOKEN beside the human sentence.
+#
+#   CLOSURE CRITERION: prose may describe only quantities derivable from the
+#   persisted joint structure. Further narrative revision is rejected unless
+#   accompanied by a failing invariant or a newly measured contradiction.
+#
+3169

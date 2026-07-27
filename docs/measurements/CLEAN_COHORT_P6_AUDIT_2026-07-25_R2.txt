@@ -1,0 +1,120 @@
+==============================================================================
+STEP 1b CLEAN_COHORT P6 EVIDENCE-ADJUDICATION AUDIT -- R2 (read-only)
+SUPERSEDES CLEAN_COHORT_P6_AUDIT_2026-07-25.txt
+==============================================================================
+
+  cohort: clinvar_grch38.parquet   rows: 4,420,180   variants: 4,415,977
+
+  WHY R2 EXISTS. The 2026-07-25 artifact used the word 'canonical' for two
+  different estimands: line 87 applied it to 63, while line 65 applied it to
+  the basis of 203. Both measurements were correct; the naming was not. R2
+  renames them so they cannot be confused and adds the overlap that shows how
+  they relate. No policy, threshold or rule has changed.
+
+==============================================================================
+THREE ESTIMANDS -- RELATED, NOT SUBSTITUTABLE
+------------------------------------------------------------------------------
+  representative-row SELECTION changed :      232   over all 4,415,977 variants
+      p6_only_representative                   22
+      replaced_by_a_different_row             210
+  representative-row LABEL changed     :       63   AS PUBLISHED on 2026-07-25
+      of which both had a REPRESENTATIVE ROW :       53  the STRICT comparison
+      (not 'both had a label' -- most of these compare a binary label against
+       a representative row whose own label is None)
+      counted_but_legacy_had_NO_representative               10
+      counted_legacy_row_present_but_label_None              29
+      counted_p6_label_None                                  24
+  group-adjudicated LABEL changed      :      203   over all 4,415,977 variants
+
+  These have DIFFERENT DENOMINATORS. A representative-row label comparison is
+  undefined for a variant P6 quarantines, because no P6 representative row
+  exists to compare against. That is why the tables below are split.
+
+==============================================================================
+TABLE A -- OVERLAP, where the representative-label comparison APPLIES
+------------------------------------------------------------------------------
+  universe: 4,415,870 variants with BOTH a legacy and a P6 representative row
+
+                                      group-adjudicated label changed
+                                            no            yes
+  representative-row label unchanged     4,415,660            157
+  representative-row label changed              24             29
+
+  n10 + n11 = 53  -- the STRICT representative-row label changes
+  n11       = 29  -- BOTH changed; the overlap the prior artifact never reported
+
+==============================================================================
+TABLE B -- the representative-label comparison does NOT apply
+------------------------------------------------------------------------------
+  universe: 107 variants where EITHER side lacks a representative row
+
+                                            group-adjudicated label changed
+                                                 no        yes      total
+  neither side has a representative              85          0         85
+  legacy missing, P6 present                      5         17         22
+  P6 missing, legacy present                      0          0          0
+  ---------------------------------------- ---------- ---------- ----------
+  total                                          90         17        107
+
+  The three rows are MUTUALLY EXCLUSIVE representative-availability
+  transitions and every margin above is derived from the six cells, so no
+  count can be paired with the wrong population.
+
+  DIRECTION OF THE QUARANTINE CHANGE, derived from the table:
+    P6 UN-QUARANTINES: the legacy policy withholds a representative from 107 variants and P6 from 85.
+    variants whose group label changed while P6 withheld a representative: 0
+    newly quarantined by P6 AND lost a binary label : 0
+
+  The mechanism is select_repr_row's conflict branch, which keeps a row only
+  when the legacy best tier holds exactly one class AND that class is binary.
+  A best tier holding only non-binary rows gives classes == {None}: one class,
+  but not a subset of {0, 1}, so the legacy policy withholds a representative.
+  The unified best tier is always a superset (the tier map merges, e.g. legacy
+  4 -> unified 3), so it can include a binary row and give P6 a label where
+  legacy had none.
+
+==============================================================================
+RECONCILIATION
+------------------------------------------------------------------------------
+  n00 + n01 + n10 + n11            = 4,415,870   (applicable)
+  n_na0 + n_na1                    = 107   (not applicable)
+  applicable + not applicable      = 4,415,977   (all variants)
+
+  n10 + n11                        = 53   == STRICT representative-row label changes
+  strict + definition bridge       = 63   == the figure published as 63 on 2026-07-25
+  n01 + n11 + n_na1                = 203   == group-adjudicated label changes
+
+  THIRD OVERLOADED QUANTITY. The published figure counts a P6 representative
+  label differing from the ABSENCE of a legacy representative as a 'label
+  change'. That is a comparison against a missing row, not against a label.
+  Both numbers are reported above; neither is discarded.
+
+  NOTE. The repair plan of record required n01 + n11 == 203. That equation
+  assumed the two counts shared a universe. They do not, and it is replaced by
+  the reconciliation above. See the session document dated 2026-07-26.
+
+==============================================================================
+LABEL TRANSITIONS (legacy output label -> P6 output label)
+------------------------------------------------------------------------------
+  None->None              2,718,482
+  0->0                    1,358,513
+  1->1                      338,779
+  None->1                       138
+  None->0                        51
+  0->None                        11
+  1->None                         3
+
+P6 CANONICAL STATE COUNTS
+------------------------------------------------------------------------------
+  NO_BINARY_AT_BEST_TIER          2,718,384
+  BENIGN                          1,358,564
+  PATHOGENIC                        338,917
+  IRREDUCIBLE_CONFLICT                   85
+  AMBIGUOUS_AT_BEST_TIER                 27
+
+==============================================================================
+GOLDEN REPRODUCTION
+------------------------------------------------------------------------------
+  Every counter recomputed here reproduces the frozen reference in
+  CLEAN_COHORT_P6_GOLDEN_2026-07-26.json EXACTLY.
+
