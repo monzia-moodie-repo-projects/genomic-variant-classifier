@@ -156,6 +156,79 @@ class CleanArrays:
         return float(self.n_dropped / self.n_input) if self.n_input else float("nan")
 
 
+# --------------------------------------------------------------------------- #
+# The prediction-input contract. FAIL CLOSED.
+#
+# Ruled 2026-07-27: no numerical kernel may select, filter, normalise or
+# redefine its evaluation population. Population construction is an explicit
+# upstream operation, and every result must describe exactly that population.
+#
+# A non-finite predicted score or probability is a MODEL-OUTPUT FAILURE, not an
+# ordinary missing observation. The kernels below therefore ASSERT this contract
+# rather than repairing the input. Validation happens in the registry, which
+# refuses before invoking anything; reaching one of these raises means an
+# unvalidated caller bypassed that gate, which is a defect and must be loud.
+#
+# VALIDATION IS METRIC-SPECIFIC, NOT UNIVERSAL. Each kernel checks only the
+# prediction array IT consumes. A universal assertion over every supplied array
+# would fail a probability-only metric because an irrelevant score array carried
+# a non-finite value, contradicting the descriptor-specific accounting the
+# registry already establishes.
+#
+# FINITENESS RAISES; RANGE DOES NOT. These are different categories and the
+# distinction is load-bearing. A vector outside [0, 1] was never a probability
+# vector -- `is_probability` returns False and the calibration kernels return
+# NaN, a contract pinned by test_calibration_metrics_are_nan_on_non_probability_scores
+# -- and THE SAME ARRAY remains a perfectly valid score for a ranking metric on
+# the same rows, which that test also asserts. A non-finite value is different:
+# the model did not produce an output at all. Raising on range here would break a
+# landed, correct contract and conflate "not a probability" with "no prediction".
+# --------------------------------------------------------------------------- #
+def _require_finite_scores(scores: Sequence, *, metric_name: str) -> "np.ndarray":
+    arr = np.asarray(scores, dtype=float).ravel()
+    if not np.isfinite(arr).all():
+        n_bad = int((~np.isfinite(arr)).sum())
+        raise ValueError(
+            f"{metric_name}: scores contain non-finite model outputs "
+            f"({n_bad} of {arr.size}); prediction arrays must be validated "
+            "before kernel invocation. The kernel does not filter them: a "
+            "value computed over the survivors would describe a population "
+            "nobody named.")
+    return arr
+
+
+def _require_finite_probabilities(probabilities: Sequence, *,
+                                  metric_name: str) -> "np.ndarray":
+    arr = np.asarray(probabilities, dtype=float).ravel()
+    if not np.isfinite(arr).all():
+        n_bad = int((~np.isfinite(arr)).sum())
+        raise ValueError(
+            f"{metric_name}: probabilities contain non-finite model outputs "
+            f"({n_bad} of {arr.size}); prediction arrays must be validated "
+            "before kernel invocation.")
+    return arr
+
+
+def select_finite_reference_labels(y_true: Sequence) -> "np.ndarray":
+    """Boolean mask of rows whose reference label is present.
+
+    TRANSITIONAL compatibility selector, pending EvaluationPopulation.
+
+    Withheld labels are first-class in this project and are carried as NaN by
+    CanonicalVariantTable. Selecting on them is a POPULATION decision, and
+    population decisions belong upstream, not inside a numerical kernel. This
+    function exists so that the residual debt is a named, single deletion target
+    rather than an anonymous clause inside `clean_arrays`: when
+    EvaluationPopulation lands, every caller of this function moves to it and
+    this function is removed.
+
+    It is deliberately NOT applied to prediction arrays. Those are validated,
+    never selected -- see `_require_finite_scores`.
+    """
+    y = np.asarray(y_true, dtype=float).ravel()
+    return np.isfinite(y)
+
+
 def clean_arrays(y: Sequence, score: Sequence,
                  probability: Sequence | None = None) -> CleanArrays:
     """Validate labels strictly; drop non-finite rows on ONE joint mask.
@@ -183,7 +256,13 @@ def clean_arrays(y: Sequence, score: Sequence,
             f"y={y_arr.shape}, score={s_arr.shape}, probability={p_arr.shape}"
         )
 
-    fy = np.isfinite(y_arr)
+    # The LABEL component is delegated to a named, transitional selector so the
+    # residual population decision is visible and has one deletion target when
+    # EvaluationPopulation lands. The PREDICTION components are retained here
+    # only for the legacy `evaluate` composite, which is explicitly a
+    # survivor-filtering compatibility interface; the registry never reaches
+    # this path, because it refuses non-finite predictions before dispatch.
+    fy = select_finite_reference_labels(y_arr)
     fs = np.isfinite(s_arr)
     fp = np.isfinite(p_arr)
     keep = fy & fs & fp
@@ -227,7 +306,11 @@ def _degenerate(y: "np.ndarray") -> bool:
 
 
 def auroc(y: Sequence, score: Sequence) -> float:
-    """Rank-based AUROC (Mann-Whitney U). Ties get average ranks. NaN if one class."""
+    """Rank-based AUROC (Mann-Whitney U). Ties get average ranks. NaN if one class.
+
+    RAISES on non-finite scores. See the prediction-input contract above.
+    """
+    _require_finite_scores(score, metric_name="auroc")
     y, s = _clean(y, score)
     if _degenerate(y):
         return float("nan")
@@ -246,6 +329,7 @@ def auprc(y: Sequence, score: Sequence) -> float:
     1e-16 on balanced, 10%- and 1%-imbalanced, near-random, heavily-tied, binary, and
     all-constant scores.
     """
+    _require_finite_scores(score, metric_name="auprc")
     y, s = _clean(y, score)
     if _degenerate(y):
         return float("nan")
@@ -314,6 +398,7 @@ def brier_score(y: Sequence, prob: Sequence) -> float:
     """NaN if `prob` is not a probability -- Brier is undefined outside [0, 1]."""
     if not is_probability(prob):
         return float("nan")
+    _require_finite_probabilities(prob, metric_name="brier_score")
     y, p = _clean(y, prob)
     return float(np.mean((p - y) ** 2)) if y.size else float("nan")
 
@@ -327,6 +412,7 @@ def log_loss(y: Sequence, prob: Sequence, eps: float = 1e-15) -> float:
     """
     if not is_probability(prob):
         return float("nan")
+    _require_finite_probabilities(prob, metric_name="log_loss")
     y, p = _clean(y, prob)
     if y.size == 0:
         return float("nan")
@@ -362,6 +448,7 @@ def expected_calibration_error(y: Sequence, prob: Sequence, n_bins: int = 10) ->
     """
     if not is_probability(prob):
         return float("nan")
+    _require_finite_probabilities(prob, metric_name="expected_calibration_error")
     y, p = _clean(y, prob)
     if y.size == 0:
         return float("nan")
@@ -465,6 +552,7 @@ def bootstrap_ci(fn: Callable, y: Sequence, score: Sequence, *,
     n_boot defaults to 200: each replicate is O(n log n), so 1000 replicates over a
     1.2M-row split is minutes, not seconds. Raise it for a final publication panel.
     """
+    _require_finite_scores(score, metric_name="auprc_gain")
     y, s = _clean(y, score)
     if _degenerate(y):
         return float("nan"), float("nan")
@@ -851,7 +939,24 @@ def bootstrap_metric(
 def evaluate(y: Sequence, score: Sequence, *,
              prob=None, n_boot: int = 0, seed: int = 0, n_bins: int = 10,
              clusters: Sequence | None = None) -> dict:
-    """Full single-population panel.
+    """LEGACY SURVIVOR-FILTERING INTERFACE. NOT A CERTIFIABLE PATH.
+
+    This function constructs its own population by calling `clean_arrays` and then
+    computes over the SURVIVORS, reporting `n_input`, `n`, `n_dropped` and
+    `dropped_fraction` so the narrowing is visible. Visible narrowing is
+    population-accounting TRANSPARENCY; it is not fail-closed behaviour, and this
+    function must not be cited as evidence that strict kernels tolerate filtering.
+    A non-finite predicted probability here still yields a number over the rows
+    that survived.
+
+    The certifiable path is the registry, which refuses non-finite predictions
+    before dispatch and returns a FAILED result over the full attempted
+    population. This function is retained UNCHANGED for compatibility: its
+    callers depend on exact dictionary keys and bare-float values. Whether it is
+    frozen permanently as historical compatibility or gains a strict mode is a
+    deliberate decision for its own commit, not an incidental change.
+
+    Full single-population panel.
 
     `score` ranks; `prob` (default: score) is used for calibration. Pass both when the
     ranking score is not a probability.

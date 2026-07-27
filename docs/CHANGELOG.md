@@ -1,3 +1,68 @@
+## 2026-07-27 -- the fail-closed prediction-input contract (Tier 1 item 6, commit 2a)
+
+Ratchet 3247 -> 3273 (+26). Session record:
+docs/sessions/SESSION_2026-07-27_prediction-input-contract.md
+
+Prerequisite to registry integration. Ruled 2026-07-27: no numerical kernel may
+select, filter, normalise or redefine its evaluation population.
+
+### Fixed
+Every kernel routed through clean_arrays, which dropped non-finite rows on ONE
+JOINT MASK over labels, scores and probabilities alike, so a metric returned a
+value over a silently narrowed population while support() named the wider one.
+Measured: twenty non-finite probabilities in a thousand rows gave a Brier score
+over 980 rows reported as n_observations = 1000, status ok,
+certification_eligible True.
+
+Labels and predictions no longer share a mask. A withheld reference label is an
+ordinary missing observation and stays first-class; a non-finite predicted
+probability is a MODEL-OUTPUT FAILURE and now produces status FAILED over the
+full ATTEMPTED population, with diagnostics, refused before dispatch.
+
+### Built
+- registry: a finiteness gate in all three applicability predicates, ahead of
+  is_probability, which documents that it IGNORES non-finite values. Expressed as
+  an applicability predicate rather than the proposed
+  validate_probability_context(...) -> MetricResult | None, which is the exact
+  shape registry.py rejected on the day it was written.
+- metrics: _require_finite_scores and _require_finite_probabilities, metric-
+  specific rather than universal; six kernels assert their prediction input.
+- metrics.select_finite_reference_labels: the named transitional label selector.
+  clean_arrays delegates to it, so the residual debt is one deletion target.
+- capabilities: n_nonfinite_probabilities, n_finite_probabilities and score
+  equivalents, with validated accessors.
+- canonical: the seam's contract amended in the PRESENT TENSE. Its claim that
+  clean_arrays drops rows on one joint mask is false once predictions are
+  excluded, and a false statement in executable documentation is a code-contract
+  divergence. No chronology added to source.
+- metrics.evaluate: UNCHANGED, marked non-certifiable. It reports n_dropped,
+  which is population-accounting transparency, and still computes over survivors.
+  It must never be cited as evidence that strict kernels tolerate filtering.
+
+### FINITENESS RAISES; RANGE DOES NOT
+A vector outside [0, 1] was never a probability vector -- is_probability returns
+False and calibration returns NaN, pinned by
+test_calibration_metrics_are_nan_on_non_probability_scores -- and THE SAME ARRAY
+is a valid score for a ranking metric on the same rows, which that test also
+asserts. The ORDER is the contract and is pinned, because moving the assertion
+ahead of the range guard would convert a documented NaN into an exception.
+
+### A landed test codified the defect and was INVERTED
+test_auroc_ignores_nonfinite asserted that a non-finite score is silently dropped
+and the result equals the metric over the survivors -- roadmap 6.28's shape, a
+test approving of the thing it should catch. The old expectation is now the
+sabotage.
+
+### The sabotage matrix, and its first run
+Twelve breaks, twelve detected, zero undetected. THE FIRST RUN LEFT FOUR
+UNDETECTED. Two were real test defects: a gate removed from one predicate still
+produced FAILED because the strict kernel raised and compute caught it, so status
+alone could not distinguish refusal from explosion (closed by asserting the REASON
+across every registered metric); and a tripwire accepted the word "transitional"
+from anywhere in the file, so a break removed the contract sentence while an
+unrelated docstring kept the word (now bound to the module docstring). Two were
+malformed breaks rather than undetected defects, and were rebuilt.
+
 ## 2026-07-27 -- controlled metadata vocabulary (Tier 1 item 6, commit 2b/3)
 
 Ratchet 3227 -> 3247 (+20). Session record:

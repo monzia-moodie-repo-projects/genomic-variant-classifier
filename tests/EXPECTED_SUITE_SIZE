@@ -3617,4 +3617,34 @@
 #   false positives, of which representation_geometry.py "n_rows" is Family
 #   B's word for embedding-matrix rows, not a misspelling of n_observations.
 #
-3247
+#
+# 3247 -> 3273 (+26)  2026-07-27  commit 2a: the fail-closed
+#   prediction-input contract.
+#
+#   clean_arrays dropped non-finite rows on ONE JOINT MASK over labels,
+#   scores and probabilities alike, so a metric returned a value over a
+#   silently narrowed population while support() named the wider one.
+#   Twenty non-finite probabilities in a thousand rows gave a Brier score
+#   over 980 rows, reported as n_observations = 1000, status ok,
+#   certification_eligible True.
+#
+#   Labels and predictions no longer share a mask. A withheld label is an
+#   ordinary missing observation and stays first-class, selected upstream
+#   by a NAMED transitional selector. A non-finite predicted probability
+#   is a MODEL-OUTPUT FAILURE: refused before dispatch, status FAILED over
+#   the full attempted population, diagnostics attached.
+#
+#   FINITENESS RAISES; RANGE DOES NOT. An out-of-range vector was never a
+#   probability vector and is still a valid SCORE on the same rows. The
+#   ORDER of the two guards is the contract and is pinned.
+#
+#   test_auroc_ignores_nonfinite asserted the defect approvingly -- roadmap
+#   6.28s shape -- and was INVERTED, not renamed. The old expectation is
+#   now the sabotage.
+#
+#   Sabotage: 12 breaks, 12 detected, 0 undetected. THE FIRST RUN LEFT FOUR
+#   UNDETECTED: two real test defects (status alone could not separate a
+#   gate refusal from a kernel raising; a tripwire accepted its keyword
+#   from anywhere in the file) and two malformed breaks. All four closed.
+#
+3273

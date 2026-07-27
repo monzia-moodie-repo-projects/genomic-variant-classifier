@@ -20,9 +20,17 @@ DESIGN CONSTRAINTS (each traceable to a recorded defect or contract):
   * ALIGNMENT is structural. One row = one variant; every projection is a column of the
     same frame, so 'y' and 'score' cannot be masked apart (evaluation defect A).
   * MISSING labels are first-class and are represented as 'NaN' in the projected 'y',
-    NOT coerced to 0. The kernel's 'clean_arrays' drops non-finite rows on ONE joint
-    mask; the seam reuses that mask rather than inventing a second one (defect B, and
-    acceptance "one structural mask").
+    NOT coerced to 0. Label eligibility is selected by the legacy label mask
+    ('metrics.select_finite_reference_labels') before metric computation. The seam
+    reuses that one selector rather than inventing a second (defect B, and acceptance
+    "one structural mask"). This label-mask behaviour is TRANSITIONAL and moves into
+    EvaluationPopulation in its own commit.
+  * PREDICTIONS are validated, never selected. Predicted scores and probabilities are
+    not silently filtered by numerical kernels. A non-finite model output is a
+    validation failure: the registry refuses before dispatch and returns a FAILED
+    MetricResult over the full attempted evaluation population, and the kernels raise
+    rather than repair. 'metrics.evaluate' remains a legacy survivor-filtering
+    compatibility interface and is not a certifiable path.
   * PARTITION is mandatory. Calibration/selection must never be measured on data used to
     fit the model/method/threshold; carrying the partition lets a consumer refuse the
     wrong split (evaluation leakage findings).
@@ -59,8 +67,9 @@ _ALL_COLUMNS = _REQUIRED_COLUMNS + _OPTIONAL_COLUMNS
 class CanonicalArrays:
     """A partition-scoped array projection for the metric kernel.
 
-    'y' carries 'NaN' for withheld labels; the kernel's 'clean_arrays' drops those
-    on its single joint mask together with any non-finite score/prob. 'clusters' and
+    'y' carries 'NaN' for withheld labels; the transitional label mask selects those
+    out before computation, pending EvaluationPopulation. Non-finite scores and
+    probabilities are NOT selected out: they are validation failures. 'clusters' and
     'groups' are 'None' when the underlying columns were not supplied.
     """
 
@@ -218,8 +227,10 @@ class CanonicalVariantTable:
     def arrays(self, partition: str | None = None) -> CanonicalArrays:
         """Project to kernel arrays for one partition (or all rows if 'None').
 
-        'y' carries 'NaN' for withheld labels; the kernel drops those on its single
-        joint mask along with any non-finite score/prob. Requires a score column.
+        'y' carries 'NaN' for withheld labels; the transitional label mask selects
+        those out before computation, pending EvaluationPopulation. Non-finite scores
+        and probabilities are validation failures, not selections. Requires a score
+        column.
         """
         if not self._has_score:
             raise ValueError("arrays() requires a 'y_score' column; none was provided")

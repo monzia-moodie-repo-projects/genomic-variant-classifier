@@ -1927,3 +1927,53 @@ CARRIED FORWARD -- recorded rather than preempted. Not gates on any tier.
        platform -- Windows 7, Linux 9 confirmed -- against a suite size that is
        identical on both, because collection is platform-independent while
        skipping is not.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-27 (Tier 1 item 6, commit 2a)
+=====================================================================
+
+TIER 1 ITEM 6 SEQUENCE, restructured by ruling on 2026-07-27:
+
+  commit 1   d3851a3   MetricResult to the vocabulary layer          LANDED
+  commit 2   a6df4ef   the typed immutable metric registry           LANDED
+  commit 2b* 974d426   controlled metadata vocabulary                LANDED
+  commit 2a  (this)    fail-closed prediction-input contract         LANDED
+  commit 2a-1  --      EvaluationPopulation; label selection moves    NEXT
+  commit 2b  --       calibration binning + register all point estimates
+  commit 3   --       schema-v3 report integration
+
+  (*the earlier "2b" label was the vocabulary commit and is retained as landed
+   history; the ruled sequence renumbers the remaining work as above.)
+
+WITHDRAWN: an earlier package this session, "commit 3a", combined the binning
+repair with a population repair built the OPPOSITE way -- kernels kept filtering
+and merely recorded what they dropped, and one of its tests asserted
+certification_eligible is True on a cohort containing non-finite model output. It
+was withdrawn BEFORE installation; nothing from it reached the repository. Its
+binning work is carried to the binning commit.
+
+CORRECTION ON RECORD: metrics.evaluate was described as "already conforming" to
+the fail-closed ruling on the strength of instrumentation showing no non-finite
+value reaching any kernel from it. The instrumentation was right, the conclusion
+was wrong: it reaches that state by filtering predictions itself and DISCLOSING
+the narrowing. Transparency is not validity. It conforms to population-accounting
+transparency only, is marked non-certifiable, and is pinned by a test.
+
+DEFECT CLOSED. clean_arrays dropped non-finite rows on one joint mask over
+labels, scores and probabilities alike. Labels and predictions no longer share a
+mask: labels are SELECTED upstream by a named transitional selector, predictions
+are VALIDATED and fail closed.
+
+NEW CARRIED ITEM (l) -- THE TRANSITIONAL LABEL MASK. Label population selection
+still lives in metrics.select_finite_reference_labels rather than in
+EvaluationPopulation. This is a STAGED decision, not an oversight, and it is
+tripwired by two tests that fail if the declaration or the named selector is
+removed without the replacement arriving. One precise deletion target for commit
+2a-1. NOT A GATE on anything else.
+
+NEW CARRIED ITEM (m) -- metrics.evaluate IS A SURVIVOR-FILTERING PATH. It is
+retained unchanged for compatibility and marked non-certifiable in its docstring.
+Whether it is frozen permanently as historical compatibility or gains a strict
+mode is a deliberate decision for its own commit and must not be made
+incidentally. NOT A GATE.

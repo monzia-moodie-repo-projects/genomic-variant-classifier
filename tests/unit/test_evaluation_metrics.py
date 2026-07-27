@@ -53,8 +53,29 @@ def test_auroc_matches_mann_whitney_on_random_data():
     assert auroc(y, s) == pytest.approx(brute, abs=1e-12)
 
 
-def test_auroc_ignores_nonfinite():
-    assert auroc([0, 1, 1], [0.1, 0.9, np.nan]) == pytest.approx(auroc([0, 1], [0.1, 0.9]))
+def test_auroc_rejects_nonfinite_scores():
+    """INVERTED 2026-07-27. This test previously asserted the opposite.
+
+    It was named `test_auroc_ignores_nonfinite` and asserted that a non-finite
+    score is silently dropped and the result equals the metric over the
+    survivors. That is the defect, codified approvingly as intended behaviour --
+    the shape recorded in roadmap 6.28, where a test's own comment named a
+    fabrication with approval.
+
+    A non-finite score is a model-output failure. The kernel asserts its input
+    contract and refuses; population construction happens upstream. The old
+    expectation is now the sabotage: restoring the filter makes this fail.
+    """
+    y_true = np.array([0, 1, 0, 1], dtype=float)
+    y_score = np.array([0.1, 0.9, np.nan, 0.8], dtype=float)
+
+    with pytest.raises(ValueError, match="non-finite model outputs"):
+        auroc(y_true, y_score)
+
+
+def test_auroc_still_computes_when_every_score_is_finite():
+    """The refusal must be specific to non-finite input, not a blanket break."""
+    assert auroc([0, 1], [0.1, 0.9]) == pytest.approx(1.0)
 
 
 # --------------------------------------------------------------------------

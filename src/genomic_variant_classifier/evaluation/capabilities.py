@@ -218,6 +218,22 @@ class MetricMetadataKey(str, Enum):
     N_CLUSTERS = "n_clusters"
     METRIC_NAME = "metric_name"
 
+    # --- added 2026-07-27, the fail-closed prediction contract ------------
+    # A non-finite predicted probability is a MODEL-OUTPUT FAILURE, not an
+    # ordinary missing observation. It is therefore reported on a FAILED
+    # result over the ATTEMPTED population, never as a value over a silently
+    # narrowed one. These two counts are diagnostics on that failure: they say
+    # how bad the model output was, and they never appear on an OK result,
+    # because an OK result computed over every row it was given.
+    N_NONFINITE_PROBABILITIES = "n_nonfinite_probabilities"
+    N_FINITE_PROBABILITIES = "n_finite_probabilities"
+    # The same failure on the ranking input. AUROC and AUPRC consume scores,
+    # not probabilities, and a score need not lie in [0, 1]; the finiteness
+    # contract is identical and the arrays are not, so the counts are named
+    # separately rather than one pair standing for both.
+    N_NONFINITE_SCORES = "n_nonfinite_scores"
+    N_FINITE_SCORES = "n_finite_scores"
+
 
 # --------------------------------------------------------------------------- #
 # The result vocabulary.
@@ -307,6 +323,28 @@ class MetricResult:
     def metric_name(self) -> Optional[str]:
         v = self.metadata.get(MetricMetadataKey.METRIC_NAME)
         return v if isinstance(v, str) else None
+
+    @property
+    def n_nonfinite_probabilities(self) -> Optional[int]:
+        """How many predicted probabilities were not finite. Present only on a
+        FAILED result: an OK result was computed over every row it was given."""
+        v = self.metadata.get(MetricMetadataKey.N_NONFINITE_PROBABILITIES)
+        return v if isinstance(v, int) and not isinstance(v, bool) else None
+
+    @property
+    def n_finite_probabilities(self) -> Optional[int]:
+        v = self.metadata.get(MetricMetadataKey.N_FINITE_PROBABILITIES)
+        return v if isinstance(v, int) and not isinstance(v, bool) else None
+
+    @property
+    def n_nonfinite_scores(self) -> Optional[int]:
+        v = self.metadata.get(MetricMetadataKey.N_NONFINITE_SCORES)
+        return v if isinstance(v, int) and not isinstance(v, bool) else None
+
+    @property
+    def n_finite_scores(self) -> Optional[int]:
+        v = self.metadata.get(MetricMetadataKey.N_FINITE_SCORES)
+        return v if isinstance(v, int) and not isinstance(v, bool) else None
 
     def __post_init__(self) -> None:
         if not isinstance(self.status, MetricStatus):

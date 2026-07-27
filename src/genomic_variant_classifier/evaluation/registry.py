@@ -325,10 +325,76 @@ class MetricDescriptor:
 # --------------------------------------------------------------------------- #
 # Applicability predicates
 # --------------------------------------------------------------------------- #
+# --------------------------------------------------------------------------- #
+# The prediction-finiteness contract -- FAIL CLOSED
+#
+# Ruled 2026-07-27: no numerical kernel may select, filter, normalise or
+# redefine its evaluation population. Population construction is an explicit
+# upstream operation, and every result must describe exactly that population.
+#
+# A non-finite predicted probability is a MODEL-OUTPUT FAILURE, not an ordinary
+# missing observation. Until this date `metrics._clean` dropped those rows on a
+# joint mask inside the kernel, so a value was returned over a silently narrowed
+# population while `support()` named the wider one: twenty non-finite
+# probabilities in a thousand rows produced a Brier score over 980 rows reported
+# as n_observations = 1000, status ok, certification_eligible True.
+#
+# WHY THIS IS AN APPLICABILITY PREDICATE AND NOT A `-> MetricResult | None`
+# VALIDATOR. The reviewing document proposed the latter. This module's docstring
+# already REJECTED that shape on the day it was written: such a validator may
+# return ANY result, including an OK one carrying a value, so "refused" and
+# "computed" stop being distinguishable at the type level. `Applicability`
+# refuses it structurally, and MetricStatus.FAILED already covers this case in
+# its own definition -- "a prerequisite validated and found contradictory before
+# the computation could begin". The ruling is honoured; the rejected type is not
+# reintroduced.
+#
+# The refusal is raised BEFORE the kernel is invoked, so no narrowed population
+# is ever computed over, and the support attached to the failure describes the
+# population that was ATTEMPTED.
+# --------------------------------------------------------------------------- #
+def _finiteness_verdict(values, nonfinite_key, finite_key, reason: str) -> Applicability:
+    arr = np.asarray(values, dtype=float).ravel()
+    finite = np.isfinite(arr)
+    n_bad = int((~finite).sum())
+    if n_bad == 0:
+        return APPLICABLE
+    return Applicability(
+        applicable=False,
+        status=MetricStatus.FAILED,
+        reason=reason,
+        metadata={nonfinite_key: n_bad, finite_key: int(finite.sum())})
+
+
+def _scores_are_finite(ctx: MetricContext) -> Applicability:
+    return _finiteness_verdict(
+        ctx.y_score,
+        MetricMetadataKey.N_NONFINITE_SCORES,
+        MetricMetadataKey.N_FINITE_SCORES,
+        "nonfinite_predicted_scores")
+
+
+def _probabilities_are_finite(ctx: MetricContext) -> Applicability:
+    return _finiteness_verdict(
+        ctx.y_prob,
+        MetricMetadataKey.N_NONFINITE_PROBABILITIES,
+        MetricMetadataKey.N_FINITE_PROBABILITIES,
+        "nonfinite_predicted_probabilities")
+
+
 def _requires_both_classes(ctx: MetricContext) -> Applicability:
     """Ranking is undefined when one class is present, and the kernel says so:
     'A single class present -> ranking metrics are undefined. Say so; do not
-    guess.' (metrics.py:225)"""
+    guess.' (metrics.py:225)
+
+    The finiteness contract is checked FIRST. A model that emitted a non-finite
+    score has failed its output contract, and that is true whatever the cohort's
+    class composition; reporting UNDEFINED instead would blame the data for a
+    defect in the predictions.
+    """
+    finite = _scores_are_finite(ctx)
+    if not finite.applicable:
+        return finite
     if ctx.has_both_classes:
         return APPLICABLE
     return Applicability(
@@ -357,6 +423,11 @@ def _requires_calibration_support(ctx: MetricContext) -> Applicability:
     if ctx.n == 0:
         return Applicability(applicable=False, status=MetricStatus.INSUFFICIENT_DATA,
                              reason="empty_cohort", metadata={"n": 0})
+    # BEFORE is_probability, which documents that it IGNORES non-finite values
+    # and would therefore pass a vector containing them.
+    finite = _probabilities_are_finite(ctx)
+    if not finite.applicable:
+        return finite
     if not is_probability(ctx.y_prob):
         return Applicability(applicable=False, status=MetricStatus.NOT_APPLICABLE,
                              reason="values_are_not_probabilities")
@@ -384,6 +455,9 @@ def _requires_probabilities(ctx: MetricContext) -> Applicability:
     if ctx.n == 0:
         return Applicability(applicable=False, status=MetricStatus.INSUFFICIENT_DATA,
                              reason="empty_cohort", metadata={"n": 0})
+    finite = _probabilities_are_finite(ctx)
+    if not finite.applicable:
+        return finite
     if not is_probability(ctx.y_prob):
         return Applicability(applicable=False, status=MetricStatus.NOT_APPLICABLE,
                              reason="values_are_not_probabilities")
