@@ -377,9 +377,13 @@ def test_calibration_never_consults_the_legacy_undefined_resolver():
     consulted = []
     original = legacy_projection.resolve_undefined_projection
 
-    def counting(result, *, policy):
+    def counting(result, *, policy, metric_results=None):
+        # Signature tracks the resolver, which gained `metric_results` in commit
+        # 3b-1b so the derived single-class AUPRC rule can read prevalence. A spy
+        # that silently swallowed extra keywords would keep passing while no
+        # longer standing in for the real function.
         consulted.append(policy.field_name)
-        return original(result, policy=policy)
+        return original(result, policy=policy, metric_results=metric_results)
 
     legacy_projection.resolve_undefined_projection = counting
     try:

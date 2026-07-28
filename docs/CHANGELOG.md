@@ -1,3 +1,48 @@
+## 2026-07-28 -- the derived single-class AUPRC rule (Tier 1 item 6, commit 3b-1b)
+
+Ratchet 3517 -> 3529 (+12). Session record:
+docs/sessions/SESSION_2026-07-28_derived-single-class-auprc.md
+
+SHADOW EQUALITY REACHED: 6 mismatches -> 2 -> 0. This is the precondition 3b-2's
+authority switch has been waiting on -- an executable equivalence proof that old
+and new implementations agree on the same execution, not merely on a final tree.
+
+### AUPRC stays canonically undefined; the legacy value is DERIVED
+AUPRC is a ranking quantity built around the positive class. An all-negative
+cohort has no positives to retrieve; an all-positive cohort has no negatives to
+rank against, so its conventional 1.0 is determined by class composition rather
+than discrimination. scikit-learn warns in both cases, which is the evidence its
+answer is not a measurement.
+
+Typed stays UNDEFINED with reason binary_class_support_required. The legacy
+scalar is DERIVED from the registered prevalence: 0.0 -> 0.0, 1.0 -> 1.0. Not a
+second computation and not a table constant, but an explicit schema-v2
+serialisation rule keyed on class composition.
+
+It FAILS CLOSED on every missing premise: no siblings, no prevalence, a
+prevalence that is not OK, or a prevalence that is not degenerate. The last
+matters most -- AUPRC refused for a single-class cohort while prevalence reads
+0.42 is a contradiction, and a plausible legacy value would hide it.
+
+### A third projection source, because two were not enough
+ProjectionDecision now records typed_value, substitute and derived. All three can
+produce 0.0 on the same report -- a measurement, a compatibility constant, and a
+value derived from prevalence -- and no comparison of values can separate them. A
+test pins that the three sources are distinguishable precisely because the
+numbers are not. The derived rule is also proved not to be a constant in
+disguise: the same rule yields 0.0 on one cohort and 1.0 on the other.
+
+### A signature change that broke a spy, correctly
+The resolver gained metric_results so the derived rule can read prevalence,
+breaking the resolver-counting spy in the calibration suite. That is the right
+behaviour: a spy that silently swallowed extra keywords would keep passing while
+no longer standing in for the real function.
+
+### Verification
+Legacy report oracle 480 values ZERO movements; typed registry oracle showing
+only 3b-1a's declared set with nothing new. Sabotage: nine mutations, nine
+detected, zero undetected, clean on the first pass.
+
 ## 2026-07-28 -- calibration applicability correction and the compatibility interpreter (Tier 1 item 6, commit 3b-1a)
 
 Ratchet 3455 -> 3517 (+62). Session record:

@@ -2348,3 +2348,46 @@ committed fixture.
 3b-2 SCOPE, unchanged: switch authority, delete evaluator-local computation,
 activate the narrowed abstract-syntax-tree guard and the invocation-count guards,
 confirm 480 legacy values with zero movement.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-28 (Tier 1 item 6, commit 3b-1b)
+=====================================================================
+
+  commit 3b-1a 6029d74  calibration applicability + interpreter    LANDED
+  commit 3b-1b (this)   derived single-class AUPRC rule            LANDED
+  commit 3b-2  --       authority switch and evaluator retirement  NEXT, LAST
+
+SHADOW EQUALITY REACHED. 6 mismatches -> 2 -> 0 across eighty policy-covered
+values. 3b-2 may now proceed: its authority switch is guarded by an executable
+equivalence proof rather than by expectation.
+
+THE DERIVED RULE. AUPRC stays canonically UNDEFINED on single-class cohorts with
+reason binary_class_support_required; the legacy scalar is DERIVED from the
+registered prevalence (0.0 -> 0.0, 1.0 -> 1.0). Not a second computation, not a
+table constant -- an explicit schema-v2 serialisation rule keyed on class
+composition, failing closed on every missing premise including a prevalence that
+is not degenerate, which would be a contradiction between two statements about
+the same data.
+
+THREE PROJECTION SOURCES, all of which can produce 0.0 on one report:
+    typed_value   a measurement
+    substitute    a compatibility constant authorised by exact reason
+    derived       computed from a sibling result
+No comparison of values can separate them; ProjectionDecision can.
+
+3b-2 SCOPE, the last commit of Tier 1 item 6:
+  * project_legacy_fields becomes authoritative;
+  * evaluate() gains an optional source_id and builds one of two honest
+    population identities -- attributed or unattributed;
+  * evaluator-local computation at lines 481-482 and 511 is DELETED;
+  * the narrowed abstract-syntax-tree guard, carried item (o), activates;
+  * counting wrappers prove each kernel runs exactly once, the projection invokes
+    no kernel, report construction performs no threshold comparison, and the
+    expected and maximum calibration errors reuse ONE CalibrationBins;
+  * certification_eligible = False when the population is unattributed;
+  * acceptance: 480 legacy values, ZERO movement.
+
+The diff should be almost entirely subtractive. Any movement is then attributable
+specifically to the authority switch or to incomplete retirement, not to
+construction of the projection machinery.

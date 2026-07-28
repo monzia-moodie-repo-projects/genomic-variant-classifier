@@ -103,7 +103,9 @@ DECISION_MATRIX = [
 
     # A field with no substitution rule projects its own value, whatever it is.
     ("auroc",  MetricStatus.UNDEFINED,            "binary_class_support_required", UndefinedProjectionRule.NONE, False, "typed_value"),
-    ("auprc",  MetricStatus.UNDEFINED,            "binary_class_support_required", UndefinedProjectionRule.NONE, False, "typed_value"),
+    ("auprc",  MetricStatus.UNDEFINED,            "binary_class_support_required", UndefinedProjectionRule.SINGLE_CLASS_AUPRC, True, "derived"),
+    ("auprc",  MetricStatus.UNDEFINED,            "some_other_reason",     UndefinedProjectionRule.SINGLE_CLASS_AUPRC, False, "typed_value"),
+    ("auprc",  MetricStatus.INSUFFICIENT_SUPPORT, "binary_class_support_required", UndefinedProjectionRule.SINGLE_CLASS_AUPRC, False, "typed_value"),
     ("calibration_ece", MetricStatus.FAILED,      "binning_invariant",     UndefinedProjectionRule.NONE, False, "typed_value"),
     ("calibration_mce", MetricStatus.OK,          None,                    UndefinedProjectionRule.NONE, False, "typed_value"),
     ("calibration_mce", MetricStatus.FAILED,      "binning_invariant",     UndefinedProjectionRule.NONE, False, "typed_value"),
@@ -119,14 +121,15 @@ DECISION_MATRIX = [
 def test_every_declared_decision_path(field, status, reason, rule, authorised, source):
     """Every legal state documented, every illegal substitution tested."""
     value = 0.5 if status is MetricStatus.OK else NAN
-    decision = projection_decision(_result(value, status, reason), field_name=field)
+    siblings = {"prevalence": _result(0.0, MetricStatus.OK)}
+    decision = projection_decision(_result(value, status, reason), field_name=field,
+                                   metric_results=siblings)
 
     assert decision.rule is rule, f"{field}: wrong rule consulted"
     assert decision.authorised is authorised, f"{field}: wrong authorisation"
     assert decision.source == source, f"{field}: wrong projection source"
 
-    if source == "substitute":
-        assert decision.raw_value == 0.0
+    if source in ("substitute", "derived"):
         assert not math.isnan(decision.rounded_value)
     else:
         if math.isnan(value):
@@ -310,3 +313,99 @@ def test_exact_nan_aware_comparison(left, right, expected):
     is a projection defect rather than floating-point noise, and a tolerance
     would hide exactly what this comparison exists to surface."""
     assert legacy_values_equal(left, right) is expected
+
+
+# --------------------------------------------------------------------------- #
+# 7. The DERIVED rule: single-class AUPRC
+#
+# The legacy value follows from class composition, not from a table constant:
+#
+#     prevalence 0.0  ->  legacy AUPRC 0.0   no positives to retrieve
+#     prevalence 1.0  ->  legacy AUPRC 1.0   precision trivially one
+#
+# The typed surface stays UNDEFINED throughout. AUPRC is a ranking quantity built
+# around the positive class, and a single-class cohort provides nothing to rank
+# against -- which is why scikit-learn warns while returning its conventional
+# answer.
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize("prevalence,expected", [(0.0, 0.0), (1.0, 1.0)])
+def test_single_class_auprc_is_derived_from_prevalence(prevalence, expected):
+    siblings = {"prevalence": _result(prevalence, MetricStatus.OK)}
+    decision = projection_decision(
+        _result(NAN, MetricStatus.UNDEFINED, "binary_class_support_required"),
+        field_name="auprc", metric_results=siblings)
+
+    assert decision.rule is UndefinedProjectionRule.SINGLE_CLASS_AUPRC
+    assert decision.authorised is True
+    assert decision.source == "derived", (
+        "a DERIVED value must be distinguishable from a constant substitution; "
+        "otherwise a reader cannot tell whether the number followed from the "
+        "cohort or was written into a table")
+    assert decision.rounded_value == expected
+
+
+def test_the_derived_rule_is_not_a_constant_substitution():
+    """The two degenerate cohorts produce DIFFERENT legacy values from the SAME
+    rule. A constant could not do that, which is the whole reason the rule is
+    derived."""
+    negative = projection_decision(
+        _result(NAN, MetricStatus.UNDEFINED, "binary_class_support_required"),
+        field_name="auprc", metric_results={"prevalence": _result(0.0, MetricStatus.OK)})
+    positive = projection_decision(
+        _result(NAN, MetricStatus.UNDEFINED, "binary_class_support_required"),
+        field_name="auprc", metric_results={"prevalence": _result(1.0, MetricStatus.OK)})
+    assert negative.rule is positive.rule
+    assert negative.rounded_value != positive.rounded_value
+
+
+def test_the_derived_rule_refuses_a_mixed_prevalence():
+    """AUPRC refused for a SINGLE-CLASS cohort while prevalence is mixed is a
+    contradiction. It must surface, not be papered over with a plausible value."""
+    with pytest.raises(LegacyProjectionError, match="not degenerate"):
+        projection_decision(
+            _result(NAN, MetricStatus.UNDEFINED, "binary_class_support_required"),
+            field_name="auprc",
+            metric_results={"prevalence": _result(0.42, MetricStatus.OK)})
+
+
+@pytest.mark.parametrize("siblings,match", [
+    (None, "without them"),
+    ({}, "requires a prevalence result"),
+    ({"prevalence": MetricResult(NAN, MetricStatus.UNDEFINED, "r", {})},
+     "requires an OK prevalence"),
+    ({"prevalence": MetricResult(NAN, MetricStatus.FAILED, "r", {})},
+     "requires an OK prevalence"),
+])
+def test_the_derived_rule_fails_closed_on_every_missing_premise(siblings, match):
+    """A derived value must not rest on a quantity that was itself refused."""
+    with pytest.raises(LegacyProjectionError, match=match):
+        projection_decision(
+            _result(NAN, MetricStatus.UNDEFINED, "binary_class_support_required"),
+            field_name="auprc", metric_results=siblings)
+
+
+def test_the_derived_rule_does_not_fire_for_an_unauthorised_reason():
+    """Authorisation remains conjunctive: the rule is keyed on metric identity
+    AND exact reason, so an AUPRC undefined for some other cause projects NaN."""
+    decision = projection_decision(
+        _result(NAN, MetricStatus.UNDEFINED, "some_other_reason"),
+        field_name="auprc", metric_results={"prevalence": _result(0.0, MetricStatus.OK)})
+    assert decision.authorised is False
+    assert decision.source == "typed_value"
+    assert math.isnan(decision.rounded_value)
+
+
+def test_the_three_sources_are_distinguishable():
+    """typed_value, substitute and derived produce values that may coincide, so
+    the SOURCE is what separates them."""
+    measured = projection_decision(_result(0.0, MetricStatus.OK), field_name="f1")
+    substituted = projection_decision(
+        _result(NAN, MetricStatus.UNDEFINED, "zero_f1_denominator"), field_name="f1")
+    derived = projection_decision(
+        _result(NAN, MetricStatus.UNDEFINED, "binary_class_support_required"),
+        field_name="auprc", metric_results={"prevalence": _result(0.0, MetricStatus.OK)})
+
+    assert measured.rounded_value == substituted.rounded_value == derived.rounded_value == 0.0
+    assert {measured.source, substituted.source, derived.source} == {
+        "typed_value", "substitute", "derived"}
+

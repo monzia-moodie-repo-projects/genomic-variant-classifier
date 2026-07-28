@@ -3856,4 +3856,31 @@
 #   Sabotage: 13 mutations, 13 detected, 0 undetected, including two SWAP
 #   mutations caught only by the decision matrix.
 #
-3517
+#
+# 3517 -> 3529 (+12)  2026-07-28  commit 3b-1b: the derived single-class
+#   AUPRC rule. SHADOW EQUALITY REACHED: 6 -> 2 -> 0.
+#
+#   AUPRC stays canonically UNDEFINED on single-class cohorts. It is a ranking
+#   quantity built around the positive class: an all-negative cohort has no
+#   positives to retrieve, and an all-positive cohort has no negatives to rank
+#   against, so its conventional 1.0 is determined by class composition rather
+#   than by discrimination. scikit-learn warns in both cases.
+#
+#   THE LEGACY VALUE IS DERIVED, NOT CONSTANT: prevalence 0.0 gives 0.0 and 1.0
+#   gives 1.0, read from the REGISTERED prevalence result. Neither a second
+#   AUPRC computation nor a table entry, but a schema-v2 serialisation rule
+#   keyed on class composition. It fails closed on absent siblings, a missing
+#   prevalence, a non-OK prevalence, and a prevalence that is not degenerate --
+#   the last being a contradiction that must surface, not be papered over.
+#
+#   A THIRD PROJECTION SOURCE. typed_value, substitute and derived can all
+#   produce 0.0 on one report: a measurement, a compatibility constant, and a
+#   value derived from prevalence. No comparison of VALUES can separate them.
+#   The derived rule is proved not to be a constant in disguise, since the same
+#   rule yields 0.0 on one degenerate cohort and 1.0 on the other.
+#
+#   Legacy report oracle 480 values ZERO movements; typed registry oracle shows
+#   only 3b-1a's declared set, nothing new. Sabotage: 9 mutations, 9 detected,
+#   0 undetected, clean on the first pass.
+#
+3529

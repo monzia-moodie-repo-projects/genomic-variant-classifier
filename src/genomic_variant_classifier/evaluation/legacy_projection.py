@@ -100,6 +100,7 @@ class UndefinedProjectionRule(str, Enum):
 
     NONE = "none"
     ZERO = "zero"
+    SINGLE_CLASS_AUPRC = "single_class_auprc"
 
 
 @dataclass(frozen=True)
@@ -205,7 +206,10 @@ class LegacyProjectionPolicy:
 LEGACY_PROJECTION_POLICIES: Mapping[str, LegacyProjectionPolicy] = MappingProxyType({
     p.field_name: p for p in (
         LegacyProjectionPolicy("auroc", "auroc", decimals=5),
-        LegacyProjectionPolicy("auprc", "auprc", decimals=5),
+        LegacyProjectionPolicy(
+            "auprc", "auprc", decimals=5,
+            undefined_rule=UndefinedProjectionRule.SINGLE_CLASS_AUPRC,
+            authorised_undefined_reasons=frozenset({"binary_class_support_required"})),
         LegacyProjectionPolicy("brier_score", "brier_score", decimals=5),
         LegacyProjectionPolicy("calibration_ece", "expected_calibration_error",
                                decimals=5),
@@ -227,8 +231,53 @@ LEGACY_PROJECTION_POLICIES: Mapping[str, LegacyProjectionPolicy] = MappingProxyT
 _RULE_VALUES = {UndefinedProjectionRule.ZERO: 0.0}
 
 
+def _single_class_auprc(metric_results: Optional[Mapping]) -> float:
+    """The schema-version-2 AUPRC on a single-class cohort, DERIVED.
+
+    NOT a recomputation of the area under the precision-recall curve, and NOT a
+    table constant. The historical values follow from class composition alone:
+
+        prevalence 0.0  ->  legacy AUPRC 0.0     no positives to retrieve
+        prevalence 1.0  ->  legacy AUPRC 1.0     precision trivially one
+
+    Deriving it from the REGISTERED prevalence rather than hard-coding a
+    cohort-specific number means the rule states WHY the value is what it is,
+    and cannot silently produce it for a cohort where the premise does not hold.
+
+    Fails closed on every way the premise can be absent: no sibling results, no
+    prevalence result, a prevalence that is not OK, or a prevalence that is not
+    degenerate. The last is the important one -- a mixed-prevalence cohort
+    reaching a single-class AUPRC refusal is a contradiction, and emitting a
+    plausible number for it would hide the inconsistency rather than surface it.
+    """
+    if metric_results is None:
+        raise LegacyProjectionError(
+            "the single-class AUPRC rule needs the sibling metric results to "
+            "read prevalence from; it was invoked without them")
+    prevalence = metric_results.get("prevalence")
+    if prevalence is None:
+        raise LegacyProjectionError(
+            "the single-class AUPRC rule requires a prevalence result; the "
+            "legacy value is DERIVED from class composition, not assumed")
+    if prevalence.status is not MetricStatus.OK:
+        raise LegacyProjectionError(
+            f"the single-class AUPRC rule requires an OK prevalence result, got "
+            f"{prevalence.status.value}. A derived value must not rest on a "
+            "quantity that was itself refused.")
+    if prevalence.value == 0.0:
+        return 0.0
+    if prevalence.value == 1.0:
+        return 1.0
+    raise LegacyProjectionError(
+        f"AUPRC was refused for a single-class cohort while prevalence is "
+        f"{prevalence.value!r}, which is not degenerate. Those two statements "
+        "contradict each other, and the contradiction must surface rather than "
+        "be papered over with a plausible legacy value.")
+
+
 def resolve_undefined_projection(result: MetricResult, *,
-                                 policy: LegacyProjectionPolicy) -> float:
+                                 policy: LegacyProjectionPolicy,
+                                 metric_results: Optional[Mapping] = None) -> float:
     """The compatibility substitution. Called ONLY for a non-OK result.
 
     A SEPARATE, NAMED FUNCTION ON PURPOSE. Folding this into
@@ -242,11 +291,11 @@ def resolve_undefined_projection(result: MetricResult, *,
     calibration substitution here, and a test inspecting only the table would not
     notice.
     """
-    return _decide(result, policy=policy).rounded_value
+    return _decide(result, policy=policy, metric_results=metric_results).rounded_value
 
 
-def _decide(result: MetricResult, *,
-            policy: LegacyProjectionPolicy) -> ProjectionDecision:
+def _decide(result: MetricResult, *, policy: LegacyProjectionPolicy,
+            metric_results: Optional[Mapping] = None) -> ProjectionDecision:
     """Every projection decision, recorded rather than merely performed."""
     if result.status is MetricStatus.OK:
         raise LegacyProjectionError(
@@ -260,8 +309,12 @@ def _decide(result: MetricResult, *,
         and result.reason in policy.authorised_undefined_reasons)
 
     if authorised:
-        raw = float(_RULE_VALUES[policy.undefined_rule])
-        source = "substitute"
+        if policy.undefined_rule is UndefinedProjectionRule.SINGLE_CLASS_AUPRC:
+            raw = _single_class_auprc(metric_results)
+            source = "derived"
+        else:
+            raw = float(_RULE_VALUES[policy.undefined_rule])
+            source = "substitute"
     else:
         # Not UNDEFINED, or UNDEFINED for a cause this policy does not cover.
         # INSUFFICIENT_SUPPORT, FAILED and NOT_APPLICABLE are not UNDEFINED, and
@@ -283,7 +336,8 @@ def _round(value: float, decimals: Optional[int]) -> float:
     return round(value, decimals)
 
 
-def projection_decision(result: MetricResult, *, field_name: str) -> ProjectionDecision:
+def projection_decision(result: MetricResult, *, field_name: str,
+                        metric_results: Optional[Mapping] = None) -> ProjectionDecision:
     """The audit view: which rule produced this value, and was it authorised."""
     policy = _policy_for(field_name)
     if result.status is MetricStatus.OK:
@@ -292,7 +346,7 @@ def projection_decision(result: MetricResult, *, field_name: str) -> ProjectionD
             field_name=field_name, rule=UndefinedProjectionRule.NONE,
             authorised=False, source="typed_value", raw_value=raw,
             rounded_value=_round(raw, policy.decimals), decimals=policy.decimals)
-    return _decide(result, policy=policy)
+    return _decide(result, policy=policy, metric_results=metric_results)
 
 
 def _policy_for(field_name: str) -> LegacyProjectionPolicy:
@@ -304,7 +358,8 @@ def _policy_for(field_name: str) -> LegacyProjectionPolicy:
     return policy
 
 
-def legacy_metric_value(result: MetricResult, *, field_name: str) -> float:
+def legacy_metric_value(result: MetricResult, *, field_name: str,
+                        metric_results: Optional[Mapping] = None) -> float:
     """Project ONE typed result onto ONE legacy scalar field.
 
     Order: typed value OR authorised substitution, then rounding. The branch is
@@ -314,7 +369,8 @@ def legacy_metric_value(result: MetricResult, *, field_name: str) -> float:
     policy = _policy_for(field_name)
     if result.status is MetricStatus.OK:
         return _round(float(result.value), policy.decimals)
-    return resolve_undefined_projection(result, policy=policy)
+    return resolve_undefined_projection(result, policy=policy,
+                                        metric_results=metric_results)
 
 
 def project_legacy_fields(metric_results: Mapping[str, MetricResult]) -> dict:
@@ -330,7 +386,8 @@ def project_legacy_fields(metric_results: Mapping[str, MetricResult]) -> dict:
         result = metric_results.get(policy.metric_name)
         if result is None:
             continue
-        out[field_name] = legacy_metric_value(result, field_name=field_name)
+        out[field_name] = legacy_metric_value(result, field_name=field_name,
+                                              metric_results=metric_results)
     return out
 
 
