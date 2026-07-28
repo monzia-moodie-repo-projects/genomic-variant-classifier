@@ -756,9 +756,17 @@ def _requires_nondegenerate_confusion(tp: ThresholdParameters, *, metric: str):
         else:
             degenerate = (2 * tp_c + fp_c + fn_c) == 0
         if degenerate:
+            # DISTINCT REASONS PER METRIC, 2026-07-28. A single shared reason
+            # would let the legacy compatibility projection substitute the
+            # Matthews value for an F1 undefined for an entirely different
+            # cause. The substitution must be authorised by metric identity AND
+            # by the exact undefined reason, so the two conditions -- a
+            # vanishing confusion-matrix margin, and a vanishing F1 denominator
+            # -- must be nameable apart.
             return Applicability(
                 applicable=False, status=MetricStatus.UNDEFINED,
-                reason="degenerate_confusion_margin",
+                reason=("zero_confusion_margin" if metric == "mcc"
+                        else "zero_f1_denominator"),
                 metadata={"n_predicted_positive": int(np.sum(predicted)),
                           "n_reference_positive": int(np.sum(pos))})
         return APPLICABLE

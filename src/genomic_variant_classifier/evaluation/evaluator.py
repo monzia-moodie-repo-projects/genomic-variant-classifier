@@ -41,9 +41,10 @@ import hashlib
 import json
 import logging
 import math
+import dataclasses
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Mapping, Optional
 
 import numpy as np
 import pandas as pd
@@ -55,7 +56,7 @@ import pandas as pd
 # matter -- metrics.py imports scikit-learn at module level, so the bootstrap
 # dispatcher is imported lazily inside evaluate(), never here. See
 # `test_evaluator_phase5.py::test_module_imports_without_sklearn`.
-from genomic_variant_classifier.evaluation.capabilities import BootstrapUnit, MetricStatus
+from genomic_variant_classifier.evaluation.capabilities import BootstrapUnit, MetricResult, MetricStatus
 from genomic_variant_classifier.evaluation.cluster_resolution import (
     ClusterResolution,
     resolve_gene_clusters,
@@ -73,7 +74,24 @@ from genomic_variant_classifier.evaluation.serialization import dump_strict_json
 #   2  endpoints are nullable, and every interval carries its own status,
 #      resampling unit, stratification, cluster provenance, replicate
 #      accounting and finding.
+#   3  the report carries `metric_results`, the typed registry results, and each
+#      serialised result carries its own `result_kind`. A version-3 report MUST
+#      have a non-empty mapping; a version-2 report MUST have an empty one.
+#      Version-2 artifacts are NEVER given synthesised typed results: status,
+#      reason, applicability, population fingerprint, threshold provenance and
+#      result kind were all absent when they were written, and reconstructing
+#      them from bare floats would fabricate provenance that never existed.
 EVALUATION_REPORT_SCHEMA_VERSION = 2
+
+# The version this codebase WRITES once the report is a projection of the typed
+# results. Introduced in commit 3a as a serialisation capability; `evaluate()`
+# does not emit it until commit 3b makes the report a pure projection, so that
+# schema introduction and computational retirement remain independently
+# falsifiable.
+EVALUATION_REPORT_SCHEMA_VERSION_TYPED = 3
+
+# Versions this codebase can READ.
+SUPPORTED_REPORT_SCHEMA_VERSIONS = (1, 2, 3)
 
 # PHASE5: lazy sklearn loader + first-class F1
 # sklearn is imported on first use (not at module import) so this module imports cleanly in
@@ -322,6 +340,115 @@ def _validate_ci_fields(
         raise TypeError(f"{metric}: stratified must be a bool or None, got {stratified!r}")
 
 
+# --------------------------------------------------------------------------- #
+# Typed-result serialisation, schema version 3
+#
+# `result_kind` is written into the ARTIFACT even though it lives on the
+# descriptor and not on `MetricResult`. Commit 2b-2 ruled it must never enter
+# result metadata -- that would perturb every already-serialised result -- but an
+# artifact that cannot say what kind of quantity it recorded is not
+# self-describing, and a future registry revision could silently reinterpret it.
+#
+# So it is written from the descriptor at serialisation time and VERIFIED on
+# read. A disagreement between the artifact and the current registry is a
+# schema-or-registry version conflict and is raised; it is never resolved by
+# overwriting the recorded value with today's opinion, because the artifact is
+# the evidence and the registry is the interpreter.
+#
+# `asdict()` cannot do this: it walks the dataclass and bypasses `to_dict()`
+# entirely, so anything added to `MetricResult.to_dict` would never reach a file.
+# --------------------------------------------------------------------------- #
+# Flat report fields whose declared type is an enum. JSON flattens these to their
+# string values, and the report REFUSES a bare string -- correctly: "a bare
+# string cannot be compared against the enum and would silently miss every branch
+# below." A deserialiser that did not restore them would either crash on every
+# round trip or, worse, be "fixed" by relaxing the report's type check, which is
+# the guard that stops an interval status from being silently misread.
+_ENUM_REPORT_FIELDS = {
+    "auroc_ci_status": MetricStatus,
+    "auprc_ci_status": MetricStatus,
+    "auroc_ci_resampling_unit": BootstrapUnit,
+    "auprc_ci_resampling_unit": BootstrapUnit,
+}
+
+
+def _restore_enum_fields(payload: dict) -> dict:
+    out = dict(payload)
+    for name, enum_type in _ENUM_REPORT_FIELDS.items():
+        value = out.get(name)
+        if isinstance(value, str):
+            try:
+                out[name] = enum_type(value)
+            except ValueError as exc:
+                raise ValueError(
+                    f"{name}: {value!r} is not a member of "
+                    f"{enum_type.__name__}; the artifact was written by an "
+                    "incompatible version and must not be coerced") from exc
+    return out
+
+
+def serialize_metric_results(metric_results: Mapping) -> dict:
+    from genomic_variant_classifier.evaluation.registry import by_name
+
+    out = {}
+    for name, result in metric_results.items():
+        payload = result.to_dict()
+        # A NON-FINITE VALUE IS WRITTEN AS null, NOT AS NaN.
+        #
+        # `dump_strict_json` refuses NaN by design -- "an absent estimate wearing
+        # a number's clothes" -- and `MetricResult.from_dict` already documents
+        # that it reads a null back as NaN. The READER therefore implements a
+        # contract the WRITER does not: every refused result is unpersistable as
+        # `to_dict()` emits it. Normalising here completes the round trip for the
+        # report without touching `MetricResult.to_dict`, whose five other call
+        # sites are Family B representation probes that legitimately produce
+        # non-finite results and are outside this commit's subject. The
+        # underlying asymmetry is recorded as a carried roadmap item.
+        #
+        # The STATUS and REASON carry the meaning; the null is only the absence
+        # of a number, which is exactly what a refusal is.
+        if not math.isfinite(payload.get("value", float("nan"))):
+            payload["value"] = None
+        try:
+            payload["result_kind"] = by_name(name).result_kind.value
+        except KeyError as exc:
+            raise ValueError(
+                f"cannot serialise metric_results[{name!r}]: no descriptor is "
+                "registered under that name, so the artifact would record a "
+                "quantity nothing can interpret") from exc
+        out[name] = payload
+    return out
+
+
+def deserialize_metric_results(payload: Mapping) -> dict:
+    from genomic_variant_classifier.evaluation.registry import by_name
+
+    out = {}
+    for name, entry in payload.items():
+        recorded = entry.get("result_kind")
+        if recorded is None:
+            raise ValueError(
+                f"serialised result {name!r} carries no result_kind; a "
+                "version-3 artifact must be self-describing")
+        try:
+            current = by_name(name).result_kind.value
+        except KeyError as exc:
+            raise ValueError(
+                f"serialised result {name!r} has no descriptor in the current "
+                "registry; this artifact was written by a different registry "
+                "version and cannot be interpreted here") from exc
+        if recorded != current:
+            raise ValueError(
+                f"result_kind conflict for {name!r}: the artifact records "
+                f"{recorded!r} and this registry declares {current!r}. That is a "
+                "schema or registry version conflict requiring an explicit "
+                "decision; it is NOT resolved by preferring today's registry, "
+                "because the artifact is the evidence.")
+        out[name] = MetricResult.from_dict(
+            {k: v for k, v in entry.items() if k != "result_kind"})
+    return out
+
+
 @dataclass
 class EvaluationReport:
     """Full evaluation report for one model.
@@ -400,7 +527,140 @@ class EvaluationReport:
     calibration_frac_pos:    list = field(default_factory=list)
     calibration_mean_pred:   list = field(default_factory=list)
 
+    # --- the typed registry results, schema version 3 (2026-07-28) ----------
+    # The canonical layer. The flat scalar fields above become PROJECTIONS of
+    # this mapping in commit 3b; until then they remain independently computed
+    # and this mapping is empty, so schema introduction and computational
+    # retirement stay independently falsifiable.
+    #
+    # EMPTY IS MEANINGFUL, NOT MISSING. A version-2 artifact deserialises with an
+    # empty mapping and is never given synthesised results: status, reason,
+    # applicability, population fingerprint, threshold provenance and result kind
+    # were all absent when it was written, and reconstructing them from bare
+    # floats would fabricate provenance rather than recover it.
+    metric_results: Mapping = field(default_factory=dict)
+
+    def to_serializable(self) -> dict:
+        """Dictionary form suitable for strict JSON.
+
+        Uses `asdict` for the flat surface, then REPLACES the typed mapping,
+        because `asdict` bypasses `MetricResult.to_dict()` and would omit the
+        `result_kind` the artifact must carry.
+        """
+        payload = asdict(self)
+        payload["metric_results"] = serialize_metric_results(self.metric_results)
+        return payload
+
+    @classmethod
+    def from_serialized(cls, payload: Mapping) -> "EvaluationReport":
+        """Read an artifact of any supported version, dispatching on its own
+        recorded version rather than on what the reader hopes to find."""
+        version = payload.get("schema_version")
+        if version is None:
+            raise ValueError("serialized report carries no schema_version")
+        version = int(version)
+        if version < EVALUATION_REPORT_SCHEMA_VERSION_TYPED:
+            return cls.from_serialized_v2(payload)
+        known = {f.name for f in dataclasses.fields(cls)}
+        accepted = {k: v for k, v in payload.items()
+                    if k in known and k != "metric_results"}
+        accepted = _restore_enum_fields(accepted)
+        accepted["schema_version"] = version
+        accepted["metric_results"] = deserialize_metric_results(
+            payload.get("metric_results") or {})
+        return cls(**accepted)
+
+    # ------------------------------------------------------------------ #
+    # Schema, typed results, and construction
+    # ------------------------------------------------------------------ #
+    def _validate_schema_and_typed_results(self) -> None:
+        """The version and the typed mapping must agree, in both directions.
+
+        A version-3 report with an empty mapping would claim a typed surface it
+        does not have. A version-2 report with a populated one would imply that
+        historical artifacts carry provenance they never recorded. Either would
+        make the version unreadable as evidence of what a file actually
+        contains, which is the only thing a schema version is for.
+        """
+        if self.schema_version not in SUPPORTED_REPORT_SCHEMA_VERSIONS:
+            raise ValueError(
+                f"unsupported report schema version {self.schema_version!r}; "
+                f"this codebase reads {SUPPORTED_REPORT_SCHEMA_VERSIONS}")
+        if not isinstance(self.metric_results, Mapping):
+            raise TypeError(
+                f"metric_results must be a mapping, got "
+                f"{type(self.metric_results).__name__}")
+        for name, result in self.metric_results.items():
+            if not isinstance(name, str) or not name:
+                raise TypeError("metric_results keys must be non-empty strings")
+            if not isinstance(result, MetricResult):
+                raise TypeError(
+                    f"metric_results[{name!r}] must be a MetricResult, got "
+                    f"{type(result).__name__}; a bare float carries no status, "
+                    "no reason and no population, and admitting one here would "
+                    "reintroduce exactly the untyped surface this layer replaces")
+        if self.schema_version >= EVALUATION_REPORT_SCHEMA_VERSION_TYPED:
+            if not self.metric_results:
+                raise ValueError(
+                    f"a version-{self.schema_version} report requires a "
+                    "non-empty metric_results mapping: the version asserts that "
+                    "the typed surface is present")
+        elif self.metric_results:
+            raise ValueError(
+                f"a version-{self.schema_version} report must have an EMPTY "
+                "metric_results mapping. Versions 1 and 2 predate the typed "
+                "surface, so a populated mapping on one of them is either a "
+                "mislabelled artifact or synthesised provenance.")
+
+    @classmethod
+    def from_metric_results(cls, *, metric_results: Mapping,
+                            **fields) -> "EvaluationReport":
+        """Build a version-3 report around the typed results.
+
+        The canonical constructor once the report is a projection. Direct
+        dataclass construction remains available because historical
+        deserialisation needs it, and because making the fields `init=False`
+        would break every existing caller; consistency is enforced in
+        `__post_init__` rather than by removing the door.
+        """
+        if not metric_results:
+            raise ValueError(
+                "from_metric_results() requires at least one typed result; an "
+                "empty mapping means a version-2 report, which is built by "
+                "from_serialized_v2() or by direct construction")
+        fields.pop("schema_version", None)
+        return cls(schema_version=EVALUATION_REPORT_SCHEMA_VERSION_TYPED,
+                   metric_results=dict(metric_results), **fields)
+
+    @classmethod
+    def from_serialized_v2(cls, payload: Mapping) -> "EvaluationReport":
+        """Read a historical version-1 or version-2 artifact.
+
+        The typed mapping is left EMPTY. It is never synthesised from the flat
+        scalars, however tempting: an `OK` result manufactured from a bare float
+        would assert a population scope, a support count, an applicability
+        verdict and a certification eligibility that the artifact never
+        recorded. A report that cannot say what it does not know is more useful
+        than one that guesses.
+        """
+        version = payload.get("schema_version")
+        if version is None:
+            raise ValueError("serialized report carries no schema_version")
+        if int(version) >= EVALUATION_REPORT_SCHEMA_VERSION_TYPED:
+            raise ValueError(
+                f"from_serialized_v2() refuses schema version {version}; use "
+                "from_serialized() so the typed results are read rather than "
+                "discarded")
+        known = {f.name for f in dataclasses.fields(cls)}
+        accepted = {k: v for k, v in payload.items()
+                    if k in known and k != "metric_results"}
+        accepted = _restore_enum_fields(accepted)
+        accepted["schema_version"] = int(version)
+        accepted["metric_results"] = {}
+        return cls(**accepted)
+
     def __post_init__(self) -> None:
+        self._validate_schema_and_typed_results()
         for metric in ("auroc", "auprc"):
             _validate_ci_fields(
                 metric,
@@ -933,7 +1193,7 @@ class ClinicalEvaluator:
         """
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        text = dump_strict_json(asdict(report), artifact=str(path))
+        text = dump_strict_json(report.to_serializable(), artifact=str(path))
         path.write_text(text, encoding="utf-8", newline="\n")
         logger.info("Evaluation report saved to %s", path)
 

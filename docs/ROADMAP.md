@@ -2174,3 +2174,53 @@ inspection, from one that was tampered with.
 
 CARRIED ITEM (o) UNCHANGED -- the evaluator abstract-syntax-tree guard belongs to
 commit 3, where the report stops computing and becomes a projection.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-28 (Tier 1 item 6, commit 3a)
+=====================================================================
+
+  commit 2b-3 15ad3f0  descriptor immutability audit               LANDED
+  commit 3a   (this)   typed report surface and schema version 3   LANDED
+  commit 3b   --       legacy projection and evaluator retirement  NEXT
+
+COMMIT 3 WAS SPLIT, on the same principle that has governed the whole sequence:
+one independently falsifiable architectural change per commit. Schema
+introduction corrupts artifacts when it fails; computational retirement corrupts
+numbers. 3a moves NOTHING (480 field values, zero movements). 3b moves exactly
+four declared field-cohort pairs.
+
+PER-FIELD ROUNDING, EXTRACTED FROM LANDED CODE AND NOW FROZEN:
+    prevalence 4 decimals; auroc, auprc, mcc, f1, brier_score, calibration_ece,
+    calibration_mce 5. prevalence became a registered metric in 2b-2, so it is
+    precisely where a plausible global rule silently disagrees.
+
+NEW CARRIED ITEM (p) -- MetricResult.to_dict AND from_dict IMPLEMENT OPPOSITE
+HALVES OF ONE CONTRACT. from_dict documents that a null is read back as NaN;
+to_dict emits raw NaN; dump_strict_json refuses NaN by design. Every refused
+result is unpersistable through to_dict alone. Commit 3a normalises at the REPORT
+layer only. A global fix touches five call sites in representation_geometry.py
+and clustering_metrics.py -- Family B probes that legitimately produce non-finite
+results -- and belongs in its own commit with its own oracle. NOT A GATE.
+
+CARRIED ITEM (o) UNCHANGED -- the evaluator abstract-syntax-tree guard lands in
+3b, now that the evaluator is finally being retired rather than merely observed.
+Narrowed per ruling: it must reject direct calls to f1_score and
+matthews_corrcoef, comparisons of probability-like variables against numeric
+literals, direct calibration aggregation and direct legacy kernel calls, INSIDE
+THE REPORT-CONSTRUCTION PATH -- not ban all thresholding across the module.
+
+3b SCOPE:
+  * evaluation/legacy_projection.py, a declarative reason-sensitive policy table
+    (metric identity AND exact undefined reason must both authorise a
+    substitution, so an F1 undefined for an unrelated cause cannot receive the
+    Matthews value);
+  * the projection invariant, comparing against project_legacy_fields() through a
+    NaN-aware comparison with NO tolerance, since rounding has already occurred
+    and a tolerance would hide projection defects;
+  * retirement of evaluator.py lines 481-482 and 511;
+  * counting wrappers proving each kernel runs exactly once, the projection
+    invokes no kernel, report construction performs no threshold comparison, and
+    the expected and maximum calibration errors reuse ONE CalibrationBins;
+  * the four declared field-cohort movements, derived from the DENOMINATOR
+    condition rather than by metric name.

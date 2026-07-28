@@ -3764,4 +3764,36 @@
 #
 #   Sabotage: 8 breaks, 8 detected, 0 undetected.
 #
-3419
+#
+# 3419 -> 3445 (+26)  2026-07-28  commit 3a: the typed report surface
+#   and schema version 3.
+#
+#   Commit 3 was SPLIT. Schema introduction corrupts artifacts when it fails;
+#   computational retirement corrupts numbers. 3a retires nothing: evaluate()
+#   still computes MCC, F1 and the calibration errors itself, still emits
+#   version 2, still leaves metric_results empty.
+#
+#   ACCEPTANCE: NOTHING MOVED. Ten cohorts x 48 report fields = 480 values,
+#   frozen on the untouched 2b-3 tree before a line of 3a was written. Zero
+#   movements, NO declared movement set. One field added, none removed.
+#
+#   THE ORACLE HAD TO BE REPAIRED FIRST: the first five cohorts could not
+#   distinguish a four-decimal from a five-decimal prevalence contract, because
+#   every sample size divides cleanly. Two cohorts now separate them BY
+#   CONSTRUCTION. Four of ten detect a rounding change.
+#
+#   PER-FIELD ROUNDING EXTRACTED, NOT IMPOSED: prevalence 4 decimals, the other
+#   seven metric fields 5. prevalence became a registered metric in 2b-2, so it
+#   is exactly where a plausible global rule silently disagrees.
+#
+#   THREE DEFECTS IN LANDED CODE: to_dict emits raw NaN while from_dict
+#   documents reading null back as NaN and dump_strict_json refuses NaN, so
+#   every refused result was unpersistable; deserialisation dropped every
+#   enum-typed flat field, crashing every round trip; and my own first test
+#   helper invented the twenty cross-validated interval fields.
+#
+#   Sabotage: 12 breaks, 12 detected, 0 undetected. THE FIRST RUN LEFT ONE
+#   UNDETECTED -- the oracle-staleness test was written as though it carried
+#   2b-3's decisive assertion, which does not transfer here.
+#
+3445

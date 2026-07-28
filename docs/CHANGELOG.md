@@ -1,3 +1,68 @@
+## 2026-07-28 -- the typed report surface and schema version 3 (Tier 1 item 6, commit 3a)
+
+Ratchet 3419 -> 3445 (+26). Session record:
+docs/sessions/SESSION_2026-07-28_typed-report-surface.md
+
+Commit 3 was SPLIT. Schema introduction and computational retirement have
+different failure modes -- a schema defect corrupts artifacts, a retirement
+defect corrupts numbers -- so landing them together would leave any regression
+with two plausible causes.
+
+    3a  the typed surface exists         acceptance: NOTHING moves
+    3b  the report becomes a projection  acceptance: four declared movements
+
+3a retires nothing: evaluate() still computes MCC, F1 and the calibration errors
+itself, still emits schema version 2, still leaves metric_results empty.
+
+### THE ACCEPTANCE CRITERION: nothing moved
+Ten cohorts x 48 fields = 480 values, frozen on the untouched 2b-3 tree BEFORE a
+line of 3a was written. Result: ZERO movements, no declared movement set. Exactly
+one field added, none removed.
+
+### The oracle had to be repaired before it could be trusted
+The first five cohorts could not distinguish a four-decimal from a five-decimal
+prevalence contract -- every sample size divides cleanly. Two cohorts were added
+that separate the two BY CONSTRUCTION (333/700, 401/900). Measured correctly,
+four of ten cohorts now detect a rounding-contract change.
+
+### Per-field rounding, EXTRACTED not imposed
+prevalence rounds to 4 decimals; the other seven metric fields to 5. prevalence
+became a registered metric in 2b-2, so it is exactly the field where a plausible
+global round(x, 5) silently disagrees with the landed contract.
+
+### Built
+- metric_results with schema-aware validation in BOTH directions: v3 requires a
+  non-empty mapping, v1/v2 require an empty one.
+- from_metric_results / from_serialized_v2 / from_serialized, the last
+  dispatching on the artifact's own recorded version.
+- A version-2 artifact is NEVER given synthesised typed results: an OK result
+  manufactured from a bare float would assert a population scope, support count,
+  applicability verdict, threshold provenance and certification eligibility the
+  artifact never recorded.
+- result_kind written from the descriptor and VERIFIED on read; a conflict is
+  raised as a version conflict, never resolved by preferring today's registry.
+- to_serializable(), because asdict bypasses to_dict() and would never carry it.
+- The undefined reasons split into zero_confusion_margin and
+  zero_f1_denominator so 3b's substitution can be reason-authorised.
+
+### THREE DEFECTS IN LANDED CODE
+1. MetricResult.to_dict emits raw NaN while from_dict documents reading null back
+   as NaN, and dump_strict_json refuses NaN by design. EVERY REFUSED RESULT WAS
+   UNPERSISTABLE. Fixed at the report layer; a global fix touches five Family B
+   call sites and is carried as item (p).
+2. Deserialisation dropped every enum-typed flat field. JSON flattens them to
+   strings and the report correctly refuses a bare string, so every round trip
+   crashed. The dangerous repair -- relaxing the type check -- was not taken.
+3. My own first test helper invented the twenty cross-validated interval fields.
+   It now uses a real configuration the code actually emits.
+
+### Sabotage
+Twelve breaks, twelve detected, zero undetected. THE FIRST RUN LEFT ONE
+UNDETECTED: I wrote the oracle-staleness test as though it carried 2b-3's
+decisive assertion, and it did not. That pattern does not transfer -- the oracle
+was captured under report schema 2 and evaluate() still emits 2 -- so the
+invariant is that the oracle must PREDATE the typed emission.
+
 ## 2026-07-27 -- the descriptor immutability audit (Tier 1 item 6, commit 2b-3)
 
 Ratchet 3415 -> 3419 (+4). Session record:

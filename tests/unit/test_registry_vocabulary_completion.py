@@ -289,7 +289,17 @@ def test_a_zero_denominator_is_undefined_not_zero(name):
     p = np.full(20, 0.1)                      # nothing predicted positive
     r = evaluate_registered(_ctx(y, prob=p, score=p))[name]
     assert r.status is MetricStatus.UNDEFINED
-    assert r.reason == "degenerate_confusion_margin"
+    # DISTINCT REASONS, 2026-07-28. A shared reason would let the legacy
+    # compatibility projection substitute the Matthews value for an F1 undefined
+    # for a different cause. The substitution must be authorised by metric
+    # identity AND exact reason, so a test accepting either would defeat it.
+    expected_reason = ("zero_confusion_margin"
+                       if name == "matthews_correlation_coefficient"
+                       else "zero_f1_denominator")
+    assert r.reason == expected_reason, (
+        f"{name} reported {r.reason!r}; the two degenerate conditions -- a "
+        "vanishing confusion-matrix margin and a vanishing F1 denominator -- "
+        "must be nameable apart")
     assert not np.isfinite(r.value)
     assert r.status is not MetricStatus.FAILED, (
         "a degenerate cohort is not an implementation defect")
