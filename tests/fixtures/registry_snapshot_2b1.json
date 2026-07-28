@@ -1,0 +1,876 @@
+{
+  "captured_from": "commit 2b-1",
+  "fixtures": {
+    "balanced_ok": {
+      "auprc": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "auprc",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_OBSERVATIONS": 500,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:2e6faff02664725c9eb366a31ca9d28acaa71870154a83b4e6dc9bc672353cf2",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 500,
+        "population_fingerprint": "sha256:2e6faff02664725c9eb366a31ca9d28acaa71870154a83b4e6dc9bc672353cf2",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "0.9883547016485332"
+      },
+      "auprc_gain": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "auprc_gain",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_OBSERVATIONS": 500,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:2e6faff02664725c9eb366a31ca9d28acaa71870154a83b4e6dc9bc672353cf2",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 500,
+        "population_fingerprint": "sha256:2e6faff02664725c9eb366a31ca9d28acaa71870154a83b4e6dc9bc672353cf2",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "0.5343547016485333"
+      },
+      "auroc": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "auroc",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_OBSERVATIONS": 500,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:2e6faff02664725c9eb366a31ca9d28acaa71870154a83b4e6dc9bc672353cf2",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 500,
+        "population_fingerprint": "sha256:2e6faff02664725c9eb366a31ca9d28acaa71870154a83b4e6dc9bc672353cf2",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "0.9903019154120476"
+      },
+      "brier_score": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "brier_score",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_OBSERVATIONS": 500,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:2e6faff02664725c9eb366a31ca9d28acaa71870154a83b4e6dc9bc672353cf2",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 500,
+        "population_fingerprint": "sha256:2e6faff02664725c9eb366a31ca9d28acaa71870154a83b4e6dc9bc672353cf2",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "0.08339270819940059"
+      },
+      "expected_calibration_error": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "expected_calibration_error",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_OBSERVATIONS": 500,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:2e6faff02664725c9eb366a31ca9d28acaa71870154a83b4e6dc9bc672353cf2",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 500,
+        "population_fingerprint": "sha256:2e6faff02664725c9eb366a31ca9d28acaa71870154a83b4e6dc9bc672353cf2",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "0.18818912895976847"
+      },
+      "log_loss": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "log_loss",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_OBSERVATIONS": 500,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:2e6faff02664725c9eb366a31ca9d28acaa71870154a83b4e6dc9bc672353cf2",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 500,
+        "population_fingerprint": "sha256:2e6faff02664725c9eb366a31ca9d28acaa71870154a83b4e6dc9bc672353cf2",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "0.30702849491267675"
+      }
+    },
+    "clustered_ok": {
+      "auprc": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "auprc",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_CLUSTERS": 4,
+          "MetricMetadataKey.N_OBSERVATIONS": 8,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:51ca2081f7b6d39aeee75e656beaf6ac47b86c0759ccfd15a113ed8ca6e0d2d9",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 8,
+        "population_fingerprint": "sha256:51ca2081f7b6d39aeee75e656beaf6ac47b86c0759ccfd15a113ed8ca6e0d2d9",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "1.0"
+      },
+      "auprc_gain": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "auprc_gain",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_CLUSTERS": 4,
+          "MetricMetadataKey.N_OBSERVATIONS": 8,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:51ca2081f7b6d39aeee75e656beaf6ac47b86c0759ccfd15a113ed8ca6e0d2d9",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 8,
+        "population_fingerprint": "sha256:51ca2081f7b6d39aeee75e656beaf6ac47b86c0759ccfd15a113ed8ca6e0d2d9",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "0.5"
+      },
+      "auroc": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "auroc",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_CLUSTERS": 4,
+          "MetricMetadataKey.N_OBSERVATIONS": 8,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:51ca2081f7b6d39aeee75e656beaf6ac47b86c0759ccfd15a113ed8ca6e0d2d9",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 8,
+        "population_fingerprint": "sha256:51ca2081f7b6d39aeee75e656beaf6ac47b86c0759ccfd15a113ed8ca6e0d2d9",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "1.0"
+      },
+      "brier_score": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "brier_score",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_CLUSTERS": 4,
+          "MetricMetadataKey.N_OBSERVATIONS": 8,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:51ca2081f7b6d39aeee75e656beaf6ac47b86c0759ccfd15a113ed8ca6e0d2d9",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 8,
+        "population_fingerprint": "sha256:51ca2081f7b6d39aeee75e656beaf6ac47b86c0759ccfd15a113ed8ca6e0d2d9",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "0.07500000000000001"
+      },
+      "expected_calibration_error": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "expected_calibration_error",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_CLUSTERS": 4,
+          "MetricMetadataKey.N_OBSERVATIONS": 8,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:51ca2081f7b6d39aeee75e656beaf6ac47b86c0759ccfd15a113ed8ca6e0d2d9",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 8,
+        "population_fingerprint": "sha256:51ca2081f7b6d39aeee75e656beaf6ac47b86c0759ccfd15a113ed8ca6e0d2d9",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "0.25"
+      },
+      "log_loss": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "log_loss",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_CLUSTERS": 4,
+          "MetricMetadataKey.N_OBSERVATIONS": 8,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:51ca2081f7b6d39aeee75e656beaf6ac47b86c0759ccfd15a113ed8ca6e0d2d9",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 8,
+        "population_fingerprint": "sha256:51ca2081f7b6d39aeee75e656beaf6ac47b86c0759ccfd15a113ed8ca6e0d2d9",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "0.2990011586691898"
+      }
+    },
+    "imbalanced_ok": {
+      "auprc": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "auprc",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_OBSERVATIONS": 400,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:16b7e0014fc845b4a3fe8c959796cb4084aeda336a7d187eba3404fa4569c8eb",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 400,
+        "population_fingerprint": "sha256:16b7e0014fc845b4a3fe8c959796cb4084aeda336a7d187eba3404fa4569c8eb",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "0.7822524007023306"
+      },
+      "auprc_gain": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "auprc_gain",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_OBSERVATIONS": 400,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:16b7e0014fc845b4a3fe8c959796cb4084aeda336a7d187eba3404fa4569c8eb",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 400,
+        "population_fingerprint": "sha256:16b7e0014fc845b4a3fe8c959796cb4084aeda336a7d187eba3404fa4569c8eb",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "0.7222524007023305"
+      },
+      "auroc": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "auroc",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_OBSERVATIONS": 400,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:16b7e0014fc845b4a3fe8c959796cb4084aeda336a7d187eba3404fa4569c8eb",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 400,
+        "population_fingerprint": "sha256:16b7e0014fc845b4a3fe8c959796cb4084aeda336a7d187eba3404fa4569c8eb",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "0.9621010638297872"
+      },
+      "brier_score": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "brier_score",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_OBSERVATIONS": 400,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:16b7e0014fc845b4a3fe8c959796cb4084aeda336a7d187eba3404fa4569c8eb",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 400,
+        "population_fingerprint": "sha256:16b7e0014fc845b4a3fe8c959796cb4084aeda336a7d187eba3404fa4569c8eb",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "0.07993080516765828"
+      },
+      "expected_calibration_error": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "expected_calibration_error",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_OBSERVATIONS": 400,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:16b7e0014fc845b4a3fe8c959796cb4084aeda336a7d187eba3404fa4569c8eb",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 400,
+        "population_fingerprint": "sha256:16b7e0014fc845b4a3fe8c959796cb4084aeda336a7d187eba3404fa4569c8eb",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "0.19250434530860389"
+      },
+      "log_loss": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "log_loss",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_OBSERVATIONS": 400,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:16b7e0014fc845b4a3fe8c959796cb4084aeda336a7d187eba3404fa4569c8eb",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 400,
+        "population_fingerprint": "sha256:16b7e0014fc845b4a3fe8c959796cb4084aeda336a7d187eba3404fa4569c8eb",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "0.28319636703983936"
+      }
+    },
+    "label_restricted": {
+      "auprc": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "auprc",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_OBSERVATIONS": 100,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:d99fb32f3efc6bf703314c6ae9eb48f8bc46e6bc314d4f9e32a02f8e4d9e5570",
+          "MetricMetadataKey.POPULATION_SCOPE": "label_eligible"
+        },
+        "n_observations": 100,
+        "population_fingerprint": "sha256:d99fb32f3efc6bf703314c6ae9eb48f8bc46e6bc314d4f9e32a02f8e4d9e5570",
+        "population_scope": "label_eligible",
+        "reason": null,
+        "status": "ok",
+        "value": "0.6683623718367906"
+      },
+      "auprc_gain": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "auprc_gain",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_OBSERVATIONS": 100,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:d99fb32f3efc6bf703314c6ae9eb48f8bc46e6bc314d4f9e32a02f8e4d9e5570",
+          "MetricMetadataKey.POPULATION_SCOPE": "label_eligible"
+        },
+        "n_observations": 100,
+        "population_fingerprint": "sha256:d99fb32f3efc6bf703314c6ae9eb48f8bc46e6bc314d4f9e32a02f8e4d9e5570",
+        "population_scope": "label_eligible",
+        "reason": null,
+        "status": "ok",
+        "value": "0.06836237183679061"
+      },
+      "auroc": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "auroc",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_OBSERVATIONS": 100,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:d99fb32f3efc6bf703314c6ae9eb48f8bc46e6bc314d4f9e32a02f8e4d9e5570",
+          "MetricMetadataKey.POPULATION_SCOPE": "label_eligible"
+        },
+        "n_observations": 100,
+        "population_fingerprint": "sha256:d99fb32f3efc6bf703314c6ae9eb48f8bc46e6bc314d4f9e32a02f8e4d9e5570",
+        "population_scope": "label_eligible",
+        "reason": null,
+        "status": "ok",
+        "value": "0.5579166666666666"
+      },
+      "brier_score": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "brier_score",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_OBSERVATIONS": 100,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:d99fb32f3efc6bf703314c6ae9eb48f8bc46e6bc314d4f9e32a02f8e4d9e5570",
+          "MetricMetadataKey.POPULATION_SCOPE": "label_eligible"
+        },
+        "n_observations": 100,
+        "population_fingerprint": "sha256:d99fb32f3efc6bf703314c6ae9eb48f8bc46e6bc314d4f9e32a02f8e4d9e5570",
+        "population_scope": "label_eligible",
+        "reason": null,
+        "status": "ok",
+        "value": "0.29343986826483837"
+      },
+      "expected_calibration_error": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "expected_calibration_error",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_OBSERVATIONS": 100,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:d99fb32f3efc6bf703314c6ae9eb48f8bc46e6bc314d4f9e32a02f8e4d9e5570",
+          "MetricMetadataKey.POPULATION_SCOPE": "label_eligible"
+        },
+        "n_observations": 100,
+        "population_fingerprint": "sha256:d99fb32f3efc6bf703314c6ae9eb48f8bc46e6bc314d4f9e32a02f8e4d9e5570",
+        "population_scope": "label_eligible",
+        "reason": null,
+        "status": "ok",
+        "value": "0.22599400372807515"
+      },
+      "log_loss": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "log_loss",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_OBSERVATIONS": 100,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:d99fb32f3efc6bf703314c6ae9eb48f8bc46e6bc314d4f9e32a02f8e4d9e5570",
+          "MetricMetadataKey.POPULATION_SCOPE": "label_eligible"
+        },
+        "n_observations": 100,
+        "population_fingerprint": "sha256:d99fb32f3efc6bf703314c6ae9eb48f8bc46e6bc314d4f9e32a02f8e4d9e5570",
+        "population_scope": "label_eligible",
+        "reason": null,
+        "status": "ok",
+        "value": "0.8934338017082615"
+      }
+    },
+    "nonfinite_probabilities_failed": {
+      "auprc": {
+        "certification_eligible": null,
+        "metadata": {
+          "MetricMetadataKey.METRIC_NAME": "auprc",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_FINITE_SCORES": 193,
+          "MetricMetadataKey.N_NONFINITE_SCORES": 7,
+          "MetricMetadataKey.N_OBSERVATIONS": 200,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:3df8bcef19b6f7d494f3db8486533af4ebf84f03907002137d931cacfc272a6e",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 200,
+        "population_fingerprint": "sha256:3df8bcef19b6f7d494f3db8486533af4ebf84f03907002137d931cacfc272a6e",
+        "population_scope": "attempted_cohort",
+        "reason": "nonfinite_predicted_scores",
+        "status": "failed",
+        "value": "__nan__"
+      },
+      "auprc_gain": {
+        "certification_eligible": null,
+        "metadata": {
+          "MetricMetadataKey.METRIC_NAME": "auprc_gain",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_FINITE_SCORES": 193,
+          "MetricMetadataKey.N_NONFINITE_SCORES": 7,
+          "MetricMetadataKey.N_OBSERVATIONS": 200,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:3df8bcef19b6f7d494f3db8486533af4ebf84f03907002137d931cacfc272a6e",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 200,
+        "population_fingerprint": "sha256:3df8bcef19b6f7d494f3db8486533af4ebf84f03907002137d931cacfc272a6e",
+        "population_scope": "attempted_cohort",
+        "reason": "nonfinite_predicted_scores",
+        "status": "failed",
+        "value": "__nan__"
+      },
+      "auroc": {
+        "certification_eligible": null,
+        "metadata": {
+          "MetricMetadataKey.METRIC_NAME": "auroc",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_FINITE_SCORES": 193,
+          "MetricMetadataKey.N_NONFINITE_SCORES": 7,
+          "MetricMetadataKey.N_OBSERVATIONS": 200,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:3df8bcef19b6f7d494f3db8486533af4ebf84f03907002137d931cacfc272a6e",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 200,
+        "population_fingerprint": "sha256:3df8bcef19b6f7d494f3db8486533af4ebf84f03907002137d931cacfc272a6e",
+        "population_scope": "attempted_cohort",
+        "reason": "nonfinite_predicted_scores",
+        "status": "failed",
+        "value": "__nan__"
+      },
+      "brier_score": {
+        "certification_eligible": null,
+        "metadata": {
+          "MetricMetadataKey.METRIC_NAME": "brier_score",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_FINITE_PROBABILITIES": 193,
+          "MetricMetadataKey.N_NONFINITE_PROBABILITIES": 7,
+          "MetricMetadataKey.N_OBSERVATIONS": 200,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:3df8bcef19b6f7d494f3db8486533af4ebf84f03907002137d931cacfc272a6e",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 200,
+        "population_fingerprint": "sha256:3df8bcef19b6f7d494f3db8486533af4ebf84f03907002137d931cacfc272a6e",
+        "population_scope": "attempted_cohort",
+        "reason": "nonfinite_predicted_probabilities",
+        "status": "failed",
+        "value": "__nan__"
+      },
+      "expected_calibration_error": {
+        "certification_eligible": null,
+        "metadata": {
+          "MetricMetadataKey.METRIC_NAME": "expected_calibration_error",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_FINITE_PROBABILITIES": 193,
+          "MetricMetadataKey.N_NONFINITE_PROBABILITIES": 7,
+          "MetricMetadataKey.N_OBSERVATIONS": 200,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:3df8bcef19b6f7d494f3db8486533af4ebf84f03907002137d931cacfc272a6e",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 200,
+        "population_fingerprint": "sha256:3df8bcef19b6f7d494f3db8486533af4ebf84f03907002137d931cacfc272a6e",
+        "population_scope": "attempted_cohort",
+        "reason": "nonfinite_predicted_probabilities",
+        "status": "failed",
+        "value": "__nan__"
+      },
+      "log_loss": {
+        "certification_eligible": null,
+        "metadata": {
+          "MetricMetadataKey.METRIC_NAME": "log_loss",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_FINITE_PROBABILITIES": 193,
+          "MetricMetadataKey.N_NONFINITE_PROBABILITIES": 7,
+          "MetricMetadataKey.N_OBSERVATIONS": 200,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:3df8bcef19b6f7d494f3db8486533af4ebf84f03907002137d931cacfc272a6e",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 200,
+        "population_fingerprint": "sha256:3df8bcef19b6f7d494f3db8486533af4ebf84f03907002137d931cacfc272a6e",
+        "population_scope": "attempted_cohort",
+        "reason": "nonfinite_predicted_probabilities",
+        "status": "failed",
+        "value": "__nan__"
+      }
+    },
+    "out_of_range_scores": {
+      "auprc": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "auprc",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_OBSERVATIONS": 4,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:5f5a2bfd3b02f1b8f31a16920921b1a152620737efdb58441b533f448b717e25",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 4,
+        "population_fingerprint": "sha256:5f5a2bfd3b02f1b8f31a16920921b1a152620737efdb58441b533f448b717e25",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "1.0"
+      },
+      "auprc_gain": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "auprc_gain",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_OBSERVATIONS": 4,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:5f5a2bfd3b02f1b8f31a16920921b1a152620737efdb58441b533f448b717e25",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 4,
+        "population_fingerprint": "sha256:5f5a2bfd3b02f1b8f31a16920921b1a152620737efdb58441b533f448b717e25",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "0.5"
+      },
+      "auroc": {
+        "certification_eligible": true,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": true,
+          "MetricMetadataKey.METRIC_NAME": "auroc",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_OBSERVATIONS": 4,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:5f5a2bfd3b02f1b8f31a16920921b1a152620737efdb58441b533f448b717e25",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 4,
+        "population_fingerprint": "sha256:5f5a2bfd3b02f1b8f31a16920921b1a152620737efdb58441b533f448b717e25",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "1.0"
+      },
+      "brier_score": {
+        "certification_eligible": null,
+        "metadata": {
+          "MetricMetadataKey.METRIC_NAME": "brier_score",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_OBSERVATIONS": 4,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:5f5a2bfd3b02f1b8f31a16920921b1a152620737efdb58441b533f448b717e25",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 4,
+        "population_fingerprint": "sha256:5f5a2bfd3b02f1b8f31a16920921b1a152620737efdb58441b533f448b717e25",
+        "population_scope": "attempted_cohort",
+        "reason": "values_are_not_probabilities",
+        "status": "not_applicable",
+        "value": "__nan__"
+      },
+      "expected_calibration_error": {
+        "certification_eligible": null,
+        "metadata": {
+          "MetricMetadataKey.METRIC_NAME": "expected_calibration_error",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_OBSERVATIONS": 4,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:5f5a2bfd3b02f1b8f31a16920921b1a152620737efdb58441b533f448b717e25",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 4,
+        "population_fingerprint": "sha256:5f5a2bfd3b02f1b8f31a16920921b1a152620737efdb58441b533f448b717e25",
+        "population_scope": "attempted_cohort",
+        "reason": "values_are_not_probabilities",
+        "status": "not_applicable",
+        "value": "__nan__"
+      },
+      "log_loss": {
+        "certification_eligible": null,
+        "metadata": {
+          "MetricMetadataKey.METRIC_NAME": "log_loss",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 2,
+          "MetricMetadataKey.N_OBSERVATIONS": 4,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:5f5a2bfd3b02f1b8f31a16920921b1a152620737efdb58441b533f448b717e25",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 4,
+        "population_fingerprint": "sha256:5f5a2bfd3b02f1b8f31a16920921b1a152620737efdb58441b533f448b717e25",
+        "population_scope": "attempted_cohort",
+        "reason": "values_are_not_probabilities",
+        "status": "not_applicable",
+        "value": "__nan__"
+      }
+    },
+    "single_class_negative": {
+      "auprc": {
+        "certification_eligible": null,
+        "metadata": {
+          "MetricMetadataKey.METRIC_NAME": "auprc",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 1,
+          "MetricMetadataKey.N_OBSERVATIONS": 60,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:b80d91ae48ae4c60fd346c270a57e33e870959362c4236b411f35b39c38279fd",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort",
+          "classes_observed": [
+            "0.0"
+          ]
+        },
+        "n_observations": 60,
+        "population_fingerprint": "sha256:b80d91ae48ae4c60fd346c270a57e33e870959362c4236b411f35b39c38279fd",
+        "population_scope": "attempted_cohort",
+        "reason": "binary_class_support_required",
+        "status": "undefined",
+        "value": "__nan__"
+      },
+      "auprc_gain": {
+        "certification_eligible": null,
+        "metadata": {
+          "MetricMetadataKey.METRIC_NAME": "auprc_gain",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 1,
+          "MetricMetadataKey.N_OBSERVATIONS": 60,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:b80d91ae48ae4c60fd346c270a57e33e870959362c4236b411f35b39c38279fd",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort",
+          "classes_observed": [
+            "0.0"
+          ]
+        },
+        "n_observations": 60,
+        "population_fingerprint": "sha256:b80d91ae48ae4c60fd346c270a57e33e870959362c4236b411f35b39c38279fd",
+        "population_scope": "attempted_cohort",
+        "reason": "binary_class_support_required",
+        "status": "undefined",
+        "value": "__nan__"
+      },
+      "auroc": {
+        "certification_eligible": null,
+        "metadata": {
+          "MetricMetadataKey.METRIC_NAME": "auroc",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 1,
+          "MetricMetadataKey.N_OBSERVATIONS": 60,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:b80d91ae48ae4c60fd346c270a57e33e870959362c4236b411f35b39c38279fd",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort",
+          "classes_observed": [
+            "0.0"
+          ]
+        },
+        "n_observations": 60,
+        "population_fingerprint": "sha256:b80d91ae48ae4c60fd346c270a57e33e870959362c4236b411f35b39c38279fd",
+        "population_scope": "attempted_cohort",
+        "reason": "binary_class_support_required",
+        "status": "undefined",
+        "value": "__nan__"
+      },
+      "brier_score": {
+        "certification_eligible": false,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_BLOCKED_BY": "single_class_cohort",
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": false,
+          "MetricMetadataKey.METRIC_NAME": "brier_score",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 1,
+          "MetricMetadataKey.N_OBSERVATIONS": 60,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:b80d91ae48ae4c60fd346c270a57e33e870959362c4236b411f35b39c38279fd",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 60,
+        "population_fingerprint": "sha256:b80d91ae48ae4c60fd346c270a57e33e870959362c4236b411f35b39c38279fd",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "0.33274632768361573"
+      },
+      "expected_calibration_error": {
+        "certification_eligible": null,
+        "metadata": {
+          "MetricMetadataKey.METRIC_NAME": "expected_calibration_error",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 1,
+          "MetricMetadataKey.N_OBSERVATIONS": 60,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:b80d91ae48ae4c60fd346c270a57e33e870959362c4236b411f35b39c38279fd",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort",
+          "classes_observed": [
+            "0.0"
+          ],
+          "note": "a finite value here would be the gap between the mean prediction and the only label present"
+        },
+        "n_observations": 60,
+        "population_fingerprint": "sha256:b80d91ae48ae4c60fd346c270a57e33e870959362c4236b411f35b39c38279fd",
+        "population_scope": "attempted_cohort",
+        "reason": "calibration_requires_class_support",
+        "status": "insufficient_support",
+        "value": "__nan__"
+      },
+      "log_loss": {
+        "certification_eligible": false,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_BLOCKED_BY": "single_class_cohort",
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": false,
+          "MetricMetadataKey.METRIC_NAME": "log_loss",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 1,
+          "MetricMetadataKey.N_OBSERVATIONS": 60,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:b80d91ae48ae4c60fd346c270a57e33e870959362c4236b411f35b39c38279fd",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 60,
+        "population_fingerprint": "sha256:b80d91ae48ae4c60fd346c270a57e33e870959362c4236b411f35b39c38279fd",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "0.9877118395801975"
+      }
+    },
+    "single_class_positive": {
+      "auprc": {
+        "certification_eligible": null,
+        "metadata": {
+          "MetricMetadataKey.METRIC_NAME": "auprc",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 1,
+          "MetricMetadataKey.N_OBSERVATIONS": 60,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:b80d91ae48ae4c60fd346c270a57e33e870959362c4236b411f35b39c38279fd",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort",
+          "classes_observed": [
+            "1.0"
+          ]
+        },
+        "n_observations": 60,
+        "population_fingerprint": "sha256:b80d91ae48ae4c60fd346c270a57e33e870959362c4236b411f35b39c38279fd",
+        "population_scope": "attempted_cohort",
+        "reason": "binary_class_support_required",
+        "status": "undefined",
+        "value": "__nan__"
+      },
+      "auprc_gain": {
+        "certification_eligible": null,
+        "metadata": {
+          "MetricMetadataKey.METRIC_NAME": "auprc_gain",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 1,
+          "MetricMetadataKey.N_OBSERVATIONS": 60,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:b80d91ae48ae4c60fd346c270a57e33e870959362c4236b411f35b39c38279fd",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort",
+          "classes_observed": [
+            "1.0"
+          ]
+        },
+        "n_observations": 60,
+        "population_fingerprint": "sha256:b80d91ae48ae4c60fd346c270a57e33e870959362c4236b411f35b39c38279fd",
+        "population_scope": "attempted_cohort",
+        "reason": "binary_class_support_required",
+        "status": "undefined",
+        "value": "__nan__"
+      },
+      "auroc": {
+        "certification_eligible": null,
+        "metadata": {
+          "MetricMetadataKey.METRIC_NAME": "auroc",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 1,
+          "MetricMetadataKey.N_OBSERVATIONS": 60,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:b80d91ae48ae4c60fd346c270a57e33e870959362c4236b411f35b39c38279fd",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort",
+          "classes_observed": [
+            "1.0"
+          ]
+        },
+        "n_observations": 60,
+        "population_fingerprint": "sha256:b80d91ae48ae4c60fd346c270a57e33e870959362c4236b411f35b39c38279fd",
+        "population_scope": "attempted_cohort",
+        "reason": "binary_class_support_required",
+        "status": "undefined",
+        "value": "__nan__"
+      },
+      "brier_score": {
+        "certification_eligible": false,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_BLOCKED_BY": "single_class_cohort",
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": false,
+          "MetricMetadataKey.METRIC_NAME": "brier_score",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 1,
+          "MetricMetadataKey.N_OBSERVATIONS": 60,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:b80d91ae48ae4c60fd346c270a57e33e870959362c4236b411f35b39c38279fd",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 60,
+        "population_fingerprint": "sha256:b80d91ae48ae4c60fd346c270a57e33e870959362c4236b411f35b39c38279fd",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "0.3327463276836158"
+      },
+      "expected_calibration_error": {
+        "certification_eligible": null,
+        "metadata": {
+          "MetricMetadataKey.METRIC_NAME": "expected_calibration_error",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 1,
+          "MetricMetadataKey.N_OBSERVATIONS": 60,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:b80d91ae48ae4c60fd346c270a57e33e870959362c4236b411f35b39c38279fd",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort",
+          "classes_observed": [
+            "1.0"
+          ],
+          "note": "a finite value here would be the gap between the mean prediction and the only label present"
+        },
+        "n_observations": 60,
+        "population_fingerprint": "sha256:b80d91ae48ae4c60fd346c270a57e33e870959362c4236b411f35b39c38279fd",
+        "population_scope": "attempted_cohort",
+        "reason": "calibration_requires_class_support",
+        "status": "insufficient_support",
+        "value": "__nan__"
+      },
+      "log_loss": {
+        "certification_eligible": false,
+        "metadata": {
+          "MetricMetadataKey.CERTIFICATION_BLOCKED_BY": "single_class_cohort",
+          "MetricMetadataKey.CERTIFICATION_ELIGIBLE": false,
+          "MetricMetadataKey.METRIC_NAME": "log_loss",
+          "MetricMetadataKey.N_CLASSES_OBSERVED": 1,
+          "MetricMetadataKey.N_OBSERVATIONS": 60,
+          "MetricMetadataKey.POPULATION_FINGERPRINT": "sha256:b80d91ae48ae4c60fd346c270a57e33e870959362c4236b411f35b39c38279fd",
+          "MetricMetadataKey.POPULATION_SCOPE": "attempted_cohort"
+        },
+        "n_observations": 60,
+        "population_fingerprint": "sha256:b80d91ae48ae4c60fd346c270a57e33e870959362c4236b411f35b39c38279fd",
+        "population_scope": "attempted_cohort",
+        "reason": null,
+        "status": "ok",
+        "value": "0.9877118395801976"
+      }
+    }
+  },
+  "registered_metric_names": [
+    "auprc",
+    "auprc_gain",
+    "auroc",
+    "brier_score",
+    "expected_calibration_error",
+    "log_loss"
+  ]
+}

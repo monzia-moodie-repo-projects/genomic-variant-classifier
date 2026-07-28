@@ -632,6 +632,119 @@ class CalibrationFit:
         yield self.intercept
 
 
+# --------------------------------------------------------------------------- #
+# THRESHOLD-DEPENDENT AND POPULATION KERNELS
+#
+# Added 2026-07-27 with the registry vocabulary completion. Each takes its
+# threshold and comparison operator EXPLICITLY rather than closing over a
+# constant, because a threshold without its operator is incomplete provenance:
+# the two differ at probabilities exactly equal to the threshold, which is the
+# commonest single value a calibrated model emits.
+#
+# ZERO DENOMINATORS ARE NOT ZERO CORRELATION. Both kernels return NaN when their
+# denominator vanishes, so that a constant classifier cannot be reported as
+# "evaluated, and uncorrelated". Whether that NaN becomes a refusal or a failure
+# is the registry's decision, not the kernel's -- see the applicability
+# predicates, which catch the degenerate margin BEFORE dispatch so the result is
+# UNDEFINED (a property of the cohort) rather than FAILED (an implementation
+# defect).
+# --------------------------------------------------------------------------- #
+def apply_decision_threshold(prob: Sequence, *, threshold: float,
+                             operator: str) -> "np.ndarray":
+    """Hard labels from probabilities, under an EXPLICIT comparison operator.
+
+    `>=` and `>` differ exactly at `prob == threshold`. With the conventional
+    0.5 that is not a rare corner: it is the value a maximally uncertain model
+    emits, and the value a two-model average produces whenever the pair
+    disagrees. An implicit operator is a silent scientific choice.
+    """
+    arr = np.asarray(prob, dtype=float).ravel()
+    if operator == ">=":
+        return arr >= threshold
+    if operator == ">":
+        return arr > threshold
+    raise ValueError(
+        f"unsupported decision operator {operator!r}; must be '>=' or '>'")
+
+
+def _confusion_counts(y: Sequence, predicted: "np.ndarray") -> tuple:
+    y_arr = np.asarray(y, dtype=float).ravel()
+    pos = y_arr == 1
+    tp = int(np.sum(predicted & pos))
+    fp = int(np.sum(predicted & ~pos))
+    fn = int(np.sum(~predicted & pos))
+    tn = int(np.sum(~predicted & ~pos))
+    return tp, fp, fn, tn
+
+
+def matthews_correlation_coefficient(y: Sequence, prob: Sequence, *,
+                                     threshold: float, operator: str = ">=") -> float:
+    """Matthews correlation coefficient at an explicit decision threshold.
+
+    Returns NaN when any confusion-matrix margin is zero. scikit-learn returns
+    0.0 there, which is indistinguishable from a genuinely evaluated classifier
+    whose predictions carry no correlation with the outcome. A constant
+    classifier has an undefined coefficient, not a measured one of zero.
+    """
+    if not is_probability(prob):
+        return float("nan")
+    _require_finite_probabilities(prob, metric_name="matthews_correlation_coefficient")
+    y_arr, p_arr = _clean(y, prob)
+    if y_arr.size == 0:
+        return float("nan")
+    predicted = apply_decision_threshold(p_arr, threshold=threshold, operator=operator)
+    tp, fp, fn, tn = _confusion_counts(y_arr, predicted)
+    denominator = float(tp + fp) * float(tp + fn) * float(tn + fp) * float(tn + fn)
+    if denominator <= 0.0:
+        return float("nan")
+    return float((tp * tn - fp * fn) / np.sqrt(denominator))
+
+
+def f1_at_threshold(y: Sequence, prob: Sequence, *, threshold: float,
+                    operator: str = ">=") -> float:
+    """Positive-class F1 at an explicit decision threshold.
+
+    Returns NaN when `2*tp + fp + fn` is zero -- no positive reference labels
+    and no positive predictions. scikit-learn returns 0.0 under its
+    `zero_division` policy; reporting that as observed performance would state
+    that the classifier was measured and scored nothing, when in fact there was
+    nothing to measure.
+    """
+    if not is_probability(prob):
+        return float("nan")
+    _require_finite_probabilities(prob, metric_name="f1_at_threshold")
+    y_arr, p_arr = _clean(y, prob)
+    if y_arr.size == 0:
+        return float("nan")
+    predicted = apply_decision_threshold(p_arr, threshold=threshold, operator=operator)
+    tp, fp, fn, _tn = _confusion_counts(y_arr, predicted)
+    denominator = 2 * tp + fp + fn
+    if denominator == 0:
+        return float("nan")
+    return float(2 * tp / denominator)
+
+
+def prevalence(y: Sequence) -> float:
+    """Proportion of positive reference labels in the evaluation population.
+
+    A POPULATION STATISTIC, not a metric of predictions: it takes no
+    probabilities and no scores, and it is well defined on a single-class cohort
+    where the ranking metrics are not. It does NOT filter labels -- the
+    population was already constructed upstream by `EvaluationPopulation`, and
+    filtering here would silently describe a different denominator than the one
+    the result names.
+    """
+    y_arr = np.asarray(y, dtype=float).ravel()
+    if y_arr.size == 0:
+        return float("nan")
+    if not np.isfinite(y_arr).all():
+        raise ValueError(
+            "prevalence: reference labels contain non-finite entries. Label "
+            "eligibility is an upstream population decision; this kernel must "
+            "not narrow the denominator it was handed.")
+    return float(np.mean(y_arr == 1))
+
+
 def calibration_slope_intercept(y: Sequence, prob: Sequence,
                                 max_iter: int = 100,
                                 tol: float = 1e-10) -> CalibrationFit:

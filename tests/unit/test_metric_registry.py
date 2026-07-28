@@ -42,6 +42,7 @@ from genomic_variant_classifier.evaluation.registry import (
     evaluate_registered,
 )
 from genomic_variant_classifier.evaluation.population import EvaluationPopulation
+from genomic_variant_classifier.evaluation.registry import ResultKind
 
 # --- population scaffolding (2026-07-27) ------------------------------------
 # `MetricContext` requires an `EvaluationPopulation`, not a bare scope string: a
@@ -107,7 +108,9 @@ def test_by_name_raises_for_an_unregistered_metric():
 def test_import_time_validation_rejects_a_malformed_name(bad, fragment):
     d = MetricDescriptor(name=bad["name"], function=lambda ctx: 1.0,
                          required_inputs=frozenset({MetricInput.LABELS}),
-                         applicability=lambda ctx: reg.APPLICABLE)
+                         applicability=lambda ctx: reg.APPLICABLE,
+                         result_kind=ResultKind.PREDICTION_METRIC,
+                         display_name="probe", description="probe")
     with pytest.raises(ValueError, match=fragment):
         reg._validate_registry([d])
 
@@ -123,7 +126,9 @@ def test_validation_rejects_requires_clusters_without_the_cluster_input():
     d = MetricDescriptor(name="x", function=lambda ctx: 1.0,
                          required_inputs=frozenset({MetricInput.LABELS}),
                          applicability=lambda ctx: reg.APPLICABLE,
-                         requires_clusters=True)
+                         requires_clusters=True,
+                         result_kind=ResultKind.PREDICTION_METRIC,
+                         display_name="probe", description="probe")
     with pytest.raises(ValueError, match="requires_clusters=True but CLUSTERS"):
         reg._validate_registry([d])
 
@@ -160,7 +165,9 @@ def test_an_inapplicable_metric_is_NOT_invoked():
         name="never_runs", function=explode,
         required_inputs=frozenset({MetricInput.LABELS}),
         applicability=lambda ctx: Applicability(
-            applicable=False, status=MetricStatus.NOT_APPLICABLE, reason="by_design"))
+            applicable=False, status=MetricStatus.NOT_APPLICABLE, reason="by_design"),
+                         result_kind=ResultKind.PREDICTION_METRIC,
+                         display_name="probe", description="probe")
     r = compute(d, _two_class())
     assert r.status is MetricStatus.NOT_APPLICABLE and r.reason == "by_design"
 
@@ -172,7 +179,9 @@ def test_a_metric_with_missing_inputs_is_NOT_invoked():
     d = MetricDescriptor(
         name="needs_clusters", function=explode,
         required_inputs=frozenset({MetricInput.LABELS, MetricInput.CLUSTERS}),
-        applicability=lambda ctx: reg.APPLICABLE, requires_clusters=True)
+        applicability=lambda ctx: reg.APPLICABLE, requires_clusters=True,
+                         result_kind=ResultKind.PREDICTION_METRIC,
+                         display_name="probe", description="probe")
     r = compute(d, _two_class())
     assert r.status is MetricStatus.NOT_APPLICABLE
     assert r.reason == "required_inputs_missing"
@@ -230,7 +239,9 @@ def test_an_applicable_metric_returning_nan_is_FAILED_not_undefined():
     d = MetricDescriptor(
         name="broken", function=lambda ctx: float("nan"),
         required_inputs=frozenset({MetricInput.LABELS}),
-        applicability=lambda ctx: reg.APPLICABLE)
+        applicability=lambda ctx: reg.APPLICABLE,
+                         result_kind=ResultKind.PREDICTION_METRIC,
+                         display_name="probe", description="probe")
     r = compute(d, _two_class())
     assert r.status is MetricStatus.FAILED
     assert r.reason == "applicable_metric_returned_non_finite"
@@ -241,7 +252,9 @@ def test_a_kernel_exception_is_FAILED_and_preserves_the_metric_identity():
     d = MetricDescriptor(
         name="raiser", function=lambda ctx: 1 / 0,
         required_inputs=frozenset({MetricInput.LABELS}),
-        applicability=lambda ctx: reg.APPLICABLE)
+        applicability=lambda ctx: reg.APPLICABLE,
+                         result_kind=ResultKind.PREDICTION_METRIC,
+                         display_name="probe", description="probe")
     r = compute(d, _two_class())
     assert r.status is MetricStatus.FAILED
     assert r.reason == "metric_computation_failed"
@@ -254,7 +267,9 @@ def test_the_machine_readable_reason_is_stable_not_the_exception_text():
     d = MetricDescriptor(
         name="raiser", function=lambda ctx: (_ for _ in ()).throw(RuntimeError("x" * 500)),
         required_inputs=frozenset({MetricInput.LABELS}),
-        applicability=lambda ctx: reg.APPLICABLE)
+        applicability=lambda ctx: reg.APPLICABLE,
+                         result_kind=ResultKind.PREDICTION_METRIC,
+                         display_name="probe", description="probe")
     r = compute(d, _two_class())
     assert r.reason == "metric_computation_failed"
     assert len(r.metadata["exception_message"]) <= 200
@@ -367,7 +382,9 @@ def test_support_is_attached_to_a_REFUSAL_not_only_to_a_value():
 def test_support_is_attached_to_a_FAILURE():
     d = MetricDescriptor(name="raiser", function=lambda ctx: 1 / 0,
                          required_inputs=frozenset({MetricInput.LABELS}),
-                         applicability=lambda ctx: reg.APPLICABLE)
+                         applicability=lambda ctx: reg.APPLICABLE,
+                         result_kind=ResultKind.PREDICTION_METRIC,
+                         display_name="probe", description="probe")
     r = compute(d, _two_class(n=250))
     assert r.status is MetricStatus.FAILED
     assert r.metadata["n_observations"] == 250
@@ -378,7 +395,9 @@ def test_support_is_attached_when_required_inputs_are_missing():
                          required_inputs=frozenset({MetricInput.LABELS,
                                                     MetricInput.CLUSTERS}),
                          applicability=lambda ctx: reg.APPLICABLE,
-                         requires_clusters=True)
+                         requires_clusters=True,
+                         result_kind=ResultKind.PREDICTION_METRIC,
+                         display_name="probe", description="probe")
     r = compute(d, _two_class(n=99))
     assert r.reason == "required_inputs_missing"
     assert r.metadata["n_observations"] == 99

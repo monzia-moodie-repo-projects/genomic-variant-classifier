@@ -1,3 +1,60 @@
+## 2026-07-27 -- registry vocabulary completion (Tier 1 item 6, commit 2b-2)
+
+Ratchet 3354 -> 3415 (+61). Session record:
+docs/sessions/SESSION_2026-07-27_registry-vocabulary-completion.md
+
+Not "more descriptors": what is completed is the VOCABULARY every descriptor
+speaks, so later additions cannot create a second dialect. ResultKind,
+ThresholdParameters, immutable JSON-validated parameters,
+REGISTRY_SCHEMA_VERSION 1 -> 2 enforced at import for EVERY descriptor, and four
+new descriptors -- maximum calibration error, Matthews correlation coefficient,
+F1, prevalence.
+
+### THE ACCEPTANCE CRITERION: nothing moved
+A snapshot of every registry output was frozen on the 2b-1 tree BEFORE a line of
+2b-2 was written, and committed as tests/fixtures/registry_snapshot_2b1.json --
+8 cohorts, 48 results, covering ok/undefined/insufficient_support/failed/
+not_applicable. Result: 48 results x 8 fields = 384 comparisons, ZERO movements,
+no carve-outs. Exactly four names added, none removed.
+
+A baseline from a frozen implementation and expectations written by the author of
+the change are different scientific standards. Only the first detects a movement
+the author did not anticipate.
+
+### Design decisions that were not free choices
+- ResultKind lives on the DESCRIPTOR, never in result metadata: metadata would
+  perturb every serialised result and force the acceptance test to carry an
+  exemption. It joins the serialised surface at schema v3.
+- A degenerate confusion margin is caught by APPLICABILITY, not by a kernel NaN.
+  compute() already rules that an applicable metric returning non-finite is
+  FAILED -- "an implementation defect, not a property of the cohort" -- so the
+  specified NaN route would have produced FAILED, blaming the code for the data.
+- ONE ThresholdParameters instance is shared by the mapping, the kernel adapter
+  and the applicability predicate, asserted BY IDENTITY at import.
+- The comparison operator is declared, because >= and > differ exactly at
+  prob == threshold -- what a maximally uncertain model emits.
+- Zero denominators are UNDEFINED. scikit-learn returns 0.0 AND raises
+  UndefinedMetricWarning; its own warning is the evidence that the 0.0 is a
+  fabrication. Where scikit-learn is defined the kernels agree bit-for-bit.
+
+### A universal quantifier that was true only by accident
+Two commit-2a tests asserted EVERY registered metric refuses on non-finite
+probabilities -- true only because every metric then consumed predictions.
+prevalence reads labels alone and must survive corrupt model output. Both are now
+scoped to ResultKind.PREDICTION_METRIC, with an assertion that the scoping did
+not empty them.
+
+### Sabotage
+Twelve breaks, twelve detected, zero undetected. Four fire at IMPORT, because
+_validate_registry refuses the declaration outright.
+
+THE FIRST RUN LEFT THREE UNDETECTED. B4 was the seventeen-day binning defect
+reproduced inside the test written to prevent it: a random continuous cohort has
+no interior-edge values, so a second binning loop gave the identical answer. B9
+was a real gap: the registry refuses degenerate cohorts before dispatch, so the
+kernel's zero-denominator branch was never reached and replacing its NaN with 0.0
+broke nothing. B3 was a malformed break. All three closed.
+
 ## 2026-07-27 -- the calibration binning convention (Tier 1 item 6, commit 2b-1)
 
 Ratchet 3318 -> 3354 (+36). Session record:

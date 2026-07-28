@@ -125,6 +125,7 @@ axis is needed later it can be added deliberately.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from enum import Enum
 from typing import Callable, Mapping, Optional, Protocol, Sequence
 
@@ -148,7 +149,142 @@ __all__ = [
     "REGISTRY_SCHEMA_VERSION",
 ]
 
-REGISTRY_SCHEMA_VERSION = 1
+REGISTRY_SCHEMA_VERSION = 2
+
+
+# --------------------------------------------------------------------------- #
+# DESCRIPTOR VOCABULARY, completed 2026-07-27
+#
+# What this commit adds is not "more descriptors". It is the vocabulary every
+# descriptor speaks, so that later additions cannot produce a second dialect in
+# which some descriptors declare their classification and parameters and others
+# leave them implicit.
+#
+# RESULT KIND IS CLASSIFICATION, NOT DISPATCH. It does not determine
+# applicability, certification or required inputs. Those are declared
+# separately and remain so; a classification that quietly drove behaviour would
+# be a second control path.
+#
+# RESULT KIND LIVES ON THE DESCRIPTOR AND NOT IN RESULT METADATA. Placing it in
+# metadata would perturb every already-serialised result, and the acceptance
+# criterion for this commit is that every pre-existing result is byte-identical
+# afterwards, with no carve-outs. It joins the serialised surface at schema
+# version 3, deliberately.
+# --------------------------------------------------------------------------- #
+class ResultKind(str, Enum):
+    """What KIND of quantity a descriptor produces."""
+
+    PREDICTION_METRIC = "prediction_metric"
+    POPULATION_STATISTIC = "population_statistic"
+
+
+class ThresholdOperator(str, Enum):
+    """The comparison that turns a probability into a hard label.
+
+    Declared rather than assumed because `>=` and `>` differ exactly at
+    `prob == threshold`, and with the conventional 0.5 that is the value a
+    maximally uncertain model emits and the value a two-model average produces
+    whenever the pair disagrees. A threshold without its operator is incomplete
+    provenance.
+    """
+
+    GREATER_OR_EQUAL = ">="
+    GREATER = ">"
+
+
+class ThresholdSource(str, Enum):
+    """Where a decision threshold came from.
+
+    A fixed convention and a threshold optimised on a calibration split are not
+    the same scientific claim, and a reader of an artifact cannot tell them apart
+    from the number alone.
+    """
+
+    FIXED_DEFAULT = "fixed_default"
+    CALIBRATED = "calibrated"
+    USER_SUPPLIED = "user_supplied"
+
+
+@dataclass(frozen=True)
+class ThresholdParameters:
+    """The canonical, typed threshold declaration.
+
+    THIS OBJECT IS THE SEMANTICS; the mapping returned by `to_mapping` is merely
+    its serialisation. Code should read `descriptor.threshold_parameters.threshold`
+    -- type-oriented, checkable, refactorable -- rather than
+    `descriptor.parameters["decision_threshold"]`, which is serialisation-oriented
+    and silently returns nothing useful when the key is misspelled.
+
+    One instance is shared by a descriptor, its kernel adapter and its
+    applicability predicate, and that sharing is asserted BY IDENTITY at import
+    time. Three copies of a threshold that merely happen to be equal today is
+    how a threshold comes to differ tomorrow.
+    """
+
+    threshold: float
+    operator: ThresholdOperator
+    source: ThresholdSource
+
+    def __post_init__(self) -> None:
+        if isinstance(self.threshold, bool) or not isinstance(
+                self.threshold, (int, float, np.floating, np.integer)):
+            raise TypeError(
+                f"decision threshold must be numeric, got "
+                f"{type(self.threshold).__name__}")
+        value = float(self.threshold)
+        if not np.isfinite(value):
+            raise ValueError(f"decision threshold must be finite, got {value}")
+        if not 0.0 <= value <= 1.0:
+            raise ValueError(
+                f"decision threshold must lie in [0, 1], got {value}; a "
+                "threshold outside the probability range would classify every "
+                "row identically and report the result as though it had "
+                "discriminated")
+        object.__setattr__(self, "threshold", value)
+        if not isinstance(self.operator, ThresholdOperator):
+            raise TypeError("operator must be a ThresholdOperator member")
+        if not isinstance(self.source, ThresholdSource):
+            raise TypeError("source must be a ThresholdSource member")
+
+    def to_mapping(self) -> dict:
+        """Serialisation only. `ThresholdParameters` remains the semantics."""
+        return {"decision_threshold": self.threshold,
+                "threshold_operator": self.operator.value,
+                "threshold_source": self.source.value}
+
+
+_JSON_SCALARS = (str, int, float, bool, type(None))
+
+
+def _validate_json_value(value, path: str) -> None:
+    """Reject anything that could not survive serialisation, recursively.
+
+    A descriptor is a frozen declaration that ends up in an artifact. Admitting a
+    list, an array, a callable or a model object would make the declaration
+    mutable in fact while frozen in type, and unserialisable in practice while
+    appearing declarative.
+    """
+    if isinstance(value, bool) or isinstance(value, _JSON_SCALARS):
+        if isinstance(value, float) and not np.isfinite(value):
+            raise ValueError(
+                f"parameter {path}: non-finite floats do not survive JSON")
+        return
+    if isinstance(value, tuple):
+        for i, item in enumerate(value):
+            _validate_json_value(item, f"{path}[{i}]")
+        return
+    if isinstance(value, Mapping):
+        for k, v in value.items():
+            if not isinstance(k, str) or not k:
+                raise TypeError(
+                    f"parameter {path}: mapping keys must be non-empty strings")
+            _validate_json_value(v, f"{path}.{k}")
+        return
+    raise TypeError(
+        f"parameter {path}: {type(value).__name__} is not JSON-representable. "
+        "Descriptor parameters are a frozen declaration destined for an "
+        "artifact; use tuples rather than lists, and never a callable, an "
+        "array or a model object.")
 
 
 class MetricInput(str, Enum):
@@ -340,9 +476,33 @@ class MetricDescriptor:
     function: MetricCallable
     required_inputs: frozenset
     applicability: ApplicabilityPredicate
+    result_kind: ResultKind
+    display_name: str
+    description: str
     requires_clusters: bool = False
     output_kind: MetricOutputKind = MetricOutputKind.SCALAR
-    description: str = ""
+    include_in_evaluation_report: bool = True
+    parameters: Mapping = field(default_factory=lambda: MappingProxyType({}))
+
+    def __post_init__(self) -> None:
+        normalised = dict(self.parameters)
+        for key in normalised:
+            if not isinstance(key, str) or not key:
+                raise TypeError(
+                    f"{self.name}: parameter keys must be non-empty strings")
+        for key, value in normalised.items():
+            _validate_json_value(value, key)
+        object.__setattr__(self, "parameters", MappingProxyType(normalised))
+
+    @property
+    def threshold_parameters(self):
+        """The typed threshold declaration, or `None` for metrics without one.
+
+        Attached to the kernel adapter at construction and read back here, so
+        there is exactly ONE object rather than a mapping and a closure that
+        happen to agree.
+        """
+        return getattr(self.function, "_threshold_parameters", None)
 
 
 # --------------------------------------------------------------------------- #
@@ -525,32 +685,216 @@ def _ece(ctx: MetricContext) -> float:
 # --------------------------------------------------------------------------- #
 _L, _S, _P = MetricInput.LABELS, MetricInput.SCORES, MetricInput.PROBABILITIES
 
+# --------------------------------------------------------------------------- #
+# Threshold-dependent adapters and their applicability
+#
+# ONE `ThresholdParameters` INSTANCE per metric, shared by the descriptor's
+# serialised mapping, its kernel adapter and its applicability predicate, with
+# the sharing asserted BY IDENTITY in `_validate_registry`. Three copies of a
+# threshold that merely happen to be equal today is precisely how a threshold
+# comes to differ tomorrow.
+#
+# WHY THE DEGENERATE MARGIN IS CAUGHT BY APPLICABILITY AND NOT BY THE KERNEL'S
+# RETURN. `compute` already rules, deliberately, that an APPLICABLE metric
+# returning a non-finite value is FAILED -- "an implementation defect, not a
+# property of the cohort. Calling it UNDEFINED would blame the data." A zero
+# confusion-matrix margin IS a property of the cohort, so it must be recognised
+# BEFORE dispatch. Letting the kernel's NaN carry that meaning would report a
+# constant classifier as a broken implementation.
+# --------------------------------------------------------------------------- #
+_MCC_THRESHOLD = ThresholdParameters(
+    threshold=0.5, operator=ThresholdOperator.GREATER_OR_EQUAL,
+    source=ThresholdSource.FIXED_DEFAULT)
+
+_F1_THRESHOLD = ThresholdParameters(
+    threshold=0.5, operator=ThresholdOperator.GREATER_OR_EQUAL,
+    source=ThresholdSource.FIXED_DEFAULT)
+
+_CALIBRATION_PARAMETERS = {
+    "n_bins": 10,
+    "binning": "equal_width",
+    "interval_convention": "[lo,hi);final_closed",
+}
+
+
+def _threshold_adapter(kernel, tp: ThresholdParameters):
+    def adapter(ctx: MetricContext) -> float:
+        return kernel(ctx.y_true, ctx.y_prob, threshold=tp.threshold,
+                      operator=tp.operator.value)
+    adapter._threshold_parameters = tp
+    adapter.__name__ = f"_{kernel.__name__}_adapter"
+    return adapter
+
+
+def _requires_nondegenerate_confusion(tp: ThresholdParameters, *, metric: str):
+    """Refuse BEFORE dispatch when the confusion matrix has a vanishing margin.
+
+    A constant classifier, or a single-class cohort, gives an undefined
+    coefficient rather than a measured one of zero. scikit-learn returns 0.0 and
+    raises `UndefinedMetricWarning` while doing so -- its own warning is the
+    evidence that the 0.0 is a fabrication, and reporting it as observed
+    performance would make a classifier that never discriminated
+    indistinguishable from one that discriminated and found nothing.
+    """
+    from .metrics import apply_decision_threshold, is_probability
+
+    def predicate(ctx: MetricContext) -> Applicability:
+        base = _requires_probabilities(ctx)
+        if not base.applicable:
+            return base
+        predicted = apply_decision_threshold(
+            ctx.y_prob, threshold=tp.threshold, operator=tp.operator.value)
+        y = np.asarray(ctx.y_true, dtype=float).ravel()
+        pos = y == 1
+        tp_c = int(np.sum(predicted & pos))
+        fp_c = int(np.sum(predicted & ~pos))
+        fn_c = int(np.sum(~predicted & pos))
+        tn_c = int(np.sum(~predicted & ~pos))
+        if metric == "mcc":
+            margins = ((tp_c + fp_c), (tp_c + fn_c), (tn_c + fp_c), (tn_c + fn_c))
+            degenerate = any(m == 0 for m in margins)
+        else:
+            degenerate = (2 * tp_c + fp_c + fn_c) == 0
+        if degenerate:
+            return Applicability(
+                applicable=False, status=MetricStatus.UNDEFINED,
+                reason="degenerate_confusion_margin",
+                metadata={"n_predicted_positive": int(np.sum(predicted)),
+                          "n_reference_positive": int(np.sum(pos))})
+        return APPLICABLE
+
+    predicate._threshold_parameters = tp
+    return predicate
+
+
+def _requires_reference_labels_only(ctx: MetricContext) -> Applicability:
+    """Prevalence is defined on a single-class population.
+
+    Deliberately NOT inheriting the ranking metrics' both-classes rule: an
+    all-negative cohort has a prevalence of 0.0 and an all-positive one of 1.0,
+    and both are correct measurements rather than refusals. Certification
+    eligibility remains a separate question -- a prevalence can be numerically
+    valid on a cohort where no predictive metric is certifiable.
+    """
+    if ctx.y_true is None:
+        return Applicability(applicable=False, status=MetricStatus.NOT_APPLICABLE,
+                             reason="reference_labels_required")
+    if ctx.n == 0:
+        return Applicability(applicable=False, status=MetricStatus.INSUFFICIENT_DATA,
+                             reason="empty_cohort", metadata={"n": 0})
+    y = np.asarray(ctx.y_true, dtype=float).ravel()
+    if not np.isfinite(y).all():
+        return Applicability(
+            applicable=False, status=MetricStatus.FAILED,
+            reason="nonfinite_reference_labels",
+            metadata={"n_nonfinite_labels": int((~np.isfinite(y)).sum())})
+    return APPLICABLE
+
+
+def _mce(ctx: MetricContext) -> float:
+    from .metrics import maximum_calibration_error
+    return maximum_calibration_error(ctx.y_true, ctx.y_prob,
+                                     n_bins=_CALIBRATION_PARAMETERS["n_bins"])
+
+
+def _prevalence(ctx: MetricContext) -> float:
+    from .metrics import prevalence
+    return prevalence(ctx.y_true)
+
+
+def _make_mcc_adapter():
+    from .metrics import matthews_correlation_coefficient
+    return _threshold_adapter(matthews_correlation_coefficient, _MCC_THRESHOLD)
+
+
+def _make_f1_adapter():
+    from .metrics import f1_at_threshold
+    return _threshold_adapter(f1_at_threshold, _F1_THRESHOLD)
+
+
+_mcc = _make_mcc_adapter()
+_f1 = _make_f1_adapter()
+
+
+_PM = ResultKind.PREDICTION_METRIC
+_PS = ResultKind.POPULATION_STATISTIC
+
+REPORT_METRIC_NAMES: tuple = (
+    "auroc",
+    "auprc",
+    "brier_score",
+    "expected_calibration_error",
+    "maximum_calibration_error",
+    "matthews_correlation_coefficient",
+    "f1",
+    "prevalence",
+)
+
 _METRICS: tuple = (
     MetricDescriptor(
         name="auroc", function=_auroc, required_inputs=frozenset({_L, _S}),
-        applicability=_requires_both_classes,
+        applicability=_requires_both_classes, result_kind=_PM,
+        display_name="Area under the receiver operating characteristic curve",
         description="area under the receiver operating characteristic curve"),
     MetricDescriptor(
         name="auprc", function=_auprc, required_inputs=frozenset({_L, _S}),
-        applicability=_requires_both_classes,
+        applicability=_requires_both_classes, result_kind=_PM,
+        display_name="Area under the precision-recall curve",
         description="area under the precision-recall curve"),
     MetricDescriptor(
         name="auprc_gain", function=_auprc_gain, required_inputs=frozenset({_L, _S}),
-        applicability=_requires_both_classes,
-        description="lift of the precision-recall area over the no-skill floor"),
+        applicability=_requires_both_classes, result_kind=_PM,
+        display_name="Precision-recall gain over the no-skill floor",
+        description="lift of the precision-recall area over the no-skill floor",
+        include_in_evaluation_report=False),
     MetricDescriptor(
         name="brier_score", function=_brier, required_inputs=frozenset({_L, _P}),
-        applicability=_requires_probabilities,
+        applicability=_requires_probabilities, result_kind=_PM,
+        display_name="Brier score",
         description="mean squared error of the probability forecast"),
     MetricDescriptor(
         name="log_loss", function=_log_loss, required_inputs=frozenset({_L, _P}),
-        applicability=_requires_probabilities,
-        description="negative log likelihood of the probability forecast"),
+        applicability=_requires_probabilities, result_kind=_PM,
+        display_name="Logarithmic loss",
+        description="negative log likelihood of the probability forecast",
+        include_in_evaluation_report=False),
     MetricDescriptor(
         name="expected_calibration_error", function=_ece,
         required_inputs=frozenset({_L, _P}),
-        applicability=_requires_calibration_support,
-        description="binned gap between confidence and accuracy"),
+        applicability=_requires_calibration_support, result_kind=_PM,
+        display_name="Expected calibration error",
+        description="occupancy-weighted binned gap between confidence and accuracy",
+        parameters=dict(_CALIBRATION_PARAMETERS)),
+    MetricDescriptor(
+        name="maximum_calibration_error", function=_mce,
+        required_inputs=frozenset({_L, _P}),
+        applicability=_requires_calibration_support, result_kind=_PM,
+        display_name="Maximum calibration error",
+        description="largest binned gap between confidence and accuracy, over occupied bins",
+        parameters=dict(_CALIBRATION_PARAMETERS)),
+    MetricDescriptor(
+        name="matthews_correlation_coefficient", function=_mcc,
+        required_inputs=frozenset({_L, _P}),
+        applicability=_requires_nondegenerate_confusion(_MCC_THRESHOLD, metric="mcc"),
+        result_kind=_PM,
+        display_name="Matthews correlation coefficient",
+        description="correlation between hard predictions and reference labels",
+        parameters=_MCC_THRESHOLD.to_mapping()),
+    MetricDescriptor(
+        name="f1", function=_f1, required_inputs=frozenset({_L, _P}),
+        applicability=_requires_nondegenerate_confusion(_F1_THRESHOLD, metric="f1"),
+        result_kind=_PM,
+        display_name="F1 score, positive class",
+        description="harmonic mean of positive-class precision and recall",
+        parameters={**_F1_THRESHOLD.to_mapping(),
+                    "average": "binary", "positive_label": 1,
+                    "zero_division": "undefined"}),
+    MetricDescriptor(
+        name="prevalence", function=_prevalence, required_inputs=frozenset({_L}),
+        applicability=_requires_reference_labels_only,
+        result_kind=_PS,
+        display_name="Prevalence",
+        description="proportion of positive reference labels in the evaluation population"),
 )
 
 
@@ -583,9 +927,76 @@ def _validate_registry(metrics: Sequence) -> None:
             raise ValueError(f"{d.name}: an applicability policy is mandatory")
         if not callable(d.function):
             raise ValueError(f"{d.name}: function must be callable")
+        # --- descriptor schema, version 2 (2026-07-27) --------------------
+        # Every descriptor speaks the same vocabulary. Enforced at IMPORT so a
+        # later addition cannot create a second dialect in which some
+        # descriptors declare their classification and parameters and others
+        # leave them implicit.
+        if not isinstance(d.result_kind, ResultKind):
+            raise TypeError(f"{d.name}: result_kind must be a ResultKind member")
+        if not d.display_name or not d.display_name.strip():
+            raise ValueError(f"{d.name}: display_name must be non-empty")
+        if not d.description or not d.description.strip():
+            raise ValueError(f"{d.name}: description must be non-empty")
+        if not isinstance(d.parameters, MappingProxyType):
+            raise TypeError(
+                f"{d.name}: parameters must be an immutable mapping; a plain "
+                "dict on a frozen descriptor is mutable in fact while frozen "
+                "in type")
+        # ONE ThresholdParameters, shared by identity. Equal-but-separate copies
+        # are how a threshold comes to differ later.
+        tp = d.threshold_parameters
+        declared = "decision_threshold" in d.parameters
+        if declared != (tp is not None):
+            raise ValueError(
+                f"{d.name}: a declared decision_threshold and a typed "
+                "ThresholdParameters must appear together; one without the "
+                "other means the mapping and the kernel can disagree")
+        if tp is not None:
+            if getattr(d.applicability, "_threshold_parameters", None) is not tp:
+                raise ValueError(
+                    f"{d.name}: the applicability predicate does not share the "
+                    "SAME ThresholdParameters object as the kernel; two "
+                    "thresholds that merely happen to be equal today will not "
+                    "stay equal")
+            if d.parameters["decision_threshold"] != tp.threshold or \
+                    d.parameters["threshold_operator"] != tp.operator.value or \
+                    d.parameters["threshold_source"] != tp.source.value:
+                raise ValueError(
+                    f"{d.name}: the serialised parameters disagree with the "
+                    "typed ThresholdParameters they are supposed to serialise")
+        if d.result_kind is ResultKind.POPULATION_STATISTIC:
+            for forbidden in (MetricInput.SCORES, MetricInput.PROBABILITIES):
+                if forbidden in d.required_inputs:
+                    raise ValueError(
+                        f"{d.name}: a population statistic describes the cohort, "
+                        f"not the predictions, and must not require "
+                        f"{forbidden.value}")
 
 
 _validate_registry(_METRICS)
+
+
+def _validate_report_completeness() -> None:
+    """Every quantity the evaluation report carries must come from the registry.
+
+    Stronger than testing each new descriptor individually: it prevents a future
+    report field from being added anywhere else. If a quantity appears in a
+    report without a descriptor, it has no applicability policy, no certification
+    rule, no declared parameters and no population -- which is the condition the
+    whole metric stack was built to end.
+    """
+    declared = {d.name for d in _METRICS if d.include_in_evaluation_report}
+    expected = set(REPORT_METRIC_NAMES)
+    if declared != expected:
+        missing = sorted(expected - declared)
+        extra = sorted(declared - expected)
+        raise ValueError(
+            "the registry's report set does not match REPORT_METRIC_NAMES; "
+            f"missing={missing} unexpected={extra}")
+
+
+_validate_report_completeness()
 
 
 # --------------------------------------------------------------------------- #

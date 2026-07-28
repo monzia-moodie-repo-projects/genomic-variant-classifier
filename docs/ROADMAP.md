@@ -2089,3 +2089,43 @@ happened to be wrong.
   * an optional `parameters` mapping on MetricDescriptor, merged into result
     metadata, carrying `threshold` and `n_bins` -- turning the 0.5 buried at
     evaluator.py:481-482 into a declared part of each metric's identity.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-27 (Tier 1 item 6, commit 2b-2)
+=====================================================================
+
+  commit 2b-1 683b514  the calibration binning convention          LANDED
+  commit 2b-2 (this)   registry vocabulary completion              LANDED
+  commit 3    --       schema-v3 report integration                NEXT
+
+THREE LAYERS. 2b-2 completes Layer 1 (metric semantics) only.
+
+    Layer 1  metric semantics        descriptor, kernel, threshold provenance
+    Layer 2  registry orchestration  execution, applicability, certification
+    Layer 3  report projection       compatibility report, legacy flat fields
+
+ClinicalEvaluator keeps its own threshold computation until commit 3 turns Layer
+3 into a pure projection. The divergence is DELIBERATE; the registry's rules are
+called CANONICAL so a reader does not mistake it for an accident.
+
+NEW CARRIED ITEM (o) -- THE EVALUATOR AST GUARD. Writing
+test_evaluator_does_not_compute_threshold_metrics_directly before the evaluator
+is intentionally retired would test the intended ARCHITECTURE rather than the
+intended IMPLEMENTATION. It belongs to commit 3, where the report stops computing
+and becomes a projection. Its targets: direct calls to f1_score and
+matthews_corrcoef, and threshold comparisons against probability arrays, inside
+the report-construction path.
+
+COMMIT 3 SCOPE, unchanged:
+  * the registry becomes the ONLY computation path;
+  * flat report fields become derived views through one centralised projection;
+  * a projection invariant makes divergence structurally detectable;
+  * schema version 3, where version-2 artifacts deserialise with an EMPTY
+    metric_results mapping and are NEVER retroactively certified;
+  * result_kind joins the serialised surface;
+  * the canonical UNDEFINED semantics for zero-denominator threshold metrics
+    replace the evaluator's scikit-learn 0.0, through a NAMED legacy projection
+    rather than by weakening the typed result;
+  * test_registry_kernel_is_called_once_per_metric, with counting wrappers so a
+    second computation path FAILS rather than passing quietly.

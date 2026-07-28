@@ -169,10 +169,35 @@ def test_brier_is_not_finite_after_implicit_row_deletion(
 
 def test_nonfinite_probabilities_block_certification(
         cohort_with_nonfinite_predictions):
+    """SCOPED TO PREDICTION METRICS, 2026-07-27.
+
+    This assertion was universal when it was written, and was true only because
+    every registered metric happened to consume predictions. The registry now
+    also carries a POPULATION STATISTIC: prevalence reads reference labels alone,
+    so a cohort whose model output is corrupt still has a perfectly well-defined
+    prevalence, and refusing it would report a defect in the predictions as
+    though it were a defect in the cohort.
+
+    `ResultKind` exists to make exactly this distinction expressible, so the
+    scope is now declared rather than assumed.
+    """
+    from genomic_variant_classifier.evaluation.registry import ResultKind, by_name
+
     y, p = cohort_with_nonfinite_predictions
-    for name, r in evaluate_registered(_ctx(y, prob=p, score=p)).items():
+    results = evaluate_registered(_ctx(y, prob=p, score=p))
+    checked = 0
+    for name, r in results.items():
+        if by_name(name).result_kind is not ResultKind.PREDICTION_METRIC:
+            continue
+        checked += 1
         assert r.certification_eligible is not True, (
             f"{name} is certification-eligible despite non-finite model output")
+    assert checked >= 6, "the scoping must not have emptied the assertion"
+
+    prevalence_result = results["prevalence"]
+    assert prevalence_result.status is MetricStatus.OK, (
+        "a population statistic reads labels, not predictions, and must survive "
+        "corrupt model output")
 
 
 def test_registry_kernel_population_matches_reported_support():
@@ -389,8 +414,10 @@ def test_kernels_never_select_on_their_prediction_inputs():
 # ratchet would have recorded the number the edit intended and lost these
 # silently. This is why ratchet moves are measured.
 # --------------------------------------------------------------------------- #
-@pytest.mark.parametrize("metric_name", list(registry_module.names()))
-def test_every_metric_refuses_at_the_gate_not_by_raising(
+@pytest.mark.parametrize("metric_name", [
+    d.name for d in registry_module.all_metrics()
+    if d.result_kind is registry_module.ResultKind.PREDICTION_METRIC])
+def test_every_prediction_metric_refuses_at_the_gate_not_by_raising(
         metric_name, cohort_with_nonfinite_predictions):
     """CLOSES A GAP THE SABOTAGE MATRIX FOUND.
 
