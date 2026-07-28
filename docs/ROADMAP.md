@@ -2445,3 +2445,46 @@ kernels by NAME and resolve at call time. NOT A GATE, but a rule for reviewers.
 
 REMAINING TIER 1 WORK is unaffected by this item and resumes from the roadmap's
 three-tier ordering.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-28 -- the verified carried-item register
+=====================================================================
+
+CARRIED-ITEM STATUS NOW LIVES IN docs/CARRIED_ITEMS.md, NOT HERE.
+
+This file may DESCRIBE a status change in a commit delta; the register DECIDES
+it. Every open item there carries a predicate decidable by running code, and
+tests/unit/test_carried_item_register.py fails in BOTH directions -- a stale OPEN
+item and a RETURNING discharged condition.
+
+WHY: fourteen commits declared items inside per-commit deltas and recorded status
+changes in LATER deltas, so an item's state could only be reconstructed by
+grepping this document and reading the deltas in order. Item CI-l was retired in
+commit 2a-1 and still read as OPEN eleven commits later.
+
+NAMESPACE COLLISION, RESOLVED. This document uses single letters for two
+different things:
+
+    root patterns (a)-(d)   recurring failure shapes, lines 1163-1194
+    carried items (a)-(s)   deferred work
+
+They are unrelated and sit five hundred lines apart. Carried items now carry the
+CI- prefix everywhere and are never written as a bare letter again. ROOT PATTERNS
+keep their bare letters, since they are referenced by that form throughout the
+audit history.
+
+MEASURED STATUS AT 0cc663d:
+  OPEN          CI-m CI-n CI-p CI-q CI-r CI-s
+  DISCHARGED    CI-k (2b-1)  CI-l (2a-1)  CI-o (3b-2)
+  UNVERIFIABLE  CI-i CI-j CI-a
+
+CI-q IS WORSE THAN PREVIOUSLY RECORDED. ClinicalEvaluator.evaluate is called
+inside this package at evaluator.py:1238 WITHOUT source_id, so the batch path
+produces unattributed populations and therefore uncertifiable results. The item
+was framed as migrating external callers; there is an internal one.
+
+NEW STANDING RULE -- A DEFERRED ITEM MUST CARRY A PREDICATE. An item recorded in
+prose is a comment; an item recorded with a runnable check is a gate. Items that
+genuinely cannot be checked from the repository are listed as such, so that their
+uncheckability is a stated fact rather than an accident.

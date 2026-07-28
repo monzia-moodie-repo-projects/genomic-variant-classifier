@@ -3915,4 +3915,34 @@
 #   Twelve tests referencing the retired method were REWRITTEN, not deleted.
 #   Sabotage: 8 mutations, 8 detected, 0 undetected.
 #
-3545
+#
+# 3545 -> 3558 (+13)  2026-07-28  the verified carried-item register.
+#
+#   Fourteen commits declared carried items inside per-commit roadmap deltas and
+#   recorded status changes in LATER deltas, so an item's state could only be
+#   reconstructed by grepping a 2,400-line document in order. Two sources of
+#   truth for one fact, no divergence detector -- the same defect the metric
+#   stack spent fourteen commits removing from the evaluation path.
+#
+#   IT HAD ALREADY GONE WRONG: item CI-l was retired in commit 2a-1 and still
+#   read as OPEN eleven commits later.
+#
+#   NAMESPACE COLLISION RESOLVED: ROADMAP.md uses (a)-(d) for ROOT PATTERNS and
+#   (a)-(s) for CARRIED ITEMS, five hundred lines apart. Carried items now carry
+#   the CI- prefix.
+#
+#   SELF-VERIFYING: every open item has a predicate decidable by running code,
+#   and the test fails in BOTH directions -- a stale OPEN item and a RETURNING
+#   discharged condition. Uncheckable items are listed as such.
+#
+#   CI-q IS WORSE THAN RECORDED: ClinicalEvaluator.evaluate is called inside
+#   this package at evaluator.py:1238 without source_id, so its own batch path
+#   produces unattributed, uncertifiable results.
+#
+#   THE REGISTER CAUGHT ITS OWN AUTHOR TWICE: a predicate checking for the wrong helper name
+#   when the function filters through `clean_arrays`, and two sabotage
+#   survivors from substring assertions. Both now assert structure.
+#
+#   Sabotage: 6 mutations, 6 detected, 0 undetected.
+#
+3558

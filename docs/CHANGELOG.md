@@ -1,3 +1,40 @@
+## 2026-07-28 -- the verified carried-item register
+
+Ratchet 3545 -> 3558 (+13). Session record:
+docs/sessions/SESSION_2026-07-28_carried-item-register.md
+
+Fourteen commits of Tier 1 item 6 accumulated carried items declared inside
+per-commit roadmap deltas, with status changes recorded in LATER deltas. An
+item's state could only be reconstructed by grepping a 2,400-line document and
+reading the deltas in order -- two sources of truth for one fact with no
+divergence detector, the same defect the metric stack spent fourteen commits
+removing from the evaluation path.
+
+IT HAD ALREADY GONE WRONG: item CI-l was retired in commit 2a-1 and still read as
+OPEN eleven commits later.
+
+A NAMESPACE COLLISION, FOUND AND RESOLVED. ROADMAP.md uses (a)-(d) for ROOT
+PATTERNS and (a)-(s) for CARRIED ITEMS; the two senses sit five hundred lines
+apart. Carried items now carry the CI- prefix.
+
+THE REGISTER IS SELF-VERIFYING. Every open item has a predicate decidable by
+running code, and the test fails in BOTH directions: a stale OPEN item and a
+RETURNING discharged condition. An item that cannot be checked goes in an
+explicit Unverifiable table.
+
+CI-q IS WORSE THAN RECORDED: ClinicalEvaluator.evaluate is called inside the
+package at evaluator.py:1238 without source_id, so its own batch path produces
+unattributed, uncertifiable results.
+
+THE REGISTER CAUGHT ITS OWN AUTHOR TWICE. On its first run CI-m's predicate
+checked for `_clean(` and reported the item closed -- the function filters
+through `clean_arrays` and says so in its docstring. In sabotage, two weak
+assertions of mine survived: a substring check on "ast" that matched
+"abstract-syntax-tree", and a phrase check that passed because the register
+mentions "root pattern" twice. Both now assert structure rather than vocabulary.
+
+Sabotage: six mutations, six detected, zero undetected.
+
 ## 2026-07-28 -- the authority switch and evaluator retirement (Tier 1 item 6, commit 3b-2)
 
 Ratchet 3529 -> 3545 (+16). Session record:
