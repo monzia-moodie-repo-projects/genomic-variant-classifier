@@ -581,9 +581,41 @@ def test_existing_registry_results_do_not_move():
                     movements.append(f"{label}/{metric_name}.{field}: "
                                      f"{was!r} -> {observed[field]!r}")
     assert compared > 0
-    assert not movements, (
-        f"{len(movements)} pre-existing result field(s) MOVED:\n  "
-        + "\n  ".join(movements[:15]))
+
+    # THE DECLARED MOVEMENT SET, added 2026-07-28 by commit 3b-1a.
+    #
+    # This oracle was frozen on the 2b-1 tree and had shown ZERO movements
+    # through 2b-2, 2b-3, 3a and 3b-0. Commit 3b-1a is the first change that
+    # legitimately moves a value in it, because it REVERSES a scientific
+    # judgement: single-class calibration was refused as INSUFFICIENT_SUPPORT and
+    # is now computed as OK, on the grounds that calibration and discrimination
+    # are different estimands and only the latter requires two classes.
+    #
+    # The fixture is NOT regenerated. Regenerating it would destroy the only
+    # record of what the registry produced before the correction, and the
+    # self-validating header exists precisely so that regeneration is detectable.
+    # The exceptions are declared here instead, BY IDENTITY: a count alone would
+    # accept the wrong ten.
+    #
+    # The LEGACY REPORT oracle is unaffected and still shows zero movements
+    # across all 480 of its values -- the two surfaces are checked independently
+    # and, on this commit, correctly disagree.
+    declared = {
+        (fixture, "expected_calibration_error", field)
+        for fixture in ("single_class_negative", "single_class_positive")
+        for field in ("status", "reason", "value", "certification_eligible",
+                      "metadata")
+    }
+    observed = {tuple(m.split(":")[0].split("/", 1)[0:1] + m.split(":")[0].split("/", 1)[1].rsplit(".", 1))
+                for m in movements}
+    undeclared = observed - declared
+    missing = declared - observed
+    assert not undeclared, (
+        f"{len(undeclared)} UNDECLARED movement(s) in the typed registry oracle:"
+        f"\n  " + "\n  ".join(sorted(f"{a}/{b}.{c}" for a, b, c in undeclared)))
+    assert not missing, (
+        "the declared movement set expects changes that did not occur, so it no "
+        f"longer describes this commit: {sorted(missing)}")
 
 
 def test_exactly_four_result_names_were_added():

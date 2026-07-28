@@ -171,6 +171,16 @@ REGISTRY_SCHEMA_VERSION = 2
 # afterwards, with no carve-outs. It joins the serialised surface at schema
 # version 3, deliberately.
 # --------------------------------------------------------------------------- #
+class RegistryInvariantError(RuntimeError):
+    """A registry contract was violated by the registry's own configuration.
+
+    Distinct from an applicability refusal, which describes the COHORT. This
+    describes a defect in how a metric was DECLARED, and is therefore never a
+    result status: it is raised at dispatch so the declaration is fixed rather
+    than the number reinterpreted.
+    """
+
+
 class ResultKind(str, Enum):
     """What KIND of quantity a descriptor produces."""
 
@@ -589,14 +599,40 @@ def _requires_both_classes(ctx: MetricContext) -> Applicability:
 
 
 def _requires_calibration_support(ctx: MetricContext) -> Applicability:
-    """Calibration needs a probability vector AND a meaningful partition.
+    """Calibration needs a probability vector over a non-empty cohort.
 
-    THE CASE THIS EXISTS FOR. On a single-class cohort the expected calibration
-    error is finite and arithmetically correct and scientifically empty: the
-    reliability diagram has one occupied row, so the number is the gap between
-    the mean prediction and the only label present. It is INSUFFICIENT_SUPPORT,
-    not UNDEFINED -- the quantity is computable, the cohort cannot support its
-    interpretation.
+    REVERSED 2026-07-28. This predicate previously ALSO required both reference
+    classes, on the reasoning that a single-class calibration figure is
+    "computable but scientifically empty". That reasoning conflated two
+    different estimands.
+
+    Discrimination asks whether predictions RANK one class against another, and a
+    single-class cohort cannot support it. Calibration asks whether predicted
+    probabilities MATCH observed event frequencies, and a single-class cohort
+    can. Measured on an all-negative cohort where every prediction is 0.10: one
+    occupied bin, observed frequency 0.00, mean prediction 0.10, absolute gap
+    0.10. That number is not empty -- it measures systematic OVERPREDICTION of
+    the event probability in that population. The mirror case, an all-positive
+    cohort predicted at 0.90, measures underprediction.
+
+    What a single-class cohort genuinely limits is INTERPRETATION: discrimination
+    is unavailable, the outcome distribution is narrow, most bins are unoccupied,
+    and generalisation beyond that population is weak. Those limits belong in
+    metadata, in certification policy, and in reporting -- not in an applicability
+    rule that declares the arithmetic undefined.
+
+    So the result is OK, and carries `reference_class_support` recording the
+    structure. The diagnostic is deliberately NEUTRAL rather than a warning: the
+    figure is a correct measurement over a narrow distribution, not a defect.
+
+    WHAT IS NOT CHECKED HERE. "At least one occupied bin" is NOT an applicability
+    condition. It is a theorem of the conditions above -- a non-empty vector of
+    valid probabilities in [0, 1] under equal-width binning with a closed top
+    edge must occupy a bin -- and therefore unreachable through this path. Were
+    it ever violated, the correct verdict would be FAILED, an implementation
+    defect, not INSUFFICIENT_SUPPORT, a cohort property. It is enforced as a
+    representation invariant inside `CalibrationBins`, which is the layer that
+    owns it.
     """
     from .metrics import is_probability
 
@@ -614,14 +650,14 @@ def _requires_calibration_support(ctx: MetricContext) -> Applicability:
     if not is_probability(ctx.y_prob):
         return Applicability(applicable=False, status=MetricStatus.NOT_APPLICABLE,
                              reason="values_are_not_probabilities")
+    # The single-class STRUCTURE is recorded, not refused. See the docstring.
     if not ctx.has_both_classes:
         return Applicability(
-            applicable=False, status=MetricStatus.INSUFFICIENT_SUPPORT,
-            reason="calibration_requires_class_support",
-            metadata={MetricMetadataKey.N_CLASSES_OBSERVED: ctx.n_classes_observed,
-                      "classes_observed": list(ctx.classes_observed),
-                      "note": "a finite value here would be the gap between the "
-                              "mean prediction and the only label present"})
+            applicable=True, status=None, reason=None,
+            # N_CLASSES_OBSERVED is deliberately NOT supplied here: ctx.support()
+            # already provides it, and a verdict that restates a registry-owned
+            # key would collide with the protected set below.
+            metadata={MetricMetadataKey.REFERENCE_CLASS_SUPPORT: "single_class"})
     return APPLICABLE
 
 
@@ -1097,6 +1133,38 @@ def compute(d: MetricDescriptor, ctx: MetricContext) -> MetricResult:
     meta = {MetricMetadataKey.METRIC_NAME: d.name,
             MetricMetadataKey.CERTIFICATION_ELIGIBLE: eligible,
             **ctx.support()}
+    # AN APPLICABLE VERDICT MAY CARRY DIAGNOSTICS TOO (2026-07-28).
+    #
+    # Until this date only a REFUSAL's metadata was merged, so an
+    # `Applicability(applicable=True, metadata={...})` was accepted by the type
+    # and then silently discarded -- a structure the class permits and nothing
+    # consumed. Found when calibration began recording `reference_class_support`
+    # on a single-class cohort and the diagnostic never reached the result.
+    #
+    # PROTECTED KEYS ARE REJECTED, NOT SHADOWED (2026-07-28).
+    #
+    # Merge ORDER would also prevent a descriptor from overwriting registry-owned
+    # keys, but silently: the descriptor's value would simply vanish, and a
+    # descriptor author who believed they were setting the population scope would
+    # get no signal at all. An explicit collision check turns "a descriptor cannot
+    # overwrite registry identity" from an ordering convention into an enforced
+    # invariant with a diagnosable failure.
+    #
+    # The protected set is DERIVED from what the registry itself supplies, not
+    # hand-listed, so a future key added to `support()` is protected the moment it
+    # exists rather than the moment somebody remembers to add it here.
+    protected = ({MetricMetadataKey.METRIC_NAME,
+                  MetricMetadataKey.CERTIFICATION_ELIGIBLE,
+                  MetricMetadataKey.CERTIFICATION_BLOCKED_BY}
+                 | set(ctx.support()))
+    overlap = protected & set(verdict.metadata)
+    if overlap:
+        raise RegistryInvariantError(
+            f"{d.name}: applicability metadata attempted to set registry-owned "
+            f"key(s) {sorted(str(k) for k in overlap)}. A descriptor states what "
+            "is true of the COHORT; the registry states what is true of the "
+            "RESULT, and the two must not be able to disagree.")
+    meta = {**dict(verdict.metadata), **meta}
     if not eligible:
         meta[MetricMetadataKey.CERTIFICATION_BLOCKED_BY] = why
     return MetricResult(value=value, status=MetricStatus.OK, metadata=meta)

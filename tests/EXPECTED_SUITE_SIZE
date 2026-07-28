@@ -3824,4 +3824,36 @@
 #   All 41 pre-existing population tests pass unchanged. Report oracle: 480
 #   values, ZERO movements. Sabotage: 8 breaks, 8 detected, 0 undetected.
 #
-3455
+#
+# 3455 -> 3517 (+62)  2026-07-28  commit 3b-1a: calibration applicability
+#   correction, and the compatibility layer made an auditable interpreter.
+#
+#   Commit 3b was split again. Running the legacy projection in SHADOW against
+#   the frozen oracle BEFORE granting it authority surfaced six field-cohort
+#   disagreements, which were TWO scientifically different questions.
+#
+#   CALIBRATION AND DISCRIMINATION ARE DIFFERENT ESTIMANDS. Calibration no
+#   longer requires both reference classes. All-negative cohort predicted at
+#   0.10, observed frequency 0.00, gap 0.10 -- systematic overprediction,
+#   measured, not an empty number.
+#
+#   THREE DEFECTS FOUND: applicable-verdict metadata was silently discarded;
+#   the occupancy theorem was necessary but NOT sufficient (1.0 mapped to bin
+#   10 gave an occupied plausible table, status OK, no exception -- a RANGE
+#   invariant was added); and a patch was written against text from the
+#   WITHDRAWN first commit 3a, caught only by a single-match assertion.
+#
+#   ONE ARCHITECTURAL BLIND SPOT PRODUCED SIX SURVIVING MUTATIONS. The first
+#   matrix survived 6 of 11, all from legacy_projection.py having no dedicated
+#   test module. It is an INTERPRETER, now tested on DECISION PATHS. Two rules
+#   legitimately produce the same 0.0 -- a measurement and a substitution --
+#   which no value comparison can separate.
+#
+#   TWO ORACLES, correctly disagreeing: legacy report 480 values ZERO
+#   movements; typed registry 10 DECLARED movements, identity-asserted. The
+#   fixture was NOT regenerated; it documents the pre-correction state.
+#
+#   Sabotage: 13 mutations, 13 detected, 0 undetected, including two SWAP
+#   mutations caught only by the decision matrix.
+#
+3517

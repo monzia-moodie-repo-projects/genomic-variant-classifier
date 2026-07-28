@@ -1,3 +1,69 @@
+## 2026-07-28 -- calibration applicability correction and the compatibility interpreter (Tier 1 item 6, commit 3b-1a)
+
+Ratchet 3455 -> 3517 (+62). Session record:
+docs/sessions/SESSION_2026-07-28_calibration-applicability-and-compatibility-interpreter.md
+
+Commit 3b was to switch authority and retire the evaluator in one step. Running
+the projection in SHADOW first found six field-cohort disagreements which turned
+out to be TWO scientifically different questions.
+
+### Fixed -- calibration and discrimination are different estimands
+_requires_calibration_support required both reference classes, reasoning that a
+single-class calibration figure is "computable but scientifically empty". That
+conflated two estimands. Discrimination asks whether predictions RANK one class
+against another and a single-class cohort cannot support it; calibration asks
+whether probabilities MATCH observed frequencies and it can. Measured on an
+all-negative cohort predicted at 0.10: observed frequency 0.00, mean prediction
+0.10, gap 0.10 -- a measurement of systematic OVERPREDICTION, not an empty
+number.
+
+The interpretive limit now lives in metadata (reference_class_support, neutral by
+design) and in certification (blocked by the PRE-EXISTING policy, from cohort
+facts rather than from the diagnostic token -- pinned by a test).
+
+### Fixed -- applicable-verdict metadata was silently discarded
+Applicability permits metadata on an APPLICABLE verdict; compute() merged it only
+on the refusal path. Registry-owned keys are now REJECTED on collision rather
+than shadowed by merge order, with the protected set DERIVED from ctx.support()
+rather than hand-listed. That derivation immediately caught a collision in this
+commit's own edit.
+
+### Fixed -- occupancy was necessary but not sufficient
+The occupied-bin theorem is a representation invariant inside CalibrationBins,
+not an applicability condition. A deliberate break then showed occupancy alone
+insufficient: mapping 1.0 to bin 10 of a ten-bin table produced an OCCUPIED,
+plausible table (expected 0.375, maximum 0.5, status OK, no exception). A RANGE
+invariant was added. A violation is FAILED, never INSUFFICIENT_SUPPORT.
+
+### ONE ARCHITECTURAL BLIND SPOT PRODUCED SIX SURVIVING MUTATIONS
+The first sabotage matrix survived six of eleven. Not six deficiencies: one --
+legacy_projection.py had no dedicated test module and borrowed coverage from the
+calibration suite. A dedicated module collapsed the survivors to two, both
+defects in the MUTATIONS rather than the code.
+
+The module is an INTERPRETER over a declarative policy, so it is tested on
+DECISION PATHS: a closed UndefinedProjectionRule vocabulary, a ProjectionDecision
+record, and a DECISION_MATRIX declaring the legal state space once. The decision
+record exists because two rules legitimately produce the same scalar --
+constant_classifier.f1 = 0.0 is a MEASUREMENT and degenerate_all_negative.f1 =
+0.0 is a SUBSTITUTION -- and no value comparison can separate them.
+
+Policy-completeness tests caught three untested policy fields on their first run.
+
+### Two oracles, checked independently, correctly disagreeing
+    legacy report oracle   480 values   ZERO movements
+    typed registry oracle  384 values   10 DECLARED movements, identity-asserted
+
+The typed oracle moves because this commit reverses a scientific judgement. The
+fixture was NOT regenerated: it is no longer merely an oracle but documentation
+of what the registry produced before the correction.
+
+### Sabotage
+Thirteen mutations, thirteen detected, zero undetected -- including two SWAP
+mutations (a rule moved onto the wrong metric, and authorised reasons exchanged
+between mcc and f1) which are structurally valid edits that produce identical
+numbers in both oracles and are caught only by the decision matrix.
+
 ## 2026-07-28 -- population attribution (Tier 1 item 6, commit 3b-0)
 
 Ratchet 3445 -> 3455 (+10). Session record:

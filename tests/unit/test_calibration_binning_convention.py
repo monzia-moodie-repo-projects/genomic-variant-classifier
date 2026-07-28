@@ -232,3 +232,167 @@ def test_the_regrouping_invariance_is_real_and_is_why_this_hid():
     merged = abs(y.mean() - p.mean())
     separate = 0.5 * abs(y[:50].mean() - 0.05) + 0.5 * abs(y[50:].mean() - 0.15)
     assert merged == pytest.approx(separate, abs=1e-12)
+
+
+# --------------------------------------------------------------------------- #
+# 4. Representation invariants, added 2026-07-28 by commit 3b-1a
+#
+# "At least one occupied bin" is NOT an applicability condition. It is a THEOREM
+# of the conditions applicability already checks -- a non-empty vector of valid
+# probabilities in [0, 1], binned into equal widths with a closed top edge, must
+# occupy a bin. Putting it in applicability would create a branch unreachable
+# through the public path, and would make INSUFFICIENT_SUPPORT mean two different
+# things: a cohort too small to support the estimand, and an implementation that
+# broke its own contract.
+#
+# It is enforced at the REPRESENTATION boundary instead, where a violation is
+# FAILED.
+# --------------------------------------------------------------------------- #
+def test_nonempty_valid_calibration_input_always_occupies_a_bin():
+    """The theorem, over a dense deterministic set rather than by example."""
+    edges = np.linspace(0.0, 1.0, N_BINS + 1)
+    probabilities = np.clip(np.concatenate([
+        np.linspace(0.0, 1.0, 10001),
+        np.nextafter(edges, -np.inf),
+        edges,
+        np.nextafter(edges, np.inf),
+    ]), 0.0, 1.0)
+
+    indices = equal_width_bin_indices(probabilities, N_BINS)
+    counts = np.bincount(indices, minlength=N_BINS)
+
+    assert indices.min() >= 0
+    assert indices.max() < N_BINS
+    assert counts.sum() == probabilities.size, "a probe escaped every bin"
+    assert (counts > 0).any()
+
+
+@pytest.mark.parametrize("label,y,p", [
+    ("single observation at zero", np.array([0.0]), np.array([0.0])),
+    ("single observation at one", np.array([1.0]), np.array([1.0])),
+    ("repeated identical probability", np.zeros(50), np.full(50, 0.37)),
+    ("all-negative labels", np.zeros(80), np.full(80, 0.10)),
+    ("all-positive labels", np.ones(80), np.full(80, 0.90)),
+])
+def test_named_boundary_fixtures_occupy_a_bin(label, y, p):
+    """The dense test proves the theorem; these explain the contract."""
+    bins = CalibrationBins.from_predictions(y, p, n_bins=N_BINS)
+    assert bins.n_occupied >= 1, label
+    assert np.isfinite(bins.expected)
+    assert np.isfinite(bins.maximum)
+
+
+def test_an_impossible_empty_occupancy_is_an_invariant_failure():
+    """Constructed at the representation boundary, NOT reached through valid
+    public inputs -- the point of the test is precisely that it is unreachable
+    through them."""
+    from genomic_variant_classifier.evaluation import metrics as metrics_module
+    from genomic_variant_classifier.evaluation.metrics import CalibrationInvariantError
+
+    original = metrics_module.equal_width_bin_indices
+    try:
+        metrics_module.equal_width_bin_indices = lambda v, n=N_BINS: np.array([], dtype=np.int64)
+        with pytest.raises(CalibrationInvariantError, match="no occupied calibration bin"):
+            CalibrationBins.from_predictions(np.zeros(10), np.full(10, 0.5), n_bins=N_BINS)
+    finally:
+        metrics_module.equal_width_bin_indices = original
+
+
+def test_an_out_of_range_bin_index_is_an_invariant_failure():
+    """FOUND BY SABOTAGE. Occupancy alone was not enough.
+
+    Mapping 1.0 to bin 10 of a ten-bin table produced an OCCUPIED, entirely
+    plausible table -- expected 0.375, maximum 0.5, status OK, no exception --
+    because the occupancy check asks "did anything land in a bin?" and this asks
+    "did everything land in a VALID bin?". Only the second catches an index that
+    escaped the range.
+    """
+    from genomic_variant_classifier.evaluation import metrics as metrics_module
+    from genomic_variant_classifier.evaluation.metrics import CalibrationInvariantError
+
+    original = metrics_module.equal_width_bin_indices
+
+    def escapes_the_range(values, n_bins=N_BINS):
+        idx = original(values, n_bins)
+        return np.where(np.asarray(values, dtype=float).ravel() >= 1.0, n_bins, idx)
+
+    try:
+        metrics_module.equal_width_bin_indices = escapes_the_range
+        with pytest.raises(CalibrationInvariantError, match="out of range"):
+            CalibrationBins.from_predictions(
+                np.array([0.0, 1.0] * 40),
+                np.concatenate([np.full(40, 1.0), np.linspace(0.05, 0.45, 40)]),
+                n_bins=N_BINS)
+    finally:
+        metrics_module.equal_width_bin_indices = original
+
+
+def test_a_broken_binning_yields_FAILED_and_never_INSUFFICIENT_SUPPORT():
+    """The layer assignment, asserted on SEMANTIC outcomes rather than on the
+    internal exception site. A binning defect must never be reported as a
+    property of the cohort."""
+    from genomic_variant_classifier.evaluation import metrics as metrics_module
+    from genomic_variant_classifier.evaluation.capabilities import MetricStatus
+    from genomic_variant_classifier.evaluation.population import EvaluationPopulation
+    from genomic_variant_classifier.evaluation.registry import (
+        MetricContext, evaluate_registered)
+
+    original = metrics_module.equal_width_bin_indices
+
+    def escapes_the_range(values, n_bins=N_BINS):
+        idx = original(values, n_bins)
+        return np.where(np.asarray(values, dtype=float).ravel() >= 1.0, n_bins, idx)
+
+    y = np.array([0.0, 1.0] * 40)
+    p = np.concatenate([np.full(40, 1.0), np.linspace(0.05, 0.45, 40)])
+    try:
+        metrics_module.equal_width_bin_indices = escapes_the_range
+        results = evaluate_registered(MetricContext(
+            y_true=y, y_prob=p, y_score=p,
+            population=EvaluationPopulation.full(80, scope="c", source_id=None)))
+    finally:
+        metrics_module.equal_width_bin_indices = original
+
+    for name in ("expected_calibration_error", "maximum_calibration_error"):
+        r = results[name]
+        assert r.status is MetricStatus.FAILED, name
+        assert r.status is not MetricStatus.INSUFFICIENT_SUPPORT, (
+            f"{name}: a binning defect was reported as a cohort property")
+        assert not np.isfinite(r.value), f"{name}: a value was produced anyway"
+
+
+def test_calibration_never_consults_the_legacy_undefined_resolver():
+    """STRUCTURAL, not a check of the policy table's current contents.
+
+    Someone restoring the both-classes applicability rule could mask the
+    regression by adding a calibration compatibility substitution. A test that
+    only inspected the table would not notice; one that counts calls to the
+    resolver does.
+    """
+    from genomic_variant_classifier.evaluation import legacy_projection
+    from genomic_variant_classifier.evaluation.population import EvaluationPopulation
+    from genomic_variant_classifier.evaluation.registry import (
+        MetricContext, evaluate_registered)
+
+    consulted = []
+    original = legacy_projection.resolve_undefined_projection
+
+    def counting(result, *, policy):
+        consulted.append(policy.field_name)
+        return original(result, policy=policy)
+
+    legacy_projection.resolve_undefined_projection = counting
+    try:
+        for y, p in ((np.zeros(80), np.full(80, 0.10)),
+                     (np.ones(80), np.full(80, 0.90)),
+                     (np.array([0.0, 1.0] * 40), np.linspace(0.05, 0.95, 80))):
+            consulted.clear()
+            results = evaluate_registered(MetricContext(
+                y_true=y, y_prob=p, y_score=p,
+                population=EvaluationPopulation.full(y.size, scope="c", source_id=None)))
+            legacy_projection.project_legacy_fields(results)
+            assert consulted.count("calibration_ece") == 0
+            assert consulted.count("calibration_mce") == 0
+    finally:
+        legacy_projection.resolve_undefined_projection = original
+

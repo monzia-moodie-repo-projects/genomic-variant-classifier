@@ -444,6 +444,27 @@ CALIBRATION_INTERVAL_CONVENTION = "[lo, hi) with the top bin closed at 1.0"
 CALIBRATION_DEFINITION_VERSION = 2
 
 
+class CalibrationInvariantError(RuntimeError):
+    """A calibration REPRESENTATION invariant was violated.
+
+    NOT an applicability refusal. Applicability answers a question about the
+    COHORT -- are there observations, are they probabilities. This answers a
+    question about the IMPLEMENTATION: given input that already satisfies those
+    conditions, did the binning produce a coherent table?
+
+    The distinction is the whole point of the layering. A non-empty vector of
+    valid probabilities in [0, 1], binned into equal widths with a closed top
+    edge, MUST occupy at least one bin. That is a theorem of the preconditions,
+    not an independent scientific requirement, so it does not belong in
+    applicability -- an unreachable applicability branch would weaken the status
+    model by making INSUFFICIENT_SUPPORT mean two different things.
+
+    If it is ever violated the binning implementation has broken its contract,
+    and the honest verdict is FAILED -- an implementation defect -- never
+    INSUFFICIENT_SUPPORT, which would blame the data for a fault in the code.
+    """
+
+
 def equal_width_bin_indices(values: Sequence, n_bins: int = 10) -> "np.ndarray":
     """Bin index for each probability under the documented convention.
 
@@ -508,6 +529,39 @@ class CalibrationBins:
         idx = equal_width_bin_indices(p_arr, n_bins)
         occupied = np.unique(idx)
         n = y_arr.size
+        # THE OCCUPANCY THEOREM, enforced at the BUILDER boundary.
+        #
+        # Checked here rather than in applicability because it is a property of
+        # the representation, not of the cohort: valid non-empty input must
+        # produce an occupied bin, and a failure means the binning broke its own
+        # contract. The builder is also the only layer that still holds the
+        # original observation count, so it can state the violated implication
+        # exactly rather than reporting an empty table with no explanation.
+        # THE RANGE INVARIANT, beside the occupancy one.
+        #
+        # Added after a deliberate break revealed that occupancy alone is not
+        # enough: mapping 1.0 to bin 10 of a ten-bin table produced an occupied,
+        # plausible-looking table with expected=0.375 and maximum=0.5, status OK,
+        # and no exception. The occupancy check asks "did anything land in a
+        # bin?"; this asks "did everything land in a VALID bin?" -- and only the
+        # second catches an index that escaped the range.
+        #
+        # Checked BEFORE occupancy, because an out-of-range index can leave the
+        # table non-empty and would otherwise slip past.
+        if idx.size and (idx.min() < 0 or idx.max() >= n_bins):
+            raise CalibrationInvariantError(
+                f"bin index out of range: observed [{int(idx.min())}, "
+                f"{int(idx.max())}] for {n_bins} bins. Every probability in "
+                "[0, 1] must map into [0, n_bins); an index outside it means the "
+                "binning broke its contract, and the resulting table would be "
+                "arithmetically coherent while describing bins that do not exist.")
+        if n > 0 and occupied.size == 0:
+            raise CalibrationInvariantError(
+                f"valid non-empty probability input ({n} observations) produced "
+                f"no occupied calibration bin over {n_bins} bins. A vector of "
+                "probabilities in [0, 1] under equal-width binning with a closed "
+                "top edge must occupy at least one bin; this is a binning defect, "
+                "not a property of the cohort.")
         acc = np.array([y_arr[idx == b].mean() for b in occupied], dtype=float)
         conf = np.array([p_arr[idx == b].mean() for b in occupied], dtype=float)
         wgt = np.array([(idx == b).sum() / n for b in occupied], dtype=float)

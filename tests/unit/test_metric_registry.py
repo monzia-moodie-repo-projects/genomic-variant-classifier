@@ -32,7 +32,8 @@ import numpy as np
 import pytest
 
 from genomic_variant_classifier.evaluation import registry as reg
-from genomic_variant_classifier.evaluation.capabilities import MetricResult, MetricStatus
+from genomic_variant_classifier.evaluation.capabilities import (
+    MetricMetadataKey, MetricResult, MetricStatus)
 from genomic_variant_classifier.evaluation.registry import (
     Applicability,
     MetricContext,
@@ -191,13 +192,66 @@ def test_a_metric_with_missing_inputs_is_NOT_invoked():
 # --------------------------------------------------------------------------- #
 # 4. SABOTAGE -- finite but scientifically unsupported
 # --------------------------------------------------------------------------- #
-def test_single_class_expected_calibration_error_is_not_reported_ok():
-    """The original defect class. A finite ECE on one class is the gap between
-    the mean prediction and the only label present."""
+def test_single_class_calibration_is_canonically_defined():
+    """REVERSED 2026-07-28. This test previously asserted the opposite.
+
+    It was named `test_single_class_expected_calibration_error_is_not_reported_ok`
+    and required INSUFFICIENT_SUPPORT, on the reasoning that "a finite expected
+    calibration error on one class is the gap between the mean prediction and
+    the only label present" -- correctly identifying the value, then concluding
+    it was meaningless.
+
+    That conflated two estimands. DISCRIMINATION asks whether predictions rank
+    one class against another and a single-class cohort cannot support it.
+    CALIBRATION asks whether predicted probabilities match observed event
+    frequencies, and a single-class cohort can: the gap IS the measurement, of
+    systematic over- or under-prediction in that population.
+
+    The interpretive limitation is real and is recorded -- as neutral metadata
+    and as a certification block -- rather than as a refusal to compute.
+    """
     r = evaluate_registered(_single_class())["expected_calibration_error"]
-    assert r.status is MetricStatus.INSUFFICIENT_SUPPORT
-    assert r.reason == "calibration_requires_class_support"
+    assert r.status is MetricStatus.OK
+    assert r.reason is None
+    assert np.isfinite(r.value)
     assert r.metadata["n_classes_observed"] == 1
+    assert r.metadata["reference_class_support"] == "single_class"
+
+
+def test_single_class_calibration_is_recorded_but_not_certifiable():
+    """Computability, interpretability and admissibility remain three separate
+    axes. The value is correct; the claim is not admissible."""
+    r = evaluate_registered(_single_class())["expected_calibration_error"]
+    assert r.status is MetricStatus.OK
+    assert r.certification_eligible is False
+    assert r.metadata["certification_blocked_by"] == "single_class_cohort"
+
+
+def test_certification_is_derived_from_cohort_facts_not_from_the_diagnostic():
+    """The diagnostic must be DESCRIPTIVE, never CAUSAL.
+
+    `reference_class_support` records a structural fact. If certification were
+    keyed on the presence of that token rather than on the cohort itself, a
+    future refactor renaming or dropping the diagnostic would silently unblock
+    certification. The blocker is asserted to come from the class support that
+    `_certification_eligibility` reads directly.
+    """
+    single = evaluate_registered(_single_class())["expected_calibration_error"]
+    both = evaluate_registered(_two_class())["expected_calibration_error"]
+
+    assert single.metadata["certification_blocked_by"] == "single_class_cohort"
+    assert single.metadata["n_classes_observed"] == 1
+    assert both.certification_eligible is True
+    assert "certification_blocked_by" not in both.metadata
+    assert "reference_class_support" not in both.metadata, (
+        "the diagnostic must appear only where the structure warrants it")
+
+    # The blocker names the COHORT PROPERTY, not the diagnostic key.
+    assert "single_class_cohort" == single.metadata["certification_blocked_by"]
+    assert single.metadata["certification_blocked_by"] != \
+        single.metadata["reference_class_support"], (
+            "blocker and diagnostic must not be the same token, or a reader "
+            "cannot tell which one drove the decision")
 
 
 def test_single_class_ranking_metrics_are_undefined_not_failed():
@@ -373,8 +427,12 @@ def test_support_is_attached_to_a_computed_value():
 def test_support_is_attached_to_a_REFUSAL_not_only_to_a_value():
     """An INSUFFICIENT_SUPPORT on 3 rows and one on 300,000 point at different
     problems. Without this the artifact cannot tell them apart."""
-    r = evaluate_registered(_single_class())["expected_calibration_error"]
-    assert r.status is MetricStatus.INSUFFICIENT_SUPPORT
+    # Uses a RANKING metric, 2026-07-28. This test previously used single-class
+    # calibration as its example of a refusal; calibration is no longer refused
+    # there, so the example had to become one that still is. The property under
+    # test -- that support accompanies a refusal -- is unchanged.
+    r = evaluate_registered(_single_class())["auroc"]
+    assert r.status is MetricStatus.UNDEFINED
     assert r.metadata["n_observations"] == 4
     assert r.metadata["n_classes_observed"] == 1
 
@@ -537,3 +595,56 @@ def test_equal_counts_over_genuinely_different_rows_are_distinguishable():
     assert a.population_fingerprint != b.population_fingerprint, (
         "two disjoint four-row populations produced the same fingerprint; "
         "equal counts and an identical scope would then be indistinguishable")
+
+
+def test_descriptor_metadata_may_extend_registry_metadata_never_replace_it():
+    """REBUILT 2026-07-28 on the REAL execution graph.
+
+    The first version constructed a synthetic descriptor and asserted that the
+    protected-key check raised. Disabling the check in `compute()` therefore
+    broke nothing observable, because no REGISTERED descriptor exercised the
+    path -- the guard was real and its test did not reach it.
+
+    This version drives a registered descriptor through `compute()` and asserts
+    the SURVIVAL of every registry-owned key, which is stronger than asserting
+    that an exception occurred: the invariant is that descriptor metadata may
+    EXTEND registry metadata, never replace it.
+    """
+    import genomic_variant_classifier.evaluation.registry as registry_module
+
+    ctx = _single_class()
+    descriptor = registry_module.by_name("expected_calibration_error")
+    original = descriptor.applicability
+
+    def hijacking(context):
+        verdict = original(context)
+        return registry_module.Applicability(
+            applicable=True, status=None, reason=None,
+            metadata={MetricMetadataKey.POPULATION_SCOPE: "hijacked",
+                      MetricMetadataKey.N_OBSERVATIONS: 999_999,
+                      MetricMetadataKey.CERTIFICATION_ELIGIBLE: True})
+
+    object.__setattr__(descriptor, "applicability", hijacking)
+    try:
+        with pytest.raises(registry_module.RegistryInvariantError) as caught:
+            registry_module.compute(descriptor, ctx)
+        message = str(caught.value)
+        for key in ("POPULATION_SCOPE", "N_OBSERVATIONS", "CERTIFICATION_ELIGIBLE"):
+            assert key in message, f"{key} was not reported as a collision"
+    finally:
+        object.__setattr__(descriptor, "applicability", original)
+
+    # And the registry is unchanged afterwards: the attempt neither succeeded
+    # nor left residue.
+    survivor = evaluate_registered(ctx)["expected_calibration_error"]
+    assert survivor.metadata["population_scope"] != "hijacked"
+    assert survivor.metadata["n_observations"] == 4
+    assert survivor.certification_eligible is False
+
+
+def test_a_descriptor_may_still_add_its_own_diagnostics():
+    """The invariant is EXTEND-not-replace, so a non-colliding key must pass."""
+    result = evaluate_registered(_single_class())["expected_calibration_error"]
+    assert result.metadata["reference_class_support"] == "single_class"
+    assert result.metadata["metric_name"] == "expected_calibration_error"
+

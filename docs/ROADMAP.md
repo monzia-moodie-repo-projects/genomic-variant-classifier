@@ -2284,3 +2284,67 @@ parse and its first repair silently did nothing:
   * every generated file is RE-READ FROM DISK and re-checked after any repair,
     because an edit that silently matched nothing looks exactly like one that
     succeeded.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-28 (Tier 1 item 6, commit 3b-1a)
+=====================================================================
+
+  commit 3b-0  b6bf19f  population attribution                     LANDED
+  commit 3b-1a (this)   calibration applicability + interpreter    LANDED
+  commit 3b-1b --       derived AUPRC compatibility rule           NEXT
+  commit 3b-2  --       authority switch and evaluator retirement
+
+COMMIT 3b WAS SPLIT AGAIN, and the shadow phase is why. Running the projection
+against the frozen oracle BEFORE granting it authority surfaced six
+field-cohort disagreements. Had the authority switch come first they would have
+appeared as moved values in a mostly-subtractive diff, with six plausible causes.
+
+SCIENTIFIC CORRECTION. Calibration no longer requires both reference classes.
+Discrimination ranks one class against another and needs two; calibration compares
+predicted probabilities against observed frequencies and does not. A single-class
+cohort predicted at 0.10 with observed frequency 0.00 has a calibration gap of
+0.10, which measures systematic overprediction. The interpretive limitation is
+recorded as neutral metadata and enforced by certification policy, not by refusing
+to compute.
+
+NEW STANDING PRINCIPLE -- LAYER ASSIGNMENT FOR INVARIANTS.
+
+    applicability   scientific/data prerequisites of the ESTIMAND
+    representation  invariants of the built structure
+    kernel          aggregation over a valid representation
+
+An unreachable applicability branch weakens the status model by making
+INSUFFICIENT_SUPPORT mean both "cohort too small" and "implementation broken".
+A representation invariant violated by valid input is FAILED, not
+INSUFFICIENT_SUPPORT.
+
+NEW STANDING PRINCIPLE -- A COMPATIBILITY LAYER IS AN INTERPRETER.
+legacy_projection.py implements authorisation by (status, reason), per-field
+rounding and metric-specific behaviour. It is tested on DECISION PATHS, not
+outputs, because two different rules legitimately produce the same scalar. Every
+policy rule has a unique observable execution path, and the legal state space is
+declared once as a matrix from which tests are generated.
+
+REPORTING CONVENTION, adopted 2026-07-28: a sabotage result is reported as
+ARCHITECTURAL BLIND SPOTS, not as a count of survivors. "One blind spot producing
+six surviving mutations" is predictive -- it says a dedicated module will collapse
+the count -- where "six undetected mutations" is not.
+
+CARRIED ITEM (r) -- THE REPORT ORACLE IS BLIND TO INTERVAL CERTIFICATION. Both
+captured certification fields are False in all ten cohorts because the oracle was
+frozen with n_bootstrap=0, so a defect forcing them False would be invisible. Not
+a gate; addressed in 3b-1a by a direct assertion rather than by regenerating a
+committed fixture.
+
+3b-1b SCOPE:
+  * add SINGLE_CLASS_AUPRC to the closed UndefinedProjectionRule vocabulary;
+  * typed AUPRC stays UNDEFINED with reason binary_class_support_required;
+  * the legacy scalar is DERIVED from the registered prevalence -- 0.0 to 0.0,
+    1.0 to 1.0 -- never a table constant, failing closed if prevalence is not OK
+    or is mixed;
+  * shadow mismatches reach zero.
+
+3b-2 SCOPE, unchanged: switch authority, delete evaluator-local computation,
+activate the narrowed abstract-syntax-tree guard and the invocation-count guards,
+confirm 480 legacy values with zero movement.

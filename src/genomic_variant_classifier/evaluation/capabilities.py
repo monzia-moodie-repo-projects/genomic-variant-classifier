@@ -221,6 +221,12 @@ class MetricMetadataKey(str, Enum):
     CERTIFICATION_BLOCKED_BY = "certification_blocked_by"
     N_OBSERVATIONS = "n_observations"
     N_CLASSES_OBSERVED = "n_classes_observed"
+    # Added 2026-07-28. NEUTRAL by design: it records an interpretive limitation
+    # without implying the result is invalid. Deliberately not called a
+    # "warning", because this project treats warnings as things to be resolved,
+    # and a single-class calibration figure is a correct measurement over a
+    # narrow outcome distribution, not a defect to be fixed.
+    REFERENCE_CLASS_SUPPORT = "reference_class_support"
     N_CLUSTERS = "n_clusters"
     METRIC_NAME = "metric_name"
 
