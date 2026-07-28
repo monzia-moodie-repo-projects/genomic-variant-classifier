@@ -2129,3 +2129,48 @@ COMMIT 3 SCOPE, unchanged:
     rather than by weakening the typed result;
   * test_registry_kernel_is_called_once_per_metric, with counting wrappers so a
     second computation path FAILS rather than passing quietly.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-27 (Tier 1 item 6, commit 2b-3)
+=====================================================================
+
+  commit 2b-2 2c4aa9e  canonical metric vocabulary completion      LANDED
+  commit 2b-3 (this)   the descriptor immutability audit           LANDED
+  commit 3    --       registry projection, legacy report retirement  NEXT
+
+2b-2 made descriptors the semantic authority. 2b-3 proves two properties of that
+authority that were asserted but never demonstrated: that evaluation cannot
+mutate a descriptor, and that the acceptance oracle came from the tree it claims
+to have come from.
+
+NEW STANDING RULE -- THE SEPARABILITY PRINCIPLE.
+
+    Every regression fixture targeting an algorithmic distinction shall first
+    demonstrate that the injected defect changes observable behaviour.
+
+Adopted after the same failure recurred THREE times in one series:
+  * the calibration interval convention -- fixtures held no interior-edge value,
+    so the module could not separate [lo,hi) from (lo,hi] and stayed green for
+    seventeen days;
+  * duplicate calibration aggregation -- a random continuous cohort could not
+    observe a second binning loop;
+  * the immutability fingerprint -- a dict-literal comparison ADDED the key under
+    test, so the assertion held whether or not the field was covered.
+
+In practice a fixture opens by proving it can fail -- asserting the superseded
+implementation and the current one disagree on this cohort -- before asserting
+which is correct. Agreement that could not have been disagreement is not
+evidence.
+
+NEW STANDING RULE -- DELIVERED PAYLOADS ARE IMMUTABLE ONCE CUT.
+The scratch output directory was found holding NEWER copies of two 2b-2 files
+than the ones delivered and installed. Nothing installed was affected, because
+the installer hashes every payload at run time rather than trusting its name, and
+the two fixture versions were compared field by field: 384 fields, zero
+differences. Recorded because the only thing that made it benign was run-time
+verification: a scratch directory that keeps mutating is indistinguishable, by
+inspection, from one that was tampered with.
+
+CARRIED ITEM (o) UNCHANGED -- the evaluator abstract-syntax-tree guard belongs to
+commit 3, where the report stops computing and becomes a projection.

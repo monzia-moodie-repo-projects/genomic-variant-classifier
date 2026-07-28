@@ -1,5 +1,6 @@
 {
   "captured_from": "commit 2b-1",
+  "captured_from_commit": "683b514",
   "fixtures": {
     "balanced_ok": {
       "auprc": {
@@ -865,6 +866,9 @@
       }
     }
   },
+  "n_metrics": 6,
+  "n_results": 48,
+  "note": "Frozen registry output, captured on the 2b-1 tree (683b514) BEFORE commit 2b-2 was written. This header was added in commit 2b-3 as a reviewed act; the recorded RESULTS were not regenerated and are byte-identical to the original capture. registry_schema_at_capture is 1: if it ever equals the CURRENT REGISTRY_SCHEMA_VERSION, this fixture was regenerated on the very tree it is supposed to be checking, and every identity comparison against it passes for the one reason that guarantees nothing.",
   "registered_metric_names": [
     "auprc",
     "auprc_gain",
@@ -872,5 +876,7 @@
     "brier_score",
     "expected_calibration_error",
     "log_loss"
-  ]
+  ],
+  "registry_schema_at_capture": 1,
+  "snapshot_version": "2b-1"
 }

@@ -597,3 +597,191 @@ def test_the_snapshot_fixture_is_not_silently_empty():
     statuses = {r["status"] for f in snapshot["fixtures"].values() for r in f.values()}
     assert {"ok", "undefined", "failed", "not_applicable"} <= statuses, (
         "the snapshot must exercise refusals and failures, not only successes")
+
+
+def test_the_snapshot_is_self_validating():
+    """A fixture must not be able to validate a registry it did not come from.
+
+    The decisive check is the LAST one. The snapshot records the schema version
+    in force when it was captured. If that ever equals the CURRENT schema
+    version, the fixture was regenerated on the current tree -- at which point it
+    is a photograph of the thing it was supposed to be checking, and every
+    identity comparison in `test_existing_registry_results_do_not_move` passes
+    for the only reason that guarantees nothing.
+
+    A stale fixture is a visible failure. A silently regenerated one is not, and
+    is the more dangerous of the two.
+    """
+    snapshot = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
+
+    assert snapshot["snapshot_version"] == "2b-1"
+    assert snapshot["captured_from_commit"] == "683b514"
+    assert snapshot["n_metrics"] == len(snapshot["registered_metric_names"]) == 6
+    assert snapshot["n_results"] == sum(len(v) for v in snapshot["fixtures"].values()) == 48
+
+    assert snapshot["registry_schema_at_capture"] < REGISTRY_SCHEMA_VERSION, (
+        f"the snapshot records schema {snapshot['registry_schema_at_capture']} "
+        f"and the registry is at {REGISTRY_SCHEMA_VERSION}. If these are equal "
+        "the fixture was regenerated on the current tree and proves nothing; if "
+        "the snapshot is ahead, the fixture belongs to a later registry than the "
+        "one under test.")
+
+
+# --------------------------------------------------------------------------- #
+# 9. Descriptor immutability audit
+#
+# Descriptors are now the semantic authority: the threshold a metric applies, the
+# inputs it consumes, the classification it carries. Evaluation must therefore be
+# incapable of altering them. An in-place edit -- `descriptor.parameters[...] = x`
+# in a kernel, a mutated `required_inputs` -- would change what every LATER
+# evaluation means, and an ordinary numerical test would not notice because the
+# first evaluation of a run would still be correct.
+#
+# The audit deep-copies the whole descriptor graph, runs every metric over a
+# range of cohorts including degenerate and failing ones, and then compares the
+# graph field by field.
+# --------------------------------------------------------------------------- #
+def _descriptor_fingerprint(descriptor):
+    """Everything about a descriptor that evaluation must not be able to change."""
+    tp = descriptor.threshold_parameters
+    return {
+        "name": descriptor.name,
+        "required_inputs": tuple(sorted(i.value for i in descriptor.required_inputs)),
+        "result_kind": descriptor.result_kind.value,
+        "display_name": descriptor.display_name,
+        "description": descriptor.description,
+        "requires_clusters": descriptor.requires_clusters,
+        "output_kind": descriptor.output_kind.value,
+        "include_in_evaluation_report": descriptor.include_in_evaluation_report,
+        "parameters": tuple(sorted((k, repr(v)) for k, v in descriptor.parameters.items())),
+        "threshold": None if tp is None else (tp.threshold, tp.operator.value, tp.source.value),
+        "function_id": id(descriptor.function),
+        "applicability_id": id(descriptor.applicability),
+    }
+
+
+def test_evaluation_never_mutates_the_descriptor_graph():
+    """The audit. Nothing an evaluation does may alter the semantic authority."""
+    before = {d.name: _descriptor_fingerprint(d) for d in all_metrics()}
+
+    rng = np.random.default_rng(41)
+    cohorts = [
+        (rng.binomial(1, 0.5, 200).astype(float), np.clip(rng.random(200), 0, 1)),
+        (np.zeros(30), np.full(30, 0.1)),                       # degenerate margin
+        (np.ones(30), np.full(30, 0.9)),                        # single class
+        (np.array([0.0, 1.0, 0.0, 1.0]), np.array([-0.4, 2.1, 0.3, 4.8])),  # not probabilities
+    ]
+    nonfinite = np.clip(rng.random(50), 0, 1)
+    nonfinite[:5] = np.nan
+    cohorts.append((rng.binomial(1, 0.5, 50).astype(float), nonfinite))
+
+    for y, p in cohorts:
+        evaluate_registered(_ctx(y, prob=p, score=p))
+
+    after = {d.name: _descriptor_fingerprint(d) for d in all_metrics()}
+    assert after == before, (
+        "evaluation mutated the descriptor graph; descriptors are the semantic "
+        "authority and an in-place edit would silently change what every LATER "
+        "evaluation means")
+
+
+# SHARED function and predicate objects. An earlier draft built a fresh lambda
+# inside `_probe_descriptor`, so `id(function)` differed on every call and every
+# fingerprint comparison was trivially unequal -- the guard passed whichever
+# field the fingerprint had stopped covering. Holding these fixed means the ONLY
+# difference between two probes is the field under test.
+def _PROBE_FN(ctx):
+    return 0.0
+
+
+def _PROBE_APPLICABILITY(ctx):
+    return None
+
+
+def _probe_descriptor(**overrides):
+    """A real descriptor, so the fingerprint is exercised rather than simulated."""
+    from genomic_variant_classifier.evaluation.registry import MetricDescriptor
+
+    spec = dict(
+        name="probe", function=_PROBE_FN,
+        required_inputs=frozenset({MetricInput.LABELS}),
+        applicability=_PROBE_APPLICABILITY,
+        result_kind=ResultKind.PREDICTION_METRIC,
+        display_name="Probe", description="probe descriptor",
+    )
+    spec.update(overrides)
+    return MetricDescriptor(**spec)
+
+
+def _with_threshold(tp):
+    def adapter(ctx):
+        return 0.0
+    adapter._threshold_parameters = tp
+    return adapter
+
+
+def test_the_immutability_audit_would_notice_a_mutation():
+    """Guards the guard -- REWRITTEN 2026-07-27 because the first version could
+    not fail.
+
+    It built `{**base, "field": other}` as a dict literal, which ADDS the key
+    even when `_descriptor_fingerprint` has stopped emitting it, so the
+    inequality held whether or not the field was covered. Removing three fields
+    from the fingerprint left the suite green. The sabotage matrix caught it.
+
+    The correct form compares the fingerprints of two REAL descriptors differing
+    in exactly one field, which exercises the function instead of simulating it.
+    """
+    from genomic_variant_classifier.evaluation.registry import MetricOutputKind
+
+    base = _probe_descriptor()
+    base_print = _descriptor_fingerprint(base)
+
+    variants = {
+        "parameters": _probe_descriptor(parameters={"n_bins": 20}),
+        "result_kind": _probe_descriptor(result_kind=ResultKind.POPULATION_STATISTIC),
+        "required_inputs": _probe_descriptor(
+            required_inputs=frozenset({MetricInput.LABELS, MetricInput.PROBABILITIES})),
+        "display_name": _probe_descriptor(display_name="Different"),
+        "description": _probe_descriptor(description="different description"),
+        "include_in_evaluation_report": _probe_descriptor(include_in_evaluation_report=False),
+        "output_kind": _probe_descriptor(output_kind=MetricOutputKind.INTERVAL),
+        "function": _probe_descriptor(function=lambda ctx: 1.0),
+        "applicability": _probe_descriptor(applicability=lambda ctx: True),
+        # these two intentionally DO introduce new objects, which is the
+        # difference under test for the identity fields
+        "threshold": _probe_descriptor(
+            function=_with_threshold(ThresholdParameters(
+                0.7, ThresholdOperator.GREATER, ThresholdSource.CALIBRATED))),
+    }
+    for field, variant in variants.items():
+        assert _descriptor_fingerprint(variant) != base_print, (
+            f"_descriptor_fingerprint does not cover {field!r}; the immutability "
+            "audit would not notice a mutation of it")
+
+    # THE THRESHOLD NEEDS A DIRECT STRUCTURAL ASSERTION, not a differential one.
+    # A threshold lives ON the kernel adapter, so any descriptor carrying a
+    # different threshold necessarily carries a different function object, and
+    # `function_id` alone would make the two fingerprints differ. The
+    # differential form therefore cannot isolate this field: it would report
+    # coverage that does not exist. Asserted structurally instead.
+    mcc_print = _descriptor_fingerprint(by_name("matthews_correlation_coefficient"))
+    assert "threshold" in mcc_print, (
+        "_descriptor_fingerprint does not emit the threshold at all; a silently "
+        "altered decision threshold would pass the immutability audit")
+    assert mcc_print["threshold"] == (0.5, ">=", "fixed_default"), (
+        f"the fingerprint reports {mcc_print['threshold']!r} rather than the "
+        "descriptor's declared threshold provenance")
+    assert _descriptor_fingerprint(_probe_descriptor())["threshold"] is None, (
+        "a descriptor without a threshold must report None rather than omitting "
+        "the key, so absence and 'not covered' stay distinguishable")
+
+
+def test_descriptor_parameters_resist_in_place_edits_during_evaluation():
+    """The specific defect the audit exists to catch, attempted directly."""
+    d = by_name("f1")
+    with pytest.raises(TypeError):
+        d.parameters["decision_threshold"] = 0.9      # type: ignore[index]
+    with pytest.raises(AttributeError):
+        d.required_inputs.add(MetricInput.SCORES)     # type: ignore[attr-defined]
+    assert d.parameters["decision_threshold"] == 0.5

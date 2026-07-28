@@ -3732,4 +3732,36 @@
 #   inside the test written to prevent it, one left the kernels
 #   zero-denominator branch unguarded, one was a malformed break. All closed.
 #
-3415
+#
+# 3415 -> 3419 (+4)  2026-07-27  commit 2b-3: the descriptor
+#   immutability audit, and a self-validating acceptance oracle.
+#
+#   2b-2 made descriptors the semantic authority. Two properties of that
+#   authority were asserted but never proved.
+#
+#   (1) EVALUATION MUST NOT MUTATE A DESCRIPTOR. Frozen in type, but parameters
+#   are reached through a mapping and ThresholdParameters can be edited through
+#   object.__setattr__. An in-place edit would silently change what every LATER
+#   evaluation means, and numerical tests never notice, because the run that did
+#   the mutating still produces the right answer. The fingerprint includes the
+#   OBJECT IDENTITY of kernel and predicate, because 2b-2 guarantees one shared
+#   ThresholdParameters and a value-preserving swap would defeat value equality.
+#
+#   (2) THE ORACLE MUST COME FROM THE TREE IT CLAIMS. registry_schema_at_capture
+#   is 1 and must NOT equal the current REGISTRY_SCHEMA_VERSION of 2. A stale
+#   fixture is a visible failure; a silently REGENERATED one is a photograph of
+#   the thing it was checking. The header was added without regenerating any
+#   result: fixtures digest 09713c3ee9279f5b8d4fafe3d5e953ef, unchanged.
+#
+#   TWO GUARDS THAT COULD NOT FAIL, both caught by sabotage: a dict-literal
+#   comparison ADDED the key under test, and a per-call lambda made every
+#   id() comparison trivially unequal. Removing three fingerprint fields had
+#   left the suite green.
+#
+#   NEW STANDING RULE, after the same failure recurred THREE times: every
+#   regression fixture targeting an algorithmic distinction shall first
+#   demonstrate that the injected defect changes observable behaviour.
+#
+#   Sabotage: 8 breaks, 8 detected, 0 undetected.
+#
+3419

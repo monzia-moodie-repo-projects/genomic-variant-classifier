@@ -1,3 +1,64 @@
+## 2026-07-27 -- the descriptor immutability audit (Tier 1 item 6, commit 2b-3)
+
+Ratchet 3415 -> 3419 (+4). Session record:
+docs/sessions/SESSION_2026-07-27_descriptor-immutability-audit.md
+
+Commit 2b-2 made descriptors the semantic authority. Two things about that
+authority were asserted but never proved, and this commit proves them.
+
+### Proved: evaluation never mutates a descriptor
+A descriptor is frozen in type, but parameters are reached through a mapping and
+a ThresholdParameters can be edited through object.__setattr__. An in-place edit
+during one evaluation would silently change what every LATER evaluation means,
+and ordinary numerical tests never notice, because the run that did the mutating
+still produces the right answer.
+
+The audit fingerprints every descriptor, runs every metric over five cohorts
+covering every result path, and compares. The fingerprint includes the OBJECT
+IDENTITY of the kernel and the applicability predicate, because 2b-2's guarantee
+is that one ThresholdParameters instance is shared by all three, and a swap
+preserving every value would defeat a value-only comparison.
+
+### Proved: the acceptance oracle came from the tree it claims
+registry_snapshot_2b1.json now records snapshot_version, captured_from_commit,
+registry_schema_at_capture, n_metrics and n_results. The decisive assertion is
+that registry_schema_at_capture (1) must NOT equal the current
+REGISTRY_SCHEMA_VERSION (2). A stale fixture is a visible failure; a silently
+REGENERATED one is a photograph of the thing it was checking, and passes for the
+one reason that guarantees nothing.
+
+The header was added WITHOUT regenerating a single result: the fixtures digest is
+09713c3ee9279f5b8d4fafe3d5e953ef before and after, the same digest the file
+carried when 2b-2 installed it.
+
+### TWO GUARDS THAT COULD NOT FAIL, both caught by sabotage
+The guard-the-guard built {**base, "field": other} as a dict literal, which ADDS
+the key even when the fingerprint has stopped emitting it, so the inequality held
+regardless -- removing three fields left the suite green. And the probe built a
+fresh lambda per call, so id(function) always differed and every comparison was
+trivially unequal. Both rewritten to exercise the function rather than simulate
+it.
+
+### THE SEPARABILITY PRINCIPLE, CODIFIED
+Three times in this series a test intended to prevent a defect could not observe
+it: the calibration interval convention, the duplicate calibration aggregation,
+and the immutability fingerprint. It is now a rule:
+
+    Every regression fixture targeting an algorithmic distinction shall first
+    demonstrate that the injected defect changes observable behaviour.
+
+### Sabotage
+Eight breaks, eight detected, zero undetected, including the two failure modes
+this commit exists to catch: a kernel mutating a descriptor mid-run, and the
+fixture regenerated on the current tree.
+
+### Process finding: delivered payloads are immutable once cut
+The scratch output directory was found holding NEWER copies of two 2b-2 files
+than those delivered. Nothing installed was affected -- the installer hashes at
+run time rather than trusting names, and all nine matched -- and the two fixture
+versions were compared field by field: 384 fields, zero differences. The only
+reason this was benign is that the installer verifies rather than trusts.
+
 ## 2026-07-27 -- registry vocabulary completion (Tier 1 item 6, commit 2b-2)
 
 Ratchet 3354 -> 3415 (+61). Session record:
