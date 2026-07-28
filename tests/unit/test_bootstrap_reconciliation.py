@@ -35,6 +35,7 @@ import pytest
 from genomic_variant_classifier.evaluation.capabilities import BootstrapUnit, MetricStatus
 from genomic_variant_classifier.evaluation.evaluator import (
     EVALUATION_REPORT_SCHEMA_VERSION,
+    EVALUATION_REPORT_SCHEMA_VERSION_TYPED,
     ClinicalEvaluator,
     EvaluationReport,
     derive_seed,
@@ -621,8 +622,18 @@ def test_non_finite_values_are_reported_with_their_path():
 
 
 def test_a_finite_payload_serializes(certified_report):
+    """UPDATED 2026-07-28 by commit 3b-2.
+
+    `evaluate` now emits the TYPED schema version, because the report carries the
+    registry results it projects its flat fields from. The property under test is
+    unchanged -- a finite payload serialises and round-trips its version -- but
+    the version a freshly computed report carries is no longer the historical one.
+
+    `asdict` is kept here deliberately: this test is about the flat payload, and
+    `to_serializable` is exercised where result_kind matters.
+    """
     text = dump_strict_json(asdict(certified_report), artifact="t")
-    assert json.loads(text)["schema_version"] == EVALUATION_REPORT_SCHEMA_VERSION
+    assert json.loads(text)["schema_version"] == EVALUATION_REPORT_SCHEMA_VERSION_TYPED
 
 
 def test_saved_reports_contain_null_never_nan(tmp_path, certified_report, withheld_report):
@@ -682,7 +693,7 @@ def test_printed_report_never_shows_nan_for_a_withheld_interval(withheld_report)
 # Group 13 -- schema versioning and legacy compatibility
 # --------------------------------------------------------------------------- #
 def test_schema_version_is_persisted(certified_report):
-    assert certified_report.schema_version == EVALUATION_REPORT_SCHEMA_VERSION == 2
+    assert certified_report.schema_version == EVALUATION_REPORT_SCHEMA_VERSION_TYPED == EVALUATION_REPORT_SCHEMA_VERSION_TYPED
 
 
 def test_version_two_round_trips_without_information_loss(tmp_path, certified_report):

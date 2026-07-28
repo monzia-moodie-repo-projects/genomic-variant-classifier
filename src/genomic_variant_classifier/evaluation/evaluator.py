@@ -61,6 +61,10 @@ from genomic_variant_classifier.evaluation.cluster_resolution import (
     ClusterResolution,
     resolve_gene_clusters,
 )
+from genomic_variant_classifier.evaluation.legacy_projection import project_legacy_fields
+from genomic_variant_classifier.evaluation.population import EvaluationPopulation
+from genomic_variant_classifier.evaluation.registry import (
+    MetricContext, evaluate_registered)
 from genomic_variant_classifier.evaluation.serialization import dump_strict_json
 
 # Schema version of the persisted evaluation report.
@@ -709,6 +713,7 @@ class ClinicalEvaluator:
         y_proba: np.ndarray,
         meta: Optional[pd.DataFrame] = None,
         model_name: str = "model",
+        source_id: Optional[str] = None,
     ) -> EvaluationReport:
         """
         Full evaluation pipeline.
@@ -735,12 +740,33 @@ class ClinicalEvaluator:
         )
 
         _ensure_sklearn()  # PHASE5: load sklearn symbols into module globals
-        # Core metrics
-        auroc = roc_auc_score(y, p)
-        auprc = average_precision_score(y, p)
-        mcc   = matthews_corrcoef(y, (p >= 0.5).astype(int))
-        f1    = f1_score(y, (p >= 0.5).astype(int))  # PHASE5: same 0.5 threshold as MCC
-        brier = float(np.mean((p - y) ** 2))
+
+        # THE REGISTRY IS NOW THE ONLY COMPUTATION PATH (2026-07-28, commit 3b-2).
+        #
+        # Until this commit the eight scalar fields were computed HERE --
+        # roc_auc_score, average_precision_score, matthews_corrcoef at a
+        # hard-coded 0.5, f1_score at the same hidden threshold, an inline Brier
+        # expression and a private calibration loop -- while the registry computed
+        # them again independently. Two implementations of one quantity is how
+        # they come to disagree, and this stack found three such disagreements by
+        # measurement before the duplication was removed.
+        #
+        # The flat fields are DERIVED VIEWS. `project_legacy_fields` is the single
+        # projection, and the abstract-syntax-tree guard refuses any direct kernel
+        # call or threshold comparison in this path.
+        #
+        # THE POPULATION. `evaluate` receives arrays, not a canonical table, so it
+        # has no source identity unless the caller supplies one. Attribution is
+        # OPTIONAL and never faked: with `source_id` the population is attributed
+        # and carries a membership fingerprint; without it it is unattributed, has
+        # NO fingerprint, and comparison against any other population returns
+        # UNKNOWN rather than a false equality.
+        population = EvaluationPopulation.full(
+            n, scope="attempted_cohort", source_id=source_id)
+        metric_results = evaluate_registered(MetricContext(
+            y_true=y.astype(float), y_prob=p.astype(float),
+            y_score=p.astype(float), population=population))
+        legacy = project_legacy_fields(metric_results)
 
         # Gene clusters, resolved ONCE and shared by both intervals, from the
         # same frame the breakdowns use. Deriving them separately per metric
@@ -768,7 +794,9 @@ class ClinicalEvaluator:
 
         # Calibration
         frac_pos, mean_pred = calibration_curve(y, p, n_bins=10, strategy="quantile")
-        ece, mce = self._calibration_error(y, p, n_bins=10)
+        # The expected and maximum calibration errors are projections now. The
+        # private loop that produced them has been deleted along with the rest of
+        # the duplicate computation.
 
         # Operating points
         op_90  = self._find_operating_point(y, p, target_sensitivity=0.90)
@@ -782,18 +810,32 @@ class ClinicalEvaluator:
             consequence_rows = self._consequence_breakdown(y, p, meta)
             gene_error_rows  = self._gene_error_analysis(y, p, meta, top_n=20)
 
+        # THE TYPED SURFACE IS NOW EMITTED (commit 3b-2).
+        #
+        # Commit 3a introduced schema version 3 as a CAPABILITY and stated that
+        # `evaluate` would not emit it until the report became a pure projection.
+        # It is one now: every flat scalar above is `project_legacy_fields`
+        # output, so the typed results that produced them are carried alongside
+        # rather than discarded. A report whose scalars are projections of a
+        # mapping it does not include would force every consumer wanting status,
+        # reason, population or certification to recompute them.
         report = EvaluationReport(
-            schema_version=EVALUATION_REPORT_SCHEMA_VERSION,
+            schema_version=EVALUATION_REPORT_SCHEMA_VERSION_TYPED,
+            metric_results=metric_results,
             model_name=model_name,
             n_samples=n, n_pathogenic=n_pos, n_benign=n_neg,
-            prevalence=round(n_pos / n, 4),
-            auroc=round(auroc, 5),
-            auprc=round(auprc, 5),
-            mcc=round(mcc, 5),
-            f1=round(f1, 5),
-            brier_score=round(brier, 5),
-            calibration_ece=round(ece, 5),
-            calibration_mce=round(mce, 5),
+            # DERIVED VIEWS, every one. None is computed here. The rounding lives
+            # in the projection policy, per field -- prevalence at four decimals
+            # and the rest at five -- EXTRACTED from what this constructor used to
+            # do rather than chosen.
+            prevalence=legacy["prevalence"],
+            auroc=legacy["auroc"],
+            auprc=legacy["auprc"],
+            mcc=legacy["mcc"],
+            f1=legacy["f1"],
+            brier_score=legacy["brier_score"],
+            calibration_ece=legacy["calibration_ece"],
+            calibration_mce=legacy["calibration_mce"],
             at_sensitivity_90=op_90,
             at_sensitivity_95=op_95,
             at_high_ppv=op_ppv,
@@ -895,38 +937,6 @@ class ClinicalEvaluator:
             prefix + "n_degenerate": result.n_degenerate,
             prefix + "finding": result.finding,
         }
-
-    def _calibration_error(
-        self,
-        y: np.ndarray,
-        p: np.ndarray,
-        n_bins: int = 10,
-    ) -> tuple[float, float]:
-        """Expected Calibration Error (ECE) and Maximum Calibration Error (MCE).
-
-        DELEGATES to `metrics.CalibrationBins`, 2026-07-27. This method previously
-        carried its own binning loop, and the kernel in `metrics.py` carried
-        another. The two disagreed about every probability sitting exactly on an
-        interior bin edge for seventeen days: the kernel used
-        `np.digitize(..., right=True)`, giving left-open `(lo, hi]` bins, while
-        this loop implemented the documented `[lo, hi)` with a closed top. On a
-        cohort where an edge-exact value shares a bin with values of the opposite
-        calibration sign the two returned 0.3242857 and 0.0642857, a relative
-        difference of 404%.
-
-        The convention implemented here was the correct one, so no published
-        figure changes. What changes is that there is now ONE binning rather than
-        two that happened to agree on the fixtures anyone had thought to write.
-        Each bin's contribution to ECE remains weighted by its occupancy.
-        """
-        from .metrics import CalibrationBins
-
-        y_arr = np.asarray(y, dtype=float)
-        p_arr = np.asarray(p, dtype=float)
-        if y_arr.size == 0:
-            return float("nan"), float("nan")
-        bins = CalibrationBins.from_predictions(y_arr, p_arr, n_bins=n_bins)
-        return bins.expected, bins.maximum
 
     def _find_operating_point(
         self,

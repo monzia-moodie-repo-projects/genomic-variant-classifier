@@ -41,7 +41,6 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from genomic_variant_classifier.evaluation.evaluator import ClinicalEvaluator
 from genomic_variant_classifier.evaluation.metrics import (
     CALIBRATION_BINNING,
     CALIBRATION_DEFINITION_VERSION,
@@ -69,6 +68,29 @@ def _superseded_expected(y, p, n_bins=N_BINS):
             total += (m.sum() / y.size) * abs(y[m].mean() - p[m].mean())
     return float(total)
 
+
+def _documented_convention_ece(y, p, n_bins=N_BINS):
+    """The documented convention, implemented INDEPENDENTLY of the kernel.
+
+    REPLACES `ClinicalEvaluator._calibration_error`, retired in commit 3b-2 when
+    the report became a projection. These tests were written to compare TWO
+    implementations against each other; with one retired the comparison would be
+    vacuous, so the kernel is now compared against an explicit reference written
+    from the CONVENTION rather than from the code -- half-open bins with the top
+    closed at 1.0, spelled out as masks so it shares no machinery with the thing
+    it checks.
+
+    Deleting these tests instead would have discarded the only coverage of the
+    interval convention at every interior edge, which is the defect that survived
+    seventeen days.
+    """
+    edges = np.linspace(0.0, 1.0, n_bins + 1)
+    total = 0.0
+    for b, (lo, hi) in enumerate(zip(edges[:-1], edges[1:])):
+        mask = (p >= lo) & (p <= hi) if b == n_bins - 1 else (p >= lo) & (p < hi)
+        if mask.any():
+            total += (mask.sum() / y.size) * abs(y[mask].mean() - p[mask].mean())
+    return float(total)
 
 def _separating_cohort_at(edge: float):
     """A cohort whose calibration error depends on which side of `edge` the
@@ -148,10 +170,12 @@ def test_both_statistics_are_read_from_one_binning():
 
     assert expected_calibration_error(y, p) == bins.expected
     assert maximum_calibration_error(y, p) == bins.maximum
-    ece, mce = ClinicalEvaluator._calibration_error(None, y, p, n_bins=N_BINS)
-    assert (ece, mce) == (bins.expected, bins.maximum), (
-        "the evaluator computes calibration separately from the kernel; that is "
-        "exactly how the two came to disagree about every interior edge")
+    # The evaluator no longer computes calibration at all -- commit 3b-2 retired
+    # its private loop and the report became a projection. What remains to assert
+    # is that the ONE surviving implementation matches an independent reference
+    # of the documented convention.
+    assert bins.expected == pytest.approx(_documented_convention_ece(y, p),
+                                          rel=1e-12, abs=1e-15)
 
 
 def test_the_maximum_never_falls_below_the_expected():
@@ -201,13 +225,14 @@ def test_the_two_paths_agree_at_every_interior_edge(edge):
     older agreement module does."""
     y, p = _separating_cohort_at(edge)
 
-    documented, _ = ClinicalEvaluator._calibration_error(None, y, p, n_bins=N_BINS)
+    documented = _documented_convention_ece(y, p)
     superseded = _superseded_expected(y, p)
     assert not np.isclose(documented, superseded, rtol=1e-9, atol=1e-12), (
         f"the cohort at edge {edge} does not distinguish the two conventions, so "
         "this assertion would hold whichever one the kernel implemented")
 
-    assert expected_calibration_error(y, p, n_bins=N_BINS) == documented, (
+    assert expected_calibration_error(y, p, n_bins=N_BINS) == pytest.approx(
+        documented, rel=1e-12, abs=1e-15), (
         f"at interior edge {edge} the kernel matched the superseded left-open "
         f"convention ({superseded}) rather than the documented one ({documented})")
 

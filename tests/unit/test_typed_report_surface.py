@@ -427,9 +427,28 @@ def test_no_report_field_moved():
                 movements.append(f"{label}/{field_name}: {was!r} -> {now!r}")
 
     assert compared == 480, f"expected 480 comparisons, made {compared}"
-    assert not movements, (
-        f"{len(movements)} report field value(s) MOVED in a commit that must move "
-        f"none:\n  " + "\n  ".join(movements[:15]))
+
+    # THE DECLARED MOVEMENT SET, added 2026-07-28 by commit 3b-2.
+    #
+    # This oracle showed ZERO movements through 3a, 3b-0, 3b-1a and 3b-1b.
+    # Commit 3b-2 moves exactly one field, and moves it in every cohort:
+    # `schema_version` advances from 2 to 3 because the report now CARRIES the
+    # typed results rather than merely being able to. That is not a numerical
+    # change; it is the report stating what it contains, which is the one thing
+    # a schema version is for.
+    #
+    # Declared BY IDENTITY. A count alone would accept ten movements in the
+    # wrong fields, and the whole purpose of this commit is that no measured
+    # value changes when the report becomes a projection.
+    declared = {f"{cohort}/schema_version" for cohort in snapshot["cohorts"]}
+    observed = {m.split(":")[0] for m in movements}
+    undeclared = observed - declared
+    assert not undeclared, (
+        f"{len(undeclared)} UNDECLARED report field movement(s):\n  "
+        + "\n  ".join(sorted(undeclared)))
+    assert observed == declared, (
+        "the declared movement set expects changes that did not occur: "
+        f"{sorted(declared - observed)}")
 
 
 def test_exactly_one_report_field_was_added():
@@ -441,14 +460,23 @@ def test_exactly_one_report_field_was_added():
     assert removed == []
 
 
-def test_evaluate_still_emits_the_historical_schema_version():
-    """3a introduces version 3 as a CAPABILITY. `evaluate()` does not emit it
-    until 3b makes the report a projection, so schema introduction and
-    computational retirement stay independently falsifiable."""
+def test_evaluate_now_emits_the_typed_schema_version():
+    """INVERTED 2026-07-28 by commit 3b-2. This asserted the opposite.
+
+    Commit 3a introduced version 3 as a CAPABILITY and required that `evaluate`
+    NOT emit it, so that schema introduction and computational retirement stayed
+    independently falsifiable. That separation did its work: 3a moved nothing,
+    and 3b-2 moves exactly one field.
+
+    Now that the report is a pure projection of the typed results, withholding
+    them would force every consumer wanting status, reason, population or
+    certification to recompute what the report already has.
+    """
+    from genomic_variant_classifier.evaluation.registry import names
+
     evaluator = ClinicalEvaluator(n_bootstrap=0, random_state=42)
     y, p = _rebuild_cohorts()["balanced"]
     report = evaluator.evaluate(y, p, model_name="probe")
-    assert report.schema_version == EVALUATION_REPORT_SCHEMA_VERSION == 2
-    assert dict(report.metric_results) == {}, (
-        "3a must not populate the typed mapping; that is 3b's change, and doing "
-        "it here would make two computation paths live at once")
+    assert report.schema_version == EVALUATION_REPORT_SCHEMA_VERSION_TYPED == 3
+    assert set(report.metric_results) == set(names()), (
+        "a version-3 report must carry every registered typed result")

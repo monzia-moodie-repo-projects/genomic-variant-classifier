@@ -116,11 +116,20 @@ def test_kernel_counts_predictions_of_exactly_one(pure_leaf):
 
 def test_evaluator_counts_predictions_of_exactly_one(pure_leaf):
     """Repaired 2026-07-10. Pinned so it cannot regress."""
-    from genomic_variant_classifier.evaluation.evaluator import ClinicalEvaluator
-
     y, p = pure_leaf
-    ece, _mce = ClinicalEvaluator._calibration_error(None, y, p, n_bins=10)
-    assert ece == pytest.approx(_reference_ece(y, p, n_bins=10), abs=1e-9)
+    # REWRITTEN 2026-07-28 (commit 3b-2). This asserted on
+    # `ClinicalEvaluator._calibration_error`, the evaluator's private calibration
+    # loop, which was DELETED when the report became a projection. The property
+    # under test is unchanged -- predictions of exactly 1.0 must be counted -- but
+    # the surviving surface is the REPORT FIELD, so that is what is asserted.
+    # Deleting the test would have discarded the only coverage of the top-bin
+    # repair on the reporting path.
+    ece = _report_calibration_ece(y, p)
+    # Compared at the REPORT's own resolution. The projection rounds this field
+    # to five decimals -- a per-field contract extracted from the schema-version-2
+    # implementation, not chosen -- so an unrounded reference would differ by
+    # exactly that rounding and the test would be asserting the wrong thing.
+    assert ece == pytest.approx(_round5(_reference_ece(y, p, n_bins=10)), abs=1e-9)
 
 
 def test_benchmark_aligns_counts_with_the_bins_they_weight(saturated, sparse_saturated):
@@ -147,6 +156,26 @@ def test_benchmark_refuses_rather_than_misweighting(saturated):
 # --------------------------------------------------------------------------- #
 # INTERIOR EDGES, added 2026-07-27
 # --------------------------------------------------------------------------- #
+def _round5(value):
+    """The report's own resolution for calibration fields."""
+    return round(float(value), 5)
+
+
+def _report_calibration_ece(y, p):
+    """The expected calibration error as the REPORT now carries it.
+
+    Since commit 3b-2 the report is a projection of the typed registry results,
+    so this exercises the whole path -- registry computation, compatibility
+    projection, per-field rounding -- rather than a private method that no longer
+    exists. Bootstrap is disabled so the call is deterministic.
+    """
+    from genomic_variant_classifier.evaluation.evaluator import ClinicalEvaluator
+
+    report = ClinicalEvaluator(n_bootstrap=0, random_state=42).evaluate(
+        np.asarray(y, dtype=float), np.asarray(p, dtype=float),
+        model_name="calibration_probe")
+    return report.calibration_ece
+
 @pytest.fixture
 def interior_edge():
     """Mass sitting EXACTLY on an interior decade edge, sharing its bin with
@@ -196,7 +225,19 @@ def test_evaluator_matches_the_documented_convention_on_an_interior_edge(interio
     from genomic_variant_classifier.evaluation.evaluator import ClinicalEvaluator
 
     y, p = interior_edge
-    ece, _mce = ClinicalEvaluator._calibration_error(None, y, p, n_bins=10)
-    assert ece == pytest.approx(_reference_ece(y, p, n_bins=10, closed_top=True),
-                                rel=1e-12, abs=1e-15)
+    # REWRITTEN 2026-07-28 (commit 3b-2). This asserted on
+    # `ClinicalEvaluator._calibration_error`, the evaluator's private calibration
+    # loop, which was DELETED when the report became a projection. The property
+    # under test is unchanged -- predictions of exactly 1.0 must be counted -- but
+    # the surviving surface is the REPORT FIELD, so that is what is asserted.
+    # Deleting the test would have discarded the only coverage of the top-bin
+    # repair on the reporting path.
+    ece = _report_calibration_ece(y, p)
+    # Compared at the REPORT's own resolution. The projection rounds this field
+    # to five decimals -- a per-field contract extracted from the schema-version-2
+    # implementation, not chosen -- so an unrounded reference would differ by
+    # exactly that rounding and the test would be asserting the wrong thing.
+    assert ece == pytest.approx(
+        _round5(_reference_ece(y, p, n_bins=10, closed_top=True)),
+        rel=1e-12, abs=1e-15)
 

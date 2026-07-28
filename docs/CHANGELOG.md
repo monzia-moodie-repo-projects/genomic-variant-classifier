@@ -1,3 +1,66 @@
+## 2026-07-28 -- the authority switch and evaluator retirement (Tier 1 item 6, commit 3b-2)
+
+Ratchet 3529 -> 3545 (+16). Session record:
+docs/sessions/SESSION_2026-07-28_authority-switch-and-retirement.md
+
+THE LAST COMMIT OF TIER 1 ITEM 6. The registry is now the only computation path.
+
+### Retired from the report path
+roc_auc_score, average_precision_score, matthews_corrcoef at a hard-coded 0.5,
+f1_score at the same hidden threshold, an inline Brier expression, a private
+calibration loop, and the _calibration_error method itself. Verified structurally:
+none of the seven signatures survives in evaluate().
+
+### Acceptance
+480 report field values compared; 10 movements, ALL schema_version 2 -> 3, one
+per cohort, declared BY IDENTITY; 470 byte-identical. Not one measured number
+changed when the report stopped computing them. The scikit-learn warning count
+fell from nine to three -- the six that vanished were raised by code that no
+longer exists.
+
+### Why the diff could be almost entirely subtractive
+Because equivalence was proved BEFORE authority transferred: the shadow phase
+took the mismatch count 6 -> 2 -> 0 across 3b-1a and 3b-1b. Had the switch come
+first, those six would have appeared as moved values in a mostly-deletion diff
+with six plausible causes.
+
+### The guards that keep it retired
+An abstract-syntax-tree guard for duplication that is WRITTEN, and counting
+wrappers for duplication that is EXECUTED. Neither alone suffices: static
+analysis cannot see a dynamic lookup, counting cannot see dead code a future edit
+will wake. The static guard is narrowed to the report-construction path, because
+_find_operating_point legitimately sweeps thresholds. Carried item (o) discharged.
+
+COMPOSITION IS NOT DUPLICATION: the first counting guard failed on auprc, and
+correctly -- auprc_gain is defined as auprc - no_skill_auprc. The guard now
+declares an explicit composition budget and asserts it is fully consumed.
+
+### FOUR DEFECTS FOUND
+1. The scikit-learn-free import chain broke: 2b-2's threshold adapters were built
+   by factories invoked at MODULE SCOPE, performing the very import the lazy
+   pattern exists to defer. Latent until evaluator imported registry. My own
+   check passed because sklearn was already loaded in that process; the landed
+   test uses a clean subprocess.
+2. THE TYPED SURFACE WAS COMPUTED AND DISCARDED. 3a said 3b would emit schema 3;
+   the report became a projection and metric_results was never populated. Found
+   only by chasing a surviving mutation -- no guard asserted on the report's
+   typed surface.
+3. The calibration adapters read a module constant rather than their own declared
+   parameters, so a descriptor could DECLARE twenty bins and COMPUTE with ten.
+   Now bound to its declaration, as the threshold metrics already were.
+4. I reported twelve failing tests as "eleven, plus one to diagnose". There was
+   no fifteenth; it was a miscount.
+
+### Twelve tests rewritten, never deleted
+Deleting them would have discarded the only coverage of the interval convention
+at every interior edge. The binning tests now compare against an INDEPENDENT
+reference written from the convention; the evaluator tests now assert on the
+REPORT FIELD, which brought the five-decimal rounding contract into scope.
+
+### Sabotage
+Eight mutations, eight detected, zero undetected. The first run left two: one a
+real gap that concealed defect 2, one a matrix-scope error that exposed defect 3.
+
 ## 2026-07-28 -- the derived single-class AUPRC rule (Tier 1 item 6, commit 3b-1b)
 
 Ratchet 3517 -> 3529 (+12). Session record:

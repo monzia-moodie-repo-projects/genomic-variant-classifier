@@ -753,12 +753,28 @@ _CALIBRATION_PARAMETERS = {
 }
 
 
-def _threshold_adapter(kernel, tp: ThresholdParameters):
+def _threshold_adapter(kernel_name: str, tp: ThresholdParameters):
+    """Bind a kernel BY NAME, resolving it at call time.
+
+    THE IMPORT MUST NOT HAPPEN AT MODULE SCOPE. `metrics` imports scikit-learn,
+    and this package guarantees that `evaluation/__init__` -- and therefore
+    `registry` -- imports without it. Every other consumer in this module already
+    defers the import inside a function body for exactly that reason.
+
+    The threshold adapters were the exception: they were built by a factory
+    invoked at module scope, so `from .metrics import ...` ran at import. That was
+    latent while nothing imported `registry` at module level, and became a real
+    defect the moment `evaluator` did. Binding by NAME keeps the descriptor
+    declaration eager -- which the registry validator requires -- while leaving
+    the kernel resolution lazy.
+    """
     def adapter(ctx: MetricContext) -> float:
+        from . import metrics
+        kernel = getattr(metrics, kernel_name)
         return kernel(ctx.y_true, ctx.y_prob, threshold=tp.threshold,
                       operator=tp.operator.value)
     adapter._threshold_parameters = tp
-    adapter.__name__ = f"_{kernel.__name__}_adapter"
+    adapter.__name__ = f"_{kernel_name}_adapter"
     return adapter
 
 
@@ -772,9 +788,12 @@ def _requires_nondegenerate_confusion(tp: ThresholdParameters, *, metric: str):
     performance would make a classifier that never discriminated
     indistinguishable from one that discriminated and found nothing.
     """
-    from .metrics import apply_decision_threshold, is_probability
-
     def predicate(ctx: MetricContext) -> Applicability:
+        # Deferred for the same reason as the adapter above: this factory runs at
+        # module scope while building the descriptor table, so an import here
+        # would pull scikit-learn into `evaluation/__init__`.
+        from .metrics import apply_decision_threshold
+
         base = _requires_probabilities(ctx)
         if not base.applicable:
             return base
@@ -835,10 +854,27 @@ def _requires_reference_labels_only(ctx: MetricContext) -> Applicability:
     return APPLICABLE
 
 
-def _mce(ctx: MetricContext) -> float:
-    from .metrics import maximum_calibration_error
-    return maximum_calibration_error(ctx.y_true, ctx.y_prob,
-                                     n_bins=_CALIBRATION_PARAMETERS["n_bins"])
+def _calibration_adapter(kernel_name: str):
+    """Bind a calibration kernel to the bin count its DESCRIPTOR declares.
+
+    Until 2026-07-28 these adapters read the module constant directly, so a
+    descriptor could DECLARE one bin count and COMPUTE with another and only an
+    indirect test would notice. The threshold metrics were never exposed to that:
+    commit 2b-2 bound them to one shared `ThresholdParameters` object, asserted
+    by identity. Calibration is now bound the same way -- the declaration is the
+    parameter, not a description of one.
+    """
+    def adapter(ctx: MetricContext) -> float:
+        from . import metrics
+        kernel = getattr(metrics, kernel_name)
+        return kernel(ctx.y_true, ctx.y_prob,
+                      n_bins=adapter._declared_parameters["n_bins"])
+    adapter._declared_parameters = _CALIBRATION_PARAMETERS
+    adapter.__name__ = f"_{kernel_name}_adapter"
+    return adapter
+
+
+_mce = _calibration_adapter("maximum_calibration_error")
 
 
 def _prevalence(ctx: MetricContext) -> float:
@@ -846,18 +882,8 @@ def _prevalence(ctx: MetricContext) -> float:
     return prevalence(ctx.y_true)
 
 
-def _make_mcc_adapter():
-    from .metrics import matthews_correlation_coefficient
-    return _threshold_adapter(matthews_correlation_coefficient, _MCC_THRESHOLD)
-
-
-def _make_f1_adapter():
-    from .metrics import f1_at_threshold
-    return _threshold_adapter(f1_at_threshold, _F1_THRESHOLD)
-
-
-_mcc = _make_mcc_adapter()
-_f1 = _make_f1_adapter()
+_mcc = _threshold_adapter("matthews_correlation_coefficient", _MCC_THRESHOLD)
+_f1 = _threshold_adapter("f1_at_threshold", _F1_THRESHOLD)
 
 
 _PM = ResultKind.PREDICTION_METRIC
@@ -1184,6 +1210,20 @@ def _certification_eligibility(d: MetricDescriptor, ctx: MetricContext) -> tuple
         return False, "single_class_cohort"
     if ctx.n == 0:
         return False, "empty_cohort"
+    # AN UNATTRIBUTED POPULATION CANNOT SUPPORT A CERTIFIED CLAIM (2026-07-28).
+    #
+    # A certified claim asserts something about a NAMED set of rows. An
+    # unattributed population has no source identity, so its membership
+    # fingerprint is absent and comparison against any other population returns
+    # UNKNOWN rather than SAME or DIFFERENT. A claim that cannot be tied to an
+    # identifiable cohort is not certifiable, however sound its arithmetic.
+    #
+    # This does NOT make the value wrong or the evaluation useless: unattributed
+    # evaluation is a legitimate exploratory mode, and every metric still reports
+    # its status, value and support. It makes the ADMISSIBILITY explicit rather
+    # than leaving a reader to infer it from an absent fingerprint.
+    if not ctx.population.is_attributed:
+        return False, "unattributed_population"
     return True, None
 
 

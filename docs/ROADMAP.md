@@ -2391,3 +2391,57 @@ No comparison of values can separate them; ProjectionDecision can.
 The diff should be almost entirely subtractive. Any movement is then attributable
 specifically to the authority switch or to incomplete retirement, not to
 construction of the projection machinery.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-28 (Tier 1 item 6, commit 3b-2) -- ITEM COMPLETE
+=====================================================================
+
+  commit 3b-1b 2579234  derived single-class AUPRC rule            LANDED
+  commit 3b-2  (this)   authority switch and evaluator retirement  LANDED
+
+TIER 1 ITEM 6 IS COMPLETE. Fourteen commits, each one independently falsifiable:
+
+  d3851a3  MetricResult to the vocabulary layer
+  a6df4ef  the typed immutable registry
+  974d426  controlled metadata vocabulary
+  b22012a  fail-closed prediction-input contract
+  951fd82  the EvaluationPopulation contract
+  683b514  the calibration binning convention
+  2c4aa9e  canonical metric descriptor vocabulary
+  15ad3f0  descriptor immutability audit
+  132bcc2  typed report surface and schema version 3
+  b6bf19f  population attribution
+  6029d74  calibration applicability and the compatibility interpreter
+  2579234  the derived single-class AUPRC rule
+  (this)   the authority switch and evaluator retirement
+
+ONE computation path. ONE binning. ONE projection. Every scalar in the report is
+a derived view of a typed result carrying its own status, reason, applicability
+verdict, population and certification eligibility.
+
+CARRIED ITEM (o) DISCHARGED -- the evaluator abstract-syntax-tree guard now
+exists, narrowed to the report-construction path.
+
+NEW STANDING RULE -- PROVE EQUIVALENCE BEFORE TRANSFERRING AUTHORITY. Running the
+new implementation in SHADOW against a frozen oracle, and requiring exact
+equality before the switch, is what made this retirement a mostly-deletion diff
+whose acceptance came back clean on the first attempt. Six disagreements were
+found and resolved as SEPARATE scientific questions rather than as six
+simultaneous suspects.
+
+NEW STANDING RULE -- A DECLARATION MUST GOVERN THE BEHAVIOUR IT DECLARES. The
+calibration adapters read a module constant rather than their own declared
+parameters, so a descriptor could declare one bin count and compute with another.
+Every adapter now reads its own declaration, as the threshold metrics already
+did.
+
+NEW CARRIED ITEM (s) -- DEFERRED IMPORTS ARE A LOAD-BEARING CONTRACT, NOT A
+STYLE. registry.py defers its metrics import inside every predicate and adapter
+so the registry imports without scikit-learn. 2b-2 broke that latently by
+building adapters at module scope; it became a real defect the moment evaluator
+imported registry. Any new module-scope construction in registry.py must bind
+kernels by NAME and resolve at call time. NOT A GATE, but a rule for reviewers.
+
+REMAINING TIER 1 WORK is unaffected by this item and resumes from the roadmap's
+three-tier ordering.

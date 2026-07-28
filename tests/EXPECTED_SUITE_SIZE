@@ -3883,4 +3883,36 @@
 #   only 3b-1a's declared set, nothing new. Sabotage: 9 mutations, 9 detected,
 #   0 undetected, clean on the first pass.
 #
-3529
+#
+# 3529 -> 3545 (+16)  2026-07-28  commit 3b-2: the authority switch and
+#   evaluator retirement. TIER 1 ITEM 6 COMPLETE, fourteen commits.
+#
+#   The registry is now the ONLY computation path. Deleted from the report:
+#   roc_auc_score, average_precision_score, matthews_corrcoef at a hard-coded
+#   0.5, f1_score at the same hidden threshold, an inline Brier expression, a
+#   private calibration loop, and the _calibration_error method itself.
+#
+#   ACCEPTANCE: 480 report values, 10 movements, ALL schema_version 2 -> 3,
+#   declared BY IDENTITY. 470 byte-identical. Not one measured number changed
+#   when the report stopped computing them. scikit-learn warnings fell 9 -> 3.
+#
+#   The diff could be almost entirely subtractive because equivalence was proved
+#   BEFORE authority transferred: shadow mismatches 6 -> 2 -> 0 across the two
+#   preceding commits, resolving six disagreements as separate scientific
+#   questions rather than six simultaneous suspects.
+#
+#   GUARDS: an abstract-syntax-tree guard for duplication that is WRITTEN and
+#   counting wrappers for duplication that is EXECUTED. Neither alone suffices.
+#   Composition is distinguished from duplication by an explicit budget, because
+#   auprc_gain legitimately calls auprc.
+#
+#   FOUR DEFECTS FOUND: the scikit-learn-free import chain broke (2b-2 built
+#   adapters at module scope, performing the import the lazy pattern defers);
+#   THE TYPED SURFACE WAS COMPUTED AND DISCARDED, found only by chasing a
+#   surviving mutation; the calibration adapters read a module constant rather
+#   than their own declared parameters; and a miscount of my own.
+#
+#   Twelve tests referencing the retired method were REWRITTEN, not deleted.
+#   Sabotage: 8 mutations, 8 detected, 0 undetected.
+#
+3545
