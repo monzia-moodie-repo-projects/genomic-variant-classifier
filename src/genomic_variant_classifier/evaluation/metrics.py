@@ -401,6 +401,151 @@ def log_loss(y: Sequence, prob: Sequence, eps: float = 1e-15) -> float:
     return float(-np.mean(y * np.log(p) + (1 - y) * np.log(1.0 - p)))
 
 
+# --------------------------------------------------------------------------- #
+# THE CALIBRATION BINNING TABLE
+#
+# One binning, derived once, from which BOTH the expected and the maximum
+# calibration error are read. Until 2026-07-27 the two statistics were computed
+# by two separate implementations -- this module binned one way and
+# `ClinicalEvaluator._calibration_error` another -- and they disagreed about
+# every probability sitting exactly on an interior edge.
+#
+# THE DEFECT, MEASURED. The kernel used `np.digitize(..., right=True)`, which
+# makes EVERY bin `(lo, hi]` -- left-open. The first line of the docstring below
+# says "TOP BIN CLOSED", describing `[lo, hi)` with only the final bin closed,
+# which is what the evaluator implemented. Every edge-exact probability therefore
+# landed one bin LOWER in the kernel than documented, for seventeen days.
+#
+# On a cohort where an edge-exact value shares a bin with non-edge values of the
+# OPPOSITE calibration sign, the two returned 0.3242857 and 0.0642857 -- a
+# relative difference of 404%.
+#
+# WHY IT SURVIVED SEVENTEEN DAYS. The expected calibration error is
+#
+#     (1/N) * sum_b | sum_{i in b} (y_i - p_i) |
+#
+# which is INVARIANT to regrouping whenever every merged group shares the sign of
+# (accuracy - confidence): combining same-sign groups cannot change the total.
+# Ordinary fixtures land in that regime by default, and the fixtures in
+# tests/unit/test_calibration_implementations_agree.py contain no interior-edge
+# value at all -- so that module separated the TOP-bin definitions and was
+# structurally unable to separate these.
+#
+# REACHABILITY. Continuous scores and the thirteen-model ensemble mean put NO
+# rows on an interior decade edge. Probabilities averaged over ten folds put 55%
+# there, and probabilities rounded to one decimal 60%.
+#
+# No published figure moves: every published calibration number came from the
+# evaluator, which was already correct, and the evaluator now reads this table
+# rather than carrying a second implementation of it.
+# --------------------------------------------------------------------------- #
+CALIBRATION_BINNING = "equal_width"
+CALIBRATION_INTERVAL_CONVENTION = "[lo, hi) with the top bin closed at 1.0"
+CALIBRATION_DEFINITION_VERSION = 2
+
+
+def equal_width_bin_indices(values: Sequence, n_bins: int = 10) -> "np.ndarray":
+    """Bin index for each probability under the documented convention.
+
+    `[lo, hi)` for every bin except the last, which is closed at 1.0 so that
+    predictions of exactly 1.0 -- pure decision-tree and ensemble leaves -- are
+    counted rather than silently dropped.
+
+    `searchsorted(edges, v, side="right") - 1` places an edge-exact value in the
+    bin it OPENS, and the clip closes the top. Expressed as a named function
+    rather than an inline expression because the convention is a scientific
+    decision, it has been got wrong once already, and a named function is
+    somewhere a validation and a test can attach.
+
+    Fails closed on non-finite and out-of-range input rather than silently
+    placing such values in the first or last bin, which is what an unguarded
+    clip would do.
+    """
+    v = np.asarray(values, dtype=float).ravel()
+    if not isinstance(n_bins, (int, np.integer)) or isinstance(n_bins, bool):
+        raise TypeError(f"n_bins must be an integer, got {type(n_bins).__name__}")
+    if n_bins < 1:
+        raise ValueError(f"n_bins must be at least 1, got {n_bins}")
+    if not np.isfinite(v).all():
+        raise ValueError(
+            "equal_width_bin_indices: values contain non-finite entries; an "
+            "unguarded clip would place them in the first or last bin and the "
+            "calibration figure would silently describe a different population")
+    if v.size and (v.min() < 0.0 or v.max() > 1.0):
+        raise ValueError(
+            f"equal_width_bin_indices: values must lie in [0, 1]; observed "
+            f"[{v.min()}, {v.max()}]. Clipping them would move mass into the "
+            "edge bins and misstate calibration there.")
+    edges = np.linspace(0.0, 1.0, n_bins + 1)
+    idx = np.searchsorted(edges, v, side="right") - 1
+    return np.clip(idx, 0, n_bins - 1).astype(np.int64)
+
+
+@dataclass(frozen=True)
+class CalibrationBins:
+    """Occupied calibration bins, and the statistics read from them.
+
+    The expected and maximum calibration errors are two summaries of ONE table.
+    Computing them separately is how they come to disagree, so they are derived
+    here from a single binning rather than by two functions that each bin again.
+
+    Only OCCUPIED bins are retained. An empty bin has no accuracy and no
+    confidence, and inventing zero for either would drag the maximum toward the
+    bin's own midpoint and pull the weighted mean toward nothing.
+    """
+
+    bin_index: "np.ndarray"
+    accuracy: "np.ndarray"
+    confidence: "np.ndarray"
+    weight: "np.ndarray"
+    n_bins: int
+    n_observations: int
+
+    @classmethod
+    def from_predictions(cls, y: Sequence, prob: Sequence,
+                         n_bins: int = 10) -> "CalibrationBins":
+        y_arr, p_arr = _clean(y, prob)
+        idx = equal_width_bin_indices(p_arr, n_bins)
+        occupied = np.unique(idx)
+        n = y_arr.size
+        acc = np.array([y_arr[idx == b].mean() for b in occupied], dtype=float)
+        conf = np.array([p_arr[idx == b].mean() for b in occupied], dtype=float)
+        wgt = np.array([(idx == b).sum() / n for b in occupied], dtype=float)
+        return cls(bin_index=occupied.astype(np.int64), accuracy=acc,
+                   confidence=conf, weight=wgt, n_bins=int(n_bins),
+                   n_observations=int(n))
+
+    @property
+    def gap(self) -> "np.ndarray":
+        return np.abs(self.accuracy - self.confidence)
+
+    @property
+    def expected(self) -> float:
+        """Occupancy-weighted mean gap."""
+        return float(np.sum(self.weight * self.gap)) if self.bin_index.size else float("nan")
+
+    @property
+    def maximum(self) -> float:
+        """Largest gap over OCCUPIED bins."""
+        return float(self.gap.max()) if self.bin_index.size else float("nan")
+
+    @property
+    def n_occupied(self) -> int:
+        return int(self.bin_index.size)
+
+    def definition(self) -> dict:
+        """How these numbers were produced, for the artifact.
+
+        A calibration figure without its binning convention is not reproducible:
+        the same predictions under `(lo, hi]` and under `[lo, hi)` gave 0.3242857
+        and 0.0642857 on a measured cohort.
+        """
+        return {"binning": CALIBRATION_BINNING,
+                "interval_convention": CALIBRATION_INTERVAL_CONVENTION,
+                "n_bins": self.n_bins,
+                "metric_definition_version": CALIBRATION_DEFINITION_VERSION}
+
+
 def expected_calibration_error(y: Sequence, prob: Sequence, n_bins: int = 10) -> float:
     """Equal-width binning, TOP BIN CLOSED. |accuracy - confidence| weighted by occupancy.
 
@@ -433,15 +578,35 @@ def expected_calibration_error(y: Sequence, prob: Sequence, n_bins: int = 10) ->
     y, p = _clean(y, prob)
     if y.size == 0:
         return float("nan")
-    edges = np.linspace(0.0, 1.0, n_bins + 1)
-    idx = np.clip(np.digitize(p, edges[1:-1], right=True), 0, n_bins - 1)
-    ece = 0.0
-    for b in range(n_bins):
-        m = idx == b
-        if not m.any():
-            continue
-        ece += (m.sum() / y.size) * abs(y[m].mean() - p[m].mean())
-    return float(ece)
+    # Reads the shared table rather than summing again. Binning once but summing
+    # twice still leaves two implementations that can drift: before this change
+    # the two agreed on every bin and still differed by 3.5e-18 through
+    # floating-point summation order alone. One table, one summation, no residual.
+    return CalibrationBins.from_predictions(y, prob, n_bins).expected
+
+
+def maximum_calibration_error(y: Sequence, prob: Sequence, n_bins: int = 10) -> float:
+    """Largest |accuracy - confidence| over OCCUPIED bins.
+
+    Reads the same `CalibrationBins` table the expected calibration error reads,
+    so the two cannot come to disagree about which rows fell in which bin. That
+    is not hypothetical: two independent binnings in this codebase disagreed
+    about every interior edge for seventeen days.
+
+    Empty bins are excluded rather than counted as a perfect gap of zero or an
+    infinite one. A bin nobody landed in carries no evidence either way.
+
+    Returns NaN if `prob` is not a probability, matching
+    `expected_calibration_error`, so a raw feature yields NaN from both rather
+    than NaN from one and an exception from the other.
+    """
+    if not is_probability(prob):
+        return float("nan")
+    _require_finite_probabilities(prob, metric_name="maximum_calibration_error")
+    y_arr, _p = _clean(y, prob)
+    if y_arr.size == 0:
+        return float("nan")
+    return CalibrationBins.from_predictions(y, prob, n_bins).maximum
 
 
 @dataclass(frozen=True)

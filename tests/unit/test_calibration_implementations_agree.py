@@ -20,6 +20,16 @@ defects in six:
 Reading these functions did not catch either defect; evaluating them on a fixture designed to
 separate the definitions did. These tests are that fixture, kept.
 
+  INTERIOR-EDGE BLINDNESS -- ADDED 2026-07-27, and the reason this note exists.
+  Every fixture above places its mass at 0.0, 1.0 or somewhere strictly inside a bin. NONE
+  of them puts a probability exactly on an INTERIOR decade edge, so this module separated
+  the TOP-bin definitions and was structurally incapable of separating `[lo, hi)` from
+  `(lo, hi]`. It stayed green for seventeen days while metrics.expected_calibration_error
+  used `np.digitize(..., right=True)` -- left-open everywhere -- and disagreed with
+  evaluator._calibration_error about every interior edge, by 404% on a constructed cohort.
+  A test that cannot fail on the axis its name implies is not evidence, so an interior-edge
+  fixture is now part of this module.
+
 The expectations are DERIVED from a reference implemented here, at each implementation's own
 default bin count -- never hardcoded -- so a change of bin count is not mistaken for a defect
 and a change of definition cannot pass by editing a constant.
@@ -132,3 +142,61 @@ def test_benchmark_refuses_rather_than_misweighting(saturated):
     assert "counts_all" in source, "the aligned selection was removed"
     assert "raise ValueError" in source, (
         "the bin/count length guard was removed; a future mismatch would again be silent")
+
+
+# --------------------------------------------------------------------------- #
+# INTERIOR EDGES, added 2026-07-27
+# --------------------------------------------------------------------------- #
+@pytest.fixture
+def interior_edge():
+    """Mass sitting EXACTLY on an interior decade edge, sharing its bin with
+    values of the opposite calibration sign.
+
+    Every other fixture in this module places mass at 0.0, 1.0 or strictly inside
+    a bin, which is why none of them could separate `[lo, hi)` from `(lo, hi]`.
+    """
+    p = np.array([0.42] * 40 + [0.47] * 40 + [0.50] * 120 + [0.53] * 40 + [0.58] * 40)
+    y = np.array([1.0] * 20 + [0.0] * 20 + [1.0] * 20 + [0.0] * 20 +
+                 [1.0] * 110 + [0.0] * 10 + [1.0] * 4 + [0.0] * 36 +
+                 [1.0] * 4 + [0.0] * 36)
+    return y, p
+
+
+def _left_open_ece(y, p, n_bins: int) -> float:
+    """The superseded convention: `(lo, hi]` for EVERY bin. Reference only."""
+    edges = np.linspace(0.0, 1.0, n_bins + 1)
+    idx = np.clip(np.digitize(p, edges[1:-1], right=True), 0, n_bins - 1)
+    total = 0.0
+    for b in range(n_bins):
+        mask = idx == b
+        if mask.any():
+            total += (mask.sum() / y.size) * abs(y[mask].mean() - p[mask].mean())
+    return float(total)
+
+
+def test_the_interior_edge_fixture_separates_the_two_conventions(interior_edge):
+    """Guards the guard. If this fails, the assertions below prove nothing about
+    interior edges -- which was this module's condition for seventeen days."""
+    y, p = interior_edge
+    documented = _reference_ece(y, p, n_bins=10, closed_top=True)
+    left_open = _left_open_ece(y, p, n_bins=10)
+    assert not np.isclose(documented, left_open, rtol=1e-9, atol=1e-12)
+    assert abs(documented - left_open) > 0.25
+
+
+def test_kernel_matches_the_documented_convention_on_an_interior_edge(interior_edge):
+    from genomic_variant_classifier.evaluation.metrics import expected_calibration_error
+
+    y, p = interior_edge
+    assert expected_calibration_error(y, p, n_bins=10) == pytest.approx(
+        _reference_ece(y, p, n_bins=10, closed_top=True), rel=1e-12, abs=1e-15)
+
+
+def test_evaluator_matches_the_documented_convention_on_an_interior_edge(interior_edge):
+    from genomic_variant_classifier.evaluation.evaluator import ClinicalEvaluator
+
+    y, p = interior_edge
+    ece, _mce = ClinicalEvaluator._calibration_error(None, y, p, n_bins=10)
+    assert ece == pytest.approx(_reference_ece(y, p, n_bins=10, closed_top=True),
+                                rel=1e-12, abs=1e-15)
+

@@ -2045,3 +2045,47 @@ closed a gap found by the previous commit's own sabotage matrix. It was caught b
 the MEASURED collection delta (25 -> 19 where 27 was expected) and by nothing
 else. Anchored edits must bound both ends; ratchet moves are measured, never
 computed.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-27 (Tier 1 item 6, commit 2b-1)
+=====================================================================
+
+  commit 1    d3851a3  MetricResult to the vocabulary layer         LANDED
+  commit 2    a6df4ef  the typed immutable metric registry          LANDED
+  commit 2b*  974d426  controlled metadata vocabulary               LANDED
+  commit 2a   b22012a  fail-closed prediction-input contract        LANDED
+  commit 2a-1 951fd82  the evaluation population contract           LANDED
+  commit 2b-1 (this)   the calibration binning convention           LANDED
+  commit 2b-2 --       register the remaining point estimates       NEXT
+  commit 3    --       schema-v3 report integration
+
+2b WAS SPLIT, for the third time on the same principle: a behaviour change and an
+architectural addition must not share a commit, or a regression cannot be
+localised. 2b-1 changes calibration numbers in the kernel. 2b-2 registers
+descriptors and must change none.
+
+DEFECT CLOSED. metrics.expected_calibration_error used np.digitize(right=True),
+giving (lo, hi] bins, while its own first line documents [lo, hi) with a closed
+top -- the convention the evaluator has implemented since 2026-07-10. Seventeen
+days of disagreement about every interior edge. Measured separation 404.44%. No
+published figure moves.
+
+CARRIED ITEM (k) DISCHARGED. test_calibration_implementations_agree now contains
+an interior-edge fixture and a proof that it separates the two conventions.
+
+STRUCTURAL FINDING. Unifying the BINNING was not sufficient: the kernel and the
+evaluator still differed by 3.5e-18 because each retained its own SUMMATION over
+the shared bins. Two summations are two implementations. Both now read
+CalibrationBins, and the difference is exactly zero. When removing a duplicate
+implementation, the unit to remove is the whole computation, not the step that
+happened to be wrong.
+
+2b-2 SCOPE, unchanged and queued:
+  * descriptors for the Matthews correlation coefficient, F1, the maximum
+    calibration error and prevalence;
+  * a ResultKind category vocabulary distinguishing a metric OF PREDICTIONS from
+    a POPULATION STATISTIC;
+  * an optional `parameters` mapping on MetricDescriptor, merged into result
+    metadata, carrying `threshold` and `n_bins` -- turning the 0.5 buried at
+    evaluator.py:481-482 into a declared part of each metric's identity.

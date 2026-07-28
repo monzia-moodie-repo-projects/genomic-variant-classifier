@@ -642,32 +642,31 @@ class ClinicalEvaluator:
         p: np.ndarray,
         n_bins: int = 10,
     ) -> tuple[float, float]:
+        """Expected Calibration Error (ECE) and Maximum Calibration Error (MCE).
+
+        DELEGATES to `metrics.CalibrationBins`, 2026-07-27. This method previously
+        carried its own binning loop, and the kernel in `metrics.py` carried
+        another. The two disagreed about every probability sitting exactly on an
+        interior bin edge for seventeen days: the kernel used
+        `np.digitize(..., right=True)`, giving left-open `(lo, hi]` bins, while
+        this loop implemented the documented `[lo, hi)` with a closed top. On a
+        cohort where an edge-exact value shares a bin with values of the opposite
+        calibration sign the two returned 0.3242857 and 0.0642857, a relative
+        difference of 404%.
+
+        The convention implemented here was the correct one, so no published
+        figure changes. What changes is that there is now ONE binning rather than
+        two that happened to agree on the fixtures anyone had thought to write.
+        Each bin's contribution to ECE remains weighted by its occupancy.
         """
-        Expected Calibration Error (ECE) and Maximum Calibration Error (MCE).
-        Each bin's contribution to ECE is weighted by its fraction of total samples.
-        """
-        bin_edges = np.linspace(0, 1, n_bins + 1)
-        ece = 0.0
-        mce = 0.0
-        n = len(y)
-        _n_bins_used = len(bin_edges) - 1
-        for _b, (lo, hi) in enumerate(zip(bin_edges[:-1], bin_edges[1:])):
-            # Close the FINAL bin to [lo, 1.0] so predictions of exactly 1.0 (pure tree/ensemble
-            # leaves) are counted, not silently dropped. Half-open [lo, hi) elsewhere.
-            # Fixed 2026-07-10: top-bin bug under-reported ECE (see docs/incidents).
-            if _b == _n_bins_used - 1:
-                mask = (p >= lo) & (p <= hi)
-            else:
-                mask = (p >= lo) & (p < hi)
-            if mask.sum() == 0:
-                continue
-            accuracy   = float(y[mask].mean())
-            confidence = float(p[mask].mean())
-            bin_weight = mask.sum() / n
-            err = abs(accuracy - confidence)
-            ece += bin_weight * err
-            mce = max(mce, err)
-        return float(ece), float(mce)
+        from .metrics import CalibrationBins
+
+        y_arr = np.asarray(y, dtype=float)
+        p_arr = np.asarray(p, dtype=float)
+        if y_arr.size == 0:
+            return float("nan"), float("nan")
+        bins = CalibrationBins.from_predictions(y_arr, p_arr, n_bins=n_bins)
+        return bins.expected, bins.maximum
 
     def _find_operating_point(
         self,

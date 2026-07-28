@@ -1,3 +1,58 @@
+## 2026-07-27 -- the calibration binning convention (Tier 1 item 6, commit 2b-1)
+
+Ratchet 3318 -> 3354 (+36). Session record:
+docs/sessions/SESSION_2026-07-27_calibration-binning-convention.md
+
+2b was SPLIT. The binning repair changes numbers in the kernel; registering the
+remaining point estimates is additive and must change none. Landing the binning
+first means any figure that moves during 2b-2 is a signal, not noise -- the
+argument recorded in registry.py's docstring and already applied to 2a/2a-1.
+
+### Fixed -- the kernel contradicted its own docstring
+expected_calibration_error opened with "Equal-width binning, TOP BIN CLOSED" --
+[lo, hi) with only the final bin closed -- and used np.digitize(..., right=True),
+which is (lo, hi] for EVERY bin. Every probability exactly on an interior decade
+edge landed one bin low. ClinicalEvaluator._calibration_error had implemented the
+documented convention since the 2026-07-10 top-bin repair, so the two disagreed
+for seventeen days. Measured separation on a constructed cohort: 0.3242857 against
+0.0642857, 404.44%.
+
+It survived because the statistic is invariant to regrouping when merged groups
+share the sign of (accuracy - confidence) -- now pinned as a test -- and because
+test_calibration_implementations_agree contained NO interior-edge value at all.
+
+No published figure moves: every published calibration number came from the
+evaluator, which was already correct.
+
+### Added
+- equal_width_bin_indices: searchsorted(side="right") - 1 then clip. A named
+  function, because the convention is a scientific decision that has been got
+  wrong once and needs somewhere for a validation and a test to attach. Fails
+  closed on non-finite and out-of-range input rather than clipping them into the
+  edge bins.
+- CalibrationBins: ONE table. Expected and maximum are two summaries of it. Only
+  OCCUPIED bins are retained -- an empty bin has no accuracy and no confidence.
+  definition() carries binning, interval_convention, n_bins and
+  metric_definition_version with the numbers.
+- maximum_calibration_error kernel, reading the same table.
+
+### ONE BINNING WAS NOT ENOUGH; ONE SUMMATION WAS NEEDED
+After both paths binned through the shared table they still differed by 3.5e-18,
+because the kernel retained its own summation loop. Binning once but summing twice
+still leaves two implementations that can drift. The kernel now reads the table:
+worst difference afterwards 0.000e+00, bit-identical. The evaluator no longer
+contains a binning loop at all.
+
+### Carried item (k) DISCHARGED
+test_calibration_implementations_agree gained an interior-edge fixture, a proof
+that it separates the two conventions, and assertions for both paths. A test that
+cannot fail on the axis its name implies is not evidence.
+
+### Sabotage
+Ten breaks, ten detected, zero undetected -- clean on the first pass, with
+substantial detection counts (17, 5, 2, 2, 17, 1, 11, 1, 1, 15) rather than
+marginal ones.
+
 ## 2026-07-27 -- the evaluation population contract (Tier 1 item 6, commit 2a-1)
 
 Ratchet 3273 -> 3318 (+45). Session record:

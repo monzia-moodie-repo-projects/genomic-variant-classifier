@@ -3678,4 +3678,32 @@
 #   sabotage matrix. All restored verbatim. A COMPUTED ratchet would have
 #   recorded the intended number and lost them silently.
 #
-3318
+#
+# 3318 -> 3354 (+36)  2026-07-27  commit 2b-1: the calibration
+#   binning convention, unified into one table.
+#
+#   expected_calibration_error documented "[lo, hi) with the top bin
+#   closed" and implemented np.digitize(right=True), which is (lo, hi]
+#   for EVERY bin. Every probability exactly on an interior decade edge
+#   landed one bin low. The evaluator had implemented the documented
+#   convention since 2026-07-10, so the two disagreed for seventeen days.
+#   Measured separation on a constructed cohort: 0.3242857 against
+#   0.0642857, 404.44%.
+#
+#   It hid because the statistic is invariant to regrouping when merged
+#   groups share the sign of (accuracy - confidence), and because
+#   test_calibration_implementations_agree held NO interior-edge value at
+#   all. That module now holds one -- carried item (k), discharged.
+#
+#   ONE BINNING WAS NOT ENOUGH. After both paths binned through the shared
+#   table they still differed by 3.5e-18, because the kernel kept its own
+#   SUMMATION loop. Two summations are two implementations. Both now read
+#   CalibrationBins and the difference is exactly zero.
+#
+#   No published figure moves: every published calibration number came
+#   from the evaluator, which was already correct.
+#
+#   Sabotage: 10 breaks, 10 detected, 0 undetected -- clean on the first
+#   pass, with detection counts 17/5/2/2/17/1/11/1/1/15.
+#
+3354
