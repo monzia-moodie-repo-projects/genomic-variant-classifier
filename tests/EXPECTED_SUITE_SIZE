@@ -3945,4 +3945,36 @@
 #
 #   Sabotage: 6 mutations, 6 detected, 0 undetected.
 #
-3558
+#
+# 3558 -> 3589 (+31)  2026-07-28  CI-t: report-path input gates.
+#
+#   Prerequisite to CI-q, which could not be built on a loop that already died
+#   unpredictably during scoring.
+#
+#   Five scikit-learn calls consume the same y and p and DISAGREE about what is
+#   invalid: non-finite input makes roc_curve raise and calibration_curve
+#   RETURN; out-of-range input makes calibration_curve raise and roc_curve
+#   return. Validation therefore precedes dispatch.
+#
+#   THREE DEFECTS IN LANDED CODE, ascending in danger. roc_curve raises and
+#   aborts the report after the point metrics succeeded. calibration_curve
+#   neither raises nor warns -- it returns a degenerate one-point curve carrying
+#   NaN that fails only at persistence. And THE OPERATING-POINT SWEEP SHIPPED A
+#   WRONG NUMBER: p >= t is FALSE for a NaN, so unusable predictions became
+#   predicted negatives and the reported threshold moved from (0.6366, sens
+#   0.90, spec 1.00, ppv 1.00) to (0.0000, 0.50, 0.00, 0.33).
+#
+#   Ten call sites gated. Refusal is component-level, so a corrupt model still
+#   yields a complete report. A `scores` channel validated WITHOUT a range
+#   restriction: the same array is refused as a probability, accepted as a score.
+#
+#   Every production caller obtains its array from predict_proba, so enforcing
+#   the unit interval is a correctness fix with zero compatibility break.
+#
+#   FIVE DEFECTS IN MY OWN WORK, each caught by measurement -- including gating
+#   two of three operating points, and a fallback that left the registry ranking
+#   an invalid array while the curve refused it.
+#
+#   Sabotage: 11 mutations, 11 detected, 0 undetected.
+#
+3589

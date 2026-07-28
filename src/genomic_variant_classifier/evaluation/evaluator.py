@@ -61,6 +61,8 @@ from genomic_variant_classifier.evaluation.cluster_resolution import (
     ClusterResolution,
     resolve_gene_clusters,
 )
+from genomic_variant_classifier.evaluation.input_validation import (
+    validate_probabilities, validate_ranking_scores, validate_reference_labels)
 from genomic_variant_classifier.evaluation.legacy_projection import project_legacy_fields
 from genomic_variant_classifier.evaluation.population import EvaluationPopulation
 from genomic_variant_classifier.evaluation.registry import (
@@ -714,6 +716,8 @@ class ClinicalEvaluator:
         meta: Optional[pd.DataFrame] = None,
         model_name: str = "model",
         source_id: Optional[str] = None,
+        *,
+        scores: Optional[np.ndarray] = None,
     ) -> EvaluationReport:
         """
         Full evaluation pipeline.
@@ -741,6 +745,83 @@ class ClinicalEvaluator:
 
         _ensure_sklearn()  # PHASE5: load sklearn symbols into module globals
 
+        # --- INPUT GATES, BEFORE ANY LIBRARY CALL (2026-07-28, CI-t) ----------
+        #
+        # Five scikit-learn calls consume this pair and disagree about what is
+        # invalid. Measured: non-finite probabilities make `roc_curve` raise and
+        # `calibration_curve` RETURN a degenerate one-point curve carrying NaN;
+        # values outside the unit interval make `calibration_curve` raise and
+        # `roc_curve` return happily. Letting the library decide which defect
+        # becomes which status means the status is decided by a library that does
+        # not agree with itself.
+        #
+        # REFUSAL IS COMPONENT-LEVEL. A corrupt probability array must not abort
+        # the whole report: the typed registry results, the population, the model
+        # identity and the prevalence are all still valid, and a report-wide
+        # exception would discard scientifically sound information.
+        #
+        # THE TWO CURVES ARE GATED SEPARATELY because they are different
+        # functions with different prerequisites -- `roc_curve` at one line and
+        # `precision_recall_curve` at the next -- and on an all-positive cohort
+        # they already diverge, one warning while the other returns normally.
+        label_check = validate_reference_labels(y, n_expected=n)
+        probability_check = validate_probabilities(p, n_expected=n)
+
+        # THE RANKING CHANNEL (2026-07-28, CI-t).
+        #
+        # `scores` is where a genuine ranking score belongs: a decision-function
+        # output, a log-odds, an ensemble margin. It is validated WITHOUT a range
+        # restriction, because a score is an ordering and not a magnitude on any
+        # particular scale.
+        #
+        # When it is absent the ranking quantities fall back to `y_proba`, which
+        # is then validated AS A PROBABILITY. That asymmetry is the point: an
+        # out-of-range array supplied as `y_proba` is invalid model output, while
+        # the same array supplied as `scores` is a perfectly good ordering. The
+        # caller declares which they meant, and the report stops having to guess.
+        if scores is not None:
+            candidate = np.asarray(scores, dtype=float)
+            ranking_check = validate_ranking_scores(candidate, n_expected=n)
+            # REFUSED MEANS NOT FORWARDED. A first version validated the array
+            # and passed it to the registry anyway, so a mis-sized `scores`
+            # raised a ValueError from the context's own length check -- turning
+            # a refusal this gate exists to make graceful back into an exception
+            # three layers down.
+            ranking_values = candidate if ranking_check.ok else None
+        else:
+            # NO FALLBACK WHEN THE PROBABILITY IS INVALID.
+            #
+            # A first version set `ranking_values = p` unconditionally here, and
+            # that left the seam open: the registry received the out-of-range
+            # array in `y_score`, ranked it happily, and reported auroc 1.0 while
+            # the curve computed from the same values was withheld. One input,
+            # two layers, opposite verdicts -- which is the incoherence this
+            # commit exists to remove, surviving one level down.
+            #
+            # An out-of-range array supplied as `y_proba` is invalid model
+            # output. The caller who meant a ranking score has `scores`.
+            ranking_check = probability_check
+            ranking_values = p if probability_check.ok else None
+
+        # THE CURVES ARE GATED ON THE PROBABILITY CHANNEL, NOT THE RANKING ONE.
+        #
+        # A first version gated them on ranking, reasoning that an out-of-range
+        # array still ranks perfectly well -- which is true of a SCORE. But this
+        # array arrived through a parameter named `y_proba`. Letting it through
+        # to `roc_curve` while `calibration_curve` refuses it would preserve
+        # exactly the incoherent contract this commit removes:
+        #
+        #     the same array, invalid as a probability for calibration
+        #                     yet accepted as a probability for the receiver
+        #                     operating characteristic curve
+        #
+        # `roc_curve` accepts it because it consumes SCORES, not because the
+        # array is a valid probability. When a `scores` channel exists, ranking
+        # quantities will compute from it; until then, a caller who supplied an
+        # out-of-range array in `y_proba` supplied invalid model output.
+        ranking_usable = label_check.ok and ranking_check.ok
+        probability_usable = label_check.ok and probability_check.ok
+
         # THE REGISTRY IS NOW THE ONLY COMPUTATION PATH (2026-07-28, commit 3b-2).
         #
         # Until this commit the eight scalar fields were computed HERE --
@@ -763,9 +844,24 @@ class ClinicalEvaluator:
         # UNKNOWN rather than a false equality.
         population = EvaluationPopulation.full(
             n, scope="attempted_cohort", source_id=source_id)
+        # THE TWO REGISTRY CHANNELS RECEIVE DIFFERENT ARRAYS (2026-07-28, CI-t).
+        #
+        # Until this commit both received `p`. The registry has always drawn the
+        # right distinction -- `auroc` and `auprc` consume `y_score` and rank
+        # scale-free, while every probability-dependent metric refuses an
+        # out-of-range array with `values_are_not_probabilities` -- but feeding
+        # one array into both channels meant an out-of-range `y_proba` was ranked
+        # as though it were a score, while the report path withheld the curve
+        # computed from the same values. Two layers, one input, opposite
+        # verdicts.
+        #
+        # `ranking_values` is `scores` when the caller supplied it and `p`
+        # otherwise, so the registry now receives what the caller actually meant.
         metric_results = evaluate_registered(MetricContext(
             y_true=y.astype(float), y_prob=p.astype(float),
-            y_score=p.astype(float), population=population))
+            y_score=(np.asarray(ranking_values, dtype=float)
+                     if ranking_values is not None else None),
+            population=population))
         legacy = project_legacy_fields(metric_results)
 
         # Gene clusters, resolved ONCE and shared by both intervals, from the
@@ -788,12 +884,33 @@ class ClinicalEvaluator:
         ci_fields.update(self._interval_fields("auroc", y, p, roc_auc_score, cluster))
         ci_fields.update(self._interval_fields("auprc", y, p, average_precision_score, cluster))
 
-        # Curves
-        fpr, tpr, _  = roc_curve(y, p)
-        prec, rec, _ = precision_recall_curve(y, p)
+        if ranking_usable:
+            fpr, tpr, _ = roc_curve(y, ranking_values)
+        else:
+            fpr, tpr = np.array([]), np.array([])
+            logger.warning(
+                "receiver operating characteristic curve withheld: %s (%s)",
+                (label_check.reason or ranking_check.reason),
+                (label_check.detail or ranking_check.detail or ""))
 
-        # Calibration
-        frac_pos, mean_pred = calibration_curve(y, p, n_bins=10, strategy="quantile")
+        if ranking_usable:
+            prec, rec, _ = precision_recall_curve(y, ranking_values)
+        else:
+            prec, rec = np.array([]), np.array([])
+
+        # Calibration is gated on the PROBABILITY channel, not the ranking one.
+        # This is the call that would otherwise ship a NaN-poisoned artifact,
+        # since it neither raises nor warns on non-finite input.
+        if probability_usable:
+            frac_pos, mean_pred = calibration_curve(
+                y, p, n_bins=10, strategy="quantile")
+        else:
+            frac_pos, mean_pred = np.array([]), np.array([])
+            logger.warning(
+                "calibration curve withheld: %s (%s). The reliability diagram "
+                "is omitted rather than computed over an undeclared cohort.",
+                (label_check.reason or probability_check.reason),
+                (label_check.detail or probability_check.detail or ""))
         # The expected and maximum calibration errors are projections now. The
         # private loop that produced them has been deleted along with the rest of
         # the duplicate computation.
@@ -895,6 +1012,40 @@ class ClinicalEvaluator:
         """
         prefix = f"{metric}_ci_"
 
+        # GATED 2026-07-28 (CI-t). `roc_auc_score` and `average_precision_score`
+        # both RAISE on non-finite input, so an unusable prediction array would
+        # abort the whole report from inside the bootstrap -- after the point
+        # metrics had already been computed successfully.
+        #
+        # Refused here as INSUFFICIENT_SUPPORT rather than raising, using the
+        # same shape the unusable-cluster branch below already returns, so a
+        # reader sees one vocabulary for "no interval, and why".
+        # Gated on the PROBABILITY channel for the same reason as the curves:
+        # this array arrived as `y_proba`, so out-of-range values are invalid
+        # model output rather than legitimate ranking scores.
+        ranking_check = validate_probabilities(p, n_expected=len(y))
+        label_check = validate_reference_labels(y, n_expected=len(y))
+        if not (ranking_check.ok and label_check.ok):
+            reason = ranking_check.reason or label_check.reason
+            logger.warning(
+                "certified interval for %s withheld: %s (%s). Point metrics are "
+                "unaffected.", metric, reason,
+                ranking_check.detail or label_check.detail or "")
+            return {
+                prefix + "lo": None,
+                prefix + "hi": None,
+                prefix + "status": MetricStatus.FAILED,
+                prefix + "resampling_unit": None,
+                prefix + "stratified": None,
+                prefix + "cluster_source": cluster.source,
+                prefix + "partition_verified": cluster.partition_verified,
+                prefix + "certification_eligible": False,
+                prefix + "n_requested": 0,
+                prefix + "n_valid": 0,
+                prefix + "n_degenerate": 0,
+                prefix + "finding": reason,
+            }
+
         if not cluster.usable:
             return {
                 prefix + "lo": None,
@@ -944,7 +1095,41 @@ class ClinicalEvaluator:
         p: np.ndarray,
         target_sensitivity: float,
     ) -> Optional[OperatingPoint]:
-        """Find the threshold closest to the target sensitivity (recall)."""
+        """Find the threshold closest to the target sensitivity (recall).
+
+        GATED 2026-07-28 (CI-t), after measuring what this sweep does to an
+        unusable prediction.
+
+        `preds = (p >= t)` evaluates FALSE for a NaN, so every non-finite
+        probability silently became a PREDICTED NEGATIVE. Measured on a cohort
+        where 100 of 200 true positives had unusable predictions: the operating
+        point moved from (threshold 0.6366, sensitivity 0.90, specificity 1.00,
+        positive predictive value 1.0000) to (threshold 0.0000, sensitivity 0.50,
+        specificity 0.00, positive predictive value 0.3333). No exception, no
+        warning -- a plausible clinical decision threshold describing a cohort
+        nobody declared.
+
+        The sweep also assumes the probability SCALE: it walks thresholds across
+        [0, 1], so an array outside that range would place every row on one side
+        of every threshold. Both conditions are refused here rather than
+        producing a number.
+        """
+        validation = validate_probabilities(p, n_expected=len(y))
+        if not validation.ok:
+            logger.warning(
+                "operating point at sensitivity %.2f withheld: %s (%s). A "
+                "threshold sweep over unusable predictions would report a "
+                "decision threshold for a cohort nobody declared.",
+                target_sensitivity, validation.reason, validation.detail or "")
+            return None
+        label_validation = validate_reference_labels(y, n_expected=len(y))
+        if not label_validation.ok:
+            logger.warning(
+                "operating point at sensitivity %.2f withheld: %s (%s)",
+                target_sensitivity, label_validation.reason,
+                label_validation.detail or "")
+            return None
+
         best: Optional[OperatingPoint] = None
         best_diff = float("inf")
         for t in np.linspace(0, 1, 1000):
@@ -987,10 +1172,32 @@ class ClinicalEvaluator:
         """
         Highest-sensitivity threshold where PPV ≥ min_ppv.
 
-        Walk thresholds from HIGH→LOW (conservative→liberal).
-        Track the last threshold seen where ppv ≥ min_ppv — that is the
+        Walk thresholds from HIGH->LOW (conservative->liberal).
+        Track the last threshold seen where ppv >= min_ppv -- that is the
         most permissive threshold that never drops below min_ppv.
+
+        GATED 2026-07-28 (CI-t), for the same reason as the sensitivity sweep and
+        found the same way. Gating the two sensitivity targets alone left THIS
+        one still reporting a decision threshold on a cohort where 100 of 400
+        predictions were unusable: sensitivity 0.5, specificity 0.875, positive
+        predictive value 0.8 -- entirely plausible, entirely wrong, because
+        `p >= t` counts every non-finite prediction as a predicted negative.
+
+        Three operating points, three call sites, one contract. Gating two of
+        three would have read as though the class were closed.
         """
+        validation = validate_probabilities(p, n_expected=len(y))
+        if not validation.ok:
+            logger.warning(
+                "high positive-predictive-value operating point withheld: %s "
+                "(%s)", validation.reason, validation.detail or "")
+            return None
+        label_validation = validate_reference_labels(y, n_expected=len(y))
+        if not label_validation.ok:
+            logger.warning(
+                "high positive-predictive-value operating point withheld: %s "
+                "(%s)", label_validation.reason, label_validation.detail or "")
+            return None
         thresholds = np.sort(np.unique(p))[::-1]  # high → low
         best: Optional[OperatingPoint] = None
 

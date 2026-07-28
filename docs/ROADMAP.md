@@ -2488,3 +2488,50 @@ NEW STANDING RULE -- A DEFERRED ITEM MUST CARRY A PREDICATE. An item recorded in
 prose is a comment; an item recorded with a runnable check is a gate. Items that
 genuinely cannot be checked from the repository are listed as such, so that their
 uncheckability is a stated fact rather than an accident.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-28 -- report-path input gates (CI-t)
+=====================================================================
+
+  carried-item register  0b50dcc  LANDED
+  CI-t (this)            report-path input gates                LANDED
+  CI-q                   shared-population model comparison     NEXT
+
+CI-t IS A PREREQUISITE, NOT A DETOUR. CI-q's shared-population design requires
+that every submitted model completes into a report object. It could not be built
+on a loop that raised from inside scikit-learn's validation layer, mid-iteration,
+discarding every model already evaluated.
+
+THE MEASURED BASIS. Five library calls consume the same (y, p) and disagree about
+what is invalid -- non-finite input makes roc_curve raise and calibration_curve
+return; out-of-range input makes calibration_curve raise and roc_curve return.
+Validation therefore precedes dispatch rather than translating whatever the
+library happens to do.
+
+THE WORST DEFECT WAS NOT AN EXCEPTION. The operating-point sweep computed
+`p >= t`, which is FALSE for a NaN, so unusable predictions silently became
+predicted negatives and the reported clinical decision threshold described a
+cohort nobody declared.
+
+NEW STANDING RULE -- SCORES AND PROBABILITIES ARE DIFFERENT INPUTS. An array
+outside [0, 1] ranks perfectly well and is not a probability. `scores` is
+validated without a range restriction; `y_proba` is validated as a probability.
+One array may not be both, because that is what produced the contract where the
+same values were an invalid probability for calibration and an accepted
+probability for the receiver operating characteristic curve.
+
+NEW STANDING RULE -- A REFUSED INPUT IS NOT FORWARDED. Validating an array and
+passing it on anyway turns a refusal into an exception three layers down.
+
+CI-q SCOPE, unchanged and now unblocked:
+  * one EvaluationPopulation constructed per comparison, passed to every model;
+  * ComparisonPopulationRelation, with SHARED_BY_CONSTRUCTION distinct from
+    VERIFIED_BY_FINGERPRINT;
+  * three certification axes kept separate -- like-for-like, attributed,
+    certifiable;
+  * an artifact-local comparison_population_key that is NOT a source identity;
+  * compare_membership left exactly as it is, because UNKNOWN is the correct
+    answer to the question it asks;
+  * the ranking refused entirely when any model lacks a valid ranking metric,
+    rather than silently ranking the survivors.

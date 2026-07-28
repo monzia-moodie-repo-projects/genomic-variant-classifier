@@ -1,3 +1,57 @@
+## 2026-07-28 -- report-path input gates (CI-t)
+
+Ratchet 3558 -> 3589 (+31). Session record:
+docs/sessions/SESSION_2026-07-28_report-input-gates.md
+
+Prerequisite to CI-q, which could not be built on a loop that already died
+unpredictably during scoring.
+
+### Why validation must precede dispatch
+Five scikit-learn calls consume the same (y, p) pair and disagree about what is
+invalid. Non-finite probabilities make roc_curve RAISE and calibration_curve
+RETURN; values outside the unit interval make calibration_curve RAISE and
+roc_curve return. The library cannot be allowed to decide which defect becomes
+which status, because it does not agree with itself.
+
+### THREE DEFECTS IN LANDED CODE, ASCENDING IN DANGER
+1. roc_curve raises and aborts the report AFTER the point metrics succeeded.
+2. calibration_curve neither raises nor warns -- it returns a degenerate
+   one-point curve carrying NaN, which fails only at persistence, naming the
+   curve rather than the corrupt model.
+3. THE OPERATING-POINT SWEEP SHIPPED A WRONG NUMBER. `p >= t` is FALSE for NaN,
+   so unusable predictions became predicted negatives. With 100 of 200 true
+   positives corrupted the reported threshold moved from (0.6366, sens 0.90,
+   spec 1.00, ppv 1.00) to (0.0000, sens 0.50, spec 0.00, ppv 0.33) -- a
+   plausible clinical decision threshold over a cohort nobody declared.
+
+### Built
+input_validation.py with three composable validators; ten call sites gated;
+component-level refusal so a corrupt model still yields a complete report; and a
+`scores` channel validated without a range restriction, so the same array is
+refused as a probability and accepted as a score.
+
+### A caller measurement made this a correctness fix
+Every production caller obtains its array from predict_proba(...)[:, 1]. There
+are NO callers passing arbitrary scores through y_proba, so enforcing the unit
+interval breaks nothing and the contemplated staged migration was unnecessary.
+
+### FIVE DEFECTS IN MY OWN WORK, each caught by measurement
+Gating two of three operating points left the third reporting. Gating the curves
+on the ranking channel preserved the incoherence. An ordering violation defined a
+variable after its use. The fallback left the seam open, so the registry ranked
+an invalid array as auroc 1.0 while the curve refused it. And a refused `scores`
+array was still forwarded, turning a graceful refusal back into a ValueError.
+
+AND TWICE MY PROSE CONTRADICTED THE NUMBER BESIDE IT -- claiming an output was
+finite when it read NaN, and claiming the seam was closed when the row read
+flat=1.0 typed=ok. The most dangerous hazard in this project, because unlike a
+failing test it produces a confident, plausible, wrong statement.
+
+### Sabotage
+Eleven mutations, eleven detected, zero undetected. The first run left two, both
+coverage gaps for the two pieces written LAST -- the tests had been written
+against an earlier design and never caught up.
+
 ## 2026-07-28 -- the verified carried-item register
 
 Ratchet 3545 -> 3558 (+13). Session record:

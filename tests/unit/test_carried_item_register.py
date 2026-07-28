@@ -163,10 +163,35 @@ def _discharged_o() -> bool:
     return imports_ast and walks_a_tree
 
 
+def _discharged_t() -> bool:
+    """Every library call in the report path is preceded by an input gate.
+
+    Checked structurally rather than by grep: the gate must be REACHED before
+    dispatch, so the validators must be imported AND the report path must consult
+    them. A comment mentioning validation would satisfy a substring check.
+    """
+    from genomic_variant_classifier.evaluation import evaluator, input_validation
+
+    for name in ("validate_probabilities", "validate_ranking_scores",
+                 "validate_reference_labels"):
+        if not hasattr(input_validation, name):
+            return False
+        if not hasattr(evaluator, name):
+            return False
+
+    source = inspect.getsource(evaluator.ClinicalEvaluator.evaluate)
+    gated = ("validate_probabilities(" in source
+             and "ranking_usable" in source
+             and "probability_usable" in source)
+    sweep = inspect.getsource(evaluator.ClinicalEvaluator._find_operating_point)
+    return gated and "validate_probabilities(" in sweep
+
+
 DISCHARGED_CONDITIONS = {
     "CI-k": _discharged_k,
     "CI-l": _discharged_l,
     "CI-o": _discharged_o,
+    "CI-t": _discharged_t,
 }
 
 
