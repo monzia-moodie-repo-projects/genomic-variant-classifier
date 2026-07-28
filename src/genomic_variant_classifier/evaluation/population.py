@@ -62,6 +62,7 @@ globally auditable.
 from __future__ import annotations
 
 import hashlib
+from enum import Enum
 import logging
 from dataclasses import dataclass, field
 from typing import Optional, Sequence, Tuple
@@ -70,7 +71,8 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["EvaluationPopulation", "PopulationError", "PopulationTypeError"]
+__all__ = ["EvaluationPopulation", "PopulationComparison", "PopulationError",
+           "PopulationTypeError"]
 
 
 class PopulationError(ValueError):
@@ -120,6 +122,22 @@ def _membership_fingerprint(source_id: str, n_source: int,
     return f"sha256:{digest.hexdigest()}"
 
 
+class PopulationComparison(str, Enum):
+    """The result of asking whether two populations describe the same rows.
+
+    THREE-VALUED, DELIBERATELY. A boolean cannot express the difference between
+    "proven different" and "not knowable from the provenance available", and
+    collapsing them is how an unattributed population comes to be treated as
+    comparable. `False` would read as "different rows", which is a claim; the
+    honest answer when nothing identifies the frame is that the question cannot
+    be answered.
+    """
+
+    SAME = "same"
+    DIFFERENT = "different"
+    UNKNOWN = "unknown"
+
+
 @dataclass(frozen=True, eq=False)
 class EvaluationPopulation:
     """An immutable, auditable claim about which rows a metric describes.
@@ -160,7 +178,7 @@ class EvaluationPopulation:
     indices: np.ndarray
     scope: str
     n_source: int
-    source_id: str
+    source_id: Optional[str]
     restriction_reason: Optional[str] = None
     parent: Optional["EvaluationPopulation"] = field(default=None, repr=False,
                                                      compare=False)
@@ -181,11 +199,28 @@ class EvaluationPopulation:
             raise PopulationError(
                 "scope must be a non-empty string naming what this population "
                 "is; an unnamed population cannot be reported meaningfully")
-        if not isinstance(self.source_id, str) or not self.source_id.strip():
-            raise PopulationError(
-                "source_id must be a non-empty string identifying the frame "
-                "these indices address; absolute indices without a named source "
-                "are locally coherent but not globally auditable")
+        # ATTRIBUTION IS OPTIONAL, BUT NEVER FAKED (2026-07-28).
+        #
+        # `source_id=None` means the caller could not identify the frame these
+        # indices address. That is a real and common state -- `evaluate()`
+        # receives arrays, not a canonical table -- and it must be representable
+        # WITHOUT inventing an identity.
+        #
+        # A sentinel string was considered and rejected. Combined with the normal
+        # fingerprint algorithm it produces a value that looks cryptographically
+        # authoritative while identifying only `sentinel + n_source + positions`,
+        # so two equal-length calls over entirely different rows would certify an
+        # equivalence nobody established. A consumer might notice the sentinel;
+        # every generic comparison of `membership_fingerprint` would not.
+        #
+        # An UNATTRIBUTED population therefore has NO fingerprint at all, and
+        # comparison against it returns UNKNOWN rather than True or False.
+        if self.source_id is not None:
+            if not isinstance(self.source_id, str) or not self.source_id.strip():
+                raise PopulationError(
+                    "source_id must be a non-empty string identifying the frame "
+                    "these indices address, or None to state explicitly that the "
+                    "frame is unattributed. A blank string is neither.")
 
         raw = np.asarray(self.indices)
         # REJECT before casting. `np.array([1.7], dtype=np.int64)` silently
@@ -292,7 +327,7 @@ class EvaluationPopulation:
     # ------------------------------------------------------------------ #
     @classmethod
     def full(cls, n_source: int, *, scope: str,
-             source_id: str) -> "EvaluationPopulation":
+             source_id: Optional[str]) -> "EvaluationPopulation":
         """The whole attempted cohort: every row, nothing restricted."""
         if isinstance(n_source, bool) or not isinstance(n_source, (int, np.integer)):
             raise PopulationTypeError(
@@ -380,12 +415,41 @@ class EvaluationPopulation:
         repeated access O(1), which matters because the report invariant compares
         it once per metric.
         """
+        if self.source_id is None:
+            # NOT a fingerprint of "nothing" -- the ABSENCE of a fingerprint.
+            # Returning a digest here would let `a.fingerprint == b.fingerprint`
+            # answer True for two populations whose equivalence is unknown.
+            return None
         cached = getattr(self, "_fingerprint_cache", None)
         if cached is None:
             cached = _membership_fingerprint(self.source_id, self.n_source,
                                              self.indices)
             object.__setattr__(self, "_fingerprint_cache", cached)
         return cached
+
+    @property
+    def is_attributed(self) -> bool:
+        """Whether anything identifies the frame these indices address."""
+        return self.source_id is not None
+
+    def compare_membership(self, other: "EvaluationPopulation") -> PopulationComparison:
+        """THE AUTHORITATIVE COMPARISON. Three-valued, because two are not enough.
+
+        `None == None` is True in Python, so a caller comparing two absent
+        fingerprints directly would conclude that two unattributed populations
+        describe the same rows. They might; nothing establishes it. This is the
+        only comparison that distinguishes proven-same from proven-different from
+        not-knowable, and it is the one callers should use.
+        """
+        if not isinstance(other, EvaluationPopulation):
+            raise TypeError(
+                f"can only compare against another EvaluationPopulation, got "
+                f"{type(other).__name__}")
+        if not self.is_attributed or not other.is_attributed:
+            return PopulationComparison.UNKNOWN
+        return (PopulationComparison.SAME
+                if self.membership_fingerprint == other.membership_fingerprint
+                else PopulationComparison.DIFFERENT)
 
     def same_membership_as(self, other: "EvaluationPopulation") -> bool:
         """Do these describe exactly the same rows of the same frame?
@@ -397,6 +461,12 @@ class EvaluationPopulation:
         """
         if not isinstance(other, EvaluationPopulation):
             return NotImplemented
+        # An unattributed population is never PROVEN to share membership, so this
+        # returns False there. Callers who need to distinguish "different" from
+        # "unknown" must use `compare_membership`; this boolean cannot express it
+        # and is retained only because it predates the distinction.
+        if not self.is_attributed or not other.is_attributed:
+            return False
         return (self.source_id == other.source_id
                 and self.n_source == other.n_source
                 and np.array_equal(self.indices, other.indices))

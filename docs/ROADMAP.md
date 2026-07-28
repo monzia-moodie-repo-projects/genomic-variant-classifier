@@ -2224,3 +2224,63 @@ THE REPORT-CONSTRUCTION PATH -- not ban all thresholding across the module.
     the expected and maximum calibration errors reuse ONE CalibrationBins;
   * the four declared field-cohort movements, derived from the DENOMINATOR
     condition rather than by metric name.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-28 (Tier 1 item 6, commit 3b-0)
+=====================================================================
+
+  commit 3a   132bcc2  typed report surface and schema version 3   LANDED
+  commit 3b-0 (this)   population attribution                      LANDED
+  commit 3b   --       legacy projection and evaluator retirement  NEXT
+
+WHY A SEPARATE COMMIT. Making attribution optional touches EvaluationPopulation,
+a landed and audited class with 33 source_id references across its tests. Its
+failure mode is corrupt PROVENANCE; the legacy projection's is corrupt NUMBERS.
+Different failure modes, different commits -- the principle that has governed all
+eleven commits in this sequence.
+
+THE MODEL. source_id is Optional[str]. None means unattributed. An unattributed
+population has NO membership fingerprint, and comparison is three-valued:
+
+    SAME       proven to describe the same rows
+    DIFFERENT  proven to describe different rows
+    UNKNOWN    not knowable from the provenance available
+
+A sentinel string was proposed and REJECTED: combined with the normal fingerprint
+algorithm it produces a value that looks cryptographically authoritative while
+identifying only sentinel + n_source + positions, so two equal-length calls over
+entirely different rows would certify an equivalence nobody established.
+
+NEW CARRIED ITEM (q) -- MIGRATE PRODUCTION AND CERTIFIABLE CALLERS FROM
+UNATTRIBUTED EVALUATION TO EXACT CANONICAL POPULATION IDENTITIES. Framed as a
+migration, NOT as "replace the sentinel": there is no sentinel to replace, and
+unattributed evaluation remains a legitimate exploratory mode. Callers who need a
+certifiable artifact thread
+CanonicalVariantTable.population_projection(partition).population_source_id into
+evaluate(source_id=...). NOT A GATE on commit 3b.
+
+3b SCOPE, unchanged apart from the attribution model:
+  * evaluate() gains an optional source_id and builds one of two HONEST
+    population identities -- attributed when the caller supplies one,
+    unattributed otherwise;
+  * evaluation/legacy_projection.py, a declarative reason-sensitive policy table;
+  * the projection invariant, exact and NaN-aware, with no tolerance;
+  * retirement of evaluator.py lines 481-482 and 511;
+  * the narrowed abstract-syntax-tree guard, carried item (o);
+  * counting wrappers on all four conditions;
+  * certification_eligible = False when the population is unattributed --
+    permitted, because the frozen oracle captures the 48 flat report fields and
+    NOT metric_results, so a certification change on typed results cannot violate
+    it. VERIFIED, not assumed.
+  * the four declared field-cohort movements, derived from the DENOMINATOR
+    condition rather than by metric name.
+
+DELIVERY CONVENTIONS ADOPTED 2026-07-28, after commit 3a's installer failed to
+parse and its first repair silently did nothing:
+  * installers are checked for UNBALANCED SINGLE-QUOTED LITERALS, not only
+    balanced braces and parentheses;
+  * prose destined for a PowerShell literal is ESCAPED AT GENERATION;
+  * every generated file is RE-READ FROM DISK and re-checked after any repair,
+    because an edit that silently matched nothing looks exactly like one that
+    succeeded.

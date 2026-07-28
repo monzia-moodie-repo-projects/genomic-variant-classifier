@@ -1,3 +1,57 @@
+## 2026-07-28 -- population attribution (Tier 1 item 6, commit 3b-0)
+
+Ratchet 3445 -> 3455 (+10). Session record:
+docs/sessions/SESSION_2026-07-28_population-attribution.md
+
+Prerequisite to the legacy projection. Commit 3b makes evaluate() build a
+MetricContext, which requires an EvaluationPopulation, which required a non-empty
+source_id -- but evaluate() receives arrays, not a CanonicalVariantTable, and has
+no source identity to give.
+
+### Three ways of inventing one, all measured, all rejected
+- a fixed sentinel string: two DIFFERENT equal-length cohorts share a
+  fingerprint, certifying an equivalence nobody established;
+- derived from the labels: ruled out 2026-07-27;
+- a per-call unique identifier: safe but non-deterministic, breaking every
+  byte-identity oracle in the project.
+
+I proposed the sentinel. It was wrong: combined with the normal fingerprint
+algorithm it produces a value that LOOKS cryptographically authoritative while
+identifying only sentinel + n_source + positions.
+
+### Absence is now represented as absence
+source_id is Optional[str]. An unattributed population has NO fingerprint -- not a
+fingerprint of nothing, the absence of one. A blank string is still refused: None
+states "unattributed", a blank string states nothing, and admitting it would give
+two spellings of absence.
+
+### Comparison is three-valued
+SAME / DIFFERENT / UNKNOWN. A boolean cannot express "not knowable", and
+collapsing it into False would read as "different rows", which is a claim.
+
+THE TRAP THIS CLOSES IS EXACT: None == None is True in Python, so a caller
+comparing two absent fingerprints directly concludes sameness. A test asserts
+that the naive comparison returns True AND that the authoritative comparator
+returns UNKNOWN, recording the divergence rather than assuming it.
+
+### What was deliberately NOT tested
+An earlier plan asserted that two different equal-sized cohorts collide under a
+sentinel. That documents the defect but institutionalises it as intended
+behaviour. The tests now assert the system REFUSES to claim comparability.
+
+### Verification
+All 41 pre-existing population tests pass unchanged. The frozen report oracle
+shows 480 values, ZERO movements. Regression FAILED list byte-identical. Sabotage:
+eight breaks, eight detected, zero undetected.
+
+### Delivery-convention findings from commit 3a
+3a's first installer failed to parse on an apostrophe inside a single-quoted
+PowerShell literal, and the first repair SILENTLY DID NOTHING because read_text
+normalises line endings. Three conventions adopted: check installers for
+unbalanced quote literals; escape prose at generation; re-read every generated
+file from disk after any repair, because an edit that matched nothing looks
+exactly like one that succeeded.
+
 ## 2026-07-28 -- the typed report surface and schema version 3 (Tier 1 item 6, commit 3a)
 
 Ratchet 3419 -> 3445 (+26). Session record:

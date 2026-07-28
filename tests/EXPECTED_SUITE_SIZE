@@ -3796,4 +3796,32 @@
 #   UNDETECTED -- the oracle-staleness test was written as though it carried
 #   2b-3's decisive assertion, which does not transfer here.
 #
-3445
+#
+# 3445 -> 3455 (+10)  2026-07-28  commit 3b-0: population attribution.
+#
+#   Prerequisite to the legacy projection. Commit 3b makes evaluate() build a
+#   MetricContext, which needs an EvaluationPopulation, which needed a non-empty
+#   source_id -- but evaluate() receives arrays and has no identity to give.
+#
+#   THREE WAYS OF INVENTING ONE WERE MEASURED AND ALL FAIL: a fixed sentinel
+#   makes two DIFFERENT equal-length cohorts share a fingerprint, certifying an
+#   equivalence nobody established; deriving from labels was ruled out
+#   2026-07-27; a per-call unique id is non-deterministic and breaks every
+#   byte-identity oracle in the project.
+#
+#   ABSENCE IS NOW ABSENCE. source_id is Optional. An unattributed population
+#   has NO fingerprint -- not a fingerprint of nothing, the absence of one.
+#   Comparison is THREE-VALUED: same / different / unknown, because a boolean
+#   cannot express not-knowable and False would read as a claim.
+#
+#   THE TRAP CLOSED: None == None is True in Python, so comparing two absent
+#   fingerprints directly concludes sameness. A test pins that the naive
+#   comparison returns True AND the authoritative one returns UNKNOWN.
+#
+#   NOT TESTED, DELIBERATELY: that two cohorts collide under a sentinel. That
+#   documents the defect but institutionalises it as intended behaviour.
+#
+#   All 41 pre-existing population tests pass unchanged. Report oracle: 480
+#   values, ZERO movements. Sabotage: 8 breaks, 8 detected, 0 undetected.
+#
+3455

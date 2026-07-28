@@ -29,6 +29,7 @@ import pytest
 from genomic_variant_classifier.evaluation.canonical import CanonicalVariantTable
 from genomic_variant_classifier.evaluation.population import (
     EvaluationPopulation,
+    PopulationComparison,
     PopulationError,
     PopulationTypeError,
 )
@@ -443,4 +444,123 @@ def test_a_context_derives_its_scope_from_the_population():
     assert not hasattr(type(ctx), "__dataclass_fields__") or \
         "population_scope" not in type(ctx).__dataclass_fields__, (
             "population_scope is still a stored field; it must be derived")
+
+
+# --------------------------------------------------------------------------- #
+# 9. Attribution: an identity that is absent, never faked
+#
+# `evaluate()` receives arrays, not a canonical table, so it has no source
+# identity to give a population. Three ways of inventing one were measured and
+# all three fail:
+#
+#   a fixed sentinel   two DIFFERENT equal-length cohorts share a fingerprint,
+#                      certifying an equivalence nobody established -- the exact
+#                      defect the fingerprint exists to prevent
+#   derived from y_true  ruled out 2026-07-27: a label-policy change must be
+#                      visible through cohort_version, not embedded in an opaque
+#                      row digest
+#   per-call unique id safe but NON-DETERMINISTIC, breaking reproducibility and
+#                      every byte-identity oracle in this project
+#
+# So attribution is optional and absence is represented as absence.
+# --------------------------------------------------------------------------- #
+def test_a_population_may_be_explicitly_unattributed():
+    pop = EvaluationPopulation.full(80, scope="attempted_cohort", source_id=None)
+    assert pop.source_id is None
+    assert pop.is_attributed is False
+    assert pop.n == 80
+
+
+def test_an_unattributed_population_has_NO_fingerprint():
+    """Not a fingerprint of nothing -- the ABSENCE of one. A digest here would
+    let `a.fingerprint == b.fingerprint` answer True for two populations whose
+    equivalence is unknown."""
+    pop = EvaluationPopulation.full(80, scope="attempted_cohort", source_id=None)
+    assert pop.membership_fingerprint is None
+
+
+def test_a_blank_source_id_is_still_refused():
+    """None states 'unattributed'. A blank string states nothing at all, and
+    admitting it would give two ways to spell absence, one of them accidental."""
+    with pytest.raises(PopulationError, match="or None to state explicitly"):
+        EvaluationPopulation.full(10, scope="s", source_id="   ")
+
+
+def test_two_unattributed_populations_cannot_be_proven_equal():
+    """THE POINT OF THE WHOLE DESIGN.
+
+    Equal-size unattributed calls genuinely cannot be distinguished -- that is an
+    epistemic limit, not a defect. What matters is that the implementation does
+    not convert the limit into a FALSE EQUALITY. Comparison returns UNKNOWN,
+    which is the true answer, rather than SAME, which would be a claim.
+    """
+    first = EvaluationPopulation.full(4, scope="cohort", source_id=None)
+    second = EvaluationPopulation.full(4, scope="cohort", source_id=None)
+    assert first.compare_membership(second) is PopulationComparison.UNKNOWN
+    assert second.compare_membership(first) is PopulationComparison.UNKNOWN
+    assert first.same_membership_as(second) is False
+
+
+def test_comparison_is_three_valued_and_each_value_is_reachable():
+    """A boolean cannot express 'not knowable'. Collapsing UNKNOWN into False
+    would read as 'different rows', which is itself a claim."""
+    a = EvaluationPopulation.full(10, scope="c", source_id="frame:1")
+    b = EvaluationPopulation.full(10, scope="c", source_id="frame:1")
+    c = EvaluationPopulation.full(10, scope="c", source_id="frame:2")
+    u = EvaluationPopulation.full(10, scope="c", source_id=None)
+
+    assert a.compare_membership(b) is PopulationComparison.SAME
+    assert a.compare_membership(c) is PopulationComparison.DIFFERENT
+    assert a.compare_membership(u) is PopulationComparison.UNKNOWN
+    assert u.compare_membership(a) is PopulationComparison.UNKNOWN
+    assert {v.value for v in PopulationComparison} == {"same", "different", "unknown"}
+
+
+def test_direct_fingerprint_comparison_cannot_be_used_as_evidence():
+    """`None == None` is True in Python. A caller comparing two absent
+    fingerprints directly would conclude sameness. `compare_membership` is the
+    only comparison that gets this right, which is why it exists."""
+    first = EvaluationPopulation.full(4, scope="c", source_id=None)
+    second = EvaluationPopulation.full(4, scope="c", source_id=None)
+
+    naive = first.membership_fingerprint == second.membership_fingerprint
+    assert naive is True, "None == None; this is exactly the trap"
+    assert first.compare_membership(second) is PopulationComparison.UNKNOWN, (
+        "the authoritative comparator must not repeat the naive answer")
+
+
+def test_attribution_is_inherited_by_restriction():
+    mask = np.arange(10) < 6
+    unattributed = EvaluationPopulation.full(10, scope="attempted", source_id=None)
+    child = unattributed.restrict(mask, scope="label_eligible", reason="withheld")
+    assert child.source_id is None
+    assert child.is_attributed is False
+    assert child.membership_fingerprint is None
+
+    attributed = EvaluationPopulation.full(10, scope="attempted", source_id=SOURCE)
+    kid = attributed.restrict(mask, scope="label_eligible", reason="withheld")
+    assert kid.is_attributed is True
+    assert kid.membership_fingerprint is not None
+
+
+def test_a_restriction_cannot_invent_an_identity_its_parent_lacked():
+    root = EvaluationPopulation.full(10, scope="attempted", source_id=None)
+    with pytest.raises(PopulationError, match="must equal the parent"):
+        EvaluationPopulation(indices=np.arange(6, dtype=np.int64), scope="child",
+                             n_source=10, source_id=SOURCE,
+                             restriction_reason="r", parent=root)
+
+
+def test_an_attributed_restriction_cannot_discard_its_identity():
+    root = EvaluationPopulation.full(10, scope="attempted", source_id=SOURCE)
+    with pytest.raises(PopulationError, match="must equal the parent"):
+        EvaluationPopulation(indices=np.arange(6, dtype=np.int64), scope="child",
+                             n_source=10, source_id=None,
+                             restriction_reason="r", parent=root)
+
+
+def test_comparison_refuses_a_non_population():
+    pop = EvaluationPopulation.full(4, scope="c", source_id=SOURCE)
+    with pytest.raises(TypeError, match="only compare against another"):
+        pop.compare_membership("not a population")
 
