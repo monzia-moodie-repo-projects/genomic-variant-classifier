@@ -4041,4 +4041,29 @@
 #
 #   Sabotage: 10 mutations, 10 detected, 0 undetected.
 #
-3627
+#
+# 3627 -> 3630 (+3)  2026-07-28  CI-u-1: one serialiser, not two.
+#
+#   RunArtifactWriter.save_eval_report serialised through asdict, which walks
+#   the dataclass and BYPASSES EvaluationReport.to_serializable. Commit 3a added
+#   that method precisely because asdict cannot carry result_kind and does not
+#   normalise a refused result -- and this writer was never updated.
+#
+#   THE WRITER'S OWN COMMENT CLAIMED THEY WERE BYTE-IDENTICAL. True when
+#   written on 2026-07-26, false the moment to_serializable existed. A claim in
+#   a comment is not a check, and this one stopped being true silently, two days
+#   later, with nothing to notice. Both now emit 15,509 identical bytes.
+#
+#   FAMILY B IS NOT PERSISTENCE-REACHABLE. CI-p claimed a blast radius of five
+#   call sites; only two dump_strict_json sites exist in the package and neither
+#   references any Family B type. The constraint did not exist. CI-p rescoped.
+#
+#   NEW ITEM CI-u: on a single-class cohort the FLAT auroc is NaN and strict
+#   JSON refuses it, so a valid evaluation over a degenerate cohort produces an
+#   artifact that CANNOT BE WRITTEN AT ALL. Absence needs a representation, not
+#   a rejection. Staged u-1 (this) / u-2 absence / u-3 schema and read path.
+#
+#   Sabotage: 4 mutations, 4 detected, 0 undetected. B1 -- reverting to asdict
+#   -- is the exact divergence that occurred between 26 and 28 July.
+#
+3630

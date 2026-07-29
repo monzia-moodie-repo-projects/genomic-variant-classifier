@@ -202,3 +202,77 @@ def test_artefact_list_tracks_writes(writer, dummy_meta):
     writer.save_graph_stats({"node_count": 1, "edge_count": 1})
     assert "manifest.json" in writer.artefacts
     assert "graph_stats.json" in writer.artefacts
+
+
+# --------------------------------------------------------------------------- #
+# ONE SERIALISER, NOT TWO (2026-07-28, CI-u-1)
+#
+# `save_eval_report` used `asdict`, which walks the dataclass and BYPASSES
+# `EvaluationReport.to_serializable`. Commit 3a introduced that method precisely
+# because `asdict` cannot carry `result_kind` and does not normalise a refused
+# result's non-finite value -- and this writer was never updated.
+#
+# Its own comment claimed the two writers "now produce byte-identical encodings
+# of the same report". That was true when written on 2026-07-26 and became false
+# the moment `to_serializable` existed. A claim in a comment is not a check, and
+# this one silently stopped being true. These tests are the check.
+# --------------------------------------------------------------------------- #
+def _ci_u_report():
+    import contextlib
+    import io
+
+    import numpy as np
+
+    from genomic_variant_classifier.evaluation.evaluator import ClinicalEvaluator
+
+    rng = np.random.default_rng(5)
+    n = 200
+    y = rng.binomial(1, 0.5, n).astype(float)
+    p = np.clip(0.5 + 0.25 * (2 * y - 1) + rng.normal(0, 0.15, n), 0.0, 1.0)
+    with contextlib.redirect_stdout(io.StringIO()):
+        return ClinicalEvaluator(n_bootstrap=0, random_state=42).evaluate(
+            y, p, model_name="ci_u_probe")
+
+
+def test_both_writers_produce_byte_identical_artifacts(tmp_path):
+    """The property the comment asserted and nothing verified."""
+    import contextlib
+    import io
+    from pathlib import Path
+
+    from genomic_variant_classifier.evaluation.evaluator import ClinicalEvaluator
+
+    report = _ci_u_report()
+    direct = Path(tmp_path) / "direct.json"
+    writer_root = Path(tmp_path) / "writer"
+    with contextlib.redirect_stdout(io.StringIO()):
+        ClinicalEvaluator(n_bootstrap=0).save_report(report, direct)
+        RunArtifactWriter(run_id="probe", ablation="none",
+                          output_dir=writer_root).save_eval_report(report)
+
+    written = next(writer_root.rglob("eval_report.json"))
+    assert direct.read_text(encoding="utf-8") == written.read_text(encoding="utf-8"), (
+        "the two writers disagree; one report must have exactly one encoding")
+
+
+def test_the_artifact_writer_carries_result_kind(tmp_path):
+    """`asdict` cannot produce it, so its presence proves the writer went
+    through `to_serializable`."""
+    import contextlib
+    import io
+    import json
+    from pathlib import Path
+
+    report = _ci_u_report()
+    root = Path(tmp_path) / "writer"
+    with contextlib.redirect_stdout(io.StringIO()):
+        RunArtifactWriter(run_id="probe", ablation="none",
+                          output_dir=root).save_eval_report(report)
+
+    payload = json.loads(
+        next(root.rglob("eval_report.json")).read_text(encoding="utf-8"))
+    assert payload["metric_results"], "the typed surface must be present"
+    for name, entry in payload["metric_results"].items():
+        assert "result_kind" in entry, f"{name} lost its result_kind"
+        assert isinstance(entry["status"], str), (
+            f"{name} status is not a string; `asdict` leaves it an enum object")

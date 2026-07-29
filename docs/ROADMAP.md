@@ -2612,3 +2612,36 @@ beside `os.devnull` became `nul.metadata.json`, a Windows reserved-name entry
 that lists but cannot be opened. Any code path writing a file next to a
 caller-supplied path must handle the null device explicitly, and the detector for
 it must be shown not to swallow legitimate names such as `nulls.csv`.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-28 -- one serialiser, not two (CI-u-1)
+=====================================================================
+
+NEW ITEM CI-u -- THE FLAT REPORT SURFACE CANNOT REPRESENT ABSENCE. On a
+single-class cohort the flat auroc and tpr_curve[0] are NaN, and strict JSON
+refuses them, so a scientifically valid evaluation over a degenerate cohort
+produces an artifact that CANNOT BE WRITTEN AT ALL. The refusal is correct in
+principle -- a non-finite number in an evidence artifact is an absent estimate
+wearing a number's clothes -- but absence needs a representation rather than a
+rejection.
+
+  u-1  unify the writers                   LANDED (this commit)
+  u-2  explicit absence representation     NEXT
+  u-3  schema version and read path
+
+u-2 must use EXPLICIT absence, not a bare null: a parallel field-absence map
+carrying status and reason, so the flat columns keep their shape and a reader
+cannot mistake absence for a measurement of zero.
+
+CI-p RESCOPED. It claimed a blast radius of five Family B call sites. MEASURED:
+no path carries GeometrySummary, PartitionAgreementPanel, ConfounderComparison or
+ConfounderGate output into strict JSON -- only two dump_strict_json call sites
+exist in the package and neither references any Family B type. The item remains
+open for the writer/reader asymmetry itself, with the false blast radius removed.
+
+NEW STANDING RULE -- A CLAIM IN A COMMENT IS NOT A CHECK. prediction_artifacts.py
+asserted that its writer and save_report produced byte-identical encodings. That
+was true on 2026-07-26 and false two days later, and nothing noticed because
+nothing tested it. Any comment asserting an invariant between two code paths must
+be accompanied by a test that fails when the invariant breaks.

@@ -210,7 +210,23 @@ class RunArtifactWriter:
         Accepts a ClinicalEvaluator EvaluationReport dataclass OR a plain dict.
         Both are serialised to JSON.
         """
-        if is_dataclass(report):
+        # ONE SERIALISER, NOT TWO (2026-07-28, CI-u-1).
+        #
+        # This used `asdict`, which walks the dataclass and BYPASSES the report's
+        # own `to_serializable`. Commit 3a introduced that method precisely
+        # because `asdict` cannot carry `result_kind` and does not normalise a
+        # refused result's non-finite value -- and this writer was never updated.
+        #
+        # Measured 2026-07-28 on one healthy report: the two encodings differ in
+        # `metric_results`, where `asdict` omits `result_kind` entirely and leaves
+        # `status` as a MetricStatus enum object rather than its value. The
+        # comment below claimed they were byte-identical. That was true when
+        # written on 2026-07-26 and became false the moment `to_serializable`
+        # existed -- a claim in a comment is not a check, and this one silently
+        # stopped being true.
+        if hasattr(report, "to_serializable"):
+            payload = report.to_serializable()
+        elif is_dataclass(report):
             payload = asdict(report)
         elif isinstance(report, dict):
             payload = report
@@ -219,9 +235,7 @@ class RunArtifactWriter:
 
         def _write(path: Path) -> None:
             # STRICT since 2026-07-26: no `default=str` (it rendered NumPy
-            # integers as JSON strings) and no bare NaN literals. This writer and
-            # ClinicalEvaluator.save_report now produce byte-identical encodings
-            # of the same report, which they previously did not guarantee.
+            # integers as JSON strings) and no bare NaN literals.
             path.write_text(dump_strict_json(payload, artifact=str(path)),
                             encoding="utf-8", newline="\n")
 

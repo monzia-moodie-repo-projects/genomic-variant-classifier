@@ -130,8 +130,37 @@ def _condition_r() -> bool:
     return len(observed) == 1
 
 
+def _condition_u() -> bool:
+    """A report over a single-class cohort still cannot be persisted.
+
+    Parsed by BEHAVIOUR rather than by text: build a degenerate report and try to
+    serialise it. The flat `auroc` is NaN there, and strict JSON refuses a
+    non-finite number in an evidence artifact -- correctly -- so the whole file
+    is rejected rather than the one field being recorded as absent.
+    """
+    import contextlib
+    import io
+
+    import numpy as np
+
+    from genomic_variant_classifier.evaluation.evaluator import ClinicalEvaluator
+    from genomic_variant_classifier.evaluation.serialization import dump_strict_json
+
+    y = np.zeros(80)
+    p = np.full(80, 0.10)
+    with contextlib.redirect_stdout(io.StringIO()):
+        report = ClinicalEvaluator(n_bootstrap=0, random_state=42).evaluate(
+            y, p, model_name="register_probe")
+    try:
+        dump_strict_json(report.to_serializable(), artifact="register_probe")
+    except Exception:
+        return True         # still unpersistable: the item is open
+    return False
+
+
 OPEN_CONDITIONS = {
     "CI-m": _condition_m,
+    "CI-u": _condition_u,
     "CI-n": _condition_n,
     "CI-p": _condition_p,
     "CI-r": _condition_r,

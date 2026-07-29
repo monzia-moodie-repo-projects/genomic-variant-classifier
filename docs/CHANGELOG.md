@@ -1,3 +1,41 @@
+## 2026-07-28 -- one serialiser, not two (CI-u-1)
+
+Ratchet 3627 -> 3630 (+3). Session record:
+docs/sessions/SESSION_2026-07-28_one-serialiser.md
+
+RunArtifactWriter.save_eval_report serialised through asdict, which walks the
+dataclass and BYPASSES EvaluationReport.to_serializable. Commit 3a introduced
+that method precisely because asdict cannot carry result_kind and does not
+normalise a refused result -- and this writer was never updated.
+
+THE WRITER'S OWN COMMENT CLAIMED THE TWO WERE BYTE-IDENTICAL. That was true when
+written on 2026-07-26 and became false the moment to_serializable existed. A
+claim in a comment is not a check, and this one stopped being true silently, two
+days later, with nothing to notice. After unification both produce byte-identical
+output at 15,509 bytes.
+
+### The investigation corrected two things
+FAMILY B IS NOT PERSISTENCE-REACHABLE. CI-p claimed a blast radius of five call
+sites in representation_geometry.py and clustering_metrics.py. Measured: only two
+dump_strict_json call sites exist in the package and neither references any
+Family B type. The constraint being designed around does not exist. CI-p is
+rescoped, not closed.
+
+A LARGER DEFECT SITS UNDERNEATH, recorded as CI-u: on a single-class cohort the
+FLAT auroc and tpr_curve[0] are NaN and strict JSON refuses them, so a
+scientifically valid evaluation over a degenerate cohort produces an artifact
+that CANNOT BE WRITTEN AT ALL. Absence has no representation on the flat surface.
+Staged u-1 (this commit) / u-2 absence representation / u-3 schema and read path.
+
+### Sabotage
+Four mutations, four detected, zero undetected. B1 -- reverting the writer to
+asdict -- is the exact silent divergence that occurred between 26 and 28 July.
+
+### A reading error of mine
+I first reported three artifacts-suite failures as though one were mine. All
+three are pre-existing (missing pyarrow in the sandbox). My count combined two
+suites and attributed a shared total to the wrong cause.
+
 ## 2026-07-28 -- the shared-population model comparison (CI-q)
 
 Ratchet 3594 -> 3627 (+33). Session record:
