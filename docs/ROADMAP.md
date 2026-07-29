@@ -2711,3 +2711,38 @@ CI-p IS THE LAST OPEN DEFECT. MetricResult.to_dict emits raw NaN while from_dict
 documents reading null. Its Family B blast radius was disproved by measurement;
 what remains is the writer/reader asymmetry itself, and the absence vocabulary
 now provides the shape a fix would use.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-29 -- CI-p -- THE LAST OPEN DEFECT IS CLOSED
+=====================================================================
+
+MetricResult.to_dict now emits null for a refused result, agreeing with what
+from_dict has documented since it was written. The internal NaN sentinel is
+unchanged; only the ARTIFACT form changes.
+
+CARRIED ITEMS AFTER THIS COMMIT:
+  OPEN          CI-m  CI-n  CI-r  CI-s        (all KNOWN LIMITATIONS, not defects)
+  DISCHARGED    CI-k CI-l CI-o CI-p CI-q CI-t CI-u
+  UNVERIFIABLE  CI-i  CI-j  CI-a
+
+EVERY DEFECT ON THE REGISTER IS NOW CLOSED. The four remaining open items are
+limitations with predicates that fail if their conditions quietly disappear:
+
+  CI-m  metrics.evaluate is survivor-filtering
+  CI-n  cohort_version is a weak provenance identity
+  CI-r  the frozen report oracle is blind to interval certification
+  CI-s  deferred imports in registry.py are a load-bearing contract
+
+NEW STANDING RULE -- CHECK WHETHER THE REPOSITORY HAS ALREADY ANSWERED THE
+QUESTION. Six malformed probes were spent chasing a scikit-learn warning that
+tests/unit/test_sklearn_parallel_warning_contract.py had already resolved before
+the session began, with a scoped filter in pyproject.toml and three structural
+tests keeping it honest. The contract's name appears in every full-suite run.
+Before investigating any finding, search tests/ and docs/ for existing treatment.
+
+NEW STANDING RULE -- A FIX AT THE SOURCE MAY COLLIDE WITH AN EARLIER FIX AT THE
+SURFACE. Commit 3a normalised NaN at the report layer because the source emitted
+it; fixing the source made 3a's line meet a None it was never written for. When
+closing a defect that was previously patched downstream, measure the downstream
+patch rather than assuming it is inert.

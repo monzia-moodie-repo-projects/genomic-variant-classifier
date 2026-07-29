@@ -427,7 +427,19 @@ def serialize_metric_results(metric_results: Mapping) -> dict:
         #
         # The STATUS and REASON carry the meaning; the null is only the absence
         # of a number, which is exactly what a refusal is.
-        if not math.isfinite(payload.get("value", float("nan"))):
+        # TOLERATE AN ALREADY-NORMALISED VALUE (2026-07-29, CI-p).
+        #
+        # Commit 3a added this normalisation at the REPORT layer because
+        # `MetricResult.to_dict` emitted a raw NaN that strict JSON refuses.
+        # CI-p fixed that at the SOURCE, so `to_dict` now emits `null` itself and
+        # this line -- written when the value was always a float -- met a None
+        # and raised `must be real number, not NoneType`.
+        #
+        # The patch is now redundant but not harmful, and removing it would make
+        # the report layer depend on the source layer having already run. Kept,
+        # and made tolerant: a value that is already absent stays absent.
+        value = payload.get("value", float("nan"))
+        if value is None or not math.isfinite(value):
             payload["value"] = None
         try:
             payload["result_kind"] = by_name(name).result_kind.value

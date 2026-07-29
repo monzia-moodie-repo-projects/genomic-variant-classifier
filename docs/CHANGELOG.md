@@ -1,3 +1,49 @@
+## 2026-07-29 -- the writer agrees with the reader (CI-p) -- LAST OPEN DEFECT CLOSED
+
+Ratchet 3682 -> 3709 (+27). Session record:
+docs/sessions/SESSION_2026-07-29_writer-agrees-with-reader.md
+
+MetricResult.to_dict emitted the raw NaN that a non-OK result is REQUIRED to
+carry in memory, and dump_strict_json refuses a non-finite number by design -- so
+every refused result was unpersistable through to_dict alone. from_dict had
+always documented reading null back as NaN. THE READER WAS RIGHT THE WHOLE TIME;
+ONLY THE WRITER DISAGREED WITH IT.
+
+### What the fix does NOT change
+test_metric_result_relocation pins that a non-OK result carries NaN in memory,
+and it still does. NaN is a perfectly good in-memory sentinel; it is only in an
+ARTIFACT that it becomes an absent estimate wearing a number's clothes.
+
+The rule is STATUS-AWARE, not a blanket non-finite sweep. An OK result whose
+value is somehow non-finite is a defect, and nulling it would disguise that
+defect as a legitimate absence.
+
+### Two layers met
+evaluator.py:430 raised "must be real number, not NoneType". Commit 3a added a
+normalisation at the REPORT layer BECAUSE the source emitted a raw NaN; CI-p
+fixed the SOURCE, and 3a's line met a None. The patch is redundant but not
+harmful -- removing it would make the report layer depend on the source having
+already run -- so it is kept and made tolerant.
+
+### The claimed blast radius never existed
+CI-p named five Family B call sites as its constraint. MEASURED: no Family B type
+is persistence-reachable. Only two dump_strict_json call sites exist in the
+package and neither references any of them. The item was carried with a blast
+radius that did not exist.
+
+### Sabotage
+Six mutations, six detected, zero undetected, zero anchor misses.
+
+### A process lesson
+Before starting I searched the repository for existing work on this asymmetry and
+found none -- which is why CI-p was safe to build. That search was prompted by the
+previous investigation, where SIX malformed probes chased a scikit-learn warning
+that tests/unit/test_sklearn_parallel_warning_contract.py had already resolved,
+with a scoped filter and three structural tests, before the session began. Its
+name appears in plain sight in every full-suite run. INVESTIGATING A FINDING
+WITHOUT FIRST CHECKING WHETHER THE REPOSITORY ALREADY CONTAINS ITS RESOLUTION is
+now a named hazard.
+
 ## 2026-07-29 -- explicit absence in the artifact (CI-u-3) -- CI-u COMPLETE
 
 Ratchet 3655 -> 3682 (+27). Session record:

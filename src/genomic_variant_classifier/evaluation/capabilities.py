@@ -60,6 +60,8 @@ TWO DELIBERATE DEPARTURES FROM THE ORIGINAL PROPOSAL
 """
 from __future__ import annotations
 
+import math
+
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
@@ -270,6 +272,14 @@ class MetricMetadataKey(str, Enum):
 # rejects it. Changing that here would be a behaviour change in a relocation whose
 # acceptance criterion is that there are none.
 # --------------------------------------------------------------------------- #
+def _is_finite(value) -> bool:
+    """Can this value be carried by a JavaScript Object Notation artifact?"""
+    try:
+        return math.isfinite(float(value))
+    except (TypeError, ValueError):
+        return False
+
+
 @dataclass(frozen=True)
 class MetricResult:
     """A metric value that always knows whether it is a value.
@@ -401,7 +411,29 @@ class MetricResult:
         return cls(float("nan"), status, reason, dict(metadata))
 
     def to_dict(self) -> dict:
-        return {"value": self.value, "status": self.status.value,
+        """The serialisable form. A refused result's value becomes `null`.
+
+        CI-p, 2026-07-29. This emitted the raw NaN that the constructor requires
+        a non-OK result to carry, and `dump_strict_json` refuses a non-finite
+        number by design -- so every refused result was UNPERSISTABLE through
+        `to_dict` alone, while `from_dict` had always documented reading `null`
+        back as NaN. The reader was right; only the writer disagreed with it.
+
+        THE INTERNAL REPRESENTATION IS UNCHANGED. `test_metric_result_relocation`
+        pins that a non-OK result must carry NaN in memory, and it still does.
+        NaN is a perfectly good in-memory sentinel; it is only in an ARTIFACT
+        that it becomes an absent estimate wearing a number's clothes.
+
+        The rule is STATUS-AWARE, not a blanket non-finite sweep: absence is
+        authorised by the status, never inferred from the value. An OK result
+        whose value is somehow non-finite is a defect, and nulling it here would
+        disguise that defect as a legitimate absence -- so it is left alone for
+        the strict writer to refuse.
+        """
+        value = self.value
+        if self.status is not MetricStatus.OK and not _is_finite(value):
+            value = None
+        return {"value": value, "status": self.status.value,
                 "reason": self.reason, "metadata": dict(self.metadata)}
 
     @classmethod

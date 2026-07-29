@@ -4121,4 +4121,28 @@
 #   Sabotage: 9 mutations, 9 detected, 0 undetected, 0 anchor misses. Two
 #   earlier rounds were DISCARDED rather than accepted.
 #
-3682
+#
+# 3682 -> 3709 (+27)  2026-07-29  CI-p: the writer agrees with the reader.
+#   THE LAST OPEN DEFECT ON THE REGISTER IS CLOSED.
+#
+#   MetricResult.to_dict emitted the raw NaN that a non-OK result is REQUIRED
+#   to carry in memory, and strict JSON refuses a non-finite number by design,
+#   so every refused result was unpersistable through to_dict alone. from_dict
+#   had always documented reading null back as NaN. THE READER WAS RIGHT; ONLY
+#   THE WRITER DISAGREED.
+#
+#   The internal NaN sentinel is UNCHANGED -- it is only in an ARTIFACT that a
+#   NaN becomes an absent estimate wearing a number s clothes. The rule is
+#   STATUS-AWARE: an OK result with a non-finite value is a defect, and nulling
+#   it would disguise that defect as a legitimate absence.
+#
+#   TWO LAYERS MET: commit 3a normalised NaN at the REPORT layer because the
+#   source emitted it. Fixing the source made 3a s line meet a None it was
+#   never written for. Kept and made tolerant rather than removed.
+#
+#   THE CLAIMED BLAST RADIUS NEVER EXISTED. CI-p named five Family B call sites;
+#   measurement found none is persistence-reachable.
+#
+#   Sabotage: 6 mutations, 6 detected, 0 undetected, 0 anchor misses.
+#
+3709

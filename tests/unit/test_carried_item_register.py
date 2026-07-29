@@ -161,7 +161,6 @@ def _condition_u() -> bool:
 OPEN_CONDITIONS = {
     "CI-m": _condition_m,
     "CI-n": _condition_n,
-    "CI-p": _condition_p,
     "CI-r": _condition_r,
 }
 
@@ -258,6 +257,9 @@ DISCHARGED_CONDITIONS = {
     # than deleted: if a report ever becomes unpersistable again, this fails as a
     # regression instead of silently reverting to the state u-3 removed.
     "CI-u": lambda: not _condition_u(),
+    # The writer now agrees with the reader. Inverted rather than deleted: if
+    # to_dict ever emits a raw NaN again, that fails as a regression.
+    "CI-p": lambda: not _condition_p(),
 }
 
 
