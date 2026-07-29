@@ -2842,3 +2842,22 @@ rather than quietly discarded.
 REMAINING SKIPS, all honest:
   5  Monte Carlo Dropout integration tests awaiting a Run 15 cohort (CI-i)
   1  Windows-only platform skip, covered by continuous integration on Linux
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-29 -- README freshness
+=====================================================================
+
+The README now documents the evaluation stack. Fifteen commits of it were previously
+invisible to a reader: zero occurrences of the typed metric registry, MetricResult, schema
+versions, populations, certification, ModelComparison or the carried-item register.
+
+NEW STANDING RULE -- UPDATING A BADGE IS NOT UPDATING A DOCUMENT. The README badge was
+rewritten by every installer of this series while its prose went unread for fifteen
+commits. A mechanical field kept current does not make the surrounding claims current, and
+the appearance of maintenance is worse than visible staleness.
+
+NEW STANDING RULE -- VERIFY BEFORE CORRECTING A DOCUMENT. The README states 95 tabular
+features; the remembered figure was 91. The code says 95. Trusting memory would have edited
+a correct document into an incorrect one. Documentation claims are assertions about code and
+must be measured in the same direction as any other claim.

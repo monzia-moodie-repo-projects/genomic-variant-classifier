@@ -4219,4 +4219,24 @@
 #
 #   Collection UNCHANGED: the test was always collected, merely skipped.
 #
+#
+# 3711 -> 3711 (+0)  2026-07-29  the README did not know the evaluation
+#   stack existed.
+#
+#   The badge was updated by fifteen installers of this series while the prose
+#   went unread. MEASURED in 432 lines: ZERO occurrences of typed metric
+#   registry, MetricResult, schema version, carried item, EvaluationPopulation,
+#   certification, ModelComparison or legacy projection.
+#
+#   A CLAIM NEARLY CORRECTED WRONGLY: the README says 95 tabular features and
+#   the remembered figure was 91. variant_ensemble.py:193 defines 95. The count
+#   grew and the README tracked it -- the stale value was MINE.
+#
+#   Added the section Evaluation as evidence, in the document's declarative
+#   voice. Every factual claim verified against the code, including literally
+#   that a single-class cohort yields undefined with reason
+#   binary_class_support_required.
+#
+#   No code touched. Ratchet unchanged; no test added or removed.
+#
 3711

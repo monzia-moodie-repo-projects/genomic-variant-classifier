@@ -1,3 +1,35 @@
+## 2026-07-29 -- the README did not know the evaluation stack existed
+
+Ratchet unchanged at 3711. Session record:
+docs/sessions/SESSION_2026-07-29_readme-evaluation-section.md
+
+The standing instruction is that the README must ALWAYS be fresh. Its badge was updated
+fifteen times across this session and its content never read. MEASURED: zero occurrences
+of "typed metric registry", "MetricResult", "schema version", "carried item",
+"EvaluationPopulation", "certification", "ModelComparison" or "legacy projection" in 432
+lines. Fifteen commits were invisible to a reader.
+
+### A claim nearly "corrected" wrongly
+The README states 95 tabular features; my working assumption was 91. MEASURED:
+variant_ensemble.py:193 defines EXPECTED_TABULAR_FEATURE_COUNT = 95. The count grew and
+the README tracked it -- THE STALE VALUE WAS MINE. Had I trusted memory I would have
+edited a correct document into an incorrect one.
+
+### Written
+A new section, "Evaluation as evidence", in the document's declarative voice: one
+computation path with its abstract-syntax-tree guard; a refusal as a typed result; declared
+thresholds; one binning for both calibration errors; populations named or admitted unnamed;
+absence made explicit with its two causes distinguished; comparisons that prove like-for-like
+and refuse rather than filter; input gates before every library call; and deferred work
+checked by predicate rather than described.
+
+### Every factual claim verified against the code
+Including literally: a single-class cohort yields status "undefined" with reason
+"binary_class_support_required", which is what the README now says. A documentation claim
+is an assertion about the code, and assertions get measured.
+
+No code touched. Regression FAILED list byte-identical.
+
 ## 2026-07-29 -- a scientific assertion that had never executed
 
 Ratchet unchanged at 3711. SKIP SURFACE 7 -> 6. Session record:

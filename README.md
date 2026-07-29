@@ -207,6 +207,76 @@ loud failure rather than a silent column of zeros.
 
 ---
 
+## Evaluation as evidence
+
+A number in a clinical report is a claim, and a claim needs to say what it measured, over
+which rows, and whether it can be trusted. The evaluation layer is built so that every
+reported quantity carries that context rather than arriving as a bare float.
+
+**One computation path.** Metrics are computed once, by a typed registry of descriptors.
+The report's familiar flat fields — `auroc`, `auprc`, `mcc`, `f1` — are *derived views* of
+those typed results, not independent calculations. Two implementations of one quantity is
+how they come to disagree, and this stack found three such disagreements by measurement
+before the duplication was removed. An abstract-syntax-tree guard now refuses any direct
+metric call in the report-construction path, and counting wrappers confirm each kernel runs
+exactly once.
+
+**A refusal is a result.** A metric that cannot be computed does not return zero and does
+not raise. It returns a typed result carrying its status, the reason, and the applicability
+verdict that produced it. The area under the precision-recall curve over a single-class
+cohort is `undefined` with reason `binary_class_support_required` — which is a scientific
+finding, not an error. Silence and zero are both lies; a stated refusal is neither.
+
+**Thresholds are declared, never hidden.** Metrics requiring a decision threshold carry it
+as declared provenance on their descriptor — value, operator, and metric identity — rather
+than as a number written into reporting code where no artifact can record it.
+
+**One binning.** The expected and maximum calibration errors are two summaries of a single
+binned table, built once. Binning twice is how they came to disagree about every interior
+bin edge, a defect that survived seventeen days because no cohort had placed probability
+mass exactly on a boundary.
+
+**Populations are named or admitted to be unnamed.** Every result carries an
+`EvaluationPopulation`. When the caller supplies a source identity the population is
+attributed and carries a membership fingerprint; without one it is unattributed, has *no*
+fingerprint, and comparison against any other population returns `UNKNOWN` rather than a
+false equality. Attribution governs what may be *claimed*, never what was *measured* — the
+same cohort yields identical numbers either way.
+
+**Absence is explicit.** Strict JavaScript Object Notation refuses a non-finite number,
+because a `NaN` in an evidence artifact is either a computation that failed silently or an
+absent estimate wearing a number's clothes. So a value that cannot be persisted serialises
+as `null` *and* appears in a parallel absence map naming its cause — `undefined_on_cohort`
+when the data cannot support the estimand, `withheld_by_input_gate` when the model output
+was unusable. The first is a property of the cohort and a legitimate finding; the second is
+a defect to investigate. A report over a degenerate cohort is therefore still an artifact,
+recording its prevalence, its provenance, and precisely why each predictive metric was
+unavailable.
+
+**Model comparisons prove they compared like for like.** A ranking of models scored over
+different cohorts is not a ranking of models, so `compare_models` constructs one population
+and hands the same object to every model. When any submitted model lacks a valid value for
+the ranking metric the ranking is refused *entirely* — every row preserved in submission
+order, no rank asserted, and the blocking model named. Omitting the model and ranking the
+rest would present a comparison of fewer models than were submitted; sorting with a missing
+value places it last, which reads as *worst* rather than *not evaluated*.
+
+**Input gates precede every library call.** Reference labels, ranking scores, and
+probabilities are validated on separate channels before any metric routine sees them. A
+score is an ordering and may leave the unit interval; a probability may not, because it
+feeds calibration and thresholds. The distinction matters: an operating-point sweep once
+counted every unusable prediction as a predicted negative, moving a reported clinical
+decision threshold from a sensitivity of 0.90 to 0.50 with no exception and no warning.
+
+**Deferred work is checked, not described.** `docs/CARRIED_ITEMS.md` is the single source of
+truth for outstanding items, and every entry carries a predicate that decides its status by
+running code. An item recorded as open whose condition has gone is a test failure; so is a
+discharged item whose condition returns. Items that genuinely cannot be checked from the
+repository are listed as such, so their uncheckability is a stated fact rather than an
+accident.
+
+---
+
 ## Uncertainty and conformal prediction
 
 Point probabilities are insufficient for clinical use, so the system carries an explicit
