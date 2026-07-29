@@ -2565,3 +2565,50 @@ MEASUREMENTS COMPLETED FOR CI-q:
     one commit while preserving the eleven columns on grounds of churn.
 
 CI-q REMAINS NEXT, unchanged in scope.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-28 -- the shared-population model comparison (CI-q)
+=====================================================================
+
+  CI-t          957e33c  report-path input gates + enumeration    LANDED
+  CI-q (this)   shared-population model comparison                LANDED
+
+compare_models now constructs ONE EvaluationPopulation and hands THE SAME OBJECT
+to every model. Intra-call sameness is proved by construction; external identity
+remains optional and honest.
+
+NEW STANDING RULE -- ADMISSIBILITY BEFORE ORDERING. A ranking is refused entirely
+when any submitted model lacks a valid value for the ranking metric. Not
+filtered: a ranking that silently excludes a submitted model is not a ranking of
+the models submitted. And no sort runs at all, because a NaN sorts last and
+"last" visually implies "worst" rather than "not evaluated".
+
+NEW STANDING RULE -- A REGISTER PREDICATE MUST PARSE, NEVER GREP. CI-q's
+predicate scanned src/ for the text ".evaluate(" and matched six places, five of
+them docstrings or an unrelated function. It would have reported the item open
+forever regardless of the code. A register whose predicates are text searches
+drifts silently, which is precisely what it exists to prevent. Every predicate
+must parse the construct it asks about and be verified to discriminate in BOTH
+directions.
+
+NEW STANDING RULE -- AN ANCHOR MISS IS NOT A DETECTION. When a fix changes the
+code a mutation targets, the sabotage matrix reports ANCHOR-MISS rather than
+DETECTED. The mutation must be rebuilt against the real code before the matrix is
+accepted, or the guard is unverified while appearing green.
+
+CARRIED ITEMS AFTER THIS COMMIT:
+  OPEN          CI-m CI-n CI-p CI-r CI-s
+  DISCHARGED    CI-k CI-l CI-o CI-q CI-t
+  UNVERIFIABLE  CI-i CI-j CI-a
+
+CI-p is the natural next item: MetricResult.to_dict emits raw NaN while from_dict
+documents reading null, so every refused result is unpersistable through to_dict
+alone. It has five Family B call sites and needs its own oracle.
+
+NEW STANDING RULE -- A TEST THAT DISCARDS ITS OUTPUT CANNOT VERIFY IT. CI-q's
+first package ran 3610 tests green and then broke `git add -A`: a sidecar written
+beside `os.devnull` became `nul.metadata.json`, a Windows reserved-name entry
+that lists but cannot be opened. Any code path writing a file next to a
+caller-supplied path must handle the null device explicitly, and the detector for
+it must be shown not to swallow legitimate names such as `nulls.csv`.

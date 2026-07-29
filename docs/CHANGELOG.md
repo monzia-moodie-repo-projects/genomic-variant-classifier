@@ -1,3 +1,73 @@
+## 2026-07-28 -- the shared-population model comparison (CI-q)
+
+Ratchet 3594 -> 3627 (+33). Session record:
+docs/sessions/SESSION_2026-07-28_shared-population-comparison.md
+
+compare_models scored several models against one shared y_true and could not
+prove it. Both results were unattributed, compare_membership returned UNKNOWN,
+and the artifact asserted a ranking whose premise it could not support. For a
+model comparison, same-population is not a refinement -- it is the ENTIRE
+PREMISE.
+
+With one corrupt model the table read good 0.99937 / fair 0.74253 / corrupt NaN.
+A ranking was presented; the corrupt model sorted last on a NaN comparison, and a
+reader could not distinguish "evaluated and worst" from "never evaluated".
+
+### Built
+- ONE population, handed to every model BY OBJECT through a new `population=`
+  parameter on evaluate(). Sameness is proved by construction, not inferred from
+  equal fingerprints.
+- Admissibility BEFORE ordering, from the TYPED result -- measured, format_ci
+  renders all four interval states identically and certification is False in all
+  four, so neither is evidence about the model.
+- The ranking REFUSED entirely, never filtered: a ranking that silently excludes
+  a submitted model is not a ranking of the models submitted. No sort runs at
+  all, because a NaN sorts last and that implies "worst".
+- SHARED_BY_CONSTRUCTION kept distinct from VERIFIED_BY_FINGERPRINT.
+  compare_membership untouched, because UNKNOWN is the correct answer to the
+  question it asks.
+- Three certification axes never collapsed: an unattributed shared comparison is
+  (True, False, False) -- internally valid, externally unreproducible.
+- A versioned metadata sidecar, because comparison-level facts describe the
+  COMPARISON and duplicating them per row invites a reader to believe they could
+  differ between rows.
+
+### THE SABOTAGE FOUND THE CENTRAL CLAIM WAS FALSE
+B5: the shared population was BUILT AND NEVER HANDED OVER. Each model still
+constructed its own; fingerprints matched only because the same source_id was
+passed to each -- equal by coincidence, not shared by construction. My test
+counted population scopes and missed it. The test now asserts object identity.
+
+When the fix changed the call site, B5's anchor stopped matching and the matrix
+reported ANCHOR-MISS. An anchor miss is not a detection, so the mutation was
+rebuilt against the real code before the matrix was accepted.
+
+### THE REGISTER'S OWN PREDICATE WAS DEFECTIVE
+I predicted the register would catch the CI-q divergence. IT DID NOT.
+_condition_q scanned src/ for the text ".evaluate(" and matched SIX places, of
+which ONE was a real call -- the others were four docstrings and an unrelated
+self.evaluate in gnn.py. A docstring will never pass source_id, so the item would
+have reported OPEN forever regardless of the code.
+
+The fourth malformed probe of this session, and the same shape as the others: a
+text search over a SUPERSET of what the question asked. The most serious
+instance, because it was written into the REGISTER -- the mechanism built to stop
+status drifting from code. The predicate now parses compare_models, and is
+verified to discriminate in both directions.
+
+### A DEFECT THE FULL SUITE COULD NOT SEE
+The first package ran 3610 tests green and then BROKE `git add -A`.
+test_evaluator_phase5 passes output_csv=os.devnull, which on Windows is `nul` --
+a reserved device name with no suffix -- so with_suffix(".metadata.json")
+produced `nul.metadata.json` in the repository root: an entry that appears in a
+directory listing and CANNOT BE OPENED. A test that writes to the null device
+never reads back what it wrote, so nothing in the suite could notice. Version
+control caught it, one layer outside the tests. write_csv now writes no sidecar
+for a null device, and the detector is verified not to swallow nulls.csv.
+
+### Sabotage
+Ten mutations, ten detected, zero undetected.
+
 ## 2026-07-28 -- CI-t was discharged prematurely; the enumeration that proves it now
 
 Ratchet 3589 -> 3594 (+5). Session record:

@@ -82,16 +82,40 @@ def _condition_p() -> bool:
 
 
 def _condition_q() -> bool:
-    """Some call site in `src/` still evaluates without a source identity."""
-    pattern = re.compile(r"\.evaluate\(")
-    for path in SRC.rglob("*.py"):
-        text = path.read_text(encoding="utf-8", errors="replace")
-        for match in pattern.finditer(text):
-            window = text[match.start():match.start() + 400]
-            head = window.split(")")[0]
-            if "source_id" not in head and "def evaluate" not in window[:20]:
-                return True
-    return False
+    """`compare_models` still evaluates without a shared population identity.
+
+    PARSED, AND NARROWED TO THE ACTUAL CALL SITE. The first version scanned every
+    file in `src/` for the text `.evaluate(` and asked whether `source_id`
+    appeared nearby. It matched SIX places, of which exactly ONE was a real call:
+
+        evaluator.py:28     a docstring example
+        evaluator.py:1518   the real call site        <- the only true positive
+        registry.py:57,64   prose in a module docstring
+        canonical.py:8      prose in a module docstring
+        gnn.py:460          self.evaluate(val_dataset) -- a different function
+
+    A docstring will never pass `source_id`, so the item would have reported OPEN
+    forever regardless of the code. A register whose predicates are text searches
+    is a register that drifts silently, which is precisely what it exists to
+    prevent.
+
+    The condition is now what the item actually says: does `compare_models` hand
+    a shared population to each evaluation, or does each model build its own?
+    """
+    import inspect
+
+    from genomic_variant_classifier.evaluation import evaluator
+
+    tree = ast.parse(inspect.getsource(evaluator.compare_models))
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "evaluate"):
+            continue
+        supplied = {kw.arg for kw in node.keywords}
+        if "population" in supplied:
+            return False        # the shared population is handed over: closed
+    return True                 # no call hands one over: still open
 
 
 def _condition_r() -> bool:
@@ -110,7 +134,6 @@ OPEN_CONDITIONS = {
     "CI-m": _condition_m,
     "CI-n": _condition_n,
     "CI-p": _condition_p,
-    "CI-q": _condition_q,
     "CI-r": _condition_r,
 }
 
@@ -202,6 +225,7 @@ DISCHARGED_CONDITIONS = {
     "CI-l": _discharged_l,
     "CI-o": _discharged_o,
     "CI-t": _discharged_t,
+    "CI-q": lambda: not _condition_q(),
 }
 
 

@@ -61,6 +61,8 @@ from genomic_variant_classifier.evaluation.cluster_resolution import (
     ClusterResolution,
     resolve_gene_clusters,
 )
+from genomic_variant_classifier.evaluation.model_comparison import (
+    ComparisonBlocker, ComparisonPopulationRelation, ModelComparison)
 from genomic_variant_classifier.evaluation.input_validation import (
     validate_probabilities, validate_ranking_scores, validate_reference_labels)
 from genomic_variant_classifier.evaluation.legacy_projection import project_legacy_fields
@@ -718,6 +720,7 @@ class ClinicalEvaluator:
         source_id: Optional[str] = None,
         *,
         scores: Optional[np.ndarray] = None,
+        population: Optional[EvaluationPopulation] = None,
     ) -> EvaluationReport:
         """
         Full evaluation pipeline.
@@ -842,8 +845,26 @@ class ClinicalEvaluator:
         # and carries a membership fingerprint; without it it is unattributed, has
         # NO fingerprint, and comparison against any other population returns
         # UNKNOWN rather than a false equality.
-        population = EvaluationPopulation.full(
-            n, scope="attempted_cohort", source_id=source_id)
+        # THE CALLER MAY SUPPLY THE POPULATION (2026-07-28, CI-q).
+        #
+        # `compare_models` builds ONE population and hands the SAME OBJECT to
+        # every model, so intra-call sameness is proved by construction rather
+        # than inferred from equal fingerprints. Equal fingerprints would only
+        # show that two independently built populations happened to agree --
+        # which is what this parameter exists to replace.
+        if population is not None:
+            if population.n_source != n:
+                raise ValueError(
+                    f"the supplied population describes {population.n_source} "
+                    f"rows but {n} were passed; a comparison cannot share a "
+                    "population with a cohort of a different size")
+            if source_id is not None and population.source_id != source_id:
+                raise ValueError(
+                    "the supplied population and source_id disagree; one of them "
+                    "is not describing this cohort")
+        else:
+            population = EvaluationPopulation.full(
+                n, scope="attempted_cohort", source_id=source_id)
         # THE TWO REGISTRY CHANNELS RECEIVE DIFFERENT ARRAYS (2026-07-28, CI-t).
         #
         # Until this commit both received `p`. The registry has always drawn the
@@ -1437,13 +1458,31 @@ class ClinicalEvaluator:
 # ---------------------------------------------------------------------------
 # Multi-model comparison convenience function
 # ---------------------------------------------------------------------------
+def _ranking_metric_is_valid(report, ranking_metric: str) -> bool:
+    """Does this report carry a usable value for the ranking metric?
+
+    Reads the TYPED result. `format_ci` and the certification Boolean cannot
+    distinguish an unavailable interval from a failed one -- measured, all four
+    interval states render identically and certify False -- so neither is
+    evidence about the model.
+    """
+    typed = report.metric_results.get(ranking_metric)
+    if typed is None:
+        return False
+    if typed.status is not MetricStatus.OK:
+        return False
+    return bool(np.isfinite(typed.value))
+
 def compare_models(
     y_true: np.ndarray,
     model_probas: dict[str, np.ndarray],
     meta: Optional[pd.DataFrame] = None,
     n_bootstrap: int = 500,
     output_csv: str = "models/model_comparison.csv",
-) -> pd.DataFrame:
+    *,
+    source_id: Optional[str] = None,
+    ranking_metric: str = "auroc",
+) -> "ModelComparison":
     """
     Compare multiple models in one call.
 
@@ -1459,9 +1498,26 @@ def compare_models(
     """
     evaluator = ClinicalEvaluator(n_bootstrap=n_bootstrap)
     records: list[dict] = []
+    reports: dict = {}
+
+    # ONE POPULATION, CONSTRUCTED ONCE (2026-07-28, CI-q).
+    #
+    # Every model in one call is scored against the same `y_true`, so they share
+    # a population BY CONSTRUCTION. Building it here and handing the same object
+    # to each evaluation makes that premise structural: there is no opportunity
+    # for one model to receive a different mask, scope or frame.
+    #
+    # Previously each `evaluate` call built its own equivalent population, so the
+    # sameness was true in fact and unprovable from the artifacts -- the models
+    # were compared like for like and nothing recorded it.
+    n_rows = len(np.asarray(y_true))
+    shared_population = EvaluationPopulation.full(
+        n_rows, scope="model_comparison_attempted_cohort", source_id=source_id)
 
     for name, proba in model_probas.items():
-        r = evaluator.evaluate(y_true, proba, meta=meta, model_name=name)
+        r = evaluator.evaluate(y_true, proba, meta=meta, model_name=name,
+                               population=shared_population)
+        reports[name] = r
         records.append({
             "model":             name,
             "auroc":             r.auroc,
@@ -1478,10 +1534,60 @@ def compare_models(
             "ppv_at_90_sens":    r.at_sensitivity_90.ppv         if r.at_sensitivity_90 else None,
         })
 
-    df = pd.DataFrame(records).sort_values("auroc", ascending=False).reset_index(drop=True)
+    # ADMISSIBILITY BEFORE ORDERING (CI-q).
+    #
+    # The ranking is refused entirely when any submitted model lacks a valid
+    # value for the RANKING METRIC. Not filtered: a ranking that silently
+    # excludes a submitted model is not a ranking of the models submitted, and
+    # sorting with a NaN present places it last, which visually implies "worst"
+    # rather than "not evaluated".
+    #
+    # Admissibility reads the TYPED result, never `format_ci` or the
+    # certification Boolean. Measured 2026-07-28: those render an unavailable
+    # interval and a FAILED one identically, so neither can distinguish a model
+    # that was not evaluated from one whose interval was simply not attempted.
+    blocked = tuple(
+        name for name, report in reports.items()
+        if not _ranking_metric_is_valid(report, ranking_metric))
+
+    rankable = not blocked
+    if rankable:
+        df = (pd.DataFrame(records)
+              .sort_values(ranking_metric, ascending=False)
+              .reset_index(drop=True))
+        df.insert(0, "rank", range(1, len(df) + 1))
+    else:
+        # Submission order, deterministically. No sort at all.
+        df = pd.DataFrame(records).reset_index(drop=True)
+        df.insert(0, "rank", [None] * len(df))
+        logger.warning(
+            "model ranking REFUSED: %s is not valid for %s. All %d model rows "
+            "are preserved; no ordering is asserted.",
+            ranking_metric, ", ".join(blocked), len(df))
+
+    attributed = shared_population.is_attributed
+    comparison = ModelComparison(
+        table=df,
+        ranking_metric=ranking_metric,
+        comparison_rankable=rankable,
+        comparison_blocked_by=(None if rankable
+                               else ComparisonBlocker.INVALID_RANKING_METRIC),
+        blocked_models=blocked,
+        population_relation=(
+            ComparisonPopulationRelation.VERIFIED_BY_FINGERPRINT if attributed
+            else ComparisonPopulationRelation.SHARED_BY_CONSTRUCTION),
+        comparison_population_key="population_0",
+        population_source_id=shared_population.source_id,
+        population_fingerprint=shared_population.membership_fingerprint,
+        comparison_is_like_for_like=True,
+        population_is_attributed=attributed,
+        comparison_certification_eligible=bool(rankable and attributed),
+        n_models=len(reports),
+        population_n=shared_population.n,
+    )
 
     out_path = Path(output_csv)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(out_path, index=False)
+    comparison.write_csv(out_path)
     logger.info("Comparison table saved to %s", out_path)
-    return df
+    return comparison

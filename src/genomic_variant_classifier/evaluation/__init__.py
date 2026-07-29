@@ -33,6 +33,8 @@ IMPORT CONTRACT — DO NOT IMPORT metrics.py FROM THIS FILE.
 
 from __future__ import annotations
 
+from genomic_variant_classifier.evaluation.model_comparison import (
+    ComparisonBlocker, ComparisonPopulationRelation, ModelComparison)
 from genomic_variant_classifier.evaluation.evaluator import (
     ClinicalEvaluator,
     ConsequenceBreakdown,
@@ -49,5 +51,8 @@ __all__ = [
     "GeneErrorAnalysis",
     "OperatingPoint",
     "compare_models",
+    "ComparisonBlocker",
+    "ComparisonPopulationRelation",
+    "ModelComparison",
 ]
 from genomic_variant_classifier.evaluation.prediction_artifacts import RunArtifactWriter

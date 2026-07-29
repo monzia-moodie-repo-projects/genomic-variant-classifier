@@ -4004,4 +4004,41 @@
 #
 #   Sabotage: 6 mutations, 6 detected, 0 undetected.
 #
-3594
+#
+# 3594 -> 3627 (+33)  2026-07-28  CI-q: the shared-population model
+#   comparison.
+#
+#   compare_models scored several models against one shared y_true and could
+#   not prove it. Each model built its own population, so the comparison's
+#   entire premise -- like for like -- was true in fact and unrecorded.
+#
+#   With one corrupt model the table read good 0.99937 / fair 0.74253 /
+#   corrupt NaN. A RANKING WAS PRESENTED: the corrupt model sorted last on a
+#   NaN comparison, and a reader could not tell evaluated-and-worst from
+#   never-evaluated.
+#
+#   ONE population, handed to every model BY OBJECT. Admissibility BEFORE
+#   ordering, from the TYPED result, because format_ci renders all four
+#   interval states identically. The ranking REFUSED, never filtered, and no
+#   sort runs at all. SHARED_BY_CONSTRUCTION kept distinct from
+#   VERIFIED_BY_FINGERPRINT. Three certification axes never collapsed.
+#
+#   THE SABOTAGE FOUND THE CENTRAL CLAIM WAS FALSE: the shared population was
+#   built and never handed over; fingerprints matched only because the same
+#   source_id was passed to each -- equal by coincidence. The test now asserts
+#   OBJECT IDENTITY.
+#
+#   THE REGISTER PREDICATE WAS DEFECTIVE. It scanned for the evaluate call as raw text
+#   and matched six places, five of them docstrings or an unrelated function,
+#   so the item would have reported open forever. Fourth malformed probe of
+#   this session and the most serious, because it lived in the register.
+#
+#   A DEFECT THE SUITE COULD NOT SEE: the first package ran 3610
+#   tests green and broke git add. A sidecar written beside os.devnull
+#   became nul.metadata.json -- a Windows reserved-name entry that
+#   lists but cannot be opened. A test that discards its output cannot
+#   verify it; version control caught it one layer out.
+#
+#   Sabotage: 10 mutations, 10 detected, 0 undetected.
+#
+3627

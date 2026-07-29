@@ -92,5 +92,16 @@ def test_f1_in_compare_models():
     import contextlib
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
-        df = mod.compare_models(y, {"m": p}, n_bootstrap=20, output_csv=os.devnull)
-    assert "f1" in df.columns, "compare_models output must carry the f1 column"
+        comparison = mod.compare_models(y, {"m": p}, n_bootstrap=20,
+                                        output_csv=os.devnull)
+    # UPDATED 2026-07-28 (CI-q). `compare_models` now returns a ModelComparison
+    # rather than a bare frame, because comparison-level facts -- the population
+    # relation, whether the ranking was refused and why -- describe the
+    # COMPARISON and cannot be carried by per-model rows without inviting a
+    # reader to believe they could differ between rows.
+    #
+    # The property under test is unchanged: the table must carry the F1 column.
+    assert "f1" in comparison.table.columns, (
+        "compare_models output must carry the f1 column")
+    assert comparison.comparison_rankable is True
+    assert comparison.table["rank"].tolist() == [1]
