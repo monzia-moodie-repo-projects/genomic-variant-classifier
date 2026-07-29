@@ -4171,4 +4171,25 @@
 #   The register exists to stop status drifting from code, and its own
 #   predicates were the drift.
 #
-3710
+#
+# 3710 -> 3711 (+1)  2026-07-29  CI-r discharged. Every predicated carried
+#   item is now closed.
+#
+#   CI-r said the frozen oracle is blind to interval certification and that a
+#   defect forcing it False would be invisible. THE FIRST HALF IS ACCURATE; THE
+#   SECOND IS FALSE. Forcing the success-path assignment to False FAILS
+#   test_evaluator_produces_a_certified_interval_when_genes_are_present.
+#
+#   An oracle blind to a property is only a gap when NOTHING ELSE asserts it.
+#   test_bootstrap_reconciliation covers it in both directions.
+#
+#   THE FOURTH PROXY. Its predicate read a FROZEN fixture -- a file nobody
+#   intends to change -- rather than a coverage gap. CI-q a text scan, CI-m a
+#   call check, CI-n a parameter check, CI-r a frozen-fixture property.
+#
+#   AN EMPTY GUARD THAT SKIPPED. With the last predicated item discharged,
+#   pytest skipped the parametrised test -- got empty parameter set -- a guard
+#   reporting success while checking nothing, which would also have raised the
+#   stable skip surface from seven to eight. Rewritten as a loop.
+#
+3711

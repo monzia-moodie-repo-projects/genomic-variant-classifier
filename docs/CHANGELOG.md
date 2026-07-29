@@ -1,3 +1,33 @@
+## 2026-07-29 -- the third proxy, and an empty guard that skipped
+
+Ratchet 3710 -> 3711 (+1). Session record:
+docs/sessions/SESSION_2026-07-29_third-proxy.md
+
+CI-r said the frozen oracle is blind to interval certification and that a defect
+forcing it False would therefore be invisible. THE FIRST HALF IS ACCURATE; THE
+SECOND IS FALSE. Forcing the success-path assignment at evaluator.py:1247 to
+False FAILS test_evaluator_produces_a_certified_interval_when_genes_are_present.
+test_bootstrap_reconciliation covers the property in both directions, and four
+other suites assert certification_eligible is True. An oracle blind to a property
+is only a gap when NOTHING ELSE asserts it.
+
+### The third proxy
+CI-r's predicate read the frozen fixture -- which is frozen BY DESIGN, so it
+described a file nobody intends to change rather than a coverage gap. Four
+predicates have now been found measuring proxies: CI-q a text scan, CI-m a call
+check, CI-n a parameter check, CI-r a frozen-fixture property.
+
+### An empty guard that skipped
+Discharging the last predicated item left OPEN_CONDITIONS empty and pytest
+SKIPPED the parametrised test -- "got empty parameter set". A guard reporting
+success while checking nothing, and it would have raised the stable skip surface
+from seven to eight. Rewritten as a loop so an empty open set passes EXPLICITLY.
+
+### Two malformed probes of my own
+A mutation matched a line already reading False (False -> False, proving
+nothing), and a slice removed _condition_u along with its target -- caught
+immediately by the register with NameError.
+
 ## 2026-07-29 -- two register predicates measured a proxy, not the claim
 
 Ratchet 3709 -> 3710 (+1). Session record:

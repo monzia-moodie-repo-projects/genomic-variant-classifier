@@ -2786,3 +2786,32 @@ REMAINING OPEN ITEMS, both genuine:
         decision, not a code change.
   CI-s  deferred imports in registry.py are a load-bearing contract, verified by
         a dedicated test that fails when a module-scope metrics import returns.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-29 -- CI-r discharged; the register is complete
+=====================================================================
+
+CARRIED ITEMS:
+  OPEN          (none predicated)
+  DISCHARGED    CI-k CI-l CI-m CI-n CI-o CI-p CI-q CI-r CI-t CI-u
+  UNVERIFIABLE  CI-i  CI-j  CI-a
+  RULE          CI-s, verified by a dedicated contract test
+
+Every discharge carries an INVERTED predicate: if any condition returns, the
+suite goes red rather than the register quietly reverting.
+
+NEW STANDING RULE -- AN ORACLE BLIND TO A PROPERTY IS ONLY A GAP WHEN NOTHING
+ELSE ASSERTS IT. CI-r was carried on the premise that the frozen fixture's
+blindness left interval certification unguarded. A dedicated suite covered it in
+both directions the whole time. Before recording a coverage gap, search for the
+assertion elsewhere.
+
+NEW STANDING RULE -- AN EMPTY PARAMETER SET IS A SILENT HOLE. A parametrised
+guard over an empty collection SKIPS, reporting success while checking nothing.
+Where the empty case is legitimate -- as an empty open-item set is -- write the
+guard as a loop so it passes explicitly.
+
+FOUR PREDICATES HAVE NOW BEEN FOUND MEASURING PROXIES: CI-q a text scan, CI-m a
+call check, CI-n a parameter check, CI-r a frozen-fixture property. When writing
+a predicate, ask what OBSERVABLE would change if the item were fixed.

@@ -160,15 +160,40 @@ def _condition_q() -> bool:
 
 
 def _condition_r() -> bool:
-    """The frozen report oracle cannot distinguish an interval-certification
-    defect, because every captured value is identical."""
-    fixture = TESTS / "fixtures" / "report_snapshot_2b3.json"
-    if not fixture.exists():
-        return False
-    snapshot = json.loads(fixture.read_text(encoding="utf-8"))
-    observed = {row.get("auroc_ci_certification_eligible")
-                for row in snapshot["cohorts"].values()}
-    return len(observed) == 1
+    """A defect forcing interval certification False would go unnoticed.
+
+    REWRITTEN 2026-07-29, the third proxy found in this register. The previous
+    predicate read the frozen fixture and checked whether
+    `auroc_ci_certification_eligible` had one distinct value. It always will --
+    the fixture was captured with `n_bootstrap=0` and is FROZEN BY DESIGN, so
+    that predicate described a file nobody intends to change rather than a gap in
+    coverage.
+
+    The oracle IS blind; that half of the item was accurate. But the implication
+    -- that the defect would therefore go unnoticed -- is FALSE.
+    `test_bootstrap_reconciliation` covers interval certification directly and in
+    both directions: a certified interval when gene clusters are present, an
+    interval that is never certifiable for a variant resampling unit, and status
+    and certification as independent axes.
+
+    MEASURED 2026-07-29: forcing the success-path assignment to `False` fails
+    `test_evaluator_produces_a_certified_interval_when_genes_are_present`. The
+    condition does not hold, so this returns False.
+
+    The check is that the POSITIVE assertion exists. An oracle blind to a
+    property is only a gap when nothing else asserts it, and what matters is that
+    something, somewhere, requires certification to be True.
+    """
+    import inspect
+
+    from pathlib import Path as _Path
+
+    suite = TESTS / "unit" / "test_bootstrap_reconciliation.py"
+    if not suite.exists():
+        return True                     # nothing covers it: the item is open
+    text = suite.read_text(encoding="utf-8")
+    asserts_true = "auroc_ci_certification_eligible is True" in text
+    return not asserts_true
 
 
 def _condition_u() -> bool:
@@ -199,9 +224,7 @@ def _condition_u() -> bool:
     return False
 
 
-OPEN_CONDITIONS = {
-    "CI-r": _condition_r,
-}
+OPEN_CONDITIONS = {}
 
 
 # --------------------------------------------------------------------------- #
@@ -305,6 +328,10 @@ DISCHARGED_CONDITIONS = {
     # The ordered variant-identifier sequence is incorporated. Inverted rather
     # than deleted: if two different frames ever collide, that fails.
     "CI-n": lambda: not _condition_n(),
+    # Interval certification is asserted positively by the bootstrap suite.
+    # Inverted rather than deleted: if that assertion is ever removed, the
+    # property becomes genuinely unguarded and this fails.
+    "CI-r": lambda: not _condition_r(),
 }
 
 
@@ -332,15 +359,28 @@ def test_the_register_exists_and_declares_its_sections():
         assert heading in text, f"the register is missing the {heading!r} section"
 
 
-@pytest.mark.parametrize("item", sorted(OPEN_CONDITIONS))
-def test_every_open_item_still_has_its_condition(item):
+def test_every_open_item_still_has_its_condition():
     """A register that lists solved problems is worse than no register: it sends
     a reader looking for work that is already done, and it hides the fact that
-    nobody has re-checked."""
-    assert OPEN_CONDITIONS[item](), (
-        f"{item} is listed OPEN but its condition no longer holds. If it was "
-        "fixed, move it to Discharged in docs/CARRIED_ITEMS.md and move its "
-        "predicate into DISCHARGED_CONDITIONS -- do not delete the check.")
+    nobody has re-checked.
+
+    NOT PARAMETRISED, deliberately. As a parametrised test it SKIPPED once every
+    predicated item was discharged -- "got empty parameter set" -- which is a
+    guard reporting success while checking nothing, and would have raised the
+    suite's stable skip surface from seven to eight.
+
+    An empty open set is a legitimate and desirable state: it means no predicated
+    item is currently open. Written as a loop it passes explicitly in that case
+    and still names the offending item when one goes stale.
+    """
+    stale = []
+    for item in sorted(OPEN_CONDITIONS):
+        if not OPEN_CONDITIONS[item]():
+            stale.append(item)
+    assert not stale, (
+        f"{stale} listed OPEN but their conditions no longer hold. If fixed, "
+        "move them to Discharged in docs/CARRIED_ITEMS.md and move their "
+        "predicates into DISCHARGED_CONDITIONS -- do not delete the check.")
 
 
 @pytest.mark.parametrize("item", sorted(DISCHARGED_CONDITIONS))
