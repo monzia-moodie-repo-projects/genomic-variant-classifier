@@ -358,11 +358,11 @@ def test_the_report_emits_the_typed_surface():
     force every consumer wanting status, reason, population or certification to
     recompute them -- which is the duplication this whole sequence removed."""
     from genomic_variant_classifier.evaluation.evaluator import (
-        EVALUATION_REPORT_SCHEMA_VERSION_TYPED)
+        EVALUATION_REPORT_SCHEMA_VERSION_ABSENCE)
     from genomic_variant_classifier.evaluation.registry import names
 
     report = _report()
-    assert report.schema_version == EVALUATION_REPORT_SCHEMA_VERSION_TYPED
+    assert report.schema_version == EVALUATION_REPORT_SCHEMA_VERSION_ABSENCE
     assert set(report.metric_results) == set(names()), (
         "the report must carry every registered result, not a subset")
 

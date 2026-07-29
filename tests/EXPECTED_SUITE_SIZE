@@ -4094,4 +4094,31 @@
 #   Does NOT wire the vocabulary in. That is u-3, and needs the gate verdicts
 #   threaded through: the cause is only knowable where the refusal happened.
 #
-3655
+#
+# 3655 -> 3682 (+27)  2026-07-29  CI-u-3: explicit absence. CI-u COMPLETE.
+#
+#   Frozen oracle before the change: THREE OF FIVE COHORTS produced reports that
+#   could not be written at all. strict JSON refuses a NaN, correctly, but the
+#   flat surface had no way to say a value was ABSENT. All five now persist.
+#
+#   THE CAUSE IS THREADED FROM WHERE THE REFUSAL HAPPENED. A single-class cohort
+#   yields UNDEFINED_ON_COHORT, a property of the data; CI-t's gates yield
+#   WITHHELD_BY_INPUT_GATE, a property of the model output. The NaN is identical.
+#
+#   Schema 4 adds field_absence and curve_absence with a BICONDITIONAL: a scalar
+#   is null if and only if it is declared absent.
+#
+#   FOUR DEFECTS OF MY OWN. The invariant was VACUOUS as first wired --
+#   to_serializable nulled every declared-absent field then asserted they were
+#   null, so deleting the call entirely survived sabotage. The scalar predicate
+#   tested is-None when the report uses NaN; the curve predicate tested
+#   emptiness when an absent curve is [nan, nan]; and the completeness half
+#   fired on reports that simply have no curves.
+#
+#   THE REGISTER CAUGHT A REAL DISCHARGE -- a status change made in code before
+#   the document caught up. First genuine detection rather than synthetic.
+#
+#   Sabotage: 9 mutations, 9 detected, 0 undetected, 0 anchor misses. Two
+#   earlier rounds were DISCARDED rather than accepted.
+#
+3682

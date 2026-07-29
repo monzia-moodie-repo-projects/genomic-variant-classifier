@@ -1,3 +1,50 @@
+## 2026-07-29 -- explicit absence in the artifact (CI-u-3) -- CI-u COMPLETE
+
+Ratchet 3655 -> 3682 (+27). Session record:
+docs/sessions/SESSION_2026-07-29_explicit-absence.md
+
+Frozen oracle before the change: THREE OF FIVE COHORTS could not be written at
+all. After it, all five persist and the legacy report oracle moves only
+schema_version.
+
+The non-finite refusal is SEVEN fields, not the five previously described --
+calibration_ece and calibration_mce refuse too. That fact had been carried across
+from CI-t withholding the calibration CURVES, without checking the scalars.
+
+### The cause is threaded, never inferred
+all-negative / all-positive -> UNDEFINED_ON_COHORT, only the one undefined curve
+marked. Non-finite input -> WITHHELD_BY_INPUT_GATE, all seven scalars and all six
+curves. The NaN is identical; only CI-t's gate verdict separates a property of
+the DATA from a property of the MODEL OUTPUT.
+
+### FOUR DEFECTS OF MY OWN
+1. THE INVARIANT WAS VACUOUS: to_serializable nulled every declared-absent field
+   and THEN asserted they were null. A sabotage deleting the call survived,
+   because no payload could reject it. It now checks the REPORT before
+   normalising.
+2. The scalar predicate tested `is None` when the report uses NaN.
+3. The curve predicate tested emptiness when an absent curve is [nan, nan].
+4. The completeness half over-reached, demanding an absence record for every
+   empty curve and firing on reports that simply have no curves. A NULL SCALAR is
+   a value that went missing; an EMPTY COLLECTION is a good value meaning "no
+   points". Only the scalar half is completeness.
+
+I also mis-stated the acceptance criterion as byte-identical healthy digests --
+impossible across a schema bump. The criterion is that no MEASURED VALUE moves.
+
+### THE REGISTER CAUGHT A REAL DISCHARGE
+"CI-u is listed OPEN but its condition no longer holds." The predicate written in
+u-2 now succeeds where it expected failure -- the register detected a status
+change made in code before the document caught up. First time it has fired on a
+genuine discharge rather than a synthetic one. Its predicate is INVERTED rather
+than deleted.
+
+### Sabotage
+Nine mutations, nine detected, zero undetected, zero anchor misses. Two earlier
+rounds were DISCARDED rather than accepted: one had four anchor misses after the
+code was rewritten beneath the mutations, and B7 was initially a no-op because
+`{} or {...}` evaluates to the dictionary.
+
 ## 2026-07-29 -- the absence vocabulary (CI-u-2)
 
 Ratchet 3630 -> 3655 (+25). Session record:

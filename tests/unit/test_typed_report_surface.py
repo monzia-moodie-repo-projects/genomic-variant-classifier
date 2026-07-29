@@ -114,7 +114,7 @@ def _ok_result(value=0.9):
 def test_the_typed_schema_version_is_declared_and_readable():
     assert EVALUATION_REPORT_SCHEMA_VERSION_TYPED == 3
     assert EVALUATION_REPORT_SCHEMA_VERSION == 2
-    assert set(SUPPORTED_REPORT_SCHEMA_VERSIONS) == {1, 2, 3}
+    assert set(SUPPORTED_REPORT_SCHEMA_VERSIONS) == {1, 2, 3, 4}
 
 
 def test_a_version_three_report_requires_a_non_empty_typed_mapping():
@@ -456,7 +456,7 @@ def test_exactly_one_report_field_was_added():
     current = [f.name for f in dataclasses.fields(EvaluationReport)]
     added = [f for f in current if f not in snapshot["report_field_names"]]
     removed = [f for f in snapshot["report_field_names"] if f not in current]
-    assert added == ["metric_results"]
+    assert added == ["metric_results", "field_absence", "curve_absence"]
     assert removed == []
 
 
@@ -477,6 +477,6 @@ def test_evaluate_now_emits_the_typed_schema_version():
     evaluator = ClinicalEvaluator(n_bootstrap=0, random_state=42)
     y, p = _rebuild_cohorts()["balanced"]
     report = evaluator.evaluate(y, p, model_name="probe")
-    assert report.schema_version == EVALUATION_REPORT_SCHEMA_VERSION_TYPED == 3
+    assert report.schema_version == 4
     assert set(report.metric_results) == set(names()), (
         "a version-3 report must carry every registered typed result")

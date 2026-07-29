@@ -2675,3 +2675,39 @@ u-3 SCOPE:
     Reconstructing the cause from a NaN at serialisation time would be exactly
     the inference this vocabulary exists to replace.
   * schema version bump and read path.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-29 -- explicit absence (CI-u-3) -- CI-u COMPLETE
+=====================================================================
+
+  u-1  unify the writers            2a1e7f6  LANDED
+  u-2  the absence vocabulary       594a6af  LANDED
+  u-3  wire it, schema 4            (this)   LANDED
+
+A degenerate cohort now produces an artifact. Before this commit three of five
+measured cohorts could not be written at all, because the flat surface had no way
+to say a value was absent and strict JSON refused the NaN.
+
+SCHEMA VERSION 4 adds field_absence and curve_absence. A scalar serialises as
+null AND appears in field_absence with the CAUSE of its absence.
+
+NEW STANDING RULE -- AN INVARIANT MUST BE CHECKED BEFORE THE CODE MAKES IT TRUE.
+The first wiring nulled every declared-absent field and then asserted they were
+null. That assertion is unfalsifiable, and a sabotage deleting it entirely
+survived. Check the source object, not the normalised output.
+
+NEW STANDING RULE -- COMPLETENESS AND CONSISTENCY ARE DIFFERENT INVARIANTS. A
+null scalar is a value that WENT MISSING and must say why; an empty collection is
+a perfectly good value meaning "no points". Demanding an explanation for the
+second conflates them and fires on correct code.
+
+CARRIED ITEMS AFTER THIS COMMIT:
+  OPEN          CI-m CI-n CI-p CI-r CI-s
+  DISCHARGED    CI-k CI-l CI-o CI-q CI-t CI-u
+  UNVERIFIABLE  CI-i CI-j CI-a
+
+CI-p IS THE LAST OPEN DEFECT. MetricResult.to_dict emits raw NaN while from_dict
+documents reading null. Its Family B blast radius was disproved by measurement;
+what remains is the writer/reader asymmetry itself, and the absence vocabulary
+now provides the shape a fix would use.

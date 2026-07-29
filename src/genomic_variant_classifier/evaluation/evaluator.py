@@ -63,6 +63,12 @@ from genomic_variant_classifier.evaluation.cluster_resolution import (
 )
 from genomic_variant_classifier.evaluation.model_comparison import (
     ComparisonBlocker, ComparisonPopulationRelation, ModelComparison)
+from genomic_variant_classifier.evaluation.absence import (
+    AbsenceCause, absence_for_curve, absence_for_value)
+from genomic_variant_classifier.evaluation.absence import (
+    AbsenceCause, CurveAbsence, FieldAbsence, absence_for_curve, absence_for_value)
+from genomic_variant_classifier.evaluation.legacy_projection import (
+    LEGACY_PROJECTION_POLICIES)
 from genomic_variant_classifier.evaluation.input_validation import (
     validate_probabilities, validate_ranking_scores, validate_reference_labels)
 from genomic_variant_classifier.evaluation.legacy_projection import project_legacy_fields
@@ -98,8 +104,14 @@ EVALUATION_REPORT_SCHEMA_VERSION = 2
 # falsifiable.
 EVALUATION_REPORT_SCHEMA_VERSION_TYPED = 3
 
+# 4  the report carries `field_absence` and `curve_absence`, so a value that is
+#    absent serialises as `null` WITH a recorded cause instead of making the
+#    whole artifact unpersistable. Measured at 594a6af: three of five cohorts
+#    produced reports that could not be written at all.
+EVALUATION_REPORT_SCHEMA_VERSION_ABSENCE = 4
+
 # Versions this codebase can READ.
-SUPPORTED_REPORT_SCHEMA_VERSIONS = (1, 2, 3)
+SUPPORTED_REPORT_SCHEMA_VERSIONS = (1, 2, 3, 4)
 
 # PHASE5: lazy sklearn loader + first-class F1
 # sklearn is imported on first use (not at module import) so this module imports cleanly in
@@ -548,6 +560,26 @@ class EvaluationReport:
     # floats would fabricate provenance rather than recover it.
     metric_results: Mapping = field(default_factory=dict)
 
+    # --- explicit absence, schema version 4 (2026-07-29, CI-u-3) ------------
+    # A scalar that cannot be persisted serialises as `null` AND appears here
+    # with the CAUSE of its absence. The two are biconditional: a null without a
+    # matching entry is a silent absence, and an entry without a null is an
+    # orphaned claim. Both are refused.
+    #
+    # The cause is threaded FROM WHERE THE REFUSAL HAPPENED -- the input gates
+    # know they withheld, the registry knows the cohort was single-class.
+    # Inferring it from a NaN at serialisation time would be exactly the guess
+    # this vocabulary exists to replace.
+    field_absence: Mapping = field(default_factory=dict)
+    curve_absence: Mapping = field(default_factory=dict)
+
+    # --- explicit absence, schema version 4 (2026-07-29) --------------------
+    # A value that cannot be persisted serialises as `null` and records WHY
+    # here. Empty on a healthy report, so nothing is added where nothing is
+    # absent.
+    field_absence: Mapping = field(default_factory=dict)
+    curve_absence: Mapping = field(default_factory=dict)
+
     def to_serializable(self) -> dict:
         """Dictionary form suitable for strict JSON.
 
@@ -557,6 +589,38 @@ class EvaluationReport:
         """
         payload = asdict(self)
         payload["metric_results"] = serialize_metric_results(self.metric_results)
+
+        # ABSENCE IS WRITTEN AS null PLUS A REASON (schema version 4).
+        #
+        # `dump_strict_json` refuses a non-finite number, correctly. Before this,
+        # the flat surface had no way to say a value was absent, so the whole
+        # artifact was rejected -- measured at 594a6af, three of five cohorts
+        # produced reports that could not be written at all.
+        #
+        # THE BICONDITIONAL. A field is null in the artifact IF AND ONLY IF it
+        # appears in `field_absence`. A null without an entry is a silent
+        # absence, which is the defect. An entry without a null is an orphaned
+        # record claiming something the artifact contradicts. Both are refused.
+        payload["field_absence"] = {k: v.to_dict()
+                                    for k, v in self.field_absence.items()}
+        payload["curve_absence"] = {k: v.to_dict()
+                                    for k, v in self.curve_absence.items()}
+        # CHECK BEFORE NORMALISING, NOT AFTER.
+        #
+        # A first version nulled every declared-absent field and THEN asserted
+        # that declared-absent fields were null. That assertion is vacuous: the
+        # code had just made it true. A sabotage deleting the call entirely
+        # survived the matrix, because there was no payload it could reject.
+        #
+        # The claim worth checking is about the REPORT: a field recorded absent
+        # must actually be non-finite, and one that is finite must not be. That
+        # is falsifiable, and a fabricated absence entry now fails it.
+        _assert_absence_biconditional(asdict(self))
+
+        for name in self.field_absence:
+            payload[name] = None
+        for name in self.curve_absence:
+            payload[name] = []
         return payload
 
     @classmethod
@@ -957,9 +1021,74 @@ class ClinicalEvaluator:
         # rather than discarded. A report whose scalars are projections of a
         # mapping it does not include would force every consumer wanting status,
         # reason, population or certification to recompute them.
+        # THE CAUSE COMES FROM WHERE THE REFUSAL HAPPENED (2026-07-29, CI-u-3).
+        #
+        # `label_check`, `probability_check` and `ranking_check` are the gate
+        # verdicts computed above. They KNOW why: an input gate refused, or the
+        # cohort is single-class. Inferring that from a NaN at serialisation time
+        # would be exactly the guess the absence vocabulary exists to replace.
+        if not probability_check.ok:
+            scalar_cause = AbsenceCause.WITHHELD_BY_INPUT_GATE
+            scalar_reason = probability_check.reason
+        elif not label_check.ok:
+            scalar_cause = AbsenceCause.WITHHELD_BY_INPUT_GATE
+            scalar_reason = label_check.reason
+        else:
+            scalar_cause = AbsenceCause.UNDEFINED_ON_COHORT
+            scalar_reason = "undefined_on_this_cohort"
+
+        field_absence = {}
+        for name, value in (("auroc", legacy["auroc"]),
+                            ("auprc", legacy["auprc"]),
+                            ("mcc", legacy["mcc"]),
+                            ("f1", legacy["f1"]),
+                            ("brier_score", legacy["brier_score"]),
+                            ("calibration_ece", legacy["calibration_ece"]),
+                            ("calibration_mce", legacy["calibration_mce"]),
+                            ("prevalence", legacy["prevalence"])):
+            typed = metric_results.get(_LEGACY_TO_METRIC.get(name, name))
+            reason = (typed.reason if typed is not None and typed.reason
+                      else scalar_reason)
+            absence = absence_for_value(value, cause=scalar_cause, reason=reason)
+            if absence is not None:
+                field_absence[name] = absence
+
+        curve_cause = (AbsenceCause.WITHHELD_BY_INPUT_GATE
+                       if not probability_usable
+                       else AbsenceCause.UNDEFINED_ON_COHORT)
+        curve_reason = (probability_check.reason or label_check.reason
+                        if not probability_usable else "undefined_on_this_cohort")
+        curve_absence = {}
+        for name, values in (("fpr_curve", list(fpr)), ("tpr_curve", list(tpr)),
+                             ("precision_curve", list(prec)),
+                             ("recall_curve", list(rec)),
+                             ("calibration_frac_pos", list(frac_pos)),
+                             ("calibration_mean_pred", list(mean_pred))):
+            absence = absence_for_curve(values, cause=curve_cause,
+                                        reason=curve_reason, n_expected=n)
+            if absence is not None:
+                curve_absence[name] = absence
+
+        # --- ABSENCE, RECORDED WHERE IT IS KNOWN (CI-u-3) --------------------
+        #
+        # `label_check`, `probability_check` and `ranking_check` are the gate
+        # verdicts from CI-t, computed above. Their reasons ARE the causes; no
+        # inference is performed here.
+        absent_fields, absent_curves = _absence_maps(
+            legacy=legacy, metric_results=metric_results,
+            label_check=label_check, probability_check=probability_check,
+            ranking_check=ranking_check,
+            curves={"fpr_curve": fpr, "tpr_curve": tpr,
+                    "precision_curve": prec, "recall_curve": rec,
+                    "calibration_frac_pos": frac_pos,
+                    "calibration_mean_pred": mean_pred},
+            n_rows=n)
+
         report = EvaluationReport(
-            schema_version=EVALUATION_REPORT_SCHEMA_VERSION_TYPED,
+            schema_version=EVALUATION_REPORT_SCHEMA_VERSION_ABSENCE,
             metric_results=metric_results,
+            field_absence=absent_fields,
+            curve_absence=absent_curves,
             model_name=model_name,
             n_samples=n, n_pathogenic=n_pos, n_benign=n_neg,
             # DERIVED VIEWS, every one. None is computed here. The rounding lives
@@ -1458,6 +1587,96 @@ class ClinicalEvaluator:
 # ---------------------------------------------------------------------------
 # Multi-model comparison convenience function
 # ---------------------------------------------------------------------------
+# The report field names differ from the registered metric names for two
+# quantities. Declared once rather than inferred at each use.
+_LEGACY_TO_METRIC = {
+    "mcc": "matthews_correlation_coefficient",
+    "calibration_ece": "expected_calibration_error",
+    "calibration_mce": "maximum_calibration_error",
+}
+
+
+# The scalar fields that may be absent. Declared, so a field added later without
+# an absence policy fails the biconditional rather than slipping through as a
+# silent null.
+_ABSENCE_ELIGIBLE_FIELDS = ("auroc", "auprc", "mcc", "f1", "brier_score",
+                            "calibration_ece", "calibration_mce", "prevalence")
+
+_ABSENCE_ELIGIBLE_CURVES = ("fpr_curve", "tpr_curve", "precision_curve",
+                            "recall_curve", "calibration_frac_pos",
+                            "calibration_mean_pred")
+
+
+def _curve_is_usable(values) -> bool:
+    """A curve is usable when it is non-empty and every point is finite."""
+    if not values:
+        return False
+    try:
+        return all(math.isfinite(float(v)) for v in values)
+    except (TypeError, ValueError):
+        return False
+
+
+def _is_finite_scalar(value) -> bool:
+    """Is this a value the artifact can carry? Checked on the REPORT's own
+    fields, where a refused metric is still a NaN rather than a null."""
+    if value is None:
+        return False
+    try:
+        return math.isfinite(float(value))
+    except (TypeError, ValueError):
+        return True
+
+
+def _assert_absence_biconditional(payload: dict) -> None:
+    """A field is null IF AND ONLY IF it is recorded absent. Both directions.
+
+    Checking one direction only would leave the other silent. A null without an
+    entry is the original defect wearing a new shape; an entry without a null is
+    an artifact contradicting its own explanation.
+    """
+    declared = set(payload.get("field_absence", {}))
+    observed = {name for name in _ABSENCE_ELIGIBLE_FIELDS
+                if not _is_finite_scalar(payload.get(name, 0))}
+
+    silent = observed - declared
+    if silent:
+        raise ValueError(
+            f"field(s) {sorted(silent)} serialise as null with no absence "
+            "record. A null that does not say why is the defect schema "
+            "version 4 exists to remove.")
+    orphaned = declared - observed
+    if orphaned:
+        raise ValueError(
+            f"field(s) {sorted(orphaned)} are recorded absent but carry a "
+            "value. The artifact contradicts its own explanation.")
+
+    declared_curves = set(payload.get("curve_absence", {}))
+    observed_curves = {name for name in _ABSENCE_ELIGIBLE_CURVES
+                       if not payload.get(name, [1])}
+    # THE CURVE HALF IS CONSISTENCY ONLY, NOT COMPLETENESS.
+    #
+    # A first version also demanded an absence record for every empty curve, and
+    # it fired on legitimately-constructed reports that simply have no curves.
+    # That conflates two different things: a NULL SCALAR is a value that went
+    # MISSING and must say why, while an EMPTY COLLECTION is a perfectly good
+    # value meaning "no points". Only the first is the silent absence this
+    # schema exists to remove, and the scalar half above guards it completely.
+    #
+    # The reverse direction still holds: a curve RECORDED absent while carrying
+    # values is a contradiction at any schema version.
+    # A declared-absent curve on the REPORT is `[nan, nan]`, not `[]` -- the
+    # emptying happens after this check, deliberately. So "carries values" means
+    # carries USABLE values, not merely non-empty.
+    observed_curves = {name for name in _ABSENCE_ELIGIBLE_CURVES
+                       if not _curve_is_usable(payload.get(name))}
+    orphaned_curves = declared_curves - observed_curves
+    if orphaned_curves:
+        raise ValueError(
+            f"curve(s) {sorted(orphaned_curves)} are recorded absent but carry "
+            "values.")
+
+
 def _ranking_metric_is_valid(report, ranking_metric: str) -> bool:
     """Does this report carry a usable value for the ranking metric?
 
@@ -1472,6 +1691,64 @@ def _ranking_metric_is_valid(report, ranking_metric: str) -> bool:
     if typed.status is not MetricStatus.OK:
         return False
     return bool(np.isfinite(typed.value))
+
+def _absence_maps(*, legacy, metric_results, label_check, probability_check,
+                  ranking_check, curves, n_rows):
+    """Which scalars and curves are absent, and WHY.
+
+    The cause comes from the gate verdict that produced the refusal, never from
+    inspecting the value. A NaN cannot say whether it is undefined on this cohort
+    or withheld because the input was unusable, and those demand different
+    responses from a reader.
+    """
+    fields: dict = {}
+    curve_map: dict = {}
+
+    # A failed input gate is a property of the MODEL OUTPUT.
+    if not probability_check.ok:
+        gate_cause = AbsenceCause.WITHHELD_BY_INPUT_GATE
+        gate_reason = probability_check.reason
+        gate_detail = probability_check.detail
+    elif not label_check.ok:
+        gate_cause = AbsenceCause.WITHHELD_BY_INPUT_GATE
+        gate_reason = label_check.reason
+        gate_detail = label_check.detail
+    else:
+        gate_cause = None
+        gate_reason = None
+        gate_detail = None
+
+    for field_name, value in legacy.items():
+        if gate_cause is not None:
+            absence = absence_for_value(value, cause=gate_cause, reason=gate_reason)
+            if absence is not None:
+                fields[field_name] = FieldAbsence(cause=gate_cause,
+                                                  reason=gate_reason,
+                                                  detail=gate_detail)
+            continue
+        # No gate failed: the refusal, if any, came from the REGISTRY, so the
+        # typed result carries the reason.
+        policy = LEGACY_PROJECTION_POLICIES.get(field_name)
+        typed = metric_results.get(policy.metric_name) if policy else None
+        reason = typed.reason if typed is not None else None
+        status = typed.status if typed is not None else None
+        cause = (AbsenceCause.INSUFFICIENT_SUPPORT
+                 if status is MetricStatus.INSUFFICIENT_SUPPORT
+                 else AbsenceCause.NOT_APPLICABLE
+                 if status is MetricStatus.NOT_APPLICABLE
+                 else AbsenceCause.UNDEFINED_ON_COHORT)
+        absence = absence_for_value(value, cause=cause, reason=reason)
+        if absence is not None:
+            fields[field_name] = absence
+
+    for curve_name, values in curves.items():
+        cause = gate_cause or AbsenceCause.UNDEFINED_ON_COHORT
+        reason = gate_reason or "curve_undefined_on_cohort"
+        absence = absence_for_curve(values, cause=cause, reason=reason,
+                                    n_expected=n_rows)
+        if absence is not None:
+            curve_map[curve_name] = absence
+    return fields, curve_map
 
 def compare_models(
     y_true: np.ndarray,

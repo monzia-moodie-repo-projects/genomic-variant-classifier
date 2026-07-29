@@ -160,7 +160,6 @@ def _condition_u() -> bool:
 
 OPEN_CONDITIONS = {
     "CI-m": _condition_m,
-    "CI-u": _condition_u,
     "CI-n": _condition_n,
     "CI-p": _condition_p,
     "CI-r": _condition_r,
@@ -255,6 +254,10 @@ DISCHARGED_CONDITIONS = {
     "CI-o": _discharged_o,
     "CI-t": _discharged_t,
     "CI-q": lambda: not _condition_q(),
+    # A degenerate cohort must still persist. The predicate is INVERTED rather
+    # than deleted: if a report ever becomes unpersistable again, this fails as a
+    # regression instead of silently reverting to the state u-3 removed.
+    "CI-u": lambda: not _condition_u(),
 }
 
 
