@@ -54,7 +54,7 @@ never written as a bare letter again.
 | **CI-k** | Interior-edge agreement coverage between the two calibration implementations. | 2a-1 | **2b-1** | the binning suite exercises every interior edge |
 | **CI-l** | The transitional label mask `select_finite_reference_labels`. | 2a | **2a-1** | the symbol exists nowhere in `src/` as code |
 | **CI-o** | The evaluator abstract-syntax-tree guard, deferred until the evaluator was actually retired rather than merely observed. | 2b-2 | **3b-2** | `test_computation_path_guards.py` exists and inspects the report path |
-| **CI-t** | The report path called five scikit-learn functions on raw `(y, p)` with no validation. Their behaviour disagreed across three defect classes, and the operating-point sweep shipped a wrong decision threshold because `NaN >= t` is `False`. | CI-q investigation | **this commit** | every library call in the report path is preceded by an input gate |
+| **CI-t** | The report path called scikit-learn functions on raw `(y, p)` with no validation. Their behaviour disagreed across three defect classes, and the operating-point sweep shipped a wrong decision threshold because `NaN >= t` is `False`. **Discharged prematurely on a HAND COUNT of ten call sites; a parsed enumeration found twelve.** The subgroup breakdown was reachable only with `meta` supplied, which no corrupt-model test did. | CI-q investigation | **2026-07-28, corrected same day** | a parsed enumeration finds no metric call whose enclosing function lacks a validator governing a branch |
 
 ## Unverifiable from the repository alone
 

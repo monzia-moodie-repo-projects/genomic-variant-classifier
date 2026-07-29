@@ -1247,6 +1247,25 @@ class ClinicalEvaluator:
     ) -> list[ConsequenceBreakdown]:
         """AUROC and AUPRC broken down by coarsened consequence category."""
         _ensure_sklearn()  # PHASE5: load sklearn symbols into module globals
+        # GATED 2026-07-28. THIS PATH WAS MISSED BY CI-t.
+        #
+        # CI-t enumerated ten call sites and reported the class closed. It was
+        # not: the subgroup breakdowns call `roc_auc_score` and
+        # `average_precision_score` directly, and they are reached ONLY when
+        # `meta` is supplied. Every corrupt-model test written for CI-t passed
+        # `meta=None`, so the fixture shape hid the gap -- the same failure that
+        # hid the calibration binning defect for seventeen days.
+        #
+        # Found by the very next measurement, which supplied `meta` in order to
+        # exercise clustered bootstrap intervals.
+        validation = validate_probabilities(p, n_expected=len(y))
+        if not validation.ok:
+            logger.warning(
+                "consequence breakdown withheld: %s (%s). A subgroup area under "
+                "the curve computed over unusable predictions would describe a "
+                "cohort nobody declared.", validation.reason, validation.detail or "")
+            return []
+
         if "consequence" not in meta.columns:
             return []
 

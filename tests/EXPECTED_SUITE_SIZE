@@ -3977,4 +3977,31 @@
 #
 #   Sabotage: 11 mutations, 11 detected, 0 undetected.
 #
-3589
+#
+# 3589 -> 3594 (+5)  2026-07-28  CI-t was discharged prematurely; the
+#   enumeration that proves it now.
+#
+#   Commit 19c19a1 declared CI-t discharged on a HAND COUNT of ten scikit-learn
+#   call sites. A PARSED ENUMERATION FINDS TWELVE: _consequence_breakdown calls
+#   roc_auc_score and average_precision_score directly and raises on a corrupt
+#   model. That path is reached only when meta is supplied, and every
+#   corrupt-model test written for CI-t passed meta=None. The fixture shape hid
+#   it, as it hid the calibration binning defect for seventeen days.
+#
+#   THE FIX IS THE ENUMERATION, NOT THE GATE. The suite now parses the module,
+#   finds every metric call, and requires a validator whose result GOVERNS A
+#   BRANCH in the enclosing function. A hand count is a claim; this is a check.
+#
+#   THE GUARD WAS TOO WEAK TWICE. First it asked whether a validator NAME
+#   appeared, so a gate disabled with a constant satisfied it -- the same
+#   weakness already found in the register predicate. Then it followed only one
+#   hop, flagging a legitimate three-hop chain; a guard that cries wolf on
+#   correct code gets weakened until it catches nothing.
+#
+#   MEASURED FOR CI-q: format_ci renders all four interval states identically
+#   and certified is False in all four, so ranking admissibility must come from
+#   the typed AUROC result. And the comparison artifact has NO consumers.
+#
+#   Sabotage: 6 mutations, 6 detected, 0 undetected.
+#
+3594

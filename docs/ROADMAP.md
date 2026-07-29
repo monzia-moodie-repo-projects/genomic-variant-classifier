@@ -2535,3 +2535,33 @@ CI-q SCOPE, unchanged and now unblocked:
     answer to the question it asks;
   * the ranking refused entirely when any model lacks a valid ranking metric,
     rather than silently ranking the survivors.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-28 -- CI-t enumeration (correction)
+=====================================================================
+
+CI-t WAS DISCHARGED PREMATURELY IN 19c19a1, on a hand count of ten call sites. A
+parsed enumeration found twelve: _consequence_breakdown calls roc_auc_score and
+average_precision_score directly, reachable only when `meta` is supplied, which
+no corrupt-model test did.
+
+NEW STANDING RULE -- A COUNT IS A CLAIM; AN ENUMERATION IS A CHECK. Any assertion
+that a class of call sites is closed must be backed by a parsed enumeration that
+fails when a new member appears. Hand counts have now been wrong twice in this
+project: the agent roster (13 claimed, 22 real) and this.
+
+NEW STANDING RULE -- A GUARD MUST BE TESTED IN BOTH DIRECTIONS. It must REJECT
+the defect and ACCEPT correct code. This guard was too weak twice -- accepting a
+dead `if False:` gate, then flagging a legitimate three-hop chain -- and a guard
+that cries wolf on correct code gets weakened until it catches nothing.
+
+MEASUREMENTS COMPLETED FOR CI-q:
+  * format_ci cannot distinguish unavailable-from-failed intervals, and the
+    certification Boolean is False in all four states. Ranking admissibility must
+    come from the TYPED AUROC point result.
+  * The comparison artifact has NO consumers. The staged compatibility migration
+    protects readers that do not exist; CI-q may define the artifact properly in
+    one commit while preserving the eleven columns on grounds of churn.
+
+CI-q REMAINS NEXT, unchanged in scope.

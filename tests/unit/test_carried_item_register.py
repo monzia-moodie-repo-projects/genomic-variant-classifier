@@ -179,12 +179,22 @@ def _discharged_t() -> bool:
         if not hasattr(evaluator, name):
             return False
 
-    source = inspect.getsource(evaluator.ClinicalEvaluator.evaluate)
-    gated = ("validate_probabilities(" in source
-             and "ranking_usable" in source
-             and "probability_usable" in source)
-    sweep = inspect.getsource(evaluator.ClinicalEvaluator._find_operating_point)
-    return gated and "validate_probabilities(" in sweep
+    # STRENGTHENED after CI-t was discharged prematurely. The first version
+    # checked that validator NAMES appeared in two specific functions -- a
+    # substring test that a hand count had already convinced itself of, and which
+    # said nothing about the ten other functions in the module. A parsed
+    # enumeration found two ungated call sites in the subgroup breakdown.
+    #
+    # The authority now lives in the gates suite, which parses every metric call
+    # and follows validator results to the branch they govern. Duplicating that
+    # logic here would give two implementations of one check, which is the defect
+    # this register exists to prevent.
+    gates = TESTS / "unit" / "test_report_input_gates.py"
+    if not gates.exists():
+        return False
+    text = gates.read_text(encoding="utf-8")
+    return ("_validation_governs_a_branch" in text
+            and "test_every_metric_call_sits_inside_a_gated_function" in text)
 
 
 DISCHARGED_CONDITIONS = {

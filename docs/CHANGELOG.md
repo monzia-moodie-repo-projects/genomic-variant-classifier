@@ -1,3 +1,47 @@
+## 2026-07-28 -- CI-t was discharged prematurely; the enumeration that proves it now
+
+Ratchet 3589 -> 3594 (+5). Session record:
+docs/sessions/SESSION_2026-07-28_ci-t-enumeration.md
+
+Commit 19c19a1 declared CI-t discharged on a HAND COUNT of ten call sites. A
+PARSED ENUMERATION FOUND TWELVE: _consequence_breakdown calls roc_auc_score and
+average_precision_score directly and raises on a corrupt model. That path is
+reached only when `meta` is supplied, and every corrupt-model test written for
+CI-t passed meta=None -- the fixture shape hid it, as it hid the calibration
+binning defect for seventeen days.
+
+### The fix is the enumeration, not the gate
+Adding the missing gate would leave the method intact: count by hand, declare the
+class closed, wait for a fixture to stumble into the next gap. The suite now
+PARSES the module, finds every scikit-learn metric call, and requires a validator
+whose result GOVERNS A BRANCH in the enclosing function.
+
+### The guard was too weak twice before it was right
+1. VOCABULARY, NOT STRUCTURE: it asked whether a validator name appeared, so a
+   gate disabled with `if False:` satisfied it -- the same weakness already found
+   in the register's "ast" substring predicate.
+2. ONE HOP ONLY: requiring the result directly in an `if` flagged evaluate() as
+   ungated, because its chain is three hops. A guard that cries wolf on correct
+   code gets weakened until it catches nothing. It now propagates to a fixed
+   point.
+3. Found by sabotage: reverting the enumeration's CALL SITE to a substring test
+   survived, because the function itself was untouched. Closed by a parsed
+   assertion that the enumeration calls it.
+
+### Measurements completed for CI-q
+- format_ci renders all four interval states identically and certified is False
+  in all four; only the typed status separates them, and two states are
+  indistinguishable even by status. Ranking admissibility must therefore come
+  from the typed AUROC point result.
+- The comparison artifact has NO consumers -- the only output_csv reference
+  outside compare_models is a test passing os.devnull. The staged compatibility
+  migration protects readers that do not exist.
+
+### Sabotage
+Six mutations, six detected, zero undetected. B5 required two attempts: weakening
+a guard is invisible on clean code, because the weak and strong checks agree
+there.
+
 ## 2026-07-28 -- report-path input gates (CI-t)
 
 Ratchet 3558 -> 3589 (+31). Session record:

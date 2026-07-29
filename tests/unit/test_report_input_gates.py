@@ -344,3 +344,250 @@ def test_the_scores_channel_refuses_unusable_scores(bad_scores, reason):
     assert report.calibration_frac_pos, (
         "the probability channel is independent and must still calibrate")
 
+
+# --------------------------------------------------------------------------- #
+# 6. THE STANDING ENUMERATION
+#
+# ADDED AFTER A MISS. CI-t enumerated ten call sites by hand and declared the
+# class closed. It was not: `_consequence_breakdown` calls `roc_auc_score` and
+# `average_precision_score` directly, and that path is reached ONLY when `meta`
+# is supplied -- which every corrupt-model test in this module did not do. The
+# fixture shape hid it, exactly as it hid the calibration binning defect for
+# seventeen days, and it was found by a measurement that happened to pass `meta`
+# for an unrelated reason.
+#
+# A hand count is a claim. This is a check: every scikit-learn metric call in the
+# module must sit inside a function that consults a validator. A new call site
+# added tomorrow fails here rather than waiting for a corrupt cohort to reach it.
+# --------------------------------------------------------------------------- #
+import ast as _ast
+import inspect as _inspect
+
+SKLEARN_METRIC_CALLS = {
+    "roc_auc_score", "average_precision_score", "roc_curve",
+    "precision_recall_curve", "calibration_curve", "brier_score_loss",
+    "f1_score", "matthews_corrcoef",
+}
+
+VALIDATOR_NAMES = {
+    "validate_probabilities", "validate_ranking_scores",
+    "validate_reference_labels", "ranking_usable", "probability_usable",
+}
+
+
+def _metric_calls_by_function():
+    """Every scikit-learn metric call in evaluator.py, with its enclosing
+    function. Parsed, not grepped: a call inside a docstring or a comment is not
+    a call, and a hand count is not a check."""
+    source = _inspect.getsource(evaluator_module)
+    tree = _ast.parse(source)
+
+    bodies = {node.name: _ast.unparse(node)
+              for node in _ast.walk(tree) if isinstance(node, _ast.FunctionDef)}
+
+    found = []
+
+    class Walker(_ast.NodeVisitor):
+        def __init__(self):
+            self.stack = []
+
+        def visit_FunctionDef(self, node):
+            self.stack.append(node.name)
+            self.generic_visit(node)
+            self.stack.pop()
+
+        def visit_Call(self, node):
+            func = node.func
+            name = (func.id if isinstance(func, _ast.Name)
+                    else func.attr if isinstance(func, _ast.Attribute) else None)
+            if name in SKLEARN_METRIC_CALLS:
+                found.append((node.lineno, name,
+                              self.stack[-1] if self.stack else "<module>"))
+            self.generic_visit(node)
+
+    Walker().visit(tree)
+    return found, bodies
+
+
+def _validation_governs_a_branch(body: str) -> bool:
+    """Does a validator RESULT control a branch, or is the name merely present?
+
+    STRENGTHENED AFTER THE GUARD FAILED TO FIRE. The first version asked whether
+    a validator name appeared anywhere in the function. Disabling a gate with
+    `if False:` leaves the name in place, so a dead gate satisfied it -- the same
+    vocabulary-not-structure weakness already found once in the carried-item
+    register's predicate.
+
+    This walks the tree: a validator call must be assigned to a name, and that
+    name must appear in the TEST of an `if`. A gate whose condition has been
+    replaced by a constant no longer references it, and fails here.
+    """
+    tree = _ast.parse(body)
+
+    validated_names = set()
+    for node in _ast.walk(tree):
+        if isinstance(node, _ast.Assign) and isinstance(node.value, _ast.Call):
+            func = node.value.func
+            called = (func.id if isinstance(func, _ast.Name)
+                      else func.attr if isinstance(func, _ast.Attribute) else None)
+            if called in {"validate_probabilities", "validate_ranking_scores",
+                          "validate_reference_labels"}:
+                for target in node.targets:
+                    if isinstance(target, _ast.Name):
+                        validated_names.add(target.id)
+
+    if not validated_names:
+        return False
+
+    # PROPAGATE THROUGH ASSIGNMENTS. In `evaluate` the chain is three hops:
+    #
+    #     probability_check = validate_probabilities(...)
+    #     probability_usable = label_check.ok and probability_check.ok
+    #     if probability_usable: ...
+    #
+    # A one-hop check flags that as ungated, which is a FALSE POSITIVE -- and a
+    # guard that cries wolf on correct code gets weakened until it catches
+    # nothing. Iterate to a fixed point so a derived condition still counts.
+    changed = True
+    while changed:
+        changed = False
+        for node in _ast.walk(tree):
+            if not isinstance(node, _ast.Assign):
+                continue
+            referenced = {n.id for n in _ast.walk(node.value)
+                          if isinstance(n, _ast.Name)}
+            if not (referenced & validated_names):
+                continue
+            for target in node.targets:
+                if isinstance(target, _ast.Name) and target.id not in validated_names:
+                    validated_names.add(target.id)
+                    changed = True
+
+    for node in _ast.walk(tree):
+        if isinstance(node, _ast.If):
+            referenced = {n.id for n in _ast.walk(node.test)
+                          if isinstance(n, _ast.Name)}
+            if referenced & validated_names:
+                return True
+    return False
+
+def test_every_metric_call_sits_inside_a_gated_function():
+    """THE GUARD THAT WOULD HAVE CAUGHT THE MISS."""
+    found, bodies = _metric_calls_by_function()
+    assert found, "no metric calls found at all; the enumeration is not wired"
+
+    ungated = []
+    for lineno, name, function in found:
+        body = bodies.get(function, "")
+        if not _validation_governs_a_branch(body):
+            ungated.append(f"{function}:{lineno} calls {name}")
+
+    assert not ungated, (
+        "scikit-learn metric call(s) reachable without an input gate:\n  "
+        + "\n  ".join(ungated)
+        + "\n\nA hand count is a claim; this is the check. Add the validator to "
+          "the enclosing function, or move the call behind one that has it.")
+
+
+def test_the_enumeration_covers_the_functions_it_should():
+    """Guards the guard: an enumeration that silently found nothing would make
+    the assertion above vacuous."""
+    found, _ = _metric_calls_by_function()
+    functions = {f for _, _, f in found}
+    assert "evaluate" in functions
+    assert "_consequence_breakdown" in functions, (
+        "the subgroup breakdown is the path the hand count missed; if it no "
+        "longer appears, the enumeration has stopped seeing it")
+    assert len(found) >= 5
+
+
+def test_the_subgroup_breakdown_is_withheld_on_corrupt_predictions():
+    """The specific miss, pinned with `meta` supplied -- which is the condition
+    that makes this path reachable and which no earlier test met."""
+    import pandas as pd
+
+    y, p = _cohort()
+    corrupt = p.copy()
+    corrupt[:60] = np.nan
+    meta = pd.DataFrame({
+        "consequence": ["missense"] * len(y),
+        "gene_symbol": [f"G{i % 40}" for i in range(len(y))],
+    })
+
+    with contextlib.redirect_stdout(io.StringIO()):
+        report = ClinicalEvaluator(n_bootstrap=0, random_state=42).evaluate(
+            y, corrupt, meta=meta, model_name="breakdown_probe")
+
+    assert report.consequence_breakdown == [], (
+        "a subgroup area under the curve was computed over unusable predictions")
+    assert report.n_samples == len(y), "the attempted population must not narrow"
+
+
+def test_the_enumeration_rejects_a_dead_gate():
+    """GUARD-THE-GUARD. Weakening the check is invisible on clean code.
+
+    A sabotage that reverted `_validation_governs_a_branch` to a substring test
+    survived, because on a correct tree the weak and strong checks agree. The
+    difference only appears on a body where the validator is CALLED but its
+    result governs nothing -- which is exactly what `if False:` produces, and
+    exactly the shape the first version of this guard accepted.
+
+    Asserted on synthetic bodies rather than by disabling a real gate, because
+    the point is the check's discrimination, not any particular call site.
+    """
+    dead = """
+def probe(y, p):
+    validation = validate_probabilities(p, n_expected=len(y))
+    if False:
+        return []
+    return roc_auc_score(y, p)
+"""
+    live = """
+def probe(y, p):
+    validation = validate_probabilities(p, n_expected=len(y))
+    if not validation.ok:
+        return []
+    return roc_auc_score(y, p)
+"""
+    chained = """
+def probe(y, p):
+    check = validate_probabilities(p, n_expected=len(y))
+    usable = check.ok and len(y) > 0
+    if usable:
+        return roc_auc_score(y, p)
+    return []
+"""
+    absent = """
+def probe(y, p):
+    return roc_auc_score(y, p)
+"""
+    assert _validation_governs_a_branch(dead) is False, (
+        "a validator whose result governs nothing was accepted; the check is "
+        "testing vocabulary rather than structure")
+    assert _validation_governs_a_branch(absent) is False
+    assert _validation_governs_a_branch(live) is True
+    assert _validation_governs_a_branch(chained) is True, (
+        "a derived condition must still count, or the guard cries wolf on "
+        "correct code and gets weakened until it catches nothing")
+
+
+def test_the_enumeration_uses_the_structural_check_and_not_a_substring():
+    """CLOSES THE LAST SABOTAGE SURVIVOR.
+
+    The guard-the-guard above proves `_validation_governs_a_branch` discriminates
+    correctly. It does NOT prove the enumeration calls it: a mutation replacing
+    the call site with `any(v in body for v in VALIDATOR_NAMES)` left the
+    function intact, so every test of the function still passed while the
+    enumeration silently reverted to a substring test.
+
+    Parsed rather than grepped, for the same reason the enumeration itself is.
+    """
+    source = _inspect.getsource(test_every_metric_call_sits_inside_a_gated_function)
+    tree = _ast.parse(source.lstrip())
+
+    called = {node.func.id for node in _ast.walk(tree)
+              if isinstance(node, _ast.Call) and isinstance(node.func, _ast.Name)}
+    assert "_validation_governs_a_branch" in called, (
+        "the enumeration no longer calls the structural check; a substring test "
+        "would accept a validator whose result governs nothing")
+
