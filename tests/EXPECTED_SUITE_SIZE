@@ -4145,4 +4145,30 @@
 #
 #   Sabotage: 6 mutations, 6 detected, 0 undetected, 0 anchor misses.
 #
-3709
+#
+# 3709 -> 3710 (+1)  2026-07-29  register predicate audit: CI-m and CI-n
+#   discharged. Both stated defects were ALREADY FIXED and neither predicate
+#   could observe it, because both measured a PROXY.
+#
+#   CI-m asked: does evaluate call clean_arrays? True by design, permanently.
+#   MEASURED: n_input 6, n_dropped 1, survivors 5. The caller CAN tell how many
+#   observations a number describes. The counts arrived with the fail-closed
+#   work of 2026-07-20; the item was never updated.
+#
+#   CI-n asked: does the derivation ACCEPT a cohort_version parameter? Also
+#   permanently true. The ordered variant-identifier sequence is already
+#   incorporated, and the docstring says so. MEASURED: frames differing in
+#   variants, or in ORDER alone, yield distinct identities.
+#
+#   CI-r audited too and is GENUINELY OPEN -- its predicate measures the stated
+#   condition directly.
+#
+#   Sabotage: 6 mutations, 5 detected, ONE UNDETECTED and RECORDED. A predicate
+#   that calls the code and IGNORES the result needs dataflow analysis to
+#   catch; that boundary is written into the guard rather than claimed.
+#
+#   THREE predicates have now been found measuring proxies: CI-q, CI-m, CI-n.
+#   The register exists to stop status drifting from code, and its own
+#   predicates were the drift.
+#
+3710

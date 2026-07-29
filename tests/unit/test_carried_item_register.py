@@ -43,28 +43,69 @@ TESTS = Path(__file__).parent.parent
 # i.e. when the item is genuinely open.
 # --------------------------------------------------------------------------- #
 def _condition_m() -> bool:
-    """`metrics.evaluate` still filters survivors rather than refusing."""
+    """A caller cannot tell how many observations a metric describes.
+
+    REWRITTEN 2026-07-29. The previous predicate asked whether `evaluate` calls
+    `clean_arrays` -- which it does, and always will, since filtering is the
+    design. That is an IMPLEMENTATION DETAIL, not the item's claim, so the
+    register reported CI-m open indefinitely while the stated defect had already
+    been fixed.
+
+    Same fault as CI-q's original predicate: it measured a proxy rather than the
+    condition. The condition is REPORTABILITY -- can a consumer of the returned
+    mapping determine the attempted and surviving row counts?
+
+    Measured 2026-07-29 on a six-row cohort with one unusable score:
+        n_input 6, n_dropped 1, survivors 5.
+    The counts are present, so this returns False and the item is discharged.
+    """
+    import numpy as np
+
     from genomic_variant_classifier.evaluation import metrics
 
     if not hasattr(metrics, "evaluate"):
         return False
-    source = inspect.getsource(metrics.evaluate)
-    # `clean_arrays`, NOT `_clean`. A first draft of this predicate checked for
-    # `_clean(` and reported the item closed -- the register fired on its very
-    # first run, and the fault was the predicate rather than the item. The
-    # docstring states the condition plainly: "constructs its own population by
-    # calling `clean_arrays` and then computes over the SURVIVORS".
-    return "clean_arrays(" in source
+    result = metrics.evaluate(
+        [0, 1, 0, 1, 0, 1],
+        [float("nan"), 1.0, 2.0, 3.0, 4.0, 5.0])
+    n_input = result.get("n_input")
+    n_dropped = result.get("n_dropped")
+    if n_input is None or n_dropped is None:
+        return True                     # unreportable: the item is open
+    return not (n_input == 6 and n_dropped == 1)
 
 
 def _condition_n() -> bool:
-    """`cohort_version` is still an unconstrained free string."""
+    """Two different frames sharing a `cohort_version` still collide.
+
+    REWRITTEN 2026-07-29, for the same fault as CI-m. The previous predicate
+    asked whether `_derive_population_source_id` ACCEPTS a `cohort_version`
+    parameter -- which it does, and always will, since the version is a
+    legitimate part of the identity. A parameter-name check can never observe
+    whether the identity is weak.
+
+    The item's actual claim was that a generic version lets two different cohorts
+    share an identity, and that "the ordered variant-identifier sequence is what
+    actually distinguishes them". The derivation already incorporates exactly
+    that, and says so in its own docstring.
+
+    Measured 2026-07-29: two frames sharing `cohort_version="v2"` and a partition
+    but differing in variants -- or in variant ORDER alone -- yield DISTINCT
+    identities. The condition does not hold, so this returns False.
+    """
     from genomic_variant_classifier.evaluation import canonical
 
     if not hasattr(canonical, "_derive_population_source_id"):
         return False
-    signature = inspect.signature(canonical._derive_population_source_id)
-    return "cohort_version" in signature.parameters
+    derive = canonical._derive_population_source_id
+    baseline = derive(cohort_version="v2", partition="test",
+                      variant_ids=["1-100-A-T", "1-200-C-G"])
+    different_rows = derive(cohort_version="v2", partition="test",
+                            variant_ids=["1-300-G-A", "1-400-T-C"])
+    reordered = derive(cohort_version="v2", partition="test",
+                       variant_ids=["1-200-C-G", "1-100-A-T"])
+    collides = (baseline == different_rows) or (baseline == reordered)
+    return collides
 
 
 def _condition_p() -> bool:
@@ -159,8 +200,6 @@ def _condition_u() -> bool:
 
 
 OPEN_CONDITIONS = {
-    "CI-m": _condition_m,
-    "CI-n": _condition_n,
     "CI-r": _condition_r,
 }
 
@@ -260,6 +299,12 @@ DISCHARGED_CONDITIONS = {
     # The writer now agrees with the reader. Inverted rather than deleted: if
     # to_dict ever emits a raw NaN again, that fails as a regression.
     "CI-p": lambda: not _condition_p(),
+    # The attempted and surviving counts are reported. Inverted rather than
+    # deleted: if they are ever dropped, that fails as a regression.
+    "CI-m": lambda: not _condition_m(),
+    # The ordered variant-identifier sequence is incorporated. Inverted rather
+    # than deleted: if two different frames ever collide, that fails.
+    "CI-n": lambda: not _condition_n(),
 }
 
 
@@ -372,3 +417,50 @@ def test_the_deferred_import_contract_holds():
                         "pulls scikit-learn into evaluation/__init__ and breaks "
                         "the import contract three tests depend on. Bind kernels "
                         "by NAME and resolve them at call time.")
+
+
+def test_every_predicate_actually_inspects_the_code():
+    """A predicate that hardcodes its answer passes every test above.
+
+    ADDED AFTER A SABOTAGE SURVIVOR. Replacing CI-m's measurement with
+    `n_input, n_dropped = 6, 1` survived the matrix: the predicate still returned
+    the right verdict, having measured nothing. That is the register's own
+    failure mode -- a check that reports a status it never determined -- and it is
+    the third time this shape has appeared, after the enumeration guard and the
+    absence biconditional.
+
+    Parsed rather than grepped: each predicate must CALL something or reference an
+    imported module, not merely compute over literals.
+    """
+    import ast as _ast
+    import inspect as _inspect
+
+    checked = 0
+    for name, fn in list(OPEN_CONDITIONS.items()) + [
+            (n, f) for n, f in DISCHARGED_CONDITIONS.items()
+            if not isinstance(f, type(lambda: 0)) or f.__name__ != "<lambda>"]:
+        try:
+            source = _inspect.getsource(fn)
+        except (OSError, TypeError):
+            continue
+        tree = _ast.parse(source.lstrip())
+        calls = [n for n in _ast.walk(tree) if isinstance(n, _ast.Call)]
+        # CALLS ONLY, NOT IMPORTS. A first version also required an import
+        # inside the body and fired on CI-r, which imports at module scope --
+        # a false positive, and a guard that cries wolf on correct code gets
+        # weakened until it catches nothing.
+        #
+        # WHAT THIS DOES NOT CATCH, stated plainly: a predicate that CALLS the
+        # code and then ignores the result, computing its verdict from literals
+        # instead. Detecting that needs dataflow analysis, and a guard that
+        # claimed to catch it would be worse than one that says it does not.
+        # That case survived the sabotage matrix and is recorded as a known
+        # limitation rather than papered over.
+        assert calls, (
+            f"{name}'s predicate performs no call at all; it cannot be measuring "
+            "anything and is reporting a hardcoded verdict")
+        checked += 1
+
+    assert checked >= 2, (
+        f"only {checked} predicate(s) were inspected; the walk is not reaching them")
+

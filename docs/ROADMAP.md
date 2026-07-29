@@ -2746,3 +2746,43 @@ SURFACE. Commit 3a normalised NaN at the report layer because the source emitted
 it; fixing the source made 3a's line meet a None it was never written for. When
 closing a defect that was previously patched downstream, measure the downstream
 patch rather than assuming it is inert.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-29 -- register predicate audit
+=====================================================================
+
+CI-m and CI-n DISCHARGED. Both stated defects had already been fixed -- CI-m's by
+the fail-closed work of 2026-07-20, CI-n's by the source-identity derivation --
+and neither predicate could observe it, because both measured a proxy rather than
+the item's claim.
+
+CARRIED ITEMS AFTER THIS COMMIT:
+  OPEN          CI-r  CI-s
+  DISCHARGED    CI-k CI-l CI-m CI-n CI-o CI-p CI-q CI-t CI-u
+  UNVERIFIABLE  CI-i  CI-j  CI-a
+
+NEW STANDING RULE -- A PREDICATE MUST TEST THE CLAIM, NOT THE IMPLEMENTATION.
+Three predicates have now been found measuring proxies:
+
+  CI-q  a text scan matching four docstrings and an unrelated function
+  CI-m  whether a function calls another function
+  CI-n  whether a function accepts a parameter
+
+Each was permanently true and would have held its item open forever. When writing
+a predicate, ask what OBSERVABLE would change if the item were fixed, and measure
+that. If nothing observable would change, the item belongs in the Unverifiable
+table.
+
+NEW STANDING RULE -- STATE A GUARD'S BOUNDARY INSIDE THE GUARD. The predicate
+guard cannot detect a predicate that calls the code and ignores the result;
+that needs dataflow analysis. The limitation is written into the test rather than
+left implicit, because a guard trusted beyond its reach is worse than no guard.
+
+REMAINING OPEN ITEMS, both genuine:
+  CI-r  the frozen report oracle is blind to interval certification. Its
+        predicate measures the stated condition directly. Closing it requires a
+        NEW oracle captured with bootstrap enabled -- a deliberate scientific
+        decision, not a code change.
+  CI-s  deferred imports in registry.py are a load-bearing contract, verified by
+        a dedicated test that fails when a module-scope metrics import returns.

@@ -1,3 +1,46 @@
+## 2026-07-29 -- two register predicates measured a proxy, not the claim
+
+Ratchet 3709 -> 3710 (+1). Session record:
+docs/sessions/SESSION_2026-07-29_predicates-measured-a-proxy.md
+
+Two carried items reported OPEN whose stated defects NO LONGER EXIST. Neither
+predicate could have detected that, because both measured a proxy.
+
+CI-m asked "does evaluate call clean_arrays?" -- true by design, permanently.
+Filtering IS the design; the question says nothing about whether the counts are
+reportable. MEASURED: n_input 6, n_dropped 1, survivors 5, plus three separate
+drop counts on CleanArrays. A caller CAN tell how many observations a number
+describes. The counts came with the fail-closed work of 2026-07-20; the item was
+never updated.
+
+CI-n asked "does _derive_population_source_id ACCEPT a cohort_version parameter?"
+-- also permanently true. The item said the ordered variant-identifier sequence
+was what should distinguish frames; the derivation already incorporates exactly
+that and says so in its docstring. MEASURED: frames differing in variants, or in
+variant ORDER alone, yield distinct identities.
+
+CI-r was checked too and is GENUINELY OPEN -- its predicate measures the stated
+condition directly rather than a proxy.
+
+### A limitation recorded rather than papered over
+Sabotage: six mutations, FIVE detected, ONE UNDETECTED. B4 replaces CI-m's
+measurement with hardcoded literals; the predicate still calls evaluate, still
+returns the right verdict, and has measured nothing. A structural guard now
+requires every predicate to perform a call, but detecting a predicate that calls
+the code and IGNORES the result needs dataflow analysis. That boundary is written
+into the guard itself rather than claimed as coverage.
+
+The guard's first version also required an import inside the function body and
+fired on CI-r, which imports at module scope -- a guard that cries wolf on correct
+code gets weakened until it catches nothing.
+
+### The pattern
+THREE register predicates have now been found measuring proxies: CI-q (a text
+scan matching four docstrings), CI-m (whether a function calls another), CI-n
+(whether a function accepts a parameter). All three would have held their items
+open indefinitely. The register exists to stop status drifting from code, and its
+own predicates were the drift.
+
 ## 2026-07-29 -- the writer agrees with the reader (CI-p) -- LAST OPEN DEFECT CLOSED
 
 Ratchet 3682 -> 3709 (+27). Session record:
