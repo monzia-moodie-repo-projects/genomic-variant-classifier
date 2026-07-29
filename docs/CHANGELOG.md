@@ -1,3 +1,40 @@
+## 2026-07-29 -- a scientific assertion that had never executed
+
+Ratchet unchanged at 3711. SKIP SURFACE 7 -> 6. Session record:
+docs/sessions/SESSION_2026-07-29_assertion-that-never-ran.md
+
+test_aleatoric_higher_near_decision_boundary asserts that aleatoric uncertainty
+peaks near p = 0.5, where binary entropy is maximal -- a real scientific claim
+about the Monte Carlo Dropout decomposition. IT HAD NEVER EXECUTED. The test
+skipped unless the fitted model spanned both the boundary band and an extreme
+band, and at five epochs it never did: one "s" in a 3,711-test run, presumably
+since the day it was written. The same shape as the empty-parameter-set skip
+closed in d8d04ab, but invisible rather than obvious.
+
+### Measured, and a hypothesis refuted
+    5 epochs   range [0.283, 0.731]  boundary 252  extreme  0  SKIPS
+   10 epochs   range [0.226, 0.771]  boundary 193  extreme  0  SKIPS
+   25 epochs   range [0.066, 0.840]  boundary  81  extreme  3  spans
+   50 epochs   range [0.025, 0.919]  boundary  25  extreme 58  SPANS
+
+IT IS UNDERTRAINING, NOT THE DATA. At five epochs every prediction sits between
+0.28 and 0.73. A corpus with DESIGNED margin structure was tried and was WORSE --
+thirty epochs rather than twenty-five -- because forcing rows close to the plane
+adds ambiguous rows without adding confident ones. That hypothesis was stated
+explicitly before measuring and was wrong.
+
+Twenty-five epochs is the cheapest span but leaves THREE extreme rows, which
+would flicker back to skipping. Fifty gives twenty-five and fifty-eight.
+
+### The precondition is now ASSERTED, not skipped
+If the corpus ever stops spanning both regions that is a FAILURE requiring the
+training budget to be re-measured, not a reason to stop testing the property.
+
+### The result
+THE ASSERTION PASSES -- 1 passed in 7.09s, confirmed twice. The decomposition
+genuinely exhibits the property it claims. That was never in evidence before,
+because the test asserting it had never run.
+
 ## 2026-07-29 -- the third proxy, and an empty guard that skipped
 
 Ratchet 3710 -> 3711 (+1). Session record:

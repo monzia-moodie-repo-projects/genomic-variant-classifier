@@ -219,7 +219,31 @@ class TestPredictProbaSinglePassScientificProperties:
 
     def test_aleatoric_higher_near_decision_boundary(self):
         """Calibration property: aleatoric uncertainty must peak near p=0.5."""
-        clf, X, _ = _make_fitted_tabular_nn(n_samples=300, epochs=5)
+        # FIFTY EPOCHS, NOT FIVE (2026-07-29), and the precondition is now
+        # ASSERTED rather than skipped.
+        #
+        # This test never ran. At five epochs the model has learned almost
+        # nothing -- every prediction sat between 0.28 and 0.73 -- so no row was
+        # confident enough to reach an extreme band, the precondition failed, and
+        # the test skipped silently. One "s" in a 3,711-test run, since it was
+        # written.
+        #
+        # MEASURED 2026-07-29 on this corpus with seed 42:
+        #
+        #      5 epochs  range [0.283, 0.731]  boundary 252  extreme  0  SKIPS
+        #     10 epochs  range [0.226, 0.771]  boundary 193  extreme  0  SKIPS
+        #     25 epochs  range [0.066, 0.840]  boundary  81  extreme  3  spans
+        #     50 epochs  range [0.025, 0.919]  boundary  25  extreme 58  SPANS
+        #
+        # Twenty-five epochs is the CHEAPEST span but leaves only three extreme
+        # rows -- an average over three samples, which would flicker back to
+        # skipping on any small change. Fifty is healthy on both sides.
+        #
+        # A DESIGNED CORPUS WAS TRIED AND WAS WORSE: forcing half the rows close
+        # to the separating plane needed THIRTY epochs rather than twenty-five,
+        # because it adds ambiguous rows without adding confident ones. The
+        # problem was never the data.
+        clf, X, _ = _make_fitted_tabular_nn(n_samples=300, epochs=50)
         passes = np.stack([
             clf._predict_proba_single_pass(X, seed=s)[:, 1]
             for s in range(20)
@@ -228,8 +252,17 @@ class TestPredictProbaSinglePassScientificProperties:
         mean_p = passes.mean(axis=0)
         near_boundary = (mean_p > 0.4) & (mean_p < 0.6)
         near_extreme = (mean_p < 0.1) | (mean_p > 0.9)
-        if not (near_boundary.any() and near_extreme.any()):
-            pytest.skip("Test corpus does not span both boundary and extreme prediction regions")
+
+        # ASSERTED, NOT SKIPPED. A precondition that silently skips is a guard
+        # reporting success while checking nothing -- the same defect as the
+        # empty parameter set closed in d8d04ab, but invisible. If the corpus
+        # ever stops spanning both regions, that is a FAILURE requiring the
+        # fixture to be re-measured, not a reason to stop testing the property.
+        assert near_boundary.any() and near_extreme.any(), (
+            f"the corpus no longer spans both regions: {int(near_boundary.sum())} "
+            f"near the boundary, {int(near_extreme.sum())} at the extremes, over "
+            f"range [{mean_p.min():.3f}, {mean_p.max():.3f}]. Re-measure the "
+            "training budget rather than restoring the skip.")
         assert alea[near_boundary].mean() > alea[near_extreme].mean(),             f"Aleatoric should peak near p=0.5 (binary entropy max). "             f"Got mean(boundary)={alea[near_boundary].mean():.4f} vs "             f"mean(extreme)={alea[near_extreme].mean():.4f}"
 
     def test_higher_dropout_rate_yields_higher_epistemic_uncertainty(self):

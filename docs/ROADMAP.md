@@ -2815,3 +2815,30 @@ guard as a loop so it passes explicitly.
 FOUR PREDICATES HAVE NOW BEEN FOUND MEASURING PROXIES: CI-q a text scan, CI-m a
 call check, CI-n a parameter check, CI-r a frozen-fixture property. When writing
 a predicate, ask what OBSERVABLE would change if the item were fixed.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-29 -- an assertion that had never executed
+=====================================================================
+
+SKIP SURFACE 7 -> 6, the first reduction of this series.
+
+test_aleatoric_higher_near_decision_boundary asserts that aleatoric uncertainty
+peaks near p = 0.5. It had never executed: at five epochs the model was so
+undertrained that no prediction reached an extreme band, so the precondition
+failed and the test skipped silently. It now trains for fifty epochs and PASSES.
+
+NEW STANDING RULE -- A DATA-CONDITIONAL SKIP IS A SILENT HOLE. A test that skips
+when its fixture lacks a property will skip FOREVER if the fixture never has it,
+contributing one character to a suite summary. Where the precondition is
+achievable, ASSERT it: a corpus that stops spanning is a failure requiring the
+fixture to be re-measured, not a reason to stop testing.
+
+NEW STANDING RULE -- STATE THE HYPOTHESIS BEFORE MEASURING, AND RECORD WHEN IT
+IS WRONG. The predicted fix here was a corpus with designed margin structure. It
+was worse than plain data. Saying so in advance made the refutation legible
+rather than quietly discarded.
+
+REMAINING SKIPS, all honest:
+  5  Monte Carlo Dropout integration tests awaiting a Run 15 cohort (CI-i)
+  1  Windows-only platform skip, covered by continuous integration on Linux

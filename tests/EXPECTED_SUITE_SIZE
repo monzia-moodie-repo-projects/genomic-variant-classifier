@@ -4192,4 +4192,31 @@
 #   reporting success while checking nothing, which would also have raised the
 #   stable skip surface from seven to eight. Rewritten as a loop.
 #
+#
+# 3711 -> 3711 (+0)  2026-07-29  an assertion that had never executed.
+#   SKIP SURFACE 7 -> 6.
+#
+#   test_aleatoric_higher_near_decision_boundary asserts that aleatoric
+#   uncertainty peaks near p = 0.5, where binary entropy is maximal. IT HAD
+#   NEVER RUN: at five epochs the model was so undertrained that no prediction
+#   reached an extreme band, the precondition failed, and it skipped silently.
+#
+#   MEASURED, seed 42:
+#      5 epochs  range [0.283, 0.731]  boundary 252  extreme  0  SKIPS
+#     25 epochs  range [0.066, 0.840]  boundary  81  extreme  3  spans
+#     50 epochs  range [0.025, 0.919]  boundary  25  extreme 58  SPANS
+#
+#   IT IS UNDERTRAINING, NOT THE DATA. A corpus with DESIGNED margin structure
+#   was tried and was WORSE -- thirty epochs rather than twenty-five. That
+#   hypothesis was stated before measuring and was refuted.
+#
+#   The precondition is now ASSERTED rather than skipped: a corpus that stops
+#   spanning is a FAILURE requiring the training budget to be re-measured.
+#
+#   THE ASSERTION PASSES -- 7.09s, confirmed twice, run from a scratch copy
+#   before packaging. The decomposition genuinely exhibits the property it
+#   claims; that was never in evidence before today.
+#
+#   Collection UNCHANGED: the test was always collected, merely skipped.
+#
 3711
