@@ -2645,3 +2645,33 @@ asserted that its writer and save_report produced byte-identical encodings. That
 was true on 2026-07-26 and false two days later, and nothing noticed because
 nothing tested it. Any comment asserting an invariant between two code paths must
 be accompanied by a test that fails when the invariant breaks.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-29 -- the absence vocabulary (CI-u-2)
+=====================================================================
+
+  u-1  unify the writers                2a1e7f6  LANDED
+  u-2  the absence vocabulary           (this)   LANDED
+  u-3  wire it, with a schema bump      NEXT
+
+THE VOCABULARY. A closed AbsenceCause -- UNDEFINED_ON_COHORT,
+WITHHELD_BY_INPUT_GATE, INSUFFICIENT_SUPPORT, NOT_APPLICABLE -- with two record
+types: FieldAbsence for scalars and CurveAbsence for arrays. Separate because a
+scalar and an array are absent in different ways, and one map with mixed
+semantics would invite a reader to treat them alike.
+
+CURVE-LEVEL ABSENCE IS A MEASURED DECISION. No curve in any degenerate cohort
+mixes valid and non-finite entries; element-level absence would describe a state
+that cannot occur. The premise is pinned by a test.
+
+u-3 SCOPE:
+  * field_absence and curve_absence on EvaluationReport;
+  * to_serializable emits null for absent scalars and populates both maps;
+  * the BICONDITIONAL invariant -- a field is null IF AND ONLY IF it appears in
+    field_absence -- enforced in both directions;
+  * the cause threaded FROM WHERE THE REFUSAL HAPPENED. The input gates know
+    they withheld; the registry knows the cohort was single-class.
+    Reconstructing the cause from a NaN at serialisation time would be exactly
+    the inference this vocabulary exists to replace.
+  * schema version bump and read path.

@@ -1,3 +1,42 @@
+## 2026-07-29 -- the absence vocabulary (CI-u-2)
+
+Ratchet 3630 -> 3655 (+25). Session record:
+docs/sessions/SESSION_2026-07-29_absence-vocabulary.md
+
+dump_strict_json refuses a non-finite number, correctly -- but the flat report
+surface had no way to say a value was ABSENT, so the whole file was rejected
+rather than the one field being recorded as missing. Measured at 2a1e7f6, THREE
+OF FIVE COHORTS produced reports that could not be written at all.
+
+### Bare null is not enough
+UNDEFINED_ON_COHORT is a property of the DATA and a legitimate finding;
+WITHHELD_BY_INPUT_GATE is a property of the MODEL OUTPUT and a defect to fix.
+Reporting both as "missing" tells a reader to investigate the wrong thing. The
+closed vocabulary also carries INSUFFICIENT_SUPPORT and NOT_APPLICABLE.
+
+### Curve-level absence, decided by MEASUREMENT
+No curve in any degenerate cohort mixes valid and non-finite entries -- each
+array is entirely clean, entirely non-finite, or empty. Element-level absence
+would be a representation for a state that CANNOT OCCUR. A test pins the premise,
+so if it stops holding the design is revisited rather than quietly extended.
+
+Absence is PER-CURVE, not per-report: on an all-negative cohort tpr_curve is
+absent while three other curves remain valid. And the non-finite case is a third
+state -- those curves are EMPTY because CI-t withheld them upstream, so
+n_expected distinguishes a withheld curve over 200 rows from an empty curve over
+an empty cohort.
+
+### Sabotage
+Seven mutations, seven detected, zero undetected, clean on the first pass. B2 and
+B7 matter most: both would DESTROY real measurements rather than merely fail to
+record absence.
+
+### What this commit deliberately does not do
+It does not wire the vocabulary into EvaluationReport. That is u-3, and it
+requires threading the gate verdicts through -- the cause is only knowable where
+the refusal happened, and reconstructing it from a NaN would be exactly the
+inference this vocabulary exists to replace.
+
 ## 2026-07-28 -- one serialiser, not two (CI-u-1)
 
 Ratchet 3627 -> 3630 (+3). Session record:

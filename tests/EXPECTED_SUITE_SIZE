@@ -4066,4 +4066,32 @@
 #   Sabotage: 4 mutations, 4 detected, 0 undetected. B1 -- reverting to asdict
 #   -- is the exact divergence that occurred between 26 and 28 July.
 #
-3630
+#
+# 3630 -> 3655 (+25)  2026-07-29  CI-u-2: the absence vocabulary.
+#
+#   dump_strict_json refuses a non-finite number, correctly -- but the flat
+#   report surface had no way to say a value was ABSENT, so the whole file was
+#   rejected rather than the one field recorded as missing. Measured at
+#   2a1e7f6, THREE OF FIVE COHORTS produced reports that could not be written.
+#
+#   BARE NULL IS NOT ENOUGH. UNDEFINED_ON_COHORT is a property of the DATA and
+#   a legitimate finding; WITHHELD_BY_INPUT_GATE is a property of the MODEL
+#   OUTPUT and a defect to fix. Reporting both as missing tells a reader to
+#   investigate the wrong thing.
+#
+#   CURVE-LEVEL ABSENCE IS MEASURED, NOT AESTHETIC. No curve in any degenerate
+#   cohort mixes valid and non-finite entries, so element-level absence would
+#   describe a state that CANNOT OCCUR. A test pins that premise.
+#
+#   Absence is PER-CURVE: on an all-negative cohort tpr_curve is absent while
+#   three other curves remain valid. n_expected separates a withheld curve over
+#   200 rows from an empty curve over an empty cohort.
+#
+#   Sabotage: 7 mutations, 7 detected, 0 undetected, clean first pass. B2 and
+#   B7 matter most -- both would DESTROY real measurements rather than merely
+#   fail to record absence.
+#
+#   Does NOT wire the vocabulary in. That is u-3, and needs the gate verdicts
+#   threaded through: the cause is only knowable where the refusal happened.
+#
+3655
