@@ -1,3 +1,60 @@
+## 2026-07-29 -- the metric registry, commit 1: the catalogue and the confusion family
+
+Ratchet 3711 -> 3851 (+140). Session record:
+docs/sessions/SESSION_2026-07-29_metric-registry-commit-1.md
+
+THE DECISION THE 2026-07-20 HANDOFF ASKED FOR WAS MADE EXPLICITLY. That handoff, at
+line 454, asked the next session to choose between continuing the metric registry
+and going straight at the five deliverables of its Part One, warning the choice
+"should not be made implicitly twice". It had been. Asked directly, Monzia chose
+the registry. This is commit 1.
+
+MEASURED FIRST: METRIC_REGISTRY had zero occurrences under src/; the live registry
+held ten metrics; thirteen of the fifteen the handoff names were still missing.
+
+AND A STALE FIGURE CORRECTED: the JEPA disk blocker is GONE. 10.91 GB free on
+2026-07-20 against ~14.7 GB needed; 56.01 GB free today, a surplus of about 41 GB.
+Nine days of quoting a number instead of spending one command.
+
+### The catalogue -- absence made visible
+project_metrics.txt specifies sixteen panels; two are present. The other fourteen
+were absent AND INVISIBLE. A missing metric and a metric nobody specified looked
+identical. catalogue.py now registers every specified metric with a written
+formula, value range, direction and status, so an unbuilt metric is a REGISTERED
+ABSENCE. 23 specified, 17 built, 6 absent -- the count began at 13.
+
+### The confusion family -- seven of the thirteen
+Hand-computed from TP=3 FN=1 FP=1 TN=5 and matched exactly: sensitivity 0.750000,
+specificity 0.833333, both predictive values, balanced accuracy 0.791667, LR+
+4.500000, LR- 0.300000. NaN never zero on an empty margin. Both the predictive
+values and the likelihood ratios are present deliberately -- the first are
+prevalence-dependent and do not transfer, the second are not and do.
+
+Registered but NOT in the report surface: adding them would move the frozen
+480-value oracle, which is a separate declared change.
+
+### The registry's validators caught me twice
+Identity not equality -- every predicate must share the SAME ThresholdParameters
+object as its kernel. And REPORT_METRIC_NAMES protected the frozen oracle from my
+seven defaulting to report inclusion.
+
+### FOUR DEFECTS OF MY OWN
+Balanced accuracy refused on a PERFECT classifier, because I borrowed the
+likelihood-ratio predicate to satisfy the identity validator and it inherited a
+restriction that does not apply -- the 3b-1a over-restriction repeated. Two
+invented names (GREATER_EQUAL for GREATER_OR_EQUAL; a rationale= field that is
+source:). Two catalogue display names disagreeing with the registry.
+
+AND THE KERNELS HAD NO TESTS. I hand-verified them in a throwaway probe and never
+committed it. Sabotage found three surviving numerical mutations, including the
+positive likelihood ratio dividing by specificity rather than one-minus-specificity
+-- the exact misstatement its own docstring warns against. A warning in a docstring
+is not a check.
+
+### Sabotage
+Nine mutations, nine detected, zero undetected, zero anchor misses. The first run
+left three, all closed by the new kernel tests.
+
 ## 2026-07-29 -- the README did not know the evaluation stack existed
 
 Ratchet unchanged at 3711. Session record:

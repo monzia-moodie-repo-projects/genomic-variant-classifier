@@ -618,14 +618,23 @@ def test_existing_registry_results_do_not_move():
         f"longer describes this commit: {sorted(missing)}")
 
 
-def test_exactly_four_result_names_were_added():
+def test_exactly_the_expected_result_names_were_added():
     from genomic_variant_classifier.evaluation.registry import names
 
     snapshot = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
     added = set(names()) - set(snapshot["registered_metric_names"])
     removed = set(snapshot["registered_metric_names"]) - set(names())
-    assert added == {"maximum_calibration_error", "matthews_correlation_coefficient",
-                     "f1", "prevalence"}
+    # UPDATED 2026-07-29. Four names were added when this test was written; the
+    # confusion-matrix family added seven more. Enumerated rather than counted,
+    # so a metric appearing or vanishing is named rather than reduced to an
+    # integer that a reader cannot check.
+    assert added == {
+        "maximum_calibration_error", "matthews_correlation_coefficient",
+        "f1", "prevalence",
+        "sensitivity", "specificity",
+        "positive_predictive_value", "negative_predictive_value",
+        "balanced_accuracy",
+        "positive_likelihood_ratio", "negative_likelihood_ratio"}
     assert not removed
 
 

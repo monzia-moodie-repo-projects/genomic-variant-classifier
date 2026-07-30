@@ -124,6 +124,8 @@ axis is needed later it can be added deliberately.
 """
 from __future__ import annotations
 
+import math
+
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from enum import Enum
@@ -738,6 +740,15 @@ _L, _S, _P = MetricInput.LABELS, MetricInput.SCORES, MetricInput.PROBABILITIES
 # BEFORE dispatch. Letting the kernel's NaN carry that meaning would report a
 # constant classifier as a broken implementation.
 # --------------------------------------------------------------------------- #
+# ONE declaration for the whole confusion family. The seven metrics below
+# describe ONE matrix at ONE cut, and a shared object is what stops them
+# disagreeing about where that cut was -- the same identity discipline commit
+# 2b-2 applied to the Matthews coefficient and F1.
+_CONFUSION_THRESHOLD = ThresholdParameters(
+    threshold=0.5,
+    operator=ThresholdOperator.GREATER_OR_EQUAL,
+    source=ThresholdSource.FIXED_DEFAULT)
+
 _MCC_THRESHOLD = ThresholdParameters(
     threshold=0.5, operator=ThresholdOperator.GREATER_OR_EQUAL,
     source=ThresholdSource.FIXED_DEFAULT)
@@ -830,6 +841,129 @@ def _requires_nondegenerate_confusion(tp: ThresholdParameters, *, metric: str):
     return predicate
 
 
+# --------------------------------------------------------------------------- #
+# CONFUSION-FAMILY APPLICABILITY (2026-07-29)
+#
+# Each of the seven confusion-matrix metrics returns NaN on its own degenerate
+# case, and the registry requires an OK result to be finite -- so applicability
+# must refuse EXACTLY where the kernel would return NaN. Refusing more widely
+# would repeat the calibration over-restriction corrected in commit 3b-1a, where
+# a metric was withheld on a cohort that could perfectly well support it.
+#
+# The requirements differ per metric and are not interchangeable:
+#
+#   sensitivity                 positive labels        (TP + FN > 0)
+#   specificity                 negative labels        (TN + FP > 0)
+#   positive predictive value   something flagged      (TP + FP > 0)  threshold-dependent
+#   negative predictive value   something cleared      (TN + FN > 0)  threshold-dependent
+#   balanced accuracy           BOTH classes
+#   likelihood ratios           both classes, and a specificity strictly inside
+#                               (0, 1) -- an infinite ratio is not a value an
+#                               evidence artifact can carry
+# --------------------------------------------------------------------------- #
+def _requires_class_support(tp: ThresholdParameters, *, positive: bool,
+                            metric: str):
+    """Applicability requiring observations of one reference class.
+
+    Takes the ThresholdParameters even though class support does not depend on
+    the threshold, because the registry validator asserts BY IDENTITY that a
+    descriptor's predicate and kernel share one object. Declaring it here is what
+    makes that assertion meaningful rather than vacuous.
+    """
+    def predicate(ctx: MetricContext) -> Applicability:
+        base = _requires_probabilities(ctx)
+        if not base.applicable:
+            return base
+        wanted = 1.0 if positive else 0.0
+        if wanted not in ctx.classes_observed:
+            label = "positive" if positive else "negative"
+            return Applicability(
+                applicable=False, status=MetricStatus.INSUFFICIENT_SUPPORT,
+                reason=f"{label}_class_support_required",
+                metadata={MetricMetadataKey.REFERENCE_CLASS_SUPPORT: "single_class"})
+        return APPLICABLE
+    predicate.__name__ = f"_requires_{'positive' if positive else 'negative'}_support_{metric}"
+    predicate._threshold_parameters = tp
+    return predicate
+
+
+def _requires_flagged_margin(tp: ThresholdParameters, *, flagged: bool,
+                             metric: str):
+    """Applicability requiring a non-empty predicted-positive or -negative set.
+
+    THRESHOLD-DEPENDENT, unlike class support: whether anything is flagged is a
+    property of the threshold and the predictions together, not of the labels.
+    """
+    def predicate(ctx: MetricContext) -> Applicability:
+        base = _requires_probabilities(ctx)
+        if not base.applicable:
+            return base
+        from .metrics import apply_decision_threshold
+
+        predicted = apply_decision_threshold(
+            ctx.y_prob, threshold=tp.threshold, operator=tp.operator.value)
+        count = int(predicted.sum()) if flagged else int((~predicted).sum())
+        if count == 0:
+            side = "predicted_positive" if flagged else "predicted_negative"
+            return Applicability(
+                applicable=False, status=MetricStatus.INSUFFICIENT_SUPPORT,
+                reason=f"empty_{side}_set",
+                metadata={"threshold": tp.threshold})
+        return APPLICABLE
+    predicate.__name__ = f"_requires_{'flagged' if flagged else 'cleared'}_{metric}"
+    predicate._threshold_parameters = tp
+    return predicate
+
+
+def _requires_interior_specificity(tp: ThresholdParameters, *, metric: str):
+    """Applicability for the likelihood ratios.
+
+    Both classes must be present, and specificity must lie strictly inside
+    (0, 1). At specificity exactly 1.0 the positive likelihood ratio is infinite;
+    at exactly 0.0 the negative one is. Infinity is not a value an artifact can
+    carry, so this refuses rather than producing one.
+    """
+    def predicate(ctx: MetricContext) -> Applicability:
+        base = _requires_both_classes(ctx)
+        if not base.applicable:
+            return base
+        from .metrics import specificity as _spec
+
+        spec = _spec(ctx.y_true, ctx.y_prob, threshold=tp.threshold,
+                     operator=tp.operator.value)
+        if not math.isfinite(spec):
+            return Applicability(applicable=False,
+                                 status=MetricStatus.INSUFFICIENT_SUPPORT,
+                                 reason="specificity_undefined")
+        if spec >= 1.0 or spec <= 0.0:
+            return Applicability(
+                applicable=False, status=MetricStatus.UNDEFINED,
+                reason="likelihood_ratio_unbounded",
+                metadata={"specificity": float(spec), "threshold": tp.threshold})
+        return APPLICABLE
+    predicate.__name__ = f"_requires_interior_specificity_{metric}"
+    predicate._threshold_parameters = tp
+    return predicate
+
+def _requires_both_classes_at_threshold(tp: ThresholdParameters, *, metric: str):
+    """Both reference classes, and nothing more.
+
+    ADDED AFTER A DEFECT OF MINE. Balanced accuracy was first given the
+    likelihood-ratio predicate purely to satisfy the identity validator, and it
+    inherited that predicate's refusal at specificity exactly 1.0 -- so a PERFECT
+    classifier reported balanced accuracy as `undefined` with reason
+    `likelihood_ratio_unbounded`. It is perfectly well defined there: (1 + 1) / 2.
+
+    That is the same over-restriction corrected in commit 3b-1a, where calibration
+    was withheld on a cohort that could support it. Borrowing a predicate because
+    it typechecks is how a metric acquires a restriction nobody intended.
+    """
+    def predicate(ctx: MetricContext) -> Applicability:
+        return _requires_both_classes(ctx)
+    predicate.__name__ = f"_requires_both_classes_at_threshold_{metric}"
+    predicate._threshold_parameters = tp
+    return predicate
+
 def _requires_reference_labels_only(ctx: MetricContext) -> Applicability:
     """Prevalence is defined on a single-class population.
 
@@ -882,6 +1016,13 @@ def _prevalence(ctx: MetricContext) -> float:
     return prevalence(ctx.y_true)
 
 
+_sensitivity = _threshold_adapter("sensitivity", _CONFUSION_THRESHOLD)
+_specificity = _threshold_adapter("specificity", _CONFUSION_THRESHOLD)
+_ppv = _threshold_adapter("positive_predictive_value", _CONFUSION_THRESHOLD)
+_npv = _threshold_adapter("negative_predictive_value", _CONFUSION_THRESHOLD)
+_balanced_accuracy = _threshold_adapter("balanced_accuracy", _CONFUSION_THRESHOLD)
+_lr_positive = _threshold_adapter("positive_likelihood_ratio", _CONFUSION_THRESHOLD)
+_lr_negative = _threshold_adapter("negative_likelihood_ratio", _CONFUSION_THRESHOLD)
 _mcc = _threshold_adapter("matthews_correlation_coefficient", _MCC_THRESHOLD)
 _f1 = _threshold_adapter("f1_at_threshold", _F1_THRESHOLD)
 
@@ -959,6 +1100,127 @@ _METRICS: tuple = (
         parameters={**_F1_THRESHOLD.to_mapping(),
                     "average": "binary", "positive_label": 1,
                     "zero_division": "undefined"}),
+    MetricDescriptor(
+        name="sensitivity", function=_sensitivity,
+        required_inputs=frozenset({_L, _P}),
+        applicability=_requires_class_support(
+            _CONFUSION_THRESHOLD, positive=True, metric="sensitivity"),
+        # REGISTERED BUT NOT IN THE FLAT REPORT (2026-07-29).
+        #
+        # These are computable now. Adding them to the report surface would move
+        # the frozen 480-value oracle, which is a separate and declared change --
+        # the same staging that kept commit 3a's schema introduction apart from
+        # 3b-2's authority switch. Registered first, surfaced second.
+        include_in_evaluation_report=False,
+        result_kind=_PM,
+        display_name="Sensitivity (recall, true-positive rate)",
+        description="proportion of positive reference labels correctly flagged",
+        parameters={**_CONFUSION_THRESHOLD.to_mapping(), "zero_division": "undefined"}),
+    MetricDescriptor(
+        name="specificity", function=_specificity,
+        required_inputs=frozenset({_L, _P}),
+        applicability=_requires_class_support(
+            _CONFUSION_THRESHOLD, positive=False, metric="specificity"),
+        # REGISTERED BUT NOT IN THE FLAT REPORT (2026-07-29).
+        #
+        # These are computable now. Adding them to the report surface would move
+        # the frozen 480-value oracle, which is a separate and declared change --
+        # the same staging that kept commit 3a's schema introduction apart from
+        # 3b-2's authority switch. Registered first, surfaced second.
+        include_in_evaluation_report=False,
+        result_kind=_PM,
+        display_name="Specificity (true-negative rate)",
+        description="proportion of negative reference labels correctly cleared",
+        parameters={**_CONFUSION_THRESHOLD.to_mapping(), "zero_division": "undefined"}),
+    MetricDescriptor(
+        name="positive_predictive_value", function=_ppv,
+        required_inputs=frozenset({_L, _P}),
+        applicability=_requires_flagged_margin(_CONFUSION_THRESHOLD, flagged=True,
+                                               metric="positive_predictive_value"),
+        # REGISTERED BUT NOT IN THE FLAT REPORT (2026-07-29).
+        #
+        # These are computable now. Adding them to the report surface would move
+        # the frozen 480-value oracle, which is a separate and declared change --
+        # the same staging that kept commit 3a's schema introduction apart from
+        # 3b-2's authority switch. Registered first, surfaced second.
+        include_in_evaluation_report=False,
+        result_kind=_PM,
+        display_name="Positive predictive value (precision)",
+        description="proportion of flagged variants that are truly positive; "
+                    "PREVALENCE-DEPENDENT and not transferable between cohorts",
+        parameters={**_CONFUSION_THRESHOLD.to_mapping(),
+                    "prevalence_dependent": True}),
+    MetricDescriptor(
+        name="negative_predictive_value", function=_npv,
+        required_inputs=frozenset({_L, _P}),
+        applicability=_requires_flagged_margin(_CONFUSION_THRESHOLD, flagged=False,
+                                               metric="negative_predictive_value"),
+        # REGISTERED BUT NOT IN THE FLAT REPORT (2026-07-29).
+        #
+        # These are computable now. Adding them to the report surface would move
+        # the frozen 480-value oracle, which is a separate and declared change --
+        # the same staging that kept commit 3a's schema introduction apart from
+        # 3b-2's authority switch. Registered first, surfaced second.
+        include_in_evaluation_report=False,
+        result_kind=_PM,
+        display_name="Negative predictive value",
+        description="proportion of cleared variants that are truly negative; "
+                    "PREVALENCE-DEPENDENT and not transferable between cohorts",
+        parameters={**_CONFUSION_THRESHOLD.to_mapping(),
+                    "prevalence_dependent": True}),
+    MetricDescriptor(
+        name="balanced_accuracy", function=_balanced_accuracy,
+        required_inputs=frozenset({_L, _P}),
+        applicability=_requires_both_classes_at_threshold(
+            _CONFUSION_THRESHOLD, metric="balanced_accuracy"),
+        # REGISTERED BUT NOT IN THE FLAT REPORT (2026-07-29).
+        #
+        # These are computable now. Adding them to the report surface would move
+        # the frozen 480-value oracle, which is a separate and declared change --
+        # the same staging that kept commit 3a's schema introduction apart from
+        # 3b-2's authority switch. Registered first, surfaced second.
+        include_in_evaluation_report=False,
+        result_kind=_PM,
+        display_name="Balanced accuracy",
+        description="mean of sensitivity and specificity; unlike plain accuracy "
+                    "it does not reward predicting the majority class",
+        parameters={**_CONFUSION_THRESHOLD.to_mapping()}),
+    MetricDescriptor(
+        name="positive_likelihood_ratio", function=_lr_positive,
+        required_inputs=frozenset({_L, _P}),
+        applicability=_requires_interior_specificity(
+            _CONFUSION_THRESHOLD, metric="positive_likelihood_ratio"),
+        # REGISTERED BUT NOT IN THE FLAT REPORT (2026-07-29).
+        #
+        # These are computable now. Adding them to the report surface would move
+        # the frozen 480-value oracle, which is a separate and declared change --
+        # the same staging that kept commit 3a's schema introduction apart from
+        # 3b-2's authority switch. Registered first, surfaced second.
+        include_in_evaluation_report=False,
+        result_kind=_PM,
+        display_name="Positive likelihood ratio",
+        description="sensitivity divided by one minus specificity; "
+                    "PREVALENCE-INDEPENDENT, so it transfers between cohorts",
+        parameters={**_CONFUSION_THRESHOLD.to_mapping(),
+                    "prevalence_dependent": False}),
+    MetricDescriptor(
+        name="negative_likelihood_ratio", function=_lr_negative,
+        required_inputs=frozenset({_L, _P}),
+        applicability=_requires_interior_specificity(
+            _CONFUSION_THRESHOLD, metric="negative_likelihood_ratio"),
+        # REGISTERED BUT NOT IN THE FLAT REPORT (2026-07-29).
+        #
+        # These are computable now. Adding them to the report surface would move
+        # the frozen 480-value oracle, which is a separate and declared change --
+        # the same staging that kept commit 3a's schema introduction apart from
+        # 3b-2's authority switch. Registered first, surfaced second.
+        include_in_evaluation_report=False,
+        result_kind=_PM,
+        display_name="Negative likelihood ratio",
+        description="one minus sensitivity, divided by specificity; "
+                    "prevalence-independent, and LOWER is better",
+        parameters={**_CONFUSION_THRESHOLD.to_mapping(),
+                    "prevalence_dependent": False}),
     MetricDescriptor(
         name="prevalence", function=_prevalence, required_inputs=frozenset({_L}),
         applicability=_requires_reference_labels_only,

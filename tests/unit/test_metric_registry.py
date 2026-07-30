@@ -277,11 +277,48 @@ def test_a_finite_value_does_not_confer_certification_eligibility():
     assert r.metadata["certification_blocked_by"] == "single_class_cohort"
 
 
+# Metrics whose applicability depends on the CLASSIFIER rather than the cohort.
+# The likelihood ratios refuse when specificity reaches exactly 1.0, because the
+# ratio is then infinite and infinity is not a value an artifact can carry. A
+# perfectly specific classifier is not an unhealthy cohort.
+_CLASSIFIER_DEPENDENT = frozenset({
+    "positive_likelihood_ratio", "negative_likelihood_ratio"})
+
+
 def test_a_healthy_cohort_is_certification_eligible():
+    """UPDATED 2026-07-29. This asserted that EVERY registered metric is OK on a
+    healthy cohort -- true of the original ten, and false once the confusion
+    family arrived.
+
+    The fixture's classifier is perfectly specific, so the positive likelihood
+    ratio is genuinely unbounded and refuses with `specificity: 1.0`. That is a
+    property of the CLASSIFIER, not of the cohort, and the premise "healthy cohort
+    implies every metric computes" does not hold for metrics whose applicability
+    reads the predictions. The exclusion is named rather than the assertion
+    weakened.
+    """
+    checked = 0
     for name, r in evaluate_registered(_two_class()).items():
+        if name in _CLASSIFIER_DEPENDENT:
+            continue
         assert r.status is MetricStatus.OK, (name, r.reason)
         assert r.metadata["certification_eligible"] is True, name
         assert "certification_blocked_by" not in r.metadata, name
+        checked += 1
+    assert checked >= 10, (
+        f"only {checked} metrics were checked; the exclusion set has grown to "
+        "swallow the assertion")
+
+
+def test_the_excluded_metrics_refuse_for_the_stated_reason():
+    """Guards the exclusion above: those two must refuse BECAUSE the ratio is
+    unbounded, not for some unrelated reason that the exclusion would hide."""
+    results = evaluate_registered(_two_class())
+    for name in _CLASSIFIER_DEPENDENT:
+        r = results[name]
+        assert r.status is not MetricStatus.OK, name
+        assert r.reason == "likelihood_ratio_unbounded", (name, r.reason)
+        assert r.metadata["specificity"] == 1.0, name
 
 
 # --------------------------------------------------------------------------- #

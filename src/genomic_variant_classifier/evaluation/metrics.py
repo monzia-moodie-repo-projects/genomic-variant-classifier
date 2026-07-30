@@ -1480,3 +1480,155 @@ if __name__ == "__main__":
     y_proba = np.clip(y_proba, 0, 1)
     evaluator = ModelEvaluator(y_true, y_proba)
     print(evaluator.generate_report())
+
+# --------------------------------------------------------------------------- #
+# THE CONFUSION-MATRIX FAMILY (2026-07-29)
+#
+# Seven of the thirteen metrics the specification asked for and the code did not
+# have. All seven derive from one confusion matrix at one declared threshold, so
+# they are written together and share the discipline the rest of this module
+# already follows:
+#
+#   * fail closed on non-finite probabilities -- a model-output failure is not an
+#     ordinary missing observation;
+#   * return NaN, never 0.0, when a required margin is empty. scikit-learn's
+#     zero_division policy reports 0.0, which is indistinguishable from a
+#     classifier that was measured and scored nothing. An undefined quantity is
+#     not a measured zero.
+#
+# WHY THE PREDICTIVE VALUES AND THE LIKELIHOOD RATIOS ARE BOTH HERE. The positive
+# and negative predictive values depend on prevalence and do not transfer between
+# cohorts; the likelihood ratios do not depend on it and do. A clinical report
+# needs both -- the first to say what a result means in THIS cohort, the second to
+# say what the test is worth anywhere. Reporting only one is a common and
+# consequential omission.
+# --------------------------------------------------------------------------- #
+def _margins_at_threshold(y: Sequence, prob: Sequence, *, threshold: float,
+                          operator: str, metric_name: str):
+    """The four confusion counts, or `None` when the inputs cannot support them.
+
+    Returns `None` rather than raising so each metric can decide its own NaN,
+    and performs the same fail-closed checks as every other threshold metric.
+    """
+    if not is_probability(prob):
+        return None
+    _require_finite_probabilities(prob, metric_name=metric_name)
+    y_arr, p_arr = _clean(y, prob)
+    if y_arr.size == 0:
+        return None
+    predicted = apply_decision_threshold(p_arr, threshold=threshold,
+                                         operator=operator)
+    return _confusion_counts(y_arr, predicted)
+
+
+def sensitivity(y: Sequence, prob: Sequence, *, threshold: float,
+                operator: str = ">=") -> float:
+    """True-positive rate: TP / (TP + FN).
+
+    NaN when there are no positive reference labels. With no positives there is
+    no rate to estimate, and 0.0 would assert that every positive was missed.
+    """
+    margins = _margins_at_threshold(y, prob, threshold=threshold,
+                                    operator=operator, metric_name="sensitivity")
+    if margins is None:
+        return float("nan")
+    tp, _fp, fn, _tn = margins
+    positives = tp + fn
+    return float(tp / positives) if positives else float("nan")
+
+
+def specificity(y: Sequence, prob: Sequence, *, threshold: float,
+                operator: str = ">=") -> float:
+    """True-negative rate: TN / (TN + FP). NaN when there are no negatives."""
+    margins = _margins_at_threshold(y, prob, threshold=threshold,
+                                    operator=operator, metric_name="specificity")
+    if margins is None:
+        return float("nan")
+    _tp, fp, _fn, tn = margins
+    negatives = tn + fp
+    return float(tn / negatives) if negatives else float("nan")
+
+
+def positive_predictive_value(y: Sequence, prob: Sequence, *, threshold: float,
+                              operator: str = ">=") -> float:
+    """Precision: TP / (TP + FP).
+
+    NaN when nothing was predicted positive. PREVALENCE-DEPENDENT: this value
+    does not transfer to a cohort with a different positive rate, which is why
+    the positive likelihood ratio is reported beside it.
+    """
+    margins = _margins_at_threshold(
+        y, prob, threshold=threshold, operator=operator,
+        metric_name="positive_predictive_value")
+    if margins is None:
+        return float("nan")
+    tp, fp, _fn, _tn = margins
+    flagged = tp + fp
+    return float(tp / flagged) if flagged else float("nan")
+
+
+def negative_predictive_value(y: Sequence, prob: Sequence, *, threshold: float,
+                              operator: str = ">=") -> float:
+    """TN / (TN + FN). NaN when nothing was predicted negative.
+    Prevalence-dependent, as the positive predictive value is."""
+    margins = _margins_at_threshold(
+        y, prob, threshold=threshold, operator=operator,
+        metric_name="negative_predictive_value")
+    if margins is None:
+        return float("nan")
+    _tp, _fp, fn, tn = margins
+    cleared = tn + fn
+    return float(tn / cleared) if cleared else float("nan")
+
+
+def balanced_accuracy(y: Sequence, prob: Sequence, *, threshold: float,
+                      operator: str = ">=") -> float:
+    """(sensitivity + specificity) / 2.
+
+    NaN when EITHER component is undefined, rather than substituting the one that
+    is defined. On a single-class cohort plain accuracy reports the majority rate
+    and looks excellent; this reports that it cannot be computed, which is the
+    honest answer and the reason the metric exists.
+    """
+    sens = sensitivity(y, prob, threshold=threshold, operator=operator)
+    spec = specificity(y, prob, threshold=threshold, operator=operator)
+    if not (math.isfinite(sens) and math.isfinite(spec)):
+        return float("nan")
+    return float((sens + spec) / 2.0)
+
+
+def positive_likelihood_ratio(y: Sequence, prob: Sequence, *, threshold: float,
+                              operator: str = ">=") -> float:
+    """sensitivity / (1 - specificity).
+
+    NOT sensitivity over specificity, which is a common misstatement. NaN when
+    specificity is exactly 1.0: a test with no false positives has an infinite
+    likelihood ratio, and infinity is not a value an evidence artifact can carry.
+    PREVALENCE-INDEPENDENT, which is what makes it transferable.
+    """
+    sens = sensitivity(y, prob, threshold=threshold, operator=operator)
+    spec = specificity(y, prob, threshold=threshold, operator=operator)
+    if not (math.isfinite(sens) and math.isfinite(spec)):
+        return float("nan")
+    false_positive_rate = 1.0 - spec
+    if false_positive_rate <= 0.0:
+        return float("nan")
+    return float(sens / false_positive_rate)
+
+
+def negative_likelihood_ratio(y: Sequence, prob: Sequence, *, threshold: float,
+                              operator: str = ">=") -> float:
+    """(1 - sensitivity) / specificity.
+
+    NaN when specificity is zero. Lower is better here, unlike its positive
+    counterpart: a small value means a negative result strongly argues against
+    the condition. Prevalence-independent.
+    """
+    sens = sensitivity(y, prob, threshold=threshold, operator=operator)
+    spec = specificity(y, prob, threshold=threshold, operator=operator)
+    if not (math.isfinite(sens) and math.isfinite(spec)):
+        return float("nan")
+    if spec <= 0.0:
+        return float("nan")
+    return float((1.0 - sens) / spec)
+

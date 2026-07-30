@@ -2861,3 +2861,56 @@ NEW STANDING RULE -- VERIFY BEFORE CORRECTING A DOCUMENT. The README states 95 t
 features; the remembered figure was 91. The code says 95. Trusting memory would have edited
 a correct document into an incorrect one. Documentation claims are assertions about code and
 must be measured in the same direction as any other claim.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-29 -- METRIC REGISTRY, COMMIT 1
+=====================================================================
+
+PRIORITY 1 OF project_metrics.txt IS UNDER WAY. The 2026-07-20 handoff asked at
+line 454 for this decision to be made EXPLICITLY and warned it should not be made
+implicitly twice. It had been. Asked directly, Monzia chose the registry.
+
+DELIVERED:
+  * evaluation/catalogue.py -- the declared catalogue. 23 specified, 17 built,
+    6 absent. Every entry carries a written formula, value range, direction and
+    implementation status, so an unbuilt metric is a REGISTERED ABSENCE.
+  * seven confusion-matrix metrics: sensitivity, specificity, both predictive
+    values, balanced accuracy, both likelihood ratios. Registered and computable,
+    deliberately NOT in the report surface.
+
+STALE FIGURE CORRECTED -- JEPA IS NO LONGER DISK-BLOCKED. 10.91 GB free on
+2026-07-20 against ~14.7 GB needed; 56.01 GB measured 2026-07-29. Surplus about
+41 GB. That deliverable is schedulable.
+
+NEW STANDING RULE -- REPORTING A PREVALENCE-DEPENDENT METRIC WITHOUT ITS
+PREVALENCE-INDEPENDENT COUNTERPART IS AN OMISSION. The predictive values say what
+a result means in THIS cohort; the likelihood ratios say what the test is worth
+anywhere. Both belong in a clinical report.
+
+NEW STANDING RULE -- DO NOT BORROW AN APPLICABILITY PREDICATE BECAUSE IT
+TYPECHECKS. Balanced accuracy was given the likelihood-ratio predicate to satisfy
+the identity validator and inherited a refusal at specificity 1.0, where it is
+plainly (1+1)/2. That is the 3b-1a over-restriction repeated.
+
+NEW STANDING RULE -- A HAND VERIFICATION THAT IS NOT COMMITTED PROTECTS NOTHING.
+The seven kernels were checked interactively and shipped without tests; sabotage
+then found three surviving numerical mutations, one of them the exact error the
+kernel's own docstring warns against.
+
+STILL REQUIRED: project_metrics.txt, 34,678 bytes, for the panel letters. Every
+entry carries panel=None and a test asserts that none is assigned, so a guess
+cannot slip in.
+
+REMAINING IN THE REGISTRY SCOPE:
+  six metrics -- partial_auroc, integrated_calibration_index,
+  adaptive_expected_calibration_error, and the three Brier components;
+  OperatingPointMetrics with threshold provenance;
+  the clinical panels (decision-curve net benefit, risk-at-coverage);
+  a typed BinaryEvaluationReport refusing to serialise without prevalence,
+  sample count and split identity;
+  a living glossary GENERATED from the registry and pinned by a test.
+
+THE OTHER FOUR DELIVERABLES REMAIN OPEN and outrank Run 17: JEPA (now unblocked),
+conformal (five of six modules absent), the RNA-seq differential-expression
+leakage check, and conformal quantile regression.

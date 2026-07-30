@@ -4239,4 +4239,40 @@
 #
 #   No code touched. Ratchet unchanged; no test added or removed.
 #
-3711
+#
+# 3711 -> 3851 (+140)  2026-07-29  METRIC REGISTRY, COMMIT 1: the declared
+#   catalogue and the confusion family. Priority 1 of project_metrics.txt.
+#
+#   The 2026-07-20 handoff asked at line 454 for this decision to be made
+#   EXPLICITLY and warned it should not be made implicitly twice. It had been,
+#   across three sessions of metric-surface repair. Asked directly, the choice
+#   was the registry.
+#
+#   THE CATALOGUE. Sixteen panels specified, two present; the other fourteen
+#   were absent AND INVISIBLE. catalogue.py registers every specified metric
+#   with a written formula, range, direction and status, so an unbuilt metric
+#   is a REGISTERED ABSENCE. 23 specified, 17 built, 6 absent -- from 13.
+#
+#   SEVEN KERNELS, hand-computed from TP=3 FN=1 FP=1 TN=5 and matched exactly.
+#   NaN never zero on an empty margin. Both the prevalence-DEPENDENT predictive
+#   values and the prevalence-INDEPENDENT likelihood ratios, deliberately.
+#   Registered but NOT in the report surface -- that would move the frozen
+#   480-value oracle, which is a separate declared change.
+#
+#   THE REGISTRY'S OWN VALIDATORS CAUGHT ME TWICE: threshold identity, and
+#   REPORT_METRIC_NAMES protecting the frozen oracle.
+#
+#   FOUR DEFECTS OF MINE. Balanced accuracy refused on a PERFECT classifier
+#   because I borrowed the likelihood-ratio predicate to satisfy the identity
+#   validator -- the 3b-1a over-restriction repeated. Two invented names. Two
+#   display names disagreeing with the registry.
+#
+#   AND THE KERNELS HAD NO TESTS: hand-verified in a throwaway probe, never
+#   committed. Sabotage found three surviving numerical mutations, one the exact
+#   error the kernel's own docstring warns against.
+#
+#   JEPA IS NO LONGER DISK-BLOCKED: 56.01 GB free against ~14.7 GB needed.
+#
+#   Sabotage: 9 mutations, 9 detected, 0 undetected, 0 anchor misses.
+#
+3851
