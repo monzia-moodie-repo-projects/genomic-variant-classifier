@@ -624,17 +624,24 @@ def test_exactly_the_expected_result_names_were_added():
     snapshot = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
     added = set(names()) - set(snapshot["registered_metric_names"])
     removed = set(snapshot["registered_metric_names"]) - set(names())
-    # UPDATED 2026-07-29. Four names were added when this test was written; the
-    # confusion-matrix family added seven more. Enumerated rather than counted,
-    # so a metric appearing or vanishing is named rather than reduced to an
-    # integer that a reader cannot check.
+    # UPDATED 2026-07-30. Four names were added when this test was written; the
+    # confusion-matrix family added seven more; registry commit 2 added the four
+    # Brier decomposition names. Eleven became fifteen. Enumerated rather than
+    # counted, so a metric appearing or vanishing is named rather than reduced to
+    # an integer that a reader cannot check.
+    #
+    # THE SNAPSHOT IS NOT REGENERATED. tests/fixtures/registry_snapshot_2b1.json
+    # is read by four tests in this file; making the difference empty by moving
+    # the baseline would leave the other three measuring nothing.
     assert added == {
         "maximum_calibration_error", "matthews_correlation_coefficient",
         "f1", "prevalence",
         "sensitivity", "specificity",
         "positive_predictive_value", "negative_predictive_value",
         "balanced_accuracy",
-        "positive_likelihood_ratio", "negative_likelihood_ratio"}
+        "positive_likelihood_ratio", "negative_likelihood_ratio",
+        "brier_reliability", "brier_resolution", "brier_uncertainty",
+        "brier_decomposition_residual"}
     assert not removed
 
 

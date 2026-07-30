@@ -1009,6 +1009,11 @@ def _calibration_adapter(kernel_name: str):
 
 
 _mce = _calibration_adapter("maximum_calibration_error")
+_brier_reliability = _calibration_adapter("brier_reliability")
+_brier_resolution = _calibration_adapter("brier_resolution")
+_brier_uncertainty = _calibration_adapter("brier_uncertainty")
+_brier_residual = _calibration_adapter("brier_decomposition_residual")
+
 
 
 def _prevalence(ctx: MetricContext) -> float:
@@ -1221,6 +1226,68 @@ _METRICS: tuple = (
                     "prevalence-independent, and LOWER is better",
         parameters={**_CONFUSION_THRESHOLD.to_mapping(),
                     "prevalence_dependent": False}),
+    MetricDescriptor(
+        name="brier_reliability", function=_brier_reliability,
+        required_inputs=frozenset({_L, _P}),
+        # CALIBRATION SUPPORT, NOT BOTH CLASSES. Measured 2026-07-30: on an
+        # all-negative cohort predicted at 0.2, reliability is 0.040000 and
+        # meaningful -- it measures overconfidence. Requiring both classes would
+        # repeat the over-restriction corrected in commit 3b-1a, where
+        # calibration was withheld on a cohort that could support it.
+        applicability=_requires_calibration_support,
+        result_kind=_PM,
+        include_in_evaluation_report=False,
+        display_name="Brier decomposition: reliability",
+        description="weighted squared gap between mean predicted probability and "
+                    "observed frequency per bin; the CALIBRATION component, lower "
+                    "is better",
+        parameters=dict(_CALIBRATION_PARAMETERS)),
+    MetricDescriptor(
+        name="brier_resolution", function=_brier_resolution,
+        required_inputs=frozenset({_L, _P}),
+        applicability=_requires_calibration_support,
+        result_kind=_PM,
+        include_in_evaluation_report=False,
+        display_name="Brier decomposition: resolution",
+        description="weighted squared distance of each bin frequency from overall "
+                    "prevalence; the DISCRIMINATION component, and the one part "
+                    "where HIGHER is better because it enters the identity "
+                    "negatively",
+        parameters=dict(_CALIBRATION_PARAMETERS)),
+    MetricDescriptor(
+        name="brier_uncertainty", function=_brier_uncertainty,
+        required_inputs=frozenset({_L}),
+        applicability=_requires_reference_labels_only,
+        # A POPULATION STATISTIC, NOT A PREDICTION METRIC (corrected 2026-07-30).
+        #
+        # It is prevalence * (1 - prevalence): a property of the COHORT that no
+        # model can change, exactly like `prevalence` itself, which carries the
+        # same kind. Registering it as a prediction metric made the fail-closed
+        # contract test demand that non-finite PROBABILITIES block its
+        # certification -- but it never reads the probabilities, so it computed
+        # correctly and the test rightly objected.
+        #
+        # The test was correct and the classification was mine to fix. A metric
+        # that ignores the predictions must not be certified or refused on their
+        # account.
+        result_kind=_PS,
+        include_in_evaluation_report=False,
+        display_name="Brier decomposition: uncertainty",
+        description="prevalence times one minus prevalence; a COHORT PROPERTY no "
+                    "model can change, maximal at 0.25 when prevalence is 0.5",
+        parameters={}),
+    MetricDescriptor(
+        name="brier_decomposition_residual", function=_brier_residual,
+        required_inputs=frozenset({_L, _P}),
+        applicability=_requires_calibration_support,
+        result_kind=_PM,
+        include_in_evaluation_report=False,
+        display_name="Brier decomposition residual",
+        description="brier minus (reliability - resolution + uncertainty). Exactly "
+                    "zero only when bins group identical forecasts; under interval "
+                    "binning it is the within-bin variance term, reported so the "
+                    "three components can be audited rather than trusted",
+        parameters=dict(_CALIBRATION_PARAMETERS)),
     MetricDescriptor(
         name="prevalence", function=_prevalence, required_inputs=frozenset({_L}),
         applicability=_requires_reference_labels_only,

@@ -175,7 +175,17 @@ def test_each_kernel_is_invoked_exactly_once_per_report(monkeypatch):
     # The property that actually matters is that no registered metric is computed
     # more than the number of registered metrics that consume it. The allowance
     # is declared explicitly, so a NEW duplicate invocation still fails.
-    composed_by = {"auprc": 2}          # auprc itself, plus auprc_gain
+    #
+    # DERIVED, NOT LICENSED. Each entry is the number of REGISTERED metrics
+    # that consume the kernel:
+    #   auprc        -- itself, and auprc_gain, defined as auprc - no_skill_auprc
+    #   brier_score  -- itself, and brier_decomposition_residual, defined at
+    #                   metrics.py:1750 as
+    #                   brier - (reliability - resolution + uncertainty)
+    # Added 2026-07-30 with registry commit 2. The assertion below this one
+    # checks the table in the OTHER direction, so an inflated allowance fails
+    # too: these numbers must be exact, not generous.
+    composed_by = {"auprc": 2, "brier_score": 2}
     over_budget = {
         name: seen for name, seen in counts.items()
         if seen > composed_by.get(name, 1)}

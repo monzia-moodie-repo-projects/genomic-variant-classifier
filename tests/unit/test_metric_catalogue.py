@@ -77,7 +77,10 @@ def test_the_two_sets_are_disjoint_and_exhaustive():
 def test_thirteen_specified_metrics_remain_unbuilt():
     """PINNED EXACTLY, so the number moves only by deliberate edit.
 
-    Measured 2026-07-29: twenty-three specified, SEVENTEEN built, six absent.
+    Measured 2026-07-30: TWENTY-FOUR specified, TWENTY-ONE built, three absent.
+    The Brier decomposition landed in registry commit 2, and the residual was
+    ADDED to the specification because the Murphy identity does not close under
+    interval binning.
     The seven confusion-matrix metrics landed in this commit; the count fell from
     thirteen to six in the same change that implemented them. Each
     of the thirteen is a metric the specification asked for and the code does not
@@ -85,8 +88,8 @@ def test_thirteen_specified_metrics_remain_unbuilt():
     change to this assertion made alongside the implementation.
     """
     absent = unimplemented_names()
-    assert len(absent) == 6, (
-        f"expected six registered absences, found {len(absent)}: "
+    assert len(absent) == 3, (
+        f"expected three registered absences, found {len(absent)}: "
         f"{sorted(absent)}. If a metric was implemented, flip its status and "
         "lower this count in the same commit; if one was added to the "
         "specification, raise it.")

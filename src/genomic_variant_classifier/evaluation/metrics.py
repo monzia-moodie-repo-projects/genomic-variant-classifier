@@ -1632,3 +1632,120 @@ def negative_likelihood_ratio(y: Sequence, prob: Sequence, *, threshold: float,
         return float("nan")
     return float((1.0 - sens) / spec)
 
+# --------------------------------------------------------------------------- #
+# THE BRIER DECOMPOSITION (2026-07-30)
+#
+# Murphy's decomposition splits the Brier score into three interpretable parts:
+#
+#     brier  =  reliability  -  resolution  +  uncertainty
+#
+#     reliability   how far predicted probabilities sit from observed frequencies
+#                   within each bin. LOWER is better. This is calibration.
+#     resolution    how far bin frequencies sit from the overall prevalence.
+#                   HIGHER is better. This is discrimination.
+#     uncertainty   prevalence * (1 - prevalence). A COHORT PROPERTY that no
+#                   model can change, maximal at 0.25 when prevalence is 0.5.
+#
+# THE IDENTITY DOES NOT CLOSE UNDER INTERVAL BINNING, AND THAT IS MEASURED.
+# It is exact only when bins group IDENTICAL forecast values. With probabilities
+# grouped into intervals a within-bin variance term remains. Measured 2026-07-30
+# at ten bins:
+#
+#     cohort              brier      rel - res + unc   residual
+#     well separated      0.044013   0.043380          +0.000633
+#     weakly separated    0.167398   0.169167          -0.001769
+#     coarse (5 values)   0.080840   0.081856          -0.001016
+#     large n (5000)      0.085092   0.085583          -0.000491
+#
+# So `brier_decomposition_residual` is reported as a fourth quantity rather than
+# the identity being asserted and quietly failing. A decomposition that does not
+# close should say by how much: hiding the residual would make the three parts
+# look exact when they are approximate, which is the same class of error as a
+# refusal reported as zero.
+#
+# All three read ONE CalibrationBins table, for the reason established in commit
+# 2b-1: binning twice is how two summaries of one table come to disagree.
+# --------------------------------------------------------------------------- #
+def _decomposition_parts(y: Sequence, prob: Sequence, *, n_bins: int = 10):
+    """The occupied-bin arrays plus prevalence, or `None` if unusable."""
+    if not is_probability(prob):
+        return None
+    _require_finite_probabilities(prob, metric_name="brier_decomposition")
+    y_arr, p_arr = _clean(y, prob)
+    if y_arr.size == 0:
+        return None
+    bins = CalibrationBins.from_predictions(y_arr, p_arr, n_bins=n_bins)
+    weight = np.asarray(bins.weight, dtype=float)
+    occupied = weight > 0.0
+    if not occupied.any():
+        return None
+    return (weight[occupied],
+            np.asarray(bins.accuracy, dtype=float)[occupied],
+            np.asarray(bins.confidence, dtype=float)[occupied],
+            float(np.mean(y_arr)))
+
+
+def brier_reliability(y: Sequence, prob: Sequence, *, n_bins: int = 10) -> float:
+    """The calibration component: weighted squared gap between mean predicted
+    probability and observed frequency, per bin. LOWER is better."""
+    parts = _decomposition_parts(y, prob, n_bins=n_bins)
+    if parts is None:
+        return float("nan")
+    weight, accuracy, confidence, _prevalence = parts
+    return float(np.sum(weight * (confidence - accuracy) ** 2))
+
+
+def brier_resolution(y: Sequence, prob: Sequence, *, n_bins: int = 10) -> float:
+    """The discrimination component: weighted squared distance of each bin's
+    observed frequency from the overall prevalence.
+
+    HIGHER IS BETTER, uniquely among the three. It enters the identity with a
+    NEGATIVE sign, so a model that separates the classes into bins with very
+    different frequencies reduces its Brier score. Reporting this with the same
+    direction as reliability would invert its meaning.
+    """
+    parts = _decomposition_parts(y, prob, n_bins=n_bins)
+    if parts is None:
+        return float("nan")
+    weight, accuracy, _confidence, prevalence = parts
+    return float(np.sum(weight * (accuracy - prevalence) ** 2))
+
+
+def brier_uncertainty(y: Sequence, prob: Sequence = None, *,
+                      n_bins: int = 10) -> float:
+    """prevalence * (1 - prevalence).
+
+    A COHORT PROPERTY: no model can change it, and it is maximal at 0.25 when
+    prevalence is 0.5. It sets the Brier score a no-skill forecaster achieves by
+    always predicting the base rate, which is why it belongs beside the other
+    two rather than being treated as a model score.
+
+    `prob` is accepted and ignored so the three share one signature; the value
+    depends on the labels alone.
+    """
+    y_arr = np.asarray(y, dtype=float)
+    y_arr = y_arr[np.isfinite(y_arr)]
+    if y_arr.size == 0:
+        return float("nan")
+    prevalence = float(np.mean(y_arr))
+    return float(prevalence * (1.0 - prevalence))
+
+
+def brier_decomposition_residual(y: Sequence, prob: Sequence, *,
+                                 n_bins: int = 10) -> float:
+    """How far the decomposition falls short of closing.
+
+    `brier - (reliability - resolution + uncertainty)`. Exactly zero only when
+    bins group identical forecast values; under interval binning it is the
+    within-bin variance term. Reported so the three components can be audited
+    rather than trusted.
+    """
+    parts = _decomposition_parts(y, prob, n_bins=n_bins)
+    if parts is None:
+        return float("nan")
+    weight, accuracy, confidence, prevalence = parts
+    reliability = float(np.sum(weight * (confidence - accuracy) ** 2))
+    resolution = float(np.sum(weight * (accuracy - prevalence) ** 2))
+    uncertainty = float(prevalence * (1.0 - prevalence))
+    return float(brier_score(y, prob) - (reliability - resolution + uncertainty))
+

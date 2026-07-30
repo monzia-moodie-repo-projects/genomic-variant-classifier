@@ -184,6 +184,18 @@ CATALOGUE = (
 
     # ---- SPECIFIED AND NOT BUILT -- the thirteen -------------------------
     SpecifiedMetric(
+        name="brier_decomposition_residual",
+        display_name="Brier decomposition residual",
+        formula="brier - (reliability - resolution + uncertainty)",
+        value_range=(None, None), direction=MetricDirection.ZERO_IS_BEST,
+        status=_IMPLEMENTED,
+        note="NOT IN THE ORIGINAL SPECIFICATION. Added 2026-07-30 because the "
+             "Murphy identity does not close under interval binning: measured "
+             "residuals ran from -0.001769 to +0.000633 at ten bins across four "
+             "cohorts. Reporting it lets the three components be audited instead "
+             "of trusted, and hiding it would make an approximate decomposition "
+             "look exact"),
+    SpecifiedMetric(
         name="balanced_accuracy", display_name="Balanced accuracy",
         formula="(sensitivity + specificity) / 2",
         value_range=(0.0, 1.0), direction=_UP, status=_IMPLEMENTED,
@@ -241,18 +253,18 @@ CATALOGUE = (
     SpecifiedMetric(
         name="brier_reliability", display_name="Brier decomposition: reliability",
         formula="sum over bins of (bin weight) times (mean predicted probability - observed frequency) squared",
-        value_range=(0.0, 1.0), direction=_DOWN, status=_ABSENT,
+        value_range=(0.0, 1.0), direction=_DOWN, status=_IMPLEMENTED,
         note="the calibration component; brier = reliability - resolution + uncertainty"),
     SpecifiedMetric(
         name="brier_resolution", display_name="Brier decomposition: resolution",
         formula="sum over bins of (bin weight) times (observed frequency - overall prevalence) squared",
-        value_range=(0.0, 1.0), direction=_UP, status=_ABSENT,
+        value_range=(0.0, 1.0), direction=_UP, status=_IMPLEMENTED,
         note="the discrimination component; HIGHER is better, unlike the other two"),
     SpecifiedMetric(
         name="brier_uncertainty", display_name="Brier decomposition: uncertainty",
         formula="prevalence times (1 - prevalence)",
         value_range=(0.0, 0.25), direction=MetricDirection.DESCRIPTIVE,
-        status=_ABSENT,
+        status=_IMPLEMENTED,
         note="a cohort property no model can change; its maximum is 0.25 at "
              "prevalence 0.5"),
 )
