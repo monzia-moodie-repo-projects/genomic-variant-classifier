@@ -224,7 +224,132 @@ def _condition_u() -> bool:
     return False
 
 
-OPEN_CONDITIONS = {}
+# --------------------------------------------------------------------------- #
+# CI-i. The five Monte Carlo Dropout node identifiers, MEASURED 2026-07-30 by
+# `pytest -v` against tests/integration/test_mc_dropout_calibration.py. Each is a
+# method on a class carrying a class-level unconditional `pytest.mark.skip`.
+#
+# The register recorded CI-i as unverifiable because "a skip count alone cannot
+# distinguish these from other skips". That is true of a COUNT and false of an
+# IDENTITY, which is what this tuple is.
+# --------------------------------------------------------------------------- #
+_CI_I_NODES = (
+    ("integration/test_mc_dropout_calibration.py",
+     "TestOODEpistemicElevation",
+     "test_held_out_gene_families_have_higher_epistemic"),
+    ("integration/test_mc_dropout_calibration.py",
+     "TestUncertaintyErrorCorrelation",
+     "test_spearman_correlation_between_epistemic_and_error_positive"),
+    ("integration/test_mc_dropout_calibration.py",
+     "TestUncertaintyErrorCorrelation",
+     "test_accuracy_decreases_monotonically_across_epistemic_quartiles"),
+    ("integration/test_mc_dropout_calibration.py",
+     "TestCalibrationImprovement",
+     "test_ece_lower_with_mc_dropout_vs_single_pass"),
+    ("integration/test_mc_dropout_calibration.py",
+     "TestMonteCarloConvergence",
+     "test_epistemic_estimate_converges_with_k"),
+)
+
+
+def _find_class(rel_path: str, class_name: str):
+    """Return the ClassDef node for `class_name`, or None.
+
+    PARSED, not grepped -- the same discipline as `_discharged_o`, which was
+    strengthened after a sabotage replacing `import ast` with `import os`
+    survived a `"ast" in text` substring check.
+    """
+    module = TESTS / rel_path
+    if not module.exists():
+        return None
+    try:
+        tree = ast.parse(module.read_text(encoding="utf-8"))
+    except SyntaxError:
+        return None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == class_name:
+            return node
+    return None
+
+
+def _node_exists(rel_path: str, class_name: str, method_name: str) -> bool:
+    """The class exists and defines that method. Says nothing about skipping."""
+    cls = _find_class(rel_path, class_name)
+    if cls is None:
+        return False
+    return method_name in {
+        m.name for m in cls.body
+        if isinstance(m, (ast.FunctionDef, ast.AsyncFunctionDef))}
+
+
+def _unconditional_skip_reason(rel_path: str, class_name: str, method_name: str):
+    """Reason string of a class-level unconditional skip, or None if absent.
+
+    Matches the decorator's DOTTED NAME so `pytest.mark.skipif` -- which is
+    conditional and belongs to CI-j, not here -- can never satisfy this.
+
+    KNOWN LIMITATION, stated rather than papered over: a marker bound to a name
+    first (`_GATE = pytest.mark.skip(...)` then `@_GATE`) is invisible to this
+    and to every static scan. Proven invisible 2026-07-30 against a purpose-built
+    fixture. These five markers are written directly, so the check is sound for
+    them; it is not a general skip detector.
+    """
+    if not _node_exists(rel_path, class_name, method_name):
+        return None
+    cls = _find_class(rel_path, class_name)
+    for dec in cls.decorator_list:
+        if not isinstance(dec, ast.Call):
+            continue
+        dotted = ast.unparse(dec.func).split(".")
+        if dotted[-2:] != ["mark", "skip"]:
+            continue
+        for kw in dec.keywords:
+            if kw.arg == "reason" and isinstance(kw.value, ast.Constant):
+                return str(kw.value.value)
+        return ""
+    return None
+
+
+def _condition_i() -> bool:
+    """All five Monte Carlo Dropout tests are still unconditionally skipped.
+
+    Returns True while the condition HOLDS, i.e. while the item is genuinely
+    open, matching every other predicate in this module.
+
+    The Run 15 cohort's arrival is not observable from the working tree, and does
+    not need to be: when it lands the skips are removed, this returns False, and
+    `test_every_open_item_still_has_its_condition` fails until the register moves
+    CI-i to Discharged. That is the register's own rule -- discharge is proved,
+    not asserted -- doing the work.
+    """
+    skipped = [
+        (rel, cls, fn) for rel, cls, fn in _CI_I_NODES
+        if _unconditional_skip_reason(rel, cls, fn) is not None]
+    return len(skipped) == len(_CI_I_NODES)
+
+
+OPEN_CONDITIONS = {
+    "CI-i": _condition_i,
+}
+
+
+@pytest.mark.parametrize(
+    "rel_path,class_name,method_name", _CI_I_NODES,
+    ids=["%s::%s" % (c, m) for _, c, m in _CI_I_NODES])
+def test_the_ci_i_nodes_still_exist(rel_path, class_name, method_name):
+    """A rename or deletion must fail HERE, naming the node.
+
+    Deliberately separate from `_condition_i`. That predicate flips when the
+    skips are REMOVED, which is the register asking to be updated. This test
+    fails when the tests THEMSELVES go away -- so CI-i cannot be discharged by
+    its subject quietly disappearing, which is the failure mode that let CI-l
+    read as open for eleven commits.
+    """
+    assert _node_exists(rel_path, class_name, method_name), (
+        "CI-i names %s::%s::%s and it is no longer there. If the test was "
+        "renamed, update _CI_I_NODES in the same change. If it was deleted, say "
+        "so in docs/CARRIED_ITEMS.md -- do not let the item discharge itself by "
+        "losing its subject." % (rel_path, class_name, method_name))
 
 
 # --------------------------------------------------------------------------- #

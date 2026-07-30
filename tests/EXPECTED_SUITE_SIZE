@@ -4271,8 +4271,36 @@
 #   committed. Sabotage found three surviving numerical mutations, one the exact
 #   error the kernel's own docstring warns against.
 #
-#   JEPA IS NO LONGER DISK-BLOCKED: 56.01 GB free against ~14.7 GB needed.
+#   JEPA DISK POSITION, CORRECTED 2026-07-30. The line previously here read
+#   "JEPA IS NO LONGER DISK-BLOCKED: 56.01 GB free against ~14.7 GB needed" and
+#   was wrong twice.
+#
+#     UNIT. 56.01 came from an idiom dividing by PowerShell's 1GB literal, which
+#     is 1073741824 bytes. The figure was GIBIBYTES under a label reading GB.
+#     Every free-space number recorded through that idiom is a gibibyte number.
+#
+#     REQUIREMENT. ~14.7 GiB is the cache-only estimate WITHDRAWN on 2026-07-20,
+#     when the operating floor was added. Line 1944 of this file already records
+#     the corrected requirement -- 61.48 GiB -- and notes that it "reproduces
+#     EXACTLY what audit_disk_census.py printed". One line contradicted another
+#     2,330 lines earlier.
+#
+#   MEASURED 2026-07-30 by three independent methods agreeing within 1.5 MB:
+#   935.59 GiB volume, 83.50 GiB free, 8.925 per cent. Against the corrected
+#   61.48 GiB requirement the margin is +22.02 GiB: SUFFICIENT.
+#
+#   AND A CAVEAT WORTH MORE THAN THE VERDICT. A reading of 55.36 GiB taken at
+#   02:24 the same morning was an artefact of timing: it was taken immediately
+#   after a full suite run, and a full suite transiently consumes about 28 GiB of
+#   temporary files. The baseline is ~83 GiB, corroborated by lines 1898 and 1931.
+#   A capacity decision must clear the MINIMUM observed across a working session,
+#   and a suite run overlapping a cache build would collide.
+#
+#   The 14.7 GiB figure itself remains UNDERIVED: it is a bare literal at
+#   scripts/forensics/audit_disk_census.py:137 with no embedding dimension, row
+#   count, dtype width or replica count behind it. It should be re-derived before
+#   it governs anything.
 #
 #   Sabotage: 9 mutations, 9 detected, 0 undetected, 0 anchor misses.
 #
-3851
+3856

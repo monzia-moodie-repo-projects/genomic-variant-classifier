@@ -41,6 +41,7 @@ never written as a bare letter again.
 | id | statement | raised | verification predicate |
 |---|---|---|---|
 | **CI-s** | Deferred imports in `registry.py` are a load-bearing contract, not a style. The module must import without scikit-learn, so any module-scope construction must bind kernels by name and resolve at call time. | 3b-2 | *inverted* — the predicate asserts the contract HOLDS; this row records the rule, and a violation is a failure |
+| **CI-i** | Five Monte Carlo Dropout tests are unconditionally skipped pending a Run 15 cohort. **MOVED FROM UNVERIFIABLE 2026-07-30.** The recorded reason -- "a skip count alone cannot distinguish these from other skips" -- was right about COUNTS and wrong about IDENTITIES: the five node identifiers were measured by `pytest -v` on 2026-07-30 and each is a method on a class carrying a class-level `pytest.mark.skip`. The cohort's arrival is still not observable from the tree and does not need to be: when it lands the skips go, the predicate flips, and the item must be discharged. | pre-2a | all five class-level unconditional skips are still present, parsed from the abstract syntax tree; a rename or deletion fails separately in `test_the_ci_i_nodes_still_exist` |
 
 ## Discharged
 
@@ -64,7 +65,6 @@ They require the continuous-integration environment or a training cohort.
 
 | id | statement | raised | why no predicate |
 |---|---|---|---|
-| **CI-i** | Five Monte Carlo Dropout tests are unconditionally skipped pending a Run 15 cohort. | pre-2a | needs the cohort; a skip count alone cannot distinguish these from other skips |
 | **CI-j** | Four tests have no continuous-integration coverage because they are Windows-only. | pre-2a | needs the continuous-integration matrix, not the working tree |
 | **CI-a** | Certification of the canonical seam remains open. | pre-2a | scope predates this register; see `docs/ROADMAP.md` line 1705 |
 
