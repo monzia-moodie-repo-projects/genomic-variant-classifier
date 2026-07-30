@@ -2883,6 +2883,29 @@ STALE FIGURE CORRECTED -- JEPA IS NO LONGER DISK-BLOCKED. 10.91 GB free on
 2026-07-20 against ~14.7 GB needed; 56.01 GB measured 2026-07-29. Surplus about
 41 GB. That deliverable is schedulable.
 
+    CORRECTED 2026-07-30. The figures above are wrong in two ways. The original
+    text is preserved because a record of what was believed on a date is history;
+    this is the amendment, not a rewrite.
+      UNIT. 10.91 and 56.01 came from dividing by PowerShell's 1GB literal,
+        which is 1073741824 bytes. Both are GIBIBYTES under a label reading GB.
+        Every free-space figure recorded through that idiom is a gibibyte figure.
+      REQUIREMENT. ~14.7 GiB is the cache-only estimate WITHDRAWN on 2026-07-20
+        when the operating floor was added. The headroom-aware requirement is
+        61.48 GiB, and scripts/forensics/audit_disk_census.py computes and prints
+        exactly that.
+      MEASURED 2026-07-30 by three independent methods agreeing within 1.5 MB:
+        935.59 GiB volume, 83.50 GiB free, 8.925 per cent. Margin against the
+        corrected requirement +22.02 GiB.
+      AND A READING OF 55.36 GiB TAKEN AT 02:24 WAS AN ARTEFACT OF TIMING. It
+        followed a full suite run, and a full suite transiently consumes about
+        28 GiB. The baseline is ~83 GiB. A capacity decision must clear the
+        MINIMUM observed across a working session, not a single sample.
+      SO "that deliverable is schedulable" is withdrawn pending a re-derivation
+        of the 14.7 GiB figure itself, which traces to a pooled-only two-model
+        estimate at docs/ROADMAP.md:970 and is a bare literal at
+        scripts/forensics/audit_disk_census.py:137.
+
+
 NEW STANDING RULE -- REPORTING A PREVALENCE-DEPENDENT METRIC WITHOUT ITS
 PREVALENCE-INDEPENDENT COUNTERPART IS AN OMISSION. The predictive values say what
 a result means in THIS cohort; the likelihood ratios say what the test is worth
@@ -2914,3 +2937,84 @@ REMAINING IN THE REGISTRY SCOPE:
 THE OTHER FOUR DELIVERABLES REMAIN OPEN and outrank Run 17: JEPA (now unblocked),
 conformal (five of six modules absent), the RNA-seq differential-expression
 leakage check, and conformal quantile regression.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-30 -- CI-i MADE VERIFIABLE; THE CHANGELOG REPAIRED
+=====================================================================
+
+DELIVERED:
+  * carried item CI-i moved from Unverifiable to Open with a runnable predicate
+    keyed on FIVE NODE IDENTIFIERS, measured by `pytest -v`. Its recorded reason
+    was correct about counts and wrong about identities.
+  * a separate parametrised existence test, so the item cannot discharge itself
+    by losing its subject.
+  * the README test badge DERIVED from tests/EXPECTED_SUITE_SIZE rather than
+    typed. Measured: nothing in .github, scripts, tools or .git/hooks updated it.
+  * docs/CHANGELOG.md repaired: 301 lines of mojibake across THREE generations,
+    every repair a proven bijection, zero refused.
+  * tests/unit/test_changelog_encoding.py, asserting that applying the repair
+    changes nothing -- stronger than any marker list, because it needs no list.
+
+  Ratchet 3851 -> 3856 -> 3862.
+
+NEW STANDING RULE -- A COUNT IS NOT AN IDENTITY, AND UNVERIFIABLE IS A CLAIM.
+CI-i was recorded as unverifiable because "a skip count alone cannot distinguish
+these from other skips". True of a count; false of an identity. Before recording
+an item as unverifiable, state WHAT cannot be measured, because the reason is
+itself checkable and may be narrower than it looks.
+
+NEW STANDING RULE -- A DERIVED NUMBER MUST BE DERIVED BY CODE.
+The README badge and the suite ratchet are one fact in two files, kept in step by
+memory. Memory failed here exactly as this file records it failing for the
+pre-flight floor. Any number that can be computed from another number in the
+repository must be computed, not typed.
+
+NEW STANDING RULE -- VALID ENCODING IS NOT CORRECT ENCODING.
+docs/CHANGELOG.md was valid UTF-8 and corrupt at the same time for weeks. No
+reader refused it. Only a character census exposed it, and only running the
+repair to a fixed point revealed the third generation. Encoding correctness needs
+its own assertion; it does not follow from the file being readable.
+
+NEW STANDING RULE -- REPAIR ONLY WHAT INVERTS, AND DECLARE WHAT DOES NOT.
+Every one of the 301 repairs was applied only after re-corrupting the result
+reproduced the original byte for byte. The single line that could not be proven
+that way was declared separately, justified in writing, and applied behind its
+own flag. An inference and a proof must never travel in the same operation.
+
+STILL REQUIRED:
+  * the THIRD SKIP CATEGORY has no register entry: eight node identifiers plus
+    one whole module gated on data presence or an optional dependency. The
+    2026-07-20 offload regression lives there. Needs a scope decision.
+  * CI-j may be fully verifiable after all: its reason cites the
+    continuous-integration matrix, which is declared in .github/workflows/ and
+    therefore in the tree.
+  * `esm2._compute_delta` returns 0.0 on FOUR distinct conditions with only a
+    debug-level log, while the likelihood-ratio path in the same module counts
+    its zeros and warns. Same file, two standards.
+  * `scripts/audit_run17_assets.py:40` names finngen_R12_annotated_variants_v1.gz
+    while the file on disk is finnge_R12_annotated_variants_v1.gz. Its own
+    docstring says it exists so 30 GB is not re-downloaded needlessly.
+  * INCIDENT_2026-07-08, the deletion review-status loss, remains OPEN. Tier 0 of
+    project_metrics.txt makes a label-correlated cohort a VALIDITY failure.
+  * the disk census report calls its walker in shared mode after the targeted
+    checks have consumed those trees, then labels the residual a total. The
+    walker is correct and tested; the report's presentation is not.
+
+REMAINING IN THE REGISTRY SCOPE, unchanged:
+  three metrics -- partial_auroc, integrated_calibration_index,
+  adaptive_expected_calibration_error; OperatingPointMetrics with threshold
+  provenance; the two clinical panels; a typed BinaryEvaluationReport; a living
+  glossary generated from the registry.
+
+  AND NEWLY MEASURED: the catalogue's pinned absence count of THREE is a
+  conformance figure against a HANDOFF, not against project_metrics.txt. Within
+  Panels B and D alone the specification names roughly twenty-three quantities
+  the catalogue does not record, and Panels A, C and E through P have no
+  representation at all. calibration_slope_intercept, cluster_bootstrap_ci and
+  stratified_evaluate are implemented, exported, and registered nowhere.
+
+THE OTHER FOUR DELIVERABLES REMAIN OPEN and outrank Run 17: JEPA, conformal
+prediction, the ribonucleic-acid differential-expression leakage check, and
+conformal quantile regression. The RNA check is blocked on data acquisition, not
+merely unrun: data/external/gtex and data/rnaseq both measure ZERO files.

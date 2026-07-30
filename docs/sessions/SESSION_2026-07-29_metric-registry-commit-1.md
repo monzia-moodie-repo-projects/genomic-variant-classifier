@@ -30,6 +30,29 @@ And a correction to a figure I had been repeating: the JEPA disk blocker is GONE
     measured 2026-07-20     10.91 GB free   against ~14.7 GB needed
     measured 2026-07-29     56.01 GB free   a surplus of about 41 GB
 
+    CORRECTED 2026-07-30. The figures above are wrong in two ways. The original
+    text is preserved because a record of what was believed on a date is history;
+    this is the amendment, not a rewrite.
+      UNIT. 10.91 and 56.01 came from dividing by PowerShell's 1GB literal,
+        which is 1073741824 bytes. Both are GIBIBYTES under a label reading GB.
+        Every free-space figure recorded through that idiom is a gibibyte figure.
+      REQUIREMENT. ~14.7 GiB is the cache-only estimate WITHDRAWN on 2026-07-20
+        when the operating floor was added. The headroom-aware requirement is
+        61.48 GiB, and scripts/forensics/audit_disk_census.py computes and prints
+        exactly that.
+      MEASURED 2026-07-30 by three independent methods agreeing within 1.5 MB:
+        935.59 GiB volume, 83.50 GiB free, 8.925 per cent. Margin against the
+        corrected requirement +22.02 GiB.
+      AND A READING OF 55.36 GiB TAKEN AT 02:24 WAS AN ARTEFACT OF TIMING. It
+        followed a full suite run, and a full suite transiently consumes about
+        28 GiB. The baseline is ~83 GiB. A capacity decision must clear the
+        MINIMUM observed across a working session, not a single sample.
+      SO "that deliverable is schedulable" is withdrawn pending a re-derivation
+        of the 14.7 GiB figure itself, which traces to a pooled-only two-model
+        estimate at docs/ROADMAP.md:970 and is a bare literal at
+        scripts/forensics/audit_disk_census.py:137.
+
+
 Nine days of a stale number quoted as law. One command settled it.
 
 ## 3. The catalogue -- absence made visible
