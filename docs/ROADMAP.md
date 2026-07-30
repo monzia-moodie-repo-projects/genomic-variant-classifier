@@ -3094,3 +3094,77 @@ it is blocked on two things disk never addressed: every foundation-model
 embedding is destroyed on creation at genomic_lm.py:284, and the source document
 imposes Fusion v1 before JEPA. The ribonucleic-acid check is blocked on data
 acquisition: data/external/gtex and data/rnaseq both measure ZERO files.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-30 -- THE THREE ABSENT METRICS BUILT
+=====================================================================
+
+DELIVERED:
+  * partial_auroc, integrated_calibration_index and
+    adaptive_expected_calibration_error, built from the kernels up: kernels,
+    registry descriptors with declared parameters, catalogue statuses, the two
+    guards the change trips, and a test module of 52 nodes.
+  * partial_auroc cross-checked against an independent implementation --
+    scikit-learn's roc_auc_score(max_fpr=...) -- to 2.220e-16 across 1,000
+    comparisons before delivery.
+  * the catalogue reaches 24 specified / 24 built / 0 absent, and the registry
+    24 metrics. ZERO REGISTERED ABSENCES FOR THE FIRST TIME.
+
+  Ratchet 3898 -> 3959. Suite 3953 passed, 6 skipped, 0 failed.
+
+NEW STANDING RULE -- A DECLARED PARAMETER IS PART OF A METRIC'S IDENTITY.
+partial_auroc's false-positive band is carried by one shared object read by both
+the descriptor and the adapter, so the two cannot disagree about which band was
+used. Two partial areas over different bands are two different metrics, and
+reporting either without naming its band is the same error as reporting
+sensitivity without saying at what cut. Any future metric with a free parameter
+is built the same way.
+
+NEW STANDING RULE -- WHEN A SUBSTITUTION IS MADE, DECLARE IT IN THE DOCSTRING.
+The integrated calibration index uses isotonic regression where the original uses
+a local scatterplot smoother, and partial_auroc uses McClish standardisation
+where a mean true-positive rate was available. Both alternatives are named in the
+code with the reason for rejecting them, so a reader can audit the choice rather
+than infer it.
+
+NEW STANDING RULE -- THE CATALOGUE IS THE DECLARATION; THE REGISTRY IMPLEMENTS IT.
+When the two disagreed on a display name, the registry yielded. Editing the
+declaration to match the implementation is the same move as regenerating a
+baseline to make a difference empty, and the project already has a rule against
+that one.
+
+STILL REQUIRED IN THE METRIC STACK:
+  * OperatingPointMetrics with threshold provenance -- ZERO occurrences anywhere
+    in the repository.
+  * a typed BinaryEvaluationReport -- ZERO occurrences.
+  * the two clinical panels, and net_benefit / decision_curve, all absent.
+  * a living glossary generated from the registry rather than written beside it.
+  * the specification itself committed to docs/specifications/ with a
+    conformance test, so the catalogue can be checked against project_metrics.txt
+    rather than against a handoff.
+  * the panel model: panels as a tuple, panel_source, provenance. The catalogue's
+    panel field is still None for every entry, and Panels A, C and E through P
+    have no representation at all.
+  * calibration_slope_intercept, cluster_bootstrap_ci and stratified_evaluate
+    remain implemented, exported, and registered nowhere.
+  * 25 warnings still pass unasserted -- three scikit-learn ranking sites raised
+    by deliberately degenerate cohorts.
+
+UNCHANGED AND STILL AHEAD OF RUN 17:
+  * INCIDENT_2026-07-08 remains OPEN. augment_reviewstatus.py:64 fails on 98.834
+    per cent of deletions with a label-correlated survival split of 34.556
+    against 95.236 per cent. Tier 0 of project_metrics.txt makes that a VALIDITY
+    failure, and every metric this programme builds is computed on that cohort.
+  * FIVE_WAY exists in split_protocol_v2.py with a CALIBRATE_PROBABILITY
+    partition and no command-line choice selects it; under FOUR_WAY the isotonic
+    calibrator is fitted on `tune`, which carries role SELECT.
+  * the THIRD SKIP CATEGORY has no register entry: eight node identifiers plus
+    one whole module gated on data presence.
+  * conformal's five absent modules -- artifacts, multilabel, gene_ranking,
+    risk_control, monitoring -- are the other UNBLOCKED deliverable.
+  * JEPA is no longer disk-blocked but is blocked on two things disk never
+    addressed: every foundation-model embedding is destroyed on creation at
+    genomic_lm.py:284, and the source document imposes Fusion v1 first.
+  * the ribonucleic-acid check is blocked on data acquisition: data/external/gtex
+    and data/rnaseq both measure ZERO files.

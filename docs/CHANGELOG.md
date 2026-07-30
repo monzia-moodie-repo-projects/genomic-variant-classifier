@@ -1,3 +1,67 @@
+## 2026-07-30 — the three absent metrics, built from the kernels up
+
+Ratchet 3898 -> 3959 (+61). Commit `27f6009`. Session record:
+docs/sessions/SESSION_2026-07-30_three-absent-metrics-built.md
+
+`partial_auroc`, `integrated_calibration_index` and
+`adaptive_expected_calibration_error` -- the three the catalogue has declared
+since commit 1 and the registry did not build. Kernels, registry descriptors,
+catalogue statuses, the two guards this trips and a test module, all in one
+change, because a kernel that is implemented and not registered is an orphan and
+this project already carries three of those.
+
+    catalogue   24 specified / 21 built / 3 absent  ->  24 / 24 / 0
+    registry    21 metrics                          ->  24
+
+ZERO REGISTERED ABSENCES FOR THE FIRST TIME. Every metric the catalogue declares
+is now built, registered, and computed on the single path.
+
+### Measured before any of it was written
+`partial_auroc` against scikit-learn's `roc_auc_score(max_fpr=...)`, which
+implements the same McClish standardisation: 1,000 comparisons across 200 random
+cohorts -- continuous, clipped, heavily tied, mixed -- over bands 0.05, 0.1,
+0.25, 0.5 and the full range. WORST ABSOLUTE DIFFERENCE 2.220e-16. The two
+calibration metrics have no external reference here and are pinned by properties
+instead: zero on a perfect forecaster, monotone in an injected miscalibration,
+refusing rather than guessing where undefined.
+
+### Two kernel defects found by that measurement and fixed before delivery
+A STRICT BAND RESTRICTION DROPPED THE CURVE'S VERTICAL SEGMENTS. A receiver
+operating characteristic curve is vertical wherever a tied block is all one
+class; on a cohort whose lowest-scoring rows were all positive, four points sat
+at a false-positive rate of 1.0 with the true-positive rate climbing from 0.9990
+to 1.0, and the strict form discarded all four. Over-reported by 2.5e-07.
+
+DE-DUPLICATED QUANTILE EDGES COLLAPSED THE ADAPTIVE BINNING on exactly the
+saturated cohort the metric was added for: ten bins became three, and the 15.2
+per cent of mass between the two pure leaves -- the only region where calibration
+can be resolved -- became one bin. A heavy tied group now takes a bin to itself;
+the same cohort yields ten bins with both leaves isolated and eight across the
+middle, and a continuous vector still gives exactly 500 per bin.
+
+### And one the project caught
+`test_an_implemented_entry_matches_its_descriptor[partial_auroc]` failed the
+moment the entry flipped to IMPLEMENTED, on a display name that read
+"Standardised partial area ..." against the catalogue's "Partial area ...". THE
+REGISTRY YIELDS: the catalogue is the declaration and the registry implements it.
+Editing the declaration to match the implementation is the same move as
+regenerating a baseline to make a difference empty.
+
+### The ratchet moved +61 where 58 was predicted
+52 from the new module, 3 from `implemented_names()`, 3 from `all_metrics()`, and
+three more from `test_calibration_validity_contract.py:90`, which parametrises
+over a calibration-metric collection and was not found by the search run
+beforehand. A change to a registry reaches into every collection derived from it
+-- the third demonstration in one day, and it cost nothing every time because the
+number is computed rather than typed.
+
+### Verification
+    the four affected files   250 passed
+    FULL SUITE                3953 passed, 6 skipped, 0 failed, 805.07 s
+                              3953 + 6 = 3959, --assert-suite-size held
+    skip set                  byte-for-byte unchanged, eighth consecutive run
+    diff                      644 insertions, 8 deletions, both exactly as declared
+
 ## 2026-07-30 — registry commit 2 lands, and the two guards it invalidated
 
 Ratchet 3862 -> 3898 (+36). Commit `c4229f1`. Session record:
