@@ -234,20 +234,20 @@ CATALOGUE = (
         name="partial_auroc",
         display_name="Partial area under the receiver operating characteristic curve",
         formula="area under the curve restricted to a stated false-positive-rate interval, standardised to [0, 1]",
-        value_range=(0.0, 1.0), direction=_UP, status=_ABSENT,
+        value_range=(0.0, 1.0), direction=_UP, status=_IMPLEMENTED,
         note="requires a DECLARED false-positive-rate bound; the bound is part "
              "of the metric identity, as a threshold is"),
     SpecifiedMetric(
         name="integrated_calibration_index", display_name="Integrated calibration index",
         formula="weighted mean absolute difference between predicted probability and a smoothed calibration curve",
-        value_range=(0.0, 1.0), direction=_DOWN, status=_ABSENT,
+        value_range=(0.0, 1.0), direction=_DOWN, status=_IMPLEMENTED,
         note="binning-free, so it does not inherit the interval-convention "
              "hazard that cost this project seventeen days"),
     SpecifiedMetric(
         name="adaptive_expected_calibration_error",
         display_name="Adaptive expected calibration error",
         formula="expected calibration error over EQUAL-COUNT bins rather than equal-width bins",
-        value_range=(0.0, 1.0), direction=_DOWN, status=_ABSENT,
+        value_range=(0.0, 1.0), direction=_DOWN, status=_IMPLEMENTED,
         note="equal-count binning is what makes it robust on saturated "
              "predictions, where equal-width bins leave most bins empty"),
     SpecifiedMetric(

@@ -641,7 +641,9 @@ def test_exactly_the_expected_result_names_were_added():
         "balanced_accuracy",
         "positive_likelihood_ratio", "negative_likelihood_ratio",
         "brier_reliability", "brier_resolution", "brier_uncertainty",
-        "brier_decomposition_residual"}
+        "brier_decomposition_residual",
+        "partial_auroc", "integrated_calibration_index",
+        "adaptive_expected_calibration_error"}
     assert not removed
 
 

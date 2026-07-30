@@ -74,7 +74,7 @@ def test_the_two_sets_are_disjoint_and_exhaustive():
 # --------------------------------------------------------------------------- #
 # 2. Absences stay visible
 # --------------------------------------------------------------------------- #
-def test_thirteen_specified_metrics_remain_unbuilt():
+def test_no_specified_metric_remains_unbuilt():
     """PINNED EXACTLY, so the number moves only by deliberate edit.
 
     Measured 2026-07-30: TWENTY-FOUR specified, TWENTY-ONE built, three absent.
@@ -88,7 +88,7 @@ def test_thirteen_specified_metrics_remain_unbuilt():
     change to this assertion made alongside the implementation.
     """
     absent = unimplemented_names()
-    assert len(absent) == 3, (
+    assert len(absent) == 0, (
         f"expected three registered absences, found {len(absent)}: "
         f"{sorted(absent)}. If a metric was implemented, flip its status and "
         "lower this count in the same commit; if one was added to the "

@@ -763,6 +763,63 @@ _CALIBRATION_PARAMETERS = {
     "interval_convention": "[lo,hi);final_closed",
 }
 
+#: The false-positive band is part of `partial_auroc`'s IDENTITY, exactly as a
+#: threshold is for the confusion family. Two partial areas over different bands
+#: are two different metrics, and one object shared by the descriptor and the
+#: adapter is what stops them disagreeing about which band was used -- the same
+#: identity discipline commit 2b-2 applied to the Matthews coefficient and F1.
+#:
+#: 0.0 to 0.1 is the clinically relevant region the specification names at line
+#: 344: "partial AUROC within clinically relevant FPR regions". A variant screen
+#: that flags one healthy genome in ten is already at the edge of usable, so the
+#: area above that band describes operating points nobody would adopt.
+_PARTIAL_AUROC_BAND = {
+    "fpr_low": 0.0,
+    "fpr_high": 0.1,
+    "standardisation": "mcclish",
+}
+
+#: Equal-MASS binning, which is a different convention from the equal-width one
+#: above and therefore a different parameter object. Sharing
+#: `_CALIBRATION_PARAMETERS` would have declared `binning="equal_width"` for a
+#: kernel that does no such thing.
+_ADAPTIVE_CALIBRATION_PARAMETERS = {
+    "n_bins": 10,
+    "binning": "equal_mass",
+    "interval_convention": "tied groups never split; a heavy group takes a bin",
+}
+
+
+def _partial_auroc_adapter(ctx: "MetricContext") -> float:
+    """Bind the declared band. The import is deferred for the reason
+    `_threshold_adapter` gives: `metrics` imports scikit-learn and this package
+    guarantees that `registry` imports without it."""
+    from . import metrics
+    return metrics.partial_auroc(
+        ctx.y_true, ctx.y_score,
+        fpr_low=_partial_auroc_adapter._declared_parameters["fpr_low"],
+        fpr_high=_partial_auroc_adapter._declared_parameters["fpr_high"])
+
+
+_partial_auroc_adapter._declared_parameters = _PARTIAL_AUROC_BAND
+
+
+def _integrated_calibration_index_adapter(ctx: "MetricContext") -> float:
+    """No parameters, and that is the point: this metric is binning-free, so it
+    has no interval convention to declare and none to get wrong."""
+    from . import metrics
+    return metrics.integrated_calibration_index(ctx.y_true, ctx.y_prob)
+
+
+def _adaptive_ece_adapter(ctx: "MetricContext") -> float:
+    from . import metrics
+    return metrics.adaptive_expected_calibration_error(
+        ctx.y_true, ctx.y_prob,
+        n_bins=_adaptive_ece_adapter._declared_parameters["n_bins"])
+
+
+_adaptive_ece_adapter._declared_parameters = _ADAPTIVE_CALIBRATION_PARAMETERS
+
 
 def _threshold_adapter(kernel_name: str, tp: ThresholdParameters):
     """Bind a kernel BY NAME, resolving it at call time.
@@ -1294,6 +1351,55 @@ _METRICS: tuple = (
         result_kind=_PS,
         display_name="Prevalence",
         description="proportion of positive reference labels in the evaluation population"),
+
+    # ---------------------------------------------------------------------- #
+    # ADDED 2026-07-30. Three metrics the catalogue has declared since commit 1
+    # and the registry did not build. None enters REPORT_METRIC_NAMES: they are
+    # computed and registered, and whether they join the eight-line printed
+    # report is a separate change against a surface test_typed_report_surface.py
+    # pins.
+    # ---------------------------------------------------------------------- #
+    MetricDescriptor(
+        name="partial_auroc", function=_partial_auroc_adapter,
+        required_inputs=frozenset({_L, _S}),
+        applicability=_requires_both_classes, result_kind=_PM,
+        include_in_evaluation_report=False,
+        # MATCHES THE CATALOGUE EXACTLY. A first draft read "Standardised
+        # partial area ...", which is more precise and still wrong to put here:
+        # the catalogue is the DECLARATION and the registry implements it, so
+        # the registry yields. Caught 2026-07-30 by
+        # test_an_implemented_entry_matches_its_descriptor the moment the entry
+        # flipped to IMPLEMENTED -- the guard doing exactly its job. The
+        # standardisation is not lost: it is in the description below and
+        # machine-readable in parameters["standardisation"].
+        display_name="Partial area under the receiver operating characteristic "
+                     "curve",
+        description="area under the curve restricted to a declared "
+                    "false-positive band and standardised so a random "
+                    "classifier scores 0.5 and a perfect one 1.0",
+        parameters=dict(_PARTIAL_AUROC_BAND)),
+    MetricDescriptor(
+        name="integrated_calibration_index",
+        function=_integrated_calibration_index_adapter,
+        required_inputs=frozenset({_L, _P}),
+        applicability=_requires_calibration_support, result_kind=_PM,
+        include_in_evaluation_report=False,
+        display_name="Integrated calibration index",
+        description="mean absolute distance between a predicted probability and "
+                    "a smoothed calibration curve; binning-free, so it inherits "
+                    "no interval convention",
+        parameters={}),
+    MetricDescriptor(
+        name="adaptive_expected_calibration_error",
+        function=_adaptive_ece_adapter,
+        required_inputs=frozenset({_L, _P}),
+        applicability=_requires_calibration_support, result_kind=_PM,
+        include_in_evaluation_report=False,
+        display_name="Adaptive expected calibration error",
+        description="expected calibration error over equal-MASS bins, which put "
+                    "the edges where the predictions are rather than spreading "
+                    "them evenly across a range the model does not occupy",
+        parameters=dict(_ADAPTIVE_CALIBRATION_PARAMETERS)),
 )
 
 
