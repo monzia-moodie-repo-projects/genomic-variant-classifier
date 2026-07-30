@@ -1,3 +1,55 @@
+## 2026-07-30 — risk control, and the rulings that reshape the programme
+
+Ratchet 3959 -> 4120 (+161). Commit `c4f14fb`. Session record:
+docs/sessions/SESSION_2026-07-30_risk-control-and-the-rulings.md
+
+`risk_control.py` -- the first of conformal's five absent modules. Every other
+module in that package bounds COVERAGE; this one bounds a CLINICAL RISK, which
+is what project_metrics.txt asks for at lines 909 and 912. Risk-Controlling
+Prediction Sets: for a monotone risk, a target alpha and a confidence delta,
+return a threshold with P(risk <= alpha) >= 1 - delta.
+
+### Measured before any of it was written
+The binomial tail against a direct `math.comb` sum -- an independent computation,
+not a rearrangement: 1,967 comparisons, worst absolute difference 2.184e-13. The
+three bounds BY SIMULATION, which is the only honest test of a confidence bound:
+failure rates 0.0000 to 0.0440 at delta = 0.05, none exceeding delta. And the
+whole procedure end to end: 3 violations in 2,000 trials = 0.0015 against a
+nominal delta of 0.10.
+
+### One algorithmic defect, found and fixed before delivery
+The first draft used `np.vectorize(math.lgamma)`, which numpy's own documentation
+calls "essentially a for loop". Replaced by a recurrence -- one cumulative sum,
+no gamma function -- 9x faster at n=200, 19x at n=1,000, 31x at n=5,000, agreeing
+with the gamma form to 1.2e-11 over 6,410 comparisons. The module went from 67.05
+seconds to 20.14.
+
+### The suite went red between the ratchet and the commit
+The three-metrics cleanup filtered on a SPECIFIC backup suffix where the earlier
+one had used a wildcard, so `README.md.bak_2026-07-30_badge` survived. The next
+badge sync refused to clobber it and wrote nothing; the badge stayed at 3959
+against a ratchet of 4120; `test_readme_claims` caught it with no tolerance.
+Every guard worked. THE CLEANUP FILTER IS `*.bak_*` FROM HERE.
+
+### The ratchet prediction was exact, for the first time today
++161 predicted, +161 measured, after five wrong predictions. The difference is
+that it was not a hand count: 159 was MEASURED in a fixture and 2 was READ from a
+contract in conformal/__init__.py.
+
+### An external review, whose five criticisms are correct and none of which is fixed
+The module names one function `control_risk` without identifying which theorem;
+the guarantee rests on POPULATION monotonicity where the gate checks the
+EMPIRICAL curve; Clopper-Pearson should mechanically refuse a non-Bernoulli loss;
+the false-negative estimand has three forms of which one is returned; and the
+exchangeability unit is unstated. Recorded, not resolved.
+
+### Verification
+    the new module and the export guard   181 passed
+    FULL SUITE                            4114 passed, 6 skipped, 0 failed, 986.58 s
+                                          4114 + 6 = 4120, --assert-suite-size held
+    skip set                              unchanged, eleventh consecutive run
+    commit                                5 files, 790 insertions, 2 deletions
+
 ## 2026-07-30 — the three absent metrics, built from the kernels up
 
 Ratchet 3898 -> 3959 (+61). Commit `27f6009`. Session record:

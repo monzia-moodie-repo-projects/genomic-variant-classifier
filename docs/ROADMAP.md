@@ -3168,3 +3168,135 @@ UNCHANGED AND STILL AHEAD OF RUN 17:
     genomic_lm.py:284, and the source document imposes Fusion v1 first.
   * the ribonucleic-acid check is blocked on data acquisition: data/external/gtex
     and data/rnaseq both measure ZERO files.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-30 -- RISK CONTROL, AND THE RULINGS
+=====================================================================
+
+DELIVERED:
+  * conformal/risk_control.py -- Risk-Controlling Prediction Sets, from scratch,
+    no external dependency. Three upper confidence bounds, a monotonicity gate
+    that refuses rather than approximates, a false-negative risk computed over
+    the POSITIVE denominator, and abstention reported beside every risk.
+  * the conformal package goes from seven modules to eight.
+
+  Ratchet 3959 -> 4120 (+161, predicted exactly). Suite 4114 passed, 6 skipped.
+
+=====================================================================
+THE PROGRAMME IS RESHAPED. THIS IS THE PART THAT MATTERS MOST.
+=====================================================================
+
+RULING, 2026-07-30: THREE DELIVERABLES ARE DATA-ACQUISITION PROJECTS, NOT
+IMPLEMENTATION PROJECTS. Conformalized Quantile Regression, Multi-Omics Factor
+Analysis version 2, and the Variational Autoencoder are blocked on scientific
+data that this repository does not have. The roadmap previously read "Implement
+CQR / Implement MOFA+ / Implement VAE", which implies the blocker is software.
+It is not. The correct wording is:
+
+    Acquire continuous functional assay datasets.
+        -> Validate assay harmonization.
+        -> Implement Conformalized Quantile Regression.
+
+    Acquire matched donor-level multi-omics cohort.
+        -> Validate sample identity.
+        -> Implement MOFA+.
+
+    Acquire RNA count matrices.
+        -> Validate design matrices.
+        -> Implement Variational Autoencoder.
+
+NEW PHASE III-A -- SCIENTIFIC DATA ACQUISITION, which precedes all three:
+    1. MaveDB -- deep mutational scanning, multiplexed assays of variant effect,
+       massively parallel reporter assays, saturation genome editing. Application
+       programming interface, per-experiment download, or the ~1.9 GB Zenodo bulk
+       archive. This is the Conformalized Quantile Regression target.
+    2. GTEx version 10 -- gene read counts AND transcripts-per-million AND
+       metadata AND tissue annotations. Counts are required: differential
+       expression and variance modelling both need them, and
+       transcripts-per-million cannot substitute.
+    3. a matched donor-level multi-omics cohort -- CPTAC or TCGA for cancer,
+       DepMap for cell lines, CITE-seq or 10x Multiome for single cell. GTEx is
+       NOT one: it gives genotype and RNA, not a matched DNA-RNA-protein panel.
+    4. assay harmonization, 5. sample identity validation, 6. leakage
+       validation, 7. provenance manifests.
+
+THE TWO DELIVERABLES THAT ARE NOW FULLY ACTIONABLE:
+
+  JEPA -- RULED. Build the cache infrastructure for the entire 4,420,180-row
+    cohort but MATERIALIZE THE 1,701,217 TRAINABLE ROWS FIRST, then the fixed
+    validation and test partitions. Fusion version 1 comes BEFORE JEPA. The next
+    artifact is NOT a JEPA implementation; it is a REPRESENTATION PRESERVATION
+    AND REPRODUCIBILITY LAYER, and it must carry a full artifact identity --
+    modality, source model family, checkpoint hash, model config hash, tokenizer
+    hash, preprocessing version, sequence window specification, embedding layer,
+    storage dtype, pooling policy, source partition, population fingerprint,
+    ordered row identity hash, source input hash, extraction code commit, cache
+    schema version. Sharded storage with a COMPLETE marker written only after
+    every row is present exactly once and a deterministic sample re-extraction
+    agrees within tolerance.
+
+  UPDATED KAN -- RULED. Re-measure imodelsx 1.0.13 in a clean isolated
+    environment with the repair DISABLED, then ENABLED, against
+    test_kan_actually_fits.py. Three outcomes are pre-declared: upstream fixed
+    (remove the repair), upstream still broken (retain and document the failing
+    symbol), behaviour ambiguous (change nothing). Then introduce a KANBackend
+    protocol and benchmark an exactly-pinned pykan==0.2.8 as a CHALLENGER, not a
+    replacement. Replace `pykan>=0.2.0` with the exact pin. Delete
+    scripts/patch_imodelsx_kan.py only after proving no callers, no installer or
+    operational reference, and that sabotaging the in-process repair makes the
+    tests fail.
+
+THE DELIVERABLE COUNT GOES FROM SEVEN TO TEN. Four model families are added with
+a stated priority order:
+    1  heterogeneous graph neural network -- gene, variant, disease, phenotype,
+       pathway relational reasoning and gene prioritization. NOT a green field:
+       gnn.py is a trained STRING-DB Graph Attention Network branch and a
+       hetero-GNN exists, so the work is the heterogeneous schema, the mandatory
+       graph splits and the negative controls, not the encoder.
+    2  variational autoencoder -- uncertainty-aware compression of RNA,
+       single-cell and epigenomic assays. Inherits the RNA data blocker exactly.
+    3  two- or three-dimensional convolutional network.
+    4  conditional generative adversarial network -- translation, simulation and
+       stress testing, EXPLICITLY NOT a production truth generator, and last.
+
+AND A DIRECT CORRECTION TO THIS ROADMAP'S OWN LANGUAGE: it has carried "3D CNN"
+as a tracked item. Most Hi-C contact maps are TWO-dimensional matrices. A
+three-dimensional convolutional network is correct only when the third axis has a
+declared meaning -- cell type, developmental stage, assay, resolution, replicate
+or time. Until that axis is named the item is a 2D CNN and the roadmap entry is
+wrong.
+
+=====================================================================
+
+NEW STANDING RULE -- A CLEANUP FILTER IS A WILDCARD, NEVER A SUFFIX.
+`*.bak_2026-07-30_threemetrics` left `README.md.bak_2026-07-30_badge` in place;
+the next badge sync refused to clobber it, the badge went stale, and the suite
+went red two hours later. `*.bak_*` catches every backup any tool in this project
+creates.
+
+NEW STANDING RULE -- A STRING CONTAINING A FORMAT SPECIFIER MUST BE FORMATTED.
+The self-check scans for arity mismatches in %-formatted literals and had nothing
+to match when a specifier was written into a string that is never formatted at
+all. The check now asks both questions and found two further instances across
+twenty scripts.
+
+STILL REQUIRED, and JEPA-P0 is blocked on a design decision:
+  * THE 14.7 GIBIBYTE FIGURE has THREE independent copies -- data_manifest.yaml,
+    audit_disk_census.py and preflight_data_guard.py -- pinned together by
+    test_storage_guard.py. It is the POOLED-ONLY figure the JEPA design forbids;
+    token-level over the trainable rows is 55.20 GiB. But `working_cache_gib`
+    feeds a gate deciding WHETHER A RUN MAY START, so changing its VALUE would
+    make every ordinary run demand 101.98 GiB free for a cache it is not
+    building. The defect is that ONE CONSTANT WAS GIVEN TWO MEANINGS. Decision
+    pending: correct the NAME (a separate jepa_embedding_cache_gib) or the VALUE.
+  * ROADMAP.md:1355-1360 states "JEPA V1 cannot cache embeddings locally", which
+    is FALSE at 275.94 GiB free. It needs a dated amendment, not a deletion.
+  * conformal's four remaining absent modules: artifacts, gene_ranking,
+    multilabel, monitoring.
+  * the metric stack's five remaining items: OperatingPointMetrics with threshold
+    provenance, a typed BinaryEvaluationReport, the two clinical panels, the
+    living glossary, and the specification committed with a conformance test.
+  * the five criticisms of risk_control.py recorded above.
+  * INCIDENT_2026-07-08 remains a Tier 0 VALIDITY failure and outranks all of it.
+  * FIVE_WAY is a correct fix that no command-line choice can select.
