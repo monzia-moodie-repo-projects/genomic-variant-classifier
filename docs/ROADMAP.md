@@ -3018,3 +3018,79 @@ THE OTHER FOUR DELIVERABLES REMAIN OPEN and outrank Run 17: JEPA, conformal
 prediction, the ribonucleic-acid differential-expression leakage check, and
 conformal quantile regression. The RNA check is blocked on data acquisition, not
 merely unrun: data/external/gtex and data/rnaseq both measure ZERO files.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-30 -- REGISTRY COMMIT 2 LANDED
+=====================================================================
+
+DELIVERED:
+  * registry commit 2 applied byte-for-byte from a payload cut, hash-verified,
+    and never installed until today. The catalogue moves 23/17/6 to 24/21/3 and
+    the registry 17 to 21.
+  * the Murphy decomposition of the Brier score -- reliability, resolution,
+    uncertainty -- plus brier_decomposition_residual, so the identity is audited
+    rather than trusted.
+  * two guards updated with DERIVED numbers: the composition allowance in
+    test_computation_path_guards.py, and the declared added-name set in
+    test_registry_vocabulary_completion.py.
+
+  Ratchet 3862 -> 3898. Suite 3892 passed, 6 skipped, 0 failed.
+
+NEW STANDING RULE -- A CHANGE TO A REGISTRY REACHES BEYOND THE FILES IT TOUCHES.
+The collected count moved +36 against a hand-prediction of +29, because a test in
+a third file parametrises over all_metrics(). Two guards elsewhere budget or
+enumerate the registry and both had to be updated. Before cutting a payload that
+changes a registry, run the FULL SUITE, not the payload's own tests: registry
+commit 2 was recorded as "103 passing in the two test files", and the two guards
+it invalidated surfaced only when the suite finally ran, a day later.
+
+NEW STANDING RULE -- AN ALLOWANCE MUST BE DERIVED AND CHECKED BOTH WAYS.
+The composition table in test_computation_path_guards.py is asserted in both
+directions: a kernel invoked more often than declared fails, and a kernel invoked
+FEWER times than declared fails as "a blanket licence". That is the property that
+makes the table a measurement rather than a permission. Any future allowance
+added to this project should be built the same way.
+
+NEW STANDING RULE -- DO NOT REGENERATE A BASELINE TO MAKE A DIFFERENCE EMPTY.
+tests/fixtures/registry_snapshot_2b1.json is read by four tests. Regenerating it
+would have made the failing assertion pass and left the other three measuring
+nothing. Update the DECLARATION, never the baseline.
+
+STILL REQUIRED, unchanged and now more sharply measured:
+  * the CATALOGUE'S ABSENCE COUNT OF THREE is conformance against a HANDOFF, not
+    against project_metrics.txt. Within Panels B and D alone the specification
+    names roughly twenty-three quantities the catalogue does not record, and
+    Panels A, C and E through P have no entry at all.
+  * calibration_slope_intercept, cluster_bootstrap_ci and stratified_evaluate are
+    implemented, exported, and registered nowhere.
+  * 25 warnings still pass unasserted -- three scikit-learn ranking sites raised
+    by deliberately degenerate cohorts. pyproject.toml already carries the
+    message-pinned filter discipline with a premise test; these three have not
+    been run through it.
+  * FIVE_WAY exists in split_protocol_v2.py with a CALIBRATE_PROBABILITY
+    partition and no command-line choice selects it. Under FOUR_WAY there is no
+    such partition, so the isotonic calibrator is fitted on `tune`, which carries
+    role SELECT. A correct fix, built, tested, and unreachable.
+  * INCIDENT_2026-07-08 remains OPEN: augment_reviewstatus.py:64 failing on
+    98.834 per cent of deletions, with a label-correlated survival split of
+    34.556 against 95.236 per cent. Tier 0 of project_metrics.txt makes that a
+    VALIDITY failure, not a backlog item.
+  * the THIRD SKIP CATEGORY has no register entry: eight node identifiers plus
+    one whole module gated on data presence. The 2026-07-20 offload regression
+    lives there.
+
+REMAINING IN THE REGISTRY SCOPE:
+  partial_auroc, integrated_calibration_index and
+  adaptive_expected_calibration_error; OperatingPointMetrics with threshold
+  provenance; the two clinical panels; a typed BinaryEvaluationReport; a living
+  glossary generated from the registry. None of OperatingPointMetrics,
+  BinaryEvaluationReport, net_benefit or decision_curve appears anywhere in the
+  repository yet.
+
+THE OTHER FOUR DELIVERABLES REMAIN OPEN. JEPA is no longer disk-blocked -- 275.94
+GiB free after the gnomAD offload, against a 143.42 GiB token-level cache -- but
+it is blocked on two things disk never addressed: every foundation-model
+embedding is destroyed on creation at genomic_lm.py:284, and the source document
+imposes Fusion v1 before JEPA. The ribonucleic-acid check is blocked on data
+acquisition: data/external/gtex and data/rnaseq both measure ZERO files.

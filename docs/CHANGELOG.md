@@ -1,3 +1,67 @@
+## 2026-07-30 — registry commit 2 lands, and the two guards it invalidated
+
+Ratchet 3862 -> 3898 (+36). Commit `c4229f1`. Session record:
+docs/sessions/SESSION_2026-07-30_registry-commit-2.md
+
+REGISTRY COMMIT 2 WAS CUT, HASH-VERIFIED, AND NEVER APPLIED. Measured at 02:24
+today, before anything was installed: the repository held 23 specified, 17 built,
+6 registered absences and a registry of 17; the payload held 24, 21, 3 and 21.
+Neither `50bb9fa` nor `2044102` touched the four files it replaces, so the tree
+was still at commit 1 and the payload had been sitting unapplied for a day.
+
+Two independent lines of evidence confirmed the base: the byte sizes on disk were
+the commit-1 sizes, and `test_metric_catalogue.py` collected 96 rather than 103,
+which is exactly what `3 x 23 + 17 + 10` gives against `3 x 24 + 21 + 10`.
+
+### What lands
+The Murphy decomposition of the Brier score — reliability, resolution and
+uncertainty — plus `brier_decomposition_residual`, a metric the original
+specification did not name, added so the identity can be AUDITED rather than
+trusted. It is exactly zero only when bins group identical forecasts; under
+interval binning it is the within-bin variance term. Installed byte-for-byte,
+each file hashed before the copy and again after.
+
+### The ratchet moved +36 and the prediction was +29
+The two files the commit obviously touches contribute +7 and +22. The missing
+seven are elsewhere: `test_registry_vocabulary_completion.py:135` parametrises
+over `all_metrics()`, and the registry grew from 17 metrics to 21. THE COLLECTED
+COUNT IS A PROPERTY OF THE WHOLE SUITE, not of the files a commit changes. It
+cost nothing because the number was computed by a real collection rather than
+typed. The badge was then derived from it, byte invariants intact.
+
+### Two guards, updated with derived numbers
+`brier_score` is now invoked twice per report, because `metrics.py:1750` defines
+the residual as `brier - (reliability - resolution + uncertainty)`. That is the
+`auprc`/`auprc_gain` shape exactly: one invocation for the registered metric, one
+for the single registered metric that composes it. The allowance had to be EXACT
+— the same test asserts the table in the other direction, so an inflated
+allowance fails as "a blanket licence".
+
+And note what is ABSENT from that count: `metrics.py:1345`, the legacy flat
+dictionary. If the report path touched it the count would be three, not two. The
+observed 2 is independent evidence that the authority switch of `0cc663d` holds.
+
+The declared added-name set goes from eleven to fifteen. THE SNAPSHOT IS NOT
+REGENERATED: `tests/fixtures/registry_snapshot_2b1.json` is read by four tests,
+and making the difference empty by moving the baseline would leave the other
+three measuring nothing.
+
+### The finding about the payload's provenance
+Registry commit 2 was recorded as "103 passing in the two test files". The two
+test files, not the suite. Adding four metrics to a registry invalidates every
+guard that enumerates or budgets that registry, and there were two. The payload
+is not wrong; its verification was scoped to its own tests.
+
+### Verification
+    installer pre-checks    base 23/17/6/17, siblings present, five hashes
+    installer post-checks   24/21/3/21, every file re-hashed and re-parsed
+    guard post-checks       seven structural checks, including the declared set
+                            parsed from the edited source to exactly fifteen names
+    collection after fix    3898, unchanged — no test added or removed
+    the four affected files 214 passed, against 212 passed + 2 failed before
+    FULL SUITE              3892 passed, 6 skipped, 0 failed, 744.78 s
+    skip set                byte-for-byte unchanged, seventh consecutive run
+
 ## 2026-07-30 — the changelog's own encoding, repaired and guarded
 
 Ratchet 3856 -> 3862 (+6). Session record:
