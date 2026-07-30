@@ -14,6 +14,11 @@ calibrate   probability calibration helpers
 ordinal     ordinal conformal for the American College of Medical Genetics and
             Genomics / Association for Molecular Pathology five-tier scale;
             every prediction set is a CONTIGUOUS interval of adjacent tiers
+risk_control
+            risk-controlling prediction sets -- bound a CLINICAL risk such
+            as the pathogenic false-negative rate at a chosen level and a
+            chosen confidence, where every other module here bounds
+            miscoverage instead
 
 Every module on disk must appear in the import below and in __all__.
 tests/unit/test_conformal_package_exports.py enforces that by walking this
@@ -28,6 +33,7 @@ from . import (  # noqa: F401
     grouped,
     mondrian,
     ordinal,
+    risk_control,
     scores,
     split,
 )
@@ -38,6 +44,7 @@ __all__ = [
     "grouped",
     "mondrian",
     "ordinal",
+    "risk_control",
     "scores",
     "split",
 ]
