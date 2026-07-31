@@ -134,7 +134,19 @@ USERPROFILE = os.environ.get("USERPROFILE", r"C:\Users\monzi")
 
 HEADROOM_FRACTION = 0.05
 HEADROOM_MIN = 20 * GiB
-JEPA_CACHE_GIB = 14.7
+# CORRECTED 2026-07-30. Was 14.7, which is the POOLED-ONLY figure the JEPA
+# design explicitly forbids ("do not cache only one pooled vector",
+# ROADMAP.md:971-972) -- and it was labelled GIB while holding a GB value.
+#
+#   pooled,      full cohort      14.70 GB =  13.69 GiB   forbidden
+#   pooled,      trainable rows    5.70 GB =   5.31 GiB   forbidden
+#   token-level, full cohort     154.00 GB = 143.42 GiB   the eventual requirement
+#   token-level, trainable        59.27 GB =  55.20 GiB   DECIDED, build this first
+#
+# NO TRAILING COMMENT ON THE LINE BELOW. test_storage_guard.py:113 does
+# s.split("=", 1)[1].strip() and :119 calls float() on the result, so anything
+# after the value raises inside the test.
+JEPA_CACHE_GIB = 55.2
 MAX_DEPTH = 64
 
 FILE_ATTRIBUTE_REPARSE_POINT = getattr(statmod, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
@@ -548,7 +560,11 @@ def main() -> int:
     headroom = max(HEADROOM_FRACTION * total, HEADROOM_MIN)
     need = JEPA_CACHE_GIB * GiB + headroom
     print("=" * 78)
-    print("VERDICT -- headroom-aware")
+    print("VERDICT -- headroom-aware, FOR THE JEPA EMBEDDING CACHE BUILD")
+    print("  This is NOT the run gate. preflight_data_guard.py answers")
+    print("  whether a RUN may start, from working_cache_gib. This answers")
+    print("  whether this volume can hold the JEPA EMBEDDING CACHE, from")
+    print("  jepa_embedding_cache_gib. Two questions, two answers.")
     print("=" * 78)
     print(f"  JEPA embedding cache          : {JEPA_CACHE_GIB:.1f} GiB")
     print(f"  required operational headroom : {headroom/GiB:.2f} GiB  (max of 5 %, 20 GiB)")

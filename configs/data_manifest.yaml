@@ -50,7 +50,31 @@ gdrive:
 # fails if the two ever disagree.
 # ---------------------------------------------------------------------------
 storage:
-  working_cache_gib: 14.7      # JEPA embedding cache built during a full run
+  # CORRECTED 2026-07-30. The comment that stood here read "JEPA embedding cache
+  # built during a full run" and was wrong in both directions: the JEPA cache is
+  # a ONE-TIME artifact no training run builds, and 14.7 is the POOLED-ONLY
+  # figure the JEPA design forbids. One constant had two meanings; they are
+  # separated below. The VALUE is unchanged -- it is the general working space a
+  # run needs, and it is what `required` is computed from.
+  working_cache_gib: 14.7      # general working space for a run, beyond headroom
+  #
+  # THE JEPA EMBEDDING CACHE, in four configurations, so no reader can take a
+  # figure without also taking the configuration it describes. Derived at
+  # ROADMAP.md:969-974 for the 4,420,180-row cohort, float16, reference plus
+  # alternate only, Nucleotide Transformer and ESM-2 only:
+  #
+  #   pooled,      full cohort      14.70 GB =  13.69 GiB   DESIGN FORBIDS pooled-only
+  #   pooled,      trainable rows    5.70 GB =   5.31 GiB   also pooled, also forbidden
+  #   token-level, full cohort     154.00 GB = 143.42 GiB   the eventual requirement
+  #   token-level, trainable        59.27 GB =  55.20 GiB   DECIDED, build this first
+  #
+  # 1,701,217 / 4,420,180 = 0.38488; 154.00 GB x 0.38488 = 59.27 GB = 55.20 GiB.
+  # Cross-checked against the pooled pair: 5.7 / 14.7 = 0.38776, agreeing to 0.003.
+  #
+  # THIS VALUE IS NOT PART OF THE RUN GATE. It is what the JEPA readiness census
+  # reports. The census and the preflight guard now answer DIFFERENT QUESTIONS
+  # and will give different verdicts on the same volume -- on purpose.
+  jepa_embedding_cache_gib: 55.2
   headroom_fraction: 0.05      # of total volume size
   headroom_min_gib: 20.0       # floor on the headroom term
   hard_floor_gib: 25.0         # below this, refuse outright

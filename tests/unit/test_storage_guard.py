@@ -102,8 +102,15 @@ def test_defaults_match_the_manifest(policy):
 
 def test_policy_matches_the_census_tool():
     """audit_disk_census.py keeps its own constants so it can run standalone.
-    They must agree with the manifest, or the two tools report different
-    verdicts about the same volume on the same day."""
+    They must agree with the manifest, or a number is wrong in one of two
+    places and nothing says so.
+
+    AMENDED 2026-07-30. The original wording said the two tools must not
+    "report different verdicts about the same volume on the same day". They
+    now DO, deliberately: audit_disk_census answers "can this volume hold the
+    JEPA embedding cache?" from jepa_embedding_cache_gib, and
+    preflight_data_guard answers "may a run start?" from working_cache_gib.
+    Different questions, different answers, one source of truth each."""
     src = _CENSUS.read_text(encoding="utf-8")
     ns: dict = {}
     for line in src.split("\n"):
@@ -116,7 +123,11 @@ def test_policy_matches_the_census_tool():
 
     p = G.StoragePolicy.load(_MANIFEST)
     assert float(ns["HEADROOM_FRACTION"]) == p.headroom_fraction
-    assert float(ns["JEPA_CACHE_GIB"]) == p.working_cache_gib
+    # RE-POINTED 2026-07-30. This pinned JEPA_CACHE_GIB to working_cache_gib
+    # while one constant carried two meanings. The census reports the JEPA
+    # cache; the guard reports the run gate. They now answer different
+    # questions, so the pin follows the JEPA figure.
+    assert float(ns["JEPA_CACHE_GIB"]) == p.jepa_embedding_cache_gib
     assert ns["HEADROOM_MIN"].replace(" ", "") == f"{int(p.headroom_min_gib)}*GiB"
 
 
@@ -186,7 +197,8 @@ def test_the_ten_percent_advisory_fires_only_where_it_helps(monkeypatch, policy)
 @pytest.mark.parametrize("field,value", [
     ("headroom_fraction", 1.0), ("headroom_fraction", 1.5),
     ("headroom_fraction", -0.01),
-    ("working_cache_gib", -1.0), ("headroom_min_gib", -1.0),
+    ("working_cache_gib", -1.0), ("jepa_embedding_cache_gib", -1.0),
+    ("headroom_min_gib", -1.0),
     ("hard_floor_gib", -1.0),
 ])
 def test_post_init_rejects_impossible_policy(field, value):

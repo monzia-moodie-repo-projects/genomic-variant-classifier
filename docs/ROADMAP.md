@@ -1359,6 +1359,34 @@ token-level retention. Shortfall at minimum **3.79 GB**, and free space has FALL
 14.74 GB recorded at 6.12. **JEPA V1 cannot cache embeddings locally.** The embedding store must
 target Drive or cloud from the outset, not as a later migration.
 
+> **AMENDED 2026-07-30.** Every dated measurement above stands as the record of what
+> was true when it was written. Three of its conclusions no longer are.
+>
+> **"The roadmap's measured minimum embedding cache is ~14.7 GB" is wrong**, and was
+> wrong when written. 14.7 GB is the POOLED-ONLY figure, and this same paragraph
+> says the design "explicitly requires token-level retention". The minimum for the
+> configuration the design actually requires is **154 GB for the full cohort**, or
+> **59.27 GB (55.20 GiB) for the 1,701,217 trainable rows**, which is what the
+> 2026-07-30 decision says to build first.
+>
+> **"JEPA V1 cannot cache embeddings locally" is now false.** Free space measured
+> **275.94 GiB** on 2026-07-30 after 195.90 GiB of gnomAD variant call format files
+> were removed, each checksum-verified against Google Drive before deletion. The
+> token-level trainable cache needs 55.20 GiB, leaving 220.74 GiB -- 23.59 per cent
+> of the volume, well clear of the 46.78 GiB five-per-cent hazard floor. Even the
+> full-cohort token-level cache at 143.42 GiB leaves 132.52 GiB, or 14.16 per cent.
+>
+> **"The embedding store must target Drive or cloud from the outset" no longer
+> follows** from the disk position. It may still be the right architecture for other
+> reasons -- durability, sharing, reproducibility across machines -- but it is no
+> longer forced by free space, and the roadmap should not present it as if it were.
+>
+> **What has NOT changed is the real blocker.** `genomic_lm.py:284` still computes a
+> 512-dimensional vector and reduces it to `np.linalg.norm(...)` on the next line;
+> ESM-2, the Graph Attention Network and the tabular network all do the same. There
+> is nothing to cache. `embedding_cache` has zero occurrences in this repository.
+> Disk stopped being a JEPA blocker on 2026-07-30; it was never the only one.
+
 ### 4. CONFORMAL -- EXTEND the existing package; do NOT create `uncertainty/`
 
 The conformal specification proposes `src/genomic_variant_classifier/uncertainty/` with fifteen

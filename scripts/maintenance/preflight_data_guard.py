@@ -86,6 +86,11 @@ _REQUIRED = ["external", "raw", "processed"]
 # all three sources together.
 DEFAULT_POLICY = {
     "working_cache_gib": 14.7,
+    # ADDED 2026-07-30. The JEPA embedding cache is a ONE-TIME artifact and
+    # is NOT part of required_free_bytes; the run gate reads
+    # working_cache_gib alone. This exists so the figure has one home and
+    # scripts/forensics/audit_disk_census.py can be pinned against it.
+    "jepa_embedding_cache_gib": 55.2,
     "headroom_fraction": 0.05,
     "headroom_min_gib": 20.0,
     "hard_floor_gib": 25.0,
@@ -98,6 +103,7 @@ class StoragePolicy:
     """How much free space a run requires, and when to refuse."""
 
     working_cache_gib: float
+    jepa_embedding_cache_gib: float
     headroom_fraction: float
     headroom_min_gib: float
     hard_floor_gib: float
@@ -108,7 +114,8 @@ class StoragePolicy:
         if not 0.0 <= self.headroom_fraction < 1.0:
             raise ValueError(
                 f"headroom_fraction must be in [0, 1), got {self.headroom_fraction}")
-        for name in ("working_cache_gib", "headroom_min_gib", "hard_floor_gib"):
+        for name in ("working_cache_gib", "jepa_embedding_cache_gib",
+                     "headroom_min_gib", "hard_floor_gib"):
             v = getattr(self, name)
             if v < 0:
                 raise ValueError(f"{name} must be non-negative, got {v}")
