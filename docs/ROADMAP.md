@@ -3411,3 +3411,174 @@ STILL REQUIRED, unchanged:
     pykan==0.2.8 as a pinned challenger.
   * INCIDENT_2026-07-08 remains a Tier 0 VALIDITY failure and outranks all of it.
   * FIVE_WAY is a correct fix that no command-line choice can select.
+
+
+=====================================================================
+ROADMAP CORRECTION -- 2026-07-31 -- THE FIVE DELTAS OF 2026-07-30
+STATED THE PRIORITY BACKWARDS
+=====================================================================
+
+THIS SECTION CORRECTS, IT DOES NOT REPLACE. The five roadmap deltas dated
+2026-07-30 remain exactly as written. They are the record of what was believed
+that day. ROADMAP.md:1355 was amended rather than rewritten on the same
+principle, stated at INCIDENT_2026-07-08_R2 line 10: "no scientific artifact is
+ever silently replaced. Every correction creates a new version linked to its
+predecessor, with an explicit account of what changed, why, and which downstream
+artifacts are affected."
+
+WHAT THOSE DELTAS ASSERT:
+  "INCIDENT_2026-07-08 remains OPEN ... Tier 0 of project_metrics.txt makes that
+   a VALIDITY failure ... and outranks all of it."
+
+THREE THINGS ARE WRONG WITH IT.
+
+-----------------------------------------------------------------
+1. THE ORDERING IS INVERTED. THE PROJECT HAS AN ADOPTED DECISION.
+-----------------------------------------------------------------
+docs/measurements/DECISION_2026-07-25_cohort-v2-authorization-and-phase-split.md
+Status: ADOPTED. Section 9, execution order adopted:
+
+    1. Commit all clean-cohort and ontology measurement artifacts
+    2. Commit this v2 decision/authorization record
+    3. Mark Phase 1b-E complete
+    4. Mark Phase 1b-C authorized and open
+    5. Proceed with cohort-agnostic metric-stack wiring
+    6. Begin dedicated cohort-v2 construction in its own focused session (C1-C10)
+    7. Complete and certify v2
+    8. Backfill, calibrate and certify production metrics on v2
+    9. Authorize downstream cutover
+
+METRIC-STACK WIRING IS STEP 5. COHORT V2 IS STEP 6. The decision rejects the
+alternative explicitly -- "(a) Continue directly into v2 construction, holding
+all other work" -- on the stated ground that it "needlessly delays metric-stack
+engineering that has no cohort dependency."
+
+Items 3 and 4 of that order are ROADMAP updates, and they are recorded here now:
+
+    Clinical-significance ontology v1.0 : MEASUREMENT-VALIDATED (specification)
+    P6 group adjudication               : DESIGN-VALIDATED
+    Phase 1b-E, evidence and design     : COMPLETE
+    Phase 1b-C, certified cohort v2     : AUTHORIZED, NOT IMPLEMENTED
+    Current v1 cohort                   : retained for lineage; NOT reproducibly
+                                          derived under a deterministic
+                                          adjudication policy; NOT to be overwritten
+    Production metric rebaselining      : BLOCKED_BY_COHORT_V2
+
+    STEP 1b IS NOT COMPLETE. 1b-E is complete and 1b-C is open. Do not mark
+    Step 1b done until 1b-C completes.
+
+-----------------------------------------------------------------
+2. THE CITED AUTHORITY IS NOT IN THIS REPOSITORY.
+-----------------------------------------------------------------
+A recursive search for project_metrics.txt across the whole tree on 2026-07-31
+returns NOTHING. It exists only as a file uploaded in an earlier session. Five
+deltas therefore cite, as authority, a document a reader cannot open.
+
+INCIDENT_2026-07-08_R2 section 3 recorded exactly this defect against revision 1
+-- two commit hashes that fail `git cat-file -e` -- and adopted the rule:
+
+    "Every commit hash cited as evidence must be verified to resolve in the
+     repository the document lives in, at the time the document is written, and
+     the verification command must be recorded beside it."
+
+THE RULE WAS WRITTEN FOR HASHES AND APPLIES TO FILENAMES IDENTICALLY. Extended
+here to every cited artifact: a path, a filename, a hash, a line number.
+
+-----------------------------------------------------------------
+3. THE CHARACTERISATION IS SIX DAYS STALE. THE DEFECT IS DEEPER.
+-----------------------------------------------------------------
+The deltas describe the incident as though its subject were the variant-call-
+format join. Investigating the clean_cohort.py strict-resolver rewire surfaced a
+defect beneath it: THE DUPLICATE-GROUP REPRESENTATIVE SELECTION IS INPUT-ORDER
+DEPENDENT -- a stable sort followed by positional .iloc[0] -- so the physical
+Parquet row order participates in adjudication.
+
+    legacy order-sensitive representative selections     1,610
+    naive-unified                                        1,612
+    deterministic policies P2 through P6                     0
+    P6 order-invariance      verified across reverse and three within-group
+                             permutations; representative set, labels, states
+                             and quarantine all identical
+
+    P6 labels withheld, Rule 4                              14
+    P6 labels recovered, Rule 5, lost to file order        189
+    net trainable-row delta                               +175   (-14 + 189)
+    additional irreducible-conflict quarantines             22
+    representative-row changes vs legacy                   232
+
+    clinical_sig distinct normalised values                102
+    recognised by the multi-axis parser                102/102
+    unconsumed compound tokens                               0   gate SATISFIED
+
+The plan is a CERTIFIED COHORT V2 built by a group-level evidence adjudicator
+over a lossless multi-axis parse of clinical_sig, with the binary training label
+derived by a separate versioned target policy. Not a join repair.
+
+-----------------------------------------------------------------
+FOUR FURTHER FACTS, MEASURED 2026-07-31
+-----------------------------------------------------------------
+THE GUARD THE SPECIFICATION ASKED FOR WAS NEVER BUILT.
+PHASE1_SPEC_2026-07-24_deletion-repair.md section 5 test 6 requires "an assertion
+that after augmentation, deletions with a populated review status exceed 150,000,
+so a regression to the join-based source turns the suite red rather than quietly
+re-censoring the cohort." A search for 150000, 150_000, "retention floor" and
+"deletion.*populated" across every test file returns NOTHING. Five of the six
+specified tests landed at 45525fb; the sixth -- the only one that measures the
+actual defect -- did not. THE SUITE IS GREEN BECAUSE THE DETECTOR IS ABSENT.
+
+THE DEFECT LINE SURVIVES, RENUMBERED. The incident cites
+augment_reviewstatus.py:64. The file is now 155 lines and the line is at 118,
+code identical; only the trailing comment changed from "tier 5" to
+"TIER_MISSING". Step 1b DID land -- the local tier map and the substring resolver
+were removed and unknown vocabulary now raises with a complete inventory -- but
+that is the silent-demotion fix, not the join-source fix.
+
+BOTH PHASE 1 ENTRY CRITERIA ARE CLOSED. Criterion 4, whether the nested remedy is
+valid on deletions: CLOSED, and by a better argument than the incident's own.
+Agreement cannot answer it at 1.166 per cent deletion coverage, so tier profiles
+were compared by class -- deletions sit 2.14 percentage points from INSERTIONS
+(99.517 per cent validated, zero disagreements) against 4.60 from single-
+nucleotide variants. Independent cross-check: 180,773 minus 2,210 is 178,563,
+exactly the incident's rescue count from two separate tools. Criterion 3, the
+artifact lineage sweep: CLOSED at e3a4795 -- 985 ARTIFACTS LACK LINEAGE.
+
+THE INCIDENT REPRODUCES EXACTLY. All eighteen of its figures were re-derived on
+2026-07-24 and match 2026-07-08 to the digit. It is current, not stale; what was
+stale was the roadmap's account of what to do about it.
+
+-----------------------------------------------------------------
+WHAT TODAY'S WORK WAS, MEASURED AGAINST THE DECISION
+-----------------------------------------------------------------
+Decision section 5, "may proceed (cohort-agnostic or synthetic-validated)":
+metric interface definitions; typed metric result objects; capability and
+validation states; binary, calibration, conformal, selective-prediction,
+subgroup, attribution and out-of-distribution metric implementations;
+cross-fitting contracts; bootstrap infrastructure; gene-cluster resampling;
+synthetic sabotage tests; serialization and reporting schemas; deterministic
+aggregation; metric provenance; failure and insufficient-support contracts.
+
+That describes registry commit 2, the three absent metrics and risk_control
+precisely. The blocked list -- production expected values, class-balance-dependent
+thresholds, empirical baseline tables, area-under-curve comparisons, calibration
+baselines, conformal quantiles, decision-curve baselines, subgroup prevalence,
+gene-ranking comparisons, release claims, clinical utility findings -- was not
+touched by any of it.
+
+The project has executed step 5 continuously since 2026-07-26: 33 session
+documents across five days, ending with the five of 2026-07-30. IT WAS NEVER
+BLOCKED ON THE INCIDENT.
+
+-----------------------------------------------------------------
+NEW STANDING RULE -- CITE ONLY WHAT RESOLVES IN THIS REPOSITORY.
+-----------------------------------------------------------------
+Extending INCIDENT_2026-07-08_R2's hash rule to every cited artifact. Before a
+path, filename, hash or line number is written into a durable document, it must
+be verified to resolve in this repository at the time of writing. A citation that
+cannot be followed is not evidence; it is an assertion wearing evidence's
+clothes.
+
+NEW STANDING RULE -- STATUS IS READ FROM THE LATEST ADOPTED DECISION, NEVER
+CARRIED FORWARD FROM A SUMMARY. The "remains OPEN / outranks all of it" claim was
+carried in a session summary and repeated five times without once being checked
+against docs/measurements/. Six days of adopted decisions sat unread while their
+conclusion was contradicted in the same file.

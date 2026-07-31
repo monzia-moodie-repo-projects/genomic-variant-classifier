@@ -1,3 +1,58 @@
+## 2026-07-31 — the priority was backwards, and the citation did not resolve
+
+Ratchet 4121, unchanged. Documents only. Session record:
+docs/sessions/SESSION_2026-07-31_the-priority-was-backwards.md
+
+FIVE ROADMAP DELTAS WRITTEN ON 2026-07-30 STATE THE PRIORITY BACKWARDS. They
+assert that INCIDENT_2026-07-08 "remains OPEN", is a "Tier 0 VALIDITY failure",
+and "outranks all of it". The project's own adopted decision --
+docs/measurements/DECISION_2026-07-25_cohort-v2-authorization-and-phase-split.md,
+status ADOPTED -- sets the execution order as metric-stack wiring at step 5 and
+cohort-v2 construction at step 6, and REJECTS the alternative of "continue
+directly into v2 construction, holding all other work" because it "needlessly
+delays metric-stack engineering that has no cohort dependency".
+
+### The cited authority is not in the repository
+A recursive search for `project_metrics.txt` across the whole tree returns
+nothing. It exists only as a file uploaded in an earlier session. Five deltas
+cite, as authority, a document a reader cannot open -- the same defect
+INCIDENT_2026-07-08_R2 section 3 recorded against revision 1, whose adopted rule
+("every hash cited as evidence must be verified to resolve in the repository the
+document lives in") applies to filenames identically.
+
+### And the characterisation is six days stale
+Investigating the clean_cohort strict-resolver rewire surfaced a defect deeper
+than the join: the duplicate-group representative selection is INPUT-ORDER
+DEPENDENT -- a stable sort followed by positional .iloc[0] -- so the physical
+Parquet row order participates in adjudication. 1,610 order-sensitive selections
+under the legacy policy; ZERO under P2 through P6. The plan is now a certified
+cohort v2 built by a group-level evidence adjudicator over a lossless multi-axis
+parse of clinical_sig, not a join repair. Phase 1b-E is COMPLETE; Phase 1b-C is
+AUTHORIZED_NOT_IMPLEMENTED, C1 through C10, in its own focused session.
+
+### The guard the specification asked for was never built
+PHASE1_SPEC section 5 test 6 requires an assertion that deletions with a
+populated review status exceed 150,000. A search for that figure across every
+test file returns nothing. Five of six specified tests landed at 45525fb; the
+sixth -- the only one that measures the actual defect -- did not. THE SUITE IS
+GREEN BECAUSE THE DETECTOR IS ABSENT, NOT BECAUSE THE REPAIR HAPPENED.
+
+### What today's work was, measured against the decision
+Section 5's "may proceed" list names metric interface definitions, typed result
+objects, binary and calibration and conformal metric implementations, synthetic
+sabotage tests and metric provenance -- a precise description of registry commit
+2, the three absent metrics and risk_control. Its blocked list -- production
+expected values, baseline tables, area-under-curve comparisons, conformal
+quantiles, release claims -- was not touched. The project has executed step 5
+continuously for six days across 33 session documents.
+
+### What is not done here
+The five deltas are NOT edited. They are dated records of what was written that
+day, and INCIDENT_2026-07-08_R2 line 10 states the principle: "no scientific
+artifact is ever silently replaced." Nothing in the incident is repaired --
+repairing the join would repair a symptom of a defect the project has already
+characterised more deeply, under a plan this decision superseded.
+
 ## 2026-07-30 — JEPA-P0: one constant, two meanings
 
 Ratchet 4120 -> 4121 (+1). Commit `dfc9d74`. Session record:
