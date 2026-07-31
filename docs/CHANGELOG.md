@@ -1,3 +1,62 @@
+## 2026-07-30 — JEPA-P0: one constant, two meanings
+
+Ratchet 4120 -> 4121 (+1). Commit `dfc9d74`. Session record:
+docs/sessions/SESSION_2026-07-30_jepa-p0-one-constant-two-meanings.md
+
+`working_cache_gib` feeds a gate deciding WHETHER A RUN MAY START, and the
+manifest documented it as "JEPA embedding cache built during a full run" -- false
+in both directions. The JEPA cache is a ONE-TIME artifact no training run builds,
+and 14.7 is the POOLED-ONLY figure the design explicitly forbids. The figure had
+propagated into THREE independent copies, pinned together by two tests, and it
+was labelled GIB while holding a GB value.
+
+### The name was wrong, not the value
+`working_cache_gib` keeps 14.7 as general working space with its comment
+repaired; a new `jepa_embedding_cache_gib: 55.2` carries the real figure. Setting
+the old key to 55.2 would have made every ordinary run demand 101.98 GiB free for
+a cache it is not building, and data_manifest.yaml:46 says the three-band design
+exists precisely so the gate does not "cry wolf".
+
+    pooled,      full cohort      14.70 GB =  13.69 GiB   FORBIDDEN by the design
+    pooled,      trainable rows    5.70 GB =   5.31 GiB   also forbidden
+    token-level, full cohort     154.00 GB = 143.42 GiB   the eventual requirement
+    token-level, trainable        59.27 GB =  55.20 GiB   DECIDED, build first
+
+### What deliberately changes meaning
+audit_disk_census now answers "can this volume hold the JEPA cache?" at 101.98
+GiB; preflight_data_guard still answers "may a run start?" at 61.48 GiB. The two
+tools now give DIFFERENT VERDICTS on the same volume, correctly, and the test
+that pinned them says why.
+
+### Four reads before a line was written
+Each found coupling the previous had missed: a THIRD copy of the constant, a
+SECOND hard-coded 61.48, a wrong directory, and finally that DEFAULT_POLICY's
+KEYS drive the manifest read -- so the manifest entry, the default and the
+dataclass field are ONE edit in three files. Three claims made between those
+reads were wrong, every one from reasoning ahead of the source.
+
+### The fixture predicted every byte delta exactly
++1537, +1048, +405, +740, +1859 -- all five matching the real repository, which
+is the strongest evidence the anchors landed where intended. ROADMAP.md at ZERO
+deletions confirms the amendment appended and the dated 2026-07-20 measurement
+survives verbatim.
+
+### A standing rule of Claude's was wrong, and Monzia corrected it
+Claude was carrying "never add any authorship byline to any file". That blanket
+was Claude's own generalisation of a narrow instruction: never write "Written FOR
+Monzia Moodie", which misframes his own project as work done for him. Claude then
+found his name in six files and queued a commit to REMOVE IT, without asking
+whose name it was. Corrected: bylines read "Written by Monzia Moodie" or "Author:
+Monzia Moodie"; never "Written for"; and stop extrapolating -- ask first. The
+removal was withdrawn and every byline stands.
+
+### Verification
+    test_storage_guard.py   46 passed (45 before, +1)
+    FULL SUITE              4115 passed, 6 skipped, 0 failed, 766.22 s
+                            4115 + 6 = 4121, --assert-suite-size held
+    skip set                unchanged, thirteenth consecutive run
+    the run gate            61.48 GiB required, UNMOVED
+
 ## 2026-07-30 — risk control, and the rulings that reshape the programme
 
 Ratchet 3959 -> 4120 (+161). Commit `c4f14fb`. Session record:

@@ -3328,3 +3328,86 @@ STILL REQUIRED, and JEPA-P0 is blocked on a design decision:
   * the five criticisms of risk_control.py recorded above.
   * INCIDENT_2026-07-08 remains a Tier 0 VALIDITY failure and outranks all of it.
   * FIVE_WAY is a correct fix that no command-line choice can select.
+
+
+=====================================================================
+ROADMAP delta -- 2026-07-30 -- JEPA-P0 LANDED
+=====================================================================
+
+DELIVERED:
+  * the JEPA embedding-cache figure is separated from the run-gate allowance.
+    `working_cache_gib` keeps 14.7 as general working space with its comment
+    repaired; `jepa_embedding_cache_gib: 55.2` is new and carries the real
+    figure -- token-level over the 1,701,217 trainable rows.
+  * all four cache configurations are recorded in configs/data_manifest.yaml, so
+    no reader can take a figure without also taking the configuration it
+    describes. That is what let 14.7 propagate into two consumers as if it were
+    the requirement.
+  * ROADMAP.md:1355-1360 receives a DATED AMENDMENT. Its 2026-07-20 measurement
+    stands; three of its conclusions no longer do.
+
+  Ratchet 4120 -> 4121 (+1, predicted exactly). Suite 4115 passed, 6 skipped.
+
+THE JEPA POSITION, RESTATED FROM MEASUREMENT:
+  DISK IS NO LONGER A BLOCKER. 275.94 GiB free against a 55.20 GiB token-level
+  trainable cache leaves 220.74 GiB, 23.59 per cent of the volume, well clear of
+  the 46.78 GiB five-per-cent hazard floor. Even the full-cohort token-level
+  cache at 143.42 GiB leaves 132.52 GiB.
+
+  THE REAL BLOCKER IS UNCHANGED. genomic_lm.py:284 computes a 512-dimensional
+  vector and reduces it to np.linalg.norm(...) on the next line; ESM-2, the Graph
+  Attention Network and the tabular network all do the same. There is nothing to
+  cache. `embedding_cache` has ZERO occurrences in this repository.
+
+  AND THE ORDER IS FIXED BY THE SOURCE DOCUMENT, adopted verbatim at
+  CHANGELOG:1488: Fusion version 1 comes BEFORE JEPA. The next artifact is not a
+  JEPA implementation; it is a REPRESENTATION PRESERVATION AND REPRODUCIBILITY
+  LAYER carrying full artifact identity -- modality, source model family,
+  checkpoint hash, model config hash, tokenizer hash, preprocessing version,
+  sequence window specification, embedding layer, storage dtype, pooling policy,
+  source partition, population fingerprint, ordered row identity hash, source
+  input hash, extraction code commit, cache schema version -- with sharded
+  storage and a COMPLETE marker written only after every row is present exactly
+  once and a deterministic sample re-extraction agrees within tolerance.
+
+NEW STANDING RULE -- A CONSTANT MUST HAVE ONE MEANING, AND ITS COMMENT MUST BE
+TRUE. `working_cache_gib` was a run-gate allowance documented as a JEPA cache.
+Neither half of that comment survived measurement, and downstream consumers took
+the number at the comment's word. Where a figure has several legitimate
+configurations, record ALL of them beside it and declare which is selected.
+
+NEW STANDING RULE -- READ EVERY CONSUMER BEFORE CHANGING A SHARED CONSTANT. This
+change took four rounds of reading before a line was written, and each round
+found coupling the previous had missed: a third copy of the constant, a second
+hard-coded derived figure, a wrong directory, and a load path driven by dictionary
+KEYS rather than by explicit names. Three claims made between those reads were
+wrong, every one from reasoning ahead of the source.
+
+CORRECTED 2026-07-31 BY MONZIA -- BYLINES. Claude had generalised a narrow
+instruction ("never write 'Written FOR Monzia Moodie'") into a blanket rule
+against all authorship lines, then found his name in six files and queued a
+commit to remove it. Monzia is the AUTHOR of this project, and the only correct
+forms are "Written by Monzia Moodie" and "Author: Monzia Moodie".
+The removal was withdrawn and every byline stands. The meta-rule he stated
+alongside it: STOP EXTRAPOLATING -- ask first.
+
+STILL REQUIRED, unchanged:
+  * conformal's four remaining absent modules: artifacts, gene_ranking,
+    multilabel, monitoring.
+  * the metric stack's five remaining items: OperatingPointMetrics with threshold
+    provenance, a typed BinaryEvaluationReport, the two clinical panels, the
+    living glossary, and the specification committed with a conformance test.
+  * the five criticisms of risk_control.py recorded on 2026-07-30: the theorem is
+    unnamed, the monotonicity gate checks the EMPIRICAL curve where the guarantee
+    needs the POPULATION one, Clopper-Pearson does not refuse a non-Bernoulli
+    loss, the false-negative estimand has three forms of which one is returned,
+    and the exchangeability unit is unstated.
+  * PHASE III-A, SCIENTIFIC DATA ACQUISITION, which gates three deliverables:
+    MaveDB for conformalized quantile regression, GTEx version 10 counts for the
+    ribonucleic-acid work and the variational autoencoder, and a matched
+    donor-level multi-omics cohort for multi-omics factor analysis. Those three
+    are DATA projects, not implementation projects.
+  * the Kolmogorov-Arnold Network re-measure against imodelsx 1.0.13, then
+    pykan==0.2.8 as a pinned challenger.
+  * INCIDENT_2026-07-08 remains a Tier 0 VALIDITY failure and outranks all of it.
+  * FIVE_WAY is a correct fix that no command-line choice can select.
