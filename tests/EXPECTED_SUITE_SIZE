@@ -4303,4 +4303,189 @@
 #
 #   Sabotage: 9 mutations, 9 detected, 0 undetected, 0 anchor misses.
 #
-4121
+#
+# RECONSTRUCTED HISTORY -- 2026-08-01
+#
+# The following six suite-size transitions occurred in committed history but
+# received no contemporaneous ratchet-log heading. Reconstructed from:
+#
+#     git log -p --follow -- tests/EXPECTED_SUITE_SIZE
+#
+# This is a factual reconstruction of commit, date, transition and subject only.
+# No contemporaneous sabotage record was located; none is inferred. A mutation
+# run may have happened without being written down, and absence of a RECORD is
+# not absence of an ACTIVITY.
+#
+# The number was maintained correctly throughout -- every one of these six
+# commits bumped it, and continuous integration runs the gate under
+# --assert-suite-size, so a stale value would have failed the push. What lapsed
+# was the NARRATIVE. That is the second decay this file can suffer: the gate
+# makes forgetting the NUMBER fail, and does not make forgetting the STORY fail.
+# A bare +270 cannot afterwards be distinguished from 270 tests appearing by
+# accident.
+#
+#   50bb9fa  2026-07-30  3851 -> 3856  (+5)
+#     carried item CI-i predicate; derive the README badge
+#
+#   2044102  2026-07-30  3856 -> 3862  (+6)
+#     repair 301 lines of double-encoding in the changelog
+#
+#   c4229f1  2026-07-30  3862 -> 3898  (+36)
+#     metric registry, commit 2 -- Brier decomposition
+#
+#   27f6009  2026-07-30  3898 -> 3959  (+61)
+#     three metrics the catalogue declared
+#
+#   c4f14fb  2026-07-30  3959 -> 4120  (+161)
+#     risk_control -- bound a clinical risk
+#
+#   dfc9d74  2026-07-30  4120 -> 4121  (+1)
+#     separate the run-gate allowance from the JEPA figure
+#
+#     Historical-placement correction:
+#
+#     The Joint-Embedding Predictive Architecture disk-correction prose dated
+#     2026-07-30 was appended at lines 4274-4302 beneath the earlier
+#     3711 -> 3851 entry, whose heading is dated 2026-07-29. It belongs
+#     semantically to dfc9d74 / 4120 -> 4121. The original text is deliberately
+#     LEFT IN PLACE; this pointer corrects its attribution without rewriting the
+#     historical artifact. Moving it would make the file read as though it had
+#     always been correctly organised, which is a weaker record than an additive
+#     erratum: the filing error is itself evidence about how this log decays.
+#
+# Arithmetic:
+#
+#     5 + 6 + 36 + 61 + 161 + 1 = 270
+#     3851 + 270 = 4121
+#
+# Sabotage: contemporaneous results unavailable; none reconstructed.
+#
+#
+# 4121 -> 4140 (+19)  2026-08-01  POP-1a: explicit label-eligible evaluation
+#   population.
+#
+#   THE OTHER HALF OF THE 2026-07-27 RULING. "No numerical kernel may select,
+#   filter, normalise or redefine its evaluation population." Commit 2a enforced
+#   that for predicted scores and probabilities and DELIBERATELY left the label
+#   half standing, because withheld labels are first-class here -- carried as NaN
+#   by CanonicalVariantTable -- and selecting on them is a POPULATION decision.
+#   `population.py` was written as the replacement and, until this commit, had
+#   ZERO call sites in production. Twenty-two in tests; none in src.
+#
+#   MEASURED 2026-08-01 against the installed package, before any change. With
+#   y = [1, 1, 0, nan], registry.compute returned for positive_predictive_value:
+#
+#       value 1.0   status ok   reason None
+#       CERTIFICATION_ELIGIBLE True   N_OBSERVATIONS 4
+#       POPULATION_FINGERPRINT sha256:9ff577fc...
+#
+#   A value computed over THREE rows, carrying the FOUR-row population's size and
+#   fingerprint, certified eligible, with no reason and no diagnostic. The
+#   narrowing happened inside metrics.clean_arrays where nothing downstream could
+#   see it. registry.py:530-535 records the same shape on the probability axis --
+#   a Brier score over 980 rows reported as n_observations = 1000 -- which is the
+#   incident the ruling was written to eliminate. The fingerprint is the sharpest
+#   part: it attested to a membership set the value was not computed over.
+#
+#   THE WIRING. The population is built BEFORE the input gates, restricted with
+#   scope "label_eligible" and reason "reference_label_withheld" -- the vocabulary
+#   the suite already asserted at twenty-two call sites -- and every array is
+#   projected exactly once. Fourteen consumers were enumerated from the source
+#   before a line was written; a projection reaching thirteen of them produces a
+#   fingerprint that is ACTIVELY WRONG rather than merely over-broad.
+#
+#   Gene clusters are resolved on the PROJECTED frame. `_resolved` refuses
+#   all-or-nothing on any missing gene label and `partitions_equivalent` compares
+#   whole columns, so resolving on the full frame would withhold a certified
+#   interval because a row EXCLUDED from the evaluation lacked a gene symbol --
+#   the 3b-1a over-restriction repeated. compare_models restricts ONCE and hands
+#   down one object, because restricting per call would make the comparison
+#   artifact record the ATTEMPTED fingerprint while every report it summarises
+#   described the narrower set: this defect, one layer up.
+#
+#   THREE FAILURES LIE BEHIND AN EMPTY POPULATION, AND ARE GUARDED ONCE. An
+#   all-withheld cohort projects to n = 0, and restrict permits it: it refuses a
+#   mask removing NOTHING, not one removing everything. Downstream sit a division
+#   by zero at the logger, a LegacyProjectionError from the single-class
+#   area-under-the-precision-recall-curve rule -- which correctly refuses to rest
+#   a derived value on a prevalence that was itself refused -- and an
+#   uncharacterised multiplication in print_report. Guarding them one at a time
+#   would be patchwork and the third was never even reached. The cohort is
+#   refused once, with its lineage in the message. That is NOT the component-level
+#   refusal the input gates perform: those withhold ONE quantity from a cohort
+#   that exists. Here there is no cohort.
+#
+#   A DEFECT REPAIRED IN PASSING, DELIBERATELY DECLARED. `n_pos = int(y.sum())`
+#   sat at line 817, ABOVE every input gate, and raised "cannot convert float NaN
+#   to integer" on a withheld label -- measured on six of nine probed dtypes,
+#   including a plain float array and a pandas Series, which is exactly what the
+#   signature advertises. `evaluate` died there rather than reaching the gates
+#   built for that input. Moving the line below the projection repairs it by
+#   construction.
+#
+#   FOUR DEFECTS OF MINE, ALL CAUGHT BY SOMETHING OTHER THAN MY OWN READING.
+#
+#     THE SCORES REGRESSION. The first POP-1a projected `scores` BEFORE
+#     validate_ranking_scores, so a mis-sized array raised from population.take
+#     instead of being refused -- precisely the defect recorded at that gate on
+#     2026-07-28 ("REFUSED MEANS NOT FORWARDED"), reintroduced one layer earlier.
+#     Caught by the FULL SUITE, not by review: 1 failed, 4130 passed. `y` and `p`
+#     are validated with n_expected=n because they are already projected;
+#     `scores` arrives SOURCE-ALIGNED, so it is checked against n_source and
+#     projected only once it validates. Only ONE of that test's two
+#     parametrisations failed -- the correctly sized array passes take() and is
+#     refused gracefully -- so a spot check would have missed it.
+#
+#     A VACUOUS TEST. The companion score test asserted only that the curves were
+#     non-empty. On the label-eligible cohort [1, 1, 0] the fixture
+#     [0.95, 0.05, 0.15] yields an area under the receiver operating
+#     characteristic curve of 0.5 -- IDENTICAL to the probability channel
+#     [0.9, 0.1, 0.2]. It would have passed while the evaluator validated the
+#     array, projected it, and then ignored it. Replaced with
+#     [0.95, 0.85, 0.15], which yields 1.0 and separates the channels.
+#
+#     TWO BLANK-LINE DEFECTS, from an appender idiom that stripped a block's own
+#     leading newlines. Found by reading the applied diff. There is NO LINT GATE
+#     in this repository -- no ruff, flake8, pycodestyle or pre-commit
+#     configuration, and none of the five workflows runs one -- so formatting
+#     discipline rests entirely on review. Recorded as a follow-up.
+#
+#   SABOTAGE. Fourteen mutations in a disposable git worktree. Two defences ran
+#   first, because POP-1a was uncommitted and an editable install would have
+#   resolved imports to the REAL src rather than the worktree, making every
+#   mutation land on a file nothing imports and reporting 0 detected / 14
+#   undetected -- the exact inverse of the truth. PYTHONPATH was pinned to the
+#   worktree and evaluator.__file__ confirmed inside it; then a CANARY break was
+#   required to turn the suite red, with the run aborting as HARNESS_ERROR
+#   otherwise. The canary produced 37 failures. Restoration was verified against
+#   the pristine digest after every one of fifteen runs.
+#
+#   M10 IS UNDETECTED AND RECORDED. Counting positives from the attempted labels
+#   with np.nansum is EQUIVALENT on every fixture cohort: nansum ignores NaN and
+#   the projection removes exactly the NaN rows. The two diverge only on an
+#   INFINITE label, which np.isfinite excludes and np.nansum does not -- there the
+#   projected sum is 2 and int(np.nansum(...)) raises OverflowError. That is a
+#   real but narrow gap, and it raises a question deferred deliberately: an
+#   infinity is not a MISSING label, it is a CORRUPT one, and treating it as
+#   withheld pools it with genuine NaN.
+#
+#   Three mutations -- M04, M05, M13 -- were each detected by exactly ONE test,
+#   test_the_metadata_frame_is_projected_with_the_arrays. Deleting that single
+#   test would make three mutations invisible.
+#
+#   ACCEPTANCE: 19 tests in tests/unit/test_population_wiring.py, all green; the
+#   full suite 4134 passed + 6 skipped = 4140 collected, skip set unchanged at 6;
+#   test_existing_registry_results_do_not_move UNMOVED, its label_restricted
+#   fixture having already applied this idiom before POP-1a existed.
+#
+#   FOLLOW-UPS RECORDED, NONE TOUCHED: ABS-1, the ranking channel's refusal
+#   reported as undefined_on_cohort because _absence_maps takes ranking_check and
+#   never reads it; roughly forty lines of dead absence computation in evaluate,
+#   discarded at line 1240 and carrying a reason string that already disagrees
+#   with the live one; eighteen ruff F821 undefined names, seven of them the
+#   deliberate _ensure_sklearn global injection; no lint gate; ModelComparison
+#   carrying a population fingerprint with no population scope beside it.
+#
+#   Sabotage: 14 mutations, 13 detected, 1 undetected, 0 anchor misses.
+#
+4140

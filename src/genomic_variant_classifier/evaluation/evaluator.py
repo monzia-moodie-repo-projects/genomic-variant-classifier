@@ -811,10 +811,145 @@ class ClinicalEvaluator:
         Returns:
             EvaluationReport with all metrics populated.
         """
-        y = np.asarray(y_true)
-        p = np.asarray(y_proba)
-        n = len(y)
-        n_pos = int(y.sum())
+        y_attempted = np.asarray(y_true)
+        p_attempted = np.asarray(y_proba)
+        n_source = len(y_attempted)
+
+        # --- THE EVALUATION POPULATION, CONSTRUCTED FIRST (POP-1, 2026-08-01) -
+        #
+        # Ruled 2026-07-27: no numerical kernel may select, filter, normalise or
+        # redefine its evaluation population. Commit 2a enforced that for scores
+        # and probabilities and DELIBERATELY left the label half standing, parked
+        # behind a named transitional selector, because withheld labels are
+        # first-class here and selecting on them is a POPULATION decision.
+        # `population.py` was written as that selector's replacement and, until
+        # this commit, had no call site in production.
+        #
+        # Measured 2026-08-01 on the installed package: with y = [1, 1, 0, nan],
+        # `positive_predictive_value` returned 1.0 with status ok,
+        # certification_eligible True and N_OBSERVATIONS 4 -- computed over three
+        # rows, carrying the four-row fingerprint. `metrics.clean_arrays` had
+        # narrowed the set inside the kernel, where nothing downstream could see
+        # it. That is the defect shape `population.py` exists to make impossible.
+        #
+        # The population is built BEFORE the input gates because every array
+        # below, and every count derived from one, must describe the same rows.
+        #
+        # ATTRIBUTION IS OPTIONAL AND NEVER FAKED. `evaluate` receives arrays,
+        # not a canonical table, so it has no source identity unless the caller
+        # supplies one: with `source_id` the population is attributed and carries
+        # a membership fingerprint; without it there is NO fingerprint, and
+        # comparison against any other population returns UNKNOWN rather than a
+        # false equality.
+        #
+        # THE CALLER MAY SUPPLY THE POPULATION (2026-07-28, CI-q). `compare_models`
+        # builds ONE population and hands the SAME OBJECT to every model, so
+        # intra-call sameness is proved by construction rather than inferred from
+        # equal fingerprints -- which would only show that two independently built
+        # populations happened to agree.
+        if population is not None:
+            if population.n_source != n_source:
+                raise ValueError(
+                    f"the supplied population describes {population.n_source} "
+                    f"rows but {n_source} were passed; a comparison cannot share "
+                    "a population with a cohort of a different size")
+            if source_id is not None and population.source_id != source_id:
+                raise ValueError(
+                    "the supplied population and source_id disagree; one of them "
+                    "is not describing this cohort")
+            attempted = population
+        else:
+            attempted = EvaluationPopulation.full(
+                n_source, scope="attempted_cohort", source_id=source_id)
+
+        # The mask is relative to THIS population, not to the source frame --
+        # `EvaluationPopulation.restrict` requires that and says so. The
+        # `mask.all()` guard is not a workaround for the strict-narrowing rule:
+        # it prevents a fully labelled cohort from acquiring a false claim that a
+        # restriction occurred.
+        label_mask = np.isfinite(np.asarray(attempted.take(y_attempted),
+                                            dtype=float))
+        population = attempted if bool(label_mask.all()) else attempted.restrict(
+            label_mask, scope="label_eligible",
+            reason="reference_label_withheld")
+
+        # PROJECTED EXACTLY ONCE. `take` is absolute against the source frame, so
+        # each of these is a single fancy-index with no chain to walk. Rebinding
+        # `y` and `p` themselves is deliberate: every consumer below reads the
+        # projected arrays without a textual change, and the assertions that
+        # follow are what stop that from becoming a silent trap.
+        y = population.take(y_attempted)
+        p = population.take(p_attempted)
+        n = population.n
+        # `scores` IS DELIBERATELY NOT PROJECTED HERE (POP-1a-fix, 2026-08-01).
+        #
+        # It is validated first, against the SOURCE length, and projected only
+        # once it validates -- see the ranking channel below. Projecting it here
+        # made a mis-sized array raise from `population.take` rather than be
+        # refused, which is precisely the defect the ranking gate's own contract
+        # comment records (2026-07-28) reintroduced one layer earlier. The
+        # phrase is deliberately not repeated here: a post-check that counts it
+        # must find exactly one occurrence, and quoting it would have the
+        # installer refuse its own correct patch -- which is what happened on
+        # the first fixture run. Caught by test_report_input_gates.py
+        # ::test_the_scores_channel_refuses_unusable_scores[length_mismatch].
+        meta_eval = (None if meta is None
+                     else meta.iloc[population.indices].reset_index(drop=True))
+
+        if len(y) != n or len(p) != n:
+            raise AssertionError(
+                f"projection produced {len(y)} labels and {len(p)} probabilities "
+                f"for a population of {n}")
+        if population.n > attempted.n:
+            raise AssertionError("a restriction cannot widen a population")
+        if meta_eval is not None and len(meta_eval) != n:
+            raise AssertionError(
+                f"the metadata frame projected to {len(meta_eval)} rows for a "
+                f"population of {n}")
+
+        # THE ALL-WITHHELD COHORT IS REFUSED, ONCE, HERE (POP-1, 2026-08-01).
+        #
+        # Measured 2026-08-01: an EMPTY population is fully constructible --
+        # `restrict` refuses only a mask that removes NOTHING, so one removing
+        # everything yields n == 0 with a normal fingerprint and lineage. Three
+        # separate failures then lie downstream of it:
+        #
+        #   822   `n_pos / n * 100`            ZeroDivisionError
+        #   962   `project_legacy_fields(...)` LegacyProjectionError -- the
+        #         single-class area-under-the-precision-recall-curve rule
+        #         substitutes prevalence, and on an empty cohort prevalence is
+        #         ITSELF refused. That guard is correct and refuses by raising.
+        #  1531   `r.prevalence * 100`         unreached, therefore unmeasured
+        #
+        # Guarding them one at a time would be patchwork, and the third is not
+        # even characterised. Refusing the cohort here makes all three
+        # unreachable with one statement.
+        #
+        # This is NOT the component-level refusal the input gates perform. Those
+        # withhold ONE quantity from a cohort that exists. Here there is no
+        # cohort: every row was excluded, so there is nothing for a component to
+        # be computed over and nothing a report could describe. Note that this
+        # state already crashes TODAY -- at `int(y.sum())` on line 817 for an
+        # all-withheld cohort, or at the division on 822 for an empty input --
+        # so this replaces a confusing failure with a stated one.
+        if population.n == 0:
+            raise ValueError(
+                f"the label-eligible population is empty: all {attempted.n} "
+                "attempted row(s) carry a withheld reference label, so there is "
+                "no cohort to evaluate. This is refused rather than reported "
+                "because a report over zero rows would require the legacy "
+                "projection to derive a value from a quantity that was itself "
+                "refused, which `legacy_projection` correctly forbids. "
+                f"Population lineage: {population.describe()}")
+
+        # AFTER the projection, so the labels are finite by construction. Before
+        # POP-1 this line read `n_pos = int(y.sum())` above the input gates and
+        # RAISED `ValueError: cannot convert float NaN to integer` on a withheld
+        # label -- measured 2026-08-01 on six of nine probed dtypes, including a
+        # plain float array and a pandas Series, which is what the signature
+        # advertises. `evaluate` died there rather than reaching the gates built
+        # for exactly that input. That defect is repaired here, deliberately.
+        n_pos = int(np.asarray(y, dtype=float).sum())
         n_neg = n - n_pos
 
         logger.info(
@@ -860,13 +995,28 @@ class ClinicalEvaluator:
         # caller declares which they meant, and the report stops having to guess.
         if scores is not None:
             candidate = np.asarray(scores, dtype=float)
-            ranking_check = validate_ranking_scores(candidate, n_expected=n)
+            # VALIDATED AGAINST THE SOURCE LENGTH (POP-1a-fix, 2026-08-01).
+            #
+            # `y` and `p` are checked with `n_expected=n` because they have
+            # already been projected. `scores` has NOT been: the caller supplied
+            # a source-aligned array, so a length error is an error relative to
+            # what they passed, not relative to a label-eligible subset they
+            # never saw. Checking it against `n` would call a correctly sized
+            # array mis-sized whenever any label was withheld.
+            ranking_check = validate_ranking_scores(candidate,
+                                                    n_expected=n_source)
             # REFUSED MEANS NOT FORWARDED. A first version validated the array
             # and passed it to the registry anyway, so a mis-sized `scores`
             # raised a ValueError from the context's own length check -- turning
             # a refusal this gate exists to make graceful back into an exception
             # three layers down.
-            ranking_values = candidate if ranking_check.ok else None
+            #
+            # PROJECTED ONLY ON THE OK BRANCH, for the same reason: `take`
+            # refuses a mis-sized array by RAISING, so projecting before the
+            # verdict would convert this graceful refusal back into an
+            # exception -- which is exactly what POP-1a did until this fix.
+            ranking_values = (population.take(candidate) if ranking_check.ok
+                              else None)
         else:
             # NO FALLBACK WHEN THE PROBABILITY IS INVALID.
             #
@@ -915,32 +1065,11 @@ class ClinicalEvaluator:
         # projection, and the abstract-syntax-tree guard refuses any direct kernel
         # call or threshold comparison in this path.
         #
-        # THE POPULATION. `evaluate` receives arrays, not a canonical table, so it
-        # has no source identity unless the caller supplies one. Attribution is
-        # OPTIONAL and never faked: with `source_id` the population is attributed
-        # and carries a membership fingerprint; without it it is unattributed, has
-        # NO fingerprint, and comparison against any other population returns
-        # UNKNOWN rather than a false equality.
-        # THE CALLER MAY SUPPLY THE POPULATION (2026-07-28, CI-q).
-        #
-        # `compare_models` builds ONE population and hands the SAME OBJECT to
-        # every model, so intra-call sameness is proved by construction rather
-        # than inferred from equal fingerprints. Equal fingerprints would only
-        # show that two independently built populations happened to agree --
-        # which is what this parameter exists to replace.
-        if population is not None:
-            if population.n_source != n:
-                raise ValueError(
-                    f"the supplied population describes {population.n_source} "
-                    f"rows but {n} were passed; a comparison cannot share a "
-                    "population with a cohort of a different size")
-            if source_id is not None and population.source_id != source_id:
-                raise ValueError(
-                    "the supplied population and source_id disagree; one of them "
-                    "is not describing this cohort")
-        else:
-            population = EvaluationPopulation.full(
-                n, scope="attempted_cohort", source_id=source_id)
+        # The population was constructed above, before the input gates, so that
+        # every array and every derived count describes one row set (POP-1).
+        # Its full rationale -- optional attribution, and why `compare_models`
+        # hands one object to every model -- moved with the code rather than
+        # being left here describing a block that is no longer beneath it.
         # THE TWO REGISTRY CHANNELS RECEIVE DIFFERENT ARRAYS (2026-07-28, CI-t).
         #
         # Until this commit both received `p`. The registry has always drawn the
@@ -965,7 +1094,16 @@ class ClinicalEvaluator:
         # same frame the breakdowns use. Deriving them separately per metric
         # would reintroduce the alignment-defect class the canonical seam exists
         # to prevent.
-        cluster = resolve_gene_clusters(meta)
+        # RESOLVED ON THE PROJECTED FRAME (POP-1, 2026-08-01).
+        #
+        # `_resolved` refuses all-or-nothing on any missing gene label, and
+        # `partitions_equivalent` compares whole columns. Resolving on the full
+        # frame would therefore withhold a certified interval because a row
+        # EXCLUDED from the evaluation lacked a gene symbol, or because two gene
+        # columns disagreed only on excluded rows -- the over-restriction class
+        # corrected in commit 3b-1a. Resolving here also makes `cluster.values`
+        # already `population.n` long, so the bootstrap cannot misalign.
+        cluster = resolve_gene_clusters(meta_eval)
         if not cluster.usable:
             logger.warning(
                 "certified bootstrap withheld: %s (%s). Point metrics are "
@@ -1020,9 +1158,9 @@ class ClinicalEvaluator:
         # Breakdowns (require meta)
         consequence_rows: list = []
         gene_error_rows:  list = []
-        if meta is not None:
-            consequence_rows = self._consequence_breakdown(y, p, meta)
-            gene_error_rows  = self._gene_error_analysis(y, p, meta, top_n=20)
+        if meta_eval is not None:
+            consequence_rows = self._consequence_breakdown(y, p, meta_eval)
+            gene_error_rows  = self._gene_error_analysis(y, p, meta_eval, top_n=20)
 
         # THE TYPED SURFACE IS NOW EMITTED (commit 3b-2).
         #
@@ -1799,9 +1937,25 @@ def compare_models(
     # Previously each `evaluate` call built its own equivalent population, so the
     # sameness was true in fact and unprovable from the artifacts -- the models
     # were compared like for like and nothing recorded it.
-    n_rows = len(np.asarray(y_true))
-    shared_population = EvaluationPopulation.full(
+    # RESTRICTED HERE, ONCE (POP-1, 2026-08-01).
+    #
+    # `evaluate` now narrows to the label-eligible rows. If it did so per call,
+    # each model would receive an equal-but-distinct population, and the
+    # comparison artifact below would record the ATTEMPTED fingerprint and n
+    # while every report it summarises described the narrower set -- the very
+    # divergence POP-1 removes, reappearing one layer up. Restricting once and
+    # handing down the SAME OBJECT keeps claim 1 structural, exactly as this
+    # module's contract states.
+    y_rows = np.asarray(y_true)
+    n_rows = len(y_rows)
+    attempted_population = EvaluationPopulation.full(
         n_rows, scope="model_comparison_attempted_cohort", source_id=source_id)
+    comparison_label_mask = np.isfinite(np.asarray(y_rows, dtype=float))
+    shared_population = (
+        attempted_population if bool(comparison_label_mask.all())
+        else attempted_population.restrict(
+            comparison_label_mask, scope="label_eligible",
+            reason="reference_label_withheld"))
 
     for name, proba in model_probas.items():
         r = evaluator.evaluate(y_true, proba, meta=meta, model_name=name,
