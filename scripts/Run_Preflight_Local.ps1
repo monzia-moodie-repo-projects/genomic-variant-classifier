@@ -318,7 +318,28 @@ sys.exit(0 if not errs else 1)
     # A number written down once and never re-derived becomes a lie on a schedule. So don't
     # write it down -- DERIVE it, and fail loud when the document and the code disagree.
     if (Test-Path $planPath) {
-        $codeCount = (& $venvPython -c "from genomic_variant_classifier.models.variant_ensemble import EXPECTED_TABULAR_FEATURE_COUNT as n; print(n)" 2>&1).Trim()
+        # PRE-1a, 2026-08-01. `2>&1` on a native command merges standard
+        # error as ErrorRecord OBJECTS, not strings, so the result was a
+        # two-element array and .Trim() member-enumerated and died on the
+        # element that has no such method. The KAN repair banner is written
+        # to standard error by the import chain, so this fired on every run.
+        # The numeric guard below was written to catch a non-numeric result
+        # and never got the chance. HOW LONG this has been broken is not
+        # known: it depends on when the KAN repair began writing to standard
+        # error, not on any date in the plan. What IS known is that on
+        # 2026-08-01 the crash counted as neither pass nor fail in the
+        # summary -- 53 passed, 1 warned, 1 failed, and 13c in none of them.
+        $rawCount = @(& $venvPython -c "from genomic_variant_classifier.models.variant_ensemble import EXPECTED_TABULAR_FEATURE_COUNT as n; print(n)" 2>&1)
+        $codeCount = ($rawCount |
+            Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] } |
+            Select-Object -Last 1 |
+            ForEach-Object { $_.ToString().Trim() })
+        if (-not $codeCount) {
+            # Everything the interpreter produced was on standard error.
+            # Hand the guard below the whole text so its failure message
+            # carries the diagnosis instead of an empty string.
+            $codeCount = (($rawCount | ForEach-Object { $_.ToString() }) -join ' ').Trim()
+        }
         if ($codeCount -notmatch '^\d+$') {
             Fail "13c: could not read EXPECTED_TABULAR_FEATURE_COUNT from the package: $codeCount"
         } else {
