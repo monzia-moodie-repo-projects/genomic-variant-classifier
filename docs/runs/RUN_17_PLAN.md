@@ -8,7 +8,7 @@ This plan must be fully populated and Charter v1.1 gates G1 + G2 must PASS befor
 
 ---
 
-<!-- FEATURE_CONTRACT: 97 -->
+<!-- FEATURE_CONTRACT: 95 -->
 <!--
   ^ THE MACHINE-READABLE CONTRACT ASSERTION. G1 §13c reads this marker and hard-fails if it
   disagrees with EXPECTED_TABULAR_FEATURE_COUNT in the package. It is the single authority;
@@ -95,8 +95,33 @@ Guarded by `tests/unit/test_logistic_regression_is_scaled.py`, which **fails on 
 > as a LIVE ASSERTION about the contract. Do not write one unless you mean it, and never wrap it
 > in markdown emphasis: `**97**-feature` is invisible to the check, which is precisely how a
 > number a human can read but a machine cannot verify goes stale.
+>
+> **CONTRACT CORRECTED AGAIN 2026-08-02: ninety-seven -> ninety-five.** On
+> **2026-07-14** (`4528414`, roadmap 6.21a) the two HGMD columns were REMOVED --
+> not renamed, not deferred. Two independent reasons, either sufficient. First,
+> no licence: HGMD Professional is a paid QIAGEN product this project does not
+> hold, so both columns were CONSTANT ZERO for the life of the project, occupying
+> two slots and making the roster overstate the science by two. Second, and this
+> one survives the licence arriving: HGMD "DM" means *disease-causing mutation*
+> and the training label here is ClinVar Pathogenic -- the same quantity under two
+> vendors' names. As a VARIANT-LEVEL feature it is an answer key, and the
+> gene-aware split cannot help, because the leak sits inside every fold at the
+> variant level. A variant of uncertain significance, which is precisely what this
+> classifier exists to score, has no HGMD entry: the flag reads zero, the model
+> leans benign, and you publish an excellent area under the receiver operating
+> characteristic curve on catalogued variants while systematically under-calling
+> the variants that matter. If access is ever obtained, wire it GENE-LEVEL and
+> LEAVE-ONE-OUT (`n_hgmd_dm_in_gene`, excluding the variant being scored),
+> mirroring `n_pathogenic_in_gene` -- never as a variant-level flag.
+>
+> **This document was frozen on 2026-07-13 and four of its assertions went stale
+> afterwards**, of which G1 §13c reads exactly one. The marker, this hypothesis,
+> B.D3 and B.D4 were corrected together on 2026-08-02, because correcting only the
+> marker would have restored the green light over three remaining misstatements.
+> §13c itself could not run at all until 2026-08-01 (`f2cff8c`): it crashed on a
+> PowerShell type detail and its crash counted as neither pass nor fail.
 
-**H_Run17 (primary)**: The Run 17 baseline reproduces the Run 14/16 ensemble performance on the expanded 97-feature contract (88 + 3 FinnGen R13 + 6 KEGG/COSMIC/Nucleotide-Transformer columns) without regression, while the newly-wired Run-17 annotation sources (OMIM genemap2, FinnGen R12+R13, KEGG, COSMIC, the Nucleotide Transformer, and the other CLI-wired connectors) measurably reduce the silent-zero feature count relative to Run 16.
+**H_Run17 (primary)**: The Run 17 baseline reproduces the Run 14/16 ensemble performance on the expanded 95-feature contract (86 + 3 FinnGen R13 + 6 KEGG/COSMIC/Nucleotide-Transformer columns, the 86 being the Run-16 contract less the two HGMD columns excised 2026-07-14) without regression, while the newly-wired Run-17 annotation sources (OMIM genemap2, FinnGen R12+R13, KEGG, COSMIC, the Nucleotide Transformer, and the other CLI-wired connectors) measurably reduce the silent-zero feature count relative to Run 16.
 
 **H_Run17 (dual-release sub-hypothesis — the benchmarking experiment)**: FinnGen R12 and R13, run as two independent annotation passes over the *same* variants with evolved population frequencies, produce *measurably different* feature distributions and per-model feature-importance, demonstrating that the pipeline can ingest and benchmark two releases of the same source apples-to-apples. Specifically: R13 annotates more variants than R12 (higher non-null coverage), and `finngen_r13_*` feature-importance is correlated-but-not-identical to `finngen_*`.
 
@@ -115,8 +140,8 @@ This is a PROOF-OF-CONCEPT for the project's SUPPORTING goal (empirically measur
 - **B.D2** FinnGen R13: **WIRED (dual-release experiment)**. `data/external/finngen/finngen_R13_annotated_variants_v0.gz` (27.72 GB / 29,768,495,399 bytes, correct spelling, 1025 cols, SAME variant set as R12 -- see the PROBE-VERIFIED note below). Second independent `FinnGenConnector` pass with `column_prefix="r13_"` → `finngen_r13_af_fin/af_nfsee/enrichment`. Launcher hard-fails (exit 7) if missing.
   - Coverage/AF (20k reference sample): R12 17085/20000 nonzero (mean AF 0.1025); R13 19318/20000 nonzero (mean AF 0.0971) -- R13 informs more of the cohort.
   - **PROBE-VERIFIED 2026-06-28** (scripts/probe_finngen_sizes.py, full streaming pass, both files integrity=CLEAN): R12 and R13 have IDENTICAL data-row counts (21,331,644 each) and a HEAD-sample variant-key Jaccard of 1.0 (chrom:pos:ref:alt) -- so 'same variants, same coords, apples-to-apples' is verified, not assumed. The R13 file is SMALLER than R12 despite more samples, +8 net columns, and higher coverage purely because of ENCODING, not missing content: R12 (_v1) carries a per-row b37_coord string plus EXOME/GENOME nfee/nfse coord+AF string columns, while R13 (_v0) drops b37_coord and adds AC/AN integer-count columns that gzip-compress far better than coordinate strings. Both are BGZF (block-gzip; R12 ~1.74M members, R13 ~1.82M). SHA-256 recorded in data/external/finngen/CHECKSUMS.sha256.
-- **B.D3** Feature contract: **91 columns (88 + finngen_r13_af_fin/af_nfsee/enrichment)**. EXPECTED_TABULAR_FEATURE_COUNT=91; INFERENCE_FEATURE_COLUMNS auto-tracks as list(TABULAR_FEATURES). Contract test (test_feature_count_contract.py, 4/4) gates this.
-- **B.D4** Harness reference slice: feeds all 6 finngen columns (Option B); KNOWN_ZERO_DEFAULT=25 (finngen AF removed — now actively zero-audited, not allowlisted).
+- **B.D3** Feature contract: **95 columns (86 + finngen_r13_af_fin/af_nfsee/enrichment + KEGG/COSMIC/Nucleotide-Transformer x6)**. EXPECTED_TABULAR_FEATURE_COUNT=95; INFERENCE_FEATURE_COLUMNS auto-tracks as list(TABULAR_FEATURES). Contract test (test_feature_count_contract.py, 4/4) gates this.
+- **B.D4** Harness reference slice: feeds all 6 finngen columns (Option B); KNOWN_ZERO_DEFAULT=24 (finngen AF removed — now actively zero-audited, not allowlisted).
 
 ## C. Code changes required (with file paths) — ALL COMPLETE + CI-GREEN
 
