@@ -3582,3 +3582,198 @@ CARRIED FORWARD FROM A SUMMARY. The "remains OPEN / outranks all of it" claim wa
 carried in a session summary and repeated five times without once being checked
 against docs/measurements/. Six days of adopted decisions sat unread while their
 conclusion was contradicted in the same file.
+
+## ROADMAP delta -- 2026-08-01/02: POP-1a, PRE-1a, PRE-1b. Three commits, and NOT ONE NEW PATTERN.
+
+Commits: `1577f0b` (POP-1a), `f2cff8c` (PRE-1a), `db327c4` (PRE-1b). All pushed.
+Suite 4134 passed, 6 skipped, 4140 collected; ratchet 4121 -> 4140, armed and
+enforced. Preflight **G1 PASS -- 59 passed, 2 warned, 0 failed**.
+
+Full write-ups: `docs/SESSION_2026-08-01_pop1a-label-eligible-population.md` and
+`docs/SESSION_2026-08-02_pre1-preflight-contract-gate.md`.
+
+### 0. THE HEADLINE, AND IT IS UNCOMFORTABLE
+
+Everything found on 2026-08-01 and 2026-08-02 is a **recurrence of a shape
+already named in section 7**, not a discovery. Recording it as a discovery would
+repeat the failure section 7 exists to prevent, so it is recorded as recurrence.
+
+- **PRE-1b** is shape **(a)**, *"a number written down once and never re-derived
+  becomes a lie on a schedule"* -- and section 7's own example list already reads
+  **"`RUN_17_PLAN` asserting 91."** That is `B.D3`. It was named on 2026-07-12 as
+  a known instance and it was **still asserting 91 twenty-one days later**, on
+  2026-08-02, when PRE-1b corrected it.
+
+- **PRE-1a** is shape **(c)**, *"a gate that checks a PROXY instead of the thing
+  it claims to protect is not a gate"* -- which names section 13c explicitly.
+  PRE-1a is not that instance. It is the **repair for that instance silently
+  ceasing to run**: 13c crashed on a PowerShell type detail, printed the crash
+  into the transcript, and contributed to neither Passed, Warned nor Failed. A
+  gate that had degraded back into a comment.
+
+- **POP-1a** is the meta-rule at the end of section 7 -- *"a finding in a
+  document is a comment; a finding that fails a test is a gate."* `population.py`
+  was written on 2026-07-27 as the replacement for the retired
+  `metrics.select_finite_reference_labels`. Measured 2026-08-01: **twenty-two
+  call sites in `tests/`, ZERO in `src/`.** A mechanism built, tested, documented
+  and never wired in.
+
+The addendum at section 7 (a) is the closest reading of all three: the pytest
+floor rotted four more times in two days, *"every single time beneath an emphatic
+all-capitals comment demanding that it be raised."* `RUN_17_PLAN.md` lines 92-97
+carry an emphatic all-capitals instruction that any `<N>-feature` digit string is
+a LIVE ASSERTION. **Four assertions went stale beneath it.**
+
+### 1. POP-1a -- the other half of the 2026-07-27 ruling
+
+Commit 2a enforced *no kernel may redefine its population* for scores and
+probabilities and deliberately left the label half standing, because withheld
+labels are first-class and carried as NaN by `CanonicalVariantTable`.
+
+Measured before any change, on `y = [1, 1, 0, nan]`: `positive_predictive_value`
+returned **value 1.0, status ok, CERTIFICATION_ELIGIBLE True, N_OBSERVATIONS 4**
+-- computed over THREE rows, carrying the FOUR-row fingerprint. The narrowing
+happened inside `metrics.clean_arrays` where nothing downstream could see it.
+This is the identical shape `registry.py:530-535` records on the probability
+axis, which is the incident that produced the ruling.
+
+Wired: population built before the input gates, `scope="label_eligible"`,
+`reason="reference_label_withheld"` -- the vocabulary the suite already asserted
+-- with every one of fourteen enumerated consumers projected exactly once.
+Gene clusters resolve on the projected frame. `compare_models` restricts once.
+An all-withheld cohort is refused once, with its lineage in the message.
+
+Nineteen tests, 13 of 14 mutations detected. The one undetected is EQUIVALENT on
+every fixture cohort and is recorded, not excused (INF-1 below).
+
+### 2. PRE-1a / PRE-1b -- the gate, and what it was hiding
+
+`2>&1` on a native command merges standard error as **ErrorRecord objects**, so
+`(...).Trim()` died on the element with no such method. The guard for exactly
+this sat **one line below** and never got the chance to run.
+
+PRE-1a was committed **while 13c was failing**, deliberately. A repair that only
+ever showed green is a repair nobody has seen work.
+
+Four stale assertions, not one -- the plan was frozen 2026-07-13:
+
+```
+line  11  <!-- FEATURE_CONTRACT: 97 -->        the marker the gate reads
+line  99  a ninety-seven-feature claim         the PRIMARY HYPOTHESIS
+line 118  B.D3  91 columns; ...COUNT=91        already named in section 7
+line 119  B.D4  KNOWN_ZERO_DEFAULT=25          the code and its test say 24
+```
+
+(The line-99 entry is spelled in words. `RUN_17_PLAN.md` lines 92-97 rule that
+any `<N>-feature` digit string is a LIVE ASSERTION about the contract; that file
+is the one section 13c reads, but writing the HISTORY of a stale-digit incident
+using a stale digit is the trap that block warns about, wherever it is written.)
+
+Arithmetic, reconciled from commits: 88 + 3 (`752335c`) -> 91; + 6 (`80eb9c8`)
+-> 97; - 2 HGMD (`4528414`) -> 95. The HGMD pair sat INSIDE the 88, so the
+decomposition is now **86 + 3 + 6 = 95**.
+
+**97 -> 95 was a leakage excision, not a count correction.** HGMD "DM" is
+ClinVar Pathogenic under another vendor's name; the gene-aware split cannot help
+because the leak sits inside every fold at the variant level; and a variant of
+uncertain significance has no HGMD entry, so the flag reads zero and the model
+leans benign. If access is ever obtained: gene-level, leave-one-out, mirroring
+`n_pathogenic_in_gene` -- never a variant-level flag.
+
+The defect class is closed, not just the instance: `2>&1).` returns **zero**
+further hits across `Run_Preflight_Local.ps1`, and of six interpreter
+invocations only line 332 chained a method onto the captured result.
+
+### 3. THE ONE GENUINELY NEW OBSERVATION, AND IT IS A PROPOSAL, NOT A FINDING
+
+Shape (a)'s stated fix is **"derive it at gate time. Do not store it."**
+
+Section 13c now derives `EXPECTED_TABULAR_FEATURE_COUNT` from the package and
+compares it against `<!-- FEATURE_CONTRACT: 95 -->` in the plan. **That marker is
+still a stored copy.** It is a fifth hand-kept number, and the only reason it
+cannot rot silently is that 13c now fails when it does.
+
+That is a real improvement over a comment, and it is not the fix shape (a)
+prescribes. The end state worth considering -- **not adopted here, and not a
+decision to take in a documentation delta** -- is for the plan to CITE the
+contract rather than ASSERT it, so there is exactly one copy in the repository
+and nothing to keep in step.
+
+### 4. OPEN -- carried forward, dated, not lost
+
+| id | item |
+|---|---|
+| **ZERO-1** | Stage 5 warns **24 dead-connector defaults still zero**, allowlisted and marked expected. The HGMD excision was partly this: columns constant zero for the project's life while the roster counted them. Is each of the 24 still legitimately pending, or has the allowlist gone stale the way the plan did? A scientific question, not a preflight nicety. |
+| **INF-1** | An infinite reference label is pooled with NaN as *withheld*. An infinity is not a MISSING label, it is a CORRUPT one. Surfaced by mutation M10, which is equivalent on every NaN cohort and diverges only on infinity. |
+| **ABS-1** | The ranking channel's refusal is reported as `undefined_on_cohort`. `_absence_maps` takes `ranking_check` as a parameter and **never reads it**, so "the input was refused" is recorded as "the cohort was degenerate" -- the exact confusion `absence.py`'s own docstring says it exists to remove. |
+| **DEAD-1** | ~40 lines of dead absence computation in `evaluate` (1181-1220), discarded at 1240, already carrying a reason string that disagrees with the live one. Shape (a) in miniature: two copies, one unread, already drifted. |
+| **PRE-2** | Section 5's PASS line swallows the KAN banner, a RemoteException and a progress bar into its verdict text. Same merged-stream root cause; cosmetic. |
+| **LINT-1** | No lint gate anywhere: no ruff, flake8, pycodestyle or pre-commit configuration, and none of the five workflows runs one. `ruff` reports 603 I001, 500 UP045, 409 BLE001, 267 F401. Formatting discipline rests entirely on review -- and review missed two blank-line defects on 2026-08-01. |
+| **F821-1** | 18 undefined names. Seven are the deliberate `_ensure_sklearn` global injection -- which means no static analyser and no reader can verify those call sites. Nine need assessment; `metrics.py:1486` first. |
+| **CMP-1** | `ModelComparison` carries a population fingerprint with no population scope beside it. |
+
+### 5. NEXT
+
+POP-1b (the report surface: `n_source`, `n_label_eligible`,
+`n_reference_label_withheld`, scope and parent fingerprint, with a schema version
+bump), then REG-1 (protected metadata ownership on every result path), then OP-1.
+
+Then the drift monitor. Its current red is roadmap 6.20's fix working -- *"THE
+SCHEDULED DRIFT MONITOR HAD NEVER CHECKED ANYTHING"* -- exactly as 13c's red on
+2026-08-01 was PRE-1a working. Two gates, two months apart, the same shape: a
+check that reported success without ever performing a comparison.
+
+### 6. SUPERSESSION -- §0 of the 2026-07-12 catch-up delta has itself gone stale
+
+The corrections table at `## 0. CORRECTIONS to stale headline facts above`
+(lines 677-687) was accurate on the date its own header names, **2026-07-12**.
+Three of its claims are stale as of **2026-08-02**. The rows are NOT edited:
+they are a dated record of a correction that was true when made, and rewriting
+them would make this file read as though it had always been right -- which is
+the weaker record, and would destroy the evidence that a corrections table can
+itself rot.
+
+**Superseded, in order:**
+
+- **Line 681**, "§1 Project identity ... **97**
+  (`EXPECTED_TABULAR_FEATURE_COUNT = 97`, variant_ensemble.py:164)". The constant
+  is **ninety-five**, and it is at **line 193**, not 164. Both the value and the
+  citation are stale. Verified 2026-08-02:
+  `EXPECTED_TABULAR_FEATURE_COUNT = 95` at `variant_ensemble.py:193`.
+
+- **Line 683**, "`docs/runs/RUN_17_PLAN.md` §H_Run17 ... **97** ... **Open drift
+  -- fix before Run 17 launch.**" The contract is **ninety-five**, and the drift
+  is **CLOSED** by `db327c4` (2026-08-02), which corrected four stale assertions
+  in that plan -- the marker, the hypothesis, `B.D3` and `B.D4`. Section 13c of
+  the local preflight now derives the count and passes.
+
+- **Line 687**, the feature-contract history chain, captioned *"each step is an
+  audit, not a bump"*. It ends at ninety-seven and stops one transition short.
+  The final step is **ninety-seven to ninety-five** (`4528414`, 2026-07-14),
+  removing `hgmd_is_disease_mutation` and `hgmd_n_reports` -- roadmap 6.21a, a
+  LEAKAGE EXCISION, not a count change. HGMD "DM" is ClinVar Pathogenic under
+  another vendor's name, and both columns had been constant zero for the life of
+  the project for want of a licence.
+
+**Line 682 stands** -- it already reads "superseded -- see §5 below".
+
+**AND THE OBSERVATION THAT MATTERS.** A corrections table went stale in
+twenty-one days. That is shape **(a)** -- *"a number written down once and never
+re-derived becomes a lie on a schedule"* -- applied to the very artifact whose
+purpose is to record instances of shape (a). Section 7's prescribed fix,
+*derive it at gate time, do not store it*, is stated for guards; it applies with
+equal force to any table in this roadmap that quotes a live constant.
+
+A dated header -- `actual (2026-07-12)` -- is genuinely better than an undated
+claim, because it makes supersession declarable instead of arguable. **It does
+not enforce anything.** Nothing failed when the number moved on 2026-07-14, and
+nothing would have failed today had the drift not been chased for an unrelated
+reason. Per the meta-rule at the end of section 7: this entry is a comment, not
+a gate, and it should be read as one.
+
+The narrow, cheap version of the fix, recorded as a candidate and **not adopted
+here**: any roadmap table quoting `EXPECTED_TABULAR_FEATURE_COUNT`,
+`KNOWN_ZERO_DEFAULT` or `EXPECTED_SUITE_SIZE` should cite the constant's location
+rather than its value, so there is one copy in the repository and nothing to keep
+in step. That is the same proposal made in §3 above for `RUN_17_PLAN.md`'s
+marker, and it is one decision, not two.
