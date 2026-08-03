@@ -4488,4 +4488,123 @@
 #
 #   Sabotage: 14 mutations, 13 detected, 1 undetected, 0 anchor misses.
 #
-4140
+#
+# 4140 -> 4152 (+12)  2026-08-02  POP-1b: the report names its evaluation
+#   population. Schema version five.
+#
+#   POP-1a made `n_samples` the LABEL-ELIGIBLE count and deliberately added no
+#   fields, because schema surface belongs in its own commit with its own version
+#   bump. A reader of a version-4 artifact therefore could not tell a smaller
+#   cohort from a narrowed one. Five fields say which, by how much, and what the
+#   narrowing narrowed FROM: n_source, n_label_eligible,
+#   n_reference_label_withheld, population_scope, population_parent_fingerprint.
+#
+#   THE FINDING THAT SHAPED THE WHOLE DESIGN, and it is invisible in the
+#   dataclass. `from_serialized` filters a payload to known field names and calls
+#   the constructor. A payload written before POP-1b contains none of the five,
+#   so declared WITHOUT DEFAULTS they would raise TypeError on every version-1
+#   through version-4 artifact ever written. It appears only when the
+#   DESERIALISERS are read, which the preflight did and the dataclass could not.
+#
+#   The counts default to -1, not 0. Zero is a legitimate measurement for a
+#   cohort that was attempted and yielded nothing; a historical artifact must not
+#   read as though it recorded one. A negative sentinel is not a count.
+#
+#   `n_reference_label_withheld` reads `population.n_excluded_from_source`, an
+#   EXISTING property whose docstring already said "relative to the ORIGINAL
+#   frame, however many narrowings". The build specification proposed recomputing
+#   `n_source - n` inline; that would have been a SECOND COPY of one quantity --
+#   shape (a) inside the commit whose specification quotes shape (a).
+#
+#   THE THREE COUNTS ARE ENFORCED, NOT DECORATED. `__post_init__` asserts
+#   n_source == n_label_eligible + n_reference_label_withheld, and refuses a
+#   partial recording where two are measurements and one is a sentinel. A field
+#   trio that must sum is exactly the shape that rots silently: any one can drift
+#   and nothing notices. The battery constructs violations, because an invariant
+#   nothing can violate in a test is an invariant nothing checks.
+#
+#   DEAD-2 REMOVED IN THE SAME COMMIT. `field_absence` and `curve_absence` were
+#   declared TWICE in EvaluationReport, under two comment blocks both dated
+#   2026-07-29. Python kept the SECOND -- the pair whose comment is three lines --
+#   so the eight-line explanation of the biconditional was attached to
+#   declarations Python discarded. POP-1b adds five fields immediately below that
+#   region, which is how a third copy appears.
+#
+#   FOUND ONLY BY THE FULL SUITE. POP-1b's own battery and the two files it
+#   repaired were green while FOUR tests failed in two files nothing in this
+#   commit had opened: a cumulative field-growth guard, the readable-version set,
+#   and two emitted-version assertions. The preflight had measured 347 test lines
+#   matching `EvaluationReport|n_samples|schema`, which is why a schema change is
+#   not declared done on the strength of its own tests.
+#
+#   THE 2b-3 SNAPSHOT FIXTURE WAS NOT REGENERATED. The growth guard reads
+#   `tests/fixtures/report_snapshot_2b3.json` and lists every field added since.
+#   Rebasing it onto today would have made it permanently blind to everything
+#   added before now -- green while guarding nothing, which is worse than red.
+#   The five names were APPENDED, in the order `dataclasses.fields` returns them,
+#   measured from the live class. The installer verifies the fixture's digest
+#   after writing and restores everything if it moved.
+#
+#   Three assertions were protected from change because they are TRUE and POP-1b
+#   does not move them: `_TYPED == 3`, `_VERSION == 2`, and `removed == []`. Two
+#   more elsewhere: `_ABSENCE == 4`, and the `4/4` contract-test count in
+#   RUN_17_PLAN.md. Retargeting a true statement is how a correct document
+#   becomes a false one, and this session nearly did it three times.
+#
+#   A TEST NAME THAT HAD ALREADY GONE STALE. `test_exactly_one_report_field_was_
+#   added` asserted THREE: it was extended once and the name was left behind. That
+#   name cost a full turn of this session, reading as a historical claim about one
+#   commit when it is a running record. Renamed to
+#   `test_no_report_field_appeared_unannounced`, which will not need renaming.
+#
+#   SIX DEFECTS OF THE AUTHOR'S, AND NOT ONE WAS CAUGHT BY REVIEW. An orphaned
+#   comment that would have captioned the wrong constant; a docstring in a form
+#   this file uses nowhere; two names used in repairs that the target file does
+#   not import; a rename that would have DESTROYED the absence-maps guarantee it
+#   was meant to preserve; a hand-built fixture supplying six of thirty-seven
+#   required fields; and a line-count constant carried between two installers
+#   that count differently, which refused a byte-identical file. Every one was
+#   caught by an installer post-check, a rendered diff, or a real run.
+#
+#   A POST-CHECK MATCHED ITS OWN PROSE FOUR TIMES -- on `int(y.sum())`, on
+#   `REFUSED MEANS NOT FORWARDED`, on the score fixtures, and on
+#   `dataclasses.replace(`. Tuning the expected number fixes the instance and
+#   leaves the class. The checks now tokenise and count over code with comments
+#   and string literals removed. A count over source that discusses itself is
+#   structurally unreliable.
+#
+#   SABOTAGE. Eleven mutations in a disposable worktree, behind the same two
+#   defences as POP-1a: PYTHONPATH pinned with `evaluator.__file__` confirmed
+#   inside it, and a canary required to turn the suite red or the run aborts.
+#
+#   M01 REMOVED A DEFAULT -- the mutation this battery existed for -- and was
+#   DETECTED, breaking four tests. The defaults are genuinely pinned. The
+#   distinction matters: the test that proves them FAILED on 2026-08-02 for an
+#   unrelated reason, was repaired, and only then passed. A test that has passed
+#   once is not the same as a test that can fail.
+#
+#   TWO UNDETECTED, AND THEY ARE REAL GAPS, NOT EQUIVALENT MUTANTS. POP-1a's one
+#   undetected mutation was indistinguishable on any reachable cohort. These are
+#   not.
+#
+#     M03 substitutes `n_excluded_from_parent` for `n_excluded_from_source`.
+#     Every fixture population is ONE LEVEL deep, where the two coincide. They
+#     diverge at two levels -- precisely the `compare_models` case the
+#     specification cited as the reason for choosing the source distance. The
+#     design decision is correct and entirely unprotected.
+#
+#     M07 makes the `print_report` narrowing guard always true, so a fully
+#     labelled cohort gains a population line it should not have. Undetected
+#     because NOTHING ASSERTS ON `print_report` OUTPUT AT ALL. The guard exists
+#     to keep unrestricted output byte-identical and nothing checks that claim.
+#
+#   Both are recorded, neither is quietly repaired. Two tests would close them --
+#   a two-level population, and a captured-output assertion -- and they belong in
+#   their own commit with their own sabotage run, not retro-fitted to this one.
+#
+#   ACCEPTANCE: full suite 4146 passed, 6 skipped, 0 failed in 12m37s; 4152
+#   collected; skip set unchanged at 6.
+#
+#   Sabotage: 11 mutations, 9 detected, 2 undetected, 0 anchor misses.
+#
+4152

@@ -36,6 +36,8 @@ from genomic_variant_classifier.evaluation.capabilities import BootstrapUnit, Me
 from genomic_variant_classifier.evaluation.evaluator import (
     EVALUATION_REPORT_SCHEMA_VERSION,
     EVALUATION_REPORT_SCHEMA_VERSION_ABSENCE,
+    EVALUATION_REPORT_SCHEMA_VERSION_POPULATION,
+    SUPPORTED_REPORT_SCHEMA_VERSIONS,
     ClinicalEvaluator,
     EvaluationReport,
     derive_seed,
@@ -633,7 +635,8 @@ def test_a_finite_payload_serializes(certified_report):
     `to_serializable` is exercised where result_kind matters.
     """
     text = dump_strict_json(asdict(certified_report), artifact="t")
-    assert json.loads(text)["schema_version"] == EVALUATION_REPORT_SCHEMA_VERSION_ABSENCE
+    assert (json.loads(text)["schema_version"]
+            == EVALUATION_REPORT_SCHEMA_VERSION_POPULATION)
 
 
 def test_saved_reports_contain_null_never_nan(tmp_path, certified_report, withheld_report):
@@ -693,7 +696,15 @@ def test_printed_report_never_shows_nan_for_a_withheld_interval(withheld_report)
 # Group 13 -- schema versioning and legacy compatibility
 # --------------------------------------------------------------------------- #
 def test_schema_version_is_persisted(certified_report):
-    assert certified_report.schema_version == EVALUATION_REPORT_SCHEMA_VERSION_ABSENCE == EVALUATION_REPORT_SCHEMA_VERSION_ABSENCE
+    # REPAIRED 2026-08-02 (POP-1b). This read
+    #     == _ABSENCE == _ABSENCE
+    # -- one constant compared with itself, so half of it could not
+    # fail. Swapping both operands would have preserved the tautology
+    # in a new costume. Two DISTINCT facts are asserted instead.
+    assert (certified_report.schema_version
+            == EVALUATION_REPORT_SCHEMA_VERSION_POPULATION)
+    assert EVALUATION_REPORT_SCHEMA_VERSION_POPULATION == max(
+        SUPPORTED_REPORT_SCHEMA_VERSIONS)
 
 
 def test_version_two_round_trips_without_information_loss(tmp_path, certified_report):

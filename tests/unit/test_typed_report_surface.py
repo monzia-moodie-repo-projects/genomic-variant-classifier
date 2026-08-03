@@ -55,6 +55,7 @@ from genomic_variant_classifier.evaluation.capabilities import (
 )
 from genomic_variant_classifier.evaluation.evaluator import (
     EVALUATION_REPORT_SCHEMA_VERSION,
+    EVALUATION_REPORT_SCHEMA_VERSION_ABSENCE,
     EVALUATION_REPORT_SCHEMA_VERSION_TYPED,
     SUPPORTED_REPORT_SCHEMA_VERSIONS,
     ClinicalEvaluator,
@@ -114,7 +115,12 @@ def _ok_result(value=0.9):
 def test_the_typed_schema_version_is_declared_and_readable():
     assert EVALUATION_REPORT_SCHEMA_VERSION_TYPED == 3
     assert EVALUATION_REPORT_SCHEMA_VERSION == 2
-    assert set(SUPPORTED_REPORT_SCHEMA_VERSIONS) == {1, 2, 3, 4}
+    # POP-1b (2026-08-02) added version five: the report names its evaluation
+    # population. Asserted as an EXACT SET on purpose -- this test's job is to
+    # notice when the READABLE RANGE changes, which is a different question from
+    # whether the emitted version is recent enough. The two assertions above are
+    # untouched: POP-1b adds five, it does not renumber three or two.
+    assert set(SUPPORTED_REPORT_SCHEMA_VERSIONS) == {1, 2, 3, 4, 5}
 
 
 def test_a_version_three_report_requires_a_non_empty_typed_mapping():
@@ -451,12 +457,43 @@ def test_no_report_field_moved():
         f"{sorted(declared - observed)}")
 
 
-def test_exactly_one_report_field_was_added():
+def test_no_report_field_appeared_unannounced():
+    """A CUMULATIVE growth guard against the 2b-3 snapshot, not a claim about
+    one commit.
+
+    RENAMED 2026-08-02 (POP-1b). It was called
+    `test_exactly_one_report_field_was_added` while asserting THREE: it had been
+    extended once and the name was left behind. That stale name cost a full turn
+    of the POP-1b session, reading as a historical claim about a single commit
+    when it is a running record. The new name does not need renaming again.
+
+    THE SNAPSHOT FIXTURE IS NEVER REGENERATED. Rebasing it onto today would make
+    this guard permanently blind to everything added before now -- green while
+    guarding nothing, which is worse than red. Fields are APPENDED here, in the
+    order `dataclasses.fields` returns them, which was measured from the live
+    class rather than assumed.
+
+    POP-1b (2026-08-02) added five: the report now names its evaluation
+    population, because POP-1a made `n_samples` the label-eligible count and a
+    reader could not otherwise tell a smaller cohort from a narrowed one.
+    """
     snapshot = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
     current = [f.name for f in dataclasses.fields(EvaluationReport)]
     added = [f for f in current if f not in snapshot["report_field_names"]]
     removed = [f for f in snapshot["report_field_names"] if f not in current]
-    assert added == ["metric_results", "field_absence", "curve_absence"]
+    assert added == [
+        # commit 3b-2 (2026-07-28)
+        "metric_results",
+        # CI-u-3 (2026-07-29)
+        "field_absence",
+        "curve_absence",
+        # POP-1b (2026-08-02)
+        "n_source",
+        "n_label_eligible",
+        "n_reference_label_withheld",
+        "population_scope",
+        "population_parent_fingerprint",
+    ]
     assert removed == []
 
 
@@ -477,6 +514,11 @@ def test_evaluate_now_emits_the_typed_schema_version():
     evaluator = ClinicalEvaluator(n_bootstrap=0, random_state=42)
     y, p = _rebuild_cohorts()["balanced"]
     report = evaluator.evaluate(y, p, model_name="probe")
-    assert report.schema_version == 4
+    # THRESHOLD, NOT A LITERAL (POP-1b, 2026-08-02). This read `== 4` and broke
+    # when POP-1b began emitting five. What the docstring above claims is that
+    # `evaluate` EMITS the typed surface, and every version from four onward
+    # does. A literal here needs editing at six and at seven.
+    assert (report.schema_version
+            >= EVALUATION_REPORT_SCHEMA_VERSION_ABSENCE)
     assert set(report.metric_results) == set(names()), (
         "a version-3 report must carry every registered typed result")

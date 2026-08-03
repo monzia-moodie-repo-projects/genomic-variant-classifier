@@ -110,8 +110,22 @@ EVALUATION_REPORT_SCHEMA_VERSION_TYPED = 3
 #    produced reports that could not be written at all.
 EVALUATION_REPORT_SCHEMA_VERSION_ABSENCE = 4
 
+# 5  the report NAMES ITS EVALUATION POPULATION. POP-1a made `n_samples` the
+#    LABEL-ELIGIBLE count rather than the attempted cohort size and added no
+#    fields, so a reader of a version-4 artifact cannot tell whether a smaller
+#    count means a smaller cohort or a narrowed one. Version 5 says which, by
+#    how much, and what the narrowing narrowed FROM.
+#
+#    The five fields carry DEFAULTS, which are load-bearing rather than
+#    cosmetic: `from_serialized` filters a payload to known field names and
+#    calls the constructor, so a required field absent from a version-1 through
+#    version-4 payload would raise on every historical report ever written. The
+#    counts default to -1, not 0, because 0 is a legitimate measurement and a
+#    historical artifact must not read as though it recorded one.
+EVALUATION_REPORT_SCHEMA_VERSION_POPULATION = 5
+
 # Versions this codebase can READ.
-SUPPORTED_REPORT_SCHEMA_VERSIONS = (1, 2, 3, 4)
+SUPPORTED_REPORT_SCHEMA_VERSIONS = (1, 2, 3, 4, 5)
 
 # PHASE5: lazy sklearn loader + first-class F1
 # sklearn is imported on first use (not at module import) so this module imports cleanly in
@@ -585,12 +599,35 @@ class EvaluationReport:
     field_absence: Mapping = field(default_factory=dict)
     curve_absence: Mapping = field(default_factory=dict)
 
-    # --- explicit absence, schema version 4 (2026-07-29) --------------------
-    # A value that cannot be persisted serialises as `null` and records WHY
-    # here. Empty on a healthy report, so nothing is added where nothing is
-    # absent.
-    field_absence: Mapping = field(default_factory=dict)
-    curve_absence: Mapping = field(default_factory=dict)
+    # --- the evaluation population, schema version 5 (2026-08-02, POP-1b) ---
+    #
+    # POP-1a made `n_samples` the LABEL-ELIGIBLE count. Without these fields a
+    # reader cannot tell a smaller cohort from a narrowed one, and the artifact
+    # carries a population fingerprint with nothing beside it saying what the
+    # population WAS.
+    #
+    # DEFAULTS ARE LOAD-BEARING, NOT COSMETIC. `from_serialized` filters a
+    # payload to known field names and calls the constructor; a version-4
+    # artifact contains none of these names, so a required field here would
+    # raise TypeError on every historical report ever written.
+    #
+    # -1 RATHER THAN 0. Zero is a legitimate count for a cohort that was
+    # attempted and yielded nothing. A historical artifact must not be readable
+    # as though it recorded a measurement it never took, and a negative sentinel
+    # is not a count.
+    #
+    # `population_parent_fingerprint` is None on an UNRESTRICTED cohort, which
+    # is the common case: nothing was narrowed, so there is no prior membership
+    # to point at. That is not the same as an UNATTRIBUTED population, whose own
+    # fingerprint is None for a different reason, and the two must not be
+    # collapsed. These fields are deliberately NOT in `_ABSENCE_ELIGIBLE_FIELDS`:
+    # they are always computable, so their absence is never a measurement that
+    # went missing.
+    n_source:                      int = -1
+    n_label_eligible:              int = -1
+    n_reference_label_withheld:    int = -1
+    population_scope:              Optional[str] = None
+    population_parent_fingerprint: Optional[str] = None
 
     def to_serializable(self) -> dict:
         """Dictionary form suitable for strict JSON.
@@ -696,6 +733,35 @@ class EvaluationReport:
                 "surface, so a populated mapping on one of them is either a "
                 "mislabelled artifact or synthesised provenance.")
 
+    def _validate_population_fields(self) -> None:
+        """The three counts must reconcile, or two of them are decoration.
+
+        A field trio that must sum is exactly the shape that rots silently: any
+        one of them can drift and nothing notices, which is how a stored number
+        becomes a lie on a schedule. Asserting the identity makes forgetting
+        FAIL rather than merely look wrong to a careful reader.
+
+        Historical artifacts carry the -1 sentinel in all three and are skipped:
+        they recorded no population, and inventing an identity for them would
+        fabricate exactly the provenance the sentinel exists to withhold.
+        """
+        counts = (self.n_source, self.n_label_eligible,
+                  self.n_reference_label_withheld)
+        if all(value == -1 for value in counts):
+            return
+        if any(value < 0 for value in counts):
+            raise ValueError(
+                f"population counts are partially recorded: n_source="
+                f"{self.n_source}, n_label_eligible={self.n_label_eligible}, "
+                f"n_reference_label_withheld={self.n_reference_label_withheld}. "
+                "Either all three are the -1 sentinel of a pre-version-5 "
+                "artifact, or all three are measurements.")
+        if self.n_source != self.n_label_eligible + self.n_reference_label_withheld:
+            raise ValueError(
+                f"population counts do not reconcile: n_source={self.n_source} "
+                f"!= n_label_eligible={self.n_label_eligible} + "
+                f"n_reference_label_withheld={self.n_reference_label_withheld}")
+
     @classmethod
     def from_metric_results(cls, *, metric_results: Mapping,
                             **fields) -> "EvaluationReport":
@@ -745,6 +811,7 @@ class EvaluationReport:
 
     def __post_init__(self) -> None:
         self._validate_schema_and_typed_results()
+        self._validate_population_fields()
         for metric in ("auroc", "auprc"):
             _validate_ci_fields(
                 metric,
@@ -1235,7 +1302,20 @@ class ClinicalEvaluator:
             n_rows=n)
 
         report = EvaluationReport(
-            schema_version=EVALUATION_REPORT_SCHEMA_VERSION_ABSENCE,
+            schema_version=EVALUATION_REPORT_SCHEMA_VERSION_POPULATION,
+            n_source=population.n_source,
+            n_label_eligible=population.n,
+            # `n_excluded_from_source`, NOT `n_excluded_from_parent`. The former
+            # is the distance from the ORIGINAL frame however many narrowings
+            # deep; the latter is relative to the immediate parent, which is the
+            # wrong distance when `compare_models` supplies an already-restricted
+            # population. Reading the existing property rather than recomputing
+            # `n_source - n` here keeps ONE copy of the quantity.
+            n_reference_label_withheld=population.n_excluded_from_source,
+            population_scope=population.scope,
+            population_parent_fingerprint=(
+                None if population.parent is None
+                else population.parent.membership_fingerprint),
             metric_results=metric_results,
             field_absence=absent_fields,
             curve_absence=absent_curves,
@@ -1668,6 +1748,18 @@ class ClinicalEvaluator:
             f"  Dataset: {r.n_samples:,} variants  "
             f"({r.n_pathogenic:,} pathogenic = {r.prevalence*100:.1f}%)"
         )
+        # PRINTED ONLY WHEN A NARROWING OCCURRED, so a fully labelled cohort's
+        # output is byte-identical to before POP-1b. This is the ONLY surface on
+        # which a human sees the cohort at all -- `print_report` enumerates its
+        # fields, so without this line the five population fields are invisible
+        # to every reader, and a withheld-label cohort shows a smaller count
+        # than the caller supplied with no explanation.
+        if r.n_reference_label_withheld > 0:
+            print(
+                f"  Population: {r.population_scope} - "
+                f"{r.n_label_eligible:,} of {r.n_source:,} attempted; "
+                f"{r.n_reference_label_withheld:,} reference label(s) withheld"
+            )
         print()
         print(
             f"  AUROC   : {r.auroc:.4f}  95% CI: "

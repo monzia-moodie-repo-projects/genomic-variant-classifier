@@ -235,7 +235,20 @@ def test_the_schema_version_advances_to_four():
     """Version 4 is what tells a reader the absence maps exist. A version-3
     consumer meeting a null would have no entry to consult."""
     assert EVALUATION_REPORT_SCHEMA_VERSION_ABSENCE == 4
-    assert _artifact("healthy")["schema_version"] == 4
+    # THRESHOLD, NOT A LITERAL (POP-1b, 2026-08-02). This read `== 4` and
+    # broke when POP-1b began emitting version five. Rewriting it as `== 5`
+    # would need editing again at version six, and at seven -- a hand-kept
+    # number wearing a test's clothes.
+    #
+    # What the docstring above actually claims is that FROM VERSION FOUR ONWARD
+    # a consumer meeting a null has absence maps to consult. `>=` asserts
+    # exactly that, and never needs touching again.
+    #
+    # The assertion above it is deliberately UNCHANGED: the absence maps did
+    # arrive at four, POP-1b does not renumber four, and retargeting a true
+    # statement is how a correct document becomes a false one.
+    assert (_artifact("healthy")["schema_version"]
+            >= EVALUATION_REPORT_SCHEMA_VERSION_ABSENCE)
 
 
 def test_no_non_finite_value_reaches_the_artifact():

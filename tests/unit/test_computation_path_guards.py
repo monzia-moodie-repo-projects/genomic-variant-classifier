@@ -372,7 +372,11 @@ def test_the_report_emits_the_typed_surface():
     from genomic_variant_classifier.evaluation.registry import names
 
     report = _report()
-    assert report.schema_version == EVALUATION_REPORT_SCHEMA_VERSION_ABSENCE
+    # THRESHOLD, NOT EQUALITY (POP-1b, 2026-08-02). The docstring claims the
+    # report CARRIES the typed surface; version four introduced it and every
+    # later version still carries it. `>=` says that and never needs editing.
+    assert (report.schema_version
+            >= EVALUATION_REPORT_SCHEMA_VERSION_ABSENCE)
     assert set(report.metric_results) == set(names()), (
         "the report must carry every registered result, not a subset")
 
