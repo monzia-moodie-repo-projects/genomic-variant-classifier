@@ -3777,3 +3777,188 @@ here**: any roadmap table quoting `EXPECTED_TABULAR_FEATURE_COUNT`,
 rather than its value, so there is one copy in the repository and nothing to keep
 in step. That is the same proposal made in §3 above for `RUN_17_PLAN.md`'s
 marker, and it is one decision, not two.
+
+## ROADMAP delta -- 2026-08-02/03: POP-1b. One commit, one new design finding, and one new technique.
+
+Commit: `00e180c`, pushed. Eight files, 543 insertions, 18 deletions.
+Full suite 4146 passed, 6 skipped, 0 failed -- twice independently, 17m31s and
+15m45s. Ratchet 4140 -> 4152 (+12). README badge moved with it.
+
+Full write-up: `docs/SESSION_2026-08-03_pop1b-population-surface.md`.
+
+### 0. WHAT IT DOES
+
+POP-1a made `n_samples` the LABEL-ELIGIBLE count and deliberately added no
+fields, because schema surface belongs in its own commit with its own version
+bump. A reader of a version-4 artifact therefore could not tell a smaller cohort
+from a narrowed one, and the artifact carried a population FINGERPRINT with
+nothing beside it saying what the population WAS.
+
+Five fields, schema version five: `n_source`, `n_label_eligible`,
+`n_reference_label_withheld`, `population_scope`,
+`population_parent_fingerprint`. Their sum is ENFORCED in `__post_init__`, and
+the battery constructs violations, because an invariant nothing can violate in a
+test is an invariant nothing checks.
+
+### 1. THE ONE GENUINELY NEW DESIGN FINDING
+
+`from_serialized` filters a payload to known field names and calls the
+constructor. A payload written before POP-1b contains none of the five, so
+DECLARED WITHOUT DEFAULTS they would raise TypeError on every version-1 through
+version-4 artifact ever written.
+
+**Nothing in the dataclass shows this.** It appears only when the DESERIALISERS
+are read. A reading of `EvaluationReport` alone -- however careful -- would not
+have found it, and the acceptance criterion that proves it
+(`test_a_pre_population_artifact_still_deserialises`) is the one this design
+rests on.
+
+That is not an instance of any shape in section 7. It is a new observation and
+worth stating as one: **a dataclass does not disclose the constraints its
+deserialisers impose on it.**
+
+The counts default to -1, not 0. Zero is a legitimate measurement for a cohort
+that was attempted and yielded nothing; a historical artifact must not read as
+though it recorded one.
+
+### 2. THE ONE GENUINELY NEW TECHNIQUE: PROVING A SILENT GATE
+
+`pytest --assert-suite-size` prints NOTHING on success. The familiar confirmation
+line, `suite-size ratchet OK (collected N == EXPECTED_SUITE_SIZE N)`, comes from
+`Run_Preflight_Local.ps1` section 6, which formats that message itself.
+
+**Silence cannot be verified by observing silence.** So the gate was run against a
+twelve-test subset, where it aborted:
+
+```
+actually collected:  12
+4140 FEWER test(s) than expected.
+*** TESTS HAVE VANISHED. ***
+no tests ran in 1.05s
+```
+
+Only then was the silence on the full run treated as a pass.
+
+This was used THREE TIMES in two days: the POP-1a scores regression test was
+falsified against the pre-fix evaluator before being trusted; preflight section
+13c was COMMITTED WHILE FAILING (`f2cff8c`) so the repair could be seen to work;
+and the armed ratchet was demonstrated aborting. It is now the standard for any
+gate whose success is silent -- and section 7's meta-rule says why: a finding
+that fails a test is a gate, and a gate nobody has watched fail is a comment
+wearing a gate's clothes.
+
+### 3. EVERYTHING ELSE WAS A RECURRENCE, AND IS RECORDED AS ONE
+
+Six defects of the author's surfaced during POP-1b and NOT ONE WAS CAUGHT BY
+REVIEW. Every one was caught by an installer post-check, a rendered diff, or a
+real run. Most map directly onto shapes section 7 already names:
+
+- A LINE-COUNT CONSTANT carried between two installers that count differently --
+  one includes the empty string after the trailing newline, the other does not.
+  It REFUSED A BYTE-IDENTICAL FILE whose SHA-256 matched exactly. Shape **(a)** at
+  its smallest possible scale: a number written down once, in a context that
+  measures it differently.
+
+- DEAD-2: `field_absence` and `curve_absence` DECLARED TWICE in
+  `EvaluationReport`, under two comment blocks both dated 2026-07-29. Python kept
+  the second -- the pair whose comment is three lines -- so the eight-line
+  explanation of the biconditional was attached to declarations Python discarded.
+  DEAD-1's twin: two copies, one unread. Closed by this commit.
+
+- `test_exactly_one_report_field_was_added` ASSERTED THREE. Extended once, name
+  left behind. A hand-kept number wearing a test's clothes -- and that stale name
+  cost a full turn of the session, reading as a historical claim about one commit
+  when it is a running record. Renamed
+  `test_no_report_field_appeared_unannounced`.
+
+- A POST-CHECK MATCHED ITS OWN PROSE FOUR TIMES -- on `int(y.sum())`, on
+  `REFUSED MEANS NOT FORWARDED`, on the score fixtures, and on
+  `dataclasses.replace(`. Four instances of one mechanical error, fixed as a
+  class only after the fourth: the checks now tokenise and count over code with
+  comments and string literals removed. A count over source that discusses itself
+  is structurally unreliable.
+
+- A FIXTURE SUPPLYING SIX OF THIRTY-SEVEN REQUIRED FIELDS. The repair was NOT to
+  list the other thirty-one -- that fixture goes stale the moment a field is
+  added, the same failure rebuilt larger -- but to derive from real reports via
+  `dataclasses.replace()` and payload deletion.
+
+- And two anchoring errors: a comment that would have captioned the wrong
+  constant, and a docstring in a form this file uses nowhere.
+
+### 4. TWO THINGS THIS COMMIT REFUSED TO DO
+
+**THE 2b-3 SNAPSHOT FIXTURE WAS NOT REGENERATED.** The field-growth guard reads
+`tests/fixtures/report_snapshot_2b3.json` and lists every field added since.
+Rebasing it onto today would have made it permanently blind to everything added
+before now -- green while guarding nothing, which is worse than red. The five
+names were APPENDED, in the order `dataclasses.fields` returns them, measured
+from the live class. The installer verifies the fixture's digest after writing
+and restores every file if it moved.
+
+**FIVE TRUE ASSERTIONS WERE PROTECTED FROM CHANGE**, each guarded by a post-check
+requiring it to survive byte-for-byte: `_TYPED == 3`, `_VERSION == 2`,
+`removed == []`, `_ABSENCE == 4`, and the `4/4` contract-test count in
+`RUN_17_PLAN.md`. **This session nearly retargeted three of them**, and each time
+the actual text corrected the plan rather than more careful reasoning. Retargeting
+a true statement is how a correct document becomes a false one.
+
+### 5. FOUND ONLY BY THE FULL SUITE
+
+POP-1b's own battery passed, and so did both files it repaired, while FOUR tests
+failed in two files nothing in the commit had opened. The preflight had measured
+347 test lines matching `EvaluationReport|n_samples|schema` -- which is why a
+schema change is not declared done on the strength of its own tests.
+
+### 6. SABOTAGE: 11 mutations, 9 detected, 2 undetected, 0 anchor misses
+
+M01 removed a default -- the mutation the battery existed for -- and was DETECTED,
+breaking four tests. The distinction matters: the test that proves the defaults
+FAILED for an unrelated reason, was repaired, and only then passed. **A test that
+has passed once is not the same as a test that can fail.**
+
+The two undetected are REAL GAPS, not equivalent mutants, and the difference from
+POP-1a's single undetected mutation is worth stating: that one was
+indistinguishable on any reachable cohort. These are not.
+
+- **M03** substitutes `n_excluded_from_parent` for `n_excluded_from_source`.
+  Every fixture population is ONE LEVEL deep, where the two coincide. They
+  diverge at two levels -- precisely the `compare_models` case that motivated the
+  choice. The design decision is correct and entirely unprotected.
+
+- **M07** makes the `print_report` narrowing guard always true, so a fully
+  labelled cohort gains a population line it should not have. Undetected because
+  NOTHING ASSERTS ON `print_report` OUTPUT AT ALL.
+
+Both recorded, neither quietly repaired. Two tests would close them and belong in
+their own commit with their own sabotage run.
+
+### 7. OPEN -- twelve items, dated
+
+| id | item |
+|---|---|
+| **POP-1b-M03** | *new.* No test distinguishes the source distance from the parent distance; needs a two-level population |
+| **POP-1b-M07** | *new.* Nothing asserts on `print_report` output; needs a captured-output test |
+| ZERO-1 | 24 dead-connector defaults still zero -- is the allowlist itself stale? |
+| INF-1 | an infinite reference label is pooled with NaN as *withheld*; it is corrupt, not missing |
+| ABS-1 | the ranking channel's refusal reported as `undefined_on_cohort` |
+| DEAD-1 | ~40 lines of dead absence computation in `evaluate` |
+| DEAD-3 | `_assert_absence_biconditional` computes `observed_curves` twice |
+| PRE-2 | section 5's PASS line swallows the KAN banner and a progress bar |
+| LINT-1 | no lint gate anywhere |
+| F821-1 | 18 undefined names; 9 need assessment |
+| CMP-1 | `ModelComparison` carries a fingerprint with no scope beside it |
+| TEST-1 | **closed** by `00e180c` |
+
+DEAD-2 closed. DEAD-4 withdrawn -- `removed` is used at line 460; the reading
+window had cut off one line short, and it was flagged as suspected rather than
+asserted.
+
+### 8. NEXT
+
+REG-1 (protected metadata ownership on every result path), then OP-1 -- the
+operating-point subsystem this sequence set out to build, which now sits on a
+population that says what it describes.
+
+Then the drift monitor, whose red is roadmap 6.20's fix working, exactly as
+preflight 13c's red was PRE-1a working.
