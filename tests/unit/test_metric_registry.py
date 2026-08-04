@@ -958,3 +958,221 @@ def test_refusal_protected_keys_are_derived_from_ctx_support():
         right.id == "_DESCRIPTOR_OWNED_ON_REFUSAL", (
             "the refusal set subtracts something other than the named exception; "
             "an inline literal here would be a second copy of the ownership rule")
+# --------------------------------------------------------------------------- #
+# REG-2 (2026-08-04): a vanishing denominator is UNDEFINED, not unsupported
+# --------------------------------------------------------------------------- #
+
+# The reasons that name a VANISHING DENOMINATOR. Each is a state in which the
+# metric's own quotient has no value, as distinct from a cohort that fails to
+# support the metric. Enumerated with justification rather than pattern-matched,
+# because "contains the word empty" is not a mathematical claim.
+_DENOMINATOR_ZERO_REASONS = {
+    # PPV = TP/(TP+FP); nothing flagged means the denominator is zero.
+    "empty_predicted_positive_set",
+    # NPV = TN/(TN+FN); nothing cleared, likewise.
+    "empty_predicted_negative_set",
+    # The Matthews correlation coefficient's denominator is the product of four
+    # margins; any vanishing margin annihilates it. Already UNDEFINED before
+    # REG-2 -- it is the metric the other two were made to agree with.
+    "zero_confusion_margin",
+    # F1 = 2TP/(2TP+FP+FN); the same shape under a different name.
+    "zero_f1_denominator",
+}
+
+# Reasons that are legitimately INSUFFICIENT_SUPPORT and must NOT be swept up.
+# An absent reference class is a property of the COHORT, not of a quotient.
+_COHORT_SUPPORT_REASONS = {
+    "positive_class_support_required",
+    "negative_class_support_required",
+}
+
+
+def _nothing_flagged_context():
+    """Every probability below the canonical threshold: TP + FP = 0."""
+    import genomic_variant_classifier.evaluation.registry as registry_module
+    from genomic_variant_classifier.evaluation.population import (
+        EvaluationPopulation)
+    import numpy as np
+
+    y = np.array([1.0, 0.0, 1.0, 0.0])
+    p = np.array([0.2, 0.1, 0.3, 0.4])
+    return registry_module.MetricContext(
+        y_true=y, y_prob=p, y_score=p,
+        population=EvaluationPopulation.full(
+            y.size, scope="reg2_test", source_id="reg2-test-v1"))
+
+
+def _everything_flagged_context():
+    """Every probability at or above the canonical threshold: TN + FN = 0."""
+    import genomic_variant_classifier.evaluation.registry as registry_module
+    from genomic_variant_classifier.evaluation.population import (
+        EvaluationPopulation)
+    import numpy as np
+
+    y = np.array([1.0, 0.0, 1.0, 0.0])
+    p = np.array([0.8, 0.9, 0.7, 0.6])
+    return registry_module.MetricContext(
+        y_true=y, y_prob=p, y_score=p,
+        population=EvaluationPopulation.full(
+            y.size, scope="reg2_test", source_id="reg2-test-v1"))
+
+
+def test_an_empty_predicted_positive_set_is_undefined_not_unsupported():
+    """`TP/(TP+FP)` with nothing flagged has NO VALUE. It is not a support gap.
+
+    Corrected 2026-08-04 (REG-2) from INSUFFICIENT_SUPPORT. The enum reserves
+    that member for "the machinery is ready and the science is not" -- a
+    judgement about the cohort. An empty denominator is a fact about the
+    quotient.
+
+    Measured before the change: TEN metrics already returned UNDEFINED for
+    mathematically undefined states while these two predictive values did not.
+    The registry contradicted itself; REG-2 made two agree with ten.
+
+    THE REASON IS ASSERTED ALONGSIDE THE STATUS. `undefined` alone does not say
+    WHICH degeneracy, and the registry deliberately keeps distinct reasons per
+    condition so that one refusal cannot be substituted for another.
+    """
+    import genomic_variant_classifier.evaluation.registry as registry_module
+
+    result = registry_module.compute(
+        registry_module.by_name("positive_predictive_value"),
+        _nothing_flagged_context())
+
+    assert result.status is MetricStatus.UNDEFINED, (
+        f"an empty predicted-positive set reported {result.status}; the "
+        "quotient has no value, which is UNDEFINED, not a support gap")
+    assert result.reason == "empty_predicted_positive_set"
+
+
+def test_an_empty_predicted_negative_set_is_undefined_not_unsupported():
+    """`TN/(TN+FN)` with nothing cleared. The sibling case, and it must move
+    with the first: both are produced by ONE factory, so a change reaching only
+    one would mean the factory had been forked."""
+    import genomic_variant_classifier.evaluation.registry as registry_module
+
+    result = registry_module.compute(
+        registry_module.by_name("negative_predictive_value"),
+        _everything_flagged_context())
+
+    assert result.status is MetricStatus.UNDEFINED, (
+        f"an empty predicted-negative set reported {result.status}")
+    assert result.reason == "empty_predicted_negative_set"
+
+
+def test_absent_reference_class_support_remains_insufficient_support():
+    """THE OTHER HALF OF REG-2, and the one that stops over-application.
+
+    `sensitivity` needs positive reference labels; `specificity` needs negative
+    ones. Those are properties of the COHORT -- the machinery is ready and the
+    data cannot support the estimate -- which is exactly what
+    INSUFFICIENT_SUPPORT means.
+
+    Without this test the REG-2 rule could be applied to every refusal that
+    mentions a missing something, and nothing would object. A correction commit
+    invites precisely that over-reach, so the boundary is asserted rather than
+    described.
+    """
+    import genomic_variant_classifier.evaluation.registry as registry_module
+    from genomic_variant_classifier.evaluation.population import (
+        EvaluationPopulation)
+    import numpy as np
+
+    for metric_name, labels, expected_reason in (
+            ("sensitivity", np.array([0.0, 0.0, 0.0, 0.0]),
+             "positive_class_support_required"),
+            ("specificity", np.array([1.0, 1.0, 1.0, 1.0]),
+             "negative_class_support_required")):
+        p = np.array([0.2, 0.8, 0.3, 0.7])
+        ctx = registry_module.MetricContext(
+            y_true=labels, y_prob=p, y_score=p,
+            population=EvaluationPopulation.full(
+                labels.size, scope="reg2_test", source_id="reg2-test-v1"))
+        result = registry_module.compute(
+            registry_module.by_name(metric_name), ctx)
+
+        assert result.status is MetricStatus.INSUFFICIENT_SUPPORT, (
+            f"{metric_name} reported {result.status} for {expected_reason}. An "
+            "absent reference class is a COHORT-support problem and must NOT be "
+            "swept into REG-2's denominator rule")
+        assert result.reason == expected_reason
+
+
+def test_every_denominator_zero_refusal_in_the_registry_is_undefined():
+    """A STRUCTURAL GATE over the LIVE descriptor graph.
+
+    The three tests above pin today's metrics. A metric introduced NEXT MONTH
+    with INSUFFICIENT_SUPPORT on a vanishing denominator would pass all three
+    and reintroduce exactly the inconsistency REG-2 corrected -- two metrics
+    diverging from ten while nothing compared them.
+
+    This walks every registered descriptor over several degenerate cohorts and
+    asserts that any refusal naming a denominator-zero state carries UNDEFINED.
+
+    JUDGED BY REASON, not by status: the reason names the confusion state while
+    the status is the thing under question, so judging by status would be
+    circular. A refusal whose reason is outside the enumerated set is NOT judged
+    -- `positive_class_support_required` is legitimately INSUFFICIENT_SUPPORT.
+    """
+    import genomic_variant_classifier.evaluation.registry as registry_module
+    from genomic_variant_classifier.evaluation.population import (
+        EvaluationPopulation)
+    import numpy as np
+
+    cohorts = {
+        "nothing_flagged": (np.array([1.0, 0.0, 1.0, 0.0]),
+                            np.array([0.2, 0.1, 0.3, 0.4])),
+        "everything_flagged": (np.array([1.0, 0.0, 1.0, 0.0]),
+                               np.array([0.8, 0.9, 0.7, 0.6])),
+        "no_reference_positives": (np.array([0.0, 0.0, 0.0, 0.0]),
+                                   np.array([0.2, 0.8, 0.3, 0.7])),
+        "no_reference_negatives": (np.array([1.0, 1.0, 1.0, 1.0]),
+                                   np.array([0.2, 0.8, 0.3, 0.7])),
+        "single_row": (np.array([1.0]), np.array([0.8])),
+    }
+
+    offenders = []
+    judged = 0
+    for cohort_name, (y, p) in cohorts.items():
+        ctx = registry_module.MetricContext(
+            y_true=y, y_prob=p, y_score=p,
+            population=EvaluationPopulation.full(
+                y.size, scope="reg2_test", source_id="reg2-test-v1"))
+        for metric_name in registry_module.names():
+            try:
+                result = registry_module.compute(
+                    registry_module.by_name(metric_name), ctx)
+            except Exception:                                       # noqa: BLE001
+                # A descriptor that raises is not judged here. It is not a
+                # descriptor that answered correctly, but it is also not a
+                # vocabulary defect, and conflating the two would make this
+                # gate fire for the wrong reason.
+                continue
+            if result.reason not in _DENOMINATOR_ZERO_REASONS:
+                continue
+            judged += 1
+            if result.status is not MetricStatus.UNDEFINED:
+                offenders.append(
+                    f"{metric_name} on {cohort_name}: {result.status} "
+                    f"({result.reason})")
+
+    # THE BOUNDARY, MACHINE-CHECKED RATHER THAN DESCRIBED. The two sets must
+    # stay disjoint: if a cohort-support reason ever migrated into the
+    # denominator set, this gate would start demanding UNDEFINED for
+    # `sensitivity` on a single-class cohort -- over-application of the REG-2
+    # rule, and precisely what T3 exists to prevent. Asserting disjointness here
+    # means the two tests cannot drift apart.
+    assert not (_DENOMINATOR_ZERO_REASONS & _COHORT_SUPPORT_REASONS), (
+        "a cohort-support reason appears in the denominator-zero set: "
+        f"{_DENOMINATOR_ZERO_REASONS & _COHORT_SUPPORT_REASONS}. An absent "
+        "reference class is a property of the COHORT, not of a quotient")
+
+    assert judged > 0, (
+        "no denominator-zero refusal was observed at all; the cohorts no longer "
+        "reach those states and this gate proves nothing")
+    assert not offenders, (
+        "a vanishing denominator was reported as something other than "
+        f"UNDEFINED: {offenders}. The quotient has no value; that is UNDEFINED. "
+        "If a NEW metric is the offender, it was written against the convention "
+        "REG-2 corrected on 2026-08-04 -- ten metrics already agreed then, and "
+        "twelve do now")

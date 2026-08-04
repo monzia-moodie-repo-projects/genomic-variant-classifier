@@ -4298,3 +4298,178 @@ ground it stands on. That re-reading is itself the shape section 7 warns about,
 and the OP-1 preflight of 2026-08-04 was written to do it.
 
 Then the drift monitor, whose red is roadmap 6.20's fix working.
+
+## ROADMAP delta -- 2026-08-04: REG-2. A correction that 4,155 tests could not detect, and the discipline correction commits need.
+
+One commit: one line of source, four tests, two committed measurements, this
+delta, the session document, the ratchet and the badge.
+
+Full suite 4159 passed, 6 skipped, 0 failed; 4165 collected. Ratchet 4161 ->
+4165 (+4).
+
+Full write-up: `docs/SESSION_2026-08-04_reg2-denominator-status.md`.
+
+### 0. WHAT IT CORRECTS
+
+    positive_predictive_value  TP+FP = 0  INSUFFICIENT_SUPPORT -> UNDEFINED
+    negative_predictive_value  TN+FN = 0  INSUFFICIENT_SUPPORT -> UNDEFINED
+
+`TP/(TP+FP)` with a zero denominator has no value. The enum reserves
+INSUFFICIENT_SUPPORT for "the machinery is ready and the science is not" -- a
+judgement about the COHORT. This is a fact about the QUOTIENT.
+
+ONE LINE, because `_requires_flagged_margin` serves both predictive values
+through its `flagged` parameter. The reason strings are composed as
+`f"empty_{side}_set"` and are UNCHANGED.
+
+### 1. THE REGISTRY CONTRADICTED ITSELF, MEASURED ACROSS THE WHOLE GRAPH
+
+24 registered descriptors, 6 cohort shapes:
+
+```
+undefined             binary_class_support_required     7 metrics
+undefined             likelihood_ratio_unbounded        2 metrics
+undefined             zero_confusion_margin             1 metric
+insufficient_support  positive_class_support_required   1  CORRECT, stays
+insufficient_support  negative_class_support_required   1  CORRECT, stays
+insufficient_support  empty_predicted_positive_set      1  <- moved
+insufficient_support  empty_predicted_negative_set      1  <- moved
+```
+
+TEN metrics already used UNDEFINED for a mathematically undefined state. Two did
+not. This was not a considered convention being overturned on a reading of an
+enum comment; it was an INTERNAL INCONSISTENCY, and the Matthews correlation
+coefficient was already on the correct side of it.
+
+### 2. THE NEW OBSERVATION: WHAT A CORRECTION COMMIT OWES
+
+Section 7 names shapes of DEFECT. This is a shape of REMEDY, and it belongs
+beside them because getting it wrong is how a correct fix becomes a new defect.
+
+**A correction whose entire risk is OVER-APPLICATION must assert its boundary in
+the same commit, and the boundary test is the one that must PASS under the
+reverted code.**
+
+REG-2's risk was never that the two metrics would fail to move. It was that the
+rule -- "a missing something means UNDEFINED" -- would later be applied to
+`sensitivity` and `specificity`, whose INSUFFICIENT_SUPPORT is CORRECT because an
+absent reference class is a property of the cohort.
+
+So T3 pins that boundary, and in the falsification:
+
+```
+T1 FAIL   T2 FAIL   T4 FAIL   T3 PASS      3 failed, 55 passed
+```
+
+T3 PASSING under the old code is what proves it measures the boundary rather than
+echoing the change. A boundary test that failed alongside the others would have
+been measuring REG-2. Call this shape **(f)**: **a correction without a boundary
+test has licensed its own over-application.**
+
+### 3. THE GREEN SUITE WAS THE FINDING, PROVED BY EXPERIMENT
+
+After the change: 4155 passed, 6 skipped, 0 failed. A semantic correction to two
+metrics changed NO test outcome anywhere.
+
+Then, measured directly by reverting it: **54 passed before, 54 passed after.**
+
+Nothing in the repository asserted either status. Nothing would have noticed
+either drifting back. The search predicted this; the experiment confirmed it. It
+is why the four tests are not optional -- without them the commit corrects a
+value nothing watches.
+
+### 4. WHY THIS PRECEDED OP-1 RATHER THAN LIVING INSIDE IT
+
+The defect was found while drafting OP-1's build specification, and the first
+instinct was to correct it there. That was procedurally wrong:
+
+> OP-1's Oracle C exists to prove a new count path reproduces the REGISTRY's
+> status semantics. A semantic movement made inside OP-1 would be
+> INDISTINGUISHABLE FROM AN IMPLEMENTATION DISCREPANCY -- the oracle would report
+> a difference and nobody could tell which side was wrong.
+
+Measure first, then branch. The measurement made the branch obvious, and the
+ruling generalises: **a change that alters what an oracle compares against must
+not be made in the commit the oracle is judging.**
+
+### 5. AN EIGHTH SUBSTRING-SEARCH DEFECT, AND THE SAME CLASS AS THE OTHERS
+
+A grep for the reason strings in `registry.py` found NOTHING, and the conclusion
+drawn was that they lived in another module. They do not. The reasons are
+COMPOSED -- `f"empty_{side}_set"` -- so a search for the OUTPUT TEXT could never
+match.
+
+Same class as `/tie|ties/` matching `validate_probabiliTIES` on 2026-08-03:
+**treating the absence of a search hit as evidence.** The predicates were located
+instead by asking each descriptor where its own applicability function is
+defined, resolved from the live object rather than searched for.
+
+### 6. STRUCTURAL GUARDS, THIRD USE, THIRD DEFECT CLASS
+
+    REG-1   a derivation replaced by a literal
+    OP-0    a name that says the opposite of what it holds
+    REG-2   a VOCABULARY that admits a new member with the wrong status
+
+T4 walks the live descriptor graph and fails if any refusal naming a
+denominator-zero state carries anything but UNDEFINED. T1 through T3 pin today's
+metrics; a metric introduced next month with the old convention would pass all
+three. In the falsification T4 caught a case NEITHER T1 NOR T2 CONSTRUCTS -- the
+negative predictive value's zero denominator on a single-row cohort.
+
+And `_COHORT_SUPPORT_REASONS` was declared and never used -- dead code, caught by
+a post-check. Rather than delete it, T4 now asserts the two reason sets are
+DISJOINT, so the boundary is machine-checked and T3 and T4 cannot drift apart.
+
+### 7. ONE COMMITTED ARTIFACT CONTRADICTS ITSELF, DELIBERATELY
+
+`REG2_PREFLIGHT_AFTER` exits 1 and prints "DECLARED MEMBERS NOT REPRODUCED",
+offering two explanations -- unreachable cohorts, or an earlier wrong measurement
+-- BOTH FALSE. A third case obtains: the defect was fixed. The instrument was
+written before the change and cannot distinguish its own success from failure.
+
+Editing it to agree would destroy the evidence, exactly as with REG-1's preserved
+baseline mutation report. It is committed as written and explained in the entry.
+
+### 8. THREE FINDINGS LOGGED AND NOT FOLDED IN
+
+Each was discovered WHILE MEASURING REG-2, and each stayed out of the movement
+set, because widening a scope to cover defects found during its own verification
+is the scope creep the movement-set discipline exists to prevent.
+
+| id | item |
+|---|---|
+| **REG-2-b** | `_requires_interior_specificity` returns INSUFFICIENT_SUPPORT with reason `specificity_undefined` -- the same mismatch, in a third place no cohort shape reached |
+| **ICI-1** | `integrated_calibration_index` is declared applicable then returns non-finite, on three cohort shapes |
+| **F1-1** | `f1` returns `ok` with 0.0 computed from an UNDEFINED positive predictive value -- the D5 shape, in the registry rather than the operating-point functions |
+
+### 9. OPEN -- seventeen items
+
+| id | item |
+|---|---|
+| **REG-2-b** | *new.* the same status mismatch, unreached by any cohort shape |
+| **ICI-1** | *new.* applicability and kernel disagree about what the metric can handle |
+| **F1-1** | *new.* a defined value derived from an undefined one, reported `ok` |
+| OPCOV-1 | the operating-point selectors have almost no coverage |
+| GITIGNORE-1 | `*.bak_*` appears three times in `.gitignore` |
+| STRUCT-1 | structural guards now used three times, on three defect classes |
+| POP-1b-M03 | no test distinguishes the source distance from the parent distance |
+| POP-1b-M07 | nothing asserts on `print_report` output |
+| ZERO-1 | 24 dead-connector defaults still zero |
+| INF-1 | an infinite reference label is pooled with NaN as *withheld* |
+| ABS-1 | the ranking channel's refusal reported as `undefined_on_cohort` |
+| DEAD-1 | ~40 lines of dead absence computation in `evaluate` |
+| DEAD-3 | `_assert_absence_biconditional` computes `observed_curves` twice |
+| PRE-2 | section 5's PASS line swallows the KAN banner |
+| LINT-1 | no lint gate anywhere |
+| F821-1 | 18 undefined names; 9 need assessment |
+| CMP-1 | `ModelComparison` carries a fingerprint with no scope beside it |
+
+### 10. NEXT
+
+**OP-1 step 1** -- `ConfusionCounts` and the exact sweep, with their own tests and
+NO selector. The build specification's INSUFFICIENT_SUPPORT is now a
+TRANSCRIPTION FIX to UNDEFINED, matching a registry that is right, rather than a
+semantic movement smuggled into a rewrite.
+
+Seven register defects remain open: D1, D2-D5, D6, D9, D10, D11, D12. One sort
+with cumulative sums closes D1, D9, D10 and D11 together.

@@ -4799,4 +4799,110 @@
 #   candidate homes are about something else and this project has already paid
 #   for one misfiled entry.
 #
-4161
+#
+# 4161 -> 4165 (+4)  2026-08-04  REG-2: a vanishing denominator is UNDEFINED,
+#   not INSUFFICIENT_SUPPORT. One line of source; four tests that are the first
+#   thing in the repository able to notice it.
+#
+#   ONE LINE, TWO METRICS. `_requires_flagged_margin` serves BOTH predictive
+#   values through its `flagged` parameter, so a single status change moves
+#   exactly the two the preflight identified. The reason strings are composed as
+#   `f"empty_{side}_set"` and are UNCHANGED: they were accurate before and after.
+#
+#       positive_predictive_value  TP+FP = 0  INSUFFICIENT_SUPPORT -> UNDEFINED
+#       negative_predictive_value  TN+FN = 0  INSUFFICIENT_SUPPORT -> UNDEFINED
+#
+#   THE REGISTRY CONTRADICTED ITSELF, AND THIS WAS NOT A CLOSE CALL. Measured
+#   across 24 registered descriptors and 6 cohort shapes:
+#
+#       undefined             binary_class_support_required     7 metrics
+#       undefined             likelihood_ratio_unbounded        2 metrics
+#       undefined             zero_confusion_margin             1 metric
+#       insufficient_support  positive_class_support_required   1  CORRECT, stays
+#       insufficient_support  negative_class_support_required   1  CORRECT, stays
+#       insufficient_support  empty_predicted_positive_set      1  <- moved
+#       insufficient_support  empty_predicted_negative_set      1  <- moved
+#
+#   TEN metrics already used UNDEFINED for a mathematically undefined state. Two
+#   used INSUFFICIENT_SUPPORT for the same kind of state. REG-2 made two agree
+#   with ten, and twelve agree now.
+#
+#   The enum's own contract: UNDEFINED is "mathematically undefined";
+#   INSUFFICIENT_SUPPORT is "the machinery is ready and the science is not". A
+#   quotient with a zero denominator is the first. And registry.py:954-973 states
+#   the design intent this restores -- applicability must refuse EXACTLY where
+#   the kernel would return NaN, with the requirement listed as `TP + FP > 0`,
+#   marked threshold-dependent. That is a denominator condition.
+#
+#   WHY THIS IS ITS OWN COMMIT, AHEAD OF OP-1. OP-1's Oracle C exists to prove a
+#   new count path reproduces the registry's status semantics. Making this change
+#   INSIDE OP-1 would have been an intentional semantic movement disguised as an
+#   implementation discrepancy: the oracle would report a difference and nobody
+#   could tell which side was wrong.
+#
+#   THE GREEN SUITE WAS THE FINDING, NOT THE REASSURANCE. After the change:
+#   4155 passed, 6 skipped, 0 failed -- a semantic correction to two metrics
+#   changed NO test outcome anywhere. Then, measured directly, REVERTING it also
+#   changed nothing: 54 passed before, 54 passed after. Nothing in the repository
+#   asserted either status, so nothing would have noticed either drifting back.
+#   That is the condition REG-2 exists to end, and it is why the four tests are
+#   not optional.
+#
+#   FOUR TESTS, THREE JOBS. T1 and T2 pin the moved statuses AND their unchanged
+#   reasons, because a status without its reason is half a contract. T3 pins the
+#   BOUNDARY: `sensitivity` and `specificity` keep INSUFFICIENT_SUPPORT, since an
+#   absent reference class is a property of the COHORT and not of a quotient --
+#   without it the rule could be over-applied later and nothing would object. T4
+#   is STRUCTURAL: it walks the live descriptor graph and fails if any refusal
+#   naming a denominator-zero state carries anything but UNDEFINED.
+#
+#   T4 IS THE ONE THAT MATTERS MOST. T1 through T3 pin today's metrics; a metric
+#   introduced next month with the old convention would pass all three. And in
+#   the falsification T4 caught a case NEITHER T1 NOR T2 CONSTRUCTS -- the
+#   negative predictive value's zero denominator on a single-row cohort.
+#
+#   THE FALSIFICATION IS THE SABOTAGE RUN. Reverting the change is the only
+#   mutation that could exist for a one-line status correction, and its outcome
+#   was predicted before it was run:
+#
+#       T1 FAIL   T2 FAIL   T4 FAIL   T3 PASS      3 failed, 55 passed
+#
+#   T3 passing under the reverted code is the load-bearing half: a boundary test
+#   that failed alongside the others would have been measuring REG-2 rather than
+#   the line REG-2 must not cross.
+#
+#   TWO INSTRUMENTS, WRITTEN BEFORE THE CHANGE, CONFIRM IT LANDED AND DID NOT
+#   SPREAD. The denominator probe now exits 0 with both predictive values reading
+#   `undefined`; the preflight reports a movement set of ZERO across all 24
+#   descriptors. Both are committed under docs/measurements/.
+#
+#   ONE ARTIFACT IS DELIBERATELY SELF-CONTRADICTORY AND IS COMMITTED ANYWAY.
+#   REG2_PREFLIGHT_AFTER exits 1 and prints "DECLARED MEMBERS NOT REPRODUCED",
+#   offering two explanations -- unreachable cohorts, or an earlier wrong
+#   measurement -- both of which are false. A third case obtains: the defect was
+#   fixed. The instrument was written before the change and cannot distinguish
+#   its own success from failure. Its message is honest about that limit, and
+#   editing it to agree with the outcome would destroy the evidence.
+#
+#   COMPATIBILITY, RECORDED RATHER THAN WAVED PAST. No enum VALUE changed; both
+#   strings already existed, and the enum's comment says those values are
+#   load-bearing because historical run manifests contain them. Historical
+#   manifests stay readable. What changes is that a NEW artifact reports
+#   `undefined` where a PRE-REG-2 artifact reported `insufficient_support` FOR
+#   THE SAME COHORT. A reader comparing the two sees a status change with no code
+#   defect behind it.
+#
+#   THREE FINDINGS LOGGED AND DELIBERATELY NOT FOLDED IN. REG-2-b:
+#   `_requires_interior_specificity` returns INSUFFICIENT_SUPPORT with reason
+#   `specificity_undefined` -- the same mismatch, in a third place no cohort
+#   shape reached. ICI-1: `integrated_calibration_index` is declared applicable
+#   then returns non-finite, on three cohort shapes. F1-1: `f1` returns `ok` with
+#   0.0 computed from an UNDEFINED positive predictive value -- the D5 shape, in
+#   the registry rather than in the operating-point functions. Widening a
+#   movement set to cover defects discovered while measuring it is the scope
+#   creep the discipline prevents.
+#
+#   ACCEPTANCE: full suite 4159 passed, 6 skipped, 0 failed in 21m08s; 4165
+#   collected; skip set unchanged at 6.
+#
+4165

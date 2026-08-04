@@ -1,0 +1,132 @@
+
+==============================================================================
+SECTION 0 -- WHAT IS BEING TESTED
+==============================================================================
+  generated  2026-08-04 10:37:16
+
+  The claim under test: REG-2's movement set is exactly
+      negative_predictive_value          empty_predicted_negative_set
+      positive_predictive_value          empty_predicted_positive_set
+
+  That was measured on TWO constructed cohorts. Two measurements do
+  not establish a set. This drives EVERY registered descriptor through
+  several degenerate shapes and reports every non-OK status.
+
+==============================================================================
+SECTION 1 -- 24 REGISTERED DESCRIPTORS, 6 COHORT SHAPES
+==============================================================================
+
+  --- nothing_flagged        (TP+FP = 0) ---
+      matthews_correlation_coefficient         undefined              NaN    zero_confusion_margin
+      positive_predictive_value                undefined              NaN    empty_predicted_positive_set
+      positive_likelihood_ratio                undefined              NaN    likelihood_ratio_unbounded
+      negative_likelihood_ratio                undefined              NaN    likelihood_ratio_unbounded
+
+  --- everything_flagged     (TN+FN = 0) ---
+      matthews_correlation_coefficient         undefined              NaN    zero_confusion_margin
+      negative_predictive_value                undefined              NaN    empty_predicted_negative_set
+      positive_likelihood_ratio                undefined              NaN    likelihood_ratio_unbounded
+      negative_likelihood_ratio                undefined              NaN    likelihood_ratio_unbounded
+
+  --- no_reference_positives (TP+FN = 0) ---
+      auroc                                    undefined              NaN    binary_class_support_required
+      auprc                                    undefined              NaN    binary_class_support_required
+      auprc_gain                               undefined              NaN    binary_class_support_required
+      matthews_correlation_coefficient         undefined              NaN    zero_confusion_margin
+      sensitivity                              insufficient_support   NaN    positive_class_support_required
+      balanced_accuracy                        undefined              NaN    binary_class_support_required
+      positive_likelihood_ratio                undefined              NaN    binary_class_support_required
+      negative_likelihood_ratio                undefined              NaN    binary_class_support_required
+      partial_auroc                            undefined              NaN    binary_class_support_required
+      integrated_calibration_index             failed                 NaN    applicable_metric_returned_non_finite
+
+  --- no_reference_negatives (TN+FP = 0) ---
+      auroc                                    undefined              NaN    binary_class_support_required
+      auprc                                    undefined              NaN    binary_class_support_required
+      auprc_gain                               undefined              NaN    binary_class_support_required
+      matthews_correlation_coefficient         undefined              NaN    zero_confusion_margin
+      specificity                              insufficient_support   NaN    negative_class_support_required
+      balanced_accuracy                        undefined              NaN    binary_class_support_required
+      positive_likelihood_ratio                undefined              NaN    binary_class_support_required
+      negative_likelihood_ratio                undefined              NaN    binary_class_support_required
+      partial_auroc                            undefined              NaN    binary_class_support_required
+      integrated_calibration_index             failed                 NaN    applicable_metric_returned_non_finite
+
+  --- single_row                         ---
+      auroc                                    undefined              NaN    binary_class_support_required
+      auprc                                    undefined              NaN    binary_class_support_required
+      auprc_gain                               undefined              NaN    binary_class_support_required
+      matthews_correlation_coefficient         undefined              NaN    zero_confusion_margin
+      specificity                              insufficient_support   NaN    negative_class_support_required
+      negative_predictive_value                undefined              NaN    empty_predicted_negative_set
+      balanced_accuracy                        undefined              NaN    binary_class_support_required
+      positive_likelihood_ratio                undefined              NaN    binary_class_support_required
+      negative_likelihood_ratio                undefined              NaN    binary_class_support_required
+      partial_auroc                            undefined              NaN    binary_class_support_required
+      integrated_calibration_index             failed                 NaN    applicable_metric_returned_non_finite
+
+  --- perfect_separation                 ---
+      positive_likelihood_ratio                undefined              NaN    likelihood_ratio_unbounded
+      negative_likelihood_ratio                undefined              NaN    likelihood_ratio_unbounded
+
+==============================================================================
+SECTION 2 -- EVERY NON-OK (status, reason) OBSERVED
+==============================================================================
+
+      status                   reason                             metrics
+      ------------------------ ---------------------------------- ----------------
+      failed                   applicable_metric_returned_non_finite 1
+                                                                    integrated_calibration_index
+      insufficient_support     negative_class_support_required    1
+                                                                    specificity
+      insufficient_support     positive_class_support_required    1
+                                                                    sensitivity
+      undefined                binary_class_support_required      7
+                                                                    auprc
+                                                                    auprc_gain
+                                                                    auroc
+                                                                    balanced_accuracy
+                                                                    negative_likelihood_ratio
+                                                                    partial_auroc
+                                                                    positive_likelihood_ratio
+      undefined                empty_predicted_negative_set       1
+                                                                    negative_predictive_value
+      undefined                empty_predicted_positive_set       1
+                                                                    positive_predictive_value
+      undefined                likelihood_ratio_unbounded         2
+                                                                    negative_likelihood_ratio
+                                                                    positive_likelihood_ratio
+      undefined                zero_confusion_margin              1
+                                                                    matthews_correlation_coefficient
+
+==============================================================================
+SECTION 3 -- THE MOVEMENT SET, MEASURED
+==============================================================================
+
+  A DENOMINATOR-ZERO refusal returning anything but UNDEFINED. Judged
+  by REASON, because the reason names the confusion state while the
+  status is the thing under question.
+
+      OK        matthews_correlation_coefficient       undefined              zero_confusion_margin
+      OK        positive_predictive_value              undefined              empty_predicted_positive_set
+      OK        negative_predictive_value              undefined              empty_predicted_negative_set
+
+  declared from the two-case probe   2
+  measured across the whole graph    0
+
+  *** DECLARED MEMBERS NOT REPRODUCED HERE:
+        negative_predictive_value              empty_predicted_negative_set
+        positive_predictive_value              empty_predicted_positive_set
+  Either the cohort shapes do not reach them, or the earlier
+  measurement was wrong. Read before writing REG-2.
+
+==============================================================================
+SUMMARY
+==============================================================================
+  descriptors          24
+  cohort shapes        6
+  distinct non-OK pairs 8
+  movement set         0
+  raised               0
+
+  exit code 1

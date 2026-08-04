@@ -1015,8 +1015,32 @@ def _requires_flagged_margin(tp: ThresholdParameters, *, flagged: bool,
         count = int(predicted.sum()) if flagged else int((~predicted).sum())
         if count == 0:
             side = "predicted_positive" if flagged else "predicted_negative"
+            # UNDEFINED, not INSUFFICIENT_SUPPORT. Corrected 2026-08-04 (REG-2).
+            #
+            # A predictive value with an empty denominator is MATHEMATICALLY
+            # UNDEFINED: `TP/(TP+FP)` has no value when `TP+FP = 0`. The enum
+            # reserves INSUFFICIENT_SUPPORT for "the machinery is ready and the
+            # science is not" -- a cohort-support judgement, which this is not.
+            #
+            # The block above states the intent this restores: applicability must
+            # refuse EXACTLY where the kernel would return NaN, and it lists the
+            # requirement as `TP + FP > 0`, marked threshold-dependent. That is a
+            # denominator condition.
+            #
+            # NOT A CLOSE CALL. Measured across 24 descriptors and 6 cohort
+            # shapes: ten metrics already return UNDEFINED for mathematically
+            # undefined states -- binary_class_support_required (7),
+            # likelihood_ratio_unbounded (2), zero_confusion_margin (1) -- while
+            # only these two predictive values used INSUFFICIENT_SUPPORT for one.
+            # The registry contradicted itself; this makes two agree with ten.
+            #
+            # `_requires_class_support` is DELIBERATELY UNCHANGED: an absent
+            # reference class IS a support problem, and its two metrics are
+            # correct as they stand.
+            #
+            # The reason string is unchanged. It was accurate before and after.
             return Applicability(
-                applicable=False, status=MetricStatus.INSUFFICIENT_SUPPORT,
+                applicable=False, status=MetricStatus.UNDEFINED,
                 reason=f"empty_{side}_set",
                 metadata={"threshold": tp.threshold})
         return APPLICABLE

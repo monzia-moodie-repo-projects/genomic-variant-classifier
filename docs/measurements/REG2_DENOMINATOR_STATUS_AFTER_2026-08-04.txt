@@ -1,0 +1,69 @@
+
+==============================================================================
+SECTION 0 -- WHAT IS BEING MEASURED
+==============================================================================
+  generated  2026-08-04 10:37:11
+
+  The status the registry returns when a metric's DENOMINATOR IS ZERO.
+  UNDEFINED is the mathematically correct member. If a metric returns
+  something else, that is a REG-2 movement, not an OP-1 decision.
+
+==============================================================================
+SECTION 1 -- THE CONSTRUCTOR SIGNATURES, READ NOT ASSUMED
+==============================================================================
+
+  EvaluationPopulation.full(n_source: 'int', *, scope: 'str', source_id: 'Optional[str]') -> "'EvaluationPopulation'"
+  MetricContext(y_true: 'np.ndarray', population: 'EvaluationPopulation', y_score: 'Optional[np.ndarray]' = None, y_prob: 'Optional[np.ndarray]' = None, clusters: 'Optional[np.ndarray]' = None, sample_weight: 'Optional[np.ndarray]' = None, metadata: 'Mapping[str, object]' = <factory>) -> None
+
+  The adopted illustration passes n_source BY KEYWORD. This probe
+  passes it POSITIONALLY, because only the positional form has been
+  verified in this sequence -- a wrong keyword would raise TypeError
+  and read as though the metric were missing.
+
+==============================================================================
+SECTION 2 -- MEASURED STATUSES
+==============================================================================
+
+  --- empty_predicted_positive  (TP+FP = 0; PPV undefined) ---
+      metric                                 status                 value      reason
+      -------------------------------------- ---------------------- ---------- ------------------------
+      positive_predictive_value              undefined              NaN        empty_predicted_positive_set
+      negative_predictive_value              ok                     0.5        
+      f1                                     ok                     0.0        
+      matthews_correlation_coefficient       undefined              NaN        zero_confusion_margin
+      sensitivity                            ok                     0.0        
+      specificity                            ok                     1.0        
+
+  --- empty_predicted_negative  (TN+FN = 0; NPV undefined) ---
+      metric                                 status                 value      reason
+      -------------------------------------- ---------------------- ---------- ------------------------
+      positive_predictive_value              ok                     0.5        
+      negative_predictive_value              undefined              NaN        empty_predicted_negative_set
+      f1                                     ok                     0.6666666666666666 
+      matthews_correlation_coefficient       undefined              NaN        zero_confusion_margin
+      sensitivity                            ok                     1.0        
+      specificity                            ok                     0.0        
+
+==============================================================================
+SECTION 3 -- THE RULING THIS TRIGGERS
+==============================================================================
+
+  EVERY denominator-zero state already returns UNDEFINED.
+
+  OP-1 ADOPTS THAT EXACT STATUS AND REASON in the count-level
+  predicate. The build specification's INSUFFICIENT_SUPPORT for an
+  empty predicted-positive set is corrected to UNDEFINED, and the
+  correction is a transcription fix rather than a semantic
+  movement -- it makes OP-1 match a registry that was already
+  right.
+
+  NO REG-2 COMMIT IS REQUIRED.
+
+==============================================================================
+SUMMARY
+==============================================================================
+  denominator-zero states judged   2
+  states requiring movement        0
+  metrics that could not answer    0
+
+  exit code 0
