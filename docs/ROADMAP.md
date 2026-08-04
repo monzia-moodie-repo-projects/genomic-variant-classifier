@@ -4140,3 +4140,161 @@ whose metadata ownership is enforced on every path (REG-1).
 Then the drift monitor, whose red is roadmap 6.20's fix working -- exactly as
 preflight 13c's red was PRE-1a working, and as REG-1 version one's 29 red tests
 were the suite working.
+
+## ROADMAP delta -- 2026-08-04: OP-0. A commit that changes no arithmetic, and is still worth making.
+
+One commit: implementation, four tests in a new module, this delta, the session
+document, the ratchet and the badge.
+
+Full suite 4155 passed, 6 skipped, 0 failed; 4161 collected. Ratchet 4157 ->
+4161 (+4). NO SABOTAGE LINE, deliberately -- see section 3.
+
+Full write-up: `docs/SESSION_2026-08-04_op0-legacy-selector-semantics.md`.
+
+### 0. WHAT IT DOES, AND WHAT IT DELIBERATELY DOES NOT
+
+OP-1 will replace the operating-point subsystem with a typed, population-bearing
+one. OP-0 freezes and NAMES the legacy contract first, so the shadow comparison
+is scientifically interpretable.
+
+Without it, an OP-1 difference could be read five ways: a sweep defect, a
+tie-breaking defect, a threshold-order defect, a regression in positive
+predictive value, or the intended policy change. With it, a difference is a
+DECLARED POLICY CHANGE and nothing else.
+
+No numerical change. No schema change. The `break` is not removed.
+
+### 1. THE DOCSTRING CLAIMED A POLICY THE CODE DOES NOT IMPLEMENT
+
+It read "Highest-sensitivity threshold where PPV >= min_ppv". The code walks
+candidates from conservative to permissive and BREAKS at the first violation,
+returning the last preceding candidate. Those differ whenever positive predictive
+value is non-monotone in the threshold -- which it is.
+
+Measured 2026-08-04, y = [1, 0, 1], p = [0.9, 0.8, 0.7], min_ppv = 0.60:
+
+```
+t=0.90   ppv=1.0000   sensitivity=0.5000   FEASIBLE        <- selected
+t=0.80   ppv=0.5000   sensitivity=0.5000   violates floor  <- the break fires
+t=0.70   ppv=0.6667   sensitivity=1.0000   FEASIBLE, UNREACHABLE
+```
+
+The selected point has HALF the sensitivity of a candidate satisfying the same
+floor.
+
+    legacy `_find_high_ppv_point`   OBJECTIVE B, conservative prefix
+    OP-1's policy for at_high_ppv   OBJECTIVE A, pointwise floor, maximise
+                                    sensitivity over ALL candidates
+
+**NEITHER NAME EXISTED ANYWHERE IN THE REPOSITORY BEFORE THIS COMMIT.** Measured:
+zero occurrences across source and documentation. The decision adopting Objective
+A was taken 2026-08-01 and had never been written where the work happens.
+
+That is a NEW MEMBER OF A FAMILIAR FAMILY, and it belongs beside shape (a) rather
+than inside it: not a stored number that rotted, but an ADOPTED DECISION recorded
+only in the conversation that took it. Section 7's standing rule is that a claim
+which cannot be followed is an assertion wearing evidence's clothes; a decision
+that cannot be FOUND is the same failure one level up. Call it shape **(e)**:
+**a decision that lives only in the conversation that took it has not been made
+where the work happens.**
+
+### 2. A NAMING DEFECT, AND WHY IT MATTERED BEFORE IT WAS NUMERICAL
+
+```
+_find_high_ppv_point:   n_neg = tp + fp   # n_flagged
+_find_operating_point:  n_neg = fp + tn   # genuinely the negatives
+```
+
+One identifier, two quantities, two adjacent functions. The arithmetic was
+correct -- every use read it as the flagged count, and the trailing comment
+admitted as much -- and the NAME said the opposite. One edit away from becoming
+numerical.
+
+Renamed to `n_flagged`, already the public vocabulary: it is a field on
+`OperatingPoint`. The sibling is untouched, and a test asserts it STAYS untouched
+so the rule cannot be satisfied by over-renaming.
+
+### 3. NO SABOTAGE LINE, AND THE ABSENCE IS EXPLAINED
+
+Every recent entry carries one. OP-0 changes NO ARITHMETIC, so there is nothing
+behavioural to mutate.
+
+That was proved structurally rather than asserted: the token stream of
+`_find_high_ppv_point` was compared before and after with the renamed identifier
+normalised, and came to **418 tokens on both sides, IDENTICAL**. A text diff
+cannot show this, because the text also gains comments and a rewritten docstring.
+
+The two structural guards were FALSIFIED INDIVIDUALLY instead. Reverting the
+rename in place gave `line(s) [76] ... 1 failed, 3 passed` -- and THE OTHER THREE
+PASSED UNCHANGED, which is the part that matters: the naming guard is not
+entangled with behaviour it should not be watching.
+
+For a commit of this kind that is stronger evidence than an aggregate count. It
+is also the fifth repair this week proven by making it fail first, after the
+POP-1a scores test, preflight 13c, the armed ratchet, and REG-1's two gates.
+
+### 4. STRUCT-1 ADVANCES: STRUCTURAL GUARDS, SECOND USE
+
+REG-1 introduced them on 2026-08-03 to catch a derivation replaced by a literal.
+OP-0 uses them on a defect of a different kind -- a misleading NAME while the
+arithmetic stays correct -- which no behavioural test could ever reach.
+
+    behavioural tests   prove outputs and runtime refusals
+    structural tests    prove ownership, derivation, naming and authority paths
+
+Two uses, two defect classes, both invisible to assertions on outputs. STRUCT-1
+remains open and is now better evidenced.
+
+### 5. THE SUBSYSTEM ABOUT TO BE REWRITTEN HAS ALMOST NO COVERAGE
+
+Measured across the whole test tree: `_find_high_ppv_point` was exercised by
+NOTHING -- the only match for either finder was a COMMENT mentioning
+`_find_operating_point` in prose. The operating points themselves were asserted
+on seven lines across four files.
+
+A shadow comparison against an unexercised selector proves very little. Recorded
+as **OPCOV-1**, and OP-1 should be read with it in mind.
+
+### 6. A TOOL DEFECT, FOUND AND FIXED IN PASSING
+
+The `code_only` helper used by these installers' post-checks filtered
+`tokenize.STRING`. **On Python 3.12 f-strings do not tokenise as STRING** -- they
+produce FSTRING_START, FSTRING_MIDDLE and FSTRING_END. So f-string prose passed
+straight through a filter whose entire purpose was excluding prose.
+
+Every earlier use in this sequence had the same blind spot; the counts that
+passed did so because no f-string happened to contain the token, not because the
+filter worked. Found by MEASURING where the occurrences were rather than
+reasoning about the discrepancy a third time.
+
+### 7. OPEN -- fourteen items, dated
+
+| id | item |
+|---|---|
+| **OPCOV-1** | *new.* `_find_high_ppv_point` exercised by nothing before OP-0; operating points asserted on seven lines across four files |
+| **GITIGNORE-1** | *new, cosmetic.* `*.bak_*` appears three times in `.gitignore` (155, 158, 262) |
+| STRUCT-1 | structural guards now used twice, on two defect classes; other comment-only invariants could be gated the same way |
+| POP-1b-M03 | no test distinguishes the source distance from the parent distance |
+| POP-1b-M07 | nothing asserts on `print_report` output |
+| ZERO-1 | 24 dead-connector defaults still zero -- is the allowlist itself stale? |
+| INF-1 | an infinite reference label is pooled with NaN as *withheld* |
+| ABS-1 | the ranking channel's refusal reported as `undefined_on_cohort` |
+| DEAD-1 | ~40 lines of dead absence computation in `evaluate` |
+| DEAD-3 | `_assert_absence_biconditional` computes `observed_curves` twice |
+| PRE-2 | section 5's PASS line swallows the KAN banner and a progress bar |
+| LINT-1 | no lint gate anywhere |
+| F821-1 | 18 undefined names; 9 need assessment |
+| CMP-1 | `ModelComparison` carries a fingerprint with no scope beside it |
+
+### 8. NEXT
+
+**OP-1** -- the typed, population-bearing operating-point subsystem. The legacy
+contract is frozen and named, so a shadow difference is now a declared policy
+change rather than an unexplained number.
+
+Its own defect register from 2026-08-01 must be RE-READ against the current code
+before it is used: it predates POP-1a, POP-1b and REG-1, each of which changed
+ground it stands on. That re-reading is itself the shape section 7 warns about,
+and the OP-1 preflight of 2026-08-04 was written to do it.
+
+Then the drift monitor, whose red is roadmap 6.20's fix working.

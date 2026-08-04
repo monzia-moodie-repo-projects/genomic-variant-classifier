@@ -4709,4 +4709,94 @@
 #
 #   Sabotage: 6 mutations, 6 detected, 0 undetected, 0 anchor misses.
 #
-4157
+#
+# 4157 -> 4161 (+4)  2026-08-04  OP-0: characterize and clarify the legacy
+#   operating-point selector semantics. NO numerical change. NO schema change.
+#
+#   PREPARATORY. OP-1 will replace this subsystem with a typed, population-
+#   bearing one. Before that, the legacy contract is made TRUTHFUL and FROZEN so
+#   the shadow comparison is scientifically interpretable. Without this, an OP-1
+#   difference could be mistaken for a sweep defect, a tie-breaking defect, a
+#   threshold-order defect, a regression in positive predictive value, or the
+#   intended policy change -- five readings of one number.
+#
+#   THE DOCSTRING CLAIMED A POLICY THE CODE DOES NOT IMPLEMENT. It read
+#   "Highest-sensitivity threshold where PPV >= min_ppv". The code walks
+#   candidates from conservative to permissive and BREAKS at the first violation,
+#   returning the last preceding candidate. Those differ whenever positive
+#   predictive value is non-monotone in the threshold -- which it is.
+#
+#   MEASURED 2026-08-04, y = [1, 0, 1], p = [0.9, 0.8, 0.7], min_ppv = 0.60:
+#
+#       t=0.90   ppv=1.0000   sensitivity=0.5000   FEASIBLE        <- selected
+#       t=0.80   ppv=0.5000   sensitivity=0.5000   violates floor  <- break fires
+#       t=0.70   ppv=0.6667   sensitivity=1.0000   FEASIBLE, UNREACHABLE
+#
+#   The selected point has HALF the sensitivity of a candidate satisfying the
+#   same floor. The legacy rule is legitimate -- the most permissive threshold
+#   that has never dropped below the floor -- but it is not what its docstring
+#   said.
+#
+#       legacy `_find_high_ppv_point`   OBJECTIVE B, conservative prefix
+#       OP-1's policy for at_high_ppv   OBJECTIVE A, pointwise floor, maximise
+#                                       sensitivity over ALL candidates
+#
+#   NEITHER NAME EXISTED ANYWHERE IN THE REPOSITORY BEFORE THIS COMMIT. Measured
+#   by the OP-1 preflight: `Objective A` and `Objective B` returned ZERO
+#   occurrences across source and documentation. The decision adopting Objective
+#   A was taken 2026-08-01 and had never been written where the work happens --
+#   a new instance of a familiar family: not a stored number that rotted, but an
+#   ADOPTED DECISION never recorded outside the conversation that took it.
+#
+#   THE BREAK IS NOT REMOVED. Removing it would switch from B toward A before the
+#   typed subsystem, exact sweep, population identity, refusal semantics and
+#   shadow comparison exist to receive it, and the resulting difference would be
+#   uninterpretable.
+#
+#   A NAMING DEFECT, REPAIRED. `n_neg = tp + fp  # n_flagged` stored the
+#   PREDICTED-POSITIVE count under the name of the reference-negative count,
+#   while the sibling `_find_operating_point` uses `n_neg` for the genuine
+#   fp + tn. One identifier, two quantities, two adjacent functions. The
+#   arithmetic was correct and the name was not -- one edit away from becoming
+#   numerical. Renamed to `n_flagged`, which is already the public vocabulary: it
+#   is a field on OperatingPoint. The sibling is untouched.
+#
+#   NO SABOTAGE LINE, DELIBERATELY. OP-0 changes NO ARITHMETIC, so there is
+#   nothing behavioural to mutate. The installer proved it structurally: the
+#   token stream of `_find_high_ppv_point` was compared before and after with the
+#   renamed identifier normalised, and came to 418 tokens on both sides,
+#   IDENTICAL. A text diff cannot show that, because the text also gains comments
+#   and a rewritten docstring.
+#
+#   BOTH STRUCTURAL GUARDS WERE FALSIFIED INDIVIDUALLY, which is stronger than an
+#   aggregate count for a commit of this kind. Reverting the rename in place gave:
+#
+#       AssertionError: line(s) [76] of _find_high_ppv_point store tp + fp under
+#       the name n_neg ...   1 failed, 3 passed
+#
+#   The other three passed unchanged -- so the structural guard is not entangled
+#   with behaviour it should not be watching. Restoration was verified by digest.
+#
+#   THE SUBSYSTEM ABOUT TO BE REWRITTEN HAS ALMOST NO COVERAGE. Measured across
+#   the whole test tree: `_find_high_ppv_point` was exercised by NOTHING -- the
+#   only match for either finder was a COMMENT mentioning `_find_operating_point`
+#   in prose. The operating points themselves were asserted on seven lines across
+#   four files. A shadow comparison against an unexercised selector proves very
+#   little, and OP-1 should be read with that in mind.
+#
+#   A TOOL DEFECT FOUND AND FIXED IN PASSING. The `code_only` helper used by
+#   these installers' post-checks filtered `tokenize.STRING` -- but ON PYTHON
+#   3.12 F-STRINGS DO NOT TOKENISE AS STRING. They produce FSTRING_START,
+#   FSTRING_MIDDLE and FSTRING_END, so f-string prose passed straight through a
+#   filter whose entire purpose was excluding prose. Every earlier use in this
+#   sequence had the same blind spot; the counts that passed did so because no
+#   f-string happened to contain the token. Found by measuring where the
+#   occurrences were rather than reasoning about the discrepancy a third time.
+#
+#   ACCEPTANCE: full suite 4155 passed, 6 skipped, 0 failed in 18m21s; 4161
+#   collected; skip set unchanged at 6. Four new tests in
+#   tests/unit/test_operating_point_semantics.py -- a NEW module, because both
+#   candidate homes are about something else and this project has already paid
+#   for one misfiled entry.
+#
+4161

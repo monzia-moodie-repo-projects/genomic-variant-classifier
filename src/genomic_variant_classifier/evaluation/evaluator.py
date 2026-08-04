@@ -1549,12 +1549,34 @@ class ClinicalEvaluator:
         p: np.ndarray,
         min_ppv: float = 0.80,
     ) -> Optional[OperatingPoint]:
-        """
-        Highest-sensitivity threshold where PPV ≥ min_ppv.
+        """Return the legacy conservative-prefix operating point: OBJECTIVE B.
 
-        Walk thresholds from HIGH->LOW (conservative->liberal).
-        Track the last threshold seen where ppv >= min_ppv -- that is the
-        most permissive threshold that never drops below min_ppv.
+        Candidates are visited from more conservative to more permissive
+        thresholds. Selection STOPS at the first candidate whose positive
+        predictive value falls below ``min_ppv`` and returns the last preceding
+        candidate.
+
+        THIS IS NOT THE GLOBAL MAXIMUM-SENSITIVITY OPERATING POINT SUBJECT TO A
+        POINTWISE POSITIVE-PREDICTIVE-VALUE FLOOR, because that value need not be
+        monotone as the threshold decreases. Measured 2026-08-04 on
+        y = [1, 0, 1], p = [0.9, 0.8, 0.7], min_ppv = 0.60:
+
+            t=0.90   ppv=1.0000   sensitivity=0.5000   FEASIBLE     <- selected
+            t=0.80   ppv=0.5000   sensitivity=0.5000   violates the floor
+            t=0.70   ppv=0.6667   sensitivity=1.0000   FEASIBLE, UNREACHABLE
+
+        The break fires at 0.80 and never reaches 0.70, which satisfies the same
+        floor at DOUBLE the sensitivity. The rule implemented here is legitimate
+        -- the most permissive threshold that has never dropped below the floor
+        -- but it is not "highest sensitivity among all thresholds satisfying the
+        floor". That is OBJECTIVE A, which OP-1 implements separately; this
+        function remains temporarily as the legacy shadow authority.
+
+        The prior docstring claimed Objective A. This one states what the code
+        does. The behaviour is deliberately UNCHANGED by that correction: the
+        break is not removed here, because switching policy before the typed
+        subsystem, exact sweep, population identity and shadow comparison exist
+        would make the resulting difference uninterpretable.
 
         GATED 2026-07-28 (CI-t), for the same reason as the sensitivity sweep and
         found the same way. Gating the two sensitivity targets alone left THIS
@@ -1588,12 +1610,20 @@ class ClinicalEvaluator:
             fn = int(((preds == 0) & (y == 1)).sum())
             tn = int(((preds == 0) & (y == 0)).sum())
             n_pos = tp + fn
-            n_neg = tp + fp  # n_flagged
+            # `n_flagged`, not `n_neg`. Renamed 2026-08-04 (OP-0). This held
+            # tp + fp -- the PREDICTED-POSITIVE count -- under the name of the
+            # reference-negative count, while the sibling `_find_operating_point`
+            # uses `n_neg` for the genuine fp + tn. One identifier, two
+            # quantities, two adjacent functions. The arithmetic was correct and
+            # the name was not, which is a defect one edit away from becoming
+            # numerical. `n_flagged` is already the public vocabulary: it is a
+            # field on OperatingPoint.
+            n_flagged = tp + fp
 
-            if n_neg == 0 or n_pos == 0:
+            if n_flagged == 0 or n_pos == 0:
                 continue
 
-            ppv = tp / n_neg
+            ppv = tp / n_flagged
             if ppv < min_ppv:
                 # Once PPV drops below target, stop — prior iteration was the best
                 break
@@ -1611,7 +1641,7 @@ class ClinicalEvaluator:
                 ppv         = round(ppv, 4),
                 npv         = round(npv, 4),
                 f1          = round(f1, 4),
-                n_flagged   = int(n_neg),
+                n_flagged   = int(n_flagged),
                 n_tp=tp, n_fp=fp, n_fn=fn, n_tn=tn,
             )
 
