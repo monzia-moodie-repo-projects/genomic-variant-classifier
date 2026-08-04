@@ -62,6 +62,19 @@ class ThresholdSource(str, Enum):
     FIXED_DEFAULT = "fixed_default"
     CALIBRATED = "calibrated"
     USER_SUPPLIED = "user_supplied"
+    # THR-1b (2026-08-04). A candidate enumerated by an exact threshold sweep.
+    #
+    # SWEEP, NOT SELECTED. A candidate exists BEFORE selection: every point the
+    # sweep enumerates carries this source, and at most one of them is ever
+    # chosen. "Selected" would make the vocabulary temporally false for every
+    # candidate that was examined and rejected -- which is all but one.
+    #
+    # And it keeps three facts separate, which is why this is a type rather than
+    # a comment: SOURCE is where the candidate came from, POLICY is why it was
+    # chosen among candidates, and CERTIFICATION BLOCKERS are why its performance
+    # is not independently validated. A field conflating them would leave an
+    # artifact unable to distinguish "swept" from "chosen" from "unvalidated".
+    EVALUATION_SWEEP = "evaluation_sweep"
 
 
 @dataclass(frozen=True)

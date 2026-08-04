@@ -4651,3 +4651,147 @@ Python objects.
 
 Seven register defects remain open: D1, D2-D5, D6, D9, D10, D11, D12. One sort
 with cumulative sums closes D1, D9, D10 and D11 together.
+
+## ROADMAP delta -- 2026-08-04: THR-1b. A vocabulary nothing enumerated, and a ratchet that measures its own target.
+
+One commit: one enum member, four tests, this delta, the session document, the
+ratchet and the badge.
+
+Full suite 4169 passed, 6 skipped, 0 failed; 4175 collected. Ratchet 4171 ->
+4175 (+4), MEASURED by the installer rather than written into it.
+
+Full write-up: `docs/SESSION_2026-08-04_thr1b-evaluation-sweep-source.md`.
+
+NO NEW SHAPE IS CLAIMED HERE. The vocabulary finding is REG-2's lesson applied
+one layer down; the ratchet change is a tightening of existing practice. Not
+every commit produces a named discipline, and claiming one here would dilute the
+three that earned their names this week -- (e), (f) and EXTRACT-1.
+
+### 0. WHAT IT ADDS
+
+`ThresholdSource.EVALUATION_SWEEP = "evaluation_sweep"`, and the completeness
+gate that should already have existed.
+
+### 1. FIVE TESTS REFERENCED THE ENUM AND NONE ENUMERATED IT
+
+Measured in the installer's own preconditions, BEFORE the change, across the
+whole test suite:
+
+```
+'for member in'         0 occurrence(s)
+'ThresholdSource}'      0 occurrence(s)
+'_EXPECTED_THRESHOLD'   0 occurrence(s)
+```
+
+The five tests that referenced `ThresholdSource` used it as a VALUE -- asserting
+`fixed_default` on three descriptors, exercising type validation, and using
+`CALIBRATED` as a differing value in a fingerprint variant.
+
+So a member could have appeared, disappeared, or quietly changed its serialised
+string, and NOTHING IN 4,171 TESTS WOULD HAVE OBJECTED. The addition is one line;
+the gate is the substance.
+
+### 2. WHY THE RENAME CASE IS THE ONE THAT MATTERS
+
+`test_registry_vocabulary_completion.py:832`:
+
+```python
+assert mcc_print["threshold"] == (0.5, ">=", "fixed_default")
+```
+
+THE DESCRIPTOR FINGERPRINT EMBEDS THE SERIALISED STRING in a tuple compared by
+equality, and that fingerprint is the immutability audit. These values are
+load-bearing, and a renamed one would silently orphan every historical record
+carrying the old string. Nothing gated that until now.
+
+### 3. THE GATE RUNS IN BOTH DIRECTIONS, AND WAS FALSIFIED
+
+On the pattern of `test_conformal_package_exports.py`: the member set is asserted
+EXACTLY, so an addition, a removal and a RENAME are each caught. All three were
+exercised against a constructed vocabulary before shipping.
+
+Then falsified against the LIVE module -- a throwaway `SNEAKY = "sneaky"`:
+
+```
+Left contains 1 more item: {'SNEAKY': 'sneaky'}
+AssertionError: the ThresholdSource vocabulary changed.
+1 failed, 9 passed
+```
+
+THE OTHER NINE PASSED UNCHANGED. The completeness gate is not entangled with
+identity, serialisation, ownership or validation -- a gate that fails alongside
+everything else is measuring the change rather than the property. Same
+distinction T3 established for REG-2.
+
+And COMPATIBILITY IS ASSERTED SEPARATELY FROM THE SET: the set test fails for any
+change, while a second test names the three members that predate THR-1b, so a
+failure says immediately whether an EXISTING value moved -- which reinterprets
+artifacts -- or a NEW one was added, which does not.
+
+### 4. WHY `EVALUATION_SWEEP` AND NOT `EVALUATION_SELECTED`
+
+A candidate exists BEFORE selection. Every point an exact sweep enumerates
+carries this source, and at most one is ever chosen; "selected" would make the
+vocabulary temporally false for all but one candidate.
+
+And it keeps three facts apart, which is why this is a type rather than a
+comment:
+
+```
+SOURCE                  where the candidate came from
+POLICY                  why it was chosen among candidates
+CERTIFICATION BLOCKERS  why its performance is not independently validated
+```
+
+A field conflating them would leave an artifact unable to distinguish "swept"
+from "chosen" from "unvalidated".
+
+### 5. THE RATCHET MEASURED ITS OWN TARGET
+
+Every previous ratchet carried a hand-written value, and that constant was WRONG
+THREE TIMES TODAY:
+
+```
+OP-0                predicted 4155    collected 4157
+REG-2               predicted 48      found 49 test functions
+THR-1a post-check   expected 2        measured 3
+```
+
+Each was caught by a gate -- the machinery working. But a target that is an
+ARITHMETIC GUESS is a stale constant waiting to happen, which is the shape
+section 7 already names.
+
+So this installer ran `pytest --collect-only`, read the count, and wrote THAT.
+The prediction was kept only as a CROSS-CHECK, and had the two disagreed the
+installer would have REFUSED and reported both, because a surprise in the count
+means something landed that the commit did not intend.
+
+They agreed. THE REFUSAL PATH IS THE REASON TO BUILD IT THIS WAY, not the
+agreement -- and the pattern is available to every future ratchet.
+
+### 6. NO SABOTAGE LINE
+
+The addition changes no existing value and no behaviour, so there is nothing
+behavioural to mutate. The falsification in section 3 IS the mutation, with its
+outcome predicted before it was run.
+
+### 7. OPEN -- eighteen items, unchanged from THR-1a
+
+No item was opened or closed by this commit. The register stands as recorded in
+the 2026-08-04 THR-1a delta: EXTRACT-1, SWEEP-1, REG-2-b, ICI-1, F1-1, OPCOV-1,
+GITIGNORE-1, STRUCT-1, POP-1b-M03, POP-1b-M07, ZERO-1, INF-1, ABS-1, DEAD-1,
+DEAD-3, PRE-2, LINT-1, F821-1, CMP-1.
+
+### 8. NEXT
+
+**Step 1** -- `ConfusionCounts`, the exact sweep, and the lazy candidate view.
+Everything it needs now exists: `thresholds.py` as the bottom layer (THR-1a),
+`EVALUATION_SWEEP` to label each candidate (THR-1b), the status vocabulary
+correct and gated (REG-2), and an algorithm already verified against the
+brute-force definition across ten cohorts with all eleven refusal paths raising.
+
+ITS INVENTORY COMES FIRST THIS TIME -- EXTRACT-1 applied rather than merely
+recorded.
+
+Seven register defects remain open: D1, D2-D5, D6, D9, D10, D11, D12. One sort
+with cumulative sums closes D1, D9, D10 and D11 together.

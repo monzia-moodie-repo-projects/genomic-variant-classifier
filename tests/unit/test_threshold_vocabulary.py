@@ -149,3 +149,107 @@ def test_thresholds_owns_the_vocabulary_it_defines():
             "genomic_variant_classifier.evaluation.thresholds"
         ), (f"{cls.__name__} must be DEFINED in the vocabulary layer, not "
             "re-exported into it")
+# --------------------------------------------------------------------------- #
+# THR-1b (2026-08-04): the vocabulary is now GATED, in both directions
+# --------------------------------------------------------------------------- #
+
+# The exact member set and the exact serialised value of each. Measured, not
+# recalled: `fixed_default`, `calibrated` and `user_supplied` predate THR-1b and
+# their strings are LOAD-BEARING -- `test_registry_vocabulary_completion.py:832`
+# asserts `mcc_print["threshold"] == (0.5, ">=", "fixed_default")`, so the
+# descriptor fingerprint embeds the serialised string in a tuple compared by
+# equality. A renamed value would silently orphan every historical record that
+# carries the old one.
+_EXPECTED_THRESHOLD_SOURCES = {
+    "FIXED_DEFAULT": "fixed_default",
+    "CALIBRATED": "calibrated",
+    "USER_SUPPLIED": "user_supplied",
+    "EVALUATION_SWEEP": "evaluation_sweep",
+}
+
+_EXPECTED_THRESHOLD_OPERATORS = {
+    "GREATER_OR_EQUAL": ">=",
+    "GREATER": ">",
+}
+
+
+def test_the_threshold_source_vocabulary_is_exactly_this():
+    """BOTH DIRECTIONS, on the pattern of `test_conformal_package_exports.py`.
+
+    Before THR-1b, FIVE tests referenced `ThresholdSource` and NOT ONE
+    enumerated its members -- they used it as a value. So a member could have
+    appeared, disappeared, or changed its serialised string and nothing in 4,171
+    tests would have objected.
+
+    That is the REG-2 shape one layer down: there, a semantic correction to two
+    metrics changed no test outcome anywhere, and the repair was the assertions
+    that would notice it next time.
+
+    A STEALTH ADDITION and a STEALTH REMOVAL both fail here, and so does a
+    RENAMED VALUE -- which is the one that would silently orphan historical
+    records, since the descriptor fingerprint embeds these strings.
+    """
+    from genomic_variant_classifier.evaluation import thresholds
+
+    actual = {member.name: member.value
+              for member in thresholds.ThresholdSource}
+
+    assert actual == _EXPECTED_THRESHOLD_SOURCES, (
+        "the ThresholdSource vocabulary changed.\n"
+        f"  expected: {_EXPECTED_THRESHOLD_SOURCES}\n"
+        f"  actual  : {actual}\n"
+        "If a member was ADDED deliberately, add it here in the same commit. If "
+        "a VALUE changed, stop: these strings are load-bearing -- the descriptor "
+        "fingerprint embeds them, and historical artifacts carry them.")
+
+
+def test_the_threshold_operator_vocabulary_is_exactly_this():
+    """The sibling enum, gated identically.
+
+    `>=` and `>` differ exactly at `probability == threshold`, and OP-1's sweep
+    needs BOTH: the empty candidate -- flagging nothing -- requires a threshold
+    above every score, which is unrepresentable in [0, 1] when the maximum is
+    1.0. `GREATER` at the maximum expresses it. A member lost here would remove
+    an operating point the data can express.
+    """
+    from genomic_variant_classifier.evaluation import thresholds
+
+    actual = {member.name: member.value
+              for member in thresholds.ThresholdOperator}
+
+    assert actual == _EXPECTED_THRESHOLD_OPERATORS, (
+        f"the ThresholdOperator vocabulary changed: {actual}")
+
+
+def test_evaluation_sweep_is_constructible_and_serialises():
+    """The new member must work end to end, not merely exist.
+
+    A member that cannot be placed in a `ThresholdParameters` would be a
+    vocabulary entry with no way to use it.
+    """
+    from genomic_variant_classifier.evaluation import thresholds
+
+    parameters = thresholds.ThresholdParameters(
+        threshold=0.7,
+        operator=thresholds.ThresholdOperator.GREATER,
+        source=thresholds.ThresholdSource.EVALUATION_SWEEP)
+
+    assert parameters.to_mapping() == {
+        "decision_threshold": 0.7,
+        "threshold_operator": ">",
+        "threshold_source": "evaluation_sweep"}
+
+
+def test_the_pre_existing_sources_kept_their_serialised_values():
+    """THE COMPATIBILITY HALF, asserted separately from the set.
+
+    The set test would fail for ANY change. This one names the three that
+    predate THR-1b, so a failure says immediately whether an EXISTING value
+    moved -- which reinterprets artifacts -- or a NEW one was added, which does
+    not.
+    """
+    from genomic_variant_classifier.evaluation import thresholds
+
+    assert thresholds.ThresholdSource.FIXED_DEFAULT.value == "fixed_default"
+    assert thresholds.ThresholdSource.CALIBRATED.value == "calibrated"
+    assert thresholds.ThresholdSource.USER_SUPPLIED.value == "user_supplied"

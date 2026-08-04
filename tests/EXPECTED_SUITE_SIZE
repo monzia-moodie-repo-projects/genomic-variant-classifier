@@ -4999,4 +4999,74 @@
 #   PASSED UNCHANGED, which is the whole acceptance criterion for a vocabulary
 #   move.
 #
-4171
+#
+# 4171 -> 4175 (+4)  2026-08-04  THR-1b: `ThresholdSource` gains
+#   EVALUATION_SWEEP, and the vocabulary gains the gate that should already have
+#   existed.
+#
+#   THE ADDITION IS ONE LINE. THE GATE IS THE SUBSTANCE. Measured in this
+#   installer's own preconditions, before the change: across the whole test
+#   suite, `for member in` appeared ZERO times in the threshold tests,
+#   `ThresholdSource}` ZERO times, `_EXPECTED_THRESHOLD` ZERO times. FIVE tests
+#   referenced `ThresholdSource` and NOT ONE ENUMERATED ITS MEMBERS -- they used
+#   it as a VALUE.
+#
+#   So a member could have appeared, disappeared, or quietly changed its
+#   serialised string, and nothing in 4,171 tests would have objected. That is
+#   the REG-2 shape one layer down: there, a semantic correction to two metrics
+#   changed no test outcome anywhere, and the repair was the assertions that
+#   would notice it next time.
+#
+#   THE RENAME CASE IS WHY IT MATTERS.
+#   `test_registry_vocabulary_completion.py:832` asserts
+#   `mcc_print["threshold"] == (0.5, ">=", "fixed_default")` -- the descriptor
+#   fingerprint EMBEDS the serialised source string in a tuple compared by
+#   equality. A renamed value would silently orphan every historical record
+#   carrying the old one, and nothing gated that until now.
+#
+#   THE GATE RUNS IN BOTH DIRECTIONS, on the pattern of
+#   `test_conformal_package_exports.py`: the member set is asserted EXACTLY, so a
+#   stealth addition and a stealth removal both fail, and so does a renamed
+#   value. Exercised against all three before shipping, and FALSIFIED against the
+#   live module afterwards -- a throwaway `SNEAKY = "sneaky"` gave:
+#
+#       Left contains 1 more item: {'SNEAKY': 'sneaky'}
+#       AssertionError: the ThresholdSource vocabulary changed.
+#       1 failed, 9 passed
+#
+#   THE OTHER NINE PASSED UNCHANGED, which is the load-bearing half: the
+#   completeness gate is not entangled with identity, serialisation, ownership or
+#   validation. A gate that fails alongside everything else is measuring the
+#   change rather than the property.
+#
+#   COMPATIBILITY IS ASSERTED SEPARATELY FROM THE SET. The set test fails for ANY
+#   change; a second test names the three members that predate THR-1b, so a
+#   failure says immediately whether an EXISTING value moved -- which
+#   reinterprets artifacts -- or a NEW one was added, which does not. All three
+#   kept their strings, verified by post-check.
+#
+#   WHY `EVALUATION_SWEEP` AND NOT `EVALUATION_SELECTED`. A candidate exists
+#   BEFORE selection: every point an exact sweep enumerates carries this source,
+#   and at most one is ever chosen. "Selected" would make the vocabulary
+#   temporally false for all but one candidate. And it keeps three facts apart --
+#   SOURCE is where a candidate came from, POLICY is why it was chosen,
+#   CERTIFICATION BLOCKERS are why its performance is not independently
+#   validated. A field conflating them would leave an artifact unable to
+#   distinguish "swept" from "chosen" from "unvalidated".
+#
+#   THIS RATCHET MEASURED ITS OWN TARGET. Every previous entry carried a
+#   hand-written value, and that constant was wrong THREE TIMES TODAY: OP-0
+#   predicted 4155 against a collected 4157, REG-2 predicted 48 test functions
+#   against 49, and a THR-1a post-check expected 2 where 3 were measured. Each
+#   was caught by a gate -- the machinery working -- but a target that is an
+#   arithmetic guess is a stale constant waiting to happen. This installer ran
+#   `pytest --collect-only` and wrote what it read. The prediction (4175)
+#   was kept only as a cross-check, and agreed.
+#
+#   NO SABOTAGE LINE. The addition changes no existing value and no behaviour;
+#   the falsification above is the mutation, with its outcome predicted before it
+#   was run.
+#
+#   ACCEPTANCE: 4175 collected, measured by this installer. Four new tests.
+#
+4175
