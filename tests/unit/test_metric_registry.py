@@ -684,4 +684,277 @@ def test_a_descriptor_may_still_add_its_own_diagnostics():
     result = evaluate_registered(_single_class())["expected_calibration_error"]
     assert result.metadata["reference_class_support"] == "single_class"
     assert result.metadata["metric_name"] == "expected_calibration_error"
+# --------------------------------------------------------------------------- #
+# REG-1 (2026-08-03): the refusal path owns less than the OK path
+# --------------------------------------------------------------------------- #
 
+def test_a_refusal_may_not_forge_the_population_fingerprint():
+    """THE SHARP CASE FOR REG-1.
+
+    `MetricContext.support` is attached to EVERY result, refusals included,
+    because an INSUFFICIENT_SUPPORT on 3 rows and one on 300,000 point at
+    different problems. Until 2026-08-03 the refusal branch merged
+    `verdict.metadata` LAST with no collision check, so a descriptor could set
+    POPULATION_FINGERPRINT and win -- a refusal claiming a membership it never
+    examined, on the branch whose whole purpose is stating its evidence base.
+
+    POPULATION_FINGERPRINT exists precisely because cardinality cannot carry
+    this: n=980 beside n=980 says nothing about WHICH 980.
+    """
+    import genomic_variant_classifier.evaluation.registry as registry_module
+
+    ctx = _single_class()
+    descriptor = registry_module.by_name("auroc")
+    original = descriptor.applicability
+
+    def forging(context):
+        return registry_module.Applicability(
+            applicable=False,
+            status=registry_module.MetricStatus.UNDEFINED,
+            reason="binary_class_support_required",
+            metadata={MetricMetadataKey.POPULATION_FINGERPRINT: "sha256:forged"})
+
+    object.__setattr__(descriptor, "applicability", forging)
+    try:
+        with pytest.raises(registry_module.RegistryInvariantError) as caught:
+            registry_module.compute(descriptor, ctx)
+        assert "POPULATION_FINGERPRINT" in str(caught.value)
+    finally:
+        object.__setattr__(descriptor, "applicability", original)
+
+    # And the registry is unchanged afterwards: the attempt neither succeeded nor
+    # left residue. The real refusal still carries the REAL fingerprint.
+    survivor = evaluate_registered(ctx)["auroc"]
+    assert survivor.metadata["population_fingerprint"] != "sha256:forged"
+    assert survivor.metadata["population_fingerprint"] == \
+        ctx.population.membership_fingerprint
+
+
+def test_a_refusal_may_still_report_the_class_count_that_justifies_it():
+    """THE ASSERTION REG-1 v1 FAILED, AND THE REASON THE TWO PATHS DIFFER.
+
+    A first version of REG-1 derived ONE protected set and applied it to both
+    branches. It turned 29 tests red, because `auroc` refusing a single-class
+    cohort reports N_CLASSES_OBSERVED as THE GROUND of its refusal -- "there is
+    one class, therefore this metric is undefined". Seven registered metrics do
+    the same.
+
+    On the OK path that key IS registry-owned: the registry has computed the
+    cohort and a descriptor claiming otherwise contradicts an established fact.
+    On the refusal path it is the descriptor's ARGUMENT. Same key, opposite
+    ownership, because the paths genuinely differ.
+
+    Without this test, a future simplification collapsing the two sets back into
+    one would go unnoticed until the suite exploded.
+    """
+    result = evaluate_registered(_single_class())["auroc"]
+
+    assert result.status is MetricStatus.UNDEFINED
+    assert result.reason == "binary_class_support_required"
+    assert result.metadata["n_classes_observed"] == 1, (
+        "the descriptor's own justification for refusing did not survive; the "
+        "refusal path is protecting a key it does not own")
+
+    # AND THE REGISTRY'S OWN KEYS ARE STILL THE REGISTRY'S. Compared against the
+    # POPULATION, not against the result itself: an earlier draft of this line
+    # read `result.metadata["population_scope"] == helper(result)` where the
+    # helper returned that same value -- a comparison of a thing with itself,
+    # which is the `_ABSENCE == _ABSENCE` tautology repaired in
+    # test_bootstrap_reconciliation.py earlier the same day, reproduced hours
+    # later by its own author.
+    population = _single_class().population
+    assert result.metadata["population_scope"] == population.scope
+    assert result.metadata["population_fingerprint"] ==         population.membership_fingerprint
+
+
+def test_the_refusal_ownership_exception_is_still_exhaustive():
+    """`_DESCRIPTOR_OWNED_ON_REFUSAL` IS THE ONE STORED THING REG-1 INTRODUCES.
+
+    A stored set rots exactly as a stored number does. This re-derives the
+    2026-08-03 probe over the LIVE descriptor graph: across four cohort shapes,
+    NO registered descriptor may claim a `support()` key on a refusal unless that
+    key is named in the exception.
+
+    On 2026-08-03 this measured 27 refusals, with N_CLASSES_OBSERVED claimed by
+    seven metrics and N_OBSERVATIONS, POPULATION_FINGERPRINT and POPULATION_SCOPE
+    claimed by none. An eighth metric adopting a different key fails HERE, loudly,
+    rather than silently widening the frozenset -- which is the difference
+    between a gate and a comment.
+    """
+    import numpy as np
+
+    import genomic_variant_classifier.evaluation.registry as registry_module
+    from genomic_variant_classifier.evaluation.population import (
+        EvaluationPopulation)
+
+    cohorts = {
+        "single_class_positive": (np.array([1.0, 1.0, 1.0, 1.0]),
+                                  np.array([0.9, 0.8, 0.85, 0.95])),
+        "single_class_negative": (np.array([0.0, 0.0, 0.0, 0.0]),
+                                  np.array([0.1, 0.2, 0.3, 0.4])),
+        "two_class": (np.array([1.0, 0.0, 1.0, 0.0]),
+                      np.array([0.9, 0.2, 0.8, 0.1])),
+        "degenerate_probabilities": (np.array([1.0, 0.0, 1.0, 0.0]),
+                                     np.array([0.5, 0.5, 0.5, 0.5])),
+    }
+
+    refusals = 0
+    unexpected = {}
+    for label, (y, p) in cohorts.items():
+        population = EvaluationPopulation.full(
+            y.size, scope="ownership_probe",
+            source_id="ownership-probe:sha256:0000000000000000")
+        ctx = registry_module.MetricContext(
+            y_true=y, y_prob=p, y_score=p, population=population)
+        registry_owned = set(ctx.support())
+        for descriptor in registry_module.all_metrics():
+            verdict = descriptor.applicability(ctx)
+            if verdict.applicable:
+                continue
+            refusals += 1
+            claimed = registry_owned & set(verdict.metadata)
+            for key in claimed - set(
+                    registry_module._DESCRIPTOR_OWNED_ON_REFUSAL):
+                unexpected.setdefault(str(key), set()).add(
+                    f"{descriptor.name}/{label}")
+
+    assert refusals > 0, (
+        "no refusals were observed at all; the probe cohorts no longer reach the "
+        "refusal path and this test proves nothing")
+    assert not unexpected, (
+        "a registered descriptor claims a registry-owned key on a REFUSAL that "
+        "_DESCRIPTOR_OWNED_ON_REFUSAL does not name: "
+        f"{ {k: sorted(v) for k, v in unexpected.items()} }. Decide whether the "
+        "descriptor is wrong or the exception should grow -- do not widen the "
+        "frozenset without recording which.")
+# --------------------------------------------------------------------------- #
+# REG-1 closure (2026-08-03): the two gates the baseline mutation run exposed
+# --------------------------------------------------------------------------- #
+
+def test_an_applicable_verdict_may_not_forge_n_classes_observed():
+    """THE SUCCESS HALF OF THE OWNERSHIP ASYMMETRY.
+
+    N_CLASSES_OBSERVED is DESCRIPTOR-OWNED on a refusal -- it is the ground of
+    the refusal, "there is one class, therefore this metric is undefined", and
+    seven registered metrics report it that way. It is REGISTRY-OWNED on success,
+    because by then the registry has established the cohort's class count and a
+    descriptor claiming otherwise would contradict an established fact.
+
+    ADDED AFTER MUTATION M05 WENT UNDETECTED on 2026-08-03. The battery's own
+    rationale had claimed the pre-existing hijack test covered this key; it sets
+    POPULATION_SCOPE, N_OBSERVATIONS and CERTIFICATION_ELIGIBLE instead. M05 was
+    a real missing test, not an equivalent mutant.
+
+    Given its own name rather than appended to the generic hijack test, because
+    "the same key, opposite ownership on the two paths" is the whole of REG-1 and
+    should not be buried inside an assertion list.
+    """
+    import genomic_variant_classifier.evaluation.registry as registry_module
+
+    ctx = _two_class()
+    descriptor = registry_module.by_name("brier_score")
+    original = descriptor.applicability
+
+    # An APPLICABLE decision carries no status and no reason -- Applicability
+    # refuses one that does, and the test would then pass for the wrong reason.
+    def forging(context):
+        return registry_module.Applicability(
+            applicable=True,
+            metadata={MetricMetadataKey.N_CLASSES_OBSERVED: 99})
+
+    object.__setattr__(descriptor, "applicability", forging)
+    try:
+        with pytest.raises(registry_module.RegistryInvariantError,
+                           match="N_CLASSES_OBSERVED"):
+            registry_module.compute(descriptor, ctx)
+    finally:
+        object.__setattr__(descriptor, "applicability", original)
+
+    # RESTORATION IS PROVED, not merely attempted: the real metric still computes
+    # and still reports the registry's own count, asserted against the cohort
+    # rather than a literal so the test cannot go stale if the fixture changes.
+    survivor = registry_module.compute(descriptor, ctx)
+    assert survivor.status is MetricStatus.OK
+    assert survivor.metadata["n_classes_observed"] == \
+        len(set(ctx.y_true.tolist()))
+
+
+def test_refusal_protected_keys_are_derived_from_ctx_support():
+    """A STRUCTURAL GATE: refusal protection must EVOLVE with `support()`.
+
+    ADDED AFTER MUTATION M06 WENT UNDETECTED on 2026-08-03. Hand-listing the
+    refusal protected set is behaviourally identical TODAY -- the literal happens
+    to match the current `support()` vocabulary -- and diverges only when a key is
+    added there. The baseline report called this "the one thing a test cannot
+    catch". THAT WAS WRONG: a BEHAVIOURAL test cannot catch it; a STRUCTURAL one
+    can, because the derivation is a property of the source.
+
+    The requirement, from `compute`'s own comment: "a future key added to
+    `support()` is protected the moment it exists rather than the moment somebody
+    remembers to add it here."
+
+    The refusal branch is located SEMANTICALLY -- `if not verdict.applicable` --
+    rather than by line number or formatting, so ordinary edits above it do not
+    silently break this guard.
+    """
+    import ast
+    import inspect
+    import textwrap
+
+    import genomic_variant_classifier.evaluation.registry as registry_module
+
+    tree = ast.parse(textwrap.dedent(
+        inspect.getsource(registry_module.compute)))
+
+    refusal_branch = None
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.If):
+            continue
+        test = node.test
+        if (isinstance(test, ast.UnaryOp)
+                and isinstance(test.op, ast.Not)
+                and isinstance(test.operand, ast.Attribute)
+                and isinstance(test.operand.value, ast.Name)
+                and test.operand.value.id == "verdict"
+                and test.operand.attr == "applicable"):
+            refusal_branch = node
+            break
+    assert refusal_branch is not None, (
+        "no `if not verdict.applicable` branch found in compute(); the refusal "
+        "path has been restructured and this guard no longer knows where to look")
+
+    guard_calls = [node for node in ast.walk(refusal_branch)
+                   if isinstance(node, ast.Call)
+                   and isinstance(node.func, ast.Name)
+                   and node.func.id == "_reject_registry_owned_keys"]
+    assert len(guard_calls) == 1, (
+        f"the refusal branch calls the ownership guard {len(guard_calls)} times; "
+        "exactly one call is expected")
+
+    protected_expression = guard_calls[0].args[3]
+
+    support_calls = [node for node in ast.walk(protected_expression)
+                     if isinstance(node, ast.Call)
+                     and isinstance(node.func, ast.Attribute)
+                     and isinstance(node.func.value, ast.Name)
+                     and node.func.value.id == "ctx"
+                     and node.func.attr == "support"]
+    assert len(support_calls) == 1, (
+        "the refusal protected set was HAND-LISTED instead of derived from "
+        "ctx.support(). It may be behaviourally identical today and it will not "
+        "be the moment a key is added to support(): the point of deriving it is "
+        "that a new key is protected when it EXISTS, not when somebody remembers")
+
+    subtractions = [node for node in ast.walk(protected_expression)
+                    if isinstance(node, ast.BinOp)
+                    and isinstance(node.op, ast.Sub)]
+    assert len(subtractions) == 1, (
+        f"expected exactly one subtraction in the refusal protected set, found "
+        f"{len(subtractions)}; the descriptor-owned exception must be removed "
+        "once and only once")
+
+    right = subtractions[0].right
+    assert isinstance(right, ast.Name) and \
+        right.id == "_DESCRIPTOR_OWNED_ON_REFUSAL", (
+            "the refusal set subtracts something other than the named exception; "
+            "an inline literal here would be a second copy of the ownership rule")

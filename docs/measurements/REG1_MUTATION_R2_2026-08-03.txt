@@ -1,0 +1,191 @@
+
+==============================================================================
+SECTION 0 -- THE LIVE CANDIDATE
+==============================================================================
+  generated  2026-08-03 13:05:09
+
+  SUPERSEDES reg1_mutations_2026-08-03.txt, which is preserved.
+
+  src\genomic_variant_classifier\evaluation\registry.py c2b18254a5150443
+  tests\unit\test_metric_registry.py               8dd3a5fdadcb0438
+
+==============================================================================
+SECTION 1 -- DISPOSABLE WORKTREE
+==============================================================================
+  path  C:\Users\monzi\AppData\Local\Temp\gvc-reg1-r2-e0b50ab41508406db2b2d9326faf140a
+  created from HEAD, which PREDATES REG-1; the candidate is copied in
+  copied  src\genomic_variant_classifier\evaluation\registry.py c2b18254a5150443
+  copied  tests\unit\test_metric_registry.py               8dd3a5fdadcb0438
+  targeting 3 test file(s)
+
+==============================================================================
+SECTION 2 -- RESOLUTION CHECK
+==============================================================================
+  registry.__file__   C:\Users\monzi\AppData\Local\Temp\gvc-reg1-r2-e0b50ab41508406db2b2d9326faf140a\src\genomic_variant_classifier\evaluation\registry.py
+  inside the worktree  True
+
+==============================================================================
+SECTION 3 -- BASELINE
+==============================================================================
+  exit 0   149 passed, 8 warnings in 12.04s
+  green; every failure below is caused by the mutation alone.
+
+==============================================================================
+SECTION 4 -- CANARY
+==============================================================================
+
+==============================================================================
+CANARY  [behavioral]  Not a real mutation. An obvious break, proving a change inside the worktree reaches the code the tests import.
+==============================================================================
+  anchor occurrences  1
+  mutated digest      af710e51af38ba72
+  pytest exit         1   52 failed, 97 passed in 8.29s
+  failing tests       52
+    tests/unit/test_metric_registry.py::test_a_descriptor_may_still_add_its_own_diagnostics
+    tests/unit/test_metric_registry.py::test_a_finite_value_does_not_confer_certification_eligibility
+    tests/unit/test_metric_registry.py::test_a_healthy_cohort_is_certification_eligible
+    tests/unit/test_metric_registry.py::test_a_refusal_may_not_forge_the_population_fingerprint
+    tests/unit/test_metric_registry.py::test_a_refusal_may_still_report_the_class_count_that_justifies_it
+    tests/unit/test_metric_registry.py::test_a_verdicts_own_metadata_survives_alongside_support
+    tests/unit/test_metric_registry.py::test_an_applicable_verdict_may_not_forge_n_classes_observed
+    tests/unit/test_metric_registry.py::test_an_inapplicable_metric_is_NOT_invoked
+    tests/unit/test_metric_registry.py::test_certification_is_derived_from_cohort_facts_not_from_the_diagnostic
+    tests/unit/test_metric_registry.py::test_cluster_support_counts_DISTINCT_clusters
+    ... and 42 more
+  restored            yes
+  VERDICT  DETECTED
+
+  Detected. Mutations reach the code under test.
+
+==============================================================================
+SECTION 5 -- THE MUTATIONS
+==============================================================================
+
+==============================================================================
+M01  [behavioral]  DELETE THE REFUSAL-BRANCH CALL -- REG-1 itself. Without it a descriptor forges POPULATION_FINGERPRINT on a refusal.
+==============================================================================
+  EXPECTED DETECTOR   test_a_refusal_may_not_forge_the_population_fingerprint
+
+  anchor occurrences  1
+  mutated digest      e0765eb5b97d383a
+  pytest exit         1   2 failed, 147 passed, 8 warnings in 9.43s
+  failing tests       2
+    tests/unit/test_metric_registry.py::test_a_refusal_may_not_forge_the_population_fingerprint
+    tests/unit/test_metric_registry.py::test_refusal_protected_keys_are_derived_from_ctx_support
+  expected detector fired  True
+  restored            yes
+  VERDICT  DETECTED_BY_EXPECTED
+
+==============================================================================
+M02  [behavioral]  DELETE THE OK-BRANCH CALL. The pre-existing hijack test has guarded this since 2026-07-28 and must still catch it -- if not, the extraction broke the older guarantee while adding the new one.
+==============================================================================
+  EXPECTED DETECTOR   test_descriptor_metadata_may_extend_registry_metadata_never_replace_it
+
+  anchor occurrences  1
+  mutated digest      83ac65f0974bad2d
+  pytest exit         1   2 failed, 147 passed, 8 warnings in 12.94s
+  failing tests       2
+    tests/unit/test_metric_registry.py::test_an_applicable_verdict_may_not_forge_n_classes_observed
+    tests/unit/test_metric_registry.py::test_descriptor_metadata_may_extend_registry_metadata_never_replace_it
+  expected detector fired  True
+  restored            yes
+  VERDICT  DETECTED_BY_EXPECTED
+
+==============================================================================
+M03  [behavioral]  WIDEN THE EXCEPTION to include POPULATION_FINGERPRINT, so a refusal may forge the one key cardinality cannot reconstruct.
+==============================================================================
+  EXPECTED DETECTOR   test_a_refusal_may_not_forge_the_population_fingerprint
+
+  anchor occurrences  1
+  mutated digest      1c3cf14307582f17
+  pytest exit         1   1 failed, 148 passed, 8 warnings in 22.46s
+  failing tests       1
+    tests/unit/test_metric_registry.py::test_a_refusal_may_not_forge_the_population_fingerprint
+  expected detector fired  True
+  restored            yes
+  VERDICT  DETECTED_BY_EXPECTED
+
+==============================================================================
+M04  [behavioral]  EMPTY THE EXCEPTION -- REG-1 v1 REPRODUCED. One set for both branches; v1 turned 29 tests red. The baseline measured 19 failures here.
+==============================================================================
+  EXPECTED DETECTOR   test_a_refusal_may_still_report_the_class_count_that_justifies_it
+
+  anchor occurrences  1
+  mutated digest      dd843323ef020cce
+  pytest exit         1   19 failed, 130 passed, 8 warnings in 16.18s
+  failing tests       19
+    tests/unit/test_metric_registry.py::test_a_descriptor_may_still_add_its_own_diagnostics
+    tests/unit/test_metric_registry.py::test_a_finite_value_does_not_confer_certification_eligibility
+    tests/unit/test_metric_registry.py::test_a_refusal_may_not_forge_the_population_fingerprint
+    tests/unit/test_metric_registry.py::test_a_refusal_may_still_report_the_class_count_that_justifies_it
+    tests/unit/test_metric_registry.py::test_a_verdicts_own_metadata_survives_alongside_support
+    tests/unit/test_metric_registry.py::test_certification_is_derived_from_cohort_facts_not_from_the_diagnostic
+    tests/unit/test_metric_registry.py::test_descriptor_metadata_may_extend_registry_metadata_never_replace_it
+    tests/unit/test_metric_registry.py::test_every_returned_object_is_a_MetricResult
+    tests/unit/test_metric_registry.py::test_no_metric_is_ever_silently_omitted
+    tests/unit/test_metric_registry.py::test_population_scope_is_carried_on_every_result_including_refusals
+    ... and 9 more
+  expected detector fired  True
+  restored            yes
+  VERDICT  DETECTED_BY_EXPECTED
+
+==============================================================================
+M05  [behavioral]  SUBTRACT THE EXCEPTION FROM THE OK PATH TOO. UNDETECTED in the baseline: the pre-existing hijack test sets POPULATION_SCOPE, N_OBSERVATIONS and CERTIFICATION_ELIGIBLE, NOT N_CLASSES_OBSERVED. Closed by a dedicated success-path test, falsified alone on 2026-08-03 with DID NOT RAISE.
+==============================================================================
+  EXPECTED DETECTOR   test_an_applicable_verdict_may_not_forge_n_classes_observed
+
+  anchor occurrences  1
+  mutated digest      dd38d13d0e5824db
+  pytest exit         1   1 failed, 148 passed, 8 warnings in 21.05s
+  failing tests       1
+    tests/unit/test_metric_registry.py::test_an_applicable_verdict_may_not_forge_n_classes_observed
+  expected detector fired  True
+  restored            yes
+  VERDICT  DETECTED_BY_EXPECTED
+
+==============================================================================
+M06  [structural]  STOP DERIVING: hand-list the refusal set. BEHAVIOURALLY IDENTICAL TODAY -- it diverges only when `support()` grows -- and UNDETECTED in the baseline, which called it uncatchable. It is catchable STRUCTURALLY: the derivation is a property of the source. Falsified alone on 2026-08-03 with assert 0 == 1.
+==============================================================================
+  EXPECTED DETECTOR   test_refusal_protected_keys_are_derived_from_ctx_support
+
+  anchor occurrences  1
+  mutated digest      0359be2e970f2554
+  pytest exit         1   1 failed, 148 passed, 8 warnings in 19.36s
+  failing tests       1
+    tests/unit/test_metric_registry.py::test_refusal_protected_keys_are_derived_from_ctx_support
+  expected detector fired  True
+  restored            yes
+  VERDICT  DETECTED_BY_EXPECTED
+
+  worktree removed: C:\Users\monzi\AppData\Local\Temp\gvc-reg1-r2-e0b50ab41508406db2b2d9326faf140a
+
+==============================================================================
+SUMMARY
+==============================================================================
+  id     oracle       verdict                detector
+  ------ ------------ ---------------------- ----------------------------------
+  CANARY behavioral   DETECTED               -
+  M01    behavioral   DETECTED_BY_EXPECTED   test_a_refusal_may_not_forge_the_p
+  M02    behavioral   DETECTED_BY_EXPECTED   test_descriptor_metadata_may_exten
+  M03    behavioral   DETECTED_BY_EXPECTED   test_a_refusal_may_not_forge_the_p
+  M04    behavioral   DETECTED_BY_EXPECTED   test_a_refusal_may_still_report_th
+  M05    behavioral   DETECTED_BY_EXPECTED   test_an_applicable_verdict_may_not
+  M06    structural   DETECTED_BY_EXPECTED   test_refusal_protected_keys_are_de
+
+  mutations              6
+  DETECTED_BY_EXPECTED   6
+  DETECTED_BY_OTHER      0
+  UNDETECTED             0
+  ANCHOR_MISS            0
+  HARNESS_ERROR          0
+
+  Ratchet line, in the log's own vocabulary:
+    Sabotage: 6 mutations, 6 detected, 0 undetected, 0 anchor misses.
+
+  SUPERSESSION, stated for the record:
+    baseline  6 mutations, 4 detected, 2 undetected  (reg1_mutations_2026-08-03.txt)
+    R2        6 mutations, 6 detected, 0 undetected
+    M05 was a REAL missing behavioural test, not an equivalent mutant.
+    M06 was a STRUCTURAL gap, not the uncatchable one the baseline
+    called it. Both baseline rationales are preserved UNCORRECTED in
+    that report; the corrections live here.

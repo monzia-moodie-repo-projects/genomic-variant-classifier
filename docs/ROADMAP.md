@@ -3962,3 +3962,181 @@ population that says what it describes.
 
 Then the drift monitor, whose red is roadmap 6.20's fix working, exactly as
 preflight 13c's red was PRE-1a working.
+
+## ROADMAP delta -- 2026-08-03: REG-1. A correct-looking fix that was wrong, and the suite proved it in twelve minutes.
+
+Commit: one atomic change carrying implementation, five tests, BOTH mutation
+reports, this delta, the session document, the ratchet and the badge.
+
+Full suite 4151 passed, 6 skipped, 0 failed; 4157 collected. Ratchet 4152 ->
+4157 (+5). Sabotage: 6 mutations, 6 detected, 0 undetected, 0 anchor misses.
+
+Full write-up: `docs/SESSION_2026-08-03_reg1-metadata-ownership.md`.
+Committed evidence: `docs/measurements/REG1_MUTATION_BASELINE_2026-08-03.txt`
+and `docs/measurements/REG1_MUTATION_R2_2026-08-03.txt`.
+
+### 0. WHAT IT FIXES
+
+`registry.compute` merged descriptor-supplied metadata TWO WAYS. The OK branch
+derived a protected set, raised on overlap, and merged the verdict FIRST so it
+lost anyway. The REFUSAL branch merged `verdict.metadata` LAST -- so it WON --
+with no collision check at all.
+
+The refusal branch was the worse one to leave open. `ctx.support()` supplies the
+population scope and fingerprint, and a refusal's whole job is to say what
+evidence base it describes: an INSUFFICIENT_SUPPORT on 3 rows and one on 300,000
+point at different problems. A refusal could claim a membership it never
+examined, and POPULATION_FINGERPRINT exists precisely because "n=980 beside
+n=980 says nothing about WHICH 980".
+
+Latent when found on 2026-08-01. POP-1b (`00e180c`) made the population keys
+real, populated and load-bearing. The defect did not change; its consequences
+did.
+
+### 1. THE FINDING: TWO PATHS THAT LOOK SYMMETRIC CAN OWN DIFFERENT KEYS
+
+Version one derived ONE protected set and applied it to BOTH branches. It turned
+29 tests red:
+
+```
+verdict = Applicability(applicable=False, status=UNDEFINED,
+                        reason='binary_class_support_required',
+                        metadata={N_CLASSES_OBSERVED: 1, ...})
+RegistryInvariantError: auroc: applicability metadata attempted to set
+registry-owned key(s) ['MetricMetadataKey.N_CLASSES_OBSERVED']
+```
+
+`auroc` is a REGISTERED descriptor reporting the GROUND of its refusal -- "there
+is one class, therefore this metric is undefined" -- and the guard called it a
+violation. Seven registered metrics do the same.
+
+**A guard that treats two paths as symmetric when they are not is a guard that
+REJECTS CORRECT BEHAVIOUR.** Version one was right about the DERIVATION (one
+copy, never two) and wrong about the OWNERSHIP.
+
+The contract now enforced:
+
+```
+key                        refusal path               success path
+METRIC_NAME                registry-owned             registry-owned
+POPULATION_SCOPE           registry-owned             registry-owned
+POPULATION_FINGERPRINT     registry-owned             registry-owned
+N_OBSERVATIONS             registry-owned             registry-owned
+N_CLASSES_OBSERVED         DESCRIPTOR-owned evidence  registry-owned
+CERTIFICATION_*            not descriptor-supplied    registry-owned
+```
+
+The same key, opposite ownership, because the paths genuinely differ.
+
+### 2. THE TECHNIQUE, AND IT IS NEW TO THIS PROJECT'S VOCABULARY
+
+Mutation M06 replaced the derived refusal set with a hand-written literal --
+behaviourally identical TODAY, diverging only when `support()` grows. The
+baseline report called it "the one thing a test cannot catch", on the reasoning
+that no test can catch a number that is still correct.
+
+**THAT REASONING WAS WRONG.** A BEHAVIOURAL test cannot catch it. A STRUCTURAL
+one can, because the derivation is a property of the SOURCE.
+
+    behavioural tests   prove outputs and runtime refusals
+    structural tests    prove ownership, derivation, and authority paths
+
+`test_refusal_protected_keys_are_derived_from_ctx_support` parses `compute`,
+locates the refusal branch SEMANTICALLY (`if not verdict.applicable`, not by line
+number), and asserts the protected-set expression contains exactly one
+`ctx.support()` call and exactly one subtraction of the named exception.
+Falsified alone: hand-listing the set gives `assert 0 == 1, where 0 = len([])`.
+
+This is the direct answer to shape **(a)**. Section 7 prescribes "derive it at
+gate time, do not store it" -- and until now, nothing could FAIL when someone
+quietly stopped deriving. Now something can. Recorded as **STRUCT-1**: the same
+technique applies to other invariants this codebase states only in comments --
+the two merge orders, and the "rejected, not shadowed" rule.
+
+### 3. THE METHOD: THE OWNERSHIP LINE WAS MEASURED, NOT ARGUED
+
+Probed across four cohort shapes over every registered descriptor: 27 refusals
+observed. N_CLASSES_OBSERVED claimed by SEVEN metrics; N_OBSERVATIONS,
+POPULATION_FINGERPRINT and POPULATION_SCOPE claimed by NONE.
+
+N_OBSERVATIONS had been listed as registry-owned BY ARGUMENT before the probe.
+The probe CONFIRMED it -- which is not the same as having been right, and had any
+descriptor set it, version two would have failed exactly as version one did.
+
+### 4. TWO MUTATION ROUNDS, AND THE FIRST IS COMMITTED UNCORRECTED
+
+The baseline recorded 6 mutations, 4 detected, 2 undetected -- INCLUDING two
+wrong rationales that are themselves the finding:
+
+- M05 was predicted detectable because "the pre-existing hijack test sets
+  N_CLASSES_OBSERVED". IT DOES NOT -- it sets POPULATION_SCOPE, N_OBSERVATIONS
+  and CERTIFICATION_ELIGIBLE. That list had been read during the REG-1 preflight
+  and the opposite was asserted from it. M05 was a REAL MISSING TEST.
+
+- M06 was called uncatchable, for the reason section 2 above corrects.
+
+Both gates were then FALSIFIED INDIVIDUALLY -- M05 alone gave "DID NOT RAISE",
+M06 alone gave the hand-listed assertion -- because inferring which test caught
+which mutation from an aggregate is weaker than showing it.
+
+Round two adds ORACLE CLASSIFICATION and verifies that the NAMED gate fired:
+DETECTED_BY_EXPECTED is distinguished from DETECTED_BY_OTHER, and the second
+would have been reported as the weaker result it is. All six were caught by the
+test written to catch them.
+
+**Keeping the superseded report is deliberate.** A repository holding only the
+corrected version has lost the evidence that the prediction failed.
+
+### 5. RECURRENCES, RECORDED AS SUCH
+
+Five defects of the author's in this commit, none caught by review:
+
+- A raise-site check that counted the CLASS DEFINITION as a raise.
+- A DEAD HELPER, written and then bypassed -- in the commit whose siblings are
+  DEAD-1, DEAD-2 and DEAD-3.
+- A TAUTOLOGY comparing a value with itself, which is the `_ABSENCE == _ABSENCE`
+  defect repaired at `test_bootstrap_reconciliation.py:696` THAT SAME MORNING,
+  reproduced hours later by the same author.
+- A count written against the code the author MEANT to write.
+- A FIFTH post-check matching its own explanatory prose, after which the checks
+  were tokenised rather than tuned.
+
+And a sixth of a different kind, worth separating: the ratchet installer's
+post-check REFUSED A CORRECT ENTRY because "Sabotage: 6 mutations, 6 detected, 0
+undetected, 0 anchor misses." ALREADY APPEARS in an earlier entry -- a previous
+commit that also ran six mutations and detected all six. The expectation was
+right and the SCOPE was wrong: it counted over the whole file instead of the
+appended entry. The fixture could not have caught it, so the fixture was rebuilt
+to CONTAIN a duplicate and the corrected check verified against the exact hazard.
+
+A fourth stale constant of the shape (a) family: the ratchet was predicted to
+move to 4155. Collection said 4157 -- REG-1 added FIVE test functions, three in
+the first battery and two more to close M05 and M06, and the figure had been
+carried forward from before the closure tests existed.
+
+### 6. OPEN -- twelve items, dated
+
+| id | item |
+|---|---|
+| **STRUCT-1** | *new.* Structural tests proved their worth on M06. Other invariants stated only in comments -- the two merge orders, "rejected not shadowed" -- could be gated the same way |
+| POP-1b-M03 | no test distinguishes the source distance from the parent distance |
+| POP-1b-M07 | nothing asserts on `print_report` output |
+| ZERO-1 | 24 dead-connector defaults still zero -- is the allowlist itself stale? |
+| INF-1 | an infinite reference label is pooled with NaN as *withheld* |
+| ABS-1 | the ranking channel's refusal reported as `undefined_on_cohort` |
+| DEAD-1 | ~40 lines of dead absence computation in `evaluate` |
+| DEAD-3 | `_assert_absence_biconditional` computes `observed_curves` twice |
+| PRE-2 | section 5's PASS line swallows the KAN banner and a progress bar |
+| LINT-1 | no lint gate anywhere |
+| F821-1 | 18 undefined names; 9 need assessment |
+| CMP-1 | `ModelComparison` carries a fingerprint with no scope beside it |
+
+### 7. NEXT
+
+**OP-1** -- the operating-point subsystem this sequence set out to build. It now
+rests on a population that says what it describes (POP-1a, POP-1b) and a registry
+whose metadata ownership is enforced on every path (REG-1).
+
+Then the drift monitor, whose red is roadmap 6.20's fix working -- exactly as
+preflight 13c's red was PRE-1a working, and as REG-1 version one's 29 red tests
+were the suite working.

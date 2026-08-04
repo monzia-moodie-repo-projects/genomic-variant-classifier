@@ -1,0 +1,199 @@
+
+==============================================================================
+SECTION 0 -- THE LIVE CANDIDATE
+==============================================================================
+  generated  2026-08-03 11:57:25
+
+  src\genomic_variant_classifier\evaluation\registry.py c2b18254a5150443
+  tests\unit\test_metric_registry.py               b6b086db1fda0ddd
+
+==============================================================================
+SECTION 1 -- DISPOSABLE WORKTREE
+==============================================================================
+  path  C:\Users\monzi\AppData\Local\Temp\gvc-reg1-mutations-f2f5c454d56b418ba875eca1ed1f0181
+  created from HEAD, which PREDATES REG-1; the candidate is copied in
+  copied  src\genomic_variant_classifier\evaluation\registry.py c2b18254a5150443
+  copied  tests\unit\test_metric_registry.py               b6b086db1fda0ddd
+  targeting 3 test file(s)
+
+==============================================================================
+SECTION 2 -- RESOLUTION CHECK
+==============================================================================
+  If imports resolve to the REAL src, every mutation lands on a
+  file nothing imports and this run reports the INVERSE of truth.
+
+  registry.__file__   C:\Users\monzi\AppData\Local\Temp\gvc-reg1-mutations-f2f5c454d56b418ba875eca1ed1f0181\src\genomic_variant_classifier\evaluation\registry.py
+  inside the worktree  True
+
+==============================================================================
+SECTION 3 -- BASELINE
+==============================================================================
+  exit 0   147 passed, 8 warnings in 6.09s
+  green; every failure below is caused by the mutation alone.
+
+==============================================================================
+SECTION 4 -- CANARY
+==============================================================================
+
+==============================================================================
+CANARY  Not a real mutation. An obvious break, to prove a change inside the worktree reaches the code the tests import.
+==============================================================================
+  anchor occurrences  1
+    |     overlap = protected & set(verdict.metadata)
+  mutated digest      af710e51af38ba72
+  pytest exit         1   51 failed, 96 passed in 4.95s
+  failing tests       51
+    tests/unit/test_metric_registry.py::test_a_descriptor_may_still_add_its_own_diagnostics
+    tests/unit/test_metric_registry.py::test_a_finite_value_does_not_confer_certification_eligibility
+    tests/unit/test_metric_registry.py::test_a_healthy_cohort_is_certification_eligible
+    tests/unit/test_metric_registry.py::test_a_refusal_may_not_forge_the_population_fingerprint
+    tests/unit/test_metric_registry.py::test_a_refusal_may_still_report_the_class_count_that_justifies_it
+    tests/unit/test_metric_registry.py::test_a_verdicts_own_metadata_survives_alongside_support
+    tests/unit/test_metric_registry.py::test_an_inapplicable_metric_is_NOT_invoked
+    tests/unit/test_metric_registry.py::test_certification_is_derived_from_cohort_facts_not_from_the_diagnostic
+    tests/unit/test_metric_registry.py::test_cluster_support_counts_DISTINCT_clusters
+    tests/unit/test_metric_registry.py::test_descriptor_metadata_may_extend_registry_metadata_never_replace_it
+    tests/unit/test_metric_registry.py::test_equal_counts_over_genuinely_different_rows_are_distinguishable
+    tests/unit/test_metric_registry.py::test_every_returned_object_is_a_MetricResult
+    ... and 39 more
+  restored            yes
+  VERDICT  DETECTED
+
+  Detected. Mutations reach the code under test.
+
+==============================================================================
+SECTION 5 -- THE MUTATIONS
+==============================================================================
+
+==============================================================================
+M01  DELETE THE REFUSAL-BRANCH CALL. This is REG-1 itself: without it a descriptor can forge POPULATION_FINGERPRINT on a refusal. Must be caught by test_a_refusal_may_not_forge_the_population_fingerprint, which was FALSIFIED against exactly this state on 2026-08-03 and failed with DID NOT RAISE.
+==============================================================================
+  anchor occurrences  1
+    |         _reject_registry_owned_keys(
+    |             d, ctx, verdict,
+    |             frozenset({MetricMetadataKey.METRIC_NAME} | set(ctx.support()))
+    |             - _DESCRIPTOR_OWNED_ON_REFUSAL)
+  mutated digest      e0765eb5b97d383a
+  pytest exit         1   1 failed, 146 passed, 8 warnings in 6.07s
+  failing tests       1
+    tests/unit/test_metric_registry.py::test_a_refusal_may_not_forge_the_population_fingerprint
+  restored            yes
+  VERDICT  DETECTED
+
+==============================================================================
+M02  DELETE THE OK-BRANCH CALL. The pre-existing hijack test has guarded this path since 2026-07-28 and must still catch it -- if not, the extraction broke the older guarantee while adding the new one.
+==============================================================================
+  anchor occurrences  1
+    |     _reject_registry_owned_keys(
+    |         d, ctx, verdict,
+    |         frozenset({MetricMetadataKey.METRIC_NAME,
+    |                    MetricMetadataKey.CERTIFICATION_ELIGIBLE,
+    |                    MetricMetadataKey.CERTIFICATION_BLOCKED_BY}
+    |                   | set(ctx.support())))
+  mutated digest      83ac65f0974bad2d
+  pytest exit         1   1 failed, 146 passed, 8 warnings in 9.03s
+  failing tests       1
+    tests/unit/test_metric_registry.py::test_descriptor_metadata_may_extend_registry_metadata_never_replace_it
+  restored            yes
+  VERDICT  DETECTED
+
+==============================================================================
+M03  WIDEN THE EXCEPTION to include POPULATION_FINGERPRINT, so a refusal may forge the one key that cannot be reconstructed from cardinality. The set would still be derived; the OWNERSHIP would be wrong in the opposite direction from v1.
+==============================================================================
+  anchor occurrences  1
+    | _DESCRIPTOR_OWNED_ON_REFUSAL = frozenset({MetricMetadataKey.N_CLASSES_OBSERVED})
+  mutated digest      1c3cf14307582f17
+  pytest exit         1   1 failed, 146 passed, 8 warnings in 8.27s
+  failing tests       1
+    tests/unit/test_metric_registry.py::test_a_refusal_may_not_forge_the_population_fingerprint
+  restored            yes
+  VERDICT  DETECTED
+
+==============================================================================
+M04  EMPTY THE EXCEPTION -- REG-1 v1 REPRODUCED EXACTLY. One protected set for both branches, N_CLASSES_OBSERVED protected on the refusal path where seven registered metrics report it. v1 turned 29 tests red. If this is UNDETECTED, nothing pins the ownership split.
+==============================================================================
+  anchor occurrences  1
+    | _DESCRIPTOR_OWNED_ON_REFUSAL = frozenset({MetricMetadataKey.N_CLASSES_OBSERVED})
+  mutated digest      dd843323ef020cce
+  pytest exit         1   19 failed, 128 passed, 8 warnings in 7.49s
+  failing tests       19
+    tests/unit/test_metric_registry.py::test_a_descriptor_may_still_add_its_own_diagnostics
+    tests/unit/test_metric_registry.py::test_a_finite_value_does_not_confer_certification_eligibility
+    tests/unit/test_metric_registry.py::test_a_refusal_may_not_forge_the_population_fingerprint
+    tests/unit/test_metric_registry.py::test_a_refusal_may_still_report_the_class_count_that_justifies_it
+    tests/unit/test_metric_registry.py::test_a_verdicts_own_metadata_survives_alongside_support
+    tests/unit/test_metric_registry.py::test_certification_is_derived_from_cohort_facts_not_from_the_diagnostic
+    tests/unit/test_metric_registry.py::test_descriptor_metadata_may_extend_registry_metadata_never_replace_it
+    tests/unit/test_metric_registry.py::test_every_returned_object_is_a_MetricResult
+    tests/unit/test_metric_registry.py::test_no_metric_is_ever_silently_omitted
+    tests/unit/test_metric_registry.py::test_population_scope_is_carried_on_every_result_including_refusals
+    tests/unit/test_metric_registry.py::test_single_class_calibration_is_canonically_defined
+    tests/unit/test_metric_registry.py::test_single_class_calibration_is_recorded_but_not_certifiable
+    ... and 7 more
+  restored            yes
+  VERDICT  DETECTED
+
+==============================================================================
+M05  SUBTRACT THE EXCEPTION FROM THE OK PATH TOO, so an applicable verdict may contradict a cohort the registry has already computed. The pre-existing hijack test sets N_CLASSES_OBSERVED and must catch it.
+==============================================================================
+  anchor occurrences  1
+    |         frozenset({MetricMetadataKey.METRIC_NAME,
+    |                    MetricMetadataKey.CERTIFICATION_ELIGIBLE,
+    |                    MetricMetadataKey.CERTIFICATION_BLOCKED_BY}
+    |                   | set(ctx.support())))
+  mutated digest      dd38d13d0e5824db
+  pytest exit         0   147 passed, 8 warnings in 7.68s
+  failing tests       0
+  restored            yes
+  VERDICT  UNDETECTED
+
+==============================================================================
+M06  STOP DERIVING: hand-list the refusal set instead of building it from `support()`. Behaviourally identical TODAY, which is the point -- shape (a) is invisible until `support()` grows. Expected UNDETECTED, and recorded as the one thing a test cannot catch.
+==============================================================================
+  anchor occurrences  1
+    |             frozenset({MetricMetadataKey.METRIC_NAME} | set(ctx.support()))
+    |             - _DESCRIPTOR_OWNED_ON_REFUSAL)
+  mutated digest      0359be2e970f2554
+  pytest exit         0   147 passed, 8 warnings in 7.53s
+  failing tests       0
+  restored            yes
+  VERDICT  UNDETECTED
+
+  worktree removed: C:\Users\monzi\AppData\Local\Temp\gvc-reg1-mutations-f2f5c454d56b418ba875eca1ed1f0181
+
+==============================================================================
+SUMMARY
+==============================================================================
+  id       verdict          exit   failing
+  -------- ---------------- ------ --------------------
+  CANARY   DETECTED         1      51
+  M01      DETECTED         1      1
+  M02      DETECTED         1      1
+  M03      DETECTED         1      1
+  M04      DETECTED         1      19
+  M05      UNDETECTED       0      0
+  M06      UNDETECTED       0      0
+
+  mutations       6
+  DETECTED        4
+  UNDETECTED      2
+  ANCHOR_MISS     0
+  HARNESS_ERROR   0
+
+  Ratchet line, in the log's own vocabulary:
+    Sabotage: 6 mutations, 4 detected, 2 undetected, 0 anchor misses.
+
+  M04 DETECTED: emptying the exception reproduces REG-1 v1, and the
+  suite catches it. The ownership split is pinned, and the v1
+  diagnosis is confirmed twice -- once by its failure, once by
+  reproducing it deliberately.
+
+  M06 UNDETECTED, AS EXPECTED AND RECORDED. Hand-listing the set is
+  behaviourally identical TODAY; it diverges only when `support()`
+  grows. That is shape (a) exactly: no test can catch a number that
+  is still correct. The derivation is protected by review and by
+  the comment that explains it, not by the suite.
+
+  UNDETECTED -- record, do not quietly repair:
+    M05
+    M06

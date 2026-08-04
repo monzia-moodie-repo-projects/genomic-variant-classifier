@@ -441,6 +441,59 @@ class MetricContext:
         }[what]
 
 
+# Keys that `support()` also supplies but that a DESCRIPTOR legitimately owns
+# when it REFUSES, because on that path the key is the descriptor's ARGUMENT
+# rather than a registry fact it would be contradicting.
+#
+# N_CLASSES_OBSERVED is the only member, and it is not one descriptor's quirk:
+# probed 2026-08-03 across four cohort shapes over every registered descriptor,
+# 27 refusals were observed and SEVEN metrics reported this key as the ground of
+# their refusal -- "there is one class, therefore this metric is undefined". The
+# other three `support()` keys (N_OBSERVATIONS, POPULATION_FINGERPRINT,
+# POPULATION_SCOPE) were set by NO descriptor on ANY of those refusals.
+#
+# This is a SUBTRAHEND, not a list of what is protected. The protected set stays
+# DERIVED from `support()`, so a future key added there is protected on both
+# paths the moment it exists. Only the exception is named, and
+# test_the_refusal_ownership_exception_is_still_exhaustive re-derives it from the
+# live descriptor graph so an eighth metric adopting a different key fails loudly
+# instead of quietly widening this frozenset.
+_DESCRIPTOR_OWNED_ON_REFUSAL = frozenset({MetricMetadataKey.N_CLASSES_OBSERVED})
+
+
+def _reject_registry_owned_keys(d: "MetricDescriptor", ctx: "MetricContext",
+                                verdict: "Applicability",
+                                protected: frozenset) -> None:
+    """Refuse descriptor metadata that would overwrite a registry-owned key.
+
+    EXTRACTED 2026-08-03 (REG-1) FROM THE OK BRANCH, WHERE IT WAS THE ONLY PLACE
+    IT RAN. The refusal branch merged `verdict.metadata` LAST with no check, so
+    the same metadata that raised on the applicable path was silently accepted on
+    the refusal path -- the branch whose whole purpose is saying what evidence
+    base the refusal describes. A refusal could claim a membership fingerprint it
+    never examined, and "n=980 beside n=980 says nothing about WHICH 980".
+
+    THE PROTECTED SET IS A PARAMETER because the two paths DO NOT OWN THE SAME
+    KEYS. A first version of this change derived one set for both and turned 29
+    tests red: `auroc` refusing a single-class cohort reports N_CLASSES_OBSERVED
+    as the GROUND of its refusal, and the guard called that a violation. The
+    derivation is still single-sourced; only the ownership differs, because the
+    paths genuinely differ.
+
+    REJECTED, NOT SHADOWED. Merge order would also prevent the overwrite, but
+    silently: the descriptor's value would vanish and its author would get no
+    signal. That reasoning is recorded in `compute` and is why neither branch's
+    merge order was changed.
+    """
+    overlap = protected & set(verdict.metadata)
+    if overlap:
+        raise RegistryInvariantError(
+            f"{d.name}: applicability metadata attempted to set registry-owned "
+            f"key(s) {sorted(str(k) for k in overlap)}. A descriptor states what "
+            "is true of the COHORT; the registry states what is true of the "
+            "RESULT, and the two must not be able to disagree.")
+
+
 # --------------------------------------------------------------------------- #
 # Applicability: a decision, with a reason, made BEFORE computing
 # --------------------------------------------------------------------------- #
@@ -1556,6 +1609,27 @@ def compute(d: MetricDescriptor, ctx: MetricContext) -> MetricResult:
 
     verdict = d.applicability(ctx)
     if not verdict.applicable:
+        # REG-1, 2026-08-03. Until this date the OK branch below rejected a
+        # descriptor that set a registry-owned key and THIS branch accepted it
+        # silently, merging `verdict.metadata` LAST so it won.
+        #
+        # That was the worse branch to leave open: `support()` supplies the
+        # population scope and fingerprint, and a refusal's whole job is to say
+        # what evidence base it describes -- an INSUFFICIENT_SUPPORT on 3 rows
+        # and one on 300,000 point at different problems.
+        #
+        # THE REFUSAL PATH OWNS LESS THAN THE OK PATH. N_CLASSES_OBSERVED is the
+        # descriptor's ARGUMENT here, not a registry fact, so it is subtracted.
+        # CERTIFICATION_* are absent because no refusal carries a certification
+        # decision. The set is still DERIVED from `support()`, so a new key is
+        # protected here automatically.
+        #
+        # THE MERGE ORDER BELOW IS DELIBERATELY UNCHANGED: reordering would stop
+        # the overwrite silently, and the OK branch records why that is inferior.
+        _reject_registry_owned_keys(
+            d, ctx, verdict,
+            frozenset({MetricMetadataKey.METRIC_NAME} | set(ctx.support()))
+            - _DESCRIPTOR_OWNED_ON_REFUSAL)
         return MetricResult(
             value=nan, status=verdict.status, reason=verdict.reason,
             metadata={MetricMetadataKey.METRIC_NAME: d.name, **ctx.support(),
@@ -1614,17 +1688,19 @@ def compute(d: MetricDescriptor, ctx: MetricContext) -> MetricResult:
     # The protected set is DERIVED from what the registry itself supplies, not
     # hand-listed, so a future key added to `support()` is protected the moment it
     # exists rather than the moment somebody remembers to add it here.
-    protected = ({MetricMetadataKey.METRIC_NAME,
-                  MetricMetadataKey.CERTIFICATION_ELIGIBLE,
-                  MetricMetadataKey.CERTIFICATION_BLOCKED_BY}
-                 | set(ctx.support()))
-    overlap = protected & set(verdict.metadata)
-    if overlap:
-        raise RegistryInvariantError(
-            f"{d.name}: applicability metadata attempted to set registry-owned "
-            f"key(s) {sorted(str(k) for k in overlap)}. A descriptor states what "
-            "is true of the COHORT; the registry states what is true of the "
-            "RESULT, and the two must not be able to disagree.")
+    #
+    # MOVED to `_reject_registry_owned_keys` 2026-08-03 (REG-1) so the REFUSAL
+    # branch above runs the SAME check. The set below is IDENTICAL to what was
+    # inlined here, and nothing about this path's behaviour changes: an
+    # applicable verdict may not set any registry-owned key, N_CLASSES_OBSERVED
+    # included, because by this point the registry has computed the cohort and a
+    # descriptor claiming otherwise would be contradicting an established fact.
+    _reject_registry_owned_keys(
+        d, ctx, verdict,
+        frozenset({MetricMetadataKey.METRIC_NAME,
+                   MetricMetadataKey.CERTIFICATION_ELIGIBLE,
+                   MetricMetadataKey.CERTIFICATION_BLOCKED_BY}
+                  | set(ctx.support())))
     meta = {**dict(verdict.metadata), **meta}
     if not eligible:
         meta[MetricMetadataKey.CERTIFICATION_BLOCKED_BY] = why

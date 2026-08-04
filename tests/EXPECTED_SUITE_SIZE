@@ -4607,4 +4607,106 @@
 #
 #   Sabotage: 11 mutations, 9 detected, 2 undetected, 0 anchor misses.
 #
-4152
+#
+# 4152 -> 4157 (+5)  2026-08-03  REG-1: metadata ownership differs between the
+#   refusal path and the success path, and the difference is now enforced.
+#
+#   `registry.compute` merged descriptor-supplied metadata two ways. The OK
+#   branch derived a protected set, raised RegistryInvariantError on overlap, and
+#   merged the verdict FIRST so it lost anyway. The REFUSAL branch merged
+#   `verdict.metadata` LAST, so it WON, with NO collision check at all.
+#
+#   THE REFUSAL BRANCH WAS THE WORSE ONE TO LEAVE OPEN. `ctx.support()` supplies
+#   POPULATION_SCOPE, POPULATION_FINGERPRINT, N_OBSERVATIONS and
+#   N_CLASSES_OBSERVED, and its docstring says why they ride on refusals too: "an
+#   INSUFFICIENT_SUPPORT on 3 rows and one on 300,000 point at different
+#   problems." A refusal could claim a membership fingerprint it never examined,
+#   on the branch whose whole purpose is stating its evidence base -- and
+#   POPULATION_FINGERPRINT exists precisely because "n=980 beside n=980 says
+#   nothing about WHICH 980".
+#
+#   LATENT ON 2026-08-01, LIVE AFTER POP-1b. The population keys were thinly
+#   populated when this was found; `00e180c` made them real, populated and
+#   load-bearing. The defect did not change. Its consequences did.
+#
+#   VERSION ONE WAS WRONG, AND THE SUITE SAID SO IN TWELVE MINUTES. It derived
+#   ONE protected set and applied it to both branches. Twenty-nine tests went red:
+#
+#       verdict = Applicability(applicable=False, status=UNDEFINED,
+#                               reason='binary_class_support_required',
+#                               metadata={N_CLASSES_OBSERVED: 1, ...})
+#       RegistryInvariantError: auroc: applicability metadata attempted to set
+#       registry-owned key(s) ['MetricMetadataKey.N_CLASSES_OBSERVED']
+#
+#   `auroc` is a REGISTERED descriptor reporting the GROUND of its refusal --
+#   "there is one class, therefore this metric is undefined" -- and the guard
+#   called it a violation. A guard that treats two paths as symmetric when they
+#   are not is a guard that REJECTS CORRECT BEHAVIOUR.
+#
+#   THE OWNERSHIP LINE WAS THEN MEASURED, NOT ARGUED. Probed across four cohort
+#   shapes over every registered descriptor: 27 refusals observed;
+#   N_CLASSES_OBSERVED claimed by SEVEN metrics; N_OBSERVATIONS,
+#   POPULATION_FINGERPRINT and POPULATION_SCOPE claimed by NONE. The author had
+#   listed N_OBSERVATIONS as registry-owned by argument beforehand -- the probe
+#   CONFIRMED it, which is not the same as having been right, and had any
+#   descriptor set it, version two would have failed exactly as version one did.
+#
+#   THE CONTRACT, ENFORCED:
+#
+#       key                        refusal path              success path
+#       METRIC_NAME                registry-owned            registry-owned
+#       POPULATION_SCOPE           registry-owned            registry-owned
+#       POPULATION_FINGERPRINT     registry-owned            registry-owned
+#       N_OBSERVATIONS             registry-owned            registry-owned
+#       N_CLASSES_OBSERVED         DESCRIPTOR-owned evidence registry-owned
+#       CERTIFICATION_*            not descriptor-supplied   registry-owned
+#
+#   ONE DERIVATION, ONE NAMED EXCEPTION. The protected set stays DERIVED from
+#   `support()` on both paths, so a future key added there is protected the
+#   moment it EXISTS rather than the moment somebody remembers. Only the
+#   exception is named, and only the refusal path subtracts it. Neither merge
+#   order changed: reordering also stops an overwrite, but SILENTLY, and the OK
+#   branch has recorded since 2026-07-28 why that is the inferior fix.
+#
+#   TWO MUTATION ROUNDS ARE COMMITTED, AND THE FIRST IS PRESERVED UNCORRECTED.
+#   docs/measurements/REG1_MUTATION_BASELINE_2026-08-03.txt records
+#   6 mutations, 4 detected, 2 undetected -- INCLUDING two wrong rationales that
+#   are themselves the finding:
+#
+#     * M05 was predicted detectable because "the pre-existing hijack test sets
+#       N_CLASSES_OBSERVED". IT DOES NOT -- it sets POPULATION_SCOPE,
+#       N_OBSERVATIONS and CERTIFICATION_ELIGIBLE. The list had been read during
+#       the REG-1 preflight and the opposite was asserted from it. M05 was a REAL
+#       MISSING TEST, not an equivalent mutant.
+#
+#     * M06 was called "the one thing a test cannot catch", on the reasoning that
+#       no test can catch a number that is still correct. WRONG. A BEHAVIOURAL
+#       test cannot; a STRUCTURAL one can, because the derivation is a property
+#       of the SOURCE. Behavioural tests prove outputs and refusals; structural
+#       tests prove ownership, derivation and authority paths.
+#
+#   Both gates were then FALSIFIED INDIVIDUALLY before the second round -- M05
+#   alone gave "DID NOT RAISE", M06 alone gave "the refusal protected set was
+#   HAND-LISTED instead of derived from ctx.support(), assert 0 == 1" -- because
+#   inferring which test caught which mutation from an aggregate is weaker than
+#   showing it.
+#
+#   ROUND TWO also verifies that the NAMED gate fired, not merely that the suite
+#   went red: DETECTED_BY_EXPECTED is distinguished from DETECTED_BY_OTHER, and
+#   the second would have been reported as the weaker result it is. All six were
+#   caught by the test written to catch them.
+#
+#   FIVE DEFECTS OF THE AUTHOR'S IN THIS COMMIT ALONE, NONE CAUGHT BY REVIEW: a
+#   raise-site check that counted the CLASS DEFINITION as a raise; a dead helper
+#   written and then bypassed; a TAUTOLOGY comparing a value with itself, which
+#   is the `_ABSENCE == _ABSENCE` defect repaired that same morning and
+#   reproduced hours later; a count written against code the author MEANT to
+#   write; and a fifth post-check matching its own prose, after which the checks
+#   were tokenised rather than tuned.
+#
+#   ACCEPTANCE: full suite 4151 passed, 6 skipped, 0 failed in 17m49s; 4157
+#   collected; skip set unchanged at 6.
+#
+#   Sabotage: 6 mutations, 6 detected, 0 undetected, 0 anchor misses.
+#
+4157
