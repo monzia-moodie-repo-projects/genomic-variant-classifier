@@ -4905,4 +4905,98 @@
 #   ACCEPTANCE: full suite 4159 passed, 6 skipped, 0 failed in 21m08s; 4165
 #   collected; skip set unchanged at 6.
 #
-4165
+#
+# 4165 -> 4171 (+6)  2026-08-04  THR-1a: the threshold vocabulary moves to a
+#   bottom layer. ZERO MOVEMENT -- no behaviour, no value, no pre-existing test
+#   outcome changed.
+#
+#   (The old value 4165 and today's PASS COUNT 4165 coincide. Different
+#   quantities, unrelated.)
+#
+#   WHY THE LAYER EXISTS. OP-1's exact threshold sweep must describe each swept
+#   candidate with a `ThresholdParameters`. A sweep living in a module that
+#   imports `registry.py` would REVERSE THE LAYERING -- future registry
+#   count-applicability code could then not import the sweep without a cycle.
+#   `metrics.py` was the other candidate home and is worse: it imports
+#   scikit-learn at module level, which would put a reusable algorithm behind
+#   the import boundary `evaluation/__init__.py` exists to police, after commit
+#   015ff94 broke exactly that.
+#
+#       capabilities.py / population.py
+#                    |
+#               thresholds.py        <- ThresholdOperator, ThresholdSource,
+#                    |                  ThresholdParameters
+#           +--------+--------+
+#       registry.py       metrics.py
+#
+#   `thresholds.py` imports numpy, dataclasses, enum and logging. It imports
+#   NEITHER registry, NOR metrics, NOR scikit-learn, and a STRUCTURAL test
+#   asserts that over the source rather than at runtime -- a runtime check would
+#   pass merely because scikit-learn happens to be installed.
+#
+#   RE-EXPORTED BY IDENTITY, NOT BY EQUALITY. `ThresholdParameters` documents
+#   that one instance is shared by a descriptor, its kernel adapter and its
+#   applicability predicate, "asserted BY IDENTITY at import time". A re-export
+#   producing a DISTINCT class object would leave every isinstance() check
+#   comparing against a different type, silently, until something asserted
+#   identity -- and registry.py asserts it at import, so the import itself would
+#   have failed rather than the suite.
+#
+#   THE CLASSES MOVED VERBATIM. The post-check compared
+#   `before.replace(MOVED, "")` against `after.replace(REPLACEMENT, "")` to prove
+#   everything outside the block was byte-identical -- a property that does not
+#   depend on how difflib chooses to group hunks.
+#
+#   A SEQUENCING FAILURE OF MINE, RECORDED WITHOUT SOFTENING. A zero-movement
+#   extraction needs an inventory BEFORE the move: every import of the classes,
+#   every attribute lookup through `registry`, any package-level export, any
+#   `__all__`, any use of `__module__`/pickle/qualified names, any monkeypatch,
+#   any source-inspection test. SEVEN CHECKS. I ran none before the move and all
+#   of them afterwards, when prompted.
+#
+#   Nothing broke, and the suite proves it. But "nothing broke" is the OUTCOME,
+#   not the discipline: an inventory exists so a move is KNOWN safe rather than
+#   FOUND safe, and running it afterwards converts a check into a postmortem.
+#
+#   THREE OF THE SEVEN WERE CLEAN BY ARRANGEMENT, NOT BY DESIGN.
+#     * `registry.__all__` holds 12 entries and none of the three is among them,
+#       measured from the LIVE module. Unchanged by the move -- they were never
+#       declared there -- and all three remain reachable as attributes, which is
+#       what every existing import uses.
+#     * Every pickle and joblib reference across src, tests and scripts is a
+#       MODEL artifact. None names a threshold type, so no historical artifact
+#       refers to a class whose module moved.
+#     * Three tests inspect `registry` source (test_metric_registry.py:437 and
+#       :907, test_prediction_input_contract.py:294). All passed: none expected
+#       the threshold definitions to be there.
+#
+#   THE FOURTH HAD GENUINELY CHANGED, AND WAS UNRECORDED. `__module__` moved from
+#   `...evaluation.registry` to `...evaluation.thresholds`. Intended, and written
+#   down nowhere. It affects repr, generated documentation, pickled output bytes
+#   and type-name provenance, so an unrecorded change to it is an unrecorded
+#   change to what an artifact says about itself.
+#
+#   AND THIS PROJECT ALREADY HAD THE PRECEDENT. `test_metric_result_relocation.py`
+#   pins exactly this after exactly this kind of move: MetricResult was relocated
+#   into `capabilities.py`, re-exported from `clustering_metrics`, and the tests
+#   assert BOTH where it is defined and that consumers resolve the same object --
+#   "must be DEFINED in the vocabulary layer, not re-exported into it". THR-1a
+#   wrote the second half and omitted the first. The completing test uses the
+#   precedent's wording, because it is the same claim about a different layer,
+#   and it was falsified against `...registry` and `...capabilities` before
+#   shipping.
+#
+#   NO SABOTAGE LINE. Nothing behavioural changed, so nothing behavioural can be
+#   mutated; the two assertions above are the mutation-equivalent and both were
+#   exercised.
+#
+#   THR-1b, NOT INCLUDED: adding `ThresholdSource.EVALUATION_SWEEP`. An additive
+#   persisted-vocabulary change has a different failure mode from an extraction,
+#   and combining them would give a regression two possible origins.
+#
+#   ACCEPTANCE: full suite 4165 passed, 6 skipped, 0 failed in 18m06s; 4171
+#   collected; skip set unchanged at 6. Six new tests; EVERY PRE-EXISTING TEST
+#   PASSED UNCHANGED, which is the whole acceptance criterion for a vocabulary
+#   move.
+#
+4171

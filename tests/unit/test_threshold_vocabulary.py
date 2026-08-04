@@ -1,0 +1,151 @@
+"""The threshold vocabulary moved down, and it moved by IDENTITY.
+
+THR-1, 2026-08-04. A zero-movement extraction: the three classes now live in
+`thresholds.py` and are re-exported from `registry.py`.
+
+These tests exist because a re-export that produced a DISTINCT class object would
+break `ThresholdParameters`'s stated invariant -- "one instance is shared by a
+descriptor, its kernel adapter and its applicability predicate, asserted BY
+IDENTITY at import time" -- and the failure would be silent until something
+asserted identity.
+
+Author: Monzia Moodie
+"""
+from __future__ import annotations
+
+import pytest
+
+
+def test_registry_reexports_the_canonical_threshold_types_by_identity():
+    """`is`, not `==`. Two enum classes with identical members are not
+    interchangeable: `isinstance(x, A)` is False for an instance of B."""
+    from genomic_variant_classifier.evaluation import registry
+    from genomic_variant_classifier.evaluation import thresholds
+
+    assert registry.ThresholdOperator is thresholds.ThresholdOperator
+    assert registry.ThresholdSource is thresholds.ThresholdSource
+    assert registry.ThresholdParameters is thresholds.ThresholdParameters
+
+
+def test_the_shared_instance_invariant_still_holds_through_the_re_export():
+    """A ThresholdParameters built through either name must satisfy the other's
+    isinstance check -- which is exactly what a distinct class object would
+    break."""
+    from genomic_variant_classifier.evaluation import registry
+    from genomic_variant_classifier.evaluation import thresholds
+
+    built_from_registry = registry.ThresholdParameters(
+        threshold=0.5,
+        operator=registry.ThresholdOperator.GREATER_OR_EQUAL,
+        source=registry.ThresholdSource.FIXED_DEFAULT)
+
+    assert isinstance(built_from_registry, thresholds.ThresholdParameters)
+    assert isinstance(built_from_registry.operator,
+                      thresholds.ThresholdOperator)
+    assert isinstance(built_from_registry.source, thresholds.ThresholdSource)
+
+
+def test_the_serialisation_is_unchanged():
+    """THR-1 moves text. If a serialised mapping differs, it moved more."""
+    from genomic_variant_classifier.evaluation import thresholds
+
+    parameters = thresholds.ThresholdParameters(
+        threshold=0.5,
+        operator=thresholds.ThresholdOperator.GREATER_OR_EQUAL,
+        source=thresholds.ThresholdSource.FIXED_DEFAULT)
+
+    assert parameters.to_mapping() == {
+        "decision_threshold": 0.5,
+        "threshold_operator": ">=",
+        "threshold_source": "fixed_default"}
+
+
+def test_the_validation_moved_with_the_class():
+    """Every refusal the class made before, it must still make."""
+    from genomic_variant_classifier.evaluation import thresholds
+
+    operator = thresholds.ThresholdOperator.GREATER_OR_EQUAL
+    source = thresholds.ThresholdSource.FIXED_DEFAULT
+
+    with pytest.raises(ValueError, match=r"\[0, 1\]"):
+        thresholds.ThresholdParameters(threshold=1.5, operator=operator,
+                                       source=source)
+    with pytest.raises(TypeError, match="numeric"):
+        thresholds.ThresholdParameters(threshold="0.5", operator=operator,
+                                       source=source)
+    with pytest.raises(TypeError, match="ThresholdOperator member"):
+        thresholds.ThresholdParameters(threshold=0.5, operator=">=",
+                                       source=source)
+    with pytest.raises(TypeError, match="ThresholdSource member"):
+        thresholds.ThresholdParameters(threshold=0.5, operator=operator,
+                                       source="fixed_default")
+
+
+def test_thresholds_imports_nothing_it_must_not():
+    """THE CONSTRAINT THAT IS THE MODULE'S REASON FOR EXISTING.
+
+    It sits beneath `registry.py` and `metrics.py`, so it may import neither.
+    And it must import cleanly with scikit-learn absent, which is what lets it
+    be depended upon from the package root -- the boundary
+    `evaluation/__init__.py` documents at length after commit 015ff94 broke it.
+
+    Checked STRUCTURALLY, over the source: a runtime check would pass merely
+    because scikit-learn happens to be installed.
+    """
+    import ast
+    import inspect
+
+    from genomic_variant_classifier.evaluation import thresholds
+
+    tree = ast.parse(inspect.getsource(thresholds))
+    imported = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imported.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            imported.add((node.module or "").split(".")[0])
+            if node.level:
+                imported.add(f"relative:{node.module}")
+
+    for forbidden in ("sklearn", "relative:registry", "relative:metrics"):
+        assert forbidden not in imported, (
+            f"thresholds.py imports {forbidden}, which inverts the layering it "
+            "exists to establish")
+def test_thresholds_owns_the_vocabulary_it_defines():
+    """OWNERSHIP, not merely identity. `__module__` changed, deliberately.
+
+    THR-1a moved these three classes out of `registry.py` and re-exported them
+    back. The re-export preserves IDENTITY -- `registry.ThresholdOperator is
+    thresholds.ThresholdOperator` -- but it does NOT preserve the qualified
+    module name, which moved from
+
+        genomic_variant_classifier.evaluation.registry
+
+    to
+
+        genomic_variant_classifier.evaluation.thresholds
+
+    That is the point of the extraction, and until this assertion existed it was
+    written down nowhere. `__module__` affects `repr`, generated documentation,
+    pickled output bytes and type-name provenance, so an unrecorded change to it
+    is an unrecorded change to an artifact's contents.
+
+    THE PATTERN IS THIS PROJECT'S OWN. `test_metric_result_relocation.py` pins
+    exactly this after exactly this kind of move: `MetricResult` was relocated
+    into `capabilities.py`, re-exported from `clustering_metrics`, and the tests
+    assert BOTH where it is defined and that consumers resolve the same object.
+    THR-1a wrote the second half and omitted the first; the wording below is the
+    precedent's, because it is the same claim about a different layer.
+
+    A future move back, or a re-export mistaken for a definition, now fails here
+    rather than silently changing what artifacts say about themselves.
+    """
+    from genomic_variant_classifier.evaluation import thresholds
+
+    for cls in (thresholds.ThresholdOperator,
+                thresholds.ThresholdSource,
+                thresholds.ThresholdParameters):
+        assert cls.__module__ == (
+            "genomic_variant_classifier.evaluation.thresholds"
+        ), (f"{cls.__name__} must be DEFINED in the vocabulary layer, not "
+            "re-exported into it")

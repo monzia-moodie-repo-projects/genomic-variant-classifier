@@ -4473,3 +4473,181 @@ semantic movement smuggled into a rewrite.
 
 Seven register defects remain open: D1, D2-D5, D6, D9, D10, D11, D12. One sort
 with cumulative sums closes D1, D9, D10 and D11 together.
+
+## ROADMAP delta -- 2026-08-04: THR-1a. A layer created, and a pre-move inventory that became a postmortem.
+
+One commit: the extraction, six tests, this delta, the session document, the
+ratchet and the badge.
+
+Full suite 4165 passed, 6 skipped, 0 failed; 4171 collected. Ratchet 4165 ->
+4171 (+6). ZERO MOVEMENT -- no behaviour, no value, no pre-existing test outcome
+changed.
+
+Full write-up: `docs/SESSION_2026-08-04_thr1a-threshold-vocabulary.md`.
+
+### 0. WHAT IT DOES
+
+`ThresholdOperator`, `ThresholdSource` and `ThresholdParameters` move verbatim
+from `registry.py` into a new `thresholds.py`, and are re-exported so every
+existing import keeps working AND keeps returning THE SAME OBJECT.
+
+```
+capabilities.py / population.py
+             |
+        thresholds.py
+             |
+    +--------+--------+
+registry.py       metrics.py
+```
+
+### 1. WHY A BOTTOM LAYER, AND WHY NOT THE TWO OBVIOUS HOMES
+
+OP-1's exact sweep must describe each candidate with a `ThresholdParameters`, and
+that single requirement rules out both.
+
+A sweep in a module importing `registry.py` REVERSES THE LAYERING: future
+registry count-applicability code could then not import the sweep without a
+cycle.
+
+`metrics.py` is worse. It imports scikit-learn AT MODULE LEVEL, and
+`evaluation/__init__.py` forbids importing it for exactly that reason -- commit
+`015ff94` restored the file but added `from ... import metrics`, pulling
+scikit-learn eagerly and breaking the Phase-5 contract, "trading one silent
+failure for another". A reusable algorithm placed there could never be depended
+upon from the package root.
+
+`thresholds.py` imports numpy, dataclasses, enum and logging -- NEITHER registry,
+NOR metrics, NOR scikit-learn -- and a STRUCTURAL test asserts that over the
+source. A runtime check would pass merely because scikit-learn happens to be
+installed.
+
+### 2. THE NEW OBSERVATION: WHAT AN EXTRACTION COMMIT OWES
+
+Section 7 names shapes of DEFECT; REG-2's delta added shape (f), a shape of
+REMEDY. This is a shape of PROCEDURE, and it belongs beside them for the same
+reason: skipping it is how a safe change becomes an unverified one.
+
+**A ZERO-MOVEMENT EXTRACTION HAS A PRE-MOVE INVENTORY. Running it afterwards
+converts a check into a postmortem.**
+
+The inventory is seven items: every import of the moved names, every attribute
+lookup through the old module, any package-level export, any `__all__`, any use
+of `__module__`/pickle/qualified names, any monkeypatch, any source-inspection
+test.
+
+I ran NONE before the move and ALL of them afterwards, when prompted. Nothing
+broke, and the suite proves it -- but "nothing broke" is the OUTCOME, not the
+discipline. An inventory exists so a move is KNOWN safe rather than FOUND safe.
+Recorded as **EXTRACT-1**.
+
+### 3. THREE OF THE SEVEN WERE CLEAN BY ARRANGEMENT, NOT BY DESIGN
+
+Each could have been otherwise.
+
+`registry.__all__` holds 12 entries and NONE of the three is among them --
+measured from the LIVE module, not read from a source window. Unchanged by the
+move, because they were never declared there.
+
+EVERY pickle and joblib reference across src, tests and scripts is a MODEL
+artifact. None names a threshold type, so no historical artifact refers to a
+class whose module moved.
+
+THREE tests inspect `registry` source (`test_metric_registry.py:437` and `:907`,
+`test_prediction_input_contract.py:294`). All passed: none expected the threshold
+definitions to be there.
+
+### 4. THE FOURTH HAD CHANGED, AND THE PRECEDENT WAS ALREADY IN THE REPOSITORY
+
+`ThresholdParameters.__module__` moved from `...evaluation.registry` to
+`...evaluation.thresholds`. Intended, and written down nowhere. It affects repr,
+generated documentation, pickled output bytes and type-name provenance, so an
+unrecorded change to it is AN UNRECORDED CHANGE TO WHAT AN ARTIFACT SAYS ABOUT
+ITSELF.
+
+And `tests/unit/test_metric_result_relocation.py:60-63` pins exactly this, after
+exactly this kind of move:
+
+```python
+assert MetricResult.__module__ == (
+    "genomic_variant_classifier.evaluation.capabilities"
+), "MetricResult must be DEFINED in the vocabulary layer, not re-exported into it"
+```
+
+`MetricResult` was relocated into `capabilities.py`, re-exported from
+`clustering_metrics`, and the tests pin BOTH halves -- where it is defined, and
+that consumers resolve the same object. THR-1a wrote the second and omitted the
+first. The completing test uses the precedent's wording and was falsified against
+`...registry` and `...capabilities` before shipping.
+
+**The precedent sat unread while the same mistake was made two layers away.** That
+is the part worth carrying: the register of past decisions is only useful if it is
+consulted before the decision, not after the correction.
+
+### 5. IDENTITY, NOT EQUALITY
+
+`ThresholdParameters` documents that one instance is shared by a descriptor, its
+kernel adapter and its applicability predicate, "asserted BY IDENTITY at import
+time". A re-export producing a DISTINCT class object would leave every
+isinstance() check comparing against a different type -- and `registry.py`
+asserts identity at import, so the IMPORT would have failed rather than the
+suite. The good failure mode, but only because someone had written that
+assertion.
+
+The classes moved VERBATIM: the post-check compared
+`before.replace(MOVED, "")` against `after.replace(REPLACEMENT, "")`, proving
+everything outside the block byte-identical without depending on how difflib
+groups hunks.
+
+### 6. NO SABOTAGE LINE
+
+Nothing behavioural changed, so nothing behavioural can be mutated. The identity
+and ownership assertions are the mutation-equivalent, and both were exercised --
+identity by construction, `__module__` by confirming the assertion FAILS against
+two wrong module names.
+
+### 7. NOT INCLUDED, DELIBERATELY
+
+**THR-1b**, adding `ThresholdSource.EVALUATION_SWEEP`. An additive
+persisted-vocabulary change has a different failure mode from an extraction, and
+combining them would give a regression two possible origins.
+
+**Step 1**, the array-backed sweep. Its algorithm is already verified: zero
+mismatches against the brute-force definition across ten cohorts, all eleven
+refusal paths raising, and a 1000-point grid shown to reach only 2 of 5
+achievable operating points on scores spaced at 0.0001. What changes is where it
+lives, what it returns, and that it carries the `EvaluationPopulation` from the
+first type.
+
+### 8. OPEN -- eighteen items
+
+| id | item |
+|---|---|
+| **EXTRACT-1** | *new.* A zero-movement extraction has a pre-move inventory; skipping it converts a check into a postmortem |
+| SWEEP-1 | two equivalent tie-aware sweeps in `metrics.py` (322, 1781), agreeing across eleven cohorts, with nothing asserting they agree |
+| REG-2-b | `_requires_interior_specificity` returns INSUFFICIENT_SUPPORT with reason `specificity_undefined` |
+| ICI-1 | `integrated_calibration_index` declared applicable, then returns non-finite |
+| F1-1 | `f1` returns `ok` with 0.0 from an undefined positive predictive value |
+| OPCOV-1 | the operating-point selectors have almost no coverage |
+| GITIGNORE-1 | `*.bak_*` appears three times in `.gitignore` |
+| STRUCT-1 | structural guards now used four times, on four defect classes |
+| POP-1b-M03 | no test distinguishes the source distance from the parent distance |
+| POP-1b-M07 | nothing asserts on `print_report` output |
+| ZERO-1 | 24 dead-connector defaults still zero |
+| INF-1 | an infinite reference label is pooled with NaN as *withheld* |
+| ABS-1 | the ranking channel's refusal reported as `undefined_on_cohort` |
+| DEAD-1 | ~40 lines of dead absence computation in `evaluate` |
+| DEAD-3 | `_assert_absence_biconditional` computes `observed_curves` twice |
+| PRE-2 | section 5's PASS line swallows the KAN banner |
+| LINT-1 | no lint gate anywhere |
+| F821-1 | 18 undefined names; 9 need assessment |
+| CMP-1 | `ModelComparison` carries a fingerprint with no scope beside it |
+
+### 9. NEXT
+
+**THR-1b**, then **step 1**: `ConfusionCounts`, the exact sweep, and the lazy
+candidate view -- owned immutable arrays, no object-per-candidate storage, linear
+byte scaling asserted, and selection working on arrays rather than iterating
+Python objects.
+
+Seven register defects remain open: D1, D2-D5, D6, D9, D10, D11, D12. One sort
+with cumulative sums closes D1, D9, D10 and D11 together.
