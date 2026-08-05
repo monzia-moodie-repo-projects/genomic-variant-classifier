@@ -5084,3 +5084,164 @@ eligibility, and the serialised form.
 
 Then step 4 (the selector, Objective A, closing D12), step 5 (the shadow
 comparison), and step 6 (the cutover, which must reckon with GUARD-1).
+
+## ROADMAP delta -- 2026-08-05: OP-1 step 3a. Oracle C1 holds, and its first run found a defect in my own fixture matrix.
+
+One commit: the oracle, 46 cases from 11 functions, this delta, the session
+document, the ratchet and the badge.
+
+Full suite 4265 passed, 6 skipped, 0 failed; 4271 collected. Ratchet 4225 ->
+4271 (+46). A VERIFICATION COMMIT -- NO PRODUCTION CODE CHANGED, and the
+installer checked that rather than the entry asserting it.
+
+Full write-up: `docs/SESSION_2026-08-05_op1-step3a-oracle-c1.md`.
+
+NO NEW SHAPE IS CLAIMED.
+
+### 0. ORACLE C1 HOLDS
+
+For the SIX estimands both paths compute -- sensitivity, specificity, positive
+and negative predictive value, F1 and the Matthews correlation coefficient --
+`metrics_from_counts` and `registry.compute` agree on STATUS, REASON and VALUE
+across six applicability regimes at the registry's canonical threshold.
+
+THAT VALIDATES A DECISION MADE DELIBERATELY IN STEP 2. Every reason string in the
+count path is one the registry already emits, and the statuses follow REG-2's
+measured boundary. Had step 2 coined a private vocabulary, C1 would now report
+six failures per fixture AND NONE OF THEM WOULD BE DEFECTS -- the oracle would be
+comparing two dialects. The vocabulary was chosen so it could be tested; it has
+been.
+
+### 1. WHY ONE THRESHOLD SERVES THE WHOLE COMPARISON
+
+Measured against the live registry: of 24 descriptors, NINE carry a
+`ThresholdParameters` and all nine carry `(0.5, GREATER_OR_EQUAL,
+fixed_default)`. The other fifteen are ranking or calibration metrics with no
+threshold.
+
+So one fixture family suffices, and EVERY FIXTURE MUST CONTAIN A SCORE OF EXACTLY
+0.5 -- the sweep's candidates are the observed score values, and without one there
+is no candidate at the registry's parameters. A test re-derives that declaration
+over the live graph so a descriptor pinned elsewhere cannot arrive unnoticed.
+
+### 2. THE FIRST RUN FAILED, AND THE DEFECT WAS MINE
+
+```
+7 failed, 44 passed
+AssertionError: the Oracle C fixture must expose exactly one (0.5, >=)
+candidate, found 0.
+```
+
+TWO REQUIREMENTS ACT ON EVERY C1 FIXTURE AND I SATISFIED ONLY ONE. The comparison
+needs a candidate at the registry's parameters, so the cohort must contain exactly
+0.5. The `no_predicted_positives` regime needs NOTHING flagged at that threshold.
+Under GREATER_OR_EQUAL those are CONTRADICTORY, because 0.5 satisfies `p >= 0.5`.
+
+I wrote every score below 0.5 to satisfy the second and removed the score the
+first requires. The fixture was internally coherent and externally impossible.
+
+**`>=` PLACES THE BOUNDARY SCORE ON THE FLAGGED SIDE.** That single fact makes one
+regime UNEXPRESSIBLE at the canonical threshold and its mirror image trivial:
+`no_predicted_negatives` needs every score at or above 0.5, and 0.5 satisfies
+that. Verified -- scores [0.9, 0.5, 0.7, 0.6] clear nothing and flag four.
+
+AND I HAD READ THE DOCSTRING THAT SAYS SO. `ThresholdOperator` records that ">=
+and > differ exactly at prob == threshold", quoted repeatedly across this
+sequence. THE GUARD CAUGHT WHAT THE READING DID NOT -- which is the case for
+writing guards that fail loudly rather than skip.
+
+THE REGIME IS DROPPED, NOT REPLACED. A cohort could be built where 0.5 is present
+and the regime differs -- every label negative, so TP+FP is nonzero but the
+positive predictive value is 0 rather than undefined. That would QUIETLY
+SUBSTITUTE A DIFFERENT TEST AND CALL IT THE SAME ONE. Six regimes claimed, six
+tested. The refusal itself is already pinned at the count level by step 2; what
+C1 cannot do is CORROBORATE it against the registry.
+
+AND THE IMPOSSIBILITY IS AN ASSERTION, NOT A COMMENT -- conditional on the
+operator, so if the registry ever adopts GREATER the regime becomes reachable and
+the test fails, which is the signal to add it back DELIBERATELY.
+
+### 3. THE SURFACE PARTITION, CODIFIED IN FOUR DISJOINT SETS
+
+```
+shared, compared by C1      6 estimands
+operating-point only        flagged_fraction -- no registry counterpart
+registry-only, threshold    balanced_accuracy, the two likelihood ratios
+registry-only, population   prevalence (Decision 3, 2026-08-04)
+```
+
+THE THREE DERIVABLE METRICS STAY OUT BECAUSE THE FORMULAS ARE NOT THE DIFFICULT
+PART. `_requires_interior_specificity` already decides that a positive likelihood
+ratio with specificity at 1.0 is UNDEFINED with reason
+`likelihood_ratio_unbounded` -- a scientific policy about an unbounded quantity.
+Reimplementing the formula would create a SECOND AUTHORITY for that policy, the
+zero-denominator applicability, the status choice, the exact reason string and
+the metadata. That is the SWEEP-1 shape.
+
+A completeness test closes the partition: a NEW threshold-carrying descriptor
+must be placed on a surface deliberately, or it fails.
+
+PREVALENCE'S EXCLUSION WAS CORROBORATED INDEPENDENTLY. Decision 3 reasoned from
+first principles that it is a population statistic; the live registry declares it
+WITH NO THRESHOLD AT ALL. An argument later confirmed by an artifact that knew
+nothing about the argument.
+
+### 4. C2 IS DELIBERATELY NOT IN THIS COMMIT
+
+`metrics_from_counts` builds plain `MetricResult` instances; `registry.compute`
+ENRICHES and FINALISES them with descriptor identity, support counts,
+certification metadata and population keys. Full identity is unlikely to hold
+until both paths share one finaliser.
+
+MAKING C2 PASS BY COPYING REGISTRY METADATA INTO THE COUNT PATH WOULD RECREATE A
+SECOND IMPLEMENTATION OF THE FINALISATION CONTRACT. Step 3b measures the exact
+difference set, and that measurement is a FINDING, not a fix.
+
+### 5. A DEFECT OF MINE, LABELLED ACCURATELY RATHER THAN CONVENIENTLY
+
+Three post-check counts were wrong, and my first instinct was to file it as the
+ELEVENTH prose-matching instance -- the familiar defect with the familiar remedy.
+MEASURING SHOWED EVERY OCCURRENCE WAS CODE. I had undercounted uses in a file I
+wrote myself.
+
+The remedy for prose-matching is tokenising; the remedy for this is measuring.
+Calling it the familiar defect would have applied the wrong fix AND INFLATED A
+PATTERN'S EVIDENCE WITH A CASE THAT DOES NOT BELONG TO IT. A register of named
+patterns is only useful if instances are assigned to it accurately.
+
+### 6. ONE ILLUSTRATION CORRECTED AGAINST THE LIVE OBJECT
+
+The adopted design's helper reads `sweep.n_candidates`; `ExactThresholdSweep`
+implements `__len__` and has no such attribute. FOURTH illustration-versus-reality
+gap in this sequence, after `_two_class_context()`,
+`EvaluationPopulation.full(n_source=)` by keyword, and an import documented but
+absent. An adopted design's code sketches specify INTENT, not API.
+
+### 7. NO SABOTAGE LINE
+
+Nothing existing changed, and THE ORACLE'S OWN FIRST RUN WAS THE FALSIFICATION:
+it failed, the failure was read rather than silenced, and the correction removed
+an impossible cohort rather than a disagreement.
+
+The ratchet installer also gained a precondition specific to a verification
+commit -- it runs `git status --short` and REFUSES if any file under `src/` is
+modified, because the entry makes that claim prominently. A claim the machinery
+can check should not be left to prose.
+
+### 8. OPEN -- nineteen items, unchanged
+
+No follow-up was opened or closed: GUARD-1, EXTRACT-1, SWEEP-1, REG-2-b, ICI-1,
+F1-1, OPCOV-1, GITIGNORE-1, STRUCT-1, POP-1b-M03, POP-1b-M07, ZERO-1, INF-1,
+ABS-1, DEAD-1, DEAD-3, PRE-2, LINT-1, F821-1, CMP-1.
+
+### 9. NEXT
+
+**Step 3b -- the C2 measurement.** Which metadata keys `registry.compute` adds
+that `metrics_from_counts` does not, and whether the count path could supply them
+without duplicating the finalisation contract. The measurement decides whether a
+finaliser extraction is needed; it is the deliverable, and any fix follows from
+it rather than preceding it.
+
+Then step 4 (the selector, Objective A, closing **D12** -- the last of the
+twelve), step 5 (the shadow comparison), and step 6 (the cutover, which must
+reckon with GUARD-1).

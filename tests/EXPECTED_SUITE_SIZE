@@ -5280,4 +5280,124 @@
 #   they agree -- 22 tests, none parametrised, so functions and cases coincide).
 #   NOTHING ELSE MOVED.
 #
-4225
+#
+# 4225 -> 4271 (+46)  2026-08-05  OP-1 STEP 3a: ORACLE C1. A VERIFICATION
+#   COMMIT -- no production code changed, and `git status` showed exactly one
+#   untracked file. The entire change is evidence.
+#
+#   ORACLE C1 HOLDS. For the SIX estimands both paths compute --  sensitivity,
+#   specificity, positive and negative predictive value, F1 and the Matthews
+#   correlation coefficient -- `metrics_from_counts` and `registry.compute` agree
+#   on STATUS, REASON and VALUE across six applicability regimes at the
+#   registry's canonical threshold.
+#
+#   THAT VALIDATES A DECISION MADE DELIBERATELY IN STEP 2. Every reason string in
+#   the count path is one the registry already emits, and the statuses follow
+#   REG-2's measured boundary. Had step 2 coined a private vocabulary, C1 would
+#   now report six failures per fixture AND NONE OF THEM WOULD BE DEFECTS -- the
+#   oracle would be comparing two dialects. The vocabulary was chosen so it could
+#   be tested; it has been.
+#
+#   WHY ONE THRESHOLD SERVES THE WHOLE COMPARISON. Measured against the live
+#   registry: of 24 descriptors, NINE carry a `ThresholdParameters` and all nine
+#   carry `(0.5, GREATER_OR_EQUAL, fixed_default)`. The other fifteen are ranking
+#   or calibration metrics with no threshold. A descriptor pinned elsewhere would
+#   need its own fixture family, and a test re-derives that declaration over the
+#   live graph so a new one cannot arrive unnoticed.
+#
+#   THE FIRST RUN FAILED, AND THE DEFECT WAS MINE: 7 failed, 44 passed.
+#
+#       AssertionError: the Oracle C fixture must expose exactly one (0.5, >=)
+#       candidate, found 0.
+#
+#   TWO REQUIREMENTS ACT ON EVERY C1 FIXTURE AND I SATISFIED ONLY ONE. The
+#   comparison needs a candidate at the registry's parameters, so the cohort must
+#   contain a score of EXACTLY 0.5 -- the sweep's candidates are the observed
+#   score values. And the `no_predicted_positives` regime needs NOTHING flagged
+#   at that threshold. Under GREATER_OR_EQUAL those are CONTRADICTORY, because
+#   0.5 satisfies `p >= 0.5` and is therefore flagged.
+#
+#   I wrote every score below 0.5 to satisfy the second and removed the score the
+#   first requires. The fixture was internally coherent and externally
+#   impossible.
+#
+#   `>=` PLACES THE BOUNDARY SCORE ON THE FLAGGED SIDE. That single fact makes
+#   one regime UNEXPRESSIBLE at the canonical threshold and its mirror image
+#   trivial: `no_predicted_negatives` needs every score at or above 0.5, and 0.5
+#   itself satisfies that. Verified directly -- scores [0.9, 0.5, 0.7, 0.6] clear
+#   nothing and flag four.
+#
+#   AND I HAD READ THE DOCSTRING THAT SAYS SO. `ThresholdOperator` records that
+#   ">= and > differ exactly at prob == threshold", quoted repeatedly across this
+#   sequence, and I still wrote a fixture violating it. The guard caught what the
+#   reading did not.
+#
+#   THE REGIME IS DROPPED, NOT REPLACED. A cohort could be built where 0.5 is
+#   present and the regime differs -- every label negative, say, so TP + FP is
+#   nonzero but the positive predictive value is 0 rather than undefined. That
+#   would QUIETLY SUBSTITUTE A DIFFERENT TEST AND CALL IT THE SAME ONE. Six
+#   regimes are claimed and six are tested.
+#
+#   THE REFUSAL ITSELF IS NOT LOST. Step 2 already pins it at the count level
+#   with UNDEFINED and reason `empty_predicted_positive_set`. What C1 cannot do
+#   is CORROBORATE that against the registry -- a limit of the oracle, not a gap
+#   in the evidence.
+#
+#   AND THE IMPOSSIBILITY IS AN ASSERTION, NOT A COMMENT.
+#   `test_the_empty_predicted_positive_regime_is_unreachable_at_the_canonical_threshold`
+#   proves it directly, and is CONDITIONAL ON THE OPERATOR: if the registry ever
+#   adopts GREATER, or a descriptor moves off 0.5, the regime becomes reachable
+#   and the test fails -- which is the signal to add it back DELIBERATELY.
+#
+#   THE SURFACE PARTITION IS CODIFIED IN FOUR DISJOINT SETS, so every omission is
+#   a TESTED SCOPE DECISION rather than an accidental gap:
+#
+#       shared, compared by C1     6 estimands
+#       operating-point only       flagged_fraction -- no registry counterpart
+#       registry-only, threshold   balanced_accuracy and the two likelihood
+#                                  ratios -- derivable, deliberately not
+#                                  duplicated
+#       registry-only, population  prevalence (Decision 3, 2026-08-04)
+#
+#   THE THREE DERIVABLE METRICS STAY OUT BECAUSE THE FORMULAS ARE NOT THE
+#   DIFFICULT PART. `_requires_interior_specificity` already decides that a
+#   positive likelihood ratio with specificity at 1.0 is UNDEFINED with reason
+#   `likelihood_ratio_unbounded` -- a scientific policy about an unbounded
+#   quantity. Reimplementing the formula would create a second authority for that
+#   policy, for the zero-denominator applicability, the status choice, the exact
+#   reason string and the metadata. That is the SWEEP-1 shape.
+#
+#   A COMPLETENESS TEST CLOSES THE PARTITION: a NEW threshold-carrying descriptor
+#   must be placed on a surface deliberately -- compared by C1, or excluded with a
+#   reason -- or it fails.
+#
+#   PREVALENCE'S EXCLUSION WAS CONFIRMED BY AN INDEPENDENT ARTIFACT. Decision 3
+#   reasoned from first principles that it is a population statistic; the live
+#   registry declares it with NO THRESHOLD AT ALL. A decision made by argument,
+#   later corroborated by measurement of something that knew nothing about it.
+#
+#   C2 IS DELIBERATELY NOT IN THIS COMMIT. `metrics_from_counts` builds plain
+#   `MetricResult` instances; `registry.compute` ENRICHES and FINALISES them with
+#   descriptor identity, support counts, certification metadata and population
+#   keys. Full identity is unlikely to hold until both paths share one finaliser,
+#   and MAKING C2 PASS BY COPYING REGISTRY METADATA INTO THE COUNT PATH WOULD
+#   RECREATE A SECOND IMPLEMENTATION OF THE FINALISATION CONTRACT. Step 3b
+#   measures the exact difference set; that measurement is a FINDING, not a fix.
+#
+#   ONE ILLUSTRATION CORRECTED AGAINST THE LIVE OBJECT. The adopted design's
+#   helper reads `sweep.n_candidates`; `ExactThresholdSweep` implements `__len__`
+#   and has no such attribute. FOURTH illustration-versus-reality gap in this
+#   sequence, after `_two_class_context()`, `EvaluationPopulation.full(n_source=)`
+#   by keyword, and an import documented but absent. An adopted design's code
+#   sketches specify INTENT, not API.
+#
+#   NO SABOTAGE LINE. Nothing existing changed, and THE ORACLE'S OWN FIRST RUN
+#   WAS THE FALSIFICATION: it failed, the failure was read rather than silenced,
+#   and the correction removed an impossible cohort rather than a disagreement.
+#
+#   ACCEPTANCE: full suite 4265 passed, 6 skipped, 0 failed in 16m31s;
+#   4271 collected, measured by this installer (predicted 4271).
+#   46 cases from 11 functions: 6 metrics x 6 fixtures parametrised, plus 10.
+#   NO PRODUCTION CODE CHANGED.
+#
+4271
