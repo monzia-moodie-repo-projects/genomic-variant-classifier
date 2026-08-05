@@ -4952,3 +4952,135 @@ step 6  the cutover                        must reckon with GUARD-1
 Step 2 is where refusal semantics arrive: a quantity that cannot be computed
 carries a `MetricResult` with a status and a reason rather than a fabricated
 `0.0`, and REG-2 already settled that the status is UNDEFINED.
+
+## ROADMAP delta -- 2026-08-05: OP-1 step 2. The register that opened with twelve defects has one entry left.
+
+One commit: the typed outcome, 22 tests, this delta, the session document, the
+ratchet and the badge.
+
+Full suite 4219 passed, 6 skipped, 0 failed; 4225 collected. Ratchet 4203 ->
+4225 (+22), MEASURED by the installer. STILL NO SELECTOR, and nothing imports the
+outcome.
+
+Full write-up: `docs/SESSION_2026-08-05_op1-step2-typed-outcome.md`.
+
+NO NEW SHAPE IS CLAIMED. This delta's contribution is a state, not a pattern.
+
+### 0. THE REGISTER, AS IT NOW STANDS
+
+```
+D7, D8              closed by OP-0        d4b4259
+D1, D9, D10, D11    closed by step 1      0030544
+D2-D5, D6           closed HERE
+D12                 OPEN -- the undeclared tie-break, closing in step 4
+```
+
+Twelve defects were recorded on 2026-08-01. Eleven are closed. The twelfth is a
+`if diff < best_diff` that resolves ties to the lower, more liberal threshold
+because `np.linspace` ascends -- defensible, undocumented, and invisible in the
+result. It closes when the selector DECLARES and PERSISTS its rule.
+
+### 1. D2-D5 AND D6 CLOSE BY CONSTRUCTION, NOT BY CONVENTION
+
+`MetricResult.__post_init__` enforces, and its docstring states, that a non-OK
+status REQUIRES a nonempty reason and CARRIES NaN, while an OK status carries a
+finite value and no reason.
+
+So there is NO WAY to store a fabricated 0.0 where a refusal belongs. The
+constructor refuses it HOWEVER THE CODE IS LATER EDITED -- which is a structural
+guarantee rather than a careful branch someone could simplify away.
+
+**D5 is broken structurally.** The legacy form computed F1 from a positive
+predictive value that might itself be a fabricated 0.0: a SECOND fabrication
+derived from the first, with no record that either occurred. `2TP/(2TP+FP+FN)` is
+the same quantity computed from COUNTS and cannot inherit anything. Measured on a
+cohort with nothing flagged, the positive predictive value REFUSES while F1 is ok
+at 0.0, and a test pins that pairing.
+
+**D6 closes because nothing is rounded at storage.** The legacy selectors stored
+`round(value, 4)` and computed F1 from UNROUNDED inputs, so a stored F1 could not
+be recomputed from the stored values it was supposedly derived from. Measured:
+stored `0.7551020408163265`, recomputed `0.7551020408163266` -- agreeing to
+1e-12, differing only in the last bit by floating-point associativity.
+`round_for_display` returns a NEW mapping and leaves the record alone.
+
+### 2. THE VOCABULARY IS THE REGISTRY'S, AND THAT IS A DECISION
+
+Step 3's Oracle C1 proves this count path reproduces the registry's status
+semantics, and it can only do that if the two speak ONE vocabulary. Every reason
+string is one the registry already emits, and the statuses follow REG-2
+(`afa7a90`): a vanishing DENOMINATOR is UNDEFINED; an absent reference CLASS is
+INSUFFICIENT_SUPPORT.
+
+A private vocabulary would make the oracle compare two dialects and report every
+difference as a defect. The decision was made HERE so that step 3 can TEST it
+rather than assert it.
+
+PREVALENCE IS ABSENT, and a test asserts its absence: Decision 3 (2026-08-04)
+made it a POPULATION statistic whose canonical value comes from the registry.
+Computing a second one would invent two prevalences that agree until a population
+bug makes them diverge.
+
+### 3. EXTRACT-1, APPLIED A SECOND TIME, CHANGED A DESIGN
+
+The step-1 delta recorded the first application: the inventory found GUARD-1 as a
+constraint on future work rather than as a red suite later. This is the second,
+and it did something different -- FOUR READS, EACH OF WHICH CHANGED THE DESIGN
+rather than confirming its safety.
+
+  * THE LAYERING decided WHERE the outcome could live. `capabilities.py` and
+    `population.py` import only stdlib and NumPy, so importing `MetricResult`
+    cannot close a cycle. Had capabilities imported thresholds, population
+    identity would have needed plain fields instead of the shared key vocabulary.
+
+  * `MetricResult`'S ENFORCED INVARIANTS meant D2-D5 close BY CONSTRUCTION rather
+    than by branches I would have written carefully -- and carefully-written
+    branches are exactly what a later edit removes.
+
+  * `MetricResult`'S GENERIC-BY-DECISION COMMENT decided that population identity
+    belongs on the OUTCOME. Its own source records that 35 of its 53 construction
+    sites are embedding-space probes for which population scope has no
+    epidemiological meaning, and that forcing the field there "would make the
+    contract ceremonial exactly where it cannot be checked". Overruling that from
+    `thresholds.py` would have been the wrong layer to overrule it from.
+
+  * `_is_finite` EXISTING turned a would-be duplicate into an import -- avoiding
+    the SWEEP-1 shape one commit after documenting it.
+
+A discipline that only ever confirms safety is a ritual. This one changed four
+decisions.
+
+### 4. A TENTH PROSE-MATCHING POST-CHECK, RECORDED AS RECURRENCE
+
+Three expectations were wrong: `MetricResult.not_ok` counted 3 where 2 calls
+exist (a docstring names it), `round(` counted 2 where 1 call exists (a comment
+describes the legacy defect), and `prevalence` counted 1 where 2 were expected.
+
+EVERY EXPECTATION WAS RIGHT ABOUT THE CODE AND WRONG ABOUT THE TEXT. The
+`code_only` tokenising helper existed in earlier installers and this one did not
+carry it. THE RECURRENCE IS THE OMISSION, not the arithmetic.
+
+### 5. NO SABOTAGE LINE
+
+Nothing existing changed, and the guarantees are CONSTRUCTOR-ENFORCED: a mutation
+that removed a careful branch would still be refused by
+`MetricResult.__post_init__`. That is stronger than a mutation score, because it
+holds for mutations nobody thought to write.
+
+### 6. OPEN -- nineteen items, unchanged
+
+No follow-up was opened or closed. The register stands as the step-1 delta
+recorded it: GUARD-1, EXTRACT-1, SWEEP-1, REG-2-b, ICI-1, F1-1, OPCOV-1,
+GITIGNORE-1, STRUCT-1, POP-1b-M03, POP-1b-M07, ZERO-1, INF-1, ABS-1, DEAD-1,
+DEAD-3, PRE-2, LINT-1, F821-1, CMP-1.
+
+### 7. NEXT
+
+**Step 3 -- the two oracles.** C1 compares the count path against
+`registry.compute` on identical cohorts: status, reason, and value with exact NaN
+semantics. C2 compares full `MetricResult` identity at the canonical threshold --
+metadata, support counts, population scope and fingerprint, certification
+eligibility, and the serialised form.
+
+Then step 4 (the selector, Objective A, closing D12), step 5 (the shadow
+comparison), and step 6 (the cutover, which must reckon with GUARD-1).

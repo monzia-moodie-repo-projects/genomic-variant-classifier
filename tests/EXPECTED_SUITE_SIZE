@@ -5183,4 +5183,101 @@
 #   ACCEPTANCE: full suite 4197 passed, 6 skipped, 0 failed in 16m07s;
 #   4203 collected. NOTHING ELSE MOVED, because nothing imports the sweep.
 #
-4203
+#
+# 4203 -> 4225 (+22)  2026-08-05  OP-1 STEP 2: the typed
+#   operating-point outcome. STILL NO SELECTOR, and nothing imports it.
+#
+#   THE TWELVE-DEFECT REGISTER OF 2026-08-01 NOW HAS ONE ENTRY OPEN.
+#
+#       D7, D8       closed by OP-0 (d4b4259)
+#       D1, D9, D10, D11   closed by step 1 (0030544)
+#       D2-D5, D6    closed HERE
+#       D12          remains -- the undeclared tie-break, which closes in
+#                    step 4 when the selector declares and persists its rule
+#
+#   D2-D5 AND D6 CLOSE BY CONSTRUCTION, NOT BY CONVENTION. `MetricResult`
+#   enforces in `__post_init__`, and its docstring states, that a non-OK status
+#   REQUIRES a nonempty reason and CARRIES NaN, while an OK status carries a
+#   finite value and no reason. So there is NO WAY to store a fabricated 0.0
+#   where a refusal belongs -- the constructor refuses it, however the code is
+#   later edited. That is a structural guarantee rather than a careful branch.
+#
+#   D5 IS BROKEN STRUCTURALLY. The legacy form computed F1 from a positive
+#   predictive value that might itself be a fabricated 0.0 -- a second
+#   fabrication derived from the first, with no record that either occurred.
+#   2TP/(2TP+FP+FN) is the same quantity computed from COUNTS and cannot inherit
+#   anything: measured on a cohort with nothing flagged, the positive predictive
+#   value REFUSES while F1 is ok at 0.0, and a test pins exactly that.
+#
+#   D6 CLOSES BECAUSE NOTHING IS ROUNDED AT STORAGE. The legacy selectors stored
+#   `round(value, 4)` and computed F1 from UNROUNDED inputs, so a stored F1 could
+#   not be recomputed from the stored values it was supposedly derived from.
+#   Measured here: stored 0.7551020408163265, recomputed 0.7551020408163266 --
+#   agreeing to 1e-12, differing only in the last bit by floating-point
+#   associativity. `round_for_display` returns a NEW mapping and leaves the
+#   record alone, because rounding is a presentation concern and stays one.
+#
+#   THE REASONS AND STATUSES ARE THE REGISTRY'S, DELIBERATELY. Step 3's Oracle C1
+#   exists to prove this count path reproduces the registry's status semantics,
+#   and it can only do that if the two speak ONE vocabulary. Every reason string
+#   here is one the registry already emits -- empty_predicted_positive_set,
+#   empty_predicted_negative_set, positive_class_support_required,
+#   negative_class_support_required, zero_f1_denominator, zero_confusion_margin
+#   -- and the statuses follow REG-2 (afa7a90): a vanishing DENOMINATOR is
+#   UNDEFINED, an absent reference CLASS is INSUFFICIENT_SUPPORT. A private
+#   vocabulary would make the oracle compare two dialects and report every
+#   difference as a defect.
+#
+#   PREVALENCE IS ABSENT, AND A TEST ASSERTS ITS ABSENCE. Decision 3 (2026-08-04):
+#   it is a POPULATION statistic, not a threshold-derived one, and its canonical
+#   value comes from the registry. Computing a second one here would invent two
+#   prevalences that agree until a population bug makes them diverge.
+#
+#   POPULATION IDENTITY IS CARRIED ONCE, ON THE OUTCOME, in the
+#   `MetricMetadataKey` vocabulary -- not pushed into every per-quantity result.
+#   `MetricResult`'s own source records why it stays generic: 35 of its 53
+#   construction sites are embedding-space probes for which population scope has
+#   no epidemiological meaning, and forcing the field there "would make the
+#   contract ceremonial exactly where it cannot be checked". Re-opening that
+#   decision from here would have been the wrong layer to overrule it from.
+#
+#   `_is_finite` IS IMPORTED, NOT REIMPLEMENTED. Importing an underscore-prefixed
+#   name across modules is a smell; the alternative is a SECOND implementation of
+#   the exact predicate whose agreement governs serialisation, which is the
+#   SWEEP-1 shape documented one commit earlier -- two correct implementations of
+#   one thing, agreeing until they do not. The duplication is the worse of the
+#   two, and the choice is recorded rather than left to look careless.
+#
+#   FOUR READS BEFORE A LINE WAS WRITTEN, AND EACH CHANGED THE DESIGN.
+#     * The layering: `capabilities.py` and `population.py` import only stdlib
+#       and NumPy, so importing MetricResult CANNOT close a cycle and the typed
+#       outcome may sit beside the sweep. Had capabilities imported thresholds,
+#       the outcome would have needed plain fields instead.
+#     * MetricResult's enforced invariants: D2-D5 close BY CONSTRUCTION rather
+#       than by branches I would otherwise have written carefully.
+#     * MetricResult's generic-by-decision comment: population identity belongs
+#       on the OUTCOME.
+#     * `_is_finite` existing: import rather than duplicate.
+#
+#   That is EXTRACT-1 applied for a SECOND consecutive step, and this time it
+#   CHANGED a design decision rather than confirming safety.
+#
+#   A TENTH PROSE-MATCHING POST-CHECK, RECORDED AS RECURRENCE. Three expectations
+#   in this installer were wrong: `MetricResult.not_ok` counted 3 where 2 calls
+#   exist (a docstring names it), `round(` counted 2 where 1 call exists (a
+#   comment describes the legacy defect), and `prevalence` counted 1 where I
+#   expected 2. EVERY EXPECTATION WAS RIGHT ABOUT THE CODE AND WRONG ABOUT THE
+#   TEXT. The `code_only` tokenising helper existed in earlier installers and
+#   this one did not carry it -- that is the recurrence, not the arithmetic.
+#
+#   NO SABOTAGE LINE. Nothing existing changed, and the guarantees are
+#   CONSTRUCTOR-ENFORCED: a mutation that removed a careful branch would still be
+#   refused by `MetricResult.__post_init__`, which is a stronger statement than
+#   any mutation score.
+#
+#   ACCEPTANCE: full suite 4219 passed, 6 skipped, 0 failed in 17m07s;
+#   4225 collected, measured by this installer (predicted 4225, and
+#   they agree -- 22 tests, none parametrised, so functions and cases coincide).
+#   NOTHING ELSE MOVED.
+#
+4225

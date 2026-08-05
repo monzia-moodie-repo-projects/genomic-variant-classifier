@@ -37,6 +37,12 @@ import numpy as np
 # and it imports no scikit-learn -- verified before this edit, because
 # a TRANSITIVE import would defeat the structural guarantee THR-1a
 # established without any test noticing.
+from .capabilities import (
+    MetricMetadataKey,
+    MetricResult,
+    MetricStatus,
+    _is_finite,
+)
 from .population import EvaluationPopulation
 
 logger = logging.getLogger(__name__)
@@ -44,7 +50,9 @@ logger = logging.getLogger(__name__)
 __all__ = ["ConfusionCounts", "ExactThresholdSweep",
            "ThresholdOperator", "ThresholdParameters",
            "ThresholdSource", "ThresholdSweepCandidate",
-           "sweep_thresholds"]
+           "OperatingPointCertificationBlocker",
+           "OperatingPointMetrics", "OperatingPointOutcome",
+           "metrics_from_counts", "sweep_thresholds"]
 
 
 class ThresholdOperator(str, Enum):
@@ -465,3 +473,316 @@ def sweep_thresholds(y_true, y_prob, *,
         n_actual_positive=n_actual_positive,
         n_actual_negative=n_actual_negative,
         population=population)
+
+
+# --------------------------------------------------------------------------- #
+# THE TYPED OPERATING-POINT OUTCOME (OP-1 step 2, 2026-08-05)
+#
+# Closes D2-D5 and D6 BY CONSTRUCTION rather than by convention.
+#
+# D2-D5: the legacy selectors computed `tn / n_neg if n_neg > 0 else 0.0`, and
+# F1 from a positive predictive value that might itself be a fabricated 0.0 --
+# a second fabrication derived from the first, with no record that either
+# occurred. Here every quantity is a `MetricResult`, whose constructor REFUSES a
+# non-OK status carrying a finite value. There is no way to store 0.0 where a
+# refusal belongs.
+#
+# D6: the legacy selectors stored `round(value, 4)` and computed F1 from
+# UNROUNDED inputs, so recomputing it from the STORED positive predictive value
+# and sensitivity would not reproduce the STORED F1. Here nothing is rounded at
+# storage; `round_for_display` returns a new mapping and leaves the record alone.
+#
+# STILL NO SELECTOR. This turns counts into a typed record. Choosing among
+# candidates is step 4.
+# --------------------------------------------------------------------------- #
+
+
+class OperatingPointCertificationBlocker(str, Enum):
+    """Why an operating point's performance is not independently validated.
+
+    STABLE CODES, PROSE ELSEWHERE. Artifacts persist these members; reports
+    render `describe()` from them. Serialising mutable prose as the primary
+    scientific identifier is how a rewording orphans every historical record --
+    the same reasoning that made POP-1b's population scope an enum member rather
+    than a sentence.
+    """
+
+    SAME_POPULATION_SELECTION_AND_EVALUATION = (
+        "threshold_selected_and_evaluated_on_same_population")
+    POST_SELECTION_VALIDATION_NOT_IMPLEMENTED = (
+        "post_selection_validation_not_implemented")
+
+    def describe(self) -> str:
+        """The prose, centralised so a rewording touches one place."""
+        return _BLOCKER_PROSE[self]
+
+
+_BLOCKER_PROSE = {
+    OperatingPointCertificationBlocker
+    .SAME_POPULATION_SELECTION_AND_EVALUATION: (
+        "the threshold was chosen on the same rows its performance is reported "
+        "on, so the reported performance is optimistic by an unmeasured amount"),
+    OperatingPointCertificationBlocker
+    .POST_SELECTION_VALIDATION_NOT_IMPLEMENTED: (
+        "no held-out validation of the selected threshold exists, so its "
+        "performance has not been confirmed on rows that did not choose it"),
+}
+
+
+@dataclass(frozen=True)
+class OperatingPointMetrics:
+    """Every quantity derivable from one candidate's counts, each able to refuse.
+
+    NOTHING IS ROUNDED HERE. `round_for_display` returns a new mapping; the
+    stored values are the computed ones, so recomputing F1 from the stored
+    positive predictive value and sensitivity reproduces the stored F1. That is
+    D6 closed.
+
+    PREVALENCE IS ABSENT, DELIBERATELY. It is a POPULATION statistic -- it does
+    not depend on the threshold, on predicted-positive membership, or on the
+    sweep -- and its canonical value comes from the registry. Computing a second
+    one here would invent two prevalences that agree until a population bug makes
+    them diverge.
+    """
+
+    counts: ConfusionCounts
+    parameters: ThresholdParameters
+
+    sensitivity: MetricResult
+    specificity: MetricResult
+    positive_predictive_value: MetricResult
+    negative_predictive_value: MetricResult
+    f1: MetricResult
+    matthews_correlation_coefficient: MetricResult
+    flagged_fraction: MetricResult
+
+    def as_mapping(self) -> dict:
+        """Every quantity by name. Ordered as a clinician reads them."""
+        return {
+            "sensitivity": self.sensitivity,
+            "specificity": self.specificity,
+            "positive_predictive_value": self.positive_predictive_value,
+            "negative_predictive_value": self.negative_predictive_value,
+            "f1": self.f1,
+            "matthews_correlation_coefficient":
+                self.matthews_correlation_coefficient,
+            "flagged_fraction": self.flagged_fraction,
+        }
+
+    def round_for_display(self, digits: int = 4) -> dict:
+        """Rounded values FOR DISPLAY. The record itself is untouched.
+
+        The legacy selectors rounded AT CONSTRUCTION, which is why a stored F1
+        could disagree with one recomputed from its stored inputs. Rounding is a
+        presentation concern and it stays one.
+        """
+        return {name: (round(result.value, digits) if result.is_ok else None)
+                for name, result in self.as_mapping().items()}
+
+    def to_dict(self) -> dict:
+        return {"counts": {"true_positive": self.counts.true_positive,
+                           "false_positive": self.counts.false_positive,
+                           "false_negative": self.counts.false_negative,
+                           "true_negative": self.counts.true_negative},
+                "threshold": self.parameters.to_mapping(),
+                "metrics": {name: result.to_dict()
+                            for name, result in self.as_mapping().items()}}
+
+
+@dataclass(frozen=True)
+class OperatingPointOutcome:
+    """An operating point, or a stated reason there is none.
+
+    `Optional[OperatingPoint]` was the defect this replaces: `None` carried every
+    kind of unavailability at once, and `evaluate_registered`'s docstring names
+    why that matters -- "an absent key and a refused metric are different facts
+    and a caller cannot tell them apart".
+
+    Here a refusal carries a STATUS and a REASON, and `metrics` is None only when
+    the status says so. The invariant is enforced in __post_init__ so the raw
+    constructor cannot bypass it.
+
+    POPULATION IDENTITY IS CARRIED ONCE, HERE, in the `MetricMetadataKey`
+    vocabulary -- not pushed into every per-quantity result. `MetricResult` stays
+    generic by a measured decision recorded in its own source: 35 of its 53
+    construction sites are embedding-space probes for which population scope has
+    no epidemiological meaning.
+    """
+
+    status: MetricStatus
+    reason: Optional[str]
+    metrics: Optional[OperatingPointMetrics]
+    population: Optional[EvaluationPopulation]
+    certification_blockers: tuple = ()
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.status, MetricStatus):
+            raise TypeError(
+                f"status must be a MetricStatus, got "
+                f"{type(self.status).__name__}")
+        if self.status is MetricStatus.OK:
+            if self.reason:
+                raise ValueError(
+                    "an OK outcome must not carry a reason; a reason explains "
+                    "why an operating point is absent")
+            if self.metrics is None:
+                raise ValueError(
+                    "an OK outcome must carry metrics; an OK status with no "
+                    "operating point is the `Optional[OperatingPoint]` "
+                    "ambiguity this type replaces")
+        else:
+            if not self.reason:
+                raise ValueError(
+                    f"status {self.status.value!r} requires a nonempty reason. A "
+                    "refusal without an explanation is the silent None this type "
+                    "exists to prevent.")
+            if self.metrics is not None:
+                raise ValueError(
+                    f"status {self.status.value!r} must not carry metrics; a "
+                    "refusal holding an operating point invites it being used")
+        for blocker in self.certification_blockers:
+            if not isinstance(blocker, OperatingPointCertificationBlocker):
+                raise TypeError(
+                    "certification blockers must be "
+                    f"OperatingPointCertificationBlocker members, got "
+                    f"{type(blocker).__name__}")
+
+    @property
+    def is_ok(self) -> bool:
+        return self.status is MetricStatus.OK
+
+    @property
+    def certification_eligible(self) -> bool:
+        """Eligible only when it succeeded AND nothing blocks certification."""
+        return self.is_ok and not self.certification_blockers
+
+    def population_metadata(self) -> dict:
+        """Scope, fingerprint and observation count, in the shared vocabulary.
+
+        Carried ONCE on the outcome rather than in each result's metadata. POP-1b
+        established why it must be carried at all: "n=980 beside n=980 says
+        nothing about WHICH 980".
+        """
+        if self.population is None:
+            return {}
+        return {
+            MetricMetadataKey.POPULATION_SCOPE: self.population.scope,
+            MetricMetadataKey.POPULATION_FINGERPRINT:
+                self.population.membership_fingerprint,
+            MetricMetadataKey.N_OBSERVATIONS: int(self.population.n),
+        }
+
+    @classmethod
+    def refused(cls, status: MetricStatus, reason: str, *,
+                population=None) -> "OperatingPointOutcome":
+        """The only way to build a refusal. Mirrors `MetricResult.not_ok`."""
+        if status is MetricStatus.OK:
+            raise ValueError("refused() cannot construct an OK outcome")
+        return cls(status=status, reason=reason, metrics=None,
+                   population=population)
+
+    def to_dict(self) -> dict:
+        """Serialisable. STATUS-AWARE, never inferring absence from a value.
+
+        `MetricResult.to_dict` records the rule and the incident behind it
+        (CI-p, 2026-07-29): absence is authorised by the STATUS, and an OK result
+        whose value is somehow non-finite is a DEFECT that must reach the strict
+        writer rather than be disguised as a legitimate absence.
+        """
+        return {
+            "status": self.status.value,
+            "reason": self.reason,
+            "metrics": self.metrics.to_dict() if self.metrics else None,
+            "certification_eligible": self.certification_eligible,
+            "certification_blockers": [b.value
+                                       for b in self.certification_blockers],
+            "population": {str(key.value): value
+                           for key, value in self.population_metadata().items()},
+        }
+
+
+def _ratio(numerator: int, denominator: int, *, reason: str,
+           status: MetricStatus) -> MetricResult:
+    """A quotient, or a refusal naming the state that made it undefined.
+
+    THE STATUS IS A PARAMETER because the two cases are different facts, settled
+    by REG-2 (afa7a90) against the registry's measured convention: a vanishing
+    DENOMINATOR is UNDEFINED, while an absent reference CLASS is
+    INSUFFICIENT_SUPPORT.
+    """
+    if denominator == 0:
+        return MetricResult.not_ok(status, reason)
+    return MetricResult.ok(numerator / denominator)
+
+
+def metrics_from_counts(counts: ConfusionCounts,
+                        parameters: ThresholdParameters
+                        ) -> OperatingPointMetrics:
+    """Turn one candidate's counts into a typed record that can refuse.
+
+    EVERY REASON STRING IS ONE THE REGISTRY ALREADY EMITS, so step 3's Oracle C1
+    can compare this count path against `registry.compute` on the same cohort. A
+    private vocabulary here would make the oracle compare two dialects and report
+    every difference as a defect.
+    """
+    true_positive = counts.true_positive
+    false_positive = counts.false_positive
+    false_negative = counts.false_negative
+    true_negative = counts.true_negative
+
+    sensitivity = _ratio(
+        true_positive, counts.n_actual_positive,
+        reason="positive_class_support_required",
+        status=MetricStatus.INSUFFICIENT_SUPPORT)
+    specificity = _ratio(
+        true_negative, counts.n_actual_negative,
+        reason="negative_class_support_required",
+        status=MetricStatus.INSUFFICIENT_SUPPORT)
+    positive_predictive_value = _ratio(
+        true_positive, counts.n_flagged,
+        reason="empty_predicted_positive_set",
+        status=MetricStatus.UNDEFINED)
+    negative_predictive_value = _ratio(
+        true_negative, counts.n_cleared,
+        reason="empty_predicted_negative_set",
+        status=MetricStatus.UNDEFINED)
+
+    # F1 FROM COUNTS, NOT FROM RATES. The legacy form computed it from a
+    # positive predictive value that might itself be a fabricated 0.0 -- D5, a
+    # second fabrication derived from the first. 2TP/(2TP+FP+FN) is the same
+    # quantity and cannot inherit anything.
+    f1 = _ratio(
+        2 * true_positive,
+        2 * true_positive + false_positive + false_negative,
+        reason="zero_f1_denominator", status=MetricStatus.UNDEFINED)
+
+    # The Matthews correlation coefficient's denominator is the product of four
+    # margins; any vanishing margin annihilates it. scikit-learn returns 0.0 and
+    # warns while doing so -- its own warning being the evidence that the 0.0 is
+    # a fabrication.
+    margins = (counts.n_flagged, counts.n_actual_positive,
+               counts.n_actual_negative, counts.n_cleared)
+    if any(margin == 0 for margin in margins):
+        matthews = MetricResult.not_ok(
+            MetricStatus.UNDEFINED, "zero_confusion_margin")
+    else:
+        numerator = (true_positive * true_negative
+                     - false_positive * false_negative)
+        denominator = np.sqrt(float(margins[0]) * float(margins[1])
+                              * float(margins[2]) * float(margins[3]))
+        matthews = MetricResult.ok(numerator / denominator)
+
+    flagged_fraction = _ratio(
+        counts.n_flagged, counts.n,
+        reason="empty_cohort", status=MetricStatus.INSUFFICIENT_DATA)
+
+    return OperatingPointMetrics(
+        counts=counts,
+        parameters=parameters,
+        sensitivity=sensitivity,
+        specificity=specificity,
+        positive_predictive_value=positive_predictive_value,
+        negative_predictive_value=negative_predictive_value,
+        f1=f1,
+        matthews_correlation_coefficient=matthews,
+        flagged_fraction=flagged_fraction)
