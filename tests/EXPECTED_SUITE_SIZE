@@ -5400,4 +5400,102 @@
 #   46 cases from 11 functions: 6 metrics x 6 fixtures parametrised, plus 10.
 #   NO PRODUCTION CODE CHANGED.
 #
-4271
+#
+# 4271 -> 4278 (+7)  2026-08-05  CERT-1: an OK operating-point outcome
+#   requires a population, and an UNATTRIBUTED one blocks certification with a
+#   typed, explained blocker.
+#
+#   A CORRECTION TO SHIPPED CODE. `OperatingPointOutcome` landed in f0db01f two
+#   commits earlier with an eligibility rule that CONTRADICTED THE REGISTRY'S:
+#
+#       registry     if not ctx.population.is_attributed:
+#                        return False, "unattributed_population"
+#
+#       thresholds   return self.is_ok and not self.certification_blockers
+#
+#   The outcome NEVER CONSULTED THE POPULATION, so an OK outcome with
+#   `population=None` and no blockers reported ELIGIBLE -- and a shipped test
+#   POSITIVELY ASSERTED that. The registry's rule is older and better argued: "a
+#   certified claim asserts something about a NAMED set of rows", and an
+#   unattributed population's fingerprint is absent, so comparison with any
+#   other returns UNKNOWN rather than SAME or DIFFERENT.
+#
+#   It also contradicted STEP 2'S OWN RATIONALE. Population identity was placed
+#   on the outcome because "n=980 beside n=980 says nothing about WHICH 980". An
+#   OK, certifiable outcome with no population at all is that argument abandoned.
+#
+#   HOW IT WAS FOUND: reading `_certification_eligibility` while inventorying for
+#   step 3c. Not by a failing test -- the suite asserted the defect.
+#
+#   THREE STATES, NOW SEPARATED.
+#       population absent        structurally invalid; the constructor REFUSES
+#       population unattributed  numerically valid, certification BLOCKED
+#       population attributed    eligibility depends on remaining blockers
+#
+#   THE MIDDLE ROW IS WHY THIS IS NOT SIMPLY A STRONGER BOOLEAN. Adding
+#   `and self.population.is_attributed` would return the right answer and leave
+#   the SERIALISED ARTIFACT UNABLE TO EXPLAIN WHY -- a reader would see
+#   `certification_eligible: false` beside an EMPTY blocker list.
+#
+#   DECLARED AND DERIVED BLOCKERS STAY SEPARATE. `certification_blockers` is
+#   what the caller declared; `effective_certification_blockers` adds what the
+#   outcome's own state implies. Inserting the derived one via
+#   `object.__setattr__` would make constructor arguments differ from the stored
+#   object -- a caller passing `()` and reading back a one-element tuple.
+#
+#   ONE VOCABULARY: the blocker code is `unattributed_population`, matching the
+#   registry's machine-readable reason CHARACTER FOR CHARACTER.
+#
+#   AND THE GATE THAT SHOULD HAVE EXISTED. CERT-1 added a member to
+#   `OperatingPointCertificationBlocker` and found NO COMPLETENESS GATE guarding
+#   it -- THR-1b built exactly that for `ThresholdSource` one day earlier. Three
+#   gates added: the member set asserted exactly, prose agreement in both
+#   directions, and the registry's own source read for the reason string.
+#
+#   FALSIFIED. Renaming the value to `no_population_identity` gave 4 FAILED,
+#   25 passed. TWO MORE THAN PREDICTED, and the extras are correct: CERT-1's own
+#   earlier tests already assert the string, from the serialised artifact and
+#   directly. FOUR INDEPENDENT STATEMENTS OF ONE FACT, each from a different
+#   angle, and a rename should break all four.
+#
+#   THE PROSE GATE CORRECTLY DID NOT FIRE -- the member still exists and still
+#   has prose, so its subject is untouched by a value change. That is the T3
+#   property: a gate failing alongside everything else measures the change
+#   rather than the property.
+#
+#   TWO DEFECTS IN MY OWN INSTALLERS, FOUND BY REVIEW RATHER THAN BY A GATE.
+#
+#     * DEAD CODE. The CERT-1 installer defined `VOCAB_OLD`, `VOCAB_NEW` and
+#       `VOCAB_TESTS`, checked the file existed, and NEVER READ, PATCHED, WROTE
+#       OR MANIFESTED IT. Its docstring claimed "two edits to the test files";
+#       one test file was edited. The discussion of updating a vocabulary gate
+#       described work the installer never did -- and the gate it should have
+#       built is the one added above.
+#
+#     * A CHECK WEAKER THAN ITS CLAIM. The fixture installer computed an AST dump
+#       for every assertion and then compared only their COUNT. I described it as
+#       establishing that "the repair cannot quietly alter what any test claims".
+#       IT DID NOT: every assertion could be rewritten and the count would hold.
+#       It also missed `pytest.raises` context managers entirely.
+#
+#       The claim was verified afterwards by `git diff`: ZERO removed assertion
+#       lines, every hit an addition from the new tests. SO IT WAS TRUE BY LUCK
+#       RATHER THAN BY CHECK, and the distinction belongs in the record.
+#
+#   FIVE MISCOUNTS OF MY OWN CODE, all caught by gates, three of which REFUSED A
+#   WRITE. Every one was an ESTIMATE of code I had written rather than a
+#   MEASUREMENT of it. The last remedy generalises: the final post-check derives
+#   its expectation from the measured before-count -- `before - 3` -- rather than
+#   hardcoding a number, and was verified across nine cases. THAT IS THE SAME
+#   PRINCIPLE the finaliser design adopted: derive from what is there, do not
+#   enumerate what you believe is there.
+#
+#   NO SABOTAGE LINE BEYOND THE FALSIFICATION ABOVE, which is the mutation and
+#   was predicted before it ran -- imperfectly, in a direction that revealed more
+#   coverage than expected rather than less.
+#
+#   ACCEPTANCE: full suite 4272 passed, 6 skipped, 0 failed in 17m20s;
+#   4278 collected, measured by this installer (predicted 4278).
+#   Assertions 53/53 unchanged through the fixture repair.
+#
+4278

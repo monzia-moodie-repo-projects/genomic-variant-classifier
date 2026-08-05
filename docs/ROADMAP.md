@@ -5383,3 +5383,165 @@ condition the adopted ruling set.
 Then step 4 (the selector, Objective A, closing **D12** -- the last of the
 twelve), step 5 (the shadow comparison), and step 6 (the cutover, which must
 reckon with GUARD-1).
+
+## ROADMAP delta -- 2026-08-05: CERT-1. A shipped defect the suite positively asserted, and six refusals of my own.
+
+One commit: the correction, its fixture repair, three vocabulary gates, this
+delta, the session document, the ratchet and the badge.
+
+Full suite 4272 passed, 6 skipped, 0 failed; 4278 collected. Ratchet 4271 ->
+4278 (+7).
+
+Full write-up: `docs/SESSION_2026-08-05_cert1-population-required.md`.
+
+NO NEW SHAPE IS CLAIMED for section 7. Section 5 below records a finding about my
+WORKING METHOD rather than about the code, and it belongs in the log for the same
+reason a defect does.
+
+### 0. THE DEFECT, AND HOW IT WAS FOUND
+
+`OperatingPointOutcome` landed in `f0db01f` two commits earlier with an
+eligibility rule that CONTRADICTED THE REGISTRY'S:
+
+```
+registry     if not ctx.population.is_attributed:
+                 return False, "unattributed_population"
+
+thresholds   return self.is_ok and not self.certification_blockers
+```
+
+The outcome NEVER CONSULTED THE POPULATION, so an OK outcome with
+`population=None` and no blockers reported ELIGIBLE -- and A SHIPPED TEST
+POSITIVELY ASSERTED THAT.
+
+It also contradicted STEP 2'S OWN RATIONALE: population identity was placed on
+the outcome because "n=980 beside n=980 says nothing about WHICH 980". An OK,
+certifiable outcome with no population is that argument abandoned.
+
+FOUND BY READING `_certification_eligibility` WHILE INVENTORYING FOR STEP 3c.
+Not by a failing test -- the suite asserted the defect.
+
+### 1. THREE STATES, NOW SEPARATED
+
+```
+population absent        structurally invalid; the constructor REFUSES
+population unattributed  numerically valid, certification BLOCKED
+population attributed    eligibility depends on remaining blockers
+```
+
+THE MIDDLE ROW IS WHY THIS IS NOT SIMPLY A STRONGER BOOLEAN. Adding
+`and self.population.is_attributed` would return the right answer and leave the
+SERIALISED ARTIFACT UNABLE TO EXPLAIN WHY -- a reader would see
+`certification_eligible: false` beside an EMPTY blocker list.
+
+DECLARED AND DERIVED STAY SEPARATE: `certification_blockers` is what the caller
+declared, `effective_certification_blockers` adds what the state implies.
+Inserting the derived one via `object.__setattr__` would make constructor
+arguments differ from the stored object.
+
+ONE VOCABULARY: the blocker code is `unattributed_population`, matching the
+registry's machine-readable reason CHARACTER FOR CHARACTER.
+
+### 2. THE GATE THAT SHOULD HAVE EXISTED
+
+CERT-1 added a member to `OperatingPointCertificationBlocker` and found NO
+COMPLETENESS GATE guarding it -- THR-1b built exactly that for `ThresholdSource`
+ONE DAY EARLIER. Three gates added: the member set asserted exactly, prose
+agreement in both directions, and the registry's own source read for the reason
+string.
+
+FALSIFIED, WITH THE PREDICTION WRONG IN THE INFORMATIVE DIRECTION. Renaming the
+value gave 4 FAILED, 25 passed -- two more than predicted, because CERT-1's own
+earlier tests already assert the string from the serialised artifact and
+directly. FOUR INDEPENDENT STATEMENTS OF ONE FACT, and a rename should break all
+four.
+
+THE PROSE GATE CORRECTLY DID NOT FIRE: the member still exists and still has
+prose, so its subject is untouched by a value change.
+
+### 3. TWO DEFECTS IN MY OWN INSTALLERS, FOUND BY REVIEW RATHER THAN BY A GATE
+
+**DEAD CODE.** The CERT-1 installer defined `VOCAB_OLD`, `VOCAB_NEW` and
+`VOCAB_TESTS`, checked the file existed, and NEVER READ, PATCHED, WROTE OR
+MANIFESTED IT. Its docstring claimed "two edits to the test files"; one was
+edited. The discussion of updating a vocabulary gate described work the installer
+never did -- and the gate it should have built is section 2's.
+
+**A CHECK WEAKER THAN ITS CLAIM.** The fixture installer computed an abstract
+syntax tree dump for every assertion and then compared only their COUNT. I
+described it as establishing that "the repair cannot quietly alter what any test
+claims". IT DID NOT: every assertion could be rewritten and the count would hold.
+It also missed `pytest.raises` context managers entirely.
+
+The claim was verified afterwards by `git diff` -- ZERO removed assertion lines --
+so it was TRUE BY LUCK RATHER THAN BY CHECK. A correct conclusion reached by an
+insufficient method is still an insufficient method, and the distinction belongs
+in the record.
+
+### 4. SIX REFUSALS TODAY, ALL MINE, ALL CAUGHT BEFORE WRITING
+
+```
+UNATTRIBUTED_POPULATION    expected 4, measured 3   binding and guard are one
+EvaluationPopulation       expected == 1, found 6   PRESENCE asked as EXACTNESS
+population=None            expected 3, measured 6   assumed 6 existed; 9 did
+SHARED_ESTIMANDS et al.    three counts, all under
+"must carry an Evaluation  ABSENT FROM THE SOURCE   split across adjacent
+ Population"                                        literals, joined at runtime
+```
+
+FIVE WERE MISCOUNTS OF MY OWN CODE. One was a search for text the source never
+contains contiguously -- the twelfth instance of that class, after REG-2's
+f-strings and the `registry_module.compute` binding.
+
+### 5. THE ROOT, AND THE REMEDY THAT GENERALISES
+
+**I WRITE A CHECK BY DESCRIBING WHAT I BELIEVE IS THERE, RATHER THAN BY MEASURING
+WHAT IS THERE.**
+
+The remedies differ -- tokenise for prose, DERIVE for counts, assert structure
+rather than strings for composed text -- but the habit is single. Every gate
+caught it; THE GATES SHOULD NOT HAVE HAD TO.
+
+The last post-check derives its expectation from the measured before-count,
+`before - 3`, rather than hardcoding a number, and was verified across nine
+cases. THAT IS THE SAME PRINCIPLE THE FINALISER DESIGN ADOPTED: derive from what
+is there at the time, do not enumerate what you believe is there. `support()`
+taught it, and it applies to post-checks as readily as to key sets.
+
+### 6. WHAT CERT-1 LEAVES UNTOUCHED
+
+`sweep_thresholds` still accepts `population=None`; only
+`OperatingPointOutcome` requires one on an OK status. The oracle's 46 tests pass
+unchanged.
+
+That distinction is correct: a SWEEP enumerates candidates and may have no
+declared population; an OUTCOME claims performance about specific rows and may
+not.
+
+### 7. OPEN -- TWENTY-ONE items, and a correction to the count itself
+
+A SEVENTH MISCOUNT, of the register I maintain. The heading first read "twenty";
+the list holds twenty-one, ENUMERATED rather than estimated. And checking back,
+the step-3a and step-3b deltas each read "nineteen items" while listing TWENTY --
+a persistent off-by-one, now compounded by adding C2-1.
+
+Found by a check written minutes after section 5 described exactly this habit.
+The register's own count was the one thing in this delta I had not measured.
+
+GUARD-1, EXTRACT-1, SWEEP-1, C2-1, REG-2-b, ICI-1, F1-1, OPCOV-1, GITIGNORE-1,
+STRUCT-1, POP-1b-M03, POP-1b-M07, ZERO-1, INF-1, ABS-1, DEAD-1, DEAD-3, PRE-2,
+LINT-1, F821-1, CMP-1.
+
+### 8. NEXT
+
+**Step 3c -- the finaliser extraction**, specified against step 3b's two
+committed reports and now against a CORRECTED outcome type.
+
+Its design constraint, established while inventorying: THE FINALISER MUST DERIVE
+ITS KEY SET FROM `support()` AT CALL TIME, NEVER ENUMERATE IT. `support()`
+returns four keys plus `N_CLUSTERS` CONDITIONALLY, so a fixed list of seven would
+be wrong for clustered contexts and no unclustered test would catch it.
+
+Then step 4 (the selector, Objective A, closing **D12** -- the last of the
+twelve), step 5 (the shadow comparison), and step 6 (the cutover, which must
+reckon with GUARD-1).

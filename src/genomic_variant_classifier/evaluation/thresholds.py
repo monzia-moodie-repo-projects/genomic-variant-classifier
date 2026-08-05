@@ -507,6 +507,11 @@ class OperatingPointCertificationBlocker(str, Enum):
     than a sentence.
     """
 
+    # CERT-1 (2026-08-05). The code matches the registry's machine-readable
+    # reason CHARACTER FOR CHARACTER, so scalar certification and composite
+    # certification share ONE vocabulary rather than two that agree today.
+    UNATTRIBUTED_POPULATION = "unattributed_population"
+
     SAME_POPULATION_SELECTION_AND_EVALUATION = (
         "threshold_selected_and_evaluated_on_same_population")
     POST_SELECTION_VALIDATION_NOT_IMPLEMENTED = (
@@ -518,6 +523,10 @@ class OperatingPointCertificationBlocker(str, Enum):
 
 
 _BLOCKER_PROSE = {
+    OperatingPointCertificationBlocker.UNATTRIBUTED_POPULATION: (
+        "the evaluation population has no stable external identity, so the "
+        "reported operating point cannot be reproduced or compared across "
+        "artifacts as a claim about the same rows"),
     OperatingPointCertificationBlocker
     .SAME_POPULATION_SELECTION_AND_EVALUATION: (
         "the threshold was chosen on the same rows its performance is reported "
@@ -630,6 +639,18 @@ class OperatingPointOutcome:
                     "an OK outcome must carry metrics; an OK status with no "
                     "operating point is the `Optional[OperatingPoint]` "
                     "ambiguity this type replaces")
+            # CERT-1 (2026-08-05). Step 2 shipped without this and a test
+            # positively asserted that an OK outcome with NO POPULATION was
+            # certifiable -- contradicting the registry's rule and step 2's own
+            # rationale, which placed population identity here because "n=980
+            # beside n=980 says nothing about WHICH 980".
+            if self.population is None:
+                raise ValueError(
+                    "an OK operating-point outcome must carry an "
+                    "EvaluationPopulation; without one the reported counts and "
+                    "rates have no defined row membership, and a claim that "
+                    "cannot be tied to an identifiable cohort is not "
+                    "certifiable however sound its arithmetic")
         else:
             if not self.reason:
                 raise ValueError(
@@ -652,9 +673,48 @@ class OperatingPointOutcome:
         return self.status is MetricStatus.OK
 
     @property
+    def effective_certification_blockers(self) -> tuple:
+        """What the caller declared, PLUS what this outcome's own state implies.
+
+        DECLARED AND DERIVED STAY SEPARATE. Inserting the derived blocker into
+        `certification_blockers` inside `__post_init__` is possible in a frozen
+        dataclass through `object.__setattr__`, and it would make the
+        constructor arguments differ from the stored object -- a caller passing
+        `()` and reading back a one-element tuple. The record says what was
+        given; this says what follows.
+        """
+        blockers = list(self.certification_blockers)
+        unattributed = (
+            OperatingPointCertificationBlocker.UNATTRIBUTED_POPULATION)
+        if (self.is_ok and self.population is not None
+                and not self.population.is_attributed
+                and unattributed not in blockers):
+            blockers.append(unattributed)
+        return tuple(blockers)
+
+    @property
     def certification_eligible(self) -> bool:
-        """Eligible only when it succeeded AND nothing blocks certification."""
-        return self.is_ok and not self.certification_blockers
+        """Eligible only when it succeeded, its population is ATTRIBUTED, and
+        nothing blocks certification.
+
+        CERT-1 (2026-08-05). This previously read
+        `self.is_ok and not self.certification_blockers`, which never consulted
+        the population at all. The registry's `_certification_eligibility` has
+        refused an unattributed population since 2026-07-28, on the reasoning
+        that "a certified claim asserts something about a NAMED set of rows" --
+        an unattributed population's fingerprint is absent, so comparison with
+        any other returns UNKNOWN rather than SAME or DIFFERENT.
+
+        The population check is expressed through
+        `effective_certification_blockers` rather than as an extra conjunct, so
+        the SERIALISED ARTIFACT CAN EXPLAIN the ineligibility. A boolean alone
+        would leave a reader with `certification_eligible: false` beside an
+        empty blocker list.
+        """
+        return (self.is_ok
+                and self.population is not None
+                and self.population.is_attributed
+                and not self.effective_certification_blockers)
 
     def population_metadata(self) -> dict:
         """Scope, fingerprint and observation count, in the shared vocabulary.
@@ -694,8 +754,10 @@ class OperatingPointOutcome:
             "reason": self.reason,
             "metrics": self.metrics.to_dict() if self.metrics else None,
             "certification_eligible": self.certification_eligible,
-            "certification_blockers": [b.value
-                                       for b in self.certification_blockers],
+            # THE EFFECTIVE set, so an artifact explains its own ineligibility
+            # rather than stating it. CERT-1 (2026-08-05).
+            "certification_blockers": [
+                b.value for b in self.effective_certification_blockers],
             "population": {str(key.value): value
                            for key, value in self.population_metadata().items()},
         }
