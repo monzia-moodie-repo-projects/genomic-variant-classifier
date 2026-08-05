@@ -5069,4 +5069,118 @@
 #
 #   ACCEPTANCE: 4175 collected, measured by this installer. Four new tests.
 #
-4175
+#
+# 4175 -> 4203 (+28)  2026-08-04  OP-1 STEP 1: the exact threshold sweep.
+#   NO SELECTOR, and nothing imports it yet.
+#
+#   FOUR REGISTER DEFECTS CLOSE TOGETHER, WHICH IS WHY THIS IS A REWRITE AND NOT
+#   FOUR PATCHES.
+#
+#       D1   the thousand-point grid misses achievable thresholds
+#       D9   O(k*n): 2.25e12 element operations at 1.5M variants
+#       D10  threshold-invariant work recomputed inside the sweep
+#       D11  two incompatible notions of which thresholds exist
+#
+#   One sort with cumulative sums makes all four disappear at once, because THE
+#   ACHIEVABLE THRESHOLDS ARE THE UNIQUE SCORE VALUES: there is no grid to miss
+#   them, no per-candidate rescan, no loop to hoist invariant work out of, and
+#   one sweep serves both selectors.
+#
+#       n           grid O(1000n)      unique O(k*n)      sort + cumsum
+#       1,500,000   1,500,000,000  2,250,000,000,000     30,774,796
+#
+#   D1 DEMONSTRATED RATHER THAN ASSERTED. On scores spaced at 0.0001 -- finer
+#   than the grid's 1/999 step -- the exact sweep finds FIVE distinct operating
+#   points and `np.linspace(0, 1, 1000)` reaches TWO. Three of five are
+#   unreachable by construction, and a test pins that comparison.
+#
+#   THE CANONICAL DOMAIN is {(max p, GREATER)} union
+#   {(s, GREATER_OR_EQUAL) : s in unique(p)} -- k+1 candidates, NOT both
+#   operators at every score. For adjacent distinct values `p > s` and `p >= s'`
+#   induce THE SAME PARTITION, so enumerating both would duplicate candidates and
+#   make indices representation-dependent.
+#
+#   The GREATER entry is the EMPTY CANDIDATE. `ThresholdParameters` constrains a
+#   threshold to [0, 1], so "flag nothing" cannot be a value above the maximum
+#   when the maximum is 1.0; GREATER at the maximum expresses it. THE GRID SWEEP
+#   SILENTLY LACKED THIS OPERATING POINT ALTOGETHER.
+#
+#   CORRECTNESS IS AGREEMENT WITH THE DEFINITION, not with another clever
+#   construction. Every candidate on eight cohorts -- all-distinct, one tied
+#   pair, all tied, ties at the top, a single row, all-positive, all-negative,
+#   and boundary scores of exactly 0.0 and 1.0 -- was compared against a
+#   brute-force `(p >= t)` computation. ZERO MISMATCHES.
+#
+#   NOT A THIRD IMPLEMENTATION. The same construction exists TWICE in
+#   `metrics.py`, in `auprc` and `_roc_points`, by different index arithmetic;
+#   their raw count sequences were compared across eleven cohorts and found
+#   identical (SWEEP-1). This is written to be the one those two can LATER be
+#   rebuilt on -- which is why it lives in `thresholds.py` and imports no
+#   scikit-learn.
+#
+#   STORAGE: OWNED IMMUTABLE ARRAYS, LAZY CANDIDATE VIEWS. `sweep[i]` builds a
+#   `ThresholdSweepCandidate` on demand and NOTHING IS STORED PER CANDIDATE: a
+#   1.5-million-row cohort with distinct scores has 1.5 million achievable
+#   thresholds, and materialising that many frozen dataclasses would cost more
+#   than the sweep computing them. Measured: bytes scale at EXACTLY 2.00x per
+#   doubling (12,525 -> 25,025 -> 50,025).
+#
+#   The arrays are COPIED and marked read-only, and a test mutates the caller's
+#   input afterwards to prove the sweep is unchanged. A sweep is EVIDENCE, and
+#   evidence that can change after the fact is not evidence. Slicing is REFUSED
+#   with a message pointing at the arrays, because it would materialise one
+#   object per candidate -- the cost the array backing exists to avoid.
+#
+#   COUNTS ONLY, NO RATES. A rate can be undefined while a count never is:
+#   `TP + FP = 0` makes the positive predictive value undefined, and reporting it
+#   as 0.0 is the D2-D5 defect. REG-2 established on 2026-08-04 that such a state
+#   is UNDEFINED rather than INSUFFICIENT_SUPPORT; step 2's typed outcome refuses
+#   accordingly. `ConfusionCounts` REFUSES a float stored as a count, which is
+#   how that defect begins.
+#
+#   EVERY REFUSAL RAISES rather than filtering and continuing: a non-finite score
+#   or label, an empty cohort, scores outside [0, 1], mismatched lengths, a label
+#   that is not 0 or 1, and a population whose size disagrees with the arrays.
+#   `p >= t` evaluates FALSE for a NaN, and `evaluator.py` records that letting
+#   one through moved a measured operating point from sensitivity 0.90 to 0.50
+#   with no exception and no warning.
+#
+#   A DESIGN CORRECTION THE FIRST DRY RUN FORCED. The original append documented
+#   an import of `EvaluationPopulation` that DID NOT EXIST -- it duck-typed
+#   `population` through `getattr` -- and built a precondition around the
+#   transitive scikit-learn risk of an import it never made. The behaviour
+#   satisfied the ruling; THE TYPE CONTRACT DID NOT, and an unannotated field in
+#   a type whose whole purpose is carrying identity is the weaker half. Now
+#   imported and annotated at three sites, and the precautionary precondition
+#   became load-bearing: `population.py` imports only __future__, dataclasses,
+#   enum, hashlib, logging, numpy and typing.
+#
+#   GUARD-1, FOUND BEFORE THE WORK RATHER THAN AS A RED SUITE LATER.
+#   `test_computation_path_guards.py:241-255` instruments threshold application
+#   on the report path and asserts `all(t == (0.5, ">="))` with
+#   `len(set(thresholds)) == 1`. The exact sweep applies EVERY unique score, and
+#   its empty candidate uses GREATER. That guard does not fire now because step 1
+#   WIRES NOTHING -- but step 6's cutover must either scope it to the legacy path
+#   or extend it to accept swept candidates DELIBERATELY.
+#
+#   That is EXTRACT-1 paying for itself one commit after being named: the
+#   pre-work inventory found a real constraint instead of a postmortem finding
+#   it. The inventory also confirmed zero name collisions, no structural
+#   assertion on `thresholds.py`, and 251 test modules in tests/unit -- so a
+#   separate test file is the convention, and a sweep is NOT vocabulary.
+#
+#   NO SABOTAGE LINE. Nothing existing changed, and the correctness claim is
+#   AGREEMENT WITH THE DEFINITION across eight cohorts and every candidate, which
+#   is stronger than any mutation devisable for a new pure function.
+#
+#   19 TEST FUNCTIONS, 28 CASES. The difference is parametrisation: the
+#   brute-force comparison runs over eight cohorts (+7) and the non-finite
+#   refusal over nan, inf and -inf (+2). That arithmetic is the kind this
+#   sequence has got wrong three times today, so THIS RATCHET MEASURED ITS OWN
+#   TARGET -- it ran `pytest --collect-only` and wrote what it read, keeping the
+#   prediction (4203) only as a cross-check.
+#
+#   ACCEPTANCE: full suite 4197 passed, 6 skipped, 0 failed in 16m07s;
+#   4203 collected. NOTHING ELSE MOVED, because nothing imports the sweep.
+#
+4203

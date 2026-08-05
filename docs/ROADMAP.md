@@ -4795,3 +4795,160 @@ recorded.
 
 Seven register defects remain open: D1, D2-D5, D6, D9, D10, D11, D12. One sort
 with cumulative sums closes D1, D9, D10 and D11 together.
+
+## ROADMAP delta -- 2026-08-04: OP-1 step 1. Four register defects closed by one design decision, and a discipline that returned something.
+
+One commit: the sweep, 19 test functions (28 cases), this delta, the session
+document, the ratchet and the badge.
+
+Full suite 4197 passed, 6 skipped, 0 failed; 4203 collected. Ratchet 4175 ->
+4203 (+28), MEASURED by the installer. NO SELECTOR, and nothing imports the sweep
+yet.
+
+Full write-up: `docs/SESSION_2026-08-04_op1-step1-exact-sweep.md`.
+
+NO NEW SHAPE IS CLAIMED. Three were named this week -- (e), (f) and EXTRACT-1 --
+and a fourth would dilute them. What this delta adds instead is the first RECORD
+OF ONE BEING APPLIED AND RETURNING SOMETHING, which section 7 has never carried.
+
+### 0. WHAT IT ADDS
+
+`ConfusionCounts`, `ThresholdSweepCandidate`, `ExactThresholdSweep` and
+`sweep_thresholds`, in `thresholds.py`, plus
+`tests/unit/test_exact_threshold_sweep.py`.
+
+### 1. FOUR DEFECTS CLOSE TOGETHER, WHICH IS WHY THIS IS A REWRITE
+
+```
+D1   the thousand-point grid misses achievable thresholds
+D9   O(k*n): 2.25e12 element operations at 1.5M variants
+D10  threshold-invariant work recomputed inside the sweep
+D11  two incompatible notions of which thresholds exist
+```
+
+One sort with cumulative sums makes all four disappear AT ONCE, because THE
+ACHIEVABLE THRESHOLDS ARE THE UNIQUE SCORE VALUES: no grid to miss them, no
+per-candidate rescan, no loop to hoist invariant work from, one sweep for both
+selectors.
+
+```
+n           grid O(1000n)      unique O(k*n)      sort + cumsum
+1,500,000   1,500,000,000  2,250,000,000,000     30,774,796
+```
+
+D1 DEMONSTRATED, NOT ASSERTED: on scores spaced at 0.0001 -- finer than the
+grid's 1/999 step -- the exact sweep finds FIVE distinct operating points and
+`np.linspace(0, 1, 1000)` reaches TWO. A test pins the comparison so the fixture
+cannot quietly stop demonstrating it.
+
+### 2. THE CANONICAL DOMAIN, AND THE CANDIDATE THE GRID COULD NOT EXPRESS
+
+    {(max p, GREATER)} union {(s, GREATER_OR_EQUAL) : s in unique(p)}
+
+k+1 candidates, NOT both operators at every score: for adjacent distinct values
+`p > s` and `p >= s'` induce THE SAME PARTITION, so enumerating both would
+duplicate candidates and make indices representation-dependent.
+
+The GREATER entry is the EMPTY CANDIDATE. `ThresholdParameters` constrains a
+threshold to [0, 1], so "flag nothing" cannot be a value above the maximum when
+the maximum is 1.0. THE GRID SWEEP SILENTLY LACKED THIS OPERATING POINT -- and
+THR-1a and THR-1b came first precisely so the operator could be part of the
+declaration and `EVALUATION_SWEEP` could label a candidate as enumerated rather
+than chosen.
+
+### 3. CORRECTNESS IS AGREEMENT WITH THE DEFINITION
+
+The sweep is an OPTIMISATION, and an optimisation is correct only if it agrees
+with the thing it replaces. The oracle is therefore a brute-force `(p >= t)`
+computation rather than another clever construction.
+
+Every candidate on eight cohorts -- all-distinct, one tied pair, all tied, ties at
+the top, a single row, all-positive, all-negative, and boundary scores of exactly
+0.0 and 1.0 -- was compared against it. ZERO MISMATCHES.
+
+NOT A THIRD IMPLEMENTATION: the same construction exists TWICE in `metrics.py`
+(SWEEP-1), agreeing across eleven cohorts. This is written to be the one those
+two can LATER be rebuilt on, which is why it imports no scikit-learn. Rebuilding
+them here would make any numerical movement uninterpretable -- the OP-0 lesson.
+
+### 4. STORAGE, AND WHY IT IS PART OF THE CORRECTNESS ARGUMENT
+
+`sweep[i]` builds a candidate ON DEMAND and nothing is stored per candidate: 1.5
+million achievable thresholds would cost more as frozen dataclasses than the
+sweep computing them. Measured: bytes scale at EXACTLY 2.00x per doubling
+(12,525 -> 25,025 -> 50,025).
+
+The arrays are COPIED and marked read-only, and a test mutates the caller's input
+afterwards to prove the sweep is unchanged. **A SWEEP IS EVIDENCE, AND EVIDENCE
+THAT CAN CHANGE AFTER THE FACT IS NOT EVIDENCE.** Slicing is REFUSED with a
+message pointing at the arrays.
+
+COUNTS ONLY, NO RATES: a rate can be undefined while a count never is, and
+`ConfusionCounts` refuses a float stored as a count -- which is how D2-D5 begin.
+Seven refusal paths raise rather than filtering and continuing.
+
+### 5. EXTRACT-1 PAID FOR ITSELF, ONE COMMIT AFTER BEING NAMED
+
+The pre-work inventory ran BEFORE the work -- the discipline named after THR-1a's
+inventory became a postmortem. It confirmed zero name collisions, no structural
+assertion on `thresholds.py`, and 251 test modules in tests/unit, so a separate
+test file is the convention and a sweep is NOT vocabulary.
+
+And it found a real constraint. **GUARD-1**:
+`test_computation_path_guards.py:241-255` instruments threshold application on
+the report path and asserts `all(t == (0.5, ">="))` with
+`len(set(thresholds)) == 1`. The exact sweep applies EVERY unique score and uses
+GREATER for its empty candidate, so that guard would fire the moment the sweep is
+wired in.
+
+IT DOES NOT FIRE NOW, because step 1 wires nothing. Step 6's cutover must scope
+it to the legacy path or extend it to accept swept candidates DELIBERATELY.
+
+Found as a constraint on future work rather than as a red suite three commits
+later. Section 7 names disciplines; this is the first entry recording one being
+APPLIED and RETURNING something, which is a different and more useful fact.
+
+### 6. A DESIGN CORRECTION THE FIRST DRY RUN FORCED
+
+The original append DOCUMENTED AN IMPORT THAT DID NOT EXIST. It duck-typed
+`population` through `getattr`, and built a precondition around the transitive
+scikit-learn risk of an import it never made.
+
+The behaviour satisfied the ruling; THE TYPE CONTRACT DID NOT, and an unannotated
+field in a type whose whole purpose is carrying identity is the weaker half. Now
+imported and annotated at three sites -- and the precautionary precondition became
+LOAD-BEARING, proving `population.py` pulls only stdlib and NumPy.
+
+That is the SECOND time this week documentation asserted something the code did
+not do; the first was THR-1a's `__module__`, unrecorded rather than overstated.
+
+### 7. NO SABOTAGE LINE
+
+Nothing existing changed, and the correctness claim is AGREEMENT WITH THE
+DEFINITION across eight cohorts and every candidate -- stronger than any mutation
+devisable for a new pure function.
+
+### 8. OPEN -- nineteen items
+
+**GUARD-1** is new: the report-path threshold guard admits ONE `(threshold,
+operator)` pair, and OP-1's cutover must reckon with it.
+
+The other eighteen stand as the THR-1a delta recorded them: EXTRACT-1, SWEEP-1,
+REG-2-b, ICI-1, F1-1, OPCOV-1, GITIGNORE-1, STRUCT-1, POP-1b-M03, POP-1b-M07,
+ZERO-1, INF-1, ABS-1, DEAD-1, DEAD-3, PRE-2, LINT-1, F821-1, CMP-1.
+
+### 9. NEXT
+
+THREE register defects remain after step 1's four: **D2-D5**, **D6**, **D12**.
+
+```
+step 2  the typed OperatingPointOutcome    closes D2-D5, D6
+step 3  the two oracles (C1, C2)
+step 4  the selector, Objective A          closes D12
+step 5  the shadow comparison
+step 6  the cutover                        must reckon with GUARD-1
+```
+
+Step 2 is where refusal semantics arrive: a quantity that cannot be computed
+carries a `MetricResult` with a status and a reason rather than a fabricated
+`0.0`, and REG-2 already settled that the status is UNDEFINED.
