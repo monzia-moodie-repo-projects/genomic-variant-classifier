@@ -5245,3 +5245,141 @@ it rather than preceding it.
 Then step 4 (the selector, Objective A, closing **D12** -- the last of the
 twelve), step 5 (the shadow comparison), and step 6 (the cutover, which must
 reckon with GUARD-1).
+
+## ROADMAP delta -- 2026-08-05: OP-1 step 3b. The Oracle C2 difference, measured -- and the disagreement is what produced the design.
+
+One commit: two measurement reports, this delta, the session document. NO CODE,
+NO TESTS, AND THE RATCHET DOES NOT MOVE.
+
+Full write-up: `docs/SESSION_2026-08-05_op1-step3b-c2-measurement.md`.
+Committed evidence: `docs/measurements/OP1_C2_DIFFERENCE_2026-08-05.txt` (R1,
+PRESERVED with its incomplete prediction intact) and
+`..._R2_2026-08-05.txt`.
+
+NO NEW SHAPE IS CLAIMED.
+
+### 0. WHY THE RATCHET DOES NOT MOVE
+
+Every commit in this sequence so far has added tests. This one adds none.
+
+Step 3b MEASURES the difference between a plain `MetricResult` and a
+registry-finalised one, so the finaliser extraction can be specified against
+EVIDENCE rather than against a reading. The adopted ruling was explicit: making
+C2 pass by copying registry metadata into the count path would recreate a second
+implementation of the finalisation contract. So the measurement comes first and
+any fix follows from it.
+
+The entry says the ratchet is unmoved EXPLICITLY, so a reader does not have to
+wonder whether it was forgotten.
+
+### 1. A HYPOTHESIS FALSIFIED BEFORE THE MEASUREMENT RAN
+
+REG-1 established that `registry.compute` had TWO metadata merge branches that
+looked symmetric and were not. Counting return statements found FIVE
+`MetricResult` construction sites, and REG-1's protected-set work touched two.
+
+So I hypothesised that some path might construct a refusal BEFORE `ctx.support()`
+attaches, leaving artifacts with refusals carrying no population identity --
+exactly what POP-1b exists to prevent.
+
+THE HYPOTHESIS IS FALSE. All five carry `**ctx.support()`: the missing-inputs
+guard, the refusal branch, both FAILED branches, and the OK path.
+
+A NEGATIVE RESULT WORTH RECORDING. The concern was legitimate given five sites
+and two audited; the code is already correct; and knowing that by reading all
+five is different from assuming it from the two REG-1 happened to touch.
+
+### 2. THE MEASUREMENT STATED ITS PREDICTION IN ADVANCE, AND R1 DISAGREED
+
+Exit 1, one reported disagreement -- and the two halves it exposed are NOT the
+same kind of thing.
+
+**A DEFECT OF MINE.** `PREDICTED_OK_ONLY` held one key while THAT FILE'S OWN
+DOCSTRING TABLE named two. Prose and code disagreed and the code is what ran --
+the same defect class as every prose-versus-code count in this sequence,
+INVERTED: previously prose leaked INTO a check, here the check omitted what the
+prose stated.
+
+**A DISCOVERY.** Four keys appeared on refusal paths that no prediction covered
+-- `n_predicted_positive`, `n_reference_positive`, `reference_class_support`,
+`threshold` -- because they come from `verdict.metadata`, the DESCRIPTOR's
+statement of why it refused, varying per metric and cohort.
+
+### 3. THE OWNERSHIP BOUNDARY, WHICH IS THE FINDING
+
+```
+the finaliser owns    identity, support, certification      7 keys
+the descriptor owns   verdict.metadata                      4 observed
+```
+
+**HAD R1 AGREED WITH ITS PREDICTION, THE EXTRACTION WOULD HAVE BEEN SPECIFIED
+WITH A FINALISER THAT SWALLOWED VERDICT METADATA TOO -- AND BEEN WRONG ABOUT WHO
+OWNS IT.**
+
+`reference_class_support` is the clearest case: calibration's diagnostic about a
+single-class cohort, recorded by the descriptor. A finaliser claiming to own it
+would be CLAIMING AUTHORSHIP OF SOMEONE ELSE'S EVIDENCE.
+
+That boundary came from the DISAGREEMENT, not from agreement. It is the strongest
+argument this week for stating predictions in advance rather than reporting
+whatever a measurement happens to find -- a measurement that only confirms is
+worth less than one that can surprise.
+
+### 4. THE MEASURED DIFFERENCE SET, COMPLETE
+
+```
+every path          metric_name, population_scope, population_fingerprint,
+                    n_observations, n_classes_observed              5
+OK path only        certification_eligible, certification_blocked_by 2
+refusal paths only  n_predicted_positive, n_reference_positive,
+                    reference_class_support, threshold              4
+```
+
+24 comparisons across four cohorts and six metrics. R2 exited 0 with the three
+surfaces confirmed and verified disjoint.
+
+THE COUNT PATH SUPPLIES NONE OF THEM, and that is STRUCTURAL rather than an
+omission: `metrics_from_counts(counts, parameters)` takes no context and no
+population, so it CANNOT supply population keys -- it has never been given a
+population.
+
+### 5. WHY R1 IS PRESERVED RATHER THAN CORRECTED AWAY
+
+The instinct after exit 1 is to fix the constant and re-run until it exits 0.
+THAT WOULD DESTROY THE FINDING.
+
+R1 records a prediction incomplete in two ways -- one a defect, one a discovery --
+and a repository holding only the corrected version has lost the evidence that
+the disagreement produced a better design than agreement would have. R2 writes to
+a distinct filename so both survive.
+
+Same discipline as REG-1's baseline mutation report, committed with its wrong
+rationales intact because the failed prediction WAS the finding.
+
+### 6. WHAT THIS FORBIDS, AND WHAT IT SPECIFIES
+
+C2 CANNOT PASS BY ENRICHING THE COUNT PATH. Copying registry metadata into
+`metrics_from_counts` would require handing it a context, at which point it is
+doing the registry's job with a SECOND IMPLEMENTATION OF THE FINALISATION
+CONTRACT -- the SWEEP-1 shape at the level of a CONTRACT rather than an algorithm.
+
+The architecture the measurement points to is ONE FINALISER BOTH PATHS CALL: it
+takes a bare result plus a context and attaches identity, support and
+certification, and DOES NOT TOUCH VERDICT METADATA, because that is the
+descriptor's.
+
+### 7. OPEN -- nineteen items, unchanged
+
+No follow-up was opened or closed: GUARD-1, EXTRACT-1, SWEEP-1, REG-2-b, ICI-1,
+F1-1, OPCOV-1, GITIGNORE-1, STRUCT-1, POP-1b-M03, POP-1b-M07, ZERO-1, INF-1,
+ABS-1, DEAD-1, DEAD-3, PRE-2, LINT-1, F821-1, CMP-1.
+
+### 8. NEXT
+
+**Step 3c -- the finaliser extraction**, specified against these two reports.
+Then C2 can require COMPLETE IDENTITY WITH NO IGNORED-KEY LIST, which is the
+condition the adopted ruling set.
+
+Then step 4 (the selector, Objective A, closing **D12** -- the last of the
+twelve), step 5 (the shadow comparison), and step 6 (the cutover, which must
+reckon with GUARD-1).

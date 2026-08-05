@@ -1,0 +1,151 @@
+
+==============================================================================
+SECTION 0 -- WHAT IS BEING MEASURED, AND WHAT WAS PREDICTED
+==============================================================================
+  generated  2026-08-05 10:02:40
+
+  Which metadata keys `registry.compute` attaches that
+  `metrics_from_counts` does not -- measured on the SAME cohort, at
+  the registry's canonical threshold.
+
+  THE PREDICTION, from reading all 115 lines and all five
+  MetricResult construction sites on 2026-08-05:
+
+      metric_name                  every path
+      n_classes_observed           every path
+      n_observations               every path
+      population_fingerprint       every path
+      population_scope             every path
+      certification_blocked_by     the OK path only
+      certification_eligible       the OK path only
+      n_predicted_positive         refusal paths only (descriptor-supplied)
+      n_reference_positive         refusal paths only (descriptor-supplied)
+      reference_class_support      refusal paths only (descriptor-supplied)
+      threshold                    refusal paths only (descriptor-supplied)
+
+  R2. R1 exited 1 with ONE disagreement, and the two halves differ:
+      * a DEFECT -- `certification_blocked_by` was named in this
+        file's docstring table and omitted from the constant;
+      * a DISCOVERY -- four refusal-path keys from `verdict.metadata`
+        that no prediction covered, which established that the
+        DESCRIPTOR owns those and the finaliser must not.
+      The R1 report is PRESERVED at ...difference_2026-08-05.txt.
+
+  This script FAILS IF THE MEASUREMENT DISAGREES. A surprise is a
+  finding about the reading, not a footnote.
+
+==============================================================================
+SECTION 1 -- THE KEYS EACH PATH SUPPLIES
+==============================================================================
+
+  --- mixed_all_margins_nonzero ---
+      metric                               status                 keys added by the registry
+      sensitivity                          ok                     ['certification_eligible', 'metric_name', 'n_classes_observed', 'n_observations', 'population_fingerprint', 'population_scope']
+      specificity                          ok                     ['certification_eligible', 'metric_name', 'n_classes_observed', 'n_observations', 'population_fingerprint', 'population_scope']
+      positive_predictive_value            ok                     ['certification_eligible', 'metric_name', 'n_classes_observed', 'n_observations', 'population_fingerprint', 'population_scope']
+      negative_predictive_value            ok                     ['certification_eligible', 'metric_name', 'n_classes_observed', 'n_observations', 'population_fingerprint', 'population_scope']
+      f1                                   ok                     ['certification_eligible', 'metric_name', 'n_classes_observed', 'n_observations', 'population_fingerprint', 'population_scope']
+      matthews_correlation_coefficient     ok                     ['certification_eligible', 'metric_name', 'n_classes_observed', 'n_observations', 'population_fingerprint', 'population_scope']
+
+  --- no_predicted_negatives ---
+      metric                               status                 keys added by the registry
+      sensitivity                          ok                     ['certification_eligible', 'metric_name', 'n_classes_observed', 'n_observations', 'population_fingerprint', 'population_scope']
+      specificity                          ok                     ['certification_eligible', 'metric_name', 'n_classes_observed', 'n_observations', 'population_fingerprint', 'population_scope']
+      positive_predictive_value            ok                     ['certification_eligible', 'metric_name', 'n_classes_observed', 'n_observations', 'population_fingerprint', 'population_scope']
+      negative_predictive_value            undefined              ['metric_name', 'n_classes_observed', 'n_observations', 'population_fingerprint', 'population_scope', 'threshold']
+      f1                                   ok                     ['certification_eligible', 'metric_name', 'n_classes_observed', 'n_observations', 'population_fingerprint', 'population_scope']
+      matthews_correlation_coefficient     undefined              ['metric_name', 'n_classes_observed', 'n_observations', 'n_predicted_positive', 'n_reference_positive', 'population_fingerprint', 'population_scope']
+
+  --- no_positive_reference_class ---
+      metric                               status                 keys added by the registry
+      sensitivity                          insufficient_support   ['metric_name', 'n_classes_observed', 'n_observations', 'population_fingerprint', 'population_scope', 'reference_class_support']
+      specificity                          ok                     ['certification_blocked_by', 'certification_eligible', 'metric_name', 'n_classes_observed', 'n_observations', 'population_fingerprint', 'population_scope']
+      positive_predictive_value            ok                     ['certification_blocked_by', 'certification_eligible', 'metric_name', 'n_classes_observed', 'n_observations', 'population_fingerprint', 'population_scope']
+      negative_predictive_value            ok                     ['certification_blocked_by', 'certification_eligible', 'metric_name', 'n_classes_observed', 'n_observations', 'population_fingerprint', 'population_scope']
+      f1                                   ok                     ['certification_blocked_by', 'certification_eligible', 'metric_name', 'n_classes_observed', 'n_observations', 'population_fingerprint', 'population_scope']
+      matthews_correlation_coefficient     undefined              ['metric_name', 'n_classes_observed', 'n_observations', 'n_predicted_positive', 'n_reference_positive', 'population_fingerprint', 'population_scope']
+
+  --- zero_confusion_margin ---
+      metric                               status                 keys added by the registry
+      sensitivity                          ok                     ['certification_eligible', 'metric_name', 'n_classes_observed', 'n_observations', 'population_fingerprint', 'population_scope']
+      specificity                          ok                     ['certification_eligible', 'metric_name', 'n_classes_observed', 'n_observations', 'population_fingerprint', 'population_scope']
+      positive_predictive_value            ok                     ['certification_eligible', 'metric_name', 'n_classes_observed', 'n_observations', 'population_fingerprint', 'population_scope']
+      negative_predictive_value            undefined              ['metric_name', 'n_classes_observed', 'n_observations', 'population_fingerprint', 'population_scope', 'threshold']
+      f1                                   ok                     ['certification_eligible', 'metric_name', 'n_classes_observed', 'n_observations', 'population_fingerprint', 'population_scope']
+      matthews_correlation_coefficient     undefined              ['metric_name', 'n_classes_observed', 'n_observations', 'n_predicted_positive', 'n_reference_positive', 'population_fingerprint', 'population_scope']
+
+==============================================================================
+SECTION 2 -- THE MEASURED DIFFERENCE SET
+==============================================================================
+
+  comparisons made                24
+
+  ON EVERY PATH (intersection across all metrics and cohorts):
+      metric_name
+      n_classes_observed
+      n_observations
+      population_fingerprint
+      population_scope
+
+  ON THE OK PATH ONLY:
+      certification_blocked_by
+      certification_eligible
+
+  ON REFUSAL PATHS ONLY:
+      n_predicted_positive
+      n_reference_positive
+      reference_class_support
+      threshold
+
+==============================================================================
+SECTION 3 -- MEASUREMENT AGAINST PREDICTION
+==============================================================================
+
+  OK  every path
+      predicted ['metric_name', 'n_classes_observed', 'n_observations', 'population_fingerprint', 'population_scope']
+      measured  ['metric_name', 'n_classes_observed', 'n_observations', 'population_fingerprint', 'population_scope']
+  OK  OK path only
+      predicted ['certification_blocked_by', 'certification_eligible']
+      measured  ['certification_blocked_by', 'certification_eligible']
+  OK  refusal paths only
+      predicted ['n_predicted_positive', 'n_reference_positive', 'reference_class_support', 'threshold']
+      measured  ['n_predicted_positive', 'n_reference_positive', 'reference_class_support', 'threshold']
+
+==============================================================================
+SECTION 4 -- WHAT THIS MEANS FOR C2
+==============================================================================
+
+  THE COUNT PATH SUPPLIES NO METADATA, and that is STRUCTURAL rather
+  than an omission. `metrics_from_counts(counts, parameters)` takes
+  NO CONTEXT and NO POPULATION -- it cannot supply the population keys
+  because it has never been given a population.
+
+  So C2 CANNOT PASS BY ENRICHING THE COUNT PATH. Copying registry
+  metadata into `metrics_from_counts` would require handing it a
+  context, at which point it is doing the registry's job with a SECOND
+  IMPLEMENTATION OF THE FINALISATION CONTRACT -- which the adopted
+  ruling forbids, and which is the SWEEP-1 shape at the level of a
+  contract rather than an algorithm.
+
+  THE ARCHITECTURE THE MEASUREMENT POINTS TO is a finaliser both paths
+  call: one authority that takes a bare result plus a context and
+  attaches identity, support and certification. THIS SCRIPT DOES NOT
+  BUILD IT. The extraction is specified against this evidence.
+
+  AND ONE HYPOTHESIS WAS FALSIFIED BEFORE MEASURING. Five construction
+  sites exist and REG-1 audited two, so a refusal built BEFORE
+  `ctx.support()` attaches would leave artifacts with no population
+  identity -- exactly what POP-1b exists to prevent. Reading all five
+  showed every one carries `**ctx.support()`. THE CODE IS ALREADY
+  CORRECT, and knowing that by measurement is different from assuming
+  it.
+
+==============================================================================
+SUMMARY
+==============================================================================
+  comparisons          24
+  disagreements        0
+    none -- the measurement CONFIRMS the reading of all five
+    construction sites
+
+  exit code 0
