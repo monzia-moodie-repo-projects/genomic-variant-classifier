@@ -879,85 +879,158 @@ def test_an_applicable_verdict_may_not_forge_n_classes_observed():
         len(set(ctx.y_true.tolist()))
 
 
-def test_refusal_protected_keys_are_derived_from_ctx_support():
-    """A STRUCTURAL GATE: refusal protection must EVOLVE with `support()`.
+def test_both_guard_protected_sets_derive_from_the_metadata_prefix():
+    """A STRUCTURAL GATE: both protected sets must EVOLVE with `support()`.
 
-    ADDED AFTER MUTATION M06 WENT UNDETECTED on 2026-08-03. Hand-listing the
-    refusal protected set is behaviourally identical TODAY -- the literal happens
-    to match the current `support()` vocabulary -- and diverges only when a key is
-    added there. The baseline report called this "the one thing a test cannot
-    catch". THAT WAS WRONG: a BEHAVIOURAL test cannot catch it; a STRUCTURAL one
-    can, because the derivation is a property of the source.
+    HISTORY, kept because it is the lesson. This began on 2026-08-03 as
+    `test_refusal_protected_keys_are_derived_from_ctx_support`, added after
+    REG-1 mutation M06 went undetected. It asserted that a literal
+    `ctx.support()` call appeared inside the refusal guard's protected-set
+    expression, and it was a faithful instrument until 2026-08-05, when OP-1
+    step 3c moved the snapshot behind `_registry_metadata_prefix` so that
+    `compute` calls `support()` ZERO times and the helper calls it ONCE.
 
-    The requirement, from `compute`'s own comment: "a future key added to
-    `support()` is protected the moment it exists rather than the moment somebody
-    remembers to add it here."
+    The protected property survived; the instrument recognised only one
+    SPELLING of it. So it is REWRITTEN, not deleted or relaxed, and it now
+    proves the DERIVATION:
 
-    The refusal branch is located SEMANTICALLY -- `if not verdict.applicable` --
-    rather than by line number or formatting, so ordinary edits above it do not
-    silently break this guard.
+        the guard's protected-set expression READS a local
+        that local's NEAREST PRECEDING assignment calls the metadata prefix
+        the prefix takes exactly ONE support snapshot
+        compute takes NONE of its own
+
+    The requirement, unchanged, is `compute`'s own comment: "a future key added
+    to `support()` is protected the moment it exists rather than the moment
+    somebody remembers to add it here."
+
+    IT NOW COVERS BOTH GUARDED BRANCHES. Before step 3c the refusal and OK
+    paths derived independently and only the refusal path was pinned here.
+    After step 3c they share one authority, so a gate covering one of them
+    would certify half the architecture.
+
+    THE PRE-STEP-3c DIRECT FORM IS NOT ACCEPTED. Permitting `ctx.support()`
+    inside a guard expression would allow a regression to two support
+    authorities -- reopening the time-of-check/time-of-use seam -- while
+    leaving this test green.
+
+    THE SYNTAX-TREE HELPERS ARE NESTED, not module-level. This module imports
+    `ast` only inside the function bodies that need it, and a first version of
+    this repair placed them at module scope and failed with NameError. Nesting
+    keeps the whole gate self-contained and depends on no module import.
     """
     import ast
-    import inspect
-    import textwrap
+    import pathlib
 
     import genomic_variant_classifier.evaluation.registry as registry_module
 
-    tree = ast.parse(textwrap.dedent(
-        inspect.getsource(registry_module.compute)))
+    def call_name(node):
+        """The plain function name a Call node invokes, or None."""
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            return node.func.id
+        return None
 
-    refusal_branch = None
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.If):
-            continue
-        test = node.test
-        if (isinstance(test, ast.UnaryOp)
-                and isinstance(test.op, ast.Not)
-                and isinstance(test.operand, ast.Attribute)
-                and isinstance(test.operand.value, ast.Name)
-                and test.operand.value.id == "verdict"
-                and test.operand.attr == "applicable"):
-            refusal_branch = node
-            break
-    assert refusal_branch is not None, (
-        "no `if not verdict.applicable` branch found in compute(); the refusal "
-        "path has been restructured and this guard no longer knows where to look")
+    def loaded_names(node):
+        """Every name READ inside an expression."""
+        return {child.id for child in ast.walk(node)
+                if isinstance(child, ast.Name)
+                and isinstance(child.ctx, ast.Load)}
 
-    guard_calls = [node for node in ast.walk(refusal_branch)
-                   if isinstance(node, ast.Call)
-                   and isinstance(node.func, ast.Name)
-                   and node.func.id == "_reject_registry_owned_keys"]
-    assert len(guard_calls) == 1, (
-        f"the refusal branch calls the ownership guard {len(guard_calls)} times; "
-        "exactly one call is expected")
+    def nearest_assignment_before(function, name, lineno):
+        """The LAST assignment to `name` above `lineno` -- the reaching definition.
 
-    protected_expression = guard_calls[0].args[3]
+        NEAREST, not any. The OK path rebinds
 
-    support_calls = [node for node in ast.walk(protected_expression)
-                     if isinstance(node, ast.Call)
-                     and isinstance(node.func, ast.Attribute)
-                     and isinstance(node.func.value, ast.Name)
-                     and node.func.value.id == "ctx"
-                     and node.func.attr == "support"]
-    assert len(support_calls) == 1, (
-        "the refusal protected set was HAND-LISTED instead of derived from "
-        "ctx.support(). It may be behaviourally identical today and it will not "
-        "be the moment a key is added to support(): the point of deriving it is "
-        "that a new key is protected when it EXISTS, not when somebody remembers")
+            meta = {**dict(verdict.metadata), **meta}
 
-    subtractions = [node for node in ast.walk(protected_expression)
-                    if isinstance(node, ast.BinOp)
-                    and isinstance(node.op, ast.Sub)]
-    assert len(subtractions) == 1, (
-        f"expected exactly one subtraction in the refusal protected set, found "
-        f"{len(subtractions)}; the descriptor-owned exception must be removed "
-        "once and only once")
+        AFTER its guard runs. A check asking merely whether `meta` is ever
+        assigned from the metadata prefix would stay green if the guard moved
+        BELOW that rebinding -- at which point it would be protecting a mapping
+        that already carried descriptor-supplied keys, and the ownership check
+        would pass on a set it was never meant to describe.
+        """
+        candidates = [node for node in ast.walk(function)
+                      if isinstance(node, ast.Assign)
+                      and node.lineno < lineno
+                      and any(isinstance(target, ast.Name)
+                              and target.id == name
+                              for target in node.targets)]
+        assert candidates, f"{name!r} has no assignment before line {lineno}"
+        return sorted(candidates, key=lambda node: node.lineno)[-1]
 
-    right = subtractions[0].right
-    assert isinstance(right, ast.Name) and \
-        right.id == "_DESCRIPTOR_OWNED_ON_REFUSAL", (
-            "the refusal set subtracts something other than the named exception; "
-            "an inline literal here would be a second copy of the ownership rule")
+    def support_calls_in(function):
+        """`ctx.support()` calls inside ONE function.
+
+        A plain walk is sound HERE only because the caller first asserts that
+        the function contains no nested definition. The general, nesting-aware
+        form lives in tests/unit/test_registry_metadata_prefix.py, which walks
+        every function in the module and must not attribute a nested body's
+        calls to its parent. The scopes differ, so the instruments differ, and
+        this one carries the precondition that licenses its simplicity.
+        """
+        return [node for node in ast.walk(function)
+                if isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "ctx"
+                and node.func.attr == "support"]
+
+    source = pathlib.Path(registry_module.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    functions = {node.name: node for node in tree.body
+                 if isinstance(node, ast.FunctionDef)}
+
+    compute_node = functions.get("compute")
+    helper_node = functions.get("_registry_metadata_prefix")
+    assert compute_node is not None, "compute() not found in registry.py"
+    assert helper_node is not None, (
+        "_registry_metadata_prefix not found; step 3c's single metadata "
+        "authority is absent, so the guards cannot be deriving from it")
+
+    for node in (compute_node, helper_node):
+        nested = [inner for inner in ast.walk(node)
+                  if isinstance(inner, ast.FunctionDef) and inner is not node]
+        assert not nested, (
+            f"{node.name} now contains a nested function definition, so the "
+            "plain walk below would attribute the nested body's calls to it. "
+            "Use the nesting-aware form in test_registry_metadata_prefix.py.")
+
+    guards = sorted((node for node in ast.walk(compute_node)
+                     if call_name(node) == "_reject_registry_owned_keys"),
+                    key=lambda node: node.lineno)
+    assert len(guards) == 2, (
+        f"compute() calls the ownership guard {len(guards)} times; exactly two "
+        "are expected -- one on the refusal path, one on the OK path")
+
+    for guard, expected_local in zip(guards, ("base", "meta"), strict=True):
+        assert len(guard.args) == 4, (
+            f"the guard at line {guard.lineno} takes {len(guard.args)} "
+            "positional arguments; the protected set is the fourth")
+
+        protected = guard.args[3]
+        assert expected_local in loaded_names(protected), (
+            f"the guard at line {guard.lineno} does not read "
+            f"{expected_local!r}: {ast.unparse(protected)}")
+
+        reaching = nearest_assignment_before(
+            compute_node, expected_local, guard.lineno)
+        assert call_name(reaching.value) == "_registry_metadata_prefix", (
+            f"{expected_local!r} reaches the guard at line {guard.lineno} from "
+            f"{ast.unparse(reaching.value)}, NOT from "
+            "_registry_metadata_prefix(...). The protected set would then be "
+            "hand-built, and a key added to support() would go unprotected "
+            "until somebody remembered to add it here.")
+
+    prefix_snapshots = support_calls_in(helper_node)
+    assert len(prefix_snapshots) == 1, (
+        "_registry_metadata_prefix must take exactly ONE support snapshot; it "
+        f"takes {len(prefix_snapshots)}. Two snapshots reopen the "
+        "time-of-check/time-of-use seam between the attached metadata and the "
+        "ownership validation performed against it.")
+
+    assert not support_calls_in(compute_node), (
+        "compute() calls ctx.support() directly, so the module has two support "
+        "authorities again and a guard may validate a key set that differs "
+        "from the one actually attached")
 # --------------------------------------------------------------------------- #
 # REG-2 (2026-08-04): a vanishing denominator is UNDEFINED, not unsupported
 # --------------------------------------------------------------------------- #

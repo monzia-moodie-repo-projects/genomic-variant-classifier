@@ -5498,4 +5498,193 @@
 #   4278 collected, measured by this installer (predicted 4278).
 #   Assertions 53/53 unchanged through the fixture repair.
 #
-4278
+
+# 4278 -> 4300 (+22)  2026-08-05  OP-1 STEP 3c: the registry metadata prefix.
+#   `MetricContext.support()` now has EXACTLY ONE caller in registry.py, and
+#   `compute` has none.
+#
+#   ELEVEN OF THE TWELVE-DEFECT REGISTER OF 2026-08-01 ARE NOW CLOSED. D12, the
+#   undeclared tie-break, remains and closes in step 4 when the selector
+#   declares and persists its rule.
+#
+#   THE FIVE `MetricResult` CONSTRUCTION SITES SHARED EXACTLY TWO THINGS:
+#   `{METRIC_NAME: d.name}` and `**ctx.support()`. Everything else differs by
+#   branch. This is NOT "one finaliser both paths call" -- a phrase used in
+#   earlier sessions that does not survive reading the sites.
+#
+#   THE SEAM WAS LATENT, NOT LIVE, AND THE DISTINCTION IS RECORDED RATHER THAN
+#   BLURRED. `compute` called `support()` TWICE on each verdict-bearing path:
+#   once for the guard's protected set, once for the attached metadata. Measured
+#   2026-08-05, the twenty-seven lines between the OK-path snapshot at 1647 and
+#   its guard at 1675 (that is, 1648-1674) are ENTIRELY COMMENT, and
+#   `MetricContext` is a frozen dataclass, so the two snapshots cannot diverge
+#   today. On the REFUSAL path `verdict.metadata` merges LAST, so a key the
+#   first snapshot failed to protect would OVERWRITE a registry-owned key
+#   attached from the second -- the forgery REG-1 exists to prevent, reachable
+#   through a hole REG-1 did not close. The ruling is therefore prophylactic,
+#   and says so.
+#
+#   OPTION F-strict, AFTER FIVE WERE COSTED AND FOUR REJECTED. A leaves the seam
+#   and is dominated. B hoists the snapshot into `compute`, which makes the
+#   helper take `support` -- wrong for the step-5 caller that holds a descriptor
+#   and a context and would then have to call `support()` itself, reinstating
+#   the second authority. C returns the mapping AND its keys, a second value
+#   derivable from the first and discarded at three of five sites. D has the
+#   guards derive from the returned mapping: correct, but it MOVES branch fields
+#   ACROSS the support expansion at four of five sites. F keeps them where they
+#   are by carrying them in `pre_support`.
+#
+#   INSERTION ORDER IS NOT COSMETIC HERE, WHICH IS WHY D WAS NOT ENOUGH.
+#   `MetricMetadataKey` is a `(str, Enum)` mixin, so `hash(member) ==
+#   hash(member.value)` and a plain string and its enum member are THE SAME
+#   dictionary key. Confirmed three independent ways: the enum's own docstring
+#   (2026-07-27), a Python 3.12 replica, and the live class. A plain-string
+#   branch field can therefore collide with an enum support key, and insertion
+#   order decides which value survives.
+#
+#   AN EXTRAS-ACCEPTING HELPER USING `**kwargs` CANNOT EXIST.
+#   `MetricMetadataKey.CERTIFICATION_ELIGIBLE` is an enum member and cannot be a
+#   keyword-argument name, so the OK site is unreachable through that shape.
+#   `pre_support` is a Mapping for that reason, not by preference.
+#
+#   PRESERVED BYTE FOR BYTE, PROVEN BY EXECUTION BEFORE THE INSTALLER WAS
+#   WRITTEN. A replica of all five literals and both protected-set expressions,
+#   run on a clustered AND an unclustered context, asserted `list(old) ==
+#   list(new)` -- key ORDER, not merely equality -- at every site; both
+#   protected sets set-identical; `support()` called exactly once; the verdict
+#   still winning `N_CLASSES_OBSERVED` on refusal; the certification blocker
+#   still last on the OK path.
+#
+#   REJECTED, NOT SHADOWED. The helper refuses a caller-supplied key that
+#   collides with the metric name or with the live snapshot. Merge order would
+#   also prevent the overwrite, but silently -- the reasoning
+#   `_reject_registry_owned_keys` records for descriptor metadata, applied here
+#   to the registry's own call sites. No current site can trip it; it exists for
+#   the next one.
+#
+#   A PRE-EXISTING STRUCTURAL GATE DETECTED THE SOURCE-SHAPE CHANGE, AND WAS
+#   REWRITTEN RATHER THAN DELETED OR RELAXED.
+#   `test_refusal_protected_keys_are_derived_from_ctx_support`, added 2026-08-03
+#   after REG-1 mutation M06 went undetected, asserted that a literal
+#   `ctx.support()` call appears INSIDE the refusal guard's protected-set
+#   expression. Its protected property survived step 3c intact; its INSTRUMENT
+#   recognised only one spelling of it. It is not a false positive, not harmless
+#   staleness and not mere brittleness, and none of those labels is used,
+#   because each erases the distinction between a valid property and an obsolete
+#   instrument.
+#
+#   THE REPLACEMENT PROVES THE DERIVATION INSTEAD OF RECOGNISING A SPELLING: the
+#   guard's protected set READS a local; that local's NEAREST PRECEDING
+#   assignment calls the prefix; the prefix takes exactly ONE snapshot;
+#   `compute` takes none. NEAREST is load-bearing -- the OK path rebinds `meta =
+#   {**dict(verdict.metadata), **meta}` after its guard, so a check asking
+#   merely whether `meta` is EVER assigned from the prefix would stay green if
+#   the guard moved below that rebinding and began protecting a mapping that
+#   already carried descriptor keys.
+#
+#   IT NOW COVERS BOTH GUARDED BRANCHES. Before step 3c the two derived
+#   independently and only the refusal branch was pinned; after step 3c they
+#   share one authority, so a gate covering one would certify half the
+#   architecture. The pre-step-3c direct form is DELIBERATELY NOT accepted:
+#   permitting it would allow a regression to two support authorities while
+#   leaving the test green.
+#
+#   SABOTAGE ON THE GATE: 8 mutations, 8 detected, 0 undetected, with the
+#   correct shape accepted first. The two that matter are the two a
+#   name-recognising gate would be fooled by -- `base` assigned from an ordinary
+#   dict literal, and the OK guard moved below the `meta` rebinding.
+#
+#   C2-1 IS NOW OBSERVED. The handoff recorded as permitted-but-never-measured
+#   whether any metric is applicable on a single-class cohort while carrying
+#   `reference_class_support`. Enumerating the live catalogue rather than naming
+#   five metrics found `integrated_calibration_index` doing exactly that. The
+#   five-name parametrised test it replaced never touched it.
+#
+#   DIAG-1 RECORDED, NOT FIXED. That descriptor is applicable, its kernel
+#   returns nan, and `compute` takes the non-finite branch -- which does not
+#   merge `verdict.metadata` at all. Neither does the exception branch. So a
+#   FAILED result reports what the kernel returned but not the cohort fact that
+#   explains it. PRE-EXISTING and unchanged by step 3c; altering site 3 or 4 is
+#   a production change outside this step's scope. The absence is ASSERTED in
+#   the test, so resolving DIAG-1 must update it deliberately rather than let it
+#   pass by accident.
+#
+#   ZERO NEW SKIPS. A first version of the diagnostics test named five metrics
+#   and SKIPPED the two that attach nothing on the cohort. Naming carriers is
+#   guessing and a skip is not coverage: it reports success while asserting
+#   nothing. Replaced by one loop over all 24 registered descriptors with its
+#   non-vacuity assertion folded inside it, and `_missing_inputs` asserted empty
+#   for every descriptor so a future one requiring a new input FAILS BY NAME
+#   instead of dropping silently out of coverage. A second latent skip, on a
+#   deterministic certification condition, became an assertion.
+#
+#   FOLLOW-UPS RECORDED, NONE TOUCHED. SUPPORT-1: `support()` depends only on
+#   `ctx` yet is rebuilt once per descriptor inside `compute`, so a full
+#   evaluation reconstructs one invariant mapping 24 times; `n_clusters` is an
+#   uncached property computing `np.unique`, so that is O(n log n) per rebuild.
+#   MERGE-1: the opposite merge orders are DERIVABLE, not accidental --
+#   load-bearing on refusal where `N_CLASSES_OBSERVED` is descriptor-owned, and
+#   unobservable on the OK path where a passing guard makes the two mappings
+#   disjoint. JSONKEY-1: mixed enum and plain-string keys in serialised
+#   metadata. RENDER-1: `str()` of a `(str, Enum)` member yields
+#   `MetricMetadataKey.X`, not `x`, so one key renders two ways in diagnostics
+#   -- enum machinery, NOT authored in capabilities.py, which is where a reader
+#   would otherwise look. TYPING-1: `Callable`, `Mapping` and `Sequence`
+#   imported from `typing` are deprecated aliases. DIAG-1 above.
+#
+#   THIRTEEN DEFECTS OF THE AUTHOR'S IN ONE SESSION, ALL CAUGHT BEFORE ANY
+#   COMMIT, AND THE PATTERN MATTERS MORE THAN THE COUNT. Four were caught by
+#   gates that REFUSED A WRITE: a repository-wide `*_manifest.json` sweep that
+#   rejected three COMMITTED project artifacts; a guard-body statement count
+#   asserted at 2 where the body has 3, which refused a patch that changed
+#   nothing in the function it guarded; a fatal `\U` escape in a non-raw
+#   docstring containing a Windows path -- the same class as the invalid escape
+#   this file records at line 602; and a stale-name check written as a raw
+#   substring search, which fired on the replacement's own docstring quoting the
+#   name it replaced.
+#
+#   THE TENTH IS THE ONE WORTH THE SPACE. A stand-in file written to verify the
+#   test patch IMPORTED `ast` at module level; the real
+#   `test_metric_registry.py` does not, and imports it locally inside the bodies
+#   that need it. The fixture was chosen to agree with its author, the patch was
+#   reported verified, and it failed with NameError on the first real run. Not a
+#   wrong belief encoded in a check -- a check that only looked where the author
+#   had already looked. The repair removes the dependency entirely by nesting
+#   the helpers, rather than adding an import to a module never read.
+#
+#   FIVE MORE, AND THE LAST TWO ARE THE SAME DISEASE AS THE TENTH. A diagnostics
+#   test asserting a contract that never existed, since verdict metadata reaches
+#   only two of five construction sites. A ratchet-entry format derived from the
+#   MAXIMUM line width of the preceding entry, inheriting a single 92-character
+#   outlier as the width for a whole new entry. A placeholder duration inside a
+#   runnable command block, pasted verbatim -- the third time in this session
+#   that a wrong value inside a pasteable block was pasted, with the instruction
+#   to substitute it printed only in prose beneath; that class is closed by
+#   measurement, this installer PARSING the suite output rather than accepting
+#   numbers by argument. A LINE REFERENCE IN AN EARLIER DRAFT OF THIS ENTRY,
+#   asserted from memory, AND THEN A SEARCH THAT CONFIRMED THE WRONG LINE. The
+#   draft cited a prior invalid-escape defect at "line 1966" of this file, when
+#   no part of these 5,501 lines had been read in the session except the last
+#   entry and the final 1,200 characters. The search written to verify it used
+#   needles including "download_finngen", which occurs at line 594 inside an
+#   ENUMERATION OF SCRIPT NAMES -- so the check reported success on a line that
+#   records nothing, and would have licensed a false sentence. A loose needle
+#   matches prose: the lesson already held here as "search for the guard, not
+#   its message", reproduced by a search written to prevent exactly it. Narrowed
+#   to diagnostic PHRASES, the third attempt found the genuine record and it is
+#   the one cited above. The recollection was RIGHT ABOUT THE DEFECT and WRONG
+#   ABOUT THE LOCATION, the second attempt agreed with the author for the wrong
+#   reason, and only the third MEASURED it.
+#
+#   ARITHMETIC: 4278 + 27 - 5 = 4300. The +27 is
+#   tests/unit/test_registry_metadata_prefix.py as first delivered; the -5 is
+#   the diagnostics repair. tests/unit/test_metric_registry.py contributes ZERO
+#   -- one function replaced by one function. 18 functions, 22 cases.
+#
+#   ACCEPTANCE: full suite 4294 passed, 6 skipped, 0 failed in 14m36s; 4300
+#   collected, measured by this installer (predicted 4300). The suite's stable
+#   skip surface is UNCHANGED at 6; the two skips step 3c briefly introduced are
+#   gone.
+#
+
+4300

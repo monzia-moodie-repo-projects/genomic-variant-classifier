@@ -414,6 +414,64 @@ class MetricContext:
 _DESCRIPTOR_OWNED_ON_REFUSAL = frozenset({MetricMetadataKey.N_CLASSES_OBSERVED})
 
 
+def _registry_metadata_prefix(descriptor: "MetricDescriptor",
+                              ctx: "MetricContext",
+                              *,
+                              pre_support: "Optional[Mapping]" = None) -> dict:
+    """Return the ordered registry-owned prefix of one metric result's metadata.
+
+    THE ORDER IS THE CONTRACT, not an incidental property:
+
+        MetricMetadataKey.METRIC_NAME
+        the caller's branch-specific fields, in the order given
+        the COMPLETE runtime support snapshot
+
+    Four of `compute`'s five construction sites place branch fields BETWEEN the
+    metric name and the support expansion, and `MetricMetadataKey` is a
+    `(str, Enum)` mixin whose members and plain string values are THE SAME
+    dictionary key -- so insertion order can decide precedence on a collision
+    and is not cosmetic. `pre_support` exists to preserve those positions
+    exactly; it is not a general extension point.
+
+    `MetricContext.support()` is evaluated EXACTLY ONCE and expanded WHOLESALE.
+    No support key is ever enumerated here, because `support()` returns four
+    keys plus N_CLUSTERS CONDITIONALLY: any fixed list is wrong for one of the
+    two cases, and no test built on an unclustered context would catch it. A key
+    added to `support()` in future therefore reaches every result automatically.
+
+    `pre_support` is copied into a local dict BEFORE validation, so a mutable or
+    exotic Mapping cannot present one key set to the collision check and another
+    to the expansion -- the same time-of-check/time-of-use discipline this
+    function exists to enforce on `support()` itself.
+
+    OWNERSHIP IS REJECTED, NOT SHADOWED. A caller may not supply the metric
+    name or any key the registry itself computed. Merge order would also prevent
+    the overwrite, but silently, and the caller would get no signal -- the
+    reasoning `_reject_registry_owned_keys` records for descriptor metadata,
+    applied here to the registry's own call sites.
+
+    This function TRANSPORTS `pre_support` opaquely. It does not derive,
+    interpret, validate or condition behaviour on certification, applicability,
+    status, reasons or descriptor diagnostics; those remain the caller's, and
+    the protected-set choice remains `compute`'s.
+    """
+    fields = {} if pre_support is None else dict(pre_support)
+    support = ctx.support()
+
+    reserved = {MetricMetadataKey.METRIC_NAME, *support}
+    overlap = reserved & set(fields)
+    if overlap:
+        raise RegistryInvariantError(
+            f"{descriptor.name}: registry metadata prefix attempted to set "
+            f"identity/support key(s) {sorted(str(key) for key in overlap)}. "
+            "The registry owns the metric name and everything it computed "
+            "about the cohort; a branch supplies only its own diagnostics.")
+
+    return {MetricMetadataKey.METRIC_NAME: descriptor.name,
+            **fields,
+            **support}
+
+
 def _reject_registry_owned_keys(d: "MetricDescriptor", ctx: "MetricContext",
                                 verdict: "Applicability",
                                 protected: frozenset) -> None:
@@ -1581,8 +1639,8 @@ def compute(d: MetricDescriptor, ctx: MetricContext) -> MetricResult:
         return MetricResult(
             value=nan, status=MetricStatus.NOT_APPLICABLE,
             reason="required_inputs_missing",
-            metadata={MetricMetadataKey.METRIC_NAME: d.name, "missing_inputs": list(missing),
-                      **ctx.support()})
+            metadata=_registry_metadata_prefix(
+                d, ctx, pre_support={"missing_inputs": list(missing)}))
 
     verdict = d.applicability(ctx)
     if not verdict.applicable:
@@ -1603,14 +1661,22 @@ def compute(d: MetricDescriptor, ctx: MetricContext) -> MetricResult:
         #
         # THE MERGE ORDER BELOW IS DELIBERATELY UNCHANGED: reordering would stop
         # the overwrite silently, and the OK branch records why that is inferior.
+        # OP-1 STEP 3c, 2026-08-05. The protected set and the attached
+        # metadata now come from ONE `ctx.support()` snapshot, taken by
+        # `_registry_metadata_prefix`. Two calls created a
+        # time-of-check/time-of-use seam: a key set that diverged between them
+        # would let an unprotected descriptor key overwrite a registry-owned
+        # one HERE, where `verdict.metadata` merges LAST -- the exact forgery
+        # REG-1 exists to prevent. `frozenset(base)` is
+        # {METRIC_NAME} | support keys, IDENTICAL to the expression it
+        # replaces. The set is still DERIVED, never hand-listed.
+        base = _registry_metadata_prefix(d, ctx)
         _reject_registry_owned_keys(
             d, ctx, verdict,
-            frozenset({MetricMetadataKey.METRIC_NAME} | set(ctx.support()))
-            - _DESCRIPTOR_OWNED_ON_REFUSAL)
+            frozenset(base) - _DESCRIPTOR_OWNED_ON_REFUSAL)
         return MetricResult(
             value=nan, status=verdict.status, reason=verdict.reason,
-            metadata={MetricMetadataKey.METRIC_NAME: d.name, **ctx.support(),
-                      **dict(verdict.metadata)})
+            metadata={**base, **dict(verdict.metadata)})
 
     try:
         raw = d.function(ctx)
@@ -1618,12 +1684,13 @@ def compute(d: MetricDescriptor, ctx: MetricContext) -> MetricResult:
         return MetricResult(
             value=nan, status=MetricStatus.FAILED,
             reason="metric_computation_failed",
-            metadata={MetricMetadataKey.METRIC_NAME: d.name,
-                      "exception_type": type(exc).__name__,
-                      # the message is recorded for a human, but the machine-
-                      # readable reason above is stable; exception text is not.
-                      "exception_message": str(exc)[:200],
-                      **ctx.support()})
+            metadata=_registry_metadata_prefix(
+                d, ctx,
+                pre_support={
+                    "exception_type": type(exc).__name__,
+                    # the message is recorded for a human, but the machine-
+                    # readable reason above is stable; exception text is not.
+                    "exception_message": str(exc)[:200]}))
 
     value = float(raw)
     if not np.isfinite(value):
@@ -1632,8 +1699,8 @@ def compute(d: MetricDescriptor, ctx: MetricContext) -> MetricResult:
         return MetricResult(
             value=nan, status=MetricStatus.FAILED,
             reason="applicable_metric_returned_non_finite",
-            metadata={MetricMetadataKey.METRIC_NAME: d.name, "returned": repr(raw),
-                      **ctx.support()})
+            metadata=_registry_metadata_prefix(
+                d, ctx, pre_support={"returned": repr(raw)}))
 
     # NUMERIC COMPUTABILITY, SCIENTIFIC INTERPRETABILITY AND CERTIFICATION
     # ELIGIBILITY ARE THREE DIFFERENT THINGS. A Brier score on a single-class
@@ -1642,9 +1709,9 @@ def compute(d: MetricDescriptor, ctx: MetricContext) -> MetricResult:
     # function hard-coded certification_eligible=True for every OK result, which
     # collapsed the third axis into the first.
     eligible, why = _certification_eligibility(d, ctx)
-    meta = {MetricMetadataKey.METRIC_NAME: d.name,
-            MetricMetadataKey.CERTIFICATION_ELIGIBLE: eligible,
-            **ctx.support()}
+    meta = _registry_metadata_prefix(
+        d, ctx,
+        pre_support={MetricMetadataKey.CERTIFICATION_ELIGIBLE: eligible})
     # AN APPLICABLE VERDICT MAY CARRY DIAGNOSTICS TOO (2026-07-28).
     #
     # Until this date only a REFUSAL's metadata was merged, so an
@@ -1672,12 +1739,16 @@ def compute(d: MetricDescriptor, ctx: MetricContext) -> MetricResult:
     # applicable verdict may not set any registry-owned key, N_CLASSES_OBSERVED
     # included, because by this point the registry has computed the cohort and a
     # descriptor claiming otherwise would be contradicting an established fact.
+    # OP-1 STEP 3c, 2026-08-05. `meta` is NOT REBOUND until the merge on the
+    # next line, so `frozenset(meta)` is exactly
+    # {METRIC_NAME, CERTIFICATION_ELIGIBLE} | support keys at this point, and
+    # the union below reproduces the replaced expression EXACTLY. The set comes
+    # from the SAME snapshot the metadata carries. CERTIFICATION_BLOCKED_BY is
+    # unioned rather than read from `meta` because it is attached CONDITIONALLY
+    # and AFTER the merge, yet must be protected either way.
     _reject_registry_owned_keys(
         d, ctx, verdict,
-        frozenset({MetricMetadataKey.METRIC_NAME,
-                   MetricMetadataKey.CERTIFICATION_ELIGIBLE,
-                   MetricMetadataKey.CERTIFICATION_BLOCKED_BY}
-                  | set(ctx.support())))
+        frozenset(meta) | {MetricMetadataKey.CERTIFICATION_BLOCKED_BY})
     meta = {**dict(verdict.metadata), **meta}
     if not eligible:
         meta[MetricMetadataKey.CERTIFICATION_BLOCKED_BY] = why
