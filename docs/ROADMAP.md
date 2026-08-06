@@ -5545,3 +5545,219 @@ be wrong for clustered contexts and no unclustered test would catch it.
 Then step 4 (the selector, Objective A, closing **D12** -- the last of the
 twelve), step 5 (the shadow comparison), and step 6 (the cutover, which must
 reckon with GUARD-1).
+
+## ROADMAP delta -- 2026-08-05: OP-1 step 3c. One support authority, and a structural gate that detected its own obsolescence.
+
+Two commits: `58929e9`, the extraction with its tests and the ratchet; and
+`1be72e4`, repairing a red README badge that `58929e9` introduced.
+
+Full suite 4294 passed, 6 skipped, 0 failed; 4300 collected. Ratchet 4278 ->
+4300 (+22). Skip surface unchanged at 6.
+
+Full write-up: `docs/SESSION_2026-08-05_op1-step3c-metadata-prefix.md`.
+
+NO NEW SHAPE IS CLAIMED for the open list. Sections 6 and 7 below record
+findings about WORKING METHOD rather than about the code, and they belong in
+the log for the same reason a defect does.
+
+### 0. WHAT CLOSED
+
+Eleven of the twelve-defect register of 2026-08-01 are now closed. **D12**, the
+undeclared tie-break, remains and closes in step 4 when the selector declares
+and persists its rule.
+
+`MetricContext.support()` has exactly ONE caller in `registry.py`, and
+`compute` has NONE.
+
+### 1. THE FIVE SITES SHARED TWO THINGS, NOT A FINALISER
+
+`{METRIC_NAME: d.name}` and `**ctx.support()`. Everything else differs by
+branch. "One finaliser both paths call", used in earlier sessions, does not
+survive reading the sites: two of the five merge `verdict.metadata` and three do
+not, the two that do use OPPOSITE precedence, and the protected sets are
+asymmetric by design.
+
+### 2. THE SEAM WAS LATENT, NOT LIVE
+
+`compute` called `support()` TWICE on each verdict-bearing path. Measured
+2026-08-05: the twenty-seven lines between the OK-path snapshot at 1647 and its
+guard at 1675 are ENTIRELY COMMENT, and `MetricContext` is a frozen dataclass,
+so the two snapshots cannot diverge today.
+
+They could the moment `support()` gains a caller-visible dependency, and on the
+REFUSAL path `verdict.metadata` merges LAST -- so a key the first snapshot
+failed to protect would OVERWRITE a registry-owned key attached from the second.
+That is the forgery REG-1 exists to prevent, reachable through a hole REG-1 did
+not close.
+
+The ruling is prophylactic, and the delta says so. A record describing a latent
+hazard as a live one misprices every future decision that cites it.
+
+### 3. FIVE OPTIONS COSTED, FOUR REJECTED
+
+**A** leaves the seam and is dominated. **B** hoists the snapshot, which makes
+the helper take `support` -- wrong for the step-5 caller, which holds a
+descriptor and a context and would then call `support()` itself, reinstating the
+second authority. **C** returns the mapping AND its keys, a value derivable from
+the first and discarded at three of five sites. **D** has the guards derive from
+the returned mapping: correct, but it MOVES branch fields ACROSS the support
+expansion at four of five sites. **F-strict** carries them in `pre_support`.
+
+B's efficiency advantage does not exist: the seven `support()` locations are
+FIVE MUTUALLY EXCLUSIVE BRANCHES, worst case two calls per invocation, and every
+single-snapshot option reduces that to one.
+
+### 4. INSERTION ORDER IS A PRECEDENCE QUESTION HERE
+
+`MetricMetadataKey` is a `(str, Enum)` mixin, so `hash(member) ==
+hash(member.value)` and a plain string and its enum member are THE SAME
+dictionary key. Confirmed three ways: the enum's docstring (2026-07-27), a
+Python 3.12 replica, and the live class. A FIRST HYPOTHESIS -- that `Enum`
+hashes the member NAME, making them distinct -- was FALSIFIED by the replica
+before it reached any code.
+
+An extras-accepting helper using `**kwargs` CANNOT EXIST:
+`MetricMetadataKey.CERTIFICATION_ELIGIBLE` is an enum member and cannot be a
+keyword-argument name.
+
+### 5. A STRUCTURAL GATE DETECTED THE CHANGE AND WAS REWRITTEN
+
+`test_refusal_protected_keys_are_derived_from_ctx_support` (2026-08-03, after
+REG-1 mutation M06 went undetected) asserted a literal `ctx.support()` call
+INSIDE the refusal guard's protected-set expression. Its protected property
+survived intact; its INSTRUMENT recognised only one spelling of it.
+
+Not a false positive, not harmless staleness, not mere brittleness. Each label
+erases the distinction between a valid property and an obsolete instrument.
+
+The replacement proves the DERIVATION: the guard reads a local, that local's
+NEAREST PRECEDING assignment calls the prefix, the prefix takes exactly one
+snapshot, `compute` takes none. NEAREST is load-bearing -- the OK path rebinds
+`meta` after its guard, so an "ever assigned" check would stay green if the
+guard moved below that rebinding.
+
+It now covers BOTH guarded branches. Before step 3c only the refusal branch was
+pinned, which nobody had noticed. Sabotage: 8 mutations, 8 detected, 0
+undetected.
+
+### 6. FIFTEEN DEFECTS OF MINE, AND ONE REACHED THE REMOTE
+
+Fourteen were caught before any write or any commit. The fifteenth was not.
+
+`58929e9` moved the ratchet to 4300 and left the README badge at 4278;
+`test_readme_test_count_equals_the_suite_size_ratchet_exactly` asserts equality
+with NO TOLERANCE and failed on the pushed commit. `1be72e4` repairs it.
+
+SEQUENCING, NOT COVERAGE. The full suite ran green BEFORE the ratchet bump;
+afterwards only `--collect-only --assert-suite-size` ran, which exercises
+collection and EXECUTES NOTHING. The evidence was already quoted in the same
+session: `50bb9fa` is recorded as "derive the README badge", and the CERT-1
+delta records its commit carrying "the ratchet AND the badge".
+
+THE REMEDY IS A RULE. A ratchet bump changes the tree after the last executing
+run, so the sequence is: bump, EXECUTE the README and ratchet tests -- thirty
+seconds -- then commit. A collection-only check cannot substitute, because the
+coupling it must catch lives in an assertion.
+
+An armed full suite against `1be72e4` returned 4294 passed, 6 skipped, 0 failed
+in 17m10s.
+
+### 7. TWO INSTRUMENTS THAT AGREED WITH THEIR AUTHOR FOR THE WRONG REASON
+
+A stand-in file written to verify the test patch IMPORTED `ast` at module level;
+the real `test_metric_registry.py` does not. The fixture was chosen to agree
+with its author, the patch was reported verified, and it failed with NameError
+on the first real run.
+
+A citation search written to prevent a memory-based claim used needles including
+`download_finngen`, which occurs at line 594 of the ratchet inside an
+ENUMERATION OF SCRIPT NAMES. It reported success on a line that records nothing.
+Narrowed to diagnostic PHRASES, the third attempt found the genuine record at
+line 602.
+
+A loose needle matches prose -- the lesson already held here as "search for the
+guard, not its message" -- and a verification that agrees for the wrong reason is
+more dangerous than none.
+
+### 8. A PHANTOM REVERT RECORD
+
+The step-3c code installer backed up `tests/EXPECTED_SUITE_SIZE` and
+deliberately never wrote it, so its manifest listed a file it had not touched.
+`--revert` would have restored the ratchet to 4278.
+
+Proven, not inferred: the ratchet installer's manifest, written three and a half
+hours later, recorded the IDENTICAL `sha256_before` for the same file. Both
+manifests were read before deletion, which is why the evidence exists.
+
+### 9. C2-1 OBSERVED, NOT DISCHARGED
+
+`integrated_calibration_index` is applicable on a single-class cohort while
+carrying `reference_class_support` -- the case section 9 of Addendum A recorded
+as permitted but never observed. Found by enumerating the live catalogue rather
+than naming five metrics.
+
+C2-1 STAYS OPEN. Its erratum frames it more broadly than this one clause, and
+discharging a register item on a reading of its scope is the drift the register
+exists to prevent.
+
+### 10. OPEN -- TWENTY-NINE items
+
+Twenty-one carried in, ENUMERATED from the previous delta rather than estimated.
+Eight added here.
+
+The handoff for this step said TWENTY-TWO. It was stale: the previous delta
+records correcting its own heading from "twenty" to twenty-one, and notes that
+the step-3a and step-3b deltas each said "nineteen" while listing twenty.
+
+GUARD-1, EXTRACT-1, SWEEP-1, C2-1, REG-2-b, ICI-1, F1-1, OPCOV-1, GITIGNORE-1,
+STRUCT-1, POP-1b-M03, POP-1b-M07, ZERO-1, INF-1, ABS-1, DEAD-1, DEAD-3, PRE-2,
+LINT-1, F821-1, CMP-1, SUPPORT-1, MERGE-1, JSONKEY-1, RENDER-1, TYPING-1,
+DIAG-1, CHANGELOG-1, CHANGELOG-2.
+
+**SUPPORT-1** -- `support()` depends only on `ctx`, yet is rebuilt once per
+descriptor inside `compute`, so a full evaluation reconstructs one invariant
+mapping 24 times. `n_clusters` is an UNCACHED property computing `np.unique`, so
+that is O(n log n) per rebuild. Hoisting into `evaluate_registered` changes
+`compute`'s contract and needs its own measured decision.
+
+**MERGE-1** -- the opposite verdict merge orders are DERIVABLE, not accidental:
+load-bearing on refusal, where `N_CLASSES_OBSERVED` is the single legally
+descriptor-owned key; unobservable on the OK path, where a passing guard makes
+the two mappings disjoint. Candidate closure of a question twice recorded as
+open, with a stated falsifier.
+
+**JSONKEY-1** -- metadata mixes `MetricMetadataKey` and plain-string keys.
+Audit serialisation, round-trip, ordering and reader expectations.
+
+**RENDER-1** -- `str()` of a `(str, Enum)` member yields `MetricMetadataKey.X`,
+not `x`, so one key renders two ways in diagnostics depending on the caller's
+form. ENUM MACHINERY, not authored in `capabilities.py` -- which is where a
+reader chasing it would otherwise look and waste a session.
+
+**TYPING-1** -- `registry.py:132` imports `Callable`, `Mapping` and `Sequence`
+from `typing`, all deprecated aliases for `collections.abc`. Not urgent; no
+removal is scheduled.
+
+**DIAG-1** -- an applicable verdict's diagnostics are DROPPED on the two FAILED
+branches, so such a result reports what the kernel returned but not the cohort
+fact that explains it. Pre-existing. The absence is ASSERTED in the new test, so
+resolving DIAG-1 must update it deliberately.
+
+**CHANGELOG-1** -- `docs/CHANGELOG.md` holds duplicated dated headings: five
+copies of `2026-06-05 Run 15 all-models smoke` and two of `2026-06-25 Drive root
+consolidation`, the latter byte-identical across all four subsections. This file
+already has form -- `2044102` exists to repair 301 lines of double-encoding in
+it. The five-copy case needs its BODIES compared before it is called
+duplication.
+
+**CHANGELOG-2** -- the file is newest-first and its newest entry is 2026-07-31,
+while `docs/` holds fourteen session documents dated 2026-08-01 to 2026-08-05.
+Either the convention shifted to roadmap deltas plus session documents, or five
+days went unrecorded. Not guessed at.
+
+### 11. NEXT
+
+**Step 4 -- the selector, Objective A**, closing **D12**, the last of the twelve.
+Then **step 5** (the shadow comparison) and **step 6** (the cutover), which must
+reckon with **GUARD-1**: `test_computation_path_guards.py` asserts every applied
+threshold is `(0.5, ">=")`, and the exact sweep applies every unique score.

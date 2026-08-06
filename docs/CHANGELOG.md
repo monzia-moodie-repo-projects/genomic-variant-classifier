@@ -1,3 +1,28 @@
+## 2026-08-05 — OP-1 step 3c: one support authority, and a gate that detected its own obsolescence
+
+Ratchet 4278 → 4300 (+22). Commits `58929e9` and `1be72e4`. Session record:
+docs/SESSION_2026-08-05_op1-step3c-metadata-prefix.md
+
+### Fixed
+- `_registry_metadata_prefix` extracted from `registry.compute`'s five `MetricResult` construction sites. `MetricContext.support()` now has exactly ONE caller in `registry.py`; `compute` has none. Eleven of the twelve-defect register of 2026-08-01 are closed; D12 remains and closes in step 4.
+- Both verdict merge orders, all five key insertion orders and both protected-set derivations preserved byte for byte — proven by executing a replica on clustered and unclustered contexts before the installer was written, asserting `list(old) == list(new)` rather than mere equality.
+- `1be72e4`: README test badge 4278 → 4300. `58929e9` was RED on the remote — `test_readme_test_count_equals_the_suite_size_ratchet_exactly` asserts equality with no tolerance.
+
+### Failed (and why)
+- The step-3c code installer's first dry run REFUSED on three committed project artifacts, because its stray-artifact check globbed `*_manifest.json` repository-wide. A guard that fires on correct state teaches the operator to ignore the checks beside it. Replaced by a tracked-versus-untracked test, scoped to the directories these installers write to.
+- Its second version refused a correct patch, asserting `_reject_registry_owned_keys` has a 2-statement body where it has 3. Replaced by byte-identity comparison of every top-level definition: exactly one added, one changed, none removed.
+- The test-repair installer applied and then failed with `NameError: ast is not defined` — its four helpers were placed at module level in a file that imports `ast` only inside function bodies. The stand-in used to verify it DID import `ast` at the top: a fixture chosen to agree with its author. Reverted and replaced by a version nesting the helpers.
+- A diagnostics test asserted a contract that never existed. Only two of `compute`'s five construction sites merge `verdict.metadata`; `integrated_calibration_index` is applicable, returns `nan`, and lands on the non-finite branch, which does not.
+- A ratchet-entry format derived from the MAXIMUM line width of the preceding entry inherited a single 92-character outlier as the width for a whole new entry. Replaced by the 90th percentile.
+- A citation asserted from memory ("line 1966"), then a verification search whose needles included `download_finngen` matched line 594 — an enumeration of script names — and reported success on a line recording nothing. Narrowed to diagnostic phrases, the third attempt found the genuine record at line 602.
+
+### Learned
+- A RATCHET BUMP CHANGES THE TREE AFTER THE LAST EXECUTING RUN. The sequence must be: bump, EXECUTE the README and ratchet tests (thirty seconds), then commit. `--collect-only --assert-suite-size` exercises collection and executes nothing, so it cannot catch a coupling that lives in an assertion. This is how `58929e9` reached the remote red.
+- A VERIFICATION THAT AGREES WITH ITS AUTHOR FOR THE WRONG REASON is more dangerous than none. Two instances in one session: a stand-in fixture matching the author's assumption rather than the real file, and a search needle matching prose rather than the record.
+- AN INSTALLER MUST NOT BACK UP A FILE IT WILL NOT WRITE. The step-3c installer left a manifest listing `tests/EXPECTED_SUITE_SIZE`; `--revert` would have restored the ratchet to 4278. Proven by the ratchet installer recording an identical `sha256_before` three and a half hours later.
+- `MetricMetadataKey` is a `(str, Enum)` mixin: `hash(member) == hash(member.value)`, so a plain string and its enum member are THE SAME dictionary key. Insertion order is therefore a precedence question, not a formatting one.
+- `-Encoding Byte` is Windows PowerShell 5.1 only; PowerShell 7 requires `-AsByteStream`. `[System.IO.File]::ReadAllBytes` works on both.
+
 ## 2026-07-31 — the priority was backwards, and the citation did not resolve
 
 Ratchet 4121, unchanged. Documents only. Session record:
