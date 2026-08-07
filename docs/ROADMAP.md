@@ -5894,3 +5894,126 @@ between. A reader checking only the literal claim would discharge it wrongly.
 comparison rests on the coverage OPCOV-1 says is thin. **Step 6 -- the
 cutover**, which does NOT have to reckon with GUARD-1: that was measured today
 and discharged. It must reckon with the absence GUARD-1 stood in for.
+
+
+## ROADMAP delta -- 2026-08-07: the addendum. Durability was asserted and not measured, and the tooling that asserts it is on a clock.
+
+Commits: `0f3f0eb` (README restructure), `db61455` (five one-shot README
+patchers removed). Base `8ff555f`. Both pushed. Measurement record:
+docs/measurements/MEASUREMENT_2026-08-07_drive-documentation-gap.md
+
+Ratchet 4353, unchanged throughout. No production code changed.
+
+### 1. THE DOCUMENTATION TREE WAS NOT ON GOOGLE DRIVE
+
+272 of 273 markdown documents were missing from
+`genvarcla:genomic-variant-classifier/docs`, measured by `rclone check
+--one-way --combined` and corroborated by `rclone lsjson` (one entry) and
+`rclone size` (1 object, 12,421 bytes). The destination had not moved since
+2026-07-06.
+
+Remediated the same session: 272 transferred, then `0 differences found` and
+`273 matching files`, 3.386 MiB.
+
+DRIVE-1 STAYS OPEN ANYWAY. Ninety minutes later the check returned one
+difference -- `CHANGELOG.md`, because `db61455` had appended to it. The gap is
+closed; the CONDITION is not, because nothing enforces the sync. Discharging on
+the remediation would close the symptom and lose the condition.
+
+### 2. RCLONE IS NOT BEING RETIRED. ITS SHARED CREDENTIAL IS.
+
+An earlier framing of mine -- "the Drive remote is on borrowed time" -- invited
+the question of what replaces rclone. Nothing does. What is being retired is the
+OAuth client identifier bundled with rclone and shared by every rclone user;
+Google will begin charging for requests against it "later in 2026, following 90
+days of notice". Creating one's own is now required rather than recommended.
+
+The dependency is a Google Cloud project, and INCIDENT_2026-04-29 deleted the
+one this project had. Billing need not be enabled.
+
+### 3. THE README STOPS BEING A SECOND ROADMAP
+
+502 -> 324 lines, 26,317 -> 16,445 bytes; 137 insertions, 315 deletions. 187
+lines carried through untouched, which is what preserves the two roster gates by
+CONSTRUCTION: the suite was green at `8ff555f`, proving the model and agent
+tables already equalled the live rosters, so carrying them forward byte-for-byte
+needs no re-derivation. Both roster comparisons report a delta of zero.
+
+Five one-shot README patchers removed, their rationale archived in the changelog
+in the same commit. Whether the deletion moved the suite was MEASURED -- four
+test modules `rglob` the whole of `scripts/`, and grep cannot distinguish a
+module-level parametrised sweep from a loop inside a test body. Moving the five
+aside, collecting, and moving them back settled it: 4353 -> 4353, with `git
+status` empty in between proving the restore was byte-identical.
+
+### 4. CONTINUOUS INTEGRATION CONFIRMS 4353 ON A SECOND PLATFORM
+
+`3ddf617`, `8ff555f` and `0f3f0eb` all completed successfully on both the `CI`
+and `CI failure alert` workflows. `ci.yml:384` passes `--assert-suite-size`, so
+the Linux runner collected exactly 4353 -- the first evidence for that number
+from a machine other than the development laptop. This file's own header records
+why it matters: the collected count is environment-independent while the
+passed/skipped split is not.
+
+### 5. SEVENTEEN DEFECTS OF THE AUTHOR'S IN ONE SESSION, ALL CAUGHT BEFORE THE
+TREE, AND ONE PATTERN
+
+A conclusion that agreed with its author for the wrong reason. The full list is
+in docs/SESSION_2026-08-06_op1-step4-selectors.md sections 8 and in the
+changelog; the ones added after that document was written are: a probe that
+reported the legacy selectors NOT FOUND because it used `getattr(module, name)`
+on what are METHODS; its successor crashing on `\u2192` while printing
+repository source to a code-page-1252 console -- CAUGHT BY A CRASH, NOT BY A
+CHECK; two invented construction calls for `ensemble_completeness_["roster"]`
+and `Orchestrator(...)`, when a green suite already proved what they were
+looking for; a claim that a deleted patcher "would set a gated claim back",
+falsified by reading its anchor; two byte counts predicted rather than computed;
+a dead placeholder constant left in an installer; a Go template given
+PowerShell's backtick-n; and a commit-message rewrapper that split a test
+filename across lines after I had already written a check for exactly that.
+
+Standing lessons added: an interactive PowerShell `else` must share a line with
+the preceding closing brace; any probe printing repository source must call
+`sys.stdout.reconfigure(encoding="utf-8")` first; and stderr must not be merged
+into a pipeline that is about to be parsed.
+
+### 6. OPEN -- THIRTY-SIX items
+
+Thirty-three carried in, ENUMERATED from the step-4 delta rather than recounted.
+Three added. PARKED-1 is filed and closed in the same entry, so it is not among
+them.
+
+EXTRACT-1, SWEEP-1, C2-1, REG-2-b, ICI-1, F1-1, OPCOV-1, GITIGNORE-1, STRUCT-1,
+POP-1b-M03, POP-1b-M07, ZERO-1, INF-1, ABS-1, DEAD-1, DEAD-3, PRE-2, LINT-1,
+F821-1, CMP-1, SUPPORT-1, MERGE-1, JSONKEY-1, RENDER-1, TYPING-1, DIAG-1,
+CHANGELOG-1, CHANGELOG-2, PERSIST-1, BACKUP-1, DOCLOC-1, DOCX-1, CONSOLE-1,
+DRIVE-1, RCLONE-1, PATCH-1.
+
+**DRIVE-1** -- nothing enforces the documentation sync to Google Drive. A
+272-of-273 gap went unnoticed for five weeks and recurred within ninety minutes
+of being closed.
+
+**RCLONE-1** -- the shared Google Drive client identifier retires during 2026.
+Requires a new Google Cloud project, since INCIDENT_2026-04-29 deleted the old
+one.
+
+**PATCH-1** -- `scripts/` holds 114 `patch_*.py` files. Five were removed in
+`db61455`; the rest are NOT uniformly dead, since the imodelsx
+Kolmogorov-Arnold Network repair runs in-process on every ensemble import. The
+triage -- referenced by anything, encodes a superseded value, one-shot or
+idempotent -- is its own commit, and a sweep would be the patchwork this project
+forbids.
+
+**PARKED-1, FILED AND CLOSED BY FALSIFICATION.** A parked README restructure was
+recorded as sitting in a `parked_readme_restructure_2026-07-28` directory under
+Downloads, deferred pending resolution of the badge-update mechanism, and was
+cited three times in this session as a reason to wait. `Test-Path` returns
+False and the directory is empty of any recursive match. The restructure was
+written from scratch instead. Recorded rather than silently dropped, because an
+item that was acted on three times deserves a closure a reader can find.
+
+### 7. NEXT
+
+**OP-1 step 5 -- the shadow comparison**, with OPCOV-1 read first. Step 6's
+cutover has no GUARD-1 constraint; that was discharged 2026-08-06. Outside OP-1:
+the RCLONE-1 client identifier, before the notice lands rather than after.

@@ -1,3 +1,24 @@
+## 2026-08-07 (addendum) — durability was asserted and not measured
+
+Ratchet 4353, unchanged. Commits `0f3f0eb` and `db61455`, both pushed and green
+on Continuous Integration. Measurement record:
+docs/measurements/MEASUREMENT_2026-08-07_drive-documentation-gap.md
+
+### Fixed
+- 272 of 273 markdown documents were MISSING from `genvarcla:genomic-variant-classifier/docs`. Measured by `rclone check --one-way --combined`, corroborated by `rclone lsjson` returning a single entry and `rclone size` returning 1 object at 12,421 bytes against a destination last modified 2026-07-06. Remediated the same session: 272 transferred, then `0 differences found`, `273 matching files`, 3.386 MiB.
+- Continuous Integration confirms **4353 collected on the Linux runner** for `3ddf617`, `8ff555f` and `0f3f0eb`. `ci.yml:384` passes `--assert-suite-size`, so this is the first cross-platform evidence for the number; every other measurement this session came from one Windows laptop.
+
+### Failed (and why)
+- A `rclone copy --dry-run` reporting `Transferred: 272 / 272` beside `Checks: 1 / 1` was read as evidence and then NOT acted on, because the counter is ambiguous about which side was listed. `rclone check --combined` itemises every file and is the instrument that settled it. The inference was right; acting on it would still have been wrong.
+- `Group-Object { $_.Substring(0,1) }` threw 278 times because `2>&1` merged rclone's stderr into the pipeline as `ErrorRecord` objects, which have no `Substring`. The answer came through anyway, which is worse: a command that emits 278 errors and a correct answer teaches you to ignore errors.
+- I framed RCLONE-1 as "the Drive remote is on borrowed time" and let the question "what replaces rclone" stand. **rclone is not being retired.** One shared credential is. The imprecision pointed at a much larger and unnecessary piece of work.
+
+### Learned
+- A REMEDIATION IS NOT A DISCHARGE. Ninety minutes after the Drive sync verified clean, `CHANGELOG.md` already differed, because `db61455` had appended to it. The 272-document gap is closed; the condition — that nothing enforces the sync — is not. DRIVE-1 stays open.
+- WHETHER A DELETION MOVES THE SUITE IS A MEASUREMENT. Four test modules `rglob` the whole of `scripts/`, and grep cannot distinguish a module-level parametrised sweep from a loop inside a test body. Moving five files aside, collecting, and moving them back settled it in twenty seconds.
+- A GREEN SUITE IS EVIDENCE ABOUT THE THINGS IT GATES. Two probes were written to re-derive the base-model roster and the agent registry from live objects; both used the wrong construction API and failed. Neither was needed: the suite was green, which already proved the README tables equalled those rosters, so carrying the tables forward byte-for-byte preserved the gates by construction.
+- SEVENTEEN DEFECTS OF THE AUTHOR'S IN ONE SESSION, ALL CAUGHT BEFORE THE TREE, ONE PATTERN — a conclusion that agreed with its author for the wrong reason. One was caught by a `UnicodeEncodeError` crash rather than by any check written to catch it, and is recorded as luck rather than method.
+
 ## 2026-08-07 — the README stops being a second roadmap, and its five one-shot patchers go with it
 
 Ratchet 4353, unchanged. Commits `0f3f0eb` (the restructure) and this one (the
