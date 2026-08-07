@@ -6351,3 +6351,127 @@ Consolidation anchor is dictionary insertion order.
 **PROD-1 and GATE-1**, both unblocked now that an identity chain exists. Then
 **DRIFT-1 with README-1**, then **OP-1 step 5** against STEP K, then **OP-2**.
 **RETRAIN-GATE** waits on the five findings above.
+
+
+## ROADMAP delta -- 2026-08-07: PROD-1 Commit A. The service stops publishing constants nobody maintained, and publishes no metric at all.
+
+Commit `4d334f9`. Base `63e5da0`. Pushed. Session record:
+docs/SESSION_2026-08-07_prod1a-runtime-attribution.md
+
+Ratchet 4417 -> 4449 (+32). Armed full suite 4443 passed, 6 skipped, 0 failed
+in 14m39s; 4449 collected. Skip surface unchanged at 6.
+
+### 1. FIVE CONSTANTS, WRITTEN ONCE AND DEFENDED BY THE SUITE
+
+`api/main.py` carried five provenance constants from `ae1853b`, 2026-03-25,
+under a comment reading "update after each training run". Never updated,
+through Runs 9 to 16. `HOLDOUT_AUROC = 0.9847` fused a Run-8 sixty-four-feature
+figure with 154,404, the validation split size of the Runs 10-14 cohort, and
+the same digits are Run 15's unseen-gene F1.
+
+FOUR OF THE FIVE WERE PINNED BY LITERAL IN test_api.py. The suite defended
+them, which is why they survived four and a half months.
+
+The sharpest statement: `/info` returned the module constant `"phase2-v1"`
+while `PipelineMetadata.model_version` travels inside the artifact. The
+endpoint did not read the thing it claimed to describe.
+
+### 2. FOUR ORTHOGONAL AXES
+
+ArtifactResolutionStatus (can these bytes be identified), DeploymentAlignment
+(are they what the registry DECLARES), RosterAlignment (does the executable
+roster match, given a declared serving projection), and
+EvaluationApplicabilityStatus (may a metric measured on that record be shown as
+evidence for THIS artifact).
+
+Collapsing any two recreates the drift with better types. A registered SHADOW
+artifact served by accident must not look healthy merely because its digest
+resolves.
+
+### 3. NO METRIC IS PUBLISHED, AND THAT IS THE POINT
+
+`InferencePipeline.from_variant_ensemble` excludes `cnn_1d`, so the deployable
+artifact is a TWELVE-model projection of a THIRTEEN-model trained ensemble. A
+metric measured on the record does not automatically describe these bytes.
+RESOLVING A DIGEST AUTHORISES IDENTITY, NOT EVIDENCE.
+
+`ServingProjection` makes the omission declarative: intentional is
+SERVING_SUBSET, undeclared is UNKNOWN, anything further missing is
+INCONSISTENT. Without it a missing CatBoost and a missing `cnn_1d` look
+identical at runtime.
+
+### 4. THE ARTIFACT IS MEASURED AROUND THE LOAD
+
+Two digests, before and after, compared. A digest taken only before describes
+bytes that may have been replaced during the load; one taken only after
+describes bytes that may not be what was deserialised.
+
+### 5. FIVE AUTHOR DEFECTS, NONE CAUGHT BY REVIEW
+
+A name referenced and never imported (NameError on every call to that
+endpoint). `MagicMock` unable to pickle through `InferencePipeline.save`, so
+the three tests built for the real serialisation path never ran. And the
+undefined-name check written to catch the first, which reported a lambda
+parameter as undefined and REFUSED A CORRECT FIX -- because its self-test used
+three cases the author chose, omitting lambdas and nested definitions.
+
+The proof now runs EIGHT cases, including one that fails if the checker is
+weakened to make the others pass.
+
+The sabotage matrix found the fifth: a test named "a registered shadow artifact
+is not production" actually constructed "no production declared", so the branch
+a mutation targeted never executed. The test's NAME claimed more than the test
+checked.
+
+### 6. OPEN -- FIFTY-THREE items
+
+Forty-nine carried in, ENUMERATED from the REGISTRY-1 documentation delta. Four
+added. 49 + 4 = 53.
+
+EXTRACT-1, SWEEP-1, C2-1, REG-2-b, ICI-1, F1-1, OPCOV-1, GITIGNORE-1, STRUCT-1,
+POP-1b-M03, POP-1b-M07, ZERO-1, INF-1, ABS-1, DEAD-1, DEAD-3, PRE-2, LINT-1,
+F821-1, CMP-1, SUPPORT-1, MERGE-1, JSONKEY-1, RENDER-1, TYPING-1, DIAG-1,
+CHANGELOG-1, CHANGELOG-2, PERSIST-1, BACKUP-1, DOCLOC-1, DOCX-1, CONSOLE-1,
+DRIVE-1, RCLONE-1, PATCH-1, NAMING-1, PROD-1, GATE-1, DRIFT-1, README-1,
+DOWNLOADSHADOW-1, ROOTPY-1, SMOKE-1, PIPELINE-1, LSIF-1, ROSTER-1, EVALPROV-1,
+EWCSEL-1, SERVEROSTER-1, PIPEMETA-1, HEALTHSEM-1, ARTIFACTLINEAGE-1.
+
+**SERVEROSTER-1** -- the deployable artifact intentionally excludes `cnn_1d`,
+so the executable serving roster differs from the trained ensemble roster. Any
+evaluation measured on the full ensemble is not automatically valid evidence
+for the serving artifact.
+
+**PIPEMETA-1** -- `PipelineMetadata.val_auroc` is an unqualified scalar
+evaluation result embedded in the ARTIFACT FORMAT. It lacks population and
+protocol identity and must never be promoted to deployment evidence. `/info`
+deliberately does not read it, and a test proves that.
+
+**HEALTHSEM-1** -- `/health` combines liveness and readiness in one endpoint.
+Commit A added `live`, `ready` and `model_attributed` fields; splitting into
+`/health/live` and `/health/ready` is deferred.
+
+**ARTIFACTLINEAGE-1** -- trained model identity and derived serving-artifact
+identity are related by EXPORT LINEAGE, not identity. One `ModelRecord` is
+currently asked to describe two objects. The right long-term shape is a
+`DeploymentArtifact` carrying its own digest and served roster with a
+`parent_model_record_id`; introducing it during PROD-1 would have multiplied
+scope.
+
+**PROD-1 STAYS OPEN.** Commit A fixed its stated defect -- the service no
+longer advertises metrics it cannot attribute -- but nothing yet publishes
+ATTRIBUTABLE evidence, and that is Commit C. Closing an item because its most
+visible symptom is gone is what DRIVE-1 was kept open to avoid.
+
+**PIPELINE-1 RESTATED.** One root cause, four call sites: `InferencePipeline`
+has neither `_prepare` nor `base_models`. `continual_trainer.py:387` calls
+`current_pipe._prepare(...)`; `:404` and `:407` call `current_pipe.base_models`;
+and `:505` carries `tuple(new_pipe.base_models)` -- written by this author and
+shipped in `372cea1`. All four are unreachable behind the fail-closed guard,
+and all four are still wrong code in the tree. Repair belongs to Commit B,
+which already touches that file's registry surface.
+
+### 7. NEXT
+
+**Commit B (GATE-1 / REGISTRY-1c)**, then **Commit C (SealedEvaluation)** after
+a field-by-field source census, then **DRIFT-1 with README-1**, **OP-1 step 5**
+against STEP K, **OP-2**, and **RETRAIN-GATE** last.

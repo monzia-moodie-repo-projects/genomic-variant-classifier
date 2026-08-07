@@ -5889,6 +5889,10 @@
 #   programming interface stops publishing constants nobody maintained, and
 #   starts reporting what it is actually serving.
 #
+#   BASE 63e5da0 -> RESULT 4d334f9. Added in the documentation
+#   commit, because a result commit cannot be named by the commit that
+#   creates it.
+#
 #   api/main.py carried five provenance constants written in ae1853b on
 #   2026-03-25, under a comment reading "update after each training run". They
 #   were never updated -- through Runs 9 to 16. `HOLDOUT_AUROC = 0.9847` fused

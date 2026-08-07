@@ -1,3 +1,25 @@
+## 2026-08-07 (PROD-1 Commit A) — the service reports what it is serving
+
+Ratchet 4417 → 4449 (+32). Commit `4d334f9`, base `63e5da0`. Session record:
+docs/SESSION_2026-08-07_prod1a-runtime-attribution.md
+
+### Fixed
+- Five provenance constants written in `ae1853b` on 2026-03-25 under a comment reading "update after each training run" — never updated, through Runs 9 to 16 — are gone. `HOLDOUT_AUROC = 0.9847` fused a Run-8 sixty-four-feature figure with 154,404, the validation split size of the Runs 10–14 cohort; the same digits are Run 15's unseen-gene F1. Four of the five were pinned by literal in `test_api.py`, so the suite defended them.
+- Model identity is now derived from the digest of the bytes actually loaded, resolved against `deployments/registry.v1.json`. `API_VERSION = "2.0.0"` covers the software contract only; `PIPELINE_VERSION` was retired rather than narrowed, because one symbol was serving as both the OpenAPI version and prediction provenance.
+- Four orthogonal vocabularies, because they answer four different questions. A registered **shadow** artifact served by accident is not ready, however cleanly its digest resolves.
+- `ServingProjection` makes the twelve-of-thirteen serving roster declarative, so an intentional omission is distinguishable from silent model loss.
+- The artifact is measured **before and after** the load and the two are compared; `ArtifactChangedDuringLoadError` is caught separately, so a pipeline whose bytes moved mid-load is not served.
+
+### Failed (and why)
+- `ModelAttributionResponse` was referenced in the `/info` handler and never imported — `NameError` on every call. No import check and no collection sees this: it is F821's territory, and F821-1 is open.
+- `InferencePipeline.save` is `joblib.dump`, and `MagicMock` will not pickle, so the three tests built to drive the real serialisation path never ran at all.
+- The undefined-name check written to catch the first collected only the **outer** function's parameters, so a `lambda f:` left `f` looking undefined. It reported that against `main.py` and refused a correct fix.
+
+### Learned
+- AN INSTRUMENT'S PROOF CASES ARE AS MUCH A PLACE FOR THE AUTHOR'S BIAS AS THE INSTRUMENT. The checker's self-test passed on three cases the author chose, omitting lambdas and nested definitions — the two commonest binding forms in Python outside assignment. It now runs eight, two chosen specifically to catch that blind spot and one that **fails if the checker is weakened** to make the others pass.
+- A TEST'S NAME CAN CLAIM MORE THAN THE TEST CHECKS. The sabotage matrix found `test_a_registered_shadow_artifact_is_not_production` constructing "no production declared", so the branch a mutation targeted never executed. Twelve mutations, twelve detected — only after that hole was closed.
+- RESOLVING A DIGEST AUTHORISES IDENTITY, NOT EVIDENCE. The served artifact is a twelve-model projection of a thirteen-model evaluated ensemble, so Commit A publishes no metric in any state — including the two states where the service is ready to serve.
+
 ## 2026-08-07 (REGISTRY-1) — a class referenced four times and defined nowhere
 
 Ratchet 4353 → 4417 (+64). Commit `372cea1`, base `5298e90`. Session record:
