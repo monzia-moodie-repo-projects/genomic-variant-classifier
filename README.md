@@ -12,78 +12,86 @@ A multi-modal machine learning system for the five-tier clinical classification 
 genomic variants — **Pathogenic, Likely Pathogenic, Uncertain Significance, Likely Benign,
 and Benign** — in accordance with ACMG/AMP guidelines.
 
-The system integrates genomic sequence, population-stratified allele frequencies, protein
-structure and language-model representations, gene-network topology, tissue-specific
-expression, and curated gene–disease evidence into a **95-feature** matrix, consumed by a
-**13-model** stacking ensemble. It is served as a FastAPI REST service and supervised by an
-autonomous layer of **22 specialised agents** communicating over a typed inter-agent
-message bus.
+It integrates genomic sequence, population-stratified allele frequencies, protein structure
+and language-model representations, gene-network topology, tissue-specific expression, and
+curated gene–disease evidence into a **95-feature** matrix, consumed by a **13-model**
+stacking ensemble. It is served as a FastAPI REST service and supervised by an
+autonomous layer of **22 specialised agents** communicating over a typed message bus.
 
 Training draws on a cohort of over four million ClinVar variants across more than 28,000
-genes, annotated from some twenty biological databases through a multi-stage pipeline.
+genes, annotated from some twenty biological databases.
 
-> Figures throughout this document describe a snapshot and are refreshed after each full
-> training run. `docs/ROADMAP.md` is the authoritative, continuously maintained record.
+> This file is a summary. `docs/ROADMAP.md` is the authoritative, continuously maintained
+> record; `docs/CHANGELOG.md` is the append-only session ledger.
 
 ---
 
 ## Purpose
 
-This is a **whole-genome** variant classifier, and it is not a benchmarking exercise. It is
-a multi-goal research system, and the goals reinforce one another.
+A **whole-genome** variant classifier, and not a benchmarking exercise. Four goals that
+reinforce one another:
 
-**Clinical.** To make diagnosis more accurate, more detailed, more personalised, and
-clearer — returning not a bare score but a calibrated, interpretable, honestly-bounded
-assessment that a clinician can act on and interrogate.
+- **Clinical** — return not a bare score but a calibrated, interpretable, honestly-bounded
+  assessment a clinician can act on and interrogate.
+- **Biological** — establish which genes, which variants, which combinations, and by what
+  mechanism contribute to disease. Prediction is the instrument; understanding is the object.
+- **Methodological** — measure the tools themselves. Which algorithms genuinely work on this
+  problem, where they fail, and why. The models are objects of study, not just instruments.
+- **Translational** — new methodology that makes personalised medicine more rigorous.
 
-**Biological.** To bring greater scientific understanding and insight into the contribution
-of genes to the development and progression of human disease — which genes, which variants,
-which combinations, and by what mechanism. Prediction is the instrument; understanding is
-the object.
-
-**Methodological.** To measure the performance of, and better understand, the very tools
-used to analyse genomic data. Which machine-learning models genuinely work on this problem,
-where they fail, why, and how they can be improved. Here the models are objects of study in
-their own right, not merely instruments pointed at one.
-
-**Translational.** To create new methodology that makes personalised medicine more
-scientifically rigorous, more precise, and more reliable.
-
-### How this shapes the system
-
-**Attribution over prediction.** The per-variant probability is the visible output; the
-underlying aim is to establish which genes and which evidence actually carry the signal,
-and how confidently that can be claimed.
-
-**Fair algorithm comparison.** Every base model is trained on identical folds, identical
-features, and identical splits, so the differences between them are attributable to the
-algorithms rather than to their inputs. Preserving that invariant is a first-class
-engineering concern, not a side effect.
-
-**Modality integration, not concatenation.** DNA, RNA, protein, gene networks — and, as a
-future phase, clinical imaging — each describe the same biology from a different angle. The
-long-term aim is a representation that learns the relationships between those views, rather
-than a wider feature vector.
-
-**Uncertainty as a clinical product.** A variant of uncertain significance is the case that
-matters most. The system is built so that "I do not know" is a calibrated, auditable,
-first-class output rather than a probability loitering near 0.5.
-
-**Generalisation to unseen genes.** Splits are gene-disjoint by construction. A model that
-scores well only on catalogued variants in catalogued genes has not solved the problem this
-project exists to solve.
+Three constraints follow and are treated as first-class engineering concerns: every base
+model sees **identical folds, features and splits**, so differences are attributable to the
+algorithms; splits are **gene-disjoint**, so scoring well only on catalogued variants in
+catalogued genes does not count as solving the problem; and *"I do not know"* is a
+**calibrated, auditable output** rather than a probability loitering near 0.5.
 
 ---
 
 ## Architecture
 
-The classifier is a multi-branch fusion model wrapped in an autonomous supervisory layer.
+A multi-branch fusion model wrapped in an autonomous supervisory layer.
 
-### Tabular branch
+```
+   Population genetics . Conservation . Functional predictors . Gene-disease
+   knowledge bases . Protein structure . Expression . Splice mechanics .
+   Protein-protein interaction topology
+                              |
+                    Annotation pipeline -> Feature engineering
+                              |
+     +------------+-----------+-----------+------------+
+     |            |                       |            |
+  Tabular      Sequence                 Graph      Histopathology
+  ensemble     1D-CNN over              GAT over    [PLANNED]
+  (multi-      ref/alt windows          STRING PPI
+  family)      + ESM-2 / DNA-LM         + hetero-KG
+     |            |                       |            |
+     +------------+-----------+-----------+------------+
+                              |
+                  Stacking meta-learner
+                  + calibration + conformal sets + uncertainty
+                              |
+                    Clinical evaluation
+                              |
+     +------------------------+------------------------+
+     |                                                 |
+  FastAPI REST service                   Autonomous agent layer
+  auth . rate limiting                   typed message bus
+  Prometheus metrics . Docker            continual learning . model registry
+```
 
-A stacking meta-learner trained on out-of-fold predictions from **thirteen base
-classifiers** spanning six algorithm families. The roster is deliberately diverse: the
-point is to compare families, not to find one winner and discard the evidence.
+| Branch | What it contributes | Status |
+|---|---|---|
+| Tabular | 13 base classifiers over the feature matrix, stacked and calibrated | live |
+| Sequence | 1D convolution over ref/alt context windows; ESM-2 and Nucleotide Transformer variant-effect signals | live |
+| Graph | Graph Attention Network over STRING, plus a heterogeneous knowledge graph; both enter the matrix as *features*, not as classifiers | live |
+| Histopathology | Whole-slide imaging over TCGA cohorts, linking prediction to tissue morphology | planned |
+
+---
+
+## Base models
+
+Thirteen classifiers spanning six algorithm families. The roster is deliberately diverse:
+the point is to compare families, not to find one winner and discard the evidence.
 
 | # | Key | Model | Family |
 |---:|---|---|---|
@@ -101,72 +109,10 @@ point is to compare families, not to find one winner and discard the evidence.
 | 12 | `mc_dropout` | Monte-Carlo Dropout | Bayesian uncertainty |
 | 13 | `deep_ensemble` | Deep Ensemble | Bayesian uncertainty |
 
-Base-model predictions are combined by the logistic-regression meta-learner and calibrated
-on a gene-disjoint partition. The ensemble's composition is written into the run artifacts,
-so *which models actually trained* is a recorded fact rather than an assumption — a base
-model whose out-of-fold step fails raises, rather than quietly leaving the roster.
-
-The Graph Attention Network is deliberately **not** in this table. It contributes
-`gnn_score`, a feature, and produces no out-of-fold column; it is not a base classifier.
-
-### Sequence branch
-
-A 1D convolutional network over genomic context windows centred on the variant, encoding
-the reference and alternate alleles together with their difference — so the model sees the
-*change*, not merely the surrounding sequence. Protein-language-model representations
-(ESM-2) and DNA-language-model representations (Nucleotide Transformer) contribute
-variant-effect signals derived from masked-language-model likelihoods and embedding
-geometry.
-
-### Graph branch
-
-A Graph Attention Network over the STRING protein–protein interaction network supplies
-gene-level network context, with a heterogeneous knowledge-graph variant incorporating
-pathway membership. These yield gene-level priors that enter the tabular matrix as
-features rather than as independent classifiers.
-
-### Histopathology branch (planned)
-
-A whole-slide imaging branch over TCGA cohorts is a tracked future phase, linking
-variant-level prediction to observable tissue morphology. It is not yet implemented; see
-`docs/ROADMAP.md`.
-
-```
-   Population genetics . Conservation . Functional predictors . Gene-disease
-   knowledge bases . Protein structure . Expression . Splice mechanics .
-   Protein-protein interaction topology
-                              |
-                    Annotation pipeline
-                              |
-                    Feature engineering
-                              |
-     +------------+-----------+-----------+------------+
-     |            |                       |            |
-  Tabular      Sequence                 Graph      Histopathology
-  ensemble     1D-CNN over              GAT over    [PLANNED]
-  (multi-      ref/alt windows          STRING PPI
-  family)      + ESM-2 / DNA-LM         + hetero-KG
-     |            |                       |            |
-     +------------+-----------+-----------+------------+
-                              |
-                  Stacking meta-learner
-                  + probability calibration
-                  + conformal prediction sets
-                  + epistemic / aleatoric uncertainty
-                              |
-                    Clinical evaluation
-                              |
-     +------------------------+------------------------+
-     |                                                 |
-  FastAPI REST service                   Autonomous agent layer
-  auth . rate limiting                   typed message bus
-  Prometheus metrics                     shared state + orchestrator
-  Docker                                 continual learning + EWC
-                                         versioned model registry
-                                         shadow -> production promotion
-```
-
----
+The ensemble's composition is written into the run artifacts, so *which models actually
+trained* is a recorded fact: a base model whose out-of-fold step fails raises rather than
+quietly leaving the roster. The Graph Attention Network is deliberately absent from this
+table — it contributes the `gnn_score` feature and produces no out-of-fold column.
 
 ---
 
@@ -201,140 +147,15 @@ variant-level prediction to observable tissue morphology. It is not yet implemen
 | Coding context | 2 | `codon_position`, `dbsnp_af` |
 | **Total** | **95** | |
 
-The feature count lives in exactly one place — `EXPECTED_TABULAR_FEATURE_COUNT` — and is
-enforced against the feature list at import time. A source that fails to populate causes a
-loud failure rather than a silent column of zeros.
-
----
-
-## Evaluation as evidence
-
-A number in a clinical report is a claim, and a claim needs to say what it measured, over
-which rows, and whether it can be trusted. The evaluation layer is built so that every
-reported quantity carries that context rather than arriving as a bare float.
-
-**One computation path.** Metrics are computed once, by a typed registry of descriptors.
-The report's familiar flat fields — `auroc`, `auprc`, `mcc`, `f1` — are *derived views* of
-those typed results, not independent calculations. Two implementations of one quantity is
-how they come to disagree, and this stack found three such disagreements by measurement
-before the duplication was removed. An abstract-syntax-tree guard now refuses any direct
-metric call in the report-construction path, and counting wrappers confirm each kernel runs
-exactly once.
-
-**A refusal is a result.** A metric that cannot be computed does not return zero and does
-not raise. It returns a typed result carrying its status, the reason, and the applicability
-verdict that produced it. The area under the precision-recall curve over a single-class
-cohort is `undefined` with reason `binary_class_support_required` — which is a scientific
-finding, not an error. Silence and zero are both lies; a stated refusal is neither.
-
-**Thresholds are declared, never hidden.** Metrics requiring a decision threshold carry it
-as declared provenance on their descriptor — value, operator, and metric identity — rather
-than as a number written into reporting code where no artifact can record it.
-
-**One binning.** The expected and maximum calibration errors are two summaries of a single
-binned table, built once. Binning twice is how they came to disagree about every interior
-bin edge, a defect that survived seventeen days because no cohort had placed probability
-mass exactly on a boundary.
-
-**Populations are named or admitted to be unnamed.** Every result carries an
-`EvaluationPopulation`. When the caller supplies a source identity the population is
-attributed and carries a membership fingerprint; without one it is unattributed, has *no*
-fingerprint, and comparison against any other population returns `UNKNOWN` rather than a
-false equality. Attribution governs what may be *claimed*, never what was *measured* — the
-same cohort yields identical numbers either way.
-
-**Absence is explicit.** Strict JavaScript Object Notation refuses a non-finite number,
-because a `NaN` in an evidence artifact is either a computation that failed silently or an
-absent estimate wearing a number's clothes. So a value that cannot be persisted serialises
-as `null` *and* appears in a parallel absence map naming its cause — `undefined_on_cohort`
-when the data cannot support the estimand, `withheld_by_input_gate` when the model output
-was unusable. The first is a property of the cohort and a legitimate finding; the second is
-a defect to investigate. A report over a degenerate cohort is therefore still an artifact,
-recording its prevalence, its provenance, and precisely why each predictive metric was
-unavailable.
-
-**Model comparisons prove they compared like for like.** A ranking of models scored over
-different cohorts is not a ranking of models, so `compare_models` constructs one population
-and hands the same object to every model. When any submitted model lacks a valid value for
-the ranking metric the ranking is refused *entirely* — every row preserved in submission
-order, no rank asserted, and the blocking model named. Omitting the model and ranking the
-rest would present a comparison of fewer models than were submitted; sorting with a missing
-value places it last, which reads as *worst* rather than *not evaluated*.
-
-**Input gates precede every library call.** Reference labels, ranking scores, and
-probabilities are validated on separate channels before any metric routine sees them. A
-score is an ordering and may leave the unit interval; a probability may not, because it
-feeds calibration and thresholds. The distinction matters: an operating-point sweep once
-counted every unusable prediction as a predicted negative, moving a reported clinical
-decision threshold from a sensitivity of 0.90 to 0.50 with no exception and no warning.
-
-**Deferred work is checked, not described.** `docs/CARRIED_ITEMS.md` is the single source of
-truth for outstanding items, and every entry carries a predicate that decides its status by
-running code. An item recorded as open whose condition has gone is a test failure; so is a
-discharged item whose condition returns. Items that genuinely cannot be checked from the
-repository are listed as such, so their uncheckability is a stated fact rather than an
-accident.
-
----
-
-## Uncertainty and conformal prediction
-
-Point probabilities are insufficient for clinical use, so the system carries an explicit
-uncertainty layer.
-
-**Calibration.** Post-hoc probability calibration is fitted on a partition of genes the
-base models never trained on, so the calibrated probabilities are honest about
-generalisation to new genes rather than to new variants in familiar genes.
-
-**Conformal prediction sets.** Rather than forcing every variant into a class, the
-conformal layer emits a *set* — `{pathogenic}`, `{benign}`, `{pathogenic, benign}` (defer),
-or empty (out of domain) — with finite-sample coverage guarantees under exchangeability.
-Label-conditional (Mondrian) calibration is used so that coverage holds for the rare
-pathogenic class rather than being satisfied on average by the majority class.
-
-**Epistemic and aleatoric decomposition.** Monte-Carlo Dropout and Deep Ensemble wrappers
-separate uncertainty the model could reduce with more data from uncertainty inherent to the
-variant, flagging cases that warrant human expert review.
-
----
-
-## Drift detection and continual learning
-
-Biological reference data is not static. ClinVar reclassifies variants, gnomAD cohorts
-grow, and functional-score models are retrained upstream. A classifier that ignores this
-is accurate on the day it ships and quietly wrong thereafter.
-
-**Statistical detectors.** Population Stability Index, Kolmogorov–Smirnov, Maximum Mean
-Discrepancy, the Székely–Rizzo energy statistic, and adaptive windowing for streaming
-ingestion. A reference profile is committed to the repository so drift can be measured
-against a fixed baseline without moving cohort data.
-
-**"Not checked" is its own answer.** The monitor reports `0` no drift, `1` monitor,
-`2` retrain, `3` urgent retrain — and `4` **NOT CHECKED**. That fifth code exists because
-*"I looked and found nothing"* and *"I could not look"* are different statements, and
-reporting the second as the first is how a monitoring system lies. Where a test cannot be
-computed from the committed profile, it reports itself as not computed rather than as
-passing.
-
-**Three classes of drift are tracked separately** — covariate drift as upstream data
-expands, label drift as ClinVar reclassifies, and concept drift as new biology changes
-what the features mean. They have different remedies and are not conflated.
-
-**Adaptive retraining.** When drift exceeds configured thresholds, retraining is triggered
-using Elastic Weight Consolidation to preserve stable biological signal while
-incorporating new evidence, with importance weighting and temporal decay across releases.
-
-**Lifecycle.** A versioned model registry moves candidates through staging, shadow
-deployment, and production promotion. New models run in parallel with the incumbent before
-they replace it.
-
----
+The count lives in exactly one place — `EXPECTED_TABULAR_FEATURE_COUNT` — and is enforced
+against the feature list at import time. A source that fails to populate fails loudly
+rather than contributing a column of zeros.
 
 ## Autonomous agent layer (22 agents)
 
-Under `src/genomic_variant_classifier/agent_layer/`, twenty-two specialised agents inherit
-from a common `BaseAgent` and communicate over a typed message bus, with a JSON-persisted
-shared blackboard and an orchestrator that schedules execution and routes messages.
+Under `src/genomic_variant_classifier/agent_layer/`, twenty-two agents inherit from a common
+`BaseAgent` and communicate over a typed message bus, with a JSON-persisted shared
+blackboard and an orchestrator that schedules execution and routes messages.
 
 | Agent | Concern |
 |---|---|
@@ -361,10 +182,34 @@ shared blackboard and an orchestrator that schedules execution and routes messag
 | `FinOpsAdvisorAgent` | Cost advisory for paid compute |
 | `ProvisioningAgent` | Provisioning for training infrastructure |
 
-Messages whose subjects carry consequence require explicit human approval before the
-receiving agent acts on them. The agent layer monitors itself: `AgentOpsMonitorAgent`
-exists so that a silently dead agent is a detectable condition rather than an absence
-nobody notices.
+Messages carrying consequence require explicit human approval before the receiving agent
+acts. `AgentOpsMonitorAgent` exists so that a silently dead agent is a detectable condition
+rather than an absence nobody notices.
+
+---
+
+## Evaluation, uncertainty, and drift
+
+A number in a clinical report is a claim, so every reported quantity carries what it
+measured, over which rows, and whether it can be trusted.
+
+- **One computation path.** Metrics are computed once by a typed registry; the flat report
+  fields are derived views, not independent calculations.
+- **A refusal is a result.** An uncomputable metric returns a typed status and reason, never
+  zero and never an exception. Silence and zero are both lies.
+- **Populations are named or admitted to be unnamed.** Unattributed populations carry no
+  membership fingerprint, and comparison returns `UNKNOWN` rather than a false equality.
+- **Thresholds and selection policies are declared.** A chosen operating point records the
+  objective, the tie-break, and how many candidates were feasible.
+- **Conformal prediction sets.** `{pathogenic}`, `{benign}`, both (defer), or empty (out of
+  domain), with label-conditional calibration so coverage holds for the rare class.
+- **Epistemic and aleatoric uncertainty** are separated, flagging cases for expert review.
+- **Drift is monitored in three classes** — covariate, label, and concept — with retraining
+  under Elastic Weight Consolidation and a shadow-to-production model registry. The monitor
+  reports `0/1/2/3/4`, where **4 is NOT CHECKED**: *"I looked and found nothing"* and *"I
+  could not look"* are different statements.
+
+Full rationale, incidents, and the defect register: `docs/ROADMAP.md`.
 
 ---
 
@@ -380,60 +225,22 @@ POST /predict         Single variant -> five-tier classification + uncertainty
 POST /batch           Batch classification
 ```
 
-Authentication via `X-API-Key`; rate limiting via `slowapi`; structured JSON logging;
-Prometheus instrumentation. Served from a multi-stage Dockerfile with builder, api, and
-trainer targets.
+Authentication via `X-API-Key`, rate limiting via `slowapi`, structured JSON logging, and
+Prometheus instrumentation, from a multi-stage Dockerfile with builder, api and trainer
+targets.
 
 ---
 
 ## Early results
 
-**These are preliminary and will be refined as the project develops.**
+**Preliminary, and an early waypoint rather than a result.** The Run 15 baseline (sealed
+2026-06-09, commit `032a2ab`) reported a test AUROC of **0.9984** on gene-stratified,
+expert-reviewed ClinVar variants, with a comparable unseen-gene-holdout figure.
 
-The Run 15 baseline (sealed 2026-06-09, commit `032a2ab`) reported a test AUROC of
-**0.9984** on gene-stratified, expert-reviewed ClinVar variants, with a comparable
-unseen-gene-holdout figure. Earlier baselines reported lower values on narrower feature
-sets.
-
-These numbers describe an earlier and narrower configuration of the system than the one
-now in the repository. The feature space, the model roster, the split protocol, and the
-data-integrity gates have all changed since. Treat them as an early waypoint rather than a
-result: a like-for-like table — per-model, per-metric, with the evaluation protocol stated
-alongside — will be published from the next full training run.
-
----
-
-## Repository structure
-
-```
-src/genomic_variant_classifier/
-  agent_layer/   - specialised agents, typed message bus, orchestrator, shared state
-  api/           - FastAPI service, auth, schemas, inference pipeline
-  data/          - database connectors, ETL, split protocol, data preparation
-  evaluation/    - clinical evaluator, benchmark framework, metrics, artifacts
-  models/        - variant ensemble, graph networks, Kolmogorov-Arnold Network,
-                   uncertainty wrappers, sequence CNN
-  monitoring/    - drift detection, reference profiles, performance estimation,
-                   ClinVar tracking, model registry
-  pipelines/     - RNA splice pipeline, protein structure pipeline
-  reports/       - HTML report generation
-  training/      - continual learner, Elastic Weight Consolidation
-  utils/         - shared helpers
-scripts/         - training entry points, preflight gates, drift monitoring,
-                   data preparation, launch runbooks, forensics
-tests/           - unit, integration, and conformal test suites
-docs/
-  ROADMAP.md     - the living record: every change, dated, with its evidence
-  CHANGELOG.md   - append-only session ledger, searchable by error string
-  incidents/     - root-cause records
-  sessions/      - chronological working logs
-  status/        - dated status and remediation reports
-configs/         - configuration
-deploy/          - Grafana dashboards, Prometheus configuration
-```
-
-`docs/ROADMAP.md` is the authoritative history. It preserves what was found, what was
-wrong, and what was done about it, in order.
+That configuration was narrower than the one now in the repository: the feature space, the
+model roster, the split protocol and the data-integrity gates have all changed since. A
+like-for-like per-model table, with the evaluation protocol stated alongside, will be
+published from the next full training run.
 
 ---
 
@@ -471,25 +278,40 @@ Run `--help` on any script for its full argument set.
 
 ---
 
-## Roadmap
+## Repository structure
 
-- **Data expansion.** Continue wiring biological sources into the feature matrix, with
-  each source gated so that a source which fails to populate fails loudly rather than
-  contributing a column of zeros.
-- **Algorithm expansion and benchmarking.** Extend the base roster and run every member
-  through a common benchmark harness on identical folds, so cross-algorithm comparisons
-  are attributable to the algorithms.
-- **Joint-Embedding Predictive Architecture.** A self-supervised representation layer over
-  multi-modal foundation-model embeddings, benchmarked against the current stacker rather
-  than replacing it.
-- **Conformal uncertainty as a scientific instrument.** Extend the conformal layer to
-  ordinal five-class prediction sets, multi-label disease categories, and calibrated
-  gene-candidate sets; analyse where uncertainty concentrates biologically.
-- **Multi-modal expansion.** RNA and whole-slide histopathology branches.
-- **Clinical validation and manuscript.** Prospective validation on curated gene panels,
-  comparison against expert review status, model card, and manuscript.
+```
+src/genomic_variant_classifier/
+  agent_layer/   - agents, typed message bus, orchestrator, shared state
+  api/           - FastAPI service, auth, schemas, inference
+  data/          - connectors, ETL, split protocol, data preparation
+  evaluation/    - clinical evaluator, metric registry, thresholds, artifacts
+  models/        - variant ensemble, graph networks, uncertainty wrappers, sequence CNN
+  monitoring/    - drift detection, reference profiles, model registry
+  pipelines/     - RNA splice, protein structure
+  reports/       - HTML report generation
+  training/      - continual learner, Elastic Weight Consolidation
+scripts/         - training entry points, preflight gates, drift monitoring, runbooks
+tests/           - unit, integration and conformal suites
+docs/            - ROADMAP.md, CHANGELOG.md, incidents/, sessions/, measurements/
+```
 
-See `docs/ROADMAP.md` for the live checklist and the full history.
+---
+
+## Status and next steps
+
+Current phase: the evaluation subsystem. Metrics, population identity, threshold semantics
+and operating-point selection are typed, tested and recorded.
+
+Next, in order: **data expansion** with every source gated to fail loudly; **algorithm
+expansion and benchmarking** across a common harness on identical folds; a **self-supervised
+joint-embedding representation** benchmarked against the current stacker rather than
+replacing it; **conformal uncertainty** extended to ordinal five-class and multi-label
+prediction sets; **multi-modal expansion** into RNA and whole-slide histopathology; and
+**clinical validation** with a model card and manuscript.
+
+`docs/ROADMAP.md` carries the live checklist, the open follow-up register, and the full
+dated history.
 
 ---
 
