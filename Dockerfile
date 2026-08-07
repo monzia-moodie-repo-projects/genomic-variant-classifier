@@ -79,9 +79,23 @@ RUN /opt/venv/bin/pip install --upgrade pip \
 # ----------------------------------------------------------------------------
 FROM python:${PYTHON_VERSION}-slim AS api
 
+# DESC-1 (2026-08-07). THE LABEL NO LONGER MAKES A MODEL CLAIM. It
+# carried a validation area-under-the-curve figure, baked into every
+# image ever built. A label is written at BUILD time, long before any
+# artifact is loaded, so a metric in it describes nothing in particular.
+# Model facts are structured and live at /info.
+#
+# THE FIGURE ITSELF IS NOT REPEATED HERE, DELIBERATELY. Which experiment
+# produced it is unestablished -- the repository cited it under three
+# incompatible descriptions -- and that is BASELINE-1, for the source
+# census. A number reproduced in a comment is still a number this file
+# has to keep correct.
+#
+# The source URL also pointed at `monzia-moodie/...`, which is not this
+# repository. Every image carried a link to somewhere else.
 LABEL maintainer="monzia-moodie" \
-      description="Genomic Variant Pathogenicity API — Phase 4 (AUROC 0.9847 val / 0.7927 LOVD ext)" \
-      org.opencontainers.image.source="https://github.com/monzia-moodie/genomic-variant-classifier"
+      description="Genomic Variant Pathogenicity API. Model facts are at /info." \
+      org.opencontainers.image.source="https://github.com/monzia-moodie-repo-projects/genomic-variant-classifier"
 
 # Copy virtualenv from builder
 COPY --from=builder /opt/venv /opt/venv
@@ -95,6 +109,20 @@ WORKDIR /app
 COPY src/genomic_variant_classifier/api/  src/genomic_variant_classifier/api/
 COPY src/genomic_variant_classifier/models/  src/genomic_variant_classifier/models/
 COPY src/genomic_variant_classifier/utils/  src/genomic_variant_classifier/utils/
+# DOCKERCOPY-1 (2026-08-07). `api/attribution.py` imports
+# `monitoring.model_registry` at module level, and without this line the
+# container raised ModuleNotFoundError at startup, gunicorn never bound,
+# and the only symptom was a container that exited.
+#
+# ONE FILE, NOT THE DIRECTORY, per line 94 above. `monitoring/` also
+# holds the drift detector, the ClinVar tracker and the data-source
+# registry, none of which inference touches. It has no `__init__.py` --
+# it is an implicit namespace package -- so no module body executes and
+# copying the single file is sufficient.
+#
+# tests/unit/test_docker_image_covers_the_api.py walks the import graph
+# from api/main.py and fails if any reachable module is not copied here.
+COPY src/genomic_variant_classifier/monitoring/model_registry.py  src/genomic_variant_classifier/monitoring/model_registry.py
 COPY src/genomic_variant_classifier/__init__.py  src/genomic_variant_classifier/__init__.py
 
 # Model artefact placeholder — override at runtime via bind-mount or COPY

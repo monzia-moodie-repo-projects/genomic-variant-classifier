@@ -5983,5 +5983,87 @@
 #   collected, measured by this installer (predicted 4449). The
 #   suite's stable skip surface is UNCHANGED at 6.
 #
+#
+# 4449 -> 4462 (+13)  2026-08-07  DOCKERCOPY-1: the container image
+#   did not contain a module the web service imports, and nothing could have
+#   noticed.
+#
+#   `4d334f9` added api/attribution.py, which imports
+#   monitoring.model_registry at module level. The Dockerfile's `api` stage
+#   copies api/, models/, utils/ and the package __init__.py -- and NOT
+#   monitoring/. Inside the image that import raised ModuleNotFoundError,
+#   gunicorn never bound, the container exited, and the smoke step failed
+#   sixteen seconds later with curl returning nothing. `4d334f9` and
+#   `e8de6a6` were both red on origin/main.
+#
+#   NOTHING IN THE REPOSITORY COULD HAVE CAUGHT IT. The import-resolution
+#   gate runs against the full source tree, where the import resolves
+#   perfectly. So does the test suite. Only the IMAGE has the narrower file
+#   surface, and the only thing that exercised the image was a smoke step
+#   that piped /health into a grep for one field NAME -- not its value, not
+#   the contract. It caught this ONLY because the container DIED. A service
+#   that started and lied went green, and that step had been the sole
+#   verification of the container for the life of the project.
+#
+#   The author enumerated the consumers of api.main IN PYTHON. The
+#   container's file surface is a consumer expressed in a Dockerfile, and no
+#   Python search finds it.
+#
+#   THE REPAIR IS THE GATE, NOT THE MISSING LINE.
+#   tests/unit/test_docker_image_covers_the_api.py walks the static import
+#   graph from api/main.py and asserts every reachable first-party module
+#   lives under a path the api stage copies. Proved red against the
+#   Dockerfile as it stood, green with the fix, and RED AGAIN for a near-miss
+#   COPY of `monitor/` and for a renamed stage -- the last of those matters,
+#   because a lazier parser finds no COPY lines after a rename and passes
+#   vacuously.
+#
+#   ONE FILE, NOT THE DIRECTORY. monitoring/ also holds the drift detector,
+#   the ClinVar tracker and the data-source registry, none of which inference
+#   touches. It has no __init__.py -- an implicit namespace package -- so no
+#   module body executes and the single file suffices. That is what line 94
+#   of the Dockerfile already said it wanted: "only what inference needs".
+#
+#   THE SMOKE STEP NOW TESTS SOMETHING. It asserts the honest contract for an
+#   image that ships no artifact: live true, ready false, model_loaded false,
+#   status degraded. Asserting "ok" would demand a lie; asserting a field
+#   name accepted anything. It dumps `docker logs` on failure, because this
+#   outage gave a container identifier and then silence.
+#
+#   TWO STALE CLAIMS REMOVED FROM SURFACES NOTHING CHECKED. The image LABEL
+#   published a validation area-under-the-curve figure into every image ever
+#   built, and pointed org.opencontainers.image.source at a repository that
+#   is not this one. scripts/run_benchmark.py claimed its results were
+#   directly comparable to a published baseline that nothing publishes any
+#   more. Neither figure is repeated in the replacement text: BASELINE-1
+#   holds the number, because which experiment produced it is unestablished
+#   -- the repository cited it under three incompatible descriptions.
+#
+#   connector_1kgp.py is DELIBERATELY UNTOUCHED. Its citation of the same
+#   figure sits in a measured comparison whose arithmetic is internally
+#   consistent; rewriting it would falsify a record and deleting it would
+#   lose the motivation for the 1000 Genomes Project connector.
+#
+#   FOUR REFUSALS BEFORE ANYTHING WAS WRITTEN, ALL OF THEM POST-CHECKS OF THE
+#   AUTHOR'S RATHER THAN THE REPAIR. Three were the same defect in three
+#   files -- a text check satisfied by the comment explaining the removal --
+#   and the fourth was the over-correction that followed: broadening
+#   `grep -q '"status"'` to bare `grep -q`, which then refused a correct edit
+#   because two lockfile steps use the idiom. The repair is precision about
+#   WHAT is forbidden, plus a stage-0 self-check running one forbidden list
+#   in BOTH directions: the replacements must not reproduce it, and the
+#   edited files must not retain it. Proved by poisoning an edit and watching
+#   it refuse.
+#
+#   ARITHMETIC: 4449 + 13 = 4462. All 13 from
+#   tests/unit/test_docker_image_covers_the_api.py. Installer one's closing
+#   hint predicted 4461, from before the gate gained a thirteenth case when
+#   its parser was taught to join Dockerfile line continuations -- correct by
+#   luck for one source path, wrong for two.
+#
+#   ACCEPTANCE: full suite 4456 passed, 6 skipped, 0 failed in 17m29s; 4462
+#   collected, measured by this installer. The suite's stable skip surface is
+#   UNCHANGED at 6.
+#
 
-4449
+4462

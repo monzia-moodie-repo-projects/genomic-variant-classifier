@@ -3,8 +3,20 @@ scripts/run_benchmark.py
 =========================
 Run the Phase 4 algorithm comparison benchmark -- Step 1.
 
-Uses the existing gene-stratified train/val/test split from Phase 2 training
-so results are directly comparable to the published AUROC 0.9847 baseline.
+Uses the existing gene-stratified train/val/test split from Phase 2
+training, so every model here is compared on identical folds.
+
+BASELINE-1 (2026-08-07): this docstring previously claimed the results
+were directly comparable to a published baseline area-under-the-curve
+figure. That was false in two ways. Nothing publishes that figure any
+more -- PROD-1 retired it from the service on 2026-08-07 -- and which
+experiment produced it is unestablished: the repository cited it as a
+Run-8 holdout result, as a Phase-4 validation result, and against a
+cohort size drawn from a third run. Those are not one measurement.
+
+No replacement number is asserted, and the old one is not repeated,
+because a figure quoted inside an explanation is still a figure this
+file has to keep correct. See BASELINE-1 in docs/ROADMAP.md.
 
 Each model is trained on X_train and evaluated on X_val.
 No cross-validation inside this script -- the held-out val set is the

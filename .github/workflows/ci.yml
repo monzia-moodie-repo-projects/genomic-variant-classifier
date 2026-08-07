@@ -548,13 +548,49 @@ jobs:
             .
 
       - name: Smoke-test container
+        # DOCKERCOPY-1 (2026-08-07). This step used to pipe the /health
+        # response into a grep for one field NAME -- not its value, not
+        # the contract, just the name. The old command is NOT reproduced
+        # here: a check forbidding it would then be defeated by this very
+        # comment, which is what happened twice while writing this
+        # installer.
+        #
+        # It passed on ANY response containing that literal. It was
+        # the sole verification of the container for the life of the
+        # project, and it caught a broken image only because the
+        # container DIED. A service that started and lied went green.
+        #
+        # The image ships NO model artifact: /models/ is gitignored and
+        # the stage only creates the directory. So the honest contract
+        # for this image is ALIVE AND NOT READY. Asserting "ok" would
+        # demand a lie; asserting nothing accepted anything.
         run: |
           docker run --detach \
             --name smoke-api \
             -p 8000:8000 \
             genomic-variant-api:smoke
           sleep 15
-          curl --fail --silent http://localhost:8000/health | grep -q '"status"'
+
+          if ! curl --fail --silent --show-error \
+               http://localhost:8000/health -o health.json; then
+            echo "::error::/health did not respond. Container logs:"
+            docker logs smoke-api || true
+            docker rm -f smoke-api || true
+            exit 1
+          fi
+          cat health.json
+
+          jq -e '.live == true
+                 and .ready == false
+                 and .model_loaded == false
+                 and .status == "degraded"' health.json > /dev/null || {
+            echo "::error::the model-less container did not report"
+            echo "::error::the expected health contract"
+            docker logs smoke-api || true
+            docker rm -f smoke-api || true
+            exit 1
+          }
+
           docker rm -f smoke-api
 
   # ─────────────────────────────────────────────────────────────────────────
