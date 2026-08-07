@@ -1,3 +1,22 @@
+## 2026-08-07 (canonical spec) — the specification was in a downloads folder, and the model registry was never written
+
+Ratchet 4353, unchanged. Base `d208240`. Documents only. Canonical
+specification: docs/OP1_BUILD_SPEC_CANONICAL_2026-08-07.md
+
+### Fixed
+- OP-1's two build specifications are now IN the repository. `POP1_BUILD_SPEC_2026-08-01.md` was committed; OP-1's were not, and governed six commits from a downloads folder. Both are committed unchanged and digest-pinned, with a canonical document reconciling them: the 2026-08-04 architecture, plus STEP K retained normatively because it is the only specification of the shadow comparison anywhere.
+- SPEC-2 ruled: **OP-1 ends at step 5**; authority inversion becomes OP-2, consuming step 5's frozen movement set as a precondition rather than producing paperwork during the migration.
+
+### Failed (and why)
+- `ModelRegistry` is referenced at `continual_trainer.py:127`, `:266`, `:385-404` and `drift_monitor.yml:614-626`, and **defined nowhere**. `git log --all -S "class ModelRegistry"` is empty — never written, not deleted. Both imports are function-local, so collection never touches them, and `continual_trainer.py` has zero coverage. The adaptive-retraining and promotion chain cannot execute, and `models/registry.json` has never existed, so the workflow guard exits 3 before reaching the ImportError.
+- `api/main.py`'s five provenance constants date to `ae1853b`, 2026-03-25, under a comment instructing an update after each training run. `HOLDOUT_AUROC = 0.9847` fuses a Run-8 64-feature AUROC with the Runs 10–14 validation split size, and the same digits are Run 15's unseen-gene **F1**. `test_api.py` pins four of the five.
+- An import-integrity probe of mine used `hasattr(package, name)` and manufactured **eleven phantom defects** against working submodule imports — caught only because one flagged file was one I had just read in full. Demonstrated: `hasattr(email, "message")` is False while `from email import message` succeeds. The corrected sweep checks both resolution paths: 527 names, two genuine failures, both `ModelRegistry`.
+
+### Learned
+- A SPECIFICATION OUTSIDE THE REPOSITORY IS SHAPE (e) ONE LEVEL UP — *a decision that lives only in the conversation that took it has not been made where the work happens*. Drafting OP-1 step 5 from the phrase "shadow comparison" nearly reinvented STEP K, and the reinvention lacked `same_decision_partition`, which classifies decision-equivalent thresholds as EQUAL rather than as movement.
+- A GREEN-TO-RED TRANSITION IS NOT AUTOMATICALLY DECAY. The drift monitor's 2026-07-01 success was the last green lie — `continue-on-error: true` five times over a placeholder that only created an empty directory — and 2026-08-01's failure is the first honest report in the workflow's life. I read the transition as a regression without asking which side was trustworthy.
+- AN IDENTIFIER MUST NOT COLLIDE WITH THE PROSE IT DESCRIBES. The naming item was first called STEP-1 and matched three occurrences of "step-1" in ordinary prose. Renamed NAMING-1, which is the same remedy `CARRIED_ITEMS.md` applies with its `CI-` prefix.
+
 ## 2026-08-07 (addendum) — durability was asserted and not measured
 
 Ratchet 4353, unchanged. Commits `0f3f0eb` and `db61455`, both pushed and green

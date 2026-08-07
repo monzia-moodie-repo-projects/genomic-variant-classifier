@@ -6017,3 +6017,208 @@ item that was acted on three times deserves a closure a reader can find.
 **OP-1 step 5 -- the shadow comparison**, with OPCOV-1 read first. Step 6's
 cutover has no GUARD-1 constraint; that was discharged 2026-08-06. Outside OP-1:
 the RCLONE-1 client identifier, before the notice lands rather than after.
+
+
+## ROADMAP delta -- 2026-08-07: the canonical OP-1 specification, and eight follow-ups from an audit that started with one stale number.
+
+Base `d208240`. Documents only; no production code changed. Ratchet 4353,
+unchanged. Canonical specification:
+docs/OP1_BUILD_SPEC_CANONICAL_2026-08-07.md
+
+### 1. THE SPECIFICATIONS WERE NOT IN THE REPOSITORY
+
+`POP1_BUILD_SPEC_2026-08-01.md` is committed. OP-1's two were not -- they lived
+only in a downloads folder, outside the repository, outside Drive, outside every
+backup path, while governing six commits.
+
+This roadmap named that shape four days ago, at line 4197: **shape (e)**, *"a
+decision that lives only in the conversation that took it has not been made
+where the work happens."* A specification is that shape one level up.
+
+It was not academic. Drafting OP-1 step 5 from the phrase "shadow comparison"
+nearly reinvented STEP K, which had specified the comparison eight days
+earlier -- including `same_decision_partition`, an idea the reinvention did not
+have. Both sources are now committed unchanged, and a canonical document
+reconciles them. SPEC-1 FILED AND CLOSED HERE.
+
+### 2. THE TWO SOURCES DISAGREED ABOUT WHERE OP-1 ENDS
+
+2026-08-04 says "6. Cut over the three report fields". 2026-07-31 says "the
+legacy selector remains authoritative... **Invert in OP-2**". Neither
+acknowledges the other; the August document contains no occurrence of
+`supersede`, `replaces`, `2026-07-31` or `OP-2`.
+
+RULED 2026-08-07: **OP-1 ends at step 5.** Authority inversion becomes OP-2,
+consuming step 5's frozen movement set as a precondition. Combining measurement
+with cutover would make the result feel preordained. SPEC-2 FILED AND CLOSED
+HERE.
+
+The 2026-07-31 LAYOUT is superseded, measured rather than assumed: none of
+`operating_point.py`, `_finalize_metric_result`, `CountMetricSpecification`,
+`confusion_counts_at_threshold`, `FIXED_GRID` or `select_operating_point`
+exists in `src/`. STEP K is NOT superseded; it is the only specification of the
+shadow comparison anywhere.
+
+### 3. `ModelRegistry` IS REFERENCED FOUR TIMES AND DEFINED NOWHERE
+
+Found while chasing a stale AUROC constant, and established three ways:
+
+    direct execution     ImportError: cannot import name 'ModelRegistry'
+    git log --all -S     "class ModelRegistry" -- src/ scripts/  ->  EMPTY
+    527-name sweep       the ONLY unimportable name in the codebase
+
+`monitoring/registry.py` is a DATA-SOURCE registry -- `Category`, `Check`,
+`Verdict`, `Source`, `REGISTRY`, five accessors -- and shares a module name with
+the model registry that does not exist.
+
+`continual_trainer.py:385-404` calls `ModelRegistry.load`, then `register(...)`
+with artifact path, metrics, ClinVar release, cohort size, feature count,
+feature names and drift report, then `promote(record.version, "shadow")`. THAT
+IS THE IDENTITY CHAIN, specified in a call site and never written.
+`drift_monitor.yml:614-626` imports it too.
+
+It survived because both imports are FUNCTION-LOCAL, so collection never
+touches them, and `continual_trainer.py` has ZERO test coverage -- 410 lines,
+three methods, one incidental mention in a scanned path.
+
+`models/registry.json` has never existed, so the workflow's guard exits 3 before
+reaching the import: a correct diagnosis of the symptom that conceals the cause.
+REGISTRY-1.
+
+### 4. THE API PUBLISHES MARCH PROVENANCE
+
+`api/main.py:147-151` carries `MODEL_VERSION = "phase2-v1"`,
+`PIPELINE_VERSION = "1.0.0"`, `TRAINING_AUROC = 0.9780`,
+`TRAINING_AUPRC = 0.8936`, `HOLDOUT_AUROC = 0.9847`, under a comment reading
+*"Model provenance — update after each training run"*. `git log -L` dates every
+one to `ae1853b`, 2026-03-25, never touched -- through Runs 9 to 16.
+
+0.9847 is a Run-8, 64-feature figure (ROADMAP:165, README_AUDIT:273) fused with
+154,404, the validation split size of the Runs 10-14 cohort. Two measurements,
+two eras, one line. And the same digits are Run 15's unseen-gene holdout **F1**,
+so a reader reconciling them lands on the wrong quantity.
+
+`test_api.py:536-539` pins four of the five by literal, so the suite defends
+them. `/info` also describes a *"LightGBM / XGBoost / GBM / RF / LR ensemble"* --
+five models against a roster of thirteen -- and *"1.2 M tier-2 ClinVar
+variants"* against Run 15's 1.49 M.
+
+RULED: this is NOT repaired by substituting 0.9984 or 0.9988. `MODEL_PATH`
+defaults to `models/phase2_pipeline.joblib`, `/models/` is gitignored, and no
+artifact identity links a loaded pipeline to a sealed evaluation. **The API must
+never advertise metrics for an artifact whose identity it cannot establish.**
+The repair is two typed records -- `SealedEvaluation` for the scientific
+benchmark, `DeploymentProvenance` for the serving artifact -- and they are
+allowed to differ. PROD-1.
+
+### 5. FOUR AUROC THRESHOLDS, FOUR DIFFERENT QUESTIONS
+
+    drift_monitor.yml:550     0.9842   prose, derived from the stale constant
+    drift_monitor.yml:604     0.97     executed registry smoke floor
+    conformal/calibrate.py:52 0.90     score-label alignment sanity floor
+    continual_trainer.py:85   0.002    allowed regression vs another model
+
+RULED: do NOT unify these into one number. A calibration integrity floor and a
+promotion floor answer different questions. The repair is typed policies, plus
+one addition neither currently has: a promotion comparison must assert
+`candidate.evaluation_protocol == production.evaluation_protocol`, or comparing
+0.9988 unseen-gene against 0.9984 test is numerically neat and scientifically
+meaningless. GATE-1.
+
+### 6. THE DRIFT MONITOR IS HONEST AND CANNOT MEASURE
+
+Reproduced locally: the monitor loads the committed aggregate profile, then
+refuses -- *"NO NEW DATA PROVIDED. Feature drift was NOT CHECKED."* The workflow
+passes `--reference-profile` and `--features-only` and no new data, so exit 4 is
+the ONLY reachable outcome, every month, by construction.
+
+THE 2026-07-01 GREEN RUN WAS THE LIE, not the 2026-08-01 failure. At `ab56cde5`
+the workflow still carried `continue-on-error: true` five times and the Google
+Drive step was the placeholder that only `mkdir -p`'d an empty directory. The
+repair landed 2026-07-13/14; 2026-08-01 is the first honest report in the
+workflow's life. Roadmap 6.19 and 6.20 are working exactly as designed.
+
+A reference profile answers *what did the baseline look like*. It does not
+answer *what does the current distribution look like*, and a raw ClinVar release
+is not a comparable 95-feature matrix. RULED: covariate drift becomes
+event-driven -- run when an engineered production cohort exists -- while label
+drift, source freshness and schema checks stay monthly.
+
+Issue #10 states two false root causes and instructs the reader to inspect
+Population Stability Index scores from a run where no comparison occurred.
+DRIFT-1.
+
+### 7. THE README REPRODUCES DRIFT-1, AND I PUT IT THERE
+
+`0f3f0eb` carried the quickstart forward verbatim: `run_drift_monitor.py
+--reference-profile ... --output-dir ...`, with no `--new-data`. It necessarily
+exits 4.
+
+`test_readme_quickstart_uses_no_flag_that_does_not_exist` checks only that each
+flag EXISTS in the script. Every flag does. The gate cannot distinguish a
+runnable command from one that cannot produce a result, and a reimplementation
+of it reported green four times. README-1, with the missing `export_model.py`
+precondition folded in.
+
+### 8. TWENTY-ONE DEFECTS OF THE AUTHOR'S IN ONE SESSION, ONE PATTERN
+
+A conclusion that agreed with its author for the wrong reason. Three are worth
+the space.
+
+**A green-to-red transition read as decay.** The drift monitor went from success
+to failure and I called it a regression without asking which side was
+trustworthy. The failure was the repair working.
+
+**A probe that manufactured eleven phantom defects.** An import-integrity sweep
+used `hasattr(package, name)`, which is False for an un-imported SUBMODULE. It
+reported eleven working imports as broken -- including one in a file I had just
+read in full, which is the only reason it was caught. Demonstrated on the
+standard library: `hasattr(email, "message")` is False while
+`from email import message` succeeds. The corrected sweep checks both resolution
+paths and finds exactly two genuine failures, both `ModelRegistry`.
+
+**An identifier that collided with the ambiguity it recorded.** The naming item
+was first called STEP-1 and matched three prose occurrences of "step-1",
+case-insensitively. Renamed NAMING-1.
+
+### 9. OPEN -- FORTY-TWO items
+
+Thirty-six carried in, ENUMERATED from the 2026-08-07 addendum. Eight filed;
+SPEC-1 and SPEC-2 closed in this entry, so six remain.
+
+EXTRACT-1, SWEEP-1, C2-1, REG-2-b, ICI-1, F1-1, OPCOV-1, GITIGNORE-1, STRUCT-1,
+POP-1b-M03, POP-1b-M07, ZERO-1, INF-1, ABS-1, DEAD-1, DEAD-3, PRE-2, LINT-1,
+F821-1, CMP-1, SUPPORT-1, MERGE-1, JSONKEY-1, RENDER-1, TYPING-1, DIAG-1,
+CHANGELOG-1, CHANGELOG-2, PERSIST-1, BACKUP-1, DOCLOC-1, DOCX-1, CONSOLE-1,
+DRIVE-1, RCLONE-1, PATCH-1, NAMING-1, PROD-1, GATE-1, DRIFT-1, README-1,
+REGISTRY-1.
+
+**NAMING-1** -- "step 5" has three referents. Always write the qualifier.
+
+**PROD-1** -- the API advertises evaluation metrics not derived from the loaded
+artifact, and the suite pins them.
+
+**GATE-1** -- four AUROC thresholds answering four different questions, none
+typed, none asserting protocol equality.
+
+**DRIFT-1** -- the scheduled monitor has no new-observation population and
+cannot produce a verdict; issue #10 states false root causes.
+
+**README-1** -- the quickstart's drift command cannot produce a result, and the
+gate that checks it cannot tell.
+
+**REGISTRY-1** -- `ModelRegistry` referenced four times, defined nowhere, never
+written. The retraining and promotion chain cannot execute.
+
+**SPEC-1, CLOSED HERE** -- both specifications committed.
+
+**SPEC-2, CLOSED HERE** -- OP-1 ends at step 5; authority inversion is OP-2.
+
+### 10. NEXT
+
+**REGISTRY-1 first.** PROD-1 and GATE-1 are downstream of it: fix the identity
+chain and stale constants become structurally difficult to publish; fix them
+first and you get better-looking numbers over the same void.
+
+Then **DRIFT-1 and README-1** together, then **OP-1 step 5** against STEP K,
+then **OP-2**. Outside all of it, **RCLONE-1** before the notice lands.
