@@ -5761,3 +5761,136 @@ days went unrecorded. Not guessed at.
 Then **step 5** (the shadow comparison) and **step 6** (the cutover), which must
 reckon with **GUARD-1**: `test_computation_path_guards.py` asserts every applied
 threshold is `(0.5, ">=")`, and the exact sweep applies every unique score.
+
+
+## ROADMAP delta -- 2026-08-06: OP-1 step 4. The twelve-defect register closes, and the guard that was meant to constrain step 6 turns out never to have watched.
+
+Commit: `3ddf617`. Base `0a3041d`. Pushed. Session record:
+docs/SESSION_2026-08-06_op1-step4-selectors.md
+
+Ratchet 4300 -> 4353 (+53). Armed full suite 4347 passed, 6 skipped, 0 failed
+in 16m08s; 4353 collected. Skip surface unchanged at 6.
+
+### 1. D12 CLOSES, AND THE REGISTER WITH IT
+
+The twelve-defect register opened 2026-08-01 is fully closed:
+
+    D7, D8              closed by OP-0 (d4b4259)
+    D1, D9, D10, D11    closed by step 1 (0030544)
+    D2-D5, D6           closed by step 2
+    D12                 closed HERE
+
+D12 was a TRAVERSAL DEPENDENCY, not a missing feature. `if diff < best_diff` is
+strict, so the first candidate reaching the minimum wins, and the two legacy
+selectors traverse opposite ways -- `_find_operating_point` ascending at
+evaluator.py:1515, `_find_high_ppv_point` descending at evaluator.py:1603.
+
+What closes it is the ARTIFACT THAT STATES THE RULE, not the rule. A frozen
+`OperatingPointSelection` travels with every outcome and serialises: objective,
+tie-break, target, status, candidate count, feasible count, selected index.
+
+### 2. EVERY CRITERION NAMED CAN DECIDE SOMETHING
+
+Measured over 400 random cohorts with duplicate scores forced: on a canonical
+sweep `n_flagged` is STRICTLY increasing, so "fewer flagged" and "most
+conservative threshold" are THE SAME ORDER. A four-stage draft's canonical
+suffix was UNREACHABLE and sabotage could not detect its removal. It is gone,
+and the canonical order is tested as a property of the SWEEP instead.
+
+### 3. THE UNIQUENESS INVARIANT LIVES ON THE TYPE
+
+`ExactThresholdSweep.__init__` refuses a sweep holding two candidates in the
+same confusion state, because the shortened keys are total exactly when it
+holds. Without it every key ties, `np.lexsort` is stable, and the winner falls
+back to ARRAY ORDER -- D12 reopening in the commit that closes it. 300 random
+cohorts through the live `sweep_thresholds`: zero violations.
+
+### 4. TWO REQUIRED CHANGES THE HANDOFF DID NOT LIST
+
+Both CALL-TIME, both invisible to `--collect-only`, both found by reading the
+live module rather than the replica the payloads were drafted against:
+`thresholds.py` did not import `PopulationComparison`, which the selectors load
+in a runtime expression; and `OperatingPointOutcome.refused()` took no
+`selection` argument while all four refusal paths pass one.
+
+The verification was then REDONE against the real class -- the live
+`OperatingPointOutcome` reconstructed, the four edits applied, the battery
+re-run: 53 of 53 pass and 14 of 14 mutations detected against the PATCHED
+PRODUCTION CLASS. The replica defines `PopulationComparison` and accepts
+`selection` in the same file, so it could never have exposed either.
+
+### 5. GUARD-1 IS DISCHARGED BY FALSIFICATION
+
+GUARD-1 has read, across six deltas, that step 6's cutover must scope or extend
+`test_computation_path_guards.py`. Measured 2026-08-06:
+
+    both legacy selectors compute `preds = (p >= t).astype(int)` inline
+    apply_decision_threshold appears at metrics.py 711/754/778/1524 and
+        registry.py 927/932/1022/1024 -- NO line in evaluator.py
+    thresholds.py does not bind the name; the exact sweep uses sorting and
+        cumulative sums
+    live evaluate(): selectors ran 3 times, report printed thresholds 0.592,
+        0.544 and 0.329, guard recorded 18 applications at ONE distinct
+        threshold (0.5, ">=")
+
+The guard has never observed the operating-point path, and cannot observe the
+replacement either. The predicted collision cannot occur. THE REAL GAP -- no
+threshold-provenance guard covers the operating-point path at all -- MOVES INTO
+OPCOV-1, whose statement is restated. Discharging without moving the gap would
+have closed the item and lost the concern.
+
+### 6. SEVEN DEFECTS OF THE AUTHOR'S, ALL CAUGHT BEFORE THE TREE, ONE PATTERN
+
+A conclusion that agreed with its author for the wrong reason. An
+abstract-syntax-tree probe blind to attribute-qualified calls. A typing
+recommendation reasoned from the import block without reading the class. A
+ratchet shape inferred from a byte-count coincidence. An unquoted forward
+reference correct only by PEP 563, caught by EXECUTING the patched class. A
+retracted warning about backups `.gitignore` had covered since 2026-07-11. A
+GUARD-1 probe reporting NOT FOUND because it used `getattr(module, name)` on
+what are METHODS. And that probe's successor crashing on `\u2192` while
+printing repository source to a code-page-1252 console -- CAUGHT BY A CRASH,
+NOT BY A CHECK, which is luck and is recorded as luck.
+
+### 7. OPEN -- THIRTY-THREE items
+
+Twenty-nine carried in, ENUMERATED from the previous delta. One discharged
+(GUARD-1). Five added.
+
+EXTRACT-1, SWEEP-1, C2-1, REG-2-b, ICI-1, F1-1, OPCOV-1, GITIGNORE-1,
+STRUCT-1, POP-1b-M03, POP-1b-M07, ZERO-1, INF-1, ABS-1, DEAD-1, DEAD-3, PRE-2,
+LINT-1, F821-1, CMP-1, SUPPORT-1, MERGE-1, JSONKEY-1, RENDER-1, TYPING-1,
+DIAG-1, CHANGELOG-1, CHANGELOG-2, PERSIST-1, BACKUP-1, DOCLOC-1, DOCX-1,
+CONSOLE-1.
+
+**PERSIST-1** -- the selection record serialises but no artifact carries one,
+because the selectors are unwired by design. Until step 6, D12's closure is
+demonstrated by tests rather than by a written artifact.
+
+**BACKUP-1** -- roughly 115 stale `.bak` files from guarded-patcher runs in
+June and July 2026, all git-ignored. No commit risk; a reader can still open
+the wrong file.
+
+**DOCLOC-1** -- session documents split across `docs/` and `docs/sessions/` by
+date, with the changelog citing both paths. 112 files in the subdirectory, none
+newer than 2026-07-31.
+
+**DOCX-1** -- `docs/ROADMAP.docx` dated 2026-06-16 against `ROADMAP.md` at
+2026-08-06.
+
+**CONSOLE-1** -- the report's `>=` glyph renders as mojibake in a
+code-page-1252 console; a captured log would carry it, which is the round trip
+that put 301 mojibake lines in the changelog.
+
+RESTATED, NOT DISCHARGED. **OPCOV-1** now also carries GUARD-1's real gap.
+**CHANGELOG-2**'s literal claim is stale -- the newest entry is 2026-08-05, not
+2026-07-31 -- but the gap is not closed: the file jumps from 2026-08-05 to
+2026-07-31 while `docs/` holds session documents for thirteen milestones in
+between. A reader checking only the literal claim would discharge it wrongly.
+
+### 8. NEXT
+
+**Step 5 -- the shadow comparison**, with OPCOV-1 read first, since a shadow
+comparison rests on the coverage OPCOV-1 says is thin. **Step 6 -- the
+cutover**, which does NOT have to reckon with GUARD-1: that was measured today
+and discharged. It must reckon with the absence GUARD-1 stood in for.

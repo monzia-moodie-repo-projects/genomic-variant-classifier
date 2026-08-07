@@ -1,3 +1,25 @@
+## 2026-08-06 — OP-1 step 4: the selectors close D12, and a guard that never watched
+
+Ratchet 4300 → 4353 (+53). Commit `3ddf617`, base `0a3041d`. Session record:
+docs/SESSION_2026-08-06_op1-step4-selectors.md
+
+### Fixed
+- D12 closes and the twelve-defect register opened 2026-08-01 is fully closed. Tie-breaking is now a DECLARED TOTAL ORDER rather than "the first minimum", and the winner is the minimum under that key — so the sweep may be presented in any order and the answer is the same. Asserted by 21 permutation orderings, zero divergent.
+- The policy is PERSISTED beside the number it produced. A frozen `OperatingPointSelection` names the objective, tie-break, target, status, candidate count, feasible count and selected index, and serialises. D12 is not closed by implementing a rule; it is closed by an artifact that states it.
+- `ExactThresholdSweep.__init__` now refuses a sweep holding two candidates in the same confusion state. The shortened keys are total exactly when that holds; without it every key ties, `np.lexsort` is stable, and the winner falls back to ARRAY ORDER — D12 reopening in the commit that closes it.
+- A third certification blocker, `SELECTION_EVALUATION_INDEPENDENCE_NOT_ESTABLISHED`. `compare_membership` is three-valued and UNKNOWN is not DIFFERENT: an unattributed population has no fingerprint, so independence is unproven rather than absent.
+- Two required changes the handoff's change list did not contain, both CALL-TIME failures invisible to `--collect-only`: `thresholds.py` never imported `PopulationComparison`, which the selectors load in a runtime expression; and `OperatingPointOutcome.refused()` took no `selection` argument while all four refusal paths pass one.
+
+### Failed (and why)
+- A four-stage tie-break draft ended each key with the canonical threshold declaration, and sabotage could not detect its removal. Measured over 400 random cohorts: on a canonical sweep `n_flagged` is strictly increasing, so "fewer flagged" and "most conservative threshold" are THE SAME ORDER and the suffix was unreachable. Removed; the canonical order is tested as a property of the sweep instead.
+- Seven defects of the author's, one pattern — a conclusion that agreed with its author for the wrong reason. An abstract-syntax-tree probe blind to attribute-qualified calls. A `typing` recommendation reasoned from the import block without reading the class that uses it. A ratchet shape inferred from a byte-count coincidence rather than from the file. An unquoted forward reference correct only by PEP 563. A retracted warning about backups `.gitignore` had covered since 2026-07-11. A GUARD-1 probe reporting NOT FOUND because it used `getattr(module, name)` on what are methods of `ClinicalEvaluator`. And that probe's successor crashing on `\u2192` while printing repository source to a code-page-1252 console.
+
+### Learned
+- GUARD-1 IS FALSIFIED IN BOTH DIRECTIONS, and had been carried across six roadmap deltas. Both legacy selectors compute `preds = (p >= t)` inline; `apply_decision_threshold` appears nowhere in `evaluator.py`; `thresholds.py` does not bind it either. Live trace: the selectors ran 3 times and the report printed thresholds 0.592, 0.544 and 0.329, while the guard recorded 18 applications at ONE distinct threshold. The predicted step-6 collision cannot occur. The real gap moves into OPCOV-1 — discharging without moving it would have closed the item and lost the concern.
+- A REPLICA CANNOT VERIFY WHAT IT DEFINES ITSELF. The payloads passed 53 of 53 against a stand-in that supplies `PopulationComparison` and accepts `selection` — the two things the live module lacked. Re-running the battery against the reconstructed, patched PRODUCTION class is what discharged the doubt.
+- ONE DEFECT WAS CAUGHT BY A CRASH RATHER THAN BY A CHECK. That is luck, not method, and is recorded as luck. Any probe printing repository source must call `sys.stdout.reconfigure(encoding="utf-8")` first; this repository legitimately contains `→`, `—` and `≥`.
+- An interactive PowerShell `else` must share a line with the preceding closing brace. At the prompt each line parses as a complete statement, so a closing `}` ends the `if` and the following `else` becomes an unknown command.
+
 ## 2026-08-05 — OP-1 step 3c: one support authority, and a gate that detected its own obsolescence
 
 Ratchet 4278 → 4300 (+22). Commits `58929e9` and `1be72e4`. Session record:

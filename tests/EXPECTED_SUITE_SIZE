@@ -5693,6 +5693,11 @@
 #   imports these yet; step 5 shadows the two implementations and step 6 wires
 #   the replacement.
 #
+#   BASE 0a3041d -> RESULT 3ddf617. Added in the documentation
+#   commit, because a result commit cannot be named by the commit that
+#   creates it, and a placeholder in a runnable artifact is the defect
+#   this file records at entry line 5659.
+#
 #   D12 WAS A TRAVERSAL DEPENDENCY, NOT A MISSING FEATURE. `if diff <
 #   best_diff` is strict, so the FIRST candidate reaching the minimum wins --
 #   and the two legacy selectors traverse OPPOSITE ways.
