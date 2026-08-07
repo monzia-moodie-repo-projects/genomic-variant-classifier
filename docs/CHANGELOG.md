@@ -1,3 +1,30 @@
+## 2026-08-07 — the README stops being a second roadmap, and its five one-shot patchers go with it
+
+Ratchet 4353, unchanged. Commits `0f3f0eb` (the restructure) and this one (the
+patchers). Design ruling 2026-08-07: the README does not need to be as detailed
+as the roadmap and the documentation logs.
+
+### Fixed
+- README.md 502 → 324 lines, 26,317 → 16,445 bytes; 137 insertions, 315 deletions. The evaluation-as-evidence essay, the conformal and drift essays, the histopathology design and the per-section correction notes all moved out — each already had a fuller, dated treatment in `docs/ROADMAP.md`, `docs/audits/` and 130-plus session documents. What remains is the architecture at a high level, the three rosters, the quickstart, early results, and next steps.
+- 187 of the 324 lines were carried through untouched, which the diff shows directly: 137 insertions against a 324-line file. `tests/unit/test_readme_claims.py` compares two README tables against LIVE code — `VariantEnsemble`'s 13-model roster and `Orchestrator`'s 22-agent registry — and the suite was green at `8ff555f`, so carrying those tables forward byte-for-byte preserves equality by construction rather than by re-derivation. Both roster comparisons report a delta of zero.
+- One ordering constraint is load-bearing and invisible in the file, so it is recorded here: the feature-set section is extracted by the lookahead `^## Feature set\b.*?(?=^## )` and MUST be followed by another level-two heading.
+- Five one-shot README patchers removed from `scripts/`. All five were tracked, all last committed 2026-06-10, none referenced by any script, workflow or test. Their content remains retrievable at those commits; their purpose is archived below, because four of the five appeared nowhere in `docs/`.
+
+### Archived rationale — the five, before they go
+- `patch_readme_agent_count.py` (`7f87a57`) — reconciled the badge, intro, diagram and bullet "seven" against the table's "13". The agent count has been **22** since 2026-07-14. Documented in this changelog at line 5501; the other four were not documented anywhere.
+- `patch_readme_consistency_ghcr.py` (`f4565d0`) — closed two enumeration stragglers left half-corrected by `b4618cb`, and softened an unverified "image published to GHCR / full CI" claim down to what was verifiable at the time.
+- `patch_readme_directive_pass.py` (`d538097`) — Run 8 baseline relabel, run-table trim, the 1.70M → 1.49M residual, histopathology moved to the roadmap, honest database framing.
+- `patch_readme_phase1.py` (`9e958ea`) — refreshed the README from Run-8-era to Run 15 plus Phase 1, when the contract was **80** features. It is **95** now. Its own line 142 records that `README.docx` is not maintained, which is the origin of DOCX-1.
+- `patch_readme_recent_runs_cohort.py` (`8a78ab0`) — corrected the lone residual "recent runs use the full 1.70 M-variant matrix" clause to the ~1.49M Run 14/15 cohort.
+
+### Failed (and why)
+- A claim of mine that running `patch_readme_agent_count.py` today "would set a gated claim back to a value the suite rejects" was wrong, and reading its code is what falsified it. Its edit anchors on the literal `Core%20agents-7-blueviolet`, a string absent from the README for weeks, and its own docstring states that an anchor matching other than exactly once aborts without writing. The script is **inert**, not dangerous. The case for removal is hygiene and reader confusion — a weaker case, and the true one.
+- Two `getattr(module, name)` probes reported the legacy operating-point selectors and the ensemble roster as absent. Both were wrong about the API, not about the code: the selectors are METHODS on `ClinicalEvaluator`, and `ensemble_completeness_["roster"]` does not exist on an unfitted ensemble. The roster probe was also unnecessary — a green suite already proved the tables matched.
+
+### Learned
+- WHETHER A DELETION MOVES THE SUITE IS A MEASUREMENT, NOT A READING. Four test modules `rglob` the whole of `scripts/`, and grep cannot say whether a sweep feeds a module-level `parametrize` or a loop inside a test body. Moving the five files aside, collecting, and moving them back settled it in twenty seconds: 4353 → 4353, with `git status` empty in between proving the restore was byte-identical. The structural reading agreed afterwards — none of the three scanners parametrises at all — but the measurement came first.
+- THESE SCRIPTS TAUGHT THE ANCHORING DISCIPLINE STILL IN USE. `patch_readme_directive_pass.py` records that a marker which collided with a headline phrase made an edit "silently skip", and every installer written since — including the ones that landed OP-1 step 4 — asserts each anchor occurs exactly once and refuses otherwise. The lesson outlived the code, which is the only reason the code can go.
+
 ## 2026-08-06 — OP-1 step 4: the selectors close D12, and a guard that never watched
 
 Ratchet 4300 → 4353 (+53). Commit `3ddf617`, base `0a3041d`. Session record:
