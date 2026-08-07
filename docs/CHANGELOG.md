@@ -1,3 +1,26 @@
+## 2026-08-07 (REGISTRY-1) — a class referenced four times and defined nowhere
+
+Ratchet 4353 → 4417 (+64). Commit `372cea1`, base `5298e90`. Session record:
+docs/SESSION_2026-08-07_registry1-model-registry.md
+
+### Fixed
+- `ModelRegistry` is implemented. It was imported at `continual_trainer.py:127` and `:266` and in `drift_monitor.yml`, and defined nowhere — established by direct execution, by `git log --all -S` returning empty, and by a 527-name import census in which it was the only unimportable name. Both imports are function-local, so collection never touched them, and `continual_trainer.py` has zero coverage across 410 lines.
+- A new module rather than an addition to `monitoring/registry.py`, which is a data-source registry. The call sites specified an interface worth preserving; they did not establish that their module placement was wise.
+- `ModelRecord` has no `auroc` property and a test asserts the absence. Six typed refusals on production promotion, each individually tested, including evaluation-protocol mismatch. Identity is lineage plus content, with the digest measured from disk. The roster is enumerated with an order-independent fingerprint. Promotion history is append-only.
+- `tests/unit/test_import_resolution_gate.py` makes the whole condition impossible to reintroduce silently: every intra-package `from X import Y` in `src/` and `scripts/` must resolve, checked by executing the statement in a child interpreter.
+- `AdaptiveRetrainingInputs` replaces an accidental `ImportError` barrier with an explicit one. Repairing the import would otherwise have armed LSIF-1, ROSTER-1, EVALPROV-1, EWCSEL-1 and PIPELINE-1.
+
+### Failed (and why)
+- The gate's first design used `hasattr(module, name)` and reported **eleven** working submodule imports as broken. `hasattr(email, "message")` is False while `from email import message` succeeds. Any hand-written approximation of import resolution drifts from the real thing.
+- Its first run against the live tree then reported **sixteen** `AttributeError: module 'catalogue' has no attribute 'create'` failures — from a `catalogue.py` in the downloads folder, not from the repository. Every installer in this project runs from that folder. DOWNLOADSHADOW-1.
+- An anchor was transcribed from my own reconstruction rather than from the measurement transcript — a `notes=` argument wrapped where the source has it on one line. **The simulation confirmed the error**, because I had written both sides of it. Caught by the installer refusing on an anchor count of zero. Every anchor is now verified as a verbatim substring of transcribed source.
+
+### Learned
+- AN ACCIDENTAL BARRIER IS NOT A SAFETY MECHANISM, AND REMOVING ONE WITHOUT REPLACING IT IS WORSE. The only thing preventing four measured scientific defects from executing was a missing class. Fixing the import without `AdaptiveRetrainingInputs` would have armed them silently.
+- A GATE THAT HAS ONLY EVER BEEN SEEN GREEN PROVES NOTHING. The installer ran it against the live tree before any edit and refused unless it reported exactly one unresolved name from two sites, then again afterwards and refused unless it reported zero — without ever leaving the repository red.
+- THE ARMED SUITE WAS RUN BEFORE THE BUMP AND CORRECTLY ERRORED: *"expected 4353, actually collected 4417, 64 MORE test(s) than expected."* Unplanned, and the most useful line in the acceptance table — the ratchet gate observed firing, then observed silent.
+- AN IDENTIFIER CHECK MUST DISTINGUISH A DEFINITION FROM A CITATION. Five of the eight new register items already appeared in `src/` and `tests/`, because the code cites the items it is about to have filed. That is the behaviour worth having; the thing to refuse is a duplicate register entry, and the register lives in `docs/`.
+
 ## 2026-08-07 (canonical spec) — the specification was in a downloads folder, and the model registry was never written
 
 Ratchet 4353, unchanged. Base `d208240`. Documents only. Canonical

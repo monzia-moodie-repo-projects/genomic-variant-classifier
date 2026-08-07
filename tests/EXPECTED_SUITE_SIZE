@@ -5787,6 +5787,11 @@
 #   referenced four times and never written, and the gate that would have
 #   caught it the day it was written.
 #
+#   BASE 5298e90 -> RESULT 372cea1. Added in the documentation
+#   commit, because a result commit cannot be named by the commit that
+#   creates it, and a placeholder in a runnable artifact is the defect
+#   this file records at its own entry for step 3c.
+#
 #   `ModelRegistry` was imported at continual_trainer.py:127 and :266 and in
 #   drift_monitor.yml, and defined NOWHERE. Established three independent
 #   ways: direct execution (ImportError), `git log --all -S "class

@@ -6222,3 +6222,132 @@ first and you get better-looking numbers over the same void.
 
 Then **DRIFT-1 and README-1** together, then **OP-1 step 5** against STEP K,
 then **OP-2**. Outside all of it, **RCLONE-1** before the notice lands.
+
+
+## ROADMAP delta -- 2026-08-07: REGISTRY-1. A class referenced four times and defined nowhere, and the gate that would have caught it the day it was written.
+
+Commit `372cea1`. Base `5298e90`. Pushed. Session record:
+docs/SESSION_2026-08-07_registry1-model-registry.md
+
+Ratchet 4353 -> 4417 (+64). Armed full suite 4411 passed, 6 skipped, 0 failed
+in 12m43s; 4417 collected. Skip surface unchanged at 6.
+
+### 1. `ModelRegistry` WAS NEVER WRITTEN
+
+Imported at continual_trainer.py:127 and :266 and in drift_monitor.yml:614-626,
+defined nowhere. Three independent establishments: direct execution
+(ImportError), `git log --all -S "class ModelRegistry" -- src/ scripts/`
+returning EMPTY, and a 527-name import census in which it was the ONLY
+unimportable name in the codebase.
+
+Both Python imports are FUNCTION-LOCAL, so collection never executes them, and
+continual_trainer.py has zero coverage across 410 lines. `models/registry.json`
+has never existed -- .gitignore:75 ignores `/models/` wholesale -- so the
+workflow guard exits 3 before reaching the ImportError.
+
+continual_trainer.py:386-401 already called `register(...)` with artifact path,
+metrics, ClinVar release, cohort size, feature count, feature names and drift
+report. THAT IS THE IDENTITY CHAIN, specified in a call site and never built.
+
+### 2. WHAT REPLACED IT
+
+`monitoring/model_registry.py`, 717 lines, a NEW module. `monitoring/registry.py`
+is a DATA-SOURCE registry; grafting deployment state onto it would resolve an
+ImportError by creating a semantic junk drawer.
+
+NO `record.auroc`, not even as a property, asserted by a test. Six typed
+refusals on production promotion, each individually tested, including
+EVALUATION-PROTOCOL MISMATCH -- so a 0.9990 ordinary-test candidate cannot be
+promoted against a 0.9988 unseen-gene incumbent however favourable the
+arithmetic looks. Identity is lineage plus content: the digest is MEASURED from
+disk, never accepted from a caller. The roster is ENUMERATED with an
+order-independent fingerprint. Promotion history is append-only.
+
+A new `deployments/` namespace holds the declaration, because `/models/` is
+gitignored wholesale and the old path could never be committed.
+
+### 3. REPAIRING THE IMPORT DOES NOT ARM RETRAINING
+
+A missing class is a terrible safety mechanism. `AdaptiveRetrainingInputs`
+turns four findings into constructor preconditions -- LSIF-1, ROSTER-1,
+EVALPROV-1, EWCSEL-1 -- and the refusal also names PIPELINE-1.
+
+### 4. THE GATE, AND THE THREE ATTEMPTS IT TOOK
+
+It does not reimplement import resolution: a first attempt used
+`hasattr(module, name)` and reported ELEVEN working submodule imports as
+broken. It EXECUTES the statement in a child interpreter instead. It was
+OBSERVED FAILING before it was trusted -- exactly one unresolved name from two
+sites -- and observed green after the edits, with the tree never left red.
+
+It complements `tests/smoke_test_imports.py`, which walks MODULES and could
+never catch `from ...registry import ModelRegistry`. That file is also NEVER
+COLLECTED: SMOKE-1.
+
+### 5. DOWNLOADSHADOW-1, FOUND BY THE GATE REFUSING
+
+Sixteen `AttributeError: module 'catalogue' has no attribute 'create'` failures
+from inside thinc, against a repository that was entirely fine. A `catalogue.py`
+in the downloads folder shadows the installed distribution, and every installer
+in this project runs from there. The child now takes an explicit import path
+with the caller's own directory removed, every entry resolved to ABSOLUTE form
+first.
+
+### 6. SEVEN AUTHOR DEFECTS IN ONE PIECE OF WORK, NONE CAUGHT BY REVIEW
+
+The sharpest: an anchor transcribed from the author's own reconstruction rather
+than from the source, so the SIMULATION CONFIRMED THE ERROR -- an instrument
+built to catch exactly that failure, failing at it, because its author supplied
+both the claim and the evidence. Caught by the installer refusing on an anchor
+count of zero. Every anchor is now verified as a verbatim substring of text
+transcribed from the measurement transcript.
+
+### 7. OPEN -- FORTY-NINE items
+
+Forty-two carried in, ENUMERATED from the canonical-specification delta.
+REGISTRY-1 was ALREADY FILED there and CLOSES here, fixed by `372cea1`. Eight
+added. 42 - 1 + 8 = 49.
+
+EXTRACT-1, SWEEP-1, C2-1, REG-2-b, ICI-1, F1-1, OPCOV-1, GITIGNORE-1, STRUCT-1,
+POP-1b-M03, POP-1b-M07, ZERO-1, INF-1, ABS-1, DEAD-1, DEAD-3, PRE-2, LINT-1,
+F821-1, CMP-1, SUPPORT-1, MERGE-1, JSONKEY-1, RENDER-1, TYPING-1, DIAG-1,
+CHANGELOG-1, CHANGELOG-2, PERSIST-1, BACKUP-1, DOCLOC-1, DOCX-1, CONSOLE-1,
+DRIVE-1, RCLONE-1, PATCH-1, NAMING-1, PROD-1, GATE-1, DRIFT-1, README-1,
+DOWNLOADSHADOW-1, ROOTPY-1, SMOKE-1, PIPELINE-1, LSIF-1, ROSTER-1, EVALPROV-1,
+EWCSEL-1.
+
+**DOWNLOADSHADOW-1** -- loose modules in the downloads folder shadow installed
+distributions for any script run from there, and every installer runs from
+there.
+
+**ROOTPY-1** -- seventeen loose `.py` files at the repository root, including
+`test_catboost.py`, which sits outside `testpaths` and is never collected.
+
+**SMOKE-1** -- `tests/smoke_test_imports.py` matches neither `test_*.py` nor
+`*_test.py`, so a carefully built dual-source import gate has never run in the
+suite.
+
+**PIPELINE-1** -- `InferencePipeline` has no `_prepare`, which
+continual_trainer.py:299 calls. An import gate cannot see attribute references.
+
+**LSIF-1** -- the density ratio receives the same rows in two different feature
+representations; it has no reference population and is not identified.
+
+**ROSTER-1** -- retraining passes `--skip-nn --skip-svm`, confounding data with
+architecture. Now a promotion gate rather than a comment.
+
+**EVALPROV-1** -- a validation split registered as holdout evidence. Measured
+as a provenance defect within run_phase2_eval.py, with one unmeasured residual:
+whether VariantEnsemble.fit uses an internal validation split for early
+stopping.
+
+**EWCSEL-1** -- `best_score_` is set nowhere, so the Elastic Weight
+Consolidation anchor is dictionary insertion order.
+
+**REGISTRY-1, CLOSED HERE.**
+
+### 8. NEXT
+
+**PROD-1 and GATE-1**, both unblocked now that an identity chain exists. Then
+**DRIFT-1 with README-1**, then **OP-1 step 5** against STEP K, then **OP-2**.
+**RETRAIN-GATE** waits on the five findings above.
