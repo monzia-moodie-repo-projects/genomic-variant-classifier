@@ -41,7 +41,7 @@ Usage:
         --new-clinvar       data/processed/clinvar_grch38_2024_07.parquet \\
         --old-clinvar       data/processed/clinvar_grch38_2024_01.parquet \\
         --output-dir        outputs/drift_reports/ \\
-        --registry          models/registry.json \\
+        --registry          deployments/registry.v1.json \\
         --auto-retrain
 """
 
@@ -85,11 +85,82 @@ class ContinualLearningConfig:
     shadow_auroc_tolerance:   float = 0.002  # max allowed drop for promotion
 
     # Registry
-    registry_path:            str = "models/registry.json"
+    #
+    # REGISTRY-1 (2026-08-07): moved out of `models/`, which .gitignore:75
+    # ignores wholesale, so the declaration could never be committed and
+    # the Continuous Integration check could never find it. `deployments/`
+    # is a control-plane namespace: small, reviewable declarations, as
+    # distinct from artifacts (`models/`) and reference data
+    # (`data/reference/`).
+    registry_path:            str = "deployments/registry.v1.json"
+
+    # Adaptive retraining is FAIL-CLOSED. See AdaptiveRetrainingInputs
+    # below; leaving this None is what keeps `_retrain` shut.
+    adaptive_inputs:          Optional["AdaptiveRetrainingInputs"] = None
 
     # Outputs
     output_dir:               str = "outputs/continual_learning"
     auto_retrain:             bool = False  # if False, only reports; requires human approval
+
+
+@dataclass(frozen=True)
+class AdaptiveRetrainingInputs:
+    """The scientific inputs adaptive retraining cannot proceed without.
+
+    REGISTRY-1 (2026-08-07). Until today `_retrain` was unreachable because
+    `ModelRegistry` was imported and never defined. That accident was the only
+    thing preventing four measured defects from executing:
+
+      LSIF-1      `lsif.fit(X_ref=..., X_new=...)` receives the SAME rows in
+                  two different feature representations, so the declared
+                  density ratio p_new/p_old has no reference population and is
+                  not identified.
+      ROSTER-1    the retraining subprocess passes `--skip-nn --skip-svm`, so
+                  the intervention is "new data + adaptation + architecture
+                  change" and any shadow-versus-production movement is
+                  confounded.
+      EVALPROV-1  `X_val_new` -- the new release's VALIDATION split -- is
+                  registered as `holdout_auroc` and logged as a holdout. The
+                  module contract promises "evaluate on canonical holdout set".
+      EWCSEL-1    `best_score_` is set nowhere in src/, so
+                  `max(..., key=getattr(m, "best_score_", 0.0))` returns
+                  whichever base model comes first in dictionary order.
+
+    A boolean flag would be flipped by whoever next wanted the path to run.
+    Requiring the MISSING INPUTS instead means the path cannot execute until
+    each finding actually has an answer:
+
+      no reference training features   -> LSIF cannot estimate a ratio
+      no expected roster               -> an architecture change is undetected
+      no evaluation protocol           -> promotion evidence is unqualified
+      no selected base model           -> the EWC anchor is arbitrary
+    """
+
+    reference_training_features: Path
+    expected_model_roster:       tuple[str, ...]
+    promotion_protocol_id:       str
+    ewc_anchor_model:            str
+
+    def __post_init__(self) -> None:
+        if not Path(self.reference_training_features).is_file():
+            raise ValueError(
+                "reference_training_features must point at the OLD cohort's "
+                "feature matrix. LSIF-1: without it the density ratio is "
+                "fitted against itself. Got "
+                f"{self.reference_training_features}")
+        if not self.expected_model_roster:
+            raise ValueError(
+                "expected_model_roster must enumerate the production roster. "
+                "ROSTER-1: a count cannot detect an architecture change.")
+        if not self.promotion_protocol_id:
+            raise ValueError(
+                "promotion_protocol_id must name the evaluation protocol. "
+                "EVALPROV-1: an unqualified metric is not promotion evidence.")
+        if not self.ewc_anchor_model:
+            raise ValueError(
+                "ewc_anchor_model must name the base model the Elastic Weight "
+                "Consolidation proxy anchors on. EWCSEL-1: `best_score_` is "
+                "set nowhere, so introspection returns insertion order.")
 
 
 class ContinualLearner:
@@ -124,7 +195,8 @@ class ContinualLearner:
         """
         from genomic_variant_classifier.monitoring.drift_detector import DriftDetector
         from genomic_variant_classifier.monitoring.clinvar_tracker import ClinVarTracker
-        from genomic_variant_classifier.monitoring.registry import ModelRegistry
+        from genomic_variant_classifier.monitoring.model_registry import (
+            ModelRegistry)
 
         splits_dir = Path(reference_splits_dir)
         logger.info("=== Continual Learning Pipeline: starting ===")
@@ -259,11 +331,28 @@ class ContinualLearner:
         """
         Run the full retraining pipeline with adaptive sample weights.
         Returns the path to the new registered model artefact.
+
+        FAIL-CLOSED. See AdaptiveRetrainingInputs. Until 2026-08-07 this
+        method was unreachable only because `ModelRegistry` did not
+        exist; the class now exists, so the boundary is explicit.
         """
+        if self.config.adaptive_inputs is None:
+            raise RuntimeError(
+                "adaptive retraining is NOT scientifically armed. "
+                "LSIF-1 (no reference population for the density "
+                "ratio), ROSTER-1 (--skip-nn --skip-svm changes the "
+                "architecture), EVALPROV-1 (a validation split "
+                "registered as holdout evidence), EWCSEL-1 (the anchor "
+                "is dictionary order) and PIPELINE-1 "
+                "(InferencePipeline has no _prepare) are all open. "
+                "Supply ContinualLearningConfig.adaptive_inputs only "
+                "once each has an answer -- see "
+                "docs/ROADMAP.md and AdaptiveRetrainingInputs.")
         import joblib
         from genomic_variant_classifier.training.ewc import TreeEWCProxy
         from genomic_variant_classifier.monitoring.drift_detector import LSIFImportanceWeighter
-        from genomic_variant_classifier.monitoring.registry import ModelRegistry
+        from genomic_variant_classifier.monitoring.model_registry import (
+            ModelRegistry)
         from genomic_variant_classifier.api.pipeline import InferencePipeline, INFERENCE_FEATURE_COLUMNS
 
         logger.info("Starting adaptive retraining for release: %s", release_name)
@@ -381,30 +470,55 @@ class ContinualLearner:
             new_auroc, new_auprc,
         )
 
-        # Register in model registry
+        # Register in the model registry.
+        #
+        # EVALPROV-1 IS VISIBLE HERE BY CONSTRUCTION. `X_val_new` is the
+        # new release's VALIDATION split, produced by DataPrepPipeline in
+        # this method. The module docstring promises "evaluate on
+        # canonical holdout set". The typed protocol below states what
+        # the split ACTUALLY is, so a promotion comparison against a
+        # production record evaluated under a different protocol is
+        # refused rather than silently performed.
+        from genomic_variant_classifier.monitoring.model_registry import (
+            EvaluationEvidence, EvaluationProtocol, TrainingLineage)
+
+        protocol = EvaluationProtocol(
+            protocol_id     = self.config.adaptive_inputs
+                                  .promotion_protocol_id,
+            split_kind      = "new_release_validation",
+            population_scope= f"clinvar_{release_name}_tier"
+                              f"{self.config.min_review_tier}",
+            n_observations  = int(len(y_val_new)),
+            label_policy    = "acmg_five_tier_collapsed_binary",
+        )
         registry = ModelRegistry.load(self.config.registry_path)
         record = registry.register(
+            version       = f"{release_name}-adaptive",
             model_path    = new_model_path,
-            metrics       = {
-                "holdout_auroc": new_auroc,
-                "holdout_auprc": new_auprc,
-            },
-            data_manifest = {
-                "clinvar_release": release_name,
-                "n_train":         len(X_train_new),
-                "n_features":      X_train_new.shape[1],
-                "reclassified":    len(reclassified_ids),
-            },
-            feature_names  = list(X_train_new.columns),
-            notes          = f"Adaptive retraining on {release_name} with LSIF+EWC weights",
-            drift_report   = drift_report_dict,
+            lineage       = TrainingLineage(
+                run_id          = f"{release_name}-adaptive",
+                clinvar_release = release_name),
+            evaluation    = EvaluationEvidence(
+                protocol = protocol,
+                metrics  = {"auroc": new_auroc, "auprc": new_auprc}),
+            feature_names = list(X_train_new.columns),
+            model_roster  = tuple(new_pipe.base_models),
+            notes         = f"Adaptive retraining on {release_name} "
+                            f"with LSIF+EWC weights",
+            drift_report  = drift_report_dict,
         )
 
-        # Auto-promote to shadow
-        registry.promote(record.version, "shadow")
+        # Auto-promote to shadow. Production promotion is DELIBERATELY a
+        # different method taking a policy -- a clinically consequential
+        # transition should not look like a string assignment.
+        registry.promote_to_shadow(record.version)
+        registry.save()
         logger.info(
-            "New model %s registered and promoted to shadow. "
-            "Run registry.promote('%s', 'production') after burn-in.",
+            "New model %s registered and promoted to shadow. After "
+            "burn-in, run registry.promote_to_production('%s', policy) "
+            "with an explicit PromotionPolicy; it refuses on protocol "
+            "mismatch, roster mismatch, a non-durable artifact URI, or "
+            "a regression beyond tolerance.",
             record.version, record.version,
         )
         return new_model_path

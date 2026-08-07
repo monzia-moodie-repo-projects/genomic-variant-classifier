@@ -5782,5 +5782,102 @@
 #   pre-existing scikit-learn degenerate-cohort warnings from absence and
 #   population tests; the selectors import no scikit-learn.
 #
+#
+# 4353 -> 4417 (+64)  2026-08-07  REGISTRY-1: a model registry that was
+#   referenced four times and never written, and the gate that would have
+#   caught it the day it was written.
+#
+#   `ModelRegistry` was imported at continual_trainer.py:127 and :266 and in
+#   drift_monitor.yml, and defined NOWHERE. Established three independent
+#   ways: direct execution (ImportError), `git log --all -S "class
+#   ModelRegistry" -- src/ scripts/` returning EMPTY -- never written, not
+#   deleted -- and a 527-name import census in which it was the ONLY
+#   unimportable name in the codebase.
+#
+#   IT SURVIVED BECAUSE BOTH IMPORTS ARE FUNCTION-LOCAL. Module collection
+#   never executes them, and continual_trainer.py has no test coverage across
+#   410 lines. The adaptive-retraining and model-promotion chain could not
+#   run, and nothing said so. `models/registry.json` has never existed, so the
+#   workflow guard exits 3 before reaching the ImportError: a correct
+#   diagnosis of the symptom that conceals the cause.
+#
+#   A NEW MODULE, NOT AN ADDITION TO registry.py. `monitoring/registry.py` is
+#   a DATA-SOURCE registry -- Category, Check, Source, Verdict, REGISTRY and
+#   five accessors. The call sites specified an INTERFACE worth preserving;
+#   they did not establish that their module placement was wise. Grafting
+#   deployment state onto it would resolve an ImportError by creating a
+#   semantic junk drawer, so the imports were corrected instead.
+#
+#   NO BARE SCALAR. `ModelRecord` has no `auroc` property, not even as a
+#   convenience, and a test asserts the absence. A metric detached from its
+#   protocol is what made 0.9988 unseen-gene look comparable with 0.9984
+#   ordinary test. Callers write `record.evaluation.metrics["auroc"]`, which
+#   keeps the number in the same expression as `record.evaluation.protocol`.
+#   `promote_to_production` refuses on protocol mismatch, roster mismatch, a
+#   non-durable artifact URI, a candidate not in shadow, an absent metric, or
+#   a regression beyond tolerance -- each individually tested.
+#
+#   IDENTITY IS LINEAGE PLUS CONTENT. `ArtifactIdentity.measure` reads the
+#   digest from disk; a caller cannot supply one. `record_id` is
+#   `f"{run_id}-{sha256[:12]}"`, so a re-export under the same version
+#   label is a different record. The roster is ENUMERATED with an
+#   order-independent fingerprint, so ROSTER-1 becomes a promotion gate rather
+#   than a comment.
+#
+#   THE REGISTRY LIVES IN A NEW `deployments/` NAMESPACE. `.gitignore:75`
+#   ignores `/models/` wholesale, so `models/registry.json` could never be
+#   committed and the Continuous Integration check could never find it.
+#   `deployments/` is control-plane state: small, reviewable declarations, as
+#   distinct from artifacts and from reference data. Its README records what a
+#   committed registry can and cannot claim -- structural coherence of a
+#   DECLARATION, never the health of a running deployment.
+#
+#   FIXING THE IMPORT DOES NOT ARM RETRAINING. A missing class is a terrible
+#   safety mechanism, and removing it without replacing the boundary would be
+#   worse. `AdaptiveRetrainingInputs` turns four measured findings into
+#   constructor preconditions: LSIF-1 (the density ratio p_new/p_old is fitted
+#   with the SAME rows in two different feature representations, so it has no
+#   reference population), ROSTER-1 (`--skip-nn --skip-svm` changes the
+#   architecture as well as the data), EVALPROV-1 (the new release's
+#   VALIDATION split is registered as `holdout_auroc`), EWCSEL-1
+#   (`best_score_` is set nowhere in src/, so the anchor is dictionary order).
+#   PIPELINE-1 -- `InferencePipeline` has no `_prepare` -- is named in the
+#   refusal too, and is the class of defect an import gate CANNOT see.
+#
+#   THE GATE WAS OBSERVED FAILING BEFORE IT WAS TRUSTED. The installer ran it
+#   against the live tree before any edit and refused unless it reported
+#   exactly one unresolved name, ModelRegistry, from two sites; then ran it
+#   again after the edits and refused unless it reported zero. Red then green,
+#   against the real repository, with the tree never left red.
+#
+#   THE GATE DOES NOT REIMPLEMENT IMPORT RESOLUTION. A first attempt used
+#   `hasattr(module, name)` and reported ELEVEN working submodule imports as
+#   broken -- `hasattr(email, "message")` is False while `from email import
+#   message` succeeds. It now EXECUTES the statement in a child interpreter
+#   and lets Python answer. A child, because importing this package in-process
+#   applies the imodelsx Kolmogorov-Arnold Network repair and initialises
+#   PyTorch, and a structural check must not reshape the interpreter the rest
+#   of the suite runs in.
+#
+#   DOWNLOADSHADOW-1, FOUND BY THE GATE REFUSING. Its first run against the
+#   live tree reported sixteen `AttributeError: module 'catalogue' has no
+#   attribute 'create'` failures from inside thinc. The repository was fine:
+#   `C:\Users\monzi\Downloads\catalogue.py` shadows the installed
+#   `catalogue` distribution, and the installer runs from that folder. The
+#   child now takes an explicit import path with the caller's own directory
+#   removed, and every path entry is resolved to ABSOLUTE form first, because
+#   an empty entry means the PARENT's working directory to the parent and the
+#   CHILD's to the child.
+#
+#   ARITHMETIC: 4353 + 64 = 4417. 46 from
+#   tests/unit/test_model_registry.py (40 functions, six parametrised) and 18
+#   from tests/unit/test_import_resolution_gate.py (11 functions, three
+#   parametrised). tests/unit/test_model_registry.py carries a 16-mutation
+#   sabotage matrix result: 16 detected, 0 undetected, run before delivery.
+#
+#   ACCEPTANCE: full suite 4411 passed, 6 skipped, 0 failed in 16m01s; 4417
+#   collected, measured by this installer (predicted 4417). The
+#   suite's stable skip surface is UNCHANGED at 6.
+#
 
-4353
+4417
