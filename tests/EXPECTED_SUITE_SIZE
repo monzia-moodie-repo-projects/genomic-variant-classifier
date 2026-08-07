@@ -5686,5 +5686,96 @@
 #   skip surface is UNCHANGED at 6; the two skips step 3c briefly introduced are
 #   gone.
 #
+#
+# 4300 -> 4353 (+53)  2026-08-06  OP-1 STEP 4: the two operating-point
+#   selectors. D12 CLOSES, and with it the twelve-defect register opened on
+#   2026-08-01 is fully closed. Neither legacy selector is touched and nothing
+#   imports these yet; step 5 shadows the two implementations and step 6 wires
+#   the replacement.
+#
+#   D12 WAS A TRAVERSAL DEPENDENCY, NOT A MISSING FEATURE. `if diff <
+#   best_diff` is strict, so the FIRST candidate reaching the minimum wins --
+#   and the two legacy selectors traverse OPPOSITE ways.
+#   `_find_operating_point` walks `np.linspace(0, 1, 1000)` ascending,
+#   permissive to conservative; `_find_high_ppv_point` walks
+#   `np.sort(np.unique(p))[::-1]`, conservative to permissive.
+#   `sweep_thresholds` runs conservative to permissive, so a selector written
+#   naturally against it would have INVERTED the sensitivity-target tie policy
+#   while appearing to preserve it, and step 5 would have reported a difference
+#   nobody could attribute. The rule is therefore a DECLARED TOTAL ORDER and
+#   the winner is the minimum under that key, not the first candidate to reach
+#   it. Asserted directly: twenty random permutations plus the reversal, zero
+#   divergent.
+#
+#   EVERY CRITERION NAMED IN THE PERSISTED POLICY CAN ACTUALLY DECIDE
+#   SOMETHING. A four-stage draft ended each key with the canonical threshold
+#   declaration and sabotage could not detect its removal. Measured over 400
+#   random cohorts with duplicate scores forced: on a canonical sweep
+#   `n_flagged` is STRICTLY increasing, so "fewer flagged" and "most
+#   conservative threshold" induce THE SAME ORDER and the suffix was
+#   unreachable. A policy code naming a stage that can never run would
+#   overstate what chose the candidate, so the suffix is gone and the canonical
+#   order is tested as a property of the SWEEP instead.
+#
+#   THE UNIQUENESS INVARIANT LIVES ON THE TYPE. The shortened keys are total
+#   exactly when each candidate holds a distinct (true positive, false
+#   positive) pair, so `ExactThresholdSweep.__init__` now refuses a sweep that
+#   does not. A check repeated in every selector is one a future consumer
+#   forgets, and the policy would then rest on an unstated producer convention
+#   rather than a contract. Without it two identical states leave every key
+#   tied, `np.lexsort` is stable, and the winner falls back to ARRAY ORDER --
+#   D12 reopening through the back door in the commit that closes it. The
+#   invariant rejects nothing the suite already builds: 300 random cohorts
+#   through the live `sweep_thresholds`, zero violations.
+#
+#   TWO REQUIRED CHANGES THE HANDOFF'S CHANGE LIST DID NOT CONTAIN, both found
+#   by reading the live module rather than the replica it was drafted against,
+#   and both CALL-TIME failures invisible to `--collect-only`:
+#     * `thresholds.py` imported only `EvaluationPopulation` from
+#       `population.py`, while the selectors reference `PopulationComparison`
+#       in a runtime expression. Unfixed, the first successful selection
+#       raises NameError.
+#     * `OperatingPointOutcome.refused()` took no `selection` argument, and
+#       all four refusal paths pass one. Unfixed, every refusal raises
+#       TypeError.
+#
+#   THE VERIFICATION WAS REDONE AGAINST THE REAL CLASS. The payloads were
+#   drafted against a replica, and a replica agreeing with its author is the
+#   defect that produced the step-3c NameError. The live
+#   `OperatingPointOutcome` was reconstructed, the four edits applied to it,
+#   and the whole battery re-run: 53 of 53 cases pass and 14 of 14 mutations
+#   are detected against the PATCHED PRODUCTION CLASS, not the stand-in. The
+#   replica could not have exposed either finding above -- it defines
+#   `PopulationComparison` and accepts `selection` in the same file.
+#
+#   FOUR DEFECTS OF THE AUTHOR'S, ALL CAUGHT BEFORE ANY WRITE, AND ALL ONE
+#   FAMILY: a conclusion that agreed with its author for the wrong reason.
+#     * An abstract-syntax-tree probe matching only `ast.Name` calls, blind to
+#       `T.ExactThresholdSweep(...)`; its empty result was consistent with the
+#       claim but did not establish it.
+#     * A recommendation to import `Optional`, reasoned from the import block
+#       without reading the class that uses it -- which already carries three
+#       such annotations and works under PEP 563. Withdrawn; recorded under
+#       F821-1 instead of changed here.
+#     * A ratchet-shape hypothesis inferred from a byte-count coincidence
+#       (368,334 bytes is close to 4,300 node identifiers) rather than from
+#       the file. Falsified by counting bare-integer lines: exactly one.
+#     * An unquoted forward reference in the new `selection` field, correct
+#       only because line 27 carries `from __future__ import annotations`.
+#       Caught by EXECUTING the patched class, not by reading it; now quoted,
+#       matching `refused()`'s own return annotation.
+#
+#   ARITHMETIC: 4300 + 53 = 4353. All 53 come from
+#   tests/unit/test_operating_point_selection.py -- 27 functions, four
+#   parametrised at x3, x20, x3 and x4.
+#   tests/unit/test_operating_point_outcome.py contributes ZERO: it gained a
+#   vocabulary-gate dictionary entry, not a test function.
+#
+#   ACCEPTANCE: full suite 4347 passed, 6 skipped, 0 failed in 18m20s; 4353
+#   collected, measured by this installer (predicted 4353). The
+#   suite's stable skip surface is UNCHANGED at 6. The 33 warnings are
+#   pre-existing scikit-learn degenerate-cohort warnings from absence and
+#   population tests; the selectors import no scikit-learn.
+#
 
-4300
+4353

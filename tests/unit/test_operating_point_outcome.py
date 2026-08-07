@@ -405,6 +405,10 @@ _EXPECTED_CERTIFICATION_BLOCKERS = {
         "threshold_selected_and_evaluated_on_same_population",
     "POST_SELECTION_VALIDATION_NOT_IMPLEMENTED":
         "post_selection_validation_not_implemented",
+    # OP-1 step 4 (2026-08-06). Added in the SAME COMMIT as the member,
+    # which is what this gate's own failure message instructs.
+    "SELECTION_EVALUATION_INDEPENDENCE_NOT_ESTABLISHED":
+        "selection_evaluation_independence_not_established",
 }
 
 
