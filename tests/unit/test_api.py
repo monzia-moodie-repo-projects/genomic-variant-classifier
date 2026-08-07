@@ -30,6 +30,10 @@ import pytest
 from unittest.mock import MagicMock
 from pathlib import Path
 from genomic_variant_classifier.models.variant_ensemble import EXPECTED_TABULAR_FEATURE_COUNT
+from genomic_variant_classifier.api.attribution import (
+    RuntimeModelBinding,
+    served_model_roster,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -489,26 +493,57 @@ class TestInferencePipeline:
 
 @pytest.fixture
 def client():
-    """TestClient with the model pre-loaded as a mock pipeline."""
+    """An UNATTRIBUTED world: a pipeline object with no artifact bytes.
+
+    The name is kept because many tests request it, but the world it
+    constructs is now explicit. A pipeline injected straight into the
+    process is loaded and usable and has NO PROVENANCE, so this client
+    is alive and NOT READY, and `/info` reports
+    `no_artifact_identity`. Until 2026-08-07 the suite asserted this
+    world was "ok".
+
+    BOTH globals are set and BOTH are restored. A binding surviving a
+    pipeline swap is a failure mode PROD-1 creates, and this fixture is
+    where it would first appear. Deliberately not autouse and it does
+    not request `monkeypatch`: tests/conftest.py records what happens
+    when an autouse fixture drags monkeypatch into the autouse group.
+
+    tests/unit/test_runtime_attribution.py carries the fixtures for the
+    attributed worlds, including one that drives the real lifespan.
+    """
     from fastapi.testclient import TestClient
     import genomic_variant_classifier.api.main as api_main
 
+    saved = (api_main._PIPELINE, api_main._RUNTIME_MODEL_BINDING)
     pipe = _make_pipeline(proba=0.92)
     api_main._PIPELINE = pipe
-    client = TestClient(api_main.app)
-    yield client
-    api_main._PIPELINE = None
+    api_main._RUNTIME_MODEL_BINDING = RuntimeModelBinding.unattributed(
+        served_model_roster(pipe),
+        detail="injected directly by the test fixture; no artifact bytes "
+               "were measured")
+    try:
+        yield TestClient(api_main.app)
+    finally:
+        api_main._PIPELINE, api_main._RUNTIME_MODEL_BINDING = saved
 
 
 class TestHealthEndpoint:
 
-    def test_health_returns_ok(self, client):
+    def test_health_reports_degraded_without_attribution(self, client):
+        """PROD-1. A process that loaded bytes it cannot identify is
+        ALIVE and NOT READY. An orchestrator should stop routing
+        inference traffic to it rather than restart it, and for a
+        clinical-facing service "I loaded a model but cannot establish
+        what it is" must not be operationally green."""
         r = client.get("/health")
         assert r.status_code == 200
         body = r.json()
-        assert body["status"]       == "ok"
-        assert body["model_loaded"] is True
-        assert "uptime_seconds"     in body
+        assert body["model_loaded"]     is True
+        assert body["live"]             is True
+        assert body["ready"]            is False
+        assert body["model_attributed"] is False
+        assert body["status"]           == "degraded"
+        assert "uptime_seconds"         in body
 
     def test_health_includes_uptime(self, client):
         r = client.get("/health")
@@ -529,14 +564,24 @@ class TestHealthEndpoint:
 
 class TestInfoEndpoint:
 
-    def test_info_returns_metadata(self, client):
+    def test_info_reports_attribution_and_no_metric(self, client):
+        """The four assertions this replaced pinned constants written on
+        2026-03-25 and never updated through Runs 9 to 16. The suite
+        DEFENDED them, which is why they survived. `/info` now reports
+        what it is serving; it reports no metric at all."""
         r = client.get("/info")
         assert r.status_code == 200
         body = r.json()
-        assert body["holdout_auroc"]     == pytest.approx(0.9847)
-        assert body["model_version"]     == "phase2-v1"
-        assert body["pipeline_version"]  == "1.0.0"
-        assert body["training_auroc"]    == pytest.approx(0.9780)
+        assert body["api_version"]  == "2.0.0"
+        assert body["model_loaded"] is True
+        assert body["attribution"]["resolution_status"] == (
+            "no_artifact_identity")
+        assert body["attribution"]["model_version"] is None
+        assert body["attribution"]["record_id"] is None
+        for gone in ("holdout_auroc", "training_auroc",
+                     "training_auprc", "pipeline_version",
+                     "description"):
+            assert gone not in body
         assert body["n_features"]        == EXPECTED_TABULAR_FEATURE_COUNT
         assert len(body["feature_names"]) == EXPECTED_TABULAR_FEATURE_COUNT
         # Phase 4: all features promoted, phase2_features_remaining is now empty
@@ -575,10 +620,15 @@ class TestPredictEndpoint:
         assert pred["confidence"] in {"high", "medium", "low"}
         assert pred["variant_id"] == "17:43094692:G:A"
 
-    def test_predict_returns_model_version(self, client):
+    def test_predict_reports_no_identity_when_unattributed(self, client):
+        """None is the honest answer for a pipeline with no artifact.
+        The constant it replaced said "phase2-v1" whatever was loaded."""
         r = client.post("/predict", json={"chrom": "1", "pos": 1, "ref": "A", "alt": "T"})
         assert r.status_code == 200
-        assert r.json()["model_version"] == "phase2-v1"
+        body = r.json()
+        assert body["model_record_id"] is None
+        assert body["model_version"] is None
+        assert "pipeline_version" not in body
 
     def test_predict_chrom_normalised(self, client):
         payload = {"chrom": "chr17", "pos": 43094692, "ref": "g", "alt": "a"}
@@ -634,7 +684,8 @@ class TestBatchEndpoint:
         body = r.json()
         assert body["n_pathogenic"] + body["n_benign"] + body["n_uncertain"] == 2
         assert len(body["predictions"]) == 2
-        assert body["model_version"] == "phase2-v1"
+        assert body["model_record_id"] is None
+        assert body["model_version"] is None
 
     def test_batch_counts_correct(self, client):
         """With proba=0.92 all variants should be Pathogenic."""

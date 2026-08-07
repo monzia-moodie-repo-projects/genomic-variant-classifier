@@ -5884,5 +5884,100 @@
 #   collected, measured by this installer (predicted 4417). The
 #   suite's stable skip surface is UNCHANGED at 6.
 #
+#
+# 4417 -> 4449 (+32)  2026-08-07  PROD-1 COMMIT A: the application
+#   programming interface stops publishing constants nobody maintained, and
+#   starts reporting what it is actually serving.
+#
+#   api/main.py carried five provenance constants written in ae1853b on
+#   2026-03-25, under a comment reading "update after each training run". They
+#   were never updated -- through Runs 9 to 16. `HOLDOUT_AUROC = 0.9847` fused
+#   a Run-8 sixty-four-feature figure with 154,404, the validation split size
+#   of the Runs 10-14 cohort: two measurements, two eras, one line. The same
+#   digits are Run 15's unseen-gene F1, so a reader reconciling them lands on
+#   a third quantity. `/info` published all of it regardless of which artifact
+#   was loaded, and FOUR OF THE FIVE WERE PINNED BY LITERAL IN THE SUITE -- so
+#   the tests defended them, which is why they survived four and a half
+#   months.
+#
+#   NOTHING HAND-MAINTAINED REPLACES THEM. Model identity is derived from the
+#   digest of the bytes actually loaded, resolved against the committed
+#   deployment declaration. `API_VERSION = "2.0.0"` covers the software
+#   contract only; `PIPELINE_VERSION` was retired rather than narrowed,
+#   because one symbol was serving as both the OpenAPI version and prediction
+#   provenance, and that conflation is why "1.0.0" sat unexamined.
+#
+#   FOUR ORTHOGONAL AXES, because they answer four different questions:
+#   ArtifactResolutionStatus (can these bytes be identified),
+#   DeploymentAlignment (are they what the registry DECLARES),
+#   RosterAlignment (does the executable roster match, allowing for a declared
+#   serving projection), EvaluationApplicabilityStatus (may a metric measured
+#   on that record be shown as evidence for THIS artifact). Collapsing any two
+#   recreates the drift: a registered SHADOW artifact served by accident must
+#   not look healthy merely because its digest resolves.
+#
+#   COMMIT A PUBLISHES NO METRIC AT ALL, and that is the scientific point.
+#   `InferencePipeline.from_variant_ensemble` excludes `cnn_1d`, which needs a
+#   FASTA context window unavailable over the REST path, so the deployable
+#   artifact is a TWELVE-model projection of a THIRTEEN-model trained
+#   ensemble. A metric measured on the record therefore does not
+#   automatically describe these bytes. Resolving a digest authorises
+#   IDENTITY, not EVIDENCE. A sealed evaluation naming this artifact digest
+#   and this served-roster fingerprint is what will eventually authorise
+#   publication, and that is Commit C.
+#
+#   THE PROJECTION IS DECLARED, NOT INFERRED. `ServingProjection` records
+#   which models a derived serving artifact omits and why, so an intentional
+#   omission is SERVING_SUBSET while an undeclared one is UNKNOWN and anything
+#   further missing is INCONSISTENT. Without it a missing CatBoost and a
+#   missing `cnn_1d` look identical at runtime, and this project has already
+#   lost a model silently once.
+#
+#   LIVENESS AND READINESS ARE SEPARATED. A process that loaded bytes it
+#   cannot identify is ALIVE and NOT READY: an orchestrator should stop
+#   routing inference traffic to it rather than restart it. The existing test
+#   fixture injects a pipeline object directly, so it constructs exactly that
+#   world -- and the suite asserted it was "ok" until today.
+#
+#   THE ARTIFACT IS MEASURED AROUND THE LOAD, NOT BEFORE OR AFTER IT. A digest
+#   taken only before describes bytes that may have been replaced during the
+#   load; one taken only after describes bytes that may not be what was
+#   deserialised. Two measurements, compared, and the second is reused by
+#   registry resolution rather than reading a large artifact a third time.
+#
+#   TWO DEFECTS THE FIRST INSTALL'S OWN TEST RUN FOUND, both the author's:
+#     * `ModelAttributionResponse` referenced in the /info handler and never
+#       imported -- NameError on every call to that endpoint. No import check
+#       and no collection sees it; it is F821's territory, and F821-1 is open.
+#     * `InferencePipeline.save` is `joblib.dump`, and `MagicMock` will not
+#       pickle, so the three tests built to drive the real serialisation path
+#       never ran at all.
+#
+#   AND ONE IN THE CHECK WRITTEN TO CATCH THE FIRST. A conservative
+#   undefined-name scan collected only the OUTER function's parameters, so a
+#   `lambda f:` left `f` looking undefined; it reported that against main.py
+#   and refused a correct fix. Its self-test had passed because the author
+#   chose three cases and omitted lambdas and nested definitions -- the two
+#   commonest binding forms in Python. The proof now runs EIGHT cases,
+#   including one that fails if the checker is weakened to make the others
+#   pass.
+#
+#   ARITHMETIC: 4417 + 32 = 4449. All 32 come from
+#   tests/unit/test_runtime_attribution.py -- 29 functions, one parametrised
+#   x4. tests/unit/test_api.py contributes ZERO: four of its tests were
+#   REDIRECTED rather than added, because the world they construct (a pipeline
+#   object with no artifact provenance) is a real and useful one, and three
+#   were renamed because each claimed more than it checked.
+#
+#   A 12-MUTATION SABOTAGE MATRIX ran before delivery: 12 detected, 0
+#   undetected -- after the matrix found a genuine hole. A test named
+#   "a registered shadow artifact is not production" actually constructed "no
+#   production declared", so the branch a mutation targeted never executed.
+#   The test's NAME claimed more than the test checked.
+#
+#   ACCEPTANCE: full suite 4443 passed, 6 skipped, 0 failed in 18m34s; 4449
+#   collected, measured by this installer (predicted 4449). The
+#   suite's stable skip surface is UNCHANGED at 6.
+#
 
-4417
+4449

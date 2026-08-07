@@ -266,27 +266,46 @@ class VariantPrediction(BaseModel):
 
 
 class PredictResponse(BaseModel):
-    """Response for /predict (single variant)."""
+    """Response for /predict (single variant).
+
+    PROD-1 (2026-08-07), API 2.0.0. `pipeline_version` is gone: it was
+    the OpenAPI version doubling as prediction provenance. `model_version`
+    is now the registry record's label and is None when the serving
+    artifact cannot be attributed -- which is honest, and was previously
+    a constant reading "phase2-v1" whatever was loaded.
+    """
 
     prediction: VariantPrediction
-    model_version: str
-    pipeline_version: str
+    model_record_id: Optional[str] = None
+    model_version: Optional[str] = None
 
 
 class BatchPredictResponse(BaseModel):
-    """Response for /batch."""
+    """Response for /batch. Every result shares one serving identity."""
 
     predictions: list[VariantPrediction]
     n_pathogenic: int
     n_benign: int
     n_uncertain: int
-    model_version: str
-    pipeline_version: str
+    model_record_id: Optional[str] = None
+    model_version: Optional[str] = None
 
 
 class HealthResponse(BaseModel):
+    """Liveness and readiness, which are different questions.
+
+    `live` says the process is responsive. `ready` says it may take
+    inference traffic: a model is loaded, its bytes are attributable to a
+    declared production record, and its executable roster is coherent
+    with that record. `status` remains for compatibility and mirrors
+    `ready`.
+    """
+
     status: str  # "ok" | "degraded"
+    live: bool = True
+    ready: bool = False
     model_loaded: bool
+    model_attributed: bool = False
     gnomad_index_loaded: bool
     gene_counts_loaded: bool
     uptime_seconds: float
@@ -324,16 +343,78 @@ class RsidLookupResponse(BaseModel):
     )
 
 
+class ModelAttributionResponse(BaseModel):
+    """What the process is serving, and what it may claim about it.
+
+    Four independent axes, because they answer four different questions,
+    and collapsing any two is what allowed a metric from one model to be
+    advertised for another. Consumers branch on the enums; `detail` is
+    supplementary human diagnostics and is never a machine contract.
+    """
+
+    resolution_status: str
+    deployment_alignment: str
+    roster_alignment: str
+    evaluation_applicability: str
+
+    record_id: Optional[str] = None
+    model_version: Optional[str] = None
+    artifact_sha256: Optional[str] = None
+    registry_stage: Optional[str] = None
+
+    #: SERVEROSTER-1. The trained roster and the roster this artifact can
+    #: actually execute are different facts. The REST pipeline excludes
+    #: `cnn_1d`, which needs a FASTA context window unavailable here, so
+    #: a twelve-model projection of a thirteen-model ensemble is served.
+    #: Reporting one as the other would advertise a property of something
+    #: other than the loaded object.
+    registered_model_roster: Optional[list[str]] = None
+    served_model_roster: list[str] = []
+    served_roster_fingerprint: Optional[str] = None
+
+    detail: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _coherent(self) -> "ModelAttributionResponse":
+        """A resolved attribution must carry identity; an unresolved one
+        must not, and neither may carry evidence -- there is nowhere in
+        this model to put any."""
+        resolved = self.resolution_status == "registered"
+        if resolved and not all((self.record_id, self.model_version,
+                                 self.artifact_sha256)):
+            raise ValueError(
+                "a resolved attribution requires record_id, model_version "
+                "and artifact_sha256")
+        if not resolved and self.record_id is not None:
+            raise ValueError(
+                "an unresolved attribution must not carry registry identity")
+        return self
+
+
 class InfoResponse(BaseModel):
-    model_version: str
-    pipeline_version: str
-    training_auroc: float
-    training_auprc: float
-    holdout_auroc: float  # 0.9847 — gene-stratified, 154 K variants
+    """Model metadata. API 2.0.0.
+
+    BREAKING: `pipeline_version`, `training_auroc`, `training_auprc`,
+    `holdout_auroc` and the free-text `description` are removed. The
+    first was a software version masquerading as model provenance; the
+    three metrics were 2026-03-25 constants published irrespective of
+    what was loaded; the description asserted a five-model ensemble
+    against a roster of thirteen and a 1.2 M cohort against 1.49 M.
+
+    NO METRIC APPEARS HERE. The serving artifact is a projection of the
+    evaluated ensemble, so evidence measured on the record does not
+    automatically describe these bytes. `evaluation_applicability` states
+    why, and a sealed evaluation naming this digest and this roster
+    fingerprint is what will eventually authorise publication.
+    """
+
+    api_version: str
+    model_loaded: bool
+    attribution: ModelAttributionResponse
+
     n_features: int
     feature_names: list[str]
     phase2_features_remaining: list[str]
-    description: str
 
 
 # ---------------------------------------------------------------------------

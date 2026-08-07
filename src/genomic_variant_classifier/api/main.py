@@ -138,17 +138,59 @@ DBSNP_INDEX_PATH: Optional[Path] = Path(
 
 # Filled at startup
 _PIPELINE: Any = None
+#: PROD-1 (2026-08-07). What this process is serving and what it may
+#: claim about it. Computed ONCE in the lifespan and immutable after:
+#: re-measuring the path per request would describe whatever bytes are
+#: on disk now, which need not be the bytes that were deserialised.
+_RUNTIME_MODEL_BINDING: Any = None
 _GNOMAD_INDEX: Optional[pd.DataFrame] = None
 _GENE_SUMMARY: Optional[pd.DataFrame] = None
 _DBSNP_INDEX: Optional[pd.DataFrame] = None   # rs_id → chrom/pos/ref/alt
 _START_TIME: float = time.monotonic()
 
-# Model provenance — update after each training run
-MODEL_VERSION    = "phase2-v1"
-PIPELINE_VERSION = "1.0.0"
-TRAINING_AUROC   = 0.9780
-TRAINING_AUPRC   = 0.8936
-HOLDOUT_AUROC    = 0.9847   # gene-stratified, 154 K variants
+# PROD-1 (2026-08-07). THE FIVE CONSTANTS THAT STOOD HERE ARE GONE.
+#
+# They were written in ae1853b on 2026-03-25 under the comment "update
+# after each training run", and were never updated -- through Runs 9 to
+# 16. `HOLDOUT_AUROC = 0.9847` fused a Run-8 sixty-four-feature figure
+# with 154,404, the validation split size of the Runs 10-14 cohort: two
+# measurements, two eras, one line. The same digits are Run 15's
+# unseen-gene F1, so a reader reconciling them lands on a third
+# quantity. `/info` published all of it regardless of which artifact was
+# loaded, and four of the five were pinned by literal in the suite.
+#
+# Nothing hand-maintained replaces them. Model identity now comes only
+# from `_RUNTIME_MODEL_BINDING`, which is derived from the digest of the
+# bytes that were actually loaded.
+
+#: The version of the HTTP contract and the serving software. NOT a
+#: model fact. `PIPELINE_VERSION` was retired rather than narrowed,
+#: because one symbol was serving as both the OpenAPI version and
+#: prediction provenance, and that conflation is why "1.0.0" sat
+#: unexamined for four and a half months.
+API_VERSION = "2.0.0"
+
+#: The committed deployment declaration. See deployments/README.md for
+#: what a registry in version control can and cannot claim.
+DEPLOYMENT_REGISTRY_PATH: Path = Path(
+    os.environ.get("DEPLOYMENT_REGISTRY_PATH",
+                   "deployments/registry.v1.json"))
+
+from genomic_variant_classifier.api.attribution import (  # noqa: E402
+    ArtifactChangedDuringLoadError,
+    RuntimeModelBinding,
+    load_pipeline_with_identity,
+    resolve_runtime_binding,
+)
+
+# `/info` constructs this, and referencing it without importing it raised
+# NameError on every call to that endpoint. Placed beside the attribution
+# import rather than in the file's main import block so the anchor is
+# text this project wrote and can verify, not text transcribed from a
+# terminal -- which is how an anchor drifted earlier today.
+from genomic_variant_classifier.api.schemas import (  # noqa: E402
+    ModelAttributionResponse,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -194,15 +236,34 @@ def _rate_limit(rate: str):
 async def lifespan(app: FastAPI):
     """Configure logging, load model and auxiliary tables at startup."""
     global _PIPELINE, _GNOMAD_INDEX, _GENE_SUMMARY, _DBSNP_INDEX
+    global _RUNTIME_MODEL_BINDING
 
     _configure_logging()
 
-    # --- Load inference pipeline ---
+    # --- Load inference pipeline, and bind it to a declared identity ---
+    #
+    # PROD-1. The digest is taken BEFORE and AFTER the load and the two
+    # are compared. A digest taken only before describes bytes that may
+    # have been replaced during the load; one taken only after describes
+    # bytes that may not be what was deserialised. Exactly two
+    # measurements: registry resolution reuses the second rather than
+    # reading a large artifact a third time.
+    _artifact_identity = None
     if MODEL_PATH.exists():
         try:
             from genomic_variant_classifier.api.pipeline import InferencePipeline
-            _PIPELINE = InferencePipeline.load(MODEL_PATH)
-            logger.info("Loaded inference pipeline from %s", MODEL_PATH)
+            _PIPELINE, _artifact_identity = load_pipeline_with_identity(
+                MODEL_PATH, InferencePipeline.load)
+            logger.info("Loaded inference pipeline from %s (sha256 %s)",
+                        MODEL_PATH, _artifact_identity.sha256[:16])
+        except ArtifactChangedDuringLoadError:
+            # Deliberately NOT swallowed into a generic warning. If the
+            # bytes moved mid-load, no binding can describe the object.
+            _PIPELINE = None
+            _artifact_identity = None
+            logger.exception(
+                "Refusing to serve: %s changed while being loaded",
+                MODEL_PATH)
         except Exception as exc:
             logger.error("Failed to load pipeline from %s: %s", MODEL_PATH, exc)
     else:
@@ -253,6 +314,21 @@ async def lifespan(app: FastAPI):
             DBSNP_INDEX_PATH,
         )
 
+    _RUNTIME_MODEL_BINDING = resolve_runtime_binding(
+        _PIPELINE, _artifact_identity, DEPLOYMENT_REGISTRY_PATH)
+    logger.info(
+        "Runtime model binding: resolution=%s alignment=%s "
+        "roster=%s evidence=%s",
+        _RUNTIME_MODEL_BINDING.resolution_status.value,
+        _RUNTIME_MODEL_BINDING.deployment_alignment.value,
+        _RUNTIME_MODEL_BINDING.roster_alignment.value,
+        _RUNTIME_MODEL_BINDING.evaluation_applicability.value)
+    if not _RUNTIME_MODEL_BINDING.is_ready:
+        logger.warning(
+            "NOT READY for inference traffic: %s",
+            _RUNTIME_MODEL_BINDING.detail or "the loaded model cannot be "
+            "attributed to a declared production record")
+
     yield  # app is running
 
     logger.info("API shutting down.")
@@ -264,10 +340,18 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Genomic Variant Pathogenicity Classifier",
-    version=PIPELINE_VERSION,
+    version=API_VERSION,
+    # DESC-1 (2026-08-07). DEPLOYMENT-INDEPENDENT BY DESIGN. This string
+    # is built at module-import time, before any artifact is loaded, so
+    # any model claim in it is a claim about nothing in particular. The
+    # previous text asserted a holdout AUROC and a 154,404-row cohort,
+    # both stale, and the OpenAPI document is application documentation
+    # rather than deployment telemetry. Model facts are structured, and
+    # live at /info.
     description=(
-        "Ensemble classifier for ClinVar/gnomAD-trained variant pathogenicity. "
-        f"Holdout AUROC {HOLDOUT_AUROC} on 154,404 gene-stratified expert-reviewed variants."
+        "Application programming interface for genomic-variant pathogenicity "
+        "inference. Model identity, deployment attribution, feature "
+        "provenance and roster alignment are available from /info."
     ),
     docs_url="/docs",
     redoc_url="/redoc",
@@ -450,10 +534,22 @@ def _make_prediction(row: dict) -> VariantPrediction:
     tags=["ops"],
 )
 async def health() -> HealthResponse:
-    # /health is intentionally unauthenticated for load-balancer probes
+    # /health is intentionally unauthenticated for load-balancer probes.
+    #
+    # PROD-1. LIVENESS and READINESS are separated. A process that loaded
+    # bytes it cannot identify is ALIVE and NOT READY: an orchestrator
+    # should stop routing inference traffic to it, not restart it. For a
+    # clinical-facing service, "I loaded a model but cannot establish
+    # what it is" must not be operationally green. HEALTHSEM-1 tracks
+    # splitting this into /health/live and /health/ready.
+    binding = _RUNTIME_MODEL_BINDING
+    ready = binding is not None and binding.is_ready
     return HealthResponse(
-        status              = "ok" if _PIPELINE is not None else "degraded",
+        status              = "ok" if ready else "degraded",
+        live                = True,
+        ready               = ready,
         model_loaded        = _PIPELINE is not None,
+        model_attributed    = ready,
         gnomad_index_loaded = _GNOMAD_INDEX is not None,
         gene_counts_loaded  = _GENE_SUMMARY is not None,
         uptime_seconds      = round(time.monotonic() - _START_TIME, 1),
@@ -474,20 +570,39 @@ async def info(_key: str = Depends(require_api_key)) -> InfoResponse:
         feature_names = list(_PIPELINE.metadata.feature_names)
         n_features    = _PIPELINE.metadata.n_features
 
+    # PIPEMETA-1. `_PIPELINE.metadata.val_auroc` is deliberately NOT read
+    # here and must never be. It is an unqualified scalar embedded in the
+    # artifact format, with no population and no protocol beside it --
+    # exactly the shape of the constant this endpoint just stopped
+    # publishing. A fallback to it would recreate PROD-1 on purpose.
+    binding = _RUNTIME_MODEL_BINDING or RuntimeModelBinding.no_model_loaded(
+        detail="the application lifespan has not run")
+
     return InfoResponse(
-        model_version             = MODEL_VERSION,
-        pipeline_version          = PIPELINE_VERSION,
-        training_auroc            = TRAINING_AUROC,
-        training_auprc            = TRAINING_AUPRC,
-        holdout_auroc             = HOLDOUT_AUROC,
+        api_version               = API_VERSION,
+        model_loaded              = _PIPELINE is not None,
+        attribution               = ModelAttributionResponse(
+            resolution_status        = binding.resolution_status.value,
+            deployment_alignment     = binding.deployment_alignment.value,
+            roster_alignment         = binding.roster_alignment.value,
+            evaluation_applicability = (
+                binding.evaluation_applicability.value),
+            record_id                = binding.record_id,
+            model_version            = binding.model_version,
+            artifact_sha256          = binding.artifact_sha256,
+            registry_stage           = (
+                binding.registry_stage.value
+                if binding.registry_stage is not None else None),
+            registered_model_roster  = (
+                list(binding.registered_model_roster)
+                if binding.registered_model_roster is not None else None),
+            served_model_roster      = list(binding.served_model_roster),
+            served_roster_fingerprint = binding.served_roster_fingerprint,
+            detail                   = binding.detail,
+        ),
         n_features                = n_features,
         feature_names             = feature_names,
         phase2_features_remaining = [],
-        description=(
-            "LightGBM / XGBoost / GBM / RF / LR ensemble with stacking "
-            "meta-learner.  Trained on 1.2 M tier-2 ClinVar variants with "
-            "gnomAD v4.1 AF and AlphaMissense scores."
-        ),
     )
 
 
@@ -521,10 +636,11 @@ async def predict(
             detail=f"Prediction error: {exc}",
         ) from exc
 
+    _binding = _RUNTIME_MODEL_BINDING
     return PredictResponse(
-        prediction       = pred,
-        model_version    = MODEL_VERSION,
-        pipeline_version = PIPELINE_VERSION,
+        prediction      = pred,
+        model_record_id = _binding.record_id if _binding else None,
+        model_version   = _binding.model_version if _binding else None,
     )
 
 
@@ -568,13 +684,14 @@ async def batch_predict(
         ) from exc
 
     classes = [p.classification for p in predictions]
+    _binding = _RUNTIME_MODEL_BINDING
     return BatchPredictResponse(
-        predictions      = predictions,
-        n_pathogenic     = sum(1 for c in classes if "Pathogenic" in c),
-        n_benign         = sum(1 for c in classes if "Benign" in c),
-        n_uncertain      = sum(1 for c in classes if "Uncertain" in c),
-        model_version    = MODEL_VERSION,
-        pipeline_version = PIPELINE_VERSION,
+        predictions     = predictions,
+        n_pathogenic    = sum(1 for c in classes if "Pathogenic" in c),
+        n_benign        = sum(1 for c in classes if "Benign" in c),
+        n_uncertain     = sum(1 for c in classes if "Uncertain" in c),
+        model_record_id = _binding.record_id if _binding else None,
+        model_version   = _binding.model_version if _binding else None,
     )
 
 

@@ -70,6 +70,8 @@ __all__ = [
     "PromotionEvent",
     "PromotionPolicy",
     "RegistryInvariantError",
+    "ServingProjection",
+    "roster_fingerprint",
     "Stage",
     "SCHEMA_VERSION",
 ]
@@ -98,6 +100,18 @@ class Stage(str, Enum):
     SHADOW = "shadow"
     PRODUCTION = "production"
     ARCHIVED = "archived"
+
+
+def roster_fingerprint(roster: Sequence[str]) -> str:
+    """Order-independent digest of a model roster.
+
+    Module-level so that a ModelRecord's roster and a LIVE PIPELINE's roster
+    are fingerprinted by the same rule. Two implementations of "the same
+    fingerprint" is how two rosters come to disagree for reasons that have
+    nothing to do with the models.
+    """
+    joined = "\n".join(sorted(str(name) for name in roster))
+    return hashlib.sha256(joined.encode("utf-8")).hexdigest()[:16]
 
 
 def _utc_now() -> str:
@@ -292,6 +306,55 @@ class PromotionEvent:
 
 
 @dataclass(frozen=True)
+class ServingProjection:
+    """Which trained models a DERIVED SERVING ARTIFACT deliberately omits.
+
+    SERVEROSTER-1 (2026-08-07). `InferencePipeline.from_variant_ensemble`
+    excludes `cnn_1d` because the REST path has no FASTA context window, so the
+    deployable artifact is not "the registered ensemble serialised" -- it is a
+    PROJECTION of it with a different executable roster.
+
+    Declaring the projection is what separates an INTENTIONAL omission from
+    SILENT MODEL LOSS. Without it, a missing CatBoost and a missing `cnn_1d`
+    look identical at runtime, and this project has already lost a model
+    silently once: the imodelsx Kolmogorov-Arnold Network was absent from every
+    Continuous Integration run until a repair was written for it.
+
+    An absent projection is a legitimate state, not an error -- it means the
+    record declares nothing about serving, and roster alignment is UNKNOWN.
+    """
+
+    excluded_models: tuple[str, ...]
+    exclusion_reasons: Mapping[str, str]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "excluded_models",
+                           tuple(self.excluded_models))
+        object.__setattr__(self, "exclusion_reasons",
+                           dict(self.exclusion_reasons))
+        missing = [m for m in self.excluded_models
+                   if not self.exclusion_reasons.get(m)]
+        if missing:
+            raise RegistryInvariantError(
+                f"every excluded model needs a stated reason; {missing} have "
+                "none. An undeclared exclusion is indistinguishable from "
+                "silent model loss, which is the whole point of this type.")
+
+    def expected_served(self, roster: Sequence[str]) -> frozenset:
+        """The roster a correctly derived serving artifact should execute."""
+        return frozenset(roster) - frozenset(self.excluded_models)
+
+    def to_dict(self) -> dict:
+        return {"excluded_models": list(self.excluded_models),
+                "exclusion_reasons": dict(self.exclusion_reasons)}
+
+    @classmethod
+    def from_dict(cls, payload: Mapping) -> "ServingProjection":
+        return cls(excluded_models=tuple(payload["excluded_models"]),
+                   exclusion_reasons=dict(payload["exclusion_reasons"]))
+
+
+@dataclass(frozen=True)
 class ModelRecord:
     """A registered artifact and everything needed to judge it.
 
@@ -316,6 +379,10 @@ class ModelRecord:
     notes: Optional[str] = None
     sealed_evaluation_id: Optional[str] = None
     drift_report: Optional[Mapping] = None
+    #: SERVEROSTER-1. Optional by design: a record that declares no
+    #: projection yields RosterAlignment.UNKNOWN rather than an error,
+    #: so schema_version 1 files stay readable.
+    serving_projection: Optional["ServingProjection"] = None
 
     def __post_init__(self) -> None:
         if not self.version:
@@ -343,8 +410,7 @@ class ModelRecord:
     def roster_fingerprint(self) -> str:
         """Order-independent digest of the roster, for equality without
         depending on however the exporting run happened to order it."""
-        joined = "\n".join(sorted(self.model_roster))
-        return hashlib.sha256(joined.encode("utf-8")).hexdigest()[:16]
+        return roster_fingerprint(self.model_roster)
 
     def with_stage(self, stage: Stage) -> "ModelRecord":
         """A copy at a new stage. Records are frozen; the registry replaces."""
@@ -354,7 +420,8 @@ class ModelRecord:
             feature_names=self.feature_names, model_roster=self.model_roster,
             stage=stage, registered_at_utc=self.registered_at_utc,
             notes=self.notes, sealed_evaluation_id=self.sealed_evaluation_id,
-            drift_report=self.drift_report)
+            drift_report=self.drift_report,
+            serving_projection=self.serving_projection)
 
     def to_dict(self) -> dict:
         return {"version": self.version,
@@ -369,7 +436,10 @@ class ModelRecord:
                 "registered_at_utc": self.registered_at_utc,
                 "notes": self.notes,
                 "sealed_evaluation_id": self.sealed_evaluation_id,
-                "drift_report": self.drift_report}
+                "drift_report": self.drift_report,
+                "serving_projection": (
+                    self.serving_projection.to_dict()
+                    if self.serving_projection is not None else None)}
 
     @classmethod
     def from_dict(cls, payload: Mapping) -> "ModelRecord":
@@ -387,7 +457,10 @@ class ModelRecord:
             registered_at_utc=payload["registered_at_utc"],
             notes=payload.get("notes"),
             sealed_evaluation_id=payload.get("sealed_evaluation_id"),
-            drift_report=payload.get("drift_report"))
+            drift_report=payload.get("drift_report"),
+            serving_projection=(
+                ServingProjection.from_dict(payload["serving_projection"])
+                if payload.get("serving_projection") else None))
 
 
 @dataclass(frozen=True)
@@ -533,6 +606,7 @@ class ModelRegistry:
         notes: Optional[str] = None,
         sealed_evaluation_id: Optional[str] = None,
         drift_report: Optional[Mapping] = None,
+        serving_projection: Optional[ServingProjection] = None,
     ) -> ModelRecord:
         """Add a record at stage REGISTERED. The digest is MEASURED here."""
         if any(r.version == version for r in self.records):
@@ -550,7 +624,8 @@ class ModelRegistry:
             registered_at_utc=_utc_now(),
             notes=notes,
             sealed_evaluation_id=sealed_evaluation_id,
-            drift_report=drift_report)
+            drift_report=drift_report,
+            serving_projection=serving_projection)
         self.records.append(record)
         self.promotion_history.append(PromotionEvent(
             version=version, from_stage=Stage.REGISTERED,
