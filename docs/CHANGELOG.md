@@ -1,3 +1,20 @@
+## 2026-08-08 (BASELINE-1 census) — `0.9847` is unattributable
+
+Measurement only; no test changed and the ratchet stands at 4487. Base
+`0856fd7`. Document:
+docs/measurements/MEASUREMENT_2026-08-08_baseline1-provenance-census.md
+
+### Measured
+- The earliest appearance of `0.9847` in this repository is a **commit subject line** — "feat(phase2): mark Phase 2 complete — holdout AUROC 0.9847". `ae1853b` (2026-03-25) carried it into source. No Phase 2 or Run 8 artefact was ever committed; `git ls-files outputs` returns eighteen files from Run 10b, Run 14, Run 14 observability and one temporal validation.
+- **`154,404` is attributable and convicts the claim.** `outputs/run14/full/metrics.json` records `"n_val": 154404` and `"val_auroc": 0.9974`. The cohort the service advertised is Run 14's validation split, and its measured figure sat four lines from the number published against it.
+- **Run 15's `0.9847` is a coincidence of four digits.** It is `F1_macro`, and the constant predates Run 15 by ten weeks, so Run 15 cannot be its source.
+- **`model_val_auroc` is an echoed input.** Both temporal-validation outputs record it identically at `0.9847` while their own measured `auroc` differ — a parameter the script was handed, not something it computed.
+
+### Learned
+- A QUESTION RECORDED AS UNRESOLVED IS NOT A QUESTION BEING ANSWERED. The README audit asked "0.9847 or 0.9863?" on 2026-07-14 and listed it first under "must be checked, not guessed". For three and a half weeks the figure continued to be served, imaged and cited as a baseline. Filing an item is not the same as gating on it.
+- CONSISTENT ARITHMETIC OVER UNKNOWN QUANTITIES IS NOT A MEASUREMENT. `connector_1kgp.py`'s "0.166-point drop" subtracts correctly, and both operands fail inspection — one unattributable, the other from an untracked file. This author had ruled the citation untouchable on the strength of the arithmetic alone.
+- AN ARTEFACT THAT RECORDS ITS OWN INCOMPLETENESS IS USEFUL. Run 10b's metrics declare `"status": "partial"` and list three lost outputs. That is the test case a sealed-evaluation type must handle without pretending otherwise, and it is worth more than a clean file with an unstated gap.
+
 ## 2026-08-08 (GATE-1) — four AUROC thresholds were never four gates
 
 Ratchet 4462 → 4487 (+25). Commit `b702777`, base `3378659`. Continuous

@@ -6670,3 +6670,110 @@ itself closed at `372cea1`.
 **Commit C (SealedEvaluation)** after a field-by-field source census, with
 BASELINE-1 as its first question. Then **DRIFT-1 with README-1**, **OP-1 step
 5** against STEP K, **OP-2**, and **RETRAIN-GATE** last.
+
+
+## ROADMAP delta -- 2026-08-08: BASELINE-1 answered. `0.9847` is unattributable, and the cohort size published beside it belongs to a run whose own figure is 0.9974.
+
+Commit follows. Base `0856fd7`. Measurement:
+docs/measurements/MEASUREMENT_2026-08-08_baseline1-provenance-census.md
+
+No test changed; the ratchet stands at 4487.
+
+### 1. THE ANSWER
+
+`git log --all -S "0.9847" --reverse` gives the earliest introduction as a
+COMMIT SUBJECT LINE: "feat(phase2): mark Phase 2 complete -- holdout AUROC
+0.9847". `ae1853b` (2026-03-25) then carried the value into api/main.py.
+
+`git ls-files outputs` returns eighteen files across four directories:
+run10b_final, run14, run14_observability, temporal_validation. NOTHING from
+Phase 2. NOTHING from Run 8. The figure's only documented origin is a sentence.
+
+### 2. THE AUDIT ASKED THIS ON 2026-07-14 AND COULD NOT ANSWER IT
+
+README_AUDIT_2026-07-14.md section 3, item 4: "Run-8 holdout AUROC: line 26
+says 0.9863; line 273 says 0.9847. Both cannot be right. UNRESOLVED -- neither
+has been checked against the Run-8 artifacts." Section 6 lists it first among
+"UNRESOLVED -- must be checked, not guessed".
+
+It could not be checked because the Run-8 artifacts were never committed. The
+question has been open three and a half weeks while the figure continued to be
+served by the application programming interface, baked into every container
+image, and cited as a benchmark baseline.
+
+### 3. `154,404` IS ATTRIBUTABLE, AND IT CONVICTS THE CLAIM
+
+outputs/run14/full/metrics.json, committed: `"n_val": 154404` and
+`"val_auroc": 0.9974`.
+
+The cohort the service advertised is RUN 14's VALIDATION SPLIT, and its
+measured area under the curve is 0.9974. So the published claim was not merely
+stale and not merely two runs fused: its number and its denominator have
+different origins, and the denominator's own committed figure sat four lines
+from the number published against it.
+
+### 4. RUN 15's `0.9847` IS A COINCIDENCE OF FOUR DIGITS
+
+SESSION_2026-06-06.md gives the header row `| AUROC | AUPRC | F1_macro |
+F1_weighted | MCC | Brier |`, so Run 15's 0.9847 is F1_macro. But `ae1853b` is
+dated 2026-03-25 and Run 15 ran on 2026-06-06 -- the constant predates the run
+by ten weeks, so Run 15 CANNOT be its source. Earlier records, including this
+author's own PROD-1 commit message, phrased the resemblance in a way that
+invites reading it as a lineage. The dates settle it.
+
+### 5. `model_val_auroc` IS AN ECHOED INPUT
+
+Both temporal-validation outputs record `"model_val_auroc": 0.9847`
+IDENTICALLY while their own measured `auroc` differ (0.8153 and 0.8190). A
+figure identical across two different models is a parameter the script was
+handed, not something it computed.
+
+### 6. WHAT COMMIT C CAN SEAL
+
+**Run 14 -- sealable.** metrics.json carries test and validation metrics, all
+three split sizes and the feature count; reproducibility_manifest.json and
+pip_freeze_vm.txt pin the environment; two artefact manifests and per-model
+CSVs for both test and validation exist. The worked example.
+
+**Run 10b -- NOT sealable, and it says so.** `"status": "partial -- Run 10b
+instance destroyed mid-pipeline"`, with deep_ensemble.joblib, the graph network
+and the cloud-computed test AUROC listed as `lost`. The test case for a sealed
+record that is honestly incomplete.
+
+**`0.9847` -- unattributable, permanently.** No SealedEvaluation can be
+composed for it, and the correct outcome is to record that rather than
+reconstruct a figure from four disagreeing descriptions.
+
+### 7. OPEN -- FIFTY-TWO items
+
+Fifty-one carried in, ENUMERATED from the GATE-1 delta. One added.
+
+EXTRACT-1, SWEEP-1, C2-1, REG-2-b, ICI-1, F1-1, OPCOV-1, GITIGNORE-1, STRUCT-1,
+POP-1b-M03, POP-1b-M07, ZERO-1, INF-1, ABS-1, DEAD-1, DEAD-3, PRE-2, LINT-1,
+F821-1, CMP-1, SUPPORT-1, MERGE-1, JSONKEY-1, RENDER-1, TYPING-1, DIAG-1,
+CHANGELOG-1, CHANGELOG-2, PERSIST-1, BACKUP-1, DOCLOC-1, DOCX-1, CONSOLE-1,
+DRIVE-1, RCLONE-1, PATCH-1, NAMING-1, PROD-1, DRIFT-1, README-1,
+DOWNLOADSHADOW-1, ROOTPY-1, SMOKE-1, ROSTER-1, EVALPROV-1, EWCSEL-1,
+SERVEROSTER-1, PIPEMETA-1, HEALTHSEM-1, ARTIFACTLINEAGE-1, BASELINE-1,
+TEMPORALCITE-1.
+
+**TEMPORALCITE-1** -- connector_1kgp.py motivates the 1000 Genomes Project
+connector with "a 0.166-point AUROC drop (0.9847 in-distribution -> 0.8191 on
+2023+ variants)". The arithmetic is internally consistent, and BOTH SIDES fail
+inspection: the left is unattributable, and 0.8191 comes from
+temporal_validation_phase4, which is UNTRACKED -- the tracked output reports
+0.8153. This author previously ruled the citation untouchable because its
+arithmetic checked out. That was correct arithmetic and insufficient scrutiny:
+a consistent difference between two quantities of unknown identity is not a
+measured comparison. The connector's scientific motivation may still be sound;
+the numbers quoted for it are not evidence.
+
+**BASELINE-1 STAYS OPEN.** Its answer is now known, but the README and this
+roadmap still cite 0.9847 as established. An item closes when the defect is
+repaired, not when it is understood.
+
+### 8. NEXT
+
+**Commit C (SealedEvaluation)**, scoped by section 6. Then the BASELINE-1
+repair across the README and roadmap, **DRIFT-1 with README-1**, **OP-1 step
+5** against STEP K, **OP-2**, and **RETRAIN-GATE** last.
