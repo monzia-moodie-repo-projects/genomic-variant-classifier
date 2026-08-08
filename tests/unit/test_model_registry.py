@@ -281,7 +281,7 @@ def _shadowed(tmp_path, **kwargs):
 
 
 DURABLE = PromotionPolicy(policy_id="production-v1", metric_name="auroc",
-                          minimum=0.97, max_regression=0.002,
+                          absolute_floor=0.97, maximum_regression=0.002,
                           require_durable_uri=False,
                           expected_model_roster=ROSTER)
 
@@ -331,7 +331,7 @@ def test_promotion_refuses_below_the_absolute_minimum(tmp_path):
     registry = _shadowed(tmp_path, auroc=0.5)
     decision = registry.evaluate_for_production("run15-ensemble", DURABLE)
     assert decision.accepted is False
-    assert decision.reason == "below_absolute_minimum"
+    assert decision.reason == "below_absolute_floor"
 
 
 def test_promotion_accepts_a_clean_candidate_and_moves_it(tmp_path):
@@ -367,7 +367,7 @@ def test_promotion_refuses_a_regression_beyond_tolerance(tmp_path):
     registry.promote_to_shadow(candidate.version)
     decision = registry.evaluate_for_production(candidate.version, DURABLE)
     assert decision.accepted is False
-    assert decision.reason == "regression_exceeds_tolerance"
+    assert decision.reason == "exceeds_allowed_regression"
 
 
 def test_a_regression_within_tolerance_is_accepted(tmp_path):
@@ -396,7 +396,7 @@ def test_promoting_archives_the_incumbent(tmp_path):
 def test_a_refused_promotion_raises_with_its_reason(tmp_path):
     registry = _shadowed(tmp_path, auroc=0.1)
     with pytest.raises(RegistryInvariantError,
-                       match="below_absolute_minimum"):
+                       match="below_absolute_floor"):
         registry.promote_to_production("run15-ensemble", DURABLE)
 
 

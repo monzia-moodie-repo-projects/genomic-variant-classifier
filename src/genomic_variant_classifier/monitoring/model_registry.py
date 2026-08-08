@@ -66,6 +66,10 @@ __all__ = [
     "EvaluationProtocol",
     "ModelRecord",
     "ModelRegistry",
+    "PolicyEvidenceStatus",
+    "PolicyProvenance",
+    "ProductionValidation",
+    "ProductionValidationStatus",
     "PromotionDecision",
     "PromotionEvent",
     "PromotionPolicy",
@@ -77,6 +81,12 @@ __all__ = [
 ]
 
 SCHEMA_VERSION = 1
+
+#: The policy the drift workflow audits production against. ITS NUMBERS ARE
+#: NOT JUSTIFIED, and the provenance field says so permanently: 0.97 and 0.002
+#: arrived with the pre-GATE-1 code and no record of what established them.
+#: Typing a threshold does not validate it.
+CURRENT_PRODUCTION_PROMOTION_POLICY_ID = "production-audit-v1"
 
 #: Artifact locations a PRODUCTION declaration will not accept. A local
 #: filesystem path is not deployment provenance: neither a hosted runner nor a
@@ -463,6 +473,43 @@ class ModelRecord:
                 if payload.get("serving_projection") else None))
 
 
+class PolicyEvidenceStatus(str, Enum):
+    """Whether a policy's numeric values have been scientifically justified.
+
+    GATE-1 (2026-08-07). The thresholds this project enforces were inherited,
+    not derived: 0.97 and 0.002 arrived with the pre-GATE-1 continual-learning
+    and drift-monitor code and no record of what established them. Typing them
+    does not justify them, and an architecture can be correct while its
+    constants remain unexamined.
+
+    Recording the distinction in the object -- rather than in a constant named
+    something alarming -- means the fact survives. A symbol called
+    LEGACY_POLICY_VALUES_PENDING_JUSTIFICATION becomes wallpaper the moment
+    somebody imports it; a `provenance` field is read every time the policy is.
+    """
+
+    JUSTIFIED = "justified"
+    LEGACY_PENDING_JUSTIFICATION = "legacy_pending_justification"
+
+
+@dataclass(frozen=True)
+class PolicyProvenance:
+    """Where a policy's numbers came from, and whether that is good enough."""
+
+    status: PolicyEvidenceStatus
+    source: str
+
+    def __post_init__(self) -> None:
+        if not self.source:
+            raise RegistryInvariantError(
+                "a policy's provenance requires a stated source; an unsourced "
+                "provenance record is the absence it exists to make visible")
+
+    @property
+    def is_justified(self) -> bool:
+        return self.status is PolicyEvidenceStatus.JUSTIFIED
+
+
 @dataclass(frozen=True)
 class PromotionPolicy:
     """What a production promotion demands. Typed, so that a calibration
@@ -473,17 +520,41 @@ class PromotionPolicy:
 
     policy_id: str
     metric_name: str = "auroc"
-    minimum: float = 0.97
-    max_regression: float = 0.002
+
+    #: An ABSOLUTE performance floor. Optional because a policy may care
+    #: only about regression against the incumbent.
+    absolute_floor: Optional[float] = 0.97
+
+    #: The greatest drop from the incumbent that may still be promoted. Only
+    #: meaningful once protocol equality has been established -- comparing two
+    #: numbers measured under different protocols is the defect GATE-1 exists
+    #: to prevent, not a tolerance to widen.
+    maximum_regression: Optional[float] = 0.002
+
     require_durable_uri: bool = True
+    require_same_protocol: bool = True
+    require_same_roster: bool = False
     expected_model_roster: Optional[tuple[str, ...]] = None
+
+    provenance: PolicyProvenance = field(
+        default_factory=lambda: PolicyProvenance(
+            status=PolicyEvidenceStatus.LEGACY_PENDING_JUSTIFICATION,
+            source="pre-GATE-1 continual-learning and drift-monitor policy"))
 
     def __post_init__(self) -> None:
         if not self.policy_id or not self.metric_name:
             raise RegistryInvariantError(
                 "a promotion policy requires an identifier and a metric name")
-        if self.max_regression < 0.0:
-            raise RegistryInvariantError("max_regression must not be negative")
+        if self.absolute_floor is not None and not (
+                0.0 <= self.absolute_floor <= 1.0):
+            raise RegistryInvariantError(
+                "absolute_floor must lie in [0, 1], got "
+                f"{self.absolute_floor}")
+        if self.maximum_regression is not None and self.maximum_regression < 0:
+            raise RegistryInvariantError(
+                "maximum_regression must not be negative; a negative value "
+                "would require the candidate to BEAT production, which is a "
+                "different policy and should be written as one")
 
 
 @dataclass(frozen=True)
@@ -506,6 +577,70 @@ class PromotionDecision:
     @classmethod
     def approved(cls, detail: Optional[str] = None) -> "PromotionDecision":
         return cls(accepted=True, reason=None, detail=detail)
+
+
+class ProductionValidationStatus(str, Enum):
+    """Three outcomes, because "not checked" is not "valid".
+
+    The drift workflow's own comments record what happened when it had two:
+    a missing registry, a missing production model and a below-floor metric
+    all reported success. Continuous Integration went green for a check that
+    never happened.
+    """
+
+    VALID = "valid"
+    NOT_CHECKED = "not_checked"
+    INVALID = "invalid"
+
+
+@dataclass(frozen=True)
+class ProductionValidation:
+    """Whether the DECLARED production record is internally valid.
+
+    A DIFFERENT QUESTION from `evaluate_for_production`. That asks "may this
+    candidate be promoted"; this asks "is the record currently declared
+    production coherent on its own terms". The drift workflow is not promoting
+    anything -- it is auditing a declaration -- and overloading one method to
+    answer both would make the workflow's exit codes mean two things.
+
+    IT VALIDATES A DECLARATION, NOT A DEPLOYMENT. A registry in version control
+    can establish that the committed production declaration satisfies policy.
+    It cannot establish that any running process is serving those bytes. That
+    is DEPLOY-1's territory, and the workflow's step name says so.
+    """
+
+    status: ProductionValidationStatus
+    blockers: tuple[str, ...] = ()
+    record_id: Optional[str] = None
+    detail: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "blockers", tuple(self.blockers))
+        if self.status is ProductionValidationStatus.VALID and self.blockers:
+            raise RegistryInvariantError(
+                f"a VALID production declaration cannot carry blockers: "
+                f"{list(self.blockers)}")
+        if (self.status is ProductionValidationStatus.INVALID
+                and not self.blockers):
+            raise RegistryInvariantError(
+                "an INVALID production declaration must state at least one "
+                "blocker; a refusal that cannot say why is the silent None "
+                "this project's typed vocabularies exist to replace")
+
+    @property
+    def exit_code(self) -> int:
+        """The workflow's translation, defined HERE rather than in YAML.
+
+        Continuous Integration should know exit-code translation, not policy
+        arithmetic. 3 = not checked, 1 = checked and invalid, 0 = valid --
+        the semantics drift_monitor.yml already established and which this
+        preserves rather than reinvents.
+        """
+        if self.status is ProductionValidationStatus.NOT_CHECKED:
+            return 3
+        if self.status is ProductionValidationStatus.INVALID:
+            return 1
+        return 0
 
 
 @dataclass
@@ -695,15 +830,17 @@ class ModelRegistry:
                 f"{policy.metric_name!r} is not in the candidate's evidence")
         candidate_metric = record.evaluation.metrics[policy.metric_name]
 
-        if candidate_metric < policy.minimum:
-            return PromotionDecision.refused(
-                "below_absolute_minimum",
-                f"{policy.metric_name}={candidate_metric:.6f} < "
-                f"{policy.minimum}")
-
+        # PROTOCOL EQUALITY IS CHECKED BEFORE ANY NUMBER IS COMPARED.
+        # GATE-1: a metric measured under one protocol and a metric measured
+        # under another are not two values of one quantity, so neither the
+        # absolute floor nor the regression tolerance means anything until the
+        # protocols match. Judging first and qualifying afterwards is how
+        # 0.9988 unseen-gene came to be compared with 0.9984 ordinary test.
         production = self.current_production()
         if production is not None:
-            if record.evaluation.protocol != production.evaluation.protocol:
+            if (policy.require_same_protocol
+                    and record.evaluation.protocol
+                    != production.evaluation.protocol):
                 return PromotionDecision.refused(
                     "evaluation_protocol_mismatch",
                     "candidate protocol "
@@ -711,18 +848,36 @@ class ModelRegistry:
                     "production protocol "
                     f"{production.evaluation.protocol.protocol_id!r}; the "
                     "two metrics are not comparable")
+            if (policy.require_same_roster
+                    and record.roster_fingerprint
+                    != production.roster_fingerprint):
+                return PromotionDecision.refused(
+                    "production_roster_mismatch",
+                    f"candidate roster {list(record.model_roster)} differs "
+                    f"from production {list(production.model_roster)}; the "
+                    "intervention is not data alone")
+
+        if (policy.absolute_floor is not None
+                and candidate_metric < policy.absolute_floor):
+            return PromotionDecision.refused(
+                "below_absolute_floor",
+                f"{policy.metric_name}={candidate_metric:.6f} < "
+                f"{policy.absolute_floor}")
+
+        if production is not None and policy.maximum_regression is not None:
             if policy.metric_name not in production.evaluation.metrics:
                 return PromotionDecision.refused(
                     "production_metric_absent",
                     f"production carries no {policy.metric_name!r}")
             production_metric = production.evaluation.metrics[
                 policy.metric_name]
-            if candidate_metric < production_metric - policy.max_regression:
+            if (candidate_metric
+                    < production_metric - policy.maximum_regression):
                 return PromotionDecision.refused(
-                    "regression_exceeds_tolerance",
+                    "exceeds_allowed_regression",
                     f"{candidate_metric:.6f} vs production "
-                    f"{production_metric:.6f}, tolerance "
-                    f"{policy.max_regression}")
+                    f"{production_metric:.6f}, maximum_regression "
+                    f"{policy.maximum_regression}")
 
         return PromotionDecision.approved(
             f"policy {policy.policy_id!r} satisfied")
@@ -747,6 +902,59 @@ class ModelRegistry:
             self._transition(incumbent, Stage.ARCHIVED,
                              f"superseded by {version}")
         return self._transition(self._find(version), Stage.PRODUCTION, reason)
+
+    def validate_current_production(
+        self, policy: PromotionPolicy,
+    ) -> ProductionValidation:
+        """Audit the record currently declared production.
+
+        Collects EVERY blocker rather than returning on the first, because an
+        operator reading a Continuous Integration failure should see the whole
+        picture, not discover the next problem on the following run.
+        """
+        production = self.current_production()
+        if production is None:
+            return ProductionValidation(
+                status=ProductionValidationStatus.NOT_CHECKED,
+                blockers=("no_production_model",),
+                detail="the registry declares no production model. This is "
+                       "NOT 'the registry is fine' -- a classifier with no "
+                       "production model is one that cannot serve.")
+
+        blockers: list[str] = []
+
+        metric = production.evaluation.metrics.get(policy.metric_name)
+        if metric is None:
+            blockers.append("required_metric_missing")
+        elif (policy.absolute_floor is not None
+                and metric < policy.absolute_floor):
+            blockers.append("below_absolute_floor")
+
+        if not production.evaluation.protocol.protocol_id:
+            blockers.append("evaluation_protocol_unnamed")
+        if not production.model_roster:
+            blockers.append("model_roster_empty")
+        if policy.require_durable_uri and not production.artifact.is_durable:
+            blockers.append("artifact_uri_not_durable")
+        if policy.expected_model_roster is not None and (
+                tuple(sorted(policy.expected_model_roster))
+                != tuple(sorted(production.model_roster))):
+            blockers.append("model_roster_mismatch")
+
+        if blockers:
+            return ProductionValidation(
+                status=ProductionValidationStatus.INVALID,
+                blockers=tuple(blockers),
+                record_id=production.record_id,
+                detail=(f"{production.version} fails {len(blockers)} "
+                        f"condition(s) of policy {policy.policy_id!r}"))
+        return ProductionValidation(
+            status=ProductionValidationStatus.VALID,
+            record_id=production.record_id,
+            detail=(f"{production.version} satisfies policy "
+                    f"{policy.policy_id!r} "
+                    f"({policy.metric_name}={metric:.6f}, protocol "
+                    f"{production.evaluation.protocol.protocol_id})"))
 
     # ------------------------------------------------------------- query
 

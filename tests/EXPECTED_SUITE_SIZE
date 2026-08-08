@@ -6069,5 +6069,104 @@
 #   collected, measured by this installer. The suite's stable skip surface is
 #   UNCHANGED at 6.
 #
+#
+# 4462 -> 4487 (+25)  2026-08-07  GATE-1, REGISTRY-1c, ALIGNMENT-1,
+#   PIPELINE-1 and LSIF-1: four AUROC thresholds were never four gates.
+#
+#   GATE-1's original census counted four thresholds and called them four
+#   policies. They are THREE CLASSES OF DECISION, and one of them is not a
+#   policy at all:
+#
+#     0.90    score<->label alignment integrity   ScoreLabelAlignmentPolicy
+#     0.97    absolute production floor           PromotionPolicy
+#     0.002   maximum degradation                 PromotionPolicy
+#     0.9842  copied arithmetic over a figure of  DELETED
+#             unestablished provenance
+#
+#   CENSUS CORRECTION: the original inventory MISSED a fifth site.
+#   scripts/forensics/verify_oof_alignment.py declared 0.90 independently,
+#   with the comment "a correctly-joined base model should be well above
+#   chance". That is the same integrity predicate as conformal calibration's,
+#   not a new gate. Both now consume one ScoreLabelAlignmentPolicy from
+#   evaluation/alignment.py, and the forensic script does NOT import
+#   conformal to obtain it -- a general integrity check must not depend on a
+#   specific statistical method for a number.
+#
+#   THE NUMBERS ARE TYPED, NOT JUSTIFIED. 0.97, 0.002 and 0.90 all carry
+#   PolicyProvenance reporting LEGACY_PENDING_JUSTIFICATION, so
+#   `is_justified` is False and stays false until somebody establishes them.
+#   An architecture can be correct while its constants remain inherited, and
+#   putting a threshold behind a good type does not validate it. The symbol
+#   is a normal policy object rather than a constant named something
+#   alarming, because a scary name becomes wallpaper the moment it is
+#   imported.
+#
+#   REGISTRY-1c. The drift workflow imported ModelRegistry from a module that
+#   never had it, read a path .gitignore excludes wholesale, and called an
+#   attribute the registry deliberately does not provide. Three
+#   incompatibilities, masked because the first branch exited before reaching
+#   the third. It is now an EXIT-CODE ADAPTER over
+#   validate_current_production: 3 not checked, 1 invalid, 0 valid -- the
+#   semantics the file's own comments record as hard-won, preserved exactly,
+#   but translated in Python where they can be tested. Continuous Integration
+#   knows exit codes, not arithmetic.
+#
+#   THE STEP IS RENAMED to "Validate declared production registry state". A
+#   committed file can establish that the DECLARED state satisfies policy; it
+#   cannot establish that a running process serves those bytes. Calling it a
+#   health check would let the workflow acquire stronger prose than its
+#   evidence supports.
+#
+#   PIPELINE-1: three of four sites were mechanical. `InferencePipeline`
+#   exposes `trained_models`, never `base_models`, so lines 404, 407 and 505
+#   were API corrections -- 505 written by this author and shipped in
+#   372cea1. THE FOURTH WAS NOT MECHANICAL.
+#
+#   LSIF-1 CLOSES, as a feature-space contract rather than a rename.
+#   `current_pipe._prepare(pd.DataFrame(X_train_new))` supplied the NEW cohort
+#   as the reference, and the source said so: "placeholder -- ideally pass
+#   X_train_old". The defect was known when it was written. Feeding the real
+#   reference THROUGH the serving pipeline would have been worse: reference
+#   rows in the serving representation against new rows from
+#   DataPrepPipeline gives compatible widths and an uninterpretable ratio. So
+#   the call is removed, both cohorts must arrive already engineered at the
+#   same stage, and COLUMN EQUALITY is checked -- a reordered column preserves
+#   the width while permuting every row, and width is all the old code could
+#   have checked.
+#
+#   `ReferenceTrainingFeatures` carries model_record_id, feature_names and an
+#   optional population_fingerprint. When the fingerprints match there is no
+#   covariate shift, and DensityRatioStatus.SAME_POPULATION yields weights of
+#   one BY DECLARED POLICY rather than by fitting an estimator on p/p and
+#   reporting its noise as adaptation.
+#
+#   EWCSEL-1 STAYS OPEN AND NOW FAILS CLOSED. Correcting the attribute name
+#   would have turned `getattr(m, "best_score_", 0.0)` from unreachable into
+#   silently arbitrary: `best_score_` is set nowhere in src/, so `max` over an
+#   all-equal keyspace returns dictionary order. It raises instead.
+#   UNRESOLVED_ADAPTIVE_RETRAINING_BLOCKERS names ROSTER-1, EVALPROV-1 and
+#   EWCSEL-1 so that closing one blocker cannot open the path.
+#
+#   MEASURED, NOT ASSUMED: importing the evaluation package costs 749-926 ms
+#   against 10-12 ms for model_registry. Placing the alignment policy under
+#   evaluation/ therefore costs the conformal path about 0.8 s of one-time
+#   import. Tolerable, and now a number in the record rather than a guess.
+#
+#   SIX AUTHOR DEFECTS BEFORE ANYTHING WAS WRITTEN, every one caught by an
+#   installer refusing: a text rule applied where a syntax-tree rule belonged,
+#   forbidding the comments that record what was removed; a digest pinned from
+#   a scratch directory rather than from the tree; a forbidden string removed
+#   from one of the two paragraphs carrying it; and a hand-escaped nested
+#   string that produced an unterminated literal, rebuilt with repr() so the
+#   quoting is generated rather than written by hand.
+#
+#   ARITHMETIC: 4462 + 25 = 4487. All 25 from
+#   tests/unit/test_alignment_policy.py -- 14 functions, three parametrised.
+#   tests/unit/test_model_registry.py contributes ZERO: its 46 cases were
+#   REDIRECTED by the field rename, not added.
+#
+#   ACCEPTANCE: full suite 4481 passed, 6 skipped, 0 failed in 19m21s; 4487
+#   collected, measured by this installer. Skip surface UNCHANGED at 6.
+#
 
-4462
+4487

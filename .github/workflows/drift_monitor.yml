@@ -546,9 +546,17 @@ jobs:
               '    --auto-retrain',
               '```',
               '',
-              '### AUROC monitoring',
-              'After retraining, verify holdout AUROC ≥ 0.9842 (current production - 0.0005)',
-              'before promoting to production via the model registry.',
+              '### Promotion',
+              'Do not promote by comparing a number by hand. Register the candidate,',
+              'promote it to shadow, and let ModelRegistry.evaluate_for_production',
+              'apply the policy: it refuses on evaluation-protocol mismatch, roster',
+              'mismatch, a non-durable artifact location, an absolute floor breach and',
+              'a regression beyond tolerance -- in that order, because a metric measured',
+              'under one protocol is not comparable with one measured under another.',
+              '',
+              'BASELINE-1: this section previously named a specific threshold derived',
+              'by subtracting a constant from a production figure whose provenance is',
+              'unestablished. A derived quantity of an unknown is not a policy.',
             ].join('\n');
 
             await github.rest.issues.create({
@@ -579,58 +587,95 @@ jobs:
       # ===============================================================================
       # A SMOKE TEST THAT COULD NOT FAIL. (fixed 2026-07-13, roadmap 6.20)
       #
-      # It was:
-      #     if not registry_path.exists(): print('No registry found - skipping'); exit(0)
-      #     if prod is None:               print('No production model');          exit(0)
-      #     if prod.auroc < 0.97:          print('WARNING: ...');                 exit(1)
-      #   ...with `continue-on-error: true`, which SWALLOWED even that exit(1).
+      # It was three branches, each returning success:
+      #   a missing registry file      -> printed 'skipping', exited 0
+      #   no production model declared -> printed a notice,   exited 0
+      #   an unqualified production performance scalar below a hard-coded
+      #     minimum                    -> printed a WARNING,  exited 1
+      #   ...with `continue-on-error: true`, which SWALLOWED even the last.
       #
-      # So: "no registry" = success. "no production model" = success. "production AUROC below
-      # the minimum" = success, because the failure was discarded. models/registry.json is not
-      # in the repository, so it took the FIRST branch every time and reported green having
-      # tested nothing.
+      # The retired attribute name is DELIBERATELY not reproduced here.
+      # A comment quoting the thing it records as removed becomes a
+      # second occurrence, and defeats any check that looks for the
+      # first -- which cost the DOCKERCOPY-1 installer four refusals on
+      # 2026-08-07 before the lesson was generalised.
+      #
+      # So: "no registry" = success. "no production model" = success. "production AUROC
+      # below the minimum" = success, because the failure was discarded. The path it
+      # looked for sat under a directory .gitignore excludes wholesale, so the file
+      # could never be committed, the check took the FIRST branch every time, and it
+      # reported green having tested nothing.
+      #
+      # THAT PATH IS NOT WRITTEN OUT HERE. It is on the forbidden list this
+      # commit enforces, and a comment reproducing it is a second occurrence
+      # that defeats the check -- which is exactly what happened on this
+      # installer's first run.
       #
       # Three ways to pass, none of which involve the model being any good. Fourth instance of
       # this exact defect in this one workflow file.
       #
       # NOW: a missing registry is UNKNOWN, not clean. A below-threshold AUROC FAILS.
       # ===============================================================================
-      - name: Smoke test registry
+      - name: Validate declared production registry state
+        # REGISTRY-1c (2026-08-07). THE NAME IS PRECISE ON PURPOSE.
+        # This step reads a file in version control. It can establish
+        # that the DECLARED production state satisfies policy; it cannot
+        # establish that any running process is serving those bytes.
+        # Calling it a health check would let Continuous Integration
+        # acquire stronger prose than its evidence supports.
+        #
+        # GATE-1: this step no longer performs arithmetic. It translates
+        # a typed verdict into an exit code -- 3 not checked, 1 invalid,
+        # 0 valid -- and the policy lives in Python where it can be
+        # tested. A workflow that knows thresholds is a second policy
+        # engine nobody tests.
         run: |
           python - <<'PY'
           import sys
           from pathlib import Path
 
-          MIN_AUROC = 0.97
-          registry_path = Path("models/registry.json")
+          from genomic_variant_classifier.monitoring.model_registry import (
+              ModelRegistry,
+              ProductionValidationStatus,
+              PromotionPolicy,
+              RegistryInvariantError,
+          )
 
+          registry_path = Path("deployments/registry.v1.json")
           if not registry_path.exists():
-              print(f"::error::REGISTRY NOT CHECKED. {registry_path} is absent.")
-              print("  This is NOT 'the registry is fine'. It is 'the registry was not")
-              print("  examined'. This step used to print 'skipping smoke test' and exit 0 --")
-              print("  a green tick for a check that never happened. See roadmap 6.20.")
+              print(f"::error::NOT CHECKED. {registry_path} is absent.")
+              print("  This is NOT 'the declaration is fine'. It is")
+              print("  'no declaration was examined'.")
               sys.exit(3)
 
-          from genomic_variant_classifier.monitoring.registry import ModelRegistry
-
-          registry = ModelRegistry.load(registry_path)
-          registry.print_summary()
-
-          prod = registry.current_production()
-          if prod is None:
-              print("::error::NO PRODUCTION MODEL IN THE REGISTRY.")
-              print("  This used to exit 0. A classifier with no production model is not a")
-              print("  healthy classifier -- it is one that cannot serve.")
-              sys.exit(3)
-
-          print(f"Production model: {prod.version}, AUROC={prod.auroc:.4f}")
-          if prod.auroc < MIN_AUROC:
-              print(f"::error::PRODUCTION AUROC {prod.auroc:.4f} IS BELOW THE {MIN_AUROC} MINIMUM.")
-              print("  This exit code used to be SWALLOWED by continue-on-error, and the")
-              print("  workflow went green with an under-performing model in production.")
+          try:
+              registry = ModelRegistry.load(registry_path)
+          except RegistryInvariantError as exc:
+              print(f"::error::THE DECLARATION IS UNREADABLE: {exc}")
               sys.exit(1)
 
-          print(f"Registry smoke test PASSED: production AUROC {prod.auroc:.4f} >= {MIN_AUROC}.")
+          for line in registry.summary_lines():
+              print(line)
+
+          policy = PromotionPolicy(
+              policy_id="production-audit-v1",
+              metric_name="auroc",
+              require_durable_uri=True,
+          )
+          validation = registry.validate_current_production(policy)
+          print(f"status={validation.status.value} record={validation.record_id}")
+          if validation.detail:
+              print(f"  {validation.detail}")
+          for blocker in validation.blockers:
+              print(f"  blocker: {blocker}")
+
+          if validation.status is ProductionValidationStatus.NOT_CHECKED:
+              print("::error::PRODUCTION STATE NOT CHECKED.")
+          elif validation.status is ProductionValidationStatus.INVALID:
+              print("::error::THE DECLARED PRODUCTION STATE IS INVALID.")
+          else:
+              print("DECLARED production registry state is valid.")
+          sys.exit(validation.exit_code)
           PY
         # continue-on-error REMOVED 2026-07-13. It discarded the ONE failure this step could
         # produce -- a production model whose AUROC had fallen below the minimum.

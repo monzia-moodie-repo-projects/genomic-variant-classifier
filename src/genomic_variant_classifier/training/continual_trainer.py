@@ -50,6 +50,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import Optional
 
@@ -104,6 +105,61 @@ class ContinualLearningConfig:
 
 
 @dataclass(frozen=True)
+class ReferenceTrainingFeatures:
+    """The deployed model's training cohort, in the SAME feature space as the
+    new one.
+
+    LSIF-1 (2026-08-07). Density-ratio estimation compares two samples; it can
+    only do so if both inhabit one feature space under one representation
+    function. The previous code passed the NEW cohort through the serving
+    pipeline's `_prepare` and called the result the reference, which made
+
+        w(x) = p_new(x) / p_ref(x)
+
+    an estimate of a quantity that does not exist. A matrix of the right width
+    is not evidence of the right provenance, so this type carries enough to
+    prove whose cohort it is.
+
+    `population_fingerprint` is optional but load-bearing when present: if the
+    two populations are IDENTICAL there is no covariate shift, and fitting an
+    importance weighter would manufacture structure out of estimator noise.
+    """
+
+    frame: "pd.DataFrame"
+    model_record_id: str
+    feature_names: tuple[str, ...]
+    population_fingerprint: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "feature_names", tuple(self.feature_names))
+        if not self.model_record_id:
+            raise ValueError(
+                "a reference cohort must name the model record it trained. "
+                "LSIF-1: without it, any matrix of the right width passes.")
+        if not self.feature_names:
+            raise ValueError(
+                "a reference cohort must enumerate its feature names; a COUNT "
+                "cannot detect a reordered or substituted column")
+        if tuple(self.frame.columns) != self.feature_names:
+            raise ValueError(
+                "the reference frame's columns do not match its declared "
+                f"feature names: frame={list(self.frame.columns)[:6]}..., "
+                f"declared={list(self.feature_names)[:6]}...")
+
+
+class DensityRatioStatus(str, Enum):
+    """Whether a density ratio was estimated, or declared unnecessary.
+
+    Fitting LSIF on two identical populations is mathematically defined --
+    p/p -- and operationally meaningless: it reports estimator noise as
+    adaptation. Declaring the identity is more honest than estimating it.
+    """
+
+    ESTIMATED = "estimated"
+    SAME_POPULATION = "same_population"
+
+
+@dataclass(frozen=True)
 class AdaptiveRetrainingInputs:
     """The scientific inputs adaptive retraining cannot proceed without.
 
@@ -136,18 +192,48 @@ class AdaptiveRetrainingInputs:
       no selected base model           -> the EWC anchor is arbitrary
     """
 
-    reference_training_features: Path
+    #: LSIF-1 (2026-08-07). Was `Path`. A path proves a file exists; it
+    #: proves nothing about whose cohort it holds or what feature space
+    #: it inhabits, and both are preconditions for a density ratio.
+    reference_training_features: "ReferenceTrainingFeatures"
     expected_model_roster:       tuple[str, ...]
     promotion_protocol_id:       str
     ewc_anchor_model:            str
 
+    #: LSIF-1 (2026-08-08). WHICH DEPLOYMENT THIS RETRAINING ADAPTS
+    #: FROM. The reference cohort must belong to it; a density ratio
+    #: against some other deployment measures nothing about this one.
+    #: Added because the comparison was written on 2026-08-07 against
+    #: a name that did not exist in scope -- a defect no import check
+    #: could see, because it raises only when the line executes.
+    deployed_model_record_id:    str
+
+    #: The NEW cohort's population fingerprint, if the caller can
+    #: declare one. Optional because nothing in this repository
+    #: computes population fingerprints yet, and inventing a scheme
+    #: here would be scope creep. The SAME_POPULATION shortcut fires
+    #: only when BOTH sides are declared and agree: declared identity
+    #: beats estimated identity, but an absent declaration is not a
+    #: declaration of difference either -- it simply means the ratio
+    #: must be estimated.
+    new_population_fingerprint:  Optional[str] = None
+
     def __post_init__(self) -> None:
-        if not Path(self.reference_training_features).is_file():
+        if not isinstance(self.reference_training_features,
+                          ReferenceTrainingFeatures):
             raise ValueError(
-                "reference_training_features must point at the OLD cohort's "
-                "feature matrix. LSIF-1: without it the density ratio is "
-                "fitted against itself. Got "
-                f"{self.reference_training_features}")
+                "reference_training_features must be a "
+                "ReferenceTrainingFeatures carrying the deployed model's "
+                "record id and feature names. LSIF-1: a bare frame or "
+                "path lets any matrix of the right width through, which "
+                "is how the density ratio came to be fitted against "
+                f"itself. Got {type(self.reference_training_features)}")
+        if not self.deployed_model_record_id:
+            raise ValueError(
+                "deployed_model_record_id must name the model record "
+                "this retraining adapts FROM. LSIF-1: without it the "
+                "reference cohort cannot be checked against the "
+                "deployment whose drift is being measured.")
         if not self.expected_model_roster:
             raise ValueError(
                 "expected_model_roster must enumerate the production roster. "
@@ -161,6 +247,56 @@ class AdaptiveRetrainingInputs:
                 "ewc_anchor_model must name the base model the Elastic Weight "
                 "Consolidation proxy anchors on. EWCSEL-1: `best_score_` is "
                 "set nowhere, so introspection returns insertion order.")
+
+
+#: LSIF-1. Closing one blocker must not open the path. These remain
+#: unresolved, and `_retrain` stays fail-closed while any of them is listed.
+UNRESOLVED_ADAPTIVE_RETRAINING_BLOCKERS = frozenset({
+    "ROSTER-1",     # --skip-nn --skip-svm changes architecture with the data
+    "EVALPROV-1",   # a validation split registered as holdout evidence
+    "EWCSEL-1",     # best_score_ is set nowhere; the anchor is dict order
+})
+
+
+def _aligned_lsif_matrices(
+    *,
+    reference: "ReferenceTrainingFeatures",
+    new_features: "pd.DataFrame",
+) -> tuple["np.ndarray", "np.ndarray"]:
+    """Both cohorts as arrays, or a refusal naming exactly what differs.
+
+    LSIF-1. Column EQUALITY is checked, not column count: a reordered or
+    substituted column preserves the width while destroying the correspondence,
+    and width is the only thing the previous code could have checked.
+    """
+    reference_frame = reference.frame
+    if tuple(reference_frame.columns) != tuple(new_features.columns):
+        missing = sorted(set(new_features.columns)
+                         - set(reference_frame.columns))
+        extra = sorted(set(reference_frame.columns)
+                       - set(new_features.columns))
+        order_only = not missing and not extra
+        raise ValueError(
+            "LSIF requires the reference and new cohorts in one feature "
+            "space. "
+            + ("the columns match but their ORDER differs, which "
+               "silently permutes every row" if order_only else
+               f"missing_from_reference={missing}, "
+               f"extra_in_reference={extra}"))
+    if reference_frame.empty or new_features.empty:
+        raise ValueError(
+            "LSIF requires non-empty reference and new cohorts; got "
+            f"{len(reference_frame)} reference and {len(new_features)} new")
+
+    x_ref = reference_frame.to_numpy(dtype=np.float64, copy=True)
+    x_new = new_features.to_numpy(dtype=np.float64, copy=True)
+    if not np.isfinite(x_ref).all():
+        raise ValueError("the LSIF reference cohort contains non-finite "
+                         "values; a density ratio over them is undefined")
+    if not np.isfinite(x_new).all():
+        raise ValueError("the LSIF new cohort contains non-finite values; a "
+                         "density ratio over them is undefined")
+    return x_ref, x_new
 
 
 class ContinualLearner:
@@ -382,14 +518,59 @@ class ContinualLearner:
 
         # ── Compute adaptive sample weights ──────────────────────────────
 
-        # 1. LSIF density ratio (p_new / p_old)
-        lsif = LSIFImportanceWeighter(sigma=1.0, lambda_=0.01, n_basis=200)
-        lsif.fit(X_ref=current_pipe._prepare(
-            # Rebuild reference feature matrix from current pipeline's training set
-            # (use a sample of the current training data if available)
-            pd.DataFrame(X_train_new)   # placeholder — ideally pass X_train_old
-        ), X_new=X_train_new.to_numpy(dtype=float))
-        lsif_weights = lsif.transform(X_train_new.to_numpy(dtype=float))
+        # 1. LSIF density ratio (p_new / p_ref)
+        #
+        # LSIF-1 (2026-08-07). This call used to read:
+        #
+        #     lsif.fit(X_ref=current_pipe._prepare(pd.DataFrame(
+        #                  X_train_new)),
+        #              X_new=X_train_new.to_numpy(dtype=float))
+        #
+        # with a comment admitting the reference was a placeholder. Both
+        # sides were the NEW cohort, so the declared ratio p_new/p_ref
+        # had no reference population at all. `_prepare` is removed
+        # rather than re-fed: passing the reference through the SERVING
+        # pipeline while the new cohort arrives from DataPrepPipeline
+        # would estimate a ratio across two representation functions --
+        # compatible widths, uninterpretable quantity.
+        inputs = self.config.adaptive_inputs
+        reference = inputs.reference_training_features
+        if reference.model_record_id != inputs.deployed_model_record_id:
+            raise ValueError(
+                "the LSIF reference cohort belongs to model record "
+                f"{reference.model_record_id!r}, not the deployed "
+                f"{inputs.deployed_model_record_id!r}. A density "
+                "ratio against the wrong reference is not a measure "
+                "of this deployment's drift.")
+
+        x_ref, x_new = _aligned_lsif_matrices(
+            reference=reference, new_features=X_train_new)
+
+        # BOTH sides must be DECLARED. On 2026-08-07 this compared
+        # against a name that existed nowhere in scope, which would
+        # have raised NameError the first time the branch ran. An
+        # absent fingerprint is not a declaration of difference -- it
+        # means the ratio must be estimated, which is the safe default.
+        if (reference.population_fingerprint is not None
+                and inputs.new_population_fingerprint is not None
+                and reference.population_fingerprint
+                == inputs.new_population_fingerprint):
+            # Declared identity beats estimated identity. p/p is defined
+            # but means no covariate shift, and fitting anyway reports
+            # estimator noise as adaptation.
+            density_ratio_status = DensityRatioStatus.SAME_POPULATION
+            lsif_weights = np.ones(len(x_new), dtype=np.float64)
+            logger.info(
+                "LSIF skipped: reference and new populations share "
+                "fingerprint %s; weights are one BY POLICY, not by "
+                "estimate", reference.population_fingerprint)
+        else:
+            density_ratio_status = DensityRatioStatus.ESTIMATED
+            lsif = LSIFImportanceWeighter(
+                sigma=1.0, lambda_=0.01, n_basis=200)
+            lsif.fit(X_ref=x_ref, X_new=x_new)
+            lsif_weights = lsif.transform(x_new)
+        logger.info("density ratio: %s", density_ratio_status.value)
         lsif_weights = lsif_weights / (lsif_weights.mean() + 1e-8)  # normalise
 
         # 2. TreeEWC stability weights
@@ -399,12 +580,29 @@ class ContinualLearner:
             temporal_decay_lambda = self.config.temporal_decay_lambda,
         )
 
-        # Get the best base model from the current production pipeline
-        best_model_name = max(
-            current_pipe.base_models.items(),
-            key=lambda kv: getattr(kv[1], "best_score_", 0.0),
-        )[0]
-        best_model = current_pipe.base_models[best_model_name]
+        # Get the best base model from the current production pipeline.
+        #
+        # PIPELINE-1: `base_models` does not exist on InferencePipeline;
+        # the executable mapping is `trained_models`.
+        #
+        # EWCSEL-1 REMAINS OPEN, and this fails closed rather than
+        # choosing. `best_score_` is set NOWHERE in src/, so the previous
+        # `getattr(m, "best_score_", 0.0)` compared an all-equal keyspace
+        # and `max` returned whichever model came first in dictionary
+        # order. Correcting the attribute name would have turned that
+        # from unreachable into silently arbitrary.
+        scored = [(name, model, getattr(model, "best_score_", None))
+                  for name, model in current_pipe.trained_models.items()]
+        if not any(score is not None for _, _, score in scored):
+            raise RuntimeError(
+                "EWC anchor selection is undefined: no base model in the "
+                f"production pipeline exposes a measured best_score_ "
+                f"({[name for name, _, _ in scored]}). Resolve EWCSEL-1 "
+                "before arming adaptive retraining; an anchor chosen by "
+                "dictionary order is not a choice.")
+        best_model_name, best_model, _ = max(
+            (entry for entry in scored if entry[2] is not None),
+            key=lambda entry: entry[2])
 
         ewc_weights = ewc_proxy.compute_weights(
             old_model=best_model,
@@ -502,7 +700,12 @@ class ContinualLearner:
                 protocol = protocol,
                 metrics  = {"auroc": new_auroc, "auprc": new_auprc}),
             feature_names = list(X_train_new.columns),
-            model_roster  = tuple(new_pipe.base_models),
+            #: PIPELINE-1. `base_models` never existed on
+            #: InferencePipeline; this line was written by the author and
+            #: shipped in 372cea1, unreachable behind the fail-closed
+            #: guard and wrong regardless. Sorted, so a record's roster
+            #: does not depend on however the exporting run ordered it.
+            model_roster  = tuple(sorted(new_pipe.trained_models)),
             notes         = f"Adaptive retraining on {release_name} "
                             f"with LSIF+EWC weights",
             drift_report  = drift_report_dict,

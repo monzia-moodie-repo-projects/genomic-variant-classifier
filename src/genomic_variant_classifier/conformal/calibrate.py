@@ -27,6 +27,10 @@ from .split import SplitConformalClassifier
 from .mondrian import MondrianConformalClassifier
 from . import coverage as _cov
 from ..data.splits import _gene_hash
+from ..evaluation.alignment import (
+    DEFAULT_SCORE_LABEL_ALIGNMENT_POLICY,
+    ScoreLabelAlignmentPolicy,
+)
 
 try:
     from sklearn.metrics import roc_auc_score
@@ -49,7 +53,16 @@ class CalibrationConfig:
     alpha: float = 0.1
     cal_frac: float = 0.5           # fraction of GENES assigned to calibration
     seed: int = 42
-    auroc_floor: float = 0.90       # the gate; below this -> AlignmentError
+
+    #: ALIGNMENT-1 (2026-08-07). Was a bare float named for its
+    #: comparison rather than its meaning, which made it indistinguishable
+    #: from a production-quality threshold. It is a DATA INTEGRITY
+    #: sentinel: it asks whether the score/label join is credible, not
+    #: whether the model is good. The same policy object is consumed by
+    #: scripts/forensics/verify_oof_alignment.py, which carried its own
+    #: copy of the number until today.
+    score_label_alignment_policy: ScoreLabelAlignmentPolicy = field(
+        default_factory=lambda: DEFAULT_SCORE_LABEL_ALIGNMENT_POLICY)
 
 
 @dataclass
@@ -98,10 +111,16 @@ def load_and_verify(path: str | Path, cfg: CalibrationConfig) -> pd.DataFrame:
     if roc_auc_score is None:
         raise RuntimeError("sklearn required for the alignment gate")
     auroc = roc_auc_score(y[ok], p[ok])
-    if auroc < cfg.auroc_floor:
+    verdict = cfg.score_label_alignment_policy.judge(auroc)
+    if not verdict.plausible:
+        # The policy JUDGES; this caller chooses the consequence. The
+        # forensic checker consumes the same policy and merely flags,
+        # which is equally correct for what it is doing.
         raise AlignmentError(
-            f"ALIGNMENT GATE FAILED: AUROC({cfg.score_col}, {cfg.label_col}) = {auroc:.4f} "
-            f"< floor {cfg.auroc_floor}. The score<->label join is broken; refusing to calibrate.")
+            f"ALIGNMENT GATE FAILED: AUROC({cfg.score_col}, "
+            f"{cfg.label_col}) = {verdict.auroc:.4f} < minimum "
+            f"{verdict.minimum_auroc}. The score<->label join is broken; "
+            "refusing to calibrate.")
     return df.loc[ok].reset_index(drop=True)
 
 

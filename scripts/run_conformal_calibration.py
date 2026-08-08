@@ -22,11 +22,15 @@ from pathlib import Path
 try:
     from genomic_variant_classifier.conformal.calibrate import (
         CalibrationConfig, calibrate, AlignmentError, DISCLAIMER)
+    from genomic_variant_classifier.evaluation.alignment import (
+        DEFAULT_SCORE_LABEL_ALIGNMENT_POLICY, ScoreLabelAlignmentPolicy)
 except Exception:
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
     from genomic_variant_classifier.conformal.calibrate import (
         CalibrationConfig, calibrate, AlignmentError, DISCLAIMER)
+    from genomic_variant_classifier.evaluation.alignment import (
+        DEFAULT_SCORE_LABEL_ALIGNMENT_POLICY, ScoreLabelAlignmentPolicy)
 
 
 def _md_report(res, args) -> str:
@@ -78,16 +82,25 @@ def main():
     ap.add_argument("--alpha", type=float, default=0.1)
     ap.add_argument("--cal-frac", type=float, default=0.5)
     ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--auroc-floor", type=float, default=0.90)
+    # ALIGNMENT-1. The old spelling is kept as an ALIAS because external
+    # callers may exist; the destination and the default now come from
+    # the shared policy, so there is one number, not three.
+    ap.add_argument("--alignment-sanity-floor", "--auroc-floor",
+                    dest="alignment_sanity_floor", type=float,
+                    default=DEFAULT_SCORE_LABEL_ALIGNMENT_POLICY.minimum_auroc)
     ap.add_argument("--outdir", default="outputs/conformal_demo")
     a = ap.parse_args()
 
     cfg = CalibrationConfig(
         score_col=a.score_col, label_col=a.label_col, group_col=a.group_col,
         stratum_col=a.stratum_col, alpha=a.alpha, cal_frac=a.cal_frac,
-        seed=a.seed, auroc_floor=a.auroc_floor)
+        seed=a.seed,
+        score_label_alignment_policy=ScoreLabelAlignmentPolicy(
+            minimum_auroc=a.alignment_sanity_floor))
 
-    print(f"Calibrating on {a.substrate} (gate floor AUROC {a.auroc_floor}) ...")
+    print(f"Calibrating on {a.substrate} "
+          f"(score<->label alignment minimum AUROC "
+          f"{a.alignment_sanity_floor}) ...")
     try:
         res = calibrate(a.substrate, cfg)
     except AlignmentError as e:

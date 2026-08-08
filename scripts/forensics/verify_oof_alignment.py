@@ -21,7 +21,10 @@ This script:
   3. Computes AUROC + AUPRC for each of the 13 model columns against y.
   4. Loads any recorded per-model metrics (metrics.json / meta.json / *per_model*.csv) if present
      and compares.
-  5. VERDICT: PASS if per-model AUROCs are high (min > 0.90) and (if recorded metrics exist) match
+  5. VERDICT: PASS if every per-model AUROC is at or above the shared
+     score<->label alignment minimum (see evaluation/alignment.py; the
+     comparison is >=, which this line previously wrote as >) and (if
+     recorded metrics exist) match
      within tolerance; FAIL otherwise. Prints a clear ABORT if the join looks broken.
 Read-only. ASCII-clean.
 """
@@ -35,6 +38,15 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_auc_score, average_precision_score
 
+# ALIGNMENT-1 (2026-08-07). This script and conformal calibration each
+# declared the same threshold independently. It consumes the shared
+# policy directly and NOT via the conformal package: a general integrity
+# check should not depend on a specific statistical method to obtain a
+# number.
+from genomic_variant_classifier.evaluation.alignment import (
+    DEFAULT_SCORE_LABEL_ALIGNMENT_POLICY,
+)
+
 BASE = Path("outputs/run15_baseline/full")
 OOF = BASE / "oof_predictions.parquet"
 Y_TRAIN = BASE / "splits/y_train.parquet"
@@ -42,7 +54,11 @@ MODEL_COLS = ["random_forest", "xgboost", "lightgbm", "svm", "svm_bagged_rbf",
               "logistic_regression", "gradient_boosting", "catboost", "tabular_nn",
               "cnn_1d", "kan", "mc_dropout", "deep_ensemble"]
 
-AUROC_FLOOR = 0.90   # a correctly-joined base model should be well above chance
+#: A correctly-joined base model should be well above chance. The value
+#: lives in evaluation/alignment.py so this script and conformal
+#: calibration cannot drift apart.
+ALIGNMENT_POLICY = DEFAULT_SCORE_LABEL_ALIGNMENT_POLICY
+AUROC_FLOOR = ALIGNMENT_POLICY.minimum_auroc
 TOL = 0.02           # tolerance when comparing to recorded metrics
 
 
