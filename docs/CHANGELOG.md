@@ -1,3 +1,25 @@
+## 2026-08-07 (DOCKERCOPY-1) — the image did not contain a module the service imports
+
+Ratchet 4449 → 4462 (+13). Commit `2ccad69`, base `e8de6a6`. Continuous
+Integration: success on all seven jobs. Session record:
+docs/SESSION_2026-08-07_dockercopy-container-image.md
+
+### Fixed
+- The container image now contains `monitoring/model_registry.py`, which `api/attribution.py` imports at module level. Without it the import raised `ModuleNotFoundError`, gunicorn never bound, the container exited, and three commits were red on `origin/main`.
+- `tests/unit/test_docker_image_covers_the_api.py` walks the static import graph from `api/main.py` and fails if any reachable module is not copied by the `api` stage. Proved red against the Dockerfile as it stood, green with the fix, and red again for a near-miss `COPY` and for a renamed stage.
+- The smoke step asserts the honest contract for an artifact-less image — `live` true, `ready` false, `model_loaded` false, `status` degraded — and dumps `docker logs` on failure. The container's `/health` body appeared in a log for the first time, and every field was as designed.
+- The image `LABEL` stopped publishing a validation figure into every image ever built, and now points at the real repository rather than `monzia-moodie/…`.
+
+### Failed (and why)
+- Nothing in the repository could have caught this. The import-resolution gate runs against the full source tree, where the import resolves perfectly; so does the suite, which passed 4,449 tests on both Python versions while the image was broken. Only the **image** has the narrower file surface, and the only thing exercising it grepped for a field **name**.
+- Four installer refusals before anything was written, every one a post-check of the author's rather than the repair. Three were the same defect in three files — a text search satisfied by the comment explaining the removal — and the fourth was the over-correction that followed.
+
+### Learned
+- A CHECK DEFEATED BY ITS OWN EXPLANATION IS WORSE THAN NO CHECK. It reports a defect that is not there, and would report success if the commentary were absent and the real text remained. The repair is not a cleverer check but removing the string from the file entirely: the register holds the number, the comment points at it.
+- ESCAPING A FALSE POSITIVE BY WIDENING A CHECK TRADES ONE FOR ANOTHER. Broadening `grep -q '"status"'` to bare `grep -q` refused a correct edit because two lockfile steps use the idiom. Precision about what is forbidden beats cleverness about detecting it.
+- A PARSER THAT IS CORRECT BY LUCK IS NOT CORRECT. Reading `COPY a \` line by line gives the right source for one path and the wrong one for two.
+- AN UNEXPLAINED OBSERVATION IS WORTH MEASURING RATHER THAN DROPPING. The apparent duplicate Continuous Integration alert turned out to be two distinct completions labelled with the default branch's head — correct behaviour, and now recorded as such instead of lingering as an anomaly.
+
 ## 2026-08-07 (PROD-1 Commit A) — the service reports what it is serving
 
 Ratchet 4417 → 4449 (+32). Commit `4d334f9`, base `63e5da0`. Session record:

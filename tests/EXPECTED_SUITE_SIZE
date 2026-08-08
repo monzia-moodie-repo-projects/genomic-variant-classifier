@@ -5988,6 +5988,10 @@
 #   did not contain a module the web service imports, and nothing could have
 #   noticed.
 #
+#   BASE e8de6a6 -> RESULT 2ccad69. Continuous Integration on the
+#   result commit reported success on all seven jobs, INCLUDING the
+#   Docker build smoke test that had been red for three commits.
+#
 #   `4d334f9` added api/attribution.py, which imports
 #   monitoring.model_registry at module level. The Dockerfile's `api` stage
 #   copies api/, models/, utils/ and the package __init__.py -- and NOT

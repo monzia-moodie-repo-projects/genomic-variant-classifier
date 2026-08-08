@@ -6475,3 +6475,98 @@ which already touches that file's registry surface.
 **Commit B (GATE-1 / REGISTRY-1c)**, then **Commit C (SealedEvaluation)** after
 a field-by-field source census, then **DRIFT-1 with README-1**, **OP-1 step 5**
 against STEP K, **OP-2**, and **RETRAIN-GATE** last.
+
+
+## ROADMAP delta -- 2026-08-07: DOCKERCOPY-1. The container image did not contain a module the web service imports, and nothing in the repository could have noticed.
+
+Commit `2ccad69`. Base `e8de6a6`. Pushed. Continuous Integration: SUCCESS on
+all seven jobs, including the Docker build smoke test that had been red for
+three commits. Session record:
+docs/SESSION_2026-08-07_dockercopy-container-image.md
+
+Ratchet 4449 -> 4462 (+13). Armed full suite 4456 passed, 6 skipped, 0 failed
+in 13m29s; 4462 collected. Skip surface unchanged at 6.
+
+### 1. THE DEFECT, AND WHY IT WAS INVISIBLE
+
+`4d334f9` added api/attribution.py, importing monitoring.model_registry at
+module level. The Dockerfile's api stage copies api/, models/, utils/ and the
+package __init__.py -- and NOT monitoring/. Inside the image the import raised
+ModuleNotFoundError, gunicorn never bound, the container exited.
+
+THE IMPORT-RESOLUTION GATE COULD NOT SEE IT. That gate runs against the full
+source tree, where the import resolves perfectly. So does the test suite: 4449
+tests passed on both Python versions on the Linux runner while the image was
+broken. Only the IMAGE has the narrower file surface.
+
+And the only thing exercising the image piped /health into a grep for one field
+NAME. It caught this ONLY because the container DIED. A service that started
+and lied went green -- and that step had been the sole verification of the
+container for the life of the project.
+
+The author enumerated the consumers of api.main IN PYTHON. The container's file
+surface is a consumer expressed in a Dockerfile.
+
+### 2. THE REPAIR IS THE GATE
+
+tests/unit/test_docker_image_covers_the_api.py walks the static import graph
+from api/main.py and asserts every reachable first-party module lives under a
+path the api stage copies. Proved RED against the Dockerfile as it stood, GREEN
+with the fix, and RED AGAIN for a near-miss COPY of `monitor/` and for a
+renamed stage -- the last because a lazier parser finds no COPY lines after a
+rename and passes vacuously. Its parser joins line continuations, since reading
+`COPY a \` line-by-line is correct by luck for one source and wrong for two.
+
+ONE FILE, NOT THE DIRECTORY: monitoring/ has no __init__.py -- an implicit
+namespace package -- so no module body executes and model_registry.py alone
+suffices, matching the Dockerfile's own "only what inference needs".
+
+### 3. THE SMOKE STEP NOW TESTS SOMETHING
+
+It asserts live true, ready false, model_loaded false, status degraded -- the
+honest contract for an image that ships no artifact -- and dumps `docker logs`
+on failure. The container's /health body appeared in a log for the first time
+in this project's history, and every field was as designed.
+
+### 4. FOUR REFUSALS, EVERY ONE A POST-CHECK RATHER THAN THE REPAIR
+
+Three were one defect in three files: a text search satisfied by the comment
+explaining the removal. The fourth was the over-correction -- broadening
+`grep -q '"status"'` to the bare idiom, which two lockfile steps use
+legitimately.
+
+The generalisation is a stage-0 self-check running ONE forbidden list in BOTH
+directions, plus precision about what is forbidden rather than cleverness about
+detecting it. The deeper repair was removing the string from the files
+entirely: the register holds the number and the comment points at it.
+
+### 5. OPEN -- FIFTY-FOUR items
+
+Fifty-three carried in, ENUMERATED from the PROD-1 Commit A delta. Two added;
+DOCKERCOPY-1 closes in this entry. 53 + 2 - 1 = 54.
+
+EXTRACT-1, SWEEP-1, C2-1, REG-2-b, ICI-1, F1-1, OPCOV-1, GITIGNORE-1, STRUCT-1,
+POP-1b-M03, POP-1b-M07, ZERO-1, INF-1, ABS-1, DEAD-1, DEAD-3, PRE-2, LINT-1,
+F821-1, CMP-1, SUPPORT-1, MERGE-1, JSONKEY-1, RENDER-1, TYPING-1, DIAG-1,
+CHANGELOG-1, CHANGELOG-2, PERSIST-1, BACKUP-1, DOCLOC-1, DOCX-1, CONSOLE-1,
+DRIVE-1, RCLONE-1, PATCH-1, NAMING-1, PROD-1, GATE-1, DRIFT-1, README-1,
+DOWNLOADSHADOW-1, ROOTPY-1, SMOKE-1, PIPELINE-1, LSIF-1, ROSTER-1, EVALPROV-1,
+EWCSEL-1, SERVEROSTER-1, PIPEMETA-1, HEALTHSEM-1, ARTIFACTLINEAGE-1,
+BASELINE-1.
+
+**BASELINE-1** -- which experiment produced the validation figure 0.9847 is
+unestablished. This repository has cited it as a Run-8 holdout result, as a
+Phase-4 validation result, and against a cohort size drawn from a third run.
+Those are not one measurement. Belongs to Commit C's field-by-field source
+census; connector_1kgp.py's citation of it sits in a measured comparison whose
+arithmetic is internally consistent and is deliberately untouched.
+
+**DOCKERCOPY-1, CLOSED HERE.** The image contains the module, and the gate
+makes its absence a test failure rather than a dead container.
+
+### 6. NEXT
+
+**Commit B (GATE-1 / REGISTRY-1c)**, which also repairs PIPELINE-1's four call
+sites. Then **Commit C (SealedEvaluation)** after a source census, **DRIFT-1
+with README-1**, **OP-1 step 5** against STEP K, **OP-2**, and **RETRAIN-GATE**
+last.
