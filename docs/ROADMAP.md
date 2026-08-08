@@ -6896,3 +6896,124 @@ credentials, and nothing in this work touched it.
 represent Run 10b's declared partiality honestly, attribute nothing else. Then
 the BASELINE-1 repair across the README and roadmap, **DRIFT-1 with README-1**,
 **OP-1 step 5** against STEP K, **OP-2**, and **RETRAIN-GATE** last.
+
+
+## ROADMAP delta -- 2026-08-08: METRICORIGIN-1. Run 14's manifest holds four figures a careless reader would call "the AUROC", and distinguishes them only by a suffix in their key names.
+
+Base `764147d`. Measurement:
+docs/measurements/MEASUREMENT_2026-08-08_metricorigin-census.md
+
+No test changed; the ratchet stands at 4487.
+
+### 1. THE FOUR FIGURES
+
+  0.9975   metrics.json -> auroc                      computed, test split
+  0.9975   manifest -> stacker_metrics_test.auroc     the same computation
+  0.9984   manifest -> lr_stacker_auroc_from_log      SCRAPED FROM A LOG
+  0.9985   manifest -> oof_blend_auroc_from_log       SCRAPED FROM A LOG
+
+The two computed figures agree to four decimal places across two independently
+written files. The two scraped ones differ by roughly one thousandth -- small
+enough to look like rounding, large enough to change which model appears best,
+and describing a DIFFERENT QUANTITY: out-of-fold performance during training,
+not held-out performance after it.
+
+`EvaluationEvidence.metrics` is a flat Mapping[str, float]. Loading this
+manifest into it would place a computed test figure and a log-scraped
+out-of-fold figure side by side with nothing in the type to tell them apart.
+That is the mechanism by which 0.9847 came to be published as a holdout metric.
+
+### 2. THE ARTEFACT ALREADY NAMES ITS OWN PROVENANCE
+
+`oof_blend_auroc_from_log`, `lr_stacker_auroc_from_log` and
+`per_model_oof_auroc_from_log` carry the fact in their KEY NAMES. That is a
+naming convention doing a type's job: whoever wrote the manifest understood
+that a number's origin belongs with the number, and had nowhere to put it.
+
+### 3. WHAT THE MANIFEST ALREADY SUPPLIES
+
+Twenty-two top-level keys, including `git_head`, run start and end times, the
+interpreter version, the dataset's three split sizes and feature count, the
+machine, and -- most consequentially -- `artifact_sha256`.
+
+RUN 14 ALREADY BINDS ITS METRICS TO ARTEFACT DIGESTS. That is the same
+mechanism PROD-1 built independently for runtime attribution, arrived at twice
+from opposite ends. Sealing does not need to introduce it; it needs to make it
+mandatory.
+
+### 4. PER-MODEL METRICS ARE STORED AS STRINGS
+
+`per_model_test_metrics` and `per_model_val_metrics` are eleven-element arrays
+whose every value is a `str`. `EvaluationEvidence.__post_init__` already
+refuses non-numeric metrics, and that refusal is correct. The consequence is
+that a sealing layer must COERCE EXPLICITLY AND RECORD THAT IT COERCED -- a
+string that looks like a number may be a rounded rendering of one, and rounding
+is a transformation a sealed record should declare.
+
+### 5. ONE COMMITTED ARTEFACT CARRIES A BYTE-ORDER MARK
+
+Of nine committed JSON artefacts under outputs/, exactly one begins EF BB BF:
+outputs/run14/reproducibility_manifest.json, written by PowerShell. Python's
+json.loads refuses it outright.
+
+So `encoding="utf-8-sig"` is NOT a workaround -- it is the only encoding that
+reads all nine, since it handles marked and unmarked files alike. A loader
+using plain utf-8 reads eight artefacts and crashes on the one artefact this
+project can actually seal. This author's first two probes for the census did
+exactly that.
+
+### 6. A CORRECTION
+
+An earlier claim in this session held that docs/METRICS.md disagreed with Run
+14's artefact. IT DOES NOT, and the claim is withdrawn. The table's header
+reads `| Run | Date | Test AUROC | OOF blend | ...` and row 14 reads
+`| 0.9975 | 0.9985 |` -- two named columns for two quantities. The
+documentation has been making this distinction correctly for months. Only the
+code cannot.
+
+### 7. OPEN -- FIFTY-FOUR items
+
+Fifty-two carried in, ENUMERATED from the RCLONE-1 delta. Two filed.
+52 + 2 = 54. The count RISES, and that is correct: a census that finds two real
+things records both rather than tidying the number.
+
+EXTRACT-1, SWEEP-1, C2-1, REG-2-b, ICI-1, F1-1, OPCOV-1, GITIGNORE-1, STRUCT-1,
+POP-1b-M03, POP-1b-M07, ZERO-1, INF-1, ABS-1, DEAD-1, DEAD-3, PRE-2, LINT-1,
+F821-1, CMP-1, SUPPORT-1, MERGE-1, JSONKEY-1, RENDER-1, TYPING-1, DIAG-1,
+CHANGELOG-1, CHANGELOG-2, PERSIST-1, BACKUP-1, DOCLOC-1, DOCX-1, CONSOLE-1,
+DRIVE-1, PATCH-1, NAMING-1, PROD-1, DRIFT-1, README-1, DOWNLOADSHADOW-1,
+ROOTPY-1, SMOKE-1, ROSTER-1, EVALPROV-1, EWCSEL-1, SERVEROSTER-1, PIPEMETA-1,
+HEALTHSEM-1, ARTIFACTLINEAGE-1, BASELINE-1, TEMPORALCITE-1, DRIVELIST-1,
+METRICORIGIN-1, TEARDOWN-1.
+
+**METRICORIGIN-1** -- a metric's origin is part of the metric. Log-scraped and
+computed figures share a flat mapping today; the spread between them in Run 14
+is 0.0010, and nothing in the type prevents them being read as one quantity.
+Closes when SealedEvaluation distinguishes them.
+
+**TEARDOWN-1** -- Run 14's session_notes record a destroy command executing
+past its own gate's FAIL, root-caused to a fixed Test-Path check while the
+files lived one directory deeper. No data was lost, by fortune rather than
+design. The SAME DEFECT CLASS AS DOCKERCOPY-1: a check pointed at an assumed
+location rather than the real one. Whether anomaly A8 and the recorded Charter
+v1.2 patch were ever applied is NOT ESTABLISHED, and must be before Run 17.
+
+### 8. WHAT THIS ESTABLISHES FOR COMMIT C
+
+A sealed evaluation must state, for every number: where it came from (computed
+or scraped), which artefact produced it, under what protocol, whether it was
+transformed on the way in, and whether the record is complete -- Run 10b's
+artefact declares `"status": "partial"` with three outputs lost.
+
+`EvaluationProtocol`, `EvaluationEvidence` and `TrainingLineage` already exist
+and already refuse the failures they were built for. THE INDICATED DESIGN IS A
+THIN SEALING LAYER OVER THEM, not a parallel hierarchy -- the same ruling
+GATE-1 took when it extended the registry's promotion policy rather than
+building a second one.
+
+### 9. NEXT
+
+**Commit C (SealedEvaluation)**, with both censuses now committed and citable.
+Then the BASELINE-1 repair across the README and roadmap, **DRIFT-1 with
+README-1**, **OP-1 step 5** against STEP K, **OP-2**, and **RETRAIN-GATE**
+last.

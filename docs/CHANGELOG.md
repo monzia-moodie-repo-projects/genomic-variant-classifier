@@ -1,3 +1,25 @@
+## 2026-08-08 (METRICORIGIN-1 census) — a metric's origin is part of the metric
+
+Measurement only; no test changed and the ratchet stands at 4487. Base
+`764147d`. Document:
+docs/measurements/MEASUREMENT_2026-08-08_metricorigin-census.md
+
+### Measured
+- Run 14's manifest holds **four figures** a careless reader would call "the AUROC", spanning `0.9975` to `0.9985`. The two computed ones agree exactly across two independently written files; the two carrying a `_from_log` suffix were scraped from a training log and describe out-of-fold performance during training, not held-out performance after it.
+- **The artefact already names its own provenance** in three key names. That is a naming convention doing a type's job, because there was nowhere else to put it.
+- **`artifact_sha256` already exists** in the manifest — the same metric-to-artefact binding PROD-1 built independently for runtime attribution, arrived at twice from opposite ends.
+- **Per-model metrics are stored as strings**, which `EvaluationEvidence` correctly refuses; a sealing layer must coerce explicitly and record that it did.
+- **One of nine committed JSON artefacts carries a byte-order mark**, so `utf-8-sig` is the only encoding that reads them all. Plain `utf-8` reads eight and crashes on the one artefact this project can actually seal.
+
+### Failed (and why)
+- The first two probes written for this census used plain `utf-8` and died on that byte-order mark — after a full session of enforcing mark-free output in every installer.
+- An earlier claim that `docs/METRICS.md` disagreed with Run 14's artefact is **withdrawn**. Its header reads `| Test AUROC | OOF blend |` and row 14 reads `| 0.9975 | 0.9985 |`: two named columns for two quantities, correct for months.
+
+### Learned
+- A NAMING CONVENTION DOING A TYPE'S JOB IS A DESIGN REQUEST. `_from_log` is the manifest telling its reader something the schema could not hold, and the fix is a field rather than a better convention.
+- THE DOCUMENTATION WAS AHEAD OF THE CODE. `METRICS.md` has separated `Test AUROC` from `OOF blend` in column headings since May; the type still cannot. Where prose already makes a distinction the code lacks, the prose is the specification.
+- A COUNT THAT RISES AFTER AN HONEST MEASUREMENT IS THE RIGHT COUNT. This census filed two items and closed none.
+
 ## 2026-08-08 (RCLONE-1) — the Drive remote runs on its own client identifier
 
 Operational change; no test and no production code touched. The ratchet stands
