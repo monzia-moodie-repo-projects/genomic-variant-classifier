@@ -1,3 +1,23 @@
+## 2026-08-08 (RCLONE-1) — the Drive remote runs on its own client identifier
+
+Operational change; no test and no production code touched. The ratchet stands
+at 4487. Base `c9f7087`. Measurement:
+docs/measurements/MEASUREMENT_2026-08-08_rclone1-client-id-migration.md
+
+### Fixed
+- The `genvarcla:` remote no longer uses rclone's shared Google Drive client identifier, which is being retired during 2026. This was the only open item with an external deadline nobody here controls: on expiry, the only off-machine copy of 282 documents would have stopped updating silently.
+- Verified by content, not by counting: `rclone check --include "**.md" --one-way` reports **282 matching files, 0 differences**, with MD5 verification of each file.
+
+### Failed (and why)
+- Four configuration defects: publishing nearly skipped (Testing-mode grants expire weekly), the three OAuth scopes omitted from the first instructions entirely, `service_account_file` set to the literal string `"n"` by accepting a prompt's stated default, and the Google Drive interface left disabled — while the scopes added successfully regardless, so the consent screen looked complete.
+- A client secret was exposed in a shared terminal transcript, because `rclone config` echoes the existing value as its default. Rotated immediately.
+- Five defects in the verification scripts, including a case-insensitive error match that fired on this repository's own filenames (`INCIDENT_*keyerror.md`, `*CRITICAL_FIXES.md`) and reported a passing check as failed.
+
+### Learned
+- AN INSTRUMENT CAN BE THE LEAST RELIABLE THING IN THE ROOM. `rclone lsf` returned inconsistent results for the same file minutes apart; `rclone check`, which compares by content, was correct throughout and was available from the first minute. Filed as DRIVELIST-1.
+- FIVE EXPLANATIONS WERE OFFERED BEFORE ANY WAS MEASURED — propagation lag, a filter quirk, a sync gap, a misread grep, and an identifier-prefix convention. All five were wrong. This happened while writing installers whose entire purpose is to refuse conclusions that lack a probe.
+- A CONDITIONAL PRINTED AS PROSE IS NOT A GATE. A script announced "everything below is meaningless" and then ran the remaining sections, presenting a 403 error's JSON as a table of measurements.
+
 ## 2026-08-08 (BASELINE-1 census) — `0.9847` is unattributable
 
 Measurement only; no test changed and the ratchet stands at 4487. Base

@@ -6777,3 +6777,122 @@ repaired, not when it is understood.
 **Commit C (SealedEvaluation)**, scoped by section 6. Then the BASELINE-1
 repair across the README and roadmap, **DRIFT-1 with README-1**, **OP-1 step
 5** against STEP K, **OP-2**, and **RETRAIN-GATE** last.
+
+
+## ROADMAP delta -- 2026-08-08: RCLONE-1 closes. The Drive remote runs on the project's own client identifier, verified by content rather than by counting.
+
+Base `c9f7087`. Measurement:
+docs/measurements/MEASUREMENT_2026-08-08_rclone1-client-id-migration.md
+
+No test changed; the ratchet stands at 4487.
+
+### 1. WHY IT MATTERED
+
+RCLONE-1 was the only open item with an EXTERNAL DEADLINE nobody here
+controls. The `genvarcla:` remote used rclone's shared Google Drive client
+identifier, which is being retired and will stop working during 2026. When it
+expired, the Drive copy of the documentation -- the only off-machine copy of
+282 files -- would have stopped updating, silently.
+
+### 2. WHAT WAS DONE
+
+A Google Cloud project, the Google Drive application programming interface
+enabled, an OAuth consent screen with three scopes (`.../auth/docs`,
+`.../auth/drive`, `.../auth/drive.metadata.readonly`), a Desktop-app client,
+the application PUBLISHED rather than left in Testing, and a token minted
+against the new credentials.
+
+### 3. FOUR CONFIGURATION DEFECTS
+
+Publishing was nearly skipped -- in Testing mode grants expire after ONE WEEK.
+The scopes were omitted from the first instructions entirely, and without
+`.../auth/drive` the client would have been created with no write access, with
+the failure appearing later as a permissions error mid-sync.
+`service_account_file` was set to the literal string "n" by pressing Enter at a
+prompt whose stated default was `n`, which prevented rclone from constructing
+the file system at all. And the Google Drive interface itself was not enabled
+-- while the SCOPES ADDED SUCCESSFULLY REGARDLESS, so the consent screen looked
+complete.
+
+A client secret was exposed in a shared terminal transcript, because
+`rclone config` echoes the existing value as its default. It was rotated
+immediately.
+
+### 4. FIVE WRONG EXPLANATIONS, NONE MEASURED BEFORE IT WAS OFFERED
+
+A mistyped secret, listing propagation lag, an `--include` anchoring quirk, a
+misread grep, and a claim that a `0A...` root identifier indicates a Shared
+Drive. Each was plausible; each was wrong; each cost a round trip. The correct
+instrument -- `rclone check --include "**.md" -vv`, reading its own summary --
+was available from the first message and is what the project's sync procedure
+already uses.
+
+### 5. FIVE DEFECTS IN THE VERIFICATION SCRIPTS
+
+An absence read as success after a CRITICAL. A conditional PRINTED AS PROSE
+rather than enforced as a gate, so sections declared meaningless ran anyway and
+grouped a 403 error's JSON into a table of markers. A case-insensitive error
+match that fired on this repository's own filenames -- INCIDENT_*keyerror.md
+and *CRITICAL_FIXES.md -- and reported a passing check as failed. An `lsf
+--include` without `--files-only`, which lists directories regardless of the
+filter. And a count comparison that could never hold.
+
+### 6. DRIVELIST-1
+
+`rclone lsf` returned INCONSISTENT RESULTS FOR THE SAME FILE minutes apart: one
+run listed PLAYBOOK_STALE_NOTICE.md, a later identical run did not, and `-R`,
+`--fast-list` and `ls` all omitted it. `rclone copy` on that file reported
+"size = 4137 OK", "Size and modification time the same", "Unchanged skipping"
+-- it can only compare against a remote object that exists. `rclone check`
+then reported 282 matching files, 0 differences, WITH MD5 VERIFICATION.
+
+rclone documents a Google Drive listing defect in this family and ships
+`--drive-fast-list-bug-fix` (default on) because Drive's parent-based search
+"returns nothing sometimes". Whether this is the same defect is NOT
+established.
+
+The operational consequence is what matters: SYNC VERIFICATION MUST USE
+`rclone check`, WHICH COMPARES BY CONTENT. `lsf` counts are not evidence.
+
+SYNCFILTER-1 was proposed during this work and is WITHDRAWN -- a hypothesis
+about `--include` anchoring, refuted one round later when all three filter
+variants returned identical sets. A probe confirmed it appears nowhere in
+docs/, so nothing needs unfiling; the measurement records it so a future reader
+finding it in the transcript knows it was tested and rejected.
+
+### 7. VERIFIED FINAL STATE
+
+Retirement notice absent. Client identifier set, secret rotated,
+`service_account_file` empty, token minted 2026-08-08 against the project's own
+client. Directory listing, upload, and delete all succeed; no probe files left
+in docs/. `rclone check --include "**.md" --one-way`: 282 MATCHING FILES, 0
+DIFFERENCES, MD5 VERIFIED.
+
+### 8. OPEN -- FIFTY-TWO items
+
+Fifty-two carried in, ENUMERATED from the BASELINE-1 census delta. RCLONE-1
+closes. DRIVELIST-1 is filed. 52 - 1 + 1 = 52.
+
+EXTRACT-1, SWEEP-1, C2-1, REG-2-b, ICI-1, F1-1, OPCOV-1, GITIGNORE-1, STRUCT-1,
+POP-1b-M03, POP-1b-M07, ZERO-1, INF-1, ABS-1, DEAD-1, DEAD-3, PRE-2, LINT-1,
+F821-1, CMP-1, SUPPORT-1, MERGE-1, JSONKEY-1, RENDER-1, TYPING-1, DIAG-1,
+CHANGELOG-1, CHANGELOG-2, PERSIST-1, BACKUP-1, DOCLOC-1, DOCX-1, CONSOLE-1,
+DRIVE-1, PATCH-1, NAMING-1, PROD-1, DRIFT-1, README-1, DOWNLOADSHADOW-1,
+ROOTPY-1, SMOKE-1, ROSTER-1, EVALPROV-1, EWCSEL-1, SERVEROSTER-1, PIPEMETA-1,
+HEALTHSEM-1, ARTIFACTLINEAGE-1, BASELINE-1, TEMPORALCITE-1, DRIVELIST-1.
+
+**RCLONE-1, CLOSED HERE.** The remote runs on the project's own client
+identifier; the retirement no longer threatens the documentation backup.
+
+**DRIVELIST-1, FILED HERE.** `rclone lsf` is not a reliable enumeration on this
+remote; `rclone check` is the authority.
+
+**DRIVE-1 STAYS OPEN.** It concerns Drive organisation and the two roots, not
+credentials, and nothing in this work touched it.
+
+### 9. NEXT
+
+**Commit C (SealedEvaluation)**, scoped by the BASELINE-1 census: seal Run 14,
+represent Run 10b's declared partiality honestly, attribute nothing else. Then
+the BASELINE-1 repair across the README and roadmap, **DRIFT-1 with README-1**,
+**OP-1 step 5** against STEP K, **OP-2**, and **RETRAIN-GATE** last.
