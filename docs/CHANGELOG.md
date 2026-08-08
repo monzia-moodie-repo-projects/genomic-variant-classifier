@@ -1,3 +1,25 @@
+## 2026-08-08 (GATE-1) — four AUROC thresholds were never four gates
+
+Ratchet 4462 → 4487 (+25). Commit `b702777`, base `3378659`. Continuous
+Integration: success on both workflows. Session record:
+docs/SESSION_2026-08-08_gate1-three-classes-of-decision.md
+
+### Fixed
+- The four AUROC thresholds are now three classes of decision plus one deletion: score↔label alignment integrity (0.90), an absolute production floor (0.97), a maximum degradation (0.002), and `0.9842` — copied arithmetic over a figure of unestablished provenance — removed rather than typed.
+- The drift workflow is an exit-code adapter over `validate_current_production`, preserving its hard-won 3/1/0 semantics in Python where they can be tested. Its step is renamed "Validate declared production registry state", because a committed file cannot establish that a process serves those bytes.
+- Protocol equality now precedes every numeric comparison in `evaluate_for_production`. Judging a number before knowing it is interpretable is how 0.9988 unseen-gene came to be compared with 0.9984 ordinary test.
+- LSIF-1 closes as a feature-space contract: `_prepare` removed rather than re-fed, column **equality** checked rather than count, and `SAME_POPULATION` yielding weights of one by declared policy rather than by fitting p/p.
+- PIPELINE-1's four call sites repaired — `InferencePipeline` has neither `_prepare` nor `base_models`.
+
+### Failed (and why)
+- Three undefined names reached the working tree: `Enum` used as a class base and never imported, plus two comparisons written against names that existed nowhere in scope. The edit set had been verified in a sandbox whose preamble supplied all three, so every name resolved by construction.
+- Six further defects, all caught by installers refusing: a text rule applied where a syntax-tree rule belonged, a digest pinned from a scratch directory, a forbidden string removed from one of two paragraphs, a hand-escaped literal that would not parse, a stale digest pin, and a summary that ran ahead of its measurement.
+
+### Learned
+- TYPING A THRESHOLD DOES NOT JUSTIFY IT. `0.97`, `0.002` and `0.90` all report `legacy_pending_justification`; an architecture can be correct while its constants remain inherited, and the object says so every time it is read.
+- CORRECTING AN ATTRIBUTE NAME CAN MAKE A DEFECT WORSE. Fixing `base_models` alone would have turned EWCSEL-1 from unreachable into silently arbitrary, because `best_score_` is set nowhere and `max` over an all-equal keyspace returns dictionary order.
+- A GATE CATCHES WHAT IT CAN SEE, AND NOTHING ELSE. The import-resolution gate found the missing `Enum` within minutes because a class body executes at import. The two undefined names inside a fail-closed function were invisible to it and would have sat behind a green suite indefinitely. Different failure modes need different instruments, and the one for this had already been written and not reused.
+
 ## 2026-08-07 (DOCKERCOPY-1) — the image did not contain a module the service imports
 
 Ratchet 4449 → 4462 (+13). Commit `2ccad69`, base `e8de6a6`. Continuous

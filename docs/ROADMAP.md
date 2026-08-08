@@ -6570,3 +6570,103 @@ makes its absence a test failure rather than a dead container.
 sites. Then **Commit C (SealedEvaluation)** after a source census, **DRIFT-1
 with README-1**, **OP-1 step 5** against STEP K, **OP-2**, and **RETRAIN-GATE**
 last.
+
+
+## ROADMAP delta -- 2026-08-08: GATE-1. Four AUROC thresholds were never four gates; they are three classes of decision and one piece of copied arithmetic.
+
+Commit `b702777`. Base `3378659`. Pushed. Continuous Integration: SUCCESS on
+both workflows. Session record:
+docs/SESSION_2026-08-08_gate1-three-classes-of-decision.md
+
+Ratchet 4462 -> 4487 (+25). Armed full suite 4481 passed, 6 skipped, 0 failed
+in 31m48s; 4487 collected. Skip surface unchanged at 6.
+
+### 1. THE ONTOLOGY
+
+  0.90    score<->label alignment integrity   ScoreLabelAlignmentPolicy
+  0.97    absolute production floor           PromotionPolicy
+  0.002   maximum degradation                 PromotionPolicy
+  0.9842  copied arithmetic over a figure of  DELETED
+          unestablished provenance
+
+`0.9842` was "current production - 0.0005" over a number whose provenance is
+unestablished (BASELINE-1). A derived quantity of an unknown is not a policy.
+
+### 2. CENSUS CORRECTION
+
+The original inventory MISSED a fifth site.
+scripts/forensics/verify_oof_alignment.py declared 0.90 independently. It asks
+the same question as conformal calibration's floor, so it is the SAME POLICY,
+not a new gate -- a correction to the count, not growth in the register. Both
+consume one ScoreLabelAlignmentPolicy, and the forensic script does NOT import
+conformal to obtain it.
+
+### 3. TYPED IS NOT JUSTIFIED
+
+0.97, 0.002 and 0.90 all carry PolicyProvenance reporting
+LEGACY_PENDING_JUSTIFICATION. `is_justified` is False and stays false. The
+provenance is a normal field on a normal object rather than a constant named
+something alarming: a scary name becomes wallpaper the moment it is imported.
+
+### 4. REGISTRY-1c
+
+Three incompatibilities, only the third visible, because the first branch
+exited before reaching it. Now an EXIT-CODE ADAPTER over
+validate_current_production, preserving the 3/1/0 semantics in Python where
+they can be tested. The step is renamed "Validate declared production registry
+state": a committed file can establish that the DECLARED state satisfies
+policy, never that a process serves those bytes. Protocol equality now precedes
+every numeric comparison.
+
+### 5. LSIF-1 CLOSES AS A CONTRACT, NOT A RENAME
+
+`_prepare` is removed rather than re-fed: routing the reference through the
+SERVING pipeline while the new cohort arrives from DataPrepPipeline estimates a
+ratio across two representation functions. COLUMN EQUALITY is checked, not
+count -- a reordered column preserves the width and permutes every row.
+SAME_POPULATION yields weights of one BY DECLARED POLICY when both fingerprints
+agree; an absent fingerprint means the ratio must be ESTIMATED.
+
+### 6. PIPELINE-1 CLOSES; EWCSEL-1 DELIBERATELY DOES NOT
+
+Correcting `base_models` alone would have turned EWCSEL-1 from unreachable into
+silently arbitrary, since `best_score_` is set nowhere and `max` over an
+all-equal keyspace returns dictionary order. It raises instead.
+UNRESOLVED_ADAPTIVE_RETRAINING_BLOCKERS names ROSTER-1, EVALPROV-1 and EWCSEL-1
+so closing one cannot open the path.
+
+### 7. OPEN -- FIFTY-ONE items
+
+Fifty-four carried in, ENUMERATED from the DOCKERCOPY-1 delta. GATE-1,
+PIPELINE-1 and LSIF-1 close. ALIGNMENT-1 is filed and closed in this entry.
+54 - 3 = 51.
+
+EXTRACT-1, SWEEP-1, C2-1, REG-2-b, ICI-1, F1-1, OPCOV-1, GITIGNORE-1, STRUCT-1,
+POP-1b-M03, POP-1b-M07, ZERO-1, INF-1, ABS-1, DEAD-1, DEAD-3, PRE-2, LINT-1,
+F821-1, CMP-1, SUPPORT-1, MERGE-1, JSONKEY-1, RENDER-1, TYPING-1, DIAG-1,
+CHANGELOG-1, CHANGELOG-2, PERSIST-1, BACKUP-1, DOCLOC-1, DOCX-1, CONSOLE-1,
+DRIVE-1, RCLONE-1, PATCH-1, NAMING-1, PROD-1, DRIFT-1, README-1,
+DOWNLOADSHADOW-1, ROOTPY-1, SMOKE-1, ROSTER-1, EVALPROV-1, EWCSEL-1,
+SERVEROSTER-1, PIPEMETA-1, HEALTHSEM-1, ARTIFACTLINEAGE-1, BASELINE-1.
+
+**ALIGNMENT-1, FILED AND CLOSED HERE.** Two sites declared the same
+score<->label integrity threshold independently. One policy now, one default,
+consumed by both without either depending on the other.
+
+**GATE-1, CLOSED HERE.** The ontology is in the code.
+
+**PIPELINE-1, CLOSED HERE.** Four call sites; `InferencePipeline` has neither
+`_prepare` nor `base_models`.
+
+**LSIF-1, CLOSED HERE.** The density ratio has a real reference population and
+a checked feature-space contract.
+
+**REGISTRY-1c and ALIGNMENT-1 were WORK-PACKAGE LABELS, not carried register
+items** -- verified by measurement before this delta was written. REGISTRY-1
+itself closed at `372cea1`.
+
+### 8. NEXT
+
+**Commit C (SealedEvaluation)** after a field-by-field source census, with
+BASELINE-1 as its first question. Then **DRIFT-1 with README-1**, **OP-1 step
+5** against STEP K, **OP-2**, and **RETRAIN-GATE** last.

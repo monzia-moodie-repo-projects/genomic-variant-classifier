@@ -6073,6 +6073,18 @@
 # 4462 -> 4487 (+25)  2026-08-07  GATE-1, REGISTRY-1c, ALIGNMENT-1,
 #   PIPELINE-1 and LSIF-1: four AUROC thresholds were never four gates.
 #
+#   BASE 3378659 -> RESULT b702777, LANDED 2026-08-08.
+#   The header above reads 2026-08-07: that is when the work was done
+#   and the payloads were built. Three installer refusals and one
+#   correction round separated them, and the dates are left as they
+#   fell rather than tidied, because a header rewritten to match the
+#   commit would erase the gap it took to get there.
+#
+#   Continuous Integration on the result commit: success on both
+#   workflows, including the container smoke test that exercises the
+#   rewritten model_registry.py through the web service's import
+#   closure, and the Docker coverage gate judging a NEW module.
+#
 #   GATE-1's original census counted four thresholds and called them four
 #   policies. They are THREE CLASSES OF DECISION, and one of them is not a
 #   policy at all:
