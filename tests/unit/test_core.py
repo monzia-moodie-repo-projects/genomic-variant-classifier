@@ -491,8 +491,35 @@ class TestSIFTPolyPhenConnector:
         feats = engineer_features(annotated)
 
         assert feats.shape == (1, len(TABULAR_FEATURES))
-        assert not feats.isnull().any().any()
-        # Real scores must survive the fillna pass in engineer_features
+        # DUPLICATE-1A / CONSTRAINTFILL-1, 2026-08-10. This assertion read
+        #     assert not feats.isnull().any().any()
+        # which was true ONLY because engineer_features swept the entire matrix
+        # with fillna(0.0) at line 1028. A test that forbids NaN without asking
+        # WHAT FILLED IT certifies the fabrication as correctness -- and that is
+        # how gene_constraint_oe survived for months as a bit-identical alias of
+        # loeuf, and how a missing constraint value was recorded as "perfectly
+        # tolerant of loss of function".
+        #
+        # The replacement is STRICTLY STRONGER: it still catches an unexpected
+        # null, and it additionally distinguishes declared missingness from
+        # undeclared. The permission list is imported from the same constant the
+        # model preprocessor uses, so the two cannot drift.
+        from genomic_variant_classifier.models.model_preprocessing import (
+            DECLARED_MISSINGNESS,
+        )
+
+        undeclared = sorted(
+            c for c in feats.columns
+            if feats[c].isnull().any() and c not in DECLARED_MISSINGNESS
+        )
+        assert not undeclared, (
+            "columns carry missing values with no declared missing-value "
+            "policy: {}".format(undeclared)
+        )
+
+        # Real scores must survive feature engineering. (There is no longer a
+        # "fillna pass" to survive: the blanket sweep was removed by
+        # DUPLICATE-1A, which is what this comment used to describe.)
         assert feats.loc[0, "sift_score"]      == pytest.approx(0.03)
         assert feats.loc[0, "polyphen2_score"] == pytest.approx(0.95)
 
@@ -860,7 +887,32 @@ class TestDbNSFPConnector:
         feats = engineer_features(annotated)
 
         assert feats.shape == (1, len(TABULAR_FEATURES))
-        assert not feats.isnull().any().any()
+        # DUPLICATE-1A / CONSTRAINTFILL-1, 2026-08-10. This assertion read
+        #     assert not feats.isnull().any().any()
+        # which was true ONLY because engineer_features swept the entire matrix
+        # with fillna(0.0) at line 1028. A test that forbids NaN without asking
+        # WHAT FILLED IT certifies the fabrication as correctness -- and that is
+        # how gene_constraint_oe survived for months as a bit-identical alias of
+        # loeuf, and how a missing constraint value was recorded as "perfectly
+        # tolerant of loss of function".
+        #
+        # The replacement is STRICTLY STRONGER: it still catches an unexpected
+        # null, and it additionally distinguishes declared missingness from
+        # undeclared. The permission list is imported from the same constant the
+        # model preprocessor uses, so the two cannot drift.
+        from genomic_variant_classifier.models.model_preprocessing import (
+            DECLARED_MISSINGNESS,
+        )
+
+        undeclared = sorted(
+            c for c in feats.columns
+            if feats[c].isnull().any() and c not in DECLARED_MISSINGNESS
+        )
+        assert not undeclared, (
+            "columns carry missing values with no declared missing-value "
+            "policy: {}".format(undeclared)
+        )
+
         assert feats.loc[0, "sift_score"]      == pytest.approx(0.03)
         assert feats.loc[0, "polyphen2_score"] == pytest.approx(0.95)
         assert feats.loc[0, "revel_score"]     == pytest.approx(0.87)
@@ -923,10 +975,34 @@ class TestFeatureEngineering:
         assert feats.shape[0] == len(sample_canonical_df)
         assert feats.shape[1] == len(TABULAR_FEATURES)
 
-    def test_engineer_features_no_nans(self, sample_canonical_df):
+    def test_engineer_features_no_undeclared_missingness(self, sample_canonical_df):
         from genomic_variant_classifier.models.variant_ensemble import engineer_features
         feats = engineer_features(sample_canonical_df)
-        assert not feats.isnull().any().any(), "Feature matrix must have no NaNs"
+        # DUPLICATE-1A / CONSTRAINTFILL-1, 2026-08-10. This assertion read
+        #     assert not feats.isnull().any().any()
+        # which was true ONLY because engineer_features swept the entire matrix
+        # with fillna(0.0) at line 1028. A test that forbids NaN without asking
+        # WHAT FILLED IT certifies the fabrication as correctness -- and that is
+        # how gene_constraint_oe survived for months as a bit-identical alias of
+        # loeuf, and how a missing constraint value was recorded as "perfectly
+        # tolerant of loss of function".
+        #
+        # The replacement is STRICTLY STRONGER: it still catches an unexpected
+        # null, and it additionally distinguishes declared missingness from
+        # undeclared. The permission list is imported from the same constant the
+        # model preprocessor uses, so the two cannot drift.
+        from genomic_variant_classifier.models.model_preprocessing import (
+            DECLARED_MISSINGNESS,
+        )
+
+        undeclared = sorted(
+            c for c in feats.columns
+            if feats[c].isnull().any() and c not in DECLARED_MISSINGNESS
+        )
+        assert not undeclared, (
+            "columns carry missing values with no declared missing-value "
+            "policy: {}".format(undeclared)
+        )
 
     def test_is_snv_detection(self, sample_canonical_df):
         from genomic_variant_classifier.models.variant_ensemble import engineer_features

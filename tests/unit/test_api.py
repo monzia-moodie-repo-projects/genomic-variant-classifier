@@ -273,11 +273,35 @@ class TestEngineerFeatures:
         feats = engineer_features(df)
         assert list(feats.columns) == TABULAR_FEATURES
 
-    def test_no_nans_in_output(self):
+    def test_no_undeclared_missingness_in_output(self):
         from genomic_variant_classifier.models.variant_ensemble import engineer_features
         df = pd.DataFrame([{"chrom": "1", "pos": 100, "ref": "A", "alt": "T"}])
         feats = engineer_features(df)
-        assert feats.isnull().sum().sum() == 0
+        # DUPLICATE-1A / CONSTRAINTFILL-1, 2026-08-10. This assertion read
+        #     assert not feats.isnull().any().any()
+        # which was true ONLY because engineer_features swept the entire matrix
+        # with fillna(0.0) at line 1028. A test that forbids NaN without asking
+        # WHAT FILLED IT certifies the fabrication as correctness -- and that is
+        # how gene_constraint_oe survived for months as a bit-identical alias of
+        # loeuf, and how a missing constraint value was recorded as "perfectly
+        # tolerant of loss of function".
+        #
+        # The replacement is STRICTLY STRONGER: it still catches an unexpected
+        # null, and it additionally distinguishes declared missingness from
+        # undeclared. The permission list is imported from the same constant the
+        # model preprocessor uses, so the two cannot drift.
+        from genomic_variant_classifier.models.model_preprocessing import (
+            DECLARED_MISSINGNESS,
+        )
+
+        undeclared = sorted(
+            c for c in feats.columns
+            if feats[c].isnull().any() and c not in DECLARED_MISSINGNESS
+        )
+        assert not undeclared, (
+            "columns carry missing values with no declared missing-value "
+            "policy: {}".format(undeclared)
+        )
 
     def test_snv_detection(self):
         from genomic_variant_classifier.models.variant_ensemble import engineer_features

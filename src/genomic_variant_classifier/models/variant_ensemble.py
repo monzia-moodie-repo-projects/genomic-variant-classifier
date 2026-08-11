@@ -843,10 +843,58 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     )
 
     # Gene-level (4)
-    feats["gene_constraint_oe"] = df.get(
-        "gene_constraint_oe", df.get("loeuf", pd.Series([1.0] * len(df), index=df.index))
-    ).fillna(1.0)
-    feats["gene_is_constrained"] = (feats["gene_constraint_oe"] < 0.35).astype(int)
+    #
+    # DUPLICATE-1A, 2026-08-09. This block previously read:
+    #
+    #     feats["gene_constraint_oe"] = df.get(
+    #         "gene_constraint_oe",
+    #         df.get("loeuf", pd.Series([1.0] * len(df), index=df.index))
+    #     ).fillna(1.0)
+    #     feats["gene_is_constrained"] = (feats["gene_constraint_oe"] < 0.35).astype(int)
+    #
+    # TWO defects, both repaired here, and NOTHING ELSE changed.
+    #
+    # 1. THE ALIAS. No producer ever supplied a gene_constraint_oe column, so
+    #    the loeuf fallback was the only path and the two model features became
+    #    BIT-IDENTICAL: identical=True, max abs diff=0.0, correlation=1.0 on
+    #    1,038,974 rows. LOEUF is the UPPER BOUND of the confidence interval
+    #    around the observed/expected ratio; it is not the ratio. The fallback
+    #    is gone. The connector now supplies lof.oe.
+    #
+    # 2. THE FABRICATION. `.fillna(1.0)` asserted complete tolerance of loss of
+    #    function for genes with NO measurement. Missingness is preserved.
+    #
+    # WHAT IS DELIBERATELY NOT CHANGED: the TOLERANCE CONTRACT. engineer_features
+    # accepts a partial frame and supplies defaults -- `df.get(col, default)`
+    # throughout -- and a great many tests rely on it, constructing two-column
+    # frames to exercise one feature. A first version of this block raised when
+    # gene_constraint_oe was absent; the suite gate measured 95 failures across
+    # 18 files, none of them about constraint. Detecting "the connector never
+    # ran" is not this function's job: the vitality census and split_health_gate
+    # measure constancy and all-null columns, and they are where that check
+    # belongs.
+    feats["gene_constraint_oe"] = pd.to_numeric(
+        df.get("gene_constraint_oe", pd.Series(np.nan, index=df.index)),
+        errors="coerce")
+
+    # DERIVED FROM loeuf DIRECTLY, never from the point estimate. Measured
+    # 2026-08-09: a point-estimate cut-off reproducing today's gene count
+    # overlaps it at Jaccard 0.6086, losing 468 well-powered genes (median
+    # lof.exp 92.2) and gaining 94 underpowered ones (median 15.7).
+    #
+    # 0.35 is RETAINED PROJECT POLICY for Run-15/16 comparability. It is NOT
+    # current gnomAD guidance: v4.1.1 (2026-03-30) recommends LOEUF < 0.45.
+    # Migration is CONSTRAINTPOLICY-1, deliberately not folded in here.
+    #
+    # Three-valued: np.nan < 0.35 evaluates False, which would record every
+    # gene without constraint data as NOT CONSTRAINED. Absence of evidence is
+    # not evidence of tolerance.
+    LEGACY_GENE_CONSTRAINT_LOEUF_THRESHOLD = 0.35
+    _loeuf_in = pd.to_numeric(
+        df.get("loeuf", pd.Series(np.nan, index=df.index)), errors="coerce")
+    feats["gene_is_constrained"] = np.where(
+        _loeuf_in.isna(), np.nan,
+        (_loeuf_in < LEGACY_GENE_CONSTRAINT_LOEUF_THRESHOLD).astype(float))
     feats["n_pathogenic_in_gene"] = (
         df.get("n_pathogenic_in_gene", pd.Series([0] * len(df), index=df.index))
         .fillna(0)
@@ -1022,10 +1070,36 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
             .clip(lower=0)
         )
 
-    n_nan = feats.isnull().sum().sum()
-    if n_nan > 0:
-        logger.warning("%d NaN values in feature matrix -- filling with 0.", n_nan)
-        feats = feats.fillna(0.0)
+    # DUPLICATE-1A / CONSTRAINTFILL-1, 2026-08-09. This block previously read:
+    #
+    #     n_nan = feats.isnull().sum().sum()
+    #     if n_nan > 0:
+    #         logger.warning("%d NaN values in feature matrix -- filling with 0.", n_nan)
+    #         feats = feats.fillna(0.0)
+    #
+    # Three defects in four lines. It sat at line 1028 of a function running to
+    # 1147, so the FIFTEEN features built after it -- including all four gnomAD
+    # constraint metrics -- were invisible to its count; the warning described
+    # three quarters of a matrix as "the feature matrix". It filled every column
+    # with 0.0 regardless of that column's meaning, and 0.0 on the
+    # observed/expected scale is MAXIMAL apparent constraint. And it fabricated
+    # silently at WARNING level with no column names.
+    #
+    # Measured: across 121 run logs the warning has NEVER fired, because every
+    # upstream path fabricates a value first. The sweep was dead code kept alive
+    # by the defects it would otherwise have revealed.
+    #
+    # Missingness now SURVIVES to the model boundary, where CONSTRAINTFILL-1
+    # applies a declared per-feature policy with a missingness indicator. Any
+    # column whose missingness is not yet declared is named here rather than
+    # quietly filled.
+    _null_counts = feats.isnull().sum()
+    _nulls = _null_counts[_null_counts > 0]
+    if len(_nulls):
+        logger.info(
+            "engineer_features: %d column(s) carry missing values, preserved "
+            "for the declared missing-value policy: %s",
+            len(_nulls), dict(_nulls.astype(int)))
 
     # FinnGen R10 population AF (three columns)
     for _col, _default in [
