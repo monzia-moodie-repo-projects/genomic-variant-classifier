@@ -249,6 +249,41 @@ def _stage5_zero_audit(
     X_tab: pd.DataFrame,
     zero_rate_threshold: float,
 ) -> None:
+    """Stage 5: feature-state audit.
+
+    HARNESS-NULL-1, 2026-08-10. This stage previously computed
+
+        zero_rate = float((s.fillna(0) == 0).mean())
+
+    which makes NaN IDENTICAL TO ZERO inside the diagnostic. Measured
+    2026-08-09: gene_constraint_oe, whose 200 values on the reference slice
+    were ALL missing and NONE zero, was reported as
+
+        feature 'gene_constraint_oe' is 100% zero (>= 95%) and non-binary
+        - probable silent-zero connector (connector-dead class)
+
+    An absence reported as a measurement, inside the instrument built to detect
+    exactly that. And it was about to get worse: the declared missing-value
+    policy makes NaN legitimate for some features, and every one of them would
+    have been misreported as a dead connector.
+
+    The zero rate is now computed AMONG OBSERVED VALUES ONLY, and missingness is
+    its own finding with its own wording. Classification lives in
+    `feature_state`, which applies policy to observations; `feature_health`
+    remains the authority on what those observations are. Three definitions of
+    "constant" in one repository is the drift this separation avoids.
+
+    The import is function-local deliberately: it keeps this repair to a single
+    edited block, and the harness package's __init__ imports from this module.
+    """
+    # Imported here rather than at module scope -- see the docstring.
+    from genomic_variant_classifier.agent_layer.harness.feature_state import (
+        MISSINGNESS_STATES,
+        SILENT_ZERO_STATES,
+        classify_feature_state,
+        describe,
+    )
+
     report.stages_run.append(5)
     n = len(X_tab)
     if n == 0:
@@ -258,20 +293,19 @@ def _stage5_zero_audit(
         s = X_tab[col]
         if not pd.api.types.is_numeric_dtype(s):
             continue
-        uniq = set(np.unique(s.dropna().unique()))
-        # A column is an exempt indicator ONLY if BOTH 0 and 1 are present.
-        # An all-zero column ({0}) is NOT a legitimate indicator - it is a dead
-        # feature and must fall through to the zero-rate check (silent-zero class).
-        is_binary = uniq in ({0, 1}, {0.0, 1.0}, {0, 1.0}, {0.0, 1})
-        if is_binary:
-            continue
-        zero_rate = float((s.fillna(0) == 0).mean())
-        if zero_rate >= zero_rate_threshold:
-            report._fail(
-                5,
-                f"feature {col!r} is {zero_rate:.0%} zero (>= {zero_rate_threshold:.0%}) "
-                "and non-binary - probable silent-zero connector (connector-dead class)",
-            )
+        state, evidence = classify_feature_state(
+            s, zero_rate_threshold=zero_rate_threshold)
+        if state in SILENT_ZERO_STATES or state in MISSINGNESS_STATES:
+            # EXACTLY the prior scope, plus missingness reported as itself.
+            # CONSTANT and NEAR_CONSTANT are deliberately excluded: stage 5 has
+            # never had a constancy rule, and a repair that widens the audit it
+            # repairs makes any new finding unattributable. Both are stage-5
+            # findings on a slice claiming to be fully populated, and both name
+            # the feature so the caller's allowlist logic still applies. What
+            # differs is the CLAIM: a dead connector and an absent annotation
+            # are not the same defect, and the message no longer says "zero"
+            # about a column that holds none.
+            report._fail(5, describe(col, state, evidence))
 
 
 def run_correctness_harness(
@@ -473,6 +507,16 @@ def build_reference_slice(n: int = 200, seed: int = 7) -> pd.DataFrame:
         "ok": [True] * n,
         "pli_score": rng.uniform(0.1, 0.9, n), "syn_z": rng.uniform(-3, 5, n),
         "mis_z": rng.uniform(-3, 5, n), "loeuf": rng.uniform(0.05, 2, n),
+        # gene_constraint_oe (gnomAD lof.oe) -- FED, per THE RULE above. Until
+        # DUPLICATE-1A this column was supplied by engineer_features' fallback to
+        # loeuf, so the fixture never needed it; the two features were bit-
+        # identical, which is the defect. It is a LIVE connector output and must
+        # stay OUT of KNOWN_ZERO_DEFAULT so stage 5 keeps zero-auditing it.
+        # NOTE: feeding it here tests only that engineer_features does not
+        # DESTROY a handed value. Whether the connector can PRODUCE it is tested
+        # by tests/unit/test_connector_gnomad_constraint.py -- the lesson of
+        # genomiclm_llr, recorded at lines 399-411.
+        "gene_constraint_oe": rng.uniform(0.05, 2, n),
         "dbsnp_af": rng.uniform(1e-4, 0.5, n), "maxentscan_score": rng.uniform(-5, 12, n), "maxentscan_delta": rng.uniform(-10, 10, n),
         "solvent_accessibility": rng.uniform(0, 1, n), "esm2_delta_norm": rng.uniform(0.1, 5, n),
         "esm2_llr": rng.uniform(-12, 4, n),  # SIGNED (neg=damaging); live feature, NOT allowlisted
