@@ -6181,4 +6181,54 @@
 #   collected, measured by this installer. Skip surface UNCHANGED at 6.
 #
 
-4487
+
+# 2026-08-11 -- 4487 -> 4605 (+118). Four scientific units, four commits:
+#   b9738a4  canonicalisation integrity (AUDITCOUNT-1, STRICTNUMERIC-1,
+#            PROVENANCE-ASSERT-1)
+#   7161132  gnomAD constraint connector (DUPLICATE-1A, CONSTRAINTTRANSCRIPT-1,
+#            CACHEIDENTITY-1/-2)
+#   0a7a553  correctness harness (HARNESS-NULL-1)
+#   48985d6  missingness contract (CONSTRAINTFILL-1, feature-engineering half)
+#
+#   WHAT WAS WRONG. A single connector fallback made two model features
+#   BIT-IDENTICAL -- gene_constraint_oe and loeuf, identical=True, max abs
+#   diff=0.0, correlation=1.0 across 1,038,974 rows. Transcript selection was
+#   drop_duplicates(keep="first") under a comment claiming MANE ordering, which
+#   disagrees with MANE Select for 5,468 of 17,473 genes (31.3%), 132 of them
+#   crossing the 0.35 constrained boundary. Missing constraint was fabricated as
+#   1.0 -- "completely tolerant of loss of function" -- at three levels, and a
+#   blanket fillna(0.0) then filled whatever survived with MAXIMAL apparent
+#   constraint. Stage 5 of the correctness harness computed its zero rate as
+#   (s.fillna(0) == 0).mean(), so a column that was 200-of-200 MISSING was
+#   reported as "100% zero, probable silent-zero connector".
+#
+#   Every one of those is the same defect: an ABSENCE rendered as a MEASUREMENT.
+#
+#   ARITHMETIC: 4487 + 118 = 4605. All 118 from four new files --
+#   test_constraint_canonicalize.py 50, test_connector_gnomad_constraint.py 27,
+#   test_feature_state.py 21, test_model_preprocessing.py 20. The five
+#   superseded no-NaN assertions in test_api.py, test_core.py and
+#   test_splice_ai_promotion.py contribute ZERO: they were REWRITTEN in place,
+#   not added. An earlier prediction of 4628 double-counted them, and the
+#   measured collection corrected it.
+#
+#   ACCEPTANCE: full suite 4598 passed, 6 skipped, 1 failed in 16m30s; 4605
+#   collected. Skip surface UNCHANGED at 6 (five integration TODOs awaiting Run
+#   15 cohort infrastructure, one POSIX-symlink platform conditional).
+#
+#   THE ONE FAILURE IS KNOWN AND RECORDED:
+#   test_api.py::TestInferencePipeline::test_save_and_load_roundtrip.
+#   api/pipeline.py fits LogisticRegression on a matrix that now legitimately
+#   carries NaN. It awaits the preprocessor WIRING, which is deliberately not in
+#   these commits. The ratchet counts COLLECTION, not passes, so it moves; the
+#   failure is carried openly rather than hidden by deferring the bump.
+#
+#   EACH COMMIT WAS VERIFIED IN AN ISOLATED GIT WORKTREE containing exactly what
+#   that commit contains -- HEAD plus the staged index, nothing from the working
+#   tree. That method found ALPHAFOLD-SYSPATH-1: seven tests use
+#   sys.path.insert rather than monkeypatch.syspath_prepend, which is a no-op at
+#   C:\Projects\genomic-variant-classifier and an error at any other path. They
+#   error in every worktree run and pass here. A fresh clone fails those seven.
+#
+
+4605
