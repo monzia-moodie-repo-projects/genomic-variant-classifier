@@ -6231,4 +6231,30 @@
 #   error in every worktree run and pass here. A fresh clone fails those seven.
 #
 
-4605
+# 2026-08-12 -- 4605 -> 4620 (+15). NEURALNAN-1 made visible.
+#
+#   variant_ensemble.py:1920 selected model columns with X.var(axis=0) > 0.0.
+#   np.var over a column containing ANY NaN returns NaN, and NaN > 0.0 is
+#   False, so a zero-variance guard silently reclassified "contains a missing
+#   value" as "is degenerate" and DELETED the whole feature -- including the
+#   360 observed values it still held at n=400.
+#
+#   MEASURED 2026-08-10 with a responsiveness control: tabular_nn, mc_dropout
+#   and deep_ensemble showed a delta of EXACTLY 0.000000 on a NaN-bearing
+#   column at n=8 AND n=400, while responding 0.28-0.99 to columns that were
+#   never missing. Three of thirteen estimators trained on a different feature
+#   space than the other ten, invisibly.
+#
+#   THE SAME COLUMNS ARE STILL DROPPED. Verified exhaustively over the five
+#   reachable column kinds; old and new masks are IDENTICAL. Constancy is now
+#   measured among OBSERVED values, so a column that varies where observed is
+#   recorded as a MISSINGNESS loss and logged at WARNING with its name.
+#   Imputing instead of dropping changes what these models learn and belongs
+#   with the per-estimator rendering, not with a guard.
+#
+#   ARITHMETIC: 4605 + 15 = 4620. All 15 from tests/unit/test_feature_selection.py.
+#   variant_ensemble.py contributes ZERO: its fit() was REDIRECTED to the new
+#   selector, not extended.
+#
+#   ACCEPTANCE: tests/unit 4394 passed, 1 skipped, 0 failed.
+4620

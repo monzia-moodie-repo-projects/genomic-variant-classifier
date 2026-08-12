@@ -1917,9 +1917,44 @@ class TabularNNClassifier(BaseEstimator, ClassifierMixin):
 
         X = np.asarray(X, dtype=float)
         self.n_features_in_ = X.shape[1]
-        self.feature_mask_ = X.var(axis=0) > 0.0
-        if not self.feature_mask_.any():            # degenerate: keep all, never 0-width
-            self.feature_mask_ = np.ones(X.shape[1], dtype=bool)
+
+        # NEURALNAN-1 (2026-08-12). This was
+        #
+        #     self.feature_mask_ = X.var(axis=0) > 0.0
+        #
+        # a zero-variance guard -- legitimate, since a constant column carries
+        # no signal and StandardScaler would divide by zero on it. But np.var
+        # over a column containing ANY NaN returns NaN, and NaN > 0.0 is False,
+        # so the guard silently reclassified "contains a missing value" as "is
+        # degenerate" and DELETED the whole feature, including every observed
+        # value it still held.
+        #
+        # MEASURED 2026-08-10, with a responsiveness control at two sizes:
+        #   tabular_nn / mc_dropout / deep_ensemble
+        #     delta on a NaN-bearing column : EXACTLY 0.000000 at n=8 AND n=400
+        #     delta on columns never missing: 0.28 - 0.99
+        # At n=400 that column still held 360 OBSERVED values, and perturbing
+        # them changed nothing. The mask is pickled with the estimator, so the
+        # deletion persisted into every later prediction. Three of thirteen
+        # estimators trained on a different feature space than the other ten.
+        #
+        # THE SAME COLUMNS ARE STILL DROPPED. Verified exhaustively over the
+        # five reachable column kinds -- varies/constant, with and without
+        # gaps, and entirely missing -- the old and new masks are IDENTICAL.
+        # This commit changes the RECORD and the LOG, not the science. Imputing
+        # instead of dropping changes what these models learn, and belongs with
+        # the per-estimator rendering, not with a guard.
+        #
+        # np.nanvar ALONE would have been the wrong repair in the other
+        # direction: it keeps the column alive and sends NaN into a network
+        # that PROPAGATES it -- kan demonstrated exactly that, returning
+        # non-finite probabilities from a completed fit.
+        from genomic_variant_classifier.models.feature_selection import (
+            select_model_features,
+        )
+
+        self.feature_mask_, self.feature_selection_ = select_model_features(
+            X, estimator_name="tabular_nn")
         X = X[:, self.feature_mask_]
         X_scaled = self.scaler_.fit_transform(X)
         X_t = torch.tensor(X_scaled, dtype=torch.float32)
