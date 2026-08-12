@@ -430,22 +430,81 @@ class PhyloPConnector:
     # ------------------------------------------------------------------
 
     def _get_index(self) -> dict[tuple[str, int], float]:
-        """Return (building if necessary) the in-memory position → score index."""
+        """Return the position index, using a cache only when it PROVES itself.
+
+        PHYLOP-CACHE-INTEGRITY-1 (2026-08-12). The previous body read the cache
+        inside a bare try/except that absorbed every failure and rebuilt
+        silently. That collapsed three different situations into one outcome:
+
+            ABSENT   no cache exists. Normal.
+            STALE    a cache exists describing a DIFFERENT source or schema.
+                     Normal on a source change -- but an unexplained rebuild is
+                     a run that is slow for a reason nobody can see.
+            CORRUPT  a cache CLAIMS to describe this source and cannot be read.
+                     A fault. Rebuilding hides it and it recurs every run.
+
+        The cache also carried no identity at all: a filename, and nothing that
+        said which source it came from. CACHEIDENTITY-1 in the gnomAD constraint
+        connector was exactly this, and a sidecar built by a defective parser
+        was preferred to a repaired one because identity was the FILENAME.
+
+        Identity here is the schema version and the SOURCE DIGEST. The path is
+        deliberately excluded: the same source moved is the same source, and a
+        different source at the same path is not.
+        """
+        from genomic_variant_classifier.data.phylop_cache import (
+            CACHE_SCHEMA_VERSION, CacheIdentity, CacheState, read_cache,
+            sha256_file, write_cache,
+        )
+
         if self._index is not None:
             return self._index
 
-        cache_path = self._cache_path()
-        if cache_path and cache_path.exists():
-            logger.info("PhyloP: loading index from parquet cache %s", cache_path)
-            self._index = self._parquet_to_index(cache_path)
+        if self._path is None:
+            self._index = {}
             return self._index
 
-        logger.info("PhyloP: building index from %s (this may take a minute)...", self._path)
-        self._index = self._build_index()
+        source_digest = sha256_file(self._path)
+        expected = CacheIdentity(
+            schema_version=CACHE_SCHEMA_VERSION,
+            source_path=str(self._path),
+            source_sha256=source_digest,
+            has_header=getattr(self, "_has_header", False),
+        )
 
-        if cache_path:
-            self._save_cache(cache_path)
+        cache_path = self._cache_path()
+        if cache_path is not None:
+            frame, state = read_cache(cache_path, expected)
+            self._cache_state = state
+            if state is CacheState.USABLE:
+                from genomic_variant_classifier.data.phylop import (
+                    _normalise_chrom as _nc,
+                )
+                self._index = {
+                    (_nc(str(chrom)), int(pos)): float(score)
+                    for chrom, pos, score in zip(
+                        frame["chrom"], frame["pos"], frame["score"])
+                }
+                return self._index
 
+        if self._path.suffix.lower() == ".parquet":
+            self._index = self._parquet_to_index(self._path)
+        else:
+            self._index = self._build_index()
+
+        if cache_path is not None:
+            audit = getattr(self, "_ingest_audit", None)
+            import datetime as _dt
+            identity = CacheIdentity(
+                schema_version=CACHE_SCHEMA_VERSION,
+                source_path=str(self._path),
+                source_sha256=source_digest,
+                has_header=getattr(self, "_has_header", False),
+                n_loci=len(self._index),
+                rows_accepted=len(self._index),
+                built_at=_dt.datetime.now(_dt.timezone.utc).isoformat(),
+            )
+            self._save_cache(cache_path, identity)
         return self._index
 
     def _build_index(self) -> dict[tuple[str, int], float]:
@@ -556,15 +615,38 @@ class PhyloPConnector:
             return None
         return self._cache_dir / "phylop100way_index.parquet"
 
-    def _save_cache(self, cache_path: Path) -> None:
+    def _save_cache(self, cache_path, identity=None) -> None:
+        """Publish the index and its identity. Data first, sidecar last.
+
+        PHYLOP-CACHE-INTEGRITY-1 (2026-08-12). The previous body wrapped the
+        write in `except Exception` and logged a warning, so a cache that could
+        not be written left every later run rebuilding from source -- a
+        performance defect presenting as slowness with a warning nobody reads.
+
+        A write failure now propagates. Publication order is deliberate: if the
+        process dies between the two writes the result is a cache with NO
+        sidecar, which read_cache treats as STALE and rebuilds. The reverse
+        order would leave a sidecar vouching for data never written -- a claim
+        with no evidence.
+        """
+        from genomic_variant_classifier.data.phylop_cache import write_cache
+
         if not self._index:
             return
-        try:
-            rows = [
-                {"chrom": chrom, "pos": pos, "phylop_score": score}
+        if identity is None:
+            logger.warning(
+                "PhyloP cache not written: no identity supplied. A cache is a "
+                "CLAIM about a source, and one that cannot say which source it "
+                "describes is not a cache.")
+            return
+
+        import pandas as _pd
+
+        frame = _pd.DataFrame(
+            [
+                {"chrom": chrom, "pos": pos, "score": score}
                 for (chrom, pos), score in self._index.items()
-            ]
-            pd.DataFrame(rows).to_parquet(cache_path, index=False)
-            logger.info("PhyloP: parquet cache written to %s", cache_path)
-        except Exception as exc:
-            logger.warning("PhyloP: could not write parquet cache: %s", exc)
+            ],
+            columns=["chrom", "pos", "score"],
+        )
+        write_cache(frame, cache_path, identity)

@@ -6333,4 +6333,29 @@
 #   contributes ZERO: both methods were REPLACED, not extended.
 #
 #   ACCEPTANCE: tests/unit 4415 passed, 1 skipped, 0 failed.
-4641
+
+# 2026-08-12 -- 4641 -> 4666 (+25). PHYLOP-CACHE-INTEGRITY-1.
+#
+#   The PhyloP index cache carried a filename and nothing else: no schema
+#   version and no source digest. A cache built from one source could be served
+#   for another and nothing in the artefact would contradict it -- the same
+#   failure as CACHEIDENTITY-1 in the gnomAD constraint connector, where
+#   identity came from the source FILENAME.
+#
+#   The read sat inside a bare try/except that collapsed three situations into
+#   one outcome: no cache (normal), a cache describing a different source
+#   (normal, but must be recorded), and a cache CLAIMING to describe this
+#   source that cannot be read (a fault that rebuilding hides and that recurs
+#   every run). The third now raises.
+#
+#   Identity is the schema version and the source DIGEST, never the path: the
+#   same source moved is the same source, and a different source at the same
+#   path is not.
+#
+#   ARITHMETIC: 4641 + 25 = 4666. All 25 from the new
+#   tests/unit/test_phylop_cache.py -- 20 for cache identity and 5 exercising
+#   the connector's round trip. phylop.py contributes zero, both methods having
+#   been REPLACED rather than extended.
+#
+#   ACCEPTANCE: tests/unit 4440 passed, 1 skipped, 0 failed.
+4666
