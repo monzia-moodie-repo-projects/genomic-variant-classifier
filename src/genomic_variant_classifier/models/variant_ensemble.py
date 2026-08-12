@@ -3027,6 +3027,60 @@ class VariantEnsemble:
             )
 
         # -------------------------------------------------------------------------------
+        # THE FITTED MISSING-VALUE POLICY (2026-08-11)
+        #
+        # Fitted on X_tab_fit -- the training fold AFTER the calibration carve
+        # (line 2851, or 2827 on the external-partition branch) -- and NEVER on
+        # the incoming X_tab.
+        #
+        # MEASURED 2026-08-11: a preprocessor fitted across a split gives a
+        # median of 0.4 where a train-only fit gives 0.25, and the row whose
+        # value is imputed sits in the half that moved the statistic. Imputation
+        # uses a FITTED median, so preprocessing participates in the statistical
+        # model; fitting it on rows it will later be scored against is leakage
+        # of exactly the kind INCIDENT_2026-06-13 was about, one layer down.
+        #
+        # NOTHING CONSUMES THIS YET. It is recorded on the fitted object so that
+        # InferencePipeline can carry the TRAINING medians to serving, where a
+        # single variant offers no basis for computing one. Behaviour of every
+        # estimator in this fit is unchanged.
+        #
+        # POLICIES ARE FILTERED TO THE COLUMNS ACTUALLY PRESENT. The constructor
+        # refuses a policy naming a feature outside the contract it was given,
+        # and several tests fit on a SUBSET of TABULAR_FEATURES. A policy for a
+        # column this matrix does not have is not applicable; it is not a defect.
+        #
+        # THIS CAN REFUSE, AND THAT IS DELIBERATE. If a declared-missing feature
+        # is ENTIRELY absent from the training fold, no training median exists
+        # and the preprocessor raises rather than inventing one. Measured
+        # 2026-08-11: outputs/run16/clinvar_enriched.parquet yields
+        # gene_constraint_oe missing for 100% of rows, because that cohort was
+        # annotated in stub mode -- train.py leaves gnomad_constraint_path=None
+        # without --gnomad-constraint. A run in that state would previously have
+        # trained on a fabricated constant. It now stops, which is the same
+        # decision the fail-loud base-model dropout machinery makes about a
+        # missing MODEL, applied to a missing FEATURE.
+        # -------------------------------------------------------------------------------
+        from genomic_variant_classifier.models.model_preprocessing import (
+            DECLARED_MISSINGNESS,
+            TabularModelPreprocessor,
+        )
+
+        _fit_columns = list(X_tab_fit.columns)
+        _applicable = {
+            name: policy for name, policy in DECLARED_MISSINGNESS.items()
+            if name in _fit_columns
+        }
+        self.preprocessor_ = TabularModelPreprocessor(
+            feature_names=_fit_columns, policies=_applicable).fit(X_tab_fit)
+        logger.info(
+            "Missing-value policy fitted on the training fold: %d feature(s), "
+            "%d declared-missing, medians for %s.",
+            len(_fit_columns), len(_applicable),
+            sorted(getattr(self.preprocessor_, "medians_", {})) or "none",
+        )
+
+        # -------------------------------------------------------------------------------
         # ENSEMBLE COMPLETENESS -- recorded, not assumed. (2026-07-13)
         #
         # "The run trained 13 models" and "the roster has 13 models" were DIFFERENT

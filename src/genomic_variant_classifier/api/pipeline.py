@@ -127,12 +127,19 @@ class InferencePipeline:
         scaler=None,
         metadata: Optional[PipelineMetadata] = None,
         gnn_scorer=None,
+        preprocessor=None,
     ) -> None:
         self.trained_models = trained_models
         self.meta_learner = meta_learner
         self.scaler = scaler
         self.metadata = metadata or PipelineMetadata()
         self.gnn_scorer = gnn_scorer  # Optional GNNScorer instance
+        # The TRAINING missing-value policy, fitted on the training fold by
+        # VariantEnsemble.fit. Serving must not fit one: a single variant offers
+        # no basis for a median, and refitting per request would make the
+        # imputed value depend on which variants happened to arrive together.
+        # save() pickles self, so this travels with the artefact unchanged.
+        self.preprocessor_ = preprocessor
 
     # ------------------------------------------------------------------
     # Factory
@@ -175,7 +182,65 @@ class InferencePipeline:
             meta_learner=ensemble.meta_learner,
             scaler=scaler,
             metadata=metadata,
+            # getattr, not attribute access: an ensemble pickled before the
+            # fitted policy existed has no such attribute, and that is a
+            # LEGACY ARTEFACT rather than an error. _apply_missing_value_policy
+            # records the distinction; it does not paper over it.
+            preprocessor=getattr(ensemble, "preprocessor_", None),
         )
+
+    # ------------------------------------------------------------------
+    # Missing-value rendering
+    # ------------------------------------------------------------------
+
+    def _apply_missing_value_policy(self, X: "pd.DataFrame") -> "pd.DataFrame":
+        """Impute declared missingness using the TRAINING medians.
+
+        PIPELINE-FILL-1 and the serving half of the missingness contract.
+
+        engineer_features stopped fabricating values on 2026-08-11 (commit
+        48985d6), so a variant whose gene has no gnomAD constraint entry now
+        arrives with genuine NaN in gene_constraint_oe and gene_is_constrained.
+        Measured the same day, by traceback:
+
+            sklearn/utils/validation.py:182
+            ValueError: Input X contains NaN.
+            LogisticRegression does not accept missing values encoded as NaN.
+
+        That is a SERVING-TIME failure on a model fitted from clean data --
+        exactly the case a fit-time guard cannot see.
+
+        The medians come from the TRAINING FOLD and travel with the artefact.
+        Fitting a preprocessor here would compute a median from whatever rows
+        happened to arrive, which for one variant is not a statistic at all.
+
+        A LEGACY ARTEFACT PASSES THROUGH, DELIBERATELY. A pipeline pickled
+        before the fitted policy existed has no preprocessor_, and this method
+        returns X unchanged rather than raising. Two reasons: raising would
+        refuse artefacts that scored correctly for months, and an estimator
+        that cannot consume NaN raises its OWN error, with a clearer message
+        than any we could substitute. The absence is logged once, not hidden.
+        """
+        preproc = getattr(self, "preprocessor_", None)
+        if preproc is None:
+            residual = [c for c in X.columns if X[c].isna().any()]
+            if residual:
+                logger.warning(
+                    "This pipeline carries NO fitted missing-value policy (a "
+                    "legacy artefact), and %d column(s) arrive with missing "
+                    "values: %s. They are passed through UNCHANGED. An "
+                    "estimator that cannot consume NaN will raise. Re-export "
+                    "the pipeline from a VariantEnsemble fitted after "
+                    "2026-08-11 to carry the training medians.",
+                    len(residual), residual[:10],
+                )
+            return X
+        # transform() emits the declared features PLUS their availability
+        # masks. The masks are dropped downstream by the X[model_features]
+        # selection, because these models were trained on the features alone
+        # and must not be handed columns they have never seen. The three-arm
+        # availability ablation decides whether masks ever become features.
+        return preproc.transform(X)
 
     # ------------------------------------------------------------------
     # Public inference API
@@ -237,6 +302,7 @@ class InferencePipeline:
                 enriched["gnn_score"] = 0.5
 
         X = engineer_features(enriched)
+        X = self._apply_missing_value_policy(X)
 
         # Determine the actual feature set the trained models expect.
         # Use the scaler's feature_names_in_ when available (authoritative),
@@ -315,6 +381,7 @@ class InferencePipeline:
                 enriched["gnn_score"] = 0.5
 
         X = engineer_features(enriched)
+        X = self._apply_missing_value_policy(X)
 
         scaler_features = (
             getattr(self.scaler, "feature_names_in_", None) if self.scaler else None
