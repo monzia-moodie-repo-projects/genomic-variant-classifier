@@ -6280,4 +6280,34 @@
 #
 #   ARITHMETIC: 4620 + 2 = 4622. Both from tests/unit/test_api.py.
 #   ACCEPTANCE: tests/unit 4396 passed, 1 skipped, 0 failed.
-4622
+
+# 2026-08-12 -- 4622 -> 4613 (-9). PHYLOP-SOURCE-OWNERSHIP-1 and PHYLOPTEST-DUP-1.
+#
+#   THE SUITE SIZE DECREASES, AND THAT IS DE-DUPLICATION, NOT LOSS. Every
+#   assertion removed exists in a stronger form in test_phylop_block.py.
+#
+#   PhyloPConnector.annotate_dataframe wrote out["phylop_score"] = scores
+#   unconditionally, replacing a column dbNSFP had populated with 17,706
+#   distinct values -- and in stub mode, with no source configured at all,
+#   replacing every value with 0.0. phyloP is signed: zero means NEUTRAL
+#   EVOLUTION. The connector asserted neutral evolution across the cohort and
+#   destroyed the evidence already present.
+#
+#   The collision was TESTED AS INTENDED, in TWO files.
+#   test_core.py carried a byte-level copy of test_phylop_block.py; the
+#   2026-05-26 relocation copied rather than moved. The first attempt at this
+#   repair failed its gate with thirteen failures from that copy.
+#
+#   ARITHMETIC: test_phylop_block.py 18 -> 27 (+9); EIGHTEEN duplicated tests
+#   in test_core.py removed (-18); the integration test rewritten for staged
+#   ownership (0); the 7.2 survival assertion added to
+#   test_real_scores_flow_through_to_features (an ASSERTION, not a collected
+#   test, 0). Net -9. 4622 - 9 = 4613.
+#
+#   The first attempt asserted -8 from a miscount of the duplicates. The
+#   de-duplication script REFUSED rather than removing what it found, which is
+#   why this figure is measured from the class and not carried from a reading.
+#
+#   ACCEPTANCE: tests/unit 4387 passed, 1 skipped, 0 failed. 10 of 10 sabotage
+#   mutations detected in isolated trees.
+4613

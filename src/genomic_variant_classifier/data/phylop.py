@@ -55,7 +55,7 @@ from __future__ import annotations
 import math
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Protocol
 
 import pandas as pd
 
@@ -67,6 +67,137 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_SCORE: float = 0.0      # neutral — used for missing positions / stub mode
 CHUNK_SIZE: int = 1_000_000     # rows per chunk when parsing flat TSV files
+
+# ---------------------------------------------------------------------------
+# PHYLOP-SOURCE-OWNERSHIP-1 (2026-08-12)
+# ---------------------------------------------------------------------------
+#
+# THE DEFECT. Two connectors owned and mutated one semantic field:
+#
+#     real_data_prep.py:823   # 1. dbNSFP  -> writes phylop_score
+#     real_data_prep.py:833   # 2. PhyloP  -> OVERWROTE it
+#     phylop.py:162           out["phylop_score"] = scores   (unconditional)
+#
+# dbNSFP supplies phylop_score with 17,706 distinct values across the ClinVar
+# index. PhyloPConnector replaced the WHOLE COLUMN -- and in STUB MODE, a
+# documented supported configuration in which it has no source at all, every
+# value became 0.0.
+#
+# Zero is not a sentinel here. phyloP is SIGNED: positive means conservation,
+# negative means faster-than-neutral evolution, zero means NEUTRAL. An absent
+# source therefore asserted "this position evolves neutrally" for every variant
+# in the cohort, and destroyed the measurements already present.
+#
+# THE COLLISION WAS TESTED AS INTENDED. test_phylop_block.py carried
+# `test_annotate_replaces_existing_phylop_score`, whose docstring read "If the
+# DataFrame already has 'phylop_score' it is overwritten." That was a contract,
+# and this commit deliberately supersedes it.
+#
+# THE REPAIR IS OWNERSHIP, NOT POLITER OVERWRITING. Even gap-filling would
+# silently assert PhyloP_dbNSFP == PhyloP_bigWig, which nobody has established
+# for the installed dbNSFP release, the BigWig asset, the assembly, the track,
+# or the coordinate convention.
+#
+#     PhyloPConnector observes BigWig evidence.
+#     It does not define canonical PhyloP evidence.
+#
+# STAGED MIGRATION: dbNSFP remains the temporary canonical producer of
+# phylop_score until PHYLOP-RECONCILE-1 renames it to phylop_dbnsfp and a
+# resolver becomes the sole canonical owner. Downstream feature engineering is
+# unchanged by this commit.
+# ---------------------------------------------------------------------------
+
+#: The only column this connector may publish.
+OUTPUT_COLUMN: str = "phylop_bigwig"
+
+#: The canonical feature. This connector must NEVER write it. Named so the
+#: prohibition is greppable and the ownership test imports one authority.
+CANONICAL_COLUMN: str = "phylop_score"
+
+#: TRANSITIONAL MARKERS -- the current substrate is not the approved endpoint.
+#: PHYLOPPERF-1 changes the first; the assembly-registry platform commit
+#: changes the second. Recorded so transitional state is visible rather than
+#: quietly permanent.
+PHYLOP_LOOKUP_SUBSTRATE: str = "legacy_dict_v1"
+PHYLOP_CHROMOSOME_RESOLUTION: str = "legacy_normalise_chrom_v1"
+
+#: CANONICAL OWNERSHIP IS TRANSITIONAL, AND THIS RECORDS IT STRUCTURALLY.
+#:
+#: A1 stops PhyloPConnector from writing phylop_score. It does NOT establish
+#: dbNSFP as the permanent owner of that feature. dbNSFP INHERITS it for now
+#: because it is the incumbent producer and removing the collision is urgent;
+#: the endpoint is that NEITHER source connector owns the canonical name.
+#:
+#:     dbNSFP  -> phylop_dbnsfp  ---+
+#:                                  +--> reconciler -> phylop_score
+#:     BigWig  -> phylop_bigwig  ---+
+#:
+#: PHYLOP-RECONCILE-1 renames dbNSFP's observation, measures the agreement
+#: distribution before choosing any tolerance, preserves BOTH_AGREE /
+#: BIGWIG_ONLY / DBNSFP_ONLY / BOTH_CONFLICT / UNOBSERVED as evidence rather
+#: than collapsing them with fillna, and sets this constant to
+#: "explicit_reconciliation_v1".
+#:
+#: It is a constant rather than a comment because a surgical repair has a habit
+#: of becoming permanent architecture through inertia, and a comment cannot be
+#: asserted on.
+PHYLOP_CANONICALIZATION_STATE: str = "transitional_dbnsfp_inherited_v1"
+
+
+class PhyloPContractError(RuntimeError):
+    """A backend or caller violated the connector's declared contract."""
+
+
+class PhyloPLookupBackend(Protocol):
+    """One score per input row, index preserved.
+
+    No observation at a locus -> NaN.
+    Failure to READ or QUERY the source -> raise. PHYLOP-QUERY-INTEGRITY-1
+    makes the current swallowing explicit; this protocol already forbids it.
+    """
+
+    def lookup_many(self, loci: "pd.DataFrame") -> "pd.Series":  # pragma: no cover
+        ...
+
+
+class DictPhyloPBackend:
+    """TRANSITIONAL backend over the existing position dictionary.
+
+    Deliberately not the endpoint. A Python-level loop over 4.4 million rows is
+    what PHYLOPPERF-1 removes, and the dictionary carries a second defect it
+    also removes: `d[(chrom, pos)] = score` means LAST ROW WINS, so a duplicated
+    locus resolves by source row order -- the identical failure as
+    `drop_duplicates(keep="first")` in the gnomAD connector, which disagreed
+    with MANE Select for 5,468 of 17,473 genes. A relational join with
+    validate="many_to_one" makes that an integrity error instead.
+
+    It exists because SEMANTICS are what this commit fixes. Putting them behind
+    a stable interface lets PHYLOPPERF-1 replace the engine without reopening
+    the ownership contract: temporary implementation is acceptable, temporary
+    semantics are not.
+    """
+
+    substrate = PHYLOP_LOOKUP_SUBSTRATE
+
+    def __init__(self, index: dict) -> None:
+        self._index = index
+
+    def lookup_many(self, loci: "pd.DataFrame") -> "pd.Series":
+        absent = [c for c in ("chrom", "pos") if c not in loci.columns]
+        if absent:
+            raise PhyloPContractError(
+                "locus frame is missing required column(s): {}".format(absent))
+        values = [
+            # float("nan"), not np.nan: this module does NOT import numpy.
+            # The reconstruction A1 was tested against did, so np.nan
+            # resolved there and raised NameError against the repository --
+            # ten failures from one symbol. Identical semantics, no new
+            # import, no blast radius.
+            self._index.get(
+                (_normalise_chrom(str(chrom)), int(pos)), float("nan"))
+            for chrom, pos in zip(loci["chrom"], loci["pos"])
+        ]
+        return pd.Series(values, index=loci.index, dtype="float64")
 
 # ---------------------------------------------------------------------------
 # Normalisation helper
@@ -123,6 +254,21 @@ class PhyloPConnector:
         self._index: Optional[dict[tuple[str, int], float]] = None
         self._bw = None   # pyBigWig handle, opened lazily
 
+    @property
+    def available(self) -> bool:
+        """Whether this connector has any source of observations.
+
+        An INJECTED index counts. Tests construct PhyloPConnector(None) and set
+        `_index` directly to avoid BigWig file input/output; if availability
+        were path-only, every one of those would silently become a stub no-op
+        and the tests would pass while measuring nothing.
+        """
+        return self._index is not None or self._path is not None
+
+    def _lookup_backend(self) -> "PhyloPLookupBackend":
+        """The transitional dictionary-backed lookup. Replaced by PHYLOPPERF-1."""
+        return DictPhyloPBackend(self._get_index())
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -130,7 +276,6 @@ class PhyloPConnector:
     def annotate_dataframe(
         self,
         df: pd.DataFrame,
-        missing_value: float = DEFAULT_SCORE,
     ) -> pd.DataFrame:
         """
         Add (or replace) a ``phylop_score`` column on a copy of *df*.
@@ -150,24 +295,45 @@ class PhyloPConnector:
         pd.DataFrame
             Copy of *df* with ``phylop_score`` column appended / replaced.
         """
-        out = df.copy()
-        scores: list[float] = [
-            self.get_score(
-                str(row.get("chrom", "")),
-                int(row.get("pos", 0)),
-                missing_value=missing_value,
+        if not self.available:
+            logger.warning(
+                "PhyloP BigWig source is not configured; annotation is a "
+                "STRICT NO-OP. No %s column is created and %s is left "
+                "untouched. Before 2026-08-12 this path overwrote %s with 0.0 "
+                "for every row in the cohort.",
+                OUTPUT_COLUMN, CANONICAL_COLUMN, CANONICAL_COLUMN,
             )
-            for _, row in df.iterrows()
-        ]
-        out["phylop_score"] = scores
+            return df.copy()
+
+        absent = [c for c in ("chrom", "pos") if c not in df.columns]
+        if absent:
+            raise PhyloPContractError(
+                "PhyloP annotation requires column(s) {}; the frame has "
+                "{}".format(absent, sorted(df.columns)[:12]))
+
+        # Only the columns the lookup needs. A connector that cannot see a
+        # column cannot corrupt it.
+        loci = df.loc[:, ["chrom", "pos"]]
+        scores = self._lookup_backend().lookup_many(loci)
+
+        if not isinstance(scores, pd.Series):
+            raise PhyloPContractError(
+                "lookup backend returned {}, expected a pandas Series".format(
+                    type(scores).__name__))
+        if not scores.index.equals(df.index):
+            raise PhyloPContractError(
+                "lookup backend did not preserve row identity: {} value(s) "
+                "for {} row(s)".format(len(scores), len(df)))
+
+        out = df.copy()
+        out[OUTPUT_COLUMN] = scores.astype("float64")
         return out
 
     def get_score(
         self,
         chrom: str,
         pos: int,
-        missing_value: float = DEFAULT_SCORE,
-    ) -> float:
+    ) -> Optional[float]:
         """
         Return the PhyloP score for a single genomic position.
 
@@ -182,20 +348,24 @@ class PhyloPConnector:
         """
         chrom_norm = _normalise_chrom(chrom)
 
-        # If index already populated (loaded or injected), use it directly
+        # None, not a numeric sentinel. The caller could previously pass
+        # missing_value=0.0 (or 42) and thereby decide that an unobserved
+        # conservation score means a specific biological value. That is the
+        # semantic hole CONSTRAINTFILL-1 closed for gnomAD constraint, and it
+        # is closed here. Conversion to NaN happens at the tabular boundary,
+        # so a sentinel can never enter arithmetic as if it were data.
         if self._index is not None:
-            return self._index.get((chrom_norm, int(pos)), missing_value)
+            return self._index.get((chrom_norm, int(pos)))
 
         if self._path is None:
-            return missing_value
+            return None
 
         # BigWig path
         if self._path.suffix.lower() in (".bw", ".bigwig"):
-            return self._query_bigwig(chrom_norm, pos, missing_value)
+            return self._query_bigwig(chrom_norm, pos, float("nan"))
 
         # Flat-file / parquet path — build and cache index
-        index = self._get_index()
-        return index.get((chrom_norm, int(pos)), missing_value)
+        return self._get_index().get((chrom_norm, int(pos)))
 
     # ------------------------------------------------------------------
     # BigWig lookup

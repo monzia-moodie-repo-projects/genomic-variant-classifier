@@ -833,12 +833,24 @@ class DataPrepPipeline:
         # 2. PhyloP
         phylop = PhyloPConnector(phylop_file=ac.phylop_path)
         df = phylop.annotate_dataframe(df)
+        # PHYLOPLOG-1 (2026-08-12). This counted NON-ZERO phylop_score AFTER the
+        # PhyloP connector had already overwritten that column, so whenever the
+        # BigWig was absent it reported zero -- every run -- describing a column
+        # that had held 17,706 distinct dbNSFP values one step earlier. The
+        # diagnostic that would have revealed the collision reported the
+        # post-overwrite state and therefore could not.
+        #
+        # Coverage is now reported PER SOURCE. Canonical reconciliation arrives
+        # with PHYLOP-RECONCILE-1; until then dbNSFP inherits phylop_score, which
+        # PHYLOP_CANONICALIZATION_STATE records as transitional.
+        _bw = df.get("phylop_bigwig")
+        _db = df.get("phylop_score")
         logger.info(
-            "Score annotation 2/17 (PhyloP): %d variants with non-zero phylop_score.",
-            (
-                df.get("phylop_score", pd.Series([0.0] * len(df), index=df.index))
-                != 0.0
-            ).sum(),
+            "Score annotation 2/17 (PhyloP): bigwig observed %s of %d row(s); "
+            "dbNSFP canonical observed %s. Sources are NOT reconciled.",
+            "not run" if _bw is None else int(_bw.notna().sum()),
+            len(df),
+            "absent" if _db is None else int(_db.notna().sum()),
         )
 
         # 3. CADD REST API (optional, off by default)

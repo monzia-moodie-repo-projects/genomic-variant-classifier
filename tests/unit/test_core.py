@@ -2040,188 +2040,86 @@ class TestREVELConnector:
 # Tests: src/data/phylop.py  (Connector 5 — Phase 2)
 # ---------------------------------------------------------------------------
 class TestPhyloPConnector:
-    """
-    All tests inject a synthetic in-memory index to avoid the large BigWig
-    file.  The _make_connector helper sets conn._index directly so no file
-    I/O occurs.
+    """PhyloP connector integration with engineer_features.
+
+    PHYLOPTEST-DUP-1 (2026-08-12). This class previously carried SEVENTEEN
+    tests that were a byte-level copy of tests/unit/test_phylop_block.py --
+    identical helpers, identical docstrings, identical assertions. That file's
+    own header says it was "relocated from repository root to tests/unit/ on
+    2026-05-26"; the relocation COPIED rather than moved, and the original was
+    never removed. Two files then defended the same contract, so a change to
+    one silently left the other asserting the superseded behaviour.
+
+    The duplicates are removed here. tests/unit/test_phylop_block.py is the
+    single owner of the connector's unit contract. What remains below is the
+    part that was NEVER duplicated: the integration test that runs a real
+    annotation through engineer_features, matching the house pattern of
+    test_revel_score_flows_into_feature_matrix above.
     """
 
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
-    @staticmethod
-    def _make_connector(rows: list[tuple]) -> "PhyloPConnector":
-        """
-        Return a PhyloPConnector pre-loaded with a synthetic index.
 
-        rows: list of (chrom, pos, score) tuples — no file needed.
-        """
-        from genomic_variant_classifier.data.phylop import PhyloPConnector
-        conn = PhyloPConnector(phylop_file=None)
-        conn._index = {
-            (str(chrom), int(pos)): float(score)
-            for chrom, pos, score in rows
-        }
-        return conn
-
-    @staticmethod
-    def _canonical_df(**overrides) -> pd.DataFrame:
-        """Minimal canonical-schema DataFrame for one variant."""
-        base = dict(
-            chrom=["17"],
-            pos=[43071077],
-            ref=["G"],
-            alt=["T"],
-            gene_symbol=["BRCA1"],
-        )
-        base.update({k: [v] for k, v in overrides.items()})
-        return pd.DataFrame(base)
 
     # ------------------------------------------------------------------
     # Basic lookup
     # ------------------------------------------------------------------
-    def test_known_position_returns_real_score(self):
-        """A position present in the index returns its exact score."""
-        conn = self._make_connector([("17", 43071077, 4.532)])
-        score = conn.get_score("17", 43071077)
-        assert abs(score - 4.532) < 1e-6
 
-    def test_missing_position_returns_default(self):
-        """A position absent from the index returns DEFAULT_SCORE."""
-        from genomic_variant_classifier.data.phylop import DEFAULT_SCORE
-        conn = self._make_connector([])
-        assert conn.get_score("1", 100) == DEFAULT_SCORE
 
-    def test_custom_missing_value_honoured(self):
-        """Caller-supplied missing_value overrides DEFAULT_SCORE."""
-        conn = self._make_connector([])
-        assert conn.get_score("1", 100, missing_value=-99.0) == -99.0
 
-    def test_negative_score_returned_correctly(self):
-        """Accelerated-evolution positions return negative scores."""
-        conn = self._make_connector([("1", 925952, -3.7)])
-        assert conn.get_score("1", 925952) == pytest.approx(-3.7)
 
     # ------------------------------------------------------------------
     # Chromosome normalisation
     # ------------------------------------------------------------------
-    def test_chr_prefix_stripped_on_get_score(self):
-        """'chr17' and '17' resolve to the same index entry."""
-        conn = self._make_connector([("17", 43071077, 4.5)])
-        assert conn.get_score("chr17", 43071077) == pytest.approx(4.5)
 
-    def test_lowercase_chrom_accepted(self):
-        """'chr1', 'Chr1', 'CHR1' all normalise correctly."""
-        conn = self._make_connector([("1", 925952, 2.1)])
-        for prefix in ("chr1", "Chr1", "CHR1", "1"):
-            assert conn.get_score(prefix, 925952) == pytest.approx(2.1)
 
-    def test_chrM_maps_to_MT(self):
-        """Mitochondrial chromosome normalises to 'MT'."""
-        conn = self._make_connector([("MT", 1234, 1.0)])
-        assert conn.get_score("chrM", 1234) == pytest.approx(1.0)
-        assert conn.get_score("M", 1234) == pytest.approx(1.0)
 
-    def test_sex_chromosome_X(self):
-        conn = self._make_connector([("X", 50000, 3.2)])
-        assert conn.get_score("chrX", 50000) == pytest.approx(3.2)
 
     # ------------------------------------------------------------------
     # annotate_dataframe
     # ------------------------------------------------------------------
-    def test_annotate_adds_phylop_score_column(self):
-        """annotate_dataframe must add a 'phylop_score' column."""
-        conn = self._make_connector([("17", 43071077, 4.532)])
-        df = self._canonical_df()
-        result = conn.annotate_dataframe(df)
-        assert "phylop_score" in result.columns
 
-    def test_annotate_returns_copy(self):
-        """annotate_dataframe must not mutate the input DataFrame."""
-        conn = self._make_connector([])
-        df = self._canonical_df()
-        original_cols = list(df.columns)
-        _ = conn.annotate_dataframe(df)
-        assert list(df.columns) == original_cols
 
-    def test_annotate_correct_score_for_hit(self):
-        """Matched position gets the real score, not the default."""
-        conn = self._make_connector([("17", 43071077, 4.532)])
-        df = self._canonical_df()
-        result = conn.annotate_dataframe(df)
-        assert result.loc[0, "phylop_score"] == pytest.approx(4.532)
 
-    def test_annotate_default_for_miss(self):
-        """Unmatched position gets DEFAULT_SCORE."""
-        from genomic_variant_classifier.data.phylop import DEFAULT_SCORE
-        conn = self._make_connector([])
-        df = self._canonical_df()
-        result = conn.annotate_dataframe(df)
-        assert result.loc[0, "phylop_score"] == DEFAULT_SCORE
 
-    def test_annotate_mixed_hits_and_misses(self):
-        """Per-row resolution — one hit, one miss in the same DataFrame."""
-        from genomic_variant_classifier.data.phylop import DEFAULT_SCORE
-        conn = self._make_connector([("17", 43071077, 4.5)])
-        df = pd.DataFrame({
-            "chrom": ["17", "1"],
-            "pos":   [43071077, 999999],
-        })
-        result = conn.annotate_dataframe(df)
-        assert result.loc[0, "phylop_score"] == pytest.approx(4.5)
-        assert result.loc[1, "phylop_score"] == DEFAULT_SCORE
 
-    def test_annotate_preserves_existing_columns(self):
-        """All original columns must survive annotation."""
-        conn = self._make_connector([])
-        df = self._canonical_df()
-        result = conn.annotate_dataframe(df)
-        for col in df.columns:
-            assert col in result.columns
 
-    def test_annotate_no_nans(self):
-        """Output 'phylop_score' column must have no NaNs."""
-        conn = self._make_connector([])
-        df = self._canonical_df()
-        result = conn.annotate_dataframe(df)
-        assert not result["phylop_score"].isnull().any()
 
-    def test_annotate_replaces_existing_phylop_score(self):
-        """If the DataFrame already has 'phylop_score' it is overwritten."""
-        conn = self._make_connector([("17", 43071077, 4.5)])
-        df = self._canonical_df()
-        df["phylop_score"] = 0.0
-        result = conn.annotate_dataframe(df)
-        assert result.loc[0, "phylop_score"] == pytest.approx(4.5)
 
     # ------------------------------------------------------------------
     # Stub mode (no file supplied)
     # ------------------------------------------------------------------
-    def test_stub_mode_returns_default_without_crash(self):
-        """PhyloPConnector(None) must not raise — returns DEFAULT_SCORE."""
-        from genomic_variant_classifier.data.phylop import PhyloPConnector, DEFAULT_SCORE
-        conn = PhyloPConnector(phylop_file=None)
-        conn._index = {}
-        assert conn.get_score("1", 100) == DEFAULT_SCORE
 
-    def test_stub_mode_annotate_dataframe(self):
-        """annotate_dataframe in stub mode fills every row with DEFAULT_SCORE."""
-        from genomic_variant_classifier.data.phylop import PhyloPConnector, DEFAULT_SCORE
-        conn = PhyloPConnector(phylop_file=None)
-        conn._index = {}
-        df = pd.DataFrame({"chrom": ["1", "17"], "pos": [100, 43071077]})
-        result = conn.annotate_dataframe(df)
-        assert (result["phylop_score"] == DEFAULT_SCORE).all()
 
     # ------------------------------------------------------------------
     # Integration with engineer_features
     # ------------------------------------------------------------------
-    def test_phylop_score_flows_into_feature_matrix(self, sample_canonical_df):
+    def test_bigwig_observations_do_not_become_canonical_phylop(
+        self, sample_canonical_df
+    ):
+        """PHYLOP-SOURCE-OWNERSHIP-1: staged ownership, end to end.
+
+        THIS TEST ASKED A REAL QUESTION AND THE ANSWER CHANGED. Its previous
+        form asserted that after annotation engineer_features would "use the
+        real phylop_score rather than the 0.0 neutral fill-in default" -- which
+        required PhyloPConnector to OWN phylop_score, the very ownership that
+        let it overwrite 17,706 distinct dbNSFP values, and in stub mode
+        replace every one of them with 0.0.
+
+        Under staged ownership the connector publishes phylop_bigwig and dbNSFP
+        remains the temporary canonical producer of phylop_score. So a BigWig
+        observation must reach the annotated frame and must NOT reach the
+        canonical feature.
+
+        WHEN B5 (PHYLOP-RECONCILE-1) LANDS, a resolver becomes the sole owner
+        of phylop_score and the end-to-end flow assertion returns -- against
+        the RESOLVER's output, with an agreement certificate behind it, rather
+        than against whichever connector happened to run last.
         """
-        After annotation, engineer_features must use the real phylop_score
-        rather than the 0.0 neutral fill-in default.
-        """
-        from genomic_variant_classifier.data.phylop import PhyloPConnector, _normalise_chrom
+        from genomic_variant_classifier.data.phylop import (
+            OUTPUT_COLUMN, PhyloPConnector, _normalise_chrom,
+        )
         from genomic_variant_classifier.models.variant_ensemble import engineer_features
 
         conn = PhyloPConnector(phylop_file=None)
@@ -2231,9 +2129,18 @@ class TestPhyloPConnector:
         }
 
         annotated = conn.annotate_dataframe(sample_canonical_df)
-        feats = engineer_features(annotated)
 
-        assert feats.loc[0, "phylop_score"] == pytest.approx(7.5)
+        # The observation IS published, under the connector's own name.
+        assert annotated.loc[0, OUTPUT_COLUMN] == pytest.approx(7.5)
+
+        # And it does NOT become canonical. engineer_features still runs and
+        # still emits phylop_score -- sourced from dbNSFP, or absent -- but
+        # never from this connector.
+        feats = engineer_features(annotated)
+        assert "phylop_score" in feats.columns
+        assert feats.loc[0, "phylop_score"] != pytest.approx(7.5), (
+            "a BigWig observation reached the canonical feature; the connector "
+            "has silently reacquired ownership of phylop_score")
 
 # ---------------------------------------------------------------------------
 # Tests: pipeline wiring in real_data_prep.py
@@ -2464,10 +2371,33 @@ class TestAnnotationPipeline:
             MockDB.return_value.annotate_dataframe.side_effect = fake_annotate
             annotated = pipeline._annotate_scores(minimal_canonical_df)
 
+        # PHYLOP-SOURCE-OWNERSHIP-1 (2026-08-12). THIS TEST ALREADY DEMONSTRATED
+        # THE DEFECT AND NOBODY NOTICED. fake_annotate supplies
+        # phylop_score = [7.2, 0.0] above; only DbNSFPConnector is patched, so
+        # the REAL PhyloPConnector then ran -- in stub mode, since
+        # AnnotationConfig() carries no path -- and overwrote both values with
+        # 0.0 before engineer_features ever saw them. The assertions looked at
+        # sift_score and gerp_score, so a destroyed conservation column passed
+        # through this test unremarked, run after run.
+        #
+        # Three assertions, not one, because an endpoint-only check conflates
+        # three different regressions:
+        #     dbNSFP failed to populate the canonical value;
+        #     the stubbed connector wrongly participated;
+        #     feature engineering discarded or rewrote a surviving value.
+        assert annotated.loc[0, "phylop_score"] == pytest.approx(7.2), (
+            "dbNSFP's canonical phyloP did not survive _annotate_scores; a "
+            "connector with no source destroyed evidence another source supplied")
+        assert "phylop_bigwig" not in annotated.columns, (
+            "the stubbed PhyloP connector published a column; stub mode must be "
+            "a STRICT no-op, not an all-NaN column")
+
         feats = engineer_features(annotated)
         assert feats.shape[1] == len(TABULAR_FEATURES)
         assert feats.loc[0, "sift_score"]  == pytest.approx(0.03)
         assert feats.loc[0, "gerp_score"]  == pytest.approx(5.1)
+        assert feats.loc[0, "phylop_score"] == pytest.approx(7.2), (
+            "the canonical value survived annotation but not feature engineering")
 
     def test_annotation_sequence_dbnsfp_before_phylop(self, minimal_canonical_df):
         from genomic_variant_classifier.data.real_data_prep import DataPrepPipeline, AnnotationConfig
