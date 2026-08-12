@@ -254,6 +254,19 @@ class PhyloPConnector:
         self._index: Optional[dict[tuple[str, int], float]] = None
         self._bw = None   # pyBigWig handle, opened lazily
 
+        #: Whether a FLAT source carries a header row. A2 makes this a DECLARED
+        #: contract that read_phylop_source verifies against the raw first line
+        #: and refuses on mismatch -- the source's shape is stated, never
+        #: guessed. It is an attribute rather than a constructor argument
+        #: because B1 introduces PhyloPSourceSpec, which will carry this
+        #: alongside assembly, track and asset identity; adding a bare keyword
+        #: now would mean adding it twice.
+        self._has_header: bool = False
+
+        #: Set by _build_index. Records rows read, accepted and rejected by
+        #: named reason, and reconciles.
+        self._ingest_audit = None
+
     @property
     def available(self) -> bool:
         """Whether this connector has any source of observations.
@@ -436,48 +449,106 @@ class PhyloPConnector:
         return self._index
 
     def _build_index(self) -> dict[tuple[str, int], float]:
-        """Parse the flat TSV / parquet file and return the index dict."""
-        if self._path is None:
-            return {}
+        """Build the position index from a flat source, STRICTLY.
 
-        suffix = self._path.suffix.lower()
-        if suffix == ".parquet":
-            return self._parquet_to_index(self._path)
+        PHYLOP-INGEST-INTEGRITY-1 (2026-08-12). This previously read with
+        `on_bad_lines="skip"`, so malformed rows were discarded with no count,
+        no warning and no record: the index was smaller than the source and
+        nothing said so. A conservation index silently missing an unknown
+        number of positions is indistinguishable from a complete one.
 
-        # TSV / TSV.GZ — chunked read
-        index: dict[tuple[str, int], float] = {}
-        compression = "gzip" if suffix == ".gz" else "infer"
-        first_chunk = True
-        for chunk in pd.read_csv(
+        Refusal, not counting. Counting malformed rows and continuing would
+        change the scientific source -- the index would describe a subset
+        nobody chose, admitted by a threshold nobody set.
+
+        The header is now a DECLARED CONTRACT verified against the raw first
+        line, not inferred from parsed data. Measured on pandas 3.0.2: with
+        `dtype={"pos": "Int64"}` a header row makes read_csv RAISE before any
+        heuristic runs, and `comment="#"` drops a "#chrom" header as a comment.
+        A file property decided by a parsing detail elsewhere in the call is
+        exactly the coupling a declared contract removes.
+        """
+        from genomic_variant_classifier.data.phylop_ingest import (
+            read_phylop_source,
+        )
+
+        clean, audit = read_phylop_source(
             self._path,
-            sep="\t",
-            header=None,
-            names=["chrom", "pos", "phylop_score"],
-            compression=compression,
-            chunksize=CHUNK_SIZE,
-            dtype={"chrom": str, "pos": "Int64", "phylop_score": float},
-            on_bad_lines="skip",
-        ):
-            if first_chunk:
-                # Drop header row if the file has one
-                if str(chunk.iloc[0]["pos"]).lower() in ("pos", "position", "start"):
-                    chunk = chunk.iloc[1:]
-                first_chunk = False
-            chunk = chunk.dropna(subset=["pos", "phylop_score"])
-            for row in chunk.itertuples(index=False):
-                chrom = _normalise_chrom(str(row.chrom))
-                index[(chrom, int(row.pos))] = float(row.phylop_score)
-
-        logger.info("PhyloP: index built with %d positions.", len(index))
-        return index
+            has_header=getattr(self, "_has_header", False),
+            chunk_size=CHUNK_SIZE,
+        )
+        self._ingest_audit = audit
+        logger.info(
+            "PhyloP flat source %s: %d row(s) read, %d accepted, %d rejected "
+            "(%d missing chrom, %d missing pos, %d missing score), %d distinct "
+            "locus/loci. Accounting reconciles.",
+            self._path, audit.rows_read, audit.rows_accepted,
+            audit.rows_rejected, audit.rows_rejected_missing_chrom,
+            audit.rows_rejected_missing_pos, audit.rows_rejected_missing_score,
+            audit.n_distinct_loci,
+        )
+        return {
+            (_normalise_chrom(str(chrom)), int(pos)): float(score)
+            for chrom, pos, score in zip(
+                clean["chrom"], clean["pos"], clean["score"])
+        }
 
     @staticmethod
     def _parquet_to_index(path: Path) -> dict[tuple[str, int], float]:
-        df = pd.read_parquet(path, columns=["chrom", "pos", "phylop_score"])
-        df["chrom"] = df["chrom"].apply(_normalise_chrom)
+        """Read a parquet index STRICTLY. Used for a parquet SOURCE and for the
+        connector's own cache -- both routes reach this function.
+
+        PHYLOP-INGEST-INTEGRITY-1 (2026-08-12), stated as MEASURED.
+
+        The previous body was:
+
+            df = pd.read_parquet(path, columns=["chrom", "pos", "phylop_score"])
+            df["chrom"] = df["chrom"].apply(_normalise_chrom)
+            return {(_normalise_chrom(str(r.chrom)), int(r.pos)):
+                    float(r.phylop_score) for r in df.itertuples(index=False)}
+
+        WHAT WAS ACTUALLY WRONG WITH IT:
+
+        LAST ROW WINS. A duplicated locus resolved by file order -- the same
+        order-dependence as drop_duplicates(keep="first") in the gnomAD
+        connector, which disagreed with MANE Select for 5,468 of 17,473 genes.
+        That is the defect this replacement removes, and it is real.
+
+        NO ACCOUNTING. Rows read were never reconciled against rows indexed.
+
+        DOUBLE NORMALISATION. Line 477 rewrote the column, then the
+        comprehension normalised r.chrom again -- on text line 477 had already
+        normalised. Wasted work across the whole index. It is TIDIED here and
+        cannot be asserted on, because _normalise_chrom is idempotent.
+
+        WHAT WAS *NOT* WRONG, contrary to two earlier accounts of this method
+        that were transcribed rather than read:
+
+        There was NO dropna and NO notna() mask -- no silent row discard at all.
+        A missing position would reach int(r.pos) and RAISE, which is loud
+        rather than silent.
+
+        And it reads "phylop_score", the same column _save_cache writes, so the
+        cache round-trip was CONSISTENT. PHYLOPCACHE-SCHEMA-1 is WITHDRAWN: it
+        described a mismatch that does not exist.
+        """
+        from genomic_variant_classifier.data.phylop_ingest import (
+            assert_no_duplicate_loci, parse_phylop_frame,
+        )
+
+        frame = pd.read_parquet(path)
+        clean, audit = parse_phylop_frame(frame, source_path=str(path))
+        assert_no_duplicate_loci(clean, source_path=str(path))
+        logger.info(
+            "PhyloP parquet %s: %d row(s) read, %d accepted, %d rejected, "
+            "%d distinct locus/loci.",
+            path, audit.rows_read, audit.rows_accepted, audit.rows_rejected,
+            audit.n_distinct_loci,
+        )
         return {
-            (_normalise_chrom(str(r.chrom)), int(r.pos)): float(r.phylop_score)
-            for r in df.itertuples(index=False)
+            (_normalise_chrom(str(chrom)), int(pos)): float(score)
+            for chrom, pos, score in zip(
+                clean["chrom"], clean["pos"], clean["score"])
         }
 
     def _cache_path(self) -> Optional[Path]:

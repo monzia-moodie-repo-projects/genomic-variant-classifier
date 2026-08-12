@@ -6310,4 +6310,27 @@
 #
 #   ACCEPTANCE: tests/unit 4387 passed, 1 skipped, 0 failed. 10 of 10 sabotage
 #   mutations detected in isolated trees.
-4613
+
+# 2026-08-12 -- 4613 -> 4641 (+28). PHYLOP-INGEST-INTEGRITY-1.
+#
+#   _build_index read the flat phyloP source with on_bad_lines="skip", so
+#   malformed rows were discarded with no count and no record: the index was
+#   smaller than the source and nothing said so. _parquet_to_index -- which
+#   serves BOTH a parquet source and the connector's own cache -- carried the
+#   same silent dropna. Neither reconciled rows read against rows indexed, and
+#   both built a dictionary in which a duplicated locus resolved by FILE ORDER.
+#
+#   The header check was misdiagnosed twice before being executed. Measured on
+#   pandas 3.0.2: without a dtype it fires correctly; with dtype Int64 read_csv
+#   raises before it runs; and comment="#" drops a "#chrom" header regardless.
+#   The defect is that a file's SHAPE was inferred from its CONTENT, decided by
+#   a parsing argument elsewhere in the call. It is now a declared contract,
+#   verified against the raw first line.
+#
+#   ARITHMETIC: 4613 + 28 = 4641. All 28 from the new
+#   tests/unit/test_phylop_ingest.py -- 21 unit tests for strict ingestion and
+#   7 exercising the connector's two ingest paths end to end. phylop.py
+#   contributes ZERO: both methods were REPLACED, not extended.
+#
+#   ACCEPTANCE: tests/unit 4415 passed, 1 skipped, 0 failed.
+4641
