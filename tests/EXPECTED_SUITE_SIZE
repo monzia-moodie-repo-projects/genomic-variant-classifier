@@ -6257,4 +6257,27 @@
 #   selector, not extended.
 #
 #   ACCEPTANCE: tests/unit 4394 passed, 1 skipped, 0 failed.
-4620
+
+# 2026-08-12 -- 4620 -> 4622 (+2). Value coverage for pipeline.py's first
+# engineer_features call site, plus its control.
+#
+#   engineer_features is invoked TWICE in pipeline.py, in two methods that
+#   duplicate forty lines and share no _prepare (PIPELINE-PREP-DUP-1). Commit
+#   b22b63b applied the fitted missing-value policy at both. Only the second
+#   had value coverage: test_save_and_load_roundtrip reaches it through
+#   predict_single.
+#
+#   The first had CONTAINER COVERAGE ONLY. test_catboost.py builds its pipeline
+#   from MagicMock estimators, which accept any input and return a canned array
+#   -- they verify DataFrame-versus-ndarray dispatch and cannot detect NaN --
+#   and its numeric_variant_df fixture populates gene_constraint_oe, so no
+#   missing value ever reached an estimator.
+#
+#   The second test is a CONTROL: it demonstrates the same bare variant
+#   genuinely raises ValueError on the same estimator when the policy is
+#   absent. A passing assertion on a benign input is not evidence that a policy
+#   works, only that nothing needed one.
+#
+#   ARITHMETIC: 4620 + 2 = 4622. Both from tests/unit/test_api.py.
+#   ACCEPTANCE: tests/unit 4396 passed, 1 skipped, 0 failed.
+4622

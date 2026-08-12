@@ -502,6 +502,89 @@ class TestInferencePipeline:
             "Likely benign", "Benign",
         }
 
+    def test_predict_proba_applies_the_missing_value_policy(self, tmp_path):
+        """PIPELINE-FILL-1: value coverage for the SECOND call site.
+
+        engineer_features is invoked TWICE in pipeline.py -- once in
+        predict_proba and once in predict_proba_with_uncertainty -- in two
+        methods that duplicate forty lines and share no _prepare
+        (PIPELINE-PREP-DUP-1). test_save_and_load_roundtrip covers the second
+        via predict_single. This covers the FIRST.
+
+        WHY THE EXISTING COVERAGE IS NOT ENOUGH. test_catboost.py exercises
+        predict_proba, but builds its pipeline from MagicMock estimators that
+        accept any input and return a canned array: they verify DataFrame-
+        versus-ndarray dispatch and CANNOT DETECT NaN. Its numeric_variant_df
+        fixture also populates gene_constraint_oe, so no missing value ever
+        reaches the estimator. Container coverage, not value coverage.
+
+        This test uses a REAL LogisticRegression, which raises
+
+            ValueError: Input X contains NaN.
+            LogisticRegression does not accept missing values encoded as NaN
+
+        so a missing value genuinely breaks it if the policy is not applied.
+        """
+        from sklearn.linear_model import LogisticRegression
+        from genomic_variant_classifier.api.pipeline import InferencePipeline
+        from genomic_variant_classifier.models.variant_ensemble import (
+            VariantEnsemble, EnsembleConfig, TABULAR_FEATURES,
+        )
+
+        cfg = EnsembleConfig(n_folds=2, model_dir=tmp_path / "models")
+        ens = VariantEnsemble(cfg)
+        ens.base_estimators = {"logistic_regression": LogisticRegression(max_iter=50)}
+        rng = np.random.default_rng(11)
+        X_tab = pd.DataFrame(rng.random((20, len(TABULAR_FEATURES))),
+                             columns=TABULAR_FEATURES)
+        y = pd.Series([0] * 10 + [1] * 10)
+        ens.fit(X_tab, None, y)
+
+        pipe = InferencePipeline.from_variant_ensemble(ens, val_auroc=0.9)
+        assert pipe.preprocessor_ is not None, (
+            "from_variant_ensemble did not carry the fitted policy; this test "
+            "would then exercise the LEGACY path and prove nothing")
+
+        # A BARE variant. No connector supplies gnomAD constraint, so
+        # engineer_features correctly returns NaN for gene_constraint_oe and
+        # gene_is_constrained -- the same input that broke predict_single.
+        bare = pd.DataFrame([{"chrom": "1", "pos": 1, "ref": "A", "alt": "T"}])
+
+        proba = pipe.predict_proba(bare)
+        assert np.isfinite(proba).all(), (
+            "predict_proba returned non-finite probabilities: {}".format(proba))
+        assert ((proba >= 0.0) & (proba <= 1.0)).all()
+
+    def test_the_bare_variant_WOULD_break_an_unprotected_pipeline(self, tmp_path):
+        """THE CONTROL. Without it the test above proves nothing.
+
+        A passing assertion on a benign input is not evidence that a policy
+        works -- only that nothing needed one. This demonstrates the SAME input
+        genuinely breaks the SAME estimator when the fitted policy is absent,
+        which is the legacy-artefact path _apply_missing_value_policy
+        deliberately passes through unchanged.
+        """
+        from sklearn.linear_model import LogisticRegression
+        from genomic_variant_classifier.api.pipeline import InferencePipeline
+        from genomic_variant_classifier.models.variant_ensemble import (
+            VariantEnsemble, EnsembleConfig, TABULAR_FEATURES,
+        )
+
+        cfg = EnsembleConfig(n_folds=2, model_dir=tmp_path / "models")
+        ens = VariantEnsemble(cfg)
+        ens.base_estimators = {"logistic_regression": LogisticRegression(max_iter=50)}
+        rng = np.random.default_rng(11)
+        X_tab = pd.DataFrame(rng.random((20, len(TABULAR_FEATURES))),
+                             columns=TABULAR_FEATURES)
+        ens.fit(X_tab, None, pd.Series([0] * 10 + [1] * 10))
+
+        pipe = InferencePipeline.from_variant_ensemble(ens, val_auroc=0.9)
+        pipe.preprocessor_ = None          # a pipeline pickled before 2026-08-11
+
+        bare = pd.DataFrame([{"chrom": "1", "pos": 1, "ref": "A", "alt": "T"}])
+        with pytest.raises(ValueError, match="NaN"):
+            pipe.predict_proba(bare)
+
     def test_load_wrong_type_raises(self, tmp_path):
         import joblib
         from genomic_variant_classifier.api.pipeline import InferencePipeline
