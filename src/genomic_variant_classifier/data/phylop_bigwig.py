@@ -43,20 +43,71 @@ THE DISTINCTION THIS MODULE DRAWS
 The first two are answers. The third is an error, and conflating it with an
 answer is what let a broken source look like a neutral genome.
 
-WHAT IS AND IS NOT TESTED HERE
-==============================
-The libraries themselves are NOT installed in the environment this module was
-written in, so the backend adapters are exercised against FAKE HANDLES that
-reproduce each library's documented return contract -- pybigtools yielding an
-iterable of float-or-None, pyBigWig returning a list or None. That verifies the
-ADAPTER LOGIC and the parity property; it does not verify my reading of either
-library's behaviour on a real asset.
+VALIDATION HISTORY
+==================
+Kept as CHRONOLOGY rather than deleted. A limitation phrased in the present
+tense after it has been closed becomes tomorrow's false premise, and in this
+repository comments are treated as evidence.
 
-That limit is stated rather than glossed: A4's regex defect passed nineteen
-tests and ten sabotage mutations in an environment whose pandas differed from
-the repository's, and was fatal in the one that matters. The equivalent risk
-here is a library contract I have described but not exercised. The Run 17
-preflight against the real 9.19-gibibyte asset is what closes it.
+INITIAL A5 IMPLEMENTATION (2026-08-12, earlier the same day)
+    The adapters were exercised against contract-faithful FAKE HANDLES, because
+    neither library was installed in the implementation environment. Real-library
+    parity was unverified, and the stated plan was that only a Run 17 preflight
+    against the 9.19-gibibyte asset could close the gap.
+
+    THAT PLAN WAS AN ASSUMPTION, NOT A MEASUREMENT. Both libraries install from
+    PyPI, and pyBigWig can WRITE a bigWig, so a 659-byte synthetic asset with
+    known values and known gaps settles the LIBRARY question in milliseconds.
+
+LIBRARY CONTRACT CLOSED (2026-08-12, later the same day)
+    pybigtools 0.3.0 and pyBigWig 0.3.25 were queried against a real bigWig
+    carrying 1:100 = 2.5, 1:101 = -3.5, 1:500 = 0.0 (a GENUINE zero) and
+    everything else UNCOVERED:
+
+        position        pybigtools      pybigtools      pyBigWig
+                        (fillna=None)   (fillna=0.0)
+        1:100  (2.5)        2.5             2.5            2.5
+        1:500  (0.0)        0.0             0.0            0.0
+        1:900  (gap)        nan             0.0            nan
+
+    That MEASURED PHYLOPBACKEND-1 rather than describing it, and directly
+    verified: a genuine zero remains 0.0; an uncovered position remains absence;
+    an absent chromosome is an asset-scope ANSWER; a read failure raises; and
+    the chr-prefix fallback preserves equivalent queries.
+
+    Three beliefs held while writing the fakes were corrected by the real
+    libraries: an absent chromosome RAISES on both and DIFFERENTLY, the fake
+    pyBigWig returned None where no real version does, and an out-of-range
+    position gives nan on one while the other raises.
+
+CONTINUOUS INTEGRATION CLOSED (2026-08-13, BIGWIG-DEPENDENCY-CONTRACT-1)
+    pyBigWig was declared with a PEP 508 platform marker -- it publishes no
+    Windows wheel -- and added to the coverage-critical dependency gate. The
+    nine real-asset parity tests had NEVER executed in continuous integration.
+    Installing the oracle produced exactly the predicted causal signature at
+    commit f38c88b, on Python 3.11 and 3.12:
+
+        passed    4692 -> 4701   (+9)
+        skipped     22 ->   13   (-9)
+        collected 4715 -> 4715   ( 0)
+
+WHAT REMAINS OPEN IS A DIFFERENT QUESTION
+    The above closes LIBRARY CONTRACT validation: two implementations, the same
+    bytes, the same semantic answer.
+
+    It does NOT close PRODUCTION DATASET validation. The real 9.19-gibibyte
+    GRCh38 phyloP track is still on Drive and unfetched, so nothing here has
+    touched the production asset. Its identity -- size, SHA-256, assembly,
+    track -- must be verified before PHYLOP-AGREEMENT-STUDY-1 compares it
+    against dbNSFP. The worst possible outcome of that study would be a
+    carefully characterised disagreement distribution produced by two different
+    assemblies.
+
+    These are ontologically different questions and the old prose conflated
+    them:
+        library contract   same bytes, two implementations   -> exact parity
+        source agreement   two biological sources            -> measured
+                                                                distribution
 
 Author: Monzia Moodie
 """
