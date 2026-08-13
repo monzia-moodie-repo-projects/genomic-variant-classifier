@@ -6409,4 +6409,26 @@
 #   installed, or 4480 / 10 without them -- nine tests are guarded by
 #   _needs_libs. The installer MEASURES which, rather than assuming the
 #   environment.
-4715
+
+# 2026-08-13 -- 4715 -> 4807 (+92). DEPENDENCY-GOVERNANCE-1.
+#
+#   Three analyzers under one vocabulary: deps/model.py owns canonical
+#   identities and the capability/deployment-profile scope model;
+#   requirements_parse.py and dependency_census.py measure against it.
+#
+#   The instrument failure that started it: a parser reported a 310,494-byte,
+#   180-package hash-pinned lock as ZERO packages, because it split lines
+#   before joining continuations and swallowed every resulting failure. That
+#   reading nearly supported deleting the artifact.
+#
+#   MEASURED: a naive .lower() disagrees with packaging.utils.canonicalize_name
+#   on six of ten sampled distribution names; the hyphen-to-underscore
+#   distribution-to-module guess disagrees with installed metadata on four of
+#   seven, including pyBigWig -- this project's own dependency, whose module
+#   keeps its capitals while Python imports are case-sensitive.
+#
+#   ARITHMETIC: 4715 + 92 = 4807. 31 + 28 + 33 collected cases, zero skipif
+#   decorators, no third-party import beyond pytest -- so none can skip.
+#
+#   ACCEPTANCE: tests/unit 4572 passed, 10 skipped, 0 failed.
+4807
