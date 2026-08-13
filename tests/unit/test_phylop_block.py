@@ -346,15 +346,42 @@ class TestPhyloPConnector:
 
     def test_the_backend_interface_is_what_the_connector_depends_on(self):
         """The connector must route through lookup_many, so PHYLOPPERF-1 can
-        swap the engine without touching the ownership contract."""
-        from genomic_variant_classifier.data.phylop import (
-            DictPhyloPBackend, PhyloPConnector,
-        )
+        swap the engine without touching the ownership contract.
+
+        SUPERSEDED ASSERTION (2026-08-12). This carried
+
+            assert isinstance(backend, DictPhyloPBackend)
+
+        beneath a docstring saying the engine must be swappable. The docstring
+        stated the CONTRACT; the assertion pinned the IMPLEMENTATION, and it was
+        the single thing preventing the substitution the docstring promised --
+        A4's suite gate failed on it, and on nothing else.
+
+        That is the same shape as test_annotate_replaces_existing_phylop_score
+        in A1, which guaranteed the overwrite A1 removed: a test written to
+        defend behaviour that a later unit was designed to change.
+
+        What the connector owes is that _lookup_backend returns SOMETHING
+        satisfying the PhyloPLookupBackend protocol -- lookup_many(frame) ->
+        Series, index preserved -- not which concrete class it is. Tying a test
+        to a class name is what makes an abstraction unusable for the
+        substitution it was built for.
+        """
+        from genomic_variant_classifier.data.phylop import PhyloPConnector
+
         conn = self._make_connector([("1", 100, 2.5)])
         backend = conn._lookup_backend()
-        assert isinstance(backend, DictPhyloPBackend)
-        got = backend.lookup_many(pd.DataFrame({"chrom": ["1"], "pos": [100]}))
+
+        assert hasattr(backend, "lookup_many"), (
+            "the connector's backend does not satisfy PhyloPLookupBackend")
+        assert hasattr(backend, "substrate"), (
+            "the backend does not declare its substrate; a transitional engine "
+            "that cannot say what it is becomes permanent by inertia")
+
+        loci = pd.DataFrame({"chrom": ["1"], "pos": [100]}, index=[42])
+        got = backend.lookup_many(loci)
         assert isinstance(got, pd.Series)
+        assert got.index.tolist() == [42], "the backend did not preserve row identity"
         assert got.iloc[0] == pytest.approx(2.5)
 
     def test_a_backend_that_loses_row_identity_is_refused(self):

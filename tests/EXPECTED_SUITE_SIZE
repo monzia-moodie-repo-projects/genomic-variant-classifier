@@ -6358,4 +6358,31 @@
 #   been REPLACED rather than extended.
 #
 #   ACCEPTANCE: tests/unit 4440 passed, 1 skipped, 0 failed.
-4666
+
+# 2026-08-12 -- 4666 -> 4685 (+19). PHYLOPPERF-1.
+#
+#   A1 declared DictPhyloPBackend transitional and recorded the substrate in a
+#   constant so a temporary structure could not become permanent by inertia.
+#   This is the commit that constant was written for: _lookup_backend is the
+#   single seam between the connector and its lookup engine, so one method
+#   changes and no contract from A1, A2 or A3 is reopened.
+#
+#   MEASURED, 200,000 queries against a 500,000-locus index: 0.387 s to
+#   0.165 s, a 2.4x speedup with IDENTICAL results. An earlier draft implied an
+#   order of magnitude; the first measurement was 1.8x, and profiling showed
+#   .map(self._normalise) was 53.5% of the cost -- vectorising the lookup while
+#   leaving normalisation per-row had moved the bottleneck, not removed it.
+#
+#   The equivalence verifier caught a real bug on its first run: the per-row
+#   authority tests membership in ("X", "Y", "MT") CASE-SENSITIVELY, so
+#   lowercase "y" is returned unchanged, while the first vectorised form
+#   upper-cased it. A one-character difference in chromosome identity,
+#   introduced by an optimisation. The two now agree on all 210 chromosome
+#   tokens.
+#
+#   ARITHMETIC: 4666 + 19 = 4685. All 19 from the new
+#   tests/unit/test_phylop_lookup.py. phylop.py contributes zero: one method
+#   was REPLACED.
+#
+#   ACCEPTANCE: tests/unit 4459 passed, 1 skipped, 0 failed.
+4685
