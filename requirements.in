@@ -18,6 +18,18 @@ joblib>=1.3
 
 # Annotation connectors
 pybigtools>=0.3.0  # PhyloP BigWig reader (cp39-cp313 manylinux wheels; no pyBigWig on Windows)
+# pyBigWig is the DIFFERENTIAL ORACLE for the BigWig path, not a second production
+# backend. PHYLOPBACKEND-1 was two libraries answering the same question differently:
+# measured 2026-08-13 on a real asset, an uncovered position gave 0.0 under
+# pybigtools' fillna=0.0 and nan under pyBigWig, so which one served a query was
+# decided by import order. Nine tests verify they now agree, and they SKIP unless
+# BOTH are installed.
+#
+# Verified against PyPI 2026-08-13: pyBigWig 0.3.25 publishes five Linux wheels and
+# a source distribution, and NO Windows wheel. The marker is therefore not a
+# preference -- it is the platform reality, and it keeps the workstation
+# installable while letting the Linux runner exercise the parity checks.
+pyBigWig>=0.3.25; sys_platform != "win32"  # BigWig conformance oracle (Linux/macOS only)
 transformers>=4.40
 requests>=2.31
 biopython>=1.83

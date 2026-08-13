@@ -233,3 +233,4 @@ pyspark==3.5.8               # 3 tests in test_core (never ran in CI)
 river==0.23.0                # online drift detection (1 test, never ran in CI)
 mapie==1.4.1                 # conformal cross-check oracle -- NEVER RAN ANYWHERE until today
 pybigtools>=0.3.0  # PhyloP BigWig reader (added Run-17; cp39-cp313 wheels)
+pyBigWig>=0.3.25; sys_platform != "win32"  # BigWig conformance oracle; no Windows wheel exists

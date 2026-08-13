@@ -248,6 +248,8 @@ jobs:
               "xgboost":         "a base model",
               "catboost":        "a base model",
               "imodelsx":        "the Kolmogorov-Arnold Network backend",
+              "pybigtools":      "the production BigWig reader for PhyloP conservation scores",
+              "pyBigWig":        "the BigWig DIFFERENTIAL ORACLE (9 real-asset tests; without it they SKIP and PHYLOPBACKEND-1 goes unverified)",
           }
 
           missing = {}
