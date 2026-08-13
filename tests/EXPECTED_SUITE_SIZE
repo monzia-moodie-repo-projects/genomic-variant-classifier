@@ -6385,4 +6385,28 @@
 #   was REPLACED.
 #
 #   ACCEPTANCE: tests/unit 4459 passed, 1 skipped, 0 failed.
-4685
+
+# 2026-08-12 -- 4685 -> 4715 (+30). PHYLOP-QUERY-INTEGRITY-1.
+#
+#   _query_bigwig carried two defects. `fillna=0.0` substituted at the LIBRARY
+#   BOUNDARY, so the isnan guard on the next line could never fire: an
+#   uncovered position returned 0.0, indistinguishable from a measured zero.
+#   pyBigWig never had that behaviour, and _open_bigwig tries pybigtools first,
+#   so the defective path is the one that ran. And every exception became the
+#   sentinel, logged at DEBUG -- below the default threshold -- so a corrupt
+#   asset and a neutral genome produced identical output.
+#
+#   MEASURED on a 659-byte bigWig written with pyBigWig and queried with both
+#   libraries: an uncovered position gives 0.0 under fillna=0.0 and nan
+#   without it, while 1:500 is a GENUINE zero giving 0.0 either way. pybigtools
+#   0.3.0 emits a DeprecationWarning saying it CHANGED this default because it
+#   was wrong; the repository restored the defective behaviour explicitly.
+#
+#   ARITHMETIC: 4685 + 30 = 4715. All 30 from the new test file. phylop.py
+#   contributes zero: one method REPLACED and one call site updated.
+#
+#   ACCEPTANCE: tests/unit 4489 passed / 1 skipped with both bigWig libraries
+#   installed, or 4480 / 10 without them -- nine tests are guarded by
+#   _needs_libs. The installer MEASURES which, rather than assuming the
+#   environment.
+4715

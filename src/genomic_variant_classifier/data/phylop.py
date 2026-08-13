@@ -407,7 +407,7 @@ class PhyloPConnector:
 
         # BigWig path
         if self._path.suffix.lower() in (".bw", ".bigwig"):
-            return self._query_bigwig(chrom_norm, pos, float("nan"))
+            return self._query_bigwig(chrom_norm, pos)
 
         # Flat-file / parquet path — build and cache index
         return self._get_index().get((chrom_norm, int(pos)))
@@ -439,23 +439,76 @@ class PhyloPConnector:
             "Install one with: pip install pyBigWig"
         )
 
-    def _query_bigwig(self, chrom: str, pos: int, missing_value: float) -> float:
-        """Fetch a single position from the BigWig file (1-based pos → 0-based interval)."""
+    def _query_bigwig(self, chrom: str, pos: int) -> Optional[float]:
+        """One position from the open bigWig. None means NO OBSERVATION.
+
+        PHYLOP-QUERY-INTEGRITY-1 (2026-08-12). The previous body was
+
+            vals = list(bw.values(chrom_bw, pos - 1, pos, fillna=0.0))
+            if vals and vals[0] is not None and not math.isnan(vals[0]):
+                return float(vals[0])
+            ...
+            except Exception as exc:
+                logger.debug("PhyloP BigWig query failed ...")
+            return missing_value
+
+        TWO DEFECTS, BOTH MEASURED ON A REAL ASSET.
+
+        fillna=0.0 substitutes at the LIBRARY BOUNDARY, so the isnan guard on
+        the next line could never fire on that path: an uncovered position
+        returned 0.0, indistinguishable from a measured zero. pyBigWig never had
+        that behaviour, so the two backends disagreed -- and _open_bigwig tries
+        pybigtools FIRST, so the defective path is the one that ran. Measured
+        1:900 (uncovered) -> 0.0 under fillna=0.0, nan without it, nan on
+        pyBigWig; 1:500 is a GENUINE zero -> 0.0 on all three.
+
+        And every exception became the sentinel, logged at DEBUG -- below the
+        default threshold. A corrupt asset and a neutral genome produced
+        identical output.
+
+        Absence is now None, a read failure RAISES, and the caller-supplied
+        sentinel is gone: a caller could previously decide that an unobserved
+        conservation score means a specific biological value, which is the
+        semantic hole CONSTRAINTFILL-1 closed for gnomAD constraint.
+
+        THE CHR-PREFIX RETRY IS PRESERVED. A bigWig may name chromosomes with
+        or without the prefix; the previous code tried both, and removing it
+        would silently lose every lookup on an asset using the other convention.
+        """
+        from genomic_variant_classifier.data.phylop_bigwig import (
+            BigWigBackend, BigWigUnreadableError, query_bigwig,
+        )
+
+        handle = self._open_bigwig()
+        if handle is None:
+            raise BigWigUnreadableError(
+                "no bigWig handle is available for {}; a query cannot be "
+                "answered and must not be silently defaulted".format(self._path))
+
+        raw = getattr(self, "_bw_backend", None)
         try:
-            bw = self._open_bigwig()
-            # pyBigWig / pybigtools use 0-based half-open intervals
-            chrom_bw = f"chr{chrom}" if not chrom.startswith("chr") else chrom
-            if self._bw_type == "pybigwig":
-                vals = bw.values(chrom_bw, pos - 1, pos)
-                if vals and vals[0] is not None and not math.isnan(vals[0]):
-                    return float(vals[0])
-            else:
-                vals = list(bw.values(chrom_bw, pos - 1, pos, fillna=0.0))
-                if vals and vals[0] is not None and not math.isnan(vals[0]):
-                    return float(vals[0])
-        except Exception as exc:
-            logger.debug("PhyloP BigWig query failed for %s:%d -- %s", chrom, pos, exc)
-        return missing_value
+            backend = BigWigBackend(raw)
+        except ValueError:
+            raise BigWigUnreadableError(
+                "unknown bigWig backend {!r}; _open_bigwig must record one of "
+                "{}. A bare string could select nothing silently.".format(
+                    raw, [b.value for b in BigWigBackend])) from None
+
+        # A bigWig may or may not carry the chr prefix. Both are tried, and a
+        # miss on the first is NOT a failure -- only a source that cannot be
+        # READ is. This retry is measured behaviour of the previous body.
+        last_error = None
+        for candidate in (chrom, "chr" + chrom):
+            try:
+                value = query_bigwig(handle, candidate, pos, backend)
+            except BigWigUnreadableError as exc:
+                last_error = exc
+                continue
+            if value is not None:
+                return value
+        if last_error is not None:
+            raise last_error
+        return None
 
     # ------------------------------------------------------------------
     # Flat-file index (TSV / parquet)
