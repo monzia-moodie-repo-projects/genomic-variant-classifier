@@ -17,6 +17,7 @@ from pathlib import Path
 
 from genomic_variant_classifier.agent_layer.agents.base_agent import BaseAgent
 from genomic_variant_classifier.evaluation import finops_detector as D
+from genomic_variant_classifier.agent_layer.config import PROJECT_ROOT
 
 _SECTION = "finops"
 
@@ -24,12 +25,12 @@ _SECTION = "finops"
 class FinOpsAdvisorAgent(BaseAgent):
     def __init__(self, shared_state, snapshot_path: str | None = None,
                  est_hours: float = D.DEFAULT_EST_HOURS, budget_usd: float = D.DEFAULT_BUDGET_USD,
-                 root: str = ".") -> None:
+                 root: str | None = None) -> None:
         super().__init__(shared_state)
         self._snapshot_path = snapshot_path
         self._est_hours = est_hours
         self._budget_usd = budget_usd
-        self._root = root
+        self._root = root if root is not None else str(PROJECT_ROOT)
 
     def run(self, dry_run: bool = False) -> dict:
         self._log_start(dry_run)

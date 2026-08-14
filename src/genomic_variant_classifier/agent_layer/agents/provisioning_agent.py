@@ -23,6 +23,7 @@ from pathlib import Path
 from genomic_variant_classifier.agent_layer.agents.base_agent import BaseAgent
 from genomic_variant_classifier.agent_layer.provisioning import offer_schema as OS
 from genomic_variant_classifier.agent_layer.provisioning import provisioning_docs as PD
+from genomic_variant_classifier.agent_layer.config import PROJECT_ROOT
 
 # Defaults aligned with project ops: 4090 typ $0.33-0.77/hr, >=20 GB VRAM, ~15h run.
 DEFAULT_BUDGET_CAP_PER_HR = 0.77
@@ -42,7 +43,7 @@ class ProvisioningAgent(BaseAgent):
         est_hours: float = DEFAULT_EST_HOURS,
         min_vram_gb: float = DEFAULT_MIN_VRAM_GB,
         require_verified: bool = True,
-        root: str = ".",
+        root: str | None = None,
     ) -> None:
         super().__init__(shared_state)
         self._vast_offers = vast_offers
@@ -52,7 +53,7 @@ class ProvisioningAgent(BaseAgent):
         self._est_hours = est_hours
         self._min_vram_gb = min_vram_gb
         self._require_verified = require_verified
-        self._root = root
+        self._root = root if root is not None else str(PROJECT_ROOT)
 
     # -- helpers ---------------------------------------------------------------
     def _normalize_all(self) -> list[OS.CanonicalOffer]:

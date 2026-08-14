@@ -24,6 +24,7 @@ import pandas as pd
 from genomic_variant_classifier.agent_layer.agents.base_agent import BaseAgent
 from genomic_variant_classifier.agent_layer.message_bus import FEATURE_INSTABILITY, PRIORITY_HIGH
 from genomic_variant_classifier.evaluation import model_insights_detector as D
+from genomic_variant_classifier.agent_layer.config import PROJECT_ROOT
 
 _RECIPIENT = "TrainingLifecycleAgent"
 _SECTION = "model_insights"
@@ -36,10 +37,11 @@ def _flag_kind(flag: str) -> str:
 
 
 class ModelInsightsAgent(BaseAgent):
-    def __init__(self, shared_state, outputs_root: str = "outputs", root: str = ".") -> None:
+    def __init__(self, shared_state, outputs_root: str = "outputs",
+                 root: str | None = None) -> None:
         super().__init__(shared_state)
         self._outputs_root = outputs_root
-        self._root = root
+        self._root = root if root is not None else str(PROJECT_ROOT)
 
     def run(self, dry_run: bool = False) -> dict:
         self._log_start(dry_run)

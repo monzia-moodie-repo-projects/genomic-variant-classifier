@@ -20,15 +20,17 @@ from pathlib import Path
 
 from genomic_variant_classifier.agent_layer.agents.base_agent import BaseAgent
 from genomic_variant_classifier.evaluation import agent_ops_detector as D
+from genomic_variant_classifier.agent_layer.config import PROJECT_ROOT
 
 _SECTION = "agent_ops"
 
 
 class AgentOpsMonitorAgent(BaseAgent):
-    def __init__(self, shared_state, stale_after_hours: float = D.DEFAULT_STALE_HOURS, root: str = ".") -> None:
+    def __init__(self, shared_state, stale_after_hours: float = D.DEFAULT_STALE_HOURS,
+                 root: str | None = None) -> None:
         super().__init__(shared_state)
         self._stale_after_hours = stale_after_hours
-        self._root = root
+        self._root = root if root is not None else str(PROJECT_ROOT)
 
     def run(self, dry_run: bool = False) -> dict:
         self._log_start(dry_run)

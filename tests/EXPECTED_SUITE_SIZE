@@ -6498,4 +6498,25 @@
 #   timing the result revealed. Split correctly: 3.63 s.
 #
 #   ACCEPTANCE: tests/unit 4618 passed, 10 skipped, 0 failed.
-4853
+
+# 2026-08-14 -- 4853 -> 4872 (+19). AGENT-ROOT-ANCHOR-1.
+#
+#   FIVE agents defaulted root="." so their output location depended on the
+#   process working directory. scripts/apply_data_readiness_root_fix.py had
+#   already diagnosed and repaired this for a sixth; three generated reports
+#   sit inside src/ as its residue.
+#
+#   MEASURED by CONSTRUCTING each agent with a stub shared_state and reading
+#   _root: five reported '.', DataReadinessAgent reported PROJECT_ROOT.
+#
+#   My first census found FOUR. A search across all of src and scripts found
+#   provisioning_agent.py:45 as the fifth. Four detector function defaults are
+#   deliberately excluded: they are pure functions whose callers all pass root
+#   explicitly, and anchoring them would invert a layer dependency.
+#
+#   All eight existing test call sites inject root=str(tmp_path), so the
+#   DEFAULT was unexercised and any change would have passed the suite. The new
+#   file drives it: 11 cases fail before the repair, 19 pass after.
+#
+#   ACCEPTANCE: tests/unit 4637 passed, 10 skipped, 0 failed.
+4872
