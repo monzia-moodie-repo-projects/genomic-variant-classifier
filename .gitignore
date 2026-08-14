@@ -98,7 +98,8 @@ patch_finngen_wiring.py
 requirements-current.txt
 model/
 outputs/
-reports/
+/reports/
+notebooks/genomic_variant_classifier/reports/
 agent_layer.zip
 lovd/
 tumor gene data.txt

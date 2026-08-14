@@ -6519,4 +6519,23 @@
 #   file drives it: 11 cases fail before the repair, 19 pass after.
 #
 #   ACCEPTANCE: tests/unit 4637 passed, 10 skipped, 0 failed.
-4872
+
+# 2026-08-14 -- 4872 -> 4885 (+13). REPORTS-DIR-IGNORED-1.
+#
+#   .gitignore:101 read `reports/` with no leading slash, so it matched at any
+#   depth and swallowed src/genomic_variant_classifier/reports/ -- a SOURCE
+#   PACKAGE. Proven by probe: an untracked .py there was ignored and invisible
+#   to git status. Its two files survive only because they predate the rule.
+#
+#   Anchored to /reports/, with one explicit rule for the notebook output the
+#   anchor would otherwise expose. Three stray artifacts moved out of src/,
+#   each classified by READING it: two routine reports, and one preserved as
+#   incident evidence under a disambiguating name because the root already
+#   holds the correct 23:37 run of the same date.
+#
+#   The tests probe BEHAVIOUR via `git check-ignore --no-index`, not the rule
+#   text: a text assertion would pass against rules reordered into uselessness.
+#   Six cases fail against the bare rule; all thirteen pass after.
+#
+#   ACCEPTANCE: tests/unit 4650 passed, 10 skipped, 0 failed.
+4885
