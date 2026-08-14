@@ -6456,4 +6456,26 @@
 #   verified against the parse tree and pytest, both 33.
 #
 #   ACCEPTANCE: tests/unit 4605 passed, 10 skipped, 0 failed.
-4840
+
+# 2026-08-13 -- 4840 -> 4845 (+5). REQFILES-NONASCII-1, PYTEST-ANYIO-REDIRECT-1.
+#
+#   Three EM DASH characters removed from two TRACKED requirements files, all
+#   in section-header comments, replaced with the " -- " that requirements.txt
+#   already uses at lines 160, 166 and 177. Nothing was broken -- pip reads
+#   UTF-8 -- but these files pass through Set-Content, Copy-Item and Windows
+#   editors where encoding is not always preserved, and every guarded installer
+#   here already refuses a non-ASCII payload.
+#
+#   pytest-anyio>=0.0.0 removed. A 3,559-byte redirect package at version 0.0.0
+#   whose PyPI summary says the plugin is built into anyio; never installed
+#   here; its only mention anywhere was that one line. PROVEN sufficient:
+#   anyio 4.13.0 declares exactly one entry-point group, pytest11 ->
+#   anyio.pytest_plugin, and pytest --trace-config shows it REGISTERED.
+#
+#   ARITHMETIC: 4840 + 5 = 4845. Three of the five tests can skip via a git
+#   helper -- a fact missed by checking each function body for pytest.skip --
+#   so both skip conditions were measured: git ls-files exit 0 with 9 tracked
+#   files, anyio pytest11 present. Neither skips.
+#
+#   ACCEPTANCE: tests/unit 4610 passed, 10 skipped, 0 failed.
+4845
