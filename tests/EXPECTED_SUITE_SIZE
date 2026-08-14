@@ -6431,4 +6431,29 @@
 #   decorators, no third-party import beyond pytest -- so none can skip.
 #
 #   ACCEPTANCE: tests/unit 4572 passed, 10 skipped, 0 failed.
-4807
+
+# 2026-08-13 -- 4807 -> 4840 (+33). DEPENDENCY-ONTOLOGY-1.
+#
+#   deps/governance.py records six package classifications measured by an
+#   import census over src, scripts and tests: 941 files walked, 941 parsed,
+#   zero failures. NOT ONE was correctly scoped by the file it sits in.
+#
+#   seaborn and jinja2 are REPORTING dependencies -- unguarded imports in
+#   report_generator.py with sns.set_style() at module scope -- declared
+#   development-only and absent from requirements-api.lock while matplotlib,
+#   two lines above them, is present. pyfaidx is REFERENCE_SEQUENCE with 25
+#   imports across 23 scripts. pre-commit is DEV_TOOLING, and its zero imports
+#   are the CORRECT result for a console script. httpx and anyio remain
+#   UNRESOLVED: reached only through fastapi.testclient, and whether their
+#   versions are part of the tested surface has not been measured.
+#
+#   Scope is two axes. "seaborn = development" and "seaborn = runtime" are both
+#   false; it is a REPORTING dependency absent from the API profile, which
+#   `python -X importtime -c "import api.main"` established directly.
+#
+#   ARITHMETIC: 4807 + 33 = 4840. Thirty plain cases plus three parametrized
+#   over the six CLASSIFICATIONS, so the count is a function of the data;
+#   verified against the parse tree and pytest, both 33.
+#
+#   ACCEPTANCE: tests/unit 4605 passed, 10 skipped, 0 failed.
+4840
