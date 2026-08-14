@@ -6478,4 +6478,24 @@
 #   files, anyio pytest11 present. Neither skips.
 #
 #   ACCEPTANCE: tests/unit 4610 passed, 10 skipped, 0 failed.
-4845
+
+# 2026-08-13 -- 4845 -> 4853 (+8). REPORTS-EAGER-IMPORT-1.
+#
+#   reports/__init__.py imported report_generator eagerly, so touching the
+#   namespace required seaborn and jinja2 -- neither in requirements-api.lock,
+#   while matplotlib two lines above them in the same block IS present -- and
+#   executed sns.set_style() at module scope. Latent, because api.main does not
+#   reach reports/, established with -X importtime rather than inferred.
+#
+#   MEASURED FIRST: all ten consumers import the SUBMODULE directly and zero
+#   use a re-exported name, so the import block served no caller while
+#   guaranteeing the activation. Replaced with a PEP 562 module __getattr__.
+#
+#   The tests measure in a FRESH interpreter, with two probes split by measured
+#   cost: the namespace import is 0.03 s and the full one 1.91 s, a 64x
+#   difference. Consolidating them into one expensive probe made the file
+#   SLOWER than the version it replaced -- 11.17 s against 5.75 -- which only
+#   timing the result revealed. Split correctly: 3.63 s.
+#
+#   ACCEPTANCE: tests/unit 4618 passed, 10 skipped, 0 failed.
+4853
