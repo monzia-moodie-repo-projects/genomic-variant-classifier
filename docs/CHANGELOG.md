@@ -1,3 +1,74 @@
+## 2026-08-14 (RUNTIME-PATHS-1, REPORTS-DIR-IGNORED-1, AGENT-ROOT-ANCHOR-1, REPORTS-EAGER-IMPORT-1) — four boundaries the codebase had lost
+
+Four commits, `a7e576f` -> `69a9597`. The ratchet moved 4853 -> 4910. Documents:
+docs/sessions/SESSION_2026-08-14_boundaries-namespace-root-path.md
+
+### Fixed
+- **REPORTS-EAGER-IMPORT-1** `reports/__init__.py:14` imported `report_generator` eagerly; that module imports seaborn and jinja2 UNGUARDED at lines 45-46 and executes `sns.set_style()` at MODULE SCOPE at line 57. Neither is in `requirements-api.lock`, while matplotlib two lines above them IS present at line 24. Replaced with a PEP 562 module `__getattr__`. Measured first: all ten consumers import the SUBMODULE directly and ZERO use a re-exported name.
+- **AGENT-ROOT-ANCHOR-1** Five agents defaulted `root: str = "."`, so `Path(self._root) / "reports"` resolved against the working directory. `scripts/apply_data_readiness_root_fix.py` had already diagnosed and repaired this for a sixth. Measured BY CONSTRUCTION, not read from source: each agent instantiated with a stub shared state, `_root` printed — five reported `'.'`, DataReadinessAgent reported `PROJECT_ROOT`.
+- **REPORTS-DIR-IGNORED-1** `.gitignore:101` read `reports/`; with no leading slash it matches at ANY DEPTH and swallowed `src/genomic_variant_classifier/reports/`, a SOURCE PACKAGE. Proven by probe: an untracked `.py` there was ignored and invisible to `git status`. Anchored to `/reports/` with one explicit rule for notebook output. Three stray artifacts moved out of `src/`, each classified by READING it.
+- **RUNTIME-PATHS-1** One typed authority for `project_root`, `artifact_root` and `state_root`, replacing five independent conventions. Discovery verifies IDENTITY — three sentinels in conjunction plus the declared name from `pyproject.toml` — and there is NO fallback: explicit, then `GVC_PROJECT_ROOT`, then discovery, then RAISE. Additive: nothing imports it yet.
+
+### Failed (and why)
+- My AGENT-ROOT-ANCHOR-1 census found FOUR agents. A search across ALL of `src` and `scripts` found `provisioning_agent.py:45` as the fifth. Shipping the four-agent version would have looked complete and left one agent defective. **Third instance in three days of sizing a defect from the set in hand.**
+- I predicted eight subprocess tests would cost ~28s, consolidated them into one probe, and made the file SLOWER — 11.17s against the 5.75s it replaced. Measured: the namespace import costs 0.03s and the full import 1.91s, a 64x difference, and my single probe resolved `ReportGenerator` so every property paid the expensive path. Split by cost: 3.63s.
+- I called the suite's 17:07 -> 24:01 increase "disproportionate". Measured: the new file runs in 7.93s, a second run 10.22s, heaviest agent import 1.85s. **Workstation load, not the tests.**
+- I proposed removing the user-scope `GITHUB_TOKEN` — which was shadowing a valid `gh` keyring credential — and only AFTERWARDS suggested scanning for dependents. `scripts/preflight_check.py` check 9 reads exactly that location. The ordering was backwards on an irreversible action.
+
+### Learned
+- IMPORTING A NAMESPACE MUST NOT ACTIVATE A CAPABILITY. The eight-name re-export served no caller while guaranteeing that touching `reports` required two packages absent from the API lock.
+- IDENTITY IS NOT EXISTENCE. `(candidate / "src").exists()` is a comfort assertion; any directory can contain `src/`. Both refusal tests fired on directories that genuinely exist.
+- A LEADING SLASH IS A SEMANTIC BOUNDARY. `reports/` and `/reports/` differ by one character and by whether a source package disappears.
+- TEST BEHAVIOUR, NOT TEXT. Nine sentinel cases ask `git check-ignore --no-index` rather than parsing `.gitignore`; a text assertion would pass against rules reordered into uselessness.
+
+### Recorded, not repaired
+- **PREFLIGHT-TOKEN-SUBSTRING-1** `preflight_check.py:259` tests for the substring `GITHUB_TOKEN=` in `.env`, so a literal placeholder satisfies it. Its three branches disagree: the user-environment branch checks `len(token) > 10`, the `.env` branch checks nothing.
+- **CHANGELOG-DUP-2026-06-25** This file carries the 2026-06-25 entry TWICE, at lines 6546 and 6573, identical apart from a trailing blank. Pre-existing; not rewritten while appending.
+- Open: PROJECT-ROOT-HARDCODED-1, CONFIG-DEAD-PATHS-1, LITERATURE-STATE-CWD-RELATIVE-1, STATE-FILE-DUPLICATES-1, OUTPUT-ROOT-CONFLATION-1, ROOTFIX-VERIFY-TEXTUAL-1, and SESSION_2026-06-19 item 5 (`run_agents.py` still has no chdir).
+
+## 2026-08-13 (DEPENDENCY-GOVERNANCE-1, DEPENDENCY-ONTOLOGY-1, REQFILES-NONASCII-1) — one vocabulary, six classifications
+
+Six commits, `569f4b1` -> `8cb0429`. The ratchet moved 4685 -> 4853. Documents:
+docs/sessions/SESSION_2026-08-13_dependency-governance.md
+
+### Fixed
+- **PHYLOP-QUERY-INTEGRITY-1** `fillna=0.0` was passed at the library boundary BEFORE the `isnan` guard, so an uncovered genomic position returned `0.0`, indistinguishable from a measured conservation score of zero. Measured against a real 659-byte bigWig: gap position returns `nan` with `fillna=None` and `0.0` with `fillna=0.0`.
+- **BIGWIG-DEPENDENCY-CONTRACT-1** `pyBigWig` was declared NOWHERE, so nine real-asset parity tests had never executed. Result: delta passed +9, delta skipped -9, delta collected 0 — the exact causal signature.
+- **DOC-EVIDENCE-STALE-1** A docstring stated as current fact claims falsified the same day they were written. Rewritten as a dated validation chronology.
+- **DEPENDENCY-GOVERNANCE-1** Three analyzers under one vocabulary. A parser had reported a 310,494-byte, 180-package hash-pinned lock as ZERO packages, because it split lines before joining continuations and swallowed every failure.
+- **DEPENDENCY-ONTOLOGY-1** Six classifications recorded with their evidence. An import census over 941 files found NOT ONE correctly scoped by the file it sits in.
+- **REQFILES-NONASCII-1, PYTEST-ANYIO-REDIRECT-1** Three em dashes across two tracked requirements files; `pytest-anyio>=0.0.0` removed. Proven, not quoted: anyio 4.13.0 declares exactly one entry-point group, `pytest11`, and `pytest --trace-config` shows it registered.
+
+### Failed (and why)
+- Three beliefs about the bigWig libraries were corrected by measurement: that only a production-asset preflight could close the gap (both install from PyPI, and pyBigWig can WRITE bigWigs); that an absent chromosome is a source fault (both libraries RAISE for it); and that a fake returned `None` for one (no real version does).
+- I framed the em dash as ONE file. The census found TWO.
+- Four assertions of mine could not fail: a reconciliation guard true by construction, a parser test asserting on a re-parse rather than stored data, a census guard with no independent quantity, and a stale test file I read "21 passed" from while the tests described behaviour the module no longer had.
+
+### Learned
+- A PARSER THAT SILENTLY DROPS EVERY RECORD LOOKS EXACTLY LIKE A FILE THAT CONTAINS NOTHING. Fail-closed, and reconcile against the PHYSICAL LINE COUNT, which no branch counter touches.
+- DISTRIBUTION IDENTITY IS NOT IMPORT IDENTITY. A naive `.lower()` disagrees with `canonicalize_name` on six of ten sampled names; the hyphen-to-underscore module guess disagrees with installed metadata on four of seven, including `pyBigWig`.
+- SCOPE IS TWO AXES. Neither "seaborn = development" nor "seaborn = runtime" is true; it is a REPORTING dependency absent from the API profile, established by `python -X importtime`.
+- CLASSIFY BY WHAT THE HANDLER CATCHES. `except ValueError` around an import is NOT optional — `ImportError` escapes it. Three of eight handler shapes were classified wrongly before that repair.
+
+## 2026-08-12 (PHYLOP A1-A4) — the PhyloP connector: four repairs to one source
+
+Four commits, `01a4345` -> `cc350b9`. The ratchet moved 4605 -> 4685, including one deliberate DECREASE. Documents:
+docs/sessions/SESSION_2026-08-12_phylop-connector-four-repairs.md
+
+### Fixed
+- **PHYLOP-SOURCE-OWNERSHIP-1** and **PHYLOPTEST-DUP-1** A connector may not redefine canonical evidence. Nine duplicate tests removed: `4622 -> 4613 (-9)`, the only decrease in the progression.
+- **PHYLOP-INGEST-INTEGRITY-1** A source must be trustworthy before it is fast. Performance work on an ingest path whose integrity is unestablished optimises the delivery of unverified data.
+- **PHYLOP-CACHE-INTEGRITY-1** A cache is a claim about a source. Unverified correspondence makes it unfalsifiable, and every consumer inherits it.
+- **PHYLOPPERF-1** `DictPhyloPBackend.lookup_many` ran ~4.4 million interpreter dispatches per annotation pass. Replaced with a `MultiIndex` `Series.reindex`. **2.4x measured**: 0.387s -> 0.165s on 200,000 queries against a 500,000-locus index.
+
+### Failed (and why)
+- Four installer defects the gates caught: a `(?i)` inline flag that pandas 3.0.2 swallowed and 2.3.3 propagated, failing 13 tests; an idempotence check matching four PROSE mentions of its own rule; `$rc -ge 2` when pytest returns 1 on failures, leaving a partial install; and an A1 test asserting `isinstance` against the class its own abstraction was built to replace.
+
+### Learned
+- A CHECKER THAT FIRES ON PROSE DESCRIBING ITS OWN RULE IS NOT A CHECKER. Count `ast.Call` nodes, not string occurrences.
+- A TEST THAT ENCODES AN IMPLEMENTATION FORBIDS THE IMPROVEMENT IT WAS WRITTEN TO ENABLE.
+- A SUITE THAT ONLY GROWS ACCUMULATES REDUNDANT COVERAGE THAT LOOKS LIKE RIGOUR. A recorded, deliberate decrease is healthy.
+
 ## 2026-08-08 (METRICORIGIN-1 census) — a metric's origin is part of the metric
 
 Measurement only; no test changed and the ratchet stands at 4487. Base
