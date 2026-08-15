@@ -69,6 +69,14 @@ CASES = (
      "notebook run output, generated 2026-03-15"),
     ("outputs/drift_reports/concept_drift/report.json", True,
      "drift agents write under outputs/, which is separately ignored"),
+    (".gvc-state/literature_scout/state.json", True,
+     "CANONICAL MUTABLE STATE. RuntimePaths puts the literature-scout "
+     "store here, and version_monitor_agent creates it on first write. "
+     "Measured 2026-08-15: before this rule, git check-ignore returned "
+     "NOTHING for it -- so the first real agent run would have left an "
+     "untracked directory that someone eventually commits. This is the "
+     "state analogue of REPORTS-DIR-IGNORED-1, inverted: canonical state "
+     "MUST be ignored, while state appearing under src/ must be VISIBLE"),
 
     ("src/genomic_variant_classifier/reports/__init__.py", False,
      "THE DEFECT: this is a source package, not an artifact directory"),

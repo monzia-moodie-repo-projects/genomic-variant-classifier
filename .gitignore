@@ -100,6 +100,7 @@ model/
 outputs/
 /reports/
 notebooks/genomic_variant_classifier/reports/
+/.gvc-state/
 agent_layer.zip
 lovd/
 tumor gene data.txt

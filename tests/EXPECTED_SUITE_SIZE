@@ -6581,4 +6581,26 @@
 #   ADDITIVE: nothing imports it yet.
 #
 #   ACCEPTANCE: tests/unit 4697 passed, 10 skipped, 0 failed.
-4932
+
+# 2026-08-15 -- 4932 -> 4949 (+17). LITERATURE-STATE-CWD-RELATIVE-1.
+#
+#   version_monitor_agent.py:58 read Path("data/agent_state.json") -- relative,
+#   resolved against the working directory, both read and written. The agent is
+#   live in two pipelines, and two divergent copies exist as a result.
+#
+#   Its corruption handler returned {} and the next save PERSISTED that
+#   emptiness, so a crash mid-write destroyed the ClinVar and AlphaMissense
+#   baselines the agent exists to keep. Six definitions become a store anchored
+#   to RuntimePaths; the dead _set is dropped; the three call sites are
+#   untouched.
+#
+#   /.gvc-state/ added to .gitignore, ANCHORED. Measured: git check-ignore
+#   returned NOTHING for the canonical state path, so the first agent run would
+#   have left mutable state untracked in git status. The leading slash keeps a
+#   nested .gvc-state under src/ VISIBLE.
+#
+#   The two pre-existing tests stub _run_watch_targets with dry_run=True and
+#   never reach the store; the new file drives it through an injected store.
+#
+#   ACCEPTANCE: tests/unit 4714 passed, 10 skipped, 0 failed.
+4949

@@ -37,6 +37,8 @@ Conventions:
 from __future__ import annotations
 
 from genomic_variant_classifier.agent_layer.agents.base_agent import BaseAgent
+from genomic_variant_classifier.paths.runtime_paths import resolve_runtime_paths
+from genomic_variant_classifier.state.json_state_store import JsonStateStore
 
 import gzip
 import hashlib
@@ -55,34 +57,67 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # SharedState interface (mirrors DataFreshnessAgent pattern)
 # ---------------------------------------------------------------------------
-_STATE_PATH = Path("data/agent_state.json")
+#: The literature-scout store. A FLAT key-value change-detection log --
+#: NOT the orchestrator SharedState, which is structured and lives elsewhere.
+#: Two files named agent_state.json held these unrelated schemas, and reading
+#: the wrong one previously SUCCEEDED and returned a dict that meant something
+#: else. The envelope now makes that a loud failure.
+LITERATURE_SCOUT_SCHEMA = "gvc.literature-scout-state"
 
-def _load_state() -> dict[str, Any]:
-    if _STATE_PATH.exists():
-        try:
-            return json.loads(_STATE_PATH.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            return {}
-    return {}
+#: Retained for provenance: the path this store used before STATE-STORE-1.
+#: It was CWD-RELATIVE, so the destination depended on where the process was
+#: launched -- and two divergent copies exist as a result, at data/ and at
+#: src/.../agent_layer/data/. STATE-FILE-DUPLICATES-1 reconciles them.
+_LEGACY_STATE_PATH = Path("data/agent_state.json")
 
-def _save_state(state: dict[str, Any]) -> None:
-    _STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    _STATE_PATH.write_text(
-        json.dumps(state, indent=2, default=str), encoding="utf-8"
+_store_override: JsonStateStore | None = None
+
+
+def set_state_store(store: JsonStateStore | None) -> None:
+    """Inject a store, for hermetic tests. Pass None to restore the default.
+
+    The two pre-existing tests for this agent stub _run_watch_targets and pass
+    dry_run=True, so NEITHER reaches the store at all. Without injection a new
+    test could only drive it by writing to the real repository.
+    """
+    global _store_override
+    _store_override = store
+
+
+def _state_store() -> JsonStateStore:
+    """The store to use: injected, else anchored to RuntimePaths.
+
+    Anchored rather than cwd-relative. The previous Path("data/agent_state.json")
+    resolved against the working directory, which is how the same logical store
+    came to exist at two depths with divergent contents.
+    """
+    if _store_override is not None:
+        return _store_override
+    return JsonStateStore(
+        path=resolve_runtime_paths().literature_scout_state,
+        schema=LITERATURE_SCOUT_SCHEMA,
     )
 
-def _get(key: str, default: Any = None) -> Any:
-    return _load_state().get(key, default)
 
-def _set(key: str, value: Any) -> None:
-    state = _load_state()
-    state[key] = value
-    _save_state(state)
+def _get(key: str, default: Any = None) -> Any:
+    """One value. Corruption RAISES rather than reading as absent.
+
+    The previous _load_state swallowed JSONDecodeError into {}, so a truncated
+    file reported "no history" and the next _set_many persisted that emptiness
+    over the original -- destroying exactly the ClinVar and AlphaMissense
+    baselines this agent exists to keep.
+    """
+    return _state_store().load(allow_legacy=True).values.get(key, default)
+
 
 def _set_many(updates: dict[str, Any]) -> None:
-    state = _load_state()
-    state.update(updates)
-    _save_state(state)
+    """Merge and persist ATOMICALLY.
+
+    The previous _save_state wrote with write_text directly, so an interrupted
+    write left partial JSON -- which the previous _load_state then read as an
+    empty store. Those two defects compounded.
+    """
+    _state_store().update(updates)
 
 # ---------------------------------------------------------------------------
 # Watch target 1: pykan — KAN re-enablement trigger
@@ -494,7 +529,8 @@ def run(*, dry_run: bool = False) -> dict[str, Any]:
 
     if not dry_run:
         _set_many(all_updates)
-        logger.info("LiteratureScoutAgent: state written to %s", _STATE_PATH)
+        logger.info("LiteratureScoutAgent: state written to %s",
+                    _state_store().path)
     else:
         logger.info("LiteratureScoutAgent: dry_run=True, state not written.")
 
