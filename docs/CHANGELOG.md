@@ -1,3 +1,33 @@
+## 2026-08-15 (STATE-STORE-1, LITERATURE-STATE-CWD-RELATIVE-1, STATE-FILE-DUPLICATES-1) — mutable state gets an authority
+
+Three commits, `48907ec` -> `c1fb110`. The ratchet moved 4910 -> 4964.
+Documents: docs/sessions/SESSION_2026-08-15_mutable-state-gets-an-authority.md
+and docs/migrations/LITERATURE_SCOUT_STATE_2026-08-15.json
+
+### Fixed
+- **STATE-STORE-1** A JSON store that is atomic, schema-identified and fails closed. `version_monitor_agent.py:58-85` held a cwd-relative path, a direct `write_text`, and a corruption handler returning `{}` which the next save PERSISTED — so a crash mid-write truncated the file, truncation read as an empty store, and the emptiness was written over the original. SharedState's atomic write was READ FIRST and reproduced deliberately and identically, with fsync added, so a second subtly-different implementation does not appear beside a correct one.
+- **LITERATURE-STATE-CWD-RELATIVE-1** The agent adopts the store: six definitions become a store anchored to RuntimePaths, `_get` and `_set_many` kept as thin delegates so the three call sites are untouched, and the dead `_set` dropped (defined at 77-80, called NOWHERE, verified by an abstract-syntax-tree call census).
+- **`/.gvc-state/` added to .gitignore, ANCHORED.** MEASURED: `git check-ignore` returned NOTHING for the canonical state path, so the first real agent run would have left mutable state untracked in `git status`. That is REPORTS-DIR-IGNORED-1 inverted, and the leading slash keeps a NESTED `.gvc-state` under `src/` VISIBLE — verified by probe in both directions.
+- **STATE-FILE-DUPLICATES-1** Two divergent copies reconciled into the canonical location with an immutable record carrying every digest, the key-set comparison, and the reasoning. Same 25 keys, no key unique to either, five values differing, every one the nested copy being a later observation. Both legacy files RETAINED and verified unchanged.
+
+### Failed (and why)
+- The adoption's FIRST attempt shipped four edits and the suite reported 4713 passed / 10 skipped / 1 FAILED: `NameError: name '_STATE_PATH' is not defined` at line 532. `run()` LOGS the constant the block edit deletes — a line I had read and quoted, and recorded as "a log message" rather than as a reference to a name I was about to remove. The installer rolled back five files, removed two, cleaned three backups, and `git status` came back empty. **Confirming the DEFINITIONS are gone says nothing about whether anything still LOADS them.**
+- A sabotage replacing `values=dict(values)` with `values=values` stayed MISSED — and correctly so. MEASURED: `json.loads` builds a fresh object per call, so every load is already independent and the copy defends an aliasing path that does not exist. But my test was still wrong, mutating the returned mapping and re-reading the FILE, which passes either way.
+- I deleted the ordering key from one copy and asserted the ORDERING refusal, but removing a key changes the KEY SETS, so the superset guard fires first. The refusal message told me which guard actually fired.
+- A sabotage giving `legacy_files_retained` a default of `()` went UNDETECTED, because every test passes it explicitly. A record whose fields can be OMITTED can be built claiming no legacy files were retained when two were.
+
+### Learned
+- A STORE ANSWERING "EMPTY" WHEN IT MEANS "DAMAGED" is the same shape as a parser reporting a 310-kilobyte lock file as zero packages. Corruption raises.
+- FILENAMES DO NOT ENCODE OWNERSHIP. Two files named `agent_state.json` held unrelated schemas, and reading the wrong one previously SUCCEEDED and returned a dictionary that meant something else. The envelope makes that a loud failure.
+- A MIGRATION IS A RECORD, NOT A COPY. A copy leaves no answer to "why does this store's history jump from 2026-06-13 to 2026-06-20?"
+- "X SUPERSEDES Y" IS A CLAIM ABOUT A MOMENT. The adoption changed where the agent writes, so both copies were re-measured immediately before the migration ran.
+- A DEFAULTED FIELD IS AN OMITTABLE CLAIM. In an evidence record, every field is something someone must assert deliberately.
+
+### Recorded, not repaired
+- **MIGRATION-RECORD-SEPARATOR-1** NEW, cosmetic. `destination_path` in the migration record uses Windows separators while every other path uses forward slashes; `Path.relative_to()` returns platform-native. The record is immutable evidence and is NOT rewritten; the script should normalise for future runs.
+- **PREFLIGHT-TOKEN-SUBSTRING-1** is currently FAILING, not merely open: the placeholder was removed from `.env` and no token replaced it, so preflight check 9 fails and any cloud run is gated.
+- Open: PROJECT-ROOT-HARDCODED-1, CONFIG-DEAD-PATHS-1, OUTPUT-ROOT-CONFLATION-1, ROOTFIX-VERIFY-TEXTUAL-1 (its correction now demonstrated in `apply_literature_state_adoption.py`), SHAREDSTATE-LOAD-WRITES-1, PACKAGES-NO-INIT-1, CHANGELOG-DUP-2026-06-25, and SESSION_2026-06-19 item 5.
+
 ## 2026-08-14 (RUNTIME-PATHS-1, REPORTS-DIR-IGNORED-1, AGENT-ROOT-ANCHOR-1, REPORTS-EAGER-IMPORT-1) — four boundaries the codebase had lost
 
 Four commits, `a7e576f` -> `69a9597`. The ratchet moved 4853 -> 4910. Documents:
