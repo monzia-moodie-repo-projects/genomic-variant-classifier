@@ -1,0 +1,33 @@
+{
+  "decision": "The nested copy supersedes the root copy: identical key sets, no key unique to either, and every one of the five differing values is a later observation -- last_run advances, deps_outdated_count rises from 99 to 110, and borb's tracked release moves 3.0.7 to 3.0.8. Two copies existed because version_monitor_agent.py:58 resolved a RELATIVE path against the process working directory (LITERATURE-STATE-CWD-RELATIVE-1, closed at a734ea1). Both legacy files are RETAINED: they are the only surviving record of what that defect produced.",
+  "destination_after_sha256": "976ccfc2a7b566fee939227524924484f35d23c4961fcabeb234986c140f85f4",
+  "destination_before_sha256": "",
+  "destination_path": ".gvc-state\\literature_scout\\state.json",
+  "differing_keys": [
+    "literature_scout.alerts",
+    "literature_scout.deps_major_bumps",
+    "literature_scout.deps_outdated",
+    "literature_scout.deps_outdated_count",
+    "literature_scout.last_run"
+  ],
+  "generation": 1,
+  "keys_only_in_source": [],
+  "keys_only_in_superseded": [],
+  "legacy_files_retained": [
+    "data/agent_state.json",
+    "src/genomic_variant_classifier/agent_layer/data/agent_state.json"
+  ],
+  "migration_id": "STATE-FILE-DUPLICATES-1",
+  "ordering_key": "literature_scout.last_run",
+  "performed_at": "2026-08-15T15:03:44.402651+00:00",
+  "schema": "gvc.literature-scout-state",
+  "schema_version": 1,
+  "source_key_count": 25,
+  "source_ordering_value": "2026-06-20T02:30:41.010189+00:00",
+  "source_path": "src/genomic_variant_classifier/agent_layer/data/agent_state.json",
+  "source_sha256": "22fe38e94ce3bc8fd349e1fd4a6fbff51e4e6ed5c217503dfee095a8fe339e16",
+  "superseded_key_count": 25,
+  "superseded_ordering_value": "2026-06-13T19:14:10.740728+00:00",
+  "superseded_path": "data/agent_state.json",
+  "superseded_sha256": "e28c673ba7a93ed7856755ef6bf9cd84b4ceaac95500fba7e350e9e8438479cb"
+}

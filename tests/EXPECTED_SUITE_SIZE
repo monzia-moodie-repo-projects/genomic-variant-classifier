@@ -6603,4 +6603,26 @@
 #   never reach the store; the new file drives it through an injected store.
 #
 #   ACCEPTANCE: tests/unit 4714 passed, 10 skipped, 0 failed.
-4949
+
+# 2026-08-15 -- 4949 -> 4964 (+15). STATE-FILE-DUPLICATES-1.
+#
+#   A migration, not a file copy: two divergent literature-scout stores
+#   reconciled into the canonical location with an immutable record carrying
+#   every digest, the key-set comparison, and the reasoning.
+#
+#   Same 25 keys, no key unique to either, five values differing, every one the
+#   nested copy being a later observation. Two copies existed because
+#   version_monitor_agent.py:58 resolved a RELATIVE path against the working
+#   directory (closed at a734ea1).
+#
+#   The migration REFUSES on differing key sets -- a newer copy that has lost a
+#   key is not a superset -- on equal or non-string ordering values, and on any
+#   source digest that has changed since the comparison. It deletes NOTHING:
+#   both legacy files are retained and named in the record as the only
+#   surviving evidence of what the defect produced.
+#
+#   THE MIGRATION IS NOT RUN BY THE INSTALLER. It writes live state; that is a
+#   separate deliberate act.
+#
+#   ACCEPTANCE: tests/unit 4729 passed, 10 skipped, 0 failed.
+4964
