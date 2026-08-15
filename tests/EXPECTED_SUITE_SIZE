@@ -6538,4 +6538,27 @@
 #   Six cases fail against the bare rule; all thirteen pass after.
 #
 #   ACCEPTANCE: tests/unit 4650 passed, 10 skipped, 0 failed.
-4885
+
+# 2026-08-14 -- 4885 -> 4910 (+25). RUNTIME-PATHS-1.
+#
+#   One typed authority for repository, artifact and state locations, replacing
+#   five independent conventions. project_root is identity; artifact_root is
+#   destination; state_root is mutable state. Conflating the first two is
+#   OUTPUT-ROOT-CONFLATION-1; conflating the first and third put state inside
+#   src/ twice.
+#
+#   Discovery verifies IDENTITY: three sentinels in conjunction plus the
+#   declared name from pyproject.toml. There is no fallback -- explicit, then
+#   GVC_PROJECT_ROOT, then discovery, then RAISE. config.py:17 returned one
+#   author's Windows literal on every machine because it had one, and
+#   GVC_PROJECT_ROOT is set nowhere.
+#
+#   The two state stores are named for their OWNERS -- literature_scout and
+#   orchestrator -- so the agent_state.json ambiguity that nearly merged two
+#   unrelated schemas cannot recur.
+#
+#   ADDITIVE: nothing imports this yet. Later units adopt it one consumer at a
+#   time, each separately gated.
+#
+#   ACCEPTANCE: tests/unit 4675 passed, 10 skipped, 0 failed.
+4910
