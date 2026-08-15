@@ -6561,4 +6561,24 @@
 #   time, each separately gated.
 #
 #   ACCEPTANCE: tests/unit 4675 passed, 10 skipped, 0 failed.
-4910
+
+# 2026-08-15 -- 4910 -> 4932 (+22). STATE-STORE-1.
+#
+#   A JSON state store that is atomic, identified and fails closed, answering
+#   version_monitor_agent.py:58-85: a cwd-relative path, a direct write_text,
+#   and corruption swallowed into {} which the next save then PERSISTS. Those
+#   compound -- a crash mid-write truncates, truncation reads as empty, empty
+#   is written over the original, and the change-detection baselines are gone.
+#
+#   SharedState's atomic write was READ FIRST and is reproduced deliberately
+#   and identically, with fsync added, so a second subtly-different
+#   implementation does not appear beside a correct one.
+#
+#   Legacy bare payloads are readable when asked for: data/agent_state.json is
+#   a 25-key dict with no envelope, verified by running the store against the
+#   real file before this landed.
+#
+#   ADDITIVE: nothing imports it yet.
+#
+#   ACCEPTANCE: tests/unit 4697 passed, 10 skipped, 0 failed.
+4932
