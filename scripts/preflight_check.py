@@ -250,16 +250,82 @@ def ml_deps_available() -> list[tuple[str, bool, str]]:
     return results
 
 
+#: A credential shorter than this is a placeholder or a FRAGMENT, not a
+#: token. The Windows User-environment branch has always applied a floor; the
+#: .env branch applied NOTHING, so the two disagreed about what "available"
+#: means -- and the weaker one is the branch people actually use.
+#:
+#: THIRTY, derived from two measured lengths on 2026-08-15:
+#:     22  the fragments PowerShell Add-Content produced when it split a
+#:         pasted token across two lines. It did this TWICE, and the second
+#:         time the remainder landed on its own line and was printed in full
+#:         by a display that assumed every line contains "=".
+#:     40  the real token, ghp_ + 36 alphanumeric characters.
+#:
+#: Every current GitHub credential format is at least 40: ghp_, gho_, ghu_ and
+#: ghs_ are 40; ghr_ refresh tokens are 76; github_pat_ fine-grained tokens are
+#: 93; and installation tokens are moving to roughly 520. So any floor between
+#: 22 and 40 rejects the fragment and admits every real format. Thirty leaves
+#: margin on both sides.
+#:
+#: A FLOOR and not an exact length, because the ~520-character format is
+#: already announced: an equality check would break on the next one.
+_MIN_TOKEN_LENGTH = 30
+
+#: Values that LOOK like a token but are not one. Both were written into .env
+#: during the 2026-08-15 session and both satisfied the previous substring
+#: check, which reported a usable credential when none existed.
+_PLACEHOLDER_PREFIXES = ("<", "$", "{", "your", "YOUR", "paste", "PASTE")
+
+
+def _env_token_value(content: str) -> str | None:
+    """The GITHUB_TOKEN value from a .env body, or None.
+
+    THE DEFECT THIS REPLACES was `if "GITHUB_TOKEN=" in content` -- a substring
+    search over the WHOLE FILE. It returned True for a commented-out line, for
+    an empty value, for a placeholder such as GITHUB_TOKEN=<the real token>,
+    and for an unrelated variable whose name merely ENDS with GITHUB_TOKEN.
+
+    The first two of those happened during the 2026-08-15 session: check 9
+    reported a usable credential twice when the file held only placeholder
+    text, and a cloud run gated on that check would have proceeded.
+
+    This parses LINES, requires the name to match exactly, strips surrounding
+    quotes, and rejects placeholder shapes. It returns the VALUE so the caller
+    can apply a length floor -- the same floor the Windows branch has always
+    used.
+    """
+    for raw_line in content.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        name, sep, value = line.partition("=")
+        if not sep or name.strip() != "GITHUB_TOKEN":
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        if not value:
+            continue
+        if value.startswith(_PLACEHOLDER_PREFIXES):
+            continue
+        return value
+    return None
+
+
 def github_token_available() -> tuple[bool, str]:
     """GITHUB_TOKEN can live in .env, current process env, or Windows User env."""
     env_path = REPO / ".env"
     if env_path.exists():
         try:
             content = env_path.read_text(encoding="utf-8")
-            if "GITHUB_TOKEN=" in content:
-                return True, ".env has GITHUB_TOKEN"
-        except Exception:
-            pass
+        except OSError as exc:
+            # A .env that cannot be READ is not a .env without a token. The
+            # previous `except Exception: pass` made those indistinguishable.
+            return False, f".env could not be read: {exc}"
+        value = _env_token_value(content)
+        if value is not None and len(value) > _MIN_TOKEN_LENGTH:
+            return True, f".env (length: {len(value)})"
     if os.environ.get("GITHUB_TOKEN"):
         return True, f"current session env (length: {len(os.environ['GITHUB_TOKEN'])})"
     if IS_WINDOWS:

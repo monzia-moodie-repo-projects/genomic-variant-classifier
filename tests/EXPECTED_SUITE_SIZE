@@ -6625,4 +6625,24 @@
 #   separate deliberate act.
 #
 #   ACCEPTANCE: tests/unit 4729 passed, 10 skipped, 0 failed.
-4964
+
+# 2026-08-15 -- 4964 -> 4997 (+33). PREFLIGHT-TOKEN-SUBSTRING-1.
+#
+#   preflight_check.py:259 read `if "GITHUB_TOKEN=" in content` -- a substring
+#   search over the WHOLE FILE. It accepted a commented line, an empty value, a
+#   placeholder, and a name merely ENDING with GITHUB_TOKEN. It reported a
+#   usable credential TWICE on 2026-08-15 when .env held only placeholder text,
+#   and every cloud run is gated on that check.
+#
+#   The .env branch now parses lines, matches the name exactly, strips quotes,
+#   rejects placeholder shapes, applies a length floor, reports a LENGTH rather
+#   than the value, and distinguishes "cannot read" from "no token".
+#
+#   The floor is THIRTY, derived from two measured lengths: 22, the fragments
+#   Add-Content produced when it split a pasted token across two lines; and 40,
+#   the real token. Every current GitHub format is at least 40. I first
+#   asserted 20, which does not reject 22 -- both wrong floors are sabotage
+#   cases and the verifier enforces 22 <= floor < 40.
+#
+#   ACCEPTANCE: tests/unit 4762 passed, 10 skipped, 0 failed.
+4997
