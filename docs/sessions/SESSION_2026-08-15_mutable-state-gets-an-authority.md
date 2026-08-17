@@ -274,3 +274,168 @@ each gate gets a mutation matrix.
 And the gates worked. One unit failed on one test out of 4,724 and rolled back
 five files cleanly. The cost was a twelve-minute cycle; the alternative was a
 partially adopted module.
+
+
+---
+
+## Addendum -- later on 2026-08-15
+
+This document was written after `c1fb110` and was accurate then. Two further
+commits landed the same day, and one of them changed a state this record
+describes as current. Recorded as an addendum rather than a rewrite: the body
+above says what was true when it was written, and this says what changed.
+
+| commit | unit | files | lines |
+|---|---|---|---|
+| `e08da7f` | docs: session record for 2026-08-15 | 2 | +306 |
+| `a8cc484` | PREFLIGHT-TOKEN-SUBSTRING-1 | 5 | +590 -6 |
+
+Ratchet 4964 -> 4997. Continuous integration on `a8cc484`: 4983 passed, 13
+skipped, 1 xfailed on both Python 3.11 and 3.12, all 33 new cases passing on
+Linux.
+
+### PREFLIGHT-TOKEN-SUBSTRING-1 is CLOSED
+
+The register above records it as **currently FAILING**, with cloud runs gated.
+That was true when written. `a8cc484` closed it, and check 9 now answers:
+
+```
+check 9: True  (.env (length: 40))
+```
+
+A measured length, not the presence of a substring, and the value is never
+emitted.
+
+The defect was `preflight_check.py:259`, `if "GITHUB_TOKEN=" in content` -- a
+substring search over the whole file that accepted a commented line, an empty
+value, a placeholder, and a name merely ENDING with GITHUB_TOKEN. It reported a
+usable credential twice on 2026-08-15 when `.env` held only placeholder text.
+
+The floor is thirty, derived from two measured lengths: 22, the fragments
+PowerShell `Add-Content` produced when it split a pasted token across two
+lines; and 40, the real token. I first asserted a floor of 20, which does not
+reject 22 -- an arithmetic error against a number measured minutes earlier.
+Both wrong floors are sabotage cases.
+
+### A PRECISION CORRECTION TO THAT UNIT'S CLAIMS
+
+The unit's documentation states that every current GitHub credential format is
+at least 40 characters and enumerates exact lengths for several. Those are
+EXTERNALLY VERSIONED FACTS about another organisation's product, not properties
+of this repository, and they should not be encoded as permanent truths.
+
+What the check actually needs is narrower: reject obvious placeholders and
+fragments, never expose the secret, and prefer usability over plausible syntax.
+
+And a stronger distinction the unit does not yet draw:
+
+    a well-formed candidate  IS NOT  a usable credential
+
+A token can be forty characters and revoked, expired, or scope-deficient.
+`_MIN_TOKEN_LENGTH = 30` is a syntactic sanity check and should be described as
+one. The stronger contract is an authenticated probe -- a minimal GitHub
+application programming interface request, with no token output -- reported
+separately:
+
+    credential configured   : yes
+    credential authenticated: yes / no / not checked
+
+That remains open as a refinement, not a defect.
+
+### LGBM-SKLEARN-FEATURE-NAME-WARNING-1, and a renaming
+
+An investigation into a `UserWarning` in the suite concluded on 2026-08-16.
+
+    X does not have valid feature names, but LGBMClassifier was fitted with
+    feature names
+
+I first filed this as `ENSEMBLE-FEATURE-NAMES-1`, a name that assigns ownership
+to the ensemble and implies it violated a schema contract. **It did not.**
+Renamed to `LGBM-SKLEARN-FEATURE-NAME-WARNING-1`.
+
+Established by a library-only reproduction with all project code removed:
+
+```
+lightgbm 4.6.0, scikit-learn 1.8.0
+ARRAY only       feature-name warnings: 3   (three folds, three warnings)
+DATAFRAME only   feature-name warnings: 0
+```
+
+LightGBM 4.6.0 synthesises feature names when fitted on unnamed array input;
+scikit-learn 1.8.0 then observes estimator feature-name metadata against
+unnamed prediction input and warns. `variant_ensemble.py` is internally
+consistent -- line 2941's `.values` reaches both fit and predict, and no
+`.fit(` appears anywhere between the start of `VariantEnsemble.fit` at 2782 and
+the out-of-fold loop at 2927.
+
+**Non-blocking, no correctness risk.** Column order is preserved; the same
+array serves fit and predict. It contributes one of the 33 local warnings and
+one of the 34 in continuous integration.
+
+The three test failures seen during the investigation were an artefact of
+running with `-W error`, which promotes the warning to an exception inside
+`cross_val_predict`. The fail-loud guard at `variant_ensemble.py:2963` then
+correctly refuses to let LightGBM vanish from the ensemble. **That guard is
+vindicated by this investigation, not implicated by it.**
+
+The eventual repair is NOT suppression. It is a model-specific dispatch giving
+LightGBM DataFrames deliberately, mirrored in `_leakfree_oof` and
+`predict_proba`, so the model carries real genomic feature identities rather
+than synthetic `Column_0` names -- valuable for importance attribution,
+checkpoint inspection and schema audits independent of the warning. The test
+must assert the CONTRACT, not the symptom: that the estimator receives a
+DataFrame whose columns equal the expected feature list, at fit and at predict.
+Suppression makes a diagnostic disappear; DataFrame input makes its cause
+disappear.
+
+### THE METHODOLOGICAL FINDING, WHICH OUTLASTS THE WARNING
+
+Locating that warning took eight probes. Seven were filtered searches, and each
+filter encoded the hypothesis it was being used to test:
+
+    predict_proba|.values|to_numpy     found `.values` at 2941, named it
+    _RECALIBRATE|calibrat              found lightgbm in a set, named it
+    a line range 2975-3050             found the final fit, cleared it
+    ast.walk for FunctionDef "fit"     found CNN1DClassifier.fit, not the
+                                       ensemble's, and I read 120 lines of the
+                                       wrong function
+    Select-String on a test run        matched nothing and I read the empty
+                                       output as "the test passed" -- it had
+                                       failed
+
+The unfiltered traceback identified the execution path immediately. The
+library-only reproduction established ownership conclusively. Both were
+available from the first minute.
+
+> **Discovery tools must not encode the hypothesis they are being used to
+> test.**
+
+Stated as a rule for this project:
+
+> **OBSERVED FAILURE -> raw evidence first -> minimal reproduction second ->
+> source narrowing third -> hypothesis testing last.**
+
+For exceptions, the full traceback. For filesystem populations, the full
+census. For state discrepancies, a complete key and value-shape comparison. For
+dependency interactions, a project-free reproduction. For source structure, a
+class-qualified enumeration rather than the first textual hit.
+
+Each wrong location in this investigation cost a cycle. The unfiltered
+traceback would have cost one.
+
+### Register at the true close of 2026-08-15
+
+| item | state |
+|---|---|
+| `PREFLIGHT-TOKEN-SUBSTRING-1` | **CLOSED** at `a8cc484`. Refinement open: distinguish a configured credential from an authenticated one. |
+| `LGBM-SKLEARN-FEATURE-NAME-WARNING-1` | NEW, non-blocking, confirmed upstream interoperability behaviour. Renamed from `ENSEMBLE-FEATURE-NAMES-1`, which falsely assigned ownership. |
+| `PROJECT-ROOT-HARDCODED-1` | OPEN, and the largest remaining item |
+| `CONFIG-DEAD-PATHS-1` | OPEN |
+| `OUTPUT-ROOT-CONFLATION-1` | OPEN |
+| `ROOTFIX-VERIFY-TEXTUAL-1` | OPEN |
+| `SHAREDSTATE-LOAD-WRITES-1` | OPEN |
+| `PACKAGES-NO-INIT-1` | OPEN |
+| `MIGRATION-RECORD-SEPARATOR-1` | OPEN |
+| `CHANGELOG-DUP-2026-06-25` | OPEN |
+| `WORKTREE-EOL-DRIFT-1` | OPEN |
+| SESSION_2026-06-19 item 5 | OPEN |

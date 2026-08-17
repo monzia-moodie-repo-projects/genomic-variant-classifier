@@ -1,3 +1,29 @@
+## 2026-08-16 (PREFLIGHT-TOKEN-SUBSTRING-1 closed, LGBM-SKLEARN-FEATURE-NAME-WARNING-1) — a correction beside the record, not inside it
+
+Documentation only; no test changed and the ratchet stands at 4997. Base
+`a8cc484`. Document:
+docs/sessions/SESSION_2026-08-15_mutable-state-gets-an-authority.md (addendum)
+
+### Superseded
+- The 2026-08-15 entry below states that **PREFLIGHT-TOKEN-SUBSTRING-1 is currently FAILING** and that any cloud run is gated. That was true when written. `a8cc484`, later the same day, CLOSED it. The line is NOT rewritten — REQUIRED_PROVENANCE_CORRECTION holds that corrections belong BESIDE records, never inside them, and this changelog is newest-first, so a reader meets this correction before the claim it corrects.
+- Check 9 now answers `True (.env (length: 40))`: a measured length rather than the presence of a substring, with the value never emitted. Continuous integration on `a8cc484`: 4983 passed, 13 skipped, 1 xfailed on both Python 3.11 and 3.12.
+
+### Renamed
+- **ENSEMBLE-FEATURE-NAMES-1 -> LGBM-SKLEARN-FEATURE-NAME-WARNING-1.** The old name assigned ownership to the ensemble and implied it had violated a schema contract. It had not. Established by a library-only reproduction with ALL project code removed: lightgbm 4.6.0 with scikit-learn 1.8.0 emits three feature-name warnings for three cross-validation folds when `cross_val_predict` receives an ndarray, and ZERO when it receives a DataFrame. LightGBM synthesises feature names from unnamed array input; scikit-learn then sees estimator metadata against unnamed prediction input and warns. CONFIRMED UPSTREAM INTEROPERABILITY BEHAVIOUR, NON-BLOCKING.
+- `variant_ensemble.py` is internally consistent: line 2941's `.values` reaches both fit and predict, and NO `.fit(` appears anywhere between the start of `VariantEnsemble.fit` at 2782 and the out-of-fold loop at 2927. Column order is preserved and the same array serves fit and predict, so there is no correctness risk.
+
+### Learned
+- **DISCOVERY TOOLS MUST NOT ENCODE THE HYPOTHESIS THEY ARE BEING USED TO TEST.** Locating that warning took eight probes. Seven were filtered searches, and each filter decided in advance what could be seen: a keyword list found `.values` at 2941 and I named it; another found lightgbm inside `_RECALIBRATE` and I named that; an `ast.walk` for a function named `fit` returned `CNN1DClassifier.fit` and I read 120 lines of the wrong function; and a `Select-String` over a test run matched nothing, which I read as "the test passed" when it had failed. The unfiltered traceback identified the execution path immediately, and the library-only reproduction established ownership conclusively. Both were available from the first minute.
+- The rule, stated for reuse: **OBSERVED FAILURE -> raw evidence first -> minimal reproduction second -> source narrowing third -> hypothesis testing last.** For exceptions, the full traceback. For filesystem populations, the full census. For state discrepancies, a complete key and value-shape comparison. For dependency interactions, a project-free reproduction. For source structure, a class-qualified enumeration rather than the first textual hit.
+- **THE FAIL-LOUD GUARD IS VINDICATED, NOT IMPLICATED.** Three tests failed during the investigation only because `-W error` promotes the warning to an exception inside `cross_val_predict`; `variant_ensemble.py:2963` then correctly refuses to let LightGBM vanish from the ensemble. That is the guard doing its job.
+- **A WELL-FORMED CANDIDATE IS NOT A USABLE CREDENTIAL.** Check 9's repair certifies syntax. A token can be forty characters and revoked, expired, or scope-deficient. `_MIN_TOKEN_LENGTH = 30` is a syntactic sanity check and should be described as one.
+- **EXTERNALLY VERSIONED FACTS DO NOT BELONG IN DOCSTRINGS AS PERMANENT TRUTHS.** That unit's documentation enumerates GitHub credential lengths and asserts every current format is at least 40. Those are claims about another organisation's product, which can change without notice.
+
+### Recorded, not repaired
+- **LGBM-SKLEARN-FEATURE-NAME-WARNING-1** NEW, non-blocking. The eventual repair is NOT suppression: a model-specific dispatch giving LightGBM DataFrames deliberately, mirrored in `_leakfree_oof` and `predict_proba`, so the model carries real genomic feature identities rather than synthetic `Column_0` names — valuable for importance attribution, checkpoint inspection and schema audits independent of the warning. The test must assert the CONTRACT (the estimator receives a DataFrame whose columns equal the expected feature list, at fit and at predict), not the symptom. Suppression makes a diagnostic disappear; DataFrame input makes its cause disappear.
+- **PREFLIGHT-CREDENTIAL-USABILITY-1** NEW, a refinement rather than a defect. Check 9 should distinguish `credential configured` from `credential authenticated`, the latter by a minimal authenticated request with no token output.
+- Open: PROJECT-ROOT-HARDCODED-1 (the largest), CONFIG-DEAD-PATHS-1, OUTPUT-ROOT-CONFLATION-1, ROOTFIX-VERIFY-TEXTUAL-1, SHAREDSTATE-LOAD-WRITES-1, PACKAGES-NO-INIT-1, MIGRATION-RECORD-SEPARATOR-1, CHANGELOG-DUP-2026-06-25, WORKTREE-EOL-DRIFT-1, and SESSION_2026-06-19 item 5.
+
 ## 2026-08-15 (STATE-STORE-1, LITERATURE-STATE-CWD-RELATIVE-1, STATE-FILE-DUPLICATES-1) — mutable state gets an authority
 
 Three commits, `48907ec` -> `c1fb110`. The ratchet moved 4910 -> 4964.
