@@ -68,10 +68,35 @@ PROJECT_NAME = "genomic-variant-classifier"
 
 #: A directory is this repository only if it holds ALL of these AND declares
 #: the project name above. Each alone is common; the conjunction is not.
+#:
+#: RUNTIME-SENTINEL-TEST-ARTEFACT-1 (2026-08-17). This tuple once included
+#: "tests/EXPECTED_SUITE_SIZE". That is a TEST-SUITE ARTEFACT being used to
+#: identify a DEPLOYMENT root, and every correct deployment excludes tests --
+#: so the conjunction could not hold in a container by construction.
+#:
+#: MEASURED against this repository's own Dockerfile and .dockerignore:
+#:
+#:     pyproject.toml                  copied into the trainer image : True
+#:     src/genomic_variant_classifier  copied into the trainer image : True
+#:     tests/EXPECTED_SUITE_SIZE       copied into the trainer image : FALSE
+#:                                     (excluded by `tests/` at .dockerignore)
+#:
+#: The trainer image runs `COPY . .`, so discovery would have RAISED on import
+#: of any module reaching agent_layer.config -- which is where cloud training
+#: runs. The defect was latent from 69a9597 only because nothing imported this
+#: module yet; PROJECT-ROOT-HARDCODED-1 is its first consumer.
+#:
+#: Two sentinels plus the declared name lose NO discrimination. Measured:
+#:
+#:     this repository : True
+#:     C:/Users/monzi  : False      C:/Projects : False
+#:     C:/Windows      : False      C:/         : False
+#:
+#: A sentinel must be present in EVERY environment where the root must be
+#: found. Test artefacts, documentation and build outputs are not.
 PROJECT_SENTINELS = (
     "pyproject.toml",
     "src/genomic_variant_classifier",
-    "tests/EXPECTED_SUITE_SIZE",
 )
 
 #: Environment overrides. Read at RESOLUTION time, not at import time, so a

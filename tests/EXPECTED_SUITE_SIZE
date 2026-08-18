@@ -6645,4 +6645,29 @@
 #   cases and the verifier enforces 22 <= floor < 40.
 #
 #   ACCEPTANCE: tests/unit 4762 passed, 10 skipped, 0 failed.
-4997
+
+# 2026-08-17 -- 4997 -> 5006 (+10 new, -1 parametrized). RUNTIME-SENTINEL-TEST-ARTEFACT-1.
+#
+#   PROJECT_SENTINELS required "tests/EXPECTED_SUITE_SIZE" -- a TEST-SUITE
+#   ARTEFACT used to identify a DEPLOYMENT root. Every correct deployment
+#   excludes tests, so the conjunction could not hold in a container by
+#   construction.
+#
+#   MEASURED against this repository's Dockerfile:185 (COPY . .) and
+#   .dockerignore (tests/): pyproject.toml and src/genomic_variant_classifier
+#   are copied into the trainer image; tests/EXPECTED_SUITE_SIZE is NOT. So
+#   resolve_project_root() would have RAISED there -- where cloud training runs
+#   -- and config.py is imported at module scope by thirteen modules.
+#
+#   Latent since 69a9597 because nothing imported runtime_paths yet. The
+#   existing "every sentinel is load-bearing" test passed throughout: it only
+#   ever ran inside the repository.
+#
+#   Two sentinels plus the declared name lose NO discrimination.
+#
+#   The parametrized test drops 3 cases -> 2: a DELIBERATE DECREASE, as
+#   PHYLOPTEST-DUP-1 was. Ten new deployability cases assert every sentinel
+#   survives the real .dockerignore.
+#
+#   ACCEPTANCE: tests/unit 4771 passed, 10 skipped, 0 failed.
+5006
