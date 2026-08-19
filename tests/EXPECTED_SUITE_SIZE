@@ -6719,4 +6719,30 @@
 #   could validate the boundary.
 #
 #   ACCEPTANCE: tests/unit 4792 passed, 10 skipped, 0 failed.
-5027
+
+# 2026-08-19 -- 5027 -> 5066 (+39). GITATTRIBUTES-UNGATED-1.
+#
+#   .gitattributes carried 37 rule lines and a documented near-corruption of a
+#   test fixture, and NO test asserted any of them. Delete `*.py text eol=lf`
+#   and nothing failed. A rule file with no gate is a convention, not a
+#   contract.
+#
+#   The BINARY rules matter most. The file records why, from 2026-07-12: a
+#   fixture was committed 1,524 carriage returns shorter than the working copy,
+#   benign for an mmCIF parser -- but "had this fixture been genuinely binary
+#   (a parquet, an .npy), normalization would have SILENTLY CORRUPTED it rather
+#   than merely shortening it."
+#
+#   Every attribute assertion goes through `git check-attr`, so git answers for
+#   itself rather than these tests reimplementing its pattern semantics. It
+#   also answers for paths that do not exist: measured, ZERO tracked .npy, .gz
+#   or .sqlite files, and the rules still resolve, so the guard protects the
+#   next one added.
+#
+#   The invariant is the INDEX, not the working tree: 124 of 981 tracked .py
+#   files are CRLF here and that is correct under core.autocrlf=true. Measured:
+#   0 with CRLF in the committed blob, and the guarded state is reachable --
+#   with `* -text`, a CRLF file commits as i/crlf.
+#
+#   ACCEPTANCE: tests/unit 4831 passed, 10 skipped, 0 failed.
+5066
