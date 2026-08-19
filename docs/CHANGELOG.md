@@ -1,3 +1,34 @@
+## 2026-08-17 to 2026-08-19 (RUNTIME-SENTINEL-TEST-ARTEFACT-1, PROJECT-ROOT-HARDCODED-1, OUTPUT-ROOT-CONFLATION-1) — paths acquire an owner
+
+Four commits, `ed10e41` -> `f89ce6b`, across three days. The ratchet moved
+4997 -> 5027. Document:
+docs/sessions/SESSION_2026-08-17_to_08-19_paths-acquire-an-owner.md
+
+### Fixed
+- **RUNTIME-SENTINEL-TEST-ARTEFACT-1** `PROJECT_SENTINELS` required `tests/EXPECTED_SUITE_SIZE` — a TEST-SUITE ARTEFACT used to identify a DEPLOYMENT root. MEASURED against this repository's own `Dockerfile:185` (`COPY . .`) and `.dockerignore` (`tests/`): `pyproject.toml` and `src/genomic_variant_classifier` reach the trainer image; the third sentinel does NOT. So `resolve_project_root()` would have RAISED on import of any module reaching `agent_layer.config` inside the image where cloud training runs, and `config.py` is imported at module scope by thirteen modules. Latent since `69a9597` because nothing imported the module yet.
+- **PROJECT-ROOT-HARDCODED-1** `config.py:17` read `Path(os.getenv("GVC_PROJECT_ROOT", r"C:\Projects\..."))`. The variable is set NOWHERE, so the Windows literal was the value every consumer received, and on the Linux runner it named a path that cannot exist. It now calls a resolver that verifies IDENTITY and RAISES. Measured: 4 definitions of `PROJECT_ROOT`, of which THREE WERE ALREADY CORRECT — the three scripts use `Path(__file__).resolve().parent.parent`. I had framed 27 loads in `scripts/` as part of the problem; they are the part that already did this properly.
+- **OUTPUT-ROOT-CONFLATION-1** `SHAP_REPORT_DIR` and `LITERATURE_DIGEST_DIR` were ARTIFACT DESTINATIONS computed from REPOSITORY identity. Both now derive from `_RUNTIME_PATHS.reports_root` while repository-owned paths stay repository-owned — an OWNERSHIP correction, not a blanket transformation. ONE authority resolved once as a configuration SNAPSHOT: runtime path configuration is immutable for a process lifetime.
+- **Evidence drift repaired by SUPERSEDING, not rewriting** (`ed10e41`). The 2026-08-15 record stated `PREFLIGHT-TOKEN-SUBSTRING-1` was currently failing; `a8cc484` had closed it hours later. The changelog is newest-first, so the correction sits ABOVE the claim and a reader meets it first. The structural gate asserts the original text SURVIVES.
+
+### Failed (and why)
+- The `PROJECT-ROOT-HARDCODED-1` first attempt patched `config.py` alone and the gate caught it at 4786/10/1. `test_the_default_TRACKS_the_environment_not_the_cwd` pointed `GVC_PROJECT_ROOT` at a nonexistent `/probe_anchor` and asserted it was ACCEPTED. I wrote that test on 2026-08-14 and its own docstring stated the assumption. **It encoded the DEFECT as a contract.** Proven by a three-way matrix rather than argued.
+- Two tests from `ec8e51b` were revised one commit later because they required a PARTICULAR call and import rather than the property — the milder form of the same mistake, caught in a day rather than four. A third asserted `SHAP_REPORT_DIR == PROJECT_ROOT / "reports" / "shap"`, literally specifying the defect being closed.
+- **Four checks with incomplete node handling**, each a defect in a CHECK rather than in what it checked: an `ast.dump` search matching the DOCSTRING that explained the defect it guarded against; a free-name detector reading `g.target.id`, blind to `for k, v in ...` because tuple unpacking is an `ast.Tuple`; a reachability census over `ast.Assign` only, missing eight `ast.AnnAssign` constants; and a `FunctionDef` walk returning `CNN1DClassifier.fit` when the ensemble's was wanted, after which I read 120 lines of the wrong function.
+- **Twice I proposed repairing something already recorded correctly.** `WORKTREE-EOL-DRIFT-1` said *"benign for commits; load-bearing for byte-exact tooling"* on 2026-08-11 — precisely the conclusion I reached on 2026-08-19 while believing it newly discovered.
+
+### Learned
+- **A TEST THAT ONLY RUNS IN ONE ENVIRONMENT CANNOT VERIFY A PROPERTY ABOUT ALL OF THEM.** The sentinel test asserting "every sentinel is load-bearing" passed throughout, because it only ever ran inside the repository where all three existed. The defect surfaced only from asking what happens when resolution FAILS, which required measuring the container.
+- **AN ARTIFACT PATH CONTRACT MUST BE TESTED WHERE ARTIFACT IDENTITY DIFFERS FROM REPOSITORY IDENTITY.** On this workstation the two roots are equal, so `OUTPUT-ROOT-CONFLATION-1` is invisible under the default configuration. The release-blocking test injects `GVC_ARTIFACT_ROOT` and asserts BOTH directions.
+- **ONE AUTHORITY PER PROCESS.** Two resolver calls would be two authorities, and each performs a full discovery walk. Repository identity, artifact identity, state identity and data identity are distinct path domains.
+- **AN ANCHOR MUST STATE WHICH REPRESENTATION IT TARGETS.** MEASURED: the committed blob of `config.py` is 19,190 bytes with ZERO carriage returns; the working tree is 19,646 with 456. 303 of 1,543 tracked text files differ this way. A byte-exact applier correct on Windows is wrong on Linux for the same repository.
+- **DISCOVERY TOOLS MUST NOT ENCODE THE HYPOTHESIS THEY ARE BEING USED TO TEST.** Observed failure -> raw evidence first -> minimal reproduction second -> source narrowing third -> hypothesis testing last.
+
+### Recorded, not repaired
+- **GITATTRIBUTES-UNGATED-1** NEW. MEASURED 2026-08-19: `.gitattributes` carries 31 rules and a documented near-corruption of the AlphaFold fixture, and NO test asserts any of them. Delete `*.py text eol=lf` and nothing fails. A rule file with no gate is a convention, not a contract.
+- **PATHS-BY-INJECTION-1** NEW, Stage B. Move `interpretability_agent` and `literature_scout_agent` from imported path constants to an injected `RuntimePaths`, so `config.py` retreats to configuration rather than acting as a filesystem locator.
+- **WORKTREE-EOL-DRIFT-1** correctly characterised on 2026-08-11; count grown 102 -> 124 of 981 tracked Python files. Not a defect: `core.autocrlf=true` with `*.py text eol=lf` is the configuration working as designed.
+- Open: CONFIG-DEAD-PATHS-1 (a scope decision: 35 unreachable of 71; 7 stale, 28 roadmap), ROOTFIX-VERIFY-TEXTUAL-1, SHAREDSTATE-LOAD-WRITES-1, PACKAGES-NO-INIT-1, MIGRATION-RECORD-SEPARATOR-1, CHANGELOG-DUP-2026-06-25, LGBM-SKLEARN-FEATURE-NAME-WARNING-1, PREFLIGHT-CREDENTIAL-USABILITY-1, and SESSION_2026-06-19 item 5.
+
 ## 2026-08-16 (PREFLIGHT-TOKEN-SUBSTRING-1 closed, LGBM-SKLEARN-FEATURE-NAME-WARNING-1) — a correction beside the record, not inside it
 
 Documentation only; no test changed and the ratchet stands at 4997. Base
