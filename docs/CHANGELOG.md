@@ -1,3 +1,27 @@
+## 2026-08-19 (GITATTRIBUTES-UNGATED-1 closed; a count corrected) — thirty-seven, not thirty-one
+
+One commit, `a18ff26`. The ratchet moved 5027 -> 5066. Document: the correction
+below supersedes a figure in the 2026-08-17-to-19 entry and in
+docs/sessions/SESSION_2026-08-17_to_08-19_paths-acquire-an-owner.md.
+
+### Superseded
+- Both of those records state that `.gitattributes` **carries 31 rules**. It carries **37**. MEASURED 2026-08-19, three ways, all agreeing: 74 total lines, 37 non-blank non-comment lines, 37 DISTINCT patterns — no line shares a pattern with another, so there is no counting method under which 31 is defensible. The figure came from reading a truncated terminal display rather than enumerating, and I stated it twice before measuring.
+- The lines are NOT rewritten. `REQUIRED_PROVENANCE_CORRECTION` holds that corrections belong beside records, and this changelog is newest-first, so a reader meets this note before the claim it corrects. **Everything else in those sentences stands**: the rule file was ungated, the AlphaFold near-corruption is real, and the conclusion that a rule file with no gate is a convention rather than a contract is unaffected.
+- A COUNT IS A CLAIM. Six is a small error in a parenthetical figure, and it is still a measured quantity asserted without measurement. That is the same failure this session recorded four times in checks with incomplete node handling, applied here to prose.
+
+### Fixed
+- **GITATTRIBUTES-UNGATED-1** closed at `a18ff26`. 39 cases assert the contract through `git check-attr`, so git answers for itself rather than the tests reimplementing its pattern semantics — precedence, `**` matching, later rules overriding earlier. 8 of 8 sabotage mutations detected against a real repository.
+- Fourteen binary extensions are asserted `text=unset`, the property that forbids the rewrite which, in the file's own words from the 2026-07-12 incident, *"would have SILENTLY CORRUPTED"* a genuinely binary fixture *"rather than merely shortening it."* A `.npy` whose bytes git has rewritten does not fail loudly; it loads, and the numbers are wrong.
+- Five fixture binaries are protected on paths that DO NOT EXIST. MEASURED: zero tracked `.npy`, `.gz`, `.sqlite`, `.joblib`, `.pkl` or `.png` files, and every one of those rules still resolves — so the guard covers the NEXT one added, not only what is present today.
+- The invariant asserted is the INDEX, not the working tree. 124 of 981 tracked Python files are CRLF here and that is CORRECT under `core.autocrlf=true` with `eol=lf`. MEASURED: 0 with CRLF in the committed blob, and the guarded state is reachable — in an isolated repository with `* -text`, a file written with carriage returns commits as `i/crlf`.
+
+### Learned
+- **A PRE-INSTALL PROBE FROM THE WRONG DIRECTORY IS WORTH ITS CYCLE.** Run from a temporary location before any digest was pinned, an earlier draft had 37 of 38 cases fail loudly on the wrong repository root — correct — while ONE PASSED, because `git ls-files` had inherited the shell's working directory rather than the anchored path. A test that passes wherever a clean repository happens to be current is not testing THIS repository. `git` now runs with `-C <repo>` and a case asserts the anchor itself.
+- **AN HONEST NEGATIVE RESULT IS PART OF THE RECORD.** The `tests/fixtures/**` overrides are REDUNDANT while the general `*.parquet binary` rules exist, measured by building two repositories differing only in those lines and comparing git's answers, which were byte-identical. Sabotage confirmed it: deleting an override changes nothing and no test can detect it. They stay as defence-in-depth, and the test says plainly that those lines are not load-bearing rather than pretending to guard them.
+
+### Recorded, not repaired
+- Open: PATHS-BY-INJECTION-1 (Stage B), CONFIG-DEAD-PATHS-1 (a scope decision: 35 unreachable of 71; 7 stale, 28 roadmap), ROOTFIX-VERIFY-TEXTUAL-1, SHAREDSTATE-LOAD-WRITES-1, PACKAGES-NO-INIT-1, MIGRATION-RECORD-SEPARATOR-1, CHANGELOG-DUP-2026-06-25, WORKTREE-EOL-DRIFT-1 (recorded, not a defect), LGBM-SKLEARN-FEATURE-NAME-WARNING-1, PREFLIGHT-CREDENTIAL-USABILITY-1, and SESSION_2026-06-19 item 5.
+
 ## 2026-08-17 to 2026-08-19 (RUNTIME-SENTINEL-TEST-ARTEFACT-1, PROJECT-ROOT-HARDCODED-1, OUTPUT-ROOT-CONFLATION-1) — paths acquire an owner
 
 Four commits, `ed10e41` -> `f89ce6b`, across three days. The ratchet moved

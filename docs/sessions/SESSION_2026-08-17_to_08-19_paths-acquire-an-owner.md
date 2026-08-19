@@ -349,3 +349,50 @@ is cheaper than re-deriving it.
 **The gates worked.** One unit failed on one test out of 4,724 and rolled back
 five files cleanly; another failed on one of 4,798 and rolled back two. Each
 cost a cycle; the alternative was a partially adopted module.
+
+
+---
+
+## Addendum -- later on 2026-08-19: a count corrected
+
+The register table above states that `.gitattributes` **carries 31 rules**. It
+carries **37**.
+
+MEASURED 2026-08-19, three ways, all agreeing:
+
+```
+total lines            : 74
+non-blank, non-comment : 37
+DISTINCT patterns      : 37
+```
+
+No line shares a pattern with another, so there is no counting method under
+which 31 is defensible. The figure came from reading a truncated terminal
+display rather than enumerating, and I stated it twice before measuring.
+
+The table is NOT rewritten. Corrections belong beside records, and this is the
+correction.
+
+**Everything else in that entry stands.** The rule file was ungated, the
+2026-07-12 AlphaFold near-corruption is real and is quoted accurately, and the
+conclusion -- that a rule file with no gate is a convention rather than a
+contract -- is unaffected by the count.
+
+### Why a six-count error is worth an addendum
+
+A count is a claim. This one was asserted twice, corrected only when someone
+asked for the enumeration, and by then it was committed in two places. It is
+the same failure this document already records four times in checks with
+incomplete node handling -- a quantity produced by a method I did not name and
+did not verify -- applied to prose instead of to code.
+
+### The unit that produced it
+
+`GITATTRIBUTES-UNGATED-1` closed at `a18ff26` (3 files, +282 -2). 39 cases, 8
+of 8 sabotage mutations detected, continuous integration green at 5052 passed /
+13 skipped / 1 xfailed against a ratchet of 5066.
+
+Its own header records two further honest results: that the pre-install probe
+from a temporary directory found one case passing on inherited working-directory
+state, and that the `tests/fixtures/**` overrides are redundant while the
+general rules exist.
