@@ -71,30 +71,58 @@ def test_no_absolute_path_literal_survives_in_config():
         "absolute path literal(s) in executable config: {}".format(bad))
 
 
-def test_project_root_is_assigned_from_the_resolver():
-    """By syntax tree, not by substring: the assignment's value must be a CALL
-    to resolve_project_root, not a Path(os.getenv(...)) expression."""
+def test_project_root_equals_the_one_runtime_path_authority():
+    """A SEMANTIC contract, not an implementation one.
+
+    This test previously required `PROJECT_ROOT = resolve_project_root()` by
+    syntax tree -- the exact call and the exact import. That was an appropriate
+    migration guard for PROJECT-ROOT-HARDCODED-1, and it is the milder form of
+    the /probe_anchor mistake: encoding HOW something is done as the contract
+    for WHAT it must be.
+
+    OUTPUT-ROOT-CONFLATION-1 changed the how -- one resolve_runtime_paths()
+    call replacing resolve_project_root() -- without changing anything the
+    commit existed to guarantee. The property is that PROJECT_ROOT is the
+    validated project root of the ONE runtime-path authority this module
+    resolved.
+    """
+    assert C.PROJECT_ROOT == C._RUNTIME_PATHS.project_root
+
+
+def test_there_is_exactly_ONE_runtime_path_authority():
+    """Two resolver calls would be two authorities for one process, and each
+    performs a full discovery walk. The module resolves once."""
+    import ast
+    tree = ast.parse(io.open(_CONFIG, encoding="utf-8").read())
+    calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
+             and (getattr(n.func, "id", None) or getattr(n.func, "attr", None))
+             in ("resolve_runtime_paths", "resolve_project_root")]
+    assert len(calls) == 1, (
+        "config.py makes {} resolver call(s); exactly one authority is "
+        "resolved per process".format(len(calls)))
+
+
+def test_no_absolute_path_literal_and_no_env_fallback_survives():
+    """What the resolver import was standing in for.
+
+    The old test named the imported symbol. The property is that PROJECT_ROOT
+    is not read from an environment variable with a literal default -- the
+    shape that made one author's absolute path the value on every machine.
+    """
+    import ast
     tree = ast.parse(io.open(_CONFIG, encoding="utf-8").read())
     for n in tree.body:
         if (isinstance(n, ast.Assign) and n.targets
-                and isinstance(n.targets[0], ast.Name)
-                and n.targets[0].id == "PROJECT_ROOT"):
-            assert isinstance(n.value, ast.Call), ast.dump(n.value)[:120]
-            fn = getattr(n.value.func, "id", None) or getattr(n.value.func, "attr", None)
-            assert fn == "resolve_project_root", fn
+                and getattr(n.targets[0], "id", None) == "PROJECT_ROOT"):
+            for sub in ast.walk(n.value):
+                if isinstance(sub, ast.Call):
+                    fn = (getattr(sub.func, "id", None)
+                          or getattr(sub.func, "attr", None))
+                    assert fn != "getenv", (
+                        "PROJECT_ROOT is read from the environment with a "
+                        "default; resolution must verify identity and RAISE")
             return
     raise AssertionError("PROJECT_ROOT is not assigned at module level")
-
-
-def test_the_resolver_is_imported():
-    tree = ast.parse(io.open(_CONFIG, encoding="utf-8").read())
-    found = set()
-    for n in ast.walk(tree):
-        if isinstance(n, ast.ImportFrom) and n.module:
-            for a in n.names:
-                found.add("{}.{}".format(n.module, a.name))
-    assert ("genomic_variant_classifier.paths.runtime_paths.resolve_project_root"
-            in found), sorted(found)
 
 
 # ---- what the resolved value must satisfy ------------------------------
@@ -146,13 +174,97 @@ def test_the_four_LIVE_derived_constants_still_resolve(name):
     assert str(value).startswith(str(C.PROJECT_ROOT)), (name, value)
 
 
-def test_derived_constants_track_the_resolved_root():
-    """Not merely absolute -- rooted at the RESOLVED root, so a change in
-    resolution moves them together."""
-    assert C.CHECKPOINT_DIR == C.MODELS_DIR / "checkpoints"
+def test_repository_paths_derive_from_PROJECT_ROOT():
+    """Repository-owned paths stay repository-owned. This is half of
+    OUTPUT-ROOT-CONFLATION-1: the repair is an OWNERSHIP correction, not a
+    blanket move of every path under artifact_root."""
     assert C.MODELS_DIR == C.PROJECT_ROOT / "models"
-    assert C.SHAP_REPORT_DIR == C.PROJECT_ROOT / "reports" / "shap"
-    assert C.LITERATURE_DIGEST_DIR == C.PROJECT_ROOT / "reports" / "literature"
+    assert C.CHECKPOINT_DIR == C.MODELS_DIR / "checkpoints"
+
+
+def test_report_paths_derive_from_REPORTS_ROOT_not_project_root():
+    """The other half. These two were computed from repository identity while
+    being artifact destinations -- and the previous version of this test
+    asserted exactly that, so it literally specified the defect."""
+    assert C.SHAP_REPORT_DIR == C._RUNTIME_PATHS.reports_root / "shap"
+    assert C.LITERATURE_DIGEST_DIR == C._RUNTIME_PATHS.reports_root / "literature"
+
+
+def test_the_two_root_domains_can_DIVERGE(tmp_path):
+    """THE RELEASE-BLOCKING TEST for this unit.
+
+    MEASURED 2026-08-19: on this workstation artifact_root == project_root, so
+    the defect is INVISIBLE under the default configuration. Testing only here
+    can never validate the boundary -- the same lesson the sentinel repair
+    taught, where a rule valid inside the checkout was impossible inside the
+    trainer image.
+
+        An artifact path contract must be tested in an environment where
+        artifact identity DIFFERS from repository identity.
+
+    Uses the supported RuntimePaths injection mechanism (GVC_ARTIFACT_ROOT),
+    not a new test-only vocabulary. Both directions are asserted: report paths
+    follow the artifact root, and checkpoints do NOT.
+    """
+    repo = tmp_path / "repo"
+    (repo / "src" / "genomic_variant_classifier").mkdir(parents=True)
+    (repo / "pyproject.toml").write_text(
+        '[project]\nname = "genomic-variant-classifier"\nversion = "0.1.0"\n',
+        encoding="utf-8")
+    artifacts = tmp_path / "artifacts"
+    artifacts.mkdir()
+
+    code = (
+        "from genomic_variant_classifier.agent_layer import config as C\n"
+        "print(C.PROJECT_ROOT)\n"
+        "print(C.SHAP_REPORT_DIR)\n"
+        "print(C.LITERATURE_DIGEST_DIR)\n"
+        "print(C.CHECKPOINT_DIR)\n"
+    )
+    import os
+    env = dict(os.environ, GVC_PROJECT_ROOT=str(repo),
+               GVC_ARTIFACT_ROOT=str(artifacts))
+    out = subprocess.run([sys.executable, "-B", "-c", code], env=env,
+                         capture_output=True, text=True, timeout=300)
+    assert out.returncode == 0, out.stderr[-800:]
+    root, shap, lit, ckpt = [Path(l) for l in out.stdout.strip().splitlines()]
+
+    assert root == repo.resolve(), (root, repo)
+    assert root != artifacts.resolve()
+
+    # Artifact-owned: they follow artifact identity.
+    assert shap == artifacts.resolve() / "reports" / "shap", shap
+    assert lit == artifacts.resolve() / "reports" / "literature", lit
+
+    # Repository-owned: they do NOT.
+    assert ckpt == repo.resolve() / "models" / "checkpoints", ckpt
+    assert artifacts.resolve() not in ckpt.parents, ckpt
+
+
+def test_runtime_paths_are_a_SNAPSHOT_not_a_live_lookup(tmp_path):
+    """Runtime path configuration is immutable for the lifetime of a process.
+
+    Mutating the environment after import must NOT relocate a running process:
+    a program whose artifact identity silently moved mid-execution would be far
+    harder to reason about than one that requires a restart.
+
+        fresh process    -> fresh resolution
+        existing process -> stable paths
+    """
+    code = (
+        "import os\n"
+        "from genomic_variant_classifier.agent_layer import config as C\n"
+        "before = str(C.SHAP_REPORT_DIR)\n"
+        "os.environ['GVC_ARTIFACT_ROOT'] = %r\n"
+        "import importlib\n"
+        "print(before)\n"
+        "print(str(C.SHAP_REPORT_DIR))\n"
+    ) % str(tmp_path)
+    out = subprocess.run([sys.executable, "-B", "-c", code],
+                         capture_output=True, text=True, timeout=300)
+    assert out.returncode == 0, out.stderr[-800:]
+    before, after = out.stdout.strip().splitlines()
+    assert before == after, (before, after)
 
 
 # ---- the environment override still works ------------------------------

@@ -8,7 +8,7 @@ All paths, endpoints, and thresholds live here — no magic strings in agents.
 import os
 from pathlib import Path
 
-from genomic_variant_classifier.paths.runtime_paths import resolve_project_root
+from genomic_variant_classifier.paths.runtime_paths import resolve_runtime_paths
 
 
 # ---------------------------------------------------------------------------
@@ -34,7 +34,42 @@ from genomic_variant_classifier.paths.runtime_paths import resolve_project_root
 #
 # It RAISES rather than falling back. A resolver that guesses on failure is
 # how one absolute path became the value on every machine in the world.
-PROJECT_ROOT = resolve_project_root()
+#
+# OUTPUT-ROOT-CONFLATION-1 (2026-08-19). ONE authority, resolved ONCE.
+#
+# PROJECT-ROOT-HARDCODED-1 replaced a Windows literal with
+# resolve_project_root(). That was correct for its scope, but artifact
+# destinations also lived here and were computed from REPOSITORY identity:
+#
+#     SHAP_REPORT_DIR       = PROJECT_ROOT / "reports" / "shap"
+#     LITERATURE_DIGEST_DIR = PROJECT_ROOT / "reports" / "literature"
+#
+# Where output goes is a DEPLOYMENT decision, not a fact about where the
+# source lives. RuntimePaths separates the two, so both now derive from
+# artifact identity while repository-owned paths stay repository-owned.
+#
+# ONE resolver call, not two. Adding resolve_runtime_paths() alongside
+# resolve_project_root() would create TWO authorities for one process --
+# exactly the parallel-vocabulary defect this project keeps removing -- and
+# each call performs a full discovery walk.
+#
+# THIS IS A CONFIGURATION SNAPSHOT, not merely an optimisation. Runtime path
+# configuration is immutable for the lifetime of a process: environment
+# variables are input to resolution at initialisation, and mutating them
+# afterwards does NOT reconfigure a running process. A process whose source
+# identity is one directory while its artifact identity silently moves
+# mid-execution would be far harder to reason about.
+#
+#     fresh process   -> fresh resolution
+#     existing process -> stable paths
+#
+# Kept PRIVATE deliberately. The authority belongs in paths.runtime_paths,
+# not here; a public name would invite `from config import RUNTIME_PATHS`
+# imports that replace the old global constants with one global service
+# locator. Consumers should eventually receive RuntimePaths by injection.
+_RUNTIME_PATHS = resolve_runtime_paths()
+
+PROJECT_ROOT = _RUNTIME_PATHS.project_root
 
 # Shared state JSON (acts as the integration backbone between agents)
 # On Colab/GCP, point this at a Google Drive mount, e.g. /content/drive/MyDrive/gvc/
@@ -191,7 +226,7 @@ ENSEMBLE_BOOST_ROUNDS  = int(os.getenv("GVC_BOOST_ROUNDS", "50"))
 # Interpretability (SHAP + GradCAM)
 # ---------------------------------------------------------------------------
 
-SHAP_REPORT_DIR        = PROJECT_ROOT / "reports" / "shap"
+SHAP_REPORT_DIR        = _RUNTIME_PATHS.reports_root / "shap"
 
 # Number of validation samples fed to SHAP (TreeExplainer is exact; cap for speed)
 SHAP_VAL_SAMPLES       = int(os.getenv("GVC_SHAP_VAL_SAMPLES", "2000"))
@@ -324,7 +359,7 @@ LOG_LEVEL = os.getenv("GVC_LOG_LEVEL", "INFO")
 # Literature Scout
 # ---------------------------------------------------------------------------
 
-LITERATURE_DIGEST_DIR  = PROJECT_ROOT / "reports" / "literature"
+LITERATURE_DIGEST_DIR  = _RUNTIME_PATHS.reports_root / "literature"
 
 # NCBI E-utilities (no API key = 3 req/s; set NCBI_API_KEY for 10 req/s)
 NCBI_EUTILS_BASE       = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"

@@ -6695,4 +6695,28 @@
 #   converted CRLF to LF before the comparison.
 #
 #   ACCEPTANCE: tests/unit 4788 passed, 10 skipped, 0 failed.
-5023
+
+# 2026-08-19 -- 5023 -> 5027 (+4). OUTPUT-ROOT-CONFLATION-1.
+#
+#   SHAP_REPORT_DIR and LITERATURE_DIGEST_DIR were ARTIFACT DESTINATIONS
+#   computed from REPOSITORY identity. Where output goes is a deployment
+#   decision, not a fact about where source lives. Both now derive from
+#   _RUNTIME_PATHS.reports_root while repository-owned paths stay
+#   repository-owned -- an OWNERSHIP correction, not a blanket transformation.
+#
+#   ONE authority: _RUNTIME_PATHS = resolve_runtime_paths(), resolved once as a
+#   configuration SNAPSHOT. Two resolver calls would be two authorities for one
+#   process, and runtime path configuration is immutable for a process
+#   lifetime.
+#
+#   Two tests from ec8e51b are REVISED, and that is the point: they required a
+#   particular call and import -- HOW -- rather than the property. A third
+#   asserted SHAP_REPORT_DIR == PROJECT_ROOT / "reports" / "shap", literally
+#   specifying the defect. The milder form of the /probe_anchor mistake.
+#
+#   The release-blocking test injects GVC_ARTIFACT_ROOT so the two roots
+#   DIVERGE -- on this workstation they are equal, so no test confined to it
+#   could validate the boundary.
+#
+#   ACCEPTANCE: tests/unit 4792 passed, 10 skipped, 0 failed.
+5027
