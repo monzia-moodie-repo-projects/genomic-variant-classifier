@@ -105,6 +105,16 @@ ENV_PROJECT_ROOT = "GVC_PROJECT_ROOT"
 ENV_ARTIFACT_ROOT = "GVC_ARTIFACT_ROOT"
 ENV_STATE_ROOT = "GVC_STATE_ROOT"
 
+#: The transaction journal lives OUTSIDE the repository, so an interrupted
+#: installer survives a working-tree reset and a successful one leaves the
+#: repository with zero rollback artefacts.
+#:
+#: This is a FIFTH path domain, not a synonym for state_root. state_root
+#: defaults to <project>/.gvc-state -- correct for agent state, which belongs
+#: to THIS checkout. A transaction journal does not: it must outlive the
+#: checkout it is repairing.
+ENV_CACHE_ROOT = "GVC_CACHE_ROOT"
+
 
 class RuntimePathError(RuntimeError):
     """A location could not be determined, and no guess was made.
@@ -123,6 +133,7 @@ class RuntimePaths:
     project_root: Path
     artifact_root: Path
     state_root: Path
+    cache_root: Path
 
     @property
     def reports_root(self) -> Path:
@@ -148,15 +159,33 @@ class RuntimePaths:
         """The orchestrator's SharedState: structured, keyed by agent."""
         return self.state_root / "orchestrator" / "state.json"
 
+    @property
+    def transaction_journal(self) -> Path:
+        """Where an in-flight installer transaction records its preimages.
+
+        INSTALLER-TRANSACTION-1. Under cache_root, never under project_root:
+        a successful installer must leave NO rollback artefact in the
+        repository, and an interrupted one must still be recoverable.
+
+        MEASURED 2026-08-19: 148 `.bak_<timestamp>` siblings had accumulated
+        inside the repository across eight days, 17,640,928 bytes, invisible
+        to `git status` because .gitignore carries `*.bak_*`. What was
+        designed as a rollback implementation detail had become a permanent
+        archival system by omission.
+        """
+        return self.cache_root / "transactions"
+
     def describe(self) -> dict:
         """A serialisable record, for provenance in run artifacts."""
         return {
             "project_root": str(self.project_root),
             "artifact_root": str(self.artifact_root),
             "state_root": str(self.state_root),
+            "cache_root": str(self.cache_root),
             "reports_root": str(self.reports_root),
             "literature_scout_state": str(self.literature_scout_state),
             "orchestrator_state": str(self.orchestrator_state),
+            "transaction_journal": str(self.transaction_journal),
         }
 
 
@@ -266,14 +295,49 @@ def _resolve_secondary(explicit, environment, default: Path, label: str) -> Path
     return default
 
 
+def _default_cache_root(env) -> Path:
+    """A user-scoped location OUTSIDE any repository.
+
+    Order, and why each link exists:
+
+        LOCALAPPDATA    on Windows. MEASURED 2026-08-19: set, and
+                        AppData/Local resolves outside the repository.
+        XDG_STATE_HOME  the POSIX convention for state that should persist
+                        but is not configuration.
+        home/.local/state
+                        the fallback that ALWAYS resolves. MEASURED: with
+                        HOME unset on Windows, Path.home() still returned
+                        C:/Users/monzi via USERPROFILE. On POSIX it falls
+                        back to the password database.
+
+    A NOTE ON WHAT CANNOT BE TESTED FROM WINDOWS. Passing a fake environment
+    with XDG_STATE_HOME="/home/runner/.local/state" selects the right BRANCH
+    but produces "C:/home/runner/..." -- because path flavour is baked into
+    the platform, not into the environment. So tests here assert
+    RELATIONSHIPS (outside the repository, beneath the chosen base) rather
+    than literal paths, and the literal POSIX form is verified on the runner.
+    """
+    if os.name == "nt" and env.get("LOCALAPPDATA"):
+        base = Path(env["LOCALAPPDATA"])
+    elif env.get("XDG_STATE_HOME"):
+        base = Path(env["XDG_STATE_HOME"])
+    else:
+        base = Path.home() / ".local" / "state"
+    return (base / "GenomicVariantClassifier").expanduser().resolve()
+
+
 def resolve_runtime_paths(*, project_root=None, artifact_root=None,
-                          state_root=None, environ=None) -> RuntimePaths:
-    """The single entry point. Resolves all three roots, or raises."""
+                          state_root=None, cache_root=None,
+                          environ=None) -> RuntimePaths:
+    """The single entry point. Resolves all FOUR roots, or raises."""
     env = os.environ if environ is None else environ
     project = resolve_project_root(explicit=project_root, environ=env)
     artifacts = _resolve_secondary(
         artifact_root, env.get(ENV_ARTIFACT_ROOT), project, "artifact_root")
     state = _resolve_secondary(
         state_root, env.get(ENV_STATE_ROOT), project / ".gvc-state", "state_root")
+    cache = _resolve_secondary(
+        cache_root, env.get(ENV_CACHE_ROOT), _default_cache_root(env),
+        "cache_root")
     return RuntimePaths(project_root=project, artifact_root=artifacts,
-                        state_root=state)
+                        state_root=state, cache_root=cache)

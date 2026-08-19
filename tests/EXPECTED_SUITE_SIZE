@@ -6745,4 +6745,28 @@
 #   with `* -text`, a CRLF file commits as i/crlf.
 #
 #   ACCEPTANCE: tests/unit 4831 passed, 10 skipped, 0 failed.
-5066
+
+# 2026-08-19 -- 5066 -> 5082 (+16). INSTALLER-TRANSACTION-1 step 2: cache_root.
+#
+#   A FIFTH path domain, for the transaction journal. state_root defaults to
+#   <project>/.gvc-state, which is correct for agent state belonging to THIS
+#   checkout -- but a transaction journal must survive an interrupted installer
+#   even if the working tree is reset, and a successful installer must leave NO
+#   rollback artefact in the repository.
+#
+#       repository identity  -> project_root
+#       artifact identity    -> artifact_root
+#       checkout state       -> state_root
+#       machine-scoped cache -> cache_root
+#
+#   Default: LOCALAPPDATA on Windows, XDG_STATE_HOME on POSIX, then
+#   home/.local/state -- the fallback that ALWAYS resolves. MEASURED: with HOME
+#   unset on Windows, Path.home() still returned C:/Users/monzi via
+#   USERPROFILE.
+#
+#   Purely additive: one keyword-only construction site, describe() asserts
+#   membership rather than equality, and NO test constructs RuntimePaths
+#   directly -- so no existing test is touched.
+#
+#   ACCEPTANCE: tests/unit 4847 passed, 10 skipped, 0 failed.
+5082
