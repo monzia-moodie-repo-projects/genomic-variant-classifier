@@ -8,13 +8,33 @@ All paths, endpoints, and thresholds live here — no magic strings in agents.
 import os
 from pathlib import Path
 
+from genomic_variant_classifier.paths.runtime_paths import resolve_project_root
+
 
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
 
 # Root of the project — override via env var for GCP / Colab environments
-PROJECT_ROOT = Path(os.getenv("GVC_PROJECT_ROOT", r"C:\Projects\genomic-variant-classifier"))
+#
+# PROJECT-ROOT-HARDCODED-1. This line read:
+#
+#     PROJECT_ROOT = Path(os.getenv("GVC_PROJECT_ROOT",
+#                                    r"C:\Projects\genomic-variant-classifier"))
+#
+# MEASURED 2026-08-14: GVC_PROJECT_ROOT is set NOWHERE -- not in continuous
+# integration, not in the Dockerfile, not in any script, not in the shell. So
+# the fallback was the value EVERY consumer received, and on the Linux runner
+# it named a path that cannot exist.
+#
+# resolve_project_root() takes an explicit argument, then GVC_PROJECT_ROOT,
+# then discovery anchored to __file__, then RAISES. Discovery verifies
+# IDENTITY -- three sentinels in conjunction plus the declared project name
+# from pyproject.toml -- because any directory can contain a src/ folder.
+#
+# It RAISES rather than falling back. A resolver that guesses on failure is
+# how one absolute path became the value on every machine in the world.
+PROJECT_ROOT = resolve_project_root()
 
 # Shared state JSON (acts as the integration backbone between agents)
 # On Colab/GCP, point this at a Google Drive mount, e.g. /content/drive/MyDrive/gvc/

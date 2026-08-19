@@ -6670,4 +6670,29 @@
 #   survives the real .dockerignore.
 #
 #   ACCEPTANCE: tests/unit 4771 passed, 10 skipped, 0 failed.
-5006
+
+# 2026-08-18 -- 5006 -> 5023 (+17). PROJECT-ROOT-HARDCODED-1.
+#
+#   config.py:17 read Path(os.getenv("GVC_PROJECT_ROOT", r"C:\Projects\...")).
+#   GVC_PROJECT_ROOT is set NOWHERE, so the Windows literal was the value every
+#   consumer received, and on the Linux runner it named a path that cannot
+#   exist. It now calls resolve_project_root(): explicit argument, then the
+#   environment variable, then discovery anchored to __file__, then RAISES.
+#
+#   Measured: 4 definitions of PROJECT_ROOT, of which THREE were already
+#   correct. 17 loads, 0 attribute accesses, 13 importers.
+#
+#   A first attempt patched config.py alone and the gate caught it at
+#   4786/10/1: test_the_default_TRACKS_the_environment_not_the_cwd pointed
+#   GVC_PROJECT_ROOT at a nonexistent "/probe_anchor" and asserted it was
+#   accepted. That test encoded the DEFECT as a contract. Its fixture now
+#   builds a real repository, and a new test asserts the nonexistent value is
+#   REFUSED -- the half the old one could not check.
+#
+#   config.py is CRLF while the test file is LF, so the anchors differ. An
+#   anchor with the wrong terminator matches nothing, silently -- and
+#   Path.read_text(newline=...) is 3.13+, so on 3.12 the default would have
+#   converted CRLF to LF before the comparison.
+#
+#   ACCEPTANCE: tests/unit 4788 passed, 10 skipped, 0 failed.
+5023

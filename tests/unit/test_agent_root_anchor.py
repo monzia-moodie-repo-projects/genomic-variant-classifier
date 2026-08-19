@@ -131,25 +131,68 @@ def test_root_remains_injectable(module, cls):
     assert str(agent._root) == "/injected/path"
 
 
-def test_the_default_TRACKS_the_environment_not_the_cwd():
-    """Measured 2026-08-14: config.py reads GVC_PROJECT_ROOT at import time, so
-    a fresh interpreter with the variable set gets a different anchor -- while
-    changing the working directory does NOT move it.
+def test_the_default_TRACKS_the_environment_not_the_cwd(tmp_path):
+    """An ambient working directory is accidental; an explicit environment
+    variable is a decision. That property is unchanged. Its FIXTURE was not.
 
-    That distinction is the whole point: an ambient cwd is accidental, an
-    explicit environment variable is a decision.
+    WRITTEN 2026-08-14, when config.py read:
+
+        PROJECT_ROOT = Path(os.getenv("GVC_PROJECT_ROOT", r"C:\\Projects\\..."))
+
+    That line accepted ANY string, so this test pointed GVC_PROJECT_ROOT at a
+    bare "/probe_anchor" -- a path that does not exist -- and asserted the
+    agent followed it. The test encoded the DEFECT as a contract, and its own
+    docstring said so: "config.py reads GVC_PROJECT_ROOT at import time".
+
+    Since PROJECT-ROOT-HARDCODED-1 the resolver VERIFIES IDENTITY (sentinels in
+    conjunction plus the declared project name) and RAISES on anything that is
+    not this repository. The override must now name a real one.
+
+    The property is still asserted in both directions: a variable set in a
+    fresh interpreter MOVES the anchor, and the working directory does NOT.
     """
+    import os
+
+    fake = tmp_path / "repo"
+    (fake / "src" / "genomic_variant_classifier").mkdir(parents=True)
+    (fake / "pyproject.toml").write_text(
+        '[project]\nname = "genomic-variant-classifier"\nversion = "0.1.0"\n',
+        encoding="utf-8")
+
     code = (
-        "import os\n"
         "from genomic_variant_classifier.agent_layer.agents."
         "agent_ops_monitor_agent import AgentOpsMonitorAgent\n"
         "class S:\n"
         "    def __getattr__(self, n): return lambda *a, **k: None\n"
         "print(AgentOpsMonitorAgent(S())._root)\n"
     )
-    import os
-    env = {**os.environ, "GVC_PROJECT_ROOT": os.path.join(os.sep, "probe_anchor")}
+    env = {**os.environ, "GVC_PROJECT_ROOT": str(fake)}
     out = subprocess.run([sys.executable, "-B", "-c", code],
                          capture_output=True, text=True, env=env, timeout=300)
     assert out.returncode == 0, out.stderr[-800:]
-    assert "probe_anchor" in out.stdout, out.stdout.strip()
+    assert str(fake.resolve()) in out.stdout, out.stdout.strip()
+
+    # The cwd does NOT move it: same code, no variable, launched elsewhere.
+    env2 = {k: v for k, v in os.environ.items() if k != "GVC_PROJECT_ROOT"}
+    out2 = subprocess.run([sys.executable, "-B", "-c", code], cwd=str(tmp_path),
+                          capture_output=True, text=True, env=env2, timeout=300)
+    assert out2.returncode == 0, out2.stderr[-800:]
+    assert str(tmp_path) not in out2.stdout, out2.stdout.strip()
+
+
+def test_a_NONEXISTENT_env_override_now_RAISES():
+    """The half the previous fixture could not assert.
+
+    "/probe_anchor" -- the value it used -- must now be REFUSED. A resolver
+    that accepts any string is how one author's absolute path became the value
+    on every machine in the world.
+    """
+    import os
+
+    code = "import genomic_variant_classifier.agent_layer.config"
+    env = {**os.environ, "GVC_PROJECT_ROOT": os.path.join(os.sep, "probe_anchor")}
+    out = subprocess.run([sys.executable, "-B", "-c", code],
+                         capture_output=True, text=True, env=env, timeout=300)
+    assert out.returncode != 0, "a nonexistent override was accepted"
+    assert ("RuntimePathError" in out.stderr
+            or "not a directory" in out.stderr), out.stderr[-500:]
