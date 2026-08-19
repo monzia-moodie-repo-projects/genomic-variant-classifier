@@ -319,6 +319,38 @@ def main(argv=None) -> int:
                       sh.get("contains_GITHUB_TOKEN_assignment")))
 
     mpath = repo / args.manifest
+
+    # INSTALLER-MANIFEST-OVERWRITE-1 (2026-08-19). This wrote unconditionally.
+    #
+    # A manifest is EVIDENCE. Addressing it by a name the next event reuses
+    # means every run destroys the previous record -- and that is not a
+    # hypothetical: on 2026-08-19 a routine three-artefact cleanup overwrote
+    # the 148-artefact record of the credential-bearing retirement, replacing
+    # 1,956 lines with 20. It was recoverable only because it had been
+    # committed minutes earlier.
+    #
+    # Refusal, not versioning. A caller who wants a second record names a
+    # second file; a caller who has accidentally reused a name is told so
+    # BEFORE anything is deleted.
+    if mpath.exists():
+        try:
+            existing = json.loads(mpath.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            print("  ERROR: {} exists and cannot be read ({}); refusing to "
+                  "overwrite an unreadable record. NOTHING deleted."
+                  .format(args.manifest, exc))
+            return 1
+        prior = existing.get("total_artifacts")
+        if prior != len(records):
+            print("  ERROR: {} already records a scan of {} artefact(s); this "
+                  "scan found {}. Overwriting would destroy that record. "
+                  "NOTHING deleted.".format(args.manifest, prior, len(records)))
+            print("         Name a different manifest, e.g. "
+                  "--manifest docs/incidents/BACKUP_RETIREMENT_<date>_<event>.json")
+            return 1
+        print("  manifest exists and records the same {} artefact(s); "
+              "rewriting in place".format(prior))
+
     mpath.parent.mkdir(parents=True, exist_ok=True)
     payload = json.dumps(manifest, indent=2, sort_keys=True) + "\n"
     with open(mpath, "w", encoding="utf-8", newline="\n") as fh:
