@@ -83,6 +83,27 @@ from pathlib import Path
 #: Directories whose contents are not this repository's artefacts.
 EXCLUDED_ROOTS = (".venv312", "renv", ".git", "node_modules")
 
+#: Every shape an installer backup has taken in this repository.
+#:
+#: RETIREMENT-PATTERN-INCOMPLETE-1 (2026-08-19). This scanned `*.bak_*` ALONE.
+#: That retired 148 artefacts and reported "remaining .bak_* artefact(s): 0" --
+#: true, and misleading in exactly the way an incomplete filter always is. A
+#: parallel accumulation of 107 `*.bak` files was sitting beside them,
+#: untouched, and a commit message asserted the repository held zero backup
+#: artefacts.
+#:
+#: MEASURED 2026-08-19, the shapes actually present:
+#:     foo.py.bak_2026-08-19_164056      the PowerShell installers
+#:     foo.py.pre_cfgroot.bak            the Python appliers
+#:     foo.py.precosmic.bak              older appliers, no underscore
+#:     foo.py.20260702_183508.bak        a dated convention in af_fix_work/
+#:     foo.py.bak                        bare
+#:
+#: A filter must cover every shape the generators produce, and the generators
+#: are measurable: scripts/apply_*.py all write `.pre_<name>.bak` via
+#: with_suffix, while the PowerShell installers write `.bak_<stamp>`.
+BACKUP_PATTERNS = ("*.bak_*", "*.bak", "*.orig", "*.rej")
+
 #: Path shapes that may carry credential material. Matched on the ORIGINAL
 #: path, so `.env.bak_2026-08-15_205854` is caught via `.env`.
 SECRET_PATTERNS = (
@@ -132,6 +153,72 @@ def _assert_secret_detection_intact() -> None:
             "{}. Emptying or narrowing SECRET_PATTERNS would let a "
             "credential-bearing artefact be classified as ordinary and "
             "deleted as routine detritus.".format(missed))
+
+
+def _strip_backup_suffix(rel: str):
+    """The name a backup was taken FROM, by suffix alone -- no filesystem.
+
+    Used only to decide whether a path SHAPE is credential-bearing, which must
+    be answerable even when the original no longer exists.
+    """
+    name = Path(rel).name
+    if ".bak_" in name:
+        base = name.rsplit(".bak_", 1)[0]
+    elif name.endswith(".bak"):
+        base = name[: -len(".bak")]
+    elif name.endswith(".orig"):
+        base = name[: -len(".orig")]
+    elif name.endswith(".rej"):
+        base = name[: -len(".rej")]
+    else:
+        return None
+    # `.env.pre_token` -> `.env`; but `config.py` must not become `config`.
+    if "." in base and not base.startswith("."):
+        head, _, tail = base.rpartition(".")
+        if tail.startswith("pre") or tail.replace("_", "").isdigit():
+            return head
+        return base
+    if base.count(".") > 1:
+        return "." + base.lstrip(".").split(".")[0]
+    return base
+
+
+def _derive_original(repo: Path, rel: str):
+    """Which file this is a backup OF -- decided by the FILESYSTEM.
+
+    The suffix conventions are irregular enough that string surgery alone
+    guesses wrong:
+
+        config.py.bak_2026-08-19_164056  ->  config.py
+        config.py.pre_cfgroot.bak        ->  config.py
+        real_data_prep.py.precosmic.bak  ->  real_data_prep.py
+        build_alphafold_parquet.py.20260702_183508.bak
+                                         ->  build_alphafold_parquet.py
+
+    So candidates are generated and the first that EXISTS wins. When none
+    exists the backup is left UNCLASSIFIED rather than guessed at -- an
+    original that cannot be identified cannot be shown redundant.
+    """
+    path = Path(rel)
+    name, parent = path.name, path.parent
+    if ".bak_" in name:
+        base = name.rsplit(".bak_", 1)[0]
+    elif name.endswith(".bak"):
+        base = name[: -len(".bak")]
+    elif name.endswith(".orig"):
+        base = name[: -len(".orig")]
+    elif name.endswith(".rej"):
+        base = name[: -len(".rej")]
+    else:
+        return None
+    candidates = [base]
+    if "." in base:
+        # Strip one marker segment: `config.py.pre_cfgroot` -> `config.py`.
+        candidates.append(base.rsplit(".", 1)[0])
+    for cand in candidates:
+        if (repo / parent / cand).is_file():
+            return (parent / cand).as_posix()
+    return None
 
 
 def _sha256(path: Path) -> str:
@@ -190,14 +277,73 @@ def _secret_shape(path: Path) -> dict:
 def collect(repo: Path) -> list:
     """Classify every backup artefact. Reads only; deletes nothing."""
     records = []
-    for p in sorted(repo.rglob("*.bak_*")):
+    seen = set()
+    candidates = []
+    for pattern in BACKUP_PATTERNS:
+        for p in repo.rglob(pattern):
+            if p in seen:
+                continue
+            seen.add(p)
+            candidates.append(p)
+    for p in sorted(candidates):
         rel = p.relative_to(repo).as_posix()
         if any(part in EXCLUDED_ROOTS for part in Path(rel).parts):
             continue
         if not p.is_file():
             continue
-        original = rel.rsplit(".bak_", 1)[0]
-        stamp = rel.rsplit(".bak_", 1)[1]
+        original = _derive_original(repo, rel)
+        stamp = rel.rsplit(".bak_", 1)[1] if ".bak_" in rel else None
+
+        # SECRET CLASSIFICATION COMES FIRST, and does NOT depend on the
+        # original still existing.
+        #
+        # MEASURED 2026-08-19: with the check ordered after derivation, a
+        # `.env.pre_token.bak` whose live `.env` had been removed fell through
+        # to `unclassified`. Safe from deletion -- but the manifest then holds
+        # no shape metadata for a credential-bearing artefact, and the whole
+        # point of the secret branch is that the record survives the file.
+        #
+        # The name to test is the derived original when there is one, and
+        # otherwise the backup's own basename with its suffix stripped.
+        probe = original if original is not None else _strip_backup_suffix(rel)
+        if probe is not None and _is_secret_path(probe):
+            records.append({
+                "backup": rel,
+                "original": original,
+                "backup_stamp": stamp,
+                "size": p.stat().st_size,
+                "sha256": _sha256(p),
+                "original_exists": original is not None
+                                   and (repo / original).exists(),
+                "original_tracked": bool(original) and _git(
+                    repo, "ls-files", "--", original).strip() != "",
+                "classification": CLASS_SECRET,
+                "secret_shape": _secret_shape(p),
+                "git_blob": None,
+                "successor_commit": None,
+                "rationale": ("path shape matches a credential-bearing "
+                              "pattern; recorded by digest and structure "
+                              "only, never by content"),
+            })
+            continue
+
+        if original is None:
+            records.append({
+                "backup": rel,
+                "original": None,
+                "backup_stamp": stamp,
+                "size": p.stat().st_size,
+                "sha256": _sha256(p),
+                "original_exists": False,
+                "original_tracked": False,
+                "classification": CLASS_UNKNOWN,
+                "git_blob": None,
+                "successor_commit": None,
+                "rationale": ("no existing file corresponds to this backup; "
+                              "REFUSING to classify, and therefore refusing "
+                              "to delete"),
+            })
+            continue
         orig_path = repo / original
         rec = {
             "backup": rel,
@@ -390,10 +536,16 @@ def main(argv=None) -> int:
             print("    {}: {}".format(path, err))
         return 1
 
-    remaining = [p for p in repo.rglob("*.bak_*")
-                 if p.is_file()
-                 and not any(part in EXCLUDED_ROOTS for part in p.relative_to(repo).parts)]
-    print("  remaining .bak_* artefact(s): {}".format(len(remaining)))
+    remaining = []
+    for pattern in BACKUP_PATTERNS:
+        for p in repo.rglob(pattern):
+            if (p.is_file()
+                    and p not in remaining
+                    and not any(part in EXCLUDED_ROOTS
+                                for part in p.relative_to(repo).parts)):
+                remaining.append(p)
+    print("  remaining backup-shaped artefact(s) across {} pattern(s): {}"
+          .format(len(BACKUP_PATTERNS), len(remaining)))
     for p in remaining:
         print("    {}".format(p.relative_to(repo).as_posix()))
     if len(remaining) != len(unknown):
