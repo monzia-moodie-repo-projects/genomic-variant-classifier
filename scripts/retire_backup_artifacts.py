@@ -80,41 +80,29 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-#: Directories whose contents are not this repository's artefacts.
-EXCLUDED_ROOTS = (".venv312", "renv", ".git", "node_modules")
+from genomic_variant_classifier.repository_hygiene import backup_artifacts as _H
 
-#: Every shape an installer backup has taken in this repository.
+#: The hygiene vocabulary is IMPORTED, not restated.
 #:
-#: RETIREMENT-PATTERN-INCOMPLETE-1 (2026-08-19). This scanned `*.bak_*` ALONE.
-#: That retired 148 artefacts and reported "remaining .bak_* artefact(s): 0" --
-#: true, and misleading in exactly the way an incomplete filter always is. A
-#: parallel accumulation of 107 `*.bak` files was sitting beside them,
-#: untouched, and a commit message asserted the repository held zero backup
-#: artefacts.
+#: MEASURED 2026-08-20: SECRET_PATTERNS and SECRET_CANARIES were defined HERE
+#: and in transactions/repository_transaction.py -- eleven and seven entries,
+#: verified identical at runtime, element for element and order included. I had
+#: written one copy by transcribing the other. Nothing enforced the agreement,
+#: and a third consumer was about to be added.
 #:
-#: MEASURED 2026-08-19, the shapes actually present:
-#:     foo.py.bak_2026-08-19_164056      the PowerShell installers
-#:     foo.py.pre_cfgroot.bak            the Python appliers
-#:     foo.py.precosmic.bak              older appliers, no underscore
-#:     foo.py.20260702_183508.bak        a dated convention in af_fix_work/
-#:     foo.py.bak                        bare
-#:
-#: A filter must cover every shape the generators produce, and the generators
-#: are measurable: scripts/apply_*.py all write `.pre_<name>.bak` via
-#: with_suffix, while the PowerShell installers write `.bak_<stamp>`.
-BACKUP_PATTERNS = ("*.bak_*", "*.bak", "*.orig", "*.rej")
+#: A test asserts identity of OBJECT, not merely of value, so a future copy
+#: fails rather than drifting in silence.
+EXCLUDED_ROOTS = _H.NOT_THIS_REPOSITORY
 
-#: Path shapes that may carry credential material. Matched on the ORIGINAL
-#: path, so `.env.bak_2026-08-15_205854` is caught via `.env`.
-SECRET_PATTERNS = (
-    ".env", "*.env", "*.pem", "*.key", "*.p12", "*.pfx",
-    "credentials*", "token*", "secrets*", "*_rsa", "*_ed25519",
-)
+BACKUP_PATTERNS = _H.BACKUP_SHAPES
+
+SECRET_PATTERNS = _H.SECRET_PATTERNS
 
 CLASS_GIT = "git_exact_preimage"
 CLASS_SUPERSEDED = "superseded_uncommitted_preimage"
 CLASS_SECRET = "secret_bearing"
 CLASS_UNKNOWN = "unclassified"
+CLASS_SCRATCH = "scratch"
 
 
 def _git(repo: Path, *args) -> str:
@@ -122,16 +110,7 @@ def _git(repo: Path, *args) -> str:
                           capture_output=True, text=True, timeout=300).stdout
 
 
-#: Shapes that MUST be recognised as secret-bearing. Emptying or narrowing
-#: SECRET_PATTERNS would silently reclassify a credential file as ordinary --
-#: no leak into the manifest, because the shape reader would never run, but the
-#: secret-handling decision would never be surfaced either, and the artefact
-#: would become deletable as routine detritus.
-#:
-#: Sabotage E1 (2026-08-19) emptied SECRET_PATTERNS and produced NO leak,
-#: which is exactly why an absence-of-leak check is not sufficient here.
-SECRET_CANARIES = (".env", "id_rsa", "server.pem", "api.key",
-                   "credentials.json", "token.txt", "secrets.yaml")
+SECRET_CANARIES = _H.SECRET_CANARIES
 
 
 def _is_secret_path(original: str) -> bool:
@@ -293,6 +272,35 @@ def collect(repo: Path) -> list:
             continue
         original = _derive_original(repo, rel)
         stamp = rel.rsplit(".bak_", 1)[1] if ".bak_" in rel else None
+
+        # SCRATCH ROOTS ARE CHECKED FIRST, and are never deleted.
+        #
+        # MEASURED 2026-08-20: without this branch the tool deleted a backup
+        # inside .af_fix_work whose original was resolvable. The twelve real
+        # scratch files survived the 2026-08-19 sweeps only because THEIR
+        # originals happened to be untracked -- an accident, not the policy.
+        #
+        # Legitimacy comes from the DECLARATION in repository_hygiene, not from
+        # git happening to ignore the directory and not from a file happening
+        # to be unclassifiable.
+        if _H.in_scratch_root(rel):
+            records.append({
+                "backup": rel,
+                "original": original,
+                "backup_stamp": stamp,
+                "size": p.stat().st_size,
+                "sha256": _sha256(p),
+                "original_exists": original is not None and (repo / original).exists(),
+                "original_tracked": bool(original) and _git(
+                    repo, "ls-files", "--", original).strip() != "",
+                "classification": CLASS_SCRATCH,
+                "git_blob": None,
+                "successor_commit": None,
+                "rationale": ("inside a DECLARED scratch root ({}); working "
+                              "space where backup artefacts are permitted"
+                              .format(", ".join(_H.SCRATCH_ROOTS))),
+            })
+            continue
 
         # SECRET CLASSIFICATION COMES FIRST, and does NOT depend on the
         # original still existing.
@@ -514,13 +522,16 @@ def main(argv=None) -> int:
         reread["total_artifacts"]))
 
     if not args.apply:
+        retainable = len([r for r in records if r["classification"]
+                          in (CLASS_UNKNOWN, CLASS_SCRATCH)])
         print("\n  --check: nothing deleted. Re-run with --apply to retire "
-              "{} artefact(s).".format(len(records) - len(unknown)))
+              "{} artefact(s); {} would be retained."
+              .format(len(records) - retainable, retainable))
         return 0
 
     deleted, failed = 0, []
     for r in records:
-        if r["classification"] == CLASS_UNKNOWN:
+        if r["classification"] in (CLASS_UNKNOWN, CLASS_SCRATCH):
             continue
         p = repo / r["backup"]
         try:
@@ -528,8 +539,9 @@ def main(argv=None) -> int:
             deleted += 1
         except OSError as exc:
             failed.append((r["backup"], str(exc)))
-    print("\n  deleted {} artefact(s); {} retained as unclassified".format(
-        deleted, len(unknown)))
+    scratch = [r for r in records if r["classification"] == CLASS_SCRATCH]
+    print("\n  deleted {} artefact(s); {} retained as unclassified, {} as "
+          "scratch".format(deleted, len(unknown), len(scratch)))
     if failed:
         print("  {} deletion(s) FAILED:".format(len(failed)))
         for path, err in failed:
@@ -548,9 +560,11 @@ def main(argv=None) -> int:
           .format(len(BACKUP_PATTERNS), len(remaining)))
     for p in remaining:
         print("    {}".format(p.relative_to(repo).as_posix()))
-    if len(remaining) != len(unknown):
-        print("  ERROR: expected {} to remain, found {}".format(
-            len(unknown), len(remaining)))
+    expected = len(unknown) + len(scratch)
+    if len(remaining) != expected:
+        print("  ERROR: expected {} to remain ({} unclassified + {} scratch), "
+              "found {}".format(expected, len(unknown), len(scratch),
+                                len(remaining)))
         return 1
     return 0
 

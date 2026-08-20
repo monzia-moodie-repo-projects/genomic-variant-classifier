@@ -83,6 +83,9 @@ from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 
+from genomic_variant_classifier.repository_hygiene import (
+    backup_artifacts as _H,
+)
 from genomic_variant_classifier.state.json_state_store import (
     JsonStateStore, StateStoreError,
 )
@@ -90,16 +93,18 @@ from genomic_variant_classifier.state.json_state_store import (
 SCHEMA = "gvc.repository-transaction"
 SCHEMA_VERSION = 2
 
-#: Path shapes that may carry credential material.
-SECRET_PATTERNS = (
-    ".env", "*.env", "*.pem", "*.key", "*.p12", "*.pfx",
-    "credentials*", "token*", "secrets*", "*_rsa", "*_ed25519",
-)
-
-#: Shapes the classifier MUST recognise. A classifier recognising nothing
-#: produces a clean run and a credential edited by a generic patch transaction.
-SECRET_CANARIES = (".env", "id_rsa", "server.pem", "api.key",
-                   "credentials.json", "token.txt", "secrets.yaml")
+#: The secret vocabulary is IMPORTED, not restated.
+#:
+#: MEASURED 2026-08-20: these two tuples were defined here AND in
+#: scripts/retire_backup_artifacts.py, eleven and seven entries respectively,
+#: verified identical at runtime -- element for element, order included. I had
+#: written the second copy by transcribing the first. Nothing enforced the
+#: agreement, and a third consumer was about to be added.
+#:
+#: A test asserts identity of OBJECT, not merely of value, so a future copy
+#: fails rather than drifting in silence.
+SECRET_PATTERNS = _H.SECRET_PATTERNS
+SECRET_CANARIES = _H.SECRET_CANARIES
 
 
 class TransactionError(RuntimeError):

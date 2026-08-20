@@ -6822,4 +6822,27 @@
 #   undetectable behaviourally and is caught by a labelled STRUCTURAL check.
 #
 #   ACCEPTANCE: tests/unit 4896 passed, 10 skipped, 0 failed.
-5131
+
+# 2026-08-20 -- 5131 -> 5175 (+44). INSTALLER-TRANSACTION-1 step 5.
+#
+#   One authority for repository hygiene. SECRET_PATTERNS and SECRET_CANARIES
+#   were each defined TWICE -- eleven and seven entries, verified identical at
+#   runtime, one copy written by transcribing the other. A test now asserts
+#   identity of OBJECT, and a census over src/ and scripts/ fails if a fourth
+#   list appears.
+#
+#   Three conflated questions get three names: NOT_THIS_REPOSITORY,
+#   SCRATCH_ROOTS, BACKUP_SHAPES. Scratch legitimacy is DECLARED here, not
+#   derived from .gitignore, which answers a different question entirely.
+#
+#   A real defect found while wiring it: the retirement tool deleted a backup
+#   inside a declared scratch root whose original was resolvable. The twelve
+#   real scratch files had survived earlier sweeps only because their originals
+#   happened to be untracked -- an accident, not a policy. MEASURED: zero such
+#   files exist here today, so the fix is PREVENTIVE.
+#
+#   resolve_relocation() proves a moved original by blob identity or a unique
+#   tracked basename, and returns nothing when ambiguous.
+#
+#   ACCEPTANCE: tests/unit 4940 passed, 10 skipped, 0 failed.
+5175
