@@ -98,11 +98,21 @@ BACKUP_PATTERNS = _H.BACKUP_SHAPES
 
 SECRET_PATTERNS = _H.SECRET_PATTERNS
 
-CLASS_GIT = "git_exact_preimage"
-CLASS_SUPERSEDED = "superseded_uncommitted_preimage"
-CLASS_SECRET = "secret_bearing"
-CLASS_UNKNOWN = "unclassified"
-CLASS_SCRATCH = "scratch"
+#: The classification vocabulary is IMPORTED, not restated.
+#:
+#: MEASURED 2026-08-20: this module declared five CLASS_* strings while
+#: repository_hygiene declared ArtifactClass -- two vocabularies for one
+#: concept, which is precisely the duplication step 5 removed for the pattern
+#: lists and then reintroduced here for the classifications.
+#:
+#: (str, Enum) members compare equal to their values, so every existing
+#: comparison and JSON round-trip is unaffected.
+CLASS_GIT = _H.ArtifactClass.GIT_EXACT_PREIMAGE.value
+CLASS_SUPERSEDED = _H.ArtifactClass.SUPERSEDED_PREIMAGE.value
+CLASS_RELOCATED = _H.ArtifactClass.RELOCATED_PREIMAGE.value
+CLASS_SECRET = _H.ArtifactClass.SECRET_BEARING.value
+CLASS_UNKNOWN = _H.ArtifactClass.UNCLASSIFIED.value
+CLASS_SCRATCH = _H.ArtifactClass.SCRATCH.value
 
 
 def _git(repo: Path, *args) -> str:
@@ -336,6 +346,43 @@ def collect(repo: Path) -> list:
             continue
 
         if original is None:
+            # NO FILE AT THE DERIVED PATH IS NOT THE END OF THE SEARCH.
+            #
+            # RELOCATION-UNWIRED-1 (2026-08-20). This branch returned
+            # UNCLASSIFIED immediately, and repository_hygiene had carried
+            # resolve_relocation() since it was written -- for this exact case
+            # -- without any consumer calling it. MEASURED: the only hygiene
+            # function this tool called was in_scratch_root.
+            #
+            # scripts/verify_written_cohorts.py.bak sat unclassified through
+            # four sweeps. Called directly, resolve_relocation returns
+            # scripts/forensics/verify_written_cohorts.py, evidence "exactly
+            # one tracked file shares the basename", successor 0b93d302
+            # ("archive 62 spent forensic scripts"). Manual investigation had
+            # already reached that answer; the function simply was not asked.
+            #
+            # Same shape as the scratch defect: a mechanism present but
+            # unconsulted.
+            moved = _H.resolve_relocation(repo, rel)
+            if moved is not None:
+                records.append({
+                    "backup": rel,
+                    "original": None,
+                    "relocated_to": moved.original_now_at,
+                    "relocation_evidence": moved.evidence,
+                    "backup_stamp": stamp,
+                    "size": p.stat().st_size,
+                    "sha256": _sha256(p),
+                    "original_exists": False,
+                    "original_tracked": True,
+                    "classification": CLASS_RELOCATED,
+                    "git_blob": _git(repo, "hash-object", "--", str(p)).strip() or None,
+                    "successor_commit": moved.successor_commit,
+                    "rationale": ("the original moved to {}; {}. A predecessor "
+                                  "of a tracked file, not an orphan."
+                                  .format(moved.original_now_at, moved.evidence)),
+                })
+                continue
             records.append({
                 "backup": rel,
                 "original": None,
@@ -347,9 +394,9 @@ def collect(repo: Path) -> list:
                 "classification": CLASS_UNKNOWN,
                 "git_blob": None,
                 "successor_commit": None,
-                "rationale": ("no existing file corresponds to this backup; "
-                              "REFUSING to classify, and therefore refusing "
-                              "to delete"),
+                "rationale": ("no existing file corresponds to this backup and "
+                              "no relocation could be PROVEN; REFUSING to "
+                              "classify, and therefore refusing to delete"),
             })
             continue
         orig_path = repo / original
@@ -523,7 +570,7 @@ def main(argv=None) -> int:
 
     if not args.apply:
         retainable = len([r for r in records if r["classification"]
-                          in (CLASS_UNKNOWN, CLASS_SCRATCH)])
+                          in (CLASS_UNKNOWN, CLASS_SCRATCH, CLASS_RELOCATED)])
         print("\n  --check: nothing deleted. Re-run with --apply to retire "
               "{} artefact(s); {} would be retained."
               .format(len(records) - retainable, retainable))
@@ -531,7 +578,14 @@ def main(argv=None) -> int:
 
     deleted, failed = 0, []
     for r in records:
-        if r["classification"] in (CLASS_UNKNOWN, CLASS_SCRATCH):
+        # A RELOCATED PREIMAGE IS RETAINED, DELIBERATELY.
+        #
+        # Its bytes are not in git -- that is why the derived path found
+        # nothing. It is the predecessor of a file that moved, and whether it
+        # holds anything the successor lost is a JUDGEMENT, not a computation.
+        # The manifest now names the successor and the evidence, so that
+        # judgement can be made from the record instead of by investigation.
+        if r["classification"] in (CLASS_UNKNOWN, CLASS_SCRATCH, CLASS_RELOCATED):
             continue
         p = repo / r["backup"]
         try:
@@ -540,8 +594,10 @@ def main(argv=None) -> int:
         except OSError as exc:
             failed.append((r["backup"], str(exc)))
     scratch = [r for r in records if r["classification"] == CLASS_SCRATCH]
-    print("\n  deleted {} artefact(s); {} retained as unclassified, {} as "
-          "scratch".format(deleted, len(unknown), len(scratch)))
+    relocated = [r for r in records if r["classification"] == CLASS_RELOCATED]
+    print("\n  deleted {} artefact(s); retained {} unclassified, {} scratch, "
+          "{} relocated".format(deleted, len(unknown), len(scratch),
+                                len(relocated)))
     if failed:
         print("  {} deletion(s) FAILED:".format(len(failed)))
         for path, err in failed:
@@ -560,11 +616,12 @@ def main(argv=None) -> int:
           .format(len(BACKUP_PATTERNS), len(remaining)))
     for p in remaining:
         print("    {}".format(p.relative_to(repo).as_posix()))
-    expected = len(unknown) + len(scratch)
+    expected = len(unknown) + len(scratch) + len(relocated)
     if len(remaining) != expected:
-        print("  ERROR: expected {} to remain ({} unclassified + {} scratch), "
-              "found {}".format(expected, len(unknown), len(scratch),
-                                len(remaining)))
+        print("  ERROR: expected {} to remain ({} unclassified + {} scratch + "
+              "{} relocated), found {}".format(
+                  expected, len(unknown), len(scratch), len(relocated),
+                  len(remaining)))
         return 1
     return 0
 

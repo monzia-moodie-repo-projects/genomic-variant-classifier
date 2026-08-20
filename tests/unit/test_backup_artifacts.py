@@ -35,6 +35,7 @@ Author: Monzia Moodie
 from __future__ import annotations
 
 import io
+import json
 import subprocess
 from pathlib import Path
 
@@ -388,6 +389,107 @@ def test_the_retirement_tool_imports_the_shared_vocabulary():
     assert mod.SECRET_CANARIES is H.SECRET_CANARIES
     assert mod.BACKUP_PATTERNS is H.BACKUP_SHAPES
     assert mod.EXCLUDED_ROOTS is H.NOT_THIS_REPOSITORY
+
+
+# ---- relocation is WIRED, not merely available -------------------------
+def _mk_relocated_repo(base: Path) -> Path:
+    """A repository where a backup's original has MOVED.
+
+    Mirrors scripts/verify_written_cohorts.py.bak: nothing at the derived
+    path, one tracked file elsewhere with the same basename.
+    """
+    repo = base / "r"
+    (repo / "scripts" / "forensics").mkdir(parents=True)
+    (repo / ".gitignore").write_text("*.bak*\n", encoding="utf-8")
+    (repo / "scripts" / "forensics" / "tool.py").write_text("v = 2\n", encoding="utf-8")
+    for cmd in (["git", "init", "-q"], ["git", "config", "user.email", "t@t"],
+                ["git", "config", "user.name", "t"], ["git", "add", "-A", "-f"],
+                ["git", "commit", "-qm", "v1"]):
+        subprocess.run(cmd, cwd=str(repo), capture_output=True, timeout=120)
+    (repo / "scripts" / "tool.py.bak").write_text("v = 1\n", encoding="utf-8")
+    (repo / "scripts" / "ghost.py.bak").write_text("g = 0\n", encoding="utf-8")
+    return repo
+
+
+def _load_retire():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "retire_probe_rel", str(_REPO / "scripts" / "retire_backup_artifacts.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_the_retirement_tool_CALLS_resolve_relocation(tmp_path):
+    """RELOCATION-UNWIRED-1, the defect this asserts against.
+
+    repository_hygiene carried resolve_relocation() from the moment it was
+    written -- FOR THIS EXACT CASE -- and no consumer called it. MEASURED
+    2026-08-20: the only hygiene function the retirement tool called was
+    in_scratch_root, and scripts/verify_written_cohorts.py.bak sat
+    UNCLASSIFIED through four sweeps while the function resolved it correctly
+    when invoked by hand.
+
+    A capability that no consumer invokes is not a capability.
+    """
+    repo = _mk_relocated_repo(tmp_path)
+    mod = _load_retire()
+    assert mod.main(["--repo-root", str(repo), "--manifest",
+                     "docs/incidents/M.json"]) == 0
+    values = json.loads((repo / "docs" / "incidents" / "M.json")
+                        .read_text(encoding="utf-8"))
+    entry = [f for f in values["files"] if f["backup"] == "scripts/tool.py.bak"]
+    assert len(entry) == 1, values["classification"]
+    assert entry[0]["classification"] == H.ArtifactClass.RELOCATED_PREIMAGE.value
+    assert entry[0]["relocated_to"] == "scripts/forensics/tool.py"
+    assert entry[0]["relocation_evidence"]
+    assert entry[0]["successor_commit"]
+
+
+def test_a_relocated_preimage_is_RETAINED(tmp_path):
+    """Its bytes are not in git -- that is why the derived path found nothing.
+
+    Whether it holds anything its successor lost is a JUDGEMENT, not a
+    computation, so the tool records the evidence and keeps the file.
+    """
+    repo = _mk_relocated_repo(tmp_path)
+    mod = _load_retire()
+    assert mod.main(["--repo-root", str(repo), "--manifest",
+                     "docs/incidents/M.json", "--apply"]) == 0
+    assert (repo / "scripts" / "tool.py.bak").exists(), (
+        "a relocated preimage was deleted")
+
+
+def test_an_UNPROVABLE_orphan_stays_unclassified(tmp_path):
+    """A classifier that guesses is worse than one that refuses."""
+    repo = _mk_relocated_repo(tmp_path)
+    mod = _load_retire()
+    mod.main(["--repo-root", str(repo), "--manifest", "docs/incidents/M.json"])
+    values = json.loads((repo / "docs" / "incidents" / "M.json")
+                        .read_text(encoding="utf-8"))
+    entry = [f for f in values["files"] if f["backup"] == "scripts/ghost.py.bak"]
+    assert len(entry) == 1
+    assert entry[0]["classification"] == H.ArtifactClass.UNCLASSIFIED.value
+    assert "no relocation could be PROVEN" in entry[0]["rationale"]
+
+
+def test_the_tool_and_the_authority_share_ONE_classification_vocabulary():
+    """MEASURED 2026-08-20: the tool declared five CLASS_* strings while the
+    authority declared ArtifactClass -- two vocabularies for one concept, which
+    is the duplication step 5 removed for the pattern lists and then
+    reintroduced here for the classifications."""
+    mod = _load_retire()
+    pairs = (
+        (mod.CLASS_GIT, H.ArtifactClass.GIT_EXACT_PREIMAGE),
+        (mod.CLASS_SUPERSEDED, H.ArtifactClass.SUPERSEDED_PREIMAGE),
+        (mod.CLASS_RELOCATED, H.ArtifactClass.RELOCATED_PREIMAGE),
+        (mod.CLASS_SECRET, H.ArtifactClass.SECRET_BEARING),
+        (mod.CLASS_UNKNOWN, H.ArtifactClass.UNCLASSIFIED),
+        (mod.CLASS_SCRATCH, H.ArtifactClass.SCRATCH),
+    )
+    for value, member in pairs:
+        assert value == member.value, (value, member)
+    assert len({v for v, _ in pairs}) == 6, "two classifications collide"
 
 
 # ---- the live repository -----------------------------------------------

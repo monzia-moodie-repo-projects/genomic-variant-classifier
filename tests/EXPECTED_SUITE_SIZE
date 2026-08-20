@@ -6866,4 +6866,26 @@
 #   sabotage confirmed.
 #
 #   ACCEPTANCE: tests/unit 4941 passed, 10 skipped, 0 failed.
-5176
+
+# 2026-08-20 -- 5176 -> 5180 (+4). RELOCATION-UNWIRED-1.
+#
+#   A capability that no consumer invokes is not a capability.
+#
+#   repository_hygiene.resolve_relocation() existed from the moment the
+#   authority was written, for one named case, and nothing called it. MEASURED:
+#   the only hygiene function the retirement tool called was in_scratch_root,
+#   and scripts/verify_written_cohorts.py.bak sat unclassified through four
+#   sweeps while the function resolved it correctly when invoked by hand.
+#
+#   Reading collect() in full also exposed a SECOND duplication: five CLASS_*
+#   strings here against ArtifactClass in the authority. Two vocabularies for
+#   one concept -- the duplication step 5 removed for the pattern lists and
+#   reintroduced for the classifications. Both now come from ArtifactClass.
+#
+#   A relocated preimage is RETAINED: its bytes are not in git, and whether it
+#   holds anything its successor lost is a judgement, not a computation. The
+#   manifest records the successor and the evidence so that judgement can be
+#   made from the record.
+#
+#   ACCEPTANCE: tests/unit 4945 passed, 10 skipped, 0 failed.
+5180
