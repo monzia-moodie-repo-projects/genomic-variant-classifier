@@ -6769,4 +6769,29 @@
 #   directly -- so no existing test is touched.
 #
 #   ACCEPTANCE: tests/unit 4847 passed, 10 skipped, 0 failed.
-5082
+
+# 2026-08-19 -- 5082 -> 5120 (+38). INSTALLER-TRANSACTION-1 step 3.
+#
+#   The transaction primitive. A successful transaction destroys its journal
+#   and leaves NOTHING in the repository; a failed one restores byte-exactly;
+#   an interrupted one leaves a discoverable journal OUTSIDE the tree.
+#
+#   A journal inside the repository is REFUSED at construction, so the defect
+#   that produced 255 accumulated artefacts is structurally impossible rather
+#   than remembered.
+#
+#   Secret targets get NO on-disk preimage: bytes in process memory only, a
+#   manifest carrying digest and structure but never content, scrubbed on
+#   commit.
+#
+#   Persistence reuses JsonStateStore -- verified against the REAL module, not
+#   a stub, including that StateSchemaMismatch descends from StateStoreError so
+#   an unenveloped journal is REPORTED rather than propagated.
+#
+#   The first sabotage run found THREE defects in the tests rather than the
+#   code: one passing for the wrong reason, one hiding that corrupted bytes had
+#   already reached the target, and one revealing the state table was never
+#   consulted at all.
+#
+#   ACCEPTANCE: tests/unit 4885 passed, 10 skipped, 0 failed.
+5120
