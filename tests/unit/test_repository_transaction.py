@@ -43,8 +43,9 @@ import pytest
 from genomic_variant_classifier.paths.runtime_paths import resolve_runtime_paths
 from genomic_variant_classifier.transactions.repository_transaction import (
     RepositoryTransaction, Sensitivity, TransactionError,
-    TransactionIntegrityError, TransactionState, TransactionStateError,
-    incomplete_transactions, is_secret_path,
+    TransactionIntegrityError, TransactionRecoveryRequired, TransactionState,
+    TransactionStateError, incomplete_transactions, is_secret_path,
+    recover_transaction,
 )
 
 _SECRET_BYTES = b"GITHUB_TOKEN=ghp_" + b"q" * 36 + b"\n"
@@ -129,38 +130,76 @@ def test_the_repository_root_itself_is_refused_as_a_journal(repo_and_journal):
 
 
 # ---- secret targets ----------------------------------------------------
-def test_a_secret_target_writes_NO_preimage_to_disk(repo_and_journal):
-    """The 2026-08-15 incident began with a general-purpose text workflow
-    operating near a credential. A secret preimage on disk is that again."""
+def test_a_secret_target_is_REFUSED_by_default(repo_and_journal):
+    """STEP 3B changed this contract deliberately.
+
+    Step 3 permitted secret targets and held their preimages in memory only.
+    That is security-conscious, and it creates an unavoidable consequence:
+
+        secret changed -> process crashes -> old bytes vanished with process
+        memory -> the durable journal cannot restore the secret
+
+    One abstraction cannot promise both "no persistent secret preimage" and
+    "arbitrary secret mutations are crash-recoverable" without another trusted
+    store. So a generic source-tree patch transaction now REFUSES them.
+
+    Credential provisioning is a different AUTHORITY -- environment injection,
+    an operating-system credential store, a hosted secret store -- not a
+    special case of a patch. That is the same principle the path domains
+    follow: a lifecycle derives from the authority that owns the thing.
+    """
     repo, journal = repo_and_journal
     tx = RepositoryTransaction(repo, journal)
-    tx.patch(".env", b"GITHUB_TOKEN=replaced\n")
+    with pytest.raises(TransactionError) as exc:
+        tx.patch(".env", b"replaced\n")
+    assert "credential-shaped" in str(exc.value)
+    tx.rollback()
+    assert (repo / ".env").read_bytes() == _SECRET_BYTES, "the secret was touched"
+
+
+def test_creating_a_secret_path_is_also_refused(repo_and_journal):
+    repo, journal = repo_and_journal
+    tx = RepositoryTransaction(repo, journal)
+    with pytest.raises(TransactionError):
+        tx.create("config/api.key", b"nope\n")
+    tx.rollback()
+
+
+def test_an_opted_in_secret_target_writes_NO_preimage_to_disk(repo_and_journal):
+    """The escape hatch, and its honest limitation.
+
+    allow_secret_targets=True exists for a caller that has accepted the
+    trade-off. Even then the preimage never reaches disk -- and therefore the
+    target is NOT crash-recoverable, which the refusal message says plainly.
+    """
+    repo, journal = repo_and_journal
+    tx = RepositoryTransaction(repo, journal, allow_secret_targets=True)
+    tx.patch(".env", b"replaced\n")
     on_disk = [p for p in tx.preimages.rglob("*") if p.is_file()]
     assert not on_disk, on_disk
-    tx.rollback()
-    assert (repo / ".env").read_bytes() == _SECRET_BYTES
-
-
-def test_the_manifest_records_sensitivity_but_never_content(repo_and_journal):
-    repo, journal = repo_and_journal
-    tx = RepositoryTransaction(repo, journal)
-    tx.patch(".env", b"replaced\n")
     text = tx.manifest_path.read_text(encoding="utf-8")
-    assert "ghp_" not in text
-    assert "GITHUB_TOKEN" not in text
-    values = tx.read_manifest()
-    entry = [t for t in values["targets"] if t["relpath"] == ".env"][0]
+    assert "ghp_" not in text and "GITHUB_TOKEN" not in text
+    entry = [t for t in tx.read_manifest()["targets"] if t["relpath"] == ".env"][0]
     assert entry["sensitivity"] == Sensitivity.SECRET.value
     assert entry["pre_sha256"] and len(entry["pre_sha256"]) == 64
     tx.rollback()
-
-
-def test_a_secret_target_is_still_restored_on_rollback(repo_and_journal):
-    repo, journal = repo_and_journal
-    tx = RepositoryTransaction(repo, journal)
-    tx.patch(".env", b"replaced\n")
-    tx.rollback()
     assert (repo / ".env").read_bytes() == _SECRET_BYTES
+
+
+def test_an_opted_in_secret_target_is_NOT_recoverable_after_a_crash(repo_and_journal):
+    """The limitation, asserted rather than merely documented."""
+    repo, journal = repo_and_journal
+    tx = RepositoryTransaction(repo, journal, allow_secret_targets=True)
+    tid = tx.transaction_id
+    tx.patch(".env", b"replaced\n")
+    del tx                                        # the memory-held preimage dies
+    with pytest.raises(TransactionIntegrityError) as exc:
+        recover_transaction(journal / tid)
+    assert "NOT crash-recoverable" in str(exc.value)
+
+
+
+
 
 
 @pytest.mark.parametrize("name", [
@@ -289,24 +328,28 @@ def test_the_POST_WRITE_digest_catches_a_lying_filesystem(repo_and_journal,
     proves the bytes actually LANDED -- a truncated write, a full disk, or a
     filesystem that reports success and stores something else.
 
-    MEASURED 2026-08-19: removing the post-write check left all 35 tests
-    passing, because nothing simulated a write that silently failed. Sabotage
-    H11 was reported as undetected for that reason.
+    MEASURED 2026-08-20: an earlier version of this test patched
+    Path.write_bytes and stopped working when step 3B introduced
+    _write_durable, which uses open()+fsync instead. The test did not detect a
+    regression -- it lost its interception point, and passed the write through
+    honestly. A monkeypatch is a claim about HOW the code writes, so it must be
+    re-aimed whenever that changes.
     """
+    import genomic_variant_classifier.transactions.repository_transaction as rt
     repo, journal = repo_and_journal
     tx = RepositoryTransaction(repo, journal)
     tx.patch("src/mod.py", b"A\n")
 
-    real_write = Path.write_bytes
+    real = rt._write_durable
 
-    def lying_write(self, data):
+    def lying_write(path, data):
         # Report success, store something else. Only the post-write digest
         # can see this.
-        if self.name == "mod.py" and b"x = 1" in data:
-            return real_write(self, b"SILENTLY WRONG\n")
-        return real_write(self, data)
+        if Path(path).name == "mod.py" and data == b"x = 1\n":
+            return real(path, b"SILENTLY WRONG\n")
+        return real(path, data)
 
-    monkeypatch.setattr(Path, "write_bytes", lying_write)
+    monkeypatch.setattr(rt, "_write_durable", lying_write)
     with pytest.raises(TransactionIntegrityError) as exc:
         tx.rollback()
     assert "after restoration" in str(exc.value), str(exc.value)
@@ -341,6 +384,229 @@ def test_constructing_a_transaction_runs_the_canary_guard(repo_and_journal,
     with pytest.raises(TransactionError):
         rt.RepositoryTransaction(repo, journal)
     monkeypatch.undo()
+
+
+# ---- STEP 3B: crash consistency ----------------------------------------
+def test_the_target_is_PERSISTED_BEFORE_the_repository_is_touched(repo_and_journal):
+    """WRITE-AHEAD. Step 3's DEMONSTRATED defect, asserted.
+
+    Step 3 captured the preimage, wrote the new bytes, and only THEN persisted
+    the target record. Reproduced 2026-08-20 by capturing, writing, and
+    dropping the object:
+
+        the file on disk        : b'MUTATED'
+        targets in the manifest : []
+        preimage files present  : ['mod.py']
+
+    Discoverable and UNRECOVERABLE -- the preimage existed, but nothing
+    recorded which file it belonged to.
+    """
+    repo, journal = repo_and_journal
+    tx = RepositoryTransaction(repo, journal)
+    tx._transition(TransactionState.APPLYING)
+    tx._write_ahead("src/mod.py")
+    # The repository has NOT been touched yet.
+    assert (repo / "src" / "mod.py").read_bytes() == b"x = 1\n"
+    recorded = tx.read_manifest()["targets"]
+    assert [t["relpath"] for t in recorded] == ["src/mod.py"]
+    assert recorded[0]["pre_sha256"], "the digest must be durable before the write"
+    assert recorded[0]["mutated"] is False
+    tx.rollback()
+
+
+def test_a_FAILED_rollback_is_recorded_as_recovery_required(repo_and_journal):
+    """Step 3's second DEMONSTRATED defect, asserted.
+
+    Step 3 set ROLLED_BACK before examining the failures, producing:
+
+        file restored           : False
+        journal retained        : True
+        recorded state          : 'rolled_back'
+        incomplete_transactions reports it: False
+        a retry does anything   : False
+
+    Unrestored, retained, invisible and unretryable -- four bad properties from
+    one misordered assignment.
+    """
+    repo, journal = repo_and_journal
+    tx = RepositoryTransaction(repo, journal)
+    tid = tx.transaction_id
+    tx.patch("src/mod.py", b"MUTATED\n")
+    (tx.preimages / "src" / "mod.py").write_bytes(b"CORRUPTED\n")
+    with pytest.raises(TransactionIntegrityError):
+        tx.rollback()
+    assert tx.state is TransactionState.RECOVERY_REQUIRED
+    assert tx.directory.exists(), "the journal must survive"
+    pending = incomplete_transactions(journal)
+    assert any(p.get("transaction_id") == tid for p in pending), (
+        "a failed rollback must remain DISCOVERABLE")
+
+
+def test_a_failed_rollback_can_be_RETRIED(repo_and_journal):
+    """RECOVERY_REQUIRED is not terminal. In step 3 it was, by accident."""
+    repo, journal = repo_and_journal
+    before = (repo / "src" / "mod.py").read_bytes()
+    tx = RepositoryTransaction(repo, journal)
+    tx.patch("src/mod.py", b"MUTATED\n")
+    (tx.preimages / "src" / "mod.py").write_bytes(b"CORRUPTED\n")
+    with pytest.raises(TransactionIntegrityError):
+        tx.rollback()
+    (tx.preimages / "src" / "mod.py").write_bytes(before)   # operator repairs it
+    tx.rollback()
+    assert tx.state is TransactionState.ROLLED_BACK
+    assert (repo / "src" / "mod.py").read_bytes() == before
+    assert not tx.directory.exists()
+
+
+def test_recovery_works_in_a_process_that_never_saw_the_transaction(repo_and_journal):
+    """`del tx` proves DISCOVERY. Only a fresh process proves RECONSTRUCTION.
+
+    Step 3's interruption test used `del tx`, which leaves Python alive with
+    normal filesystem caches and no reconstruction boundary. This reads the
+    manifest and preimages ALONE.
+    """
+    repo, journal = repo_and_journal
+    tx = RepositoryTransaction(repo, journal)
+    tid = tx.transaction_id
+    tx.patch("src/mod.py", b"MUTATED\n")
+    del tx
+    assert (repo / "src" / "mod.py").read_bytes() == b"MUTATED\n"
+    result = recover_transaction(journal / tid)
+    assert result["action"] == "rolled_back", result
+    assert (repo / "src" / "mod.py").read_bytes() == b"x = 1\n"
+    assert not (journal / tid).exists()
+
+
+def test_a_real_process_KILL_is_recoverable(repo_and_journal, tmp_path):
+    """THE CLAIM STEP 3 COULD NOT MAKE.
+
+    An exception-safe transaction is not necessarily a crash-safe transaction.
+    All twelve of step 3's sabotage mutations were exception-driven; not one
+    killed a process.
+
+    This launches a second interpreter, kills it with SIGTERM AFTER the
+    destructive write, and recovers in a THIRD process. MEASURED 2026-08-20
+    across five kill points -- after preparation, after write-ahead, after
+    mutation, after the mutation mark, and during the gate -- all five
+    recovered with zero journals left behind.
+    """
+    import os
+    import signal
+    import sys as _sys
+    repo, journal = repo_and_journal
+    src_root = str(Path(__file__).resolve().parents[2] / "src")
+    victim = tmp_path / "victim.py"
+    victim.write_text(
+        "import os, signal, sys\n"
+        "sys.path.insert(0, {!r})\n".format(src_root) +
+        "from genomic_variant_classifier.transactions.repository_transaction "
+        "import RepositoryTransaction, TransactionState, _write_durable\n"
+        "from pathlib import Path\n"
+        "repo, journal = sys.argv[1], sys.argv[2]\n"
+        "tx = RepositoryTransaction(repo, journal, require_clean_tree=False)\n"
+        "print(tx.transaction_id, flush=True)\n"
+        "tx._transition(TransactionState.APPLYING)\n"
+        "tx._write_ahead('src/mod.py')\n"
+        "_write_durable(Path(repo) / 'src' / 'mod.py', b'MUTATED')\n"
+        "os.kill(os.getpid(), signal.SIGTERM)\n",
+        encoding="utf-8")
+    out = subprocess.run([_sys.executable, "-B", str(victim), str(repo), str(journal)],
+                         capture_output=True, text=True, timeout=300)
+    assert out.returncode != 0, "the victim was supposed to die"
+    assert (repo / "src" / "mod.py").read_bytes() == b"MUTATED"
+    pending = incomplete_transactions(journal)
+    assert len(pending) == 1, pending
+    result = recover_transaction(pending[0]["directory"])
+    assert result["action"] == "rolled_back", result
+    assert (repo / "src" / "mod.py").read_bytes() == b"x = 1\n"
+    assert not list(Path(journal).iterdir()), "a journal survived recovery"
+
+
+def test_durable_writes_actually_call_fsync():
+    """A STRUCTURAL assertion, and the reason it must be structural.
+
+    MEASURED 2026-08-20: removing os.fsync from _write_durable left all 47
+    tests passing. Sabotage J2 was genuinely undetectable behaviourally --
+    without the fsync the bytes still reach the page cache, still read back
+    correctly, and every assertion holds. Only a real power loss or a
+    fault-injecting filesystem distinguishes the two.
+
+    Write-ahead journaling is meaningless if the log is only in the page cache
+    when the machine dies, so the guarantee matters even though no in-process
+    test can observe it. Asserting the CALL is the strongest check available,
+    and this comment exists so a future reader knows it is a deliberate
+    substitute rather than a lazy one.
+    """
+    import ast
+    import inspect
+    import genomic_variant_classifier.transactions.repository_transaction as rt
+    src = inspect.getsource(rt._write_durable)
+    tree = ast.parse(src.lstrip())
+    calls = set()
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Call):
+            f = n.func
+            if isinstance(f, ast.Attribute):
+                base = getattr(f.value, "id", "")
+                calls.add("{}.{}".format(base, f.attr) if base else f.attr)
+    assert "os.fsync" in calls, (
+        "_write_durable does not call os.fsync; a journal held only in the "
+        "page cache is not a write-ahead log. calls seen: {}".format(sorted(calls)))
+    assert "fh.flush" in calls or "flush" in calls, sorted(calls)
+
+
+def test_the_manifest_store_also_writes_atomically():
+    """The manifest is half the journal. JsonStateStore was chosen because it
+    already does mkstemp + fsync + os.replace in the SAME directory -- verified
+    against the real module rather than a stub, since a stub agrees with you."""
+    import ast
+    import inspect
+    from genomic_variant_classifier.state import json_state_store as jss
+    src = inspect.getsource(jss.JsonStateStore.save)
+    names = set()
+    for n in ast.walk(ast.parse(src.lstrip())):
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute):
+            base = getattr(n.func.value, "id", "")
+            names.add("{}.{}".format(base, n.func.attr) if base else n.func.attr)
+    for required in ("os.fsync", "os.replace"):
+        assert required in names, (required, sorted(names))
+
+
+# ---- STEP 3B: preconditions --------------------------------------------
+def test_a_dirty_working_tree_is_refused_at_preparation(repo_and_journal):
+    """HEAD not moving says nothing about a concurrent editor. A transaction
+    certifies a NAMED SET of files; step 3 had only the weaker invariant."""
+    repo, journal = repo_and_journal
+    (repo / "src" / "stray.py").write_bytes(b"unowned = 1\n")
+    with pytest.raises(TransactionError) as exc:
+        RepositoryTransaction(repo, journal)
+    assert "uncommitted" in str(exc.value)
+
+
+def test_an_unresolved_journal_blocks_a_new_transaction(repo_and_journal):
+    """An interrupted installer must be reconciled, not stepped over."""
+    repo, journal = repo_and_journal
+    tx = RepositoryTransaction(repo, journal)
+    tx.patch("src/mod.py", b"A\n")
+    del tx
+    with pytest.raises(TransactionRecoveryRequired) as exc:
+        RepositoryTransaction(repo, journal, require_clean_tree=False)
+    assert "unresolved" in str(exc.value)
+
+
+def test_recovering_an_already_terminal_journal_is_a_no_op(tmp_path):
+    """Recovery must be idempotent for anything already resolved."""
+    import json
+    d = tmp_path / "txn"
+    (d / "preimages").mkdir(parents=True)
+    (d / "manifest.json").write_text(json.dumps({
+        "schema": "gvc.repository-transaction", "schema_version": 2,
+        "generation": 1, "updated_at": "x",
+        "values": {"transaction_id": "abc", "state": "committed",
+                   "repo_root": str(tmp_path), "targets": []}}), encoding="utf-8")
+    result = recover_transaction(d)
+    assert result["action"] == "none"
+    assert d.exists(), "a terminal journal must not be destroyed by a probe"
 
 
 def test_a_target_outside_the_repository_is_refused(repo_and_journal, tmp_path):

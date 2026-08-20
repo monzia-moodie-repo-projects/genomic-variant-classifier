@@ -6794,4 +6794,32 @@
 #   consulted at all.
 #
 #   ACCEPTANCE: tests/unit 4885 passed, 10 skipped, 0 failed.
-5120
+
+# 2026-08-20 -- 5120 -> 5131 (+11). INSTALLER-TRANSACTION-1 step 3B.
+#
+#   An exception-safe transaction is not necessarily a crash-safe transaction.
+#
+#   Step 3's twelve sabotage mutations were all EXCEPTION-driven; not one
+#   killed a process. Two defects were then demonstrated:
+#
+#     patch() persisted the target record AFTER the destructive write, so a
+#     crash left a discoverable but UNRECOVERABLE journal -- preimage on disk,
+#     empty target list.
+#
+#     rollback() set ROLLED_BACK before examining failures, so a corrupted
+#     preimage left the repository unrestored, the journal retained, the state
+#     terminal, discovery blind and a retry a no-op.
+#
+#   Repaired with write-ahead ordering, fsynced preimages, ROLLING_BACK and
+#   RECOVERY_REQUIRED, recover_transaction() reconstructing from persisted data
+#   alone, clean-tree enforcement, and unresolved journals blocking new work.
+#
+#   Secret targets are now REFUSED by default: one abstraction cannot promise
+#   both no persistent secret preimage and crash-recoverable secret mutation.
+#
+#   Verified with a real SIGTERM across five kill points, recovery in a third
+#   process, zero journals left. One mutation -- removing os.fsync -- is
+#   undetectable behaviourally and is caught by a labelled STRUCTURAL check.
+#
+#   ACCEPTANCE: tests/unit 4896 passed, 10 skipped, 0 failed.
+5131
