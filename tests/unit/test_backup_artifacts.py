@@ -125,13 +125,58 @@ def test_the_declared_scratch_roots_are_also_git_ignored():
 
     Hygiene does not read `.gitignore`, but a scratch root git insists on
     showing would be a contradiction worth knowing about.
+
+    THE QUERY IS A PATH INSIDE THE ROOT, AND THAT IS NOT A DETAIL.
+    MEASURED 2026-08-20 after this test failed on the runner at 954343e:
+
+        query                     directory ABSENT   directory PRESENT
+        .af_fix_work              exit 1  NO MATCH   exit 0  matched
+        .af_fix_work/probe.bak    exit 0  matched    exit 0  matched
+
+    `.gitignore:198` is `.af_fix_work/` -- a DIRECTORY rule. Given a bare name
+    for a path that does not exist, git cannot know it is a directory, so the
+    rule does not apply. On this workstation the directory exists and the match
+    succeeded; on a fresh clone it does not exist and the match failed.
+
+    The first version therefore asserted a property of MY WORKING TREE rather
+    than of the repository -- a test passing because of a local artefact. A
+    path inside the root is environment-independent, and it asserts the thing
+    that actually matters: a backup inside a declared scratch root is ignored.
     """
     for root in H.SCRATCH_ROOTS:
+        probe = "{}/probe.bak".format(root)
         out = subprocess.run(
-            ["git", "-C", str(_REPO), "check-ignore", "-v", "--no-index", "--", root],
+            ["git", "-C", str(_REPO), "check-ignore", "-v", "--no-index",
+             "--", probe],
             capture_output=True, text=True, timeout=120)
         assert out.stdout.strip(), (
-            "{} is declared scratch but git does not ignore it".format(root))
+            "{} is declared scratch but git does not ignore {}"
+            .format(root, probe))
+
+
+def test_the_scratch_correspondence_holds_where_the_directory_is_ABSENT(tmp_path):
+    """The runner's condition, reproduced deliberately.
+
+    A fresh clone has the `.gitignore` rule and no `.af_fix_work` directory.
+    This builds exactly that and asserts the correspondence still holds, so the
+    contract is verified where it previously only appeared to be.
+    """
+    repo = tmp_path / "clone"
+    repo.mkdir()
+    rules = "\n".join("{}/".format(r) for r in H.SCRATCH_ROOTS) + "\n"
+    (repo / ".gitignore").write_text(rules, encoding="utf-8")
+    subprocess.run(["git", "init", "-q"], cwd=str(repo),
+                   capture_output=True, timeout=120)
+    for root in H.SCRATCH_ROOTS:
+        assert not (repo / root).exists(), "the directory must be ABSENT here"
+        out = subprocess.run(
+            ["git", "-C", str(repo), "check-ignore", "-v", "--no-index",
+             "--", "{}/probe.bak".format(root)],
+            capture_output=True, text=True, timeout=120)
+        assert out.stdout.strip(), (
+            "{} stops being ignored when the directory does not exist -- the "
+            "defect that failed continuous integration at 954343e"
+            .format(root))
 
 
 # ---- backup shapes -----------------------------------------------------

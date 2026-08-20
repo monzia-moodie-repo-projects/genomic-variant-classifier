@@ -6845,4 +6845,25 @@
 #   tracked basename, and returns nothing when ambiguous.
 #
 #   ACCEPTANCE: tests/unit 4940 passed, 10 skipped, 0 failed.
-5175
+
+# 2026-08-20 -- 5175 -> 5176 (+1). SCRATCH-IGNORE-ENVIRONMENT-1.
+#
+#   A test asserted a property of MY WORKING TREE. It queried
+#   `git check-ignore --no-index -- .af_fix_work` -- a BARE DIRECTORY NAME --
+#   against a `.gitignore` rule written as `.af_fix_work/`.
+#
+#   Given a bare name for a path that does not exist, git cannot know it is a
+#   directory, so the directory rule does not apply. The directory exists here
+#   and does not exist in a fresh clone, so the test passed locally and FAILED
+#   on the runner at 954343e.
+#
+#   MEASURED in a clone: a path INSIDE the root -- `.af_fix_work/probe.bak` --
+#   matches in both conditions, and asserts the property that matters.
+#
+#   A second test now builds the runner's condition deliberately: the rule
+#   present, the directory ABSENT. Without it, reverting the query would be
+#   undetectable on any machine where the directory happens to exist -- which
+#   sabotage confirmed.
+#
+#   ACCEPTANCE: tests/unit 4941 passed, 10 skipped, 0 failed.
+5176
