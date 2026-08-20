@@ -1,3 +1,36 @@
+## 2026-08-19 (INSTALLER-TRANSACTION-1 steps 1-3, GITATTRIBUTES-UNGATED-1, RETIREMENT-PATTERN-INCOMPLETE-1) — rollback state leaves the repository
+
+Ten commits, `9b072c2` -> `41372ad`, all on 2026-08-19. The ratchet moved
+5023 -> 5120. Document:
+docs/sessions/SESSION_2026-08-19_rollback-state-leaves-the-repository.md
+
+### Fixed
+- **GITATTRIBUTES-UNGATED-1** (`a18ff26`) `.gitattributes` carried 37 rule lines and a documented near-corruption of a test fixture, and NO test asserted any of them. 39 cases now assert the contract through `git check-attr`, so git answers for itself rather than the tests reimplementing its pattern semantics. Fourteen binary extensions are asserted `text=unset` — the property that forbids the rewrite which, in the file's own words, *"would have SILENTLY CORRUPTED"* a genuinely binary fixture *"rather than merely shortening it."*
+- **INSTALLER-TRANSACTION-1 step 1** (`5447362`) 148 rollback artefacts retired, 17,640,928 bytes, replaced by one classified manifest. 139 held bytes git already had; 8 were superseded working-tree states; 1 was credential-bearing and is recorded by digest and structure only. The middle class is why *"the original is tracked"* was not sufficient grounds for deletion: a tracked original says git has SOME version, not THESE bytes.
+- **INSTALLER-TRANSACTION-1 step 2** (`05f1a72`) A fifth path domain, `cache_root`, for the transaction journal. `state_root` defaults inside the checkout — correct for agent state, wrong for a journal that must outlive the tree it repairs.
+- **INSTALLER-MANIFEST-OVERWRITE-1** (`be033e7`) A manifest is EVIDENCE. Addressing it by a name the next event reuses means every run destroys the previous record, and that is not hypothetical: a routine three-artefact cleanup overwrote the 148-artefact record, replacing 1,956 lines with 20. The guard is refusal, verified against the real loss.
+- **RETIREMENT-PATTERN-INCOMPLETE-1** (`9cba87f`) The retirement tool scanned `*.bak_*` ALONE and reported zero remaining. MEASURED: **107 more** were sitting beside them in a shape it never looked for — every `scripts/apply_*.py` writes `.pre_<name>.bak`. A second accumulation ran in parallel to the one I cleared, invisible to the tool built to clear it.
+- **INSTALLER-TRANSACTION-1 step 3** (`06e75fe`) The transaction primitive. Success destroys the journal and leaves NOTHING; failure restores byte-exactly; interruption leaves a discoverable journal OUTSIDE the repository. A journal inside the repository is REFUSED at construction, so the defect that produced 255 artefacts is structurally impossible rather than remembered.
+- **Two documentation counts corrected** (`320e9cf`, `ab36352`) `.gitattributes` carries 37 rules, not 31, superseded beside both records that said otherwise. And the paths package docstring enumerated three domains after a fourth had landed — corrected in place, because a live description of current structure is not a record of what was once believed.
+
+### Failed (and why)
+- **Six defects, every one in an INSTRUMENT rather than in the thing measured.** A manifest addressed by a reused name. A filter covering one shape of four. A classification ordered so a credential file could fall through to `unclassified`. A census using `lstrip("./")` as though it were a prefix — it takes a CHARACTER SET, so it stripped the leading dot from every hidden path. Three tests that passed for the wrong reason. A case-counter blind to `@parametrize` over a name.
+- **The first transaction sabotage run found three defects in my TESTS, not the code.** One passed because the escaping file did not exist, so a different guard raised the same exception TYPE. One hid that corrupted bytes had already reached the target before the second digest check caught them. And one revealed the state transition table was never consulted at all — every state test was satisfied by a method's own guard, so permitting every transition passed all 27 cases.
+- **A prose label printed a conclusion regardless of the output beneath it, for the third time this session.** *"no diff = the original record survives"* appeared under a diff of 1,976 changed lines.
+
+### Learned
+- **A FILTER THAT REPORTS ZERO IS NOT EVIDENCE OF ZERO.** It is evidence about the filter. *"remaining .bak_* artefact(s): 0"* was true and 107 artefacts were present.
+- **A TEST THAT PASSES FOR THE WRONG REASON IS WORSE THAN A MISSING TEST**, because it consumes the attention a missing test would attract.
+- **A STUB AGREES WITH YOU.** Only the real module can contradict you. The fixture `JsonStateStore` declared the exception hierarchy I assumed; the installed one had to be asked.
+- **A TRANSITION TABLE WITH NO TEST IS A COMMENT.**
+- **A SABOTAGE MATRIX JUDGING SOLELY ON EXIT STATUS WILL UNDER-REPORT.** Two mutations changed only what a manifest recorded, and both were reported as undetected before the manifests were inspected.
+- **PATH FLAVOUR IS BAKED INTO THE PLATFORM, NOT THE ENVIRONMENT.** A fake `XDG_STATE_HOME` on Windows selects the right branch and produces the wrong path, so cross-platform tests must assert RELATIONSHIPS rather than literals.
+
+### Recorded, not repaired
+- **ATOMIC-WRITE-DUPLICATION-1** NEW. `representation_artifact.py` documents its copy of the atomic-write idiom from `RunArtifactWriter._atomic_write`. Deliberate and documented, but two copies; the transaction primitive deliberately did not add a third. Consolidation is its own unit.
+- Three corrections owed to earlier commits, recorded in the session document rather than edited into them: `5447362` claims zero backup artefacts (107 remained); `be033e7` asserts a verification performed only afterwards; and `9cba87f`'s sabotage table called two mutations undetected when the sharper statement is that they were undetectable by exit code.
+- Open: INSTALLER-TRANSACTION-1 (steps 4-8), PATHS-BY-INJECTION-1, CONFIG-DEAD-PATHS-1 (a scope decision), ATOMIC-WRITE-DUPLICATION-1, WORKTREE-EOL-DRIFT-1 (not a defect), ROOTFIX-VERIFY-TEXTUAL-1, SHAREDSTATE-LOAD-WRITES-1, PACKAGES-NO-INIT-1, MIGRATION-RECORD-SEPARATOR-1, CHANGELOG-DUP-2026-06-25, LGBM-SKLEARN-FEATURE-NAME-WARNING-1, PREFLIGHT-CREDENTIAL-USABILITY-1, and SESSION_2026-06-19 item 5.
+
 ## 2026-08-19 (GITATTRIBUTES-UNGATED-1 closed; a count corrected) — thirty-seven, not thirty-one
 
 One commit, `a18ff26`. The ratchet moved 5027 -> 5066. Document: the correction
