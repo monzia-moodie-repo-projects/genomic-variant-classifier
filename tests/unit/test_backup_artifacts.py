@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -243,6 +244,20 @@ def test_a_secret_shape_survives_its_original_being_deleted():
 
 
 # ---- relocation --------------------------------------------------------
+def _mkrepo_with_moved_file(base: Path) -> Path:
+    """A repository where one file's original genuinely moved."""
+    repo = base / "moved"
+    (repo / "scripts" / "forensics").mkdir(parents=True)
+    (repo / ".gitignore").write_text("*.bak*\n", encoding="utf-8")
+    (repo / "scripts" / "forensics" / "tool.py").write_text("v = 2\n",
+                                                            encoding="utf-8")
+    for cmd in (["git", "init", "-q"], ["git", "config", "user.email", "t@t"],
+                ["git", "config", "user.name", "t"], ["git", "add", "-A", "-f"],
+                ["git", "commit", "-qm", "v1"]):
+        subprocess.run(cmd, cwd=str(repo), capture_output=True, timeout=120)
+    return repo
+
+
 def _mkrepo(base: Path) -> Path:
     repo = base / "r"
     (repo / "scripts" / "forensics").mkdir(parents=True)
@@ -281,6 +296,65 @@ def test_a_divergent_predecessor_resolves_by_basename_with_its_successor(tmp_pat
     assert r.original_now_at == "scripts/forensics/tool.py"
     assert "basename" in r.evidence
     assert r.successor_commit and len(r.successor_commit) == 40
+
+
+def test_relocation_returns_NOTHING_when_the_original_NEVER_MOVED(tmp_path):
+    """RELOCATION-FALSE-POSITIVE-1, and it reached an installed gate.
+
+    resolve_relocation searched for a tracked file sharing the basename WITHOUT
+    first checking whether the original still sat at its derived path. So an
+    ordinary backup resolved to its own unmoved original:
+
+        README.md.bak_2026-08-20_065912
+            derived original : README.md      EXISTS=True
+            resolve_relocation -> README.md   <- claimed a relocation
+
+    The retirement tool never saw it because it asks only inside its
+    `original is None` branch. iter_repository_detritus asked unconditionally,
+    excluded EIGHT ordinary artefacts as "relocated", and reported ZERO
+    detritus on the live repository -- a VACUOUS invariant, caught only because
+    the installer's structural gate printed the file list.
+
+    A function that answers "where did the original move to" must not answer at
+    all when the original did not move.
+    """
+    repo = _mkrepo_with_moved_file(tmp_path)
+    (repo / "README.md").write_text("# doc\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A", "-f"], cwd=str(repo),
+                   capture_output=True, timeout=120)
+    subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t",
+                    "commit", "-qm", "readme"], cwd=str(repo),
+                   capture_output=True, timeout=120)
+    (repo / "README.md.bak_2026-01-01_000000").write_text("# old\n", encoding="utf-8")
+
+    assert (repo / "README.md").exists(), "the original must still be present"
+    assert H.resolve_relocation(repo, "README.md.bak_2026-01-01_000000") is None, (
+        "a backup whose original never moved was reported as relocated")
+
+
+def test_the_detritus_invariant_is_not_VACUOUS(tmp_path):
+    """The consequence, asserted separately from the cause.
+
+    MEASURED on the live repository at 15830cc: the iterator reported 0 files
+    while the retirement tool classified 8 as git_exact_preimage. The two
+    authorities disagreed by eight, and an invariant that reports nothing
+    cannot fail.
+    """
+    repo = _mkrepo_with_moved_file(tmp_path)
+    (repo / "docs").mkdir(exist_ok=True)
+    (repo / "docs" / "guide.md").write_text("g\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A", "-f"], cwd=str(repo),
+                   capture_output=True, timeout=120)
+    subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t",
+                    "commit", "-qm", "guide"], cwd=str(repo),
+                   capture_output=True, timeout=120)
+    (repo / "docs" / "guide.md.bak_2026-01-01_000000").write_text("old\n",
+                                                                 encoding="utf-8")
+    found = sorted(H.iter_repository_detritus(repo))
+    assert "docs/guide.md.bak_2026-01-01_000000" in found, (
+        "an ordinary backup whose original is present was not reported: "
+        "{}".format(found))
+    assert found, "the invariant reported nothing at all"
 
 
 def test_relocation_returns_NOTHING_rather_than_guessing(tmp_path):
@@ -504,3 +578,100 @@ def test_iter_detritus_excludes_scratch_and_foreign_roots(tmp_path):
     assert found == ["scripts/c.py.bak"], found
     with_scratch = sorted(H.iter_repository_detritus(repo, include_scratch=True))
     assert with_scratch == [".af_fix_work/a.py.bak", "scripts/c.py.bak"], with_scratch
+
+
+def test_the_walk_does_NOT_DESCEND_into_excluded_roots(tmp_path):
+    """DETRITUS-WALK-COST-1, asserted by behaviour rather than by timing.
+
+    The previous implementation called repo.rglob() once PER PATTERN, and rglob
+    cannot prune -- it descends everywhere and the caller discards the results.
+    MEASURED on the real repository 2026-08-20:
+
+        rglob("*.bak_*")   1.931s     rglob("*") whole tree  2.093s  135,832
+        rglob("*.bak")     1.889s     os.walk with pruning   0.478s   43,070
+        rglob("*.orig")    1.900s
+        rglob("*.rej")     1.901s
+        ------------------
+        total              7.572s for FIVE reported files
+
+    92,762 entries -- almost all of .venv312 -- were enumerated FOUR TIMES and
+    thrown away. This is a repository-wide invariant that runs in every suite
+    execution; a check people avoid running is a check that has stopped
+    working.
+
+    Timing is not asserted here -- it varies by machine and would make the
+    suite flaky. What IS asserted is the property that produces the speedup:
+    the excluded root is never entered, so a thousand backup-shaped files
+    inside it cost nothing.
+    """
+    repo = tmp_path / "r"
+    deep = repo / ".venv312" / "lib" / "site-packages" / "pkg" / "nested"
+    deep.mkdir(parents=True)
+    (repo / "scripts").mkdir()
+    for i in range(200):
+        (deep / "m{}.py.bak".format(i)).write_text("x\n", encoding="utf-8")
+    (repo / "scripts" / "real.py.bak").write_text("r\n", encoding="utf-8")
+
+    visited = []
+    real_walk = os.walk
+
+    def counting_walk(top, *args, **kwargs):
+        for root, dirs, files in real_walk(top, *args, **kwargs):
+            visited.append(str(root))
+            yield root, dirs, files
+
+    import genomic_variant_classifier.repository_hygiene.backup_artifacts as mod
+    original = mod.os.walk
+    mod.os.walk = counting_walk
+    try:
+        found = sorted(H.iter_repository_detritus(repo))
+    finally:
+        mod.os.walk = original
+
+    assert found == ["scripts/real.py.bak"], found
+    entered = [v for v in visited if ".venv312" in v]
+    assert not entered, (
+        "the walk descended into an excluded root: {}".format(entered[:3]))
+
+
+def test_ordinary_files_are_not_reported_as_detritus(tmp_path):
+    """The SHAPE filter, which every other fixture failed to exercise.
+
+    MEASURED 2026-08-20: removing `if not is_backup_shaped(name): continue`
+    from the iterator left ALL 100 tests passing. Every fixture contained only
+    backup-shaped files, so accepting everything changed nothing -- the filter
+    was load-bearing in production and untested.
+
+    A fixture that contains only the thing being detected cannot show that
+    anything else is rejected.
+    """
+    repo = tmp_path / "r"
+    (repo / "src").mkdir(parents=True)
+    (repo / "docs").mkdir()
+    (repo / "src" / "module.py").write_text("x = 1\n", encoding="utf-8")
+    (repo / "src" / "data.parquet").write_bytes(b"PAR1")
+    (repo / "docs" / "README.md").write_text("# doc\n", encoding="utf-8")
+    (repo / "src" / "notes.backup").write_text("not a match\n", encoding="utf-8")
+    (repo / "src" / "thing.bakery").write_text("not a match\n", encoding="utf-8")
+    (repo / "src" / "real.py.bak").write_text("a match\n", encoding="utf-8")
+
+    found = sorted(H.iter_repository_detritus(repo))
+    assert found == ["src/real.py.bak"], (
+        "the shape filter reported non-backup files: {}".format(found))
+
+
+def test_a_relocated_preimage_is_not_reported_as_detritus(tmp_path):
+    """The two authorities must AGREE.
+
+    The retirement tool RETAINS a relocated preimage deliberately, recording
+    its successor. A repository-wide invariant that reported the same file as
+    detritus would set the two against each other -- and the file would be
+    permanently un-clearable, since the tool refuses to delete it.
+    """
+    repo = _mk_relocated_repo(tmp_path)
+    found = sorted(H.iter_repository_detritus(repo))
+    assert "scripts/tool.py.bak" not in found, found
+    assert "scripts/ghost.py.bak" in found, (
+        "an UNPROVABLE orphan is still detritus")
+    with_reloc = sorted(H.iter_repository_detritus(repo, include_relocated=True))
+    assert "scripts/tool.py.bak" in with_reloc, with_reloc

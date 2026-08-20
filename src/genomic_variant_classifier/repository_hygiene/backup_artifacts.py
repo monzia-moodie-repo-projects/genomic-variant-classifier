@@ -64,6 +64,7 @@ Author: Monzia Moodie
 from __future__ import annotations
 
 import fnmatch
+import os
 import subprocess
 from dataclasses import dataclass
 from enum import Enum
@@ -247,6 +248,33 @@ def resolve_relocation(repo: Path, backup_relpath: str):
         return None
     basename = Path(base).name
 
+    # NOTHING MOVED IF THE ORIGINAL IS STILL THERE.
+    #
+    # RELOCATION-FALSE-POSITIVE-1 (2026-08-20). This function searched for a
+    # tracked file sharing the basename WITHOUT first checking whether the
+    # original still sat at its derived path. So an ordinary backup resolved to
+    # its own unmoved original:
+    #
+    #     README.md.bak_2026-08-20_065912
+    #         derived original : README.md         EXISTS=True
+    #         resolve_relocation -> README.md      <- claimed a relocation
+    #
+    #     scripts/verify_written_cohorts.py.bak
+    #         derived original : scripts/verify_written_cohorts.py  EXISTS=False
+    #         resolve_relocation -> scripts/forensics/...           <- genuine
+    #
+    # The retirement tool never saw this because it asks only inside its
+    # `original is None` branch. iter_repository_detritus asked
+    # unconditionally, excluded EIGHT ordinary artefacts as "relocated", and
+    # reported ZERO detritus -- a vacuous invariant.
+    #
+    # The guard belongs HERE rather than at each call site: a function that
+    # answers "where did the original move to" must not answer at all when the
+    # original did not move.
+    derived = (Path(backup_relpath).parent / base).as_posix().lstrip("./")
+    if (repo / derived).exists():
+        return None
+
     blob = _git(repo, "hash-object", "--", str(backup_relpath)).strip()
     if blob:
         found = _git(repo, "rev-list", "--objects", "--all")
@@ -270,22 +298,57 @@ def resolve_relocation(repo: Path, backup_relpath: str):
     return None
 
 
-def iter_repository_detritus(repo, *, include_scratch: bool = False):
+def iter_repository_detritus(repo, *, include_scratch: bool = False,
+                             include_relocated: bool = False):
     """Every backup-shaped path that is repository detritus.
 
-    Scratch roots are excluded by default -- they are declared working space --
-    and directories that are not this project's artefacts always are.
+    Scratch roots are excluded by default -- they are declared working space.
+    Relocated preimages are excluded by default because the retirement tool
+    RETAINS them deliberately, and a repository-wide invariant that reported a
+    file its own classifier had decided to keep would set the two authorities
+    against each other.
+
+    ONE PRUNED WALK, NOT FOUR FULL ONES.
+    DETRITUS-WALK-COST-1 (2026-08-20). This called repo.rglob() once PER
+    PATTERN, and rglob cannot prune: it descends into every directory and the
+    caller discards the results afterwards. MEASURED on this repository:
+
+        rglob("*.bak_*")   1.931s   4 matches
+        rglob("*.bak")     1.889s  13 matches
+        rglob("*.orig")    1.900s   0 matches
+        rglob("*.rej")     1.901s   0 matches
+        -------------------------------------
+        total              7.572s   5 reported files
+
+        rglob("*") whole tree      2.093s   135,832 entries
+        os.walk with pruning       0.478s    43,070 files
+
+    92,762 entries -- almost all of .venv312 -- were being enumerated FOUR
+    TIMES and thrown away. os.walk prunes by mutating `dirs` in place, so the
+    excluded roots are never descended into at all. Roughly sixteen times
+    faster, and the cost now scales with the project rather than with its
+    virtual environment.
+
+    That matters because this is a repository-wide invariant: it runs in every
+    suite execution, locally and twice per continuous-integration run. A check
+    people avoid running is a check that has stopped working.
     """
     repo = Path(repo)
-    seen = set()
-    for shape in BACKUP_SHAPES:
-        for p in repo.rglob(shape):
-            if p in seen or not p.is_file():
+    for root, dirs, files in os.walk(repo):
+        dirs[:] = [d for d in dirs if d not in NOT_THIS_REPOSITORY]
+        here = Path(root)
+        for name in files:
+            if not is_backup_shaped(name):
                 continue
-            seen.add(p)
-            rel = p.relative_to(repo).as_posix()
-            if in_excluded_root(rel):
-                continue
+            rel = (here / name).relative_to(repo).as_posix()
             if in_scratch_root(rel) and not include_scratch:
+                continue
+            if not include_relocated and resolve_relocation(repo, rel) is not None:
+                # A predecessor of a file that MOVED, which the retirement tool
+                # retains with its successor recorded. Not detritus.
+                #
+                # resolve_relocation returns None when the original is still at
+                # its derived path, so an ordinary backup is never excluded
+                # here -- see RELOCATION-FALSE-POSITIVE-1.
                 continue
             yield rel

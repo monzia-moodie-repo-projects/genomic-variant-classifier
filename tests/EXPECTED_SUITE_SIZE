@@ -6888,4 +6888,47 @@
 #   made from the record.
 #
 #   ACCEPTANCE: tests/unit 4945 passed, 10 skipped, 0 failed.
-5180
+
+# 2026-08-20 -- 5180 -> 5183 (+3). DETRITUS-WALK-COST-1.
+#
+#   A check people avoid running is a check that has stopped working.
+#
+#   iter_repository_detritus called rglob() once PER PATTERN, and rglob cannot
+#   prune. MEASURED on the live repository: 7.829s end to end for FIVE reported
+#   files, because 92,762 entries -- almost all of .venv312 -- were enumerated
+#   FOUR TIMES and discarded. A pruned os.walk covers the same ground in
+#   0.478s.
+#
+#   Relocation is now wired into the iterator as well, so the detritus
+#   invariant and the retirement tool agree BY CONSTRUCTION: a preimage the
+#   tool retains is not reported as detritus, while an unprovable orphan still
+#   is. The cost was measured before the design was chosen -- 0.523s per call
+#   against a 7.8s walk -- so cost was not an argument either way.
+#
+#   One sabotage was MISSED first time: removing the shape filter left all 100
+#   tests passing, because every fixture contained only backup-shaped files. A
+#   fixture that contains only the thing being detected cannot show that
+#   anything else is rejected.
+#
+#   ACCEPTANCE: tests/unit 4948 passed, 10 skipped, 0 failed.
+
+# 2026-08-20 -- 5183 -> 5185 (+2). RELOCATION-FALSE-POSITIVE-1.
+#
+#   A function that answers "where did the original move to" must not answer at
+#   all when the original did not move.
+#
+#   resolve_relocation matched a tracked file by BASENAME without checking
+#   whether the original still sat at its derived path, so README.md.bak_...
+#   "relocated" to README.md. iter_repository_detritus asked unconditionally,
+#   excluded EIGHT ordinary artefacts, and reported ZERO detritus -- a VACUOUS
+#   invariant that would have passed forever.
+#
+#   The suite did not catch it: 4948 tests passed with the defect installed.
+#   The installer's structural gate PRINTED THE FILE LIST, and reading that
+#   list is what found it.
+#
+#   The guard is inside resolve_relocation, since the defect exists regardless
+#   of the caller. Inverting it fails six tests, so the direction is pinned.
+#
+#   ACCEPTANCE: tests/unit 4950 passed, 10 skipped, 0 failed.
+5185
