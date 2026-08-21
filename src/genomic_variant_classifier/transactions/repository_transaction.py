@@ -273,12 +273,29 @@ class RepositoryTransaction:
                 "the journal root {} is inside the repository {}. A rollback "
                 "journal that lives in the tree it repairs is the defect this "
                 "class exists to remove.".format(self.journal_root, self.repo_root))
+        # EVERY PRECONDITION BEFORE ANY DIRECTORY IS CREATED.
+        #
+        # JOURNAL-CONSTRUCTION-RESIDUE-1 (2026-08-20). mkdir ran BEFORE
+        # _assert_tree_clean, so a refused construction left an empty journal
+        # directory holding only `preimages/` and no manifest. Because
+        # incomplete_transactions() skips directories without a manifest,
+        # discovery could not see them, and they accumulated silently in the
+        # journal root.
+        #
+        # MEASURED by refusing a construction against a dirty tree and finding
+        # one residual directory that incomplete_transactions reported as zero.
+        #
+        # That is the same shape as the `.bak_` accumulation this whole unit
+        # exists to end -- invisible residue produced by a mechanism nobody
+        # thought of as producing residue -- occurring inside the replacement.
+        #
+        # A refusal must leave the filesystem exactly as it found it.
         self._assert_no_unresolved_transactions()
-        self.directory.mkdir(parents=True, exist_ok=True)
-        self.preimages.mkdir(parents=True, exist_ok=True)
         self._head = self._git_head()
         if self.require_clean_tree:
             self._assert_tree_clean()
+        self.directory.mkdir(parents=True, exist_ok=True)
+        self.preimages.mkdir(parents=True, exist_ok=True)
         self._persist()
 
     def __enter__(self) -> "RepositoryTransaction":
@@ -307,6 +324,38 @@ class RepositoryTransaction:
     @property
     def state(self) -> TransactionState:
         return self._state
+
+    @property
+    def write_set(self) -> frozenset:
+        """Every repository path this transaction has declared, so far.
+
+        WRITE-SET COMPLETENESS. An installer must be able to prove that the
+        transition it performed is EXACTLY the transition it declared -- not
+        merely that its tests passed afterwards. A run that unexpectedly
+        touches a sixth file should fail even when every test is green.
+
+        Exposed as an immutable frozenset because a caller comparing a declared
+        plan against actual writes must not be able to mutate either side of
+        that comparison. `_targets` remains private: a runner that reached into
+        it would couple itself to the transaction's internal representation,
+        which is the coupling this accessor exists to prevent.
+
+        The set is complete only after every patch() and create() has been
+        issued; before that it reports what has been declared SO FAR, which is
+        what makes it usable as a running check as well as a final one.
+        """
+        return frozenset(self._targets)
+
+    @property
+    def mutated_set(self) -> frozenset:
+        """The subset actually written, as opposed to merely captured.
+
+        _write_ahead() records a target BEFORE the repository is touched, so
+        write_set includes paths whose mutation has not yet happened. A
+        postcondition asserting that every declared target was really written
+        needs this narrower set.
+        """
+        return frozenset(k for k, t in self._targets.items() if t.mutated)
 
     # ---- persistence ---------------------------------------------------
     def _store(self) -> JsonStateStore:

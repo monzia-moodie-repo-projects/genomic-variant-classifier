@@ -275,20 +275,45 @@ def resolve_relocation(repo: Path, backup_relpath: str):
     if (repo / derived).exists():
         return None
 
+    normalised = Path(backup_relpath).as_posix().lstrip("./")
     blob = _git(repo, "hash-object", "--", str(backup_relpath)).strip()
     if blob:
         found = _git(repo, "rev-list", "--objects", "--all")
         for line in found.splitlines():
             if line.startswith(blob):
                 parts = line.split(None, 1)
-                if len(parts) == 2:
-                    return Relocation(
-                        original_now_at=parts[1],
-                        evidence="exact blob identity in git history",
-                        successor_commit=None)
+                if len(parts) != 2:
+                    continue
+                # A BACKUP IS NOT ITS OWN SUCCESSOR.
+                #
+                # RELOCATION-SELF-MATCH-1 (2026-08-20). A backup that has
+                # itself been committed -- which happens whenever a fixture or
+                # a repository does `git add -A -f` -- has its own bytes in
+                # history UNDER ITS OWN PATH. The blob search then matched that
+                # entry and reported:
+                #
+                #     original_now_at = '<the backup itself>'
+                #     evidence        = 'exact blob identity in git history'
+                #
+                # The unmoved-original guard above does not catch this: the
+                # derived original genuinely does not exist. MEASURED by
+                # planting one artefact in a fixture repository and watching
+                # the no-detritus invariant PASS.
+                #
+                # A path that resolves to itself, or to another backup-shaped
+                # path, is no evidence of relocation at all.
+                candidate = parts[1]
+                if candidate == normalised or is_backup_shaped(candidate):
+                    continue
+                return Relocation(
+                    original_now_at=candidate,
+                    evidence="exact blob identity in git history",
+                    successor_commit=None)
 
     tracked = [p for p in _git(repo, "ls-files").splitlines()
-               if Path(p).name == basename]
+               if Path(p).name == basename
+               and p != normalised
+               and not is_backup_shaped(p)]
     if len(tracked) == 1:
         log = _git(repo, "log", "-1", "--format=%H", "--", tracked[0]).strip()
         return Relocation(

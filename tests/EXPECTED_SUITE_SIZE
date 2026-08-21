@@ -6931,4 +6931,32 @@
 #   of the caller. Inverting it fails six tests, so the direction is pinned.
 #
 #   ACCEPTANCE: tests/unit 4950 passed, 10 skipped, 0 failed.
-5185
+
+# 2026-08-20 -- 5185 -> 5207 (+22). INSTALLER-TRANSACTION-1 step 4 bootstrap.
+#
+#   Do not redesign the transaction system while relying on that unfinished
+#   redesign to install itself.
+#
+#   The transactional runner cannot install the code it depends on, so this
+#   conventional installer lands the machinery -- and leaves .bak_ artefacts,
+#   honestly, as every installer before it has. The next step installs
+#   tests/unit/test_no_detritus.py transactionally and leaves nothing.
+#
+#   Two defects repaired, both found 2026-08-20:
+#
+#     RELOCATION-SELF-MATCH-1  a committed backup had its own bytes in history
+#     under its own path, so the blob branch reported it relocated to ITSELF.
+#     Found by planting one artefact and watching the freshly written
+#     no-detritus invariant PASS.
+#
+#     JOURNAL-CONSTRUCTION-RESIDUE-1  the journal directory was created BEFORE
+#     preconditions were validated, so a refused construction left an empty,
+#     manifest-less directory that discovery could not see. The same shape as
+#     the .bak_ accumulation this unit exists to end, inside the replacement.
+#
+#   Counts from pytest: test_backup_artifacts 54 -> 57, test_install_plan 19
+#   new (measured by reversibly staging install_plan.py, since the file cannot
+#   be collected without it).
+#
+#   ACCEPTANCE: tests/unit 4972 passed, 10 skipped, 0 failed.
+5207

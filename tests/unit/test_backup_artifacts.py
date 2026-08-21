@@ -357,6 +357,128 @@ def test_the_detritus_invariant_is_not_VACUOUS(tmp_path):
     assert found, "the invariant reported nothing at all"
 
 
+def test_a_COMMITTED_backup_is_not_its_own_relocation(tmp_path):
+    """RELOCATION-SELF-MATCH-1, and it made the no-detritus invariant vacuous.
+
+    A backup that has itself been committed -- which happens whenever a
+    fixture or a repository does `git add -A -f` -- has its own bytes in git
+    history UNDER ITS OWN PATH. The blob-identity branch matched that entry:
+
+        original_now_at = '<the backup itself>'
+        evidence        = 'exact blob identity in git history'
+
+    The unmoved-original guard does not catch it, because the derived original
+    genuinely does not exist.
+
+    MEASURED 2026-08-20 by planting ONE artefact in a fixture repository and
+    watching the freshly written no-detritus invariant PASS. A test that
+    cannot fail on a repository built to violate it is not a test.
+
+    A path that resolves to itself, or to another backup-shaped path, is no
+    evidence of relocation at all.
+    """
+    repo = tmp_path / "r"
+    (repo / "src").mkdir(parents=True)
+    (repo / "src" / "orphan.py.bak_2026-01-01_000000").write_text(
+        "residue = 1\n", encoding="utf-8")
+    for cmd in (["git", "init", "-q"], ["git", "config", "user.email", "t@t"],
+                ["git", "config", "user.name", "t"],
+                ["git", "add", "-A", "-f"], ["git", "commit", "-qm", "v1"]):
+        subprocess.run(cmd, cwd=str(repo), capture_output=True, timeout=120)
+
+    rel = "src/orphan.py.bak_2026-01-01_000000"
+    assert not (repo / "src" / "orphan.py").exists(), "the original must be absent"
+    assert H.resolve_relocation(repo, rel) is None, (
+        "a committed backup was reported as its own relocation")
+    assert sorted(H.iter_repository_detritus(repo)) == [rel], (
+        "the invariant cannot fail on a repository built to violate it")
+
+
+def test_a_backup_shaped_candidate_is_never_a_relocation_target(tmp_path):
+    """Two backups of the same original must not resolve to each other.
+
+    The basename branch could otherwise pair `mod.py.bak` with
+    `mod.py.bak_<stamp>` if both were tracked, since neither is the derived
+    original and both share a basename stem.
+    """
+    repo = tmp_path / "r"
+    (repo / "src").mkdir(parents=True)
+    (repo / "src" / "twin.py.bak").write_text("one\n", encoding="utf-8")
+    (repo / "src" / "twin.py.bak_2026-01-01_000000").write_text("two\n",
+                                                                encoding="utf-8")
+    for cmd in (["git", "init", "-q"], ["git", "config", "user.email", "t@t"],
+                ["git", "config", "user.name", "t"],
+                ["git", "add", "-A", "-f"], ["git", "commit", "-qm", "v1"]):
+        subprocess.run(cmd, cwd=str(repo), capture_output=True, timeout=120)
+    for rel in ("src/twin.py.bak", "src/twin.py.bak_2026-01-01_000000"):
+        assert H.resolve_relocation(repo, rel) is None, rel
+    assert len(sorted(H.iter_repository_detritus(repo))) == 2
+
+
+def test_the_BASENAME_branch_refuses_a_backup_shaped_candidate(tmp_path):
+    """The second guard, and THREE fixtures that failed to reach it.
+
+    MEASURED 2026-08-20: removing this guard left all 130 tests passing. Three
+    successive fixtures could not exercise the branch --
+
+        1. the backup was COMMITTED, so the blob branch matched and returned
+           first;
+
+        2. `shadow.py.bak_<stamp>` beside a tracked `shadow.py.bak` strips to
+           `shadow.py`, whose basename no tracked file shares -- the candidate
+           list was empty;
+
+        3. `src/a.bak.bak` beside a tracked `src/a.bak` strips to `a.bak`,
+           which EXISTS at the derived path -- so the unmoved-original guard
+           returned None before the basename search ran.
+
+    Reaching it needs all three conditions at once:
+
+        the stripped base is itself backup-shaped   (a doubled suffix)
+        the derived original does NOT exist          (a different directory)
+        the backup's bytes are NOT in git history    (written after the commit)
+
+    Verified by removing the guard and watching this exact fixture produce
+    `Relocation(original_now_at='archive/a.bak', evidence='exactly one tracked
+    file shares the basename')` -- a bogus answer the guard refuses.
+
+    I wrote three tests that could not exercise the code they named. Tracing
+    the function step by step, rather than reasoning about it, is what found
+    the reachable case.
+    """
+    repo = tmp_path / "r"
+    (repo / "src").mkdir(parents=True)
+    (repo / "archive").mkdir()
+    # backup-shaped, tracked, and in a DIFFERENT directory
+    (repo / "archive" / "a.bak").write_text("archived\n", encoding="utf-8")
+    for cmd in (["git", "init", "-q"], ["git", "config", "user.email", "t@t"],
+                ["git", "config", "user.name", "t"],
+                ["git", "add", "-A", "-f"], ["git", "commit", "-qm", "v1"]):
+        subprocess.run(cmd, cwd=str(repo), capture_output=True, timeout=120)
+
+    # a doubled suffix in src/, so src/a.bak does NOT exist
+    (repo / "src" / "a.bak.bak").write_text("unique\n", encoding="utf-8")
+    rel = "src/a.bak.bak"
+
+    base = H.strip_backup_suffix(rel)
+    assert base == "a.bak" and H.is_backup_shaped(base), base
+    assert not (repo / "src" / "a.bak").exists(), (
+        "the derived original must be ABSENT, or the unmoved guard returns first")
+    blob = subprocess.run(["git", "-C", str(repo), "hash-object", "--", rel],
+                          capture_output=True, text=True, timeout=120).stdout.strip()
+    history = subprocess.run(["git", "-C", str(repo), "rev-list", "--objects", "--all"],
+                             capture_output=True, text=True, timeout=120).stdout
+    assert blob and blob not in history, (
+        "the bytes must be absent from history, or the blob branch returns first")
+    tracked = subprocess.run(["git", "-C", str(repo), "ls-files"],
+                             capture_output=True, text=True, timeout=120).stdout.split()
+    assert [p for p in tracked if Path(p).name == base] == ["archive/a.bak"], tracked
+
+    assert H.resolve_relocation(repo, rel) is None, (
+        "the basename branch accepted a backup-shaped candidate")
+    assert rel in sorted(H.iter_repository_detritus(repo))
+
+
 def test_relocation_returns_NOTHING_rather_than_guessing(tmp_path):
     """A classifier that guesses is worse than one that refuses."""
     repo = _mkrepo(tmp_path)
