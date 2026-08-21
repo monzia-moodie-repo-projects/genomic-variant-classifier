@@ -61,6 +61,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -170,13 +171,25 @@ def _collect(repo: Path, target: str) -> int:
     return count
 
 
-def _run_suite(repo: Path, target: str) -> tuple:
-    """Run the acceptance gate and return (passed, skipped, failed)."""
+def _run_suite(repo: Path, target: str, active_transaction=None) -> tuple:
+    """Run the acceptance gate and return (passed, skipped, failed).
+
+    INVARIANT-SELF-REFERENCE-1. The gate runs INSIDE the apply transaction, so
+    that transaction's journal is legitimately non-terminal while the suite
+    looks at it. The identifier is exported so the no-detritus invariant can
+    exclude exactly that one journal -- never a blanket tolerance.
+
+    Exported into the CHILD environment only, not this process's, so nothing
+    outside the gate can see it.
+    """
     started = time.perf_counter()
+    env = dict(os.environ)
+    if active_transaction:
+        env["GVC_ACTIVE_TRANSACTION"] = active_transaction
     proc = subprocess.run(
         [sys.executable, "-B", "-m", "pytest", target, "-q", "--tb=short",
          "-p", "no:cacheprovider"],
-        cwd=str(repo), capture_output=True, text=True, timeout=5400)
+        cwd=str(repo), capture_output=True, text=True, timeout=5400, env=env)
     elapsed = time.perf_counter() - started
     summary = None
     for line in reversed(proc.stdout.splitlines()):
@@ -372,7 +385,8 @@ def main(argv=None) -> int:
         print("  write set  : proven equal to the declared set")
 
         print("\n--- acceptance gate (rollback still available) ---")
-        passed, skipped, _failed = _run_suite(repo, ACCEPTANCE_SCOPE)
+        passed, skipped, _failed = _run_suite(
+            repo, ACCEPTANCE_SCOPE, active_transaction=tx.transaction_id)
         _assert_hygiene(repo, "prospective")
         tx.commit()
         print("  committed; journal destroyed: {}".format(
