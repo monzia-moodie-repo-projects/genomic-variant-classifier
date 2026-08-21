@@ -247,7 +247,7 @@ gnn_probe_prep.txt
 data/_drift_check/
 
 # seq-window build scaffolding + backups (added by hygiene_pass 2026-07-11)
-install_*.py
+/install_*.py
 data/processed/seq_windows_dryrun/
 data/processed/seq_windows/part_*.parquet
 data/processed/seq_windows/part_*.done
