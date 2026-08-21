@@ -85,6 +85,25 @@ from genomic_variant_classifier.transactions.repository_transaction import (  # 
 
 UNIT = "INSTALLER-TRANSACTION-1-step-4"
 
+#: THE RATCHET COUNTS `tests/`, NOT `tests/unit`.
+#:
+#: MEASURED 2026-08-21: tests/ collects 5207 and tests/unit collects 4982,
+#: while the ratchet reads 5207 and the README badge reads tests-5207-. The
+#: first version of this runner measured tests/unit and then tried to render
+#: the badge from 4982 -- render_readme REFUSED rather than guess, which is how
+#: the mismatch was found.
+#:
+#: The ratchet's own header calls itself "the single source of truth for how
+#: many tests exist", tests/conftest.py enforces it against the COLLECTED total
+#: of tests/, and tests/unit/test_readme_claims.py requires the badge to EQUAL
+#: it with no tolerance. So the counter scope is not a choice.
+#:
+#: The ACCEPTANCE scope is different and deliberately narrower: every gate in
+#: this project's history has run tests/unit. Two scopes, two names, neither
+#: standing in for the other.
+COUNTER_SCOPE = "tests"
+ACCEPTANCE_SCOPE = "tests/unit"
+
 #: The payload: one new test file, installed transactionally.
 PAYLOAD = (
     ("test_no_detritus.py", "tests/unit/test_no_detritus.py"),
@@ -287,7 +306,26 @@ def main(argv=None) -> int:
         {k: ("exists" if v else "absent") for k, v in pre_exists.items()}))
 
     print("\n--- phase 1: measurement ---")
-    before = _collect(repo, "tests/unit")
+    before = _collect(repo, COUNTER_SCOPE)
+
+    # THE MEASURED SCOPE MUST BE THE COUNTER'S SCOPE.
+    #
+    # If these disagree, the runner is measuring something the ratchet does not
+    # describe, and every number it derives afterwards is wrong in a way that
+    # renders cleanly. Refusing here costs one collection; not refusing writes
+    # a false counter into the repository inside a transaction.
+    ratchet_path = repo / "tests" / "EXPECTED_SUITE_SIZE"
+    bare = [l.strip() for l in ratchet_path.read_text(encoding="utf-8").split("\n")
+            if l.strip().isdigit()]
+    if len(bare) != 1:
+        raise RunnerError(
+            "the ratchet holds {} bare number(s); expected exactly 1".format(len(bare)))
+    if int(bare[0]) != before:
+        raise RunnerError(
+            "the ratchet reads {} but {} collects {}. The runner would be "
+            "deriving counters from a scope the ratchet does not describe."
+            .format(bare[0], COUNTER_SCOPE, before))
+    print("  the ratchet ({}) agrees with {}".format(bare[0], COUNTER_SCOPE))
 
     # The AFTER count can only be measured with the payload staged, and staging
     # is a repository write. So it happens in a MEASUREMENT transaction that is
@@ -302,7 +340,7 @@ def main(argv=None) -> int:
                 probe.patch(dest, data)
             else:
                 probe.create(dest, data)
-        after = _collect(repo, "tests/unit")
+        after = _collect(repo, COUNTER_SCOPE)
         probe.rollback(reason="measurement complete")
     print("  measurement rolled back; tree pristine again")
     _assert_hygiene(repo, "post-measurement")
@@ -334,7 +372,7 @@ def main(argv=None) -> int:
         print("  write set  : proven equal to the declared set")
 
         print("\n--- acceptance gate (rollback still available) ---")
-        passed, skipped, _failed = _run_suite(repo, "tests/unit")
+        passed, skipped, _failed = _run_suite(repo, ACCEPTANCE_SCOPE)
         _assert_hygiene(repo, "prospective")
         tx.commit()
         print("  committed; journal destroyed: {}".format(
