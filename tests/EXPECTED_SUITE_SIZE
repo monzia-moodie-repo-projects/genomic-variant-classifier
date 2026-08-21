@@ -6959,4 +6959,21 @@
 #   be collected without it).
 #
 #   ACCEPTANCE: tests/unit 4972 passed, 10 skipped, 0 failed.
-5207
+
+# 2026-08-21 -- 5207 -> 5213 (+6). INSTALLER-TRANSACTION-1 step 4.
+#
+#   The FIRST payload installed by a RepositoryTransaction rather than by a
+#   script writing files directly. The ratchet and README are ordinary
+#   transaction targets, not bookkeeping handled outside it: a failure at any
+#   point restores all of them.
+#
+#   The write set is DECLARED before the repository is touched and proven
+#   afterwards, so an installer that unexpectedly touches one more file fails
+#   even when every test passes.
+#
+#   This number was MEASURED, not transcribed: pytest collected 5207 before
+#   and 5213 after, in the same run that wrote it.
+#
+#   ACCEPTANCE: tests/unit 0 passed, 0 skipped, 0 failed.
+
+5213
