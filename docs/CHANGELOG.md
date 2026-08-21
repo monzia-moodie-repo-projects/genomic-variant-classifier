@@ -1,3 +1,70 @@
+## 2026-08-20 to 2026-08-21 (INSTALLER-TRANSACTION-1 steps 4-5, and eleven defects)
+
+Thirteen commits, `954343e` -> `f125187`, across 2026-08-20 and 2026-08-21. The
+ratchet moved 5131 -> 5213. Document:
+docs/sessions/SESSION_2026-08-20_to_08-21_the-installer-becomes-a-transaction.md
+
+### Attempted
+- Give repository hygiene ONE authority: pattern lists, scratch declarations and
+  classification vocabulary owned in `repository_hygiene/backup_artifacts.py`.
+- Install the no-detritus invariant as the FIRST payload written by a
+  `RepositoryTransaction` rather than by a script writing files directly.
+- Prove that a transactional installer leaves nothing beside its declared
+  targets, and that a FAILING one leaves the repository byte-identical.
+
+### Fixed
+- One authority for hygiene. `SECRET_PATTERNS` and `SECRET_CANARIES` were each
+  defined twice, verified identical at runtime by importing both modules. The
+  census found FIVE literal lists outside the authority, not the two predicted;
+  after `954343e` that figure is zero and a test walks src/ and scripts/.
+- The retirement tool deleted a backup inside a DECLARED scratch root whose
+  original was resolvable. The twelve real `.af_fix_work` files had survived
+  every earlier sweep only because their originals happened to be untracked.
+  Measured at `2755d73`: zero such files exist, so the fix is PREVENTIVE.
+- `resolve_relocation()` wired into the retirement tool. It had existed since
+  the authority was written, for one named case, and nothing called it;
+  `scripts/verify_written_cohorts.py.bak` sat unclassified through four sweeps.
+- `iter_repository_detritus` rewritten from four full `rglob` walks to one
+  pruned `os.walk`: 7.617s -> 1.690s on the live repository, a 4.5-fold
+  improvement for the function. (The sixteenfold figure quoted in `b3c5e80`
+  describes the WALK alone; corrected in `559ca58`.)
+- `.gitignore:250` anchored from `install_*.py` to `/install_*.py`. Unanchored,
+  it matched at every depth and silently excluded two source files from
+  `775d16c`, breaking continuous integration.
+- The transactional runner restructured into measurement / plan / apply phases,
+  after the plan was found to be built AFTER mutation -- which made a CREATE
+  read as a PATCH and left `validate_against()` written but never called.
+
+### Failed (and why)
+- `775d16c` was pushed with two files missing. `git add` HAD warned and exited
+  1; the warning was read past. A reading failure, not a tooling gap -- twice
+  asserted to be silent, then reproduced and disproved.
+- `be645d1` committed the two rescued files but not the `.gitignore` change,
+  because the installer verified only its two declared targets were staged.
+- The pruned-walk rewrite shipped a relocation false positive through a passing
+  4948-test gate. `README.md.bak_...` "relocated" to `README.md`, eight ordinary
+  artefacts were excluded, and the invariant reported ZERO detritus -- vacuous.
+  Caught by reading the installer's printed file list, not by the suite.
+- The first transactional install refused three times before succeeding: an
+  untracked retirement manifest, a badge rendered from the wrong scope, and a
+  live journal during its own gate. Every refusal was correct.
+
+### Learned
+- A fixture that contains only the thing being detected cannot show that
+  anything else is rejected. Three separate sabotage mutations were missed for
+  exactly this reason.
+- Reaching a guard can take more attempts than writing it: the basename
+  self-match guard needed FOUR fixtures, three of which could not reach the
+  branch. Tracing the function found the reachable case; reasoning did not.
+- "No incomplete journals" is a quiescent-repository property. Asserting it
+  during an install asks whether a thing is finished while it is happening.
+- A refusal must leave the filesystem exactly as it found it. The journal
+  directory was created BEFORE preconditions were validated, so refused
+  constructions accumulated undiscoverable residue inside the very machinery
+  built to end residue.
+- The recurring failure has one shape: checking for the presence of what was
+  intended and not the absence of what was needed.
+
 ## 2026-08-19 (INSTALLER-TRANSACTION-1 steps 1-3, GITATTRIBUTES-UNGATED-1, RETIREMENT-PATTERN-INCOMPLETE-1) — rollback state leaves the repository
 
 Ten commits, `9b072c2` -> `41372ad`, all on 2026-08-19. The ratchet moved
