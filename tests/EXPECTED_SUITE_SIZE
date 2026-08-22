@@ -7050,4 +7050,34 @@
 #   The count was MEASURED by a rolled-back measurement transaction, and the
 #   added node IDENTITIES were compared set-wise.
 
-5237
+
+# 2026-08-22 -- 5237 -> 5262 (+25). SUITE-NEUTRAL-IDENTITY-1.
+#
+#   A count is not an identity, and until now only half the installers acted
+#   as though it were. The ADDITION units compared node-identity sets; the
+#   NEUTRAL units compared this number and the ratchet and nothing else, so a
+#   unit removing one test and adding another would have passed both.
+#
+#   Four installers each carried a private notion of "neutral" and two were
+#   wrong. The definition now lives in one place, in the package, and every
+#   installer consumes it.
+#
+#   Suite identity digests for this transition, over the sorted node-identity
+#   sets:
+#       before  75fd25f457dfa55d922a798444872630aa361841bde9e7d83bbe82af4235dd58
+#       after   29978734b1cf6b8ad49acd74a32230b6227d20a974509e42c1c775e4108a0698
+#
+#   Two units were published under the weaker check. Their write sets were
+#   measured at one and two paths, none participating in collection, and the
+#   only parametrization mentioning a documentation file uses LITERAL
+#   identifiers, so content cannot reach a node identity. e1a5297 and ba9060d
+#   are proven neutral. The finding stands regardless: a correct answer from
+#   an invalid method is the defect, not an exception to it.
+#
+#   Three further guards were written into the primitive and REMOVED as dead
+#   code, having been shown provably unreachable by a sabotage matrix. Defence
+#   in depth that cannot fire is not defence.
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5262
