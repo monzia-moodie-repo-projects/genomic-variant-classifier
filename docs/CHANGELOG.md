@@ -1,3 +1,55 @@
+## 2026-08-22 part 2 (SUITE-NEUTRAL-IDENTITY-1, ATTESTATION-SCHEMA-DRIFT-1) -- a suite acquires an identity
+
+Two commits, `a60f18f` and `88e844e`, on 2026-08-22. The ratchet moved
+5237 -> 5303 across two ADDITION transitions.
+Document: docs/sessions/SESSION_2026-08-22_part2_a-suite-acquires-an-identity.md
+
+### Attempted
+- Give "a suite transition" one typed owner, after finding that half the
+  installers verified one by counting it.
+- Give the install attestation a version that changes when its shape changes,
+  before recording any further evidence in it.
+
+### Fixed
+- SUITE-NEUTRAL-IDENTITY-1. The NEUTRAL installers verified `collected ==
+  expected` and `ratchet == collected` and nothing more, so a unit removing one
+  test and adding another would have passed. Four installers each carried a
+  private notion of "neutral" and two were wrong. `SuiteTransition` now owns the
+  concept; twelve guards, every one proven detectable by a sabotage matrix.
+- ATTESTATION-SCHEMA-DRIFT-1. Nine attestations, one declared version, three
+  shapes. Version 2 refuses undeclared fields and enforces cross-field
+  consistency -- most importantly that `passed + skipped + xfailed` equals the
+  collected count, two measurements of one suite that nothing previously
+  required to agree inside the evidence.
+- Suite continuity is now provable across a commit boundary: the identity digest
+  `a60f18f` recorded as its `after` is byte-for-byte the digest `88e844e`
+  measured as its `before`.
+
+### Failed (and why)
+- Three guards written into the new primitive were NOT detected by any test. The
+  cause was not missing tests: all three are provably unreachable, including one
+  whose own comment said it could not fail. Removed. Defence in depth that
+  cannot fire is not defence.
+- The first sabotage harness crashed on its own mechanism: `@dataclass` resolves
+  `cls.__module__` through `sys.modules`, so a module must be registered before
+  its body executes. A harness defect, fixed rather than worked around.
+- PROBE-OVERREFUSAL-1. The probe checking whether two published NEUTRAL commits
+  were genuinely neutral answered NOT PROVABLE. The verdict was wrong: its
+  filter matched "mentions the changelog" rather than "derives identities from
+  content", and the flagged parametrization uses literal identifiers.
+
+### Learned
+- A checker that fails closed is right to refuse and wrong to be believed
+  without examination. A refusal is a claim, and a claim is checkable. This is
+  the mirror image of a vacuous check: one accepts because it cannot reject, the
+  other rejects because it cannot discriminate.
+- A correct answer from an invalid method is the defect, not an exception to it.
+- Widening a corrupt evidence format to carry better evidence corrupts the
+  evidence. The schema was the prerequisite owed first.
+- A stated convention is not an enforced one. The module-level logger convention
+  is required by none of the fifteen tests that walk a source tree, and the
+  direct sibling module has no logger and is green.
+
 ## 2026-08-22 (INVARIANT-HANDOFF-1, ADR-0003, ADR-METADATA-INCOMPLETE-1) -- the record acquires a contract
 
 Three commits, `31c279a` -> `f62f40d`, all on 2026-08-22. The ratchet moved
