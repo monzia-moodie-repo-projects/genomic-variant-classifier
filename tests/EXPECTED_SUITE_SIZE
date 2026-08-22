@@ -6975,5 +6975,25 @@
 #   and 5213 after, in the same run that wrote it.
 #
 #   ACCEPTANCE: tests/unit 0 passed, 0 skipped, 0 failed.
+#
+#   SUPERSEDED 2026-08-21 -- RUNNER-GATE-METADATA-ORDER-1.
+#   The line above is FALSE and is retained deliberately, because a
+#   correction belongs beside a record and never inside it.
+#
+#   DIRECT EVIDENCE. The transaction proof record for f125187 reports the
+#   gate for that install as 4978 passed, 10 skipped, 0 failed. That
+#   record is the authority, not arithmetic over collection counts: a
+#   collection count constrains the SUM of passed, skipped and failed and
+#   does not determine their distribution.
+#
+#   CAUSE. Ordering, not transcription. build_plan() rendered this entry
+#   with literal zeroes before _run_suite() existed to answer. The
+#   producer was corrected in the same commit as this note, so the false
+#   form cannot be regenerated.
+#
+#       the ratchet owns COLLECTION PROVENANCE
+#       an install attestation owns ACCEPTANCE EVIDENCE
+#       the commit message summarises it and points at the attestation
+#       one fact, one authority
 
 5213

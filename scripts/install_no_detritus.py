@@ -125,7 +125,11 @@ RATCHET_ENTRY = """
 #   This number was MEASURED, not transcribed: pytest collected {before} before
 #   and {after} after, in the same run that wrote it.
 #
-#   ACCEPTANCE: tests/unit {passed} passed, {skipped} skipped, 0 failed.
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing
+#   else. Acceptance evidence is owned by the install attestation; the
+#   commit message summarises it. RUNNER-GATE-METADATA-ORDER-1,
+#   2026-08-21: an acceptance line rendered before the gate ran recorded
+#   zeroes permanently.
 
 """
 
@@ -231,7 +235,7 @@ def _assert_hygiene(repo: Path, phase: str) -> None:
 
 
 def build_plan(repo: Path, payload_dir: Path, before: int, after: int,
-               passed: int, skipped: int, pre_exists: dict) -> InstallPlan:
+               pre_exists: dict) -> InstallPlan:
     """Assemble the COMPLETE declared transition, including both counters.
 
     `pre_exists` is captured BEFORE any mutation. An earlier version of this
@@ -265,7 +269,7 @@ def build_plan(repo: Path, payload_dir: Path, before: int, after: int,
     ratchet_path = repo / "tests" / "EXPECTED_SUITE_SIZE"
     entry = RATCHET_ENTRY.format(
         date=time.strftime("%Y-%m-%d"), before=before, after=after,
-        delta=count.delta, passed=passed, skipped=skipped)
+        delta=count.delta)
     targets.append(PlannedTarget(
         "tests/EXPECTED_SUITE_SIZE", TargetAction.PATCH,
         render_ratchet(ratchet_path.read_bytes(), entry, count.after),
@@ -359,7 +363,7 @@ def main(argv=None) -> int:
     _assert_hygiene(repo, "post-measurement")
 
     print("\n--- phase 2: plan ---")
-    plan = build_plan(repo, payload_dir, before, after, 0, 0, pre_exists)
+    plan = build_plan(repo, payload_dir, before, after, pre_exists)
     plan.validate_against(repo)
     print("  plan digest: {}".format(plan.digest[:16]))
     print("  validated against the pristine tree")
