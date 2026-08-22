@@ -7080,4 +7080,32 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5262
+
+# 2026-08-22 -- 5262 -> 5303 (+41). ATTESTATION-SCHEMA-DRIFT-1.
+#
+#   Nine install attestations existed, all declaring schema_version 1, in
+#   THREE shapes -- because every installer hand-built its own dictionary and
+#   each recorded what the previous had learned to miss. A version that does
+#   not change when the shape changes cannot interpret the document.
+#
+#   Version 2 refuses any undeclared field, and enforces CROSS-FIELD
+#   consistency so an attestation cannot contradict itself. The binding that
+#   matters most: passed + skipped + xfailed must equal the collected count.
+#   A gate summary and a collection count are two measurements of one suite,
+#   and nothing until now required them to agree inside the evidence.
+#
+#   Version 1 documents are NOT migrated. A schema written afterwards is not
+#   a standard to hold earlier records to, and a record corrected in place is
+#   no longer a record.
+#
+#   Twenty-one of the twenty-seven test functions are negative controls; the
+#   collected count is forty-one because one is parametrized over the twelve
+#   required top-level keys, with literal identifiers.
+#
+#   Suite identity digests for this transition:
+#       before  29978734b1cf6b8ad49acd74a32230b6227d20a974509e42c1c775e4108a0698
+#       after   972c352bd2b7ca08950acf962726a324af19b8e14b7de80a053401bea5f80973
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5303
