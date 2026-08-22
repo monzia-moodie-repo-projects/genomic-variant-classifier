@@ -1,3 +1,80 @@
+## 2026-08-21 to 2026-08-22 (RUNNER-GATE-METADATA-ORDER-1, ADR-0001, ADR-0002) -- authority becomes typed
+
+Three commits, `b115bab` -> `69ba5f6`, on 2026-08-21 and 2026-08-22. The ratchet
+did not move: 5213 before and after, because no test was added or removed.
+Document: docs/sessions/SESSION_2026-08-21_to_08-22_authority-becomes-typed.md
+
+### Attempted
+- Close RUNNER-GATE-METADATA-ORDER-1 at both ends in one commit: correct the
+  live false record, and correct the still-executable producer that would
+  otherwise regenerate it before D7 retires that script.
+- Accept the first two architecture decision records, establishing where
+  authority lives and what the runtime filesystem topology actually is.
+- Install every unit through `RepositoryTransaction` rather than through a
+  script writing files directly.
+
+### Fixed
+- `tests/EXPECTED_SUITE_SIZE` carried, for the 5207 -> 5213 entry, an acceptance
+  line reading `0 passed, 0 skipped, 0 failed`. The transaction proof record for
+  `f125187` reports 4978 passed, 10 skipped, 0 failed. The false line is
+  RETAINED with a superseding correction beside it; the other fifty-two
+  acceptance lines in that 6,979-line file are true and were untouched. Seven of
+  them match no regular shape, so the edit was one exact-literal replacement
+  proven to occur exactly once rather than a parse.
+- The producer: the acceptance placeholder left `RATCHET_ENTRY`, and `passed`
+  and `skipped` left `build_plan`, since a parameter existing only to receive
+  zero is a defect waiting to be re-enabled. Byte deltas +976 and +164, computed
+  independently of the installer and agreeing exactly.
+- ADR-0001 supersedes both proposed authority hierarchies with a typed lattice.
+  `HISTORICAL_REPOSITORY_RECORD` and `EXECUTION_EVIDENCE` are separated because
+  git is authoritative for what bytes were committed and not for what happened
+  operationally -- which is how a false acceptance line became committed truth.
+- ADR-0002 records the measured runtime topology and supersedes two incorrect
+  sketches. `transaction_journal` is `cache_root/transactions`, not
+  `state_root/transactions`; `state_root` resolves inside the repository, so the
+  sketch would have moved crash-recovery state into the working tree.
+
+### Failed (and why)
+- The first D0/D3 installer was WITHDRAWN before use. Its exception handler
+  stayed armed across two operations following a successful `git commit`, so a
+  failure in either would have restored pre-commit content while HEAD had
+  advanced. It also hand-rolled a timestamped-backup scheme in the same commit
+  that installs a record about one semantic concept having one typed owner,
+  while the repository already owns a crash-safe transaction primitive.
+- The replacement pinned HEAD to one constant while running three sequential
+  units, so unit one invalidated units two and three by succeeding. HEAD
+  equality was never the real invariant; the per-file digest pins are. Replaced
+  with a baseline-ancestry check that names every intervening commit.
+- Two defects were found in the replacement during self-audit and repaired
+  before delivery: an exception class defined after its only user, and a
+  variable whose absence was papered over by catching `NameError`.
+- A delivered command block depended on the working directory and on a shell
+  variable set several commands earlier. The standing rule already forbids both.
+
+### Learned
+- A correction belongs beside a record and never inside it -- but a live
+  source-of-truth file must not knowingly keep displaying a falsehood without
+  one, and the producer must be repaired in the same commit or the falsehood
+  returns.
+- After a transaction commits its journal is destroyed, so a post-commit content
+  restore becomes structurally impossible rather than merely avoided. Filesystem
+  installation and git publication are two transitions, not one; a publication
+  failure should report `INSTALL_APPLIED_PUBLICATION_PENDING` and change nothing.
+- `git mv` preserves the blob object identifier exactly, because blobs are
+  content-addressed. Git stores no rename entity, and `git log --follow` is
+  similarity detection -- broken deliberately in a scratch repository by
+  renaming with a rewrite. Archival proof asserts blob equality, not renames.
+- The suite ratchet detects accidental test loss. It is not a measure of
+  assurance: a change that reduces the test count can increase it, and no
+  installer can currently execute a decreasing unit at all.
+- Direct evidence outranks arithmetic reconstruction. A draft correction claimed
+  a gate result was corroborated by a collection count; a collection count
+  constrains a sum and does not determine its distribution, and the direct proof
+  record already existed.
+- Occurrences and sites are different quantities. A gate reporting 33 warnings
+  and a classifier reporting 4 sites are not comparable, and printing them side
+  by side invites a conclusion neither supports.
+
 ## 2026-08-20 to 2026-08-21 (INSTALLER-TRANSACTION-1 steps 4-5, and eleven defects)
 
 Thirteen commits, `954343e` -> `f125187`, across 2026-08-20 and 2026-08-21. The
