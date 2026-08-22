@@ -1,3 +1,70 @@
+## 2026-08-22 (INVARIANT-HANDOFF-1, ADR-0003, ADR-METADATA-INCOMPLETE-1) -- the record acquires a contract
+
+Three commits, `31c279a` -> `f62f40d`, all on 2026-08-22. The ratchet moved
+5213 -> 5237 across two ADDITION transitions and one NEUTRAL.
+Document: docs/sessions/SESSION_2026-08-22_the-record-acquires-a-contract.md
+
+### Attempted
+- Give owners to every completeness invariant that only README prose enforced,
+  BEFORE any of that prose is retired.
+- Accept a knowledge architecture assigning authority by question rather than by
+  convenience, and record what each artifact must never own.
+- Make the architecture-decision directory a contract rather than a convention.
+
+### Fixed
+- Three invariants acquired owners at `31c279a`: the model roster, the agent
+  registry, and the drift-monitor NOT-CHECKED exit code. A census over the
+  entire tracked corpus -- 1,573 files, 1,565 textual -- found none had an owner
+  outside `tests/unit/test_readme_claims.py`. Nineteen files reference
+  `base_estimators`; eight mutate it as a fixture, three enumerate it to
+  iterate, one asserts a single conditional member, and one asserts the
+  docstring does NOT enumerate the roster. A count of files referencing a symbol
+  is not a count of invariant owners.
+- ADR-METADATA-INCOMPLETE-1: `ADR-0001` declared no `Domains` -- and it is the
+  record that introduces the domain concept. A checker requiring the field would
+  have failed the record that invented it. Amended at `f62f40d` to `meta`, with
+  an `**Amended:**` field naming the finding and stating that no ruling is
+  altered. The checker and the amendment are one unit; separating them would
+  leave the suite red in between.
+- The decision index enumerates the records, making it a second copy of the
+  record list -- the shape that once let `README.md` state a feature count in
+  nine places with four values. It is bound to the directory by a test, proven
+  to fail in both directions before the installer was cut.
+- The replacement exit-code check parses the module and reads the binding's
+  value; the assertion it will replace is a substring test that a comment
+  satisfies. Relocating an invariant is an opportunity to strengthen it.
+
+### Failed (and why)
+- A pre-flight reported `module 'catalogue' has no attribute 'create'` and
+  discarded the traceback, printing a verdict without its evidence -- the exact
+  failure the 2026-08-21 correction note names, inside an instrument built to
+  prevent it. Settled by controlled difference across four sys.path
+  configurations in four child interpreters: the shadowing file is the project's
+  own evaluation catalogue, staged in Downloads as a delivery payload. Python
+  places a script's directory at sys.path[0], and Downloads holds 236 modules.
+- The same census overstated invariant ownership nineteen to zero by counting
+  symbol references as owners. Corrected by reading every assertion.
+- A gate duration of 1,098 seconds was attributed to nine added tests. The
+  largest suite of the session later ran in 941 seconds. It was variance, and
+  the attribution was wrong.
+
+### Learned
+- No assertion may be retired until its owned invariant has another PROVEN
+  owner, proven by a deliberate break rather than by inspection. The period of
+  duplicated enforcement is not waste; it is the handoff proof.
+- A suite-size delta is not an identity. A change of plus nine is equally
+  consistent with nine intended tests appearing and with four appearing beside
+  five unrelated. Collected node-identity SETS are compared, and the count is
+  cross-checked against the number of parsed identities.
+- The suite ratchet detects accidental test loss and is not a measure of
+  assurance: replacing coarse tests with sharper ones can reduce the count and
+  increase it.
+- An index that enumerates is a second copy and goes stale on a schedule unless
+  something checks it.
+- A workflow that shows a green tick on every run is indistinguishable from one
+  whose conditional step never executes. `CI failure alert` has fired twelve
+  times, succeeded twelve times, and has never been observed to alert.
+
 ## 2026-08-21 to 2026-08-22 (RUNNER-GATE-METADATA-ORDER-1, ADR-0001, ADR-0002) -- authority becomes typed
 
 Three commits, `b115bab` -> `69ba5f6`, on 2026-08-21 and 2026-08-22. The ratchet
