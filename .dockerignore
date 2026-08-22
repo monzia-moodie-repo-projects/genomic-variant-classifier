@@ -67,3 +67,6 @@ models/
 *.env
 *.pem
 *.key
+
+# Repository records: durable evidence, not runtime code (ADR-0004)
+records/

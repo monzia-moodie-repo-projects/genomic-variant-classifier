@@ -72,3 +72,23 @@ tests/fixtures/**/*.sqlite  binary
 # No file extension, so only the 'text=auto' default matched it -- and that means
 # CRLF in a Windows working tree. Every other governed text file has eol=lf. 2026-07-18.
 EXPECTED_SUITE_SIZE text eol=lf
+
+# ---------------------------------------------------------------------------
+# REPOSITORY RECORDS: durable machine evidence (ADR-0004, added 2026-08-22).
+# ---------------------------------------------------------------------------
+# `records/` holds facts EMITTED about what happened, not documentation about
+# it. Authored metadata under the plane is normalised like every other governed
+# text file. PRESERVED artifacts are not: their entire claim is that their
+# bytes are exactly the bytes that existed, and an artifact git has
+# "helpfully" rewritten is no longer evidence of anything.
+#
+# ORDER IS LOAD-BEARING. Later rules win. `*.json text eol=lf` on line 11
+# already matches every path below, so the `-text` rule must come AFTER the
+# general records rules, not before. Measured 2026-08-22: the eleven install
+# attestations are line-feed-only today, so normalisation is currently a
+# no-op FOR THEM -- which is precisely why the rule must not depend on the
+# corpus staying friendly. RECORDS-EOL-NORMALIZATION-1.
+records/**/*.json text eol=lf
+records/**/*.md text eol=lf
+records/**/*.yaml text eol=lf
+records/attestations/installations/artifacts/** -text
