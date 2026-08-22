@@ -4,7 +4,14 @@
 **Status:** accepted
 **Date:** 2026-08-21
 **Authority:** normative
+**Domains:** meta
 **Measured at commit:** 084ece5
+**Amended:** 2026-08-22 -- ADR-METADATA-INCOMPLETE-1. The `Domains`
+field was absent. This record does not govern one domain; it defines
+the lattice by which every domain is assigned, so its declared domain
+is `meta`. Metadata only: no ruling, consequence or reasoning below is
+altered, and the record's substance stands exactly as accepted at
+`b115bab` on 2026-08-21.
 
 ---
 

@@ -7023,4 +7023,31 @@
 #   added node IDENTITIES were compared set-wise -- a delta of +9 alone
 #   cannot distinguish the intended tests from unrelated ones.
 
-5222
+
+# 2026-08-22 -- 5222 -> 5237 (+15). ADR-METADATA-INCOMPLETE-1.
+#
+#   The architecture-decision contract acquires an enforcer. ADR-0003 reserved
+#   docs/architecture/decisions/ as the canonical location for accepted
+#   records and rejected two alternatives, but a directory convention that
+#   only prose enforces is not a contract.
+#
+#   The need was demonstrated by the records themselves. Measured across all
+#   three: ADR-0001 declared no Domains -- and ADR-0001 is the record that
+#   INTRODUCES the domain concept. Nobody noticed until the three headers were
+#   placed side by side, which is the argument for measuring rather than
+#   reading. It is amended here, in the same commit, to `meta`: it governs no
+#   single domain, it defines the lattice.
+#
+#   The index enumerates the records, making it a second copy of the record
+#   list -- the shape that once let README.md state a feature count in nine
+#   places with four values. It is bound to the directory by a test, and
+#   breaking it was shown to fail in both directions before this was cut.
+#
+#   Five of the fifteen tests are negative controls. All five fail when the
+#   shipping helpers are neutered, so none is decorative.
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+#   The count was MEASURED by a rolled-back measurement transaction, and the
+#   added node IDENTITIES were compared set-wise.
+
+5237
