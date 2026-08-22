@@ -6996,4 +6996,31 @@
 #       the commit message summarises it and points at the attestation
 #       one fact, one authority
 
-5213
+
+# 2026-08-21 -- 5213 -> 5222 (+9). INVARIANT-HANDOFF-1 overlap commit.
+#
+#   Three completeness invariants acquire owners that are not README prose.
+#   A census over the entire tracked corpus found that nothing outside
+#   tests/unit/test_readme_claims.py compared the runtime model roster to a
+#   declared list, that fifteen of twenty-two agents had no registration
+#   coverage at all, and that the only non-README reference to the drift
+#   monitor's NOT-CHECKED exit code was a comment in this very file.
+#
+#   Nineteen files reference base_estimators. Eight mutate it as a fixture,
+#   three enumerate it to iterate, one asserts a single conditional member,
+#   and one asserts the module docstring does NOT enumerate the roster. A
+#   count of files referencing a symbol is not a count of invariant owners.
+#
+#   Six of the nine added tests are NEGATIVE CONTROLS. They exist to prove the
+#   three checks can FAIL, and they exercise the same comparison functions the
+#   real assertions call, so a control cannot pass against a broken checker.
+#
+#   Nothing is retired here. test_readme_claims.py remains in force; this is
+#   the overlap that makes its later retirement a handoff rather than a loss.
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+#   The count was MEASURED by a rolled-back measurement transaction, and the
+#   added node IDENTITIES were compared set-wise -- a delta of +9 alone
+#   cannot distinguish the intended tests from unrelated ones.
+
+5222
