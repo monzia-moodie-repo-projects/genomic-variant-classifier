@@ -92,3 +92,32 @@ records/**/*.json text eol=lf
 records/**/*.md text eol=lf
 records/**/*.yaml text eol=lf
 records/attestations/installations/artifacts/** -text
+
+# ---------------------------------------------------------------------------
+# ARCHIVAL DESTINATION: frozen historical authority (added 2026-08-23).
+# ---------------------------------------------------------------------------
+# A document moved here is FROZEN. Its whole claim is that its bytes are the
+# bytes that were current when authority passed to a successor, and an
+# archived document git has normalised on checkout is no longer that.
+#
+# ORDER IS LOAD-BEARING, for the second time in this file. Later rules win,
+# and `*.md text eol=lf` on line 15 matches every path below, so this rule
+# must come AFTER it -- as the records block at lines 85-90 records for the
+# same reason.
+#
+# MEASURED 2026-08-23 at 0b691f7, by asking git rather than reading the
+# pattern list: docs/archive/legacy/ROADMAP_2026-03_to_2026-08-22.md
+# resolved to `text: set, eol: lf`. docs/ROADMAP.md carries 466,826 bytes,
+# 7,019 lines, 184 non-ASCII bytes and ZERO carriage returns, so eol=lf is
+# a no-op on those exact bytes and the blob object identifier would have
+# survived anyway. That is precisely why the rule is added: a preservation
+# that holds only because the corpus happens to be friendly is the
+# reasoning already rejected for records/ at 584c3fb.
+# ARCHIVE-DESTINATION-NORMALISED-1.
+#
+# Scope is narrow ON PURPOSE. docs/archive/legacy/ holds nothing yet, so
+# this cannot change the checkout representation of any tracked file. The
+# three artifacts already under docs/archive/ resolve to `text: auto`;
+# changing them is a separate decision with real side effects.
+# ARCHIVE-PATCH-INFERRED-TEXT-1.
+docs/archive/legacy/** -text
