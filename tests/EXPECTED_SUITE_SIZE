@@ -7170,4 +7170,30 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5352
+
+# 2026-08-23 -- 5352 -> 5385 (+33). The archive index becomes typed.
+#
+#   ATTESTATION-SCHEMA-DRIFT-1 happened because nine documents were hand-built
+#   as dictionaries under one unchanging version. A preservation manifest is
+#   ITSELF a durable record, so a hand-built index would reproduce that defect
+#   one level up, inside the unit preserving the evidence of the fix.
+#
+#   One typed object owns construction, semantic validation, deterministic
+#   serialization, schema validation and round-trip. Rendering uses indent=2
+#   with sorted keys: fully deterministic AND diffable, because a compact
+#   separator form is no more deterministic and turns a record reviewers must
+#   audit into one unreadable line.
+#
+#   Twenty-three of the thirty-three cases are negative controls, and every
+#   one asserts the MESSAGE TEXT rather than merely that something raised.
+#   THREE were found mis-isolated that way: built by reusing an entry, they
+#   refused on an earlier guard and proved nothing about the invariant they
+#   named. Twelve guards were then sabotaged individually; twelve detected.
+#
+#   Suite identity digests:
+#       before  70a3b350199cf2ec400e7002eb6bc1996f96ad6da91c293d5dc2348bb948005e
+#       after   1c8bc5a726662c69a5f1913ac40b603fee272bef24904d693fbf3cad0ad108c8
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5385
