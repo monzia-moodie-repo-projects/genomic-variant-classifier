@@ -121,23 +121,73 @@ Strong fits: AlphaFold DB (DO), RefSNP/dbSNP (DO), COSMIC (DO, academic; feature
 
 # 5. Immediate plan
 
-The dated plan that stood here is in the archive, together with every `NEXT`
-section from the delta log. The most recent, dated 2026-08-08, reads:
+**Last re-derived 2026-08-23 at `b586778`.** The standing plan is quoted from
+the archive verbatim below; what changed since 2026-08-08 is characterised, not
+summarised, and the reason is given.
 
-> Commit C (SealedEvaluation), with both censuses now committed and citable.
-> Then the BASELINE-1 repair across the README and roadmap, DRIFT-1 with
-> README-1, OP-1 step 5 against STEP K, OP-2, and RETRAIN-GATE last.
+## The standing plan, quoted
 
-**This section is deliberately NOT restated from memory.** It has not been
-re-derived since 2026-08-08, and the work committed between 2026-08-21 and
-2026-08-23 -- the `records/` plane, the executable record ontology, the typed
-archive manifest, seventeen install attestations preserved verbatim, and the
-transaction topology repair -- is not yet reflected in it. Bringing the plan
-current is its own unit with its own evidence; an authority succession that also
-authors is a succession whose failure cannot be attributed.
+From the archive's final `NEXT` section, dated 2026-08-08, reproduced exactly:
 
-Open register: **54 items**, enumerated by identifier in the archive's final
-delta.
+> **Commit C (SealedEvaluation)**, with both censuses now committed and citable.
+> Then the BASELINE-1 repair across the README and roadmap, **DRIFT-1 with
+> README-1**, **OP-1 step 5** against STEP K, **OP-2**, and **RETRAIN-GATE**
+> last.
+
+**Nothing in this section supersedes that.** The work committed between
+2026-08-21 and 2026-08-23 was repository infrastructure: it did not touch Commit
+C, BASELINE-1, DRIFT-1, OP-1, OP-2 or RETRAIN-GATE, and none of those is closed.
+
+## What changed since, and why it is characterised rather than listed
+
+**MEASURED 2026-08-23: eighty-three commits have landed since 2026-08-08.**
+Twenty are the infrastructure stretch described in section 9 and in
+`docs/sessions/`; the remaining sixty-three predate that stretch.
+
+This section deliberately does **not** summarise eighty-three commits. A summary
+of work that has not been read is exactly the failure this programme records as
+`FABRICATED-OBSERVATION-1`, and a plan is the worst place for it: a wrong entry
+here directs future effort rather than merely misinforming a reader.
+
+Two sources are authoritative and complete for that history, and neither is
+summarised here:
+
+- `docs/CHANGELOG.md` -- newest-first, one entry per session, Attempted /
+  Fixed / Failed / Learned.
+- `docs/sessions/` -- one record per session, with measured figures, findings
+  and their identifiers.
+
+## The open register
+
+**Fifty-four items**, enumerated by identifier in the archive's final delta,
+with the arithmetic stated there: *"Fifty-two carried in ... Two filed.
+52 + 2 = 54. The count RISES, and that is correct: a census that finds two real
+things records both rather than tidying the number."*
+
+Two carry detail that a paraphrase would lose, so they are quoted:
+
+- **METRICORIGIN-1** -- a metric's origin is part of the metric. Log-scraped and
+  computed figures share a flat mapping today; the spread between them in Run 14
+  is 0.0010, and nothing in the type prevents them being read as one quantity.
+  Closes when SealedEvaluation distinguishes them.
+- **TEARDOWN-1** -- Run 14's session notes record a destroy command executing
+  past its own gate's FAIL, root-caused to a fixed Test-Path check while the
+  files lived one directory deeper. No data was lost, by fortune rather than
+  design. Whether anomaly A8 and the recorded Charter v1.2 patch were ever
+  applied is NOT ESTABLISHED, and must be before Run 17.
+
+**No closure is asserted here.** A search of the eighty-three commit messages
+found 115 distinct identifiers mentioned, and a mention is not a closure: a
+commit may cite an item to say it is open, deferred, or blocking. Reconciling
+the register against those commits is its own unit, and several entries are
+judgements of scientific scope rather than facts about the repository.
+
+## Standing preconditions for any run
+
+Unchanged and not superseded: zero known defects before launch, an all-models
+smoke test with no skip flags, a freshly generated preflight, and the wall-clock
+estimate stated and accepted before any command expected to exceed fifteen
+minutes.
 
 # 6. Modeling & infra roadmap
 
