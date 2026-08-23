@@ -261,6 +261,12 @@ class RepositoryTransaction:
     _targets: dict = field(init=False, default_factory=dict)
     _secret_bytes: dict = field(init=False, default_factory=dict)
     _head: str | None = field(init=False, default=None)
+    #: relpath -> DirectoryCreationIntent, for directories THIS transaction
+    #: must create. Keyed so two targets sharing a new parent own it ONCE:
+    #: measured 2026-08-22, src/pkg/one.py and src/pkg/two.py both discover
+    #: src/pkg, and competing owners would make removal order undefined.
+    #: Directory creation belongs to the TRANSACTION, not to a target.
+    _directory_intents: dict = field(init=False, default_factory=dict)
 
     # ---- lifecycle -----------------------------------------------------
     def __post_init__(self) -> None:
@@ -371,6 +377,16 @@ class RepositoryTransaction:
             "repo_head": self._head,
             "updated_at": _utc_now(),
             "targets": [t.as_record() for t in self._targets.values()],
+            # Recovery reads the manifest ALONE, in a process that never saw
+            # this object -- test_recovery_works_in_a_process_that_never_saw_
+            # the_transaction and test_a_real_process_KILL_is_recoverable both
+            # enforce that. An in-memory list would be lost by exactly the
+            # crash this primitive exists to survive.
+            "directory_creation_intents": [
+                i.as_record()
+                for i in sorted(self._directory_intents.values(),
+                                key=lambda x: (x.relpath.count("/"), x.relpath))
+            ],
         })
 
     def read_manifest(self) -> dict:
@@ -525,6 +541,11 @@ class RepositoryTransaction:
             raise TransactionStateError(
                 "cannot create in state {}".format(self._state.value))
         self._write_ahead(relpath)          # records "did not exist" first
+        # WRITE-AHEAD FOR TOPOLOGY. Recovery metadata describing a mutation
+        # must be durable BEFORE that mutation becomes observable -- the same
+        # discipline _write_ahead already enforces for file bytes.
+        intents = self._record_directory_intents(p)
+        _materialize_directory_intents(self.repo_root, intents)
         _write_durable(p, new_bytes)
         self._mark_mutated(relpath)
 
@@ -566,6 +587,12 @@ class RepositoryTransaction:
                                 self._secret_bytes.get(relpath))
             except Exception as exc:          # noqa: BLE001 - reported, not hidden
                 failures.append((relpath, str(exc)))
+        # PHASE B -- TOPOLOGY. Targets first, then the directories created to
+        # host them. Folded into the SAME failure list, so an unrestored
+        # topology reaches RECOVERY_REQUIRED rather than being reported as a
+        # clean rollback.
+        failures.extend(_restore_directory_intents(
+            self.repo_root, self._directory_intents.values()))
         if failures:
             self._transition(TransactionState.RECOVERY_REQUIRED)
             self._scrub_secrets()
@@ -583,12 +610,151 @@ class RepositoryTransaction:
             self._secret_bytes[key] = b""
             del self._secret_bytes[key]
 
+    def _record_directory_intents(self, target: Path) -> tuple:
+        """Record, and PERSIST, the directories this create() will make.
+
+        Returns the intents for THIS target, including any already recorded by
+        an earlier target, so materialization is idempotent and a shared parent
+        is owned once. Persisted before returning: the caller must not mutate
+        the filesystem until the journal is durable.
+        """
+        missing = _missing_ancestor_relpaths(self.repo_root, target)
+        for relpath in missing:
+            if relpath not in self._directory_intents:
+                self._directory_intents[relpath] = DirectoryCreationIntent(
+                    relpath=relpath)
+        if missing:
+            self._persist()
+        return tuple(self._directory_intents[r] for r in missing)
+
     def _destroy_journal(self) -> None:
         if self.directory.exists():
             shutil.rmtree(self.directory)
 
 
 # ---- restoration, usable without a transaction object ------------------
+@dataclass(frozen=True)
+class DirectoryCreationIntent:
+    """A directory this transaction intends to create, recorded BEFORE it does.
+
+    "Intent" and not "created directory" because that is what the journal can
+    honestly prove. Before the mutation the durable fact is that the transaction
+    INTENDS to create a currently absent directory; after a crash, existence
+    alone cannot establish who created it.
+    """
+
+    relpath: str
+
+    def as_record(self) -> dict:
+        return {"relpath": self.relpath}
+
+    @classmethod
+    def from_record(cls, record) -> "DirectoryCreationIntent":
+        relpath = record.get("relpath") if hasattr(record, "get") else None
+        if not isinstance(relpath, str) or not relpath.strip():
+            raise TransactionIntegrityError(
+                "a directory-creation intent requires a non-empty relpath; "
+                "got {!r}".format(record))
+        return cls(relpath=relpath)
+
+
+def _missing_ancestor_relpaths(repo_root: Path, target: Path) -> tuple:
+    """Ancestors of `target` that do not yet exist, SHALLOWEST FIRST.
+
+    Computed BEFORE any mkdir. Afterwards they all exist and nothing
+    distinguishes the ones this transaction made from the ones already there --
+    so "afterwards" cannot answer the question at all.
+
+    Stops at the first ancestor that exists: everything above it exists too.
+    """
+    missing = []
+    parent = target.parent
+    while parent != repo_root and repo_root in parent.parents:
+        if parent.exists():
+            break
+        missing.append(parent)
+        parent = parent.parent
+    return tuple(p.relative_to(repo_root).as_posix() for p in reversed(missing))
+
+
+def _materialize_directory_intents(repo_root: Path, intents) -> None:
+    """Create recorded levels INDIVIDUALLY, shallowest first.
+
+    Not `mkdir(parents=True)`. A recursive mkdir collapses several filesystem
+    mutations into one opaque call, so each level's provenance can only be
+    reconstructed afterwards -- which is exactly what fails. One recorded
+    intent, one mutation.
+    """
+    for intent in sorted(intents, key=lambda i: i.relpath.count("/")):
+        p = repo_root / intent.relpath
+        if p.exists():
+            if not p.is_dir():
+                raise TransactionIntegrityError(
+                    "{} exists but is not a directory; a transaction will not "
+                    "replace another filesystem object".format(intent.relpath))
+            continue
+        p.mkdir()
+
+
+def _restore_directory_intents(repo_root: Path, intents) -> list:
+    """Remove transaction-created directories, DEEPEST FIRST. Never recursively.
+
+    Returns a list of (relpath, reason) failures, to be folded into the
+    caller's failure list so an unrestored topology lands in
+    RECOVERY_REQUIRED rather than being reported as a clean rollback.
+
+    TRANSACTION-STATE-MODEL-INCOMPLETE-1, 2026-08-22, of which
+    TRANSACTION-CREATE-DIRECTORY-RESIDUE-1 is one manifestation. `create()`
+    reached `_write_durable`, which ran `path.parent.mkdir(parents=True)`;
+    `_restore_target` unlinked a created file and RETURNED, with no directory
+    handling anywhere. MEASURED by falsification against this module:
+
+        parent already exists        topology restored
+        one missing ancestor         src/pkg survived
+        three missing ancestors      src/a, src/a/b, src/a/b/c survived
+        two targets, one new parent  src/pkg survived, once
+        fresh-process recovery       src/pkg survived
+
+    and `git status --porcelain=v2 --untracked-files=all`, git's strongest
+    untracked check, reported NOTHING throughout: git does not represent empty
+    directories. The residue was invisible to every check the repository had.
+
+    FOREIGN CONTENT IS NOT A CLEAN ROLLBACK. If another actor placed a file in
+    a directory this transaction created, the directory must NOT be deleted --
+    and rollback must NOT claim success either. Those are separate predicates:
+    "do not destroy someone else's state" and "the pre-state was restored". A
+    safe failure is still a failure.
+    """
+    failures = []
+    for intent in sorted(intents, key=lambda i: i.relpath.count("/"),
+                         reverse=True):
+        p = (repo_root / intent.relpath).resolve()
+        if repo_root not in p.parents:
+            failures.append((intent.relpath,
+                             "resolves outside the repository"))
+            continue
+        if not p.exists():
+            continue                      # never made, or already removed
+        if p.is_symlink() or not p.is_dir():
+            failures.append((
+                intent.relpath,
+                "directory_intent_type_changed: the recorded directory is now "
+                "another filesystem object and will not be touched"))
+            continue
+        try:
+            p.rmdir()                     # refuses non-empty: the safer failure
+        except OSError as exc:
+            if any(p.iterdir()):
+                failures.append((
+                    intent.relpath,
+                    "foreign_content_present: content was placed here by "
+                    "something other than this transaction, so it was NOT "
+                    "removed and the pre-transaction topology is NOT restored"))
+            else:
+                failures.append((intent.relpath, str(exc)))
+    return failures
+
+
 def _restore_target(repo_root: Path, preimages: Path,
                     target: TransactionTarget, secret_bytes=None) -> None:
     """Restore one target from its preimage, verifying before and after.
@@ -700,6 +866,14 @@ def recover_transaction(directory, *, action: str = "rollback") -> dict:
             _restore_target(repo_root, preimages, t)
         except Exception as exc:              # noqa: BLE001 - reported
             failures.append((t.relpath, str(exc)))
+
+    # PHASE B, from the manifest ALONE and through the SAME helper as
+    # in-process rollback. `.get` with a default so a journal written before
+    # this repair still recovers instead of raising on a missing key.
+    intents = tuple(
+        DirectoryCreationIntent.from_record(r)
+        for r in values.get("directory_creation_intents", ()))
+    failures.extend(_restore_directory_intents(repo_root, intents))
 
     if failures:
         values["state"] = TransactionState.RECOVERY_REQUIRED.value

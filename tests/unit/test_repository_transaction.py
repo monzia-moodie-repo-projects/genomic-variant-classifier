@@ -32,10 +32,13 @@ Author: Monzia Moodie
 """
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import subprocess
 import sys
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
@@ -51,6 +54,122 @@ from genomic_variant_classifier.transactions.repository_transaction import (
 _SECRET_BYTES = b"GITHUB_TOKEN=ghp_" + b"q" * 36 + b"\n"
 
 
+def _hermetic_git_env() -> dict:
+    """Git that cannot be reconfigured by whoever happens to run the suite.
+
+    TXTEST-FIXTURE-UNCHECKED-GIT-1, 2026-08-22. The previous fixture ran five
+    git commands with NO check=True and no configuration isolation. If git were
+    absent or a global setting interfered, `git init` failed silently, the
+    fixture returned an ordinary directory, and `_assert_tree_clean` then met
+    TRANSACTION-GIT-FAILURE-FAILS-OPEN-1 -- `_git` returns None and the
+    assertion returns early. Several tests would have passed having proved
+    nothing.
+
+    A fixture that can silently manufacture a non-git directory while testing
+    git-dependent invariants is not evidence.
+    """
+    env = dict(os.environ)
+    env["GIT_CONFIG_GLOBAL"] = os.devnull
+    env["GIT_CONFIG_SYSTEM"] = os.devnull
+    env["GIT_CONFIG_NOSYSTEM"] = "1"
+    return env
+
+
+def _git_in(repo: Path, *args: str) -> None:
+    """check=True. A git failure must be a FIXTURE failure, never a silent one."""
+    subprocess.run(("git", "-C", str(repo), "-c", "core.excludesFile=", *args),
+                   env=_hermetic_git_env(), capture_output=True, check=True,
+                   timeout=60)
+
+
+# ---------------------------------------------------------------------------
+# TEST-LOCAL CERTIFICATION SCOPE.
+#
+# This is NOT the RepositoryCertificationSurface ruled by ADR-0002. That
+# production abstraction remains UNIMPLEMENTED -- measured 2026-08-22, zero
+# code references across src/, tests/ and scripts/.
+# CERTIFICATION-SURFACE-UNIMPLEMENTED-1.
+#
+# This helper exists solely to make rollback topology observable here. Do not
+# promote it to production scope without implementing the ADR properly.
+# ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class TopologySnapshot:
+    """Directories, and files as (relpath, digest) PAIRS.
+
+    TRANSACTION-STATE-MODEL-INCOMPLETE-1: this module's tests modelled
+    repository state as S = (F, J) -- selected file bytes and journal state --
+    while the module contract claims S = (F, D, T, G, J). Directory topology
+    was never in the model, so no test could fail on it.
+
+    Files are pairs and not "path#digest" strings. MEASURED 2026-08-22: with
+    the string encoding a PATCHED file appears in BOTH the added and the
+    removed set, because its digest changed, and an assertion reading
+    "files_added" as "newly existing paths" is then simply wrong. Pairs let
+    the delta below answer the three separate questions a reader actually has.
+    """
+
+    directories: frozenset
+    files: frozenset
+
+    @classmethod
+    def capture(cls, root: Path) -> "TopologySnapshot":
+        root = Path(root).resolve()
+        dirs, files = set(), set()
+        for current, dirnames, filenames in os.walk(root):
+            here = Path(current)
+            if here == root:
+                dirnames[:] = [d for d in dirnames if d != ".git"]
+            for name in dirnames:
+                dirs.add((here / name).relative_to(root).as_posix())
+            for name in filenames:
+                p = here / name
+                files.add((p.relative_to(root).as_posix(),
+                           hashlib.sha256(p.read_bytes()).hexdigest()))
+        return cls(directories=frozenset(dirs), files=frozenset(files))
+
+
+@dataclass(frozen=True)
+class TopologyDelta:
+    """Five directional facts. Direction lives in the SIGNATURE below.
+
+    PROBE-DIRECTIONAL-LABEL-INVERSION-1, 2026-08-22: an earlier instrument
+    computed this as a method called `after.diff(before)` whose body read
+    `other - self`. Every label came out backwards, the verdict read a key
+    that was always empty, and it reported "did not behave as predicted"
+    while the evidence three lines above showed the defect exactly.
+
+    `paths_modified` exists because content change is neither creation nor
+    deletion, and collapsing it into either produces assertions that cannot
+    be read correctly.
+    """
+
+    directories_added: tuple
+    directories_removed: tuple
+    paths_created: tuple
+    paths_deleted: tuple
+    paths_modified: tuple
+
+    @property
+    def unchanged(self) -> bool:
+        return not (self.directories_added or self.directories_removed
+                    or self.paths_created or self.paths_deleted
+                    or self.paths_modified)
+
+
+def topology_delta(before: TopologySnapshot,
+                   after: TopologySnapshot) -> TopologyDelta:
+    """BEFORE first, AFTER second. Identity is by DIGEST, never by mtime."""
+    b, a = dict(before.files), dict(after.files)
+    return TopologyDelta(
+        directories_added=tuple(sorted(after.directories - before.directories)),
+        directories_removed=tuple(sorted(before.directories - after.directories)),
+        paths_created=tuple(sorted(set(a) - set(b))),
+        paths_deleted=tuple(sorted(set(b) - set(a))),
+        paths_modified=tuple(sorted(p for p in set(a) & set(b) if a[p] != b[p])),
+    )
+
+
 @pytest.fixture
 def repo_and_journal(tmp_path):
     """A real git repository and a journal directory OUTSIDE it."""
@@ -58,19 +177,35 @@ def repo_and_journal(tmp_path):
     (repo / "src").mkdir(parents=True)
     (repo / "src" / "mod.py").write_bytes(b"x = 1\n")
     (repo / ".env").write_bytes(_SECRET_BYTES)
-    for cmd in (["git", "init", "-q"],
-                ["git", "config", "user.email", "t@t"],
-                ["git", "config", "user.name", "t"],
-                ["git", "add", "-A"],
-                ["git", "commit", "-qm", "v1"]):
-        subprocess.run(cmd, cwd=str(repo), capture_output=True, timeout=60)
+    subprocess.run(("git", "-c", "core.excludesFile=", "init", "--template=",
+                    "-q", str(repo)), env=_hermetic_git_env(),
+                   capture_output=True, check=True, timeout=60)
+    _git_in(repo, "config", "user.email", "t@t")
+    _git_in(repo, "config", "user.name", "t")
+    _git_in(repo, "add", "-A")
+    _git_in(repo, "commit", "-qm", "v1")
+    assert (repo / ".git").is_dir(), "the fixture did not produce a git repository"
     return repo, tmp_path / "journal"
 
 
 # ---- the three invariants ----------------------------------------------
 def test_a_committed_transaction_leaves_no_artefact(repo_and_journal):
-    """THE INVARIANT. 255 artefacts accumulated because this was never true."""
+    """THE INVARIANT. 255 artefacts accumulated because this was never true.
+
+    TEST-CONTRACT-OVERCLAIM-1, repaired 2026-08-22 by STRENGTHENING rather than
+    renaming. This test was named for a general artefact invariant and proved
+    one specific filename family -- `.bak`, `.orig`, `.rej`, `.tmp` in a NAME --
+    because it was born from the 255-artefact accumulation. A directory called
+    `repository_records` matches none of those.
+
+    Renaming it to `..._leaves_no_backup_shaped_artefact` would have made the
+    name honest while leaving the weak predicate in place. Strengthening makes
+    the ORIGINAL name true: no artefact of any kind, file or directory,
+    survives a commit beyond the declared write set. Names are contracts, and
+    the better repair is to honour the contract.
+    """
     repo, journal = repo_and_journal
+    before = TopologySnapshot.capture(repo)
     with RepositoryTransaction(repo, journal) as tx:
         tid = tx.transaction_id
         tx.patch("src/mod.py", b"x = 2\n")
@@ -83,11 +218,33 @@ def test_a_committed_transaction_leaves_no_artefact(repo_and_journal):
     strays = [p for p in repo.rglob("*")
               if any(s in p.name for s in (".bak", ".orig", ".rej", ".tmp"))]
     assert not strays, strays
+    # TOPOLOGY. A commit may leave exactly what it declared and nothing else --
+    # including no directory nobody asked for. `git status` cannot prove this:
+    # git does not represent empty directories, so its strongest untracked
+    # check reports nothing about them.
+    delta = topology_delta(before, TopologySnapshot.capture(repo))
+    assert delta.directories_added == (), delta.directories_added
+    assert delta.directories_removed == (), delta.directories_removed
+    assert delta.paths_created == ("src/new.py",), delta.paths_created
+    assert delta.paths_deleted == (), delta.paths_deleted
+    assert delta.paths_modified == ("src/mod.py",), delta.paths_modified
 
 
 def test_a_failed_transaction_restores_the_repository_exactly(repo_and_journal):
+    """TEST-CONTRACT-OVERCLAIM-1, repaired 2026-08-22 by strengthening.
+
+    This test was named `..._exactly` and proved two file states plus the
+    journal. It contained no directory assertion, no rglob, and no topology
+    comparison, and its fixture creates src/ itself -- so the defect's
+    precondition never arose here. MEASURED by falsification against the live
+    module at 584c3fb: with a missing ancestor, files were restored and the
+    directory survived, in-process AND through fresh-process recovery.
+
+    `exactly` now means exactly: bytes, existence, and topology.
+    """
     repo, journal = repo_and_journal
-    before = (repo / "src" / "mod.py").read_bytes()
+    before_bytes = (repo / "src" / "mod.py").read_bytes()
+    before = TopologySnapshot.capture(repo)
     tid = None
     with pytest.raises(RuntimeError):
         with RepositoryTransaction(repo, journal) as tx:
@@ -95,9 +252,11 @@ def test_a_failed_transaction_restores_the_repository_exactly(repo_and_journal):
             tx.patch("src/mod.py", b"BROKEN\n")
             tx.create("src/new.py", b"y = 3\n")
             raise RuntimeError("the gate failed")
-    assert (repo / "src" / "mod.py").read_bytes() == before
+    assert (repo / "src" / "mod.py").read_bytes() == before_bytes
     assert not (repo / "src" / "new.py").exists(), "a created file survived"
     assert not (journal / tid).exists()
+    assert topology_delta(before, TopologySnapshot.capture(repo)).unchanged, (
+        "rollback restored file state but not repository topology")
 
 
 def test_an_interrupted_transaction_is_discoverable(repo_and_journal):
@@ -689,3 +848,220 @@ def test_the_journal_lives_under_the_runtime_cache_root():
     paths = resolve_runtime_paths()
     assert not str(paths.transaction_journal).startswith(str(paths.project_root))
     assert paths.transaction_journal == paths.cache_root / "transactions"
+
+
+# ---- STEP 3C: repository TOPOLOGY --------------------------------------
+# TRANSACTION-STATE-MODEL-INCOMPLETE-1, 2026-08-22.
+#
+# Every case below FAILED against the module as it stood at 584c3fb, measured
+# by falsification before any repair was written. The control -- a target under
+# an existing parent -- passed throughout, which is what makes this a coverage
+# gap rather than "rollback is broken".
+#
+#     parent already exists        topology restored
+#     one missing ancestor         src/pkg survived
+#     three missing ancestors      src/a, src/a/b, src/a/b/c survived
+#     two targets, one new parent  src/pkg survived, ONCE
+#     fresh-process recovery       src/pkg survived
+#
+# and `git status --porcelain=v2 --untracked-files=all` reported NOTHING
+# throughout, because git does not represent empty directories.
+
+
+def test_rollback_removes_one_created_ancestor(repo_and_journal):
+    repo, journal = repo_and_journal
+    before = TopologySnapshot.capture(repo)
+    with pytest.raises(RuntimeError):
+        with RepositoryTransaction(repo, journal) as tx:
+            tx.create("src/pkg/mod.py", b"y = 3\n")
+            raise RuntimeError("the gate failed")
+    assert topology_delta(before, TopologySnapshot.capture(repo)).unchanged
+
+
+def test_rollback_removes_three_created_ancestors_deepest_first(repo_and_journal):
+    """`mkdir(parents=True)` orphaned all three levels, not merely the last."""
+    repo, journal = repo_and_journal
+    before = TopologySnapshot.capture(repo)
+    with pytest.raises(RuntimeError):
+        with RepositoryTransaction(repo, journal) as tx:
+            tx.create("src/a/b/c/mod.py", b"y = 3\n")
+            raise RuntimeError("the gate failed")
+    delta = topology_delta(before, TopologySnapshot.capture(repo))
+    assert delta.unchanged, delta.directories_added
+    assert not (repo / "src" / "a").exists()
+    assert (repo / "src").is_dir(), "the PRE-EXISTING parent must survive"
+
+
+def test_two_targets_sharing_a_created_parent_own_it_once(repo_and_journal):
+    """Directory creation belongs to the TRANSACTION, not to a target.
+
+    Competing owners would make removal order undefined and could remove a
+    directory the other target still needs.
+    """
+    repo, journal = repo_and_journal
+    before = TopologySnapshot.capture(repo)
+    tx = RepositoryTransaction(repo, journal)
+    tx.create("src/pkg/one.py", b"a = 1\n")
+    tx.create("src/pkg/two.py", b"b = 2\n")
+    recorded = [i["relpath"]
+                for i in tx.read_manifest()["directory_creation_intents"]]
+    assert recorded == ["src/pkg"], recorded
+    tx.rollback()
+    assert topology_delta(before, TopologySnapshot.capture(repo)).unchanged
+
+
+def test_a_preexisting_directory_is_never_removed(repo_and_journal):
+    """The control case. It passed before the repair and must keep passing."""
+    repo, journal = repo_and_journal
+    before = TopologySnapshot.capture(repo)
+    with pytest.raises(RuntimeError):
+        with RepositoryTransaction(repo, journal) as tx:
+            tx.create("src/new.py", b"y = 3\n")
+            raise RuntimeError("the gate failed")
+    delta = topology_delta(before, TopologySnapshot.capture(repo))
+    assert delta.unchanged
+    assert (repo / "src").is_dir()
+
+
+def test_directory_intents_are_PERSISTED_BEFORE_the_mutation(repo_and_journal):
+    """WRITE-AHEAD, for topology.
+
+    Recovery metadata describing a mutation must be durable BEFORE that
+    mutation becomes observable -- the same discipline
+    test_the_target_is_PERSISTED_BEFORE_the_repository_is_touched already
+    enforces for file bytes. A crash between mkdir and persistence would
+    otherwise recreate the residue class this repair removes.
+    """
+    repo, journal = repo_and_journal
+    tx = RepositoryTransaction(repo, journal)
+    tx._transition(TransactionState.APPLYING)
+    intents = tx._record_directory_intents(repo / "src" / "a" / "b" / "mod.py")
+    # NOTHING has been created yet.
+    assert not (repo / "src" / "a").exists()
+    recorded = [i["relpath"]
+                for i in tx.read_manifest()["directory_creation_intents"]]
+    assert recorded == ["src/a", "src/a/b"], recorded
+    assert [i.relpath for i in intents] == ["src/a", "src/a/b"]
+    tx.rollback()
+
+
+def test_foreign_content_prevents_a_CLEAN_rollback(repo_and_journal):
+    """A safe failure is still a failure.
+
+    "Do not destroy someone else's state" and "the pre-state was restored" are
+    SEPARATE predicates. The directory must not be deleted, and rollback must
+    not claim success either.
+    """
+    repo, journal = repo_and_journal
+    tx = RepositoryTransaction(repo, journal)
+    tx.create("src/pkg/mod.py", b"y = 3\n")
+    (repo / "src" / "pkg" / "foreign.txt").write_bytes(b"not ours\n")
+    with pytest.raises(TransactionIntegrityError) as exc:
+        tx.rollback()
+    assert "foreign_content_present" in str(exc.value)
+    assert tx.state is TransactionState.RECOVERY_REQUIRED
+    assert (repo / "src" / "pkg" / "foreign.txt").read_bytes() == b"not ours\n"
+    assert tx.directory.exists(), "the journal must survive for a retry"
+
+
+def test_a_recorded_directory_replaced_by_a_file_is_refused(repo_and_journal):
+    repo, journal = repo_and_journal
+    tx = RepositoryTransaction(repo, journal)
+    tx.create("src/pkg/mod.py", b"y = 3\n")
+    (repo / "src" / "pkg" / "mod.py").unlink()
+    (repo / "src" / "pkg").rmdir()
+    (repo / "src" / "pkg").write_bytes(b"now a file\n")
+    with pytest.raises(TransactionIntegrityError) as exc:
+        tx.rollback()
+    assert "directory_intent_type_changed" in str(exc.value)
+    assert (repo / "src" / "pkg").read_bytes() == b"now a file\n"
+
+
+def test_fresh_process_recovery_restores_topology(repo_and_journal):
+    """recover_transaction() reads the manifest ALONE.
+
+    If the directory is not recorded there, recovery cannot remove it either --
+    which is why the intents are persisted rather than held in memory. This is
+    the case that proves the gap was in the DURABLE model.
+    """
+    repo, journal = repo_and_journal
+    before = TopologySnapshot.capture(repo)
+    tx = RepositoryTransaction(repo, journal)
+    tid = tx.transaction_id
+    tx.create("src/pkg/mod.py", b"y = 3\n")
+    del tx                                        # the process dies here
+    result = recover_transaction(journal / tid)
+    assert result["action"] == "rolled_back", result
+    assert topology_delta(before, TopologySnapshot.capture(repo)).unchanged
+
+
+def test_a_legacy_manifest_without_directory_intents_still_recovers(tmp_path):
+    """Journals written before this repair must not become unrecoverable."""
+    d = tmp_path / "txn"
+    (d / "preimages").mkdir(parents=True)
+    (d / "manifest.json").write_text(json.dumps({
+        "schema": "gvc.repository-transaction", "schema_version": 2,
+        "generation": 1, "updated_at": "x",
+        "values": {"transaction_id": "legacy", "state": "applying",
+                   "repo_root": str(tmp_path), "targets": []}}),
+        encoding="utf-8")
+    result = recover_transaction(d)
+    assert result["action"] == "rolled_back", result
+    assert not d.exists()
+
+
+def test_topology_restoration_is_idempotent(repo_and_journal):
+    """RECOVERY_REQUIRED is not terminal, so a retry must complete."""
+    repo, journal = repo_and_journal
+    before = TopologySnapshot.capture(repo)
+    tx = RepositoryTransaction(repo, journal)
+    tx.create("src/pkg/mod.py", b"y = 3\n")
+    (repo / "src" / "pkg" / "foreign.txt").write_bytes(b"not ours\n")
+    with pytest.raises(TransactionIntegrityError):
+        tx.rollback()
+    (repo / "src" / "pkg" / "foreign.txt").unlink()   # the operator clears it
+    tx.rollback()
+    assert tx.state is TransactionState.ROLLED_BACK
+    assert topology_delta(before, TopologySnapshot.capture(repo)).unchanged
+
+
+def test_a_process_KILL_after_mkdir_leaves_a_recoverable_topology(
+        repo_and_journal, tmp_path):
+    """Crash window: intent persisted, directories created, file NOT written.
+
+    An exception-safe transaction is not necessarily a crash-safe one. This
+    kills a second interpreter after the directories exist and recovers in a
+    third, which is the only way to prove the manifest alone suffices.
+    """
+    import signal
+    import sys as _sys
+    repo, journal = repo_and_journal
+    before = TopologySnapshot.capture(repo)
+    src_root = str(Path(__file__).resolve().parents[2] / "src")
+    victim = tmp_path / "victim_topology.py"
+    victim.write_text(
+        "import os, signal, sys\n"
+        "sys.path.insert(0, {!r})\n".format(src_root) +
+        "from genomic_variant_classifier.transactions.repository_transaction "
+        "import RepositoryTransaction, TransactionState, "
+        "_materialize_directory_intents\n"
+        "from pathlib import Path\n"
+        "repo, journal = sys.argv[1], sys.argv[2]\n"
+        "tx = RepositoryTransaction(repo, journal, require_clean_tree=False)\n"
+        "print(tx.transaction_id, flush=True)\n"
+        "tx._transition(TransactionState.APPLYING)\n"
+        "tx._write_ahead('src/pkg/mod.py')\n"
+        "i = tx._record_directory_intents(Path(repo) / 'src' / 'pkg' / 'mod.py')\n"
+        "_materialize_directory_intents(Path(repo), i)\n"
+        "os.kill(os.getpid(), signal.SIGTERM)\n",
+        encoding="utf-8")
+    out = subprocess.run([_sys.executable, "-B", str(victim), str(repo),
+                          str(journal)], capture_output=True, text=True,
+                         timeout=300)
+    assert out.returncode != 0, "the victim was supposed to die"
+    assert (repo / "src" / "pkg").is_dir(), "the directory should exist yet"
+    pending = incomplete_transactions(journal)
+    assert len(pending) == 1, pending
+    result = recover_transaction(pending[0]["directory"])
+    assert result["action"] == "rolled_back", result
+    assert topology_delta(before, TopologySnapshot.capture(repo)).unchanged

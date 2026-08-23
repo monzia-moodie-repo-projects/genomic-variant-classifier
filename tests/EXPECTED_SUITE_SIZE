@@ -7108,4 +7108,35 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5303
+
+# 2026-08-23 -- 5303 -> 5314 (+11). TRANSACTION-STATE-MODEL-INCOMPLETE-1.
+#
+#   Rollback restored FILES and left the DIRECTORIES it created to host them.
+#   The transaction tests modelled repository state as (files, journal) while
+#   the module contract claims (files, directories, types, git, journal), so
+#   the residue was not merely unnoticed -- it was UNREPRESENTABLE.
+#
+#   Falsified against the live module BEFORE any repair was written: a target
+#   under an existing parent restored cleanly, while one, three and shared
+#   missing ancestors each survived, in-process AND through fresh-process
+#   recovery. `git status --untracked-files=all` reported nothing throughout,
+#   because git does not represent empty directories.
+#
+#   The repair records directory-creation INTENTS in the manifest BEFORE the
+#   mutation, materializes each level individually rather than through an
+#   opaque recursive mkdir, and removes them deepest-first through the SAME
+#   helper that fresh-process recovery uses. Foreign content is never deleted
+#   and never reported as a clean rollback: a safe failure is still a failure.
+#
+#   The two overclaiming tests are STRENGTHENED, not renamed, so their original
+#   names become true and no node identity changes. A pure rename is
+#   expressible only as DELIBERATE_RETIREMENT under the current primitive,
+#   which would record a retirement where nothing was retired.
+#
+#   Suite identity digests:
+#       before  972c352bd2b7ca08950acf962726a324af19b8e14b7de80a053401bea5f80973
+#       after   3e9ebd785ff757f3c53bf69c0a38dee57ea375e8798a6207b7b1ad8cea6f337b
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5314
