@@ -7139,4 +7139,35 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5314
+
+# 2026-08-23 -- 5314 -> 5352 (+38). The record ontology becomes code.
+#
+#   ADR-0004 established the records/ plane and deliberately did NOT carry the
+#   role-to-root mapping. A record saying `role X -> records/foo` while code
+#   says `records/bar` is the identical defect this programme spent its length
+#   removing. The mapping that PERFORMS the placement is now the mapping that
+#   is EXECUTED, and the record points at it.
+#
+#   Four orthogonal axes, because answering one does not answer another:
+#       ArtifactRole             what kind of record, hence where it lives
+#       DisclosureClass          may these exact bytes be published
+#       PreservationDisposition  may it be preserved verbatim at all
+#       RetentionClass           how long it is kept
+#
+#   Twenty-six of the thirty-eight cases are negative controls. Five bind the
+#   registry itself: every role has one root, no two share one, none is nested
+#   inside another, none claims the plane root, none is under docs/. Nested
+#   roots would make role inference ambiguous BY CONSTRUCTION.
+#
+#   The three validation policies are proven not to be aliases: a real
+#   historical attestation shape with no trailing newline is REFUSED by the
+#   authoring predicate and ACCEPTED by the preservation predicate.
+#   VERBATIM-IMPORT-NOT-AUTHORING-1 as an executable fact.
+#
+#   Suite identity digests:
+#       before  3e9ebd785ff757f3c53bf69c0a38dee57ea375e8798a6207b7b1ad8cea6f337b
+#       after   70a3b350199cf2ec400e7002eb6bc1996f96ad6da91c293d5dc2348bb948005e
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5352
