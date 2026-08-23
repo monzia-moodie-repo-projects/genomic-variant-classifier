@@ -1,0 +1,70 @@
+{
+  "acceptance": {
+    "errors": 0,
+    "failed": 0,
+    "measured_by": {
+      "interpreter": "C:\\Projects\\genomic-variant-classifier\\.venv312\\Scripts\\python.exe",
+      "note": "LOCAL gate. Continuous integration runs the same scope on 3.11 and 3.12 and may split passed against skipped differently; both sums equal the ratchet.",
+      "platform": "Windows-11-10.0.29648-SP0",
+      "python": "3.12.10"
+    },
+    "passed": 5288,
+    "returncode": 0,
+    "scope": "tests",
+    "seconds": 917.1,
+    "skipped": 15,
+    "summary": "5288 passed, 15 skipped, 33 warnings in 903.68s (0:15:03)",
+    "warnings": 33,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "counter": {
+    "after": 5303,
+    "before": 5303,
+    "scope": "tests"
+  },
+  "finished_at": "2026-08-22T18:40:25Z",
+  "plan_digest": "9138e431eb9660f4789a12357577ad4433ec04c83ac42cfe0fd2e2cb208aab1d",
+  "platform": "Windows-11-10.0.29648-SP0",
+  "python": "3.12.10",
+  "repository": {
+    "post_head": "0999af0",
+    "pre_head": "88e844e"
+  },
+  "schema": "gvc.install-attestation",
+  "schema_version": 2,
+  "started_at": "2026-08-22T18:24:35Z",
+  "status": "PUBLISHED",
+  "suite_transition": {
+    "after_count": 5303,
+    "after_digest": "972c352bd2b7ca08950acf962726a324af19b8e14b7de80a053401bea5f80973",
+    "before_count": 5303,
+    "before_digest": "972c352bd2b7ca08950acf962726a324af19b8e14b7de80a053401bea5f80973",
+    "expected_added_nodeids": [],
+    "expected_removed_nodeids": [],
+    "kind": "neutral",
+    "observed_added_nodeids": [],
+    "observed_removed_nodeids": []
+  },
+  "targets": [
+    {
+      "action": "create",
+      "path": "docs/sessions/CORRECTION_2026-08-22_a-neutral-transition-was-not-verified.md",
+      "post_sha256": "432bd022f0c47c8444ca5e56e5112962b03aab821c4d1c159af8eb62ec198ea9",
+      "post_size": 5579
+    },
+    {
+      "action": "create",
+      "path": "docs/sessions/SESSION_2026-08-22_part2_a-suite-acquires-an-identity.md",
+      "post_sha256": "95ea6fd06a174215422857dae6acb97dcbe110e28a4bba099b2ff000242563d8",
+      "post_size": 9361
+    },
+    {
+      "action": "patch",
+      "path": "docs/CHANGELOG.md",
+      "post_sha256": "a999a94dba0b5e198b9babd8ef806679ee86f4285fee8bb50aa245472833021c",
+      "post_size": 523138
+    }
+  ],
+  "unit": "D-SESSION-3-2026-08-22"
+}

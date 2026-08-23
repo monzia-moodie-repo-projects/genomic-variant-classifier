@@ -1,0 +1,64 @@
+{
+  "acceptance": {
+    "errors": 0,
+    "failed": 0,
+    "measured_by": {
+      "interpreter": "C:\\Projects\\genomic-variant-classifier\\.venv312\\Scripts\\python.exe",
+      "note": "LOCAL gate. Continuous integration runs the same scope on 3.11 and 3.12 and may split passed against skipped differently; both sums equal the ratchet.",
+      "platform": "Windows-11-10.0.29648-SP0",
+      "python": "3.12.10"
+    },
+    "passed": 5288,
+    "returncode": 0,
+    "scope": "tests",
+    "seconds": 917.0,
+    "skipped": 15,
+    "summary": "5288 passed, 15 skipped, 33 warnings in 902.72s (0:15:02)",
+    "warnings": 33,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "counter": {
+    "after": 5303,
+    "before": 5303,
+    "scope": "tests"
+  },
+  "finished_at": "2026-08-22T22:04:08Z",
+  "plan_digest": "9e5f5328bff215b7e3c46cc9e0d0e677e75e0ec3c516a7f2c72bec98045005cc",
+  "platform": "Windows-11-10.0.29648-SP0",
+  "python": "3.12.10",
+  "repository": {
+    "post_head": "f567381",
+    "pre_head": "0999af0"
+  },
+  "schema": "gvc.install-attestation",
+  "schema_version": 2,
+  "started_at": "2026-08-22T21:48:17Z",
+  "status": "PUBLISHED",
+  "suite_transition": {
+    "after_count": 5303,
+    "after_digest": "972c352bd2b7ca08950acf962726a324af19b8e14b7de80a053401bea5f80973",
+    "before_count": 5303,
+    "before_digest": "972c352bd2b7ca08950acf962726a324af19b8e14b7de80a053401bea5f80973",
+    "expected_added_nodeids": [],
+    "expected_removed_nodeids": [],
+    "kind": "neutral",
+    "observed_added_nodeids": [],
+    "observed_removed_nodeids": []
+  },
+  "targets": [
+    {
+      "action": "create",
+      "path": "docs/architecture/decisions/ADR-0004-repository-records-evidence-preservation-and-authority-succession.md",
+      "post_sha256": "045a69abbf86a5c4fc3dc87ddf8c57fcea88113357e32468fd9ad4581508ee16",
+      "post_size": 24045
+    },
+    {
+      "action": "patch",
+      "path": "docs/architecture/decisions/README.md",
+      "post_sha256": "4c4de5d4a5b5c6bf95d0ce54251aac6ba694bf53bf0bf419810b702aba6724ba",
+      "post_size": 4920
+    }
+  ],
+  "unit": "ADR-0004-2026-08-22"
+}

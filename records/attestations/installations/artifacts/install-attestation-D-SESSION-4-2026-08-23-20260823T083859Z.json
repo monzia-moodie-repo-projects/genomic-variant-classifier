@@ -1,0 +1,64 @@
+{
+  "acceptance": {
+    "errors": 0,
+    "failed": 0,
+    "measured_by": {
+      "interpreter": "C:\\Projects\\genomic-variant-classifier\\.venv312\\Scripts\\python.exe",
+      "note": "LOCAL gate. Continuous integration runs the same scope on 3.11 and 3.12 and may split passed against skipped differently; both sums equal the ratchet.",
+      "platform": "Windows-11-10.0.29648-SP0",
+      "python": "3.12.10"
+    },
+    "passed": 5337,
+    "returncode": 0,
+    "scope": "tests",
+    "seconds": 1043.6,
+    "skipped": 15,
+    "summary": "5337 passed, 15 skipped, 33 warnings in 1029.57s (0:17:09)",
+    "warnings": 33,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "counter": {
+    "after": 5352,
+    "before": 5352,
+    "scope": "tests"
+  },
+  "finished_at": "2026-08-23T08:39:00Z",
+  "plan_digest": "03343d99262856b7fd833e2e9814383f458e98a607a8a10c9943a7f2308c8e41",
+  "platform": "Windows-11-10.0.29648-SP0",
+  "python": "3.12.10",
+  "repository": {
+    "post_head": "8ff0ea3",
+    "pre_head": "57494e3"
+  },
+  "schema": "gvc.install-attestation",
+  "schema_version": 2,
+  "started_at": "2026-08-23T08:21:00Z",
+  "status": "PUBLISHED",
+  "suite_transition": {
+    "after_count": 5352,
+    "after_digest": "70a3b350199cf2ec400e7002eb6bc1996f96ad6da91c293d5dc2348bb948005e",
+    "before_count": 5352,
+    "before_digest": "70a3b350199cf2ec400e7002eb6bc1996f96ad6da91c293d5dc2348bb948005e",
+    "expected_added_nodeids": [],
+    "expected_removed_nodeids": [],
+    "kind": "neutral",
+    "observed_added_nodeids": [],
+    "observed_removed_nodeids": []
+  },
+  "targets": [
+    {
+      "action": "create",
+      "path": "docs/sessions/SESSION_2026-08-23_a-state-model-acquires-directories.md",
+      "post_sha256": "2d47c9de330965fdbf583a0e5b1b73d7822557ea2430bd82fd6ec1781000f6b9",
+      "post_size": 12990
+    },
+    {
+      "action": "patch",
+      "path": "docs/CHANGELOG.md",
+      "post_sha256": "7af5448270e8acd286ca58d9a6228cd46008f044d409dfdd740342de074001ab",
+      "post_size": 527658
+    }
+  ],
+  "unit": "D-SESSION-4-2026-08-23"
+}

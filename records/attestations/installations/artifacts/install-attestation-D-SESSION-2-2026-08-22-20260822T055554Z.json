@@ -1,0 +1,58 @@
+{
+  "acceptance": {
+    "errors": 0,
+    "failed": 0,
+    "measured_by": {
+      "interpreter": "C:\\Projects\\genomic-variant-classifier\\.venv312\\Scripts\\python.exe",
+      "note": "LOCAL gate. Continuous integration runs the same scope on 3.11 and 3.12 and may split passed against skipped differently; both sums equal the ratchet.",
+      "platform": "Windows-11-10.0.29648-SP0",
+      "python": "3.12.10"
+    },
+    "passed": 5222,
+    "returncode": 0,
+    "scope": "tests",
+    "seconds": 986.3,
+    "skipped": 15,
+    "summary": "5222 passed, 15 skipped, 33 warnings in 972.85s (0:16:12)",
+    "warnings": 33,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "counter": {
+    "after": 5237,
+    "before": 5237,
+    "scope": "tests"
+  },
+  "finished_at": "2026-08-22T05:55:54Z",
+  "plan_digest": "a24fdeb74155fc33f3ec18abd29c4aae165bbe3430ee0904d6958418ec86d905",
+  "platform": "Windows-11-10.0.29648-SP0",
+  "python": "3.12.10",
+  "repository": {
+    "post_head": "ba9060d",
+    "pre_head": "f62f40d"
+  },
+  "schema": "gvc.install-attestation",
+  "schema_version": 1,
+  "started_at": "2026-08-22T05:39:08Z",
+  "status": "PUBLISHED",
+  "suite_transition": {
+    "expected_added_nodeids": [],
+    "expected_removed_nodeids": [],
+    "kind": "neutral"
+  },
+  "targets": [
+    {
+      "action": "create",
+      "path": "docs/sessions/SESSION_2026-08-22_the-record-acquires-a-contract.md",
+      "post_sha256": "5b22a327de1ad77da4b20358f1ba2ed486067c8812ef4d23b7d22023e35a4d9d",
+      "post_size": 11662
+    },
+    {
+      "action": "patch",
+      "path": "docs/CHANGELOG.md",
+      "post_sha256": "50b1b266577432cc87e628a2279d23913f1fda26ff28b4cf1be7fd1f1cf7dd66",
+      "post_size": 520111
+    }
+  ],
+  "unit": "D-SESSION-2-2026-08-22"
+}

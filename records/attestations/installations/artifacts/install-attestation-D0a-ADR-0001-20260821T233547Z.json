@@ -1,0 +1,38 @@
+{
+  "acceptance": {
+    "failed": 0,
+    "passed": 5198,
+    "returncode": 0,
+    "scope": "tests",
+    "seconds": 1011.8,
+    "skipped": 15,
+    "summary": "5198 passed, 15 skipped, 33 warnings in 998.13s (0:16:38)"
+  },
+  "counter": {
+    "after": 5213,
+    "before": 5213,
+    "scope": "tests"
+  },
+  "finished_at": "2026-08-21T23:35:47Z",
+  "plan_digest": "41f20979bdefe66963c74ca19b17ef98e16678da212d71846e2458bf954dba35",
+  "platform": "Windows-11-10.0.29648-SP0",
+  "python": "3.12.10",
+  "repository": {
+    "post_head": "b115bab",
+    "pre_head": "084ece5"
+  },
+  "schema": "gvc.install-attestation",
+  "schema_version": 1,
+  "started_at": "2026-08-21T23:18:28Z",
+  "status": "PUBLISHED",
+  "targets": [
+    {
+      "action": "create",
+      "path": "docs/architecture/decisions/ADR-0001-authority-and-contract-governance.md",
+      "post_sha256": "535cf02f9dd9445164b76a9aef6fa488b77d412bdd0fbea69dd6dc4b84e2a2be",
+      "post_size": 10006,
+      "pre_sha256": null
+    }
+  ],
+  "unit": "D0a-ADR-0001"
+}

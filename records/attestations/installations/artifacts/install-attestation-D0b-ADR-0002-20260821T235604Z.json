@@ -1,0 +1,53 @@
+{
+  "acceptance": {
+    "deselected": 0,
+    "errors": 0,
+    "failed": 0,
+    "measured_by": {
+      "interpreter": "C:\\Projects\\genomic-variant-classifier\\.venv312\\Scripts\\python.exe",
+      "note": "LOCAL gate. Continuous integration runs the same scope on 3.11 and 3.12 and may report a different passed/skipped split for environment-conditional tests; the sum equals the ratchet in both.",
+      "platform": "Windows-11-10.0.29648-SP0",
+      "python": "3.12.10"
+    },
+    "passed": 5198,
+    "returncode": 0,
+    "scope": "tests",
+    "seconds": 1015.1,
+    "skipped": 15,
+    "summary": "5198 passed, 15 skipped, 33 warnings in 1010.66s (0:16:50)",
+    "warning_kinds": {
+      "UndefinedMetricWarning": 3,
+      "UserWarning": 1
+    },
+    "warnings": 33,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "counter": {
+    "after": 5213,
+    "before": 5213,
+    "scope": "tests"
+  },
+  "finished_at": "2026-08-21T23:56:04Z",
+  "plan_digest": "4d545b8cfad3517490af68eb117d3ed6f447f744e99d3ab3caabe68cc6267940",
+  "platform": "Windows-11-10.0.29648-SP0",
+  "python": "3.12.10",
+  "repository": {
+    "post_head": "1c50680",
+    "pre_head": "b115bab"
+  },
+  "schema": "gvc.install-attestation",
+  "schema_version": 1,
+  "started_at": "2026-08-21T23:38:47Z",
+  "status": "PUBLISHED",
+  "targets": [
+    {
+      "action": "create",
+      "path": "docs/architecture/decisions/ADR-0002-runtime-path-ownership.md",
+      "post_sha256": "8579984c8c2f884536ef87d9c0a121380685fd598d904b6823df3c904ff10dd3",
+      "post_size": 9651,
+      "pre_sha256": null
+    }
+  ],
+  "unit": "D0b-ADR-0002"
+}

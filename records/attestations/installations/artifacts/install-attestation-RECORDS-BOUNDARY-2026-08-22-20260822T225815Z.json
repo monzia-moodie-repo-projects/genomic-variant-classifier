@@ -1,0 +1,64 @@
+{
+  "acceptance": {
+    "errors": 0,
+    "failed": 0,
+    "measured_by": {
+      "interpreter": "C:\\Projects\\genomic-variant-classifier\\.venv312\\Scripts\\python.exe",
+      "note": "LOCAL gate. Continuous integration runs the same scope on 3.11 and 3.12 and may split passed against skipped differently; both sums equal the ratchet.",
+      "platform": "Windows-11-10.0.29648-SP0",
+      "python": "3.12.10"
+    },
+    "passed": 5288,
+    "returncode": 0,
+    "scope": "tests",
+    "seconds": 927.5,
+    "skipped": 15,
+    "summary": "5288 passed, 15 skipped, 33 warnings in 914.24s (0:15:14)",
+    "warnings": 33,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "counter": {
+    "after": 5303,
+    "before": 5303,
+    "scope": "tests"
+  },
+  "finished_at": "2026-08-22T22:58:15Z",
+  "plan_digest": "ba4e4ab0e330fcf75990aca1ba82290ec7fb9c04aa69be7222ce033a02e6696e",
+  "platform": "Windows-11-10.0.29648-SP0",
+  "python": "3.12.10",
+  "repository": {
+    "post_head": "584c3fb",
+    "pre_head": "f567381"
+  },
+  "schema": "gvc.install-attestation",
+  "schema_version": 2,
+  "started_at": "2026-08-22T22:42:11Z",
+  "status": "PUBLISHED",
+  "suite_transition": {
+    "after_count": 5303,
+    "after_digest": "972c352bd2b7ca08950acf962726a324af19b8e14b7de80a053401bea5f80973",
+    "before_count": 5303,
+    "before_digest": "972c352bd2b7ca08950acf962726a324af19b8e14b7de80a053401bea5f80973",
+    "expected_added_nodeids": [],
+    "expected_removed_nodeids": [],
+    "kind": "neutral",
+    "observed_added_nodeids": [],
+    "observed_removed_nodeids": []
+  },
+  "targets": [
+    {
+      "action": "patch",
+      "path": ".gitattributes",
+      "post_sha256": "228874649507843eadb968644d81eee2e504d7f14ced6f81c2cbd85b8569b9d5",
+      "post_size": 3786
+    },
+    {
+      "action": "patch",
+      "path": ".dockerignore",
+      "post_sha256": "8c51b3de59da39ffed8cd2ce9d977c86c101a7ebf7cbcc26e2a70499d4307e13",
+      "post_size": 733
+    }
+  ],
+  "unit": "RECORDS-BOUNDARY-2026-08-22"
+}

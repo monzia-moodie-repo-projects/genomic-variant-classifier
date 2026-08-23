@@ -1,0 +1,123 @@
+{
+  "acceptance": {
+    "errors": 0,
+    "failed": 0,
+    "measured_by": {
+      "interpreter": "C:\\Projects\\genomic-variant-classifier\\.venv312\\Scripts\\python.exe",
+      "note": "LOCAL gate. Continuous integration runs the same scope on 3.11 and 3.12 and may split passed against skipped differently; both sums equal the ratchet.",
+      "platform": "Windows-11-10.0.29648-SP0",
+      "python": "3.12.10"
+    },
+    "passed": 5247,
+    "returncode": 0,
+    "scope": "tests",
+    "seconds": 974.4,
+    "skipped": 15,
+    "summary": "5247 passed, 15 skipped, 33 warnings in 961.59s (0:16:01)",
+    "warnings": 33,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "counter": {
+    "after": 5262,
+    "before": 5237,
+    "scope": "tests"
+  },
+  "finished_at": "2026-08-22T07:47:40Z",
+  "plan_digest": "69f415cc2e08ed6bd4ff1768f868b62061a175eaef3b49a34de1441539cd85ce",
+  "platform": "Windows-11-10.0.29648-SP0",
+  "python": "3.12.10",
+  "repository": {
+    "post_head": "a60f18f",
+    "pre_head": "ba9060d"
+  },
+  "schema": "gvc.install-attestation",
+  "schema_version": 1,
+  "started_at": "2026-08-22T07:30:37Z",
+  "status": "PUBLISHED",
+  "suite_transition": {
+    "expected_added_nodeids": [
+      "tests/unit/test_suite_transition.py::test_a_snapshot_refuses_lines_that_are_not_node_identities",
+      "tests/unit/test_suite_transition.py::test_addition_accepts_exactly_the_declared_identities",
+      "tests/unit/test_suite_transition.py::test_addition_may_not_declare_a_removal",
+      "tests/unit/test_suite_transition.py::test_addition_must_name_what_it_adds",
+      "tests/unit/test_suite_transition.py::test_addition_refuses_a_declared_identity_that_did_not_appear",
+      "tests/unit/test_suite_transition.py::test_addition_refuses_a_silent_removal_alongside_the_addition",
+      "tests/unit/test_suite_transition.py::test_addition_refuses_an_undeclared_extra",
+      "tests/unit/test_suite_transition.py::test_an_identity_may_not_be_both_added_and_removed",
+      "tests/unit/test_suite_transition.py::test_an_invariant_may_not_migrate_to_no_owner",
+      "tests/unit/test_suite_transition.py::test_neutral_accepts_an_unchanged_suite",
+      "tests/unit/test_suite_transition.py::test_neutral_may_not_declare_additions",
+      "tests/unit/test_suite_transition.py::test_neutral_may_not_declare_removals",
+      "tests/unit/test_suite_transition.py::test_neutral_refuses_a_pure_addition",
+      "tests/unit/test_suite_transition.py::test_neutral_refuses_a_pure_removal",
+      "tests/unit/test_suite_transition.py::test_neutral_refuses_a_swap_that_preserves_the_count",
+      "tests/unit/test_suite_transition.py::test_parsing_accepts_a_consistent_collection",
+      "tests/unit/test_suite_transition.py::test_parsing_refuses_a_listing_with_no_summary_witness",
+      "tests/unit/test_suite_transition.py::test_parsing_refuses_when_the_listing_and_the_summary_disagree",
+      "tests/unit/test_suite_transition.py::test_retirement_accepts_exactly_the_declared_removals",
+      "tests/unit/test_suite_transition.py::test_retirement_carries_its_invariant_migrations",
+      "tests/unit/test_suite_transition.py::test_retirement_must_name_what_it_retires",
+      "tests/unit/test_suite_transition.py::test_retirement_refuses_an_undeclared_removal",
+      "tests/unit/test_suite_transition.py::test_retirement_requires_a_justification",
+      "tests/unit/test_suite_transition.py::test_the_digest_distinguishes_suites_of_the_same_size",
+      "tests/unit/test_suite_transition.py::test_the_digest_is_independent_of_collection_order"
+    ],
+    "kind": "addition",
+    "observed_added_nodeids": [
+      "tests/unit/test_suite_transition.py::test_a_snapshot_refuses_lines_that_are_not_node_identities",
+      "tests/unit/test_suite_transition.py::test_addition_accepts_exactly_the_declared_identities",
+      "tests/unit/test_suite_transition.py::test_addition_may_not_declare_a_removal",
+      "tests/unit/test_suite_transition.py::test_addition_must_name_what_it_adds",
+      "tests/unit/test_suite_transition.py::test_addition_refuses_a_declared_identity_that_did_not_appear",
+      "tests/unit/test_suite_transition.py::test_addition_refuses_a_silent_removal_alongside_the_addition",
+      "tests/unit/test_suite_transition.py::test_addition_refuses_an_undeclared_extra",
+      "tests/unit/test_suite_transition.py::test_an_identity_may_not_be_both_added_and_removed",
+      "tests/unit/test_suite_transition.py::test_an_invariant_may_not_migrate_to_no_owner",
+      "tests/unit/test_suite_transition.py::test_neutral_accepts_an_unchanged_suite",
+      "tests/unit/test_suite_transition.py::test_neutral_may_not_declare_additions",
+      "tests/unit/test_suite_transition.py::test_neutral_may_not_declare_removals",
+      "tests/unit/test_suite_transition.py::test_neutral_refuses_a_pure_addition",
+      "tests/unit/test_suite_transition.py::test_neutral_refuses_a_pure_removal",
+      "tests/unit/test_suite_transition.py::test_neutral_refuses_a_swap_that_preserves_the_count",
+      "tests/unit/test_suite_transition.py::test_parsing_accepts_a_consistent_collection",
+      "tests/unit/test_suite_transition.py::test_parsing_refuses_a_listing_with_no_summary_witness",
+      "tests/unit/test_suite_transition.py::test_parsing_refuses_when_the_listing_and_the_summary_disagree",
+      "tests/unit/test_suite_transition.py::test_retirement_accepts_exactly_the_declared_removals",
+      "tests/unit/test_suite_transition.py::test_retirement_carries_its_invariant_migrations",
+      "tests/unit/test_suite_transition.py::test_retirement_must_name_what_it_retires",
+      "tests/unit/test_suite_transition.py::test_retirement_refuses_an_undeclared_removal",
+      "tests/unit/test_suite_transition.py::test_retirement_requires_a_justification",
+      "tests/unit/test_suite_transition.py::test_the_digest_distinguishes_suites_of_the_same_size",
+      "tests/unit/test_suite_transition.py::test_the_digest_is_independent_of_collection_order"
+    ],
+    "observed_removed_nodeids": []
+  },
+  "targets": [
+    {
+      "action": "create",
+      "path": "src/genomic_variant_classifier/transactions/suite_transition.py",
+      "post_sha256": "91edc28d64077422fcbd20aa069074e8193cd037e3b3632da2c186943c22ad9e",
+      "post_size": 12567
+    },
+    {
+      "action": "create",
+      "path": "tests/unit/test_suite_transition.py",
+      "post_sha256": "cb12996c8492cf1efeec242481a7abf4a804ac05a0253dc4ab4e0aebfcd8209d",
+      "post_size": 10321
+    },
+    {
+      "action": "patch",
+      "path": "tests/EXPECTED_SUITE_SIZE",
+      "post_sha256": "45ab281b81c15571faa3b71e51b69ba3452f2603d64e87b2469db3c35feef5b5",
+      "post_size": 443892
+    },
+    {
+      "action": "patch",
+      "path": "README.md",
+      "post_sha256": "0794cc0ae1fbde45a4092c925471fd926f8ea2180f5efdd14e43f447c4ee0d30",
+      "post_size": 16445
+    }
+  ],
+  "unit": "SUITE-TRANSITION-2026-08-22"
+}

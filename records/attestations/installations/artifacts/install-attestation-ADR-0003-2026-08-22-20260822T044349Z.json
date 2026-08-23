@@ -1,0 +1,52 @@
+{
+  "acceptance": {
+    "errors": 0,
+    "failed": 0,
+    "measured_by": {
+      "interpreter": "C:\\Projects\\genomic-variant-classifier\\.venv312\\Scripts\\python.exe",
+      "note": "LOCAL gate. Continuous integration runs the same scope on 3.11 and 3.12 and may split passed against skipped differently; both sums equal the ratchet.",
+      "platform": "Windows-11-10.0.29648-SP0",
+      "python": "3.12.10"
+    },
+    "passed": 5207,
+    "returncode": 0,
+    "scope": "tests",
+    "seconds": 959.9,
+    "skipped": 15,
+    "summary": "5207 passed, 15 skipped, 33 warnings in 946.84s (0:15:46)",
+    "warnings": 33,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "counter": {
+    "after": 5222,
+    "before": 5222,
+    "scope": "tests"
+  },
+  "finished_at": "2026-08-22T04:43:49Z",
+  "plan_digest": "3b171c5b240ce9bd2819f9f348a1977074cc81a7ef8a1ab251f4dd4d9aec7eec",
+  "platform": "Windows-11-10.0.29648-SP0",
+  "python": "3.12.10",
+  "repository": {
+    "post_head": "e1a5297",
+    "pre_head": "31c279a"
+  },
+  "schema": "gvc.install-attestation",
+  "schema_version": 1,
+  "started_at": "2026-08-22T04:27:27Z",
+  "status": "PUBLISHED",
+  "suite_transition": {
+    "expected_added_nodeids": [],
+    "expected_removed_nodeids": [],
+    "kind": "neutral"
+  },
+  "targets": [
+    {
+      "action": "create",
+      "path": "docs/architecture/decisions/ADR-0003-project-knowledge-and-historical-record.md",
+      "post_sha256": "2db29a573d95f65dde0469ddcbe99ebb4a83c5b870fdde2acca71cf2bd30d1d2",
+      "post_size": 13778
+    }
+  ],
+  "unit": "ADR-0003-2026-08-22"
+}

@@ -1,0 +1,118 @@
+{
+  "acceptance": {
+    "errors": 0,
+    "failed": 0,
+    "measured_by": {
+      "interpreter": "C:\\Projects\\genomic-variant-classifier\\.venv312\\Scripts\\python.exe",
+      "note": "LOCAL gate. Continuous integration runs the same scope on 3.11 and 3.12 and may split passed against skipped differently; both sums equal the ratchet.",
+      "platform": "Windows-11-10.0.29648-SP0",
+      "python": "3.12.10"
+    },
+    "passed": 5222,
+    "returncode": 0,
+    "scope": "tests",
+    "seconds": 954.7,
+    "skipped": 15,
+    "summary": "5222 passed, 15 skipped, 33 warnings in 941.78s (0:15:41)",
+    "warnings": 33,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "amendments": [
+    {
+      "artifact": "docs/architecture/decisions/ADR-0001-authority-and-contract-governance.md",
+      "finding": "ADR-METADATA-INCOMPLETE-1",
+      "kind": "metadata_only",
+      "postimage_sha256": "75ac005fcb1ca7ef24a489ab1c61021f9a7db144d8f23e0b00aa2525d92d4413",
+      "preimage_sha256": "535cf02f9dd9445164b76a9aef6fa488b77d412bdd0fbea69dd6dc4b84e2a2be"
+    }
+  ],
+  "counter": {
+    "after": 5237,
+    "before": 5222,
+    "scope": "tests"
+  },
+  "finished_at": "2026-08-22T05:23:08Z",
+  "plan_digest": "aa1e77812fbb45ae5ca40e20e167a190d94cad1c65c0337a250f559cd5e45f90",
+  "platform": "Windows-11-10.0.29648-SP0",
+  "python": "3.12.10",
+  "repository": {
+    "post_head": "f62f40d",
+    "pre_head": "e1a5297"
+  },
+  "schema": "gvc.install-attestation",
+  "schema_version": 1,
+  "started_at": "2026-08-22T05:06:27Z",
+  "status": "PUBLISHED",
+  "suite_transition": {
+    "expected_added_nodeids": [
+      "tests/unit/test_adr_contract.py::test_a_superseded_record_says_what_superseded_it",
+      "tests/unit/test_adr_contract.py::test_every_declared_domain_is_in_the_vocabulary",
+      "tests/unit/test_adr_contract.py::test_every_declared_status_is_in_the_vocabulary",
+      "tests/unit/test_adr_contract.py::test_every_record_carries_the_mandated_byline",
+      "tests/unit/test_adr_contract.py::test_every_record_declares_the_required_metadata",
+      "tests/unit/test_adr_contract.py::test_every_record_matches_the_canonical_filename_pattern",
+      "tests/unit/test_adr_contract.py::test_no_accepted_record_lives_outside_the_canonical_directory",
+      "tests/unit/test_adr_contract.py::test_record_identifiers_are_unique_and_contiguous",
+      "tests/unit/test_adr_contract.py::test_the_domain_check_rejects_an_unknown_domain",
+      "tests/unit/test_adr_contract.py::test_the_filename_check_rejects_near_misses",
+      "tests/unit/test_adr_contract.py::test_the_index_check_detects_a_missing_and_a_phantom_entry",
+      "tests/unit/test_adr_contract.py::test_the_index_lists_exactly_the_records_present",
+      "tests/unit/test_adr_contract.py::test_the_parser_ignores_metadata_that_has_drifted_out_of_the_header",
+      "tests/unit/test_adr_contract.py::test_the_parser_rejects_a_field_with_an_empty_value",
+      "tests/unit/test_adr_contract.py::test_the_parser_rejects_the_byline_as_a_metadata_field"
+    ],
+    "kind": "addition",
+    "observed_added_nodeids": [
+      "tests/unit/test_adr_contract.py::test_a_superseded_record_says_what_superseded_it",
+      "tests/unit/test_adr_contract.py::test_every_declared_domain_is_in_the_vocabulary",
+      "tests/unit/test_adr_contract.py::test_every_declared_status_is_in_the_vocabulary",
+      "tests/unit/test_adr_contract.py::test_every_record_carries_the_mandated_byline",
+      "tests/unit/test_adr_contract.py::test_every_record_declares_the_required_metadata",
+      "tests/unit/test_adr_contract.py::test_every_record_matches_the_canonical_filename_pattern",
+      "tests/unit/test_adr_contract.py::test_no_accepted_record_lives_outside_the_canonical_directory",
+      "tests/unit/test_adr_contract.py::test_record_identifiers_are_unique_and_contiguous",
+      "tests/unit/test_adr_contract.py::test_the_domain_check_rejects_an_unknown_domain",
+      "tests/unit/test_adr_contract.py::test_the_filename_check_rejects_near_misses",
+      "tests/unit/test_adr_contract.py::test_the_index_check_detects_a_missing_and_a_phantom_entry",
+      "tests/unit/test_adr_contract.py::test_the_index_lists_exactly_the_records_present",
+      "tests/unit/test_adr_contract.py::test_the_parser_ignores_metadata_that_has_drifted_out_of_the_header",
+      "tests/unit/test_adr_contract.py::test_the_parser_rejects_a_field_with_an_empty_value",
+      "tests/unit/test_adr_contract.py::test_the_parser_rejects_the_byline_as_a_metadata_field"
+    ],
+    "observed_removed_nodeids": []
+  },
+  "targets": [
+    {
+      "action": "create",
+      "path": "tests/unit/test_adr_contract.py",
+      "post_sha256": "72c63926670dad37f7537a616cd7239d2a9773ad1c4b473eed992d651fd3b488",
+      "post_size": 15870
+    },
+    {
+      "action": "create",
+      "path": "docs/architecture/decisions/README.md",
+      "post_sha256": "f547cdf08f22587a909d497c7c1419b890d4ddf8b9ad319fe01d91168100d56c",
+      "post_size": 4408
+    },
+    {
+      "action": "patch",
+      "path": "docs/architecture/decisions/ADR-0001-authority-and-contract-governance.md",
+      "post_sha256": "75ac005fcb1ca7ef24a489ab1c61021f9a7db144d8f23e0b00aa2525d92d4413",
+      "post_size": 10393
+    },
+    {
+      "action": "patch",
+      "path": "tests/EXPECTED_SUITE_SIZE",
+      "post_sha256": "0d0ad0db1585f0220c0b7238c6298a74416660db9098be887985745326248694",
+      "post_size": 442371
+    },
+    {
+      "action": "patch",
+      "path": "README.md",
+      "post_sha256": "7aff037dae25b9b50bb203d1406bda126ae87c14d10997b1a5ff63e0648cc33a",
+      "post_size": 16445
+    }
+  ],
+  "unit": "ADR-CONTRACT-2026-08-22"
+}

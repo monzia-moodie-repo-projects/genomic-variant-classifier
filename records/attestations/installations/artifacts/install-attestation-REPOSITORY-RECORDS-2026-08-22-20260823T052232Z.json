@@ -1,0 +1,178 @@
+{
+  "acceptance": {
+    "errors": 0,
+    "failed": 0,
+    "measured_by": {
+      "interpreter": "C:\\Projects\\genomic-variant-classifier\\.venv312\\Scripts\\python.exe",
+      "note": "LOCAL gate. Continuous integration runs the same scope on 3.11 and 3.12 and may split passed against skipped differently; both sums equal the ratchet.",
+      "platform": "Windows-11-10.0.29648-SP0",
+      "python": "3.12.10"
+    },
+    "passed": 5337,
+    "returncode": 0,
+    "scope": "tests",
+    "seconds": 1201.2,
+    "skipped": 15,
+    "summary": "5337 passed, 15 skipped, 33 warnings in 1180.17s (0:19:40)",
+    "warnings": 33,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "counter": {
+    "after": 5352,
+    "before": 5314,
+    "scope": "tests"
+  },
+  "finished_at": "2026-08-23T05:22:32Z",
+  "plan_digest": "fd1457fe9da188d64b705e7e90f1f0365ded8902613b30e5aa72bcbc109ecd62",
+  "platform": "Windows-11-10.0.29648-SP0",
+  "python": "3.12.10",
+  "repository": {
+    "post_head": "57494e3",
+    "pre_head": "29f2969"
+  },
+  "schema": "gvc.install-attestation",
+  "schema_version": 2,
+  "started_at": "2026-08-23T05:01:32Z",
+  "status": "PUBLISHED",
+  "suite_transition": {
+    "after_count": 5352,
+    "after_digest": "70a3b350199cf2ec400e7002eb6bc1996f96ad6da91c293d5dc2348bb948005e",
+    "before_count": 5314,
+    "before_digest": "3e9ebd785ff757f3c53bf69c0a38dee57ea375e8798a6207b7b1ad8cea6f337b",
+    "expected_added_nodeids": [
+      "tests/unit/test_repository_records.py::test_a_clean_disposition_may_not_carry_a_defect_note",
+      "tests/unit/test_repository_records.py::test_a_defect_disposition_requires_a_note",
+      "tests/unit/test_repository_records.py::test_a_defect_note_does_not_prevent_preservation",
+      "tests/unit/test_repository_records.py::test_a_quarantined_artifact_is_not_publicly_preservable",
+      "tests/unit/test_repository_records.py::test_a_sequential_identifier_is_refused",
+      "tests/unit/test_repository_records.py::test_a_well_formed_disposition_is_accepted",
+      "tests/unit/test_repository_records.py::test_an_alias_may_not_be_a_path",
+      "tests/unit/test_repository_records.py::test_an_allocated_identifier_is_well_formed_and_unique",
+      "tests/unit/test_repository_records.py::test_an_empty_alias_is_refused",
+      "tests/unit/test_repository_records.py::test_an_identity_accepts_a_correct_placement",
+      "tests/unit/test_repository_records.py::test_an_identity_must_lie_beneath_its_roles_root",
+      "tests/unit/test_repository_records.py::test_an_instance_refuses_a_negative_size",
+      "tests/unit/test_repository_records.py::test_an_instance_refuses_a_windows_path",
+      "tests/unit/test_repository_records.py::test_an_instance_refuses_a_zero_length_artifact",
+      "tests/unit/test_repository_records.py::test_an_instance_refuses_an_absolute_path",
+      "tests/unit/test_repository_records.py::test_an_instance_requires_a_real_digest",
+      "tests/unit/test_repository_records.py::test_containment_accepts_a_real_descendant",
+      "tests/unit/test_repository_records.py::test_containment_normalises_windows_separators",
+      "tests/unit/test_repository_records.py::test_containment_rejects_a_sibling_that_shares_a_text_prefix",
+      "tests/unit/test_repository_records.py::test_containment_rejects_another_roles_subtree",
+      "tests/unit/test_repository_records.py::test_containment_rejects_the_root_itself",
+      "tests/unit/test_repository_records.py::test_duplicate_aliases_are_refused",
+      "tests/unit/test_repository_records.py::test_duplicate_provenance_is_refused",
+      "tests/unit/test_repository_records.py::test_every_role_has_exactly_one_canonical_root",
+      "tests/unit/test_repository_records.py::test_every_root_is_beneath_the_plane",
+      "tests/unit/test_repository_records.py::test_no_root_is_nested_inside_another",
+      "tests/unit/test_repository_records.py::test_no_two_roles_share_a_root",
+      "tests/unit/test_repository_records.py::test_provenance_may_not_be_empty",
+      "tests/unit/test_repository_records.py::test_restricted_bytes_may_not_be_admitted_verbatim_to_a_public_repository",
+      "tests/unit/test_repository_records.py::test_role_inference_exists_only_for_auditing",
+      "tests/unit/test_repository_records.py::test_role_inference_refuses_a_path_outside_every_root",
+      "tests/unit/test_repository_records.py::test_roles_are_not_documentation_paths",
+      "tests/unit/test_repository_records.py::test_the_authoring_policy_demands_house_style",
+      "tests/unit/test_repository_records.py::test_the_preservation_policy_accepts_non_ascii_and_a_byte_order_mark",
+      "tests/unit/test_repository_records.py::test_the_preservation_policy_accepts_what_authoring_refuses",
+      "tests/unit/test_repository_records.py::test_the_preservation_policy_refuses_a_digest_that_does_not_match",
+      "tests/unit/test_repository_records.py::test_the_preservation_policy_refuses_an_empty_source",
+      "tests/unit/test_repository_records.py::test_the_preservation_policy_refuses_any_mutation"
+    ],
+    "expected_removed_nodeids": [],
+    "kind": "addition",
+    "observed_added_nodeids": [
+      "tests/unit/test_repository_records.py::test_a_clean_disposition_may_not_carry_a_defect_note",
+      "tests/unit/test_repository_records.py::test_a_defect_disposition_requires_a_note",
+      "tests/unit/test_repository_records.py::test_a_defect_note_does_not_prevent_preservation",
+      "tests/unit/test_repository_records.py::test_a_quarantined_artifact_is_not_publicly_preservable",
+      "tests/unit/test_repository_records.py::test_a_sequential_identifier_is_refused",
+      "tests/unit/test_repository_records.py::test_a_well_formed_disposition_is_accepted",
+      "tests/unit/test_repository_records.py::test_an_alias_may_not_be_a_path",
+      "tests/unit/test_repository_records.py::test_an_allocated_identifier_is_well_formed_and_unique",
+      "tests/unit/test_repository_records.py::test_an_empty_alias_is_refused",
+      "tests/unit/test_repository_records.py::test_an_identity_accepts_a_correct_placement",
+      "tests/unit/test_repository_records.py::test_an_identity_must_lie_beneath_its_roles_root",
+      "tests/unit/test_repository_records.py::test_an_instance_refuses_a_negative_size",
+      "tests/unit/test_repository_records.py::test_an_instance_refuses_a_windows_path",
+      "tests/unit/test_repository_records.py::test_an_instance_refuses_a_zero_length_artifact",
+      "tests/unit/test_repository_records.py::test_an_instance_refuses_an_absolute_path",
+      "tests/unit/test_repository_records.py::test_an_instance_requires_a_real_digest",
+      "tests/unit/test_repository_records.py::test_containment_accepts_a_real_descendant",
+      "tests/unit/test_repository_records.py::test_containment_normalises_windows_separators",
+      "tests/unit/test_repository_records.py::test_containment_rejects_a_sibling_that_shares_a_text_prefix",
+      "tests/unit/test_repository_records.py::test_containment_rejects_another_roles_subtree",
+      "tests/unit/test_repository_records.py::test_containment_rejects_the_root_itself",
+      "tests/unit/test_repository_records.py::test_duplicate_aliases_are_refused",
+      "tests/unit/test_repository_records.py::test_duplicate_provenance_is_refused",
+      "tests/unit/test_repository_records.py::test_every_role_has_exactly_one_canonical_root",
+      "tests/unit/test_repository_records.py::test_every_root_is_beneath_the_plane",
+      "tests/unit/test_repository_records.py::test_no_root_is_nested_inside_another",
+      "tests/unit/test_repository_records.py::test_no_two_roles_share_a_root",
+      "tests/unit/test_repository_records.py::test_provenance_may_not_be_empty",
+      "tests/unit/test_repository_records.py::test_restricted_bytes_may_not_be_admitted_verbatim_to_a_public_repository",
+      "tests/unit/test_repository_records.py::test_role_inference_exists_only_for_auditing",
+      "tests/unit/test_repository_records.py::test_role_inference_refuses_a_path_outside_every_root",
+      "tests/unit/test_repository_records.py::test_roles_are_not_documentation_paths",
+      "tests/unit/test_repository_records.py::test_the_authoring_policy_demands_house_style",
+      "tests/unit/test_repository_records.py::test_the_preservation_policy_accepts_non_ascii_and_a_byte_order_mark",
+      "tests/unit/test_repository_records.py::test_the_preservation_policy_accepts_what_authoring_refuses",
+      "tests/unit/test_repository_records.py::test_the_preservation_policy_refuses_a_digest_that_does_not_match",
+      "tests/unit/test_repository_records.py::test_the_preservation_policy_refuses_an_empty_source",
+      "tests/unit/test_repository_records.py::test_the_preservation_policy_refuses_any_mutation"
+    ],
+    "observed_removed_nodeids": []
+  },
+  "targets": [
+    {
+      "action": "create",
+      "path": "src/genomic_variant_classifier/repository_records/__init__.py",
+      "post_sha256": "7b22daf8ad643e61f60443031d7cf6923bd15610b8e346c1370254ef9d539a9f",
+      "post_size": 2004
+    },
+    {
+      "action": "create",
+      "path": "src/genomic_variant_classifier/repository_records/classification.py",
+      "post_sha256": "6410b2431c279740c3e5a12bc67d7044723c435981af3987e6a6058890e5148a",
+      "post_size": 5084
+    },
+    {
+      "action": "create",
+      "path": "src/genomic_variant_classifier/repository_records/identity.py",
+      "post_sha256": "8f773b3f50e21cee7f55f80dc3ef78e04703b068417590a52b521612b871b66f",
+      "post_size": 5633
+    },
+    {
+      "action": "create",
+      "path": "src/genomic_variant_classifier/repository_records/roles.py",
+      "post_sha256": "219b1f2acc8b9f78088e0900760c8f685e57895efe91edd525cc8e712e6128ac",
+      "post_size": 3916
+    },
+    {
+      "action": "create",
+      "path": "src/genomic_variant_classifier/repository_records/validation.py",
+      "post_sha256": "2316bd642470c567869980a5da6a222f94a34820257494eee6e65cba7673bcd4",
+      "post_size": 3354
+    },
+    {
+      "action": "create",
+      "path": "tests/unit/test_repository_records.py",
+      "post_sha256": "0923d213699bdcc99c34d94a08d463f40e6fb062517b3234c03652f12e4cf5c6",
+      "post_size": 12844
+    },
+    {
+      "action": "patch",
+      "path": "tests/EXPECTED_SUITE_SIZE",
+      "post_sha256": "3b48a696b900dcafd30d94116d4ddfe082aff2091f9b147cd70ec89fe9cdf5eb",
+      "post_size": 448614
+    },
+    {
+      "action": "patch",
+      "path": "README.md",
+      "post_sha256": "facb17f508f4e7ed2c875d95324399bf1d9cedfe6ce25d906a53304041e5c2e2",
+      "post_size": 16445
+    }
+  ],
+  "unit": "REPOSITORY-RECORDS-2026-08-22"
+}

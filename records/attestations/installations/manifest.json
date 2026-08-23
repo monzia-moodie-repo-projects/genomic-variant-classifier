@@ -1,0 +1,384 @@
+{
+  "artifact_class": "installation_attestation",
+  "entries": [
+    {
+      "artifact_schema_version": 1,
+      "canonical_path": "records/attestations/installations/artifacts/install-attestation-ADR-0003-2026-08-22-20260822T044349Z.json",
+      "cited_by": [
+        "e1a5297"
+      ],
+      "content_sha256": "1a8a4024a2f6b1d80b6001c2d7ccb2ad295f4d1d8a2dcf91d4680ceb12f33cb5",
+      "disclosure": "public_verbatim",
+      "legacy_aliases": [
+        "install-attestation-ADR-0003-2026-08-22-20260822T044349Z.json"
+      ],
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "emitted_by_installer",
+        "imported_from_staging"
+      ],
+      "record_id": "REC-bd9b054acc344a168e159455a4f8d3f8",
+      "retention": "permanent_evidence",
+      "role": "installation_attestation",
+      "size_bytes": 1558
+    },
+    {
+      "artifact_schema_version": 2,
+      "canonical_path": "records/attestations/installations/artifacts/install-attestation-ADR-0004-2026-08-22-20260822T220407Z.json",
+      "cited_by": [
+        "f567381"
+      ],
+      "content_sha256": "aa92006e7b685b7214921c76140279a51ff60410a30f7f41f7b5e319cc6f9749",
+      "disclosure": "public_verbatim",
+      "legacy_aliases": [
+        "install-attestation-ADR-0004-2026-08-22-20260822T220407Z.json"
+      ],
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "emitted_by_installer",
+        "imported_from_staging"
+      ],
+      "record_id": "REC-3b72f8c68e4449f5a54e63791c7c2d92",
+      "retention": "permanent_evidence",
+      "role": "installation_attestation",
+      "size_bytes": 2088
+    },
+    {
+      "artifact_schema_version": 1,
+      "canonical_path": "records/attestations/installations/artifacts/install-attestation-ADR-CONTRACT-2026-08-22-20260822T052307Z.json",
+      "cited_by": [
+        "f62f40d"
+      ],
+      "content_sha256": "f76f5fba5767e24685e5b3d9285b74f154d45515c501a499ac61a5fc044a3134",
+      "disclosure": "public_verbatim",
+      "legacy_aliases": [
+        "install-attestation-ADR-CONTRACT-2026-08-22-20260822T052307Z.json"
+      ],
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "emitted_by_installer",
+        "imported_from_staging"
+      ],
+      "record_id": "REC-9cfb28b04f3d45a89d6403d4ad34849b",
+      "retention": "permanent_evidence",
+      "role": "installation_attestation",
+      "size_bytes": 5603
+    },
+    {
+      "artifact_schema_version": 2,
+      "canonical_path": "records/attestations/installations/artifacts/install-attestation-ARCHIVE-MANIFEST-2026-08-23-20260823T102415Z.json",
+      "cited_by": [
+        "0e46593"
+      ],
+      "content_sha256": "4e991101ffa51ff9702ef893971efc60e17ab13425b0f1009d8bc7f14121a709",
+      "disclosure": "public_verbatim",
+      "legacy_aliases": [
+        "install-attestation-ARCHIVE-MANIFEST-2026-08-23-20260823T102415Z.json"
+      ],
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "emitted_by_installer",
+        "imported_from_staging"
+      ],
+      "record_id": "REC-18936624b60b4c93a0d403188a94da11",
+      "retention": "permanent_evidence",
+      "role": "installation_attestation",
+      "size_bytes": 8454
+    },
+    {
+      "artifact_schema_version": 2,
+      "canonical_path": "records/attestations/installations/artifacts/install-attestation-ATTESTATION-V2-2026-08-22-20260822T175627Z.json",
+      "cited_by": [
+        "88e844e"
+      ],
+      "content_sha256": "b3cf6a658e50a1b31f93fa3a2f8854c005795c7aef10931cbf5e4eabe99d8363",
+      "disclosure": "public_verbatim",
+      "legacy_aliases": [
+        "install-attestation-ATTESTATION-V2-2026-08-22-20260822T175627Z.json"
+      ],
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "emitted_by_installer",
+        "imported_from_staging"
+      ],
+      "record_id": "REC-e2b34aa1185d42c69f1799bf4d1e9827",
+      "retention": "permanent_evidence",
+      "role": "installation_attestation",
+      "size_bytes": 10530
+    },
+    {
+      "artifact_schema_version": 1,
+      "canonical_path": "records/attestations/installations/artifacts/install-attestation-D-SESSION-2-2026-08-22-20260822T055554Z.json",
+      "cited_by": [
+        "ba9060d"
+      ],
+      "content_sha256": "cf6e949ba03a54b27353b7de88ec976727d7a41ce6fcc31a3bb2c7725dfb243f",
+      "disclosure": "public_verbatim",
+      "legacy_aliases": [
+        "install-attestation-D-SESSION-2-2026-08-22-20260822T055554Z.json"
+      ],
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "emitted_by_installer",
+        "imported_from_staging"
+      ],
+      "record_id": "REC-619345b1278a4b0798703fa08f9ed09f",
+      "retention": "permanent_evidence",
+      "role": "installation_attestation",
+      "size_bytes": 1736
+    },
+    {
+      "artifact_schema_version": 1,
+      "canonical_path": "records/attestations/installations/artifacts/install-attestation-D-SESSION-2026-08-22-20260822T031458Z.json",
+      "cited_by": [
+        "dffe31e"
+      ],
+      "content_sha256": "f28699e05f8d62b28306ad26a479f0f87ce7baf78ff07e0ad7751acf51d0fee7",
+      "disclosure": "public_verbatim",
+      "legacy_aliases": [
+        "install-attestation-D-SESSION-2026-08-22-20260822T031458Z.json"
+      ],
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "emitted_by_installer",
+        "imported_from_staging"
+      ],
+      "record_id": "REC-0f6fb4a9488a4e8dbf8fd7bf2e24c0e7",
+      "retention": "permanent_evidence",
+      "role": "installation_attestation",
+      "size_bytes": 1615
+    },
+    {
+      "artifact_schema_version": 2,
+      "canonical_path": "records/attestations/installations/artifacts/install-attestation-D-SESSION-3-2026-08-22-20260822T184025Z.json",
+      "cited_by": [
+        "0999af0"
+      ],
+      "content_sha256": "3cd230c006926450388a69d634095f9909da077cc4264b632684e5a707df0ffb",
+      "disclosure": "public_verbatim",
+      "legacy_aliases": [
+        "install-attestation-D-SESSION-3-2026-08-22-20260822T184025Z.json"
+      ],
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "emitted_by_installer",
+        "imported_from_staging"
+      ],
+      "record_id": "REC-15bf875b344e4be19b5a70d2f2eb87dd",
+      "retention": "permanent_evidence",
+      "role": "installation_attestation",
+      "size_bytes": 2283
+    },
+    {
+      "artifact_schema_version": 2,
+      "canonical_path": "records/attestations/installations/artifacts/install-attestation-D-SESSION-4-2026-08-23-20260823T083859Z.json",
+      "cited_by": [
+        "8ff0ea3"
+      ],
+      "content_sha256": "8da45a3772e73af62b717046ddadd822d9e567ef5e46b2be55bbf6d61a202b0a",
+      "disclosure": "public_verbatim",
+      "legacy_aliases": [
+        "install-attestation-D-SESSION-4-2026-08-23-20260823T083859Z.json"
+      ],
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "emitted_by_installer",
+        "imported_from_staging"
+      ],
+      "record_id": "REC-970b6e2868ff458cac1de5cb56897482",
+      "retention": "permanent_evidence",
+      "role": "installation_attestation",
+      "size_bytes": 2040
+    },
+    {
+      "artifact_schema_version": 1,
+      "canonical_path": "records/attestations/installations/artifacts/install-attestation-D0a-ADR-0001-20260821T233547Z.json",
+      "cited_by": [
+        "b115bab"
+      ],
+      "content_sha256": "96a1522f7769c5a5522b7d4dc7215be4271962ad6ff408107abae1c1e070662d",
+      "disclosure": "public_verbatim",
+      "legacy_aliases": [
+        "install-attestation-D0a-ADR-0001-20260821T233547Z.json"
+      ],
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "emitted_by_installer",
+        "imported_from_staging"
+      ],
+      "record_id": "REC-e31bf11da6ac4c00a59642b8376c5dd8",
+      "retention": "permanent_evidence",
+      "role": "installation_attestation",
+      "size_bytes": 1013
+    },
+    {
+      "artifact_schema_version": 1,
+      "canonical_path": "records/attestations/installations/artifacts/install-attestation-D0b-ADR-0002-20260821T235604Z.json",
+      "cited_by": [
+        "1c50680"
+      ],
+      "content_sha256": "5a15227d08846ffc840be177143c1ebc90ef9a814a74627ee9573b5fef1c8a64",
+      "disclosure": "public_verbatim",
+      "legacy_aliases": [
+        "install-attestation-D0b-ADR-0002-20260821T235604Z.json"
+      ],
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "emitted_by_installer",
+        "imported_from_staging"
+      ],
+      "record_id": "REC-8e342fc2fc554806b6997b5bafbef2e4",
+      "retention": "permanent_evidence",
+      "role": "installation_attestation",
+      "size_bytes": 1589
+    },
+    {
+      "artifact_schema_version": 1,
+      "canonical_path": "records/attestations/installations/artifacts/install-attestation-D3a-RUNNER-GATE-METADATA-ORDER-1-20260822T001702Z.json",
+      "cited_by": [
+        "69ba5f6"
+      ],
+      "content_sha256": "37f5ad0dee456877e4935adf3b13960650dd90497c32e6997d277b28b9604ac4",
+      "disclosure": "public_verbatim",
+      "legacy_aliases": [
+        "install-attestation-D3a-RUNNER-GATE-METADATA-ORDER-1-20260822T001702Z.json"
+      ],
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "emitted_by_installer",
+        "imported_from_staging"
+      ],
+      "record_id": "REC-a926f925a93c468d91da16877159a1d2",
+      "retention": "permanent_evidence",
+      "role": "installation_attestation",
+      "size_bytes": 1921
+    },
+    {
+      "artifact_schema_version": 1,
+      "canonical_path": "records/attestations/installations/artifacts/install-attestation-INV-OWNERSHIP-2026-08-22-20260822T040957Z.json",
+      "cited_by": [
+        "31c279a"
+      ],
+      "content_sha256": "8cd34102bd269c082382647f30e71175749fa8a1b2ead3fbb80db9f72d8034f5",
+      "disclosure": "public_verbatim",
+      "legacy_aliases": [
+        "install-attestation-INV-OWNERSHIP-2026-08-22-20260822T040957Z.json"
+      ],
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "emitted_by_installer",
+        "imported_from_staging"
+      ],
+      "record_id": "REC-54e3bd6cea2844548d49798889c5e62f",
+      "retention": "permanent_evidence",
+      "role": "installation_attestation",
+      "size_bytes": 3758
+    },
+    {
+      "artifact_schema_version": 2,
+      "canonical_path": "records/attestations/installations/artifacts/install-attestation-RECORDS-BOUNDARY-2026-08-22-20260822T225815Z.json",
+      "cited_by": [
+        "584c3fb"
+      ],
+      "content_sha256": "7439914da9b326785c76d5575d0be351347984393c6de19de91f38d3a9dbb469",
+      "disclosure": "public_verbatim",
+      "legacy_aliases": [
+        "install-attestation-RECORDS-BOUNDARY-2026-08-22-20260822T225815Z.json"
+      ],
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "emitted_by_installer",
+        "imported_from_staging"
+      ],
+      "record_id": "REC-03e9fd22b406471b87a562afecea6c1b",
+      "retention": "permanent_evidence",
+      "role": "installation_attestation",
+      "size_bytes": 1978
+    },
+    {
+      "artifact_schema_version": 2,
+      "canonical_path": "records/attestations/installations/artifacts/install-attestation-REPOSITORY-RECORDS-2026-08-22-20260823T052232Z.json",
+      "cited_by": [
+        "57494e3"
+      ],
+      "content_sha256": "c5638b27866e58d97614ca3e9b845d49a7870f9a051320ea89ad40746194f77e",
+      "disclosure": "public_verbatim",
+      "legacy_aliases": [
+        "install-attestation-REPOSITORY-RECORDS-2026-08-22-20260823T052232Z.json"
+      ],
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "emitted_by_installer",
+        "imported_from_staging"
+      ],
+      "record_id": "REC-2ff2917545ac40839359aabede4ec8c3",
+      "retention": "permanent_evidence",
+      "role": "installation_attestation",
+      "size_bytes": 10536
+    },
+    {
+      "artifact_schema_version": 1,
+      "canonical_path": "records/attestations/installations/artifacts/install-attestation-SUITE-TRANSITION-2026-08-22-20260822T074739Z.json",
+      "cited_by": [
+        "a60f18f"
+      ],
+      "content_sha256": "a8b52678482af3669d3a30efcb5cc5563e8928429f963c97a89fcccb2d94c6b4",
+      "disclosure": "public_verbatim",
+      "legacy_aliases": [
+        "install-attestation-SUITE-TRANSITION-2026-08-22-20260822T074739Z.json"
+      ],
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "emitted_by_installer",
+        "imported_from_staging"
+      ],
+      "record_id": "REC-0be35deee18641df985cfb1ed983b275",
+      "retention": "permanent_evidence",
+      "role": "installation_attestation",
+      "size_bytes": 6866
+    },
+    {
+      "artifact_schema_version": 2,
+      "canonical_path": "records/attestations/installations/artifacts/install-attestation-TRANSACTION-TOPOLOGY-2026-08-22-20260823T043225Z.json",
+      "cited_by": [
+        "29f2969"
+      ],
+      "content_sha256": "75f8810a4b898afeb5fac31c1db41e5d814d116a372ac046fa520217c4ee35e6",
+      "disclosure": "public_verbatim",
+      "legacy_aliases": [
+        "install-attestation-TRANSACTION-TOPOLOGY-2026-08-22-20260823T043225Z.json"
+      ],
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "emitted_by_installer",
+        "imported_from_staging"
+      ],
+      "record_id": "REC-bfe53e20409f46e6bfd5229eddb66735",
+      "retention": "permanent_evidence",
+      "role": "installation_attestation",
+      "size_bytes": 4746
+    }
+  ],
+  "genesis_aliases": [
+    "install-attestation-ADR-0003-2026-08-22-20260822T044349Z.json",
+    "install-attestation-ADR-0004-2026-08-22-20260822T220407Z.json",
+    "install-attestation-ADR-CONTRACT-2026-08-22-20260822T052307Z.json",
+    "install-attestation-ARCHIVE-MANIFEST-2026-08-23-20260823T102415Z.json",
+    "install-attestation-ATTESTATION-V2-2026-08-22-20260822T175627Z.json",
+    "install-attestation-D-SESSION-2-2026-08-22-20260822T055554Z.json",
+    "install-attestation-D-SESSION-2026-08-22-20260822T031458Z.json",
+    "install-attestation-D-SESSION-3-2026-08-22-20260822T184025Z.json",
+    "install-attestation-D-SESSION-4-2026-08-23-20260823T083859Z.json",
+    "install-attestation-D0a-ADR-0001-20260821T233547Z.json",
+    "install-attestation-D0b-ADR-0002-20260821T235604Z.json",
+    "install-attestation-D3a-RUNNER-GATE-METADATA-ORDER-1-20260822T001702Z.json",
+    "install-attestation-INV-OWNERSHIP-2026-08-22-20260822T040957Z.json",
+    "install-attestation-RECORDS-BOUNDARY-2026-08-22-20260822T225815Z.json",
+    "install-attestation-REPOSITORY-RECORDS-2026-08-22-20260823T052232Z.json",
+    "install-attestation-SUITE-TRANSITION-2026-08-22-20260822T074739Z.json",
+    "install-attestation-TRANSACTION-TOPOLOGY-2026-08-22-20260823T043225Z.json"
+  ],
+  "genesis_cardinality": 17,
+  "schema": "gvc.installation-attestation-archive",
+  "schema_version": 1
+}

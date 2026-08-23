@@ -1,0 +1,85 @@
+{
+  "acceptance": {
+    "errors": 0,
+    "failed": 0,
+    "measured_by": {
+      "interpreter": "C:\\Projects\\genomic-variant-classifier\\.venv312\\Scripts\\python.exe",
+      "note": "LOCAL gate. Continuous integration runs the same scope on 3.11 and 3.12 and may split passed against skipped differently; both sums equal the ratchet.",
+      "platform": "Windows-11-10.0.29648-SP0",
+      "python": "3.12.10"
+    },
+    "passed": 5207,
+    "returncode": 0,
+    "scope": "tests",
+    "seconds": 1113.6,
+    "skipped": 15,
+    "summary": "5207 passed, 15 skipped, 33 warnings in 1098.32s (0:18:18)",
+    "warnings": 33,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "counter": {
+    "after": 5222,
+    "before": 5213,
+    "scope": "tests"
+  },
+  "finished_at": "2026-08-22T04:09:57Z",
+  "plan_digest": "d27e26de9a75470feae9d6283357aceb755aad1d546f18ea1eebfb939cbdf093",
+  "platform": "Windows-11-10.0.29648-SP0",
+  "python": "3.12.10",
+  "repository": {
+    "post_head": "31c279a",
+    "pre_head": "dffe31e"
+  },
+  "schema": "gvc.install-attestation",
+  "schema_version": 1,
+  "started_at": "2026-08-22T03:50:11Z",
+  "status": "PUBLISHED",
+  "suite_transition": {
+    "expected_added_nodeids": [
+      "tests/unit/test_invariant_ownership.py::test_agent_registry_matches_the_declared_lineage",
+      "tests/unit/test_invariant_ownership.py::test_drift_monitor_defines_the_not_checked_exit_code",
+      "tests/unit/test_invariant_ownership.py::test_runtime_roster_matches_the_declared_benchmark_lineage",
+      "tests/unit/test_invariant_ownership.py::test_the_agent_check_detects_an_undeclared_agent",
+      "tests/unit/test_invariant_ownership.py::test_the_agent_check_detects_an_unregistered_agent",
+      "tests/unit/test_invariant_ownership.py::test_the_exit_code_check_detects_a_comment_or_a_wrong_value",
+      "tests/unit/test_invariant_ownership.py::test_the_exit_code_check_detects_removal",
+      "tests/unit/test_invariant_ownership.py::test_the_roster_check_detects_a_silently_dropped_model",
+      "tests/unit/test_invariant_ownership.py::test_the_roster_check_detects_an_undeclared_model"
+    ],
+    "kind": "addition",
+    "observed_added_nodeids": [
+      "tests/unit/test_invariant_ownership.py::test_agent_registry_matches_the_declared_lineage",
+      "tests/unit/test_invariant_ownership.py::test_drift_monitor_defines_the_not_checked_exit_code",
+      "tests/unit/test_invariant_ownership.py::test_runtime_roster_matches_the_declared_benchmark_lineage",
+      "tests/unit/test_invariant_ownership.py::test_the_agent_check_detects_an_undeclared_agent",
+      "tests/unit/test_invariant_ownership.py::test_the_agent_check_detects_an_unregistered_agent",
+      "tests/unit/test_invariant_ownership.py::test_the_exit_code_check_detects_a_comment_or_a_wrong_value",
+      "tests/unit/test_invariant_ownership.py::test_the_exit_code_check_detects_removal",
+      "tests/unit/test_invariant_ownership.py::test_the_roster_check_detects_a_silently_dropped_model",
+      "tests/unit/test_invariant_ownership.py::test_the_roster_check_detects_an_undeclared_model"
+    ],
+    "observed_removed_nodeids": []
+  },
+  "targets": [
+    {
+      "action": "create",
+      "path": "tests/unit/test_invariant_ownership.py",
+      "post_sha256": "0db0740efbb6e5b28df9ccaf38ffcf6e47fbb6a670abf391259fce2ba47d6b75",
+      "post_size": 16352
+    },
+    {
+      "action": "patch",
+      "path": "tests/EXPECTED_SUITE_SIZE",
+      "post_sha256": "a96692499067c350df22f4bcb1f7f08897284885b98a1399d094a1018f35d607",
+      "post_size": 440966
+    },
+    {
+      "action": "patch",
+      "path": "README.md",
+      "post_sha256": "62585b2782610116dfab1e886164daffd4a79470072f853b5106511f6965ed83",
+      "post_size": 16445
+    }
+  ],
+  "unit": "INV-OWNERSHIP-2026-08-22"
+}

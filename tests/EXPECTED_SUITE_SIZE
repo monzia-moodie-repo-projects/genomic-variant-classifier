@@ -7196,4 +7196,31 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5385
+
+# 2026-08-23 -- 5385 -> 5395 (+10). ATTESTATION-NOT-PRESERVED-1 closed.
+#
+#   17 install attestations entered version control, verbatim, under
+#   records/attestations/installations/. Each was cited by a commit message
+#   that could not resolve: git does not turn a filename in a commit message
+#   into a locator, so basename retention is a NECESSARY CONDITION for
+#   resolution and is not resolution. The manifest is.
+#
+#   The count was MEASURED at run time, never pinned. A previous claim of
+#   eighteen was arithmetic on a remembered figure when the true count was
+#   sixteen; a census ages exactly as fast as the thing it counts.
+#
+#   Preservation is not authoring. Every artifact ends WITHOUT a trailing
+#   newline because json.dumps does not append one, so the authoring predicate
+#   would have refused every file this unit exists to preserve.
+#
+#   This unit's OWN attestation is necessarily outside the archive it creates:
+#   it is written after the commit. genesis_cardinality is what existed when
+#   the archive was born, and every test asserts >= rather than ==.
+#
+#   Suite identity digests:
+#       before  1c8bc5a726662c69a5f1913ac40b603fee272bef24904d693fbf3cad0ad108c8
+#       after   f13709cd715c625c134dbed7826a02ff9eee16ff27fe94d6062da907150320a5
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5395

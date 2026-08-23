@@ -1,0 +1,100 @@
+{
+  "acceptance": {
+    "errors": 0,
+    "failed": 0,
+    "measured_by": {
+      "interpreter": "C:\\Projects\\genomic-variant-classifier\\.venv312\\Scripts\\python.exe",
+      "note": "LOCAL gate. Continuous integration runs the same scope on 3.11 and 3.12 and may split passed against skipped differently; both sums equal the ratchet.",
+      "platform": "Windows-11-10.0.29648-SP0",
+      "python": "3.12.10"
+    },
+    "passed": 5299,
+    "returncode": 0,
+    "scope": "tests",
+    "seconds": 863.5,
+    "skipped": 15,
+    "summary": "5299 passed, 15 skipped, 33 warnings in 850.47s (0:14:10)",
+    "warnings": 33,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "counter": {
+    "after": 5314,
+    "before": 5303,
+    "scope": "tests"
+  },
+  "finished_at": "2026-08-23T04:32:26Z",
+  "plan_digest": "94f97620aab1d1d0ae250347cdafa47e42c398817d9efe397ad6e51c2c187b28",
+  "platform": "Windows-11-10.0.29648-SP0",
+  "python": "3.12.10",
+  "repository": {
+    "post_head": "29f2969",
+    "pre_head": "584c3fb"
+  },
+  "schema": "gvc.install-attestation",
+  "schema_version": 2,
+  "started_at": "2026-08-23T04:17:15Z",
+  "status": "PUBLISHED",
+  "suite_transition": {
+    "after_count": 5314,
+    "after_digest": "3e9ebd785ff757f3c53bf69c0a38dee57ea375e8798a6207b7b1ad8cea6f337b",
+    "before_count": 5303,
+    "before_digest": "972c352bd2b7ca08950acf962726a324af19b8e14b7de80a053401bea5f80973",
+    "expected_added_nodeids": [
+      "tests/unit/test_repository_transaction.py::test_a_legacy_manifest_without_directory_intents_still_recovers",
+      "tests/unit/test_repository_transaction.py::test_a_preexisting_directory_is_never_removed",
+      "tests/unit/test_repository_transaction.py::test_a_process_KILL_after_mkdir_leaves_a_recoverable_topology",
+      "tests/unit/test_repository_transaction.py::test_a_recorded_directory_replaced_by_a_file_is_refused",
+      "tests/unit/test_repository_transaction.py::test_directory_intents_are_PERSISTED_BEFORE_the_mutation",
+      "tests/unit/test_repository_transaction.py::test_foreign_content_prevents_a_CLEAN_rollback",
+      "tests/unit/test_repository_transaction.py::test_fresh_process_recovery_restores_topology",
+      "tests/unit/test_repository_transaction.py::test_rollback_removes_one_created_ancestor",
+      "tests/unit/test_repository_transaction.py::test_rollback_removes_three_created_ancestors_deepest_first",
+      "tests/unit/test_repository_transaction.py::test_topology_restoration_is_idempotent",
+      "tests/unit/test_repository_transaction.py::test_two_targets_sharing_a_created_parent_own_it_once"
+    ],
+    "expected_removed_nodeids": [],
+    "kind": "addition",
+    "observed_added_nodeids": [
+      "tests/unit/test_repository_transaction.py::test_a_legacy_manifest_without_directory_intents_still_recovers",
+      "tests/unit/test_repository_transaction.py::test_a_preexisting_directory_is_never_removed",
+      "tests/unit/test_repository_transaction.py::test_a_process_KILL_after_mkdir_leaves_a_recoverable_topology",
+      "tests/unit/test_repository_transaction.py::test_a_recorded_directory_replaced_by_a_file_is_refused",
+      "tests/unit/test_repository_transaction.py::test_directory_intents_are_PERSISTED_BEFORE_the_mutation",
+      "tests/unit/test_repository_transaction.py::test_foreign_content_prevents_a_CLEAN_rollback",
+      "tests/unit/test_repository_transaction.py::test_fresh_process_recovery_restores_topology",
+      "tests/unit/test_repository_transaction.py::test_rollback_removes_one_created_ancestor",
+      "tests/unit/test_repository_transaction.py::test_rollback_removes_three_created_ancestors_deepest_first",
+      "tests/unit/test_repository_transaction.py::test_topology_restoration_is_idempotent",
+      "tests/unit/test_repository_transaction.py::test_two_targets_sharing_a_created_parent_own_it_once"
+    ],
+    "observed_removed_nodeids": []
+  },
+  "targets": [
+    {
+      "action": "patch",
+      "path": "src/genomic_variant_classifier/transactions/repository_transaction.py",
+      "post_sha256": "d8446382a3a04cf5865bfa08c56c065de3f5ebc83e80fbcd8f1d2ad4b44aa544",
+      "post_size": 38567
+    },
+    {
+      "action": "patch",
+      "path": "tests/unit/test_repository_transaction.py",
+      "post_sha256": "a284fed0c58dc4fcf39af271b573ea2cdabe6e6f7e2d92cacdafeedda175dc65",
+      "post_size": 47137
+    },
+    {
+      "action": "patch",
+      "path": "tests/EXPECTED_SUITE_SIZE",
+      "post_sha256": "c1cf6411a28f94ec77937acde790e5ce2e47117a1962418acc92db359194c62c",
+      "post_size": 446997
+    },
+    {
+      "action": "patch",
+      "path": "README.md",
+      "post_sha256": "10bd30bcbd629b883e09a6734cfffe28e98681c3f650e145e4a31e6fe455cc98",
+      "post_size": 16445
+    }
+  ],
+  "unit": "TRANSACTION-TOPOLOGY-2026-08-22"
+}

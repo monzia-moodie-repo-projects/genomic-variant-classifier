@@ -1,0 +1,53 @@
+{
+  "acceptance": {
+    "errors": 0,
+    "failed": 0,
+    "measured_by": {
+      "interpreter": "C:\\Projects\\genomic-variant-classifier\\.venv312\\Scripts\\python.exe",
+      "note": "LOCAL gate. Continuous integration runs the same scope on 3.11 and 3.12 and may split passed against skipped differently; both sums equal the ratchet.",
+      "platform": "Windows-11-10.0.29648-SP0",
+      "python": "3.12.10"
+    },
+    "passed": 5198,
+    "returncode": 0,
+    "scope": "tests",
+    "seconds": 975.3,
+    "skipped": 15,
+    "summary": "5198 passed, 15 skipped, 33 warnings in 962.20s (0:16:02)",
+    "warnings": 33,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "counter": {
+    "after": 5213,
+    "before": 5213,
+    "scope": "tests"
+  },
+  "finished_at": "2026-08-22T03:14:58Z",
+  "plan_digest": "dea9b11269f68cc43a236374ef6b3efdf8e5c0bfa86d7fb4bbcae691de384d93",
+  "platform": "Windows-11-10.0.29648-SP0",
+  "python": "3.12.10",
+  "repository": {
+    "post_head": "dffe31e",
+    "pre_head": "69ba5f6"
+  },
+  "schema": "gvc.install-attestation",
+  "schema_version": 1,
+  "started_at": "2026-08-22T02:58:24Z",
+  "status": "PUBLISHED",
+  "targets": [
+    {
+      "action": "create",
+      "path": "docs/sessions/SESSION_2026-08-21_to_08-22_authority-becomes-typed.md",
+      "post_sha256": "f0b6aacaf93180756fb337fd3777e7b1a066949b2fae9bf113b78f4aada1fa56",
+      "post_size": 17309
+    },
+    {
+      "action": "patch",
+      "path": "docs/CHANGELOG.md",
+      "post_sha256": "94de43ce3d5381a2becaa75b9313394d7b218c6102234a9333d7d05b9db2d3bf",
+      "post_size": 516005
+    }
+  ],
+  "unit": "D-SESSION-2026-08-22"
+}
