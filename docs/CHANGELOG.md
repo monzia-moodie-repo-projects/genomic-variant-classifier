@@ -1,3 +1,78 @@
+## 2026-08-22 to 2026-08-23 (TRANSACTION-STATE-MODEL-INCOMPLETE-1, ADR-0004) -- a state model acquires directories
+
+Four commits, `f567381` -> `57494e3`. The ratchet moved 5303 -> 5352 across two
+NEUTRAL transitions and two ADDITIONs.
+Document: docs/sessions/SESSION_2026-08-23_a-state-model-acquires-directories.md
+
+### Attempted
+- Rule that durable machine evidence is not documentation, and give it an
+  architectural plane rather than a better noun.
+- Express that plane's line-ending and container policy BEFORE writing a byte
+  into it.
+- Repair a rollback that restored files and left directories behind.
+
+### Fixed
+- TRANSACTION-STATE-MODEL-INCOMPLETE-1. `create()` reached `_write_durable`,
+  which ran `mkdir(parents=True)`; `_restore_target` unlinked a created file and
+  returned, with no directory handling anywhere. The residue was invisible to
+  `git status --untracked-files=all` -- git does not represent empty directories
+  -- and to the detritus iterator, which looks for backup-shaped files. Repaired
+  by recording directory-creation INTENTS in the manifest before the mutation,
+  materializing levels individually, and restoring topology deepest-first
+  through the same helper fresh-process recovery uses.
+- Every case was falsified against the live module BEFORE the repair was
+  written, and the control -- a target under an existing parent -- passed
+  throughout. That is what makes it a coverage gap rather than "rollback is
+  broken".
+- Proven downstream by an installer that knows nothing of the repair: it refused
+  at 584c3fb with "the created package directory survived the rollback" and,
+  rebased and otherwise unchanged, reported the directory removed.
+- TXTEST-FIXTURE-UNCHECKED-GIT-1. The transaction fixture ran five git commands
+  with no check=True and no configuration isolation. Combined with
+  TRANSACTION-GIT-FAILURE-FAILS-OPEN-1, a missing git would have let several
+  tests pass having proved nothing.
+- RECORDS-EOL-NORMALIZATION-1 and RECORDS-CONTAINER-INCLUSION-1, both expressed
+  before the plane's first byte because measurement inverted the planned order.
+  The guard is the EFFECT: fifteen attribute resolutions queried from git inside
+  the transaction, five of them confirming nothing else moved.
+
+### Failed (and why)
+- A falsification probe inverted both directional labels and read a permanently
+  empty key, so it printed "FALSIFICATION DID NOT BEHAVE AS PREDICTED" while the
+  evidence three lines above showed the defect exactly. Its control passed for
+  the wrong reason. Direction now lives in a function signature, not in a
+  method's `self`.
+- The first strengthened commit test encoded a file as the string
+  "path#digest", so a PATCHED file appeared in both the added and the removed
+  set. The gate refused after twenty minutes. Files are now (path, digest) pairs
+  and the delta answers created, deleted and modified separately -- the defect
+  removed at the model, not worked around in the assertion.
+- I claimed an import was missing and called it a defect I would not ship past.
+  It was present. The audit was right and I overrode it on intuition.
+- I measured an uploaded transcript as byte-identical to a previous one and used
+  that as grounds not to read it, then read four fragments of 1,244 lines. The
+  unread portion contained an unchecked fixture, a collected count of 49 rather
+  than 38, three inherited autouse fixtures, and a July guard that had already
+  reached this session's central conclusion.
+
+### Learned
+- A digest establishes that two files are identical. It establishes nothing
+  about whether either has been understood.
+- Repository state is (files, directories, types, git, journal). A test suite
+  that models a subset cannot fail on the remainder, so the defect is not
+  unnoticed -- it is unrepresentable.
+- "Do not destroy someone else's state" and "the pre-state was restored" are
+  separate predicates. A safe failure is still a failure.
+- Recovery metadata describing a mutation must be durable before that mutation
+  becomes observable.
+- A pure rename is expressible only as DELIBERATE_RETIREMENT under the current
+  transition kinds, which would record a retirement where nothing was retired.
+  Strengthening a test's predicate makes its original name true and changes no
+  identity.
+- Every ratchet-moving unit invalidates every other pending ratchet-moving
+  unit's baseline. That is a property, not a defect: two units cannot both
+  render the counter from one measured count if neither has seen the other.
+
 ## 2026-08-22 part 2 (SUITE-NEUTRAL-IDENTITY-1, ATTESTATION-SCHEMA-DRIFT-1) -- a suite acquires an identity
 
 Two commits, `a60f18f` and `88e844e`, on 2026-08-22. The ratchet moved
