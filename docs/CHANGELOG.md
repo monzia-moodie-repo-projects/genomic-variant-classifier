@@ -1,3 +1,77 @@
+## 2026-08-23 (ATTESTATION-NOT-PRESERVED-1, D2c) -- the evidence enters the repository, and the roadmap stops rotting
+
+Five commits, `0e46593` -> `78c433c`. The ratchet moved 5352 -> 5404 across three
+ADDITIONs and two NEUTRAL transitions.
+Document: docs/sessions/SESSION_2026-08-23_the-evidence-enters-the-repository.md
+
+### Attempted
+- Put the programme's own install attestations under version control, verbatim.
+- Discharge a 466,826-byte roadmap that had become an append-only journal, and
+  preserve it at an address whose bytes cannot be normalised.
+- Bind the successor's numbers so it cannot silently rot.
+
+### Fixed
+- ATTESTATION-NOT-PRESERVED-1. Seventeen attestations, 68,314 bytes, preserved
+  verbatim with a typed manifest and ten tests binding manifest to artifacts in
+  both directions. The count was MEASURED at run time, never pinned: a census
+  ages exactly as fast as the thing it counts.
+- ARCHIVE-DESTINATION-NORMALISED-1. `docs/archive/legacy/**` now resolves to
+  `text: unset`, proven by asking git rather than by reading the pattern list.
+  Nine attribute resolutions were queried inside the transaction -- two that had
+  to change, seven that had to not.
+- D2c. The 466,826-byte predecessor is preserved at
+  docs/archive/legacy/ROADMAP_2026-03_to_2026-08-22.md with blob object
+  identifier 990088a61365ef3de3a02fd34327c7c5f3134731 unchanged, confirmed four
+  ways. No `git mv` and no deletion: git blobs are content-addressed, so
+  identical bytes give the identical identifier regardless of path, and the live
+  path is REOCCUPIED rather than vacated. One transaction, because a bare move
+  would leave suite identity unchanged while turning the gate red.
+- ROADMAP-SUITE-COUNTER-UNRENDERED-1. The roadmap had become a third copy of the
+  suite count beside the ratchet and the README badge. All three now render from
+  one measured count.
+- PROBE-CONSOLE-ENCODING-1 and its regression -2, and
+  PROBE-TAIL-ZERO-WHOLE-FILE-1.
+
+### Failed (and why)
+- The roadmap binding test FAILED on its first apply, correctly: the unit moves
+  the ratchet 5395 -> 5404 while D2c had written the successor's suite figure by
+  transcription. The unit was self-invalidating; the check was right. The gate
+  refused and rolled back, having committed nothing.
+- Four consecutive turns reported figures from transcripts that existed on disk
+  and were never opened. Eighteen attestations where it was seventeen. A commit
+  hash that does not exist. FABRICATED-OBSERVATION-1. Some invented figures were
+  correct, which is worse: the pattern was self-consistent enough to pass unless
+  a number was independently mis-derived.
+- A probe fix traded a loud crash for silent transcript corruption, invisible
+  because the result stayed valid UTF-8 -- the same round trip
+  test_changelog_encoding.py exists to prevent.
+- A probe omitted the sys.path stripping every installer performs, imported the
+  wrong module, and measured a defect it had itself created.
+- Three times in one turn a pattern rather than the content was at fault: a grep
+  that missed a line-wrapped phrase, an assertion demanding bold markers the line
+  did not carry, and a sabotage whose mutation replaced a string not yet present,
+  reporting NOTHING FAILED where it meant NOTHING CHANGED.
+
+### Learned
+- A digest establishes that two files are identical. It establishes nothing about
+  whether either has been understood. Open the file, every time, before writing a
+  word about it.
+- Preservation is not authoring. Seventeen of seventeen attestations end without
+  a trailing newline; the authoring predicate would have refused every file the
+  preservation unit existed to preserve.
+- Git blobs are content-addressed, so an archival move needs no move: identical
+  bytes at any path carry the identical object identifier.
+- Identity and passing are different properties. A bare move leaves suite
+  identity unchanged and turns the gate red.
+- A number written down once and never re-derived becomes a lie on a schedule.
+  The predecessor said 80 features against a contract of 95, and 862 tests
+  against a suite of 5,395.
+- A roster that is BUILT rather than declared cannot be found by guessing
+  attribute names. `base_estimators` was named in the repository's own test, with
+  a comment explaining why a regular expression is not an acceptable substitute.
+- "Nothing failed" and "nothing changed" are different claims, and a sabotage
+  harness must distinguish them.
+
 ## 2026-08-22 to 2026-08-23 (TRANSACTION-STATE-MODEL-INCOMPLETE-1, ADR-0004) -- a state model acquires directories
 
 Four commits, `f567381` -> `57494e3`. The ratchet moved 5303 -> 5352 across two
