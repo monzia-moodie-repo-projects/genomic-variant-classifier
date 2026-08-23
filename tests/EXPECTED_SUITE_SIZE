@@ -7223,4 +7223,35 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5395
+
+# 2026-08-23 -- 5395 -> 5404 (+9). The roadmap stops being able to rot.
+#
+#   D2c replaced a 466,826-byte roadmap with an 11,275-byte successor whose
+#   headline numbers were proven against the package BEFORE they were written.
+#   That proof was a one-time event; from the installer's exit the numbers were
+#   unbound. An unbound number in a living document is how the predecessor came
+#   to say "80 features" against a contract of 95 and "862 passed" against a
+#   suite of 5,395.
+#
+#   Nine cases bind seven quantities at nine claim sites, with EQUALITY and no
+#   tolerance -- the README binding's first version used a 50-wide tolerance and
+#   let a real 17-test drift pass while reporting green.
+#
+#   A vanished claim site FAILS rather than quietly ceasing to check. Blockquote
+#   commentary is exempt from the passing-count ban, because the succession
+#   notice quotes the predecessor's own figures and a document must be able to
+#   record its own history.
+#
+#   Two guards have no analogue in the README binding: the archive pointer must
+#   RESOLVE, and the blob object identity is RECOMPUTED from the archived bytes.
+#   A one-byte edit to the 466,826-byte predecessor turns three cases red.
+#
+#   Sixteen sabotage perturbations, sixteen detected, each by its intended case.
+#
+#   Suite identity digests:
+#       before  f13709cd715c625c134dbed7826a02ff9eee16ff27fe94d6062da907150320a5
+#       after   66fddbc60fb28e9aed716424b70ccf31fefa3fa89b2f59947e1034c9f727c006
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5404
