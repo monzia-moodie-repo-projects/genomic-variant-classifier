@@ -66,6 +66,29 @@ from pathlib import Path
 #: direction, and the workflow maps 4 to drift_level=UNKNOWN.
 EXIT_NOT_CHECKED = 4
 
+#: What this script needs before it can produce a VERDICT rather than a refusal.
+#:
+#: Each inner tuple is a set of alternatives, and at least one member of each must
+#: be supplied. Declared here, at module level, for the same reason
+#: EXIT_NOT_CHECKED is: a caller that omits one of these does not fail loudly at
+#: the argument parser -- every flag below is OPTIONAL, with default=None -- it
+#: runs, takes the else branch further down, and returns EXIT_NOT_CHECKED. That is
+#: honest, and it is also indistinguishable from a working invocation until the
+#: exit code arrives.
+#:
+#: MEASURED 2026-08-24: README.md's quickstart and the `Run feature drift check`
+#: step in .github/workflows/drift_monitor.yml BOTH omit every member of the first
+#: group, so both are structurally incapable of producing a verdict. The
+#: quickstart's own gate could not see it: it computed `used - defined`, which
+#: detects a flag that does not exist and can never detect a flag that is absent.
+#:
+#: tests/unit/test_readme_claims.py reads this constant by PARSING, the same way
+#: tests/unit/test_invariant_ownership.py reads EXIT_NOT_CHECKED. A second copy of
+#: this fact in a test would be the defect this repository keeps repairing.
+REQUIRES_ONE_OF: tuple[tuple[str, ...], ...] = (
+    ("--new-data", "--new-clinvar"),
+)
+
 logging.basicConfig(
     format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",

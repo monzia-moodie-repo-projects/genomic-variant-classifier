@@ -5,7 +5,7 @@
 [![Tabular features](https://img.shields.io/badge/tabular%20features-95-blue.svg)]()
 [![Base models](https://img.shields.io/badge/base%20models-13-blue.svg)]()
 [![Agents](https://img.shields.io/badge/autonomous%20agents-22-blueviolet.svg)]()
-[![Tests](https://img.shields.io/badge/tests-5435-success.svg)]()
+[![Tests](https://img.shields.io/badge/tests-5436-success.svg)]()
 [![Status](https://img.shields.io/badge/status-active%20development-orange.svg)]()
 
 A multi-modal machine learning system for the five-tier clinical classification of human
@@ -266,9 +266,13 @@ python scripts/run_phase2_eval.py \
 # Drift check
 python scripts/run_drift_monitor.py \
   --reference-profile data/reference/drift/reference_profile.json \
+  --new-data          data/processed/<new_release>.parquet \
   --output-dir        outputs/drift_reports/
 # exit 0/1/2/3/4 -- 0 no drift, 1 monitor, 2 retrain, 3 urgent_retrain,
 #                   4 NOT CHECKED (no data reached the monitor)
+#
+# --new-data (or --new-clinvar) is REQUIRED to get a verdict. Without one the
+# monitor runs, compares nothing, and returns 4 -- which is honest, and useless.
 
 # Docker
 docker compose up api

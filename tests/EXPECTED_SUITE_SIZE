@@ -7280,4 +7280,24 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5435
+
+# 2026-08-24 -- 5435 -> 5436 (+1). A documented command must be runnable.
+#
+#   README.md's drift quickstart omitted --new-data, so run_drift_monitor.py
+#   took its else branch and returned EXIT_NOT_CHECKED. The command could not
+#   produce a verdict, and had not been able to since 0f3f0eb.
+#
+#   The gate that checked it computed `used - defined`: it detects a flag the
+#   script does not HAVE and can never detect a required flag that is ABSENT.
+#
+#   One case. The requirement is declared in the script as REQUIRES_ONE_OF and
+#   read by parsing, the same way EXIT_NOT_CHECKED is read. The case FAILS on
+#   the preimage and passes on the postimage, proven both ways.
+#
+#   Suite identity digests:
+#       before  a922ebef1c1d48751cc9505068b558eaa445de72d4d7652dbcbbf98c51ce7803
+#       after   e02d79555dc07ed19b4b36d8b2bf582e859d3d6f331098cada2d4ce51b360c5b
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5436

@@ -35,6 +35,7 @@ both values. The README can no longer rot, because rotting now fails.
 """
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
 
@@ -723,3 +724,110 @@ def test_readme_quickstart_uses_no_flag_that_does_not_exist(readme):
 # models, tests -- to the code. They are the part worth keeping: a wrong count is a wrong
 # claim about what the system IS, whereas a stale metric, labelled stale, is a dated
 # measurement. The two are not the same kind of error.
+# ---------------------------------------------------------------------------
+# 7. A DOCUMENTED COMMAND MUST BE ABLE TO PRODUCE A RESULT
+# ---------------------------------------------------------------------------
+
+
+def _module_level_string_groups(source: str, name: str) -> tuple | None:
+    """Read a module-level `name = ((str, ...), ...)` binding, or None.
+
+    Parses rather than searching, for the reason `_module_level_int` in
+    tests/unit/test_invariant_ownership.py gives: a comment mentioning the
+    constant, an indented rebinding inside a function, or a changed value are
+    all distinguishable from a real module-level definition.
+    """
+    for node in ast.parse(source).body:
+        if not isinstance(node, ast.AnnAssign):
+            if not isinstance(node, ast.Assign):
+                continue
+            targets = node.targets
+        else:
+            targets = [node.target]
+        for target in targets:
+            if not (isinstance(target, ast.Name) and target.id == name):
+                continue
+            if not isinstance(node.value, ast.Tuple):
+                return None
+            groups = []
+            for group in node.value.elts:
+                if not isinstance(group, ast.Tuple):
+                    return None
+                members = []
+                for member in group.elts:
+                    if not (isinstance(member, ast.Constant)
+                            and isinstance(member.value, str)):
+                        return None
+                    members.append(member.value)
+                groups.append(tuple(members))
+            return tuple(groups)
+    return None
+
+
+def test_every_documented_command_can_produce_a_result(readme):
+    """A flag that EXISTS is not a flag that was SUPPLIED.
+
+    `test_readme_quickstart_uses_no_flag_that_does_not_exist` computes
+    `used - defined`. That detects a flag the script does not have -- the
+    `--parquet` defect of 2026-07-14 -- and it can NEVER detect a required flag
+    that is absent, because an absent flag is in neither set.
+
+    MEASURED 2026-08-24 at `6a6ce47`: the drift quickstart passed
+    `--reference-profile` and `--output-dir` and nothing else. Every flag
+    existed, so that gate was green. And `scripts/run_drift_monitor.py:327-351`
+    takes the else branch when neither `--new-data` nor `--new-clinvar` is
+    given, returning EXIT_NOT_CHECKED -- so the published command was
+    structurally incapable of producing a verdict, and had been since `0f3f0eb`.
+
+    The archived roadmap recorded it as README-1: "the quickstart's drift
+    command cannot produce a result, and the gate that checks it cannot tell."
+
+    The requirement is read FROM THE SCRIPT, never restated here. A script that
+    declares no `REQUIRES_ONE_OF` is not judged -- silence is not a requirement,
+    and inventing one would make this test the second copy of a fact.
+    """
+    commands = _commands_in_readme(readme)
+
+    assert commands, (
+        "no `python scripts/*.py` invocations found in README.md. A test that "
+        "checks nothing is not a test -- fix the parser, do not delete the "
+        "assertion."
+    )
+
+    judged = 0
+    problems: list[str] = []
+    for script, used in commands:
+        path = Path(script)
+        if not path.is_file():
+            continue                     # the other test owns a missing script
+        required = _module_level_string_groups(
+            path.read_text(encoding="utf-8"), "REQUIRES_ONE_OF"
+        )
+        if required is None:
+            continue                     # declares no requirement; not judged
+        judged += 1
+        for group in required:
+            if not (set(group) & used):
+                problems.append(
+                    f"{script}: the README command supplies none of "
+                    f"{sorted(group)}.\n"
+                    f"        flags it DOES pass: {sorted(used)}\n"
+                    f"        The script declares this group in REQUIRES_ONE_OF, "
+                    f"which means it will RUN, compare nothing, and return a "
+                    f"refusal rather than a verdict."
+                )
+
+    assert judged, (
+        "no README command invoked a script declaring REQUIRES_ONE_OF. Either "
+        "the constant was removed from scripts/run_drift_monitor.py, or the "
+        "quickstart no longer invokes it. This test then checks nothing -- "
+        "investigate rather than delete."
+    )
+
+    assert not problems, (
+        "README.md documents command(s) that cannot produce a result:\n\n"
+        + "\n\n".join(f"  {p}" for p in problems)
+        + "\n\nA command whose every flag exists can still be unrunnable. "
+          "That is README-1, and it is why this test exists beside the one "
+          "that checks flags EXIST."
+    )
