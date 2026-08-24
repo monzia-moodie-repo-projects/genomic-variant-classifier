@@ -137,22 +137,60 @@ absent from gnomAD, SIFT = 0.5 for uncovered positions).
 
 ### 3.1 Base estimators
 
-Four tabular base models were trained on the 64-feature matrix:
+> **Historical-configuration notice, 2026-08-24.** This subsection described a
+> four-estimator, 64-feature configuration in the present tense. It is not the
+> architecture of the current system: section 2 records a tabular feature
+> contract of **95**, and the README describes a **13-model** ensemble.
+>
+> The exact run identity of that four-estimator configuration **is not
+> established by the committed evidence reviewed for this correction**. It must
+> therefore not be presented as current, and must not be retroactively assigned
+> to a named run. Current architecture is described from live repository state;
+> historical run architecture should be reported only where a run-specific
+> artefact establishes both the feature contract and the model roster.
+>
+> The stale table is preserved below as a quoted historical block rather than
+> deleted, because a document that erases its own former claims cannot be
+> audited. It is quoted, not asserted.
+>
+> This is the same resolution BASELINE-1 received on the same day: **no
+> corrected figure is substituted, because none is attributable.** Restating a
+> number by hand is what produced the defect; the 2026-07-13 correction in
+> section 2 records the same lesson about this same document.
 
-| Model | Library | Key hyperparameters |
-|-------|---------|---------------------|
-| LightGBM | lightgbm 4.x | num_leaves=63, learning_rate=0.05, n_estimators=500 |
-| XGBoost | xgboost 2.x | max_depth=6, learning_rate=0.05, n_estimators=500 |
-| Gradient Boosting | scikit-learn | max_depth=5, learning_rate=0.05, n_estimators=300 |
-| Random Forest | scikit-learn | n_estimators=300, max_features=0.4 |
+**The former text, quoted as history and not as a claim:**
 
-Hyperparameters were optimised using Optuna (TPE sampler, 100 trials) on the
-validation split. Final hyperparameters are stored in
-`models/best_lgbm_params.json` and `models/best_xgboost_params.json`.
+> Four tabular base models were trained on the 64-feature matrix:
+>
+> | Model | Library | Key hyperparameters |
+> |-------|---------|---------------------|
+> | LightGBM | lightgbm 4.x | num_leaves=63, learning_rate=0.05, n_estimators=500 |
+> | XGBoost | xgboost 2.x | max_depth=6, learning_rate=0.05, n_estimators=500 |
+> | Gradient Boosting | scikit-learn | max_depth=5, learning_rate=0.05, n_estimators=300 |
+> | Random Forest | scikit-learn | n_estimators=300, max_features=0.4 |
+>
+> Hyperparameters were optimised using Optuna (TPE sampler, 100 trials) on the
+> validation split. Final hyperparameters are stored in
+> `models/best_lgbm_params.json` and `models/best_xgboost_params.json`.
+>
+> A 1D-CNN sequence model was trained on 101-bp FASTA context windows but is
+> excluded from the inference pipeline (requires sequence context unavailable
+> at API inference time).
 
-A 1D-CNN sequence model was trained on 101-bp FASTA context windows but is
-excluded from the inference pipeline (requires sequence context unavailable
-at API inference time).
+**Current base-model roster.** The roster is BUILT rather than declared -- it is
+obtained from `len(VariantEnsemble().base_estimators)` on a live instance,
+because `_build_estimators` constructs it. It is therefore not restated here.
+Two sources describe it, and both are bound by tests:
+
+- `README.md` -- the roster table, bound by
+  `tests/unit/test_readme_claims.py::test_readme_base_model_roster_matches_the_ensemble`.
+- `docs/ROADMAP.md` -- the present-state snapshot, bound by
+  `tests/unit/test_roadmap_claims.py::test_every_claim_equals_its_live_source`.
+
+A generated projection of the roster into this document requires a declarative
+estimator specification that does not yet exist; until it does, pointing at a
+bound source is truthful and restating the roster here would create a third
+copy of a fact.
 
 ### 3.2 Stacking meta-learner
 

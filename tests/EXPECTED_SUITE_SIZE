@@ -7300,4 +7300,27 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5436
+
+# 2026-08-24 -- 5436 -> 5443 (+7). A retired architecture stops being current.
+#
+#   METHODS.md section 3.1 stated in the present tense that four tabular base
+#   models were trained on a 64-feature matrix, against a contract of 95 and a
+#   thirteen-model ensemble. It was missed by a reader who claimed to have read
+#   the file in full and had skipped 54 lines.
+#
+#   No architecture is substituted in prose: the roster is BUILT, not declared,
+#   so the document points at two already-bound sources instead of becoming a
+#   third copy. No run is named, because the evidence does not establish one.
+#   Nothing is deleted -- the former table survives as a quotation.
+#
+#   The preimage FAILS these cases, 4 red. Six guards sabotaged, six detected;
+#   one initially reported NOTHING FAILED because the guard's pattern was
+#   directional, and a directional pattern is not a predicate.
+#
+#   Suite identity digests:
+#       before  e02d79555dc07ed19b4b36d8b2bf582e859d3d6f331098cada2d4ce51b360c5b
+#       after   3a7e1ef0dfdbbc43ee5db617fac0a92a69ee9de26ae2445996f8320eb8c5a70a
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5443
