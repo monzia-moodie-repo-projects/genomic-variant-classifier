@@ -1,3 +1,71 @@
+## 2026-08-24 (METRICORIGIN-1, Commit C) -- a metric's origin becomes part of the metric
+
+Two commits, `c143788` -> `8d029ee`. The ratchet moved 5404 -> 5435 across one
+NEUTRAL transition and one ADDITION.
+Document: docs/sessions/SESSION_2026-08-24_a-metrics-origin-becomes-part-of-it.md
+
+The first SCIENTIFIC unit of this stretch; everything before it was repository
+infrastructure.
+
+### Attempted
+- Read both committed censuses in full before designing anything.
+- Give a metric's origin a field, so a computed figure and a log-scraped figure
+  stop being one quantity in one flat mapping.
+
+### Fixed
+- METRICORIGIN-1. `EvaluationEvidence.metrics` is `Mapping[str, float]` with the
+  protocol BESIDE the mapping rather than inside each entry, so Run 14's four
+  figures -- 0.9975, 0.9975, 0.9984, 0.9985 -- were distinguished only by a key
+  suffix. `SealedEvaluation` gives origin a field, makes `artifact_sha256`
+  mandatory, declares coercion instead of calling `float()` silently, represents
+  Run 10b's partiality honestly, and names both an artefact digest and a roster
+  fingerprint because api/attribution.py refuses without both.
+- Thirty-one cases, fixtures drawn from Run 14's four real figures and Run 10b's
+  three real lost outputs. Eighteen guards sabotaged, eighteen detected.
+
+### Failed (and why)
+- The roadmap binding refused this unit's first apply: "snapshot: suite size
+  says 5404, live source says 5435". All thirty-one new cases had passed;
+  `render_roadmap_suite` had been added to the ROADMAP-BINDING installer ALONE,
+  so the first ratchet-moving unit after it invalidated its own transaction.
+  RATCHET-MOVING-UNITS-RENDER-THREE-COUNTERS-1. The gate rolled back, having
+  committed nothing.
+- A probe printed FILENAMES where the LINES were the finding: `SealedEvaluation`
+  was defined nowhere and mentioned in exactly two files, and those two lines
+  were the entire finding.
+- A regex matching `computed` also matched `pre-computed`, filling a 194-line
+  census with data-connector noise.
+- A word match for layering returned 112 files because `agent_layer` contains
+  `layer`.
+- A test harness executed a module before registering it in `sys.modules`;
+  `dataclasses` resolves `cls.__module__` there while the decorator runs. The
+  module was never at fault.
+- A sabotage produced invalid syntax and reported its guard as undetected.
+  Redone with a mutation that parses, it made "n/a" silently become 0.0 and was
+  caught by the intended test.
+
+### Learned
+- The roadmap was quoting a census. Everything known about METRICORIGIN-1 was a
+  summary of a document that had never been opened; reading it changed the
+  design, not merely its justification.
+- `0.9847` is UNATTRIBUTABLE -- earliest appearance a commit subject line -- and
+  the cohort published beside it, 154,404, is Run 14's validation split, whose
+  measured figure is 0.9974, four lines away in the same file.
+- The audit asked this on 2026-07-14 and it stayed unresolved for three and a
+  half weeks while the figure kept being served. A known unanswered question
+  treated as settled everywhere except in the document that asked it.
+- Two live consumers were already waiting: a `NO_SEALED_EVALUATION` enumeration
+  member existing solely because the type did not, and a `sealed_evaluation_id`
+  field pointing at it.
+- "Resolving a digest authorises IDENTITY, not EVIDENCE." A metric measured on a
+  thirteen-model ensemble is not evidence for a twelve-model projection of it.
+- Placement is measurable. Parsing every import rather than grepping showed the
+  direction already precedented and acyclic; an import inside a function body is
+  still an import, and a name in a docstring is not.
+- "My sabotage did nothing" is not "nothing checks this", and a second refusal
+  from the same guard can be worth more than the first: the first exposed a
+  transcribed figure, the second exposed a standing obligation.
+
 ## 2026-08-23 part 2 (ROADMAP-SUITE-COUNTER-UNRENDERED-1, FABRICATED-DIGEST-2) -- a plan says what it does not know
 
 Two commits, `78c433c` -> `99ab4ed`. The ratchet moved 5395 -> 5404 across one
