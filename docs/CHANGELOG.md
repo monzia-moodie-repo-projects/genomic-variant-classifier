@@ -1,3 +1,55 @@
+## 2026-08-23 part 2 (ROADMAP-SUITE-COUNTER-UNRENDERED-1, FABRICATED-DIGEST-2) -- a plan says what it does not know
+
+Two commits, `78c433c` -> `99ab4ed`. The ratchet moved 5395 -> 5404 across one
+ADDITION and one NEUTRAL transition.
+Document: docs/sessions/SESSION_2026-08-23_part2_a-plan-says-what-it-does-not-know.md
+
+Written at TWO unrecorded commits. The three preceding records were written at
+three, four and six, and the drift was named each time.
+
+### Attempted
+- Bind the roadmap's numbers to their live sources so the successor cannot rot.
+- Re-derive the plan section, which had stated since D2c that it had not been.
+
+### Fixed
+- ROADMAP-SUITE-COUNTER-UNRENDERED-1, found by the binding test on its FIRST
+  real apply. The unit moves the ratchet 5395 -> 5404 while D2c had transcribed
+  the successor's suite figure, so it installed a check its own transaction
+  falsified. The gate refused and rolled back, having committed nothing.
+  install_plan.py:42 had already stated the principle; the roadmap had quietly
+  become a third copy of that number, and three counters now render from one
+  measured count.
+- ROADMAP-STALE-1 for the plan section. The plan is re-derived at b586778,
+  quotes the archive's final NEXT verbatim, and names the open register at
+  fifty-four with the arithmetic quoted from source.
+- FABRICATED-DIGEST-2, caught before shipping. PRE_SHA carried the correct
+  sixteen-character prefix and forty-eight invented characters, and was never
+  compared. Fixed to the measured value AND made compared.
+
+### Failed (and why)
+- The binding test's first apply failed, correctly. The check was right and the
+  unit was wrong.
+- I had been saying fifteen commits since 2026-08-08. Measured: eighty-three.
+  Fifteen was the count of commits in one working session -- the boundary of one
+  conversation's visibility substituted for the boundary the roadmap declares.
+  Sixty-three of the eighty-three are unread.
+- A sabotage case reported NOTHING FAILED. That was the harness: the mutation
+  replaced a string not yet present in the document.
+
+### Learned
+- A pin that is never compared is decoration. Two fabricated digests in one day
+  both survived because nothing read them. The corrective is not "check digests"
+  but "verify that every pin is READ by something".
+- "Nothing failed" and "nothing changed" are different claims, and a sabotage
+  harness must distinguish them.
+- A plan is the worst place to summarise unread work: a wrong entry directs
+  future effort rather than merely misinforming a reader.
+- A mention is not a closure. 115 identifiers appear across eighty-three commit
+  messages; a commit may cite an item to say it is open, deferred, or blocking.
+- A document must be able to record its own history. The passing-count guard
+  exempts blockquotes for that reason, after the README binding fired twice on
+  its own correction notes.
+
 ## 2026-08-23 (ATTESTATION-NOT-PRESERVED-1, D2c) -- the evidence enters the repository, and the roadmap stops rotting
 
 Five commits, `0e46593` -> `78c433c`. The ratchet moved 5352 -> 5404 across three
