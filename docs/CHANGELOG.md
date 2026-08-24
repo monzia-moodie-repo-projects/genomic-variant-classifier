@@ -1,3 +1,57 @@
+## 2026-08-24 part 2 (BASELINE-1, PROBE-SCOPE-BLIND-AUDIT-1) -- writing the analysis is not applying it
+
+Two commits, `a65bb50` -> `10e72a4`. The ratchet did not move; both transitions
+were NEUTRAL.
+Document: docs/sessions/SESSION_2026-08-24_part2_writing-the-analysis-is-not-applying-it.md
+
+### Attempted
+- Close BASELINE-1 by recording, in the documents that still cite it, that
+  `0.9847` cannot be attributed.
+
+### Fixed
+- BASELINE-1. METHODS.md carried the figure as a headline holdout AUROC and
+  again in its results table. It now carries a dated correction stating the
+  figure is unattributable, substitutes no corrected number, and points at
+  committed artefacts per run.
+- BASELINE1-SCOPE-INCOMPLETE-1, found by measuring rather than trusting the
+  census's closure condition. It names the README and the roadmap; MEASURED at
+  a65bb50, NEITHER carries the figure. The README was repaired; the roadmap was
+  succeeded by D2c and its seventeen citations now live in the archive. The
+  surviving live claim was in a third document the census never named.
+- PROBE-SCOPE-BLIND-AUDIT-1. Removing dead code left a call site referencing its
+  result, and `m["suite"]` would have raised NameError. The undefined-name audit
+  missed it because it flattened every Store name in the module into one set,
+  and an unrelated local three hundred lines away masked it.
+
+### Failed (and why)
+- The installer's docstring carried three paragraphs explaining that authored()
+  demands pure ASCII and would refuse this very file -- METHODS.md has carried 62
+  non-ASCII bytes since long before that convention -- and the call was left in
+  the code path. The dry run refused with "METHODS_postimage.md: non-ASCII",
+  exactly as predicted, by the check that predicted it.
+- PAYLOAD-DELIVERY-STALE-NAME-1. A corrected installer published under an
+  existing name did not replace the copy in Downloads, twice, with the digest
+  checked between attempts. The refusal looked identical both times, so only the
+  digest distinguished a stale file from a real defect. Renaming to a version
+  suffix resolved it on the first attempt.
+- A blanket regex rename damaged prose in the adapted installer, rewriting
+  `docs/ROADMAP.md` to `docs/TARGET.md` and `ROADMAP-STALE-1` to
+  `TARGET-STALE-1`.
+
+### Learned
+- Writing the analysis is not applying it.
+- A census's closure condition ages with the repository. Which citations survive
+  is a fact about HEAD, not about the commit the census was written at.
+- A claim survives where nothing binds it. test_methods_feature_count.py enforces
+  the feature count, the group-table sum, and HGMD's absence -- and no
+  performance claim, which is why this figure outlived two others.
+- A correction that substitutes a number resets the clock on the same defect.
+  Where no attributable figure exists, the correct record is that none exists.
+- Reading found a defect no audit could. Three of the last four instrument
+  defects were found by reading rather than by tooling.
+- A corrected artefact needs a distinct name. Reusing a filename makes a failed
+  download indistinguishable from a real refusal.
+
 ## 2026-08-24 (METRICORIGIN-1, Commit C) -- a metric's origin becomes part of the metric
 
 Two commits, `c143788` -> `8d029ee`. The ratchet moved 5404 -> 5435 across one
