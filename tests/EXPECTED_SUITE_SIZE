@@ -7254,4 +7254,30 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5404
+
+# 2026-08-23 -- 5404 -> 5435 (+31). A metric's origin becomes part of it.
+#
+#   EvaluationEvidence.metrics is a flat Mapping[str, float] with the protocol
+#   BESIDE it rather than inside each entry, so one evidence object can hold a
+#   computed figure and a log-scraped figure with nothing to tell them apart.
+#
+#   Run 14's manifest holds FOUR figures spanning 0.9975 to 0.9985 that a
+#   careless reader would call "Run 14's AUROC", separated only by a key
+#   suffix. The census names the consequence: that is the mechanism by which
+#   0.9847 came to be published as a holdout metric -- a figure BASELINE-1
+#   establishes is UNATTRIBUTABLE, its earliest appearance a commit subject
+#   line.
+#
+#   Thirty-one cases. The fixtures are Run 14's four real figures and Run 10b's
+#   three real lost outputs, because the scope is quoted: "seal Run 14,
+#   represent Run 10b's partiality honestly, and attribute nothing else."
+#
+#   Eighteen guards sabotaged, eighteen detected, each by its intended case.
+#
+#   Suite identity digests:
+#       before  66fddbc60fb28e9aed716424b70ccf31fefa3fa89b2f59947e1034c9f727c006
+#       after   a922ebef1c1d48751cc9505068b558eaa445de72d4d7652dbcbbf98c51ce7803
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5435
