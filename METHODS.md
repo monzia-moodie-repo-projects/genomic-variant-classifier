@@ -3,7 +3,8 @@
 ## Genomic Variant Pathogenicity Classifier — Technical Description
 
 **Version:** Phase 2 (v2.0.0)
-**Holdout AUROC:** 0.9847 (gene-stratified, 154,404 variants)
+**Held-out performance:** see section 5.1. The figure previously stated here
+is not attributable from this repository.
 
 ---
 
@@ -188,11 +189,45 @@ the validation split.
 
 ### 5.1 Held-out performance
 
-| Metric | Value |
-|--------|-------|
-| AUROC (gene-stratified holdout) | 0.9847 |
-| AUPRC | 0.8936 |
-| ECE (15 bins) | see `outputs/calibration/calibration_metrics.json` |
+> **Correction, 2026-08-24.** This section previously stated
+> `AUROC (gene-stratified holdout) 0.9847` and `AUPRC 0.8936`, and the header
+> block above repeated the AUROC as *"0.9847 (gene-stratified, 154,404
+> variants)"*. **Neither figure is attributable from this repository.**
+>
+> `docs/measurements/MEASUREMENT_2026-08-08_baseline1-provenance-census.md`
+> established that the earliest appearance of `0.9847` is a commit SUBJECT
+> LINE. No committed artefact establishes it, and `git ls-files outputs`
+> returns nothing from Phase 2 and nothing from Run 8.
+>
+> The cohort quoted beside it IS attributable, and it convicts the claim:
+> `154,404` is `n_val` in `outputs/run14/full/metrics.json` -- Run 14's
+> **validation** split -- whose measured AUROC is `0.9974`, recorded four lines
+> away in the same file. The number and its denominator have different origins.
+>
+> `docs/audits/README_AUDIT_2026-07-14.md` asked whether Run 8's holdout AUROC
+> was `0.9847` or `0.9863` and recorded the question as UNRESOLVED. It cannot
+> be resolved here: the Run 8 artefacts were never committed.
+>
+> **No corrected figure is substituted, because there is none to substitute.**
+> Restating a number by hand is what produced this defect; the 2026-07-13
+> correction in section 2 records the same lesson about the same document.
+
+Held-out performance is reported PER RUN, from committed artefacts, and is not
+restated here:
+
+| Run | Artefact | What it carries |
+|---|---|---|
+| Run 14 | `outputs/run14/full/metrics.json` | test and validation AUROC, AUPRC, F1, MCC, Brier, and all three split sizes |
+| Run 14 | `outputs/run14/reproducibility_manifest.json` | per-model metrics, artefact digests, pinned environment |
+| Run 10b | `outputs/run10b_final/full/metrics_partial.json` | declares `"status": "partial"`; three outputs recorded as lost |
+| calibration | `outputs/calibration/calibration_metrics.json` | expected calibration error, 15 bins |
+
+A figure read from one of these carries its origin. `docs/METRICS.md` reports
+test AUROC and out-of-fold blend in separate named columns, and
+`SealedEvaluation` (`src/genomic_variant_classifier/evaluation/sealed_evaluation.py`)
+makes that distinction a **field** rather than a key-name convention, so a
+computed figure and one scraped from a training log can no longer be read as
+one quantity.
 
 ### 5.2 External validation
 
