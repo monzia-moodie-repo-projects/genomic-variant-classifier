@@ -43,7 +43,13 @@ jobs:
     name: Feature Drift Check
     runs-on: ubuntu-latest
     outputs:
-      exit_code: ${{ steps.drift.outputs.exit_code }}
+      readiness_status: ${{ steps.drift.outputs.readiness_status }}
+      feature_drift_checked: ${{ steps.drift.outputs.feature_drift_checked }}
+      not_checked_reason: ${{ steps.drift.outputs.not_checked_reason }}
+      # LEGACY. `drift_level` conflates a severity with an epistemic state, and
+      # UNKNOWN is the spelling that conflation forces. It survives as a
+      # COMPATIBILITY PROJECTION emitted by the readiness adapter, never
+      # authored here. Retire it once every consumer reads readiness_status.
       drift_level: ${{ steps.drift.outputs.drift_level }}
 
     steps:
@@ -180,56 +186,47 @@ jobs:
       # NOW: if the reference data is unavailable, the state is UNKNOWN, and it says so, and it
       # exits NON-ZERO. "Not checked" is never again reported as "clean".
       # ===============================================================================
-      - name: Run feature drift check
+      # ===============================================================================
+      # THIS STEP NO LONGER INVOKES THE SCIENTIFIC MONITOR. (2026-08-24)
+      #
+      # It used to run:
+      #
+      #     python scripts/run_drift_monitor.py \
+      #       --reference-profile "$PROFILE" --features-only \
+      #       --release-name ... --output-dir outputs/drift_reports/
+      #
+      # with NO --new-data and NO --new-clinvar. Read against
+      # scripts/run_drift_monitor.py:313-351, that combination takes the else
+      # branch and returns EXIT_NOT_CHECKED. The monthly cron therefore ran a
+      # monitor that MUST return 4, by construction, every month.
+      #
+      # The 2026-07-13 repair made that honest: 4 is its own outcome, it is
+      # loud, and it is non-zero. This step keeps the honesty and drops the
+      # pretence. A gate that cannot FAIL is a green tick with a reassuring
+      # name -- and a gate that cannot PASS is a scheduled false alarm.
+      #
+      # The label-drift step below has done this correctly since 2026-07-13:
+      # it declares a KNOWN LIMITATION, echoes the runnable command, and
+      # invokes nothing. This step now does the same, with a TYPED reason
+      # instead of prose.
+      #
+      # THE EXIT-CODE CLASSIFIER WENT WITH THE INVOCATION. Policy that outlives
+      # the thing it governed is dead policy; run_drift_monitor.py still owns
+      # EXIT_NOT_CHECKED = 4 and its meaning, for the assessment command that
+      # will invoke it when a candidate population exists.
+      #
+      # NO SEMANTIC LITERAL IS AUTHORED HERE. All four outputs are projected
+      # from one record by the adapter. Authoring them separately is how
+      # `feature_drift_checked=false` beside `drift_level=none` becomes
+      # constructible.
+      # ===============================================================================
+      - name: Report feature drift readiness
         id: drift
         run: |
-          set -uo pipefail
-          PROFILE=data/reference/drift/run15_reference_profile.json
-
-          EXIT=0
-          python scripts/run_drift_monitor.py \
-            --reference-profile "$PROFILE" \
-            --features-only \
-            --release-name "${{ github.event.inputs.release_name || 'scheduled' }}" \
-            --output-dir outputs/drift_reports/ || EXIT=$?
-
-          echo "exit_code=$EXIT" >> "$GITHUB_OUTPUT"
-          case $EXIT in
-            0) echo "drift_level=none"        >> "$GITHUB_OUTPUT" ;;
-            1) echo "drift_level=minor"       >> "$GITHUB_OUTPUT" ;;
-            2) echo "drift_level=significant" >> "$GITHUB_OUTPUT" ;;
-            3) echo "drift_level=severe"      >> "$GITHUB_OUTPUT" ;;
-
-            # ---------------------------------------------------------------------------
-            # 4 = NOT CHECKED. Its own code, deliberately (see EXIT_NOT_CHECKED in
-            # scripts/run_drift_monitor.py).
-            #
-            # The original defect was that a run which measured nothing exited 0, and 0 means
-            # "no drift" -- so this workflow reported a clean bill of health every month, with
-            # a green tick, having never read a row of data.
-            #
-            # The tempting fix is to make those paths exit 3. That is the SAME BUG IN THE
-            # OPPOSITE DIRECTION: 3 means urgent_retrain, and a check that never ran would then
-            # raise a SEVERE DRIFT alarm on a possibly-healthy model. A monitor that cries wolf
-            # is discarded just as fast as one that never barks.
-            #
-            # "I could not look" is neither "clean" nor "drifted". It gets its own outcome, it
-            # is loud, and it is non-zero.
-            # ---------------------------------------------------------------------------
-            4) echo "drift_level=UNKNOWN"     >> "$GITHUB_OUTPUT"
-               echo "::error::DRIFT WAS NOT CHECKED (exit 4). The monitor could not obtain the"
-               echo "data it needed to make a comparison. This is NOT a clean bill of health,"
-               echo "and it is NOT a drift detection. See the log above for which input was"
-               echo "missing." ;;
-
-            # An UNRECOGNISED exit code is NOT "none". It is unknown, and it is reported as
-            # unknown. The old code mapped every unexpected code to "none" -- so a crash, a
-            # segfault, or an OOM would have been reported as a clean bill of health.
-            *) echo "drift_level=UNKNOWN"     >> "$GITHUB_OUTPUT"
-               echo "::error::run_drift_monitor.py exited $EXIT -- an unrecognised code. The"
-               echo "drift state is UNKNOWN, not clean." ;;
-          esac
-          exit $EXIT
+          set -euo pipefail
+          python scripts/report_drift_readiness.py --format json
+          python scripts/report_drift_readiness.py --format github \
+            >> "$GITHUB_OUTPUT"
 
       # NOTE: `continue-on-error: true` was REMOVED from this step (2026-07-13). It meant that
       # even a genuine failure of the drift monitor was swallowed and the workflow went green.
@@ -478,7 +475,33 @@ jobs:
     # always(): the feature-drift job now FAILS when it cannot see the reference data. Without
     # always(), a failed dependency SKIPS this job -- and the monitor would go silent at exactly
     # the moment it has something to say.
-    if: always() && needs.feature-drift.outputs.drift_level != 'none'
+    # A KNOWN ARCHITECTURAL LIMITATION IS NOT AN INCIDENT. (2026-08-24)
+    #
+    # The old condition was `drift_level != 'none'`. Once the monthly job
+    # became readiness-only it emits UNKNOWN every run, so that condition would
+    # have filed an issue every month -- replacing a permanent false-green with
+    # a permanent noisy-yellow. Alert fatigue is the next defect, not a repair.
+    #
+    # So: notify when drift was MEASURED and is not none, or when the reason a
+    # measurement did not happen is anything OTHER than the known, recorded,
+    # unchanged capability gap. A NEW not-checked reason is an incident; the
+    # standing one is a fact already written down.
+    #
+    # When candidate discovery lands, candidate_discovery_not_implemented
+    # becomes unemittable, and a test enforces that migration.
+    if: >-
+      always() &&
+      (
+        (
+          needs.feature-drift.outputs.feature_drift_checked == 'true' &&
+          needs.feature-drift.outputs.drift_level != 'none'
+        ) ||
+        (
+          needs.feature-drift.outputs.feature_drift_checked == 'false' &&
+          needs.feature-drift.outputs.not_checked_reason !=
+            'candidate_discovery_not_implemented'
+        )
+      )
     permissions:
       contents: read
       issues: write
@@ -489,14 +512,51 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
           script: |
+            // 2026-08-24. THREE DEFECTS REPAIRED HERE, ONE OF THEM INTRODUCED BY THE
+            // SAME EDIT THAT REMOVED THE MONITOR INVOCATION.
+            //
+            //  1. `exitCode` read `needs.feature-drift.outputs.exit_code`, which no
+            //     longer exists: the readiness adapter emits no exit code, because the
+            //     verdict is a record and not a process status. It would have rendered
+            //     as an EMPTY STRING in this issue -- a silently blank field.
+            //
+            //  2. The severity branch compared `exitCode >= 3` -- a STRING against a
+            //     number. With an empty string every comparison is false, so every
+            //     measured drift would have been described as "Minor". Severity is now
+            //     read from `driftLevel`, which is already a severity.
+            //
+            //  3. The not-checked explanation named a "Download reference splits from
+            //     Google Drive" step as the ROOT CAUSE. That step was removed; the
+            //     reference profile is now committed and verified earlier in this
+            //     workflow. The alert stated a cause repaired weeks earlier.
+            //     DRIFT-ALERT-BODY-STALE-1.
+            //
+            // The explanation is now DERIVED from the typed reason. Prose that restates
+            // a cause goes stale; prose that renders one cannot.
+            const readiness  = '${{ needs.feature-drift.outputs.readiness_status }}';
+            const checked    = '${{ needs.feature-drift.outputs.feature_drift_checked }}' === 'true';
+            const reason     = '${{ needs.feature-drift.outputs.not_checked_reason }}';
             const driftLevel = '${{ needs.feature-drift.outputs.drift_level }}';
-            const exitCode   = '${{ needs.feature-drift.outputs.exit_code }}';
             const date       = new Date().toISOString().split('T')[0];
 
-            // UNKNOWN is a first-class outcome. "I could not look" is NOT "I looked and saw
-            // nothing" -- and it is NOT "I saw drift" either. Reporting it as either is how a
-            // monitoring system lies. (roadmap 6.20)
-            const isUnknown = driftLevel === 'UNKNOWN';
+            // "I could not look" is NOT "I looked and saw nothing", and it is NOT "I saw
+            // drift". Reporting it as either is how a monitoring system lies.
+            const isUnknown = !checked;
+
+            const NOT_CHECKED_EXPLANATIONS = {
+              'candidate_discovery_not_implemented': [
+                'No authoritative mechanism for discovering a new observation population',
+                'exists in this repository, so readiness could not be evaluated. This is a',
+                'KNOWN, RECORDED capability gap -- not a failure, and not a finding.',
+                '',
+                'It is explicitly NOT the claim that no new observation population exists.',
+                'Nothing here is entitled to know that.',
+              ].join('\n'),
+              'no_new_observation_population': [
+                'Discovery ran and found no eligible new observation population to compare',
+                'against the reference. Nothing was measured, and nothing is claimed.',
+              ].join('\n'),
+            };
 
             const urgency = isUnknown ? '❓ NOT CHECKED' : ({
               'minor':       '⚠️ Minor',
@@ -511,26 +571,24 @@ jobs:
             const body = [
               headline,
               '',
-              `**Drift level:** ${driftLevel}`,
-              `**Exit code:** ${exitCode}`,
+              `**Readiness:** ${readiness}`,
+              `**Feature drift checked:** ${checked}`,
+              `**Drift level:** ${driftLevel || '(none asserted)'}`,
+              isUnknown ? `**Reason not checked:** \`${reason}\`` : '',
               '',
               '### What this means',
               isUnknown
                 ? [
-                    '**THE MONITOR COULD NOT SEE THE DATA. This is NOT a clean bill of health.**',
+                    '**NOTHING WAS MEASURED. This is not a clean bill of health, and it is',
+                    'not a drift detection.**',
                     '',
-                    'The reference splits were absent, so no drift computation ran. Until',
-                    '2026-07-13 this condition was reported as `drift_level=none` — a green tick',
-                    'for a check that never happened — and this notification job, whose condition',
-                    'was `drift_level != none`, therefore NEVER FIRED. Not once.',
-                    '',
-                    'ROOT CAUSE: the "Download reference splits from Google Drive" step is still a',
-                    'PLACEHOLDER. It prints "real download NOT wired yet" and only creates an empty',
-                    'directory. See roadmap 6.20.',
+                    NOT_CHECKED_EXPLANATIONS[reason]
+                      || `No explanation is registered for the reason \`${reason}\`. That is`
+                         + ' itself a defect: a reason without an explanation cannot be acted on.',
                   ].join('\n')
-                : exitCode >= 3
+                : driftLevel === 'severe'
                 ? '**URGENT:** Severe distributional shift detected. Retraining should begin within 24 hours.'
-                : exitCode >= 2
+                : driftLevel === 'significant'
                 ? 'Significant drift detected. Retraining recommended before the next ClinVar release.'
                 : 'Minor drift detected. Increase monitoring frequency.',
               '',

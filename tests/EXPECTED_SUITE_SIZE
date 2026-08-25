@@ -7323,4 +7323,28 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5443
+
+# 2026-08-24 -- 5443 -> 5479 (+36). A monthly job stops pretending.
+#
+#   The scheduled feature-drift job invoked run_drift_monitor.py with no
+#   --new-data and no --new-clinvar, which returns EXIT_NOT_CHECKED by
+#   construction. The cron ran a monitor that MUST return 4, every month.
+#
+#   Readiness is now typed and separate from assessment. UNDETERMINED is not
+#   NOT_READY: readiness was not evaluated, it could not be. The reason names
+#   the missing CAPABILITY, because nothing in 1,622 tracked files discovers a
+#   new observation population -- so claiming none exists would assert a fact
+#   about the world that nothing measured.
+#
+#   UNKNOWN appears in no domain enumeration; it is a compatibility projection.
+#   The exit-code classifier left with the invocation it classified.
+#
+#   36 cases. 25 guards sabotaged, 25 detected, each by its intended case.
+#
+#   Suite identity digests:
+#       before  3a7e1ef0dfdbbc43ee5db617fac0a92a69ee9de26ae2445996f8320eb8c5a70a
+#       after   a99c059a9edfb9733a462aa1c988fcfc1322b442fba0ec5ee39b7f3397ddc8fe
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5479
