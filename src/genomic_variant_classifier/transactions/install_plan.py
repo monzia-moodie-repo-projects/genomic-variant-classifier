@@ -88,12 +88,37 @@ class PlannedTarget:
         return hashlib.sha256(self.payload).hexdigest()
 
     def as_record(self) -> dict:
+        """The PLAN vocabulary. Not the attestation vocabulary."""
         return {
             "relpath": self.relpath,
             "action": self.action.value,
             "sha256": self.digest,
             "size": len(self.payload),
             "reason": self.reason,
+        }
+
+    def as_attestation_record(self) -> dict:
+        """Projection into the `gvc.install-attestation` target vocabulary.
+
+        A SEPARATE projection, not a rename of `as_record`. MEASURED
+        2026-08-25, the two contracts genuinely differ:
+
+            as_record            relpath, action, sha256, size, reason
+            attestation target   path,    action, post_sha256, post_size
+
+        Five keys against four, three differently named. `_exact_keys` in
+        install_attestation.py rejects unknown keys as hard as missing ones, so
+        `as_record()` output would be refused on seven counts.
+
+        Every installer performed that translation BY HAND, which is how
+        PROOF-AFTER-IRREVERSIBILITY-1 became possible: a hand-built record can
+        omit a field, and on 2026-08-25 one did -- after the commit.
+        """
+        return {
+            "path": self.relpath,
+            "action": self.action.value,
+            "post_sha256": self.digest,
+            "post_size": len(self.payload),
         }
 
 

@@ -50,10 +50,17 @@ from genomic_variant_classifier.repository_records.roles import (
     canonical_root,
     is_within_canonical_root,
 )
+from genomic_variant_classifier.repository_records.validation import (
+    validate_authored_text,
+)
 
 ROOT = Path(str(canonical_root(ArtifactRole.INSTALLATION_ATTESTATION)))
 MANIFEST = ROOT / "manifest.json"
-ARTIFACTS = ROOT / "artifacts"
+#: `ARTIFACTS = ROOT / "artifacts"` was removed on 2026-08-25 with the
+#: assertion that used it. The archive is reconciled RECURSIVELY over the
+#: role root now, so naming one subdirectory would reinstate the closed-world
+#: assumption this repair removed -- and an unused constant is an invitation
+#: to reinstate it.
 
 
 @pytest.fixture(scope="module")
@@ -105,12 +112,28 @@ def test_every_manifest_entry_exists_on_disk_with_the_recorded_bytes(manifest):
     assert not problems, "\n  ".join([""] + problems)
 
 
-def test_every_artifact_on_disk_is_in_the_manifest(manifest):
-    """The other direction. An unindexed artifact is a file nobody can find,
-    and its presence would make the index silently incomplete."""
-    if not ARTIFACTS.is_dir():
-        pytest.fail("{} does not exist".format(ARTIFACTS.as_posix()))
-    on_disk = {p.as_posix() for p in sorted(ARTIFACTS.iterdir()) if p.is_file()}
+def test_every_record_on_disk_is_in_the_manifest(manifest):
+    """The other direction. An unindexed record is a file nobody can find,
+    and its presence would make the index silently incomplete.
+
+    RECURSIVE OVER THE ROLE ROOT, not `artifacts/` alone.
+
+    INSTALLATION-ARCHIVE-BINDING-HARDCODES-ARTIFACTS-DIR-1, measured
+    2026-08-25. This assertion previously read `ARTIFACTS.iterdir()`, which is
+    both hardcoded to one subdirectory and non-recursive. The type says the
+    archive may grow; this test quietly said it may grow only with objects in
+    one directory. The first authored reconstruction, filed under
+    `reconstructions/`, entered `indexed` and never `on_disk` -- failing while
+    the manifest was correct.
+
+    Enumerating two named directories instead would be tomorrow's duplication.
+    Deriving from the role root also REFUSES an unindexed record appearing in
+    some third subtree later, which neither form did.
+    """
+    if not ROOT.is_dir():
+        pytest.fail("{} does not exist".format(ROOT.as_posix()))
+    on_disk = {p.as_posix() for p in sorted(ROOT.rglob("*.json"))
+               if p != MANIFEST}
     indexed = {e.identity.instance.canonical_path for e in manifest.entries}
     assert on_disk == indexed, (
         "on disk but NOT indexed: {}\nindexed but NOT on disk: {}".format(
@@ -123,17 +146,53 @@ def test_the_preserved_artifacts_are_NOT_authored_files(manifest):
 
     If one ever ends WITH a newline, either an artifact was mutated on the way
     in or the emitting installer changed -- and both matter.
+
+    SCOPED TO PRESERVED RECORDS. This loop previously ran over EVERY entry,
+    which was correct for the corpus it was born with and false the moment an
+    authored record joined it: `validate_authored_text` REQUIRES a trailing
+    newline, so the two rules would contradict each other.
+
+    Scoped by PROVENANCE, never by filename or directory. ADR-0004: provenance
+    is a fact about the artifact, and encoding it in a path loses it the moment
+    the artifact moves. A `"reconstruction-" in p.name` test would make the
+    filename the author of semantics.
     """
     ending = {}
     for entry in manifest.entries:
+        if entry.reconstructs_missing_artifact:
+            continue
         raw = Path(entry.identity.instance.canonical_path).read_bytes()
         ending[entry.identity.basename] = raw.endswith(b"\n")
+    assert ending, (
+        "no preserved artifact was examined. If every entry is now a "
+        "reconstruction this assertion has become vacuous, which is worse "
+        "than absent -- investigate rather than delete.")
     offenders = sorted(k for k, v in ending.items() if v)
     assert not offenders, (
         "these preserved artifacts end with a newline: {}\nThe authoring "
         "predicate demands one; the preservation predicate forbids ADDING "
         "one. A preserved artifact that gained a newline was mutated."
         .format(offenders))
+
+
+def test_the_reconstructions_ARE_authored_files(manifest):
+    """The complementary half, so the archive PROVES both policies.
+
+    A reconstruction is written fresh by this repository, so ADR-0004
+    section C's AUTHORING predicate applies to it in full: no byte-order mark,
+    no CRLF, pure ASCII, a trailing newline.
+
+    Without this the repair would merely EXEMPT reconstructions from the
+    preservation rule and assert nothing in its place -- an exemption is not a
+    contract.
+    """
+    reconstructed = [e for e in manifest.entries
+                     if e.reconstructs_missing_artifact]
+    if not reconstructed:
+        pytest.skip("no reconstruction is indexed yet")
+    for entry in reconstructed:
+        path = entry.identity.instance.canonical_path
+        validate_authored_text(path, Path(path).read_bytes())
 
 
 def test_every_genesis_alias_still_resolves(manifest):

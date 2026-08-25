@@ -62,6 +62,22 @@ class ProvenanceRelation(str, Enum):
     DERIVED_FROM_RECORD = "derived_from_record"
     RECOVERED_FROM_INCIDENT = "recovered_from_incident"
 
+    #: The artifact was never emitted, and this record establishes afterwards
+    #: what surviving evidence supports. PROOF-AFTER-IRREVERSIBILITY-1,
+    #: 2026-08-25: an installer committed, then refused to write its own
+    #: attestation, leaving a commit message citing a file that does not exist.
+    #:
+    #: DISTINCT FROM ITS TWO NEIGHBOURS, and the distinction is the reason this
+    #: member exists rather than an overload:
+    #:
+    #:     DERIVED_FROM_RECORD      derived from a record that EXISTS
+    #:     RECOVERED_FROM_INCIDENT  bytes that once existed were recovered
+    #:
+    #: Neither is true here. There is no source record to derive from, and no
+    #: bytes were ever written to recover -- the installer raised before
+    #: writing. Using either would assert something that did not happen.
+    RECONSTRUCTS_MISSING_ARTIFACT = "reconstructs_missing_artifact"
+
 
 class RetentionClass(str, Enum):
     """How long it is kept. Immutability is not the same as permanence.

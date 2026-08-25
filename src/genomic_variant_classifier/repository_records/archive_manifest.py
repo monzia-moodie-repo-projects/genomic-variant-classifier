@@ -141,6 +141,29 @@ class ArchiveEntry:
                 "{}: RESTRICTED_VERBATIM may not be ADMITTED_VERBATIM into a "
                 "public repository".format(self.identity.basename))
 
+    @property
+    def reconstructs_missing_artifact(self) -> bool:
+        """Whether these bytes were AUTHORED to establish a missing record.
+
+        The archive holds two lifecycles now, and they obey OPPOSITE byte
+        policies. ADR-0004 section C:
+
+            PRESERVED    exactly the bytes that existed -- no newline added
+            AUTHORED     the house convention -- a trailing newline required
+
+        Measured 2026-08-23, seventeen of seventeen preserved attestations end
+        WITHOUT a newline, because `json.dumps` does not append one. A
+        reconstruction is written fresh and therefore ends WITH one. A single
+        globally quantified rule cannot hold for both.
+
+        Asked of PROVENANCE, never of a path or a filename. Provenance is a
+        fact about the artifact; encoding it in a directory loses it the moment
+        the artifact moves, and a `"reconstruction-" in name` test would make
+        the filename the author of semantics.
+        """
+        return (ProvenanceRelation.RECONSTRUCTS_MISSING_ARTIFACT
+                in self.provenance)
+
     def as_record(self) -> dict:
         record = {
             "record_id": self.identity.record_id.value,

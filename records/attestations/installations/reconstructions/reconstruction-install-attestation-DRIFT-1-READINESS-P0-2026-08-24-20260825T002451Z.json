@@ -1,0 +1,277 @@
+{
+  "acceptance": {
+    "errors": 0,
+    "failed": 0,
+    "measured_by": {
+      "note": "LOCAL gate, recorded in the apply transcript. The interpreter and platform strings the installer captured were never written and are NOT re-asserted here."
+    },
+    "passed": 5464,
+    "returncode": 0,
+    "scope": "tests",
+    "seconds": 1377.4,
+    "skipped": 15,
+    "summary": "5464 passed, 15 skipped, 33 warnings in 1364.02s (0:22:44)",
+    "warnings": 33,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "artifact_class": "installation_attestation_reconstruction",
+  "failure": {
+    "finding": "PROOF-AFTER-IRREVERSIBILITY-1",
+    "original_artifact_validly_emitted": false,
+    "publication_error": "a deliberate retirement requires a justification"
+  },
+  "intended_legacy_alias": "install-attestation-DRIFT-1-READINESS-P0-2026-08-24-20260825T002451Z.json",
+  "reconstructed_at": "2026-08-25T14:00:00Z",
+  "reconstruction_status": "partial",
+  "recovered_fields": [
+    {
+      "derivation": "interval_squeeze",
+      "name": "finished_at",
+      "resolution": "1s",
+      "state": "derived_exact",
+      "value": "2026-08-25T00:24:52Z",
+      "witnesses": [
+        {
+          "claim": "committer date bounds finished_at from below; the sample happens after git commit returns",
+          "kind": "git_metadata",
+          "locator": "abcb22eaf4e833f417130ad871c41adffffc4660"
+        },
+        {
+          "claim": "last-write time bounds finished_at from above; the failure line printed after the sample",
+          "kind": "filesystem_metadata",
+          "locator": "gvc_install_drift_readiness_v4_apply_2026-08-24.txt",
+          "sha256": "026fa356ade04655c84b0de425cfe100863c20730c791adf9a418c530dd725d5"
+        }
+      ]
+    },
+    {
+      "lower_bound": "2026-08-25T00:00:58Z",
+      "name": "started_at",
+      "state": "bounded",
+      "upper_bound": "2026-08-25T00:24:52Z",
+      "witnesses": [
+        {
+          "claim": "creation time bounds started_at from below; the installer samples its clock after the package imports and no witness closes the upper end",
+          "kind": "filesystem_metadata",
+          "locator": "gvc_install_drift_readiness_v4_apply_2026-08-24.txt",
+          "sha256": "026fa356ade04655c84b0de425cfe100863c20730c791adf9a418c530dd725d5"
+        }
+      ]
+    },
+    {
+      "name": "plan_digest",
+      "state": "unrecoverable"
+    }
+  ],
+  "repository": {
+    "commit_oid": "abcb22eaf4e833f417130ad871c41adffffc4660",
+    "parent_oid": "2e7e435a0dbf1bf1e8e25ec516fe7f62f194261d",
+    "tree_oid": "061315ad453f6a3068dbcd60a872a9397ba74b93"
+  },
+  "schema": "gvc.install-attestation-reconstruction",
+  "schema_version": 1,
+  "subject_unit": "DRIFT-1-READINESS-P0-2026-08-24",
+  "suite_transition": {
+    "after_count": 5479,
+    "after_digest": "a99c059a9edfb9733a462aa1c988fcfc1322b442fba0ec5ee39b7f3397ddc8fe",
+    "before_count": 5443,
+    "before_digest": "3a7e1ef0dfdbbc43ee5db617fac0a92a69ee9de26ae2445996f8320eb8c5a70a",
+    "expected_added_nodeids": [
+      "tests/unit/test_drift_monitor_workflow.py::test_a_measured_drift_still_notifies",
+      "tests/unit/test_drift_monitor_workflow.py::test_a_new_not_checked_reason_still_notifies",
+      "tests/unit/test_drift_monitor_workflow.py::test_every_declared_output_has_a_step_that_can_produce_it",
+      "tests/unit/test_drift_monitor_workflow.py::test_severity_is_read_from_the_severity_not_from_an_exit_code",
+      "tests/unit/test_drift_monitor_workflow.py::test_the_alert_body_derives_its_explanation_from_the_typed_reason",
+      "tests/unit/test_drift_monitor_workflow.py::test_the_alert_body_names_no_deleted_step",
+      "tests/unit/test_drift_monitor_workflow.py::test_the_alert_body_reads_no_output_the_job_does_not_declare",
+      "tests/unit/test_drift_monitor_workflow.py::test_the_assessment_script_survives_untouched",
+      "tests/unit/test_drift_monitor_workflow.py::test_the_job_declares_the_readiness_outputs",
+      "tests/unit/test_drift_monitor_workflow.py::test_the_known_capability_gap_does_not_open_a_monthly_issue",
+      "tests/unit/test_drift_monitor_workflow.py::test_the_monthly_job_does_not_invoke_the_drift_monitor",
+      "tests/unit/test_drift_monitor_workflow.py::test_the_monthly_job_invokes_the_readiness_adapter",
+      "tests/unit/test_drift_monitor_workflow.py::test_the_workflow_does_not_author_a_readiness_field[drift_level]",
+      "tests/unit/test_drift_monitor_workflow.py::test_the_workflow_does_not_author_a_readiness_field[feature_drift_checked]",
+      "tests/unit/test_drift_monitor_workflow.py::test_the_workflow_does_not_author_a_readiness_field[not_checked_reason]",
+      "tests/unit/test_drift_monitor_workflow.py::test_the_workflow_does_not_author_a_readiness_field[readiness_status]",
+      "tests/unit/test_drift_readiness.py::test_a_malformed_document_is_refused[extra_key]",
+      "tests/unit/test_drift_readiness.py::test_a_malformed_document_is_refused[future_schema_version]",
+      "tests/unit/test_drift_readiness.py::test_a_malformed_document_is_refused[missing_key]",
+      "tests/unit/test_drift_readiness.py::test_a_ready_verdict_asserts_no_severity",
+      "tests/unit/test_drift_readiness.py::test_a_refusal_requires_a_reason[not_ready]",
+      "tests/unit/test_drift_readiness.py::test_a_refusal_requires_a_reason[undetermined]",
+      "tests/unit/test_drift_readiness.py::test_missing_discovery_capability_is_undetermined_not_not_ready",
+      "tests/unit/test_drift_readiness.py::test_no_new_observation_population_is_in_the_vocabulary_but_unemitted",
+      "tests/unit/test_drift_readiness.py::test_readiness_is_not_checked_today",
+      "tests/unit/test_drift_readiness.py::test_ready_may_not_carry_a_refusal_reason",
+      "tests/unit/test_drift_readiness.py::test_ready_remains_constructible_so_the_type_survives_p1",
+      "tests/unit/test_drift_readiness.py::test_the_document_validates_against_its_own_schema",
+      "tests/unit/test_drift_readiness.py::test_the_github_projection_derives_from_the_document",
+      "tests/unit/test_drift_readiness.py::test_the_legacy_drift_level_is_unknown_while_nothing_is_measured",
+      "tests/unit/test_drift_readiness.py::test_the_module_uses_the_projects_enumeration_convention",
+      "tests/unit/test_drift_readiness.py::test_the_readiness_module_does_not_import_the_assessment_stack",
+      "tests/unit/test_drift_readiness.py::test_the_readiness_module_imports_only_the_standard_library",
+      "tests/unit/test_drift_readiness.py::test_the_reason_names_the_missing_capability_not_a_missing_population",
+      "tests/unit/test_drift_readiness.py::test_the_rendered_json_is_deterministic_and_authored",
+      "tests/unit/test_drift_readiness.py::test_unknown_appears_in_no_domain_enumeration",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:336:actions/upload-artifact]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:349:actions/checkout]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:351:actions/setup-python]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:512:actions/github-script]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:56:actions/checkout]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:58:actions/setup-python]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:635:actions/checkout]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:637:actions/setup-python]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:336:actions/upload-artifact]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:349:actions/checkout]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:351:actions/setup-python]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:512:actions/github-script]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:56:actions/checkout]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:58:actions/setup-python]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:635:actions/checkout]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:637:actions/setup-python]"
+    ],
+    "expected_removed_nodeids": [
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:339:actions/upload-artifact]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:352:actions/checkout]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:354:actions/setup-python]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:489:actions/github-script]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:50:actions/checkout]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:52:actions/setup-python]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:577:actions/checkout]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:579:actions/setup-python]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:339:actions/upload-artifact]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:352:actions/checkout]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:354:actions/setup-python]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:489:actions/github-script]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:50:actions/checkout]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:52:actions/setup-python]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:577:actions/checkout]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:579:actions/setup-python]"
+    ],
+    "justification": "Sixteen identities in tests/unit/test_workflow_action_pins.py are retired and sixteen equivalent ones appear. NOTHING is lost: the action set, the pinned SHAs and both invariants are unchanged, and every retired identity has a successor differing only in the line number embedded in its parametrize id. All eight pins in drift_monitor.yml moved because this unit edits that file. The retirement is a CONSEQUENCE of a documentation and step change, not a reduction in what is checked -- and the suite grows by 36.",
+    "kind": "deliberate_retirement",
+    "observed_added_nodeids": [
+      "tests/unit/test_drift_monitor_workflow.py::test_a_measured_drift_still_notifies",
+      "tests/unit/test_drift_monitor_workflow.py::test_a_new_not_checked_reason_still_notifies",
+      "tests/unit/test_drift_monitor_workflow.py::test_every_declared_output_has_a_step_that_can_produce_it",
+      "tests/unit/test_drift_monitor_workflow.py::test_severity_is_read_from_the_severity_not_from_an_exit_code",
+      "tests/unit/test_drift_monitor_workflow.py::test_the_alert_body_derives_its_explanation_from_the_typed_reason",
+      "tests/unit/test_drift_monitor_workflow.py::test_the_alert_body_names_no_deleted_step",
+      "tests/unit/test_drift_monitor_workflow.py::test_the_alert_body_reads_no_output_the_job_does_not_declare",
+      "tests/unit/test_drift_monitor_workflow.py::test_the_assessment_script_survives_untouched",
+      "tests/unit/test_drift_monitor_workflow.py::test_the_job_declares_the_readiness_outputs",
+      "tests/unit/test_drift_monitor_workflow.py::test_the_known_capability_gap_does_not_open_a_monthly_issue",
+      "tests/unit/test_drift_monitor_workflow.py::test_the_monthly_job_does_not_invoke_the_drift_monitor",
+      "tests/unit/test_drift_monitor_workflow.py::test_the_monthly_job_invokes_the_readiness_adapter",
+      "tests/unit/test_drift_monitor_workflow.py::test_the_workflow_does_not_author_a_readiness_field[drift_level]",
+      "tests/unit/test_drift_monitor_workflow.py::test_the_workflow_does_not_author_a_readiness_field[feature_drift_checked]",
+      "tests/unit/test_drift_monitor_workflow.py::test_the_workflow_does_not_author_a_readiness_field[not_checked_reason]",
+      "tests/unit/test_drift_monitor_workflow.py::test_the_workflow_does_not_author_a_readiness_field[readiness_status]",
+      "tests/unit/test_drift_readiness.py::test_a_malformed_document_is_refused[extra_key]",
+      "tests/unit/test_drift_readiness.py::test_a_malformed_document_is_refused[future_schema_version]",
+      "tests/unit/test_drift_readiness.py::test_a_malformed_document_is_refused[missing_key]",
+      "tests/unit/test_drift_readiness.py::test_a_ready_verdict_asserts_no_severity",
+      "tests/unit/test_drift_readiness.py::test_a_refusal_requires_a_reason[not_ready]",
+      "tests/unit/test_drift_readiness.py::test_a_refusal_requires_a_reason[undetermined]",
+      "tests/unit/test_drift_readiness.py::test_missing_discovery_capability_is_undetermined_not_not_ready",
+      "tests/unit/test_drift_readiness.py::test_no_new_observation_population_is_in_the_vocabulary_but_unemitted",
+      "tests/unit/test_drift_readiness.py::test_readiness_is_not_checked_today",
+      "tests/unit/test_drift_readiness.py::test_ready_may_not_carry_a_refusal_reason",
+      "tests/unit/test_drift_readiness.py::test_ready_remains_constructible_so_the_type_survives_p1",
+      "tests/unit/test_drift_readiness.py::test_the_document_validates_against_its_own_schema",
+      "tests/unit/test_drift_readiness.py::test_the_github_projection_derives_from_the_document",
+      "tests/unit/test_drift_readiness.py::test_the_legacy_drift_level_is_unknown_while_nothing_is_measured",
+      "tests/unit/test_drift_readiness.py::test_the_module_uses_the_projects_enumeration_convention",
+      "tests/unit/test_drift_readiness.py::test_the_readiness_module_does_not_import_the_assessment_stack",
+      "tests/unit/test_drift_readiness.py::test_the_readiness_module_imports_only_the_standard_library",
+      "tests/unit/test_drift_readiness.py::test_the_reason_names_the_missing_capability_not_a_missing_population",
+      "tests/unit/test_drift_readiness.py::test_the_rendered_json_is_deterministic_and_authored",
+      "tests/unit/test_drift_readiness.py::test_unknown_appears_in_no_domain_enumeration",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:336:actions/upload-artifact]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:349:actions/checkout]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:351:actions/setup-python]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:512:actions/github-script]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:56:actions/checkout]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:58:actions/setup-python]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:635:actions/checkout]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:637:actions/setup-python]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:336:actions/upload-artifact]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:349:actions/checkout]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:351:actions/setup-python]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:512:actions/github-script]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:56:actions/checkout]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:58:actions/setup-python]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:635:actions/checkout]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:637:actions/setup-python]"
+    ],
+    "observed_removed_nodeids": [
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:339:actions/upload-artifact]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:352:actions/checkout]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:354:actions/setup-python]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:489:actions/github-script]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:50:actions/checkout]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:52:actions/setup-python]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:577:actions/checkout]",
+      "tests/unit/test_workflow_action_pins.py::test_every_action_is_pinned_by_commit_sha[drift_monitor.yml:579:actions/setup-python]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:339:actions/upload-artifact]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:352:actions/checkout]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:354:actions/setup-python]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:489:actions/github-script]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:50:actions/checkout]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:52:actions/setup-python]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:577:actions/checkout]",
+      "tests/unit/test_workflow_action_pins.py::test_every_pin_is_recorded_with_its_resolved_version[drift_monitor.yml:579:actions/setup-python]"
+    ]
+  },
+  "targets": [
+    {
+      "action": "create",
+      "path": "src/genomic_variant_classifier/monitoring/drift_readiness.py",
+      "post_sha256": "92d78d204dfea1c6a8bc1ec43f4c2db1382506199bff7cd4ea30a41d4697b277",
+      "post_size": 10736
+    },
+    {
+      "action": "create",
+      "path": "scripts/report_drift_readiness.py",
+      "post_sha256": "51875c0e1e66446f097b3ae9160e648c5dde2165bc5e2825084d5e76727db9e9",
+      "post_size": 3867
+    },
+    {
+      "action": "create",
+      "path": "tests/unit/test_drift_readiness.py",
+      "post_sha256": "041f364706b6cc6706e8f93d5c5f6941cef3c6154745d9e0de54a4aa114bd701",
+      "post_size": 13716
+    },
+    {
+      "action": "create",
+      "path": "tests/unit/test_drift_monitor_workflow.py",
+      "post_sha256": "f041b9ac48f2efeb4b661d2d492ae9faad48239259d6a84b83f6ebb6d6012e83",
+      "post_size": 14393
+    },
+    {
+      "action": "patch",
+      "path": ".github/workflows/drift_monitor.yml",
+      "post_sha256": "1788305d77308b0b7d35fccb00d777f3533a4f3f3dc4e2955c2a951b16af043d",
+      "post_size": 39846
+    },
+    {
+      "action": "patch",
+      "path": "tests/EXPECTED_SUITE_SIZE",
+      "post_sha256": "fc2d33b1bd2e56dd758a900ea41b4389719121fb71994a782febfd87e5bbb1b6",
+      "post_size": 457437
+    },
+    {
+      "action": "patch",
+      "path": "README.md",
+      "post_sha256": "cda34ba3aa00a52f7310ef6c48fe02a5040f951f184793970382898a88101c41",
+      "post_size": 16667
+    },
+    {
+      "action": "patch",
+      "path": "docs/ROADMAP.md",
+      "post_sha256": "44dd8fbea232eeb72d62a3c9d5a0caaaf0b814fee6c2f806075fd4bb8f5e401a",
+      "post_size": 13668
+    }
+  ]
+}

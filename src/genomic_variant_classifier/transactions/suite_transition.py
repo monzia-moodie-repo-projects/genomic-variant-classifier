@@ -289,3 +289,71 @@ class SuiteTransition:
             added_nodeids=tuple(sorted(added)),
             removed_nodeids=tuple(sorted(removed)),
         )
+
+    def _assert_evidence_belongs_here(self,
+                                      evidence: TransitionEvidence) -> None:
+        """Refuse evidence produced against a DIFFERENT declaration.
+
+        These checks are REACHABLE, unlike the three removed from `verify` as
+        provably unreachable. `as_attestation_record` is public and may be
+        handed evidence constructed elsewhere or by hand, so each of these can
+        be demonstrated firing by a negative control -- which is the standard
+        this module set for itself when it deleted defence that could not fire.
+        """
+        if evidence.kind is not self.kind:
+            raise SuiteTransitionError(
+                "evidence of kind {!r} does not belong to a {!r} declaration"
+                .format(evidence.kind.value, self.kind.value))
+        if frozenset(evidence.added_nodeids) != self.expected_added_nodeids:
+            raise SuiteTransitionError(
+                "the evidence's added identities are not this declaration's. "
+                "Projecting one declaration's justification beside another's "
+                "observations would produce a record that never happened.")
+        if frozenset(evidence.removed_nodeids) != self.expected_removed_nodeids:
+            raise SuiteTransitionError(
+                "the evidence's removed identities are not this "
+                "declaration's.")
+
+    def as_attestation_record(self, evidence: TransitionEvidence) -> dict:
+        """Project one declared-AND-verified transition for an attestation.
+
+        THE DECLARATION OWNS THIS PROJECTION, and that is the point.
+
+        The attestation's `suite_transition` record is a JOIN: the declaration
+        owns the expected identities and the justification; the evidence owns
+        the observed identities and the measured before/after state. Neither
+        alone holds the whole truth.
+
+        PROOF-AFTER-IRREVERSIBILITY-1, 2026-08-25. The DRIFT-1 installer built
+        this record by hand from `TransitionEvidence`, which carries `kind` but
+        NOT `justification`. The omission was therefore not an oversight -- the
+        field was structurally unreachable from the object supplying most of the
+        serialization. The installer committed, then refused to write its own
+        attestation, and the repository crossed an irreversible boundary
+        without its publication evidence.
+
+        Placed on the DECLARATION rather than on the evidence because
+        `evidence.as_attestation_record(declaration)` would read as though
+        evidence owned the projection and merely needed a declaration supplied
+        -- and would permit an arbitrary pairing unless it reproduced
+        verification logic. `_assert_evidence_belongs_here` makes the pairing
+        provable instead.
+
+        NO INSTALLER MAY WRITE THIS DICTIONARY. That is enforced by a test.
+        """
+        self._assert_evidence_belongs_here(evidence)
+
+        record = {
+            "kind": self.kind.value,
+            "expected_added_nodeids": sorted(self.expected_added_nodeids),
+            "expected_removed_nodeids": sorted(self.expected_removed_nodeids),
+            "observed_added_nodeids": list(evidence.added_nodeids),
+            "observed_removed_nodeids": list(evidence.removed_nodeids),
+            "before_count": evidence.before_count,
+            "after_count": evidence.after_count,
+            "before_digest": evidence.before_digest,
+            "after_digest": evidence.after_digest,
+        }
+        if self.kind is SuiteTransitionKind.DELIBERATE_RETIREMENT:
+            record["justification"] = self.justification
+        return record

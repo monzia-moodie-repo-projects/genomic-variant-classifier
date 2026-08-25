@@ -357,6 +357,26 @@
       "retention": "permanent_evidence",
       "role": "installation_attestation",
       "size_bytes": 4746
+    },
+    {
+      "artifact_schema_version": 1,
+      "canonical_path": "records/attestations/installations/reconstructions/reconstruction-install-attestation-DRIFT-1-READINESS-P0-2026-08-24-20260825T002451Z.json",
+      "cited_by": [
+        "abcb22e"
+      ],
+      "content_sha256": "3b0d7d17dec61c6ed2ee3667301f5f5a1747c96bc14f03b2bcfa4e8387a68474",
+      "disclosure": "public_verbatim",
+      "legacy_aliases": [
+        "install-attestation-DRIFT-1-READINESS-P0-2026-08-24-20260825T002451Z.json"
+      ],
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "reconstructs_missing_artifact"
+      ],
+      "record_id": "REC-324ed24619954b8eab5f9ef3ff6cb644",
+      "retention": "permanent_evidence",
+      "role": "installation_attestation",
+      "size_bytes": 21753
     }
   ],
   "genesis_aliases": [

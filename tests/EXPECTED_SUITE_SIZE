@@ -7347,4 +7347,27 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5479
+
+# 2026-08-25 -- 5479 -> 5524 (+45). Evidence that was never emitted.
+#
+#   The DRIFT-1 installer committed abcb22e and then refused to write its own
+#   attestation: the justification it needed was structurally unreachable from
+#   the object it was serialising. Publication validation sat downstream of an
+#   irreversible step.
+#
+#   The projection now belongs to the declaration that owns the field, two
+#   static guards refuse any module that rebuilds the record by hand, and a
+#   third proves those searches can find a planted offender.
+#
+#   The missing document is reconstructed rather than invented. started_at is
+#   unrecoverable within 1,434 seconds and plan_digest survives only as a
+#   16-character prefix, so both are recorded as what they are. A schema that
+#   would accept a plausible timestamp is not a licence to supply one.
+#
+#   Suite identity digests:
+#       before  a99c059a9edfb9733a462aa1c988fcfc1322b442fba0ec5ee39b7f3397ddc8fe
+#       after   af1fe7ad91a63dda01ea2639f5ce0a9776c531ae4403aa55a1e2997f8e0f4d6a
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5524
