@@ -1,3 +1,78 @@
+## 2026-08-24 to 2026-08-25 (README-1, METHODS M1, DRIFT-1 P0, P0-R) -- proof must precede irreversibility
+
+Four commits, `6a6ce47` -> `47646ef`. The ratchet moved 5435 -> 5524 across two
+ADDITIONs and two DELIBERATE_RETIREMENTs.
+Document: docs/sessions/SESSION_2026-08-25_proof-before-irreversibility.md
+
+### Attempted
+- Close README-1, repair METHODS.md section 3.1, retire the impossible monthly
+  drift invocation, and reconstruct the publication evidence the DRIFT-1
+  installer failed to emit.
+
+### Fixed
+- README-1. The drift quickstart omitted --new-data and the monitor returns
+  EXIT_NOT_CHECKED without it, so the published command could not produce a
+  verdict. The gate computed `used - defined`, which detects a flag the script
+  does NOT HAVE and can never detect a required one that is ABSENT. The
+  requirement is now declared in the script and read by parsing.
+- METHODS-CURRENT-ARCHITECTURE-STALE-1. Section 3.1 stated in the present tense
+  that four tabular models were trained on a 64-feature matrix, against a
+  contract of 95 and a thirteen-model ensemble. I missed it while claiming to
+  have read the file in full: I read two chunks and never read the 54 lines
+  between them. No architecture is substituted in prose -- the roster is BUILT,
+  not declared -- and no run is named, because the evidence establishes none.
+- DRIFT-1 phase 0. The monthly cron invoked run_drift_monitor.py with no
+  --new-data, which returns EXIT_NOT_CHECKED by construction. Readiness is now
+  typed and separate from assessment: UNDETERMINED is not NOT_READY, and the
+  reason names the missing CAPABILITY because nothing in 1,622 tracked files
+  discovers a new observation population.
+- PROOF-AFTER-IRREVERSIBILITY-1. The DRIFT-1 installer committed and THEN
+  refused to write its own attestation. The justification it needed was
+  structurally unreachable from the object it was serialising. The projection
+  now belongs to the declaration that owns the field, two static guards refuse
+  any module that rebuilds either record by hand, and a third proves those
+  searches can find a planted offender.
+- The missing document is RECONSTRUCTED, not invented. started_at is
+  unrecoverable within 1,434 seconds and plan_digest survives only as a
+  16-character prefix, so both are recorded as what they are. A schema that
+  would accept a plausible timestamp is not a licence to supply one.
+
+### Failed (and why)
+- Declared ADDITION twice where a rename retired an identity; the primitive
+  refused both times with "a count of +N cannot distinguish these". Both were
+  transitions counted by hand rather than derived from the payloads.
+- Fabricated two digests -- a real 16-character prefix plus 48 invented
+  characters -- while the real bytes sat in the build directory.
+- Reconstructed a CRLF file as line-feed-only (740-byte deficit, one per line),
+  then demanded a trailing newline from a file that has none, then appended a
+  newline an anchor already carried. Three properties, one lesson.
+- `textwrap.wrap` fused "are retired" into "areretired" through implicit
+  concatenation. Caught only by comparing verbatim; it reads correctly.
+- Hand-built the suite-transition record my own guard forbids, inside the unit
+  installing that guard.
+- Executed a module before registering it in sys.modules -- after writing the
+  reason down twice in earlier harnesses.
+- Called `as_attestation_record` on the PREIMAGE class twice: the repository
+  holds the preimage until the transaction commits.
+- A docstring claimed a removal the code did not perform.
+
+### Learned
+- Publication validation must precede the irreversible step. The attestation is
+  now prevalidated with a synthetic head BEFORE `git add`.
+- A rule enforced by structure outperforms a rule enforced by memory. Writing
+  the sys.modules explanation into a comment did not prevent two recurrences; a
+  single function that cannot be called the wrong way did.
+- The archive said it may grow while two tests said it may grow only with
+  objects identical to the seventeen it was born with. The first authored
+  record is the experiment that reveals a closed-world assumption.
+- REDIRECT-2>&1-LOSES-OUTPUT-1: the same command, same exit code, produced 0
+  bytes with `> file 2>&1` and 4,231 bytes with `*>`. Every invocation now uses
+  `*>`. A zero-byte transcript is otherwise indistinguishable from a process
+  that never ran.
+- A hypothesis tested and refuted is worth more than a plausible story shipped:
+  I inferred `.gitattributes` left the new subtree unprotected, and
+  `git check-attr` refuted it.
+
 ## 2026-08-24 part 2 (BASELINE-1, PROBE-SCOPE-BLIND-AUDIT-1) -- writing the analysis is not applying it
 
 Two commits, `a65bb50` -> `10e72a4`. The ratchet did not move; both transitions
