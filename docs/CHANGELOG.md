@@ -1,3 +1,64 @@
+## 2026-08-26 (ATTESTATION-V3-TYPING) -- a shape that is part of a meaning
+
+One commit, `9bc8da0` -> `d73f526`. The ratchet moved 5557 -> 5573.
+Document: docs/sessions/SESSION_2026-08-26_a-shape-that-is-part-of-a-meaning.md
+
+### Attempted
+- Type the attestation's primitives, which version 2 left as unconstrained
+  strings and numbers, without making version 2 a moving target.
+
+### Fixed
+- ATTESTATION-V2-STRUCTURAL-TYPING-INCOMPLETE-1. Version 2 enforced cross-field
+  consistency and almost nothing about primitive types: a digest could be any
+  string, a timestamp any string, a count any value.
+- The audit that sized it: of eight preserved version-2 documents, the ONLY
+  typing failure was the repository head pair, and every other typed field
+  already conformed. MEASURED across the delivered installers, 102
+  `rev-parse --short` call sites and ZERO full ones -- so that one pair was
+  precisely the one no producer had ever recorded.
+- Version 3 RECORDS BOTH the abbreviation and the full object identifier, and
+  requires the abbreviation to be a PREFIX of the full one. Two independently
+  recorded fields would double the surface for a wrong value while proving
+  nothing; the prefix relationship is what makes the pair evidence. A pending
+  install records null for both, and one of each is refused as a state that
+  cannot exist.
+- That resolved a real inconsistency: install_attestation had been accepting
+  seven characters while install_attestation_reconstruction demanded forty --
+  the same repository typing one concept two ways.
+- Versions 1 and 2 are not migrated. Nine version-1 and eight version-2
+  documents stay exactly as emitted. MEASURED: test_attestation_archive.py does
+  not import install_attestation at all, so the boundary cannot disturb the
+  corpus it refuses to judge.
+
+### Failed (and why)
+- A probe filtered on `schema` and not `schema_version`, auditing nine
+  version-1 documents against version-3 typing. Their NoneType refusals were an
+  artefact of the filter. PROBE-VERSION-CONFLATION-1.
+- The session record at 9bc8da0 states that eighteen preserved documents were
+  judged against version 2. MEASURED: eight were. Nine are version 1, which the
+  module explicitly refuses to judge, and one is a reconstruction under a
+  different schema. FIGURE-STATED-WITHOUT-MEASUREMENT-1, and the record is NOT
+  amended -- it is pinned by digest, and correcting it in place would make it a
+  record of what I wish I had written.
+- I stated a byte count of 3,224 for a file that is 3,168 bytes. Typed, not
+  computed, one line below two figures that were.
+- The first `declared_test_identities` helper refused `ids=REQUIRED_KEYS`, a
+  module-level list of twelve stable strings. A predicate that refuses a
+  correct case is a bug, not strictness.
+
+### Learned
+- The measurement that mattered was not "would typing be nice" but "what does
+  the corpus actually look like". Without it the choice between adding a
+  regular expression and changing every installer would have been made blind.
+- Both controls must fire. The OLD tests against the NEW module: 20 red, the
+  migration's blast radius. The NEW tests against the OLD module: 32 red, of
+  which 23 are the new cases -- proving they are not assertions that would pass
+  either way.
+- A hypothesis was WITHDRAWN on evidence. Two sub-band continuous-integration
+  timings had both fallen on documentation-only commits; a third such run came
+  in as the longest of five, and the groups overlap. Withdrawing it is the
+  whole value of having named it a hypothesis rather than a finding.
+
 ## 2026-08-26 (PUBLICATION-BOUNDARY) -- evidence reaches disk one way
 
 One commit, `66426c7` -> `53d6034`. The ratchet moved 5542 -> 5557.
