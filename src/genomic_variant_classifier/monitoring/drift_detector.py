@@ -384,11 +384,24 @@ class DriftDetector:
             # with a feature count that looks healthy.
             #
             # This is not hypothetical. The Run-15 reference matrix carries 78 features; the
-            # current tabular contract (EXPECTED_TABULAR_FEATURE_COUNT) is 97. Pointed at
-            # today's data, an un-guarded detector would check 78, ignore 19, and report no
-            # drift on features it never looked at. That is root pattern (c) -- a gate that
-            # checks a proxy for the thing it protects -- and it is precisely how this
-            # subsystem died the first time.
+            # current tabular contract (EXPECTED_TABULAR_FEATURE_COUNT) is 95 -- MEASURED
+            # 2026-08-25 from its sole definition in models/variant_ensemble.py:193, where
+            # TABULAR_FEATURES holds exactly 95 entries.
+            #
+            # DETECTOR-CONTRACT-COMMENT-STALE-1: this comment said 97 until 2026-08-25, and
+            # 97 was itself a figure a preflight gate had ALREADY corrected once --
+            # docs/sessions/SESSION_2026-08-02_pre1-preflight-contract-gate.md records
+            # "97-feature contract (88 + 3 + 6)" being replaced by "95, 86 + 3 + 6". The
+            # superseded number survived here because nothing binds a COMMENT to a constant.
+            #
+            # The subtraction moved with it: 97 - 78 = 19, but 95 - 78 = 17. Correcting the
+            # contract and leaving "ignore 19" would have replaced one stale number with an
+            # inconsistent pair.
+            #
+            # Pointed at today's data, an un-guarded detector would check 78, ignore 17, and
+            # report no drift on features it never looked at. That is root pattern (c) -- a
+            # gate that checks a proxy for the thing it protects -- and it is precisely how
+            # this subsystem died the first time.
             missing = [f for f in self.feature_names if f not in X_new.columns]
             if missing:
                 raise KeyError(

@@ -299,6 +299,66 @@ def _aligned_lsif_matrices(
     return x_ref, x_new
 
 
+def render_retraining_decision(
+    *,
+    feature_drift_checked: bool,
+    feature_drift_not_checked_reason: "str | None",
+    feature_drift_triggered: bool,
+    label_drift_triggered: bool,
+    feature_drift_detail: str = "",
+    label_drift_detail: str = "",
+) -> dict:
+    """The retraining decision, as a PURE function of what was measured.
+
+    Hoisted out of `ContinualLearner.run` on 2026-08-25 so it can be EXECUTED
+    by a test rather than transcribed into one.
+
+    WHY THAT MATTERS. The first draft of this repair's tests re-implemented the
+    expression and pinned the copy to the source by asserting fragments
+    appeared in both. A sabotage matrix then showed the weakness exactly:
+    mutating the module could not change the behavioural tests, because they
+    never ran module code. Detection happened only through the pin. A guard
+    that cannot observe the thing it guards is the shape this repository keeps
+    finding, and a transcription is that shape in test form.
+
+    THE INVARIANT, and the whole point of the unit:
+
+        "No significant drift detected." may be returned ONLY when BOTH
+        assessments ran and BOTH found nothing.
+
+    When `feature_drift_checked` is False the reason list is non-empty by
+    construction, so that string is unreachable. The not-checked entry is
+    appended FIRST so a finding cannot bury it.
+
+    Keyword-only by design: the four flags are all booleans, and a positional
+    call site that transposed two of them would type-check and lie.
+    """
+    decision_reason = []
+    if not feature_drift_checked:
+        decision_reason.append(
+            "FEATURE DRIFT NOT CHECKED ({}). No conclusion about feature "
+            "drift is available for this release.".format(
+                feature_drift_not_checked_reason)
+        )
+    if feature_drift_triggered:
+        decision_reason.append(feature_drift_detail or "Feature drift detected")
+    if label_drift_triggered:
+        decision_reason.append(label_drift_detail or "Label drift detected")
+
+    return {
+        "should_retrain": feature_drift_triggered or label_drift_triggered,
+        "feature_drift": feature_drift_triggered,
+        #: False means the assessment DID NOT COMPLETE. It never means "no
+        #: drift" -- `feature_drift` carries that, and is meaningful only when
+        #: this is True. Mirrors DriftReport.joint_tests_run/joint_tests_reason.
+        "feature_drift_checked": feature_drift_checked,
+        "feature_drift_not_checked_reason": feature_drift_not_checked_reason,
+        "label_drift": label_drift_triggered,
+        "reason": "; ".join(decision_reason) if decision_reason
+                  else "No significant drift detected.",
+    }
+
+
 class ContinualLearner:
     """
     Orchestrates the full continual learning lifecycle.
@@ -358,13 +418,58 @@ class ContinualLearner:
             save_path=self.output_dir / "drift_reference.pkl",
         )
         # Build feature matrix for new ClinVar using the existing pipeline
+        #
+        # THE IMPORT IS OUTSIDE THE TRY. Until 2026-08-25 it sat inside, so an
+        # ImportError -- a deployment fault with nothing to do with drift --
+        # was caught below and rendered as "No significant drift detected."
+        from genomic_variant_classifier.api.pipeline import engineer_features
+
+        # ── A MEASUREMENT THAT DID NOT HAPPEN IS NOT A NEGATIVE RESULT ───────
+        #
+        # CONTINUAL-FEATURE-DRIFT-FAILURE-AS-NO-DRIFT-1, repaired 2026-08-25.
+        #
+        # `DriftDetector.check` REFUSES rather than degrading. It raises
+        # KeyError when the new data lacks features the reference expects --
+        # "Refusing to report partial coverage as a completed drift check" --
+        # and ValueError when a bare array cannot be aligned by name. Until
+        # this repair, a bare `except Exception` caught those DELIBERATE
+        # REFUSALS, logged a warning, set drift_report = None, and the decision
+        # below rendered them as "No significant drift detected."
+        #
+        # THE ASSESSMENT LAYER'S REFUSAL WAS INVERTED INTO THE EXACT CLAIM IT
+        # REFUSED TO MAKE -- and written to decision_<release>.json, a durable
+        # scientific record.
+        #
+        # It was not hypothetical. drift_detector.py records that the Run-15
+        # reference carries 78 features against a tabular contract of 95
+        # (EXPECTED_TABULAR_FEATURE_COUNT, measured), so the KeyError is the
+        # EXPECTED path, not an edge case.
+        #
+        # The shape of the fix is this repository's own, from the layer that
+        # owns the fact: `DriftReport.joint_tests_run` / `joint_tests_reason`.
+        # That flag exists because "if a profile-driven run quietly substituted
+        # a benign p-value there, that escalation would be permanently disarmed
+        # WHILE APPEARING TO WORK". Same principle, one layer up.
+        feature_drift_checked = True
+        feature_drift_not_checked_reason = None
         try:
-            from genomic_variant_classifier.api.pipeline import engineer_features
             X_new = engineer_features(new_clinvar)
             drift_report = detector.check(X_new, timestamp=release_name)
         except Exception as e:
-            logger.warning("Feature drift check failed: %s", e)
             drift_report = None
+            feature_drift_checked = False
+            feature_drift_not_checked_reason = "{}: {}".format(
+                type(e).__name__, e)
+            # logger.ERROR, not warning. The sole trace of a failed scientific
+            # measurement must not sit below the level most configurations
+            # surface by default.
+            logger.error(
+                "FEATURE DRIFT WAS NOT CHECKED: %s\n"
+                "  This is NOT a finding of 'no drift'. The assessment did not "
+                "complete, so nothing is known about feature drift for this "
+                "release. The decision below is based on label drift ALONE.",
+                feature_drift_not_checked_reason,
+            )
 
         if drift_report:
             drift_report.print_summary()
@@ -392,23 +497,23 @@ class ContinualLearner:
         )
         label_drift_triggered = label_report.should_retrain
 
-        should_retrain = feature_drift_triggered or label_drift_triggered
-        decision_reason = []
-        if feature_drift_triggered:
-            decision_reason.append(
-                f"Feature drift: {drift_report.features_drifted} features with PSI>{self.config.psi_retrain_threshold}"
-            )
-        if label_drift_triggered:
-            decision_reason.append(
+        # Rendered by a PURE, module-level function so a test can execute this
+        # logic rather than transcribe it. See render_retraining_decision.
+        decision = render_retraining_decision(
+            feature_drift_checked=feature_drift_checked,
+            feature_drift_not_checked_reason=feature_drift_not_checked_reason,
+            feature_drift_triggered=feature_drift_triggered,
+            label_drift_triggered=label_drift_triggered,
+            feature_drift_detail=(
+                f"Feature drift: {drift_report.features_drifted} features with "
+                f"PSI>{self.config.psi_retrain_threshold}"
+                if feature_drift_triggered else ""),
+            label_drift_detail=(
                 f"Label drift: flip_rate={label_report.flip_rate_training:.3%}, "
-                f"weighted_impact={label_report.weighted_impact:.3%}"
-            )
-
-        decision = {
-            "should_retrain":      should_retrain,
-            "feature_drift":       feature_drift_triggered,
-            "label_drift":         label_drift_triggered,
-            "reason":              "; ".join(decision_reason) if decision_reason else "No significant drift detected.",
+                f"weighted_impact={label_report.weighted_impact:.3%}"),
+        )
+        should_retrain = decision["should_retrain"]
+        decision.update({
             "drift_report":        drift_report.to_dict() if drift_report else None,
             "label_drift_report":  {
                 "flip_rate":          label_report.flip_rate_training,
@@ -416,7 +521,7 @@ class ContinualLearner:
                 "urgency":            label_report.urgency,
                 "n_reclassified":     label_report.n_reclassified_training,
             },
-        }
+        })
 
         logger.info("Retraining decision: %s -- %s", should_retrain, decision["reason"])
 

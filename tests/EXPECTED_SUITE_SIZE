@@ -7370,4 +7370,25 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5524
+
+# 2026-08-25 -- 5524 -> 5542 (+18). A refusal stops being a negative.
+#
+#   DriftDetector.check raises KeyError rather than report partial coverage as
+#   a completed check. ContinualLearner.run caught that refusal and wrote "No
+#   significant drift detected." to decision_<release>.json -- a durable record.
+#
+#   The decision now carries feature_drift_checked and its reason, mirroring
+#   DriftReport.joint_tests_run one layer down. The honest negative survives;
+#   the false one is unreachable by construction.
+#
+#   These are the module's FIRST tests. A draft that transcribed the decision
+#   left every behavioural case green under sabotage, so the logic was hoisted
+#   into a pure function the tests EXECUTE.
+#
+#   Suite identity digests:
+#       before  af1fe7ad91a63dda01ea2639f5ce0a9776c531ae4403aa55a1e2997f8e0f4d6a
+#       after   bdbf599003e8e977880a272a4d9531e884e4a31d7a8e740e81818b82acb8cff8
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5542
