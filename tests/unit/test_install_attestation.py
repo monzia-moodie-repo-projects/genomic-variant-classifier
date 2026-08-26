@@ -1,6 +1,7 @@
 """An attestation in which the evidence contradicts itself is not evidence.
 
 ATTESTATION-SCHEMA-DRIFT-1, 2026-08-22.
+ATTESTATION-V2-STRUCTURAL-TYPING-INCOMPLETE-1, 2026-08-26.
 
 WHY
 ---
@@ -45,6 +46,12 @@ from genomic_variant_classifier.transactions.install_attestation import (
 
 ADDED = ["tests/unit/test_x.py::test_one", "tests/unit/test_x.py::test_two"]
 
+#: Version 3 records BOTH forms and requires the abbreviation to be a
+#: PREFIX of the full identifier. These are consistent by construction, so
+#: a test that breaks the relationship has to do so DELIBERATELY.
+PRE_OID = "a60f18f" + "1" * 33
+POST_OID = "beefcaf" + "2" * 33
+
 
 def base() -> dict:
     """A minimal, internally consistent, version-2 attestation."""
@@ -58,7 +65,10 @@ def base() -> dict:
         "finished_at": "2026-08-22T07:20:00Z",
         "python": "3.12.10",
         "platform": "Windows-11",
-        "repository": {"pre_head": "a60f18f", "post_head": "beefcaf"},
+        "repository": {
+            "pre_head": "a60f18f", "post_head": "beefcaf",
+            "pre_head_oid": PRE_OID, "post_head_oid": POST_OID,
+        },
         "counter": {"scope": "tests", "before": 100, "after": 102},
         "acceptance": {
             "scope": "tests", "returncode": 0, "passed": 95, "skipped": 7,
@@ -325,3 +335,155 @@ def test_validation_does_not_mutate_the_document():
     d = base(); before = copy.deepcopy(d)
     validate(d)
     assert d == before
+
+
+# ---------------------------------------------------------------------------
+# 4. Version-3 typing -- a field whose SHAPE is part of its meaning
+# ---------------------------------------------------------------------------
+#
+# ATTESTATION-V2-STRUCTURAL-TYPING-INCOMPLETE-1. Version 2 enforced cross-field
+# consistency and almost nothing about primitive types. An audit on 2026-08-26
+# applied the typing `install_attestation_reconstruction.py` had used since
+# 2026-08-25 to the preserved corpus:
+#
+#     version-2 documents preserved   8
+#     their ONLY typing failure       repository.pre_head, post_head
+#     every other typed field         already conformed
+#
+# So the corpus was already fully typed but for one field pair -- and MEASURED
+# across the delivered installers, 102 `rev-parse --short` call sites and ZERO
+# full ones. No producer had ever captured a full object identifier.
+#
+# Version 3 RECORDS BOTH, and binds them: the abbreviation must be a PREFIX of
+# the full identifier. Two independently recorded fields would double the
+# surface for a wrong value while proving nothing; the prefix relationship is
+# what makes the pair evidence.
+
+
+def test_a_version_two_document_is_no_longer_judged():
+    """Eight of them are preserved. They join version 1 as history.
+
+    The sibling of `test_version_one_documents_are_not_judged_by_this_schema`,
+    and it exists because version 2 stopped being the judged version on
+    2026-08-26 -- a fact with no test until this one.
+    """
+    d = base(); d["schema_version"] = 2
+    with pytest.raises(AttestationSchemaError) as exc:
+        validate(d)
+    assert "historical evidence" in str(exc.value)
+
+
+def test_the_abbreviation_must_be_a_prefix_of_the_full_identifier():
+    """The rule that makes recording both worth doing."""
+    d = base(); d["repository"]["pre_head"] = "deadbee"
+    with pytest.raises(AttestationSchemaError) as exc:
+        validate(d)
+    assert "not a prefix" in str(exc.value)
+
+
+def test_the_post_abbreviation_must_also_be_a_prefix():
+    d = base(); d["repository"]["post_head"] = "deadbee"
+    with pytest.raises(AttestationSchemaError) as exc:
+        validate(d)
+    assert "not a prefix" in str(exc.value)
+
+
+def test_an_abbreviation_where_the_full_identifier_belongs_is_refused():
+    """The exact shape version 2 accepted for two years of attestations."""
+    d = base(); d["repository"]["pre_head_oid"] = "a60f18f"
+    with pytest.raises(AttestationSchemaError) as exc:
+        validate(d)
+    assert "40-character" in str(exc.value)
+
+
+def test_a_pending_install_may_record_neither_post_identifier():
+    """It never committed, and recording null for both is the truth."""
+    d = base()
+    d["status"] = "INSTALL_APPLIED_PUBLICATION_PENDING"
+    d["publication_error"] = "git add exited 128"
+    d["repository"]["post_head"] = None
+    d["repository"]["post_head_oid"] = None
+    validate(d)
+
+
+def test_one_null_post_identifier_beside_one_value_is_refused():
+    """A state that cannot exist: half-committed."""
+    d = base()
+    d["status"] = "INSTALL_APPLIED_PUBLICATION_PENDING"
+    d["publication_error"] = "git add exited 128"
+    d["repository"]["post_head"] = None
+    with pytest.raises(AttestationSchemaError) as exc:
+        validate(d)
+    assert "cannot exist" in str(exc.value)
+
+
+def test_a_published_document_may_not_have_a_null_post_identifier():
+    d = base()
+    d["repository"]["post_head"] = None
+    d["repository"]["post_head_oid"] = None
+    with pytest.raises(AttestationSchemaError) as exc:
+        validate(d)
+    assert "has a commit" in str(exc.value)
+
+
+def test_an_unformatted_timestamp_is_refused():
+    d = base(); d["started_at"] = "2026-08-26 07:00:00"
+    with pytest.raises(AttestationSchemaError) as exc:
+        validate(d)
+    assert "YYYY-MM-DD" in str(exc.value)
+
+
+def test_a_digest_that_is_not_sixty_four_characters_is_refused():
+    """FABRICATED-DIGEST-3 was a real 16-character prefix with 48 invented
+    characters. A prefix is not a digest, and the schema now says so."""
+    d = base(); d["plan_digest"] = "0" * 16
+    with pytest.raises(AttestationSchemaError) as exc:
+        validate(d)
+    assert "64-character" in str(exc.value)
+
+
+def test_an_uppercase_digest_is_refused():
+    """One digest, one spelling. Two would not compare equal."""
+    d = base(); d["plan_digest"] = "A" * 64
+    with pytest.raises(AttestationSchemaError):
+        validate(d)
+
+
+def test_a_suite_identity_digest_must_be_sixty_four_characters():
+    d = base(); d["suite_transition"]["before_digest"] = "a" * 40
+    with pytest.raises(AttestationSchemaError):
+        validate(d)
+
+
+def test_a_count_that_is_a_string_is_refused():
+    d = base(); d["counter"]["before"] = "100"
+    with pytest.raises(AttestationSchemaError) as exc:
+        validate(d)
+    assert "expected an integer" in str(exc.value)
+
+
+def test_a_boolean_is_not_a_count():
+    """`True` is an int in Python, and it is not a number of tests."""
+    d = base(); d["acceptance"]["failed"] = True
+    with pytest.raises(AttestationSchemaError) as exc:
+        validate(d)
+    assert "expected an integer" in str(exc.value)
+
+
+def test_seconds_that_are_a_string_are_refused():
+    d = base(); d["acceptance"]["seconds"] = "12.5"
+    with pytest.raises(AttestationSchemaError) as exc:
+        validate(d)
+    assert "expected a number" in str(exc.value)
+
+
+def test_a_target_digest_of_the_wrong_length_is_refused():
+    d = base(); d["targets"][0]["post_sha256"] = "1" * 40
+    with pytest.raises(AttestationSchemaError):
+        validate(d)
+
+
+def test_a_target_size_that_is_a_string_is_refused():
+    d = base(); d["targets"][0]["post_size"] = "10"
+    with pytest.raises(AttestationSchemaError):
+        validate(d)

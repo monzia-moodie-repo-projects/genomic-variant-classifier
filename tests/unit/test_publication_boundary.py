@@ -67,7 +67,10 @@ def a_payload(**over):
         "started_at": "2026-08-26T00:00:00Z",
         "finished_at": "2026-08-26T00:01:00Z",
         "python": "3.12.10", "platform": "test",
-        "repository": {"pre_head": "aaaaaaa", "post_head": "bbbbbbb"},
+        "repository": {
+            "pre_head": "aaaaaaa", "post_head": "bbbbbbb",
+            "pre_head_oid": "a" * 40, "post_head_oid": "b" * 40,
+        },
         "counter": {"scope": "tests", "before": 1, "after": 2},
         "acceptance": {
             "scope": "tests", "returncode": 0, "passed": 2, "skipped": 0,
@@ -92,7 +95,8 @@ def a_pending_payload():
     return a_payload(
         status="INSTALL_APPLIED_PUBLICATION_PENDING",
         publication_error="git add exited 128: index.lock exists",
-        repository={"pre_head": "aaaaaaa", "post_head": None})
+        repository={"pre_head": "aaaaaaa", "post_head": None,
+                    "pre_head_oid": "a" * 40, "post_head_oid": None})
 
 
 # ---------------------------------------------------------------------------
@@ -111,13 +115,16 @@ def test_a_pending_attestation_is_a_valid_version_2_document():
 
 
 def test_a_pending_attestation_may_carry_a_null_post_head():
-    """`validate` constrains the KEY SET of `repository`, never the values.
+    """A pending install has no post-commit head because it never committed,
+    and recording null is the truthful thing to do.
 
-    A pending install has no post-commit head because it never committed, and
-    recording null is the truthful thing to do.
+    Version 3 records BOTH the abbreviation and the full object identifier, so
+    BOTH are null here -- and `_check_repository` refuses one of each, because
+    a half-committed install is a state that cannot exist.
     """
     doc = AttestationDocument(payload=a_pending_payload())
     assert doc.payload["repository"]["post_head"] is None
+    assert doc.payload["repository"]["post_head_oid"] is None
 
 
 def test_a_pending_attestation_without_its_error_is_refused():
@@ -209,6 +216,7 @@ def test_the_pending_state_publishes_through_the_SAME_function(tmp_path):
     back = json.loads(out.read_text(encoding="utf-8"))
     assert back["status"] == "INSTALL_APPLIED_PUBLICATION_PENDING"
     assert back["repository"]["post_head"] is None
+    assert back["repository"]["post_head_oid"] is None
     assert back["publication_error"]
 
 

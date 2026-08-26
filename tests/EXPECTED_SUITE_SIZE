@@ -7409,4 +7409,21 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5557
+
+# 2026-08-26 -- 5557 -> 5573 (+16). Typed evidence.
+#
+#   Version 2 enforced cross-field consistency and almost nothing about
+#   primitive types. MEASURED: of eight preserved version-2 documents, the ONLY
+#   typing failure was the repository head pair -- and 102 installer call sites
+#   captured abbreviations, none a full object identifier.
+#
+#   Version 3 records BOTH and requires the abbreviation to be a PREFIX of the
+#   full identifier. Versions 1 and 2 are not migrated.
+#
+#   Suite identity digests:
+#       before  04d981982329a5fa20402d8c97a4e0c3be9b6122053764b8cc950025f9863b4e
+#       after   b99c16fd8b424ae10ee9240e80d0ee8b96256213ce8b3ebd53f8621433df5945
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5573

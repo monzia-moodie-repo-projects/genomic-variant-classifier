@@ -58,11 +58,46 @@ Author: Monzia Moodie
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from enum import Enum
 
 SCHEMA = "gvc.install-attestation"
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
+
+#: MEASURED 2026-08-26, and the reason version 3 exists.
+#:
+#: Version 2 enforced CROSS-FIELD consistency -- counter deltas against
+#: identity deltas, gate totals against collection counts, kind against the
+#: observed sets -- and almost nothing about PRIMITIVE TYPES. An audit of the
+#: preserved corpus applied the typing that
+#: `install_attestation_reconstruction.py` had used since 2026-08-25:
+#:
+#:     version-2 documents preserved            8
+#:     their ONLY typing failure                repository.pre_head, post_head
+#:     every other typed field                  already conformed
+#:
+#: So the corpus was already fully typed but for one field pair -- and that
+#: pair was the one that could not be tightened without changing every
+#: producer. MEASURED across the delivered installers: 102 `rev-parse --short`
+#: call sites and ZERO full ones. Not one installer ever captured a full object
+#: identifier.
+#:
+#: VERSION 3 RECORDS BOTH. `pre_head` keeps the abbreviation git itself prints
+#: and every historical attestation carries; `pre_head_oid` carries the full
+#: forty characters. That follows the reconstruction schema, which already
+#: records `commit_oid` AND `COMMIT_ABBREV`, and resolves a real tension: the
+#: same repository was typing one concept two ways.
+#:
+#: AND THE TWO ARE CHECKED AGAINST EACH OTHER. Recording both is worth nothing
+#: if they may disagree -- two independent fields would simply double the
+#: surface for a wrong value. `_check_repository` requires the abbreviation to
+#: be a PREFIX of the full identifier, which is the only relationship that
+#: makes the pair evidence rather than decoration.
+_OID = re.compile(r"\A[0-9a-f]{40}\Z")
+_ABBREV = re.compile(r"\A[0-9a-f]{7,40}\Z")
+_HEX64 = re.compile(r"\A[0-9a-f]{64}\Z")
+_UTC = re.compile(r"\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\Z")
 
 
 class AttestationSchemaError(ValueError):
@@ -83,7 +118,9 @@ OPTIONAL_TOP_LEVEL = frozenset({
     "amendments", "invariant_migrations", "publication_error",
 })
 
-REQUIRED_REPOSITORY = frozenset({"pre_head", "post_head"})
+REQUIRED_REPOSITORY = frozenset({
+    "pre_head", "post_head", "pre_head_oid", "post_head_oid",
+})
 REQUIRED_COUNTER = frozenset({"scope", "before", "after"})
 REQUIRED_ACCEPTANCE = frozenset({
     "scope", "returncode", "passed", "skipped", "failed", "errors",
@@ -118,8 +155,70 @@ def _exact_keys(where: str, obj, required: frozenset,
             "raise the version, or do not write it.".format(where, unknown))
 
 
+def _typed(where: str, value, pattern, want: str) -> None:
+    """A string field whose SHAPE is part of its meaning."""
+    if not isinstance(value, str) or not pattern.match(value):
+        raise AttestationSchemaError(
+            "{} is {!r}; expected {}. Version 2 accepted any value here, and "
+            "an attestation whose digest is not a digest is not evidence."
+            .format(where, value, want))
+
+
+def _counted(where: str, value) -> None:
+    """An integer field. `True` is an int in Python and is not a count."""
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise AttestationSchemaError(
+            "{} is {!r} of type {}; expected an integer".format(
+                where, value, type(value).__name__))
+
+
+def _check_repository(repo: dict, status: str) -> None:
+    """Both identifiers, and the relationship that makes the pair evidence.
+
+    An abbreviation and a full identifier recorded independently would double
+    the surface for a wrong value while proving nothing. Requiring the short
+    form to be a PREFIX of the long one means a single transcription error is
+    caught here rather than by a reader years later.
+
+    `post_head` and `post_head_oid` are BOTH null when publication did not
+    reach a commit -- and both must be, together. One null beside one value
+    would describe a state that cannot exist.
+    """
+    _typed("repository.pre_head", repo["pre_head"], _ABBREV,
+           "7 to 40 lowercase hexadecimal characters")
+    _typed("repository.pre_head_oid", repo["pre_head_oid"], _OID,
+           "a full 40-character lowercase object identifier")
+    if not repo["pre_head_oid"].startswith(repo["pre_head"]):
+        raise AttestationSchemaError(
+            "repository.pre_head {!r} is not a prefix of pre_head_oid {!r}. "
+            "Recording both is evidence only if they agree."
+            .format(repo["pre_head"], repo["pre_head_oid"]))
+
+    pending = status == InstallStatus.INSTALL_APPLIED_PUBLICATION_PENDING.value
+    short, full = repo["post_head"], repo["post_head_oid"]
+    if short is None or full is None:
+        if not pending:
+            raise AttestationSchemaError(
+                "repository.post_head is null but the status is {!r}. A "
+                "published install has a commit.".format(status))
+        if not (short is None and full is None):
+            raise AttestationSchemaError(
+                "repository.post_head is {!r} and post_head_oid is {!r}. A "
+                "pending install has neither; one of each describes a state "
+                "that cannot exist.".format(short, full))
+        return
+    _typed("repository.post_head", short, _ABBREV,
+           "7 to 40 lowercase hexadecimal characters")
+    _typed("repository.post_head_oid", full, _OID,
+           "a full 40-character lowercase object identifier")
+    if not full.startswith(short):
+        raise AttestationSchemaError(
+            "repository.post_head {!r} is not a prefix of post_head_oid {!r}"
+            .format(short, full))
+
+
 def validate(doc) -> None:
-    """Refuse any document that is not a well-formed version-2 attestation."""
+    """Refuse any document that is not a well-formed version-3 attestation."""
     if not isinstance(doc, dict):
         raise AttestationSchemaError("an attestation must be an object")
     if doc.get("schema") != SCHEMA:
@@ -129,9 +228,11 @@ def validate(doc) -> None:
     if version != SCHEMA_VERSION:
         raise AttestationSchemaError(
             "schema_version is {!r}, and this validator judges version {} only."
-            " Version 1 documents are historical evidence: they are not "
-            "migrated, not upgraded, and not judged against a schema written "
-            "after they were recorded.".format(version, SCHEMA_VERSION))
+            " Versions 1 and 2 are historical evidence: they are not migrated, "
+            "not upgraded, and not judged against a schema written after they "
+            "were recorded. MEASURED 2026-08-26: nine version-1 and eight "
+            "version-2 documents are preserved, and they stay exactly as they "
+            "were emitted.".format(version, SCHEMA_VERSION))
 
     _exact_keys("attestation", doc, REQUIRED_TOP_LEVEL, OPTIONAL_TOP_LEVEL)
     _exact_keys("repository", doc["repository"], REQUIRED_REPOSITORY)
@@ -143,6 +244,28 @@ def validate(doc) -> None:
     status = doc["status"]
     if status not in {s.value for s in InstallStatus}:
         raise AttestationSchemaError("unknown status {!r}".format(status))
+
+    # ---- version-3 typing, in the order a reader would check it ----------
+    _check_repository(doc["repository"], status)
+    for field in ("started_at", "finished_at"):
+        _typed(field, doc[field], _UTC, "YYYY-MM-DDTHH:MM:SSZ")
+    _typed("plan_digest", doc["plan_digest"], _HEX64,
+           "a 64-character lowercase SHA-256 digest")
+    for field in ("before_digest", "after_digest"):
+        _typed("suite_transition." + field, doc["suite_transition"][field],
+               _HEX64, "a 64-character lowercase SHA-256 digest")
+    for field in ("before_count", "after_count"):
+        _counted("suite_transition." + field, doc["suite_transition"][field])
+    for field in ("before", "after"):
+        _counted("counter." + field, doc["counter"][field])
+    for field in ("passed", "skipped", "failed", "errors", "xfailed",
+                  "xpassed", "warnings", "returncode"):
+        _counted("acceptance." + field, doc["acceptance"][field])
+    if not isinstance(doc["acceptance"]["seconds"], (int, float)) or \
+            isinstance(doc["acceptance"]["seconds"], bool):
+        raise AttestationSchemaError(
+            "acceptance.seconds is {!r}; expected a number".format(
+                doc["acceptance"]["seconds"]))
     pending = status == InstallStatus.INSTALL_APPLIED_PUBLICATION_PENDING.value
     has_error = "publication_error" in doc
     if pending != has_error:
@@ -157,6 +280,9 @@ def validate(doc) -> None:
             "is not an install")
     for i, t in enumerate(doc["targets"]):
         _exact_keys("targets[{}]".format(i), t, REQUIRED_TARGET)
+        _typed("targets[{}].post_sha256".format(i), t["post_sha256"], _HEX64,
+               "a 64-character lowercase SHA-256 digest")
+        _counted("targets[{}].post_size".format(i), t["post_size"])
 
     tr = doc["suite_transition"]
     if tr["kind"] not in VALID_KINDS:
