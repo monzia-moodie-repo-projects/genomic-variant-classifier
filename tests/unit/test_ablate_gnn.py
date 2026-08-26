@@ -4,9 +4,7 @@ summarize() is a pure metric reducer -- it must be correct without a GPU because
 its JSON rows feed the per-model ML-comparison docs and the gat-vs-gps sweep.
 Guarded on torch_geometric because importing ablate_gnn pulls in models.gnn."""
 import math
-import warnings
 
-warnings.filterwarnings("ignore")
 import pytest
 
 pytest.importorskip("torch_geometric")

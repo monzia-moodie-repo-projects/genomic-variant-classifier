@@ -34,9 +34,7 @@ Integration; skips only on an under-provisioned local machine.
 """
 from __future__ import annotations
 
-import warnings
 
-warnings.filterwarnings("ignore")
 
 import numpy as np
 import pytest

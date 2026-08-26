@@ -1,5 +1,3 @@
-import warnings
-warnings.filterwarnings("ignore")
 import pytest
 pytest.importorskip("torch_geometric")  # local safety net only: PyG is PINNED
 # (torch-geometric==2.7.0, requirements.txt) and CI FAILS the build if it is not

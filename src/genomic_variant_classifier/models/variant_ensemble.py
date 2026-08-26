@@ -59,7 +59,6 @@ from __future__ import annotations
 from datetime import timezone
 
 import logging
-import warnings
 import functools
 from dataclasses import dataclass
 from pathlib import Path
@@ -139,7 +138,6 @@ except ImportError:
     logger.debug(
         "mc_dropout deps not available -- mc_dropout/deep_ensemble models will be skipped."
     )
-warnings.filterwarnings("ignore", category=UserWarning)
 
 # ---------------------------------------------------------------------------
 # Feature definitions. THE contract: TABULAR_FEATURES + EXPECTED_TABULAR_FEATURE_COUNT

@@ -7426,4 +7426,22 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5573
+
+# 2026-08-26 -- 5573 -> 5583 (+10). Filters stop leaking.
+#
+#   Five module-level `filterwarnings` calls applied from import for the
+#   remainder of the process -- four of them bare, one of them in the library,
+#   where it reached every consumer. MEASURED: they suppressed NOTHING in their
+#   own modules, and the suite's warning count varied 33 to 914 with no source
+#   change, because it depended on collection order.
+#
+#   The removals are DERIVED by parsing, not hardcoded, and the import is
+#   dropped only where the name is then unused.
+#
+#   Suite identity digests:
+#       before  b99c16fd8b424ae10ee9240e80d0ee8b96256213ce8b3ebd53f8621433df5945
+#       after   7f9e545b6e9295921ae1830a484c0b8fbf92b9d6a50e2fbb41510fa8655dda38
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5583
