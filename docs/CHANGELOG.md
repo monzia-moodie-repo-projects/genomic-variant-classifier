@@ -1,3 +1,57 @@
+## 2026-08-26 (PUBLICATION-BOUNDARY) -- evidence reaches disk one way
+
+One commit, `66426c7` -> `53d6034`. The ratchet moved 5542 -> 5557.
+Document: docs/sessions/SESSION_2026-08-26_evidence-reaches-disk-one-way.md
+
+### Attempted
+- Close the last dual-authority defect in the publication path: two ways for
+  evidence to reach disk, only one of them validated.
+
+### Fixed
+- PENDING-ATTESTATION-BYPASSES-SCHEMA-VALIDATION-1. AttestationDocument
+  validated and serialised but did not WRITE, so every caller opened a file
+  itself and the pending path skipped construction -- and therefore validation
+  -- entirely. MEASURED across THIRTY-THREE delivered installers: all of them.
+- publish() is now the only way evidence reaches disk. It refuses a raw dict
+  (the TYPE is what proves validation happened), an existing destination
+  (evidence is written once), and a missing parent directory (creating one
+  hides a misconfigured path until an audit cannot find the artifact). It
+  re-parses its own output, proving the BYTES validate rather than the object
+  that produced them.
+- A static guard refuses any module that serialises an attestation outside the
+  owner. Parsed, not grepped. It ran against the real package and passed:
+  across 197 json.dump/dumps call sites, none is an offender.
+
+### Failed (and why)
+- The finding carried a stale census of "twenty-two installers". The probe
+  measured THIRTY-THREE -- a count six days old, understated by half, and
+  including four installers written the day before by an author who had just
+  applied the opposing rule in those same files.
+- The re-parse could not be shown firing, and by this repository's own standard
+  -- suite_transition.py DELETED three unreachable checks -- it had to become
+  demonstrable or be removed. Measurement found the reachable case:
+  AttestationDocument is a FROZEN dataclass whose payload is a MUTABLE dict.
+- I called one gate timing evidence that GATE-DURATION-INCREASED-1 "weakens".
+  Tabulating the series refuted that: 892-908s pre-shift against 1305-1570s
+  post-shift, bands that do not overlap. I had also compared pytest's internal
+  timing against the wall-clock band -- two different quantities.
+- A probe's status counter conflated two artifact classes and reported a
+  well-formed reconstruction as `<none>`.
+
+### Learned
+- The pending state was ALWAYS validatable. InstallStatus declares it, validate
+  requires publication_error exactly when it is set, and nothing constrains
+  post_head's VALUE. The schema anticipated the state and the pending path
+  never used it -- so the repair routes an existing state through an existing
+  validator rather than inventing a shape. Measuring that question first is
+  what kept this from being a different unit.
+- Thirty-three scripts were not the target, because the thirty-fourth would
+  repeat the defect. A boundary in the package plus a guard that can be shown
+  firing on a planted offender is durable; editing historical artifacts is not.
+- Reading a number without checking WHICH QUANTITY it measures produced two of
+  this session's four errors, and both were caught by tabulating the series
+  rather than recalling it.
+
 ## 2026-08-25 (D-SESSION-10, CONTINUAL-1) -- a refusal stops being a negative result
 
 Two commits, `47646ef` -> `1ea45de`. The ratchet held at 5524 through a NEUTRAL
