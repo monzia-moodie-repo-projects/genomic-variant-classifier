@@ -7391,4 +7391,22 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5542
+
+# 2026-08-25 -- 5542 -> 5557 (+15). One path for evidence.
+#
+#   AttestationDocument validated and serialised but did not WRITE, so callers
+#   opened files themselves and the pending path skipped construction entirely.
+#   MEASURED: thirty-three delivered installers, all of them.
+#
+#   The pending state was ALWAYS validatable -- the schema declares it, and
+#   nothing constrains post_head's value. publish() is now the only way evidence
+#   reaches disk, and a static guard refuses any module that serialises an
+#   attestation itself.
+#
+#   Suite identity digests:
+#       before  bdbf599003e8e977880a272a4d9531e884e4a31d7a8e740e81818b82acb8cff8
+#       after   04d981982329a5fa20402d8c97a4e0c3be9b6122053764b8cc950025f9863b4e
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5557

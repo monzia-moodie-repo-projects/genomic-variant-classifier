@@ -244,3 +244,80 @@ class AttestationDocument:
             raise AttestationSchemaError(
                 "not valid JSON: {}".format(exc)) from exc
         return cls(payload=payload)
+
+
+class PublicationError(RuntimeError):
+    """Evidence could not be written to the place it was asked to go."""
+
+
+def publish(document: "AttestationDocument", destination) -> "Path":
+    """Write a VALIDATED attestation. The only way evidence reaches disk.
+
+    PENDING-ATTESTATION-BYPASSES-SCHEMA-VALIDATION-1, repaired 2026-08-26.
+
+    Until this function existed, `AttestationDocument` validated and serialised
+    but did not WRITE -- so every caller opened a file itself, and two paths
+    diverged:
+
+        success   payload -> AttestationDocument -> to_json -> caller writes
+        pending   payload -> json.dumps -------------------> caller writes
+
+    MEASURED 2026-08-26 across THIRTY-THREE delivered installers: every single
+    `except PublicationPending` handler took the second path. Not twenty-two, as
+    a stale census claimed -- and the count includes four installers written on
+    2026-08-25 by an author who had just applied the opposing rule to the
+    transition record and the target record in those same files.
+
+    THE PENDING STATE WAS ALWAYS VALIDATABLE. `InstallStatus` declares
+    INSTALL_APPLIED_PUBLICATION_PENDING; `validate` requires `publication_error`
+    to be present exactly when the status is pending; and nothing constrains
+    `post_head`'s VALUE, only that the key exists. The schema anticipated this
+    state from the start. The pending path simply never used it.
+
+    So there is no second function here for pending documents. There is ONE
+    path, and a pending attestation reaches it by being CONSTRUCTED like any
+    other -- which is where validation happens.
+
+    WHAT THIS REFUSES, AND WHY EACH REFUSAL IS NOT PARANOIA:
+
+      - a payload that is not an AttestationDocument. A dict cannot be
+        published, because a dict has not been validated. The type IS the
+        proof.
+      - a destination that already exists. Evidence is written once; silently
+        overwriting an attestation would destroy the record of what an earlier
+        install claimed.
+      - a destination whose parent does not exist. Creating directories to
+        store evidence hides a misconfigured path until an audit cannot find
+        the artifact.
+
+    AND IT RE-PARSES ITS OWN OUTPUT before returning. `to_json` could in
+    principle emit text that no longer validates -- a non-serialisable value
+    coerced by `default=str`, for instance. Rendering and re-reading proves the
+    BYTES are a valid attestation, not merely the object that produced them.
+    """
+    from pathlib import Path as _Path
+
+    if not isinstance(document, AttestationDocument):
+        raise PublicationError(
+            "publish() takes an AttestationDocument, not {}. A raw payload has "
+            "not been validated, and the type is what proves it was."
+            .format(type(document).__name__))
+
+    target = _Path(destination)
+    if target.exists():
+        raise PublicationError(
+            "{} already exists. Evidence is written once; overwriting an "
+            "attestation would destroy the record of what an earlier install "
+            "claimed.".format(target))
+    if not target.parent.is_dir():
+        raise PublicationError(
+            "the parent directory {} does not exist. Creating directories to "
+            "store evidence hides a misconfigured path until an audit cannot "
+            "find the artifact.".format(target.parent))
+
+    text = document.to_json()
+    # Proves the BYTES validate, not merely the object that produced them.
+    AttestationDocument.from_json(text)
+    with open(str(target), "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
+    return target
