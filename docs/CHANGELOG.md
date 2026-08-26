@@ -1,3 +1,80 @@
+## 2026-08-25 (D-SESSION-10, CONTINUAL-1) -- a refusal stops being a negative result
+
+Two commits, `47646ef` -> `1ea45de`. The ratchet held at 5524 through a NEUTRAL
+documentation unit, then moved to 5542.
+Document: docs/sessions/SESSION_2026-08-25_a-refusal-stops-being-a-negative.md
+
+### Attempted
+- Record four commits, then close the last measured fail-open scientific
+  defect: a drift assessment that raised being reported as finding nothing.
+
+### Fixed
+- CONTINUAL-FEATURE-DRIFT-FAILURE-AS-NO-DRIFT-1. DriftDetector.check RAISES
+  rather than degrading -- "Refusing to report partial coverage as a completed
+  drift check" -- and ContinualLearner.run caught those DELIBERATE REFUSALS
+  with a bare `except Exception`, logged a warning, and wrote "No significant
+  drift detected." into decision_<release>.json, a durable artifact. The
+  assessment layer's refusal was inverted into the exact claim it refused to
+  make. Not hypothetical: the Run-15 reference carries 78 features against a
+  contract of 95, so the KeyError is the EXPECTED path.
+- The decision now carries feature_drift_checked and its reason, mirroring
+  DriftReport.joint_tests_run one layer down -- the layer that OWNS the fact.
+  The vocabulary was NOT taken from DriftReadinessReason, which answers "why
+  may an assessment not PROCEED"; this one proceeded and raised, and
+  drift_readiness.py states the rule: no layer may author a fact owned by a
+  downstream layer.
+- The import left the try block: an ImportError is a deployment fault, not a
+  drift result. The log moved from warning to error.
+- CONTINUAL-TRAINER-UNTESTED-1. A 726-line module driving the retraining
+  decision received its first 18 tests.
+- DETECTOR-CONTRACT-COMMENT-STALE-1. drift_detector.py cited a 97-feature
+  contract where the sole definition is 95 -- and 97 was ITSELF corrected once
+  by a preflight gate. The arithmetic moved with it: 97 - 78 = 19 but
+  95 - 78 = 17, so correcting one number alone would have left an inconsistent
+  pair. Nothing binds a comment to a constant, which is why it survived.
+- STALE-NUMBER-GUARD-CANNOT-SEE-HISTORY-1. The first guard rejected any line
+  containing 97 and "feature", which would have forbidden the sentence
+  recording the correction. A superseded figure may APPEAR and may not be
+  ASSERTED.
+
+### Failed (and why)
+- A probe hardcoded `monitoring/continual_trainer.py` from a day-old
+  recollection; the module is under `training/`. The probe reported ABSENT --
+  correctly -- and now DERIVES the path by searching the tracked file list.
+- I nearly asserted "ContinualLearner has no callers" from a census that never
+  searched that name. Zero hits from a query never issued is not absence.
+- The installer demanded a trailing newline from a file that has none, and
+  REFUSED ITS OWN CORRECT PAYLOAD. Fourth occurrence of one rule: every
+  property of an existing file is a property to PRESERVE unless it is the one
+  being repaired.
+- The installer's stale-number guard could not see history, and refused its own
+  correct payload a second time -- the identical defect I had repaired in the
+  test file within the hour.
+- The first test draft TRANSCRIBED the decision expression. Sabotage showed the
+  weakness exactly: deleting the not-checked branch left every behavioural test
+  GREEN, because none ran module code.
+- Two sabotages reported NOTHING FAILED and both were INVALID -- one removed an
+  import rather than moving it, one kept the call it claimed to delete.
+- A placeholder SuiteTransition(expected_added_nodeids=None) raises TypeError;
+  caught by exercising the real primitive before shipping.
+
+### Learned
+- A guard that cannot observe the thing it guards is the shape this repository
+  keeps finding, and a TRANSCRIPTION is that shape in test form. The decision
+  was hoisted into a pure module-level function the tests EXECUTE; the same
+  sabotage now turns four cases red instead of one.
+- A rule enforced by structure outperforms a rule enforced by memory. Three
+  times this session a fix was applied in one place and reintroduced in the
+  next: sys.modules registration, preimage-class method calls, and the
+  history-blind number guard.
+- An unpinned postimage is not an unverified one. The drift_detector.py
+  derivation produced the same digest in the dry run and the apply, because the
+  preimage is pinned, the anchor is unique, and the replacement is
+  deterministic.
+- Removing a wrong number is not the same as stating the right one. The
+  installer now REQUIRES the corrected values to be present, not merely the
+  stale ones absent.
+
 ## 2026-08-24 to 2026-08-25 (README-1, METHODS M1, DRIFT-1 P0, P0-R) -- proof must precede irreversibility
 
 Four commits, `6a6ce47` -> `47646ef`. The ratchet moved 5435 -> 5524 across two
