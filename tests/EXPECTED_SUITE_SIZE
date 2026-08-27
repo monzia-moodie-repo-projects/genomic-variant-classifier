@@ -7461,4 +7461,20 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5591
+
+# 2026-08-27 -- 5591 -> 5642 (+51). A contract before the data.
+#
+#   DRIFT-1 Phase 1B. RepresentationIdentity says what the COLUMNS are;
+#   SourceManifest says WHICH RELEASES produced them. Population identity --
+#   which ROWS -- stays with evaluation.population and is not duplicated.
+#
+#   Seven of the eight facts Phase 1 needs already had owners; source-release
+#   identity did not, and a Layer-B scan reported a false one.
+#
+#   Suite identity digests:
+#       before  7b21cb85f73748d14fba90746b800f4a0f8dc8b864e0f328c26a65b597ceeb4f
+#       after   2c3aa96bdaa631bf6f469d566c65937b493be7900e954e676f63c9be4872b49a
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5642
