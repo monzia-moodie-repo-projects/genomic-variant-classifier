@@ -1,6 +1,6 @@
 # GenAssoc / genomic-variant-classifier - Living Roadmap
 
-**Version: 2026-08-23 (v3)  |  Owner: Monzia Moodie**
+**Version: 2026-08-26 (v3, revised)  |  Owner: Monzia Moodie**
 
 Repo: github.com/monzia-moodie-repo-projects/genomic-variant-classifier
 
@@ -32,9 +32,9 @@ the end of every session; Drive copy via rclone genvarcla:.*
 > file then grew to 466 kilobytes. This one archives to a separate address.
 
 *v3 note: this document carries PRESENT STATE. Discharged history lives in the
-archive. Every headline number below was measured from the package on
-2026-08-23 and is named with its source, so that it can be re-derived rather
-than transcribed.*
+archive. Every headline number below is NAMED WITH ITS SOURCE so that it can be
+re-derived rather than transcribed, and is maintained against that source
+rather than frozen at the commit where the table was built.*
 
 # 1. Project identity & goals
 
@@ -62,10 +62,29 @@ Production-grade multi-modal genomic disease-association program. Core: an ACMG/
 
 # 3. Current state snapshot (2026-08-23)
 
-**Every number here was MEASURED on 2026-08-23 at `f2b93ff`, and the source is
-named.** Earlier snapshots -- 2026-06-10, 2026-07-12, 2026-07-15 and 2026-07-18
--- are in the archive, together with the supersession notices they wrote about
-each other.
+**Every number here names the artifact it is read FROM, and is maintained
+against it.** The table was constructed on 2026-08-23 at `f2b93ff`; the figures
+in it are not frozen at that commit, and the right-hand column is what makes
+each one re-derivable rather than transcribed.
+
+> **ROADMAP-PROVENANCE-CLAIM-STALE-1, repaired 2026-08-26.** This paragraph
+> previously read *"Every number here was MEASURED on 2026-08-23 at
+> `f2b93ff`"*. That was true when written and false thereafter: eleven
+> consecutive installers patched the collected count in the table below --
+> 5,436 through 5,583 -- while leaving the sentence claiming where it had been
+> measured. The figure was correct throughout; the PROVENANCE was not.
+>
+> It is the shape `TEMPORALCITE-1` records: a citation whose subject moved. A
+> same-width substitution is invisible to a length check, and nothing read the
+> prose around the number for eleven commits.
+>
+> `tests/unit/test_roadmap_counters_agree.py` now binds the three counters --
+> this table, the README badge and `tests/EXPECTED_SUITE_SIZE` -- so a figure
+> here that drifts from its source FAILS rather than merely misleading.
+
+Earlier snapshots -- 2026-06-10, 2026-07-12, 2026-07-15 and 2026-07-18 -- are
+in the archive, together with the supersession notices they wrote about each
+other.
 
 | Quantity | Value | Measured from |
 |---|---|---|
@@ -75,7 +94,7 @@ each other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **5,583 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **5,591 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -136,7 +155,24 @@ From the archive's final `NEXT` section, dated 2026-08-08, reproduced exactly:
 
 **Nothing in this section supersedes that.** The work committed between
 2026-08-21 and 2026-08-23 was repository infrastructure: it did not touch Commit
-C, BASELINE-1, DRIFT-1, OP-1, OP-2 or RETRAIN-GATE, and none of those is closed.
+C, BASELINE-1, DRIFT-1, OP-1, OP-2 or RETRAIN-GATE.
+
+**Since 2026-08-23, three of those have moved.** Stated by identifier and
+commit rather than characterised, because a plan is the worst place for a
+summary of work that has not been read:
+
+| Item | State | Commit |
+|---|---|---|
+| Commit C (SealedEvaluation) | CLOSED | recorded in `docs/sessions/` |
+| BASELINE-1 | CLOSED | recorded in `docs/sessions/` |
+| README-1 | CLOSED | `7cc213d` |
+| DRIFT-1 | PHASE 0 CLOSED; the assessment itself remains open | `abcb22e` |
+| OP-1 step 5, OP-2, RETRAIN-GATE | UNTOUCHED | -- |
+
+DRIFT-1's phase 0 made the monthly job stop reporting a verdict it could not
+reach; it did not make the assessment possible. `CONTINUAL-1` (`1ea45de`)
+closed the sibling defect in the trainer, where a drift check that RAISED was
+rendered as a finding of no drift.
 
 ## What changed since, and why it is characterised rather than listed
 

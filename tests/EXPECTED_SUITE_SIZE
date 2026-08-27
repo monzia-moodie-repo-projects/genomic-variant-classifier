@@ -7444,4 +7444,21 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5583
+
+# 2026-08-26 -- 5583 -> 5591 (+8). Three counters, one quantity.
+#
+#   docs/ROADMAP.md claimed its figures "was MEASURED on 2026-08-23 at
+#   f2b93ff" while eleven installers patched one of them beneath the sentence.
+#   The figure was right; the provenance was not.
+#
+#   The collected count now appears in three places that are BOUND rather than
+#   maintained in parallel: this file, the README badge, and the roadmap table.
+#   Any one drifting fails, and the failure names which.
+#
+#   Suite identity digests:
+#       before  7f9e545b6e9295921ae1830a484c0b8fbf92b9d6a50e2fbb41510fa8655dda38
+#       after   7b21cb85f73748d14fba90746b800f4a0f8dc8b864e0f328c26a65b597ceeb4f
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5591
