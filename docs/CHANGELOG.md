@@ -1,3 +1,68 @@
+## 2026-08-27 (ROADMAP-PROVENANCE, DRIFT-PHASE-1B) -- what already governs this
+
+Two commits, `e12f5c8` -> `694da7f`. The ratchet moved 5583 -> 5591 -> 5642.
+Document: docs/sessions/SESSION_2026-08-27_what-already-governs-this.md
+
+### Attempted
+- Repair a roadmap that asserted where its figures were measured while eleven
+  installers patched one of them beneath the sentence, and then begin DRIFT-1
+  Phase 1 by establishing what already owns each fact it needs.
+
+### Fixed
+- ROADMAP-PROVENANCE-CLAIM-STALE-1. docs/ROADMAP.md asserted in TWO places that
+  every figure "was MEASURED on 2026-08-23 at f2b93ff". Eleven consecutive
+  installers patched the collected count with a SAME-WIDTH substitution --
+  invisible to a length check -- and left both sentences standing.
+- AND READING WAS NOT ENOUGH. The roadmap was read in full, ONE claim was found
+  and repaired, and the new test then FAILED on the repaired file, naming a
+  SECOND claim the reading had missed. Reading found one; the predicate found
+  both.
+- DRIFT-1 Phase 1B: RepresentationIdentity says what the COLUMNS are,
+  SourceManifest says WHICH RELEASES produced them, and population identity --
+  which ROWS -- stays with evaluation.population. Of the eight facts Phase 1
+  needs, SEVEN already had owners and this unit consumed them.
+- A manifest rather than a release, because the semantic plane joins many
+  sources. Same ClinVar variants, new dbNSFP release, CADD moves: the
+  population did not drift, the measurement process did.
+
+### Failed (and why)
+- RATCHET-MOVING-UNITS-RENDER-THREE-COUNTERS-1 was ALREADY CLOSED before
+  e54c328 claimed to close it. test_roadmap_claims.py binds nine claim sites to
+  seven live quantities with exact equality, carrying the identical regular
+  expression I re-implemented; test_readme_claims.py binds every README site
+  and was rebuilt in July because a tolerance of 50 once hid a 17-test drift.
+  Three of my eight cases duplicate stronger originals.
+  DUPLICATE-COUNTER-BINDING-1, and the commit is NOT amended.
+- Layer B reported a false owner for source-release identity, matching
+  `anchor_manifest_sha256` in moe_identity.py -- a field about mechanistic
+  anchor sets. All three of its output lines were wrong.
+  PROBE-AUTHORITY-MATCH-UNVERIFIED-1: a substring match is not a concept match.
+- I excluded `.venv` with `in p.parts`, an equality test against a directory
+  actually named `.venv-drift`. Twenty-seven thousand third-party matches
+  flooded a scan.
+- I attributed two truncated captures to output limits. The third printed
+  UnicodeEncodeError on a `->` arrow: my ad-hoc readthroughs had no encoding
+  guard, though every probe I write does.
+- I published pre-correction test files under the correct names; only a digest
+  mismatch caught it. PAYLOAD-STALE-IN-OUTPUTS-1.
+
+### Learned
+- VARIANT IDENTITY IS FORMAT-CANONICAL, NOT BIOLOGY-CANONICAL. Four
+  differently-named functions each READ as though they solved the biological
+  case and none does: make_variant_id formats, locus_key strips a prefix,
+  normalize_allele maps EMPTY tokens, and test_normalized_allele_equivalence
+  compares absent-allele spellings. Two representations of one indel remain two
+  identities, so the canonicalisation sabotage would FAIL today and is a
+  release-blocking dependency of Phase 1D.
+- TRANSACTION-CANNOT-EXPRESS-DELETION-1 is not a journal limitation. The
+  journal already captures the preimage and branches on existence; what blocks
+  deletion is the attestation target vocabulary, where a deleted target has no
+  postimage to digest. That needs schema version 4.
+- Sabotage found two defects in Phase 1B's own design that passing tests could
+  not: order-independence enforced twice, so neither mechanism could be shown
+  to matter, and a test that changed two fields at once, proving "something
+  matters" rather than naming which.
+
 ## 2026-08-26 (D-SESSION-13, FILTER-SCOPE) -- a mechanism refuted by its own repair
 
 Two commits, `d73f526` -> `a78a160`. The ratchet held at 5573 through a NEUTRAL
