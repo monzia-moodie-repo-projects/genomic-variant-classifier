@@ -7477,4 +7477,20 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5642
+
+# 2026-08-27 -- 5642 -> 5655 (+13). A layer gets its words.
+#
+#   drift_readiness.py reserves five layers and owns only the first. The
+#   ADMISSION layer -- "whether populations are comparable" -- now has its
+#   vocabulary, emitted by nothing, with a test proving each member unemitted.
+#
+#   The drift reference carries 78 features and one machine-local path as its
+#   entire provenance. That is true whichever way it is later rebuilt.
+#
+#   Suite identity digests:
+#       before  2c3aa96bdaa631bf6f469d566c65937b493be7900e954e676f63c9be4872b49a
+#       after   a77a9053e90a692029c9dbab6031855d05a2b19491f63e5688d1fc1ee5ff7c86
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5655

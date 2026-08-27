@@ -59,6 +59,13 @@ the first line, which is why `NO_NEW_OBSERVATION_POPULATION` exists in the
 vocabulary but is emitted by nothing here: only a discovery implementation may
 claim it.
 
+The same holds for the four ADMISSION reasons added on 2026-08-27 --
+`REFERENCE_REPRESENTATION_UNIDENTIFIED`, `REPRESENTATION_MISMATCH`,
+`SOURCE_RELEASE_DIVERGENT` and `POPULATION_UNATTRIBUTED`. They name states the
+third layer may report; nothing here emits them, and a test proves each one is
+unemitted. Adding them now removes a future migration without asserting a
+verdict this layer cannot reach.
+
 DEPENDENCIES
 ============
 STANDARD LIBRARY ONLY, and a test enforces it. `drift_detector.py` imports
@@ -138,6 +145,51 @@ class DriftReadinessReason(str, Enum):
     #: Emitted ONLY by a discovery authority that looked and found nothing.
     #: Nothing in this module emits it, and a test proves that.
     NO_NEW_OBSERVATION_POPULATION = "no_new_observation_population"
+
+    # --- the ADMISSION layer, added 2026-08-27 ---------------------------
+    #
+    # Third of the five layers named above: "Admission code may state whether
+    # populations are comparable." That layer is reserved and unoccupied, and
+    # these members are present for the reason this module already gives for
+    # NO_NEW_OBSERVATION_POPULATION -- "its absence from the vocabulary would
+    # force a future migration; its emission here would be a claim no layer at
+    # this level owns."
+    #
+    # NOTHING IN THIS MODULE EMITS ANY OF THEM, and a test proves each one.
+    #
+    # They describe the reference as MEASURED on 2026-08-27:
+    # `data/reference/drift/run15_reference_profile.json` is 1,089,400 bytes,
+    # format_version 1, 78 features over 1,038,974 rows, and its entire
+    # provenance is one field -- `source`, holding a machine-local path,
+    # `outputs\run15_rerun_report\full\splits\X_train.parquet`. A path names
+    # where a file sat, not what was in it.
+
+    #: Emitted ONLY by admission code. The reference exists and is
+    #: PSI-verified against its own matrix, but records no representation: no
+    #: ordered feature contract, no preprocessing policy digest, no source
+    #: manifest. Nothing can be shown to inhabit the same representation as
+    #: something that does not state one.
+    REFERENCE_REPRESENTATION_UNIDENTIFIED = "reference_representation_unidentified"
+
+    #: Emitted ONLY by admission code. Both sides state a representation and
+    #: the two differ -- a reordered column, a substituted feature, a changed
+    #: missingness policy. Distinct from the above: here the comparison is
+    #: refusable BECAUSE both sides were identified.
+    REPRESENTATION_MISMATCH = "representation_mismatch"
+
+    #: Emitted ONLY by admission code. The populations are comparable and the
+    #: SOURCE RELEASES are not -- same variants, a new dbNSFP or gnomAD
+    #: release, values that moved because the measurement process changed. A
+    #: distribution shift attributable to a release is not population drift,
+    #: and reporting it as such would be a scientific error.
+    SOURCE_RELEASE_DIVERGENT = "source_release_divergent"
+
+    #: Emitted ONLY by admission code. A population was discovered and cannot
+    #: be identified -- no membership fingerprint -- so "the same rows" is
+    #: unprovable. `EvaluationPopulation` returns None rather than a digest for
+    #: exactly this state, because a digest of nothing would let two
+    #: populations of unknown equivalence compare equal.
+    POPULATION_UNATTRIBUTED = "population_unattributed"
 
 
 @dataclass(frozen=True)
