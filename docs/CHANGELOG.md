@@ -1,3 +1,71 @@
+## 2026-08-28 (DRIFT-ADMISSION-VOCABULARY, 1B.1, 1B.3) -- claims the data disproves
+
+Three commits, `28a3bfb` -> `cffc51f`. The ratchet moved 5642 -> 5655 -> 5659 -> 5682.
+Document: docs/sessions/SESSION_2026-08-28_claims-the-data-disproves.md
+
+### Attempted
+- Give the reserved admission layer its vocabulary, decompose the Phase 1B
+  identity types after two defects were reproduced, and then correct the source
+  kernel after four more were measured.
+
+### Fixed
+- The ADMISSION layer -- third of the five `drift_readiness.py` names -- has
+  four reasons, emitted by NOTHING, with a test proving each unemitted.
+- Phase 1B.1: `RepresentationIdentity` carried `source_manifest_sha256`, so a
+  ClinVar 2026-07 -> 2026-08 comparison with dbNSFP HELD was REFUSED -- exactly
+  the temporal comparison DRIFT-1 exists to make. `SourceRelease` hashed
+  `retrieved_at`, so a re-download changed the evidence digest AND was reported
+  as a release change.
+- Phase 1B.3: five corrections, each MEASURED first. Across 3,420 artifact
+  files, TEN authorities hold more than one artifact kind and one module
+  consumes THREE ClinVar artifacts, so "one analysis reads ONE artifact per
+  source" was false ON THE PACKAGE'S OWN MODULES. Mandatory GRCh37/GRCh38 was
+  false for SIX of sixteen authorities. No source registry existed, so three
+  spellings of ClinVar were three identities. A role change moved the digest
+  with no delta. The delta reported one fact where three moved.
+
+### Failed (and why)
+- MONZIA ASKED ME TO DELETE TWO README LINES AND I DID NOT. He removed them
+  himself, and the next push was rejected because the remote had a commit this
+  clone lacked. That cost him work and cost several exchanges to diagnose.
+- A published attestation's `post_head` no longer exists: rebasing onto that
+  README commit replayed `0c5008d` as `cffc51f`. The tree is byte-identical and
+  the certified transition unchanged, but the identifier is now unreachable.
+  ATTESTATION-HEAD-SUPERSEDED-BY-REBASE-1.
+- I declared a transition as 51 removed / 55 added by subtracting FILE TOTALS.
+  The installer refused at 49: two names existed in BOTH images and were
+  unchanged, not retired and re-added.
+- A constant-block slice bounded by the LAST module-level assignment deleted
+  NINE of ten definitions, and `ast.parse` accepted the result. Caught only by
+  comparing the definition set before and after.
+- D-SESSION-16 WAS DRAFTED, DRY-RUN CLEAN, AND NEVER APPLIED. Discovered only
+  because this unit's changelog preimage was D-SESSION-15's postimage. This
+  record supersedes it and covers all three commits, so nothing is
+  undocumented -- but the repository already holds
+  SESSION_2026-08-24_part2_writing-the-analysis-is-not-applying-it.md, and I
+  made the mistake that document exists to prevent.
+- An ad-hoc collection command wrote its output into the REPOSITORY ROOT, and
+  the next installer refused on an unclean tree. Every probe I deliver takes
+  --out; the one-off commands between them do not, and that is where this
+  session's failures cluster.
+- I pinned a retired claim from MEMORY. Written as adjacent string literals, it
+  does not exist in the file bytes at all; and searching every constant was too
+  broad, because the replacement legitimately QUOTES it as history.
+
+### Learned
+- `RowUniverseIdentity` was NOT created. `CanonicalVariantTable._derive_
+  population_source_id` already computes an ordered, LENGTH-PREFIXED
+  row-universe identity with a documented exclusion kernel and five binding
+  tests, including one for concatenation ambiguity. It would have been the
+  FOURTH duplicate authority this session.
+- PARSING IS NOT VERIFICATION, AND REMEMBERING IS NOT MEASURING. A file can
+  parse and have lost everything. A count can be right and describe the wrong
+  quantity. A claim can be remembered accurately and not exist as written.
+  Every structural edit now compares the definition set before and after.
+- A gate-duration probe measured the INSTRUMENT rather than the trend: three
+  IDENTICAL collection passes varied 22.1s to 33.9s, +54%, the same magnitude
+  as the rise being tracked across five gates.
+
 ## 2026-08-27 (ROADMAP-PROVENANCE, DRIFT-PHASE-1B) -- what already governs this
 
 Two commits, `e12f5c8` -> `694da7f`. The ratchet moved 5583 -> 5591 -> 5642.
