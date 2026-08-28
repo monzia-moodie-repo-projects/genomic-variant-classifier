@@ -7513,4 +7513,22 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5659
+
+# 2026-08-28 -- 5659 -> 5682 (+23). Claims the data disproves.
+#
+#   DRIFT-1 Phase 1B.3. One artifact per source was false: ten authorities
+#   hold several kinds and one module consumes three ClinVar artifacts.
+#   Mandatory genome build was false for six of sixteen. Free-form names let
+#   three spellings of ClinVar be three identities. A role change moved the
+#   digest with no delta. The delta reported one fact where three moved.
+#
+#   DELIBERATE_RETIREMENT: 22 removed, 45 added, 33 unchanged -- MEASURED by
+#   differencing collected node identities, not by file totals.
+#
+#   Suite identity digests:
+#       before  a66d5537f31d6cb2395e58dc387708edf942c8c055ed43614698356ae55688dd
+#       after   17c32d1da8f78ecd7fae97fcc60ec81652e8ded0fa2dead20b09372c1e2f8f63
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5682

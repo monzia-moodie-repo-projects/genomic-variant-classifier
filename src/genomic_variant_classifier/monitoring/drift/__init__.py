@@ -1,39 +1,40 @@
 """Typed substrate for temporal evidence comparison.
 
-DRIFT-1. Phase 1B created the first identity types; Phase 1B.1 decomposed them
-after two defects were reproduced against the installed code on 2026-08-27.
+DRIFT-1. Phase 1B created the identity types; 1B.1 decomposed them after two
+defects were reproduced; 1B.3 corrected the source kernel after four more were
+measured.
 
 THE EVIDENCE STATE IS FOUR INDEPENDENT THINGS
 ---------------------------------------------
-    P   population        WHICH ROWS       evaluation.population
-    R   representation    WHAT SPACE       drift.representation
-    T   transformation    WHAT SEMANTICS   drift.transformation
-    S   source state      WHICH EVIDENCE   drift.source_release
+    P  population       WHICH ROWS       evaluation.population -- and
+                                         CanonicalVariantTable owns the ordered
+                                         row-universe identity its indices
+                                         address. NOT duplicated here.
+    R  representation   WHAT SPACE       drift.representation
+    T  transformation   WHAT SEMANTICS   drift.transformation
+    S  source state     WHICH EVIDENCE   drift.source_release
 
-A drift comparison is a statement about which of them moved. The first version
-of this package folded S into R, so "same representation, different source
-state" -- the single most common temporal case -- could not be expressed at
-all: `assert_same_representation` refused it.
-
-It also folded acquisition into evidence, so two byte-identical downloads of
-one release produced different manifest digests, and `differing_releases`
-reported a re-download as a release change.
-
-WHAT EACH LAYER MAY NOT DO
---------------------------
-No layer may author a fact owned by another. `representation` cannot see source
-state; `source_delta` takes EVIDENCE manifests so retrieval time is
-structurally unreachable; population identity stays with
-`EvaluationPopulation` and is not duplicated here.
-
-Admission -- whether two evidence views may be compared under a protocol --
-belongs to a later unit. This package establishes the coordinate axes; it does
-not reason over them.
+WHAT 1B.3 CORRECTED, EACH MEASURED FIRST
+----------------------------------------
+    one artifact per source     FALSE: 10 authorities hold several kinds and
+                                one module consumes THREE ClinVar artifacts
+    mandatory genome build      FALSE for 6 of 16 authorities
+    free-form source names      no registry existed; three spellings of ClinVar
+                                were three identities
+    role change without delta   the digest moved and nothing attributed it
+    precedence-based deltas     three facts moved, one was reported
 
 Author: Monzia Moodie
 """
 from __future__ import annotations
 
+from genomic_variant_classifier.monitoring.drift.coordinate import (
+    GENOME_ASSEMBLIES,
+    CoordinateContext,
+    CoordinateContextKind,
+    CoordinateError,
+    assemblies_in,
+)
 from genomic_variant_classifier.monitoring.drift.representation import (
     RepresentationDelta,
     RepresentationDeltaKind,
@@ -45,21 +46,28 @@ from genomic_variant_classifier.monitoring.drift.representation import (
     representation_differences,
 )
 from genomic_variant_classifier.monitoring.drift.source_delta import (
-    SourceDelta,
     SourceDeltaKind,
+    SourceTransition,
     differing_releases,
-    source_deltas,
+    source_transitions,
 )
 from genomic_variant_classifier.monitoring.drift.source_release import (
-    GENOME_BUILDS,
     SourceAcquisition,
     SourceArtifactIdentity,
+    SourceArtifactKey,
     SourceDependency,
     SourceError,
     SourceEvidenceManifest,
     SourceManifest,
     SourceRetrievalProvenance,
     SourceRole,
+)
+from genomic_variant_classifier.monitoring.drift.source_vocabulary import (
+    ArtifactKind,
+    SourceName,
+    SourceVocabularyError,
+    known_aliases,
+    resolve_source_name,
 )
 from genomic_variant_classifier.monitoring.drift.transformation import (
     TransformationComponent,
@@ -71,7 +79,11 @@ from genomic_variant_classifier.monitoring.drift.transformation import (
 
 #: Domain concepts only. Serialization machinery -- `_digest` -- stays private.
 __all__ = [
-    "GENOME_BUILDS",
+    "ArtifactKind",
+    "CoordinateContext",
+    "CoordinateContextKind",
+    "CoordinateError",
+    "GENOME_ASSEMBLIES",
     "RepresentationDelta",
     "RepresentationDeltaKind",
     "RepresentationIdentity",
@@ -79,22 +91,28 @@ __all__ = [
     "RepresentationPlane",
     "SourceAcquisition",
     "SourceArtifactIdentity",
-    "SourceDelta",
+    "SourceArtifactKey",
     "SourceDeltaKind",
     "SourceDependency",
     "SourceError",
     "SourceEvidenceManifest",
     "SourceManifest",
+    "SourceName",
     "SourceRetrievalProvenance",
     "SourceRole",
+    "SourceTransition",
+    "SourceVocabularyError",
     "TransformationComponent",
     "TransformationComponentKind",
     "TransformationError",
     "TransformationIdentity",
+    "assemblies_in",
     "assert_same_representation",
     "differing_components",
     "differing_releases",
+    "known_aliases",
     "render_representation_differences",
     "representation_differences",
-    "source_deltas",
+    "resolve_source_name",
+    "source_transitions",
 ]

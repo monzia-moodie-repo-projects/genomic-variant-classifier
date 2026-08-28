@@ -44,10 +44,14 @@ from genomic_variant_classifier.monitoring.drift import (
     RepresentationIdentity,
     RepresentationMismatch,
     RepresentationPlane,
+    ArtifactKind,
+    CoordinateContext,
     SourceArtifactIdentity,
+    SourceArtifactKey,
     SourceDependency,
     SourceEvidenceManifest,
     SourceManifest,
+    SourceName,
     SourceRole,
     TransformationComponent,
     TransformationComponentKind,
@@ -77,15 +81,27 @@ def representation(names=_NAMES, transform=None,
 
 
 def sources(clinvar="2026-07", sha="c"):
+    """Two authorities, one assembly.
+
+    Rebuilt for the Phase 1B.3 kernel: identity is keyed by an ARTIFACT KEY
+    rather than by `source`, and the coordinate context is typed rather than a
+    mandatory assembly string.
+    """
     return SourceManifest(evidence=SourceEvidenceManifest.of((
         SourceDependency(
             identity=SourceArtifactIdentity(
-                source="ClinVar", release_id=clinvar, genome_build="GRCh38",
+                key=SourceArtifactKey(SourceName.CLINVAR,
+                                      ArtifactKind.PRIMARY_RELEASE),
+                release_id=clinvar,
+                coordinate_context=CoordinateContext.assembly("GRCh38"),
                 artifact_sha256=sha * 64),
             roles=frozenset({SourceRole.OBSERVATION, SourceRole.LABEL})),
         SourceDependency(
             identity=SourceArtifactIdentity(
-                source="dbNSFP", release_id="4.7a", genome_build="GRCh38",
+                key=SourceArtifactKey(SourceName.DBNSFP,
+                                      ArtifactKind.PRIMARY_RELEASE),
+                release_id="4.7a",
+                coordinate_context=CoordinateContext.assembly("GRCh38"),
                 artifact_sha256="d" * 64),
             roles=frozenset({SourceRole.ANNOTATION})))))
 
