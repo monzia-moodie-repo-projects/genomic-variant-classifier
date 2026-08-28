@@ -21,8 +21,6 @@ autonomous layer of **22 specialised agents** communicating over a typed message
 Training draws on a cohort of over four million ClinVar variants across more than 28,000
 genes, annotated from some twenty biological databases.
 
-> This file is a summary. `docs/ROADMAP.md` is the authoritative, continuously maintained
-> record; `docs/CHANGELOG.md` is the append-only session ledger.
 
 ---
 
