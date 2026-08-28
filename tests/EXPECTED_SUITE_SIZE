@@ -7493,4 +7493,24 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5655
+
+# 2026-08-27 -- 5655 -> 5659 (+4). Axes made independent.
+#
+#   DRIFT-1 Phase 1B.1. RepresentationIdentity no longer carries source state,
+#   so "same representation, different source release" -- the most common
+#   temporal comparison -- is expressible for the first time. Source scientific
+#   identity no longer carries retrieval time, so a re-download is not a
+#   release change.
+#
+#   DELIBERATE_RETIREMENT: 49 identities removed, 53 added. A first
+#   declaration of 51/55 came from subtracting file totals; two names
+#   survive in both images, and the installer refused until identity
+#   settled it.
+#
+#   Suite identity digests:
+#       before  a77a9053e90a692029c9dbab6031855d05a2b19491f63e5688d1fc1ee5ff7c86
+#       after   a66d5537f31d6cb2395e58dc387708edf942c8c055ed43614698356ae55688dd
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5659

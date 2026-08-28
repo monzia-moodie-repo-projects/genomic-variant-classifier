@@ -1,64 +1,55 @@
-"""What a feature matrix IS, independently of any matrix.
+"""What mathematical space a feature matrix inhabits. Nothing else.
 
-DRIFT-1 Phase 1B. Created 2026-08-27.
+DRIFT-1 Phase 1B.1. Created 2026-08-27, replacing the 2026-08-27 original.
 
-WHY THIS EXISTS
+THE DEFECT THIS REPLACES
+------------------------
+The original carried `source_manifest_sha256`, and `assert_same_representation`
+refused a comparison whose source manifests differed. MEASURED against the
+installed code:
+
+    reference   ClinVar 2026-07, dbNSFP 4.7a
+    candidate   ClinVar 2026-08, dbNSFP 4.7a
+    same plane, same feature names, same policy
+        -> REFUSED
+
+That is exactly the temporal comparison DRIFT-1 exists to make. The prose was
+right -- an annotation release moving IS measurement-process drift -- but the
+FIELD PLACEMENT was wrong: it collapsed a source-state difference into a
+representation incompatibility, so the two could not be told apart at all.
+
+The evidence state is FOUR independent things:
+
+    P   population        WHICH ROWS          evaluation.population
+    R   representation    WHAT SPACE          here
+    T   transformation    WHAT SEMANTICS      drift.transformation
+    S   source state      WHICH EVIDENCE      drift.source_release
+
+A comparison must be able to express any combination of movements. The old
+type could not express "same representation, different source state", which is
+the single most common case in temporal drift.
+
+WHAT THIS TYPE NOW IGNORES
+--------------------------
+    source state           moving it is measured by `source_deltas`
+    population rows        owned by `EvaluationPopulation`
+    acquisition provenance owned by `SourceRetrievalProvenance`
+
+The type is now INCAPABLE of conflating them, which is stronger than supplying
+two differing source digests and asserting they are ignored.
+
+IDENTITY KERNEL
 ---------------
-`DriftDetector` refuses a comparison whose columns it cannot align, and
-`_aligned_lsif_matrices` refuses same-width-but-reordered frames, because such
-a comparison is meaningless. Both refusals are correct and both happen at the
-moment of comparison, on data already in memory.
+    equal iff   plane, ordered feature contract, transformation identity
+    ignores     source state, population, acquisition provenance
 
-A representation identity states the same contract BEFORE either side exists,
-so a reference and a candidate can be proven to inhabit one representation
-rather than discovered to differ.
-
-MEASURED 2026-08-27, and this type INVENTS NO FINGERPRINT:
-
-    policy_fingerprint()   models/model_preprocessing.py:171 -- a PURE function
-        of a policy mapping. No estimator, no fitted state, no data. So a
-        representation can carry a preprocessing digest without instantiating
-        anything.
-
-    DECLARED_MISSINGNESS   models/model_preprocessing.py -- the missingness
-        policy, already declared and already fingerprinted.
-
-    TABULAR_FEATURES       models/variant_ensemble.py -- the ordered feature
-        contract, with EXPECTED_TABULAR_FEATURE_COUNT as its fail-loud guard.
-
-    EvaluationPopulation.membership_fingerprint
-        evaluation/population.py:408 -- population identity, which this type
-        deliberately does NOT touch. A representation says what the columns
-        are; a population says which rows. Two facts, two owners.
-
-WHY THE CONTRACT DIGEST IS DERIVED, NOT STORED
-----------------------------------------------
-An earlier design carried BOTH `feature_names` and `feature_contract_sha256`.
-Two fields, one fact -- and a caller who edits the names and forgets the digest
-produces an identity that is internally false, with nothing to notice.
-
-The attestation schema faced the same choice on 2026-08-26 and answered it
-differently for a reason that does not apply here: `pre_head` cannot be derived
-from `pre_head_oid`, because git chooses the abbreviation length. So version 3
-records both and BINDS them -- "recording both is evidence only if they agree."
-
-A contract digest IS derivable, exactly, from the ordered names. So the
-superior form is not two bound fields; it is ONE field and a derivation.
-
-`preprocessing_policy_sha256` is different again, and is stored: it digests a
-mapping owned by another module, which this type neither holds nor should. That
-is a reference to a separate authority, not a duplicate of local data.
-
-WHAT IS DELIBERATELY REQUIRED
------------------------------
-`source_manifest_sha256` has NO owner in this repository -- measured, the one
-candidate was `moe_identity.py:192`'s `anchor_manifest_sha256`, an unrelated
-concept about mechanistic anchor sets. It is required here anyway.
-
-Making it optional would be the nullable-union defect this programme has now
-repaired three times: a field that is sometimes absent becomes a field nobody
-supplies. Requiring it means the release manifest must exist before any
-representation can be identified, which is the intended order.
+ONE DIFFERENCE AUTHORITY
+------------------------
+`representation_differences` computes a COMPLETE typed description;
+`assert_same_representation` is the strict adapter that raises on the first
+non-empty result. Admission needs the whole delta -- a first-failure exception
+discards the fact that three things moved -- while existing callers keep a
+fail-closed primitive.
 
 Acronyms: SHA-256 = Secure Hash Algorithm 256-bit.
 
@@ -67,57 +58,41 @@ Author: Monzia Moodie
 from __future__ import annotations
 
 import hashlib
-import re
 from dataclasses import dataclass
 from enum import Enum
 from typing import Tuple
 
-_SHA256 = re.compile(r"\A[0-9a-f]{64}\Z")
+from genomic_variant_classifier.monitoring.drift.transformation import (
+    TransformationIdentity,
+    differing_components,
+)
 
-#: Separator for the contract digest. A newline cannot occur in a feature name
-#: -- enforced below -- so the joined form is unambiguous and two different
-#: name tuples cannot produce one digest.
+#: A feature name may not contain this, because it joins the contract digest.
 _JOIN = "\n"
 
 
 class RepresentationPlane(str, Enum):
     """WHICH space a comparison is made in.
 
-    These answer different scientific questions and must never share one
-    result object:
-
-    SEMANTIC_TABULAR
-        The engineered features as they mean something -- gnomAD allele
-        frequency, SpliceAI score, annotation missingness. Interpretable.
-
-    MODEL_INPUT
-        What the estimator actually consumes after imputation and scaling.
-        Operationally what the deployed model experiences.
-
-    LEARNED_REPRESENTATION
-        A learned latent space. Can reveal joint shifts invisible
-        feature-by-feature, and is the least interpretable of the three.
+    These answer different scientific questions and must never share a result
+    object.
     """
 
+    #: Engineered features as they MEAN something. Interpretable.
     SEMANTIC_TABULAR = "semantic_tabular"
+    #: What the estimator consumes after imputation and scaling.
     MODEL_INPUT = "model_input"
+    #: A learned latent space. Reveals joint shifts, least interpretable.
     LEARNED_REPRESENTATION = "learned_representation"
 
 
 @dataclass(frozen=True)
 class RepresentationIdentity:
-    """The contract two feature frames must share to be comparable at all.
-
-    Equality is on the whole object. That is the point: a same-width check
-    (`shape[1] == 95`) admits a frame whose columns were reordered or
-    substituted, and `_aligned_lsif_matrices` already refuses such comparisons
-    because the resulting density ratio is uninterpretable.
-    """
+    """The contract two feature frames must share to be comparable at all."""
 
     plane: RepresentationPlane
     feature_names: Tuple[str, ...]
-    preprocessing_policy_sha256: str
-    source_manifest_sha256: str
+    transformation: TransformationIdentity
 
     def __post_init__(self) -> None:
         if not isinstance(self.plane, RepresentationPlane):
@@ -125,7 +100,6 @@ class RepresentationIdentity:
                 "plane is {!r}; a representation must name its plane from the "
                 "declared vocabulary, because semantic and model-input drift "
                 "are different questions".format(self.plane))
-
         names = self.feature_names
         if not isinstance(names, tuple):
             raise ValueError(
@@ -147,14 +121,12 @@ class RepresentationIdentity:
             duplicated = sorted({n for n in names if names.count(n) > 1})
             raise ValueError(
                 "feature names must be unique; duplicated: {}".format(duplicated))
-
-        for field_name in ("preprocessing_policy_sha256",
-                           "source_manifest_sha256"):
-            value = getattr(self, field_name)
-            if not isinstance(value, str) or not _SHA256.match(value):
-                raise ValueError(
-                    "{} is {!r}; expected 64 lowercase hexadecimal characters. "
-                    "A prefix is not a digest.".format(field_name, value))
+        if not isinstance(self.transformation, TransformationIdentity):
+            raise ValueError(
+                "transformation is {!r}; a representation must state what "
+                "semantics produced its values. Same columns computed "
+                "differently are not the same space."
+                .format(self.transformation))
 
     @property
     def n_features(self) -> int:
@@ -162,73 +134,101 @@ class RepresentationIdentity:
 
     @property
     def feature_contract_digest(self) -> str:
-        """A digest of the ORDERED names. DERIVED, never stored.
-
-        Because it is derived, `a.feature_names == b.feature_names` and
-        `a.feature_contract_digest == b.feature_contract_digest` are the same
-        statement. Storing it as a field would make them two statements that
-        can disagree.
-        """
-        payload = _JOIN.join(self.feature_names).encode("utf-8")
-        return hashlib.sha256(payload).hexdigest()
+        """A digest of the ORDERED names. DERIVED, never stored."""
+        return hashlib.sha256(
+            _JOIN.join(self.feature_names).encode("utf-8")).hexdigest()
 
     def describe(self) -> str:
-        return (
-            "{plane} | {n} features | contract {contract} | policy {policy} | "
-            "manifest {manifest}".format(
-                plane=self.plane.value, n=self.n_features,
-                contract=self.feature_contract_digest[:12],
-                policy=self.preprocessing_policy_sha256[:12],
-                manifest=self.source_manifest_sha256[:12]))
+        return "{plane} | {n} features | contract {contract} | {transform}".format(
+            plane=self.plane.value, n=self.n_features,
+            contract=self.feature_contract_digest[:12],
+            transform=self.transformation.describe())
+
+
+class RepresentationDeltaKind(str, Enum):
+    """How two representations differ. Typed, not free-form strings."""
+
+    PLANE = "plane"
+    FEATURE_SET = "feature_set"
+    FEATURE_ORDER = "feature_order"
+    TRANSFORMATION = "transformation"
+
+
+@dataclass(frozen=True)
+class RepresentationDelta:
+    """One named difference, with both sides and a rendered explanation."""
+
+    kind: RepresentationDeltaKind
+    detail: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.kind, RepresentationDeltaKind):
+            raise ValueError("kind is {!r}".format(self.kind))
+        if not isinstance(self.detail, str) or not self.detail:
+            raise ValueError("a delta must explain itself")
 
 
 class RepresentationMismatch(ValueError):
     """Two frames do not inhabit one representation."""
 
 
-def assert_same_representation(reference: RepresentationIdentity,
-                               candidate: RepresentationIdentity) -> None:
-    """Refuse a comparison across two representations, naming WHICH field.
+def representation_differences(reference: RepresentationIdentity,
+                               candidate: RepresentationIdentity
+                               ) -> Tuple[RepresentationDelta, ...]:
+    """EVERY difference, not the first.
 
-    A single equality check would answer "these differ" and leave a reader to
-    find out how. Every failure here names the field and shows both values,
-    because the interesting cases -- one reordered column, one substituted
-    feature, a changed missingness policy -- look identical in a boolean.
+    Admission needs a complete delta: a comparison where the plane matches, the
+    features were reordered AND the join policy moved is three facts, and a
+    first-failure exception reports one.
     """
+    out = []
     if reference.plane is not candidate.plane:
-        raise RepresentationMismatch(
-            "representation plane differs: reference {!r}, candidate {!r}. "
-            "Semantic-feature drift and model-input drift are different "
-            "questions and must not be compared."
-            .format(reference.plane.value, candidate.plane.value))
-
+        out.append(RepresentationDelta(
+            RepresentationDeltaKind.PLANE,
+            "reference {!r}, candidate {!r}. Semantic-feature drift and "
+            "model-input drift are different questions and must not be "
+            "compared.".format(reference.plane.value, candidate.plane.value)))
     if reference.feature_names != candidate.feature_names:
         if set(reference.feature_names) == set(candidate.feature_names):
-            raise RepresentationMismatch(
-                "the two representations name the same {} features in a "
-                "DIFFERENT ORDER. Column position carries meaning here; a "
-                "same-width comparison would pair up the wrong features."
-                .format(len(reference.feature_names)))
-        missing = sorted(set(reference.feature_names)
-                         - set(candidate.feature_names))
-        extra = sorted(set(candidate.feature_names)
-                       - set(reference.feature_names))
-        raise RepresentationMismatch(
-            "feature sets differ: candidate is missing {} and adds {}"
-            .format(missing[:8] or "nothing", extra[:8] or "nothing"))
+            out.append(RepresentationDelta(
+                RepresentationDeltaKind.FEATURE_ORDER,
+                "the same {} features in a DIFFERENT ORDER. Column position "
+                "carries meaning here; a same-width comparison would pair up "
+                "the wrong features.".format(len(reference.feature_names))))
+        else:
+            missing = sorted(set(reference.feature_names)
+                             - set(candidate.feature_names))
+            extra = sorted(set(candidate.feature_names)
+                           - set(reference.feature_names))
+            out.append(RepresentationDelta(
+                RepresentationDeltaKind.FEATURE_SET,
+                "candidate is missing {} and adds {}".format(
+                    missing[:8] or "nothing", extra[:8] or "nothing")))
+    if reference.transformation != candidate.transformation:
+        moved = differing_components(reference.transformation,
+                                     candidate.transformation)
+        out.append(RepresentationDelta(
+            RepresentationDeltaKind.TRANSFORMATION,
+            "component(s) {} moved. The same values computed differently are "
+            "not the same observation.".format([k.value for k in moved])))
+    return tuple(out)
 
-    if (reference.preprocessing_policy_sha256
-            != candidate.preprocessing_policy_sha256):
-        raise RepresentationMismatch(
-            "preprocessing policy differs: reference {}, candidate {}. The "
-            "same values imputed or scaled differently are not the same "
-            "observation.".format(reference.preprocessing_policy_sha256[:16],
-                                  candidate.preprocessing_policy_sha256[:16]))
 
-    if reference.source_manifest_sha256 != candidate.source_manifest_sha256:
+def render_representation_differences(
+        differences: Tuple[RepresentationDelta, ...]) -> str:
+    return "\n".join("{}: {}".format(d.kind.value, d.detail)
+                     for d in differences)
+
+
+def assert_same_representation(reference: RepresentationIdentity,
+                               candidate: RepresentationIdentity) -> None:
+    """The strict adapter over the one difference authority.
+
+    NOTE what it no longer checks: SOURCE STATE. A ClinVar release moving is
+    measured by `source_deltas`, and treating it as a representation mismatch
+    made the most common temporal comparison unexpressible.
+    """
+    differences = representation_differences(reference, candidate)
+    if differences:
         raise RepresentationMismatch(
-            "source manifest differs: reference {}, candidate {}. A change in "
-            "the annotation releases is MEASUREMENT-PROCESS drift, and "
-            "reporting it as population drift would be a scientific error."
-            .format(reference.source_manifest_sha256[:16],
-                    candidate.source_manifest_sha256[:16]))
+            render_representation_differences(differences))

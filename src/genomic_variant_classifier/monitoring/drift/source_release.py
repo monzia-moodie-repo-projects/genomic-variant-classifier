@@ -1,55 +1,61 @@
-"""Which releases produced the evidence, and what their identity is.
+"""What evidence was used, what role it played, and how it was obtained.
 
-DRIFT-1 Phase 1B. Created 2026-08-27.
+DRIFT-1 Phase 1B.1. Created 2026-08-27, replacing the 2026-08-27 original.
 
-WHY THIS EXISTS
----------------
-MEASURED 2026-08-27: of the eight facts DRIFT-1 Phase 1 needs, seven already
-have owners in this repository. THIS ONE DOES NOT. A Layer-B authority scan
-reported an owner and was WRONG -- it matched `anchor_manifest_sha256` in
-`evaluation/moe_identity.py`, a field of `ExpertLineage` about mechanistic
-anchor sets, unrelated to data releases. Registered as
-PROBE-AUTHORITY-MATCH-UNVERIFIED-1: a substring match is not a concept match.
+THE DEFECT THIS REPLACES
+------------------------
+The original `SourceRelease` was one flat record whose canonical form hashed
+`retrieved_at`. MEASURED against the installed code:
 
-WHY A SET, NOT A SINGLE RELEASE
--------------------------------
-A single release manifest is insufficient, and the reason is scientific rather
-than architectural.
+    same release, same bytes, same rows, same build, retrieved a day apart
+        -> DIFFERENT manifest digests
 
-The semantic feature plane is a JOIN across many sources -- ClinVar, gnomAD,
-dbNSFP, SpliceAI, AlphaMissense, phyloP and others -- each with its own release
-cadence. A distribution change must be attributable to one of:
+The evidence was identical. Only the retrieval EVENT differed. And
+`differing_releases` compared the WHOLE record, so the same re-download was
+reported as a release change at the interpretation layer too -- repairing the
+digest alone would have left that untouched.
 
-    delta V     the biological observation population
-    delta S     the source-release state
-    delta T     the transformation pipeline
+THREE FACTS, THREE TYPES
+------------------------
+    SourceArtifactIdentity      WHAT bytes, from what named release?
+    SourceRetrievalProvenance   HOW and WHEN were they obtained?
+    SourceDependency            WHAT ROLE do they play in this analysis?
 
-Same ClinVar variants, new dbNSFP release, CADD moves: the POPULATION did not
-drift, the MEASUREMENT PROCESS did. A representation carrying only ClinVar's
-release identity cannot tell those apart -- the dbNSFP bump would be invisible
-in the identity and would surface as unexplained feature drift.
+A source does not have one intrinsic role. ClinVar may be an OBSERVATION
+source, a LABEL source, or a temporal-validation source depending on the
+question. The role belongs to the RELATIONSHIP, not to the artifact -- so
+`SourceDependency` carries roles and `SourceArtifactIdentity` does not.
 
-So `SourceRelease` identifies ONE source at ONE release, and `SourceManifest`
-carries the COMPLETE set with a derived digest. Any one release moving changes
-the manifest digest, changes the representation identity, and the comparison is
-REFUSED with a named cause instead of reported as drift.
-
-WHY THE DIGEST IS DERIVED
+EQUALITY IS NOT REDEFINED
 -------------------------
-The same argument as `RepresentationIdentity.feature_contract_digest`: a digest
-stored beside the data it digests is two fields for one fact, and they can come
-apart with nothing to notice. `SourceManifest.digest` is a property.
+It would be easy to make `SourceRelease.__eq__` ignore provenance. That would
+merely reverse the original conflation:
 
-The attestation schema records `pre_head` AND `pre_head_oid` and BINDS them,
-because an abbreviation cannot be derived from an identifier -- git chooses the
-length. A manifest digest can be derived, so it is.
+    before        a provenance difference became a scientific difference
+    bad repair    scientific equality erased the provenance difference
+    correct       both survive independently
 
-A PATH IS NOT IDENTITY
-----------------------
-`clinvar_2026_08.parquet` names where a file sits, not what it contains.
-`ClinVarTracker.compare` currently records `new_cohort_path: Optional[str]` and
-nothing else, so two runs over different bytes at one path are
-indistinguishable. Every release here carries `artifact_sha256`.
+So three predicates coexist, and each says something different:
+
+    monday == tuesday                    False -- distinct acquisition records
+    monday.identity == tuesday.identity  True  -- same scientific evidence
+    monday.provenance == ...             False -- the acquisition event moved
+
+ROW COUNT IS VERIFICATION, NOT IDENTITY
+---------------------------------------
+`artifact_sha256` identifies the exact bytes read. If two readers derive
+different row counts from identical bytes, the PARSER or the schema
+interpretation changed -- which belongs to transformation or verification, not
+to source identity. So `observed_row_count` lives in provenance, where a
+mismatch under one artifact identity becomes a reader-inconsistency signal
+rather than a pretence that the source moved.
+
+ORDERING IS EXPLICIT
+--------------------
+`order=True` is gone. Implicit dataclass ordering over a composed record would
+make canonical order depend on FIELD DECLARATION ORDER -- far too implicit for
+something that participates in a persistent digest contract. `canonical_key`
+names the ordering the domain means.
 
 Acronyms: SHA-256 = Secure Hash Algorithm 256-bit; UTC = Coordinated Universal
 Time.
@@ -58,185 +64,311 @@ Author: Monzia Moodie
 """
 from __future__ import annotations
 
-import hashlib
 import re
 from dataclasses import dataclass
-from typing import Iterable, Tuple
+from enum import Enum
+from typing import FrozenSet, Iterable, Optional, Tuple
+
+from genomic_variant_classifier.monitoring.drift._digest import domain_digest
 
 _SHA256 = re.compile(r"\A[0-9a-f]{64}\Z")
 _UTC = re.compile(r"\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\Z")
-#: A release identifier is used in filenames and record keys, so it may not
-#: carry a separator or whitespace.
 _RELEASE_ID = re.compile(r"\A[A-Za-z0-9][A-Za-z0-9._-]*\Z")
 _SOURCE = re.compile(r"\A[A-Za-z][A-Za-z0-9-]*\Z")
 
-#: The genome builds this project admits. GRCh37 and GRCh38 coordinates are NOT
-#: interchangeable, and a comparison across them would pair unrelated loci.
+#: GRCh37 and GRCh38 coordinates are NOT interchangeable.
 GENOME_BUILDS = ("GRCh37", "GRCh38")
 
-_FIELD = "\x1f"      # unit separator: cannot occur in any validated field
-_RECORD = "\x1e"     # record separator
+EVIDENCE_DOMAIN = "drift-source-evidence-manifest-v2"
 
 
-@dataclass(frozen=True, order=True)
-class SourceRelease:
-    """One source, at one release, with the bytes that were actually read."""
+class SourceRole(str, Enum):
+    """What a source CONTRIBUTES to one analysis.
+
+    On the dependency, never on the artifact: one ClinVar release can be both
+    the OBSERVATION population and the LABEL authority, and forcing two
+    records would duplicate one artifact identity.
+    """
+
+    #: Supplies the rows being studied.
+    OBSERVATION = "observation"
+    #: Supplies feature values measured on those rows.
+    ANNOTATION = "annotation"
+    #: Supplies the outcome being predicted.
+    LABEL = "label"
+    #: Defines the coordinate system.
+    REFERENCE_SEQUENCE = "reference_sequence"
+    #: Supplies term semantics whose meaning can shift between releases.
+    ONTOLOGY = "ontology"
+
+
+class SourceError(ValueError):
+    """A source record that cannot identify the evidence it describes."""
+
+
+@dataclass(frozen=True)
+class SourceArtifactIdentity:
+    """One artifact, from one named release. Content-addressed."""
 
     source: str
     release_id: str
     genome_build: str
     artifact_sha256: str
-    row_count: int
-    retrieved_at: str
 
     def __post_init__(self) -> None:
         if not isinstance(self.source, str) or not _SOURCE.match(self.source):
-            raise ValueError(
+            raise SourceError(
                 "source is {!r}; expected a name like 'ClinVar' or 'gnomAD'"
                 .format(self.source))
         if not isinstance(self.release_id, str) or \
                 not _RELEASE_ID.match(self.release_id):
-            raise ValueError(
+            raise SourceError(
                 "release_id is {!r}; expected an identifier such as '2026-08' "
                 "with no whitespace or separators".format(self.release_id))
         if self.genome_build not in GENOME_BUILDS:
-            raise ValueError(
+            raise SourceError(
                 "genome_build is {!r}; expected one of {}. GRCh37 and GRCh38 "
                 "coordinates are NOT interchangeable, and comparing across "
                 "them would pair unrelated loci."
                 .format(self.genome_build, list(GENOME_BUILDS)))
         if not isinstance(self.artifact_sha256, str) or \
                 not _SHA256.match(self.artifact_sha256):
-            raise ValueError(
+            raise SourceError(
                 "artifact_sha256 is {!r}; expected 64 lowercase hexadecimal "
-                "characters. A path is not identity, and a prefix is not a "
+                "characters. A PATH IS NOT IDENTITY, and a prefix is not a "
                 "digest.".format(self.artifact_sha256))
-        if not isinstance(self.row_count, int) or \
-                isinstance(self.row_count, bool) or self.row_count < 0:
-            raise ValueError(
-                "row_count is {!r}; expected a non-negative integer"
-                .format(self.row_count))
-        if not isinstance(self.retrieved_at, str) or \
-                not _UTC.match(self.retrieved_at):
-            raise ValueError(
-                "retrieved_at is {!r}; expected YYYY-MM-DDTHH:MM:SSZ"
-                .format(self.retrieved_at))
 
-    def as_record(self) -> str:
-        """The canonical serialisation this release contributes to a digest."""
-        return _FIELD.join((self.source, self.release_id, self.genome_build,
-                            self.artifact_sha256, str(self.row_count),
-                            self.retrieved_at))
+    @property
+    def canonical_key(self) -> Tuple[str, str, str, str]:
+        """The ordering the DOMAIN means, not what field order implies."""
+        return (self.source, self.release_id, self.genome_build,
+                self.artifact_sha256)
+
+    def as_record(self) -> dict:
+        return {"source": self.source, "release_id": self.release_id,
+                "genome_build": self.genome_build,
+                "artifact_sha256": self.artifact_sha256}
 
     def describe(self) -> str:
-        return "{}@{} [{}] {} rows, {}".format(
-            self.source, self.release_id, self.genome_build,
-            self.row_count, self.artifact_sha256[:12])
+        return "{}@{} [{}] {}".format(self.source, self.release_id,
+                                      self.genome_build,
+                                      self.artifact_sha256[:12])
 
 
-class SourceManifestError(ValueError):
-    """A manifest that cannot identify the evidence it claims to describe."""
+@dataclass(frozen=True)
+class SourceRetrievalProvenance:
+    """WHEN and HOW an artifact was obtained. Never scientific identity.
+
+    `origin_locator` is a path or a URL: evidence of where acquisition
+    happened, not of what was acquired. It must never reach a digest.
+    """
+
+    retrieved_at: str
+    observed_row_count: int
+    origin_locator: Optional[str] = None
+    transport: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.retrieved_at, str) or \
+                not _UTC.match(self.retrieved_at):
+            raise SourceError(
+                "retrieved_at is {!r}; expected YYYY-MM-DDTHH:MM:SSZ"
+                .format(self.retrieved_at))
+        n = self.observed_row_count
+        if not isinstance(n, int) or isinstance(n, bool) or n < 0:
+            raise SourceError(
+                "observed_row_count is {!r}; expected a non-negative integer. "
+                "It is VERIFICATION evidence: two readers deriving different "
+                "counts from identical bytes indicates a parser change, not a "
+                "source change.".format(n))
+        for name in ("origin_locator", "transport"):
+            v = getattr(self, name)
+            if v is not None and (not isinstance(v, str) or not v):
+                raise SourceError(
+                    "{} is {!r}; expected a non-empty string or None"
+                    .format(name, v))
+
+
+@dataclass(frozen=True)
+class SourceDependency:
+    """An artifact and the ROLES it plays in one analysis."""
+
+    identity: SourceArtifactIdentity
+    roles: FrozenSet[SourceRole]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.identity, SourceArtifactIdentity):
+            raise SourceError("identity is {!r}".format(self.identity))
+        if not isinstance(self.roles, frozenset):
+            raise SourceError(
+                "roles is {}; it must be a FROZENSET so a dependency cannot be "
+                "mutated after its digest has been quoted"
+                .format(type(self.roles).__name__))
+        if not self.roles:
+            raise SourceError(
+                "a dependency must declare at least one role. A source with "
+                "no stated role cannot be governed by a protocol.")
+        for r in self.roles:
+            if not isinstance(r, SourceRole):
+                raise SourceError("role {!r} is not a SourceRole".format(r))
+
+    @property
+    def canonical_key(self):
+        return self.identity.canonical_key
+
+    def as_record(self) -> dict:
+        return {"identity": self.identity.as_record(),
+                "roles": sorted(r.value for r in self.roles)}
+
+    def describe(self) -> str:
+        return "{}  roles {}".format(
+            self.identity.describe(), sorted(r.value for r in self.roles))
+
+
+@dataclass(frozen=True)
+class SourceAcquisition:
+    """One artifact and one retrieval event. Many may share an identity."""
+
+    identity: SourceArtifactIdentity
+    provenance: SourceRetrievalProvenance
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.identity, SourceArtifactIdentity):
+            raise SourceError("identity is {!r}".format(self.identity))
+        if not isinstance(self.provenance, SourceRetrievalProvenance):
+            raise SourceError("provenance is {!r}".format(self.provenance))
+
+    @property
+    def canonical_key(self):
+        return self.identity.canonical_key
+
+
+@dataclass(frozen=True)
+class SourceEvidenceManifest:
+    """WHICH scientific evidence was used. Retrieval cannot reach it."""
+
+    dependencies: Tuple[SourceDependency, ...]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.dependencies, tuple):
+            raise SourceError(
+                "dependencies is {}; it must be a TUPLE"
+                .format(type(self.dependencies).__name__))
+        if not self.dependencies:
+            raise SourceError(
+                "a manifest must name at least one dependency. An EMPTY "
+                "manifest would digest to a constant and make every "
+                "representation compare equal on its sources.")
+        for d in self.dependencies:
+            if not isinstance(d, SourceDependency):
+                raise SourceError("entry {!r} is not a SourceDependency"
+                                  .format(d))
+        sources = [d.identity.source for d in self.dependencies]
+        if len(set(sources)) != len(sources):
+            duplicated = sorted({s for s in sources if sources.count(s) > 1})
+            raise SourceError(
+                "source(s) {} appear more than once. One analysis reads ONE "
+                "artifact per source; two would leave which was used "
+                "undetermined. A source in several ROLES is one dependency "
+                "with several roles.".format(duplicated))
+        builds = {d.identity.genome_build for d in self.dependencies}
+        if len(builds) > 1:
+            raise SourceError(
+                "the manifest mixes genome builds {}. Coordinates from "
+                "different builds are not comparable, and a join across them "
+                "would be silently wrong.".format(sorted(builds)))
+        if list(self.dependencies) != sorted(
+                self.dependencies, key=lambda d: d.canonical_key):
+            raise SourceError(
+                "dependencies are not in canonical order. `of()` sorts them; "
+                "ORDER IS ENFORCED HERE AND NOWHERE ELSE, so the digest can "
+                "consume the verified tuple verbatim.")
+
+    @classmethod
+    def of(cls, dependencies: Iterable[SourceDependency]
+           ) -> "SourceEvidenceManifest":
+        return cls(dependencies=tuple(
+            sorted(dependencies, key=lambda d: d.canonical_key)))
+
+    @property
+    def genome_build(self) -> str:
+        return self.dependencies[0].identity.genome_build
+
+    @property
+    def sources(self) -> Tuple[str, ...]:
+        return tuple(d.identity.source for d in self.dependencies)
+
+    @property
+    def digest(self) -> str:
+        """Scientific evidence identity. DERIVED and DOMAIN-SEPARATED."""
+        return domain_digest(EVIDENCE_DOMAIN, {
+            "schema_version": 2,
+            "dependencies": [d.as_record() for d in self.dependencies]})
+
+    def dependency_of(self, source: str) -> SourceDependency:
+        for d in self.dependencies:
+            if d.identity.source == source:
+                return d
+        raise SourceError("{!r} is not in this manifest; it names {}".format(
+            source, list(self.sources)))
+
+    def identity_of(self, source: str) -> SourceArtifactIdentity:
+        return self.dependency_of(source).identity
+
+    def describe(self) -> str:
+        return "{} dependenc{} [{}] evidence {}\n  {}".format(
+            len(self.dependencies),
+            "y" if len(self.dependencies) == 1 else "ies",
+            self.genome_build, self.digest[:12],
+            "\n  ".join(d.describe() for d in self.dependencies))
 
 
 @dataclass(frozen=True)
 class SourceManifest:
-    """EVERY release a representation depends on, and one derived digest."""
+    """Evidence and acquisition together, with the two kept distinct.
 
-    releases: Tuple[SourceRelease, ...]
+    `digest` is the EVIDENCE digest, and the name is retained because callers
+    already spell it that way. New code should prefer `evidence_digest`, which
+    says which of the two questions it answers.
+    """
+
+    evidence: SourceEvidenceManifest
+    acquisitions: Tuple[SourceAcquisition, ...] = ()
 
     def __post_init__(self) -> None:
-        if not isinstance(self.releases, tuple):
-            raise SourceManifestError(
-                "releases is {}; it must be a TUPLE so a manifest cannot be "
-                "mutated after its digest has been quoted"
-                .format(type(self.releases).__name__))
-        if not self.releases:
-            raise SourceManifestError(
-                "a manifest must name at least one release. An EMPTY manifest "
-                "would digest to a constant and make every representation "
-                "compare equal on its sources.")
-        for item in self.releases:
-            if not isinstance(item, SourceRelease):
-                raise SourceManifestError(
-                    "manifest entry {!r} is not a SourceRelease".format(item))
-        sources = [r.source for r in self.releases]
-        if len(set(sources)) != len(sources):
-            duplicated = sorted({s for s in sources if sources.count(s) > 1})
-            raise SourceManifestError(
-                "source(s) {} appear more than once. One representation reads "
-                "ONE release per source; two would leave which was used "
-                "undetermined.".format(duplicated))
-        if list(self.releases) != sorted(self.releases):
-            raise SourceManifestError(
-                "releases are not in canonical order. `SourceManifest.of()` "
-                "sorts them; constructing directly with an arbitrary order "
-                "would make two equal manifests compare unequal. ORDER IS "
-                "ENFORCED HERE and nowhere else -- an earlier version also "
-                "sorted inside `digest`, so neither sort could be shown to "
-                "matter and removing either changed nothing.")
-        builds = {r.genome_build for r in self.releases}
-        if len(builds) > 1:
-            raise SourceManifestError(
-                "the manifest mixes genome builds {}. Coordinates from "
-                "different builds are not comparable, and a join across them "
-                "would be silently wrong.".format(sorted(builds)))
-
-    @classmethod
-    def of(cls, releases: Iterable[SourceRelease]) -> "SourceManifest":
-        """Build from any iterable, SORTED so member order cannot alter identity.
-
-        Unlike a feature vector, a manifest has no meaningful order -- the set
-        of releases is the fact. Sorting at construction means two manifests
-        assembled in different orders are the SAME manifest, which is what a
-        reader would expect and what a digest must reflect.
-        """
-        return cls(releases=tuple(sorted(releases)))
+        if not isinstance(self.evidence, SourceEvidenceManifest):
+            raise SourceError("evidence is {!r}".format(self.evidence))
+        if not isinstance(self.acquisitions, tuple):
+            raise SourceError("acquisitions must be a TUPLE")
+        declared = set(self.evidence.sources)
+        for a in self.acquisitions:
+            if not isinstance(a, SourceAcquisition):
+                raise SourceError("entry {!r} is not a SourceAcquisition"
+                                  .format(a))
+            if a.identity.source not in declared:
+                raise SourceError(
+                    "an acquisition names {!r}, which the evidence manifest "
+                    "does not declare. Recording how something was obtained "
+                    "that was never used is a record of nothing."
+                    .format(a.identity.source))
 
     @property
-    def genome_build(self) -> str:
-        return self.releases[0].genome_build
-
-    @property
-    def sources(self) -> Tuple[str, ...]:
-        return tuple(r.source for r in self.releases)
+    def evidence_digest(self) -> str:
+        return self.evidence.digest
 
     @property
     def digest(self) -> str:
-        """DERIVED, never stored. See the module docstring."""
-        # NOT re-sorted: __post_init__ has already enforced canonical order,
-        # and sorting here too would be a second authority for one fact.
-        payload = _RECORD.join(
-            r.as_record() for r in self.releases).encode("utf-8")
-        return hashlib.sha256(payload).hexdigest()
+        """Compatibility spelling for `evidence_digest`."""
+        return self.evidence.digest
 
-    def release_of(self, source: str) -> SourceRelease:
-        for r in self.releases:
-            if r.source == source:
-                return r
-        raise SourceManifestError(
-            "{!r} is not in this manifest; it names {}".format(
-                source, list(self.sources)))
+    @property
+    def sources(self) -> Tuple[str, ...]:
+        return self.evidence.sources
+
+    @property
+    def genome_build(self) -> str:
+        return self.evidence.genome_build
 
     def describe(self) -> str:
-        return "{} source(s) [{}] digest {}\n  {}".format(
-            len(self.releases), self.genome_build, self.digest[:12],
-            "\n  ".join(r.describe() for r in self.releases))
-
-
-def differing_releases(reference: SourceManifest,
-                       candidate: SourceManifest) -> Tuple[str, ...]:
-    """Which sources moved between two manifests.
-
-    Returned so a refusal can say WHICH release changed. "The manifests differ"
-    sends a reader to diff two objects; "dbNSFP moved from 4.7a to 4.8a" is a
-    scientific statement about measurement-process drift.
-    """
-    moved = []
-    for source in sorted(set(reference.sources) | set(candidate.sources)):
-        in_ref = source in reference.sources
-        in_cand = source in candidate.sources
-        if not in_ref or not in_cand:
-            moved.append(source)
-        elif reference.release_of(source) != candidate.release_of(source):
-            moved.append(source)
-    return tuple(moved)
+        return "{}\n  {} acquisition record(s)".format(
+            self.evidence.describe(), len(self.acquisitions))
