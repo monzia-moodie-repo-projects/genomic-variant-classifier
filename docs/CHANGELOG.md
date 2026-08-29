@@ -1,3 +1,62 @@
+## 2026-08-29 part 2 (SOURCE-REGISTRY, RETIRE-SOURCENAME) -- an invented vocabulary is retired
+
+Two commits, `81f6c4f` -> `ac14ab5`. The ratchet moved 5690 -> 5709 -> 5705.
+Document: docs/sessions/SESSION_2026-08-29_part2_an-invented-vocabulary-is-retired.md
+
+### Attempted
+- Repair the defect recorded at `02c13b4`: `SourceName`, installed at
+  `cffc51f`, duplicated a registry that already existed and did so badly.
+
+### Fixed
+- `SourceRegistry` reads `configs/data_manifest.yaml`, types every field,
+  records the path it read, and RAISES rather than defaulting -- one cannot
+  invent 32 source declarations. It refuses a misspelled KEY, a misspelled
+  value, a self-alias, a duplicated alias, and an alias that shadows a real
+  source: five states raw dictionary access admits. Two of its tests read the
+  REAL manifest, and `skipped` stayed at 15 across the gate, so both ran.
+  Before this, the 32 declarations had NO test of any kind.
+- `SourceName`, `_ALIASES`, `resolve_source_name`, `known_aliases` and
+  `SourceVocabularyError` are removed. `SourceArtifactKey.source` is a
+  VALIDATED STRING, and registry membership is an ADMISSION question. Identity
+  stays constructible without a readable file -- threading a registry through
+  every construction would repeat the collapse this package twice repaired.
+- `ArtifactKind` STAYS. It is not in the manifest and nothing else declares it;
+  removing it would create a gap rather than close a duplication.
+
+### Failed (and why)
+- THE CONSUMER CENSUS SEARCHED ONLY `.py` -- the same scope error as
+  AUTHORITY-SEARCH-SCOPED-TO-ONE-LANGUAGE-1, made inside the unit repairing it.
+  An all-file-type search afterwards found no live consumer missed, but it
+  could have.
+- A CONSUMER THE SYMBOL CENSUS COULD NOT SEE. `source_delta.py` imports none of
+  the retired names. It used `t.source.value`, reaching through
+  `SourceTransition` to a field whose TYPE changed, and three tests failed on
+  that one line. SYMBOL-CENSUS-CANNOT-SEE-A-TYPE-CONSUMER-1.
+- THE INSTALLER'S PIN TABLE NAMED THE PREVIOUS UNIT'S PAYLOADS. Twelve pinned
+  digests were reported as never read, and all six payloads would have been
+  delivered UNVERIFIED while the installer reported success. The table is now
+  DERIVED from `PAYLOADS`. PIN-TABLE-NAMES-A-PREVIOUS-UNITS-PAYLOADS-1.
+- `_SOURCE` was referenced without being defined -- it had been removed at
+  `cffc51f` when the enum replaced it. Caught at collection.
+- Three test expectations carried the retired enum's display casing, and one
+  expected `9lives` to be refused -- but `1kgp` is a real declared source, so
+  the pattern must allow a leading digit. That expectation would have rejected
+  a real source in the unit repairing exactly that failure mode.
+
+### Learned
+- TWELVE BOUNDARIES SABOTAGED, TWELVE DETECTED, and only ONE of the three
+  initial misses was a real gap: a fixture that could not distinguish exact
+  from substring matching, because `"clinvarplus" in "clinvar"` is False and
+  `"clinvar" in "clinvar"` is True. The replacement uses names that genuinely
+  nest -- the manifest declares `dbsnp` with the alias `dbsnp156`.
+- THE TRANSITION WAS MEASURED, NOT COMPUTED: both trees collected and
+  differenced. 78 old, 74 new, 13 removed, 9 added, 65 unchanged.
+  `test_representation_identity.py` contributes NOTHING -- all 17 identities
+  persist, because its three edits were substitutions inside existing bodies.
+- A VALUE STATED INDEPENDENTLY OF THE THING IT DESCRIBES GOES STALE. The pin
+  table, the `docs/sessions/` label and the baseline commit in a say() string
+  were all the same defect with the same repair: derive it.
+
 ## 2026-08-29 (INCIDENT, CORRECTION x2, ALIAS-MERGE-DIGEST) -- reading replaces building, five times
 
 Four commits, `b67e30f` -> `62d0a33`. The ratchet moved 5682 -> 5690.
