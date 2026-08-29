@@ -1,3 +1,61 @@
+## 2026-08-28 (INCIDENT-ARTIFACT-IDENTITY) -- the key installed this morning is already too coarse
+
+One commit, `b67e30f` -> incident record. The ratchet does not move.
+Document: docs/incidents/INCIDENT_2026-08-28_artifact-identity-and-cache-keys.md
+
+### Attempted
+- Measure, before Phase 1C persists anything, whether the artifact identity
+  installed at `cffc51f` can represent the actual artifact estate.
+
+### Fixed
+- Nothing. Every finding here is OPEN. The record exists so that measurement
+  taken today is not lost, and so that Phase 1C does not freeze a model already
+  known to be incomplete.
+
+### Failed (and why)
+- ARTIFACT-KEY-INSUFFICIENT-1. `SourceArtifactKey(source, artifact_kind)` was
+  installed at `cffc51f` this morning after measurement proved `source` alone
+  too coarse. It is too coarse for the SAME REASON: GENCODE version 50
+  publishes `transcripts`, `pc_transcripts` and `lncRNA_transcripts`, all three
+  collapse to one key, and `SourceEvidenceManifest` refuses them. Reproduced
+  against the committed code. THE CENSUS THAT MOTIVATED THE DESIGN REPORTED
+  "GENCODE 3 kinds, 5 files" -- the number that falsifies it was in the
+  measurement that justified it.
+- The 15 collisions are THREE phenomena, not one: several published products
+  (GENCODE, ClinVar VCF), partitioned members of one product (EVE, 3,212
+  per-protein files), and project-derived artifacts attributed to a publisher
+  because the path contains its name (18 ClinVar parquets, none of them a
+  ClinVar publication).
+- ARTIFACT-ORIGIN-UNMEASURABLE-FROM-CODE-1. Of 3,273 artifacts, FOUR have a
+  creator or consumer site in 1,037 tracked Python files. 3,263 have no
+  evidence of origin at all. The invariant held -- zero promoted to
+  PUBLISHER_BYTES by a filename -- but the estate's provenance is largely
+  unrecoverable from tracked code.
+- CACHE-KEY-DERIVED-FROM-PATHS-NOT-CONTENT-1. Four cache keys embed filesystem
+  locations, one a TEMPORARY DIRECTORY that no longer exists, one a Google
+  Drive mount. Because a filename cannot contain a separator, these are nested
+  directory trees at depth up to 10.
+- CACHE-KEY-OPAQUE-AND-INCONSISTENT-1. 37 of 41 keys are opaque, and the
+  `eve_eve_lookup` family both DUPLICATES identical results (444,367,755 bytes
+  twice) and SEPARATES genuinely different ones (143,457 bytes, two digests).
+  450,324,943 bytes are held in duplicate, accounted for exactly.
+
+### Learned
+- EQUAL SIZE IS NOT EQUAL CONTENT, demonstrated rather than asserted: three of
+  eleven equal-size groups have different digests, including two EVE files at
+  exactly 612,501 bytes each. Inferring duplication from size would have been
+  wrong three times.
+- THE CACHE FINDING CAME FROM A TEST THAT COULD NOT WRITE ITS FIXTURE. A
+  filename cannot contain `/`, so the entries are DIRECTORY TREES -- and
+  analysing the filename would have reported ZERO located keys while the defect
+  was the directory structure itself. A harness failure that looked like a
+  quirk was the finding.
+- `DerivedArtifactLineage` must NOT be modelled on the existing cache key.
+  Derived identity must come from transformation identity plus
+  domain-separated parent identities, never from path names. This incident is
+  the evidence that the alternative has already failed in production, in two
+  opposite directions.
+
 ## 2026-08-28 (DRIFT-ADMISSION-VOCABULARY, 1B.1, 1B.3) -- claims the data disproves
 
 Three commits, `28a3bfb` -> `cffc51f`. The ratchet moved 5642 -> 5655 -> 5659 -> 5682.
