@@ -1,3 +1,58 @@
+## 2026-08-29 part 2 (CORRECTION-PART-2) -- two findings withdrawn, and one found
+
+One commit, `02c13b4` -> correction record. The ratchet does not move.
+Document: docs/sessions/CORRECTION_2026-08-29_part2_two-findings-withdrawn-and-one-found.md
+
+### Attempted
+- Finish Phase 1B.4-C by reading the three files the manifest depends on:
+  `docs/standards/DATA_LAYOUT_STANDARD.md`, `scripts/maintenance/consolidate_aliases.py`
+  and `scripts/maintenance/audit_data_tree.py`.
+
+### Fixed
+- Nothing in code. Two claims published at `02c13b4` are corrected here so a
+  later reader is not misled by them.
+
+### Failed (and why)
+- CORRECTION-PUBLISHED-BEFORE-THE-STANDARD-WAS-READ-1. `configs/data_manifest.yaml`
+  cites `docs/standards/DATA_LAYOUT_STANDARD.md` on its own line 5. I read the
+  manifest, wrote a correction, committed it, and read the standard afterwards.
+  The standard answers two of that correction's findings -- the same
+  incomplete-search error the correction itself describes.
+- WITHDRAWN: MANIFEST-TIER-VOCABULARY-INCOMPLETE-1. The standard declares
+  `tier: review` at line 106 as a deliberate fourth tier -- "sources whose
+  access tier or leakage-independence must be confirmed before they are synced
+  or used" -- and `audit_data_tree.py:164` enforces it. What remains is a stale
+  one-line comment in the manifest header, not a modelling gap.
+- DOWNGRADED: MANIFEST-LOCATION-CONTRADICTS-REGENERATE-OUTPUT-1. The standard's
+  lines 66-70 make a built artifact living under `external/` a DOCUMENTED
+  EXCEPTION, taken because moving it would break the connectors that read it.
+  Restated as GTEX-BUILT-ARTIFACT-EXISTS-AT-TWO-PATHS-1: the exception explains
+  the location, not the two byte-identical copies of 1,093,500 bytes.
+- The alias framing in `02c13b4` was backwards. The standard, line 60: "Aliases
+  are forbidden: a source has exactly one canonical name. The manifest records
+  known aliases so the auditor can flag and guide migration." The eight aliases
+  are DIRECTORY NAMES PENDING REMOVAL, not spellings to accept. Refusing them is
+  defensible; I had reached that behaviour without understanding it and
+  described it as a defect.
+
+### Learned
+- ALIAS-MERGE-VERIFIES-BY-SIZE-NOT-DIGEST-1, and it is more serious than either
+  withdrawal. `consolidate_aliases.py` detects collisions by `st_size` (line 78),
+  verifies the merge by `st_size` (lines 122-124), then DELETES the alias
+  directory (line 127). Two files of equal size and different content pass every
+  check and the alias file is silently lost. This project has MEASURED that
+  hazard: the lineage census found three equal-size groups with different
+  digests, including `TPIS_HUMAN.csv` and `TSHB_HUMAN.csv` at exactly 612,501
+  bytes each. `audit_data_tree.py` does not warn, because it compares names
+  against the manifest and never inspects contents.
+- NOTHING IN PHASE 1B.4 NEEDS BUILDING. The subsystem exists and is well made:
+  a 32-source registry, a 129-line standard, five reader scripts, an alias
+  resolver, a read-only auditor that exits 2 on a controlled-tier sync
+  violation, and a generated rclone filter. What is missing is narrow -- a
+  digest check where a size check does destructive work, sixteen sources
+  `SourceName` cannot express, and test coverage over 32 declarations that
+  currently have none.
+
 ## 2026-08-29 (CORRECTION-REGISTRY-MISSED) -- a registry existed, and the search missed it
 
 One commit, `482c0c9` -> correction record. The ratchet does not move.
