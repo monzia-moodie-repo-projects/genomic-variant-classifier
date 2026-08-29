@@ -7531,4 +7531,21 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5682
+
+# 2026-08-29 -- 5682 -> 5690 (+8). A deletion stops trusting a size.
+#
+#   consolidate_aliases.py compared st_size to detect collisions, compared
+#   st_size again to verify the merge, then removed the alias directory. Two
+#   files of equal size and different content passed every check and the alias
+#   file was silently lost. Reproduced at 612,501 bytes -- the measured size of
+#   two EVE score files with different digests under data/external/eve/.
+#
+#   The script had NO TEST. Eight are added; ten sabotage boundaries detected.
+#
+#   Suite identity digests:
+#       before  17c32d1da8f78ecd7fae97fcc60ec81652e8ded0fa2dead20b09372c1e2f8f63
+#       after   14339e6e37abcb848cd62913d7806a31798c9d93c709b873dade630642cb7447
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5690

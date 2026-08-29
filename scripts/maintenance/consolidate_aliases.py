@@ -9,10 +9,26 @@ DRY-RUN by default; pass --execute to act. Safety rules:
   * populated alias, canonical EMPTY -> move (rename) alias -> canonical.
   * populated alias, canonical ALSO  -> MERGE: copy each alias file into the
     populated                           canonical dir; ABORT that alias on any
-                                        name collision whose SIZE differs (never
-                                        overwrite). Only after EVERY alias file
-                                        is verified present in canonical (byte
-                                        size match) is the alias dir removed.
+                                        name collision whose CONTENT differs
+                                        (never overwrite). Only after EVERY
+                                        alias file is verified present in
+                                        canonical (SHA-256 match) is the alias
+                                        dir removed.
+
+COMPARISON IS BY DIGEST, NOT BY SIZE. Until 2026-08-29 both the collision
+check and the post-merge verification compared `st_size`, then removed the
+alias directory. Two files of equal size and DIFFERENT content passed every
+check and the alias file was silently lost -- the script does not overwrite,
+so it discarded the source instead.
+
+That is not hypothetical here. The artifact lineage census of 2026-08-28 found
+THREE equal-size groups with different digests under `data/external/`,
+including two EVE score files at exactly 612,501 bytes:
+
+    variant_files/TPIS_HUMAN.csv   465d9fd2eee342c8...
+    variant_files/TSHB_HUMAN.csv   2ef2b73abcadc062...
+
+Merges are rare and run interactively, so hashing both sides costs little.
 
 An alias directory is NEVER removed until its contents are confirmed in the
 canonical directory. Collisions/mismatches abort that alias with no changes.
@@ -25,6 +41,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import shutil
 import sys
 from pathlib import Path
@@ -34,6 +51,35 @@ import yaml
 
 def _files(d: Path) -> list[Path]:
     return [p for p in d.rglob("*") if p.is_file()] if d.is_dir() else []
+
+
+def _digest(p: Path) -> str:
+    """SHA-256 of a file, streamed so a large artifact is not held in memory.
+
+    Equal size is NOT equal content. This function exists because comparing
+    `st_size` let two different files satisfy a check that then DELETED one of
+    them.
+    """
+    h = hashlib.sha256()
+    with open(p, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _same_content(a: Path, b: Path) -> bool:
+    """Cheap size check FIRST, then the digest that decides.
+
+    Different sizes cannot be equal content, so the digest is computed only
+    for the candidates that survive -- correctness from the digest, speed from
+    the size.
+    """
+    try:
+        if a.stat().st_size != b.stat().st_size:
+            return False
+    except OSError:
+        return False
+    return _digest(a) == _digest(b)
 
 
 def main(argv: list[str]) -> int:
@@ -75,7 +121,7 @@ def main(argv: list[str]) -> int:
             for f in af:
                 rel = f.relative_to(alias_dir)
                 tgt = canon_dir / rel
-                if tgt.exists() and tgt.stat().st_size != f.stat().st_size:
+                if tgt.exists() and not _same_content(tgt, f):
                     collisions.append(str(rel))
             if collisions:
                 plan.append(("ABORT_collision", alias_dir, canon_dir,
@@ -121,7 +167,7 @@ def main(argv: list[str]) -> int:
             # verify every alias file present in canonical with same size
             bad = [str(f.relative_to(alias_dir)) for f in _files(alias_dir)
                    if not (canon_dir / f.relative_to(alias_dir)).exists()
-                   or (canon_dir / f.relative_to(alias_dir)).stat().st_size != f.stat().st_size]
+                   or not _same_content(canon_dir / f.relative_to(alias_dir), f)]
             if bad:
                 print(f"            -> VERIFY FAILED for {bad[:3]}; alias KEPT (not removed)."); rc = 1; continue
             shutil.rmtree(alias_dir)
