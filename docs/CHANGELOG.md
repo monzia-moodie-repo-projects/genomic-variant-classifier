@@ -1,3 +1,60 @@
+## 2026-08-29 (INCIDENT, CORRECTION x2, ALIAS-MERGE-DIGEST) -- reading replaces building, five times
+
+Four commits, `b67e30f` -> `62d0a33`. The ratchet moved 5682 -> 5690.
+Document: docs/sessions/SESSION_2026-08-29_reading-replaces-building.md
+
+### Attempted
+- Complete DRIFT-1 Phase 1B.4-A through 1B.4-C: measure artifact lineage,
+  audit cache-key integrity, and derive product identity from the authority
+  hierarchy the rulings specify.
+
+### Fixed
+- ALIAS-MERGE-VERIFIES-BY-SIZE-NOT-DIGEST-1, the only defect found in two days
+  that can DESTROY DATA. `consolidate_aliases.py` detected collisions by
+  `st_size`, verified the merge by `st_size`, then removed the alias directory.
+  REPRODUCED in a sandbox: two files named `scores.csv`, both exactly 612,501
+  bytes with different content, produced "merged + verified" and the alias file
+  was destroyed. The script never overwrites, so it discarded the SOURCE. The
+  repair compares SHA-256, keeping a size PRE-CHECK for speed. Eight tests
+  added where there were none; ten sabotage boundaries detected.
+
+### Failed (and why)
+- AUTHORITY-SEARCH-SCOPED-TO-ONE-LANGUAGE-1. Phase 1B.2 concluded "no source
+  registry exists anywhere in the repository" after searching PYTHON
+  IDENTIFIERS across tracked `.py` files. `configs/data_manifest.yaml`
+  describes itself on its third line as the "Canonical registry of every data
+  source under data/", declares 32 sources, and is read by five scripts.
+  MEASURED consequence: `SourceName` names 18 of 32, cannot name `tcga` or
+  `topmed` (both controlled and irreplaceable), and refuses all 8 declared
+  aliases while carrying 26 invented ones.
+- ARTIFACT-KEY-INSUFFICIENT-1. `SourceArtifactKey(source, artifact_kind)`,
+  installed that morning, is too coarse for the same reason `source` was.
+  GENCODE publishes three transcript products that collapse to one key. THE
+  CENSUS THAT MOTIVATED THE DESIGN REPORTED "GENCODE 3 kinds, 5 files" -- the
+  counterexample was in the measurement that justified it.
+- CORRECTION-PUBLISHED-BEFORE-THE-STANDARD-WAS-READ-1. `data_manifest.yaml`
+  cites `DATA_LAYOUT_STANDARD.md` on its own line 5. I read the manifest, wrote
+  a correction, committed it, and read the standard afterwards -- which
+  withdrew one of its findings and downgraded another.
+- CACHE-KEY-OPAQUE-AND-INCONSISTENT-1. 450,324,943 bytes held in duplicate
+  across five groups, accounted for exactly. One cache family both duplicates
+  identical results and separates genuinely different ones.
+
+### Learned
+- PHASE 1B.4 NEEDS NO NEW TYPES. A 32-source registry, a 129-line standard,
+  five reader scripts, an alias resolver, a read-only auditor that exits 2 on a
+  controlled-tier sync violation, and a generated rclone filter all exist and
+  are well made. Five times this phase, reading replaced building.
+- EQUAL SIZE IS NOT EQUAL CONTENT, demonstrated three separate ways: three of
+  eleven equal-size groups in the estate have different digests; the alias
+  merge destroyed a file on that assumption; and a probe that inferred
+  duplication from size would have been wrong three times.
+- THE ARTIFACTS WERE CORRECT THROUGHOUT; THE PROSE WAS NOT. Ten errors are
+  recorded. Errors three through seven were caught by assertions or by the
+  installer refusing. Errors eight through ten were in narration -- a byte count
+  quoted without measuring, a chain digest asserted from a FILE digest, and a
+  conclusion written two lines above output that contradicted it.
+
 ## 2026-08-29 part 2 (CORRECTION-PART-2) -- two findings withdrawn, and one found
 
 One commit, `02c13b4` -> correction record. The ratchet does not move.
