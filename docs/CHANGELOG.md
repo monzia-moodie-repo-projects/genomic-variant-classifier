@@ -1,3 +1,59 @@
+## 2026-08-29 (CORRECTION-REGISTRY-MISSED) -- a registry existed, and the search missed it
+
+One commit, `482c0c9` -> correction record. The ratchet does not move.
+Document: docs/sessions/CORRECTION_2026-08-29_a-registry-existed-and-the-search-missed-it.md
+
+### Attempted
+- Derive product identity from the authority hierarchy the rulings specify,
+  where filenames rank last and acquisition code ranks second.
+
+### Fixed
+- Nothing in code. The correction records that a claim in a PINNED record is
+  false, so a later reader is not misled by it.
+
+### Failed (and why)
+- AUTHORITY-SEARCH-SCOPED-TO-ONE-LANGUAGE-1. The Phase 1B.2 search concluded
+  "no source registry exists anywhere in the repository". `configs/data_manifest.yaml`
+  describes itself on its third line as the "Canonical registry of every data
+  source under data/", is 407 lines, declares 32 sources, and is read by the
+  auditor, setup and sync scripts. The search looked for PYTHON IDENTIFIERS
+  across tracked `.py` files; a YAML registry matched none of them.
+- MEASURED consequence: `SourceName`, installed at `cffc51f`, names 18 sources
+  against the manifest's 32, cannot name SIXTEEN of them -- including `tcga` and
+  `topmed`, both `controlled` and `irreplaceable` -- and REFUSES all EIGHT
+  aliases this project actually uses (`clinvar_fresh`, `spliceai_scores`,
+  `hgmd_pro`, `dbsnp156`, `1000g`, `onekg`, `1000genomes`,
+  `ClinGen-Gene-Disease-Summary`). My twenty-six invented aliases appear
+  nowhere in the repository.
+- MANIFEST-LOCATION-CONTRADICTS-REGENERATE-OUTPUT-1. `gtex_gene_expression`
+  declares `location: external` while its regenerate command writes to
+  `data/processed/gtex/`. Both files exist and are BYTE-IDENTICAL at 1,093,500
+  bytes -- the duplicate the lineage census measured hours earlier and could not
+  explain.
+- MANIFEST-REGENERATE-EMBEDS-A-MACHINE-PATH-1. That same regenerate command
+  hard-codes `G:/My Drive/...`, so it cannot run on any machine without that
+  mount -- the same defect as CACHE-KEY-DERIVED-FROM-PATHS-NOT-CONTENT-1, here
+  in the authority that declares what is regenerable.
+- MANIFEST-TIER-VOCABULARY-INCOMPLETE-1. The header declares three tiers;
+  `review` appears three times and is not among them.
+
+### Learned
+- THE MANIFEST ALREADY SEPARATES PUBLISHED FROM DERIVED. Measured: 29 sources
+  carry a non-empty `acquire`; 3 carry an empty `acquire` and a non-empty
+  `regenerate`, under a heading that names them BUILT ARTIFACTS. That is the
+  provenance union the rulings specify, already in use as a data convention, so
+  `DerivedArtifactLineage` would be a fourth duplicate authority this session.
+- IT ALSO CARRIES A DURABILITY AXIS NO PROPOSED TYPE HAS: `class` distinguishes
+  `irreplaceable` from `regenerable_expensive`, `regenerable_cheap` and
+  `public_redownloadable`.
+- AND IT SOLVES THE GENCODE PROBLEM ALREADY: `mim2gene` is declared as a source
+  distinct from the licensed `omim`, so this repository promotes a product to a
+  source when licence or tier separates them. `ArtifactProductId` may be
+  unnecessary.
+- The defect is LATENT: `SourceEvidenceManifest` is not yet constructed from
+  real data anywhere, so no analysis has been refused. That is the window in
+  which to repair it.
+
 ## 2026-08-28 (INCIDENT-ARTIFACT-IDENTITY) -- the key installed this morning is already too coarse
 
 One commit, `b67e30f` -> incident record. The ratchet does not move.
