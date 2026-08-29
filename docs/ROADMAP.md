@@ -166,13 +166,46 @@ summary of work that has not been read:
 | Commit C (SealedEvaluation) | CLOSED | recorded in `docs/sessions/` |
 | BASELINE-1 | CLOSED | recorded in `docs/sessions/` |
 | README-1 | CLOSED | `7cc213d` |
-| DRIFT-1 | PHASE 0 CLOSED; the assessment itself remains open | `abcb22e` |
+| DRIFT-1 | PHASE 0 CLOSED `abcb22e`; PHASE 1 identity kernel BUILT and NOT YET CALLED | see below |
 | OP-1 step 5, OP-2, RETRAIN-GATE | UNTOUCHED | -- |
 
 DRIFT-1's phase 0 made the monthly job stop reporting a verdict it could not
 reach; it did not make the assessment possible. `CONTINUAL-1` (`1ea45de`)
 closed the sibling defect in the trainer, where a drift check that RAISED was
 rendered as a finding of no drift.
+
+**DRIFT-1 PHASE 1, 2026-08-27 to 2026-08-29.** Six commits, by identifier, in
+the order they landed. Not summarised: `docs/CHANGELOG.md` and `docs/sessions/`
+are authoritative, and a plan is the worst place for a summary of work that has
+not been read.
+
+| commit | unit |
+|---|---|
+| `694da7f` | a representation states its contract before it is compared |
+| `66e2737` | a reserved layer gets its vocabulary and emits nothing yet |
+| `c77a1a9` | four coordinate axes stop pretending to be one |
+| `cffc51f` | the source kernel stops asserting what the data disproves |
+| `69e8524` | the source declarations acquire a typed reader |
+| `ac14ab5` | an invented vocabulary is retired for the registry that existed |
+
+**BUILT AND NOT YET CALLED.** MEASURED 2026-08-29 at `b3619f2` by parsing every
+tracked Python file: `SourceEvidenceManifest`, `SourceManifest`,
+`SourceArtifactKey`, `SourceArtifactIdentity`, `SourceDependency` and
+`SourceRegistry` have **zero production construction sites** between them, and
+85 test sites. `SourceRegistry` is imported by exactly one file -- its own test.
+Recorded as `DRIFT-SOURCE-KERNEL-HAS-NO-PRODUCTION-CALLER-1` in
+`docs/sessions/CORRECTION_2026-08-29_part3_a-kernel-with-no-caller.md`.
+
+That is why the next DRIFT-1 unit supplies a CALLER rather than more
+guarantees. An admission check wired to a manifest nothing constructs is what
+`suite_transition.py` deleted three of, and what `preflight_data_guard.py`
+records of itself: *a guard that is not invoked is not a guard; it is a comment
+that happens to be executable.*
+
+Phase 1C -- the reference profile that would construct a manifest from real
+acquisition data -- is blocked on `ARTIFACT-KEY-INSUFFICIENT-1` (`482c0c9`):
+persisting a source manifest now would freeze a model measurement has already
+falsified.
 
 ## What changed since, and why it is characterised rather than listed
 

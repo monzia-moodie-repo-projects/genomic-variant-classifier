@@ -1,3 +1,48 @@
+## 2026-08-29 part 3 (CORRECTION-PART-3) -- a kernel with no caller
+
+One commit, `b3619f2` -> correction record and a roadmap repair. The ratchet
+does not move.
+Document: docs/sessions/CORRECTION_2026-08-29_part3_a-kernel-with-no-caller.md
+
+### Attempted
+- Follow the next action stated in the two most recent session records: wire an
+  admission check so `SourceEvidenceManifest` refuses an undeclared source.
+
+### Fixed
+- `docs/ROADMAP.md`. Its authoritative status table read
+  `| DRIFT-1 | PHASE 0 CLOSED; the assessment itself remains open | abcb22e |`
+  and had not moved since. Six commits have landed since `abcb22e`, and they
+  are now listed BY IDENTIFIER, not summarised -- the section's own rule is
+  that a plan is the worst place for a summary of work that has not been read.
+
+### Failed (and why)
+- DRIFT-SOURCE-KERNEL-HAS-NO-PRODUCTION-CALLER-1. MEASURED at `b3619f2` by
+  parsing every tracked Python file: `SourceEvidenceManifest`, `SourceManifest`,
+  `SourceArtifactKey`, `SourceArtifactIdentity`, `SourceDependency` and
+  `SourceRegistry` have ZERO production construction sites between them, and 85
+  test sites. `SourceRegistry` is imported by exactly one file -- its own test.
+- SO THE STATED NEXT ACTION WAS WRONG. An admission check wired to a manifest
+  nothing constructs is what `suite_transition.py` DELETED three of, and what
+  `preflight_data_guard.py` records of itself: "a guard that is not invoked is
+  not a guard; it is a comment that happens to be executable."
+- I wrote that next action into two session records without having measured
+  whether the kernel had a caller. Both are pinned by digest and cannot be
+  amended, so the correction sits beside them.
+
+### Learned
+- A SUBSYSTEM CAN BE CORRECT, TESTED, SABOTAGE-VERIFIED AND UNUSED. 85 test
+  sites is thorough coverage of behaviour; it is not evidence of use, and the
+  two are easy to confuse when every gate is green.
+- THE CORRECTED SEQUENCE: resolve `ARTIFACT-KEY-INSUFFICIENT-1`, then build the
+  Phase 1C reference profile that CONSTRUCTS a manifest from real acquisition
+  data, and only then consider an admission check -- at which point it will
+  have a caller and can be tested against a real acquisition.
+- A LIVING DOCUMENT IS REPAIRED IN PLACE; A PINNED ONE IS CORRECTED BESIDE.
+  `docs/ROADMAP.md` declares itself "updated at the end of every session" and
+  its counters are already patched by every installer, so its stale row is
+  fixed directly. The session records are pinned by digest in their
+  attestations, so they are not touched.
+
 ## 2026-08-29 part 2 (SOURCE-REGISTRY, RETIRE-SOURCENAME) -- an invented vocabulary is retired
 
 Two commits, `81f6c4f` -> `ac14ab5`. The ratchet moved 5690 -> 5709 -> 5705.
