@@ -7548,4 +7548,23 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5690
+
+# 2026-08-29 -- 5690 -> 5709 (+19). The manifest acquires a reader.
+#
+#   configs/data_manifest.yaml declares 32 sources and is read by five scripts,
+#   all of which walk raw dictionaries. A misspelled key reads as a default, so
+#   the compliance gate that hard-aborts on a controlled source marked for
+#   synchronisation would admit one. Before today only the storage: block and a
+#   single tier claim were bound by any test.
+#
+#   SourceRegistry types every field at read time, records the manifest path it
+#   read, and RAISES rather than defaulting -- one cannot invent 32 source
+#   declarations.
+#
+#   Suite identity digests:
+#       before  14339e6e37abcb848cd62913d7806a31798c9d93c709b873dade630642cb7447
+#       after   6937cf8536417101e6345e0e426acace8853a8757456275312942238a7526a96
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5709
