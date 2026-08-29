@@ -29,8 +29,30 @@ OMIM, STRING-DB, AlphaFold, ESM-2. `CoordinateContext` makes
 build-independence a POSITIVE claim rather than a missing value.
 
 `source` was validated by pattern, so `ClinVar`, `clinvar` and `NCBI-ClinVar`
-were three identities. MEASURED: no registry existed. `SourceName` is now a
-controlled vocabulary and `resolve_source_name` is the ingestion boundary.
+were three identities. The 2026-08-28 repair replaced the pattern with a
+`SourceName` enum -- eighteen members and twenty-six aliases, all invented.
+
+THAT REPAIR RESTED ON A FALSE MEASUREMENT, and this module said so in its own
+docstring: "no registry existed". `configs/data_manifest.yaml` calls itself the
+"Canonical registry of every data source under data/" on its own THIRD LINE,
+declares 32 sources, and is read by five scripts. The authority search that
+missed it looked only at Python files.
+
+MEASURED 2026-08-29 against the manifest:
+
+    declared sources     32      SourceName members    18
+    it cannot name       16      aliases it accepted    0
+    declared nowhere      2      aliases it invented   26
+
+Four of the sixteen are `irreplaceable` and constrained: `tcga` and `topmed`
+are `controlled`, `rnaseq` and `validation_cohort` are `review`.
+
+`source` IS NOW A VALIDATED STRING, and membership is an ADMISSION question
+answered by `genomic_variant_classifier.data.source_registry`. Identity stays
+constructible without a readable file -- threading a registry through every
+construction would make `SourceArtifactKey` depend on `configs/` being present,
+which is the collapse this package has twice repaired: `RepresentationIdentity`
+carries no source state, and `SourceArtifactIdentity` carries no retrieval time.
 
 WHAT DID NOT CHANGE
 -------------------
@@ -58,13 +80,17 @@ from genomic_variant_classifier.monitoring.drift.coordinate import (
 )
 from genomic_variant_classifier.monitoring.drift.source_vocabulary import (
     ArtifactKind,
-    SourceName,
-    resolve_source_name,
 )
 
 _SHA256 = re.compile(r"\A[0-9a-f]{64}\Z")
 _UTC = re.compile(r"\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\Z")
 _RELEASE_ID = re.compile(r"\A[A-Za-z0-9][A-Za-z0-9._-]*\Z")
+#: SYNTAX only. Whether a name is a DECLARED source is a separate
+#: question, answered by SourceRegistry against the manifest. This
+#: pattern existed before the enum replaced it on 2026-08-28 and is
+#: restored because a name with a space or a separator could not be a
+#: directory under data/external/, whatever the manifest declares.
+_SOURCE = re.compile(r"\A[A-Za-z0-9][A-Za-z0-9_-]*\Z")
 
 EVIDENCE_DOMAIN = "drift-source-evidence-manifest-v3"
 
@@ -96,16 +122,17 @@ class SourceArtifactKey:
     dependencies; two dependencies of one KEY are a contradiction.
     """
 
-    source: SourceName
+    source: str
     artifact_kind: ArtifactKind
 
     def __post_init__(self) -> None:
-        if not isinstance(self.source, SourceName):
+        if not isinstance(self.source, str) or not _SOURCE.match(self.source):
             raise SourceError(
-                "source is {!r}; it must be a SourceName. Resolve a raw "
-                "spelling at the ingestion boundary with resolve_source_name, "
-                "so an unregistered name cannot mint an identity."
-                .format(self.source))
+                "source is {!r}; expected a name such as 'clinvar' or "
+                "'gnomad'. WHETHER IT IS A DECLARED SOURCE IS A SEPARATE "
+                "QUESTION, answered by SourceRegistry.canonical_for against "
+                "configs/data_manifest.yaml. Identity must stay constructible "
+                "without a readable file.".format(self.source))
         if not isinstance(self.artifact_kind, ArtifactKind):
             raise SourceError(
                 "artifact_kind is {!r}; one authority publishes several kinds "
@@ -113,22 +140,29 @@ class SourceArtifactKey:
 
     @classmethod
     def of(cls, source, artifact_kind) -> "SourceArtifactKey":
-        """Build from a raw spelling, resolving it at the boundary."""
-        return cls(source=resolve_source_name(source),
+        """Build from a raw spelling. It does NOT consult the registry.
+
+        The previous version called `resolve_source_name`, which refused any
+        spelling absent from an invented eighteen-member enum -- including all
+        eight aliases this project actually declares, and sixteen of its
+        thirty-two sources. Registry membership is checked where the manifest
+        is available, not where an identity is constructed.
+        """
+        return cls(source=str(source),
                    artifact_kind=ArtifactKind(artifact_kind)
                    if not isinstance(artifact_kind, ArtifactKind)
                    else artifact_kind)
 
     @property
     def canonical_key(self) -> Tuple[str, str]:
-        return (self.source.value, self.artifact_kind.value)
+        return (self.source, self.artifact_kind.value)
 
     def as_record(self) -> dict:
-        return {"source": self.source.value,
+        return {"source": self.source,
                 "artifact_kind": self.artifact_kind.value}
 
     def describe(self) -> str:
-        return "{}/{}".format(self.source.value, self.artifact_kind.value)
+        return "{}/{}".format(self.source, self.artifact_kind.value)
 
 
 @dataclass(frozen=True)
@@ -161,7 +195,7 @@ class SourceArtifactIdentity:
                 "digest.".format(self.artifact_sha256))
 
     @property
-    def source(self) -> SourceName:
+    def source(self) -> str:
         return self.key.source
 
     @property
@@ -336,7 +370,7 @@ class SourceEvidenceManifest:
         return tuple(d.key for d in self.dependencies)
 
     @property
-    def sources(self) -> Tuple[SourceName, ...]:
+    def sources(self) -> Tuple[str, ...]:
         """Distinct authorities, which may be fewer than the dependencies."""
         seen = []
         for d in self.dependencies:
@@ -360,9 +394,8 @@ class SourceEvidenceManifest:
 
     def artifacts_of(self, source) -> Tuple[SourceArtifactIdentity, ...]:
         """Every artifact of one authority. May legitimately be several."""
-        name = resolve_source_name(source)
         return tuple(d.identity for d in self.dependencies
-                     if d.identity.source is name)
+                     if d.identity.source == str(source))
 
     def describe(self) -> str:
         return "{} dependenc{} | {} authorit{} | assemblies {} | evidence {}\n  {}".format(

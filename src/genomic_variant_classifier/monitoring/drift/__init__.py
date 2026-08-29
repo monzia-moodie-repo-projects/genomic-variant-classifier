@@ -19,8 +19,23 @@ WHAT 1B.3 CORRECTED, EACH MEASURED FIRST
     one artifact per source     FALSE: 10 authorities hold several kinds and
                                 one module consumes THREE ClinVar artifacts
     mandatory genome build      FALSE for 6 of 16 authorities
-    free-form source names      no registry existed; three spellings of ClinVar
-                                were three identities
+    free-form source names      three spellings of ClinVar were three
+                                identities. The 2026-08-28 repair replaced the
+                                pattern with an INVENTED enum, on the false
+                                basis that "no registry existed" -- see below
+
+WHAT 1B.5 CORRECTED, 2026-08-29
+-------------------------------
+`configs/data_manifest.yaml` calls itself the "Canonical registry of every data
+source under data/" on its own third line and declares 32 sources. The enum
+named 18, could not name 16 -- including `tcga` and `topmed`, both controlled
+and irreplaceable -- and refused all 8 declared aliases while carrying 26
+invented ones.
+
+`SourceArtifactKey.source` is now a validated STRING. Registry membership is an
+ADMISSION question answered by
+`genomic_variant_classifier.data.source_registry`, so identity stays
+constructible without a readable file
     role change without delta   the digest moved and nothing attributed it
     precedence-based deltas     three facts moved, one was reported
 
@@ -64,10 +79,6 @@ from genomic_variant_classifier.monitoring.drift.source_release import (
 )
 from genomic_variant_classifier.monitoring.drift.source_vocabulary import (
     ArtifactKind,
-    SourceName,
-    SourceVocabularyError,
-    known_aliases,
-    resolve_source_name,
 )
 from genomic_variant_classifier.monitoring.drift.transformation import (
     TransformationComponent,
@@ -97,11 +108,9 @@ __all__ = [
     "SourceError",
     "SourceEvidenceManifest",
     "SourceManifest",
-    "SourceName",
     "SourceRetrievalProvenance",
     "SourceRole",
     "SourceTransition",
-    "SourceVocabularyError",
     "TransformationComponent",
     "TransformationComponentKind",
     "TransformationError",
@@ -110,9 +119,7 @@ __all__ = [
     "assert_same_representation",
     "differing_components",
     "differing_releases",
-    "known_aliases",
     "render_representation_differences",
     "representation_differences",
-    "resolve_source_name",
     "source_transitions",
 ]

@@ -1,45 +1,46 @@
-"""Which authorities exist, what kinds of artifact they publish.
+"""What KINDS of artifact this project reads.
 
-DRIFT-1 Phase 1B.3. Created 2026-08-28.
+DRIFT-1. Created 2026-08-28; the authority vocabulary was removed 2026-08-29.
 
-WHY A CONTROLLED VOCABULARY
----------------------------
-The previous `_SOURCE` pattern validated SYNTAX, not identity. `ClinVar`,
-`clinvar` and `NCBI-ClinVar` were all valid and all DIFFERENT, so a typo could
-mint a scientifically duplicate source identity that no check would catch.
+WHAT THIS MODULE NO LONGER DECLARES
+-----------------------------------
+It declared `SourceName`, `_ALIASES`, `resolve_source_name`, `known_aliases`
+and `SourceVocabularyError`, on the stated basis that "no source registry
+exists anywhere in the repository".
 
-MEASURED 2026-08-28: no source registry exists anywhere in the repository. That
-means the clean-break window is still open -- and it closes the moment a
-`SourceEvidenceManifest` digest is persisted, because correcting an alias
-afterwards becomes an identity migration.
+THAT MEASUREMENT WAS WRONG. `configs/data_manifest.yaml` calls itself the
+"Canonical registry of every data source under data/" on its own THIRD LINE,
+declares 32 sources, and is read by five scripts under `scripts/maintenance/`.
+The authority search that missed it looked only at Python files.
 
-THE RULE
---------
-Aliases may be accepted at the INGESTION boundary. Only canonical names may
-enter persistent identity. `resolve_source_name` is that boundary, and it
-REFUSES an unknown spelling rather than minting an identity from it.
+MEASURED 2026-08-29, the enum against the manifest:
 
-WHY EVERY MEMBER IS MEASURED, NOT LISTED
-----------------------------------------
-Each authority below was counted on disk on 2026-08-28: 3,420 artifact files
-under `data/`, attributed by path. The count is recorded beside each member so
-a later reader can tell a real dependency from an aspirational one.
+    declared sources     32      SourceName members    18
+    it cannot name       16      aliases it accepted    0
+    declared nowhere      2      aliases it invented   26
 
-Sources named in the project roadmap but holding ZERO artifacts today --
-Nucleotide-Transformer, FinnGen -- are deliberately ABSENT. A vocabulary that
-lists what might arrive cannot distinguish a missing artifact from an
-unimplemented one.
+Four of the sixteen it could not name are `irreplaceable` and constrained:
+`tcga` and `topmed` are `controlled`, `rnaseq` and `validation_cohort` are
+`review`. A vocabulary that cannot name `tcga` cannot express a manifest
+containing it, so `SourceEvidenceManifest` would have refused a governed source
+because of a missing enum member rather than a scientific judgement.
 
-WHY ARTIFACT KIND IS A SEPARATE COORDINATE
-------------------------------------------
-MEASURED: ten authorities hold more than one kind, and the maximum consumed by
-one module is THREE. `monitoring/registry.py` names ClinVar's `index.parquet`,
-`parquet` AND `variant_summary.txt`; `agent_layer/config.py` declares ClinVar's
-`variant_summary.txt` alongside its `vcf`.
+Authority naming now belongs to
+`genomic_variant_classifier.data.source_registry`, which reads the manifest,
+types every field, records the path it read, and RAISES rather than defaulting
+-- one cannot invent 32 declarations.
 
-So `source` alone cannot be the identity key. Forcing it would require faking
-names such as `ClinVarVCF`, turning an ARTIFACT distinction into a SOURCE
-distinction and losing the fact that both came from one release.
+WHY `ArtifactKind` STAYS
+------------------------
+It is not in the manifest, and nothing else declares it. The manifest declares
+`location`, `tier`, `class`, `aliases`, `version`, `acquire`, `regenerate`,
+`sync` and `notes` -- nothing about Variant Call Format versus parquet versus
+FASTA. `ArtifactKind` is a genuine LOCAL vocabulary with no external authority,
+so removing it would create a gap rather than close a duplication.
+
+MEASURED on disk 2026-08-28: ten authorities hold more than one artifact kind,
+and one module names THREE distinct ClinVar artifacts. That is why the kind is
+part of the identity key at all.
 
 Acronyms: VCF = Variant Call Format; GTF = Gene Transfer Format; GFF = General
 Feature Format; FASTA is a sequence format.
@@ -49,71 +50,6 @@ Author: Monzia Moodie
 from __future__ import annotations
 
 from enum import Enum
-
-
-class SourceName(str, Enum):
-    """Every authority holding artifacts in this repository on 2026-08-28.
-
-    The trailing count is what was MEASURED under `data/`, not an estimate.
-    """
-
-    CLINVAR = "ClinVar"                  # 4 kinds, 22 files
-    GNOMAD = "gnomAD"                    # 2 kinds, 3 files
-    DBNSFP = "dbNSFP"                    # 1 kind, 1 file
-    SPLICEAI = "SpliceAI"                # 2 kinds, 3 files
-    ALPHAMISSENSE = "AlphaMissense"      # 3 kinds, 4 files
-    ALPHAFOLD = "AlphaFold"              # 1 kind, 2 files
-    GENCODE = "GENCODE"                  # 3 kinds, 5 files
-    COSMIC = "COSMIC"                    # 2 kinds, 2 files
-    HGMD = "HGMD"                        # 1 kind, 1 file
-    OMIM = "OMIM"                        # 1 kind, 5 files
-    UNIPROT = "UniProt"                  # 1 kind, 1 file
-    REACTOME = "Reactome"                # 1 kind, 2 files
-    GTEX = "GTEx"                        # 2 kinds, 9 files
-    EVE = "EVE"                          # 2 kinds, 3,217 files
-    ESM2 = "ESM-2"                       # 2 kinds, 2 files
-    REFERENCE_GENOME = "ReferenceGenome"  # 2 kinds, 4 files
-    #: Held in `data/external/string/` and consumed by the graph branch; the
-    #: path census attributes it under its own directory rather than a token
-    #: shared with the Python builtin, so it is listed from the roadmap's
-    #: measured node and edge counts instead.
-    STRING_DB = "STRING-DB"
-    PHYLOP = "PhyloP"
-
-
-#: Accepted ONLY at the ingestion boundary. Case-folded on lookup.
-#:
-#: Every entry here is a spelling this repository has actually used in a path,
-#: a configuration key or a script -- not a hypothetical variant.
-_ALIASES = {
-    "clinvar": SourceName.CLINVAR,
-    "ncbi-clinvar": SourceName.CLINVAR,
-    "ncbi_clinvar": SourceName.CLINVAR,
-    "gnomad": SourceName.GNOMAD,
-    "dbnsfp": SourceName.DBNSFP,
-    "spliceai": SourceName.SPLICEAI,
-    "splice-ai": SourceName.SPLICEAI,
-    "alphamissense": SourceName.ALPHAMISSENSE,
-    "alphafold": SourceName.ALPHAFOLD,
-    "gencode": SourceName.GENCODE,
-    "cosmic": SourceName.COSMIC,
-    "hgmd": SourceName.HGMD,
-    "omim": SourceName.OMIM,
-    "uniprot": SourceName.UNIPROT,
-    "reactome": SourceName.REACTOME,
-    "gtex": SourceName.GTEX,
-    "eve": SourceName.EVE,
-    "esm-2": SourceName.ESM2,
-    "esm2": SourceName.ESM2,
-    "reference_genome": SourceName.REFERENCE_GENOME,
-    "referencegenome": SourceName.REFERENCE_GENOME,
-    "grch38": SourceName.REFERENCE_GENOME,
-    "grch37": SourceName.REFERENCE_GENOME,
-    "string-db": SourceName.STRING_DB,
-    "stringdb": SourceName.STRING_DB,
-    "string_db": SourceName.STRING_DB,
-    "phylop": SourceName.PHYLOP,
-}
 
 
 class ArtifactKind(str, Enum):
@@ -143,37 +79,3 @@ class ArtifactKind(str, Enum):
     SCORE_TRACK = "score_track"
     #: Interaction or pathway edges.
     NETWORK_EDGES = "network_edges"
-
-
-class SourceVocabularyError(ValueError):
-    """A spelling that would mint an identity rather than name one."""
-
-
-def resolve_source_name(raw) -> SourceName:
-    """The INGESTION boundary. Canonical names pass; aliases resolve; else refuse.
-
-    An unknown spelling is REFUSED rather than accepted, because accepting it
-    would create a scientifically duplicate authority that compares unequal to
-    the real one and that no later check could distinguish from a genuine new
-    source.
-    """
-    if isinstance(raw, SourceName):
-        return raw
-    if not isinstance(raw, str) or not raw.strip():
-        raise SourceVocabularyError(
-            "source name is {!r}; expected a non-empty string".format(raw))
-    if raw in {m.value for m in SourceName}:
-        return SourceName(raw)
-    resolved = _ALIASES.get(raw.strip().casefold())
-    if resolved is not None:
-        return resolved
-    raise SourceVocabularyError(
-        "unknown source {!r}. Register it explicitly rather than minting an "
-        "identity by spelling -- an unregistered name would compare unequal to "
-        "the authority it means. Known: {}".format(
-            raw, sorted(m.value for m in SourceName)))
-
-
-def known_aliases(name: SourceName):
-    """Every accepted spelling of one authority, for diagnostics."""
-    return tuple(sorted(k for k, v in _ALIASES.items() if v is name))

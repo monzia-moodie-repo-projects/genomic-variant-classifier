@@ -7567,4 +7567,25 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5709
+
+# 2026-08-29 -- 5709 -> 5705 (-4). An invented vocabulary is retired.
+#
+#   SourceName named 18 of the manifest's 32 declared sources, could not name
+#   tcga or topmed -- both controlled and irreplaceable -- and refused all 8
+#   declared aliases while carrying 26 invented ones. It was built on the
+#   finding that "no source registry exists", which configs/data_manifest.yaml
+#   refutes on its own third line.
+#
+#   SourceArtifactKey.source is now a validated string; membership is an
+#   admission question for SourceRegistry, landed at 69e8524.
+#
+#   13 identities removed, 9 added, 65 unchanged -- MEASURED by collecting
+#   both trees and differencing, never computed.
+#
+#   Suite identity digests:
+#       before  6937cf8536417101e6345e0e426acace8853a8757456275312942238a7526a96
+#       after   60c7535c9a4ffeead3983ed8ec2531d88c3bd1c4a87b51f4bbeaa01354e7935e
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5705

@@ -54,14 +54,10 @@ from genomic_variant_classifier.monitoring.drift import (
     SourceError,
     SourceEvidenceManifest,
     SourceManifest,
-    SourceName,
     SourceRetrievalProvenance,
     SourceRole,
     SourceTransition,
-    SourceVocabularyError,
     differing_releases,
-    known_aliases,
-    resolve_source_name,
     source_transitions,
 )
 
@@ -69,7 +65,7 @@ GRCH38 = CoordinateContext.assembly("GRCh38")
 
 
 def identity(**over):
-    kw = dict(key=SourceArtifactKey(SourceName.CLINVAR,
+    kw = dict(key=SourceArtifactKey("clinvar",
                                     ArtifactKind.PRIMARY_RELEASE),
               release_id="2026-08", coordinate_context=GRCH38,
               artifact_sha256="a" * 64)
@@ -107,17 +103,21 @@ def test_one_authority_may_contribute_several_artifact_kinds():
     """
     m = SourceEvidenceManifest.of((
         dependency(identity(key=SourceArtifactKey(
-            SourceName.CLINVAR, ArtifactKind.PRIMARY_RELEASE))),
+            "clinvar", ArtifactKind.PRIMARY_RELEASE))),
         dependency(identity(key=SourceArtifactKey(
-            SourceName.CLINVAR, ArtifactKind.DERIVED_INDEX),
+            "clinvar", ArtifactKind.DERIVED_INDEX),
             artifact_sha256="b" * 64)),
         dependency(identity(key=SourceArtifactKey(
-            SourceName.CLINVAR, ArtifactKind.VARIANT_SUMMARY),
+            "clinvar", ArtifactKind.VARIANT_SUMMARY),
             artifact_sha256="c" * 64)),
     ))
     assert len(m.dependencies) == 3
-    assert m.sources == (SourceName.CLINVAR,)
-    assert len(m.artifacts_of("ClinVar")) == 3
+    assert m.sources == ("clinvar",)
+    # THE CANONICAL NAME, lower_snake_case. `artifacts_of` no longer
+    # resolves a spelling through a vocabulary: the standard, section 3, says
+    # a source has exactly ONE canonical name, and `SourceRegistry` is what
+    # resolves an alias to it.
+    assert len(m.artifacts_of("clinvar")) == 3
 
 
 def test_two_artifacts_of_the_SAME_kind_are_still_refused():
@@ -129,9 +129,39 @@ def test_two_artifacts_of_the_SAME_kind_are_still_refused():
     assert "appear more than once" in str(exc.value)
 
 
-def test_artifacts_of_refuses_an_unregistered_authority():
-    with pytest.raises(SourceVocabularyError):
-        evidence().artifacts_of("ClinVarPlus")
+def test_artifacts_of_returns_nothing_for_an_absent_authority():
+    """It no longer REFUSES an unknown name, and that is deliberate.
+
+    The previous version raised `SourceVocabularyError` for any spelling absent
+    from an invented eighteen-member enum -- including all eight aliases this
+    project declares and sixteen of its thirty-two sources. Asking a manifest
+    about a source it does not contain is a QUESTION, not an error; whether the
+    name is a DECLARED source is a separate question for `SourceRegistry`.
+    """
+    assert evidence().artifacts_of("ClinVarPlus") == ()
+    assert len(evidence().artifacts_of("clinvar")) == 1
+
+
+def test_artifacts_of_matches_the_name_EXACTLY_not_as_a_substring():
+    """MEASURED GAP: the fixture above cannot see a substring match.
+
+    `"clinvarplus" in "clinvar"` is False and `"clinvar" in "clinvar"` is
+    True, so a loose comparison satisfies both assertions. Sabotaging
+    `artifacts_of` to match loosely changed NO test.
+
+    Real source names nest: the manifest declares `dbsnp` with the alias
+    `dbsnp156`, and `1kgp` with `1000genomes`. A source whose name CONTAINS
+    another must not be returned for it, or an alias pending migration would
+    silently answer for its canonical form.
+    """
+    m = SourceEvidenceManifest.of((
+        dependency(identity(key=SourceArtifactKey(
+            "dbsnp156", ArtifactKind.PRIMARY_RELEASE))),))
+    assert m.artifacts_of("dbsnp156") != ()
+    assert m.artifacts_of("dbsnp") == (), (
+        "a source whose name is a PREFIX of another was matched; "
+        "`dbsnp` is a declared source and `dbsnp156` its alias, and they are "
+        "not interchangeable until the auditor folds one into the other")
 
 
 # ---------------------------------------------------------------------------
@@ -143,7 +173,7 @@ def test_build_independent_evidence_may_accompany_any_assembly():
     m = SourceEvidenceManifest.of((
         dependency(identity()),
         dependency(identity(
-            key=SourceArtifactKey(SourceName.UNIPROT,
+            key=SourceArtifactKey("uniprot",
                                   ArtifactKind.SEQUENCE_FASTA),
             release_id="2026_03", artifact_sha256="b" * 64,
             coordinate_context=CoordinateContext.build_independent()))))
@@ -155,7 +185,7 @@ def test_two_genomic_assemblies_are_still_refused():
         SourceEvidenceManifest.of((
             dependency(identity()),
             dependency(identity(
-                key=SourceArtifactKey(SourceName.GNOMAD,
+                key=SourceArtifactKey("gnomad",
                                       ArtifactKind.CONSTRAINT_TABLE),
                 release_id="v4.1", artifact_sha256="b" * 64,
                 coordinate_context=CoordinateContext.assembly("GRCh37")))))
@@ -164,7 +194,7 @@ def test_two_genomic_assemblies_are_still_refused():
 
 def test_build_independent_evidence_alone_has_no_assembly():
     m = SourceEvidenceManifest.of((dependency(identity(
-        key=SourceArtifactKey(SourceName.REACTOME, ArtifactKind.NETWORK_EDGES),
+        key=SourceArtifactKey("reactome", ArtifactKind.NETWORK_EDGES),
         release_id="v88", coordinate_context=CoordinateContext.build_independent())),))
     assert m.assemblies == frozenset()
 
@@ -191,33 +221,57 @@ def test_a_coordinate_context_refuses(kwargs, fragment):
 # 3. CORRECTION THREE -- the ingestion boundary
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize(
-    "raw", ["ClinVar", "clinvar", "NCBI-ClinVar", "ncbi_clinvar", "  clinvar  "],
-    ids=["canonical", "lower", "hyphen", "underscore", "padded"])
-def test_every_known_spelling_resolves_to_one_authority(raw):
-    """The permissive direction. A boundary that refused real spellings would
-    be worked around rather than used."""
-    assert resolve_source_name(raw) is SourceName.CLINVAR
+def test_a_raw_string_is_now_the_CORRECT_input(tmp_path):
+    """INVERTED. This test previously asserted the opposite.
+
+    `test_the_key_refuses_a_raw_string_bypassing_the_boundary` required a
+    `SourceName` member and refused a string, so that "an unregistered name
+    cannot mint an identity". The enum it validated against named 18 of 32
+    declared sources and refused all 8 declared aliases, so the guard rejected
+    real sources and admitted nothing that was not invented.
+
+    Identity now takes a validated STRING. Whether the name is DECLARED is an
+    admission question, answered by `SourceRegistry.canonical_for` against
+    `configs/data_manifest.yaml`, where the eight real aliases resolve.
+    """
+    key = SourceArtifactKey("tcga", ArtifactKind.PRIMARY_RELEASE)
+    assert key.source == "tcga"
+    assert key.canonical_key == ("tcga", "primary_release")
+    assert key.as_record()["source"] == "tcga"
 
 
 @pytest.mark.parametrize(
-    "raw", ["ClinVarPlus", "clin var", "", None, "  "],
-    ids=["unknown", "spaced", "empty", "none", "blank"])
-def test_an_unregistered_spelling_is_refused_not_minted(raw):
-    """An unregistered name would compare unequal to the authority it means,
-    and no later check could distinguish it from a genuine new source."""
-    with pytest.raises(SourceVocabularyError):
-        resolve_source_name(raw)
+    "bad", ["", "clin var", "ClinVar/extra", "-leading", None],
+    ids=["empty", "spaced", "slashed", "leading-dash", "none"])
+def test_the_key_still_refuses_a_name_that_cannot_BE_a_source(bad):
+    """A validated string is not an unvalidated one.
+
+    Dropping the enum removed the REGISTRY question, not the SYNTAX one: a
+    name with a space or a separator could not be a directory under
+    `data/external/`, whatever the manifest says.
+
+    A LEADING DIGIT IS ALLOWED, and my first version of this test wrongly
+    expected `9lives` to be refused. The manifest declares `1kgp`, so a pattern
+    rejecting leading digits would reject a real source -- the exact failure
+    mode this whole unit repairs.
+    """
+    with pytest.raises(SourceError):
+        SourceArtifactKey(bad, ArtifactKind.PRIMARY_RELEASE)
 
 
-def test_the_key_refuses_a_raw_string_bypassing_the_boundary():
-    with pytest.raises(SourceError) as exc:
-        SourceArtifactKey("ClinVar", ArtifactKind.PRIMARY_RELEASE)
-    assert "resolve_source_name" in str(exc.value)
+def test_sixteen_sources_the_retired_enum_could_not_NAME(tmp_path):
+    """The defect this unit repairs, stated as a test.
 
-
-def test_known_aliases_are_reported_for_diagnostics():
-    assert "ncbi-clinvar" in known_aliases(SourceName.CLINVAR)
+    MEASURED 2026-08-29: the enum declared 18 members against the manifest's
+    32. Four of the sixteen it could not name are `irreplaceable` and
+    constrained -- `tcga` and `topmed` are `controlled`, `rnaseq` and
+    `validation_cohort` are `review`. Every one is now expressible.
+    """
+    for name in ("tcga", "topmed", "rnaseq", "validation_cohort", "1kgp",
+                 "clingen", "dbsnp", "ensembl", "finngen", "lovd", "mim2gene",
+                 "primateai3d", "revel"):
+        key = SourceArtifactKey(name, ArtifactKind.PRIMARY_RELEASE)
+        assert key.source == name
 
 
 # ---------------------------------------------------------------------------
@@ -273,7 +327,7 @@ def test_role_order_and_manifest_order_do_not_move_identity():
     y = dependency(identity(), SourceRole.LABEL, SourceRole.OBSERVATION)
     assert x == y
     other = dependency(identity(key=SourceArtifactKey(
-        SourceName.DBNSFP, ArtifactKind.PRIMARY_RELEASE),
+        "dbnsfp", ArtifactKind.PRIMARY_RELEASE),
         release_id="4.7a", artifact_sha256="b" * 64))
     assert (SourceEvidenceManifest.of((x, other))
             == SourceEvidenceManifest.of((other, x)))
@@ -285,8 +339,8 @@ def test_role_order_and_manifest_order_do_not_move_identity():
 
 @pytest.mark.parametrize(
     "over",
-    [{"key": SourceArtifactKey(SourceName.GNOMAD, ArtifactKind.PRIMARY_RELEASE)},
-     {"key": SourceArtifactKey(SourceName.CLINVAR, ArtifactKind.VCF)},
+    [{"key": SourceArtifactKey("gnomad", ArtifactKind.PRIMARY_RELEASE)},
+     {"key": SourceArtifactKey("clinvar", ArtifactKind.VCF)},
      {"release_id": "2026-09"},
      {"coordinate_context": CoordinateContext.assembly("GRCh37")},
      {"artifact_sha256": "c" * 64}],
@@ -371,7 +425,7 @@ def test_added_and_removed_artifacts_are_named():
     two = SourceEvidenceManifest.of((
         dependency(identity()),
         dependency(identity(key=SourceArtifactKey(
-            SourceName.CLINVAR, ArtifactKind.VCF), artifact_sha256="b" * 64))))
+            "clinvar", ArtifactKind.VCF), artifact_sha256="b" * 64))))
     added = source_transitions(one, two)
     assert [t.changes for t in added] == [
         frozenset({SourceDeltaKind.ARTIFACT_ADDED})]
@@ -387,15 +441,15 @@ def test_differing_releases_reports_each_authority_once():
     a = SourceEvidenceManifest.of((
         dependency(identity()),
         dependency(identity(key=SourceArtifactKey(
-            SourceName.CLINVAR, ArtifactKind.VCF), artifact_sha256="b" * 64))))
+            "clinvar", ArtifactKind.VCF), artifact_sha256="b" * 64))))
     b = SourceEvidenceManifest.of((
         dependency(identity(release_id="2026-09", artifact_sha256="c" * 64)),
         dependency(identity(key=SourceArtifactKey(
-            SourceName.CLINVAR, ArtifactKind.VCF), release_id="2026-09",
+            "clinvar", ArtifactKind.VCF), release_id="2026-09",
             artifact_sha256="d" * 64))))
     assert len(source_transitions(a, b)) == 2
     assert differing_releases(SourceManifest(evidence=a),
-                              SourceManifest(evidence=b)) == ("ClinVar",)
+                              SourceManifest(evidence=b)) == ("clinvar",)
 
 
 @pytest.mark.parametrize(
@@ -434,7 +488,7 @@ def test_an_added_identity_field_cannot_pass_unclassified():
     class WithNewField(SourceArtifactIdentity):
         curation_tier: str = "gold"
 
-    base = dict(key=SourceArtifactKey(SourceName.CLINVAR,
+    base = dict(key=SourceArtifactKey("clinvar",
                                       ArtifactKind.PRIMARY_RELEASE),
                 release_id="2026-08", coordinate_context=GRCH38,
                 artifact_sha256="a" * 64)
@@ -475,7 +529,7 @@ def test_a_dependency_must_declare_a_role():
 def test_a_manifest_built_out_of_canonical_order_is_refused():
     x = dependency(identity())
     y = dependency(identity(key=SourceArtifactKey(
-        SourceName.DBNSFP, ArtifactKind.PRIMARY_RELEASE),
+        "dbnsfp", ArtifactKind.PRIMARY_RELEASE),
         release_id="4.7a", artifact_sha256="b" * 64))
     lo, hi = sorted((x, y), key=lambda d: d.canonical_key)
     with pytest.raises(SourceError) as exc:
@@ -488,7 +542,7 @@ def test_an_acquisition_of_an_undeclared_artifact_is_refused():
         SourceManifest(evidence=evidence(),
                        acquisitions=(SourceAcquisition(
                            identity(key=SourceArtifactKey(
-                               SourceName.COSMIC, ArtifactKind.PRIMARY_RELEASE)),
+                               "cosmic", ArtifactKind.PRIMARY_RELEASE)),
                            provenance()),))
     assert "does not declare" in str(exc.value)
 

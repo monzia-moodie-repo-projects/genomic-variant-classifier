@@ -51,7 +51,6 @@ from genomic_variant_classifier.monitoring.drift import (
     SourceDependency,
     SourceEvidenceManifest,
     SourceManifest,
-    SourceName,
     SourceRole,
     TransformationComponent,
     TransformationComponentKind,
@@ -90,7 +89,7 @@ def sources(clinvar="2026-07", sha="c"):
     return SourceManifest(evidence=SourceEvidenceManifest.of((
         SourceDependency(
             identity=SourceArtifactIdentity(
-                key=SourceArtifactKey(SourceName.CLINVAR,
+                key=SourceArtifactKey("clinvar",
                                       ArtifactKind.PRIMARY_RELEASE),
                 release_id=clinvar,
                 coordinate_context=CoordinateContext.assembly("GRCh38"),
@@ -98,7 +97,7 @@ def sources(clinvar="2026-07", sha="c"):
             roles=frozenset({SourceRole.OBSERVATION, SourceRole.LABEL})),
         SourceDependency(
             identity=SourceArtifactIdentity(
-                key=SourceArtifactKey(SourceName.DBNSFP,
+                key=SourceArtifactKey("dbnsfp",
                                       ArtifactKind.PRIMARY_RELEASE),
                 release_id="4.7a",
                 coordinate_context=CoordinateContext.assembly("GRCh38"),
@@ -147,7 +146,7 @@ def test_quadrant_same_representation_DIFFERENT_sources():
     """
     assert_same_representation(representation(), representation())
     assert differing_releases(sources("2026-07", "c"),
-                              sources("2026-08", "e")) == ("ClinVar",)
+                              sources("2026-08", "e")) == ("clinvar",)
 
 
 def test_quadrant_DIFFERENT_representation_same_sources():
@@ -166,7 +165,7 @@ def test_quadrant_both_different_preserves_both():
             engineering="f" * 64)))
     assert [d.kind for d in diffs] == [RepresentationDeltaKind.TRANSFORMATION]
     assert differing_releases(sources("2026-07", "c"),
-                             sources("2026-08", "e")) == ("ClinVar",)
+                             sources("2026-08", "e")) == ("clinvar",)
 
 
 # ---------------------------------------------------------------------------

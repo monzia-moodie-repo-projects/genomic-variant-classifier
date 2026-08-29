@@ -209,6 +209,6 @@ def differing_releases(reference: SourceManifest,
     """
     seen = []
     for t in source_transitions(reference.evidence, candidate.evidence):
-        if t.source.value not in seen:
-            seen.append(t.source.value)
+        if t.source not in seen:
+            seen.append(t.source)
     return tuple(seen)
