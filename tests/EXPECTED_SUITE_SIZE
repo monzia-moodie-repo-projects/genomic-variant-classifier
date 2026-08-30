@@ -7588,4 +7588,27 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5705
+
+# 2026-08-30 -- 5705 -> 5719 (+14). An auditor acquires a caller.
+#
+#   audit_data_tree.py reported the data-layout audit since 2026-06-17 and
+#   NOTHING EVER CALLED IT: ten tracked files named it, all documentation. It
+#   had already been printing three orphan directories totalling 4,685,941,722
+#   bytes, outside the registry that calls itself canonical.
+#
+#   The computation was locked inside a 159-line main() with 25 print() calls.
+#   Split into audit_tree (computes), audit_rows (renders severity rows) and
+#   main (prints) -- the shape preflight_data_guard.py already uses -- and
+#   wired as preflight_run17.data_tree_gate(). Old and new output are
+#   BYTE-IDENTICAL.
+#
+#   FOUR of the fourteen tests skip without an importable preflight_run17, so
+#   the gate is what proves the wiring: a delta of ten means four skipped.
+#
+#   Suite identity digests:
+#       before  60c7535c9a4ffeead3983ed8ec2531d88c3bd1c4a87b51f4bbeaa01354e7935e
+#       after   02535ddfc579feab46164b2f03fcfa544c03a9590fa83ebeced3c487e866b5da
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5719

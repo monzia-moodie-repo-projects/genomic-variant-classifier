@@ -288,6 +288,41 @@ def storage_gate(data_root: str = "data",
     return mod.storage_rows(data_root, manifest)
 
 
+# ---- data-tree gate (added 2026-08-30) --------------------------------------
+# The auditor existed since 2026-06-17 and NOTHING EVER CALLED IT. MEASURED
+# 2026-08-30: ten tracked files name audit_data_tree.py, and every one is
+# documentation, a .gitignore comment, or the script itself. The runbook says
+# "Run it at session start and before every run" -- an instruction to a human.
+#
+# It had already reported the finding nobody had seen: three ORPHAN directories
+# under data/external -- gencode (636,522,106 B), grch38 (4,033,396,532 B) and
+# eve_smoke (16,023,084 B) -- sitting outside the registry that calls itself
+# canonical for everything under data/. A probe written on 2026-08-29 found the
+# same three and told us nothing the auditor had not been printing.
+#
+# It is wired HERE for the same reason the storage gate is: preflight runs
+# before a Vast.ai instance is created, and an undeclared source is a data
+# provenance problem that costs money to discover after launch. Severity is the
+# auditor's OWN: a controlled source marked sync=true FAILS, an orphan WARNS.
+def data_tree_gate(data_root: str = "data",
+                   manifest: str | Path = "configs/data_manifest.yaml"
+                   ) -> list[tuple[str, str]]:
+    """data/ layout against the manifest, in the standard row convention."""
+    try:
+        import importlib.util
+        audit_path = Path(__file__).resolve().parent / "maintenance" / "audit_data_tree.py"
+        spec = importlib.util.spec_from_file_location("audit_data_tree", audit_path)
+        mod = importlib.util.module_from_spec(spec)
+        # register BEFORE exec: same @dataclass / annotations hazard the
+        # storage gate documents, and audit_data_tree now declares dataclasses.
+        sys.modules["audit_data_tree"] = mod
+        spec.loader.exec_module(mod)
+    except Exception as e:  # the gate must report, never take the preflight down
+        return [("FAIL", f"data-tree: could not load the auditor ({type(e).__name__}: {e}). "
+                         f"Expected at scripts/maintenance/audit_data_tree.py")]
+    return mod.audit_rows(data_root, manifest)
+
+
 def run_all(command: str, data_root: str, n_train: int, defer_kg: bool,
             baseline_path: str | Path = SCHEMA_BASELINE_REL,
             scripts_dir: str | Path = "scripts",
@@ -303,6 +338,7 @@ def run_all(command: str, data_root: str, n_train: int, defer_kg: bool,
     rows += schema_gate(baseline_path)
     rows += scripts_gate(scripts_dir)
     rows += storage_gate(data_root)
+    rows += data_tree_gate(data_root)
     return rows
 
 
