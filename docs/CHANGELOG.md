@@ -1,3 +1,53 @@
+## 2026-08-30 (CORRECTION-TOOL-ALREADY-KNEW) -- a tool that already knew
+
+One commit, `c8c3240` -> correction record. The ratchet does not move.
+Document: docs/sessions/CORRECTION_2026-08-30_a-tool-that-already-knew.md
+
+### Attempted
+- Act on the incident at `c8c3240`, which said GENCODE must be declared because
+  `mim2gene` versus `omim` shows the form for one publisher's
+  differently-governed products.
+
+### Fixed
+- Nothing in code. One claim in a pinned record is corrected, and three
+  findings are registered.
+
+### Failed (and why)
+- REFUTED: the `mim2gene` / `omim` pattern. MEASURED: `data/external/mim2gene`
+  DOES NOT EXIST; both files sit in `data/external/omim/`. They are two FILES
+  IN ONE DIRECTORY declared as two sources, and the manifest declares
+  DIRECTORIES -- nothing in its schema enumerates the files inside. So there is
+  no established form, and declaring GENCODE would give it one entry covering
+  all five artifacts, leaving the product question exactly where it was.
+  MANIFEST-DECLARES-TWO-SOURCES-IN-ONE-DIRECTORY-1.
+- THE INCIDENT DUPLICATED A TOOL THAT ALREADY REPORTS THIS.
+  `scripts/maintenance/audit_data_tree.py`, run 2026-08-30, names exactly the
+  three orphans my probe found -- `eve_smoke`, `gencode`, `grch38` -- and
+  classifies `processed/` and `raw/` correctly as untracked BY DESIGN, which my
+  probe did not distinguish. GENCODE was never hidden.
+- AUDITOR-EXISTS-AND-IS-NOT-INVOKED-1. TEN tracked files name
+  `audit_data_tree`, and NOT ONE invokes it: every mention is documentation, a
+  `.gitignore` comment, or the script itself. The runbook's "Run it at session
+  start and before every run" is an instruction to a human. This is the THIRD
+  instance of one shape, after `preflight_data_guard.py` recording the same of
+  itself and DRIFT-SOURCE-KERNEL-HAS-NO-PRODUCTION-CALLER-1.
+- AUDITOR-TREATS-AN-EMPTY-DIRECTORY-AS-PRESENT-1. `tcga` and `topmed` are both
+  `controlled` and `irreplaceable`, both hold ZERO BYTES, and one reports `ok`
+  while the other reports `MISS`. The only difference is whether an empty
+  directory exists. An empty directory is not more usable than an absent one.
+
+### Learned
+- A PROBE THAT AGREES WITH ITSELF PROVES NOTHING. Running the existing auditor
+  was what established that its orphan detection has no gap -- and that the
+  gap is in invocation, not capability. Writing the probe first was not wasted,
+  but checking for an existing owner BEFORE writing it is the cheaper order.
+- NOTHING IS CURRENTLY CLOUD-BACKED. Five sources carry `sync: true`; four are
+  MISS and the fifth, `reference`, is `public_redownloadable` and so does not
+  meet the standard's must-back-up bar. The rollup reads `cloud-backup 0.0B`,
+  and that is a fact about the estate rather than a defect in the tool.
+  341.1 MB of controlled, irreplaceable data is offline-only by policy, and
+  whether that offline backup exists is outside what any tool here can see.
+
 ## 2026-08-29 part 4 (INCIDENT-GENCODE-UNDECLARED) -- a source nobody declared
 
 One commit, `95f6c44` -> incident record. The ratchet does not move.
