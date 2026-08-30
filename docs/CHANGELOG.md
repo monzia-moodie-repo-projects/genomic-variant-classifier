@@ -1,3 +1,68 @@
+## 2026-08-30 (DATA-TREE-GATE + three corrections) -- a tool that was already printing it
+
+Five commits, `b3619f2` -> `fd6cd4e`. The ratchet moved 5705 -> 5719.
+Document: docs/sessions/SESSION_2026-08-30_a-tool-that-was-already-printing-it.md
+
+### Attempted
+- Settle whether `ARTIFACT-KEY-INSUFFICIENT-1` blocks Phase 1C, by testing the
+  manifest's own pattern against all four measured collision classes.
+
+### Fixed
+- AUDITOR-EXISTS-AND-IS-NOT-INVOKED-1. `audit_data_tree.py` reported the
+  data-layout audit since 2026-06-17 with NOTHING calling it -- ten tracked
+  files named it, every one documentation, a `.gitignore` comment, or the
+  script itself. Its computation was locked inside a 159-line `main()` with 25
+  `print()` calls. Split into `audit_tree` (computes), `audit_rows` (renders
+  severity rows) and `main` (prints), and wired as
+  `preflight_run17.data_tree_gate()`. `run_all` composes seven gates.
+  OLD AND NEW OUTPUT ARE BYTE-IDENTICAL.
+- THE NUMBER THAT MATTERED: four of the fourteen new tests SKIP without an
+  importable `preflight_run17`, and they skipped in the authoring sandbox.
+  MEASURED at the gate: `skipped` stayed at 15 and `passed` rose 5690 -> 5704,
+  exactly +14. The four gate tests RAN. Had they skipped, the gate would have
+  been green with the wiring untested.
+
+### Failed (and why)
+- THREE OF FOUR COLLISION CLASSES DISSOLVE into axes that already exist, and
+  the fourth -- GENCODE's three transcript FASTA files -- belongs to a source
+  no registry declares. GENCODE-ACQUIRED-VALIDATED-UNDECLARED-1: 636,522,106
+  bytes acquired with the publisher's own manifest, validated by a dedicated
+  script, consumed by nothing.
+- CONFIG-DECLARES-A-SECOND-PATH-VOCABULARY-1 and
+  VALIDATOR-CHECKS-A-LOCATION-THE-DATA-LEFT-1: `configs/data_sources.json` is a
+  second NAMING authority disagreeing with the manifest on six of fifteen
+  names, and `GENOMIC_DATA_ROOT` is SET to a directory that does not exist, so
+  `validate_gencode_assets.py` exits 2 on intact data.
+- MANIFEST-DECLARES-TWO-SOURCES-IN-ONE-DIRECTORY-1. I claimed `mim2gene` versus
+  `omim` shows the form for one publisher's differently-governed products.
+  `data/external/mim2gene` DOES NOT EXIST; both files sit in
+  `data/external/omim/`. The manifest declares DIRECTORIES, so declaring
+  GENCODE would give it one entry and leave the product question where it was.
+- QUOTED-A-FINDING-PAST-ITS-OWN-REPAIR-1. I quoted
+  `preflight_data_guard.py`'s 2026-07-21 "nothing ever called it" as present
+  tense. Line 27 of the same paragraph reads "It is now wired into
+  preflight_run17.run_all() via storage_gate()". I had read that file in full
+  and stopped at the sentence that suited the pattern I was building -- so a
+  "systemic, three instances" claim was really two.
+- PROBE-COUNTS-PROSE-AS-INVOCATION-1 and PROBE-CANNOT-SEE-A-DYNAMIC-IMPORT-1. A
+  probe reported 31 "invocations" that were every one a line of Markdown, and
+  ZERO imports while the wiring was real, because it uses `importlib`.
+  `test_storage_guard.py` named this exact failure on 2026-07-21: *a source
+  check passes on dead code and fails on a clean refactor -- both directions
+  wrong.*
+
+### Learned
+- A PROBE THAT AGREES WITH ITSELF PROVES NOTHING. My orphan probe found the
+  same three orphans the auditor had been printing, and classified `processed/`
+  and `raw/` WORSE. Running the existing tool is what established that the gap
+  was invocation, not capability.
+- AUDITOR-TREATS-AN-EMPTY-DIRECTORY-AS-PRESENT-1: `tcga` reports `ok` and
+  `topmed` `MISS`, both zero bytes, both controlled and irreplaceable. The only
+  difference is whether an empty directory exists.
+- A REFACTOR IS BEHAVIOUR-PRESERVING OR IT IS A REWRITE. An early version
+  grouped findings by category; the byte diff caught it, and encounter order is
+  now recorded explicitly so both renderers walk one sequence.
+
 ## 2026-08-30 part 2 (CORRECTION-PART-2) -- the next line said it was repaired
 
 One commit, `6545b64` -> correction record. The ratchet does not move.
