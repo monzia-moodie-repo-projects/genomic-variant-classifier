@@ -1,3 +1,48 @@
+## 2026-08-30 part 2 (CORRECTION-PART-2) -- the next line said it was repaired
+
+One commit, `6545b64` -> correction record. The ratchet does not move.
+Document: docs/sessions/CORRECTION_2026-08-30_part2_the-next-line-said-it-was-repaired.md
+
+### Attempted
+- Act on the pattern claimed at `6545b64`: three subsystems correct and
+  unwired, therefore a systemic shape rather than a local defect.
+
+### Fixed
+- Nothing in code. One claim in a pinned record is withdrawn.
+
+### Failed (and why)
+- QUOTED-A-FINDING-PAST-ITS-OWN-REPAIR-1. `6545b64` says
+  `preflight_data_guard.py` "recorded of ITSELF that nothing called it". Its
+  docstring, lines 22 to 27, records the 2026-07-21 finding AND its remedy in
+  one paragraph, and line 27 reads: "It is now wired into
+  preflight_run17.run_all() via storage_gate()." I read that file in full on
+  2026-08-29, quoted through line 26, and stopped at the sentence that suited
+  the pattern I was building.
+- THE MENTION COUNT SHOULD HAVE WARNED ME. `preflight_data_guard` is named in
+  TWENTY tracked files, more than any other maintenance script -- 12, 10, 8 and
+  7 for the rest. I reported that number in the same measurement and did not
+  ask why the supposedly-uncalled script was the most-referenced of the five.
+- SO THE PATTERN HAS TWO INSTANCES, NOT THREE.
+  AUDITOR-EXISTS-AND-IS-NOT-INVOKED-1 stands: ten mentions, all ten read, zero
+  invocations. DRIFT-SOURCE-KERNEL-HAS-NO-PRODUCTION-CALLER-1 stands: every
+  tracked file parsed, zero construction sites, 85 test sites. What does NOT
+  stand is the claim that the shape is SYSTEMIC rather than local.
+
+### Learned
+- `preflight_data_guard` IS THE MORE USEFUL FINDING, not a counterexample to
+  set aside. It is the REPAIR SHAPE, already executed once here: a read-only
+  guard became `storage_gate()` inside `preflight_run17.run_all()`, and
+  `storage_rows()` returns `(severity, message)` rows in that gate's own
+  convention.
+- THAT ANSWERS THE OBJECTION I RAISED AGAINST WIRING THE AUDITOR. `6545b64`
+  argued a gate would fail every run on three known orphans. A severity-row
+  interface makes that a non-problem: the auditor reports `[warn]`, the gate
+  records it, the run proceeds -- exactly what the storage guard already does
+  with a thin-disk warning.
+- SO THE NEXT STEP IS NOT "decide whether to wire the auditor" but "wire it the
+  way the storage guard was wired", and the pattern is at
+  `scripts/maintenance/preflight_data_guard.py` lines 249 to 258.
+
 ## 2026-08-30 (CORRECTION-TOOL-ALREADY-KNEW) -- a tool that already knew
 
 One commit, `c8c3240` -> correction record. The ratchet does not move.
