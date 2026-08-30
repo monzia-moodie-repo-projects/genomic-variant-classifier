@@ -1,3 +1,45 @@
+## 2026-08-30 part 2 (MEASUREMENT-GATE-TIMING) -- gate timing has no established cause
+
+One commit, `c7e26eb` -> measurement record. The ratchet does not move.
+Document: docs/measurements/MEASUREMENT_2026-08-30_gate-timing-has-no-established-cause.md
+
+### Attempted
+- Explain `GATE-TIMING-NOISE-EXCEEDS-TREND-1`, carried as a finding since
+  2026-08-28 and attributed twice in conversation.
+
+### Fixed
+- Nothing in code. A measurement is recorded so a later session cannot borrow
+  either refuted explanation.
+
+### Failed (and why)
+- REFUTED: "the longer run added tests that spawn subprocesses". `62d0a33` and
+  `81f6c4f` share suite identity `14339e6e37abcb84` -- THE SAME 5,690 TESTS --
+  at 1537.9 and 1111.6 seconds, 1.38x apart. The subprocess tests were present
+  in both runs.
+- REFUTED: "consistent with the manifest's 1.87x at 8.9 per cent free disk".
+  MEASURED by `shutil.disk_usage` on 2026-08-30: the volume is 25.67 per cent
+  free -- 240.15 gibibytes of 935.59 -- and the largest within-identity spread
+  is 1.45x. The manifest's 2026-07-21 observation is sound for ITS conditions
+  and does not transfer to these.
+- NEITHER ATTRIBUTION WAS EVER COMMITTED. Both were said in conversation,
+  repeatedly. No record required correcting; the refutation is recorded because
+  the explanations are plausible enough to be reached for again.
+
+### Learned
+- GROUP BY WHAT A RUN COLLECTED, NOT BY WHEN IT RAN. Both attributions compared
+  runs by date and by narrative. Grouping thirteen attestations by
+  `suite_transition.after_digest` refuted both in one pass over data already in
+  hand.
+- WITHIN-IDENTITY SPREAD IS REAL: 1.09x, 1.21x, 1.38x and 1.45x across four
+  groups whose collected identity sets did not change. No cause is established,
+  and five untested candidates are named so they are not mistaken for
+  eliminated -- background load, cache warmth, a virus scanner touching `data/`,
+  thermal behaviour, and collection-order effects the identity digest does not
+  pin.
+- THE SECOND ATTRIBUTION IS THE SHAPE QUOTED-A-FINDING-PAST-ITS-OWN-REPAIR-1
+  named four hours earlier the same day: a finding that is true elsewhere,
+  asserted here.
+
 ## 2026-08-30 (DATA-TREE-GATE + three corrections) -- a tool that was already printing it
 
 Five commits, `b3619f2` -> `fd6cd4e`. The ratchet moved 5705 -> 5719.
