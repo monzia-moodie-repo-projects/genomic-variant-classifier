@@ -1,3 +1,59 @@
+## 2026-08-29 part 4 (INCIDENT-GENCODE-UNDECLARED) -- a source nobody declared
+
+One commit, `95f6c44` -> incident record. The ratchet does not move.
+Document: docs/incidents/INCIDENT_2026-08-29_a-source-nobody-declared.md
+
+### Attempted
+- Settle whether `ARTIFACT-KEY-INSUFFICIENT-1` has a live instance, by testing
+  the manifest's own pattern against all four measured collision classes.
+
+### Fixed
+- Nothing. Every finding is OPEN.
+
+### Failed (and why)
+- GENCODE-ACQUIRED-VALIDATED-UNDECLARED-1. 636,522,106 bytes across 8 files sit
+  under `data/external/gencode/`, including the publisher's own manifest and
+  the File Transfer Protocol directory listing acquired alongside them. Two
+  scripts AUDIT or VALIDATE them; searched across every tracked file of every
+  type, NO module under `src/` opens one. And
+  `configs/data_manifest.yaml` -- which calls itself the "Canonical registry of
+  every data source under data/" -- does not list it. 636 MB sits under `data/`
+  outside the registry that claims to cover everything under `data/`.
+- CONFIG-DECLARES-A-SECOND-PATH-VOCABULARY-1. `configs/data_sources.json` is
+  not a second registry -- it declares no tier, class, aliases or provenance --
+  but it IS a second NAMING authority, and its names disagree with the
+  manifest's: `omim_mim2gene` vs `mim2gene`, `dbsnp_vcf_gz` vs `dbsnp`,
+  `phyloP100way_bw` vs `phylop`, `eve_bulk_zip`/`eve_bulk_dir` vs `eve`. All
+  fifteen entries are absolute `G:\My Drive\...` paths rooted at the OLD Drive
+  root, carrying the same defect as
+  CACHE-KEY-DERIVED-FROM-PATHS-NOT-CONTENT-1.
+- VALIDATOR-CHECKS-A-LOCATION-THE-DATA-LEFT-1. `validate_gencode_assets.py`
+  resolves `GENOMIC_DATA_ROOT`, which IS SET and points at a directory that
+  does not exist -- so the variable and the hard-coded default are the same
+  wrong location. Run today it emits five MISSING lines and exits 2 while all
+  five files sit intact in the repository data tree.
+- MY "32 DECLARED SOURCES" FIGURE CAME FROM ONE FILE. I found a registry and
+  stopped looking. That is the same shape as
+  AUTHORITY-SEARCH-SCOPED-TO-ONE-LANGUAGE-1, except the search SUCCEEDED and
+  was therefore never widened -- a successful search is harder to distrust than
+  a failed one.
+
+### Learned
+- THREE OF FOUR COLLISION CLASSES DISSOLVE into axes that already exist:
+  `ClinVar/vcf` differs by ASSEMBLY, which `CoordinateContext` models;
+  `ClinVar/primary_release` is project-derived, which `acquire`/`regenerate`
+  separates; `EVE/csv` is 3,212 PARTITIONS of one product, a different axis
+  entirely. Only GENCODE's three transcript FASTAs are a genuine product case.
+- SO THE SEQUENCE GAINS A STEP BEFORE THE ARTIFACT KEY. GENCODE must be
+  DECLARED before its product structure can be modelled, because declaring it
+  forces the question into the manifest's own schema -- where `mim2gene` versus
+  `omim` already shows the established form for one publisher's
+  differently-governed products.
+- THE VALIDATOR IS OTHERWISE CORRECT, and already applies the lesson
+  ALIAS-MERGE-VERIFIES-BY-SIZE-NOT-DIGEST-1 repaired at `62d0a33`: it reads the
+  first megabyte through `gzip.open`, which catches a truncated download that a
+  size check cannot. Only its ROOT is wrong.
+
 ## 2026-08-29 part 3 (CORRECTION-PART-3) -- a kernel with no caller
 
 One commit, `b3619f2` -> correction record and a roadmap repair. The ratchet
