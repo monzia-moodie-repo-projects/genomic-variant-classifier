@@ -1,3 +1,51 @@
+## 2026-09-01 part 5 (CORRECTION-SIXTY-THREE-SITES) -- sixty-three sites, and one that is not a leak
+
+One commit, `e109de9` -> correction record. The ratchet does not move.
+Document: docs/sessions/CORRECTION_2026-09-01_part2_sixty-three-sites-and-one-that-is-not-a-leak.md
+
+### Attempted
+- Turn `RESOURCE-WARNING-FROM-UNCLOSED-READS-1`, registered at `11df0b5`, into
+  a repair unit on the grounds that it was decision-free.
+
+### Fixed
+- Nothing in code. Two claims in a pinned record are corrected.
+
+### Failed (and why)
+- THE SCOPE WAS FAR LARGER THAN THREE FILES. MEASURED by parsing every tracked
+  Python file for a call to `open` whose result is neither assigned nor bound
+  by a `with`: SIXTY-THREE sites across THIRTY-FIVE files -- 28 in one-shot
+  patch scripts across 24 files, 35 in tests across 11. The heaviest are
+  `test_phylop_bigwig.py` (9), `test_json_state_store.py` (7) and
+  `test_runtime_paths.py` (4).
+- `scripts/train.py:76` IS NOT A DEFECT. A `logging.FileHandler` owns its file
+  for the process lifetime BY DESIGN. The ResourceWarning is real, but
+  "leaves logs/train.log open" describes normal logging behaviour, and closing
+  the handler would discard every subsequent log line. `11df0b5` names it
+  alongside two genuine unmanaged reads, which invites exactly that repair.
+- AND IT IS NOT AMONG THE SIXTY-THREE. It is a `logging.basicConfig` call, not
+  a bare `open()`, so a detector looking for unmanaged `open` never saw it. A
+  site count will never surface it.
+- I CALLED THE FINDING "DECISION-FREE" ON THE STRENGTH OF ONE SITE I HAD READ.
+  That one site is decision-free. Sixty-three are not, two populations are not,
+  and one is not a defect.
+
+### Learned
+- THE WARNING COUNT AND THE SITE COUNT MEASURE DIFFERENT THINGS, and neither is
+  the scope. Thirty-three warnings, sixty-three sites -- and
+  `test_backup_artifacts.py:80`, which generates most of the warnings by
+  looping over every source module, does NOT appear in the site census at all,
+  because it calls `io.open` and the detector matched the attribute name on the
+  module. That is the shape of `PROBE-FETCH-CALL-NAME-IS-AMBIGUOUS-1`, where
+  `dict.get` and `requests.get` were indistinguishable by callee name.
+- A CHECK CANNOT DISTINGUISH A CLAIM FROM A RETRACTION OF IT. After repairing
+  the record I tested for the ABSENCE of the wrong figures and it failed --
+  because the sentence admitting the error quotes them. Reading the one hit
+  settled it in a line.
+- AN EARLIER DRAFT OF THIS CORRECTION SAID "~22" AND "~39" and placed
+  `train.py` inside the sixty-three. Counting the census exactly gave 28 and
+  35, and put `train.py` outside it. The correction needed correcting before it
+  shipped.
+
 ## 2026-09-01 part 4 (MEASUREMENT-FOUR-SEAMS) -- four seams measured, four rejected
 
 One commit, `4eea19d` -> measurement record. The ratchet does not move.
