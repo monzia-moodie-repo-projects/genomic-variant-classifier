@@ -1,3 +1,55 @@
+## 2026-09-01 part 4 (MEASUREMENT-FOUR-SEAMS) -- four seams measured, four rejected
+
+One commit, `4eea19d` -> measurement record. The ratchet does not move.
+Document: docs/measurements/MEASUREMENT_2026-09-01_part2_four-seams-and-one-coordinate.md
+
+### Attempted
+- Find an attachment point for Phase 1C where a file is ACTUALLY OPENED.
+
+### Fixed
+- Nothing. Four candidates are rejected with stated reasons and one reusable
+  coordinate is recorded.
+
+### Failed (and why)
+- CONFIG-DECLARES-A-PATH-NOTHING-READS-1. Of `AnnotationConfig`'s 39 annotated
+  fields, 35 are read inside `_annotate_scores` and 4 are not. Three of those
+  four appear twice each elsewhere in the file, so they are read at a different
+  seam. `vep_path` appears ZERO times elsewhere -- and line 942 reads
+  `vep = VEPConnector()` with NO path argument, so the connector cannot accept
+  one. A config-derived manifest would record VEP as a consumed source when
+  nothing opens it.
+- CONNECTOR CONSTRUCTION IS NOT EVIDENCE EITHER. Most steps are unguarded:
+  `DbNSFPConnector(dbnsfp_file=ac.dbnsfp_path)` runs whether the path is None or
+  not, and the file's own docstring says None means stub mode. Only six of
+  nineteen steps check a path first.
+- `BaseConnector` IS A FETCH-AND-CACHE BASE, not an open seam. `_load_cache`
+  opens the PARQUET CACHE this project wrote, not a publisher's file; `fetch`
+  is abstract, so every subclass opens its own file its own way; and 15 of the
+  32 connector classes do not inherit it at all.
+- DATABASE-CONNECTORS-NOT-BYTE-EXACT-BY-TRANSCRIPT-1. Every other file
+  reconstructed from a console transcript this session was byte-exact. This one
+  is not: it holds 18 non-ASCII bytes that did not survive the console
+  encoding. Any installer touching it must NOT use a transcript reconstruction
+  as its preimage source. Recorded now rather than discovered at an apply.
+
+### Learned
+- `source_name` IS ALREADY THE CANONICAL-SOURCE COORDINATE. Twenty-four
+  connectors declare it, INCLUDING classes that do not inherit
+  `BaseConnector` -- the convention is honoured more widely than the
+  inheritance. That is exactly `SourceArtifactKey.source`. The remaining
+  coordinates are not on the connector, which is why only 5 of 36 modules
+  compute a digest: each did it locally when it needed one.
+- CONNECTOR-SOURCE-NAMES-DISAGREE-WITH-THE-MANIFEST-1. `cosmic_cmc` against
+  `cosmic`; `1000genomes` against `1kgp`, which the manifest declares as an
+  ALIAS of it; and `sift_polyphen` declared nowhere. `connector_1kgp.py` uses
+  `1kgp` and `thousandgenomes.py` uses `1000genomes` -- two connectors, two
+  names, one source. `SourceRegistry.canonical_for` exists to resolve exactly
+  this, with a live case waiting.
+- A VERIFICATION CAN BE WRONG WHILE THE ARTIFACT IS RIGHT. My check of the
+  record's own source_name count split on the wrong code fence and reported 16
+  against a stated 24. Counting the correct block gave 24, identical to the
+  census. The record was right; the check was not.
+
 ## 2026-09-01 part 3 (CORRECTION-FIVE-OF-THIRTY-SIX) -- five of thirty-six
 
 One commit, `ea84591` -> correction record. The ratchet does not move.
