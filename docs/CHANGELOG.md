@@ -1,3 +1,58 @@
+## 2026-09-01 (DECLARE-GENCODE, PRODUCT-COORDINATE) -- a coordinate the evidence required
+
+Two commits, `260d1bc` -> `4bed1b8`. The ratchet moved 5719 -> 5732.
+Document: docs/sessions/SESSION_2026-09-01_a-coordinate-the-evidence-required.md
+
+### Attempted
+- Items 2, 3 and 4 of the adopted priority order: declare GENCODE, resolve
+  `ARTIFACT-KEY-INSUFFICIENT-1` narrowly, and version the evidence schema.
+
+### Fixed
+- GENCODE-ACQUIRED-VALIDATED-UNDECLARED-1 at `24bfb11`. 636,522,106 bytes are
+  declared, and ALL FIVE publisher SHA-256 digests were re-verified against
+  disk FIRST -- the only content check these files have had in the seventy-four
+  days since acquisition, because `validate_gencode_assets.py` resolves
+  `GENOMIC_DATA_ROOT`, which is SET to a directory that does not exist.
+- ARTIFACT-KEY-INSUFFICIENT-1 at `4bed1b8`. Of four measured collision classes
+  THREE dissolved into existing axes -- assembly into `CoordinateContext`,
+  project-derived into `acquire`/`regenerate`, EVE's 3,212 files into a
+  partition axis. Only GENCODE's three transcript FASTA products were a genuine
+  missing dimension. `SourceArtifactKey` gains an OPTIONAL product coordinate,
+  LAST, and `EVIDENCE_DOMAIN` moves v3 -> v4 because equality changed.
+- ZERO IDENTITIES REMOVED. Measured by collecting both trees: 74 old, 87 new,
+  13 added. The acceptance run reported `unchanged 5719` -- widening the key's
+  equality moved nothing in the whole repository suite.
+
+### Failed (and why)
+- I DECLARED MYSELF BLOCKED without re-reading a file already in hand. It
+  contained the acquire URL confirmed five times, the five digests, and the
+  manifest block format.
+- THREE EDITS WERE ANCHORED ON SOMETHING NOT MEASURED IN THE FILE BEING EDITED:
+  a slice that matched at index 0 and truncated an installer; a docstring
+  replacement that left a stray `_OF_DOC` class attribute; and
+  `if road is None:` surviving a rename directly above `MANIFEST_PAYLOAD`. Each
+  cost one iteration because an assertion or a stale-reference count caught it.
+- I MEASURED THAT `of()` WAS NEVER CALLED and did not act on it. Sabotage found
+  it one boundary later: the factory could DISCARD the product coordinate and
+  no test noticed.
+- I said "every prior gate today reported no warning count" without checking.
+  The warnings' CONTENT proves they are pre-existing; the claim about counts
+  was unverified.
+
+### Learned
+- ABSENCE AND EMPTY MUST NOT COLLIDE. `canonical_key` renders an absent product
+  as `""` in a FIXED three-tuple, so `product=""` is refused at construction --
+  otherwise two different values would produce one canonical key. A
+  variable-length tuple was rejected for the same reason
+  `RepresentationIdentity` was length-prefixed: concatenation ambiguity.
+- RESOURCE-WARNING-FROM-UNCLOSED-READS-1. Measured with `-W default`:
+  `tests/unit/test_backup_artifacts.py:80` opens every source module without
+  closing it, and `scripts/train.py:76` leaves `logs/train.log` open. Nothing
+  breaks today; on Windows an unclosed handle can block a later rename, which
+  is exactly what an installer's atomic replace performs.
+- A DECLARATION ASSERTS SOMETHING ABOUT BYTES ON DISK, so the bytes were
+  established before the assertion was written.
+
 ## 2026-08-30 part 3 (DECLARE-GENCODE) -- 636 megabytes acquire a declaration
 
 One commit, `260d1bc` -> manifest declaration. The ratchet does not move.
