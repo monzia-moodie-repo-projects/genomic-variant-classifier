@@ -1,3 +1,48 @@
+## 2026-09-01 part 3 (CORRECTION-FIVE-OF-THIRTY-SIX) -- five of thirty-six
+
+One commit, `ea84591` -> correction record. The ratchet does not move.
+Document: docs/sessions/CORRECTION_2026-09-01_five-of-thirty-six.md
+
+### Attempted
+- Act on the design implication stated at `ea84591`: that a Phase 1C builder
+  "does not need a new seam" because loaders already compute source digests.
+
+### Fixed
+- Nothing in code. One claim in a pinned record is corrected, and one open
+  question is closed.
+
+### Failed (and why)
+- FIVE OF THIRTY-SIX. MEASURED at `ea84591`: five modules under `data/` compute
+  a source digest and THIRTY-ONE read without one. The five are TWO source
+  families -- phyloP and gnomAD constraint -- not five independent adopters of
+  a convention. Every source the training frame actually joins is in the
+  thirty-one: ClinVar, SpliceAI, AlphaMissense, UniProt, dbNSFP, LOVD, ESM-2
+  and thirteen more numbered connector steps.
+- SO "RECEIVE WHAT THEY ALREADY HAVE" WAS WRONG for 31 of 36 modules and for
+  every principal training input. `ea84591` NAMED that ratio as unmeasured in
+  its own section 6, and I wrote a design implication on top of the unmeasured
+  half in the same document.
+
+### Learned
+- `AnnotationConfig` DECLARES TWENTY-NINE `*_path` FIELDS, one per source, with
+  absence already meaning "this run does not use it". Ninety-three call sites
+  is too many to instrument; five cooperative loaders is too few to be
+  representative; twenty-nine declared fields in one object is neither. That is
+  a CANDIDATE attachment point, not a decision -- a config field is a
+  DECLARATION that a path was offered, not evidence that a file was OPENED, and
+  the rulings require the manifest to be execution-derived.
+- `domain_digest` AND `_row_hash` AGREE ON ENCODING, closing an open question
+  from `ea84591`. Both use `json.dumps(sort_keys=True, separators=(",", ":"))`.
+  They differ in what precedes it: `domain_digest` prepends a namespace, a
+  VERSION-SUFFIXED domain and a NUL byte, and REFUSES a domain carrying no
+  version -- the refusal that made `v3 -> v4` meaningful at `4bed1b8`. The
+  ledger has no domain because it identifies rows within one log rather than
+  kinds across a system. Compatible in encoding, deliberately incomparable in
+  output, nothing to reconcile.
+- ONE DETAIL DIFFERS: `_digest.py` passes `ensure_ascii=True` and the ledger
+  does not, so a non-ASCII field would serialise differently between them.
+  Neither currently carries one.
+
 ## 2026-09-01 part 2 (MEASUREMENT-PHASE-1C-ATTACH) -- where Phase 1C would attach
 
 One commit, `11df0b5` -> measurement record. The ratchet does not move.
