@@ -1,3 +1,48 @@
+## 2026-08-30 part 3 (DECLARE-GENCODE) -- 636 megabytes acquire a declaration
+
+One commit, `260d1bc` -> manifest declaration. The ratchet does not move.
+Patched: configs/data_manifest.yaml (32 -> 33 declared sources).
+
+### Attempted
+- Item 2 of the adopted priority order: declare GENCODE in canonical
+  governance while explicitly leaving artifact-product identity unresolved.
+
+### Fixed
+- GENCODE-ACQUIRED-VALIDATED-UNDECLARED-1. 636,522,106 bytes under
+  `data/external/gencode/` are now declared: `location: external`,
+  `tier: public`, `class: public_redownloadable`, `sync: false`,
+  `version: "release 50 (GRCh38)"`, and an `acquire` string MEASURED from the
+  publisher's own manifest rather than invented.
+- THE BYTES WERE VERIFIED BEFORE THE ASSERTION. All five SHA-256 digests
+  recorded by the publisher on 2026-06-17 were re-verified against disk on
+  2026-08-30 and match. Nothing had checked them since acquisition, because
+  `validate_gencode_assets.py` resolves `GENOMIC_DATA_ROOT` -- which is SET to
+  a directory that does not exist.
+- MEASURED AFTER PATCHING, by parsing both versions and differencing: only
+  `gencode` is added, no existing entry is altered, and the `version`,
+  `gdrive` and `storage` top-level keys are unchanged. `SourceRegistry` loads
+  33 sources and classifies gencode as published with `must_back_up` False.
+  The auditor stops reporting it as an orphan.
+
+### Failed (and why)
+- Nothing failed. Three values -- `tier`, `class`, `sync` -- are DERIVED rather
+  than measured, and each derivation is stated in the installer so it can be
+  rejected: the archive is anonymous, no `acquire` string in the manifest
+  carries a credential, and every other `public_redownloadable` source is
+  `sync: false`.
+
+### Learned
+- A DECLARATION ASSERTS SOMETHING ABOUT BYTES ON DISK. Verifying the five
+  digests first turned an inference into a measurement, and it was the first
+  content check these files have had in seventy-four days.
+- THE NOTES FIELD RECORDS THE OPEN QUESTION rather than answering it: the three
+  transcript FASTA products remain the sole subject of
+  ARTIFACT-KEY-INSUFFICIENT-1, and the entry says so explicitly.
+- `grch38` IS NOT DECLARED. The File Transfer Protocol listing shows GRCh38
+  genome FASTA in the SAME GENCODE release directory, so the 4,033,396,532-byte
+  orphan may be GENCODE-sourced -- a product question rather than a new source.
+  Its consumers must be measured first.
+
 ## 2026-08-30 part 2 (MEASUREMENT-GATE-TIMING) -- gate timing has no established cause
 
 One commit, `c7e26eb` -> measurement record. The ratchet does not move.

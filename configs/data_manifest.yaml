@@ -142,6 +142,16 @@ sources:
     regenerate: ""
     sync: true
     notes: "Reference genome FASTA. Read form: the UNCOMPRESSED data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa (+ .fai), opened by seq_windows.open_reference (pyfaidx, rebuild=False) in populate_fasta_seq. The redundant unindexed .fa.gz (841MB Ensembl download form; pyfaidx cannot read plain gzip) was dropped 2026-06-17 to reclaim disk. CODE-REFERENCED -- do NOT rename. Distinct from the top-level data/reference/ schema dir. Public but slow to re-download (~3GB) -- consider sync:true now."
+  gencode:
+    location: external
+    tier: public
+    class: public_redownloadable
+    aliases: []
+    version: "release 50 (GRCh38)"
+    acquire: "GENCODE -- https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_50/"
+    regenerate: ""
+    sync: false
+    notes: "Acquired 2026-06-17 with the publisher own per-file manifest (GENCODE_v50_manifest.json: url, bytes, SHA-256) and a validation report; all five digests RE-VERIFIED against disk 2026-08-30. Five artifacts: annotation GTF and GFF3, plus THREE transcript FASTA products (transcripts, pc_transcripts, lncRNA_transcripts) which are the sole remaining subject of ARTIFACT-KEY-INSUFFICIENT-1 -- one authority, one release, one assembly, one artifact kind, three distinct scientific products. This entry governs the SOURCE and does NOT resolve that artifact-product identity. MEASURED 2026-08-30: no module under src/ opens a GENCODE file; scripts/audit_source_data_assets.py and scripts/validate_gencode_assets.py audit or validate them. The same release directory also publishes GRCh38 genome FASTA, so the undeclared data/external/grch38 may be GENCODE-sourced -- measure its consumers before declaring or moving it."
   dbnsfp:
     location: external
     tier: academic
