@@ -91,8 +91,18 @@ _RELEASE_ID = re.compile(r"\A[A-Za-z0-9][A-Za-z0-9._-]*\Z")
 #: restored because a name with a space or a separator could not be a
 #: directory under data/external/, whatever the manifest declares.
 _SOURCE = re.compile(r"\A[A-Za-z0-9][A-Za-z0-9_-]*\Z")
+#: A product name, when one is carried. SYNTAX only, same shape as a source
+#: name. The EMPTY string is refused so that "" can mean ABSENT in
+#: `canonical_key` without ever colliding with a real product.
+_PRODUCT = re.compile(r"\A[A-Za-z0-9][A-Za-z0-9_.-]*\Z")
 
-EVIDENCE_DOMAIN = "drift-source-evidence-manifest-v3"
+#: v4 since 2026-09-01. `SourceArtifactKey` gained an optional PRODUCT
+#: coordinate, which alters EQUALITY -- GENCODE release 50 publishes three
+#: transcript FASTA products that were one key under v3 and are three under
+#: v4. A v3 digest and a v4 digest are therefore incomparable, which is the
+#: point: a legacy record that cannot say WHICH FASTA it describes must be
+#: REFUSED rather than silently given a product of "unknown".
+EVIDENCE_DOMAIN = "drift-source-evidence-manifest-v4"
 
 
 class SourceRole(str, Enum):
@@ -124,6 +134,21 @@ class SourceArtifactKey:
 
     source: str
     artifact_kind: ArtifactKind
+    #: WHICH product of this authority, when the kind alone does not say.
+    #:
+    #: MEASURED 2026-08-28: GENCODE release 50 publishes `transcripts`,
+    #: `pc_transcripts` and `lncRNA_transcripts` -- one authority, one release,
+    #: one assembly, one artifact_kind, THREE distinct scientific products.
+    #: Under `(source, artifact_kind)` all three collapsed to one key and
+    #: `SourceEvidenceManifest` refused a legitimate state.
+    #:
+    #: OPTIONAL, and LAST. Absence means "this artifact kind does not require a
+    #: product coordinate", not "the product is unknown". A mandatory field
+    #: would put `product="default"` on every ClinVar and gnomAD record in the
+    #: corpus, which carries no information and would have to be maintained.
+    #: Last, because eighteen existing construction sites pass two positional
+    #: arguments and must keep working.
+    product: Optional[str] = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.source, str) or not _SOURCE.match(self.source):
@@ -137,31 +162,55 @@ class SourceArtifactKey:
             raise SourceError(
                 "artifact_kind is {!r}; one authority publishes several kinds "
                 "and they are not interchangeable".format(self.artifact_kind))
+        if self.product is not None:
+            if not isinstance(self.product, str) or not _PRODUCT.match(self.product):
+                raise SourceError(
+                    "product is {!r}; expected a name such as 'transcripts' or "
+                    "'pc_transcripts', or None where the artifact kind already "
+                    "identifies the artifact. The EMPTY string is refused: it "
+                    "encodes ABSENCE in canonical_key and must not also name a "
+                    "product.".format(self.product))
 
     @classmethod
-    def of(cls, source, artifact_kind) -> "SourceArtifactKey":
+    def of(cls, source, artifact_kind, product=None) -> "SourceArtifactKey":
         """Build from a raw spelling. It does NOT consult the registry.
 
-        The previous version called `resolve_source_name`, which refused any
-        spelling absent from an invented eighteen-member enum -- including all
-        eight aliases this project actually declares, and sixteen of its
-        thirty-two sources. Registry membership is checked where the manifest
-        is available, not where an identity is constructed.
+        The pre-2026-08-29 version called `resolve_source_name`, which refused
+        any spelling absent from an invented eighteen-member enum -- including
+        all eight aliases this project declares and sixteen of its thirty-two
+        sources. Registry membership is checked where the manifest is
+        available, not where an identity is constructed.
+
+        `product` is optional and defaults to None: absence means the artifact
+        kind already identifies the artifact.
         """
         return cls(source=str(source),
                    artifact_kind=ArtifactKind(artifact_kind)
                    if not isinstance(artifact_kind, ArtifactKind)
-                   else artifact_kind)
+                   else artifact_kind,
+                   product=None if product is None else str(product))
 
     @property
-    def canonical_key(self) -> Tuple[str, str]:
-        return (self.source, self.artifact_kind.value)
+    def canonical_key(self) -> Tuple[str, str, str]:
+        """THREE fields, always. An absent product renders as the empty string.
+
+        Fixed arity, deliberately. A variable-length tuple would make a
+        two-field key and a three-field key structurally different, which is
+        the concatenation ambiguity `RepresentationIdentity` was
+        length-prefixed to prevent on 2026-08-28. The empty string is safe
+        because `__post_init__` refuses it as a product.
+        """
+        return (self.source, self.artifact_kind.value, self.product or "")
 
     def as_record(self) -> dict:
         return {"source": self.source,
-                "artifact_kind": self.artifact_kind.value}
+                "artifact_kind": self.artifact_kind.value,
+                "product": self.product or ""}
 
     def describe(self) -> str:
+        if self.product:
+            return "{}/{}/{}".format(self.source, self.artifact_kind.value,
+                                     self.product)
         return "{}/{}".format(self.source, self.artifact_kind.value)
 
 

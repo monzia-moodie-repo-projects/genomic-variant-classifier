@@ -7611,4 +7611,27 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5719
+
+# 2026-08-31 -- 5719 -> 5732 (+13). A product coordinate, narrowly.
+#
+#   GENCODE release 50 publishes three transcript FASTA products under one
+#   authority, one release, one assembly and one artifact_kind. Under
+#   (source, artifact_kind) all three were ONE key and SourceEvidenceManifest
+#   refused a legitimate state.
+#
+#   SourceArtifactKey gains an OPTIONAL product, LAST, so eighteen positional
+#   construction sites are untouched and ZERO identities were removed.
+#   Absence renders as "" in a fixed three-tuple and product="" is refused,
+#   so absent and empty cannot collide. EVIDENCE_DOMAIN moves v3 -> v4
+#   because equality changed.
+#
+#   Ten sabotage boundaries detected, after one repair: of() could discard
+#   the product and nothing noticed, because it was called zero times.
+#
+#   Suite identity digests:
+#       before  02535ddfc579feab46164b2f03fcfa544c03a9590fa83ebeced3c487e866b5da
+#       after   51fe4d149b0097bb0fcdb5d80a057a669b7c0466c20f8d1432e75e4fad5fc560
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5732

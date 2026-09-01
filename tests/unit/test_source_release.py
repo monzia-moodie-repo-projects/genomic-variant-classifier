@@ -236,8 +236,14 @@ def test_a_raw_string_is_now_the_CORRECT_input(tmp_path):
     """
     key = SourceArtifactKey("tcga", ArtifactKind.PRIMARY_RELEASE)
     assert key.source == "tcga"
-    assert key.canonical_key == ("tcga", "primary_release")
+    # THREE fields since 2026-09-01. An absent product renders as the empty
+    # string so the tuple has fixed arity: a variable-length key would make a
+    # two-field and a three-field identity structurally different, which is
+    # the concatenation ambiguity RepresentationIdentity was length-prefixed
+    # to prevent.
+    assert key.canonical_key == ("tcga", "primary_release", "")
     assert key.as_record()["source"] == "tcga"
+    assert key.as_record()["product"] == ""
 
 
 @pytest.mark.parametrize(
@@ -272,6 +278,147 @@ def test_sixteen_sources_the_retired_enum_could_not_NAME(tmp_path):
                  "primateai3d", "revel"):
         key = SourceArtifactKey(name, ArtifactKind.PRIMARY_RELEASE)
         assert key.source == name
+
+
+# ---------------------------------------------------------------------------
+# 3b. the PRODUCT coordinate -- GENCODE's three transcript FASTA files
+# ---------------------------------------------------------------------------
+
+def test_three_GENCODE_products_are_three_keys():
+    """THE DEFECT ARTIFACT-KEY-INSUFFICIENT-1 NAMED, now representable.
+
+    MEASURED 2026-08-28: GENCODE release 50 publishes transcripts,
+    pc_transcripts and lncRNA_transcripts -- one authority, one release, one
+    assembly, one artifact_kind, three distinct scientific products. Under
+    `(source, artifact_kind)` all three collapsed to one key and
+    `SourceEvidenceManifest` refused a legitimate state with
+    "artifact key(s) ['GENCODE/sequence_fasta'] appear more than once".
+    """
+    keys = [SourceArtifactKey("gencode", ArtifactKind.SEQUENCE_FASTA, p)
+            for p in ("transcripts", "pc_transcripts", "lncRNA_transcripts")]
+    assert len({k.canonical_key for k in keys}) == 3
+    assert len(set(keys)) == 3
+
+
+def test_the_three_products_now_COEXIST_in_one_manifest():
+    """The refusal was the symptom; this is the state it refused."""
+    deps = tuple(
+        dependency(identity(key=SourceArtifactKey(
+            "gencode", ArtifactKind.SEQUENCE_FASTA, p),
+            artifact_sha256=str(i) * 64))
+        for i, p in enumerate(("transcripts", "pc_transcripts",
+                               "lncRNA_transcripts")))
+    m = SourceEvidenceManifest.of(deps)
+    assert len(m.dependencies) == 3
+    assert len(m.artifacts_of("gencode")) == 3
+
+
+def test_two_artifacts_of_the_same_kind_AND_product_are_still_refused():
+    """Widening the key did not remove the uniqueness guarantee.
+
+    The sensitivity half: `test_three_GENCODE_products_are_three_keys` proves
+    the key SEPARATES; this proves it still REFUSES a genuine duplicate.
+    """
+    dup = tuple(
+        dependency(identity(key=SourceArtifactKey(
+            "gencode", ArtifactKind.SEQUENCE_FASTA, "transcripts"),
+            artifact_sha256=c * 64))
+        for c in ("a", "b"))
+    with pytest.raises(SourceError) as exc:
+        SourceEvidenceManifest.of(dup)
+    assert "more than once" in str(exc.value)
+
+
+def test_a_product_is_OPTIONAL_and_absence_is_not_unknown():
+    """Absence means the kind identifies the artifact, not that we do not know.
+
+    The rulings forbid `product="default"` across the corpus: it carries no
+    information and would have to be maintained on every ClinVar and gnomAD
+    record.
+    """
+    k = SourceArtifactKey("clinvar", ArtifactKind.VCF)
+    assert k.product is None
+    assert k.canonical_key[2] == ""
+    assert k.describe() == "clinvar/vcf"
+    g = SourceArtifactKey("gencode", ArtifactKind.SEQUENCE_FASTA, "transcripts")
+    assert g.describe() == "gencode/sequence_fasta/transcripts"
+
+
+@pytest.mark.parametrize(
+    "bad", ["", "has space", "slash/ed", 7],
+    ids=["empty", "spaced", "slashed", "not-a-string"])
+def test_a_product_that_cannot_BE_a_product_is_refused(bad):
+    """The EMPTY string especially: it encodes ABSENCE in canonical_key."""
+    with pytest.raises(SourceError):
+        SourceArtifactKey("gencode", ArtifactKind.SEQUENCE_FASTA, bad)
+
+
+def test_absent_and_empty_cannot_COLLIDE():
+    """`canonical_key` renders absence as "", so "" must not be constructible.
+
+    Without the refusal above, `product=""` and `product=None` would produce
+    the SAME canonical key while being different values -- two identities
+    claiming one identity.
+    """
+    with pytest.raises(SourceError):
+        SourceArtifactKey("gencode", ArtifactKind.SEQUENCE_FASTA, "")
+
+
+def test_the_of_factory_CARRIES_the_product():
+    """MEASURED GAP: `of()` was called ZERO times in this file.
+
+    Sabotaging `of()` to return `product=None` changed NO test, because every
+    construction went through the dataclass directly. A factory that silently
+    discards a coordinate is exactly the failure the product coordinate exists
+    to prevent -- three FASTA products collapsing into one identity.
+    """
+    k = SourceArtifactKey.of("gencode", "sequence_fasta", "pc_transcripts")
+    assert k.source == "gencode"
+    assert k.artifact_kind is ArtifactKind.SEQUENCE_FASTA
+    assert k.product == "pc_transcripts"
+    assert k.canonical_key == ("gencode", "sequence_fasta", "pc_transcripts")
+
+    bare = SourceArtifactKey.of("clinvar", "vcf")
+    assert bare.product is None
+    assert bare.canonical_key == ("clinvar", "vcf", "")
+
+    assert SourceArtifactKey.of("gencode", ArtifactKind.SEQUENCE_FASTA,
+                                "transcripts") != \
+        SourceArtifactKey.of("gencode", ArtifactKind.SEQUENCE_FASTA,
+                             "lncRNA_transcripts")
+
+
+def test_the_of_factory_refuses_a_product_that_cannot_BE_one():
+    """`of()` coerces with str(), so it must not coerce past the validator."""
+    with pytest.raises(SourceError):
+        SourceArtifactKey.of("gencode", "sequence_fasta", "")
+    with pytest.raises(SourceError):
+        SourceArtifactKey.of("gencode", "sequence_fasta", "has space")
+
+
+def test_the_evidence_domain_is_versioned_because_equality_changed():
+    """A product coordinate is not merely a new field; it alters EQUALITY.
+
+    Under v3, GENCODE's three FASTA products were one key. Under v4 they are
+    three. A v3 digest and a v4 digest must therefore be incomparable, so a
+    legacy record that cannot say WHICH product it describes is REFUSED rather
+    than silently given `product="unknown"`.
+    """
+    from genomic_variant_classifier.monitoring.drift.source_release import (
+        EVIDENCE_DOMAIN)
+    assert EVIDENCE_DOMAIN.endswith("-v4"), EVIDENCE_DOMAIN
+
+
+def test_the_product_changes_the_manifest_digest():
+    """Two manifests differing ONLY in product must not share a digest."""
+    def one(product):
+        return SourceEvidenceManifest.of((
+            dependency(identity(key=SourceArtifactKey(
+                "gencode", ArtifactKind.SEQUENCE_FASTA, product))),))
+    a = one("transcripts")
+    b = one("pc_transcripts")
+    assert a.digest != b.digest
+    assert one("transcripts").digest == a.digest
 
 
 # ---------------------------------------------------------------------------
