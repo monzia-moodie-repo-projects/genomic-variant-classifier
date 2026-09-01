@@ -1,3 +1,50 @@
+## 2026-09-01 part 2 (MEASUREMENT-PHASE-1C-ATTACH) -- where Phase 1C would attach
+
+One commit, `11df0b5` -> measurement record. The ratchet does not move.
+Document: docs/measurements/MEASUREMENT_2026-09-01_where-phase-1c-would-attach.md
+
+### Attempted
+- Begin item 5 of the adopted priority order, Phase 1C's production
+  `SourceEvidenceManifest` builder, by measuring where it would attach.
+
+### Fixed
+- Nothing. Four measurements are recorded and none has been acted on.
+
+### Failed (and why)
+- NINETY-THREE READ SITES ACROSS FIFTY-THREE MODULES. Every tracked file under
+  `src/` was parsed and every reader call judged BY ITS ARGUMENT, not by callee
+  name -- the distinction that separated 1,453 apparent acquisition sites from
+  5 real ones on 2026-08-29. Ninety-three is too many to instrument
+  individually: it would be ninety-three edits and ninety-three chances to miss
+  one silently.
+- FILE-DIGEST-HELPER-DEFINED-THREE-TIMES-1. `sha256_file` is defined in
+  `constraint_canonicalize.py:325` AND `phylop_cache.py:158`, and
+  `compute_sha256` in `science_claw/ledger.py:70`. MEASURED BY EXECUTION: all
+  three were loaded and run against `configs/data_manifest.yaml` and all three
+  produce the reference digest. Duplication, not disagreement -- so Phase 1C
+  must CONSUME one rather than add a fourth.
+
+### Learned
+- FOUR LOADERS ALREADY COMPUTE A SOURCE DIGEST:
+  `connector_gnomad_constraint.py:282`, `phylop.py:552`,
+  `constraint_canonicalize.py:242` and `phylop_ingest.py`. The expensive part --
+  streaming a multi-gigabyte file -- is already done there. A builder does not
+  need a new seam in those paths; it needs to receive what they already have.
+- `phylop.py:536` STATES RULING 20 INDEPENDENTLY: "Identity here is the schema
+  version and the SOURCE DIGEST. The path is deliberately excluded: the same
+  source moved is the same source, and a different source at the same path is
+  not." And lines 531-534 record what it cost to learn -- CACHEIDENTITY-1,
+  where "a sidecar built by a defective parser was preferred to a repaired one
+  because identity was the FILENAME."
+- `ScienceClawLedger` IS A THIRD PROVENANCE SYSTEM, read in full, and NOT this
+  one. It records agent-PRODUCED artifacts in an append-only hash-chained log
+  and gates message-bus authorisation. `SourceEvidenceManifest` answers what a
+  computation CONSUMED. Not a competitor, and not a place to build Phase 1C.
+- CHECKING FOR AN EXISTING OWNER FOUND ONE A FIFTH TIME. The manifest already
+  declared 32 sources; the auditor was already printing the orphans;
+  `StoragePolicy` was the registry template; `storage_gate` was the wiring
+  pattern; and now four loaders already compute the digest Phase 1C needs.
+
 ## 2026-09-01 (DECLARE-GENCODE, PRODUCT-COORDINATE) -- a coordinate the evidence required
 
 Two commits, `260d1bc` -> `4bed1b8`. The ratchet moved 5719 -> 5732.
