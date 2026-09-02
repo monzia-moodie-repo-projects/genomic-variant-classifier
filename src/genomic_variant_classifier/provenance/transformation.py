@@ -48,12 +48,28 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Iterable, Tuple
 
-from genomic_variant_classifier.provenance.serialization import domain_digest
+from genomic_variant_classifier.provenance.digest_schema import (
+    CanonicalDigestSchema,
+)
 
 _SHA256 = re.compile(r"\A[0-9a-f]{64}\Z")
 
 #: Bumped whenever the canonical record shape changes, never for content.
-TRANSFORMATION_DOMAIN = "drift-transformation-identity-v1"
+#: ONE authority for this identity epoch. The domain and the record's
+#: `schema_version` are both DERIVED from `version`, so they cannot drift
+#: apart -- which is exactly what happened to source evidence, where the
+#: domain reached v4 while the embedded literal stayed at 3.
+#:
+#: SEMANTIC-ZERO by construction: family + version reproduce the previous
+#: literal domain EXACTLY, and the stamped record reproduces the previous
+#: payload EXACTLY. Every transformation digest is unchanged, which is why
+#: this family was chosen to prove the abstraction before source evidence
+#: is deliberately migrated.
+TRANSFORMATION_SCHEMA = CanonicalDigestSchema(
+    family="drift-transformation-identity", version=1)
+
+#: Compatibility spelling. DERIVED, never a second declaration.
+TRANSFORMATION_DOMAIN = TRANSFORMATION_SCHEMA.domain
 
 
 class TransformationComponentKind(str, Enum):
@@ -193,9 +209,8 @@ class TransformationIdentity:
 
         Not re-sorted: `__post_init__` has already enforced canonical order.
         """
-        return domain_digest(TRANSFORMATION_DOMAIN, {
-            "schema_version": 1,
-            "components": [c.as_record() for c in self.components]})
+        return TRANSFORMATION_SCHEMA.digest(
+            components=[c.as_record() for c in self.components])
 
     def describe(self) -> str:
         return "{} component(s) [{}] digest {}".format(

@@ -7784,4 +7784,25 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5964
+
+# 2026-09-02 -- 5964 -> 5993 (+29). One epoch, one version authority.
+#
+#   Phase 1C Unit 3A++.1. source.py declares a v4 domain while digesting a
+#   payload that says schema 3 -- two writable declarations for one semantic
+#   version, which permits divergence by construction.
+#   CanonicalDigestSchema derives both from one field.
+#
+#   Proven SEMANTIC-ZERO on transformation identity, which was already
+#   coherent at v1: twelve digests identical before and after, and the
+#   pickle frozen at 2d90c23 still produces eda4cf34c0bf8663... A witness
+#   that predates the change.
+#
+#   Thirteen sabotage boundaries: twelve detected, one measured no-op.
+#
+#   Suite identity digests:
+#       before  755eda61eb13f3ea9433419486e22a1cc24162f4f9b9fde30b25c530daf955ef
+#       after   5a4b3dc70ea207c60e9a4a3231537b78896f9cbb3ff1b3a302643ac49c17af40
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5993
