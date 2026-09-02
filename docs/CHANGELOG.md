@@ -1,3 +1,70 @@
+## 2026-09-02 (Phase 1C units 1, 2, 3A.0, 3A) -- the substrate moves down
+
+Four commits, `4eea19d` -> `1ef4ca5`. The ratchet moved 5732 -> 5905.
+Document: docs/sessions/SESSION_2026-09-02_the-substrate-moves-down.md
+
+### Attempted
+- Phase 1C units 1 through 3A of the adopted design authority: harden the
+  source-key admission boundary, consolidate the hashing primitive, freeze a
+  pre-move migration oracle, and move canonical ownership of the identity
+  substrate from `monitoring.drift` into `provenance`.
+
+### Fixed
+- `accdf49`. `SourceArtifactKey.of` called `str()` on whatever it was handed, so
+  `of(None, kind)` minted a source named "None" and `of(Path(...), kind)` minted
+  one for a PATH. It now type-checks, strips whitespace, and refuses an unknown
+  `ArtifactKind`. `SourceIdentityError` subclasses `SourceError` -- itself a
+  `ValueError` -- so the stated type holds AND no existing `raises` stops
+  catching. Fourteen identities added, NONE removed.
+- `4805033`. `provenance/hashing.py` created. Three helpers already hash a file
+  and all three agree, proven by EXECUTION. What none of them does is detect
+  that the file changed underneath the read: a digest over a file being
+  rewritten describes BYTES THAT NEVER EXISTED AS A WHOLE FILE.
+- `2d90c23`. A pre-move oracle: sixteen pickles, `semantic.json`, and
+  `ownership.json` -- the last kept OUT of the semantic comparison because
+  `__module__` is the one thing Unit 3A changes.
+- `1ef4ca5`. The identity substrate moved. THREE of the five canonical modules
+  are BYTE-IDENTICAL to their originals -- the same file at a new path. Every
+  top-level definition was unparsed before and after and proven identical.
+  Twenty-two names are EXACT aliases; `__module__` is not forged; the drift
+  `__all__` is unchanged at 32.
+
+### Failed (and why)
+- THE CORPUS WAS NOT REPRODUCIBLE. Three fixtures carry a `frozenset` of a
+  str-based enum, whose iteration order is randomized per process. Three runs
+  produced two different digests for one fixture OF CONSTANT LENGTH. `--check`
+  could not see it: it compares loaded equality, and set equality is
+  order-independent. What found it was comparing all SIXTY-FOUR digest
+  characters instead of sixteen -- after "byte-identical" had been written.
+- FIVE REFUSALS, each correct. `test_no_live_module_fabricates_a_poly_window_literal`
+  caught `'a' * 64` in the generator; `str.format()` raised
+  `KeyError: 'SourceRole, '` at PUBLICATION, leaving 24 files staged and HEAD
+  unmoved; the frozen oracle caught 37 failures because `representation.py`
+  imported a function I had moved; the gate caught Unit 2's test pinning
+  `provenance.__all__` to a CLOSED list of three; and the transition guard
+  caught a blanket refusal of removals that was wrong for a rename.
+- ELEVEN ERRORS ARE RECORDED. Two are arithmetic instead of measurement -- the
+  transition is 76/1, not the 75/0 I computed. Two more are checks that inspect
+  only well-formed or expected inputs: a placeholder audit matching `\w+` could
+  not see `{SourceRole, ...}`, and an assumption that the drift facade exported
+  everything relocated was wrong for four names.
+
+### Learned
+- A COMPATIBILITY SHIM THAT DROPS PART OF THE OLD SURFACE IS NOT ONE. Moving
+  `differing_components` broke `representation.py`, which imported it from the
+  module I emptied. The shim re-exports it; the function lives in
+  `transformation_delta.py`.
+- A MODULE-LEVEL TEST SHOULD PIN WHAT ITS MODULE CONTRIBUTES, not enumerate
+  every sibling. Unit 2's closed-list assertion failed at the gate for a reason
+  having nothing to do with hashing.
+- A CASE THAT ALWAYS SKIPS IS NOT A TEST. One always-skipped and moved the
+  suite's skip count off the fifteen it has held all session; it is now
+  excluded by name with the reason recorded.
+- SOURCE-IDENTITY-ERROR-NOT-EXPORTED-1 registered. `SourceIdentityError` was
+  introduced at `accdf49` and is absent from `drift.__all__`. Catchable as
+  `SourceError`, so nothing is broken -- but a caller cannot import it from the
+  package surface. NOT repaired in 3A, which had to be semantic-zero.
+
 ## 2026-09-01 part 5 (CORRECTION-SIXTY-THREE-SITES) -- sixty-three sites, and one that is not a leak
 
 One commit, `e109de9` -> correction record. The ratchet does not move.
