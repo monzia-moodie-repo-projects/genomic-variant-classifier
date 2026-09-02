@@ -7711,4 +7711,32 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5830
+
+# 2026-09-02 -- 5830 -> 5905 (+75). The identity substrate moves down.
+#
+#   Phase 1C Unit 3A. CoordinateContext, ArtifactKind, the source-evidence
+#   kernel and TransformationIdentity moved from monitoring/drift into
+#   provenance. The drift package was a pure leaf holding them, so they were
+#   never monitoring concepts -- they were born there before provenance
+#   existed.
+#
+#   Three of the five canonical modules are BYTE-IDENTICAL to their
+#   originals. Every top-level definition was unparsed before and after and
+#   proven identical. Legacy paths are EXACT re-exports: drift.X is
+#   provenance.X for all twenty-two names, and __module__ is not forged.
+#
+#   differing_components moved to transformation_delta.py: provenance
+#   defines states, monitoring compares them. drift.__all__ is unchanged at
+#   32 names.
+#
+#   The frozen corpus from 2d90c23 accepts it -- semantic.json byte-identical,
+#   sixteen pickles still loading. Eleven sabotage boundaries detected after
+#   two real gaps were closed.
+#
+#   Suite identity digests:
+#       before  6fe8a6ed7514b48fb07fa5f12765b3a12ec9761c2076609a81c1d9cc7a22f212
+#       after   95949dac84de867c0e414d727fe04d370e47f729d0abc24df500abe44b4c3dcc
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5905

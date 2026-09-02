@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import ast
 import hashlib
+import importlib
 import importlib.util
 import sys
 from pathlib import Path
@@ -324,9 +325,34 @@ def test_provenance_imports_NOTHING_from_the_layers_above_it():
     assert not offenders, offenders
 
 
-def test_the_package_exports_exactly_the_three_names():
+def test_the_package_exports_the_hashing_names():
+    """The hashing surface, not the WHOLE surface.
+
+    The original assertion pinned `provenance.__all__` to exactly the three
+    names this module contributes. That was correct while `provenance` held
+    only `hashing.py`, and WRONG the moment the package grew: Unit 3A moved
+    the identity substrate in and the list became twenty-seven, so a test
+    about hashing failed for a reason having nothing to do with hashing.
+
+    A module-level test should pin what ITS module contributes and require the
+    package to be self-consistent -- not enumerate every sibling.
+    """
     import genomic_variant_classifier.provenance as prov
-    assert sorted(prov.__all__) == [
-        "FileChangedDuringDigest", "FileDigest", "digest_file"]
+    for name in ("FileChangedDuringDigest", "FileDigest", "digest_file"):
+        assert name in prov.__all__, name
+        assert getattr(prov, name) is getattr(
+            importlib.import_module(
+                "genomic_variant_classifier.provenance.hashing"), name)
+
+
+def test_the_package_surface_is_SELF_CONSISTENT():
+    """Everything declared is present, and nothing present is undeclared.
+
+    This is the invariant the original test was reaching for, expressed so it
+    survives the package growing.
+    """
+    import genomic_variant_classifier.provenance as prov
+    assert prov.__all__ == sorted(prov.__all__), "not sorted"
+    assert len(prov.__all__) == len(set(prov.__all__)), "duplicated"
     for name in prov.__all__:
-        assert hasattr(prov, name)
+        assert hasattr(prov, name), name

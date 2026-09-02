@@ -41,14 +41,75 @@ Author: Monzia Moodie
 """
 from __future__ import annotations
 
+from genomic_variant_classifier.provenance.artifact import ArtifactKind
+from genomic_variant_classifier.provenance.coordinate import (
+    GENOME_ASSEMBLIES,
+    CoordinateContext,
+    CoordinateContextKind,
+    CoordinateError,
+    assemblies_in,
+)
 from genomic_variant_classifier.provenance.hashing import (
     FileChangedDuringDigest,
     FileDigest,
     digest_file,
 )
+from genomic_variant_classifier.provenance.serialization import (
+    canonical_json,
+    domain_digest,
+)
+from genomic_variant_classifier.provenance.source import (
+    EVIDENCE_DOMAIN,
+    SourceAcquisition,
+    SourceArtifactIdentity,
+    SourceArtifactKey,
+    SourceDependency,
+    SourceError,
+    SourceEvidenceManifest,
+    SourceIdentityError,
+    SourceManifest,
+    SourceRetrievalProvenance,
+    SourceRole,
+)
+from genomic_variant_classifier.provenance.transformation import (
+    TRANSFORMATION_DOMAIN,
+    TransformationComponent,
+    TransformationComponentKind,
+    TransformationError,
+    TransformationIdentity,
+)
 
+#: OUTWARD-FACING ONLY. Internal provenance modules import each other by their
+#: own paths -- `from genomic_variant_classifier.provenance.coordinate import
+#: CoordinateContext` -- never through this file. Importing through the
+#: package `__init__` would make every module depend on the whole export
+#: surface and create hidden cycles as that surface grows.
 __all__ = [
+    "ArtifactKind",
+    "CoordinateContext",
+    "CoordinateContextKind",
+    "CoordinateError",
+    "EVIDENCE_DOMAIN",
     "FileChangedDuringDigest",
     "FileDigest",
+    "GENOME_ASSEMBLIES",
+    "SourceAcquisition",
+    "SourceArtifactIdentity",
+    "SourceArtifactKey",
+    "SourceDependency",
+    "SourceError",
+    "SourceEvidenceManifest",
+    "SourceIdentityError",
+    "SourceManifest",
+    "SourceRetrievalProvenance",
+    "SourceRole",
+    "TRANSFORMATION_DOMAIN",
+    "TransformationComponent",
+    "TransformationComponentKind",
+    "TransformationError",
+    "TransformationIdentity",
+    "assemblies_in",
+    "canonical_json",
     "digest_file",
+    "domain_digest",
 ]

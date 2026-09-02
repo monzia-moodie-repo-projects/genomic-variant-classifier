@@ -1,81 +1,34 @@
-"""What KINDS of artifact this project reads.
+"""Compatibility import surface. Canonical ownership moved to genomic_variant_classifier.provenance.artifact.
 
-DRIFT-1. Created 2026-08-28; the authority vocabulary was removed 2026-08-29.
+Phase 1C Unit 3A, 2026-09-02.
 
-WHAT THIS MODULE NO LONGER DECLARES
------------------------------------
-It declared `SourceName`, `_ALIASES`, `resolve_source_name`, `known_aliases`
-and `SourceVocabularyError`, on the stated basis that "no source registry
-exists anywhere in the repository".
+THIS MODULE DEFINES NOTHING. Every name below is an EXACT re-export -- the
+same class object, not a subclass and not a copy:
 
-THAT MEASUREMENT WAS WRONG. `configs/data_manifest.yaml` calls itself the
-"Canonical registry of every data source under data/" on its own THIRD LINE,
-declares 32 sources, and is read by five scripts under `scripts/maintenance/`.
-The authority search that missed it looked only at Python files.
+    from genomic_variant_classifier.provenance import ArtifactKind
+    from genomic_variant_classifier.monitoring.drift import ArtifactKind as legacy
+    assert legacy is ArtifactKind          # True
 
-MEASURED 2026-08-29, the enum against the manifest:
+That identity is what makes the move safe. A subclass would be a DIFFERENT
+runtime type, so `except LegacyError` would stop catching the canonical one
+and an `isinstance` check would silently narrow.
 
-    declared sources     32      SourceName members    18
-    it cannot name       16      aliases it accepted    0
-    declared nowhere      2      aliases it invented   26
+`__module__` is NOT forged back to this path. Reflection reports the real
+owner, which is the point: the previous class-relocation episode in this
+repository -- `_CNN1DModule.__module__` and `scripts/migrate_pickles.py` --
+is what happens when Python ownership is lied about. Old pickles still load
+because a pickle resolves `module.Name` through THIS module, and this module
+hands back the canonical object.
 
-Four of the sixteen it could not name are `irreplaceable` and constrained:
-`tcga` and `topmed` are `controlled`, `rnaseq` and `validation_cohort` are
-`review`. A vocabulary that cannot name `tcga` cannot express a manifest
-containing it, so `SourceEvidenceManifest` would have refused a governed source
-because of a missing enum member rather than a scientific judgement.
-
-Authority naming now belongs to
-`genomic_variant_classifier.data.source_registry`, which reads the manifest,
-types every field, records the path it read, and RAISES rather than defaulting
--- one cannot invent 32 declarations.
-
-WHY `ArtifactKind` STAYS
-------------------------
-It is not in the manifest, and nothing else declares it. The manifest declares
-`location`, `tier`, `class`, `aliases`, `version`, `acquire`, `regenerate`,
-`sync` and `notes` -- nothing about Variant Call Format versus parquet versus
-FASTA. `ArtifactKind` is a genuine LOCAL vocabulary with no external authority,
-so removing it would create a gap rather than close a duplication.
-
-MEASURED on disk 2026-08-28: ten authorities hold more than one artifact kind,
-and one module names THREE distinct ClinVar artifacts. That is why the kind is
-part of the identity key at all.
-
-Acronyms: VCF = Variant Call Format; GTF = Gene Transfer Format; GFF = General
-Feature Format; FASTA is a sequence format.
+DO NOT ADD PROVENANCE SEMANTICS HERE. ArtifactKind is a LOCAL vocabulary for scientific artifacts, not a drift
+concept.
 
 Author: Monzia Moodie
 """
 from __future__ import annotations
 
-from enum import Enum
+from genomic_variant_classifier.provenance.artifact import (
+    ArtifactKind,)
 
-
-class ArtifactKind(str, Enum):
-    """WHAT an artifact is, semantically. One authority may publish several.
-
-    MEASURED on disk 2026-08-28. Each member corresponds to a kind actually
-    observed, not a format that might appear.
-    """
-
-    #: The authority's own primary release file, as published.
-    PRIMARY_RELEASE = "primary_release"
-    #: A join-ready index this project derives from a primary release.
-    DERIVED_INDEX = "derived_index"
-    #: Variant Call Format, as published.
-    VCF = "vcf"
-    #: ClinVar's tab-separated variant summary.
-    VARIANT_SUMMARY = "variant_summary"
-    #: Gene annotation, GTF flavour.
-    ANNOTATION_GTF = "annotation_gtf"
-    #: Gene annotation, GFF3 flavour. NOT interchangeable with GTF.
-    ANNOTATION_GFF3 = "annotation_gff3"
-    #: Nucleotide or protein sequences.
-    SEQUENCE_FASTA = "sequence_fasta"
-    #: Per-gene or per-transcript constraint statistics.
-    CONSTRAINT_TABLE = "constraint_table"
-    #: Genome-wide per-base scores in a binary interval format.
-    SCORE_TRACK = "score_track"
-    #: Interaction or pathway edges.
-    NETWORK_EDGES = "network_edges"
+__all__ = [
+    "ArtifactKind",]

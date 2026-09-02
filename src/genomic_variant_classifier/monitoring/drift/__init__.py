@@ -85,6 +85,8 @@ from genomic_variant_classifier.monitoring.drift.transformation import (
     TransformationComponentKind,
     TransformationError,
     TransformationIdentity,
+)
+from genomic_variant_classifier.monitoring.drift.transformation_delta import (
     differing_components,
 )
 
