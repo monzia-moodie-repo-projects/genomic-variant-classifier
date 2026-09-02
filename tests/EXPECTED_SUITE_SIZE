@@ -7658,4 +7658,31 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5746
+
+# 2026-09-01 -- 5746 -> 5763 (+17). The provenance package begins.
+#
+#   Phase 1C Unit 2. Three helpers already hash a file and all three agree,
+#   proven by EXECUTION on 2026-09-01. What none of them does -- measured
+#   2026-09-02 -- is detect that the file changed underneath the read. A
+#   digest over a file being rewritten describes bytes that never existed as
+#   a whole file.
+#
+#   digest_file stats before and after and refuses on a size OR
+#   modification-time change. FileDigest carries the size with the digest so
+#   a later re-stat cannot reopen the window.
+#
+#   The three are NOT migrated: seventeen call sites across eleven files,
+#   four of them tests that pin the names by identity.
+#   test_all_four_implementations_AGREE prevents drift until then.
+#
+#   Ten sabotage boundaries: nine detected, one a no-op. Three misses were
+#   real gaps -- size-only comparison, a Warning base, and an unfrozen
+#   dataclass.
+#
+#   Suite identity digests:
+#       before  8327e9d146883dce4ca4b2fb72fa22f29a3cb67b9c667c7bfbb5df8055e531af
+#       after   27a19a6bcd735ffb27eeffa807a0ccaeebc745f964d4e4c061322053f9ce0565
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5763
