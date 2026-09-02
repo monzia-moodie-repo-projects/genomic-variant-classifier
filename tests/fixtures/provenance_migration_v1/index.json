@@ -1,0 +1,88 @@
+{
+  "entries": {
+    "acquisition_clinvar": {
+      "pickle": "acquisition_clinvar.pickle",
+      "pickle_bytes": 810,
+      "pickle_sha256": "3c5d21a0f42e666c3849f152738c9e529480c1ba6c5380d0ffe65df6fffc9818"
+    },
+    "coordinate_build_independent": {
+      "pickle": "coordinate_build_independent.pickle",
+      "pickle_bytes": 172,
+      "pickle_sha256": "a391bb7ecbf307e91ea42de8fe3f476d834921b2bd7a478691673c52a923d7f4"
+    },
+    "coordinate_grch37": {
+      "pickle": "coordinate_grch37.pickle",
+      "pickle_bytes": 179,
+      "pickle_sha256": "8f16bea64c122a41ee02516eb88c9e3b4a1aa5f6a6266add9a2e9870c83a48a3"
+    },
+    "coordinate_grch38": {
+      "pickle": "coordinate_grch38.pickle",
+      "pickle_bytes": 179,
+      "pickle_sha256": "e5c5c1859ee15d7c4b3ec6c34d79e89ed4c6183c1d77abc6165102e0a33b2bbb"
+    },
+    "dependency_multi_role": {
+      "pickle": "dependency_multi_role.pickle",
+      "pickle_bytes": 693,
+      "pickle_sha256": "6e015e7396d0548404604b5d74e47e2145ff0fb12e651667fa00800ce50cdeb5"
+    },
+    "evidence_multi_authority": {
+      "pickle": "evidence_multi_authority.pickle",
+      "pickle_bytes": 890,
+      "pickle_sha256": "d9d3a55006e32b40be91f93053bb92ff4ac775cff5b5309d724815762d832414"
+    },
+    "evidence_three_gencode_products": {
+      "pickle": "evidence_three_gencode_products.pickle",
+      "pickle_bytes": 1040,
+      "pickle_sha256": "18f1ad6f4637f33d21f8a62d3bf9cab7c4c430299b2adbae7bae5809a2ba1097"
+    },
+    "identity_clinvar": {
+      "pickle": "identity_clinvar.pickle",
+      "pickle_bytes": 591,
+      "pickle_sha256": "29bfc2099a43bf033f1610b272f8f5f519e6d99368b3dcf1e11de20c9be5c938"
+    },
+    "identity_dbnsfp_grch37": {
+      "pickle": "identity_dbnsfp_grch37.pickle",
+      "pickle_bytes": 587,
+      "pickle_sha256": "7f06ee6790c727757b4d364b409b46a7c5d3a553f0a02eabede7cb1f7498131d"
+    },
+    "identity_uniprot_build_independent": {
+      "pickle": "identity_uniprot_build_independent.pickle",
+      "pickle_bytes": 584,
+      "pickle_sha256": "dcf78633cf8569fd47f1c8f797a8082793501027c110fdbb8d3941858e96b6b8"
+    },
+    "key_clinvar": {
+      "pickle": "key_clinvar.pickle",
+      "pickle_bytes": 252,
+      "pickle_sha256": "9cd137906cb1bbdaa6dc6e89b61d91baebfacea5193c6914ccab720d4fe8514e"
+    },
+    "key_gencode_lncrna_transcripts": {
+      "pickle": "key_gencode_lncrna_transcripts.pickle",
+      "pickle_bytes": 271,
+      "pickle_sha256": "aaf1c16b4f130910a853a30a02c2cf203e551e844c3f75c166253dccbfb8fe24"
+    },
+    "key_gencode_pc_transcripts": {
+      "pickle": "key_gencode_pc_transcripts.pickle",
+      "pickle_bytes": 267,
+      "pickle_sha256": "3f21334a491b993d6991db14cb2018b0916268927d4a12417c661919d3074f1c"
+    },
+    "key_gencode_transcripts": {
+      "pickle": "key_gencode_transcripts.pickle",
+      "pickle_bytes": 264,
+      "pickle_sha256": "9d25941484306a91fbd804607bc3af483c3939365ca2acfc5ba6c837ccc98d50"
+    },
+    "manifest_clinvar": {
+      "pickle": "manifest_clinvar.pickle",
+      "pickle_bytes": 1015,
+      "pickle_sha256": "2f60bcca21189803aa5d628ccd7627bbe1a31903815a17d91928e6e315e1bc57"
+    },
+    "transformation_all_component_kinds": {
+      "pickle": "transformation_all_component_kinds.pickle",
+      "pickle_bytes": 756,
+      "pickle_sha256": "0dab99f76a6960f5025ab8c43e61afb786a7027bccfa226c2ace9c7da34e0dd7"
+    }
+  },
+  "generated_by": "build_provenance_migration_fixtures.py",
+  "hash_seed": "0",
+  "pickle_protocol": 5,
+  "schema": 1
+}

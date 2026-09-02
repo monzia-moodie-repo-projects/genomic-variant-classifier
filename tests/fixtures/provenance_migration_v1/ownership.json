@@ -1,0 +1,18 @@
+{
+  "acquisition_clinvar": "genomic_variant_classifier.monitoring.drift.source_release.SourceAcquisition",
+  "coordinate_build_independent": "genomic_variant_classifier.monitoring.drift.coordinate.CoordinateContext",
+  "coordinate_grch37": "genomic_variant_classifier.monitoring.drift.coordinate.CoordinateContext",
+  "coordinate_grch38": "genomic_variant_classifier.monitoring.drift.coordinate.CoordinateContext",
+  "dependency_multi_role": "genomic_variant_classifier.monitoring.drift.source_release.SourceDependency",
+  "evidence_multi_authority": "genomic_variant_classifier.monitoring.drift.source_release.SourceEvidenceManifest",
+  "evidence_three_gencode_products": "genomic_variant_classifier.monitoring.drift.source_release.SourceEvidenceManifest",
+  "identity_clinvar": "genomic_variant_classifier.monitoring.drift.source_release.SourceArtifactIdentity",
+  "identity_dbnsfp_grch37": "genomic_variant_classifier.monitoring.drift.source_release.SourceArtifactIdentity",
+  "identity_uniprot_build_independent": "genomic_variant_classifier.monitoring.drift.source_release.SourceArtifactIdentity",
+  "key_clinvar": "genomic_variant_classifier.monitoring.drift.source_release.SourceArtifactKey",
+  "key_gencode_lncrna_transcripts": "genomic_variant_classifier.monitoring.drift.source_release.SourceArtifactKey",
+  "key_gencode_pc_transcripts": "genomic_variant_classifier.monitoring.drift.source_release.SourceArtifactKey",
+  "key_gencode_transcripts": "genomic_variant_classifier.monitoring.drift.source_release.SourceArtifactKey",
+  "manifest_clinvar": "genomic_variant_classifier.monitoring.drift.source_release.SourceManifest",
+  "transformation_all_component_kinds": "genomic_variant_classifier.monitoring.drift.transformation.TransformationIdentity"
+}

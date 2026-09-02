@@ -7685,4 +7685,30 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5763
+
+# 2026-09-02 -- 5763 -> 5830 (+67). A migration oracle, frozen first.
+#
+#   Phase 1C Unit 3A.0. Unit 3A moves canonical ownership of the identity
+#   substrate into provenance. This commits the PRE-MOVE answer so the
+#   post-move code is judged by an independent witness rather than by itself.
+#
+#   Three oracles that fail for different reasons: the existing suite,
+#   semantic.json (canonical keys, records, digests), and sixteen pickles.
+#   Plus ownership.json, which records __module__ and MUST change at 3A --
+#   kept out of the semantic oracle for exactly that reason.
+#
+#   The first corpus was NOT reproducible: three fixtures carry a frozenset
+#   of a str-based enum, whose iteration order is per-process randomized.
+#   --check missed it because set equality is order-independent. Comparing
+#   all sixty-four digest characters found it. The generator now refuses an
+#   unpinned seed.
+#
+#   NO PRODUCTION FILE IS TOUCHED.
+#
+#   Suite identity digests:
+#       before  27a19a6bcd735ffb27eeffa807a0ccaeebc745f964d4e4c061322053f9ce0565
+#       after   6fe8a6ed7514b48fb07fa5f12765b3a12ec9761c2076609a81c1d9cc7a22f212
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5830
