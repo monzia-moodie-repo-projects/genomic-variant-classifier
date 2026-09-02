@@ -7739,4 +7739,26 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5905
+
+# 2026-09-02 -- 5905 -> 5923 (+18). An acquisition must name the bytes.
+#
+#   Phase 1C Unit 3A+. SourceManifest matched an acquisition to its evidence
+#   on the KEY -- (source, artifact_kind, product) -- so release_id,
+#   coordinate_context and artifact_sha256 were invisible. A July retrieval
+#   record satisfied August evidence, and a GRCh37 record satisfied GRCh38.
+#
+#   The match now uses the full SourceArtifactIdentity, and the refusal names
+#   which fields differ. The "never declared" message is preserved verbatim:
+#   two mistakes deserve two messages.
+#
+#   Eleven sabotage boundaries detected after three repairs, all of one
+#   mistake -- equality versus object identity -- hidden by a singleton, by
+#   string interning, and by constant folding.
+#
+#   Suite identity digests:
+#       before  95949dac84de867c0e414d727fe04d370e47f729d0abc24df500abe44b4c3dcc
+#       after   c5ebece8ddf1da2cab6274240d063a06a172b91350ebbd6f45df92565fdc94d5
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5923

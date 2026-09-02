@@ -507,6 +507,44 @@ class SourceEvidenceManifest:
             "\n  ".join(d.describe() for d in self.dependencies))
 
 
+def _describe_identity_mismatch(candidate: "SourceArtifactIdentity",
+                                declared) -> str:
+    """Name WHAT differs, not merely THAT something does.
+
+    SOURCE-ACQUISITION-KEY-ONLY-MATCH-1, measured 2026-09-02. The previous
+    check compared `a.identity.key` against `evidence.keys`. A key is
+    `(source, artifact_kind, product)`; `release_id`, `coordinate_context` and
+    `artifact_sha256` are NOT in it. So a JULY retrieval record satisfied
+    AUGUST evidence, and -- worse -- a GRCh37 record satisfied GRCh38
+    evidence, though `CoordinateContext` exists precisely because those
+    coordinates are not interchangeable.
+
+    A caller who reaches this has made a scientific error, not a typo, so the
+    message names the fields that differ against the nearest declared identity
+    sharing the same key. Reporting only "does not match" would leave them to
+    diff two objects by hand.
+    """
+    same_key = [d for d in declared if d.key == candidate.key]
+    if not same_key:                                    # pragma: no cover
+        return "no declared identity shares that key"
+    parts = []
+    for d in sorted(same_key, key=lambda x: x.release_id):
+        differs = []
+        if d.release_id != candidate.release_id:
+            differs.append("release_id {!r} declared vs {!r} acquired"
+                           .format(d.release_id, candidate.release_id))
+        if d.coordinate_context != candidate.coordinate_context:
+            differs.append("coordinates {} declared vs {} acquired"
+                           .format(d.coordinate_context.describe(),
+                                   candidate.coordinate_context.describe()))
+        if d.artifact_sha256 != candidate.artifact_sha256:
+            differs.append("digest {}... declared vs {}... acquired"
+                           .format(d.artifact_sha256[:16],
+                                   candidate.artifact_sha256[:16]))
+        parts.append("; ".join(differs) if differs else "no field differs")
+    return " | ".join(parts)
+
+
 @dataclass(frozen=True)
 class SourceManifest:
     """Evidence and acquisition together, with the two kept distinct."""
@@ -519,17 +557,26 @@ class SourceManifest:
             raise SourceError("evidence is {!r}".format(self.evidence))
         if not isinstance(self.acquisitions, tuple):
             raise SourceError("acquisitions must be a TUPLE")
-        declared = set(self.evidence.keys)
+        declared_keys = set(self.evidence.keys)
+        declared = {d.identity for d in self.evidence.dependencies}
         for a in self.acquisitions:
             if not isinstance(a, SourceAcquisition):
                 raise SourceError("entry {!r} is not a SourceAcquisition"
                                   .format(a))
-            if a.identity.key not in declared:
+            if a.identity.key not in declared_keys:
                 raise SourceError(
                     "an acquisition names {}, which the evidence manifest does "
                     "not declare. Recording how something was obtained that "
                     "was never used is a record of nothing."
                     .format(a.identity.key.describe()))
+            if a.identity not in declared:
+                raise SourceError(
+                    "an acquisition describes a DIFFERENT MATERIALIZATION of "
+                    "{}: {}. The evidence manifest declares that artifact, but "
+                    "not these bytes. A retrieval record for one release does "
+                    "not describe how another was obtained."
+                    .format(a.identity.key.describe(),
+                            _describe_identity_mismatch(a.identity, declared)))
 
     @property
     def evidence_digest(self) -> str:
