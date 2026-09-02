@@ -390,10 +390,111 @@ def test_the_of_factory_CARRIES_the_product():
 
 def test_the_of_factory_refuses_a_product_that_cannot_BE_one():
     """`of()` coerces with str(), so it must not coerce past the validator."""
-    with pytest.raises(SourceError):
+    with pytest.raises(SourceError) as exc:
         SourceArtifactKey.of("gencode", "sequence_fasta", "")
+    assert "forbidden; use None" in str(exc.value), (
+        "the dataclass caught the empty product, not the factory: {}"
+        .format(exc.value))
     with pytest.raises(SourceError):
         SourceArtifactKey.of("gencode", "sequence_fasta", "has space")
+
+
+# ---------------------------------------------------------------------------
+# 3c. the ADMISSION BOUNDARY -- Phase 1C Unit 1
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize(
+    "bad", [None, 3, 3.5, b"clinvar", ["clinvar"], {"s": "clinvar"}],
+    ids=["none", "int", "float", "bytes", "list", "dict"])
+def test_of_refuses_a_source_that_is_not_a_STRING(bad):
+    """It no longer stringifies whatever it is handed.
+
+    `str(None)` is "None", `str(3)` is "3", and `str(Path("clinvar.vcf"))` is a
+    plausible-looking name for something that is not a source. Every one of
+    those passed the pre-2026-09-01 factory and produced an identity.
+    """
+    with pytest.raises(SourceError) as exc:
+        SourceArtifactKey.of(bad, ArtifactKind.PRIMARY_RELEASE)
+    assert "must be a string" in str(exc.value)
+
+
+def test_of_refuses_a_source_that_is_only_WHITESPACE():
+    """The FACTORY must refuse it, not merely the dataclass behind it.
+
+    MEASURED 2026-09-01: disabling the factory's empty check still raised,
+    because `_SOURCE` rejects the empty string in `__post_init__`. Defence in
+    depth is correct, and a test that cannot say WHICH layer refused is weak:
+    at an admission boundary the factory owes the caller a reason, and a
+    pattern-match failure is not one. So the message is asserted.
+    """
+    for bad in ("", "   ", "\t", "\n"):
+        with pytest.raises(SourceError) as exc:
+            SourceArtifactKey.of(bad, ArtifactKind.PRIMARY_RELEASE)
+        assert "empty or whitespace" in str(exc.value), (
+            "the dataclass caught it, not the factory: {}".format(exc.value))
+
+
+def test_of_STRIPS_surrounding_whitespace():
+    """A trailing newline from a file read must not mint a second identity.
+
+    The dataclass pattern refuses a space, so `of("clinvar\n", ...)` used to
+    raise -- correct, but unhelpful at an admission boundary where the caller
+    read a name out of a manifest line.
+    """
+    k = SourceArtifactKey.of("  clinvar  ", ArtifactKind.VCF)
+    assert k.source == "clinvar"
+    assert k == SourceArtifactKey.of("clinvar", ArtifactKind.VCF)
+    g = SourceArtifactKey.of("gencode", ArtifactKind.SEQUENCE_FASTA,
+                             "  transcripts  ")
+    assert g.product == "transcripts"
+
+
+@pytest.mark.parametrize("bad", [3, b"x", ["x"]], ids=["int","bytes","list"])
+def test_of_refuses_a_product_that_is_not_a_STRING_or_None(bad):
+    with pytest.raises(SourceError) as exc:
+        SourceArtifactKey.of("gencode", ArtifactKind.SEQUENCE_FASTA, bad)
+    assert "must be a string or None" in str(exc.value)
+
+
+def test_of_refuses_an_UNKNOWN_artifact_kind():
+    """ArtifactKind is a LOCAL vocabulary with no external authority.
+
+    An unrecognised value is a defect, not a source this project has not
+    declared -- so it must raise a SourceIdentityError rather than propagate a
+    bare ValueError from the enum constructor.
+    """
+    with pytest.raises(SourceError) as exc:
+        SourceArtifactKey.of("clinvar", "not_a_kind")
+    assert "unknown artifact kind" in str(exc.value)
+    with pytest.raises(SourceError):
+        SourceArtifactKey.of("clinvar", 7)
+
+
+def test_SourceIdentityError_is_catchable_as_SourceError():
+    """The design authority specifies ValueError; this narrows it.
+
+    Subclassing `SourceError` -- itself a `ValueError` -- satisfies that AND
+    keeps every existing `pytest.raises(SourceError)` catching it, so
+    hardening the factory moved NO test identity.
+    """
+    from genomic_variant_classifier.monitoring.drift.source_release import (
+        SourceIdentityError)
+    assert issubclass(SourceIdentityError, SourceError)
+    assert issubclass(SourceIdentityError, ValueError)
+    with pytest.raises(SourceIdentityError):
+        SourceArtifactKey.of(None, ArtifactKind.VCF)
+
+
+def test_the_DATACLASS_is_still_reachable_for_a_raw_construction():
+    """`of()` is the admission boundary; the dataclass is not sealed.
+
+    Identity must stay constructible without going through a factory that may
+    one day consult a registry -- the separation `RepresentationIdentity` and
+    `SourceArtifactIdentity` already embody.
+    """
+    k = SourceArtifactKey("clinvar", ArtifactKind.VCF)
+    assert k.source == "clinvar"
+    assert k == SourceArtifactKey.of("clinvar", ArtifactKind.VCF)
 
 
 def test_the_evidence_domain_is_versioned_because_equality_changed():

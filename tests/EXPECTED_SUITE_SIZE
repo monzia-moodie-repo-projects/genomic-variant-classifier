@@ -7634,4 +7634,28 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5732
+
+# 2026-09-01 -- 5732 -> 5746 (+14). An admission boundary stops guessing.
+#
+#   Phase 1C Unit 1. SourceArtifactKey.of called str() on whatever it was
+#   given, so of(None, kind) minted a source named "None" and
+#   of(Path("clinvar.vcf"), kind) minted one for a PATH. It now refuses a
+#   non-string source or product, an empty source, an empty product, and an
+#   unknown ArtifactKind -- and STRIPS surrounding whitespace, which the
+#   dataclass pattern used to reject outright.
+#
+#   SourceIdentityError subclasses SourceError, itself a ValueError, so the
+#   design authority's stated type is satisfied AND every existing
+#   pytest.raises(SourceError) still catches it. ZERO identities removed.
+#
+#   Ten sabotage boundaries: nine detected, one mutation a no-op. Two misses
+#   were real test weaknesses -- the dataclass was catching what the factory
+#   should have, and the tests could not tell which layer refused.
+#
+#   Suite identity digests:
+#       before  51fe4d149b0097bb0fcdb5d80a057a669b7c0466c20f8d1432e75e4fad5fc560
+#       after   8327e9d146883dce4ca4b2fb72fa22f29a3cb67b9c667c7bfbb5df8055e531af
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5746

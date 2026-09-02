@@ -123,6 +123,22 @@ class SourceError(ValueError):
     """A source record that cannot identify the evidence it describes."""
 
 
+class SourceIdentityError(SourceError):
+    """A key that cannot BE built, refused at the admission boundary.
+
+    Phase 1C Unit 1, 2026-09-01. `SourceArtifactKey.of` is becoming the
+    admission boundary for scientific evidence, so it must stop permissively
+    stringifying whatever it is handed: `of(Path("x"), ...)` produced a source
+    named `x` on POSIX and `x` on Windows but `WindowsPath('x')` under repr,
+    and `of(None, ...)` produced the literal string "None".
+
+    It subclasses `SourceError`, which is already a `ValueError`. The design
+    authority specifies `ValueError`; subclassing the narrower existing error
+    satisfies that AND keeps every `pytest.raises(SourceError)` in the suite
+    catching it, so hardening the factory moves no test identity.
+    """
+
+
 @dataclass(frozen=True)
 class SourceArtifactKey:
     """WHICH artifact of WHICH authority. The uniqueness key.
@@ -183,12 +199,48 @@ class SourceArtifactKey:
 
         `product` is optional and defaults to None: absence means the artifact
         kind already identifies the artifact.
+
+        HARDENED 2026-09-01. It no longer calls `str()` on whatever it is
+        handed. This factory is becoming the admission boundary for scientific
+        evidence, and `str(Path("clinvar.vcf"))`, `str(None)` and
+        `str(3)` all produce a plausible source name for something that is not
+        one. Whitespace is stripped, empties are refused, and an unrecognised
+        `ArtifactKind` raises rather than propagating a bare ValueError.
         """
-        return cls(source=str(source),
-                   artifact_kind=ArtifactKind(artifact_kind)
-                   if not isinstance(artifact_kind, ArtifactKind)
-                   else artifact_kind,
-                   product=None if product is None else str(product))
+        if not isinstance(source, str):
+            raise SourceIdentityError(
+                "source must be a string, got {}. The factory no longer "
+                "stringifies: str(Path(...)) and str(None) both produce a "
+                "plausible-looking name for something that is not a source."
+                .format(type(source).__name__))
+        source = source.strip()
+        if not source:
+            raise SourceIdentityError("source cannot be empty or whitespace")
+
+        if product is not None:
+            if not isinstance(product, str):
+                raise SourceIdentityError(
+                    "product must be a string or None, got {}"
+                    .format(type(product).__name__))
+            product = product.strip()
+            if not product:
+                raise SourceIdentityError(
+                    "an empty product is forbidden; use None. Absence means "
+                    "the artifact kind already identifies the artifact, and "
+                    "canonical_key renders it as the empty string -- so an "
+                    "empty product would collide with absence.")
+
+        try:
+            kind = (artifact_kind if isinstance(artifact_kind, ArtifactKind)
+                    else ArtifactKind(artifact_kind))
+        except (TypeError, ValueError) as exc:
+            raise SourceIdentityError(
+                "unknown artifact kind {!r}. ArtifactKind is a LOCAL "
+                "vocabulary with no external authority, so an unrecognised "
+                "value is a defect rather than a source this project has not "
+                "declared.".format(artifact_kind)) from exc
+
+        return cls(source=source, artifact_kind=kind, product=product)
 
     @property
     def canonical_key(self) -> Tuple[str, str, str]:
