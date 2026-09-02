@@ -7761,4 +7761,27 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5923
+
+# 2026-09-02 -- 5923 -> 5964 (+41). The v4 epoch, frozen before retirement.
+#
+#   Phase 1C Unit 3A++.0. provenance/source.py declares the domain
+#   ...-v4 while digesting a payload carrying schema_version 3. Two writable
+#   declarations for one semantic version. 3A++.2 will migrate to v5/schema5;
+#   this freezes what v4 emitted so that migration can prove only the
+#   authorized things changed.
+#
+#   Canonical JSON, not pickle: five runs under PYTHONHASHSEED=random are
+#   byte-identical, because roles are sorted in as_record and dependencies
+#   are sorted in of(). The migration corpus needed a seed pin; this does not.
+#
+#   Twelve sabotage boundaries detected after two structural repairs -- a
+#   fixture that was self-consistent but not differential, and a role set
+#   that was one of only three whose iteration order is already sorted.
+#
+#   Suite identity digests:
+#       before  c5ebece8ddf1da2cab6274240d063a06a172b91350ebbd6f45df92565fdc94d5
+#       after   755eda61eb13f3ea9433419486e22a1cc24162f4f9b9fde30b25c530daf955ef
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+5964

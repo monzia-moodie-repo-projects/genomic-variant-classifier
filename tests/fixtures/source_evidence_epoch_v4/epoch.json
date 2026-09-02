@@ -1,0 +1,941 @@
+{
+  "case_count": 13,
+  "cases": {
+    "_contrast_same_key_later_release": {
+      "canonical_record": {
+        "dependencies": [
+          {
+            "identity": {
+              "artifact_sha256": "4d46177f808999d589938bf7dfb6508d6859969c421eb08d1c76336e1c1784dd",
+              "coordinate_context": {
+                "identifier": "GRCh38",
+                "kind": "genomic_assembly"
+              },
+              "key": {
+                "artifact_kind": "primary_release",
+                "product": "",
+                "source": "clinvar"
+              },
+              "release_id": "2026-09"
+            },
+            "roles": [
+              "observation"
+            ]
+          }
+        ],
+        "schema_version": 3
+      },
+      "dependency_order": [
+        [
+          "clinvar",
+          "primary_release",
+          "",
+          "2026-09",
+          "GRCh38",
+          "4d46177f808999d589938bf7dfb6508d6859969c421eb08d1c76336e1c1784dd"
+        ]
+      ],
+      "digest": "96d48ac043f0d0fed3fb406ae9bedf8f8cc138ad624f6a4bc43d8134f6e2037a",
+      "identities": [
+        {
+          "artifact_sha256": "4d46177f808999d589938bf7dfb6508d6859969c421eb08d1c76336e1c1784dd",
+          "coordinate_context": {
+            "identifier": "GRCh38",
+            "kind": "genomic_assembly"
+          },
+          "key": {
+            "artifact_kind": "primary_release",
+            "product": "",
+            "source": "clinvar"
+          },
+          "release_id": "2026-09"
+        }
+      ],
+      "keys_in_order": [
+        [
+          "clinvar",
+          "primary_release",
+          ""
+        ]
+      ]
+    },
+    "build_independent_source": {
+      "canonical_record": {
+        "dependencies": [
+          {
+            "identity": {
+              "artifact_sha256": "020391c282a16e00997c0d8857fa150c5cd76a4c6387896eff8ac81818bdc95b",
+              "coordinate_context": {
+                "identifier": null,
+                "kind": "build_independent"
+              },
+              "key": {
+                "artifact_kind": "primary_release",
+                "product": "",
+                "source": "uniprot"
+              },
+              "release_id": "2026_03"
+            },
+            "roles": [
+              "reference_sequence"
+            ]
+          }
+        ],
+        "schema_version": 3
+      },
+      "dependency_order": [
+        [
+          "uniprot",
+          "primary_release",
+          "",
+          "2026_03",
+          "build-independent",
+          "020391c282a16e00997c0d8857fa150c5cd76a4c6387896eff8ac81818bdc95b"
+        ]
+      ],
+      "digest": "f9db8dffc8ad6e4eaa8f28187594682bb302aac8f6a9561589458b7f58dc7e42",
+      "identities": [
+        {
+          "artifact_sha256": "020391c282a16e00997c0d8857fa150c5cd76a4c6387896eff8ac81818bdc95b",
+          "coordinate_context": {
+            "identifier": null,
+            "kind": "build_independent"
+          },
+          "key": {
+            "artifact_kind": "primary_release",
+            "product": "",
+            "source": "uniprot"
+          },
+          "release_id": "2026_03"
+        }
+      ],
+      "keys_in_order": [
+        [
+          "uniprot",
+          "primary_release",
+          ""
+        ]
+      ]
+    },
+    "clinvar_grch37": {
+      "canonical_record": {
+        "dependencies": [
+          {
+            "identity": {
+              "artifact_sha256": "19fe8245c1d155577960cc6b53e14a52c8430bdb273e40abfc07a9b2c15ca0a5",
+              "coordinate_context": {
+                "identifier": "GRCh37",
+                "kind": "genomic_assembly"
+              },
+              "key": {
+                "artifact_kind": "primary_release",
+                "product": "",
+                "source": "clinvar"
+              },
+              "release_id": "2026-08"
+            },
+            "roles": [
+              "observation"
+            ]
+          }
+        ],
+        "schema_version": 3
+      },
+      "dependency_order": [
+        [
+          "clinvar",
+          "primary_release",
+          "",
+          "2026-08",
+          "GRCh37",
+          "19fe8245c1d155577960cc6b53e14a52c8430bdb273e40abfc07a9b2c15ca0a5"
+        ]
+      ],
+      "digest": "a32e193cf0053f758d3592f2ee59e660a0faf29346624474c08ecfd96c956a95",
+      "identities": [
+        {
+          "artifact_sha256": "19fe8245c1d155577960cc6b53e14a52c8430bdb273e40abfc07a9b2c15ca0a5",
+          "coordinate_context": {
+            "identifier": "GRCh37",
+            "kind": "genomic_assembly"
+          },
+          "key": {
+            "artifact_kind": "primary_release",
+            "product": "",
+            "source": "clinvar"
+          },
+          "release_id": "2026-08"
+        }
+      ],
+      "keys_in_order": [
+        [
+          "clinvar",
+          "primary_release",
+          ""
+        ]
+      ]
+    },
+    "clinvar_grch38": {
+      "canonical_record": {
+        "dependencies": [
+          {
+            "identity": {
+              "artifact_sha256": "4d46177f808999d589938bf7dfb6508d6859969c421eb08d1c76336e1c1784dd",
+              "coordinate_context": {
+                "identifier": "GRCh38",
+                "kind": "genomic_assembly"
+              },
+              "key": {
+                "artifact_kind": "primary_release",
+                "product": "",
+                "source": "clinvar"
+              },
+              "release_id": "2026-08"
+            },
+            "roles": [
+              "observation"
+            ]
+          }
+        ],
+        "schema_version": 3
+      },
+      "dependency_order": [
+        [
+          "clinvar",
+          "primary_release",
+          "",
+          "2026-08",
+          "GRCh38",
+          "4d46177f808999d589938bf7dfb6508d6859969c421eb08d1c76336e1c1784dd"
+        ]
+      ],
+      "digest": "3e373e6c90c2b0d40e43278572b2e5a93f5a90538258f138eaa69b2cdd284ea6",
+      "identities": [
+        {
+          "artifact_sha256": "4d46177f808999d589938bf7dfb6508d6859969c421eb08d1c76336e1c1784dd",
+          "coordinate_context": {
+            "identifier": "GRCh38",
+            "kind": "genomic_assembly"
+          },
+          "key": {
+            "artifact_kind": "primary_release",
+            "product": "",
+            "source": "clinvar"
+          },
+          "release_id": "2026-08"
+        }
+      ],
+      "keys_in_order": [
+        [
+          "clinvar",
+          "primary_release",
+          ""
+        ]
+      ]
+    },
+    "gencode_lncrna_transcripts": {
+      "canonical_record": {
+        "dependencies": [
+          {
+            "identity": {
+              "artifact_sha256": "eb4b057face7755156901f37ba753cadaa6197dbcd8c98f63e7f1febedda164c",
+              "coordinate_context": {
+                "identifier": "GRCh38",
+                "kind": "genomic_assembly"
+              },
+              "key": {
+                "artifact_kind": "sequence_fasta",
+                "product": "lncRNA_transcripts",
+                "source": "gencode"
+              },
+              "release_id": "release_50"
+            },
+            "roles": [
+              "annotation"
+            ]
+          }
+        ],
+        "schema_version": 3
+      },
+      "dependency_order": [
+        [
+          "gencode",
+          "sequence_fasta",
+          "lncRNA_transcripts",
+          "release_50",
+          "GRCh38",
+          "eb4b057face7755156901f37ba753cadaa6197dbcd8c98f63e7f1febedda164c"
+        ]
+      ],
+      "digest": "9f61c605403525b0caad1ba936a174db5083062e6a96310f9daa5c7a795826c8",
+      "identities": [
+        {
+          "artifact_sha256": "eb4b057face7755156901f37ba753cadaa6197dbcd8c98f63e7f1febedda164c",
+          "coordinate_context": {
+            "identifier": "GRCh38",
+            "kind": "genomic_assembly"
+          },
+          "key": {
+            "artifact_kind": "sequence_fasta",
+            "product": "lncRNA_transcripts",
+            "source": "gencode"
+          },
+          "release_id": "release_50"
+        }
+      ],
+      "keys_in_order": [
+        [
+          "gencode",
+          "sequence_fasta",
+          "lncRNA_transcripts"
+        ]
+      ]
+    },
+    "gencode_pc_transcripts": {
+      "canonical_record": {
+        "dependencies": [
+          {
+            "identity": {
+              "artifact_sha256": "8b8a8a569ac95c1447b065f53b944aa2536910a320ac9adb29626299532a15d7",
+              "coordinate_context": {
+                "identifier": "GRCh38",
+                "kind": "genomic_assembly"
+              },
+              "key": {
+                "artifact_kind": "sequence_fasta",
+                "product": "pc_transcripts",
+                "source": "gencode"
+              },
+              "release_id": "release_50"
+            },
+            "roles": [
+              "annotation"
+            ]
+          }
+        ],
+        "schema_version": 3
+      },
+      "dependency_order": [
+        [
+          "gencode",
+          "sequence_fasta",
+          "pc_transcripts",
+          "release_50",
+          "GRCh38",
+          "8b8a8a569ac95c1447b065f53b944aa2536910a320ac9adb29626299532a15d7"
+        ]
+      ],
+      "digest": "a177a730da80fd748961e6b19c8ca7467042182f81719c7348c949834435cc0b",
+      "identities": [
+        {
+          "artifact_sha256": "8b8a8a569ac95c1447b065f53b944aa2536910a320ac9adb29626299532a15d7",
+          "coordinate_context": {
+            "identifier": "GRCh38",
+            "kind": "genomic_assembly"
+          },
+          "key": {
+            "artifact_kind": "sequence_fasta",
+            "product": "pc_transcripts",
+            "source": "gencode"
+          },
+          "release_id": "release_50"
+        }
+      ],
+      "keys_in_order": [
+        [
+          "gencode",
+          "sequence_fasta",
+          "pc_transcripts"
+        ]
+      ]
+    },
+    "gencode_transcripts": {
+      "canonical_record": {
+        "dependencies": [
+          {
+            "identity": {
+              "artifact_sha256": "24f9993b186d1cdc75795e115f5c04dc12d29459d98ae263d5c8aeaacc93b32f",
+              "coordinate_context": {
+                "identifier": "GRCh38",
+                "kind": "genomic_assembly"
+              },
+              "key": {
+                "artifact_kind": "sequence_fasta",
+                "product": "transcripts",
+                "source": "gencode"
+              },
+              "release_id": "release_50"
+            },
+            "roles": [
+              "annotation"
+            ]
+          }
+        ],
+        "schema_version": 3
+      },
+      "dependency_order": [
+        [
+          "gencode",
+          "sequence_fasta",
+          "transcripts",
+          "release_50",
+          "GRCh38",
+          "24f9993b186d1cdc75795e115f5c04dc12d29459d98ae263d5c8aeaacc93b32f"
+        ]
+      ],
+      "digest": "7947740cd0d8a74393567f86f1bd4e31a28939a8e21669d7b7a54bc71198e062",
+      "identities": [
+        {
+          "artifact_sha256": "24f9993b186d1cdc75795e115f5c04dc12d29459d98ae263d5c8aeaacc93b32f",
+          "coordinate_context": {
+            "identifier": "GRCh38",
+            "kind": "genomic_assembly"
+          },
+          "key": {
+            "artifact_kind": "sequence_fasta",
+            "product": "transcripts",
+            "source": "gencode"
+          },
+          "release_id": "release_50"
+        }
+      ],
+      "keys_in_order": [
+        [
+          "gencode",
+          "sequence_fasta",
+          "transcripts"
+        ]
+      ]
+    },
+    "genomic_and_build_independent": {
+      "canonical_record": {
+        "dependencies": [
+          {
+            "identity": {
+              "artifact_sha256": "4d46177f808999d589938bf7dfb6508d6859969c421eb08d1c76336e1c1784dd",
+              "coordinate_context": {
+                "identifier": "GRCh38",
+                "kind": "genomic_assembly"
+              },
+              "key": {
+                "artifact_kind": "primary_release",
+                "product": "",
+                "source": "clinvar"
+              },
+              "release_id": "2026-08"
+            },
+            "roles": [
+              "observation"
+            ]
+          },
+          {
+            "identity": {
+              "artifact_sha256": "020391c282a16e00997c0d8857fa150c5cd76a4c6387896eff8ac81818bdc95b",
+              "coordinate_context": {
+                "identifier": null,
+                "kind": "build_independent"
+              },
+              "key": {
+                "artifact_kind": "primary_release",
+                "product": "",
+                "source": "uniprot"
+              },
+              "release_id": "2026_03"
+            },
+            "roles": [
+              "reference_sequence"
+            ]
+          }
+        ],
+        "schema_version": 3
+      },
+      "dependency_order": [
+        [
+          "clinvar",
+          "primary_release",
+          "",
+          "2026-08",
+          "GRCh38",
+          "4d46177f808999d589938bf7dfb6508d6859969c421eb08d1c76336e1c1784dd"
+        ],
+        [
+          "uniprot",
+          "primary_release",
+          "",
+          "2026_03",
+          "build-independent",
+          "020391c282a16e00997c0d8857fa150c5cd76a4c6387896eff8ac81818bdc95b"
+        ]
+      ],
+      "digest": "173f84751f53bdc64b0c0742de2161025be40315ca47124a36e3cd1df5291562",
+      "identities": [
+        {
+          "artifact_sha256": "4d46177f808999d589938bf7dfb6508d6859969c421eb08d1c76336e1c1784dd",
+          "coordinate_context": {
+            "identifier": "GRCh38",
+            "kind": "genomic_assembly"
+          },
+          "key": {
+            "artifact_kind": "primary_release",
+            "product": "",
+            "source": "clinvar"
+          },
+          "release_id": "2026-08"
+        },
+        {
+          "artifact_sha256": "020391c282a16e00997c0d8857fa150c5cd76a4c6387896eff8ac81818bdc95b",
+          "coordinate_context": {
+            "identifier": null,
+            "kind": "build_independent"
+          },
+          "key": {
+            "artifact_kind": "primary_release",
+            "product": "",
+            "source": "uniprot"
+          },
+          "release_id": "2026_03"
+        }
+      ],
+      "keys_in_order": [
+        [
+          "clinvar",
+          "primary_release",
+          ""
+        ],
+        [
+          "uniprot",
+          "primary_release",
+          ""
+        ]
+      ]
+    },
+    "multiple_source_roles": {
+      "canonical_record": {
+        "dependencies": [
+          {
+            "identity": {
+              "artifact_sha256": "4d46177f808999d589938bf7dfb6508d6859969c421eb08d1c76336e1c1784dd",
+              "coordinate_context": {
+                "identifier": "GRCh38",
+                "kind": "genomic_assembly"
+              },
+              "key": {
+                "artifact_kind": "primary_release",
+                "product": "",
+                "source": "clinvar"
+              },
+              "release_id": "2026-08"
+            },
+            "roles": [
+              "label",
+              "observation"
+            ]
+          }
+        ],
+        "schema_version": 3
+      },
+      "dependency_order": [
+        [
+          "clinvar",
+          "primary_release",
+          "",
+          "2026-08",
+          "GRCh38",
+          "4d46177f808999d589938bf7dfb6508d6859969c421eb08d1c76336e1c1784dd"
+        ]
+      ],
+      "digest": "97885c886c0114d2775527a397a2f794ea059d388f15603630460a10dd8f8b74",
+      "identities": [
+        {
+          "artifact_sha256": "4d46177f808999d589938bf7dfb6508d6859969c421eb08d1c76336e1c1784dd",
+          "coordinate_context": {
+            "identifier": "GRCh38",
+            "kind": "genomic_assembly"
+          },
+          "key": {
+            "artifact_kind": "primary_release",
+            "product": "",
+            "source": "clinvar"
+          },
+          "release_id": "2026-08"
+        }
+      ],
+      "keys_in_order": [
+        [
+          "clinvar",
+          "primary_release",
+          ""
+        ]
+      ]
+    },
+    "multiple_sources": {
+      "canonical_record": {
+        "dependencies": [
+          {
+            "identity": {
+              "artifact_sha256": "4d46177f808999d589938bf7dfb6508d6859969c421eb08d1c76336e1c1784dd",
+              "coordinate_context": {
+                "identifier": "GRCh38",
+                "kind": "genomic_assembly"
+              },
+              "key": {
+                "artifact_kind": "primary_release",
+                "product": "",
+                "source": "clinvar"
+              },
+              "release_id": "2026-08"
+            },
+            "roles": [
+              "observation"
+            ]
+          },
+          {
+            "identity": {
+              "artifact_sha256": "b272aa240ee820d45fd5b7cbc12ff31b97aaef1fd7b78d1cb36f2dca122d553c",
+              "coordinate_context": {
+                "identifier": "GRCh38",
+                "kind": "genomic_assembly"
+              },
+              "key": {
+                "artifact_kind": "primary_release",
+                "product": "",
+                "source": "dbnsfp"
+              },
+              "release_id": "4.5a"
+            },
+            "roles": [
+              "annotation"
+            ]
+          }
+        ],
+        "schema_version": 3
+      },
+      "dependency_order": [
+        [
+          "clinvar",
+          "primary_release",
+          "",
+          "2026-08",
+          "GRCh38",
+          "4d46177f808999d589938bf7dfb6508d6859969c421eb08d1c76336e1c1784dd"
+        ],
+        [
+          "dbnsfp",
+          "primary_release",
+          "",
+          "4.5a",
+          "GRCh38",
+          "b272aa240ee820d45fd5b7cbc12ff31b97aaef1fd7b78d1cb36f2dca122d553c"
+        ]
+      ],
+      "digest": "124b10fbf090413e6a42c41f09c8582f3adb630501a469d60ce9b6957d387a37",
+      "identities": [
+        {
+          "artifact_sha256": "4d46177f808999d589938bf7dfb6508d6859969c421eb08d1c76336e1c1784dd",
+          "coordinate_context": {
+            "identifier": "GRCh38",
+            "kind": "genomic_assembly"
+          },
+          "key": {
+            "artifact_kind": "primary_release",
+            "product": "",
+            "source": "clinvar"
+          },
+          "release_id": "2026-08"
+        },
+        {
+          "artifact_sha256": "b272aa240ee820d45fd5b7cbc12ff31b97aaef1fd7b78d1cb36f2dca122d553c",
+          "coordinate_context": {
+            "identifier": "GRCh38",
+            "kind": "genomic_assembly"
+          },
+          "key": {
+            "artifact_kind": "primary_release",
+            "product": "",
+            "source": "dbnsfp"
+          },
+          "release_id": "4.5a"
+        }
+      ],
+      "keys_in_order": [
+        [
+          "clinvar",
+          "primary_release",
+          ""
+        ],
+        [
+          "dbnsfp",
+          "primary_release",
+          ""
+        ]
+      ]
+    },
+    "same_key_different_digest": {
+      "canonical_record": {
+        "dependencies": [
+          {
+            "identity": {
+              "artifact_sha256": "ee01167cc6a42cc07059c084b2428d54eae396af7f9cdb9d98f90efc681a77c2",
+              "coordinate_context": {
+                "identifier": "GRCh38",
+                "kind": "genomic_assembly"
+              },
+              "key": {
+                "artifact_kind": "primary_release",
+                "product": "",
+                "source": "clinvar"
+              },
+              "release_id": "2026-08"
+            },
+            "roles": [
+              "observation"
+            ]
+          }
+        ],
+        "schema_version": 3
+      },
+      "dependency_order": [
+        [
+          "clinvar",
+          "primary_release",
+          "",
+          "2026-08",
+          "GRCh38",
+          "ee01167cc6a42cc07059c084b2428d54eae396af7f9cdb9d98f90efc681a77c2"
+        ]
+      ],
+      "digest": "61736644cf0e7082cf42503896e6e5313038586aa2144e2efc6edecd21d41d7d",
+      "identities": [
+        {
+          "artifact_sha256": "ee01167cc6a42cc07059c084b2428d54eae396af7f9cdb9d98f90efc681a77c2",
+          "coordinate_context": {
+            "identifier": "GRCh38",
+            "kind": "genomic_assembly"
+          },
+          "key": {
+            "artifact_kind": "primary_release",
+            "product": "",
+            "source": "clinvar"
+          },
+          "release_id": "2026-08"
+        }
+      ],
+      "keys_in_order": [
+        [
+          "clinvar",
+          "primary_release",
+          ""
+        ]
+      ]
+    },
+    "same_key_different_release": {
+      "canonical_record": {
+        "dependencies": [
+          {
+            "identity": {
+              "artifact_sha256": "4d46177f808999d589938bf7dfb6508d6859969c421eb08d1c76336e1c1784dd",
+              "coordinate_context": {
+                "identifier": "GRCh38",
+                "kind": "genomic_assembly"
+              },
+              "key": {
+                "artifact_kind": "primary_release",
+                "product": "",
+                "source": "clinvar"
+              },
+              "release_id": "2026-08"
+            },
+            "roles": [
+              "observation"
+            ]
+          }
+        ],
+        "schema_version": 3
+      },
+      "dependency_order": [
+        [
+          "clinvar",
+          "primary_release",
+          "",
+          "2026-08",
+          "GRCh38",
+          "4d46177f808999d589938bf7dfb6508d6859969c421eb08d1c76336e1c1784dd"
+        ]
+      ],
+      "digest": "3e373e6c90c2b0d40e43278572b2e5a93f5a90538258f138eaa69b2cdd284ea6",
+      "identities": [
+        {
+          "artifact_sha256": "4d46177f808999d589938bf7dfb6508d6859969c421eb08d1c76336e1c1784dd",
+          "coordinate_context": {
+            "identifier": "GRCh38",
+            "kind": "genomic_assembly"
+          },
+          "key": {
+            "artifact_kind": "primary_release",
+            "product": "",
+            "source": "clinvar"
+          },
+          "release_id": "2026-08"
+        }
+      ],
+      "keys_in_order": [
+        [
+          "clinvar",
+          "primary_release",
+          ""
+        ]
+      ]
+    },
+    "same_source_different_products": {
+      "canonical_record": {
+        "dependencies": [
+          {
+            "identity": {
+              "artifact_sha256": "eb4b057face7755156901f37ba753cadaa6197dbcd8c98f63e7f1febedda164c",
+              "coordinate_context": {
+                "identifier": "GRCh38",
+                "kind": "genomic_assembly"
+              },
+              "key": {
+                "artifact_kind": "sequence_fasta",
+                "product": "lncRNA_transcripts",
+                "source": "gencode"
+              },
+              "release_id": "release_50"
+            },
+            "roles": [
+              "annotation"
+            ]
+          },
+          {
+            "identity": {
+              "artifact_sha256": "8b8a8a569ac95c1447b065f53b944aa2536910a320ac9adb29626299532a15d7",
+              "coordinate_context": {
+                "identifier": "GRCh38",
+                "kind": "genomic_assembly"
+              },
+              "key": {
+                "artifact_kind": "sequence_fasta",
+                "product": "pc_transcripts",
+                "source": "gencode"
+              },
+              "release_id": "release_50"
+            },
+            "roles": [
+              "annotation"
+            ]
+          },
+          {
+            "identity": {
+              "artifact_sha256": "24f9993b186d1cdc75795e115f5c04dc12d29459d98ae263d5c8aeaacc93b32f",
+              "coordinate_context": {
+                "identifier": "GRCh38",
+                "kind": "genomic_assembly"
+              },
+              "key": {
+                "artifact_kind": "sequence_fasta",
+                "product": "transcripts",
+                "source": "gencode"
+              },
+              "release_id": "release_50"
+            },
+            "roles": [
+              "annotation"
+            ]
+          }
+        ],
+        "schema_version": 3
+      },
+      "dependency_order": [
+        [
+          "gencode",
+          "sequence_fasta",
+          "lncRNA_transcripts",
+          "release_50",
+          "GRCh38",
+          "eb4b057face7755156901f37ba753cadaa6197dbcd8c98f63e7f1febedda164c"
+        ],
+        [
+          "gencode",
+          "sequence_fasta",
+          "pc_transcripts",
+          "release_50",
+          "GRCh38",
+          "8b8a8a569ac95c1447b065f53b944aa2536910a320ac9adb29626299532a15d7"
+        ],
+        [
+          "gencode",
+          "sequence_fasta",
+          "transcripts",
+          "release_50",
+          "GRCh38",
+          "24f9993b186d1cdc75795e115f5c04dc12d29459d98ae263d5c8aeaacc93b32f"
+        ]
+      ],
+      "digest": "c9553a037e480815a1e091c2c62e733cf6434e2f094b0e25a109af906bca8c8f",
+      "identities": [
+        {
+          "artifact_sha256": "eb4b057face7755156901f37ba753cadaa6197dbcd8c98f63e7f1febedda164c",
+          "coordinate_context": {
+            "identifier": "GRCh38",
+            "kind": "genomic_assembly"
+          },
+          "key": {
+            "artifact_kind": "sequence_fasta",
+            "product": "lncRNA_transcripts",
+            "source": "gencode"
+          },
+          "release_id": "release_50"
+        },
+        {
+          "artifact_sha256": "8b8a8a569ac95c1447b065f53b944aa2536910a320ac9adb29626299532a15d7",
+          "coordinate_context": {
+            "identifier": "GRCh38",
+            "kind": "genomic_assembly"
+          },
+          "key": {
+            "artifact_kind": "sequence_fasta",
+            "product": "pc_transcripts",
+            "source": "gencode"
+          },
+          "release_id": "release_50"
+        },
+        {
+          "artifact_sha256": "24f9993b186d1cdc75795e115f5c04dc12d29459d98ae263d5c8aeaacc93b32f",
+          "coordinate_context": {
+            "identifier": "GRCh38",
+            "kind": "genomic_assembly"
+          },
+          "key": {
+            "artifact_kind": "sequence_fasta",
+            "product": "transcripts",
+            "source": "gencode"
+          },
+          "release_id": "release_50"
+        }
+      ],
+      "keys_in_order": [
+        [
+          "gencode",
+          "sequence_fasta",
+          "lncRNA_transcripts"
+        ],
+        [
+          "gencode",
+          "sequence_fasta",
+          "pc_transcripts"
+        ],
+        [
+          "gencode",
+          "sequence_fasta",
+          "transcripts"
+        ]
+      ]
+    }
+  },
+  "domain": "drift-source-evidence-manifest-v4",
+  "embedded_schema_version": 3,
+  "frozen_at": "phase-1c-unit-3a++.0",
+  "identity_family": "source_evidence_manifest",
+  "known_historical_condition": "domain epoch and embedded payload version differ: the domain was bumped to v4 on 2026-09-01 when `product` was added to SourceArtifactKey, changing key equality and the canonical record shape, but the embedded literal `schema_version` was left at 3. Two writable declarations represented one semantic version, which permits divergence by construction. Recorded, not corrected: v4 means exactly what v4 historically meant."
+}
