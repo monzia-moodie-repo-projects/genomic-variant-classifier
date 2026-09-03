@@ -1,3 +1,74 @@
+## 2026-09-03 (Phase 1C units 3A+, 3A++.0, 3A++.1, 3A++.2) -- one epoch retired
+
+Four commits, `b9503fb` -> `b04e826`. The ratchet moved 5905 -> 6067.
+Document: docs/sessions/SESSION_2026-09-03_one-epoch-retired.md
+
+### Attempted
+- The two source-model defects the design authority insisted must not be
+  forgotten because the package migration succeeded, followed by the epoch
+  repair they exposed: exact acquisition matching, a frozen record of the
+  outgoing epoch, one version authority, and the migration itself.
+
+### Fixed
+- `13daa3f`. SOURCE-ACQUISITION-KEY-ONLY-MATCH-1. `SourceManifest` matched an
+  acquisition to its evidence on the KEY -- source, kind, product -- so
+  `release_id`, `coordinate_context` and `artifact_sha256` were invisible.
+  MEASURED BY CONSTRUCTION: a July retrieval record satisfied August evidence,
+  and a GRCh37 record satisfied GRCh38 evidence, though `CoordinateContext`
+  exists precisely because those coordinates are not interchangeable.
+- `01cd4b4`. The outgoing `v4/schema3` epoch frozen as canonical JavaScript
+  Object Notation across thirteen representative cases. It needs no hash-seed
+  pin: `as_record` sorts roles and `of` sorts dependencies, so five runs under
+  `PYTHONHASHSEED=random` are byte-identical.
+- `63c9f52`. `CanonicalDigestSchema` derives the domain AND the record's
+  `schema_version` from one field, so `domain v5, record schema 4` is
+  unrepresentable. Proven SEMANTIC-ZERO on transformation identity: twelve
+  digests identical, and a pickle frozen at `2d90c23` still produces
+  `eda4cf34c0bf8663`.
+- `b04e826`. EVIDENCE-DOMAIN-V4-PAYLOAD-SCHEMA3-1 closed. Three evidence
+  digests moved; the transformation digest did not. For all thirteen frozen
+  cases, stripping the epoch metadata leaves records that are EQUAL, and the
+  digest PARTITION is preserved -- twelve distinct digests with one deliberate
+  pair -- so the migration changed values without changing which manifests are
+  the same.
+
+### Failed (and why)
+- FOUR REFUSALS. The transition guard caught a blanket refusal of removals,
+  wrong for three ANTICIPATED inversions. The installer's own audit caught a
+  justification reading "an auditor that nothing called acquires a caller",
+  inherited through six template generations. The installer refused a check
+  that demanded a literal Unit 3A++.1 had DELIBERATELY removed thirty minutes
+  earlier. And the acceptance gate caught `test_source_release.py` pinning
+  `EVIDENCE_DOMAIN.endswith("-v4")` -- 84 identities absent from the authoring
+  sandbox, reachable only by the full 6,067-identity run.
+- I FABRICATED A DIGEST. An audit asserted `before_digest` began
+  `1cca5b0f5a9d0a6b`, a value that appears in no attestation on disk. Two
+  checks reported FAIL against a correct artifact. An expected value must be
+  READ FROM AN ARTIFACT, never recalled; every audit since chains against the
+  prior attestation FILE.
+- THREE SABOTAGE GAPS WERE ONE MISTAKE. Equality versus object identity was
+  untested for `coordinate_context`, `release_id` and `artifact_sha256`, each
+  hidden by a different accident: a reused module-level singleton, short-string
+  interning, and constant folding of `"a" * 64` into the code object. MEASURED:
+  `f() is f()` is True for the folded form and False for a runtime-built one.
+
+### Learned
+- A DIGEST THAT IGNORES ITS CONTENT IS NOT AN IDENTITY. Sabotage replaced the
+  payload with an empty list and every manifest digested identically -- no test
+  noticed, because each per-case assertion only asked whether a digest had
+  moved from its v4 value, and an empty payload moves it too.
+- A TEST THAT SAMPLES CAN BE BLIND WHERE A TEST THAT ASSERTS THE PROPERTY
+  CANNOT. The epoch corpus used one of only THREE role subsets of five whose
+  natural iteration order is already sorted; twenty to twenty-three of the
+  twenty-six iterate unsorted.
+- A FIXTURE CAN BE SELF-CONSISTENT WHILE THE CODE THAT PRODUCED IT HAS DRIFTED.
+  Every assertion read the fixture until a differential test regenerated
+  through the committed script's own `build()`.
+- RE-PINNING A LITERAL ONLY RESCHEDULES THE BREAKAGE. The repaired assertion
+  pins the derived authority, and a new installer check refuses any POSITIVE
+  literal epoch pin in any test payload -- refined three times against the real
+  files, because the first two drafts would have refused correct assertions.
+
 ## 2026-09-02 (Phase 1C units 1, 2, 3A.0, 3A) -- the substrate moves down
 
 Four commits, `4eea19d` -> `1ef4ca5`. The ratchet moved 5732 -> 5905.
