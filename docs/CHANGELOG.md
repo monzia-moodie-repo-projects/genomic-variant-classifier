@@ -1,3 +1,65 @@
+## 2026-09-03 part 2 (Phase 1C unit 3A++.3) -- one grammar, one parser
+
+One commit, `80432ac` -> `086e2fa`. The ratchet moved 6067 -> 6110.
+Document: docs/sessions/SESSION_2026-09-03_part2_one-grammar-one-parser.md
+
+### Attempted
+- The final unit of the 3A++ sequence: give the digest-domain grammar one
+  executable definition, close the two serialisation invariants that were
+  stated in prose and exercised by nothing, and do it as a HARDENING that
+  moves no valid digest.
+
+### Fixed
+- `086e2fa`. DOMAIN-VERSION-SUFFIX-GUARD-ADMITS-A-BARE-V-1. The version
+  requirement read `domain.rstrip("0123456789").endswith("-v")`, and MEASURED
+  by calling it: `family-v` was ACCEPTED -- a version marker with no version,
+  which has nothing to increment -- and so were `family-v0` and `family-v01`,
+  so `v1`, `v01` and `v001` would have been three byte-distinct namespaces for
+  one numerical epoch.
+- ASCII-INVARIANT-ASSERTED-IN-PROSE-ONLY-1. `serialization.py` states that
+  `ensure_ascii=True` exists so the bytes cannot depend on a locale or a
+  filesystem encoding. MEASURED: not one byte of non-ASCII appears in any test
+  file and every JavaScript Object Notation fixture is pure ASCII, so disabling
+  the flag changed NOTHING.
+- ONE PARSER, NOT TWO VALIDATORS. `parse_versioned_domain` is now the only
+  definition of the grammar, and `CanonicalDigestSchema` parses the domain it
+  would emit through that same function rather than re-implementing the rule.
+
+### Failed (and why)
+- MY OWN CENSUS HAD A DEFECT. `git grep -c "-v0"` -- git parsed the leading
+  hyphen as the INVERT-MATCH option, so the section reported zero files while
+  `regime-v0` plainly existed. `-e` fixes it. The same class as the PowerShell
+  here-string quoting failure earlier in this arc: an argument reinterpreted by
+  the layer beneath.
+- I ASSUMED A METHOD EXISTED. `SourceAcquisition.as_record` does not; the class
+  exposes `canonical_key`. The crash was informative -- acquisitions never
+  reach a digest at all, because `SourceManifest.digest` delegates to
+  `evidence_digest`, which walks only dependencies.
+- I PROPOSED AN INSTRUMENT THAT WOULD HAVE MEASURED SOMETHING ELSE. `-W always`
+  for the warning census disables pytest's once-per-location deduplication, so
+  the total would have borne no relation to the 33 already recorded.
+- I SAID ResourceWarning WAS "ALMOST CERTAINLY" THE WARNING CAUSE. Three
+  captured summaries contain none. Every one of the 33 is a scikit-learn metric
+  warning on a deliberately degenerate cohort. That was reasoning from a
+  plausible mechanism instead of from evidence.
+
+### Learned
+- AN INVARIANT STATED IN PROSE IS NOT AN INVARIANT. Both findings closed here
+  were guarantees the module documented and no test exercised. Writing the test
+  found them; reading the module had not, twice.
+- A SABOTAGE NO-OP CAN CONCEAL AN UNTESTED GUARD. Widening the grammar's family
+  group is caught by a second explicit check, so both had to be removed
+  together before the property test failed.
+- THE CENSUS DECIDES WHETHER A CHANGE IS A HARDENING. Eleven questions across
+  1,713 tracked files established that every live domain was already canonical
+  and no canonical record contains a float, so both the grammar tightening and
+  `allow_nan=False` were semantic-zero BEFORE the change -- and both live
+  digests were verified unchanged at sixty-four characters after.
+- GATE-WARNING-COUNT-INTERMITTENT-1 and GATE-WARNING-COMPOSITION-NOT-ATTESTED-1
+  registered. The warning total moved 33 -> 37 across an identical suite and
+  returned to 33 on the next full run; the attestation records only a total, so
+  the excursion left no trace of what it saw.
+
 ## 2026-09-03 (Phase 1C units 3A+, 3A++.0, 3A++.1, 3A++.2) -- one epoch retired
 
 Four commits, `b9503fb` -> `b04e826`. The ratchet moved 5905 -> 6067.
