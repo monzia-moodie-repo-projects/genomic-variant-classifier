@@ -29,6 +29,23 @@ WHY THE FAMILY MUST BE UNVERSIONED
 too, there would again be two places to change and one could be forgotten --
 the exact defect this type exists to remove.
 
+ONE GRAMMAR, CROSS-CHECKED
+--------------------------
+Phase 1C Unit 3A++.3. `__post_init__` now parses the domain it would emit
+through `parse_versioned_domain` -- the same function `domain_digest` uses --
+and refuses if that parser disagrees.
+
+Before this, the two layers validated the epoch grammar independently: this
+class required `version >= 1` while the primitive accepted any digits, or none
+at all. MEASURED 2026-09-03: `domain_digest("family-v", ...)` was ACCEPTED,
+though no `CanonicalDigestSchema` could ever produce it. Two validators for one
+language is exactly the dual-authority pathology this arc removed from source
+evidence.
+
+The family check also tightened. `-v` followed by ANY digits is refused,
+including `family-v0`, which the previous `rstrip` predicate also caught but
+for an accidental reason.
+
 WHY THIS IS NOT IN serialization.py
 -----------------------------------
 `serialization.py` knows only: object -> canonical JSON -> domain-separated
@@ -48,10 +65,15 @@ Author: Monzia Moodie
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any, Dict
 
-from genomic_variant_classifier.provenance.serialization import domain_digest
+from genomic_variant_classifier.provenance.serialization import (
+    DigestDomainError,
+    domain_digest,
+    parse_versioned_domain,
+)
 
 
 class DigestSchemaError(ValueError):
@@ -77,12 +99,16 @@ class CanonicalDigestSchema:
             raise DigestSchemaError(
                 "family cannot contain the domain separator byte; the "
                 "boundary between domain and payload would be ambiguous")
-        if family.rstrip("0123456789").endswith("-v"):
+        if re.search(r"-v[0-9]*\Z", family):
             raise DigestSchemaError(
                 "family {!r} is VERSIONED. The family must be unversioned: "
                 "version has exactly one authority, and a version in the "
                 "family name would be a second place to change."
                 .format(self.family))
+        if not family.isascii():
+            raise DigestSchemaError(
+                "family {!r} is not ASCII; the domain is encoded as ASCII "
+                "into the digest prefix".format(self.family))
         if (not isinstance(self.version, int)
                 or isinstance(self.version, bool)
                 or self.version < 1):
@@ -92,6 +118,23 @@ class CanonicalDigestSchema:
                 "would silently become schema version 1."
                 .format(self.version))
         object.__setattr__(self, "family", family)
+
+        # ONE GRAMMAR. Phase 1C Unit 3A++.3: the domain this object emits is
+        # cross-checked against the SAME parser `domain_digest` uses, rather
+        # than trusting that two independent rules agree. Two validators for
+        # one language is the dual-authority pathology this arc removed from
+        # source evidence, and it must not reappear one layer down.
+        try:
+            parsed = parse_versioned_domain(self.domain)
+        except DigestDomainError as exc:
+            raise DigestSchemaError(
+                "this schema would emit {!r}, which the canonical domain "
+                "grammar refuses: {}".format(self.domain, exc)) from exc
+        if parsed.family != family or parsed.version != self.version:
+            raise DigestSchemaError(          # pragma: no cover
+                "the emitted domain {!r} parses back as {!r}/{}, not {!r}/{}"
+                .format(self.domain, parsed.family, parsed.version,
+                        family, self.version))
 
     @property
     def domain(self) -> str:

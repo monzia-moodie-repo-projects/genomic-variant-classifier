@@ -7830,4 +7830,25 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-6067
+
+# 2026-09-02 -- 6067 -> 6110 (+43). One epoch, one spelling.
+#
+#   Phase 1C Unit 3A++.3. The domain version guard accepted family-v, which
+#   carries no version at all, and family-v01, a second spelling of epoch 1.
+#   parse_versioned_domain is now the ONE definition of the grammar, and
+#   CanonicalDigestSchema cross-checks the domain it emits against it.
+#
+#   Non-finite numbers are refused and the ASCII invariant is tested. Both
+#   were MEASURED semantic-zero first: no live canonical record contains a
+#   float, and every live domain already satisfies the grammar.
+#
+#   Eighteen sabotage boundaries: fifteen detected, two measured no-ops, one
+#   unattributable, one REAL GAP -- no test passed a non-ASCII DOMAIN.
+#
+#   Suite identity digests:
+#       before  784f3ba581a399ec81db31f3b0fc5194beabd891520aba30717df4d53be7a6bf
+#       after   4a626b2c2832a3889888e7577db12e51b5d3dcb4bcd73626aaf227ba3e7a2651
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+6110
