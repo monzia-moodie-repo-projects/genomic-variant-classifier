@@ -162,15 +162,83 @@ def test_a_loaded_object_EQUALS_itself_reloaded(name):
 # 3. ORACLE B -- meaning is unchanged
 # ---------------------------------------------------------------------------
 
+#: Entries whose digest MOVED at Phase 1C Unit 3A++.2, when source evidence
+#: migrated from the v4/schema3 epoch to v5/schema5.
+#:
+#: The corpus is NOT regenerated. It records the pre-v5 state, and a corpus
+#: rewritten to match new behaviour is not a witness. These three are the
+#: ONLY entries carrying a source-evidence digest, measured 2026-09-02:
+#:
+#:     evidence_multi_authority          be04468ca802b6e3 -> a685c4929843361d
+#:     evidence_three_gencode_products   fbc25f4bd7faf276 -> fa2cfcc0266f15f6
+#:     manifest_clinvar                  c2e23041fd6e0ad3 -> 6193c19e0fe4b37b
+#:
+#: Everything else about them -- every field of every identity, every role,
+#: every coordinate context -- is asserted UNCHANGED below.
+EPOCH_V5_MIGRATED = frozenset({
+    "evidence_multi_authority",
+    "evidence_three_gencode_products",
+    "manifest_clinvar",
+})
+
+#: Fields that carry an epoch-derived digest.
+_EPOCH_FIELDS = ("digest", "evidence_digest")
+
+#: `describe()` ends with `| evidence <prefix>`. Everything before that is
+#: structural and must survive the migration untouched.
+_EVIDENCE_MARKER = "| evidence "
+
+
+def _structure_of(described: str) -> str:
+    """A describe() line with its rendered digest removed."""
+    head, _, _tail = described.partition(_EVIDENCE_MARKER)
+    return head
+
+
 @pytest.mark.parametrize("name", _names() if _INDEX.is_file() else [])
 def test_the_SEMANTIC_projection_is_unchanged(name):
     """canonical_key, as_record, digest, describe -- all frozen pre-move.
 
     If relocation alters canonical ordering, a domain string, a field name or
     a sort, this fails. That is the whole purpose of the file.
+
+    EXCEPT for the three entries in `EPOCH_V5_MIGRATED`, whose evidence digest
+    was DELIBERATELY changed at 3A++.2. For those, everything except the
+    digest fields must still match exactly -- which is a stronger statement
+    than skipping them, because it proves the migration touched nothing else.
     """
     frozen = json.loads(_SEMANTIC.read_text(encoding="utf-8"))[name]
-    assert _semantic_of(_load(name)) == frozen
+    live = _semantic_of(_load(name))
+    if name not in EPOCH_V5_MIGRATED:
+        assert live == frozen
+        return
+    for field in _EPOCH_FIELDS:
+        if field in frozen:
+            assert live[field] != frozen[field], (
+                "{}: the {} did NOT move at the v5 migration".format(name, field))
+    # `describe()` RENDERS the evidence digest, so its tail moves with the
+    # epoch while its structure -- dependency count, authority count,
+    # assemblies -- must not. Exempting the whole field would discard a real
+    # assertion, so the two halves are compared separately.
+    assert _structure_of(live["describe"]) == _structure_of(frozen["describe"])
+    assert live["describe"] != frozen["describe"]
+    ignore = set(_EPOCH_FIELDS) | {"describe"}
+    assert ({k: v for k, v in live.items() if k not in ignore}
+            == {k: v for k, v in frozen.items() if k not in ignore})
+
+
+def test_ONLY_the_source_evidence_entries_migrated():
+    """The complement. A per-entry check cannot see an entry that moved and
+    was never listed."""
+    frozen = json.loads(_SEMANTIC.read_text(encoding="utf-8"))
+    moved = set()
+    for name in _names():
+        live = _semantic_of(_load(name))
+        if any(live.get(f) != frozen[name].get(f) for f in _EPOCH_FIELDS):
+            moved.add(name)
+        elif "describe" in live and live["describe"] != frozen[name]["describe"]:
+            moved.add(name)          # a rendered digest moved without a field
+    assert moved == set(EPOCH_V5_MIGRATED), sorted(moved ^ set(EPOCH_V5_MIGRATED))
 
 
 def test_the_projection_here_matches_the_GENERATOR():

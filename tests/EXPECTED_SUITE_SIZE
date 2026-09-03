@@ -7805,4 +7805,29 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-5993
+
+# 2026-09-02 -- 5993 -> 6067 (+74). One epoch retired, one introduced.
+#
+#   Phase 1C Unit 3A++.2. The source-evidence domain said v4 while the
+#   payload it digested said schema 3 -- two writable declarations for one
+#   semantic version. Both now derive from CanonicalDigestSchema at v5.
+#
+#   v4 is RETIRED, not corrected: it historically described schema-3 records,
+#   and correcting the literal under the same domain would make one nominal
+#   domain describe two canonical schemas.
+#
+#   THREE evidence digests moved. The transformation digest did not. For all
+#   thirteen frozen cases, stripping the epoch metadata leaves records that
+#   are EQUAL -- and the digest PARTITION is preserved exactly, so the
+#   migration changed values without changing which manifests are the same.
+#
+#   Ten sabotage boundaries: nine detected after one serious gap, where an
+#   empty payload digested every manifest identically and nothing noticed.
+#
+#   Suite identity digests:
+#       before  5a4b3dc70ea207c60e9a4a3231537b78896f9cbb3ff1b3a302643ac49c17af40
+#       after   784f3ba581a399ec81db31f3b0fc5194beabd891520aba30717df4d53be7a6bf
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+6067

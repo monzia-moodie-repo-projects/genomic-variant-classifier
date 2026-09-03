@@ -504,10 +504,29 @@ def test_the_evidence_domain_is_versioned_because_equality_changed():
     three. A v3 digest and a v4 digest must therefore be incomparable, so a
     legacy record that cannot say WHICH product it describes is REFUSED rather
     than silently given `product="unknown"`.
+
+    ORIGINALLY this asserted `endswith("-v4")`. Phase 1C Unit 3A++.2 moved the
+    epoch to v5 for an UNRELATED reason -- the domain and the embedded
+    `schema_version` had diverged -- and the literal broke at the acceptance
+    gate. Re-pinning it to `-v5` would only reschedule that breakage.
+
+    The claim this test was written to make is that the pre-product epoch is
+    RETIRED and the domain carries a version at all. Both are asserted here,
+    against the ONE authority that derives the domain, so no future epoch
+    change can make this test wrong while leaving the claim true.
     """
     from genomic_variant_classifier.monitoring.drift.source_release import (
         EVIDENCE_DOMAIN)
-    assert EVIDENCE_DOMAIN.endswith("-v4"), EVIDENCE_DOMAIN
+    from genomic_variant_classifier.provenance.source import (
+        SOURCE_EVIDENCE_SCHEMA)
+
+    assert EVIDENCE_DOMAIN.rstrip("0123456789").endswith("-v"), EVIDENCE_DOMAIN
+    assert not EVIDENCE_DOMAIN.endswith("-v3"), (
+        "the pre-product epoch must stay retired: under v3 GENCODE's three "
+        "FASTA products were ONE key")
+    assert EVIDENCE_DOMAIN == SOURCE_EVIDENCE_SCHEMA.domain
+    assert SOURCE_EVIDENCE_SCHEMA.version >= 4, (
+        "the product coordinate forced at least v4")
 
 
 def test_the_product_changes_the_manifest_digest():

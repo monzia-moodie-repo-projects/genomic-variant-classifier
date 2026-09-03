@@ -73,7 +73,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import FrozenSet, Iterable, Optional, Tuple
 
-from genomic_variant_classifier.provenance.serialization import domain_digest
+from genomic_variant_classifier.provenance.digest_schema import (
+    CanonicalDigestSchema,
+)
 from genomic_variant_classifier.provenance.coordinate import (
     CoordinateContext,
     assemblies_in,
@@ -102,7 +104,27 @@ _PRODUCT = re.compile(r"\A[A-Za-z0-9][A-Za-z0-9_.-]*\Z")
 #: v4. A v3 digest and a v4 digest are therefore incomparable, which is the
 #: point: a legacy record that cannot say WHICH FASTA it describes must be
 #: REFUSED rather than silently given a product of "unknown".
-EVIDENCE_DOMAIN = "drift-source-evidence-manifest-v4"
+#: ONE authority for this identity epoch, since 2026-09-02.
+#:
+#: WHY v5 AND SCHEMA 5, NOT v4 AND SCHEMA 4
+#: ----------------------------------------
+#: The v4 epoch HISTORICALLY described canonical records carrying
+#: `"schema_version": 3`. That is a fact in the evidence trail, frozen at
+#: `tests/fixtures/source_evidence_epoch_v4/epoch.json`.
+#:
+#: Correcting the embedded literal to 4 while keeping the v4 domain would make
+#: ONE nominal domain describe TWO different canonical schemas -- exactly what
+#: domain versioning exists to prevent. So v4 keeps meaning what it
+#: historically meant, and the repaired schema is a NEW epoch.
+#:
+#: Both numbers now derive from `version`, so the divergence that produced
+#: `EVIDENCE-DOMAIN-V4-PAYLOAD-SCHEMA3-1` cannot recur: there is no second
+#: writable declaration to forget.
+SOURCE_EVIDENCE_SCHEMA = CanonicalDigestSchema(
+    family="drift-source-evidence-manifest", version=5)
+
+#: Compatibility spelling. DERIVED, never a second declaration.
+EVIDENCE_DOMAIN = SOURCE_EVIDENCE_SCHEMA.domain
 
 
 class SourceRole(str, Enum):
@@ -482,9 +504,8 @@ class SourceEvidenceManifest:
     @property
     def digest(self) -> str:
         """Scientific evidence identity. DERIVED and DOMAIN-SEPARATED."""
-        return domain_digest(EVIDENCE_DOMAIN, {
-            "schema_version": 3,
-            "dependencies": [d.as_record() for d in self.dependencies]})
+        return SOURCE_EVIDENCE_SCHEMA.digest(
+            dependencies=[d.as_record() for d in self.dependencies])
 
     def dependency_of(self, key: SourceArtifactKey) -> SourceDependency:
         for d in self.dependencies:

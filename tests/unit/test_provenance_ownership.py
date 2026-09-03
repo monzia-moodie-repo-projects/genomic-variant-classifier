@@ -391,7 +391,11 @@ def test_the_evidence_domain_did_NOT_move_with_the_module():
     Bumping the domain because the Python path changed would give the same
     scientific evidence a different digest for a cosmetic reason.
     """
-    assert provenance.EVIDENCE_DOMAIN == "drift-source-evidence-manifest-v4"
+    # v5 since Phase 1C Unit 3A++.2 -- a DELIBERATE semantic migration, not a
+    # namespace move. This test's claim is unchanged: relocating a module did
+    # not move the domain. The later epoch migration did, for a stated reason,
+    # and `test_source_evidence_epoch_v5.py` proves exactly what it changed.
+    assert provenance.EVIDENCE_DOMAIN == "drift-source-evidence-manifest-v5"
     assert provenance.TRANSFORMATION_DOMAIN == "drift-transformation-identity-v1"
     # Through the MODULE path, which is what a legacy caller and a pickle use.
     # The package facade never exported these; see the note on
