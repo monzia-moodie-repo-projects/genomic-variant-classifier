@@ -1,3 +1,70 @@
+## 2026-09-04 part 2 (agent liveness) -- the fleet last ran on 2026-06-20, and the gate said OK
+
+MEASUREMENT ONLY, at `05f7868`. Nothing is built and no production file
+changes.
+
+**MEASURED.** Twenty-two agents, `registered=22, scheduled=22`. Every one
+carries `agent_runs` telemetry, and every timestamp falls inside a single
+4,019.7-second window on 2026-06-20 -- one orchestrator execution, not a
+scatter of independent runs. Nothing since. Stated as a timestamp rather than
+an age, because the agent-architecture document proposes `AGENT-FLEET-STALE-1`
+on a sixty-two-day figure taken 2026-08-21, and a finding whose content is a
+moving number is stale the day it is filed.
+
+**THE CONTROL IS THE RESULT.** Same fleet, same instant, one flag apart:
+
+```
+default invocation   exit 0   OK: 0 dormant/problem agent(s)
+--strict             exit 1   PROBLEM: 22 dormant/problem agent(s)
+```
+
+`STALE` is fatal only under `--strict`, so the standing rule -- no agent may be
+dormant -- is not enforced by the default invocation, and every preflight that
+ran this check without `--strict` recorded a pass it had not earned. The gate
+is sound; the threshold is not binding. ADR-0004 section B3 names the family in
+another subsystem: the liveness gate whose default invocation could not fail.
+
+**FIVE OF TWENTY-TWO LAST RECORDED `skipped`** -- `FinOpsAdvisorAgent`,
+`InterpretabilityAgent`, `LiteratureScoutAgent`, `ModelInsightsAgent`,
+`ProvisioningAgent`. Only `error` is treated as a problem, so a skipped run is
+indistinguishable from a real one -- the same gap `DRY_RUN_ONLY` exists to
+close, one level along. `ProvisioningAgent` is now measured REGISTERED and
+SCHEDULED as the roadmap required, and has never provisioned anything.
+
+**READ BEFORE RUN.** `scripts/check_agents_active.py`, 15,047 bytes, sha256
+`6f40830e736d459ae76f70e0a7a929dcad671080dd9828768807b3726a9b9afb`, was read in
+full and characterised from its parse tree rather than its docstring: zero
+write calls, seven standard-library imports, no subprocess, no network, no
+import of the project package. Its parser reads registrations from a dict
+literal and would return EMPTY against an incremental registry -- verified
+against a fixture first, and the header printing `registered=22` proves the
+report is not silently vacuous.
+
+**REGISTERED.** Three.
+`AGENT-FLEET-NO-TELEMETRY-SINCE-2026-06-20T033719Z-1`,
+`AGENT-LIVENESS-GATE-REPORTS-OK-ON-A-WHOLLY-STALE-FLEET-1`,
+`AGENT-TELEMETRY-SKIPPED-READS-AS-A-RUN-1`.
+
+Carried forward from `records/README.md`, which was read this session:
+`EVIDENCE-DISPOSITION-INCONSISTENT-1` and `ARCHIVE-SEMANTIC-COLLISION-1` are
+open. The first decides where these probe outputs do NOT go: `records/` holds
+facts emitted or preserved, `docs/` holds narrative interpretation of them, and
+a first write to `records/measurements/` would need a typed owner, a validator
+and negative controls in the same unit.
+
+**ALSO MEASURED, outside the agent fleet.** An EMPTY git repository exists at
+`C:\Users\monzi` -- no commits, no remotes, no tracked files. Every git command
+run beneath the home directory resolves to it unless `-C` names another, which
+is why a bare `git push` from `Downloads` reported a missing push destination
+rather than a missing repository. `HOME-DIRECTORY-IS-AN-EMPTY-GIT-REPOSITORY-1`.
+
+And a fourteenth PowerShell 5.1 hazard: `$ErrorActionPreference = 'Stop'` plus
+a native command plus `2>$null` yields a terminating `NativeCommandError`. The
+redirect routes standard error into the error stream, which is exactly what
+`Stop` acts upon, so it promotes a diagnostic to fatal rather than suppressing
+it. The remedy is `Continue` with an explicit `$LASTEXITCODE` check after every
+native call: an exit code is the signal, the error stream is commentary.
+
 ## 2026-09-04 (Phase 1C units 3A++.4b and 3A++.4c) -- three identity laws, and eighteen instrument defects
 
 Phase 1C Units 3A++.4b and 3A++.4c. The ratchet moved 6110 -> 6134 -> 6136.
