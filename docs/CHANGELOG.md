@@ -1,3 +1,94 @@
+## 2026-09-04 part 3 (Phase 3B.0) -- the substrate, its authorities, and a cycle population that was not there
+
+MEASUREMENT ONLY, at `fb53610`. Nothing is built and no production file
+changes. Three units ran, each inheriting the previous one's population and
+refusing if it had moved.
+
+**3B.0a, the substrate, frozen.** 1,720 tracked paths; HEAD tree, index and
+working tree measured as THREE separate populations rather than assumed equal.
+47,240,133 committed bytes across 1,720 blobs, every size from `git cat-file`
+and never from `stat`. 1,719 regular and one executable; zero symlinks, zero
+gitlinks, zero case-fold collisions, zero Unicode collisions. The population
+digests held identical across FOUR probe revisions while the census bytes
+changed each time -- the instrument improved and the finding did not move.
+
+**`.gitattributes` is a materialization authority, not housekeeping.** Asked
+of git rather than parsed: a declared attribute covers 1,720 of 1,720 paths,
+with 1,607 at `eol=lf`, 43 at `eol=crlf` (exactly the PowerShell scripts), 48
+at `text=auto` and 22 declared binary. `core.autocrlf` is true, so committed
+blob bytes are not worktree bytes for text, and every later unit therefore
+reads blobs from the object store.
+
+**Eighteen paths are declared binary AND carry a line-ending directive.**
+Seventeen are preserved install attestations, explained by the documented
+`-text` ordering: it unsets TEXT and does not unset EOL, leaving an inert
+directive that changes no bytes. The eighteenth,
+`docs/archive/legacy/ROADMAP_2026-03_to_2026-08-22.md`, is governed by
+`docs/archive/legacy/** -text` -- whose comment states the directory "holds
+nothing yet". True on 2026-08-23, false today: it holds one tracked file and
+the rule governs it as designed. The rule is correct; the comment asserts a
+fact that moved. `ARCHIVE-LEGACY-COMMENT-PREMISE-EXPIRED-1`. The same comment
+says three archive artifacts resolve to `text: auto`; measured, it is two of
+three, because `*.txt text eol=lf` predates the archive block.
+
+**3B.0b, the direct decisions.** 11,372 sites across 1,197 of 1,720 files,
+zero parse failures across 1,063 abstract-syntax-tree parses. Evidence
+strength is recorded -- 6,609 parsed against 4,763 lexical -- because a parsed
+site is not a matched one, and PowerShell findings are labelled lexical rather
+than pretending to a parser this project does not have. Implicit decisions are
+counted separately at 522: a default is an authority too, just a poorly
+located one. `parquet.read` 376 and `parquet.write` 255 against FOUR tracked
+`.parquet` paths, so parquet input and output overwhelmingly targets artifacts
+outside the repository.
+
+**3B.0c, reachability -- and v1's cycles were almost entirely fabricated.**
+The first attempt is PRESERVED at digest `173a824b` and its numbers are not
+repository facts. Its resolver collapsed `parser.parse_args()` to the bare
+name `parse_args` and bound it to a module-level function; of the 48 origins
+it called `recursive_cycle`, 13 carry attribute-form origins that cannot
+recurse into a module function sharing their suffix.
+
+v2 preserves each call's syntactic form, making that binding structurally
+impossible. MEASURED: 2,252 origins, 1,667 with an authority against v1's 525,
+11,066 components of which 17 are cyclic and every one has size ONE. A cyclic
+component of size one is self-recursion, so this repository contains ZERO
+multi-function recursion cycles. All 48 of v1's are accounted for: 24 reach an
+authority once the false cycle is removed, 24 do not.
+
+**More authority AND less certainty, which is the correct direction.** 2,211
+observations are `partial_open_boundary` and 41 are `complete`. 982 origins v1
+called unresolvable reach an authority; 6 it called resolved reach none. v1
+declared 862 completeness claims the evidence does not support. Completeness
+is derived from open boundaries and traversal limits only; a cycle is topology
+and never makes an observation partial. The bound is measured, not stipulated:
+the saturation curve runs 2/4/8/16/32 and saturates at 4, with monotonicity
+holding across all five.
+
+**REGISTERED.** `PRODUCER-IDENTITY-1`: two v1 artifacts of identical length
+differed in exactly one leaf of 15,771, `header.probe_sha256`, because the
+program read `__file__` twice and the file changed between them; a report and
+the artifact it produced disagreed and nothing noticed. v1 is otherwise
+byte-deterministic, refuting a hypothesis that this was an ordering defect.
+The affected artifact is renamed `..._PRODUCER-IDENTITY-INCONSISTENT_...`,
+bytes preserved and verified, with a sidecar rather than an edit.
+
+`SITE-IDENTITY-LACKS-A-COLUMN-1`: 3B.0b records path, line, operation and
+evidence but no column, so two calls on one line with the same expression are
+indistinguishable. Five such tuples, ten origins. v2 REFUSED the census rather
+than merging them silently; a canonical ordinal now separates them and the
+groups are listed rather than absorbed.
+
+Carried forward and still open: `ARCHIVE-LEGACY-COMMENT-PREMISE-EXPIRED-1`,
+`EVIDENCE-DISPOSITION-INCONSISTENT-1`, `ARCHIVE-SEMANTIC-COLLISION-1`,
+`HOME-DIRECTORY-IS-AN-EMPTY-GIT-REPOSITORY-1`,
+`POWERSHELL-STOP-PLUS-NATIVE-STDERR-IS-A-TERMINATING-ERROR-1`,
+`FILESYSTEM-SIZE-IS-NOT-A-PORTABLE-ARTIFACT-MEASURE-1`.
+
+The last was earned three times over: `Path.stat` follows a symlink and
+returns the target's size, `os.lstat` returns 6 on Linux and 0 on NTFS for the
+same link, and only the target string agrees with the blob on both. Git's
+object store is the authority; filesystem metadata is platform semantics.
+
 ## 2026-09-04 part 2 (agent liveness) -- the fleet last ran on 2026-06-20, and the gate said OK
 
 MEASUREMENT ONLY, at `05f7868`. Nothing is built and no production file
