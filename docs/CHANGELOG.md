@@ -1,3 +1,104 @@
+## 2026-09-04 (Phase 1C units 3A++.4b and 3A++.4c) -- three identity laws, and eighteen instrument defects
+
+Phase 1C Units 3A++.4b and 3A++.4c. The ratchet moved 6110 -> 6134 -> 6136.
+`beadea8 -> 2f8dcb9 -> f9b4075`, two attestations, one cryptographic chain:
+each unit's `before_digest` equals its predecessor's `after_digest` at all
+sixty-four characters.
+
+**ATTEMPTED.** A thin, test-only kernel of three semantic laws over
+already-derived identity tokens -- equivalence preservation, discrimination,
+exact orthogonality -- with two private primitives, standard-library imports
+only, and no production dependency. Three consumers migrated in
+`test_source_evidence_epoch_v5.py`, collection-neutral. Then two
+evidence-derived hardening tests as a separate unit.
+
+**FAILED, four times, none of them silently.**
+
+The 4b dry run refused sabotage evidence generated at Python 3.12.3 when the
+shipping interpreter is 3.12.10 -- the environment-truthfulness policy working
+as executable policy rather than as process discipline.
+
+A regeneration instruction contained `--tree "<that tree>"`. PowerShell took
+the angle brackets literally. The project's PowerShell hygiene list already
+says never to paste them. The remedy is a script that BUILDS the tree with
+absolute paths, so no placeholder can exist.
+
+The 4b installer added an undeclared `sabotage_evidence` key to the
+attestation. Schema version 3 permits no unknown key and publication REFUSED
+-- after a 1027.54-second gate, after the transaction committed, but BEFORE
+`git add`, exactly where `PROOF-AFTER-IRREVERSIBILITY-1` requires. Nothing was
+committed to git and nothing was corrupt. Cost: one gate.
+
+The 4c sabotage-tree script, derived textually from the proven 4b one, missed
+one of two occurrences of a filename and hashed the wrong suite, reporting a
+false mismatch against correct evidence.
+
+**FIXED.** The sabotage binding moved to the commit message, which is
+free-form. Attestation SHAPE prevalidation moved INTO THE DRY RUN with a
+synthetic head and gate: `PROOF-AFTER-IRREVERSIBILITY-1` said prove before the
+irreversible step; this adds prove before the EXPENSIVE one.
+
+**LEARNED.** Eighteen instrument defects, all one family -- a check measuring
+a different quantity than it claims. Among them: `-W always`; `b.endswith(b'\n')` in a
+heredoc; a line-feed counter piping a byte array; an `ece` substring matching
+*predecessor*; a `2>&1` check blind to comments; a probe demanding the value
+it already held; "all eight refused" printed unconditionally; a count grep
+blind to comma formatting; an angle-bracket placeholder; an incoherent
+boolean; writing to a schema without enumerating its keys; a regex matching
+one indentation level; a derivation replacing one occurrence of two. Not one
+produced a wrong repository state; every one was caught by a later check
+disagreeing or by the repository refusing.
+
+Four controls now carried by every probe: give each check an adversarial case
+proving it can fail, in the same breath; COUNT results rather than assert
+them; read structure with the parser, never with a pattern; and when deriving
+one artifact from another, enumerate every reference of the kind being changed
+and assert none of the old ones survives. And when a search comes back empty,
+widen the SPACE before doubting the terms: four searches missed
+`Probe_SessionRecordCoverage_2026-08-28.py` because every one of them looked
+only at the repository while the file sat in `Downloads`.
+
+**MEASURED.** A law-authority census over 234 source, 365 test and 452 script
+modules found seventy-seven candidate equality functions and not one with the
+semantics scientific identity requires. The frozen v4 corpus holds thirteen
+cases in twelve classes with one deliberate pair, so distinctness runs on
+twelve. Mutating `assert_orthogonal_change` from `!=` to `is not` passed all
+twenty-four tests of the 4b suite, because every fixture used short interned
+literals -- the second equality site, which section 19 requires to exist and
+the mandatory matrix does not name. Fourteen sabotage executions per unit, all
+DETECTED, with every 4c mutation still detected when the static guard is
+deselected. All fourteen mutant programs are byte-identical between the
+development sandbox and the shipping environment. `README.md` carries sixty
+non-ASCII bytes, so `authored()` is never applied to a derived postimage. All
+seven 4b postimages are byte-identical across two independent apply runs
+separated by a full restore.
+
+Warnings held at 33 across all three gates run on 2026-09-04, and equal the
+figure in every attestation on disk carrying an acceptance record, back to
+ADR-0004 on 2026-08-22.
+
+**REGISTERED.** Three.
+`IDENTITY-LAW-CASE-POPULATION-ORDER-SEMANTICS-UNDECIDED-1`,
+`SUPPORT-PACKAGE-IMPORT-MECHANISM-ASSERTED-IN-PROSE-ONLY-1`, and
+`INSTALLER-AUTHORING-PREDICATE-DUPLICATES-THE-TYPED-POLICY-1` -- three
+installers carry a private `authored()` duplicating
+`repository_records.validation.validate_authored_text`, which additionally
+refuses an empty artifact. ADR-0004 section B names that pattern: four
+installers each carrying a private notion of one rule.
+
+Deferred to a named unit 3A++.4d: explicit `__all__`, optional `NewType`, an
+executable check for the import mechanism, and adoption of the typed authoring
+policy in place of the private copy -- none of them worth amending a
+byte-pinned kernel whose mutation anchors exist to make the unit reproducible.
+
+Suite identity digests:
+    6110  4a626b2c2832a3889888e7577db12e51b5d3dcb4bcd73626aaf227ba3e7a2651
+    6134  dee9f68faf3713041b3dd551b55c83ed81e6f3e5f9c4b84dffbb9e038420200e
+    6136  48b06e4427cfbea4137569cad83bb22a8d66e85271e18201449088943a6511e9
+
+ACCEPTANCE: 6119 passed, 15 skipped (4b); 6121 passed, 15 skipped (4c).
+COUNTER SCOPE: tests/. Collected 6134 then 6136.
+
 ## 2026-09-03 part 2 (Phase 1C unit 3A++.3) -- one grammar, one parser
 
 One commit, `80432ac` -> `086e2fa`. The ratchet moved 6067 -> 6110.
