@@ -59,6 +59,11 @@ from genomic_variant_classifier.provenance import (
     SourceEvidenceManifest,
 )
 from genomic_variant_classifier.provenance.source import SOURCE_EVIDENCE_SCHEMA
+from tests.support.identity_laws import (
+    assert_all_identities_distinct,
+    assert_identity_equivalence_preserved,
+    assert_orthogonal_change,
+)
 
 _FIX = (Path(__file__).resolve().parents[2] / "tests" / "fixtures"
         / "source_evidence_epoch_v4" / "epoch.json")
@@ -252,27 +257,64 @@ def test_the_digest_still_DISCRIMINATES_between_manifests():
     identity as `clinvar_grch38`. The live epoch must preserve that partition
     exactly: same partition, different values.
     """
-    frozen = _v4()["cases"]
-    live = {name: _rebuild(case).digest for name, case in frozen.items()}
+    frozen_cases = _v4()["cases"]
 
-    assert len(live) == 13
-    assert len(set(live.values())) == 12, (
-        "the live digests collapse to {} distinct values; a digest that does "
-        "not discriminate is not an identity".format(len(set(live.values()))))
+    # Both mappings are built by iterating `frozen_cases.items()`, so their key
+    # ORDER is identical. Rulings section 16 keeps the population comparison
+    # order-sensitive for this unit; see
+    # IDENTITY-LAW-CASE-POPULATION-ORDER-SEMANTICS-UNDECIDED-1.
+    before = {
+        name: case["digest"]
+        for name, case in frozen_cases.items()
+    }
+    after = {
+        name: _rebuild(case).digest
+        for name, case in frozen_cases.items()
+    }
 
-    def partition(mapping):
-        groups = {}
-        for name, value in mapping.items():
-            groups.setdefault(value, []).append(name)
-        return sorted(sorted(names) for names in groups.values())
+    assert len(after) == 13
 
-    assert partition(live) == partition(
-        {n: c["digest"] for n, c in frozen.items()}), (
-        "the equivalence classes changed; the migration altered WHICH "
-        "manifests are the same, not merely their digest values")
-    assert live["same_key_different_release"] == live["clinvar_grch38"]
-    assert live["clinvar_grch37"] != live["clinvar_grch38"]
-    assert live["same_key_different_digest"] != live["clinvar_grch38"]
+    # Replaces the inline partition closure. A comparison of the NUMBER of
+    # equivalence classes would not do the same work: two partitions of four
+    # cases can both have two classes and still differ.
+    assert_identity_equivalence_preserved(
+        before=before,
+        after=after,
+    )
+
+    # Distinctness holds only on a caller-declared distinct subset. MEASURED
+    # against the frozen corpus: thirteen cases, TWELVE classes, exactly one
+    # deliberate pair -- `same_key_different_release` was built from the SAME
+    # identity as `clinvar_grch38`. Setting aside ONE member leaves the twelve
+    # on which the discrete partition genuinely holds; setting aside BOTH would
+    # surrender the check that `clinvar_grch38` differs from every other case.
+    deliberately_equivalent = frozenset({
+        "same_key_different_release",
+    })
+
+    distinct_after = {
+        name: digest
+        for name, digest in after.items()
+        if name not in deliberately_equivalent
+    }
+
+    assert len(distinct_after) == 12
+    assert_all_identities_distinct(distinct_after)
+
+    # The helper verifies the whole partition; these focused assertions
+    # document why these particular contrasts carry scientific meaning.
+    assert (
+        after["same_key_different_release"]
+        == after["clinvar_grch38"]
+    )
+    assert (
+        after["clinvar_grch37"]
+        != after["clinvar_grch38"]
+    )
+    assert (
+        after["same_key_different_digest"]
+        != after["clinvar_grch38"]
+    )
 
 
 def test_removing_a_dependency_CHANGES_the_digest():
@@ -307,9 +349,29 @@ def test_the_TRANSFORMATION_digest_did_NOT_move():
     entry = frozen["transformation_all_component_kinds"]
     obj = pickle.loads((fix / "transformation_all_component_kinds.pickle"
                         ).read_bytes())
-    assert obj.digest == entry["digest"]
+    # The ABSOLUTE pin. Not subsumed by the law below, which is relational and
+    # would still hold had the frozen entry and the live object moved together.
     assert obj.digest == (
         "eda4cf34c0bf866342edee305852c08043adb6d0fb2b6cfc798cd9b891c9df4f")
+
+    # The assertion this replaces proved only that transformation HELD; a
+    # migration that did nothing at all would also have satisfied it. The law
+    # asserts both halves at once, over DERIVED IDENTITY TOKENS rather than
+    # domain strings or schema versions. `assert obj.digest == entry["digest"]`
+    # is now subsumed: transformation is absent from `changed`, so the helper
+    # requires exactly that equality.
+    case = _v4()["cases"]["clinvar_grch38"]
+    assert_orthogonal_change(
+        before={
+            "source_evidence": case["digest"],
+            "transformation": entry["digest"],
+        },
+        after={
+            "source_evidence": _rebuild(case).digest,
+            "transformation": obj.digest,
+        },
+        changed=frozenset({"source_evidence"}),
+    )
 
 
 def test_the_migration_corpus_EVIDENCE_entries_are_expected_to_differ():

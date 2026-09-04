@@ -7851,4 +7851,40 @@
 #
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
-6110
+
+# 2026-09-04 -- 6110 -> 6134 (+24). Three identity laws, and their sabotage.
+#
+#   Phase 1C Unit 3A++.4b. A thin, test-only kernel of THREE semantic-law
+#   assertions over already-derived identity tokens, with TWO private
+#   primitives and no dependency outside the standard library. It states what
+#   must hold between identities; it does not decide what an identity IS.
+#
+#   The law-authority census found seventy-seven candidate equality or
+#   grouping functions and not one with the semantics scientific identity
+#   requires: they collapse None, empty strings, whitespace and NaN, or return
+#   a metric rather than a relation. Reusing any of them would let domain
+#   normalisation leak into scientific identity.
+#
+#   THREE consumers migrated in one file, and the migration is COLLECTION
+#   NEUTRAL: seventy-three node identities before, seventy-three after, proven
+#   by diffing the sorted sets rather than by comparing counts. An inline
+#   partition closure is replaced by the equivalence law; distinctness is
+#   asserted on the twelve cases that are genuinely discrete, the frozen
+#   corpus holding thirteen cases in twelve classes with one deliberate pair;
+#   and orthogonality now asserts BOTH halves, so a migration that did nothing
+#   fails where the old assertion passed.
+#
+#   Fourteen sabotage executions, all DETECTED: the ten mandatory mutations
+#   and four supplemental ones for the narrowed frozenset contract. Three of
+#   the four are independent contracts; S3 restates required mutation 6 and
+#   says so, and the overlap is RECOMPUTED from mutant digests and refused if
+#   it disagrees with the declaration in either direction.
+#
+#   Suite identity digests:
+#       before  4a626b2c2832a3889888e7577db12e51b5d3dcb4bcd73626aaf227ba3e7a2651
+#       after   dee9f68faf3713041b3dd551b55c83ed81e6f3e5f9c4b84dffbb9e038420200e
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+
+6134
