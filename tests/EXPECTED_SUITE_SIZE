@@ -7887,4 +7887,45 @@
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
 
-6134
+
+# 2026-09-04 -- 6134 -> 6136 (+2). The second equality site, and a static ban.
+#
+#   Phase 1C Unit 3A++.4c, landed immediately after 3A++.4b with no unrelated
+#   production work between them. Both items are EVIDENCE-DERIVED hardening
+#   rather than part of the original kernel suite, which is why they are a
+#   separate unit and a separate attestation.
+#
+#   THE SECOND EQUALITY SITE. Section 19 forbids routing orthogonality through
+#   the pairwise relation, because it is a different mathematical statement.
+#   That leaves the kernel with TWO independent token comparisons, and the
+#   mandatory mutation matrix names only the first. MEASURED 2026-09-03:
+#   mutating `assert_orthogonal_change` from `!=` to `is not` passed ALL
+#   TWENTY-FOUR tests of the 4b suite, because every fixture in that group
+#   used short interned literals, where `is` and `==` coincide. The new test
+#   builds both operands at run time with `"".join(...)` and asserts they are
+#   distinct objects before use, so neither interning nor constant folding can
+#   make the comparison pass by accident.
+#
+#   A WHOLE-MODULE NEGATIVE INVARIANT. The kernel docstring bans normalisation
+#   everywhere, not merely on paths a fixture reaches. Only a walk of the
+#   parsed module can establish that. The static test fails on any normalising
+#   call or any object-identity comparison introduced at ANY site, including
+#   one no test exercises. `ASCII-INVARIANT-ASSERTED-IN-PROSE-ONLY-1` is what
+#   prose-only costs.
+#
+#   The patch is a PURE APPEND, proven on bytes: the postimage's first 10,046
+#   bytes digest to what 4b installed, so not one of the twenty-four inherited
+#   laws was altered.
+#
+#   Fourteen sabotage executions, all DETECTED, and every one still detected
+#   with the static guard DESELECTED -- so the guard protects future sites and
+#   rescues no present one.
+#
+#   Suite identity digests:
+#       before dee9f68faf3713041b3dd551b55c83ed81e6f3e5f9c4b84dffbb9e038420200e
+#       after   48b06e4427cfbea4137569cad83bb22a8d66e85271e18201449088943a6511e9
+#
+#   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
+
+
+6136

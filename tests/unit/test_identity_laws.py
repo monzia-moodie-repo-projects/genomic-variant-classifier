@@ -251,3 +251,70 @@ def test_changed_must_be_a_FROZENSET_of_NON_EMPTY_STRINGS():
             assert_orthogonal_change(
                 before={"a": "x"}, after={"a": "y"},
                 changed=bad_members)
+
+
+# ---------------------------------------------------------------------------
+# 6. UNIT 3A++.4c -- EVIDENCE-DERIVED HARDENING
+#
+# These two items are not part of the original kernel suite. Each was motivated
+# by a measurement, which is why rulings section 7 separates them into their own
+# commit rather than folding them into 4b.
+#
+# Acronyms: AST = Abstract Syntax Tree.
+# ---------------------------------------------------------------------------
+
+def test_orthogonality_compares_by_EQUALITY_not_object_identity():
+    """The SECOND equality site. MEASURED 2026-09-03.
+
+    Orthogonality is a different mathematical statement from the pairwise
+    relation and is deliberately not routed through `_pairwise_relation`, so
+    its token comparison is independent. Mutating that comparison from `!=` to
+    `is not` passed all 24 tests of the 4b suite, because every fixture in
+    group 5 uses short interned literals where `is` and `==` coincide.
+
+    Both operands are built at runtime and neither is a literal, which also
+    keeps this file free of the SyntaxWarning that `x is not "literal"` emits:
+    the gate's warning total is an attested quantity.
+    """
+    held_before = "".join(["eda4cf34", "c0bf8663"])
+    held_after = "".join(["eda4cf", "34c0bf8663"])
+    assert held_before == held_after
+    assert held_before is not held_after
+
+    assert_orthogonal_change(
+        before={"source_evidence": "aaa", "transformation": held_before},
+        after={"source_evidence": "ccc", "transformation": held_after},
+        changed=frozenset({"source_evidence"}))
+
+
+def test_the_kernel_declares_NO_normalisation_and_NO_identity_comparison_STATIC():
+    """A whole-module negative invariant, which no fixture can establish.
+
+    A behavioural test reaches only a site some fixture exercises. This walks
+    the parsed kernel, so a normalising call or an `is` comparison introduced
+    at ANY site -- including one no test reaches -- fails here. That is the
+    executable form of the invariant; `ASCII-INVARIANT-ASSERTED-IN-PROSE-ONLY-1`
+    is what prose-only costs.
+    """
+    import ast
+    import pathlib
+
+    kernel = (pathlib.Path(__file__).resolve().parents[1]
+              / "support" / "identity_laws.py")
+    tree = ast.parse(kernel.read_text(encoding="utf-8"))
+
+    banned = frozenset({"strip", "lstrip", "rstrip", "lower", "upper",
+                        "casefold", "title", "capitalize", "normalize",
+                        "isna", "isnull"})
+    calls = sorted({
+        node.func.attr for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+        and node.func.attr in banned})
+    assert calls == [], "kernel executes normalising calls: {}".format(calls)
+
+    identity_ops = [
+        type(op).__name__ for node in ast.walk(tree)
+        if isinstance(node, ast.Compare) for op in node.ops
+        if isinstance(op, (ast.Is, ast.IsNot))]
+    assert identity_ops == [], (
+        "kernel compares with object identity: {}".format(identity_ops))
