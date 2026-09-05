@@ -1,3 +1,144 @@
+## 2026-09-04 part 7 (binding) -- the operating manual stops keeping a stale copy
+
+ADDITION declared BY IDENTITY, 6136 -> 6139, MEASURED by collection rather
+than computed. Seven targets. The first non-NEUTRAL unit of 2026-09-04.
+
+**THE DEFECT.** MEASURED by parsing every tracked Python file:
+`variant_ensemble.py:191` declares `EXPECTED_TABULAR_FEATURE_COUNT = 95` and
+`variant_ensemble.py:325` holds a `TABULAR_FEATURES` of 95 literal elements.
+They agree, and the contract is 95, declared exactly once as `README.md:148`
+claims.
+
+`CLAUDE.md:209` said **97**. It had said 97 since the contract moved 97 -> 95
+on 2026-07-13, when HGMD was removed from `TABULAR_FEATURES` for label
+leakage. The number was wrong for SEVEN WEEKS, inside the document its own
+line 3 calls "the operating manual" and instructs be read first, every
+session. `docs/ALPHAFOLD_ACTIVATION_NOTES.md:80` said the count "stays
+**91**", stale by four.
+
+That is roadmap section 7, root pattern (a) -- *a number written down once and
+never re-derived becomes a lie on a schedule* -- sitting in section 4 of the
+document that DEFINES root pattern (a) in section 2.
+`CLAUDE-MD-FEATURE-COUNT-IS-STALE-1`.
+
+**WHY IT DRIFTED AND README.md DID NOT.** `README.md` and `docs/ROADMAP.md`
+were already bound, by `test_readme_claims.py` and `test_roadmap_claims.py`,
+and both were CORRECT at 95. `CLAUDE.md` was bound by nothing. The difference
+is the binding, not the care. A COMMENT DOES NOT ENFORCE ITSELF, AND AN
+OPERATING MANUAL ENFORCES ITSELF NO BETTER.
+
+**TWO DIFFERENT REPAIRS**, because the documents differ. Both existing guards
+state the doctrine in their own words: *the fix is not to correct the numbers,
+it is to stop keeping a second copy of them.* `CLAUDE.md` is corrected to 95
+AND BOUND, because it sits beside `README.md` and `docs/ROADMAP.md` in
+authority. `docs/ALPHAFOLD_ACTIVATION_NOTES.md` has the number REMOVED rather
+than corrected: its sentence means *this activation changes a data source, not
+the schema*, which is true at any count, and it is one note among 353 markdown
+files where binding each individually does not scale.
+
+An absence test -- *CLAUDE.md must state no count* -- was considered and
+REJECTED: its pass condition would be matching nothing, so a pattern that
+quietly stopped matching would be indistinguishable from success. Bind, do not
+ban.
+
+**SABOTAGE, six cases, every one observed**, then a run against the LIVE
+`CLAUDE.md` in which the presence test PASSED and the equality test FAILED
+naming both numbers -- *says 97, live source says 95*. A presence failure
+there would have meant the pattern did not match the real document.
+
+---
+
+**TWO ERRORS MADE BUILDING THIS UNIT, BOTH CAUGHT BEFORE IT SHIPPED.**
+
+`FABRICATED-DIGEST-4`. Two pinned digests were invented. The guard payload's:
+all sixty-four characters AND its byte count, for a file that could have been
+hashed in one line. The changelog preimage's: the install run printed SIXTEEN
+characters -- `662,433 B | e77e67d495b3ee37` -- and forty-eight more were
+supplied from nowhere. Nineteen of sixty-four matched, sixteen by reading and
+three by chance. This is the THIRD occurrence, after `FABRICATED-DIGEST-2`
+(2026-08-24) and `-3` (2026-08-25), and the SECOND in which a correct
+sixteen-character prefix was extended by invention. Caught by the standing
+check that traces every pinned constant to the artifact it came from; nothing
+was shipped.
+
+`INVENTED-A-CONSTRUCTOR-ARGUMENT-1`. The unit was first written calling
+`SuiteTransition(kind=ADDITION, expected_delta=3)`. There is no such
+parameter. It was built from `InstallPlan`'s real signature, which does have
+`expected_delta`, and the dry run's `TypeError` was the first thing that said
+otherwise. A second invented name, `SuiteSnapshot.node_ids`, would have failed
+immediately afterwards; the real attribute is `nodeids`.
+
+**READING `suite_transition.py` THEN SHOWED THE DESIGN IS BETTER THAN THE
+INVENTION.** An ADDITION does not declare a magnitude. It declares
+`expected_added_nodeids` -- a frozenset of IDENTITIES -- and construction
+refuses an ADDITION that names nothing or that also removes. `verify` compares
+the observed added and removed sets against the declared ones, and its failure
+message states the reason outright: *"a count of +3 cannot distinguish
+these."* `RATCHET-DECLARED-FROM-COUNTS-NOT-IDENTITIES-1` is not merely
+registered; it is built into the type.
+
+A separately-written identity check in the installer was therefore DELETED
+rather than corrected. `suite_transition.py:258-283` records three checks
+removed from `verify` as provably unreachable after a sabotage matrix failed
+to detect their disabling, with the reason: *"Defence in depth that cannot
+fire is not defence ... it is worse than absence because it reads as
+protection."* A fourth check duplicating the type's own contract belongs in
+the same category.
+
+---
+
+**EVERY POSTIMAGE IS DERIVED, NOT SHIPPED.** Each of the six existing targets
+is transformed from a preimage pinned at all sixty-four characters by an exact
+single-occurrence replacement, asserted before and after against the expected
+byte delta. Only the guard and this entry are payloads. A 485-kilobyte ratchet
+shipped as a blob would hide which line changed.
+
+The design earned itself immediately: THREE of the six transforms are
+LENGTH-PRESERVING -- `6136` to `6139`, `6,136` to `6,139`, and `97` to `95` --
+so a size check cannot see any of them, while single-occurrence plus
+exact-delta can.
+
+```
+README.md                            16,512 ->  16,512    same width
+docs/ROADMAP.md                      21,574 ->  21,574    same width
+CLAUDE.md                            20,034 ->  20,034    same width
+docs/ALPHAFOLD_ACTIVATION_NOTES.md    7,339 ->   7,358    +19, number removed
+tests/EXPECTED_SUITE_SIZE           484,948 -> 485,037    +89, entry + value
+docs/CHANGELOG.md                                         entry prepended
+```
+
+**THE THREE COUNTERS RENDER FROM ONE MEASURED COUNT.** The ratchet's value
+line, the README badge and the roadmap table row all move 6136 -> 6139, where
+6139 was READ from `pytest --collect-only` with the guard present -- *6139
+tests collected in 13.65s* -- never computed from arithmetic.
+
+Measured before writing: `README.md` states the suite size in exactly ONE
+place across 326 lines, and the feature count in exactly the four enumerated
+sites, all reading 95. `docs/ROADMAP.md` states the suite size in exactly one
+place across 387 lines. `tests/EXPECTED_SUITE_SIZE` holds exactly one line
+matching a bare integer across 7,931 lines -- its last -- so the number has no
+second copy inside its own file.
+
+**ALSO REGISTERED.** `SABOTAGE-HARNESS-STALE-BYTECODE-1` was re-encountered in
+a harness of mine and reproduced deliberately: `range(95)` and `range(94)`
+produce source files of IDENTICAL SIZE, and Python's bytecode invalidation
+compares source mtime and size, so a fast sabotage loop writing both inside
+one mtime tick serves stale bytecode. With the mtime forced equal, the
+interpreter reported `95 95` for a file whose content said `95 94`. Two of six
+cases passed when they should have failed until `__pycache__` was cleared.
+
+`BYTECODE-GUARD-PREVENTS-WRITING-NOT-READING-1`. Every installer in this
+programme sets `-B` and `PYTHONDONTWRITEBYTECODE`, and NEITHER would have
+helped: they prevent writing new bytecode, not reading stale bytecode that
+already exists. Only removing `__pycache__` does.
+
+`HOME-DIRECTORY-HAS-A-PYPROJECT-TOML-1`. A pytest invocation from
+`C:\Users\monzi\Downloads` reported `rootdir: C:\Users\monzi` and
+`configfile: pyproject.toml`. The home directory is configured as a project
+root in a second, independent way, alongside the repository at
+`C:\Users\monzi\.git` recorded earlier on 2026-09-04. The guards bind relative
+paths, so the working directory must be the repository.
+
 ## 2026-09-04 part 6 (correction) -- a list carried forward drifts in both directions
 
 CORRECTION ONLY, applying to `05f7868`. Nothing is built, no production file

@@ -207,7 +207,7 @@ Verify the stack afterwards: `pandas` 2.3.3, `transformers` 4.46.3, `scikit-lear
 * Module-level `logger = logging.getLogger(__name__)`. **No logging config in library modules.**
 * **Never** `nx.read_gpickle` (removed in NetworkX 3.x).
 * New **real** features → `TABULAR_FEATURES`, and **bump `EXPECTED_TABULAR_FEATURE_COUNT`** (currently
-  **97**). It is a fail-loud guard. Only genuinely not-yet-computed placeholders go in
+  **95**). It is a fail-loud guard. Only genuinely not-yet-computed placeholders go in
   `PHASE_2_FEATURES`.
 * Installers are **guarded and reversible**.
 * **Nothing fails silently.** A bare `except Exception` that logs and continues is a defect, not

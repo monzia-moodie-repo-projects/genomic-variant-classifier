@@ -77,7 +77,7 @@ the guard; a corrupt multi-atom pileup (tested) reaches 3.48 and correctly raise
 
 ## Feature count
 
-`EXPECTED_TABULAR_FEATURE_COUNT` stays **91**. The four AF features are locked members
+`EXPECTED_TABULAR_FEATURE_COUNT` is unchanged by this activation. The four AF features are locked members
 of `TABULAR_FEATURES`; this activation changes their *data source* (stub-constant ->
 real), not the schema. No column is added or removed.
 

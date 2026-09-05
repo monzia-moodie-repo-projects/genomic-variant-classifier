@@ -7928,4 +7928,5 @@
 #   COUNTER SCOPE: tests/. This file certifies COLLECTION and nothing else.
 
 
-6136
+# 2026-09-04 -- 6136 -> 6139 (+3). CLAUDE.md stops keeping a stale copy of the contract.
+6139
