@@ -1,3 +1,72 @@
+## 2026-09-04 part 4 (correction) -- a repository I called empty holds two hundred megabytes
+
+CORRECTION ONLY, applying to `e970fcd`. Nothing is built, no production file
+changes, and `e970fcd` is not amended.
+
+**WITHDRAWN: `HOME-DIRECTORY-IS-AN-EMPTY-GIT-REPOSITORY-1`.** The
+`2026-09-04 part 3` entry carries that identifier in its list of findings
+carried forward. Its name asserts that the git repository at
+`C:\Users\monzi\.git` is empty. It is not.
+
+I measured four properties -- refs, commits, tracked files, remotes -- saw
+zero in each, and named the finding from them. `git fsck` was never run and
+the object store was never queried. MEASURED 2026-09-04 by the precondition
+gate that REFUSED to rename the directory: 849 unreachable objects, 869 files,
+72,791,946 bytes on disk. The eighth precondition, zero unreachable objects,
+was the only one of eight to fail, and the only one the original finding had
+not already claimed. `FINDING-NAMED-FROM-FOUR-PROPERTIES-OF-SEVEN-1`.
+
+**A SECOND error, made after the first was known.** Having found the object
+store populated, I reported its content as 72.8 megabytes. That is the
+COMPRESSED size on disk. MEASURED by `git cat-file --batch-check` over all 849
+objects: 200,027,701 bytes uncompressed, a ratio of 2.75 and an understatement
+of 127,235,755 bytes. Both numbers are correct; I attached the wrong meaning
+to one, which is the same failure as the first -- reporting a quantity without
+checking what it measures.
+`COMPRESSED-SIZE-REPORTED-AS-CONTENT-SIZE-1`.
+
+**THE NAMES ARE UNRECOVERABLE, proven rather than assumed.** 849 objects: 848
+blobs and one tree, with the distribution accounting for every one,
+`89 + 705 + 43 + 7 + 5 = 849`, and the largest single blob at 91,380,224
+bytes. The single tree is `4b825dc642cb6eb9a060e54bf8d69288fbee4904`, which
+equals `sha1(b"tree 0\x00")` -- git's canonical EMPTY tree, computable without
+any repository -- and `ls-tree` confirmed zero entries. With no commit, no
+non-empty tree and no index, nothing anywhere records what those blobs were
+called. A blob carries content and no name.
+
+**What the on-disk state supports.** `HEAD` names `refs/heads/master`, which
+does not exist. No index, so the staging area is gone and tracked files reads
+zero, yet 848 blobs are present because `git add` wrote them. No `[remote]`
+section. Description unedited. Created 2024-02-13, last written 2026-08-08.
+`git init` ran in the home directory, content was staged, nothing was ever
+committed, and the index was later removed. The blobs are orphaned staging
+residue.
+
+**REGISTERED as the replacement:**
+`HOME-DIRECTORY-REPOSITORY-HAS-NO-HISTORY-AND-ORPHANED-OBJECTS-1`. The
+operational hazard the original finding identified is unchanged: a bare git
+command from beneath the home directory still resolves there, which is how a
+push silently reported "no configured push destination" earlier on 2026-09-04
+rather than reporting that it was in the wrong repository.
+
+**NOT RESOLVED, and the gate is not being relaxed.** Renaming preserves every
+byte and removes the hazard; deleting reclaims 72,791,946 bytes of disk and
+destroys content nothing can identify. That is a decision about personal files
+and this record does not make it. A gate loosened because it fired is not a
+gate.
+
+**Unaffected.** Every Phase 3B.0 measurement in the `2026-09-04 part 3` entry
+was verified against its census artifact and stands: 1,720 tracked paths,
+11,372 decision sites, 2,252 origins, 1,667 reaching an authority, and
+seventeen cyclic components each of size one.
+
+**Also measured and NOT repaired.** `ROADMAP-DOES-NOT-RECORD-PHASE-3B-1`:
+zero lines of `docs/ROADMAP.md` mention `3B`, `MediaType` or `materializ`
+across 17,377 bytes, while five commits of Phase 3B.0 work landed on
+2026-09-04. The three derived counters -- the ratchet file, the README badge
+and the ROADMAP test-suite row -- all agree at 6136, so the gap is in phase
+narrative rather than in any counter.
+
 ## 2026-09-04 part 3 (Phase 3B.0) -- the substrate, its authorities, and a cycle population that was not there
 
 MEASUREMENT ONLY, at `fb53610`. Nothing is built and no production file
