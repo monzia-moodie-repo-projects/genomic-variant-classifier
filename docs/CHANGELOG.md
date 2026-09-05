@@ -1,3 +1,94 @@
+## 2026-09-04 part 5 (roadmap) -- a plan that stopped tracking on 2026-08-29
+
+One target: `docs/ROADMAP.md`, repaired IN PLACE. NEUTRAL. No production file
+changes and no record is created beside it -- `docs/CHANGELOG.md:1118` states
+the rule this follows: a living document is repaired in place; a pinned one is
+corrected beside.
+
+**MEASURED at `42780f4`.** Of the twenty-three commits that landed from
+2026-09-01 onward, **zero** were named anywhere in the roadmap. The DRIFT-1
+Phase 1 commit table ended at `ac14ab5` (2026-08-29). Two passages had become
+false rather than merely incomplete.
+
+**FALSE PASSAGE ONE, now corrected.** The plan table read `DRIFT-1 | PHASE 0
+CLOSED abcb22e; PHASE 1 identity kernel BUILT and NOT YET CALLED`. Phase 1
+continued through thirteen further units. The kernel is still uncalled under
+`src/`, which is why the row now says so with its re-measurement point rather
+than reading as though nothing had happened since.
+
+**FALSE PASSAGE TWO, now corrected.** The roadmap stated Phase 1C *"is blocked
+on `ARTIFACT-KEY-INSUFFICIENT-1` (`482c0c9`)"*. THAT BLOCKER IS CLOSED, at
+`4bed1b8` on 2026-09-01, and four independent records agree:
+`SESSION_2026-09-01_a-coordinate-the-evidence-required.md` lists it under
+*Closed*, `docs/CHANGELOG.md` under *Fixed*, commit `11df0b5` states it, and
+`tests/unit/test_source_release.py::test_three_GENCODE_products_are_three_keys`
+binds it. It closed NARROWLY: three of four measured collision classes
+dissolved into axes that already existed and only GENCODE's three transcript
+products were a genuine missing dimension. The new text says explicitly that a
+named blocker being closed is not the same as the phase being ready, and
+asserts nothing about the latter.
+
+**THE CALLER CLAIM, RE-MEASURED rather than restated.** Roadmap line 191 read
+*"zero production construction sites ... and 85 test sites"*, measured
+2026-08-29 at `b3619f2`. RE-MEASURED 2026-09-04 at `42780f4` by parsing all
+1,063 tracked Python files with zero parse failures:
+
+```
+bucket     direct  factory
+src/            0        0
+tests/         84       70
+other          19        4
+```
+
+**Zero under `src/` still holds.** The twenty-three sites elsewhere are ALL
+tooling: nineteen in `scripts/dev/build_provenance_migration_fixtures.py` and
+four in `scripts/dev/freeze_source_evidence_epoch.py`, neither of which
+existed on 2026-08-29. `SourceRegistry` is still imported by exactly one file,
+`tests/unit/test_source_registry.py`.
+
+Had the path buckets been collapsed into one "production" figure -- which the
+original wording invites -- the report would have read `production
+construction sites: 23` and declared the claim false. Direct and factory
+constructions are now counted separately and never summed, with the reason
+stated: a factory call produces an instance without naming the constructor.
+
+**The "85 test sites" figure is recorded as NOT COMPARABLE.** That record did
+not say whether 85 counted direct constructions, factory calls, imports or a
+sum. The two readings available now are 84 and 154. A near match is not a
+match, and the roadmap now says so rather than silently substituting one.
+
+`DRIFT-SOURCE-KERNEL-HAS-NO-PRODUCTION-CALLER-1` REMAINS OPEN, with the
+sharper closure condition the session records have since given it: it closes
+only when a real computation opens evidence, captures it, persists the
+manifest, reloads it, and downstream logic consumes it.
+
+**REGISTERED.** `ROADMAP-PLAN-SECTION-STALE-SINCE-2026-08-29-1`, recorded as
+an inline repair note in the roadmap's own established form -- the same shape
+as `ROADMAP-PROVENANCE-CLAIM-STALE-1` one section above, in a different
+register: there, prose outlived the number it described; here, a plan outlived
+the work it directed. A stale number misinforms a reader. A stale plan directs
+effort.
+
+`KEYWORD-SEARCH-ASSUMED-A-SHARED-VOCABULARY-1`. I searched the roadmap for
+`3B`, `MediaType` and `materializ`, found zero of each across 17,377 bytes,
+and recorded that the roadmap did not track this work. It tracks it as
+`DRIFT-1 PHASE 1` and `Phase 1C`; the 3A/3B numbering is the rulings'
+vocabulary and appears nowhere in this document by design. Zero was not
+evidence -- it was the wrong query, and it is the same failure the Phase 3B.0
+census was built to avoid.
+
+`ROADMAP-STALE-COPY-COLLIDES-BY-SIZE-1`. Two files of exactly 17,377 bytes
+differ in one line: `| Test suite | **6,136 collected** |` against
+`**5,705 collected**`. Same length, because the two numbers are the same
+width, so no size check could distinguish them. This is the standing rule --
+same name and byte size is not same content -- with a live instance.
+
+**The seven counter rows are byte-identical across the repair**, compared row
+by row rather than by pattern: 95, 0, 4, 1, 13, 22 and 6,136.
+`tests/unit/test_roadmap_counters_agree.py` binds the last of those to
+`tests/EXPECTED_SUITE_SIZE` and the README badge, so the acceptance gate is
+what proves it rather than this sentence.
+
 ## 2026-09-04 part 4 (correction) -- a repository I called empty holds two hundred megabytes
 
 CORRECTION ONLY, applying to `e970fcd`. Nothing is built, no production file

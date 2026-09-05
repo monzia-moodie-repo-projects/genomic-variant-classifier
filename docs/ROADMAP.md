@@ -1,6 +1,6 @@
 # GenAssoc / genomic-variant-classifier - Living Roadmap
 
-**Version: 2026-08-26 (v3, revised)  |  Owner: Monzia Moodie**
+**Version: 2026-09-04 (v3, revised)  |  Owner: Monzia Moodie**
 
 Repo: github.com/monzia-moodie-repo-projects/genomic-variant-classifier
 
@@ -140,9 +140,28 @@ Strong fits: AlphaFold DB (DO), RefSNP/dbSNP (DO), COSMIC (DO, academic; feature
 
 # 5. Immediate plan
 
-**Last re-derived 2026-08-23 at `b586778`.** The standing plan is quoted from
+**Last re-derived 2026-09-04 at `42780f4`.** The standing plan is quoted from
 the archive verbatim below; what changed since 2026-08-08 is characterised, not
 summarised, and the reason is given.
+
+> **ROADMAP-PLAN-SECTION-STALE-SINCE-2026-08-29-1, repaired 2026-09-04.** This
+> section stopped tracking on 2026-08-29. MEASURED at `42780f4`: of the
+> twenty-three commits that landed from 2026-09-01 onward, **zero** were named
+> anywhere in this document, the DRIFT-1 Phase 1 table ended at `ac14ab5`, and
+> two passages had become false rather than merely incomplete -- the DRIFT-1
+> state row, and the claim that Phase 1C is blocked on a finding closed at
+> `4bed1b8` three days earlier.
+>
+> It is the shape `ROADMAP-PROVENANCE-CLAIM-STALE-1` records one section
+> above, in a different register: there, prose outlived the number it
+> described; here, a plan outlived the work it directed. A stale number
+> misinforms a reader. A stale plan directs effort.
+>
+> **A search for this work under the wrong vocabulary found nothing and I
+> nearly read that as absence.** This document uses `DRIFT-1 PHASE 1` and
+> `Phase 1C`; the rulings use `3A` and `3B`. Searching here for `3B` returns
+> zero, and zero was not evidence -- it was the wrong query.
+> `KEYWORD-SEARCH-ASSUMED-A-SHARED-VOCABULARY-1`.
 
 ## The standing plan, quoted
 
@@ -166,7 +185,7 @@ summary of work that has not been read:
 | Commit C (SealedEvaluation) | CLOSED | recorded in `docs/sessions/` |
 | BASELINE-1 | CLOSED | recorded in `docs/sessions/` |
 | README-1 | CLOSED | `7cc213d` |
-| DRIFT-1 | PHASE 0 CLOSED `abcb22e`; PHASE 1 identity kernel BUILT and NOT YET CALLED | see below |
+| DRIFT-1 | PHASE 0 CLOSED `abcb22e`; PHASE 1 CONTINUING; the kernel is still uncalled under `src/`, re-measured 2026-09-04 at `42780f4` | see below |
 | OP-1 step 5, OP-2, RETRAIN-GATE | UNTOUCHED | -- |
 
 DRIFT-1's phase 0 made the monthly job stop reporting a verdict it could not
@@ -188,13 +207,60 @@ not been read.
 | `69e8524` | the source declarations acquire a typed reader |
 | `ac14ab5` | an invented vocabulary is retired for the registry that existed |
 
-**BUILT AND NOT YET CALLED.** MEASURED 2026-08-29 at `b3619f2` by parsing every
-tracked Python file: `SourceEvidenceManifest`, `SourceManifest`,
+**DRIFT-1 PHASE 1 CONTINUED, 2026-09-01 to 2026-09-04.** Nine further units,
+by identifier, in the order they landed. Not summarised, for the reason this
+section already gives.
+
+| commit | unit |
+|---|---|
+| `24bfb11` | 636 megabytes acquire a declaration |
+| `4bed1b8` | three GENCODE products stop being one key |
+| `accdf49` | the factory stops stringifying whatever it is handed |
+| `4805033` | a digest that refuses when the file moves underneath it |
+| `2d90c23` | freeze what an identity MEANS, before its owner moves |
+| `1ef4ca5` | one class object, two import paths |
+| `13daa3f` | a July retrieval record satisfied August evidence |
+| `01cd4b4` | freeze what v4/schema3 emitted, before its retirement |
+| `63c9f52` | one canonical identity epoch, one version authority |
+| `b04e826` | retire the v4/schema3 evidence epoch for v5/schema4 |
+| `086e2fa` | one grammar, one parser, and a canonical epoch spelling |
+| `2f8dcb9` | three identity laws, two primitives, fourteen sabotages |
+| `f9b4075` | the second equality site, and a whole-module static ban |
+
+**BUILT AND NOT YET CALLED.** RE-MEASURED 2026-09-04 at `42780f4` by parsing
+every tracked Python file -- 1,063 of them, zero parse failures -- and counting
+construction sites for `SourceEvidenceManifest`, `SourceManifest`,
 `SourceArtifactKey`, `SourceArtifactIdentity`, `SourceDependency` and
-`SourceRegistry` have **zero production construction sites** between them, and
-85 test sites. `SourceRegistry` is imported by exactly one file -- its own test.
+`SourceRegistry`:
+
+| bucket | direct | factory |
+|---|---|---|
+| `src/` | **0** | **0** |
+| `tests/` | 84 | 70 |
+| other | 19 | 4 |
+
+**Zero under `src/`, and the twenty-three elsewhere are all TOOLING**:
+nineteen in `scripts/dev/build_provenance_migration_fixtures.py` and four in
+`scripts/dev/freeze_source_evidence_epoch.py`, neither of which existed on
+2026-08-29. A fixture generator and an epoch freezer are not the production
+caller this finding waits for. `SourceRegistry` is still imported by exactly
+one file -- `tests/unit/test_source_registry.py`, its own test.
+
+Direct and factory constructions are counted SEPARATELY and never summed: a
+factory call produces an instance without naming the constructor, so counting
+one alone undercounts and merging them overstates.
+
+**The 2026-08-29 figure of "85 test sites" is NOT COMPARABLE** and is not
+restated as though it were. That record did not say whether 85 counted direct
+constructions, factory calls, imports, or a sum; the two readings available
+now are 84 and 154. A near match is not a match.
+
 Recorded as `DRIFT-SOURCE-KERNEL-HAS-NO-PRODUCTION-CALLER-1` in
-`docs/sessions/CORRECTION_2026-08-29_part3_a-kernel-with-no-caller.md`.
+`docs/sessions/CORRECTION_2026-08-29_part3_a-kernel-with-no-caller.md`, and
+STILL OPEN. Its closure condition is sharper than when it was written --
+`SESSION_2026-09-03_part2` states it: *closes only when a real computation
+opens evidence, captures it, persists the manifest, reloads it, and downstream
+logic consumes it.*
 
 That is why the next DRIFT-1 unit supplies a CALLER rather than more
 guarantees. An admission check wired to a manifest nothing constructs is what
@@ -203,9 +269,21 @@ records of itself: *a guard that is not invoked is not a guard; it is a comment
 that happens to be executable.*
 
 Phase 1C -- the reference profile that would construct a manifest from real
-acquisition data -- is blocked on `ARTIFACT-KEY-INSUFFICIENT-1` (`482c0c9`):
-persisting a source manifest now would freeze a model measurement has already
-falsified.
+acquisition data -- was blocked on `ARTIFACT-KEY-INSUFFICIENT-1` (`482c0c9`).
+**THAT BLOCKER IS CLOSED**, at `4bed1b8` on 2026-09-01, and four records agree:
+`SESSION_2026-09-01_a-coordinate-the-evidence-required.md` lists it under
+*Closed*, `docs/CHANGELOG.md` under *Fixed*, commit `11df0b5` states it, and
+`tests/unit/test_source_release.py::test_three_GENCODE_products_are_three_keys`
+binds it.
+
+It closed **NARROWLY**. Of four measured collision classes, three dissolved
+into axes that already existed -- assembly into `CoordinateContext`,
+project-derived into `acquire`/`regenerate`, EVE's 3,212 files into a partition
+axis -- and only GENCODE's three transcript products were a genuine missing
+dimension. `SourceArtifactKey` gained an OPTIONAL product coordinate.
+
+**The named blocker being closed is not the same as the phase being ready.**
+This entry records the former and asserts nothing about the latter.
 
 ## What changed since, and why it is characterised rather than listed
 
