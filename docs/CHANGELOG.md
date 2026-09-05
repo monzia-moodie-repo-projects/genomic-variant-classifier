@@ -1,3 +1,105 @@
+## 2026-09-04 part 6 (correction) -- a list carried forward drifts in both directions
+
+CORRECTION ONLY, applying to `05f7868`. Nothing is built, no production file
+changes, and `05f7868` is not amended.
+
+**WITHDRAWN from the `### Still open` list at lines 274 to 291 of
+`SESSION_2026-09-04_a-second-equality-site.md`:
+`RUNNER-GATE-METADATA-ORDER-1`.** It was CLOSED at `69ba5f6` on 2026-08-22,
+fourteen days before that record was written, and four records agree: the
+2026-08-21 to 08-22 session states it closed the finding at both ends, its
+`### Confirmed` table names `69ba5f6`, its unit table records the gate at
+954.89 seconds, and the commit subject reads *acceptance leaves the ratchet*.
+
+The repair was structural, not cosmetic. `scripts/install_no_detritus.py` line
+130 carries the rule it established: that file certifies COLLECTION and
+nothing else, and acceptance evidence is owned by the install attestation. The
+defect cannot recur in the form the finding named.
+
+I assembled that list by carrying forward the previous session's rather than
+re-deriving it from the records. Had I acted on the carried description, the
+edit I would have proposed was to `tests/EXPECTED_SUITE_SIZE` -- the ratchet
+itself, bound to three counters and a gate test -- to remove metadata absent
+since 2026-08-22. `STALE-BACKLOG-CARRIED-A-CLOSED-FINDING-1`.
+
+**AND THE LIST DRIFTS THE OTHER WAY.**
+`AUDITOR-EXISTS-AND-IS-NOT-INVOKED-1` was registered OPEN on 2026-08-30 --
+`CORRECTION_2026-08-30_a-tool-that-already-knew.md` says so in its own Status
+section, naming three findings registered and open. Two of the three are on
+the 2026-09-04 list. The third is not, and no record closes it. MEASURED at
+`1fcb1c7`: six mentions, most recent 2026-08-30, under *What still stands, on
+its own measurement*. Its subject `audit_data_tree.py` has ten mentions across
+tracked files and zero invocations.
+
+A retained closed finding wastes attention. A LOST OPEN FINDING IS WORSE:
+nothing points at it. Both have one cause -- a list assembled by hand rather
+than derived. `LIST-CARRIED-FORWARD-DRIFTS-BOTH-WAYS-1`.
+
+**A miscount, twice, with the text in front of me.** I described that list as
+holding sixteen identifiers. It holds SEVENTEEN: line 279 carries two,
+`FILE-DIGEST-HELPER-DEFINED-THREE-TIMES-1` and `HASHING-MIGRATION-PENDING`. I
+counted lines and reported identifiers. `COUNTED-LINES-NOT-ITEMS-1`.
+
+**THE OTHER SIXTEEN, MEASURED.** At `1fcb1c7`, by reading the heading each
+mention sits under across 353 tracked markdown files, ordered by each record's
+own date: fifteen are coherent, each progressing from an incident or
+correction, through `### Registered and OPEN`, to `### Still open` in every
+subsequent session. The sixteenth required a document read --
+`MANIFEST-DECLARES-TWO-SOURCES-IN-ONE-DIRECTORY-1` appeared under a heading
+beginning `## 1. REFUTED:` on the same day another record filed it open. What
+was refuted is the INCIDENT'S PATTERN CLAIM about `mim2gene` versus `omim`;
+this finding is what the refutation PRODUCED. Coherent.
+
+`DRIFT-SOURCE-KERNEL-HAS-NO-PRODUCTION-CALLER-1` is the best evidenced and the
+only one re-measured directly: twenty mentions across fourteen files, five
+commits, and zero construction sites under `src/` at `42780f4` for all six
+kernel types, with `SourceRegistry` imported by exactly one file -- its own
+test.
+
+**REGISTERED, from choosing this record's date:**
+`SECTION-D-REQUIRES-A-SESSION-RECORD-ON-EVERY-CHANGELOG-DATE-1`. The coverage
+probe asserts strict equality at line 324 --
+`say(out, newest_date == n.group(1), ...)` -- between the newest changelog
+heading date and the newest `SESSION_*.md` filename date. A `CORRECTION_`
+document is excluded from that comparison by the probe's own rule, so a
+correction-only or measurement-only unit landing on a day with no session
+record makes the two sides diverge. That never happened today only because
+every unit shared 2026-09-04 with `SESSION_2026-09-04`. The invariant holds by
+coincidence of date, not by construction.
+
+This entry is dated 2026-09-04 because that is the convention two units
+already established today, not to satisfy that check. MEASURED: the
+`D-CORRECTION` attestation records `finished_at 2026-09-05T01:40:21Z` with its
+entry headed `## 2026-09-04 part 4`, and `D-ROADMAP-REPAIR` records
+`2026-09-05T02:59:17Z` with its entry headed `## 2026-09-04 part 5`. Both
+crossed midnight in Coordinated Universal Time and both kept the session day.
+
+**THE INSTRUMENT COST EIGHT DEFECTS TO MAKE TRUSTWORTHY**, every one found by
+an adversarial case or by two numbers disagreeing, none by reading the code:
+no standard-output reconfiguration, so it crashed on a rightward arrow in a
+heading; a traceback written to standard error and flushed ninety-four lines
+early, which I then read as absent; a false-positive rate calibrated on eight
+documents and applied to 1,637; a gap annotated rather than closed; a date
+rule that read filenames and ignored the changelog's headings, leaving 312 of
+904 identifiers undated including six registered that day; identifiers split
+by hard wrapping, hiding one finding and inventing two; a suppressed token
+left as an empty key and counted as a discovery; and a substring test where a
+positional span test was required.
+
+The methodological point is the pattern-versus-corpus choice. Narrowing the
+identifier pattern to remove noise would have DROPPED SIX REAL FINDINGS,
+measured. Narrowing the corpus to tracked markdown dropped none. A false
+positive costs a glance; a false negative costs a finding.
+
+**NOT CLAIMED.** That the fifteen coherent findings are open -- their records
+say so and nothing contradicts them, which is not a fresh measurement. That
+the register is complete: 902 tokens across 353 files, 135 with no dated
+mention, of which two are canonical shape -- `STATE-ROOT-EXTERNALIZATION-1`
+and `VERBATIM-IMPORT-NOT-AUTHORING-1`. That a heading means open or closed;
+the probe prints headings and classifies nothing. And that the drift is
+confined to two items: two were found because two were checked, and the other
+886 identifiers the records name and the list does not are unexamined.
+
 ## 2026-09-04 part 5 (roadmap) -- a plan that stopped tracking on 2026-08-29
 
 One target: `docs/ROADMAP.md`, repaired IN PLACE. NEUTRAL. No production file
