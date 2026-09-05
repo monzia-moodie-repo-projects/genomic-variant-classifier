@@ -1,3 +1,113 @@
+## 2026-09-04 part 8 (correction) -- a closed finding, repeated in the correction about repeating closed findings
+
+CORRECTION ONLY, applying to `acd1561`. Nothing is built, no production file
+changes, and `acd1561` is not amended.
+
+**WITHDRAWN.** `acd1561` withdrew `RUNNER-GATE-METADATA-ORDER-1` from a
+still-open list because it had closed fourteen days earlier, registered
+`STALE-BACKLOG-CARRIED-A-CLOSED-FINDING-1` over it, and then in the very next
+paragraph stated:
+
+> Its subject `audit_data_tree.py` has ten mentions across tracked files and
+> zero invocations.
+
+That was true on 2026-08-30 and false when I wrote it.
+`AUDITOR-EXISTS-AND-IS-NOT-INVOKED-1` was CLOSED at `fd6cd4e` on 2026-08-30 --
+*feat(preflight): the auditor stops being a comment that happens to be
+executable* -- five days earlier. I carried the sentence verbatim from
+`CORRECTION_2026-08-30_a-tool-that-already-knew.md` and never re-measured it.
+`STALE-CLAIM-REPEATED-IN-THE-CORRECTION-ABOUT-STALE-CLAIMS-1`.
+
+**THE CLOSURE IS PROVEN AT THREE LEVELS, BY EXECUTION.**
+`tests/unit/test_data_tree_gate.py` at `2c94ae3`: 14 tests, ALL PASSED, ZERO
+SKIPPED, 15.43 seconds. EXISTENCE -- `audit_rows` and `audit_tree` are
+callable. INVOCATION -- `run_all` drove a monkeypatched gate and `seen`
+recorded the call. CONSEQUENCE -- the sentinel row returned through
+`run_all`'s rows, and `return_code == 2` holds exactly when a FAIL row is
+present, both derived from one `AuditReport`.
+
+The verbose run existed to check the SKIP PATHS: `_preflight()` skips if the
+module will not import, and the invocation test skips if `run_all` raises.
+NEITHER FIRED. A skipped test reads as green, and that guard's own text
+concedes it *"MUST NOT skip on the development machine or in CI"*.
+
+**WHY THE ORIGINAL MEASUREMENT WAS WRONG, which is the reusable part.** The
+wiring loads by path -- `importlib.util.spec_from_file_location` -- so a scan
+for `import audit_data_tree` reports ZERO while the gate is demonstrably
+called. The same scan counted 31 "invocations" of `preflight_data_guard`,
+EVERY ONE A LINE OF MARKDOWN PROSE. Wrong in both directions at once, from one
+static search.
+
+**RESTATED: fifteen findings were called "coherent" on a predicate that does
+not establish state.** `acd1561` reports fifteen of seventeen entries as
+coherent, each progressing from an incident or correction, through
+`Registered and OPEN`, to `Still open`. That is a statement about NARRATIVE
+CONSISTENCY, not about current state, and the adopted governing plan rules the
+distinction directly: do not infer finding state from narrative headings,
+because those headings have accumulated heterogeneous semantics over months.
+
+MEASURED at `2c94ae3`, every commit naming each identifier across all branches
+by fixed-string match: the auditor and
+`DRIFT-SOURCE-KERNEL-HAS-NO-PRODUCTION-CALLER-1` are named by five commits
+each and are the only two with a `feat` commit among them. Fourteen entries
+are named ONLY by `docs(session)`, `docs(measurement)`, `docs(correction)` or
+`docs(incident)` commits -- records ABOUT the finding. THREE are named by NO
+COMMIT ON ANY BRANCH: `INSTALLER-HEADER-UNDERSTATES-A-MIXED-TRANSITION-1`,
+`HASHING-MIGRATION-PENDING`, `UNCLOSED-FILE-HANDLE-SITES-1`.
+
+The auditor is the only identifier whose `feat` commit CLOSED it, which is why
+it is the only closure I missed -- and finding it was luck: a ratchet entry
+happened to read *"An auditor acquires a caller"*. The correct status for the
+other seventeen entries is UNDETERMINED BY AUTHORITY. No authority has ruled,
+so neither open nor closed is established.
+
+**A `feat` COMMIT NAMING A FINDING IS NOT A CLOSURE.** `accdf49` --
+*feat(monitoring): the factory stops stringifying whatever it is handed* --
+names `DRIFT-SOURCE-KERNEL-HAS-NO-PRODUCTION-CALLER-1` and does not close it;
+its message states the condition under which the finding WILL close.
+`docs/ROADMAP.md` states the rule: *a mention is not a closure: a commit may
+cite an item to say it is open, deferred, or blocking.*
+
+That finding is OPEN by MEASUREMENT, not by narrative: re-measured 2026-09-04
+at `42780f4` across all 1,063 tracked Python files with zero parse failures,
+the six source-kernel types have ZERO construction sites under `src/`, and
+`SourceRegistry` is imported by exactly one file -- its own test.
+
+**NOT CLAIMED.** That the fourteen are closed; nothing suggests they are, and
+the claim withdrawn is that heading sequence established they were open. That
+the three unnamed findings are inert; only that no commit message mentions
+them. That commit-message search is a sufficient authority test -- it is
+HIGH-RECALL DISCOVERY, and a finding could be closed by a commit whose message
+never names it, which is exactly how the auditor's closure would have been
+missed had `fd6cd4e` been titled differently. And that the rest of `acd1561`
+is affected: `RUNNER-GATE-METADATA-ORDER-1`'s withdrawal stands on four
+independent records including a commit and a test-bearing repair, and
+`COUNTED-LINES-NOT-ITEMS-1` stands -- the list holds seventeen identifiers and
+line 279 carries two.
+
+**A FABRICATED DIGEST, MADE WHILE BUILDING THIS UNIT.**
+`FABRICATED-DIGEST-5`. The installer publishing this record pinned `ENTRY_SHA`
+as sixty-four characters of which THIRTY-TWO were invented; my own validation
+had printed `hexdigest()[:32]`. Exactly 32 of 64 agreed, which is the
+signature of that mechanism. This is the FOURTH fabricated digest in the
+programme and the SECOND on 2026-09-04 -- and `FABRICATED-DIGEST-4`, caught an
+hour earlier, had its warning written into that same installer's docstring.
+The rule was obeyed for the preimage it named and broken for the payload in
+the same file: applied to the REMEMBERED INSTANCE rather than to the CLASS,
+which is precisely the failure this record documents in the auditor claim.
+
+The repair is mechanical, not remembered: `require_full_sha256` refuses
+anything that is not sixty-four lowercase hexadecimal digits,
+`_validate_pins()` runs it over every pinned constant before any work, and the
+digest helper itself passes through it. `FULL-DIGEST-GUARD-IS-MECHANICAL-1`.
+The structural cause is mine -- I truncate digests in my own verification
+output and then reuse them.
+
+**NOT CORRECTED.** `CORRECTION_2026-08-30_a-tool-that-already-knew.md` stated
+the auditor had no caller, and that was true on 2026-08-30. A historical
+record that was right when written remains a historical record. Only the
+2026-09-04 repetition is false.
+
 ## 2026-09-04 part 7 (binding) -- the operating manual stops keeping a stale copy
 
 ADDITION declared BY IDENTITY, 6136 -> 6139, MEASURED by collection rather
