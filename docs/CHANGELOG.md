@@ -1,3 +1,105 @@
+## 2026-09-04 part 9 (decision) -- the Observation role acquires a typed owner
+
+RECORD ONLY. `ADR-0005-repository-measurement-corpus-and-claim-semantics.md`
+is created and the decision index is patched in the same unit, because
+`test_adr_contract.py::test_the_index_lists_exactly_the_records_present` binds
+them in both directions. NEUTRAL: no test in that guard is parametrised over
+the records present, so adding a record moves no node.
+
+**WHAT ADR-0001 DECLARED AND WHAT EXISTS.** ADR-0001 named four
+machine-readable artifact types on 2026-08-21:
+
+```
+Observation    what was measured                 (census attestations)
+Finding        classification of observations    (the defect register)
+Decision       normative ruling                  (these records)
+Attestation    that an operation executed, and its outcome
+```
+
+MEASURED 2026-09-05 at `c18a1df`: TWO OF THE FOUR have a typed owner.
+`Attestation` has `transactions/install_attestation.py` at schema version 3
+with eighteen attestations under `records/attestations/installations/`.
+`Decision` has `docs/architecture/decisions/` and `test_adr_contract.py`.
+`Observation` and `Finding` have none. ADR-0001 additionally specifies a
+preservation manifest for the ruling sequence at its lines 152 to 165;
+`git ls-files -- '*decision_*'` returns ZERO files.
+
+Three declared obligations, zero implementations, in one accepted normative
+record. That is the shape ADR-0001 itself names at line 181 -- SEMANTIC
+COMPRESSION -- one level up: a role declared in prose and never given a typed
+owner is carried by whatever artifact is convenient, which in practice has
+been narrative session records.
+
+`ADR-0001-DECISION-MANIFEST-IS-UNBUILT-1` is registered against ADR-0001, not
+against this record.
+
+**WHY NOW, WITH DATED EVIDENCE.** Four repository inspections on 2026-09-04
+and 2026-09-05 produced conclusions exceeding what their evidence licensed. A
+scan for `import audit_data_tree` returned ZERO while the gate was
+demonstrably invoked, because the wiring loads by path through
+`importlib.util.spec_from_file_location`; the same scan counted 31
+"invocations" of `preflight_data_guard`, every one a line of Markdown prose. A
+false-positive rate calibrated on EIGHT markdown documents was applied to
+1,637 tracked files and produced 2,408 noise tokens. A `git grep` pathspec
+matching NO FILE exited 0 with no output, and the silence was read as zero
+matches in an existing file. Fifteen findings were called coherent on
+narrative heading sequence, which establishes narrative consistency and not
+current state.
+
+Each inspection was individually reasonable; each conclusion was not. The
+common defect is that no artifact recorded what population was inspected, how
+completely, or what the result licensed.
+
+**THE RULE.** *Measurement evidence is not state authority.* A measurement may
+claim no more authority than its corpus, method, completeness and evidence
+jointly establish. The record encodes eleven non-equivalences as failure
+boundaries rather than style, each with a dated instance in this repository.
+
+**WHAT THE OWNER WILL NOT OWN.** Finding lifecycle, finding status,
+carried-item lifecycle, project state, decision-record status,
+scientific-data provenance, durable-record placement, retention, publication,
+transaction semantics, Git orchestration, and the analysis mechanisms
+themselves. `Finding` is deliberately left without an owner: 886 identifiers
+are named by records and absent from any register, whether they share one
+lifecycle is unmeasured, and a monolithic register that falsely normalised
+heterogeneous objects would be worse than narrative records.
+
+**MEASURED BEFORE WRITING, FROM THE GUARD'S OWN CODE.**
+`tests/unit/test_adr_contract.py` was read in full at
+`72c63926670dad37f7537a616cd7239d2a9773ad1c4b473eed992d651fd3b488`, and its
+`FILENAME`, `FIELD`, `parse_header`, `unknown_domains` and `INDEX_ENTRY` were
+transcribed verbatim to validate this record rather than paraphrased. Eight of
+eight checks pass against the shipping code: canonical filename, identifier
+exactly 0005, byline within the first twelve lines, all five required fields,
+status and domains in their vocabularies, and no field drifted past the header
+window.
+
+`data_schema` is the declared domain. ADR-0001 defines it as covering
+*"feature schemas, evidence schemas, claim schemas, installer
+specifications"*, and the owner's types are a claim schema, an evidence
+schema, and a versioned machine-readable transport schema. `meta` was
+rejected: the index reserves it for a record that defines the lattice rather
+than governing one domain. `execution_evidence` was rejected: ADR-0001 scopes
+it to what a run, gate or transaction observed, and a repository inspection is
+not a run.
+
+**A STALE COUNT INSIDE THE GUARD THAT EXISTS TO CATCH STALE COUNTS.**
+`ADR-CONTRACT-DOCSTRING-COUNTS-STALE-1`. That file's docstring says *"Five of
+the twelve tests are negative controls."* Enumerated from its parse tree:
+FIFTEEN tests, SIX negative controls. Its fixture message says *"Three are
+accepted as of 2026-08-22"* when four are. Three numbers written once and
+never re-derived, in the file whose own line 24 reads *"which is the argument
+for measuring rather than reading."* Reported here; not repaired in this unit,
+because a record unit that also edits a guard is two changes under one
+description.
+
+**NOT CLAIMED.** That this introduces a new architectural layer -- it
+implements a role accepted fifteen days ago. That any probe becomes
+authoritative. That the finding namespace should have a register. That the
+package exists yet: this unit creates the DECISION only, and the
+implementation is a separate ADDITION whose added node identifiers will be
+measured from a collection rather than computed.
+
 ## 2026-09-04 part 8 (correction) -- a closed finding, repeated in the correction about repeating closed findings
 
 CORRECTION ONLY, applying to `acd1561`. Nothing is built, no production file
