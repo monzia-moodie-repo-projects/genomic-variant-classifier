@@ -1,3 +1,109 @@
+## 2026-09-04 part 11 (measurement) -- four instruments learn to state their own limits
+
+RECORD ONLY. NEUTRAL: no test changes, no production code changes. The four
+probes remain EXTERNAL instruments; the adopted plan's section 48 is explicit
+that the contract is what should be productized, not the analysis logic. No
+probe was relocated and no script taxonomy changed.
+
+**ALL FOUR INSTRUMENTS NOW EMIT THE WIRE SCHEMA**, and the canonical parser
+accepted and round-tripped each byte-identically:
+
+```
+Probe_AuthorityCatalog    CENSUS     tests/**/test_*.py           359   complete true
+Probe_SectionConvention   DISCOVERY  **/*.md                      356   complete false
+Probe_StillOpenLedger     CENSUS     docs/sessions/SESSION_*.md   140   complete true
+Probe_FindingRegister     CENSUS     **/*.md                      356   complete true
+```
+
+None imports the checkout it measures.
+
+**COVERAGE COMPLETE, CENSUS NOT COMPLETE.** The section-convention probe reads
+356 of 356 members with zero failures -- analysis coverage COMPLETE -- and its
+`complete_census` is FALSE. Every member was read; the METHOD is a
+fifteen-phrase search, and a convention stated in a phrase the list does not
+anticipate would not appear. Selection completeness, analysis completeness and
+whether the method supports an exhaustive claim are three questions, and one
+overloaded coverage field could express none of them separately.
+
+**A CENSUS WHOSE EVIDENCE IS DISCOVERY.** The finding register enumerates
+exhaustively -- every tracked Markdown file, every line -- while its identifier
+pattern is a SHAPE heuristic. `mode` is census; the token evidence carries
+discovery strength. First report where the two axes diverge.
+
+**THE CORPUS-IDENTITY PROOF.** Two independently written probes declaring
+`**/*.md` at `67826176` produced the SAME membership digest,
+`624bf7ad2f2db4cf...`. Equal counts prove nothing -- that is exactly
+`test_equal_member_counts_do_not_mean_equal_corpus`. Equal DIGESTS prove they
+read the same 356 files, which is what lets one probe's `does_not_prove` cite
+the other's measurement. The digest was recomputed a THIRD time from the
+domain-separation rule alone against a payload read from disk; all three agree.
+
+`LEDGER-MATCHED-EIGHT-OF-ONE-HUNDRED-THIRTY-NINE-HEADING-FORMS-1` is no longer
+a finding recorded elsewhere. It is a field inside every ledger report,
+computed from `len(wanted)` so it cannot go stale.
+
+**ONE DEFECT, THREE TIMES, IN FOUR INSTRUMENTS.**
+`Probe_SectionConvention:208`, `Probe_StillOpenLedger:277` and
+`Probe_FindingRegister:413` each read `data = blobs.get(oid); if None:
+continue`. A blob git did not return was skipped and counted NOWHERE -- a file
+in the declared corpus, never read, invisible in the output. Same shape as
+`SILENT-NO-OP-REPLACEMENT-1` and as the empty package directory that imported
+while six modules were missing.
+
+All four were written on 2026-09-04 from the same shape. The one that got it
+right was written LAST, after the earlier three had taught the lesson without
+my noticing I had applied it once. THE REPAIR WAS FORCED, NOT CHOSEN:
+`AnalysisCoverage` refuses `succeeded + failed != attempted`, so there is no
+honest way to emit coverage while dropping members. The type found what three
+readings passed over. All three now report 0 NOT RETURNED, measured.
+
+**THE TRANSPORT CONTRACT CAUGHT A DEFECT OF MINE.** The first
+authority-catalog payload omitted the required `evidence` field; the probe
+reported success and wrote the file; `parse_measurement` refused it with
+`missing keys ['evidence']`, exit 1. That is the case for an instrument not
+judging its own output -- a validator sharing the emitter's blind spot would
+have accepted it. Also verified refused: an unknown key beside a real one, an
+unknown schema version, a member list not hashing to its declared identity, a
+complete census with a parse failure, and PASS or FAIL on a discovery
+measurement. NOT_JUDGED remains permitted and is not PASS.
+
+**P0-B.4: WHAT "AUTHORITATIVE PROBE" MEANS.** Measured at `6782617`, four
+candidate definitions, all failing. A NAMING RULE: 67 tracked files whose name
+contains `probe`, across FIFTEEN locations, four of them not Python -- one
+PowerShell script and three `.txt` files. A DIRECTORY: `scripts/forensics`
+holds 70 files under SIXTEEN leading verbs, `probe` 25, `audit` 13, `verify`
+12, `diagnose` 6, plus twelve others; `scripts/probes/` and `probes/` matched
+nothing, and that pathspec exited 0 SILENTLY. A MANIFEST: `git grep` for
+`PROBES = `, `PROBE_REGISTRY`, `AUTHORITATIVE_PROBE` and `probe_manifest`
+exited 1 -- a genuine measured absence, categorically different from the
+silent zero. AN EXECUTION SURFACE: one probe runs in continuous integration,
+`probe_teardown_abort.py`, in a manually dispatched diagnostic workflow, not a
+gate; NONE of the four migrated probes is invoked anywhere.
+
+`AUTHORITATIVE-PROBE-HAS-NO-DEFINED-POPULATION-1`. Recorded, not repaired --
+defining that population is a governance decision, not a measurement. The
+acceptance criterion is therefore the bounded one the plan supplies: all four
+currently designated probes declare their corpus, now true and demonstrated
+over a population that can be named. Universal quantifiers need authoritative
+populations.
+
+**THE REGISTER MOVED, AND THE MOVEMENT IS LEGIBLE.** Between `acd1561` and
+`6782617`: markdown files 353 to 356, tokens 902 to 925, canonical 227 to 240,
+review 675 to 685, mentions 4,362 to 4,482, undated 135 to 133. Thirteen
+commits landed between those states. What changed is that these numbers now
+travel with the corpus digest that produced them, so a future comparison is
+between two NAMED POPULATIONS rather than two bare integers.
+
+**NOT CLAIMED.** That any probe is authoritative -- no artifact defines that
+population. That the schema is complete -- it is version 1 and an unknown
+version is refused rather than guessed. That the finding namespace should have
+a register -- P3 remains deferred and 886 identifiers remain unclassified.
+
+**KNOWN AND UNREPAIRED.** `Probe_SectionConvention` has no output-file option
+and its docstring instructs `*>` redirection, while
+`REDIRECT-MANGLES-NON-ASCII-1` was measured on 2026-09-04. It prints Markdown
+prose, so the hazard is live. Adding the option is a separate change.
+
 ## 2026-09-04 part 10 (implementation) -- the Observation role acquires its types
 
 ADDITION of thirty-nine tests declared BY IDENTITY, 6139 -> 6178, MEASURED by
