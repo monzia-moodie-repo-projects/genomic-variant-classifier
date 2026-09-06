@@ -1,3 +1,119 @@
+## 2026-09-04 part 10 (implementation) -- the Observation role acquires its types
+
+ADDITION of thirty-nine tests declared BY IDENTITY, 6139 -> 6178, MEASURED by
+collection. Twelve targets: eight files created, four counters and records
+patched. `ADR-0005` named the owner on 2026-09-04; this unit builds it.
+
+**THE PACKAGE.** `src/genomic_variant_classifier/repository_measurement/`,
+six modules, standard library only:
+
+```
+corpus.py          CorpusKind, EnumerationMode, CorpusSpec, CorpusSnapshot,
+                   SelectionCoverage, RepositoryState,
+                   corpus_membership_digest
+evidence.py        EvidenceStrength, EvidenceItem, AnalysisCoverage,
+                   IncompleteMeasurementError, require_complete_census
+claims.py          MeasurementClaim
+report.py          MeasurementMode, Verdict, MeasurementContext,
+                   MeasurementResult
+serialization.py   SCHEMA, SCHEMA_VERSION, require_keys,
+                   serialize_measurement, parse_measurement
+__init__.py        docstring only -- NO re-exports
+```
+
+**NO RE-EXPORTS, MEASURED NOT PREFERRED.** Across the neighbouring
+infrastructure packages: `transactions` 0 re-export lines,
+`repository_records` 0, `paths` 0. `provenance` has 1 and `conformal` 2, and
+both are domain packages rather than infrastructure. Consumers import from
+modules explicitly. This is the repository's demonstrated convention.
+
+**MeasurementMode AND Verdict LIVE IN report.py.** The governing ruling's
+section 1 enumerates the package as six files; its section 11 shows an
+illustrative import reading `from .types import MeasurementMode, Verdict`,
+naming a seventh module the file list does not contain. The explicit file list
+governs. The discrepancy is recorded in `report.py` rather than resolved
+silently.
+
+**THE FOUR SABOTAGE CASES the plan requires, each a test that must FAIL when
+the invariant is removed.**
+
+`test_equal_member_counts_do_not_mean_equal_corpus` -- two corpora of equal
+size with different members hash differently. |A| = |B| does not imply A = B,
+the same invariant `SuiteTransition` enforces for node identity.
+
+`test_incomplete_analysis_cannot_claim_a_complete_census` -- selected 100,
+attempted 10 cannot coexist with a complete census.
+
+`test_discovery_cannot_masquerade_as_a_complete_census` -- DISCOVERY evidence
+cannot license an absence claim. This is the rule that would have prevented
+*grep found no `import audit_data_tree`, therefore runtime invocation count is
+zero* -- a scan that reported ZERO while the gate was demonstrably invoked
+because the wiring loads by path, and that counted 31 "invocations" of
+`preflight_data_guard`, every one a line of Markdown prose.
+
+`test_a_missing_requested_root_is_not_a_zero_result` -- a requested root whose
+fate is unrecorded is refused at construction. `git grep -- tests/foo.py`
+where the file does not exist exits 0 with NO OUTPUT, and that silence was
+read as zero matches in an existing file. TWICE on 2026-09-04, the second time
+in a command written after the finding was registered.
+
+**THE ISOLATION GUARD, AND WHY IT USES AST AND NOT GREP.**
+`test_repository_measurement_isolation.py` parses the package sources and
+asserts no import of `provenance`, `repository_records`, `transactions`,
+`state`, `evaluation` or `models`, and nothing outside the standard library. A
+contract layer that imports the model stack is absent exactly when it is
+needed, because diagnostics run when the application cannot initialise.
+
+The walker uses `ast.walk`, so a DEFERRED import inside a function is seen; a
+module-scope-only walker would let one indented line bypass every check in the
+file, and a negative control asserts that specifically. The guard also STATES
+WHAT IT CANNOT DO -- a dynamic import with a computed name is not recoverable
+by parsing -- and then asserts the dynamic surface is empty, so the parse
+result is COMPLETE for this package rather than merely correct as far as it
+goes. A test claiming to catch them would be worse than one that says it does
+not.
+
+Watched failing in all five sabotage directions: a forbidden sibling import,
+a third-party import, a deferred import inside a function, a dynamic import,
+and a filesystem write. Six of six including the untouched baseline.
+
+**MEASURED, NOT COMPUTED.** 6178 was READ from `pytest --collect-only` at the
+repository root with all eight files present: *6178 tests collected in
+9.83s*, and 6139 + 39 = 6178. The transition declares
+`expected_added_nodeids` as the thirty-nine IDENTITIES, because a delta of
+thirty-nine would accept any thirty-nine.
+
+Verified before this unit: 39 passed, 0 skipped, 0 errors, `-rs` reporting no
+skip reasons. A skipped test reads as green, and the isolation module's
+fixture calls `pytest.fail` when the package directory is absent.
+
+**A FIRST ATTEMPT FAILED SILENTLY AND IS RECORDED HERE.** The package files
+were copied with a source pathspec naming a directory that does not exist, so
+`New-Item` created an EMPTY directory, Python 3 treated it as an implicit
+namespace package, and the import of a submodule failed with
+`ModuleNotFoundError` while the package itself resolved. Collection reported
+6148 -- 6139 plus the nine isolation nodes only. The thirty invariant nodes
+were absent. `A-PATHSPEC-THAT-MATCHES-NOTHING-IS-SILENT-1`, the second
+occurrence on 2026-09-04.
+
+The repair added a listing of the destination after copying. A copy is not
+verified until the destination is listed, and all eight files were then
+confirmed by SHA-256 CONTENT rather than by name and byte size, because equal
+sizes prove nothing.
+
+**THE THREE COUNTERS RENDER FROM ONE MEASURED COUNT.** The ratchet value line,
+the README badge and the roadmap table row all move 6139 -> 6178. Every
+postimage is DERIVED from a preimage pinned at all sixty-four characters by an
+exact single-occurrence transformation; only the eight new files and this
+entry are payloads.
+
+**NOT CLAIMED.** That any probe yet emits this schema -- P0-B.2 migrates the
+authority-catalog exemplar, and this unit adds no probe migration, no probe
+relocation, and no script taxonomy change. That the finding namespace should
+have a register: P3 remains deferred, and 886 identifiers remain unclassified.
+That this package owns any state; it describes evidence, and measurement
+evidence is not state authority.
+
 ## 2026-09-04 part 9 (decision) -- the Observation role acquires a typed owner
 
 RECORD ONLY. `ADR-0005-repository-measurement-corpus-and-claim-semantics.md`
