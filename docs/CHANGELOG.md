@@ -1,3 +1,88 @@
+## 2026-09-04 part 13 (session) -- the chain gains one link, and three censuses were wrong
+
+RECORD ONLY. NEUTRAL: no production code changes, no test changes. Creates
+`docs/sessions/SESSION_2026-09-04_part2_the-chain-gains-one-link.md` and
+prepends this entry.
+
+**WHY THIS RECORD EXISTS.** The coverage probe FAILED at `bc8b6ce`:
+
+```
+[ FAIL ] WORK commits: 12 total, 1 NOT named by any record
+      [  --  ] bc8b6ce feat(provenance): evidence that was written comes back
+```
+
+A `feat` commit is a WORK commit, which the probe judges, and no session record
+named it. That is the probe's single decision -- whether a work commit exists
+that no session record names -- and it was correct. `f22edc5` is also unnamed
+but classifies as OTHER and is explicitly NOT judged: a decision record cannot
+name the commit that creates it.
+
+**WHAT THE RECORD COVERS.** Eight units, `1fcb1c7` through `bc8b6ce`, ratchet
+6136 -> 6237: a roadmap repair, two corrections, the `CLAUDE.md` binding,
+ADR-0005 and the `repository_measurement` package, the probe-migration
+measurement, and the source-evidence reload.
+
+**THIRTEEN ERRORS, RECORDED IN THREE FAMILIES.**
+
+TWO FABRICATED DIGESTS ARE ONE FAILURE. `FABRICATED-DIGEST-4` extended sixteen
+observed characters with forty-eight invented ones; it was caught, and its
+warning was written into the NEXT installer's docstring. `FABRICATED-DIGEST-5`
+was then committed IN THAT SAME FILE, extending thirty-two with thirty-two, for
+a different value. The rule was applied to the REMEMBERED INSTANCE rather than
+to the CLASS. `require_full_sha256` and `_validate_pins()` now make it
+mechanical. The structural cause is mine: I truncate digests in my own
+verification output and then reuse them.
+
+THREE DEFECTS ARE ONE FAMILY -- a second copy of something that already had one
+authority. `SILENT-NO-OP-REPLACEMENT-1`, `TWO-CHANGES-ONE-DESCRIPTION-1`, and a
+check that CANNOT PASS (`evidence.added_nodeids != ids`, a tuple compared to a
+frozenset). The repair in all three was DELETION, not correction. The installer
+now derives the added set as `after.nodeids - before.nodeids`, from the same
+snapshots `verify()` compares, so the declaration cannot disagree with the
+observation.
+
+TEN TIMES A CHECK OF MINE WAS THE DEFECTIVE PARTY, not the code: banning a
+string that survived only in a comment explaining it was wrong, comparing the
+wrong dictionary entry, extracting a code block from the wrong line, exec'ing a
+module without `__file__`. Each was found by reading the failure rather than
+adjusting the code to satisfy it.
+
+**THE MOST INSTRUCTIVE ERROR.** The first `--apply` of `D-P1I` FAILED its
+acceptance gate on four cases of `test_the_SEMANTIC_projection_is_unchanged`.
+Nothing was committed, the transaction rolled back, and both kernel files were
+verified restored by digest. My census asked WHO CONSTRUCTS these types and WHO
+IMPORTS them; that module does neither -- it unpickles fixtures and reflects
+with `hasattr`. `CONSTRUCTION-AND-IMPORT-CENSUS-MISSES-REFLECTION-1`. The
+repair then found FIVE of sixteen corpus entries lack `as_record`, not the four
+that failed, so an allowlist built from the failure messages would have been
+right BY LUCK.
+
+**THE STILL-OPEN LIST IS NOT RE-CARRIED.** `c18a1df` restated fifteen entries
+from *coherent* to UNDETERMINED BY AUTHORITY, and re-listing them as though
+their state were known would reproduce `LIST-CARRIED-FORWARD-DRIFTS-BOTH-WAYS-1`
+on the day it was corrected. Only
+`DRIFT-SOURCE-KERNEL-HAS-NO-PRODUCTION-CALLER-1` appears, because it is the one
+MEASURED today: zero production construction sites across 1,072 tracked Python
+files at `85d0247`. `bc8b6ce` closes ONE of three absent links, and the 59 new
+tests are exactly the *tests instantiate it* the adopted plan excludes. The
+remainder are recorded in
+`CORRECTION_2026-09-04_part3_a-closed-finding-repeated.md` with the commit
+census that produced them.
+
+**FIFTEEN GATES, WARNINGS AT 33 IN EVERY ONE.** Durations minimum 842.9
+seconds, maximum 1355.5 seconds. NO VALIDATED PREDICTIVE MODEL EXISTS. I quoted
+a predictive band three times and was wrong in both directions -- undershooting
+the floor twice and overshooting the ceiling twice -- so the honest statement is
+the observation set and nothing more. `GATE-TIMING-NOISE-EXCEEDS-TREND-1`
+stands, strengthened.
+
+**NOT CLAIMED.** That the production chain closes. That the finding namespace
+should have a register -- 886 identifiers remain unclassified and `Finding`
+remains deliberately without a typed owner. That the stray repository at
+`C:\Users\monzi\.git` has been resolved: 849 unreachable objects and
+200,027,701 bytes of content whose path names are unrecoverable, REGISTERED and
+NOT RESOLVED.
+
 ## 2026-09-04 part 12 (implementation) -- evidence that was written comes back
 
 ADDITION of fifty-nine tests declared BY IDENTITY, 6178 -> 6237, MEASURED by
