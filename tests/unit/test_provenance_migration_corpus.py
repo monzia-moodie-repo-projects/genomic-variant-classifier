@@ -181,6 +181,38 @@ EPOCH_V5_MIGRATED = frozenset({
     "manifest_clinvar",
 })
 
+#: Entries whose PROJECTED KEY SET grew at Phase 1 (P1-i), 2026-09-06, when
+#: `as_record` was added to the three kernel types that lacked it so that
+#: `SourceManifest.render` and `SourceManifest.parse` could exist.
+#:
+#: `_semantic_of` is hasattr-driven, so a type GAINING a method changes the
+#: projection even though every value it already projected is untouched. The
+#: corpus is NOT regenerated -- a corpus rewritten to match new behaviour is
+#: not a witness -- so the addition is declared here and bounded:
+#:
+#:     the key is ABSENT frozen and PRESENT live
+#:     EVERY other projected field matches EXACTLY
+#:
+#: That is the same shape as EPOCH_V5_MIGRATED and stronger than skipping the
+#: entries, because it proves the addition touched nothing else.
+#:
+#: MEASURED 2026-09-06 against semantic.json at
+#: 4fa11510fbcf393add4d7fdcb0add16ff8e46f64496dddddfdc452dbeb400e63: FIVE of
+#: sixteen entries lack `as_record`. The fifth is
+#: `transformation_all_component_kinds`, a TransformationIdentity, which this
+#: change does not touch and which must therefore still match exactly. It is
+#: deliberately NOT listed here.
+#:
+#: `SourceRetrievalProvenance` also gained `as_record` and has NO entry in the
+#: corpus, so the oracle cannot see it. Recorded so a reader does not conclude
+#: from this list that the type was unchanged.
+AS_RECORD_ADDED = frozenset({
+    "acquisition_clinvar",
+    "evidence_multi_authority",
+    "evidence_three_gencode_products",
+    "manifest_clinvar",
+})
+
 #: Fields that carry an epoch-derived digest.
 _EPOCH_FIELDS = ("digest", "evidence_digest")
 
@@ -203,12 +235,23 @@ def test_the_SEMANTIC_projection_is_unchanged(name):
     a sort, this fails. That is the whole purpose of the file.
 
     EXCEPT for the three entries in `EPOCH_V5_MIGRATED`, whose evidence digest
-    was DELIBERATELY changed at 3A++.2. For those, everything except the
-    digest fields must still match exactly -- which is a stronger statement
-    than skipping them, because it proves the migration touched nothing else.
+    was DELIBERATELY changed at 3A++.2, and the four in `AS_RECORD_ADDED`,
+    which gained a serialisation method at P1-i. For those, everything except
+    the declared change must still match exactly -- which is a stronger
+    statement than skipping them, because it proves the change touched nothing
+    else.
     """
     frozen = json.loads(_SEMANTIC.read_text(encoding="utf-8"))[name]
     live = _semantic_of(_load(name))
+
+    if name in AS_RECORD_ADDED:
+        assert "as_record" not in frozen, (
+            "{}: the frozen corpus already records as_record, so this entry "
+            "does not belong in AS_RECORD_ADDED".format(name))
+        assert "as_record" in live, (
+            "{}: as_record was declared ADDED and is not present".format(name))
+        live = {k: v for k, v in live.items() if k != "as_record"}
+
     if name not in EPOCH_V5_MIGRATED:
         assert live == frozen
         return
@@ -225,6 +268,35 @@ def test_the_SEMANTIC_projection_is_unchanged(name):
     ignore = set(_EPOCH_FIELDS) | {"describe"}
     assert ({k: v for k, v in live.items() if k not in ignore}
             == {k: v for k, v in frozen.items() if k not in ignore})
+
+
+def test_ONLY_the_declared_entries_gained_a_projected_key():
+    """The complement. A per-entry check cannot see an entry that gained a key
+    and was never listed.
+
+    `test_ONLY_the_source_evidence_entries_migrated` exists for the same
+    reason and for the digest axis; this is that argument applied to the KEY
+    SET, which is what `_semantic_of` being hasattr-driven made mutable.
+    """
+    frozen = json.loads(_SEMANTIC.read_text(encoding="utf-8"))
+    grew = set()
+    for name in _names():
+        live_keys = set(_semantic_of(_load(name)))
+        if live_keys - set(frozen[name]):
+            grew.add(name)
+    assert grew == set(AS_RECORD_ADDED), sorted(grew ^ set(AS_RECORD_ADDED))
+
+
+def test_no_entry_LOST_a_projected_key():
+    """The other direction. A removed method would narrow the projection and
+    a per-entry equality could be satisfied by comparing fewer things."""
+    frozen = json.loads(_SEMANTIC.read_text(encoding="utf-8"))
+    shrank = {}
+    for name in _names():
+        lost = set(frozen[name]) - set(_semantic_of(_load(name)))
+        if lost:
+            shrank[name] = sorted(lost)
+    assert not shrank, shrank
 
 
 def test_ONLY_the_source_evidence_entries_migrated():

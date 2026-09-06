@@ -1,3 +1,148 @@
+## 2026-09-04 part 12 (implementation) -- evidence that was written comes back
+
+ADDITION of fifty-nine tests declared BY IDENTITY, 6178 -> 6237, MEASURED by
+collection. Eight targets: one file created, three production modules patched,
+four counters and records patched.
+
+**THE LINK THIS CLOSES.** The adopted plan requires an end-to-end chain and
+names three things that do NOT close it -- `class exists`, `tests instantiate
+it`, `development script uses it`:
+
+```
+artifact -> identity -> evidence -> persistence -> RELOAD -> consumer ->
+observable behaviour
+```
+
+MEASURED 2026-09-06 at `85d0247`, by parse tree over all 1,072 tracked Python
+files with zero unread and zero parse failures: the seven source-kernel types
+have ZERO construction sites under `src/`. Five types carried `as_record`;
+NOTHING anywhere reconstructed an object from one. `provenance/
+serialization.py` -- which owns the digest primitives -- names no kernel type
+at all. The `persistence -> reload` link did not exist.
+
+This unit adds it. It closes ONE of three absent links, and
+`DRIFT-SOURCE-KERNEL-HAS-NO-PRODUCTION-CALLER-1` REMAINS OPEN: the producer and
+the observable downstream behaviour are still absent, and these fifty-nine
+tests are exactly the `tests instantiate it` the plan excludes.
+
+**WHAT WAS ADDED.** Thirteen methods to `provenance/source.py`, one to
+`provenance/coordinate.py`, and one module-level record guard. Class counts
+unchanged at ten and three: no type created, none removed.
+
+```
+as_record     SourceRetrievalProvenance, SourceAcquisition,
+              SourceEvidenceManifest, SourceManifest
+from_record   all seven kernel types and CoordinateContext
+parse/render  SourceManifest
+```
+
+**THE CONVENTION WAS FOLLOWED, NOT INVENTED.** MEASURED across the repository:
+`from_record` has three definitions -- `repository_records/
+archive_manifest.py:187` and `transactions/repository_transaction.py:238,652`
+-- and `as_record` fifteen. The pair is an established production convention
+and `provenance` had the outbound half only. Every property here is taken from
+`ArchiveEntry.from_record`: module-level key frozensets, undeclared keys
+refused with the ATTESTATION-SCHEMA-DRIFT-1 reason stated, vocabulary rebuilt
+through enums inside one `try`, nested objects reconstructed explicitly, and a
+container-level `parse` refusing an unjudged version.
+
+**RELOAD IS NOT A BACK DOOR.** Every `from_record` returns `cls(...)`, so
+`__post_init__` runs. Nine tests prove a hand-edited record cannot construct
+what fresh construction refuses: a truncated digest, an invented assembly on
+build-independent evidence, a genomic context with no assembly, a release
+identifier with whitespace, an empty role set, an empty manifest, a
+MIXED-ASSEMBLY manifest, a duplicate artifact key, and an acquisition
+describing a DIFFERENT MATERIALIZATION -- the last being
+`SOURCE-ACQUISITION-KEY-ONLY-MATCH-1`, where a July retrieval record satisfied
+August evidence because only the key was compared.
+
+SABOTAGE-TESTED, seven of seven. Replacing `return cls.of(...)` with
+`cls.__new__(cls)` -- a reload that skips validation -- FAILS FOURTEEN TESTS.
+Removing the undeclared-key check fails seven; the missing-key check, seven;
+the schema-version, duplicate-role and coordinate checks fail EXACTLY ONE
+each, which proves each negative case fires on the invariant it names.
+
+**THE ACCEPTANCE GATE CAUGHT A CONSUMER I HAD NOT FOUND.** The first `--apply`
+FAILED inside its transaction: four cases of
+`test_provenance_migration_corpus.py::test_the_SEMANTIC_projection_is_unchanged`.
+Nothing was committed, the transaction rolled back, and both kernel files were
+verified restored by digest.
+
+`CONSTRUCTION-AND-IMPORT-CENSUS-MISSES-REFLECTION-1`. My census asked WHO
+CONSTRUCTS these types and WHO IMPORTS them. That module does neither: it
+unpickles fixtures and reflects over the method surface with `hasattr`. A
+consumer that never names a type in an import or a call is invisible to both
+questions, so the six-module list I derived was a FLOOR, not a census.
+
+**THE REPAIR FOLLOWS THE CORPUS'S OWN PRECEDENT.** `_semantic_of` is
+hasattr-driven, so three types GAINING `as_record` changed the projection even
+though every value already projected is untouched. The corpus is NOT
+regenerated -- its own docstring states that a corpus rewritten to match new
+behaviour is not a witness. Instead a declared allowlist, `AS_RECORD_ADDED`,
+sits beside the existing `EPOCH_V5_MIGRATED` and bounds the change: the key
+must be ABSENT frozen and PRESENT live, and EVERY other projected field must
+match exactly.
+
+MEASURED against `semantic.json` at
+`4fa11510fbcf393add4d7fdcb0add16ff8e46f64496dddddfdc452dbeb400e63`: FIVE of
+sixteen entries lack `as_record`, not the four that failed. The fifth is
+`transformation_all_component_kinds`, a `TransformationIdentity` this change
+does not touch, deliberately NOT listed. Building the allowlist from the four
+assertion messages would have been right by luck rather than by measurement.
+`SourceRetrievalProvenance` also gained `as_record` and has NO corpus entry, so
+the oracle cannot see it -- recorded so no reader concludes otherwise.
+
+**TWO COMPLEMENTS WERE ADDED, NOT ONE.**
+`test_ONLY_the_declared_entries_gained_a_projected_key` is the key-set analogue
+of the existing digest-axis complement, whose docstring states the reason: a
+per-entry check cannot see an entry that changed and was never listed.
+`test_no_entry_LOST_a_projected_key` covers the other direction, which the file
+did not have: a REMOVED method narrows the projection, and a per-entry equality
+could then be satisfied by comparing fewer things.
+
+**NO DIGEST MOVED, PROVEN BY RUNNING BOTH TREES.** The original and modified
+packages were built side by side and driven over the same four-dependency
+manifest: identical evidence digest, identical dependency records, identical
+`describe()`. Field sets are unchanged for all eight dataclasses and
+`_RECORD_KEYS` is a dataclass field NOWHERE -- it carries no annotation, so it
+is a class attribute. The counterfactual was measured rather than reasoned: an
+annotated `_KEYS` DOES become a field and would have entered `__eq__`,
+`__hash__` and every digest.
+
+**VERIFIED AGAINST THE REPOSITORY'S OWN FROZEN EVIDENCE.** All thirteen cases
+in `tests/fixtures/source_evidence_epoch_v4/epoch.json` reload through the new
+`from_record`, re-render byte-identically, reproduce their frozen v4 digests
+exactly, and every v5 digest differs. In the repository,
+`test_source_evidence_epoch_v5.py` confirms the same thirteen: identities
+unchanged, dependency order and keys unchanged, evidence digest moved as the
+epoch requires, and the TRANSFORMATION digest -- a different identity family in
+the same package -- did NOT move.
+
+**A DOCSTRING DEFECT THE FIXTURE CAUGHT.** An earlier version of
+`SourceEvidenceManifest.as_record` claimed to return "the SAME shape the digest
+consumes". It does not: the digest input is STAMPED,
+`{"dependencies": [...], "schema_version": N}`, as the frozen v4 record shows
+directly. The dependency payload IS identical, which is the real invariant.
+
+**MEASURED, NOT COMPUTED.** 6237 was READ from `pytest --collect-only` with all
+four files in place, and 6178 + 57 + 2 = 6237. Between the two collections the
+ONLY module whose node count changed was the corpus module, 68 -> 70. The eight
+modules consuming or reflecting on these classes then ran together: 434 passed,
+0 skipped, 0 failed, 0 errors -- `test_source_release.py` 84,
+`test_provenance_ownership.py` 74, epoch v5 73, the corpus 70, this file 57,
+epoch v4 41, `test_acquisition_exact_identity.py` 18,
+`test_representation_identity.py` 17.
+
+`test_provenance_ownership.py` was added to that list because it too reflects
+rather than constructs. It passes, including
+`test_the_drift_public_surface_did_NOT_shrink` and
+`test_a_shim_EXPORTS_everything_it_imports`.
+
+**NOT CLAIMED.** That the production chain closes -- it does not, and the
+producer remains absent. That any probe or script becomes a caller. That the
+schema is complete: it is version 5 and an unjudged version is refused rather
+than guessed.
+
 ## 2026-09-04 part 11 (measurement) -- four instruments learn to state their own limits
 
 RECORD ONLY. NEUTRAL: no test changes, no production code changes. The four

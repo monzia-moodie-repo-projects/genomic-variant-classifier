@@ -68,6 +68,7 @@ Author: Monzia Moodie
 """
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from enum import Enum
@@ -75,6 +76,9 @@ from typing import FrozenSet, Iterable, Optional, Tuple
 
 from genomic_variant_classifier.provenance.digest_schema import (
     CanonicalDigestSchema,
+)
+from genomic_variant_classifier.provenance.serialization import (
+    canonical_json,
 )
 from genomic_variant_classifier.provenance.coordinate import (
     CoordinateContext,
@@ -159,6 +163,34 @@ class SourceIdentityError(SourceError):
     satisfies that AND keeps every `pytest.raises(SourceError)` in the suite
     catching it, so hardening the factory moves no test identity.
     """
+
+
+def _require_record(record, declared, what: str) -> None:
+    """One record guard, used by every `from_record` in this module.
+
+    An UNDECLARED key is refused, not ignored. ATTESTATION-SCHEMA-DRIFT-1
+    happened because nine documents were hand-built as dictionaries and each
+    installer added what it had learned; the drift was only detectable
+    afterwards. `archive_manifest.ArchiveEntry.from_record` refuses the same
+    way, and this is that rule applied to source evidence.
+
+    A MISSING key is refused rather than defaulted. A default would decide a
+    scientific question -- which release, which assembly -- inside a parser.
+    """
+    if not isinstance(record, dict):
+        raise SourceError(
+            "{} must be an object, got {}".format(what, type(record).__name__))
+    keys = set(record)
+    missing = sorted(declared - keys)
+    unknown = sorted(keys - declared)
+    if missing:
+        raise SourceError(
+            "{} is missing {}. A defaulted field would decide a scientific "
+            "question inside a parser.".format(what, missing))
+    if unknown:
+        raise SourceError(
+            "{} has undeclared key(s) {}. An undeclared field is how "
+            "ATTESTATION-SCHEMA-DRIFT-1 happened.".format(what, unknown))
 
 
 @dataclass(frozen=True)
@@ -287,6 +319,24 @@ class SourceArtifactKey:
                                      self.product)
         return "{}/{}".format(self.source, self.artifact_kind.value)
 
+    _RECORD_KEYS = frozenset({"source", "artifact_kind", "product"})
+
+    @classmethod
+    def from_record(cls, record) -> "SourceArtifactKey":
+        """Rebuild from a canonical record. Construction IS validation.
+
+        It routes through `of`, so a reloaded key passes the SAME admission
+        boundary a freshly built one does. A reload bypassing validation would
+        let a hand-edited file construct a key the factory refuses.
+
+        The empty string means ABSENT, matching `as_record`. It cannot mean a
+        product, because `__post_init__` refuses an empty one.
+        """
+        _require_record(record, cls._RECORD_KEYS, "a source artifact key")
+        product = record["product"]
+        return cls.of(record["source"], record["artifact_kind"],
+                      product if product else None)
+
 
 @dataclass(frozen=True)
 class SourceArtifactIdentity:
@@ -342,6 +392,20 @@ class SourceArtifactIdentity:
             self.key.describe(), self.release_id,
             self.coordinate_context.describe(), self.artifact_sha256[:12])
 
+    _RECORD_KEYS = frozenset({"key", "release_id", "coordinate_context",
+                              "artifact_sha256"})
+
+    @classmethod
+    def from_record(cls, record) -> "SourceArtifactIdentity":
+        """Rebuild, reconstructing the nested key and coordinate context."""
+        _require_record(record, cls._RECORD_KEYS, "a source artifact identity")
+        return cls(
+            key=SourceArtifactKey.from_record(record["key"]),
+            release_id=record["release_id"],
+            coordinate_context=CoordinateContext.from_record(
+                record["coordinate_context"]),
+            artifact_sha256=record["artifact_sha256"])
+
 
 @dataclass(frozen=True)
 class SourceRetrievalProvenance:
@@ -371,6 +435,28 @@ class SourceRetrievalProvenance:
                 raise SourceError(
                     "{} is {!r}; expected a non-empty string or None"
                     .format(name, v))
+
+    _RECORD_KEYS = frozenset({"retrieved_at", "observed_row_count",
+                              "origin_locator", "transport"})
+
+    def as_record(self) -> dict:
+        """All four fields, always. `None` survives canonical JSON as null.
+
+        Fixed arity for the same reason `canonical_key` has it: an omitted key
+        and a null key would be two encodings of one state.
+        """
+        return {"retrieved_at": self.retrieved_at,
+                "observed_row_count": self.observed_row_count,
+                "origin_locator": self.origin_locator,
+                "transport": self.transport}
+
+    @classmethod
+    def from_record(cls, record) -> "SourceRetrievalProvenance":
+        _require_record(record, cls._RECORD_KEYS, "a retrieval provenance")
+        return cls(retrieved_at=record["retrieved_at"],
+                   observed_row_count=record["observed_row_count"],
+                   origin_locator=record["origin_locator"],
+                   transport=record["transport"])
 
 
 @dataclass(frozen=True)
@@ -411,6 +497,34 @@ class SourceDependency:
         return "{}  roles {}".format(
             self.identity.describe(), sorted(r.value for r in self.roles))
 
+    _RECORD_KEYS = frozenset({"identity", "roles"})
+
+    @classmethod
+    def from_record(cls, record) -> "SourceDependency":
+        """Roles are a SORTED LIST in the record and a FROZENSET in the object.
+
+        The record must be ordered so the digest is deterministic; the object
+        must be a set because a role is not positional. Converting here is the
+        only place the two representations meet.
+        """
+        _require_record(record, cls._RECORD_KEYS, "a source dependency")
+        roles = record["roles"]
+        if not isinstance(roles, list):
+            raise SourceError(
+                "roles is {}; a canonical record carries a sorted LIST so the "
+                "digest is deterministic".format(type(roles).__name__))
+        try:
+            parsed = frozenset(SourceRole(r) for r in roles)
+        except ValueError as exc:
+            raise SourceError(
+                "unrecognised role vocabulary: {}".format(exc)) from None
+        if len(parsed) != len(roles):
+            raise SourceError(
+                "roles {} contain a duplicate; a set cannot express one and "
+                "the record would not round trip".format(roles))
+        return cls(identity=SourceArtifactIdentity.from_record(
+            record["identity"]), roles=parsed)
+
 
 @dataclass(frozen=True)
 class SourceAcquisition:
@@ -428,6 +542,20 @@ class SourceAcquisition:
     @property
     def canonical_key(self):
         return self.identity.canonical_key
+
+    _RECORD_KEYS = frozenset({"identity", "provenance"})
+
+    def as_record(self) -> dict:
+        return {"identity": self.identity.as_record(),
+                "provenance": self.provenance.as_record()}
+
+    @classmethod
+    def from_record(cls, record) -> "SourceAcquisition":
+        _require_record(record, cls._RECORD_KEYS, "a source acquisition")
+        return cls(
+            identity=SourceArtifactIdentity.from_record(record["identity"]),
+            provenance=SourceRetrievalProvenance.from_record(
+                record["provenance"]))
 
 
 @dataclass(frozen=True)
@@ -527,6 +655,47 @@ class SourceEvidenceManifest:
             sorted(self.assemblies) or "none", self.digest[:12],
             "\n  ".join(d.describe() for d in self.dependencies))
 
+    _RECORD_KEYS = frozenset({"dependencies"})
+
+    def as_record(self) -> dict:
+        """The dependency PAYLOAD the digest is computed from -- UNSTAMPED.
+
+        MEASURED 2026-09-06 against `tests/fixtures/source_evidence_epoch_v4/
+        epoch.json`: the canonical record the digest consumes is STAMPED,
+        `{"dependencies": [...], "schema_version": N}`, because
+        `SOURCE_EVIDENCE_SCHEMA.digest()` routes through `.record()`. An
+        earlier version of this docstring claimed the two shapes were the
+        same. They are not, and the fixture caught it.
+
+        What IS identical is the `dependencies` list, which is the invariant
+        that matters: `digest` builds `[d.as_record() for d in
+        self.dependencies]` and this wraps exactly that list, so a second,
+        independently written dependency shape cannot appear.
+
+        The version is stamped by the SCHEMA and only by the schema. Adding it
+        here would be the second writable declaration `CanonicalDigestSchema`
+        exists to remove.
+        """
+        return {"dependencies": [d.as_record() for d in self.dependencies]}
+
+    @classmethod
+    def from_record(cls, record) -> "SourceEvidenceManifest":
+        """Rebuild through `of`, which SORTS. The record is already canonical.
+
+        Routing through `of` rather than the constructor means a record whose
+        dependencies were reordered by hand still reloads, while
+        `__post_init__` independently proves the result is canonically
+        ordered. Order is enforced in ONE place and this does not become a
+        second.
+        """
+        _require_record(record, cls._RECORD_KEYS, "a source evidence manifest")
+        deps = record["dependencies"]
+        if not isinstance(deps, list):
+            raise SourceError(
+                "dependencies is {}; a canonical record carries a LIST"
+                .format(type(deps).__name__))
+        return cls.of(SourceDependency.from_record(d) for d in deps)
+
 
 def _describe_identity_mismatch(candidate: "SourceArtifactIdentity",
                                 declared) -> str:
@@ -623,3 +792,70 @@ class SourceManifest:
     def describe(self) -> str:
         return "{}\n  {} acquisition record(s)".format(
             self.evidence.describe(), len(self.acquisitions))
+
+    _RECORD_KEYS = frozenset({"schema", "schema_version", "evidence",
+                              "acquisitions"})
+
+    def as_record(self) -> dict:
+        """The persisted shape, VERSION-STAMPED BY THE SCHEMA OBJECT.
+
+        `SOURCE_EVIDENCE_SCHEMA.record(...)` supplies `schema_version` and
+        REFUSES a caller-supplied one. That is why the divergence recorded as
+        EVIDENCE-DOMAIN-V4-PAYLOAD-SCHEMA3-1 -- domain v4 beside an embedded
+        literal 3 -- cannot recur: there is no second writable declaration.
+
+        Acquisitions are sorted by canonical key so the bytes are
+        deterministic. `__post_init__` does not order them, because acquisition
+        order carries no meaning; rendering does, because bytes must.
+        """
+        return SOURCE_EVIDENCE_SCHEMA.record(
+            schema=SOURCE_EVIDENCE_SCHEMA.family,
+            evidence=self.evidence.as_record(),
+            acquisitions=[a.as_record() for a in sorted(
+                self.acquisitions, key=lambda a: a.canonical_key)])
+
+    def render(self) -> bytes:
+        """Deterministic bytes, via the ONE canonical serialisation.
+
+        `canonical_json` is used rather than a local `json.dumps`, so the ten
+        numbered rules of GVC CANONICAL JSON v1 apply by construction rather
+        than by imitation.
+        """
+        return canonical_json(self.as_record())
+
+    @classmethod
+    def from_record(cls, record) -> "SourceManifest":
+        """Rebuild, refusing a foreign schema or an unjudged version."""
+        _require_record(record, cls._RECORD_KEYS, "a source manifest")
+        if record["schema"] != SOURCE_EVIDENCE_SCHEMA.family:
+            raise SourceError(
+                "schema is {!r}, expected {!r}".format(
+                    record["schema"], SOURCE_EVIDENCE_SCHEMA.family))
+        if record["schema_version"] != SOURCE_EVIDENCE_SCHEMA.version:
+            raise SourceError(
+                "schema_version is {!r}; this parser judges version {} only. "
+                "The v4 epoch described records carrying schema_version 3, so "
+                "a v4 payload must be REFUSED rather than read as v5."
+                .format(record["schema_version"],
+                        SOURCE_EVIDENCE_SCHEMA.version))
+        acquisitions = record["acquisitions"]
+        if not isinstance(acquisitions, list):
+            raise SourceError(
+                "acquisitions is {}; a canonical record carries a LIST"
+                .format(type(acquisitions).__name__))
+        return cls(
+            evidence=SourceEvidenceManifest.from_record(record["evidence"]),
+            acquisitions=tuple(SourceAcquisition.from_record(a)
+                               for a in acquisitions))
+
+    @classmethod
+    def parse(cls, data: bytes) -> "SourceManifest":
+        """Bytes to object. JSON failure is a SourceError, never a bare one."""
+        if not isinstance(data, (bytes, bytearray)):
+            raise SourceError(
+                "parse takes bytes, got {}".format(type(data).__name__))
+        try:
+            payload = json.loads(bytes(data).decode("utf-8"))
+        except (ValueError, UnicodeDecodeError) as exc:
+            raise SourceError("not valid JSON: {}".format(exc)) from None
+        return cls.from_record(payload)

@@ -98,6 +98,39 @@ class CoordinateContext:
     def as_record(self) -> dict:
         return {"kind": self.kind.value, "identifier": self.identifier}
 
+    _RECORD_KEYS = frozenset({"kind", "identifier"})
+
+    @classmethod
+    def from_record(cls, record) -> "CoordinateContext":
+        """Rebuild, refusing an unknown kind and an undeclared key.
+
+        `identifier` is MANDATORY in the record and optional in the object.
+        Absence is expressed as null, never by omitting the key: an omitted
+        key and a null key would be two encodings of one state, and this type
+        exists precisely because `None` was made to mean two different things
+        once already.
+        """
+        if not isinstance(record, dict):
+            raise CoordinateError(
+                "a coordinate context must be an object, got {}"
+                .format(type(record).__name__))
+        keys = set(record)
+        missing = sorted(cls._RECORD_KEYS - keys)
+        unknown = sorted(keys - cls._RECORD_KEYS)
+        if missing:
+            raise CoordinateError(
+                "a coordinate context is missing {}".format(missing))
+        if unknown:
+            raise CoordinateError(
+                "a coordinate context has undeclared key(s) {}"
+                .format(unknown))
+        try:
+            kind = CoordinateContextKind(record["kind"])
+        except ValueError as exc:
+            raise CoordinateError(
+                "unrecognised coordinate kind: {}".format(exc)) from None
+        return cls(kind=kind, identifier=record["identifier"])
+
     def describe(self) -> str:
         return self.identifier if self.is_genomic else "build-independent"
 
