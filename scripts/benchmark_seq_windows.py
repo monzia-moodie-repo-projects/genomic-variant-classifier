@@ -41,7 +41,7 @@ def main() -> int:
 
     # locate reference
     fa_path = None
-    for c in ["data/external/grch38/GRCh38.fa", "data/external/grch38/GRCh38.fasta"]:
+    for c in ["data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa"]:
         if Path(c).exists():
             fa_path = Path(c)
             break

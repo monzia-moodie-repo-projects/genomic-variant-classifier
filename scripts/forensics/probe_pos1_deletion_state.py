@@ -47,7 +47,7 @@ TARGETS = [("2",32063719),("1",231351570),("10",68199589)]
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("--raw", default="data/processed/clinvar_grch38.parquet")
-    ap.add_argument("--genome", default="data/external/grch38/GRCh38.fa")
+    ap.add_argument("--genome", default="data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa")
     ap.add_argument("--out", default="outputs/pos1_deletion_state.tsv")
     a=ap.parse_args()
 

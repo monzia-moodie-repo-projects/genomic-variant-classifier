@@ -40,7 +40,7 @@ DOWNSTREAM DEPENDENCY (not silently assumed done)
 USAGE (from project root, .venv312 active)
     python scripts/build_cohort_v2.py --audit
     python scripts/build_cohort_v2.py --apply
-    python scripts/build_cohort_v2.py --apply --genome data/external/grch38/GRCh38.fa
+    python scripts/build_cohort_v2.py --apply --genome data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa
 """
 
 from __future__ import annotations

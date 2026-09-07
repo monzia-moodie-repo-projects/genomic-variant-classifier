@@ -180,8 +180,22 @@ def test_an_alias_directory_WARNS_and_names_its_canonical(tmp_path):
     test. `grch38` -> `reference` is used instead: the canonical name is not a
     substring of the alias, so only naming it satisfies the assertion.
 
-    This is also the real case -- `data/external/grch38` is one of the three
-    orphans measured on 2026-08-30, at 4,033,396,532 bytes.
+    THE ALIAS RELATION HERE IS THE FIXTURE'S, NOT THE REAL
+    MANIFEST'S. `_MINIMAL` above declares `reference` with
+    `aliases: [grch38]`; the real manifest has
+    `reference.aliases == []`, so the real `data/external/grch38`
+    was an ORPHAN, not an alias -- which is why the auditor
+    reported it under orphans.
+
+    That directory no longer exists. MEASURED 2026-09-07: its
+    GRCh38.fa was proven byte-identical to the declared
+    reference and renamed into it; the orphan was removed. Of the
+    three orphans measured on 2026-08-30, together 4,685,941,722
+    bytes, `gencode` was declared at `24bfb11` and this one is
+    folded. Only `eve_smoke` remains.
+
+    This test is unaffected: it builds its tree in `tmp_path` and
+    never reads the real one.
     """
     data, man = _tree(tmp_path)
     (data / "external" / "grch38").mkdir()

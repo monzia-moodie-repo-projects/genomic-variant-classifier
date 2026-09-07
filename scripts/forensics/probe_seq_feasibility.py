@@ -8,7 +8,7 @@ reader, and the coordinate/contig conventions all line up, using a reference-bas
 the decisive gate. READ-ONLY (indexed random access only; never loads the whole genome). ASCII-safe.
 
 Checks:
-  1. Locate + size the reference FASTA (data/external/grch38/GRCh38.fa and common alternatives).
+  1. Locate + size the reference FASTA (data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa and common alternatives).
   2. Detect a .fai index; report whether one exists.
   3. Detect an available FASTA reader (pyfaidx, then pysam, then Biopython).
   4. Report the reference's contig names (first few) -> 'chr1' vs '1' convention.
@@ -42,8 +42,7 @@ def line(c="-", n=78):
 
 def find_fasta():
     cands = [
-        "data/external/grch38/GRCh38.fa",
-        "data/external/grch38/GRCh38.fasta",
+        "data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa",
         "data/external/GRCh38.fa",
         "data/reference/GRCh38.fa",
     ]

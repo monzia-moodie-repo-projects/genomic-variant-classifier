@@ -39,7 +39,7 @@ USAGE
         --cohort          data/processed/clinvar_grch38_clean_v2_verified.parquet \
         --clinvar-vcf     data/raw/clinvar/clinvar_GRCh38.vcf.gz \
         --variant-summary data/external/clinvar/variant_summary.txt.gz \
-        --fasta           data/external/grch38/GRCh38.fa \
+        --fasta           data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa \
         --assembly GRCh38
 """
 
@@ -119,7 +119,7 @@ def main(argv=None) -> int:
     ap.add_argument("--cohort", default="data/processed/clinvar_grch38_clean_v2_verified.parquet")
     ap.add_argument("--clinvar-vcf", required=True)
     ap.add_argument("--variant-summary", default=None)
-    ap.add_argument("--fasta", default="data/external/grch38/GRCh38.fa")
+    ap.add_argument("--fasta", default="data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa")
     ap.add_argument("--assembly", default="GRCh38")
     ap.add_argument("--outdir", default="outputs")
     a = ap.parse_args(argv)

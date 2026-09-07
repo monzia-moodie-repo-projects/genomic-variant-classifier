@@ -121,7 +121,7 @@ def main(argv=None) -> int:
     ap.add_argument("--in", dest="inp", default="data/processed/clinvar_grch38_clean_v2_verified.parquet")
     ap.add_argument("--out", default="data/processed/clinvar_grch38_clean_v3_verified.parquet")
     ap.add_argument("--quarantine", default="data/processed/clinvar_grch38_alleleless_quarantine.parquet")
-    ap.add_argument("--fasta", default="data/external/grch38/GRCh38.fa")
+    ap.add_argument("--fasta", default="data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa")
     ap.add_argument("--verify-sample", type=int, default=5000,
                     help="genome re-verify a random sample of padded deletions (0 = all)")
     ap.add_argument("--skip-genome", action="store_true", help="skip genome re-verification")

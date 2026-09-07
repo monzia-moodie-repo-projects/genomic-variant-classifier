@@ -112,7 +112,7 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument(
         "--reference",
-        default="data/external/grch38/GRCh38.fa",
+        default="data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa",
         help=(
             "Reference genome FASTA (Genome Reference Consortium Human Build "
             "38, GRCh38), used only to verify the sequence-window artifact "

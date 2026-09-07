@@ -39,7 +39,7 @@ USAGE
         --cohort           data/processed/clinvar_grch38_clean_v2_verified.parquet \
         --raw-vcf          data/raw/clinvar/clinvar_GRCh38.vcf.gz \
         --variant-summary  data/external/clinvar/variant_summary.txt.gz \
-        --fasta            data/external/grch38/GRCh38.fa \
+        --fasta            data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa \
         --structural       data/processed/clinvar_grch38_structural.parquet \
         [--fresh-vcf data/external/clinvar/clinvar.vcf.gz] [--use-ncbi] \
         --assembly GRCh38 --win 25
@@ -141,7 +141,7 @@ def main(argv=None) -> int:
     ap.add_argument("--cohort", default="data/processed/clinvar_grch38_clean_v2_verified.parquet")
     ap.add_argument("--raw-vcf", required=True)
     ap.add_argument("--variant-summary", required=True)
-    ap.add_argument("--fasta", default="data/external/grch38/GRCh38.fa")
+    ap.add_argument("--fasta", default="data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa")
     ap.add_argument("--fresh-vcf", default=None)
     ap.add_argument("--structural", default="data/processed/clinvar_grch38_structural.parquet")
     ap.add_argument("--use-ncbi", action="store_true")

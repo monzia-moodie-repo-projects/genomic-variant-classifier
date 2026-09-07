@@ -65,12 +65,12 @@ OUTPUTS
 
 USAGE (from project root, .venv312 active)
     python scripts/build_cohort_from_source.py --audit
-    python scripts/build_cohort_from_source.py --apply --genome data/external/grch38/GRCh38.fa
+    python scripts/build_cohort_from_source.py --apply --genome data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa
     # build-both-and-diff:
     python scripts/build_cohort_from_source.py --apply --input data/processed/clinvar_grch38.parquet \
-        --output data/processed/cohort_stale.parquet --genome data/external/grch38/GRCh38.fa
+        --output data/processed/cohort_stale.parquet --genome data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa
     python scripts/build_cohort_from_source.py --apply --input data/processed/clinvar_grch38_fresh.parquet \
-        --output data/processed/cohort_fresh.parquet --genome data/external/grch38/GRCh38.fa
+        --output data/processed/cohort_fresh.parquet --genome data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa
 """
 
 from __future__ import annotations

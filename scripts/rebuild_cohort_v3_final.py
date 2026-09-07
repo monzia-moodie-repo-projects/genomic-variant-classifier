@@ -31,7 +31,7 @@ USAGE
       --recovered-by-id outputs/alleleless_recovered_by_id.tsv \
       --ncbi-resolved   outputs/alleleless_ncbi_resolved.tsv \
       --disposition     outputs/alleleless_identity_recovery_full.tsv \
-      --fasta           data/external/grch38/GRCh38.fa \
+      --fasta           data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa \
       --out             data/processed/clinvar_grch38_clean_v3_verified.parquet
 """
 
@@ -78,7 +78,7 @@ def main(argv=None) -> int:
     ap.add_argument("--recovered-by-id", required=True)
     ap.add_argument("--ncbi-resolved", default=None)
     ap.add_argument("--disposition", required=True)
-    ap.add_argument("--fasta", default="data/external/grch38/GRCh38.fa")
+    ap.add_argument("--fasta", default="data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa")
     ap.add_argument("--out", required=True)
     ap.add_argument("--skip-md5-check", action="store_true",
                     help="ONLY for offline synthetic tests; never in production")

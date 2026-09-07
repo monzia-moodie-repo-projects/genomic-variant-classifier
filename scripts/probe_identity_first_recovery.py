@@ -32,7 +32,7 @@ USAGE
       --raw-vcf         data/raw/clinvar/clinvar_GRCh38.vcf.gz \
       --fresh-vcf       data/external/clinvar/clinvar.vcf.gz \
       --variant-summary data/external/clinvar/variant_summary.txt.gz \
-      --fasta           data/external/grch38/GRCh38.fa \
+      --fasta           data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa \
       --assembly GRCh38 --per-band 8
 """
 
@@ -117,7 +117,7 @@ def main(argv=None) -> int:
     ap.add_argument("--raw-vcf", required=True)
     ap.add_argument("--fresh-vcf", default=None)
     ap.add_argument("--variant-summary", required=True)
-    ap.add_argument("--fasta", default="data/external/grch38/GRCh38.fa")
+    ap.add_argument("--fasta", default="data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa")
     ap.add_argument("--assembly", default="GRCh38")
     ap.add_argument("--per-band", type=int, default=8)
     ap.add_argument("--out", default="outputs/identity_first_sample.tsv")

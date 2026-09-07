@@ -72,7 +72,7 @@ def variant_class(ref: str, alt: str) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Precompute sequence delta windows.")
     ap.add_argument("--cohort", default="data/processed/clinvar_grch38_pathfix.parquet")
-    ap.add_argument("--reference", default="data/external/grch38/GRCh38.fa")
+    ap.add_argument("--reference", default="data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa")
     ap.add_argument("--out-dir", default="data/processed/seq_windows")
     ap.add_argument("--chunk-size", type=int, default=412000)
     ap.add_argument("--window", type=int, default=101)

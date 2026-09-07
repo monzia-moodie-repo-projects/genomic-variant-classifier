@@ -46,7 +46,7 @@ WHAT IT DOES
     3. Prints a definitive verdict on which of (a)-(d) is true.
 
 USAGE
-    python scripts/diagnose_coordinate_convention.py --genome data/external/grch38/GRCh38.fa
+    python scripts/diagnose_coordinate_convention.py --genome data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa
     python scripts/diagnose_coordinate_convention.py --genome ... --cohort data/processed/clinvar_grch38.parquet -n 2000
 """
 

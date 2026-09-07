@@ -63,7 +63,7 @@ def main() -> int:
         import pandas as pd
         cohort_path = Path("data/processed/clinvar_grch38_pathfix.parquet")
         wdir = Path("data/processed/seq_windows")
-        ref = "data/external/grch38/GRCh38.fa"
+        ref = "data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa"
         if cohort_path.exists() and (wdir / "seq_windows.manifest.json").exists():
             cohort = pd.read_parquet(cohort_path, columns=["chrom", "pos", "ref", "alt"])
             # PASS on real cohort

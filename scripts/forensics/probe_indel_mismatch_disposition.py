@@ -46,7 +46,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--mismatches", default="outputs/clinvar_grch38_cohort_v4_indel_mismatches.tsv")
     ap.add_argument("--raw", default="data/processed/clinvar_grch38.parquet")
-    ap.add_argument("--genome", default="data/external/grch38/GRCh38.fa")
+    ap.add_argument("--genome", default="data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa")
     ap.add_argument("--window", type=int, default=5)
     ap.add_argument("--out", default="outputs/indel_mismatch_disposition.tsv")
     a = ap.parse_args()

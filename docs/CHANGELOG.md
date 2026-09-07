@@ -1,3 +1,89 @@
+## 2026-09-04 part 16 (repair) -- one genome, one name, and forty-two references to a path that no longer exists
+
+Repairs 42 references across 27 files after a data consolidation performed
+outside the repository. Creates `docs/measurements/MEASUREMENT_2026-09-04_
+grch38-consolidation.md`. Suite transition: NEUTRAL -- scripts are not
+collected, and the only test file touched has a DOCSTRING change.
+
+**WHY.** `configs/data_manifest.yaml` carried a standing instruction in its
+`gencode` declaration that nothing had acted on: *the same release directory
+also publishes GRCh38 genome FASTA, so the undeclared `data/external/grch38`
+may be GENCODE-sourced -- measure its consumers before declaring or moving it.*
+It was followed. The hypothesis was REFUTED and the measurement found a
+4,033,396,532-byte duplicate.
+
+**PROVEN IDENTICAL THREE WAYS, NEVER BY SIZE.** Full SHA-256 over every one of
+3,151,425,851 bytes, local and Drive, agreeing at all sixty-four characters:
+`1e74081a49ceb973...`. Drive's digest came from `rclone hashsum sha256`,
+computed SERVER-SIDE at no transfer cost. BOTH `.fai` indexes identical at
+`1411003e3a782425...` -- an index records each sequence's name, length and BYTE
+OFFSETS, so identical indexes prove identical byte layout, which the file
+digest does not cover. And the header read verbatim:
+`>1 dna:chromosome chromosome:GRCh38:1:1:248956422:1 REF` -- Ensembl's own
+convention and the correct chromosome 1 length, refuting the GENCODE
+hypothesis.
+
+**A WITHDRAWN CLAIM.** An earlier statement this session read *the declared
+reference FASTA does not exist.* It was measured on the LOCAL tree and asserted
+repository-wide; the file was on Drive at the declared path all along.
+`REFERENCE-READ-FORM-IS-DRIVE-ONLY-LOCALLY-1`.
+
+**THE DESCRIPTIVE NAME WON, WITH NO EXCEPTION DOCUMENTED.** `GRCh38.fa` states
+the assembly. `Homo_sapiens.GRCh38.dna.primary_assembly.fa` states the species,
+the assembly, that it is DNA, and that it is the PRIMARY ASSEMBLY -- excluding
+scaffolds, patches and alternate haplotypes, a scientifically load-bearing
+distinction the short name omits. It is also the publisher's filename, the
+declared name, and the name Drive carries.
+
+**`consolidate_aliases.py` WAS THE WRONG TOOL.** Traced: the canonical is
+non-empty, so the MERGE path runs, and the merge PRESERVES FILENAMES. All three
+files would have copied across as-is, leaving the less descriptive name in the
+canonical directory beside a SECOND byte-identical index.
+`CONSOLIDATE-ALIASES-CANNOT-RENAME-1`. A purpose-built script did the rename;
+its parse tree carries EXACTLY ONE mutation site, `shutil.move`, with no
+`rmtree`, `unlink` or `remove` anywhere.
+
+**AN ARITHMETIC DEFECT WHOSE TOTAL HID IT.** The first decomposition reported
+`bare directory: -2`. `GRCh38.fasta` CONTAINS `GRCh38.fa` as a PREFIX, so the
+plain count included the `.fasta` occurrences and the bare count subtracted
+them TWICE. The total was 42 either way -- the double-count and the
+double-subtraction cancelled exactly. A correct total from a wrong
+decomposition is the shape that hides a defect.
+`PREFIX-CONTAINMENT-IN-A-SUBSTRING-COUNT-1`.
+
+**THAT CONTAINMENT IS A CONSTRAINT ON THIS REPAIR.** Replacing the shorter
+string first would turn `GRCh38.fasta` into `...primary_assembly.fasta`, a path
+that does not exist -- one broken default traded for another. The longer
+strings are replaced FIRST and the ordering is ASSERTED. A COMPLEMENT CHECK
+then requires ZERO occurrences of `data/external/grch38` in any tracked file: a
+per-file count cannot see a site nobody listed.
+
+**THE FOUR `.fasta` SITES ARE FALLBACK LISTS**, read in context. Three abort
+outright because both candidates are dead; `probe_seq_feasibility.py`
+self-heals through a recursive glob. The `.fasta` spelling never existed on
+disk, and keeping it would preserve the two-names tolerance this consolidation
+removed, so the two entries collapse to one.
+
+**THE AUDITOR AGREES.** `scripts/maintenance/audit_data_tree.py` now reports
+`reference` as `ok ... 2.9GB 2f` and leaves ONE warning: `external/eve_smoke`.
+Of the three orphans it first reported, together 4,685,941,722 bytes, `gencode`
+was declared at `24bfb11` and `grch38` is folded.
+
+**881,970,681 B RECLAIMED.** The duplicate index and the compressed form, the
+latter named by no consumer among 42 sites, absent from Drive, and recorded by
+the declaration as intentionally dropped. Deletions were performed manually in
+a separate block after the destination digest was confirmed.
+
+**NOT CLAIMED.** That other `data/external/` sources were audited -- only
+`grch38` and `reference` were, and `eve_smoke` is untouched. That
+`data/external/GRCh38.fa` and `data/reference/GRCh38.fa`, two further dead
+candidates, were repaired: they predate this work and are recorded, not fixed.
+That the twenty-five scripts still RUN -- their defaults are repaired, their
+liveness unmeasured. `seq_windows.py` and `populate_fasta_seq.py` ARE retired,
+so the declaration's `CODE-REFERENCED -- do NOT rename` names a retired
+consumer: `REFERENCE-DECLARATION-NAMES-A-RETIRED-CONSUMER-1`, recorded not
+repaired. That any Drive copy was modified -- Drive was READ ONLY throughout.
+
 ## 2026-09-04 part 15 (correction) -- a coordinate that does not separate, and a phenomenon enumerated from half of itself
 
 RECORD ONLY. NEUTRAL: no production code changes, no test changes. Creates

@@ -33,7 +33,7 @@ unit-testable OFFLINE with canned esummary JSON. Recovers to TSV; writes NO coho
 USAGE
   python scripts/resolve_alleleless_ncbi.py \
       --recovery-full   outputs/alleleless_identity_recovery_full.tsv \
-      --fasta           data/external/grch38/GRCh38.fa \
+      --fasta           data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa \
       --cache           outputs/ncbi_clinvar_cache.json \
       [--api-key XXXX] [--rate 3] [--batch 200] [--limit N-for-testing]
 """
@@ -135,7 +135,7 @@ def parse_esummary_record(rec: dict):
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--recovery-full", default="outputs/alleleless_identity_recovery_full.tsv")
-    ap.add_argument("--fasta", default="data/external/grch38/GRCh38.fa")
+    ap.add_argument("--fasta", default="data/external/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa")
     ap.add_argument("--cache", default="outputs/ncbi_clinvar_cache.json")
     ap.add_argument("--out", default="outputs/alleleless_ncbi_resolved.tsv")
     ap.add_argument("--summary", default="outputs/alleleless_ncbi_summary.json")
