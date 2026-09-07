@@ -1,3 +1,105 @@
+## 2026-09-04 part 14 (measurement) -- one phenomenon of three, and a finding cited for the wrong one
+
+RECORD ONLY. NEUTRAL: no production code changes, no test changes.
+
+**WHY THIS WAS MEASURED.** `INCIDENT_2026-08-28_artifact-identity-and-cache-keys.md`
+carries a ruling that blocks the Phase 1 production seam:
+
+> **Phase 1C must not persist a source manifest yet.** Persisting
+> `(source, artifact_kind)` would convert a known transient model error into a
+> migration obligation.
+
+It reads `Status: OPEN` at `b67e30f`. Seventeen commits landed since, several
+touching this kernel -- `SourceArtifactKey.of` was hardened on 2026-09-01, the
+v5 evidence epoch was cut, and `product` exists as a field today. Carrying an
+eight-day-old status forward is `STALE-BACKLOG-CARRIED-A-CLOSED-FINDING-1`,
+corrected TWICE on 2026-09-04, so the blocker was re-measured at `b53ffba`
+before being allowed to govern.
+
+**THE INCIDENT NAMES THREE PHENOMENA. TEN RECORDS CITE ONE.**
+
+```
+A. several PUBLISHED PRODUCTS         GENCODE's three transcript FASTAs
+B. PARTITIONED MEMBERS of one product EVE/csv, 3,212 files, one per protein
+C. PROJECT-DERIVED artifacts
+   attributed to a PUBLISHER          ClinVar/primary_release, 18 files,
+                                      NOT ONE a ClinVar publication
+```
+
+**A IS RESOLVED**, shown in both directions at `b53ffba`. The two-field key
+still REFUSES the three GENCODE FASTAs with the incident's exact message; the
+three-field key ACCEPTS them as `gencode/sequence_fasta/transcripts`,
+`.../pc_transcripts` and `.../lncRNA_transcripts`, digest 73c9fac3a88fa883. A
+genuine before-and-after, not a changed test. `product` did not exist when the
+incident was written and is now exercised 38 times inside the type.
+
+**B IS UNRESOLVED AND WORSE -- AMBIGUOUS.** Three EVE partitions as three
+products: ACCEPTED. The whole score set as ONE artifact with no product:
+ACCEPTED. Both are expressible and NOTHING IN THE TYPE SAYS WHICH IS CORRECT.
+The incident warned that minting 3,212 product identifiers *would be as wrong
+as forcing them into one artifact*; the key permits both wrongs and the right
+answer indifferently. A field that accepts every modelling of a distinction has
+not modelled it. `PARTITION-AXIS-UNDECIDED-1`.
+
+**C IS UNRESOLVED AND INEXPRESSIBLE.** `clean_DRIVE` and `grch38_pathfix` --
+project-derived parquet files attributed to ClinVar because the PATH contains
+the substring -- are ACCEPTED as ClinVar products. Enumerated from the type
+rather than read from documentation, the fields are exhaustively `source`,
+`artifact_kind`, `product`, and the ten `ArtifactKind` members are
+`primary_release`, `derived_index`, `vcf`, `variant_summary`, `annotation_gtf`,
+`annotation_gff3`, `sequence_fasta`, `constraint_table`, `score_track`,
+`network_edges`. NO FIELD DISTINGUISHES A PUBLISHER'S BYTES FROM THIS
+PROJECT'S. `derived_index` is a KIND, not a provenance marker: a publisher may
+publish an index. The incident's sentence stands verbatim -- *`primary_release`
+is not a KIND. It partly encodes PROVENANCE.*
+`PUBLISHER-VERSUS-PROJECT-AXIS-ABSENT-1`.
+
+**THE RULING STAYS IN FORCE.** A manifest persisted today could record
+`clinvar/primary_release/clean_DRIVE` as a ClinVar publication -- attributing
+this project's own derived file to a publisher, inside a scientific reference
+record. That is exactly the migration obligation the incident refused to
+create. `DRIFT-SOURCE-KERNEL-HAS-NO-PRODUCTION-CALLER-1` cannot close until
+this does, because its closure condition requires persistence.
+
+**`bc8b6ce` DID NOT VIOLATE THE RULING.** It added `render()` and `parse()` --
+the CAPABILITY to persist. MEASURED at `85d0247`: zero production sites
+construct any of the seven kernel types, so nothing calls `render()` and no
+manifest is persisted.
+
+**A DOCUMENTARY DEFECT, WITH A SCOPE.** Ten records cite
+`ARTIFACT-KEY-INSUFFICIENT-1`, and every citation reachable from them describes
+phenomenon A -- which no longer reproduces. They are not wrong that the finding
+is open; a reader following them would investigate a fixed collision. No
+correction is written per record: ten documents restating one thing would be
+ten more places for it to drift. It is stated once, here and in the measurement
+record, where a search for the identifier reaches it.
+
+**NOT CLAIMED.** That `product` is the RIGHT model for A -- whether the schema
+should instead declare three sources, the form `omim_mim2gene` and
+`omim_genemap2` already take, is a schema question this does not answer. That B
+or C requires a new FIELD -- only that the distinctions be expressible
+somewhere. That the incident's other findings were re-measured:
+`ARTIFACT-ORIGIN-UNMEASURABLE-FROM-CODE-1` (3,263 of 3,273 artifacts with no
+recoverable origin), `CACHE-KEY-DERIVED-FROM-PATHS-NOT-CONTENT-1` and
+`CACHE-KEY-OPAQUE-AND-INCONSISTENT-1` (450,324,943 duplicated bytes) were NOT
+re-run, and this establishes nothing about them.
+
+**HOW THIS WAS FOUND.** I designed a P1 producer from the CODE alone and
+concluded the artifact-level declarations were missing and that siting them was
+a new architecture decision. They were missing from MY knowledge, not the
+project's: both incidents predate this session, both are tracked, both say
+OPEN, and both had already framed the question and ruled on the sequence.
+
+MEASURED 2026-09-04: the records carry 246 DISTINCT FINDING IDENTIFIERS across
+358 tracked markdown files. I worked the entire session from SEVENTEEN carried
+in session prose. `ARTIFACT-KEY-INSUFFICIENT-1`, described in its own incident
+as blocking Phase 1C, was in none of them and appears in ten records. Fifth
+occurrence in one session of a question already answered in a record I had not
+opened -- after `docs/CARRIED_ITEMS.md`, the auditor closure at `fd6cd4e`,
+`configs/data_sources.json`, and `INCIDENT_2026-08-29`. The register that
+enumerates all 246 is a probe I ran myself this morning and read only in
+summary. `RECORDS-SEARCHED-LESS-THAN-CODE-1`.
+
 ## 2026-09-04 part 13 (session) -- the chain gains one link, and three censuses were wrong
 
 RECORD ONLY. NEUTRAL: no production code changes, no test changes. Creates
