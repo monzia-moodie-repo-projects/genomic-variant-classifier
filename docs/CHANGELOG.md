@@ -1,3 +1,94 @@
+## 2026-09-04 part 18 (correction) -- a rule this repository already adopted, and five places that break it
+
+RECORD ONLY. NEUTRAL: no production code changes, no test changes. Creates
+`docs/sessions/CORRECTION_2026-09-04_part5_counts-in-prose.md` beside three
+tracked artifacts, none of which is edited.
+
+**THE RULE IS NOT MINE AND IT IS NOT NEW.**
+`ADR-0001-authority-and-contract-governance.md`, lines 167 to 176, section
+**Counts are rendered, never primary**:
+
+> No count is architecture. `5213` tests, `95` features, `13` models, `22`
+> agents, `54` open items -- each is a measurement of a state at a time. Counts
+> belong in executable contracts that enforce them and in generated summaries
+> that display them. THEY DO NOT BELONG IN IDENTITY PROSE.
+>
+> The rule is that PROSE MUST NOT BECOME A SECOND, UNENFORCED AUTHORITY FOR THE
+> SAME NUMBER.
+
+Five findings were registered across this session as five separate documentary
+defects. They are ONE defect with five instances, and the repository named the
+class before any of them was encountered. `CLAUDE.md`'s stale feature count,
+repaired at `2c94ae3`, was a SIXTH -- repaired without noticing the rule that
+forbade it. The ADR even uses `5213` as its example, which is the figure the
+superseded starting prompt carried while the ratchet read 6237.
+
+**INSIDE THE ENFORCEMENT ITSELF.** `tests/unit/test_adr_contract.py`, 390 lines,
+read in full at `e6ad5d3`. Its module docstring, line 51, undated: *Five of the
+twelve tests are negative controls.* MEASURED from the parse tree and the
+file's own section structure: FIFTEEN test functions, and SIX negative controls
+-- five under section 3 at lines 292, 305, 314, 322 and 332, plus
+`test_the_index_check_detects_a_missing_and_a_phantom_entry` at 378, whose
+docstring reads *NEGATIVE CONTROL, in both directions.* Both numbers are stale.
+
+A first scan looked for `pytest.raises` and found ONE of six. The file explains
+why at line 112: *Parsing. Factored out so the negative controls exercise the
+SHIPPING code.* They assert on `parse_header`, `unknown_domains` and `FILENAME`
+directly and raise nothing. Only reading the file settled it -- the same
+three-way ambiguity as the `preflight_data_guard` count, where a scan cannot
+distinguish a real absence from a scan too narrow to see it.
+
+That file's DATED counts at lines 13 and 166 are CORRECT for their dates. A
+dated measurement is what ADR-0001 permits; only the undated line breaks it.
+
+**ONE FINDING WITHDRAWN AND RE-ATTRIBUTED.**
+`ADR-0001-DECISION-MANIFEST-IS-UNBUILT-1` named
+`ADR-0001-repository-record-roles.md`, WHICH DOES NOT EXIST, and described a
+decision-sequence manifest. The record is
+`ADR-0001-authority-and-contract-governance.md` and its specification concerns
+EVIDENCE INGEST: preserved copies renamed to `decision_<NN>_<YYYY-MM-DD>.txt`
+and recorded in a manifest carrying the original filename, receipt date,
+SHA-256, byte count, line-ending kind, terminal-newline state, and
+`supersedes`/`superseded_by` edges. MEASURED at `e6ad5d3`: no such file is
+tracked, and `records/` holds 20 files, all install attestations plus one
+archive manifest for a DIFFERENT plane. The rolling-name sequence is real --
+twenty-four `decision.txt` versions received, the latest 118,033 bytes at
+`effad57756bc440f...` -- and its preservation half was never built.
+`ADR-0001-EVIDENCE-INGEST-MANIFEST-IS-UNBUILT-1`.
+
+**ONE NEWLY REGISTERED AGAINST MY OWN TOOLING.**
+`INSTALLER-WALL-CLOCK-COUNT-STALE-1`. `Install_ArtifactKey` said fifteen when
+sixteen had run; `Install_Correction4` said fifteen when eighteen had run and
+the defect was NOTICED and not fixed; `Install_Estate` said fifteen when
+nineteen had run, INHERITED through derivation. The true count is now TWENTY.
+Derivation re-pins DIGESTS and leaves DISPLAY TEXT untouched, so a count in
+prose rides along unexamined -- exactly a second, unenforced authority.
+
+**A LIVE DECLARATION PROTECTING A DELETED MODULE.**
+`configs/data_manifest.yaml` line 144 reads *opened by
+`seq_windows.open_reference` ... in `populate_fasta_seq`. CODE-REFERENCED -- do
+NOT rename.* MEASURED: neither module is tracked ANYWHERE, and
+`tests/test_build_seq_windows.py:5` states that Phase 3 retired both. The PATH
+is correct and now populated by the `70674c1` consolidation; its stated REASON
+is false. `REFERENCE-DECLARATION-NAMES-A-RETIRED-CONSUMER-1`.
+
+**THREE ARTIFACTS PINNED, TWO THAT CANNOT BE.** ADR-0001 at
+`75ac005fcb1ca7ef...`, `test_adr_contract.py` at `72c63926670dad37...`, and
+`data_manifest.yaml` at `7e64b53432bf9a7a...`, each pinned at all sixty-four
+characters and re-verified on disk by the installer.
+`AUTHORITATIVE-PROBE-HAS-NO-DEFINED-POPULATION-1` is a finding about an ABSENT
+definition, with no artifact to pin. `INSTALLER-WALL-CLOCK-COUNT-STALE-1`
+concerns installers OUTSIDE the repository, where the guard resolves targets
+against the repository root and would fail on a path that does not exist there.
+Widening the guard would weaken the check that makes it worth having.
+
+**NOT CLAIMED.** That anything is repaired. That six negative controls is the
+right number for fifteen tests. That the ingest manifest should be built,
+amended or withdrawn. That the wall-clock note should be removed -- it carries
+the observed range and the refusal to claim an interval, and only its COUNT is
+stale. That any repository-wide census for this class was run: five instances
+are named because five were encountered, not because five is the total.
+
 ## 2026-09-04 part 17 (measurement) -- what the repository's own behaviour says about two undecided axes
 
 RECORD ONLY. NEUTRAL: no production code changes, no test changes. Creates
