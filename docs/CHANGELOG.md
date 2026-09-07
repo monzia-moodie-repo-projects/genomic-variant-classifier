@@ -1,3 +1,86 @@
+## 2026-09-04 part 15 (correction) -- a coordinate that does not separate, and a phenomenon enumerated from half of itself
+
+RECORD ONLY. NEUTRAL: no production code changes, no test changes. Creates
+`docs/sessions/CORRECTION_2026-09-04_part4_a-coordinate-that-does-not-separate.md`
+beside two records, neither of which is edited.
+
+**FIRST: `COORDINATE-CONTEXT-DOES-NOT-SEPARATE-ARTIFACT-KEYS-1`.**
+`INCIDENT_2026-08-29_a-source-nobody-declared.md` line 23 states verbatim:
+
+```
+| `ClinVar/vcf` | 2 | `CoordinateContext` -- they differ by ASSEMBLY |
+```
+
+The column is "already modelled by". It is NOT modelled. MEASURED at `5bc42e4`:
+two ClinVar VCFs at the SAME assembly and two at DIFFERENT assemblies are
+refused IDENTICALLY, both on key duplication, with the same 257-character
+message -- `artifact key(s) ['clinvar/vcf'] appear more than once`.
+
+The mechanism, enumerated rather than argued: `SourceArtifactKey` carries
+`['source', 'artifact_kind', 'product']`; both artifacts have `canonical_key`
+`('clinvar', 'vcf', '')`; `identity.key` is EQUAL across the two while the
+IDENTITIES differ. `CoordinateContext` lives on `SourceArtifactIdentity` and
+the key does not carry it, so the assembly distinguishes IDENTITY without
+permitting CO-MEMBERSHIP in one manifest.
+
+The two guards are independent, proven by their messages: supplying distinct
+products lets the same cross-assembly pair reach a DIFFERENT refusal, the
+mixed-assembly guard. The cross-assembly case never reaches that check.
+
+WHY THE EARLIER CLAIM WAS PLAUSIBLE, stated in the correction rather than left
+implicit: `CoordinateContext` DOES distinguish the two as identities, and the
+2026-08-29 census was classifying collisions by what tells members apart. That
+question and "can they coexist in one manifest" are different, and the table's
+column asks the second while its entry answers the first.
+
+**SECOND: `PHENOMENON-A-ENUMERATED-FROM-ONE-INSTANCE-OF-TWO-1`.**
+`INCIDENT_2026-08-28` line 62 names TWO instances of phenomenon A -- GENCODE's
+three FASTAs AND ClinVar's `.vcf.gz` and `_GRCh38.vcf.gz`.
+`MEASUREMENT_2026-09-04_artifact-key-one-of-three.md`, committed at `5bc42e4`
+one hour earlier, cites only the first and reproduces only the GENCODE case.
+
+THE CONCLUSION SURVIVES. MEASURED: the ClinVar pair behaves exactly as GENCODE
+did -- refused with no product, ACCEPTED as `clinvar/vcf/clinvar` and
+`clinvar/vcf/clinvar_GRCh38`. So phenomenon A is resolved for BOTH instances
+and `ARTIFACT-KEY-INSUFFICIENT-1` still survives on B and C alone.
+
+What was wrong is that the record asserted a claim about A while having
+reproduced half of A. Its section 5 conclusion -- that only B and C remain --
+DEPENDS on A being fully resolved; had the ClinVar instance behaved
+differently, the record would have understated what remains open while
+appearing to have measured it. A count of instances is a claim; an enumeration
+is a check.
+
+**BOTH TARGETS PINNED AND UNCHANGED** when the correction was written:
+`INCIDENT_2026-08-29` at `7e31d24e8170b7f5...`, the measurement record at
+`e34169d501c34cff...`, each verified at all sixty-four characters against the
+live files.
+
+**WHAT THIS DOES NOT CHANGE.** `ARTIFACT-KEY-INSUFFICIENT-1` remains OPEN on
+phenomenon B, which is AMBIGUOUS -- three EVE partitions as products and the
+whole score set as one artifact are BOTH accepted -- and on phenomenon C, which
+is INEXPRESSIBLE, since no field distinguishes a publisher's bytes from this
+project's. `PARTITION-AXIS-UNDECIDED-1` and
+`PUBLISHER-VERSUS-PROJECT-AXIS-ABSENT-1` stand as registered.
+`INCIDENT_2026-08-28`'s ruling stands: Phase 1C must not persist a source
+manifest yet, and `DRIFT-SOURCE-KERNEL-HAS-NO-PRODUCTION-CALLER-1` remains
+blocked on it.
+
+**NOT CLAIMED.** That the other three collision rows of the 2026-08-29 table
+were re-measured; only `ClinVar/vcf` was. That the key SHOULD carry the
+coordinate context. That `product` is the right model for phenomenon A -- it
+REPRESENTS both instances, and whether the schema should instead declare
+separate sources, the form `mim2gene` and `omim` already take among the 33
+declarations, is unanswered.
+
+**HOW BOTH WERE FOUND.** The first: the mechanism was stated as a prediction
+BEFORE the cross-assembly case was run, then run. The second: reading
+`INCIDENT_2026-08-28` section 1 line by line to settle which finding owns which
+phenomenon -- all three are inside section 1, so the measurement record's
+ATTRIBUTION is correct -- and that read incidentally exposed an instance on line
+62 that had never been reproduced. The attribution check was the intended work;
+the enumeration defect was found by reading the line rather than the heading.
+
 ## 2026-09-04 part 14 (measurement) -- one phenomenon of three, and a finding cited for the wrong one
 
 RECORD ONLY. NEUTRAL: no production code changes, no test changes.
