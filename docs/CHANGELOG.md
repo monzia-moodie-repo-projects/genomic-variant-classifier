@@ -1,3 +1,131 @@
+## 2026-09-04 part 19 (session) -- six arcs, and a silent zero of my own
+
+RECORD ONLY. NEUTRAL: no production code changes, no test changes. Six arcs
+completed after `8678fc4` was pushed; none changed the repository. Five were
+filesystem or working-directory work, one an enumeration. Every figure was
+RE-MEASURED at `8678fc4` immediately before the record was written.
+
+**THE HOME-DIRECTORY REPOSITORY: 849 OBJECTS CLASSIFIED, THEN REMOVED.**
+`HOME-DIRECTORY-REPOSITORY-HAS-NO-HISTORY-AND-ORPHANED-OBJECTS-1` is CLOSED.
+
+Why the objects were unreachable, as a MECHANISM: git stores blobs (file
+CONTENT, carrying no name), trees (the listing that MAPS names to blobs), and
+commits. `git fsck` reported 849 objects -- 848 dangling blobs and ONE dangling
+tree, that tree being git's CANONICAL EMPTY TREE at 0 bytes -- with `notice: No
+default references`, no branch, no tag, no commit. A tree is the only thing
+that records a name, and the only tree present recorded nothing. The path names
+were never lost through damage; they never existed in that object store. The
+CONTENT was always readable by `git cat-file -p`.
+
+All 848 blobs classified by READING THEIR BYTES: 491 plain text at 27,487,678
+B, 345 other binary at 2,101,433 B, 6 bundled JavaScript at 21,422,158 B, 5
+Windows executables at 138,548,224 B, 1 International Components for Unicode
+data table at 10,468,208 B. The 491 are APPLICATION LOGS, every sampled one
+opening `[2026-06-08T05:27:13.734Z] [INFO] Tracing collector status check:
+Not...`, spanning 2025-12-14 to 2026-06-08. A toolchain and six months of its
+own logs; nothing of this project's.
+
+A METHOD CORRECTION. An earlier statement called these "redistributable
+toolchain artifacts" on the evidence of the SIX LARGEST blobs. Largest-first is
+a BIASED SAMPLE -- build outputs are large, logs and source are small -- and the
+full census changed the description from "toolchain" to "toolchain plus 491 log
+files". Six of 848 is 0.7 percent.
+
+Removal, with preconditions proven FIRST: `rev-parse HEAD` exit 128 (no commit
+exists), `for-each-ref` no output (no branch, no tag). `git gc --prune=now
+--aggressive` reported `Nothing new to pack`, correct with zero reachable
+objects. Count 849 -> 0; `.git` on disk 72,791,946 -> 26,397 B. The empty
+repository was then removed and the verification is a FAILURE: `git -C
+'C:\Users\monzi' rev-parse --show-toplevel` now reports `fatal: not a git
+repository`. **The home directory no longer presents as a repository** -- the
+hazard the standing `git -C $Repo` rule existed to work around. 72,791,946 B
+total.
+
+A NUMBER THAT WAS ALWAYS TWO NUMBERS: 200,027,701 B is UNCOMPRESSED content;
+the object store held it in 72,791,946 B. Both were stated before the decision.
+
+**`pyproject.toml` IN THE HOME DIRECTORY -- UNRELATED, STILL PRESENT.**
+`HOME-DIRECTORY-HAS-A-PYPROJECT-TOML-1` remains OPEN. Read in full, 419 B,
+`3566710cc1b22188...`: it declares `name = "pyquil"`, Rigetti Computing's
+quantum-programming library, with `[tool.uv.workspace] members = ["weather"]`.
+NOT a copy of this project's manifest, which is 6,437 B at `9220939fade23b35...`.
+Its workspace block is the live hazard: any `uv` command from beneath the home
+directory resolves to it.
+
+**`variant_ensemble_cff925c.py` -- PROVEN REDUNDANT, THEN REMOVED.**
+35,027 B at the repository ROOT, `df13fe1f051fb06f...`, named EXPLICITLY by
+`.gitignore:107` -- an individual line, not a pattern, among `agent_layer.zip`,
+`lovd/`, `tumor gene data.txt` and `.claude/`.
+
+From the parse tree of both files: the snapshot builds its neural components on
+`tensorflow.keras`; the live module on `torch`. The snapshot imports NOTHING
+from `genomic_variant_classifier`; the live module imports six sibling modules.
+It lacks `EXPECTED_TABULAR_FEATURE_COUNT`, lacks `_IsotonicCalibrator` and
+`SequenceWindows`, has 2 top-level functions against 11, and is NOT pure ASCII
+while the live module is. A TensorFlow-era ancestor.
+
+BYTE-IDENTICAL TO HISTORY. `cff925c` is a real commit, 2026-03-26, and the
+module lived at `src/models/variant_ensemble.py` BEFORE the
+`src/genomic_variant_classifier/` layout. `git show
+cff925c:src/models/variant_ensemble.py` produces 35,027 B at
+`DF13FE1F...E97BB4F5` -- identical at all sixty-four characters. Deleting the
+working copy lost nothing.
+
+A REFUSAL READ CORRECTLY ONLY BECAUSE THE EXIT CODE WAS PRINTED: the first
+attempt used the CURRENT path, `git show` exited 128, and `Measure-Object`
+reported `Lines: 1` for a 108-character error message -- indistinguishable from
+a one-line file without the exit code.
+
+FOUR TRACKED RECORDS NAME IT, `git grep` exit 0.
+`REMEDIATION_2026-07-11_test-suite-red.md:629` describes it exactly: *"A third,
+older generation ... whose header reads '55 features'. Three generations of the
+same contract -- 55, 65, 97 -- coexist in the tree."* Evidence in a drift
+investigation long settled. One correction owed: that record says UNTRACKED;
+the file was IGNORED. FOUR SIBLINGS REMAIN, unmeasured and unremoved.
+
+**THE TEE, AND A SILENT ZERO I BUILT.** `REDIRECT-MANGLES-NON-ASCII-1` and
+`REDIRECT-2>&1-LOSES-OUTPUT-1` are addressed for all four instruments.
+
+Copying `Probe_AuthorityCatalog`'s `emit()` to the other three meant converting
+41, 63 and 42 print sites -- 146 single-occurrence edits, each a chance to miss
+one SILENTLY. A tee wrapping `sys.stdout` is ONE insertion per probe and CANNOT
+drop a line, because it never enumerates them.
+
+AND IT FAILED SILENTLY ON ITS FIRST REAL RUN: `UnicodeEncodeError ... '\udcff'`,
+a ZERO-BYTE report, and `probe exit: 0`. The probe's own encoding self-test
+emits that surrogate; the probe sets `errors="backslashreplace"` on its stdout
+and my tee wrote STRICTLY; the exception was raised inside `atexit`, which
+prints a traceback and LEAVES THE EXIT CODE AT 0. The silent-zero class this
+session has been hunting, built into the tool meant to stop it -- and caught by
+an instrument written for `PROBE-CONSOLE-ENCODING-1` and `-2`.
+
+Three repairs: `errors="backslashreplace"` matching the probe's own policy; an
+assertion that RAISES if the buffer holds bytes and the file gets zero; and
+failure reported to the real stdout. Driven on the exact failing case for all
+three probes, then run against the real corpus: 84,184 B, 16,459 B and 195,499
+B, each probe grown by EXACTLY 2,220 B with print-site counts unchanged.
+
+A CHECK THAT PASSED FOR THE WRONG REASON: a verification searched for `written
+to` and matched the probe's OWN line about its measurement report, not the
+tee's size notice. The correct behaviour is the opposite of what it appeared to
+confirm -- the notice is written AFTER `sys.stdout` is restored, so it belongs
+on the console and NOT in the file.
+
+**TWO ENVIRONMENT FACTS, BOTH MEASURED THE HARD WAY.** `Set-Content -Encoding
+Byte` failed: removed in PowerShell 6, replaced by `-AsByteStream`. A 5.1 idiom
+used against a 7 host without checking -- the same class as inventing `--out` on
+a probe that never had it; the size comparison added beforehand caught it on
+all six files. And a THIRD here-string escape failure: a backtick inside
+`@"..."@` is PowerShell's line-continuation character.
+`HERE-STRING-ESCAPE-REPEATED-AFTER-BEING-NAMED-1`.
+
+**NOT CLAIMED.** That the four remaining root-level strays were measured beyond
+name and size. That the 132 identifiers with no dated mention or the 707-token
+review bucket were examined. That `pyproject.toml` should be removed. That the
+two probe reports produced this evening were READ in full -- they were produced
+and sized. That the tee is correct for every encoding: one surrogate, one em
+dash, curly quotes, one arrow and one traceback were tested.
+
 ## 2026-09-04 part 18 (correction) -- a rule this repository already adopted, and five places that break it
 
 RECORD ONLY. NEUTRAL: no production code changes, no test changes. Creates
