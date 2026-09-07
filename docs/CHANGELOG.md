@@ -1,3 +1,77 @@
+## 2026-09-04 part 17 (measurement) -- what the repository's own behaviour says about two undecided axes
+
+RECORD ONLY. NEUTRAL: no production code changes, no test changes. Creates
+`docs/measurements/MEASUREMENT_2026-09-04_partition-and-publisher-axes.md`.
+
+**WHY.** `ARTIFACT-KEY-INSUFFICIENT-1` survives on two phenomena, and
+`INCIDENT_2026-08-28` forbids answering either plausibly: *plausible is what
+produced the defect being recorded here.* Neither is answered. What is measured
+is what the repository ALREADY DOES, which is evidence a decision can rest on.
+
+**PHENOMENON B -- THE ESTATE IS CONSUMED AS ONE ARTIFACT.**
+`data/external/eve/EVE_all_data/variant_files` holds 3,211 files,
+10,654,071,064 bytes. Read from the parse tree of `data/eve.py`:
+`EVEConnector.__init__` takes ONE `eve_path`; `_parse_csv_directory` takes a
+DIRECTORY; `_parse_single_csv` is called BY it and is not caller-facing. A
+parse-tree scan for `glob`, `iterdir` or `rglob` beside an EVE path under `src/`
+returned NOTHING. `monitoring/registry.py:95` names the source asset as a
+SINGLE MERGED PARQUET, `data/raw/cache/eve_eve_lookup.parquet`, which
+`_parse_merged_parquet` reads. So the 3,211 files and the one parquet are TWO
+MATERIALISATIONS of one score set.
+
+Evidence that minting 3,212 product identifiers would model a distinction NO
+CONSUMER MAKES. NOT a decision: a schema may legitimately record structure the
+code ignores, and `INCIDENT_2026-04-17_esm2-hgvsp-parser.md` records EVE as
+silent-zero pending an HGVSp parser, so present behaviour may understate
+intended behaviour.
+
+**A CONTAMINATED CENSUS, CORRECTED IN THE RECORD.** The first scan used
+`'eve' in l.lower()` and matched EVERY, SEVERAL, LEVEL, REVEL, SEVERITY and
+NEVER -- 246 files, almost all noise, including `_lazy_agent.py` matching on
+`annotation`. Same defect as counting 31 "invocations" of
+`preflight_data_guard` that were all Markdown prose. The exact-case rerun gave
+34 files: 6 production, 10 test, 18 script. `PROBE-GLOB-TOO-SHALLOW-1` and
+`PROBE-PATH-ASSUMED-1` were registered on 2026-08-26 for this class and were
+NOT READ until after the defect was repeated.
+
+**`EVE-DECLARATION-CARRIES-NO-VERSION-OR-NOTES-1`.** The `eve` declaration
+carries `version ''` and `notes ''` while 10.65 gigabytes sit on disk.
+`gencode` carries a version, a release and roughly 900 characters of notes.
+`eve_smoke`, 16,023,084 bytes, is now the LAST REMAINING ORPHAN under
+`data/external/` after the grch38 consolidation.
+
+**PHENOMENON C -- TWENTY-FIVE, NOT EIGHTEEN.** MEASURED at `70674c1` by a
+pruned `os.walk`, 5,446 directories in 0.5 seconds, with `.git`, `.venv312`,
+`renv`, `.mypy_cache`, `node_modules` and `__pycache__` excluded BY NAME: 630
+parquet files repository-wide, 25 whose PATH contains `clinvar`, across TEN
+directories. The incident measured 18 on 2026-08-28 -- thirty-nine per cent
+more in ten days.
+
+NOT ONE is an NCBI publication. ClinVar publishes `.vcf.gz` and `.txt.gz`, and
+those three sit in `data/external/clinvar` (2 files, 632,253,516 B) and
+`data/raw/clinvar` (1 file, 190,311,812 B), matching the declaration's
+`acquire` field exactly. `data/external/dbnsfp/dbnsfp_clinvar_index.parquet` is
+the sharpest case: a **dbNSFP-derived index** that a path-substring census
+attributes to ClinVar.
+
+NO DIRECTORY NAMED `primary_release` EXISTS. The incident's
+`ClinVar/primary_release` was a CENSUS CATEGORY, not a path, and it says so.
+`PROJECT-DERIVED-CLINVAR-PARQUETS-NOW-TWENTY-FIVE-1`.
+
+**RE-VERIFIED AT HEAD.** The figures were taken at `f44341b`, before the
+grch38 consolidation commit, and all four directory measurements reproduce
+exactly at `70674c1`. A record asserting figures from a prior commit is the
+stale-snapshot failure this project keeps correcting.
+
+**NOT CLAIMED.** That the 3,211 EVE files were digested -- they were counted
+and sized, and the same incident records two EVE files at exactly 612,501 bytes
+with DIFFERENT digests, so size proves nothing. That the 25 ClinVar-attributed
+parquets were classified -- their names are printed and the reading is a
+person's. That `eve_smoke` should be declared, folded or removed. That the
+twenty-five are all still wanted -- several sit under `_invalidated_2026-07-09`
+and `smoke_run16`, which SUGGESTS supersession rather than establishing it.
+That EVE's connector is live.
+
 ## 2026-09-04 part 16 (repair) -- one genome, one name, and forty-two references to a path that no longer exists
 
 Repairs 42 references across 27 files after a data consolidation performed
