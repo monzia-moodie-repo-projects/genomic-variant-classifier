@@ -188,6 +188,170 @@ def test_publish_writes_line_feed_endings_only(tmp_path):
     assert b"\r\n" not in out.read_bytes()
 
 
+def test_publish_writes_EXACTLY_the_serializer_output(tmp_path):
+    """The publisher's whole contract, and the boundary binary writing changes.
+
+    PUBLISHER-EXISTS-THEN-WRITE-RACE-1. Created 2026-09-08 with the exclusive
+    creation repair.
+
+    `test_publish_writes_line_feed_endings_only` above catches a carriage
+    return. It does NOT catch a byte-for-byte divergence that introduces no
+    carriage return. MEASURED 2026-09-08 by sabotage against the repaired
+    publisher:
+
+        payload = (text + "\n").encode("utf-8")   line-feed guard: PASSED
+        payload = text.replace("\n", "\r\n")...   line-feed guard: FAILED
+
+    Equality with the serializer's own output is the property that cannot be
+    satisfied by accident.
+
+    DELIBERATELY ABSENT: `assert not raw.endswith(b"\n")`. That is a
+    SERIALIZER policy asserted in a PUBLISHER test. Measured 2026-09-08 with
+    `to_json` patched to emit a trailing line feed -- text the real
+    `from_json` still accepts -- the publisher reproduced it exactly and that
+    assertion fired, failing the publisher for a decision it does not own.
+    Whether an attestation carries framing belongs to the serialization owner
+    and to `test_attestation_archive.py`, which already forbids a trailing
+    newline on PRESERVED artifacts at the archive-ingest boundary.
+    """
+    doc = AttestationDocument(payload=a_payload())
+    destination = tmp_path / "a.json"
+    returned = publish(doc, destination)
+    assert returned == destination
+    assert destination.read_bytes() == doc.to_json().encode("utf-8")
+
+
+@pytest.mark.parametrize("suffix", ["", "\n"], ids=["unframed", "lf"])
+def test_publish_preserves_valid_serialized_text(tmp_path, monkeypatch, suffix):
+    """The publisher reproduces WHATEVER the serializer produced.
+
+    The case above compares against the serializer's CURRENT output, so a
+    publisher and a serializer that changed together would both pass it. This
+    controls the serializer boundary and leaves the real validator and the
+    real publisher in place.
+
+    NON-VACUOUS, MEASURED 2026-09-08: a publisher calling `rstrip("\n")`
+    passes the unframed case and FAILS the line-feed case.
+    """
+    doc = AttestationDocument(payload=a_payload())
+    rendered = doc.to_json() + suffix
+    # The framing must remain valid under the REAL owner, or this would prove
+    # only that an invalid document was refused.
+    AttestationDocument.from_json(rendered)
+
+    def controlled_serialization(self):
+        # IDENTITY, not merely a canned return. Without this the patch would
+        # answer for ANY document, so a publisher that serialised some other
+        # object would still pass -- the vacuous shape this file's own static
+        # guard exists to prevent.
+        assert self is doc
+        return rendered
+
+    monkeypatch.setattr(AttestationDocument, "to_json",
+                        controlled_serialization)
+    destination = tmp_path / "a.json"
+    publish(doc, destination)
+    assert destination.read_bytes() == rendered.encode("utf-8")
+
+
+def test_a_competitor_creating_the_destination_cannot_be_overwritten(
+        tmp_path, monkeypatch):
+    """THE DEFECT, as a regression that fires.
+
+    PUBLISHER-EXISTS-THEN-WRITE-RACE-1, measured 2026-09-08 against the
+    implementation at 5f1830f2: `if target.exists(): raise` stood at line 433
+    and `open(str(target), "w", ...)` at line 447. Between them sat a parent
+    check, a full `to_json()` render and a complete `from_json()` re-parse. A
+    writer creating the destination inside that window had its evidence
+    TRUNCATED, because "w" truncates.
+
+    The window is entered DETERMINISTICALLY here rather than by threads: the
+    competitor is written from inside `from_json`, which the publisher calls
+    after the existence check and before the write. A timing-dependent test
+    would pass on a fast machine and prove nothing.
+
+    Both properties are asserted. A publisher that refused but had already
+    destroyed the bytes would satisfy only the first.
+    """
+    doc = AttestationDocument(payload=a_payload())
+    destination = tmp_path / "a.json"
+    competitor = b'{"competitor": "evidence that must survive"}'
+
+    real_from_json = AttestationDocument.from_json
+
+    def create_the_competitor(text):
+        if not destination.exists():
+            destination.write_bytes(competitor)
+        return real_from_json(text)
+
+    monkeypatch.setattr(AttestationDocument, "from_json",
+                        staticmethod(create_the_competitor))
+
+    with pytest.raises(PublicationError) as exc:
+        publish(doc, destination)
+    assert "already exists" in str(exc.value)
+    assert destination.read_bytes() == competitor, (
+        "the competitor's evidence was overwritten")
+
+
+def test_publish_synchronizes_the_DESTINATION_handle(tmp_path, monkeypatch):
+    """Synchronization is the one repaired behaviour the byte tests cannot see.
+
+    MEASURED 2026-09-08: removing `os.fsync(handle.fileno())` left every other
+    test in this file passing. The page cache makes the bytes readable whether
+    or not they were synchronized, so an exact-byte assertion is structurally
+    blind to it.
+
+    BOUND TO THE DESTINATION, not to "some fsync happened". The descriptor is
+    interrogated with os.fstat and required to hold the complete payload, so
+    an unrelated synchronization performed by test setup cannot satisfy this.
+    Flushing must therefore already have occurred, which is the sequence
+    Python prescribes for buffered files.
+    """
+    import os as _os
+    import genomic_variant_classifier.transactions.install_attestation as att
+
+    doc = AttestationDocument(payload=a_payload())
+    expected = doc.to_json().encode("utf-8")
+    destination = tmp_path / "a.json"
+    observed = []
+    real_fsync = _os.fsync
+
+    def inspect_then_sync(fd):
+        observed.append(_os.fstat(fd).st_size)
+        return real_fsync(fd)
+
+    monkeypatch.setattr(att.os, "fsync", inspect_then_sync)
+    assert publish(doc, destination) == destination
+    assert observed == [len(expected)], (
+        "fsync was not called on a descriptor holding the complete payload: "
+        "{}".format(observed))
+    assert destination.read_bytes() == expected
+
+
+def test_publish_propagates_a_synchronization_failure(tmp_path, monkeypatch):
+    """A failed synchronization must not return successfully.
+
+    And it must not delete the destination: a failed write needs an explicit
+    recovery policy, and blind deletion can destroy evidence or, under
+    concurrent replacement, remove a file the failing attempt no longer owns.
+    """
+    import genomic_variant_classifier.transactions.install_attestation as att
+
+    doc = AttestationDocument(payload=a_payload())
+    expected = doc.to_json().encode("utf-8")
+    destination = tmp_path / "a.json"
+
+    def refuse_to_sync(fd):
+        raise OSError("injected synchronization failure")
+
+    monkeypatch.setattr(att.os, "fsync", refuse_to_sync)
+    with pytest.raises(OSError, match="synchronization failure"):
+        publish(doc, destination)
+    assert destination.exists(), "the failed destination was deleted"
+    assert destination.read_bytes() == expected
+
+
 def test_a_document_mutated_after_construction_is_refused(tmp_path):
     """The re-parse, shown firing on a REACHABLE case.
 

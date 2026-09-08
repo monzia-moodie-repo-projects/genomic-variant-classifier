@@ -58,6 +58,7 @@ Author: Monzia Moodie
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass
 from enum import Enum
@@ -444,6 +445,24 @@ def publish(document: "AttestationDocument", destination) -> "Path":
     text = document.to_json()
     # Proves the BYTES validate, not merely the object that produced them.
     AttestationDocument.from_json(text)
-    with open(str(target), "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(text)
+    payload = text.encode("utf-8")
+    # EXCLUSIVE CREATION is what arbitrates collisions. The exists() check
+    # above is retained for error PRECEDENCE only: MEASURED 2026-09-08, a
+    # competitor creating the destination between that check and the write
+    # had its evidence TRUNCATED by "w" mode. Nobody may treat exists() as
+    # the protection.
+    try:
+        handle = open(target, "xb")
+    except FileExistsError as exc:
+        raise PublicationError(
+            "{} already exists. Evidence is written once; overwriting an "
+            "attestation would destroy the record of what an earlier install "
+            "claimed.".format(target)) from exc
+    with handle:
+        written = handle.write(payload)
+        if written != len(payload):
+            raise OSError("short attestation write: {} of {} bytes".format(
+                written, len(payload)))
+        handle.flush()
+        os.fsync(handle.fileno())
     return target

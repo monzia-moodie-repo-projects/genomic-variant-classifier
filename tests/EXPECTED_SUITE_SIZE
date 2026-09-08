@@ -7931,4 +7931,9 @@
 # 2026-09-04 -- 6136 -> 6139 (+3). CLAUDE.md stops keeping a stale copy of the contract.
 # 2026-09-04 -- 6139 -> 6178 (+39). The Observation role acquires its types.
 # 2026-09-04 -- 6178 -> 6237 (+59). Evidence that was written comes back.
-6237
+# 2026-09-08  D-P-PUBLISHER-2026-09-08
+#   ADDITION, +6 by node identity, 0 removed. Publisher repaired to
+#   arbitrate collisions by exclusive creation; a competitor creating the
+#   destination between exists() and the write previously had its
+#   evidence TRUNCATED.
+6243
