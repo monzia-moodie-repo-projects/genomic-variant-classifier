@@ -1065,3 +1065,230 @@ def test_a_process_KILL_after_mkdir_leaves_a_recoverable_topology(
     result = recover_transaction(pending[0]["directory"])
     assert result["action"] == "rolled_back", result
     assert topology_delta(before, TopologySnapshot.capture(repo)).unchanged
+
+
+# ---- STEP 3D: an unacknowledged journal write cannot authorise anything ----
+# JOURNAL-WRITE-FAILURE-AUTHORISES-CONTINUATION-1, measured 2026-09-08.
+#
+# Injecting a persistence failure while recording COMMITTED left the object
+# claiming `committed` while the journal on disk recorded `verifying`. Because
+# COMMITTED is terminal, rollback() returned immediately and __exit__ skipped
+# rollback, so an exception escaped with the repository mutated and no
+# in-process restoration attempted.
+#
+# What ALREADY held, and must keep holding: the journal was never destroyed,
+# recover_transaction() reconciled it correctly, a retried commit() was already
+# refused by the monotonic table, and a following transaction refused to
+# construct until the journal was reconciled.
+#
+# The stop condition is set ONLY for journal-persistence failure. A corrupt
+# preimage and foreign directory content must still reach RECOVERY_REQUIRED and
+# still be retryable, which test_a_failed_rollback_can_be_RETRIED and
+# test_topology_restoration_is_idempotent above guarantee.
+
+
+def _fail_journal_write(monkeypatch, when=None, after_writing=False):
+    """Inject a persistence failure at the save boundary, deterministically.
+
+    `when` selects the state being recorded, so the injection is keyed on the
+    VALUE being written rather than on a call count.
+
+    `after_writing` models the harder case: the write took effect and the
+    acknowledgement did not arrive. A test that only ever simulates "nothing
+    was written" misses ambiguous completion entirely.
+    """
+    from genomic_variant_classifier.state import json_state_store as jss
+    real_save = jss.JsonStateStore.save
+
+    def patched(self, values, *, generation=None):
+        if when is None or values.get("state") == when:
+            if after_writing:
+                real_save(self, values, generation=generation)
+            raise OSError("injected journal failure")
+        return real_save(self, values, generation=generation)
+
+    monkeypatch.setattr(jss.JsonStateStore, "save", patched)
+    return real_save
+
+
+@pytest.mark.parametrize("after_writing", [False, True],
+                         ids=["fails_before_writing", "writes_then_fails"])
+def test_an_unacknowledged_terminal_transition_stops_the_transaction(
+        repo_and_journal, monkeypatch, after_writing):
+    """The measured residual, both ways round.
+
+    Either the write had no effect or it had one nobody acknowledged. The
+    object cannot tell, so it must stop rather than act on a state it never
+    confirmed.
+    """
+    repo, journal = repo_and_journal
+    tx = RepositoryTransaction(repo, journal)
+    tx.patch("src/mod.py", b"MUTATED\n")
+    _fail_journal_write(monkeypatch, when="committed",
+                        after_writing=after_writing)
+    with pytest.raises(OSError):
+        tx.commit()
+    monkeypatch.undo()
+    # THE PROPERTY T ESTABLISHES, and it holds identically either way: the
+    # object did not acknowledge a state it never confirmed.
+    assert tx.state is not TransactionState.COMMITTED, (
+        "the object acknowledged a state it never persisted")
+    assert tx.directory.exists(), "the journal was destroyed"
+
+    # WHAT THE JOURNAL ACTUALLY RECORDS DIFFERS, and so must the expectation.
+    # MEASURED 2026-09-08:
+    #
+    #   fails_before_writing  persisted 'verifying'; discoverable; recovery
+    #                         rolls back and removes the journal; the file is
+    #                         restored
+    #   writes_then_fails     persisted 'committed'; NOT discoverable, because
+    #                         the persisted state is genuinely terminal;
+    #                         recovery correctly declines to act; the file
+    #                         keeps its postimage
+    #
+    # The second is the SAFE outcome, not a defect: the write took effect, the
+    # journal is truthful, and nothing was destroyed or falsely claimed. Its
+    # residue is recorded by the test below rather than hidden here.
+    persisted = tx.read_manifest()["state"]
+    discovered = any(p.get("transaction_id") == tx.transaction_id
+                     for p in incomplete_transactions(journal))
+    if persisted in (TransactionState.COMMITTED.value,
+                     TransactionState.ROLLED_BACK.value):
+        assert not discovered, (
+            "a terminal persisted state must not be reported as unfinished")
+    else:
+        assert discovered, "the unfinished operation is not discoverable"
+
+
+def test_rollback_after_a_journal_failure_is_REFUSED_not_shortcut(
+        repo_and_journal, monkeypatch):
+    """Before the terminal shortcut, never after.
+
+    A rollback that returned early on an unpersisted terminal state would
+    report success for work it did not do.
+    """
+    repo, journal = repo_and_journal
+    tx = RepositoryTransaction(repo, journal)
+    tx.patch("src/mod.py", b"MUTATED\n")
+    _fail_journal_write(monkeypatch, when="committed")
+    with pytest.raises(OSError):
+        tx.commit()
+    monkeypatch.undo()
+    with pytest.raises(TransactionRecoveryRequired) as exc:
+        tx.rollback("after the failure")
+    assert "RETAINED" in str(exc.value)
+    assert tx.directory.exists(), "rollback destroyed the retained journal"
+
+
+def test_further_mutation_and_commit_are_REFUSED_after_a_journal_failure(
+        repo_and_journal, monkeypatch):
+    """No filesystem effect may precede the stop check."""
+    repo, journal = repo_and_journal
+    tx = RepositoryTransaction(repo, journal)
+    tx.patch("src/mod.py", b"MUTATED\n")
+    _fail_journal_write(monkeypatch, when="committed")
+    with pytest.raises(OSError):
+        tx.commit()
+    monkeypatch.undo()
+    for attempt in (lambda: tx.patch("src/mod.py", b"AGAIN\n"),
+                    lambda: tx.create("src/new.py", b"y\n"),
+                    lambda: tx.verify(lambda root: True),
+                    lambda: tx.commit()):
+        with pytest.raises(TransactionRecoveryRequired):
+            attempt()
+    assert not (repo / "src" / "new.py").exists(), "a file was created anyway"
+
+
+def test_an_escaping_exception_is_preserved_by_the_context_manager(
+        repo_and_journal, monkeypatch):
+    """__exit__ must not replace the failure already leaving the block."""
+    repo, journal = repo_and_journal
+    with pytest.raises(OSError) as exc:
+        with RepositoryTransaction(repo, journal) as tx:
+            tx.patch("src/mod.py", b"MUTATED\n")
+            _fail_journal_write(monkeypatch, when="committed")
+            tx.commit()
+    assert "injected journal failure" in str(exc.value)
+    monkeypatch.undo()
+
+
+def test_a_SWALLOWED_journal_failure_cannot_exit_normally(
+        repo_and_journal, monkeypatch):
+    """The case returning False would silently bless.
+
+    With no active exception, returning False lets the `with` complete as
+    though the operation succeeded. It did not.
+    """
+    repo, journal = repo_and_journal
+    with pytest.raises(TransactionRecoveryRequired) as exc:
+        with RepositoryTransaction(repo, journal) as tx:
+            tx.patch("src/mod.py", b"MUTATED\n")
+            _fail_journal_write(monkeypatch, when="committed")
+            try:
+                tx.commit()
+            except OSError:
+                pass                       # the caller swallows it
+    assert "exited normally" in str(exc.value)
+    monkeypatch.undo()
+
+
+def test_an_ORDINARY_rollback_failure_still_permits_a_retry(
+        repo_and_journal, monkeypatch):
+    """THE COMPATIBILITY CONSTRAINT, asserted directly.
+
+    A corrupt preimage is not a journal-persistence failure. Persistence is
+    working; the operator repairs the preimage and retries. If the stop flag
+    were set on every TransactionIntegrityError, this supported recovery would
+    become impossible -- so this test fails if T is over-scoped.
+    """
+    repo, journal = repo_and_journal
+    before = (repo / "src" / "mod.py").read_bytes()
+    tx = RepositoryTransaction(repo, journal)
+    tx.patch("src/mod.py", b"MUTATED\n")
+    (tx.preimages / "src" / "mod.py").write_bytes(b"CORRUPTED\n")
+    with pytest.raises(TransactionIntegrityError):
+        tx.rollback()
+    assert tx.state is TransactionState.RECOVERY_REQUIRED
+    (tx.preimages / "src" / "mod.py").write_bytes(before)
+    tx.rollback()
+    assert tx.state is TransactionState.ROLLED_BACK
+    assert (repo / "src" / "mod.py").read_bytes() == before
+    assert not tx.directory.exists()
+
+
+def test_a_journal_write_that_LANDED_but_was_not_acknowledged_leaves_residue(
+        repo_and_journal, monkeypatch):
+    """A LIMITATION OF T, asserted so it is a known state rather than a
+    surprise.
+
+    MEASURED 2026-09-08. When the terminal journal write SUCCEEDS and only its
+    acknowledgement is lost, the persisted state is genuinely `committed`, the
+    content is genuinely applied, and the object correctly refuses to claim a
+    state it never confirmed. `_destroy_journal()` is therefore never reached,
+    so the journal directory REMAINS -- holding a terminal manifest that
+    `incomplete_transactions()` will never report and `recover_transaction()`
+    will never delete, both correctly.
+
+    T does not close this. Closing it would mean either deleting a journal on
+    the strength of an unacknowledged write, or reporting a terminal state as
+    unfinished; both are worse. The residue is an operator reconciliation, and
+    naming it here is what keeps it from being discovered as a mystery
+    directory months later.
+    """
+    repo, journal = repo_and_journal
+    tx = RepositoryTransaction(repo, journal)
+    tx.patch("src/mod.py", b"MUTATED\n")
+    _fail_journal_write(monkeypatch, when="committed", after_writing=True)
+    with pytest.raises(OSError):
+        tx.commit()
+    monkeypatch.undo()
+
+    assert tx.read_manifest()["state"] == TransactionState.COMMITTED.value
+    assert tx.directory.exists(), "the retained journal is the evidence"
+    assert incomplete_transactions(journal) == [], (
+        "a terminal journal must not be reported as unfinished")
+    assert recover_transaction(tx.directory)["action"] == "none"
+    assert tx.directory.exists(), (
+        "a recovery probe must not delete a terminal journal")
+    assert (repo / "src" / "mod.py").read_bytes() == b"MUTATED\n", (
+        "the content write did take effect and must not be undone")

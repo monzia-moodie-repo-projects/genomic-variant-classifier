@@ -261,6 +261,20 @@ class RepositoryTransaction:
     _targets: dict = field(init=False, default_factory=dict)
     _secret_bytes: dict = field(init=False, default_factory=dict)
     _head: str | None = field(init=False, default=None)
+    #: PROCESS-LOCAL, and deliberately not a persisted lifecycle state.
+    #:
+    #: Set ONLY when a journal write fails or its outcome is unknown. NOT set
+    #: for an ordinary rollback integrity failure: MEASURED 2026-09-08, a
+    #: corrupt preimage and foreign directory content both reach
+    #: RECOVERY_REQUIRED and are RETRIED successfully by
+    #: test_a_failed_rollback_can_be_RETRIED and
+    #: test_topology_restoration_is_idempotent. Setting the flag on every
+    #: TransactionIntegrityError would break the operator-assisted recovery
+    #: those tests guarantee.
+    #:
+    #: It disappears when the process does. Durable recovery still rests on the
+    #: retained journal and preimages.
+    _journal_write_failed: bool = field(init=False, default=False, repr=False)
     #: relpath -> DirectoryCreationIntent, for directories THIS transaction
     #: must create. Keyed so two targets sharing a new parent own it ONCE:
     #: measured 2026-08-22, src/pkg/one.py and src/pkg/two.py both discover
@@ -308,6 +322,20 @@ class RepositoryTransaction:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> bool:
+        if self._journal_write_failed:
+            if exc is not None:
+                # Preserve the failure already leaving the block. Attempting
+                # rollback here would need further journal writes on a journal
+                # whose state is unknown, and would mask the original error.
+                return False
+            # The caller CAUGHT the persistence failure inside the block.
+            # Returning False would let the `with` complete as though the
+            # operation had succeeded, which is the silent success this repair
+            # exists to prevent.
+            raise TransactionRecoveryRequired(
+                "the context exited normally after a journal write failed. "
+                "The journal at {} is RETAINED and reconciliation is "
+                "required.".format(self.directory))
         if self._state in TERMINAL:
             return False
         self.rollback(reason="context exited without commit" if exc is None
@@ -368,11 +396,41 @@ class RepositoryTransaction:
         return JsonStateStore(path=self.manifest_path, schema=SCHEMA,
                               schema_version=SCHEMA_VERSION)
 
-    def _persist(self) -> None:
-        """Write the manifest and make it durable BEFORE any repository write."""
-        self._store().save({
+    def _require_usable_journal(self) -> None:
+        """Refuse to continue on a journal whose state is unknown.
+
+        MEASURED 2026-09-08 against this module before the repair: injecting a
+        persistence failure while recording COMMITTED left the object claiming
+        `committed` while the journal on disk recorded `verifying`. Because
+        COMMITTED is terminal, rollback() returned immediately and __exit__
+        skipped rollback -- so an exception escaped with the repository mutated
+        and no in-process restoration attempted.
+
+        What ALREADY held and is preserved: the journal was never destroyed,
+        recover_transaction() reconciled it correctly, a retried commit() was
+        refused by the monotonic table, and a following transaction refused to
+        construct until the journal was reconciled. This closes the remaining
+        gap: the object itself must stop.
+        """
+        if self._journal_write_failed:
+            raise TransactionRecoveryRequired(
+                "a journal write failed or its outcome is unknown, so this "
+                "transaction may no longer authorise mutation, commitment, "
+                "rollback or journal destruction. The journal at {} is "
+                "RETAINED. Reconcile the persisted state with "
+                "recover_transaction() rather than trusting this object's "
+                "last acknowledged state.".format(self.directory))
+
+    def _manifest_values(self, state: "TransactionState") -> dict:
+        """The manifest for a state, WITHOUT treating it as acknowledged.
+
+        Extracted so a transition can render and persist its PROSPECTIVE state
+        before `self._state` is updated. The schema is unchanged: every field,
+        ordering convention and ownership rule is exactly as it was.
+        """
+        return {
             "transaction_id": self.transaction_id,
-            "state": self._state.value,
+            "state": state.value,
             "repo_root": str(self.repo_root),
             "repo_head": self._head,
             "updated_at": _utc_now(),
@@ -387,7 +445,24 @@ class RepositoryTransaction:
                 for i in sorted(self._directory_intents.values(),
                                 key=lambda x: (x.relpath.count("/"), x.relpath))
             ],
-        })
+        }
+
+    def _persist(self, prospective_state=None) -> None:
+        """Write the manifest and make it durable BEFORE any repository write.
+
+        A failure here sets the process-local stop condition and RE-RAISES.
+        `BaseException` is deliberate: the write may have had no effect, a
+        partial effect, or a completed effect whose acknowledgement never
+        arrived, and an interruption is no more certain than an OSError. It
+        swallows nothing, and it cannot help with abrupt process termination.
+        """
+        self._require_usable_journal()
+        state = self._state if prospective_state is None else prospective_state
+        try:
+            self._store().save(self._manifest_values(state))
+        except BaseException:
+            self._journal_write_failed = True
+            raise
 
     def read_manifest(self) -> dict:
         return self._store().load().values
@@ -401,8 +476,22 @@ class RepositoryTransaction:
                 "history that did not happen.".format(
                     self._state.value, to.value, self._state.value,
                     [s.value for s in allowed] or "no further states"))
+        # PERSIST THE PROSPECTIVE STATE, THEN ACKNOWLEDGE IT.
+        #
+        # The previous order assigned `self._state` and then persisted, so a
+        # persistence failure left the object claiming a state that never
+        # reached disk. `_state` now means THE LAST STATE THIS PROCESS
+        # ACKNOWLEDGED -- after an exception it is not an assertion about disk.
+        #
+        # Restoring the previous value on failure would be wrong in the other
+        # direction: the write may already have taken effect. The outcome is
+        # uncertain, so the object stops instead of guessing.
+        try:
+            self._persist(prospective_state=to)
+        except BaseException:
+            self._journal_write_failed = True
+            raise
         self._state = to
-        self._persist()
 
     # ---- git -----------------------------------------------------------
     def _git(self, *args):
@@ -517,6 +606,7 @@ class RepositoryTransaction:
 
     # ---- operations ----------------------------------------------------
     def patch(self, relpath: str, new_bytes: bytes) -> None:
+        self._require_usable_journal()
         p = self._resolve(relpath)
         if not p.exists():
             raise TransactionError(
@@ -531,6 +621,7 @@ class RepositoryTransaction:
         self._mark_mutated(relpath)
 
     def create(self, relpath: str, new_bytes: bytes) -> None:
+        self._require_usable_journal()
         p = self._resolve(relpath)
         if p.exists():
             raise TransactionError(
@@ -550,6 +641,7 @@ class RepositoryTransaction:
         self._mark_mutated(relpath)
 
     def verify(self, check) -> None:
+        self._require_usable_journal()
         if self._state is not TransactionState.APPLYING:
             raise TransactionStateError(
                 "verify() requires state applying, not {}".format(self._state.value))
@@ -559,6 +651,7 @@ class RepositoryTransaction:
 
     # ---- termination ---------------------------------------------------
     def commit(self) -> None:
+        self._require_usable_journal()
         if self._state not in (TransactionState.APPLYING, TransactionState.VERIFYING):
             raise TransactionStateError(
                 "cannot commit from state {}".format(self._state.value))
@@ -576,6 +669,9 @@ class RepositoryTransaction:
         post-restoration digest has succeeded. Anything else lands in
         RECOVERY_REQUIRED, which is non-terminal, discoverable and retryable.
         """
+        # BEFORE the terminal shortcut. A terminal state that was never
+        # persisted must not silently authorise "nothing to do".
+        self._require_usable_journal()
         if self._state in TERMINAL:
             return
         if self._state is not TransactionState.ROLLING_BACK:
@@ -628,6 +724,7 @@ class RepositoryTransaction:
         return tuple(self._directory_intents[r] for r in missing)
 
     def _destroy_journal(self) -> None:
+        self._require_usable_journal()
         if self.directory.exists():
             shutil.rmtree(self.directory)
 
