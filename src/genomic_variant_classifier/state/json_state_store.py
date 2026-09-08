@@ -164,7 +164,15 @@ class JsonStateStore:
                                schema_version=self.schema_version)
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as exc:
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            # UnicodeDecodeError BELONGS IN THIS BOUNDARY. MEASURED 2026-09-08
+            # against the branch as it stood: a store holding invalid UTF-8
+            # raised UnicodeDecodeError from read_text, which is a ValueError
+            # and matches neither the JSONDecodeError clause nor the OSError
+            # clause below. It escaped StateStoreError entirely --
+            # so incomplete_transactions(), which catches StateStoreError to
+            # classify a journal "unreadable", could not classify it at all.
+            # Damaged bytes are damaged bytes whichever layer notices.
             raise StateCorruptionError(
                 "{} exists but is not valid JSON: {}. Returning an empty store "
                 "here would report DAMAGE as ABSENCE, and the next save would "
@@ -216,12 +224,38 @@ class JsonStateStore:
             raise StateStoreError(
                 "values must be a dict, got {}".format(type(values).__name__))
         if generation is None:
-            try:
-                generation = self.load(allow_legacy=True).generation + 1
-            except StateStoreError:
-                # A damaged store must not silently reset the counter; start
-                # from 1 and let the corruption surface on the next load.
-                generation = 1
+            # CORRUPTION IS NOT ABSENCE, AND A SAVE MUST NOT ERASE IT.
+            #
+            # This branch previously caught StateStoreError and set
+            # generation = 1, with a comment saying the counter must not be
+            # silently reset and that the corruption would surface on the next
+            # load. MEASURED 2026-09-08, it did neither:
+            #
+            #     save -> 1, update -> 2, update -> 3, then truncate the file
+            #     save() SUCCEEDED, generation written = 1
+            #     generation after            : 1
+            #     corrupt original on disk    : False
+            #
+            # The counter went 3 -> 1, so a later write carried a LOWER
+            # generation than an earlier one, and the damaged bytes were
+            # REPLACED rather than surfaced -- the next load read the fresh
+            # file, so nothing ever surfaced. That is this module's headline
+            # defect one level down: not emptiness persisted, but history
+            # erased and the logical clock rewound.
+            #
+            # It matters most where corruption is the only surviving
+            # indication that an earlier operation was unfinished.
+            #
+            # The refusal PROPAGATES unchanged. A caller catching
+            # StateStoreError already handles both branches, and load() has
+            # left the file untouched.
+            #
+            # NOT CLOSED BY THIS REPAIR: an explicit `generation=` skips this
+            # load entirely, so it still overwrites a corrupt store. MEASURED
+            # 2026-09-08. Every transaction call site passes no generation, so
+            # the repair reaches all of them; a future caller passing one
+            # would reopen the hole.
+            generation = self.load(allow_legacy=True).generation + 1
 
         payload = {
             SCHEMA_KEY: self.schema,

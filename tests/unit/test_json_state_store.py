@@ -39,12 +39,95 @@ def test_a_corrupt_store_RAISES_rather_than_reporting_empty():
     assert "DAMAGE as ABSENCE" in str(exc.value)
 
 
+def test_save_REFUSES_a_corrupt_existing_store_and_PRESERVES_it():
+    """THE DEFECT S REPAIRS. Measured 2026-09-08 against the branch as it was.
+
+        save -> 1, update -> 2, update -> 3, then truncate the file
+        save() SUCCEEDED, generation written = 1
+        generation after         : 1
+        corrupt original on disk : False
+
+    The counter went 3 -> 1, so a later write carried a LOWER generation than
+    an earlier one, and the damaged bytes were REPLACED. The branch's own
+    comment said the counter must not be silently reset and that the
+    corruption would surface on the next load; it did neither, because the
+    next load read the fresh file.
+
+    `update()` already failed closed -- it loads without catching. Only the
+    generation-allocating branch of `save()` swallowed the error.
+
+    BOTH properties are asserted. An implementation that destroyed the
+    evidence and then raised would satisfy only the first.
+    """
+    s = _store()
+    s.path.parent.mkdir(parents=True, exist_ok=True)
+    original = b'{"unfinished":'
+    s.path.write_bytes(original)
+    with pytest.raises(StateCorruptionError):
+        s.save({"valid": "state"})
+    assert s.path.read_bytes() == original, "the corrupt preimage was replaced"
+    leftovers = [x.name for x in s.path.parent.iterdir()
+                 if x.name.endswith(".tmp")]
+    assert leftovers == [], leftovers
+
+
+def test_save_over_a_store_belonging_to_ANOTHER_schema_is_refused_and_preserved():
+    """The same rule for a payload that parses but is not ours.
+
+    Successful json.loads() does not establish application validity. A store
+    pointed at another owner's file must not adopt it by overwriting.
+    """
+    s = _store()
+    s.save({"a": 1})
+    original = s.path.read_bytes()
+    other = JsonStateStore(path=s.path, schema="gvc.orchestrator-state")
+    with pytest.raises(StateSchemaMismatch):
+        other.save({"b": 2})
+    assert s.path.read_bytes() == original, "another owner's store was replaced"
+
+
+def test_the_repair_did_NOT_break_creation_or_the_valid_path():
+    """The control. A refusal that also refused ordinary work would be worse
+    than the defect: absent and damaged remain different answers."""
+    s = _store()
+    assert not s.path.exists()
+    assert s.save({"a": 1}) == 1, "an absent store must still initialise"
+    assert s.load().values == {"a": 1}
+    assert s.update({"b": 2}) == 2, "the valid path must still advance"
+    assert s.load().generation == 2
+
+
 def test_an_ABSENT_store_is_empty_and_that_is_not_an_error():
     """Absent and damaged are different answers."""
     s = _store()
     got = s.load()
     assert got.values == {}
     assert got.shape is PayloadShape.ABSENT
+
+
+def test_INVALID_UTF8_is_classified_as_corruption_not_an_escaping_error():
+    """Damaged bytes are damaged bytes whichever layer notices them.
+
+    MEASURED 2026-09-08 against the branch as it stood: a store holding
+    invalid UTF-8 raised UnicodeDecodeError out of read_text. That is a
+    ValueError, matching neither the JSONDecodeError clause nor the OSError
+    clause, so it escaped StateStoreError entirely.
+
+    It matters because incomplete_transactions() catches StateStoreError to
+    classify a journal "unreadable". An escaping UnicodeDecodeError propagates
+    out of DISCOVERY instead, so a damaged journal becomes an exception at the
+    caller rather than a classified, discoverable one.
+
+    The original bytes are asserted unchanged: reporting damage must not
+    replace the evidence of it.
+    """
+    s = _store()
+    s.path.parent.mkdir(parents=True, exist_ok=True)
+    original = b'{"a": "\xff\xfe not valid utf-8"}'
+    s.path.write_bytes(original)
+    with pytest.raises(StateCorruptionError):
+        s.load(allow_legacy=True)
+    assert s.path.read_bytes() == original
 
 
 def test_a_non_object_payload_RAISES():
@@ -258,26 +341,38 @@ def test_the_store_and_its_loads_are_immutable():
         raise AssertionError("{} was mutable".format(type(obj).__name__))
 
 
-def test_load_returns_values_INDEPENDENT_of_the_parsed_envelope():
+def test_load_returns_values_INDEPENDENT_of_the_parsed_envelope(monkeypatch):
     """What dict() actually guarantees.
 
+    REGRESSION HISTORY, retained because it is the reason this test exists.
     An earlier version mutated `got.values` and then re-read the FILE, which
     passes whether or not a copy is made -- json.loads builds a fresh object
     per call, so every load is already independent of every other. That test
     proved nothing, and sabotage confirmed it: replacing dict(values) with
     values went undetected.
 
-    The real property is that LoadedState.values is not the SAME object the
-    envelope dict holds, so a caller's edit cannot reach through into a
-    structure the store still refers to.
+    A SECOND version compared load()'s result against an INDEPENDENT parse of
+    the same file. That has the same flaw for the same reason, and sabotage
+    confirmed it again on 2026-09-08: replacing dict(values) with values left
+    it passing.
+
+    This version controls the envelope so the comparison is against the exact
+    object the store parsed. MEASURED 2026-09-08: with dict(values) replaced
+    by values, this form FAILS -- `assert {'a': 1} is not {'a': 1}`.
+
+    It proves a TOP-LEVEL copy only. The dataclasses provide no deep
+    immutability and this test does not claim any.
     """
+    import genomic_variant_classifier.state.json_state_store as M
     s = _store()
     s.save({"a": 1})
-    import json as _json
-    raw = _json.loads(io.open(s.path, encoding="utf-8").read())
+    envelope = json.loads(io.open(s.path, encoding="utf-8").read())
+    monkeypatch.setattr(M.json, "loads", lambda text: envelope)
     got = s.load()
-    assert got.values == raw[VALUES_KEY]
-    assert got.values is not raw[VALUES_KEY]
+    assert got.values == envelope[VALUES_KEY]
+    assert got.values is not envelope[VALUES_KEY]
+    got.values["a"] = 99
+    assert envelope[VALUES_KEY]["a"] == 1
 
 
 def test_two_loads_do_not_share_a_values_object():

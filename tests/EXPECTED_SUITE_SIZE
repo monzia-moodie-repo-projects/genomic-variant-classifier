@@ -7936,4 +7936,9 @@
 #   arbitrate collisions by exclusive creation; a competitor creating the
 #   destination between exists() and the write previously had its
 #   evidence TRUNCATED.
-6243
+# 2026-09-08  D-S-STATESTORE-2026-09-08
+#   ADDITION, +4 by node identity, 0 removed. The state store's
+#   generation-allocating save() no longer swallows a corruption error
+#   and overwrite the damaged bytes; invalid UTF-8 is classified through
+#   the same corruption boundary so discovery can see it.
+6247
