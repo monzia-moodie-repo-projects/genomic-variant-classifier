@@ -71,6 +71,64 @@ class SuiteTransitionKind(str, Enum):
     DELIBERATE_RETIREMENT = "deliberate_retirement"
 
 
+#: A SHA-256 digest, as the projection requires it.
+_DIGEST = re.compile(r"\A[0-9a-f]{64}\Z")
+
+#: Characters a line-oriented identity may never contain. MEASURED 2026-09-10:
+#: SuiteSnapshot(frozenset({"a::x\nb::y"})) has count 1 and
+#: SuiteSnapshot(frozenset({"a::x", "b::y"})) has count 2, and the two share one
+#: digest, because `suite_digest` joins with a newline so both serialise to the
+#: same bytes. NOT a SHA-256 collision: an ambiguous encoding over inputs the
+#: domain wrongly accepted. The repair validates the domain, not the hash.
+_FORBIDDEN_IN_NODEID = ("\n", "\r", "\x00")
+
+
+def require_nodeids(values, *, label: str) -> frozenset:
+    """Validate an identity collection BEFORE it becomes a set.
+
+    Duplicates are refused HERE because a constructor cannot recover duplicates
+    a caller already discarded: frozenset(["a", "a"]) has lost the evidence.
+    The producer must pass its original sequence.
+
+    MEASURED 2026-09-10 against the previous implementation: three identities
+    supplied to SuiteSnapshot with two identical yielded a count of 2, in
+    silence. The reported-count cross-check existed only on the text route.
+    """
+    if isinstance(values, (str, bytes)):
+        raise SuiteTransitionError(
+            "{}: a single string is not an identity collection".format(label))
+    try:
+        items = tuple(values)
+    except TypeError as exc:
+        raise SuiteTransitionError(
+            "{}: not an iterable of identities".format(label)) from exc
+    for nodeid in items:
+        if type(nodeid) is not str:
+            raise SuiteTransitionError(
+                "{}: identity is not a string: {!r}".format(label, nodeid))
+        if "::" not in nodeid:
+            raise SuiteTransitionError(
+                "{}: not a pytest node identity: {!r}. A snapshot built from "
+                "summary lines rather than from the collection listing would "
+                "compare the wrong thing.".format(label, nodeid))
+        for character in _FORBIDDEN_IN_NODEID:
+            if character in nodeid:
+                raise SuiteTransitionError(
+                    "{}: identity contains {!r}, which the newline-joined "
+                    "digest encoding cannot represent unambiguously: "
+                    "{!r}".format(label, character, nodeid[:80]))
+    if len(items) != len(set(items)):
+        seen, duplicated = set(), []
+        for nodeid in items:
+            if nodeid in seen and nodeid not in duplicated:
+                duplicated.append(nodeid)
+            seen.add(nodeid)
+        raise SuiteTransitionError(
+            "{}: duplicate identities: {}".format(label,
+                                                  sorted(duplicated)[:5]))
+    return frozenset(items)
+
+
 def suite_digest(nodeids: frozenset[str]) -> str:
     """A canonical digest over a set of node identities.
 
@@ -89,14 +147,12 @@ class SuiteSnapshot:
     nodeids: frozenset[str]
 
     def __post_init__(self) -> None:
-        if not isinstance(self.nodeids, frozenset):
-            object.__setattr__(self, "nodeids", frozenset(self.nodeids))
-        bad = sorted(n for n in self.nodeids if "::" not in n)
-        if bad:
-            raise SuiteTransitionError(
-                "these are not pytest node identities: {}. A snapshot built "
-                "from summary lines rather than from the collection listing "
-                "would compare the wrong thing.".format(bad[:5]))
+        # A frozenset argument has ALREADY lost duplicate evidence; only a
+        # sequence can be checked for them. Both routes are validated for the
+        # identity domain, and from_pytest_output checks duplicates on the raw
+        # listing before it reaches here.
+        object.__setattr__(self, "nodeids",
+                           require_nodeids(self.nodeids, label="snapshot"))
 
     @property
     def count(self) -> int:
@@ -114,11 +170,26 @@ class SuiteSnapshot:
         the same quantity. If they disagree, NEITHER is used: a parser that
         silently prefers one has chosen which measurement to believe.
         """
-        ids = frozenset(
-            line.strip().replace("\\", "/")
-            for line in text.splitlines()
-            if "::" in line and not line.startswith(" ")
-        )
+        # NO SEPARATOR REWRITING.
+        #
+        # MEASURED 2026-09-10: the previous body applied .replace(chr(92), "/")
+        # to the WHOLE line, parameter text included. Two collections, each
+        # internally consistent --
+        #     before  test_path[a\b]     1 test collected
+        #     after   test_path[a/b]     1 test collected
+        # -- both mapped to ONE identity, so snapshots and digests compared
+        # equal and NEUTRAL was ACCEPTED for a changed suite. The
+        # listing/summary cross-check cannot see it: it catches colliding
+        # identities appearing TOGETHER, not one replacing the other ACROSS
+        # collections.
+        #
+        # If path-prefix normalisation is ever required it belongs to the
+        # portion before the first "::", with its own contract and tests. It is
+        # never applied to parameter text.
+        listed = [line.strip()
+                  for line in text.splitlines()
+                  if "::" in line and not line.startswith(" ")]
+        ids = require_nodeids(listed, label="collection listing")
         m = re.search(r"^(\d+)\s+tests?\s+collected", text, re.M)
         if m is None:
             raise SuiteTransitionError(
@@ -198,6 +269,20 @@ class SuiteTransition:
                            frozenset(self.expected_added_nodeids))
         object.__setattr__(self, "expected_removed_nodeids",
                            frozenset(self.expected_removed_nodeids))
+        # THE KIND MUST BE THE ENUM.
+        #
+        # MEASURED 2026-09-10: SuiteTransition(kind="addition") CONSTRUCTED and
+        # then VERIFIED. A plain string is not identical to any member, so every
+        # branch below was bypassed and `_checked` was set to True regardless.
+        # Failure would have surfaced later at serialisation -- the wrong
+        # boundary. Annotations do not enforce anything and dataclasses do not
+        # inspect them.
+        if type(self.kind) is not SuiteTransitionKind:
+            raise SuiteTransitionError(
+                "kind must be a SuiteTransitionKind, not {!r}. A domain "
+                "constructor does not interpret arbitrary values; convert at "
+                "the serialisation boundary with "
+                "SuiteTransitionKind(document['kind']).".format(self.kind))
         overlap = self.expected_added_nodeids & self.expected_removed_nodeids
         if overlap:
             raise SuiteTransitionError(
@@ -228,6 +313,20 @@ class SuiteTransition:
                     "a DELIBERATE_RETIREMENT requires a justification. The "
                     "suite ratchet exists to catch ACCIDENTAL loss; a "
                     "deliberate one must say why it is deliberate.")
+        else:
+            # A FUTURE MEMBER WHOSE SEMANTICS ARE NOT IMPLEMENTED HERE.
+            #
+            # SUITE-TRANSITION-KIND-INCOMPLETE-1 records that
+            # IDENTITY_REPLACEMENT is missing: a pure rename is expressible
+            # only as DELIBERATE_RETIREMENT, which records a retirement where
+            # nothing was retired. Re-executed 2026-09-10 and still true.
+            #
+            # Adding that member WITHOUT this branch would let it construct
+            # with no validation at all -- the latent defect firing. This
+            # branch prepares for it; it does not add it.
+            raise SuiteTransitionError(
+                "unsupported transition kind: {!r}. Its validation rules are "
+                "not implemented here.".format(self.kind))
         object.__setattr__(self, "_checked", True)
 
     def verify(self, before: SuiteSnapshot,
@@ -314,6 +413,53 @@ class SuiteTransition:
                 "the evidence's removed identities are not this "
                 "declaration's.")
 
+    def _assert_evidence_is_internally_consistent(
+            self, evidence: "TransitionEvidence") -> None:
+        """Refuse evidence whose own fields contradict each other.
+
+        MEASURED 2026-09-10: a hand-built TransitionEvidence with
+        before_count 1, after_count 999 and digests "x" and "y" was EMITTED as
+        an attestation record. `_assert_evidence_belongs_here` compares the
+        kind and the difference sets and validates neither the counts nor the
+        digests, so the public projection could publish a contradiction.
+
+        These checks reject contradictions. They CANNOT prove the underlying
+        collection occurred -- execution provenance is a separate
+        responsibility. `verified_attestation_record` is the route that
+        recomputes from snapshots.
+        """
+        for name, value in (("before_count", evidence.before_count),
+                            ("after_count", evidence.after_count)):
+            if type(value) is not int or type(value) is bool or value < 0:
+                raise SuiteTransitionError(
+                    "{} must be a nonnegative integer, not {!r}".format(
+                        name, value))
+        for name, value in (("before_digest", evidence.before_digest),
+                            ("after_digest", evidence.after_digest)):
+            if type(value) is not str or not _DIGEST.fullmatch(value):
+                raise SuiteTransitionError(
+                    "{} must be 64 lowercase hexadecimal digits, not "
+                    "{!r}".format(name, value))
+        observed = evidence.after_count - evidence.before_count
+        declared = len(evidence.added_nodeids) - len(evidence.removed_nodeids)
+        if observed != declared:
+            raise SuiteTransitionError(
+                "the counts move by {:+d} while the difference sets move by "
+                "{:+d}".format(observed, declared))
+        if evidence.before_digest == evidence.after_digest and (
+                evidence.added_nodeids or evidence.removed_nodeids):
+            raise SuiteTransitionError(
+                "the digests are equal while identities changed")
+        if evidence.before_digest != evidence.after_digest and not (
+                evidence.added_nodeids or evidence.removed_nodeids):
+            raise SuiteTransitionError(
+                "the digests differ while no identity changed")
+
+    def verified_attestation_record(self, before: SuiteSnapshot,
+                                    after: SuiteSnapshot) -> dict:
+        """Project from SNAPSHOTS, so the record cannot disagree with them."""
+        return self.as_attestation_record(self.verify(before, after))
+
     def as_attestation_record(self, evidence: TransitionEvidence) -> dict:
         """Project one declared-AND-verified transition for an attestation.
 
@@ -341,7 +487,24 @@ class SuiteTransition:
 
         NO INSTALLER MAY WRITE THIS DICTIONARY. That is enforced by a test.
         """
+        # ORDER MATTERS, AND THE GATE PROVED IT.
+        #
+        # MEASURED 2026-09-10 at f808944: with the consistency check first,
+        # tests/unit/test_attestation_projection.py::
+        # test_hand_built_evidence_is_still_checked failed --
+        #     expected: "added identities are not this declaration"
+        #     actual:   "the counts move by +1 while the difference sets
+        #                move by +0"
+        # -- because the new check fired before the established one. That test
+        # asserts the refusal REASON, not merely that a refusal happened, and
+        # it was right to fail.
+        #
+        # BELONGING IS SETTLED FIRST. Whether this evidence is THIS
+        # declaration's to judge must be answered before its internal
+        # coherence, or a coherence complaint is raised about evidence that
+        # was never in scope.
         self._assert_evidence_belongs_here(evidence)
+        self._assert_evidence_is_internally_consistent(evidence)
 
         record = {
             "kind": self.kind.value,

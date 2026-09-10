@@ -39,6 +39,8 @@ from genomic_variant_classifier.transactions.suite_transition import (
     SuiteTransition,
     SuiteTransitionError,
     SuiteTransitionKind,
+    TransitionEvidence,
+    require_nodeids,
     suite_digest,
 )
 
@@ -256,3 +258,169 @@ def test_the_digest_distinguishes_suites_of_the_same_size():
 
 def test_the_digest_is_independent_of_collection_order():
     assert suite_digest(frozenset({A, B})) == suite_digest(frozenset({B, A}))
+
+
+# ---------------------------------------------------------------------------
+# 7. The identity domain -- added 2026-09-10
+#
+# Five defects were reproduced against the owner at
+# 94e58a79bca83a696ea07c72bf4cd5f0db05e0caeb970e1ace3a4a9a2403b424 before any
+# repair was written. Each control below names the one it closes.
+# ---------------------------------------------------------------------------
+
+def collection(*nodeids: str, reported: int = None) -> str:
+    """Render a `pytest --collect-only -q` transcript for the given ids."""
+    count = len(nodeids) if reported is None else reported
+    return "{}\n\n{} tests collected in 0.01s\n".format(
+        "\n".join(nodeids), count)
+
+
+def test_a_separator_replacement_is_not_a_neutral_transition():
+    """THE DEFECT. The parser rewrote every backslash to a forward slash --
+    parameter text included -- so two collections, each internally consistent,
+    mapped to one identity and NEUTRAL was ACCEPTED for a changed suite.
+
+    The listing/summary cross-check cannot see this: it catches colliding
+    identities appearing TOGETHER, not one replacing the other ACROSS
+    collections.
+    """
+    before = SuiteSnapshot.from_pytest_output(collection("t.py::test_p[a\\b]"))
+    after = SuiteSnapshot.from_pytest_output(collection("t.py::test_p[a/b]"))
+    assert before.nodeids != after.nodeids, (
+        "the two parameters are different inputs and must remain different "
+        "identities")
+    assert before.digest != after.digest
+    with pytest.raises(SuiteTransitionError) as exc:
+        SuiteTransition(kind=SuiteTransitionKind.NEUTRAL).verify(before, after)
+    assert "ADDED IDENTITIES" in str(exc.value)
+
+
+def test_both_formerly_colliding_identities_survive_one_collection():
+    """A parser that simply refused every backslash would avoid the collision
+    by discarding supported coverage. Both must be retained, and distinct."""
+    snapshot = SuiteSnapshot.from_pytest_output(
+        collection("t.py::test_p[a\\b]", "t.py::test_p[a/b]"))
+    assert snapshot.count == 2
+
+
+def test_the_parser_preserves_the_parameter_text_exactly():
+    nodeid = "t.py::test_p[records/x/..\\..\\escape.json]"
+    snapshot = SuiteSnapshot.from_pytest_output(collection(nodeid))
+    assert nodeid in snapshot.nodeids
+
+
+def test_a_duplicate_in_the_listing_is_refused():
+    """Deduplication before counting would hide the disagreement."""
+    with pytest.raises(SuiteTransitionError) as exc:
+        SuiteSnapshot.from_pytest_output(collection(A, A, reported=2))
+    assert "duplicate" in str(exc.value)
+
+
+def test_a_duplicate_passed_directly_is_refused():
+    """The reported-count cross-check guarded only the text route. A caller
+    handing over a sequence had no such witness."""
+    with pytest.raises(SuiteTransitionError) as exc:
+        SuiteSnapshot([A, A, B])
+    assert "duplicate" in str(exc.value)
+
+
+def test_a_frozenset_argument_cannot_carry_duplicate_evidence():
+    """Not a defect -- a limit, recorded so nobody reads the control above as
+    stronger than it is. `frozenset(["a", "a"])` has already lost the
+    duplicate, so the PRODUCER must validate its own sequence."""
+    assert SuiteSnapshot(frozenset([A, A])).count == 1
+
+
+#: EXPLICIT IDS, and the reason is measurable rather than editorial.
+#:
+#: pytest ESCAPES a control character into the node identity: "\n" in the
+#: parameter becomes a literal backslash followed by "n" in the id. MEASURED
+#: 2026-09-10: with generated ids this file introduced THREE identities
+#: containing backslashes -- exactly the character the preimage parser rewrote
+#: and the postimage parser preserves. The two parsers then disagreed on this
+#: very file (digest 7a6b54a6 against e91e713f), while the installer that
+#: lands the repair binds ONE parser to interpret BOTH of its snapshots.
+#:
+#: With these ids no identity in this file contains a backslash, both parsers
+#: agree on the whole file, and the interpretation change has nothing to bite
+#: on here. The PARAMETER VALUES are unchanged, so the coverage is unchanged.
+@pytest.mark.parametrize("nodeid", [
+    pytest.param("t.py::test_a\nt.py::test_b", id="embedded_newline"),
+    pytest.param("t.py::test_a\rt.py::test_b", id="embedded_carriage_return"),
+    pytest.param("t.py::test_a\x00b", id="embedded_nul"),
+])
+def test_an_identity_the_digest_cannot_encode_is_refused(nodeid):
+    """MEASURED: SuiteSnapshot({"a::x\nb::y"}) had count 1 and
+    SuiteSnapshot({"a::x", "b::y"}) had count 2, and the two shared one digest.
+    Not a SHA-256 collision -- an ambiguous encoding over accepted inputs."""
+    with pytest.raises(SuiteTransitionError) as exc:
+        SuiteSnapshot(frozenset({nodeid}))
+    assert "cannot represent" in str(exc.value)
+
+
+def test_require_nodeids_refuses_a_bare_string():
+    """A string is iterable, and iterating it yields characters."""
+    with pytest.raises(SuiteTransitionError):
+        require_nodeids("t.py::test_a", label="x")
+
+
+@pytest.mark.parametrize("kind", ["addition", "neutral", None, 1, True])
+def test_a_kind_that_is_not_the_enum_is_refused(kind):
+    """MEASURED: SuiteTransition(kind="addition") CONSTRUCTED and then
+    VERIFIED. The string is not identical to any member, so every branch was
+    bypassed and `_checked` was set regardless. Annotations enforce nothing."""
+    with pytest.raises(SuiteTransitionError) as exc:
+        SuiteTransition(kind=kind)
+    assert "SuiteTransitionKind" in str(exc.value)
+
+
+def test_the_projection_refuses_evidence_that_contradicts_itself():
+    """MEASURED: NEUTRAL evidence with before_count 1, after_count 999 and
+    digests "x" and "y" was EMITTED. `_assert_evidence_belongs_here` compares
+    the kind and the difference sets and validates neither."""
+    fake = TransitionEvidence(
+        kind=SuiteTransitionKind.NEUTRAL, before_count=1, after_count=999,
+        before_digest="x", after_digest="y",
+        added_nodeids=(), removed_nodeids=())
+    with pytest.raises(SuiteTransitionError):
+        SuiteTransition(kind=SuiteTransitionKind.NEUTRAL).as_attestation_record(
+            fake)
+
+
+def test_the_projection_refuses_counts_that_disagree_with_the_difference_sets():
+    fake = TransitionEvidence(
+        kind=SuiteTransitionKind.ADDITION, before_count=1, after_count=5,
+        before_digest="a" * 64, after_digest="b" * 64,
+        added_nodeids=(B,), removed_nodeids=())
+    with pytest.raises(SuiteTransitionError) as exc:
+        SuiteTransition(kind=SuiteTransitionKind.ADDITION,
+                        expected_added_nodeids=frozenset({B})
+                        ).as_attestation_record(fake)
+    assert "counts move" in str(exc.value)
+
+
+def test_the_projection_refuses_equal_digests_when_identities_changed():
+    same = "c" * 64
+    fake = TransitionEvidence(
+        kind=SuiteTransitionKind.ADDITION, before_count=1, after_count=2,
+        before_digest=same, after_digest=same,
+        added_nodeids=(B,), removed_nodeids=())
+    with pytest.raises(SuiteTransitionError) as exc:
+        SuiteTransition(kind=SuiteTransitionKind.ADDITION,
+                        expected_added_nodeids=frozenset({B})
+                        ).as_attestation_record(fake)
+    assert "digests are equal" in str(exc.value)
+
+
+def test_the_verified_projection_recomputes_from_the_snapshots():
+    """POSITIVE CONTROL. Every test above this one is a refusal; a module that
+    refused everything would satisfy them all."""
+    before, after = SuiteSnapshot([A]), SuiteSnapshot([A, B])
+    record = SuiteTransition(
+        kind=SuiteTransitionKind.ADDITION,
+        expected_added_nodeids=frozenset({B})
+    ).verified_attestation_record(before, after)
+    assert record["kind"] == "addition"
+    assert record["observed_added_nodeids"] == [B]
+    assert record["before_digest"] == before.digest
+    assert record["after_digest"] == after.digest
