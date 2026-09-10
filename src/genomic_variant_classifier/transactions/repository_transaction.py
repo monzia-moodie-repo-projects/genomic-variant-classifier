@@ -119,6 +119,16 @@ class TransactionIntegrityError(TransactionError):
     """A preimage, target or journal is not what the manifest says it is."""
 
 
+class TransactionGitUnavailable(TransactionError):
+    """The repository could not be OBSERVED. Distinct from observing a problem.
+
+    A separate type so a caller can tell "git says the tree is dirty" from
+    "git could not be asked". It is NOT the journal-persistence stop
+    condition: persistence uncertainty and observation failure are different
+    conditions, and broadening that flag could break legitimate recovery.
+    """
+
+
 class TransactionRecoveryRequired(TransactionError):
     """A journal is unresolved and must be reconciled before work continues."""
 
@@ -495,15 +505,50 @@ class RepositoryTransaction:
 
     # ---- git -----------------------------------------------------------
     def _git(self, *args):
+        """Run git and REQUIRE success. A failure raises; it never returns data.
+
+        MEASURED 2026-09-08 against the payload unit T installed
+        (fdc02af8c111573f48c838a113b432fb60e50396dcd37989783fb2ad70be7687),
+        in a repository with one unowned untracked file:
+
+            git AVAILABLE    -> refused, TransactionError, working tree dirty
+            git UNAVAILABLE  -> CONSTRUCTED, self._head is None
+
+        The previous body returned None on OSError or SubprocessError and never
+        examined `returncode`, so BOTH assertions below returned early and a
+        transaction was constructed over a dirty tree.
+        TRANSACTION-GIT-FAILURE-FAILS-OPEN-1, recorded CONFIRMED and unaddressed
+        in ADR-0003.
+
+        A NONZERO EXIT IS NOT SUCCESS. The previous code could not tell an
+        empty successful result from a failed one, because it looked only at
+        whether a process object existed.
+        """
         try:
-            return subprocess.run(("git", "-C", str(self.repo_root)) + args,
-                                  capture_output=True, text=True, timeout=120)
-        except (OSError, subprocess.SubprocessError):
-            return None
+            result = subprocess.run(("git", "-C", str(self.repo_root)) + args,
+                                    capture_output=True, text=True, timeout=120)
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise TransactionGitUnavailable(
+                "git {} could not be executed: {}: {}. A transaction cannot "
+                "certify a repository it cannot observe.".format(
+                    " ".join(args), type(exc).__name__, exc)) from exc
+        if result.returncode != 0:
+            raise TransactionGitUnavailable(
+                "git {} exited {}: {}. A nonzero exit is not an empty "
+                "successful result.".format(
+                    " ".join(args), result.returncode,
+                    (result.stderr or "").strip()[:200]))
+        return result
 
     def _git_head(self):
+        """The current HEAD, or a refusal. NEVER None for an unobserved head."""
         out = self._git("rev-parse", "HEAD")
-        return (out.stdout.strip() or None) if out else None
+        head = (out.stdout or "").strip()
+        if not head:
+            raise TransactionGitUnavailable(
+                "git rev-parse HEAD succeeded with empty output, so HEAD was "
+                "not observed. An unobserved head is not an absent head.")
+        return head
 
     def _assert_tree_clean(self) -> None:
         """A transaction certifies a NAMED SET of files.
@@ -512,9 +557,9 @@ class RepositoryTransaction:
         a helper script introducing an unowned change. require_clean_head and
         require_clean_tree are DIFFERENT invariants; step 3 had only the first.
         """
+        # NO EARLY RETURN. A failed observation raises out of _git, so this
+        # assertion cannot be satisfied by being unable to look.
         out = self._git("status", "--porcelain")
-        if out is None:
-            return
         dirty = [l for l in out.stdout.splitlines() if l.strip()]
         if dirty:
             raise TransactionError(
@@ -524,8 +569,16 @@ class RepositoryTransaction:
                 .format(len(dirty), dirty[:5]))
 
     def _assert_head_unmoved(self) -> None:
-        if not self.require_clean_head or self._head is None:
+        if not self.require_clean_head:
             return
+        if self._head is None:
+            # `self._head` is set at construction and _git_head now raises
+            # rather than returning None, so this is unreachable through the
+            # ordinary path. It refuses rather than returning, because a head
+            # that was never observed cannot certify that it has not moved.
+            raise TransactionGitUnavailable(
+                "the transaction holds no observed HEAD, so it cannot "
+                "establish that HEAD is unmoved.")
         now = self._git_head()
         if now != self._head:
             raise TransactionIntegrityError(
