@@ -1,125 +1,126 @@
-#!/usr/bin/env python
-"""cleanup_apply.py (2026-07-11) -- GUARDED cleanup executor. TWO-PHASE: default = DRY-RUN (lists what
-it WOULD delete, each safety condition RE-VERIFIED live); with '--apply' it deletes. Every item is
-re-checked at delete time (not trusting any prior snapshot); anything tracked in git is SKIPPED; every
-removal is logged to outputs/cleanup_deleted.txt with size. Categories A-F from the cleanup proposal.
-ASCII-safe. Refuses to delete a tracked path under any circumstance.
+"""cleanup_apply: inspect and report. Application is UNAVAILABLE in this version.
+
+Author: Monzia Moodie
+
+WHAT THIS REPAIRS
+=================
+MEASURED 2026-09-08, executing the previous `scripts/cleanup_apply.py` with a
+working directory outside any Git working tree:
+
+    ### (F)  2 eligible (4.0B), 0 SKIPPED ###
+      would-delete  2.0B  scripts/dump_thing.py
+      would-delete  2.0B  scripts/patch_thing.py
+
+Category F's condition was `ok = not tracked(p)`, and `tracked()` returned
+False whenever `git ls-files` exited non-zero -- which it always does outside a
+repository. Failed inspection became deletion eligibility. The docstring
+"Refuses to delete a tracked path under any circumstance" was literally true
+and operationally empty.
+
+WHAT THIS DELIBERATELY DOES NOT DO
+==================================
+It does not delete. `--apply` returns a nonzero status BEFORE any discovery,
+and this module imports no executor: there is no destructive code path to
+reach, dormant or otherwise.
+
+That is a deliberate compatibility change, not an oversight. Application
+requires an approved configuration owner and an authorization binding that are
+not installed. Supplying a digest on the command line would be manufacturing
+approval, so no such option exists.
+
+    inspection  : completed
+    application : unavailable
+    authorization: not established
+    deletion attempts: 0
+
+ACTIVATION OBLIGATION
+=====================
+This disabled state is an intermediate release with a recorded obligation, not
+a finished feature. Activation is a separately reviewed unit and requires ALL
+of: the approved configuration owner installed; production composition
+obtaining approval from the established binding mechanism; every destructive
+route passing through the executor; category eligibility and supporting
+evidence checked; repository and runtime protection enforced; the actual
+command-line interface passing end-to-end positive and negative tests; and
+platform behaviour qualified for the supported environment.
+
+A configuration file existing, or a digest being supplied, is not activation.
+
+EXIT STATUS
+  0  inspection completed
+  2  repository selection or inspection failed
+  3  an application request was refused. NOT a successful dry run.
 """
+
 from __future__ import annotations
-import io, subprocess, sys
+
+import argparse
+import sys
 from pathlib import Path
-try: sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-except Exception: pass
-def a(s): return s.encode("ascii","replace").decode("ascii")
-def line(c="-", n=78): print(c*n)
-APPLY = "--apply" in sys.argv
 
-def tracked(p):
-    return subprocess.run(["git","ls-files","--error-unmatch",p],capture_output=True,text=True).returncode==0
-def committed_head(p):
-    return subprocess.run(["git","cat-file","-e",f"HEAD:{p}"],capture_output=True,text=True).returncode==0
-def ignored(p):
-    return subprocess.run(["git","check-ignore",p],capture_output=True,text=True).returncode==0
-def human(n):
-    for u in ["B","KB","MB","GB"]:
-        if n<1024: return f"{n:.1f}{u}"
-        n/=1024
-    return f"{n:.1f}TB"
-def sz(p):
-    try: return Path(p).stat().st_size
-    except: return 0
+# NO PATH BOOTSTRAP.
+#
+# MEASURED 2026-09-10: the previous version computed
+# `Path(__file__).resolve().parent.parent / "src"`, which is correct for a
+# script in scripts/ and WRONG for one in scripts/forensics/ -- where this
+# file actually lives. The pending-unit fit census caught the destination
+# error, and the bootstrap had inherited it.
+#
+# The repository's own convention has no bootstrap: scripts/
+# retire_backup_artifacts.py imports
+# `from genomic_variant_classifier.repository_hygiene import backup_artifacts`
+# directly, relying on the installed project. Following it removes the depth
+# dependency rather than correcting the depth.
 
-plan = []   # (category, path, reason_ok:bool, why)
+from genomic_variant_classifier.repository_hygiene.cleanup_categories import (
+    inspect_cleanup_candidates, render_proposal)                # noqa: E402
+from genomic_variant_classifier.repository_hygiene.repository_inspection import (
+    InspectionError, RepositorySelectionError, select_repository)  # noqa: E402
 
-# (A) this-arc .bak -- ok iff live committed@HEAD
-A = {
- "scripts/train.py.w1bak":"scripts/train.py",
- "scripts/train.py.w2b2bak":"scripts/train.py",
- "src/genomic_variant_classifier/data/real_data_prep.py.w2b1bak":"src/genomic_variant_classifier/data/real_data_prep.py",
- "src/genomic_variant_classifier/data/split_protocol_v2.py.w2b1bak":"src/genomic_variant_classifier/data/split_protocol_v2.py",
- "src/genomic_variant_classifier/models/variant_ensemble.py.w2bak":"src/genomic_variant_classifier/models/variant_ensemble.py",
- "src/genomic_variant_classifier/evaluation/evaluator.py.bak":"src/genomic_variant_classifier/evaluation/evaluator.py",
- "src/genomic_variant_classifier/data/database_connectors.py.bak":"src/genomic_variant_classifier/data/database_connectors.py",
-}
-for bak,live in A.items():
-    if Path(bak).exists():
-        ok = committed_head(live) and not tracked(bak)
-        plan.append(("A",bak,ok,f"live committed@HEAD={committed_head(live)}, bak tracked={tracked(bak)}"))
+APPLICATION_UNAVAILABLE = 3
+INSPECTION_FAILED = 2
 
-# (B) .gitignore.prebakfix -- ok iff .gitignore committed
-if Path(".gitignore.prebakfix").exists():
-    ok = committed_head(".gitignore") and not tracked(".gitignore.prebakfix")
-    plan.append(("B",".gitignore.prebakfix",ok,f".gitignore@HEAD={committed_head('.gitignore')}"))
 
-# (C) seq_windows parts + .done -- ok iff merged exists + non-empty
-swd = Path("data/processed/seq_windows")
-merged = swd/"seq_windows.parquet"
-merged_ok = merged.exists() and sz(str(merged))>0
-if swd.exists():
-    for p in sorted(swd.glob("part_*.parquet")) + sorted(swd.glob("*.done")):
-        ok = merged_ok and not tracked(str(p))
-        plan.append(("C",str(p).replace("\\","/"),ok,f"merged_ok={merged_ok}"))
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Inspect cleanup candidates. Application is unavailable.")
+    parser.add_argument("--repo-root", default=None)
+    parser.add_argument("--apply", action="store_true",
+                        help="refused: application is unavailable")
+    args = parser.parse_args(argv)
 
-# (D) dead .OOMbak -- ok iff live index exists + non-empty
-oom="data/external/dbnsfp/dbnsfp_full_index.parquet.OOMbak"
-live="data/external/dbnsfp/dbnsfp_full_index.parquet"
-if Path(oom).exists():
-    ok = Path(live).exists() and sz(live)>0 and not tracked(oom)
-    plan.append(("D",oom,ok,f"live index present={Path(live).exists()} size={human(sz(live))}"))
+    # BEFORE ANY OTHER WORK. Discovery must not run for an application
+    # request, so the refusal cannot be mistaken for a completed dry run and
+    # no code capable of mutation is reached.
+    if args.apply:
+        print("Cleanup application is unavailable in this version: the "
+              "approved configuration and authorization provider is not "
+              "installed. No cleanup action was attempted.", file=sys.stderr)
+        return APPLICATION_UNAVAILABLE
 
-# (E) root install_*.py -- ok iff ignored + not tracked
-for p in sorted(Path(".").glob("install_*.py")):
-    ok = ignored(str(p)) and not tracked(str(p))
-    plan.append(("E",str(p).replace("\\","/"),ok,f"ignored={ignored(str(p))}"))
+    try:
+        repository = select_repository(args.repo_root)
+    except RepositorySelectionError as exc:
+        print("Repository selection failed: {}".format(exc), file=sys.stderr)
+        return INSPECTION_FAILED
 
-# (F) scripts/dump_*.py + scripts/patch_*.py -- ok iff untracked
-for pat in ["dump_*.py","patch_*.py"]:
-    for p in sorted(Path("scripts").glob(pat)):
-        ok = not tracked(str(p))
-        plan.append(("F",str(p).replace("\\","/"),ok,f"untracked={not tracked(str(p))}"))
+    # EXPECTED inspection failures are caught deliberately. A programming
+    # error must remain an unsuccessful execution, not become an empty
+    # category, so no bare `except Exception` appears here.
+    try:
+        proposal = inspect_cleanup_candidates(repository)
+    except InspectionError as exc:
+        print("Inspection failed: {}".format(exc), file=sys.stderr)
+        return INSPECTION_FAILED
 
-print("="*78)
-print(a(f"GUARDED CLEANUP -- {'APPLY (deleting)' if APPLY else 'DRY-RUN (nothing deleted; pass --apply to delete)'} -- 2026-07-11"))
-print("="*78)
+    render_proposal(proposal)
+    if proposal.inspection_status != "completed":
+        print("Inspection was INCOMPLETE: {} failure(s). Zero candidates in "
+              "an incomplete category is not a measured absence.".format(
+                  proposal.inspection_failures), file=sys.stderr)
+        return INSPECTION_FAILED
+    return 0
 
-by_cat = {}
-skipped = []
-for cat,p,ok,why in plan:
-    by_cat.setdefault(cat,{"ok":[],"skip":[]})
-    (by_cat[cat]["ok"] if ok else by_cat[cat]["skip"]).append((p,why))
-    if not ok: skipped.append((cat,p,why))
 
-total = 0; ndel = 0
-deleted_log = []
-for cat in "ABCDEF":
-    if cat not in by_cat: continue
-    oks = by_cat[cat]["ok"]; sk = by_cat[cat]["skip"]
-    catsz = sum(sz(p) for p,_ in oks)
-    print(a(f"\n### ({cat})  {len(oks)} eligible ({human(catsz)}), {len(sk)} SKIPPED ###"))
-    for p,why in oks[:6]:
-        print(a(f"  {'DELETE' if APPLY else 'would-delete'}  {human(sz(p)):>9}  {p}"))
-    if len(oks)>6: print(a(f"  ... +{len(oks)-6} more"))
-    for p,why in sk:
-        print(a(f"  SKIP (guard failed): {p}  [{why}]"))
-    total += catsz
-    if APPLY:
-        for p,_ in oks:
-            try:
-                s = sz(p); Path(p).unlink()
-                deleted_log.append(f"{human(s):>9}  {p}"); ndel += 1
-            except Exception as e:
-                print(a(f"  ERROR deleting {p}: {e}"))
-
-line("=")
-if APPLY:
-    Path("outputs").mkdir(exist_ok=True)
-    Path("outputs/cleanup_deleted.txt").write_text(
-        "CLEANUP DELETED -- 2026-07-11\n"+"\n".join(deleted_log)+f"\n\nTOTAL: {ndel} files, ~{human(total)}\n",
-        encoding="utf-8")
-    print(a(f"DELETED {ndel} files, reclaimed ~{human(total)}. Log -> outputs/cleanup_deleted.txt"))
-else:
-    print(a(f"DRY-RUN: would delete {sum(len(by_cat[c]['ok']) for c in by_cat)} files, ~{human(total)}."))
-    print("Re-run with '--apply' to delete. Every condition was RE-VERIFIED live above.")
-if skipped:
-    print(a(f"NOTE: {len(skipped)} item(s) SKIPPED because a guard failed (tracked or condition not met)."))
-raise SystemExit(0)
+if __name__ == "__main__":
+    sys.exit(main())

@@ -7951,4 +7951,9 @@
 #   persists its PROSPECTIVE state before acknowledging it, and a failed
 #   journal write stops the transaction rather than letting a terminal
 #   state nobody recorded authorise a silent shortcut.
-6263
+# 2026-09-10  D-H-CLEANUP-INSPECTION-2026-09-10
+#   ADDITION, +36 by node identity, 0 removed. A transition now
+#   persists its PROSPECTIVE state before acknowledging it, and a failed
+#   journal write stops the transaction rather than letting a terminal
+#   state nobody recorded authorise a silent shortcut.
+6299
