@@ -40,7 +40,9 @@ from genomic_variant_classifier.transactions.suite_transition import (
     SuiteTransitionError,
     SuiteTransitionKind,
     TransitionEvidence,
+    require_document_nodeids,
     require_nodeids,
+    require_observed_nodeids,
     suite_digest,
 )
 
@@ -424,3 +426,135 @@ def test_the_verified_projection_recomputes_from_the_snapshots():
     assert record["observed_added_nodeids"] == [B]
     assert record["before_digest"] == before.digest
     assert record["after_digest"] == after.digest
+
+
+# ---------------------------------------------------------------------------
+# 8. Declaration, observation and document boundaries -- added 2026-09-11
+#
+# The defect: one field read two incompatible ways. Membership comparison
+# collapsed added=(B, B) to {B} while the arithmetic read its length as 2, and
+# against removed=(A, A) the two errors cancelled. MEASURED 2026-09-11 against
+# the owner installed at 07bc7a5 -- the projection EMITTED that evidence.
+#
+# The repair is not "ban sets everywhere". A frozenset is the correct object
+# for approved MEMBERSHIP, and its inability to hold duplicates is its
+# semantics. What each representation CLAIMS decides its contract.
+# ---------------------------------------------------------------------------
+
+def test_projection_refuses_duplicate_difference_evidence():
+    """THE DEFECT, in the shape it was reported."""
+    a, b = "t.py::test_a", "t.py::test_b"
+    transition = SuiteTransition(
+        kind=SuiteTransitionKind.DELIBERATE_RETIREMENT,
+        expected_added_nodeids=[b],
+        expected_removed_nodeids=[a],
+        justification="fixture replacement",
+    )
+    evidence = TransitionEvidence(
+        kind=SuiteTransitionKind.DELIBERATE_RETIREMENT,
+        before_count=1,
+        after_count=1,
+        before_digest="a" * 64,
+        after_digest="b" * 64,
+        added_nodeids=(b, b),
+        removed_nodeids=(a, a),
+    )
+    with pytest.raises(SuiteTransitionError, match="duplicate"):
+        transition.as_attestation_record(evidence)
+
+
+def test_a_frozenset_declaration_is_not_a_waiver_and_still_constructs():
+    """Every one of the eight installed installers declares a frozenset.
+    MEASURED 2026-09-11: all eight construct against this contract."""
+    transition = SuiteTransition(
+        kind=SuiteTransitionKind.ADDITION,
+        expected_added_nodeids=frozenset({A, B}),
+    )
+    assert transition.expected_added_nodeids == frozenset({A, B})
+
+
+def test_a_declaration_supplied_as_a_sequence_is_checked_for_duplicates():
+    with pytest.raises(SuiteTransitionError, match="duplicate"):
+        SuiteTransition(kind=SuiteTransitionKind.ADDITION,
+                        expected_added_nodeids=[A, A, B])
+
+
+def test_a_declaration_member_that_is_not_an_identity_is_refused():
+    with pytest.raises(SuiteTransitionError, match="node identity"):
+        SuiteTransition(kind=SuiteTransitionKind.ADDITION,
+                        expected_added_nodeids=["not-an-identity"])
+
+
+def test_an_observation_supplied_as_a_set_is_refused():
+    """An observation that arrives deduplicated has destroyed the evidence the
+    check exists to read. This is the OPPOSITE of a declaration."""
+    with pytest.raises(SuiteTransitionError, match="list or tuple"):
+        require_observed_nodeids({A, B}, label="observed additions")
+
+
+def test_an_observation_tuple_is_accepted():
+    assert require_observed_nodeids((A, B), label="x") == frozenset({A, B})
+
+
+def test_a_serialised_declaration_must_be_a_json_array():
+    with pytest.raises(SuiteTransitionError, match="JSON array"):
+        require_document_nodeids((A, B), label="declared additions")
+    assert require_document_nodeids([A, B], label="x") == frozenset({A, B})
+
+
+def test_removals_may_not_exceed_the_before_population():
+    transition = SuiteTransition(
+        kind=SuiteTransitionKind.DELIBERATE_RETIREMENT,
+        expected_removed_nodeids=frozenset({A}),
+        justification="a population smaller than its own removals",
+    )
+    evidence = TransitionEvidence(
+        kind=SuiteTransitionKind.DELIBERATE_RETIREMENT,
+        before_count=0, after_count=0,
+        before_digest="a" * 64, after_digest="b" * 64,
+        added_nodeids=(), removed_nodeids=(A,),
+    )
+    with pytest.raises(SuiteTransitionError, match="exceed the before"):
+        transition.as_attestation_record(evidence)
+
+
+def test_additions_may_not_exceed_the_after_population():
+    transition = SuiteTransition(kind=SuiteTransitionKind.ADDITION,
+                                 expected_added_nodeids=frozenset({B}))
+    evidence = TransitionEvidence(
+        kind=SuiteTransitionKind.ADDITION,
+        before_count=5, after_count=0,
+        before_digest="a" * 64, after_digest="b" * 64,
+        added_nodeids=(B,), removed_nodeids=(),
+    )
+    with pytest.raises(SuiteTransitionError, match="exceed the after"):
+        transition.as_attestation_record(evidence)
+
+
+def test_a_declaration_cannot_name_one_identity_as_both_added_and_removed():
+    """RECORDED AS REACHABILITY, not as a claim about the projection.
+
+    The evidence-level overlap check cannot fire through a valid declaration,
+    because the declaration refuses the overlap first. It is defence in depth
+    behind an earlier guard. Asserting that the projection catches an overlap
+    would claim coverage the structure makes impossible.
+    """
+    with pytest.raises(SuiteTransitionError, match="both added and removed"):
+        SuiteTransition(
+            kind=SuiteTransitionKind.DELIBERATE_RETIREMENT,
+            expected_added_nodeids=frozenset({B}),
+            expected_removed_nodeids=frozenset({B}),
+            justification="an overlap a declaration may not express",
+        )
+
+
+def test_an_honest_projection_still_succeeds():
+    """POSITIVE CONTROL. Every test above is a refusal; a module that refused
+    everything would satisfy them all."""
+    before, after = SuiteSnapshot([A]), SuiteSnapshot([A, B])
+    record = SuiteTransition(
+        kind=SuiteTransitionKind.ADDITION,
+        expected_added_nodeids=frozenset({B}),
+    ).verified_attestation_record(before, after)
+    assert record["observed_added_nodeids"] == [B]
+    assert record["observed_removed_nodeids"] == []

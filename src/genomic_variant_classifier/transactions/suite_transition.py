@@ -129,6 +129,40 @@ def require_nodeids(values, *, label: str) -> frozenset:
     return frozenset(items)
 
 
+def require_observed_nodeids(value, *, label: str) -> frozenset:
+    """Validate REPORTED OBSERVATIONS, which must preserve their multiplicity.
+
+    MEASURED 2026-09-11: DELIBERATE_RETIREMENT evidence with added=(B, B) and
+    removed=(A, A) at counts 1 and 1 was EMITTED. Membership comparison
+    collapsed the duplicates to sets while the arithmetic compared 2-2 against
+    1-1 -- two incompatible interpretations of one field, whose errors
+    cancelled.
+
+    A set is refused HERE because an observation that arrives already
+    deduplicated has destroyed the evidence this check exists to read. That is
+    the opposite of a declaration, where a frozenset is the correct object.
+    """
+    if type(value) not in (list, tuple):
+        raise SuiteTransitionError(
+            "{}: expected an observation list or tuple, not {}".format(
+                label, type(value).__name__))
+    return require_nodeids(value, label=label)
+
+
+def require_document_nodeids(value, *, label: str) -> frozenset:
+    """Validate a SERIALISED declaration, which must arrive as a JSON array.
+
+    Prevents a document loader from silently treating an arbitrary
+    representation as the declared schema. Strict JSON parsing must separately
+    reject duplicate object keys and nonstandard numeric constants.
+    """
+    if type(value) is not list:
+        raise SuiteTransitionError(
+            "{}: expected a JSON array, not {}".format(
+                label, type(value).__name__))
+    return require_nodeids(value, label=label)
+
+
 def suite_digest(nodeids: frozenset[str]) -> str:
     """A canonical digest over a set of node identities.
 
@@ -265,10 +299,22 @@ class SuiteTransition:
     _checked: bool = field(init=False, default=False)
 
     def __post_init__(self) -> None:
+        # DECLARATIONS ARE MEMBERSHIP. A frozenset is the correct object for
+        # "these identities are approved", and its inability to hold duplicates
+        # is its semantics, not a defect. require_nodeids validates the members
+        # and rejects duplicates WHEN THE REPRESENTATION PRESERVES THEM.
+        #
+        # A sequence-only requirement was considered and REJECTED, because it
+        # would not establish what it appears to. MEASURED 2026-09-11:
+        #     tuple(set([A, A, B]))  ->  PASSES a list-or-tuple check
+        # The duplicates vanished before the boundary. Provenance needs a
+        # controlled producer and retained execution evidence, not a type.
         object.__setattr__(self, "expected_added_nodeids",
-                           frozenset(self.expected_added_nodeids))
+                           require_nodeids(self.expected_added_nodeids,
+                                           label="declared additions"))
         object.__setattr__(self, "expected_removed_nodeids",
-                           frozenset(self.expected_removed_nodeids))
+                           require_nodeids(self.expected_removed_nodeids,
+                                           label="declared removals"))
         # THE KIND MUST BE THE ENUM.
         #
         # MEASURED 2026-09-10: SuiteTransition(kind="addition") CONSTRUCTED and
@@ -417,16 +463,15 @@ class SuiteTransition:
             self, evidence: "TransitionEvidence") -> None:
         """Refuse evidence whose own fields contradict each other.
 
-        MEASURED 2026-09-10: a hand-built TransitionEvidence with
-        before_count 1, after_count 999 and digests "x" and "y" was EMITTED as
-        an attestation record. `_assert_evidence_belongs_here` compares the
-        kind and the difference sets and validates neither the counts nor the
-        digests, so the public projection could publish a contradiction.
+        ONE VALIDATED INTERPRETATION. MEASURED 2026-09-11: added=(B, B) and
+        removed=(A, A) at counts 1 and 1 was EMITTED, because membership
+        checks read the tuples as sets while the arithmetic read their
+        lengths. Every check below now operates on the SAME validated sets and
+        their sizes.
 
-        These checks reject contradictions. They CANNOT prove the underlying
-        collection occurred -- execution provenance is a separate
-        responsibility. `verified_attestation_record` is the route that
-        recomputes from snapshots.
+        These checks reject contradictions. They cannot prove that plausible
+        digests correspond to real collections; `verified_attestation_record`
+        is the route that recomputes from snapshots.
         """
         for name, value in (("before_count", evidence.before_count),
                             ("after_count", evidence.after_count)):
@@ -440,18 +485,35 @@ class SuiteTransition:
                 raise SuiteTransitionError(
                     "{} must be 64 lowercase hexadecimal digits, not "
                     "{!r}".format(name, value))
+        added = require_observed_nodeids(evidence.added_nodeids,
+                                         label="observed additions")
+        removed = require_observed_nodeids(evidence.removed_nodeids,
+                                           label="observed removals")
+        both = added & removed
+        if both:
+            raise SuiteTransitionError(
+                "an identity cannot be both added and removed: {}".format(
+                    sorted(both)[:5]))
+        if len(removed) > evidence.before_count:
+            raise SuiteTransitionError(
+                "removals ({}) exceed the before population ({})".format(
+                    len(removed), evidence.before_count))
+        if len(added) > evidence.after_count:
+            raise SuiteTransitionError(
+                "additions ({}) exceed the after population ({})".format(
+                    len(added), evidence.after_count))
         observed = evidence.after_count - evidence.before_count
-        declared = len(evidence.added_nodeids) - len(evidence.removed_nodeids)
+        declared = len(added) - len(removed)
         if observed != declared:
             raise SuiteTransitionError(
-                "the counts move by {:+d} while the difference sets move by "
-                "{:+d}".format(observed, declared))
+                "the counts move by {:+d} while the identity transition moves "
+                "by {:+d}".format(observed, declared))
         if evidence.before_digest == evidence.after_digest and (
-                evidence.added_nodeids or evidence.removed_nodeids):
+                added or removed):
             raise SuiteTransitionError(
                 "the digests are equal while identities changed")
         if evidence.before_digest != evidence.after_digest and not (
-                evidence.added_nodeids or evidence.removed_nodeids):
+                added or removed):
             raise SuiteTransitionError(
                 "the digests differ while no identity changed")
 
