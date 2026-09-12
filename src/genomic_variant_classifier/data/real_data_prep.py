@@ -1690,8 +1690,24 @@ def enrich_gene_counts(df: pd.DataFrame) -> pd.DataFrame:
 
     This is a strong predictor: genes with many known pathogenic variants
     (e.g. BRCA1, TP53) are a priori more suspicious for new variants.
-    Must be computed on the FULL labeled dataset BEFORE splitting to avoid
-    information leakage (the count uses only labeled rows, not the test set).
+    COMPUTED CORPUS-WIDE, AND CORRECTED DOWNSTREAM. This function counts over
+    every labeled row -- train, validation and test alike. Test rows ARE labeled
+    rows, so a held-out gene's count derives entirely from its own held-out
+    labels under the gene-disjoint split.
+
+    That is INCIDENT_2026-06-13: as a lone feature, test AUROC measured 0.7181
+    corpus-wide against 0.5000 train-only. The value this function writes is
+    NEVER the value a model sees. Both split paths overwrite it with train-only
+    counts, remapping unseen genes to zero and recomputing
+    gene_has_known_disease in lockstep:
+
+        legacy      real_data_prep.py, the leakage fix after _gene_aware_split
+        v2          split_protocol_v2.apply_train_only_leakage_remap
+
+    An earlier docstring here said the count "uses only labeled rows, not the
+    test set". That was false and is corrected 2026-09-12: it is precisely the
+    test set's labeled rows that make the corpus-wide value unsafe. The safety
+    comes from the remaps, not from this function.
     """
     if "n_pathogenic_in_gene" in df.columns:
         return df  # already present in enriched parquet -- skip duplicate merge

@@ -13,13 +13,13 @@ Run:
 
 Or with explicit paths:
     python scripts/train.py \
-        --clinvar  data/processed/clinvar_grch38.parquet \
+        --clinvar  data/processed/clinvar_grch38_clean.parquet \
         --gnomad   data/processed/gnomad_v4_exomes.parquet \
         --out-dir  models/v1
 
 With optional annotation sources:
     python scripts/train.py \
-        --clinvar        data/processed/clinvar_grch38.parquet \
+        --clinvar        data/processed/clinvar_grch38_clean.parquet \
         --gnomad         data/processed/gnomad_v4_exomes.parquet \
         --alphamissense  data/raw/cache/alphamissense_scores_hg38.parquet \
         --lovd-path      data/external/lovd/lovd_all_variants.parquet \
@@ -95,8 +95,17 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument(
         "--clinvar",
-        default="data/processed/clinvar_grch38.parquet",
-        help="Processed ClinVar parquet (output of database_connectors.py)",
+        default="data/processed/clinvar_grch38_clean.parquet",
+        help=(
+            "CLEAN ClinVar cohort parquet. DataPrepPipeline._assert_clean_cohort "
+            "refuses any cohort with a null/empty allele or a duplicated "
+            "variant_id (INCIDENT_2026-05-31_null-key-leak). "
+            "clinvar_grch38.parquet -- the raw connector output this default "
+            "previously named -- MEASURED 2026-09-12 with 13,295 rows carrying "
+            "':na:na' and 1,311 identifiers covering more than one accession, "
+            "so it is refused at load. Produce the clean cohort with "
+            "scripts/clean_cohort.py --apply."
+        ),
     )
     p.add_argument(
         "--seq-windows",
