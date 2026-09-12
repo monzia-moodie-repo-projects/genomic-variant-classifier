@@ -20,11 +20,15 @@ from __future__ import annotations
 
 import hashlib
 import sys
+from pathlib import Path
 
 import pytest
 
 from genomic_variant_classifier.operations.collection_capture import (
+    ArtifactTooLarge,
+    ArtifactUnavailable,
     CaptureError,
+    DirectoryReader,
     CollectionPhase,
     DirectorySink,
     RetentionFailed,
@@ -239,3 +243,243 @@ def test_an_ordinary_collection_is_captured_end_to_end(tmp_path, sink):
     assert document["stdout"]["bytes"] == len(listing.encode("utf-8"))
     assert document["schema"] == "gvc.collection-capture"
     assert "does_not_establish" in document
+
+
+# ---------------------------------------------------------------------------
+# 6. Attempt isolation -- added 2026-09-12
+#
+# MEASURED 2026-09-12 against the sink installed at d181e739: two captures with
+# the same phase and IDENTICAL STDOUT but different stderr resolved to one
+# filename stem, `phase-stdout_sha256[:16]`, and every write overwrote --
+#
+#     same retained stderr path : True
+#     first attempt's stderr file now contains: b'second\n'
+#     first attempt's evidence still matches   : False
+#
+# No SHA-256 collision is involved. Identical stdout across repeated collection
+# is ORDINARY: a baseline collected twice produces it.
+#
+# THE SEVENTEEN TESTS ABOVE PASSED AGAINST THAT DEFECT AND AGAINST ITS REPAIR.
+# They never exercised repeated capture, so the suite could not distinguish the
+# two implementations. These controls exist because passing tests are not
+# coverage.
+# ---------------------------------------------------------------------------
+
+def capture_twice(tmp_path, sink, first_stderr, second_stderr):
+    """Two real captures through ONE sink, with byte-identical stdout."""
+    documents = []
+    for stderr in (first_stderr, second_stderr):
+        document, _ = capture_collection(
+            argv=emit(stdout=b"identical\n", stderr=stderr), cwd=tmp_path,
+            env=None, timeout=60, phase=CollectionPhase.BASELINE_COLLECTION,
+            subject=committed(), interpreter=sys.executable, sink=sink)
+        documents.append(document)
+    return documents
+
+
+def test_a_repeated_capture_does_not_overwrite_the_earlier_attempt(
+        tmp_path, sink):
+    """THE DEFECT. Content digests identify artifacts; attempt identifiers
+    distinguish executions. Conflating them lost an earlier attempt."""
+    first, second = capture_twice(tmp_path, sink, b"first\n", b"second\n")
+    assert first["attempt_id"] != second["attempt_id"]
+    retained = tmp_path / "evidence" / first["retained"]["stderr_path"]
+    assert retained.read_bytes() == b"first\n"
+    assert hashlib.sha256(retained.read_bytes()).hexdigest() == \
+        first["stderr"]["sha256"]
+
+
+def test_both_attempts_remain_separately_retrievable(tmp_path, sink):
+    first, second = capture_twice(tmp_path, sink, b"first\n", b"second\n")
+    directory = tmp_path / "evidence"
+    assert (directory / first["retained"]["stderr_path"]).read_bytes() == \
+        b"first\n"
+    assert (directory / second["retained"]["stderr_path"]).read_bytes() == \
+        b"second\n"
+
+
+def test_identical_captures_are_still_distinct_attempts(tmp_path, sink):
+    """Even when BOTH streams match, two executions are two attempts."""
+    first, second = capture_twice(tmp_path, sink, b"same\n", b"same\n")
+    assert first["attempt_id"] != second["attempt_id"]
+    assert first["retained"]["stdout_path"] != second["retained"]["stdout_path"]
+
+
+def test_an_artifact_may_not_be_overwritten(tmp_path, sink):
+    """Exclusive creation, so a replacement is a refusal rather than a loss."""
+    document, _ = capture_collection(
+        argv=emit(stdout=b"x\n"), cwd=tmp_path, env=None, timeout=60,
+        phase=CollectionPhase.BASELINE_COLLECTION, subject=committed(),
+        interpreter=sys.executable, sink=sink)
+    existing = tmp_path / "evidence" / document["retained"]["stdout_path"]
+    with pytest.raises(RetentionFailed, match="may not overwrite"):
+        DirectorySink._write_new(existing, b"replacement")
+
+
+def test_the_manifest_is_published_after_the_streams(tmp_path, sink):
+    """Its ABSENCE is how a reader determines an attempt did not complete.
+    Publishing it first would make an interrupted attempt look finished."""
+    document, _ = capture_collection(
+        argv=emit(stdout=b"x\n"), cwd=tmp_path, env=None, timeout=60,
+        phase=CollectionPhase.BASELINE_COLLECTION, subject=committed(),
+        interpreter=sys.executable, sink=sink)
+    directory = tmp_path / "evidence"
+    manifest = directory / document["manifest"]["path"]
+    assert manifest.is_file()
+    assert hashlib.sha256(manifest.read_bytes()).hexdigest() == \
+        document["manifest"]["sha256"]
+    assert manifest.name == DirectorySink.MANIFEST_NAME
+
+
+def test_a_retained_artifact_is_checked_for_size_as_well_as_digest(tmp_path):
+    """A truncated artifact whose prefix coincides is not the artifact."""
+
+    class Truncating(DirectorySink):
+        @staticmethod
+        def _write_new(path, raw):
+            DirectorySink._write_new(path, raw[:-1] if raw else raw)
+
+    with pytest.raises(RetentionFailed, match="bytes, not"):
+        capture_collection(
+            argv=emit(stdout=b"abcdef\n"), cwd=tmp_path, env=None, timeout=60,
+            phase=CollectionPhase.BASELINE_COLLECTION, subject=committed(),
+            interpreter=sys.executable,
+            sink=Truncating(tmp_path / "truncating"))
+
+
+# ---------------------------------------------------------------------------
+# 7. The reader -- added 2026-09-12
+#
+# An in-memory reader cannot qualify filesystem retention. These controls run
+# against a real directory: retrieval, limits, absence, and the root as a
+# boundary.
+#
+# The reader is deliberately narrow -- one read operation. Not list, not
+# delete, not upload, not "latest", not retention. A wider interface would have
+# to be qualified wider.
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def reader_root(tmp_path):
+    root = tmp_path / "evidence"
+    root.mkdir()
+    (root / "a.txt").write_bytes(b"hello\n")
+    (root / "sub").mkdir()
+    (root / "sub" / "b.txt").write_bytes(b"nested\n")
+    (root / "empty").write_bytes(b"")
+    (tmp_path / "outside.txt").write_bytes(b"secret\n")
+    # A SIBLING whose name shares the root's prefix. Containment must be
+    # established by resolved path, never by string prefix: "evidence2" starts
+    # with "evidence" as text while being no descendant of it.
+    (tmp_path / "evidence2").mkdir()
+    (tmp_path / "evidence2" / "c.txt").write_bytes(b"sibling\n")
+    return root
+
+
+def test_the_reader_returns_retained_bytes(reader_root):
+    reader = DirectoryReader(reader_root)
+    assert reader.read("a.txt", max_bytes=64) == b"hello\n"
+    assert reader.read("sub/b.txt", max_bytes=64) == b"nested\n"
+
+
+def test_a_zero_length_artifact_is_legitimate_not_absence(reader_root):
+    """Empty bytes can be a real artifact -- an empty stderr, for instance.
+    Absence must have a separate representation, and it does."""
+    assert DirectoryReader(reader_root).read("empty", max_bytes=64) == b""
+
+
+def test_a_missing_artifact_is_unavailable_not_a_failure(reader_root):
+    with pytest.raises(ArtifactUnavailable, match="no artifact is retained"):
+        DirectoryReader(reader_root).read("nope", max_bytes=64)
+
+
+def test_a_directory_key_is_refused(reader_root):
+    with pytest.raises(ArtifactUnavailable, match="names a directory"):
+        DirectoryReader(reader_root).read("sub", max_bytes=64)
+
+
+def test_the_read_limit_is_enforced(reader_root):
+    reader = DirectoryReader(reader_root)
+    with pytest.raises(ArtifactTooLarge, match="exceeds the"):
+        reader.read("a.txt", max_bytes=3)
+    # AT the boundary, not one byte late.
+    assert reader.read("a.txt", max_bytes=6) == b"hello\n"
+
+
+def test_a_negative_limit_is_refused(reader_root):
+    with pytest.raises(CaptureError, match="nonnegative"):
+        DirectoryReader(reader_root).read("a.txt", max_bytes=-1)
+
+
+#: EXPLICIT IDS. MEASURED 2026-09-12: with generated ids this parametrisation
+#: produced ONE identity containing a backslash --
+#:
+#:     test_the_root_is_the_boundary[sub\\b.txt-a backslash path]
+#:
+#: -- which is exactly the character whose interpretation changed at 07bc7a5.
+#: The PARAMETER VALUES are unchanged, so the coverage is unchanged; only the
+#: identities become parser-independent. Without this, a unit declaring these
+#: tests would carry an identity that two interpretations read differently.
+@pytest.mark.parametrize("key", [
+    pytest.param("../outside.txt", id="parent_traversal"),
+    pytest.param("sub/../../outside.txt", id="traversal_through_a_real_dir"),
+    pytest.param("../evidence2/c.txt", id="sibling_sharing_the_name_prefix"),
+    pytest.param("/etc/passwd", id="absolute_posix_path"),
+    pytest.param("C:/Windows/x", id="drive_letter"),
+    pytest.param("sub\\b.txt", id="backslash_path"),
+    pytest.param("https://example.test/x", id="url"),
+    pytest.param("", id="empty_key"),
+])
+def test_the_root_is_the_boundary(reader_root, key):
+    """Evidence must never nominate a location for the reader to open --
+    the same principle as a manifest never nominating executable code."""
+    with pytest.raises(ArtifactUnavailable):
+        DirectoryReader(reader_root).read(key, max_bytes=64)
+
+
+def test_the_reader_reads_what_the_sink_wrote(tmp_path):
+    """The two halves of retention, exercised against each other."""
+    root = tmp_path / "evidence"
+    sink = DirectorySink(root / "capture")
+    document, _ = capture_collection(
+        argv=emit(stdout=b"t.py::test_a\n"), cwd=tmp_path, env=None,
+        timeout=60, phase=CollectionPhase.BASELINE_COLLECTION,
+        subject=committed(), interpreter=sys.executable, sink=sink)
+    reader = DirectoryReader(root)
+    key = "capture/" + document["manifest"]["path"]
+    raw = reader.read(key, max_bytes=1 << 20)
+    assert hashlib.sha256(raw).hexdigest() == document["manifest"]["sha256"]
+
+
+def test_a_permissions_denial_is_a_failure_not_an_absence(reader_root,
+                                                          monkeypatch):
+    """The distinction the gate failure nearly destroyed.
+
+    MEASURED 2026-09-12: opening a directory raises IsADirectoryError on POSIX
+    and PermissionError on Windows. Catching PermissionError to fix that would
+    have mapped a REAL denial onto "names a directory". The directory case is
+    now TESTED rather than inferred, and a denial stays a retrieval FAILURE.
+
+    monkeypatch is used because a denial cannot be produced portably: a
+    read-only file is still readable, and a process running as root ignores the
+    mode entirely.
+    """
+    reader = DirectoryReader(reader_root)
+    real_open = Path.open
+
+    def denied(self, *args, **kwargs):
+        if self.name == "a.txt":
+            raise PermissionError(13, "Permission denied")
+        return real_open(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", denied)
+    with pytest.raises(CaptureError, match="could not be read"):
+        reader.read("a.txt", max_bytes=64)
+    # And it is NOT the unavailable family, which would mean absence.
+    monkeypatch.setattr(Path, "open", denied)
+    try:
+        reader.read("a.txt", max_bytes=64)
+    except ArtifactUnavailable:                      # pragma: no cover
+        pytest.fail("a permissions denial must not be reported as absence")
+    except CaptureError:
+        pass

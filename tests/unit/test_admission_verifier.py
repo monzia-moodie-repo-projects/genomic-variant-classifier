@@ -19,6 +19,7 @@ this tier is `test_a_real_process_KILL_is_recoverable`.
 """
 from __future__ import annotations
 
+import sys
 import copy
 import hashlib
 import json
@@ -31,9 +32,24 @@ import pytest
 from genomic_variant_classifier.operations import evidence_validator
 from genomic_variant_classifier.operations.admission_verifier import (
     AdmissionError, BindingError, load_bound, observed_effects,
-    require_acceptance, require_dependency_bindings,
+    CollectionEvidenceUnavailable,
+    SuiteExpectation,
+    SuiteObservation,
+    require_acceptance,
+    require_observation_binding, require_dependency_bindings,
     require_manifest_citation_agreement, require_sole_parent,
     verify_transition)
+from genomic_variant_classifier.operations.admission_verifier import (
+    ArtifactRef,
+    CaptureBundle,
+    CollectionEvidenceUnavailable,
+    accept_replayed_operation,
+    require_candidate_alignment,
+)
+from genomic_variant_classifier.operations.collection_capture import (
+    CollectionPhase, DirectorySink, Subject, SubjectKind, capture_collection)
+from genomic_variant_classifier.transactions.suite_transition import (
+    SuiteSnapshot, SuiteTransition, SuiteTransitionKind)
 from genomic_variant_classifier.operations.operation_kind import (
     ARTIFACTS_SUBTREE, MANIFEST_PATH, ClassificationError)
 from genomic_variant_classifier.repository_records import archive_guard
@@ -431,8 +447,70 @@ def test_a_code_changing_candidate_cannot_obtain_maintenance_treatment(
         candidate.run(candidate_commit=commit)
 
 
+
+
+# ---------------------------------------------------------------------------
+# Bound-observation helpers -- added 2026-09-12
+#
+# The three acceptance tests below previously passed `expected_delta=0`. That
+# parameter is gone: MEASURED 2026-09-11 against the previous contract, added
+# ["x::new"] with removed ["x::old"] and delta 0 was ACCEPTED, because the
+# identity transition was reduced to len(added) - len(removed).
+#
+# Migrating them is intentional, not incidental. The positive test now
+# constructs the snapshot evidence it always implied and never carried.
+# ---------------------------------------------------------------------------
+
+_A = "t.py::test_a"
+_B = "t.py::test_b"
+_REPO_ID = "gvc"
+_SCOPE = "tests"
+_INTERPRETATION = "gvc.pytest-text-collection/v1"
+_IMPLEMENTATION = "suite-transition@9d642c0f"
+
+
+def observation(nodeids, *, commit, tree, interpretation=_INTERPRETATION,
+                implementation=_IMPLEMENTATION, raw="raw-output-digest"):
+    """An observation with CLAIMED provenance. Claims, not proof."""
+    return SuiteObservation(
+        snapshot=SuiteSnapshot(list(nodeids)), repository_id=_REPO_ID,
+        commit=commit, tree=tree, scope_digest=_SCOPE,
+        interpretation_id=interpretation, implementation_digest=implementation,
+        raw_output_digest=raw)
+
+
+def expectation(*, commit, tree, interpretation=_INTERPRETATION,
+                implementations=(_IMPLEMENTATION,), suite_digest=""):
+    """What the APPROVED OPERATION requires. Never taken from the evidence."""
+    return SuiteExpectation(
+        repository_id=_REPO_ID, commit=commit, tree=tree, scope_digest=_SCOPE,
+        interpretation_id=interpretation,
+        qualified_implementations=frozenset(implementations),
+        expected_suite_digest=suite_digest)
+
+
+def unchanged_pair(result):
+    """A before and after over the same identities -- a NEUTRAL transition.
+
+    The baseline expectation carries its APPROVED SUITE DIGEST. MEASURED
+    2026-09-12: it was previously omitted, and `expected_suite_digest` defaulted
+    to "" with a conditional check, so the baseline comparison was bypassed
+    entirely. The pin is now mandatory for the baseline role, and this helper
+    supplies it rather than the check being relaxed to accommodate the fixture.
+    """
+    before = observation([_A], commit="0" * 40, tree="0" * 40)
+    after = observation([_A], commit=result.candidate_commit,
+                        tree=result.candidate_tree)
+    return (before, after,
+            expectation(commit="0" * 40, tree="0" * 40,
+                        suite_digest=before.snapshot.digest),
+            expectation(commit=result.candidate_commit,
+                        tree=result.candidate_tree))
+
+
 def test_a_gate_result_for_another_commit_is_refused(candidate):
     result = candidate.run()
+    before, after, before_expected, after_expected = unchanged_pair(result)
     evidence = {"subject": {"candidate_commit": "0" * 40,
                             "candidate_tree": result.candidate_tree},
                 "execution": {"exit_code": 0},
@@ -441,7 +519,11 @@ def test_a_gate_result_for_another_commit_is_refused(candidate):
         require_acceptance(evidence,
                            candidate_commit=result.candidate_commit,
                            candidate_tree=result.candidate_tree,
-                           expected_delta=0)
+                           transition=SuiteTransition(
+                               kind=SuiteTransitionKind.NEUTRAL),
+                           before=before, after=after,
+                           before_expected=before_expected,
+                           after_expected=after_expected)
 
 
 def test_a_gate_result_for_another_tree_is_refused(candidate):
@@ -450,11 +532,16 @@ def test_a_gate_result_for_another_tree_is_refused(candidate):
                             "candidate_tree": "0" * 40},
                 "execution": {"exit_code": 0},
                 "collection": {"added": [], "removed": []}}
+    before, after, before_expected, after_expected = unchanged_pair(result)
     with pytest.raises(BindingError, match="tree"):
         require_acceptance(evidence,
                            candidate_commit=result.candidate_commit,
                            candidate_tree=result.candidate_tree,
-                           expected_delta=0)
+                           transition=SuiteTransition(
+                               kind=SuiteTransitionKind.NEUTRAL),
+                           before=before, after=after,
+                           before_expected=before_expected,
+                           after_expected=after_expected)
 
 
 def test_a_gate_result_naming_this_subject_is_accepted(candidate):
@@ -463,10 +550,18 @@ def test_a_gate_result_naming_this_subject_is_accepted(candidate):
                             "candidate_tree": result.candidate_tree},
                 "execution": {"exit_code": 0},
                 "collection": {"added": [], "removed": []}}
-    assert require_acceptance(
+    before, after, before_expected, after_expected = unchanged_pair(result)
+    record = require_acceptance(
         evidence, candidate_commit=result.candidate_commit,
         candidate_tree=result.candidate_tree,
-        expected_delta=0)["expected_delta"] == 0
+        transition=SuiteTransition(kind=SuiteTransitionKind.NEUTRAL),
+        before=before, after=after,
+        before_expected=before_expected, after_expected=after_expected)
+    # DERIVED from the bound snapshots, not accepted as a claim.
+    assert record["observed_delta"] == 0
+    assert record["added"] == [] and record["removed"] == []
+    assert record["before_digest"] == before.snapshot.digest
+    assert record["after_digest"] == after.snapshot.digest
 
 
 def test_a_wrong_predecessor_is_refused(candidate):
@@ -482,3 +577,153 @@ def test_manifest_citation_agreement_accepts_agreeing_evidence():
     approved = {"REC-" + "a" * 32: {}}
     report = {"derived": {"x.json": {"cited_by": ["1111111"]}}}
     require_manifest_citation_agreement(entries, approved, report)
+
+
+# ---------------------------------------------------------------------------
+# Replay: verify retained bytes and reconstruct the observation -- 2026-09-12
+#
+# `require_acceptance` is an explicitly PARTIAL verifier: it accepts
+# observations it did not produce. `accept_replayed_operation` is the only path
+# whose result can say the verifier re-interpreted the retained evidence.
+#
+# These controls use a REAL capture through the installed sink. A replay tested
+# against hand-built bytes would not establish that the producer's output
+# reaches the verifier.
+# ---------------------------------------------------------------------------
+
+_PREDECESSOR = "1" * 40
+_CANDIDATE = "2" * 40
+_TREE = "3" * 40
+_INTERPRETERS = {_INTERPRETATION: SuiteSnapshot.from_pytest_output}
+
+
+def _retain(tmp_path, sink, nodeids, phase, commit):
+    """Run a real subprocess emitting a collection listing, and retain it."""
+    listing = "\n".join(nodeids) + "\n\n{} tests collected in 0.01s\n".format(
+        len(nodeids))
+    document, _ = capture_collection(
+        argv=[sys.executable, "-c",
+              "import sys;sys.stdout.buffer.write({!r})".format(
+                  listing.encode("utf-8"))],
+        cwd=tmp_path, env=None, timeout=60, phase=phase,
+        subject=Subject(kind=SubjectKind.COMMITTED_TREE, commit=commit),
+        interpreter=sys.executable, sink=sink)
+    root = tmp_path / "capture"
+    bundle = CaptureBundle(
+        manifest_bytes=(root / document["manifest"]["path"]).read_bytes(),
+        stdout_bytes=(root / document["retained"]["stdout_path"]).read_bytes(),
+        stderr_bytes=(root / document["retained"]["stderr_path"]).read_bytes())
+    reference = ArtifactRef(key=document["manifest"]["path"],
+                            sha256=document["manifest"]["sha256"],
+                            size_bytes=document["manifest"]["bytes"])
+    return bundle, reference
+
+
+@pytest.fixture
+def replay(tmp_path):
+    """A real baseline and candidate capture, ready to replay."""
+    sink = DirectorySink(tmp_path / "capture")
+    before = _retain(tmp_path, sink, [_A], CollectionPhase.BASELINE_COLLECTION,
+                     _PREDECESSOR)
+    after = _retain(tmp_path, sink, [_A, _B], CollectionPhase.APPLY_COLLECTION,
+                    _CANDIDATE)
+    return before, after
+
+
+def _accept(replay, **overrides):
+    (before_bundle, before_ref), (after_bundle, after_ref) = replay
+    evidence = {"subject": {"candidate_commit": _CANDIDATE,
+                            "candidate_tree": _TREE},
+                "execution": {"exit_code": 0},
+                "collection": {"added": [_B], "removed": []}}
+    arguments = dict(
+        candidate_commit=_CANDIDATE, candidate_tree=_TREE,
+        transition=SuiteTransition(kind=SuiteTransitionKind.ADDITION,
+                                   expected_added_nodeids=frozenset({_B})),
+        before_bundle=before_bundle, after_bundle=after_bundle,
+        before_manifest_ref=before_ref, after_manifest_ref=after_ref,
+        before_expected=expectation(
+            commit=_PREDECESSOR, tree=_TREE,
+            suite_digest=SuiteSnapshot([_A]).digest),
+        after_expected=expectation(commit=_CANDIDATE, tree=_TREE),
+        interpreters=_INTERPRETERS)
+    arguments.update(overrides)
+    return accept_replayed_operation(evidence, **arguments)
+
+
+def test_a_real_retained_collection_is_replayed_and_accepted(replay):
+    """POSITIVE CONTROL, and the only one here. Every other test is a
+    refusal; a verifier that refused everything would satisfy them all."""
+    record = _accept(replay)
+    assert record["replayed"] is True
+    assert record["added"] == [_B] and record["removed"] == []
+    assert record["observed_delta"] == 1
+    # RECONSTRUCTED from the retained bytes, not supplied alongside them.
+    assert record["before_digest"] == SuiteSnapshot([_A]).digest
+
+
+def test_a_missing_bundle_is_a_named_unavailable_refusal(replay):
+    """Not a fallback to counts. New acceptance stops here."""
+    with pytest.raises(CollectionEvidenceUnavailable,
+                       match="no capture bundle"):
+        _accept(replay, before_bundle=None)
+
+
+def test_a_modified_stream_breaks_the_manifest_binding(replay):
+    (before_bundle, _), _ = replay
+    tampered = CaptureBundle(manifest_bytes=before_bundle.manifest_bytes,
+                             stdout_bytes=before_bundle.stdout_bytes,
+                             stderr_bytes=b"tampered")
+    with pytest.raises(BindingError, match="stderr"):
+        _accept(replay, before_bundle=tampered)
+
+
+def test_another_attempts_manifest_is_refused(replay):
+    """Refused on SIZE before the digest -- a length error must not rely on
+    the hash to notice it. The substitution is refused either way."""
+    _, (_, after_ref) = replay
+    with pytest.raises(BindingError, match="manifest"):
+        _accept(replay, before_manifest_ref=after_ref)
+
+
+def test_a_parsed_manifest_cannot_be_substituted_for_raw_bytes():
+    """A parsed dictionary has already lost its representation: a permissive
+    parser may have discarded duplicate keys before admission saw them."""
+    with pytest.raises(BindingError, match="must be bytes"):
+        CaptureBundle(manifest_bytes={"schema": "gvc.collection-capture"},
+                      stdout_bytes=b"", stderr_bytes=b"")
+
+
+def test_a_baseline_capture_cannot_fill_the_candidate_role(replay):
+    """A phase is a role, not a label. The baseline bundle carries a
+    predecessor commit; that does not make it candidate evidence."""
+    (before_bundle, before_ref), _ = replay
+    with pytest.raises(BindingError, match="phase"):
+        _accept(replay, after_bundle=before_bundle,
+                after_manifest_ref=before_ref,
+                after_expected=expectation(commit=_PREDECESSOR, tree=_TREE))
+
+
+def test_a_baseline_without_its_approved_pin_is_refused(replay):
+    with pytest.raises(BindingError, match="full suite SHA-256"):
+        _accept(replay, before_expected=expectation(commit=_PREDECESSOR,
+                                                    tree=_TREE))
+
+
+def test_candidate_alignment_is_exercised_where_it_actually_fires():
+    """RECORDED AS REACHABILITY.
+
+    MEASURED 2026-09-12: through accept_replayed_operation, a mismatched
+    after-expectation is refused during REPLAY on the commit, before
+    require_candidate_alignment runs. Asserting that the composed path
+    exercises this check would claim coverage the structure does not provide.
+    It is therefore exercised directly, where it does fire.
+    """
+    with pytest.raises(BindingError, match="names candidate"):
+        require_candidate_alignment(
+            candidate_commit=_CANDIDATE, candidate_tree=_TREE,
+            after_expected=expectation(commit="9" * 40, tree=_TREE))
+    with pytest.raises(BindingError, match="names tree"):
+        require_candidate_alignment(
+            candidate_commit=_CANDIDATE, candidate_tree=_TREE,
+            after_expected=expectation(commit=_CANDIDATE, tree="9" * 40))

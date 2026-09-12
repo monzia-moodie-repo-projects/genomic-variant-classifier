@@ -52,6 +52,7 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
+from uuid import uuid4
 
 #: The decoding procedure this capture DECLARES. Named, not assumed.
 #:
@@ -181,39 +182,103 @@ class CaptureRecord:
 
 
 class DirectorySink:
-    """Retain bytes on disk, then publish. Never the other way round.
+    """Retain bytes under a UNIQUE attempt location. Never overwrite.
 
-    Publication happens ONLY after both streams are written AND re-read and
-    verified against their digests. A record naming bytes that were not stored
-    would be the same defect as a pin that is never compared.
+    MEASURED 2026-09-12 against the version installed at d181e739: two captures
+    with the same phase and IDENTICAL STDOUT but different stderr resolved to
+    one stem --
+
+        same retained stdout path : True
+        same retained stderr path : True
+        first attempt's stderr file now contains: b'second\n'
+        first attempt's evidence still matches   : False
+
+    -- because the stem was `phase-stdout_sha256[:16]` and every write
+    overwrote. No SHA-256 collision is involved: identical stdout across
+    repeated collection is ORDINARY, and a baseline collected twice produces
+    it. The reread check established retention AT THAT PUBLICATION and did
+    nothing about the next one.
+
+    CONTENT DIGESTS IDENTIFY ARTIFACTS; ATTEMPT IDENTIFIERS DISTINGUISH
+    EXECUTIONS. Conflating them is what made an earlier attempt's evidence
+    disappear.
+
+    The manifest is written LAST, with exclusive creation, so an interrupted
+    attempt is visibly incomplete rather than silently partial. Exclusive
+    creation is not crash durability, and this class does not claim it.
     """
+
+    #: The manifest name. Its ABSENCE is how a reader determines that an
+    #: attempt did not complete.
+    MANIFEST_NAME = "capture.json"
 
     def __init__(self, root) -> None:
         self.root = Path(root)
 
+    def _allocate_attempt(self) -> Path:
+        """A directory no previous attempt can be using."""
+        self.root.mkdir(parents=True, exist_ok=True)
+        for _ in range(8):
+            attempt = self.root / uuid4().hex
+            try:
+                attempt.mkdir()
+            except FileExistsError:               # pragma: no cover - improbable
+                continue
+            return attempt
+        raise RetentionFailed(
+            "could not allocate a unique attempt directory under {}".format(
+                self.root))
+
+    @staticmethod
+    def _write_new(path: Path, raw: bytes) -> None:
+        """Create, never replace. An existing artifact is a refusal."""
+        try:
+            with path.open("xb") as stream:
+                stream.write(raw)
+        except FileExistsError as exc:
+            raise RetentionFailed(
+                "{} already exists; an attempt may not overwrite retained "
+                "evidence".format(path.name)) from exc
+
     def publish_completed(self, record: CaptureRecord,
                           stdout: bytes, stderr: bytes) -> dict:
         try:
-            self.root.mkdir(parents=True, exist_ok=True)
-            stem = "{}-{}".format(record.phase.value, record.stdout_sha256[:16])
-            out_path = self.root / "{}.stdout".format(stem)
-            err_path = self.root / "{}.stderr".format(stem)
-            out_path.write_bytes(stdout)
-            err_path.write_bytes(stderr)
-            # RE-READ. Writing is not retaining.
-            if hashlib.sha256(out_path.read_bytes()).hexdigest() != \
-                    record.stdout_sha256:
-                raise RetentionFailed("retained stdout does not match its digest")
-            if hashlib.sha256(err_path.read_bytes()).hexdigest() != \
-                    record.stderr_sha256:
-                raise RetentionFailed("retained stderr does not match its digest")
+            attempt = self._allocate_attempt()
+            out_path = attempt / "stdout"
+            err_path = attempt / "stderr"
+            self._write_new(out_path, stdout)
+            self._write_new(err_path, stderr)
+            # RE-READ. Writing is not retaining. SIZE as well as digest: a
+            # truncated artifact with a coincidentally matching prefix is not
+            # the artifact.
+            for path, digest, size, label in (
+                    (out_path, record.stdout_sha256, record.stdout_bytes,
+                     "stdout"),
+                    (err_path, record.stderr_sha256, record.stderr_bytes,
+                     "stderr")):
+                retained = path.read_bytes()
+                if len(retained) != size:
+                    raise RetentionFailed(
+                        "retained {} is {} bytes, not {}".format(
+                            label, len(retained), size))
+                if hashlib.sha256(retained).hexdigest() != digest:
+                    raise RetentionFailed(
+                        "retained {} does not match its digest".format(label))
             document = record.as_document()
-            document["retained"] = {"stdout_path": out_path.name,
-                                    "stderr_path": err_path.name}
+            document["attempt_id"] = attempt.name
+            document["retained"] = {"attempt_id": attempt.name,
+                                    "stdout_path": "{}/stdout".format(
+                                        attempt.name),
+                                    "stderr_path": "{}/stderr".format(
+                                        attempt.name)}
             raw = (json.dumps(document, indent=2, sort_keys=True,
                               ensure_ascii=True) + "\n").encode("utf-8")
-            rec_path = self.root / "{}.json".format(stem)
-            rec_path.write_bytes(raw)
+            # THE MANIFEST LAST. Its absence marks an incomplete attempt.
+            self._write_new(attempt / self.MANIFEST_NAME, raw)
+            document["manifest"] = {
+                "path": "{}/{}".format(attempt.name, self.MANIFEST_NAME),
+                "sha256": hashlib.sha256(raw).hexdigest(),
+                "bytes": len(raw)}
         except RetentionFailed:
             raise
         except OSError as exc:
@@ -221,6 +286,108 @@ class DirectorySink:
                 "collection evidence could not be retained: {}".format(
                     exc)) from exc
         return document
+
+
+class ArtifactUnavailable(CaptureError):
+    """The named artifact could not be retrieved. DISTINCT FROM a failure.
+
+    A caller must be able to tell "this reference names nothing" from "the
+    store could not answer just now". Collapsing them would make a permissions
+    failure indistinguishable from historically absent evidence.
+    """
+
+    code = "COLLECTION_ARTIFACT_UNAVAILABLE"
+
+
+class ArtifactTooLarge(CaptureError):
+    """The artifact exceeds the caller's limit. Detected WHILE reading."""
+
+    code = "COLLECTION_ARTIFACT_TOO_LARGE"
+
+
+class DirectoryReader:
+    """Read retained artifacts by KEY, rooted in one configured location.
+
+    Deliberately narrow: one read operation. Not list, not delete, not upload,
+    not "latest", not retention. A wider interface would have to be qualified
+    wider.
+
+    A key is a relative POSIX path under the root. Absolute paths, drive
+    letters, URLs and parent traversal are REFUSED -- evidence must never
+    nominate a location for the reader to open. This is the same principle as
+    the manifest never nominating executable code.
+    """
+
+    def __init__(self, root) -> None:
+        self.root = Path(root).resolve()
+
+    def _resolve(self, key: str) -> Path:
+        if type(key) is not str or not key:
+            raise ArtifactUnavailable("an artifact key must be a non-empty "
+                                      "string, not {!r}".format(key))
+        if key.startswith(("/", "\\")) or ":" in key or "\\" in key:
+            raise ArtifactUnavailable(
+                "{!r} is not a relative POSIX artifact key".format(key))
+        parts = [p for p in key.split("/") if p]
+        if any(p == ".." for p in parts) or not parts:
+            raise ArtifactUnavailable(
+                "{!r} escapes the evidence root".format(key))
+        candidate = self.root.joinpath(*parts)
+        # Containment by RESOLVED path, never by string prefix: "evidence2"
+        # starts with "evidence" as text while being no descendant of it.
+        try:
+            resolved = candidate.resolve()
+        except OSError as exc:                    # pragma: no cover - platform
+            raise ArtifactUnavailable(
+                "{!r} could not be resolved: {}".format(key, exc)) from exc
+        if resolved != self.root and self.root not in resolved.parents:
+            raise ArtifactUnavailable(
+                "{!r} resolves outside the evidence root".format(key))
+        return resolved
+
+    def read(self, key: str, *, max_bytes: int) -> bytes:
+        """Return the artifact's bytes, or refuse.
+
+        The limit is enforced WHILE reading, not after allocating the whole
+        object: reading it first and then complaining about its size would
+        already have spent the memory the limit exists to bound.
+        """
+        if type(max_bytes) is not int or type(max_bytes) is bool or \
+                max_bytes < 0:
+            raise CaptureError(
+                "max_bytes must be a nonnegative integer, not "
+                "{!r}".format(max_bytes))
+        path = self._resolve(key)
+        # THE CONDITION IS TESTED, NOT INFERRED FROM AN ERRNO.
+        #
+        # MEASURED 2026-09-12 at the acceptance gate: opening a directory
+        # raises IsADirectoryError on POSIX and PermissionError [Errno 13] on
+        # Windows. Two platforms, two exception types, one condition -- and
+        # catching PermissionError as well would map a REAL permissions denial
+        # onto "names a directory", collapsing the distinction between absence,
+        # failure and a malformed reference.
+        if path.is_dir():
+            raise ArtifactUnavailable(
+                "{!r} names a directory, not an artifact".format(key))
+        try:
+            with path.open("rb") as stream:
+                raw = stream.read(max_bytes + 1)
+        except FileNotFoundError as exc:
+            raise ArtifactUnavailable(
+                "no artifact is retained at {!r}".format(key)) from exc
+        except IsADirectoryError as exc:                # pragma: no cover
+            # Unreachable through the check above; retained because a race
+            # between the test and the open is possible.
+            raise ArtifactUnavailable(
+                "{!r} names a directory, not an artifact".format(key)) from exc
+        except OSError as exc:
+            # A retrieval FAILURE, not an absence. Potentially retryable.
+            raise CaptureError(
+                "{!r} could not be read: {}".format(key, exc)) from exc
+        if len(raw) > max_bytes:
+            raise ArtifactTooLarge(
+                "{!r} exceeds the {}-byte limit".format(key, max_bytes))
+        return raw
 
 
 def capture_collection(*, argv, cwd, env, timeout, phase, subject,
