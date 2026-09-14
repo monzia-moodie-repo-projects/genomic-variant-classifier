@@ -200,6 +200,10 @@ def test_run_persists_through_the_store_when_not_dry_run(store, monkeypatch):
     monkeypatch.setattr(vm, "_check_python", lambda: {})
     monkeypatch.setattr(vm, "_check_dependencies", lambda: {})
     monkeypatch.setattr(vm, "_check_pyg_abi", lambda: {})
+    # ADDED 2026-09-14 with the gnomAD watch target. Targets are silenced BY
+    # NAME, so every new one must appear here or it executes for real and
+    # makes a live HTTP request inside a unit test.
+    monkeypatch.setattr(vm, "_check_gnomad_release", lambda: {})
     out = vm.run(dry_run=False)
     assert "literature_scout.last_run" in out
     assert store.load().values["literature_scout.last_run"] == \
@@ -209,7 +213,8 @@ def test_run_persists_through_the_store_when_not_dry_run(store, monkeypatch):
 def test_run_with_dry_run_writes_NOTHING(store, monkeypatch):
     for n in ("_check_pykan", "_check_clinvar_schema", "_check_alphamissense",
               "_check_torch_geometric", "_check_python", "_check_dependencies",
-              "_check_pyg_abi"):
+              # ADDED 2026-09-14 -- see the note in the test above.
+              "_check_pyg_abi", "_check_gnomad_release"):
         monkeypatch.setattr(vm, n, lambda: {})
     vm.run(dry_run=True)
     assert not store.path.exists(), "dry_run wrote to the store"

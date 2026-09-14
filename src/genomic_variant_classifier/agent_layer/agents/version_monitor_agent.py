@@ -445,6 +445,152 @@ def _check_pyg_abi() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Main agent entry point
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Watch target 8: gnomAD release directories
+#
+# PROMISED IN THE MODULE DOCSTRING SINCE THE FILE WAS WRITTEN -- "3. gnomAD,
+# watch for v4.2+ constraint metrics column changes" -- and never implemented.
+# run() dispatches its targets as a hand-written sequence, not a registry, so a
+# documented target can simply never be written into it. MEASURED 2026-09-14:
+# gnomAD v4.1.1 was released 2026-03-30; VersionMonitorAgent RAN on 2026-06-20,
+# 82 days later, and recorded status "ok".
+#
+# WHY THIS DOES NOT COPY _check_alphamissense
+# ===========================================
+# AlphaMissense publishes ONE STABLE URL and a new version REPLACES the object,
+# so its ETag changes and a HEAD request detects it.
+#
+# gnomAD publishes each release at a NEW PATH:
+#
+#     release/4.1/constraint/gnomad.v4.1.constraint_metrics.tsv.bgz
+#     release/4.1.1/constraint/gnomad.v4.1.1.constraint_metrics.tsv.bgz
+#
+# The v4.1 object was NOT modified when v4.1.1 appeared. A HEAD watch on the
+# v4.1 URL reports an unchanged ETag forever. Copying that pattern would have
+# produced a target that runs, reports no alert, and is STRUCTURALLY INCAPABLE
+# of detecting the release it was written for.
+#
+# A new release directory IS the release, so this enumerates them.
+#
+# MEASURED 2026-09-14 against the live endpoint, which is reachable and
+# anonymous:
+#
+#     release/2.1.1/  release/2.1/  release/3.0.1/  release/3.0/
+#     release/3.1.1/  release/3.1.2/  release/3.1.3/  release/3.1/
+#     release/4.0/    release/4.1.1/  release/4.1/    release/v4.0/
+#
+# Note release/v4.0/ alongside release/4.0/ -- a "v" prefix on ONE entry. A
+# naive numeric parse raises on it and a naive sort misplaces it, so the
+# normaliser below strips a leading "v" and the parser SKIPS anything it cannot
+# read as a dotted numeric version rather than guessing at it.
+# ---------------------------------------------------------------------------
+GNOMAD_RELEASE_LISTING_URL = (
+    "https://storage.googleapis.com/storage/v1/b/gcp-public-data--gnomad/o"
+    "?prefix=release/&delimiter=/&fields=prefixes"
+)
+
+#: The release this project is built against. MEASURED 2026-09-14 from the
+#: installed source: connector_gnomad_constraint.py:125 pins
+#: data/external/gnomad/gnomad.v4.1.constraint_metrics.tsv, and
+#: monitoring/registry.py records "v4.1" for two entries.
+#:
+#: DECLARED, not discovered. An alert compares what the bucket offers against
+#: what this project SAYS it uses -- so a fresh deployment with no stored state
+#: still alerts, which an ETag comparison cannot do (its first run has nothing
+#: to compare against and is silent by construction).
+GNOMAD_EXPECTED_VERSION = "4.1"
+
+
+def _parse_release_version(prefix: str):
+    """('release/4.1.1/') -> (4, 1, 1). None if it is not a numeric version.
+
+    Returns a tuple so ordinary tuple comparison orders releases correctly:
+    (4, 1, 1) > (4, 1) and (4, 1) > (4, 0). Lexicographic string comparison
+    does not -- "4.1.1" < "4.1" is False but "4.10" < "4.9" is True, and this
+    bucket will eventually have a 4.10.
+
+    A leading "v" is stripped: the bucket holds BOTH release/4.0/ and
+    release/v4.0/, measured 2026-09-14. Anything else unparseable returns None
+    and is reported as unrecognised rather than silently dropped.
+    """
+    name = prefix.strip("/").split("/")[-1]
+    if name.startswith("v"):
+        name = name[1:]
+    if not name:
+        return None
+    parts = name.split(".")
+    try:
+        return tuple(int(p) for p in parts)
+    except ValueError:
+        return None
+
+
+def _check_gnomad_release() -> dict[str, Any]:
+    """Enumerate gnomAD release directories; alert on any newer than expected.
+
+    A FAILED CHECK IS NOT A CLEAN CHECK. The exception branch records
+    check_failed, exactly as the other targets do, so an unreachable endpoint
+    is never reported as "no new release".
+    """
+    updates: dict[str, Any] = {}
+    expected = _parse_release_version(GNOMAD_EXPECTED_VERSION)
+
+    try:
+        req = urllib.request.Request(GNOMAD_RELEASE_LISTING_URL, method="GET")
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+        prefixes = payload.get("prefixes") or []
+
+        parsed = []
+        unrecognised = []
+        for p in prefixes:
+            v = _parse_release_version(p)
+            if v is None:
+                unrecognised.append(p)
+            else:
+                parsed.append((v, p))
+
+        updates["literature_scout.gnomad_release_count"] = len(prefixes)
+        updates["literature_scout.gnomad_unrecognised"] = unrecognised
+
+        if not parsed:
+            msg = (
+                "gnomAD release listing returned {} prefix(es) and NONE parsed "
+                "as a version: {}. The listing format may have changed."
+                .format(len(prefixes), prefixes[:5])
+            )
+            logger.warning(msg)
+            updates["literature_scout.gnomad_alert"] = msg
+            return updates
+
+        latest_v, latest_p = max(parsed)
+        latest = ".".join(str(x) for x in latest_v)
+        updates["literature_scout.gnomad_latest_tag"] = latest
+        updates["literature_scout.gnomad_expected"] = GNOMAD_EXPECTED_VERSION
+
+        newer = sorted(v for v, _ in parsed if expected is not None and v > expected)
+        if newer:
+            names = ", ".join(".".join(str(x) for x in v) for v in newer)
+            msg = (
+                "gnomAD {} release(s) newer than the pinned {} are available: "
+                "{}. Latest is {} at {}. The constraint metrics are re-issued "
+                "per release, so pLI and LOEUF may change; re-download and "
+                "re-qualify before relying on them."
+                .format(len(newer), GNOMAD_EXPECTED_VERSION, names,
+                        latest, latest_p)
+            )
+            logger.warning(msg)
+            updates["literature_scout.gnomad_alert"] = msg
+        else:
+            updates["literature_scout.gnomad_alert"] = ""
+
+    except Exception as exc:
+        logger.debug("gnomAD release check failed: %s", exc)
+        updates["literature_scout.gnomad_alert"] = "check_failed: {}".format(exc)
+
+    return updates
+
+
 def run(*, dry_run: bool = False) -> dict[str, Any]:
     """
     Run all watch targets and persist results to SharedState.
@@ -518,6 +664,12 @@ def run(*, dry_run: bool = False) -> dict[str, Any]:
     if abi_updates.get("literature_scout.pyg_abi_alert"):
         alerts.append(f"[PyG-ABI] {abi_updates['literature_scout.pyg_abi_alert']}")
 
+    # gnomAD release directories
+    gnomad_updates = _check_gnomad_release()
+    all_updates.update(gnomad_updates)
+    if gnomad_updates.get("literature_scout.gnomad_alert"):
+        alerts.append(f"[gnomAD] {gnomad_updates['literature_scout.gnomad_alert']}")
+
     all_updates["literature_scout.alerts"] = alerts
 
     if alerts:
@@ -542,7 +694,14 @@ _run_watch_targets = run  # module-level watch-target orchestrator (aliased befo
 
 
 class VersionMonitorAgent(BaseAgent):
-    """Upstream-release monitor: pykan / ClinVar / AlphaMissense / torch-geometric.
+    """Upstream-release monitor for every target run() dispatches.
+
+    pykan, ClinVar schema, AlphaMissense, torch-geometric, Python end-of-life,
+    all installed dependencies, PyTorch Geometric companion ABI, and gnomAD
+    release directories -- EIGHT, not the four an earlier version of this line
+    named. MEASURED 2026-09-14: run() dispatched seven while this docstring
+    said four and the module docstring promised gnomAD as target 3, which was
+    never implemented. Three descriptions of one agent, none matching.
 
     Distinct from InfrastructureDriftAgent (which diffs *installed* package versions):
     this watches for *new upstream releases*. BaseAgent adapter over the module-level
@@ -553,8 +712,15 @@ class VersionMonitorAgent(BaseAgent):
         self._log_start(dry_run)
         updates = _run_watch_targets(dry_run=dry_run)
         alerts = updates.get("literature_scout.alerts", [])
+        # DERIVED, never asserted. This read "ok" as a LITERAL, set whether or
+        # not any target succeeded, and check_agents_active.py reported that
+        # constant back as the agent's health. A target that could not reach its
+        # endpoint records "check_failed: ..." in its own alert; that is a
+        # DEGRADED run, not an ok one.
+        _failed = [a for a in alerts if "check_failed" in a]
         result = {
-            "status": "ok",
+            "status": "degraded" if _failed else "ok",
+            "n_checks_failed": len(_failed),
             "n_alerts": len(alerts),
             "alerts": alerts,
             "pykan_installed": updates.get("literature_scout.pykan_installed"),
