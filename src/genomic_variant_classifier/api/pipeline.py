@@ -254,8 +254,23 @@ class InferencePipeline:
         ----------
         variant : dict
             Raw variant fields.  At minimum supply chrom, pos, ref, alt.
-            All other fields default to population-median values when absent
-            (see engineer_features() in src/genomic_variant_classifier/models/variant_ensemble.py).
+
+            An absent field does NOT receive a population median. It receives
+            a FIXED CONSTANT chosen per feature by engineer_features (see
+            src/genomic_variant_classifier/models/variant_ensemble.py):
+            allele_freq 0.0, ref and alt "A", finngen_enrichment 1.0, and so
+            on. MEASURED 2026-09-14: an absent allele_freq becomes af_raw 0.0,
+            af_log10 -8.0 and af_is_absent 1 -- indistinguishable from an
+            OBSERVED frequency of exactly zero.
+
+            Training-fold medians enter only through the fitted
+            missing-value policy (PIPELINE-FILL-1, _apply_missing_value_policy
+            below), which imputes columns that are PRESENT WITH NaN. It does
+            not act on fields absent from the input, and it does not act at
+            all on a legacy artefact carrying no preprocessor_.
+
+            Supply every field whose value matters. A constant is a fabricated
+            measurement, not a neutral one.
 
         Returns
         -------
