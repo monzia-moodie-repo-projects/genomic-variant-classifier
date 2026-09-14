@@ -82,6 +82,23 @@ def parse_args(argv=None):
     p.add_argument("--eve-path", default=None)
     p.add_argument("--eve-entry-map", default=None)
     p.add_argument("--min-review-tier", type=int, default=3)
+    p.add_argument(
+        "--no-scale-features",
+        action="store_true",
+        help=(
+            "Write the feature matrices WITHOUT standardisation. "
+            "DataPrepConfig.scale_features defaults to True and this driver "
+            "did not expose it, so every prep-only run so far has written "
+            "STANDARDIZED matrices: a column named gnomad_af holds z-scores "
+            "fitted on the TRAINING partition, not allele frequencies. "
+            "MEASURED in real_data_prep.py: _scale runs at line 502 and "
+            "_save_splits at 504, so the saved splits are post-scaling, and "
+            "NEITHER the original matrices NOR the fitted scaler is "
+            "persisted by that path. Pass this flag to obtain a parent whose "
+            "values carry their source meaning, and fit learned preprocessing "
+            "inside each experiment's own fitting boundary instead."
+        ),
+    )
     p.add_argument("--output", default="outputs/run17_prepcheck/full")
     p.add_argument("--run-protein-esm2", action="store_true",
                    help="GPU-ONLY: run the real ProteinStructure + ESM-2 forward passes "
@@ -186,12 +203,19 @@ def main(argv=None) -> int:
         config=DataPrepConfig(
             min_review_tier=args.min_review_tier,
             output_dir=outdir / "splits",
+            scale_features=not args.no_scale_features,
         ),
         annotation_config=ann,
     )
 
     print(f"[regen] prep-only run -> splits at {(outdir / 'splits').resolve()}")
     print(f"[regen] clinvar={clinvar}  min_review_tier={args.min_review_tier}")
+    # RECORD THE EFFECTIVE VALUE, not the flag. A reader of this transcript
+    # must be able to tell whether the saved matrices are standardized without
+    # reconstructing the argument parsing.
+    print(f"[regen] scale_features={not args.no_scale_features}  "
+          f"(saved matrices are "
+          f"{'STANDARDIZED' if not args.no_scale_features else 'SEMANTIC -- unscaled'})")
     for label, val in [("gnomad", args.gnomad), ("spliceai", args.spliceai),
                        ("alphamissense", args.alphamissense), ("dbnsfp", args.dbnsfp_path),
                        ("gtex", args.gtex_path), ("reactome", args.reactome_path),
