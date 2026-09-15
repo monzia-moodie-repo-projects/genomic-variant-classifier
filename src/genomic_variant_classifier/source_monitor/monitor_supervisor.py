@@ -81,6 +81,7 @@ class SupervisorFinding(str, Enum):
     TARGET_UNDECLARED = "supervisor.target_undeclared"
     DUPLICATE_RESULT = "supervisor.duplicate_result"
     NO_REQUIRED_TARGETS = "supervisor.no_required_targets"
+    DUPLICATE_REQUIRED = "supervisor.duplicate_required_target"
     RESULT_MALFORMED = "supervisor.result_malformed"
 
 
@@ -194,6 +195,15 @@ def supervise(required_targets, results) -> RunReport:
     if not required:
         # A policy requiring nothing cannot fail, so it cannot report.
         supervisor_findings.append(SupervisorFinding.NO_REQUIRED_TARGETS.value)
+    if len(set(required)) != len(required):
+        # MEASURED 2026-09-15: supervise(("a","a"), [one result]) returned
+        # EXIT 0 with no findings. The obligation set silently shrank from two
+        # to one while reporting success.
+        #
+        # run_monitor.validate_configuration refuses a duplicated policy, but a
+        # caller that does not go through the runner had no protection. The
+        # guard belongs where the INVARIANT lives, not only in one caller.
+        supervisor_findings.append(SupervisorFinding.DUPLICATE_REQUIRED.value)
 
     seen = {}
     ordered = []

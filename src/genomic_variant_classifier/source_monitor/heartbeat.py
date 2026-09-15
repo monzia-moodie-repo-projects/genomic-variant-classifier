@@ -64,6 +64,7 @@ from __future__ import annotations
 
 import urllib.request
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 
 #: How long to wait for the heartbeat service. Deliberately short: this is a
@@ -113,13 +114,45 @@ def signal_outcome(base_url, exit_code: int) -> SignalOutcome:
     return _send(base_url, "" if exit_code in (0, 1) else "/fail")
 
 
+#: MEASURED 2026-09-15: `file:///etc/passwd` was ACCEPTED. urllib handles
+#: file:// URLs, so a misconfigured endpoint made the heartbeat READ FROM DISK
+#: and report a delivery. A POST to a file:// URL is nonsense and nothing
+#: refused it.
+#:
+#: `http` is refused rather than silently allowed: the URL is a BEARER
+#: CAPABILITY, and signalling over plaintext leaks it to anyone on the path.
+ALLOWED_SCHEMES = ("https",)
+
+
 def _send(base_url, suffix: str) -> SignalOutcome:
     if not base_url:
         # NOT an error. An unconfigured heartbeat is a deployment state, and
         # the report says so rather than pretending a signal was sent.
         return SignalOutcome(False, False, False,
                              "no heartbeat endpoint configured")
-    url = str(base_url).rstrip("/") + suffix
+    if type(base_url) is not str:
+        # Letting urllib raise about a string IT constructed hides the real
+        # fault, which is that configuration supplied the wrong type.
+        return SignalOutcome(False, False, True,
+                             "endpoint is {}, not a string".format(
+                                 type(base_url).__name__))
+    parts = urlsplit(base_url)
+    if parts.scheme not in ALLOWED_SCHEMES:
+        return SignalOutcome(False, False, True,
+                             "endpoint scheme {!r} is not permitted; "
+                             "expected one of {}".format(parts.scheme,
+                                                         list(ALLOWED_SCHEMES)))
+    if parts.query or parts.fragment or "#" in base_url:
+        # MEASURED 2026-09-15: "https://h/tok?x=1" became
+        # "https://h/tok?x=1/fail" -- the suffix appended AFTER the query,
+        # producing a URL the operator never wrote. A 404 from that would be
+        # recorded as "not delivered" rather than "this endpoint is malformed".
+        return SignalOutcome(False, False, True,
+                             "endpoint carries a query or fragment; the "
+                             "signal suffix would corrupt it")
+    if not parts.netloc:
+        return SignalOutcome(False, False, True, "endpoint has no host")
+    url = base_url.rstrip("/") + suffix
     try:
         req = urllib.request.Request(url, method="POST", data=b"")
         with urllib.request.urlopen(req, timeout=SIGNAL_TIMEOUT_SECONDS) as resp:

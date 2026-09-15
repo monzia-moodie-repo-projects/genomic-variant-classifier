@@ -562,6 +562,90 @@ def test_a_duplicated_required_target_is_refused(monkeypatch):
         rm.validate_configuration()
 
 
+def _reasons_emitted_by(module, exclude_assignment=None):
+    """Every Reason.X referenced in a module's source.
+
+    DERIVED, not hand-listed. MEASURED 2026-09-15: a hand-enumerated control
+    covered the ADAPTER's codes and passed while SIX codes the verifier can
+    emit were unpermitted -- five of its ten refusal paths would have crashed
+    the reporting path the first time they fired.
+
+    `exclude_assignment` skips a named module-level assignment, so the profile
+    DECLARATION does not count as an emission.
+    """
+    import ast as _ast
+    import inspect
+
+    tree = _ast.parse(inspect.getsource(module))
+    skip = set()
+    if exclude_assignment:
+        for node in tree.body:
+            if isinstance(node, _ast.Assign) and any(
+                    getattr(t, "id", None) == exclude_assignment
+                    for t in node.targets):
+                skip = set(range(node.lineno, node.end_lineno + 1))
+    names = {
+        node.attr
+        for node in _ast.walk(tree)
+        if isinstance(node, _ast.Attribute)
+        and isinstance(node.value, _ast.Name)
+        and node.value.id == "Reason"
+        and node.lineno not in skip
+    }
+    assert names, "the extractor found no Reason references -- it is broken"
+    return {getattr(Reason, n).value for n in names}
+
+
+@pytest.mark.parametrize("producer", [
+    pytest.param("verifier", id="request_verifier"),
+    pytest.param("adapter", id="gnomad_release_check"),
+    pytest.param("runner", id="run_monitor"),
+])
+def test_the_profile_permits_every_reason_EACH_PRODUCER_can_emit(producer):
+    """THREE producers emit reason codes: the adapter, the verifier and the
+    runner. MEASURED 2026-09-15: the control covered the adapter only, then
+    the adapter and the verifier. The runner's own codes -- it emits
+    RESPONSE_UNEXPECTED_SHAPE for an unhandled check fault -- were never
+    checked by anything."""
+    from genomic_variant_classifier.source_monitor import request_verifier as rv
+    module, exclude = {
+        "verifier": (rv, None),
+        "adapter": (grc, None),
+        "runner": (rm, "RELEASE_PROFILE"),
+    }[producer]
+    emitted = _reasons_emitted_by(module, exclude)
+    missing = sorted(emitted - set(rm.RELEASE_PROFILE.allowed_codes))
+    assert missing == [], missing
+
+
+def test_the_runtime_profile_permits_every_reason_the_VERIFIER_can_emit():
+    """MEASURED 2026-09-15: EVIDENCE_CAPTURE_SEQUENCE_INVALID was added to the
+    shared catalog and never to allowed_codes. The producer gate refused it on
+    the first run after the runner stopped flattening plan findings -- and
+    while the flattening was in place the omission was INVISIBLE.
+
+    The enumeration below is derived from the verifier's SOURCE rather than
+    hand-listed, so a new plan-finding code cannot be forgotten the way this
+    one was."""
+    import ast as _ast
+    import inspect
+    from genomic_variant_classifier.source_monitor import request_verifier as rv
+
+    tree = _ast.parse(inspect.getsource(rv))
+    emitted = {
+        node.attr
+        for node in _ast.walk(tree)
+        if isinstance(node, _ast.Attribute)
+        and isinstance(node.value, _ast.Name)
+        and node.value.id == "Reason"
+    }
+    assert emitted, "the extractor found no Reason references -- it is broken"
+    missing = sorted(
+        getattr(Reason, name).value for name in emitted
+        if getattr(Reason, name).value not in rm.RELEASE_PROFILE.allowed_codes)
+    assert missing == [], missing
+
+
 def test_the_runtime_profile_permits_every_reason_the_check_can_emit():
     """MEASURED: the check emitted TRAVERSAL_TOKEN_CYCLE while the runner's
     profile forbade it, so a recognized source defect crashed the reporting
@@ -673,3 +757,372 @@ def test_the_default_store_is_outside_any_checkout(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     assert rm.default_store_path() == rm.default_store_path()
     assert not str(rm.default_store_path()).startswith(str(tmp_path))
+
+
+def test_main_runs_with_NO_store_argument(monkeypatch, tmp_path):
+    """MEASURED 2026-09-15, the first run of the INSTALLED code:
+
+        TypeError: argument should be a str or an os.PathLike object ...
+                   not 'NoneType'
+
+    One site resolved the default and another used args.store directly. EVERY
+    one of the seventy tests before this one passed --store EXPLICITLY, so the
+    default was covered only in isolation, never through main(). A suite that
+    never exercises the default cannot catch a defect in the default."""
+    _stub_check(monkeypatch, {"kind": "storage#objects",
+                              "prefixes": MEASURED_PREFIXES})
+    monkeypatch.setattr(rm, "default_store_path",
+                        lambda: tmp_path / "anchored" / "findings.sqlite3")
+    report = tmp_path / "r.json"
+    code = rm.main(["--report", str(report)])
+    assert code == 1
+    doc = json.loads(report.read_text())
+    assert doc["store"].endswith("findings.sqlite3")
+    assert (tmp_path / "anchored" / "findings.sqlite3").exists()
+
+
+def test_the_reported_store_is_the_store_actually_used(monkeypatch, tmp_path):
+    """The two sites must not diverge again: the path in the report is the
+    path the findings were written to."""
+    _stub_check(monkeypatch, _PAGE_ONE, TimeoutError("second page"))
+    explicit = tmp_path / "chosen.sqlite3"
+    report = tmp_path / "r.json"
+    rm.main(["--store", str(explicit), "--report", str(report)])
+    doc = json.loads(report.read_text())
+    assert Path(doc["store"]) == explicit.resolve()
+    assert FindingStore(explicit).get_finding is not None
+
+
+# --------------------------------------------------------------------------
+# 9. The independent verifier, and the runner that consults it
+# --------------------------------------------------------------------------
+
+from genomic_variant_classifier.source_monitor.request_verifier import (
+    APPROVED_QUERY, verify_captures)
+
+
+def test_a_real_traversal_verifies_against_the_approved_plan():
+    r = grc.observe_releases(
+        transport=_transport(_PAGE_ONE, {"kind": "storage#objects",
+                                         "prefixes": ["release/4.2/"]}))
+    assert len(r.captures) == 2
+    assert verify_captures(r.captures) == ()
+
+
+def test_the_verifier_holds_the_field_mask_INDEPENDENTLY():
+    """MEASURED 2026-09-14: `fields=prefixes` OMITS nextPageToken, so its
+    absence meant nothing. A verifier reading the mask FROM THE ADAPTER would
+    approve that request -- it would be comparing the adapter to itself."""
+    assert "nextPageToken" in APPROVED_QUERY["fields"]
+    r = grc.observe_releases(
+        transport=_transport({"kind": "storage#objects",
+                              "prefixes": MEASURED_PREFIXES}))
+    tampered = [dict(r.captures[0],
+                     request_url=r.captures[0]["request_url"].replace(
+                         "fields=kind%2Cprefixes%2CnextPageToken",
+                         "fields=prefixes"))]
+    findings = verify_captures(tampered)
+    assert [f.reason for f in findings] == [Reason.REQUEST_QUERY_MISMATCH]
+
+
+@pytest.mark.parametrize("mutation, reason", [
+    pytest.param({"request_url": "https://evil/x?prefix=release%2F"},
+                 Reason.REQUEST_ENDPOINT, id="wrong_endpoint"),
+    pytest.param({"response_sha256": "abc"},
+                 Reason.ARTIFACT_DIGEST_MISMATCH, id="truncated_digest"),
+    pytest.param({"response_bytes": True},
+                 Reason.RESPONSE_UNEXPECTED_SHAPE, id="bytes_as_bool"),
+    pytest.param({"response_bytes": 5 * 1024 * 1024},
+                 Reason.TRAVERSAL_BUDGET_EXHAUSTED, id="over_budget"),
+])
+def test_the_verifier_refuses_a_tampered_capture(mutation, reason):
+    r = grc.observe_releases(
+        transport=_transport({"kind": "storage#objects",
+                              "prefixes": MEASURED_PREFIXES}))
+    findings = verify_captures([dict(r.captures[0], **mutation)])
+    assert any(f.reason is reason for f in findings), \
+        [f.as_document() for f in findings]
+
+
+def test_an_empty_capture_list_yields_no_findings_and_proves_nothing():
+    """Returning findings rather than a boolean is what stops 'no findings'
+    being read as 'verified'."""
+    assert verify_captures([]) == ()
+
+
+def test_the_runner_refuses_a_result_whose_request_did_not_match(monkeypatch,
+                                                                 tmp_path):
+    """A report carrying evidence nobody verifies is the same unfalsifiable
+    shape as `status: "ok"` in VersionMonitorAgent."""
+    def run(**_kw):
+        r = grc.observe_releases(
+            profile=rm.RELEASE_PROFILE,
+            transport=_transport({"kind": "storage#objects",
+                                  "prefixes": MEASURED_PREFIXES}))
+        bad = tuple(dict(c, request_url="https://evil/x?prefix=release%2F")
+                    for c in r.captures)
+        return TargetResult(r.target, r.health, findings=r.findings,
+                            captures=bad)
+
+    monkeypatch.setitem(rm.CHECKS, "gnomad-public-releases", run)
+    report = tmp_path / "r.json"
+    code = rm.main(["--store", str(tmp_path / "f.sqlite3"),
+                    "--report", str(report)])
+    assert code == 2
+    doc = json.loads(report.read_text())
+    assert doc["plan_verification"][0]["target"] == "gnomad-public-releases"
+    # The result now carries the FIRST finding's OWN reason, not a blanket
+    # REQUEST_QUERY_MISMATCH. MEASURED 2026-09-15: the runner previously
+    # committed every plan finding under that one code, so a LOST PAGE was
+    # recorded in the durable store as a query mismatch and the catalog
+    # distinction died one layer above the verifier.
+    assert doc["results"][0]["reason"] == Reason.REQUEST_ENDPOINT.value
+    # EVERY finding is committed individually, each keeping its own reason.
+    assert {a["reason"] for a in doc["assessments"]} == {
+        f["reason"] for f in doc["plan_verification"][0]["findings"]}
+    assert all(a["recognized"] for a in doc["assessments"])
+
+
+def test_a_clean_run_records_no_plan_findings(monkeypatch, tmp_path):
+    _stub_check(monkeypatch, {"kind": "storage#objects",
+                              "prefixes": MEASURED_PREFIXES})
+    report = tmp_path / "r.json"
+    code = rm.main(["--store", str(tmp_path / "f.sqlite3"),
+                    "--report", str(report)])
+    assert code == 1
+    doc = json.loads(report.read_text())
+    assert doc["plan_verification"] == []
+    assert doc["plan_verified_targets"] == ["gnomad-public-releases"]
+
+
+def test_the_verifier_reports_EVERY_defect_not_the_first():
+    """MEASURED 2026-09-15: an earlier version returned on the first failure,
+    so a capture with a wrong query, a truncated digest AND an over-budget size
+    produced ONE finding. A caller reading a one-element tuple takes it for a
+    complete inventory -- the same error as reporting 'lof.obs 150' from an
+    assertion that raises on its first failing metric."""
+    r = grc.observe_releases(
+        transport=_transport({"kind": "storage#objects",
+                              "prefixes": MEASURED_PREFIXES}))
+    bad = dict(r.captures[0],
+               request_url=r.captures[0]["request_url"].replace(
+                   "fields=kind%2Cprefixes%2CnextPageToken", "fields=prefixes"),
+               response_sha256="abc",
+               response_bytes=5 * 1024 * 1024)
+    reasons = {f.reason for f in verify_captures([bad])}
+    assert reasons == {Reason.REQUEST_QUERY_MISMATCH,
+                       Reason.ARTIFACT_DIGEST_MISMATCH,
+                       Reason.TRAVERSAL_BUDGET_EXHAUSTED}
+
+
+def test_payload_defects_are_reported_even_when_the_url_is_unparseable():
+    """Size and digest do not depend on the request, so a FATAL request defect
+    must not suppress them."""
+    r = grc.observe_releases(
+        transport=_transport({"kind": "storage#objects",
+                              "prefixes": MEASURED_PREFIXES}))
+    bad = dict(r.captures[0], request_url="http://[", response_sha256="x")
+    reasons = {f.reason for f in verify_captures([bad])}
+    assert Reason.ARTIFACT_DIGEST_MISMATCH in reasons
+    assert len(reasons) >= 2
+
+
+def test_the_verifier_and_the_adapter_declare_the_SAME_budgets():
+    """The verifier declares its plan INDEPENDENTLY -- that is what lets it
+    detect an adapter that changed. The cost is that the two declarations can
+    drift, and a verifier whose budget silently exceeded the adapter's would
+    approve pages the adapter refused.
+
+    This makes divergence a FAILURE rather than a silence, without coupling
+    either module to the other."""
+    from genomic_variant_classifier.source_monitor import request_verifier as rv
+    assert rv.MAX_BYTES_PER_PAGE == grc.MAX_BYTES_PER_PAGE
+    assert rv.MAX_TOKEN_CHARS == grc.MAX_TOKEN_CHARS
+
+
+def test_the_verifier_and_the_adapter_declare_the_SAME_endpoint_and_mask():
+    """Same reasoning as the budgets: independent declarations, checked for
+    agreement rather than shared."""
+    from genomic_variant_classifier.source_monitor import request_verifier as rv
+    assert rv.APPROVED_ENDPOINT == grc.ENDPOINT
+    assert rv.APPROVED_QUERY == grc.BASE_QUERY
+
+
+@pytest.mark.parametrize("captures, why", [
+    pytest.param([{"sequence": 1}, {"sequence": 3}], "a gap", id="gap_1_3"),
+    pytest.param([{"sequence": 1}, {"sequence": 1}], "a repeat", id="repeat_1_1"),
+    pytest.param([{"sequence": "one"}], "a string", id="not_an_int"),
+    pytest.param([{"sequence": -5}], "negative", id="negative"),
+    pytest.param([{"sequence": True}], "a bool", id="bool_is_not_an_int"),
+    pytest.param([{}], "absent", id="absent"),
+])
+def test_an_invalid_capture_sequence_is_refused(captures, why):
+    """MEASURED 2026-09-15: the verifier READ `sequence` for labelling and
+    never checked it. Captures numbered [1, 3] verified CLEAN -- a page
+    retained and then LOST between the adapter and the verifier, with nothing
+    saying so.
+
+    A GAP IS NOT TRUNCATION. Truncation is a known stopping point the
+    traversal reports; a gap is a silent loss. Reusing TRAVERSAL_TRUNCATED
+    would conflate a declared limit with a lost page, and a shared definition
+    carries one meaning."""
+    findings = verify_captures(captures)
+    assert any(f.reason is Reason.EVIDENCE_CAPTURE_SEQUENCE_INVALID
+               for f in findings), why
+
+
+def test_a_well_formed_capture_sequence_is_accepted():
+    r = grc.observe_releases(
+        transport=_transport(_PAGE_ONE, {"kind": "storage#objects",
+                                         "prefixes": ["release/4.2/"]}))
+    assert [c["sequence"] for c in r.captures] == [1, 2]
+    assert verify_captures(r.captures) == ()
+
+
+def test_the_sequence_code_is_in_the_shared_catalog():
+    """A code invented inside the verifier would be unknown to the assessor,
+    which classifies an unrecognised reason as a CONTRACT failure rather than
+    a source finding."""
+    assert Reason.EVIDENCE_CAPTURE_SEQUENCE_INVALID.value in {
+        r.value for r in Reason}
+    assert (Reason.EVIDENCE_CAPTURE_SEQUENCE_INVALID.value
+            in rm.RELEASE_PROFILE.known_codes)
+
+
+def test_a_finding_must_name_an_attempt_that_began(tmp_path):
+    """MEASURED 2026-09-15: attempt_id was a plain TEXT column with no
+    constraint, so a finding could name an attempt that NEVER BEGAN and
+    pending_deliveries returned it as though it were provenanced.
+
+    SQLite disables foreign keys BY DEFAULT and the setting is
+    PER-CONNECTION, so declaring the constraint without the pragma enforces
+    nothing."""
+    store = FindingStore(tmp_path / "f.sqlite3")
+    with pytest.raises(StoreError, match="no such attempt"):
+        store.commit_finding(attempt_id="never-began", subject="s",
+                             record=_record())
+    assert store.pending_deliveries() == []
+
+
+def test_the_foreign_key_pragma_is_actually_on(tmp_path):
+    """The constraint and the pragma are separate facts. Asserting the schema
+    alone would pass while enforcement was off."""
+    import sqlite3
+    store = FindingStore(tmp_path / "f.sqlite3")
+    with store._connect() as conn:
+        assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
+
+
+def test_a_record_with_a_non_string_key_is_refused(tmp_path):
+    """MEASURED 2026-09-15: {1: "x"} was ACCEPTED and json.dumps coerced the
+    integer key to "1". The record RECOVERED was not the record COMMITTED."""
+    store = FindingStore(tmp_path / "f.sqlite3")
+    attempt = store.begin_attempt("s")
+    with pytest.raises(StoreError, match="string keys"):
+        store.commit_finding(attempt_id=attempt, subject="s",
+                             record={1: "x"})
+
+
+def test_a_refused_commit_leaves_no_row(tmp_path):
+    """A rolled-back insert must not leave a partial row behind."""
+    import sqlite3
+    path = tmp_path / "f.sqlite3"
+    store = FindingStore(path)
+    with pytest.raises(StoreError):
+        store.commit_finding(attempt_id="never-began", subject="s",
+                             record=_record())
+    with sqlite3.connect(str(path)) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM findings").fetchone()[0] == 0
+
+
+@pytest.mark.parametrize("endpoint, why", [
+    pytest.param("file:///etc/passwd", "urllib OPENS local files, so a "
+                 "misconfigured endpoint made the heartbeat READ FROM DISK "
+                 "and report a delivery", id="file_scheme"),
+    pytest.param("http://hc.example/tok", "the URL is a BEARER CAPABILITY; "
+                 "signalling over plaintext leaks it", id="plaintext"),
+    pytest.param("https://hc.example/tok?x=1", "the suffix appended AFTER the "
+                 "query, producing a URL the operator never wrote",
+                 id="query_string"),
+    pytest.param("https://hc.example/tok#f", "same, with a fragment",
+                 id="fragment"),
+    pytest.param("https:///tok", "no host", id="no_host"),
+    pytest.param(12345, "letting urllib raise about a string IT built hides "
+                 "the real fault", id="not_a_string"),
+])
+def test_a_malformed_heartbeat_endpoint_is_refused(monkeypatch, endpoint, why):
+    """MEASURED 2026-09-15. Every one of these was ACCEPTED."""
+    from genomic_variant_classifier.source_monitor import heartbeat as hb
+    sent = []
+    monkeypatch.setattr(hb.urllib.request, "urlopen",
+                        lambda req, timeout=None: (sent.append(req.full_url),
+                                                   _Resp(200))[1])
+    out = signal_outcome(endpoint, 2)
+    assert not out.delivered, why
+    assert sent == [], "a refused endpoint must not be contacted"
+
+
+def test_a_valid_https_endpoint_is_still_signalled(monkeypatch):
+    """The refusals above must not have made every endpoint unreachable."""
+    from genomic_variant_classifier.source_monitor import heartbeat as hb
+    sent = []
+    monkeypatch.setattr(hb.urllib.request, "urlopen",
+                        lambda req, timeout=None: (sent.append(req.full_url),
+                                                   _Resp(200))[1])
+    assert signal_outcome("https://hc.example/tok", 2).delivered
+    assert sent == ["https://hc.example/tok/fail"]
+
+
+def test_the_supervisor_refuses_a_duplicated_required_target():
+    """MEASURED 2026-09-15: supervise(("a","a"), [one result]) returned EXIT 0
+    with no findings. The obligation set silently shrank from two to one while
+    reporting success.
+
+    run_monitor.validate_configuration refuses a duplicated policy, but a
+    caller that does not go through the runner had no protection. The guard
+    belongs where the INVARIANT lives, not only in one of its callers."""
+    from genomic_variant_classifier.source_monitor.monitor_supervisor import (
+        SupervisorFinding)
+    r = supervise(("a", "a"), [TargetResult("a", Health.COMPLETE)])
+    assert r.exit_code == 2
+    assert SupervisorFinding.DUPLICATE_REQUIRED.value in r.supervisor_findings
+
+
+def test_a_policy_without_duplicates_is_unaffected():
+    r = supervise(("a", "b"), [TargetResult(t, Health.COMPLETE)
+                               for t in ("a", "b")])
+    assert r.exit_code == 0 and r.supervisor_findings == ()
+
+
+def test_the_registered_check_runs_through_the_real_transport_seam():
+    """MEASURED 2026-09-15 by a public-surface census: check_gnomad_releases
+    was the ONE public name no test referenced. Every test replaces it via
+    monkeypatch.setitem(rm.CHECKS, ...), so the REGISTERED function itself
+    never ran in the suite.
+
+    It is three lines, and it carries the only binding between the registry
+    key and the adapter."""
+    r = rm.CHECKS["gnomad-public-releases"](
+        transport=_transport({"kind": "storage#objects",
+                              "prefixes": MEASURED_PREFIXES}))
+    assert r.target == "gnomad-public-releases"
+    assert r.health is Health.COMPLETE
+    assert any("4.1.1" in f for f in r.findings)
+
+
+def test_the_registered_check_passes_the_RUNNERS_profile():
+    """A second profile here would produce records the runner's own assessor
+    judges under DIFFERENT permissions -- recognized by one and refused by the
+    other, with nothing naming the mismatch."""
+    import ast as _ast
+    import inspect
+
+    tree = _ast.parse(inspect.getsource(rm.check_gnomad_releases))
+    passed = {
+        kw.value.id
+        for node in _ast.walk(tree)
+        if isinstance(node, _ast.Call)
+        for kw in node.keywords
+        if kw.arg == "profile" and isinstance(kw.value, _ast.Name)
+    }
+    assert passed == {"RELEASE_PROFILE"}, passed

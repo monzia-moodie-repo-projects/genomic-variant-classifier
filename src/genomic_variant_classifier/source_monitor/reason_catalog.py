@@ -89,6 +89,19 @@ class Reason(str, Enum):
     # artifact
     ARTIFACT_DIGEST_MISMATCH = "artifact.digest_mismatch"
     ARTIFACT_MISSING = "artifact.missing"
+    # retained evidence
+    #
+    # A GAP IS NOT TRUNCATION. Truncation is a known stopping point the
+    # traversal reports; a gap in the retained capture sequence is a page that
+    # was retained and then LOST between the adapter and the verifier, with
+    # nothing saying so. Reusing TRAVERSAL_TRUNCATED would conflate a declared
+    # limit with a silent loss, and a shared definition carries ONE meaning.
+    #
+    # MEASURED 2026-09-15: the verifier READ `sequence` for labelling and never
+    # checked it. Captures numbered [1, 3] verified clean; two captures both
+    # claiming sequence 1 produced findings a reader could not tell apart; and
+    # "one" and -5 travelled into the report unchallenged.
+    EVIDENCE_CAPTURE_SEQUENCE_INVALID = "evidence.capture_sequence_invalid"
 
 
 #: Supervisor-owned findings. NEVER in a producer's allowed set. A worker that

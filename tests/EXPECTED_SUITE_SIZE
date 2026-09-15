@@ -7987,4 +7987,7 @@
 # 2026-09-15  D-Q-SOURCE-MONITOR-2026-09-14
 #   ADDITION, +77 by node identity, 0 removed.
 #   a monitoring subsystem that fails when it should.
-6616
+# 2026-09-15  D-R2-VERIFIER-AND-STORE-2026-09-15
+#   ADDITION, +42 by node identity, 0 removed.
+#   the retained evidence is finally checked by something independent.
+6658

@@ -63,6 +63,8 @@ from genomic_variant_classifier.source_monitor.heartbeat import (
     signal_outcome, signal_start)
 from genomic_variant_classifier.source_monitor.monitor_supervisor import (
     Health, TargetResult, supervise)
+from genomic_variant_classifier.source_monitor.request_verifier import (
+    verify_captures)
 from genomic_variant_classifier.source_monitor.reason_catalog import (
     ContractFinding, Reason, ReasonProfile, assess_failure_record,
     make_failure_record)
@@ -101,6 +103,36 @@ RELEASE_PROFILE = ReasonProfile(
         Reason.TRANSPORT_UNREACHABLE.value,
         Reason.TRANSPORT_TIMEOUT.value,
         Reason.CONFIG_INVALID_BASELINE.value,
+        # MEASURED 2026-09-15: this code was added to the SHARED CATALOG and
+        # never to this permission list. The producer gate refused it --
+        # "release-listing does not permit evidence.capture_sequence_invalid"
+        # -- on the first run after the runner stopped flattening plan
+        # findings. While the flattening was in place the omission was
+        # INVISIBLE: every plan finding was committed as
+        # REQUEST_QUERY_MISMATCH, so this code was never emitted.
+        #
+        # The flattening was HIDING the omission, exactly as this project's
+        # fillna sweep "was dead code kept alive by the defects it would
+        # otherwise have revealed".
+        Reason.EVIDENCE_CAPTURE_SEQUENCE_INVALID.value,
+        # THE OTHER FIVE THE VERIFIER CAN EMIT.
+        #
+        # MEASURED 2026-09-15: after adding the one code the producer gate had
+        # just refused, I declared the gap closed. A test that DERIVES the
+        # enumeration from the verifier's source found FIVE MORE -- so five of
+        # the verifier's ten refusal paths would have crashed the reporting
+        # path with ProfileError the first time they fired, and
+        # artifact.digest_mismatch is the one most likely to fire on a real
+        # corrupted response.
+        #
+        # The previous control hand-enumerated the ADAPTER's codes and passed
+        # while all six verifier codes were unpermitted. A hand-maintained
+        # enumeration is a claim someone must keep true.
+        Reason.ARTIFACT_DIGEST_MISMATCH.value,
+        Reason.REQUEST_FRAGMENT.value,
+        Reason.REQUEST_QUERY_DUPLICATE.value,
+        Reason.REQUEST_QUERY_SYNTAX.value,
+        Reason.REQUEST_URL_SYNTAX.value,
     }),
 )
 
@@ -199,12 +231,28 @@ def main(argv=None) -> int:
     validate_configuration()
     started = signal_start(args.heartbeat_url)
 
-    store = FindingStore(args.store or default_store_path())
+    # RESOLVE ONCE. MEASURED 2026-09-15, the first run of the INSTALLED code:
+    # this site used `args.store or default_store_path()` while line 245 used
+    # `args.store` directly, which is None when the default applies:
+    #
+    #     TypeError: argument should be a str or an os.PathLike object ...
+    #                not 'NoneType'
+    #
+    # The store was created in the right place and the run then crashed
+    # writing the report -- after commit_finding, so nothing was lost.
+    #
+    # Every one of the seventy tests passed --store EXPLICITLY, so the default
+    # was covered only by default_store_path() in isolation, never through
+    # main(). A suite that never exercises the default cannot catch a defect
+    # in the default.
+    store_path = Path(args.store) if args.store else default_store_path()
+    store = FindingStore(store_path)
     attempt = store.begin_attempt("monitor-run")
 
     results = []
     assessments = []
     committed_ids = []
+    verification = []
 
     for target in REQUIRED_TARGETS:
         try:
@@ -221,6 +269,47 @@ def main(argv=None) -> int:
             assessments.append((target, assessment))
             results.append(TargetResult(target, Health.FAILED,
                                         reason=Reason.RESPONSE_UNEXPECTED_SHAPE))
+            continue
+
+        # VERIFY THE RETAINED CAPTURES against an INDEPENDENTLY held plan.
+        #
+        # The adapter retains request_url, response_sha256 and response_bytes
+        # for every page. Until now NOTHING checked them -- a report carrying
+        # evidence nobody verifies is the same unfalsifiable shape as
+        # `status: "ok"` in VersionMonitorAgent and `[OK] action=error` in
+        # run_pipeline.
+        #
+        # A plan finding makes the run UNQUALIFIED even when the observation
+        # itself looked complete: a result whose request did not match the
+        # approved plan is not evidence about the approved subject.
+        plan_findings = verify_captures(result.captures)
+        if plan_findings:
+            verification.append((target, [f.as_document() for f in plan_findings]))
+            # EACH FINDING KEEPS ITS OWN REASON.
+            #
+            # MEASURED 2026-09-15: an earlier version committed EVERY plan
+            # finding as REQUEST_QUERY_MISMATCH with the details concatenated
+            # into a string. A LOST PAGE -- evidence.capture_sequence_invalid,
+            # added in this same unit precisely because a gap is not
+            # truncation -- was recorded in the durable store as a QUERY
+            # MISMATCH. The catalog distinction was destroyed one layer up.
+            #
+            # A reason code that survives the verifier and dies in the runner
+            # is the same defect as one that survives the function and is
+            # flattened by the report: the boundary that loses it is the
+            # boundary that matters.
+            for finding in plan_findings:
+                committed, assessment = _persist_and_recover(
+                    store, attempt, target, finding.reason, finding.detail)
+                committed_ids.append(committed.event_id)
+                assessments.append((target, assessment))
+            # The RESULT carries the first finding's reason, because a
+            # TargetResult names ONE reason by construction. Every finding is
+            # committed individually above, so nothing is lost -- the result's
+            # reason is a summary, and the store holds the inventory.
+            results.append(TargetResult(
+                target, Health.FAILED, reason=plan_findings[0].reason,
+                captures=result.captures))
             continue
 
         if result.reason is not None:
@@ -242,7 +331,7 @@ def main(argv=None) -> int:
     report = supervise(REQUIRED_TARGETS, results)
     document = report.as_document()
     document["attempt_id"] = attempt
-    document["store"] = str(Path(args.store).resolve())
+    document["store"] = str(store_path.resolve())
     document["assessments"] = [
         {"target": t, "reason": a.reported_reason,
          "recognized": a.profile_failure_recognized,
@@ -250,6 +339,10 @@ def main(argv=None) -> int:
         for t, a in assessments]
     document["profile"] = {"id": RELEASE_PROFILE.profile_id,
                            "revision": RELEASE_PROFILE.revision}
+    document["plan_verification"] = [
+        {"target": t, "findings": f} for t, f in verification]
+    document["plan_verified_targets"] = [
+        r.target for r in report.results if r.captures]
     document["does_not_establish"].append(
         "source authenticity: a response digest is integrity relative to bytes "
         "THIS PROCESS received and self-reported. It authenticates nothing "

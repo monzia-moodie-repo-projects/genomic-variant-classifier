@@ -58,6 +58,15 @@ class StoreError(RuntimeError):
 
 
 _SCHEMA = """
+CREATE TABLE IF NOT EXISTS attempts (
+    attempt_id      TEXT PRIMARY KEY,
+    subject         TEXT NOT NULL,
+    started_at      TEXT NOT NULL,
+    finished_at     TEXT,
+    outcome         TEXT
+);
+-- attempts is declared FIRST: a foreign key cannot reference a table that
+-- does not yet exist.
 CREATE TABLE IF NOT EXISTS findings (
     event_id        TEXT PRIMARY KEY,
     committed_at    TEXT NOT NULL,
@@ -65,14 +74,13 @@ CREATE TABLE IF NOT EXISTS findings (
     attempt_id      TEXT NOT NULL,
     record_json     TEXT NOT NULL,
     delivered_at    TEXT,
-    delivery_ref    TEXT
-);
-CREATE TABLE IF NOT EXISTS attempts (
-    attempt_id      TEXT PRIMARY KEY,
-    subject         TEXT NOT NULL,
-    started_at      TEXT NOT NULL,
-    finished_at     TEXT,
-    outcome         TEXT
+    delivery_ref    TEXT,
+    -- MEASURED 2026-09-15: attempt_id was a plain TEXT column with no
+    -- constraint, so a finding could name an attempt that NEVER BEGAN and
+    -- pending_deliveries returned it as though it were provenanced. The
+    -- module docstring claims attempts and successes are separate facts;
+    -- nothing bound a finding to a real one.
+    FOREIGN KEY (attempt_id) REFERENCES attempts(attempt_id)
 );
 """
 
@@ -98,6 +106,12 @@ class FindingStore:
         conn = sqlite3.connect(str(self.path), isolation_level=None)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=FULL")
+        # SQLite disables foreign keys BY DEFAULT and the setting is
+        # PER-CONNECTION, so declaring the constraint without this line
+        # enforces nothing. MEASURED 2026-09-15: `PRAGMA foreign_keys`
+        # reported 0, and a finding referencing a non-existent attempt was
+        # stored and returned by pending_deliveries.
+        conn.execute("PRAGMA foreign_keys=ON")
         return conn
 
     # -- attempts ----------------------------------------------------------
@@ -135,6 +149,13 @@ class FindingStore:
         """
         if type(record) is not dict:
             raise StoreError("a finding record must be a dict")
+        # MEASURED 2026-09-15: {1: "x"} was ACCEPTED, and json.dumps coerced
+        # the integer key to "1". The record RECOVERED was not the record
+        # COMMITTED, so the round trip was lossy and nothing said so.
+        bad = sorted(repr(k) for k in record if type(k) is not str)
+        if bad:
+            raise StoreError(
+                "a finding record must have string keys; got {}".format(bad))
         try:
             blob = json.dumps(record, sort_keys=True, ensure_ascii=True,
                               allow_nan=False)
@@ -144,11 +165,17 @@ class FindingStore:
         committed_at = _now()
         with self._connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
-            conn.execute(
-                "INSERT INTO findings(event_id, committed_at, subject, "
-                "attempt_id, record_json) VALUES (?,?,?,?,?)",
-                (event_id, committed_at, subject, attempt_id, blob))
-            conn.execute("COMMIT")
+            try:
+                conn.execute(
+                    "INSERT INTO findings(event_id, committed_at, subject, "
+                    "attempt_id, record_json) VALUES (?,?,?,?,?)",
+                    (event_id, committed_at, subject, attempt_id, blob))
+                conn.execute("COMMIT")
+            except sqlite3.IntegrityError as exc:
+                conn.execute("ROLLBACK")
+                raise StoreError(
+                    "no such attempt {!r}: a finding must name an attempt "
+                    "that began".format(attempt_id)) from exc
             # fsync the directory entry too: a committed row whose containing
             # directory was never synced can vanish on some filesystems.
             _fsync_dir(self.path.parent)
