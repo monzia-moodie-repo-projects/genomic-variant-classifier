@@ -1,0 +1,149 @@
+name: source-monitor
+
+# WHY THIS EXISTS
+# ===============
+# MEASURED 2026-09-14: VersionMonitorAgent appears in no workflow. Its only
+# caller is scripts/run_adaptation.py, which is itself unscheduled. The single
+# scheduled monitoring workflow, data_freshness.yml, runs the "database_monitor"
+# pipeline -- which orchestrator.py:78 defines as
+# ["DatabaseFreshnessMonitorAgent"] and nothing else.
+#
+# So the version monitor ran only when a human ran it. gnomAD (Genome
+# Aggregation Database) version 4.1.1 was released 2026-03-30 and was found by
+# hand on 2026-09-12.
+#
+# WHY THE EXIT CODE IS THE POINT
+# ==============================
+# data_freshness.yml runs scripts/run_data_freshness.py, which prints
+# changes_detected and then `return 0` unconditionally. The job is green
+# whether or not a change was found. This workflow does the opposite: the
+# runner's exit code decides the job.
+#
+#   0  every required target qualified; no actionable finding   -> green
+#   1  every required target qualified; review required         -> RED
+#   2  required evidence, policy or execution not qualified     -> RED
+#
+# Both 1 and 2 fail deliberately while delivery is unqualified. Once findings
+# are routed to a durable review queue, 1 can stop producing an identical
+# failure every day -- that is a later change, made when the queue exists, not
+# a reason to let 1 pass now.
+#
+# WHAT THIS WORKFLOW CANNOT DO
+# ============================
+# It cannot supervise its own absence. GitHub documents that scheduled runs may
+# be delayed or dropped under load, run on the default branch, and can be
+# disabled after repository inactivity. A workflow that never starts produces
+# no exit code and no red run.
+#
+# The independent heartbeat that detects a run which never happened is NOT part
+# of this file and is NOT yet implemented. Until it exists, this workflow
+# reports findings but cannot report its own silence.
+
+on:
+  schedule:
+    # Mondays 07:20 UTC. Offset from data_freshness.yml (07:00) so the two do
+    # not contend, and so a failure names one workflow unambiguously.
+    - cron: "20 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # A delayed run must not overlap its successor and write the same store.
+  group: source-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # EVERY SHA BELOW COMES FROM EXPECTED_PINS IN
+      # tests/unit/test_workflow_action_pins.py, WHICH IS THE AUTHORITY.
+      #
+      # MEASURED 2026-09-14: an earlier version of this file pinned SHAs taken
+      # from published release tags instead. All three were refused, and one
+      # was the trap that test file documents by name --
+      # actions/upload-artifact v4.4.3 is older than v5, and "upload-artifact
+      # v5 is STILL node20. v6 is the first node24 release."
+      #
+      # A tag is mutable: `v7` can be repointed at any commit by its owner, so
+      # a tag re-makes a trust decision silently on every run. The SHA is what
+      # ships; the tag is not.
+      - name: Check out
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2, node24
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0, node24
+        with:
+          python-version: "3.12"
+
+      # The runner uses only the standard library. Nothing is installed, so
+      # nothing here can drift; if that changes, pin it explicitly.
+
+      - name: Run the source monitor
+        id: monitor
+        env:
+          # A BEARER CAPABILITY: whoever holds this URL can signal success and
+          # SILENCE THE ALARM. Passed by environment, never on a command line,
+          # so it does not appear in a process listing or in the step's echoed
+          # command. GitHub redacts registered secrets from logs; that is a
+          # mitigation, not a reason to put it in argv.
+          #
+          # If the secret is unset, this expands to an empty string and the
+          # runner records `endpoint_configured: false` in the report. It does
+          # NOT fail and does NOT pretend a signal was sent -- an unconfigured
+          # heartbeat is a deployment state, and the report says which.
+          GVC_HEARTBEAT_URL: ${{ secrets.GVC_HEARTBEAT_URL }}
+        run: |
+          PYTHONPATH=src python -m genomic_variant_classifier.source_monitor.run_monitor \
+            --report "$RUNNER_TEMP/report.json"
+
+      # if: always() means "run despite an earlier failure". It does NOT erase
+      # one -- the job's conclusion still comes from the step above. The report
+      # is uploaded precisely so a RED run can be diagnosed.
+      - name: Upload the structured report
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0, node24
+        with:
+          name: source-monitor-report
+          path: |
+            ${{ runner.temp }}/report.json
+          if-no-files-found: error
+          retention-days: 30
+
+# WHY THE REPORT IS WRITTEN TO THE RUNNER TEMP DIRECTORY
+# ======================================================
+# MEASURED 2026-09-14: an earlier version wrote --store and --report under
+# var/monitor/ INSIDE the checkout. The live run left
+# var/monitor/findings.sqlite3 untracked, and the next installer REFUSED at its
+# working-tree precondition. A monitoring workflow must not dirty the
+# repository it monitors.
+#
+# The store now defaults to an anchored runtime state directory, and the report
+# goes to the runner temp directory, which the upload step collects.
+#
+# THE EXTERNAL CHECK THIS WORKFLOW DEPENDS ON
+# ===========================================
+# The heartbeat only closes the absence gap if the external check is created
+# with a grace period SHORTER than the interval between runs. This workflow
+# runs weekly; a grace period of a week or more cannot detect a single missed
+# run, because the next scheduled run would arrive before the deadline.
+#
+# Required at the service:
+#
+#   period        7 days      matching the cron above
+#   grace         2 days      shorter than the period, so ONE missed run alarms
+#   start signal  enabled     the runner sends /start before any work, so a run
+#                             that begins and never finishes is distinguishable
+#                             from one that never begins
+#
+# GitHub may delay a scheduled run under load. A grace period must therefore be
+# long enough to tolerate ordinary delay and short enough to catch a genuine
+# miss; two days against a seven-day period is the starting point, to be
+# revised from observed delay rather than from preference.
+#
+# UNTIL THE EXTERNAL CHECK EXISTS, this workflow reports findings and cannot
+# report its own silence. That is the exact failure mode that let gnomAD
+# version 4.1.1 go unreported from 2026-03-30 to 2026-09-12.

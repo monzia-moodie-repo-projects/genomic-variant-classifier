@@ -7984,4 +7984,7 @@
 # 2026-09-14  D-V-GNOMAD-WATCH-2026-09-14
 #   ADDITION, +11 by node identity, 0 removed.
 #   the version monitor gains the gnomAD target its docstring promised.
-6539
+# 2026-09-15  D-Q-SOURCE-MONITOR-2026-09-14
+#   ADDITION, +77 by node identity, 0 removed.
+#   a monitoring subsystem that fails when it should.
+6616
