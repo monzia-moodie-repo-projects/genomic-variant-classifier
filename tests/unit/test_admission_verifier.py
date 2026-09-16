@@ -38,7 +38,8 @@ from genomic_variant_classifier.operations.admission_verifier import (
     require_acceptance,
     require_observation_binding, require_dependency_bindings,
     require_manifest_citation_agreement, require_sole_parent,
-    verify_transition)
+    verify_transition,
+    AuthorizedAdmission, authorize_admission)
 from genomic_variant_classifier.operations.admission_verifier import (
     ArtifactRef,
     CaptureBundle,
@@ -727,3 +728,144 @@ def test_candidate_alignment_is_exercised_where_it_actually_fires():
         require_candidate_alignment(
             candidate_commit=_CANDIDATE, candidate_tree=_TREE,
             after_expected=expectation(commit=_CANDIDATE, tree="9" * 40))
+
+
+# ---------------------------------------------------------------------------
+# authorize_admission: THE composing boundary -- 2026-09-16
+#
+# MEASURED 2026-09-16: reading this module and its callers for the first time
+# this session found authorize_admission referenced twice in this file's own
+# docstrings as "the boundary that binds bytes, policy and validation
+# evidence" and defined nowhere. verify_transition and accept_replayed_
+# operation had never once been exercised TOGETHER against the SAME real
+# commits -- the `candidate` fixture below and the `replay` fixture above use
+# entirely different, unrelated commit identities. This is the first time
+# they are combined.
+# ---------------------------------------------------------------------------
+
+def _authorized_bundles(tmp_path, candidate):
+    """Real capture bundles, bound to THIS candidate's real commit and tree.
+
+    Reuses the exact construction _retain() uses above, but against the
+    Candidate fixture's genuinely computed predecessor, candidate commit and
+    tree -- not the arbitrary fixed strings the replay fixture uses, which
+    were never meant to align with a real repository.
+    """
+    # SAME tmp_path passed to both calls, exactly as the replay fixture
+    # above does: _retain's internal `root = tmp_path / "capture"` must
+    # match where the sink actually writes, or the manifest read afterward
+    # points at bytes that were never written there.
+    capture_root = tmp_path / "auth"
+    capture_root.mkdir()
+    sink = DirectorySink(capture_root / "capture")
+    tree = candidate.git("rev-parse", candidate.candidate + "^{tree}")
+    before_bundle, before_ref = _retain(
+        capture_root, sink, [_A],
+        CollectionPhase.BASELINE_COLLECTION, candidate.predecessor)
+    after_bundle, after_ref = _retain(
+        capture_root, sink, [_A, _B],
+        CollectionPhase.APPLY_COLLECTION, candidate.candidate)
+    before_expected = expectation(commit=candidate.predecessor, tree=tree,
+                                  suite_digest=SuiteSnapshot([_A]).digest)
+    after_expected = expectation(commit=candidate.candidate, tree=tree)
+    validation_evidence = {
+        "subject": {"candidate_commit": candidate.candidate,
+                    "candidate_tree": tree},
+        "execution": {"exit_code": 0},
+        "collection": {"added": [_B], "removed": []}}
+    transition = SuiteTransition(kind=SuiteTransitionKind.ADDITION,
+                                 expected_added_nodeids=frozenset({_B}))
+    return dict(tree=tree, before_bundle=before_bundle, after_bundle=after_bundle,
+               before_manifest_ref=before_ref, after_manifest_ref=after_ref,
+               before_expected=before_expected, after_expected=after_expected,
+               validation_evidence=validation_evidence, transition=transition,
+               interpreters=_INTERPRETERS)
+
+
+def _authorize(candidate, bundles, **overrides):
+    kwargs = dict(
+        repo=candidate.repo, plan=candidate.plan,
+        plan_sha256=hashlib.sha256(candidate.plan_bytes).hexdigest(),
+        candidate_commit=candidate.candidate,
+        approved_entries=candidate.approved_entries,
+        postimage_bytes=candidate.post_bytes,
+        evidence_report=json.loads(candidate.citation_bytes.decode("utf-8")),
+        census=json.loads(candidate.census_bytes.decode("utf-8")),
+        census_sha256=CENSUS_SHA, owners=candidate.owners,
+        policy_identity="a" * 64,
+        validation_evidence=bundles["validation_evidence"],
+        transition=bundles["transition"],
+        before_bundle=bundles["before_bundle"], after_bundle=bundles["after_bundle"],
+        before_manifest_ref=bundles["before_manifest_ref"],
+        after_manifest_ref=bundles["after_manifest_ref"],
+        before_expected=bundles["before_expected"],
+        after_expected=bundles["after_expected"],
+        interpreters=bundles["interpreters"])
+    kwargs.update(overrides)
+    return authorize_admission(**kwargs)
+
+
+def test_authorize_admission_succeeds_when_every_conjunct_holds(
+        candidate, tmp_path):
+    """POSITIVE CONTROL. The ONLY one in this section -- every other test
+    here is a refusal, and a function that refused everything would satisfy
+    them all. A real repository, real git commits, real archive manifest
+    entries and real subprocess-captured collection output, composed through
+    authorize_admission for the first time this codebase has combined
+    verify_transition and accept_replayed_operation against ONE consistent
+    candidate."""
+    bundles = _authorized_bundles(tmp_path, candidate)
+    result = _authorize(candidate, bundles)
+    assert type(result) is AuthorizedAdmission
+    assert result.policy_identity == "a" * 64
+    assert result.transition.candidate_tree == bundles["tree"]
+    assert result.transition.admitted_record_ids == frozenset(
+        candidate.approved_entries)
+    assert result.acceptance["replayed"] is True
+    assert result.acceptance["added"] == [_B]
+    assert len(result.does_not_establish) == 3
+
+
+def test_authorize_admission_refuses_a_malformed_policy_identity(
+        candidate, tmp_path):
+    """Refused before anything else runs. repo is replaced with a path that
+    would crash any git call, proving the policy check fires FIRST."""
+    bundles = _authorized_bundles(tmp_path, candidate)
+    with pytest.raises(BindingError, match="policy_identity"):
+        _authorize(candidate, bundles,
+                  repo="/nonexistent/path/would/crash/git",
+                  policy_identity="NOT-A-VALID-DIGEST")
+
+
+def test_authorize_admission_refuses_a_tree_mismatch(candidate, tmp_path):
+    """Exercises the ONE piece of genuinely new logic in authorize_admission
+    -- not a re-test of verify_transition or accept_replayed_operation, both
+    of which already have their own extensive coverage above. A caller
+    supplying an after_expected.tree that does not match what the transition
+    verifier independently computed must be refused, even though verify_
+    transition itself would succeed on this exact candidate."""
+    bundles = _authorized_bundles(tmp_path, candidate)
+    wrong = expectation(commit=candidate.candidate, tree="f" * 40)
+    with pytest.raises(BindingError, match="requires exactly one tree"):
+        _authorize(candidate, bundles, after_expected=wrong)
+
+
+def test_authorize_admission_refuses_when_acceptance_fails(
+        candidate, tmp_path):
+    """The transition succeeds; validation does not. Composition must refuse
+    on the SECOND conjunct even when the first is clean."""
+    bundles = _authorized_bundles(tmp_path, candidate)
+    bad_evidence = dict(bundles["validation_evidence"])
+    bad_evidence["execution"] = {"exit_code": 1}
+    with pytest.raises(BindingError, match="did not exit successfully"):
+        _authorize(candidate, bundles, validation_evidence=bad_evidence)
+
+
+def test_authorize_admission_refuses_when_the_transition_fails(
+        candidate, tmp_path):
+    """Acceptance evidence is otherwise fine; the transition is not. A wrong
+    candidate_commit makes require_sole_parent refuse, and that refusal must
+    still reach the caller through authorize_admission unchanged."""
+    bundles = _authorized_bundles(tmp_path, candidate)
+    with pytest.raises(AdmissionError, match="sole parent"):
+        _authorize(candidate, bundles, candidate_commit=candidate.predecessor)

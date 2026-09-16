@@ -7999,4 +7999,7 @@
 # 2026-09-16  D-H2-HEARTBEAT-NONDISCLOSURE-2026-09-16
 #   ADDITION, +3 by node identity, 0 removed.
 #   the heartbeat detail field stops repeating whatever the exception said, including the endpoint it was trying to reach.
-6693
+# 2026-09-16  D-AA-AUTHORIZE-ADMISSION-2026-09-16
+#   ADDITION, +5 by node identity, 0 removed.
+#   authorize_admission composes valid policy, bound evidence, the exact candidate transition, archive semantics and required validation into one decision, closing a gap where neither owning module had a single caller outside its own test.
+6698

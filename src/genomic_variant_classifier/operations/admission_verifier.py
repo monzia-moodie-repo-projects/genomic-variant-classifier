@@ -799,6 +799,96 @@ def git_show(repo: Path, commit: str, path: str) -> bytes:
 #: them with what the plan declares.
 
 
+@dataclass(frozen=True)
+class AuthorizedAdmission:
+    """The composed decision. Every conjunct held, or this does not exist.
+
+    authorized admission =
+        valid policy AND bound evidence AND exact candidate transition
+        AND archive semantics AND required validation
+
+    Constructing one directly proves nothing -- exactly as VerifiedTransition
+    says of itself. Its value is that production routing must obtain one
+    through authorize_admission(), and that boundary is what the tests
+    exercise.
+    """
+
+    policy_identity: str
+    transition: VerifiedTransition
+    acceptance: dict
+    does_not_establish: tuple
+
+
+def authorize_admission(*, repo, plan, plan_sha256, candidate_commit,
+                        approved_entries, postimage_bytes, evidence_report,
+                        census, census_sha256, owners, policy_identity,
+                        validation_evidence, transition, before_bundle,
+                        after_bundle, before_manifest_ref, after_manifest_ref,
+                        before_expected, after_expected,
+                        interpreters) -> AuthorizedAdmission:
+    """THE composing boundary. Every conjunct is delegated; none is
+    reimplemented here -- this function composes verify_transition and
+    accept_replayed_operation's results and binds the tree between them. It
+    does not reimplement what either already establishes.
+
+    Order is cheapest check first: policy identity is a format check, the
+    transition reads git objects, acceptance replays retained bytes.
+
+    'valid policy' here means a well-formed, bound identity. WHICH policy is
+    approved for this repository and operation is a decision this module
+    does not make: the caller must already have selected and pinned it,
+    exactly as every other supplied digest throughout this file is
+    pre-selected by its caller and merely verified for shape here.
+    """
+    if type(policy_identity) is not str or \
+            not _SHA256.fullmatch(policy_identity):
+        raise BindingError(
+            "policy_identity must be 64 lowercase hexadecimal digits, not "
+            "{!r}. WHICH policy is approved is the caller's decision; this "
+            "boundary only verifies the identity supplied is well-formed."
+            .format(policy_identity))
+
+    verified = verify_transition(
+        repo=repo, plan=plan, plan_sha256=plan_sha256,
+        candidate_commit=candidate_commit, approved_entries=approved_entries,
+        postimage_bytes=postimage_bytes, evidence_report=evidence_report,
+        census=census, census_sha256=census_sha256, owners=owners)
+
+    # THE TREE COMES FROM THE TRANSITION VERIFIER, NEVER FROM THE CALLER.
+    # MEASURED 2026-09-12, in require_candidate_alignment's own history: two
+    # locally consistent comparisons can describe different operations. A
+    # caller-supplied after_expected.tree that merely passed its own local
+    # checks would not establish that it names THIS candidate's tree.
+    if after_expected.tree != verified.candidate_tree:
+        raise BindingError(
+            "after_expected names tree {!r} and the transition verifier "
+            "independently computed {!r} for this candidate; authorization "
+            "requires exactly one tree, established once.".format(
+                after_expected.tree, verified.candidate_tree))
+
+    acceptance = accept_replayed_operation(
+        validation_evidence, candidate_commit=candidate_commit,
+        candidate_tree=verified.candidate_tree, transition=transition,
+        before_bundle=before_bundle, after_bundle=after_bundle,
+        before_manifest_ref=before_manifest_ref,
+        after_manifest_ref=after_manifest_ref,
+        before_expected=before_expected, after_expected=after_expected,
+        interpreters=interpreters)
+
+    return AuthorizedAdmission(
+        policy_identity=policy_identity, transition=verified,
+        acceptance=acceptance,
+        does_not_establish=(
+            "that the policy identified by policy_identity is actually "
+            "approved for this repository or operation; selecting and "
+            "pinning the correct policy is the caller's responsibility",
+            "that anything was DELIVERED as a result of this authorization; "
+            "authorization is a decision, not an installation",
+            "that the producer of any retained evidence is trustworthy; "
+            "every digest here identifies bytes, not their truthfulness",
+        ))
+
+
 def accept_replayed_operation(validation_evidence, *, candidate_commit,
                               candidate_tree, transition, before_bundle,
                               after_bundle, before_manifest_ref,
