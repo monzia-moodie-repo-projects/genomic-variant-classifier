@@ -133,6 +133,16 @@ RELEASE_PROFILE = ReasonProfile(
         Reason.REQUEST_QUERY_DUPLICATE.value,
         Reason.REQUEST_QUERY_SYNTAX.value,
         Reason.REQUEST_URL_SYNTAX.value,
+        # MEASURED 2026-09-16: an independent forensic probe found the
+        # verifier's own recomputation entirely absent. Repairing it added
+        # FOUR codes the verifier can now emit -- test_the_profile_permits_
+        # every_reason_EACH_PRODUCER_can_emit[request_verifier] refused to
+        # pass until they were listed here, which is that test doing exactly
+        # the job it was built for.
+        Reason.EVIDENCE_INTEGRITY_MISMATCH.value,
+        Reason.EVIDENCE_BODY_UNAVAILABLE.value,
+        Reason.EVIDENCE_ACCEPTANCE_DISAGREEMENT.value,
+        Reason.EVIDENCE_TOKEN_CHAIN_MISMATCH.value,
     }),
 )
 

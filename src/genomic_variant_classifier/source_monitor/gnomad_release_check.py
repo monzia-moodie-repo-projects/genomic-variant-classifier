@@ -47,6 +47,7 @@ WHAT THIS MODULE DOES NOT ESTABLISH
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import time
@@ -72,6 +73,20 @@ MAX_PAGES = 20
 MAX_BYTES_PER_PAGE = 4 * 1024 * 1024
 MAX_TOKEN_CHARS = 8192
 MAX_ELAPSED_SECONDS = 120          # a per-request timeout does not bound total
+
+#: RULING 2026-09-16, requirement 3.1/3.2: "Preserve the exact response body
+#: presented to the decoder. Recompute its digest during recovery and
+#: verification." A digest with no retained body is a claim nothing can
+#: check -- probe case "arbitrary_valid_length_digest" passed every existing
+#: check because the verifier had only the digest to compare against itself.
+#:
+#: Bounded independently of MAX_BYTES_PER_PAGE, which governs PROCESSING. A
+#: page within budget is still not retained once the RUN'S total would exceed
+#: this -- "Capture under bounded resource use... including limits on
+#: decompressed data." The measured live response is 305 bytes; twenty pages
+#: at that size is nowhere near this ceiling, so ordinary operation retains
+#: everything and only a pathological run degrades to digest-only retention.
+MAX_TOTAL_RETAINED_BYTES = 8 * 1024 * 1024
 
 
 class PageInvalid(Exception):
@@ -104,12 +119,30 @@ class PageCapture:
     accepted: bool
     rejected_because: str = ""
 
+    #: A TRANSPORT ATTEMPT identifier, distinct from `sequence` (the LOGICAL
+    #: page ordinal). RULING 2026-09-16: "Retries mean there may be several
+    #: transport attempts for one logical page. Give them different
+    #: identifiers. Otherwise, introducing retries later will break the
+    #: meaning of sequence." No retry logic exists yet -- this field exists so
+    #: adding one is additive, not a silent redefinition of `sequence`.
+    attempt_number: int = 1
+
+    #: Base64 of the EXACT bytes handed to the decoder. Empty when retention
+    #: was bounded away (see MAX_TOTAL_RETAINED_BYTES); `body_retained` says
+    #: which case this is, so an empty string is never mistaken for "the body
+    #: was empty".
+    response_body_b64: str = ""
+    body_retained: bool = False
+
     def as_document(self):
         return {"sequence": self.sequence, "request_url": self.request_url,
                 "response_sha256": self.response_sha256,
                 "response_bytes": self.response_bytes,
                 "accepted": self.accepted,
-                "rejected_because": self.rejected_because}
+                "rejected_because": self.rejected_because,
+                "attempt_number": self.attempt_number,
+                "response_body_b64": self.response_body_b64,
+                "body_retained": self.body_retained}
 
 
 @dataclass
@@ -120,6 +153,7 @@ class Traversal:
     captures: list = field(default_factory=list)
     pages_read: int = 0
     bytes_read: int = 0
+    retained_bytes_total: int = 0
     stopped_because: str = "not started"
     reason: object = None
 
@@ -214,7 +248,8 @@ def _validate_page(raw):
 
 
 def traverse(transport, *, max_pages=MAX_PAGES,
-             max_elapsed=MAX_ELAPSED_SECONDS, clock=time.monotonic):
+             max_elapsed=MAX_ELAPSED_SECONDS, clock=time.monotonic,
+             max_retained_bytes=MAX_TOTAL_RETAINED_BYTES):
     """Walk the listing, accumulating VALIDATED pages.
 
     `transport(url) -> bytes` is injected. Fixtures and live execution use the
@@ -255,6 +290,20 @@ def traverse(transport, *, max_pages=MAX_PAGES,
             return state                       # the accumulator SURVIVES
 
         digest = hashlib.sha256(raw).hexdigest()
+
+        # RETAIN THE BODY, bounded per-page AND across the whole run. A page
+        # that is itself within MAX_BYTES_PER_PAGE can still be dropped from
+        # RETENTION once the cumulative total would exceed the run budget --
+        # processing and retention are governed by separate limits on
+        # purpose, so a long clean run degrades to digest-only capture rather
+        # than growing memory without bound.
+        retain_body = (len(raw) <= MAX_BYTES_PER_PAGE
+                      and state.retained_bytes_total + len(raw)
+                      <= max_retained_bytes)
+        body_b64 = base64.b64encode(raw).decode("ascii") if retain_body else ""
+        if retain_body:
+            state.retained_bytes_total += len(raw)
+
         try:
             prefixes, token = _validate_page(raw)
         except PageInvalid as exc:
@@ -262,13 +311,14 @@ def traverse(transport, *, max_pages=MAX_PAGES,
             # and retains nothing to check is unfalsifiable.
             state.captures.append(PageCapture(
                 len(state.captures) + 1, url, digest, len(raw), False,
-                exc.detail))
+                exc.detail, 1, body_b64, retain_body))
             state.stopped_because = exc.detail
             state.reason = exc.reason
             return state                       # the accumulator SURVIVES
 
         state.captures.append(PageCapture(
-            len(state.captures) + 1, url, digest, len(raw), True))
+            len(state.captures) + 1, url, digest, len(raw), True, "",
+            1, body_b64, retain_body))
 
         # Only a VALIDATED page contributes. A malformed page never adds
         # unverified findings.

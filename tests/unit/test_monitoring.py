@@ -1126,3 +1126,181 @@ def test_the_registered_check_passes_the_RUNNERS_profile():
         if kw.arg == "profile" and isinstance(kw.value, _ast.Name)
     }
     assert passed == {"RELEASE_PROFILE"}, passed
+
+
+# --------------------------------------------------------------------------
+# 10. Independent recomputation, per the ruling of 2026-09-16
+#
+# An INDEPENDENT forensic probe found six adversarial cases producing ZERO
+# findings from the verifier as it stood: a fabricated digest, an ignored
+# `accepted` flag, a syntactically valid but WRONG continuation token, an
+# out-of-order capture list (checked as a multiset, not a sequence), and a
+# COMPLETE claim with no captures at all. Every test below reproduces one of
+# those cases through the REAL transport seam and asserts the fix.
+# --------------------------------------------------------------------------
+
+import base64 as _b64
+
+from genomic_variant_classifier.source_monitor.request_verifier import (
+    qualify, TraversalCompleteness, _independent_parse_release_version)
+
+
+def _paged(prefixes, token=None, kind="storage#objects"):
+    """A raw page DICT, matching what the file's own `_transport(*pages)`
+    fixture expects (it does the json.dumps().encode() itself -- see line
+    248). For the byte-level mutation tests below that need actual encoded
+    bytes to tamper with, call json.dumps(_paged(...)).encode() explicitly at
+    the call site instead of here."""
+    d = {"kind": kind, "prefixes": prefixes}
+    if token is not None:
+        d["nextPageToken"] = token
+    return d
+
+
+def test_a_fabricated_digest_is_caught_by_recomputation():
+    """Probe case arbitrary_valid_length_digest: a well-formed fabrication
+    passed every check that existed before this repair."""
+    r = grc.observe_releases(transport=_transport(_paged(["release/4.1.1/"])))
+    tampered = tuple(dict(c, response_sha256="a" * 64) for c in r.captures)
+    out = qualify(r.target, tampered)
+    assert any(f.reason is Reason.EVIDENCE_INTEGRITY_MISMATCH
+              for f in out.findings)
+
+
+def test_a_consistent_body_and_digest_swap_raises_no_integrity_finding():
+    """Matching bytes and digest establish internal consistency, not origin.
+    A consistently swapped pair must NOT be flagged as tampered -- and the
+    outcome document must still disclaim authenticity regardless."""
+    r = grc.observe_releases(transport=_transport(_paged(["release/4.1.1/"])))
+    new_body = json.dumps(_paged(["release/9.9.9/"])).encode()
+    swapped = tuple(dict(c, response_body_b64=_b64.b64encode(new_body).decode(),
+                         response_sha256=hashlib.sha256(new_body).hexdigest())
+                    for c in r.captures)
+    out = qualify(r.target, swapped)
+    assert not any(f.reason is Reason.EVIDENCE_INTEGRITY_MISMATCH
+                  for f in out.findings)
+    assert "9.9.9" in out.positive_witnesses
+    assert any("authenticity" in d for d in out.as_document()["does_not_establish"])
+
+
+def test_the_producers_accepted_flag_is_not_authoritative():
+    """Probe case rejected_flag_not_checked: `accepted` was recorded and
+    never read. A valid page marked rejected must still yield its witness,
+    with the disagreement flagged separately."""
+    r = grc.observe_releases(transport=_transport(_paged(["release/4.1.1/"])))
+    lied = tuple(dict(c, accepted=False, rejected_because="fabricated")
+                for c in r.captures)
+    out = qualify(r.target, lied)
+    assert any(f.reason is Reason.EVIDENCE_ACCEPTANCE_DISAGREEMENT
+              for f in out.findings)
+    assert "4.1.1" in out.positive_witnesses
+
+
+def test_a_wrong_but_well_formed_continuation_token_breaks_the_chain():
+    """Probe case arbitrary_continuation: the previous chain check compared
+    SHAPE only ('does page 2 carry a token'), because it had no access to
+    what page 1's own body actually declared. It now does."""
+    r = grc.observe_releases(transport=_transport(
+        _paged(["release/4.1.1/"], token="tok-A"),
+        _paged(["release/4.2/"])))
+    wrong_url = r.captures[1]["request_url"].replace(
+        "pageToken=tok-A", "pageToken=tok-DIFFERENT")
+    tampered = (r.captures[0], dict(r.captures[1], request_url=wrong_url))
+    out = qualify(r.target, tampered)
+    assert any(f.reason is Reason.EVIDENCE_TOKEN_CHAIN_MISMATCH
+              for f in out.findings)
+
+
+def test_a_capture_following_a_terminal_page_breaks_the_chain():
+    r = grc.observe_releases(transport=_transport(_paged(["release/4.1.1/"])))
+    ghost = dict(r.captures[0], sequence=2,
+                request_url=r.captures[0]["request_url"] + "&pageToken=ghost")
+    out = qualify(r.target, r.captures + (ghost,))
+    assert any(f.reason is Reason.EVIDENCE_TOKEN_CHAIN_MISMATCH
+              for f in out.findings)
+
+
+def test_reversed_captures_fail_the_order_check_not_just_the_set_check():
+    """Probe case out_of_order_sequences: `sorted(seen) == range(1, n+1)` is a
+    MULTISET check and passed a reversed list once sorted."""
+    r = grc.observe_releases(transport=_transport(
+        _paged(["release/4.1.1/"], token="tok-A"),
+        _paged(["release/4.2/"])))
+    out = qualify(r.target, (r.captures[1], r.captures[0]))
+    assert any(f.reason is Reason.EVIDENCE_CAPTURE_SEQUENCE_INVALID
+              for f in out.findings)
+
+
+def test_a_bool_sequence_is_refused_even_though_True_equals_one():
+    """`True == 1` in Python, so a bare list-equality order check would
+    accept a bool where an int belongs."""
+    out = qualify("x", ({"sequence": True, "request_url": "",
+                        "response_sha256": "a" * 64, "response_bytes": 0,
+                        "accepted": True},))
+    assert any(f.reason is Reason.EVIDENCE_CAPTURE_SEQUENCE_INVALID
+              for f in out.findings)
+
+
+def test_removing_the_final_capture_leaves_traversal_incomplete_but_keeps_the_witness():
+    r = grc.observe_releases(transport=_transport(
+        _paged(["release/4.1.1/"], token="tok-A"),
+        _paged(["release/4.2/"])))
+    out = qualify(r.target, (r.captures[0],))
+    assert out.traversal_completeness is TraversalCompleteness.INCOMPLETE
+    assert "4.1.1" in out.positive_witnesses
+
+
+def test_a_timeout_after_a_witness_keeps_the_witness_and_marks_incomplete():
+    r = grc.observe_releases(transport=_transport(
+        _paged(["release/4.1.1/"], token="tok-A"), TimeoutError("second page")))
+    out = qualify(r.target, r.captures)
+    assert "4.1.1" in out.positive_witnesses
+    assert out.traversal_completeness is TraversalCompleteness.INCOMPLETE
+
+
+def test_zero_captures_qualifies_for_neither_claim_whatever_health_claims():
+    """Probe case complete_without_captures: exit 0, verified: [].
+    Qualification must not be inferred from the producer's claimed health."""
+    out = qualify("gnomad-public-releases", ())
+    assert out.traversal_completeness is TraversalCompleteness.UNESTABLISHED
+    assert not out.eligible_for_existence_claim
+    assert not out.eligible_for_absence_claim
+
+
+def test_duplicate_json_keys_are_refused_by_independent_structural_validation():
+    dup = b'{"kind":"storage#objects","kind":"other","prefixes":[]}'
+    r = grc.observe_releases(transport=_transport(_paged(["release/4.1.1/"])))
+    bad = tuple(dict(c, response_body_b64=_b64.b64encode(dup).decode(),
+                    response_sha256=hashlib.sha256(dup).hexdigest())
+               for c in r.captures)
+    out = qualify(r.target, bad)
+    assert any(f.reason is Reason.RESPONSE_JSON_DUPLICATE for f in out.findings)
+
+
+def test_traversal_completeness_requires_zero_endpoint_or_query_mismatches():
+    """A traversal against the WRONG plan is not a completed traversal of the
+    approved subject, even if every page it fetched is internally valid."""
+    r = grc.observe_releases(transport=_transport(_paged(["release/4.0/"])))
+    wrong = tuple(dict(c, request_url=c["request_url"].replace(
+        "gcp-public-data--gnomad", "some-other-bucket")) for c in r.captures)
+    out = qualify(r.target, wrong)
+    assert out.traversal_completeness is not TraversalCompleteness.COMPLETE
+
+
+@pytest.mark.parametrize("prefix", [
+    "release/4.1.1/", "release/4.1/", "release/v4.0/", "release/4.0/",
+    "release/", "release/latest/", "release/4.x/", "release/-1/",
+    "release/+2/", "release/4 1/", "release/4.10/", "release/4.9/",
+    "release//", "release/0/", "release/v/", "release/4.1.1.1/",
+])
+def test_the_two_independent_release_grammars_agree(prefix):
+    """TWO SEPARATE implementations of the same grammar -- not one imported
+    into the other -- so they can drift-detect each other. This battery is
+    the drift detector."""
+    assert grc.parse_version(prefix) == _independent_parse_release_version(prefix)
+
+
+def test_the_verifier_and_the_adapter_declare_the_SAME_baseline_and_kind():
+    from genomic_variant_classifier.source_monitor import request_verifier as rv
+    assert rv.APPROVED_BASELINE == grc.APPROVED_BASELINE
+    assert rv.EXPECTED_KIND == grc.EXPECTED_KIND

@@ -103,6 +103,46 @@ class Reason(str, Enum):
     # "one" and -5 travelled into the report unchallenged.
     EVIDENCE_CAPTURE_SEQUENCE_INVALID = "evidence.capture_sequence_invalid"
 
+    # MEASURED 2026-09-16 by an independent forensic probe run against this
+    # exact catalog: five adversarial cases produced ZERO findings from the
+    # verifier then in place. Each below closes one, and each is a DISTINCT
+    # condition from its nearest neighbour -- conflating them would repeat the
+    # "a gap is not truncation" error one probe cycle later.
+    #
+    #   ARTIFACT_DIGEST_MISMATCH   already means: the digest STRING is not a
+    #                              64-character lowercase hex value (a FORMAT
+    #                              check, no bytes involved).
+    #   EVIDENCE_INTEGRITY_MISMATCH  the digest IS well-formed and does NOT
+    #                              match sha256(retained body). Probe case
+    #                              "arbitrary_valid_length_digest": a
+    #                              well-formed fabrication passed every
+    #                              existing check.
+    EVIDENCE_INTEGRITY_MISMATCH = "evidence.integrity_mismatch"
+
+    #: The retained body was never captured (over the per-page or per-run
+    #: retention budget) or was stripped before reaching the verifier. Neither
+    #: CONFIRMS nor DENIES structure or acceptance for that page -- it is
+    #: unestablished, not failed. Conflating this with a structural failure
+    #: would report a resource-management decision as a data defect.
+    EVIDENCE_BODY_UNAVAILABLE = "evidence.body_unavailable"
+
+    #: The producer's own `accepted` flag disagrees with the verifier's
+    #: INDEPENDENT structural recomputation from the retained body. Probe case
+    #: "rejected_flag_not_checked": `accepted` was recorded and never read.
+    #: RULING 2026-09-16: "Do not make accepted authoritative. It is the
+    #: producer's diagnostic. The verifier should recompute acceptance."
+    #: This is the finding that recomputation disagreed; it is NOT a
+    #: structural defect in the bytes themselves (those get their own
+    #: RESPONSE_* code from the independent recomputation).
+    EVIDENCE_ACCEPTANCE_DISAGREEMENT = "evidence.acceptance_disagreement"
+
+    #: A later request's pageToken does not equal the value the PRECEDING
+    #: capture's own response body declared. Distinct from
+    #: TRAVERSAL_TOKEN_MALFORMED, which is a syntax defect in one token
+    #: considered alone. Probe case "arbitrary_continuation": a syntactically
+    #: valid token that does not match what was actually promised.
+    EVIDENCE_TOKEN_CHAIN_MISMATCH = "evidence.token_chain_mismatch"
+
 
 #: Supervisor-owned findings. NEVER in a producer's allowed set. A worker that
 #: emits one of these is asserting a health judgment it is not authorized to

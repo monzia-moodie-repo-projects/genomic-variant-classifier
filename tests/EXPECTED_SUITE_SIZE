@@ -7990,4 +7990,7 @@
 # 2026-09-15  D-R2-VERIFIER-AND-STORE-2026-09-15
 #   ADDITION, +42 by node identity, 0 removed.
 #   the retained evidence is finally checked by something independent.
-6658
+# 2026-09-16  D-Q2-INDEPENDENT-RECOMPUTATION-2026-09-16
+#   ADDITION, +29 by node identity, 0 removed.
+#   the verifier finally recomputes what it claims to check.
+6687
