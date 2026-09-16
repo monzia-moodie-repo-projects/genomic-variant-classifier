@@ -415,7 +415,58 @@ def test_an_unreachable_heartbeat_is_visible_and_does_not_raise(monkeypatch):
 
     monkeypatch.setattr(hb.urllib.request, "urlopen", boom)
     out = signal_outcome("https://hc.example/tok", 0)
-    assert out.attempted and not out.delivered and "unreachable" in out.detail
+    # The detail is the exception's CLASS NAME only -- see
+    # test_a_synthetic_credential_in_the_exception_message_does_not_leak
+    # for why the raw message is never recorded here.
+    assert out.attempted and not out.delivered and out.detail == "OSError"
+
+
+def test_a_synthetic_credential_in_the_exception_message_does_not_leak(monkeypatch):
+    """MEASURED 2026-09-16, from an external ruling's reading of this module:
+    str(exc) was serialized directly into the report. Proven empirically: an
+    exception whose OWN message embeds the request's full URL -- ordinary
+    behaviour for several urllib and SSL failure paths -- put the endpoint
+    straight into the published report."""
+    from genomic_variant_classifier.source_monitor import heartbeat as hb
+
+    secret = "https://hc-ping.com/synthetic-credential-do-not-leak-me"
+
+    def boom(req, timeout=None):
+        raise ValueError("unable to open {}: refused".format(req.full_url))
+
+    monkeypatch.setattr(hb.urllib.request, "urlopen", boom)
+    out = signal_outcome(secret, 0)
+    assert secret not in out.detail
+    assert out.detail == "ValueError"
+
+
+def test_a_malformed_url_is_reported_not_raised(monkeypatch):
+    """MEASURED 2026-09-16: urlsplit() sat OUTSIDE every exception handler.
+    urlsplit("https://[::1/malformed") raises ValueError: Invalid IPv6 URL --
+    confirmed directly -- so a malformed secret crashed the run instead of
+    being reported as a configuration problem."""
+    from genomic_variant_classifier.source_monitor.heartbeat import _send
+    out = _send("https://[::1/malformed", "/fail")
+    assert not out.attempted
+    assert out.endpoint_configured
+    assert "does not parse as a URL" in out.detail
+
+
+def test_an_http_error_reports_only_the_status_code(monkeypatch):
+    """The status code is useful and safe; the exception's own message is
+    neither guaranteed safe nor needed once the code is captured."""
+    import urllib.error
+    from genomic_variant_classifier.source_monitor import heartbeat as hb
+
+    secret = "https://hc-ping.com/another-secret-token"
+
+    def boom(req, timeout=None):
+        raise urllib.error.HTTPError(req.full_url, 404, "Not Found", {}, None)
+
+    monkeypatch.setattr(hb.urllib.request, "urlopen", boom)
+    out = signal_outcome(secret, 0)
+    assert out.detail == "http 404"
+    assert secret not in out.detail
 
 
 def test_a_non_2xx_response_is_not_delivered(monkeypatch):

@@ -62,6 +62,7 @@ WHAT THIS DOES NOT ESTABLISH
 
 from __future__ import annotations
 
+import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from urllib.parse import urlsplit
@@ -136,7 +137,20 @@ def _send(base_url, suffix: str) -> SignalOutcome:
         return SignalOutcome(False, False, True,
                              "endpoint is {}, not a string".format(
                                  type(base_url).__name__))
-    parts = urlsplit(base_url)
+    try:
+        parts = urlsplit(base_url)
+    except ValueError as exc:
+        # MEASURED 2026-09-16, from an external ruling's own reading of this
+        # function: urlsplit() sat OUTSIDE every exception handler here. An
+        # unbalanced IPv6 bracket is enough to make it raise --
+        # urlsplit("https://[::1/malformed") -> ValueError: Invalid IPv6 URL
+        # -- confirmed directly. A malformed GVC_HEARTBEAT_URL secret would
+        # therefore have crashed the run rather than being reported as a
+        # configuration problem, exactly the distinction this module exists
+        # to preserve.
+        return SignalOutcome(False, False, True,
+                             "endpoint does not parse as a URL: {}".format(
+                                 type(exc).__name__))
     if parts.scheme not in ALLOWED_SCHEMES:
         return SignalOutcome(False, False, True,
                              "endpoint scheme {!r} is not permitted; "
@@ -160,8 +174,20 @@ def _send(base_url, suffix: str) -> SignalOutcome:
         if 200 <= code < 300:
             return SignalOutcome(True, True, True, "http {}".format(code))
         return SignalOutcome(True, False, True, "http {}".format(code))
+    except urllib.error.HTTPError as exc:
+        # .code is a bare integer status. Never the URL, never exc's message.
+        return SignalOutcome(True, False, True, "http {}".format(exc.code))
     except Exception as exc:
-        # The monitoring verdict STANDS. Only the signal failed, and saying so
-        # matters: the external service will alarm on a run that happened.
-        return SignalOutcome(True, False, True,
-                             "{}: {}".format(type(exc).__name__, exc))
+        # MEASURED 2026-09-16: str(exc) was serialized directly into this
+        # field. Proven empirically: a urllib failure whose OWN message
+        # embeds req.full_url -- ordinary behaviour for several urllib and
+        # SSL failure paths -- put the heartbeat endpoint straight into the
+        # published report, contradicting the earlier claim that this field
+        # never carries it.
+        #
+        # Only the exception's CLASS NAME survives into the report now: a
+        # fixed, small, enumerable category. The monitoring verdict STANDS
+        # regardless -- only the signal failed, and saying so matters, but
+        # saying so must not mean repeating whatever the exception happened
+        # to say.
+        return SignalOutcome(True, False, True, type(exc).__name__)
