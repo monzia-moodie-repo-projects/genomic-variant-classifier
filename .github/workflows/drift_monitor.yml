@@ -344,6 +344,20 @@ jobs:
     name: ClinVar Label Drift Check
     runs-on: ubuntu-latest
     needs: feature-drift
+    # RUNS REGARDLESS OF feature-drift'S CONCLUSION. (2026-09-16)
+    #
+    # feature-drift's schema-gate step deliberately exits 3 when no
+    # --schema-matrix input was supplied -- every scheduled run, since
+    # github.event.inputs only exists on workflow_dispatch. That exit is
+    # correct and intentional (roadmap 6.20); this patch does not touch it.
+    #
+    # label-drift reads NOTHING from feature-drift -- no outputs, no
+    # artifacts -- confirmed by reading all five of its steps. needs: above
+    # is sequencing only. GitHub's default behaviour skips a dependent job
+    # whenever its need fails for ANY reason, so an unrelated, honest
+    # failure has been silently skipping ClinVar label drift checking
+    # every month since 2026-07-13.
+    if: always()
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
