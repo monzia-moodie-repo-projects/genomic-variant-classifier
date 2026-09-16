@@ -199,12 +199,28 @@ class FindingStore:
                     "no undelivered finding with event_id {}".format(event_id))
 
     def pending_deliveries(self) -> list:
-        """Findings committed but not yet accepted by a delivery channel."""
+        """Findings committed but not yet accepted by a delivery channel.
+
+        MEASURED 2026-09-16: `committed_at` has SECOND precision. Two
+        findings committed inside the same second -- entirely ordinary, one
+        run producing several -- tied, and the fallback `event_id` is a
+        random UUID with no temporal relationship to commit order. Eight
+        findings committed within one second came back in an order that
+        matched their true commit sequence in NEITHER a full run nor any
+        prefix of it.
+
+        `rowid` is SQLite's own strictly-increasing insertion counter for
+        this table (it is never declared WITHOUT ROWID, and no row is ever
+        deleted here, so no reuse is possible). Ordering by it is exact,
+        verified against twenty rapid commits, and needs no clock at all --
+        a wall-clock rollback during NTP correction cannot reorder it the
+        way a timestamp-based sort could.
+        """
         with self._connect() as conn:
             rows = conn.execute(
                 "SELECT event_id, subject, attempt_id, committed_at, record_json "
                 "FROM findings WHERE delivered_at IS NULL "
-                "ORDER BY committed_at, event_id").fetchall()
+                "ORDER BY rowid").fetchall()
         return [{"event_id": r[0], "subject": r[1], "attempt_id": r[2],
                  "committed_at": r[3], "record": json.loads(r[4])} for r in rows]
 

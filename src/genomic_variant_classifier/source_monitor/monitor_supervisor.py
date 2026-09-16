@@ -86,6 +86,30 @@ class SupervisorFinding(str, Enum):
 
 
 @dataclass(frozen=True)
+class SupervisorFindingRecord:
+    """A supervisor finding WITH the context that makes it distinguishable
+    from another of the same kind.
+
+    MEASURED 2026-09-16: two DIFFERENT targets each producing a duplicate
+    result yielded `("supervisor.duplicate_result",
+    "supervisor.duplicate_result")` -- two byte-identical strings, with no
+    way to tell that two targets were affected rather than one target twice,
+    or which target either instance concerned. For DUPLICATE_RESULT
+    specifically, the discarded second result's own content is not preserved
+    anywhere else in the report; this is the only place it could ever be
+    named. Matches the (code, detail) shape `PlanFinding` already uses in
+    request_verifier.py -- one established pattern for a finding that needs
+    more than its own kind to be useful, not two.
+    """
+
+    kind: SupervisorFinding
+    detail: str
+
+    def as_document(self):
+        return {"kind": self.kind.value, "detail": self.detail}
+
+
+@dataclass(frozen=True)
 class TargetResult:
     """One target's outcome, as reported by a qualified producer."""
 
@@ -168,7 +192,7 @@ class RunReport:
                  "reason": (r.reason.value if hasattr(r.reason, "value")
                             else r.reason)}
                 for r in self.results],
-            "supervisor_findings": list(self.supervisor_findings),
+            "supervisor_findings": [f.as_document() for f in self.supervisor_findings],
             "unqualified": list(self.unqualified),
             "exit_code": self.exit_code,
             "does_not_establish": [
@@ -194,7 +218,9 @@ def supervise(required_targets, results) -> RunReport:
 
     if not required:
         # A policy requiring nothing cannot fail, so it cannot report.
-        supervisor_findings.append(SupervisorFinding.NO_REQUIRED_TARGETS.value)
+        supervisor_findings.append(SupervisorFindingRecord(
+            SupervisorFinding.NO_REQUIRED_TARGETS,
+            "the required-target policy is empty"))
     if len(set(required)) != len(required):
         # MEASURED 2026-09-15: supervise(("a","a"), [one result]) returned
         # EXIT 0 with no findings. The obligation set silently shrank from two
@@ -203,29 +229,43 @@ def supervise(required_targets, results) -> RunReport:
         # run_monitor.validate_configuration refuses a duplicated policy, but a
         # caller that does not go through the runner had no protection. The
         # guard belongs where the INVARIANT lives, not only in one caller.
-        supervisor_findings.append(SupervisorFinding.DUPLICATE_REQUIRED.value)
+        dupes = sorted({t for t in required if required.count(t) > 1})
+        supervisor_findings.append(SupervisorFindingRecord(
+            SupervisorFinding.DUPLICATE_REQUIRED,
+            "required targets repeated: {}".format(dupes)))
 
     seen = {}
     ordered = []
     for r in results:
         if type(r) is not TargetResult:
-            supervisor_findings.append(SupervisorFinding.RESULT_MALFORMED.value)
+            supervisor_findings.append(SupervisorFindingRecord(
+                SupervisorFinding.RESULT_MALFORMED,
+                "not a TargetResult: {!r}".format(r)[:200]))
             continue
         if r.target in seen:
-            supervisor_findings.append(SupervisorFinding.DUPLICATE_RESULT.value)
+            # MEASURED 2026-09-16: the discarded result's own content is
+            # preserved NOWHERE else -- this detail string is its only trace.
+            supervisor_findings.append(SupervisorFindingRecord(
+                SupervisorFinding.DUPLICATE_RESULT,
+                "target {!r}: discarded a second result with health={!r}"
+                .format(r.target, r.health.value)))
             continue
         seen[r.target] = r
         ordered.append(r)
 
     for target in required:
         if target not in seen:
-            supervisor_findings.append(SupervisorFinding.TARGET_ABSENT.value)
+            supervisor_findings.append(SupervisorFindingRecord(
+                SupervisorFinding.TARGET_ABSENT,
+                "target {!r}".format(target)))
             ordered.append(TargetResult(target, Health.ABSENT))
 
     for target in seen:
         if target not in required:
-            supervisor_findings.append(
-                SupervisorFinding.TARGET_UNDECLARED.value)
+            supervisor_findings.append(SupervisorFindingRecord(
+                SupervisorFinding.TARGET_UNDECLARED,
+                "target {!r} is not in the required-target policy"
+                .format(target)))
 
     return RunReport(required=required, results=tuple(ordered),
                      supervisor_findings=tuple(supervisor_findings))

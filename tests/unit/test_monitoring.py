@@ -1085,7 +1085,8 @@ def test_the_supervisor_refuses_a_duplicated_required_target():
         SupervisorFinding)
     r = supervise(("a", "a"), [TargetResult("a", Health.COMPLETE)])
     assert r.exit_code == 2
-    assert SupervisorFinding.DUPLICATE_REQUIRED.value in r.supervisor_findings
+    assert any(f.kind is SupervisorFinding.DUPLICATE_REQUIRED
+              for f in r.supervisor_findings)
 
 
 def test_a_policy_without_duplicates_is_unaffected():
@@ -1304,3 +1305,46 @@ def test_the_verifier_and_the_adapter_declare_the_SAME_baseline_and_kind():
     from genomic_variant_classifier.source_monitor import request_verifier as rv
     assert rv.APPROVED_BASELINE == grc.APPROVED_BASELINE
     assert rv.EXPECTED_KIND == grc.EXPECTED_KIND
+
+
+def test_two_different_targets_each_duplicating_are_distinguishable():
+    """MEASURED 2026-09-16: two DIFFERENT targets each producing a duplicate
+    result yielded two BYTE-IDENTICAL bare strings -- no way to tell two
+    targets were affected rather than one target twice, or which was which.
+    The discarded result's own content survived nowhere else in the report."""
+    from genomic_variant_classifier.source_monitor.monitor_supervisor import (
+        SupervisorFinding)
+    r = supervise(("target-A", "target-B"), [
+        TargetResult("target-A", Health.COMPLETE),
+        TargetResult("target-A", Health.FAILED, reason="x"),
+        TargetResult("target-B", Health.COMPLETE),
+        TargetResult("target-B", Health.INCOMPLETE, reason="y"),
+    ])
+    dupes = [f for f in r.supervisor_findings
+            if f.kind is SupervisorFinding.DUPLICATE_RESULT]
+    assert len(dupes) == 2
+    details = {f.detail for f in dupes}
+    assert len(details) == 2, "the two findings must be distinguishable"
+    assert any("target-A" in d for d in details)
+    assert any("target-B" in d for d in details)
+
+
+def test_supervisor_finding_as_document_is_structured():
+    from genomic_variant_classifier.source_monitor.monitor_supervisor import (
+        SupervisorFinding, SupervisorFindingRecord)
+    rec = SupervisorFindingRecord(SupervisorFinding.TARGET_ABSENT, "target 'x'")
+    doc = rec.as_document()
+    assert doc == {"kind": "supervisor.target_absent", "detail": "target 'x'"}
+
+
+def test_pending_deliveries_preserves_true_commit_order_within_one_second(tmp_path):
+    """MEASURED 2026-09-16: committed_at has SECOND precision; the fallback
+    tiebreaker was a random UUID. Twenty findings committed within one
+    second came back in an order unrelated to their true commit sequence."""
+    store = FindingStore(tmp_path / "f.sqlite3")
+    attempt = store.begin_attempt("s")
+    ids = [store.commit_finding(attempt_id=attempt, subject="s",
+                                record={"i": i}).event_id
+          for i in range(20)]
+    pending = store.pending_deliveries()
+    assert [p["event_id"] for p in pending] == ids
