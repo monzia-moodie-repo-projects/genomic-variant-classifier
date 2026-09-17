@@ -8005,4 +8005,7 @@
 # 2026-09-17  D-Q3-VERIFIER-INTEGRATION-2026-09-16
 #   ADDITION, +3 by node identity, 0 removed.
 #   the verifier Q2 built runs when the monitor runs, instead of sitting fully tested beside a runner that never called it.
-6701
+# 2026-09-17  D-SA-SOURCE-MONITOR-ALERT-2026-09-16
+#   ADDITION, +29 by node identity, 0 removed.
+#   a red source-monitor run opens a GitHub issue naming whether it is a genuine finding or a broken monitor, closing the same check-fired-nobody-looked gap ci_failure_alert.yml already closed for CI.
+6730

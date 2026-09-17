@@ -1,0 +1,285 @@
+# ---------------------------------------------------------------------------
+# SOURCE-MONITOR ALERT
+#
+# WHY THIS EXISTS
+# ---------------
+# source_monitor.yml's own job conclusion is deliberately tied to run_monitor.
+# py's exit code, unfiltered -- see that workflow's own comment: "the job's
+# conclusion still comes from the step above". A red run there is therefore
+# not a claim that anything is broken; it is the chosen mechanism for making
+# "review required" visible at all. On 2026-09-16 that meant a genuine finding
+# -- release 4.1.1 newer than the approved 4.1 -- surfaced as nothing more
+# than a red X in the Actions tab, the exact "the check fired; there was no
+# reader" shape ci_failure_alert.yml exists to close for CI. This workflow
+# closes the same gap here.
+#
+# THE ONE THING THIS CANNOT COPY FROM ci_failure_alert.yml
+# ---------------------------------------------------------
+# CI has one failure shape. source-monitor has two, and GitHub's own
+# success/failure conclusion cannot tell them apart: exit code 1 is a genuine
+# finding worth review (nothing is broken); exit code 2 means the monitor
+# itself could not qualify its evidence (evidence unreachable, an
+# implementation defect). Distinguishing them requires reading the actual
+# report.json the failed run uploaded -- the workflow_run webhook payload
+# does not carry it. actions/download-artifact's run-id + github-token inputs
+# fetch it from the TRIGGERING run, not this alert's own run.
+#
+# WHAT IT DOES
+# ------------
+# Opens a GitHub issue naming WHICH of the two kinds occurred and what the
+# report said, comments on that issue for subsequent failures, and CLOSES it
+# when source-monitor is clean again -- the same idempotence discipline
+# ci_failure_alert.yml already established.
+#
+# WHY IT IS TESTABLE -- INCLUDING THE PART ci_failure_alert.yml NEVER NEEDED
+# ----------------------------------------------------------------------
+# workflow_dispatch has no real triggering run to download an artifact from,
+# so a naive port of ci_failure_alert.yml's dispatch would only ever exercise
+# the "no report found" fallback -- never the exit-1 or exit-2 branches,
+# which are the one genuinely new thing here. simulate_exit_code constructs a
+# representative report in place of a downloaded one, so every branch can be
+# exercised on demand rather than waited for.
+# tests/unit/test_source_monitor_alert_workflow.py parses this file and pins
+# its trigger, branch filter, permissions and idempotence, the same way
+# ci_failure_alert.yml's own test does.
+#
+# NOTE ON workflow_run: this file must be present on the DEFAULT BRANCH to
+# fire at all. A copy on a feature branch does nothing.
+# ---------------------------------------------------------------------------
+name: Source monitor alert
+
+on:
+  workflow_run:
+    workflows: ["source-monitor"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Exercise the alert path without touching any issue"
+        required: false
+        default: "true"
+        type: choice
+        options: ["true", "false"]
+      simulate_exit_code:
+        description: "Exercise a specific branch with a representative report (no real run needed)"
+        required: false
+        default: "none"
+        type: choice
+        options: ["none", "1", "2"]
+
+permissions:
+  contents: read
+  issues: write
+  actions: read
+
+concurrency:
+  # Serialise so two rapid source-monitor results cannot race and open two
+  # issues.
+  group: source-monitor-alert
+  cancel-in-progress: false
+
+jobs:
+  alert:
+    name: Surface or clear a red source-monitor run
+    runs-on: ubuntu-latest
+    # workflow_dispatch always runs, so the path can be exercised
+    # deliberately. workflow_run acts only for main -- a red dev branch is
+    # not a red release.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.head_branch == 'main'
+    steps:
+      - name: Download the triggering run's report, if one exists
+        if: github.event_name == 'workflow_run'
+        # actions/download-artifact v8.0.1, verified 2026-09-16 by
+        # git ls-remote against actions/download-artifact directly:
+        # refs/tags/v8.0.1 -> 3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c.
+        # run-id + github-token are what make a CROSS-RUN download possible
+        # at all; without them this step could only ever see this alert
+        # workflow's OWN (nonexistent) artifacts, never the triggering run's.
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        continue-on-error: true
+        with:
+          name: source-monitor-report
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: source-monitor-report
+
+      - name: Open, update or close the source-monitor alert issue
+        # actions/github-script v8.0.0, the same pin ci_failure_alert.yml
+        # uses. Pinned by SHA because a tag is mutable and a SHA is not.
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          SIMULATE_EXIT_CODE: ${{ github.event.inputs.simulate_exit_code || 'none' }}
+        with:
+          script: |
+            const fs = require('fs');
+            const LABEL = 'source-monitor-alert';
+            const TITLE = 'source-monitor needs review';
+            const dryRun = process.env.DRY_RUN === 'true';
+            const dispatched = context.eventName === 'workflow_dispatch';
+            const simulate = process.env.SIMULATE_EXIT_CODE;
+
+            const run = context.payload.workflow_run || null;
+            // A manual dispatch has no workflow_run payload. Treat it as a
+            // FAILURE by default so the alert path itself is exercised -- an
+            // alert only ever tested on its success branch is untested.
+            // Setting simulate_exit_code implies a failure is being
+            // exercised regardless of any other input.
+            const conclusion = run ? run.conclusion : 'failure';
+            const sha        = run ? run.head_sha : context.sha;
+            const runUrl     = run
+              ? run.html_url
+              : `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions`;
+            const runNumber  = run ? run.run_number : 'n/a';
+
+            // THE REPORT. Real runs read it from the artifact the previous
+            // step downloaded; a simulated dispatch builds a representative
+            // one in its place so the exit-1 and exit-2 branches below can
+            // be exercised without waiting for either to occur for real.
+            let report = null;
+            if (simulate === '1') {
+              report = {exit_code: 1, results: [{target: 'gnomad-public-releases',
+                findings: ['SIMULATED: release 9.9.9 is newer than the approved 4.1']}],
+                unqualified: []};
+            } else if (simulate === '2') {
+              report = {exit_code: 2, results: [{target: 'gnomad-public-releases',
+                reason: 'transport.unreachable', findings: []}], unqualified: []};
+            } else {
+              const reportPath = 'source-monitor-report/report.json';
+              if (fs.existsSync(reportPath)) {
+                try {
+                  report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+                } catch (e) {
+                  core.info(`report.json present but did not parse: ${e}`);
+                }
+              }
+            }
+
+            core.info(`event=${context.eventName} conclusion=${conclusion} ` +
+                      `sha=${sha.slice(0, 8)} dry_run=${dryRun} simulate=${simulate} ` +
+                      `report_found=${report !== null}`);
+
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: LABEL,
+              per_page: 10,
+            });
+            const open = existing.data.length ? existing.data[0] : null;
+            core.info(`open ${LABEL} issue: ${open ? '#' + open.number : 'none'}`);
+
+            if (conclusion === 'success') {
+              if (!open) {
+                core.info('source-monitor clean and no open alert. Nothing to do.');
+                return;
+              }
+              const body = [
+                `source-monitor is clean again as of \`${sha.slice(0, 8)}\`.`,
+                '',
+                `Run: ${runUrl}`,
+                '',
+                'Closing automatically. If a finding was worked around rather',
+                'than resolved, reopen this issue and say so -- a closed alert',
+                'is a claim that nothing here needs attention.',
+              ].join('\n');
+              if (dryRun) { core.info(`[dry run] would close #${open.number}`); return; }
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: open.number, body });
+              await github.rest.issues.update({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: open.number, state: 'closed' });
+              core.info(`Closed #${open.number}`);
+              return;
+            }
+
+            if (conclusion !== 'failure') {
+              core.info(`conclusion=${conclusion} is neither success nor failure ` +
+                        '(cancelled, skipped, timed_out). Leaving state unchanged, ' +
+                        'because "the run did not finish" is not "review is needed" ' +
+                        'and it is not "everything is clean" either.');
+              return;
+            }
+
+            // exit_code DISTINGUISHES "found something, review it" (1) from
+            // "the monitor itself could not qualify evidence" (2). Both show
+            // as the SAME red run in the Actions tab; they are not the same
+            // situation and must not read as the same alert.
+            const exitCode = report ? report.exit_code : null;
+            let kind, detail;
+            if (exitCode === 1) {
+              kind = 'REVIEW REQUIRED';
+              const lines = [];
+              for (const r of (report.results || [])) {
+                for (const f of (r.findings || [])) {
+                  lines.push(`- **${r.target}:** ${f}`);
+                }
+              }
+              detail = lines.length ? lines.join('\n')
+                : '(exit code 1, but no findings text was present in the report)';
+            } else if (exitCode === 2) {
+              kind = 'MONITOR COULD NOT QUALIFY EVIDENCE';
+              const lines = [];
+              for (const r of (report.results || [])) {
+                if (r.reason) lines.push(`- **${r.target}:** ${r.reason}`);
+              }
+              for (const u of (report.unqualified || [])) {
+                lines.push(`- unqualified: ${JSON.stringify(u)}`);
+              }
+              detail = lines.length ? lines.join('\n')
+                : '(exit code 2, but no reason text was present in the report)';
+            } else {
+              kind = 'UNKNOWN';
+              detail = report
+                ? `report.json was present but exit_code was ${JSON.stringify(exitCode)}, ` +
+                  'neither 1 nor 2 -- this alert does not yet recognise that value.'
+                : 'report.json could not be found or read for this run. This ' +
+                  'alert can only say the run failed, not why.';
+            }
+
+            const body = [
+              `## source-monitor failed on main${dispatched ? ' (manual exercise of the alert path)' : ''}`,
+              '',
+              `**Kind:** ${kind}`,
+              `**Commit:** \`${sha}\``,
+              `**Run:** ${runUrl} (#${runNumber})`,
+              `**Detected:** ${new Date().toISOString()}`,
+              '',
+              '### What was found',
+              '',
+              detail,
+              '',
+              '### Why you are seeing this',
+              '',
+              'A red run here can mean two different things, and GitHub\'s own',
+              'success/failure conclusion cannot tell them apart: exit code 1 is',
+              'a genuine finding worth review (nothing is broken); exit code 2',
+              'means the monitor itself could not qualify its evidence. This',
+              'alert reads the uploaded report to say which one this is.',
+              '',
+              '### Housekeeping',
+              '',
+              'This issue is reused for subsequent failures and closed',
+              'automatically when source-monitor is clean again on main.',
+            ].join('\n');
+
+            if (dryRun) {
+              core.info('[dry run] would have opened or commented on an issue:');
+              core.info(body);
+              return;
+            }
+
+            if (open) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: open.number, body });
+              core.info(`Commented on existing #${open.number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title: TITLE, body, labels: [LABEL] });
+              core.info(`Opened #${created.data.number}`);
+            }
