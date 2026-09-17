@@ -1464,3 +1464,92 @@ def test_a_producers_claimed_finding_that_the_bytes_do_not_support_is_flagged(
     reasons = {a["reason"] for a in doc["assessments"]}
     assert "evidence.witness_disagreement" in reasons
     assert code == 2
+
+
+# ---------------------------------------------------------------------------
+# qualification must be ESTABLISHED, not merely absent of findings -- 2026-09-17
+#
+# MEASURED, from an external ruling's own injected-producer probes: a
+# producer reporting Health.COMPLETE with zero captures and zero self-
+# reported findings produced exit 0, even though qualify() itself correctly
+# returned traversal_completeness="unestablished" and both eligibility
+# flags False. Confirmed directly before this fix existed: run_monitor.py
+# wired qualify() into the FAILURE path (outcome.findings, witness
+# disagreement) but never made its assessment authoritative for what counts
+# as a CLEAN result -- RunReport.exit_code derives entirely from the
+# producer's own health/findings.
+# ---------------------------------------------------------------------------
+
+def test_a_producer_claiming_complete_with_zero_evidence_is_not_qualified(
+        monkeypatch, tmp_path):
+    """The exact scenario the ruling's probe table names first: COMPLETE
+    health, no captures, no findings. Before this fix: exit 0."""
+    def run(**_kw):
+        return TargetResult("gnomad-public-releases", Health.COMPLETE,
+                            findings=(), captures=())
+    monkeypatch.setitem(rm.CHECKS, "gnomad-public-releases", run)
+    report = tmp_path / "r.json"
+    code = rm.main(["--store", str(tmp_path / "f.sqlite3"), "--report", str(report)])
+    doc = json.loads(report.read_text())
+    assert code == 2
+    assert doc["results"][0]["health"] == "incomplete"
+    assert doc["results"][0]["reason"] == "evidence.qualification_unestablished"
+    assert doc["unqualified"] == ["gnomad-public-releases"]
+
+
+def test_an_unsupported_claim_with_zero_evidence_is_not_a_review_finding(
+        monkeypatch, tmp_path):
+    """The ruling's second probe row: COMPLETE, no captures, but the
+    producer CLAIMS a newer release anyway. Before this fix: exit 1 --
+    treating a claim backed by nothing as a legitimate finding. The claim
+    text itself is still preserved for diagnosis; the target is not."""
+    def run(**_kw):
+        return TargetResult(
+            "gnomad-public-releases", Health.COMPLETE,
+            findings=("release 9.9.9 is newer than the approved 4.1",),
+            captures=())
+    monkeypatch.setitem(rm.CHECKS, "gnomad-public-releases", run)
+    report = tmp_path / "r.json"
+    code = rm.main(["--store", str(tmp_path / "f.sqlite3"), "--report", str(report)])
+    doc = json.loads(report.read_text())
+    assert code == 2
+    assert doc["results"][0]["health"] == "incomplete"
+    assert "release 9.9.9" in doc["results"][0]["findings"][0]
+
+
+def test_a_genuine_witness_under_incomplete_traversal_still_qualifies(
+        monkeypatch, tmp_path):
+    """The coexistence case the ruling insists on: 'a supported positive
+    witness can create a review finding; incomplete evidence creates an
+    operational problem; both can coexist.' A real capture with a real
+    witness, but no terminal marker, must NOT be swallowed into
+    'insufficient' merely because eligible_for_absence_claim is False --
+    eligible_for_existence_claim being True is enough to proceed normally."""
+    import base64, hashlib as hashlib_
+    body = (b'{"kind": "storage#objects", "prefixes": ["release/4.1.1/"], '
+            b'"nextPageToken": "tok-2"}')
+    capture = {
+        "sequence": 1, "attempt_number": 1, "accepted": True,
+        "rejected_because": "", "body_retained": True,
+        "request_url": ("https://storage.googleapis.com/storage/v1/b/"
+                        "gcp-public-data--gnomad/o?prefix=release%2F&"
+                        "delimiter=%2F&maxResults=1000&fields=kind%2C"
+                        "prefixes%2CnextPageToken"),
+        "response_body_b64": base64.b64encode(body).decode(),
+        "response_bytes": len(body),
+        "response_sha256": hashlib_.sha256(body).hexdigest(),
+    }
+    def run(**_kw):
+        return TargetResult(
+            "gnomad-public-releases", Health.COMPLETE,
+            findings=("release 4.1.1 is newer than the approved 4.1",),
+            captures=(capture,))
+    monkeypatch.setitem(rm.CHECKS, "gnomad-public-releases", run)
+    report = tmp_path / "r.json"
+    code = rm.main(["--store", str(tmp_path / "f.sqlite3"), "--report", str(report)])
+    doc = json.loads(report.read_text())
+    q = doc["qualification"]["gnomad-public-releases"]
+    assert q["traversal_completeness"] == "incomplete"
+    assert q["eligible_for_existence_claim"] is True
+    assert code == 1
+    assert doc["results"][0]["health"] == "complete"

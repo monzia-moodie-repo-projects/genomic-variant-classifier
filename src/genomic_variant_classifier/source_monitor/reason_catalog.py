@@ -151,6 +151,19 @@ class Reason(str, Enum):
     #: DISAGREEMENT closed for the `accepted` flag, applied here to findings.
     EVIDENCE_WITNESS_DISAGREEMENT = "evidence.witness_disagreement"
 
+    #: MEASURED 2026-09-17, from an external ruling's own injected-producer
+    #: probes: a producer reporting Health.COMPLETE with zero captures and
+    #: zero self-reported findings produced exit 0, even though qualify()
+    #: itself correctly returned traversal_completeness="unestablished" and
+    #: both eligibility flags False. Confirmed directly: RunReport.exit_code
+    #: derives entirely from the adapter's own health/findings, never from
+    #: qualify()'s output -- Q3 wired the verifier into the FAILURE path
+    #: (outcome.findings, witness disagreement) but never made its assessment
+    #: authoritative for what counts as a CLEAN result. This code closes
+    #: that: qualification that does not establish enough evidence forces an
+    #: operational finding, regardless of what the producer itself claimed.
+    EVIDENCE_QUALIFICATION_UNESTABLISHED = "evidence.qualification_unestablished"
+
 
 #: Supervisor-owned findings. NEVER in a producer's allowed set. A worker that
 #: emits one of these is asserting a health judgment it is not authorized to

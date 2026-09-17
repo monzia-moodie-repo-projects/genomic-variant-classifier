@@ -8008,4 +8008,7 @@
 # 2026-09-17  D-SA-SOURCE-MONITOR-ALERT-2026-09-16
 #   ADDITION, +29 by node identity, 0 removed.
 #   a red source-monitor run opens a GitHub issue naming whether it is a genuine finding or a broken monitor, closing the same check-fired-nobody-looked gap ci_failure_alert.yml already closed for CI.
-6730
+# 2026-09-17  D-R-QUALIFICATION-AUTHORITY-2026-09-17
+#   ADDITION, +3 by node identity, 0 removed.
+#   qualify()'s own assessment now decides whether a result is clean, instead of the producer's self-reported health deciding it while the verifier's answer sat unused in the report.
+6733

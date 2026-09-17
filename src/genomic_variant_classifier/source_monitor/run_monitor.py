@@ -77,7 +77,7 @@ from genomic_variant_classifier.source_monitor.heartbeat import (
 from genomic_variant_classifier.source_monitor.monitor_supervisor import (
     Health, TargetResult, supervise)
 from genomic_variant_classifier.source_monitor.request_verifier import (
-    qualify)
+    qualify, TraversalCompleteness)
 from genomic_variant_classifier.source_monitor.reason_catalog import (
     ContractFinding, Reason, ReasonProfile, assess_failure_record,
     make_failure_record)
@@ -162,6 +162,10 @@ RELEASE_PROFILE = ReasonProfile(
         # PRODUCER_can_emit[run_monitor] itself, before any live run, which
         # is exactly what that test was built for.
         Reason.EVIDENCE_WITNESS_DISAGREEMENT.value,
+        # MEASURED 2026-09-17: the SIXTH occurrence of the same omission --
+        # done immediately this time, before writing the logic that emits
+        # it, specifically because it has been missed five times already.
+        Reason.EVIDENCE_QUALIFICATION_UNESTABLISHED.value,
     }),
 )
 
@@ -384,6 +388,56 @@ def main(argv=None) -> int:
                     target, Health.FAILED,
                     reason=Reason.RESPONSE_UNEXPECTED_SHAPE))
                 continue
+            results.append(result)
+            qualification[target] = outcome.as_document()
+            continue
+
+        # QUALIFICATION MUST BE ESTABLISHED, NOT MERELY ABSENT OF FINDINGS.
+        #
+        # MEASURED 2026-09-17, from an external ruling's own injected-
+        # producer probes: a producer reporting Health.COMPLETE with zero
+        # captures and zero self-reported findings produced exit 0 --
+        # confirmed directly by injection -- even though qualify() itself
+        # correctly returned traversal_completeness="unestablished" and
+        # both eligibility flags False. verify_plan_conformance() and
+        # qualify() find PROBLEMS in what was retained; this call site never
+        # asked whether ENOUGH was retained to trust a clean verdict at all.
+        # "no findings" and "sufficient evidence" are different claims, and
+        # this code conflated them by falling through unconditionally.
+        #
+        # eligible_for_absence_claim is, by qualify()'s own definition,
+        # exactly (traversal_completeness is COMPLETE) -- checking it here
+        # too is redundant today, kept explicit so a future decoupling of
+        # that definition does not silently widen this gate.
+        insufficient = (
+            outcome.traversal_completeness != TraversalCompleteness.COMPLETE
+            and not outcome.eligible_for_existence_claim
+            and not outcome.eligible_for_absence_claim)
+        if insufficient:
+            committed, assessment = _persist_and_recover(
+                store, attempt, target,
+                Reason.EVIDENCE_QUALIFICATION_UNESTABLISHED,
+                "traversal_completeness={!r}, eligible_for_existence_claim="
+                "{!r}, eligible_for_absence_claim={!r}: qualify() could not "
+                "establish enough evidence to trust this target's reported "
+                "{!r} health".format(
+                    outcome.traversal_completeness.value,
+                    outcome.eligible_for_existence_claim,
+                    outcome.eligible_for_absence_claim, result.health.value))
+            committed_ids.append(committed.event_id)
+            assessments.append((target, assessment))
+            # PRESERVE ANY GENUINE WITNESS. A target can be simultaneously
+            # under-evidenced AND carry a real finding -- TargetResult's own
+            # docstring already permits this ("valid witnesses, kept even
+            # when incomplete"); nothing before this fix ever exercised it,
+            # because nothing before this fix ever routed a target here.
+            results.append(TargetResult(
+                target, Health.INCOMPLETE,
+                reason=Reason.EVIDENCE_QUALIFICATION_UNESTABLISHED,
+                findings=result.findings, captures=result.captures))
+            qualification[target] = outcome.as_document()
+            continue
+
         results.append(result)
         qualification[target] = outcome.as_document()
 
