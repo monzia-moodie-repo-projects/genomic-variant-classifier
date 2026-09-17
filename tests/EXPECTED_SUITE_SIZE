@@ -8023,4 +8023,7 @@
 # 2026-09-17  D-WD-WITNESS-DISPLAY-2026-09-17
 #   DELIBERATE_RETIREMENT, +2 by node identity, 4 removed.
 #   an independently qualified witness on an incomplete observation is now shown in its own Scientific review section, instead of disappearing behind a generic 'could not qualify evidence' reason code.
-6740
+# 2026-09-17  D-BH-BEHAVIOR-HARNESS-2026-09-17
+#   ADDITION, +5 by node identity, 0 removed.
+#   the alert workflow's own embedded script is now executed by its tests, not merely searched as text -- closing the fixture-divergence gap every functional check this session had to redo by hand.
+6745
