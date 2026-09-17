@@ -240,6 +240,24 @@ def test_a_non_array_results_field_does_not_crash_the_script(raw):
     assert "malformedShape" in raw
 
 
+def test_a_null_element_inside_results_does_not_crash_the_script(raw):
+    """MEASURED 2026-09-17, from a second external ruling's own execution
+    of this exact script AFTER the first four fixes: report.results:
+    [null] still threw an uncaught TypeError. The outer-array check
+    validated that results WAS an array; it never validated what was
+    INSIDE it. Confirmed directly, then fixed: every element is now
+    checked for being a non-null object before anything reads its fields."""
+    assert "r === null || typeof r !== 'object'" in raw
+
+
+def test_a_non_array_findings_on_one_result_does_not_crash_the_script(raw):
+    """MEASURED 2026-09-17, the second half of the same gap: a result
+    object with findings: {a: 1} -- a well-formed element containing a
+    malformed findings field -- also threw an uncaught TypeError,
+    confirmed directly by executing that exact shape."""
+    assert "r.findings !== undefined && !Array.isArray(r.findings)" in raw
+
+
 def test_a_cancelled_run_changes_nothing(raw):
     assert "neither success nor failure" in raw
 

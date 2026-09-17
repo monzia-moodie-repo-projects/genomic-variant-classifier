@@ -77,6 +77,16 @@
 #    Fixed: report.results and report.unqualified are validated as arrays
 #    before iteration; a malformed shape now produces an explicit UNKNOWN
 #    outcome naming what was wrong, never a crash.
+#
+# A FOURTH DEFECT FOUND 2026-09-17 BY A SECOND EXTERNAL RULING, CONFIRMED
+# BY EXECUTING THIS EXACT SCRIPT AGAIN, AFTER THE THREE FIXES ABOVE
+# ------------------------------------------------------------------
+# 4. Fix 3's validation checked that report.results was an ARRAY, but
+#    never the shape of what was INSIDE it. report.results: [null] and a
+#    result with findings: {a: 1} BOTH threw uncaught TypeErrors --
+#    confirmed by executing this exact script with each value. Fixed:
+#    every element of report.results is now validated as a non-null
+#    object whose findings field, if present, is itself an array.
 # ---------------------------------------------------------------------------
 name: Source monitor alert
 
@@ -266,9 +276,19 @@ jobs:
             // in need of one. Validated as arrays before any iteration;
             // a malformed shape becomes an explicit UNKNOWN outcome, never
             // a crash.
+            // MEASURED 2026-09-17, from a second external ruling's own
+            // execution of THIS exact script: report.results: [null] and a
+            // result with findings: {a: 1} BOTH threw uncaught TypeErrors --
+            // the check above validated the OUTER array's type but never
+            // the SHAPE of what is inside it. An uncaught exception here
+            // means no comment, no issue update, and a failed job -- the
+            // exact malformed-report case most in need of an alert, again.
             const malformedShape = report !== null && (
               (report.results !== undefined && !Array.isArray(report.results)) ||
-              (report.unqualified !== undefined && !Array.isArray(report.unqualified)));
+              (report.unqualified !== undefined && !Array.isArray(report.unqualified)) ||
+              (Array.isArray(report.results) && report.results.some((r) =>
+                r === null || typeof r !== 'object' ||
+                (r.findings !== undefined && !Array.isArray(r.findings)))));
             let kind, detail;
             if (malformedShape) {
               kind = 'UNKNOWN';

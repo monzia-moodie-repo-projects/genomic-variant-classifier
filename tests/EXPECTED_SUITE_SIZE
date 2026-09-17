@@ -8014,4 +8014,7 @@
 # 2026-09-17  D-AF-ALERT-FIXES-2026-09-17
 #   DELIBERATE_RETIREMENT, +2 by node identity, 5 removed.
 #   simulation can no longer write fabricated content to a real issue, success no longer closes an issue without ever reading the report, and a malformed results field is reported instead of crashing the job.
-6735
+# 2026-09-17  D-NC-NESTED-CRASH-FIXES-2026-09-17
+#   DELIBERATE_RETIREMENT, +2 by node identity, 4 removed.
+#   a null element inside results, or a non-array findings field on one result, no longer crashes the alert -- validating the outer array was not the same as validating what was inside it.
+6737
