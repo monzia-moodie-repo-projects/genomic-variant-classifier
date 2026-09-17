@@ -8011,4 +8011,7 @@
 # 2026-09-17  D-R-QUALIFICATION-AUTHORITY-2026-09-17
 #   ADDITION, +3 by node identity, 0 removed.
 #   qualify()'s own assessment now decides whether a result is clean, instead of the producer's self-reported health deciding it while the verifier's answer sat unused in the report.
-6733
+# 2026-09-17  D-AF-ALERT-FIXES-2026-09-17
+#   DELIBERATE_RETIREMENT, +2 by node identity, 5 removed.
+#   simulation can no longer write fabricated content to a real issue, success no longer closes an issue without ever reading the report, and a malformed results field is reported instead of crashing the job.
+6735

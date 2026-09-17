@@ -203,9 +203,41 @@ def test_it_reuses_an_open_issue_instead_of_opening_another(raw):
     assert "createComment" in raw
 
 
-def test_it_closes_the_issue_when_source_monitor_goes_clean(raw):
-    assert "state: 'closed'" in raw
+def test_it_comments_but_does_not_auto_close_when_source_monitor_goes_clean(raw):
+    """MEASURED 2026-09-17, from an external ruling's own execution of this
+    exact script: the success branch closed an open issue WITHOUT ever
+    reading the report. GitHub's own conclusion and the report's exit_code
+    are two different signals; nothing here cross-checked them -- so a
+    workflow-level 'success' with a missing or contradictory report could
+    silently close a genuine review item. Per the ruling's own recommended
+    immediate, safe change, automatic closure is suspended: a clean
+    conclusion now comments for visibility only. state: 'closed' must not
+    appear anywhere in this file any longer."""
     assert "conclusion === 'success'" in raw
+    assert "state: 'closed'" not in raw
+    assert "does NOT close the issue automatically" in raw
+
+
+def test_simulation_cannot_write_to_a_real_issue_even_with_dry_run_false(raw):
+    """MEASURED 2026-09-17: simulate_exit_code and dry_run were independent
+    inputs. Dispatching with simulate_exit_code=1 and dry_run=false posted
+    FABRICATED content to a real production issue -- confirmed by executing
+    this script's logic with a mocked issues.create and observing it get
+    called with the simulated body. Simulation must now force preview mode
+    in code, not merely by a default a caller can override."""
+    assert "const dryRun = simulate !== 'none' ||" in raw
+
+
+def test_a_non_array_results_field_does_not_crash_the_script(raw):
+    """MEASURED 2026-09-17: `for (const r of (report.results || []))` threw
+    an uncaught TypeError when report.results was a non-array truthy value
+    -- confirmed by executing this exact line with such a value. An
+    uncaught exception here means NO comment, NO issue update, and a failed
+    job -- silently losing the alert for exactly the malformed-report case
+    most in need of one."""
+    assert "Array.isArray(report.results)" in raw
+    assert "Array.isArray(report.unqualified)" in raw
+    assert "malformedShape" in raw
 
 
 def test_a_cancelled_run_changes_nothing(raw):

@@ -27,9 +27,10 @@
 # WHAT IT DOES
 # ------------
 # Opens a GitHub issue naming WHICH of the two kinds occurred and what the
-# report said, comments on that issue for subsequent failures, and CLOSES it
-# when source-monitor is clean again -- the same idempotence discipline
-# ci_failure_alert.yml already established.
+# report said, and comments on that issue for subsequent failures OR when
+# source-monitor reports success. It does NOT auto-close on success --
+# see the 2026-09-17 fix list below for why. This is a deliberate departure
+# from ci_failure_alert.yml's own idempotence discipline, not an oversight.
 #
 # WHY IT IS TESTABLE -- INCLUDING THE PART ci_failure_alert.yml NEVER NEEDED
 # ----------------------------------------------------------------------
@@ -45,6 +46,37 @@
 #
 # NOTE ON workflow_run: this file must be present on the DEFAULT BRANCH to
 # fire at all. A copy on a feature branch does nothing.
+#
+# THREE DEFECTS FOUND BY AN EXTERNAL RULING, 2026-09-17, CONFIRMED BY
+# EXECUTING THIS EXACT SCRIPT WITH CONTROLLED DOUBLES BEFORE ANY FIX EXISTED
+# ------------------------------------------------------------------------
+# 1. simulate_exit_code and dry_run were independent inputs. Dispatching
+#    with simulate_exit_code=1 and dry_run=false posted FABRICATED content
+#    ("SIMULATED: release 9.9.9...") to a real production issue -- proven
+#    by running this script's own logic with a mock github.rest.issues.create
+#    and observing it get called with the simulated body. Fixed: simulation
+#    now FORCES preview mode in code, not merely by a default a caller can
+#    override -- "simulation present -> production issue mutation forbidden"
+#    is enforced structurally.
+# 2. The success branch closed an open issue WITHOUT ever reading the
+#    report -- confirmed by reading the code order: `if (conclusion ===
+#    'success')` is checked and acted on before the report is examined at
+#    all. GitHub's own workflow conclusion and the uploaded report's
+#    exit_code are two different signals; nothing cross-checked them. Fixed
+#    per the ruling's own recommended immediate, safe change: a clean
+#    conclusion now COMMENTS on an open issue for visibility rather than
+#    auto-closing it. Automatic closure is suspended until evidence-based
+#    reconciliation -- comparing the report's own exit_code, not just
+#    GitHub's conclusion -- is built as its own, separately-scoped unit.
+# 3. `for (const r of (report.results || []))` throws an uncaught TypeError
+#    when report.results is a non-array truthy value (a malformed or future-
+#    schema report) -- confirmed by executing this exact line with such a
+#    value and observing the crash. An uncaught exception here means NO
+#    comment, NO issue update, and a failed Actions job -- silently losing
+#    the alert for exactly the malformed-report case most in need of one.
+#    Fixed: report.results and report.unqualified are validated as arrays
+#    before iteration; a malformed shape now produces an explicit UNKNOWN
+#    outcome naming what was wrong, never a crash.
 # ---------------------------------------------------------------------------
 name: Source monitor alert
 
@@ -117,9 +149,17 @@ jobs:
             const fs = require('fs');
             const LABEL = 'source-monitor-alert';
             const TITLE = 'source-monitor needs review';
-            const dryRun = process.env.DRY_RUN === 'true';
             const dispatched = context.eventName === 'workflow_dispatch';
             const simulate = process.env.SIMULATE_EXIT_CODE;
+            // MEASURED 2026-09-17: dryRun and simulate were independent --
+            // dispatching with simulate_exit_code=1 and dry_run=false
+            // posted FABRICATED content to a real production issue,
+            // confirmed by executing this logic directly. Simulation now
+            // FORCES preview mode in code: "simulation present -> production
+            // issue mutation forbidden" is enforced here, not left to a
+            // caller-supplied default that can be overridden.
+            const dryRun = simulate !== 'none' ||
+                          process.env.DRY_RUN === 'true';
 
             const run = context.payload.workflow_run || null;
             // A manual dispatch has no workflow_run payload. Treat it as a
@@ -176,23 +216,31 @@ jobs:
                 core.info('source-monitor clean and no open alert. Nothing to do.');
                 return;
               }
+              // MEASURED 2026-09-17: this branch closed the issue WITHOUT
+              // ever reading the report -- GitHub's own conclusion and the
+              // report's exit_code are two different signals, and nothing
+              // here cross-checked them. Per the ruling's own recommended
+              // immediate, safe change: automatic CLOSURE is suspended.
+              // A clean conclusion now comments for visibility only.
+              // Evidence-based reconciliation -- closing only when the
+              // report's own exit_code, not just GitHub's conclusion, is
+              // confirmed clean -- is separately-scoped future work.
               const body = [
-                `source-monitor is clean again as of \`${sha.slice(0, 8)}\`.`,
+                `source-monitor reported success as of \`${sha.slice(0, 8)}\`.`,
                 '',
                 `Run: ${runUrl}`,
                 '',
-                'Closing automatically. If a finding was worked around rather',
-                'than resolved, reopen this issue and say so -- a closed alert',
-                'is a claim that nothing here needs attention.',
+                'This does NOT close the issue automatically: a workflow ' +
+                'conclusion and the report it uploaded are two different ' +
+                'signals, and this alert does not yet cross-check them. ' +
+                'Close manually once you have confirmed the finding is ' +
+                'resolved.',
               ].join('\n');
-              if (dryRun) { core.info(`[dry run] would close #${open.number}`); return; }
+              if (dryRun) { core.info(`[dry run] would comment on #${open.number}`); return; }
               await github.rest.issues.createComment({
                 owner: context.repo.owner, repo: context.repo.repo,
                 issue_number: open.number, body });
-              await github.rest.issues.update({
-                owner: context.repo.owner, repo: context.repo.repo,
-                issue_number: open.number, state: 'closed' });
-              core.info(`Closed #${open.number}`);
+              core.info(`Commented on #${open.number} (not auto-closed)`);
               return;
             }
 
@@ -209,8 +257,25 @@ jobs:
             // as the SAME red run in the Actions tab; they are not the same
             // situation and must not read as the same alert.
             const exitCode = report ? report.exit_code : null;
+            // MEASURED 2026-09-17: `for (const r of (report.results || []))`
+            // threw an uncaught TypeError when report.results was a
+            // non-array truthy value -- confirmed by executing this exact
+            // line with such a value. An uncaught exception here means NO
+            // comment, NO issue update, and a failed job -- silently
+            // losing the alert for exactly the malformed-report case most
+            // in need of one. Validated as arrays before any iteration;
+            // a malformed shape becomes an explicit UNKNOWN outcome, never
+            // a crash.
+            const malformedShape = report !== null && (
+              (report.results !== undefined && !Array.isArray(report.results)) ||
+              (report.unqualified !== undefined && !Array.isArray(report.unqualified)));
             let kind, detail;
-            if (exitCode === 1) {
+            if (malformedShape) {
+              kind = 'UNKNOWN';
+              detail = 'report.json was present but results or unqualified ' +
+                'was not an array -- this alert cannot safely read a report ' +
+                'in that shape.';
+            } else if (exitCode === 1) {
               kind = 'REVIEW REQUIRED';
               const lines = [];
               for (const r of (report.results || [])) {
@@ -262,8 +327,11 @@ jobs:
               '',
               '### Housekeeping',
               '',
-              'This issue is reused for subsequent failures and closed',
-              'automatically when source-monitor is clean again on main.',
+              'This issue is reused for subsequent failures. It is NOT',
+              'closed automatically when source-monitor is clean again --',
+              'a workflow conclusion and its uploaded report are two',
+              'different signals this alert does not yet cross-check.',
+              'Close manually once the finding is resolved.',
             ].join('\n');
 
             if (dryRun) {
