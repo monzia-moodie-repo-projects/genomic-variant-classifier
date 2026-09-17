@@ -8020,4 +8020,7 @@
 # 2026-09-17  D-HC-HEALTH-CONTRADICTION-2026-09-17
 #   DELIBERATE_RETIREMENT, +1 by node identity, 1 removed.
 #   an incomplete traversal now correctly exits 2 even when it carries a genuine witness -- 'a claim is supported' no longer satisfies 'the approved search completed', while the witness itself is still preserved and visible.
-6738
+# 2026-09-17  D-WD-WITNESS-DISPLAY-2026-09-17
+#   DELIBERATE_RETIREMENT, +2 by node identity, 4 removed.
+#   an independently qualified witness on an incomplete observation is now shown in its own Scientific review section, instead of disappearing behind a generic 'could not qualify evidence' reason code.
+6740

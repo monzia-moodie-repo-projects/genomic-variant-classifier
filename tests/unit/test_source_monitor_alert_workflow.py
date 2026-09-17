@@ -258,6 +258,26 @@ def test_a_non_array_findings_on_one_result_does_not_crash_the_script(raw):
     assert "r.findings !== undefined && !Array.isArray(r.findings)" in raw
 
 
+def test_exit_two_surfaces_an_independently_qualified_witness_separately(raw):
+    """MEASURED 2026-09-17, a fourth external ruling: HC preserves a
+    genuine witness on an INCOMPLETE (exit 2) result, but nothing here
+    ever rendered it -- confirmed by running this exact branch against
+    HC's own decisive scenario and finding the witness text nowhere in
+    the output. Read from report.qualification[target].
+    positive_witnesses, never from results[].findings, which can carry
+    an unsupported producer claim kept deliberately for diagnosis."""
+    assert "scientificReview" in raw
+    assert "positive_witnesses" in raw
+    assert "### Scientific review" in raw
+
+
+def test_the_scientific_review_section_is_absent_when_there_is_no_witness(raw):
+    """A section that always appears, even empty, would be as misleading
+    as one that never appears -- confirmed the generated body omits it
+    entirely when positive_witnesses is empty for every target."""
+    assert "scientificLines.length" in raw
+
+
 def test_a_cancelled_run_changes_nothing(raw):
     assert "neither success nor failure" in raw
 

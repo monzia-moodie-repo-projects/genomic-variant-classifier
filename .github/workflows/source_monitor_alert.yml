@@ -87,6 +87,24 @@
 #    confirmed by executing this exact script with each value. Fixed:
 #    every element of report.results is now validated as a non-null
 #    object whose findings field, if present, is itself an array.
+#
+# A FIFTH DEFECT FOUND 2026-09-17 BY A FOURTH EXTERNAL RULING
+# -------------------------------------------------------------
+# 5. HC (source_monitor.yml + run_monitor.py, a separate unit) correctly
+#    preserves a genuine witness on an INCOMPLETE (exit 2) result --
+#    TargetResult's own docstring calls this "valid witnesses, kept even
+#    when incomplete". Nothing here ever rendered it: the exit-2 branch
+#    read only reason and unqualified. Confirmed by running this exact
+#    branch against HC's own decisive scenario (a real "4.1.1" witness on
+#    an incomplete traversal) -- the resulting issue body contained
+#    "4.1.1" nowhere. Fixed: a separate Scientific review section now
+#    reads report.qualification[target].positive_witnesses -- qualify()'s
+#    OWN independently-derived output -- distinct from the reason/
+#    unqualified detail above, and never from results[].findings, which
+#    can carry an unsupported producer claim kept there deliberately for
+#    diagnosis (see EVIDENCE_WITNESS_DISAGREEMENT). "Operationally
+#    incomplete" and "a claim is independently supported" are different
+#    facts, and a human reading the alert must be able to see both.
 # ---------------------------------------------------------------------------
 name: Source monitor alert
 
@@ -290,6 +308,9 @@ jobs:
                 r === null || typeof r !== 'object' ||
                 (r.findings !== undefined && !Array.isArray(r.findings)))));
             let kind, detail;
+            // null unless the exit-2 branch below finds a genuine,
+            // independently-qualified witness to surface separately.
+            let scientificReview = null;
             if (malformedShape) {
               kind = 'UNKNOWN';
               detail = 'report.json was present but results or unqualified ' +
@@ -316,6 +337,40 @@ jobs:
               }
               detail = lines.length ? lines.join('\n')
                 : '(exit code 2, but no reason text was present in the report)';
+
+              // MEASURED 2026-09-17, a fourth external ruling: HC correctly
+              // preserves a genuine witness on an INCOMPLETE (exit 2) result
+              // -- TargetResult's own docstring calls this "valid witnesses,
+              // kept even when incomplete" -- but nothing here ever rendered
+              // it. Confirmed directly: running this exact branch against
+              // HC's own decisive scenario (a real "4.1.1" witness on an
+              // incomplete traversal) produced an issue body where "4.1.1"
+              // appeared nowhere. Read from report.qualification[target].
+              // positive_witnesses -- qualify()'s OWN independently-derived
+              // output -- never from results[].findings, which can carry an
+              // UNSUPPORTED producer claim deliberately kept there for
+              // diagnosis (see EVIDENCE_WITNESS_DISAGREEMENT). "the
+              // observation is operationally incomplete" and "a claim is
+              // independently supported" are different facts and must not
+              // be allowed to erase one another in what a human sees.
+              const qualBlock = report.qualification;
+              if (qualBlock !== null && qualBlock !== undefined &&
+                  typeof qualBlock === 'object' && !Array.isArray(qualBlock)) {
+                const scientificLines = [];
+                for (const target of Object.keys(qualBlock)) {
+                  const q = qualBlock[target];
+                  if (q === null || typeof q !== 'object') continue;
+                  const witnesses = q.positive_witnesses;
+                  if (Array.isArray(witnesses)) {
+                    for (const w of witnesses) {
+                      scientificLines.push(`- **${target}:** ${w}`);
+                    }
+                  }
+                }
+                if (scientificLines.length) {
+                  scientificReview = scientificLines.join('\n');
+                }
+              }
             } else {
               kind = 'UNKNOWN';
               detail = report
@@ -337,6 +392,12 @@ jobs:
               '',
               detail,
               '',
+              ...(scientificReview ? [
+                '### Scientific review',
+                '',
+                scientificReview,
+                '',
+              ] : []),
               '### Why you are seeing this',
               '',
               'A red run here can mean two different things, and GitHub\'s own',
