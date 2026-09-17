@@ -8017,4 +8017,7 @@
 # 2026-09-17  D-NC-NESTED-CRASH-FIXES-2026-09-17
 #   DELIBERATE_RETIREMENT, +2 by node identity, 4 removed.
 #   a null element inside results, or a non-array findings field on one result, no longer crashes the alert -- validating the outer array was not the same as validating what was inside it.
-6737
+# 2026-09-17  D-HC-HEALTH-CONTRADICTION-2026-09-17
+#   DELIBERATE_RETIREMENT, +1 by node identity, 1 removed.
+#   an incomplete traversal now correctly exits 2 even when it carries a genuine witness -- 'a claim is supported' no longer satisfies 'the approved search completed', while the witness itself is still preserved and visible.
+6738

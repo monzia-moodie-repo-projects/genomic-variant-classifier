@@ -392,35 +392,49 @@ def main(argv=None) -> int:
             qualification[target] = outcome.as_document()
             continue
 
-        # QUALIFICATION MUST BE ESTABLISHED, NOT MERELY ABSENT OF FINDINGS.
+        # OBSERVATION COMPLETENESS IS NOT THE SAME QUESTION AS "WAS ANY
+        # CLAIM SUPPORTED". A THIRD RULING NAMED THE PRECISE GAP.
         #
-        # MEASURED 2026-09-17, from an external ruling's own injected-
-        # producer probes: a producer reporting Health.COMPLETE with zero
-        # captures and zero self-reported findings produced exit 0 --
-        # confirmed directly by injection -- even though qualify() itself
-        # correctly returned traversal_completeness="unestablished" and
-        # both eligibility flags False. verify_plan_conformance() and
-        # qualify() find PROBLEMS in what was retained; this call site never
-        # asked whether ENOUGH was retained to trust a clean verdict at all.
-        # "no findings" and "sufficient evidence" are different claims, and
-        # this code conflated them by falling through unconditionally.
+        # MEASURED 2026-09-17, first pass: a producer reporting
+        # Health.COMPLETE with zero captures and zero self-reported
+        # findings produced exit 0 -- confirmed directly by injection --
+        # even though qualify() correctly returned traversal_completeness=
+        # "unestablished". Fixed by requiring EITHER eligibility flag true.
+        #
+        # MEASURED 2026-09-17, second pass, from a THIRD ruling reviewing
+        # that very fix: the first pass's condition still let a partial
+        # traversal WITH a witness report exit 1 ("qualified; review
+        # required") -- because eligible_for_existence_claim alone (a
+        # witness exists) satisfied it, without the traversal itself ever
+        # having reached a terminal page. Confirmed directly: injecting a
+        # real capture with a genuine "4.1.1" witness but no terminal
+        # marker produced results[0].health == "complete" while
+        # qualification[...].traversal_completeness == "incomplete" --
+        # SIMULTANEOUSLY, IN THE SAME REPORT. Calling the observation
+        # "qualified" when the approved search never finished overstates
+        # what happened, regardless of what it happened to find along the
+        # way: "the approved traversal completed" and "a claim is
+        # supported" are different propositions, and this call site was
+        # letting the second one silently satisfy the first.
         #
         # eligible_for_absence_claim is, by qualify()'s own definition,
-        # exactly (traversal_completeness is COMPLETE) -- checking it here
-        # too is redundant today, kept explicit so a future decoupling of
-        # that definition does not silently widen this gate.
+        # exactly (traversal_completeness is COMPLETE) -- so the condition
+        # below reduces to traversal_completeness != COMPLETE alone. Kept
+        # as a direct completeness check, not derived from the eligibility
+        # flags, so a future change to either flag's definition cannot
+        # silently narrow this gate the way checking flags instead of
+        # completeness already did once.
         insufficient = (
-            outcome.traversal_completeness != TraversalCompleteness.COMPLETE
-            and not outcome.eligible_for_existence_claim
-            and not outcome.eligible_for_absence_claim)
+            outcome.traversal_completeness != TraversalCompleteness.COMPLETE)
         if insufficient:
             committed, assessment = _persist_and_recover(
                 store, attempt, target,
                 Reason.EVIDENCE_QUALIFICATION_UNESTABLISHED,
                 "traversal_completeness={!r}, eligible_for_existence_claim="
-                "{!r}, eligible_for_absence_claim={!r}: qualify() could not "
-                "establish enough evidence to trust this target's reported "
-                "{!r} health".format(
+                "{!r}, eligible_for_absence_claim={!r}: the approved "
+                "traversal did not complete, regardless of whether a "
+                "claim is independently supported; this target's reported "
+                "{!r} health does not establish that observation".format(
                     outcome.traversal_completeness.value,
                     outcome.eligible_for_existence_claim,
                     outcome.eligible_for_absence_claim, result.health.value))
@@ -428,6 +442,7 @@ def main(argv=None) -> int:
             assessments.append((target, assessment))
             # PRESERVE ANY GENUINE WITNESS. A target can be simultaneously
             # under-evidenced AND carry a real finding -- TargetResult's own
+
             # docstring already permits this ("valid witnesses, kept even
             # when incomplete"); nothing before this fix ever exercised it,
             # because nothing before this fix ever routed a target here.

@@ -1517,14 +1517,19 @@ def test_an_unsupported_claim_with_zero_evidence_is_not_a_review_finding(
     assert "release 9.9.9" in doc["results"][0]["findings"][0]
 
 
-def test_a_genuine_witness_under_incomplete_traversal_still_qualifies(
+def test_a_genuine_witness_under_incomplete_traversal_is_still_an_operational_problem(
         monkeypatch, tmp_path):
-    """The coexistence case the ruling insists on: 'a supported positive
-    witness can create a review finding; incomplete evidence creates an
-    operational problem; both can coexist.' A real capture with a real
-    witness, but no terminal marker, must NOT be swallowed into
-    'insufficient' merely because eligible_for_absence_claim is False --
-    eligible_for_existence_claim being True is enough to proceed normally."""
+    """MEASURED 2026-09-17: a THIRD ruling, reviewing R's own fix, found
+    this exact scenario produced results[0].health == "complete" while
+    qualification[...].traversal_completeness == "incomplete" --
+    SIMULTANEOUSLY, in the same report, for the same target. Confirmed
+    directly. "The approved traversal completed" and "a claim is
+    supported" are different propositions; this test previously asserted
+    the WRONG one satisfied the other, and that expectation is deliberately
+    retired here, per the ruling's own explicit instruction. The useful
+    requirement -- witness preservation -- remains: the finding is still
+    visible in results[0].findings even though the target is correctly
+    INCOMPLETE, not COMPLETE."""
     import base64, hashlib as hashlib_
     body = (b'{"kind": "storage#objects", "prefixes": ["release/4.1.1/"], '
             b'"nextPageToken": "tok-2"}')
@@ -1551,5 +1556,47 @@ def test_a_genuine_witness_under_incomplete_traversal_still_qualifies(
     q = doc["qualification"]["gnomad-public-releases"]
     assert q["traversal_completeness"] == "incomplete"
     assert q["eligible_for_existence_claim"] is True
+    assert code == 2
+    assert doc["results"][0]["health"] == "incomplete"
+    assert doc["unqualified"] == ["gnomad-public-releases"]
+    # THE COEXISTENCE REQUIREMENT, PRESERVED: the witness is not erased
+    # merely because the observation is operationally incomplete.
+    assert doc["results"][0]["findings"] == [
+        "release 4.1.1 is newer than the approved 4.1"]
+
+
+def test_a_genuinely_complete_traversal_with_a_witness_still_exits_one(
+        monkeypatch, tmp_path):
+    """The counterpart the ruling itself specifies
+    (test_complete_observation_with_a_witness_is_not_absence): a
+    traversal that GENUINELY reaches a terminal page, carrying a real
+    witness, must be unaffected by the fix above. This matches every real
+    live run this session -- the actual gnomAD bucket has always returned
+    a terminal page with no nextPageToken."""
+    import base64, hashlib as hashlib_
+    body = b'{"kind": "storage#objects", "prefixes": ["release/4.1.1/"]}'
+    capture = {
+        "sequence": 1, "attempt_number": 1, "accepted": True,
+        "rejected_because": "", "body_retained": True,
+        "request_url": ("https://storage.googleapis.com/storage/v1/b/"
+                        "gcp-public-data--gnomad/o?prefix=release%2F&"
+                        "delimiter=%2F&maxResults=1000&fields=kind%2C"
+                        "prefixes%2CnextPageToken"),
+        "response_body_b64": base64.b64encode(body).decode(),
+        "response_bytes": len(body),
+        "response_sha256": hashlib_.sha256(body).hexdigest(),
+    }
+    def run(**_kw):
+        return TargetResult(
+            "gnomad-public-releases", Health.COMPLETE,
+            findings=("release 4.1.1 is newer than the approved 4.1",),
+            captures=(capture,))
+    monkeypatch.setitem(rm.CHECKS, "gnomad-public-releases", run)
+    report = tmp_path / "r.json"
+    code = rm.main(["--store", str(tmp_path / "f.sqlite3"), "--report", str(report)])
+    doc = json.loads(report.read_text())
+    q = doc["qualification"]["gnomad-public-releases"]
+    assert q["traversal_completeness"] == "complete"
     assert code == 1
     assert doc["results"][0]["health"] == "complete"
+    assert doc["unqualified"] == []
