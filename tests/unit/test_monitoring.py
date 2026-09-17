@@ -261,6 +261,8 @@ def _transport(*pages):
 _PAGE_ONE = {"kind": "storage#objects", "prefixes": ["release/4.1.1/"],
              "nextPageToken": "page-2"}
 
+_PAGE_ONE_TERMINAL = {"kind": "storage#objects", "prefixes": ["release/4.1.1/"]}
+
 
 def test_a_later_timeout_preserves_the_earlier_release():
     """THE DEFECT MEASURED 2026-09-14. Page one held 4.1.1, page two timed
@@ -1399,3 +1401,66 @@ def test_pending_deliveries_preserves_true_commit_order_within_one_second(tmp_pa
           for i in range(20)]
     pending = store.pending_deliveries()
     assert [p["event_id"] for p in pending] == ids
+
+
+def test_main_calls_qualify_not_the_legacy_verify_captures_shim(monkeypatch, tmp_path):
+    """MEASURED 2026-09-16: this call site invoked verify_captures(), the
+    plan-conformance-only subset kept for backward compatibility, not
+    qualify(). Everything Q2 built -- digest integrity, independent
+    structure, the token chain by value -- had never once run through
+    main(). This is the regression test that closes the gap: it confirms
+    the report the RUNNER produces carries qualify()'s three-axis outcome,
+    not just plan-conformance findings."""
+    _stub_check(monkeypatch, MEASURED_PREFIXES and
+               {"kind": "storage#objects", "prefixes": MEASURED_PREFIXES})
+    report = tmp_path / "r.json"
+    code = rm.main(["--store", str(tmp_path / "f.sqlite3"), "--report", str(report)])
+    doc = json.loads(report.read_text())
+    assert "qualification" in doc, "the runner must expose qualify()'s output"
+    q = doc["qualification"]["gnomad-public-releases"]
+    assert q["traversal_completeness"] == "complete"
+    assert q["eligible_for_absence_claim"] is True
+    assert "4.1.1" in q["positive_witnesses"]
+    assert code == 1
+
+
+def test_a_fabricated_digest_is_caught_END_TO_END_through_main(monkeypatch, tmp_path):
+    """The single most important regression test in this unit: the ORIGINAL
+    probe case, exercised through main() itself rather than qualify() in
+    isolation. The legacy verify_captures() path checked digest FORMAT only
+    and would have missed this completely -- confirmed earlier this session
+    by running the pre-fix module directly. This confirms the runner, not
+    just the library function, now catches it."""
+    def run(**_kw):
+        r = grc.observe_releases(profile=rm.RELEASE_PROFILE,
+                                 transport=_transport(_PAGE_ONE_TERMINAL))
+        tampered = tuple(dict(c, response_sha256="a" * 64) for c in r.captures)
+        return TargetResult(r.target, r.health, findings=r.findings,
+                            captures=tampered)
+    monkeypatch.setitem(rm.CHECKS, "gnomad-public-releases", run)
+    report = tmp_path / "r.json"
+    code = rm.main(["--store", str(tmp_path / "f.sqlite3"), "--report", str(report)])
+    doc = json.loads(report.read_text())
+    findings = doc["plan_verification"][0]["findings"]
+    assert any(f["reason"] == "evidence.integrity_mismatch" for f in findings)
+    assert code == 2
+
+
+def test_a_producers_claimed_finding_that_the_bytes_do_not_support_is_flagged(
+        monkeypatch, tmp_path):
+    """A producer that retains honest bytes but LIES about what it found in
+    them -- claims a witness the retained body does not support -- must not
+    pass silently. This is the new cross-check, exercised end to end."""
+    def run(**_kw):
+        r = grc.observe_releases(profile=rm.RELEASE_PROFILE,
+                                 transport=_transport(_PAGE_ONE_TERMINAL))
+        return TargetResult(r.target, r.health,
+                            findings=("release 9.9.9 is newer than the approved 4.1",),
+                            captures=r.captures)
+    monkeypatch.setitem(rm.CHECKS, "gnomad-public-releases", run)
+    report = tmp_path / "r.json"
+    code = rm.main(["--store", str(tmp_path / "f.sqlite3"), "--report", str(report)])
+    doc = json.loads(report.read_text())
+    reasons = {a["reason"] for a in doc["assessments"]}
+    assert "evidence.witness_disagreement" in reasons
+    assert code == 2

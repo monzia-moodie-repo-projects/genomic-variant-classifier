@@ -42,11 +42,24 @@ sent while the report that proves it is still unwritten.
 
 WHAT THIS DOES NOT ESTABLISH
 ============================
-    * evidence sufficiency. Request and response bytes are NOT yet retained,
-      so the report cannot independently establish request fidelity, response
-      validity, or traversal completeness. A verifier needs those captures.
     * that anyone read the alarm.
     * crash durability. Process recovery is tested; power loss is not.
+    * source authenticity. A digest matching its own declared value proves
+      the retained bytes are self-consistent, not that they came from the
+      named source.
+
+WHAT CHANGED 2026-09-16
+========================
+This docstring used to say "request and response bytes are NOT yet
+retained, so the report cannot independently establish request fidelity,
+response validity, or traversal completeness. A verifier needs those
+captures." That was true when it was written and had been false since Q2
+landed: bytes ARE retained, and qualify() independently recomputes digest
+integrity, structure, acceptance, and the token chain by value from them.
+The docstring was never updated, and this call site was calling
+verify_captures() -- the plan-conformance-only subset kept for backward
+compatibility -- not qualify(), the whole time. Everything Q2 built had
+never once run through this path. It does now.
 """
 
 from __future__ import annotations
@@ -64,7 +77,7 @@ from genomic_variant_classifier.source_monitor.heartbeat import (
 from genomic_variant_classifier.source_monitor.monitor_supervisor import (
     Health, TargetResult, supervise)
 from genomic_variant_classifier.source_monitor.request_verifier import (
-    verify_captures)
+    qualify)
 from genomic_variant_classifier.source_monitor.reason_catalog import (
     ContractFinding, Reason, ReasonProfile, assess_failure_record,
     make_failure_record)
@@ -143,6 +156,12 @@ RELEASE_PROFILE = ReasonProfile(
         Reason.EVIDENCE_BODY_UNAVAILABLE.value,
         Reason.EVIDENCE_ACCEPTANCE_DISAGREEMENT.value,
         Reason.EVIDENCE_TOKEN_CHAIN_MISMATCH.value,
+        # MEASURED 2026-09-16: the FIFTH occurrence of the same omission
+        # today -- a code added to the catalog and not yet permitted here.
+        # Caught this time by test_the_profile_permits_every_reason_EACH_
+        # PRODUCER_can_emit[run_monitor] itself, before any live run, which
+        # is exactly what that test was built for.
+        Reason.EVIDENCE_WITNESS_DISAGREEMENT.value,
     }),
 )
 
@@ -263,6 +282,7 @@ def main(argv=None) -> int:
     assessments = []
     committed_ids = []
     verification = []
+    qualification = {}
 
     for target in REQUIRED_TARGETS:
         try:
@@ -281,20 +301,21 @@ def main(argv=None) -> int:
                                         reason=Reason.RESPONSE_UNEXPECTED_SHAPE))
             continue
 
-        # VERIFY THE RETAINED CAPTURES against an INDEPENDENTLY held plan.
+        # QUALIFY THE RETAINED CAPTURES against an INDEPENDENTLY held plan.
         #
-        # The adapter retains request_url, response_sha256 and response_bytes
-        # for every page. Until now NOTHING checked them -- a report carrying
-        # evidence nobody verifies is the same unfalsifiable shape as
-        # `status: "ok"` in VersionMonitorAgent and `[OK] action=error` in
-        # run_pipeline.
-        #
-        # A plan finding makes the run UNQUALIFIED even when the observation
-        # itself looked complete: a result whose request did not match the
-        # approved plan is not evidence about the approved subject.
-        plan_findings = verify_captures(result.captures)
-        if plan_findings:
-            verification.append((target, [f.as_document() for f in plan_findings]))
+        # MEASURED 2026-09-16: this call site invoked verify_captures(), the
+        # PLAN-CONFORMANCE-ONLY subset kept for backward compatibility, not
+        # qualify() -- the function Q2 actually built. Digest integrity was
+        # never recomputed, `accepted` was never independently re-validated,
+        # the token chain was never checked by value, and every displayed
+        # finding was the ADAPTER's own self-reported claim. This report's
+        # OWN docstring still said "request and response bytes are NOT yet
+        # retained" -- true before Q2, false after, and nobody had updated
+        # it. Everything Q2 tested had never once run through this path.
+        outcome = qualify(target, result.captures)
+        if outcome.findings:
+            verification.append(
+                (target, [f.as_document() for f in outcome.findings]))
             # EACH FINDING KEEPS ITS OWN REASON.
             #
             # MEASURED 2026-09-15: an earlier version committed EVERY plan
@@ -303,12 +324,10 @@ def main(argv=None) -> int:
             # added in this same unit precisely because a gap is not
             # truncation -- was recorded in the durable store as a QUERY
             # MISMATCH. The catalog distinction was destroyed one layer up.
-            #
-            # A reason code that survives the verifier and dies in the runner
-            # is the same defect as one that survives the function and is
-            # flattened by the report: the boundary that loses it is the
-            # boundary that matters.
-            for finding in plan_findings:
+            # qualify()'s findings now ALSO include integrity mismatches,
+            # acceptance disagreements and token-chain mismatches -- the same
+            # discipline applies to all of them, not only plan-conformance.
+            for finding in outcome.findings:
                 committed, assessment = _persist_and_recover(
                     store, attempt, target, finding.reason, finding.detail)
                 committed_ids.append(committed.event_id)
@@ -318,7 +337,36 @@ def main(argv=None) -> int:
             # committed individually above, so nothing is lost -- the result's
             # reason is a summary, and the store holds the inventory.
             results.append(TargetResult(
-                target, Health.FAILED, reason=plan_findings[0].reason,
+                target, Health.FAILED, reason=outcome.findings[0].reason,
+                captures=result.captures))
+            continue
+
+        # THE PRODUCER'S CLAIMED FINDINGS vs the INDEPENDENTLY DERIVED
+        # WITNESSES. A producer that retained honest bytes but lied about
+        # what it found in them -- claimed nothing where a witness exists,
+        # or claimed a witness the retained body does not support -- passed
+        # silently until this check existed, the same class of gap
+        # EVIDENCE_ACCEPTANCE_DISAGREEMENT closed for the `accepted` flag.
+        #
+        # The comparison is substring-based, not exact-match: the adapter's
+        # claim is a READABLE SENTENCE ("release 4.1.1 is newer than the
+        # approved 4.1"); the independently derived witness is the bare
+        # value ("4.1.1"). Every witness must appear somewhere in the
+        # adapter's own claimed text, or the disagreement is real.
+        witness_mismatch = any(
+            not any(w in claim for claim in result.findings)
+            for w in outcome.positive_witnesses)
+        if witness_mismatch:
+            committed, assessment = _persist_and_recover(
+                store, attempt, target, Reason.EVIDENCE_WITNESS_DISAGREEMENT,
+                "independently derived witnesses {!r} are not reflected in "
+                "the producer's claimed findings {!r}".format(
+                    outcome.positive_witnesses, result.findings))
+            committed_ids.append(committed.event_id)
+            assessments.append((target, assessment))
+            results.append(TargetResult(
+                target, Health.FAILED,
+                reason=Reason.EVIDENCE_WITNESS_DISAGREEMENT,
                 captures=result.captures))
             continue
 
@@ -337,6 +385,7 @@ def main(argv=None) -> int:
                     reason=Reason.RESPONSE_UNEXPECTED_SHAPE))
                 continue
         results.append(result)
+        qualification[target] = outcome.as_document()
 
     report = supervise(REQUIRED_TARGETS, results)
     document = report.as_document()
@@ -353,6 +402,11 @@ def main(argv=None) -> int:
         {"target": t, "findings": f} for t, f in verification]
     document["plan_verified_targets"] = [
         r.target for r in report.results if r.captures]
+    # THE THREE-AXIS OUTCOME, exposed in a production report for the first
+    # time: traversal_completeness, eligible_for_existence_claim and
+    # eligible_for_absence_claim answer three DIFFERENT questions that this
+    # report previously could not distinguish at all.
+    document["qualification"] = qualification
     document["does_not_establish"].append(
         "source authenticity: a response digest is integrity relative to bytes "
         "THIS PROCESS received and self-reported. It authenticates nothing "

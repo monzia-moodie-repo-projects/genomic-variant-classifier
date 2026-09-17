@@ -143,6 +143,14 @@ class Reason(str, Enum):
     #: valid token that does not match what was actually promised.
     EVIDENCE_TOKEN_CHAIN_MISMATCH = "evidence.token_chain_mismatch"
 
+    #: MEASURED 2026-09-16: qualify() independently re-derives witnesses from
+    #: the retained body; nothing compared them against the producer's own
+    #: self-reported `findings` text before this code existed. A producer
+    #: that retained honest bytes but LIED about what it found in them would
+    #: have passed silently -- the same class of gap EVIDENCE_ACCEPTANCE_
+    #: DISAGREEMENT closed for the `accepted` flag, applied here to findings.
+    EVIDENCE_WITNESS_DISAGREEMENT = "evidence.witness_disagreement"
+
 
 #: Supervisor-owned findings. NEVER in a producer's allowed set. A worker that
 #: emits one of these is asserting a health judgment it is not authorized to
