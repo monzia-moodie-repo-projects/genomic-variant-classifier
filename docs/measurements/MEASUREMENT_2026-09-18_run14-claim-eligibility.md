@@ -1,10 +1,12 @@
 # Run 14 Claim-Eligibility Record
 
-**Date:** 2026-09-18
+**Date:** 2026-09-18 (updated same day — see §5 and the revised blocker list)
 **Subject:** `outputs/run14/full/models/ensemble.joblib` and its 10-model bundle
 **Purpose:** Record, per claim type, what evidence has actually been established for Run 14 — not a single validity flag, but eligibility scoped to specific claims, per the six-claim framework below.
 
 This record supersedes any prior blanket statement that "Run 14 is verified" or that its reported `0.9974` validation AUROC is confirmed. It also supersedes the claim that Run 14's launch-record cohort path (`clinvar_grch38.parquet`) is definitively "the same file" later found defective — an identical pathname establishes a common locator, not identical historical bytes.
+
+**This revision adds a confirmed finding materially more serious than anything previously recorded here: `n_pathogenic_in_gene`, Run 14's single highest-importance feature, was almost certainly computed with direct label leakage into the validation and test partitions, per a documented incident fix committed 18 days after Run 14 trained. See §5.**
 
 ---
 
@@ -14,9 +16,9 @@ This record supersedes any prior blanket statement that "Run 14 is verified" or 
 |---|---|---|---|
 | 1 | These historical bytes are preserved | **Partially established** | See §1 |
 | 2 | This configuration executes | **Established, with caveats** | See §2 |
-| 3 | This reproduces historical predictions | **Not established** | See §3 |
+| 3 | This reproduces historical predictions | **Not established; a specific confound is now confirmed present** | See §3 |
 | 4 | This model is sensitive to annotation policy | **Not yet attempted** | See §4 |
-| 5 | This model generalizes | **Not established** | See §5 |
+| 5 | This model generalizes | **Not established — confirmed label leakage in the top feature** | See §5 |
 | 6 | This replacement is better | **Not applicable — no replacement built yet** | — |
 
 ---
@@ -53,37 +55,39 @@ This record supersedes any prior blanket statement that "Run 14 is verified" or 
 - Using `catboost`'s recorded order vs. an importance-sorted order, on identical synthetic values, produced positive-class probability differences of `[0.452, 0.119, 0.169]` — large enough to flip a predicted class at a 0.5 threshold.
 - **What this does and does not establish**, per the ruling's caveats, all of which still hold: `catboost`'s order is direct evidence about `catboost` specifically, not proven identical to what the other 9 models were trained on (they share no recorded order to cross-check against); the input was uniform random noise, not a representative genomic feature distribution; a threshold crossing on synthetic data is not a clinically meaningful misclassification. The repeatability check above removes stochasticity as an alternative explanation for the *magnitude* observed, but does not by itself prove `catboost`'s order is the historically correct one for the ensemble as a whole.
 
-**Executable-code identity — not yet addressed at all:**
-- `VariantEnsemble.load()` constructs an instance of the *currently installed* class and assigns historical state to it; `predict_proba()`'s behavior comes from currently-imported code, not code frozen at Run 14's `git_head` (`80ac62ca7e83d35638274a01170d4c8f4f62c418`, per `reproducibility_manifest.json`). No check has been performed confirming today's `variant_ensemble.py` behaves identically to that commit's version for this bundle. "Loads and predicts on this machine" and "faithfully reproduces Run 14's original behavior" are, at present, different, unequated claims.
+**Executable-code identity — checked directly for the two methods that matter most, not assumed:**
+- `VariantEnsemble.load()` constructs an instance of the *currently installed* class and assigns historical state to it. Run 14's recorded `git_head` (`80ac62ca7e83d35638274a01170d4c8f4f62c418`) exists as a real commit object but is **not an ancestor of current `main`** — a genuine history divergence, not simple "N commits behind."
+- Despite that divergence, a direct content comparison of `predict_proba()` between Run 14's commit and current `main` found the core prediction loop — `base_preds` construction, the `cnn_1d`/`catboost`/else branching, the blend formula, even the exact code comment about "Nelder-Mead convex blend" — **identical, line for line**. The one substantive addition, a call to `self._require_sequence_windows(...)`, was verified (by reading its implementation and confirming the early-return path) to be a genuine no-op for any roster without `cnn_1d` — which Run 14's is, per its recorded `--skip-cnn` flag. `load()` shows the same pattern: same format-version-2 handling, same per-model loading loop, same error-catching structure, no substantive change found.
+- This is real, positive evidence specifically for these two methods. It does not extend to the individual base-model wrapper classes (`CatBoostVariantClassifier`, `MCDropoutWrapper`, etc.), which have not been diffed against Run 14's commit.
 
 ---
 
 ## §3 — Reproduces historical predictions
 
-**Not established.**
-- Run 14's committed outputs (`per_model_metrics.csv`, `per_model_metrics_val.csv`) contain only aggregate summary metrics (AUROC, AUPRC, F1, MCC, Brier — one row per model, 11 rows total) — confirmed by reading their complete contents. **No per-row predictions are committed anywhere in this repository.**
-- No cohort file path or digest is recorded in `reproducibility_manifest.json`'s `dataset` section (only row counts: `n_train: 1197216, n_val: 154404, n_test: 349067, n_features: 78`).
-- `run14_master.log` records the actual CLI invocation: `--clinvar /workspace/data/processed/clinvar_grch38.parquet`. This filename is identical to the one a separate, later measurement (`SESSION_2026-09-12_measurement-overturns-the-claim.md`) found `_assert_clean_cohort` refuses today, citing 13,295 rows ending `:na:na` and 1,311 identifiers spanning more than one accession. **An identical filename establishes a common locator, not identical historical bytes**, and even confirmed identical bytes would not by itself establish that flagged records reached the fitted model or its validation partition — historical preprocessing may have filtered, deduplicated, or transformed them before the split.
-- Whether `_assert_clean_cohort` existed as an enforced check at Run 14's training time (2026-05-26) has not been determined.
-- Multiple ClinVar accessions per identifier are not inherently biological duplication or corruption; ClinVar's own identifier scheme distinguishes submission, variant–condition, and variant-level records, and which type(s) were merged in the 1,311-count has not been determined.
+**Not established, and a specific confound in the bundle's own saved data is now confirmed.**
 
-**Required evidence chain, none of it yet obtained:**
+- Run 14's committed outputs (`per_model_metrics.csv`, `per_model_metrics_val.csv`) contain only aggregate summary metrics — no per-row predictions are committed anywhere in this repository.
+- No cohort file path or digest is recorded in `reproducibility_manifest.json`'s `dataset` section (only row counts: `n_train: 1197216, n_val: 154404, n_test: 349067, n_features: 78`).
+- `run14_master.log` records the actual CLI invocation: `--clinvar /workspace/data/processed/clinvar_grch38.parquet`. This filename is identical to the one a separate, later measurement found `_assert_clean_cohort` refuses today. An identical filename establishes a common locator, not identical historical bytes.
+- **Positive consistency signal, independently obtained:** today's `data/processed/clinvar_grch38.parquet` has exactly 4,420,180 rows, matching `run14_master.log`'s recorded load count exactly. Replicating Run 14's own historical `_load_and_label` logic (confirmed against its training-time commit, not assumed from current code — see §5) on this file produces exactly 1,700,687 labeled rows, matching a separately-logged figure (`n_pathogenic_in_gene ... nonzero=1,700,687`) from the same training run. Two independent row-count matches on a 4.4-million-row file is meaningful, though not proof of byte-identity.
+- **The bundle itself carries real out-of-fold (OOF) data:** `ens.oof_predictions_` (1,017,633 × 10), `ens.oof_fit_indices_` (max value 1,197,215, matching `n_train` exactly), and `ens.oof_model_names_` are all populated, not `None` — confirmed by direct inspection, not assumed from the loader's field list. These are training-fold cross-validation predictions, not the separate validation/test predictions behind `0.9974`/`0.9975` — useful provenance, not a substitute for those.
+- **A first attempt to use this OOF data for a consistency check failed for a mechanical reason, now understood precisely, not worth pursuing further given §5:** `oof_fit_indices_` indexes into the *post-split, `reset_index`-ed* training partition produced by `_gene_aware_split` (`GroupShuffleSplit`, gene-disjoint), not the full 1,700,687-row post-labeling cohort. Indexing into the wrong frame produced a uniform ~0.48 AUROC across all 10 independently-trained models — the signature of row misalignment, not genuine non-generalization. The fix (replicating the gene-aware split itself, including its exact `random_state`) was identified but not completed, because §5's finding makes a "successful" reproduction of this kind less informative than it would otherwise be: it would only confirm the presence of the same confirmed leakage, not genuine historical parity.
+
+**Required evidence chain, still substantially unresolved:**
 
 | Question | Status |
 |---|---|
-| Which source bytes did Run 14 read? | Unresolved — no historical digest recorded |
-| What did historical preprocessing retain? | Unresolved |
-| Which rows entered each partition? | Unresolved |
-| Which defects reached those partitions? | Unresolved |
+| Which source bytes did Run 14 read? | Row-count-consistent with today's file; not digest-confirmed |
+| What did historical preprocessing retain? | Label-filtering logic now confirmed via direct historical-commit comparison |
+| Which rows entered each partition? | Split mechanism identified (`_gene_aware_split`, `GroupShuffleSplit`); exact reproduction not completed |
+| Which defects reached those partitions? | `n_pathogenic_in_gene` leakage into val/test now confirmed — see §5 |
 | Did identity failures cross partition boundaries? | Unresolved |
-
-**Blocker:** full feature-matrix reconstruction, or recovery of an attributable archived prediction table, out-of-fold prediction set, or preprocessing cache, none of which have yet been searched for outside this repository (the original `vast.ai` instance's storage, if retained, is the most likely remaining source).
 
 ---
 
 ## §4 — Sensitivity to annotation policy (the gnomAD v4.1 → v4.1.1 question this investigation started from)
 
-**Not yet attempted**, and correctly blocked from being attempted validly until §2's executable-code identity question and §3's cohort-identity question are further resolved — an annotation-policy comparison run through unverified inference code, on an unresolved cohort, would conflate at least three effects (runtime migration, code drift, annotation change) that the ruling's factorial design (`source_runtime_effects()`) is specifically built to separate.
+**Not yet attempted**, and correctly blocked from being attempted validly until §3's cohort-identity question is further resolved and §5's leakage finding is accounted for — an annotation-policy comparison on a model whose top feature is confirmed leaky would conflate the annotation effect with an artifact that has nothing to do with gnomAD at all.
 
 **What is independently established and remains valid regardless:** the gnomAD-side work (the 178-gene canonical-tier discrepancy census, the MANE-tier verification across 18,394 dual-namespace pairs confirming `mane_pair_disagreement = 0`, the mechanistic trace to `syn.possible` differing by exactly 1 across a confirmed-identical set of 21 genes across all four affected metrics) is upstream of and independent from Run 14's own eligibility questions, and can proceed on its own track.
 
@@ -93,9 +97,22 @@ This record supersedes any prior blanket statement that "Run 14 is verified" or 
 
 ## §5 — Generalizes
 
-**Not established**, and not attempted. Requires an independent, identity-resolved, leakage-audited evaluation population — none has been built. `n_pathogenic_in_gene` (the single highest-importance feature at `mean_importance ≈ 464`) has an unaudited lineage: whether evaluation labels were excluded from its computation, whether counts were recomputed within inner training folds, and whether the feature used information available at the intended prediction time are all open, high-priority questions distinct from the cohort-defect question in §3.
+**Not established. A specific, high-confidence lineage defect in Run 14's single highest-importance feature is now confirmed, with an exact mechanism, exact dates, and a measured effect size — this is the most consequential finding in this record.**
 
-**Repository documentation, not yet cross-checked against Run 14's actual partitions:** `EnsembleConfig`'s own documentation reportedly records a historical calibration split by row rather than by gene, naming random_forest, xgboost, and lightgbm as affected, and identifying the Run 14–17 launch path as using it. This is prior repository documentation of a known issue, not a fresh measurement against Run 14's exact partition membership — it needs direct verification before Run 14's calibration metrics are treated as valid for genes unseen during training.
+**The finding, precisely:**
+
+`feature_importance.csv` ranks `n_pathogenic_in_gene` as Run 14's highest-importance feature by a wide margin (`mean_importance ≈ 464.3`, against `loeuf` at `≈ 273.5` for second place). Tracing its computation:
+
+- Run 14 trained at commit `80ac62ca7e83d35638274a01170d4c8f4f62c418`, `2026-05-26 05:55:05 -0400`.
+- Commit `070ea735e7c2056172211a9bba4c680cf7adf1b1`, `2026-06-13 20:29:08 -0400` — **18 days after Run 14 trained** — is titled `fix(leakage): train-only n_pathogenic_in_gene post-split`.
+- Reading `enrich_gene_counts()` at Run 14's own training commit (not current code) confirms the pre-fix implementation directly: it computes `n_pathogenic_in_gene` via `df[df["label"] == 1].groupby("gene_symbol").size()` on the **full corpus, before the gene-disjoint train/val/test split**, then merges the result onto every row by gene symbol. The function's own docstring states its (incorrect) justification: *"Must be computed on the FULL labeled dataset BEFORE splitting to avoid information leakage (the count uses only labeled rows, not the test set)."*
+- Because the split (`_gene_aware_split`, `GroupShuffleSplit`, gene-disjoint) happens *after* this computation, a held-out gene's count is built from that same gene's own labels — including its own validation- or test-set rows. A pathogenic validation variant contributes directly to the feature value later used to help classify that same variant.
+- The fix commit's own comment records the measured magnitude directly, not as a re-derived estimate here: *"probe 2026-06-13: lone-feature test AUROC 0.7181 corpus vs 0.5000 train-only."* Computed with the leak, this one feature alone reaches 0.72 AUROC in isolation. Computed correctly, it carries no signal at all.
+- Because the leaky computation is pre-split and corpus-wide, this directly implicates **the headline validation and test AUROC figures themselves** (`0.9974` / `0.9975`), not only the OOF training-fold data — a validation-set gene's feature value is built in part from that gene's own validation-set labels.
+
+**What this does and does not establish:** this confirms a mechanism and a measured effect size for this one feature, evaluated alone. It does not by itself quantify how much of Run 14's full 78-feature, 10-model ensemble's `0.9974` figure is attributable to this leakage specifically, versus genuine signal from the other 77 features. That decomposition — training an equivalent model with the corrected, train-only feature and measuring the actual delta — has not been done and is the natural next step if Run 14's generalization is to be assessed further.
+
+**Also still open, from before, now secondary to the above but not resolved:** whether evaluation labels contributed to any *other* fitted transformation (not just this one feature), whether the calibration split (row-based vs. gene-based, per prior repository documentation naming random_forest/xgboost/lightgbm and the Run 14–17 launch path) affects Run 14's specific partitions, and whether `n_pathogenic_in_gene`'s temporal availability (was this count known at the claimed prediction time, independent of the leakage question) was ever assessed.
 
 ---
 
@@ -107,18 +124,18 @@ Not applicable. No replacement model or corrected bundle has been built. This cl
 
 ## Overall disposition
 
-**Run 14: retained as a historical research candidate.** Artifact identity partially confirmed (orchestrator file only). Execution and inference are directly demonstrated under three documented, necessary compatibility interventions, with the column-order hazard now measured with the stochasticity confound ruled out but not yet confirmed applicable beyond `catboost`. Historical prediction reproduction, cohort identity, and scientific generalization remain unestablished. Executable-code identity relative to Run 14's own recorded git commit has not been checked at all.
+**Run 14: retained as a historical research candidate, with a confirmed, material defect in its highest-importance feature.** Artifact identity partially confirmed (orchestrator file only). Execution and inference are directly demonstrated under three documented, necessary compatibility interventions, with the core prediction logic verified unchanged against Run 14's own training-time commit. The column-order hazard is measured with the stochasticity confound ruled out but not yet confirmed applicable beyond `catboost`. Cohort identity has two independent positive row-count consistency signals but no digest-level confirmation. **Most significantly: `n_pathogenic_in_gene`, the model's single most important feature, was computed with a documented, dated, measured label-leakage mechanism that predates its own fix by 18 days relative to Run 14's training — directly implicating the reported `0.9974`/`0.9975` AUROC figures, not just internal training-fold statistics.**
 
-This supersedes both "Run 14 is fully verified" and "Run 14's launch record proves its AUROC used the confirmed-defective cohort."
+This supersedes both "Run 14 is fully verified" and "Run 14's launch record proves its AUROC used the confirmed-defective cohort." It also supersedes any reading of the earlier row-count consistency signals as evidence that Run 14's reported performance is trustworthy — that performance now has a specific, confirmed, non-hypothetical reason to be inflated, independent of the cohort-identity question.
 
-## Explicit blockers, ranked by what they gate
+## Explicit blockers, ranked by severity and what they gate
 
-1. **No per-model digests** — blocks any claim about the 10 individual fitted models' integrity beyond the small orchestrator file.
-2. **No historical cohort digest or archived snapshot search performed** — blocks §3 entirely; also blocks a valid §4 (annotation-sensitivity) experiment until either resolved or explicitly bypassed via a new, independently-attributable input set.
-3. **No executable-code equivalence check against Run 14's recorded `git_head`** — blocks distinguishing "this machine's current code reproduces Run 14" from "this machine's current code executes Run 14's weights under a new, uncharacterized configuration."
-4. **`n_pathogenic_in_gene` lineage unaudited** — blocks §5 and materially affects confidence in the headline AUROC regardless of cohort-defect status.
-5. **Row-vs-gene calibration split (per prior repository documentation) unverified against Run 14's actual partitions** — blocks treating Run 14's calibration metrics as valid for gene-disjoint evaluation.
+1. **CONFIRMED: `n_pathogenic_in_gene` label leakage into validation and test partitions**, per the exact mechanism, dates, and measured magnitude in §5. This is no longer a hypothetical audit target — it is a dated, documented, measured defect in the training-time code, directly implicating the headline AUROC. Resolving this requires retraining with the corrected (post-`070ea735`) feature computation and measuring the actual performance delta; a repaired reproduction of Run 14's exact historical bytes would not resolve this, since the leakage is in the feature-generation logic, not the model weights.
+2. **No historical cohort digest** — blocks confirming byte-identity of the training cohort beyond the two independent row-count consistency signals already obtained.
+3. **No per-model digests** — blocks any claim about the 10 individual fitted models' integrity beyond the small orchestrator file.
+4. **Gene-aware split not yet reproduced exactly** — blocks completing a corrected OOF consistency check; lower priority now given finding 1 makes a "successful" reproduction less informative than it would otherwise be.
+5. **Row-vs-gene calibration split (per prior repository documentation) unverified against Run 14's actual partitions** — blocks treating Run 14's calibration metrics as valid for gene-disjoint evaluation, independent of finding 1.
 
 ## Recommended stopping rule for further recovery effort (per the three-outcome framework)
 
-Continue bounded recovery — a defined search of the original `vast.ai` instance's retained storage (if any), attributable archives, and preprocessing caches — toward one of three outcomes: (a) original input contract and execution identity recovered → complete historical replay becomes possible; (b) inference contract recovered but cohort remains unresolved → Run 14 is retained for scoped *new* sensitivity experiments only, never for a historical-performance claim; (c) input semantics or fitted preprocessing prove irrecoverable → retire Run 14 as a quantitative baseline, preserve it for forensic reference only. Do not select a feature order, scaler, or cohort variant because it makes recomputed AUROC approach `0.9974` — that would convert the historical metric into a tuning target rather than a genuine reconstruction check.
+Given finding 1, the priority ordering changes: **historical replay of Run 14's exact bytes is no longer the most valuable next step**, since even a perfect reproduction would faithfully reproduce a confirmed leakage, not establish generalization. The more valuable next step is measuring the leakage's actual contribution to the reported AUROC — retraining with the corrected feature computation on an attributable cohort and comparing directly against Run 14's `0.9974`/`0.9975`. Continue bounded recovery on cohort and per-model digests in parallel, toward the same three outcomes as before, but do not treat their resolution as a prerequisite for beginning the corrected-feature retraining comparison. Do not select a feature order, scaler, or cohort variant because it makes recomputed AUROC approach `0.9974` — that number is now known to be partly an artifact, not a target worth approaching.
