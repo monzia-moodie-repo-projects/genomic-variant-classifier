@@ -1,0 +1,29 @@
+{
+  "executions": [
+    {
+      "execution_id": "repair_experiment_v1",
+      "training_from_membership": true,
+      "predictions": "outputs/repair_experiment_v1/evaluation_predictions.parquet",
+      "predictions_use": "test_feedback",
+      "population_id": "repair_experiment_v1/test"
+    },
+    {
+      "execution_id": "constraint_remeasure_v2",
+      "training_from_membership": true,
+      "predictions": "outputs/constraint_remeasure_v2/validation_predictions.parquet",
+      "predictions_use": "tuning",
+      "population_id": "constraint_remeasure_v2/validation"
+    },
+    {
+      "execution_id": "representation_arms_v1",
+      "training_from_membership": true,
+      "predictions": "outputs/representation_arms_v1/validation_predictions.parquet",
+      "predictions_use": "tuning",
+      "population_id": "representation_arms_v1/validation"
+    }
+  ],
+  "known_gaps": [
+    "baseline_run1: trained and evaluated on the legacy cohort under a 70/15/15 GroupShuffleSplit. Artifacts deleted before any ledger existed. Deterministically reconstructible from the legacy cohort with split_cohort.py (random_state=42), but NOT reconstructed. Genes exposed there are absent from this ledger.",
+    "Cohort-wide audits read clinical_sig and review status across all 4,399,089 rows, and cohort and feature decisions were made from those aggregate label distributions. Aggregate rather than per-row exposure, not enumerated here, but it means no subset of this snapshot is fully naive."
+  ]
+}

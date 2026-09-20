@@ -202,12 +202,22 @@ materialisation and re-read.
   reconstructed), and cohort-wide aggregate label reading that preceded feature
   and cohort decisions.
 
-  The 5,365 unexposed genes decompose exactly: 3,558 hold ONLY never-eligible
-  variants (no usable binary labels, so unusable as confirmation regardless of
-  exposure) and 1,807 are the validation partition. Within this ClinVar snapshot
-  the only usable unexposed population is therefore the validation partition:
-  1,807 genes / 189,729 rows / 37,475 positives -- and it still sits under the
-  aggregate-label gap above.
+  SUPERSEDED BY `outputs/exposure_ledger_v2/` (2026-09-20). At the time v1 was
+  built, the 5,365 unexposed genes decomposed as 3,558 holding ONLY never-eligible
+  variants and 1,807 forming the validation partition, which v1 identified as the
+  only usable unexposed population.
+
+  That reserve has since been consumed. The constraint re-measurement and the
+  representation-arms experiment both fitted models and read results on the
+  validation partition -- legitimate development uses, but uses. Ledger v2 records
+  three executions (4,059,407 entries: 3,374,160 training, 379,458 tuning, 305,789
+  test_feedback) covering all 17,828 registry genes.
+
+  **Zero label-eligible genes in this snapshot are now unexposed.** The 3,558
+  still-unexposed genes hold no usable binary labels and cannot serve as
+  confirmation regardless. A validation-partition candidate put through
+  `confirmation_screen` returns `passes=False` with both variant and group
+  blockers.
 
   **Consequence: genuine independent confirmation for this project requires a
   population outside this snapshot, realistically a future ClinVar release.**
@@ -268,6 +278,7 @@ produced the reported numbers:
 The remaining eighteen were verified present with size and digest recorded in
 `outputs/artifact_verification.json`, but have no independently recorded
 write-time digest to compare against.
+
 
 
 

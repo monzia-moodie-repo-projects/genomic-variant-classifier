@@ -29,6 +29,16 @@ CLAIMED = [
     "outputs/repair_experiment_v1/interaction_ci.json",
     "outputs/exposure_ledger_v1/exposure_ledger.parquet",
     "outputs/exposure_ledger_v1/exposure_ledger_summary.json",
+    "outputs/exposure_ledger_v2/exposure_ledger.parquet",
+    "outputs/exposure_ledger_v2/exposure_ledger_summary.json",
+    "outputs/constraint_remeasure_v1/constraint_remeasure_report.json",
+    "outputs/constraint_remeasure_v1/validation_predictions.parquet",
+    "outputs/constraint_remeasure_v2/constraint_remeasure_report.json",
+    "outputs/constraint_remeasure_v2/validation_predictions.parquet",
+    "outputs/constraint_remeasure_v2/transfer_diagnostic.json",
+    "outputs/representation_arms_v1/representation_arms_report.json",
+    "outputs/representation_arms_v1/validation_predictions.parquet",
+    "outputs/representation_arms_v1/strong_arm_contrasts.json",
     "data/processed/clinvar_grch38_canonical_review.parquet",
     "data/processed/clinvar_grch38_canonical_review.parquet.derivation.json",
 ]
@@ -84,4 +94,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
