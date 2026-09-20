@@ -170,6 +170,7 @@ def run(membership_path, cohort_path, src_root, output_dir,
     y_tr = train["label"].to_numpy()
     y_va = val["label"].to_numpy()
     preds, arm_reports = {}, {}
+    fitted = {}
     print()
     for arm in ARMS:
         pre = make_preprocessor(arm)
@@ -181,6 +182,7 @@ def run(membership_path, cohort_path, src_root, output_dir,
         model.fit(X_tr, y_tr)
         p = model.predict_proba(X_va)[:, 1]
         preds[arm] = p
+        fitted[arm] = {"preprocessor": pre, "model": model}
         m = metrics(y_va, p)
         arm_reports[arm] = {"n_features": int(X_tr.shape[1]), **m}
         print(f"{arm}: features={X_tr.shape[1]:>3}  AUROC={m['auroc']:.4f}  "
@@ -231,7 +233,9 @@ def run(membership_path, cohort_path, src_root, output_dir,
         "constraint_features": "EXCLUDED -- degrade the strongest arm on unseen genes",
         "tuning": "none for any arm; comparable effort by construction",
         "evaluation_population": "validation partition (test excluded: test_feedback exposure)",
+        "membership_path": str(Path(membership_path).resolve()),
         "membership_sha256": sha256_file(membership_path),
+        "cohort_path": str(Path(cohort_path).resolve()),
         "cohort_sha256": sha256_file(cohort_path),
         "n_train": len(train), "n_validation": len(val),
         "n_validation_genes": int(val["gene_symbol"].nunique()),
@@ -252,6 +256,9 @@ def run(membership_path, cohort_path, src_root, output_dir,
     for arm in ARMS:
         out[arm] = preds[arm]
     out.to_parquet(output_dir / "validation_predictions.parquet", index=False)
+    import joblib
+    joblib.dump(fitted, output_dir / "fitted_pipelines.joblib")
+    print(f"  persisted {len(fitted)} fitted pipelines (preprocessor + model per arm)")
     print()
     print(f"Wrote {output_dir}")
     return manifest
@@ -272,3 +279,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+

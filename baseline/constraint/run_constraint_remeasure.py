@@ -174,6 +174,7 @@ def run(membership_path, cohort_path, gnomad_path, src_root, output_dir,
     preds = {}
     tier_reports = {}
     widths = []
+    fitted = {}
     for tier in TIERS:
         pre = make_preprocessor(tier)
         X_tr = pre.fit_transform(train)
@@ -192,6 +193,7 @@ def run(membership_path, cohort_path, gnomad_path, src_root, output_dir,
             model.fit(X_tr, y_tr)
             p = model.predict_proba(X_va)[:, 1]
             preds.setdefault(name, {})[tier] = p
+            fitted[f"{tier}__{name}"] = {"preprocessor": pre, "model": model}
             m = metrics(val["label"].to_numpy(), p)
             tier_reports[tier]["by_model"][name] = m
             print(f"  {name}: AUROC={m['auroc']:.4f} AUPRC={m['auprc']:.4f} Brier={m['brier']:.5f}")
@@ -233,7 +235,9 @@ def run(membership_path, cohort_path, gnomad_path, src_root, output_dir,
         "evaluation_population": "validation partition (test excluded: test_feedback exposure)",
         "membership_path": str(Path(membership_path).resolve()),
         "membership_sha256": sha256_file(membership_path),
+        "cohort_path": str(Path(cohort_path).resolve()),
         "cohort_sha256": sha256_file(cohort_path),
+        "gnomad_path": str(Path(gnomad_path).resolve()),
         "gnomad_sha256": sha256_file(gnomad_path),
         "tabular_backend": "lightgbm",
         "feature_widths": dict(widths),
@@ -263,6 +267,9 @@ def run(membership_path, cohort_path, gnomad_path, src_root, output_dir,
         for tier in TIERS:
             out[f"{name}__{tier}"] = preds[name][tier]
     out.to_parquet(output_dir / "validation_predictions.parquet", index=False)
+    import joblib
+    joblib.dump(fitted, output_dir / "fitted_pipelines.joblib")
+    print(f"  persisted {len(fitted)} fitted pipelines (preprocessor + model per tier/model)")
     print(f"  persisted {out.shape[1]} columns "
           f"(identity + execution-matched features/availability + predictions)")
     print()
@@ -286,4 +293,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
 
