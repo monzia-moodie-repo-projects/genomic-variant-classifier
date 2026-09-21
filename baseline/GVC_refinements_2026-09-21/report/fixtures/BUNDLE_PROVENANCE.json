@@ -1,0 +1,28 @@
+{
+  "purpose": "retrospective harmonisation identity bundle",
+  "temporal_mode": "retrospective_harmonization",
+  "note": "snapshot of continually regenerated resources; retrieval time is not a release date",
+  "resources": {
+    "good.bin": {
+      "source_url": "http://127.0.0.1:8765/good",
+      "retrieved_at_utc": "2026-09-21T07:41:07.886247+00:00",
+      "http_status": 200,
+      "headers": {
+        "Last-Modified": "Mon, 21 Sep 2026 04:00:00 GMT",
+        "ETag": null,
+        "Content-Length": "5000",
+        "Content-Type": null
+      },
+      "bytes_received": 5000,
+      "declared_length_matched": true,
+      "sha256": "c59d3c0480cc2d71d8f646e735e92da65450311eec46e81a5db8c7e6e8a92054"
+    }
+  },
+  "failures": {
+    "dropped.bin": {
+      "source_url": "http://127.0.0.1:8766/x",
+      "attempted_at_utc": "2026-09-21T07:41:07.913188+00:00",
+      "error": "OSError('truncated transfer: declared 500000 bytes, received 2000')"
+    }
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "clinical_sig_disagreement_kinds": {},
+  "clinical_sig_non_delimiter_disagreements": [],
+  "par_intervals_supplied": {
+    "par1_x": [
+      1,
+      1000
+    ],
+    "par1_y": [
+      1,
+      1000
+    ],
+    "par2_x": [
+      5001,
+      6000
+    ],
+    "par2_y": [
+      2001,
+      3000
+    ],
+    "x_minus_y_offsets": [
+      0,
+      3000
+    ]
+  },
+  "shared_id_checks": {
+    "par1_offset_consistent": 1,
+    "same_gene": 4,
+    "binary_label_eligible_pairs": 4,
+    "par2_offset_consistent": 1,
+    "xy_pair_NOT_a_consistent_par_pair": 2,
+    "NOT_xy_pair_with_same_alleles": 1
+  },
+  "shared_id_ids": 5,
+  "non_xy_examples": [
+    [
+      {
+        "source_id": "3",
+        "variant_id": "e",
+        "chrom": "X",
+        "pos": "5500"
+      },
+      {
+        "source_id": "3",
+        "variant_id": "f",
+        "chrom": "Y",
+        "pos": "2700"
+      }
+    ],
+    [
+      {
+        "source_id": "4",
+        "variant_id": "g",
+        "chrom": "X",
+        "pos": "9000"
+      },
+      {
+        "source_id": "4",
+        "variant_id": "h",
+        "chrom": "Y",
+        "pos": "9000"
+      }
+    ],
+    [
+      {
+        "source_id": "5",
+        "variant_id": "i",
+        "chrom": "1",
+        "pos": "500"
+      },
+      {
+        "source_id": "5",
+        "variant_id": "j",
+        "chrom": "1",
+        "pos": "501"
+      }
+    ]
+  ],
+  "run_utc": "2026-09-21T13:44:59.296098+00:00"
+}

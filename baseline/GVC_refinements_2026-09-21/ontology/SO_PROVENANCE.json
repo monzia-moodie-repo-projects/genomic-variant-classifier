@@ -1,0 +1,16 @@
+{
+  "resource": "Sequence Ontology (so.obo)",
+  "source_url": "https://raw.githubusercontent.com/The-Sequence-Ontology/SO-Ontologies/master/Ontology_Files/so.obo",
+  "retrieved_at_utc": "2026-09-21T06:53:06Z",
+  "source_release_identifier": "data-version: 2026-08-07",
+  "source_release_date_if_known": "2026-08-07 (from the file header; not independently confirmed as a tagged release)",
+  "sha256": "22a8f3ec2b49125dbb6cee8456f0bca86dd8c98f433165ffa4b554da4f155204",
+  "schema_version": "OBO format-version 1.2",
+  "taxon_scope": "not taxon-specific",
+  "historical_availability_status": "retrieved from the master branch; a pinned tag or commit was not verified",
+  "terms": {
+    "total": 2620,
+    "active": 2409,
+    "obsolete": 211
+  }
+}

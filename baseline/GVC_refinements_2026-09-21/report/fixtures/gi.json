@@ -1,0 +1,26 @@
+{
+  "records": 4,
+  "records_with_geneinfo": 2,
+  "records_without_geneinfo": 1,
+  "records_with_malformed_geneinfo": 1,
+  "malformed_examples": {
+    "malformed GENEINFO entry: 'BAD_NO_ID'": 1
+  },
+  "genes_per_record": {
+    "1": 1,
+    "2": 1
+  },
+  "symbols_containing_colon": [],
+  "distinct_gene_ids": 3,
+  "distinct_symbols": 3,
+  "gene_ids_with_more_than_one_symbol": {},
+  "symbols_with_more_than_one_gene_id": {},
+  "provenance": {
+    "vcf": "/tmp/gi.vcf.gz",
+    "vcf_sha256": "2ef0509958341039311268d8588d19680266dcd1681d94b4d66f552749b3046c",
+    "relation_parquet": "/tmp/genfix/gi.parquet",
+    "relation_parquet_sha256": "f6a1348993296e89b1bfde59febc61dae4747cfc9392ae364e664f6460ef7258",
+    "relation_rows": 3,
+    "run_utc": "2026-09-21T13:44:57.802919+00:00"
+  }
+}

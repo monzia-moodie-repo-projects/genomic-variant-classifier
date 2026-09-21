@@ -1,5 +1,27 @@
 # MEASUREMENT 2026-09-20 — Constraint extension does not survive cohort repair
 
+> **Status 2026-09-21 — superseded in part.** Read with `docs/MEASUREMENT_2026-09-21_gate-a-identity-and-leakage.md` (Gate A) and `baseline/GVC_refinements_2026-09-21/CORRECTIONS.md`.
+>
+> - The headline conclusion does not hold as a general finding. Split by resolved gene-component
+>   leakage (Gate A section 7), the LightGBM constraint effect is not detectable on components unseen
+>   in training. Among components seen in training it is detectable and concentrated in three
+>   components (TTN, PKD1/TSC2, SON). Logistic regression shows no detectable effect in any stratum.
+> - "Gene disjointness ... overlap 0" measured literal registry strings. Resolved through source
+>   GeneIDs, a substantial share of validation rows share a gene component with training (Gate A
+>   section 6), so "every validation gene is unseen" is false.
+> - The transfer diagnostic's "constraint absent" stratum was defined by `loeuf_is_missing` alone and
+>   pooled subgroups of opposite sign.
+> - The "design effect" values compare a whole-gene interval with a class-stratified row interval at
+>   different replicate counts; they do not measure within-gene dependence, and the conclusion drawn
+>   from them is withdrawn.
+> - "Verdicts stable across seeds 0-4" reflects Monte Carlo error of one analysis, not replication.
+> - The recommendation to exclude constraint from step 7 rested on harm to unseen genes, which is
+>   not supported.
+>
+> Retained: the per-tier metrics and the all-rows paired deltas, which Gate A section 7 reproduces
+> exactly. Its intervals differ slightly because Gate A resamples resolved components, not registry
+> genes.
+
 Supersedes the legacy-cohort core-versus-constraint result (+0.0088 AUROC, no
 uncertainty estimate). Answers the governing ruling question: *"whether gains
 from gene constraint persist after cohort repair."* They do not.

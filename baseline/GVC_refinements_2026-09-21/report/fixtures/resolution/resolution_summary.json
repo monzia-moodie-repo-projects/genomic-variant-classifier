@@ -1,0 +1,118 @@
+{
+  "formats_observed": {
+    "gene_info_rows": 3,
+    "gene_info_tax_ids": {
+      "9606": 3
+    },
+    "gene_info_hgnc_xref_forms": {
+      "HGNC:HGNC:n": 2
+    },
+    "hgnc_rows": 2,
+    "hgnc_status_counts": {
+      "Approved": 2
+    },
+    "gene_history_header": [
+      "tax_id",
+      "GeneID",
+      "Discontinued_GeneID",
+      "Discontinued_Symbol",
+      "Discontinue_Date"
+    ],
+    "gene_history_human_rows": 5,
+    "gene_history_replacement_value_forms": {
+      "numeric": 3,
+      "value:-": 2
+    }
+  },
+  "distinct_source_gene_ids": 8,
+  "state_by_distinct_gene_id": {
+    "current": 3,
+    "discontinued_no_replacement": 2,
+    "migrated": 1,
+    "history_chain_problem": 1,
+    "unknown": 1
+  },
+  "state_by_relation_rows": {
+    "current": 5,
+    "migrated": 1,
+    "discontinued_no_replacement": 2,
+    "history_chain_problem": 1,
+    "unknown": 1
+  },
+  "symbol_state_by_relation_rows": {
+    "symbol_matches_current": 3,
+    "symbol_not_current_no_conflict": 2,
+    "conflict:Source ID conflicts with exact symbol evidence": 1
+  },
+  "hgnc_crossref_two_way": {
+    "agree": 1,
+    "disagree": 1,
+    "hgnc_entrez_absent_from_gene_info": 0
+  },
+  "hgnc_crossref_conflict_examples": [
+    {
+      "GeneID": "7273",
+      "gene_info": [
+        "HGNC:12403"
+      ],
+      "hgnc": [
+        "HGNC:99999"
+      ]
+    }
+  ],
+  "gene_info_ids_with_multiple_hgnc": {},
+  "hgnc_ids_shared_by_multiple_gene_ids": {},
+  "non_current_examples": [
+    {
+      "source_gene_id": "200",
+      "source_symbol": "OLDBR",
+      "relation_rows": 1,
+      "state": "migrated",
+      "resolved_gene_id": "672",
+      "current_symbol": "BRCA1",
+      "history_path": "200->672",
+      "symbol_state": "symbol_not_current_no_conflict"
+    },
+    {
+      "source_gene_id": "300",
+      "source_symbol": "GONE",
+      "relation_rows": 1,
+      "state": "discontinued_no_replacement",
+      "resolved_gene_id": NaN,
+      "current_symbol": NaN,
+      "history_path": "300->-",
+      "symbol_state": NaN
+    },
+    {
+      "source_gene_id": "400",
+      "source_symbol": "X",
+      "relation_rows": 1,
+      "state": "discontinued_no_replacement",
+      "resolved_gene_id": NaN,
+      "current_symbol": NaN,
+      "history_path": "400->500->-",
+      "symbol_state": NaN
+    },
+    {
+      "source_gene_id": "600",
+      "source_symbol": "Z",
+      "relation_rows": 1,
+      "state": "history_chain_problem",
+      "resolved_gene_id": NaN,
+      "current_symbol": NaN,
+      "history_path": "600->700",
+      "symbol_state": NaN
+    },
+    {
+      "source_gene_id": "999",
+      "source_symbol": "NOPE",
+      "relation_rows": 1,
+      "state": "unknown",
+      "resolved_gene_id": NaN,
+      "current_symbol": NaN,
+      "history_path": "999",
+      "symbol_state": NaN
+    }
+  ],
+  "run_utc": "2026-09-21T07:52:19.314255+00:00"
+}

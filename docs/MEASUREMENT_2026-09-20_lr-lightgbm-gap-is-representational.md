@@ -1,5 +1,23 @@
 # MEASUREMENT 2026-09-20 — The LR/LightGBM gap is 98.5% representational
 
+> **Status 2026-09-21 — core finding confirmed on unseen gene components; several statements corrected.**
+> Read with `docs/MEASUREMENT_2026-09-21_gate-a-identity-and-leakage.md` (Gate A) and `baseline/GVC_refinements_2026-09-21/CORRECTIONS.md`.
+>
+> - Confirmed: split by resolved gene-component leakage (Gate A section 8), `lr_representation`
+>   improves on `lr_current` and remains detectably behind LightGBM in both the unseen and leaked
+>   strata, and in the unseen stratum neither contrast is carried by a few components.
+> - "Gene overlap 0" measured literal registry strings; see Gate A section 6.
+> - The stated reason for excluding constraint, that it degrades LightGBM on unseen genes, is not
+>   supported; see the companion document's status block.
+> - `allele_freq` is null in every cohort row, so `af_raw` and the log10 allele-frequency term were
+>   constants. The transformed arm's gain came from the length transforms and categorical severity;
+>   "`af_raw` ... badly non-linear" is withdrawn.
+> - Consequence severity, including its categorical encoding, was computed from a vocabulary mapping
+>   that scored ClinVar `nonsense` and other unmapped terms as 0.
+> - `lr_splines` used B-splines (`SplineTransformer`), not restricted cubic splines.
+> - "Attributable to model capacity" is not a causal decomposition.
+> - The design-effect values use the flawed width ratio described in the companion status block.
+
 Ruling step 7. Four arms over the same admissible information (core tier),
 differing only in how that information is encoded for the linear model.
 Evaluated on the VALIDATION partition; the test partition is recorded in

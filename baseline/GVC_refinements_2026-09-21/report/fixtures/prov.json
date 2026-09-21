@@ -1,0 +1,63 @@
+{
+  "vcf_meta": [
+    "##fileDate=2026-03-16",
+    "##source=ClinVar",
+    "##reference=GRCh38"
+  ],
+  "vcf_sha256": "19fb983c1f5975065a0ba541cdd58eadc2b0336243704ae95ca5558a430be5db",
+  "variant_summary_sha256": "2623a59fadff5d9eefc6e06a9958f02e59f7b8508d9fd229e0351db5ffc10157",
+  "variant_summary_columns": [
+    "#AlleleID",
+    "Type",
+    "GeneID",
+    "GeneSymbol",
+    "HGNC_ID",
+    "LastEvaluated",
+    "Assembly",
+    "Start",
+    "PositionVCF",
+    "ReferenceAlleleVCF",
+    "AlternateAlleleVCF",
+    "VariationID"
+  ],
+  "absent_requested_columns": [],
+  "vs_grch38_rows": 4,
+  "vs_grch38_distinct_variation_ids": 4,
+  "vs_last_evaluated_max": "2026-07-01 00:00:00",
+  "vs_last_evaluated_unparseable": 1,
+  "vcf_ids": 3,
+  "cohort_source_ids": 5,
+  "cohort_in_vcf": 3,
+  "cohort_in_vs": 4,
+  "cohort_in_neither": 1,
+  "cohort_in_vs_not_vcf": 1,
+  "cohort_in_vcf_not_vs": 0,
+  "clnvc_all": {
+    "single_nucleotide_variant": 2,
+    "Deletion": 1
+  },
+  "clnvc_at_10_genes": {
+    "Deletion": 1
+  },
+  "malformed_geneinfo_raw": [
+    {
+      "id": "13",
+      "geneinfo": "HHC2:066588:111258505"
+    }
+  ],
+  "vs_geneid_value_counts_top": {
+    "672": 1,
+    "-1": 1,
+    "111258505": 1,
+    "999": 1
+  },
+  "vs_multigene_symbol_rows": 1,
+  "vs_at10_genesymbol_semicolon_count_distribution": {
+    "14": 1
+  },
+  "vs_at10_geneid_top": {
+    "-1": 1
+  },
+  "vs_rows_positionvcf_ne_start": 1,
+  "run_utc": "2026-09-21T13:44:58.177434+00:00"
+}

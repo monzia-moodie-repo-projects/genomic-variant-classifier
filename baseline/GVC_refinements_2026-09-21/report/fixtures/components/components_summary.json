@@ -1,0 +1,119 @@
+{
+  "exclude_types": [
+    "biological-region"
+  ],
+  "relation_rows_by_type_of_gene": {
+    "protein-coding": 5,
+    "biological-region": 3,
+    "ncRNA": 1,
+    "UNRESOLVED": 1
+  },
+  "variants": 7,
+  "variants_only_unresolved_genes": 1,
+  "variants_left_without_gene_after_exclusion": 1,
+  "variants_where_excluded_types_were_extra_links": 2,
+  "all_resolved": {
+    "components": 3,
+    "largest_gene_counts": [
+      3,
+      2,
+      1
+    ],
+    "largest_members": [
+      [
+        "HHC2:066588",
+        "MEIS1",
+        "GENEZ"
+      ],
+      [
+        "TTN-AS1",
+        "TTN"
+      ],
+      [
+        "BRCA1"
+      ]
+    ],
+    "leakage_vs_old_registry": {
+      "rows_with_partition": 7,
+      "rows_without_component": 0,
+      "partition_counts": {
+        "validation": 3,
+        "train": 2,
+        "test": 2
+      },
+      "components_spanning_2plus_partitions": 2,
+      "components_spanning_3_partitions": 1,
+      "validation_rows_sharing_component_with_train": 2,
+      "validation_rows": 3,
+      "test_rows_sharing_component_with_train": 1,
+      "test_rows": 2
+    },
+    "leakage_restricted": {
+      "rows_with_partition": 3,
+      "rows_without_component": 0,
+      "partition_counts": {
+        "validation": 3
+      },
+      "components_spanning_2plus_partitions": 2,
+      "components_spanning_3_partitions": 1,
+      "validation_rows_sharing_component_with_train": 2,
+      "validation_rows": 3,
+      "test_rows_sharing_component_with_train": 0,
+      "test_rows": 0
+    }
+  },
+  "genes_only": {
+    "components": 4,
+    "largest_gene_counts": [
+      2,
+      1,
+      1,
+      1
+    ],
+    "largest_members": [
+      [
+        "TTN-AS1",
+        "TTN"
+      ],
+      [
+        "MEIS1"
+      ],
+      [
+        "BRCA1"
+      ],
+      [
+        "GENEZ"
+      ]
+    ],
+    "leakage_vs_old_registry": {
+      "rows_with_partition": 7,
+      "rows_without_component": 0,
+      "partition_counts": {
+        "validation": 3,
+        "train": 2,
+        "test": 2
+      },
+      "components_spanning_2plus_partitions": 1,
+      "components_spanning_3_partitions": 0,
+      "validation_rows_sharing_component_with_train": 1,
+      "validation_rows": 3,
+      "test_rows_sharing_component_with_train": 0,
+      "test_rows": 2
+    },
+    "leakage_restricted": {
+      "rows_with_partition": 3,
+      "rows_without_component": 0,
+      "partition_counts": {
+        "validation": 3
+      },
+      "components_spanning_2plus_partitions": 1,
+      "components_spanning_3_partitions": 0,
+      "validation_rows_sharing_component_with_train": 1,
+      "validation_rows": 3,
+      "test_rows_sharing_component_with_train": 0,
+      "test_rows": 0
+    }
+  },
+  "restricted_rows_requested": 3,
+  "run_utc": "2026-09-21T12:00:43.386658+00:00"
+}

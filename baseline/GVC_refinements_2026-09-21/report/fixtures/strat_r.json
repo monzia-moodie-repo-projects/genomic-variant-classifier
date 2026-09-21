@@ -1,0 +1,210 @@
+{
+  "component_column": "component_genes_only",
+  "rows": 4,
+  "rows_without_component": 1,
+  "models": [
+    "m__core",
+    "m__core_plus"
+  ],
+  "model_selection": "explicit",
+  "constant_columns": [],
+  "strata": {
+    "unseen": {
+      "rows": 3,
+      "components": 3,
+      "prevalence": 0.3333333333333333,
+      "per_model": {
+        "m__core": {
+          "brier": 0.09666666666666668,
+          "auroc": 1.0
+        },
+        "m__core_plus": {
+          "brier": 0.10000000000000002,
+          "auroc": 1.0
+        }
+      },
+      "contrasts": {
+        "m__core_plus - m__core": {
+          "brier_delta": 0.003333333333333325,
+          "ci95_component": [
+            -0.04999999999999999,
+            0.08999999999999997
+          ],
+          "interval_reliable": true,
+          "excludes_zero": false,
+          "components": 3,
+          "influence": {
+            "top": [
+              {
+                "component": "c3",
+                "rows": 1,
+                "mean_delta": 0.08999999999999997,
+                "contribution": 0.02999999999999999,
+                "share_of_stratum_delta": 9.00000000000002,
+                "share_of_absolute_contribution": 0.5294117647058824,
+                "genes": [
+                  "n/a"
+                ]
+              },
+              {
+                "component": "c2",
+                "rows": 1,
+                "mean_delta": -0.04999999999999999,
+                "contribution": -0.016666666666666663,
+                "share_of_stratum_delta": -5.0000000000000115,
+                "share_of_absolute_contribution": 0.29411764705882354,
+                "genes": [
+                  "n/a"
+                ]
+              },
+              {
+                "component": "no-component:v6",
+                "rows": 1,
+                "mean_delta": -0.030000000000000006,
+                "contribution": -0.010000000000000002,
+                "share_of_stratum_delta": -3.0000000000000084,
+                "share_of_absolute_contribution": 0.1764705882352942,
+                "genes": [
+                  "n/a"
+                ]
+              }
+            ],
+            "leave_out_point_estimates": {
+              "without_top_1": -0.039999999999999994,
+              "without_top_3": null,
+              "without_top_5": null
+            }
+          }
+        }
+      }
+    },
+    "leaked": {
+      "rows": 1,
+      "components": 1,
+      "prevalence": 1.0,
+      "per_model": {
+        "m__core": {
+          "brier": 0.03999999999999998,
+          "auroc": null
+        },
+        "m__core_plus": {
+          "brier": 0.009999999999999995,
+          "auroc": null
+        }
+      },
+      "contrasts": {
+        "m__core_plus - m__core": {
+          "brier_delta": -0.029999999999999985,
+          "ci95_component": [
+            -0.029999999999999985,
+            -0.029999999999999985
+          ],
+          "interval_reliable": true,
+          "excludes_zero": true,
+          "components": 1,
+          "influence": {
+            "top": [
+              {
+                "component": "c1",
+                "rows": 1,
+                "mean_delta": -0.029999999999999985,
+                "contribution": -0.029999999999999985,
+                "share_of_stratum_delta": 1.0,
+                "share_of_absolute_contribution": 1.0,
+                "genes": [
+                  "n/a"
+                ]
+              }
+            ],
+            "leave_out_point_estimates": {
+              "without_top_1": null,
+              "without_top_3": null,
+              "without_top_5": null
+            }
+          }
+        }
+      }
+    },
+    "all": {
+      "rows": 4,
+      "components": 4,
+      "prevalence": 0.5,
+      "per_model": {
+        "m__core": {
+          "brier": 0.08250000000000002,
+          "auroc": 1.0
+        },
+        "m__core_plus": {
+          "brier": 0.0775,
+          "auroc": 1.0
+        }
+      },
+      "contrasts": {
+        "m__core_plus - m__core": {
+          "brier_delta": -0.005000000000000003,
+          "ci95_component": [
+            -0.044999999999999984,
+            0.05999999999999998
+          ],
+          "interval_reliable": true,
+          "excludes_zero": false,
+          "components": 4,
+          "influence": {
+            "top": [
+              {
+                "component": "c3",
+                "rows": 1,
+                "mean_delta": 0.08999999999999997,
+                "contribution": 0.022499999999999992,
+                "share_of_stratum_delta": -4.4999999999999964,
+                "share_of_absolute_contribution": 0.45,
+                "genes": [
+                  "n/a"
+                ]
+              },
+              {
+                "component": "c2",
+                "rows": 1,
+                "mean_delta": -0.04999999999999999,
+                "contribution": -0.012499999999999997,
+                "share_of_stratum_delta": 2.4999999999999982,
+                "share_of_absolute_contribution": 0.25000000000000006,
+                "genes": [
+                  "n/a"
+                ]
+              },
+              {
+                "component": "no-component:v6",
+                "rows": 1,
+                "mean_delta": -0.030000000000000006,
+                "contribution": -0.0075000000000000015,
+                "share_of_stratum_delta": 1.4999999999999996,
+                "share_of_absolute_contribution": 0.15000000000000008,
+                "genes": [
+                  "n/a"
+                ]
+              },
+              {
+                "component": "c1",
+                "rows": 1,
+                "mean_delta": -0.029999999999999985,
+                "contribution": -0.007499999999999996,
+                "share_of_stratum_delta": 1.4999999999999984,
+                "share_of_absolute_contribution": 0.14999999999999997,
+                "genes": [
+                  "n/a"
+                ]
+              }
+            ],
+            "leave_out_point_estimates": {
+              "without_top_1": -0.03666666666666666,
+              "without_top_3": -0.029999999999999985,
+              "without_top_5": null
+            }
+          }
+        }
+      }
+    }
+  },
+  "run_utc": "2026-09-21T13:44:59.734007+00:00"
+}
