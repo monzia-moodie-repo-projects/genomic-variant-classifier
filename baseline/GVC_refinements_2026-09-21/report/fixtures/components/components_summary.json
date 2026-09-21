@@ -109,7 +109,7 @@
       "components_spanning_2plus_partitions": 1,
       "components_spanning_3_partitions": 0,
       "validation_rows_sharing_component_with_train": 1,
-      "validation_rows": 3,
+      "validation_rows": 4,
       "test_rows_sharing_component_with_train": 0,
       "test_rows": 0
     }

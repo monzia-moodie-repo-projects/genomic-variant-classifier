@@ -52,3 +52,11 @@ The same script's `parse_consequence` returns `parts[1]` of `split(",")[0]`: it 
 | My claim or action | What is actually true | How verified |
 |---|---|---|
 | Committed the pinned ontology as a preserved artifact | No `.gitattributes` rule covered `.obo`, so it resolved to `text=auto` with no eol and a Windows checkout would rewrite its line endings, breaking the hash in SO_PROVENANCE.json. The repository's own `.gitattributes` documents this failure class; I did not read it before committing. The stored blob was intact. Fixed by PINNED-ONTOLOGY-1. | `git check-attr`; blob SHA-256 compared with the pinned value |
+
+## Added 2026-09-21, after reading the committed package in full
+
+| My claim or action | What is actually true | How verified |
+|---|---|---|
+| The section "after identity resolution" above, and `identity/build_measurement_doc.py` | I have no visible record of writing either. Both changed at 13:18, between the r10 and r11 builds, and I committed them in 03dce2e without reading them. | File times; full read after the commit |
+| That section's reference to `docs/MEASUREMENT_2026-09-21_identity-resolved-components.md` | No such document exists. The committed record is `docs/MEASUREMENT_2026-09-21_gate-a-identity-and-leakage.md`. | `git ls-tree` |
+| That section's "cross-output inconsistency is flagged" | True only of `build_measurement_doc.py`, which did NOT produce the committed document; it also used silent `.get(key, 0)` defaults. Its checks and per-figure appendix now live in `report/generate_gate_a_report.py`, which REFUSES to generate on an inconsistency rather than flagging it. `build_measurement_doc.py` is retired: one generator remains. | A test perturbs each of the six checks and requires a refusal |

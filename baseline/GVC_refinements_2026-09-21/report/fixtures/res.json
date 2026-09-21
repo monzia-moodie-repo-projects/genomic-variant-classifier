@@ -1,5 +1,7 @@
 {
-  "clinical_sig_disagreement_kinds": {},
+  "clinical_sig_disagreement_kinds": {
+    "other": 1
+  },
   "clinical_sig_non_delimiter_disagreements": [],
   "par_intervals_supplied": {
     "par1_x": [

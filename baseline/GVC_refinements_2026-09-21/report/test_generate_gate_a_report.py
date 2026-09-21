@@ -32,6 +32,38 @@ class ReportTests(unittest.TestCase):
         r = subprocess.run(args(FIX, out), capture_output=True, text=True)
         self.assertNotEqual(r.returncode, 0); self.assertIn("refusing to overwrite", r.stderr)
 
+    def test_every_consistency_check_can_fail(self):
+        cases = [
+            ("res.json", lambda d: d.__setitem__("clinical_sig_disagreement_kinds", {}), "residuals classified 0"),
+            ("gi.json", lambda d: d["provenance"].__setitem__("relation_rows", 3), "census wrote 3 relation rows"),
+            ("components/components_summary.json",
+             lambda d: d["genes_only"]["leakage_restricted"].__setitem__("validation_rows", 99), "evaluated validation rows"),
+            ("components/components_summary.json",
+             lambda d: d["genes_only"]["leakage_restricted"].__setitem__("validation_rows_sharing_component_with_train", 99),
+             "leaked validation rows"),
+            ("strat_r.json", lambda d: d.__setitem__("component_column", "component_all_resolved"), "different component columns"),
+            ("strat_r.json", lambda d: d["strata"]["unseen"].__setitem__("rows", 99), "stratum unseen"),
+        ]
+        keys = {"res.json": "residuals", "gi.json": "geneinfo-census",
+                "components/components_summary.json": "components", "strat_r.json": "strata-representation"}
+        for fname, mutate, expect in cases:
+            d = Path(tempfile.mkdtemp())
+            j = json.loads((FIX / fname).read_text(encoding="utf-8")); mutate(j)
+            bad = d / "bad.json"; bad.write_text(json.dumps(j), encoding="utf-8")
+            out = d / "r.md"
+            r = subprocess.run(args(FIX, out, {keys[fname]: bad}), capture_output=True, text=True)
+            self.assertNotEqual(r.returncode, 0, f"check did not fire for {fname}")
+            self.assertIn(expect, r.stderr, f"{fname}: {r.stderr}")
+            self.assertFalse(out.exists())
+
+    def test_consistent_fixtures_list_checks_and_provenance(self):
+        out = Path(tempfile.mkdtemp()) / "r.md"
+        subprocess.run(args(FIX, out), check=True, capture_output=True)
+        text = out.read_text(encoding="utf-8")
+        self.assertIn("## Cross-output consistency", text)
+        self.assertIn("## Appendix: provenance of every figure", text)
+        self.assertIn("| authentication | `clinical_sig` |", text)
+
     def test_missing_key_stops_and_writes_nothing(self):
         d = Path(tempfile.mkdtemp()); bad = d / "prov.json"
         j = json.loads((FIX / "prov.json").read_text(encoding="utf-8")); del j["cohort_in_vcf"]

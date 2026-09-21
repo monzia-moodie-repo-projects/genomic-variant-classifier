@@ -20,7 +20,7 @@
     "vcf_sha256": "2ef0509958341039311268d8588d19680266dcd1681d94b4d66f552749b3046c",
     "relation_parquet": "/tmp/genfix/gi.parquet",
     "relation_parquet_sha256": "f6a1348993296e89b1bfde59febc61dae4747cfc9392ae364e664f6460ef7258",
-    "relation_rows": 3,
+    "relation_rows": 10,
     "run_utc": "2026-09-21T13:44:57.802919+00:00"
   }
 }

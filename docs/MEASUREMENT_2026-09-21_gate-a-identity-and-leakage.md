@@ -1,7 +1,7 @@
 # MEASUREMENT 2026-09-21: Gate A identity, authentication and leakage
 
 Generated from artifacts by `generate_gate_a_report.py`; no figure or verdict below was typed by hand.
-Generated 2026-09-21T13:59:37.896600+00:00.
+Generated 2026-09-21T14:21:51.376293+00:00.
 
 ## Sources
 
@@ -135,3 +135,86 @@ Largest leaked-stratum contributors, each component labelled by the registry `ge
 Largest leaked-stratum contributors, each component labelled by the registry `gene_symbol` strings of its rows (not resolved genes): TTN (22,537 rows, -0.014073); BRCA1 (7,432 rows, -0.006135); ALMS1 (3,557 rows, -0.002915); EYS (3,012 rows, -0.002634); PLEKHH1/RDH11/VTI1B (2,088 rows, -0.001273)
 
 Top-3 shares are shown only where the delta is detectable: a share of a signed delta is unbounded near zero. Leave-out values are point estimates: the components removed were chosen after seeing the data, so no interval is attached.
+
+## Cross-output consistency
+
+Generation refuses unless every check passes. Passed:
+
+- authentication disagreements == residual classifications
+- census relation rows == resolution relation rows
+- stratified rows == component build's evaluated and leaked validation rows
+- constraint and representation runs share component column and stratum sizes
+
+## Appendix: provenance of every figure
+
+Each row is a key path read from an artifact; values nested inside that object are covered by its row.
+
+| Artifact | Key path | Artifact SHA-256 |
+|---|---|---|
+| authentication | `clinical_sig` | `7f8205090ca12103` |
+| authentication | `cohort_rows` | `7f8205090ca12103` |
+| authentication | `review_status` | `7f8205090ca12103` |
+| bundle | `resources` | `cf9cb20df05b29e2` |
+| components | `all_resolved/components` | `3c678933f1001f76` |
+| components | `all_resolved/leakage_restricted` | `3c678933f1001f76` |
+| components | `exclude_types` | `3c678933f1001f76` |
+| components | `genes_only/components` | `3c678933f1001f76` |
+| components | `genes_only/leakage_restricted` | `3c678933f1001f76` |
+| components | `relation_rows_by_type_of_gene` | `3c678933f1001f76` |
+| geneinfo_census | `distinct_gene_ids` | `0234740dc202678c` |
+| geneinfo_census | `genes_per_record` | `0234740dc202678c` |
+| geneinfo_census | `provenance/relation_rows` | `0234740dc202678c` |
+| geneinfo_census | `records_with_geneinfo` | `0234740dc202678c` |
+| geneinfo_census | `records_with_malformed_geneinfo` | `0234740dc202678c` |
+| geneinfo_census | `symbols_containing_colon` | `0234740dc202678c` |
+| mc_census | `labels_with_more_than_one_accession` | `b49268bcadfc6c45` |
+| mc_census | `mc_entries_per_record` | `b49268bcadfc6c45` |
+| mc_census | `records` | `b49268bcadfc6c45` |
+| mc_census | `records_with_malformed_mc` | `b49268bcadfc6c45` |
+| mc_census | `records_with_mc` | `b49268bcadfc6c45` |
+| mc_census | `so_validation/label_differs_from_so_name` | `b49268bcadfc6c45` |
+| mc_census | `so_validation/obsolete_accessions` | `b49268bcadfc6c45` |
+| mc_census | `so_validation/unknown_accessions` | `b49268bcadfc6c45` |
+| provenance | `cohort_in_vcf` | `6a65e2b0324bbb28` |
+| provenance | `cohort_in_vcf_not_vs` | `6a65e2b0324bbb28` |
+| provenance | `cohort_source_ids` | `6a65e2b0324bbb28` |
+| provenance | `vcf_meta` | `6a65e2b0324bbb28` |
+| provenance | `vs_last_evaluated_max` | `6a65e2b0324bbb28` |
+| residuals | `clinical_sig_disagreement_kinds` | `5a86df0d7dce52a0` |
+| residuals | `shared_id_checks` | `5a86df0d7dce52a0` |
+| residuals | `shared_id_ids` | `5a86df0d7dce52a0` |
+| resolution | `hgnc_crossref_two_way` | `c1b730de6cc1bc80` |
+| resolution | `state_by_distinct_gene_id` | `c1b730de6cc1bc80` |
+| resolution | `state_by_relation_rows` | `c1b730de6cc1bc80` |
+| resolution | `symbol_state_by_relation_rows` | `c1b730de6cc1bc80` |
+| strata_constraint | `component_column` | `9cafb21d82ea69f3` |
+| strata_constraint | `strata/all` | `9cafb21d82ea69f3` |
+| strata_constraint | `strata/all/contrasts` | `9cafb21d82ea69f3` |
+| strata_constraint | `strata/all/contrasts/lightgbm__core_plus_constraint - lightgbm__core` | `9cafb21d82ea69f3` |
+| strata_constraint | `strata/all/contrasts/logistic_regression__core_plus_constraint - logistic_regression__core` | `9cafb21d82ea69f3` |
+| strata_constraint | `strata/all/rows` | `9cafb21d82ea69f3` |
+| strata_constraint | `strata/leaked` | `9cafb21d82ea69f3` |
+| strata_constraint | `strata/leaked/contrasts/lightgbm__core_plus_constraint - lightgbm__core` | `9cafb21d82ea69f3` |
+| strata_constraint | `strata/leaked/contrasts/logistic_regression__core_plus_constraint - logistic_regression__core` | `9cafb21d82ea69f3` |
+| strata_constraint | `strata/leaked/rows` | `9cafb21d82ea69f3` |
+| strata_constraint | `strata/unseen` | `9cafb21d82ea69f3` |
+| strata_constraint | `strata/unseen/contrasts/lightgbm__core_plus_constraint - lightgbm__core` | `9cafb21d82ea69f3` |
+| strata_constraint | `strata/unseen/contrasts/logistic_regression__core_plus_constraint - logistic_regression__core` | `9cafb21d82ea69f3` |
+| strata_constraint | `strata/unseen/rows` | `9cafb21d82ea69f3` |
+| strata_representation | `component_column` | `8e350f1f1a944756` |
+| strata_representation | `strata/all` | `8e350f1f1a944756` |
+| strata_representation | `strata/all/contrasts` | `8e350f1f1a944756` |
+| strata_representation | `strata/all/contrasts/lr_representation - lightgbm` | `8e350f1f1a944756` |
+| strata_representation | `strata/all/contrasts/lr_representation - lr_current` | `8e350f1f1a944756` |
+| strata_representation | `strata/all/contrasts/lr_splines - lightgbm` | `8e350f1f1a944756` |
+| strata_representation | `strata/all/rows` | `8e350f1f1a944756` |
+| strata_representation | `strata/leaked` | `8e350f1f1a944756` |
+| strata_representation | `strata/leaked/contrasts/lr_representation - lightgbm` | `8e350f1f1a944756` |
+| strata_representation | `strata/leaked/contrasts/lr_representation - lr_current` | `8e350f1f1a944756` |
+| strata_representation | `strata/leaked/contrasts/lr_splines - lightgbm` | `8e350f1f1a944756` |
+| strata_representation | `strata/leaked/rows` | `8e350f1f1a944756` |
+| strata_representation | `strata/unseen` | `8e350f1f1a944756` |
+| strata_representation | `strata/unseen/contrasts/lr_representation - lightgbm` | `8e350f1f1a944756` |
+| strata_representation | `strata/unseen/contrasts/lr_representation - lr_current` | `8e350f1f1a944756` |
+| strata_representation | `strata/unseen/contrasts/lr_splines - lightgbm` | `8e350f1f1a944756` |
+| strata_representation | `strata/unseen/rows` | `8e350f1f1a944756` |
