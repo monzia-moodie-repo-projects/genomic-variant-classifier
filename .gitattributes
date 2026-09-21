@@ -121,3 +121,16 @@ records/attestations/installations/artifacts/** -text
 # changing them is a separate decision with real side effects.
 # ARCHIVE-PATCH-INFERRED-TEXT-1.
 docs/archive/legacy/** -text
+
+# ---------------------------------------------------------------------------
+# PINNED ONTOLOGY: preserved bytes (added 2026-09-21).
+# ---------------------------------------------------------------------------
+# so.obo was retrieved from the Sequence Ontology's MOVING master branch; its
+# SHA-256 is recorded in ontology/SO_PROVENANCE.json and it cannot be fetched
+# again byte-for-byte. It was committed at 03dce2e with no matching rule, so it
+# resolved to `text=auto` with no eol: a Windows checkout would have rewritten
+# its line endings and broken the recorded hash. The stored blob was verified
+# intact (hash equal, zero carriage returns) before this rule was added.
+# Same principle as RECORDS-EOL-NORMALIZATION-1: a preservation must not depend
+# on the corpus staying friendly. Scope is narrow on purpose. PINNED-ONTOLOGY-1.
+baseline/GVC_refinements_2026-09-21/ontology/so.obo -text

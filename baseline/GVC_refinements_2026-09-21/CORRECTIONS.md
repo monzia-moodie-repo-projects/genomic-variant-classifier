@@ -46,3 +46,9 @@ The same script's `parse_consequence` returns `parts[1]` of `split(",")[0]`: it 
 | The census parser fix would add 8 relation rows | It added 16: each of the 8 records links two genes. I predicted without counting per-record contributions. | Census 001 vs 002 |
 | A generated document is drift-free because its numbers come from data | My first generator hard-coded its CONCLUSIONS, asserting "all present" beside "3 of 5". Every conclusion is now derived under declared rules, and cross-output inconsistency is flagged. | Fixture that contradicts the prose |
 | Model columns can be detected by value range | That selected a feature, af_raw, as a model. Selection is now explicit; auto-detection is labelled and constant columns are named. | Stratified run output |
+
+## Added 2026-09-21, after commit 03dce2e
+
+| My claim or action | What is actually true | How verified |
+|---|---|---|
+| Committed the pinned ontology as a preserved artifact | No `.gitattributes` rule covered `.obo`, so it resolved to `text=auto` with no eol and a Windows checkout would rewrite its line endings, breaking the hash in SO_PROVENANCE.json. The repository's own `.gitattributes` documents this failure class; I did not read it before committing. The stored blob was intact. Fixed by PINNED-ONTOLOGY-1. | `git check-attr`; blob SHA-256 compared with the pinned value |
