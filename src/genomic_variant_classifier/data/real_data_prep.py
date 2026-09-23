@@ -49,6 +49,8 @@ from genomic_variant_classifier.data.dbnsfp import DbNSFPConnector
 from genomic_variant_classifier.data.phylop import PhyloPConnector
 from genomic_variant_classifier.data.cadd import CADDConnector
 from genomic_variant_classifier.data.spliceai import SpliceAIConnector
+from genomic_variant_classifier.containment import ContainmentError
+from genomic_variant_classifier.quarantine_policy import STRUCTURAL_CONFIG_FIELDS
 from genomic_variant_classifier.data.review_status import (
     UnmatchedReviewStatusError,
     normalise,
@@ -56,6 +58,22 @@ from genomic_variant_classifier.data.review_status import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _refuse_structural_config(ac: "AnnotationConfig") -> None:
+    """Refuse an annotation config that ASKS for quarantined structural features.
+
+    The fields named in quarantine_policy.STRUCTURAL_CONFIG_FIELDS exist only to drive the
+    quarantined producers. Setting one is a request for quarantined features; silently
+    ignoring it would let a launcher believe it had them.
+    """
+    requested = [f for f in STRUCTURAL_CONFIG_FIELDS if getattr(ac, f, None) is not None]
+    if requested:
+        raise ContainmentError(
+            f"AnnotationConfig requests quarantined structural features via {requested}. "
+            "The four structural features and both of their producers are quarantined "
+            "(docs/CONTAINMENT_2026-07-24.md section 4); unset these fields."
+        )
 
 _HGVSP_CODON_RE = _re.compile(r"p\.[A-Za-z]{3}(\d+)")
 
@@ -428,6 +446,7 @@ class DataPrepPipeline:
     ) -> None:
         self.config = config or DataPrepConfig()
         self.annotation_config = annotation_config or AnnotationConfig()
+        _refuse_structural_config(self.annotation_config)  # fail fast, before hours of annotation
         self.scaler = StandardScaler()
 
     def run(
@@ -1121,28 +1140,12 @@ class DataPrepPipeline:
             ]:
                 df[col] = val
 
-        # 14. Protein structure pipeline (Phase 6.2)
-        from genomic_variant_classifier.pipelines.protein_pipeline import ProteinStructurePipeline
-
-        # 14a. AlphaFold structural features (Phase D) -- parquet-first path.
-        # When ac.alphafold_path is set, the prebuilt cohort parquet supplies
-        # alphafold_plddt / solvent_accessibility / secondary_structure_context /
-        # dist_to_active_site via a residue-level join on the canonical protein_pos
-        # with a wt_aa cross-check (fail-closed). The ProteinStructurePipeline below
-        # then only fills residues the parquet did not cover.
-        if ac.alphafold_path is not None:
-            from genomic_variant_classifier.data.alphafold import AlphaFoldConnector
-            _af = AlphaFoldConnector(
-                parquet_path=ac.alphafold_path,
-                uniprot_index_path=ac.alphafold_uniprot_index_path,
-            )
-            df = _af.annotate_dataframe(df)
-        protein = ProteinStructurePipeline(cache_dir=ac.protein_cache_dir)
-        df = protein.annotate_dataframe(df)
-        logger.info(
-            "Score annotation 14/17 (protein structure): %d missense variants annotated.",
-            int(df.get("is_missense", pd.Series([0] * len(df), index=df.index)).sum()),
-        )
+        # 14. Protein structure -- QUARANTINED (quarantine_policy.py; docs/CONTAINMENT_2026-07-24.md
+        # section 4). Neither structural producer is constructed and none of the four structural
+        # columns is emitted. Re-checked here as well as in __init__, in case the annotation config
+        # was changed after construction. Restoration is the Phase 1 repair, not an edit here.
+        _refuse_structural_config(ac)
+        logger.info("Score annotation 14/17 (protein structure): QUARANTINED -- not scheduled.")
 
         # 15. LOVD: variant classification (ordinal 0-4)
         from genomic_variant_classifier.data.lovd import LOVDConnector

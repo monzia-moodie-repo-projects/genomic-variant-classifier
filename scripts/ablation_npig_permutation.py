@@ -67,6 +67,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from genomic_variant_classifier.containment import ContainmentError, require_scientific_contract
+from genomic_variant_classifier.quarantine_policy import QUARANTINED_FEATURES
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
@@ -224,6 +227,9 @@ def main() -> int:
     X_test     = pd.read_parquet(splits / "X_test.parquet")
     y_test     = pd.read_parquet(splits / "y_test.parquet")["label"]
     meta_train = pd.read_parquet(splits / "meta_train.parquet")
+    # CONTAINMENT: LightGBM is fitted on every column of these frames; refuse quarantined ones first.
+    for frame in (X_train, X_test):
+        require_scientific_contract(frame.columns, QUARANTINED_FEATURES)
     logger.info(
         "Loaded: train=%d  test=%d  features=%d",
         len(X_train), len(X_test), X_train.shape[1],

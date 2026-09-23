@@ -42,6 +42,9 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from genomic_variant_classifier.containment import ContainmentError, require_scientific_contract
+from genomic_variant_classifier.quarantine_policy import QUARANTINED_FEATURES
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
@@ -132,6 +135,10 @@ def load_splits(
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     X_train = pd.read_parquet(train_x)
     X_val   = pd.read_parquet(val_x)
+    # CONTAINMENT: a split cached before the 2026-09-22 quarantine carries quarantined columns; every column
+    # below goes into the model (.values), so refuse here, before any conversion.
+    for frame in (X_train, X_val):
+        require_scientific_contract(frame.columns, QUARANTINED_FEATURES)
 
     y_raw = pd.read_parquet(train_y)
     y_train = (y_raw["label"] if "label" in y_raw.columns else y_raw.iloc[:, 0]).values.astype(int)
@@ -268,6 +275,8 @@ def main() -> int:
             max_train=args.max_train,
             seed=args.seed,
         )
+    except ContainmentError:
+        raise   # a quarantine refusal, not a data-loading failure
     except Exception as exc:
         logger.error("Failed to load data: %s", exc)
         return 2

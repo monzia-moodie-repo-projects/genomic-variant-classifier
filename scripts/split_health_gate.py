@@ -10,6 +10,8 @@ for the pipeline's real staging semantics so it does not false-alarm:
   * CORE absent (silent dropout)              -> NO_GO
   * UNEXPECTED degenerate                     -> NO_GO (a should-be-live feature is dead)
   * EXPECTED_ZERO (known stubs/unwired) deg.  -> allowed
+  * QUARANTINED column PRESENT, any values    -> NO_GO (a split cached before the 2026-09-22
+                                                 quarantine; rebuild it -- quarantine_policy.py)
 
 Staging semantics (verified against real_data_prep.py @9f9ced7):
   * GNN_STAGE_FEATURES (gnn_score, hetero_gnn_score) are written as 0.5 placeholders by
@@ -36,13 +38,15 @@ import argparse
 import sys
 from pathlib import Path
 
+from genomic_variant_classifier.quarantine_policy import QUARANTINED_FEATURES
+
 # Columns permitted to be degenerate: data genuinely absent/blocked, the source is not
 # wired into run_phase2_eval yet, or the column is a non-numeric id/seq not used as a
 # model feature. Each entry notes WHY + what would move it out of this set.
 EXPECTED_ZERO = {
     # --- genuine stub / blocked / no-data sources (no near-term activation) ---
-    "alphafold_plddt", "dist_to_active_site", "solvent_accessibility",
-    "secondary_structure_context",                                 # AlphaFold structure (no bulk .cif)
+    # (The four protein-structure features left this set 2026-09-23: they are QUARANTINED, not stubs, and a
+    #  split carrying them is refused by classify(), never approved as expected-zero.)
     "clingen_validity_score",                                      # ClinGen (no data / unwired)
     "hgmd_is_disease_mutation", "hgmd_n_reports",                  # HGMD (procurement-blocked)
     "phylop_score",                                               # PhyloP (no bigWig yet)
@@ -101,11 +105,18 @@ def reason_from_health(health) -> str:
 
 def classify(degenerate: dict[str, str], *, present=None, prep_only: bool = False,
              expected_zero=EXPECTED_ZERO, core_features=CORE_FEATURES,
-             gnn_stage=GNN_STAGE_FEATURES, max_unexpected: int = 0) -> dict:
-    """degenerate: {column: reason} (already train-only-aware; see _accumulate). Pure."""
-    hard = {c for c, r in degenerate.items() if is_hard_degenerate(r)}
+             gnn_stage=GNN_STAGE_FEATURES, max_unexpected: int = 0,
+             quarantined=QUARANTINED_FEATURES) -> dict:
+    """degenerate: {column: reason} (already train-only-aware; see _accumulate). Pure.
+
+    A quarantined column anywhere in the split -- in `present`, or implied by `degenerate` -- is NO_GO
+    whatever its values, and is reported once, under quarantined_present.
+    """
+    seen = set(degenerate) | (set(present) if present is not None else set())
+    quarantined_present = sorted(seen & set(quarantined))
+    hard = {c for c, r in degenerate.items() if is_hard_degenerate(r)} - set(quarantined)
     near = sorted(c for c, r in degenerate.items()
-                  if c not in hard and "NEAR_CONSTANT" in (r or ""))
+                  if c not in hard and c not in quarantined and "NEAR_CONSTANT" in (r or ""))
     if prep_only:
         hard = hard - set(gnn_stage)               # placeholders, filled at GNN stage
 
@@ -119,6 +130,10 @@ def classify(degenerate: dict[str, str], *, present=None, prep_only: bool = Fals
         missing_core = sorted((set(core_features) - exempt) - set(present))
 
     reasons, verdict = [], "GO"
+    if quarantined_present:
+        verdict = "NO_GO"
+        reasons.append(f"{len(quarantined_present)} QUARANTINED column(s) present -- a split cached before "
+                       f"the 2026-09-22 quarantine; rebuild it: {quarantined_present}")
     if core_deg:
         verdict = "NO_GO"
         reasons.append(f"{len(core_deg)} CORE feature(s) degenerate: {core_deg}")
@@ -132,7 +147,8 @@ def classify(degenerate: dict[str, str], *, present=None, prep_only: bool = Fals
     if verdict == "GO":
         reasons.append(f"GO: only {len(expected_deg)} expected-stub column(s) degenerate; "
                        f"core + previously-stale families healthy")
-    return {"verdict": verdict, "core_degenerate": core_deg, "missing_core": missing_core,
+    return {"verdict": verdict, "quarantined_present": quarantined_present,
+            "core_degenerate": core_deg, "missing_core": missing_core,
             "unexpected_degenerate": unexpected_deg, "expected_degenerate": expected_deg,
             "near_constant_warnings": near, "reasons": reasons}
 

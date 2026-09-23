@@ -40,7 +40,7 @@ Variant annotations were added from the following sources, in pipeline order:
 | 10 | dbSNP build 156 | Supplemental allele frequency |
 | 11 | EVE | Evolutionary model variant effect score |
 | 12 | MaxEntScan (Phase 6.1) | Splice-site strength score, distance to canonical splice site, exon number, canonical GT-AG flag |
-| 13 | AlphaFold / UniProt (Phase 6.2) | Per-residue pLDDT, relative solvent accessibility, secondary structure class, distance to active site |
+| 13 | AlphaFold / UniProt (Phase 6.2) — **QUARANTINED 2026-09-22** | Not scheduled. Its four structural features are excluded from the contract until repaired (`quarantine_policy.py`; `docs/CONTAINMENT_2026-07-24.md` §4) |
 | 14 | gnomAD v4.1 constraint | pLI, LOEUF, synonymous Z, missense Z |
 | 15 | 1000 Genomes | Per-superpopulation allele frequencies (AFR, EUR, EAS, SAS, AMR) |
 | 16 | FinnGen R12 / R13 | Finnish and non-Finnish-Swedish-Estonian allele frequency, enrichment |
@@ -89,7 +89,8 @@ when the same gene appears in both train and test sets.
 
 ## 2. Feature Engineering
 
-A total of **95 tabular features** are derived from raw annotations. This figure is
+A total of **91 tabular features** are derived from raw annotations. The four protein-structure
+features are **quarantined** (2026-09-22) and are not among them. This figure is
 `EXPECTED_TABULAR_FEATURE_COUNT` in `src/genomic_variant_classifier/models/variant_ensemble.py`,
 and it is the single source of truth: `tests/unit/test_methods_feature_count.py` fails the test
 suite if the number stated here and the number in the code ever disagree.
@@ -115,7 +116,7 @@ suite if the number stated here and the number in the code ever disagree.
 | Chromosome context | 3 | Autosome, sex chromosome, mitochondrial |
 | Gene network | 2 | STRING-DB graph-neural-network score; heterogeneous knowledge-graph score |
 | RNA splice context | 5 | MaxEntScan score, distance to splice site, exon number, canonical GT-AG flag, splice indicator |
-| Protein structure | 4 | AlphaFold pLDDT, relative solvent accessibility, secondary structure, distance to active site |
+| Protein structure — **quarantined** | 0 | AlphaFold pLDDT, relative solvent accessibility, secondary structure, distance to active site: excluded until repaired (`quarantine_policy.py`) |
 | 1000 Genomes population AF | 5 | AFR, EUR, EAS, SAS, AMR allele frequencies |
 | FinnGen R12 | 3 | Finnish AF, non-Finnish-Swedish-Estonian AF, enrichment |
 | FinnGen R13 | 3 | Finnish AF, non-Finnish-Swedish-Estonian AF, enrichment |
@@ -126,7 +127,7 @@ suite if the number stated here and the number in the code ever disagree.
 | Reactome | 1 | Pathway membership count |
 | gnomAD v4.1 constraint | 4 | pLI, LOEUF, synonymous Z, missense Z |
 | RNA-seq expression | 5 | Mean log TPM, detection rate, log2 coefficient of variation, log2 fold-change, differential-expression significance |
-| **Total** | **95** | = `EXPECTED_TABULAR_FEATURE_COUNT` |
+| **Total** | **91** | = `EXPECTED_TABULAR_FEATURE_COUNT` |
 
 Missing values were imputed with biologically neutral defaults (e.g., AF = 0 for
 absent from gnomAD, SIFT = 0.5 for uncovered positions).
@@ -140,7 +141,8 @@ absent from gnomAD, SIFT = 0.5 for uncovered positions).
 > **Historical-configuration notice, 2026-08-24.** This subsection described a
 > four-estimator, 64-feature configuration in the present tense. It is not the
 > architecture of the current system: section 2 records a tabular feature
-> contract of **95**, and the README describes a **13-model** ensemble.
+> contract of **95** (when this notice was written; **91** since the 2026-09-22 structural
+> quarantine), and the README describes a **13-model** ensemble.
 >
 > The exact run identity of that four-estimator configuration **is not
 > established by the committed evidence reviewed for this correction**. It must

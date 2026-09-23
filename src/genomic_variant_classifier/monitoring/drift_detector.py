@@ -384,9 +384,9 @@ class DriftDetector:
             # with a feature count that looks healthy.
             #
             # This is not hypothetical. The Run-15 reference matrix carries 78 features; the
-            # current tabular contract (EXPECTED_TABULAR_FEATURE_COUNT) is 95 -- MEASURED
-            # 2026-08-25 from its sole definition in models/variant_ensemble.py:193, where
-            # TABULAR_FEATURES holds exactly 95 entries.
+            # current tabular contract is EXPECTED_TABULAR_FEATURE_COUNT in models/variant_ensemble.py
+            # -- read it there; no count is copied here. History: MEASURED 95 on 2026-08-25; 91 since the
+            # 2026-09-22 structural quarantine (quarantine_policy.py).
             #
             # DETECTOR-CONTRACT-COMMENT-STALE-1: this comment said 97 until 2026-08-25, and
             # 97 was itself a figure a preflight gate had ALREADY corrected once --

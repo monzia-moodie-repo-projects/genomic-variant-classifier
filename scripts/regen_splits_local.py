@@ -8,24 +8,22 @@ training, no GNN stage. Purpose: cheaply confirm that prep.run() under the curre
 code + current data revives the stale feature families (the "must-revive" columns)
 BEFORE committing GPU hours to the full run.
 
-WHY THE STUB (read this): DataPrepPipeline._annotate_scores runs TWO CPU-prohibitive
-deep pipelines UNCONDITIONALLY -- step 14 ProteinStructurePipeline (AlphaFold REST /
-structure) and step 16 ESM2Connector (loads facebook/esm2_* and runs a transformer
-forward pass over every missense variant). On a GPU box these are fast; on a CPU
-laptop ESM-2 alone is a ~31-hour grind with NO progress output -- it looks frozen.
-These two steps ONLY populate expected-zero columns (alphafold_plddt,
-dist_to_active_site, solvent_accessibility, secondary_structure_context,
-esm2_delta_norm, esm2_llr), and both are stubbed today pending the AlphaFold cache /
-HGVSp parser. The feature builder fills those columns with the SAME constant defaults
-when they are absent (alphafold_plddt=50.0, solvent_accessibility=0.5,
-dist_to_active_site=100.0, secondary_structure_context=0, esm2_*=0.0). So skipping
-them is provably equivalent for these columns -- and removes the hang.
+WHY THE STUB (read this): DataPrepPipeline._annotate_scores runs a CPU-prohibitive deep
+pipeline UNCONDITIONALLY -- step 16 ESM2Connector (loads facebook/esm2_* and runs a transformer
+forward pass over every missense variant). On a GPU box it is fast; on a CPU laptop it is a
+~31-hour grind with NO progress output -- it looks frozen. It populates esm2_delta_norm and
+esm2_llr, and when those columns are absent the feature builder sets both to 0.0 (measured
+2026-09-23, variant_ensemble.engineer_features) -- so stubbing it changes nothing in those
+columns, and removes the hang.
 
-By default this driver STUBS steps 14+16 (no model load, no network) so the local
-prep is tractable. The RNA pipeline (step 13) stays ON -- it populates four
-must-revive columns (maxentscan_score, dist_to_splice_site, exon_number,
-is_canonical_splice) and is lightweight. Pass --run-protein-esm2 ONLY on a GPU box
-to run the real protein/ESM-2 forward passes.
+Step 14 (protein structure) is QUARANTINED since 2026-09-22 (quarantine_policy.py): real_data_prep
+no longer calls it and its producer refuses, so its four columns are no longer produced at all. It
+is deliberately NOT stubbed -- a no-op stand-in would mask that refusal if the call ever returned.
+
+By default this driver STUBS step 16 (no model load, no network) so the local prep is tractable.
+The RNA pipeline (step 13) stays ON -- it populates four must-revive columns (maxentscan_score,
+dist_to_splice_site, exon_number, is_canonical_splice) and is lightweight. Pass --run-protein-esm2
+ONLY on a GPU box to run the real ESM-2 forward pass (the flag keeps its historical name).
 
 Validate the result with:
     python scripts/split_health_gate.py --splits-dir <out>/splits --prep-only
@@ -101,36 +99,30 @@ def parse_args(argv=None):
     )
     p.add_argument("--output", default="outputs/run17_prepcheck/full")
     p.add_argument("--run-protein-esm2", action="store_true",
-                   help="GPU-ONLY: run the real ProteinStructure + ESM-2 forward passes "
-                        "(CPU-prohibitive ~31h). Default: stub them (safe; see module docstring).")
+                   help="GPU-ONLY: run the real ESM-2 forward pass (CPU-prohibitive ~31h). Protein structure "
+                        "is quarantined and never runs. Default: stub ESM-2 (safe; see module docstring).")
     return p.parse_args(argv)
 
 
 def _install_cpu_stubs() -> None:
-    """Replace the two CPU-prohibitive pipelines with no-ops BEFORE prep.run().
+    """Replace the CPU-prohibitive ESM-2 pipeline with a no-op BEFORE prep.run().
 
-    _annotate_scores imports both classes at CALL time, so swapping the module
-    attribute here takes effect. The no-op __init__ means the ESM-2 model is never
-    loaded and the AlphaFold REST path is never hit. The feature builder then fills
-    the affected columns with its constant defaults (verified)."""
+    Protein structure (step 14) is QUARANTINED (quarantine_policy.py): real_data_prep no longer calls it and
+    its producer refuses. It is deliberately NOT replaced with a no-op, which would mask that refusal.
+
+    _annotate_scores imports the class at CALL time, so swapping the module attribute here
+    takes effect. The no-op __init__ means the ESM-2 model is never loaded; the feature
+    builder then sets esm2_delta_norm and esm2_llr to 0.0 (measured 2026-09-23)."""
     import genomic_variant_classifier.data.esm2 as _esm2_mod
-    import genomic_variant_classifier.pipelines.protein_pipeline as _pp_mod
 
     class _NoOpESM2:
         def __init__(self, *a, **k): pass
         def annotate_dataframe(self, df): return df
         def annotate_llr(self, df): return df
 
-    class _NoOpProtein:
-        def __init__(self, *a, **k): pass
-        def annotate_dataframe(self, df): return df
-
     _esm2_mod.ESM2Connector = _NoOpESM2
-    _pp_mod.ProteinStructurePipeline = _NoOpProtein
-    print("[regen] STUBBED ESM-2 (step 16) + protein-structure (step 14): no model load, "
-          "no network. These populate only expected-zero columns; the feature builder "
-          "fills constant defaults (alphafold_plddt=50.0, solvent_accessibility=0.5, "
-          "dist_to_active_site=100.0, secondary_structure_context=0, esm2_*=0.0).")
+    print("[regen] STUBBED ESM-2 (step 16): no model load, no network. Protein structure (step 14) is "
+          "QUARANTINED and never runs; it is not stubbed, because a no-op stand-in would mask its refusal.")
 
 
 def main(argv=None) -> int:
@@ -160,8 +152,8 @@ def main(argv=None) -> int:
     if not args.run_protein_esm2:
         _install_cpu_stubs()
     else:
-        print("[regen] --run-protein-esm2 set: running REAL protein/ESM-2 forward passes "
-              "(GPU strongly recommended; CPU ~31h).")
+        print("[regen] --run-protein-esm2 set: running the REAL ESM-2 forward pass (GPU strongly "
+              "recommended; CPU ~31h). Protein structure is quarantined and never runs.")
 
     from genomic_variant_classifier.data.real_data_prep import (
         AnnotationConfig, DataPrepConfig, DataPrepPipeline,

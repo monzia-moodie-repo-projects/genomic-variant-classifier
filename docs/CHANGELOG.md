@@ -1,3 +1,48 @@
+## 2026-09-23 (containment) -- structural quarantine: the four features cannot enter through any boundary
+
+Owner ruling 2026-09-22 (Option A) on docs/CONTAINMENT_2026-07-24.md section 4. Lands AFTER the
+test-isolation prerequisite, as ruled. Completion criterion (rulings of 2026-09-22/23): quarantined
+information cannot enter through producers, defaults, caches, fitted models, stacking or serving. The four
+protein-structure features were never real signal in any trained model: engineer_features filled them with
+fixed sentinels (alphafold_plddt 50.0, solvent_accessibility 0.5, secondary_structure_context 0,
+dist_to_active_site 100.0).
+
+MEASURED BEFORE THIS CHANGE: api/pipeline.py took its feature list from a loaded model's scaler and
+ZERO-FILLED every declared column the input lacked, so a 95-feature model (every model trained before this
+change) would have been served with the four quarantined features fabricated as 0.0. Scripts that fit raw
+LightGBM / XGBoost / CatBoost on cached split parquets used every column of a pre-quarantine split.
+
+THE CHANGES. (1) quarantine_policy.py (QUARANTINED_FEATURES, BLOCKED_PRODUCERS, STRUCTURAL_CONFIG_FIELDS) and
+containment.py. (2) Contract 95 -> 91; the four are quarantined, not PHASE_2 placeholders; engineer_features
+no longer fabricates their sentinels. (3) Producers: AlphaFoldConnector and ProteinStructurePipeline refuse at
+construction and at every public method; real_data_prep no longer calls them; a configuration that requests
+them is refused before annotation. (4) SERVING: InferencePipeline never zero-fills (a missing declared
+feature is refused); a pipeline whose models, metadata or missing-value policy use a quarantined feature is
+refused at construction, after load, before every prediction and at save; save() records the artifact's
+SHA-256 and feature list, and load() admits a recorded artifact BEFORE deserializing precisely the
+digest-verified bytes (a legacy artifact is admitted immediately after load). The API server refuses to serve
+such an artifact explicitly (503), not as a generic load failure. (5) FITTED MODELS: VariantEnsemble.fit
+refuses a frame carrying a quarantined column (e.g. a cached pre-quarantine split) and records the fitted
+column order (tabular_columns_; NOT feature_names_, which holds the stacking order); predict_proba requires
+exactly those names in that order before converting to an array; save/load carry and admit the binding.
+(6) CACHES: split_health_gate refuses any split carrying a quarantined column; tune_hyperparams, run11_hpo and
+ablation_npig_permutation refuse such splits before any model sees them; calibrate_thresholds loads through
+InferencePipeline.load and scores through the admitted matrix; continual_trainer refuses a quarantine-era
+drift reference and density-ratio cohort. (7) PROPAGATION: a refusal inside a base model, the scorer, or
+run_phase2_eval's graph and holdout stages is re-raised, never dropped or defaulted. (8) Stale paths removed:
+the harness feed no longer generates the four; the no_alphafold ablation group (it would report a ~0 delta as
+a result) and regen_splits_local's no-op producer stand-in (it would mask the refusal) are gone; help texts and
+docstrings corrected. (9) Dockerfile copies the two new modules; the schema baseline is re-captured at 91.
+
+NOT GUARDED, PENDING AN OWNER DECISION: two scripts hard-wired to past runs,
+scripts/diagnose_phase2_prediction_reconstruction.py and scripts/run10b_partial_phase2_eval_v2.py, which
+re-run quarantine-era models on quarantine-era data by construction.
+
+TESTS: +114 by node identity, 1 retired (test_af_features_in_tabular_features asserted the four ARE in the
+contract; its successor asserts they are not). test_alphafold.py keeps the Phase 1 repair's specification as
+strict xfail. Every new boundary has a named test that fails when the boundary is removed. Suite 6,758 ->
+6,871 collected.
+
 ## 2026-09-23 (repair) -- test-isolation prerequisite: the suite stops writing into the repository
 
 A PREREQUISITE, separate from and before the atomic structural containment commit

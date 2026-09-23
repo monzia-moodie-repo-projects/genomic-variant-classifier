@@ -30,6 +30,13 @@ from typing import Any, Optional
 import numpy as np
 import pandas as pd
 
+from genomic_variant_classifier.containment import (
+    ContainmentError,
+    load_after_admission,
+    require_matrix,
+    require_scientific_contract,
+)
+from genomic_variant_classifier.quarantine_policy import QUARANTINED_FEATURES
 from genomic_variant_classifier.models.variant_ensemble import TABULAR_FEATURES, engineer_features
 
 logger = logging.getLogger(__name__)
@@ -70,8 +77,9 @@ class PipelineMetadata:
 # ---------------------------------------------------------------------------
 
 
-def _write_model_manifest(artifact_path):
-    """Write a JSON manifest recording the library versions used to create this artifact."""
+def _write_model_manifest(artifact_path, feature_names=None):
+    """Write a JSON manifest: library versions, and (since 2026-09-23) the artifact's SHA-256 and the
+    feature list its models consume -- what load() needs to admit the artifact BEFORE opening it."""
     import json, platform, importlib.metadata
     from datetime import datetime, timezone
 
@@ -93,6 +101,14 @@ def _write_model_manifest(artifact_path):
         "platform": platform.platform(),
         "libraries": {lib: importlib.metadata.version(lib) for lib in libraries},
     }
+    if feature_names is not None:
+        import hashlib
+        h = hashlib.sha256()
+        with artifact_path.open("rb") as fh:
+            for block in iter(lambda: fh.read(1 << 20), b""):
+                h.update(block)
+        manifest["artifact_sha256"] = h.hexdigest()
+        manifest["feature_names"] = list(feature_names)
     manifest_path = artifact_path.with_suffix(".manifest.json")
     manifest_path.write_text(json.dumps(manifest, indent=2))
     return manifest_path
@@ -140,6 +156,7 @@ class InferencePipeline:
         # imputed value depend on which variants happened to arrive together.
         # save() pickles self, so this travels with the artefact unchanged.
         self.preprocessor_ = preprocessor
+        self._require_admissible()   # CONTAINMENT: a quarantine-era model cannot even be assembled
 
     # ------------------------------------------------------------------
     # Factory
@@ -192,6 +209,51 @@ class InferencePipeline:
     # ------------------------------------------------------------------
     # Missing-value rendering
     # ------------------------------------------------------------------
+
+    # ------------------------------------------------------------------
+    # Containment boundary (serving, loading, construction)
+    # ------------------------------------------------------------------
+
+    def _declared_features(self) -> list[str]:
+        """The feature list the fitted models consume: the scaler's (authoritative) or the contract's."""
+        scaler_features = getattr(self.scaler, "feature_names_in_", None) if self.scaler is not None else None
+        if scaler_features is None:
+            return list(INFERENCE_FEATURE_COLUMNS)
+        # numpy string subtypes -> str; any NON-string name is left as is so the contract check refuses it.
+        return [str(c) if isinstance(c, str) else c for c in scaler_features]
+
+    def _require_admissible(self) -> None:
+        """Refuse a pipeline whose models, metadata or missing-value policy use a quarantined feature.
+
+        Runs at construction, immediately after load, and before every prediction -- BEFORE feature
+        engineering, so a quarantine-era policy cannot fail first with an unrelated library error.
+        Every model trained before 2026-09-22 used the 95-feature contract and is refused here.
+        """
+        require_scientific_contract(self._declared_features(), QUARANTINED_FEATURES)
+        meta_names = getattr(getattr(self, "metadata", None), "feature_names", None)
+        if meta_names:
+            require_scientific_contract(meta_names, QUARANTINED_FEATURES)
+        policy_names = getattr(getattr(self, "preprocessor_", None), "feature_names", None)
+        if policy_names:
+            require_scientific_contract(policy_names, QUARANTINED_FEATURES)
+
+    def _model_matrix(self, X: "pd.DataFrame") -> tuple["pd.DataFrame", list[str]]:
+        """Exactly the declared features, in order, then scaled. NEVER zero-fills.
+
+        Until 2026-09-23 every declared column absent from the input was set to 0.0 here, so a
+        95-feature model was served with the four quarantined features fabricated as zeros.
+        """
+        model_features = self._declared_features()
+        missing = [c for c in model_features if c not in X.columns]
+        if missing:
+            raise ContainmentError(
+                f"The model expects {len(missing)} feature(s) the input does not provide: {missing[:10]}. "
+                "They are never zero-filled; supply them, or re-export a model for the current contract.")
+        frame = X[model_features]
+        require_matrix(frame, model_features, QUARANTINED_FEATURES)
+        if self.scaler is not None:
+            frame = pd.DataFrame(self.scaler.transform(frame), columns=model_features, index=X.index)
+        return frame, model_features
 
     def _apply_missing_value_policy(self, X: "pd.DataFrame") -> "pd.DataFrame":
         """Impute declared missingness using the TRAINING medians.
@@ -298,6 +360,7 @@ class InferencePipeline:
             If gnn_scorer is set, gnn_score is computed automatically.
             Otherwise gnn_score defaults to 0.5 (no GNN / ambiguous).
         """
+        self._require_admissible()
         enriched = df.copy()
 
         # --- Optional GNN scoring (adds gnn_score column) ---
@@ -310,6 +373,8 @@ class InferencePipeline:
                 enriched["gnn_score"] = gene_symbols.map(
                     lambda g: self.gnn_scorer.score(g)
                 )
+            except ContainmentError:
+                raise  # a refusal is not a scorer failure; never default it to 0.5
             except Exception as exc:
                 logger.warning(
                     "GNNScorer failed (%s) -- defaulting gnn_score to 0.5.", exc
@@ -319,33 +384,7 @@ class InferencePipeline:
         X = engineer_features(enriched)
         X = self._apply_missing_value_policy(X)
 
-        # Determine the actual feature set the trained models expect.
-        # Use the scaler's feature_names_in_ when available (authoritative),
-        # otherwise fall back to INFERENCE_FEATURE_COLUMNS.  This handles
-        # models saved before TABULAR_FEATURES was expanded (e.g. 46 → 64).
-        scaler_features = (
-            getattr(self.scaler, "feature_names_in_", None) if self.scaler else None
-        )
-        model_features: list[str] = (
-            list(scaler_features)
-            if scaler_features is not None
-            else list(INFERENCE_FEATURE_COLUMNS)
-        )
-
-        if self.scaler is not None:
-            # Zero-fill columns the scaler expects but are absent from input.
-            for col in model_features:
-                if col not in X.columns:
-                    X[col] = 0.0
-            X = pd.DataFrame(
-                self.scaler.transform(X[model_features]),
-                columns=model_features,
-                index=X.index,
-            )
-        else:
-            for col in model_features:
-                if col not in X.columns:
-                    X[col] = 0.0
+        X, model_features = self._model_matrix(X)
 
         X_np = X[model_features].values
         X_df_cat = None  # lazy — only built if catboost is in trained_models
@@ -378,6 +417,7 @@ class InferencePipeline:
         evidence before reporting.  Aleatoric uncertainty is inherent to
         the data; it cannot be reduced by training more models.
         """
+        self._require_admissible()
         enriched = df.copy()
 
         if getattr(self, "gnn_scorer", None) is not None:
@@ -389,6 +429,8 @@ class InferencePipeline:
                 enriched["gnn_score"] = gene_symbols.map(
                     lambda g: self.gnn_scorer.score(g)
                 )
+            except ContainmentError:
+                raise  # a refusal is not a scorer failure; never default it to 0.5
             except Exception as exc:
                 logger.warning(
                     "GNNScorer failed (%s) -- defaulting gnn_score to 0.5.", exc
@@ -398,28 +440,7 @@ class InferencePipeline:
         X = engineer_features(enriched)
         X = self._apply_missing_value_policy(X)
 
-        scaler_features = (
-            getattr(self.scaler, "feature_names_in_", None) if self.scaler else None
-        )
-        model_features: list[str] = (
-            list(scaler_features)
-            if scaler_features is not None
-            else list(INFERENCE_FEATURE_COLUMNS)
-        )
-
-        if self.scaler is not None:
-            for col in model_features:
-                if col not in X.columns:
-                    X[col] = 0.0
-            X = pd.DataFrame(
-                self.scaler.transform(X[model_features]),
-                columns=model_features,
-                index=X.index,
-            )
-        else:
-            for col in model_features:
-                if col not in X.columns:
-                    X[col] = 0.0
+        X, model_features = self._model_matrix(X)
 
         X_np = X[model_features].values
         X_df_cat = None  # lazy — only built if catboost is in trained_models
@@ -471,19 +492,43 @@ class InferencePipeline:
     def save(self, path: str | Path) -> None:
         import joblib
 
+        self._require_admissible()   # never export a quarantine-era pipeline
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         joblib.dump(self, path)
-        _write_model_manifest(path)
+        _write_model_manifest(path, feature_names=self._declared_features())
         logger.info("InferencePipeline saved -> %s", path)
 
     @classmethod
     def load(cls, path: str | Path) -> "InferencePipeline":
         import joblib
 
-        obj = joblib.load(path)
+        import json
+
+        path = Path(path)
+        manifest_path = path.with_suffix(".manifest.json")
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.is_file() else {}
+        recorded = manifest.get("feature_names")
+        if recorded is not None and manifest.get("artifact_sha256") is not None:
+            # Admit BEFORE opening: the recorded contract is checked, then precisely the digest-verified
+            # bytes are deserialized (containment.load_after_admission).
+            obj = load_after_admission(
+                path,
+                admit=lambda: require_scientific_contract(recorded, QUARANTINED_FEATURES),
+                artifact_sha256=manifest["artifact_sha256"],
+                deserialize=joblib.load,
+            )
+        else:
+            # A LEGACY artifact records no digest or features, so it cannot be admitted before opening.
+            # It is checked immediately after, before it can serve anything.
+            logger.warning("%s has no recorded digest/feature list (legacy artifact): admitted "
+                           "after deserialization, not before.", path)
+            obj = joblib.load(path)
         if not isinstance(obj, cls):
             raise TypeError(f"Expected InferencePipeline, got {type(obj)}")
+        obj._require_admissible()
+        if recorded is not None and list(recorded) != obj._declared_features():
+            raise ContainmentError("The loaded pipeline's features differ from its recorded manifest")
         logger.info(
             "InferencePipeline loaded: val_auroc=%.4f  features=%d  created=%s",
             obj.metadata.val_auroc,

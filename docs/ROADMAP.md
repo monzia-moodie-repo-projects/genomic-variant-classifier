@@ -38,7 +38,7 @@ rather than frozen at the commit where the table was built.*
 
 # 1. Project identity & goals
 
-Production-grade multi-modal genomic disease-association program. Core: an ACMG/AMP-style variant pathogenicity classifier over ~1.49M cohort rows (from ~2.49M ClinVar missense), 95 features, 13-model ensemble + stacking meta-learner + STRING-DB GNN + KAN.
+Production-grade multi-modal genomic disease-association program. Core: an ACMG/AMP-style variant pathogenicity classifier over ~1.49M cohort rows (from ~2.49M ClinVar missense), 91 features, 13-model ensemble + stacking meta-learner + STRING-DB GNN + KAN. The four protein-structure features are quarantined (2026-09-22; `quarantine_policy.py`).
 
 **Dual goal (both first-class):**
 
@@ -88,13 +88,13 @@ other.
 
 | Quantity | Value | Measured from |
 |---|---|---|
-| Tabular feature contract | **95** | `EXPECTED_TABULAR_FEATURE_COUNT`, and `len(TABULAR_FEATURES)` agrees |
+| Tabular feature contract | **91** | `EXPECTED_TABULAR_FEATURE_COUNT`, and `len(TABULAR_FEATURES)` agrees |
 | Phase-2 features (declared, not yet computed) | **0** | `PHASE_2_FEATURES` is empty |
 | Phase-4 features | 4 | `PHASE_4_FEATURES` |
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **6,758 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **6,871 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -122,7 +122,7 @@ ClinVar (labels+cohort), gnomAD v4 (LOEUF, pLI, AF, **mis_z, syn_z, gene_constra
 | GTEx | gtex_* (6) | free | eQTL/expression |
 | 1000 Genomes | af_1kg_* (5) | free VCF | population AF -- ACTIVE 2026-06-15: kg_grch38_af.parquet built (chr1-22 + X, 437,668 variants = ~9.9% cohort; 5 super-pops non-zero); activate via --kg. chrY/MT structurally absent from the 1000G high-coverage panel (404-confirmed) -> 3,191 Y + 3,124 MT cohort variants get af_1kg=0; gnomAD Y/MT allele_freq RESOLVED 2026-06-16 (PAR X->Y fix): Y 1047/3155, MT 2731/3124 |
 | dbSNP/RefSNP | dbsnp_af | free | DONE+VERIFIED 2026-06-26 (build_dbsnp_parquet.py; dbsnp157_cohort.parquet 3.75M rows, 46% AF>0). End-to-end audit 2026-07-01: 37.45% cohort coverage, dbsnp_af>0 confirmed through DbSNPConnector. Wired: --dbsnp-path -> AnnotationConfig -> real_data_prep step 10. |
-| AlphaFold structure | alphafold_plddt, solvent_accessibility, secondary_structure_context, dist_to_active_site, has_uniprot_annotation | free (AlphaFold DB) | stub-mode step; activation = data + config |
+| AlphaFold structure | alphafold_plddt, solvent_accessibility, secondary_structure_context, dist_to_active_site | free (AlphaFold DB) | **QUARANTINED 2026-09-22** -- out of the contract; both producers (`AlphaFoldConnector`, `ProteinStructurePipeline`) refuse, and a config requesting them is refused. Activation is NOT data + config: restoration is the Phase 1 repair (`quarantine_policy.py`; `docs/CONTAINMENT_2026-07-24.md` section 4). `has_uniprot_annotation` is a UniProt feature and remains in the contract |
 | OMIM | omim_* (2) | free academic w/ reg. | disease/inheritance |
 | ClinGen | clingen_validity_score | free API | **dtype drift: int vs float across prep/inference - fix before regen** |
 | FinnGen | finngen_* (3) | free summary | population enrichment |
@@ -379,11 +379,12 @@ Appendix A. Entries are not restated here: a changelog that is copied forward
 becomes a second copy of history, and a second copy is what this succession
 exists to end.
 
-- **2026-08-23 -- authority succession.** The predecessor was preserved verbatim
-  at the archive address above and this document took the live path, in one
-  atomic transaction. Blob object identity proves the archived bytes are the
-  bytes that were live. `docs/CHANGELOG.md` remains the per-session record and
-  is unaffected.
+- **2026-09-23 -- structural quarantine (ruled 2026-09-22).** The four protein-structure
+  features left the active contract (95 -> 91). Producers, configuration, ensemble fitting,
+  model loading, serving (which no longer zero-fills missing columns), cached splits and the
+  scripts that fit on them all refuse them, per Monzia's September ruling (Option A) on
+  `docs/CONTAINMENT_2026-07-24.md` section 4. Policy: `quarantine_policy.py`. Suite 6,758 ->
+  6,871 collected (+114, 1 retired). Lands after the test-isolation prerequisite.
 
 - **2026-09-23 -- test-isolation prerequisite.** The suite no longer writes into
   the repository. Measured before: a full run left 38 files (CatBoost training
@@ -392,3 +393,9 @@ exists to end.
   agent_state.json. After: a content-digest inventory of the whole tree is
   unchanged. Suite 6,745 -> 6,758 collected (+13, 0 removed). Details in
   `docs/CHANGELOG.md`.
+
+- **2026-08-23 -- authority succession.** The predecessor was preserved verbatim
+  at the archive address above and this document took the live path, in one
+  atomic transaction. Blob object identity proves the archived bytes are the
+  bytes that were live. `docs/CHANGELOG.md` remains the per-session record and
+  is unaffected.

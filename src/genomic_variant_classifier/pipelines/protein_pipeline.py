@@ -67,9 +67,16 @@ import numpy as np
 import pandas as pd
 import requests
 
+from genomic_variant_classifier.containment import require_producer_enabled
 from genomic_variant_classifier.data.gene_symbols import gene_symbol_candidates
+from genomic_variant_classifier.quarantine_policy import BLOCKED_PRODUCERS
 
 logger = logging.getLogger(__name__)
+
+# QUARANTINED producer (quarantine_policy.py; docs/CONTAINMENT_2026-07-24.md section 4). The
+# constructor refuses BEFORE it creates the cache directory or builds the UniProt mapper, which
+# reads a persisted cache; annotate_dataframe refuses for instances built without __init__.
+_PRODUCER_ID = "ProteinStructurePipeline"
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -376,6 +383,7 @@ class ProteinStructurePipeline:
         self,
         cache_dir: str | Path | None = None,
     ) -> None:
+        require_producer_enabled(_PRODUCER_ID, BLOCKED_PRODUCERS)  # quarantine: refuse before any work
         # The default is a NAMED MODULE CONSTANT (_DEFAULT_CACHE_DIR), not an inline
         # literal (2026-07-11). It used to read `else Path("data/raw/cache/alphafold")`.
         #
@@ -428,6 +436,7 @@ class ProteinStructurePipeline:
         -------
         pd.DataFrame with four new columns.
         """
+        require_producer_enabled(_PRODUCER_ID, BLOCKED_PRODUCERS)  # quarantine: refuse before any work
         result = df.copy()
         n = len(result)
 

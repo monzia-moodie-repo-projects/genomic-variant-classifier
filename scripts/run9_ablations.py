@@ -19,7 +19,8 @@ SCHEMA CALIBRATION — 2026-04-19
 --------------------------------
 ABLATION_MASKS in this file was calibrated against the 78-column schema
 confirmed by direct `_engineer_features` probe on 2026-04-19. The tabular
-contract has since grown to 95 (variant_ensemble.EXPECTED_TABULAR_FEATURE_COUNT).
+contract has since changed; its one definition is
+variant_ensemble.EXPECTED_TABULAR_FEATURE_COUNT (91 since the 2026-09-22 quarantine).
 
 COVERAGE GAP measured 2026-07-18: 32 of the 95 contract features match no
 ablation prefix. Most are core variant descriptors with no external source to
@@ -155,9 +156,7 @@ logger = logging.getLogger("run9_ablations")
 #   GNN (1):                gnn_score        [SEE GNN CAVEAT ABOVE]
 #   Splice mechanics (4):   maxentscan_score, dist_to_splice_site,
 #                           exon_number, is_canonical_splice
-#   Structure (3):          alphafold_plddt, solvent_accessibility,
-#                           secondary_structure_context
-#   Active site (1):        dist_to_active_site
+#   Structure + active site: QUARANTINED 2026-09-22 (quarantine_policy.py) -- in no model, no ablation group
 #   1KG pop AF (5):         af_1kg_afr, af_1kg_eur, af_1kg_eas,
 #                           af_1kg_sas, af_1kg_amr
 #   FinnGen (3):            finngen_af_fin, finngen_af_nfsee,
@@ -172,7 +171,7 @@ logger = logging.getLogger("run9_ablations")
 #   no_conservation, no_population_af
 #
 # RUN 10+ EXTENSIONS (8 additional):
-#   no_esm2, no_eve, no_alphafold, no_constraint_scores, no_gtex,
+#   no_esm2, no_eve, no_constraint_scores, no_gtex,
 #   no_disease_dbs, no_splice_mechanics, no_individual_predictors
 #
 ABLATION_MASKS: dict[str, list[str]] = {
@@ -264,13 +263,8 @@ ABLATION_MASKS: dict[str, list[str]] = {
         # may contain defaults unless EVE annotation is plumbed.
         "eve_",
     ],
-    "no_alphafold": [
-        # Structural context features derived from AlphaFold predictions.
-        "alphafold_",
-        "solvent_accessibility",
-        "secondary_structure_context",
-        "dist_to_active_site",
-    ],
+    # "no_alphafold" was REMOVED 2026-09-23: its four features are quarantined (quarantine_policy.py) and in no
+    # model, so apply_ablation would match zero columns, only warn, and report a ~0 delta as if it were a result.
     "no_constraint_scores": [
         # gnomAD gene-level constraint scores: pLI (probability of LoF
         # intolerance), LOEUF (loss-of-function observed/expected upper
@@ -504,7 +498,8 @@ def main() -> int:
     p = argparse.ArgumentParser(
         description="LOCO ablation harness for Run 9+. ABLATION_MASKS was calibrated "
                     "against a 78-column schema on 2026-04-19; the tabular contract "
-                    "is now 95. See the module docstring for the coverage gap."
+                    "is defined by EXPECTED_TABULAR_FEATURE_COUNT. See the module docstring "
+                    "for the coverage gap."
     )
     p.add_argument(
         "--splits-dir",

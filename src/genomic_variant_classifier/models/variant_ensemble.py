@@ -86,6 +86,12 @@ import xgboost as xgb
 import lightgbm as lgb
 
 from genomic_variant_classifier.models.scalable_svm import ScalableSVM
+from genomic_variant_classifier.containment import (
+    ContainmentError,
+    require_matrix,
+    require_scientific_contract,
+)
+from genomic_variant_classifier.quarantine_policy import QUARANTINED_FEATURES
 
 import re as _re
 import joblib
@@ -188,7 +194,11 @@ CONSEQUENCE_SEVERITY: dict[str, int] = {
 # against a ClinVar-Pathogenic target. They were CONSTANT ZERO for the life of the project.
 # See the HGMD block inside TABULAR_FEATURES for the full reasoning and the safe (gene-level,
 # leave-one-out) way to reintroduce the signal if access is obtained.
-EXPECTED_TABULAR_FEATURE_COUNT = 95
+# 2026-09-22: 95 -> 91. The four structural features are QUARANTINED (quarantine_policy.py;
+# docs/CONTAINMENT_2026-07-24.md section 4) and leave the active contract; they are NOT placeholders,
+# so they do not move to PHASE_2_FEATURES. tests/unit/test_quarantine_contract.py fails if any of
+# them returns to TABULAR_FEATURES, FEATURE_SOURCE or engineer_features' output.
+EXPECTED_TABULAR_FEATURE_COUNT = 91
 
 FEATURE_SOURCE = {
     # feature-name prefix / exact name  ->  (data source, the CLI flag that populates it)
@@ -228,10 +238,6 @@ FEATURE_SOURCE = {
     "dist_to_splice_site":                ("splice annotation",      "--spliceai / splice module"),
     "exon_number":                        ("Ensembl/VEP",            "--clinvar (VEP annotation)"),
     "is_canonical_splice":                ("splice annotation",      "--spliceai / splice module"),
-    "alphafold_plddt":                    ("AlphaFold",              "--alphafold-path"),
-    "solvent_accessibility":              ("protein structure",      "--alphafold-path"),
-    "secondary_structure_context":        ("protein structure",      "--alphafold-path"),
-    "dist_to_active_site":                ("protein structure",      "--alphafold-path / UniProt"),
     "af_1kg_afr":                         ("1000 Genomes",           "--kg"),
     "af_1kg_eur":                         ("1000 Genomes",           "--kg"),
     "af_1kg_eas":                         ("1000 Genomes",           "--kg"),
@@ -435,11 +441,8 @@ TABULAR_FEATURES = [
     "dist_to_splice_site",
     "exon_number",
     "is_canonical_splice",
-    # Protein structure (4)
-    "alphafold_plddt",
-    "solvent_accessibility",
-    "secondary_structure_context",
-    "dist_to_active_site",
+    # Protein structure: QUARANTINED -- see quarantine_policy.QUARANTINED_FEATURES. Not active,
+    # not a placeholder. Restoration requires the Phase 1 repair and a new reviewed policy.
     # 1KGP population AF (5)
     "af_1kg_afr",
     "af_1kg_eur",
@@ -453,7 +456,7 @@ TABULAR_FEATURES = [
     # FinnGen R13 (3) -- these three were appended under the "FinnGen (3)" header without
     # giving them one of their own, so the header said 3 while SIX features sat beneath it.
     # Every other group in this list carries its own count; this one silently didn't. Harmless
-    # here -- EXPECTED_TABULAR_FEATURE_COUNT is derived from the list, not from these comments,
+    # here -- EXPECTED_TABULAR_FEATURE_COUNT is checked against the list by tests, not against these comments,
     # so nothing broke -- but it is the same shape as the defect that has cost this project the
     # most: a number written down once and never re-derived. Fixed 2026-07-13.
     "finngen_r13_af_fin",
@@ -486,7 +489,7 @@ TABULAR_FEATURES = [
     "rnaseq_de_neglog10p",
 ]
 
-PHASE_2_FEATURES: list[str] = []  # AF features (alphafold_plddt/solvent_accessibility/secondary_structure_context/dist_to_active_site) are locked TABULAR_FEATURES; real once the AlphaFold parquet is built and --alphafold-path is wired, else sentinel stubs. Phase 3 adds GWAS.
+PHASE_2_FEATURES: list[str] = []  # Genuine not-yet-computed placeholders ONLY. The four structural features are QUARANTINED (quarantine_policy.py), not pending. Phase 3 adds GWAS.
 
 PHASE_4_FEATURES: list[str] = [
     "esm2_delta_norm",
@@ -581,7 +584,7 @@ class EnsembleConfig:
     # every declared-real feature must actually vary. A feature that is constant across a
     # million variants carries zero information, cannot be split on, cannot signal drift
     # (p01 == p99 => Population Stability Index is identically 0.0, forever), and is a lie in
-    # the 97-feature contract.
+    # the feature contract.
     #
     # If a feature is genuinely not computed yet, it belongs in PHASE_2_FEATURES. That is what
     # PHASE_2_FEATURES is FOR, and it is currently EMPTY.
@@ -1036,31 +1039,8 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
         .astype(int)
     )
 
-    # Protein structure features (4)
-    feats["alphafold_plddt"] = (
-        df.get("alphafold_plddt", pd.Series([50.0] * len(df), index=df.index))
-        .fillna(50.0)
-        .astype(float)
-        .clip(0.0, 100.0)
-    )
-    feats["solvent_accessibility"] = (
-        df.get("solvent_accessibility", pd.Series([0.5] * len(df), index=df.index))
-        .fillna(0.5)
-        .astype(float)
-        .clip(0.0, 1.0)
-    )
-    feats["secondary_structure_context"] = (
-        df.get("secondary_structure_context", pd.Series([0] * len(df), index=df.index))
-        .fillna(0)
-        .astype(int)
-        .clip(0, 2)
-    )
-    feats["dist_to_active_site"] = (
-        df.get("dist_to_active_site", pd.Series([100.0] * len(df), index=df.index))
-        .fillna(100.0)
-        .astype(float)
-        .clip(lower=0.0)
-    )
+    # Protein structure features: QUARANTINED (quarantine_policy.py). Deliberately NOT built here --
+    # building them would fabricate the four sentinel values the quarantine exists to stop.
 
     # 1KGP population AF (5)
     for col in ("af_1kg_afr", "af_1kg_eur", "af_1kg_eas", "af_1kg_sas", "af_1kg_amr"):
@@ -2183,6 +2163,28 @@ class SequenceWindows(Protocol):
     def subset(self, idx) -> "SequenceWindows": ...
 
 
+def _require_tabular_admissible(frame, where: str) -> None:
+    """The model boundary's quarantine check: an explicit DataFrame schema with no quarantined name.
+
+    Anonymous arrays are refused -- their columns cannot be checked, which is how a cached 95-column
+    split would slip through. Policy lives in quarantine_policy.py, never here.
+    """
+    if not isinstance(frame, pd.DataFrame):
+        raise ContainmentError(f"{where}: the model boundary requires a DataFrame with named columns, "
+                               f"got {type(frame).__name__}")
+    require_scientific_contract(frame.columns, QUARANTINED_FEATURES)
+
+
+def _require_bound_columns_admissible(columns) -> None:
+    """Load-time admission for an ensemble that recorded its tabular columns (fit, from 2026-09-23).
+
+    An older ensemble recorded none, so it cannot be admitted here; its predict_proba still refuses any
+    input frame that carries a quarantined column.
+    """
+    if columns is not None:
+        require_scientific_contract(columns, QUARANTINED_FEATURES)
+
+
 class VariantEnsemble:
     def __init__(self, config: Optional[EnsembleConfig] = None) -> None:
         self.config = config or EnsembleConfig()
@@ -2349,6 +2351,10 @@ class VariantEnsemble:
         )
         self.trained_models_: dict = {}
         self.checkpoint_status_: dict = {}
+        # The exact tabular column order the base models were fitted on (set by fit). A pickled
+        # ensemble from before 2026-09-23 has none; predict_proba then applies the quarantine check only.
+        # NOT feature_names_: that pre-existing attribute holds the BASE-MODEL names (stacking order).
+        self.tabular_columns_: tuple | None = None
         self.blend_weights_: Optional[np.ndarray] = None
         # name -> "ExceptionType: message" for any base model that failed its out-of-fold
         # step and was dropped under allow_base_model_dropout=True. EMPTY IS THE ONLY
@@ -2820,6 +2826,12 @@ class VariantEnsemble:
         gate. A test that exercises a shape production never sends is testing a proxy.
         """
         self.checkpoint_status_ = {}   # one entry per base model: disabled | saved | failed: ...
+        # CONTAINMENT -- the fitted-model boundary. A frame carrying a quarantined column (for example
+        # a split parquet cached before the 2026-09-22 quarantine) is refused here, whatever produced it.
+        _require_tabular_admissible(X_tab, "fit X_tab")
+        if X_tab_cal_ext is not None:
+            _require_tabular_admissible(X_tab_cal_ext, "fit X_tab_cal_ext")
+        self.tabular_columns_ = tuple(X_tab.columns)
         from sklearn.model_selection import train_test_split as _tts
 
         y_arr = np.asarray(y)
@@ -2961,6 +2973,8 @@ class VariantEnsemble:
                         method="predict_proba",
                         n_jobs=1,
                     )[:, 1]
+            except ContainmentError:
+                raise  # a quarantine refusal is never a droppable model failure
             except Exception as exc:
                 # FAIL LOUD (2026-07-13). See EnsembleConfig.allow_base_model_dropout for
                 # the full rationale. Previously this swallowed the exception, and the model
@@ -3202,6 +3216,11 @@ class VariantEnsemble:
         `pd.Series` annotation here was false for the production path (2026-07-15)."""
         if not self.trained_models_:
             raise RuntimeError("Call fit() before predict_proba().")
+        # CONTAINMENT -- checked BEFORE the anonymous X_tab.values conversion below: no quarantined
+        # column, and (when fit recorded it) exactly the fitted names in the fitted order. Never zero-fill.
+        _require_tabular_admissible(X_tab, "predict_proba X_tab")
+        if getattr(self, "tabular_columns_", None) is not None:
+            require_matrix(X_tab, self.tabular_columns_, QUARANTINED_FEATURES)
         X_seq = self._require_sequence_windows(
             {"X_seq": X_seq}, self.trained_models_, "predict_proba")["X_seq"]
         base_preds = np.zeros((len(X_tab), len(self.trained_models_)))
@@ -3318,6 +3337,7 @@ class VariantEnsemble:
             "meta_learner": self.meta_learner,
             "blend_weights_": self.blend_weights_,
             "feature_names_": getattr(self, "feature_names_", None),
+            "tabular_columns_": getattr(self, "tabular_columns_", None),
             "oof_predictions_": getattr(self, "oof_predictions_", None),
             "oof_fit_indices_": getattr(self, "oof_fit_indices_", None),
             "oof_model_names_": getattr(self, "oof_model_names_", None),
@@ -3361,6 +3381,7 @@ class VariantEnsemble:
 
         # Legacy: single joblib containing a pickled VariantEnsemble.
         if isinstance(obj, cls):
+            _require_bound_columns_admissible(getattr(obj, "tabular_columns_", None))
             return obj
 
         if not isinstance(obj, dict) or obj.get("format_version") != 2:
@@ -3375,6 +3396,8 @@ class VariantEnsemble:
         ens.meta_learner = obj["meta_learner"]
         ens.blend_weights_ = obj["blend_weights_"]
         ens.feature_names_ = obj.get("feature_names_")
+        ens.tabular_columns_ = obj.get("tabular_columns_")
+        _require_bound_columns_admissible(ens.tabular_columns_)   # CONTAINMENT: before any base model is opened
         ens.oof_predictions_ = obj.get("oof_predictions_")
         ens.oof_fit_indices_ = obj.get("oof_fit_indices_")
         ens.oof_model_names_ = obj.get("oof_model_names_")

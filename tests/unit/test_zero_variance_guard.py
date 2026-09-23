@@ -97,7 +97,8 @@ def test_hgmd_is_no_longer_a_declared_feature(tmp_path):
     """
     assert "hgmd_is_disease_mutation" not in TABULAR_FEATURES
     assert "hgmd_n_reports" not in TABULAR_FEATURES
-    assert EXPECTED_TABULAR_FEATURE_COUNT == len(TABULAR_FEATURES) == 95
+    # 95 -> 91 on 2026-09-22: the four structural features were quarantined (quarantine_policy.py).
+    assert EXPECTED_TABULAR_FEATURE_COUNT == len(TABULAR_FEATURES) == 91
 
 
 def test_a_single_dead_feature_raises(tmp_path):
@@ -129,12 +130,13 @@ def test_the_run15_casualties_are_all_caught(tmp_path):
 
     36 of 78 features were constant zero in Run 15 -- 46% of the feature space -- and the
     published AUROC of 0.998 came from the 38 that were real. These are the ones still
-    declared today (HGMD's two have since been removed outright).
+    declared today (HGMD's two have since been removed outright, and alphafold_plddt was
+    quarantined on 2026-09-22 -- quarantine_policy.py -- so it is no longer declared either).
     """
     run15_dead = [
         "phylop_score", "eve_score", "gtex_max_tpm", "gtex_is_eqtl",
         "dbsnp_af", "omim_n_diseases", "omim_is_autosomal_dominant",
-        "clingen_validity_score", "alphafold_plddt", "af_1kg_afr",
+        "clingen_validity_score", "af_1kg_afr",
         "finngen_af_fin", "esm2_delta_norm", "maxentscan_score", "codon_position",
     ]
     ens = _ensemble(tmp_path)
@@ -149,13 +151,14 @@ def test_the_run15_casualties_are_all_caught(tmp_path):
 
 def test_the_census_names_the_source_and_the_flag_to_fix(tmp_path):
     """A list of dead column names is a shrug. The operator needs the FLAG."""
-    X = _frame(N_BIG, dead=["gtex_max_tpm", "af_1kg_afr", "alphafold_plddt"])
+    # omim_n_diseases replaces alphafold_plddt (quarantined 2026-09-22): three sources, three flags.
+    X = _frame(N_BIG, dead=["gtex_max_tpm", "af_1kg_afr", "omim_n_diseases"])
     report = format_feature_census(feature_census(X), len(X))
 
     assert "--gtex-path" in report
     assert "--kg" in report
-    assert "--alphafold-path" in report
-    assert "GTEx" in report and "1000 Genomes" in report and "AlphaFold" in report
+    assert "--omim-genemap2-path" in report
+    assert "GTEx" in report and "1000 Genomes" in report and "OMIM" in report
 
 
 def test_an_all_nan_column_is_dead_too(tmp_path):

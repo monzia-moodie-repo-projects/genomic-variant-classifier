@@ -34,6 +34,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from genomic_variant_classifier.containment import ContainmentError
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
@@ -181,16 +183,15 @@ def parse_args(argv=None) -> argparse.Namespace:
     p.add_argument(
         "--alphafold-path",
         default=None,
-        help="AlphaFold cohort structural-feature parquet "
-        "(data/external/alphafold/alphafold_cohort.parquet). When omitted, the "
-        "four AF features default to sentinel constants (silent stub).",
+        help="QUARANTINED since 2026-09-22 (quarantine_policy.py): the four AlphaFold structural features "
+        "are not in the contract, and passing this flag is REFUSED by data prep. Kept only so a launcher "
+        "that still passes it gets the quarantine refusal, not a generic argument error.",
     )
     p.add_argument(
         "--alphafold-uniprot-index",
         default=None,
-        help="UniProt index parquet (gene_symbol,uniprot_id,sequence) for the "
-        "AlphaFold gene->accession map and wt_aa cross-check. Typically the same "
-        "file as --esm2-uniprot-index.",
+        help="QUARANTINED since 2026-09-22 with --alphafold-path: passing it is REFUSED by data prep "
+        "(quarantine_policy.STRUCTURAL_CONFIG_FIELDS).",
     )
     p.add_argument(
         "--eve-path",
@@ -798,6 +799,8 @@ def main() -> int:
                     "GNN training complete. Best val AUC: %.4f",
                     max(h["val_auc"] for h in gnn_history),
                 )
+            except ContainmentError:
+                raise   # a quarantine refusal must not become 'continuing without GNN'
             except ImportError as exc:
                 logger.warning("[GNN-TRACE] ImportError caught: %s", exc)
                 logger.warning(
@@ -965,6 +968,8 @@ def main() -> int:
                             "verify the train+val+test union node set reached score_all_nodes.",
                             _hn, int(_hchk.nunique()), float(_hchk.std()),
                         )
+            except ContainmentError:
+                raise   # a quarantine refusal must not become 'continuing without hetero_gnn_score'
             except ImportError as exc:
                 logger.warning("[HETERO-GNN] ImportError: %s -- install torch/torch-geometric; skipping.", exc)
             except Exception as exc:
@@ -1115,6 +1120,8 @@ def main() -> int:
                     "PASS" if m_ugh["auroc"] >= 0.95 else "FAIL",
                     m_ugh["auroc"],
                 )
+            except ContainmentError:
+                raise   # a quarantine refusal is not an optional-ablation failure
             except Exception as exc:
                 logger.warning(
                     "[UGH] unseen-gene-holdout ablation FAILED: %s - main results unchanged.",

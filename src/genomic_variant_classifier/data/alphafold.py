@@ -53,9 +53,16 @@ from typing import Optional
 
 import pandas as pd
 
+from genomic_variant_classifier.containment import require_producer_enabled
 from genomic_variant_classifier.data.database_connectors import BaseConnector, FetchConfig
+from genomic_variant_classifier.quarantine_policy import BLOCKED_PRODUCERS
 
 logger = logging.getLogger(__name__)
+
+# QUARANTINED producer (quarantine_policy.py; docs/CONTAINMENT_2026-07-24.md section 4). Every
+# public entry point refuses, and the constructor refuses BEFORE super().__init__, which
+# creates a requests.Session. An instance built without __init__ still refuses at its methods.
+_PRODUCER_ID = "AlphaFoldConnector"
 
 # Sentinel defaults (mirror ProteinStructurePipeline / real_data_prep / variant_ensemble).
 DEFAULT_PLDDT = 50.0
@@ -96,6 +103,7 @@ class AlphaFoldConnector(BaseConnector):
         uniprot_index_path: Optional[str | Path] = None,
         config: Optional[FetchConfig] = None,
     ) -> None:
+        require_producer_enabled(_PRODUCER_ID, BLOCKED_PRODUCERS)  # quarantine: refuse before any work
         super().__init__(config)
         self.parquet_path: Optional[Path] = (
             Path(parquet_path) if parquet_path is not None else None
@@ -109,6 +117,7 @@ class AlphaFoldConnector(BaseConnector):
     # ------------------------------------------------------------------
     def annotate_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """Add the four AlphaFold structural columns to df."""
+        require_producer_enabled(_PRODUCER_ID, BLOCKED_PRODUCERS)  # quarantine: refuse before any work
         result = df.copy()
         n = len(result)
 
@@ -145,6 +154,7 @@ class AlphaFoldConnector(BaseConnector):
 
     def fetch(self, variant_df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         """Wraps annotate_dataframe for BaseConnector compatibility."""
+        require_producer_enabled(_PRODUCER_ID, BLOCKED_PRODUCERS)  # quarantine: refuse before any work
         return self.annotate_dataframe(variant_df)
 
     # ------------------------------------------------------------------

@@ -14,13 +14,16 @@ Coverage:
     6.  RSA fail-loud guard raises on a fabricated geometry failure
     7.  3-D C-alpha distance: adjacent residues ~3.8 A
     8.  residue indexing off-by-one tripwire (seq_id starts at 1, not 0)
-  Connector (alphafold.AlphaFoldConnector):
+  Connector (alphafold.AlphaFoldConnector) -- QUARANTINED 2026-09-22 (quarantine_policy.py).
+  Tests 9-13 are kept as the Phase 1 repair's SPECIFICATION and marked strict xfail with
+  raises=ContainmentError: each must still be refused, and lifting the quarantine without
+  revisiting them turns the unexpected pass into a FAILURE.
     9.  wt_aa match -> real features attached
     10. wt_aa isoform MISMATCH -> fail-closed to sentinel default
     11. missing protein_pos -> default
     12. empty df -> columns present, no rows
     13. stub mode (no parquet) -> all defaults
-    14. TABULAR_FEATURES membership -> the 4 AF features present
+    14. TABULAR_FEATURES membership -> the 4 AF features ABSENT (quarantined)
   Coverage gate:
     15. AF features non-constant on a real cohort sample (fraction-at-sentinel gate)
 """
@@ -33,6 +36,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from genomic_variant_classifier.containment import ContainmentError
 from genomic_variant_classifier.data import alphafold_features as aff
 from genomic_variant_classifier.data.alphafold import (
     AlphaFoldConnector,
@@ -190,6 +194,10 @@ def test_residue_indexing_off_by_one_tripwire():
 # ---------------------------------------------------------------------------
 # Connector tests
 # ---------------------------------------------------------------------------
+_QUARANTINED = ("AlphaFoldConnector is quarantined (quarantine_policy.py; "
+                "docs/CONTAINMENT_2026-07-24.md section 4). Kept as the Phase 1 repair's specification.")
+
+
 def _write_af_parquet(tmp_path: Path) -> Path:
     af = pd.DataFrame({
         "uniprot_accession": ["P38398", "P38398"],
@@ -209,6 +217,7 @@ def _write_uniprot_index(tmp_path: Path) -> Path:
     return p
 
 
+@pytest.mark.xfail(raises=ContainmentError, strict=True, reason=_QUARANTINED)
 def test_connector_wt_match_attaches(tmp_path):
     c = AlphaFoldConnector(
         parquet_path=_write_af_parquet(tmp_path),
@@ -220,6 +229,7 @@ def test_connector_wt_match_attaches(tmp_path):
     assert out.loc[0, "secondary_structure_context"] == 1
 
 
+@pytest.mark.xfail(raises=ContainmentError, strict=True, reason=_QUARANTINED)
 def test_connector_wt_mismatch_fails_closed(tmp_path):
     c = AlphaFoldConnector(
         parquet_path=_write_af_parquet(tmp_path),
@@ -232,6 +242,7 @@ def test_connector_wt_mismatch_fails_closed(tmp_path):
     assert out.loc[0, "solvent_accessibility"] == DEFAULT_RSA
 
 
+@pytest.mark.xfail(raises=ContainmentError, strict=True, reason=_QUARANTINED)
 def test_connector_missing_protein_pos_defaults(tmp_path):
     c = AlphaFoldConnector(
         parquet_path=_write_af_parquet(tmp_path),
@@ -242,6 +253,7 @@ def test_connector_missing_protein_pos_defaults(tmp_path):
     assert out.loc[0, "alphafold_plddt"] == DEFAULT_PLDDT
 
 
+@pytest.mark.xfail(raises=ContainmentError, strict=True, reason=_QUARANTINED)
 def test_connector_empty_df():
     c = AlphaFoldConnector(parquet_path=None)
     out = c.annotate_dataframe(pd.DataFrame(columns=["gene_symbol", "protein_pos", "wt_aa"]))
@@ -249,6 +261,7 @@ def test_connector_empty_df():
     assert len(out) == 0
 
 
+@pytest.mark.xfail(raises=ContainmentError, strict=True, reason=_QUARANTINED)
 def test_connector_stub_mode_all_defaults():
     c = AlphaFoldConnector(parquet_path=None)
     df = pd.DataFrame({"gene_symbol": ["BRCA1"], "protein_pos": [5], "wt_aa": ["ALA"]})
@@ -258,11 +271,14 @@ def test_connector_stub_mode_all_defaults():
     assert out.loc[0, "dist_to_active_site"] == DEFAULT_DIST_ACTIVE
 
 
-def test_af_features_in_tabular_features():
+def test_af_features_are_quarantined_not_in_tabular_features():
+    """Inverted 2026-09-22: the four were locked TABULAR_FEATURES; they are now quarantined."""
     from genomic_variant_classifier.models.variant_ensemble import TABULAR_FEATURES
+    from genomic_variant_classifier.quarantine_policy import QUARANTINED_FEATURES
     for feat in ("alphafold_plddt", "solvent_accessibility",
                  "secondary_structure_context", "dist_to_active_site"):
-        assert feat in TABULAR_FEATURES
+        assert feat not in TABULAR_FEATURES
+        assert feat in QUARANTINED_FEATURES
 
 
 # ---------------------------------------------------------------------------

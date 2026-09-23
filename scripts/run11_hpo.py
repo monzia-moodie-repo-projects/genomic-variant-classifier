@@ -34,6 +34,8 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_auc_score
+from genomic_variant_classifier.containment import ContainmentError, require_scientific_contract
+from genomic_variant_classifier.quarantine_policy import QUARANTINED_FEATURES
 from sklearn.model_selection import StratifiedKFold
 
 logging.basicConfig(
@@ -232,7 +234,10 @@ def run_hpo(
 
     # Load data
     splits = Path(splits_dir)
-    X_train = pd.read_parquet(splits / "X_train.parquet").values
+    X_train_df = pd.read_parquet(splits / "X_train.parquet")
+    # CONTAINMENT: every column goes into the models; refuse quarantined ones BEFORE the anonymous .values.
+    require_scientific_contract(X_train_df.columns, QUARANTINED_FEATURES)
+    X_train = X_train_df.values
     y_train = pd.read_parquet(splits / "y_train.parquet").values.ravel()
 
     logger.info("HPO: %d training rows, %d features", X_train.shape[0], X_train.shape[1])

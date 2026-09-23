@@ -123,6 +123,11 @@ COPY src/genomic_variant_classifier/utils/  src/genomic_variant_classifier/utils
 # tests/unit/test_docker_image_covers_the_api.py walks the import graph
 # from api/main.py and fails if any reachable module is not copied here.
 COPY src/genomic_variant_classifier/monitoring/model_registry.py  src/genomic_variant_classifier/monitoring/model_registry.py
+# CONTAINMENT (2026-09-22). api/pipeline.py imports containment.py, and models/variant_ensemble.py
+# imports quarantine_policy.py, both at module level. Without these two single files the container
+# raises ModuleNotFoundError at startup -- the DOCKERCOPY-1 failure again. Files, not directories.
+COPY src/genomic_variant_classifier/containment.py  src/genomic_variant_classifier/containment.py
+COPY src/genomic_variant_classifier/quarantine_policy.py  src/genomic_variant_classifier/quarantine_policy.py
 COPY src/genomic_variant_classifier/__init__.py  src/genomic_variant_classifier/__init__.py
 
 # Model artefact placeholder — override at runtime via bind-mount or COPY

@@ -518,9 +518,11 @@ def build_reference_slice(n: int = 200, seed: int = 7) -> pd.DataFrame:
         # genomiclm_llr, recorded at lines 399-411.
         "gene_constraint_oe": rng.uniform(0.05, 2, n),
         "dbsnp_af": rng.uniform(1e-4, 0.5, n), "maxentscan_score": rng.uniform(-5, 12, n), "maxentscan_delta": rng.uniform(-10, 10, n),
-        "solvent_accessibility": rng.uniform(0, 1, n), "esm2_delta_norm": rng.uniform(0.1, 5, n),
+        # The four protein-structure features are QUARANTINED (quarantine_policy.py) and no longer fed;
+        # tests/unit/test_quarantine_contract.py proves such input columns never pass engineer_features.
+        "esm2_delta_norm": rng.uniform(0.1, 5, n),
         "esm2_llr": rng.uniform(-12, 4, n),  # SIGNED (neg=damaging); live feature, NOT allowlisted
-        "alphafold_plddt": rng.uniform(20, 95, n), "gnn_score": rng.uniform(0.1, 0.9, n),
+        "gnn_score": rng.uniform(0.1, 0.9, n),
         # FinnGen R12 + R13 population AF -- FED (Option B): zero-audit actively checks
         # these (direct passthrough via df.get in engineer_features). NOT allowlisted.
         "finngen_af_fin": rng.uniform(0, 0.5, n), "finngen_af_nfsee": rng.uniform(0, 0.5, n),
@@ -547,13 +549,13 @@ def build_reference_slice(n: int = 200, seed: int = 7) -> pd.DataFrame:
         # stage 5 by the binary rule, exactly like hgmd_is_disease_mutation above.
         "kegg_pathway_count": rng.integers(0, 15, n),
         "kegg_disease_pathway_flag": rng.integers(0, 2, n),
-        "dist_to_active_site": rng.uniform(1, 500, n), "dist_to_splice_site": rng.uniform(1, 500, n),
+        "dist_to_splice_site": rng.uniform(1, 500, n),
         "clingen_validity_score": rng.integers(1, 5, n), "codon_position": rng.integers(1, 4, n),
         "exon_number": rng.integers(1, 30, n), "lovd_variant_class": rng.integers(1, 6, n),
         "hgmd_n_reports": rng.integers(0, 20, n), "hgmd_is_disease_mutation": rng.integers(0, 2, n),
         "omim_n_diseases": omim_nd, "omim_is_autosomal_dominant": rng.integers(0, 2, n),
         "omim_n_diseases_molecular": np.minimum(omim_nd, rng.integers(0, 10, n)),  # feature #88; molecular<=total; keeps fixture "fully-populated"
-        "secondary_structure_context": rng.integers(1, 4, n), "n_pathogenic_in_gene": rng.integers(0, 50, n),
+        "n_pathogenic_in_gene": rng.integers(0, 50, n),
         "has_uniprot_annotation": rng.integers(0, 2, n), "is_canonical_splice": rng.integers(0, 2, n),
         "label": label,
     })

@@ -8029,4 +8029,7 @@
 # 2026-09-23  TEST-ISOLATION-PREREQUISITE-2026-09-23
 #   ADDITION, +13 by node identity, 0 removed.
 #   the suite no longer writes into the repository: CatBoost writes no training files by default, checkpoints need an explicit model_dir, the freshness report goes to the artifact root, importing scripts/train.py writes nothing, and every test SharedState has its own state file.
-6758
+# 2026-09-23  STRUCTURAL-QUARANTINE-CONTAINMENT-2026-09-23
+#   DELIBERATE_RETIREMENT, +114 by node identity, 1 removed.
+#   the four protein-structure features left the contract (95 -> 91); producers, configuration, fitting, loading, serving, cached splits and the scripts that fit on them refuse them; tests/unit/test_alphafold.py::test_af_features_in_tabular_features asserted the opposite and is retired, its successor test_af_features_are_quarantined_not_in_tabular_features asserts their absence.
+6871

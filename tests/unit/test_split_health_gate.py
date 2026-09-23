@@ -167,11 +167,12 @@ def test_observed_prep_only_scenario_reduces_to_finngen(tmp_path):
                     "maxentscan_delta", "gtex_is_eqtl", "gtex_max_abs_effect",
                     "gtex_min_eqtl_pval", "has_uniprot_annotation",
                     "n_known_pathogenic_protein_variants",
-                    # genuine stubs:
-                    "alphafold_plddt", "clingen_validity_score", "dist_to_active_site",
+                    # genuine stubs (the four protein-structure columns are QUARANTINED since 2026-09-22 and
+                    # no longer produced by prep, so a faithful reconstruction of prep output omits them):
+                    "clingen_validity_score",
                     "esm2_delta_norm", "eve_score", "hgmd_is_disease_mutation",
                     "hgmd_n_reports", "omim_is_autosomal_dominant", "omim_n_diseases",
-                    "phylop_score", "secondary_structure_context", "solvent_accessibility"]
+                    "phylop_score"]
     finngen = ["finngen_af_fin", "finngen_af_nfsee", "finngen_enrichment"]
 
     def frame(is_train):
@@ -199,3 +200,34 @@ def test_observed_prep_only_scenario_reduces_to_finngen(tmp_path):
         return f
     res2 = G.gate_frames({"X_train": frame_fg(True), "X_val": frame_fg(False)}, prep_only=True)
     assert res2["verdict"] == "GO", res2
+
+
+# --- QUARANTINE (2026-09-23): a split cached before the 2026-09-22 quarantine is refused, never approved ---
+from genomic_variant_classifier.quarantine_policy import QUARANTINED_FEATURES  # noqa: E402
+
+
+def test_quarantined_names_are_not_expected_zero_stubs():
+    assert not (set(QUARANTINED_FEATURES) & G.EXPECTED_ZERO)
+
+
+def test_a_present_quarantined_column_with_real_looking_values_is_no_go():
+    present = set(G.CORE_FEATURES) | {QUARANTINED_FEATURES[0]}
+    res = G.classify({}, present=present)
+    assert res["verdict"] == "NO_GO"
+    assert res["quarantined_present"] == [QUARANTINED_FEATURES[0]]
+    assert any("QUARANTINED" in r for r in res["reasons"])
+
+
+def test_a_degenerate_quarantined_column_is_reported_once_as_quarantined():
+    res = G.classify({QUARANTINED_FEATURES[1]: "ALL_ZERO"})
+    assert res["verdict"] == "NO_GO" and res["quarantined_present"] == [QUARANTINED_FEATURES[1]]
+    assert QUARANTINED_FEATURES[1] not in res["unexpected_degenerate"] + res["expected_degenerate"]
+
+
+def test_gate_frames_refuses_a_cached_split_carrying_the_old_sentinels():
+    import pandas as pd
+    n = 40
+    healthy = {c: [i / n for i in range(n)] for c in sorted(G.CORE_FEATURES - G.GNN_STAGE_FEATURES)}
+    healthy["alphafold_plddt"] = [50.0] * n          # the historical fabricated sentinel
+    res = G.gate_frames({"X_train": pd.DataFrame(healthy)}, prep_only=True)
+    assert res["verdict"] == "NO_GO" and res["quarantined_present"] == ["alphafold_plddt"]

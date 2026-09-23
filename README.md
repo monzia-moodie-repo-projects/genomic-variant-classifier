@@ -2,20 +2,22 @@
 
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tabular features](https://img.shields.io/badge/tabular%20features-95-blue.svg)]()
+[![Tabular features](https://img.shields.io/badge/tabular%20features-91-blue.svg)]()
 [![Base models](https://img.shields.io/badge/base%20models-13-blue.svg)]()
 [![Agents](https://img.shields.io/badge/autonomous%20agents-22-blueviolet.svg)]()
-[![Tests](https://img.shields.io/badge/tests-6758-success.svg)]()
+[![Tests](https://img.shields.io/badge/tests-6871-success.svg)]()
 [![Status](https://img.shields.io/badge/status-active%20development-orange.svg)]()
 
 A multi-modal machine learning system for the five-tier clinical classification of human
 genomic variants — **Pathogenic, Likely Pathogenic, Uncertain Significance, Likely Benign,
 and Benign** — in accordance with ACMG/AMP guidelines.
 
-It integrates genomic sequence, population-stratified allele frequencies, protein structure
-and language-model representations, gene-network topology, tissue-specific expression, and
-curated gene–disease evidence into a **95-feature** matrix, consumed by a **13-model**
-stacking ensemble. It is served as a FastAPI REST service and supervised by an
+It integrates genomic sequence, population-stratified allele frequencies, protein and DNA
+language-model representations, gene-network topology, tissue-specific expression, and
+curated gene–disease evidence into a **91-feature** matrix, consumed by a **13-model**
+stacking ensemble. Protein-structure features are currently **quarantined**: excluded
+from the contract, refused at fitting, loading and serving (a model trained with them is
+never served), until repaired (see *Feature set*). It is served as a FastAPI REST service and supervised by an
 autonomous layer of **22 specialised agents** communicating over a typed message bus.
 
 Training draws on a cohort of over four million ClinVar variants across more than 28,000
@@ -51,7 +53,7 @@ A multi-branch fusion model wrapped in an autonomous supervisory layer.
 
 ```
    Population genetics . Conservation . Functional predictors . Gene-disease
-   knowledge bases . Protein structure . Expression . Splice mechanics .
+   knowledge bases . Protein structure [QUARANTINED] . Expression . Splice mechanics .
    Protein-protein interaction topology
                               |
                     Annotation pipeline -> Feature engineering
@@ -114,7 +116,7 @@ table — it contributes the `gnn_score` feature and produces no out-of-fold col
 
 ---
 
-## Feature set (95 tabular features)
+## Feature set (91 tabular features)
 
 | Group | Count | Representative features |
 |---|---:|---|
@@ -126,7 +128,7 @@ table — it contributes the `gnn_score` feature and produces no out-of-fold col
 | Gene-level | 4 | `gene_constraint_oe`, `n_pathogenic_in_gene`, `gene_has_known_disease` |
 | gnomAD constraint | 4 | `pli_score`, `loeuf`, `syn_z`, `mis_z` |
 | Protein annotation (UniProt) | 2 | `has_uniprot_annotation`, `n_known_pathogenic_protein_variants` |
-| Protein structure (AlphaFold) | 4 | `alphafold_plddt`, `solvent_accessibility`, `dist_to_active_site` |
+| Protein structure (AlphaFold) — **quarantined** | 0 | the four structural features are excluded from the contract until repaired: `quarantine_policy.py`, `docs/CONTAINMENT_2026-07-24.md` §4 |
 | Expression (GTEx) | 6 | `gtex_max_tpm`, `gtex_tissue_specificity`, `gtex_is_eqtl` |
 | RNA-seq expression | 5 | `rnaseq_mean_log_tpm`, `rnaseq_log2fc`, `rnaseq_de_neglog10p` |
 | RNA splice context | 5 | `maxentscan_score`, `maxentscan_delta`, `dist_to_splice_site` |
@@ -143,10 +145,11 @@ table — it contributes the `gnn_score` feature and produces no out-of-fold col
 | Graph-derived | 2 | `gnn_score` (STRING), `hetero_gnn_score` (knowledge graph) |
 | Chromosome context | 3 | `is_autosome`, `is_sex_chrom`, `is_mitochondrial` |
 | Coding context | 2 | `codon_position`, `dbsnp_af` |
-| **Total** | **95** | |
+| **Total** | **91** | |
 
-The count lives in exactly one place — `EXPECTED_TABULAR_FEATURE_COUNT` — and is enforced
-against the feature list at import time. A source that fails to populate fails loudly
+The count lives in exactly one place — `EXPECTED_TABULAR_FEATURE_COUNT` — and is checked
+against the feature list by the test suite, while the feature builder's output is checked
+against the list, names and order, before any model trains. A source that fails to populate fails loudly
 rather than contributing a column of zeros.
 
 ## Autonomous agent layer (22 agents)

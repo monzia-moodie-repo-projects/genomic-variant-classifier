@@ -207,8 +207,12 @@ Verify the stack afterwards: `pandas` 2.3.3, `transformers` 4.46.3, `scikit-lear
 * Module-level `logger = logging.getLogger(__name__)`. **No logging config in library modules.**
 * **Never** `nx.read_gpickle` (removed in NetworkX 3.x).
 * New **real** features → `TABULAR_FEATURES`, and **bump `EXPECTED_TABULAR_FEATURE_COUNT`** (currently
-  **95**). It is a fail-loud guard. Only genuinely not-yet-computed placeholders go in
-  `PHASE_2_FEATURES`.
+  **91**). It is a fail-loud guard. Only genuinely not-yet-computed placeholders go in
+  `PHASE_2_FEATURES`. The four structural features are **quarantined**, not placeholders, and are
+  in neither list -- see `quarantine_policy.py` and `docs/CONTAINMENT_2026-07-24.md` section 4.
+* A **`ContainmentError` is never swallowed**: every broad `except Exception` on a scientific path has
+  `except ContainmentError: raise` ahead of it, so a quarantine refusal is never recorded as an
+  ordinary failure, dropped, or defaulted.
 * Installers are **guarded and reversible**.
 * **Nothing fails silently.** A bare `except Exception` that logs and continues is a defect, not
   robustness — it is exactly what erased a base model from the ensemble.

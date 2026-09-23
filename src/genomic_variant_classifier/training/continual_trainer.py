@@ -57,6 +57,9 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
+from genomic_variant_classifier.containment import require_scientific_contract
+from genomic_variant_classifier.quarantine_policy import QUARANTINED_FEATURES
+
 logger = logging.getLogger(__name__)
 
 
@@ -270,6 +273,10 @@ def _aligned_lsif_matrices(
     and width is the only thing the previous code could have checked.
     """
     reference_frame = reference.frame
+    # CONTAINMENT: a density ratio is a fitted model. Every deployment trained before the 2026-09-22
+    # quarantine carries the four structural columns in its cohort; refuse them on either side.
+    require_scientific_contract(reference_frame.columns, QUARANTINED_FEATURES)
+    require_scientific_contract(new_features.columns, QUARANTINED_FEATURES)
     if tuple(reference_frame.columns) != tuple(new_features.columns):
         missing = sorted(set(new_features.columns)
                          - set(reference_frame.columns))
@@ -402,6 +409,10 @@ class ContinualLearner:
         X_val   = pd.read_parquet(splits_dir / "X_val.parquet")
         y_train = pd.read_parquet(splits_dir / "y_train.parquet")["label"]
         meta    = pd.read_parquet(splits_dir / "meta_test.parquet")
+        # CONTAINMENT, and OUTSIDE the drift handler below on purpose: a reference cached before the
+        # 2026-09-22 quarantine would otherwise surface as a misleading KeyError recorded as "not checked".
+        for _frame in (X_train, X_val):
+            require_scientific_contract(_frame.columns, QUARANTINED_FEATURES)
 
         training_ids = set(meta.get("variant_id", pd.Series(dtype=str)))
         logger.info("Reference training set: %d variants, %d features", len(X_train), X_train.shape[1])
@@ -441,8 +452,8 @@ class ContinualLearner:
         # scientific record.
         #
         # It was not hypothetical. drift_detector.py records that the Run-15
-        # reference carries 78 features against a tabular contract of 95
-        # (EXPECTED_TABULAR_FEATURE_COUNT, measured), so the KeyError is the
+        # reference carries 78 features against a larger tabular contract
+        # (EXPECTED_TABULAR_FEATURE_COUNT -- read it there), so the KeyError is the
         # EXPECTED path, not an edge case.
         #
         # The shape of the fix is this repository's own, from the layer that

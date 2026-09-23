@@ -44,6 +44,8 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import precision_recall_curve
 
+from genomic_variant_classifier.containment import ContainmentError
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
@@ -109,11 +111,10 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_pipeline(path: str):
-    import joblib
+    # InferencePipeline.load, never a bare joblib.load: the thresholds written here are used in SERVING, so the
+    # pipeline must pass the same load-time admission (quarantine, recorded digest) the API server applies.
     from genomic_variant_classifier.api.pipeline import InferencePipeline
-    obj = joblib.load(path)
-    if not isinstance(obj, InferencePipeline):
-        raise TypeError(f"Expected InferencePipeline, got {type(obj)}")
+    obj = InferencePipeline.load(path)
     logger.info("Pipeline loaded: val_auroc=%.4f", obj.metadata.val_auroc)
     return obj
 
@@ -125,17 +126,14 @@ def get_raw_scores(pipeline, X_val: pd.DataFrame) -> np.ndarray:
     We pass the already-engineered features directly to the base models,
     bypassing engineer_features() since X_val is already the feature matrix.
     """
-    from genomic_variant_classifier.api.pipeline import INFERENCE_FEATURE_COLUMNS
-
-    # X_val is the feature matrix from the split parquets — columns already engineered
-    X_np = X_val[INFERENCE_FEATURE_COLUMNS].values
-
-    if pipeline.scaler is not None:
-        X_np = pipeline.scaler.transform(X_np)
+    # X_val is the feature matrix from the split parquets -- columns already engineered. The pipeline's own
+    # admitted matrix step selects ITS declared features, refuses any it lacks (never zero-fills) and scales.
+    pipeline._require_admissible()
+    X, _ = pipeline._model_matrix(X_val)
 
     base_preds = np.column_stack([
-        model.predict_proba(X_np)[:, 1]
-        for model in pipeline.trained_models.values()
+        model.predict_proba(X if name == "catboost" else X.values)[:, 1]
+        for name, model in pipeline.trained_models.items()
     ])
     # Raw stacker log-odds for Platt scaling
     stacker_proba = pipeline.meta_learner.predict_proba(base_preds)[:, 1]
@@ -297,6 +295,8 @@ def main() -> int:
 
     try:
         pipeline = load_pipeline(str(pipeline_path))
+    except ContainmentError:
+        raise   # a quarantine refusal, not a load failure
     except Exception as exc:
         logger.error("Failed to load pipeline: %s", exc)
         return 2
@@ -322,6 +322,8 @@ def main() -> int:
 
     try:
         raw_scores = get_raw_scores(pipeline, X_val)
+    except ContainmentError:
+        raise
     except Exception as exc:
         logger.error("Failed to score validation set: %s", exc)
         return 2

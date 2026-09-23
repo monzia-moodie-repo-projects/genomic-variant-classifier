@@ -74,6 +74,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from genomic_variant_classifier.api.auth import require_api_key
+from genomic_variant_classifier.containment import ContainmentError
 from genomic_variant_classifier.api.schemas import (
     BatchPredictRequest,
     BatchPredictResponse,
@@ -264,6 +265,12 @@ async def lifespan(app: FastAPI):
             logger.exception(
                 "Refusing to serve: %s changed while being loaded",
                 MODEL_PATH)
+        except ContainmentError:
+            # Deliberately NOT swallowed into a generic error: the artifact uses quarantined
+            # features (quarantine_policy.py) and must not serve. Requests get 503.
+            _PIPELINE = None
+            _artifact_identity = None
+            logger.exception("Refusing to serve: %s is not admissible under the quarantine", MODEL_PATH)
         except Exception as exc:
             logger.error("Failed to load pipeline from %s: %s", MODEL_PATH, exc)
     else:
