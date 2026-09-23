@@ -17,17 +17,29 @@ from genomic_variant_classifier.agent_layer.agents.base_agent import BaseAgent
 from genomic_variant_classifier.agent_layer.agents import database_freshness_detector as D
 from genomic_variant_classifier.agent_layer.message_bus import DATA_UPDATED, PRIORITY_HIGH
 from genomic_variant_classifier.monitoring import registry as R
-from genomic_variant_classifier.agent_layer.config import PROJECT_ROOT
+from genomic_variant_classifier.agent_layer.config import DATA_FRESHNESS_REPORT_DIR, PROJECT_ROOT
 
 _RECIPIENT = "TrainingLifecycleAgent"
 _SECTION = "database_freshness"
 
 
 class DatabaseFreshnessMonitorAgent(BaseAgent):
-    def __init__(self, shared_state, probe=None, root: str | None = None) -> None:
+    def __init__(self, shared_state, probe=None, root: str | None = None,
+                 report_dir: str | None = None) -> None:
         super().__init__(shared_state)
         self._probe = probe or D._default_probe
+        # root: the REPOSITORY, scanned for local assets. report_dir: where OUTPUT goes.
+        #   explicit report_dir -> that directory;
+        #   explicit root only  -> <root>/reports/data_freshness: an injected root is a hermetic scope
+        #                          (the documented test contract: nothing outside it is touched);
+        #   neither (production) -> the ARTIFACT reports root, never the repository by default.
         self._root = root if root is not None else str(PROJECT_ROOT)
+        if report_dir is not None:
+            self._report_dir = Path(report_dir)
+        elif root is not None:
+            self._report_dir = Path(root) / "reports" / "data_freshness"
+        else:
+            self._report_dir = Path(DATA_FRESHNESS_REPORT_DIR)
 
     def run(self, dry_run: bool = False) -> dict:
         self._log_start(dry_run)
@@ -79,7 +91,7 @@ class DatabaseFreshnessMonitorAgent(BaseAgent):
 
     def _write_report(self, report: dict) -> Path:
         ts = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        out = Path(self._root) / "reports" / "data_freshness" / f"FRESHNESS_{ts}.md"
+        out = self._report_dir / f"FRESHNESS_{ts}.md"
         out.parent.mkdir(parents=True, exist_ok=True)
         lines = [
             f"# Data-source freshness report -- {ts}", "",

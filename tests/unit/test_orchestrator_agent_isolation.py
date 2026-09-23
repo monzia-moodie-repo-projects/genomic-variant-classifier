@@ -45,9 +45,9 @@ def _pick_real_agents(orch: Orchestrator, n: int):
     return healthy
 
 
-def test_broken_agent_is_isolated_pipeline_survives(monkeypatch):
+def test_broken_agent_is_isolated_pipeline_survives(monkeypatch, tmp_path):
     """A broken agent in the MIDDLE of a pipeline must not crash agents before or after it."""
-    orch = Orchestrator(SharedState(), dry_run=True)
+    orch = Orchestrator(SharedState(state_file=tmp_path / "state.json"), dry_run=True)
 
     healthy = _pick_real_agents(orch, 2)
     if len(healthy) < 2:
@@ -76,9 +76,9 @@ def test_broken_agent_is_isolated_pipeline_survives(monkeypatch):
     )
 
 
-def test_broken_agent_error_is_recorded_not_raised(monkeypatch):
+def test_broken_agent_error_is_recorded_not_raised(monkeypatch, tmp_path):
     """The pipeline must return normally (no exception) even when an agent's construction fails."""
-    orch = Orchestrator(SharedState(), dry_run=True)
+    orch = Orchestrator(SharedState(state_file=tmp_path / "state.json"), dry_run=True)
     broken_name = "__InjectedBrokenAgent2__"
     orch._agent_registry[broken_name] = _ExplodingLazy()
 

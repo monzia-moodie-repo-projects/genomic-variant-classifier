@@ -39,7 +39,7 @@ def test_activation_ok_on_unchanged(tmp_path: Path):
     df = pd.DataFrame({"a": [1.0, 2.0], "b": [float("nan"), 0.5]})
     df.to_parquet(tmp_path / "matrix.parquet")
     det = SchemaDriftAgent.from_baseline(_write_baseline(tmp_path, df), output_dir=tmp_path)
-    agent = SchemaDriftMonitorAgent(SharedState(), detector=det, matrix_path=tmp_path / "matrix.parquet")
+    agent = SchemaDriftMonitorAgent(SharedState(state_file=tmp_path / "state.json"), detector=det, matrix_path=tmp_path / "matrix.parquet")
     r = agent.run(dry_run=True)
     assert r["status"] == "ok"            # active, not awaiting_baseline
     assert r["severity"] == "green"
@@ -54,7 +54,7 @@ def test_activation_red_on_drift(tmp_path: Path):
     cur["NEW"] = 1.0
     cur["a"] = cur["a"].astype("int64")
     cur.to_parquet(tmp_path / "current.parquet")
-    agent = SchemaDriftMonitorAgent(SharedState(), detector=det, matrix_path=tmp_path / "current.parquet")
+    agent = SchemaDriftMonitorAgent(SharedState(state_file=tmp_path / "state.json"), detector=det, matrix_path=tmp_path / "current.parquet")
     r = agent.run(dry_run=True)
     assert r["status"] == "ok"            # ran successfully (status ok), drift in severity
     assert r["severity"] == "red"
@@ -62,7 +62,7 @@ def test_activation_red_on_drift(tmp_path: Path):
     assert any(c[0] == "a" for c in r["columns_dtype_changed"])
 
 
-def test_default_construction_still_awaiting_baseline():
+def test_default_construction_still_awaiting_baseline(tmp_path):
     # the activation path must not change the default (no inputs) contract
-    agent = SchemaDriftMonitorAgent(SharedState())
+    agent = SchemaDriftMonitorAgent(SharedState(state_file=tmp_path / "state.json"))
     assert agent.run(dry_run=True)["status"] == "awaiting_baseline"

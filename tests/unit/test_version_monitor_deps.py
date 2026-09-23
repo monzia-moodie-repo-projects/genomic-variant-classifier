@@ -159,7 +159,7 @@ def test_run_aggregates_new_alerts(monkeypatch, tmp_path):
     assert any(a.startswith("[PyG-ABI]") for a in alerts)
 
 
-def test_wrapper_surfaces_new_fields(monkeypatch):
+def test_wrapper_surfaces_new_fields(monkeypatch, tmp_path):
     monkeypatch.setattr(vm, "_run_watch_targets", lambda *, dry_run=False: {
         "literature_scout.last_run": "t",
         "literature_scout.alerts": [],
@@ -167,7 +167,7 @@ def test_wrapper_surfaces_new_fields(monkeypatch):
         "literature_scout.deps_outdated_count": 3,
         "literature_scout.pyg_abi_alert": "",
     })
-    agent = vm.VersionMonitorAgent(SharedState())
+    agent = vm.VersionMonitorAgent(SharedState(state_file=tmp_path / "state.json"))
     r = agent.run(dry_run=True)
     assert r["python_running"] == "3.12.10"
     assert r["deps_outdated_count"] == 3
@@ -278,22 +278,22 @@ def test_run_dispatches_the_gnomad_target(monkeypatch):
     assert any(a.startswith("[gnomAD]") for a in alerts)
 
 
-def test_status_is_degraded_when_a_check_fails(monkeypatch):
+def test_status_is_degraded_when_a_check_fails(monkeypatch, tmp_path):
     """status was a LITERAL "ok", set whether or not any target succeeded, and
     check_agents_active.py reported that constant back as the agent's health."""
     monkeypatch.setattr(vm, "_run_watch_targets", lambda *, dry_run=False: {
         "literature_scout.alerts": ["[gnomAD] check_failed: unreachable"],
     })
-    agent = vm.VersionMonitorAgent(SharedState())
+    agent = vm.VersionMonitorAgent(SharedState(state_file=tmp_path / "state.json"))
     r = agent.run(dry_run=True)
     assert r["status"] == "degraded"
     assert r["n_checks_failed"] == 1
 
 
-def test_status_is_ok_when_no_check_failed(monkeypatch):
+def test_status_is_ok_when_no_check_failed(monkeypatch, tmp_path):
     monkeypatch.setattr(vm, "_run_watch_targets", lambda *, dry_run=False: {
         "literature_scout.alerts": ["[gnomAD] 4.1.1 available"],
     })
-    r = vm.VersionMonitorAgent(SharedState()).run(dry_run=True)
+    r = vm.VersionMonitorAgent(SharedState(state_file=tmp_path / "state.json")).run(dry_run=True)
     assert r["status"] == "ok"
     assert r["n_checks_failed"] == 0

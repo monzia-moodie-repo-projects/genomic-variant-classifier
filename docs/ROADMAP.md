@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **6,745 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **6,758 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -385,3 +385,10 @@ exists to end.
   bytes that were live. `docs/CHANGELOG.md` remains the per-session record and
   is unaffected.
 
+- **2026-09-23 -- test-isolation prerequisite.** The suite no longer writes into
+  the repository. Measured before: a full run left 38 files (CatBoost training
+  files, 32 checkpoint files, an outputs/ mismatch file, a freshness report),
+  truncated logs/train.log at collection, and rewrote the orchestrator's
+  agent_state.json. After: a content-digest inventory of the whole tree is
+  unchanged. Suite 6,745 -> 6,758 collected (+13, 0 removed). Details in
+  `docs/CHANGELOG.md`.

@@ -361,6 +361,11 @@ LOG_LEVEL = os.getenv("GVC_LOG_LEVEL", "INFO")
 
 LITERATURE_DIGEST_DIR  = _RUNTIME_PATHS.reports_root / "literature"
 
+# Data-freshness reports: an ARTIFACT destination, derived like the SHAP and literature reports
+# (OUTPUT-ROOT-CONFLATION-1). It was PROJECT_ROOT / "reports" -- the repository tree, whatever
+# the caller -- so a test run overwrote the real day's report (measured 2026-09-23).
+DATA_FRESHNESS_REPORT_DIR = _RUNTIME_PATHS.reports_root / "data_freshness"
+
 # NCBI E-utilities (no API key = 3 req/s; set NCBI_API_KEY for 10 req/s)
 NCBI_EUTILS_BASE       = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 NCBI_API_KEY           = os.getenv("NCBI_API_KEY", None)

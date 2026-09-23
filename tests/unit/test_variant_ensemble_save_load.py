@@ -160,7 +160,10 @@ def test_ensemble_save_load_with_cnn1d(synthetic_data, tmp_path):
     # The subject of THIS test is pickling, not coverage, so the floor is lowered for the test
     # rather than the fixture doubled: a 120-row fixture would double a real cnn_1d fit and
     # assert nothing extra. Same trap as test_x_seq_refusal_contract.py's `_seq(n=200)`.
-    cfg = EnsembleConfig(n_jobs=1, seq_min_usable_rows=10)
+    # Explicit checkpoint directory BEFORE construction: the real incremental checkpoint writes are
+    # still exercised, inside the test workspace (owner ruling 2026-09-22).
+    cfg = EnsembleConfig(n_jobs=1, seq_min_usable_rows=10,
+                         model_dir=tmp_path / "incremental_checkpoints")
     ens = VariantEnsemble(cfg)
     keep = {"random_forest", "cnn_1d"}
     ens.base_estimators = {

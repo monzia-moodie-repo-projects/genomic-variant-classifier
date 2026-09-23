@@ -54,8 +54,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-# -- Logging must be configured before any pipeline imports -----------------
-Path("logs").mkdir(exist_ok=True)
+# -- Console encoding (import time). Logging is configured by main() via _configure_logging();
+#    measured 2026-09-23: every top-level import (lines 45-55) already preceded the old
+#    module-level logging setup, so no import-time log line depended on it. ------------------
 def _force_utf8_stdio(streams=None):
     """Make stdout/stderr UTF-8 so Unicode in reports/logs does not crash a
     Windows cp1252 console. No-op where .reconfigure is unavailable."""
@@ -73,15 +74,26 @@ def _force_utf8_stdio(streams=None):
 _force_utf8_stdio()
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
-    datefmt="%H:%M:%S",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler("logs/train.log", mode="w"),
-    ],
-)
+def _configure_logging() -> None:
+    """Attach the console and run-log handlers. Called by main() ONLY.
+
+    This ran at IMPORT until 2026-09-23: importing the module (as tests/unit/test_train_utf8_stdio.py
+    does at collection) created and TRUNCATED logs/train.log (mode="w") in whatever directory the
+    importer ran from -- the repository root under a normal test run. Importing now has no
+    filesystem side effect; running the script behaves exactly as before.
+    """
+    Path("logs").mkdir(exist_ok=True)   # moved from module level (line 58) with the handler it serves
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
+        datefmt="%H:%M:%S",
+        handlers=[
+            logging.StreamHandler(sys.stdout),
+            logging.FileHandler("logs/train.log", mode="w"),
+        ],
+    )
+
+
 logger = logging.getLogger("train")
 
 
@@ -268,6 +280,7 @@ def parse_args() -> argparse.Namespace:
 # Main
 # ---------------------------------------------------------------------------
 def main() -> None:
+    _configure_logging()
     args = parse_args()
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)

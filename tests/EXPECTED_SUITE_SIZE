@@ -8026,4 +8026,7 @@
 # 2026-09-17  D-BH-BEHAVIOR-HARNESS-2026-09-17
 #   ADDITION, +5 by node identity, 0 removed.
 #   the alert workflow's own embedded script is now executed by its tests, not merely searched as text -- closing the fixture-divergence gap every functional check this session had to redo by hand.
-6745
+# 2026-09-23  TEST-ISOLATION-PREREQUISITE-2026-09-23
+#   ADDITION, +13 by node identity, 0 removed.
+#   the suite no longer writes into the repository: CatBoost writes no training files by default, checkpoints need an explicit model_dir, the freshness report goes to the artifact root, importing scripts/train.py writes nothing, and every test SharedState has its own state file.
+6758

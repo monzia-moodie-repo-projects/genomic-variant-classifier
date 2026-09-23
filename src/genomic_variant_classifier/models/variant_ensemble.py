@@ -508,7 +508,10 @@ class EnsembleConfig:
     calibrate: bool = True
     class_weight: str = "balanced"
     n_jobs: int = -1
-    model_dir: Path = Path("models/ensemble")
+    # None = write NO incremental checkpoints. Construction never creates a directory, and no
+    # default infers authority to write from the current working directory (test-isolation
+    # prerequisite, owner rulings 2026-09-22/23). Every scientific entry point passes model_dir.
+    model_dir: Optional[Path] = None
     skip_catboost: bool = False
     skip_svm: bool = False
     skip_kan: bool = False
@@ -696,8 +699,8 @@ class EnsembleConfig:
     seq_require_verified_provenance: bool = True
 
     def __post_init__(self) -> None:
-        self.model_dir = Path(self.model_dir)
-        self.model_dir.mkdir(parents=True, exist_ok=True)
+        if self.model_dir is not None:
+            self.model_dir = Path(self.model_dir)   # created by the writer at first write, never here
 
 
 # ---------------------------------------------------------------------------
@@ -2301,6 +2304,9 @@ class VariantEnsemble:
                         ],
                         random_seed=cfg.random_state,
                         verbose=0,
+                        # Training diagnostics OFF; an opt-in run supplies an absolute private root.
+                        allow_writing_files=False,
+                        backend_output_root=None,
                     )
                 }
                 if _CATBOOST_AVAILABLE and not cfg.skip_catboost
@@ -2342,6 +2348,7 @@ class VariantEnsemble:
             C=0.1, max_iter=1000, random_state=cfg.random_state
         )
         self.trained_models_: dict = {}
+        self.checkpoint_status_: dict = {}
         self.blend_weights_: Optional[np.ndarray] = None
         # name -> "ExceptionType: message" for any base model that failed its out-of-fold
         # step and was dropped under allow_base_model_dropout=True. EMPTY IS THE ONLY
@@ -2812,6 +2819,7 @@ class VariantEnsemble:
         Roadmap 7c: a gate that checks a PROXY instead of the thing it protects is not a
         gate. A test that exercises a shape production never sends is testing a proxy.
         """
+        self.checkpoint_status_ = {}   # one entry per base model: disabled | saved | failed: ...
         from sklearn.model_selection import train_test_split as _tts
 
         y_arr = np.asarray(y)
@@ -3002,31 +3010,38 @@ class VariantEnsemble:
             logger.info("  %s OOF AUROC: %.4f", name, roc_auc_score(y_fit, oof))
 
             # === incremental checkpoint patch (INCIDENT_2026-05-23) ===
-            try:
-                _ckpt_dir = self.config.model_dir
-                _ckpt_dir.mkdir(parents=True, exist_ok=True)
-                _model_path = _ckpt_dir / f"{name}.joblib"
-                _oof_path = _ckpt_dir / f"{name}_oof.npy"
-                _meta_path = _ckpt_dir / f"{name}_meta.json"
-                joblib.dump(self.trained_models_[name], _model_path, compress=3)
-                np.save(_oof_path, oof)
-                # Run 11 carried-forward 3.2: OOF row-index sidecar
-                # Saves the per-fold prediction-to-row mapping so meta-learner
-                # can be reconstructed from saved OOF arrays in disaster recovery.
-                _oof_idx_path = _ckpt_dir / f"{name}_oof_indices.npy"
-                _fold_indices = [test_idx for _, test_idx in cv_splits]
-                np.save(_oof_idx_path, np.concatenate(_fold_indices))
-                with open(_meta_path, "w") as _f:
-                    json.dump({
-                        "name": name,
-                        "oof_auroc": float(roc_auc_score(y_fit, oof)),
-                        "saved_at_utc": datetime.now(timezone.utc).isoformat(),
-                        "n_samples": int(len(y_fit)),
-                    }, _f, indent=2)
-                _size_mb = _model_path.stat().st_size / 1e6
-                logger.info("    %s checkpoint saved: %s (%.1f MB)", name, _model_path.name, _size_mb)
-            except Exception as _save_exc:
-                logger.error("    %s checkpoint FAILED to save: %s", name, _save_exc, exc_info=True)
+            # Outcome is RECORDED per model in checkpoint_status_ -- a failed save is logged AND
+            # queryable, so a denied write can become a visible validation failure.
+            if self.config.model_dir is None:
+                self.checkpoint_status_[name] = "disabled"
+            else:
+                try:
+                    _ckpt_dir = self.config.model_dir
+                    _ckpt_dir.mkdir(parents=True, exist_ok=True)
+                    _model_path = _ckpt_dir / f"{name}.joblib"
+                    _oof_path = _ckpt_dir / f"{name}_oof.npy"
+                    _meta_path = _ckpt_dir / f"{name}_meta.json"
+                    joblib.dump(self.trained_models_[name], _model_path, compress=3)
+                    np.save(_oof_path, oof)
+                    # Run 11 carried-forward 3.2: OOF row-index sidecar
+                    # Saves the per-fold prediction-to-row mapping so meta-learner
+                    # can be reconstructed from saved OOF arrays in disaster recovery.
+                    _oof_idx_path = _ckpt_dir / f"{name}_oof_indices.npy"
+                    _fold_indices = [test_idx for _, test_idx in cv_splits]
+                    np.save(_oof_idx_path, np.concatenate(_fold_indices))
+                    with open(_meta_path, "w") as _f:
+                        json.dump({
+                            "name": name,
+                            "oof_auroc": float(roc_auc_score(y_fit, oof)),
+                            "saved_at_utc": datetime.now(timezone.utc).isoformat(),
+                            "n_samples": int(len(y_fit)),
+                        }, _f, indent=2)
+                    _size_mb = _model_path.stat().st_size / 1e6
+                    logger.info("    %s checkpoint saved: %s (%.1f MB)", name, _model_path.name, _size_mb)
+                    self.checkpoint_status_[name] = "saved"
+                except Exception as _save_exc:
+                    logger.error("    %s checkpoint FAILED to save: %s", name, _save_exc, exc_info=True)
+                    self.checkpoint_status_[name] = f"failed: {type(_save_exc).__name__}: {_save_exc}"
             # === end incremental checkpoint patch ===
         # Drop columns for any model that failed and was skipped.
         valid_cols = [
@@ -3274,6 +3289,10 @@ class VariantEnsemble:
         """
         import joblib
 
+        if path is None and self.config.model_dir is None:
+            raise ValueError(
+                "save() needs a destination: pass path=..., or construct EnsembleConfig(model_dir=...). "
+                "There is no default location; the current working directory is not an authority.")
         path = Path(path or self.config.model_dir / "ensemble.joblib")
         path.parent.mkdir(parents=True, exist_ok=True)
 

@@ -190,7 +190,9 @@ def test_catboost_corrects_mis_ordered_columns_by_name():
     """
     cb = pytest.importorskip("catboost")
     outcome, detail = _predict_shuffled(
-        cb.CatBoostClassifier(iterations=20, verbose=0, random_seed=0)
+        # allow_writing_files=False: this test is about column order, not training files;
+        # a raw CatBoostClassifier otherwise writes catboost_info/ into the working directory.
+        cb.CatBoostClassifier(iterations=20, verbose=0, random_seed=0, allow_writing_files=False)
     )
     assert outcome == "corrected", (
         f"CatBoost must reorder mis-ordered columns BY NAME (identical predictions); got "

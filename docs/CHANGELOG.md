@@ -1,3 +1,45 @@
+## 2026-09-23 (repair) -- test-isolation prerequisite: the suite stops writing into the repository
+
+A PREREQUISITE, separate from and before the atomic structural containment commit
+(owner rulings 2026-09-22 and 2026-09-23). No scientific behaviour changes.
+
+WHAT THE SUITE WROTE, MEASURED on an unmodified f6177a1 tree with a before/after
+inventory: 4 CatBoost training files (catboost_info/), 32 incremental checkpoint
+files (models/ensemble/, eight models x four), outputs/cohort_build_indel_mismatches.tsv
+and reports/data_freshness/FRESHNESS_<date>.md. A name-only inventory missed two
+more, found by a content-digest inventory: logs/train.log TRUNCATED at collection
+(scripts/train.py configured a mode="w" FileHandler and created logs/ at IMPORT, and
+tests/unit/test_train_utf8_stdio.py imports it at module level), and the orchestrator's
+src/genomic_variant_classifier/agent_layer/agent_state.json REWRITTEN in place by 18
+test constructions of SharedState() with its default file.
+
+THE CHANGES. (1) CatBoost: models/catboost_output.py and two NAMED wrapper
+parameters, allow_writing_files=False and backend_output_root=None, which survive
+scikit-learn cloning; diagnostics are opt-in with an absolute run-owned root and a
+fresh directory per fit; the ensemble passes both explicitly. (2) Checkpoints:
+EnsembleConfig.model_dir defaults to None; construction creates nothing; fit records
+checkpoint_status_ per model (disabled | saved | failed: ...) instead of only logging a
+failure; save() without a destination refuses. All four scientific entry points already
+pass model_dir. (3) The data-freshness report derives from RuntimePaths.reports_root,
+like the SHAP and literature reports; an explicit report_dir wins, an injected root
+keeps the documented hermetic contract. (4) scripts/train.py: logging setup and the
+logs/ directory moved into _configure_logging(), called first by main(); every
+top-level import already preceded the old setup, so no import-time log line is lost.
+(5) Tests: explicit destinations for every known writer, including a temporary
+state_file at all 18 SharedState sites; 13 new tests in
+tests/unit/test_isolation_prerequisite.py.
+
+VERIFIED: full suite against an unmodified run by node identity: +13 tests, all
+passing, 0 removed, 0 changed outcomes; the remaining failures are identical on both
+trees (PyTorch absent in the review environment). Content-digest inventory of the
+whole tree before and after the full suite: unchanged.
+
+CARRIED, NOT IN THIS COMMIT: SharedState's default still lives in the source tree
+(moving it to RuntimePaths.orchestrator_state needs a preserved migration);
+source_monitor.default_store_path reads a non-existent RuntimePaths.state_dir and has
+always silently fallen back (migration needed); the freshness subprocess test uses
+the real network probe; the OOF index sidecar defect (separate unit).
+
 ## 2026-09-04 part 19 (session) -- six arcs, and a silent zero of my own
 
 RECORD ONLY. NEUTRAL: no production code changes, no test changes. Six arcs

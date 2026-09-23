@@ -13,8 +13,8 @@ from genomic_variant_classifier.agent_layer.agents.schema_drift_monitor_agent im
 )
 
 
-def test_awaiting_baseline_when_unconfigured():
-    agent = SchemaDriftMonitorAgent(SharedState())
+def test_awaiting_baseline_when_unconfigured(tmp_path):
+    agent = SchemaDriftMonitorAgent(SharedState(state_file=tmp_path / "state.json"))
     r = agent.run(dry_run=True)
     assert r["status"] == "awaiting_baseline"
     assert agent._get_section("schema_drift")["status"] == "awaiting_baseline"
@@ -31,7 +31,7 @@ def test_ok_path_with_real_detector(tmp_path: Path):
         expected_schema_hash=SchemaDriftAgent.hash_schema(expected_dtypes),
         output_dir=tmp_path,
     )
-    agent = SchemaDriftMonitorAgent(SharedState(), detector=det, matrix_path=mp)
+    agent = SchemaDriftMonitorAgent(SharedState(state_file=tmp_path / "state.json"), detector=det, matrix_path=mp)
     r = agent.run(dry_run=True)
     assert r["status"] == "ok"
     assert r["severity"] in {"green", "red"}

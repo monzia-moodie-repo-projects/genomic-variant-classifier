@@ -18,9 +18,9 @@ CASES = [
 
 
 @pytest.mark.parametrize("module,cls,section", CASES)
-def test_awaiting_baseline(module, cls, section):
+def test_awaiting_baseline(module, cls, section, tmp_path):
     mod = importlib.import_module(f"genomic_variant_classifier.agent_layer.agents.{module}")
-    agent = getattr(mod, cls)(SharedState())
+    agent = getattr(mod, cls)(SharedState(state_file=tmp_path / "state.json"))
     result = agent.run(dry_run=True)
     assert result["status"] == "awaiting_baseline"
     assert agent.section == section

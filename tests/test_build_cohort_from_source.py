@@ -192,7 +192,8 @@ def test_snv_control_and_indel_check_pass_on_correct_coords(cohort, tmp_path):
     fa = _write_fasta(tmp_path)
     recon = B.BuildReconciliation()
     clean, _ = B.build(cohort.drop(columns=["kind"]), recon)
-    B.reference_and_indel_check(clean, fa, recon, max_mismatch_rate=0.001)
+    B.reference_and_indel_check(clean, fa, recon, max_mismatch_rate=0.001,
+                                mismatch_out=tmp_path / "indel_mismatches.tsv")
     assert recon.reference_check.startswith("PASSED")
     assert "match at pos-1" in recon.snv_control
     assert recon.indel_postcondition.startswith("PASSED")
@@ -209,7 +210,8 @@ def test_indel_check_CATCHES_wrong_position(cohort, tmp_path):
     mask = clean["ref"].str.len() > clean["alt"].str.len()
     clean.loc[mask, "pos"] = clean.loc[mask, "pos"] + 1   # 9 -> 10, now ref "AC" no longer at pos
     with pytest.raises(ValueError, match="INDEL GENOME-CONSISTENCY"):
-        B.reference_and_indel_check(clean, fa, recon, max_mismatch_rate=0.0)
+        B.reference_and_indel_check(clean, fa, recon, max_mismatch_rate=0.0,
+                                    mismatch_out=tmp_path / "indel_mismatches.tsv")
 
 
 def test_snv_control_catches_wrong_build(tmp_path):
@@ -222,12 +224,14 @@ def test_snv_control_catches_wrong_build(tmp_path):
     ])
     recon = B.BuildReconciliation()
     with pytest.raises(ValueError, match="SNV CONTROL FAILED"):
-        B.reference_and_indel_check(wrong, fa, recon)
+        B.reference_and_indel_check(wrong, fa, recon, mismatch_out=tmp_path / "indel_mismatches.tsv")
 
 
 # ---- end-to-end via subprocess (determinism, provisional, refuse-overwrite) ------------
 
 def _run(args, cwd):
+    # cwd is always the test's tmp_path: the script locates its source through __file__, and every
+    # path passed is absolute, so the repository root is never the child's working directory.
     return subprocess.run([sys.executable, str(SCRIPT)] + args,
                           cwd=str(cwd), capture_output=True, text=True)
 
@@ -236,7 +240,7 @@ def test_provisional_without_genome(cohort, tmp_path):
     inp = tmp_path / "raw.parquet"
     cohort.drop(columns=["kind"]).to_parquet(inp, index=False)
     out = tmp_path / "cohort.parquet"
-    r = _run(["--apply", "--input", str(inp), "--output", str(out)], ROOT)
+    r = _run(["--apply", "--input", str(inp), "--output", str(out)], tmp_path)
     assert r.returncode == 0, r.stderr
     assert out.with_name(out.stem + "_reconciliation.json").exists(), \
         "per-build reconciliation JSON must be written"
@@ -250,8 +254,8 @@ def test_determinism_same_md5(cohort, tmp_path):
     cohort.drop(columns=["kind"]).to_parquet(inp, index=False)
     out1 = tmp_path / "a.parquet"
     out2 = tmp_path / "b.parquet"
-    r1 = _run(["--apply", "--input", str(inp), "--output", str(out1)], ROOT)
-    r2 = _run(["--apply", "--input", str(inp), "--output", str(out2)], ROOT)
+    r1 = _run(["--apply", "--input", str(inp), "--output", str(out1)], tmp_path)
+    r2 = _run(["--apply", "--input", str(inp), "--output", str(out2)], tmp_path)
     assert r1.returncode == 0 and r2.returncode == 0
     assert B._md5(out1) == B._md5(out2)
 
@@ -260,11 +264,11 @@ def test_refuse_overwrite_without_force(cohort, tmp_path):
     inp = tmp_path / "raw.parquet"
     cohort.drop(columns=["kind"]).to_parquet(inp, index=False)
     out = tmp_path / "cohort.parquet"
-    r1 = _run(["--apply", "--input", str(inp), "--output", str(out)], ROOT)
+    r1 = _run(["--apply", "--input", str(inp), "--output", str(out)], tmp_path)
     assert r1.returncode == 0
-    r2 = _run(["--apply", "--input", str(inp), "--output", str(out)], ROOT)
+    r2 = _run(["--apply", "--input", str(inp), "--output", str(out)], tmp_path)
     assert r2.returncode == 5           # G1 refuse-overwrite
-    r3 = _run(["--apply", "--force", "--input", str(inp), "--output", str(out)], ROOT)
+    r3 = _run(["--apply", "--force", "--input", str(inp), "--output", str(out)], tmp_path)
     assert r3.returncode == 0           # --force succeeds
 
 
@@ -278,7 +282,7 @@ def test_audit_writes_nothing_to_output_dir(cohort, tmp_path):
     inp = datadir / "raw.parquet"
     cohort.drop(columns=["kind"]).to_parquet(inp, index=False)
     out = datadir / "cohort.parquet"
-    r = _run(["--audit", "--input", str(inp), "--output", str(out)], ROOT)
+    r = _run(["--audit", "--input", str(inp), "--output", str(out)], tmp_path)
     assert r.returncode == 0, r.stderr
     # only the input parquet should remain in the data dir; no cohort, no side-file, no json
     remaining = sorted(p.name for p in datadir.iterdir())
@@ -333,7 +337,7 @@ def test_column_na_when_no_genome_end_to_end(cohort, tmp_path):
     inp = tmp_path / "raw.parquet"
     cohort.drop(columns=["kind"]).to_parquet(inp, index=False)
     out = tmp_path / "cohort.parquet"
-    r = _run(["--apply", "--input", str(inp), "--output", str(out)], ROOT)
+    r = _run(["--apply", "--input", str(inp), "--output", str(out)], tmp_path)
     assert r.returncode == 0, r.stderr
     written = pd.read_parquet(out)
     assert "ref_genome_consistent" in written.columns

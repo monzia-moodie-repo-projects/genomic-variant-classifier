@@ -83,6 +83,7 @@ from __future__ import annotations
 
 import logging
 import warnings
+from .catboost_output import prepare_catboost_output
 from pathlib import Path
 from typing import Optional
 
@@ -162,6 +163,8 @@ class CatBoostVariantClassifier(BaseEstimator, ClassifierMixin):
         early_stopping_rounds:  Optional[int] = 50,
         random_seed:            int           = 42,
         verbose:                int           = 0,
+        allow_writing_files:    bool          = False,
+        backend_output_root:    Optional[str] = None,
         **kwargs,
     ) -> None:
         self.iterations           = iterations
@@ -180,6 +183,8 @@ class CatBoostVariantClassifier(BaseEstimator, ClassifierMixin):
         self.random_seed          = random_seed
         self.verbose              = verbose
         self.kwargs               = kwargs
+        self.allow_writing_files  = allow_writing_files
+        self.backend_output_root  = backend_output_root
 
         self.classes_             = np.array([0, 1])
         self._model               = None
@@ -213,6 +218,10 @@ class CatBoostVariantClassifier(BaseEstimator, ClassifierMixin):
                 "catboost is not installed. Run: pip install catboost"
             )
 
+        self.backend_output_ = prepare_catboost_output(
+            allow_writing_files=self.allow_writing_files,
+            output_root=self.backend_output_root, extra=self.kwargs,
+        )
         X, cat_indices, feature_names = self._prepare_input(X)
         self._cat_indices   = cat_indices
         self._feature_names = feature_names
@@ -257,6 +266,7 @@ class CatBoostVariantClassifier(BaseEstimator, ClassifierMixin):
         if self.early_stopping_rounds and eval_pool is not None:
             cb_params["early_stopping_rounds"] = self.early_stopping_rounds
 
+        cb_params.update(self.backend_output_.catboost_parameters())
         self._model = CatBoostClassifier(**cb_params)
 
         with warnings.catch_warnings():

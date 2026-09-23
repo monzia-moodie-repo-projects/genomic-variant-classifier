@@ -20,13 +20,13 @@ import textwrap
 import pytest
 
 
-def _run_in_subprocess(body: str) -> subprocess.CompletedProcess:
+def _run_in_subprocess(body: str, extra_env: dict | None = None) -> subprocess.CompletedProcess:
     code = textwrap.dedent(body)
-    env = {**os.environ, "PYTHONPATH": os.pathsep.join(p for p in sys.path if p)}
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join(p for p in sys.path if p), **(extra_env or {})}
     return subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env)
 
 
-def test_orchestrator_constructs_without_sklearn():
+def test_orchestrator_constructs_without_sklearn(tmp_path):
     """The whole point of Phase 1: construct the Orchestrator with sklearn unavailable."""
     r = _run_in_subprocess(
         """
@@ -39,10 +39,11 @@ def test_orchestrator_constructs_without_sklearn():
         builtins.__import__ = blk
         from genomic_variant_classifier.agent_layer.orchestrator import Orchestrator
         from genomic_variant_classifier.agent_layer.shared_state import SharedState
-        o = Orchestrator(SharedState(), dry_run=True)
+        o = Orchestrator(SharedState(state_file=__import__("os").environ["GVC_TEST_STATE_FILE"]), dry_run=True)
         assert len(o._agent_registry) >= 1
         print("CONSTRUCT_NO_SKLEARN_OK", len(o._agent_registry))
-        """
+        """,
+        extra_env={"GVC_TEST_STATE_FILE": str(tmp_path / "state.json")},
     )
     assert "CONSTRUCT_NO_SKLEARN_OK" in r.stdout, (
         "Orchestrator must construct without sklearn (lazy registry).\n"
@@ -50,7 +51,7 @@ def test_orchestrator_constructs_without_sklearn():
     )
 
 
-def test_orchestrator_constructs_without_sklearn_or_torch():
+def test_orchestrator_constructs_without_sklearn_or_torch(tmp_path):
     """Stronger: neither sklearn NOR torch available at construction (full minimal-CI simulation)."""
     r = _run_in_subprocess(
         """
@@ -64,9 +65,10 @@ def test_orchestrator_constructs_without_sklearn_or_torch():
         builtins.__import__ = blk
         from genomic_variant_classifier.agent_layer.orchestrator import Orchestrator
         from genomic_variant_classifier.agent_layer.shared_state import SharedState
-        o = Orchestrator(SharedState(), dry_run=True)
+        o = Orchestrator(SharedState(state_file=__import__("os").environ["GVC_TEST_STATE_FILE"]), dry_run=True)
         print("CONSTRUCT_NO_HEAVY_OK", len(o._agent_registry))
-        """
+        """,
+        extra_env={"GVC_TEST_STATE_FILE": str(tmp_path / "state.json")},
     )
     assert "CONSTRUCT_NO_HEAVY_OK" in r.stdout, (
         "Orchestrator must construct with all heavy ML deps unavailable (lazy registry).\n"
@@ -74,7 +76,7 @@ def test_orchestrator_constructs_without_sklearn_or_torch():
     )
 
 
-def test_ci_data_freshness_pipeline_runs_without_sklearn():
+def test_ci_data_freshness_pipeline_runs_without_sklearn(tmp_path):
     """The exact CI guarantee: the database_monitor pipeline runs to completion with sklearn blocked.
 
     This is the red->green proof for the Data Freshness workflow: it constructs the Orchestrator and
@@ -91,27 +93,31 @@ def test_ci_data_freshness_pipeline_runs_without_sklearn():
         builtins.__import__ = blk
         from genomic_variant_classifier.agent_layer.orchestrator import Orchestrator
         from genomic_variant_classifier.agent_layer.shared_state import SharedState
-        o = Orchestrator(SharedState(), dry_run=True)
+        o = Orchestrator(SharedState(state_file=__import__("os").environ["GVC_TEST_STATE_FILE"]), dry_run=True)
         results = o.run_pipeline("database_monitor")
         assert "DatabaseFreshnessMonitorAgent" in results, results
         action = results["DatabaseFreshnessMonitorAgent"].get("action")
         assert action != "error", f"freshness agent errored under sklearn-block: {results}"
         print("CI_FRESHNESS_OK", action)
-        """
+        """,
+        # The freshness report is an ARTIFACT: GVC_ARTIFACT_ROOT keeps it out of the real reports/.
+        extra_env={"GVC_ARTIFACT_ROOT": str(tmp_path), "GVC_TEST_STATE_FILE": str(tmp_path / "state.json")},
     )
+    assert list((tmp_path / "reports" / "data_freshness").glob("FRESHNESS_*.md")), (
+        "the freshness report did not land under GVC_ARTIFACT_ROOT")
     assert "CI_FRESHNESS_OK" in r.stdout, (
         "database_monitor pipeline must run clean without sklearn (the CI guarantee).\n"
         f"STDOUT:\n{r.stdout}\nSTDERR:\n{r.stderr}"
     )
 
 
-def test_registry_values_are_lazy():
+def test_registry_values_are_lazy(tmp_path):
     """Registry values must be _Lazy (not eagerly-imported classes)."""
     from genomic_variant_classifier.agent_layer.orchestrator import Orchestrator
     from genomic_variant_classifier.agent_layer.shared_state import SharedState
     from genomic_variant_classifier.agent_layer._lazy_agent import _Lazy
 
-    o = Orchestrator(SharedState(), dry_run=True)
+    o = Orchestrator(SharedState(state_file=tmp_path / "state.json"), dry_run=True)
     assert o._agent_registry, "registry is empty"
     assert all(isinstance(v, _Lazy) for v in o._agent_registry.values()), (
         "every registry value must be a _Lazy descriptor"

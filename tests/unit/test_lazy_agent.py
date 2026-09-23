@@ -99,7 +99,7 @@ def test_bad_spec_rejected_early():
         _Lazy("no_colon_here")
 
 
-def test_orchestrator_construction_imports_no_agent_modules():
+def test_orchestrator_construction_imports_no_agent_modules(tmp_path):
     """End-to-end: constructing the real Orchestrator must not import any agent submodule."""
     # Drop any already-imported agent submodules so we can detect fresh imports.
     agents_pkg = "genomic_variant_classifier.agent_layer.agents"
@@ -109,7 +109,7 @@ def test_orchestrator_construction_imports_no_agent_modules():
     from genomic_variant_classifier.agent_layer.shared_state import SharedState
 
     before = {m for m in sys.modules if m.startswith(agents_pkg + ".")}
-    _ = Orchestrator(SharedState(), dry_run=True)
+    _ = Orchestrator(SharedState(state_file=tmp_path / "state.json"), dry_run=True)
     after = {m for m in sys.modules if m.startswith(agents_pkg + ".")}
 
     newly = after - before
