@@ -213,6 +213,9 @@ Verify the stack afterwards: `pandas` 2.3.3, `transformers` 4.46.3, `scikit-lear
 * A **`ContainmentError` is never swallowed**: every broad `except Exception` on a scientific path has
   `except ContainmentError: raise` ahead of it, so a quarantine refusal is never recorded as an
   ordinary failure, dropped, or defaulted.
+* **One admission route for models.** Load a classifier artifact only through `InferencePipeline.load`
+  or `VariantEnsemble.load` with a named `consumer`; both run `model_admission.admit_artifact` before
+  deserializing. Never `joblib.load` a model directly, and never treat a checksum beside a model as a binding.
 * Installers are **guarded and reversible**.
 * **Nothing fails silently.** A bare `except Exception` that logs and continues is a defect, not
   robustness — it is exactly what erased a base model from the ensemble.

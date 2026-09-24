@@ -21,6 +21,7 @@ from genomic_variant_classifier.containment import ContainmentError
 from genomic_variant_classifier.quarantine_policy import QUARANTINED_FEATURES
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))   # tests/unit helpers (_admission_support)
 Q0 = QUARANTINED_FEATURES[0]
 
 
@@ -81,23 +82,36 @@ def _pipeline(columns):
     return P, sc, lr, meta
 
 
-def test_calibrate_thresholds_loads_through_admission(tmp_path):
+def test_calibrate_thresholds_loads_through_admission(tmp_path, monkeypatch):
     import calibrate_thresholds as C
+    import genomic_variant_classifier.model_admission as admission
+    from _admission_support import AllowForTests, register
     from genomic_variant_classifier.models.variant_ensemble import engineer_features
+    registry = tmp_path / "registry.v1.json"
+    monkeypatch.setattr(admission, "repository_registry_path", lambda: registry)
     raw = pd.DataFrame({"chrom": ["1"] * 40, "pos": range(40), "ref": ["A"] * 40, "alt": ["G"] * 40,
                         "consequence": ["missense_variant"] * 40})
     feats = engineer_features(raw)
     usable = [c for c in feats.columns if not feats[c].isna().any()][:4]
+    # 1. a record naming a quarantined feature: refused BEFORE the artifact is opened
     P, sc, lr, meta = _pipeline(usable + [Q0])
     legacy = P.InferencePipeline.__new__(P.InferencePipeline)
     legacy.__dict__.update(trained_models={"logistic_regression": lr}, meta_learner=meta, scaler=sc,
                            metadata=P.PipelineMetadata(feature_names=usable + [Q0]), gnn_scorer=None, preprocessor_=None)
     joblib.dump(legacy, tmp_path / "legacy.joblib")
+    register(registry, tmp_path / "legacy.joblib", feature_names=usable + [Q0], roster=["logistic_regression"],
+             version="legacy")
     with pytest.raises(ContainmentError, match="suspended"):
         C.load_pipeline(str(tmp_path / "legacy.joblib"))
+    # 2. a correctly registered pipeline: still refused under the DEFAULT authority (gate C10 not implemented)
     P, sc, lr, meta = _pipeline(usable)
     pipe = P.InferencePipeline({"logistic_regression": lr}, meta, scaler=sc)
     pipe.save(tmp_path / "ok.joblib")
+    register(registry, tmp_path / "ok.joblib", feature_names=usable, roster=["logistic_regression"], version="ok")
+    with pytest.raises(ContainmentError, match="C10"):
+        C.load_pipeline(str(tmp_path / "ok.joblib"))
+    # 3. with an explicit authority: admitted, and scoring equals the pipeline's own prediction exactly
+    monkeypatch.setattr(admission, "DEFAULT_AUTHORITY", AllowForTests())
     loaded = C.load_pipeline(str(tmp_path / "ok.joblib"))
     np.testing.assert_array_equal(C.get_raw_scores(loaded, feats), pipe.predict_proba(raw))
 

@@ -114,7 +114,9 @@ def load_pipeline(path: str):
     # InferencePipeline.load, never a bare joblib.load: the thresholds written here are used in SERVING, so the
     # pipeline must pass the same load-time admission (quarantine, recorded digest) the API server applies.
     from genomic_variant_classifier.api.pipeline import InferencePipeline
-    obj = InferencePipeline.load(path)
+    from genomic_variant_classifier.model_admission import repository_registry_path
+    obj = InferencePipeline.load(path, consumer="scripts/calibrate_thresholds.py",
+                                 registry_path=repository_registry_path())
     logger.info("Pipeline loaded: val_auroc=%.4f", obj.metadata.val_auroc)
     return obj
 

@@ -60,6 +60,7 @@ Phase 7 additions:
 
 from __future__ import annotations
 
+import functools
 import logging
 import os
 import time
@@ -99,10 +100,13 @@ from genomic_variant_classifier.api.schemas import (
 def _configure_logging() -> None:
     level = getattr(logging, os.environ.get("LOG_LEVEL", "INFO").upper(), logging.INFO)
     fmt   = os.environ.get("LOG_FORMAT", "json").lower()
+    json_unavailable = False
 
     if fmt == "json":
         try:
-            from pythonjsonlogger.jsonlogger import JsonFormatter
+            # pythonjsonlogger.json since python-json-logger 3.1; the old .jsonlogger path is deprecated
+            # (CI run #882 warning). requirements-api.lock pins 3.3.0.
+            from pythonjsonlogger.json import JsonFormatter
             handler = logging.StreamHandler()
             handler.setFormatter(
                 JsonFormatter(
@@ -115,9 +119,12 @@ def _configure_logging() -> None:
             logging.root.setLevel(level)
             return
         except ImportError:
-            pass  # fall through to text formatter
+            json_unavailable = True   # fall through to the text formatter -- and SAY so below
 
     logging.basicConfig(level=level, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+    if json_unavailable:
+        logging.getLogger(__name__).warning(
+            "LOG_FORMAT=json was requested but python-json-logger is not installed; logging as TEXT")
 
 
 logger = logging.getLogger(__name__)
@@ -253,8 +260,11 @@ async def lifespan(app: FastAPI):
     if MODEL_PATH.exists():
         try:
             from genomic_variant_classifier.api.pipeline import InferencePipeline
+            # The ONE admission route: refused before deserialization without a trusted registry binding
+            # and an ALLOW decision for this consumer (model_admission; owner ruling 2026-09-23).
             _PIPELINE, _artifact_identity = load_pipeline_with_identity(
-                MODEL_PATH, InferencePipeline.load)
+                MODEL_PATH, functools.partial(InferencePipeline.load, consumer="api.main",
+                                              registry_path=DEPLOYMENT_REGISTRY_PATH))
             logger.info("Loaded inference pipeline from %s (sha256 %s)",
                         MODEL_PATH, _artifact_identity.sha256[:16])
         except ArtifactChangedDuringLoadError:

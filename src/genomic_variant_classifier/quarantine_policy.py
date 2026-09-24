@@ -20,6 +20,8 @@ requires that repair and a new reviewed policy, never an edit to this list alone
 """
 from __future__ import annotations
 
+from types import MappingProxyType
+
 QUARANTINED_FEATURES: tuple[str, ...] = (
     "alphafold_plddt",
     "solvent_accessibility",
@@ -41,3 +43,14 @@ STRUCTURAL_CONFIG_FIELDS: tuple[str, ...] = (
     "alphafold_uniprot_index_path",
     "protein_cache_dir",
 )
+
+# Owner ruling 2026-09-23: preserving a historical record and authorizing its EXECUTION are separate
+# decisions. These scripts re-run quarantine-era models on quarantine-era data by construction, so
+# they refuse by default. Their source and prior outputs stay preserved. A future forensic run is a
+# separately authorized, isolated workflow with named inputs -- never a general switch here.
+HISTORICAL_EXECUTION_DENIED = MappingProxyType({
+    "scripts/diagnose_phase2_prediction_reconstruction.py":
+        "re-predicts a quarantine-era run (outputs/rnaseq_pred_write_smoke) with its saved models",
+    "scripts/run10b_partial_phase2_eval_v2.py":
+        "fits a NEW stacking model on quarantine-era Run 10b predictions -- a new computational result",
+})

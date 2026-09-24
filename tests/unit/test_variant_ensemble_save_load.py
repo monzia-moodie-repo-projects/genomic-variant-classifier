@@ -191,8 +191,18 @@ def test_ensemble_save_load_with_cnn1d(synthetic_data, tmp_path):
     save_path = tmp_path / "ensemble"
     ens.save(save_path)
 
-    # Reload via classmethod
-    ens2 = VariantEnsemble.load(save_path)
+    # Reload via classmethod -- through the ONE admission route (2026-09-23): the saved orchestrator is
+    # registered with the ensemble's own fitted columns and members, and loaded with an EXPLICIT test
+    # authority. (This test needs PyTorch; a sandbox without it skipped it, so it kept the old signature
+    # until the owner's validation run failed on it.)
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from _admission_support import AllowForTests, register
+    registry = register(tmp_path / "registry.v1.json", save_path,
+                        feature_names=tuple(ens.tabular_columns_), roster=list(ens.trained_models_))
+    ens2 = VariantEnsemble.load(save_path, consumer="test", registry_path=registry,
+                                authority=AllowForTests())
 
     # Verify both models present after load
     trained2 = set(ens2.trained_models_.keys())

@@ -88,6 +88,7 @@ import lightgbm as lgb
 from genomic_variant_classifier.models.scalable_svm import ScalableSVM
 from genomic_variant_classifier.containment import (
     ContainmentError,
+    load_after_admission,
     require_matrix,
     require_scientific_contract,
 )
@@ -2176,10 +2177,8 @@ def _require_tabular_admissible(frame, where: str) -> None:
 
 
 def _require_bound_columns_admissible(columns) -> None:
-    """Load-time admission for an ensemble that recorded its tabular columns (fit, from 2026-09-23).
-
-    An older ensemble recorded none, so it cannot be admitted here; its predict_proba still refuses any
-    input frame that carries a quarantined column.
+    """Refuse recorded tabular columns that include a quarantined feature. `None` passes here; load()
+    then refuses an ensemble that recorded no columns, because it cannot match its registry record.
     """
     if columns is not None:
         require_scientific_contract(columns, QUARANTINED_FEATURES)
@@ -3297,16 +3296,17 @@ class VariantEnsemble:
         return df
 
     def save(self, path: Optional[Path] = None) -> None:
-        """Persist the ensemble.
+        """Persist the ensemble: one joblib per base model plus a thin orchestrator that names them.
 
-        Run 10 refactor: each base model is pickled into its own joblib
-        first; a thin orchestrator joblib then references them by name.
-        A single-model pickle failure (e.g. Run 9's CNN1D nested-class
-        crash) now degrades gracefully instead of poisoning the whole
-        save. The orchestrator records save_errors so downstream load()
-        can warn about missing models without crashing.
+        ALL OR NOTHING (owner ruling 2026-09-23, point 3). A member that fails to pickle means NO loadable
+        ensemble is written: an ensemble missing members is a different, untrained-as-such model, and loading
+        is not the place to construct one. Members that did save stay in <path>_models/ for salvage. The
+        orchestrator records each member's SHA-256 (the registry's own measuring rule), so a registry record
+        for the orchestrator vouches for every member it names.
         """
         import joblib
+
+        from genomic_variant_classifier.monitoring.model_registry import ArtifactIdentity
 
         if path is None and self.config.model_dir is None:
             raise ValueError(
@@ -3320,16 +3320,25 @@ class VariantEnsemble:
         models_dir.mkdir(parents=True, exist_ok=True)
 
         saved_model_paths: dict = {}
+        saved_model_sha256: dict = {}
         save_errors: dict = {}
         for name, model in self.trained_models_.items():
             model_path = models_dir / f"{name}.joblib"
             try:
                 joblib.dump(model, model_path)
-                saved_model_paths[name] = model_path.name
-                logger.info("  Saved base model %s -> %s", name, model_path)
             except Exception as exc:
                 save_errors[name] = f"{type(exc).__name__}: {exc}"
                 logger.error("  FAILED to save base model %s: %s", name, exc)
+                continue
+            saved_model_paths[name] = model_path.name
+            saved_model_sha256[name] = ArtifactIdentity.measure(model_path).sha256
+            logger.info("  Saved base model %s -> %s", name, model_path)
+        if save_errors:
+            raise RuntimeError(
+                f"Ensemble NOT saved: {len(save_errors)}/{len(self.trained_models_)} base models failed to "
+                f"pickle ({sorted(save_errors)}). An ensemble missing members is a different model; the "
+                f"{len(saved_model_paths)} member files that did save remain in {models_dir} for salvage, "
+                "but no loadable orchestrator was written.")
 
         orchestrator = {
             "format_version": 2,
@@ -3342,92 +3351,71 @@ class VariantEnsemble:
             "oof_fit_indices_": getattr(self, "oof_fit_indices_", None),
             "oof_model_names_": getattr(self, "oof_model_names_", None),
             "saved_model_paths": saved_model_paths,
-            "save_errors": save_errors,
+            "saved_model_sha256": saved_model_sha256,
             "models_dir_name": models_dir.name,
         }
-        try:
-            joblib.dump(orchestrator, path)
-        except Exception as exc:
-            logger.error(
-                "Orchestrator save FAILED but %d/%d base models survived at %s. "
-                "Error: %s", len(saved_model_paths), len(self.trained_models_),
-                models_dir, exc,
-            )
-            raise
-
+        joblib.dump(orchestrator, path)
         _write_model_manifest(path)
-        if save_errors:
-            logger.warning(
-                "Ensemble persisted with %d/%d models failing to pickle: %s",
-                len(save_errors), len(self.trained_models_),
-                list(save_errors.keys()),
-            )
         logger.info(
             "Ensemble saved to %s (orchestrator + %d base models in %s/)",
             path, len(saved_model_paths), models_dir.name,
         )
 
     @classmethod
-    def load(cls, path: Path) -> "VariantEnsemble":
-        """Load an ensemble.
+    def load(cls, path: Path, *, consumer: str, registry_path: Path, authority=None) -> "VariantEnsemble":
+        """Load an ensemble through the ONE admission route, all members or none.
 
-        Back-compatible with the pre-Run-10 single-joblib format AND
-        with the new format_version=2 orchestrator + per-model layout.
+        Refused BEFORE deserialization unless a deployment-registry record measured the orchestrator's bytes
+        and the cutover authority ALLOWs this consumer (model_admission; owner ruling 2026-09-23, point 2).
+        Then every member is deserialized from ITS digest-verified snapshot; none is ever skipped, and the
+        loaded order must equal the order the meta-learner was fitted on (point 3). Formats that record no
+        member digests -- the pre-Run-10 single joblib, and earlier orchestrators -- are refused as unbound.
         """
         import joblib
 
+        from genomic_variant_classifier.model_admission import DEFAULT_AUTHORITY, admit_artifact
+
         path = Path(path)
-        obj = joblib.load(path)
-
-        # Legacy: single joblib containing a pickled VariantEnsemble.
-        if isinstance(obj, cls):
-            _require_bound_columns_admissible(getattr(obj, "tabular_columns_", None))
-            return obj
-
-        if not isinstance(obj, dict) or obj.get("format_version") != 2:
-            raise ValueError(
-                f"Unrecognised ensemble joblib format at {path}: "
-                f"expected VariantEnsemble or format_version=2 dict, "
-                f"got {type(obj).__name__}"
-            )
+        admission = admit_artifact(path, consumer=consumer, registry_path=registry_path,
+                                   authority=authority if authority is not None else DEFAULT_AUTHORITY)
+        record = admission.record
+        obj = load_after_admission(path, admit=lambda: None, artifact_sha256=record.artifact.sha256,
+                                   deserialize=joblib.load)
+        if not isinstance(obj, dict) or obj.get("format_version") != 2 or "saved_model_sha256" not in obj:
+            raise ContainmentError(
+                f"{path.name} records no per-member digests (a legacy ensemble format), so its members are "
+                "unbound and cannot be admitted")
+        paths, digests = obj["saved_model_paths"], obj["saved_model_sha256"]
+        members = tuple(paths)
+        if not members or set(paths) != set(digests):
+            raise ContainmentError("the orchestrator's member paths and member digests disagree")
+        if frozenset(members) != frozenset(record.model_roster):
+            raise ContainmentError(
+                f"the ensemble's members {sorted(members)} differ from the registry record's roster "
+                f"{sorted(record.model_roster)}")
+        tabular = obj.get("tabular_columns_")
+        _require_bound_columns_admissible(tabular)
+        if tabular is None or tuple(tabular) != tuple(record.feature_names):
+            raise ContainmentError("the ensemble's fitted columns differ from the registry record's features")
 
         ens = cls.__new__(cls)
         ens.config = obj["config"]
         ens.meta_learner = obj["meta_learner"]
         ens.blend_weights_ = obj["blend_weights_"]
         ens.feature_names_ = obj.get("feature_names_")
-        ens.tabular_columns_ = obj.get("tabular_columns_")
-        _require_bound_columns_admissible(ens.tabular_columns_)   # CONTAINMENT: before any base model is opened
+        ens.tabular_columns_ = tabular
         ens.oof_predictions_ = obj.get("oof_predictions_")
         ens.oof_fit_indices_ = obj.get("oof_fit_indices_")
         ens.oof_model_names_ = obj.get("oof_model_names_")
         ens.base_estimators = {}
         ens.trained_models_ = {}
-
         models_dir = path.parent / obj["models_dir_name"]
-        load_errors = {}
-        for name, model_filename in obj["saved_model_paths"].items():
-            model_path = models_dir / model_filename
-            try:
-                ens.trained_models_[name] = joblib.load(model_path)
-            except Exception as exc:
-                load_errors[name] = f"{type(exc).__name__}: {exc}"
-                logger.error(
-                    "Failed to reload base model %s from %s: %s",
-                    name, model_path, exc,
-                )
-
-        if obj.get("save_errors"):
-            logger.warning(
-                "Ensemble was saved with %d models that failed to pickle: %s. "
-                "Predictions will use whatever base models DID survive.",
-                len(obj["save_errors"]), list(obj["save_errors"].keys()),
-            )
-        if load_errors:
-            logger.warning(
-                "Failed to reload %d/%d base models: %s",
-                len(load_errors), len(obj["saved_model_paths"]),
-                list(load_errors.keys()),
-            )
-
+        for name in members:   # no try/except: one failed member refuses the whole ensemble
+            ens.trained_models_[name] = load_after_admission(
+                models_dir / paths[name], admit=lambda: None, artifact_sha256=digests[name],
+                deserialize=joblib.load)
+        if list(ens.trained_models_) != list(ens.feature_names_ or ()):
+            raise ContainmentError(
+                "the loaded members are not in the order the meta-learner was fitted on: "
+                f"{list(ens.trained_models_)} vs {list(ens.feature_names_ or ())}")
         return ens

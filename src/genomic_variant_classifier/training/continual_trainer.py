@@ -610,7 +610,8 @@ class ContinualLearner:
         logger.info("Starting adaptive retraining for release: %s", release_name)
 
         # Load current production model
-        current_pipe = InferencePipeline.load(current_model_path)
+        current_pipe = InferencePipeline.load(current_model_path, consumer="training.continual_trainer",
+                                              registry_path=self.config.registry_path)
 
         # Load + process new data
         from genomic_variant_classifier.data.real_data_prep import DataPrepPipeline, DataPrepConfig
@@ -773,7 +774,8 @@ class ContinualLearner:
         ], check=True)
 
         # Evaluate on holdout
-        new_pipe = InferencePipeline.load(new_model_path)
+        new_pipe = InferencePipeline.load(new_model_path, consumer="training.continual_trainer",
+                                          registry_path=self.config.registry_path)
         from sklearn.metrics import roc_auc_score, average_precision_score
         val_proba = new_pipe.predict_proba(X_val_new)[:, 1]
         new_auroc = float(roc_auc_score(y_val_new, val_proba))

@@ -22,7 +22,8 @@ Two version guesses were also wrong, and both would have shipped a "fix" that
 fixed nothing while the commit message claimed otherwise:
 
   * actions/upload-artifact v5 is STILL node20. v6 is the first node24 release.
-  * docker/build-push-action v6 is STILL node20. v7 is the first node24 release.
+  * docker/build-push-action v6 is STILL node20. v7 is the first node24 release. (No longer used:
+    removed 2026-09-23 -- push-ghcr now publishes the smoke-tested image with plain docker.)
 
 Reading each action's own `action.yml` at the exact pinned SHA is what caught
 both. The tag is not what ships; the SHA is.
@@ -76,8 +77,6 @@ EXPECTED_PINS = {
         ("docker/login-action", "v4", "node24"),
     "dc802804100637a589fabce1cb79ff13a1411302":
         ("docker/metadata-action", "v6.2.0", "node24"),
-    "53b7df96c91f9c12dcc8a07bcb9ccacbed38856a":
-        ("docker/build-push-action", "v7", "node24"),
     # MEASURED 2026-09-16 by fetching action.yml at this exact SHA from
     # raw.githubusercontent.com (not assumed from the version number): runs
     # .using: 'node24'. SHA verified independently against actions/download-

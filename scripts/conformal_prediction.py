@@ -165,7 +165,9 @@ def main(argv: list[str] | None = None) -> int:
     # --- Load pipeline ---
     logger.info("Loading pipeline from %s …", args.pipeline)
     from genomic_variant_classifier.api.pipeline import InferencePipeline
-    pipeline = InferencePipeline.load(args.pipeline)
+    from genomic_variant_classifier.model_admission import repository_registry_path
+    pipeline = InferencePipeline.load(args.pipeline, consumer="scripts/conformal_prediction.py",
+                                      registry_path=repository_registry_path())
 
     # --- Load calibration split ---
     logger.info("Loading calibration split from %s …", args.cal_split)

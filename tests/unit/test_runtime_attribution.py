@@ -28,10 +28,13 @@ tests twice.
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))   # tests/unit helpers (_admission_support)
 
 from genomic_variant_classifier.api.attribution import (
     ArtifactChangedDuringLoadError,
@@ -100,7 +103,8 @@ class _FakePipeline:
 
 
 def _write_registry(tmp_path: Path, *, projection=None, promote=False,
-                    roster=TRAINED_ROSTER, artifact: Path = None) -> Path:
+                    roster=TRAINED_ROSTER, artifact: Path = None,
+                    feature_names=("af_raw", "af_log10")) -> Path:
     """A real registry file with one record for a real artifact."""
     path = tmp_path / "registry.v1.json"
     registry = ModelRegistry(path=path)
@@ -116,7 +120,7 @@ def _write_registry(tmp_path: Path, *, projection=None, promote=False,
                 n_observations=213_436,
                 label_policy="acmg_five_tier_collapsed_binary"),
             metrics={"auroc": 0.9988}),
-        feature_names=("af_raw", "af_log10"),
+        feature_names=tuple(feature_names),
         model_roster=roster,
         serving_projection=projection)
     if promote:
@@ -494,6 +498,20 @@ def unattributed_pipeline_client():
         api_main._PIPELINE, api_main._RUNTIME_MODEL_BINDING = saved
 
 
+def _production_artifact(tmp_path):
+    from genomic_variant_classifier.api.pipeline import InferencePipeline, PipelineMetadata
+    artifact_path = tmp_path / "phase2_pipeline.joblib"
+    pipeline = InferencePipeline(
+        trained_models={n: _ConstantModel() for n in SERVED_ROSTER},
+        meta_learner=_ConstantModel(), scaler=None,
+        metadata=PipelineMetadata(n_features=2, feature_names=["af_raw", "af_log10"]))
+    pipeline.save(artifact_path)
+    # The record must describe what the models CONSUME: the pipeline's declared features.
+    registry = _write_registry(tmp_path, artifact=artifact_path, projection=PROJECTION, promote=True,
+                               feature_names=pipeline._declared_features())
+    return artifact_path, registry
+
+
 @pytest.fixture
 def registered_production_client(tmp_path, monkeypatch):
     """Drives the ACTUAL lifespan against a real artifact and registry.
@@ -504,18 +522,12 @@ def registered_production_client(tmp_path, monkeypatch):
     """
     from fastapi.testclient import TestClient
     import genomic_variant_classifier.api.main as api_main
-    from genomic_variant_classifier.api.pipeline import (
-        InferencePipeline, PipelineMetadata)
+    import genomic_variant_classifier.model_admission as admission
+    from _admission_support import AllowForTests
 
-    artifact_path = tmp_path / "phase2_pipeline.joblib"
-    pipeline = InferencePipeline(
-        trained_models={n: _ConstantModel() for n in SERVED_ROSTER},
-        meta_learner=_ConstantModel(), scaler=None,
-        metadata=PipelineMetadata(n_features=2,
-                                  feature_names=["af_raw", "af_log10"]))
-    pipeline.save(artifact_path)
-    registry = _write_registry(tmp_path, artifact=artifact_path,
-                               projection=PROJECTION, promote=True)
+    artifact_path, registry = _production_artifact(tmp_path)
+    # An EXPLICIT test authority: production passes none, and the default (gate C10 not implemented) denies.
+    monkeypatch.setattr(admission, "DEFAULT_AUTHORITY", AllowForTests())
 
     saved = (api_main._PIPELINE, api_main._RUNTIME_MODEL_BINDING,
              api_main.MODEL_PATH, api_main.DEPLOYMENT_REGISTRY_PATH)
@@ -581,3 +593,22 @@ def test_predictions_carry_the_serving_record_identity(
     assert body["model_record_id"].startswith("run15-")
     assert body["model_version"] == "run15-ensemble"
     assert "pipeline_version" not in body
+
+
+def test_the_same_registered_production_artifact_is_refused_under_the_default_authority(tmp_path, monkeypatch):
+    """The negative twin of the whole-chain test: identical artifact and registry, NO test authority. Gate C10
+    is not implemented, so admission refuses before deserialization and the service is alive, not ready."""
+    from fastapi.testclient import TestClient
+    import genomic_variant_classifier.api.main as api_main
+
+    artifact_path, registry = _production_artifact(tmp_path)
+    saved = (api_main._PIPELINE, api_main._RUNTIME_MODEL_BINDING, api_main.MODEL_PATH, api_main.DEPLOYMENT_REGISTRY_PATH)
+    monkeypatch.setattr(api_main, "MODEL_PATH", artifact_path)
+    monkeypatch.setattr(api_main, "DEPLOYMENT_REGISTRY_PATH", registry)
+    try:
+        with TestClient(api_main.app) as client:
+            body = client.get("/health").json()
+    finally:
+        (api_main._PIPELINE, api_main._RUNTIME_MODEL_BINDING,
+         api_main.MODEL_PATH, api_main.DEPLOYMENT_REGISTRY_PATH) = saved
+    assert body["live"] is True and body["ready"] is False and body["model_loaded"] is False

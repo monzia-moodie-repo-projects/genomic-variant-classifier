@@ -9,8 +9,9 @@ Author: Monzia Moodie
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
+import sys
+from pathlib import Path
 
 import joblib
 import numpy as np
@@ -24,7 +25,17 @@ from genomic_variant_classifier.containment import ContainmentError
 from genomic_variant_classifier.models import variant_ensemble as ve
 from genomic_variant_classifier.quarantine_policy import QUARANTINED_FEATURES
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _admission_support import AllowForTests, register  # noqa: E402
+
 Q0 = QUARANTINED_FEATURES[0]
+
+
+def _decoy(tmp_path):
+    """A DIFFERENT registered artifact: the registry exists and holds a record, yet binds nothing loaded."""
+    p = tmp_path / "decoy.bin"
+    p.write_bytes(b"some other artifact")
+    return p
 
 
 def _raw(n=40, seed=0):
@@ -64,42 +75,85 @@ class TestConstructionAndLoading:
         with pytest.raises(ContainmentError, match="suspended"):
             P.InferencePipeline({"logistic_regression": lr}, meta, scaler=scaler)
 
-    def test_a_legacy_artifact_is_refused_immediately_after_loading(self, tmp_path):
+    # The ONE admission route (model_admission): registry binding + typed decision, BEFORE deserialization.
+    def _no_open(self, monkeypatch):
+        opened = []
+        monkeypatch.setattr(joblib, "load", lambda *a, **k: opened.append(a) or pytest.fail("deserialized"))
+        return opened
+
+    def test_an_unregistered_artifact_is_refused_before_opening(self, tmp_path, monkeypatch):
         path = tmp_path / "legacy.joblib"
         joblib.dump(_legacy(_usable_features(3) + [Q0]), path)
-        with pytest.raises(ContainmentError, match="suspended"):
-            P.InferencePipeline.load(path)
-
-    def test_a_manifest_naming_quarantined_features_is_refused_before_opening(self, tmp_path, monkeypatch):
-        path = tmp_path / "m.joblib"
-        joblib.dump(_legacy(_usable_features(3)), path)
-        path.with_suffix(".manifest.json").write_text(json.dumps(
-            {"artifact_sha256": "0" * 64, "feature_names": _usable_features(3) + [Q0]}))
-        opened = []
-        monkeypatch.setattr(joblib, "load", lambda *a, **k: opened.append(a) or pytest.fail("opened"))
-        with pytest.raises(ContainmentError, match="suspended"):
-            P.InferencePipeline.load(path)
+        registry = register(tmp_path / "registry.v1.json", _decoy(tmp_path), feature_names=["x"], roster=["m"])
+        opened = self._no_open(monkeypatch)
+        with pytest.raises(ContainmentError, match="Unbound artifact"):
+            P.InferencePipeline.load(path, consumer="test", registry_path=registry, authority=AllowForTests())
         assert opened == []
 
-    def test_save_records_digest_and_features_and_load_round_trips(self, tmp_path):
+    def test_a_record_naming_quarantined_features_is_refused_before_opening(self, tmp_path, monkeypatch):
+        path = tmp_path / "m.joblib"
+        joblib.dump(_legacy(_usable_features(3)), path)
+        registry = register(tmp_path / "registry.v1.json", path, feature_names=_usable_features(3) + [Q0],
+                            roster=["logistic_regression"])
+        opened = self._no_open(monkeypatch)
+        with pytest.raises(ContainmentError, match="suspended"):
+            P.InferencePipeline.load(path, consumer="test", registry_path=registry, authority=AllowForTests())
+        assert opened == []
+
+    def test_positive_control_a_registered_allowed_pipeline_round_trips_exactly(self, tmp_path):
         cols = _usable_features(5)
         scaler, lr, meta = _fitted(cols)
         pipe = P.InferencePipeline({"logistic_regression": lr}, meta, scaler=scaler)
         before = pipe.predict_proba(_raw())
         path = tmp_path / "ok.joblib"
         pipe.save(path)
-        man = json.loads(path.with_suffix(".manifest.json").read_text())
-        assert man["feature_names"] == cols and len(man["artifact_sha256"]) == 64
-        np.testing.assert_array_equal(P.InferencePipeline.load(path).predict_proba(_raw()), before)
+        registry = register(tmp_path / "registry.v1.json", path, feature_names=cols, roster=["logistic_regression"])
+        back = P.InferencePipeline.load(path, consumer="test", registry_path=registry, authority=AllowForTests())
+        np.testing.assert_array_equal(back.predict_proba(_raw()), before)
 
-    def test_changed_bytes_after_save_are_refused_before_deserializing(self, tmp_path):
-        scaler, lr, meta = _fitted(_usable_features(5))
+    def test_the_default_authority_refuses_even_a_registered_pipeline(self, tmp_path, monkeypatch):
+        cols = _usable_features(5)
+        scaler, lr, meta = _fitted(cols)
+        path = tmp_path / "ok.joblib"
+        P.InferencePipeline({"logistic_regression": lr}, meta, scaler=scaler).save(path)
+        registry = register(tmp_path / "registry.v1.json", path, feature_names=cols, roster=["logistic_regression"])
+        opened = self._no_open(monkeypatch)
+        with pytest.raises(ContainmentError, match="C10"):
+            P.InferencePipeline.load(path, consumer="test", registry_path=registry)
+        assert opened == []
+
+    def test_a_record_whose_features_differ_from_the_pipeline_is_refused(self, tmp_path):
+        cols = _usable_features(5)
+        scaler, lr, meta = _fitted(cols)
+        path = tmp_path / "ok.joblib"
+        P.InferencePipeline({"logistic_regression": lr}, meta, scaler=scaler).save(path)
+        registry = register(tmp_path / "registry.v1.json", path, feature_names=list(reversed(cols)),
+                            roster=["logistic_regression"])      # same names, different order
+        with pytest.raises(ContainmentError, match="features differ from its registry record"):
+            P.InferencePipeline.load(path, consumer="test", registry_path=registry, authority=AllowForTests())
+
+    def test_a_record_whose_roster_differs_without_a_declared_projection_is_refused(self, tmp_path):
+        cols = _usable_features(5)
+        scaler, lr, meta = _fitted(cols)
+        path = tmp_path / "ok.joblib"
+        P.InferencePipeline({"logistic_regression": lr}, meta, scaler=scaler).save(path)
+        registry = register(tmp_path / "registry.v1.json", path, feature_names=cols,
+                            roster=["logistic_regression", "catboost"])
+        with pytest.raises(ContainmentError, match="roster does not match"):
+            P.InferencePipeline.load(path, consumer="test", registry_path=registry, authority=AllowForTests())
+
+    def test_changed_bytes_after_registration_are_refused_before_deserializing(self, tmp_path, monkeypatch):
+        cols = _usable_features(5)
+        scaler, lr, meta = _fitted(cols)
         path = tmp_path / "t.joblib"
         P.InferencePipeline({"logistic_regression": lr}, meta, scaler=scaler).save(path)
+        registry = register(tmp_path / "registry.v1.json", path, feature_names=cols, roster=["logistic_regression"])
         with path.open("ab") as fh:
             fh.write(b"\x00")
-        with pytest.raises(ContainmentError, match="differ from the admitted manifest"):
-            P.InferencePipeline.load(path)
+        opened = self._no_open(monkeypatch)
+        with pytest.raises(ContainmentError, match="Unbound artifact"):
+            P.InferencePipeline.load(path, consumer="test", registry_path=registry, authority=AllowForTests())
+        assert opened == []
 
     def test_save_refuses_a_quarantine_era_pipeline(self, tmp_path):
         with pytest.raises(ContainmentError):
@@ -129,9 +183,10 @@ class TestServingMatrix:
 
 
 class TestFittedModelBoundary:
-    def _light(self):
+    def _light(self, members=("logistic_regression",)):
         ens = ve.VariantEnsemble(ve.EnsembleConfig(n_folds=3))
-        ens.base_estimators = {k: v for k, v in ens.base_estimators.items() if k == "logistic_regression"}
+        ens.base_estimators = {k: v for k, v in ens.base_estimators.items() if k in members}
+        assert set(ens.base_estimators) == set(members), sorted(ens.base_estimators)
         return ens
 
     def _data(self):
@@ -166,22 +221,89 @@ class TestFittedModelBoundary:
         with pytest.raises(ContainmentError, match="suspended"):
             ens.predict_proba(X.assign(**{Q0: 0.0}))
 
-    def test_save_and_load_keep_the_binding_and_load_refuses_a_quarantined_one(self, tmp_path):
+    def _saved(self, tmp_path, members=("logistic_regression",)):
         X, y, g = self._data()
-        ens = self._light().fit(X, None, y, gene_symbol=g)
+        ens = self._light(members).fit(X, None, y, gene_symbol=g)
         path = tmp_path / "ens.joblib"
         ens.save(path)
-        back = ve.VariantEnsemble.load(path)
-        assert back.tabular_columns_ == ("a", "b", "c")
+        return X, ens, path
+
+    def _load(self, path, registry):
+        return ve.VariantEnsemble.load(path, consumer="test", registry_path=registry, authority=AllowForTests())
+
+    def test_positive_control_a_registered_ensemble_round_trips_exactly(self, tmp_path):
+        X, ens, path = self._saved(tmp_path)
+        registry = register(tmp_path / "registry.v1.json", path, feature_names=("a", "b", "c"),
+                            roster=list(ens.trained_models_))
+        back = self._load(path, registry)
+        assert back.tabular_columns_ == ("a", "b", "c") and list(back.trained_models_) == list(ens.trained_models_)
         np.testing.assert_array_equal(back.predict_proba(X), ens.predict_proba(X))
+
+    def test_a_quarantined_bound_column_is_refused_even_when_registered(self, tmp_path):
+        X, ens, path = self._saved(tmp_path)
         orch = joblib.load(path)
         orch["tabular_columns_"] = ("a", "b", Q0)
         joblib.dump(orch, path)
+        registry = register(tmp_path / "registry.v1.json", path, feature_names=("a", "b", "c"),
+                            roster=list(ens.trained_models_))
         with pytest.raises(ContainmentError, match="suspended"):
-            ve.VariantEnsemble.load(path)
+            self._load(path, registry)
+
+    def test_one_tampered_member_refuses_the_whole_ensemble(self, tmp_path):
+        X, ens, path = self._saved(tmp_path)
+        registry = register(tmp_path / "registry.v1.json", path, feature_names=("a", "b", "c"),
+                            roster=list(ens.trained_models_))
+        member = next((path.parent / "ens_models").iterdir())
+        with member.open("ab") as fh:
+            fh.write(b"\x00")
+        with pytest.raises(ContainmentError, match="differ from the admitted manifest"):
+            self._load(path, registry)
+
+    def test_a_missing_member_refuses_the_whole_ensemble(self, tmp_path):
+        X, ens, path = self._saved(tmp_path)
+        registry = register(tmp_path / "registry.v1.json", path, feature_names=("a", "b", "c"),
+                            roster=list(ens.trained_models_))
+        next((path.parent / "ens_models").iterdir()).unlink()
+        with pytest.raises(FileNotFoundError):
+            self._load(path, registry)
+
+    def test_members_out_of_meta_learner_order_are_refused(self, tmp_path):
+        # TWO members: reversing a one-member order is a no-op and could never reach this guard.
+        X, ens, path = self._saved(tmp_path, members=("logistic_regression", "random_forest"))
+        orch = joblib.load(path)
+        reordered = list(reversed(orch["feature_names_"]))
+        assert reordered != list(orch["feature_names_"]), "the fixture must actually change the order"
+        orch["feature_names_"] = reordered
+        joblib.dump(orch, path)
+        registry = register(tmp_path / "registry.v1.json", path, feature_names=("a", "b", "c"),
+                            roster=list(ens.trained_models_))
+        with pytest.raises(ContainmentError, match="not in the order the meta-learner was fitted on"):
+            self._load(path, registry)
+
+    def test_save_is_all_or_nothing(self, tmp_path):
+        X, y, g = self._data()
+        ens = self._light().fit(X, None, y, gene_symbol=g)
+        ens.trained_models_[next(iter(ens.trained_models_))] = lambda: None     # unpicklable member
+        path = tmp_path / "ens.joblib"
+        with pytest.raises(RuntimeError, match="Ensemble NOT saved"):
+            ens.save(path)
+        assert not path.exists()
 
 
-def test_the_api_server_refuses_to_serve_a_quarantined_artifact(tmp_path, monkeypatch, caplog):
+class _Records(logging.Handler):
+    """Collects records on the LOGGER UNDER TEST. The application's startup replaces every ROOT handler
+    when python-json-logger is installed (as in CI), which removed pytest's caplog handler; a handler
+    on api.main's own logger is unaffected (CI run #882, reproduced 2026-09-23)."""
+
+    def __init__(self):
+        super().__init__(logging.DEBUG)
+        self.records = []
+
+    def emit(self, record):
+        self.records.append(record)
+
+
+def test_the_api_server_refuses_to_serve_a_quarantined_artifact(tmp_path, monkeypatch):
     from genomic_variant_classifier.api import main
     artifact = tmp_path / "model.joblib"
     artifact.write_bytes(b"any bytes")
@@ -192,6 +314,17 @@ def test_the_api_server_refuses_to_serve_a_quarantined_artifact(tmp_path, monkey
     async def run():
         async with main.lifespan(main.app):
             return main._PIPELINE
-    with caplog.at_level(logging.ERROR):
+    records = _Records()
+    root_handlers, root_level = list(logging.root.handlers), logging.root.level
+    main.logger.addHandler(records)
+    try:
         assert asyncio.run(run()) is None
-    assert any("Refusing to serve" in r.getMessage() for r in caplog.records)
+    finally:
+        main.logger.removeHandler(records)
+        # Startup rewrote the ROOT logger; restore it so no later test inherits that change.
+        logging.root.handlers[:] = root_handlers
+        logging.root.setLevel(root_level)
+    refusals = [r for r in records.records if "Refusing to serve" in r.getMessage()]
+    assert len(refusals) == 1, [r.getMessage() for r in records.records]
+    assert refusals[0].levelno == logging.ERROR and refusals[0].exc_info is not None
+    assert refusals[0].exc_info[0].__name__ == "ContainmentError"

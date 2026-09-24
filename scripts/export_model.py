@@ -62,6 +62,8 @@ from pathlib import Path
 import joblib
 import pandas as pd
 
+from genomic_variant_classifier.containment import ContainmentError
+
 logging.basicConfig(
     format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
@@ -140,7 +142,11 @@ def _load_ensemble_from_run(run_dir: Path):
     for path in candidates:
         if path.exists():
             logger.info("Loading model from %s", path)
-            return joblib.load(path), path
+            # Through the ONE admission route: refused before deserialization without a trusted binding.
+            from genomic_variant_classifier.model_admission import repository_registry_path
+            from genomic_variant_classifier.models.variant_ensemble import VariantEnsemble
+            return VariantEnsemble.load(path, consumer="scripts/export_model.py",
+                                        registry_path=repository_registry_path()), path
     raise FileNotFoundError(
         f"No trained model found in {run_dir}. "
         "Expected one of: " + ", ".join(str(c) for c in candidates)
@@ -241,35 +247,17 @@ def cmd_export(args: argparse.Namespace) -> int:
         logger.error("Input directory not found: %s", run_dir)
         return 1
 
-    exclude: set[str] = set(args.exclude_models or [])
-    if exclude:
-        logger.info("Excluding base models from artefact: %s", sorted(exclude))
+    if args.exclude_models:
+        # Owner ruling 2026-09-23, point 3: an ensemble with members removed is a DIFFERENT model, never
+        # constructed at export. Its meta-learner and blend weights were fitted on the full roster.
+        raise ContainmentError(
+            f"--exclude-models {sorted(args.exclude_models)} refused: an ensemble with members removed is a "
+            "different model and must be trained, evaluated and registered as one")
 
     try:
         ensemble, _ = _load_ensemble_from_run(run_dir)
         scaler        = _load_scaler(run_dir)
         feature_names = _load_feature_names(run_dir) or list(TABULAR_FEATURES)
-
-        # Drop unwanted base models before wrapping
-        if exclude and hasattr(ensemble, "trained_models_"):
-            before = set(ensemble.trained_models_.keys())
-            ensemble.trained_models_ = {
-                k: v for k, v in ensemble.trained_models_.items()
-                if k not in exclude
-            }
-            after = set(ensemble.trained_models_.keys())
-            removed = before - after
-            if removed:
-                logger.info(
-                    "Removed base models: %s  (remaining: %s)",
-                    sorted(removed), sorted(after),
-                )
-            unknown = exclude - before
-            if unknown:
-                logger.warning(
-                    "Requested to exclude %s but they were not in trained_models_: %s",
-                    sorted(unknown), sorted(before),
-                )
 
         if not getattr(ensemble, "trained_models_", {}):
             logger.error("No base models remain after exclusion.  Aborting.")
@@ -308,6 +296,8 @@ def cmd_export(args: argparse.Namespace) -> int:
         logger.info("InferencePipeline written to %s", args.output)
         return 0
 
+    except ContainmentError:
+        raise   # a refusal, not an export failure
     except FileNotFoundError as exc:
         logger.error("%s", exc)
         logger.error(
@@ -328,7 +318,9 @@ def cmd_verify(args: argparse.Namespace) -> int:
 
     logger.info("Loading %s ...", path)
     from genomic_variant_classifier.api.pipeline import InferencePipeline
-    pipeline = InferencePipeline.load(path)
+    from genomic_variant_classifier.model_admission import repository_registry_path
+    pipeline = InferencePipeline.load(path, consumer="scripts/export_model.py",
+                                      registry_path=repository_registry_path())
     passed = _smoke_test(pipeline)
     return 0 if passed else 1
 
