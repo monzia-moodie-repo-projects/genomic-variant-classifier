@@ -451,7 +451,9 @@ def evaluate_against_model(
     )
     from genomic_variant_classifier.api.pipeline import InferencePipeline
 
-    pipeline = InferencePipeline.load(model_path)
+    from genomic_variant_classifier.model_admission import repository_registry_path
+    pipeline = InferencePipeline.load(model_path, consumer="scripts/build_lovd_index.py",
+                                      registry_path=repository_registry_path())
     logger.info("Loaded model: val_auroc=%.4f", pipeline.metadata.val_auroc)
 
     y_true  = lovd_df["label"].values

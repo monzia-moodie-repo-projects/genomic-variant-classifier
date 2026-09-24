@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+# HISTORICAL EXECUTION IS DENIED BY DEFAULT (owner ruling 2026-09-23; see
+# quarantine_policy.HISTORICAL_EXECUTION_DENIED). FIRST statement: it runs before any model library
+# is imported and before any artifact is loaded, predicted from or fitted.
+from genomic_variant_classifier.containment import require_execution_permitted  # noqa: E402
+from genomic_variant_classifier.quarantine_policy import HISTORICAL_EXECUTION_DENIED  # noqa: E402
+
+require_execution_permitted('scripts/diagnose_phase2_prediction_reconstruction.py', HISTORICAL_EXECUTION_DENIED)
+
 from pathlib import Path
 import joblib
 import numpy as np

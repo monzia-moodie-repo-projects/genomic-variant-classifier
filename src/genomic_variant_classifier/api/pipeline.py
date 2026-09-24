@@ -500,40 +500,42 @@ class InferencePipeline:
         logger.info("InferencePipeline saved -> %s", path)
 
     @classmethod
-    def load(cls, path: str | Path) -> "InferencePipeline":
+    def load(cls, path: str | Path, *, consumer: str, registry_path: str | Path,
+             authority=None) -> "InferencePipeline":
+        """Load through the ONE admission route (model_admission; owner ruling 2026-09-23, point 2).
+
+        Refused BEFORE deserialization unless a deployment-registry record measured these bytes and the
+        cutover authority ALLOWs this consumer -- today no authority can (gate C10 is not implemented), so
+        every real load refuses explicitly. Then precisely the digest-verified snapshot is deserialized, and
+        its declared features and executable roster must match the record. The manifest save() writes is
+        integrity metadata; a checksum beside a model is not a binding, so it is not an admission input.
+        """
         import joblib
 
-        import json
+        from genomic_variant_classifier.api.attribution import (
+            RosterAlignment,
+            roster_alignment,
+            served_model_roster,
+        )
+        from genomic_variant_classifier.model_admission import DEFAULT_AUTHORITY, admit_artifact
 
         path = Path(path)
-        manifest_path = path.with_suffix(".manifest.json")
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.is_file() else {}
-        recorded = manifest.get("feature_names")
-        if recorded is not None and manifest.get("artifact_sha256") is not None:
-            # Admit BEFORE opening: the recorded contract is checked, then precisely the digest-verified
-            # bytes are deserialized (containment.load_after_admission).
-            obj = load_after_admission(
-                path,
-                admit=lambda: require_scientific_contract(recorded, QUARANTINED_FEATURES),
-                artifact_sha256=manifest["artifact_sha256"],
-                deserialize=joblib.load,
-            )
-        else:
-            # A LEGACY artifact records no digest or features, so it cannot be admitted before opening.
-            # It is checked immediately after, before it can serve anything.
-            logger.warning("%s has no recorded digest/feature list (legacy artifact): admitted "
-                           "after deserialization, not before.", path)
-            obj = joblib.load(path)
+        admission = admit_artifact(path, consumer=consumer, registry_path=registry_path,
+                                   authority=authority if authority is not None else DEFAULT_AUTHORITY)
+        record = admission.record
+        obj = load_after_admission(path, admit=lambda: None, artifact_sha256=record.artifact.sha256,
+                                   deserialize=joblib.load)
         if not isinstance(obj, cls):
             raise TypeError(f"Expected InferencePipeline, got {type(obj)}")
         obj._require_admissible()
-        if recorded is not None and list(recorded) != obj._declared_features():
-            raise ContainmentError("The loaded pipeline's features differ from its recorded manifest")
+        if tuple(obj._declared_features()) != tuple(record.feature_names):
+            raise ContainmentError("the loaded pipeline's features differ from its registry record")
+        state, detail = roster_alignment(record, served_model_roster(obj))
+        if state not in (RosterAlignment.EXACT, RosterAlignment.SERVING_SUBSET):
+            raise ContainmentError(f"the loaded pipeline's roster does not match its registry record: {detail}")
         logger.info(
-            "InferencePipeline loaded: val_auroc=%.4f  features=%d  created=%s",
-            obj.metadata.val_auroc,
-            obj.metadata.n_features,
-            obj.metadata.created_at,
+            "InferencePipeline loaded for %s: record=%s  features=%d  created=%s",
+            consumer, record.record_id, obj.metadata.n_features, obj.metadata.created_at,
         )
         return obj
 

@@ -128,6 +128,7 @@ COPY src/genomic_variant_classifier/monitoring/model_registry.py  src/genomic_va
 # raises ModuleNotFoundError at startup -- the DOCKERCOPY-1 failure again. Files, not directories.
 COPY src/genomic_variant_classifier/containment.py  src/genomic_variant_classifier/containment.py
 COPY src/genomic_variant_classifier/quarantine_policy.py  src/genomic_variant_classifier/quarantine_policy.py
+COPY src/genomic_variant_classifier/model_admission.py  src/genomic_variant_classifier/model_admission.py
 COPY src/genomic_variant_classifier/__init__.py  src/genomic_variant_classifier/__init__.py
 
 # Model artefact placeholder — override at runtime via bind-mount or COPY

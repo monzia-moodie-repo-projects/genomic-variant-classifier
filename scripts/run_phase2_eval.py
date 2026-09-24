@@ -554,7 +554,11 @@ def main() -> int:
             # Reconstruct the VariantEnsemble from the format_version=2 orchestrator dict.
             # A raw joblib.load() returns the dict (no .evaluate()) and crashed every resume
             # after data-prep (AttributeError: 'dict' object has no attribute 'evaluate').
-            ensemble = VariantEnsemble.load(_ensemble_path)
+            # A resume is refused unless the ensemble has a trusted registry binding (model_admission):
+            # a checksum beside the model is not one. Move the old ensemble aside to retrain.
+            from genomic_variant_classifier.model_admission import repository_registry_path
+            ensemble = VariantEnsemble.load(_ensemble_path, consumer="scripts/run_phase2_eval.py",
+                                            registry_path=repository_registry_path())
         else:
             ensemble = VariantEnsemble(ens_cfg)
             if args.skip_nn:

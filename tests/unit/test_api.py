@@ -494,7 +494,13 @@ class TestInferencePipeline:
         pipe = InferencePipeline.from_variant_ensemble(ens, val_auroc=0.9847)
         out  = tmp_path / "pipeline.joblib"
         pipe.save(out)
-        loaded = InferencePipeline.load(out)
+        import sys as _sys
+        from pathlib import Path as _Path
+        _sys.path.insert(0, str(_Path(__file__).resolve().parent))
+        from _admission_support import AllowForTests, register
+        registry = register(tmp_path / "registry.v1.json", out, feature_names=pipe._declared_features(),
+                            roster=list(pipe.trained_models))
+        loaded = InferencePipeline.load(out, consumer="test", registry_path=registry, authority=AllowForTests())
         assert loaded.metadata.val_auroc == pytest.approx(0.9847)
         result = loaded.predict_single({"chrom": "1", "pos": 1, "ref": "A", "alt": "T"})
         assert result["classification"] in {
@@ -590,8 +596,15 @@ class TestInferencePipeline:
         from genomic_variant_classifier.api.pipeline import InferencePipeline
         p = tmp_path / "bad.joblib"
         joblib.dump({"not": "a pipeline"}, p)
-        with pytest.raises(TypeError):
-            InferencePipeline.load(p)
+        import sys as _sys
+        from pathlib import Path as _Path
+        _sys.path.insert(0, str(_Path(__file__).resolve().parent))
+        from _admission_support import AllowForTests, register
+        # Registered and ALLOWED, so the ONLY thing left to raise TypeError is the object-type check
+        # (called bare, a missing-keyword TypeError used to satisfy this test for the wrong reason).
+        registry = register(tmp_path / "registry.v1.json", p, feature_names=["x"], roster=["m"])
+        with pytest.raises(TypeError, match="Expected InferencePipeline"):
+            InferencePipeline.load(p, consumer="test", registry_path=registry, authority=AllowForTests())
 
 
 # ---------------------------------------------------------------------------

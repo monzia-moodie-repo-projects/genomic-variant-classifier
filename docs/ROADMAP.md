@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **6,871 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **6,921 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -385,6 +385,11 @@ exists to end.
   scripts that fit on them all refuse them, per Monzia's September ruling (Option A) on
   `docs/CONTAINMENT_2026-07-24.md` section 4. Policy: `quarantine_policy.py`. Suite 6,758 ->
   6,871 collected (+114, 1 retired). Lands after the test-isolation prerequisite.
+- **2026-09-23 -- containment completion (ruled 2026-09-23).** No unbound model load (one admission
+  route: registry-measured binding plus a typed decision; gate C10 not implemented, so every real load
+  refuses), all-or-nothing ensembles, historical execution denied, and CI repaired (the #882 failure,
+  per-version reporting, image build on pull requests, tested-image release publishing). Suite 6,871 ->
+  6,921 collected.
 
 - **2026-09-23 -- test-isolation prerequisite.** The suite no longer writes into
   the repository. Measured before: a full run left 38 files (CatBoost training

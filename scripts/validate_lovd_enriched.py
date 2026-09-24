@@ -156,7 +156,9 @@ def main() -> int:
 
     # ---- load model ----
     logger.info("Loading model from %s ...", args.model)
-    pipeline = InferencePipeline.load(args.model)
+    from genomic_variant_classifier.model_admission import repository_registry_path
+    pipeline = InferencePipeline.load(args.model, consumer="scripts/validate_lovd_enriched.py",
+                                      registry_path=repository_registry_path())
     logger.info(
         "Model loaded: val_auroc=%.4f  features=%d",
         pipeline.metadata.val_auroc,

@@ -139,7 +139,9 @@ def main(argv: list[str] | None = None) -> int:
     # --- Load ---
     logger.info("Loading pipeline from %s …", args.pipeline)
     from genomic_variant_classifier.api.pipeline import InferencePipeline
-    pipeline = InferencePipeline.load(args.pipeline)
+    from genomic_variant_classifier.model_admission import repository_registry_path
+    pipeline = InferencePipeline.load(args.pipeline, consumer="scripts/calibration_analysis.py",
+                                      registry_path=repository_registry_path())
 
     logger.info("Loading validation split from %s …", args.val_parquet)
     df = pd.read_parquet(args.val_parquet)

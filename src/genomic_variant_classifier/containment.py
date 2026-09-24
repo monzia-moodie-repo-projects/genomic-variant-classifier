@@ -24,7 +24,7 @@ from reviewed project code, never from an API client.
 """
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from copy import deepcopy
 from dataclasses import dataclass
 import hashlib
@@ -101,6 +101,24 @@ def require_producer_enabled(producer_id: str, blocked_producers: Iterable[str])
     _names((producer_id,), "producer")
     if producer_id in _names(blocked_producers, "blocked producers"):
         raise ContainmentError(f"Quarantined producer: {producer_id}")
+
+
+def require_execution_permitted(script_id: str, denied: Mapping[str, str]) -> None:
+    """Refuse a script whose EXECUTION the reviewed policy denies.
+
+    Called with the script's OWN constant repository path as its first statement -- before it imports
+    a model library, loads an artifact, predicts or fits. Preserving a historical record and
+    authorizing its execution are separate decisions (owner ruling 2026-09-23). This is a deny rule
+    for KNOWN scripts, not authorization of unknown code; a forensic exception is a separately
+    authorized, isolated workflow, never a switch here.
+    """
+    _names((script_id,), "script")
+    policy = dict(denied)
+    _names(policy, "denied scripts")
+    if any(type(r) is not str or not r.strip() for r in policy.values()):
+        raise ContainmentError("denied scripts: every denial needs a stated reason")
+    if script_id in policy:
+        raise ContainmentError(f"Execution denied: {script_id}: {policy[script_id]}")
 
 
 def require_scientific_contract(columns: Iterable[str], quarantined: Iterable[str]) -> None:
@@ -200,7 +218,13 @@ def load_after_admission(path: Path, *, admit: Callable[[], None],
     The digest must be supplied by that trusted, verified manifest context.
     Hashes establish byte identity; they do not establish scientific validity.
     """
-    admit()
+    outcome = admit()
+    # Refusal is by RAISING. A returned value -- False, True, a status object -- is not a decision this
+    # helper can interpret; ignoring one deserialized a model whose admit() returned False (measured on
+    # this kernel 2026-09-23). Anything but None refuses, before the file is opened.
+    if outcome is not None:
+        raise ContainmentError("admit() must raise to refuse and return None to admit; "
+                               f"it returned {type(outcome).__name__}")
     expected = _sha(artifact_sha256, "model artifact")
     h = hashlib.sha256()
     # Snapshot avoids hashing one path version and deserializing a later one.

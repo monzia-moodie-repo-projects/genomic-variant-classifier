@@ -173,7 +173,9 @@ def main(argv: list[str] | None = None) -> int:
     # --- Load pipeline ---
     logger.info("Loading pipeline from %s …", args.pipeline)
     from genomic_variant_classifier.api.pipeline import InferencePipeline
-    pipeline = InferencePipeline.load(args.pipeline)
+    from genomic_variant_classifier.model_admission import repository_registry_path
+    pipeline = InferencePipeline.load(args.pipeline, consumer="scripts/validate_external.py",
+                                      registry_path=repository_registry_path())
 
     # --- Load cohort ---
     logger.info("Loading cohort from %s …", args.cohort)

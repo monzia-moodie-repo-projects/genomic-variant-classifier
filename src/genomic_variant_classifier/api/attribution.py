@@ -67,6 +67,7 @@ __all__ = [
     "ArtifactChangedDuringLoadError",
     "load_pipeline_with_identity",
     "resolve_runtime_binding",
+    "roster_alignment",
     "served_model_roster",
 ]
 
@@ -287,7 +288,7 @@ def load_pipeline_with_identity(
     return pipeline, after
 
 
-def _roster_alignment(record: ModelRecord,
+def roster_alignment(record: ModelRecord,
                       served: tuple[str, ...]) -> tuple[RosterAlignment,
                                                         Optional[str]]:
     """Compare the executable roster against the record and its projection."""
@@ -358,8 +359,7 @@ def resolve_runtime_binding(
             unregistered,
             detail=f"the deployment registry could not be read: {exc}")
 
-    match = next((r for r in registry.records
-                  if r.artifact.sha256 == artifact.sha256), None)
+    match = registry.record_for_digest(artifact.sha256)
     if match is None:
         return replace(
             unregistered,
@@ -374,7 +374,7 @@ def resolve_runtime_binding(
     else:
         alignment = DeploymentAlignment.DIFFERS_FROM_DECLARED_PRODUCTION
 
-    roster_state, roster_detail = _roster_alignment(match, served)
+    roster_state, roster_detail = roster_alignment(match, served)
 
     # COMMIT A PUBLISHES NO EVIDENCE. The served roster is a projection of the
     # evaluated roster, so the record's metrics are not automatically evidence

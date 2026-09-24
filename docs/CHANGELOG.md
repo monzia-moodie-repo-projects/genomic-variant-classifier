@@ -1,3 +1,48 @@
+## 2026-09-23 (containment completion) -- no unbound load, all-or-nothing ensembles, historical execution denied, CI repaired
+
+Owner ruling 2026-09-23 (decision.txt 2c01bd51...) on the published containment commit 25645de, delivered as a
+FORWARD corrective commit (the ruling's line 143) because 25645de was already on main.
+
+WHY CI RUN #882 FAILED (measured from the full log): one test, test_the_api_server_refuses_to_serve_a_quarantined_artifact,
+failed on Python 3.11 and at the same position on 3.12. The PRODUCTION code refused correctly; the TEST missed its log
+record because api/main.py's startup replaces every ROOT log handler when python-json-logger is installed (CI installs
+3.3.0 from requirements-api.lock; the development environments did not have it). The test now observes api.main's own
+logger and restores root logging. main.py imports pythonjsonlogger.json (the deprecated .jsonlogger path removed) and WARNS
+instead of silently switching to text when the library is absent.
+
+THE CHANGES. (1) NO UNBOUND LOAD (point 2). New model_admission.py is the ONE admission route: the artifact is only hashed;
+a deployment-registry record whose digest the REGISTRY measured must name those bytes (ModelRegistry.record_for_digest, the
+single lookup rule, shared with api.attribution); the record's features must be admissible; and a typed Decision bound to
+the artifact, the consumer and the current quarantine-policy digest must ALLOW. Only then does the kernel deserialize the
+verified snapshot. The default authority is gate C10 (downstream cutover authorization), which is AUTHORIZED_NOT_IMPLEMENTED,
+so EVERY real load now refuses explicitly -- the unavailable state the ruling calls correct. InferencePipeline.load and
+VariantEnsemble.load require a named consumer and a registry path; the API, eight scripts, run_phase2_eval's resume, the
+continual trainer and export_model all go through them. (2) ALL-OR-NOTHING ENSEMBLES (point 3). save() writes no loadable
+ensemble if any member fails to pickle and records each member's digest; load() deserializes every member from its verified
+snapshot, never skips one, and requires the order the meta-learner was fitted on. export_model refuses --exclude-models. (3)
+HISTORICAL EXECUTION DENIED (point 1). quarantine_policy.HISTORICAL_EXECUTION_DENIED; both scripts refuse as their first
+statement, before any model library is imported. (4) KERNEL: load_after_admission refuses an admit() that RETURNS a value
+(measured: returning False used to deserialize anyway). (5) CI: fail-fast off for both matrices; the image build and startup
+contract now run on pull requests; on a published release the image is built ONCE, smoke-tested, and those exact bytes pushed
+(push-ghcr could never run: it needed docker-build, which is skipped on releases). One shared startup-contract script.
+
+CORRECTIONS TO EARLIER RECORDS (kept beside them, not rewritten). (a) The commit messages of 5c61a32 and 25645de say "full
+suite inside a whole-tree inventory (no changes)". On the machine that ran them, that inventory hashed only files up to 64 MiB
+(size and modification time above), and its first snapshot followed the targeted tests and collection. The accurate claim is
+"no changes detected within the inventory's declared coverage", not byte-for-byte equality. (b) The containment entry below
+says load() admits an artifact from its own manifest and admits a legacy artifact after loading; both are superseded -- a
+checksum beside a model is not a binding, and nothing unbound is deserialized. (c) "C10" names two different things: the
+cohort-v2 cutover gate and, in docs/DEFECTS_2026-07-24.md, the stale pathogenicity-column defect.
+
+TESTS: +76 / -26 by node identity (+50 net). Of the removals, 5 are containment-serving tests rewritten for the new rule and
+18 are test_workflow_action_pins cases RENAMED, not lost -- that test puts ci.yml line numbers into its case names, so any
+ci.yml edit renames them; 3 are genuine (the removed build-push-action pin). Suite 6,871 -> 6,921 collected.
+One loader call was found only by the owner's SECOND validation run (the first stopped at the file-mode tree check):
+test_variant_ensemble_save_load needs PyTorch,
+which the development sandbox lacks, so it was skipped there and kept the old signature. A STATIC check now
+requires every InferencePipeline.load / VariantEnsemble.load call and reference to name a consumer, whatever
+tests an environment can run.
+
 ## 2026-09-23 (containment) -- structural quarantine: the four features cannot enter through any boundary
 
 Owner ruling 2026-09-22 (Option A) on docs/CONTAINMENT_2026-07-24.md section 4. Lands AFTER the

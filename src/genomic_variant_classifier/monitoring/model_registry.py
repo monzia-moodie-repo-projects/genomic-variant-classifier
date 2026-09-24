@@ -964,6 +964,14 @@ class ModelRegistry:
                 return record
         return None
 
+    def record_for_digest(self, sha256: str) -> Optional[ModelRecord]:
+        """The record whose MEASURED artifact digest is `sha256`, or None.
+
+        The ONE lookup rule for "the record for these bytes", shared by pre-load admission
+        (model_admission) and post-load attribution (api.attribution) so the two cannot disagree.
+        """
+        return next((r for r in self.records if r.artifact.sha256 == sha256), None)
+
     def by_stage(self, stage: Stage) -> list[ModelRecord]:
         return [r for r in self.records if r.stage is stage]
 
