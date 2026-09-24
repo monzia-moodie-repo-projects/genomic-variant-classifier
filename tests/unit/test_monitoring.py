@@ -62,6 +62,17 @@ MEASURED_PREFIXES = [
     "release/4.0/", "release/4.1.1/", "release/4.1/", "release/v4.0/",
 ]
 
+#: A release GENUINELY NEWER than the approved baseline, for tests whose subject is "a newer release is found
+#: and carried through". 4.1.1 played this role until it was APPROVED (2026-09-24); a named constant, guarded by
+#: test_the_newer_release_fixture_is_genuinely_newer, means the next approval cannot make these tests vacuous.
+NEWER = "4.1.2"
+NEWER_PREFIX = "release/{}/".format(NEWER)
+
+
+def _claim(version):
+    """The adapter's own claim sentence, under the CURRENT approved baseline."""
+    return "release {} is newer than the approved {}".format(version, grc.APPROVED_BASELINE)
+
 
 # --------------------------------------------------------------------------
 # 1. Reason identities survive every boundary
@@ -258,29 +269,40 @@ def _transport(*pages):
     return send
 
 
-_PAGE_ONE = {"kind": "storage#objects", "prefixes": ["release/4.1.1/"],
+_PAGE_ONE = {"kind": "storage#objects", "prefixes": [NEWER_PREFIX],
              "nextPageToken": "page-2"}
 
-_PAGE_ONE_TERMINAL = {"kind": "storage#objects", "prefixes": ["release/4.1.1/"]}
+_PAGE_ONE_TERMINAL = {"kind": "storage#objects", "prefixes": [NEWER_PREFIX]}
 
 
 def test_a_later_timeout_preserves_the_earlier_release():
     """THE DEFECT MEASURED 2026-09-14. Page one held 4.1.1, page two timed
     out, and the finding was DISCARDED -- health FAILED, reason
-    TRANSPORT_UNREACHABLE. The accumulator must survive every exit."""
+    TRANSPORT_UNREACHABLE. The accumulator must survive every exit. (Page one now holds NEWER: 4.1.1 is
+    approved, so it is no longer a newer release.)"""
     r = grc.observe_releases(
         transport=_transport(_PAGE_ONE, TimeoutError("second page")))
     assert r.health is Health.INCOMPLETE
     assert r.reason is Reason.TRANSPORT_TIMEOUT
-    assert any("4.1.1" in f for f in r.findings)
+    assert any(NEWER in f for f in r.findings)
 
 
-def test_the_measured_listing_reports_the_newer_release():
+def test_the_measured_listing_holds_nothing_newer_than_the_approved_release():
+    """The REAL listing measured 2026-09-14. Its newest release is 4.1.1, which is now APPROVED -- so the
+    comparison issue #17 raised is resolved: complete, and no finding."""
     r = grc.observe_releases(
         transport=_transport({"kind": "storage#objects",
                               "prefixes": MEASURED_PREFIXES}))
     assert r.health is Health.COMPLETE
-    assert any("4.1.1" in f for f in r.findings)
+    assert r.findings == ()
+
+
+def test_the_measured_listing_plus_a_newer_release_reports_exactly_that_release():
+    r = grc.observe_releases(
+        transport=_transport({"kind": "storage#objects",
+                              "prefixes": MEASURED_PREFIXES + [NEWER_PREFIX]}))
+    assert r.health is Health.COMPLETE
+    assert r.findings == (_claim(NEWER),)
 
 
 @pytest.mark.parametrize("page, reason", [
@@ -314,7 +336,7 @@ def test_a_repeated_continuation_token_is_a_cycle():
     r = grc.observe_releases(transport=_transport(_PAGE_ONE, _PAGE_ONE))
     assert r.health is Health.INCOMPLETE
     assert r.reason is Reason.TRAVERSAL_TOKEN_CYCLE
-    assert any("4.1.1" in f for f in r.findings)      # witness still kept
+    assert any(NEWER in f for f in r.findings)      # witness still kept
 
 
 def test_a_page_budget_stops_the_traversal_without_losing_pages():
@@ -555,7 +577,7 @@ def test_the_witness_survives_into_the_runners_report(monkeypatch, tmp_path):
     report = tmp_path / "r.json"
     rm.main(["--store", str(tmp_path / "f.sqlite3"), "--report", str(report)])
     doc = json.loads(report.read_text())
-    assert any("4.1.1" in f for f in doc["results"][0]["findings"])
+    assert any(NEWER in f for f in doc["results"][0]["findings"])
 
 
 def test_delivery_is_recorded_only_when_a_report_was_written(monkeypatch,
@@ -772,7 +794,7 @@ def test_captures_survive_an_interruption_with_the_witness():
         transport=_transport(_PAGE_ONE, TimeoutError("second page")))
     assert len(r.captures) == 1          # page one was captured
     assert r.captures[0]["accepted"] is True
-    assert any("4.1.1" in f for f in r.findings)
+    assert any(NEWER in f for f in r.findings)
 
 
 def test_a_transport_failure_before_any_page_captures_nothing():
@@ -828,7 +850,7 @@ def test_main_runs_with_NO_store_argument(monkeypatch, tmp_path):
                         lambda: tmp_path / "anchored" / "findings.sqlite3")
     report = tmp_path / "r.json"
     code = rm.main(["--report", str(report)])
-    assert code == 1
+    assert code == 0        # the measured listing is CLEAN under the approved 4.1.1
     doc = json.loads(report.read_text())
     assert doc["store"].endswith("findings.sqlite3")
     assert (tmp_path / "anchored" / "findings.sqlite3").exists()
@@ -942,7 +964,7 @@ def test_a_clean_run_records_no_plan_findings(monkeypatch, tmp_path):
     report = tmp_path / "r.json"
     code = rm.main(["--store", str(tmp_path / "f.sqlite3"),
                     "--report", str(report)])
-    assert code == 1
+    assert code == 0        # genuinely clean: nothing newer than the approved 4.1.1
     doc = json.loads(report.read_text())
     assert doc["plan_verification"] == []
     assert doc["plan_verified_targets"] == ["gnomad-public-releases"]
@@ -1158,10 +1180,10 @@ def test_the_registered_check_runs_through_the_real_transport_seam():
     key and the adapter."""
     r = rm.CHECKS["gnomad-public-releases"](
         transport=_transport({"kind": "storage#objects",
-                              "prefixes": MEASURED_PREFIXES}))
+                              "prefixes": MEASURED_PREFIXES + [NEWER_PREFIX]}))
     assert r.target == "gnomad-public-releases"
     assert r.health is Health.COMPLETE
-    assert any("4.1.1" in f for f in r.findings)
+    assert r.findings == (_claim(NEWER),)
 
 
 def test_the_registered_check_passes_the_RUNNERS_profile():
@@ -1241,13 +1263,13 @@ def test_the_producers_accepted_flag_is_not_authoritative():
     """Probe case rejected_flag_not_checked: `accepted` was recorded and
     never read. A valid page marked rejected must still yield its witness,
     with the disagreement flagged separately."""
-    r = grc.observe_releases(transport=_transport(_paged(["release/4.1.1/"])))
+    r = grc.observe_releases(transport=_transport(_paged([NEWER_PREFIX])))
     lied = tuple(dict(c, accepted=False, rejected_because="fabricated")
                 for c in r.captures)
     out = qualify(r.target, lied)
     assert any(f.reason is Reason.EVIDENCE_ACCEPTANCE_DISAGREEMENT
               for f in out.findings)
-    assert "4.1.1" in out.positive_witnesses
+    assert NEWER in out.positive_witnesses
 
 
 def test_a_wrong_but_well_formed_continuation_token_breaks_the_chain():
@@ -1297,18 +1319,18 @@ def test_a_bool_sequence_is_refused_even_though_True_equals_one():
 
 def test_removing_the_final_capture_leaves_traversal_incomplete_but_keeps_the_witness():
     r = grc.observe_releases(transport=_transport(
-        _paged(["release/4.1.1/"], token="tok-A"),
+        _paged([NEWER_PREFIX], token="tok-A"),
         _paged(["release/4.2/"])))
     out = qualify(r.target, (r.captures[0],))
     assert out.traversal_completeness is TraversalCompleteness.INCOMPLETE
-    assert "4.1.1" in out.positive_witnesses
+    assert NEWER in out.positive_witnesses
 
 
 def test_a_timeout_after_a_witness_keeps_the_witness_and_marks_incomplete():
     r = grc.observe_releases(transport=_transport(
-        _paged(["release/4.1.1/"], token="tok-A"), TimeoutError("second page")))
+        _paged([NEWER_PREFIX], token="tok-A"), TimeoutError("second page")))
     out = qualify(r.target, r.captures)
-    assert "4.1.1" in out.positive_witnesses
+    assert NEWER in out.positive_witnesses
     assert out.traversal_completeness is TraversalCompleteness.INCOMPLETE
 
 
@@ -1411,8 +1433,7 @@ def test_main_calls_qualify_not_the_legacy_verify_captures_shim(monkeypatch, tmp
     main(). This is the regression test that closes the gap: it confirms
     the report the RUNNER produces carries qualify()'s three-axis outcome,
     not just plan-conformance findings."""
-    _stub_check(monkeypatch, MEASURED_PREFIXES and
-               {"kind": "storage#objects", "prefixes": MEASURED_PREFIXES})
+    _stub_check(monkeypatch, {"kind": "storage#objects", "prefixes": MEASURED_PREFIXES + [NEWER_PREFIX]})
     report = tmp_path / "r.json"
     code = rm.main(["--store", str(tmp_path / "f.sqlite3"), "--report", str(report)])
     doc = json.loads(report.read_text())
@@ -1420,7 +1441,7 @@ def test_main_calls_qualify_not_the_legacy_verify_captures_shim(monkeypatch, tmp
     q = doc["qualification"]["gnomad-public-releases"]
     assert q["traversal_completeness"] == "complete"
     assert q["eligible_for_absence_claim"] is True
-    assert "4.1.1" in q["positive_witnesses"]
+    assert q["positive_witnesses"] == [NEWER]
     assert code == 1
 
 
@@ -1531,8 +1552,8 @@ def test_a_genuine_witness_under_incomplete_traversal_is_still_an_operational_pr
     visible in results[0].findings even though the target is correctly
     INCOMPLETE, not COMPLETE."""
     import base64, hashlib as hashlib_
-    body = (b'{"kind": "storage#objects", "prefixes": ["release/4.1.1/"], '
-            b'"nextPageToken": "tok-2"}')
+    body = json.dumps({"kind": "storage#objects", "prefixes": [NEWER_PREFIX],
+                       "nextPageToken": "tok-2"}).encode()
     capture = {
         "sequence": 1, "attempt_number": 1, "accepted": True,
         "rejected_because": "", "body_retained": True,
@@ -1547,7 +1568,7 @@ def test_a_genuine_witness_under_incomplete_traversal_is_still_an_operational_pr
     def run(**_kw):
         return TargetResult(
             "gnomad-public-releases", Health.COMPLETE,
-            findings=("release 4.1.1 is newer than the approved 4.1",),
+            findings=(_claim(NEWER),),
             captures=(capture,))
     monkeypatch.setitem(rm.CHECKS, "gnomad-public-releases", run)
     report = tmp_path / "r.json"
@@ -1561,8 +1582,7 @@ def test_a_genuine_witness_under_incomplete_traversal_is_still_an_operational_pr
     assert doc["unqualified"] == ["gnomad-public-releases"]
     # THE COEXISTENCE REQUIREMENT, PRESERVED: the witness is not erased
     # merely because the observation is operationally incomplete.
-    assert doc["results"][0]["findings"] == [
-        "release 4.1.1 is newer than the approved 4.1"]
+    assert doc["results"][0]["findings"] == [_claim(NEWER)]
 
 
 def test_a_genuinely_complete_traversal_with_a_witness_still_exits_one(
@@ -1574,7 +1594,7 @@ def test_a_genuinely_complete_traversal_with_a_witness_still_exits_one(
     live run this session -- the actual gnomAD bucket has always returned
     a terminal page with no nextPageToken."""
     import base64, hashlib as hashlib_
-    body = b'{"kind": "storage#objects", "prefixes": ["release/4.1.1/"]}'
+    body = json.dumps({"kind": "storage#objects", "prefixes": [NEWER_PREFIX]}).encode()
     capture = {
         "sequence": 1, "attempt_number": 1, "accepted": True,
         "rejected_because": "", "body_retained": True,
@@ -1589,7 +1609,7 @@ def test_a_genuinely_complete_traversal_with_a_witness_still_exits_one(
     def run(**_kw):
         return TargetResult(
             "gnomad-public-releases", Health.COMPLETE,
-            findings=("release 4.1.1 is newer than the approved 4.1",),
+            findings=(_claim(NEWER),),
             captures=(capture,))
     monkeypatch.setitem(rm.CHECKS, "gnomad-public-releases", run)
     report = tmp_path / "r.json"
@@ -1600,3 +1620,177 @@ def test_a_genuinely_complete_traversal_with_a_witness_still_exits_one(
     assert code == 1
     assert doc["results"][0]["health"] == "complete"
     assert doc["unqualified"] == []
+
+
+# ---------------------------------------------------------------------------
+# The 4.1.1 APPROVAL (2026-09-24, issue #17). Approval moves the comparison point; it adopts nothing.
+# See docs/measurements/DECISION_2026-09-24_gnomad-4.1.1-approval.md.
+# ---------------------------------------------------------------------------
+
+def test_the_newer_release_fixture_is_genuinely_newer():
+    """Guards NEWER: if a future approval reaches it, every test using it must be revisited, not pass vacuously."""
+    baseline = grc.parse_version("release/{}/".format(grc.APPROVED_BASELINE))
+    assert grc.parse_version(NEWER_PREFIX) > baseline
+
+
+def test_the_approved_release_itself_is_neither_a_finding_nor_a_witness(monkeypatch, tmp_path):
+    page = {"kind": "storage#objects", "prefixes": ["release/{}/".format(grc.APPROVED_BASELINE)]}
+    r = grc.observe_releases(transport=_transport(page))
+    assert r.health is Health.COMPLETE and r.findings == ()
+    assert qualify(r.target, r.captures).positive_witnesses == ()
+    _stub_check(monkeypatch, page)
+    assert rm.main(["--store", str(tmp_path / "f.sqlite3"), "--report", str(tmp_path / "r.json")]) == 0
+
+
+@pytest.mark.parametrize("release", ["4.1.2", "4.2", "4.10", "5.0", "v4.2"])
+def test_a_genuinely_newer_release_still_alerts(monkeypatch, tmp_path, release):
+    page = {"kind": "storage#objects", "prefixes": MEASURED_PREFIXES + ["release/{}/".format(release)]}
+    expected = release.lstrip("v")
+    r = grc.observe_releases(transport=_transport(page))
+    assert r.findings == (_claim(expected),)
+    assert qualify(r.target, r.captures).positive_witnesses == (expected,)
+    _stub_check(monkeypatch, page)
+    assert rm.main(["--store", str(tmp_path / "f.sqlite3"), "--report", str(tmp_path / "r.json")]) == 1
+
+
+@pytest.mark.parametrize("release", ["4.1", "4.0", "v4.0", "3.1.3"])
+def test_an_older_release_does_not_alert(release):
+    r = grc.observe_releases(transport=_transport(
+        {"kind": "storage#objects", "prefixes": ["release/{}/".format(release)]}))
+    assert r.health is Health.COMPLETE and r.findings == ()
+
+
+def _complete_run(monkeypatch, tmp_path, prefixes, claims):
+    """A producer with honest, complete bytes that CLAIMS `claims` about them."""
+    def run(**_kw):
+        r = grc.observe_releases(profile=rm.RELEASE_PROFILE,
+                                 transport=_transport({"kind": "storage#objects", "prefixes": prefixes}))
+        return TargetResult(r.target, r.health, findings=tuple(claims), captures=r.captures)
+    monkeypatch.setitem(rm.CHECKS, "gnomad-public-releases", run)
+    report = tmp_path / "r.json"
+    code = rm.main(["--store", str(tmp_path / "f.sqlite3"), "--report", str(report)])
+    return code, json.loads(report.read_text())
+
+
+def test_a_stale_claim_naming_the_previous_baseline_is_refused(monkeypatch, tmp_path):
+    """THE #17 REGRESSION: after approval, "4.1.1 is newer than the approved 4.1" is stale. Before 2026-09-24
+    it passed as review-required, because the cross-check only asked that witnesses appear in claims."""
+    code, doc = _complete_run(monkeypatch, tmp_path, ["release/4.1.1/"],
+                              ["release 4.1.1 is newer than the approved 4.1"])
+    assert code == 2
+    assert "evidence.witness_disagreement" in {a["reason"] for a in doc["assessments"]}
+
+
+def test_a_real_witness_claimed_under_the_wrong_baseline_is_refused(monkeypatch, tmp_path):
+    code, doc = _complete_run(monkeypatch, tmp_path, [NEWER_PREFIX],
+                              ["release {} is newer than the approved 4.1".format(NEWER)])
+    assert code == 2
+
+
+def test_a_claim_outside_the_adapters_grammar_is_refused(monkeypatch, tmp_path):
+    code, _ = _complete_run(monkeypatch, tmp_path, [NEWER_PREFIX], ["{} looks new".format(NEWER)])
+    assert code == 2
+
+
+def test_the_correct_claim_on_complete_bytes_is_review_required_not_refused(monkeypatch, tmp_path):
+    code, doc = _complete_run(monkeypatch, tmp_path, [NEWER_PREFIX], [_claim(NEWER)])
+    assert code == 1 and doc["unqualified"] == []
+
+
+def test_the_plan_fingerprint_binds_the_approved_baseline(monkeypatch):
+    """Outcomes before and after an approval must never be compared as if under one plan."""
+    from genomic_variant_classifier.source_monitor import request_verifier as rv
+    now = rv._plan_fingerprint()
+    monkeypatch.setattr(rv, "APPROVED_BASELINE", "4.1")
+    assert rv._plan_fingerprint() != now
+
+
+# ---------------------------------------------------------------------------
+# EXACT CLAIM RECONCILIATION (ruling 2026-09-24). {claimed versions} == {independent witnesses}, as parsed
+# identities, in BOTH directions; every claim names the approved baseline; claim text must be canonical.
+# ---------------------------------------------------------------------------
+
+_TWO = ["release/4.1.2/", "release/4.1.20/"]
+
+
+def test_the_reviewers_counterexample_is_refused_at_the_runner(monkeypatch, tmp_path):
+    """MEASURED 2026-09-24: witnesses 4.1.2 and 4.1.20, one claim for 4.1.20, completed traversal -> the former
+    substring forward check read 4.1.2 inside 4.1.20 and the run exited 1 with 4.1.2 UNREPORTED."""
+    code, doc = _complete_run(monkeypatch, tmp_path, _TWO, [_claim("4.1.20")])
+    assert code == 2
+    assert "evidence.witness_disagreement" in {a["reason"] for a in doc["assessments"]}
+
+
+def test_the_mirror_counterexample_is_refused(monkeypatch, tmp_path):
+    code, _ = _complete_run(monkeypatch, tmp_path, _TWO, [_claim("4.1.2")])
+    assert code == 2
+
+
+def test_a_claim_without_a_witness_is_refused_even_when_every_witness_is_claimed(monkeypatch, tmp_path):
+    """Isolates the REVERSE direction: the bytes show only 4.1.2, so the forward direction is satisfied, and only
+    the extra 4.1.20 claim is inconsistent. (The mirror test above cannot isolate it: its missing 4.1.20 claim
+    is already refused by the forward direction.)"""
+    code, doc = _complete_run(monkeypatch, tmp_path, ["release/4.1.2/"], [_claim("4.1.2"), _claim("4.1.20")])
+    assert code == 2
+    assert "evidence.witness_disagreement" in {a["reason"] for a in doc["assessments"]}
+
+
+def test_exactly_matching_claims_are_review_required(monkeypatch, tmp_path):
+    code, doc = _complete_run(monkeypatch, tmp_path, _TWO, [_claim("4.1.2"), _claim("4.1.20")])
+    assert code == 1 and doc["unqualified"] == [] and doc["assessments"] == []
+
+
+@pytest.mark.parametrize("claims, fragment", [
+    pytest.param(["release 4.1.2 is newer than the approved 4.1.1"] * 2, "duplicate claim", id="duplicate"),
+    pytest.param(["release 4.01.2 is newer than the approved 4.1.1"], "not a canonical", id="non_canonical"),
+    pytest.param(["release 4.1.2 is newer than the approved 4.1"], "not the approved", id="wrong_baseline"),
+    pytest.param(["4.1.2 looks new"], "unrecognised claim", id="off_grammar"),
+    pytest.param([], "has no exact claim", id="missing_claim"),
+    pytest.param(["release 9.9.9 is newer than the approved 4.1.1",
+                  "release 4.1.2 is newer than the approved 4.1.1"], "no exact independent witness", id="extra_claim"),
+])
+def test_reconciliation_names_each_inconsistency(claims, fragment):
+    issues = rm._reconcile_claims(claims, ("4.1.2",))
+    assert any(fragment in i for i in issues), issues
+
+
+def test_reconciliation_refuses_witnesses_that_are_not_newer_or_repeat():
+    issues = rm._reconcile_claims([], ("4.1.1", "4.1.1", "4.1"))
+    assert any("duplicate witness" in i for i in issues)
+    assert any("not newer than the approved" in i for i in issues)
+
+
+def test_reconciliation_accepts_exact_agreement_and_consumes_one_shot_inputs():
+    claims = (c for c in [_claim("4.1.2"), _claim("4.1.20")])        # a generator: consumed once
+    assert rm._reconcile_claims(claims, iter(["4.1.20", "4.1.2"])) == []
+
+
+# The owner's reference (GVC_gnomad_release_review_2026-09-24, test_release_claims.py), ported to the runner's function.
+# NOT ported: 4.2 == 4.2.0 as aliases -- the project grammar orders 4.2.0 AFTER 4.2 in both adapter and verifier, and the
+# reconciler must agree with the verifier's own newer-than decision (open question in the decision record).
+
+@pytest.mark.parametrize("label", ["v4.1.2", "4.01.2", "4.1.2rc1", "dev", "\uff14.\uff11.\uff12", "4.1.2/", "9" * 100])
+def test_a_non_canonical_or_invalid_release_label_is_refused(label):
+    assert rm._reconcile_claims(["release {} is newer than the approved 4.1.1".format(label)], [label]) != []
+
+
+@pytest.mark.parametrize("findings, witnesses", [
+    pytest.param([None], [], id="non-string-claim"),
+    pytest.param([], [None], id="non-string-witness"),
+    pytest.param([], [412], id="int-witness-not-coerced"),
+    pytest.param([_claim("4.1.2") + "\n"], ["4.1.2"], id="trailing-newline"),
+])
+def test_bad_inputs_are_refused_not_coerced(findings, witnesses):
+    assert rm._reconcile_claims(findings, witnesses) != []
+
+
+def test_generator_and_list_inputs_give_the_same_reconciliation():
+    claims, witnesses = [_claim("4.1.20")], ["4.1.2", "4.1.20"]
+    assert rm._reconcile_claims(claims, witnesses) == rm._reconcile_claims(iter(claims), iter(witnesses)) != []
+
+
+def test_a_non_canonical_witness_is_refused_even_against_a_canonical_claim():
+    """Isolates the WITNESS canonical check: 4.01.2 and 4.1.2 parse to the same identity, so without it they would
+    reconcile cleanly (the claim side alone cannot catch this)."""
+    issues = rm._reconcile_claims([_claim("4.1.2")], ["4.01.2"])
+    assert any("witness is not a canonical release label" in i for i in issues), issues

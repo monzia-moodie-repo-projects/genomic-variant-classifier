@@ -119,7 +119,11 @@ MAX_TOKEN_CHARS = 8192
 #: test_the_verifier_and_the_adapter_declare_the_SAME_baseline_and_kind for
 #: the agreement test.
 EXPECTED_KIND = "storage#objects"
-APPROVED_BASELINE = "4.1"
+#: APPROVED 2026-09-24 (owner; first recorded in the rulings preserved 2026-09-22). APPROVAL IS NOT ADOPTION:
+#: every gnomAD artifact the project USES is still v4.1, and a release change for constraint does not by
+#: itself establish one for every frequency product. See
+#: docs/measurements/DECISION_2026-09-24_gnomad-4.1.1-approval.md. Anything NEWER than this still alerts.
+APPROVED_BASELINE = "4.1.1"
 
 
 def _independent_parse_release_version(prefix):
@@ -188,9 +192,11 @@ class QualificationOutcome:
 
     RULING 2026-09-16, requirement 8: "Bind the assessment to the attempt,
     target, approved plan, and captured evidence." `plan_fingerprint` is a
-    digest of the approved endpoint and query, so two outcomes computed
-    under different plan revisions are never silently compared as if under
-    one.
+    digest of the approved endpoint, query AND baseline, so two outcomes
+    computed under different plan revisions are never silently compared as if
+    under one. The baseline is part of the plan: it decides what counts as a
+    witness, so an outcome before the 4.1.1 approval and one after it are
+    different plans (added 2026-09-24).
     """
 
     target: str
@@ -225,7 +231,8 @@ class QualificationOutcome:
 
 
 def _plan_fingerprint():
-    blob = json.dumps({"endpoint": APPROVED_ENDPOINT, "query": APPROVED_QUERY},
+    blob = json.dumps({"endpoint": APPROVED_ENDPOINT, "query": APPROVED_QUERY,
+                       "approved_baseline": APPROVED_BASELINE},
                       sort_keys=True).encode("utf-8")
     return hashlib.sha256(blob).hexdigest()
 

@@ -67,6 +67,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -77,7 +78,8 @@ from genomic_variant_classifier.source_monitor.heartbeat import (
 from genomic_variant_classifier.source_monitor.monitor_supervisor import (
     Health, TargetResult, supervise)
 from genomic_variant_classifier.source_monitor.request_verifier import (
-    qualify, TraversalCompleteness)
+    APPROVED_BASELINE as VERIFIER_BASELINE, TraversalCompleteness,
+    _independent_parse_release_version, qualify)
 from genomic_variant_classifier.source_monitor.reason_catalog import (
     ContractFinding, Reason, ReasonProfile, assess_failure_record,
     make_failure_record)
@@ -222,6 +224,81 @@ def check_gnomad_releases(*, transport=None) -> TargetResult:
     return observe_releases(profile=RELEASE_PROFILE, transport=transport)
 
 
+#: The adapter's claim grammar (gnomad_release_check.observe_releases).
+_CLAIM = re.compile(r"release (?P<version>\S+) is newer than the approved (?P<baseline>\S+)")
+
+
+#: Release labels longer than this are refused rather than parsed (owner reference, 2026-09-24).
+_MAX_LABEL = 32
+
+
+def _identity(label):
+    """A release identity under the VERIFIER's independent grammar, or None.
+
+    Only a short str is ever parsed: a non-string is refused, never coerced (an int 412 would otherwise format
+    into "release/412/" and parse), and Python's \\d also matches non-ASCII digits, which the canonical-text
+    comparison in _reconcile_claims then refuses.
+    """
+    if not isinstance(label, str) or not label or len(label) > _MAX_LABEL:
+        return None
+    return _independent_parse_release_version("release/{}/".format(label))
+
+
+def _canonical(key) -> str:
+    return ".".join(str(part) for part in key)
+
+
+def _reconcile_claims(findings, witnesses):
+    """Every inconsistency between the producer's claims and the verifier's witnesses; empty when they agree.
+
+    THE INVARIANT (ruling 2026-09-24): {versions in valid claims} == {independently derived newer versions},
+    compared as PARSED identities, never substrings, and every claim names the current approved baseline.
+    MEASURED 2026-09-24 at the runner: with witnesses 4.1.2 and 4.1.20 and one claim "release 4.1.20 is newer
+    than the approved 4.1.1", the previous forward check read "4.1.2" INSIDE "4.1.20" and the run exited 1
+    (review required) with 4.1.2 unreported. Claim text must also be CANONICAL -- the rendering of its parsed
+    identity -- so "4.01.2" is refused rather than silently equated with 4.1.2.
+    """
+    findings, witnesses = tuple(findings), tuple(witnesses)
+    issues = []
+    baseline_key = _identity(VERIFIER_BASELINE)
+    if baseline_key is None:
+        return ["the verifier's approved baseline {!r} is outside the release grammar".format(VERIFIER_BASELINE)]
+    witness_keys = {}
+    for witness in witnesses:
+        key = _identity(witness)
+        if key is not None and _canonical(key) != witness:
+            issues.append("witness is not a canonical release label: {!r}".format(witness))
+            continue
+        if key is None:
+            issues.append("witness outside the release grammar: {!r}".format(witness))
+            continue
+        if key in witness_keys:
+            issues.append("duplicate witness identity: {!r}".format(witness))
+        witness_keys[key] = witness
+        if key <= baseline_key:
+            issues.append("witness is not newer than the approved {}: {}".format(VERIFIER_BASELINE, witness))
+    claimed = {}
+    for claim in findings:
+        m = _CLAIM.fullmatch(claim) if isinstance(claim, str) else None
+        if m is None:
+            issues.append("unrecognised claim: {!r}".format(claim))
+            continue
+        key = _identity(m["version"])
+        if key is None or _canonical(key) != m["version"]:
+            issues.append("claimed release is not a canonical release label: {!r}".format(m["version"]))
+            continue
+        if m["baseline"] != VERIFIER_BASELINE:
+            issues.append("claim names baseline {!r}, not the approved {!r}".format(m["baseline"], VERIFIER_BASELINE))
+        if key in claimed:
+            issues.append("duplicate claim for {}".format(m["version"]))
+        claimed[key] = claim
+    for key in sorted(set(claimed) - set(witness_keys)):
+        issues.append("claim has no exact independent witness: {}".format(_canonical(key)))
+    for key in sorted(set(witness_keys) - set(claimed)):
+        issues.append("independent witness has no exact claim: {}".format(_canonical(key)))
+    return issues
+
+
 def _persist_and_recover(store, attempt, target, reason, detail):
     """Commit a failure, RECOVER it, and ASSESS it. Returns the assessment.
 
@@ -345,35 +422,6 @@ def main(argv=None) -> int:
                 captures=result.captures))
             continue
 
-        # THE PRODUCER'S CLAIMED FINDINGS vs the INDEPENDENTLY DERIVED
-        # WITNESSES. A producer that retained honest bytes but lied about
-        # what it found in them -- claimed nothing where a witness exists,
-        # or claimed a witness the retained body does not support -- passed
-        # silently until this check existed, the same class of gap
-        # EVIDENCE_ACCEPTANCE_DISAGREEMENT closed for the `accepted` flag.
-        #
-        # The comparison is substring-based, not exact-match: the adapter's
-        # claim is a READABLE SENTENCE ("release 4.1.1 is newer than the
-        # approved 4.1"); the independently derived witness is the bare
-        # value ("4.1.1"). Every witness must appear somewhere in the
-        # adapter's own claimed text, or the disagreement is real.
-        witness_mismatch = any(
-            not any(w in claim for claim in result.findings)
-            for w in outcome.positive_witnesses)
-        if witness_mismatch:
-            committed, assessment = _persist_and_recover(
-                store, attempt, target, Reason.EVIDENCE_WITNESS_DISAGREEMENT,
-                "independently derived witnesses {!r} are not reflected in "
-                "the producer's claimed findings {!r}".format(
-                    outcome.positive_witnesses, result.findings))
-            committed_ids.append(committed.event_id)
-            assessments.append((target, assessment))
-            results.append(TargetResult(
-                target, Health.FAILED,
-                reason=Reason.EVIDENCE_WITNESS_DISAGREEMENT,
-                captures=result.captures))
-            continue
-
         if result.reason is not None:
             committed, assessment = _persist_and_recover(
                 store, attempt, target, result.reason,
@@ -451,6 +499,23 @@ def main(argv=None) -> int:
                 reason=Reason.EVIDENCE_QUALIFICATION_UNESTABLISHED,
                 findings=result.findings, captures=result.captures))
             qualification[target] = outcome.as_document()
+            continue
+
+        # CLAIM RECONCILIATION -- ONE check, BOTH directions, on a COMPLETED traversal only (an incomplete one
+        # was refused above with its claim text preserved). Replaces the former substring forward check and
+        # the one-directional reverse check (ruling 2026-09-24): parsed identities must match exactly.
+        issues = _reconcile_claims(result.findings, outcome.positive_witnesses)
+        if issues:
+            committed, assessment = _persist_and_recover(
+                store, attempt, target, Reason.EVIDENCE_WITNESS_DISAGREEMENT,
+                "the producer's claims {!r} do not reconcile with the independently derived witnesses {!r} "
+                "under the approved baseline {!r}: {}".format(result.findings, outcome.positive_witnesses,
+                                                              VERIFIER_BASELINE, "; ".join(issues)))
+            committed_ids.append(committed.event_id)
+            assessments.append((target, assessment))
+            results.append(TargetResult(
+                target, Health.FAILED, reason=Reason.EVIDENCE_WITNESS_DISAGREEMENT,
+                captures=result.captures))
             continue
 
         results.append(result)
