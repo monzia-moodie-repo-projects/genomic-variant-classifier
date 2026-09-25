@@ -1,3 +1,24 @@
+## 2026-09-25 (records) -- #17 closed after verification on main; correction to the #20 commit message
+
+MERGED. Containment completion via pull request #19 (merge 0ea9f3a; CI green on the pull request and on main, and the
+CI-failure issue #18 closed itself). The gnomAD (Genome Aggregation Database) 4.1.1 approval via pull request #20
+(commit da02b23c, merge 42ab3550; all pull-request checks and CI on main green). Both were validated first in a disposable
+clone on the owner's machine, with checkout preservation verified unchanged.
+
+VERIFIED. Source-monitor run 36095779494 on main, checked in three layers -- execution from GitHub's own run and artifact
+metadata, configuration (the 4.1.1 plan fingerprint), observation (an independent replay of the retained captures):
+20 of 20 checks passed; 4.1.1 approval VERIFIED; 4.1.2 remains outstanding as its own review item, correctly.
+
+CLOSED. Issue #17 closed as completed on 2026-09-25. Successors: #21 (4.1.2 constraint -- bounded qualification) and #22
+(constraint adoption for cohort v2), owned, with a next review on 2026-09-28 and acceptance conditions.
+
+CORRECTION, recorded beside the original. The commit message of da02b23c is wrong in three places: it describes an
+earlier one-directional claim check (what merged is exact two-directional reconciliation of parsed identities, with
+canonical, type-checked labels); it says "every gnomAD artifact in use is still v4.1" (true of production inputs only --
+exploratory work used 4.1.1 guidance and examined a 4.1.1 constraint table); and it gives the suite as 6,921 -> 6,938
+(it is 6,963). The installer's commit-message text was not updated through the change's review rounds. The merged code
+and documents are correct.
+
 ## 2026-09-24 (monitor) -- gnomAD 4.1.1 approval recorded; approval is not adoption
 
 Resolves the comparison in issue #17. The owner approved gnomAD (Genome Aggregation Database) release 4.1.1 (first
