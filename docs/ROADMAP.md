@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **6,921 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **6,963 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -390,6 +390,11 @@ exists to end.
   refuses), all-or-nothing ensembles, historical execution denied, and CI repaired (the #882 failure,
   per-version reporting, image build on pull requests, tested-image release publishing). Suite 6,871 ->
   6,921 collected.
+- **2026-09-24 -- gnomAD 4.1.1 approval recorded (issue #17).** Both monitor baselines 4.1.1;
+  approval is NOT adoption -- every production gnomAD input is still v4.1, and migration is tracked
+  separately. Producer claims must now EQUAL the independent witnesses as parsed identities (a stale,
+  unsupported or substring-masked claim is refused). #17 stays open until successor obligations are
+  tracked. `docs/measurements/DECISION_2026-09-24_gnomad-4.1.1-approval.md`. Suite 6,921 -> 6,963.
 
 - **2026-09-23 -- test-isolation prerequisite.** The suite no longer writes into
   the repository. Measured before: a full run left 38 files (CatBoost training

@@ -1,3 +1,35 @@
+## 2026-09-24 (monitor) -- gnomAD 4.1.1 approval recorded; approval is not adoption
+
+Resolves the comparison in issue #17. The owner approved gnomAD (Genome Aggregation Database) release 4.1.1 (first
+recorded in the rulings preserved 2026-09-22). Record: docs/measurements/DECISION_2026-09-24_gnomad-4.1.1-approval.md.
+
+CHANGES. Both independent monitor declarations -- gnomad_release_check.APPROVED_BASELINE and
+request_verifier.APPROVED_BASELINE -- are 4.1.1, and the agreement test still requires them to match. The verifier's plan
+fingerprint now includes the approved baseline, so outcomes before and after an approval are never compared as one plan.
+configs/data_manifest.yaml gains an approval note on source `gnomad`; its `version: "v4.1 exomes"` is unchanged.
+
+A DEFECT FOUND BY THIS CHANGE (measured 2026-09-24). run_monitor's claim/witness cross-check checked one direction
+only, although its comment named both. With no witness, any producer claim passed as "review required" -- a
+fabricated release, or the stale "release 4.1.1 is newer than the approved 4.1" once 4.1.1 was approved. The existing
+fabricated-claim test had passed only because an unrelated 4.1.1 witness happened to exist. The owner's review then
+found that the forward direction was SUBSTRING-based: with witnesses 4.1.2 and 4.1.20 and one claim for 4.1.20, "4.1.2"
+was read inside "4.1.20" and the run exited 1 with 4.1.2 unreported (reproduced at the runner). Both checks are replaced
+by ONE reconciliation on a completed traversal: the set of claimed versions must EQUAL the set of independent witnesses,
+as parsed identities under the verifier's grammar, every claim must name the current baseline, claim text must be
+canonical (claims AND witnesses; non-strings refused, never coerced; labels at most 32 characters), and duplicates are
+refused -- otherwise EVIDENCE_WITNESS_DISAGREEMENT, exit 2.
+
+NOT CHANGED. Nothing was migrated, re-annotated or relabelled: every gnomAD input of the production pipeline is v4.1
+(constraint table, exome VCFs, cloud sync), and existing 4.1 artifacts are not 4.1.1. Exploratory work that used 4.1.1
+(published guidance; a 4.1.1 constraint table examined 2026-09-12) keeps its actual version. Acquisition, qualification and adoption of 4.1.1,
+per product, are tracked in their own issue.
+
+TESTS: +43 / -1 by node identity (+42 net): 14 tests that used 4.1.1 as "a newer release" now use a guarded NEWER
+fixture or assert the approval's effect (the real measured listing is complete with no finding); new tests pin that
+4.1.2, 4.2, 4.10 and 5.0 still alert, 4.1 and older do not, a stale or unsupported claim is refused, and each
+direction of the reconciliation (including the 4.1.2/4.1.20 counterexample) is refused at the runner, with the owner's
+reference cases for non-canonical, non-string and over-long labels ported. Suite 6,921 -> 6,963 collected.
+
 ## 2026-09-23 (containment completion) -- no unbound load, all-or-nothing ensembles, historical execution denied, CI repaired
 
 Owner ruling 2026-09-23 (decision.txt 2c01bd51...) on the published containment commit 25645de, delivered as a

@@ -101,7 +101,7 @@ sources:
     acquire: "gnomAD downloads -- https://gnomad.broadinstitute.org/downloads"
     regenerate: ""
     sync: false
-    notes: "Public; very large; re-downloadable."
+    notes: "Public; very large; re-downloadable. Release 4.1.1 APPROVED 2026-09-24 (docs/measurements/DECISION_2026-09-24_gnomad-4.1.1-approval.md) -- NOT adopted: `version` above is what is IN USE; migration is tracked separately."
   gtex:
     location: external
     tier: public
