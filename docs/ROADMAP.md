@@ -389,12 +389,14 @@ exists to end.
   route: registry-measured binding plus a typed decision; gate C10 not implemented, so every real load
   refuses), all-or-nothing ensembles, historical execution denied, and CI repaired (the #882 failure,
   per-version reporting, image build on pull requests, tested-image release publishing). Suite 6,871 ->
-  6,921 collected.
+  6,921 collected. Merged via #19 (CI green on the pull request and on `main`).
 - **2026-09-24 -- gnomAD 4.1.1 approval recorded (issue #17).** Both monitor baselines 4.1.1;
   approval is NOT adoption -- every production gnomAD input is still v4.1, and migration is tracked
   separately. Producer claims must now EQUAL the independent witnesses as parsed identities (a stale,
-  unsupported or substring-masked claim is refused). #17 stays open until successor obligations are
-  tracked. `docs/measurements/DECISION_2026-09-24_gnomad-4.1.1-approval.md`. Suite 6,921 -> 6,963.
+  unsupported or substring-masked claim is refused). Merged via #20; verified on `main` by source-monitor
+  run 36095779494 (three-layer check, 20 of 20). #17 closed 2026-09-25; successors #21 (4.1.2 constraint
+  qualification) and #22 (constraint adoption for cohort v2), next review 2026-09-28.
+  `docs/measurements/DECISION_2026-09-24_gnomad-4.1.1-approval.md`. Suite 6,921 -> 6,963.
 
 - **2026-09-23 -- test-isolation prerequisite.** The suite no longer writes into
   the repository. Measured before: a full run left 38 files (CatBoost training

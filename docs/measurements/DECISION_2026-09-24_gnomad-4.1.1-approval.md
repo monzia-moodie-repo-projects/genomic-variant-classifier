@@ -65,6 +65,22 @@ durable 4.1.2 constraint-qualification item exists; the production-adoption item
 review date and acceptance conditions. Those items must not carry the generic `source-monitor-alert` label, which the
 alert workflow uses to route its own comments.
 
+## Outcome (2026-09-25)
+
+- Merged: commit `da02b23c` via pull request #20 as `42ab3550` on `main` (tree `49504a98`, parents `0ea9f3a` and
+  `da02b23c`); every pull-request check passed (lockfile, pytest 3.11 and 3.12, both drift monitors, Docker build smoke
+  test), and CI passed again on `main`. It was validated beforehand in a disposable clone on the owner's machine (all
+  13 stages; checkout preservation verified unchanged).
+- Verified on `main`: source-monitor run 36095779494 (2026-09-25 04:46 UTC). The three-layer check passed 20 of 20:
+  4.1.1 approval VERIFIED, observation COMPLETE, 4.1.2 outstanding as its own review item. A calibration run on the
+  pre-approval run 35953468798 failed exactly the six checks predicted for the old code.
+- Issue #17 closed as completed on 2026-09-25 at 06:17 UTC. Successors: #21 (gnomAD 4.1.2 constraint -- bounded
+  qualification) and #22 (gnomAD constraint adoption for cohort v2), each owned by Monzia Moodie with a next review on
+  2026-09-28, acceptance conditions, and no `source-monitor-alert` label.
+- Correction: the commit message of `da02b23c` describes an earlier one-directional claim check, says "every gnomAD
+  artifact in use is still v4.1" (true of production inputs only), and gives the suite as 6,938 (it is 6,963). The
+  code and this record are correct; the correction is posted on pull request #20 and in docs/CHANGELOG.md.
+
 ## Open questions recorded, not decided here
 
 The project's release grammar (shared by adapter and verifier, so their agreement test cannot see this) accepts
@@ -74,4 +90,6 @@ Whether to canonicalise those is a policy change to what counts as newer, for a 
 ## Follow-up (separate change)
 
 Per "monitoring as a derived view": a typed `approved_release` field in the manifest (`source_registry.py` refuses
-unknown keys today), with the monitor's baseline derived from it rather than declared in code.
+unknown keys today), with the monitor's baseline derived from it rather than declared in code. And a parameterised
+three-layer verifier in the repository, so future approvals are verified by versioned code rather than a script
+delivered beside it (`Check_SourceMonitorReport_2026-09-24.ps1` hard-codes this approval's tree and plan).
