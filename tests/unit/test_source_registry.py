@@ -36,7 +36,6 @@ import pytest
 from genomic_variant_classifier.data.source_registry import (
     DEFAULT_MANIFEST,
     SourceClass,
-    SourceDeclaration,
     SourceLocation,
     SourceRegistry,
     SourceRegistryError,
@@ -278,3 +277,96 @@ def test_no_controlled_source_is_marked_for_sync_in_the_real_manifest():
         "controlled sources marked sync=true: {}. The standard, section 5: "
         "never to a personal cloud, which would breach the DUA."
         .format(offenders))
+
+
+# ---------------------------------------------------------------------------
+# 4. STRICT TYPES AND UNIQUE KEYS (2026-09-25). MEASURED on main 38987f54 before
+#    this: sync "false" read as True, aliases "abc" as ('a','b','c'), and a
+#    duplicated key silently kept the last value.
+# ---------------------------------------------------------------------------
+
+_APPROVAL = '''release_approvals:
+  gnomad-public-releases:
+    record: "docs/approvals/APPROVAL_X.json"
+    sha256: "{}"
+'''.format("a" * 64)
+_MINIMAL_V2 = _MINIMAL.replace("version: 1\n", "version: 2\n", 1)
+
+
+@pytest.mark.parametrize("old,new,fragment", [
+    ("    sync: false\n    notes: \"\"\n  tcga:", "    sync: \"false\"\n    notes: \"\"\n  tcga:", "never converted"),
+    ("aliases: [clinvar_fresh]", "aliases: clinvar_fresh", "not a list"),
+    ("aliases: [clinvar_fresh]", "aliases: [7]", "not a string"),
+    ("version: \"GRCh38 2024-07\"", "version: 4.1", "never converted"),
+    ("acquire: \"NCBI ClinVar VCF\"", "acquire: [a, b]", "never converted"),
+], ids=["quoted-boolean", "string-aliases", "integer-alias", "numeric-version", "list-acquire"])
+def test_a_value_of_the_wrong_type_is_refused_not_converted(tmp_path, old, new, fragment):
+    assert _MINIMAL.count(old) == 1, old
+    with pytest.raises(SourceRegistryError) as exc:
+        SourceRegistry.load(_write(tmp_path, _MINIMAL.replace(old, new, 1)))
+    assert fragment in str(exc.value)
+
+
+@pytest.mark.parametrize("text,where", [
+    (_MINIMAL + "version: 2\n", "top level"),
+    (_MINIMAL.replace("    notes: \"CONTROLLED-ACCESS.\"\n",
+                      "    notes: \"CONTROLLED-ACCESS.\"\n    version: \"again\"\n", 1), "inside a source"),
+    (_MINIMAL_V2 + _APPROVAL.replace("    sha256:", "    sha256: \"{}\"\n    sha256:".format("b" * 64), 1), "inside an approval"),
+], ids=["top-level", "source", "approval"])
+def test_a_duplicate_key_is_refused_at_every_depth(tmp_path, text, where):
+    """YAML would silently keep the LAST one -- the trap the alias-conflict test above
+    documents from this file's own history. Each fixture must REALLY contain the duplicate:
+    a replace() whose anchor is absent changes nothing and tests a different refusal
+    (measured 2026-09-26, when the approval fixture's anchor went stale)."""
+    assert text.count("version:") >= 2 or text.count("sha256:") >= 2, where
+    with pytest.raises(SourceRegistryError) as exc:
+        SourceRegistry.load(_write(tmp_path, text))
+    assert "duplicate YAML key" in str(exc.value) and "line" in str(exc.value), where
+
+
+def test_the_manifest_version_is_required_and_supported(tmp_path):
+    """Schema versioned 2026-09-26: version 2 adds the release_approvals selector."""
+    for text in (_MINIMAL.replace("version: 1\n", "", 1), _MINIMAL.replace("version: 1", 'version: "1"', 1),
+                 _MINIMAL.replace("version: 1", "version: 3", 1), _MINIMAL.replace("version: 1", "version: true", 1)):
+        with pytest.raises(SourceRegistryError) as exc:
+            SourceRegistry.load(_write(tmp_path, text))
+        assert "manifest version" in str(exc.value)
+
+
+def test_a_version_1_manifest_cannot_carry_an_approval(tmp_path):
+    with pytest.raises(SourceRegistryError) as exc:
+        SourceRegistry.load(_write(tmp_path, _MINIMAL + _APPROVAL))
+    assert "requires manifest version 2" in str(exc.value)
+
+
+def test_the_approval_pointer_is_exactly_record_and_sha256(tmp_path):
+    r = SourceRegistry.load(_write(tmp_path, _MINIMAL_V2 + _APPROVAL))
+    ptr = r.approval_pointer("gnomad-public-releases")
+    assert (ptr.record, ptr.sha256) == ("docs/approvals/APPROVAL_X.json", "a" * 64)
+    with pytest.raises(SourceRegistryError):
+        r.approval_pointer("some-other-target")
+    assert SourceRegistry.load(_write(tmp_path, _MINIMAL_V2)).release_approvals == ()
+
+
+@pytest.mark.parametrize("old,new", [
+    ('record: "docs/approvals/APPROVAL_X.json"', 'record: "../APPROVAL_X.json"'),
+    ('record: "docs/approvals/APPROVAL_X.json"', 'record: "docs/approvals/sub/APPROVAL_X.json"'),
+    ('record: "docs/approvals/APPROVAL_X.json"', 'record: "docs/other/APPROVAL_X.json"'),
+    ('record: "docs/approvals/APPROVAL_X.json"', 'record: "docs/approvals/APPROVAL_X.yaml"'),
+    ('sha256: "{}"'.format("a" * 64), 'sha256: "abcd"'),
+    ('sha256: "{}"'.format("a" * 64), 'sha256: "{}"'.format("A" * 64)),
+    ('    sha256:', '    approved_release: "4.1.1"\n    sha256:'),
+    ('    record: "docs/approvals/APPROVAL_X.json"\n', ''),
+], ids=["parent-path", "nested", "outside-dir", "not-json", "short-digest", "uppercase-digest",
+        "editable-release-copy", "missing-record"])
+def test_an_invalid_approval_pointer_is_refused(tmp_path, old, new):
+    """Including a third, independently editable copy of the release (owner ruling
+    2026-09-25): the pointer is exactly {record, sha256}."""
+    assert _APPROVAL.count(old) == 1, old
+    with pytest.raises(SourceRegistryError):
+        SourceRegistry.load(_write(tmp_path, _MINIMAL_V2 + _APPROVAL.replace(old, new, 1)))
+
+
+def test_from_text_and_load_read_the_same_registry(tmp_path):
+    p = _write(tmp_path, _MINIMAL_V2 + _APPROVAL)
+    assert SourceRegistry.load(p) == SourceRegistry.from_text(p.read_text(encoding="utf-8"), str(p))

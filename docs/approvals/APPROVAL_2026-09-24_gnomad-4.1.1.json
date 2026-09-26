@@ -1,0 +1,22 @@
+{
+  "approval_documented_on": "2026-09-24",
+  "approval_granted_at_utc": null,
+  "approved_release": "4.1.1",
+  "evidence": [
+    {
+      "bytes": 7372,
+      "commit": "38987f54f88e13c4bdd394eb9bb4eb2b192ccdb6",
+      "git_blob_oid": "67f2a773fbdf3b38c22cec3cfd3b4dcbda2082a0",
+      "kind": "git_blob",
+      "path": "docs/measurements/DECISION_2026-09-24_gnomad-4.1.1-approval.md",
+      "repository": "monzia-moodie-repo-projects/genomic-variant-classifier",
+      "role": "historical_approval_record",
+      "sha256": "f59f0355a1057accb54614ee273099b48bf9601a579c12037d1dc2b886234d17"
+    }
+  ],
+  "recorded_at_utc": "2026-09-26T01:10:20Z",
+  "schema_version": 1,
+  "scope": "release_monitoring_baseline",
+  "supersedes_sha256": null,
+  "target": "gnomad-public-releases"
+}

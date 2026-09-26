@@ -120,10 +120,18 @@ MAX_TOKEN_CHARS = 8192
 #: the agreement test.
 EXPECTED_KIND = "storage#objects"
 #: APPROVED 2026-09-24 (owner; first recorded in the rulings preserved 2026-09-22). APPROVAL IS NOT ADOPTION:
-#: every gnomAD artifact the project USES is still v4.1, and a release change for constraint does not by
-#: itself establish one for every frequency product. See
+#: every gnomAD input of the PRODUCTION pipeline is still v4.1 (exploratory work used 4.1.1),
+#: and a release change for constraint does not by itself establish one for every
+#: frequency product. See
 #: docs/measurements/DECISION_2026-09-24_gnomad-4.1.1-approval.md. Anything NEWER than this still alerts.
 APPROVED_BASELINE = "4.1.1"
+#: The verifier's INDEPENDENT pin of the active approval record (change A, 2026-09-26):
+#: target and the record's full SHA-256, written here by hand, never imported. Checked
+#: against the manifest-selected record by `release_approval.require_verifier_pin`.
+#: Two matching declarations detect unintended divergence; authorization is the
+#: owner's ratification. Deliberately NOT in `_plan_fingerprint` (change B owns that).
+APPROVAL_TARGET = "gnomad-public-releases"
+APPROVED_RECORD_SHA256 = "b4396470053b3beb7527032de67a197458165cf73700a836908e8e877b35c250"
 
 
 def _independent_parse_release_version(prefix):

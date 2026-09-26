@@ -323,6 +323,36 @@ jobs:
           fi
           echo "pip check: no broken requirements."
 
+      - name: Verify release approvals (append-only history, pinned evidence)
+        # Change A (2026-09-26, owner rulings). The checkout is shallow, so the base
+        # commit and the approval's evidence commit(s) are fetched EXPLICITLY; the
+        # check then reads only Git objects and refuses missing or altered evidence
+        # -- never falling back to the working tree. It requires Git 2.45+
+        # (--no-lazy-fetch), so `git --version` is logged. Runs before the suite so
+        # the evidence objects exist for the tests that read them.
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          git --version
+          base=""
+          case "$EVENT_NAME" in
+            pull_request) base="$PR_BASE" ;;
+            push) if [ -n "$PUSH_BEFORE" ] && [ "$PUSH_BEFORE" != "0000000000000000000000000000000000000000" ]; then base="$PUSH_BEFORE"; fi ;;
+          esac
+          evidence="$(python scripts/check_release_approvals.py --list-evidence-commits)"
+          # shellcheck disable=SC2086 -- one commit identifier per line, split deliberately
+          git fetch --no-tags --depth=1 origin $base $evidence
+          if [ -n "$base" ]; then
+            python scripts/check_release_approvals.py --base "$base"
+          else
+            echo "::notice::No base commit for event '$EVENT_NAME': the append-only check was NOT evaluated."
+            python scripts/check_release_approvals.py
+          fi
+
       - name: Run the test suite
         env:
           # ESM-2 weights are never downloaded in CI: forcing offline makes any

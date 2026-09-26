@@ -16,10 +16,26 @@
 #              regenerable_expensive AND tier != controlled; explicit here so you can override)
 #   notes    : license / DUA / caveats
 # =============================================================================
-version: 1
+version: 2                # 2026-09-26: adds the release_approvals selector section
 gdrive:
   remote: "genvarcla:"                       # rclone remote (Google Drive)
   base: "genomic-variant-classifier/data"    # path under the remote (the mirror root)
+
+# ---------------------------------------------------------------------------
+# RELEASE APPROVALS -- the manifest SELECTS the active approval record.
+#
+# Added 2026-09-26 (owner rulings 2026-09-25/26; manifest version 2). Exactly
+# two quoted fields per monitoring target: `record`, a never-edited approval
+# record under docs/approvals/, and `sha256`, that record's full SHA-256. The
+# record holds the facts (target, approved release, narrow scope, dates,
+# commit-pinned evidence); the reader exposes them only after verifying its
+# bytes. Kept apart from `sources:`: approval is not adoption. A correction or
+# later approval is a NEW record that supersedes this one; re-point both fields.
+# ---------------------------------------------------------------------------
+release_approvals:
+  gnomad-public-releases:
+    record: "docs/approvals/APPROVAL_2026-09-24_gnomad-4.1.1.json"
+    sha256: "b4396470053b3beb7527032de67a197458165cf73700a836908e8e877b35c250"
 
 # ---------------------------------------------------------------------------
 # STORAGE POLICY -- how much free space a run requires, and when to refuse.
