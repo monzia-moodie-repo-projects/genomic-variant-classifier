@@ -1,3 +1,35 @@
+## 2026-09-26 (approval) -- approval declaration installed: the manifest selects an immutable record (change A)
+
+Owner rulings of 2026-09-25 and 2026-09-26; change A of three (A: approval control; B: release
+interpretation; C: automatic verification). Supersedes an earlier, unmerged draft of A.
+
+APPROVAL DECLARATION INSTALLED. configs/data_manifest.yaml (schema version 2) SELECTS the active
+approval with exactly `{record, sha256}`. The record, docs/approvals/APPROVAL_2026-09-24_gnomad-4.1.1.json
+(never edited; byte-pinned in .gitattributes), holds the facts: target gnomad-public-releases, approved
+release 4.1.1, scope release_monitoring_baseline, documented 2026-09-24, grant time unknown (null, not
+invented), no predecessor, and one evidence item -- the public decision pinned at commit 38987f54
+(blob 67f2a773, SHA-256 f59f0355, 7,372 bytes), role historical_approval_record. The facts are exposed
+only after the record's bytes verify; the manifest carries no editable copy of the release. The
+approval grants no acquisition, qualification, adoption or approval of 4.1.2. Authorization is the
+owner's ratification on this change's pull request; a digest proves byte identity, not intent.
+
+VALIDATION. data/release_approval.py integrates the owner's reference kernels: strict JSON, exact
+fields, dates, the verifier's runtime pin (request_verifier.APPROVAL_TARGET, APPROVED_RECORD_SHA256,
+checked against the selected record), append-only and successor rules, and a Git-object evidence
+verifier (commit/path membership, then size, then SHA-256 and blob identifier; replacement objects
+and lazy fetching disabled; Git 2.45+ required). scripts/check_release_approvals.py reads only Git
+objects; the CI test job runs it before the suite, fetching the base and evidence commits explicitly.
+
+STRICT MANIFEST READER. Duplicate keys are refused at every depth and values are never coerced
+(measured before: sync "false" read as True, aliases "abc" as characters, a repeated key kept the
+last). The real manifest had none of these. Pre-existing unused imports in the touched files removed.
+
+CORRECTION in code: two monitor comments still said "every gnomAD artifact the project USES is still
+v4.1"; they now say production inputs (exploratory work used 4.1.1). The monitor's behaviour and plan
+fingerprint are unchanged; the monitor starts reading the approval in change B.
+
+TESTS: +108 (7,071 collected); eight mutations each fail their named test.
+
 ## 2026-09-25 (records) -- #17 closed after verification on main; correction to the #20 commit message
 
 MERGED. Containment completion via pull request #19 (merge 0ea9f3a; CI green on the pull request and on main, and the

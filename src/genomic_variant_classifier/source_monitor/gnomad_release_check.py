@@ -67,8 +67,9 @@ BASE_QUERY = {"prefix": "release/", "delimiter": "/", "maxResults": "1000",
 
 EXPECTED_KIND = "storage#objects"
 #: APPROVED 2026-09-24 (owner; first recorded in the rulings preserved 2026-09-22). APPROVAL IS NOT ADOPTION:
-#: every gnomAD artifact the project USES is still v4.1, and a release change for constraint does not by
-#: itself establish one for every frequency product. See
+#: every gnomAD input of the PRODUCTION pipeline is still v4.1 (exploratory work used 4.1.1),
+#: and a release change for constraint does not by itself establish one for every
+#: frequency product. See
 #: docs/measurements/DECISION_2026-09-24_gnomad-4.1.1-approval.md. Anything NEWER than this still alerts.
 APPROVED_BASELINE = "4.1.1"
 

@@ -252,3 +252,16 @@ def test_every_rule_line_is_reachable_by_check_attr():
             unreachable.append(pat)
     assert not unreachable, (
         "rule(s) for which git resolves NO attribute: {}".format(unreachable))
+
+
+@pytest.mark.parametrize("path,expected", [
+    ("docs/approvals/APPROVAL_2026-09-24_gnomad-4.1.1.json", "unset"),
+    ("docs/approvals/APPROVAL_next_not_yet_added.json", "unset"),
+    ("docs/approvals/nested/not_a_record.json", "set"),
+])
+def test_approval_records_are_byte_pinned_narrowly(path, expected):
+    """APPROVAL-RECORDS-PINNED-1 (2026-09-26, owner ruling: narrow). The manifest selects each
+    record by its full SHA-256, so git must never rewrite a record's bytes -- today's or the
+    next one (a path that does not exist yet). Direct children only, matching the record-path
+    rule, which refuses nested records anyway."""
+    assert _attrs(path).get("text") == expected, (path, _attrs(path))

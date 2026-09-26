@@ -47,6 +47,30 @@ registry: one cannot invent 32 declarations, and a fallback registry would
 silently answer questions about evidence the project does not have. So this
 RAISES, and the caller decides.
 
+STRICT TYPES AND UNIQUE KEYS (2026-09-25)
+-----------------------------------------
+MEASURED on main 38987f54 (owner review 2026-09-25, reproduced here): the loader
+refused unknown KEYS but coerced VALUES, and let YAML keep the last duplicate:
+
+    sync: "false"            -> sync=True             bool("false") is True
+    aliases: abc             -> ("a", "b", "c")       a string is iterable
+    version: "4.1" twice     -> the last one, silently
+
+This reader is the policy authority for release approvals, so it now refuses
+all three: duplicate keys at any depth, and any value whose type is not the
+declared one. Nothing is converted. The real manifest had none of these
+(measured 2026-09-25), so no declaration changed.
+
+RELEASE APPROVALS (2026-09-26)
+------------------------------
+A separate top-level `release_approvals:` section, keyed by monitoring target,
+SELECTS the active approval: exactly `{record, sha256}` -- a never-edited
+record under docs/approvals/ and that record's full SHA-256. The record holds
+the facts; `release_approval.load_approval` exposes `approved_release` and the
+scope only AFTER verifying the record's bytes. Kept apart from `sources:`,
+which describes the data the project USES: approval is not adoption. The
+section exists only in manifest schema version 2.
+
 WHAT THIS UNIT DOES NOT DO
 --------------------------
 It does not rewire the maintenance scripts. Those are deliberately standalone --
@@ -63,13 +87,19 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Dict, FrozenSet, Optional, Tuple
+from typing import Dict, FrozenSet, Tuple
 
 #: The default the four scripts each spell separately.
 DEFAULT_LOCATION = "external"
 
 #: Where the declarations live, relative to the repository root.
 DEFAULT_MANIFEST = "configs/data_manifest.yaml"
+
+
+#: Manifest schema versions this reader understands. Version 2 (2026-09-26) adds the
+#: `release_approvals:` selector section; a version-1 manifest may not carry one.
+SUPPORTED_MANIFEST_VERSIONS = (1, 2)
+_POINTER_FIELDS = frozenset({"record", "sha256"})
 
 
 class SourceTier(str, Enum):
@@ -199,6 +229,36 @@ class SourceDeclaration:
 
 
 @dataclass(frozen=True)
+class ApprovalPointer:
+    """The manifest's SELECTION of an approval record: path and full SHA-256 only.
+
+    The approval's facts live in the record; see `release_approval.load_approval`.
+    """
+
+    target: str
+    record: str
+    sha256: str
+
+    def __post_init__(self) -> None:
+        from genomic_variant_classifier.data.release_approval import _RECORD_PATH, _SHA256
+
+        for field in ("target", "record", "sha256"):
+            if type(getattr(self, field)) is not str:
+                raise SourceRegistryError(
+                    "release_approvals.{}.{} must be a quoted string, not {}".format(
+                        self.target, field, type(getattr(self, field)).__name__))
+        if not self.target or self.target != self.target.strip():
+            raise SourceRegistryError("a release approval needs a non-blank target")
+        if _RECORD_PATH.fullmatch(self.record) is None:
+            raise SourceRegistryError(
+                "release_approvals.{}.record {!r} must be a direct docs/approvals/*.json path"
+                .format(self.target, self.record))
+        if _SHA256.fullmatch(self.sha256) is None:
+            raise SourceRegistryError(
+                "release_approvals.{}.sha256 must be all 64 lowercase hex digits".format(self.target))
+
+
+@dataclass(frozen=True)
 class SourceRegistry:
     """Every declared source, and where the declarations came from.
 
@@ -209,8 +269,14 @@ class SourceRegistry:
 
     declarations: Tuple[SourceDeclaration, ...]
     manifest_source: str
+    release_approvals: Tuple[ApprovalPointer, ...] = ()
 
     def __post_init__(self) -> None:
+        targets = [a.target for a in self.release_approvals]
+        if len(set(targets)) != len(targets):
+            raise SourceRegistryError("duplicate release-approval target(s)")
+        if targets != sorted(targets):
+            raise SourceRegistryError("release approvals are not in canonical order")
         if not self.declarations:
             raise SourceRegistryError(
                 "the registry is empty. An empty registry would answer every "
@@ -249,15 +315,30 @@ class SourceRegistry:
         declarations, and a fallback registry would silently answer questions
         about evidence this project does not have.
         """
-        import yaml
-
         p = Path(manifest)
         try:
-            raw = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+            text = p.read_text(encoding="utf-8")
         except OSError as exc:
             raise SourceRegistryError(
                 "cannot read {}: {}. There is no defensible default for a "
                 "source registry.".format(p, exc)) from exc
+        return cls.from_text(text, str(p))
+
+    @classmethod
+    def from_text(cls, text: str, source: str) -> "SourceRegistry":
+        """Parse manifest TEXT -- e.g. a Git blob at a pinned commit (the admission check
+        reads Git objects, never the working tree). `source` is recorded for audit."""
+        p = source
+        raw = _load_unique_yaml(text) or {}
+        if not isinstance(raw, dict):
+            raise SourceRegistryError("{} is not a mapping at the top level".format(p))
+        version = raw.get("version")
+        if type(version) is not int or version not in SUPPORTED_MANIFEST_VERSIONS:
+            raise SourceRegistryError(
+                "{}: manifest version {!r} is not one of {}".format(p, version, SUPPORTED_MANIFEST_VERSIONS))
+        if "release_approvals" in raw and version < 2:
+            raise SourceRegistryError(
+                "{}: release_approvals requires manifest version 2 (found {})".format(p, version))
         block = raw.get("sources")
         if not isinstance(block, dict) or not block:
             raise SourceRegistryError(
@@ -283,15 +364,24 @@ class SourceRegistry:
                                name, "location"),
                 tier=_enum(SourceTier, meta.get("tier"), name, "tier"),
                 cls=_enum(SourceClass, meta.get("class"), name, "class"),
-                aliases=tuple(str(a) for a in (meta.get("aliases") or [])),
-                version=str(meta.get("version", "")),
-                acquire=str(meta.get("acquire", "")),
-                regenerate=str(meta.get("regenerate", "")),
-                sync=bool(meta.get("sync", False)),
-                notes=str(meta.get("notes", "")),
+                aliases=_typed_aliases(meta, name),
+                version=_typed(meta, "version", str, "", name),
+                acquire=_typed(meta, "acquire", str, "", name),
+                regenerate=_typed(meta, "regenerate", str, "", name),
+                sync=_typed(meta, "sync", bool, False, name),
+                notes=_typed(meta, "notes", str, "", name),
             ))
         return cls(declarations=tuple(sorted(out, key=lambda d: d.name)),
-                   manifest_source=str(p))
+                   manifest_source=str(p),
+                   release_approvals=_release_approvals(raw.get("release_approvals")))
+
+    def approval_pointer(self, target: str) -> ApprovalPointer:
+        for a in self.release_approvals:
+            if a.target == target:
+                return a
+        raise SourceRegistryError(
+            "no release approval declared for {!r}; declared: {}".format(
+                target, [a.target for a in self.release_approvals]))
 
     @property
     def names(self) -> Tuple[str, ...]:
@@ -371,3 +461,76 @@ def _enum(kind, value, source: str, field: str):
         raise SourceRegistryError(
             "source {!r} declares {} {!r}; expected one of {}".format(
                 source, field, value, [m.value for m in kind])) from exc
+
+
+def _load_unique_yaml(text: str):
+    """Safe YAML with DUPLICATE KEYS REFUSED at every depth.
+
+    `yaml.safe_load` keeps the last duplicate silently -- MEASURED 2026-09-25: two
+    `version:` keys read as the second.
+    """
+    import yaml
+
+    class _UniqueKeyLoader(yaml.SafeLoader):
+        pass
+
+    def _mapping(loader, node, deep=False):
+        loader.flatten_mapping(node)
+        out = {}
+        for key_node, value_node in node.value:
+            key = loader.construct_object(key_node, deep=deep)
+            if key in out:
+                raise SourceRegistryError(
+                    "duplicate YAML key {!r} at line {}; YAML would silently keep the last "
+                    "one".format(key, key_node.start_mark.line + 1))
+            out[key] = loader.construct_object(value_node, deep=deep)
+        return out
+
+    _UniqueKeyLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _mapping)
+    return yaml.load(text, Loader=_UniqueKeyLoader)
+
+
+def _typed(meta, key: str, kind, default, source: str):
+    """The declared type or a refusal. NOTHING IS CONVERTED (bool("false") is True)."""
+    if key not in meta:
+        return default
+    value = meta[key]
+    if type(value) is not kind:
+        raise SourceRegistryError(
+            "source {!r}: {} is {!r} ({}), not {}. Values are never converted: "
+            "bool('false') is True and str(4.1) invents text.".format(
+                source, key, value, type(value).__name__, kind.__name__))
+    return value
+
+
+def _typed_aliases(meta, source: str):
+    if "aliases" not in meta or meta["aliases"] is None:
+        return ()
+    value = meta["aliases"]
+    if type(value) is not list:
+        raise SourceRegistryError(
+            "source {!r}: aliases is {!r} ({}), not a list. A string would be split into "
+            "characters.".format(source, value, type(value).__name__))
+    for a in value:
+        if type(a) is not str:
+            raise SourceRegistryError(
+                "source {!r}: alias {!r} is {}, not a string".format(source, a, type(a).__name__))
+    return tuple(value)
+
+
+def _release_approvals(block) -> Tuple[ApprovalPointer, ...]:
+    if block is None:
+        return ()
+    if not isinstance(block, dict):
+        raise SourceRegistryError("release_approvals must be a mapping of target to {record, sha256}")
+    out = []
+    for target, fields in block.items():
+        if type(target) is not str:
+            raise SourceRegistryError("release-approval target {!r} is not a string".format(target))
+        if not isinstance(fields, dict) or set(fields) != _POINTER_FIELDS:
+            got = sorted(fields) if isinstance(fields, dict) else type(fields).__name__
+            raise SourceRegistryError(
+                "release_approvals.{} must contain exactly {}; got {}".format(
+                    target, sorted(_POINTER_FIELDS), got))
+        out.append(ApprovalPointer(target=target, **fields))
+    return tuple(sorted(out, key=lambda a: a.target))

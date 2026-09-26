@@ -134,3 +134,14 @@ docs/archive/legacy/** -text
 # Same principle as RECORDS-EOL-NORMALIZATION-1: a preservation must not depend
 # on the corpus staying friendly. Scope is narrow on purpose. PINNED-ONTOLOGY-1.
 baseline/GVC_refinements_2026-09-21/ontology/so.obo -text
+
+# ---------------------------------------------------------------------------
+# APPROVAL RECORDS: never-edited, digest-bound (added 2026-09-26, change A).
+# ---------------------------------------------------------------------------
+# configs/data_manifest.yaml `release_approvals:` selects each record by its full
+# SHA-256. `*.json text eol=lf` (line 11) happens to keep them LF today -- the
+# reasoning rejected at RECORDS-EOL-NORMALIZATION-1 and PINNED-ONTOLOGY-1: a
+# preservation must not depend on the corpus staying friendly. Narrow on purpose
+# (owner ruling 2026-09-25): direct children only, matching the record-path rule.
+# After line 11 because later rules win. APPROVAL-RECORDS-PINNED-1.
+docs/approvals/*.json -text
