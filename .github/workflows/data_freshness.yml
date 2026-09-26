@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   freshness:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pinned 2026-09-26: ubuntu-latest moves to Ubuntu 26 from 2026-10-19
     steps:
       # SHA-pinned to the SAME versions ci.yml and drift_monitor.yml already use:
       # checkout v6.0.2, setup-python v6.2.0, upload-artifact v7.0.0, all node24.

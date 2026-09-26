@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **7,071 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **7,086 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -402,7 +402,12 @@ exists to end.
   grant time unknown, evidence the decision pinned at 38987f54) and is read only after its bytes
   verify. The manifest reader is strict (no coercion, duplicate keys refused). CI admits approvals
   from Git objects before the suite (append-only history, evidence fetched and verified; Git 2.45+).
-  The monitor does not read it yet (change B). Suite 6,963 -> 7,071.
+  The monitor does not read it yet (change B). Suite 6,963 -> 7,071. Ratified by the owner on #24
+  at 2026-09-26T05:51:42Z, twelve minutes AFTER the merge (05:39:29Z); stated in the comment itself.
+- **2026-09-26 -- CI runners pinned to ubuntu-24.04; release-grammar correction recorded.** All 14
+  jobs across 7 workflows (13 were `ubuntu-latest`, which moves to Ubuntu 26 from 2026-10-19). The
+  approval check's fetch list is de-duplicated. `DECISION_2026-09-26_release-grammar-four-part-correction.md`:
+  four-component names stay review items (change B). Suite 7,071 -> 7,086.
   `docs/measurements/DECISION_2026-09-24_gnomad-4.1.1-approval.md`. Suite 6,921 -> 6,963.
 
 - **2026-09-23 -- test-isolation prerequisite.** The suite no longer writes into

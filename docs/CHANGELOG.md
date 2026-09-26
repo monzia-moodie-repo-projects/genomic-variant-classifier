@@ -1,3 +1,30 @@
+## 2026-09-26 (runners) -- CI runners pinned to ubuntu-24.04; release-grammar correction recorded
+
+RUNNERS PINNED (owner decision, 2026-09-26). GitHub annotated every run of #24 and of main: "The
+ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026." Thirteen of fourteen jobs
+across seven workflows used `ubuntu-latest`, so on that date Python, Git and system libraries would
+change under all six required checks with no commit here -- unrecorded environment drift that would
+read as a regression. All jobs now run on `ubuntu-24.04`, the image the checks passed on (one job,
+teardown_abort_diagnostic.yml, already did). Edits are in place, so no line-numbered test id moved.
+tests/unit/test_workflow_runner_pins.py parses every workflow and fails on any job not pinned.
+Moving to Ubuntu 26 is a separate, tested change.
+
+APPROVAL CHECK. The CI step fetched commit 38987f54 twice on #24, because the pull request's base and
+the approval's evidence were the same commit. The fetch list is now de-duplicated (`sort -u`).
+
+RATIFICATION RECORDED. The owner ratified the structured approval on #24 at 2026-09-26T05:51:42Z
+(comment 5843664376), twelve minutes after the merge at 05:39:29Z; the comment states this itself.
+It quotes the record's SHA-256 (b4396470...) and the merge commit (6cf44f4c...). Nothing read the
+approval in the interval: the monitor starts reading it in change B.
+
+RELEASE-GRAMMAR CORRECTION. docs/measurements/DECISION_2026-09-26_release-grammar-four-part-correction.md
+records that the owner's ruling of 2026-09-26 (decision.txt 8ee408fd...) supersedes section B of the
+approval-control review README (6b92da9a...) on four-component acceptance and unrestricted trailing-zero
+normalisation: four-component names remain review items, and the component count is validated before
+any normalisation. Change B implements it.
+
+TESTS: +15 (7,086 collected).
+
 ## 2026-09-26 (approval) -- approval declaration installed: the manifest selects an immutable record (change A)
 
 Owner rulings of 2026-09-25 and 2026-09-26; change A of three (A: approval control; B: release

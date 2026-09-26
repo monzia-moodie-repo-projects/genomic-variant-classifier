@@ -41,7 +41,7 @@ jobs:
   # ── Job 1: Feature drift detection ──────────────────────────────────────
   feature-drift:
     name: Feature Drift Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pinned 2026-09-26: ubuntu-latest moves to Ubuntu 26 from 2026-10-19
     outputs:
       readiness_status: ${{ steps.drift.outputs.readiness_status }}
       feature_drift_checked: ${{ steps.drift.outputs.feature_drift_checked }}
@@ -342,7 +342,7 @@ jobs:
   # ── Job 2: Label drift (ClinVar reclassification) ────────────────────────
   label-drift:
     name: ClinVar Label Drift Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pinned 2026-09-26: ubuntu-latest moves to Ubuntu 26 from 2026-10-19
     needs: feature-drift
     # RUNS REGARDLESS OF feature-drift'S CONCLUSION. (2026-09-16)
     #
@@ -484,7 +484,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════════
   notify:
     name: Drift Notification
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pinned 2026-09-26: ubuntu-latest moves to Ubuntu 26 from 2026-10-19
     needs: [feature-drift, label-drift]
     # always(): the feature-drift job now FAILS when it cannot see the reference data. Without
     # always(), a failed dependency SKIPS this job -- and the monitor would go silent at exactly
@@ -642,7 +642,7 @@ jobs:
   # ── Job 4: Automated smoke test after manual retrain ────────────────────
   verify-model:
     name: Verify Current Production Model
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pinned 2026-09-26: ubuntu-latest moves to Ubuntu 26 from 2026-10-19
     # Run independently every month to confirm the production model still passes smoke tests
 
     steps:

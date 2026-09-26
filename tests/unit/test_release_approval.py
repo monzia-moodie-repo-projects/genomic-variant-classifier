@@ -432,6 +432,6 @@ def test_ci_verifies_approvals_before_the_suite_with_explicit_fetches():
     i = names.index("Verify release approvals (append-only history, pinned evidence)")
     assert names[i + 1] == "Run the test suite"
     run = steps[i]["run"]
-    for fragment in ("git --version", "--list-evidence-commits", "git fetch --no-tags --depth=1 origin $base $evidence",
+    for fragment in ("git --version", "--list-evidence-commits", "git fetch --no-tags --depth=1 origin $(printf '%s\\n' $base $evidence | sort -u)",
                      'check_release_approvals.py --base "$base"', "NOT evaluated"):
         assert fragment in run, fragment
