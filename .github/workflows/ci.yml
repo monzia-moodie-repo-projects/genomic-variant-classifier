@@ -28,7 +28,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────
   lockfile-check:
     name: lockfile drift check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pinned 2026-09-26: ubuntu-latest moves to Ubuntu 26 from 2026-10-19
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -188,7 +188,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────
   test:
     name: pytest
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pinned 2026-09-26: ubuntu-latest moves to Ubuntu 26 from 2026-10-19
     strategy:
       # fail-fast: false (2026-09-23). The default cancelled pytest (3.12) the moment 3.11 failed (run #882),
       # so one environment's result hid the other's. Each Python version must report for itself.
@@ -345,7 +345,7 @@ jobs:
           esac
           evidence="$(python scripts/check_release_approvals.py --list-evidence-commits)"
           # shellcheck disable=SC2086 -- one commit identifier per line, split deliberately
-          git fetch --no-tags --depth=1 origin $base $evidence
+          git fetch --no-tags --depth=1 origin $(printf '%s\n' $base $evidence | sort -u)
           if [ -n "$base" ]; then
             python scripts/check_release_approvals.py --base "$base"
           else
@@ -473,7 +473,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────
   drift:
     name: drift monitor (isolated env)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pinned 2026-09-26: ubuntu-latest moves to Ubuntu 26 from 2026-10-19
     # `needs: lockfile-check` REMOVED 2026-07-14 (roadmap 6.25). This job installs
     # requirements-drift.txt into a DELIBERATELY ISOLATED environment -- the whole point of it
     # is that it shares nothing with the API image. Chaining it behind the API lockfile gate
@@ -563,7 +563,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────
   docker-build:
     name: Docker build smoke test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pinned 2026-09-26: ubuntu-latest moves to Ubuntu 26 from 2026-10-19
     # THIS job genuinely depends on the lock -- Dockerfile:68-70 installs requirements-api.lock
     # into the image. Made EXPLICIT 2026-07-14 (roadmap 6.25): it used to inherit the
     # dependency transitively through `test`, which is why removing `test`'s spurious
@@ -596,7 +596,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────
   push-ghcr:
     name: Push image to GHCR
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pinned 2026-09-26: ubuntu-latest moves to Ubuntu 26 from 2026-10-19
     # 2026-09-23 (owner decision: publish on release). This job could NEVER run: it needed docker-build,
     # which is skipped on `release`, and GitHub skips a job whose needed job was skipped. It now needs only
     # the jobs that DO run on a release, builds the image ONCE, smoke-tests THAT image with the shared

@@ -61,7 +61,7 @@ concurrency:
 jobs:
   alert:
     name: Surface or clear a red main
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pinned 2026-09-26: ubuntu-latest moves to Ubuntu 26 from 2026-10-19
     # workflow_dispatch always runs, so the path can be exercised deliberately.
     # workflow_run acts only for main -- a red dev branch is not a red release.
     if: >-

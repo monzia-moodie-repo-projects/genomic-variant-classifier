@@ -56,7 +56,7 @@ concurrency:
 
 jobs:
   monitor:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pinned 2026-09-26: ubuntu-latest moves to Ubuntu 26 from 2026-10-19
     timeout-minutes: 15
     steps:
       # EVERY SHA BELOW COMES FROM EXPECTED_PINS IN

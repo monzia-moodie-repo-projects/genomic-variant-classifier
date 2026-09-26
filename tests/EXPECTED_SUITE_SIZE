@@ -8040,4 +8040,6 @@
 #   test_the_measured_listing_reports_the_newer_release retired: 4.1.1 is approved, so the real measured listing now holds nothing newer; its successors assert that, and that a genuinely newer release is still reported. +25 of the +43 pin exact two-directional, type-strict, canonical claim reconciliation (owner review and reference, 2026-09-24).
 # 2026-09-26  RELEASE-APPROVAL-SELECTOR-2026-09-26 (change A, revised)
 #   +122 / -14 by node identity = +108 tests. The 14 "removed" are NOT removed: test_workflow_action_pins ids embed ci.yml line numbers, and the new CI step shifted them (same 14 tests, renamed). +85 release approval, +20 strict manifest and pointer, +3 gitattributes.
-7071
+# 2026-09-26  RUNNER-PIN-2026-09-26
+#   +15 / -0 by node identity: every workflow job runs on the pinned ubuntu-24.04 (14 jobs + a non-vacuity guard). In-place edits: no line-numbered test id moved.
+7086
