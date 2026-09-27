@@ -79,8 +79,15 @@ jobs:
         with:
           python-version: "3.12"
 
-      # The runner uses only the standard library. Nothing is installed, so
-      # nothing here can drift; if that changes, pin it explicitly.
+      # CHANGE B (2026-09-26): the runner reads the manifest's release_approvals
+      # selector, so it needs ONE dependency -- PyYAML. This line used to say
+      # "Nothing is installed ... if that changes, pin it explicitly"; this is that
+      # explicit pin. requirements-source-monitor.txt locks it by SHA-256, and
+      # --require-hashes refuses any other bytes. Its digest is the environment_lock
+      # part of the report's interpretation fingerprint.
+      - name: Install the monitor's hash-locked dependency
+        run: |
+          python -m pip install --require-hashes --no-deps --only-binary=:all: -r requirements-source-monitor.txt
 
       - name: Run the source monitor
         id: monitor

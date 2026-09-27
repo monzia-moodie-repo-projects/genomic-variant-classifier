@@ -360,10 +360,22 @@ jobs:
                 for (const target of Object.keys(qualBlock)) {
                   const q = qualBlock[target];
                   if (q === null || typeof q !== 'object') continue;
+                  // CHANGE B (2026-09-26): witnesses are the RAW prefixes of newer
+                  // stable releases; unsupported_names are raw prefixes outside the
+                  // release grammar (review items that block an absence claim). A
+                  // non-string element renders as JSON -- never "[object Object]".
+                  const text = (v) => (typeof v === 'string' ? v : JSON.stringify(v));
                   const witnesses = q.positive_witnesses;
                   if (Array.isArray(witnesses)) {
                     for (const w of witnesses) {
-                      scientificLines.push(`- **${target}:** ${w}`);
+                      scientificLines.push(`- **${target}:** newer release ${text(w)}`);
+                    }
+                  }
+                  const unsupported = q.unsupported_names;
+                  if (Array.isArray(unsupported)) {
+                    for (const u of unsupported) {
+                      scientificLines.push(`- **${target}:** unsupported release name ${text(u)} ` +
+                        '(outside the release grammar; review required; no absence claim possible)');
                     }
                   }
                 }

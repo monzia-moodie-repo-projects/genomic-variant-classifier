@@ -8042,4 +8042,6 @@
 #   +122 / -14 by node identity = +108 tests. The 14 "removed" are NOT removed: test_workflow_action_pins ids embed ci.yml line numbers, and the new CI step shifted them (same 14 tests, renamed). +85 release approval, +20 strict manifest and pointer, +3 gitattributes.
 # 2026-09-26  RUNNER-PIN-2026-09-26
 #   +15 / -0 by node identity: every workflow job runs on the pinned ubuntu-24.04 (14 jobs + a non-vacuity guard). In-place edits: no line-numbered test id moved.
-7086
+# 2026-09-26  RELEASE-GRAMMAR-AND-INTERPRETATION-2026-09-26 (change B)
+#   +50 / -17 by node identity = +33 (incl. 3 behavioural alert tests; the former xfail now passes as a normal test). The 17 are renamed, not lost: 7 invalid-label params (replaced; v4.1.2 now ACCEPTED as ruled), 6 outside-grammar params (ids now carry the expected kind), 2 reconciliation tests (multiset semantics), 2 action-pin ids shifted by the new install step in source_monitor.yml.
+7119

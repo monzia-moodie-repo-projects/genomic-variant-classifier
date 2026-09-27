@@ -335,7 +335,8 @@ def test_the_verifier_pin_agrees_with_the_manifest_selected_approval_at_runtime(
     _, a = _active()
     ra.require_verifier_pin(a, target=rv.APPROVAL_TARGET, approved_release=rv.APPROVED_BASELINE,
                             record_sha256=rv.APPROVED_RECORD_SHA256)
-    assert gnomad_release_check.APPROVED_BASELINE == a.approved_release
+    # change B: the adapter DERIVES its baseline from this very approval (manifest-selected, bytes verified)
+    assert gnomad_release_check.approved_baseline() == a.approved_release
 
 
 @_needs_git

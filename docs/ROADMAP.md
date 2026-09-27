@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **7,086 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **7,119 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -408,6 +408,15 @@ exists to end.
   jobs across 7 workflows (13 were `ubuntu-latest`, which moves to Ubuntu 26 from 2026-10-19). The
   approval check's fetch list is de-duplicated. `DECISION_2026-09-26_release-grammar-four-part-correction.md`:
   four-component names stay review items (change B). Suite 7,071 -> 7,086.
+- **2026-09-26 -- source-monitor release grammar and interpretation (change B; owner rulings 2026-09-25/26).**
+  Every listed prefix is classified on the exact envelope `release/NAME/` by two independent parsers (adapter
+  regex, verifier characters; 0 disagreements on 20,000 random prefixes and the owner reference). Two- and
+  three-component names are ordered; four-component, prerelease and other names are unsupported REVIEW findings
+  (exit 1) that block any absence claim -- never dropped (measured before: `5.0.0rc1` exited 0, `4.1.1.0` falsely
+  alerted). Findings and witnesses name the RAW prefix. The monitor reads the approved release from the
+  manifest-selected record; the verifier's pin must agree at runtime; each report carries a six-part
+  interpretation fingerprint. PyYAML is installed hash-locked. The alert renders unsupported names; its
+  2026-09-17 `[object Object]` xfail now passes and is locked in. Suite 7,086 -> 7,119.
   `docs/measurements/DECISION_2026-09-24_gnomad-4.1.1-approval.md`. Suite 6,921 -> 6,963.
 
 - **2026-09-23 -- test-isolation prerequisite.** The suite no longer writes into

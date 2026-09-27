@@ -301,3 +301,17 @@ def test_the_workflow_records_why_it_exists(raw):
     have to find this test to learn why the workflow was added."""
     assert "4.1.1" in raw
     assert "there was no" in raw.lower() or "NO READER" in raw or "no reader" in raw
+
+
+def test_exit_two_surfaces_unsupported_names_as_well_as_witnesses(raw):
+    """CHANGE B (2026-09-26): the verifier reports RAW prefixes outside the release grammar in
+    qualification[target].unsupported_names. MEASURED by executing this script with Node.js v22 against
+    controlled doubles: main's version DROPPED every unsupported name from the issue body."""
+    assert "q.unsupported_names" in raw
+    assert "unsupported release name" in raw
+
+
+def test_a_non_string_witness_renders_as_json_never_object_object(raw):
+    """MEASURED the same way: main's `${w}` printed "[object Object]" for a non-string element -- an alert
+    that fires but no longer says what was found. Non-strings now render as JSON."""
+    assert "typeof v === 'string' ? v : JSON.stringify(v)" in raw
