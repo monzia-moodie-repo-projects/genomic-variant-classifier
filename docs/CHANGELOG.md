@@ -1,3 +1,47 @@
+## 2026-09-26 (monitor) -- release grammar, approval-derived baseline and interpretation fingerprint (change B)
+
+Owner rulings of 2026-09-25 and 2026-09-26 (release policy, decisions 1-7; four-part correction).
+
+MEASURED BEFORE (main 38987f54): the adapter took the LAST path component, stripped "v", accepted non-ASCII digits
+and leading zeros, compared tuples of any length, and DROPPED every prefix it could not parse. release/5.0.0rc1/
+exited 0 ("qualified; no action"); release/4.1.1.0/ raised a false "newer than the approved 4.1.1"; a superscript
+digit crashed both parsers; full-width "4.1" read as 4.1.
+
+GRAMMAR. Each prefix is classified on the EXACT envelope release/NAME/: ASCII, no leading zeros, optional lowercase
+"v", two or three components -- ordered, a missing patch reads as 0 (4.2 and 4.2.0 share an ordering key only). The
+component count is validated before any normalisation. Everything else in the envelope is an UNSUPPORTED name: a
+review finding (exit 1), never newer, never dropped, and while any is present no absence claim is possible. A prefix
+outside the envelope refuses its page (exit 2). The adapter (regex) and verifier (character parser) implement it
+independently: 0 disagreements with each other and with the owner's reference on 32 golden cases and 20,000
+randomised prefixes.
+
+RAW PREFIXES. Findings, witnesses and the new qualification.unsupported_names name the raw prefix
+("release/v4.2/" stays v4.2). Reconciliation is an exact multiset of (kind, raw prefix), both directions.
+
+APPROVAL AND INTERPRETATION. The adapter reads the approved release from the manifest-selected approval record, only
+after its bytes verify; failure is FAILED config.invalid_baseline, never a default. Before any check the runner
+requires the verifier's independent pin (target, release, record SHA-256) and the two grammar identities to agree
+(exit 2 otherwise). Each report carries interpretation.fingerprint over six parts: approval, release rules, request
+plan, adapter code, verifier code, environment lock. The request-plan fingerprint itself is unchanged.
+
+DEPENDENCY. source_monitor.yml installed nothing; it now installs PyYAML 6.0.3 (the project's version) from
+requirements-source-monitor.txt, locked by SHA-256 with --require-hashes.
+
+ALERT. source_monitor_alert.yml renders unsupported names and renders non-strings as JSON. MEASURED by executing the
+script with Node.js against controlled doubles: main's version printed "[object Object]" and dropped every
+unsupported name. The permanent behavioural harness (tests/unit/test_source_monitor_alert_behavior.py) carried that
+defect since 2026-09-17 as an xfail "to be removed, not widened" once fixed: the first clean run measured it XPASSING,
+so the xfail is removed and three behavioural tests for unsupported names are added through the same harness.
+
+NOTE. The out-of-repository checker Check_SourceMonitorReport_2026-09-24.ps1 expects canonical labels and is valid
+only for runs before this change; change C replaces it with an in-repository verifier.
+
+HYGIENE. Pre-existing pyflakes findings removed in touched files (run_monitor ContractFinding; test_monitoring
+SignalOutcome, sqlite3, a leftover local). Two weak assertions made exact (both traversal pages survive; the kept
+witness matched exactly, not as a substring).
+
+TESTS: +33 (7,119 collected); ten mutations each fail their named test by assertion (two through the harness).
+
 ## 2026-09-26 (runners) -- CI runners pinned to ubuntu-24.04; release-grammar correction recorded
 
 RUNNERS PINNED (owner decision, 2026-09-26). GitHub annotated every run of #24 and of main: "The

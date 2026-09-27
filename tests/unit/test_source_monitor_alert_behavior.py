@@ -31,8 +31,6 @@ the correct GitHub API calls.
 from __future__ import annotations
 
 import shutil
-import tempfile
-from pathlib import Path
 
 import pytest
 
@@ -127,19 +125,11 @@ def test_a_malformed_qualification_block_does_not_crash(tmp_path):
     assert "### Scientific review" not in rendered_body(result)
 
 
-@pytest.mark.xfail(
-    reason="MEASURED 2026-09-17: a witness value that is itself an "
-           "object, rather than a string, renders as the literal text "
-           "'[object Object]'. Confirmed by the ruling that reviewed WD, "
-           "and reproduced directly here. This is a known, deliberately "
-           "deferred limitation -- 'individual witness values are not "
-           "validated' -- to be closed by the single report-contract "
-           "work item (P2), not a standalone patch. This test documents "
-           "the limitation as a live behavioral fact rather than letting "
-           "it go unrecorded; it is expected to start passing once P2 "
-           "lands, at which point xfail should be removed, not widened.",
-    strict=False)
 def test_a_non_string_witness_value_does_not_render_as_object_object(tmp_path):
+    """MEASURED 2026-09-17: a witness value that is itself an object rendered as the literal text
+    '[object Object]' -- recorded then as an xfail, "to start passing once P2 lands, at which point
+    xfail should be removed, not widened." Change B (2026-09-26) renders non-strings as JSON; the
+    clean run measured this test XPASSING, so the xfail is removed and the fix is now LOCKED IN."""
     report = {"exit_code": 2, "results": [{"target": "x", "reason": "y"}],
               "unqualified": ["x"],
               "qualification": {"x": {"positive_witnesses": [{"a": 1}]}}}
@@ -147,3 +137,45 @@ def test_a_non_string_witness_value_does_not_render_as_object_object(tmp_path):
         tmp_path=tmp_path, env={"DRY_RUN": "true", "SIMULATE_EXIT_CODE": "none"},
         context=_WORKFLOW_RUN_CONTEXT, report=report)
     assert "[object Object]" not in rendered_body(result)
+
+    assert '{"a":1}' in rendered_body(result)
+
+
+# ---------------------------------------------------------------------------
+# CHANGE B (2026-09-26): unsupported release names -- RAW prefixes outside the release grammar, which
+# are review items and block any absence claim. Before B, this script DROPPED them from the issue body
+# (measured by executing main's script with the same doubles).
+# ---------------------------------------------------------------------------
+
+def _qualified(witnesses, unsupported):
+    return {"exit_code": 2, "results": [{"target": "gnomad-public-releases", "reason": "evidence.qualification_unestablished"}],
+            "unqualified": ["gnomad-public-releases"],
+            "qualification": {"gnomad-public-releases": {"positive_witnesses": witnesses, "unsupported_names": unsupported}}}
+
+
+def test_raw_prefix_witnesses_and_unsupported_names_are_both_rendered(tmp_path):
+    result = run_alert_script(
+        tmp_path=tmp_path, env={"DRY_RUN": "true", "SIMULATE_EXIT_CODE": "none"}, context=_WORKFLOW_RUN_CONTEXT,
+        report=_qualified(["release/4.1.2/"], ["release/4.1.1.0/", "release/5.0.0rc1/"]))
+    body = rendered_body(result)
+    assert "newer release release/4.1.2/" in body
+    assert "unsupported release name release/4.1.1.0/" in body
+    assert "unsupported release name release/5.0.0rc1/" in body
+    assert result["production_writes"] == []
+
+
+def test_only_unsupported_names_still_produce_the_scientific_review(tmp_path):
+    result = run_alert_script(
+        tmp_path=tmp_path, env={"DRY_RUN": "true", "SIMULATE_EXIT_CODE": "none"}, context=_WORKFLOW_RUN_CONTEXT,
+        report=_qualified([], ["release/latest/"]))
+    body = rendered_body(result)
+    assert "### Scientific review" in body and "unsupported release name release/latest/" in body
+
+
+def test_a_non_string_unsupported_name_renders_as_json(tmp_path):
+    result = run_alert_script(
+        tmp_path=tmp_path, env={"DRY_RUN": "true", "SIMULATE_EXIT_CODE": "none"}, context=_WORKFLOW_RUN_CONTEXT,
+        report=_qualified([], [7, {"b": 2}]))
+    body = rendered_body(result)
+    assert "unsupported release name 7" in body and '{"b":2}' in body
+    assert "[object Object]" not in body

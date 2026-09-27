@@ -37,6 +37,32 @@ portion of the namespace can be missed during pagination. A validated terminal
 traversal therefore establishes COMPLETION OF THAT TRAVERSAL, not an atomic
 snapshot of the collection.
 
+THE RELEASE GRAMMAR (change B, 2026-09-26; owner rulings of 2026-09-25/26)
+=========================================================================
+MEASURED on main 38987f54 before this: `parse_version` took the LAST path
+component, stripped a "v", accepted non-ASCII digits (`str.isdigit`) and
+leading zeros, compared tuples of any length, and DROPPED every prefix it could
+not parse. So `release/5.0.0rc1/` exited 0 ("qualified; no action"), a
+superscript digit crashed the parse, full-width "4.1" read as 4.1, and
+`release/4.1.1.0/` raised a FALSE "newer than the approved 4.1.1".
+
+Now each listed prefix is classified against the EXACT envelope `release/NAME/`:
+    stable        ASCII, no leading zeros, optional lowercase "v", TWO or
+                  THREE components -- ordered, a missing patch reads as 0
+                  (4.2 and 4.2.0 share one ordering key only)
+    unsupported   anything else inside the envelope (four components,
+                  prerelease labels, uppercase V, aliases): a REVIEW finding,
+                  never dropped, never newer
+    envelope      a prefix that is not exactly release/NAME/ is a structural
+                  page refusal (exit 2) -- the listing did not have the shape
+                  the approved request asked for
+The component count is validated BEFORE any normalisation, so 4.1.1.0 can
+never become 4.1.1. Every finding names the RAW prefix it came from.
+
+THE APPROVED BASELINE comes from the manifest-selected approval record, read
+only after its bytes verify (release_approval.load_approval). The verifier
+keeps its own independent expectation; run_monitor checks they agree.
+
 WHAT THIS MODULE DOES NOT ESTABLISH
 ===================================
     * that a newer release PREFIX means a usable product;
@@ -50,7 +76,9 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import re
 import time
+from pathlib import Path
 from dataclasses import dataclass, field
 from urllib.parse import urlencode
 
@@ -66,12 +94,55 @@ BASE_QUERY = {"prefix": "release/", "delimiter": "/", "maxResults": "1000",
               "fields": "kind,prefixes,nextPageToken"}
 
 EXPECTED_KIND = "storage#objects"
-#: APPROVED 2026-09-24 (owner; first recorded in the rulings preserved 2026-09-22). APPROVAL IS NOT ADOPTION:
-#: every gnomAD input of the PRODUCTION pipeline is still v4.1 (exploratory work used 4.1.1),
-#: and a release change for constraint does not by itself establish one for every
-#: frequency product. See
-#: docs/measurements/DECISION_2026-09-24_gnomad-4.1.1-approval.md. Anything NEWER than this still alerts.
-APPROVED_BASELINE = "4.1.1"
+TARGET = "gnomad-public-releases"
+#: The grammar identity (owner rulings 2026-09-25/26). It joins the interpretation fingerprint.
+RELEASE_GRAMMAR = "gnomad-stable-ascii-2-or-3-components-v1"
+MAX_PREFIX_CHARS = 256
+_PART = r"(?:0|[1-9][0-9]{0,8})"
+_ENVELOPE = re.compile(r"release/[^/]+/", re.ASCII)
+_STABLE = re.compile(r"release/(?P<v>v?)(?P<major>{0})\.(?P<minor>{0})(?:\.(?P<patch>{0}))?/".format(_PART),
+                     re.ASCII)
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def classify_prefix(raw):
+    """-> ("stable", (major, minor, patch)) | ("unsupported", None) | ("envelope", None).
+
+    The EXACT envelope release/NAME/ -- never the last component of an arbitrary path.
+    The component count is fixed by the pattern BEFORE the missing patch reads as 0.
+    """
+    if type(raw) is not str:
+        raise TypeError("a release prefix must be a str, not {}".format(type(raw).__name__))
+    if len(raw) > MAX_PREFIX_CHARS or _ENVELOPE.fullmatch(raw) is None:
+        return ("envelope", None)
+    m = _STABLE.fullmatch(raw)
+    if m is None:
+        return ("unsupported", None)
+    patch = m.group("patch")
+    return ("stable", (int(m.group("major")), int(m.group("minor")), int(patch) if patch is not None else 0))
+
+
+def newer_finding(raw, baseline):
+    return "release prefix {} is newer than the approved {}".format(json.dumps(raw), baseline)
+
+
+def unsupported_finding(raw):
+    return "release prefix {} is outside the supported release grammar".format(json.dumps(raw))
+
+
+def approved_baseline(repo_root=None):
+    """The approved release, from the manifest-selected record AFTER its bytes verify.
+
+    RAISES (PolicyError, SourceRegistryError, OSError) when it cannot be established;
+    observe_releases turns that into a FAILED result, never a silent default.
+    """
+    from genomic_variant_classifier.data import release_approval as ra
+    from genomic_variant_classifier.data.source_registry import SourceRegistry
+
+    root = Path(repo_root) if repo_root is not None else _REPO_ROOT
+    ptr = SourceRegistry.load(root / "configs" / "data_manifest.yaml").approval_pointer(TARGET)
+    return ra.load_approval(ptr.target, ptr.record, ptr.sha256, ra.worktree_record_reader(root)).approved_release
+
 
 #: Declared budgets. Each is a policy statement, not a claim about the service.
 MAX_PAGES = 20
@@ -163,30 +234,6 @@ class Traversal:
     reason: object = None
 
 
-def parse_version(prefix):
-    """('release/4.1.1/') -> (4, 1, 1). None if outside the release grammar.
-
-    A tuple, so ordering is numeric: as strings "4.10" < "4.9" is True, which
-    would call 4.10 the older release. A leading "v" is stripped -- the bucket
-    holds BOTH release/4.0/ and release/v4.0/, measured 2026-09-14.
-
-    SIGNED COMPONENTS ARE REFUSED. MEASURED: the previous parser read
-    'release/-1/' as (-1,), outside the intended grammar, sorting below every
-    real release while silently participating in comparisons.
-    """
-    name = prefix.strip("/").split("/")[-1]
-    if name.startswith("v"):
-        name = name[1:]
-    if not name:
-        return None
-    out = []
-    for part in name.split("."):
-        if not part.isdigit():        # rejects "", "-1", "+2", "4a", " 4"
-            return None
-        out.append(int(part))
-    return tuple(out)
-
-
 def _refuse_constant(name):
     raise PageInvalid(Reason.RESPONSE_JSON_VALUE,
                       "JSON constant {!r} is not permitted".format(name))
@@ -235,6 +282,9 @@ def _validate_page(raw):
         if type(p) is not str:
             raise PageInvalid(Reason.RESPONSE_UNEXPECTED_SHAPE,
                               "a prefix is not a string")
+        if classify_prefix(p)[0] == "envelope":
+            raise PageInvalid(Reason.RESPONSE_UNEXPECTED_SHAPE,
+                              "prefix {} is not exactly release/NAME/".format(json.dumps(p)[:300]))
 
     token = page.get("nextPageToken")
     if token is not None:
@@ -342,49 +392,51 @@ def traverse(transport, *, max_pages=MAX_PAGES,
         seen_tokens.add(token)
 
 
-def observe_releases(*, profile=None, transport=None):
+def observe_releases(*, profile=None, transport=None, repo_root=None):
     """Produce an observation. Qualification belongs to a verifier."""
-    target = "gnomad-public-releases"
-
-    baseline = parse_version("release/{}/".format(APPROVED_BASELINE))
-    if baseline is None:
+    target = TARGET
+    try:
+        baseline_text = approved_baseline(repo_root)
+    except Exception as exc:
         return TargetResult(target, Health.FAILED,
-                            findings=("approved baseline {!r} is outside the "
-                                      "release grammar".format(APPROVED_BASELINE),),
+                            findings=("the approved baseline could not be established from the manifest-selected "
+                                      "approval record: {}: {}".format(type(exc).__name__, exc),),
+                            reason=Reason.CONFIG_INVALID_BASELINE)
+    kind, baseline = classify_prefix("release/{}/".format(baseline_text))
+    if kind != "stable" or baseline_text.startswith("v"):
+        return TargetResult(target, Health.FAILED,
+                            findings=("approved baseline {!r} is not a canonical stable release".format(baseline_text),),
                             reason=Reason.CONFIG_INVALID_BASELINE)
 
     state = traverse(transport or _live_transport)
 
-    parsed = [v for v in (parse_version(p) for p in state.prefixes)
-              if v is not None]
-    newer = sorted({v for v in parsed if v > baseline})
-    findings = tuple(
-        "release {} is newer than the approved {}".format(
-            ".".join(str(x) for x in v), APPROVED_BASELINE) for v in newer)
+    # EVERY prefix is classified, in observed order; nothing is dropped. Envelope violations
+    # never reach here: _validate_page refused their page.
+    findings, stable_seen = [], False
+    for raw in state.prefixes:
+        kind, key = classify_prefix(raw)
+        if kind == "stable":
+            stable_seen = True
+            if key > baseline:
+                findings.append(newer_finding(raw, baseline_text))
+        elif kind == "unsupported":
+            findings.append(unsupported_finding(raw))
+    findings = tuple(findings)
+    captures = tuple(c.as_document() for c in state.captures)
 
     if state.reason is not None:
-        # INCOMPLETE, and the witness is KEPT. Both statements are true: a
-        # newer release WAS observed, and the inventory was NOT established.
-        return TargetResult(target, Health.INCOMPLETE, findings=findings,
-                            reason=state.reason, captures=tuple(
-                                c.as_document() for c in state.captures))
+        # INCOMPLETE, and the witnesses are KEPT. Both statements are true: something was
+        # observed, and the inventory was NOT established.
+        return TargetResult(target, Health.INCOMPLETE, findings=findings, reason=state.reason, captures=captures)
     if not state.prefixes:
-        return TargetResult(target, Health.FAILED,
-                            findings=("no release prefixes were returned",),
-                            reason=Reason.RESPONSE_UNEXPECTED_SHAPE,
-                            captures=tuple(c.as_document()
-                                           for c in state.captures))
-    if not parsed:
-        # MEASURED: a collection holding only release/latest/ read as complete
-        # with no finding -- no parseable versions became a clean comparison.
-        return TargetResult(target, Health.FAILED,
-                            findings=("no prefix parsed as a release version",),
-                            reason=Reason.RESPONSE_UNEXPECTED_SHAPE,
-                            captures=tuple(c.as_document()
-                                           for c in state.captures))
-    return TargetResult(target, Health.COMPLETE, findings=findings,
-                        captures=tuple(c.as_document()
-                                       for c in state.captures))
+        return TargetResult(target, Health.FAILED, findings=("no release prefixes were returned",),
+                            reason=Reason.RESPONSE_UNEXPECTED_SHAPE, captures=captures)
+    if not stable_seen:
+        # MEASURED: a collection holding only release/latest/ read as complete with no finding.
+        # A listing with no stable release at all cannot be compared; its unsupported names are kept.
+        return TargetResult(target, Health.FAILED, findings=("no prefix is a stable release",) + findings,
+                            reason=Reason.RESPONSE_UNEXPECTED_SHAPE, captures=captures)
+    return TargetResult(target, Health.COMPLETE, findings=findings, captures=captures)
 
 
 def _live_transport(url):

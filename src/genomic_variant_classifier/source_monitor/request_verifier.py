@@ -61,7 +61,7 @@ question, and collapsing them is how "the assay completed" comes to mean
 INDEPENDENCE IS THE WHOLE POINT, INCLUDING FOR THE GRAMMAR
 ============================================================
 This module does not import BASE_QUERY, EXPECTED_KIND, APPROVED_BASELINE,
-`parse_version`, or `_validate_page` from the adapter. It re-declares the
+`classify_prefix`, or `_validate_page` from the adapter. It re-declares the
 plan and reimplements structural validation and release-grammar parsing on
 its own. A verifier that shares code with the thing it verifies cannot
 detect a change to that shared code. Agreement between the two independent
@@ -134,24 +134,40 @@ APPROVAL_TARGET = "gnomad-public-releases"
 APPROVED_RECORD_SHA256 = "b4396470053b3beb7527032de67a197458165cf73700a836908e8e877b35c250"
 
 
-def _independent_parse_release_version(prefix):
-    """A SEPARATE implementation of the release grammar, not imported.
+#: Independently declared (not imported) -- the grammar the verifier applies (owner rulings 2026-09-25/26).
+RELEASE_GRAMMAR = "gnomad-stable-ascii-2-or-3-components-v1"
+MAX_PREFIX_CHARS = 256
+_DIGITS = frozenset("0123456789")
 
-    Written independently of gnomad_release_check.parse_version so the two
-    can drift-detect each other. See the differential test in
-    test_monitoring.py, which runs both against one battery of inputs.
+
+def independent_classify(raw):
+    """A SEPARATE, character-based implementation of the release grammar (change B, 2026-09-26).
+
+    Written independently of gnomad_release_check.classify_prefix (a regex) so each can detect
+    drift in the other: see the differential tests in test_monitoring.py. -> ("stable", key) |
+    ("unsupported", None) | ("envelope", None). The EXACT envelope release/NAME/; the component
+    count is checked before a missing patch reads as 0.
     """
-    name = str(prefix).strip("/").split("/")[-1]
-    if name.startswith("v"):
-        name = name[1:]
-    if not name:
-        return None
-    parts = []
-    for chunk in name.split("."):
-        if not chunk.isdigit():
-            return None
-        parts.append(int(chunk))
-    return tuple(parts)
+    if type(raw) is not str:
+        raise TypeError("a release prefix must be a str")
+    if len(raw) > MAX_PREFIX_CHARS:
+        return ("envelope", None)
+    path = raw.split("/")
+    if len(path) != 3 or path[0] != "release" or path[1] == "" or path[2] != "":
+        return ("envelope", None)
+    name = path[1][1:] if path[1].startswith("v") else path[1]
+    pieces = name.split(".")
+    if len(pieces) not in (2, 3):
+        return ("unsupported", None)
+    numbers = []
+    for piece in pieces:
+        if (not piece or len(piece) > 9 or any(c not in _DIGITS for c in piece)
+                or (len(piece) > 1 and piece[0] == "0")):
+            return ("unsupported", None)
+        numbers.append(int(piece))
+    if len(numbers) == 2:
+        numbers.append(0)
+    return ("stable", tuple(numbers))
 
 
 class StructuralDisposition(str, Enum):
@@ -215,6 +231,9 @@ class QualificationOutcome:
     positive_witnesses: tuple
     findings: tuple
     captures_examined: int
+    #: RAW prefixes outside the supported grammar (change B). Review items: never witnesses of a
+    #: newer release, and while any is present no absence claim is possible.
+    unsupported_names: tuple = ()
 
     def as_document(self):
         return {
@@ -224,6 +243,7 @@ class QualificationOutcome:
             "eligible_for_existence_claim": self.eligible_for_existence_claim,
             "eligible_for_absence_claim": self.eligible_for_absence_claim,
             "positive_witnesses": list(self.positive_witnesses),
+            "unsupported_names": list(self.unsupported_names),
             "findings": [f.as_document() for f in self.findings],
             "captures_examined": self.captures_examined,
             "does_not_establish": [
@@ -280,6 +300,11 @@ def _independently_validate_structure(raw):
         return (StructuralDisposition.INVALID, None, None,
                 Reason.RESPONSE_UNEXPECTED_SHAPE,
                 "prefixes is not a list of strings")
+    for p in prefixes:
+        if independent_classify(p)[0] == "envelope":
+            return (StructuralDisposition.INVALID, None, None,
+                    Reason.RESPONSE_UNEXPECTED_SHAPE,
+                    "prefix {} is not exactly release/NAME/".format(json.dumps(p)[:300]))
     token = page.get("nextPageToken")
     if token is not None:
         if type(token) is not str or not token or len(token) > MAX_TOKEN_CHARS:
@@ -410,11 +435,12 @@ def qualify(target, captures):
                     if f.reason in (Reason.REQUEST_ENDPOINT,
                                     Reason.REQUEST_QUERY_MISMATCH)}
 
-    baseline = _independent_parse_release_version(
-        "release/{}/".format(APPROVED_BASELINE))
+    baseline_kind, baseline = independent_classify("release/{}/".format(APPROVED_BASELINE))
+    if baseline_kind != "stable" or APPROVED_BASELINE.startswith("v"):
+        baseline = None
 
-    witnesses = []
-    seen_witness_versions = set()
+    witnesses = []           # RAW prefixes of stable releases newer than the baseline
+    unsupported = []         # RAW prefixes outside the supported grammar
     own_tokens = {}            # sequence -> the token THIS capture's own
                                # body independently declares (None if none
                                # or unavailable)
@@ -483,11 +509,11 @@ def qualify(target, captures):
 
         if seq not in endpoint_bad:
             for p in prefixes:
-                v = _independent_parse_release_version(p)
-                if v is not None and baseline is not None and v > baseline:
-                    if v not in seen_witness_versions:
-                        seen_witness_versions.add(v)
-                        witnesses.append(".".join(str(x) for x in v))
+                kind, key = independent_classify(p)
+                if kind == "stable" and baseline is not None and key > baseline:
+                    witnesses.append(p)
+                elif kind == "unsupported":
+                    unsupported.append(p)
 
     # 3. TOKEN CHAIN, BY VALUE. Capture i's request token must equal
     # capture (i-1)'s OWN body's declared token, in OBSERVED LIST ORDER.
@@ -545,7 +571,10 @@ def qualify(target, captures):
     # claim." COMPLETE with zero witnesses does NOT retroactively manufacture
     # one; existence and completeness are read from different evidence.
     eligible_for_existence = len(witnesses) > 0
-    eligible_for_absence = completeness is TraversalCompleteness.COMPLETE
+    # Owner ruling 2026-09-25, decision 1: an unsupported name in intact, complete evidence is a
+    # review finding and CANNOT support "no newer release exists".
+    eligible_for_absence = (completeness is TraversalCompleteness.COMPLETE and not unsupported
+                            and baseline is not None)
 
     return QualificationOutcome(
         target=target,
@@ -556,6 +585,7 @@ def qualify(target, captures):
         positive_witnesses=tuple(witnesses),
         findings=tuple(plan_findings),
         captures_examined=len(captures),
+        unsupported_names=tuple(unsupported),
     )
 
 

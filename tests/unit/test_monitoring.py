@@ -33,7 +33,7 @@ import pytest
 from genomic_variant_classifier.source_monitor.finding_store import (
     FindingStore, StoreError)
 from genomic_variant_classifier.source_monitor.heartbeat import (
-    SignalOutcome, signal_outcome, signal_start)
+    signal_outcome, signal_start)
 from genomic_variant_classifier.source_monitor.monitor_supervisor import (
     Health, TargetResult, supervise)
 from genomic_variant_classifier.source_monitor.reason_catalog import (
@@ -70,8 +70,9 @@ NEWER_PREFIX = "release/{}/".format(NEWER)
 
 
 def _claim(version):
-    """The adapter's own claim sentence, under the CURRENT approved baseline."""
-    return "release {} is newer than the approved {}".format(version, grc.APPROVED_BASELINE)
+    """The adapter's own claim sentence for the RAW prefix release/<version>/, under the approved baseline
+    read from the manifest-selected record (change B, 2026-09-26: findings name the raw prefix)."""
+    return grc.newer_finding("release/{}/".format(version), grc.approved_baseline())
 
 
 # --------------------------------------------------------------------------
@@ -336,17 +337,16 @@ def test_a_repeated_continuation_token_is_a_cycle():
     r = grc.observe_releases(transport=_transport(_PAGE_ONE, _PAGE_ONE))
     assert r.health is Health.INCOMPLETE
     assert r.reason is Reason.TRAVERSAL_TOKEN_CYCLE
-    assert any(NEWER in f for f in r.findings)      # witness still kept
+    assert _claim(NEWER) in r.findings              # witness still kept -- EXACT, not a substring (change B)
 
 
 def test_a_page_budget_stops_the_traversal_without_losing_pages():
-    page = dict(_PAGE_ONE)
     state = grc.traverse(lambda url: json.dumps(
         {"kind": "storage#objects", "prefixes": ["release/4.1.1/"],
          "nextPageToken": "t{}".format(len(url))}).encode(), max_pages=2)
     assert state.reason is Reason.TRAVERSAL_BUDGET_EXHAUSTED
     assert state.pages_read == 2
-    assert state.prefixes                              # what was read SURVIVES
+    assert state.prefixes == ["release/4.1.1/", "release/4.1.1/"]   # BOTH pages read SURVIVE, exactly
 
 
 def test_duplicate_json_keys_are_refused():
@@ -362,20 +362,24 @@ def test_the_request_asks_for_its_own_completion_evidence():
 
 
 def test_the_v_prefixed_release_parses():
-    assert grc.parse_version("release/v4.0/") == (4, 0)
+    """change B: a missing patch reads as 0 -- the ordering key is always three components."""
+    assert grc.classify_prefix("release/v4.0/") == ("stable", (4, 0, 0))
 
 
 def test_version_ordering_is_numeric_not_lexicographic():
     assert "4.10" < "4.9"                       # what strings would do
-    assert grc.parse_version("release/4.10/") > grc.parse_version("release/4.9/")
+    assert grc.classify_prefix("release/4.10/")[1] > grc.classify_prefix("release/4.9/")[1]
 
 
-@pytest.mark.parametrize("bad", ["release/", "release/latest/", "release/4.x/",
-                                 "release/-1/", "release/+2/", "release/4 1/"])
-def test_a_value_outside_the_release_grammar_is_refused(bad):
-    """MEASURED: 'release/-1/' parsed as (-1,), sorting below every real
-    release while silently participating in comparisons."""
-    assert grc.parse_version(bad) is None
+@pytest.mark.parametrize("bad,kind", [("release/", "envelope"), ("release/latest/", "unsupported"),
+                                      ("release/4.x/", "unsupported"), ("release/-1/", "unsupported"),
+                                      ("release/+2/", "unsupported"), ("release/4 1/", "unsupported")])
+def test_a_value_outside_the_release_grammar_is_refused(bad, kind):
+    """MEASURED: 'release/-1/' parsed as (-1,), sorting below every real release while silently
+    participating in comparisons. change B: never a stable release, and never DROPPED either --
+    an envelope violation refuses the page (exit 2); anything else inside the envelope is an
+    unsupported name, a review finding (exit 1)."""
+    assert grc.classify_prefix(bad) == (kind, None)
 
 
 # --------------------------------------------------------------------------
@@ -1082,7 +1086,6 @@ def test_a_finding_must_name_an_attempt_that_began(tmp_path):
 def test_the_foreign_key_pragma_is_actually_on(tmp_path):
     """The constraint and the pragma are separate facts. Asserting the schema
     alone would pass while enforcement was off."""
-    import sqlite3
     store = FindingStore(tmp_path / "f.sqlite3")
     with store._connect() as conn:
         assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
@@ -1218,7 +1221,7 @@ def test_the_registered_check_passes_the_RUNNERS_profile():
 import base64 as _b64
 
 from genomic_variant_classifier.source_monitor.request_verifier import (
-    qualify, TraversalCompleteness, _independent_parse_release_version)
+    qualify, TraversalCompleteness, independent_classify)
 
 
 def _paged(prefixes, token=None, kind="storage#objects"):
@@ -1255,7 +1258,7 @@ def test_a_consistent_body_and_digest_swap_raises_no_integrity_finding():
     out = qualify(r.target, swapped)
     assert not any(f.reason is Reason.EVIDENCE_INTEGRITY_MISMATCH
                   for f in out.findings)
-    assert "9.9.9" in out.positive_witnesses
+    assert "release/9.9.9/" in out.positive_witnesses      # change B: witnesses are RAW prefixes
     assert any("authenticity" in d for d in out.as_document()["does_not_establish"])
 
 
@@ -1269,7 +1272,7 @@ def test_the_producers_accepted_flag_is_not_authoritative():
     out = qualify(r.target, lied)
     assert any(f.reason is Reason.EVIDENCE_ACCEPTANCE_DISAGREEMENT
               for f in out.findings)
-    assert NEWER in out.positive_witnesses
+    assert NEWER_PREFIX in out.positive_witnesses      # change B: witnesses are RAW prefixes
 
 
 def test_a_wrong_but_well_formed_continuation_token_breaks_the_chain():
@@ -1323,14 +1326,14 @@ def test_removing_the_final_capture_leaves_traversal_incomplete_but_keeps_the_wi
         _paged(["release/4.2/"])))
     out = qualify(r.target, (r.captures[0],))
     assert out.traversal_completeness is TraversalCompleteness.INCOMPLETE
-    assert NEWER in out.positive_witnesses
+    assert NEWER_PREFIX in out.positive_witnesses      # change B: witnesses are RAW prefixes
 
 
 def test_a_timeout_after_a_witness_keeps_the_witness_and_marks_incomplete():
     r = grc.observe_releases(transport=_transport(
         _paged([NEWER_PREFIX], token="tok-A"), TimeoutError("second page")))
     out = qualify(r.target, r.captures)
-    assert NEWER in out.positive_witnesses
+    assert NEWER_PREFIX in out.positive_witnesses      # change B: witnesses are RAW prefixes
     assert out.traversal_completeness is TraversalCompleteness.INCOMPLETE
 
 
@@ -1368,17 +1371,24 @@ def test_traversal_completeness_requires_zero_endpoint_or_query_mismatches():
     "release/", "release/latest/", "release/4.x/", "release/-1/",
     "release/+2/", "release/4 1/", "release/4.10/", "release/4.9/",
     "release//", "release/0/", "release/v/", "release/4.1.1.1/",
+    # change B (2026-09-26): the cases MEASURED against main 38987f54 and the owner reference
+    "release/4.1.1.0/", "release/5.0.0rc1/", "release/V4.1/", "release/04.1/", "release/4.01/",
+    "release/\u00b2/", "release/\uff14.\uff11/", "release/\u0664.\u0661/", "release/ 4.1/", "release/4.1+build/",
+    "release/a/b/", "Release/4.1/", " release/4.1/", "release/4.1", "release/" + "9" * 300 + "/",
 ])
 def test_the_two_independent_release_grammars_agree(prefix):
-    """TWO SEPARATE implementations of the same grammar -- not one imported
-    into the other -- so they can drift-detect each other. This battery is
-    the drift detector."""
-    assert grc.parse_version(prefix) == _independent_parse_release_version(prefix)
+    """TWO SEPARATE implementations of the same grammar -- the adapter's regex and the verifier's
+    character parser, neither imported into the other -- so they can drift-detect each other. This
+    battery is the drift detector (change B: exact envelope, 2-3 components, unsupported kept)."""
+    assert grc.classify_prefix(prefix) == independent_classify(prefix)
 
 
 def test_the_verifier_and_the_adapter_declare_the_SAME_baseline_and_kind():
     from genomic_variant_classifier.source_monitor import request_verifier as rv
-    assert rv.APPROVED_BASELINE == grc.APPROVED_BASELINE
+    # change B: the adapter's baseline is the manifest-selected, byte-verified approval; the
+    # verifier keeps its own hand-written expectation. They must agree, and so must the grammars.
+    assert rv.APPROVED_BASELINE == grc.approved_baseline()
+    assert rv.RELEASE_GRAMMAR == grc.RELEASE_GRAMMAR
     assert rv.EXPECTED_KIND == grc.EXPECTED_KIND
 
 
@@ -1441,7 +1451,8 @@ def test_main_calls_qualify_not_the_legacy_verify_captures_shim(monkeypatch, tmp
     q = doc["qualification"]["gnomad-public-releases"]
     assert q["traversal_completeness"] == "complete"
     assert q["eligible_for_absence_claim"] is True
-    assert q["positive_witnesses"] == [NEWER]
+    assert q["positive_witnesses"] == [NEWER_PREFIX]      # change B: RAW prefixes
+    assert q["unsupported_names"] == []
     assert code == 1
 
 
@@ -1629,26 +1640,30 @@ def test_a_genuinely_complete_traversal_with_a_witness_still_exits_one(
 
 def test_the_newer_release_fixture_is_genuinely_newer():
     """Guards NEWER: if a future approval reaches it, every test using it must be revisited, not pass vacuously."""
-    baseline = grc.parse_version("release/{}/".format(grc.APPROVED_BASELINE))
-    assert grc.parse_version(NEWER_PREFIX) > baseline
+    baseline = grc.classify_prefix("release/{}/".format(grc.approved_baseline()))[1]   # the manifest-selected approval
+    assert grc.classify_prefix(NEWER_PREFIX)[0] == "stable"
+    assert grc.classify_prefix(NEWER_PREFIX)[1] > baseline
 
 
 def test_the_approved_release_itself_is_neither_a_finding_nor_a_witness(monkeypatch, tmp_path):
-    page = {"kind": "storage#objects", "prefixes": ["release/{}/".format(grc.APPROVED_BASELINE)]}
+    page = {"kind": "storage#objects", "prefixes": ["release/{}/".format(grc.approved_baseline())]}
     r = grc.observe_releases(transport=_transport(page))
     assert r.health is Health.COMPLETE and r.findings == ()
-    assert qualify(r.target, r.captures).positive_witnesses == ()
+    out = qualify(r.target, r.captures)
+    assert out.positive_witnesses == () and out.unsupported_names == ()
     _stub_check(monkeypatch, page)
     assert rm.main(["--store", str(tmp_path / "f.sqlite3"), "--report", str(tmp_path / "r.json")]) == 0
 
 
 @pytest.mark.parametrize("release", ["4.1.2", "4.2", "4.10", "5.0", "v4.2"])
 def test_a_genuinely_newer_release_still_alerts(monkeypatch, tmp_path, release):
-    page = {"kind": "storage#objects", "prefixes": MEASURED_PREFIXES + ["release/{}/".format(release)]}
-    expected = release.lstrip("v")
+    raw = "release/{}/".format(release)
+    page = {"kind": "storage#objects", "prefixes": MEASURED_PREFIXES + [raw]}
     r = grc.observe_releases(transport=_transport(page))
-    assert r.findings == (_claim(expected),)
-    assert qualify(r.target, r.captures).positive_witnesses == (expected,)
+    # change B: the finding and the witness name the RAW prefix -- "release/v4.2/" stays "v4.2", it is
+    # no longer normalised to "4.2" (owner ruling 2026-09-25: preserve the original prefix).
+    assert r.findings == (_claim(release),)
+    assert qualify(r.target, r.captures).positive_witnesses == (raw,)
     _stub_check(monkeypatch, page)
     assert rm.main(["--store", str(tmp_path / "f.sqlite3"), "--report", str(tmp_path / "r.json")]) == 1
 
@@ -1740,57 +1755,190 @@ def test_exactly_matching_claims_are_review_required(monkeypatch, tmp_path):
     assert code == 1 and doc["unqualified"] == [] and doc["assessments"] == []
 
 
+# change B (2026-09-26, owner rulings 2026-09-25/26): reconciliation is an EXACT MULTISET of (kind, RAW prefix) --
+# newer stable releases and unsupported names -- both directions. Raw prefixes are compared exactly, so the old
+# canonical-label identity (4.2 == 4.2.0 == v4.2 as ONE witness) no longer exists: each raw prefix is its own item.
+_W = "release/4.1.2/"
+
+
+def _unsupported_claim(raw):
+    return grc.unsupported_finding(raw)
+
+
 @pytest.mark.parametrize("claims, fragment", [
-    pytest.param(["release 4.1.2 is newer than the approved 4.1.1"] * 2, "duplicate claim", id="duplicate"),
-    pytest.param(["release 4.01.2 is newer than the approved 4.1.1"], "not a canonical", id="non_canonical"),
-    pytest.param(["release 4.1.2 is newer than the approved 4.1"], "not the approved", id="wrong_baseline"),
+    pytest.param([_claim("4.1.2")] * 2, "no exact independent witness", id="duplicate-claim-is-a-multiset-excess"),
+    pytest.param(['release prefix "release\\/4.1.2\\/" is newer than the approved 4.1.1'], "not canonically rendered",
+                 id="non_canonical"),
+    pytest.param([grc.newer_finding(_W, "4.1")], "not the approved", id="wrong_baseline"),
     pytest.param(["4.1.2 looks new"], "unrecognised claim", id="off_grammar"),
+    pytest.param(["release 4.1.2 is newer than the approved 4.1.1"], "unrecognised claim", id="pre-B-canonical-claim"),
     pytest.param([], "has no exact claim", id="missing_claim"),
-    pytest.param(["release 9.9.9 is newer than the approved 4.1.1",
-                  "release 4.1.2 is newer than the approved 4.1.1"], "no exact independent witness", id="extra_claim"),
+    pytest.param([_claim("9.9.9"), _claim("4.1.2")], "no exact independent witness", id="extra_claim"),
+    pytest.param([_claim("4.1.2"), _unsupported_claim("release/5.0.0rc1/")], "no exact independent witness",
+                 id="unsupported-claim-without-witness"),
 ])
 def test_reconciliation_names_each_inconsistency(claims, fragment):
-    issues = rm._reconcile_claims(claims, ("4.1.2",))
+    issues = rm._reconcile_claims(claims, (_W,))
     assert any(fragment in i for i in issues), issues
 
 
-def test_reconciliation_refuses_witnesses_that_are_not_newer_or_repeat():
-    issues = rm._reconcile_claims([], ("4.1.1", "4.1.1", "4.1"))
-    assert any("duplicate witness" in i for i in issues)
-    assert any("not newer than the approved" in i for i in issues)
+def test_reconciliation_refuses_witnesses_that_are_not_newer_and_matches_repeats_as_a_multiset():
+    issues = rm._reconcile_claims([], ("release/4.1.1/", "release/4.1/"))
+    assert sum("not a stable release newer" in i for i in issues) == 2, issues
+    # a repeated witness is legitimate only if it is claimed as many times (reference: Counter equality)
+    issues = rm._reconcile_claims([_claim("4.1.2")], (_W, _W))
+    assert any("has no exact claim" in i and "(x1)" in i for i in issues), issues
+    assert rm._reconcile_claims([_claim("4.1.2")] * 2, (_W, _W)) == []
 
 
 def test_reconciliation_accepts_exact_agreement_and_consumes_one_shot_inputs():
-    claims = (c for c in [_claim("4.1.2"), _claim("4.1.20")])        # a generator: consumed once
-    assert rm._reconcile_claims(claims, iter(["4.1.20", "4.1.2"])) == []
+    claims = (c for c in [_claim("4.1.2"), _claim("4.1.20"), _unsupported_claim("release/4.1.1.0/")])  # consumed once
+    assert rm._reconcile_claims(claims, iter(["release/4.1.20/", _W]), iter(["release/4.1.1.0/"])) == []
 
 
-# The owner's reference (GVC_gnomad_release_review_2026-09-24, test_release_claims.py), ported to the runner's function.
-# NOT ported: 4.2 == 4.2.0 as aliases -- the project grammar orders 4.2.0 AFTER 4.2 in both adapter and verifier, and the
-# reconciler must agree with the verifier's own newer-than decision (open question in the decision record).
+def test_a_v_prefixed_raw_witness_reconciles_without_normalisation():
+    """Owner ruling 2026-09-25: a lowercase v stays STABLE and the raw prefix is preserved -- so
+    release/v4.1.2/ is a legitimate witness in its own right (before change B it was refused)."""
+    assert rm._reconcile_claims([_claim("v4.1.2")], ["release/v4.1.2/"]) == []
+    assert rm._reconcile_claims([_claim("4.1.2")], ["release/v4.1.2/"]) != []   # raw prefixes are compared exactly
 
-@pytest.mark.parametrize("label", ["v4.1.2", "4.01.2", "4.1.2rc1", "dev", "\uff14.\uff11.\uff12", "4.1.2/", "9" * 100])
-def test_a_non_canonical_or_invalid_release_label_is_refused(label):
-    assert rm._reconcile_claims(["release {} is newer than the approved 4.1.1".format(label)], [label]) != []
+
+@pytest.mark.parametrize("label", ["4.01.2", "4.1.2rc1", "dev", "\uff14.\uff11.\uff12", "4.1.2/", "9" * 100, "4.1.2.0"])
+def test_an_invalid_release_label_is_refused_as_a_newer_witness(label):
+    raw = "release/{}/".format(label)
+    issues = rm._reconcile_claims([grc.newer_finding(raw, "4.1.1")], [raw])
+    assert any("not a stable release newer" in i for i in issues), issues
 
 
 @pytest.mark.parametrize("findings, witnesses", [
     pytest.param([None], [], id="non-string-claim"),
     pytest.param([], [None], id="non-string-witness"),
     pytest.param([], [412], id="int-witness-not-coerced"),
-    pytest.param([_claim("4.1.2") + "\n"], ["4.1.2"], id="trailing-newline"),
+    pytest.param([_claim("4.1.2") + "\n"], [_W], id="trailing-newline"),
 ])
 def test_bad_inputs_are_refused_not_coerced(findings, witnesses):
     assert rm._reconcile_claims(findings, witnesses) != []
 
 
+def test_an_unsupported_name_must_be_claimed_and_witnessed_exactly():
+    raw = "release/5.0.0rc1/"
+    assert rm._reconcile_claims([_unsupported_claim(raw)], [], [raw]) == []
+    assert any("has no exact claim" in i for i in rm._reconcile_claims([], [], [raw]))
+    # a STABLE name reported as unsupported is refused under the verifier's own grammar
+    assert any("not unsupported" in i for i in rm._reconcile_claims([], [], ["release/4.1.2/"]))
+
+
 def test_generator_and_list_inputs_give_the_same_reconciliation():
-    claims, witnesses = [_claim("4.1.20")], ["4.1.2", "4.1.20"]
+    claims, witnesses = [_claim("4.1.20")], [_W, "release/4.1.20/"]
     assert rm._reconcile_claims(claims, witnesses) == rm._reconcile_claims(iter(claims), iter(witnesses)) != []
 
 
 def test_a_non_canonical_witness_is_refused_even_against_a_canonical_claim():
-    """Isolates the WITNESS canonical check: 4.01.2 and 4.1.2 parse to the same identity, so without it they would
-    reconcile cleanly (the claim side alone cannot catch this)."""
-    issues = rm._reconcile_claims([_claim("4.1.2")], ["4.01.2"])
-    assert any("witness is not a canonical release label" in i for i in issues), issues
+    """Before change B, 4.01.2 and 4.1.2 parsed to one identity. Now raw prefixes are compared exactly and
+    release/4.01.2/ is itself outside the grammar: the witness is refused AND the claim stays unmatched."""
+    issues = rm._reconcile_claims([_claim("4.1.2")], ["release/4.01.2/"])
+    assert any("not a stable release newer" in i for i in issues), issues
+    assert any("no exact independent witness" in i for i in issues), issues
+
+
+# ---------------------------------------------------------------------------
+# CHANGE B (2026-09-26, owner rulings of 2026-09-25/26): the release grammar, the approval read from the
+# manifest, the verifier's runtime pin, and the interpretation fingerprint -- exercised through main().
+# ---------------------------------------------------------------------------
+
+def _run_main(tmp_path):
+    report = tmp_path / "r.json"
+    code = rm.main(["--store", str(tmp_path / "f.sqlite3"), "--report", str(report)])
+    return code, json.loads(report.read_text(encoding="utf-8"))
+
+
+def test_an_unsupported_name_is_a_review_finding_that_blocks_an_absence_claim(monkeypatch, tmp_path):
+    """MEASURED on main 38987f54: release/5.0.0rc1/ exited 0 ("qualified; no action") -- silently dropped -- and
+    release/4.1.1.0/ raised a FALSE "newer than the approved 4.1.1". Now both are unsupported names: exit 1,
+    named in the report, never newer, and no absence claim is possible while either is present."""
+    _stub_check(monkeypatch, {"kind": "storage#objects",
+                              "prefixes": MEASURED_PREFIXES + ["release/4.1.1.0/", "release/5.0.0rc1/"]})
+    code, doc = _run_main(tmp_path)
+    assert code == 1 and doc["unqualified"] == []       # FIRST: a mutation must fail HERE, as an assertion
+    q = doc["qualification"]["gnomad-public-releases"]
+    assert q["unsupported_names"] == ["release/4.1.1.0/", "release/5.0.0rc1/"]
+    assert q["positive_witnesses"] == [] and q["eligible_for_absence_claim"] is False
+    assert doc["results"][0]["findings"] == [grc.unsupported_finding("release/4.1.1.0/"),
+                                             grc.unsupported_finding("release/5.0.0rc1/")]
+
+
+def test_a_four_part_name_never_becomes_newer_by_normalisation():
+    """The component count is validated BEFORE a missing patch reads as 0 (owner ruling 2026-09-26)."""
+    assert grc.classify_prefix("release/4.1.1.0/") == ("unsupported", None)
+    assert independent_classify("release/4.1.1.0/") == ("unsupported", None)
+
+
+def test_an_envelope_violation_refuses_the_page_with_exit_2(monkeypatch, tmp_path):
+    _stub_check(monkeypatch, {"kind": "storage#objects", "prefixes": MEASURED_PREFIXES + ["releases/4.2/"]})
+    code, doc = _run_main(tmp_path)
+    assert code == 2 and doc["results"][0]["reason"] == "response.unexpected_shape"
+
+
+def test_an_unreadable_approval_fails_the_observation_never_a_default(tmp_path):
+    r = grc.observe_releases(transport=_transport({"kind": "storage#objects", "prefixes": MEASURED_PREFIXES}),
+                             repo_root=tmp_path)
+    assert r.health is Health.FAILED and r.reason is Reason.CONFIG_INVALID_BASELINE
+
+
+@pytest.mark.parametrize("module, name, value, fragment", [
+    ("verifier", "APPROVED_RECORD_SHA256", "0" * 64, "verifier expectation and active approval disagree"),
+    ("verifier", "APPROVED_BASELINE", "4.1", "verifier expectation and active approval disagree"),
+    ("adapter", "RELEASE_GRAMMAR", "some-other-grammar", "grammar"),
+], ids=["record-digest", "release", "grammar-identity"])
+def test_a_disagreeing_approval_or_grammar_refuses_BEFORE_any_check(monkeypatch, tmp_path, module, name, value, fragment):
+    from genomic_variant_classifier.source_monitor import request_verifier as rv
+    monkeypatch.setattr(rv if module == "verifier" else grc, name, value)
+    ran = []
+
+    def check(**_kw):                                   # a REAL result, so "the check ran" fails as an ASSERTION
+        ran.append(1)
+        return grc.observe_releases(transport=_transport({"kind": "storage#objects", "prefixes": MEASURED_PREFIXES}))
+    monkeypatch.setitem(rm.CHECKS, "gnomad-public-releases", check)
+    code, doc = _run_main(tmp_path)
+    assert ran == [], "the check ran although the approval or grammar disagreed"
+    assert code == 2
+    assert doc["results"][0]["reason"] == "config.invalid_baseline"
+    assert fragment in doc["interpretation"]["unestablished"]
+
+
+def test_the_interpretation_fingerprint_names_six_parts_and_is_stable(monkeypatch, tmp_path):
+    runs = []
+    for name in ("first", "second"):                 # two independent runs over identical configuration
+        (tmp_path / name).mkdir()
+        _stub_check(monkeypatch, {"kind": "storage#objects", "prefixes": MEASURED_PREFIXES})
+        runs.append(_run_main(tmp_path / name)[1])
+    first, second = runs
+    parts = first["interpretation"]["parts"]
+    assert set(parts) == {"approval", "release_rules", "request_plan", "adapter_code", "verifier_code", "environment_lock"}
+    assert first["interpretation"] == second["interpretation"]
+    root = Path(__file__).resolve().parents[2]
+    assert parts["environment_lock"] == hashlib.sha256((root / "requirements-source-monitor.txt").read_bytes()).hexdigest()
+    assert parts["adapter_code"] == hashlib.sha256(Path(grc.__file__).read_bytes()).hexdigest()
+    from genomic_variant_classifier.source_monitor import request_verifier as rv
+    assert parts["approval"] == rv.APPROVED_RECORD_SHA256
+
+
+def test_the_monitor_dependency_is_hash_locked_and_installed_before_the_run():
+    """source_monitor.yml said: "Nothing is installed ... if that changes, pin it explicitly." Change B needs PyYAML;
+    this is that pin: the project's own version, locked by SHA-256, installed with --require-hashes."""
+    import re as _re
+    import yaml as _yaml
+    root = Path(__file__).resolve().parents[2]
+    lock = (root / "requirements-source-monitor.txt").read_text(encoding="utf-8")
+    body = [l for l in lock.splitlines() if l.strip() and not l.lstrip().startswith("#")]
+    assert body[0].startswith("pyyaml==") and len(_re.findall(r"--hash=sha256:[0-9a-f]{64}", lock)) == 2
+    project_pin = next(l for l in (root / "requirements.txt").read_text(encoding="utf-8").splitlines()
+                       if l.lower().startswith("pyyaml=="))
+    assert body[0].split()[0].lower() == project_pin.split()[0].lower()      # the SAME version as the project
+    with open(root / ".github/workflows/source_monitor.yml", encoding="utf-8") as fh:
+        steps = _yaml.safe_load(fh)["jobs"]["monitor"]["steps"]
+    names = [s.get("name") for s in steps]
+    i = names.index("Install the monitor's hash-locked dependency")
+    assert names.index("Run the source monitor") == i + 1
+    for fragment in ("--require-hashes", "--no-deps", "--only-binary=:all:", "-r requirements-source-monitor.txt"):
+        assert fragment in steps[i]["run"], fragment

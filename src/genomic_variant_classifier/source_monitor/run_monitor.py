@@ -77,11 +77,12 @@ from genomic_variant_classifier.source_monitor.heartbeat import (
     signal_outcome, signal_start)
 from genomic_variant_classifier.source_monitor.monitor_supervisor import (
     Health, TargetResult, supervise)
+from genomic_variant_classifier.source_monitor import request_verifier as _rv
 from genomic_variant_classifier.source_monitor.request_verifier import (
     APPROVED_BASELINE as VERIFIER_BASELINE, TraversalCompleteness,
-    _independent_parse_release_version, qualify)
+    independent_classify, qualify)
 from genomic_variant_classifier.source_monitor.reason_catalog import (
-    ContractFinding, Reason, ReasonProfile, assess_failure_record,
+    Reason, ReasonProfile, assess_failure_record,
     make_failure_record)
 
 # ---------------------------------------------------------------------------
@@ -224,79 +225,108 @@ def check_gnomad_releases(*, transport=None) -> TargetResult:
     return observe_releases(profile=RELEASE_PROFILE, transport=transport)
 
 
-#: The adapter's claim grammar (gnomad_release_check.observe_releases).
-_CLAIM = re.compile(r"release (?P<version>\S+) is newer than the approved (?P<baseline>\S+)")
+#: The adapter's claim grammar (change B, 2026-09-26): each claim names ONE raw prefix, JSON-quoted.
+_QUOTED = r'"(?:[^"\\]|\\.)*"'
+_NEWER_CLAIM = re.compile(r"release prefix (?P<raw>{}) is newer than the approved (?P<baseline>\S+)".format(_QUOTED))
+_UNSUPPORTED_CLAIM = re.compile(r"release prefix (?P<raw>{}) is outside the supported release grammar".format(_QUOTED))
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_ENVIRONMENT_LOCK = "requirements-source-monitor.txt"
 
 
-#: Release labels longer than this are refused rather than parsed (owner reference, 2026-09-24).
-_MAX_LABEL = 32
+def _parse_claim(claim):
+    """-> (kind, raw) for a canonical claim, or (None, reason). Never coerces."""
+    if not isinstance(claim, str):
+        return None, "claim is not text: {!r}".format(claim)
+    for kind, pattern in (("newer", _NEWER_CLAIM), ("unsupported", _UNSUPPORTED_CLAIM)):
+        m = pattern.fullmatch(claim)
+        if m is None:
+            continue
+        try:
+            raw = json.loads(m["raw"])
+        except ValueError:
+            return None, "claim prefix is not a JSON string: {!r}".format(claim)
+        if not isinstance(raw, str):
+            return None, "claim prefix is not a string: {!r}".format(claim)
+        rendered = ("release prefix {} is newer than the approved {}".format(json.dumps(raw), m["baseline"])
+                    if kind == "newer" else
+                    "release prefix {} is outside the supported release grammar".format(json.dumps(raw)))
+        if rendered != claim:
+            return None, "claim is not canonically rendered: {!r}".format(claim)
+        if kind == "newer" and m["baseline"] != VERIFIER_BASELINE:
+            return None, "claim names baseline {!r}, not the approved {!r}".format(m["baseline"], VERIFIER_BASELINE)
+        return (kind, raw), None
+    return None, "unrecognised claim: {!r}".format(claim)
 
 
-def _identity(label):
-    """A release identity under the VERIFIER's independent grammar, or None.
-
-    Only a short str is ever parsed: a non-string is refused, never coerced (an int 412 would otherwise format
-    into "release/412/" and parse), and Python's \\d also matches non-ASCII digits, which the canonical-text
-    comparison in _reconcile_claims then refuses.
-    """
-    if not isinstance(label, str) or not label or len(label) > _MAX_LABEL:
-        return None
-    return _independent_parse_release_version("release/{}/".format(label))
-
-
-def _canonical(key) -> str:
-    return ".".join(str(part) for part in key)
-
-
-def _reconcile_claims(findings, witnesses):
+def _reconcile_claims(findings, witnesses, unsupported=()):
     """Every inconsistency between the producer's claims and the verifier's witnesses; empty when they agree.
 
-    THE INVARIANT (ruling 2026-09-24): {versions in valid claims} == {independently derived newer versions},
-    compared as PARSED identities, never substrings, and every claim names the current approved baseline.
-    MEASURED 2026-09-24 at the runner: with witnesses 4.1.2 and 4.1.20 and one claim "release 4.1.20 is newer
-    than the approved 4.1.1", the previous forward check read "4.1.2" INSIDE "4.1.20" and the run exited 1
-    (review required) with 4.1.2 unreported. Claim text must also be CANONICAL -- the rendering of its parsed
-    identity -- so "4.01.2" is refused rather than silently equated with 4.1.2.
+    THE INVARIANT (rulings 2026-09-24/25/26): the MULTISET of (kind, raw prefix) in the producer's claims equals
+    the multiset the verifier derived independently -- newer stable releases and unsupported names -- BOTH
+    directions, raw prefixes compared exactly. Each witness is re-checked under the VERIFIER's own grammar.
     """
-    findings, witnesses = tuple(findings), tuple(witnesses)
+    from collections import Counter
+
+    findings, witnesses, unsupported = tuple(findings), tuple(witnesses), tuple(unsupported)
     issues = []
-    baseline_key = _identity(VERIFIER_BASELINE)
-    if baseline_key is None:
-        return ["the verifier's approved baseline {!r} is outside the release grammar".format(VERIFIER_BASELINE)]
-    witness_keys = {}
-    for witness in witnesses:
-        key = _identity(witness)
-        if key is not None and _canonical(key) != witness:
-            issues.append("witness is not a canonical release label: {!r}".format(witness))
+    base_kind, baseline = independent_classify("release/{}/".format(VERIFIER_BASELINE)) \
+        if isinstance(VERIFIER_BASELINE, str) else (None, None)
+    if base_kind != "stable" or VERIFIER_BASELINE.startswith("v"):
+        return ["the verifier's approved baseline {!r} is not a canonical stable release".format(VERIFIER_BASELINE)]
+    expected = Counter()
+    for w in witnesses:
+        kind, key = independent_classify(w) if isinstance(w, str) else (None, None)
+        if kind != "stable" or key <= baseline:
+            issues.append("witness is not a stable release newer than the approved {}: {!r}".format(VERIFIER_BASELINE, w))
             continue
-        if key is None:
-            issues.append("witness outside the release grammar: {!r}".format(witness))
+        expected[("newer", w)] += 1
+    for u in unsupported:
+        kind, _ = independent_classify(u) if isinstance(u, str) else (None, None)
+        if kind != "unsupported":
+            issues.append("unsupported name is not unsupported under the verifier's grammar: {!r}".format(u))
             continue
-        if key in witness_keys:
-            issues.append("duplicate witness identity: {!r}".format(witness))
-        witness_keys[key] = witness
-        if key <= baseline_key:
-            issues.append("witness is not newer than the approved {}: {}".format(VERIFIER_BASELINE, witness))
-    claimed = {}
+        expected[("unsupported", u)] += 1
+    claimed = Counter()
     for claim in findings:
-        m = _CLAIM.fullmatch(claim) if isinstance(claim, str) else None
-        if m is None:
-            issues.append("unrecognised claim: {!r}".format(claim))
-            continue
-        key = _identity(m["version"])
-        if key is None or _canonical(key) != m["version"]:
-            issues.append("claimed release is not a canonical release label: {!r}".format(m["version"]))
-            continue
-        if m["baseline"] != VERIFIER_BASELINE:
-            issues.append("claim names baseline {!r}, not the approved {!r}".format(m["baseline"], VERIFIER_BASELINE))
-        if key in claimed:
-            issues.append("duplicate claim for {}".format(m["version"]))
-        claimed[key] = claim
-    for key in sorted(set(claimed) - set(witness_keys)):
-        issues.append("claim has no exact independent witness: {}".format(_canonical(key)))
-    for key in sorted(set(witness_keys) - set(claimed)):
-        issues.append("independent witness has no exact claim: {}".format(_canonical(key)))
+        pair, problem = _parse_claim(claim)
+        if problem:
+            issues.append(problem)
+        else:
+            claimed[pair] += 1
+    for pair, n in sorted((claimed - expected).items()):
+        issues.append("claim has no exact independent witness: {} {} (x{})".format(pair[0], json.dumps(pair[1]), n))
+    for pair, n in sorted((expected - claimed).items()):
+        issues.append("independent witness has no exact claim: {} {} (x{})".format(pair[0], json.dumps(pair[1]), n))
     return issues
+
+
+def _approval_and_fingerprint():
+    """The manifest-selected approval checked against the verifier's pin, and the six-part interpretation
+    fingerprint (owner kernel, change B). RAISES when either cannot be established -- never a silent default."""
+    import hashlib
+
+    from genomic_variant_classifier.data import release_approval as ra
+    from genomic_variant_classifier.data.source_registry import SourceRegistry
+    from genomic_variant_classifier.source_monitor import gnomad_release_check as grc
+
+    ptr = SourceRegistry.load(_REPO_ROOT / "configs" / "data_manifest.yaml").approval_pointer(_rv.APPROVAL_TARGET)
+    approval = ra.load_approval(ptr.target, ptr.record, ptr.sha256, ra.worktree_record_reader(_REPO_ROOT))
+    ra.require_verifier_pin(approval, target=_rv.APPROVAL_TARGET, approved_release=_rv.APPROVED_BASELINE,
+                            record_sha256=_rv.APPROVED_RECORD_SHA256)
+    if grc.RELEASE_GRAMMAR != _rv.RELEASE_GRAMMAR:
+        raise ra.PolicyError("adapter grammar {!r} and verifier grammar {!r} differ".format(
+            grc.RELEASE_GRAMMAR, _rv.RELEASE_GRAMMAR))
+    rules = json.dumps({"grammar": _rv.RELEASE_GRAMMAR, "envelope": "release/NAME/", "components": [2, 3],
+                        "missing_patch": 0, "max_prefix_chars": _rv.MAX_PREFIX_CHARS, "max_component_digits": 9,
+                        "unsupported": "review finding, exit 1, blocks absence claims"},
+                       sort_keys=True, separators=(",", ":")).encode("ascii")
+    parts = {"approval": approval.record_sha256,
+             "release_rules": hashlib.sha256(rules).hexdigest(),
+             "request_plan": _rv._plan_fingerprint(),
+             "adapter_code": hashlib.sha256(Path(grc.__file__).read_bytes()).hexdigest(),
+             "verifier_code": hashlib.sha256(Path(_rv.__file__).read_bytes()).hexdigest(),
+             "environment_lock": hashlib.sha256((_REPO_ROOT / _ENVIRONMENT_LOCK).read_bytes()).hexdigest()}
+    return approval, {"fingerprint": ra.interpretation_fingerprint(parts), "parts": parts}
 
 
 def _persist_and_recover(store, attempt, target, reason, detail):
@@ -365,7 +395,24 @@ def main(argv=None) -> int:
     verification = []
     qualification = {}
 
+    # THE APPROVAL AND THE INTERPRETATION, established BEFORE any check (change B). The manifest selects the
+    # approval; the verifier's independent pin must agree AT RUNTIME; the six-part fingerprint names what
+    # interpreted this run. Failure is a configuration refusal (exit 2), never a silent default.
+    interpretation, config_fault = None, None
+    try:
+        _, interpretation = _approval_and_fingerprint()
+    except Exception as exc:
+        config_fault = "{}: {}".format(type(exc).__name__, exc)
+
     for target in REQUIRED_TARGETS:
+        if config_fault is not None:
+            committed, assessment = _persist_and_recover(
+                store, attempt, target, Reason.CONFIG_INVALID_BASELINE,
+                "approval or interpretation could not be established: " + config_fault)
+            committed_ids.append(committed.event_id)
+            assessments.append((target, assessment))
+            results.append(TargetResult(target, Health.FAILED, reason=Reason.CONFIG_INVALID_BASELINE))
+            continue
         try:
             result = CHECKS[target]()
         except Exception as exc:
@@ -504,13 +551,14 @@ def main(argv=None) -> int:
         # CLAIM RECONCILIATION -- ONE check, BOTH directions, on a COMPLETED traversal only (an incomplete one
         # was refused above with its claim text preserved). Replaces the former substring forward check and
         # the one-directional reverse check (ruling 2026-09-24): parsed identities must match exactly.
-        issues = _reconcile_claims(result.findings, outcome.positive_witnesses)
+        issues = _reconcile_claims(result.findings, outcome.positive_witnesses, outcome.unsupported_names)
         if issues:
             committed, assessment = _persist_and_recover(
                 store, attempt, target, Reason.EVIDENCE_WITNESS_DISAGREEMENT,
-                "the producer's claims {!r} do not reconcile with the independently derived witnesses {!r} "
-                "under the approved baseline {!r}: {}".format(result.findings, outcome.positive_witnesses,
-                                                              VERIFIER_BASELINE, "; ".join(issues)))
+                "the producer's claims {!r} do not reconcile with the independently derived witnesses {!r} and "
+                "unsupported names {!r} under the approved baseline {!r}: {}".format(
+                    result.findings, outcome.positive_witnesses, outcome.unsupported_names,
+                    VERIFIER_BASELINE, "; ".join(issues)))
             committed_ids.append(committed.event_id)
             assessments.append((target, assessment))
             results.append(TargetResult(
@@ -541,6 +589,7 @@ def main(argv=None) -> int:
     # eligible_for_absence_claim answer three DIFFERENT questions that this
     # report previously could not distinguish at all.
     document["qualification"] = qualification
+    document["interpretation"] = interpretation if interpretation is not None else {"unestablished": config_fault}
     document["does_not_establish"].append(
         "source authenticity: a response digest is integrity relative to bytes "
         "THIS PROCESS received and self-reported. It authenticates nothing "
