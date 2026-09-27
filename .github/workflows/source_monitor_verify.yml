@@ -1,0 +1,101 @@
+# Source-monitor run verification -- PREVIEW (change C, stage C1; owner rulings 2026-09-25/26).
+#
+# After every source-monitor run, verify it from GitHub's own records and its report archive with
+# TRUSTED code from main (src/.../source_monitor/report_verifier.py via scripts/verify_monitor_run.py):
+# six results -- execution_authenticated, configuration_bound, observation_complete, claims_reconciled,
+# review_required, current_monitoring_obligation_satisfied. The report, its archive and the files at the
+# run's commit are DATA: fetched, hashed, parsed -- never executed or imported.
+#
+# PREVIEW: this workflow writes NO issue. source_monitor_alert.yml remains the only production issue
+# writer until this verifier has shown it reports failures as well as successful verification (C2).
+# Least privilege: contents read + actions read, nothing else. It is not named CI, so a red preview run
+# cannot trip ci_failure_alert.yml (which watches only "CI" -- measured 2026-09-27).
+name: Source monitor verification (preview)
+
+on:
+  workflow_run:
+    workflows: [source-monitor]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "A source-monitor run ID to verify (e.g. a past run)"
+        required: true
+      run_attempt:
+        description: "That run's attempt number"
+        required: true
+        default: "1"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: source-monitor-verify-${{ github.event.workflow_run.id || github.event.inputs.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify the source-monitor run (preview; writes no issue)
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-24.04   # pinned 2026-09-26: ubuntu-latest moves to Ubuntu 26 from 2026-10-19
+    timeout-minutes: 10
+    steps:
+      # TRUSTED CODE: the default branch -- never the verified run's commit.
+      - name: Check out the trusted default branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2, node24
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0, node24
+        with:
+          python-version: "3.12"
+
+      - name: Install the verifier's hash-locked dependency
+        run: |
+          python -m pip install --require-hashes --no-deps --only-binary=:all: -r requirements-source-monitor.txt
+
+      # The run's commit, fetched as DATA only (its files are read as Git blobs; nothing there runs).
+      - name: Identify and fetch the run's commit
+        id: run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_RUN_ID: ${{ github.event.workflow_run.id }}
+          EVENT_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          EVENT_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          INPUT_RUN_ID: ${{ github.event.inputs.run_id }}
+          INPUT_RUN_ATTEMPT: ${{ github.event.inputs.run_attempt }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            run_id="$INPUT_RUN_ID"; run_attempt="$INPUT_RUN_ATTEMPT"
+            [[ "$run_id" =~ ^[0-9]{1,20}$ && "$run_attempt" =~ ^[0-9]{1,4}$ ]] || { echo "::error::run_id and run_attempt must be positive integers"; exit 2; }
+            head_sha="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq .head_sha)"
+          else
+            run_id="$EVENT_RUN_ID"; run_attempt="$EVENT_RUN_ATTEMPT"; head_sha="$EVENT_HEAD_SHA"
+          fi
+          [[ "$head_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::the run's commit is not a full SHA: $head_sha"; exit 2; }
+          git --version
+          git fetch --no-tags --depth=1 origin "$head_sha"
+          { echo "run_id=$run_id"; echo "run_attempt=$run_attempt"; } >> "$GITHUB_OUTPUT"
+
+      - name: Verify the run (six results; writes no issue)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.run.outputs.run_id }}
+          RUN_ATTEMPT: ${{ steps.run.outputs.run_attempt }}
+        run: |
+          python scripts/verify_monitor_run.py --run-id "$RUN_ID" --run-attempt "$RUN_ATTEMPT" --verdict verdict.json
+
+      - name: Upload the verdict
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0, node24
+        with:
+          name: source-monitor-verdict
+          path: verdict.json
+          if-no-files-found: error
+          retention-days: 90

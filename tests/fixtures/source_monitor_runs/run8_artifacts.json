@@ -1,0 +1,25 @@
+{
+  "total_count": 1,
+  "artifacts": [
+    {
+      "id": 10924439843,
+      "node_id": "MDg6QXJ0aWZhY3QxMDkyNDQzOTg0Mw==",
+      "name": "source-monitor-report",
+      "size_in_bytes": 2132,
+      "url": "https://api.github.com/repos/monzia-moodie-repo-projects/genomic-variant-classifier/actions/artifacts/10924439843",
+      "archive_download_url": "https://api.github.com/repos/monzia-moodie-repo-projects/genomic-variant-classifier/actions/artifacts/10924439843/zip",
+      "expired": false,
+      "digest": "sha256:838a35e1c9a2c4e9b389508a5891cfc170648fe770304e5440a77f8e86f0729e",
+      "created_at": "2026-09-27T06:40:26Z",
+      "updated_at": "2026-09-27T06:40:26Z",
+      "expires_at": "2026-10-27T06:40:26Z",
+      "workflow_run": {
+        "id": 36300779115,
+        "repository_id": 1151261021,
+        "head_repository_id": 1151261021,
+        "head_branch": "main",
+        "head_sha": "8e7d762e5c154a9b8f55cd4d5050404243203e12"
+      }
+    }
+  ]
+}

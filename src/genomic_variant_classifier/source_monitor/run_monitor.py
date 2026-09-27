@@ -590,6 +590,12 @@ def main(argv=None) -> int:
     # report previously could not distinguish at all.
     document["qualification"] = qualification
     document["interpretation"] = interpretation if interpretation is not None else {"unestablished": config_fault}
+    # RUN IDENTITY (change C, 2026-09-27). MEASURED on runs #8/#9: GitHub's artifact metadata carries the run id and
+    # commit but NOT the attempt, so only the report can bind itself to ONE attempt. Recorded exactly as GitHub gives
+    # them -- strings, never coerced; null outside GitHub Actions. The verifier checks them against GitHub's records.
+    document["github_run"] = {key: os.environ.get(name) for key, name in (
+        ("repository", "GITHUB_REPOSITORY"), ("run_id", "GITHUB_RUN_ID"), ("run_attempt", "GITHUB_RUN_ATTEMPT"),
+        ("sha", "GITHUB_SHA"), ("workflow_ref", "GITHUB_WORKFLOW_REF"))}
     document["does_not_establish"].append(
         "source authenticity: a response digest is integrity relative to bytes "
         "THIS PROCESS received and self-reported. It authenticates nothing "

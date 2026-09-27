@@ -1942,3 +1942,24 @@ def test_the_monitor_dependency_is_hash_locked_and_installed_before_the_run():
     assert names.index("Run the source monitor") == i + 1
     for fragment in ("--require-hashes", "--no-deps", "--only-binary=:all:", "-r requirements-source-monitor.txt"):
         assert fragment in steps[i]["run"], fragment
+
+
+_GITHUB_ENV = {"GITHUB_REPOSITORY": "monzia-moodie-repo-projects/genomic-variant-classifier", "GITHUB_RUN_ID": "36300779115",
+               "GITHUB_RUN_ATTEMPT": "2", "GITHUB_SHA": "8e7d762e5c154a9b8f55cd4d5050404243203e12",
+               "GITHUB_WORKFLOW_REF": "monzia-moodie-repo-projects/genomic-variant-classifier/.github/workflows/source_monitor.yml@refs/heads/main"}
+
+
+@pytest.mark.parametrize("present", [True, False], ids=["in-github-actions", "outside-github-actions"])
+def test_the_report_declares_its_own_run_identity_exactly_as_github_gives_it(monkeypatch, tmp_path, present):
+    """CHANGE C1 (2026-09-27). MEASURED on runs #8/#9: GitHub's artifact metadata carries the run ID and commit but NOT
+    the attempt, so only the report can bind itself to ONE attempt. Raw strings, never coerced; null outside Actions."""
+    for name, value in _GITHUB_ENV.items():
+        if present:
+            monkeypatch.setenv(name, value)
+        else:
+            monkeypatch.delenv(name, raising=False)
+    _stub_check(monkeypatch, {"kind": "storage#objects", "prefixes": MEASURED_PREFIXES})
+    _, doc = _run_main(tmp_path)
+    keys = {"repository": "GITHUB_REPOSITORY", "run_id": "GITHUB_RUN_ID", "run_attempt": "GITHUB_RUN_ATTEMPT",
+            "sha": "GITHUB_SHA", "workflow_ref": "GITHUB_WORKFLOW_REF"}
+    assert doc["github_run"] == {k: (_GITHUB_ENV[v] if present else None) for k, v in keys.items()}

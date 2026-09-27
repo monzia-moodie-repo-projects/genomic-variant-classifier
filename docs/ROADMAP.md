@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **7,119 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **7,177 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -416,7 +416,14 @@ exists to end.
   alerted). Findings and witnesses name the RAW prefix. The monitor reads the approved release from the
   manifest-selected record; the verifier's pin must agree at runtime; each report carries a six-part
   interpretation fingerprint. PyYAML is installed hash-locked. The alert renders unsupported names; its
-  2026-09-17 `[object Object]` xfail now passes and is locked in. Suite 7,086 -> 7,119.
+  2026-09-17 `[object Object]` xfail now passes and is locked in. Suite 7,086 -> 7,119. First real runs (#8, #9)
+  verified: raw-prefix witness release/4.1.2/, fingerprint 4a39c162... reproduced from main's files.
+- **2026-09-27 -- source-monitor run verifier, PREVIEW (change C, stage C1).** Trusted in-repository code
+  (report_verifier.py + scripts/verify_monitor_run.py) verifies each run from GitHub's records and its report
+  archive and reports the ruling's six results; a valid exit-1 run verifies with a review item. The new
+  preview workflow (read-only; writes no issue) runs after every monitor run and on demand for a past run.
+  The existing alert stays the only issue writer until C2. Reports now declare their run and attempt.
+  Suite 7,119 -> 7,177.
   `docs/measurements/DECISION_2026-09-24_gnomad-4.1.1-approval.md`. Suite 6,921 -> 6,963.
 
 - **2026-09-23 -- test-isolation prerequisite.** The suite no longer writes into
