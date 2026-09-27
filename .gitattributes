@@ -145,3 +145,9 @@ baseline/GVC_refinements_2026-09-21/ontology/so.obo -text
 # (owner ruling 2026-09-25): direct children only, matching the record-path rule.
 # After line 11 because later rules win. APPROVAL-RECORDS-PINNED-1.
 docs/approvals/*.json -text
+
+# ---------------------------------------------------------------------------
+# SOURCE-MONITOR RUN FIXTURES (added 2026-09-27, change C1): a REAL report archive whose
+# SHA-256 GitHub recorded as the artifact digest. Byte-exact or the calibration is void.
+# ---------------------------------------------------------------------------
+tests/fixtures/source_monitor_runs/*.zip -text -diff

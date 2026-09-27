@@ -1,3 +1,42 @@
+## 2026-09-27 (verifier) -- source-monitor run verifier, PREVIEW (change C, stage C1)
+
+Owner rulings of 2026-09-25/26 (approval-control README section C; release-policy decision 6). The
+checker now lives in this repository as trusted code; the report, its archive and the files at the
+run's commit are DATA -- fetched, hashed, parsed, never executed or imported.
+
+SIX RESULTS (the ruling's names): execution_authenticated, configuration_bound, observation_complete,
+claims_reconciled, review_required, current_monitoring_obligation_satisfied. A valid exit-1 run is a
+SUCCESSFUL verification with a review item; verification never requires zero findings. A historical run
+can be valid under its own policy and still fail today's obligation (age or configuration).
+
+CHECKS. Archive: SHA-256 equals GitHub's artifact digest, size equals GitHub's, exactly one regular
+report.json. Report: strict JSON, schema and version, exactly the required targets. Execution: repository
+(not a fork), workflow path, event, branch, completed, run ID and attempt, exactly ONE unexpired report
+artifact of this run created inside the attempt's window; ambiguity is refused first with its real reason.
+Configuration: manifest, approval record, adapter, verifier and lock read as Git blobs at the run's commit
+must match the report's fingerprint parts. Observation: the retained responses are replayed with the
+trusted verifier; the report's qualification must equal the replay exactly, and the claims reconcile.
+
+MEASURED WHILE BUILDING. GitHub's artifact metadata carries the run ID and commit but NOT the attempt, so
+reports now declare github_run (GITHUB_RUN_ID, GITHUB_RUN_ATTEMPT, GITHUB_SHA ...) as raw strings. An
+attempt record's run_attempt is that attempt's own number, so the verifier takes the attempt record AND
+the run record's latest attempt. Python's urllib forwards add_header headers to a redirected host but not
+add_unredirected_header ones; GitHub's artifact download redirects to a storage host, so the token is
+attached unredirected and never leaves api.github.com.
+
+PREVIEW WORKFLOW. .github/workflows/source_monitor_verify.yml runs after every source-monitor run (the
+alert's own trigger) and on demand for a past run and attempt; permissions contents: read and actions:
+read only; trusted default-branch checkout without persisted credentials; the run's commit validated as a
+full SHA and fetched as data; untrusted values reach the shell only through the environment. It writes NO
+issue: source_monitor_alert.yml remains the single production issue writer until C2.
+
+CALIBRATION. The real runs #8 and #9 (GitHub's records, their archives, the commit's blobs) verify with
+all six results true and the 4.1.2 review item. Preserved as test fixtures; the tests cover every case of
+the owner's acceptance list. The out-of-repository Check_SourceMonitorReport_2026-09-24.ps1 is superseded.
+
+TESTS: +58 (7,177 collected); twelve verifier mutations, two network-security mutations, three workflow
+mutations and one run-identity mutation each fail their named test by assertion.
+
 ## 2026-09-26 (monitor) -- release grammar, approval-derived baseline and interpretation fingerprint (change B)
 
 Owner rulings of 2026-09-25 and 2026-09-26 (release policy, decisions 1-7; four-part correction).
