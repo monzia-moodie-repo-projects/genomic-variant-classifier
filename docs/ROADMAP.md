@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **7,177 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **7,181 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -424,6 +424,11 @@ exists to end.
   preview workflow (read-only; writes no issue) runs after every monitor run and on demand for a past run.
   The existing alert stays the only issue writer until C2. Reports now declare their run and attempt.
   Suite 7,119 -> 7,177.
+- **2026-09-28 -- C1 accepted live; no test may publish to the workflow.** Preview run #1 verified run #8
+  (all six results true, the 4.1.2 review item); preview run #2 refused a CI run (exit 2, all false). A defect
+  followed: the C1 tests wrote FABRICATED verdicts onto CI run #896's job summaries through $GITHUB_STEP_SUMMARY.
+  tests/conftest.py now removes the five workflow-command variables around every test; the verifier writes a
+  summary only where told; an absent report is no longer called ambiguous. Suite 7,177 -> 7,181.
   `docs/measurements/DECISION_2026-09-24_gnomad-4.1.1-approval.md`. Suite 6,921 -> 6,963.
 
 - **2026-09-23 -- test-isolation prerequisite.** The suite no longer writes into

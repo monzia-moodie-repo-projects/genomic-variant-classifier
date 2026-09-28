@@ -1,3 +1,28 @@
+## 2026-09-28 (isolation) -- C1 accepted live; no test may publish to the workflow
+
+C1 ACCEPTED ON REAL RUNS. Preview run #1 (dispatched for run 36300779115, attempt 1) verified it: all six results
+true, the review item for release/4.1.2/; its verdict archive (443 bytes, SHA-256 20efbc0a...) holds exactly
+verdict.json. Preview run #2 (dispatched for CI run 36320627013) refused it: exit 2, all six results false, verdict
+uploaded. The preview has now shown failure reporting as well as successful verification -- the ruling's condition
+before C2 routes issues through it. (Run #1 waited about 40 minutes in GitHub's queue with GitHub Status reporting
+all systems operational; it was the only run in its concurrency group; the cause is not established.)
+
+FABRICATED SUMMARIES -- READ THIS BEFORE TRUSTING CI RUN #896. The pytest (3.11) and (3.12) job summaries of CI run
+#896 (the merge of #28) show "Source-monitor run verification (PREVIEW)" reports saying run 36300779115 is VERIFIED
+and, separately, NOT VERIFIED ("archive digest ... differs from GitHub's"). NEITHER VERIFICATION HAPPENED. They were
+written by tests: scripts/verify_monitor_run.py's main() appended to $GITHUB_STEP_SUMMARY, which is set inside CI,
+and a tampered-archive TEST therefore published a false verdict about a real run. Measured: it was the only writer
+of that file in src/, scripts/ and tests/, and nothing isolated tests from it.
+
+FIX. (1) Prevention: tests/conftest.py removes GITHUB_STEP_SUMMARY, GITHUB_OUTPUT, GITHUB_ENV, GITHUB_PATH and
+GITHUB_STATE around every test and restores them by hand (never monkeypatch -- the file's documented invariant);
+subprocesses inherit the scrub. A test launches a child pytest with those variables pointing at real files and
+requires them to stay empty. (2) Source: main() writes a summary only to a path it is given; only __main__ reads the
+environment, so the preview workflow's live summary is unchanged. (3) Wording: an absent report artifact is named as
+absence ("the report is absent"), not ambiguity -- preview run #2 said "found 0 -- ambiguous selection is refused".
+
+TESTS: +4 (7,181 collected); disabling the guard and restoring the old wording each fail their named test.
+
 ## 2026-09-27 (verifier) -- source-monitor run verifier, PREVIEW (change C, stage C1)
 
 Owner rulings of 2026-09-25/26 (approval-control README section C; release-policy decision 6). The

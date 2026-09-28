@@ -145,6 +145,14 @@ def parse_report(raw: bytes, required_targets) -> dict:
     return report
 
 
+def _selection_problem(found: int) -> str:
+    """ABSENT and AMBIGUOUS are different reasons (MEASURED 2026-09-27: preview run #2 against CI run 36320627013
+    said "found 0 -- ambiguous selection is refused"; zero artifacts is absence, not ambiguity)."""
+    if found == 0:
+        return "no {!r} artifact exists for this run -- the report is absent".format(ARTIFACT_NAME)
+    return "expected exactly ONE {!r} artifact, found {} -- ambiguous selection is refused".format(ARTIFACT_NAME, found)
+
+
 def _time(value):
     return datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
 
@@ -180,7 +188,7 @@ def check_execution(run: dict, artifacts: dict, report: dict, *, run_id: int, ru
         p.append("the artifact listing is incomplete (total_count {} vs {} listed)".format(artifacts.get("total_count"), len(listed)))
     named = [a for a in listed if a.get("name") == ARTIFACT_NAME]
     if len(named) != 1:
-        p.append("expected exactly ONE {!r} artifact, found {} -- ambiguous selection is refused".format(ARTIFACT_NAME, len(named)))
+        p.append(_selection_problem(len(named)))
     else:
         a = named[0]
         wr = a.get("workflow_run") or {}
@@ -301,8 +309,7 @@ def verify(archive: bytes, run: dict, artifacts: dict, *, run_id: int, run_attem
     if len(named) != 1:
         # Refuse BEFORE reading any archive, naming the real reason: a verifier must never pick one of several
         # candidates (e.g. the most recent) -- and must never misstate why it refused.
-        v.problems["execution_authenticated"].append(
-            "expected exactly ONE {!r} artifact, found {} -- ambiguous selection is refused".format(ARTIFACT_NAME, len(named)))
+        v.problems["execution_authenticated"].append(_selection_problem(len(named)))
         return v
     try:
         report = parse_report(read_archive(archive, named[0]), required_targets)
