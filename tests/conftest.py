@@ -406,3 +406,35 @@ def _isolate_connector_caches(tmp_path):
             _esm2._DEFAULT_CACHE = _prev_esm2
         if _prev_pp is not None:
             _pp._DEFAULT_CACHE_DIR = _prev_pp
+
+
+# ---------------------------------------------------------------------------
+# GitHub workflow-command isolation (added 2026-09-27) -- PREVENTION.
+# ---------------------------------------------------------------------------
+# MEASURED on CI run #896 (the merge of #28): the pytest (3.11) and (3.12) job summaries carried
+# "Source-monitor run verification (PREVIEW)" reports -- one saying run 36300779115 was VERIFIED and
+# one saying the SAME run was NOT VERIFIED ("archive digest ... differs from GitHub's"). Neither
+# verification happened: tests/unit/test_report_verifier.py called scripts/verify_monitor_run.py's
+# main(), which appended to $GITHUB_STEP_SUMMARY -- and inside CI that variable is SET. A tampered-
+# archive TEST published a fabricated verdict about a real run onto CI's own summary page.
+#
+# These five variables name the files through which a process PUBLISHES to its workflow run (job
+# summary, step outputs, environment and PATH for later steps, action state). No test may publish.
+# They are removed before every test and restored after it; a subprocess a test launches inherits
+# os.environ, so it cannot publish either. Same discipline as _isolate_connector_caches below:
+# save and restore BY HAND, never `monkeypatch` (see THE INVARIANT FOR THIS FILE).
+_GITHUB_WORKFLOW_COMMAND_FILES = ("GITHUB_STEP_SUMMARY", "GITHUB_OUTPUT", "GITHUB_ENV", "GITHUB_PATH", "GITHUB_STATE")
+
+
+@pytest.fixture(autouse=True)
+def _isolate_github_workflow_commands():
+    """No test may write to the running workflow's summary, outputs, environment, PATH or state."""
+    saved = {name: os.environ.pop(name, None) for name in _GITHUB_WORKFLOW_COMMAND_FILES}
+    try:
+        yield
+    finally:
+        for name, value in saved.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value

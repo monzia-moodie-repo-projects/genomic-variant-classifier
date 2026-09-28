@@ -8046,4 +8046,6 @@
 #   +50 / -17 by node identity = +33 (incl. 3 behavioural alert tests; the former xfail now passes as a normal test). The 17 are renamed, not lost: 7 invalid-label params (replaced; v4.1.2 now ACCEPTED as ruled), 6 outside-grammar params (ids now carry the expected kind), 2 reconciliation tests (multiset semantics), 2 action-pin ids shifted by the new install step in source_monitor.yml.
 # 2026-09-27  SOURCE-MONITOR-RUN-VERIFIER-PREVIEW (change C1)
 #   +58 / -0 by node identity: 42 report verifier, 6 preview-workflow contract, 7 action pins + 1 runner pin for the new workflow, 2 run identity.
-7177
+# 2026-09-28  NO-TEST-PUBLISHES-TO-THE-WORKFLOW (C1 correction)
+#   +4 / -0 by node identity: workflow-command isolation (2), absent-vs-ambiguous wording (1), injected summary path (1).
+7181

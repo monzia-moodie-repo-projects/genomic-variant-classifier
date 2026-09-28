@@ -71,7 +71,10 @@ def summary(doc):
     return "\n".join(lines) + "\n"
 
 
-def main(argv=None, *, fetch=None, read_blob=None, now=None, current_parts=None):
+def main(argv=None, *, fetch=None, read_blob=None, now=None, current_parts=None, step_summary=None):
+    """`step_summary` is a path to append the Markdown summary to -- passed EXPLICITLY, read from the environment
+    only by `__main__` (MEASURED 2026-09-27: reading $GITHUB_STEP_SUMMARY here let a TEST publish a fabricated
+    verdict onto CI run #896's summary page)."""
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--run-id", type=int, required=True)
     parser.add_argument("--run-attempt", type=int, required=True)
@@ -99,13 +102,12 @@ def main(argv=None, *, fetch=None, read_blob=None, now=None, current_parts=None)
         doc["problems"]["execution_authenticated"].append(
             "verification could not be completed: {}: {}".format(type(exc).__name__, exc))
     Path(args.verdict).write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    step = os.environ.get("GITHUB_STEP_SUMMARY")
-    if step:
-        with open(step, "a", encoding="utf-8") as fh:
+    if step_summary:
+        with open(step_summary, "a", encoding="utf-8") as fh:
             fh.write(summary(doc))
     print("{} run {} attempt {}".format("VERIFIED" if doc["verified"] else "NOT VERIFIED", args.run_id, args.run_attempt))
     return 0 if doc["verified"] else 2
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(step_summary=os.environ.get("GITHUB_STEP_SUMMARY")))

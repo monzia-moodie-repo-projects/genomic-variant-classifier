@@ -352,3 +352,22 @@ def test_the_token_is_attached_unredirected_and_only_over_https(monkeypatch):
     monkeypatch.setattr(cli.urllib.request, "urlopen", lambda req, timeout: Resp(b"x" * 11))
     with pytest.raises(ValueError, match="exceeds"):
         cli.http_fetch("https://api.github.com/x", "SECRET", 10)
+
+
+def test_an_absent_report_artifact_is_named_as_absence_not_ambiguity():
+    """MEASURED 2026-09-27: preview run #2 against CI run 36320627013 said "found 0 -- ambiguous selection is refused"."""
+    arts = dict(copy.deepcopy(ARTIFACTS), artifacts=[], total_count=0)
+    v = _verify(artifacts=arts)
+    assert v.problems["execution_authenticated"] == [
+        "no 'source-monitor-report' artifact exists for this run -- the report is absent"]
+    assert v.review_items == [] and not any(v.flags.values())
+
+
+def test_the_cli_writes_its_summary_only_where_it_is_told(tmp_path):
+    """The summary path is INJECTED; main() never reads $GITHUB_STEP_SUMMARY itself (CI run #896)."""
+    out, summary = tmp_path / "verdict.json", tmp_path / "summary.md"
+    _cli().main(["--run-id", str(RUN_ID), "--run-attempt", "1", "--verdict", str(out)], fetch=_serve(), read_blob=read_blob,
+                now=NOW, current_parts=REPORT["interpretation"]["parts"], step_summary=str(summary))
+    text = summary.read_text(encoding="utf-8")
+    assert "Run 36300779115 attempt 1: **VERIFIED**" in text
+    assert all("| `{}` | True |".format(flag) in text for flag in rv.FLAGS)
