@@ -71,7 +71,7 @@ def summary(doc):
     return "\n".join(lines) + "\n"
 
 
-def main(argv=None, *, fetch=None, read_blob=None, now=None, current_parts=None, step_summary=None):
+def main(argv=None, *, fetch=None, read_blob=None, now=None, current=None, step_summary=None):
     """`step_summary` is a path to append the Markdown summary to -- passed EXPLICITLY, read from the environment
     only by `__main__` (MEASURED 2026-09-27: reading $GITHUB_STEP_SUMMARY here let a TEST publish a fabricated
     verdict onto CI run #896's summary page)."""
@@ -87,16 +87,23 @@ def main(argv=None, *, fetch=None, read_blob=None, now=None, current_parts=None,
     try:
         run, attempt, artifacts, archive = collect(args.run_id, args.run_attempt, fetch)
         if read_blob is None:
-            git = ra.git_reader(args.repo)
-            read_blob = lambda commit, path: ra.read_blob_at(git, commit, path, max_size=rv.MAX_REPORT_BYTES)[1]  # noqa: E731
-        if current_parts is None:
-            from genomic_variant_classifier.source_monitor import run_monitor as rm
-            current_parts = rm._approval_and_fingerprint()[1]["parts"]
+            # Only an EMPTY `git ls-tree` is "absent" (interpretation_contract.BlobAbsent); every other failure refuses.
+            read_blob = rv.commit_blob_reader(ra.git_reader(args.repo))
+        current_problem = None
+        if current is None:
+            # TODAY's policy from THIS trusted checkout (main in the preview workflow). A failure here makes the current
+            # obligation false with its cause recorded; it does not abort the historical verification.
+            try:
+                current = rv.current_reconstruction(_ROOT)
+            except Exception as exc:
+                current_problem = "today's interpretation could not be reconstructed: {}: {}".format(type(exc).__name__, exc)
         from genomic_variant_classifier.source_monitor.run_monitor import REQUIRED_TARGETS
         doc = rv.verify(archive, attempt, artifacts, run_id=args.run_id, run_attempt=args.run_attempt,
                         latest_attempt=run.get("run_attempt") if isinstance(run, dict) else None, read_blob=read_blob,
-                        now=now or datetime.now(timezone.utc), current_parts=current_parts,
+                        now=now or datetime.now(timezone.utc), current=current,
                         required_targets=REQUIRED_TARGETS).as_document()
+        if current_problem:
+            doc["problems"]["current_monitoring_obligation_satisfied"].append(current_problem)
     except Exception as exc:
         doc = rv.Verdict(run_id=args.run_id, run_attempt=args.run_attempt).as_document()
         doc["problems"]["execution_authenticated"].append(

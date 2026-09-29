@@ -151,3 +151,12 @@ docs/approvals/*.json -text
 # SHA-256 GitHub recorded as the artifact digest. Byte-exact or the calibration is void.
 # ---------------------------------------------------------------------------
 tests/fixtures/source_monitor_runs/*.zip -text -diff
+
+# ---------------------------------------------------------------------------
+# INTERPRETATION POLICY: digest-bound (added 2026-09-29, interpretation contract version 2).
+# ---------------------------------------------------------------------------
+# The version-2 fingerprint binds SHA-256 of this file's COMMITTED bytes (contract_sha256) while the producer
+# hashes the CHECKOUT's bytes. Under `*.json text eol=lf` (line 11) a CRLF working copy would commit as LF and the
+# two digests would differ. Same reasoning as APPROVAL-RECORDS-PINNED-1: git must never rewrite these bytes.
+# Exactly one path. INTERPRETATION-POLICY-PINNED-1.
+configs/source_monitor_interpretation.json -text

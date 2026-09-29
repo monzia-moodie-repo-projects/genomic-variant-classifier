@@ -362,11 +362,15 @@ def require_successor(previous: Approval, current: Approval) -> None:
 
 
 def interpretation_fingerprint(parts: Mapping[str, str]) -> str:
-    """Configuration identity only (change B). Execution provenance is checked separately."""
-    expected = {"approval", "release_rules", "request_plan", "adapter_code", "verifier_code",
-                "environment_lock"}
-    if set(parts) != expected:
-        raise PolicyError("fingerprint requires every named interpretation dependency")
-    validated = {k: _digest(v, k) for k, v in parts.items()}
-    encoded = json.dumps(validated, sort_keys=True, separators=(",", ":")).encode("ascii")
-    return sha256(b"gvc-monitor-interpretation/v1\0" + encoded)
+    """The VERSION-1 (historical) interpretation fingerprint -- configuration identity only (change B).
+
+    Since 2026-09-28 (owner ruling: seventh ingredient, version 2) this DELEGATES to the one authoritative contract,
+    source_monitor/interpretation_contract.py, so there is no second ingredient list. Violations still raise
+    PolicyError. New reports use version 2 through the contract directly.
+    """
+    from genomic_variant_classifier.source_monitor import interpretation_contract as ic   # lazy: no import cycle
+
+    try:
+        return ic.legacy_fingerprint(dict(parts) if isinstance(parts, Mapping) else parts)
+    except ic.ContractError as exc:
+        raise PolicyError(str(exc)) from exc

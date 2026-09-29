@@ -425,6 +425,14 @@ def _isolate_connector_caches(tmp_path):
 # save and restore BY HAND, never `monkeypatch` (see THE INVARIANT FOR THIS FILE).
 _GITHUB_WORKFLOW_COMMAND_FILES = ("GITHUB_STEP_SUMMARY", "GITHUB_OUTPUT", "GITHUB_ENV", "GITHUB_PATH", "GITHUB_STATE")
 
+# LAYER B (added 2026-09-29, owner ruling 2026-09-28). MEASURED: with only the per-test fixture below, a test MODULE that
+# publishes at IMPORT time (during collection) still wrote -- and pytest exited 0. This conftest is imported before any
+# test module is collected, so the variables are removed HERE for the whole session. LAYER C (ci.yml: `env -u ...`)
+# removes them before the interpreter even starts, covering plugins that load before this file; LAYER A (the fixture
+# below) still restores around every test.
+for _name in _GITHUB_WORKFLOW_COMMAND_FILES:
+    os.environ.pop(_name, None)
+
 
 @pytest.fixture(autouse=True)
 def _isolate_github_workflow_commands():

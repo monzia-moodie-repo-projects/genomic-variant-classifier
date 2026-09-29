@@ -1,0 +1,32 @@
+{
+  "encodings": {
+    "release_rules": "json-ascii-compact-v1",
+    "request_plan": "json-ascii-spaced-v1"
+  },
+  "fingerprint_version": 2,
+  "release_rules": {
+    "components": [
+      2,
+      3
+    ],
+    "envelope": "release/NAME/",
+    "grammar": "gnomad-stable-ascii-2-or-3-components-v1",
+    "max_component_digits": 9,
+    "max_prefix_chars": 256,
+    "missing_patch": 0,
+    "unsupported": "review finding, exit 1, blocks absence claims"
+  },
+  "request_plan": {
+    "approved_baseline": "4.1.1",
+    "endpoint": "https://storage.googleapis.com/storage/v1/b/gcp-public-data--gnomad/o",
+    "query": {
+      "delimiter": "/",
+      "fields": "kind,prefixes,nextPageToken",
+      "maxResults": "1000",
+      "prefix": "release/"
+    }
+  },
+  "schema": "gvc.source-monitor-interpretation",
+  "schema_version": 1,
+  "semantics": "gnomad-release-listing-v1"
+}

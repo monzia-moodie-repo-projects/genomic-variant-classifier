@@ -137,6 +137,8 @@ APPROVED_RECORD_SHA256 = "b4396470053b3beb7527032de67a197458165cf73700a836908e8e
 #: Independently declared (not imported) -- the grammar the verifier applies (owner rulings 2026-09-25/26).
 RELEASE_GRAMMAR = "gnomad-stable-ascii-2-or-3-components-v1"
 MAX_PREFIX_CHARS = 256
+#: Digits per version component -- the SAME parameter drives independent_classify, so the declaration cannot drift.
+MAX_COMPONENT_DIGITS = 9
 _DIGITS = frozenset("0123456789")
 
 
@@ -161,7 +163,7 @@ def independent_classify(raw):
         return ("unsupported", None)
     numbers = []
     for piece in pieces:
-        if (not piece or len(piece) > 9 or any(c not in _DIGITS for c in piece)
+        if (not piece or len(piece) > MAX_COMPONENT_DIGITS or any(c not in _DIGITS for c in piece)
                 or (len(piece) > 1 and piece[0] == "0")):
             return ("unsupported", None)
         numbers.append(int(piece))
@@ -256,6 +258,17 @@ class QualificationOutcome:
                 "that a newer release PREFIX names a usable product",
             ],
         }
+
+
+def declaration():
+    """THIS verifier's INDEPENDENT declaration of the policy it implements (review revision 3), written from its own
+    constants -- never imported from the adapter. The producer requires it to strict-equal the committed policy."""
+    return {"release_rules": {"grammar": RELEASE_GRAMMAR, "envelope": "release/NAME/", "components": [2, 3],
+                              "missing_patch": 0, "max_prefix_chars": MAX_PREFIX_CHARS,
+                              "max_component_digits": MAX_COMPONENT_DIGITS,
+                              "unsupported": "review finding, exit 1, blocks absence claims"},
+            "request_plan": {"endpoint": APPROVED_ENDPOINT, "query": dict(APPROVED_QUERY),
+                             "approved_baseline": APPROVED_BASELINE}}
 
 
 def _plan_fingerprint():

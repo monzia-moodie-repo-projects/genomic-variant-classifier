@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **7,181 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **7,243 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -429,6 +429,16 @@ exists to end.
   followed: the C1 tests wrote FABRICATED verdicts onto CI run #896's job summaries through $GITHUB_STEP_SUMMARY.
   tests/conftest.py now removes the five workflow-command variables around every test; the verifier writes a
   summary only where told; an absent report is no longer called ambiguous. Suite 7,177 -> 7,181.
+- **2026-09-29 -- interpretation contract version 2 (owner rulings 2026-09-28, review revision 3).** One
+  dependency-light contract; the committed policy file is bound into the version-2 fingerprint (seventh part
+  orchestrator_code); version 1 is admitted only for the three audited legacy commits; the run verifier
+  reconstructs every part, replays under the run's own policy, treats validation findings as blocking and
+  compares types strictly. Eight reproduced verifier defects fixed; no test can publish to the workflow
+  before the interpreter starts; the policy file is byte-pinned in .gitattributes. Suite 7,181 -> 7,243.
+- **SCHEDULED -- legacy-roadmap carry-forward audit.** 47 of the 55 item identifiers in
+  docs/archive/legacy/ROADMAP_2026-03_to_2026-08-22.md are not mentioned in this roadmap (measured 2026-09-28).
+  Absence is not resolution: SMOKE-1 (tests/smoke_test_imports.py is never collected and no workflow runs it) is
+  verified still open. Each identifier needs its last recorded status and a check against current code.
   `docs/measurements/DECISION_2026-09-24_gnomad-4.1.1-approval.md`. Suite 6,921 -> 6,963.
 
 - **2026-09-23 -- test-isolation prerequisite.** The suite no longer writes into
