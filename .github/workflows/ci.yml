@@ -430,10 +430,11 @@ jobs:
           # while the passed/skipped split legitimately is not.
           # NO TEST MAY PUBLISH TO THIS WORKFLOW (2026-09-29, LAYER C; owner ruling 2026-09-28). CI run #896's job
           # summaries carried verdicts FABRICATED by tests. `env -u` removes the five workflow-command variables BEFORE
-          # the interpreter starts, so nothing pytest imports -- plugins included -- can write to them
+          # the interpreter starts, so nothing pytest imports -- plugins included -- can write to them (the set is
+          # tests/conftest.py's _GITHUB_WORKFLOW_COMMAND_FILES; a test requires these flags to equal it)
           # (tests/conftest.py adds layers A and B). The census prints NAMES ONLY, never values.
           env | cut -d= -f1 | grep -E '^(GITHUB|ACTIONS|RUNNER)_' | sort | tr '\n' ' ' | sed 's/^/runner variable NAMES: /'; echo
-          env -u GITHUB_STEP_SUMMARY -u GITHUB_OUTPUT -u GITHUB_ENV -u GITHUB_PATH -u GITHUB_STATE \
+          env -u GITHUB_STEP_SUMMARY -u GITHUB_OUTPUT -u GITHUB_ENV -u GITHUB_PATH -u GITHUB_STATE -u GITHUB_ARTIFACTS \
           pytest tests/ -q \
             -rs \
             --tb=short \
@@ -565,7 +566,7 @@ jobs:
 
       - name: Run the drift tests
         # LAYER C (2026-09-29): the publication variables are removed before the interpreter starts.
-        run: env -u GITHUB_STEP_SUMMARY -u GITHUB_OUTPUT -u GITHUB_ENV -u GITHUB_PATH -u GITHUB_STATE pytest tests_drift/ -v -rs
+        run: env -u GITHUB_STEP_SUMMARY -u GITHUB_OUTPUT -u GITHUB_ENV -u GITHUB_PATH -u GITHUB_STATE -u GITHUB_ARTIFACTS pytest tests_drift/ -v -rs
 
   # ─────────────────────────────────────────────────────────────────────────
   docker-build:

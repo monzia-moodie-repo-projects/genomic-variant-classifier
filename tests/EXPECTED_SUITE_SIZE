@@ -8052,4 +8052,7 @@
 #   +78 / -16 by node identity: 32 contract, 28 net verifier (+30 new, -2 replaced), 1 monitoring (renamed), 1 isolation,
 #   2 gitattributes (INTERPRETATION-POLICY-PINNED-1);
 #   14 action-pin ids RE-KEYED by ci.yml line shifts (+6/+7) -- same tests, same actions, proven.
-7243
+# 2026-09-29  SIXTH PUBLICATION CHANNEL (GITHUB_ARTIFACTS) + one isolation source
+#   +15 / -14 by node identity: 1 new (the documented publication set, pinned); 14 action-pin ids RE-KEYED by a +1 ci.yml
+#   line shift (one comment line) -- same tests, same actions, proven.
+7244

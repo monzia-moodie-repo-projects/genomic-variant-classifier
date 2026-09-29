@@ -1,3 +1,22 @@
+## 2026-09-29 (artifacts) -- a sixth publication channel, and one source for the removal set
+
+MEASURED. The names-only runner-variable census added by the contract change (CI run #899, pytest job) listed
+GITHUB_ARTIFACTS and GITHUB_ARTIFACTS_LIST, which the five-variable removal set did not anticipate. GitHub's variables
+reference documents GITHUB_ARTIFACTS as the path to the file that DECLARES workflow artifacts for the current step
+(one declaration per line: files or OCI digest references) -- a publication channel of the same kind as the step
+summary -- and GITHUB_ARTIFACTS_LIST as a READ-ONLY file of aggregated artifact metadata. actions/runner v2.336.0
+added GITHUB_ARTIFACTS. A test could therefore still declare a workflow artifact; none of the three layers removed it.
+
+FIX. GITHUB_ARTIFACTS is removed with the other five by every layer (conftest import, per-test fixture, `env -u` in
+both CI invocations); GITHUB_ARTIFACTS_LIST is deliberately kept. The removal set was written out in five places (the
+conftest tuple, the isolation test, two workflow lines and a literal test prefix): tests/conftest.py's tuple is now
+the ONE source, the isolation tests PARSE it, and a test requires each CI invocation's `-u` flags to EQUAL it. A
+further test pins the documented set of writable workflow-command files.
+
+TESTS: +15 / -14 by node identity (7,244 collected): one new test; the 14 action-pin identifiers were re-keyed by a
++1 line shift. Mutations: the source losing GITHUB_ARTIFACTS, the drift invocation losing it, and the source gaining
+a variable the workflow lacks -- each fails its test by assertion.
+
 ## 2026-09-29 (contract) -- interpretation contract version 2 and eight verifier defects (review revision 3)
 
 Owner rulings of 2026-09-28 (review revision 3 of the contract policy). The version-2 fingerprint protocol replaces
