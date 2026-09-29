@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **7,243 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **7,244 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -435,6 +435,10 @@ exists to end.
   reconstructs every part, replays under the run's own policy, treats validation findings as blocking and
   compares types strictly. Eight reproduced verifier defects fixed; no test can publish to the workflow
   before the interpreter starts; the policy file is byte-pinned in .gitattributes. Suite 7,181 -> 7,243.
+- **2026-09-29 -- sixth publication channel closed.** The runner-variable census (CI run #899, names only)
+  showed GITHUB_ARTIFACTS, documented by GitHub as the file that declares workflow artifacts for a step and added
+  in actions/runner v2.336.0. It is now removed with the other five; tests/conftest.py holds the ONE list and the
+  tests require ci.yml's removals to equal it. Suite 7,243 -> 7,244.
 - **SCHEDULED -- legacy-roadmap carry-forward audit.** 47 of the 55 item identifiers in
   docs/archive/legacy/ROADMAP_2026-03_to_2026-08-22.md are not mentioned in this roadmap (measured 2026-09-28).
   Absence is not resolution: SMOKE-1 (tests/smoke_test_imports.py is never collected and no workflow runs it) is

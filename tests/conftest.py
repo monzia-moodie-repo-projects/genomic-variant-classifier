@@ -423,7 +423,14 @@ def _isolate_connector_caches(tmp_path):
 # They are removed before every test and restored after it; a subprocess a test launches inherits
 # os.environ, so it cannot publish either. Same discipline as _isolate_connector_caches below:
 # save and restore BY HAND, never `monkeypatch` (see THE INVARIANT FOR THIS FILE).
-_GITHUB_WORKFLOW_COMMAND_FILES = ("GITHUB_STEP_SUMMARY", "GITHUB_OUTPUT", "GITHUB_ENV", "GITHUB_PATH", "GITHUB_STATE")
+#
+# THE ONE SOURCE of this set (2026-09-29): the isolation tests parse it from this file and require ci.yml's `env -u`
+# flags to equal it. GITHUB_ARTIFACTS added 2026-09-29: the runner-variable census in CI run #899 (names only) showed it,
+# GitHub's variables reference documents it as the file that DECLARES workflow artifacts for the current step (one
+# declaration per line), and actions/runner v2.336.0 added it. GITHUB_ARTIFACTS_LIST is a READ-ONLY metadata file --
+# not a publication channel -- and is deliberately NOT removed.
+_GITHUB_WORKFLOW_COMMAND_FILES = ("GITHUB_STEP_SUMMARY", "GITHUB_OUTPUT", "GITHUB_ENV", "GITHUB_PATH", "GITHUB_STATE",
+                                  "GITHUB_ARTIFACTS")
 
 # LAYER B (added 2026-09-29, owner ruling 2026-09-28). MEASURED: with only the per-test fixture below, a test MODULE that
 # publishes at IMPORT time (during collection) still wrote -- and pytest exited 0. This conftest is imported before any
