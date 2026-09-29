@@ -176,7 +176,10 @@ def test_the_interpretation_fingerprint_is_order_invariant_and_dependency_sensit
     assert first == ra.interpretation_fingerprint(dict(reversed(list(parts.items()))))
     for field in parts:
         assert first != ra.interpretation_fingerprint(parts | {field: ra.sha256(b"new")})
-    with pytest.raises(ra.PolicyError, match="every named"):
+    # Since 2026-09-28 this delegates to the one contract, which NAMES the exact roster and what it received.
+    with pytest.raises(ra.PolicyError, match=r"^version-1 interpretation parts must have exactly \['adapter_code', "
+                                             r"'approval', 'environment_lock', 'release_rules', 'request_plan', "
+                                             r"'verifier_code'\], got \['approval'\]$"):
         ra.interpretation_fingerprint({"approval": ra.sha256(b"x")})
 
 

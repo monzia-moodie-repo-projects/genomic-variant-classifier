@@ -98,7 +98,9 @@ TARGET = "gnomad-public-releases"
 #: The grammar identity (owner rulings 2026-09-25/26). It joins the interpretation fingerprint.
 RELEASE_GRAMMAR = "gnomad-stable-ascii-2-or-3-components-v1"
 MAX_PREFIX_CHARS = 256
-_PART = r"(?:0|[1-9][0-9]{0,8})"
+#: Digits per version component. It BUILDS _PART below, so this declaration cannot drift from the behaviour.
+MAX_COMPONENT_DIGITS = 9
+_PART = r"(?:0|[1-9][0-9]{{0,{}}})".format(MAX_COMPONENT_DIGITS - 1)
 _ENVELOPE = re.compile(r"release/[^/]+/", re.ASCII)
 _STABLE = re.compile(r"release/(?P<v>v?)(?P<major>{0})\.(?P<minor>{0})(?:\.(?P<patch>{0}))?/".format(_PART),
                      re.ASCII)
@@ -128,6 +130,18 @@ def newer_finding(raw, baseline):
 
 def unsupported_finding(raw):
     return "release prefix {} is outside the supported release grammar".format(json.dumps(raw))
+
+
+def declaration(repo_root=None):
+    """THIS adapter's declaration of the policy it implements (owner ruling 2026-09-28, review revision 3). The
+    producer requires it to strict-equal the committed policy (interpretation_contract.require_producer_agreement)
+    before any network access. Parameters come from the constants that drive classify_prefix and the request."""
+    return {"release_rules": {"grammar": RELEASE_GRAMMAR, "envelope": "release/NAME/", "components": [2, 3],
+                              "missing_patch": 0, "max_prefix_chars": MAX_PREFIX_CHARS,
+                              "max_component_digits": MAX_COMPONENT_DIGITS,
+                              "unsupported": "review finding, exit 1, blocks absence claims"},
+            "request_plan": {"endpoint": ENDPOINT, "query": dict(BASE_QUERY),
+                             "approved_baseline": approved_baseline(repo_root)}}
 
 
 def approved_baseline(repo_root=None):

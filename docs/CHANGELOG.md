@@ -1,3 +1,47 @@
+## 2026-09-29 (contract) -- interpretation contract version 2 and eight verifier defects (review revision 3)
+
+Owner rulings of 2026-09-28 (review revision 3 of the contract policy). The version-2 fingerprint protocol replaces
+the six-part fixed contract; no production version-2 report existed, so the envelope is adopted directly.
+
+DEFECTS REPRODUCED on main 6f37d9b with the run-8 fixture (owner's probes; independent reproduction; the owner's
+probe scripts re-run here), each now a test with its reason pinned: (1) a report keeping its newer-release finding
+but declaring exit 0 or 2 verified with review_required false; (2) self-consistent release_rules or request_plan
+substitution was accepted; (3) an empty current-parts mapping satisfied today's obligation; (4) a verifier clock
+before the run satisfied it; (5) a boolean schema_version was accepted as 1; (6) a nested captures_examined of true
+and (7) a nested eligible_for_existence_claim of 1 were accepted (Python's == equates True and 1 inside dicts);
+(8) a wrong retained-response digest was accepted with six true flags when the report faithfully carried the
+replay's own integrity finding. Defects 6 to 8 were also present in a first version-2 rebuild and are fixed here.
+
+DESIGN. source_monitor/interpretation_contract.py is the one registry: standard library only, its own strict JSON
+(no floats, bounded depth, exact integers), named codecs (json-ascii-compact-v1, json-ascii-spaced-v1 -- the
+historical encodings, not RFC 8785), and the version-2 fingerprint SHA256(domain + {contract_sha256, parts}) that
+binds the committed policy file configs/source_monitor_interpretation.json (the owner's file byte-for-byte, SHA-256
+7c05e8028bef...). The policy of a run comes from its authenticated commit: present -> parsed; confirmed absent ->
+version 1 ONLY for an admitted legacy record, else refused; a legacy commit that has the file is refused.
+
+LEGACY DOMAIN (measured from Git): the first-parent main commits whose producer emitted version-1 interpretations
+are 8e7d762 (change B), f211e19 (C1) and 6f37d9b (isolation). Their verifier, adapter and lock blobs are identical
+and run_monitor.py differs only by the github_run block, so all three carry run 8's exact rules and plan bytes.
+
+VERIFIER. Every part reconstructed from Git blobs; the report's interpretation strict-equals the reconstruction as
+a whole; the replay runs only under a policy the trusted handler implements (otherwise UNSUPPORTED, never replayed
+with today's constants); review items are typed (target, kind, raw prefix) and compared as an exact multiset;
+validation findings block; review_required needs authenticated AND bound evidence; freshness uses GitHub's own
+times (chronology, age from the attempt start). PRODUCER. Both independent implementations declare their policy
+(the adapter's digit limit now builds its pattern) and must strict-equal the committed file before any network
+access. The code digests identify source files read from those module paths at measurement time -- not loaded code.
+
+ISOLATION. tests/conftest.py removes the workflow-command variables at import (before collection), and ci.yml runs
+both pytest invocations under `env -u` for all five, with a names-only census of runner variables. MEASURED: with
+only the per-test fixture, a module publishing at import still wrote and pytest exited 0.
+
+MUTATIONS: 19 caught by assertion (17 verifier and contract guarantees, 2 isolation layers).
+BYTE PIN: configs/source_monitor_interpretation.json -text (INTERPRETATION-POLICY-PINNED-1): the fingerprint binds the
+committed bytes while the producer hashes the checkout's, so git must never rewrite them (as APPROVAL-RECORDS-PINNED-1).
+
+TESTS: +78 / -16 by node identity (7,243 collected); the 14 action-pin identifiers were re-keyed by ci.yml line
+shifts, proven to be the same tests and actions.
+
 ## 2026-09-28 (isolation) -- C1 accepted live; no test may publish to the workflow
 
 C1 ACCEPTED ON REAL RUNS. Preview run #1 (dispatched for run 36300779115, attempt 1) verified it: all six results

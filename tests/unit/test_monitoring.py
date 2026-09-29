@@ -1906,7 +1906,8 @@ def test_a_disagreeing_approval_or_grammar_refuses_BEFORE_any_check(monkeypatch,
     assert fragment in doc["interpretation"]["unestablished"]
 
 
-def test_the_interpretation_fingerprint_names_six_parts_and_is_stable(monkeypatch, tmp_path):
+def test_the_interpretation_names_seven_version_2_parts_and_is_stable(monkeypatch, tmp_path):
+    """Owner ruling 2026-09-28: version 2 adds orchestrator_code (run_monitor.py); every code part is the EXECUTED file."""
     runs = []
     for name in ("first", "second"):                 # two independent runs over identical configuration
         (tmp_path / name).mkdir()
@@ -1914,8 +1915,16 @@ def test_the_interpretation_fingerprint_names_six_parts_and_is_stable(monkeypatc
         runs.append(_run_main(tmp_path / name)[1])
     first, second = runs
     parts = first["interpretation"]["parts"]
-    assert set(parts) == {"approval", "release_rules", "request_plan", "adapter_code", "verifier_code", "environment_lock"}
+    assert set(parts) == {"approval", "release_rules", "request_plan", "adapter_code", "verifier_code", "environment_lock",
+                          "orchestrator_code"}
+    assert first["interpretation"]["schema_version"] == 2 and type(first["interpretation"]["schema_version"]) is int
+    # Review revision 3: the version-2 envelope BINDS the committed policy file itself.
+    assert set(first["interpretation"]) == {"parts", "fingerprint", "schema_version", "contract_sha256"}
+    root_ = Path(__file__).resolve().parents[2]
+    assert first["interpretation"]["contract_sha256"] == hashlib.sha256(
+        (root_ / "configs" / "source_monitor_interpretation.json").read_bytes()).hexdigest()
     assert first["interpretation"] == second["interpretation"]
+    assert parts["orchestrator_code"] == hashlib.sha256(Path(rm.__file__).read_bytes()).hexdigest()
     root = Path(__file__).resolve().parents[2]
     assert parts["environment_lock"] == hashlib.sha256((root / "requirements-source-monitor.txt").read_bytes()).hexdigest()
     assert parts["adapter_code"] == hashlib.sha256(Path(grc.__file__).read_bytes()).hexdigest()

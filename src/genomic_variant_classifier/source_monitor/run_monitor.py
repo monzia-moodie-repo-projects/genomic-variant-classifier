@@ -233,8 +233,13 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 _ENVIRONMENT_LOCK = "requirements-source-monitor.txt"
 
 
-def _parse_claim(claim):
-    """-> (kind, raw) for a canonical claim, or (None, reason). Never coerces."""
+def _parse_claim(claim, baseline=None):
+    """-> (kind, raw) for a canonical claim, or (None, reason). Never coerces.
+
+    `baseline` is the approved release the claim must name. The producer passes nothing (its own VERIFIER_BASELINE);
+    the trusted checker passes the baseline of the POLICY it replays under (review revision 3: historical replay must
+    not silently use today's module globals)."""
+    baseline = VERIFIER_BASELINE if baseline is None else baseline
     if not isinstance(claim, str):
         return None, "claim is not text: {!r}".format(claim)
     for kind, pattern in (("newer", _NEWER_CLAIM), ("unsupported", _UNSUPPORTED_CLAIM)):
@@ -252,8 +257,8 @@ def _parse_claim(claim):
                     "release prefix {} is outside the supported release grammar".format(json.dumps(raw)))
         if rendered != claim:
             return None, "claim is not canonically rendered: {!r}".format(claim)
-        if kind == "newer" and m["baseline"] != VERIFIER_BASELINE:
-            return None, "claim names baseline {!r}, not the approved {!r}".format(m["baseline"], VERIFIER_BASELINE)
+        if kind == "newer" and m["baseline"] != baseline:
+            return None, "claim names baseline {!r}, not the approved {!r}".format(m["baseline"], baseline)
         return (kind, raw), None
     return None, "unrecognised claim: {!r}".format(claim)
 
@@ -301,13 +306,26 @@ def _reconcile_claims(findings, witnesses, unsupported=()):
 
 
 def _approval_and_fingerprint():
-    """The manifest-selected approval checked against the verifier's pin, and the six-part interpretation
-    fingerprint (owner kernel, change B). RAISES when either cannot be established -- never a silent default."""
+    """The manifest-selected approval checked against the verifier's pin, and the version-2 interpretation (owner rulings
+    2026-09-28, review revision 3). RAISES when anything cannot be established -- never a silent default.
+
+    1. The committed policy file (interpretation_contract.CONFIG_PATH) is parsed; this producer implements version 2
+       only, so the file MUST be present.
+    2. BOTH independent implementations -- the adapter and the verifier -- must declare exactly that policy
+       (require_producer_agreement), before any network access.
+    3. Every ingredient is reconstructed from this checkout's bytes, including the approval record's bytes.
+    4. Each module file read for a code ingredient must equal the checkout's file at its contract path.
+
+    WHAT THE CODE DIGESTS ESTABLISH: they identify SOURCE FILES READ FROM THOSE MODULE PATHS AT MEASUREMENT TIME. They
+    do not attest to loaded code objects, imports, runtime globals, stale bytecode or a file modified after import;
+    execution provenance (fresh checkout, controlled installation) is recorded separately.
+    """
     import hashlib
 
     from genomic_variant_classifier.data import release_approval as ra
     from genomic_variant_classifier.data.source_registry import SourceRegistry
     from genomic_variant_classifier.source_monitor import gnomad_release_check as grc
+    from genomic_variant_classifier.source_monitor import interpretation_contract as ic
 
     ptr = SourceRegistry.load(_REPO_ROOT / "configs" / "data_manifest.yaml").approval_pointer(_rv.APPROVAL_TARGET)
     approval = ra.load_approval(ptr.target, ptr.record, ptr.sha256, ra.worktree_record_reader(_REPO_ROOT))
@@ -316,17 +334,23 @@ def _approval_and_fingerprint():
     if grc.RELEASE_GRAMMAR != _rv.RELEASE_GRAMMAR:
         raise ra.PolicyError("adapter grammar {!r} and verifier grammar {!r} differ".format(
             grc.RELEASE_GRAMMAR, _rv.RELEASE_GRAMMAR))
-    rules = json.dumps({"grammar": _rv.RELEASE_GRAMMAR, "envelope": "release/NAME/", "components": [2, 3],
-                        "missing_patch": 0, "max_prefix_chars": _rv.MAX_PREFIX_CHARS, "max_component_digits": 9,
-                        "unsupported": "review finding, exit 1, blocks absence claims"},
-                       sort_keys=True, separators=(",", ":")).encode("ascii")
-    parts = {"approval": approval.record_sha256,
-             "release_rules": hashlib.sha256(rules).hexdigest(),
-             "request_plan": _rv._plan_fingerprint(),
-             "adapter_code": hashlib.sha256(Path(grc.__file__).read_bytes()).hexdigest(),
-             "verifier_code": hashlib.sha256(Path(_rv.__file__).read_bytes()).hexdigest(),
-             "environment_lock": hashlib.sha256((_REPO_ROOT / _ENVIRONMENT_LOCK).read_bytes()).hexdigest()}
-    return approval, {"fingerprint": ra.interpretation_fingerprint(parts), "parts": parts}
+    policy = ic.parse_policy((_REPO_ROOT / ic.CONFIG_PATH).read_bytes())
+    adapter, verifier = grc.declaration(_REPO_ROOT), _rv.declaration()
+    ic.require_producer_agreement(policy, adapter_rules=adapter["release_rules"], verifier_rules=verifier["release_rules"],
+                                  adapter_plan=adapter["request_plan"], verifier_plan=verifier["request_plan"])
+    record_bytes = (_REPO_ROOT / ptr.record).read_bytes()
+    if hashlib.sha256(record_bytes).hexdigest() != approval.record_sha256:
+        raise ra.PolicyError("the approval record's bytes changed after it was loaded")
+    bound = ic.reconstruct(policy, lambda path: (_REPO_ROOT / path).read_bytes(),
+                           approved_record_bytes=record_bytes, approved_release=approval.approved_release)
+    measured = {"adapter_code": grc.__file__, "verifier_code": _rv.__file__, "orchestrator_code": __file__}
+    for name, path in measured.items():
+        if hashlib.sha256(Path(path).read_bytes()).hexdigest() != bound.parts[name]:
+            raise ra.PolicyError("the module file read for {} ({}) differs from the checkout's file at its contract path"
+                                 .format(name, path))
+    if _rv._plan_fingerprint() != bound.parts["request_plan"]:
+        raise ra.PolicyError("the verifier's request-plan encoding differs from the contract's")
+    return approval, bound.as_document()
 
 
 def _persist_and_recover(store, attempt, target, reason, detail):

@@ -428,6 +428,12 @@ jobs:
           # gates cannot drift apart. The COLLECTED count is asserted rather than `passed`,
           # because collected is environment-independent (1,870 on Windows and on this runner)
           # while the passed/skipped split legitimately is not.
+          # NO TEST MAY PUBLISH TO THIS WORKFLOW (2026-09-29, LAYER C; owner ruling 2026-09-28). CI run #896's job
+          # summaries carried verdicts FABRICATED by tests. `env -u` removes the five workflow-command variables BEFORE
+          # the interpreter starts, so nothing pytest imports -- plugins included -- can write to them
+          # (tests/conftest.py adds layers A and B). The census prints NAMES ONLY, never values.
+          env | cut -d= -f1 | grep -E '^(GITHUB|ACTIONS|RUNNER)_' | sort | tr '\n' ' ' | sed 's/^/runner variable NAMES: /'; echo
+          env -u GITHUB_STEP_SUMMARY -u GITHUB_OUTPUT -u GITHUB_ENV -u GITHUB_PATH -u GITHUB_STATE \
           pytest tests/ -q \
             -rs \
             --tb=short \
@@ -558,7 +564,8 @@ jobs:
         run: python scripts/verify_drift_libs.py
 
       - name: Run the drift tests
-        run: pytest tests_drift/ -v -rs
+        # LAYER C (2026-09-29): the publication variables are removed before the interpreter starts.
+        run: env -u GITHUB_STEP_SUMMARY -u GITHUB_OUTPUT -u GITHUB_ENV -u GITHUB_PATH -u GITHUB_STATE pytest tests_drift/ -v -rs
 
   # ─────────────────────────────────────────────────────────────────────────
   docker-build:

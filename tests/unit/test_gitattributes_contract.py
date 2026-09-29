@@ -265,3 +265,13 @@ def test_approval_records_are_byte_pinned_narrowly(path, expected):
     next one (a path that does not exist yet). Direct children only, matching the record-path
     rule, which refuses nested records anyway."""
     assert _attrs(path).get("text") == expected, (path, _attrs(path))
+
+
+@pytest.mark.parametrize("path,expected", [
+    ("configs/source_monitor_interpretation.json", "unset"),
+    ("configs/some_other_config.json", "set"),
+])
+def test_the_interpretation_policy_is_byte_pinned_exactly(path, expected):
+    """INTERPRETATION-POLICY-PINNED-1 (2026-09-29). The version-2 fingerprint binds the SHA-256 of the committed policy
+    file while the producer hashes the checkout's bytes; git must never rewrite them. Exactly that one path."""
+    assert _attrs(path).get("text") == expected, (path, _attrs(path))

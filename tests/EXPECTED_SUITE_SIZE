@@ -8048,4 +8048,8 @@
 #   +58 / -0 by node identity: 42 report verifier, 6 preview-workflow contract, 7 action pins + 1 runner pin for the new workflow, 2 run identity.
 # 2026-09-28  NO-TEST-PUBLISHES-TO-THE-WORKFLOW (C1 correction)
 #   +4 / -0 by node identity: workflow-command isolation (2), absent-vs-ambiguous wording (1), injected summary path (1).
-7181
+# 2026-09-29  INTERPRETATION-CONTRACT-V2 (owner rulings 2026-09-28, review revision 3)
+#   +78 / -16 by node identity: 32 contract, 28 net verifier (+30 new, -2 replaced), 1 monitoring (renamed), 1 isolation,
+#   2 gitattributes (INTERPRETATION-POLICY-PINNED-1);
+#   14 action-pin ids RE-KEYED by ci.yml line shifts (+6/+7) -- same tests, same actions, proven.
+7243
