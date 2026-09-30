@@ -1,3 +1,46 @@
+## 2026-09-30 (C2) -- one issue writer, bound receipts, reconstructable dispatch (owner rulings 2026-09-29/30)
+
+Owner rulings of 2026-09-29 (the C2 review: store option A, identities, execution history as the attempt journal, per-job
+permissions, pinned destination, authenticated acknowledgements, cutover) and 2026-09-30 (receipt age 900 s, clock
+allowance 60 s, both inclusive, two distinct refusal reasons, observed age recorded).
+
+LEGACY DEFECTS (measured three times: 2026-09-29 by executing the extracted script under Node, by the owner's probe, and by
+that probe re-run here): the same run delivered twice posted two comments; bodies differed only by a timestamp; two open
+labelled issues -> silently the first; a fabricated report finding was posted verbatim; issues: write at workflow level.
+
+DESIGN. source_monitor/c2_protocol.py (the owner's reference, integrated with the adopted timing policy): versioned receipt,
+decision and delivery identities, deterministic escaped comment bodies, authenticated acknowledgements, at most one POST,
+never a second. report_verifier emits TYPED reviews, diagnostic candidates, stable reason codes AT detection and evidence
+identity (artifact id, archive and ADMITTED-report digests); its code manifest is the 18 files a REAL verification loads
+(measured: import alone loads 7). scripts/verify_monitor_run.py writes the checker receipt before its exit code (an
+"unavailable" receipt when evidence is lost after GitHub's attempt record was obtained; none, stated, when the run or policy
+is unknown). source_monitor/c2_github.py: no-redirect transport, token unredirected, complete pagination (both DOCUMENTED
+link forms; total_count must equal the items), pinned destination (#27, id 5600463137), direct comment channel,
+dispatch_history from authenticated job steps and per-attempt outcome records (the current run examined even when the
+listing lags). scripts/publish_monitor_receipt.py: independent bindings, coordinator receipt, preview for verifier
+dispatches, one POST through a counting channel, the outcome record written on EVERY path.
+
+WORKFLOW. source_monitor_verify.yml: permissions {} with per-job grants (only publish writes issues); both jobs pinned to
+github.workflow_sha with HEAD verified; run-name "verify <run>/<attempt>" as the history index; receipt emitted by a
+separate always() step; publish queued (queue: max); attempt-suffixed artifacts (a fixed name failed every re-run with
+HTTP 409 -- a pre-existing defect).
+
+REMOVED: source_monitor_alert.yml and its tests (31 + 8) and harness; the actions/download-artifact pin (its only user).
+PROTECTIONS CARRIED (legacy -> C2): trigger / dispatch / main gate -> the trigger contract; dry run and simulation guard ->
+every verifier dispatch is a preview that cannot post; permissions / serialisation -> per-job grants and queue: max; failed
+retrieval / missing input -> the coordinator's unavailable receipt; unknown outcomes -> closed reason codes; reuse the issue
+-> the pinned destination; NO AUTO-CLOSE -> a new behavioural test (every request a GET except at most one comment POST);
+malformed shapes / non-strings -> strict typed validation; witnesses kept on failed runs -> typed reviews survive failed
+verification; exactly one comment / zero on preview -> one-POST and preview tests. SUPERSEDED: simulated failure kinds
+(dispatch now previews a REAL past run).
+
+GAPS AND DEFECTS FOUND AND FIXED BEFORE DELIVERY: the reference tests did not test the exact timing boundaries (added:
+-60/+900 accepted, -61/+901 refused); in my own drafts, a false flag without a message; an adapter that refused GitHub's documented pagination links; the current run's attempts skipped
+when unlisted; an outcome record not written on preview (one preview would have blocked a run forever).
+
+TESTS: +154 / -58 by node identity (7,340 collected), every identifier accounted for. Mutations across the new modules and
+the workflow: all caught by explicit assertions.
+
 ## 2026-09-29 (artifacts) -- a sixth publication channel, and one source for the removal set
 
 MEASURED. The names-only runner-variable census added by the contract change (CI run #899, pytest job) listed

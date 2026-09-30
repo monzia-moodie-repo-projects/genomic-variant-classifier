@@ -8055,4 +8055,8 @@
 # 2026-09-29  SIXTH PUBLICATION CHANNEL (GITHUB_ARTIFACTS) + one isolation source
 #   +15 / -14 by node identity: 1 new (the documented publication set, pinned); 14 action-pin ids RE-KEYED by a +1 ci.yml
 #   line shift (one comment line) -- same tests, same actions, proven.
-7244
+# 2026-09-30  C2 -- ONE ISSUE WRITER (owner rulings 2026-09-29/30)
+#   +154 / -58 by node identity: 66 protocol, 33 adapter, 11 publisher, 6 receipt path, 2 receipt output, 11 verifier
+#   typed outputs, 12 workflow contract (replacing 6); legacy alert tests removed (31 + 8); 12 action-pin and 1 runner-pin
+#   identifiers re-keyed / removed with the legacy alert -- every one accounted for.
+7340

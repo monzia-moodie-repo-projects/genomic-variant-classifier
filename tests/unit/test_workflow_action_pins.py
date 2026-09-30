@@ -77,12 +77,8 @@ EXPECTED_PINS = {
         ("docker/login-action", "v4", "node24"),
     "dc802804100637a589fabce1cb79ff13a1411302":
         ("docker/metadata-action", "v6.2.0", "node24"),
-    # MEASURED 2026-09-16 by fetching action.yml at this exact SHA from
-    # raw.githubusercontent.com (not assumed from the version number): runs
-    # .using: 'node24'. SHA verified independently against actions/download-
-    # artifact's own git refs: refs/tags/v8.0.1 -> this commit.
-    "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c":
-        ("actions/download-artifact", "v8.0.1", "node24"),
+    # actions/download-artifact 3e5f45b2 (v8.0.1) REMOVED 2026-09-30 with its only user, source_monitor_alert.yml
+    # (C2 cutover): a recorded pin no workflow uses is a stale claim (test_no_recorded_pin_is_unused).
 }
 
 

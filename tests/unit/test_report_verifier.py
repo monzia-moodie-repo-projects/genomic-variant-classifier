@@ -666,3 +666,98 @@ def test_an_inconsistent_attempt_chronology_cannot_satisfy_today():
         "the attempt chronology is inconsistent: created 2026-09-27 06:40:16+00:00, started 2026-09-27 06:40:16+00:00, "
         "artifact 2026-09-27 06:40:30+00:00, ended 2026-09-27 06:40:29+00:00"]
     assert not v.flags["execution_authenticated"]        # check_execution refuses it independently (outside the window)
+
+
+# ------------------------------------------------------------------ C2 typed outputs (owner ruling 2026-09-29)
+# Reason codes are emitted WHERE the checker detects each condition; the writer never parses the English problems.
+# Every expected value below was MEASURED (2026-09-30) and each case validated by c2_protocol.validate_payload.
+RUN8_ARCHIVE_SHA256 = "838a35e1c9a2c4e9b389508a5891cfc170648fe770304e5440a77f8e86f0729e"   # == GitHub's artifact digest
+RUN8_REPORT_SHA256 = "61656e1d3f5840e16b78b79da5d24f4debd309f6b063d5e84993a76dff288d21"    # the ADMITTED report.json bytes
+RUN8_REVIEW = {"target": "gnomad-public-releases", "kind": "newer", "raw_prefix": "release/4.1.2/"}
+
+
+def test_the_evidence_identity_separates_the_archive_from_the_admitted_report():
+    v = _verify()
+    with zipfile.ZipFile(io.BytesIO(ARCHIVE)) as zf:
+        member = zf.read("report.json")
+    assert v.evidence == {"state": "complete", "artifact_id": 10924439843, "archive_sha256": RUN8_ARCHIVE_SHA256,
+                          "report_sha256": RUN8_REPORT_SHA256}
+    assert RUN8_REPORT_SHA256 == hashlib.sha256(member).hexdigest() != RUN8_ARCHIVE_SHA256
+    assert "sha256:" + RUN8_ARCHIVE_SHA256 == ARTIFACTS["artifacts"][0]["digest"]
+
+
+def test_a_bound_run_carries_its_typed_review_and_no_reason():
+    v = _verify()
+    assert (v.reviews, v.candidates, v.reasons, v.flags["review_required"]) == ([RUN8_REVIEW], [], [], True)
+
+
+@pytest.mark.parametrize("case, reasons", [
+    ("stale", [{"code": "freshness.expired", "target": ""}]),
+    ("integrity_findings", [{"code": "observation.invalid", "target": "gnomad-public-releases"},
+                            {"code": "claims.disagree", "target": ""}]),
+    ("boolean_nested_count", [{"code": "claims.disagree", "target": "gnomad-public-releases"}]),
+    ("integer_nested_flag", [{"code": "claims.disagree", "target": "gnomad-public-releases"}]),
+])
+def test_each_condition_emits_its_stable_reason_code(case, reasons):
+    v = _verify(now=NOW + timedelta(days=9)) if case == "stale" else _probe(case)
+    assert v.reasons == reasons
+    assert v.reviews == [RUN8_REVIEW]            # an authentic, bound witness survives a failed verification
+
+
+def test_an_unbound_witness_is_a_diagnostic_candidate_never_a_confirmed_review():
+    report = copy.deepcopy(REPORT)
+    report["interpretation"]["parts"]["adapter_code"] = "e" * 64
+    report["interpretation"]["fingerprint"] = ic.fingerprint(report["interpretation"]["parts"], version=1)
+    archive, arts = _repack(report)
+    v = _verify(archive=archive, artifacts=arts)
+    assert (v.reviews, v.candidates, v.flags["review_required"]) == ([], [RUN8_REVIEW], False)
+    assert v.reasons == [{"code": "configuration.invalid", "target": ""}]
+
+
+def test_absent_ambiguous_and_corrupt_artifacts_have_distinct_evidence_states():
+    absent = _verify(artifacts={"total_count": 0, "artifacts": []})
+    assert (absent.evidence["state"], absent.reasons) == ("missing", [{"code": "artifact.missing", "target": ""}])
+    arts = copy.deepcopy(ARTIFACTS)
+    arts["artifacts"].append(copy.deepcopy(arts["artifacts"][0]))
+    arts["total_count"] = 2
+    two = _verify(artifacts=arts)
+    assert two.evidence == {"state": "invalid", "artifact_id": None, "archive_sha256": None, "report_sha256": None}
+    assert two.reasons == [{"code": "artifact.invalid", "target": ""}]
+    corrupt = _verify(archive=b"not a zip at all")
+    assert corrupt.evidence == {"state": "invalid", "artifact_id": 10924439843,
+                                "archive_sha256": hashlib.sha256(b"not a zip at all").hexdigest(), "report_sha256": None}
+    assert corrupt.reasons == [{"code": "artifact.invalid", "target": ""}]
+
+
+def test_every_emitted_code_belongs_to_the_protocols_closed_set():
+    from genomic_variant_classifier.source_monitor import c2_protocol as c2
+    arts = copy.deepcopy(ARTIFACTS)
+    arts["artifacts"].append(copy.deepcopy(arts["artifacts"][0]))
+    arts["total_count"] = 2
+    verdicts = [_verify(), _verify(now=NOW + timedelta(days=9)), _verify(now=NOW - timedelta(days=30)), _verify(artifacts=arts),
+                _verify(artifacts={"total_count": 0, "artifacts": []}), _verify(archive=b"x")] + \
+               [_probe(n) for n in ("integrity_findings", "boolean_nested_count", "integer_nested_flag")]
+    codes = {r["code"] for v in verdicts for r in v.reasons}
+    assert codes and codes <= c2.REASONS, codes - c2.REASONS
+
+
+def test_one_condition_described_twice_is_one_reason():
+    """The decision identity must not depend on how many messages describe one condition (measured: the omitted claim
+    and the exit code each produce a claims problem; the run-level claims.disagree is emitted once)."""
+    report = copy.deepcopy(REPORT)
+    report["results"][0]["findings"] = []
+    report["exit_code"] = 0
+    archive, arts = _repack(report)
+    v = _verify(archive=archive, artifacts=arts)
+    assert len(v.problems["claims_reconciled"]) == 2
+    assert v.reasons == [{"code": "claims.disagree", "target": ""}]
+
+
+def test_an_artifact_without_a_usable_identifier_cannot_authenticate_execution_and_says_why():
+    arts = copy.deepcopy(ARTIFACTS)
+    del arts["artifacts"][0]["id"]
+    v = _verify(artifacts=arts)
+    assert (v.evidence["state"], v.evidence["artifact_id"], v.flags["execution_authenticated"]) == ("invalid", None, False)
+    assert v.problems["execution_authenticated"] == [
+        "the artifact has no usable identifier (None); its evidence identity is incomplete"]
+    assert v.reasons == [{"code": "execution.invalid", "target": ""}]
