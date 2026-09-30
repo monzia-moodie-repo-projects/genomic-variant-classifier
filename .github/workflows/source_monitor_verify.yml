@@ -1,16 +1,23 @@
-# Source-monitor run verification -- PREVIEW (change C, stage C1; owner rulings 2026-09-25/26).
+# Source-monitor run verification and delivery -- C2, the ONE issue writer (owner rulings 2026-09-25/26/28/29/30).
 #
-# After every source-monitor run, verify it from GitHub's own records and its report archive with
-# TRUSTED code from main (src/.../source_monitor/report_verifier.py via scripts/verify_monitor_run.py):
-# six results -- execution_authenticated, configuration_bound, observation_complete, claims_reconciled,
-# review_required, current_monitoring_obligation_satisfied. The report, its archive and the files at the
-# run's commit are DATA: fetched, hashed, parsed -- never executed or imported.
+# After every source-monitor run, the VERIFY job checks it from GitHub's own records and its report archive with
+# TRUSTED code -- six results -- and writes a RECEIPT (scripts/verify_monitor_run.py) BEFORE returning its exit code; a
+# separate always() step hands the receipt to the PUBLISH job as a job output of THIS run. The report, its archive and
+# the files at the run's commit are DATA: fetched, hashed, parsed -- never executed or imported.
 #
-# PREVIEW: this workflow writes NO issue. source_monitor_alert.yml remains the only production issue
-# writer until this verifier has shown it reports failures as well as successful verification (C2).
-# Least privilege: contents read + actions read, nothing else. It is not named CI, so a red preview run
-# cannot trip ci_failure_alert.yml (which watches only "CI" -- measured 2026-09-27).
+# The PUBLISH job (scripts/publish_monitor_receipt.py) binds the receipt to INDEPENDENTLY established facts, reconstructs
+# prior dispatch from GitHub's execution history, and performs AT MOST ONE comment POST to the pinned alert issue
+# (#27). It alone holds issues: write. A verifier run dispatched by hand is a PREVIEW (no POST); a manually dispatched
+# MONITOR run is still delivered. Uncertain outcomes are quarantined (exit 1), never retried blindly.
+#
+# TRUSTED CODE: BOTH jobs check out github.workflow_sha -- "the commit SHA for the workflow file" (GitHub's variables
+# reference) -- and verify HEAD, so they cannot run different code if main advances between them. Not named CI, so a
+# red run cannot trip ci_failure_alert.yml (which watches only "CI" -- measured 2026-09-27).
 name: Source monitor verification (preview)
+
+# The run-name is the index of prior executions for one source attempt: publish_monitor_receipt.run_name() must render
+# EXACTLY this string (a contract test ties them).
+run-name: verify ${{ github.event.workflow_run.id || inputs.run_id }}/${{ github.event.workflow_run.run_attempt || inputs.run_attempt }}
 
 on:
   workflow_run:
@@ -19,16 +26,14 @@ on:
   workflow_dispatch:
     inputs:
       run_id:
-        description: "A source-monitor run ID to verify (e.g. a past run)"
+        description: "A source-monitor run ID to verify (e.g. a past run) -- PREVIEW, posts nothing"
         required: true
       run_attempt:
         description: "That run's attempt number"
         required: true
         default: "1"
 
-permissions:
-  contents: read
-  actions: read
+permissions: {}
 
 concurrency:
   group: source-monitor-verify-${{ github.event.workflow_run.id || github.event.inputs.run_id }}
@@ -36,17 +41,30 @@ concurrency:
 
 jobs:
   verify:
-    name: Verify the source-monitor run (preview; writes no issue)
+    name: Verify the source-monitor run
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-24.04   # pinned 2026-09-26: ubuntu-latest moves to Ubuntu 26 from 2026-10-19
     timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      receipt_b64: ${{ steps.emit.outputs.receipt_b64 }}
     steps:
-      # TRUSTED CODE: the default branch -- never the verified run's commit.
-      - name: Check out the trusted default branch
+      - name: Check out the trusted workflow commit
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2, node24
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: ${{ github.workflow_sha }}
           persist-credentials: false
+
+      - name: Verify the checkout is the workflow commit
+        shell: bash
+        env:
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::the workflow commit is not a full SHA"; exit 2; }
+          [ "$(git rev-parse HEAD)" = "$WORKFLOW_SHA" ] || { echo "::error::HEAD is not the workflow commit"; exit 2; }
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0, node24
@@ -83,19 +101,112 @@ jobs:
           git fetch --no-tags --depth=1 origin "$head_sha"
           { echo "run_id=$run_id"; echo "run_attempt=$run_attempt"; } >> "$GITHUB_OUTPUT"
 
-      - name: Verify the run (six results; writes no issue)
+      # Writes verdict.json AND receipt.json BEFORE its exit code (2 = not verified), so a failure still has a receipt.
+      - name: Verify the run and write the receipt
         env:
           GITHUB_TOKEN: ${{ github.token }}
           RUN_ID: ${{ steps.run.outputs.run_id }}
           RUN_ATTEMPT: ${{ steps.run.outputs.run_attempt }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          EVALUATION_RUN_ID: ${{ github.run_id }}
+          EVALUATION_ATTEMPT: ${{ github.run_attempt }}
         run: |
-          python scripts/verify_monitor_run.py --run-id "$RUN_ID" --run-attempt "$RUN_ATTEMPT" --verdict verdict.json
+          python scripts/verify_monitor_run.py --run-id "$RUN_ID" --run-attempt "$RUN_ATTEMPT" --verdict verdict.json \
+            --receipt receipt.json --checker-commit "$WORKFLOW_SHA" \
+            --evaluation-run-id "$EVALUATION_RUN_ID" --evaluation-attempt "$EVALUATION_ATTEMPT"
 
-      - name: Upload the verdict
+      # A SEPARATE step: a line after the verifier in its own step would never run on exit 2. Single-line base64 is
+      # transport, not authentication; an absent receipt is stated, and the publish job's coordinator reports it.
+      - name: Hand the receipt to the publish job
+        id: emit
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -s receipt.json ]; then
+            PYTHONPATH=src python -m genomic_variant_classifier.source_monitor.c2_receipt_io --receipt receipt.json --output "$GITHUB_OUTPUT"
+          else
+            echo "::warning::no checker receipt was written; the publish job's coordinator will report verification unavailable"
+          fi
+
+      # Attempt-suffixed: artifact names are unique within a run and a re-run is an attempt of the SAME run (HTTP 409).
+      - name: Archive the verdict and receipt
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0, node24
         with:
-          name: source-monitor-verdict
-          path: verdict.json
+          name: source-monitor-verdict-attempt-${{ github.run_attempt }}
+          path: |
+            verdict.json
+            receipt.json
           if-no-files-found: error
+          retention-days: 90
+
+  publish:
+    name: publish
+    needs: verify
+    if: ${{ !cancelled() && needs.verify.result != 'cancelled' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.head_branch == 'main') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    # The ONE writer's critical section. queue: max keeps up to 100 pending (the default keeps ONE and REPLACES it --
+    # GitHub docs); cancel-in-progress true with queue: max is a validation error.
+    concurrency:
+      group: source-monitor-alert
+      queue: max
+      cancel-in-progress: false
+    steps:
+      - name: Check out the trusted workflow commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2, node24
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+
+      - name: Verify the checkout is the workflow commit
+        shell: bash
+        env:
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::the workflow commit is not a full SHA"; exit 2; }
+          [ "$(git rev-parse HEAD)" = "$WORKFLOW_SHA" ] || { echo "::error::HEAD is not the workflow commit"; exit 2; }
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0, node24
+        with:
+          python-version: "3.12"
+
+      - name: Install the publisher's hash-locked dependency
+        run: |
+          python -m pip install --require-hashes --no-deps --only-binary=:all: -r requirements-source-monitor.txt
+
+      - name: Deliver the verification receipt
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RECEIPT_B64: ${{ needs.verify.outputs.receipt_b64 }}
+          EVENT_NAME: ${{ github.event_name }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id || github.event.inputs.run_id }}
+          SOURCE_ATTEMPT: ${{ github.event.workflow_run.run_attempt || github.event.inputs.run_attempt }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+          CURRENT_ATTEMPT: ${{ github.run_attempt }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_RUN_ID" =~ ^[0-9]{1,20}$ && "$SOURCE_ATTEMPT" =~ ^[0-9]{1,4}$ ]] || { echo "::error::source identifiers are not positive integers"; exit 2; }
+          python scripts/publish_monitor_receipt.py --event "$EVENT_NAME" --source-run-id "$SOURCE_RUN_ID" \
+            --source-attempt "$SOURCE_ATTEMPT" --current-run-id "$CURRENT_RUN_ID" --current-attempt "$CURRENT_ATTEMPT" \
+            --workflow-sha "$WORKFLOW_SHA" --outcome outcome.json
+
+      # The per-attempt outcome record (c2_github.dispatch_history reads it). A started delivery step WITHOUT a record is
+      # UNKNOWN to every later attempt, which is exactly right for a job killed mid-POST.
+      - name: Upload the delivery outcome
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0, node24
+        with:
+          name: c2-delivery-outcome-attempt-${{ github.run_attempt }}
+          path: outcome.json
+          if-no-files-found: warn
           retention-days: 90

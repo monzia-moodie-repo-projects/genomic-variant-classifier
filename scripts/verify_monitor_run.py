@@ -1,6 +1,7 @@
 """Verify one source-monitor run attempt from GitHub's records and its report archive (change C1, 2026-09-27).
 
-PREVIEW: writes a verdict and a step summary; it writes NO issue. Trusted code only -- the report, its archive and
+Writes a verdict, a step summary and -- with --receipt -- the C2 checker RECEIPT (owner ruling 2026-09-29), BEFORE
+returning its exit code, so an ordinary verification failure still produces one. It writes NO issue. Trusted code only -- the report, its archive and
 the files at the run's commit are data (report_verifier). Exit 0: verified (review items allowed -- a valid exit-1
 monitor run is a SUCCESSFUL verification); exit 2: not verified, or verification could not be completed.
 
@@ -25,6 +26,7 @@ sys.path.insert(0, str(_ROOT / "src"))
 
 from genomic_variant_classifier.data import release_approval as ra  # noqa: E402
 from genomic_variant_classifier.source_monitor import report_verifier as rv  # noqa: E402
+from genomic_variant_classifier.source_monitor import c2_protocol as c2  # noqa: E402
 
 API = "https://api.github.com/repos/" + rv.EXPECTED_REPOSITORY
 MAX_JSON_BYTES = 4 * 1024 * 1024
@@ -47,15 +49,22 @@ def http_fetch(url, token, limit):
     return body
 
 
-def collect(run_id, run_attempt, fetch):
-    def get_json(path):
-        return rv.strict_json(fetch(API + path, MAX_JSON_BYTES), MAX_JSON_BYTES)
-    run = get_json("/actions/runs/{}".format(run_id))
-    attempt = get_json("/actions/runs/{}/attempts/{}".format(run_id, run_attempt))
-    artifacts = get_json("/actions/runs/{}/artifacts?per_page=100".format(run_id))
+def _get_json(fetch, path):
+    return rv.strict_json(fetch(API + path, MAX_JSON_BYTES), MAX_JSON_BYTES)
+
+
+def collect_attempt(run_id, run_attempt, fetch):
+    """GitHub's run and ATTEMPT records -- fetched FIRST and kept, so a later evidence failure still has an
+    authenticated subject for a checker-issued "unavailable" receipt (C2, 2026-09-30)."""
+    return (_get_json(fetch, "/actions/runs/{}".format(run_id)),
+            _get_json(fetch, "/actions/runs/{}/attempts/{}".format(run_id, run_attempt)))
+
+
+def collect_evidence(run_id, fetch):
+    artifacts = _get_json(fetch, "/actions/runs/{}/artifacts?per_page=100".format(run_id))
     named = [a for a in artifacts.get("artifacts", []) if isinstance(a, dict) and a.get("name") == rv.ARTIFACT_NAME]
     archive = fetch(API + "/actions/artifacts/{}/zip".format(named[0]["id"]), rv.MAX_ARCHIVE_BYTES) if len(named) == 1 else b""
-    return run, attempt, artifacts, archive
+    return artifacts, archive
 
 
 def summary(doc):
@@ -71,6 +80,33 @@ def summary(doc):
     return "\n".join(lines) + "\n"
 
 
+def _stamp(moment):
+    """The protocol's canonical second-precision UTC timestamp."""
+    return moment.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def receipt_subject(attempt):
+    """The receipt subject from GitHub's OWN attempt record (one definition: c2_github.subject_from_attempt)."""
+    from genomic_variant_classifier.source_monitor.c2_github import subject_from_attempt
+    return subject_from_attempt(attempt)
+
+
+def build_receipt_payload(*, subject, verdict, checker, evaluation, diagnostics):
+    """A CHECKER-issued receipt payload. `verdict` is a report_verifier.Verdict (status completed), or None when the
+    checker ran but could not complete (status unavailable, reason checker.unavailable -- never six invented flags)."""
+    if verdict is None:
+        decision = {"status": "unavailable", "verified": None, "flags": None, "reviews": [],
+                    "reasons": [{"code": "checker.unavailable", "target": ""}]}
+        evidence = {"state": "unavailable", "artifact_id": None, "archive_sha256": None, "report_sha256": None}
+    else:
+        decision = {"status": "completed", "verified": verdict.verified, "flags": dict(verdict.flags),
+                    "reviews": list(verdict.reviews), "reasons": list(verdict.reasons)}
+        evidence = dict(verdict.evidence)
+    return {"schema": "gvc.monitor-receipt", "schema_version": 1, "issuer_role": "checker", "subject": subject,
+            "evidence": evidence, "checker": checker, "evaluation": evaluation, "decision": decision,
+            "diagnostics": diagnostics}
+
+
 def main(argv=None, *, fetch=None, read_blob=None, now=None, current=None, step_summary=None):
     """`step_summary` is a path to append the Markdown summary to -- passed EXPLICITLY, read from the environment
     only by `__main__` (MEASURED 2026-09-27: reading $GITHUB_STEP_SUMMARY here let a TEST publish a fabricated
@@ -80,12 +116,21 @@ def main(argv=None, *, fetch=None, read_blob=None, now=None, current=None, step_
     parser.add_argument("--run-attempt", type=int, required=True)
     parser.add_argument("--repo", default=str(_ROOT), help="a checkout holding the run's commit")
     parser.add_argument("--verdict", required=True, help="where to write the verdict JSON")
+    parser.add_argument("--receipt", help="where to write the C2 checker receipt (requires the three arguments below)")
+    parser.add_argument("--checker-commit", help="the TRUSTED checkout's full commit (verified by the workflow)")
+    parser.add_argument("--evaluation-run-id", type=int, help="THIS verifier run's id")
+    parser.add_argument("--evaluation-attempt", type=int, help="THIS verifier run's attempt")
     args = parser.parse_args(argv)
+    if args.receipt and None in (args.checker_commit, args.evaluation_run_id, args.evaluation_attempt):
+        parser.error("--receipt requires --checker-commit, --evaluation-run-id and --evaluation-attempt")
+    started = now or datetime.now(timezone.utc)
     token = os.environ.get("GITHUB_TOKEN")
     fetch = fetch or (lambda url, limit: http_fetch(url, token, limit))
-    doc = None
+    doc = verdict = attempt = None
+    policy_problem = None
     try:
-        run, attempt, artifacts, archive = collect(args.run_id, args.run_attempt, fetch)
+        run, attempt = collect_attempt(args.run_id, args.run_attempt, fetch)
+        artifacts, archive = collect_evidence(args.run_id, fetch)
         if read_blob is None:
             # Only an EMPTY `git ls-tree` is "absent" (interpretation_contract.BlobAbsent); every other failure refuses.
             read_blob = rv.commit_blob_reader(ra.git_reader(args.repo))
@@ -98,10 +143,15 @@ def main(argv=None, *, fetch=None, read_blob=None, now=None, current=None, step_
             except Exception as exc:
                 current_problem = "today's interpretation could not be reconstructed: {}: {}".format(type(exc).__name__, exc)
         from genomic_variant_classifier.source_monitor.run_monitor import REQUIRED_TARGETS
-        doc = rv.verify(archive, attempt, artifacts, run_id=args.run_id, run_attempt=args.run_attempt,
-                        latest_attempt=run.get("run_attempt") if isinstance(run, dict) else None, read_blob=read_blob,
-                        now=now or datetime.now(timezone.utc), current=current,
-                        required_targets=REQUIRED_TARGETS).as_document()
+        verdict = rv.verify(archive, attempt, artifacts, run_id=args.run_id, run_attempt=args.run_attempt,
+                            latest_attempt=run.get("run_attempt") if isinstance(run, dict) else None, read_blob=read_blob,
+                            now=now or datetime.now(timezone.utc), current=current,
+                            required_targets=REQUIRED_TARGETS)
+        doc = verdict.as_document()
+        try:
+            policy_digest = c2.digest("gvc.verification-policy/v1", rv.effective_policy(current, REQUIRED_TARGETS))
+        except Exception as exc:
+            policy_digest, policy_problem = None, "no effective policy to bind: {}: {}".format(type(exc).__name__, exc)
         if current_problem:
             doc["problems"]["current_monitoring_obligation_satisfied"].append(current_problem)
     except Exception as exc:
@@ -109,6 +159,31 @@ def main(argv=None, *, fetch=None, read_blob=None, now=None, current=None, step_
         doc["problems"]["execution_authenticated"].append(
             "verification could not be completed: {}: {}".format(type(exc).__name__, exc))
     Path(args.verdict).write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if args.receipt:
+        # Written BEFORE the exit code is returned (owner ruling 2026-09-29), so an ordinary failure still yields one.
+        diagnostics = ["{}: {}".format(k, x) for k, xs in doc["problems"].items() for x in xs]
+        if verdict is not None:
+            diagnostics += ["diagnostic candidate (not a confirmed review): {}".format(json.dumps(c, sort_keys=True))
+                            for c in verdict.candidates]
+        try:
+            if attempt is None:
+                raise ValueError("GitHub's attempt record was not obtained; the subject is unknown, so no run is guessed")
+            if verdict is not None and policy_problem:
+                raise ValueError(policy_problem)
+            checker = {"commit": args.checker_commit, "code_manifest_sha256": c2.digest(
+                           "gvc.checker-code/v1", [[path, sha] for path, sha in sorted(rv.code_manifest(_ROOT).items())]),
+                       "policy_sha256": policy_digest if verdict is not None else c2.digest(
+                           "gvc.verification-policy/unavailable/v1", {"reason": "the checker could not complete"})}
+            payload = build_receipt_payload(
+                subject=receipt_subject(attempt), verdict=verdict, checker=checker, diagnostics=diagnostics,
+                evaluation={"run_id": args.evaluation_run_id, "attempt": args.evaluation_attempt,
+                            "started_at": _stamp(started), "finished_at": _stamp(now or datetime.now(timezone.utc))})
+            from genomic_variant_classifier.source_monitor import c2_receipt_io
+            c2_receipt_io.write_receipt(payload, args.receipt)
+            print("RECEIPT written: {}".format(args.receipt))
+        except Exception as exc:
+            print("NO RECEIPT: {}: {} -- the coordinator reports verification unavailable".format(type(exc).__name__, exc),
+                  file=sys.stderr)
     if step_summary:
         with open(step_summary, "a", encoding="utf-8") as fh:
             fh.write(summary(doc))

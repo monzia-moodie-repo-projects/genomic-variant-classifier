@@ -67,6 +67,20 @@ class Verdict:
     flags: dict = field(default_factory=lambda: {f: False for f in FLAGS})
     problems: dict = field(default_factory=lambda: {f: [] for f in FLAGS})
     review_items: list = field(default_factory=list)
+    # C2 (owner ruling 2026-09-29): TYPED results, emitted where the checker DETECTS each condition -- the writer never
+    # parses the English problems above. reviews: confirmed, from authenticated AND configuration-bound evidence only;
+    # candidates: the same typed items when that binding failed -- diagnostic candidates, never confirmed claims.
+    reviews: list = field(default_factory=list)
+    candidates: list = field(default_factory=list)
+    reasons: list = field(default_factory=list)
+    evidence: dict = field(default_factory=lambda: {"state": "unavailable", "artifact_id": None,
+                                                    "archive_sha256": None, "report_sha256": None})
+
+    def reason(self, code: str, target: str = "") -> None:
+        """One stable (code, target) per detected condition -- independent of how many messages describe it."""
+        item = {"code": code, "target": target}
+        if item not in self.reasons:
+            self.reasons.append(item)
 
     @property
     def verified(self) -> bool:
@@ -300,7 +314,7 @@ def replay_handler(policy):
 
 def check_observation(report: dict, policy):
     """Replay under the run's policy. -> (complete, reconciled, review_items[str], observation_problems,
-    reconciliation_problems). The two problem lists are SEPARATE by construction: observation problems (unsupported or
+    reconciliation_problems, typed ReviewItems, reason codes [(code, target)] emitted AT each detection site). The two problem lists are SEPARATE by construction: observation problems (unsupported or
     failed replay, incomplete traversal, blocking validation findings) and reconciliation problems (qualification,
     claims, exit code).
 
@@ -311,28 +325,31 @@ def check_observation(report: dict, policy):
     from genomic_variant_classifier.source_monitor.request_verifier import TraversalCompleteness
 
     if policy is None:
-        return False, False, [], ["the replay cannot run: the run's policy was not established"], []
+        return False, False, [], ["the replay cannot run: the run's policy was not established"], [], [], []
     try:
         qualify = replay_handler(policy)
     except ic.ContractError as exc:
-        return False, False, [], ["unsupported replay: {}".format(exc)], []
+        return False, False, [], ["unsupported replay: {}".format(exc)], [], [], [("policy.unsupported", "")]
     baseline = policy.plan["approved_baseline"]
     complete, reconciled = True, True
-    replay_items, declared_items, observation, problems = [], [], [], []
+    replay_items, declared_items, observation, problems, codes = [], [], [], [], []
     for r in report["results"]:
         target, captures = r["target"], r.get("captures") or []
         try:
             outcome = qualify(target, captures)
         except Exception as exc:
             observation.append("{}: replay failed: {}: {}".format(target, type(exc).__name__, exc))
+            codes.append(("observation.invalid", target))
             complete = reconciled = False
             continue
         if outcome.traversal_completeness is not TraversalCompleteness.COMPLETE:
             complete = False
             observation.append("{}: traversal is {}".format(target, outcome.traversal_completeness.value))
+            codes.append(("observation.incomplete", target))
         for f in outcome.findings:
             doc = f.as_document()
             observation.append("{}: blocking validation finding {}: {}".format(target, doc["reason"], doc["detail"]))
+            codes.append(("observation.invalid", target))
         claimed, mine = report["qualification"].get(target), outcome.as_document()
         if not ic.strict_equal(claimed, mine):
             reconciled = False
@@ -340,6 +357,7 @@ def check_observation(report: dict, policy):
                                if not ic.strict_equal((claimed if type(claimed) is dict else {}).get(k), mine.get(k)))
             problems.append("{}: the report's qualification differs from the replay (value or JSON type) in {}".format(
                 target, differing))
+            codes.append(("claims.disagree", target))
         replay_items += [ReviewItem(target, "newer", w) for w in outcome.positive_witnesses]
         replay_items += [ReviewItem(target, "unsupported", u) for u in outcome.unsupported_names]
         for claim in r.get("findings") or []:
@@ -347,26 +365,31 @@ def check_observation(report: dict, policy):
             if problem:
                 reconciled = False
                 problems.append("{}: {}".format(target, problem))
+                codes.append(("claims.disagree", target))
             else:
                 declared_items.append(ReviewItem(target, pair[0], pair[1]))
     if Counter(declared_items) != Counter(replay_items):
         reconciled = False
         problems.append("the producer's review claims {} differ from the replay's {} as a multiset".format(
             sorted(Counter(declared_items).items()), sorted(Counter(replay_items).items())))
+        codes.append(("claims.disagree", ""))
     qualified_observation = complete and not observation
     expected_exit = 2 if not qualified_observation else (1 if replay_items else 0)
     if report["exit_code"] != expected_exit:
         reconciled = False
         problems.append("the report's exit code {} conflicts with the trusted replay, which requires {}".format(
             report["exit_code"], expected_exit))
-    return qualified_observation, reconciled, [_render(i, baseline) for i in sorted(replay_items)], observation, problems
+        codes.append(("claims.disagree", ""))
+    return (qualified_observation, reconciled, [_render(i, baseline) for i in sorted(replay_items)], observation, problems,
+            sorted(replay_items), codes)
 
 
-def check_current(attempt: dict, artifact: dict, now: datetime, historical, current) -> list:
+def check_current(attempt: dict, artifact: dict, now: datetime, historical, current):
     """Today's obligation. Chronology run creation <= attempt start <= artifact creation <= attempt end (GitHub's own
     times); the verifier clock may not precede the attempt's end beyond SKEW; age is measured CONSERVATIVELY from the
-    ATTEMPT start (a rerun does not inherit the run's age); the bound interpretation must EQUAL today's."""
-    p = []
+    ATTEMPT start (a rerun does not inherit the run's age); the bound interpretation must EQUAL today's.
+    -> (problems, reason codes [(code, target)] emitted at each detection site)."""
+    p, codes = [], []
     try:
         if not isinstance(now, datetime) or now.tzinfo is None or now.utcoffset() is None:
             raise ValueError("the verification time must be timezone-aware")
@@ -375,12 +398,16 @@ def check_current(attempt: dict, artifact: dict, now: datetime, historical, curr
         if not created <= started <= observed <= ended:
             p.append("the attempt chronology is inconsistent: created {}, started {}, artifact {}, ended {}".format(
                 created, started, observed, ended))
+            codes.append(("execution.invalid", ""))
         if ended > now + SKEW:
             p.append("the verifier clock {} precedes the attempt's end {} beyond the {} allowance".format(now, ended, SKEW))
+            codes.append(("freshness.future", ""))
         if now - started > MAX_AGE:
             p.append("the attempt started {} ago; the monitoring obligation needs one within {}".format(now - started, MAX_AGE))
+            codes.append(("freshness.expired", ""))
     except (KeyError, TypeError, ValueError) as exc:
         p.append("freshness could not be established: {}".format(exc))
+        codes.append(("execution.invalid", ""))
     if historical is None or current is None:
         p.append("the run's and today's interpretations must both be reconstructed to compare them")
     elif historical != current:
@@ -389,7 +416,8 @@ def check_current(attempt: dict, artifact: dict, now: datetime, historical, curr
         p.append("this run's interpretation (version {}, policy {}) is not today's (version {}, policy {}); parts differ in "
                  "{}".format(historical.version, historical.contract_sha256, current.version, current.contract_sha256,
                              differing))
-    return p
+        codes.append(("policy.changed", ""))
+    return p, codes
 
 
 def verify(archive: bytes, run: dict, artifacts: dict, *, run_id: int, run_attempt: int, latest_attempt: int, read_blob,
@@ -400,32 +428,109 @@ def verify(archive: bytes, run: dict, artifacts: dict, *, run_id: int, run_attem
     listed = artifacts.get("artifacts") if type(artifacts) is dict else None
     if type(listed) is not list or type(run) is not dict:
         v.problems["execution_authenticated"].append("the run record and artifact listing must be a dict and a list")
+        v.reason("execution.invalid")
         return v
     named = [a for a in listed if type(a) is dict and a.get("name") == ARTIFACT_NAME]
     if len(named) != 1:
         v.problems["execution_authenticated"].append(_selection_problem(len(named)))
+        v.evidence["state"] = "missing" if not named else "invalid"
+        v.reason("artifact.missing" if not named else "artifact.invalid")
         return v
+    artifact_id = named[0].get("id")
+    v.evidence.update(artifact_id=artifact_id if type(artifact_id) is int and artifact_id > 0 else None,
+                      archive_sha256=hashlib.sha256(archive).hexdigest() if type(archive) is bytes else None)
     try:
-        report = parse_report(read_archive(archive, named[0]), required_targets)
+        raw = read_archive(archive, named[0])
+        v.evidence["report_sha256"] = hashlib.sha256(raw).hexdigest()   # the ADMITTED member's bytes, not the ZIP's
+        report = parse_report(raw, required_targets)
     except Exception as exc:
         v.problems["execution_authenticated"].append("the report could not be admitted: {}: {}".format(type(exc).__name__, exc))
+        v.evidence["state"] = "invalid"
+        v.reason("artifact.invalid")
         return v
+    if v.evidence["artifact_id"] is None:
+        # STATED where detected (measured 2026-09-30: without this line the flag went false with NO problem message).
+        v.problems["execution_authenticated"].append("the artifact has no usable identifier ({!r}); its evidence identity is incomplete"
+                                                     .format(named[0].get("id")))
+    v.evidence["state"] = "complete" if v.evidence["artifact_id"] is not None else "invalid"
     p = check_execution(run, artifacts, report, run_id=run_id, run_attempt=run_attempt, latest_attempt=latest_attempt)
     v.problems["execution_authenticated"] += p
-    v.flags["execution_authenticated"] = not p
+    v.flags["execution_authenticated"] = not p and v.evidence["state"] == "complete"
+    if not v.flags["execution_authenticated"]:
+        v.reason("execution.invalid")
     p, policy, historical = check_configuration(report, read_blob, run.get("head_sha"))
     v.problems["configuration_bound"] += p
     v.flags["configuration_bound"] = not p
-    complete, reconciled, review, observation, reconciliation = check_observation(report, policy)
+    if p:
+        v.reason("configuration.invalid")
+    complete, reconciled, review, observation, reconciliation, items, codes = check_observation(report, policy)
     v.flags["observation_complete"], v.flags["claims_reconciled"] = complete, reconciled
     v.problems["observation_complete"] += observation
     v.problems["claims_reconciled"] += reconciliation
+    for code, target in codes:
+        v.reason(code, target)
     v.review_items = review
-    v.flags["review_required"] = v.flags["execution_authenticated"] and v.flags["configuration_bound"] and bool(review)
-    p = check_current(run, named[0], now, historical, current)
+    typed = [{"target": i.target, "kind": i.kind, "raw_prefix": i.raw_prefix} for i in items]
+    bound = v.flags["execution_authenticated"] and v.flags["configuration_bound"]
+    v.reviews, v.candidates = (typed, []) if bound else ([], typed)
+    v.flags["review_required"] = bound and bool(typed)
+    p, codes = check_current(run, named[0], now, historical, current)
     v.problems["current_monitoring_obligation_satisfied"] += p
+    for code, target in codes:
+        v.reason(code, target)
     v.flags["current_monitoring_obligation_satisfied"] = not p and v.verified
     return v
+
+
+#: C2 CHECKER IDENTITY (owner ruling 2026-09-29: "bind the executed dependency manifest and environment lock"). MEASURED
+#: 2026-09-30: importing the checker loads 7 project modules, but a REAL verification loads 15 -- the 8 lazily imported
+#: ones (the replay, the contract, the monitor's roster) decide the verdict. This is that measured set, plus the script
+#: and the hash-locked environment the preview workflow installs. A test re-measures it after a real verification.
+CHECKER_SOURCES = (
+    "requirements-source-monitor.txt",
+    "scripts/verify_monitor_run.py",
+    "src/genomic_variant_classifier/__init__.py",
+    "src/genomic_variant_classifier/data/__init__.py",
+    "src/genomic_variant_classifier/data/release_approval.py",
+    "src/genomic_variant_classifier/data/source_registry.py",
+    "src/genomic_variant_classifier/source_monitor/__init__.py",
+    "src/genomic_variant_classifier/source_monitor/c2_github.py",
+    "src/genomic_variant_classifier/source_monitor/c2_protocol.py",
+    "src/genomic_variant_classifier/source_monitor/c2_receipt_io.py",
+    "src/genomic_variant_classifier/source_monitor/finding_store.py",
+    "src/genomic_variant_classifier/source_monitor/heartbeat.py",
+    "src/genomic_variant_classifier/source_monitor/interpretation_contract.py",
+    "src/genomic_variant_classifier/source_monitor/monitor_supervisor.py",
+    "src/genomic_variant_classifier/source_monitor/reason_catalog.py",
+    "src/genomic_variant_classifier/source_monitor/report_verifier.py",
+    "src/genomic_variant_classifier/source_monitor/request_verifier.py",
+    "src/genomic_variant_classifier/source_monitor/run_monitor.py",
+)
+
+
+def code_manifest(repo_root) -> dict:
+    """{path: SHA-256} of CHECKER_SOURCES, read from the TRUSTED checkout. A missing file refuses (raises)."""
+    from pathlib import Path
+    root = Path(repo_root)
+    return {path: hashlib.sha256((root / path).read_bytes()).hexdigest() for path in CHECKER_SOURCES}
+
+
+def effective_policy(current, required_targets) -> dict:
+    """The COMPLETE effective verification policy (owner ruling 2026-09-29): today's bound interpretation, the required
+    target roster, the freshness and skew limits, the admission rules and the supported semantics -- not one file.
+    The WRITER's delivery policy (receipt age, clock allowance) is a different policy and is deliberately not here."""
+    from genomic_variant_classifier.source_monitor import interpretation_contract as ic
+    if current is None:
+        raise ValueError("today's interpretation was not reconstructed, so no effective policy can be bound")
+    return {"schema": "gvc.verification-policy", "schema_version": 1,
+            "interpretation": current.as_document(),
+            "required_targets": sorted(required_targets),
+            "max_age_seconds": int(MAX_AGE.total_seconds()), "skew_seconds": int(SKEW.total_seconds()),
+            "admission": {"repository": EXPECTED_REPOSITORY, "workflow_path": EXPECTED_WORKFLOW_PATH,
+                          "events": sorted(EXPECTED_EVENTS), "branch": EXPECTED_BRANCH, "artifact": ARTIFACT_NAME,
+                          "member": REPORT_MEMBER, "report_schema": [REPORT_SCHEMA, REPORT_SCHEMA_VERSION],
+                          "max_archive_bytes": MAX_ARCHIVE_BYTES, "max_report_bytes": MAX_REPORT_BYTES},
+            "semantics": ic.SEMANTICS, "legacy_commits": sorted(r.commit for r in ic.LEGACY_RECORDS)}
 
 
 def current_reconstruction(repo_root):

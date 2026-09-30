@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **7,244 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **7,340 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -439,6 +439,11 @@ exists to end.
   showed GITHUB_ARTIFACTS, documented by GitHub as the file that declares workflow artifacts for a step and added
   in actions/runner v2.336.0. It is now removed with the other five; tests/conftest.py holds the ONE list and the
   tests require ci.yml's removals to equal it. Suite 7,243 -> 7,244.
+- **2026-09-30 -- C2: one issue writer (owner rulings 2026-09-29/30).** The verify job writes a typed, bound receipt; a
+  separate publish job (the only one with issues: write) binds it to independently established facts, reconstructs prior
+  dispatch from GitHub's execution history and posts AT MOST ONE comment to the pinned alert issue; uncertain outcomes are
+  quarantined, never retried. The legacy alert workflow and its tests are removed, every protection carried. Receipt age
+  policy: 900 s, 60 s clock allowance. Suite 7,244 -> 7,340. Activation needs the controlled cutover.
 - **SCHEDULED -- legacy-roadmap carry-forward audit.** 47 of the 55 item identifiers in
   docs/archive/legacy/ROADMAP_2026-03_to_2026-08-22.md are not mentioned in this roadmap (measured 2026-09-28).
   Absence is not resolution: SMOKE-1 (tests/smoke_test_imports.py is never collected and no workflow runs it) is
