@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **7,340 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **7,371 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -444,6 +444,12 @@ exists to end.
   dispatch from GitHub's execution history and posts AT MOST ONE comment to the pinned alert issue; uncertain outcomes are
   quarantined, never retried. The legacy alert workflow and its tests are removed, every protection carried. Receipt age
   policy: 900 s, 60 s clock allowance. Suite 7,244 -> 7,340. Activation needs the controlled cutover.
+- **2026-10-01 -- C2 repairs and deployment configuration (owner rulings 2026-09-30 / 2026-10-01).** An
+  unavailable checker receipt now reaches the writer (the evaluator identity no longer depends on evidence
+  collection); receipt freshness is enforced immediately before the POST; deployment identities moved into
+  a strictly validated configuration, with the source workflow and repository now authenticated by numeric
+  id. Production cutover preceded isolated live qualification -- a recorded process deviation; the isolated
+  qualification repository supplies the compensating evidence. Suite 7,340 -> 7,371.
 - **SCHEDULED -- legacy-roadmap carry-forward audit.** 47 of the 55 item identifiers in
   docs/archive/legacy/ROADMAP_2026-03_to_2026-08-22.md are not mentioned in this roadmap (measured 2026-09-28).
   Absence is not resolution: SMOKE-1 (tests/smoke_test_imports.py is never collected and no workflow runs it) is

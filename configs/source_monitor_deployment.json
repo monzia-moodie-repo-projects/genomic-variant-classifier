@@ -1,0 +1,19 @@
+{
+  "schema": "gvc.source-monitor-deployment",
+  "schema_version": 1,
+  "repository": "monzia-moodie-repo-projects/genomic-variant-classifier",
+  "repository_id": 1151261021,
+  "source_workflow": {
+    "path": ".github/workflows/source_monitor.yml",
+    "id": 359207377,
+    "branch": "main",
+    "events": ["schedule", "workflow_dispatch"]
+  },
+  "destination": {
+    "issue_number": 27,
+    "issue_id": 5600463137,
+    "label": "source-monitor-alert"
+  },
+  "trusted_author_id": 41898282,
+  "publication_enabled": true
+}

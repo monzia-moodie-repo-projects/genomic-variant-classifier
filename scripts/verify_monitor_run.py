@@ -26,9 +26,7 @@ sys.path.insert(0, str(_ROOT / "src"))
 
 from genomic_variant_classifier.data import release_approval as ra  # noqa: E402
 from genomic_variant_classifier.source_monitor import report_verifier as rv  # noqa: E402
-from genomic_variant_classifier.source_monitor import c2_protocol as c2  # noqa: E402
 
-API = "https://api.github.com/repos/" + rv.EXPECTED_REPOSITORY
 MAX_JSON_BYTES = 4 * 1024 * 1024
 
 
@@ -49,26 +47,31 @@ def http_fetch(url, token, limit):
     return body
 
 
-def _get_json(fetch, path):
-    return rv.strict_json(fetch(API + path, MAX_JSON_BYTES), MAX_JSON_BYTES)
+def api_base(deployment):
+    """The GitHub API base of the DEPLOYMENT's repository (from the trusted checkout's configuration)."""
+    return "https://api.github.com/repos/" + deployment.repository
 
 
-def collect_attempt(run_id, run_attempt, fetch):
+def _get_json(fetch, api, path):
+    return rv.strict_json(fetch(api + path, MAX_JSON_BYTES), MAX_JSON_BYTES)
+
+
+def collect_attempt(run_id, run_attempt, fetch, api):
     """GitHub's run and ATTEMPT records -- fetched FIRST and kept, so a later evidence failure still has an
     authenticated subject for a checker-issued "unavailable" receipt (C2, 2026-09-30)."""
-    return (_get_json(fetch, "/actions/runs/{}".format(run_id)),
-            _get_json(fetch, "/actions/runs/{}/attempts/{}".format(run_id, run_attempt)))
+    return (_get_json(fetch, api, "/actions/runs/{}".format(run_id)),
+            _get_json(fetch, api, "/actions/runs/{}/attempts/{}".format(run_id, run_attempt)))
 
 
-def collect_evidence(run_id, fetch):
-    artifacts = _get_json(fetch, "/actions/runs/{}/artifacts?per_page=100".format(run_id))
+def collect_evidence(run_id, fetch, api):
+    artifacts = _get_json(fetch, api, "/actions/runs/{}/artifacts?per_page=100".format(run_id))
     named = [a for a in artifacts.get("artifacts", []) if isinstance(a, dict) and a.get("name") == rv.ARTIFACT_NAME]
-    archive = fetch(API + "/actions/artifacts/{}/zip".format(named[0]["id"]), rv.MAX_ARCHIVE_BYTES) if len(named) == 1 else b""
+    archive = fetch(api + "/actions/artifacts/{}/zip".format(named[0]["id"]), rv.MAX_ARCHIVE_BYTES) if len(named) == 1 else b""
     return artifacts, archive
 
 
 def summary(doc):
-    lines = ["## Source-monitor run verification (PREVIEW -- writes no issue)", "",
+    lines = ["## Source-monitor run verification (the checker; the publish job delivers)", "",
              "Run {} attempt {}: **{}**".format(doc["run_id"], doc["run_attempt"], "VERIFIED" if doc["verified"] else "NOT VERIFIED"), "",
              "| Result | Value |", "|---|---|"]
     lines += ["| `{}` | {} |".format(k, v) for k, v in doc["flags"].items()]
@@ -107,7 +110,7 @@ def build_receipt_payload(*, subject, verdict, checker, evaluation, diagnostics)
             "diagnostics": diagnostics}
 
 
-def main(argv=None, *, fetch=None, read_blob=None, now=None, current=None, step_summary=None):
+def main(argv=None, *, fetch=None, read_blob=None, now=None, current=None, step_summary=None, deployment_root=None):
     """`step_summary` is a path to append the Markdown summary to -- passed EXPLICITLY, read from the environment
     only by `__main__` (MEASURED 2026-09-27: reading $GITHUB_STEP_SUMMARY here let a TEST publish a fabricated
     verdict onto CI run #896's summary page)."""
@@ -127,31 +130,47 @@ def main(argv=None, *, fetch=None, read_blob=None, now=None, current=None, step_
     token = os.environ.get("GITHUB_TOKEN")
     fetch = fetch or (lambda url, limit: http_fetch(url, token, limit))
     doc = verdict = attempt = None
-    policy_problem = None
+    from genomic_variant_classifier.source_monitor import deployment as dep
+    from genomic_variant_classifier.source_monitor.run_monitor import REQUIRED_TARGETS
+    # The DEPLOYMENT first, from THIS trusted checkout (owner ruling 2026-10-01): an unloadable or unresolved configuration
+    # refuses verification -- stated, no receipt, exit 2.
     try:
-        run, attempt = collect_attempt(args.run_id, args.run_attempt, fetch)
-        artifacts, archive = collect_evidence(args.run_id, fetch)
+        deployment = dep.load(deployment_root or _ROOT)      # tests inject a root; __main__ never does
+    except dep.DeploymentError as exc:
+        doc = rv.Verdict(run_id=args.run_id, run_attempt=args.run_attempt).as_document()
+        doc["problems"]["execution_authenticated"].append("the deployment configuration refuses execution: {}".format(exc))
+        Path(args.verdict).write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        if args.receipt:
+            print("NO RECEIPT: DeploymentError: {} -- the coordinator reports verification unavailable".format(exc), file=sys.stderr)
+        print("NOT VERIFIED run {} attempt {}".format(args.run_id, args.run_attempt))
+        return 2
+    api = api_base(deployment)
+    # TODAY's policy and the checker's IDENTITY come from THIS trusted checkout, BEFORE any fallible remote evidence
+    # collection (owner ruling 2026-10-01: "failure to obtain evidence changes the result, not that identity"). A
+    # reconstruction failure makes the current obligation false with its cause recorded; it does not abort verification.
+    current_problem = identity = identity_problem = None
+    if current is None:
+        try:
+            current = rv.current_reconstruction(_ROOT)
+        except Exception as exc:
+            current_problem = "today's interpretation could not be reconstructed: {}: {}".format(type(exc).__name__, exc)
+    if args.receipt:
+        try:
+            identity = rv.build_checker_identity(root=_ROOT, commit=args.checker_commit, current=current,
+                                                 required_targets=REQUIRED_TARGETS, deployment=deployment)
+        except Exception as exc:
+            identity_problem = "the checker identity could not be reconstructed: {}: {}".format(type(exc).__name__, exc)
+    try:
+        run, attempt = collect_attempt(args.run_id, args.run_attempt, fetch, api)
+        artifacts, archive = collect_evidence(args.run_id, fetch, api)
         if read_blob is None:
             # Only an EMPTY `git ls-tree` is "absent" (interpretation_contract.BlobAbsent); every other failure refuses.
             read_blob = rv.commit_blob_reader(ra.git_reader(args.repo))
-        current_problem = None
-        if current is None:
-            # TODAY's policy from THIS trusted checkout (main in the preview workflow). A failure here makes the current
-            # obligation false with its cause recorded; it does not abort the historical verification.
-            try:
-                current = rv.current_reconstruction(_ROOT)
-            except Exception as exc:
-                current_problem = "today's interpretation could not be reconstructed: {}: {}".format(type(exc).__name__, exc)
-        from genomic_variant_classifier.source_monitor.run_monitor import REQUIRED_TARGETS
         verdict = rv.verify(archive, attempt, artifacts, run_id=args.run_id, run_attempt=args.run_attempt,
                             latest_attempt=run.get("run_attempt") if isinstance(run, dict) else None, read_blob=read_blob,
                             now=now or datetime.now(timezone.utc), current=current,
-                            required_targets=REQUIRED_TARGETS)
+                            required_targets=REQUIRED_TARGETS, deployment=deployment)
         doc = verdict.as_document()
-        try:
-            policy_digest = c2.digest("gvc.verification-policy/v1", rv.effective_policy(current, REQUIRED_TARGETS))
-        except Exception as exc:
-            policy_digest, policy_problem = None, "no effective policy to bind: {}: {}".format(type(exc).__name__, exc)
         if current_problem:
             doc["problems"]["current_monitoring_obligation_satisfied"].append(current_problem)
     except Exception as exc:
@@ -168,14 +187,10 @@ def main(argv=None, *, fetch=None, read_blob=None, now=None, current=None, step_
         try:
             if attempt is None:
                 raise ValueError("GitHub's attempt record was not obtained; the subject is unknown, so no run is guessed")
-            if verdict is not None and policy_problem:
-                raise ValueError(policy_problem)
-            checker = {"commit": args.checker_commit, "code_manifest_sha256": c2.digest(
-                           "gvc.checker-code/v1", [[path, sha] for path, sha in sorted(rv.code_manifest(_ROOT).items())]),
-                       "policy_sha256": policy_digest if verdict is not None else c2.digest(
-                           "gvc.verification-policy/unavailable/v1", {"reason": "the checker could not complete"})}
+            if identity is None:
+                raise ValueError(identity_problem)        # never an ordinary checker receipt without an identity
             payload = build_receipt_payload(
-                subject=receipt_subject(attempt), verdict=verdict, checker=checker, diagnostics=diagnostics,
+                subject=receipt_subject(attempt), verdict=verdict, checker=identity, diagnostics=diagnostics,
                 evaluation={"run_id": args.evaluation_run_id, "attempt": args.evaluation_attempt,
                             "started_at": _stamp(started), "finished_at": _stamp(now or datetime.now(timezone.utc))})
             from genomic_variant_classifier.source_monitor import c2_receipt_io

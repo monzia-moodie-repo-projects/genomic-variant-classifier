@@ -339,10 +339,20 @@ class Page:
     next_cursor: str | None
 
 
+class PostNotAttempted(Refusal):
+    """A local precondition failed BEFORE the POST transport was entered (owner ruling 2026-10-01): a definite
+    no-attempt result, never an uncertain delivery."""
+
+    def __init__(self, code, age_seconds=None):
+        super().__init__(code)
+        self.age_seconds = age_seconds
+
+
 class Channel(Protocol):
     def page(self, cursor: str | None) -> Page: ...
-    def create_once(self, body: str) -> Comment:
-        """Exactly ONE HTTP POST; no client/library/proxy retry loop."""
+    def create_once(self, body: str, *, before_send) -> Comment:
+        """Prepare the request, call before_send() IMMEDIATELY before invoking the transport, then exactly ONE HTTP POST;
+        no client/library/proxy retry loop. If before_send raises, nothing is sent."""
         ...
 
 
@@ -408,8 +418,13 @@ def event_kind(p):
 
 
 def deliver(channel, p, destination, *, author_id, history: DispatchHistory,
-            now, automatic=True, simulation=False, cancelled=False):
+            clock, attempt=None, automatic=True, simulation=False, cancelled=False):
     """Caller holds the shared writer queue for the entire invocation.
+
+    FRESHNESS AT THE POST BOUNDARY (owner ruling 2026-10-01): `clock` is read ONCE, inside the channel's before_send --
+    after the acknowledgement search, the history and the request preparation, immediately before the transport. The
+    guarantee is exactly that: freshness is enforced immediately before the client initiates the POST. `attempt` (a
+    caller-owned dict) records post_issued ONLY once that gate has passed, plus the observed age.
 
     If any prior writer could have sent this decision, history MUST be PRIOR or
     UNKNOWN, reconstructed across process/run restarts. A default 'new' value is
@@ -433,30 +448,48 @@ def deliver(channel, p, destination, *, author_id, history: DispatchHistory,
     # Historical failures and positive witnesses must still surface.
     if event_kind(p) == "historical_clean":
         return Result("archive", "historical_clean_no_new_review")
-    require(isinstance(now, datetime) and now.utcoffset() is not None, "time.clock")
-    age_seconds = (now - timestamp(p["evaluation"]["finished_at"])).total_seconds()
-    if age_seconds < -MAX_FUTURE_SKEW_SECONDS:
-        return Result("blocked", "receipt.future_timestamp", age_seconds=age_seconds)
-    if age_seconds > MAX_RECEIPT_AGE_SECONDS:
-        return Result("blocked", "receipt.needs_reverification", age_seconds=age_seconds)
+    state = attempt if attempt is not None else {}
+    state["post_issued"] = False
+    finished = timestamp(p["evaluation"]["finished_at"])
     body = render_comment(p, destination)
+
+    def before_send():
+        now = clock()
+        if not (isinstance(now, datetime) and now.utcoffset() is not None):
+            raise PostNotAttempted("time.clock")
+        age_seconds = (now - finished).total_seconds()
+        if age_seconds < -MAX_FUTURE_SKEW_SECONDS:
+            raise PostNotAttempted("receipt.future_timestamp", age_seconds)
+        if age_seconds > MAX_RECEIPT_AGE_SECONDS:
+            raise PostNotAttempted("receipt.needs_reverification", age_seconds)
+        state["post_issued"], state["age_seconds"] = True, age_seconds   # conservative: the transport is being entered
+
     try:
-        c = channel.create_once(body)
+        c = channel.create_once(body, before_send=before_send)
+        if not state["post_issued"]:
+            state["post_issued"] = True        # a comment came back WITHOUT the gate: it posted UNGATED -- conservative
+            raise Refusal("post.gate_bypassed")
         require(type(c) is Comment and positive(c.id) and
                 type(c.issue_id) is int and c.issue_id == destination.issue_id and
                 type(c.author_id) is int and c.author_id == author_id and c.body == body,
                 "post.response_mismatch")
-        return Result("acknowledged", "created", c.id, age_seconds)
+        return Result("acknowledged", "created", c.id, state["age_seconds"])
+    except PostNotAttempted as exc:
+        return Result("blocked", exc.code, age_seconds=exc.age_seconds)     # DEFINITE no-attempt, never "unknown"
+    except Exception as exc:
+        if isinstance(exc, Refusal) and exc.code == "post.gate_bypassed":
+            raise
+        if not state["post_issued"]:
+            return Result("blocked", "post.not_attempted")                 # failed BEFORE the gate: nothing was sent
+    # The gate passed and the transport was entered: a lost response, a server error or an invalid success response is
+    # AMBIGUOUS. One bounded reconciliation attempt is safe; a second POST is not.
+    try:
+        found = find_ack(channel, p, destination, author_id)
     except Exception:
-        # A lost response, a server error, or an invalid success response is ambiguous.
-        # One bounded reconciliation attempt is safe; a second POST is not.
-        try:
-            found = find_ack(channel, p, destination, author_id)
-        except Exception:
-            found = None
-        if found:
-            return Result("acknowledged", "reconciled_after_post_error", found.id, age_seconds)
-        return Result("unknown", "post_outcome_unknown", age_seconds=age_seconds)
+        found = None
+    if found:
+        return Result("acknowledged", "reconciled_after_post_error", found.id, state["age_seconds"])
+    return Result("unknown", "post_outcome_unknown", age_seconds=state["age_seconds"])
 
 
 def acknowledge_pending(pending_key, received_key):

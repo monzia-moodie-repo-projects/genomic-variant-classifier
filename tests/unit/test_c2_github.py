@@ -19,7 +19,7 @@ from genomic_variant_classifier.source_monitor import c2_protocol as c2
 from tests.unit.test_c2_protocol import fixture
 
 REPO, REPO_ID, ISSUE_ID, NUMBER, BOT = "o/r", 10, 200, 27, 41898282
-PIN = gh.Pinned(REPO, REPO_ID, ISSUE_ID, NUMBER, BOT)
+PIN = gh.Pinned(REPO, REPO_ID, ISSUE_ID, NUMBER, BOT, "source-monitor-alert")
 API = gh.API_ROOT + "/repos/" + REPO
 ISSUE_URL = API + "/issues/27"
 WORKFLOW_ID, RUN_NAME, CURRENT_RUN = 555, "verify 123/1", 900
@@ -121,7 +121,7 @@ def test_a_comment_whose_issue_url_is_not_the_pinned_issue_blocks_the_scan():
     fake = FakeGitHub(comments=[_comment(1, issue_url=API + "/issues/28")])
     result = c2.deliver(gh.CommentChannel(fake, PIN), fixture(), c2.Destination(REPO_ID, ISSUE_ID, NUMBER), author_id=BOT,
                         history=c2.DispatchHistory(c2.History.NO_PRIOR_DISPATCH, "t"),
-                        now=datetime(2026, 9, 29, 11, 59, 30, tzinfo=timezone.utc))
+                        clock=lambda: datetime(2026, 9, 29, 11, 59, 30, tzinfo=timezone.utc))
     assert (result.action, result.reason, fake.posts) == ("blocked", "comments.destination", 0)
 
 
@@ -138,14 +138,14 @@ NEW = c2.DispatchHistory(c2.History.NO_PRIOR_DISPATCH, "test")
 ])
 def test_exactly_one_post_whatever_the_response(mode, action, reason):
     fake = FakeGitHub(comments=[_comment(1), _comment(2), _comment(3)], post=mode)
-    result = c2.deliver(gh.CommentChannel(fake, PIN), fixture(), DEST, author_id=BOT, history=NEW, now=NOW)
+    result = c2.deliver(gh.CommentChannel(fake, PIN), fixture(), DEST, author_id=BOT, history=NEW, clock=lambda: NOW)
     assert (result.action, result.reason, fake.posts) == (action, reason, 1)
 
 
 def test_an_existing_acknowledgement_on_page_two_prevents_any_post():
     body = c2.render_comment(fixture(), DEST)
     fake = FakeGitHub(comments=[_comment(1), _comment(2), _comment(3, body=body, author=BOT)])
-    result = c2.deliver(gh.CommentChannel(fake, PIN), fixture(), DEST, author_id=BOT, history=NEW, now=NOW)
+    result = c2.deliver(gh.CommentChannel(fake, PIN), fixture(), DEST, author_id=BOT, history=NEW, clock=lambda: NOW)
     assert (result.action, result.reason, result.comment_id, fake.posts) == ("acknowledged", "matching_comment", 3, 0)
 
 
@@ -253,3 +253,38 @@ def test_an_http_error_response_is_returned_and_closed():
     t._no_redirect = Opener()
     assert t("POST", API + "/issues/27/comments", b"{}") == (502, {}, b"bad gateway")
     assert holder["error"].fp.closed and holder["headers"] == {"Authorization": "Bearer T"}
+
+
+
+def test_the_comment_channel_gates_after_preparing_and_before_the_request():
+    fake, order = FakeGitHub(), []
+    channel = gh.CommentChannel(lambda *a, **k: (order.append("request"), fake(*a, **k))[1], PIN)
+    channel.create_once("x", before_send=lambda: order.append("gate"))
+    assert order == ["gate", "request"]
+
+
+def test_a_refusing_gate_means_no_request_at_all():
+    fake = FakeGitHub()
+
+    def refuse():
+        raise c2.PostNotAttempted("receipt.needs_reverification", 901.0)
+    with pytest.raises(c2.PostNotAttempted):
+        gh.CommentChannel(fake, PIN).create_once("x", before_send=refuse)
+    assert fake.calls == []
+
+
+def test_a_configured_label_is_percent_encoded_in_the_query():
+    """The label comes from configuration since 2026-10-01; unencoded, a space, '&' or '#' would corrupt the query."""
+    pin = gh.Pinned(REPO, REPO_ID, ISSUE_ID, NUMBER, BOT, "a b&c#d")
+    routes = destination_routes(issue={"id": ISSUE_ID, "number": NUMBER, "state": "open", "repository_url": API,
+                                       "labels": [{"name": "a b&c#d"}]})
+    routes[("GET", API + "/issues?labels=a%20b%26c%23d&state=open&per_page=100")] = \
+        routes.pop(("GET", API + "/issues?labels=source-monitor-alert&state=open&per_page=100"))
+    fake = FakeGitHub(routes)
+    try:
+        result = gh.select_destination(fake, pin)
+    except KeyError:                     # an unrouted (malformed) URL: judged by the request ACTUALLY made, below
+        result = None
+    listing = [u for m, u in fake.calls if "/issues?labels=" in u]
+    assert listing == [API + "/issues?labels=a%20b%26c%23d&state=open&per_page=100"], listing
+    assert result == c2.Destination(REPO_ID, ISSUE_ID, NUMBER)

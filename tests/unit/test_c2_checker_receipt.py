@@ -17,10 +17,12 @@ from pathlib import Path
 import pytest
 
 from genomic_variant_classifier.source_monitor import c2_protocol as c2
+from genomic_variant_classifier.source_monitor import deployment as dep
 from genomic_variant_classifier.source_monitor import report_verifier as rv
 from tests.unit.test_report_verifier import CURRENT_V1, FIX, NOW, RUN, RUN_ID, _cli, _serve, read_blob
 
 ROOT = Path(__file__).resolve().parents[2]
+DEP = dep.load(ROOT)
 EVALUATION = ["--checker-commit", "a" * 40, "--evaluation-run-id", "999", "--evaluation-attempt", "1"]
 
 
@@ -32,18 +34,30 @@ def _run(tmp_path, fetch, capsys, current=CURRENT_V1):
 
 
 def _open(receipt, issuer="checker"):
+    """Binds against an INDEPENDENTLY built identity (owner ruling 2026-10-01). The first version bound the receipt against
+    its OWN checker block -- internal consistency only -- which let the unavailable-policy defect through."""
     assert receipt.is_file(), "the checker wrote NO receipt"         # absence is a stated failure, never a crash
     raw = receipt.read_bytes()
     subject = _cli().receipt_subject(RUN)                              # from GitHub's attempt record, never the report
-    return c2.open_receipt(raw, c2.Bindings(subject, json.loads(raw)["payload"]["checker"], 999, 1, issuer), NOW)
+    expected = rv.build_checker_identity(root=ROOT, commit="a" * 40, current=CURRENT_V1, required_targets=_targets(),
+                                         deployment=DEP)
+    try:
+        return c2.open_receipt(raw, c2.Bindings(subject, expected, 999, 1, issuer), NOW)
+    except c2.Refusal as exc:
+        pytest.fail("the checker's receipt does not bind to the independently built identity: {}".format(exc.code))
+
+
+def _targets():
+    from genomic_variant_classifier.source_monitor.run_monitor import REQUIRED_TARGETS
+    return REQUIRED_TARGETS
 
 
 def test_a_completed_verification_writes_a_receipt_the_protocol_opens(tmp_path, capsys):
     code, receipt, out = _run(tmp_path, _serve(), capsys)
     p = _open(receipt)
     assert code == 0 and "RECEIPT written" in out.out
-    assert p["subject"] == {"repository": rv.EXPECTED_REPOSITORY, "repository_id": 1151261021, "workflow_id": 359207377,
-                            "workflow_path": rv.EXPECTED_WORKFLOW_PATH, "run_id": RUN_ID, "run_number": 8, "attempt": 1,
+    assert p["subject"] == {"repository": DEP.repository, "repository_id": 1151261021, "workflow_id": 359207377,
+                            "workflow_path": DEP.source_workflow_path, "run_id": RUN_ID, "run_number": 8, "attempt": 1,
                             "commit": RUN["head_sha"]}
     assert p["evidence"] == {"state": "complete", "artifact_id": 10924439843,
                              "archive_sha256": "838a35e1c9a2c4e9b389508a5891cfc170648fe770304e5440a77f8e86f0729e",
@@ -51,7 +65,7 @@ def test_a_completed_verification_writes_a_receipt_the_protocol_opens(tmp_path, 
     assert p["decision"]["reviews"] == [{"target": "gnomad-public-releases", "kind": "newer", "raw_prefix": "release/4.1.2/"}]
     assert (p["decision"]["status"], p["decision"]["verified"], p["decision"]["reasons"]) == ("completed", True, [])
     assert p["checker"]["policy_sha256"] == c2.digest("gvc.verification-policy/v1", rv.effective_policy(
-        CURRENT_V1, __import__("genomic_variant_classifier.source_monitor.run_monitor", fromlist=["x"]).REQUIRED_TARGETS))
+        CURRENT_V1, __import__("genomic_variant_classifier.source_monitor.run_monitor", fromlist=["x"]).REQUIRED_TARGETS, DEP))
     assert c2.event_kind(p) == "review_required"
 
 
@@ -90,7 +104,8 @@ def test_without_an_effective_policy_no_receipt_is_issued(tmp_path, capsys, monk
              + EVALUATION, fetch=_serve(), read_blob=read_blob, now=NOW, current=None)
     err = capsys.readouterr().err
     assert not receipt.exists()
-    assert "NO RECEIPT: ValueError: no effective policy to bind: ValueError: today's interpretation was not reconstructed" in err
+    assert ("NO RECEIPT: ValueError: the checker identity could not be reconstructed: ValueError: today's interpretation was not "
+            "reconstructed") in err                              # detected BEFORE collection since the 2026-10-01 identity repair
 
 
 def test_a_receipt_requires_all_three_identity_arguments(tmp_path):
@@ -111,7 +126,7 @@ root, fix, out = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
 sys.path.insert(0, str(root / "src"))
 spec = importlib.util.spec_from_file_location("vmr", root / "scripts" / "verify_monitor_run.py")
 m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
-api = "https://api.github.com/repos/" + m.rv.EXPECTED_REPOSITORY
+api = "https://api.github.com/repos/" + __import__("genomic_variant_classifier.source_monitor.deployment", fromlist=["x"]).load(root).repository
 art = json.loads((fix / "run8_artifacts.json").read_text(encoding="utf-8"))["artifacts"][0]["id"]
 pages = {api + "/actions/runs/36300779115": (fix / "run8.json").read_bytes(),
          api + "/actions/runs/36300779115/attempts/1": (fix / "run8_attempt1.json").read_bytes(),

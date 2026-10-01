@@ -275,3 +275,12 @@ def test_the_interpretation_policy_is_byte_pinned_exactly(path, expected):
     """INTERPRETATION-POLICY-PINNED-1 (2026-09-29). The version-2 fingerprint binds the SHA-256 of the committed policy
     file while the producer hashes the checkout's bytes; git must never rewrite them. Exactly that one path."""
     assert _attrs(path).get("text") == expected, (path, _attrs(path))
+
+
+@pytest.mark.parametrize("path,expected", [
+    ("configs/source_monitor_deployment.json", "unset"),
+    ("configs/another_deployment.json", "set"),
+])
+def test_the_deployment_configuration_is_byte_pinned_exactly(path, expected):
+    """DEPLOYMENT-CONFIG-PINNED-1 (2026-10-01): its digest enters the effective verification policy. Exactly one path."""
+    assert _attrs(path).get("text") == expected, (path, _attrs(path))

@@ -27,12 +27,15 @@ from pathlib import Path
 import pytest
 
 from genomic_variant_classifier.source_monitor import interpretation_contract as ic
+from genomic_variant_classifier.source_monitor import deployment as dep
 from genomic_variant_classifier.source_monitor import report_verifier as rv
 from genomic_variant_classifier.source_monitor.run_monitor import REQUIRED_TARGETS
 
 FIX = Path(__file__).resolve().parents[1] / "fixtures" / "source_monitor_runs"
 RUN_ID = 36300779115
 NOW = datetime(2026, 9, 27, 12, 0, 0, tzinfo=timezone.utc)
+#: The PRODUCTION deployment of this checkout (owner ruling 2026-10-01) -- passed explicitly, never a module global.
+DEP = dep.load(Path(__file__).resolve().parents[2])
 
 
 def _json(name):
@@ -92,7 +95,7 @@ def _repack(report=None, raw=None, members=None, arts=None):
 
 def _verify(archive=ARCHIVE, run=RUN, artifacts=ARTIFACTS, run_id=RUN_ID, attempt=1, latest=1, now=NOW, current=_DEFAULT,
             reader=None):
-    return rv.verify(archive, run, artifacts, run_id=run_id, run_attempt=attempt, latest_attempt=latest,
+    return rv.verify(archive, run, artifacts, deployment=DEP, run_id=run_id, run_attempt=attempt, latest_attempt=latest,
                      read_blob=reader or read_blob, now=now, current=CURRENT_V1 if current is _DEFAULT else current,
                      required_targets=REQUIRED_TARGETS)
 
@@ -156,7 +159,7 @@ def test_an_undeclared_attempt_on_a_rerun_run_is_ambiguous():
 
 def test_a_declared_identity_must_match_gitHubs_records():
     report = copy.deepcopy(REPORT)
-    report["github_run"] = {"repository": rv.EXPECTED_REPOSITORY, "run_id": str(RUN_ID), "run_attempt": "2",
+    report["github_run"] = {"repository": DEP.repository, "run_id": str(RUN_ID), "run_attempt": "2",
                             "sha": RUN["head_sha"], "workflow_ref": None}
     archive, arts = _repack(report)
     v = _verify(archive=archive, artifacts=arts)
@@ -347,7 +350,7 @@ def _cli():
 
 
 def _serve(archive=ARCHIVE):
-    api = "https://api.github.com/repos/" + rv.EXPECTED_REPOSITORY
+    api = "https://api.github.com/repos/" + DEP.repository
     pages = {api + "/actions/runs/{}".format(RUN_ID): (FIX / "run8.json").read_bytes(),
              api + "/actions/runs/{}/attempts/1".format(RUN_ID): (FIX / "run8_attempt1.json").read_bytes(),
              api + "/actions/runs/{}/artifacts?per_page=100".format(RUN_ID): (FIX / "run8_artifacts.json").read_bytes(),
@@ -761,3 +764,20 @@ def test_an_artifact_without_a_usable_identifier_cannot_authenticate_execution_a
     assert v.problems["execution_authenticated"] == [
         "the artifact has no usable identifier (None); its evidence identity is incomplete"]
     assert v.reasons == [{"code": "execution.invalid", "target": ""}]
+
+
+# ------------------------------------------------------------------ deployment identities (owner ruling 2026-10-01)
+def test_the_source_workflow_is_authenticated_by_its_numeric_id():
+    """Path-only before 2026-10-01: a workflow at the same path with another id would have passed."""
+    run = copy.deepcopy(RUN)
+    run["workflow_id"] = 1
+    v = _verify(run=run)
+    assert v.problems["execution_authenticated"] == ["run workflow_id is 1, not 359207377"]
+    assert v.reasons == [{"code": "execution.invalid", "target": ""}]
+
+
+def test_the_repository_is_authenticated_by_its_numeric_id():
+    run = copy.deepcopy(RUN)
+    run["repository"] = dict(run["repository"], id=2)
+    v = _verify(run=run)
+    assert v.problems["execution_authenticated"] == ["repository id is 2, not 1151261021"]
