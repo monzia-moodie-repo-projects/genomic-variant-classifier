@@ -34,10 +34,6 @@ from genomic_variant_classifier.source_monitor import c2_github as gh  # noqa: E
 from genomic_variant_classifier.source_monitor import c2_protocol as c2  # noqa: E402
 from genomic_variant_classifier.source_monitor import report_verifier as rv  # noqa: E402
 
-#: The standing alert issue, pinned by stable identity (owner ruling 2026-09-29; measured 2026-09-29/30). The author id is
-#: the identity whose acknowledgements are trusted -- REVALIDATE at activation.
-PIN = gh.Pinned(repository=rv.EXPECTED_REPOSITORY, repository_id=1151261021, issue_id=5600463137, number=27,
-                author_id=41898282)
 SUCCESS = {"acknowledged", "preview", "no_op", "archive"}
 
 
@@ -46,27 +42,23 @@ def run_name(source_run_id: int, source_attempt: int) -> str:
     return "verify {}/{}".format(source_run_id, source_attempt)
 
 
-class CountingChannel:
-    """Wraps a Channel and counts create_once() calls -- the outcome record's post_issued."""
-
-    def __init__(self, channel):
-        self.channel, self.posts = channel, 0
-
-    def page(self, cursor):
-        return self.channel.page(cursor)
-
-    def create_once(self, body):
-        self.posts += 1
-        return self.channel.create_once(body)
+def pinned(deployment) -> gh.Pinned:
+    """The destination pinned by stable identity, from the DEPLOYMENT configuration of the trusted checkout (owner rulings
+    2026-09-29 / 2026-10-01): repository, issue, label and the author whose acknowledgements are trusted."""
+    return gh.Pinned(repository=deployment.repository, repository_id=deployment.repository_id, issue_id=deployment.issue_id,
+                     number=deployment.issue_number, author_id=deployment.trusted_author_id, label=deployment.label)
 
 
-def expected_checker(workflow_sha: str) -> dict:
-    """The checker identity recomputed from THIS checkout (the same pinned workflow commit as the verify job)."""
+def utc_now():
+    return datetime.now(timezone.utc)
+
+
+def expected_checker(workflow_sha: str, deployment) -> dict:
+    """The checker identity recomputed INDEPENDENTLY from THIS checkout (the same pinned workflow commit as the verify
+    job) through the ONE definition, report_verifier.build_checker_identity -- never read from the receipt."""
     from genomic_variant_classifier.source_monitor.run_monitor import REQUIRED_TARGETS
-    manifest = [[path, sha] for path, sha in sorted(rv.code_manifest(_ROOT).items())]
-    policy = rv.effective_policy(rv.current_reconstruction(_ROOT), REQUIRED_TARGETS)
-    return {"commit": workflow_sha, "code_manifest_sha256": c2.digest("gvc.checker-code/v1", manifest),
-            "policy_sha256": c2.digest("gvc.verification-policy/v1", policy)}
+    return rv.build_checker_identity(root=_ROOT, commit=workflow_sha, current=rv.current_reconstruction(_ROOT),
+                                     required_targets=REQUIRED_TARGETS, deployment=deployment)
 
 
 def coordinator_payload(*, subject, checker, evaluation_run_id, evaluation_attempt, when, diagnostics):
@@ -80,7 +72,8 @@ def coordinator_payload(*, subject, checker, evaluation_run_id, evaluation_attem
             "diagnostics": diagnostics}
 
 
-def main(argv=None, *, request, receipt_b64: str, now=None) -> int:
+def main(argv=None, *, request, receipt_b64: str, clock=None, deployment_root=None) -> int:
+    """`clock` is read at receipt admission and AGAIN at the POST gate (c2_protocol.deliver's before_send)."""
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--event", required=True, choices=["workflow_run", "workflow_dispatch"])
     for name in ("--source-run-id", "--source-attempt", "--current-run-id", "--current-attempt"):
@@ -91,16 +84,20 @@ def main(argv=None, *, request, receipt_b64: str, now=None) -> int:
     if not re.fullmatch(r"[0-9a-f]{40}", args.workflow_sha) or not all(
             c2.positive(v) for v in (args.source_run_id, args.source_attempt, args.current_run_id, args.current_attempt)):
         parser.error("identifiers must be positive integers and a full 40-character workflow commit")
-    now = now or datetime.now(timezone.utc)
+    clock = clock or utc_now
+    now = clock()                                           # admission time; the POST gate reads the clock AGAIN
     automatic = args.event == "workflow_run"
+    from genomic_variant_classifier.source_monitor import deployment as dep
+    deployment = dep.load(deployment_root or _ROOT)          # refuses when unloadable or unresolved; __main__ never injects
+    PIN = pinned(deployment)
     base = "{}/repos/{}".format(gh.API_ROOT, PIN.repository)
-    channel, result, delivery = None, c2.Result("unknown", "delivery_did_not_return"), ""
+    post_attempt, result, delivery = {"post_issued": False}, c2.Result("unknown", "delivery_did_not_return"), ""
     try:
         # Independent bindings.
         attempt = gh._json(*request("GET", base + "/actions/runs/{}/attempts/{}".format(
             args.source_run_id, args.source_attempt))[::2])
         subject = gh.subject_from_attempt(attempt)
-        checker = expected_checker(args.workflow_sha)
+        checker = expected_checker(args.workflow_sha, deployment)
         raw = base64.b64decode(receipt_b64, validate=True) if receipt_b64.strip() else b""
         if raw:
             payload = c2.open_receipt(raw, c2.Bindings(subject, checker, args.current_run_id, args.current_attempt), now)
@@ -111,8 +108,10 @@ def main(argv=None, *, request, receipt_b64: str, now=None) -> int:
             payload = c2.open_receipt(c2.seal(payload), c2.Bindings(subject, checker, args.current_run_id,
                                                                     args.current_attempt, "coordinator"), now)
         print("receipt: issuer {} event kind {}".format(payload["issuer_role"], c2.event_kind(payload)))
-        if not automatic:
-            result = c2.deliver(None, payload, None, author_id=PIN.author_id, history=None, now=now, automatic=False)
+        if not deployment.publication_enabled:
+            result = c2.Result("preview", "publication_disabled")     # the commissioning state: validate, never POST
+        elif not automatic:
+            result = c2.deliver(None, payload, None, author_id=PIN.author_id, history=None, clock=clock, automatic=False)
         else:
             destination = gh.select_destination(request, PIN)
             delivery = c2.delivery_id(payload, destination)
@@ -123,13 +122,14 @@ def main(argv=None, *, request, receipt_b64: str, now=None) -> int:
                                           current_run_id=args.current_run_id, current_attempt=args.current_attempt,
                                           delivery_id=delivery)
             print("history: {} -- {}".format(history.state.value, history.evidence_ref))
-            channel = CountingChannel(gh.CommentChannel(request, PIN))
-            result = c2.deliver(channel, payload, destination, author_id=PIN.author_id, history=history, now=now)
+            result = c2.deliver(gh.CommentChannel(request, PIN), payload, destination, author_id=PIN.author_id,
+                                history=history, clock=clock, attempt=post_attempt)
     finally:
         # EVERY path writes this attempt's outcome record -- a preview, an early refusal, an exception. A started delivery
         # step WITHOUT a record reads as UNKNOWN to every later attempt (c2_github.dispatch_history), so an unwritten record
         # after a harmless preview would block that source run's delivery forever (found designing the tests, 2026-09-30).
-        record = gh.outcome_record(delivery_id=delivery, post_issued=channel is not None and channel.posts > 0, result=result)
+        # post_issued is set ONLY once the final freshness gate passed and the transport was entered (never on entry).
+        record = gh.outcome_record(delivery_id=delivery, post_issued=post_attempt["post_issued"] is True, result=result)
         Path(args.outcome).write_text(json.dumps(record, sort_keys=True) + "\n", encoding="ascii")
     print("RESULT {} {} comment {} age {}".format(result.action, result.reason, result.comment_id, result.age_seconds))
     return 0 if result.action in SUCCESS else 1

@@ -17,12 +17,14 @@ import pytest
 
 from genomic_variant_classifier.source_monitor import c2_github as gh
 from genomic_variant_classifier.source_monitor import c2_protocol as c2
+from genomic_variant_classifier.source_monitor import deployment as dep
 from genomic_variant_classifier.source_monitor import report_verifier as rv
 from tests.unit.test_report_verifier import FIX, NOW, RUN_ID, _cli, _serve, read_blob
 
 ROOT = Path(__file__).resolve().parents[2]
 SHA, CURRENT, WORKFLOW_ID = "a" * 40, 900, 555
-BASE = gh.API_ROOT + "/repos/" + rv.EXPECTED_REPOSITORY
+DEP = dep.load(ROOT)
+BASE = gh.API_ROOT + "/repos/" + DEP.repository
 ISSUE = BASE + "/issues/27"
 
 
@@ -34,6 +36,7 @@ def _publisher():
 
 
 PUB = _publisher()
+PIN = PUB.pinned(DEP)
 
 
 @pytest.fixture(scope="module")
@@ -50,10 +53,10 @@ class Fake:
         self.post, self.comments, self.calls = post, [], []
         self.routes = {
             ("GET", BASE + "/actions/runs/{}/attempts/1".format(RUN_ID)): (FIX / "run8_attempt1.json").read_bytes(),
-            ("GET", BASE): json.dumps({"id": PUB.PIN.repository_id, "full_name": PUB.PIN.repository}).encode(),
+            ("GET", BASE): json.dumps({"id": PIN.repository_id, "full_name": PIN.repository}).encode(),
             ("GET", BASE + "/issues?labels=source-monitor-alert&state=open&per_page=100"):
-                json.dumps([{"id": PUB.PIN.issue_id, "number": 27}]).encode(),
-            ("GET", ISSUE): json.dumps({"id": PUB.PIN.issue_id, "number": 27, "state": "open", "repository_url": BASE,
+                json.dumps([{"id": PIN.issue_id, "number": 27}]).encode(),
+            ("GET", ISSUE): json.dumps({"id": PIN.issue_id, "number": 27, "state": "open", "repository_url": BASE,
                                         "labels": [{"name": "source-monitor-alert"}]}).encode(),
             ("GET", BASE + "/actions/runs/{}".format(CURRENT)): json.dumps({"id": CURRENT, "workflow_id": WORKFLOW_ID}).encode(),
             ("GET", BASE + "/actions/workflows/{}/runs?per_page=100".format(WORKFLOW_ID)):
@@ -65,7 +68,7 @@ class Fake:
         if method not in ("GET", "POST"):
             return 200, {}, b"{}"          # RECORDED and answered, so the tests' own assertions catch any other write
         if method == "POST":
-            row = {"id": 5000, "user": {"id": PUB.PIN.author_id}, "body": json.loads(body)["body"], "issue_url": ISSUE}
+            row = {"id": 5000, "user": {"id": PIN.author_id}, "body": json.loads(body)["body"], "issue_url": ISSUE}
             if self.post == "created":
                 self.comments.append(row)
                 return 201, {}, json.dumps(row).encode()
@@ -84,14 +87,14 @@ def publish(tmp_path, fake, receipt, event="workflow_run"):
     outcome = tmp_path / "outcome.json"
     code = PUB.main(["--event", event, "--source-run-id", str(RUN_ID), "--source-attempt", "1", "--current-run-id",
                      str(CURRENT), "--current-attempt", "1", "--workflow-sha", SHA, "--outcome", str(outcome)],
-                    request=fake, receipt_b64=receipt, now=NOW)
+                    request=fake, receipt_b64=receipt, clock=lambda: NOW)
     assert outcome.is_file(), "NO outcome record was written"          # absence is a stated failure, never a crash
     return code, json.loads(outcome.read_text(encoding="ascii"))
 
 
 def _payload(receipt):
     subject = gh.subject_from_attempt(json.loads((FIX / "run8_attempt1.json").read_text(encoding="utf-8")))
-    return c2.open_receipt(base64.b64decode(receipt), c2.Bindings(subject, PUB.expected_checker(SHA), CURRENT, 1), NOW)
+    return c2.open_receipt(base64.b64decode(receipt), c2.Bindings(subject, PUB.expected_checker(SHA, DEP), CURRENT, 1), NOW)
 
 
 DEST = c2.Destination(1151261021, 5600463137, 27)
@@ -205,3 +208,62 @@ def test_the_writer_never_closes_edits_or_deletes_anything(tmp_path, receipt_b64
     methods = {m for m, _ in fake.calls}
     assert methods <= {"GET", "POST"}
     assert [u for m, u in fake.calls if m == "POST"] == [ISSUE + "/comments"]
+
+
+
+def test_checker_unavailable_receipt_reaches_writer(tmp_path, capsys):
+    """REGRESSION (owner ruling 2026-10-01; defect reproduced on 78488f8): an evidence-collection failure must survive the
+    writer's INDEPENDENT binding. The REAL checker's unavailable receipt goes UNCHANGED to the REAL publisher."""
+    served = _serve()
+
+    def fail_artifact_listing(url, limit):
+        if "/artifacts" in url:
+            raise OSError("qualification: artifact listing unavailable")
+        return served(url, limit)
+
+    receipt_path = tmp_path / "unavailable-receipt.json"
+    checker_exit = _cli().main(["--run-id", str(RUN_ID), "--run-attempt", "1", "--verdict", str(tmp_path / "verdict.json"),
+                                "--receipt", str(receipt_path), "--checker-commit", SHA, "--evaluation-run-id", str(CURRENT),
+                                "--evaluation-attempt", "1"],
+                               fetch=fail_artifact_listing, read_blob=read_blob, now=NOW, current=rv.current_reconstruction(ROOT))
+    assert checker_exit == 2 and receipt_path.is_file()
+    encoded = base64.b64encode(receipt_path.read_bytes()).decode("ascii")
+    try:
+        payload = _payload(encoded)                              # PUB.expected_checker(SHA, DEP): independent of the receipt
+    except c2.Refusal as exc:
+        pytest.fail("the writer refuses the checker's own unavailable receipt: {}".format(exc.code))
+    assert payload["issuer_role"] == "checker"
+    assert payload["decision"] == {"status": "unavailable", "verified": None, "flags": None, "reviews": [],
+                                   "reasons": [{"code": "checker.unavailable", "target": ""}]}
+    fake = Fake()
+    publisher_exit, outcome = publish(tmp_path, fake, encoded)
+    assert (publisher_exit, fake.posts) == (0, 1)
+    assert (outcome["action"], outcome["reason"], outcome["post_issued"]) == ("acknowledged", "created", True)
+    assert fake.comments[0]["body"] == c2.render_comment(payload, DEST)
+    assert outcome["delivery_id"] == c2.delivery_id(payload, DEST)
+    publisher_exit, repeated = publish(tmp_path, fake, encoded)          # acknowledgement against the persisted comment
+    assert (publisher_exit, fake.posts, repeated["action"], repeated["post_issued"]) == (0, 1, "acknowledged", False)
+
+
+def test_publication_disabled_validates_but_never_posts(tmp_path, capsys):
+    """The commissioning state (owner ruling 2026-10-01, step 2): the reviewed code runs, validates the receipt, and
+    writes its outcome record -- but no destination lookup, no history, no POST. BOTH jobs read the SAME checked-out
+    configuration, so the checker produces its receipt under the same (disabled) deployment: the deployment digest is part
+    of the bound policy, and a receipt from another deployment would correctly fail binding."""
+    doc = json.loads((ROOT / dep.CONFIG_PATH).read_text(encoding="utf-8"))
+    doc["publication_enabled"] = False
+    root = tmp_path / "trusted"
+    (root / "configs").mkdir(parents=True)
+    (root / dep.CONFIG_PATH).write_bytes(json.dumps(doc).encode("ascii"))
+    _cli().main(["--run-id", str(RUN_ID), "--run-attempt", "1", "--verdict", str(tmp_path / "v.json"), "--receipt",
+                 str(tmp_path / "r.json"), "--checker-commit", SHA, "--evaluation-run-id", str(CURRENT), "--evaluation-attempt", "1"],
+                fetch=_serve(), read_blob=read_blob, now=NOW, current=rv.current_reconstruction(ROOT), deployment_root=root)
+    receipt_b64 = base64.b64encode((tmp_path / "r.json").read_bytes()).decode("ascii")
+    fake = Fake()
+    outcome = tmp_path / "outcome.json"
+    code = PUB.main(["--event", "workflow_run", "--source-run-id", str(RUN_ID), "--source-attempt", "1", "--current-run-id",
+                     str(CURRENT), "--current-attempt", "1", "--workflow-sha", SHA, "--outcome", str(outcome)],
+                    request=fake, receipt_b64=receipt_b64, clock=lambda: NOW, deployment_root=root)
+    record = json.loads(outcome.read_text(encoding="ascii"))
+    assert (code, fake.posts, record["action"], record["reason"], record["post_issued"]) == (0, 0, "preview", "publication_disabled", False)
+    assert [u for _, u in fake.calls] == [BASE + "/actions/runs/{}/attempts/1".format(RUN_ID)]

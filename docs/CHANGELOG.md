@@ -1,3 +1,40 @@
+## 2026-10-01 (C2 repairs) -- unavailable receipts reach the writer; freshness at the POST; deployment configuration
+
+Owner rulings of 2026-09-30 (gate 7 answered: isolated qualification, not a natural failure) and 2026-10-01 (a separate
+private qualification repository; the corrected defect scope; the post-boundary clock; ordinary p = 0 stays refused).
+
+DEFECT 1 (found by the owner, reproduced on 78488f8): when evidence collection failed, the checker's "unavailable"
+receipt carried a special policy digest (gvc.verification-policy/unavailable/v1) while the writer independently expects
+the normal effective-policy digest -- the real publisher refused it with binding.checker, so CHECKER UNAVAILABILITY could
+never reach the issue. Scope (owner correction): a COMPLETED verification that rejects evidence was not affected. Cause
+in the tests: the checker-receipt test bound each receipt against its OWN checker block (internal consistency only).
+FIX: report_verifier.build_checker_identity is the one definition; the checker computes it BEFORE any remote collection
+and keeps it for completed and unavailable results; identity failure issues no ordinary checker receipt; the special
+digest is gone. The receipt tests now bind against an independently built identity, and the owner's regression passes
+the real checker's unavailable receipt unchanged to the real publisher (one POST; the repeat is acknowledged, no POST).
+
+DEFECT 2 (owner): the publisher took the time once at start-up and the protocol aged the receipt after the destination,
+history and full comment scan -- a receipt could cross 900 s and still be posted. FIX: Channel.create_once(body, *,
+before_send); deliver() reads an injected clock inside before_send -- after the request is prepared, immediately before
+the transport -- and records post_issued only once the gate passed; a gate refusal is a DEFINITE no-attempt
+(PostNotAttempted), never "unknown"; a failure before the gate is post.not_attempted; a channel that posts without the
+gate is refused (post.gate_bypassed). The guarantee: freshness is enforced immediately before the client initiates the
+POST. The counting wrapper that counted on ENTRY is removed.
+
+DEPLOYMENT CONFIGURATION: configs/source_monitor_deployment.json (byte-pinned, DEPLOYMENT-CONFIG-PINNED-1) and
+source_monitor/deployment.py hold the repository, source workflow (path AND numeric id), branch, events, destination
+issue, label, trusted author and publication switch, selected by the trusted checkout and passed explicitly. Any
+unresolved identity refuses execution; publication disabled validates but never posts. The configuration's digest is
+part of the effective verification policy (the qualification repository's policy differs; its code manifest must not).
+Two gaps closed while extracting it: the source workflow and the repository are now authenticated by NUMERIC id (path
+and name only before); a configured label is percent-encoded in the issue query.
+
+PROCESS DEVIATION (recorded, owner ruling): production cutover preceded isolated live qualification. Subsequent isolated
+qualification supplies compensating functional evidence; it cannot make "tested before cutover" true.
+
+TESTS: +31 / -0 by node identity (7,371 collected). Mutations: identity repair 2/2, post-boundary gate 6/6, deployment
+6/6 -- all caught by explicit failures.
+
 ## 2026-09-30 (C2) -- one issue writer, bound receipts, reconstructable dispatch (owner rulings 2026-09-29/30)
 
 Owner rulings of 2026-09-29 (the C2 review: store option A, identities, execution history as the attempt journal, per-job

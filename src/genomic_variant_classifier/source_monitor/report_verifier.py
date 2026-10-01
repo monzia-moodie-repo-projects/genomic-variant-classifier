@@ -42,10 +42,8 @@ from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
-EXPECTED_REPOSITORY = "monzia-moodie-repo-projects/genomic-variant-classifier"
-EXPECTED_WORKFLOW_PATH = ".github/workflows/source_monitor.yml"
-EXPECTED_EVENTS = frozenset({"schedule", "workflow_dispatch"})
-EXPECTED_BRANCH = "main"
+# The repository, source workflow (path AND numeric id), branch and events come from the DEPLOYMENT configuration
+# (source_monitor/deployment.py, owner ruling 2026-10-01), passed explicitly -- never module globals.
 ARTIFACT_NAME = "source-monitor-report"
 REPORT_MEMBER = "report.json"
 REPORT_SCHEMA, REPORT_SCHEMA_VERSION = "gvc.monitor-run-report", 1
@@ -185,7 +183,7 @@ def _time(value):
 
 
 def check_execution(run: dict, artifacts: dict, report: dict, *, run_id: int, run_attempt: int,
-                    latest_attempt: int) -> list:
+                    latest_attempt: int, deployment) -> list:
     """GitHub's records for THIS run and attempt. Returns problems.
 
     `run` is the ATTEMPT record (/actions/runs/{id}/attempts/{n}): its run_attempt is n itself and its time
@@ -193,16 +191,20 @@ def check_execution(run: dict, artifacts: dict, report: dict, *, run_id: int, ru
     share every field, so the attempt record alone cannot say whether the run was later rerun.
     """
     p = []
-    expect = {"id": run_id, "path": EXPECTED_WORKFLOW_PATH, "head_branch": EXPECTED_BRANCH, "status": "completed"}
+    # The source workflow is authenticated by its NUMERIC id as well as its path (2026-10-01: path-only before).
+    expect = {"id": run_id, "path": deployment.source_workflow_path, "workflow_id": deployment.source_workflow_id,
+              "head_branch": deployment.branch, "status": "completed"}
     for key, value in expect.items():
         if run.get(key) != value:
             p.append("run {} is {!r}, not {!r}".format(key, run.get(key), value))
-    if run.get("event") not in EXPECTED_EVENTS:
-        p.append("run event {!r} is not one of {}".format(run.get("event"), sorted(EXPECTED_EVENTS)))
+    if run.get("event") not in deployment.events:
+        p.append("run event {!r} is not one of {}".format(run.get("event"), sorted(deployment.events)))
     for key in ("repository", "head_repository"):
         name = (run.get(key) or {}).get("full_name")
-        if name != EXPECTED_REPOSITORY:
-            p.append("{} is {!r}, not {!r}".format(key, name, EXPECTED_REPOSITORY))
+        if name != deployment.repository:
+            p.append("{} is {!r}, not {!r}".format(key, name, deployment.repository))
+    if (run.get("repository") or {}).get("id") != deployment.repository_id:
+        p.append("repository id is {!r}, not {!r}".format((run.get("repository") or {}).get("id"), deployment.repository_id))
     if run.get("run_attempt") != run_attempt:
         p.append("the attempt record is for attempt {!r}, not {}".format(run.get("run_attempt"), run_attempt))
     if type(latest_attempt) is not int or not 1 <= run_attempt <= latest_attempt:
@@ -231,7 +233,7 @@ def check_execution(run: dict, artifacts: dict, report: dict, *, run_id: int, ru
             p.append("the attempt's time window could not be established: {}".format(exc))
     declared = report.get("github_run")
     if declared is not None:
-        want = {"repository": EXPECTED_REPOSITORY, "run_id": str(run_id), "run_attempt": str(run_attempt),
+        want = {"repository": deployment.repository, "run_id": str(run_id), "run_attempt": str(run_attempt),
                 "sha": run.get("head_sha")}
         for key, value in want.items():
             if (declared or {}).get(key) != value:
@@ -421,7 +423,7 @@ def check_current(attempt: dict, artifact: dict, now: datetime, historical, curr
 
 
 def verify(archive: bytes, run: dict, artifacts: dict, *, run_id: int, run_attempt: int, latest_attempt: int, read_blob,
-           now: datetime, current, required_targets) -> Verdict:
+           now: datetime, current, required_targets, deployment) -> Verdict:
     """`run` is the ATTEMPT record; `latest_attempt` the run record's run_attempt; `current` is TODAY's
     interpretation_contract.Bound from the trusted checkout (None if it could not be established)."""
     v = Verdict(run_id=run_id, run_attempt=run_attempt)
@@ -453,7 +455,8 @@ def verify(archive: bytes, run: dict, artifacts: dict, *, run_id: int, run_attem
         v.problems["execution_authenticated"].append("the artifact has no usable identifier ({!r}); its evidence identity is incomplete"
                                                      .format(named[0].get("id")))
     v.evidence["state"] = "complete" if v.evidence["artifact_id"] is not None else "invalid"
-    p = check_execution(run, artifacts, report, run_id=run_id, run_attempt=run_attempt, latest_attempt=latest_attempt)
+    p = check_execution(run, artifacts, report, run_id=run_id, run_attempt=run_attempt, latest_attempt=latest_attempt,
+                        deployment=deployment)
     v.problems["execution_authenticated"] += p
     v.flags["execution_authenticated"] = not p and v.evidence["state"] == "complete"
     if not v.flags["execution_authenticated"]:
@@ -497,6 +500,7 @@ CHECKER_SOURCES = (
     "src/genomic_variant_classifier/source_monitor/c2_github.py",
     "src/genomic_variant_classifier/source_monitor/c2_protocol.py",
     "src/genomic_variant_classifier/source_monitor/c2_receipt_io.py",
+    "src/genomic_variant_classifier/source_monitor/deployment.py",
     "src/genomic_variant_classifier/source_monitor/finding_store.py",
     "src/genomic_variant_classifier/source_monitor/heartbeat.py",
     "src/genomic_variant_classifier/source_monitor/interpretation_contract.py",
@@ -515,10 +519,12 @@ def code_manifest(repo_root) -> dict:
     return {path: hashlib.sha256((root / path).read_bytes()).hexdigest() for path in CHECKER_SOURCES}
 
 
-def effective_policy(current, required_targets) -> dict:
+def effective_policy(current, required_targets, deployment) -> dict:
     """The COMPLETE effective verification policy (owner ruling 2026-09-29): today's bound interpretation, the required
     target roster, the freshness and skew limits, the admission rules and the supported semantics -- not one file.
-    The WRITER's delivery policy (receipt age, clock allowance) is a different policy and is deliberately not here."""
+    The WRITER's delivery policy (receipt age, clock allowance) is a different policy and is deliberately not here. The
+    DEPLOYMENT configuration is bound by its exact-bytes digest: the qualification repository's policy digest therefore
+    legitimately differs from production's while the code manifest is identical (owner ruling 2026-10-01)."""
     from genomic_variant_classifier.source_monitor import interpretation_contract as ic
     if current is None:
         raise ValueError("today's interpretation was not reconstructed, so no effective policy can be bound")
@@ -526,11 +532,25 @@ def effective_policy(current, required_targets) -> dict:
             "interpretation": current.as_document(),
             "required_targets": sorted(required_targets),
             "max_age_seconds": int(MAX_AGE.total_seconds()), "skew_seconds": int(SKEW.total_seconds()),
-            "admission": {"repository": EXPECTED_REPOSITORY, "workflow_path": EXPECTED_WORKFLOW_PATH,
-                          "events": sorted(EXPECTED_EVENTS), "branch": EXPECTED_BRANCH, "artifact": ARTIFACT_NAME,
-                          "member": REPORT_MEMBER, "report_schema": [REPORT_SCHEMA, REPORT_SCHEMA_VERSION],
-                          "max_archive_bytes": MAX_ARCHIVE_BYTES, "max_report_bytes": MAX_REPORT_BYTES},
+            "deployment_sha256": deployment.sha256,
+            "admission": dict(deployment.admission(), artifact=ARTIFACT_NAME, member=REPORT_MEMBER,
+                              report_schema=[REPORT_SCHEMA, REPORT_SCHEMA_VERSION],
+                              max_archive_bytes=MAX_ARCHIVE_BYTES, max_report_bytes=MAX_REPORT_BYTES),
             "semantics": ic.SEMANTICS, "legacy_commits": sorted(r.commit for r in ic.LEGACY_RECORDS)}
+
+
+def build_checker_identity(*, root, commit, current, required_targets, deployment) -> dict:
+    """The checker's identity -- derived from the TRUSTED checkout, never from a receipt (owner ruling 2026-10-01).
+
+    THE ONE DEFINITION: the checker computes it BEFORE any fallible remote evidence collection and keeps it for completed
+    AND unavailable results ("failure to obtain evidence changes the result, not that identity"); the publisher computes
+    it independently from its own checkout to bind the receipt. Raises when the policy or code identity cannot be
+    reconstructed -- the caller must then issue NO ordinary checker receipt."""
+    from genomic_variant_classifier.source_monitor import c2_protocol as c2
+    manifest = code_manifest(root)
+    return {"commit": commit,
+            "code_manifest_sha256": c2.digest("gvc.checker-code/v1", [[path, sha] for path, sha in sorted(manifest.items())]),
+            "policy_sha256": c2.digest("gvc.verification-policy/v1", effective_policy(current, required_targets, deployment))}
 
 
 def current_reconstruction(repo_root):

@@ -160,3 +160,12 @@ tests/fixtures/source_monitor_runs/*.zip -text -diff
 # two digests would differ. Same reasoning as APPROVAL-RECORDS-PINNED-1: git must never rewrite these bytes.
 # Exactly one path. INTERPRETATION-POLICY-PINNED-1.
 configs/source_monitor_interpretation.json -text
+
+# ---------------------------------------------------------------------------
+# DEPLOYMENT CONFIGURATION: digest-bound (added 2026-10-01, C2 repair and qualification).
+# ---------------------------------------------------------------------------
+# Its SHA-256 enters the checker's effective verification policy, computed from the checkout's bytes by both the checker
+# and the publisher, and locally by installers. Under `*.json text eol=lf` a CRLF working copy would commit as LF and a
+# local digest would differ from CI's. Same reasoning as INTERPRETATION-POLICY-PINNED-1. Exactly one path.
+# DEPLOYMENT-CONFIG-PINNED-1.
+configs/source_monitor_deployment.json -text

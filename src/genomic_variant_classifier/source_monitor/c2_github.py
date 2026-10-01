@@ -22,6 +22,7 @@ import io
 import json
 import re
 import urllib.error
+import urllib.parse
 import urllib.request
 import zipfile
 from dataclasses import dataclass
@@ -31,7 +32,6 @@ from genomic_variant_classifier.source_monitor import c2_protocol as c2
 API_ROOT = "https://api.github.com"
 MAX_JSON_BYTES = 4 * 1024 * 1024
 MAX_PAGES = 200
-LABEL = "source-monitor-alert"
 OUTCOME_ARTIFACT_PREFIX = "c2-delivery-outcome-attempt-"
 OUTCOME_SCHEMA = "gvc.c2-delivery-outcome"
 PUBLISH_JOB = "publish"
@@ -140,6 +140,7 @@ class Pinned:
     issue_id: int
     number: int
     author_id: int                   # the numeric identity whose acknowledgements are trusted (revalidate at activation)
+    label: str                       # the consistency label, from the DEPLOYMENT configuration (2026-10-01)
 
 
 def select_destination(request, pinned: Pinned) -> c2.Destination:
@@ -149,7 +150,8 @@ def select_destination(request, pinned: Pinned) -> c2.Destination:
     repo = _json(*request("GET", base)[::2])
     c2.require(type(repo) is dict and repo.get("id") == pinned.repository_id and repo.get("full_name") == pinned.repository,
                "destination.repository")
-    issues = _all_pages(request, base + "/issues?labels={}&state=open&per_page=100".format(LABEL),
+    # Percent-encoded: the label comes from configuration; unencoded, a space, "&" or "#" would corrupt the query.
+    issues = _all_pages(request, base + "/issues?labels={}&state=open&per_page=100".format(urllib.parse.quote(pinned.label, safe="")),
                         _prefixes(pinned.repository, pinned.repository_id, "/issues"))
     listed = [{"repository_id": pinned.repository_id, "id": i.get("id"), "number": i.get("number")}
               for i in issues if isinstance(i, dict) and "pull_request" not in i]
@@ -159,7 +161,7 @@ def select_destination(request, pinned: Pinned) -> c2.Destination:
     c2.require(type(issue) is dict and "pull_request" not in issue, "destination.pull_request")
     c2.require(issue.get("id") == pinned.issue_id and issue.get("state") == "open"
                and issue.get("repository_url") == base
-               and LABEL in [x.get("name") for x in issue.get("labels") or [] if isinstance(x, dict)], "destination.changed")
+               and pinned.label in [x.get("name") for x in issue.get("labels") or [] if isinstance(x, dict)], "destination.changed")
     return configured
 
 
@@ -188,9 +190,13 @@ class CommentChannel:
         c2.require(type(rows) is list, "comments.page")
         return c2.Page(tuple(self._comment(r) for r in rows), _next_link(headers, self.prefixes))
 
-    def create_once(self, body: str) -> c2.Comment:
-        """EXACTLY one HTTP POST; any non-201 answer or transport error is raised (the caller treats it as ambiguous)."""
-        status, _, raw = self.request("POST", self.comments_url, json.dumps({"body": body}).encode("utf-8"))
+    def create_once(self, body: str, *, before_send) -> c2.Comment:
+        """Prepare the request bytes, call before_send() -- the final freshness gate (owner ruling 2026-10-01) -- and only
+        then EXACTLY one HTTP POST. If before_send raises, nothing is sent. Any non-201 answer or transport error AFTER the
+        gate is raised (the caller treats it as ambiguous)."""
+        data = json.dumps({"body": body}).encode("utf-8")
+        before_send()
+        status, _, raw = self.request("POST", self.comments_url, data)
         return self._comment(_json(status, raw, expected=201))
 
 

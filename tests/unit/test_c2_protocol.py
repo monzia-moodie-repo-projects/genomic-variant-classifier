@@ -63,9 +63,10 @@ class FakeChannel:
         end = i + self.page_size
         return c.Page(tuple(self.rows[i:end]), str(end) if end < len(self.rows) else None)
 
-    def create_once(self, body):
-        self.posts += 1
-        row = c.Comment(max([x.id for x in self.rows] + [0]) + 1, DEST.issue_id, BOT, body)
+    def create_once(self, body, *, before_send):
+        row = c.Comment(max([x.id for x in self.rows] + [0]) + 1, DEST.issue_id, BOT, body)   # the prepared request
+        before_send()                     # the final freshness gate (owner ruling 2026-10-01); raises -> nothing sent
+        self.posts += 1                   # counted only AFTER the gate: a transport invocation
         if self.fault == "drop_before_commit":
             raise TimeoutError("not committed in this test; caller cannot know")
         if self.fault == "delayed_visibility":
@@ -94,8 +95,8 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(raised.exception.code, code)
 
     def send(self, channel, history=NEW, **kwargs):
-        return c.deliver(channel, self.p, DEST, author_id=BOT, history=history,
-                         now=kwargs.pop("now", NOW), **kwargs)
+        at = kwargs.pop("now", NOW)
+        return c.deliver(channel, self.p, DEST, author_id=BOT, history=history, clock=lambda: at, **kwargs)
 
     def test_roundtrip(self):
         self.assertEqual(c.open_receipt(c.seal(self.p), bindings(self.p), NOW), self.p)
@@ -410,8 +411,8 @@ class TimingPolicyBoundaries(unittest.TestCase):
 
     def deliver_at(self, offset_seconds, channel=None, history=NEW):
         channel = channel or FakeChannel()
-        return channel, c.deliver(channel, fixture(), DEST, author_id=BOT, history=history,
-                                  now=self.FINISHED + timedelta(seconds=offset_seconds))
+        at = self.FINISHED + timedelta(seconds=offset_seconds)
+        return channel, c.deliver(channel, fixture(), DEST, author_id=BOT, history=history, clock=lambda: at)
 
     def test_the_policy_is_versioned_and_exact(self):
         self.assertEqual((c.DELIVERY_POLICY_VERSION, c.MAX_RECEIPT_AGE_SECONDS, c.MAX_FUTURE_SKEW_SECONDS), (1, 900, 60))
@@ -445,3 +446,56 @@ class TimingPolicyBoundaries(unittest.TestCase):
         channel, first = self.deliver_at(0)
         _, later = self.deliver_at(901, channel=channel, history=PRIOR)
         self.assertEqual((first.reason, later.action, later.reason, channel.posts), ("created", "acknowledged", "matching_comment", 1))
+
+
+
+class PostBoundaryGate(unittest.TestCase):
+    """Owner ruling 2026-10-01: freshness is enforced IMMEDIATELY before the client initiates the POST; a local refusal is
+    a DEFINITE no-attempt; post_issued is recorded only once the gate passed."""
+
+    FINISHED = datetime(2026, 9, 29, 11, 59, tzinfo=timezone.utc)
+
+    def test_the_clock_advancing_from_899_to_901_during_comment_reads_refuses_with_zero_transport_calls(self):
+        clock = {"age": 899}
+
+        class Advancing(FakeChannel):
+            def page(self, cursor):
+                clock["age"] += 1                            # each comment page read takes one second
+                return FakeChannel.page(self, cursor)
+        rows = [c.Comment(i, DEST.issue_id, 7, "unrelated") for i in range(1, 5)]     # 4 rows, page size 2 -> 2 reads
+        channel, attempt = Advancing(rows), {}
+        result = c.deliver(channel, fixture(), DEST, author_id=BOT, history=NEW, attempt=attempt,
+                           clock=lambda: self.FINISHED + timedelta(seconds=clock["age"]))
+        self.assertEqual((result.action, result.reason, result.age_seconds, channel.reads, channel.posts, attempt["post_issued"]),
+                         ("blocked", "receipt.needs_reverification", 901.0, 2, 0, False))
+
+    def test_a_gate_refusal_is_a_definite_no_attempt_never_unknown(self):
+        channel, attempt = FakeChannel(), {}
+        result = c.deliver(channel, fixture(), DEST, author_id=BOT, history=NEW, attempt=attempt,
+                           clock=lambda: self.FINISHED + timedelta(seconds=-61))
+        self.assertEqual((result.action, result.reason, channel.posts, attempt["post_issued"]),
+                         ("blocked", "receipt.future_timestamp", 0, False))
+
+    def test_a_timeout_after_the_gate_is_uncertain_and_recorded_as_issued(self):
+        channel, attempt = FakeChannel(fault="drop_before_commit"), {}
+        result = c.deliver(channel, fixture(), DEST, author_id=BOT, history=NEW, attempt=attempt, clock=lambda: self.FINISHED)
+        self.assertEqual((result.action, result.reason, channel.posts, attempt["post_issued"], attempt["age_seconds"]),
+                         ("unknown", "post_outcome_unknown", 1, True, 0.0))
+
+    def test_a_failure_before_the_gate_is_a_definite_no_attempt(self):
+        class FailsPreparing(FakeChannel):
+            def create_once(self, body, *, before_send):
+                raise ValueError("request preparation failed")          # before the gate: nothing was sent
+        channel, attempt = FailsPreparing(), {}
+        result = c.deliver(channel, fixture(), DEST, author_id=BOT, history=NEW, attempt=attempt, clock=lambda: self.FINISHED)
+        self.assertEqual((result.action, result.reason, attempt["post_issued"]), ("blocked", "post.not_attempted", False))
+
+    def test_a_channel_that_bypasses_the_gate_is_refused_and_recorded_as_issued(self):
+        class Ungated(FakeChannel):
+            def create_once(self, body, *, before_send):
+                self.posts += 1
+                return c.Comment(1, DEST.issue_id, BOT, body)             # posted WITHOUT calling before_send
+        channel, attempt = Ungated(), {}
+        with self.assertRaises(c.Refusal) as raised:
+            c.deliver(channel, fixture(), DEST, author_id=BOT, history=NEW, attempt=attempt, clock=lambda: self.FINISHED)
+        self.assertEqual((raised.exception.code, attempt["post_issued"]), ("post.gate_bypassed", True))
