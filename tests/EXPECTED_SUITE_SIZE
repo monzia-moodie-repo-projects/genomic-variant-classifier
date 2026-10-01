@@ -8062,4 +8062,7 @@
 # 2026-10-01  C2 REPAIRS + DEPLOYMENT CONFIGURATION (owner rulings 2026-09-30 / 2026-10-01)
 #   +31 / -0 by node identity: 17 deployment, 5 post-boundary gate, 3 adapter, 2 publisher (incl. the owner's
 #   unavailable-receipt regression), 2 gitattributes, 2 verifier (numeric workflow and repository identities).
-7371
+# 2026-10-01  C2 REPAIRS 2 -- found by the isolated qualification
+#   +10 / -8 by node identity: 2 new tests (authenticated fetch; deployment-refusal record) and 8 action-pin
+#   identifiers re-keyed (four uses: lines in source_monitor_verify.yml moved +5 lines).
+7373

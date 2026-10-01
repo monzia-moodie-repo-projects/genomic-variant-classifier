@@ -88,11 +88,14 @@ def main(argv=None, *, request, receipt_b64: str, clock=None, deployment_root=No
     now = clock()                                           # admission time; the POST gate reads the clock AGAIN
     automatic = args.event == "workflow_run"
     from genomic_variant_classifier.source_monitor import deployment as dep
-    deployment = dep.load(deployment_root or _ROOT)          # refuses when unloadable or unresolved; __main__ never injects
-    PIN = pinned(deployment)
-    base = "{}/repos/{}".format(gh.API_ROOT, PIN.repository)
     post_attempt, result, delivery = {"post_issued": False}, c2.Result("unknown", "delivery_did_not_return"), ""
     try:
+        # INSIDE the try (2026-10-01, found by qualification): a deployment refusal is a DEFINITE no-attempt, so the finally
+        # must record post_issued false -- outside, it left NO record, and every later attempt for that source run read
+        # UNKNOWN and stayed blocked even after the configuration was fixed.
+        deployment = dep.load(deployment_root or _ROOT)      # refuses when unloadable or unresolved; __main__ never injects
+        PIN = pinned(deployment)
+        base = "{}/repos/{}".format(gh.API_ROOT, PIN.repository)
         # Independent bindings.
         attempt = gh._json(*request("GET", base + "/actions/runs/{}/attempts/{}".format(
             args.source_run_id, args.source_attempt))[::2])

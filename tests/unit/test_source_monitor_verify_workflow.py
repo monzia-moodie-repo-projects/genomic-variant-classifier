@@ -9,7 +9,10 @@ Author: Monzia Moodie
 from __future__ import annotations
 
 import importlib.util
+import os
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -123,3 +126,43 @@ def test_every_artifact_name_is_unique_per_attempt(wf):
     """Artifact names are unique within a run and a re-run is an attempt of the SAME run (a second upload: HTTP 409)."""
     names = [s["with"]["name"] for j in ("verify", "publish") for s in _steps(wf, j) if s.get("uses", "").startswith("actions/upload-artifact@")]
     assert len(names) == 2 and all(n.endswith("-attempt-${{ github.run_attempt }}") for n in names)
+
+
+POSIX = pytest.mark.skipif(os.name == "nt" or shutil.which("bash") is None,
+                           reason="executes a Linux-runner shell block; needs a POSIX bash (CI runs it). On Windows, `bash` is the "
+                                  "bash.exe LAUNCHER (measured 2026-10-01: Bash/0x80110474), so shutil.which alone would not skip")
+
+
+@POSIX
+def test_the_run_commit_is_fetched_with_an_environment_scoped_credential_never_in_argv(wf, tmp_path):
+    """2026-10-01 (found by qualification): a PRIVATE repository refuses an anonymous fetch ("could not read Username").
+    The REAL step script runs under bash with a FAKE git that records its argv and environment: the credential must
+    reach git ONLY through its environment, never a command line, never persisted; prompting is disabled."""
+    script = _step(wf, "verify", "Identify and fetch the run's commit")["run"]
+    record = tmp_path / "git_calls.txt"
+    fake = tmp_path / "bin" / "git"
+    fake.parent.mkdir()
+    fake.write_text('#!/usr/bin/env bash\n{ printf "ARGV"; printf " %q" "$@"; printf "\\n"; '
+                    'printf "PROMPT=%s KEY=%s VALUE=%s\\n" "$GIT_TERMINAL_PROMPT" "$GIT_CONFIG_KEY_0" "$GIT_CONFIG_VALUE_0"; } '
+                    '>> "$RECORD"\nexit 0\n', encoding="ascii")
+    fake.chmod(0o755)
+    token = "ghs_QUALIFICATIONTESTTOKEN0123"
+    # A MINIMAL environment, deliberately (unlike the {**os.environ} convention): an inherited GIT_CONFIG_* would contaminate
+    # the very mechanism under test.
+    env = {"PATH": "{}{}{}".format(fake.parent, os.pathsep, os.environ["PATH"]), "RECORD": str(record), "GH_TOKEN": token,
+           "EVENT_NAME": "workflow_run", "EVENT_RUN_ID": "36846886992", "EVENT_RUN_ATTEMPT": "1",
+           "EVENT_HEAD_SHA": "f9ad6542b08d1c1c2306374daaf53b354698202b", "INPUT_RUN_ID": "", "INPUT_RUN_ATTEMPT": "",
+           "GITHUB_OUTPUT": str(tmp_path / "out.txt"), "GITHUB_REPOSITORY": "o/r"}
+    r = subprocess.run(["bash", "-c", script], env=env, capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr
+    calls = record.read_text(encoding="ascii").splitlines()
+    fetch = [i for i, line in enumerate(calls) if line.startswith("ARGV fetch")]
+    assert len(fetch) == 1
+    argv, environ = calls[fetch[0]], calls[fetch[0] + 1]
+    assert argv == "ARGV fetch --no-tags --depth=1 origin f9ad6542b08d1c1c2306374daaf53b354698202b"
+    import base64
+    basic = base64.b64encode("x-access-token:{}".format(token).encode()).decode()
+    assert environ == "PROMPT=0 KEY=http.https://github.com/.extraheader VALUE=AUTHORIZATION: basic {}".format(basic)
+    assert token not in "\n".join(line for line in calls if line.startswith("ARGV")) and basic not in argv
+    checkout = next(s for s in _steps(wf, "verify") if s.get("uses", "").startswith("actions/checkout@"))
+    assert checkout["with"]["persist-credentials"] is False          # never persisted
