@@ -1,3 +1,25 @@
+## 2026-10-01 (C2 repairs 2) -- found by the isolated qualification repository
+
+LIVE EVIDENCE: qualification run 36846886992 -> verifier run 36846920781 (private repository
+genomic-variant-classifier-qualification, unresolved configuration). Its failed-step log, read in full:
+
+DEFECT 1 -- the verifier's commit fetch failed on a PRIVATE repository: "fatal: could not read Username for
+'https://github.com': No such device or address" (exit 128). The checkout uses persist-credentials: false, so the
+fetch ran without a credential; production is public, so it never needed one. The verifier silently depended on the
+repository being public. FIX: authenticate ONLY that fetch through that one process's ENVIRONMENT
+(GIT_CONFIG_COUNT / GIT_CONFIG_KEY_0 http.https://github.com/.extraheader / GIT_CONFIG_VALUE_0), with
+GIT_TERMINAL_PROMPT=0 -- never persisted (persist-credentials stays false), never on a command line. Measured locally: the
+header reached a header-logging server; while in flight, none of the three git processes held the token in argv.
+
+DEFECT 2 -- the publisher loaded the deployment configuration BEFORE its try/finally, so a deployment refusal (a
+DEFINITE no-attempt) wrote NO outcome record; every later attempt for that source run would read UNKNOWN and stay
+blocked even after the configuration was fixed. FIX: the load moved inside the try; the finally now records
+post_issued false (the real history reader classifies it as no dispatch).
+
+TESTS: +10 / -8 by node identity (7,373): a behavioural workflow test running the real fetch step under bash with a
+recording fake git; a publisher test through the real history reader; 8 action-pin identifiers re-keyed by line
+moves. Mutations 4/4 (anonymous fetch, credential on the command line, prompt enabled, load outside the try).
+
 ## 2026-10-01 (C2 repairs) -- unavailable receipts reach the writer; freshness at the POST; deployment configuration
 
 Owner rulings of 2026-09-30 (gate 7 answered: isolated qualification, not a natural failure) and 2026-10-01 (a separate

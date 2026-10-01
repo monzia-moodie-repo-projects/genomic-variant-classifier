@@ -267,3 +267,28 @@ def test_publication_disabled_validates_but_never_posts(tmp_path, capsys):
     record = json.loads(outcome.read_text(encoding="ascii"))
     assert (code, fake.posts, record["action"], record["reason"], record["post_issued"]) == (0, 0, "preview", "publication_disabled", False)
     assert [u for _, u in fake.calls] == [BASE + "/actions/runs/{}/attempts/1".format(RUN_ID)]
+
+
+def test_a_deployment_refusal_still_writes_a_no_post_record_the_history_reads_as_no_dispatch(tmp_path):
+    """2026-10-01 (found by qualification, live run 36846920781): the deployment was loaded OUTSIDE the try, so a refusal
+    -- a DEFINITE no-attempt -- left NO outcome record, and every later attempt for that source run read UNKNOWN."""
+    doc = json.loads((ROOT / dep.CONFIG_PATH).read_text(encoding="utf-8"))
+    doc["trusted_author_id"] = None
+    root = tmp_path / "trusted"
+    (root / "configs").mkdir(parents=True)
+    (root / dep.CONFIG_PATH).write_bytes(json.dumps(doc).encode("ascii"))
+    outcome, fake = tmp_path / "outcome.json", Fake()
+    with pytest.raises(dep.DeploymentError) as exc:
+        PUB.main(["--event", "workflow_run", "--source-run-id", str(RUN_ID), "--source-attempt", "1", "--current-run-id",
+                  str(CURRENT), "--current-attempt", "1", "--workflow-sha", SHA, "--outcome", str(outcome)],
+                 request=fake, receipt_b64="", clock=lambda: NOW, deployment_root=root)
+    assert exc.value.code == "deployment.unresolved" and fake.calls == []
+    assert outcome.is_file(), "NO outcome record was written"
+    record = json.loads(outcome.read_text(encoding="ascii"))
+    assert (record["post_issued"], record["delivery_id"]) == (False, "")
+    import io as _io
+    import zipfile as _zipfile
+    buf = _io.BytesIO()
+    with _zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("outcome.json", outcome.read_bytes())
+    assert gh._read_outcome(buf.getvalue(), "k" * 64) is False      # the REAL reader: no POST for any delivery

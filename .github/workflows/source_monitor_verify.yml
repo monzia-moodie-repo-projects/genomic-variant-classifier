@@ -98,7 +98,12 @@ jobs:
           fi
           [[ "$head_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::the run's commit is not a full SHA: $head_sha"; exit 2; }
           git --version
-          git fetch --no-tags --depth=1 origin "$head_sha"
+          # A PRIVATE repository (the qualification repository, 2026-10-01) refuses an anonymous fetch: "could not read
+          # Username". Authenticate ONLY this fetch, through that one process's ENVIRONMENT -- never persisted
+          # (persist-credentials stays false), never on a command line (measured: absent from every git process's argv).
+          basic="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          GIT_TERMINAL_PROMPT=0 GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="http.https://github.com/.extraheader" \
+            GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $basic" git fetch --no-tags --depth=1 origin "$head_sha"
           { echo "run_id=$run_id"; echo "run_attempt=$run_attempt"; } >> "$GITHUB_OUTPUT"
 
       # Writes verdict.json AND receipt.json BEFORE its exit code (2 = not verified), so a failure still has a receipt.
