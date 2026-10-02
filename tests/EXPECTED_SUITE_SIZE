@@ -8065,4 +8065,7 @@
 # 2026-10-01  C2 REPAIRS 2 -- found by the isolated qualification
 #   +10 / -8 by node identity: 2 new tests (authenticated fetch; deployment-refusal record) and 8 action-pin
 #   identifiers re-keyed (four uses: lines in source_monitor_verify.yml moved +5 lines).
-7373
+# 2026-10-01  C2 REPAIRS 3 -- the attempt journal is the publish job's LOG (found by live qualification exercise 4)
+#   +19 / -9 by node identity: 16 job-log classification cases replace 9 artifact cases; a parser-format test;
+#   2 publisher tests (journal ordering; a gate refusal prints nothing).
+7383

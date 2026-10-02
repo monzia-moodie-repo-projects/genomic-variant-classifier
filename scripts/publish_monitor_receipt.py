@@ -49,6 +49,25 @@ def pinned(deployment) -> gh.Pinned:
                      number=deployment.issue_number, author_id=deployment.trusted_author_id, label=deployment.label)
 
 
+class JournalChannel:
+    """The ATTEMPT JOURNAL at the gate (C2 repairs 3). Its before_send runs the PROTOCOL's freshness gate FIRST and only then
+    prints, flushed, the C2-ATTEMPT line -- after the gate passed, BEFORE the transport is entered (the wrapped
+    CommentChannel prepares the bytes, calls this, then makes its ONE request). A gate refusal raises before the print, so
+    a refused attempt never claims to have entered the transport. The job LOG is the journal later attempts read."""
+
+    def __init__(self, channel, delivery_id: str):
+        self.channel, self.delivery_id = channel, delivery_id
+
+    def page(self, cursor):
+        return self.channel.page(cursor)
+
+    def create_once(self, body, *, before_send):
+        def gated():
+            before_send()
+            print(gh.journal_attempt_line(self.delivery_id), flush=True)
+        return self.channel.create_once(body, before_send=gated)
+
+
 def utc_now():
     return datetime.now(timezone.utc)
 
@@ -125,14 +144,17 @@ def main(argv=None, *, request, receipt_b64: str, clock=None, deployment_root=No
                                           current_run_id=args.current_run_id, current_attempt=args.current_attempt,
                                           delivery_id=delivery)
             print("history: {} -- {}".format(history.state.value, history.evidence_ref))
-            result = c2.deliver(gh.CommentChannel(request, PIN), payload, destination, author_id=PIN.author_id,
-                                history=history, clock=clock, attempt=post_attempt)
+            result = c2.deliver(JournalChannel(gh.CommentChannel(request, PIN), delivery), payload, destination,
+                                author_id=PIN.author_id, history=history, clock=clock, attempt=post_attempt)
     finally:
         # EVERY path writes this attempt's outcome record -- a preview, an early refusal, an exception. A started delivery
         # step WITHOUT a record reads as UNKNOWN to every later attempt (c2_github.dispatch_history), so an unwritten record
         # after a harmless preview would block that source run's delivery forever (found designing the tests, 2026-09-30).
         # post_issued is set ONLY once the final freshness gate passed and the transport was entered (never on entry).
         record = gh.outcome_record(delivery_id=delivery, post_issued=post_attempt["post_issued"] is True, result=result)
+        # The JOURNAL first (the job log is what later attempts read -- an earlier attempt's artifacts vanish after a re-run,
+        # measured 2026-10-01); the archived artifact second.
+        print(gh.journal_outcome_line(record), flush=True)
         Path(args.outcome).write_text(json.dumps(record, sort_keys=True) + "\n", encoding="ascii")
     print("RESULT {} {} comment {} age {}".format(result.action, result.reason, result.comment_id, result.age_seconds))
     return 0 if result.action in SUCCESS else 1

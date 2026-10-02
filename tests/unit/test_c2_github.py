@@ -9,8 +9,8 @@ from __future__ import annotations
 import io
 import json
 import urllib.error
-import zipfile
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
 
@@ -149,37 +149,42 @@ def test_an_existing_acknowledgement_on_page_two_prevents_any_post():
     assert (result.action, result.reason, result.comment_id, fake.posts) == ("acknowledged", "matching_comment", 3, 0)
 
 
-# ------------------------------------------------------------------ dispatch history
-def outcome_zip(delivery_id, post_issued, names=("outcome.json",)):
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w") as zf:
-        for name in names:
-            zf.writestr(name, json.dumps({"schema": gh.OUTCOME_SCHEMA, "schema_version": 1, "delivery_id": delivery_id,
-                                          "post_issued": post_issued, "action": "x", "reason": "y"}))
-    return buf.getvalue()
-
-
+# ------------------------------------------------------------------ dispatch history: the JOB-LOG journal (C2 repairs 3)
+# MEASURED 2026-10-01: after a re-run the earlier attempt's ARTIFACTS vanish from every listing, while its job log stays
+# retrievable by job id. REST log lines are "<ISO-8601>Z <text>"; the real attempt-1 log of qualification run 36897111869 is
+# the fixture below (it predates journaling: a started delivery step with NO journal line).
+# Named *.txt, not *.log: .gitignore L51 ignores *.log, which once kept this fixture out of the patch (2026-10-01).
+REAL_LOG = (Path(__file__).resolve().parents[1] / "fixtures" / "source_monitor_runs" / "qualification_publish_job_attempt1_log.txt").read_bytes()
 KEY = "k" * 64
+TS = "2026-10-01T17:08:22.9474469Z "
+
+
+def journal_log(*journal):
+    """A log in the measured format: real runner lines around the given journal lines."""
+    lines = ["2026-10-01T17:08:14.4910484Z Current runner version: '2.337.0'", "2026-10-01T17:08:22.9474000Z receipt: issuer checker event kind review_required"]
+    lines += [TS + j for j in journal] + ["2026-10-01T17:08:24.8517866Z Cleaning up orphan processes"]
+    return ("\n".join(lines) + "\n").encode("utf-8")
+
+
+def attempt_line(key=KEY):
+    return gh.journal_attempt_line(key)
+
+
+def outcome_line(key=KEY, posted=False):
+    return gh.journal_outcome_line({"schema": gh.OUTCOME_SCHEMA, "schema_version": 1, "delivery_id": key, "post_issued": posted,
+                                    "action": "x", "reason": "y"})
 
 
 def history_routes(runs, attempts):
-    """runs: listing entries; attempts: {(run_id, n): (step_status, step_conclusion, artifact_zip_or_None, expired)}."""
+    """attempts: {(run_id, n): (step_status, step_conclusion, log_bytes_or_None, publish_jobs)}."""
     routes = {("GET", API + "/actions/workflows/{}/runs?per_page=100".format(WORKFLOW_ID)):
               ok({"total_count": len(runs), "workflow_runs": runs})}
-    for (run_id, n), (status, conclusion, archive, expired) in attempts.items():
+    for (run_id, n), (status, conclusion, log, publish_jobs) in attempts.items():
         steps = [] if status is None else [{"name": gh.DELIVERY_STEP, "status": status, "conclusion": conclusion}]
-        routes[("GET", API + "/actions/runs/{}/attempts/{}/jobs?per_page=100".format(run_id, n))] = \
-            ok({"total_count": 1, "jobs": [{"name": gh.PUBLISH_JOB, "steps": steps}]})
-    by_run = {}
-    for (run_id, n), (_, _, archive, expired) in attempts.items():
-        if archive is not None:
-            art_id = run_id * 10 + n
-            by_run.setdefault(run_id, []).append({"id": art_id, "name": gh.OUTCOME_ARTIFACT_PREFIX + str(n), "expired": expired})
-            routes[("GET", API + "/actions/artifacts/{}/zip".format(art_id))] = (200, {}, archive)
-    for run_id in {r for r, _ in attempts}:
-        arts = by_run.get(run_id, [])
-        routes[("GET", API + "/actions/runs/{}/artifacts?per_page=100".format(run_id))] = \
-            ok({"total_count": len(arts), "artifacts": arts})
+        jobs = [{"id": run_id * 100 + n * 10 + k, "name": gh.PUBLISH_JOB, "steps": steps} for k in range(publish_jobs)]
+        routes[("GET", API + "/actions/runs/{}/attempts/{}/jobs?per_page=100".format(run_id, n))] = ok({"total_count": len(jobs), "jobs": jobs})
+        for job in jobs:
+            routes[("GET", API + "/actions/jobs/{}/logs".format(job["id"]))] = (200, {}, log) if log is not None else (404, {}, b"not found")
     return routes
 
 
@@ -198,32 +203,46 @@ def test_no_prior_execution_at_all_is_no_prior_dispatch():
 
 
 @pytest.mark.parametrize("attempt, state", [
-    (("completed", "success", outcome_zip(KEY, True), False), c2.History.PRIOR_DISPATCH),
-    (("completed", "success", outcome_zip(KEY, False), False), c2.History.NO_PRIOR_DISPATCH),
-    (("completed", "success", outcome_zip("other" * 12 + "abcd", True), False), c2.History.NO_PRIOR_DISPATCH),
-    (("completed", "failure", None, False), c2.History.UNKNOWN),                           # started, no record
-    (("completed", "success", outcome_zip(KEY, False), True), c2.History.UNKNOWN),          # record expired
-    (("completed", "success", outcome_zip(KEY, False, names=("a", "b")), False), c2.History.UNKNOWN),
-    (("completed", "skipped", None, False), c2.History.NO_PRIOR_DISPATCH),
-    (("queued", None, None, False), c2.History.NO_PRIOR_DISPATCH),
-    ((None, None, None, False), c2.History.NO_PRIOR_DISPATCH),                               # the step never existed
+    (("completed", "success", journal_log(attempt_line(), outcome_line(posted=True)), 1), c2.History.PRIOR_DISPATCH),
+    (("completed", "failure", journal_log(attempt_line()), 1), c2.History.PRIOR_DISPATCH),          # killed mid-POST: line survives
+    (("completed", "success", journal_log(outcome_line(posted=False)), 1), c2.History.NO_PRIOR_DISPATCH),
+    (("completed", "success", journal_log(attempt_line("o" * 64), outcome_line("o" * 64, True)), 1), c2.History.NO_PRIOR_DISPATCH),
+    (("completed", "success", journal_log(attempt_line("o" * 64)), 1), c2.History.NO_PRIOR_DISPATCH),  # its ONE POST was another's
+    (("completed", "failure", journal_log(), 1), c2.History.UNKNOWN),                             # started, no journal line
+    (("completed", "success", REAL_LOG, 1), c2.History.UNKNOWN),                                  # the REAL pre-journal log
+    (("completed", "success", journal_log("C2-ATTEMPT {not json"), 1), c2.History.UNKNOWN),        # malformed tagged line
+    (("completed", "success", journal_log(attempt_line().replace('"schema_version":1', '"schema_version":1,"x":1')), 1), c2.History.UNKNOWN),
+    (("completed", "success", journal_log(outcome_line(posted=False)).replace(b"\n2026", b"\n" + TS.encode() + b"C2-OUTCOME\n2026", 1), 1), c2.History.UNKNOWN),
+    (("completed", "success", None, 1), c2.History.UNKNOWN),                                      # log not retrievable
+    (("completed", "success", b"\xff\xfe not utf-8 " + attempt_line().encode(), 1), c2.History.UNKNOWN),
+    (("completed", "success", journal_log(outcome_line(posted=False)), 2), c2.History.UNKNOWN),    # publish job not unique
+    (("completed", "skipped", None, 1), c2.History.NO_PRIOR_DISPATCH),
+    (("queued", None, None, 1), c2.History.NO_PRIOR_DISPATCH),
+    ((None, None, None, 1), c2.History.NO_PRIOR_DISPATCH),                                       # the step never existed
 ])
-def test_the_current_runs_earlier_attempt_is_classified(attempt, state):
+def test_the_current_runs_earlier_attempt_is_classified_from_its_job_log(attempt, state):
     assert history(history_routes([run(CURRENT_RUN, 2)], {(CURRENT_RUN, 1): attempt})).state is state
+
+
+def test_the_journal_parser_accepts_the_measured_format_and_a_leading_byte_order_mark():
+    assert gh.read_journal("\ufeff" + TS + attempt_line(), KEY) is True
+    assert gh.read_journal(REAL_LOG.decode("utf-8"), KEY) is None
+    assert gh.read_journal(REAL_LOG.decode("utf-8") + TS + outcome_line(posted=False) + "\n", KEY) is False
 
 
 def test_the_current_run_is_examined_even_when_the_listing_lags():
     """Defect found by re-reading 2026-09-30: the current run's earlier attempts were examined only if it was listed."""
-    h = history(history_routes([], {(CURRENT_RUN, 1): ("completed", "failure", None, False)}))
+    h = history(history_routes([], {(CURRENT_RUN, 1): ("completed", "failure", journal_log(), 1)}))
     assert h.state is c2.History.UNKNOWN and "run 900 attempt 1" in h.evidence_ref
 
 
 def test_another_run_with_the_same_run_name_is_examined_in_every_attempt():
     routes = history_routes([run(CURRENT_RUN, 1), run(800, 2)],
-                            {(800, 1): ("completed", "success", outcome_zip(KEY, False), False),
-                             (800, 2): ("completed", "success", outcome_zip(KEY, True), False)})
+                            {(800, 1): ("completed", "success", journal_log(outcome_line(posted=False)), 1),
+                             (800, 2): ("completed", "success", journal_log(attempt_line(), outcome_line(posted=True)), 1)})
     h = history(routes, current_attempt=1)
-    assert h.state is c2.History.PRIOR_DISPATCH and h.evidence_ref == "run 800 attempt 2: a POST was issued for this delivery"
+    assert h.state is c2.History.PRIOR_DISPATCH
+    assert h.evidence_ref == "run 800 attempt 2: the journal shows a POST may have been issued for this delivery"
 
 
 @pytest.mark.parametrize("routes, needle", [

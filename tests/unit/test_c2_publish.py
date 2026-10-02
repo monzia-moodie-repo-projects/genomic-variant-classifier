@@ -8,9 +8,7 @@ from __future__ import annotations
 
 import base64
 import importlib.util
-import io
 import json
-import zipfile
 from pathlib import Path
 
 import pytest
@@ -142,26 +140,32 @@ def test_a_refused_receipt_still_writes_a_no_post_record(tmp_path, receipt_b64):
     assert (record["post_issued"], record["delivery_id"]) == (False, "")
 
 
-def _outcome_zip(delivery_id, post_issued):
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w") as zf:
-        zf.writestr("outcome.json", json.dumps({"schema": gh.OUTCOME_SCHEMA, "schema_version": 1, "delivery_id": delivery_id,
-                                                "post_issued": post_issued, "action": "x", "reason": "y"}))
-    return buf.getvalue()
+TS = "2026-10-01T17:08:22.9474469Z "
 
 
-def _prior_run(record_zip):
+def _as_log(*journal_lines):
+    """A publish-job log in the MEASURED REST format ("<ISO-8601>Z <text>"), around the given journal lines."""
+    return ("\n".join([TS + "receipt: issuer checker event kind review_required"] + [TS + j for j in journal_lines]) + "\n").encode("utf-8")
+
+
+def _outcome(delivery_id, post_issued):
+    return gh.journal_outcome_line({"schema": gh.OUTCOME_SCHEMA, "schema_version": 1, "delivery_id": delivery_id,
+                                    "post_issued": post_issued, "action": "x", "reason": "y"})
+
+
+def _prior_run(log_bytes):
+    """An earlier execution with the same run-name whose publish job's LOG carries the journal (C2 repairs 3)."""
     runs = [{"id": 800, "run_attempt": 1, "display_title": PUB.run_name(RUN_ID, 1), "workflow_id": WORKFLOW_ID}]
     extra = {("GET", BASE + "/actions/runs/800/attempts/1/jobs?per_page=100"): json.dumps({"total_count": 1, "jobs": [
-                 {"name": gh.PUBLISH_JOB, "steps": [{"name": gh.DELIVERY_STEP, "status": "completed", "conclusion": "success"}]}]}).encode(),
-             ("GET", BASE + "/actions/runs/800/artifacts?per_page=100"): json.dumps({"total_count": 1, "artifacts": [
-                 {"id": 81, "name": gh.OUTCOME_ARTIFACT_PREFIX + "1", "expired": False}]}).encode(),
-             ("GET", BASE + "/actions/artifacts/81/zip"): record_zip}
+                 {"id": 8001, "name": gh.PUBLISH_JOB,
+                  "steps": [{"name": gh.DELIVERY_STEP, "status": "completed", "conclusion": "success"}]}]}).encode(),
+             ("GET", BASE + "/actions/jobs/8001/logs"): log_bytes}
     return runs, extra
 
 
 def test_a_prior_dispatch_of_this_delivery_is_unknown_never_a_second_post(tmp_path, capsys, receipt_b64):
-    runs, extra = _prior_run(_outcome_zip(c2.delivery_id(_payload(receipt_b64), DEST), True))
+    key = c2.delivery_id(_payload(receipt_b64), DEST)
+    runs, extra = _prior_run(_as_log(gh.journal_attempt_line(key), _outcome(key, True)))
     fake = Fake(runs=runs, extra=extra)
     code, record = publish(tmp_path, fake, receipt_b64)
     assert (code, fake.posts, record["post_issued"], record["reason"]) == (1, 0, False, "prior_dispatch_unresolved")
@@ -170,7 +174,7 @@ def test_a_prior_dispatch_of_this_delivery_is_unknown_never_a_second_post(tmp_pa
 def test_a_prior_previews_record_does_not_block_a_later_delivery(tmp_path, receipt_b64):
     """REGRESSION (found designing these tests): a preview once wrote NO record, so its started delivery step read as
     UNKNOWN and would have blocked that source run's delivery forever."""
-    runs, extra = _prior_run(_outcome_zip("", False))
+    runs, extra = _prior_run(_as_log(_outcome("", False)))
     fake = Fake(runs=runs, extra=extra)
     code, record = publish(tmp_path, fake, receipt_b64)
     assert (code, fake.posts, record["reason"]) == (0, 1, "created")
@@ -269,7 +273,7 @@ def test_publication_disabled_validates_but_never_posts(tmp_path, capsys):
     assert [u for _, u in fake.calls] == [BASE + "/actions/runs/{}/attempts/1".format(RUN_ID)]
 
 
-def test_a_deployment_refusal_still_writes_a_no_post_record_the_history_reads_as_no_dispatch(tmp_path):
+def test_a_deployment_refusal_still_writes_a_no_post_record_the_history_reads_as_no_dispatch(tmp_path, capsys):
     """2026-10-01 (found by qualification, live run 36846920781): the deployment was loaded OUTSIDE the try, so a refusal
     -- a DEFINITE no-attempt -- left NO outcome record, and every later attempt for that source run read UNKNOWN."""
     doc = json.loads((ROOT / dep.CONFIG_PATH).read_text(encoding="utf-8"))
@@ -286,9 +290,50 @@ def test_a_deployment_refusal_still_writes_a_no_post_record_the_history_reads_as
     assert outcome.is_file(), "NO outcome record was written"
     record = json.loads(outcome.read_text(encoding="ascii"))
     assert (record["post_issued"], record["delivery_id"]) == (False, "")
-    import io as _io
-    import zipfile as _zipfile
-    buf = _io.BytesIO()
-    with _zipfile.ZipFile(buf, "w") as zf:
-        zf.writestr("outcome.json", outcome.read_bytes())
-    assert gh._read_outcome(buf.getvalue(), "k" * 64) is False      # the REAL reader: no POST for any delivery
+    printed = capsys.readouterr().out                       # the job LOG is the journal (C2 repairs 3)
+    log = "".join(TS + line + "\n" for line in printed.splitlines())
+    assert gh.read_journal(log, "k" * 64) is False           # the REAL reader: the refusal is a definite no-POST
+
+
+def test_the_journal_line_is_printed_after_the_gate_and_before_the_transport(tmp_path, receipt_b64, monkeypatch):
+    """C2 repairs 3: C2-ATTEMPT is the LAST thing before the transport -- printed only once the freshness gate passed --
+    and C2-OUTCOME follows in the finally. The recorded order of prints and requests must show exactly that."""
+    events, fake = [], Fake()
+
+    def recording(method, url, body=None, *, allow_redirect=False):
+        events.append(("request", method))
+        return fake(method, url, body, allow_redirect=allow_redirect)
+
+    class Out:
+        def write(self, text):
+            for line in text.splitlines():
+                if line.startswith(("C2-ATTEMPT", "C2-OUTCOME", "RESULT")):
+                    events.append(("print", line.split(" ")[0]))
+            return len(text)
+
+        def flush(self):
+            pass
+    monkeypatch.setattr("sys.stdout", Out())
+    outcome = tmp_path / "outcome.json"
+    code = PUB.main(["--event", "workflow_run", "--source-run-id", str(RUN_ID), "--source-attempt", "1", "--current-run-id",
+                     str(CURRENT), "--current-attempt", "1", "--workflow-sha", SHA, "--outcome", str(outcome)],
+                    request=recording, receipt_b64=receipt_b64, clock=lambda: NOW)
+    first = [i for i, e in enumerate(events) if e == ("print", "C2-ATTEMPT")]
+    assert code == 0 and len(first) == 1
+    assert events[first[0]:] == [("print", "C2-ATTEMPT"), ("request", "POST"), ("print", "C2-OUTCOME"), ("print", "RESULT")]
+
+
+def test_a_gate_refusal_prints_no_attempt_line(capsys):
+    """A refused gate raises BEFORE the print: a refused attempt never claims to have entered the transport."""
+    entered = []
+
+    class Inner:
+        def create_once(self, body, *, before_send):
+            before_send()
+            entered.append("transport")
+
+    def refuse():
+        raise c2.PostNotAttempted("receipt.needs_reverification", 901.0)
+    with pytest.raises(c2.PostNotAttempted):
+        PUB.JournalChannel(Inner(), "k" * 64).create_once("x", before_send=refuse)
+    assert entered == [] and "C2-ATTEMPT" not in capsys.readouterr().out
