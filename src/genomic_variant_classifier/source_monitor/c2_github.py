@@ -18,13 +18,11 @@ Author: Monzia Moodie
 """
 from __future__ import annotations
 
-import io
 import json
 import re
 import urllib.error
 import urllib.parse
 import urllib.request
-import zipfile
 from dataclasses import dataclass
 
 from genomic_variant_classifier.source_monitor import c2_protocol as c2
@@ -206,23 +204,62 @@ def outcome_record(*, delivery_id: str, post_issued: bool, result) -> dict:
             "action": result.action, "reason": result.reason}
 
 
-def _read_outcome(raw_zip: bytes, delivery_id: str):
-    """-> True (a POST was issued for THIS delivery), False (none was), or None (unreadable / not for this delivery)."""
-    try:
-        with zipfile.ZipFile(io.BytesIO(raw_zip)) as zf:
-            names = zf.namelist()
-            if names != ["outcome.json"]:
+#: THE ATTEMPT JOURNAL is the publish job's own LOG (C2 repairs 3, 2026-10-01). MEASURED live: after a re-run, the earlier
+#: attempt's ARTIFACTS vanish from every listing (run-scoped AND repository-wide), while its JOBS stay listed and each job's
+#: log stays retrievable through GET /actions/jobs/{id}/logs. A log is streamed while the job runs, so the C2-ATTEMPT line
+#: printed at the gate survives a job killed mid-POST, which an end-of-job artifact never could. REST log lines are
+#: "<ISO-8601 timestamp>Z <text>" (measured: no job/step prefix; delivery lines carry no escape characters).
+JOURNAL_ATTEMPT, JOURNAL_OUTCOME, JOURNAL_SCHEMA = "C2-ATTEMPT", "C2-OUTCOME", "gvc.c2-journal"
+_JOURNAL_LINE = re.compile(r"\ufeff?\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z (C2-ATTEMPT|C2-OUTCOME) (\{.*\})")
+
+
+def _compact(doc) -> str:
+    return json.dumps(doc, ensure_ascii=True, sort_keys=True, separators=(",", ":"), allow_nan=False)
+
+
+def journal_attempt_line(delivery_id: str) -> str:
+    """Printed (flushed) AFTER the freshness gate passed and BEFORE the transport is entered."""
+    return "{} {}".format(JOURNAL_ATTEMPT, _compact({"schema": JOURNAL_SCHEMA, "schema_version": 1, "delivery_id": delivery_id}))
+
+
+def journal_outcome_line(record: dict) -> str:
+    """Printed (flushed) in the finally: the same record as the archived outcome artifact."""
+    return "{} {}".format(JOURNAL_OUTCOME, _compact(record))
+
+
+def read_journal(log_text: str, delivery_id: str):
+    """-> True (a POST may have been issued for THIS delivery), False (none was), None (UNKNOWN). STRICT: any line naming a
+    journal tag that is not EXACTLY the grammar and schema makes the whole attempt UNKNOWN -- never "no dispatch"."""
+    attempts, outcomes = [], []
+    for line in log_text.split("\n"):
+        line = line.rstrip("\r")
+        if JOURNAL_ATTEMPT not in line and JOURNAL_OUTCOME not in line:
+            continue
+        m = _JOURNAL_LINE.fullmatch(line)
+        if m is None:
+            return None
+        try:
+            doc = c2.strict_load(m.group(2).encode("utf-8"))
+        except Exception:
+            return None
+        if m.group(1) == JOURNAL_ATTEMPT:
+            if not (type(doc) is dict and set(doc) == {"schema", "schema_version", "delivery_id"} and doc["schema"] == JOURNAL_SCHEMA
+                    and type(doc["schema_version"]) is int and doc["schema_version"] == 1 and type(doc["delivery_id"]) is str):
                 return None
-            doc = c2.strict_load(zf.read("outcome.json"))
-    except (zipfile.BadZipFile, c2.Refusal, KeyError, ValueError):
-        return None
-    if not (type(doc) is dict and set(doc) == {"schema", "schema_version", "delivery_id", "post_issued", "action", "reason"}
-            and doc["schema"] == OUTCOME_SCHEMA and type(doc["schema_version"]) is int and doc["schema_version"] == 1
-            and type(doc["post_issued"]) is bool):
-        return None
-    if doc["delivery_id"] != delivery_id:
-        return False        # deliver() issues AT MOST ONE POST per invocation: a POST for ANOTHER delivery is not ours
-    return doc["post_issued"]
+            attempts.append(doc)
+        else:
+            if not (type(doc) is dict and set(doc) == {"schema", "schema_version", "delivery_id", "post_issued", "action", "reason"}
+                    and doc["schema"] == OUTCOME_SCHEMA and type(doc["schema_version"]) is int and doc["schema_version"] == 1
+                    and type(doc["delivery_id"]) is str and type(doc["post_issued"]) is bool):
+                return None
+            outcomes.append(doc)
+    if any(a["delivery_id"] == delivery_id for a in attempts):
+        return True                      # the transport was entered for THIS delivery: a POST may have happened
+    if any(o["delivery_id"] == delivery_id and o["post_issued"] for o in outcomes):
+        return True
+    if outcomes or attempts:
+        return False                     # ended without a POST for it, or its ONE POST was for another delivery
+    return None                          # the step started but left no journal line: UNKNOWN
 
 
 _NOT_STARTED = frozenset({"queued", "pending", "waiting", "requested"})
@@ -247,21 +284,21 @@ def dispatch_history(request, *, repository: str, repository_id: int, workflow_i
         if not [s for s in steps if s.get("status") not in _NOT_STARTED and s.get("conclusion") != "skipped"]:
             evidence.append(tag + ": delivery step never started")
             return
-        name = OUTCOME_ARTIFACT_PREFIX + str(n)
-        arts = _all_pages(request, base + "/actions/runs/{}/artifacts?per_page=100".format(run_id),
-                          _prefixes(repository, repository_id, "/actions/runs/{}/artifacts".format(run_id)), key="artifacts")
-        named = [a for a in arts if isinstance(a, dict) and a.get("name") == name]
-        if len(named) != 1 or named[0].get("expired") is not False:
-            unknown.append(tag + ": delivery step started, outcome record missing or expired")
+        publish = [j for j in jobs if isinstance(j, dict) and j.get("name") == PUBLISH_JOB]
+        if len(publish) != 1 or not c2.positive(publish[0].get("id")):
+            unknown.append(tag + ": delivery step started, but its publish job is not uniquely identified")
             return
-        status, _, raw = request("GET", base + "/actions/artifacts/{}/zip".format(named[0].get("id")), allow_redirect=True)
-        posted = _read_outcome(raw, delivery_id) if status == 200 else None
+        status, _, raw = request("GET", base + "/actions/jobs/{}/logs".format(publish[0]["id"]), allow_redirect=True)
+        try:
+            posted = read_journal(raw.decode("utf-8"), delivery_id) if status == 200 else None
+        except UnicodeDecodeError:
+            posted = None
         if posted is True:
-            prior.append(tag + ": a POST was issued for this delivery")
+            prior.append(tag + ": the journal shows a POST may have been issued for this delivery")
         elif posted is None:
-            unknown.append(tag + ": outcome record unreadable")
+            unknown.append(tag + ": delivery step started; its journal is missing, unreadable or malformed")
         else:
-            evidence.append(tag + ": delivery step started, no POST for this delivery")
+            evidence.append(tag + ": delivery step started, the journal shows no POST for this delivery")
 
     try:
         c2.require(c2.positive(workflow_id) and c2.positive(repository_id), "history.identity")

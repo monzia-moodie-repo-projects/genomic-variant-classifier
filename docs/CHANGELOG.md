@@ -1,3 +1,30 @@
+## 2026-10-01 (C2 repairs 3) -- the attempt journal is the publish job's LOG (found by live qualification)
+
+LIVE EVIDENCE (qualification repository): exercise 4 re-ran verifier run 36897111869; its history reported "attempt 1:
+delivery step started, outcome record missing or expired" although attempt 1's outcome artifact existed (it is in the
+exercise-1 evidence, downloaded before the re-run). MEASURED afterwards: the run-scoped artifact listing held ONLY attempt
+2's artifacts, the name-filtered query returned 0, and the REPOSITORY-wide listing for c2-delivery-outcome-attempt-1 held
+four other runs' records but NOT this run's -- after a re-run, an earlier attempt's artifacts vanish from every listing.
+Attempt 1's JOBS stayed listed, and its publish-job log stayed retrievable through GET /actions/jobs/{id}/logs (26,309
+bytes, every timestamp within attempt 1). `gh run view --job <id> --log` returned the LATEST attempt's log instead -- it
+is not attempt-faithful and is not used.
+
+DEFECT: dispatch_history read per-attempt outcome ARTIFACTS, so it was blind to every non-latest attempt (the current
+run's and other runs'); delivery stayed correct only because acknowledgements are searched first. Gate 2 ("prior
+dispatch reconstructed across restarts") was not met for re-runs.
+
+FIX: the publisher prints, flushed, `C2-ATTEMPT {json}` from a channel wrapper AFTER the protocol's freshness gate
+passes and BEFORE the transport (a gate refusal raises before the print), and `C2-OUTCOME {json}` in its finally.
+dispatch_history reads each earlier attempt's publish-job log by job id and accepts only "<ISO-8601>Z (C2-ATTEMPT|
+C2-OUTCOME) <single-line JSON with an exact schema>" (a leading byte-order mark tolerated): an attempt line or a posted
+outcome for this delivery -> prior dispatch; a journal without a POST for it -> none; a started step with no journal
+line, a malformed tagged line, an unreadable or non-UTF-8 log, or a publish job not uniquely identified -> UNKNOWN. The
+streamed attempt line survives a job killed mid-POST, which an end-of-job artifact never could. The outcome artifact is
+still uploaded as archived evidence; it is no longer the journal.
+
+TESTS: +19 / -9 by node identity (7,383); the measured attempt-1 log is a fixture (every credential in it masked).
+Mutations 6/6.
+
 ## 2026-10-01 (C2 repairs 2) -- found by the isolated qualification repository
 
 LIVE EVIDENCE: qualification run 36846886992 -> verifier run 36846920781 (private repository
