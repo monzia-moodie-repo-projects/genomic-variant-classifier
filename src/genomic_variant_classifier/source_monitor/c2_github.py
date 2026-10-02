@@ -204,13 +204,16 @@ def outcome_record(*, delivery_id: str, post_issued: bool, result) -> dict:
             "action": result.action, "reason": result.reason}
 
 
-#: THE ATTEMPT JOURNAL is the publish job's own LOG (C2 repairs 3, 2026-10-01). MEASURED live: after a re-run, the earlier
-#: attempt's ARTIFACTS vanish from every listing (run-scoped AND repository-wide), while its JOBS stay listed and each job's
-#: log stays retrievable through GET /actions/jobs/{id}/logs. A log is streamed while the job runs, so the C2-ATTEMPT line
-#: printed at the gate survives a job killed mid-POST, which an end-of-job artifact never could. REST log lines are
-#: "<ISO-8601 timestamp>Z <text>" (measured: no job/step prefix; delivery lines carry no escape characters).
+#: THE ATTEMPT JOURNAL is the publish job's own LOG (C2 repairs 3, 2026-10-01; tightened by C2 repairs 4, 2026-10-02). Measured
+#: on this platform: after a re-run the earlier attempt's ARTIFACTS were absent from every listing (run-scoped and repository-
+#: wide), while its JOBS stayed listed and each job's log stayed retrievable through GET /actions/jobs/{id}/logs. The publisher
+#: emits an intent before invoking the transport. A recovered intent is positive evidence that a POST may have been issued.
+#: Missing or incomplete history remains unknown and blocks another POST. (Console upload by the runner is asynchronous and
+#: best effort: a flush is not remote durability, and a finally is not guaranteed after abrupt termination.) REST log lines
+#: are "<ISO-8601 timestamp>Z <text>" (measured: no job/step prefix; delivery lines carry no escape characters).
 JOURNAL_ATTEMPT, JOURNAL_OUTCOME, JOURNAL_SCHEMA = "C2-ATTEMPT", "C2-OUTCOME", "gvc.c2-journal"
 _JOURNAL_LINE = re.compile(r"\ufeff?\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z (C2-ATTEMPT|C2-OUTCOME) (\{.*\})")
+_DELIVERY_KEY = re.compile(r"[0-9a-f]{64}")
 
 
 def _compact(doc) -> str:
@@ -228,9 +231,14 @@ def journal_outcome_line(record: dict) -> str:
 
 
 def read_journal(log_text: str, delivery_id: str):
-    """-> True (a POST may have been issued for THIS delivery), False (none was), None (UNKNOWN). STRICT: any line naming a
-    journal tag that is not EXACTLY the grammar and schema makes the whole attempt UNKNOWN -- never "no dispatch"."""
-    attempts, outcomes = [], []
+    """-> True (a POST MAY have been issued for THIS delivery), False (the journal shows none was), None (UNKNOWN).
+    STRICT (C2 repairs 4): one publisher invocation writes AT MOST one intent and AT MOST one outcome, intent first, both for
+    the same key. Any tagged line off the grammar, schema, key syntax or action vocabulary; any multiplicity, ordering or
+    identity conflict; or no journal line at all makes the attempt UNKNOWN -- never "no dispatch". An outcome with
+    post_issued false can never erase a matching intent."""
+    if type(delivery_id) is not str or not _DELIVERY_KEY.fullmatch(delivery_id):
+        return None
+    intents, outcomes, order = [], [], []
     for line in log_text.split("\n"):
         line = line.rstrip("\r")
         if JOURNAL_ATTEMPT not in line and JOURNAL_OUTCOME not in line:
@@ -242,27 +250,52 @@ def read_journal(log_text: str, delivery_id: str):
             doc = c2.strict_load(m.group(2).encode("utf-8"))
         except Exception:
             return None
+        if type(doc) is not dict:
+            return None
         if m.group(1) == JOURNAL_ATTEMPT:
-            if not (type(doc) is dict and set(doc) == {"schema", "schema_version", "delivery_id"} and doc["schema"] == JOURNAL_SCHEMA
-                    and type(doc["schema_version"]) is int and doc["schema_version"] == 1 and type(doc["delivery_id"]) is str):
+            if not (set(doc) == {"schema", "schema_version", "delivery_id"} and doc["schema"] == JOURNAL_SCHEMA
+                    and type(doc["schema_version"]) is int and doc["schema_version"] == 1
+                    and type(doc["delivery_id"]) is str and _DELIVERY_KEY.fullmatch(doc["delivery_id"])):
                 return None
-            attempts.append(doc)
+            intents.append(doc)
         else:
-            if not (type(doc) is dict and set(doc) == {"schema", "schema_version", "delivery_id", "post_issued", "action", "reason"}
+            key = doc.get("delivery_id")
+            if not (set(doc) == {"schema", "schema_version", "delivery_id", "post_issued", "action", "reason"}
                     and doc["schema"] == OUTCOME_SCHEMA and type(doc["schema_version"]) is int and doc["schema_version"] == 1
-                    and type(doc["delivery_id"]) is str and type(doc["post_issued"]) is bool):
+                    and type(doc["post_issued"]) is bool and type(doc["action"]) is str and doc["action"] in c2.ACTIONS
+                    and type(doc["reason"]) is str and 0 < len(doc["reason"]) <= 256
+                    and type(key) is str and (_DELIVERY_KEY.fullmatch(key) or (key == "" and not doc["post_issued"]))):
                 return None
             outcomes.append(doc)
-    if any(a["delivery_id"] == delivery_id for a in attempts):
-        return True                      # the transport was entered for THIS delivery: a POST may have happened
-    if any(o["delivery_id"] == delivery_id and o["post_issued"] for o in outcomes):
+        order.append(m.group(1))
+    if len(intents) > 1 or len(outcomes) > 1 or not (intents or outcomes):
+        return None
+    if intents and outcomes and (order != [JOURNAL_ATTEMPT, JOURNAL_OUTCOME]
+                                 or intents[0]["delivery_id"] != outcomes[0]["delivery_id"]):
+        return None
+    if any(x["delivery_id"] == delivery_id for x in intents):
+        return True                      # the transport was entered for THIS delivery: a POST may have been issued
+    if any(x["delivery_id"] == delivery_id and x["post_issued"] for x in outcomes):
         return True
-    if outcomes or attempts:
-        return False                     # ended without a POST for it, or its ONE POST was for another delivery
-    return None                          # the step started but left no journal line: UNKNOWN
+    return False                         # one consistent invocation without a POST for this delivery
 
 
-_NOT_STARTED = frozenset({"queued", "pending", "waiting", "requested"})
+def publisher_step_state(jobs) -> str:
+    """"unknown" | "no_dispatch" | "read_journal" (C2 repairs 4). Missing structures are UNKNOWN: an empty job list, a
+    missing or duplicated publish job or delivery step, or a non-terminal state proves nothing. ONLY an explicitly skipped,
+    completed delivery step in a completed publish job is no dispatch; any other completed step requires the journal."""
+    if type(jobs) is not list:
+        return "unknown"
+    publishers = [j for j in jobs if type(j) is dict and j.get("name") == PUBLISH_JOB]
+    if len(publishers) != 1 or publishers[0].get("status") != "completed":
+        return "unknown"
+    steps = publishers[0].get("steps")
+    if type(steps) is not list:
+        return "unknown"
+    matches = [s for s in steps if type(s) is dict and s.get("name") == DELIVERY_STEP]
+    if len(matches) != 1 or matches[0].get("status") != "completed":
+        return "unknown"
+    return "no_dispatch" if matches[0].get("conclusion") == "skipped" else "read_journal"
 
 
 def dispatch_history(request, *, repository: str, repository_id: int, workflow_id: int, run_name: str, current_run_id: int,
@@ -278,15 +311,17 @@ def dispatch_history(request, *, repository: str, repository_id: int, workflow_i
     def examine(run_id, n):
         jobs = _all_pages(request, base + "/actions/runs/{}/attempts/{}/jobs?per_page=100".format(run_id, n),
                           _prefixes(repository, repository_id, "/actions/runs/{}/attempts/{}/jobs".format(run_id, n)), key="jobs")
-        steps = [s for j in jobs if isinstance(j, dict) and j.get("name") == PUBLISH_JOB
-                 for s in j.get("steps") or [] if isinstance(s, dict) and s.get("name") == DELIVERY_STEP]
         tag = "run {} attempt {}".format(run_id, n)
-        if not [s for s in steps if s.get("status") not in _NOT_STARTED and s.get("conclusion") != "skipped"]:
-            evidence.append(tag + ": delivery step never started")
+        state = publisher_step_state(jobs)
+        if state == "unknown":
+            unknown.append(tag + ": the publish job or its delivery step is not positively identified as completed")
             return
-        publish = [j for j in jobs if isinstance(j, dict) and j.get("name") == PUBLISH_JOB]
-        if len(publish) != 1 or not c2.positive(publish[0].get("id")):
-            unknown.append(tag + ": delivery step started, but its publish job is not uniquely identified")
+        if state == "no_dispatch":
+            evidence.append(tag + ": the delivery step was explicitly skipped")
+            return
+        publish = [j for j in jobs if type(j) is dict and j.get("name") == PUBLISH_JOB]
+        if not c2.positive(publish[0].get("id")):
+            unknown.append(tag + ": the publish job has no valid id")
             return
         status, _, raw = request("GET", base + "/actions/jobs/{}/logs".format(publish[0]["id"]), allow_redirect=True)
         try:

@@ -8068,4 +8068,7 @@
 # 2026-10-01  C2 REPAIRS 3 -- the attempt journal is the publish job's LOG (found by live qualification exercise 4)
 #   +19 / -9 by node identity: 16 job-log classification cases replace 9 artifact cases; a parser-format test;
 #   2 publisher tests (journal ordering; a gate refusal prints nothing).
-7383
+# 2026-10-02  C2 REPAIRS 4 -- the history reader made conservative where it was not (owner counterexamples)
+#   +23 / -6 by node identity: the classification test grew 16 -> 27 cases (index-keyed ids renumber: 6 out, 17 in);
+#   5 missing/ambiguous job-structure tests; 1 single-action-vocabulary test. Action-pin ids unchanged.
+7400

@@ -150,14 +150,15 @@ def _as_log(*journal_lines):
 
 def _outcome(delivery_id, post_issued):
     return gh.journal_outcome_line({"schema": gh.OUTCOME_SCHEMA, "schema_version": 1, "delivery_id": delivery_id,
-                                    "post_issued": post_issued, "action": "x", "reason": "y"})
+                                    "post_issued": post_issued, "action": "acknowledged" if post_issued else "preview",
+                                    "reason": "created" if post_issued else "manual_verification"})
 
 
 def _prior_run(log_bytes):
     """An earlier execution with the same run-name whose publish job's LOG carries the journal (C2 repairs 3)."""
     runs = [{"id": 800, "run_attempt": 1, "display_title": PUB.run_name(RUN_ID, 1), "workflow_id": WORKFLOW_ID}]
     extra = {("GET", BASE + "/actions/runs/800/attempts/1/jobs?per_page=100"): json.dumps({"total_count": 1, "jobs": [
-                 {"id": 8001, "name": gh.PUBLISH_JOB,
+                 {"id": 8001, "name": gh.PUBLISH_JOB, "status": "completed",
                   "steps": [{"name": gh.DELIVERY_STEP, "status": "completed", "conclusion": "success"}]}]}).encode(),
              ("GET", BASE + "/actions/jobs/8001/logs"): log_bytes}
     return runs, extra
@@ -292,7 +293,7 @@ def test_a_deployment_refusal_still_writes_a_no_post_record_the_history_reads_as
     assert (record["post_issued"], record["delivery_id"]) == (False, "")
     printed = capsys.readouterr().out                       # the job LOG is the journal (C2 repairs 3)
     log = "".join(TS + line + "\n" for line in printed.splitlines())
-    assert gh.read_journal(log, "k" * 64) is False           # the REAL reader: the refusal is a definite no-POST
+    assert gh.read_journal(log, "a" * 64) is False           # the REAL reader: the refusal is a definite no-POST
 
 
 def test_the_journal_line_is_printed_after_the_gate_and_before_the_transport(tmp_path, receipt_b64, monkeypatch):
@@ -335,5 +336,5 @@ def test_a_gate_refusal_prints_no_attempt_line(capsys):
     def refuse():
         raise c2.PostNotAttempted("receipt.needs_reverification", 901.0)
     with pytest.raises(c2.PostNotAttempted):
-        PUB.JournalChannel(Inner(), "k" * 64).create_once("x", before_send=refuse)
+        PUB.JournalChannel(Inner(), "a" * 64).create_once("x", before_send=refuse)
     assert entered == [] and "C2-ATTEMPT" not in capsys.readouterr().out

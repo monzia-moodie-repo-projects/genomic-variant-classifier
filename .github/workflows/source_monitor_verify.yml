@@ -205,8 +205,8 @@ jobs:
             --source-attempt "$SOURCE_ATTEMPT" --current-run-id "$CURRENT_RUN_ID" --current-attempt "$CURRENT_ATTEMPT" \
             --workflow-sha "$WORKFLOW_SHA" --outcome outcome.json
 
-      # The per-attempt outcome record (c2_github.dispatch_history reads it). A started delivery step WITHOUT a record is
-      # UNKNOWN to every later attempt, which is exactly right for a job killed mid-POST.
+      # The per-attempt outcome record, archived as evidence. Later attempts read the publish job's LOG journal instead
+      # (c2_github.read_journal); missing or incomplete history is UNKNOWN and blocks another POST.
       - name: Upload the delivery outcome
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0, node24

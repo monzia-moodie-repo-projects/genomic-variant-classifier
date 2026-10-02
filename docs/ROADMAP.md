@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **7,383 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **7,400 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -457,6 +457,10 @@ exists to end.
   that after a re-run an earlier attempt's artifacts vanish from every GitHub listing, so prior dispatch was blind
   to earlier attempts; the publish job's log (retrievable per attempt by job id) now carries the journal, written at
   the gate before the POST. Suite 7,373 -> 7,383.
+- **2026-10-02 -- C2 repairs 4: a conservative history reader.** Missing or ambiguous execution history (an empty
+  job list, a missing or non-terminal step) and malformed journals (mistyped fields, more than one intent or outcome,
+  wrong order, conflicting or invalid keys) are UNKNOWN, never no-dispatch; one action vocabulary is owned by the
+  protocol. Suite 7,383 -> 7,400.
 - **SCHEDULED -- legacy-roadmap carry-forward audit.** 47 of the 55 item identifiers in
   docs/archive/legacy/ROADMAP_2026-03_to_2026-08-22.md are not mentioned in this roadmap (measured 2026-09-28).
   Absence is not resolution: SMOKE-1 (tests/smoke_test_imports.py is never collected and no workflow runs it) is

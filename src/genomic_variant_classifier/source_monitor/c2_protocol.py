@@ -398,12 +398,21 @@ class DispatchHistory:
     evidence_ref: str
 
 
+#: The ONE delivery-action vocabulary (C2 repairs 4): every Result is constructed from it, and the journal reader validates
+#: recorded outcomes against the same set -- writer and reader cannot drift.
+ACTIONS = frozenset({"acknowledged", "preview", "no_op", "archive", "blocked", "unknown"})
+
+
 @dataclass(frozen=True)
 class Result:
     action: str
     reason: str
     comment_id: int | None = None
     age_seconds: float | None = None      # the OBSERVED receipt age when the delivery policy was applied
+
+    def __post_init__(self):
+        require(type(self.action) is str and self.action in ACTIONS, "result.action")
+        require(type(self.reason) is str and 0 < len(self.reason) <= 256, "result.reason")
 
 
 def event_kind(p):

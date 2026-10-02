@@ -1,3 +1,34 @@
+## 2026-10-02 (C2 repairs 4) -- the history reader is conservative where it claimed to be
+
+Owner review of 2026-10-02 (counterexamples executed against 7657b38b and REPRODUCED here before the repair): an earlier
+attempt with an EMPTY job list was classified NO_PRIOR_DISPATCH ("delivery step never started"); an outcome with
+action 42 and reason [] was accepted as no dispatch; two intent records for other delivery keys were accepted as no
+dispatch. Further probes of the same class, also reproduced: two outcome records, a delivery key that is not 64 hex
+digits, and an outcome before its intent. The stated contract -- malformed or missing history always blocks -- did not
+hold. These counterexamples do not show that a duplicate occurred during qualification. One existing test encoded the
+first defect as expected behaviour ("the step never existed" -> no prior dispatch).
+
+FIX: publisher_step_state -- exactly one publish job, completed; its steps a list; exactly one delivery step, completed;
+ONLY an explicitly skipped step is no dispatch, anything else missing or ambiguous is UNKNOWN. read_journal -- the
+protocol's strict JSON; 64-hex delivery keys (an empty key only on an outcome without a POST); the action drawn from ONE
+vocabulary, c2_protocol.ACTIONS, which Result now enforces at construction; a reason of 1..256 characters; at most one
+intent and one outcome per invocation, intent first, same key; no journal line at all is UNKNOWN; an outcome with
+post_issued false can never erase a matching intent.
+
+RETIRED (repairs 3 entry above): "The streamed attempt line survives a job killed mid-POST, which an end-of-job artifact
+never could." The runner uploads console output asynchronously and on a best-effort basis; a flush is not remote
+durability and a finally is not guaranteed after abrupt termination. The defensible statement: the publisher emits an
+intent before invoking the transport. A recovered intent is positive evidence that a POST may have been issued. Missing or
+incomplete history remains unknown and blocks another POST. prior_dispatch means a previous POST MAY have been issued; it
+does not establish that a comment exists. Platform observations (artifacts absent after a re-run; `gh run view --job`
+returning the latest attempt) are scoped to what was measured. If an acknowledgement and all discoverable execution
+history are both gone, their absence cannot prove that delivery never occurred: there is no unconditional exactly-once
+claim, and unresolved historical deliveries require manual reconciliation. The verify workflow's comment that named the
+outcome artifact as the history source is corrected.
+
+TESTS: +23 / -6 by node identity (7,400). Mutations 8/8 (empty job list, non-completed job, vocabulary, multiplicity,
+order, outcome key syntax, a false outcome erasing an intent, an unknown Result action).
+
 ## 2026-10-01 (C2 repairs 3) -- the attempt journal is the publish job's LOG (found by live qualification)
 
 LIVE EVIDENCE (qualification repository): exercise 4 re-ran verifier run 36897111869; its history reported "attempt 1:
