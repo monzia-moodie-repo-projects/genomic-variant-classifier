@@ -155,7 +155,8 @@ def test_an_existing_acknowledgement_on_page_two_prevents_any_post():
 # the fixture below (it predates journaling: a started delivery step with NO journal line).
 # Named *.txt, not *.log: .gitignore L51 ignores *.log, which once kept this fixture out of the patch (2026-10-01).
 REAL_LOG = (Path(__file__).resolve().parents[1] / "fixtures" / "source_monitor_runs" / "qualification_publish_job_attempt1_log.txt").read_bytes()
-KEY = "k" * 64
+KEY = "a" * 64                    # delivery keys are SHA-256 hex digests (C2 repairs 4 validates the syntax)
+OTHER = "b" * 64
 TS = "2026-10-01T17:08:22.9474469Z "
 
 
@@ -170,18 +171,20 @@ def attempt_line(key=KEY):
     return gh.journal_attempt_line(key)
 
 
-def outcome_line(key=KEY, posted=False):
-    return gh.journal_outcome_line({"schema": gh.OUTCOME_SCHEMA, "schema_version": 1, "delivery_id": key, "post_issued": posted,
-                                    "action": "x", "reason": "y"})
+def outcome_line(key=KEY, posted=False, **override):
+    doc = {"schema": gh.OUTCOME_SCHEMA, "schema_version": 1, "delivery_id": key, "post_issued": posted,
+           "action": "acknowledged" if posted else "preview", "reason": "created" if posted else "manual_verification"}
+    doc.update(override)
+    return gh.journal_outcome_line(doc)
 
 
 def history_routes(runs, attempts):
-    """attempts: {(run_id, n): (step_status, step_conclusion, log_bytes_or_None, publish_jobs)}."""
+    """attempts: {(run_id, n): (step_status, step_conclusion, log_bytes_or_None, publish_jobs)}; each publish job is completed."""
     routes = {("GET", API + "/actions/workflows/{}/runs?per_page=100".format(WORKFLOW_ID)):
               ok({"total_count": len(runs), "workflow_runs": runs})}
     for (run_id, n), (status, conclusion, log, publish_jobs) in attempts.items():
         steps = [] if status is None else [{"name": gh.DELIVERY_STEP, "status": status, "conclusion": conclusion}]
-        jobs = [{"id": run_id * 100 + n * 10 + k, "name": gh.PUBLISH_JOB, "steps": steps} for k in range(publish_jobs)]
+        jobs = [{"id": run_id * 100 + n * 10 + k, "name": gh.PUBLISH_JOB, "status": "completed", "steps": steps} for k in range(publish_jobs)]
         routes[("GET", API + "/actions/runs/{}/attempts/{}/jobs?per_page=100".format(run_id, n))] = ok({"total_count": len(jobs), "jobs": jobs})
         for job in jobs:
             routes[("GET", API + "/actions/jobs/{}/logs".format(job["id"]))] = (200, {}, log) if log is not None else (404, {}, b"not found")
@@ -202,32 +205,76 @@ def test_no_prior_execution_at_all_is_no_prior_dispatch():
     assert h.state is c2.History.NO_PRIOR_DISPATCH and h.evidence_ref == "no prior execution for " + RUN_NAME
 
 
+P, N, U = c2.History.PRIOR_DISPATCH, c2.History.NO_PRIOR_DISPATCH, c2.History.UNKNOWN
+
+
 @pytest.mark.parametrize("attempt, state", [
-    (("completed", "success", journal_log(attempt_line(), outcome_line(posted=True)), 1), c2.History.PRIOR_DISPATCH),
-    (("completed", "failure", journal_log(attempt_line()), 1), c2.History.PRIOR_DISPATCH),          # killed mid-POST: line survives
-    (("completed", "success", journal_log(outcome_line(posted=False)), 1), c2.History.NO_PRIOR_DISPATCH),
-    (("completed", "success", journal_log(attempt_line("o" * 64), outcome_line("o" * 64, True)), 1), c2.History.NO_PRIOR_DISPATCH),
-    (("completed", "success", journal_log(attempt_line("o" * 64)), 1), c2.History.NO_PRIOR_DISPATCH),  # its ONE POST was another's
-    (("completed", "failure", journal_log(), 1), c2.History.UNKNOWN),                             # started, no journal line
-    (("completed", "success", REAL_LOG, 1), c2.History.UNKNOWN),                                  # the REAL pre-journal log
-    (("completed", "success", journal_log("C2-ATTEMPT {not json"), 1), c2.History.UNKNOWN),        # malformed tagged line
-    (("completed", "success", journal_log(attempt_line().replace('"schema_version":1', '"schema_version":1,"x":1')), 1), c2.History.UNKNOWN),
-    (("completed", "success", journal_log(outcome_line(posted=False)).replace(b"\n2026", b"\n" + TS.encode() + b"C2-OUTCOME\n2026", 1), 1), c2.History.UNKNOWN),
-    (("completed", "success", None, 1), c2.History.UNKNOWN),                                      # log not retrievable
-    (("completed", "success", b"\xff\xfe not utf-8 " + attempt_line().encode(), 1), c2.History.UNKNOWN),
-    (("completed", "success", journal_log(outcome_line(posted=False)), 2), c2.History.UNKNOWN),    # publish job not unique
-    (("completed", "skipped", None, 1), c2.History.NO_PRIOR_DISPATCH),
-    (("queued", None, None, 1), c2.History.NO_PRIOR_DISPATCH),
-    ((None, None, None, 1), c2.History.NO_PRIOR_DISPATCH),                                       # the step never existed
+    (("completed", "success", journal_log(attempt_line(), outcome_line(posted=True)), 1), P),
+    (("completed", "failure", journal_log(attempt_line()), 1), P),      # a recovered intent: a POST may have been issued
+    (("completed", "success", journal_log(attempt_line(), outcome_line(posted=False, action="unknown", reason="post_outcome_unknown")), 1), P),  # a false outcome never erases an intent
+    (("completed", "success", journal_log(outcome_line(posted=False)), 1), N),
+    (("completed", "success", journal_log(attempt_line(OTHER), outcome_line(OTHER, True)), 1), N),
+    (("completed", "success", journal_log(attempt_line(OTHER)), 1), N),     # its ONE POST was another delivery's
+    (("completed", "skipped", None, 1), N),                                 # ONLY an explicit skip is no dispatch
+    (("completed", "failure", journal_log(), 1), U),                        # started, no journal line
+    (("completed", "success", REAL_LOG, 1), U),                             # the REAL pre-journal log
+    (("completed", "success", journal_log("C2-ATTEMPT {not json"), 1), U),
+    (("completed", "success", journal_log(attempt_line().replace('"schema_version":1', '"schema_version":1,"x":1')), 1), U),
+    (("completed", "success", journal_log(outcome_line(posted=False)).replace(b"\n2026", b"\n" + TS.encode() + b"C2-OUTCOME\n2026", 1), 1), U),
+    (("completed", "success", None, 1), U),                                 # log not retrievable
+    (("completed", "success", b"\xff\xfe not utf-8 " + attempt_line().encode(), 1), U),
+    (("completed", "success", journal_log(outcome_line(posted=False)), 2), U),   # publish job not unique
+    (("queued", None, None, 1), U),                                         # non-terminal proves nothing
+    ((None, None, None, 1), U),                                             # the delivery step is absent
+    # the owner's counterexamples (2026-10-02) and the related probes, each REPRODUCED on 7657b38b before this repair:
+    (("completed", "success", journal_log(outcome_line(posted=False, action=42, reason=[])), 1), U),
+    (("completed", "success", journal_log(outcome_line(posted=False, reason="")), 1), U),
+    (("completed", "success", journal_log(outcome_line(posted=False, action="sent")), 1), U),   # outside the vocabulary
+    (("completed", "success", journal_log(attempt_line(OTHER), attempt_line("c" * 64)), 1), U),   # two intents
+    (("completed", "success", journal_log(outcome_line(OTHER), outcome_line("c" * 64)), 1), U),    # two outcomes
+    (("completed", "success", journal_log(attempt_line("x")), 1), U),                         # not a delivery key
+    (("completed", "success", journal_log(outcome_line(KEY), attempt_line(KEY)), 1), U),      # outcome before intent
+    (("completed", "success", journal_log(attempt_line(KEY), outcome_line(OTHER)), 1), U),    # conflicting identities
+    (("completed", "success", journal_log(outcome_line("", True)), 1), U),                    # a POST with no key
+    (("completed", "success", journal_log(outcome_line(posted=False).replace('"schema_version":1', '"schema_version":1.0')), 1), U),
 ])
 def test_the_current_runs_earlier_attempt_is_classified_from_its_job_log(attempt, state):
     assert history(history_routes([run(CURRENT_RUN, 2)], {(CURRENT_RUN, 1): attempt})).state is state
+
+
+@pytest.mark.parametrize("jobs", [
+    [],                                                                      # the owner's empty-job-list counterexample
+    [{"id": 9001, "name": "verify", "status": "completed", "steps": []}],    # no publish job at all
+    [{"id": 9001, "name": gh.PUBLISH_JOB, "status": "in_progress", "steps": [{"name": gh.DELIVERY_STEP, "status": "completed", "conclusion": "skipped"}]}],
+    [{"id": 9001, "name": gh.PUBLISH_JOB, "status": "completed", "steps": [{"name": gh.DELIVERY_STEP, "status": "completed", "conclusion": "skipped"}] * 2}],
+    [{"id": 9001, "name": gh.PUBLISH_JOB, "status": "completed", "steps": "not a list"}],
+])
+def test_missing_or_ambiguous_job_structure_is_unknown_never_no_dispatch(jobs):
+    routes = history_routes([run(CURRENT_RUN, 2)], {})
+    routes[("GET", API + "/actions/runs/{}/attempts/1/jobs?per_page=100".format(CURRENT_RUN))] = ok({"total_count": len(jobs), "jobs": jobs})
+    assert history(routes).state is c2.History.UNKNOWN
 
 
 def test_the_journal_parser_accepts_the_measured_format_and_a_leading_byte_order_mark():
     assert gh.read_journal("\ufeff" + TS + attempt_line(), KEY) is True
     assert gh.read_journal(REAL_LOG.decode("utf-8"), KEY) is None
     assert gh.read_journal(REAL_LOG.decode("utf-8") + TS + outcome_line(posted=False) + "\n", KEY) is False
+    assert gh.read_journal(TS + attempt_line(), "not-a-key") is None
+
+
+def test_one_delivery_action_vocabulary_owned_by_the_protocol():
+    """Every Result constructed anywhere uses c2.ACTIONS, and Result itself refuses anything else."""
+    import ast
+    root = Path(__file__).resolve().parents[2]
+    used = set()
+    for rel in ("src/genomic_variant_classifier/source_monitor/c2_protocol.py", "scripts/publish_monitor_receipt.py"):
+        for node in ast.walk(ast.parse((root / rel).read_text(encoding="utf-8"))):
+            if (isinstance(node, ast.Call) and getattr(node.func, "attr", getattr(node.func, "id", None)) == "Result"
+                    and node.args and isinstance(node.args[0], ast.Constant)):
+                used.add(node.args[0].value)
+    assert used and used <= c2.ACTIONS
+    with pytest.raises(c2.Refusal):
+        c2.Result("sent", "x")
 
 
 def test_the_current_run_is_examined_even_when_the_listing_lags():
