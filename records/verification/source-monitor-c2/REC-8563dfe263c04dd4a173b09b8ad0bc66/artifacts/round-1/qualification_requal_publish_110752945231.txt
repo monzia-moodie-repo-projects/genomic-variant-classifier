@@ -1,0 +1,271 @@
+﻿2026-10-02T07:45:38.8356231Z Current runner version: '2.337.0'
+2026-10-02T07:45:38.8383920Z ##[group]Runner Image Provisioner
+2026-10-02T07:45:38.8384835Z Hosted Compute Agent
+2026-10-02T07:45:38.8385558Z Version: 20260901.588
+2026-10-02T07:45:38.8386306Z Commit: f88ec8081b781fac6c440065ac7ff9e710ce3d0b
+2026-10-02T07:45:38.8387063Z Build Date: 2026-09-01T19:56:44Z
+2026-10-02T07:45:38.8387807Z Worker ID: {f04b0c02-d200-4f0b-acde-c2c77da7c82f}
+2026-10-02T07:45:38.8388564Z Azure Region: westus2
+2026-10-02T07:45:38.8389723Z ##[endgroup]
+2026-10-02T07:45:38.8391387Z ##[group]Operating System
+2026-10-02T07:45:38.8392193Z Ubuntu
+2026-10-02T07:45:38.8392788Z 24.04.5
+2026-10-02T07:45:38.8393332Z LTS
+2026-10-02T07:45:38.8393896Z ##[endgroup]
+2026-10-02T07:45:38.8394520Z ##[group]Runner Image
+2026-10-02T07:45:38.8395162Z Image: ubuntu-24.04
+2026-10-02T07:45:38.8395730Z Version: 20260927.320.1
+2026-10-02T07:45:38.8397118Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260927.320/images/ubuntu/Ubuntu2404-Readme.md
+2026-10-02T07:45:38.8398783Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260927.320
+2026-10-02T07:45:38.8400033Z ##[endgroup]
+2026-10-02T07:45:38.8401439Z ##[group]GITHUB_TOKEN Permissions
+2026-10-02T07:45:38.8403549Z Actions: read
+2026-10-02T07:45:38.8404177Z Contents: read
+2026-10-02T07:45:38.8404867Z Issues: write
+2026-10-02T07:45:38.8405475Z Metadata: read
+2026-10-02T07:45:38.8406141Z ##[endgroup]
+2026-10-02T07:45:38.8408236Z Secret source: Actions
+2026-10-02T07:45:38.8409494Z Cache mode: write
+2026-10-02T07:45:38.8410251Z Prepare workflow directory
+2026-10-02T07:45:38.8771583Z Prepare all required actions
+2026-10-02T07:45:38.8845341Z Getting action download info
+2026-10-02T07:45:39.2560476Z Download action repository 'actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd' (SHA:de0fac2e4500dabe0009e67214ff5f5447ce83dd)
+2026-10-02T07:45:39.3770317Z Download action repository 'actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405' (SHA:a309ff8b426b58ec0e2a45f0f869d46889d02405)
+2026-10-02T07:45:39.4571464Z Download action repository 'actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f' (SHA:bbbca2ddaa5d8feaa63e36b76fdaad77386f024f)
+2026-10-02T07:45:39.6954493Z Complete job name: publish
+2026-10-02T07:45:39.7759340Z ##[group]Run actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+2026-10-02T07:45:39.7760519Z with:
+2026-10-02T07:45:39.7761025Z   ref: 9e291278a084917e7956c5d4df2dfc04a70bdcd9
+2026-10-02T07:45:39.7761659Z   persist-credentials: false
+2026-10-02T07:45:39.7762474Z   repository: monzia-moodie-repo-projects/genomic-variant-classifier-qualification
+2026-10-02T07:45:39.7766456Z   token: ***
+2026-10-02T07:45:39.7766906Z   ssh-strict: true
+2026-10-02T07:45:39.7767354Z   ssh-user: git
+2026-10-02T07:45:39.7767784Z   clean: true
+2026-10-02T07:45:39.7768251Z   sparse-checkout-cone-mode: true
+2026-10-02T07:45:39.7768790Z   fetch-depth: 1
+2026-10-02T07:45:39.7769448Z   fetch-tags: false
+2026-10-02T07:45:39.7769916Z   show-progress: true
+2026-10-02T07:45:39.7770415Z   lfs: false
+2026-10-02T07:45:39.7770839Z   submodules: false
+2026-10-02T07:45:39.7771314Z   set-safe-directory: true
+2026-10-02T07:45:39.7772206Z ##[endgroup]
+2026-10-02T07:45:39.9026638Z Syncing repository: monzia-moodie-repo-projects/genomic-variant-classifier-qualification
+2026-10-02T07:45:39.9030049Z ##[group]Getting Git version info
+2026-10-02T07:45:39.9031985Z Working directory is '/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification'
+2026-10-02T07:45:39.9035256Z [command]/usr/bin/git version
+2026-10-02T07:45:39.9261878Z git version 2.55.0
+2026-10-02T07:45:39.9267341Z ##[endgroup]
+2026-10-02T07:45:39.9276735Z Temporarily overriding HOME='/home/runner/work/_temp/c812769c-76eb-4b9d-afa9-59a8bbd9667c' before making global git config changes
+2026-10-02T07:45:39.9280059Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-02T07:45:39.9283700Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification
+2026-10-02T07:45:39.9352321Z Deleting the contents of '/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification'
+2026-10-02T07:45:39.9380704Z ##[group]Initializing the repository
+2026-10-02T07:45:39.9387271Z [command]/usr/bin/git init /home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification
+2026-10-02T07:45:39.9495973Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-02T07:45:39.9498026Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-02T07:45:39.9501924Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-02T07:45:39.9503195Z hint: call:
+2026-10-02T07:45:39.9503877Z hint:
+2026-10-02T07:45:39.9504803Z hint: 	git config --global init.defaultBranch <name>
+2026-10-02T07:45:39.9505874Z hint:
+2026-10-02T07:45:39.9506835Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-02T07:45:39.9508440Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-02T07:45:39.9518275Z hint:
+2026-10-02T07:45:39.9519367Z hint: 	git branch -m <name>
+2026-10-02T07:45:39.9520202Z hint:
+2026-10-02T07:45:39.9521282Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-02T07:45:39.9523835Z Initialized empty Git repository in /home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git/
+2026-10-02T07:45:39.9528071Z [command]/usr/bin/git remote add origin https://github.com/monzia-moodie-repo-projects/genomic-variant-classifier-qualification
+2026-10-02T07:45:40.0797031Z ##[endgroup]
+2026-10-02T07:45:40.0798509Z ##[group]Disabling automatic garbage collection
+2026-10-02T07:45:40.0800198Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-02T07:45:40.0802979Z ##[endgroup]
+2026-10-02T07:45:40.0804385Z ##[group]Setting up auth
+2026-10-02T07:45:40.0805353Z Removing SSH command configuration
+2026-10-02T07:45:40.0806749Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-02T07:45:40.0811379Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-02T07:45:40.0815150Z Removing HTTP extra header
+2026-10-02T07:45:40.0816801Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-02T07:45:40.0822155Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-02T07:45:40.1003575Z Removing includeIf entries pointing to credentials config files
+2026-10-02T07:45:40.1007246Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-02T07:45:40.1042920Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-02T07:45:40.1290093Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-757a4b34-1b9b-4143-9810-c2223aade98b.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-02T07:45:40.1337736Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git.path /home/runner/work/_temp/git-credentials-757a4b34-1b9b-4143-9810-c2223aade98b.config
+2026-10-02T07:45:40.1378585Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-757a4b34-1b9b-4143-9810-c2223aade98b.config
+2026-10-02T07:45:40.1423982Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-757a4b34-1b9b-4143-9810-c2223aade98b.config
+2026-10-02T07:45:40.1478882Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-757a4b34-1b9b-4143-9810-c2223aade98b.config
+2026-10-02T07:45:40.1511549Z ##[endgroup]
+2026-10-02T07:45:40.1513542Z ##[group]Fetching the repository
+2026-10-02T07:45:40.1519981Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin 9e291278a084917e7956c5d4df2dfc04a70bdcd9
+2026-10-02T07:45:41.0984325Z From https://github.com/monzia-moodie-repo-projects/genomic-variant-classifier-qualification
+2026-10-02T07:45:41.0990825Z  * branch            9e291278a084917e7956c5d4df2dfc04a70bdcd9 -> FETCH_HEAD
+2026-10-02T07:45:41.0996096Z [command]/usr/bin/git rev-parse --verify --quiet 9e291278a084917e7956c5d4df2dfc04a70bdcd9^{object}
+2026-10-02T07:45:41.1017060Z 9e291278a084917e7956c5d4df2dfc04a70bdcd9
+2026-10-02T07:45:41.1025297Z ##[endgroup]
+2026-10-02T07:45:41.1027599Z ##[group]Determining the checkout info
+2026-10-02T07:45:41.1030385Z ##[endgroup]
+2026-10-02T07:45:41.1034235Z [command]/usr/bin/git sparse-checkout disable
+2026-10-02T07:45:41.1090625Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-02T07:45:41.1128286Z ##[group]Checking out the ref
+2026-10-02T07:45:41.1133110Z [command]/usr/bin/git checkout --progress --force 9e291278a084917e7956c5d4df2dfc04a70bdcd9
+2026-10-02T07:45:41.4128950Z Note: switching to '9e291278a084917e7956c5d4df2dfc04a70bdcd9'.
+2026-10-02T07:45:41.4131298Z 
+2026-10-02T07:45:41.4132418Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-10-02T07:45:41.4135132Z changes and commit them, and you can discard any commits you make in this
+2026-10-02T07:45:41.4137488Z state without impacting any branches by switching back to a branch.
+2026-10-02T07:45:41.4139750Z 
+2026-10-02T07:45:41.4140962Z If you want to create a new branch to retain commits you create, you may
+2026-10-02T07:45:41.4143676Z do so (now or later) by using -c with the switch command. Example:
+2026-10-02T07:45:41.4145075Z 
+2026-10-02T07:45:41.4146518Z   git switch -c <new-branch-name>
+2026-10-02T07:45:41.4148169Z 
+2026-10-02T07:45:41.4150452Z Or undo this operation with:
+2026-10-02T07:45:41.4152687Z 
+2026-10-02T07:45:41.4153467Z   git switch -
+2026-10-02T07:45:41.4154798Z 
+2026-10-02T07:45:41.4156069Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-10-02T07:45:41.4163252Z 
+2026-10-02T07:45:41.4166196Z HEAD is now at 9e29127 qualification: re-seed from the production tree 7657b38b096f20dbc89bc5af79dc44d7d5a5131d (C2 repairs 3); overlay unchanged, publication enabled
+2026-10-02T07:45:41.4172283Z ##[endgroup]
+2026-10-02T07:45:41.4175249Z [command]/usr/bin/git log -1 --format=%H
+2026-10-02T07:45:41.4203602Z 9e291278a084917e7956c5d4df2dfc04a70bdcd9
+2026-10-02T07:45:41.4217289Z ##[group]Removing auth
+2026-10-02T07:45:41.4218869Z Removing SSH command configuration
+2026-10-02T07:45:41.4223317Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-02T07:45:41.4264051Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-02T07:45:41.4526735Z Removing HTTP extra header
+2026-10-02T07:45:41.4529752Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-02T07:45:41.4582327Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-02T07:45:41.4817287Z Removing includeIf entries pointing to credentials config files
+2026-10-02T07:45:41.4822070Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-02T07:45:41.5067551Z includeif.gitdir:/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git.path
+2026-10-02T07:45:41.5074567Z includeif.gitdir:/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git/worktrees/*.path
+2026-10-02T07:45:41.5081548Z includeif.gitdir:/github/workspace/.git.path
+2026-10-02T07:45:41.5083821Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-10-02T07:45:41.5091665Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git.path
+2026-10-02T07:45:41.5097274Z /home/runner/work/_temp/git-credentials-757a4b34-1b9b-4143-9810-c2223aade98b.config
+2026-10-02T07:45:41.5119717Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git.path /home/runner/work/_temp/git-credentials-757a4b34-1b9b-4143-9810-c2223aade98b.config
+2026-10-02T07:45:41.5132497Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git/worktrees/*.path
+2026-10-02T07:45:41.5138397Z /home/runner/work/_temp/git-credentials-757a4b34-1b9b-4143-9810-c2223aade98b.config
+2026-10-02T07:45:41.5150965Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-757a4b34-1b9b-4143-9810-c2223aade98b.config
+2026-10-02T07:45:41.5164362Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-10-02T07:45:41.5168334Z /github/runner_temp/git-credentials-757a4b34-1b9b-4143-9810-c2223aade98b.config
+2026-10-02T07:45:41.5176995Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-757a4b34-1b9b-4143-9810-c2223aade98b.config
+2026-10-02T07:45:41.5242906Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-10-02T07:45:41.5270366Z /github/runner_temp/git-credentials-757a4b34-1b9b-4143-9810-c2223aade98b.config
+2026-10-02T07:45:41.5283928Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-757a4b34-1b9b-4143-9810-c2223aade98b.config
+2026-10-02T07:45:41.5323638Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-02T07:45:41.5564140Z Removing credentials config '/home/runner/work/_temp/git-credentials-757a4b34-1b9b-4143-9810-c2223aade98b.config'
+2026-10-02T07:45:41.5577607Z ##[endgroup]
+2026-10-02T07:45:41.5903530Z ##[group]Run set -euo pipefail
+2026-10-02T07:45:41.5904380Z [36;1mset -euo pipefail[0m
+2026-10-02T07:45:41.5905878Z [36;1m[[ "$WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::the workflow commit is not a full SHA"; exit 2; }[0m
+2026-10-02T07:45:41.5908343Z [36;1m[ "$(git rev-parse HEAD)" = "$WORKFLOW_SHA" ] || { echo "::error::HEAD is not the workflow commit"; exit 2; }[0m
+2026-10-02T07:45:41.6211919Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-02T07:45:41.6212983Z env:
+2026-10-02T07:45:41.6213614Z   WORKFLOW_SHA: 9e291278a084917e7956c5d4df2dfc04a70bdcd9
+2026-10-02T07:45:41.6214559Z ##[endgroup]
+2026-10-02T07:45:41.6534704Z ##[group]Run actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+2026-10-02T07:45:41.6535953Z with:
+2026-10-02T07:45:41.6536435Z   python-version: 3.12
+2026-10-02T07:45:41.6537029Z   check-latest: false
+2026-10-02T07:45:41.6545400Z   token: ***
+2026-10-02T07:45:41.6545923Z   update-environment: true
+2026-10-02T07:45:41.6546585Z   allow-prereleases: false
+2026-10-02T07:45:41.6547217Z   freethreaded: false
+2026-10-02T07:45:41.6547783Z ##[endgroup]
+2026-10-02T07:45:41.7949402Z ##[group]Installed versions
+2026-10-02T07:45:41.8051522Z Successfully set up CPython (3.12.14)
+2026-10-02T07:45:41.8054014Z ##[endgroup]
+2026-10-02T07:45:41.8286693Z ##[group]Run python -m pip install --require-hashes --no-deps --only-binary=:all: -r requirements-source-monitor.txt
+2026-10-02T07:45:41.8291425Z [36;1mpython -m pip install --require-hashes --no-deps --only-binary=:all: -r requirements-source-monitor.txt[0m
+2026-10-02T07:45:41.8404544Z shell: /usr/bin/bash -e {0}
+2026-10-02T07:45:41.8405485Z env:
+2026-10-02T07:45:41.8406551Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-02T07:45:41.8408780Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-10-02T07:45:41.8411238Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-02T07:45:41.8413201Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-02T07:45:41.8415230Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-02T07:45:41.8417240Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-10-02T07:45:41.8418895Z ##[endgroup]
+2026-10-02T07:45:42.8770537Z Collecting pyyaml==6.0.3 (from -r requirements-source-monitor.txt (line 10))
+2026-10-02T07:45:42.9750364Z   Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (807 kB)
+2026-10-02T07:45:43.0710501Z      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 807.9/807.9 kB 12.7 MB/s  0:00:00
+2026-10-02T07:45:43.1170053Z Installing collected packages: pyyaml
+2026-10-02T07:45:43.1953943Z Successfully installed pyyaml-6.0.3
+2026-10-02T07:45:43.2390376Z ##[group]Run set -euo pipefail
+2026-10-02T07:45:43.2390744Z [36;1mset -euo pipefail[0m
+2026-10-02T07:45:43.2391339Z [36;1m[[ "$SOURCE_RUN_ID" =~ ^[0-9]{1,20}$ && "$SOURCE_ATTEMPT" =~ ^[0-9]{1,4}$ ]] || { echo "::error::source identifiers are not positive integers"; exit 2; }[0m
+2026-10-02T07:45:43.2392177Z [36;1mpython scripts/publish_monitor_receipt.py --event "$EVENT_NAME" --source-run-id "$SOURCE_RUN_ID" \[0m
+2026-10-02T07:45:43.2392980Z [36;1m  --source-attempt "$SOURCE_ATTEMPT" --current-run-id "$CURRENT_RUN_ID" --current-attempt "$CURRENT_ATTEMPT" \[0m
+2026-10-02T07:45:43.2393602Z [36;1m  --workflow-sha "$WORKFLOW_SHA" --outcome outcome.json[0m
+2026-10-02T07:45:43.2456748Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-02T07:45:43.2457106Z env:
+2026-10-02T07:45:43.2457384Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-02T07:45:43.2457854Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-10-02T07:45:43.2458326Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-02T07:45:43.2458726Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-02T07:45:43.2459445Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-02T07:45:43.2459860Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-10-02T07:45:43.2462385Z   GITHUB_TOKEN: ***
+2026-10-02T07:45:43.2499826Z   RECEIPT_B64: eyJwYXlsb2FkIjp7ImNoZWNrZXIiOnsiY29kZV9tYW5pZmVzdF9zaGEyNTYiOiJmNGMyOWE2MTg3ZmE4NTUwNTZlODUwNWRlMjJmOGYxZjcwNjZkZTg5ZDI5MGVjZDI1YzZiYTM4YmQxY2FkNWYzIiwiY29tbWl0IjoiOWUyOTEyNzhhMDg0OTE3ZTc5NTZjNWQ0ZGYyZGZjMDRhNzBiZGNkOSIsInBvbGljeV9zaGEyNTYiOiI3OGRkMTc4MDMxOTQyNTkwZDRlZGYyNjY3ZWVhMzM4YmQ2NWYwZDU5YTVhZDdkMWRkYTUwNThkZjM1MzVhZTFjIn0sImRlY2lzaW9uIjp7ImZsYWdzIjp7ImNsYWltc19yZWNvbmNpbGVkIjp0cnVlLCJjb25maWd1cmF0aW9uX2JvdW5kIjp0cnVlLCJjdXJyZW50X21vbml0b3Jpbmdfb2JsaWdhdGlvbl9zYXRpc2ZpZWQiOnRydWUsImV4ZWN1dGlvbl9hdXRoZW50aWNhdGVkIjp0cnVlLCJvYnNlcnZhdGlvbl9jb21wbGV0ZSI6dHJ1ZSwicmV2aWV3X3JlcXVpcmVkIjp0cnVlfSwicmVhc29ucyI6W10sInJldmlld3MiOlt7ImtpbmQiOiJuZXdlciIsInJhd19wcmVmaXgiOiJyZWxlYXNlLzQuMS4yLyIsInRhcmdldCI6Imdub21hZC1wdWJsaWMtcmVsZWFzZXMifV0sInN0YXR1cyI6ImNvbXBsZXRlZCIsInZlcmlmaWVkIjp0cnVlfSwiZGlhZ25vc3RpY3MiOltdLCJldmFsdWF0aW9uIjp7ImF0dGVtcHQiOjIsImZpbmlzaGVkX2F0IjoiMjAyNi0xMC0wMlQwNzo0NTozMFoiLCJydW5faWQiOjM2OTgwMTM3OTY1LCJzdGFydGVkX2F0IjoiMjAyNi0xMC0wMlQwNzo0NToyOFoifSwiZXZpZGVuY2UiOnsiYXJjaGl2ZV9zaGEyNTYiOiIzNTI3Y2FmMTU3MjNjYjliNjYzMjQxZWQ0YzZjMjQ3MDdhNTM2NzM3ZmU2MGVjZTk1ZGQyN2IwMDE4Y2ZkMTU5IiwiYXJ0aWZhY3RfaWQiOjExMjE0NTEzNTAwLCJyZXBvcnRfc2hhMjU2IjoiOGVkMDQ2ZDBmNzY5Y2RjNmVmYmJiYzUwZjNkZTMxYjY3ZWQwODFhODgyNDVlZTM4NDcxZGVlY2I2NmFiZTQwOSIsInN0YXRlIjoiY29tcGxldGUifSwiaXNzdWVyX3JvbGUiOiJjaGVja2VyIiwic2NoZW1hIjoiZ3ZjLm1vbml0b3ItcmVjZWlwdCIsInNjaGVtYV92ZXJzaW9uIjoxLCJzdWJqZWN0Ijp7ImF0dGVtcHQiOjEsImNvbW1pdCI6IjllMjkxMjc4YTA4NDkxN2U3OTU2YzVkNGRmMmRmYzA0YTcwYmRjZDkiLCJyZXBvc2l0b3J5IjoibW9uemlhLW1vb2RpZS1yZXBvLXByb2plY3RzL2dlbm9taWMtdmFyaWFudC1jbGFzc2lmaWVyLXF1YWxpZmljYXRpb24iLCJyZXBvc2l0b3J5X2lkIjoxMzk4ODEyNDYzLCJydW5faWQiOjM2OTgwMTEzNzcwLCJydW5fbnVtYmVyIjo2LCJ3b3JrZmxvd19pZCI6MzcyMDE2OTkxLCJ3b3JrZmxvd19wYXRoIjoiLmdpdGh1Yi93b3JrZmxvd3Mvc291cmNlX21vbml0b3IueW1sIn19LCJyZWNlaXB0X3NoYTI1NiI6IjVmNmU3ZDU2ZTc3MDdkMGNhYjAwZDgyODg2OWUxODI1N2M0OTU1MDE3ZGI5MjQyODAyOWY5MTljZmE5MzhhNjkifQ==
+2026-10-02T07:45:43.2537481Z   EVENT_NAME: workflow_run
+2026-10-02T07:45:43.2537735Z   SOURCE_RUN_ID: 36980113770
+2026-10-02T07:45:43.2537989Z   SOURCE_ATTEMPT: 1
+2026-10-02T07:45:43.2538216Z   CURRENT_RUN_ID: 36980137965
+2026-10-02T07:45:43.2538457Z   CURRENT_ATTEMPT: 2
+2026-10-02T07:45:43.2538736Z   WORKFLOW_SHA: 9e291278a084917e7956c5d4df2dfc04a70bdcd9
+2026-10-02T07:45:43.2539170Z ##[endgroup]
+2026-10-02T07:45:47.1792323Z receipt: issuer checker event kind review_required
+2026-10-02T07:45:47.1794528Z history: prior_dispatch -- run 36980137965 attempt 1: the journal shows a POST may have been issued for this delivery
+2026-10-02T07:45:47.1798246Z C2-OUTCOME {"action":"acknowledged","delivery_id":"f33a878758b8bfe9b9a830bead00c0d9fbc7e96722871617f6e126673dcaac3c","post_issued":false,"reason":"matching_comment","schema":"gvc.c2-delivery-outcome","schema_version":1}
+2026-10-02T07:45:47.1819902Z RESULT acknowledged matching_comment comment 5947624462 age None
+2026-10-02T07:45:47.2087317Z ##[group]Run actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+2026-10-02T07:45:47.2087785Z with:
+2026-10-02T07:45:47.2088008Z   name: c2-delivery-outcome-attempt-2
+2026-10-02T07:45:47.2088308Z   path: outcome.json
+2026-10-02T07:45:47.2088532Z   if-no-files-found: warn
+2026-10-02T07:45:47.2088768Z   retention-days: 90
+2026-10-02T07:45:47.2089271Z   compression-level: 6
+2026-10-02T07:45:47.2089564Z   overwrite: false
+2026-10-02T07:45:47.2089797Z   include-hidden-files: false
+2026-10-02T07:45:47.2090040Z   archive: true
+2026-10-02T07:45:47.2090238Z env:
+2026-10-02T07:45:47.2090501Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-02T07:45:47.2090954Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-10-02T07:45:47.2091407Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-02T07:45:47.2091815Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-02T07:45:47.2092255Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-02T07:45:47.2092665Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-10-02T07:45:47.2093008Z ##[endgroup]
+2026-10-02T07:45:47.3591563Z With the provided path, there will be 1 file uploaded
+2026-10-02T07:45:47.3629718Z Artifact name is valid!
+2026-10-02T07:45:47.3631050Z Root directory input is valid!
+2026-10-02T07:45:47.7297067Z Uploading artifact: c2-delivery-outcome-attempt-2.zip
+2026-10-02T07:45:47.7366994Z Beginning upload of artifact content to blob storage
+2026-10-02T07:45:48.0357588Z Uploaded bytes 300
+2026-10-02T07:45:48.1090223Z Finished uploading artifact content to blob storage!
+2026-10-02T07:45:48.1091574Z SHA256 digest of uploaded artifact is 56722424af2161137586eeedd2795d04a8c3539951281a0ef3ce42db3a13ebcf
+2026-10-02T07:45:48.1092599Z Finalizing artifact upload
+2026-10-02T07:45:48.5280020Z Artifact c2-delivery-outcome-attempt-2 successfully finalized. Artifact ID 11214603619
+2026-10-02T07:45:48.5281505Z Artifact c2-delivery-outcome-attempt-2 has been successfully uploaded! Final size is 300 bytes. Artifact ID is 11214603619
+2026-10-02T07:45:48.5298671Z Artifact download URL: https://github.com/monzia-moodie-repo-projects/genomic-variant-classifier-qualification/actions/runs/36980137965/artifacts/11214603619
+2026-10-02T07:45:48.5475195Z Post job cleanup.
+2026-10-02T07:45:48.6926714Z Post job cleanup.
+2026-10-02T07:45:48.8029382Z [command]/usr/bin/git version
+2026-10-02T07:45:48.8087254Z git version 2.55.0
+2026-10-02T07:45:48.8181818Z Temporarily overriding HOME='/home/runner/work/_temp/a0b5a37e-2483-44b6-a216-a1e388979988' before making global git config changes
+2026-10-02T07:45:48.8198374Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-02T07:45:48.8213989Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification
+2026-10-02T07:45:48.8259694Z Removing SSH command configuration
+2026-10-02T07:45:48.8263968Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-02T07:45:48.8279399Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-02T07:45:48.8677144Z Removing HTTP extra header
+2026-10-02T07:45:48.8699294Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-02T07:45:48.8770885Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-02T07:45:48.9151677Z Removing includeIf entries pointing to credentials config files
+2026-10-02T07:45:48.9177393Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-02T07:45:48.9202191Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-02T07:45:48.9871056Z Cleaning up orphan processes

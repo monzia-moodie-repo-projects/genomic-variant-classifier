@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **7,400 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **7,419 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -396,6 +396,7 @@ exists to end.
   unsupported or substring-masked claim is refused). Merged via #20; verified on `main` by source-monitor
   run 36095779494 (three-layer check, 20 of 20). #17 closed 2026-09-25; successors #21 (4.1.2 constraint
   qualification) and #22 (constraint adoption for cohort v2), next review 2026-09-28.
+  `docs/measurements/DECISION_2026-09-24_gnomad-4.1.1-approval.md`. Suite 6,921 -> 6,963.
 - **2026-09-26 -- approval declaration installed (change A; owner rulings 2026-09-25/26).** The
   manifest (schema version 2) SELECTS a never-edited approval record by path and SHA-256; the
   record holds the 4.1.1 monitoring-baseline approval (scope `release_monitoring_baseline`,
@@ -461,11 +462,16 @@ exists to end.
   job list, a missing or non-terminal step) and malformed journals (mistyped fields, more than one intent or outcome,
   wrong order, conflicting or invalid keys) are UNKNOWN, never no-dispatch; one action vocabulary is owned by the
   protocol. Suite 7,383 -> 7,400.
+- **2026-10-02 -- C2 CLOSED: isolated live qualification preserved.** Two qualification rounds -- the second on the final
+  runtime -- passed all five acceptance exercises and were independently reconciled; the exact evidence is preserved
+  under records/verification/source-monitor-c2/ (typed manifest, verified offline by
+  tests/unit/test_c2_qualification_record.py). Production cutover preceded isolated live qualification. This is a
+  process deviation. Subsequent isolated qualification supplies compensating functional evidence. Narrative:
+  docs/validated/C2_SOURCE_MONITOR_QUALIFICATION_2026-10-02.md. Suite 7,400 -> 7,419.
 - **SCHEDULED -- legacy-roadmap carry-forward audit.** 47 of the 55 item identifiers in
   docs/archive/legacy/ROADMAP_2026-03_to_2026-08-22.md are not mentioned in this roadmap (measured 2026-09-28).
   Absence is not resolution: SMOKE-1 (tests/smoke_test_imports.py is never collected and no workflow runs it) is
   verified still open. Each identifier needs its last recorded status and a check against current code.
-  `docs/measurements/DECISION_2026-09-24_gnomad-4.1.1-approval.md`. Suite 6,921 -> 6,963.
 
 - **2026-09-23 -- test-isolation prerequisite.** The suite no longer writes into
   the repository. Measured before: a full run left 38 files (CatBoost training

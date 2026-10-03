@@ -1,0 +1,26 @@
+{
+  "flags": {
+    "claims_reconciled": true,
+    "configuration_bound": true,
+    "current_monitoring_obligation_satisfied": true,
+    "execution_authenticated": true,
+    "observation_complete": true,
+    "review_required": true
+  },
+  "problems": {
+    "claims_reconciled": [],
+    "configuration_bound": [],
+    "current_monitoring_obligation_satisfied": [],
+    "execution_authenticated": [],
+    "observation_complete": [],
+    "review_required": []
+  },
+  "review_items": [
+    "gnomad-public-releases: release prefix \"release/4.1.2/\" is newer than the approved 4.1.1"
+  ],
+  "run_attempt": 1,
+  "run_id": 36890852189,
+  "schema": "gvc.monitor-run-verdict",
+  "schema_version": 1,
+  "verified": true
+}

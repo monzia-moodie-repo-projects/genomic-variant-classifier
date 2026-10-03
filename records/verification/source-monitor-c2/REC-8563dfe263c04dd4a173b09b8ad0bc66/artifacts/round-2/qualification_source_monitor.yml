@@ -1,0 +1,104 @@
+# QUALIFICATION FIXTURE PRODUCER (owner rulings 2026-09-30 / 2026-10-01 / 2026-10-01b). NOT PRODUCTION.
+#
+# The same path and the same name ("source-monitor") as production's monitor, so the UNCHANGED verifier/publisher workflow
+# (source_monitor_verify.yml) is triggered by its completion through workflow_run -- the NORMAL automatic path. It runs
+# the REAL monitor, then qualification/fixture.py transforms the report BEFORE upload for ONE enumerated scenario:
+#   normal            positive control (unchanged)
+#   claims-disagree   only exit_code replaced (test 2)
+#   acquisition-limit whitespace-padded, uploaded with compression-level 0 (test 3, "acquisition-budget refusal")
+# It holds NO issue permission, reads NO secret, and ends with the monitor's real process exit status.
+name: source-monitor
+run-name: qualification ${{ inputs.scenario }} ${{ inputs.qualification_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: "Qualification scenario"
+        required: true
+        type: choice
+        options: [normal, claims-disagree, acquisition-limit]
+      qualification_id:
+        description: "Correlation id: Q- followed by 16 lowercase hex digits (selects this exercise's runs unambiguously)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: source-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2, node24
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0, node24
+        with:
+          python-version: "3.12"
+
+      - name: Install the monitor's hash-locked dependency
+        run: |
+          python -m pip install --require-hashes --no-deps --only-binary=:all: -r requirements-source-monitor.txt
+
+      - name: Run the source monitor
+        id: monitor
+        shell: bash
+        run: |
+          set +e
+          mkdir -p "$RUNNER_TEMP/original"
+          PYTHONPATH=src python -m genomic_variant_classifier.source_monitor.run_monitor --report "$RUNNER_TEMP/original/report.json"
+          status=$?
+          echo "exit_status=$status" >> "$GITHUB_OUTPUT"
+          echo "the monitor's process exit status: $status"
+
+      - name: Build the qualification fixture
+        shell: bash
+        env:
+          SCENARIO: ${{ inputs.scenario }}
+          QUALIFICATION_ID: ${{ inputs.qualification_id }}
+          MONITOR_EXIT_STATUS: ${{ steps.monitor.outputs.exit_status }}
+        run: |
+          set -euo pipefail
+          [[ "$MONITOR_EXIT_STATUS" =~ ^[0-9]{1,3}$ ]] || { echo "::error::no monitor exit status"; exit 2; }
+          [[ "$QUALIFICATION_ID" =~ ^Q-[0-9a-f]{16}$ ]] || { echo "::error::invalid qualification id"; exit 2; }
+          python qualification/fixture.py --scenario "$SCENARIO" --input "$RUNNER_TEMP/original/report.json" \
+            --monitor-exit-status "$MONITOR_EXIT_STATUS" --qualification-id "$QUALIFICATION_ID" --output-dir "$RUNNER_TEMP/fixture"
+
+      - name: Upload the report the verifier will select
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0, node24
+        with:
+          name: source-monitor-report
+          path: ${{ runner.temp }}/fixture/report.json
+          compression-level: ${{ inputs.scenario == 'acquisition-limit' && '0' || '6' }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload the original report (the recorder's paired baseline)
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0, node24
+        with:
+          name: qualification-original-report
+          path: ${{ runner.temp }}/original/report.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload the fixture record
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0, node24
+        with:
+          name: qualification-fixture-record
+          path: ${{ runner.temp }}/fixture/fixture-record.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: End with the monitor's real exit status
+        shell: bash
+        env:
+          MONITOR_EXIT_STATUS: ${{ steps.monitor.outputs.exit_status }}
+        run: |
+          exit "$MONITOR_EXIT_STATUS"

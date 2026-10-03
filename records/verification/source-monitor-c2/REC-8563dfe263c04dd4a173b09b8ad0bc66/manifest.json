@@ -1,0 +1,453 @@
+{
+  "as_of": "2026-10-02T18:43:21Z",
+  "cases": [
+    {
+      "evidence": [
+        "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_acquisition-limit_36897511247.zip",
+        "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_acquisition-limit_36981974419.zip"
+      ],
+      "name": "acquisition-limit",
+      "result": "Checker-issued unavailable receipt with the byte-cap diagnostic; comments 5936567271 and 5947871236.",
+      "round": "round-1"
+    },
+    {
+      "evidence": [
+        "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_claims-disagree_36897240734.zip",
+        "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_claims-disagree_36981228506.zip"
+      ],
+      "name": "claims-disagree",
+      "result": "Verified False with exactly claims.disagree; paired baseline on the identical observation reconciled (36897240734).",
+      "round": "round-1"
+    },
+    {
+      "evidence": [
+        "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_job_110486846547_api.txt",
+        "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_job_110486846547_runview.txt",
+        "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_requal_publish_110752945231.txt",
+        "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_rerun_36897111869_attempt2.log"
+      ],
+      "name": "duplicate-suppression",
+      "result": "No duplicate POST in either re-run. The first (36897111869) EXPOSED the artifact-history defect (history_unknown); after C2 repairs 3 the re-run of 36980137965 read prior_dispatch from attempt 1's journal.",
+      "round": "round-1"
+    },
+    {
+      "evidence": [
+        "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_manual_publish_110763918787.txt"
+      ],
+      "name": "manual-preview",
+      "result": "Preview manual_verification; no intent line; no POST (verifier run 36983713504).",
+      "round": "round-1"
+    },
+    {
+      "evidence": [
+        "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_normal_36897075694.zip",
+        "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_normal_36980113770.zip"
+      ],
+      "name": "normal",
+      "result": "Verified; one comment per delivery key (5936502650 on e6349bef; 5947624462 on 0ba9e002); receipts reconciled at the time.",
+      "round": "round-1"
+    },
+    {
+      "evidence": [
+        "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-2/qualv2_acquisition-limit_Q-f71fed6ecf3c501b.zip"
+      ],
+      "name": "acquisition-limit",
+      "result": "Q-f71fed6ecf3c501b: unavailable with the byte-cap diagnostic; selected archive 2,097,288 bytes; comment 5958506130.",
+      "round": "round-2"
+    },
+    {
+      "evidence": [
+        "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-2/qualv2_claims-disagree_Q-ad5ef9dd4492c073.zip"
+      ],
+      "name": "claims-disagree",
+      "result": "Q-ad5ef9dd4492c073: verified False with exactly claims.disagree; paired baseline isolates the mutation; comment 5958476202.",
+      "round": "round-2"
+    },
+    {
+      "evidence": [
+        "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-2/qualv2_rerun_37045512300_20261002T181408Z.zip"
+      ],
+      "name": "duplicate-suppression",
+      "result": "Attempt 2 of verifier 37045512300: prior_dispatch from attempt 1's journal; matching_comment 5958425338; no intent; no POST.",
+      "round": "round-2"
+    },
+    {
+      "evidence": [
+        "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-2/qualv2_manual_37045479719_20261002T181457Z.zip"
+      ],
+      "name": "manual-preview",
+      "result": "Preview manual_verification; delivery key empty; no intent; no POST.",
+      "round": "round-2"
+    },
+    {
+      "evidence": [
+        "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-2/qualv2_normal_Q-ab4061a358cb2af1.zip"
+      ],
+      "name": "normal",
+      "result": "Q-ab4061a358cb2af1: verified; intent then outcome; comment 5958425338; receipt accepted against independent bindings; transport digests equal GitHub's listing.",
+      "round": "round-2"
+    }
+  ],
+  "defects": [
+    {
+      "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "name": "qualification_job_110486846547_log.txt",
+      "note": "A FAILED acquisition: gh api refused to write a job log containing terminal escape sequences without --allow-escape-sequences; the capture is empty. The re-capture is qualification_job_110486846547_api.txt.",
+      "round": "round-1",
+      "size_bytes": 0
+    }
+  ],
+  "deviation": "Production cutover preceded isolated live qualification. This is a process deviation. Subsequent isolated qualification supplies compensating functional evidence.",
+  "disclosure_basis": "Scanned 2026-10-02: zero tokens, authorization values, signed-URL parameters, storage hosts or private keys in either round; one e-mail address only in run.json head_commit author and committer fields, already present 1,896 times in this public repository's commit history.",
+  "files": [
+    {
+      "canonical_path": "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_36890889963_outcome.json",
+      "content_sha256": "331c7eaa95808fd8be188ef7e1c16706083a08a010265d5321f1717440e855f4",
+      "disclosure": "public_verbatim",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool"
+      ],
+      "retention": "permanent_evidence",
+      "round": "round-1",
+      "size_bytes": 155
+    },
+    {
+      "canonical_path": "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_36890889963_receipt.json",
+      "content_sha256": "5ca65f4ce47054386f0eb2a8f761f52b27491f29149acd5a13fe55889a185e63",
+      "disclosure": "public_verbatim",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool"
+      ],
+      "retention": "permanent_evidence",
+      "round": "round-1",
+      "size_bytes": 1420
+    },
+    {
+      "canonical_path": "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_36890889963_verdict.json",
+      "content_sha256": "43ceedca86b37fbde74739c7b470fd077a04a3207d324cc2347aad4ad145b763",
+      "disclosure": "public_verbatim",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool"
+      ],
+      "retention": "permanent_evidence",
+      "round": "round-1",
+      "size_bytes": 711
+    },
+    {
+      "canonical_path": "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_acquisition-limit_36897511247.zip",
+      "content_sha256": "948f37918cb381ea2d185370af62fc5148465b90045f4b351fb47feb098779c7",
+      "disclosure": "public_verbatim",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool"
+      ],
+      "retention": "permanent_evidence",
+      "round": "round-1",
+      "size_bytes": 28363
+    },
+    {
+      "canonical_path": "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_acquisition-limit_36981974419.zip",
+      "content_sha256": "3b62ecb95e2a92fcf8386c9cbd67c9834e8ef686b595cf848e531d7ae09a5f27",
+      "disclosure": "public_verbatim",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool"
+      ],
+      "retention": "permanent_evidence",
+      "round": "round-1",
+      "size_bytes": 29355
+    },
+    {
+      "canonical_path": "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_claims-disagree_36897240734.zip",
+      "content_sha256": "45015e41974befaaef4c1f43d76836df3b41573bf81895d0a829e3e0418f1dab",
+      "disclosure": "public_verbatim",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool"
+      ],
+      "retention": "permanent_evidence",
+      "round": "round-1",
+      "size_bytes": 26049
+    },
+    {
+      "canonical_path": "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_claims-disagree_36981228506.zip",
+      "content_sha256": "3bb28a4b8519da75d6968b618f7313ce6dee96979909843403823c4703a767d9",
+      "disclosure": "public_verbatim",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool"
+      ],
+      "retention": "permanent_evidence",
+      "round": "round-1",
+      "size_bytes": 27116
+    },
+    {
+      "canonical_path": "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_job_110486846547_api.txt",
+      "content_sha256": "f06fe449a119bd9ddfa967606783ffe2c5977845f8fa8337830b1fab74ad3b96",
+      "disclosure": "public_verbatim",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool"
+      ],
+      "retention": "permanent_evidence",
+      "round": "round-1",
+      "size_bytes": 26309
+    },
+    {
+      "canonical_path": "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_job_110486846547_runview.txt",
+      "content_sha256": "ce9f0576b575b6be506655388ee5a670af250319dcc566d0d5677d1d6527f0a1",
+      "disclosure": "public_verbatim",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool"
+      ],
+      "retention": "permanent_evidence",
+      "round": "round-1",
+      "size_bytes": 37286
+    },
+    {
+      "canonical_path": "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_manual_publish_110763918787.txt",
+      "content_sha256": "128480d6002164f077c47b681c3125a34c92ed6e88e3c589fe49bb77194cef7f",
+      "disclosure": "public_verbatim",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool"
+      ],
+      "retention": "permanent_evidence",
+      "round": "round-1",
+      "size_bytes": 26438
+    },
+    {
+      "canonical_path": "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_normal_36897075694.zip",
+      "content_sha256": "f78f7eb9e2d1514353ac9d247294c3d79050e8efdc4291720c54352c180e6cb1",
+      "disclosure": "public_verbatim",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool"
+      ],
+      "retention": "permanent_evidence",
+      "round": "round-1",
+      "size_bytes": 25293
+    },
+    {
+      "canonical_path": "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_normal_36980113770.zip",
+      "content_sha256": "43bba1f60a025a3b5c4f4ba8f9c49a82a75446893c60d2281c1452b8a72e04c4",
+      "disclosure": "public_verbatim",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool"
+      ],
+      "retention": "permanent_evidence",
+      "round": "round-1",
+      "size_bytes": 26356
+    },
+    {
+      "canonical_path": "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_requal_publish_110752945231.txt",
+      "content_sha256": "13436973f538cd5079167d89aae52d65733c8e2cf7342e801e22f4895150032c",
+      "disclosure": "public_verbatim",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool"
+      ],
+      "retention": "permanent_evidence",
+      "round": "round-1",
+      "size_bytes": 26655
+    },
+    {
+      "canonical_path": "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_rerun_36897111869_attempt2.log",
+      "content_sha256": "83966c95622446b63ebd0ca0e79016a74ff5ec532b591afa0f3a56608f7e8428",
+      "disclosure": "public_verbatim",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool"
+      ],
+      "retention": "permanent_evidence",
+      "round": "round-1",
+      "size_bytes": 87998
+    },
+    {
+      "canonical_path": "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-1/qualification_verify_36846920781_failed.log",
+      "content_sha256": "e255211028adeff997acffad228e120ce0692e049a70473484181b5c8b66a2ea",
+      "disclosure": "public_verbatim",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool"
+      ],
+      "retention": "permanent_evidence",
+      "round": "round-1",
+      "size_bytes": 13343
+    },
+    {
+      "canonical_path": "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-2/qualification_deployment_enabled.json",
+      "content_sha256": "10ffe3a43b7acec1358e310086850f7d7b80e1cc6b7b4bf1bf9675c8a4845858",
+      "disclosure": "public_verbatim",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "imported_from_staging"
+      ],
+      "retention": "permanent_evidence",
+      "round": "round-2",
+      "size_bytes": 532
+    },
+    {
+      "canonical_path": "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-2/qualification_fixture.py",
+      "content_sha256": "6a3fe3fd70753628ad9c60702f1ae4c8e730f99ee9b3a1cf72c766b4c6b7302d",
+      "disclosure": "public_verbatim",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "imported_from_staging"
+      ],
+      "retention": "permanent_evidence",
+      "round": "round-2",
+      "size_bytes": 6798
+    },
+    {
+      "canonical_path": "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-2/qualification_source_monitor.yml",
+      "content_sha256": "fa38523beaa0c2ff5fa78005f29ceb0c06d598df6ca2d1578cd2c461ef345be3",
+      "disclosure": "public_verbatim",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "imported_from_staging"
+      ],
+      "retention": "permanent_evidence",
+      "round": "round-2",
+      "size_bytes": 4423
+    },
+    {
+      "canonical_path": "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-2/qualification_test_fixture.py",
+      "content_sha256": "087db5b9a9fb529d748c5242a088cba9471c8f85a8480df7b865b9307a35da62",
+      "disclosure": "public_verbatim",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "imported_from_staging"
+      ],
+      "retention": "permanent_evidence",
+      "round": "round-2",
+      "size_bytes": 4850
+    },
+    {
+      "canonical_path": "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-2/qualv2_acquisition-limit_Q-f71fed6ecf3c501b.zip",
+      "content_sha256": "7bc3f46a8f74cebe2131f1fd82aa61ded79c2beb81c540c8c5dbba8db46c1c03",
+      "disclosure": "public_verbatim",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool"
+      ],
+      "retention": "permanent_evidence",
+      "round": "round-2",
+      "size_bytes": 46708
+    },
+    {
+      "canonical_path": "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-2/qualv2_claims-disagree_Q-ad5ef9dd4492c073.zip",
+      "content_sha256": "b2ffc20d3d300b136fe66ca6a79b8419e8c3dc4448120894aad93f6ee0062791",
+      "disclosure": "public_verbatim",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool"
+      ],
+      "retention": "permanent_evidence",
+      "round": "round-2",
+      "size_bytes": 44533
+    },
+    {
+      "canonical_path": "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-2/qualv2_manual_37045479719_20261002T181457Z.zip",
+      "content_sha256": "f9ba48d3a8d6b2fdf0d0e3c33030c146268940f4b4e1e1607b0cb28bae9dc516",
+      "disclosure": "public_verbatim",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool"
+      ],
+      "retention": "permanent_evidence",
+      "round": "round-2",
+      "size_bytes": 25289
+    },
+    {
+      "canonical_path": "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-2/qualv2_normal_Q-ab4061a358cb2af1.zip",
+      "content_sha256": "acfa2a301242f7917d3f1ba5f61aea1f6abf08fe5754052836fb839d9223d350",
+      "disclosure": "public_verbatim",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool"
+      ],
+      "retention": "permanent_evidence",
+      "round": "round-2",
+      "size_bytes": 43346
+    },
+    {
+      "canonical_path": "records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/artifacts/round-2/qualv2_rerun_37045512300_20261002T181408Z.zip",
+      "content_sha256": "b02d7ca0e3494a497600628a2122f1eb534dc94c0c71ae439ee1afeea2b2b084",
+      "disclosure": "public_verbatim",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool"
+      ],
+      "retention": "permanent_evidence",
+      "round": "round-2",
+      "size_bytes": 40969
+    }
+  ],
+  "record_id": "REC-8563dfe263c04dd4a173b09b8ad0bc66",
+  "role": "verification_result",
+  "rounds": [
+    {
+      "checker_identities": [
+        {
+          "code_manifest_sha256": "031718d513d00b630c8f62db48bf4e5a121f7854eb06a269e585bc567a081fa4",
+          "policy_sha256": "78dd178031942590d4edf2667eea338bd65f0d59a5ad7d1dda5058df3535ae1c"
+        },
+        {
+          "code_manifest_sha256": "031718d513d00b630c8f62db48bf4e5a121f7854eb06a269e585bc567a081fa4",
+          "policy_sha256": "f0a4d73a31a2f6f063eaecc70cefb2197274e4b2e9ceaa33e404c170c71f1f21"
+        },
+        {
+          "code_manifest_sha256": "f4c29a6187fa855056e8505de22f8f1f7066de89d290ecd25c6ba38bd1cad5f3",
+          "policy_sha256": "78dd178031942590d4edf2667eea338bd65f0d59a5ad7d1dda5058df3535ae1c"
+        }
+      ],
+      "description": "Isolated qualification on the pre-final runtimes, 2026-10-01 to 2026-10-02 morning (C2 repairs 1 to 3).",
+      "limitations": [
+        "Artifacts were extracted by gh run download, not preserved as transport archives: their transport digests cannot be recomputed.",
+        "Runs were selected by recency, without a correlation identifier.",
+        "The private qualification repository's live state was not re-authenticated by the reviewer (owner review limit 1).",
+        "Configuration replay used production snapshot bytes with the recorded qualification identity (owner review limit 3)."
+      ],
+      "production_trees": [
+        "632af4d169b8023b21b13024f12d1dd12bd4c93d",
+        "115b7a861ecdcb05517d883891dbd474a0799185",
+        "7657b38b096f20dbc89bc5af79dc44d7d5a5131d"
+      ],
+      "qualification_trees": [
+        "89d77418388d73856f73dcbee6dcad16f4714efd",
+        "ffff0e1637e92a410498a11b41ee1df133317845",
+        "e6349beffb3a864ab672ec1df1d244a09d340078",
+        "0ba9e0024503cc65dbffbcb9fd3618cebae288c7"
+      ],
+      "round": "round-1"
+    },
+    {
+      "checker_identities": [
+        {
+          "code_manifest_sha256": "ee3ff6561a8d8e71e5e9ec23dd790e082fa68426f22fbbd9a004c8be29bf3b0c",
+          "policy_sha256": "78dd178031942590d4edf2667eea338bd65f0d59a5ad7d1dda5058df3535ae1c"
+        }
+      ],
+      "description": "Isolated qualification on the FINAL runtime, 2026-10-02 18:09-18:15 UTC, collector v2 with correlation identifiers.",
+      "limitations": [
+        "The private qualification repository's tree is not in this public repository; its deployment configuration and overlay files are preserved here.",
+        "Operational qualification does not establish biological validity, calibration on real cohorts or clinical utility."
+      ],
+      "production_trees": [
+        "254c506f43b0e1c3a9280b68a91d6b77bfbdd15a"
+      ],
+      "qualification_trees": [
+        "68821104660107a0fd31508ba33c64bf849db8c4"
+      ],
+      "round": "round-2"
+    }
+  ],
+  "schema": "gvc.source-monitor-c2-qualification",
+  "schema_version": 1
+}

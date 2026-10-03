@@ -287,3 +287,7 @@ htmlcov/
 # covers them all and no generic name such as result_*.json or env.txt is shadowed
 # at the repository root.
 diagnostics_out/
+
+# C2 QUALIFICATION EVIDENCE (2026-10-02): preserved artifacts are EVIDENCE, whatever their extension -- `*.log`
+# above would otherwise silently drop captured job logs from the record (measured: 2 of 24 files). Narrow: artifacts only.
+!records/verification/source-monitor-c2/**/artifacts/**

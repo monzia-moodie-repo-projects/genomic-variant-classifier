@@ -1,3 +1,36 @@
+## 2026-10-02 (C2 closed) -- the isolated live qualification, preserved as a verification record
+
+C2 closes against its finite acceptance gates (C2 review, 2026-09-29). Production cutover preceded isolated live
+qualification. This is a process deviation. Subsequent isolated qualification supplies compensating functional evidence.
+
+RECORD: records/verification/source-monitor-c2/REC-8563dfe263c04dd4a173b09b8ad0bc66/ (role VERIFICATION_RESULT, minted
+once): 24 files, exact bytes, in two rounds -- round 1 on the pre-final runtimes (C2 repairs 1 to 3), round 2 on the final
+runtime (production tree 254c506f) with correlation identifiers and transport archives preserved before extraction.
+Each round passed all five acceptance exercises (normal, claims-disagree, acquisition-limit, duplicate-suppression,
+manual-preview). One acquisition failure (an empty capture) is recorded as a defect note, never as evidence.
+
+NEW OWNER: repository_records/qualification_manifest.py (schema gvc.source-monitor-c2-qualification v1). It composes
+RecordIdentity and RecordDisposition; parses strictly (duplicate keys, floats and constants refused) and requires its
+own deterministic rendering; integer fields are exact (the installation-attestation owner was measured on 2026-09-08
+to accept True and 1.0 for integers); the required cases come from the acceptance contract, never from the manifest;
+each round records the checker identities computed independently from its trees, and stage 2 binds the archived
+receipts to those -- not to today's tree (which would break the record on any future checker change) and not to the
+receipts' own blocks (self-binding).
+
+TESTS: tests/unit/test_c2_qualification_record.py (+19 by node identity; 7,419): stage 1 (inventory and exact bytes),
+the plumbing guards, twelve negative controls, and the stage-2 semantic replay of every archived receipt, delivery and
+journal. Mutations: the deviation, per-round case, round-trip and required-cases guarantees and the exact-integer owner
+check are each load-bearing (a duplicate parse-level integer check was removed; the type owns it).
+
+PLUMBING DEFECTS CAUGHT BEFORE COMMIT: .gitignore `*.log` would have silently excluded two evidence logs (fixed by a
+narrow negation for qualification artifacts, after the rule); preserved artifacts are `-text` (CRLF bytes measured to
+stay unconverted under core.autocrlf false, true and input; a control outside artifacts/ is converted).
+
+ROADMAP REPAIR: the 2026-09-24 gnomAD approval entry's final line (its decision document and suite delta) had been left
+behind as an orphan when the entry was later amended; it is restored to its entry.
+
+Narrative: docs/validated/C2_SOURCE_MONITOR_QUALIFICATION_2026-10-02.md.
+
 ## 2026-10-02 (C2 repairs 4) -- the history reader is conservative where it claimed to be
 
 Owner review of 2026-10-02 (counterexamples executed against 7657b38b and REPRODUCED here before the repair): an earlier
