@@ -1,0 +1,19 @@
+{
+  "schema": "gvc.source-monitor-deployment",
+  "schema_version": 1,
+  "repository": "monzia-moodie-repo-projects/genomic-variant-classifier-qualification",
+  "repository_id": 1398812463,
+  "source_workflow": {
+    "path": ".github/workflows/source_monitor.yml",
+    "id": 372016991,
+    "branch": "main",
+    "events": ["workflow_dispatch"]
+  },
+  "destination": {
+    "issue_number": 1,
+    "issue_id": 5654334660,
+    "label": "c2-qualification-destination"
+  },
+  "trusted_author_id": 41898282,
+  "publication_enabled": true
+}

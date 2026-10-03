@@ -1,0 +1,93 @@
+Verify the source-monitor run	Identify and fetch the run's commit	∩╗┐2026-10-01T10:05:39.1282667Z ##[group]Run set -euo pipefail
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1283128Z ^[[36;1mset -euo pipefail^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1283452Z ^[[36;1mif [ "$EVENT_NAME" = "workflow_dispatch" ]; then^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1283869Z ^[[36;1m  run_id="$INPUT_RUN_ID"; run_attempt="$INPUT_RUN_ATTEMPT"^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1284492Z ^[[36;1m  [[ "$run_id" =~ ^[0-9]{1,20}$ && "$run_attempt" =~ ^[0-9]{1,4}$ ]] || { echo "::error::run_id and run_attempt must be positive integers"; exit 2; }^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1285251Z ^[[36;1m  head_sha="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq .head_sha)"^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1285719Z ^[[36;1melse^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1286123Z ^[[36;1m  run_id="$EVENT_RUN_ID"; run_attempt="$EVENT_RUN_ATTEMPT"; head_sha="$EVENT_HEAD_SHA"^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1286547Z ^[[36;1mfi^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1286968Z ^[[36;1m[[ "$head_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::the run's commit is not a full SHA: $head_sha"; exit 2; }^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1287443Z ^[[36;1mgit --version^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1287808Z ^[[36;1mgit fetch --no-tags --depth=1 origin "$head_sha"^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1288275Z ^[[36;1m{ echo "run_id=$run_id"; echo "run_attempt=$run_attempt"; } >> "$GITHUB_OUTPUT"^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1363698Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1364117Z env:
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1364417Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1364874Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1365344Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1365736Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1366127Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1366517Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1369279Z   GH_TOKEN: ***
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1369527Z   EVENT_NAME: workflow_run
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1369790Z   EVENT_RUN_ID: 36846886992
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1370096Z   EVENT_RUN_ATTEMPT: 1
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1370442Z   EVENT_HEAD_SHA: f9ad6542b08d1c1c2306374daaf53b354698202b
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1370783Z   INPUT_RUN_ID: 
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1371016Z   INPUT_RUN_ATTEMPT: 
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1371265Z ##[endgroup]
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.1492805Z git version 2.55.0
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.2925430Z fatal: could not read Username for 'https://github.com': No such device or address
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T10:05:39.2962650Z ##[error]Process completed with exit code 128.
+Verify the source-monitor run	Archive the verdict and receipt	∩╗┐2026-10-01T10:05:39.3332494Z ##[group]Run actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T10:05:39.3332982Z with:
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T10:05:39.3333246Z   name: source-monitor-verdict-attempt-1
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T10:05:39.3333596Z   path: verdict.json
+Verify the source-monitor run	Archive the verdict and receipt	receipt.json
+Verify the source-monitor run	Archive the verdict and receipt	
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T10:05:39.3333921Z   if-no-files-found: error
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T10:05:39.3334213Z   retention-days: 90
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T10:05:39.3334478Z   compression-level: 6
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T10:05:39.3334738Z   overwrite: false
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T10:05:39.3334980Z   include-hidden-files: false
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T10:05:39.3335272Z   archive: true
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T10:05:39.3335516Z env:
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T10:05:39.3335795Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T10:05:39.3336273Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T10:05:39.3336716Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T10:05:39.3337112Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T10:05:39.3337505Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T10:05:39.3337956Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T10:05:39.3338298Z ##[endgroup]
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T10:05:39.5063426Z Multiple search paths detected. Calculating the least common ancestor of all paths
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T10:05:39.5086761Z The least common ancestor is /home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification. This will be the root directory of the artifact
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T10:05:39.5093769Z ##[error]No files were found with the provided path: verdict.json
+Verify the source-monitor run	Archive the verdict and receipt	receipt.json. No artifacts will be uploaded.
+publish	Deliver the verification receipt	∩╗┐2026-10-01T10:06:27.5076768Z ##[group]Run set -euo pipefail
+publish	Deliver the verification receipt	2026-10-01T10:06:27.5077534Z ^[[36;1mset -euo pipefail^[[0m
+publish	Deliver the verification receipt	2026-10-01T10:06:27.5078105Z ^[[36;1m[[ "$SOURCE_RUN_ID" =~ ^[0-9]{1,20}$ && "$SOURCE_ATTEMPT" =~ ^[0-9]{1,4}$ ]] || { echo "::error::source identifiers are not positive integers"; exit 2; }^[[0m
+publish	Deliver the verification receipt	2026-10-01T10:06:27.5078935Z ^[[36;1mpython scripts/publish_monitor_receipt.py --event "$EVENT_NAME" --source-run-id "$SOURCE_RUN_ID" \^[[0m
+publish	Deliver the verification receipt	2026-10-01T10:06:27.5079719Z ^[[36;1m  --source-attempt "$SOURCE_ATTEMPT" --current-run-id "$CURRENT_RUN_ID" --current-attempt "$CURRENT_ATTEMPT" \^[[0m
+publish	Deliver the verification receipt	2026-10-01T10:06:27.5080343Z ^[[36;1m  --workflow-sha "$WORKFLOW_SHA" --outcome outcome.json^[[0m
+publish	Deliver the verification receipt	2026-10-01T10:06:27.5146999Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+publish	Deliver the verification receipt	2026-10-01T10:06:27.5147464Z env:
+publish	Deliver the verification receipt	2026-10-01T10:06:27.5147743Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+publish	Deliver the verification receipt	2026-10-01T10:06:27.5148207Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+publish	Deliver the verification receipt	2026-10-01T10:06:27.5148675Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+publish	Deliver the verification receipt	2026-10-01T10:06:27.5149111Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+publish	Deliver the verification receipt	2026-10-01T10:06:27.5149523Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+publish	Deliver the verification receipt	2026-10-01T10:06:27.5149921Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+publish	Deliver the verification receipt	2026-10-01T10:06:27.5152685Z   GITHUB_TOKEN: ***
+publish	Deliver the verification receipt	2026-10-01T10:06:27.5152921Z   RECEIPT_B64: 
+publish	Deliver the verification receipt	2026-10-01T10:06:27.5153135Z   EVENT_NAME: workflow_run
+publish	Deliver the verification receipt	2026-10-01T10:06:27.5153386Z   SOURCE_RUN_ID: 36846886992
+publish	Deliver the verification receipt	2026-10-01T10:06:27.5153620Z   SOURCE_ATTEMPT: 1
+publish	Deliver the verification receipt	2026-10-01T10:06:27.5153831Z   CURRENT_RUN_ID: 36846920781
+publish	Deliver the verification receipt	2026-10-01T10:06:27.5154075Z   CURRENT_ATTEMPT: 1
+publish	Deliver the verification receipt	2026-10-01T10:06:27.5154349Z   WORKFLOW_SHA: f9ad6542b08d1c1c2306374daaf53b354698202b
+publish	Deliver the verification receipt	2026-10-01T10:06:27.5154670Z ##[endgroup]
+publish	Deliver the verification receipt	2026-10-01T10:06:27.6651823Z Traceback (most recent call last):
+publish	Deliver the verification receipt	2026-10-01T10:06:27.6662328Z   File "/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/scripts/publish_monitor_receipt.py", line 140, in <module>
+publish	Deliver the verification receipt	2026-10-01T10:06:27.6664529Z     sys.exit(main(request=gh.Transport(token), receipt_b64=os.environ.get("RECEIPT_B64", "")))
+publish	Deliver the verification receipt	2026-10-01T10:06:27.6665587Z              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+publish	Deliver the verification receipt	2026-10-01T10:06:27.6667420Z   File "/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/scripts/publish_monitor_receipt.py", line 91, in main
+publish	Deliver the verification receipt	2026-10-01T10:06:27.6669647Z     deployment = dep.load(deployment_root or _ROOT)          # refuses when unloadable or unresolved; __main__ never injects
+publish	Deliver the verification receipt	2026-10-01T10:06:27.6670668Z                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+publish	Deliver the verification receipt	2026-10-01T10:06:27.6672228Z   File "/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/src/genomic_variant_classifier/source_monitor/deployment.py", line 125, in load
+publish	Deliver the verification receipt	2026-10-01T10:06:27.6673843Z     return parse(raw)
+publish	Deliver the verification receipt	2026-10-01T10:06:27.6674449Z            ^^^^^^^^^^
+publish	Deliver the verification receipt	2026-10-01T10:06:27.6676129Z   File "/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/src/genomic_variant_classifier/source_monitor/deployment.py", line 113, in parse
+publish	Deliver the verification receipt	2026-10-01T10:06:27.6678890Z     raise DeploymentError("deployment.unresolved", "identities not yet discovered from GitHub: {}".format(", ".join(unresolved)))
+publish	Deliver the verification receipt	2026-10-01T10:06:27.6681256Z genomic_variant_classifier.source_monitor.deployment.DeploymentError: deployment.unresolved: identities not yet discovered from GitHub: repository_id, source_workflow.id, destination.issue_id, trusted_author_id
+publish	Deliver the verification receipt	2026-10-01T10:06:27.6809148Z ##[error]Process completed with exit code 1.

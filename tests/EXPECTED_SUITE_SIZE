@@ -8071,4 +8071,6 @@
 # 2026-10-02  C2 REPAIRS 4 -- the history reader made conservative where it was not (owner counterexamples)
 #   +23 / -6 by node identity: the classification test grew 16 -> 27 cases (index-keyed ids renumber: 6 out, 17 in);
 #   5 missing/ambiguous job-structure tests; 1 single-action-vocabulary test. Action-pin ids unchanged.
-7400
+# 2026-10-02  C2 CLOSED -- the qualification record (records/verification/source-monitor-c2/) and its offline verification
+#   +19 / -0 by node identity: tests/unit/test_c2_qualification_record.py.
+7419

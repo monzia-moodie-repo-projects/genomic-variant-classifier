@@ -1,0 +1,592 @@
+Verify the source-monitor run	Set up job	∩╗┐2026-10-01T17:12:35.0264354Z Current runner version: '2.337.0'
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0334551Z ##[group]Runner Image Provisioner
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0335912Z Hosted Compute Agent
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0336980Z Version: 20260901.588
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0338124Z Commit: f88ec8081b781fac6c440065ac7ff9e710ce3d0b
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0339390Z Build Date: 2026-09-01T19:56:44Z
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0340533Z Worker ID: {6b25a023-54ef-463a-b40d-13431d12b0d4}
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0341754Z Azure Region: westus
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0342797Z ##[endgroup]
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0346062Z ##[group]Operating System
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0347123Z Ubuntu
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0348155Z 24.04.5
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0349046Z LTS
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0350051Z ##[endgroup]
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0351180Z ##[group]Runner Image
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0352246Z Image: ubuntu-24.04
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0353826Z Version: 20260927.320.1
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0355716Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260927.320/images/ubuntu/Ubuntu2404-Readme.md
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0358824Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260927.320
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0360498Z ##[endgroup]
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0362533Z ##[group]GITHUB_TOKEN Permissions
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0375851Z Actions: read
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0377005Z Contents: read
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0377909Z Metadata: read
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0378917Z ##[endgroup]
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0381890Z Secret source: Actions
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0404150Z Cache mode: write
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.0405675Z Prepare workflow directory
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.1287856Z Prepare all required actions
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.1441721Z Getting action download info
+Verify the source-monitor run	Set up job	2026-10-01T17:12:35.6634687Z Download action repository 'actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd' (SHA:de0fac2e4500dabe0009e67214ff5f5447ce83dd)
+Verify the source-monitor run	Set up job	2026-10-01T17:12:36.1209452Z Download action repository 'actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405' (SHA:a309ff8b426b58ec0e2a45f0f869d46889d02405)
+Verify the source-monitor run	Set up job	2026-10-01T17:12:36.2501966Z Download action repository 'actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f' (SHA:bbbca2ddaa5d8feaa63e36b76fdaad77386f024f)
+Verify the source-monitor run	Set up job	2026-10-01T17:12:36.6773657Z Complete job name: Verify the source-monitor run
+Verify the source-monitor run	Check out the trusted workflow commit	∩╗┐2026-10-01T17:12:36.8016575Z ##[group]Run actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:36.8018483Z with:
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:36.8019455Z   ref: 23d6f8834d1d460845b639e8bdcc862304405f37
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:36.8020741Z   persist-credentials: false
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:36.8022418Z   repository: monzia-moodie-repo-projects/genomic-variant-classifier-qualification
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:36.8033831Z   token: ***
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:36.8034767Z   ssh-strict: true
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:36.8035702Z   ssh-user: git
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:36.8036592Z   clean: true
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:36.8037537Z   sparse-checkout-cone-mode: true
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:36.8038651Z   fetch-depth: 1
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:36.8039579Z   fetch-tags: false
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:36.8040530Z   show-progress: true
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:36.8041481Z   lfs: false
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:36.8042399Z   submodules: false
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:36.8043513Z   set-safe-directory: true
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:36.8044877Z ##[endgroup]
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:36.9274373Z Syncing repository: monzia-moodie-repo-projects/genomic-variant-classifier-qualification
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:36.9280443Z ##[group]Getting Git version info
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:36.9285264Z Working directory is '/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification'
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:36.9291429Z [command]/usr/bin/git version
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.1497304Z git version 2.55.0
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.1620852Z ##[endgroup]
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.1626030Z Temporarily overriding HOME='/home/runner/work/_temp/6826a857-eced-4071-b897-bd6cdb8dd7eb' before making global git config changes
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.1627413Z Adding repository directory to the temporary git global config as a safe directory
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.1629026Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.1876743Z Deleting the contents of '/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification'
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.1881706Z ##[group]Initializing the repository
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.1889336Z [command]/usr/bin/git init /home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.3267912Z hint: Using 'master' as the name for the initial branch. This default branch name
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.3269135Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.3270244Z hint: to use in all of your new repositories, which will suppress this warning,
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.3271096Z hint: call:
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.3272009Z hint:
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.3273327Z hint: 	git config --global init.defaultBranch <name>
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.3274526Z hint:
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.3275959Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.3277366Z hint: 'development'. The just-created branch can be renamed via this command:
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.3278428Z hint:
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.3287361Z hint: 	git branch -m <name>
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.3288652Z hint:
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.3290263Z hint: Disable this message with "git config set advice.defaultBranchName false"
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.3291807Z Initialized empty Git repository in /home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git/
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.3295656Z [command]/usr/bin/git remote add origin https://github.com/monzia-moodie-repo-projects/genomic-variant-classifier-qualification
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.3299177Z ##[endgroup]
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.3300432Z ##[group]Disabling automatic garbage collection
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.3301496Z [command]/usr/bin/git config --local gc.auto 0
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.3305001Z ##[endgroup]
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.3305920Z ##[group]Setting up auth
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.3306632Z Removing SSH command configuration
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.3307633Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.3310722Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.6036198Z Removing HTTP extra header
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.6037590Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.6042593Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.6260340Z Removing includeIf entries pointing to credentials config files
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.6264258Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.6305369Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.6579769Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-7db13977-3fd9-4961-80e4-be0c55364f9f.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.6625555Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git.path /home/runner/work/_temp/git-credentials-7db13977-3fd9-4961-80e4-be0c55364f9f.config
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.6686665Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-7db13977-3fd9-4961-80e4-be0c55364f9f.config
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.6729750Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-7db13977-3fd9-4961-80e4-be0c55364f9f.config
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.6804349Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-7db13977-3fd9-4961-80e4-be0c55364f9f.config
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.6829992Z ##[endgroup]
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.6831110Z ##[group]Fetching the repository
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:37.6841057Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin 23d6f8834d1d460845b639e8bdcc862304405f37
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:39.8023991Z From https://github.com/monzia-moodie-repo-projects/genomic-variant-classifier-qualification
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:39.8025647Z  * branch            23d6f8834d1d460845b639e8bdcc862304405f37 -> FETCH_HEAD
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:39.8050521Z [command]/usr/bin/git rev-parse --verify --quiet 23d6f8834d1d460845b639e8bdcc862304405f37^{object}
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:39.8079522Z 23d6f8834d1d460845b639e8bdcc862304405f37
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:39.8085537Z ##[endgroup]
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:39.8086623Z ##[group]Determining the checkout info
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:39.8087731Z ##[endgroup]
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:39.8105422Z [command]/usr/bin/git sparse-checkout disable
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:39.8336130Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:39.8374716Z ##[group]Checking out the ref
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:39.8384351Z [command]/usr/bin/git checkout --progress --force 23d6f8834d1d460845b639e8bdcc862304405f37
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1092046Z Note: switching to '23d6f8834d1d460845b639e8bdcc862304405f37'.
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1094425Z 
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1114195Z You are in 'detached HEAD' state. You can look around, make experimental
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1124816Z changes and commit them, and you can discard any commits you make in this
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1159147Z state without impacting any branches by switching back to a branch.
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1178381Z 
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1202205Z If you want to create a new branch to retain commits you create, you may
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1214009Z do so (now or later) by using -c with the switch command. Example:
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1214617Z 
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1214865Z   git switch -c <new-branch-name>
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1215219Z 
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1215717Z Or undo this operation with:
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1216004Z 
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1216153Z   git switch -
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1216370Z 
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1216738Z Turn off this advice by setting config variable advice.detachedHead to false
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1217299Z 
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1217983Z HEAD is now at 23d6f88 qualification: publication ENABLED -- the final, frozen configuration (identities unchanged)
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1220028Z ##[endgroup]
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1221181Z [command]/usr/bin/git log -1 --format=%H
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1236313Z 23d6f8834d1d460845b639e8bdcc862304405f37
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1247540Z ##[group]Removing auth
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1248376Z Removing SSH command configuration
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1252709Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1289906Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1563996Z Removing HTTP extra header
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1564632Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1617518Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1874414Z Removing includeIf entries pointing to credentials config files
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1878837Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1913852Z includeif.gitdir:/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git.path
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1918119Z includeif.gitdir:/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git/worktrees/*.path
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1919984Z includeif.gitdir:/github/workspace/.git.path
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1920922Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1929275Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git.path
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1968717Z /home/runner/work/_temp/git-credentials-7db13977-3fd9-4961-80e4-be0c55364f9f.config
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.1984583Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git.path /home/runner/work/_temp/git-credentials-7db13977-3fd9-4961-80e4-be0c55364f9f.config
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.2028895Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git/worktrees/*.path
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.2056995Z /home/runner/work/_temp/git-credentials-7db13977-3fd9-4961-80e4-be0c55364f9f.config
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.2075648Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-7db13977-3fd9-4961-80e4-be0c55364f9f.config
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.2113429Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.2158732Z /github/runner_temp/git-credentials-7db13977-3fd9-4961-80e4-be0c55364f9f.config
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.2290756Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-7db13977-3fd9-4961-80e4-be0c55364f9f.config
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.2302835Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.2304746Z /github/runner_temp/git-credentials-7db13977-3fd9-4961-80e4-be0c55364f9f.config
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.2323556Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-7db13977-3fd9-4961-80e4-be0c55364f9f.config
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.2362515Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.2607589Z Removing credentials config '/home/runner/work/_temp/git-credentials-7db13977-3fd9-4961-80e4-be0c55364f9f.config'
+Verify the source-monitor run	Check out the trusted workflow commit	2026-10-01T17:12:40.2620007Z ##[endgroup]
+Verify the source-monitor run	Verify the checkout is the workflow commit	∩╗┐2026-10-01T17:12:40.2861529Z ##[group]Run set -euo pipefail
+Verify the source-monitor run	Verify the checkout is the workflow commit	2026-10-01T17:12:40.2861930Z ^[[36;1mset -euo pipefail^[[0m
+Verify the source-monitor run	Verify the checkout is the workflow commit	2026-10-01T17:12:40.2862404Z ^[[36;1m[[ "$WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::the workflow commit is not a full SHA"; exit 2; }^[[0m
+Verify the source-monitor run	Verify the checkout is the workflow commit	2026-10-01T17:12:40.2863457Z ^[[36;1m[ "$(git rev-parse HEAD)" = "$WORKFLOW_SHA" ] || { echo "::error::HEAD is not the workflow commit"; exit 2; }^[[0m
+Verify the source-monitor run	Verify the checkout is the workflow commit	2026-10-01T17:12:40.4301268Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Verify the source-monitor run	Verify the checkout is the workflow commit	2026-10-01T17:12:40.4301927Z env:
+Verify the source-monitor run	Verify the checkout is the workflow commit	2026-10-01T17:12:40.4302383Z   WORKFLOW_SHA: 23d6f8834d1d460845b639e8bdcc862304405f37
+Verify the source-monitor run	Verify the checkout is the workflow commit	2026-10-01T17:12:40.4302950Z ##[endgroup]
+Verify the source-monitor run	Set up Python	∩╗┐2026-10-01T17:12:40.4562249Z ##[group]Run actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+Verify the source-monitor run	Set up Python	2026-10-01T17:12:40.4562918Z with:
+Verify the source-monitor run	Set up Python	2026-10-01T17:12:40.4563490Z   python-version: 3.12
+Verify the source-monitor run	Set up Python	2026-10-01T17:12:40.4563914Z   check-latest: false
+Verify the source-monitor run	Set up Python	2026-10-01T17:12:40.4567518Z   token: ***
+Verify the source-monitor run	Set up Python	2026-10-01T17:12:40.4567885Z   update-environment: true
+Verify the source-monitor run	Set up Python	2026-10-01T17:12:40.4568144Z   allow-prereleases: false
+Verify the source-monitor run	Set up Python	2026-10-01T17:12:40.4568380Z   freethreaded: false
+Verify the source-monitor run	Set up Python	2026-10-01T17:12:40.4568607Z ##[endgroup]
+Verify the source-monitor run	Set up Python	2026-10-01T17:12:40.5990348Z ##[group]Installed versions
+Verify the source-monitor run	Set up Python	2026-10-01T17:12:40.6953697Z Successfully set up CPython (3.12.14)
+Verify the source-monitor run	Set up Python	2026-10-01T17:12:40.6955021Z ##[endgroup]
+Verify the source-monitor run	Install the verifier's hash-locked dependency	∩╗┐2026-10-01T17:12:40.7124883Z ##[group]Run python -m pip install --require-hashes --no-deps --only-binary=:all: -r requirements-source-monitor.txt
+Verify the source-monitor run	Install the verifier's hash-locked dependency	2026-10-01T17:12:40.7126304Z ^[[36;1mpython -m pip install --require-hashes --no-deps --only-binary=:all: -r requirements-source-monitor.txt^[[0m
+Verify the source-monitor run	Install the verifier's hash-locked dependency	2026-10-01T17:12:40.7510486Z shell: /usr/bin/bash -e {0}
+Verify the source-monitor run	Install the verifier's hash-locked dependency	2026-10-01T17:12:40.7510777Z env:
+Verify the source-monitor run	Install the verifier's hash-locked dependency	2026-10-01T17:12:40.7511059Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Install the verifier's hash-locked dependency	2026-10-01T17:12:40.7511529Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+Verify the source-monitor run	Install the verifier's hash-locked dependency	2026-10-01T17:12:40.7511962Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Install the verifier's hash-locked dependency	2026-10-01T17:12:40.7512339Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Install the verifier's hash-locked dependency	2026-10-01T17:12:40.7512723Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Install the verifier's hash-locked dependency	2026-10-01T17:12:40.7513649Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+Verify the source-monitor run	Install the verifier's hash-locked dependency	2026-10-01T17:12:40.7514716Z ##[endgroup]
+Verify the source-monitor run	Install the verifier's hash-locked dependency	2026-10-01T17:12:48.2832257Z Collecting pyyaml==6.0.3 (from -r requirements-source-monitor.txt (line 10))
+Verify the source-monitor run	Install the verifier's hash-locked dependency	2026-10-01T17:12:48.3376995Z   Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (807 kB)
+Verify the source-monitor run	Install the verifier's hash-locked dependency	2026-10-01T17:12:48.3902070Z      ΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöü 807.9/807.9 kB 68.0 MB/s  0:00:00
+Verify the source-monitor run	Install the verifier's hash-locked dependency	2026-10-01T17:12:48.6787223Z Installing collected packages: pyyaml
+Verify the source-monitor run	Install the verifier's hash-locked dependency	2026-10-01T17:12:48.7476084Z Successfully installed pyyaml-6.0.3
+Verify the source-monitor run	Identify and fetch the run's commit	∩╗┐2026-10-01T17:12:48.7911693Z ##[group]Run set -euo pipefail
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7912054Z ^[[36;1mset -euo pipefail^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7912355Z ^[[36;1mif [ "$EVENT_NAME" = "workflow_dispatch" ]; then^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7912751Z ^[[36;1m  run_id="$INPUT_RUN_ID"; run_attempt="$INPUT_RUN_ATTEMPT"^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7913850Z ^[[36;1m  [[ "$run_id" =~ ^[0-9]{1,20}$ && "$run_attempt" =~ ^[0-9]{1,4}$ ]] || { echo "::error::run_id and run_attempt must be positive integers"; exit 2; }^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7914728Z ^[[36;1m  head_sha="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq .head_sha)"^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7915155Z ^[[36;1melse^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7915509Z ^[[36;1m  run_id="$EVENT_RUN_ID"; run_attempt="$EVENT_RUN_ATTEMPT"; head_sha="$EVENT_HEAD_SHA"^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7915910Z ^[[36;1mfi^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7916290Z ^[[36;1m[[ "$head_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::the run's commit is not a full SHA: $head_sha"; exit 2; }^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7916746Z ^[[36;1mgit --version^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7917256Z ^[[36;1m# A PRIVATE repository (the qualification repository, 2026-10-01) refuses an anonymous fetch: "could not read^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7917982Z ^[[36;1m# Username". Authenticate ONLY this fetch, through that one process's ENVIRONMENT -- never persisted^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7918701Z ^[[36;1m# (persist-credentials stays false), never on a command line (measured: absent from every git process's argv).^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7919291Z ^[[36;1mbasic="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7919861Z ^[[36;1mGIT_TERMINAL_PROMPT=0 GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="http.https://github.com/.extraheader" \^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7920543Z ^[[36;1m  GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $basic" git fetch --no-tags --depth=1 origin "$head_sha"^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7921133Z ^[[36;1m{ echo "run_id=$run_id"; echo "run_attempt=$run_attempt"; } >> "$GITHUB_OUTPUT"^[[0m
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7996411Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7996770Z env:
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7997043Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7997486Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7997921Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7998316Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7998704Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.7999275Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.8002125Z   GH_TOKEN: ***
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.8002348Z   EVENT_NAME: workflow_run
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.8002598Z   EVENT_RUN_ID: 36897075694
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.8002826Z   EVENT_RUN_ATTEMPT: 1
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.8003464Z   EVENT_HEAD_SHA: 23d6f8834d1d460845b639e8bdcc862304405f37
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.8003805Z   INPUT_RUN_ID: 
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.8004010Z   INPUT_RUN_ATTEMPT: 
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.8004222Z ##[endgroup]
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:48.8107266Z git version 2.55.0
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:50.5567256Z From https://github.com/monzia-moodie-repo-projects/genomic-variant-classifier-qualification
+Verify the source-monitor run	Identify and fetch the run's commit	2026-10-01T17:12:50.5568583Z  * branch            23d6f8834d1d460845b639e8bdcc862304405f37 -> FETCH_HEAD
+Verify the source-monitor run	Verify the run and write the receipt	∩╗┐2026-10-01T17:12:50.5629004Z ##[group]Run python scripts/verify_monitor_run.py --run-id "$RUN_ID" --run-attempt "$RUN_ATTEMPT" --verdict verdict.json \
+Verify the source-monitor run	Verify the run and write the receipt	2026-10-01T17:12:50.5629869Z ^[[36;1mpython scripts/verify_monitor_run.py --run-id "$RUN_ID" --run-attempt "$RUN_ATTEMPT" --verdict verdict.json \^[[0m
+Verify the source-monitor run	Verify the run and write the receipt	2026-10-01T17:12:50.5630492Z ^[[36;1m  --receipt receipt.json --checker-commit "$WORKFLOW_SHA" \^[[0m
+Verify the source-monitor run	Verify the run and write the receipt	2026-10-01T17:12:50.5631029Z ^[[36;1m  --evaluation-run-id "$EVALUATION_RUN_ID" --evaluation-attempt "$EVALUATION_ATTEMPT"^[[0m
+Verify the source-monitor run	Verify the run and write the receipt	2026-10-01T17:12:50.5693296Z shell: /usr/bin/bash -e {0}
+Verify the source-monitor run	Verify the run and write the receipt	2026-10-01T17:12:50.5693559Z env:
+Verify the source-monitor run	Verify the run and write the receipt	2026-10-01T17:12:50.5693842Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Verify the run and write the receipt	2026-10-01T17:12:50.5694300Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+Verify the source-monitor run	Verify the run and write the receipt	2026-10-01T17:12:50.5694739Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Verify the run and write the receipt	2026-10-01T17:12:50.5695122Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Verify the run and write the receipt	2026-10-01T17:12:50.5695501Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Verify the run and write the receipt	2026-10-01T17:12:50.5695922Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+Verify the source-monitor run	Verify the run and write the receipt	2026-10-01T17:12:50.5698789Z   GITHUB_TOKEN: ***
+Verify the source-monitor run	Verify the run and write the receipt	2026-10-01T17:12:50.5699008Z   RUN_ID: 36897075694
+Verify the source-monitor run	Verify the run and write the receipt	2026-10-01T17:12:50.5699231Z   RUN_ATTEMPT: 1
+Verify the source-monitor run	Verify the run and write the receipt	2026-10-01T17:12:50.5699488Z   WORKFLOW_SHA: 23d6f8834d1d460845b639e8bdcc862304405f37
+Verify the source-monitor run	Verify the run and write the receipt	2026-10-01T17:12:50.5699806Z   EVALUATION_RUN_ID: 36897111869
+Verify the source-monitor run	Verify the run and write the receipt	2026-10-01T17:12:50.5700052Z   EVALUATION_ATTEMPT: 2
+Verify the source-monitor run	Verify the run and write the receipt	2026-10-01T17:12:50.5700272Z ##[endgroup]
+Verify the source-monitor run	Verify the run and write the receipt	2026-10-01T17:12:52.4844062Z RECEIPT written: receipt.json
+Verify the source-monitor run	Verify the run and write the receipt	2026-10-01T17:12:52.4844941Z VERIFIED run 36897075694 attempt 1
+Verify the source-monitor run	Hand the receipt to the publish job	∩╗┐2026-10-01T17:12:52.5034114Z ##[group]Run set -euo pipefail
+Verify the source-monitor run	Hand the receipt to the publish job	2026-10-01T17:12:52.5034465Z ^[[36;1mset -euo pipefail^[[0m
+Verify the source-monitor run	Hand the receipt to the publish job	2026-10-01T17:12:52.5034729Z ^[[36;1mif [ -s receipt.json ]; then^[[0m
+Verify the source-monitor run	Hand the receipt to the publish job	2026-10-01T17:12:52.5035344Z ^[[36;1m  PYTHONPATH=src python -m genomic_variant_classifier.source_monitor.c2_receipt_io --receipt receipt.json --output "$GITHUB_OUTPUT"^[[0m
+Verify the source-monitor run	Hand the receipt to the publish job	2026-10-01T17:12:52.5035941Z ^[[36;1melse^[[0m
+Verify the source-monitor run	Hand the receipt to the publish job	2026-10-01T17:12:52.5036408Z ^[[36;1m  echo "::warning::no checker receipt was written; the publish job's coordinator will report verification unavailable"^[[0m
+Verify the source-monitor run	Hand the receipt to the publish job	2026-10-01T17:12:52.5036937Z ^[[36;1mfi^[[0m
+Verify the source-monitor run	Hand the receipt to the publish job	2026-10-01T17:12:52.5098814Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Verify the source-monitor run	Hand the receipt to the publish job	2026-10-01T17:12:52.5099154Z env:
+Verify the source-monitor run	Hand the receipt to the publish job	2026-10-01T17:12:52.5099412Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Hand the receipt to the publish job	2026-10-01T17:12:52.5099855Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+Verify the source-monitor run	Hand the receipt to the publish job	2026-10-01T17:12:52.5100285Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Hand the receipt to the publish job	2026-10-01T17:12:52.5100677Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Hand the receipt to the publish job	2026-10-01T17:12:52.5101082Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Hand the receipt to the publish job	2026-10-01T17:12:52.5120042Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+Verify the source-monitor run	Hand the receipt to the publish job	2026-10-01T17:12:52.5120648Z ##[endgroup]
+Verify the source-monitor run	Archive the verdict and receipt	∩╗┐2026-10-01T17:12:52.5918384Z ##[group]Run actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:52.5918829Z with:
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:52.5919058Z   name: source-monitor-verdict-attempt-2
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:52.5919368Z   path: verdict.json
+Verify the source-monitor run	Archive the verdict and receipt	receipt.json
+Verify the source-monitor run	Archive the verdict and receipt	
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:52.5919829Z   if-no-files-found: error
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:52.5920059Z   retention-days: 90
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:52.5920271Z   compression-level: 6
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:52.5920485Z   overwrite: false
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:52.5920705Z   include-hidden-files: false
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:52.5920943Z   archive: true
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:52.5921133Z env:
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:52.5921384Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:52.5921819Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:52.5922245Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:52.5922621Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:52.5923251Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:52.5923773Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:52.5924100Z ##[endgroup]
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:52.7900578Z Multiple search paths detected. Calculating the least common ancestor of all paths
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:52.7944898Z The least common ancestor is /home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification. This will be the root directory of the artifact
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:52.7946586Z With the provided path, there will be 2 files uploaded
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:52.7983874Z Artifact name is valid!
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:52.8003594Z Root directory input is valid!
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:53.1731494Z Uploading artifact: source-monitor-verdict-attempt-2.zip
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:53.1801186Z Beginning upload of artifact content to blob storage
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:53.5042953Z Uploaded bytes 1354
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:53.5838751Z Finished uploading artifact content to blob storage!
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:53.5840146Z SHA256 digest of uploaded artifact is 490eb01e5f33c6cc2c54af4decb38f67b40c8e46656182e4fbb8ded703317e07
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:53.5842747Z Finalizing artifact upload
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:54.0405490Z Artifact source-monitor-verdict-attempt-2 successfully finalized. Artifact ID 11180341887
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:54.0406935Z Artifact source-monitor-verdict-attempt-2 has been successfully uploaded! Final size is 1354 bytes. Artifact ID is 11180341887
+Verify the source-monitor run	Archive the verdict and receipt	2026-10-01T17:12:54.0408586Z Artifact download URL: https://github.com/monzia-moodie-repo-projects/genomic-variant-classifier-qualification/actions/runs/36897111869/artifacts/11180341887
+Verify the source-monitor run	Post Set up Python	∩╗┐2026-10-01T17:12:54.0573995Z Post job cleanup.
+Verify the source-monitor run	Post Check out the trusted workflow commit	∩╗┐2026-10-01T17:12:54.2013707Z Post job cleanup.
+Verify the source-monitor run	Post Check out the trusted workflow commit	2026-10-01T17:12:54.3349837Z [command]/usr/bin/git version
+Verify the source-monitor run	Post Check out the trusted workflow commit	2026-10-01T17:12:54.3473780Z git version 2.55.0
+Verify the source-monitor run	Post Check out the trusted workflow commit	2026-10-01T17:12:54.3592762Z Temporarily overriding HOME='/home/runner/work/_temp/7d05df6e-155c-4ae4-9e21-3cb7cbcaab7c' before making global git config changes
+Verify the source-monitor run	Post Check out the trusted workflow commit	2026-10-01T17:12:54.3595744Z Adding repository directory to the temporary git global config as a safe directory
+Verify the source-monitor run	Post Check out the trusted workflow commit	2026-10-01T17:12:54.3629007Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification
+Verify the source-monitor run	Post Check out the trusted workflow commit	2026-10-01T17:12:54.3733967Z Removing SSH command configuration
+Verify the source-monitor run	Post Check out the trusted workflow commit	2026-10-01T17:12:54.3757157Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+Verify the source-monitor run	Post Check out the trusted workflow commit	2026-10-01T17:12:54.3854469Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+Verify the source-monitor run	Post Check out the trusted workflow commit	2026-10-01T17:12:54.4190244Z Removing HTTP extra header
+Verify the source-monitor run	Post Check out the trusted workflow commit	2026-10-01T17:12:54.4191135Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+Verify the source-monitor run	Post Check out the trusted workflow commit	2026-10-01T17:12:54.4276454Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+Verify the source-monitor run	Post Check out the trusted workflow commit	2026-10-01T17:12:54.4623995Z Removing includeIf entries pointing to credentials config files
+Verify the source-monitor run	Post Check out the trusted workflow commit	2026-10-01T17:12:54.4644058Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+Verify the source-monitor run	Post Check out the trusted workflow commit	2026-10-01T17:12:54.4684194Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+Verify the source-monitor run	Complete job	∩╗┐2026-10-01T17:12:54.5215174Z Evaluate and set job outputs
+Verify the source-monitor run	Complete job	2026-10-01T17:12:54.5258540Z Set output 'receipt_b64'
+Verify the source-monitor run	Complete job	2026-10-01T17:12:54.5260475Z Cleaning up orphan processes
+publish	Set up job	∩╗┐2026-10-01T17:13:00.0861277Z Current runner version: '2.337.0'
+publish	Set up job	2026-10-01T17:13:00.0908953Z ##[group]Runner Image Provisioner
+publish	Set up job	2026-10-01T17:13:00.0909791Z Hosted Compute Agent
+publish	Set up job	2026-10-01T17:13:00.0910307Z Version: 20260901.588
+publish	Set up job	2026-10-01T17:13:00.0910991Z Commit: f88ec8081b781fac6c440065ac7ff9e710ce3d0b
+publish	Set up job	2026-10-01T17:13:00.0911644Z Build Date: 2026-09-01T19:56:44Z
+publish	Set up job	2026-10-01T17:13:00.0912333Z Worker ID: {2864ed95-5988-406b-92d3-ba4b31f0db7c}
+publish	Set up job	2026-10-01T17:13:00.0913206Z Azure Region: centralus
+publish	Set up job	2026-10-01T17:13:00.0913769Z ##[endgroup]
+publish	Set up job	2026-10-01T17:13:00.0915216Z ##[group]Operating System
+publish	Set up job	2026-10-01T17:13:00.0915775Z Ubuntu
+publish	Set up job	2026-10-01T17:13:00.0916212Z 24.04.5
+publish	Set up job	2026-10-01T17:13:00.0916727Z LTS
+publish	Set up job	2026-10-01T17:13:00.0917173Z ##[endgroup]
+publish	Set up job	2026-10-01T17:13:00.0917733Z ##[group]Runner Image
+publish	Set up job	2026-10-01T17:13:00.0918289Z Image: ubuntu-24.04
+publish	Set up job	2026-10-01T17:13:00.0918816Z Version: 20260927.320.1
+publish	Set up job	2026-10-01T17:13:00.0919853Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260927.320/images/ubuntu/Ubuntu2404-Readme.md
+publish	Set up job	2026-10-01T17:13:00.0921544Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260927.320
+publish	Set up job	2026-10-01T17:13:00.0922453Z ##[endgroup]
+publish	Set up job	2026-10-01T17:13:00.0924255Z ##[group]GITHUB_TOKEN Permissions
+publish	Set up job	2026-10-01T17:13:00.0926457Z Actions: read
+publish	Set up job	2026-10-01T17:13:00.0927011Z Contents: read
+publish	Set up job	2026-10-01T17:13:00.0927595Z Issues: write
+publish	Set up job	2026-10-01T17:13:00.0928071Z Metadata: read
+publish	Set up job	2026-10-01T17:13:00.0928596Z ##[endgroup]
+publish	Set up job	2026-10-01T17:13:00.0930698Z Secret source: Actions
+publish	Set up job	2026-10-01T17:13:00.0931666Z Cache mode: write
+publish	Set up job	2026-10-01T17:13:00.0932338Z Prepare workflow directory
+publish	Set up job	2026-10-01T17:13:00.1300805Z Prepare all required actions
+publish	Set up job	2026-10-01T17:13:00.1399953Z Getting action download info
+publish	Set up job	2026-10-01T17:13:00.4793627Z Download action repository 'actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd' (SHA:de0fac2e4500dabe0009e67214ff5f5447ce83dd)
+publish	Set up job	2026-10-01T17:13:00.6122063Z Download action repository 'actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405' (SHA:a309ff8b426b58ec0e2a45f0f869d46889d02405)
+publish	Set up job	2026-10-01T17:13:00.8053752Z Download action repository 'actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f' (SHA:bbbca2ddaa5d8feaa63e36b76fdaad77386f024f)
+publish	Set up job	2026-10-01T17:13:01.0768917Z Complete job name: publish
+publish	Check out the trusted workflow commit	∩╗┐2026-10-01T17:13:01.1344548Z ##[group]Run actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.1345574Z with:
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.1346091Z   ref: 23d6f8834d1d460845b639e8bdcc862304405f37
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.1346781Z   persist-credentials: false
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.1347699Z   repository: monzia-moodie-repo-projects/genomic-variant-classifier-qualification
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.1353395Z   token: ***
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.1353870Z   ssh-strict: true
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.1354348Z   ssh-user: git
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.1354811Z   clean: true
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.1355310Z   sparse-checkout-cone-mode: true
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.1355909Z   fetch-depth: 1
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.1356388Z   fetch-tags: false
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.1356882Z   show-progress: true
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.1357406Z   lfs: false
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.1357884Z   submodules: false
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.1358424Z   set-safe-directory: true
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.1359049Z ##[endgroup]
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2325586Z Syncing repository: monzia-moodie-repo-projects/genomic-variant-classifier-qualification
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2330249Z ##[group]Getting Git version info
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2334070Z Working directory is '/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification'
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2337551Z [command]/usr/bin/git version
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2516308Z git version 2.55.0
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2539311Z ##[endgroup]
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2553065Z Temporarily overriding HOME='/home/runner/work/_temp/ac5cbf44-6e72-497d-a9a6-3326f6820138' before making global git config changes
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2556319Z Adding repository directory to the temporary git global config as a safe directory
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2560208Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2670925Z Deleting the contents of '/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification'
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2676663Z ##[group]Initializing the repository
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2684523Z [command]/usr/bin/git init /home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2905828Z hint: Using 'master' as the name for the initial branch. This default branch name
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2925504Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2931417Z hint: to use in all of your new repositories, which will suppress this warning,
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2957876Z hint: call:
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2960806Z hint:
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2962815Z hint: 	git config --global init.defaultBranch <name>
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2964542Z hint:
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2965909Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2969567Z hint: 'development'. The just-created branch can be renamed via this command:
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2971680Z hint:
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2972506Z hint: 	git branch -m <name>
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2974464Z hint:
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2975838Z hint: Disable this message with "git config set advice.defaultBranchName false"
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2979621Z Initialized empty Git repository in /home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git/
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.2986330Z [command]/usr/bin/git remote add origin https://github.com/monzia-moodie-repo-projects/genomic-variant-classifier-qualification
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.3116996Z ##[endgroup]
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.3118850Z ##[group]Disabling automatic garbage collection
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.3120291Z [command]/usr/bin/git config --local gc.auto 0
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.3167729Z ##[endgroup]
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.3169097Z ##[group]Setting up auth
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.3170212Z Removing SSH command configuration
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.3171635Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.3203269Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.3524466Z Removing HTTP extra header
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.3526203Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.3555463Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.3738985Z Removing includeIf entries pointing to credentials config files
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.3740840Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.3772098Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.3960371Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-36cf57da-5e49-4745-bd77-7cdf23e4a5d3.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.3996953Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git.path /home/runner/work/_temp/git-credentials-36cf57da-5e49-4745-bd77-7cdf23e4a5d3.config
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.4028053Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-36cf57da-5e49-4745-bd77-7cdf23e4a5d3.config
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.4061218Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-36cf57da-5e49-4745-bd77-7cdf23e4a5d3.config
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.4098406Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-36cf57da-5e49-4745-bd77-7cdf23e4a5d3.config
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.4126640Z ##[endgroup]
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.4128019Z ##[group]Fetching the repository
+publish	Check out the trusted workflow commit	2026-10-01T17:13:01.4133091Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin 23d6f8834d1d460845b639e8bdcc862304405f37
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.5880983Z From https://github.com/monzia-moodie-repo-projects/genomic-variant-classifier-qualification
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.5882031Z  * branch            23d6f8834d1d460845b639e8bdcc862304405f37 -> FETCH_HEAD
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.5885085Z [command]/usr/bin/git rev-parse --verify --quiet 23d6f8834d1d460845b639e8bdcc862304405f37^{object}
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.5885572Z 23d6f8834d1d460845b639e8bdcc862304405f37
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.5886390Z ##[endgroup]
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.5886779Z ##[group]Determining the checkout info
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.5887192Z ##[endgroup]
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.5887482Z [command]/usr/bin/git sparse-checkout disable
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.5890607Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.5905080Z ##[group]Checking out the ref
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.5913625Z [command]/usr/bin/git checkout --progress --force 23d6f8834d1d460845b639e8bdcc862304405f37
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.7935104Z Note: switching to '23d6f8834d1d460845b639e8bdcc862304405f37'.
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.7935445Z 
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.7935670Z You are in 'detached HEAD' state. You can look around, make experimental
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.7936147Z changes and commit them, and you can discard any commits you make in this
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.7936780Z state without impacting any branches by switching back to a branch.
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.7937029Z 
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.7937224Z If you want to create a new branch to retain commits you create, you may
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.7937706Z do so (now or later) by using -c with the switch command. Example:
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.7937948Z 
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.7938073Z   git switch -c <new-branch-name>
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.7938262Z 
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.7938636Z Or undo this operation with:
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.7938803Z 
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.7938911Z   git switch -
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.7939058Z 
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.7939275Z Turn off this advice by setting config variable advice.detachedHead to false
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.7939554Z 
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.7939898Z HEAD is now at 23d6f88 qualification: publication ENABLED -- the final, frozen configuration (identities unchanged)
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.7941134Z ##[endgroup]
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.7964896Z [command]/usr/bin/git log -1 --format=%H
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.7995794Z 23d6f8834d1d460845b639e8bdcc862304405f37
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.7999984Z ##[group]Removing auth
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8000705Z Removing SSH command configuration
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8010089Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8033726Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8237091Z Removing HTTP extra header
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8238098Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8268822Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8466350Z Removing includeIf entries pointing to credentials config files
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8466897Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8492092Z includeif.gitdir:/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git.path
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8503927Z includeif.gitdir:/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git/worktrees/*.path
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8504996Z includeif.gitdir:/github/workspace/.git.path
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8506056Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8508322Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git.path
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8524309Z /home/runner/work/_temp/git-credentials-36cf57da-5e49-4745-bd77-7cdf23e4a5d3.config
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8534782Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git.path /home/runner/work/_temp/git-credentials-36cf57da-5e49-4745-bd77-7cdf23e4a5d3.config
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8567527Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git/worktrees/*.path
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8591122Z /home/runner/work/_temp/git-credentials-36cf57da-5e49-4745-bd77-7cdf23e4a5d3.config
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8599200Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-36cf57da-5e49-4745-bd77-7cdf23e4a5d3.config
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8635981Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8660930Z /github/runner_temp/git-credentials-36cf57da-5e49-4745-bd77-7cdf23e4a5d3.config
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8668515Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-36cf57da-5e49-4745-bd77-7cdf23e4a5d3.config
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8717584Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8739655Z /github/runner_temp/git-credentials-36cf57da-5e49-4745-bd77-7cdf23e4a5d3.config
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8751605Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-36cf57da-5e49-4745-bd77-7cdf23e4a5d3.config
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8776230Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8957864Z Removing credentials config '/home/runner/work/_temp/git-credentials-36cf57da-5e49-4745-bd77-7cdf23e4a5d3.config'
+publish	Check out the trusted workflow commit	2026-10-01T17:13:02.8965547Z ##[endgroup]
+publish	Verify the checkout is the workflow commit	∩╗┐2026-10-01T17:13:02.9197250Z ##[group]Run set -euo pipefail
+publish	Verify the checkout is the workflow commit	2026-10-01T17:13:02.9197570Z ^[[36;1mset -euo pipefail^[[0m
+publish	Verify the checkout is the workflow commit	2026-10-01T17:13:02.9197866Z ^[[36;1m[[ "$WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::the workflow commit is not a full SHA"; exit 2; }^[[0m
+publish	Verify the checkout is the workflow commit	2026-10-01T17:13:02.9198277Z ^[[36;1m[ "$(git rev-parse HEAD)" = "$WORKFLOW_SHA" ] || { echo "::error::HEAD is not the workflow commit"; exit 2; }^[[0m
+publish	Verify the checkout is the workflow commit	2026-10-01T17:13:02.9429338Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+publish	Verify the checkout is the workflow commit	2026-10-01T17:13:02.9429603Z env:
+publish	Verify the checkout is the workflow commit	2026-10-01T17:13:02.9429792Z   WORKFLOW_SHA: 23d6f8834d1d460845b639e8bdcc862304405f37
+publish	Verify the checkout is the workflow commit	2026-10-01T17:13:02.9429996Z ##[endgroup]
+publish	Set up Python	∩╗┐2026-10-01T17:13:02.9603181Z ##[group]Run actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+publish	Set up Python	2026-10-01T17:13:02.9603459Z with:
+publish	Set up Python	2026-10-01T17:13:02.9603612Z   python-version: 3.12
+publish	Set up Python	2026-10-01T17:13:02.9603768Z   check-latest: false
+publish	Set up Python	2026-10-01T17:13:02.9605245Z   token: ***
+publish	Set up Python	2026-10-01T17:13:02.9605395Z   update-environment: true
+publish	Set up Python	2026-10-01T17:13:02.9605563Z   allow-prereleases: false
+publish	Set up Python	2026-10-01T17:13:02.9605721Z   freethreaded: false
+publish	Set up Python	2026-10-01T17:13:02.9605872Z ##[endgroup]
+publish	Set up Python	2026-10-01T17:13:03.0512370Z ##[group]Installed versions
+publish	Set up Python	2026-10-01T17:13:03.0578613Z Successfully set up CPython (3.12.14)
+publish	Set up Python	2026-10-01T17:13:03.0592343Z ##[endgroup]
+publish	Install the publisher's hash-locked dependency	∩╗┐2026-10-01T17:13:03.0723783Z ##[group]Run python -m pip install --require-hashes --no-deps --only-binary=:all: -r requirements-source-monitor.txt
+publish	Install the publisher's hash-locked dependency	2026-10-01T17:13:03.0724754Z ^[[36;1mpython -m pip install --require-hashes --no-deps --only-binary=:all: -r requirements-source-monitor.txt^[[0m
+publish	Install the publisher's hash-locked dependency	2026-10-01T17:13:03.0805474Z shell: /usr/bin/bash -e {0}
+publish	Install the publisher's hash-locked dependency	2026-10-01T17:13:03.0805785Z env:
+publish	Install the publisher's hash-locked dependency	2026-10-01T17:13:03.0806075Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+publish	Install the publisher's hash-locked dependency	2026-10-01T17:13:03.0806570Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+publish	Install the publisher's hash-locked dependency	2026-10-01T17:13:03.0807048Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+publish	Install the publisher's hash-locked dependency	2026-10-01T17:13:03.0807422Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+publish	Install the publisher's hash-locked dependency	2026-10-01T17:13:03.0807794Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+publish	Install the publisher's hash-locked dependency	2026-10-01T17:13:03.0808164Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+publish	Install the publisher's hash-locked dependency	2026-10-01T17:13:03.0808513Z ##[endgroup]
+publish	Install the publisher's hash-locked dependency	2026-10-01T17:13:03.9841167Z Collecting pyyaml==6.0.3 (from -r requirements-source-monitor.txt (line 10))
+publish	Install the publisher's hash-locked dependency	2026-10-01T17:13:04.0562004Z   Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (807 kB)
+publish	Install the publisher's hash-locked dependency	2026-10-01T17:13:04.1414242Z      ΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöü 807.9/807.9 kB 12.3 MB/s  0:00:00
+publish	Install the publisher's hash-locked dependency	2026-10-01T17:13:04.1833669Z Installing collected packages: pyyaml
+publish	Install the publisher's hash-locked dependency	2026-10-01T17:13:04.2275215Z Successfully installed pyyaml-6.0.3
+publish	Deliver the verification receipt	∩╗┐2026-10-01T17:13:04.2720084Z ##[group]Run set -euo pipefail
+publish	Deliver the verification receipt	2026-10-01T17:13:04.2720296Z ^[[36;1mset -euo pipefail^[[0m
+publish	Deliver the verification receipt	2026-10-01T17:13:04.2720595Z ^[[36;1m[[ "$SOURCE_RUN_ID" =~ ^[0-9]{1,20}$ && "$SOURCE_ATTEMPT" =~ ^[0-9]{1,4}$ ]] || { echo "::error::source identifiers are not positive integers"; exit 2; }^[[0m
+publish	Deliver the verification receipt	2026-10-01T17:13:04.2721024Z ^[[36;1mpython scripts/publish_monitor_receipt.py --event "$EVENT_NAME" --source-run-id "$SOURCE_RUN_ID" \^[[0m
+publish	Deliver the verification receipt	2026-10-01T17:13:04.2721425Z ^[[36;1m  --source-attempt "$SOURCE_ATTEMPT" --current-run-id "$CURRENT_RUN_ID" --current-attempt "$CURRENT_ATTEMPT" \^[[0m
+publish	Deliver the verification receipt	2026-10-01T17:13:04.2721770Z ^[[36;1m  --workflow-sha "$WORKFLOW_SHA" --outcome outcome.json^[[0m
+publish	Deliver the verification receipt	2026-10-01T17:13:04.2774940Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+publish	Deliver the verification receipt	2026-10-01T17:13:04.2775128Z env:
+publish	Deliver the verification receipt	2026-10-01T17:13:04.2775279Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+publish	Deliver the verification receipt	2026-10-01T17:13:04.2775517Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+publish	Deliver the verification receipt	2026-10-01T17:13:04.2775748Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+publish	Deliver the verification receipt	2026-10-01T17:13:04.2775984Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+publish	Deliver the verification receipt	2026-10-01T17:13:04.2776199Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+publish	Deliver the verification receipt	2026-10-01T17:13:04.2776416Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+publish	Deliver the verification receipt	2026-10-01T17:13:04.2777975Z   GITHUB_TOKEN: ***
+publish	Deliver the verification receipt	2026-10-01T17:13:04.2798577Z   RECEIPT_B64: eyJwYXlsb2FkIjp7ImNoZWNrZXIiOnsiY29kZV9tYW5pZmVzdF9zaGEyNTYiOiIwMzE3MThkNTEzZDAwYjYzMGM4ZjYyZGI0OGJmNGU1YTEyMWY3ODU0ZWIwNmEyNjllNTg1YmM1NjdhMDgxZmE0IiwiY29tbWl0IjoiMjNkNmY4ODM0ZDFkNDYwODQ1YjYzOWU4YmRjYzg2MjMwNDQwNWYzNyIsInBvbGljeV9zaGEyNTYiOiI3OGRkMTc4MDMxOTQyNTkwZDRlZGYyNjY3ZWVhMzM4YmQ2NWYwZDU5YTVhZDdkMWRkYTUwNThkZjM1MzVhZTFjIn0sImRlY2lzaW9uIjp7ImZsYWdzIjp7ImNsYWltc19yZWNvbmNpbGVkIjp0cnVlLCJjb25maWd1cmF0aW9uX2JvdW5kIjp0cnVlLCJjdXJyZW50X21vbml0b3Jpbmdfb2JsaWdhdGlvbl9zYXRpc2ZpZWQiOnRydWUsImV4ZWN1dGlvbl9hdXRoZW50aWNhdGVkIjp0cnVlLCJvYnNlcnZhdGlvbl9jb21wbGV0ZSI6dHJ1ZSwicmV2aWV3X3JlcXVpcmVkIjp0cnVlfSwicmVhc29ucyI6W10sInJldmlld3MiOlt7ImtpbmQiOiJuZXdlciIsInJhd19wcmVmaXgiOiJyZWxlYXNlLzQuMS4yLyIsInRhcmdldCI6Imdub21hZC1wdWJsaWMtcmVsZWFzZXMifV0sInN0YXR1cyI6ImNvbXBsZXRlZCIsInZlcmlmaWVkIjp0cnVlfSwiZGlhZ25vc3RpY3MiOltdLCJldmFsdWF0aW9uIjp7ImF0dGVtcHQiOjIsImZpbmlzaGVkX2F0IjoiMjAyNi0xMC0wMVQxNzoxMjo1MloiLCJydW5faWQiOjM2ODk3MTExODY5LCJzdGFydGVkX2F0IjoiMjAyNi0xMC0wMVQxNzoxMjo1MFoifSwiZXZpZGVuY2UiOnsiYXJjaGl2ZV9zaGEyNTYiOiIxMTQwZmY4MDgzMmRmMWEzZDVhYjNlM2Y0NDY1YzgxOTJhYWQ3ZjdjODc0MTllMTQ2ODdjOTlhZmYwMzBhYWIzIiwiYXJ0aWZhY3RfaWQiOjExMTc5MDU5NDU5LCJyZXBvcnRfc2hhMjU2IjoiYTZhYzEyMzU2NDQ5NzU3ZDY3NTliZjlmMDI3ZGQ1YTI4OTkwMTBhOGIyNjY3ZjEzNDZjYmE4YmMwZjljNTZiMiIsInN0YXRlIjoiY29tcGxldGUifSwiaXNzdWVyX3JvbGUiOiJjaGVja2VyIiwic2NoZW1hIjoiZ3ZjLm1vbml0b3ItcmVjZWlwdCIsInNjaGVtYV92ZXJzaW9uIjoxLCJzdWJqZWN0Ijp7ImF0dGVtcHQiOjEsImNvbW1pdCI6IjIzZDZmODgzNGQxZDQ2MDg0NWI2MzllOGJkY2M4NjIzMDQ0MDVmMzciLCJyZXBvc2l0b3J5IjoibW9uemlhLW1vb2RpZS1yZXBvLXByb2plY3RzL2dlbm9taWMtdmFyaWFudC1jbGFzc2lmaWVyLXF1YWxpZmljYXRpb24iLCJyZXBvc2l0b3J5X2lkIjoxMzk4ODEyNDYzLCJydW5faWQiOjM2ODk3MDc1Njk0LCJydW5fbnVtYmVyIjozLCJ3b3JrZmxvd19pZCI6MzcyMDE2OTkxLCJ3b3JrZmxvd19wYXRoIjoiLmdpdGh1Yi93b3JrZmxvd3Mvc291cmNlX21vbml0b3IueW1sIn19LCJyZWNlaXB0X3NoYTI1NiI6IjIxMDE4NzczODVmNzcxMDNmYzQzY2EzNjE4Nzk3ZTZlZDFiZmQ5ZmM0OGVmMTMyODUxMTIzZWMwNzViOGExNmMifQ==
+publish	Deliver the verification receipt	2026-10-01T17:13:04.2818302Z   EVENT_NAME: workflow_run
+publish	Deliver the verification receipt	2026-10-01T17:13:04.2818438Z   SOURCE_RUN_ID: 36897075694
+publish	Deliver the verification receipt	2026-10-01T17:13:04.2818569Z   SOURCE_ATTEMPT: 1
+publish	Deliver the verification receipt	2026-10-01T17:13:04.2818692Z   CURRENT_RUN_ID: 36897111869
+publish	Deliver the verification receipt	2026-10-01T17:13:04.2818825Z   CURRENT_ATTEMPT: 2
+publish	Deliver the verification receipt	2026-10-01T17:13:04.2818977Z   WORKFLOW_SHA: 23d6f8834d1d460845b639e8bdcc862304405f37
+publish	Deliver the verification receipt	2026-10-01T17:13:04.2819150Z ##[endgroup]
+publish	Deliver the verification receipt	2026-10-01T17:13:07.5996237Z receipt: issuer checker event kind review_required
+publish	Deliver the verification receipt	2026-10-01T17:13:07.5997083Z history: history_unknown -- run 36897111869 attempt 1: delivery step started, outcome record missing or expired
+publish	Deliver the verification receipt	2026-10-01T17:13:07.5997894Z RESULT acknowledged matching_comment comment 5936502650 age None
+publish	Upload the delivery outcome	∩╗┐2026-10-01T17:13:07.6197108Z ##[group]Run actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+publish	Upload the delivery outcome	2026-10-01T17:13:07.6197358Z with:
+publish	Upload the delivery outcome	2026-10-01T17:13:07.6197490Z   name: c2-delivery-outcome-attempt-2
+publish	Upload the delivery outcome	2026-10-01T17:13:07.6197643Z   path: outcome.json
+publish	Upload the delivery outcome	2026-10-01T17:13:07.6197770Z   if-no-files-found: warn
+publish	Upload the delivery outcome	2026-10-01T17:13:07.6197903Z   retention-days: 90
+publish	Upload the delivery outcome	2026-10-01T17:13:07.6198027Z   compression-level: 6
+publish	Upload the delivery outcome	2026-10-01T17:13:07.6198148Z   overwrite: false
+publish	Upload the delivery outcome	2026-10-01T17:13:07.6198270Z   include-hidden-files: false
+publish	Upload the delivery outcome	2026-10-01T17:13:07.6198423Z   archive: true
+publish	Upload the delivery outcome	2026-10-01T17:13:07.6198534Z env:
+publish	Upload the delivery outcome	2026-10-01T17:13:07.6198682Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+publish	Upload the delivery outcome	2026-10-01T17:13:07.6198924Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+publish	Upload the delivery outcome	2026-10-01T17:13:07.6199160Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+publish	Upload the delivery outcome	2026-10-01T17:13:07.6199372Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+publish	Upload the delivery outcome	2026-10-01T17:13:07.6199586Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+publish	Upload the delivery outcome	2026-10-01T17:13:07.6199832Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+publish	Upload the delivery outcome	2026-10-01T17:13:07.6200013Z ##[endgroup]
+publish	Upload the delivery outcome	2026-10-01T17:13:07.7243431Z With the provided path, there will be 1 file uploaded
+publish	Upload the delivery outcome	2026-10-01T17:13:07.7263036Z Artifact name is valid!
+publish	Upload the delivery outcome	2026-10-01T17:13:07.7282946Z Root directory input is valid!
+publish	Upload the delivery outcome	2026-10-01T17:13:07.9973759Z Uploading artifact: c2-delivery-outcome-attempt-2.zip
+publish	Upload the delivery outcome	2026-10-01T17:13:08.0001694Z Beginning upload of artifact content to blob storage
+publish	Upload the delivery outcome	2026-10-01T17:13:08.1596805Z Uploaded bytes 301
+publish	Upload the delivery outcome	2026-10-01T17:13:08.2003343Z Finished uploading artifact content to blob storage!
+publish	Upload the delivery outcome	2026-10-01T17:13:08.2028409Z SHA256 digest of uploaded artifact is 876bb6d594460938dd3b352d6311967e26fa29a3d906eda752f7a8fffc5571c9
+publish	Upload the delivery outcome	2026-10-01T17:13:08.2034382Z Finalizing artifact upload
+publish	Upload the delivery outcome	2026-10-01T17:13:08.5393402Z Artifact c2-delivery-outcome-attempt-2 successfully finalized. Artifact ID 11181045201
+publish	Upload the delivery outcome	2026-10-01T17:13:08.5413367Z Artifact c2-delivery-outcome-attempt-2 has been successfully uploaded! Final size is 301 bytes. Artifact ID is 11181045201
+publish	Upload the delivery outcome	2026-10-01T17:13:08.5423712Z Artifact download URL: https://github.com/monzia-moodie-repo-projects/genomic-variant-classifier-qualification/actions/runs/36897111869/artifacts/11181045201
+publish	Post Set up Python	∩╗┐2026-10-01T17:13:08.5551826Z Post job cleanup.
+publish	Post Check out the trusted workflow commit	∩╗┐2026-10-01T17:13:08.6517181Z Post job cleanup.
+publish	Post Check out the trusted workflow commit	2026-10-01T17:13:08.7184789Z [command]/usr/bin/git version
+publish	Post Check out the trusted workflow commit	2026-10-01T17:13:08.7235334Z git version 2.55.0
+publish	Post Check out the trusted workflow commit	2026-10-01T17:13:08.7314900Z Temporarily overriding HOME='/home/runner/work/_temp/9c85c189-35c3-4739-89ae-f9c1ea3002c7' before making global git config changes
+publish	Post Check out the trusted workflow commit	2026-10-01T17:13:08.7351702Z Adding repository directory to the temporary git global config as a safe directory
+publish	Post Check out the trusted workflow commit	2026-10-01T17:13:08.7395872Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/genomic-variant-classifier-qualification/genomic-variant-classifier-qualification
+publish	Post Check out the trusted workflow commit	2026-10-01T17:13:08.7405077Z Removing SSH command configuration
+publish	Post Check out the trusted workflow commit	2026-10-01T17:13:08.7405566Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+publish	Post Check out the trusted workflow commit	2026-10-01T17:13:08.7406915Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+publish	Post Check out the trusted workflow commit	2026-10-01T17:13:08.7721476Z Removing HTTP extra header
+publish	Post Check out the trusted workflow commit	2026-10-01T17:13:08.7722190Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+publish	Post Check out the trusted workflow commit	2026-10-01T17:13:08.7863121Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+publish	Post Check out the trusted workflow commit	2026-10-01T17:13:08.8386007Z Removing includeIf entries pointing to credentials config files
+publish	Post Check out the trusted workflow commit	2026-10-01T17:13:08.8433229Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+publish	Post Check out the trusted workflow commit	2026-10-01T17:13:08.8470459Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url

@@ -92,6 +92,9 @@ records/**/*.json text eol=lf
 records/**/*.md text eol=lf
 records/**/*.yaml text eol=lf
 records/attestations/installations/artifacts/** -text
+# C2 QUALIFICATION EVIDENCE (VERIFICATION_RESULT, 2026-10-02): preserved exactly as captured -- logs, receipts,
+# archives. Same reasoning as RECORDS-EOL-NORMALIZATION-1; the manifest beside `artifacts/` stays authored (eol=lf).
+records/verification/source-monitor-c2/**/artifacts/** -text
 
 # ---------------------------------------------------------------------------
 # ARCHIVAL DESTINATION: frozen historical authority (added 2026-08-23).
