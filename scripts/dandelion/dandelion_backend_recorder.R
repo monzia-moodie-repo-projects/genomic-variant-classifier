@@ -14,7 +14,7 @@
 # Warning/error class is recorded when observed through base::warning / base::stop inside qvalue; a condition raised another
 # way (for example from compiled code) is recorded as "unobserved", never guessed.
 
-RECORDER_VERSION <- "gvc.dandelion-backend-recorder/1"
+RECORDER_VERSION <- "gvc.dandelion-backend-recorder/2"   # 2: writability probe at start; process guard against forked workers
 .rec <- new.env(parent = emptyenv())
 
 .json_str <- function(x) {
@@ -38,8 +38,19 @@ RECORDER_VERSION <- "gvc.dandelion-backend-recorder/1"
 recorder_start <- function(dir, method_commit) {
   stopifnot(is.character(dir), length(dir) == 1, is.character(method_commit), grepl("^[0-9a-f]{40}$", method_commit))
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
-  if (length(list.files(dir)) > 0) stop("recorder directory is not empty -- events are never appended to an old run: ", dir)
+  if (!dir.exists(dir)) stop("recorder destination could not be created as a directory -- refusing before any traced call: ", dir)
+  if (length(list.files(dir, all.files = TRUE, no.. = TRUE)) > 0) stop("recorder directory is not empty -- events are never appended to an old run: ", dir)
+  # WRITABILITY is proven BEFORE any science runs (measured 2026-10-04: without this, an unwritable destination aborted the FIRST traced
+  # call mid-run with "cannot open the connection"). The probe is written, read back and removed; any warning or error refuses.
+  probe <- file.path(dir, ".recorder_write_probe")
+  ok <- tryCatch({
+    con <- file(probe, open = "wb"); writeBin(as.raw(c(0x67, 0x76, 0x63)), con); close(con)
+    identical(readBin(probe, "raw", 3L), as.raw(c(0x67, 0x76, 0x63)))
+  }, warning = function(w) FALSE, error = function(e) FALSE)
+  if (!isTRUE(ok)) stop("recorder destination is not writable -- refusing before any traced call: ", dir)
+  if (!isTRUE(file.remove(probe)) || file.exists(probe)) stop("recorder write probe could not be removed: ", probe)
   .rec$dir <- dir; .rec$commit <- method_commit; .rec$n <- 0L; .rec$cur <- NULL
+  .rec$pid <- Sys.getpid()      # the ONLY process allowed to record (forked workers share copies of .rec and collide)
   ns <- asNamespace("DANDELION")
   trace("safe_qvalues", where = ns, print = FALSE, at = 2:5,
         tracer = quote(.dandelion_recorder_step(environment())),
@@ -92,6 +103,12 @@ recorder_stop <- function() {
 }
 
 .dandelion_recorder_step <- function(frame) {
+  # PROCESS GUARD, before anything is written: a forked worker (e.g. parallel::mclapply with n.cores > 1) holds a COPY of .rec,
+  # numbers its calls from 1 and overwrites another worker's files (measured 2026-10-04). Serial execution is required.
+  if (!identical(Sys.getpid(), .rec$pid)) {
+    stop("DANDELION backend recorder: traced call in process ", Sys.getpid(), " but recording started in process ", .rec$pid,
+         " -- a forked worker; run DANDELION serially (n.cores = 1) while recording", call. = FALSE)
+  }
   cur <- .rec$cur
   if (is.null(cur)) {                                   # first tracer hit of a call = before step 2
     .rec$n <- .rec$n + 1L

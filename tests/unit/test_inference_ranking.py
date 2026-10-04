@@ -188,3 +188,43 @@ def test_score_orders_before_name_when_they_disagree():
     assert [x.gene for x in rank_genes(rows, plan)] == ["zzz", "aaa"]
     tie = [Pair("aaa", "e1", State.SCORED, F(1, 10), False), Pair("zzz", "e1", State.SCORED, F(1, 10), False)]
     assert [x.gene for x in rank_genes(tie, plan)] == ["aaa", "zzz"]          # exact tie -> stable gene ID
+
+
+# ------------------------------------------------------------------ numerical sensitivity audit (owner ruling 2026-10-04b)
+
+from genomic_variant_classifier.inference.ranking import ScoreRange, topk_audit  # noqa: E402
+
+
+def test_topk_audit_equals_exhaustive_endpoint_enumeration():
+    rng = random.Random(20261005)
+    grid = [F(i, 8) for i in range(9)]
+    for _ in range(300):
+        n = rng.randint(2, 5)
+        rows = [ScoreRange("g{}".format(i), *sorted(rng.choice(grid) for _ in range(2))) for i in range(n)]
+        for k in range(1, n + 1):
+            out = topk_audit(rows, k)
+            ranks = {r.gene: set() for r in rows}
+            for choice in itertools.product(*[sorted({r.low, r.high}) for r in rows]):
+                for pos, (_, gene) in enumerate(sorted(zip(choice, [r.gene for r in rows])), 1):
+                    ranks[gene].add(pos)
+            for gene, seen in ranks.items():
+                assert (out[gene]["best_rank"], out[gene]["worst_rank"]) == (min(seen), max(seen))
+
+
+def test_topk_audit_statuses():
+    rows = [ScoreRange("a", F(1, 100), F(1, 100)), ScoreRange("b", F(5, 100), F(30, 100)),
+            ScoreRange("c", F(10, 100), F(10, 100)), ScoreRange("z", F(90, 100), F(95, 100))]
+    out = topk_audit(rows, 2)
+    assert {g: out[g]["status"] for g in out} == {"a": "always_in", "b": "sensitive", "c": "sensitive", "z": "always_out"}
+
+
+@pytest.mark.parametrize("call, code", [
+    (lambda: ScoreRange("", F(0), F(1)), "gene_id"),
+    (lambda: ScoreRange("a", 0.1, F(1)), "exact_bounds_required"),
+    (lambda: ScoreRange("a", F(1, 2), F(1, 4)), "score_range"),
+    (lambda: ScoreRange("a", F(0), F(3, 2)), "score_range"),
+    (lambda: topk_audit([ScoreRange("a", F(0), F(1))], 2), "k_range"),
+    (lambda: topk_audit([ScoreRange("a", F(0), F(1)), ScoreRange("a", F(0), F(1))], 1), "duplicate_gene"),
+])
+def test_topk_audit_refusals(call, code):
+    assert code_of(call) == code

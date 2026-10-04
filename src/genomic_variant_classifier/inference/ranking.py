@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["State", "Pair", "GeneRank", "rank_genes", "top_k", "audit_top_k", "contrast", "score_from_binary64",
            "UniverseKind", "Universe", "project_scores", "Implementation", "Calibration", "MethodIdentity", "PINNED_COMMIT",
-           "annotate"]
+           "annotate", "ScoreRange", "topk_audit"]
 
 
 class State(Enum):
@@ -344,3 +344,80 @@ def annotate(ranked, annotations) -> tuple:
     if type(annotations) is not dict:
         raise InferenceError("annotations_type")
     return tuple((r, annotations.get(r.gene, {})) for r in ranked)
+
+
+# ---------------------------------------------------------------------------------------------------- numerical sensitivity audit
+# Owner ruling 2026-10-04b, reference code (ruling generation 98ea254a, lines 558-623), transformed mechanically (its generic errors now
+# raise InferenceError with the same codes). For each gene, the best and worst rank over every assignment of scores within the supplied
+# intervals [low, high] -- smaller scores rank first, stable gene IDs break ties -- and whether its top-k membership is "always_in",
+# "always_out" or "sensitive". These are SENSITIVITY bounds, never confidence intervals: an interval may be a point (the primary run), an
+# observed range across qualified environments, or a certified numerical bound -- each means something different. Rank is monotone in
+# every competitor's score, so the extremes are attained at interval endpoints (verified 2026-10-04 against exhaustive endpoint
+# enumeration in 27,482 gene-cutoff checks). It never changes the primary ranking.
+
+@dataclass(frozen=True)
+class ScoreRange:
+    gene: str
+    low: Fraction
+    high: Fraction
+
+    def __post_init__(self):
+        if not isinstance(self.gene, str) or not self.gene:
+            raise InferenceError("gene_id")
+
+        if type(self.low) is not Fraction:
+            raise InferenceError("exact_bounds_required")
+        if type(self.high) is not Fraction:
+            raise InferenceError("exact_bounds_required")
+
+        if not 0 <= self.low <= self.high <= 1:
+            raise InferenceError("score_range")
+
+
+def topk_audit(rows, k):
+    """Bounds over the Cartesian product of supplied score intervals.
+
+    These are sensitivity bounds, not statistical confidence intervals.
+    Correlated score changes can make the bounds conservative.
+    """
+    rows = tuple(rows)
+
+    if type(k) is not int or not 1 <= k <= len(rows):
+        raise InferenceError("k_range")
+
+    if len({row.gene for row in rows}) != len(rows):
+        raise InferenceError("duplicate_gene")
+
+    result = {}
+
+    for target in rows:
+        others = [row for row in rows if row.gene != target.gene]
+
+        # Best possible rank: target is at its minimum,
+        # and every competing gene is at its maximum.
+        best_rank = 1 + sum(
+            (other.high, other.gene) < (target.low, target.gene)
+            for other in others
+        )
+
+        # Worst possible rank: target is at its maximum,
+        # and every competing gene is at its minimum.
+        worst_rank = 1 + sum(
+            (other.low, other.gene) < (target.high, target.gene)
+            for other in others
+        )
+
+        if worst_rank <= k:
+            status = "always_in"
+        elif best_rank > k:
+            status = "always_out"
+        else:
+            status = "sensitive"
+
+        result[target.gene] = {
+            "best_rank": best_rank,
+            "worst_rank": worst_rank,
+            "status": status,
+        }
+
+    return result

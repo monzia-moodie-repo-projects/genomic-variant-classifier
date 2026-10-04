@@ -1,3 +1,34 @@
+## 2026-10-05 (science stage) -- recorder version 2; numerical sensitivity audit
+
+Owner ruling 2026-10-04b. DANDELION is installed from CRAN 0.1.0 (the binary was downloaded from CRAN's package page); the pinned
+GitHub commit f471153 remains the implementation-comparison reference. Measured: all 19 R functions have matching formals and
+bodies between the CRAN distribution and the package built from f471153, and the NAMESPACE files are byte-identical.
+
+RECORDER VERSION 2 (scripts/dandelion/dandelion_backend_recorder.R). Measured against the merged version: an unwritable
+destination let recording start and then aborted the FIRST traced call mid-run ("cannot open the connection"); forked workers
+(parallel::mclapply) each numbered their calls from 1 and OVERWROTE each other's value files, and the parent recorded nothing
+(the post-processing refused that trace, but the bytes were already lost). Now recorder_start refuses a destination that is not
+a directory, not empty, or not writable (a write, read-back and remove probe) before any tracing is installed, and every traced
+call first checks that it runs in the process that started recording -- a forked worker is refused before anything is written.
+Serial execution (n.cores = 1) is required while recording. inference/backend_trace.py accepts recorder version 2 only.
+
+tests/fixtures/dandelion/run_recorder_probe.R runs one scenario per FRESH R process: recorder-off and recorder-on outputs are
+compared byte for byte (enabling observation must not change the answer); unusable destinations and forked workers are refused.
+An existing-but-unwritable directory is tested separately (it skips on Windows and as root, where it cannot be produced).
+
+inference/ranking.py gains topk_audit (owner reference code, ruling generation 98ea254a lines 558-623, transformed mechanically):
+each gene's best and worst rank over score intervals and whether its top-k membership is always in, always out or sensitive --
+sensitivity bounds, not confidence intervals; it never changes the primary ranking. Verified against exhaustive endpoint
+enumeration. (paired_topk was not added: recovery_contrast already provides that decomposition.)
+
+renv 1.2.3's snapshot(packages = ..., update = TRUE) keeps prior lockfile records only for packages ABSENT from the new snapshot
+(snapshot.R lines 233-235): a locked package that is also a new transitive dependency takes the newly installed record. The
+lockfile change therefore needs the approved-additions and approved-changes gate (next change, on the analysis machine).
+
+TESTS: +12 / -0 by node identity (7,547). Mutations: the process guard, the probe (verified as an unprivileged user) and a recorder
+that perturbs its input are each caught; in topk_audit, two of three mutations are caught and the third ("<=" for "<" in a
+comparison of (score, gene) tuples between distinct genes) is an equivalent mutant (identical on 20,000 configurations).
+
 ## 2026-10-04 (science stage) -- DANDELION actual-call q-value backend trace
 
 Owner ruling 2026-10-03b: a parallel replay is a cross-check, not an execution record. scripts/dandelion/
