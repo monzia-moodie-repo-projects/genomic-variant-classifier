@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **7,518 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **7,535 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -479,6 +479,11 @@ exists to end.
   annotations cannot reorder), the top-k tie audit, fitting/evaluation universe identities and the three method
   identities. Measured: the published empirical-null calibration is defined but never called in any of DANDELION's
   73 commits, so the experiment reproduces the pinned implementation. Suite 7,490 -> 7,518.
+- **2026-10-04 -- Science stage: the actual-call q-value backend trace (owner ruling 2026-10-03b).**
+  scripts/dandelion/dandelion_backend_recorder.R observes, with trace() on the installed runtime, which branch each real
+  DANDELION safe_qvalues call took; inference/backend_trace.py verifies the trace (exact-value digests, completeness,
+  admissibility). Prerequisites recorded: DANDELION's R dependencies (igraph, qvalue) are not yet in renv.lock; the recorder
+  is verified on R 4.3.3, the lockfile pins R 4.6.0. Suite 7,518 -> 7,535.
 - **SCHEDULED -- legacy-roadmap carry-forward audit.** 47 of the 55 item identifiers in
   docs/archive/legacy/ROADMAP_2026-03_to_2026-08-22.md are not mentioned in this roadmap (measured 2026-09-28).
   Absence is not resolution: SMOKE-1 (tests/smoke_test_imports.py is never collected and no workflow runs it) is

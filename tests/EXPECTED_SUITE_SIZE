@@ -8078,4 +8078,6 @@
 #   decision + reason codes per scenario).
 # 2026-10-04  SCIENCE STAGE -- DANDELION minimum-score gene aggregation, tie audit, universe + method identities
 #   +28 / -0 by node identity: tests/unit/test_inference_ranking.py.
-7518
+# 2026-10-04  SCIENCE STAGE -- DANDELION actual-call q-value backend trace (R recorder + strict post-processing)
+#   +17 / -0 by node identity: tests/unit/test_inference_backend_trace.py (4 skip, with the reason, without R + DANDELION).
+7535

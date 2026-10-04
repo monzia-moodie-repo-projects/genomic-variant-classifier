@@ -1,0 +1,7 @@
+Package: qvalue
+Type: Package
+Title: TEST DOUBLE ONLY -- not the Bioconductor qvalue package
+Version: 0.0.0.9000
+Description: A test double for exercising DANDELION's safe_qvalues branches. qvalue() succeeds, warns or errors according to
+    the environment variable GVC_QVALUE_DOUBLE_MODE. Never installed outside a test library.
+License: GPL-3
