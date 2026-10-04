@@ -1,3 +1,36 @@
+## 2026-10-04 (science stage, step 2) -- exact inference: confirmation, endpoints, analysis contract
+
+Owner rulings 2026-10-02, 2026-10-03 and 2026-10-03b. A new package, inference/, holds the scientific stage's exact
+statistics. It is CONFIRMATION and EVALUATION machinery, not a ranking method: DANDELION is the primary integrated ranking
+method, burden-only ranking its primary comparator.
+
+inference/exact_confirmation.py -- the gene-level conjunction "burden association AND at least one eligible exposure with
+trans association": T_g = min(1, M_g min_e t_eg), P_g = max(b_g, T_g), then inclusive Holm over the complete contracted
+gene family with exact sorting, products and running maxima. It SUPERSEDES min(1, M_g min_e max(b_g, t_eg)), which penalised
+the shared burden evidence M_g times (P_g never exceeds it; the ruling's example gives 1/1000 against 1/10). The owner's
+2026-10-03 reference package still implemented the superseded form -- measured on its own code -- and was not integrated
+as-is. Probabilities keep their representation (exact decimal text, the exact stored binary value, or derived); zero,
+non-finite and log-only inputs are refused. A planned exposure without a measurement keeps one of five missingness states
+and contributes the bound 1 -- never an imputed observation -- and the denominator stays the contracted family size.
+
+inference/endpoints.py -- known-positive recovery at 20 and the primary contrast Delta H(20) (recovery_contrast, with the
+exact decomposition into method-exclusive recoveries); assay-yield bounds with unresolved genes kept in the denominator and
+shared nominations cancelling from a difference. Generated mechanically from the owner's reference code (ruling generation
+2a970b07, lines 929-1064). Reference membership and assay assessment are separate label systems.
+
+inference/analysis_contract.py -- a DraftContract names its unresolved choices; seal() refuses while any remain; a
+SealedContract's identity is the SHA-256 of its canonical rendering; an amendment is a new identity naming the superseded
+one. Overlap is documented_disjoint, documented_overlap or unresolved; an independence CLAIM seals only when every recorded
+relationship is documented_disjoint. A sealed contract is a PLAN, not a result (cf. evaluation/sealed_evaluation.py).
+
+C2 (owner review 2026-10-03): tests/unit/test_c2_qualification_record.py now asserts every round-2 scenario's
+contract-defined decision and reason codes directly (measured: an unavailable receipt carries verified None, not False).
+ROADMAP: the 2026-10-01 entry's paraphrase of the deviation statement is replaced by the exact statement.
+
+TESTS: +71 / -0 by node identity (7,490). Mutations: confirmation 6/6, endpoints 4/4 (one survived at first and exposed a
+real test gap -- unresolved genes dropped from the denominator -- closed by the ruling's own partial-assessment example),
+analysis contract 4/4.
+
 ## 2026-10-02 (C2 closed) -- the isolated live qualification, preserved as a verification record
 
 C2 closes against its finite acceptance gates (C2 review, 2026-09-29). Production cutover preceded isolated live

@@ -8073,4 +8073,7 @@
 #   5 missing/ambiguous job-structure tests; 1 single-action-vocabulary test. Action-pin ids unchanged.
 # 2026-10-02  C2 CLOSED -- the qualification record (records/verification/source-monitor-c2/) and its offline verification
 #   +19 / -0 by node identity: tests/unit/test_c2_qualification_record.py.
-7419
+# 2026-10-04  SCIENCE STAGE, step 2 -- exact confirmation, endpoints, analysis contract (inference/); C2 record decisions
+#   +71 / -0 by node identity: 33 exact confirmation, 18 endpoints, 19 analysis contract, 1 C2 record (contract-defined
+#   decision + reason codes per scenario).
+7490
