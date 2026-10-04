@@ -220,3 +220,37 @@ def test_the_padded_report_is_the_original_plus_spaces(manifest):
     selected = _zip_member(selected_archive, "report.json")
     assert selected.startswith(original) and set(selected[len(original):]) == {0x20} and len(selected_archive) > 1024 * 1024
     assert hashlib.sha256(selected).hexdigest() != hashlib.sha256(original).hexdigest()
+
+
+# The CONTRACT-DEFINED decision of every scenario (owner review 2026-10-03: assert decisions and reason codes DIRECTLY --
+# agreement among records alone could prove that several records repeat the same wrong decision). MEASURED from the
+# preserved receipts 2026-10-04 and equal to the qualification contract: an unavailable receipt carries verified None
+# (no verdict was reached), not False.
+EXPECTED_ROUND_TWO = {
+    ("scenario", "normal"): (("completed", True, (), 1), ("acknowledged", "created", True)),
+    ("scenario", "claims-disagree"): (("completed", False, ("claims.disagree",), 1), ("acknowledged", "created", True)),
+    ("scenario", "acquisition-limit"): (("unavailable", None, ("checker.unavailable",), 0), ("acknowledged", "created", True)),
+    ("manual", None): (("completed", True, (), 1), ("preview", "manual_verification", False)),
+    ("rerun", None): (None, ("acknowledged", "matching_comment", False)),
+}
+
+
+def test_stage_two_every_scenario_has_its_contract_defined_decision(manifest):
+    seen = set()
+    for package in _files(manifest, "round-2", ".zip"):
+        m = _members(package)
+        top = next(iter(m)).split("/")[0]
+        ex = json.loads(m[top + "/exercise.json"].decode("utf-8-sig"))
+        key = (ex["mode"], ex.get("scenario"))
+        expected_decision, expected_outcome = EXPECTED_ROUND_TWO[key]
+        attempt = 2 if ex["mode"] == "rerun" else 1
+        outcome = json.loads(_zip_member(next(b for n, b in m.items() if n.endswith(
+            "-c2-delivery-outcome-attempt-{}.zip".format(attempt))), "outcome.json"))
+        assert (outcome["action"], outcome["reason"], outcome["post_issued"]) == expected_outcome, key
+        if expected_decision is not None:
+            receipt = json.loads(_zip_member(next(b for n, b in m.items() if n.endswith("-source-monitor-verdict-attempt-1.zip")),
+                                             "receipt.json"))
+            d = receipt["payload"]["decision"]
+            assert (d["status"], d["verified"], tuple(r["code"] for r in d["reasons"]), len(d["reviews"])) == expected_decision, key
+        seen.add(key)
+    assert seen == set(EXPECTED_ROUND_TWO)

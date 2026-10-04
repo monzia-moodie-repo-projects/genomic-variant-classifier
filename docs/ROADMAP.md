@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **7,419 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **7,490 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -449,8 +449,8 @@ exists to end.
   unavailable checker receipt now reaches the writer (the evaluator identity no longer depends on evidence
   collection); receipt freshness is enforced immediately before the POST; deployment identities moved into
   a strictly validated configuration, with the source workflow and repository now authenticated by numeric
-  id. Production cutover preceded isolated live qualification -- a recorded process deviation; the isolated
-  qualification repository supplies the compensating evidence. Suite 7,340 -> 7,371.
+  id. Production cutover preceded isolated live qualification. This is a process deviation. Subsequent isolated
+  qualification supplies compensating functional evidence. Suite 7,340 -> 7,371.
 - **2026-10-01 -- C2 repairs 2, found by the isolated qualification.** The verifier's commit fetch is authenticated
   through that one process's environment (a private repository refused the anonymous fetch); a deployment refusal
   now records a no-POST outcome instead of leaving the attempt UNKNOWN. Suite 7,371 -> 7,373.
@@ -468,6 +468,12 @@ exists to end.
   tests/unit/test_c2_qualification_record.py). Production cutover preceded isolated live qualification. This is a
   process deviation. Subsequent isolated qualification supplies compensating functional evidence. Narrative:
   docs/validated/C2_SOURCE_MONITOR_QUALIFICATION_2026-10-02.md. Suite 7,400 -> 7,419.
+- **2026-10-04 -- Science stage, step 2: exact inference modules (owner rulings 2026-10-02 / 2026-10-03 / 2026-10-03b).**
+  inference/exact_confirmation.py (the revised gene test P_g = max(b_g, min(1, M_g min_e t_eg)), explicit missingness,
+  exact inclusive Holm, partial conjunction), inference/endpoints.py (known-positive recovery at 20 with the primary
+  contrast DANDELION minus burden-only; assay-yield bounds with shared-gene cancellation), inference/analysis_contract.py
+  (draft versus sealed; an independence claim seals only when documented disjoint). The C2 record tests now assert each
+  scenario's contract-defined decision. Suite 7,419 -> 7,490.
 - **SCHEDULED -- legacy-roadmap carry-forward audit.** 47 of the 55 item identifiers in
   docs/archive/legacy/ROADMAP_2026-03_to_2026-08-22.md are not mentioned in this roadmap (measured 2026-09-28).
   Absence is not resolution: SMOKE-1 (tests/smoke_test_imports.py is never collected and no workflow runs it) is
