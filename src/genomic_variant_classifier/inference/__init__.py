@@ -4,7 +4,7 @@ exact_confirmation -- the conservative gene-level conjunction test and exact Hol
 endpoints          -- known-positive recovery at k and the primary contrast; assay-yield bounds (EVALUATION).
 analysis_contract  -- the draft and sealed pre-registration contract (a PLAN, not a result).
 ranking            -- DANDELION with minimum-score gene aggregation, the top-k tie audit, universe and method
-                      identities (the primary extended RANKING method's adapter).
+                      identities, and the numerical sensitivity audit (the primary extended RANKING method's adapter).
 backend_trace      -- strict post-processing of the R actual-call trace of DANDELION's q-value backend
                       (scripts/dandelion/dandelion_backend_recorder.R): digests, completeness, admissibility.
 Pure Python standard library; no logging configuration (library convention).

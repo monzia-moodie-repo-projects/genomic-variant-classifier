@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["RECORDER_VERSION", "BackendEvent", "read_trace", "admissible_events"]
 
-RECORDER_VERSION = "gvc.dandelion-backend-recorder/1"
+RECORDER_VERSION = "gvc.dandelion-backend-recorder/2"   # 2: writability probe at start; forked-worker guard
 _KEYS = {"call", "exposure_id", "backend", "fallback_reason", "last_step_reached", "n_values", "n_distinct", "qvalue_entered",
          "p_adjust_inside_qvalue", "observation_kind", "runtime_instrumented", "method_commit", "recorder_version"}
 _BACKENDS = {"BH", "qvalue", "none", "unclassified"}

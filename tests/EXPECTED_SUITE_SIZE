@@ -8080,4 +8080,6 @@
 #   +28 / -0 by node identity: tests/unit/test_inference_ranking.py.
 # 2026-10-04  SCIENCE STAGE -- DANDELION actual-call q-value backend trace (R recorder + strict post-processing)
 #   +17 / -0 by node identity: tests/unit/test_inference_backend_trace.py (4 skip, with the reason, without R + DANDELION).
-7535
+# 2026-10-05  SCIENCE STAGE -- recorder v2 (writability probe, forked-worker guard, fresh-process off/on equality) + topk_audit
+#   +12 / -0 by node identity: 4 tests/unit/test_inference_backend_trace.py, 8 tests/unit/test_inference_ranking.py.
+7547

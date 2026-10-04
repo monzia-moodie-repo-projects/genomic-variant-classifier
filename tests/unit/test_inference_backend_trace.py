@@ -136,3 +136,56 @@ def test_the_recorder_observes_every_branch_of_the_real_safe_qvalues(tmp_path, m
     assert [(e.exposure_id, e.backend, e.fallback_reason) for e in events] == [
         ("rs_small", "BH", "fewer_than_10_values"), ("rs_few", "BH", "fewer_than_4_distinct_values"),
         ("rs_many", many_backend, many_reason)]
+
+
+def _probe(tmp_path, scenario, trace_dir):
+    result = tmp_path / ("result-" + scenario + ".txt")
+    run = subprocess.run([_rscript(), str(ROOT / "tests/fixtures/dandelion/run_recorder_probe.R"),
+                          str(ROOT / "scripts/dandelion/dandelion_backend_recorder.R"), scenario, str(trace_dir), str(result)],
+                         capture_output=True, text=True, timeout=300)
+    assert run.returncode == 0, run.stderr[-800:]
+    return result.read_bytes()
+
+
+@pytest.mark.skipif(_rscript() is None, reason="Rscript not on PATH")
+@pytest.mark.skipif(not _dandelion_installed(), reason="the pinned DANDELION package (f471153) is not installed in R's library")
+def test_recording_does_not_change_the_science_across_fresh_processes(tmp_path):
+    """Owner ruling 2026-10-04b: recorder OFF and recorder ON in two FRESH R processes; exact byte equality of the outputs."""
+    off = _probe(tmp_path, "off", tmp_path / "unused")
+    on = _probe(tmp_path, "on", tmp_path / "trace")
+    assert off == on and off.count(b"\n") == 3 + 3 + 12 + 25
+    assert not (tmp_path / "unused").exists()
+    assert len(read_trace(tmp_path / "trace")) == 3
+
+
+@pytest.mark.skipif(_rscript() is None, reason="Rscript not on PATH")
+@pytest.mark.skipif(not _dandelion_installed(), reason="the pinned DANDELION package (f471153) is not installed in R's library")
+def test_an_unusable_destination_is_refused_before_any_tracing(tmp_path):
+    parent = tmp_path / "a_regular_file"
+    parent.write_bytes(b"x")
+    out = _probe(tmp_path, "badpath", parent / "sub").decode("utf-8").split("\n")
+    assert "refusing before any traced call" in out[0] and out[1] == "traced FALSE"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="parallel::mclapply cannot fork on Windows")
+@pytest.mark.skipif(_rscript() is None, reason="Rscript not on PATH")
+@pytest.mark.skipif(not _dandelion_installed(), reason="the pinned DANDELION package (f471153) is not installed in R's library")
+def test_a_forked_worker_is_refused_before_writing(tmp_path):
+    out = _probe(tmp_path, "fork", tmp_path / "trace").decode("utf-8").split("\n")
+    assert out[:2] == ["refused 2", "files 0"]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="a read-only directory attribute does not block file creation on Windows")
+@pytest.mark.skipif(os.name != "nt" and os.geteuid() == 0, reason="root ignores directory permissions, so an unwritable directory cannot be made")
+@pytest.mark.skipif(_rscript() is None, reason="Rscript not on PATH")
+@pytest.mark.skipif(not _dandelion_installed(), reason="the pinned DANDELION package (f471153) is not installed in R's library")
+def test_an_existing_but_unwritable_directory_is_refused_by_the_write_probe(tmp_path):
+    """The probe's own case (the directory exists, so only the write probe can refuse it)."""
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    locked.chmod(0o555)
+    try:
+        out = _probe(tmp_path, "badpath", locked).decode("utf-8").split("\n")
+    finally:
+        locked.chmod(0o755)
+    assert "is not writable -- refusing before any traced call" in out[0] and out[1] == "traced FALSE"
