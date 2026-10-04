@@ -8076,4 +8076,6 @@
 # 2026-10-04  SCIENCE STAGE, step 2 -- exact confirmation, endpoints, analysis contract (inference/); C2 record decisions
 #   +71 / -0 by node identity: 33 exact confirmation, 18 endpoints, 19 analysis contract, 1 C2 record (contract-defined
 #   decision + reason codes per scenario).
-7490
+# 2026-10-04  SCIENCE STAGE -- DANDELION minimum-score gene aggregation, tie audit, universe + method identities
+#   +28 / -0 by node identity: tests/unit/test_inference_ranking.py.
+7518

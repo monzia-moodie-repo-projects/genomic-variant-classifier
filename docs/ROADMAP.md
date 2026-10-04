@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **7,490 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **7,518 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -474,6 +474,11 @@ exists to end.
   contrast DANDELION minus burden-only; assay-yield bounds with shared-gene cancellation), inference/analysis_contract.py
   (draft versus sealed; an independence claim seals only when documented disjoint). The C2 record tests now assert each
   scenario's contract-defined decision. Suite 7,419 -> 7,490.
+- **2026-10-04 -- Science stage: the primary ranking method (owner ruling 2026-10-04).** inference/ranking.py: DANDELION
+  with minimum-score gene aggregation over a frozen pair plan (incomplete execution refuses; significance flags and
+  annotations cannot reorder), the top-k tie audit, fitting/evaluation universe identities and the three method
+  identities. Measured: the published empirical-null calibration is defined but never called in any of DANDELION's
+  73 commits, so the experiment reproduces the pinned implementation. Suite 7,490 -> 7,518.
 - **SCHEDULED -- legacy-roadmap carry-forward audit.** 47 of the 55 item identifiers in
   docs/archive/legacy/ROADMAP_2026-03_to_2026-08-22.md are not mentioned in this roadmap (measured 2026-09-28).
   Absence is not resolution: SMOKE-1 (tests/smoke_test_imports.py is never collected and no workflow runs it) is
