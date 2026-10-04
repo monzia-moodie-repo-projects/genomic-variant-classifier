@@ -1,3 +1,32 @@
+## 2026-10-04 (science stage) -- DANDELION actual-call q-value backend trace
+
+Owner ruling 2026-10-03b: a parallel replay is a cross-check, not an execution record. scripts/dandelion/
+dandelion_backend_recorder.R records which branch each REAL call of the installed DANDELION::safe_qvalues took. It
+instruments the installed RUNTIME with trace() (the pinned source checkout is unchanged; every event says the runtime was
+instrumented) and never replays the computation: the branch is identified from the steps the call reached (measured from R's
+own indexing of the installed function), whether qvalue was entered and exited normally, the warning or error class observed
+inside qvalue ("unobserved" when it cannot be seen, never guessed), and whether p.adjust ran as the fallback -- p.adjust calls
+made while qvalue is still executing are attributed to qvalue's internals. Exact input, post-clamp and output values are
+written as hexadecimal floats (lossless; measured) through BINARY connections -- R's text-mode connections translate
+line feeds into CRLF on Windows, which would change the bytes and every digest -- and SHA-256 digests are computed
+from those bytes by
+inference/backend_trace.py, which also refuses malformed or stray files, requires each planned exposure to be observed
+exactly once (a caller holding a reference taken before trace() silently escapes the recorder -- measured), and refuses an
+unclassified or abnormal call as an observation.
+
+Measured while building: DANDELION's root DESCRIPTION Imports igraph and only Suggests qvalue, so without qvalue every exposure
+silently uses Benjamini-Hochberg; .Machine$double.xmin (the clipping constant) is the smallest NORMALIZED double,
+2.2250738585072014e-308, not the smallest subnormal (4.94e-324). A minimal stand-in qvalue package
+(tests/fixtures/dandelion/qvalue_testdouble, TEST DOUBLE only) lets every branch run against the real safe_qvalues.
+
+PREREQUISITES RECORDED, NOT RESOLVED HERE: renv.lock pins R 4.6.0 and 87 packages but neither igraph nor qvalue -- the
+reproduction must pin them with renv on the analysis machine; the recorder is verified on R 4.3.3 only until it runs there.
+
+TESTS: +17 / -0 by node identity (7,535); the 4 real-runtime tests skip, with the reason, where R or the pinned DANDELION is
+absent (no workflow installs R). Measured: the repository's .Rprofile activates renv for any R started in the repository
+root, so these tests use the project's renv library -- where they skip until DANDELION and its dependencies are pinned.
+Mutations 6/6 fail the suite (2 R-recorder mutations caught by the completeness and admissibility guards' refusals).
+
 ## 2026-10-04 (science stage) -- DANDELION with minimum-score gene aggregation; tie audit; method identities
 
 Owner ruling 2026-10-04. inference/ranking.py is the adapter for the PRIMARY extended ranking method, "DANDELION with
