@@ -1,3 +1,29 @@
+## 2026-10-04 (science stage) -- DANDELION with minimum-score gene aggregation; tie audit; method identities
+
+Owner ruling 2026-10-04. inference/ranking.py is the adapter for the PRIMARY extended ranking method, "DANDELION with
+minimum-score gene aggregation": genes ranked by their minimum finite DANDELION pair score over the prespecified scoreable
+exposures, extracted before exposure-to-gene annotation; exact ties by stable gene ID; significance flags are not a sort key
+(significance-first ordering is a prespecified sensitivity analysis). The aggregate is a ranking score, not a calibrated
+gene-level p-value. The pair plan is frozen at admission: a failed computation, a missing row or an unexpected row refuses
+the ranking, so computational failure cannot silently redefine the shared gene universe. Generated mechanically from the
+owner's reference code (ruling generation 05444c27, lines 201-325 and 548-622), with a structural-pair coverage count added.
+
+The tie audit reports, at the top-k boundary, the exact range of reference-positive recovery across admissible tie choices
+(checked against exhaustive enumeration), and the contrast's bounds. Universes are separate identities: FITTING (what the
+method was fitted on) and EVALUATION (the common eligibility rule); scores are projected, never refitted. annotate() attaches
+descriptive labels to a finished ranking and cannot reorder it.
+
+METHOD IDENTITY (measured 2026-10-04 on mxxptian/DANDELION, full history): the paper's empirical-null calibration (JCCorrect,
+a Jin-Cai estimator in Analysis/real_data/run_dandelion_real_data.R) is defined but never called in any of the repository's
+73 commits; the pinned commit f471153 (the repository HEAD; tree 337d8e0e) holds three numerically different executable
+variants (root package, nested package, real-data script), none calibrated. MethodIdentity therefore refuses a claim that
+the pinned implementation executes the published calibration; the experiment is a reproduction of the pinned implementation.
+
+inference/__init__.py now lists all four modules (it had listed only exact_confirmation).
+
+TESTS: +28 / -0 by node identity (7,518). Mutations 6/6 (two survived at first and exposed fixture gaps -- both genes
+significant; name order equal to score order -- closed by the ruling's own A/B illustration and an opposed-order test).
+
 ## 2026-10-04 (science stage, step 2) -- exact inference: confirmation, endpoints, analysis contract
 
 Owner rulings 2026-10-02, 2026-10-03 and 2026-10-03b. A new package, inference/, holds the scientific stage's exact
