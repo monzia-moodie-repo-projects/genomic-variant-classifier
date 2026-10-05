@@ -32,7 +32,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 __all__ = ["AdmissionError", "RUNTIME_BASELINE", "RUNTIME_TARGET", "BIOCONDUCTOR", "RENV", "strict_json", "canonical",
-           "validate_lock", "admit_runtime_change", "probe_r"]
+           "validate_lock", "admit_runtime_change", "sha256_file", "run_r_file", "probe_r"]
 
 #: The ONE declared runtime transition (owner ruling 2026-10-05b). Other code derives its runtime from the authoritative lockfile.
 RUNTIME_BASELINE = "4.6.0"
@@ -100,24 +100,80 @@ def admit_runtime_change(before, after, observed_version):
 
 
 _PROBE_KEYS = ("GVC_R_VERSION", "GVC_R_STATUS", "GVC_R_PLATFORM", "GVC_R_HOME")
+_PROBE_PROGRAM = ('cat(\n'
+                  '  "GVC_R_VERSION=", as.character(getRversion()), "\\n",\n'
+                  '  "GVC_R_STATUS=", R.version$status, "\\n",\n'
+                  '  "GVC_R_PLATFORM=", R.version$platform, "\\n",\n'
+                  '  "GVC_R_HOME=", normalizePath(R.home(), winslash = "/"), "\\n",\n'
+                  '  sep = ""\n'
+                  ')\n')
 
 
-def probe_r(executable, expected=RUNTIME_TARGET):
-    """Identify the R behind an EXPLICIT Rscript path, isolated from startup files, the caller's directory and R/renv variables."""
-    exe = Path(executable).resolve(strict=True)
-    require(exe.is_file(), "rscript_not_file")
+def sha256_file(path) -> str:
+    h = hashlib.sha256()
+    with Path(path).open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def run_r_file(executable, program: str, evidence_dir, *, child_env: dict, timeout_seconds: int = 120) -> dict:
+    """Run R code from a FILE (never through -e on a command line) and keep the complete evidence.
+
+    The owner's reference (ruling 2026-10-06, generation 027757ee L227-314), refined: the evidence folder and record are created
+    BEFORE the executable is resolved, so a missing executable is recorded as start_failed with process.json (measured 2026-10-06:
+    the reference's resolve(strict=True) raised before any evidence existed). Raw stdout/stderr are written BEFORE the exit status is
+    judged. This function RETURNS the record (with the raw streams); the CALLER decides refusal with its own reason code.
+    Short probes only: it does not terminate a process TREE, so long builds need a separate supervisor."""
+    evidence_dir = Path(evidence_dir).resolve()
+    evidence_dir.mkdir(parents=True, exist_ok=False)
+    script = evidence_dir / "probe.R"
+    script.write_bytes(program.encode("utf-8"))
+    record = {"schema_version": 1, "executable": str(executable), "executable_sha256": None,
+              "script_sha256": sha256_file(script), "status": "not_started", "returncode": None}
+    stdout, stderr = b"", b""
+    try:
+        exe = Path(executable).resolve(strict=True)
+        record["executable"] = str(exe)
+        record["executable_sha256"] = sha256_file(exe)
+        with tempfile.TemporaryDirectory(prefix="gvc-r-probe-") as cwd:
+            result = subprocess.run([str(exe), "--vanilla", str(script)], cwd=cwd, env=child_env, stdin=subprocess.DEVNULL,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout_seconds, check=False, shell=False)
+        stdout, stderr = result.stdout, result.stderr
+        record["returncode"] = result.returncode
+        record["status"] = "exited_zero" if result.returncode == 0 else "exited_nonzero"
+    except subprocess.TimeoutExpired as exc:
+        stdout, stderr = exc.stdout or b"", exc.stderr or b""
+        record["status"] = "timeout"
+    except OSError as exc:                      # includes FileNotFoundError from resolve(strict=True)
+        record["status"] = "start_failed"
+        record["error_type"] = type(exc).__name__
+        record["error_message"] = str(exc)
+    finally:
+        (evidence_dir / "stdout.bin").write_bytes(stdout)
+        (evidence_dir / "stderr.bin").write_bytes(stderr)
+        record["stdout_sha256"] = sha256_file(evidence_dir / "stdout.bin")
+        record["stderr_sha256"] = sha256_file(evidence_dir / "stderr.bin")
+        (evidence_dir / "process.json").write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    record["stdout"], record["stderr"] = stdout, stderr
+    return record
+
+
+def probe_r(executable, evidence_dir, expected=RUNTIME_TARGET):
+    """Identify the R behind an EXPLICIT Rscript path from a FILE program, isolated from startup files, the caller's directory and
+    R/renv variables. Every outcome leaves evidence in `evidence_dir` (process.json, probe.R, stdout.bin, stderr.bin)."""
     env = {key: value for key, value in os.environ.items() if not key.upper().startswith(("R_", "RENV_"))}
     env["R_DEFAULT_PACKAGES"] = "NULL"
-    expression = ('cat("GVC_R_VERSION=", as.character(getRversion()), "\\n", '
-                  '"GVC_R_STATUS=", R.version$status, "\\n", '
-                  '"GVC_R_PLATFORM=", R.version$platform, "\\n", '
-                  '"GVC_R_HOME=", normalizePath(R.home(), winslash="/"), "\\n", sep="")')
-    with tempfile.TemporaryDirectory(prefix="gvc-r-probe-") as neutral:
-        run = subprocess.run([str(exe), "--vanilla", "--slave", "-e", expression], cwd=neutral, env=env,
-                             capture_output=True, text=True, encoding="utf-8", errors="strict", timeout=60, check=False)
-    require(run.returncode == 0, "r_probe_exit:" + str(run.returncode))
-    require(not run.stderr.strip(), "r_probe_stderr")
-    lines = run.stdout.splitlines()
+    run = run_r_file(executable, _PROBE_PROGRAM, evidence_dir, child_env=env, timeout_seconds=60)
+    require(run["status"] != "start_failed", "r_probe_start_failed")
+    require(run["status"] != "timeout", "r_probe_timeout")
+    require(run["returncode"] == 0, "r_probe_exit:" + str(run["returncode"]))
+    try:
+        out, err = run["stdout"].decode("utf-8"), run["stderr"].decode("utf-8")
+    except UnicodeDecodeError:
+        raise AdmissionError("r_probe_encoding")
+    require(not err.strip(), "r_probe_stderr")
+    lines = out.splitlines()
     require(len(lines) == len(_PROBE_KEYS), "r_probe_shape")
     values = {}
     for key, line in zip(_PROBE_KEYS, lines):
@@ -127,6 +183,6 @@ def probe_r(executable, expected=RUNTIME_TARGET):
     require(values["GVC_R_STATUS"] == "", "r_not_plain_release")
     require(bool(values["GVC_R_PLATFORM"]), "r_probe_platform")
     require(bool(values["GVC_R_HOME"]), "r_probe_home")
-    return {"executable": str(exe), "launcher_sha256": hashlib.sha256(exe.read_bytes()).hexdigest(),
+    return {"executable": run["executable"], "launcher_sha256": run["executable_sha256"],
             "version": values["GVC_R_VERSION"], "release_status": values["GVC_R_STATUS"],
             "platform": values["GVC_R_PLATFORM"], "r_home": values["GVC_R_HOME"]}

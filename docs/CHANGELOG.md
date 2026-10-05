@@ -1,3 +1,30 @@
+## 2026-10-06 (environment qualification 2) -- file-based probe; source-only repair; sealed installation plan
+
+Owner ruling 2026-10-06 (options C + D; S4Arrays stays 1.12.0). The first R 4.6.1 runtime-checkpoint run restored 82 packages and
+was REFUSED by its inventory check: S4Arrays 1.12.1 had been installed for the locked 1.12.0. Measured: renv 1.2.3 overwrites a
+requested record's version with the retrieved package's DESCRIPTION (retrieve.R lines 1163-1166, with the authors' "TODO: should
+we warn if they didn't match") and then writes the record's Remote* fields into the installed package (package.R lines 209-239),
+so the installed S4Arrays reported Version 1.12.1 with the 1.12.0 commit as its RemoteSha. All 23 Bioconductor records come from
+rolling R-universe feeds; S4Arrays was the first to receive a newer release (1.12.1, 2026-09-21, adding rbind/cbind methods).
+
+environment_qualification/:
+- r_runtime.py: run_r_file runs R code from a FILE (never through -e on a launcher command line) and writes process.json,
+  probe.R, stdout.bin and stderr.bin for EVERY outcome before the exit status is judged -- refined from the owner's reference so
+  that a missing executable is also recorded (start_failed) rather than raising before any evidence exists. probe_r uses it,
+  keeps every previous check, and adds r_probe_start_failed / r_probe_timeout / r_probe_encoding.
+- source_repair.py (owner reference): admits a lockfile change only in provenance fields of explicitly selected packages.
+- install_plan.py (owner reference): admits a sealed plan -- one inspected artifact per non-bundled locked package, the approved
+  runtime-bundled set, bound to the exact lockfile bytes, runtime record and platform -- before installation. Its private strict
+  JSON reader is replaced by r_runtime.strict_json (one owner). A defect in the reference plan_digest (an in-place .sort() on the
+  tuple asdict() returns -- it could digest no plan) was found by a new test and corrected.
+
+Measured on the owner's machine while diagnosing: a stale Command Processor AutoRun entry from an uninstalled micromamba made
+every Command Prompt -- and so Rscript.exe and R.exe CMD INSTALL -- exit 1; the owner removed it (backed up). R 4.6.1 ships
+Matrix 1.7-5, codetools 0.2-20 and lattice 0.22-9 (the locked versions), which the inventory check will accept only from the
+selected R's own library at exactly those versions (next change).
+
+TESTS: +25 / -0 by node identity (7,623). Mutations 7/7.
+
 ## 2026-10-06 (environment qualification) -- the R 4.6.1 runtime checkpoint's admission components
 
 Owner ruling 2026-10-05b (option B): the project qualifies plain-release R 4.6.1 explicitly; R 4.6.0 remains only for historical
