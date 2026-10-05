@@ -8086,4 +8086,6 @@
 #   +51 / -0 by node identity: tests/unit/test_environment_qualification.py.
 # 2026-10-06  ENVIRONMENT QUALIFICATION 2 -- file-based R runner + probe; source-only repair admission; sealed install plan
 #   +25 / -0 by node identity: 19 tests/unit/test_environment_install_plan.py, 6 tests/unit/test_environment_qualification.py.
-7623
+# 2026-10-06  ENVIRONMENT QUALIFICATION 3 -- the pre-install artifact inspector; the plan checks a binary's built R series
+#   +40 / -0 by node identity: 31 tests/unit/test_environment_artifact_inspector.py, 9 tests/unit/test_environment_install_plan.py.
+7663

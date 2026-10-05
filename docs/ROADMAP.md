@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **7,623 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **7,663 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -496,6 +496,10 @@ exists to end.
   The R probe runs a FILE program and keeps complete evidence for every outcome; a source-only lockfile repair is admitted
   field by field; a sealed installation plan (one inspected artifact per package, bound to the lockfile, runtime and
   platform) is admitted before anything installs. Suite 7,598 -> 7,623.
+- **2026-10-06 -- Environment qualification 3: the pre-install artifact inspector.** Every acquired package archive is
+  judged by its INTERNAL DESCRIPTION, build metadata and digest -- never its filename -- and the installation plan now
+  refuses a binary built for another R series (a CRAN binary built for R 4.7 would otherwise have been admitted for 4.6).
+  Suite 7,623 -> 7,663.
 - **SCHEDULED -- legacy-roadmap carry-forward audit.** 47 of the 55 item identifiers in
   docs/archive/legacy/ROADMAP_2026-03_to_2026-08-22.md are not mentioned in this roadmap (measured 2026-09-28).
   Absence is not resolution: SMOKE-1 (tests/smoke_test_imports.py is never collected and no workflow runs it) is
