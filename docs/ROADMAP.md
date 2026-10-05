@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **7,547 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **7,598 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -488,6 +488,10 @@ exists to end.
   recorder refuses an unusable destination before any traced call and refuses a forked worker before writing; recorder-off
   and recorder-on runs in two fresh R processes produce byte-identical outputs. inference/ranking.py gains topk_audit
   (always-in / always-out / sensitive top-k membership over score intervals). Suite 7,535 -> 7,547.
+- **2026-10-06 -- Environment qualification for R 4.6.1 (owner ruling 2026-10-05b, option B).** environment_qualification/:
+  a clean probe of an explicit Rscript path; admission of the runtime-only lockfile change (/R/Version 4.6.0 -> 4.6.1, nothing
+  else); a required-test outcome gate over a dedicated JUnit report (skips, absences, substitutions refused); and a receipt that
+  binds the evidence to the exact candidate. Suite 7,547 -> 7,598.
 - **SCHEDULED -- legacy-roadmap carry-forward audit.** 47 of the 55 item identifiers in
   docs/archive/legacy/ROADMAP_2026-03_to_2026-08-22.md are not mentioned in this roadmap (measured 2026-09-28).
   Absence is not resolution: SMOKE-1 (tests/smoke_test_imports.py is never collected and no workflow runs it) is

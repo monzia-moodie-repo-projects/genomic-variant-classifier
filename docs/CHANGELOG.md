@@ -1,3 +1,34 @@
+## 2026-10-06 (environment qualification) -- the R 4.6.1 runtime checkpoint's admission components
+
+Owner ruling 2026-10-05b (option B): the project qualifies plain-release R 4.6.1 explicitly; R 4.6.0 remains only for historical
+reproduction or a regression investigation. Two separately evidenced checkpoints follow: the RUNTIME checkpoint, whose only
+permitted lockfile change is /R/Version "4.6.0" -> "4.6.1", and later the DEPENDENCY checkpoint that adds DANDELION.
+
+Measured first: the owner's machine has only R 4.6.1, and the project's renv/settings.json sets r.version to null, so renv 1.2.3
+(lockfile.R lines 15-26) records the running R in a snapshot. renv 1.2.3 compares R versions on major and minor only
+(status.R line 372), so 4.6.0 against 4.6.1 does not itself cause the "out-of-sync" startup message; its synchronization check
+looks for locked packages that are not installed (load.R lines 859-874). renv also reads renv-root, user and project .Renviron
+files when activated (load.R lines 344-347), so --vanilla alone does not isolate a sourced activation.
+
+environment_qualification/ (new; no existing owner -- operations/admission_verifier.py binds a suite's COLLECTION identity, this
+package judges OUTCOMES):
+- r_runtime.py: probe_r identifies the R behind an EXPLICIT Rscript path with --vanilla, a neutral working directory, a child
+  environment without R_* or RENV_* variables, separate streams and a strict four-line shape (a probe run from the repository had
+  captured renv's message into the version string); admit_runtime_change admits a candidate whose only difference is /R/Version,
+  compared by canonical serialisation; strict_json refuses duplicate keys and NaN / Infinity; the declared transition is defined once.
+- required_tests.py (owner reference code, ruling generation 19ed556a lines 575-649): admits a dedicated JUnit report only when
+  every case of a frozen plan executed and passed -- skipped, missing, duplicated, substituted, failed or errored cases, a malformed
+  report or a nonzero exit refuse. The real pytest mapping is recorded (classname = dotted module path, plus the class for nested
+  tests; name = function with parametrised ids); expected failures are also <skipped>, so the run needs -o xfail_strict=true.
+- receipt.py: binds checkpoint, repository tree, baseline and candidate lockfile digests, runtime identity, launcher and
+  qualification-code digests, inventory and report digests; require_applicable refuses a receipt whose recomputed identities differ.
+
+Admitting the lockfile delta declares the target; it is not qualification. The 13-stage validations on the owner's machine ran with
+Rscript absent from PATH, so their R-backed tests skipped: they remain valid evidence for what ran, not for those R paths.
+
+TESTS: +51 / -0 by node identity (7,598) -- against the real renv.lock, the real Rscript (with a contaminating user profile in the
+environment) and controlled stand-ins. Mutations 6/6.
+
 ## 2026-10-05 (science stage) -- recorder version 2; numerical sensitivity audit
 
 Owner ruling 2026-10-04b. DANDELION is installed from CRAN 0.1.0 (the binary was downloaded from CRAN's package page); the pinned

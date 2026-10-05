@@ -8082,4 +8082,6 @@
 #   +17 / -0 by node identity: tests/unit/test_inference_backend_trace.py (4 skip, with the reason, without R + DANDELION).
 # 2026-10-05  SCIENCE STAGE -- recorder v2 (writability probe, forked-worker guard, fresh-process off/on equality) + topk_audit
 #   +12 / -0 by node identity: 4 tests/unit/test_inference_backend_trace.py, 8 tests/unit/test_inference_ranking.py.
-7547
+# 2026-10-06  ENVIRONMENT QUALIFICATION -- the R 4.6.1 runtime checkpoint's probe, lockfile admission, required-test gate, receipt
+#   +51 / -0 by node identity: tests/unit/test_environment_qualification.py.
+7598
