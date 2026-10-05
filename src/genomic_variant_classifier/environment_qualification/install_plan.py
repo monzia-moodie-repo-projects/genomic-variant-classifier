@@ -9,7 +9,9 @@ internal DESCRIPTION. A plan digest identifies the plan; it does not authenticat
 
 The code is the owner's reference (ruling generation 027757ee, lines 563-747), transformed mechanically (ValueError -> AdmissionError,
 same messages), with ONE structural change: its private strict JSON reader is replaced by r_runtime.strict_json, the package's single
-owner of strict parsing (duplicate keys and non-finite constants refused there); non-UTF-8 lockfile bytes -> "lock.encoding".
+owner of strict parsing (duplicate keys and non-finite constants refused there); non-UTF-8 lockfile bytes -> "lock.encoding". REFINED 2026-10-06 (measured on real CRAN archives): Artifact records the binary's built R series
+and whether it has compiled code; admit_plan REQUIRES expected_r_series and admits a Windows binary only if it was built for that series and
+its platform is the expected one -- or empty for a package without compiled code.
 
 Author: Monzia Moodie
 """
@@ -44,8 +46,13 @@ class Artifact:
     size: int
     description_sha256: str
 
-    # Platform identity is required for a selected Windows binary.
+    # Platform identity is required for a selected Windows binary. MEASURED 2026-10-06: CRAN's Built field for a package WITHOUT
+    # compiled code has an EMPTY platform ("R 4.7.0; ; ...; windows"), so "" is legitimate there, and only there.
     platform: str | None = None
+    # The R major.minor series a binary was BUILT for (from its Built field) and whether it has compiled code. The reference plan never
+    # checked the built R version, so a binary built for R 4.7 would have been admitted for R 4.6 (forbidden by the 2026-10-04b ruling).
+    built_r_series: str | None = None
+    needs_compilation: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -81,6 +88,7 @@ def admit_plan(
     *,
     expected_runtime_record_sha256: str,
     expected_platform: str,
+    expected_r_series: str,
     approved_bundled: Mapping[str, str],
 ) -> None:
     if type(plan.schema_version) is not int or plan.schema_version != 1:
@@ -97,6 +105,8 @@ def admit_plan(
 
     if plan.platform != expected_platform:
         raise AdmissionError("plan.platform_mismatch")
+    if type(expected_r_series) is not str or re.fullmatch(r"[0-9]+\.[0-9]+", expected_r_series) is None:
+        raise AdmissionError("plan.r_series")
 
     try:
         lock = strict_json(lock_bytes.decode("utf-8"))
@@ -152,9 +162,12 @@ def admit_plan(
             raise AdmissionError("plan.artifact_size")
 
         if artifact.kind == "windows_binary":
-            if artifact.platform != expected_platform:
+            platform_ok = artifact.platform == expected_platform or (artifact.platform == "" and artifact.needs_compilation is False)
+            if not platform_ok:
                 raise AdmissionError("plan.binary_platform")
-        elif artifact.platform is not None:
+            if artifact.built_r_series != expected_r_series:
+                raise AdmissionError("plan.binary_r_series")
+        elif artifact.platform is not None or artifact.built_r_series is not None:
             raise AdmissionError("plan.source_has_binary_platform")
 
     observed_bundled = {}

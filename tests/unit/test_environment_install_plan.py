@@ -1,7 +1,8 @@
 """The sealed installation plan and the source-only repair admission (owner ruling 2026-10-06).
 
 The first part is the owner's reference tests (ruling generation 027757ee, lines 761-845), unchanged apart from the import below;
-the rest adds a refusal for every remaining branch, the plan digest's determinism, and source-repair cases on the REAL lockfile.
+the rest adds a refusal for every remaining branch, the plan digest's determinism, and source-repair cases on the REAL lockfile. The fixture's
+kwargs gained ONE entry, "expected_r_series": "4.6", because admit_plan now requires it (the built-R-version refinement, 2026-10-06).
 
 Author: Monzia Moodie
 """
@@ -47,6 +48,7 @@ def fixture():
     kwargs = {
         "expected_runtime_record_sha256": "c" * 64,
         "expected_platform": "x86_64-w64-mingw32",
+        "expected_r_series": "4.6",
         "approved_bundled": {"Matrix": "1.7-5"},
     }
     return raw, plan, kwargs
@@ -122,7 +124,44 @@ def test_more_refusals():
 
 def test_a_windows_binary_on_the_right_platform_is_admitted():
     raw, plan, kwargs = fixture()
-    admit_plan(raw, replace(plan, artifacts=(replace(plan.artifacts[0], kind="windows_binary", platform="x86_64-w64-mingw32"),)), **kwargs)
+    admit_plan(raw, replace(plan, artifacts=(replace(plan.artifacts[0], kind="windows_binary", platform="x86_64-w64-mingw32",
+                                                     built_r_series="4.6", needs_compilation=True),)), **kwargs)
+
+
+def _binary(plan, **fields):
+    return replace(plan, artifacts=(replace(plan.artifacts[0], kind="windows_binary", **fields),))
+
+
+def test_a_pure_r_binary_with_an_empty_platform_is_admitted():
+    raw, plan, kwargs = fixture()        # measured: CRAN writes "Built: R 4.x; ; ...; windows" for packages without compiled code
+    admit_plan(raw, _binary(plan, platform="", built_r_series="4.6", needs_compilation=False), **kwargs)
+
+
+@pytest.mark.parametrize("fields, reason", [
+    (dict(platform="", built_r_series="4.6", needs_compilation=True), "plan.binary_platform"),      # compiled code needs a platform
+    (dict(platform="", built_r_series="4.7", needs_compilation=False), "plan.binary_r_series"),     # the DANDELION 4.7.0 binary's case
+    (dict(platform="x86_64-w64-mingw32", built_r_series=None, needs_compilation=True), "plan.binary_r_series"),
+])
+def test_binary_identity_refusals(fields, reason):
+    raw, plan, kwargs = fixture()
+    with pytest.raises(ValueError) as error:
+        admit_plan(raw, _binary(plan, **fields), **kwargs)
+    assert str(error.value) == reason
+
+
+def test_a_source_artifact_may_not_carry_a_built_r_series():
+    raw, plan, kwargs = fixture()
+    with pytest.raises(ValueError) as error:
+        admit_plan(raw, replace(plan, artifacts=(replace(plan.artifacts[0], built_r_series="4.6"),)), **kwargs)
+    assert str(error.value) == "plan.source_has_binary_platform"
+
+
+@pytest.mark.parametrize("series", ["4", "4.6.1", "", 4.6])
+def test_a_malformed_expected_r_series_is_refused(series):
+    raw, plan, kwargs = fixture()
+    with pytest.raises(ValueError) as error:
+        admit_plan(raw, plan, **dict(kwargs, expected_r_series=series))
+    assert str(error.value) == "plan.r_series"
 
 
 def test_non_utf8_lockfile_bytes_are_refused():

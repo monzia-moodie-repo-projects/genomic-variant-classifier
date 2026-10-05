@@ -1,3 +1,26 @@
+## 2026-10-06 (environment qualification 3) -- the pre-install artifact inspector
+
+Owner ruling 2026-10-06: requested identity -> acquired archive -> internal DESCRIPTION -> approved SHA-256 -> admit.
+environment_qualification/artifact_inspector.py reads (never extracts) a source tarball or a Windows binary zip: exactly one
+top-level directory named after the package, no unsafe member names, one DESCRIPTION; the kind is taken from the CONTENTS
+(a binary holds <pkg>/Meta/package.rds); Package and Version must equal the intended identity; a source archive must carry no
+Built field and a binary must carry one in the measured form "R x.y.z; <platform>; <date>; windows", from which the built R
+series, platform and NeedsCompilation are recorded with the archive and DESCRIPTION digests. Conflicting candidates for one
+identity are refused, and dependency constraints are checked against the complete planned set with R's version ordering.
+
+Measured on real archives: the R CMD build source tarball of renv 1.2.3 is admitted as source; CRAN's Windows binary of
+DANDELION 0.1.0 records built series 4.7, an EMPTY platform (packages without compiled code) and no compiled code; the real
+installed S4Arrays from the failed restore, zipped under the name S4Arrays_1.12.0.zip, is refused as 1.12.0 because its
+DESCRIPTION says 1.12.1 -- while still carrying the 1.12.0 commit as RemoteSha.
+
+install_plan.py refinement: Artifact gains built_r_series and needs_compilation; admit_plan REQUIRES expected_r_series and admits
+a Windows binary only if it was built for that series and its platform is the expected one, or empty for a package without
+compiled code. Before this, the plan never checked a binary's built R version (a binary built for R 4.7 would have been admitted
+for R 4.6, which the 2026-10-04b ruling forbids) and would have refused every pure-R CRAN binary.
+
+TESTS: +40 / -0 by node identity (7,663). Mutations 7/7 (one survived at first -- a strict ">=" -- and exposed a missing
+exact-bound case, now covered).
+
 ## 2026-10-06 (environment qualification 2) -- file-based probe; source-only repair; sealed installation plan
 
 Owner ruling 2026-10-06 (options C + D; S4Arrays stays 1.12.0). The first R 4.6.1 runtime-checkpoint run restored 82 packages and
