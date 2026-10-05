@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 from genomic_variant_classifier.environment_qualification.r_runtime import (
-    RUNTIME_TARGET, AdmissionError, admit_runtime_change, canonical, probe_r, strict_json)
+    RUNTIME_TARGET, AdmissionError, admit_runtime_change, canonical, probe_r, run_r_file, strict_json)
 from genomic_variant_classifier.environment_qualification.receipt import QualificationReceipt, require_applicable
 from genomic_variant_classifier.environment_qualification.required_tests import Case, QualificationError, admit_junit
 
@@ -99,14 +99,16 @@ RSCRIPT = shutil.which("Rscript")
 
 @pytest.mark.skipif(RSCRIPT is None, reason="Rscript not on PATH")
 def test_the_probe_is_clean_even_with_a_contaminating_profile(tmp_path, monkeypatch):
-    actual = subprocess.run([RSCRIPT, "--vanilla", "-e", "cat(as.character(getRversion()))"], cwd=tmp_path,
+    version_program = tmp_path / "version.R"
+    version_program.write_text("cat(as.character(getRversion()))\n", encoding="utf-8")
+    actual = subprocess.run([RSCRIPT, "--vanilla", str(version_program)], cwd=tmp_path,
                             capture_output=True, text=True, check=True).stdout
     profile = tmp_path / "profile.R"
     profile.write_text('cat("CONTAMINATION\\n")\n', encoding="utf-8")
     monkeypatch.setenv("R_PROFILE_USER", str(profile))
     monkeypatch.setenv("RENV_PATHS_ROOT", str(tmp_path / "nowhere"))
     monkeypatch.chdir(ROOT)                          # the repository root, whose .Rprofile contaminated an unisolated probe
-    result = probe_r(RSCRIPT, expected=actual)
+    result = probe_r(RSCRIPT, tmp_path / "probe", expected=actual)
     assert result["version"] == actual and result["release_status"] == "" and len(result["launcher_sha256"]) == 64
 
 
@@ -135,9 +137,59 @@ def test_probe_outcomes_with_stand_in_executables(tmp_path, monkeypatch, body, c
     monkeypatch.setenv("RENV_PATHS_ROOT", "/somewhere")
     exe = _fake(tmp_path, body)
     if code is None:
-        assert probe_r(exe)["version"] == "4.6.1"
+        assert probe_r(exe, tmp_path / "probe")["version"] == "4.6.1"
     else:
-        assert code_of(AdmissionError, lambda: probe_r(exe)) == code
+        assert code_of(AdmissionError, lambda: probe_r(exe, tmp_path / "probe")) == code
+    assert (tmp_path / "probe" / "process.json").is_file()        # every outcome leaves evidence
+
+
+FILE_ONLY = 'case "$2" in */probe.R) [ "$1" = "--vanilla" ] && [ -f "$2" ] && [ "$#" -eq 2 ] || exit 7 ;; *) exit 8 ;; esac; '
+
+
+@pytest.mark.skipif(os.name == "nt", reason="the stand-in executables are POSIX shell scripts")
+def test_the_probe_runs_a_file_program_never_minus_e(tmp_path):
+    exe = _fake(tmp_path, FILE_ONLY + GOOD)
+    assert probe_r(exe, tmp_path / "probe")["version"] == "4.6.1"
+    assert "GVC_R_HOME=" in (tmp_path / "probe" / "probe.R").read_text(encoding="utf-8")
+
+
+@pytest.mark.skipif(os.name == "nt", reason="the stand-in executables are POSIX shell scripts")
+def test_a_refusal_keeps_the_complete_evidence(tmp_path):
+    exe = _fake(tmp_path, GOOD + '; echo "R said something" >&2; exit 3')
+    assert code_of(AdmissionError, lambda: probe_r(exe, tmp_path / "probe")) == "r_probe_exit:3"
+    record = strict_json((tmp_path / "probe" / "process.json").read_text(encoding="utf-8"))
+    assert (record["status"], record["returncode"]) == ("exited_nonzero", 3)
+    assert (tmp_path / "probe" / "stderr.bin").read_bytes() == b"R said something\n"
+    assert (tmp_path / "probe" / "stdout.bin").read_bytes().startswith(b"GVC_R_VERSION=4.6.1")
+
+
+def test_a_missing_executable_is_recorded_as_start_failed(tmp_path):
+    assert code_of(AdmissionError, lambda: probe_r(tmp_path / "no-such-Rscript", tmp_path / "probe")) == "r_probe_start_failed"
+    record = strict_json((tmp_path / "probe" / "process.json").read_text(encoding="utf-8"))
+    assert record["status"] == "start_failed" and record["executable_sha256"] is None and record["error_type"] == "FileNotFoundError"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="the stand-in executables are POSIX shell scripts")
+def test_non_utf8_output_is_refused(tmp_path):
+    exe = _fake(tmp_path, "printf '\\377\\376'")
+    assert code_of(AdmissionError, lambda: probe_r(exe, tmp_path / "probe")) == "r_probe_encoding"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="the stand-in executables are POSIX shell scripts")
+def test_run_r_file_records_a_timeout_with_its_partial_output(tmp_path):
+    exe = _fake(tmp_path, 'printf "partial"; sleep 5')
+    record = run_r_file(exe, "cat(1)\n", tmp_path / "run", child_env=dict(os.environ), timeout_seconds=1)
+    assert record["status"] == "timeout" and record["returncode"] is None
+    assert strict_json((tmp_path / "run" / "process.json").read_text(encoding="utf-8"))["status"] == "timeout"
+
+
+@pytest.mark.skipif(RSCRIPT is None, reason="Rscript not on PATH")
+def test_valid_looking_output_followed_by_an_r_error_is_refused_with_both_streams_kept(tmp_path):
+    record = run_r_file(RSCRIPT, 'cat("GVC_R_VERSION=4.6.1\\n")\nstop("deliberate failure after printing")\n', tmp_path / "run",
+                        child_env=dict(os.environ))
+    assert (record["status"], record["returncode"]) == ("exited_nonzero", 1)
+    assert (tmp_path / "run" / "stdout.bin").read_bytes() == b"GVC_R_VERSION=4.6.1\n"
+    assert b"deliberate failure after printing" in (tmp_path / "run" / "stderr.bin").read_bytes()
 
 
 # ------------------------------------------------------------------ the required-test outcome gate
