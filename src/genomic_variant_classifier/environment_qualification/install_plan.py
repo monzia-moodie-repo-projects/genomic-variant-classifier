@@ -53,6 +53,9 @@ class Artifact:
     # checked the built R version, so a binary built for R 4.7 would have been admitted for R 4.6 (forbidden by the 2026-10-04b ruling).
     built_r_series: str | None = None
     needs_compilation: bool | None = None
+    # A Windows binary's native libraries COUNTED by the inspector from its contents; the binary rule uses this, not NeedsCompilation
+    # (a metadata claim that can be stale: tidyselect 1.2.1, measured 2026-10-10). None for a source artifact.
+    native_libraries: int | None = None
 
 
 @dataclass(frozen=True)
@@ -162,12 +165,17 @@ def admit_plan(
             raise AdmissionError("plan.artifact_size")
 
         if artifact.kind == "windows_binary":
-            platform_ok = artifact.platform == expected_platform or (artifact.platform == "" and artifact.needs_compilation is False)
+            if type(artifact.native_libraries) is not int or artifact.native_libraries < 0:
+                raise AdmissionError("plan.binary_contents_unknown")
+            if artifact.native_libraries > 0:
+                platform_ok = artifact.platform == expected_platform
+            else:
+                platform_ok = artifact.platform in ("", expected_platform)
             if not platform_ok:
                 raise AdmissionError("plan.binary_platform")
             if artifact.built_r_series != expected_r_series:
                 raise AdmissionError("plan.binary_r_series")
-        elif artifact.platform is not None or artifact.built_r_series is not None:
+        elif artifact.platform is not None or artifact.built_r_series is not None or artifact.native_libraries is not None:
             raise AdmissionError("plan.source_has_binary_platform")
 
     observed_bundled = {}

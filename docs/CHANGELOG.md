@@ -1,3 +1,28 @@
+## 2026-10-10 (environment qualification 5) -- build planning; binary admission judged from contents
+
+Owner rulings 2026-10-08 to 2026-10-10. All 159 planned artifacts (23 Bioconductor + 60 CRAN packages, source and Windows binary) were
+acquired and admitted on the owner's machine (2026-10-06): every request HTTP 200 over curl 8.21.0 with the Schannel backend, every
+binary built under R 4.6.0. A contents check of all 159 archives found one disagreement: tidyselect 1.2.1's DESCRIPTION says
+NeedsCompilation "yes", but its source has no src/ files and Posit's binary has no DLL -- the metadata is stale, the binary complete.
+Across the other binaries, compiled content matched the source exactly.
+
+environment_qualification/:
+- artifact_inspector.py / install_plan.py: the inspector counts native libraries (<pkg>/libs/**.dll) in a binary from the same structural
+  pass; a Windows binary is admitted when it has native libraries and the expected platform, or none and an empty (or the expected)
+  platform. NeedsCompilation is kept as a recorded observation, not a deciding field.
+- build_plan.py: the owner's reference code integrated from three ruling generations -- validate_graph, rebuild_closure and
+  installation_order (rebuild selection and installation order answer different questions); select_routes (one route per package; local
+  builds = the reverse LinkingTo closure of packages without an admitted binary); admit_build (a build receipt is compared with
+  independently supplied expectations and an independent inspection); admit_dependencies (the INSTALLED dependency a build actually used,
+  down to its installed-tree digest). Collisions with existing owners were resolved explicitly (AdmissionError and require from
+  r_runtime; Artifact -> DependencyArtifact).
+
+Measured on the admitted artifacts: no LinkingTo edge changed from the earlier cache (S4Arrays 1.12.0 included); the routes are 71
+upstream binaries, 12 local builds (Biostrings, GenomicAlignments, IRanges, RSQLite, Rsamtools, S4Arrays, S4Vectors, SparseArray,
+XVector, cigarillo, dbplyr, rtracklayer), 3 runtime-provided packages and renv -- frozen as a regression test.
+
+TESTS: +27 / -0 by node identity (7,706). Mutations 5/5.
+
 ## 2026-10-07 (environment qualification 4) -- R judges package metadata; structural archive checks
 
 Owner ruling 2026-10-07. Five defects in the merged inspector were confirmed by execution against its merged blob (566fa7c1): "1.2" and
