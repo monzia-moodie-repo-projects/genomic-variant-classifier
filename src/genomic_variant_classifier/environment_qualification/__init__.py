@@ -6,7 +6,9 @@ receipt          -- the record binding qualification evidence to the exact candi
 source_repair    -- admission of a source-only lockfile repair (provenance fields of selected packages; nothing else).
 install_plan     -- the sealed installation plan: one inspected artifact per package, bound to lockfile, runtime, platform and
                     the R series a binary was built for.
-artifact_inspector -- the pre-install gate: an archive's INTERNAL identity, build metadata and digest, never its filename.
+artifact_inspector -- the pre-install gate: Python checks an archive's bytes and STRUCTURE; the qualified R reads its DESCRIPTION
+                    and judges the dependency closure; identity is the exact recorded strings, never the filename.
+r_semantics      -- the R program (text) that interprets R's own package metadata: read.dcf records, package_version.
 
 Expectations always come from the reviewed plan, never from the evidence under test -- the principle of
 operations/admission_verifier.py, which binds a suite's COLLECTION identity; this package judges OUTCOMES.

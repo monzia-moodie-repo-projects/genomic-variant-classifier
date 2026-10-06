@@ -170,7 +170,9 @@ def comparative_yield_bounds(
 
 def recovery_contrast(primary_ranking, comparator_ranking, contract):
     """The PRIMARY contrast Delta H(k) = H_primary(k) - H_comparator(k), decomposed exactly: shared nominations cancel,
-    so Delta H = |(A - B) & R| - |(B - A) & R|. Reported with both counts and the exclusive genes behind them."""
+    so Delta H = |(A - B) & R| - |(B - A) & R|. Reported with both counts and the exclusive genes behind them, AND the complete
+    replacement sets (owner ruling 2026-10-07): every gene gained (A - B), lost (B - A) and shared (A & B), whether or not it is a
+    reference positive -- the scientific difference lies in the replacements, and a gene outside R is unlabelled, not false."""
     a = top_k(primary_ranking, contract)
     b = top_k(comparator_ranking, contract)
     r = contract.reference_positives
@@ -189,4 +191,7 @@ def recovery_contrast(primary_ranking, comparator_ranking, contract):
         "shared_nominations": len(a & b),
         "recovered_only_by_primary": tuple(sorted(primary_only)),
         "recovered_only_by_comparator": tuple(sorted(comparator_only)),
+        "gained_top_k": tuple(sorted(a - b)),
+        "lost_top_k": tuple(sorted(b - a)),
+        "shared_top_k": tuple(sorted(a & b)),
     }

@@ -8088,4 +8088,7 @@
 #   +25 / -0 by node identity: 19 tests/unit/test_environment_install_plan.py, 6 tests/unit/test_environment_qualification.py.
 # 2026-10-06  ENVIRONMENT QUALIFICATION 3 -- the pre-install artifact inspector; the plan checks a binary's built R series
 #   +40 / -0 by node identity: 31 tests/unit/test_environment_artifact_inspector.py, 9 tests/unit/test_environment_install_plan.py.
-7663
+# 2026-10-07  ENVIRONMENT QUALIFICATION 4 -- R judges package metadata; structural archive checks; complete replacement sets
+#   +43 / -27 by node identity: the inspector test file was REWRITTEN (+41 / -27: restructured parametrizations; Python version and
+#   dependency tests became R-oracle tests; every merged case kept under a new identity), +2 tests/unit/test_inference_endpoints.py.
+7679
