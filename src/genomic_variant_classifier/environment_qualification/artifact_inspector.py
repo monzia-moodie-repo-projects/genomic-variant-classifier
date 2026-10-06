@@ -53,6 +53,9 @@ class Structure:
     size: int
     description_bytes: bytes = field(repr=False)
     installed_layout: bool
+    # Native libraries actually present (<pkg>/libs/**.dll). Judged from CONTENTS: measured 2026-10-10, tidyselect 1.2.1's DESCRIPTION says
+    # NeedsCompilation "yes" while its source has no src/ files and Posit's binary has no DLL -- the metadata was stale, the binary complete.
+    native_libraries: int = 0
 
 
 @dataclass(frozen=True)
@@ -138,7 +141,9 @@ def inspect_structure(path, *, package: str, kind: str) -> Structure:
         raise AdmissionError("artifact.binary_layout")
     if kind == "source" and installed:
         raise AdmissionError("artifact.source_is_installed")
-    return Structure(sha256=hashlib.sha256(data).hexdigest(), size=len(data), description_bytes=description[0], installed_layout=installed)
+    native = sum(1 for f in files if f.startswith(package + "/libs/") and f.lower().endswith(".dll"))
+    return Structure(sha256=hashlib.sha256(data).hexdigest(), size=len(data), description_bytes=description[0], installed_layout=installed,
+                     native_libraries=native)
 
 
 def _r_string(path: Path) -> str:
@@ -258,7 +263,8 @@ def inspect_archive(path, *, package: str, version: str, kind: str, rscript, evi
         needs = nc == "yes"
     artifact = Artifact(package=package, version=version, kind=kind, sha256=structure.sha256, size=structure.size,
                         description_sha256=hashlib.sha256(structure.description_bytes).hexdigest(), platform=platform,
-                        built_r_series=built_series, needs_compilation=needs)
+                        built_r_series=built_series, needs_compilation=needs,
+                        native_libraries=structure.native_libraries if kind == "windows_binary" else None)
     return Inspected(artifact=artifact, description=description)
 
 

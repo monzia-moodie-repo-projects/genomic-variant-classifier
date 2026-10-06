@@ -237,3 +237,24 @@ def test_satisfied_closures_pass(tmp_path, descs, planned):
 def test_unmet_closures_are_refused(tmp_path, descs, planned, fragment):
     message = code_of(lambda: closure_with_r(RSCRIPT, descs, planned, tmp_path / "closure"))
     assert message.startswith("artifact.dependencies:") and fragment in message
+
+
+# ------------------------------------------------------------------ native libraries are COUNTED from contents (measured 2026-10-10)
+
+@pytest.mark.parametrize("extra, count", [
+    ([("S4Arrays/libs/x64/S4Arrays.dll", b"MZ")], 1),
+    ([], 0),
+    ([("S4Arrays/libs/x64/S4Arrays.DLL", b"MZ"), ("S4Arrays/libs/i386/S4Arrays.dll", b"MZ")], 2),
+    ([("S4Arrays/libs/x64/symbols.rds", b"x")], 0),
+])
+def test_native_libraries_are_counted_from_the_binary_contents(tmp_path, extra, count):
+    archive = make_binary(tmp_path / "b.zip", extra=extra)
+    assert inspect_structure(archive, package="S4Arrays", kind="windows_binary").native_libraries == count
+
+
+@needs_r
+def test_the_count_reaches_the_artifact_for_binaries_only(tmp_path):
+    b = inspect_archive(make_binary(tmp_path / "b.zip", extra=[("S4Arrays/libs/x64/S4Arrays.dll", b"MZ")]), package="S4Arrays", version="1.12.0",
+                        kind="windows_binary", rscript=RSCRIPT, evidence_dir=tmp_path / "e1").artifact
+    s = inspect(make_source(tmp_path / "s.tar.gz"), tmp_path).artifact
+    assert (b.native_libraries, s.native_libraries) == (1, None)

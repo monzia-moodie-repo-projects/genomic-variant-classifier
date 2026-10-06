@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **7,679 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **7,706 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -504,6 +504,10 @@ exists to end.
   Python approximations of DESCRIPTION and version semantics were measurably wrong; Python now checks bytes and archive
   structure only, and the qualified R reads DESCRIPTION records and judges the dependency closure. The recovery contrast now
   reports the complete replacement sets. Suite 7,663 -> 7,679 (+43 / -27: one test file rewritten, no case dropped).
+- **2026-10-10 -- Environment qualification 5: build planning (owner rulings 2026-10-08 to 2026-10-10).** Routes are selected
+  from admitted artifacts (one per package; local builds = the reverse LinkingTo closure of packages without an admitted
+  binary), installation is ordered, and build receipts and the installed dependencies a build used are admitted. Binary
+  admission now counts native libraries in the archive instead of trusting NeedsCompilation. Suite 7,679 -> 7,706.
 - **SCHEDULED -- legacy-roadmap carry-forward audit.** 47 of the 55 item identifiers in
   docs/archive/legacy/ROADMAP_2026-03_to_2026-08-22.md are not mentioned in this roadmap (measured 2026-09-28).
   Absence is not resolution: SMOKE-1 (tests/smoke_test_imports.py is never collected and no workflow runs it) is

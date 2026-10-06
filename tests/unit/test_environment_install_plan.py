@@ -115,7 +115,8 @@ def test_more_refusals():
     _refused(raw, replace(plan, artifacts=plan.artifacts + (replace(plan.artifacts[0], package="Extra"),)), "plan.unexpected_package:Extra")
     _refused(raw, replace(plan, artifacts=plan.artifacts + (replace(plan.artifacts[0], package="Matrix", version="1.7-5"),),
                           bundled=()), "plan.bundled_package_has_artifact:Matrix")
-    _refused(raw, replace(plan, artifacts=(replace(plan.artifacts[0], kind="windows_binary", platform="x86_64-pc-linux-gnu"),)), "plan.binary_platform")
+    _refused(raw, replace(plan, artifacts=(replace(plan.artifacts[0], kind="windows_binary", platform="x86_64-pc-linux-gnu", native_libraries=1),)),
+             "plan.binary_platform")
     _refused(raw, replace(plan, artifacts=(replace(plan.artifacts[0], platform="x86_64-w64-mingw32"),)), "plan.source_has_binary_platform")
     _refused(raw, replace(plan, artifacts=(replace(plan.artifacts[0], sha256="A" * 64),)), "plan.artifact_digest")
     _refused(raw, replace(plan, bundled=(Bundled("Matrix", "1.7-5", "base"),)), "plan.bundled_priority")
@@ -125,7 +126,7 @@ def test_more_refusals():
 def test_a_windows_binary_on_the_right_platform_is_admitted():
     raw, plan, kwargs = fixture()
     admit_plan(raw, replace(plan, artifacts=(replace(plan.artifacts[0], kind="windows_binary", platform="x86_64-w64-mingw32",
-                                                     built_r_series="4.6", needs_compilation=True),)), **kwargs)
+                                                     built_r_series="4.6", needs_compilation=True, native_libraries=1),)), **kwargs)
 
 
 def _binary(plan, **fields):
@@ -134,13 +135,15 @@ def _binary(plan, **fields):
 
 def test_a_pure_r_binary_with_an_empty_platform_is_admitted():
     raw, plan, kwargs = fixture()        # measured: CRAN writes "Built: R 4.x; ; ...; windows" for packages without compiled code
-    admit_plan(raw, _binary(plan, platform="", built_r_series="4.6", needs_compilation=False), **kwargs)
+    admit_plan(raw, _binary(plan, platform="", built_r_series="4.6", needs_compilation=False, native_libraries=0), **kwargs)
 
 
 @pytest.mark.parametrize("fields, reason", [
-    (dict(platform="", built_r_series="4.6", needs_compilation=True), "plan.binary_platform"),      # compiled code needs a platform
-    (dict(platform="", built_r_series="4.7", needs_compilation=False), "plan.binary_r_series"),     # the DANDELION 4.7.0 binary's case
-    (dict(platform="x86_64-w64-mingw32", built_r_series=None, needs_compilation=True), "plan.binary_r_series"),
+    (dict(platform="", built_r_series="4.6", needs_compilation=True, native_libraries=1), "plan.binary_platform"),   # compiled CONTENTS need a platform
+    (dict(platform="", built_r_series="4.7", needs_compilation=False, native_libraries=0), "plan.binary_r_series"),  # the DANDELION 4.7.0 binary's case
+    (dict(platform="x86_64-w64-mingw32", built_r_series=None, needs_compilation=True, native_libraries=1), "plan.binary_r_series"),
+    (dict(platform="", built_r_series="4.6", needs_compilation=False, native_libraries=None), "plan.binary_contents_unknown"),
+    (dict(platform="", built_r_series="4.6", needs_compilation=False, native_libraries=-1), "plan.binary_contents_unknown"),
 ])
 def test_binary_identity_refusals(fields, reason):
     raw, plan, kwargs = fixture()
@@ -220,3 +223,24 @@ def test_source_repair_refusals(mutate, targets, reason):
     with pytest.raises(ValueError) as error:
         _repair(mutate, targets)
     assert str(error.value) == reason
+
+
+# ------------------------------------------------------------------ the CONTENTS-based binary rule (measured 2026-10-10)
+
+def test_stale_needs_compilation_metadata_does_not_decide():
+    """tidyselect 1.2.1: DESCRIPTION says NeedsCompilation "yes", the source has no src/ files and Posit's binary has no DLL and an empty
+    platform. The binary is complete; the CONTENTS decide."""
+    raw, plan, kwargs = fixture()
+    admit_plan(raw, _binary(plan, platform="", built_r_series="4.6", needs_compilation=True, native_libraries=0), **kwargs)
+
+
+def test_a_binary_without_native_libraries_may_also_carry_the_expected_platform():
+    raw, plan, kwargs = fixture()
+    admit_plan(raw, _binary(plan, platform="x86_64-w64-mingw32", built_r_series="4.6", needs_compilation=False, native_libraries=0), **kwargs)
+
+
+def test_a_source_artifact_may_not_carry_a_native_library_count():
+    raw, plan, kwargs = fixture()
+    with pytest.raises(ValueError) as error:
+        admit_plan(raw, replace(plan, artifacts=(replace(plan.artifacts[0], native_libraries=0),)), **kwargs)
+    assert str(error.value) == "plan.source_has_binary_platform"
