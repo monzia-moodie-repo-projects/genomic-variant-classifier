@@ -1,3 +1,28 @@
+## 2026-10-07 (environment qualification 4) -- R judges package metadata; structural archive checks
+
+Owner ruling 2026-10-07. Five defects in the merged inspector were confirmed by execution against its merged blob (566fa7c1): "1.2" and
+"1.2.0" compared unequal (R's package_version: equal); two blank-line-separated DESCRIPTION records were merged into one (R's read.dcf:
+two); a constraint on a base package ("stats (>= 999.0)") was accepted unchecked; an empty description set was accepted for a non-empty
+plan; a duplicate ordinary archive member was accepted. Root cause: R's package semantics had been re-implemented in Python.
+
+environment_qualification/:
+- artifact_inspector.py: Python checks BYTES and STRUCTURE only -- the archive is read once and its digest and inspection use the same
+  bytes; tar members must be regular files or directories and zip members must not be symbolic links; one package root (a bare root
+  header only as a directory); no duplicate paths, Windows case-insensitive collisions or file/directory conflicts; bounded member count
+  and declared size. DESCRIPTION reading and the dependency closure run in the qualified R through run_r_file, with complete evidence
+  per run. Identity remains an exact comparison of the recorded strings; a non-UTF-8 DESCRIPTION is refused as unsupported by project
+  policy before R runs. The Python parse_dcf, r_version_key and check_dependencies are removed.
+- r_semantics.py: the R program, kept as text so it ships with the package -- the owner's reference read_description_strict and
+  check_dependency_closure (complete coverage; constraints on base packages judged against the runtime's MEASURED base inventory),
+  refined after measurement under R 4.3.3: an empty DESCRIPTION, an unparseable record and a malformed Version are each reported with
+  their own code instead of R's internal messages.
+inference/endpoints.py: recovery_contrast also reports the complete gained, lost and shared top-K sets -- the scientific difference lies
+in the replacements, and a gene outside the reference set is unlabelled, not false.
+
+TESTS: +43 / -27 by node identity (7,679). The inspector test file was rewritten: its 27 old identities are all kept as cases under new
+identities (two dropped in the first rewrite -- a strict numeric version ordering and a malformed-version refusal -- were found by
+auditing the mapping and restored). Mutations 9/9.
+
 ## 2026-10-06 (environment qualification 3) -- the pre-install artifact inspector
 
 Owner ruling 2026-10-06: requested identity -> acquired archive -> internal DESCRIPTION -> approved SHA-256 -> admit.

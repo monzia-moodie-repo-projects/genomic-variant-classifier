@@ -89,6 +89,25 @@ def test_identical_rankings_have_zero_recovery_difference():
     assert recovery_contrast(INTEGRATED, INTEGRATED, CONTRACT)["delta"] == 0
 
 
+def test_recovery_contrast_reports_the_complete_replacement_sets():
+    """The owner's worked example (ruling 2026-10-07): integrated A C B D, baseline A B C D, R = {A, C}, k = 2."""
+    contract = EndpointContract(k=2, eligible_genes=frozenset("ABCD"), reference_positives=frozenset("AC"),
+                                reference_id="reference-v1", assay_rule_id="assay-v1")
+    c = recovery_contrast(("A", "C", "B", "D"), ("A", "B", "C", "D"), contract)
+    assert (c["delta"], c["gained_top_k"], c["lost_top_k"], c["shared_top_k"]) == (1, ("C",), ("B",), ("A",))
+    assert (c["recovered_only_by_primary"], c["recovered_only_by_comparator"]) == (("C",), ())
+
+
+def test_replacement_sets_are_complete_and_balanced():
+    contract = EndpointContract(k=3, eligible_genes=frozenset("abcdefg"), reference_positives=frozenset("abe"),
+                                reference_id="reference-v1", assay_rule_id="assay-v1")
+    c = recovery_contrast(("a", "b", "c"), ("a", "d", "e"), contract)
+    assert (c["gained_top_k"], c["lost_top_k"], c["shared_top_k"]) == (("b", "c"), ("d", "e"), ("a",))
+    assert len(c["gained_top_k"]) == len(c["lost_top_k"])                       # both top-K sets have exactly k genes
+    assert set(c["gained_top_k"]) | set(c["shared_top_k"]) == {"a", "b", "c"}   # the primary's top-K, partitioned
+    assert c["shared_nominations"] == len(c["shared_top_k"])
+
+
 @pytest.mark.parametrize("kwargs, code", [
     ({"reference_positives": frozenset({"z"})}, "reference_outside_eligible_universe"),
     ({"k": 0}, "k_invalid"),
