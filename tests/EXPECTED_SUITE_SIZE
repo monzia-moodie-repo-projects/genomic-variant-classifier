@@ -8094,4 +8094,7 @@
 # 2026-10-10  ENVIRONMENT QUALIFICATION 5 -- build planning; binary admission judged from contents
 #   +27 / -0 by node identity: 17 tests/unit/test_environment_build_plan.py, 5 tests/unit/test_environment_artifact_inspector.py,
 #   5 tests/unit/test_environment_install_plan.py.
-7706
+# 2026-10-07  ENVIRONMENT QUALIFICATION 6 -- exact score transport; replay network claims; the runtime component manifest
+#   +29 / -0 by node identity: 11 tests/unit/test_inference_ranking.py, 11 tests/unit/test_environment_isolation.py,
+#   7 tests/unit/test_environment_qualification.py (link and FIFO cases skip, with reasons, where the platform cannot create them).
+7735
