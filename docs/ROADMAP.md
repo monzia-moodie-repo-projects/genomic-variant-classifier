@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **7,735 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **7,780 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -511,6 +511,10 @@ exists to end.
 - **2026-10-07 -- Environment qualification 6: acceptance repairs (owner ruling 2026-10-07).** Ranking scores travel from R as
   lossless hexadecimal text; a replay may claim to be offline only under enforced, measured network isolation; and the R
   runtime is identified by its component files, not only its launcher. Suite 7,706 -> 7,735.
+- **2026-10-07 -- Environment qualification 7: bounded admission repairs (owner ruling 2026-10-07b).** Scores cross from R only
+  in the exact hexadecimal grammar; universe identities are unambiguous; replay rows are admitted by exact membership; a fixture
+  run's loaded namespaces are checked against independent expectations; and an offline claim needs an enforcement mechanism's own
+  evidence. Suite 7,735 -> 7,780.
 - **SCHEDULED -- legacy-roadmap carry-forward audit.** 47 of the 55 item identifiers in
   docs/archive/legacy/ROADMAP_2026-03_to_2026-08-22.md are not mentioned in this roadmap (measured 2026-09-28).
   Absence is not resolution: SMOKE-1 (tests/smoke_test_imports.py is never collected and no workflow runs it) is

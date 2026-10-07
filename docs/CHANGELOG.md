@@ -1,3 +1,30 @@
+## 2026-10-07 (environment qualification 7) -- bounded admission repairs
+
+Owner ruling 2026-10-07b. The owner executed counterexamples against the merged code; each reproduced, and each is repaired here.
+
+inference/ranking.py:
+- score_from_hex enforces the transport grammar before converting: an explicit 0x prefix and binary exponent, declared length and
+  exponent limits, and exact representation in binary64 (no rounding). float.fromhex alone had accepted "0.3" as 3/16, "1", "0x1" and a
+  trailing newline, and silently rounded "0x1.00000000000001p-1" to 1/2. R prints subnormals as "0x0.0000000000001p-1022"; that form
+  is admitted, and a test has R print a battery of values and requires each to parse exactly (it runs where Rscript is on PATH).
+- Universe.identity is version 2: canonical JSON with an explicit schema. Version 1 joined with newlines, so {"a", "b"} and {"a\nb"}
+  produced the same bytes before hashing. No version-1 identity had been sealed.
+
+environment_qualification/:
+- required_tests.admit_qualification_rows admits a replay's qualification rows by exact membership: every expected
+  (package, version, role) exactly once, all "OK". The earlier check compared row counts, so a duplicate could replace a missing row.
+- required_tests.admit_loaded_namespaces checks what a fixture process loaded against independent expectations: the runtime version
+  and platform, every expected namespace loaded at its exact version from its approved location, base namespaces inside R's library.
+  Its test admits the real record of the owner's 13-of-13 fixture run.
+- isolation.py is version 2. A claim now describes an enforcement mechanism's evidence: "offline replay" only with a Windows Sandbox
+  configuration that disables networking or a virtual machine record showing its network detached. A host disconnection is a
+  procedure, never "offline". The earlier classifier rejected only the exact status "Up", so "Unknown", "Disconnected" and "up" were
+  accepted -- the owner's counterexamples.
+
+TESTS: +58 / -13 by node identity (7,780). The isolation test file was rewritten (11 tests of the superseded classifier removed, 23
+added; every removed behaviour still covered, the duplicate-adapter refusal restored after a mapping audit). Two hexadecimal refusal
+rows changed identity because "inf" and "nan" are now refused earlier, as not hexadecimal transport.
+
 ## 2026-10-07 (environment qualification 6) -- acceptance repairs: score transport, replay network claims, runtime identity
 
 Owner ruling 2026-10-07. The baseline environment was qualified on the owner's machine: all 87 locked packages reinstalled from preserved

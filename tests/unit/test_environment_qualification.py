@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import copy
 import dataclasses
+import json
 import os
 import shutil
 import stat
@@ -18,7 +19,8 @@ import pytest
 from genomic_variant_classifier.environment_qualification.r_runtime import (
     RUNTIME_TARGET, AdmissionError, admit_runtime_change, canonical, probe_r, run_r_file, runtime_component_manifest, strict_json)
 from genomic_variant_classifier.environment_qualification.receipt import QualificationReceipt, require_applicable
-from genomic_variant_classifier.environment_qualification.required_tests import Case, QualificationError, admit_junit
+from genomic_variant_classifier.environment_qualification.required_tests import (
+    Case, QualificationError, admit_junit, admit_loaded_namespaces, admit_qualification_rows)
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -356,3 +358,107 @@ def test_runtime_manifest_refuses_a_missing_etc(tmp_path):
     home = _fake_r_home(tmp_path)
     shutil.rmtree(home / "etc")
     _refused(home, "runtime_manifest.missing:etc")
+
+
+# ------------------------------------------------------------------ EXACT membership of replay qualification rows (owner ruling 2026-10-07b)
+
+_EXPECTED_ROWS = (("IRanges", "2.46.0", "fresh"), ("S4Vectors", "0.50.1", "fresh"), ("Matrix", "1.7-5", "runtime"))
+
+
+def _observed(*rows):
+    return tuple(r + ("OK", "loaded") if len(r) == 3 else r for r in rows)
+
+
+def test_exact_qualification_rows_are_admitted():
+    assert admit_qualification_rows(_EXPECTED_ROWS, _observed(*_EXPECTED_ROWS))["qualified"] == 3
+
+
+@pytest.mark.parametrize("observed, reason", [
+    (_observed(_EXPECTED_ROWS[0], _EXPECTED_ROWS[1]), "qualification.identity_mismatch"),                          # a missing row
+    (_observed(_EXPECTED_ROWS[0], _EXPECTED_ROWS[0], _EXPECTED_ROWS[2]), "qualification.identity_mismatch"),       # a DUPLICATE replaces a missing row (same count)
+    (_observed(("IRanges", "2.46.1", "fresh"), _EXPECTED_ROWS[1], _EXPECTED_ROWS[2]), "qualification.identity_mismatch"),   # wrong version
+    (_observed(_EXPECTED_ROWS[0], _EXPECTED_ROWS[1], ("Matrix", "1.7-5", "fresh")), "qualification.identity_mismatch"),     # wrong role
+    ((("IRanges", "2.46.0", "fresh", "OK"),) + _observed(_EXPECTED_ROWS[1], _EXPECTED_ROWS[2]), "qualification.observed_shape"),   # malformed
+    (_observed(_EXPECTED_ROWS[0], _EXPECTED_ROWS[1], ("Matrix", "1.7-5", "runtime", "MISMATCH", "path")), "qualification.result_failed"),
+])
+def test_qualification_row_refusals(observed, reason):
+    with pytest.raises(QualificationError) as error:
+        admit_qualification_rows(_EXPECTED_ROWS, observed)
+    assert str(error.value) == reason
+
+
+@pytest.mark.parametrize("expected, reason", [
+    ((), "qualification.expected_empty"),
+    ((("IRanges", "2.46.0"),), "qualification.expected_shape"),
+    ((("IRanges", "2.46.0", "fresh"), ("IRanges", "2.46.0", "runtime")), "qualification.expected_duplicate"),
+])
+def test_qualification_expectation_refusals(expected, reason):
+    with pytest.raises(QualificationError) as error:
+        admit_qualification_rows(expected, ())
+    assert str(error.value) == reason
+
+
+# ------------------------------------------------------------------ what the fixture process ACTUALLY loaded (owner ruling 2026-10-07b, section 3)
+
+# The REAL in-process identity record of the owner's admitted fixture run (fixtures_v2_20261007T042436Z; Windows, R 4.6.1, 47 namespaces),
+# with expectations derived INDEPENDENTLY: versions from renv.lock, approved roots = that run's replay library / R's own library.
+REAL_IDENTITY = json.loads('{"loaded_namespaces":[{"package":"abind","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/abind","version":"1.4-8"},{"package":"base","path":"C:/Program Files/R/R-4.6.1/library/base","version":"4.6.1"},{"package":"Biobase","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/Biobase","version":"2.72.0"},{"package":"BiocGenerics","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/BiocGenerics","version":"0.58.1"},{"package":"BiocIO","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/BiocIO","version":"1.22.0"},{"package":"BiocParallel","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/BiocParallel","version":"1.46.0"},{"package":"Biostrings","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/Biostrings","version":"2.80.1"},{"package":"bitops","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/bitops","version":"1.0-9"},{"package":"cigarillo","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/cigarillo","version":"1.2.0"},{"package":"codetools","path":"C:/Program Files/R/R-4.6.1/library/codetools","version":"0.2-20"},{"package":"compiler","path":"C:/Program Files/R/R-4.6.1/library/compiler","version":"4.6.1"},{"package":"crayon","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/crayon","version":"1.5.3"},{"package":"curl","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/curl","version":"7.1.0"},{"package":"datasets","path":"C:/Program Files/R/R-4.6.1/library/datasets","version":"4.6.1"},{"package":"DelayedArray","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/DelayedArray","version":"0.38.2"},{"package":"generics","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/generics","version":"0.1.4"},{"package":"GenomicAlignments","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/GenomicAlignments","version":"1.48.0"},{"package":"GenomicRanges","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/GenomicRanges","version":"1.64.0"},{"package":"graphics","path":"C:/Program Files/R/R-4.6.1/library/graphics","version":"4.6.1"},{"package":"grDevices","path":"C:/Program Files/R/R-4.6.1/library/grDevices","version":"4.6.1"},{"package":"grid","path":"C:/Program Files/R/R-4.6.1/library/grid","version":"4.6.1"},{"package":"httr","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/httr","version":"1.4.8"},{"package":"IRanges","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/IRanges","version":"2.46.0"},{"package":"lattice","path":"C:/Program Files/R/R-4.6.1/library/lattice","version":"0.22-9"},{"package":"Matrix","path":"C:/Program Files/R/R-4.6.1/library/Matrix","version":"1.7-5"},{"package":"MatrixGenerics","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/MatrixGenerics","version":"1.24.0"},{"package":"matrixStats","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/matrixStats","version":"1.5.0"},{"package":"methods","path":"C:/Program Files/R/R-4.6.1/library/methods","version":"4.6.1"},{"package":"parallel","path":"C:/Program Files/R/R-4.6.1/library/parallel","version":"4.6.1"},{"package":"R6","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/R6","version":"2.6.1"},{"package":"RCurl","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/RCurl","version":"1.98-1.19"},{"package":"restfulr","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/restfulr","version":"0.0.17"},{"package":"rjson","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/rjson","version":"0.2.23"},{"package":"Rsamtools","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/Rsamtools","version":"2.28.0"},{"package":"rtracklayer","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/rtracklayer","version":"1.72.0"},{"package":"S4Arrays","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/S4Arrays","version":"1.12.0"},{"package":"S4Vectors","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/S4Vectors","version":"0.50.1"},{"package":"Seqinfo","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/Seqinfo","version":"1.2.0"},{"package":"SparseArray","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/SparseArray","version":"1.12.2"},{"package":"stats","path":"C:/Program Files/R/R-4.6.1/library/stats","version":"4.6.1"},{"package":"stats4","path":"C:/Program Files/R/R-4.6.1/library/stats4","version":"4.6.1"},{"package":"SummarizedExperiment","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/SummarizedExperiment","version":"1.42.0"},{"package":"tools","path":"C:/Program Files/R/R-4.6.1/library/tools","version":"4.6.1"},{"package":"utils","path":"C:/Program Files/R/R-4.6.1/library/utils","version":"4.6.1"},{"package":"XML","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/XML","version":"3.99-0.23"},{"package":"XVector","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/XVector","version":"0.52.0"},{"package":"yaml","path":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library/yaml","version":"2.3.12"}],"platform":"x86_64-w64-mingw32","r_version":"4.6.1"}')
+REAL_EXPECTED = json.loads('{"Biobase":"2.72.0","BiocGenerics":"0.58.1","BiocIO":"1.22.0","BiocParallel":"1.46.0","Biostrings":"2.80.1","DelayedArray":"0.38.2","GenomicAlignments":"1.48.0","GenomicRanges":"1.64.0","IRanges":"2.46.0","Matrix":"1.7-5","MatrixGenerics":"1.24.0","R6":"2.6.1","RCurl":"1.98-1.19","Rsamtools":"2.28.0","S4Arrays":"1.12.0","S4Vectors":"0.50.1","Seqinfo":"1.2.0","SparseArray":"1.12.2","SummarizedExperiment":"1.42.0","XML":"3.99-0.23","XVector":"0.52.0","abind":"1.4-8","bitops":"1.0-9","cigarillo":"1.2.0","codetools":"0.2-20","crayon":"1.5.3","curl":"7.1.0","generics":"0.1.4","httr":"1.4.8","lattice":"0.22-9","matrixStats":"1.5.0","restfulr":"0.0.17","rjson":"0.2.23","rtracklayer":"1.72.0","yaml":"2.3.12"}')
+REAL_ROOTS = json.loads('{"Biobase":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","BiocGenerics":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","BiocIO":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","BiocParallel":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","Biostrings":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","DelayedArray":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","GenomicAlignments":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","GenomicRanges":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","IRanges":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","Matrix":"C:/Program Files/R/R-4.6.1/library","MatrixGenerics":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","R6":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","RCurl":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","Rsamtools":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","S4Arrays":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","S4Vectors":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","Seqinfo":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","SparseArray":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","SummarizedExperiment":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","XML":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","XVector":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","abind":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","bitops":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","cigarillo":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","codetools":"C:/Program Files/R/R-4.6.1/library","crayon":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","curl":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","generics":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","httr":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","lattice":"C:/Program Files/R/R-4.6.1/library","matrixStats":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","restfulr":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","rjson":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","rtracklayer":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library","yaml":"C:/Users/monzi/GVC_artifacts/runs/replay_20261006T230555Z/library"}')
+REAL_BASE = frozenset(['base', 'compiler', 'datasets', 'grDevices', 'graphics', 'grid', 'methods', 'parallel', 'splines', 'stats', 'stats4', 'tcltk', 'tools', 'utils'])
+
+
+def _admit_real(identity=None, **changes):
+    kw = dict(expected_r_version="4.6.1", expected_platform="x86_64-w64-mingw32", expected=dict(REAL_EXPECTED), approved_roots=dict(REAL_ROOTS),
+              r_home="C:/Program Files/R/R-4.6.1", base_packages=REAL_BASE, case_insensitive_paths=True)
+    kw.update(changes)
+    return admit_loaded_namespaces(identity if identity is not None else copy.deepcopy(REAL_IDENTITY), **kw)
+
+
+def test_the_real_admitted_fixture_identity_is_admitted():
+    result = _admit_real()
+    assert (result["loaded"], result["expected"]) == (47, 35)
+
+
+def _with(package, **fields):
+    ident = copy.deepcopy(REAL_IDENTITY)
+    for row in ident["loaded_namespaces"]:
+        if row["package"] == package:
+            row.update(fields)
+    return ident
+
+
+@pytest.mark.parametrize("identity, changes, reason", [
+    (_with("IRanges", version="2.46.1"), {}, "identity.version:IRanges"),
+    (_with("IRanges", path="C:/Users/someone/R/win-library/4.6/IRanges"), {}, "identity.location:IRanges"),        # right version, WRONG installation
+    (_with("Matrix", path=REAL_ROOTS["IRanges"] + "/Matrix"), {}, "identity.location:Matrix"),                     # runtime package from the wrong library
+    (_with("utils", path="C:/elsewhere/library/utils"), {}, "identity.base_location:utils"),
+    (None, {"expected_r_version": "4.6.0"}, "identity.r_version"),
+    (None, {"expected_platform": "x86_64-pc-linux-gnu"}, "identity.platform"),
+])
+def test_loaded_identity_refusals(identity, changes, reason):
+    with pytest.raises(QualificationError) as error:
+        _admit_real(identity, **changes)
+    assert str(error.value).split(":")[0] == reason.split(":")[0]
+
+
+def test_an_unexpected_or_missing_namespace_is_refused():
+    extra = copy.deepcopy(REAL_IDENTITY)
+    extra["loaded_namespaces"].append({"package": "ggplot2", "version": "4.0.3", "path": REAL_ROOTS["IRanges"] + "/ggplot2"})
+    with pytest.raises(QualificationError, match="identity.unexpected_namespace:ggplot2"):
+        _admit_real(extra)
+    missing = copy.deepcopy(REAL_IDENTITY)
+    missing["loaded_namespaces"] = [r for r in missing["loaded_namespaces"] if r["package"] != "S4Vectors"]
+    with pytest.raises(QualificationError, match="identity.required_not_loaded:S4Vectors"):
+        _admit_real(missing)
+    dup = copy.deepcopy(REAL_IDENTITY)
+    dup["loaded_namespaces"].append(dict(dup["loaded_namespaces"][0]))
+    with pytest.raises(QualificationError, match="identity.duplicate_namespace"):
+        _admit_real(dup)
+
+
+def test_case_insensitive_comparison_applies_only_when_declared():
+    """Measured 2026-10-07: the real record's paths share R_HOME's exact casing, so the flag is tested with an explicit casing difference."""
+    assert _admit_real(r_home="c:/program files/r/r-4.6.1", case_insensitive_paths=True)["loaded"] == 47
+    with pytest.raises(QualificationError, match="identity.base_location:base"):
+        _admit_real(r_home="c:/program files/r/r-4.6.1", case_insensitive_paths=False)
