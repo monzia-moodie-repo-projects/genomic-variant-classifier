@@ -1,3 +1,34 @@
+## 2026-10-07 (environment qualification 6) -- acceptance repairs: score transport, replay network claims, runtime identity
+
+Owner ruling 2026-10-07. The baseline environment was qualified on the owner's machine: all 87 locked packages reinstalled from preserved
+artifacts into a fresh library and loaded at their locked versions from their expected locations, and 13 pre-registered behavioural
+fixtures passed. Inside the fixture process, 47 loaded namespaces were checked: every one at its locked version and from its expected
+library. The owner's audit found acceptance boundaries weaker than those results, and three repairs land here.
+
+inference/ranking.py:
+- score_from_hex reads a ranking score from R's sprintf("%a") text and applies score_from_binary64's validation. Measured: R's default
+  text output (as.character, write.csv, write.table) writes the distinct doubles 0.1 + 0.2 and 0.3 both as "0.3", which would create a
+  false tie at a top-k boundary; the hexadecimal form keeps them distinct and round-trips exactly.
+
+environment_qualification/:
+- isolation.py: classify_replay_claim. Reachability probes are diagnostic. A replay is "offline" only with a named isolation method,
+  every network adapter measured not "Up" before and after, and no probe connecting; otherwise it is a local-artifact replay. The earlier
+  classifier answered "offline replay" for four refused probes -- the owner's counterexample, now a test.
+- r_runtime.py: runtime_component_manifest digests every file under R_HOME/bin and R_HOME/etc, so the runtime is identified by its
+  components (R.dll, Rblas.dll, Rlapack.dll, the executables, Makeconf), not only by the launcher. A link to a regular file is recorded
+  with its resolved target and hashed by the target's content: a distribution-packaged R (Ubuntu) keeps six etc files, Makeconf
+  among them, as links into /etc/R. Links to directories, dangling links and non-regular files are refused (hashing a FIFO blocks).
+  The link and FIFO tests probe whether the platform can create those objects and skip with a stated reason otherwise: Windows
+  has no FIFOs and needs a privilege for symbolic links (the first validation on the owner's machine failed on exactly this).
+
+Two other repairs needed no new code. Fixture completeness: the behavioural fixtures now write JUnit XML admitted unchanged by
+required_tests.admit_junit against a frozen required-case set (version 2 of the fixture file, 13/13 admitted on the owner's machine).
+Replay coverage: install_plan.admit_plan already validates that a plan covers the lockfile exactly; the replay tool will be routed through it.
+The owner's proposed evaluation layer was mapped onto existing owners (rank_genes, audit_top_k, contrast, recovery_contrast) rather than
+duplicated; exact score transport was the one gap.
+
+TESTS: +29 / -0 by node identity (7,735).
+
 ## 2026-10-10 (environment qualification 5) -- build planning; binary admission judged from contents
 
 Owner rulings 2026-10-08 to 2026-10-10. All 159 planned artifacts (23 Bioconductor + 60 CRAN packages, source and Windows binary) were

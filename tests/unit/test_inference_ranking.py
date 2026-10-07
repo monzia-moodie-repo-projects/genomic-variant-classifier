@@ -15,7 +15,7 @@ import pytest
 from genomic_variant_classifier.inference.exact_confirmation import InferenceError
 from genomic_variant_classifier.inference.ranking import (
     PINNED_COMMIT, Calibration, Implementation, MethodIdentity, Pair, State, Universe, UniverseKind, annotate,
-    audit_top_k, contrast, project_scores, rank_genes, score_from_binary64, top_k)
+    audit_top_k, contrast, project_scores, rank_genes, score_from_binary64, score_from_hex, top_k)
 
 PLAN = {("g1", "e1"): True, ("g1", "e2"): True, ("g2", "e1"): True, ("g2", "e2"): False}
 ROWS = [Pair("g1", "e1", State.SCORED, F(3, 100), False), Pair("g1", "e2", State.SCORED, F(1, 100), True),
@@ -228,3 +228,29 @@ def test_topk_audit_statuses():
 ])
 def test_topk_audit_refusals(call, code):
     assert code_of(call) == code
+
+
+# ------------------------------------------------------------------ exact score TRANSPORT from R (owner ruling 2026-10-07; measured hazard)
+
+def test_hex_scores_are_transported_exactly():
+    assert score_from_hex((0.1).hex()) == score_from_binary64(0.1) == F.from_float(0.1) != F(1, 10)
+    assert score_from_hex("0x1.3333333333334p-2") != score_from_hex("0x1.3333333333333p-2")      # 0.1 + 0.2 vs 0.3: distinct
+
+
+def test_default_r_text_would_manufacture_a_false_tie_that_hex_transport_does_not():
+    """R wrote both 0.1 + 0.2 and 0.3 as "0.3" (measured). Read from that text, g1 and g2 tie at the k = 1 boundary; read from "%a" they do
+    not, and the exactly smaller score (0.3, g2) is selected with no tie envelope."""
+    reference, eligible = frozenset({"g1"}), frozenset({"g1", "g2", "g3"})
+    from_text = {"g1": F("0.3"), "g2": F("0.3"), "g3": F("0.9")}
+    from_hex = {"g1": score_from_hex("0x1.3333333333334p-2"), "g2": score_from_hex("0x1.3333333333333p-2"), "g3": score_from_hex((0.9).hex())}
+    text_audit, hex_audit = audit_top_k(from_text, eligible, reference, 1), audit_top_k(from_hex, eligible, reference, 1)
+    assert text_audit["tied_genes"] == ("g1", "g2") and (text_audit["hit_lower"], text_audit["hit_upper"]) == (0, 1)
+    assert hex_audit["selected"] == ("g2",) and hex_audit["tied_genes"] == ("g2",) and (hex_audit["hit_lower"], hex_audit["hit_upper"]) == (0, 0)
+
+
+@pytest.mark.parametrize("bad, code", [
+    (0.3, "score_encoding"), (b"0x1p-1", "score_encoding"), ("0xZZ", "score_encoding"), ("", "score_encoding"),
+    ("inf", "invalid_score"), ("nan", "invalid_score"), ("-0x1p-1", "invalid_score"), ("0x0p+0", "invalid_score"), ("0x1.8p+0", "invalid_score"),
+])
+def test_hex_transport_refusals(bad, code):
+    assert code_of(lambda: score_from_hex(bad)) == code

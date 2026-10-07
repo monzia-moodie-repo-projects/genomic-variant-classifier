@@ -39,7 +39,7 @@ from genomic_variant_classifier.inference.exact_confirmation import InferenceErr
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["State", "Pair", "GeneRank", "rank_genes", "top_k", "audit_top_k", "contrast", "score_from_binary64",
+__all__ = ["State", "Pair", "GeneRank", "rank_genes", "top_k", "audit_top_k", "contrast", "score_from_binary64", "score_from_hex",
            "UniverseKind", "Universe", "project_scores", "Implementation", "Calibration", "MethodIdentity", "PINNED_COMMIT",
            "annotate", "ScoreRange", "topk_audit"]
 
@@ -251,6 +251,21 @@ def score_from_binary64(value: float) -> Fraction:
     if type(value) is not float or not math.isfinite(value) or not 0 < value <= 1:
         raise InferenceError("invalid_score")
     return Fraction.from_float(value)
+
+
+def score_from_hex(text: str) -> Fraction:
+    """The EXACT stored binary64 score from R's sprintf("%a") text -- the lossless TRANSPORT score_from_binary64 needs.
+
+    Measured 2026-10-07: R's default text paths (as.character, write.csv, write.table) write the distinct doubles 0.1 + 0.2 and 0.3 both as
+    "0.3" (and collapse distinct p-values near 1e-300 likewise), so scores carried as default text would manufacture FALSE TIES at a top-k
+    boundary; "%a" keeps them distinct and round-trips exactly. The same validation as score_from_binary64 applies after parsing."""
+    if type(text) is not str:
+        raise InferenceError("score_encoding")
+    try:
+        value = float.fromhex(text)
+    except (ValueError, OverflowError):
+        raise InferenceError("score_encoding")
+    return score_from_binary64(value)          # finite and 0 < score <= 1 -- one owner of score validation
 
 
 class UniverseKind(str, Enum):

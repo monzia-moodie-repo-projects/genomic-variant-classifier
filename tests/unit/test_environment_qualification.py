@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 from genomic_variant_classifier.environment_qualification.r_runtime import (
-    RUNTIME_TARGET, AdmissionError, admit_runtime_change, canonical, probe_r, run_r_file, strict_json)
+    RUNTIME_TARGET, AdmissionError, admit_runtime_change, canonical, probe_r, run_r_file, runtime_component_manifest, strict_json)
 from genomic_variant_classifier.environment_qualification.receipt import QualificationReceipt, require_applicable
 from genomic_variant_classifier.environment_qualification.required_tests import Case, QualificationError, admit_junit
 
@@ -252,3 +252,107 @@ def test_a_receipt_for_another_candidate_is_inapplicable(name):
                                       ({"required_cases": True}, "receipt_required_cases"), ({"repository_tree": "e" * 39}, "receipt_repository_tree")])
 def test_malformed_receipts_are_refused(kw, code):
     assert code_of(AdmissionError, lambda: receipt(**kw)) == code
+
+
+# ------------------------------------------------------------------ the RUNTIME component manifest (owner ruling 2026-10-07, section 5)
+
+def _fake_r_home(root):
+    home = Path(root) / "R-4.6.1"
+    for rel, data in (("bin/x64/R.dll", b"dll"), ("bin/x64/Rblas.dll", b"blas"), ("bin/Rscript.exe", b"launcher"), ("etc/x64/Makeconf", b"CC = gcc\n"),
+                      ("library/base/DESCRIPTION", b"Package: base\n")):
+        (home / rel).parent.mkdir(parents=True, exist_ok=True)
+        (home / rel).write_bytes(data)
+    return home
+
+
+def test_runtime_manifest_identifies_components_not_only_the_launcher(tmp_path):
+    home = _fake_r_home(tmp_path)
+    m = runtime_component_manifest(home)
+    assert [f["path"] for f in m["files"]] == ["bin/Rscript.exe", "bin/x64/R.dll", "bin/x64/Rblas.dll", "etc/x64/Makeconf"]   # library excluded
+    assert runtime_component_manifest(home)["manifest_sha256"] == m["manifest_sha256"]                                       # deterministic
+    (home / "bin/x64/R.dll").write_bytes(b"DLL")               # same launcher, different runtime component
+    assert runtime_component_manifest(home)["manifest_sha256"] != m["manifest_sha256"]
+
+
+def _symlinks_allowed() -> bool:
+    """Whether THIS process may create symbolic links: Windows needs the SeCreateSymbolicLinkPrivilege (Developer Mode or an administrator).
+    Measured 2026-10-07: these tests passed on Linux and failed the targeted stage on the owner's Windows machine."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        target = Path(d) / "t"
+        target.write_bytes(b"x")
+        try:
+            os.symlink(target, Path(d) / "l")
+        except (OSError, NotImplementedError, AttributeError):
+            return False
+    return True
+
+
+needs_symlinks = pytest.mark.skipif(not _symlinks_allowed(), reason="this process may not create symbolic links (Windows: Developer Mode or an administrator)")
+needs_fifos = pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="FIFOs do not exist on this platform (os.mkfifo is Unix-only)")
+
+
+@needs_symlinks
+def test_runtime_manifest_records_a_file_link_by_its_target_content(tmp_path):
+    """Measured 2026-10-07: Ubuntu's R keeps etc/Makeconf (and five other configuration files) as links into /etc/R."""
+    home = _fake_r_home(tmp_path)
+    config = tmp_path / "etc_R" / "Makeconf"
+    config.parent.mkdir()
+    config.write_bytes(b"CC = gcc-14\n")
+    (home / "etc/x64/Makeconf").unlink()
+    os.symlink(config, home / "etc/x64/Makeconf")
+    m = runtime_component_manifest(home)
+    entry = next(f for f in m["files"] if f["path"] == "etc/x64/Makeconf")
+    assert entry["link_target"] == config.resolve().as_posix() and entry["size"] == len(b"CC = gcc-14\n")
+    config.write_bytes(b"CC = gcc-15\n")                      # the TARGET changes -> the runtime identity changes
+    changed = runtime_component_manifest(home)["manifest_sha256"]
+    assert changed != m["manifest_sha256"]
+    moved = tmp_path / "other_R" / "Makeconf"                  # same content, a DIFFERENT target path -> also a different identity
+    moved.parent.mkdir()
+    moved.write_bytes(b"CC = gcc-15\n")
+    (home / "etc/x64/Makeconf").unlink()
+    os.symlink(moved, home / "etc/x64/Makeconf")
+    assert runtime_component_manifest(home)["manifest_sha256"] != changed
+
+
+def _refused(home, reason):
+    with pytest.raises(AdmissionError) as error:
+        runtime_component_manifest(home)
+    assert str(error.value) == reason
+
+
+@needs_fifos
+def test_runtime_manifest_refuses_a_fifo(tmp_path):
+    home = _fake_r_home(tmp_path)
+    os.mkfifo(home / "etc/pipe")                               # hashing a FIFO would block forever
+    _refused(home, "runtime_manifest.non_regular_file:etc/pipe")
+
+
+@needs_fifos
+@needs_symlinks
+def test_runtime_manifest_refuses_a_link_to_a_fifo(tmp_path):
+    home = _fake_r_home(tmp_path)
+    os.mkfifo(tmp_path / "fifo_target")
+    os.symlink(tmp_path / "fifo_target", home / "etc/linked_pipe")
+    _refused(home, "runtime_manifest.link_to_non_regular_file:etc/linked_pipe")
+
+
+@needs_symlinks
+def test_runtime_manifest_refuses_a_directory_link(tmp_path):
+    home = _fake_r_home(tmp_path)
+    (tmp_path / "elsewhere").mkdir()
+    os.symlink(tmp_path / "elsewhere", home / "etc/linked_dir", target_is_directory=True)   # Windows needs the flag for a directory link
+    _refused(home, "runtime_manifest.link_to_directory:etc/linked_dir")
+
+
+@needs_symlinks
+def test_runtime_manifest_refuses_a_dangling_link(tmp_path):
+    home = _fake_r_home(tmp_path)
+    os.symlink(tmp_path / "does_not_exist", home / "etc/dangling")
+    _refused(home, "runtime_manifest.dangling_link:etc/dangling")
+
+
+def test_runtime_manifest_refuses_a_missing_etc(tmp_path):
+    home = _fake_r_home(tmp_path)
+    shutil.rmtree(home / "etc")
+    _refused(home, "runtime_manifest.missing:etc")

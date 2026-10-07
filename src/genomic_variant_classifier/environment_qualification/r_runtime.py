@@ -32,7 +32,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 __all__ = ["AdmissionError", "RUNTIME_BASELINE", "RUNTIME_TARGET", "BIOCONDUCTOR", "RENV", "strict_json", "canonical",
-           "validate_lock", "admit_runtime_change", "sha256_file", "run_r_file", "probe_r"]
+           "validate_lock", "admit_runtime_change", "sha256_file", "run_r_file", "probe_r", "runtime_component_manifest"]
 
 #: The ONE declared runtime transition (owner ruling 2026-10-05b). Other code derives its runtime from the authoritative lockfile.
 RUNTIME_BASELINE = "4.6.0"
@@ -186,3 +186,45 @@ def probe_r(executable, evidence_dir, expected=RUNTIME_TARGET):
     return {"executable": run["executable"], "launcher_sha256": run["executable_sha256"],
             "version": values["GVC_R_VERSION"], "release_status": values["GVC_R_STATUS"],
             "platform": values["GVC_R_PLATFORM"], "r_home": values["GVC_R_HOME"]}
+
+
+def runtime_component_manifest(r_home) -> dict:
+    """The RUNTIME's identity, not only its launcher (owner ruling 2026-10-07, section 5: a digest of Rscript.exe identifies the launcher).
+
+    Every regular file under R_HOME/bin and R_HOME/etc -- on Windows bin/x64/R.dll, Rblas.dll, Rlapack.dll, the executables and etc/x64/Makeconf
+    -- as (relative path, size, SHA-256), sorted, with one digest over the canonical lines. The package library is deliberately excluded: packages
+    are qualified separately (replay + fixtures). A link to a REGULAR FILE is recorded with its resolved target and hashed by the TARGET's content --
+    measured 2026-10-07: a distribution-packaged R (Ubuntu) keeps etc/Makeconf, Renviron, Renviron.site, Rprofile.site, ldpaths and repositories as
+    links into /etc/R, i.e. exactly the configuration R reads; refusing them made the manifest unusable, skipping them would drop the most
+    identity-relevant files. A link to a DIRECTORY (cycle / scope risk; a Windows junction is one) and a DANGLING link are refused; a missing bin
+    or etc folder is refused."""
+    root = Path(r_home).resolve(strict=True)
+    files = []
+    for top in ("bin", "etc"):
+        base = root / top
+        require(base.is_dir() and not base.is_symlink(), "runtime_manifest.missing:" + top)
+        for dirpath, dirnames, filenames in os.walk(base):
+            dirnames.sort()
+            here = Path(dirpath)
+            for name in dirnames:
+                item = here / name
+                require(not item.is_symlink() and not (hasattr(os.path, "isjunction") and os.path.isjunction(item)),
+                        "runtime_manifest.link_to_directory:" + item.relative_to(root).as_posix())
+            for name in sorted(filenames):
+                item = here / name
+                rel = item.relative_to(root).as_posix()
+                entry = {"path": rel}
+                if item.is_symlink():
+                    target = Path(os.path.realpath(item))
+                    require(target.exists(), "runtime_manifest.dangling_link:" + rel)
+                    require(target.is_file(), "runtime_manifest.link_to_non_regular_file:" + rel)
+                    entry["link_target"] = target.as_posix()
+                    item = target
+                else:
+                    require(item.is_file(), "runtime_manifest.non_regular_file:" + rel)     # a FIFO or device would block the hash
+                entry.update(size=item.stat().st_size, sha256=sha256_file(item))
+                files.append(entry)
+    require(len(files) > 0, "runtime_manifest.empty")
+    files.sort(key=lambda f: f["path"])
+    body = "".join("{}\t{}\t{}\t{}\n".format(f["path"], f["size"], f["sha256"], f.get("link_target", "")) for f in files).encode("utf-8")
+    return {"r_home": root.as_posix(), "files": files, "manifest_sha256": hashlib.sha256(body).hexdigest()}
