@@ -7,7 +7,10 @@ Author: Monzia Moodie
 from __future__ import annotations
 
 import itertools
+import math
 import random
+import shutil
+import subprocess
 from fractions import Fraction as F
 
 import pytest
@@ -250,7 +253,56 @@ def test_default_r_text_would_manufacture_a_false_tie_that_hex_transport_does_no
 
 @pytest.mark.parametrize("bad, code", [
     (0.3, "score_encoding"), (b"0x1p-1", "score_encoding"), ("0xZZ", "score_encoding"), ("", "score_encoding"),
-    ("inf", "invalid_score"), ("nan", "invalid_score"), ("-0x1p-1", "invalid_score"), ("0x0p+0", "invalid_score"), ("0x1.8p+0", "invalid_score"),
+    ("inf", "score_encoding"), ("nan", "score_encoding"), ("-0x1p-1", "invalid_score"), ("0x0p+0", "invalid_score"), ("0x1.8p+0", "invalid_score"),
 ])
 def test_hex_transport_refusals(bad, code):
     assert code_of(lambda: score_from_hex(bad)) == code
+
+
+# ------------------------------------------------------------------ the hexadecimal transport GRAMMAR (owner ruling 2026-10-07b)
+
+@pytest.mark.parametrize("text", ["0.3", "1", "0x1", "0x1p-1\n", " 0x1p-1", "0x1p-1 ", "0x.8p0", "0x1p", "1p-1"])
+def test_hex_transport_requires_the_explicit_grammar(text):
+    """float.fromhex alone accepted "0.3" as 3/16 (a decimal-looking string crossing a hexadecimal boundary), "1", "0x1" and a newline."""
+    assert code_of(lambda: score_from_hex(text)) == "score_encoding"
+
+
+def test_hex_transport_never_rounds_extra_precision():
+    assert code_of(lambda: score_from_hex("0x1.00000000000001p-1")) == "score_not_exact_binary64"
+
+
+def test_hex_transport_bounds_the_exponent_and_length():
+    assert code_of(lambda: score_from_hex("0x1p-5000")) == "score_exponent"
+    assert code_of(lambda: score_from_hex("0x1." + "0" * 130 + "p-1")) == "score_encoding"
+
+
+def test_hex_transport_allows_a_nonunit_leading_digit_and_subnormals():
+    assert score_from_hex("0x8p-4") == F(1, 2)
+    smallest = math.nextafter(0.0, 1.0)
+    assert score_from_hex(smallest.hex()) == F.from_float(smallest)
+    assert score_from_hex("0x0.0000000000001p-1022") == F.from_float(smallest)      # R's (glibc) spelling of the same value
+
+
+RSCRIPT = shutil.which("Rscript")
+
+
+@pytest.mark.skipif(RSCRIPT is None, reason="needs Rscript: the transport is R's own %a output on this platform")
+def test_r_percent_a_output_on_this_platform_round_trips_exactly(tmp_path):
+    """The boundary carries R's output, not Python's: R's %a comes from the platform C library (Windows and Linux spell some values
+    differently). Every value R prints must parse to EXACTLY the double R holds (checked through R's 17-significant-digit decimal)."""
+    program = tmp_path / "probe.R"
+    program.write_text('x <- c(0.5, 1, 0.1 + 0.2, 0.3, 2^-1074, 2^-1022, 1 - 2^-53, 0.9, 1e-300, 3e-310, 0.1, 2^-1060)\n'
+                       'cat(paste(sprintf("%a", x), sprintf("%.17g", x), sep = "\\t"), sep = "\\n")\n', encoding="ascii")
+    out = subprocess.run([RSCRIPT, "--vanilla", str(program)], capture_output=True, text=True, timeout=120, check=True).stdout
+    rows = [line.split("\t") for line in out.splitlines() if line.strip()]
+    assert len(rows) == 12
+    for hex_text, decimal_text in rows:
+        assert score_from_hex(hex_text) == F.from_float(float(decimal_text)), (hex_text, decimal_text)
+
+
+# ------------------------------------------------------------------ Universe identity version 2 (owner ruling 2026-10-07b)
+
+def test_universe_identity_is_unambiguous():
+    """Version 1 joined with newlines: {"a", "b"} and {"a\\nb"} produced the same bytes before hashing."""
+    assert Universe(UniverseKind.EVALUATION, "r", frozenset({"a", "b"})).identity != Universe(UniverseKind.EVALUATION, "r", frozenset({"a\nb"})).identity
+    assert Universe(UniverseKind.EVALUATION, "r\na", frozenset({"b"})).identity != Universe(UniverseKind.EVALUATION, "r", frozenset({"a", "b"})).identity

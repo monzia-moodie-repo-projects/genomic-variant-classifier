@@ -28,6 +28,7 @@ Author: Monzia Moodie
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import math
 import re
@@ -253,19 +254,38 @@ def score_from_binary64(value: float) -> Fraction:
     return Fraction.from_float(value)
 
 
+_HEX_SCORE = re.compile(r"(?P<sign>[+-]?)0[xX](?P<whole>[0-9a-fA-F]+)(?:\.(?P<frac>[0-9a-fA-F]*))?[pP](?P<exp>[+-]?[0-9]+)")
+
+
 def score_from_hex(text: str) -> Fraction:
     """The EXACT stored binary64 score from R's sprintf("%a") text -- the lossless TRANSPORT score_from_binary64 needs.
 
     Measured 2026-10-07: R's default text paths (as.character, write.csv, write.table) write the distinct doubles 0.1 + 0.2 and 0.3 both as
-    "0.3" (and collapse distinct p-values near 1e-300 likewise), so scores carried as default text would manufacture FALSE TIES at a top-k
-    boundary; "%a" keeps them distinct and round-trips exactly. The same validation as score_from_binary64 applies after parsing."""
-    if type(text) is not str:
+    "0.3", which would manufacture FALSE TIES at a top-k boundary; "%a" keeps them distinct and round-trips exactly.
+    The transport GRAMMAR is checked before conversion (owner ruling 2026-10-07b): float.fromhex alone accepted "0.3" as 3/16, "1", "0x1",
+    a trailing newline, and silently ROUNDED "0x1.00000000000001p-1" to 1/2. An explicit 0x prefix and binary exponent are required; the
+    value must be EXACTLY representable in binary64 (no rounding); length <= 128 and |exponent| <= 2048 are declared transport limits.
+    R prints subnormals as e.g. "0x0.0000000000001p-1022" (leading digit 0) -- admitted. The same validation as score_from_binary64 follows."""
+    if type(text) is not str or len(text) > 128:
         raise InferenceError("score_encoding")
+    match = _HEX_SCORE.fullmatch(text)
+    if match is None:
+        raise InferenceError("score_encoding")
+    exponent = int(match["exp"])
+    if abs(exponent) > 2048:
+        raise InferenceError("score_exponent")
+    frac = match["frac"] or ""
+    exact = Fraction(int(match["whole"] + frac, 16), 16 ** len(frac)) * Fraction(2) ** exponent
+    if match["sign"] == "-":
+        exact = -exact
     try:
         value = float.fromhex(text)
     except (ValueError, OverflowError):
         raise InferenceError("score_encoding")
-    return score_from_binary64(value)          # finite and 0 < score <= 1 -- one owner of score validation
+    stored = score_from_binary64(value)          # finite and 0 < score <= 1 -- one owner of score validation
+    if stored != exact:
+        raise InferenceError("score_not_exact_binary64")
+    return stored
 
 
 class UniverseKind(str, Enum):
@@ -291,8 +311,11 @@ class Universe:
 
     @property
     def identity(self) -> str:
-        body = "\n".join([self.kind.value, self.rule_id] + sorted(self.genes)) + "\n"
-        return hashlib.sha256(body.encode("utf-8")).hexdigest()
+        """Version 2 (owner ruling 2026-10-07b): canonical JSON with an explicit schema. Version 1 joined kind, rule and genes with newlines,
+        so {"a", "b"} and {"a\\nb"} serialized to the SAME bytes before hashing (an input-admission defect, not a hash collision). No
+        version-1 identity was ever sealed (measured: none stored in the repository), so nothing is reinterpreted."""
+        payload = {"schema": "gvc.universe/2", "kind": self.kind.value, "rule_id": self.rule_id, "genes": sorted(self.genes)}
+        return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("ascii")).hexdigest()
 
 
 def project_scores(ranked, evaluation: Universe) -> dict:

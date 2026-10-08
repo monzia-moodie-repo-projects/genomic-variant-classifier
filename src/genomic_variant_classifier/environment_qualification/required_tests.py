@@ -23,11 +23,12 @@ from __future__ import annotations
 import logging
 import hashlib
 import xml.etree.ElementTree as ET
+from collections import Counter
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["QualificationError", "Case", "admit_junit"]
+__all__ = ["QualificationError", "Case", "admit_junit", "admit_qualification_rows", "admit_loaded_namespaces"]
 
 
 class QualificationError(ValueError):
@@ -100,3 +101,61 @@ def admit_junit(xml_bytes, *, expected_cases, process_exit_code):
             for case in sorted(actual)
         ],
     }
+
+
+def admit_qualification_rows(expected, observed) -> dict:
+    """EXACT membership of a replay's qualification rows (owner ruling 2026-10-07b, reference L308-349): every expected (package, version,
+    role) observed EXACTLY ONCE with status "OK". The earlier replay check compared only the row COUNT and the statuses, so a duplicated row
+    could replace a missing one without changing the count.
+
+    expected: iterable of (package, version, role); observed: iterable of (package, version, role, status, details)."""
+    expected = tuple(tuple(row) for row in expected)
+    observed = tuple(tuple(row) for row in observed)
+    if not expected:
+        raise QualificationError("qualification.expected_empty")
+    if any(len(row) != 3 or any(type(v) is not str or not v for v in row) for row in expected):
+        raise QualificationError("qualification.expected_shape")
+    names = [row[0] for row in expected]
+    if len(names) != len(set(names)):
+        raise QualificationError("qualification.expected_duplicate")
+    if any(len(row) != 5 or any(type(v) is not str for v in row) for row in observed):
+        raise QualificationError("qualification.observed_shape")
+    if Counter(row[:3] for row in observed) != Counter(expected):
+        raise QualificationError("qualification.identity_mismatch")
+    if any(row[3] != "OK" for row in observed):
+        raise QualificationError("qualification.result_failed")
+    return {"qualified": len(expected), "identities": sorted(expected)}
+
+
+def admit_loaded_namespaces(identity, *, expected_r_version: str, expected_platform: str, expected: dict, approved_roots: dict,
+                            r_home: str, base_packages: frozenset, case_insensitive_paths: bool) -> dict:
+    """What the fixture process ACTUALLY loaded, against INDEPENDENT expectations (owner ruling 2026-10-07b, section 3): the runtime
+    version and platform; every expected namespace loaded; every loaded non-base namespace expected, at its exact version, resolved EXACTLY
+    at <approved root>/<package>; every base namespace inside R_HOME/library. Approved roots are supplied PER EXECUTION (content identity
+    vs execution location, section 7). Case-insensitive path comparison only when the caller declares the platform's paths so (Windows).
+
+    identity: the parsed in-process record {"r_version", "platform", "loaded_namespaces": [{"package", "version", "path"}]}.
+    expected: package -> version; approved_roots: package -> the directory its namespace must resolve under."""
+    check(isinstance(identity, dict), "identity.shape")
+    check(identity.get("r_version") == expected_r_version, "identity.r_version")
+    check(identity.get("platform") == expected_platform, "identity.platform")
+    rows = identity.get("loaded_namespaces")
+    check(isinstance(rows, list) and len(rows) > 0, "identity.namespaces_shape")
+    check(isinstance(expected, dict) and len(expected) > 0 and set(approved_roots) == set(expected), "identity.expectation_shape")
+    norm = (lambda x: x.replace("\\", "/").rstrip("/").casefold()) if case_insensitive_paths else (lambda x: x.replace("\\", "/").rstrip("/"))
+    loaded = {}
+    for row in rows:
+        check(isinstance(row, dict) and all(type(row.get(k)) is str and row.get(k) for k in ("package", "version", "path")), "identity.row_shape")
+        check(row["package"] not in loaded, "identity.duplicate_namespace:" + row["package"])
+        loaded[row["package"]] = row
+    missing = sorted(set(expected) - set(loaded))
+    check(not missing, "identity.required_not_loaded:" + ",".join(missing))
+    base_root = norm(r_home) + "/library"
+    for name, row in sorted(loaded.items()):
+        if name in base_packages:
+            check(norm(row["path"]) == base_root + "/" + norm(name), "identity.base_location:" + name)
+            continue
+        check(name in expected, "identity.unexpected_namespace:" + name)
+        check(row["version"] == expected[name], "identity.version:" + name)
+        check(norm(row["path"]) == norm(approved_roots[name]) + "/" + norm(name), "identity.location:" + name)
+    return {"loaded": len(loaded), "expected": len(expected), "base": sorted(set(loaded) & set(base_packages))}
