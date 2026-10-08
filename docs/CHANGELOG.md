@@ -1,3 +1,32 @@
+## 2026-10-08 (environment qualification 8) -- one shared admission layer
+
+Owner rulings 2026-10-08, 2026-10-08b and 2026-10-08c. Ten defects were found across separate qualification scripts, each of which
+redefined what "accepted", "the same plan" or "the qualified library" meant. They converge here on one module.
+
+environment_qualification/admission.py (new), reusing r_runtime's strict parsing, canonical serialization, lockfile validation,
+runtime-change admission and file hashing:
+- admit_artifact_set: every planned artifact exactly once (identity, not count), an admissible status ("accepted" or
+  "already_accepted"), and bytes re-hashed against the recorded digest.
+- plan_digest / verify_plan: one recomputation convention; a modified plan body keeping its old label is refused. It reproduces the
+  sealed replay plan's recorded digest exactly.
+- library_digest: one content digest; directory-traversal errors, a junction root and non-regular files refuse instead of silently
+  omitting content (measured: an injected traversal error previously produced the digest of nothing). The encoding is unchanged.
+- exact_field_diff / admit_lock_transition: an absent field is distinct from null and types are compared; admission requires exactly
+  the approved R change, exactly the reviewed additions, no removals or version changes, and exactly the reviewed old-to-new field
+  transitions. The "absent" representation is strict ({"absent": 1} was accepted through numeric equality before the fix).
+- decide_qualification: a pure decision over required checks, each bound to its subject, the sealed specification and the verifier,
+  with result states match / mismatch / unavailable / invalid evidence.
+- RunRecord: execution status is kept separate from admission status, the run directory is created exclusively, and the exit code
+  follows admission.
+
+AUTHORITY SUCCESSION (ADR-0004 section D): source_repair.py is RETIRED. admit_lock_transition is the single owner of lockfile-change
+admission. source_repair admitted field-level permissions ("these fields may change"), which ruling 2026-10-08b replaced with exact
+transitions; it could not express this migration (package additions, the R change, fields outside its set); and it compared values
+with != so a True -> 1 change outside its permitted fields was reported as no change (measured). It had no caller outside its own
+tests. The predecessor is preserved in git history; its meaningful test cases were ported to the new owner.
+
+TESTS: +56 / -9 by node identity (7,827).
+
 ## 2026-10-07 (environment qualification 7) -- bounded admission repairs
 
 Owner ruling 2026-10-07b. The owner executed counterexamples against the merged code; each reproduced, and each is repaired here.

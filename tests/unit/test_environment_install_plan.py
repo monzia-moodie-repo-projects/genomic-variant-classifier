@@ -184,47 +184,6 @@ def test_plan_digest_is_deterministic_and_order_independent():
     assert plan_digest(a) != plan_digest(replace(a, platform="other"))
 
 
-# ------------------------------------------------------------------ source-only repair on the REAL lockfile
-
-import copy  # noqa: E402
-from pathlib import Path  # noqa: E402
-
-from genomic_variant_classifier.environment_qualification.r_runtime import strict_json  # noqa: E402
-from genomic_variant_classifier.environment_qualification.source_repair import admit_source_repair  # noqa: E402
-
-LOCK = strict_json((Path(__file__).resolve().parents[2] / "renv.lock").read_text(encoding="utf-8"))
-TARGETS = {n for n, r in LOCK["Packages"].items() if "r-universe" in str(r.get("Repository", ""))}
-
-
-def _repair(mutate, targets=TARGETS):
-    new = copy.deepcopy(LOCK)
-    mutate(new)
-    return admit_source_repair(LOCK, new, targets)
-
-
-def test_the_real_lockfile_has_23_r_universe_targets():
-    assert len(TARGETS) == 23 and "S4Arrays" in TARGETS
-
-
-def test_a_provenance_field_change_on_a_target_is_admitted():
-    assert _repair(lambda d: d["Packages"]["S4Arrays"].__setitem__("Repository", "BioCsoft")) == {"S4Arrays": ["Repository"]}
-
-
-@pytest.mark.parametrize("mutate, targets, reason", [
-    (lambda d: d["Packages"]["S4Arrays"].__setitem__("Version", "1.12.1"), TARGETS, "lock.forbidden_fields:S4Arrays:Version"),
-    (lambda d: d["R"].__setitem__("Version", "4.6.1"), TARGETS, "lock.metadata_changed:R"),
-    (lambda d: d["Packages"].pop("S4Arrays"), TARGETS, "lock.package_set_changed"),
-    (lambda d: d["Packages"]["Matrix"].__setitem__("Repository", "elsewhere"), TARGETS, "lock.unapproved_package:Matrix"),
-    (lambda d: d["Packages"]["S4Arrays"].__setitem__("Title", "x"), TARGETS, "lock.forbidden_fields:S4Arrays:Title"),
-    (lambda d: None, TARGETS | {"NotAPackage"}, "lock.unknown_repair_target"),
-    (lambda d: d.__setitem__("Extra", {}), TARGETS, "lock.top_level_changed"),
-])
-def test_source_repair_refusals(mutate, targets, reason):
-    with pytest.raises(ValueError) as error:
-        _repair(mutate, targets)
-    assert str(error.value) == reason
-
-
 # ------------------------------------------------------------------ the CONTENTS-based binary rule (measured 2026-10-10)
 
 def test_stale_needs_compilation_metadata_does_not_decide():

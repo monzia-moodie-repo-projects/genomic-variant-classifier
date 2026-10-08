@@ -8100,4 +8100,7 @@
 # 2026-10-07  ENVIRONMENT QUALIFICATION 7 -- bounded admission repairs (owner ruling 2026-10-07b)
 #   +58 / -13 by node identity: test_environment_isolation.py REWRITTEN (+23 / -11: the classifier was superseded),
 #   +19 test_environment_qualification.py, +16 / -2 test_inference_ranking.py (two refusal rows changed their expected code).
-7780
+# 2026-10-08  ENVIRONMENT QUALIFICATION 8 -- one shared admission layer; source_repair retired (authority succession)
+#   +56 / -9 by node identity: +56 tests/unit/test_environment_admission.py; -9 tests/unit/test_environment_install_plan.py
+#   (the retired source_repair cases; the meaningful ones ported).
+7827
