@@ -175,6 +175,17 @@ class RuntimePaths:
         """
         return self.cache_root / "transactions"
 
+    @property
+    def artifact_store_bindings(self) -> Path:
+        """The LOCAL binding of neutral artifact-store identifiers to absolute roots on THIS machine.
+
+        Owner ruling 2026-10-08c (QB): repository records carry portable store identifiers and relative locations only; the
+        absolute root (an account-specific path) lives in a local binding. Under cache_root -- user-scoped and OUTSIDE every
+        checkout -- so it cannot be committed, is shared by every checkout on the machine, and survives a working-tree reset.
+        Read by repository_records.artifact_inventory.load_store_bindings.
+        """
+        return self.cache_root / "artifact_stores.json"
+
     def describe(self) -> dict:
         """A serialisable record, for provenance in run artifacts."""
         return {
@@ -186,6 +197,7 @@ class RuntimePaths:
             "literature_scout_state": str(self.literature_scout_state),
             "orchestrator_state": str(self.orchestrator_state),
             "transaction_journal": str(self.transaction_journal),
+            "artifact_store_bindings": str(self.artifact_store_bindings),
         }
 
 

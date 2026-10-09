@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **7,827 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **7,963 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -518,6 +518,23 @@ exists to end.
 - **2026-10-08 -- Environment qualification 8: one shared admission layer (owner rulings 2026-10-08, 2026-10-08b, 2026-10-08c).**
   Every script now uses one definition of artifact coverage, plan identity, library identity, lockfile transitions and the
   qualification decision; the older field-permission lockfile check is retired in its favour. Suite 7,780 -> 7,827.
+- **2026-10-08 -- Environment qualification 9: the artifact-inventory verification record (owner rulings 2026-10-08c, 2026-10-08e,
+  2026-10-08f).**
+  Artifacts and runs stay outside the repository; the repository will hold portable, permanent records of what was observed about
+  them -- requirements, content and locations kept distinct, each location observed once, every requirement's result derived, and
+  incomplete searches never reported as absence -- with a replaceable index derived from them. Whether the environment is ready to
+  replay is a separate decision taken against the installation plan and names every piece of code that determined it. The store
+  root must be a plain canonical path (no link, junction or reparse point from the drive down), and a measurement is accepted only
+  if the whole file census is unchanged at its end. The schema owner lands first; the first record follows from a measurement on
+  the artifact store. Suite 7,827 -> 7,963.
+- **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
+  fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
+  match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined
+  implementation (explicit method "quick" callers searched in the R code of ten Bioconductor dependents and of this repository) and
+  the intended workload (method "auto" selects "quick" only above 2^29 elements). That is a scoped finding, not proof of
+  unreachability. REQUALIFICATION TRIGGERS: new code calling these functions, or duplicated / match / unique on genomic ranges, with
+  method "quick"; or inputs approaching 2^29 elements. Separately, 22 of the 102 pinned packages were behind the live indexes on
+  2026-10-08 -- a currency observation, not a defect; package updates are a separate reviewed change.
 - **SCHEDULED -- legacy-roadmap carry-forward audit.** 47 of the 55 item identifiers in
   docs/archive/legacy/ROADMAP_2026-03_to_2026-08-22.md are not mentioned in this roadmap (measured 2026-09-28).
   Absence is not resolution: SMOKE-1 (tests/smoke_test_imports.py is never collected and no workflow runs it) is
