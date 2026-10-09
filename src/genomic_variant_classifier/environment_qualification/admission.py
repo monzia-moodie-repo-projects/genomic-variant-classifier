@@ -14,6 +14,13 @@ strict_json, canonical, validate_lock, admit_runtime_change, sha256_file -- and 
                          individually approved field transitions (any unexpected difference stops admission)
   RunRecord              an outer failure-recording boundary: a "started" record first, the active stage, an atomically written terminal
                          record; a MISSING terminal record means INCOMPLETE (forced termination or power loss can prevent the write)
+  artifact_readiness     artifact-input readiness judged against requirements derived INDEPENDENTLY from the admitted installation plan
+                         (ruling 2026-10-08e section 4): an inventory record that defines both what was required and what was observed
+                         could agree with itself while omitting a required artifact. readiness_decision binds the result to the plan
+                         documents, the record's exact bytes, the evaluation time and the IMPLEMENTATION that determined it (ruling
+                         2026-10-08f section 4): the verified repository tree, the collector's exact bytes, and the record owner's and
+                         this module's canonical LF text identities -- digest domains declared, never interchangeable. It is HISTORICAL
+                         readiness only; installation admission must recheck the bytes it is about to consume.
 
 An archive checksum identifies THAT archive, not equivalence to a historical artifact.
 
@@ -28,6 +35,7 @@ import json
 import logging
 import os
 import re
+import sys
 from collections import Counter
 from dataclasses import dataclass
 from enum import Enum
@@ -39,7 +47,8 @@ from genomic_variant_classifier.environment_qualification.r_runtime import (
 logger = logging.getLogger(__name__)
 
 __all__ = ["SUCCESS", "ABSENT", "admit_artifact_set", "plan_digest", "verify_plan", "library_digest", "exact_field_diff",
-           "admit_lock_transition", "RunRecord", "EvidenceState", "CheckRequirement", "CheckResult", "QualificationDecision", "decide_qualification"]
+           "admit_lock_transition", "RunRecord", "EvidenceState", "CheckRequirement", "CheckResult", "QualificationDecision", "decide_qualification",
+           "artifact_readiness", "readiness_decision", "canonical_text_sha256", "DIGEST_DOMAINS"]
 
 SUCCESS = frozenset({"accepted", "already_accepted"})       # the downloader's own success set (download_artifacts.py)
 _KINDS = frozenset({"source", "windows_binary"})
@@ -326,3 +335,106 @@ class RunRecord:
 
 def _utc() -> str:
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+# ---------------------------------------------------------------------------------------------------- artifact-input readiness
+def artifact_readiness(record, required) -> dict:
+    """Artifact-input readiness against INDEPENDENTLY admitted requirements (owner reference, ruling 2026-10-08e section 4).
+
+    record: a validated repository_records.artifact_inventory.ArtifactInventoryRecord (its results are derived from its locations).
+    required: a non-empty tuple of (entry_id, expected_sha256) derived from the sealed installation plan -- never from the record.
+    Establishes artifact-input availability ONLY: not runtime, dependency, behavioural or scientific validity. A missing historical
+    evidence bundle or unselected alternative is a preservation finding of the record, not a readiness failure, unless required here."""
+    require(type(required) is tuple and len(required) > 0, "readiness.empty_or_untyped_requirements")
+    ids = []
+    for row in required:
+        require(type(row) is tuple and len(row) == 2 and type(row[0]) is str and row[0] != "" and type(row[1]) is str
+                and _SHA256.fullmatch(row[1]) is not None, "readiness.invalid_requirement")
+        ids.append(row[0])
+    require(len(ids) == len(set(ids)), "readiness.duplicate_requirement")
+    entries = {r.entry_id: r for r in record.requirements}
+    results = {r.entry_id: r for r in record.results()}
+    require(len(entries) == len(record.requirements) and len(results) == len(entries), "readiness.duplicate_record_entry")
+    require(set(entries) == set(results), "readiness.record_coverage")
+    rows = []
+    for entry_id, wanted in sorted(required):
+        entry, result = entries.get(entry_id), results.get(entry_id)
+        if entry is None:
+            reason = "requirement_not_recorded"
+        elif entry.sha256 != wanted:
+            reason = "expected_digest_not_plan_digest"
+        elif result.state is not EvidenceState.MATCH:
+            reason = "content_not_matched:" + result.reason
+        else:
+            reason = "matched"
+        rows.append({"entry_id": entry_id, "ready": reason == "matched", "reason": reason})
+    return {"artifact_inputs_ready": all(r["ready"] for r in rows), "requirements": rows}
+
+
+#: How each implementation digest is computed (ruling 2026-10-08f section 4): the domains are NOT interchangeable.
+DIGEST_DOMAINS = {"repository_tree": "git_tree_object_id", "collector_sha256": "exact_bytes_sha256",
+                  "record_owner_sha256": "canonical_lf_text_sha256", "admission_sha256": "canonical_lf_text_sha256",
+                  "loaded_repository_modules": "canonical_lf_text_sha256"}
+_GIT_OBJECT = re.compile(r"[0-9a-f]{40}|[0-9a-f]{64}")
+_MODULE_PATH = re.compile(r"[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*\.py")
+
+
+def readiness_decision(record, record_bytes: bytes, required, *, plan_documents: dict, evaluated_at: str, implementation: dict) -> dict:
+    """The BOUND decision: an unbound "artifact_inputs_ready: true" must never become an installation authorization. Binds the plan
+    documents the requirements came from (label -> SHA-256, verified by the caller against the reviewed contract), the record's exact
+    bytes (which the record object must render), the evaluation time, and every piece of code that determined the decision:
+
+      implementation = {"repository_tree": <git tree id the CALLER verified as its clean checkout>, "collector_sha256": <exact bytes of
+      the collector -- it must be the record's own verifier_sha256>, "loaded_repository_modules": <[{"path", "sha256"}] sorted by
+      path: every checkout module the caller loaded, repository-relative, with the canonical LF text digest the caller verified to
+      equal its blob in that tree>}
+
+    to which this function adds the record owner's and this module's canonical LF text digests, computed from the modules actually
+    running (the record's own class and this file); each must EQUAL the verified digest of exactly one listed module."""
+    from genomic_variant_classifier.repository_records.artifact_inventory import ArtifactInventoryRecord   # deferred: that module imports this one
+    require(type(record) is ArtifactInventoryRecord, "readiness.record_type")
+    require(type(record_bytes) is bytes and record.render() == record_bytes, "readiness.record_bytes_not_this_record")
+    require(type(plan_documents) is dict and len(plan_documents) > 0, "readiness.plan_documents_missing")
+    for label, digest in plan_documents.items():
+        require(type(label) is str and label != "", "readiness.plan_document_label")
+        _digest(digest, "readiness.plan_document_digest_invalid")
+    require(type(evaluated_at) is str and re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", evaluated_at) is not None,
+            "readiness.evaluated_at")
+    require(type(implementation) is dict and set(implementation) == {"repository_tree", "collector_sha256", "loaded_repository_modules"},
+            "readiness.implementation_shape")
+    tree, collector, modules = (implementation[k] for k in ("repository_tree", "collector_sha256", "loaded_repository_modules"))
+    require(type(tree) is str and _GIT_OBJECT.fullmatch(tree) is not None, "readiness.repository_tree_invalid")
+    _digest(collector, "readiness.collector_digest_invalid")
+    require(collector == record.verifier_sha256, "readiness.collector_not_the_records_verifier")
+    require(type(modules) is list and len(modules) > 0, "readiness.loaded_modules_invalid")
+    for m in modules:
+        require(type(m) is dict and set(m) == {"path", "sha256"} and type(m["path"]) is str and _MODULE_PATH.fullmatch(m["path"]) is not None,
+                "readiness.loaded_modules_invalid")
+        _digest(m["sha256"], "readiness.loaded_modules_invalid")
+    paths = [m["path"] for m in modules]
+    require(paths == sorted(set(paths)), "readiness.loaded_modules_invalid")
+    owner_file = Path(sys.modules[ArtifactInventoryRecord.__module__].__file__)
+    running = {"record_owner_sha256": canonical_text_sha256(owner_file), "admission_sha256": canonical_text_sha256(Path(__file__))}
+    for key, module_file in (("record_owner_sha256", owner_file), ("admission_sha256", Path(__file__))):
+        suffix = "/" + "/".join(module_file.parts[-3:])          # genomic_variant_classifier/<subpackage>/<module>.py
+        listed = [m for m in modules if ("/" + m["path"]).endswith(suffix)]
+        require(len(listed) == 1 and listed[0]["sha256"] == running[key], "readiness.interpreting_module_not_verified")
+    result = artifact_readiness(record, required)
+    return {"schema": "gvc.artifact-readiness-decision/1", "evaluated_at": evaluated_at,
+            "plan_documents": dict(sorted(plan_documents.items())), "record_id": record.record_id.value,
+            "record_sha256": hashlib.sha256(record_bytes).hexdigest(),
+            "implementation": {"repository_tree": tree, "collector_sha256": collector,
+                               "record_owner_sha256": running["record_owner_sha256"], "admission_sha256": running["admission_sha256"],
+                               "loaded_repository_modules": [dict(m) for m in modules], "digest_domains": dict(DIGEST_DOMAINS)},
+            "artifact_inputs_ready": result["artifact_inputs_ready"], "requirements": result["requirements"],
+            "claim": ("HISTORICAL readiness: the selected installation inputs' content was found in the store during this measurement. "
+                      "Artifact-input availability only -- not runtime, dependency, behavioural or scientific validity -- and no "
+                      "authorization of later use: installation admission must recheck the bytes it is about to consume.")}
+
+
+def canonical_text_sha256(path) -> str:
+    """A text file's identity in the canonical LF domain (CRLF -> LF; a lone CR refused), so a Windows checkout (core.autocrlf) and a
+    Linux runner agree. NOT the exact-bytes domain: the two are never compared with each other."""
+    raw = Path(path).read_bytes()
+    require(b"\r" not in raw.replace(b"\r\n", b""), "readiness.code_lone_cr")
+    return hashlib.sha256(raw.replace(b"\r\n", b"\n")).hexdigest()

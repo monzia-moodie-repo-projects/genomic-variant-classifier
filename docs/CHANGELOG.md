@@ -1,3 +1,46 @@
+## 2026-10-08 (environment qualification 9) -- the artifact-inventory verification record; plan-derived readiness
+
+Owner rulings 2026-10-08c (QA, QB, QC), 2026-10-08e and 2026-10-08f. Artifacts and runs live outside the repository. The repository records what
+was observed about them, in one typed owner (ADR-0004 section G: construction is validation, one deterministic rendering, strict
+parsing that must round-trip byte-for-byte, negative controls in the same unit). Ruling 2026-10-08e measured six defects in the first
+design (renamed content with no recorded size reported unavailable; a damaged hint reported as absence of content; repeated references
+doubled the copy count; one location could carry two digests; a zero-byte archive could not be recorded; a cached digest could be
+reused after a change) plus unchecked directory junctions. The owner was redesigned before installation. Ruling 2026-10-08f
+reproduced two remaining collector gaps (a size-excluded file changing into required content after the searches, or a new matching
+file, went undetected; a bound root under a redirected ANCESTOR was accepted and resolved), repaired here before installation.
+
+repository_records/artifact_inventory.py (new):
+- THREE ENTITIES: a requirement (plan document + entry id), content (a SHA-256 with one consistent size) and a location (store,
+  relative path) observed once. The record stores requirements, location observations and the search performed per content
+  object; every requirement's result is DERIVED (match / mismatch / unavailable / invalid evidence -- the shared admission layer's
+  vocabulary -- plus a precise reason), with the hint's condition reported separately, so a damaged hint and a valid copy elsewhere
+  are both visible. Observed sizes may be zero; expected sizes must be positive.
+- A search is complete only when every candidate was read (files of the size bound by a plan or inspection record, or learned from
+  the content itself; otherwise every file in the store). An unreadable candidate is recorded as an incomplete search, never as
+  absence.
+- Counts are of requirements, content objects and matching locations (with the distinct FILESYSTEM files and volume identities
+  among them: same store, volume and file identifier = the same filesystem file during that observation -- not separate disks,
+  failure domains or backups; identifiers can be reused over time). No redundancy is claimed. One location with two identities, one
+  digest with two sizes, or one filesystem identity holding two contents is refused.
+- The measurement is an interval; the collector's stability facts are recorded, including that the WHOLE file census was repeated
+  before finalization and compared with the first (every regular file's metadata, including files no search read, plus every
+  path) -- not an atomic snapshot. The bound root is accepted only as a plain canonical path: no component from the anchor through
+  the root, nor below it, may be a symbolic link, a junction or any other Windows reparse point (inspected before anything is
+  resolved or read). Placement: VERIFICATION_RESULT beneath environment-qualification/artifact-inventory, one file per record named by its REC
+  identifier (allocated by the producer). The index is a pure projection; disclosure is digests and relative locations only.
+- Locations name a neutral store; the absolute root lives only in a local binding outside every checkout
+  (RuntimePaths.artifact_store_bindings, beneath the user-scoped cache root).
+
+environment_qualification/admission.py: artifact_readiness judges artifact-input readiness against requirements derived independently
+from the installation plan (a record defining both its requirements and its observations could agree with itself while omitting one);
+readiness_decision binds the result to the plan documents, the record's exact bytes, the time and the IMPLEMENTATION that
+determined it: the verified repository tree, the collector's exact bytes, and the record owner's, this module's and every other
+loaded checkout module's canonical LF text identity (digest domains declared, never interchangeable). A valid record and a ready
+environment are separate claims; readiness is historical -- installation admission still rechecks the bytes it consumes.
+
+TESTS: +136 / -0 by node identity (7,963; two tests run only on Windows, where directory junctions can be created -- one of them
+exercises the reparse-point attribute alone). Mutation check: 42 of 42 seeded defects are detected.
+
 ## 2026-10-08 (environment qualification 8) -- one shared admission layer
 
 Owner rulings 2026-10-08, 2026-10-08b and 2026-10-08c. Ten defects were found across separate qualification scripts, each of which

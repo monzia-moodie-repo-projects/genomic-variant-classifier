@@ -14,8 +14,8 @@ build_plan       -- route selection, rebuild closure, installation order, and ad
 isolation        -- the network claim a replay may make, from an enforcement MECHANISM's evidence (Windows Sandbox configuration,
                     detached virtual machine); a host disconnection is a procedure, never "offline"; probes are diagnostic.
 admission        -- ONE definition of admission reused by every script: exact artifact-set coverage (re-hashed), the plan digest, the
-                    library content digest, exact lockfile transitions, the pure qualification decision, and the run record
-                    (execution separate from admission).
+                    library content digest, exact lockfile transitions, the pure qualification decision, the run record
+                    (execution separate from admission), and artifact-input readiness judged against the installation plan.
 
 Expectations always come from the reviewed plan, never from the evidence under test -- the principle of
 operations/admission_verifier.py, which binds a suite's COLLECTION identity; this package judges OUTCOMES.
