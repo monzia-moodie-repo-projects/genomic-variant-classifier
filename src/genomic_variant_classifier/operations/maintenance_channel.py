@@ -43,9 +43,15 @@ is NOT attempted here and is reported False with its reason.
 
 WHERE IT LIVES
 ==============
-`<operation intent root>/<operation id>/evidence/`, owned by OperationRecord.
-No new RuntimePaths root: `operation_intent` already provides the root
-authority, and directory composition alone does not justify duplicating it.
+`<operation directory>/evidence/` (evidence_directory), beneath an intent root the
+CALLER supplies (enumerate_evidence, cleanup_operations).
+
+CORRECTED 2026-10-09 (measured): this section previously said "owned by
+OperationRecord" and "`operation_intent` already provides the root authority".
+Neither exists -- no OperationRecord class and no `operation_intent` RuntimePaths
+property are defined anywhere in the repository, and main's history contains the
+string only in the commit that added the sentence (50aea17). The code never
+depended on them: every function here takes its directory as an argument.
 
 EXIT STATUS when run as a script
   0  every declared measurement held

@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **8,163 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **8,336 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -508,6 +508,8 @@ exists to end.
   from admitted artifacts (one per package; local builds = the reverse LinkingTo closure of packages without an admitted
   binary), installation is ordered, and build receipts and the installed dependencies a build used are admitted. Binary
   admission now counts native libraries in the archive instead of trusting NeedsCompilation. Suite 7,679 -> 7,706.
+  CORRECTION (2026-10-09, measured on GitHub): this change was committed (6c3fdb6) and merged (a27ec6c, pull request #46) on
+  2026-10-06; the date above and the branch name env-qual5-2026-10-10 are not its dates.
 - **2026-10-07 -- Environment qualification 6: acceptance repairs (owner ruling 2026-10-07).** Ranking scores travel from R as
   lossless hexadecimal text; a replay may claim to be offline only under enforced, measured network isolation; and the R
   runtime is identified by its component files, not only its launcher. Suite 7,706 -> 7,735.
@@ -536,6 +538,18 @@ exists to end.
   withholds the primary ranking and Delta H(20) while the diagnostics finish (exposure completion, per-gene coverage, an exploratory
   partial ranking with "unscored" genes); the policy is a required element of the sealed analysis contract, and the feasibility stage
   withholds reference recovery and Delta H(20) altogether. The qualified run belongs to the isolated replay. Suite 7,963 -> 8,163.
+- **2026-10-09 -- Science stage: the run intent and the reference-evaluator boundary (owner ruling 2026-10-09).** The analysis
+  stage is now declared BEFORE execution in an immutable run intent that binds the sealed contract, the frozen pair plan, the input,
+  environment and implementation identities and the release-policy identity; admission accepts only the bytes whose digest was
+  recorded when the intent was sealed, so changing the stage alone breaks the binding, and an intent bound to another release policy
+  is refused. Completeness is derived from admitted evidence -- no caller-supplied flag -- by the existing exposure validators plus the
+  coverage rule (an empty eligible set, an unclassified or infrastructure outcome, or scores that disagree with the outcomes refuse;
+  a mixture failure withholds). Reference evidence can be opened only inside the evaluator, only when the admitted intents and the
+  re-derived assessment permit it; a feasibility run never opens it, and a confirmatory evaluation is a new identity that may reuse
+  unchanged scores only with the feasibility history disclosed. The exposure recorder (version 2) also records each call's effective
+  burden input, and a derived feasibility table shows which exposures share one burden-side estimation problem, with agreement across
+  identical inputs. Measured while designing it: the repository had no operation-intent mechanism (a docstring claiming one is
+  corrected). Next: environment admission and the isolated qualification, then the frozen feasibility run. Suite 8,163 -> 8,336.
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined

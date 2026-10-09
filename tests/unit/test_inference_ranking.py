@@ -306,3 +306,33 @@ def test_universe_identity_is_unambiguous():
     """Version 1 joined with newlines: {"a", "b"} and {"a\\nb"} produced the same bytes before hashing."""
     assert Universe(UniverseKind.EVALUATION, "r", frozenset({"a", "b"})).identity != Universe(UniverseKind.EVALUATION, "r", frozenset({"a\nb"})).identity
     assert Universe(UniverseKind.EVALUATION, "r\na", frozenset({"b"})).identity != Universe(UniverseKind.EVALUATION, "r", frozenset({"a", "b"})).identity
+
+
+# ---------------------------------------------------------------------------------------------------- the score artifact (2026-10-09)
+from genomic_variant_classifier.inference.ranking import read_score_matrix  # noqa: E402
+
+
+def test_the_score_matrix_reads_exact_scores_and_missing_cells():
+    raw = b"g1\te1\t0x1.47ae147ae147bp-7\ng1\te2\tNA\ng2\te1\t0x1p+0\n"
+    assert read_score_matrix(raw) == {("g1", "e1"): F(float.fromhex("0x1.47ae147ae147bp-7")), ("g1", "e2"): None, ("g2", "e1"): F(1)}
+    assert read_score_matrix(b"") == {}
+
+
+@pytest.mark.parametrize("raw, code", [
+    (b"g1\te1\t0x1p-1\ng1\te1\t0x1p-2\n", "score_matrix_duplicate_cell"),       # never "the last value wins"
+    (b"g1\te1\t0x1p-1\ng1\te1\tNA\n", "score_matrix_duplicate_cell"),
+    (b"g1\te1\t0x1p-1\textra\n", "score_matrix_line"),
+    (b"g1\te1\n", "score_matrix_line"),
+    (b"\te1\t0x1p-1\n", "score_matrix_line"),
+    (b"g1\t\t0x1p-1\n", "score_matrix_line"),
+    (b"g1\te1\t0x1p-1", "score_matrix_bytes"),
+    (b"g1\te1\t0x1p-1\r\n", "score_matrix_bytes"),
+    ("g1\te1\t0x1p-1\n", "score_matrix_bytes"),
+    ("gö\te1\t0x1p-1\n".encode("utf-8"), "score_matrix_bytes"),
+    (b"g1\te1\t0x0p+0\n", "invalid_score"),                                         # a score is in (0, 1]
+    (b"g1\te1\t0x1p+1\n", "invalid_score"),
+    (b"g1\te1\t0.5\n", "score_encoding"),
+    (b"g1\te1\t0x1.00000000000001p-1\n", "score_not_exact_binary64"),
+])
+def test_the_score_matrix_is_strict(raw, code):
+    assert code_of(lambda: read_score_matrix(raw)) == code

@@ -1,3 +1,81 @@
+## 2026-10-09 (science stage) -- the run intent; the reference-evaluator boundary; completeness derived from admitted evidence; shared burden inputs
+
+Owner ruling 2026-10-09. A run record can hold what was AUTHORIZED BEFORE execution or what HAPPENED AFTER it; the analysis stage
+belongs to the former. Withholding must happen where reference evidence would be opened, not when a report is rendered. Completeness
+must be derived from admitted evidence, never from caller-supplied success flags. Shared burden inputs are measured from the
+actual-call trace; the standalone burden forecast stays deferred.
+
+MEASURED BEFORE DESIGNING (main 702ebfe, tree 93b2f138): the repository had NO operation-intent mechanism.
+operations/maintenance_channel.py said "`operation_intent` already provides the root" and "owned by OperationRecord", but neither a
+RuntimePaths property nor an OperationRecord class exists, now or anywhere in main's history (the strings occur only in 50aea17, the
+commit that added the sentence); the docstring is corrected beside the claim. environment_qualification.admission.RunRecord is a
+MUTABLE execution-status record (started -> terminal; its "stage" is the active EXECUTION STEP), so it cannot hold immutable
+pre-execution intent. Per the ruling, a typed, versioned intent record was added instead of hiding the stage in unvalidated metadata.
+
+- inference/run_intent.py (NEW): RunIntent (schema gvc.analysis-run-intent/1) -- run identifier, the DECLARED stage (feasibility or
+  confirmatory; a missing or unknown stage refuses), the sealed contract digest, the frozen pair-plan digest, the exact input
+  identities, the environment identity, the implementation tree, the release-policy identity, a declared prior-knowledge statement
+  (software withholding does not blind an analyst who already knows prominent genes) and the earlier intents that informed it.
+  EvaluationIntent (gvc.analysis-evaluation-intent/1) -- one reference evaluation of one admitted computation and its exact score
+  bytes; a feasibility evaluation names no reference, a confirmatory one must. Canonical JSON only; sealed exclusively before
+  execution (an existing intent is never replaced); admitted only when the persisted bytes have the digest recorded at sealing --
+  never a digest recomputed from a newly supplied intent -- and only when bound to the release policy of the implementation now
+  running. Changing ONLY the stage changes the digest and is refused.
+- inference/exposure_outcomes.py: the RELEASE POLICY is one immutable decision table read by endpoint_release, with a canonical
+  rendering and an identity (release_policy_sha256, b56f33dc...3abe); every release decision names it. PairPlan: the plan frozen before
+  execution as one typed object (planned exposures, the pair grid, structural exclusions, usable-pair counts and each eligible
+  exposure's ORDERED valid genes) with invariants tying them together and a canonical digest. score_coverage: the ruling's coverage
+  rule over admitted evidence -- an empty eligible set, an unclassified or infrastructure outcome, a score grid that is not the
+  planned grid, a score for an excluded pair, or scores that disagree with the exposure outcomes REFUSE (every applicable reason is
+  reported); a recorded mixture-estimation failure WITHHOLDS; otherwise COMPLETE. classify_exposures now also requires the recorded
+  burden input's ordered genes to be the plan's ordered valid genes (equal counts are not equal genes).
+- scripts/dandelion/dandelion_exposure_recorder.R, version 2: at the pi0 guard the recorder also writes the EFFECTIVE BURDEN INPUT --
+  names(p_b) and the exact post-clamp burden p-values -- once per DISTINCT input (burden-NNNN.tsv, numbered in order of first
+  occurrence; distinct means not identical() with num.eq = FALSE), each exposure line naming its file. The eight installed-body
+  statements that make that input what the reader says it is (positions 4, 5, 7, 8, 11, 13, 15 and 17 of
+  run_dandelion_for_exposure, measured) are checked before tracing, like the four guards. read_exposure_trace reads them strictly
+  (sequence, no orphan, no duplicate bytes, gene count equal to the usable pairs, values exact binary64 in (0, 1)).
+- burden_input_summary: exposures grouped by their COMPLETE effective burden-input identity -- biological support (ordered gene
+  identifiers + exact values + preprocessing) and numerical input (exact ordered values + estimator + environment) -- never by a
+  tolerance. Per group: exposure and valid-gene counts, the exact burden estimate, outcome and failure counts (burden side, trans
+  side only, non-positive weight sum), agreement across identical inputs (a disagreement is listed to investigate, never averaged)
+  and the genes that lose scoring coverage; the numerical view counts how many supports share one numerical input. Exposures in one
+  group are not independent replications.
+- inference/evaluation_boundary.py (NEW): assess_execution DERIVES an ExecutionAssessment from the admitted intent, the frozen plan
+  (its digest must be the intent's), the recorder directory and the exact score bytes, through the existing validators and the
+  coverage rule, and keeps four fields apart: execution_integrity (passed / refused), method_completion (complete / incomplete /
+  not_determined -- a refinement of the ruling's two values: when integrity is refused, completion is unknown), evaluation_permission
+  (permitted / withheld, read from the release table with the stage taken from the admitted intent) and scientific_interpretation
+  (not_established_by_these_fields). release_decision has NO reference parameter. evaluate() -- the reference-evaluator boundary --
+  admits both intents, requires the evaluation to name THIS computation and THESE score bytes (refused before any reference access),
+  requires a confirmatory evaluation of a feasibility computation to list it in informed_by (history disclosed), RE-DERIVES the
+  assessment (it accepts none from a caller), and opens the reference only when the release table permits a reference recovery for
+  the admitted evaluation stage; the reference digest must then equal the intent's before the endpoint is computed. The final status
+  is "evaluated" -- the specified calculation occurred -- never "validated".
+- inference/ranking.py: read_score_matrix, the strict reader of the score artifact (mat_p.tsv) -- three fields per line, the ruled
+  hexadecimal transport, and NO DUPLICATE CELL. The judge's previous line-by-line dictionary would have kept the LAST of two conflicting
+  values silently, and a malformed line raised a bare ValueError instead of a refusal; mat_sig.tsv and nominations.tsv are now read with
+  the same strictness.
+- inference/method_trace.py: report schema 3 -- per trace fixture the frozen plan's digest, the burden-input summary, the consistency
+  check burden_inputs_equal_inputs (each recorded input equals DANDELION's clamp_p of the planned burden p-values, exactly), the finding
+  burden_input_disagreement, and the run environment's identity.
+
+Measured in the development environment (R 4.3.3, DANDELION 0.1.0 from CRAN source, qvalue from its mirror -- not the qualified
+artifacts): recorder version 2 leaves every science output and every mixture quantity bit-identical to version 1; in fixture T2, E1 and
+E2 share one burden input (30 genes, pi0b 0x1.c86b0bd2cbe9bp-1), E3 (9 genes) and E5 (31 genes) have their own, and every recorded
+input equals the clamped planned input. The frozen fixture specification is unchanged (07af7511).
+
+TESTS: +174 / -1 by node identity (8,336); the -1 is a renumbered parametrize identifier, not a lost case (tests/EXPECTED_SUITE_SIZE
+explains it). Seeded-defect check: 53 of 54 Python defects detected; the survivor was a runtime cross-check that no input can reach
+(the coverage rule and coverage_report agree by construction, which a property test verifies on 400 random plans) -- it was removed
+rather than kept as dead code, and the re-run on the final code detected 53 of 53; 7 of 7 R recorder defects detected. The six
+forbidden-call cases of the ruling run with a reference loader that raises if it is ever called. A callback test verifies control flow;
+it does not prove filesystem isolation of the worker. FULL SUITE (development sandbox, by node identity; its 60 failures and 30 errors
+come from packages absent there and are identical before and after): 0 outcome changes on 8,047 shared tests, 174 added, all passing.
+Under a Windows-newline simulation the same, except one pre-existing WALL-CLOCK test, test_alphafold::test_rsa_performance_beats_naive,
+which failed only while two suites shared two processors (fast 4.85 s against 0.8 x 5.36 s) and passed 6 of 6 times alone; its margin
+is thin even unloaded (ratio 0.65 to 0.70 against the 0.80 threshold) -- recorded as a separate open item, not changed here.
+
 ## 2026-10-08 (science stage) -- predetermined DANDELION method fixtures; the adjustment-to-endpoint trace; the exposure-failure policy
 
 Owner rulings 2026-10-08e, 2026-10-08f (section 6) and 2026-10-08g. A change of q-value backend (native qvalue versus a

@@ -29,10 +29,35 @@ no universal "under 5 % is fine" threshold exists. The partial ranking is EXPLOR
 planned gene universe and lists genes without any score as "unscored" -- never deleted, never given a manufactured score. In the
 FEASIBILITY stage reference recovery and Delta H(20) are withheld even when every exposure is scored (endpoint_release).
 
+OWNER RULING 2026-10-09 (added here, the authoritative owner of exposure outcomes and coverage)
+==============================================================================================
+    PairPlan          the plan FROZEN BEFORE EXECUTION as one typed object with a canonical rendering and a digest: the planned
+                      exposures, the pair grid, the structural exclusions, the usable-pair counts and each eligible exposure's ORDERED
+                      valid genes. A run intent binds its digest, so eligibility cannot move after outcomes are seen.
+    score_coverage    the ruling's coverage rule over ADMITTED evidence (statuses from classify_exposures, scores from
+                      ranking.read_score_matrix): an empty eligible set, an unclassified or infrastructure outcome, a missing or extra
+                      grid cell, a score for an unplanned pair, or scores that disagree with the exposure outcomes REFUSE; a recorded
+                      mixture failure WITHHOLDS; otherwise COMPLETE. Completeness is DERIVED -- no caller-supplied success flag exists.
+    RELEASE POLICY    endpoint_release reads ONE declared, immutable decision table whose canonical rendering has a digest
+                      (release_policy_sha256). A run intent binds that digest: changing release semantics changes the identity, so an
+                      earlier intent can never silently acquire a new meaning.
+    RECORDER v2       the exposure recorder also writes the EFFECTIVE BURDEN INPUT of every call that reaches the pi0 guard -- the
+                      ordered gene identifiers and the exact post-clamp burden p-values (names(p_b), p_b) -- once per DISTINCT input
+                      (burden-NNNN.tsv), each exposure line naming its file. classify_exposures checks the recorded genes against the
+                      plan's ordered valid genes (a difference refuses: the frozen rule does not describe the actual call).
+    burden_input_summary
+                      exposures grouped by their COMPLETE effective burden-input identity, never by a tolerance: biological support
+                      (ordered gene IDs + exact values + preprocessing) and numerical input (exact ordered values + estimator +
+                      environment). Per group: exposure and valid-gene counts, the exact burden estimate, outcome and failure counts,
+                      agreement across identical inputs (a disagreement is a determinism finding to investigate, never averaged) and
+                      the genes that lose scoring coverage -- one failure CAUSE kept apart from its downstream CONSEQUENCES. Exposures
+                      sharing a group are not independent replications.
+
 Author: Monzia Moodie
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import re
@@ -47,17 +72,28 @@ from genomic_variant_classifier.inference.ranking import Pair, State, rank_genes
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["EXPOSURE_RECORDER_VERSION", "PARTIAL_RANKING_DEFINITION", "ExposureStatus", "ExposureEvent", "read_exposure_trace",
-           "classify_exposures", "planned_universe", "coverage_report", "exposure_records", "partial_ranking", "endpoint_release",
-           "PRIMARY_COMPLETE", "PRIMARY_WITHHELD", "PRIMARY_REFUSED", "STAGES"]
+__all__ = ["EXPOSURE_RECORDER_VERSION", "PARTIAL_RANKING_DEFINITION", "ExposureStatus", "ExposureEvent", "BurdenInput",
+           "read_exposure_trace", "exposure_trace_sha256", "classify_exposures", "PairPlan", "planned_universe", "coverage_report",
+           "score_coverage", "exposure_records", "partial_ranking", "endpoint_release", "release_policy", "render_release_policy",
+           "release_policy_sha256", "BURDEN_PREPROCESSING", "BURDEN_ESTIMATOR", "burden_support_sha256", "burden_numeric_input_sha256",
+           "burden_input_summary", "COVERAGE_REASONS", "PRIMARY_COMPLETE", "PRIMARY_WITHHELD", "PRIMARY_REFUSED", "STAGES"]
 
-EXPOSURE_RECORDER_VERSION = "gvc.dandelion-exposure-recorder/1"
+EXPOSURE_RECORDER_VERSION = "gvc.dandelion-exposure-recorder/2"     # 2: the effective burden input at the pi0 guard (ruling 2026-10-09)
 PARTIAL_RANKING_DEFINITION = ("Ranking conditional on exposures for which DANDELION produced scores; exploratory and not a substitute "
                               "for the complete-exposure primary endpoint.")
 PRIMARY_COMPLETE, PRIMARY_WITHHELD, PRIMARY_REFUSED = "complete", "withheld", "refused"
 STAGES = ("feasibility", "confirmatory")
 _KEYS = {"exposure_id", "outcome", "last_guard_reached", "n_trans", "n_valid", "pi0a", "pi0b", "wg1", "wg2", "wg3", "wg_sum",
-         "observation_kind", "recorder_version"}
+         "burden_input", "observation_kind", "recorder_version"}
+_BURDEN_ID = re.compile(r"burden-(?P<n>\d{4,})")
+_SHA256 = re.compile(r"[0-9a-f]{64}")
+#: What turns the planned burden p-values into the estimator's input -- measured in the installed DANDELION 0.1.0
+#: run_dandelion_for_exposure body (positions 4-15) on 2026-10-09. The environment identity (DANDELION version and DESCRIPTION digest)
+#: binds the implementation; these strings name the steps so an identity states what it identifies.
+BURDEN_PREPROCESSING = ("dandelion-0.1.0:run_dandelion_for_exposure: p_b = p.wes.new[gene.trans]; keep genes with non-missing trans AND "
+                        "burden p-values, in gene.trans order; p_b = clamp_p(p_b) (p <= 0 -> .Machine$double.xmin, p >= 1 -> 1 - 1e-15); "
+                        "names(p_b) = gene.trans")
+BURDEN_ESTIMATOR = "dandelion-0.1.0:pi0b = 1 - nonnullPropEst(qnorm(p_b, lower.tail = FALSE), u = 0, sigma = 1)"
 _HEX = re.compile(r"(?P<sign>-?)0x(?P<whole>[0-9a-f])(?:\.(?P<frac>[0-9a-f]+))?p(?P<exp>[+-]\d{1,4})")
 # outcome -> the guard the call must have reached (number of tracer hits); None: any (an abnormal or unclassified exit)
 _OUTCOMES = {"no_trans_genes": 1, "fewer_than_2_valid_genes": 2, "mixture_estimate_invalid": 3, "nonpositive_weight_sum": 4,
@@ -102,6 +138,18 @@ def _value(text):
 
 
 @dataclass(frozen=True)
+class BurdenInput:
+    """The EFFECTIVE burden input of an actual call, as the recorder wrote it: the ordered gene identifiers and the exact post-clamp
+    burden p-values at the pi0 guard. `input_id` is the recorder's file stem (burden-NNNN); `sha256` is the digest of that file's exact
+    bytes. One file per DISTINCT input: exposures sharing it name the same file."""
+
+    input_id: str
+    sha256: str
+    genes: tuple
+    values: tuple       # Fractions: exact binary64 values in (0, 1)
+
+
+@dataclass(frozen=True)
 class ExposureEvent:
     exposure_id: str
     outcome: str
@@ -114,16 +162,43 @@ class ExposureEvent:
     wg2: object
     wg3: object
     wg_sum: object
+    burden_input: BurdenInput | None     # present exactly when the pi0 guard was reached
+
+
+def _read_burden_file(path: Path) -> BurdenInput:
+    """One burden-NNNN.tsv: LF-terminated ASCII lines "gene<TAB>value", value R's "%a" text of an exact binary64 in (0, 1) (clamp_p maps
+    every burden p-value into [double.xmin, 1 - 1e-15]); at least one line; unique, non-empty gene identifiers."""
+    raw = path.read_bytes()
+    _require(raw != b"" and b"\r" not in raw and raw.endswith(b"\n"), "exposure_trace_burden_file", path.name)
+    try:
+        lines = raw.decode("ascii").split("\n")[:-1]
+    except UnicodeDecodeError:
+        raise InferenceError("exposure_trace_encoding", path.name) from None
+    genes, values = [], []
+    for n, line in enumerate(lines, 1):
+        fields = line.split("\t")
+        _require(len(fields) == 2 and fields[0] != "", "exposure_trace_burden_file", "{} line {}".format(path.name, n))
+        value = _value(fields[1])
+        _require(type(value) is Fraction and 0 < value < 1, "exposure_trace_burden_value", "{} line {}".format(path.name, n))
+        genes.append(fields[0])
+        values.append(value)
+    _require(len(set(genes)) == len(genes), "exposure_trace_burden_file", path.name + ": duplicate gene")
+    return BurdenInput(path.stem, hashlib.sha256(raw).hexdigest(), tuple(genes), tuple(values))
 
 
 def read_exposure_trace(directory) -> tuple:
-    """Strictly parse <dir>/exposures.jsonl (the recorder creates it empty at start): exact keys, one event per exposure, every recorded
-    quantity consistent with the guard the call reached (a structural outcome carries no estimate; an estimation failure carries its
-    invalid estimate; scores need valid ones). Zero events is a valid trace (no exposure entered run_dandelion_for_exposure)."""
+    """Strictly parse a recorder directory: <dir>/exposures.jsonl (the recorder creates it empty at start) and the burden-NNNN.tsv files
+    it references. Exact keys, one event per exposure, every recorded quantity consistent with the guard the call reached (a structural
+    outcome carries no estimate and no burden input; an estimation failure carries its invalid estimate; scores need valid ones). Burden
+    files: numbered 1, 2, ... in order of first reference, each referenced at least once, no two with the same bytes (one file per
+    DISTINCT input), and as many genes as the referencing call's usable pairs. Zero events is a valid trace (no exposure entered
+    run_dandelion_for_exposure)."""
     directory = Path(directory)
     path = directory / "exposures.jsonl"
     _require(path.is_file(), "exposure_trace_missing", str(directory))
-    stray = sorted(p.name for p in directory.iterdir() if p.name != "exposures.jsonl")
+    names = sorted(p.name for p in directory.iterdir())
+    burden_files = {n[:-4] for n in names if n.endswith(".tsv") and _BURDEN_ID.fullmatch(n[:-4])}
+    stray = [n for n in names if n != "exposures.jsonl" and not (n.endswith(".tsv") and n[:-4] in burden_files)]
     _require(not stray, "exposure_trace_unexpected_files", repr(stray[:5]))
     raw = path.read_bytes()
     _require(b"\r" not in raw and (raw == b"" or raw.endswith(b"\n")), "exposure_trace_truncated")
@@ -141,7 +216,7 @@ def read_exposure_trace(directory) -> tuple:
         lines = raw.decode("ascii").split("\n")[:-1]
     except UnicodeDecodeError:
         raise InferenceError("exposure_trace_encoding") from None
-    events, seen = [], set()
+    events, seen, burden, order = [], set(), {}, []
     for n, line in enumerate(lines, 1):
         try:
             doc = json.loads(line, object_pairs_hook=strict, parse_float=refuse, parse_constant=refuse)
@@ -159,8 +234,20 @@ def read_exposure_trace(directory) -> tuple:
         _require(expected is None or hits == expected, "exposure_trace_inconsistent", "line {}".format(n))
         for k in ("n_trans", "n_valid"):
             _require(doc[k] is None or (type(doc[k]) is int and doc[k] >= 0), "exposure_trace_value", k)
+        reference = doc["burden_input"]
+        _require(reference is None or (type(reference) is str and _BURDEN_ID.fullmatch(reference) is not None), "exposure_trace_value",
+                 "burden_input line {}".format(n))
+        _require((reference is not None) == (hits >= 3), "exposure_trace_inconsistent", doc["exposure_id"])
+        if reference is not None and reference not in burden:
+            # numbered in order of FIRST reference, exactly as the recorder assigns them; the file must exist
+            _require(reference == "burden-{:04d}".format(len(order) + 1), "exposure_trace_burden_sequence", reference)
+            _require(reference in burden_files, "exposure_trace_burden_missing", reference)
+            burden[reference] = _read_burden_file(directory / (reference + ".tsv"))
+            order.append(reference)
         e = ExposureEvent(doc["exposure_id"], outcome, hits, doc["n_trans"], doc["n_valid"],
-                          *(_value(doc[k]) for k in ("pi0a", "pi0b", "wg1", "wg2", "wg3", "wg_sum")))
+                          *(_value(doc[k]) for k in ("pi0a", "pi0b", "wg1", "wg2", "wg3", "wg_sum")),
+                          None if reference is None else burden[reference])
+        _require(e.burden_input is None or len(e.burden_input.genes) == e.n_valid, "exposure_trace_inconsistent", e.exposure_id)
         _require((e.n_trans is not None) == (hits >= 1) and (e.n_valid is not None) == (hits >= 2)
                  and all((v is not None) == (hits >= 3) for v in (e.pi0a, e.pi0b))
                  and all((v is not None) == (hits >= 4) for v in (e.wg1, e.wg2, e.wg3, e.wg_sum)), "exposure_trace_inconsistent", e.exposure_id)
@@ -176,22 +263,44 @@ def read_exposure_trace(directory) -> tuple:
             _require(e.n_valid >= 2 and not invalid_pi0 and e.wg_sum != "NA", "exposure_trace_inconsistent", e.exposure_id)
             _require((e.wg_sum <= 0) == (outcome == "nonpositive_weight_sum"), "exposure_trace_inconsistent", e.exposure_id)
         events.append(e)
+    _require(set(order) == burden_files, "exposure_trace_burden_orphan", repr(sorted(burden_files - set(order))[:5]))
+    digests = [b.sha256 for b in burden.values()]
+    _require(len(set(digests)) == len(digests), "exposure_trace_burden_duplicate", "one file per DISTINCT input")
     return tuple(events)
 
 
-def classify_exposures(exposures, predicted_exclusions: dict, predicted_usable: dict, events) -> dict:
+def exposure_trace_sha256(directory) -> str:
+    """The identity of a recorder directory AS A WHOLE: SHA-256 over every file's name and exact-bytes SHA-256, sorted by name. Call it
+    after read_exposure_trace has admitted the directory (that refuses any file the recorder did not write)."""
+    directory = Path(directory)
+    lines = []
+    for p in sorted(directory.iterdir(), key=lambda q: q.name):
+        _require(p.is_file() and not p.is_symlink(), "exposure_trace_unexpected_files", p.name)
+        lines.append("{}\t{}\n".format(p.name, hashlib.sha256(p.read_bytes()).hexdigest()))
+    return hashlib.sha256("".join(lines).encode("ascii")).hexdigest()
+
+
+def classify_exposures(exposures, predicted_exclusions: dict, predicted_usable: dict, events, *, predicted_support: dict) -> dict:
     """One status per PLANNED exposure (ruling: require_one_status_per_planned_exposure).
 
-    predicted_exclusions: {exposure: structural reason}, and predicted_usable: {exposure: (n_trans, n_valid)} for every annotated
-    exposure -- both derived from the inputs BEFORE execution. The observed call must agree with them: an exposure predicted eligible
-    that the method reports structural (or the reverse), or a usable-pair count that differs, means the frozen rule does not describe
-    the implementation -- refused, never reconciled after the fact."""
+    predicted_exclusions: {exposure: structural reason}, predicted_usable: {exposure: (n_trans, n_valid)} for every annotated
+    exposure, and predicted_support: {exposure: ordered valid genes} for every ELIGIBLE exposure (annotated, not excluded) -- all derived
+    from the inputs BEFORE execution. The observed call must agree with them: an exposure predicted eligible that the method reports
+    structural (or the reverse), a usable-pair count that differs, or a recorded burden input whose ordered genes differ from the
+    predicted valid genes (ruling 2026-10-09: the effective input of the ACTUAL call) means the frozen rule does not describe the
+    implementation -- refused, never reconciled after the fact."""
     exposures = tuple(exposures)
     _require(bool(exposures) and len(set(exposures)) == len(exposures) and all(type(x) is str and x for x in exposures), "exposure_plan")
     _require(set(predicted_exclusions) <= set(exposures) and set(predicted_exclusions.values()) <= _PREDICTABLE, "eligibility_rule_unknown",
              repr(sorted(set(predicted_exclusions.values()) - _PREDICTABLE)[:3]))
     annotated = {x for x in exposures if predicted_exclusions.get(x) != "exposure_not_annotated"}
     _require(set(predicted_usable) == annotated, "usable_pair_prediction_scope", "counts are predicted for exactly the annotated exposures")
+    eligible = {x for x in exposures if x not in predicted_exclusions}
+    _require(type(predicted_support) is dict and set(predicted_support) == eligible, "support_prediction_scope",
+             "ordered valid genes are predicted for exactly the eligible exposures")
+    for x, genes in predicted_support.items():
+        _require(type(genes) is tuple and len(genes) == predicted_usable[x][1] and len(set(genes)) == len(genes)
+                 and all(type(g) is str and g for g in genes), "support_prediction_scope", x)
     events = tuple(events)
     _require(all(type(e) is ExposureEvent for e in events), "exposure_event_type")
     by_id = {e.exposure_id: e for e in events}
@@ -208,6 +317,10 @@ def classify_exposures(exposures, predicted_exclusions: dict, predicted_usable: 
             n_trans, n_valid = predicted_usable[x]
             _require(event.n_trans == n_trans and (event.n_valid is None or event.n_valid == n_valid), "usable_pair_count_mismatch",
                      "{}: predicted {} trans / {} valid, observed {} / {}".format(x, n_trans, n_valid, event.n_trans, event.n_valid))
+            if event.burden_input is not None and x in predicted_support:
+                # equal counts are not equal genes: the ACTUAL call's ordered support must be the predicted one (ruling 2026-10-09). A
+                # predicted-structural exposure that reached the estimator is refused below as an eligibility-rule mismatch.
+                _require(event.burden_input.genes == predicted_support[x], "burden_support_mismatch", x)
         if predicted in _STRUCTURAL:
             if event is None:
                 out[x] = {"status": ExposureStatus.UNCLASSIFIED_MISSING_EXPOSURE, "reason": "no observed call (predicted " + predicted + ")",
@@ -226,6 +339,87 @@ def classify_exposures(exposures, predicted_exclusions: dict, predicted_usable: 
         else:
             out[x] = {"status": ExposureStatus(event.outcome), "reason": event.outcome, "event": event}
     return out
+
+
+def _canonical_bytes(doc) -> bytes:
+    return (json.dumps(doc, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False) + "\n").encode("ascii")
+
+
+@dataclass(frozen=True)
+class PairPlan:
+    """The plan FROZEN BEFORE EXECUTION (ruling 2026-10-09: completeness is derived from ADMITTED exposure and pair evidence; a run intent
+    binds this plan's digest, so eligibility cannot move once outcomes exist).
+
+        exposures   the planned exposures, in their planned order (DANDELION's gene1.list)
+        genes       the planned gene rows (the rows of mat.p), in order
+        scored      frozenset of (gene, exposure) pairs that MUST produce a score; every other grid pair is structurally excluded
+        exclusions  ((exposure, structural reason), ...) sorted by exposure
+        usable      ((exposure, n_trans, n_valid), ...) for every ANNOTATED exposure, sorted
+        support     ((exposure, ordered valid genes), ...) for every ELIGIBLE exposure (not excluded), sorted by exposure
+
+    The invariants tie them together: the reasons agree with the counts, an eligible exposure's planned pairs are exactly its support,
+    and an excluded exposure plans none. Built from the inputs by the method-specific planner (method_trace.plan_for for the fixture
+    inputs); this type only states and checks the plan."""
+
+    exposures: tuple
+    genes: tuple
+    scored: frozenset
+    exclusions: tuple
+    usable: tuple
+    support: tuple
+
+    def __post_init__(self) -> None:
+        for name, values in (("exposures", self.exposures), ("genes", self.genes)):
+            _require(type(values) is tuple and bool(values) and all(type(v) is str and v for v in values) and len(set(values)) == len(values),
+                     "pair_plan_" + name)
+        _require(type(self.scored) is frozenset and all(type(c) is tuple and len(c) == 2 for c in self.scored), "pair_plan_scored")
+        _require({g for g, _ in self.scored} <= set(self.genes) and {x for _, x in self.scored} <= set(self.exposures), "pair_plan_scored")
+        _require(type(self.exclusions) is tuple and all(type(r) is tuple and len(r) == 2 for r in self.exclusions)
+                 and [x for x, _ in self.exclusions] == sorted({x for x, _ in self.exclusions}), "pair_plan_exclusions")
+        excluded = dict(self.exclusions)
+        _require(set(excluded) <= set(self.exposures) and set(excluded.values()) <= _PREDICTABLE, "pair_plan_exclusions")
+        _require(type(self.usable) is tuple and all(type(r) is tuple and len(r) == 3 for r in self.usable)
+                 and [x for x, _, _ in self.usable] == sorted({x for x, _, _ in self.usable}), "pair_plan_usable")
+        usable = {x: (t, v) for x, t, v in self.usable}
+        annotated = {x for x in self.exposures if excluded.get(x) != "exposure_not_annotated"}
+        _require(set(usable) == annotated, "pair_plan_usable", "counts for exactly the annotated exposures")
+        for x, (t, v) in usable.items():
+            _require(type(t) is int and type(v) is int and 0 <= v <= t, "pair_plan_usable", x)
+            reason = excluded.get(x)
+            _require((reason == "no_trans_genes") == (t == 0) and (reason == "fewer_than_2_valid_genes") == (t > 0 and v < 2),
+                     "pair_plan_usable", "{}: the structural reason disagrees with the counts".format(x))
+        _require(type(self.support) is tuple and all(type(r) is tuple and len(r) == 2 for r in self.support)
+                 and [x for x, _ in self.support] == sorted({x for x, _ in self.support}), "pair_plan_support")
+        support = dict(self.support)
+        _require(set(support) == {x for x in self.exposures if x not in excluded}, "pair_plan_support", "for exactly the eligible exposures")
+        for x in self.exposures:
+            planned = {g for g, y in self.scored if y == x}
+            genes = support.get(x, ())
+            _require(type(genes) is tuple and len(set(genes)) == len(genes) and len(genes) == (usable[x][1] if x in support else 0)
+                     and set(genes) == planned, "pair_plan_support", x)
+
+    def as_dict(self) -> dict:
+        """{(gene, exposure): True must score / False structurally excluded} over the whole planned grid."""
+        return {(g, x): (g, x) in self.scored for x in self.exposures for g in self.genes}
+
+    def exclusions_dict(self) -> dict:
+        return dict(self.exclusions)
+
+    def usable_dict(self) -> dict:
+        return {x: (t, v) for x, t, v in self.usable}
+
+    def support_dict(self) -> dict:
+        return dict(self.support)
+
+    def render(self) -> bytes:
+        return _canonical_bytes({"schema": "gvc.dandelion-pair-plan", "schema_version": 1, "exposures": list(self.exposures),
+                                 "genes": list(self.genes), "scored": sorted([g, x] for g, x in self.scored),
+                                 "exclusions": dict(self.exclusions), "usable": {x: [t, v] for x, t, v in self.usable},
+                                 "support": {x: list(g) for x, g in self.support}})
+
+    @property
+    def sha256(self) -> str:
+        return hashlib.sha256(self.render()).hexdigest()
 
 
 def _check_plan(plan: dict) -> None:
@@ -249,11 +443,17 @@ def planned_universe(plan: dict) -> tuple:
     return tuple(sorted({g for (g, _), scored in plan.items() if scored}))
 
 
+def _eligible(statuses: dict) -> list:
+    """The planned ELIGIBLE exposures: every planned exposure not structurally ineligible (ONE definition, used by coverage_report and
+    score_coverage)."""
+    return sorted(x for x, s in statuses.items() if s["status"] is not ExposureStatus.STRUCTURALLY_INELIGIBLE)
+
+
 def coverage_report(plan: dict, statuses: dict) -> dict:
     """Exposure completion and the per-gene coverage distribution over the PLANNED universe, and the primary status."""
     _check_plan(plan)
     _check_statuses(plan, statuses)
-    eligible = sorted(x for x, s in statuses.items() if s["status"] is not ExposureStatus.STRUCTURALLY_INELIGIBLE)
+    eligible = _eligible(statuses)
     _require(bool(eligible), "no_eligible_exposure")
     scored = [x for x in eligible if statuses[x]["status"] is ExposureStatus.SCORED]
     universe = planned_universe(plan)
@@ -281,6 +481,53 @@ def coverage_report(plan: dict, statuses: dict) -> dict:
             "per_gene_coverage": per_gene,
             "genes_with_incomplete_coverage": sorted(g for g, r in per_gene.items() if r["scored_pairs"] < r["planned_pairs"]),
             "genes_outside_planned_universe": sorted({g for g, _ in plan} - set(universe))}
+
+
+#: score_coverage's refusal reasons, in the order they are reported
+COVERAGE_REASONS = ("no_eligible_exposures", "execution_or_classification_failure", "score_matrix_cells", "unexpected_scored_pair",
+                    "scores_disagree_with_exposure_outcomes")
+
+
+def score_coverage(plan: dict, statuses: dict, scores: dict) -> tuple:
+    """The coverage rule of owner ruling 2026-10-09 over ADMITTED evidence -> (primary status, reasons).
+
+    plan: {(gene, exposure): must score} (PairPlan.as_dict); statuses: classify_exposures' one status per planned exposure (its
+    validators stay authoritative); scores: ranking.read_score_matrix of the score artifact, {(gene, exposure): exact score or None}.
+
+        no eligible exposure                                        REFUSED  (all([]) must never read as "complete")
+        an unclassified-missing or infrastructure outcome           REFUSED
+        the score grid is not exactly the planned grid              REFUSED
+        a score for a pair the plan excludes                        REFUSED
+        scored pairs != the planned pairs of SCORED exposures       REFUSED  (a "scored" exposure that silently omits a planned score,
+                                                                              or a failed exposure that nevertheless has scores)
+        otherwise, a recorded mixture-estimation failure            WITHHELD (diagnostics retained)
+        otherwise                                                   COMPLETE (eligible for the later release checks -- not a release)
+
+    Every applicable refusal reason is reported, in COVERAGE_REASONS order. Malformed inputs raise InferenceError."""
+    _check_plan(plan)
+    _check_statuses(plan, statuses)
+    _require(set(statuses) == {x for _, x in plan}, "exposure_status_scope", "one status for exactly the planned exposures")
+    _require(type(scores) is dict and all(type(c) is tuple and len(c) == 2 for c in scores)
+             and all(v is None or type(v) is Fraction for v in scores.values()), "score_matrix_type")
+    reasons = []
+    if not _eligible(statuses):
+        reasons.append("no_eligible_exposures")
+    if any(s["status"] in _REFUSALS for s in statuses.values()):
+        reasons.append("execution_or_classification_failure")
+    if set(scores) != set(plan):
+        reasons.append("score_matrix_cells")
+    scored = {c for c, v in scores.items() if v is not None}
+    planned = {c for c, p in plan.items() if p}
+    if scored - planned:
+        reasons.append("unexpected_scored_pair")
+    expected = {c for c in planned if statuses[c[1]]["status"] is ExposureStatus.SCORED}
+    if scored & planned != expected:
+        reasons.append("scores_disagree_with_exposure_outcomes")
+    if reasons:
+        return PRIMARY_REFUSED, tuple(reasons)
+    if any(s["status"] in _ESTIMATION_FAILURES for s in statuses.values()):
+        return PRIMARY_WITHHELD, ("incomplete_eligible_exposures",)
+    return PRIMARY_COMPLETE, ()
 
 
 def _render(value):
@@ -352,23 +599,155 @@ def partial_ranking(pairs, plan: dict, statuses: dict, policy: ExposureFailurePo
             "estimation_failed_pairs_per_gene": dict(sorted(failed_pairs.items()))}
 
 
+#: THE RELEASE POLICY (rulings 2026-10-08g and 2026-10-09): ONE immutable decision table, read by endpoint_release and identified by
+#: the digest of its canonical rendering. A run intent binds that digest, so a change of release semantics is a new policy identity --
+#: an explicit amendment -- and an earlier intent can never silently acquire a new meaning. Rows: (primary status, stage) ->
+#: (primary ranking, reference recovery and Delta H(20), partial ranking).
+_RELEASE_TABLE = (
+    ((PRIMARY_COMPLETE, "confirmatory"), ("released", "released", "exploratory")),
+    ((PRIMARY_COMPLETE, "feasibility"), ("computed_not_evaluated", "withheld_feasibility_stage", "exploratory")),
+    ((PRIMARY_WITHHELD, "confirmatory"), ("withheld_incomplete_exposures", "withheld_incomplete_exposures", "exploratory")),
+    ((PRIMARY_WITHHELD, "feasibility"), ("withheld_incomplete_exposures", "withheld_incomplete_exposures", "exploratory")),
+    ((PRIMARY_REFUSED, "confirmatory"), ("refused", "refused", "refused")),
+    ((PRIMARY_REFUSED, "feasibility"), ("refused", "refused", "refused")),
+)
+_RELEASE_RULES = (
+    "the stage is taken ONLY from the admitted pre-execution run intent or evaluation intent -- never a command-line option, a report "
+    "setting or a default; a missing or unknown stage refuses",
+    "a feasibility run stays feasibility whatever its completion; there is no automatic promotion",
+    "a confirmatory evaluation is a NEW evaluation intent; unchanged admitted scores may be reused, nothing is relabelled, and the "
+    "feasibility history it follows is disclosed",
+    "reference evidence is opened only after admission permits evaluation, and only for a released reference recovery",
+    "a performance-based choice among exposure-failure or release policies is never permitted; a revised policy is a new identity",
+    "evaluated means the specified calculation occurred; it is not a scientific validation",
+)
+
+
+def release_policy() -> dict:
+    """The release policy as a document (the table above, with its rules)."""
+    return {"schema": "gvc.endpoint-release-policy", "schema_version": 1, "stages": list(STAGES),
+            "primary_statuses": [PRIMARY_COMPLETE, PRIMARY_WITHHELD, PRIMARY_REFUSED],
+            "decisions": [{"primary_status": p, "stage": s, "primary_ranking": r, "reference_recovery": e, "delta_h20": e, "partial_ranking": q}
+                          for (p, s), (r, e, q) in _RELEASE_TABLE],
+            "policy_selection": "not_permitted", "rules": list(_RELEASE_RULES)}
+
+
+def render_release_policy() -> bytes:
+    return _canonical_bytes(release_policy())
+
+
+def release_policy_sha256() -> str:
+    """The release-policy identity a run intent binds (canonical JSON, sorted keys, no whitespace, LF)."""
+    return hashlib.sha256(render_release_policy()).hexdigest()
+
+
 def endpoint_release(primary_status: str, stage: str) -> dict:
-    """What may be released (ruling 2026-10-08g). FEASIBILITY: reference recovery and Delta H(20) are withheld whatever the completion
-    (benchmark diagnostics stay development information); the complete ranking may be computed but is not evaluated. CONFIRMATORY: the
-    primary ranking, reference recovery and Delta H(20) are released only when every eligible exposure is scored. Never: a performance-
-    based choice among exposure-failure policies -- a revised policy is a new contract version."""
+    """What may be released (rulings 2026-10-08g, 2026-10-09), read from the ONE release table. FEASIBILITY: reference recovery and
+    Delta H(20) are withheld whatever the completion (benchmark diagnostics stay development information); the complete ranking may be
+    computed but is not evaluated. CONFIRMATORY: the primary ranking, reference recovery and Delta H(20) are released only when every
+    eligible exposure is scored. Never: a performance-based choice among exposure-failure policies -- a revised policy is a new contract
+    version. Its PRODUCTION caller (inference/evaluation_boundary.py) takes the stage from the admitted intent only."""
     _require(primary_status in (PRIMARY_COMPLETE, PRIMARY_WITHHELD, PRIMARY_REFUSED), "primary_status")
     _require(stage in STAGES, "stage")
-    if primary_status == PRIMARY_REFUSED:
-        primary = evaluation = "refused"
-        partial = "refused"
-    else:
-        partial = "exploratory"
-        if primary_status == PRIMARY_WITHHELD:
-            primary = evaluation = "withheld_incomplete_exposures"
-        elif stage == "feasibility":
-            primary, evaluation = "computed_not_evaluated", "withheld_feasibility_stage"
-        else:
-            primary = evaluation = "released"
+    (row,) = [decision for key, decision in _RELEASE_TABLE if key == (primary_status, stage)]
+    primary, evaluation, partial = row
     return {"stage": stage, "primary_status": primary_status, "primary_ranking": primary, "reference_recovery": evaluation,
-            "delta_h20": evaluation, "partial_ranking": partial, "policy_selection": "not_permitted"}
+            "delta_h20": evaluation, "partial_ranking": partial, "policy_selection": "not_permitted",
+            "release_policy_sha256": release_policy_sha256()}
+
+
+# ---------------------------------------------------------------------------------------------------- shared burden inputs (ruling 2026-10-09)
+def _hex_list(values) -> list:
+    return [_render(v) for v in values]
+
+
+def burden_support_sha256(burden: BurdenInput) -> str:
+    """BIOLOGICAL-SUPPORT identity: the ordered gene identifiers, their exact effective values and the preprocessing that produced them."""
+    _require(type(burden) is BurdenInput, "burden_input_type")
+    return hashlib.sha256(_canonical_bytes({"schema": "gvc.burden-support", "schema_version": 1, "preprocessing": BURDEN_PREPROCESSING,
+                                            "genes": list(burden.genes), "values": _hex_list(burden.values)})).hexdigest()
+
+
+def burden_numeric_input_sha256(burden: BurdenInput, environment_sha256: str) -> str:
+    """NUMERICAL-INPUT identity: the exact ordered effective values, the estimator and the environment -- WITHOUT gene identifiers. Two
+    exposures can share it while their biological support differs; the estimate is then the same numerical problem, not the same
+    biology."""
+    _require(type(burden) is BurdenInput, "burden_input_type")
+    _require(type(environment_sha256) is str and _SHA256.fullmatch(environment_sha256) is not None, "environment_digest")
+    return hashlib.sha256(_canonical_bytes({"schema": "gvc.burden-numeric-input", "schema_version": 1, "estimator": BURDEN_ESTIMATOR,
+                                            "environment_sha256": environment_sha256, "values": _hex_list(burden.values)})).hexdigest()
+
+
+def _invalid_estimate(value) -> bool:
+    return value == "NA" or value < 0
+
+
+def burden_input_summary(plan: dict, statuses: dict, environment_sha256: str) -> dict:
+    """Which exposures share the SAME effective burden-side estimation problem, from the ACTUAL-CALL trace (ruling 2026-10-09 sections
+    3-4) -- a derived feasibility table, never a forecast and never an input to eligibility, methods or release.
+
+    Groups are the COMPLETE identity (biological support, numerical input); no tolerance ever merges two inputs. Per group: the exposures,
+    the valid-gene count, the exact burden estimate (pi0b as estimated), agreement across the group's actual calls (identical inputs in
+    one environment must give bit-identical estimates -- a disagreement is listed under "investigate", never averaged), whether the
+    burden side failed the pi0 guard, the outcome counts, and the genes whose planned scores the group's failed exposures lose. The
+    numerical view counts how many support groups share each numerical input. Exposures that never reached the burden estimate
+    (structural, or no observed call) are listed with their status."""
+    _check_plan(plan)
+    _check_statuses(plan, statuses)
+    _require(type(environment_sha256) is str and _SHA256.fullmatch(environment_sha256) is not None, "environment_digest")
+    groups, unreached = {}, {}
+    for x, s in sorted(statuses.items()):
+        event = s["event"]
+        burden = None if event is None else event.burden_input
+        if burden is None:
+            unreached[x] = s["status"].value
+            continue
+        key = (burden_support_sha256(burden), burden_numeric_input_sha256(burden, environment_sha256))
+        groups.setdefault(key, []).append((x, s, burden))
+    rows, numeric, investigate = [], {}, []
+    lost_any, lost_burden, burden_failed = set(), set(), []
+    for (support, number), members in sorted(groups.items()):
+        estimates = {s["event"].pi0b for _, s, _ in members}
+        if len(estimates) == 1:
+            (estimate,) = estimates
+            agreement = "identical"
+            side = "estimate_invalid" if _invalid_estimate(estimate) else "estimate_valid"
+        else:
+            agreement, side = "disagreement_investigate", "undetermined_disagreement"
+            investigate.append(support)
+        failed = sorted(x for x, s, _ in members if s["status"] is not ExposureStatus.SCORED)
+        lost = sorted({g for (g, y), p in plan.items() if p and y in failed})
+        mixture = [(x, s) for x, s, _ in members if s["status"] is ExposureStatus.MIXTURE_ESTIMATE_INVALID]
+        burden_side = sorted(x for x, s in mixture if _invalid_estimate(s["event"].pi0b))
+        outcomes = {}
+        for _, s, _ in members:
+            outcomes[s["status"].value] = outcomes.get(s["status"].value, 0) + 1
+        lost_any |= set(lost)
+        lost_burden |= {g for (g, y), p in plan.items() if p and y in burden_side}
+        burden_failed += burden_side
+        rows.append({"support_sha256": support, "numeric_input_sha256": number, "burden_input_files": sorted({b.input_id for _, _, b in members}),
+                     "valid_genes": len(members[0][2].genes), "exposures": [x for x, _, _ in members], "exposure_count": len(members),
+                     "burden_estimate": [_render(e) for e in sorted(estimates, key=lambda v: (v == "NA", v if v != "NA" else 0))],
+                     "agreement": agreement, "burden_side": side, "outcomes": dict(sorted(outcomes.items())),
+                     "failure_counts": {"burden_side_invalid": len(burden_side),
+                                        "trans_side_only_invalid": len(mixture) - len(burden_side),
+                                        "nonpositive_weight_sum": sum(s["status"] is ExposureStatus.NONPOSITIVE_WEIGHT_SUM for _, s, _ in members),
+                                        "other_unscored": sum(s["status"] in _REFUSALS for _, s, _ in members)},
+                     "failed_exposures": failed, "genes_losing_coverage": lost, "genes_losing_coverage_count": len(lost)})
+        view = numeric.setdefault(number, {"numeric_input_sha256": number, "support_groups": 0, "exposures": 0})
+        view["support_groups"] += 1
+        view["exposures"] += len(members)
+    return {"definition": ("exposures grouped by their COMPLETE effective burden-input identity from the actual-call trace: biological "
+                           "support (ordered gene IDs + exact values + preprocessing) and numerical input (exact ordered values + estimator "
+                           "+ environment); no tolerance"),
+            "preprocessing": BURDEN_PREPROCESSING, "estimator": BURDEN_ESTIMATOR, "environment_sha256": environment_sha256,
+            "groups": rows, "numerical_inputs": sorted(numeric.values(), key=lambda v: v["numeric_input_sha256"]),
+            "exposures_not_reaching_burden_estimation": unreached,
+            "totals": {"support_groups": len(rows), "exposures_reaching_burden_estimation": sum(r["exposure_count"] for r in rows),
+                       "burden_side_failure_groups": sum(r["burden_side"] == "estimate_invalid" for r in rows),
+                       "exposures_with_burden_side_failure": len(burden_failed),
+                       "genes_losing_coverage_through_burden_side_failure": len(lost_burden),
+                       "exposures_unscored_after_reaching_the_estimate": sum(len(r["failed_exposures"]) for r in rows),
+                       "genes_losing_coverage_any_cause_among_these": len(lost_any)},
+            "investigate": investigate,
+            "independence": "exposures in one group share one burden-side estimation problem: they are not independent replications"}

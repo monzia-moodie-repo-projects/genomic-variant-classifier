@@ -326,22 +326,31 @@ def _event(call, exposure, backend, reason_, n, distinct, entered):
                        "recorder_version": RECORDER_VERSION}, separators=(",", ":"))
 
 
-def _xevent(exposure, outcome, hits, n_trans, n_valid, pi0a=None, pi0b=None, wg=None):
-    """One line as scripts/dandelion/dandelion_exposure_recorder.R writes it."""
+def _xevent(exposure, outcome, hits, n_trans, n_valid, pi0a=None, pi0b=None, wg=None, burden=None):
+    """One line as scripts/dandelion/dandelion_exposure_recorder.R (version 2) writes it."""
     wg = wg or (None, None, None, None)
     return json.dumps({"exposure_id": exposure, "outcome": outcome, "last_guard_reached": hits, "n_trans": n_trans, "n_valid": n_valid,
-                       "pi0a": pi0a, "pi0b": pi0b, "wg1": wg[0], "wg2": wg[1], "wg3": wg[2], "wg_sum": wg[3],
+                       "pi0a": pi0a, "pi0b": pi0b, "wg1": wg[0], "wg2": wg[1], "wg3": wg[2], "wg_sum": wg[3], "burden_input": burden,
                        "observation_kind": "actual_call_trace", "recorder_version": EXPOSURE_RECORDER_VERSION}, separators=(",", ":"))
 
 
 def _exposure_lines(t: dict) -> list:
     n = len(t["genes"])
     scored = ("0x1.8p-1", "0x1.cp-1", ("0x1p-3", "0x1p-4", "0x1.4p-1", "0x1.ep-1"))
-    lines = [_xevent("X1", "scored", 4, n, 12, *scored), _xevent("X2", "scored", 4, n, 12, *scored),
+    lines = [_xevent("X1", "scored", 4, n, 12, *scored, burden="burden-0001"), _xevent("X2", "scored", 4, n, 12, *scored, burden="burden-0001"),
              _xevent("X3", "fewer_than_2_valid_genes", 2, n, 1)]
     if "X4" in t["exposures"]:
-        lines.append(_xevent("X4", "mixture_estimate_invalid", 3, n, 13, "-0x1p-7", "0x1.cp-1"))
+        lines.append(_xevent("X4", "mixture_estimate_invalid", 3, n, 13, "-0x1p-7", "0x1.cp-1", burden="burden-0002"))
     return lines
+
+
+def _burden_files(t: dict) -> dict:
+    """The effective burden inputs the recorder writes: X1 and X2 share the 12 genes with their clamped burden p-values; X4 (T2) adds A13."""
+    rows = [(g, rhex(0.001 * (i + 1))) for i, g in enumerate(GENES)]
+    files = {"burden-0001.tsv": rows}
+    if "X4" in t["exposures"]:
+        files["burden-0002.tsv"] = rows + [("A13", rhex(0.5))]
+    return {name: "".join("{}\t{}\n".format(g, v) for g, v in r) for name, r in files.items()}
 
 
 def _common(run: Path, mode: str):
@@ -397,6 +406,8 @@ def build_runs(spec: dict, root: Path):
                     _write(tr / "call-{:04d}.clamped.txt".format(n), [rhex(x) for x in P_DACT[e]])
                     _write(tr / "call-{:04d}.output.txt".format(n), [rhex(x) for x in q[e]])
                 _write(run / "trace_exposures" / "exposures.jsonl", _exposure_lines(t))
+                for name, text in _burden_files(t).items():
+                    _put(run / "trace_exposures" / name, text)
 
 
 def predicted_for(tid: str = "T1"):
@@ -466,7 +477,8 @@ def test_a_mixture_failure_withholds_the_primary_and_lets_the_diagnostics_finish
         "mixture_estimate_invalid", "trans", 13, "-0x1p-7")
     assert x4["genes_it_would_cover"] == sorted(GENES + ["A13"])
     assert set(t2["exposures"]) == {"X1", "X2"} and t2["consistency"] == {
-        "scores_exactly_where_planned_and_scored": True, "nominations_equal_mat_sig_pairs": True, "gene1_equals_scored_exposures": True}
+        "scores_exactly_where_planned_and_scored": True, "nominations_equal_mat_sig_pairs": True, "gene1_equals_scored_exposures": True,
+        "burden_inputs_equal_inputs": True}
     assert set(t2["endpoint"]) == {"withheld"} and t2["explanation_rows"] is None
     assert t2["endpoint_release"]["confirmatory"]["delta_h20"] == "withheld_incomplete_exposures"
     pr = t2["partial_ranking"]
@@ -509,6 +521,8 @@ def _flip(path: Path, line_no: int, new: str):
 
 
 def _edit_exposure(run: Path, exposure: str, drop: bool = False, **over):
+    """Edit one exposure line. Dropping it also removes a burden file no other line references: a call that never happened leaves
+    neither (the recorder writes the file at the pi0 guard and the line when the call exits)."""
     path = run / "trace_exposures" / "exposures.jsonl"
     out = []
     for text in _get(path).split("\n")[:-1]:
@@ -519,6 +533,10 @@ def _edit_exposure(run: Path, exposure: str, drop: bool = False, **over):
             doc.update(over)
         out.append(json.dumps(doc, separators=(",", ":")))
     _put(path, "".join(x + "\n" for x in out))
+    used = {json.loads(x)["burden_input"] for x in out}
+    for f in (run / "trace_exposures").glob("burden-*.tsv"):
+        if f.stem not in used:
+            f.unlink()
 
 
 def _unpredicted_failure(s):
@@ -540,7 +558,8 @@ def test_an_unpredicted_failure_still_finishes_the_diagnostics(synthetic):
     r = judged(synthetic)
     t1 = r["trace_fixtures"][0]
     assert t1["coverage"]["primary_status"] == "withheld" and t1["consistency"] == {
-        "scores_exactly_where_planned_and_scored": True, "nominations_equal_mat_sig_pairs": True, "gene1_equals_scored_exposures": True}
+        "scores_exactly_where_planned_and_scored": True, "nominations_equal_mat_sig_pairs": True, "gene1_equals_scored_exposures": True,
+        "burden_inputs_equal_inputs": True}
     assert set(t1["exposures"]) == {"X1"} and t1["partial_ranking"]["conditioned_on_exposures"] == ["X1"]
     assert "T1:prediction:delta_h" in r["failures"] and not any(f.startswith("T2:") for f in r["failures"])
 
@@ -622,7 +641,9 @@ def _adjust_failed_exposure(s):
     (lambda s: (s["runs"] / "T1" / "off" / "trace_exposures").mkdir(), "run_off_recorded"),
     (lambda s: (s["runs"] / "R1" / "on" / "trace_exposures").mkdir(), "run_unexpected_recorder"),
     (lambda s: (s["runs"] / "T1" / "on" / "trace_exposures" / "exposures.jsonl").unlink(), "exposure_trace_missing"),
-    (lambda s: _edit_exposure(s["runs"] / "T1" / "on", "X1", n_valid=11), "usable_pair_count_mismatch"),
+    # recorder v2: 11 usable pairs beside a 12-gene burden input is INTERNALLY inconsistent -- refused by the reader, before any rule
+    (lambda s: _edit_exposure(s["runs"] / "T1" / "on", "X1", n_valid=11), "exposure_trace_inconsistent"),
+    (lambda s: _edit_exposure(s["runs"] / "T1" / "on", "X1", n_trans=13), "usable_pair_count_mismatch"),
     (lambda s: _edit_exposure(s["runs"] / "T2" / "on", "X4", n_trans=14), "usable_pair_count_mismatch"),
     (_score_failed_exposure, "failed_exposure_has_scores"),
     (lambda s: _adjust_failed_exposure(s), "trace_incomplete"),        # a NULL-returning exposure can never reach safe_qvalues
@@ -698,6 +719,18 @@ def test_the_real_fixtures_meet_their_frozen_predictions(tmp_path, capsys):
     e5 = t2["exposure_outcomes"]["E5"]
     assert (e5["status"], e5["invalid_side"], e5["observed"]["usable_pairs"]) == ("mixture_estimate_invalid", "trans", 31)
     assert t2["coverage"]["primary_status"] == "withheld" and t2["partial_ranking"]["unscored"] == ["G31"]
+    # recorder v2 (ruling 2026-10-09): the actual calls' effective burden inputs -- E1 and E2 share ONE (identical valid genes and
+    # values), E3 and E5 have their own; each equals clamp_p of the planned burden p-values; the shared input gives ONE estimate
+    for trace, groups in ((t1, {("E1", "E2"), ("E3",)}), (t2, {("E1", "E2"), ("E3",), ("E5",)})):
+        summary = trace["burden_input_summary"]
+        assert {tuple(g["exposures"]) for g in summary["groups"]} == groups and summary["investigate"] == []
+        assert trace["consistency"]["burden_inputs_equal_inputs"] is True
+        assert all(g["agreement"] == "identical" and g["burden_side"] == "estimate_valid" for g in summary["groups"])
+    e5_group = [g for g in t2["burden_input_summary"]["groups"] if g["exposures"] == ["E5"]][0]
+    assert e5_group["failure_counts"]["trans_side_only_invalid"] == 1 and e5_group["genes_losing_coverage_count"] == 31
+    assert sorted(p.name for p in (tmp_path / "out" / "runs" / "T2" / "on" / "trace_exposures").iterdir()) == [
+        "burden-0001.tsv", "burden-0002.tsv", "burden-0003.tsv", "exposures.jsonl"]
+    assert report["schema"] == mt.REPORT_SCHEMA and report["environment_sha256"] == mt.environment_sha256(report["environment"])
     # ONLY the declared libraries, the run's empty user / site library and R's own library are searched
     declared = {Path(x).resolve().as_posix() for x in os.environ["GVC_METHOD_FIXTURE_RLIBS"].split(os.pathsep)}
     searched = report["environment"]["libpaths"].split(" | ")
@@ -712,10 +745,15 @@ d <- file.path(tmp, "a"); exposure_recorder_start(d); invisible(exposure_recorde
 stopifnot(identical(list.files(d, all.files = TRUE, no.. = TRUE), "exposures.jsonl"), file.size(file.path(d, "exposures.jsonl")) == 0)
 r <- tryCatch({ exposure_recorder_start(d); "started" }, error = function(e) conditionMessage(e))
 stopifnot(grepl("not empty", r))
-ns <- asNamespace("DANDELION"); f <- get("run_dandelion_for_exposure", envir = ns); b <- body(f); b[[18]] <- quote(NULL); body(f) <- b
-unlockBinding("run_dandelion_for_exposure", ns); assign("run_dandelion_for_exposure", f, envir = ns)
+ns <- asNamespace("DANDELION"); f_orig <- get("run_dandelion_for_exposure", envir = ns); unlockBinding("run_dandelion_for_exposure", ns)
+f <- f_orig; b <- body(f); b[[18]] <- quote(NULL); body(f) <- b; assign("run_dandelion_for_exposure", f, envir = ns)
 r <- tryCatch({ exposure_recorder_start(file.path(tmp, "b")); "started" }, error = function(e) conditionMessage(e))
 stopifnot(grepl("refusing to trace an unmeasured implementation", r), !dir.exists(file.path(tmp, "b")))
+# version 2: a body whose BURDEN preprocessing differs (the clamp at position 11 removed, every guard intact) is refused too -- the
+# recorded input would no longer be what BURDEN_PREPROCESSING says it is
+g <- f_orig; b <- body(g); b[[11]] <- quote(p_b <- p_b); body(g) <- b; assign("run_dandelion_for_exposure", g, envir = ns)
+r <- tryCatch({ exposure_recorder_start(file.path(tmp, "c")); "started" }, error = function(e) conditionMessage(e))
+stopifnot(grepl("differs at position 11", r), grepl("refusing to trace an unmeasured implementation", r), !dir.exists(file.path(tmp, "c")))
 cat("RECORDER GUARDS OK\n")
 '''
 
@@ -724,7 +762,8 @@ cat("RECORDER GUARDS OK\n")
                     reason="set GVC_METHOD_FIXTURE_RSCRIPT and GVC_METHOD_FIXTURE_RLIBS to an Rscript and a library holding DANDELION")
 def test_the_exposure_recorder_guards_in_r(tmp_path):
     """What the fixtures cannot show (each trace fixture calls the method): the trace file exists, EMPTY, from the start (zero calls is
-    a result, not a missing trace); a used destination is refused; a DANDELION body that differs at a measured guard is refused."""
+    a result, not a missing trace); a used destination is refused; a DANDELION body that differs at a measured guard -- or, version 2,
+    at a measured burden-preprocessing statement -- is refused."""
     script = tmp_path / "guards.R"
     _put(script, _RECORDER_GUARDS_R)
     env = {k: v for k, v in os.environ.items() if not k.upper().startswith(("R_", "RENV_"))}
@@ -742,9 +781,102 @@ def test_these_test_modules_never_use_text_mode_file_io():
     rightly refuse, so these modules use byte-exact helpers only. Any write_text / read_text call or open() in these modules fails here
     on EVERY platform, not only on Windows."""
     import ast
-    for name in ("test_inference_method_trace.py", "test_inference_exposure_outcomes.py"):
+    for name in ("test_inference_method_trace.py", "test_inference_exposure_outcomes.py", "test_inference_run_intent.py",
+                 "test_inference_evaluation_boundary.py"):
         tree = ast.parse((ROOT / "tests" / "unit" / name).read_bytes().decode("utf-8"))
         bad = [(name, node.lineno) for node in ast.walk(tree) if isinstance(node, ast.Call)
                and ((isinstance(node.func, ast.Attribute) and node.func.attr in ("write_text", "read_text", "open"))
                     or (isinstance(node.func, ast.Name) and node.func.id == "open"))]
         assert bad == [], bad
+
+
+# ------------------------------------------------------------------------------------------------------------------ ruling 2026-10-09
+#: the frozen plans of the two real trace fixtures (exposure_outcomes.PairPlan; T2's equals the independently hand-built plan of
+#: test_inference_exposure_outcomes.py)
+PLAN_SHA256 = {"T1": "91a13213c1b2ff07ed08a63edb2e84b92a561ad9276fa53b6f623435f82b160f",
+               "T2": "3cf569ff60d5c174fd3f2200eeabde93411e810ad80a8861fe9ce363703b3f11"}
+
+
+def test_the_typed_plan_is_the_planner_output():
+    for t in mt.load_spec(SPEC.read_bytes())["trace_fixtures"]:
+        typed = mt.plan_for(t)
+        plan, excluded, order = mt.pair_plan(t)
+        assert typed.as_dict() == plan and typed.exclusions_dict() == excluded and typed.support_dict() == order
+        assert typed.usable_dict() == mt.usable_pairs(t) and typed.sha256 == PLAN_SHA256[t["id"]]
+
+
+def test_clamp_p_is_dandelions_exactly():
+    assert mt.clamp_p(Fraction(0)) == mt.clamp_p(Fraction(-1)) == Fraction(2) ** -1022
+    # R 4.3.3, sprintf("%a", 1 - 1e-15) and sprintf("%a", .Machine$double.xmin), measured 2026-10-09: 0x1.ffffffffffff7p-1 and 0x1p-1022
+    assert mt.clamp_p(Fraction(1)) == mt.clamp_p(Fraction(3, 2)) == Fraction(float.fromhex("0x1.ffffffffffff7p-1")) == Fraction(1 - 1e-15)
+    assert mt.clamp_p(Fraction(0)) == Fraction(float.fromhex("0x1p-1022"))
+    assert mt.clamp_p(Fraction(1, 3)) == Fraction(1, 3)
+    assert reason(lambda: mt.clamp_p(0.5)) == "clamp_value"
+
+
+def test_the_report_carries_the_burden_summary_and_its_identities(synthetic):
+    r = judged(synthetic)
+    assert r["schema"] == "gvc.dandelion-method-report/3" and r["environment_sha256"] == mt.environment_sha256(r["environment"])
+    t1, t2 = r["trace_fixtures"]
+    assert t1["plan_sha256"] == mt.plan_for(synthetic["spec"]["trace_fixtures"][0]).sha256
+    assert [g["exposures"] for g in t1["burden_input_summary"]["groups"]] == [["X1", "X2"]]
+    assert t1["burden_input_summary"]["environment_sha256"] == r["environment_sha256"]
+    assert sorted(g["exposures"] for g in t2["burden_input_summary"]["groups"]) == [["X1", "X2"], ["X4"]]
+    x4 = [g for g in t2["burden_input_summary"]["groups"] if g["exposures"] == ["X4"]][0]
+    assert x4["valid_genes"] == 13 and x4["failure_counts"]["trans_side_only_invalid"] == 1 and x4["genes_losing_coverage_count"] == 13
+    assert all(t["consistency"]["burden_inputs_equal_inputs"] for t in (t1, t2))
+    assert t2["endpoint_release"]["feasibility"]["release_policy_sha256"] == xo_release_sha()
+
+
+def xo_release_sha():
+    from genomic_variant_classifier.inference.exposure_outcomes import release_policy_sha256
+    return release_policy_sha256()
+
+
+def _rewrite_burden(s, fixture: str, name: str, edit):
+    path = s["runs"] / fixture / "on" / "trace_exposures" / name
+    rows = [line.split("\t") for line in _get(path).split("\n")[:-1]]
+    _put(path, "".join("\t".join(r) + "\n" for r in edit(rows)))
+
+
+def test_a_burden_input_that_is_not_the_clamped_input_is_a_finding(synthetic):
+    _rewrite_burden(synthetic, "T1", "burden-0001.tsv", lambda rows: [[rows[0][0], rhex(0.0011)]] + rows[1:])
+    r = judged(synthetic)
+    assert r["fixtures_passed"] is False and "T1:burden_inputs_equal_inputs" in r["failures"]
+
+
+def test_a_disagreement_within_one_input_is_a_finding(synthetic):
+    _edit_exposure(synthetic["runs"] / "T1" / "on", "X2", pi0b="0x1.8p-1")
+    r = judged(synthetic)
+    (group,) = r["trace_fixtures"][0]["burden_input_summary"]["groups"]
+    assert group["agreement"] == "disagreement_investigate"
+    assert "T1:burden_input_disagreement:" + group["support_sha256"] in r["failures"]
+
+
+def _scores_lines(s, fixture, edit):
+    for mode in ("off", "on"):
+        path = s["runs"] / fixture / mode / "mat_p.tsv"
+        _put(path, "".join(x + "\n" for x in edit(_get(path).split("\n")[:-1])))
+
+
+@pytest.mark.parametrize("damage, code", [
+    # the actual call's ordered support is not the plan's (order reversed) -> the frozen rule does not describe the call
+    (lambda s: _rewrite_burden(s, "T1", "burden-0001.tsv", lambda rows: list(reversed(rows))), "burden_support_mismatch"),
+    # a duplicate score cell is never silently "last one wins"
+    (lambda s: _scores_lines(s, "T1", lambda lines: lines + [lines[0]]), "score_matrix_duplicate_cell"),
+    (lambda s: _scores_lines(s, "T1", lambda lines: [lines[0] + "\textra"] + lines[1:]), "score_matrix_line"),
+    (lambda s: _put(s["runs"] / "T1" / "on" / "mat_sig.tsv", _get(s["runs"] / "T1" / "on" / "mat_sig.tsv") + "A1\tX1\t0\n"), "run_mat_sig"),
+    (lambda s: _put(s["runs"] / "T1" / "on" / "mat_sig.tsv", "A1\tX1\n"), "run_mat_sig"),
+    (lambda s: _put(s["runs"] / "T1" / "on" / "nominations.tsv", "X1\tA1\n"), "run_nominations"),
+    (lambda s: _put(s["runs"] / "T1" / "on" / "nominations.tsv", _get(s["runs"] / "T1" / "on" / "nominations.tsv") * 2), "run_nominations"),
+])
+def test_ambiguous_artifacts_refuse(synthetic, damage, code):
+    damage(synthetic)
+    assert reason(lambda: judged(synthetic)) == code
+
+
+def test_the_environment_identity_is_canonical():
+    env = {"R": "R version 4.3.3", "qvalue": {"version": "2.34.0", "description_sha256": None}}
+    assert mt.environment_sha256(env) == mt.environment_sha256(dict(reversed(list(env.items()))))
+    assert mt.environment_sha256(env) != mt.environment_sha256(dict(env, R="R version 4.3.4"))
+    assert reason(lambda: mt.environment_sha256({})) == "run_environment"
