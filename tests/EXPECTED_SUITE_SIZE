@@ -8106,4 +8106,9 @@
 # 2026-10-08  ENVIRONMENT QUALIFICATION 9 -- the artifact-inventory verification record; plan-derived readiness (rulings 2026-10-08c, 2026-10-08e, 2026-10-08f)
 #   +136 / -0 by node identity: +136 tests/unit/test_artifact_inventory.py (the two real-junction cases run only on Windows; the
 #   symbolic-link cases skip, with their reason, where the account lacks the privilege to create links).
-7963
+# 2026-10-08  SCIENCE STAGE -- predetermined DANDELION method fixtures; the adjustment-to-endpoint trace; the exposure-failure policy
+#   (rulings 2026-10-08e, 2026-10-08f, 2026-10-08g)
+#   +200 / -0 by node identity: +107 tests/unit/test_inference_method_trace.py, +78 tests/unit/test_inference_exposure_outcomes.py,
+#   +15 tests/unit/test_inference_analysis_contract.py (the two R cases run only when GVC_METHOD_FIXTURE_RSCRIPT and
+#   GVC_METHOD_FIXTURE_RLIBS are set; they skip with that reason otherwise).
+8163

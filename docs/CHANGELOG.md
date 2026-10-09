@@ -1,3 +1,62 @@
+## 2026-10-08 (science stage) -- predetermined DANDELION method fixtures; the adjustment-to-endpoint trace; the exposure-failure policy
+
+Owner rulings 2026-10-08e, 2026-10-08f (section 6) and 2026-10-08g. A change of q-value backend (native qvalue versus a
+Benjamini-Hochberg fallback) is a change in the ADJUSTMENT layer; whether it reaches the endpoint depends on the path. DANDELION 0.1.0
+(R/DANDELION.R, read in full) computes each pair's p-value and stores it in mat.p BEFORE safe_qvalues runs; the q-values only set mat.sig,
+which builds DANDELION's own nominations. The extended ranking (inference/ranking.py, minimum raw pair score) therefore cannot be moved by
+an adjustment change, while DANDELION's nominations can -- and a changed adjustment method is never to be described as a changed Delta H(20)
+without the intermediate layers.
+
+EXPOSURE FAILURE (ruling 2026-10-08g): run_dandelion_for_exposure returns no scores for four reasons -- no trans genes and fewer than two
+valid genes (STRUCTURAL: predicted from the inputs before execution) or an invalid mixture estimate and a non-positive mixture weight sum
+(MIXTURE-ESTIMATION FAILURE of an eligible exposure). The primary ranking requires every eligible exposure scored; otherwise the ranking
+and Delta H(20) are WITHHELD while execution and diagnosis finish. A mixture failure is never relabelled structural. An exposure that
+disappears without an identified cause, or fails for an infrastructure reason, refuses the primary analysis.
+
+- inference/analysis_contract.py: ExposureFailurePolicy (eligibility, execution, primary, diagnostic, policy_revision -- the ruling's YAML),
+  a REQUIRED element of a sealed contract; the ruled invariants are enforced by the type (a weaker policy cannot be sealed by accident;
+  disallowing the partial ranking is the one stricter choice admitted).
+- scripts/dandelion/dandelion_exposure_recorder.R: an ACTUAL-CALL trace of run_dandelion_for_exposure at its four measured guards (the
+  installed body is checked first; any difference refuses) -- per exposure the guard reached, the trans and usable-pair counts and the
+  mixture estimates AS ESTIMATED (invalid values explicit), written as exact hexadecimal binary64.
+- inference/exposure_outcomes.py: strict reading of that trace; ONE status per planned exposure, checked against the structural reasons
+  and usable-pair counts predicted from the inputs (a disagreement refuses: the frozen rule does not describe the implementation);
+  exposure completion (scored eligible / planned eligible) and the per-gene coverage distribution; the per-exposure record the ruling
+  lists; the EXPLORATORY partial ranking ("conditional on exposures for which DANDELION produced scores"), bound to the sealed policy,
+  keeping the planned gene universe with "unscored" genes and counting a failed exposure's pairs as estimation-failed, never structural;
+  and endpoint release by stage (FEASIBILITY withholds reference recovery and Delta H(20) even when complete).
+- tests/fixtures/dandelion/method_fixtures_v2.json: FIXTURES AND PREDICTIONS FROZEN before any qualified run (exact binary64 inputs;
+  provenance method_fixtures_v2_values.R): six safe_qvalues route fixtures (native; qvalue error -> BH; fewer than 10 values; fewer than
+  4 distinct values; clamp boundaries -> native; the earlier recorder fixture vector, which takes the ERROR route with the real qvalue);
+  trace fixture T1 (30 genes x 4 exposures: one per route plus one excluded before scoring; complete -> primary released) and T2 (T1 plus
+  an exposure whose every trans p-value is 1 -> a NEGATIVE trans-side pi0 estimate, a gene only that exposure covers, and an exposure
+  absent from the annotation -> primary withheld, completion 3/4, that gene "unscored"). v1 (c34617fe) was frozen the same day and
+  superseded before any run of it; v2 keeps every v1 input and prediction.
+- scripts/dandelion/method_fixtures.R runs one fixture in one fresh R process (recorders off, then on), from inputs only, with exact
+  hexadecimal outputs, the random-number state before and after and a second statistical call; run_method_fixtures.py binds the
+  specification by its SHA-256 and runs every fixture in both modes.
+- inference/method_trace.py judges the runs layer by layer -- input, adjustment (the actual call's backend), pair decision (decided in
+  binary64 exactly as R decides), gene aggregation (the pair plan derived from the inputs before scoring), endpoint (top k, reference
+  membership, Delta H against burden-only; only when the primary is complete) -- with per-exposure outcomes, coverage, the partial
+  ranking and the release table, an exact rational Benjamini-Hochberg counterfactual, recorder-off / recorder-on equality of every
+  scientific output (nominations included), and an explanation row for every gene entering or leaving the top k. A failed prediction
+  is reported as a finding; malformed evidence refuses.
+
+Measured in the development environment (R 4.3.3; DANDELION from the CRAN 0.1.0 source; qvalue built from its mirror commit -- not the
+qualified artifacts): every prediction met; native qvalue nominates two pairs Benjamini-Hochberg would not, while every ranking score
+and the endpoint are unchanged; T2's failed exposure is observed in the actual call at the mixture guard (trans-side pi0 =
+-0x1.e7bab1690b2p-7) and the burden-side estimate depends only on the exposure's valid gene set (identical for exposures sharing it). A
+NA estimate is unreachable after the two-gene guard, and a non-positive weight sum needs both estimates exactly 0. The qualified run
+happens in the isolated replay.
+
+TESTS: +200 / -0 by node identity (8,163): +107 tests/unit/test_inference_method_trace.py, +78 tests/unit/test_inference_exposure_outcomes.py,
++15 tests/unit/test_inference_analysis_contract.py (the two R cases run when GVC_METHOD_FIXTURE_RSCRIPT and GVC_METHOD_FIXTURE_RLIBS are
+set, and skip with that reason otherwise). Mutation check: 35 of 35 seeded defects in the Python layers and 9 of 9 in the R recorder and
+runner are detected. WINDOWS (measured 2026-10-09 in the owner's validation): the tests' own file edits used text mode, which writes
+"\r\n" on Windows, and the strict readers rightly refused 30 of them; every test file write is now byte-exact, a Windows-newline
+simulation reproduced exactly those 30 failures before the repair and none after, and a guard test refuses any text-mode file call in
+these modules on every platform.
+
 ## 2026-10-08 (environment qualification 9) -- the artifact-inventory verification record; plan-derived readiness
 
 Owner rulings 2026-10-08c (QA, QB, QC), 2026-10-08e and 2026-10-08f. Artifacts and runs live outside the repository. The repository records what

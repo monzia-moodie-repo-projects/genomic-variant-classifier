@@ -24,6 +24,14 @@ documented_disjoint. Unknown overlap does not block a contract; it blocks an IND
 independence seals only if every recorded relationship is documented_disjoint. Participant overlap and evidence reuse in
 ascertainment are recorded as different relationship kinds.
 
+EXPOSURE FAILURE (ruling 2026-10-08g)
+=====================================
+A sealed contract carries its ExposureFailurePolicy: eligibility is frozen BEFORE execution and a mixture-estimation failure is never
+ineligibility; execution continues and keeps every successful output; the PRIMARY ranking requires every eligible exposure scored and
+otherwise withholds the ranking and Delta H(20); a partial ranking is EXPLORATORY, conditional on estimability, keeps the planned gene
+universe and marks genes without scores "unscored" (never a manufactured score); nothing relaxes automatically -- a revised policy is a
+new contract version. The invariants the ruling fixes are enforced by the type, so a weaker policy cannot be sealed by accident.
+
 Author: Monzia Moodie
 """
 from __future__ import annotations
@@ -40,7 +48,8 @@ from genomic_variant_classifier.inference.exact_confirmation import InferenceErr
 logger = logging.getLogger(__name__)
 
 __all__ = ["Overlap", "Relationship", "Target", "InputSource", "Families", "Execution", "Evaluation", "Independence",
-           "Amendment", "DraftContract", "SealedContract"]
+           "Amendment", "FailureEligibility", "FailureExecution", "FailurePrimary", "FailureDiagnostic", "FailureRevision",
+           "ExposureFailurePolicy", "DraftContract", "SealedContract"]
 
 SCHEMA = "gvc.analysis-contract"
 SCHEMA_VERSION = 1
@@ -180,6 +189,79 @@ class Amendment:
         _text(self.reason, "amendment_reason")
 
 
+@dataclass(frozen=True)
+class FailureEligibility:
+    definition: str = "frozen_before_execution"
+    mixture_failure_is_ineligibility: bool = False
+
+    def __post_init__(self) -> None:
+        _require(self.definition == "frozen_before_execution", "policy_eligibility_definition")
+        _require(self.mixture_failure_is_ineligibility is False, "policy_mixture_failure_relabelled",
+                 "mixture-estimation failure must never become structural ineligibility")
+
+
+@dataclass(frozen=True)
+class FailureExecution:
+    continue_after_exposure_failure: bool = True
+    preserve_successful_outputs: bool = True
+    require_one_status_per_planned_exposure: bool = True
+
+    def __post_init__(self) -> None:
+        for f in fields(self):
+            _require(getattr(self, f.name) is True, "policy_execution_" + f.name)
+
+
+@dataclass(frozen=True)
+class FailurePrimary:
+    require_all_eligible_exposures_scored: bool = True
+    on_failure: str = "withhold_primary_ranking_and_delta_h20"
+
+    def __post_init__(self) -> None:
+        _require(self.require_all_eligible_exposures_scored is True, "policy_primary_completeness")
+        _require(self.on_failure == "withhold_primary_ranking_and_delta_h20", "policy_primary_on_failure")
+
+
+@dataclass(frozen=True)
+class FailureDiagnostic:
+    partial_ranking_allowed: bool = True
+    status: str = "exploratory_conditional_on_estimability"
+    retain_planned_gene_universe: bool = True
+    missing_score_representation: str = "unscored"
+
+    def __post_init__(self) -> None:
+        _require(type(self.partial_ranking_allowed) is bool, "policy_diagnostic_partial")       # disallowing it is the stricter choice
+        _require(self.status == "exploratory_conditional_on_estimability", "policy_diagnostic_status")
+        _require(self.retain_planned_gene_universe is True, "policy_diagnostic_universe")
+        _require(self.missing_score_representation == "unscored", "policy_diagnostic_missing_score",
+                 "a missing score is a state, never a manufactured value")
+
+
+@dataclass(frozen=True)
+class FailureRevision:
+    automatic_relaxation: bool = False
+    require_new_contract_version: bool = True
+
+    def __post_init__(self) -> None:
+        _require(self.automatic_relaxation is False, "policy_automatic_relaxation")
+        _require(self.require_new_contract_version is True, "policy_revision_version")
+
+
+@dataclass(frozen=True)
+class ExposureFailurePolicy:
+    """Owner ruling 2026-10-08g, as the contract's exposure_failure_policy (its YAML keys, one section per field)."""
+
+    eligibility: FailureEligibility = FailureEligibility()
+    execution: FailureExecution = FailureExecution()
+    primary: FailurePrimary = FailurePrimary()
+    diagnostic: FailureDiagnostic = FailureDiagnostic()
+    policy_revision: FailureRevision = FailureRevision()
+
+    def __post_init__(self) -> None:
+        for name, kind in (("eligibility", FailureEligibility), ("execution", FailureExecution), ("primary", FailurePrimary),
+                           ("diagnostic", FailureDiagnostic), ("policy_revision", FailureRevision)):
+            _require(type(getattr(self, name)) is kind, "policy_section", name)
+
+
 def _canonical(value):
     if isinstance(value, Enum):
         return value.value
@@ -206,6 +288,7 @@ class SealedContract:
     independence: tuple
     independence_claimed: bool
     amendment: Amendment | None
+    exposure_failure_policy: ExposureFailurePolicy
 
     def __post_init__(self) -> None:
         _text(self.analysis_id, "analysis_id")
@@ -225,6 +308,7 @@ class SealedContract:
             undocumented = [(x.left, x.right) for x in self.independence if x.state is not Overlap.DOCUMENTED_DISJOINT]
             _require(not undocumented, "independence_claim_unsupported", repr(undocumented))
         _require(self.amendment is None or type(self.amendment) is Amendment, "amendment")
+        _require(type(self.exposure_failure_policy) is ExposureFailurePolicy, "exposure_failure_policy")
 
     def render(self) -> bytes:
         doc = {"schema": SCHEMA, "schema_version": SCHEMA_VERSION, **_canonical(self)}
@@ -250,6 +334,7 @@ class DraftContract:
     independence: tuple = ()
     independence_claimed: bool = False
     amendment: Amendment | None = None
+    exposure_failure_policy: ExposureFailurePolicy | None = None
 
     def __post_init__(self) -> None:
         _text(self.analysis_id, "analysis_id")
@@ -257,8 +342,8 @@ class DraftContract:
 
     def seal(self) -> SealedContract:
         _require(not self.unresolved, "contract_unresolved", repr(self.unresolved))
-        for name in ("target", "families", "execution", "evaluation"):
+        for name in ("target", "families", "execution", "evaluation", "exposure_failure_policy"):
             _require(getattr(self, name) is not None, "contract_incomplete", name)
         return SealedContract(self.analysis_id, self.target, self.inputs, self.families, self.transformations,
                               self.execution, self.evaluation, self.independence, self.independence_claimed,
-                              self.amendment)
+                              self.amendment, self.exposure_failure_policy)
