@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **7,963 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **8,163 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -527,6 +527,15 @@ exists to end.
   root must be a plain canonical path (no link, junction or reparse point from the drive down), and a measurement is accepted only
   if the whole file census is unchanged at its end. The schema owner lands first; the first record follows from a measurement on
   the artifact store. Suite 7,827 -> 7,963.
+- **2026-10-08 -- Science stage: predetermined method fixtures, the adjustment-to-endpoint trace and the exposure-failure policy
+  (owner rulings 2026-10-08e, 2026-10-08f, 2026-10-08g).** Small fixtures with predictions frozen before any qualified run cover the
+  native q-value route and every fallback; each fixture runs with the recorders off and on in fresh R processes, and a judge reports the
+  input, adjustment, pair-decision, gene-aggregation and endpoint layers separately. Measured in the pinned code: an adjustment change
+  alters DANDELION's own nominations but cannot move the minimum-score ranking, so it is never read as a change in Delta H(20). Every
+  exposure now receives one status from the actual call, checked against what the inputs predict: a mixture-estimation failure
+  withholds the primary ranking and Delta H(20) while the diagnostics finish (exposure completion, per-gene coverage, an exploratory
+  partial ranking with "unscored" genes); the policy is a required element of the sealed analysis contract, and the feasibility stage
+  withholds reference recovery and Delta H(20) altogether. The qualified run belongs to the isolated replay. Suite 7,963 -> 8,163.
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined

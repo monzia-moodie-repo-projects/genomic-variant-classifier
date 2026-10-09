@@ -1,4 +1,4 @@
-"""The analysis contract (owner ruling 2026-10-03 L226-248; independence states 2026-10-03b).
+"""The analysis contract (owner ruling 2026-10-03 L226-248; independence states 2026-10-03b; exposure-failure policy 2026-10-08g).
 
 Author: Monzia Moodie
 """
@@ -9,7 +9,8 @@ import dataclasses
 import pytest
 
 from genomic_variant_classifier.inference.analysis_contract import (
-    Amendment, DraftContract, Evaluation, Execution, Families, Independence, InputSource, Overlap, Relationship, Target)
+    Amendment, DraftContract, Evaluation, Execution, ExposureFailurePolicy, Families, FailureDiagnostic, FailureEligibility,
+    FailureExecution, FailurePrimary, FailureRevision, Independence, InputSource, Overlap, Relationship, Target)
 from genomic_variant_classifier.inference.exact_confirmation import InferenceError
 
 TARGET = Target("asthma (FinnGen J10_ASTHMA, provisional)", "FinnGen R13 standalone", "trans evidence adds to burden",
@@ -29,7 +30,7 @@ def overlap(state, relationship=Relationship.PARTICIPANT_OVERLAP):
 
 def draft(**kw):
     args = dict(analysis_id="asthma-extension", unresolved=(), target=TARGET, inputs=(INPUT,), families=FAMILIES,
-                execution=EXECUTION, evaluation=EVALUATION)
+                execution=EXECUTION, evaluation=EVALUATION, exposure_failure_policy=ExposureFailurePolicy())
     args.update(kw)
     return DraftContract(**args)
 
@@ -50,7 +51,7 @@ def test_named_unresolved_choices_refuse_sealing():
     assert code_of(lambda: draft(unresolved=("reference inclusion rule",)).seal()) == "contract_unresolved"
 
 
-@pytest.mark.parametrize("missing", ["target", "families", "execution", "evaluation"])
+@pytest.mark.parametrize("missing", ["target", "families", "execution", "evaluation", "exposure_failure_policy"])
 def test_a_missing_element_refuses_sealing(missing):
     assert code_of(lambda: draft(**{missing: None}).seal()) == "contract_incomplete"
 
@@ -102,3 +103,39 @@ def test_a_sealed_contract_is_immutable():
     sealed = draft().seal()
     with pytest.raises(dataclasses.FrozenInstanceError):
         sealed.analysis_id = "changed"
+
+
+# ------------------------------------------------------------------------------------------------ exposure-failure policy (2026-10-08g)
+def test_the_ruled_policy_is_the_default_and_is_bound_into_the_contract_identity():
+    import json
+    sealed = draft().seal()
+    doc = json.loads(sealed.render())
+    assert doc["exposure_failure_policy"] == {
+        "eligibility": {"definition": "frozen_before_execution", "mixture_failure_is_ineligibility": False},
+        "execution": {"continue_after_exposure_failure": True, "preserve_successful_outputs": True,
+                      "require_one_status_per_planned_exposure": True},
+        "primary": {"require_all_eligible_exposures_scored": True, "on_failure": "withhold_primary_ranking_and_delta_h20"},
+        "diagnostic": {"partial_ranking_allowed": True, "status": "exploratory_conditional_on_estimability",
+                       "retain_planned_gene_universe": True, "missing_score_representation": "unscored"},
+        "policy_revision": {"automatic_relaxation": False, "require_new_contract_version": True}}
+    stricter = ExposureFailurePolicy(diagnostic=FailureDiagnostic(partial_ranking_allowed=False))
+    assert draft(exposure_failure_policy=stricter).seal().contract_id != sealed.contract_id
+
+
+@pytest.mark.parametrize("make, code", [
+    (lambda: FailureEligibility(mixture_failure_is_ineligibility=True), "policy_mixture_failure_relabelled"),
+    (lambda: FailureEligibility(definition="after_execution"), "policy_eligibility_definition"),
+    (lambda: FailureExecution(continue_after_exposure_failure=False), "policy_execution_continue_after_exposure_failure"),
+    (lambda: FailureExecution(preserve_successful_outputs=1), "policy_execution_preserve_successful_outputs"),
+    (lambda: FailurePrimary(require_all_eligible_exposures_scored=False), "policy_primary_completeness"),
+    (lambda: FailurePrimary(on_failure="rank_what_was_scored"), "policy_primary_on_failure"),
+    (lambda: FailureDiagnostic(missing_score_representation="1"), "policy_diagnostic_missing_score"),
+    (lambda: FailureDiagnostic(retain_planned_gene_universe=False), "policy_diagnostic_universe"),
+    (lambda: FailureDiagnostic(status="primary"), "policy_diagnostic_status"),
+    (lambda: FailureRevision(automatic_relaxation=True), "policy_automatic_relaxation"),
+    (lambda: FailureRevision(require_new_contract_version=False), "policy_revision_version"),
+    (lambda: ExposureFailurePolicy(primary=FailureDiagnostic()), "policy_section"),
+    (lambda: draft(exposure_failure_policy="ruled").seal(), "exposure_failure_policy"),
+])
+def test_a_weaker_policy_cannot_be_constructed_or_sealed(make, code):
+    assert code_of(make) == code
