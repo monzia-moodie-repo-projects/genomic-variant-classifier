@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **8,336 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **8,345 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -550,6 +550,19 @@ exists to end.
   burden input, and a derived feasibility table shows which exposures share one burden-side estimation problem, with agreement across
   identical inputs. Measured while designing it: the repository had no operation-intent mechanism (a docstring claiming one is
   corrected). Next: environment admission and the isolated qualification, then the frozen feasibility run. Suite 8,163 -> 8,336.
+- **2026-10-09 -- Environment qualification 9, completed: the first artifact-inventory record is committed.** The measurement of
+  2026-10-09 13:40:36-13:42:13 UTC on the artifact store (collector cfc1cac8, implementation tree 6ef5da1f) found the content of all
+  214 required content objects (313 requirements, every one "match"; 416 verified locations on one volume, 202 of them additional
+  copies; no incomplete search; three R packages supplied by the runtime; one known gap: the evidence bundle of
+  fixtures_20261007T022427Z was never retained, so it has no digest to verify). The readiness decision derived from it against the
+  sealed replay plan v3 and candidate plan v2 found every selected installation input present (99 rows). That is HISTORICAL
+  artifact-input availability, not runtime, dependency, behavioural or scientific validity, and authorizes nothing: installation
+  admission must recheck the bytes it consumes. The record (REC-ece23653bf8e45dbad3da26303870dc6, sha256 bb716d48...2c22) entered
+  the repository only after independent verification outside it -- strict round-trip through the typed owner, the collector's exact
+  bytes, the summary and decision bindings, every loaded checkout module's digest, the run interval, and readiness RE-DERIVED from
+  the record and the pinned plans -- and the installer binds it to the owner's evidence archive (0d14514d...8df6). Its bytes are
+  pinned against line-ending conversion (ARTIFACT-INVENTORY-RECORDS-PINNED-1); the index is derived and replaceable. Suite 8,336 ->
+  8,345.
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined

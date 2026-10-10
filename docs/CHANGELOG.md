@@ -1,3 +1,48 @@
+## 2026-10-09 (environment qualification 9, completed) -- the first artifact-inventory record committed
+
+Owner rulings 2026-10-08c, 2026-10-08e and 2026-10-08f: artifacts and runs stay outside the repository; the repository holds portable,
+permanent records of what was observed about them, and an index derived from those records.
+
+- records/verification/environment-qualification/artifact-inventory/REC-ece23653bf8e45dbad3da26303870dc6.json (NEW; 561,366 bytes,
+  sha256 bb716d48ad628ae593e104263efd7ca846db237d25dff2b3f35ba0018d192c22): the measurement of 2026-10-09 13:40:36 to 13:42:13 UTC on
+  the artifact store gvc-artifacts by the collector verify_artifact_inventory.py (cfc1cac8..., delivered in
+  artifact_inventory_v2_2026-10-08.zip a9e6b69a...), run from implementation tree 6ef5da1f (main after pull request #50). Scope: every
+  artifact named by the two acquisition manifests, the sealed replay plan v3, the candidate plan v2, the thirteen local-build receipts
+  those plans bind and the run inventory of 2026-10-08 (31 plan documents). Result: 313 requirements (177 Windows binaries, 112
+  sources, 13 local binaries, 11 run-evidence bundles), every one "match" with its location hint confirmed; 214 distinct content
+  objects, all found; 416 verified locations, all read, on one volume and 416 distinct filesystem files (202 are second copies: each
+  of the 189 acquired archives sits in its acquisition run directory and in accepted/, and each of the 13 local builds in its build run
+  directory and in accepted/local_binary; the renv bootstrap archive and the eleven run-evidence archives exist once); 214 searches, all complete, 0 unreadable candidates; 106,436 files in the census, 459 hashed and re-checked, the census
+  repeated and identical before finalization. Runtime-supplied (not artifacts): Matrix 1.7-5, codetools 0.2-20, lattice 0.22-9, bound
+  to the runtime record 4e763305.... One KNOWN GAP, disclosed rather than hidden: the evidence bundle of fixtures_20261007T022427Z was
+  never retained by the recorder, so no digest exists to verify. The size of the renv bootstrap archive is bound by no plan document; it
+  was established from the content found at its hinted location, which the owner permits (ContentSearch).
+- index.json (NEW, derived): render_index(scan_records(...)) -- one chain, current = the record above. Replaceable; never edited.
+- The readiness decision (5b554f50...) derived from the record against replay plan v3 (c578eb10...) and candidate plan v2
+  (cc1251f8...) found every selected installation input present: 99 rows, artifact_inputs_ready true. HISTORICAL availability only --
+  not runtime, dependency, behavioural or scientific validity -- and no authorization of later use; it stays with the run evidence and
+  is not committed.
+- INDEPENDENT VERIFICATION before the record entered the repository (make_record_unit_v2.py, sha256 64f1387e...36e3, kept outside the
+  repository with the collector it imports; nothing is written unless every check passes): each member's exact digest (the record, the decision, the summary and the run record -- uploaded separately, so the
+  installer additionally binds them to the owner's evidence archive artifact_inventory_20261009T134034Z.evidence.zip,
+  0d14514dd11c471dabc731a7b0d549bc0ca9eb7c75345f80c4f21ae111108df6, 82,136 bytes); a byte-identical round-trip through the typed owner;
+  the record id equals its file name; a first record; its verifier is the collector's exact bytes; the summary and decision name the
+  record, the summary binds the decision's bytes and its counts equal record.counts(); the decision's collector, record owner and
+  admission digests and all eleven loaded checkout modules have exactly those canonical digests in this tree (none changed since
+  6ef5da1f), and 6ef5da1f is the tree of a commit in this branch's history; the run record is admitted, completed, stage readiness,
+  and its interval contains the measurement and the evaluation; readiness RE-DERIVED from the record and the pinned plans equals the
+  decision's 99 rows. Ten refusal cases (a digest prefix, an extra member, a failed run, a run ending before the evaluation, altered
+  summary counts, a flipped decision row with re-bound digests, a changed loaded module, a different collector, a wrong archive
+  digest, an unknown measurement tree) each refused for the stated reason; the archive mode was also verified positively.
+- .gitattributes: ARTIFACT-INVENTORY-RECORDS-PINNED-1 -- REC-*.json directly in the family directory is -text (git never rewrites
+  permanent evidence); index.json stays normalised text (eol=lf); nested paths are not matched, as scan_records refuses them.
+- TESTS +9 (8,345): tests/unit/test_artifact_inventory_committed_records.py (+5) and test_gitattributes_contract.py (+4). Seeded
+  defects, each detected: one changed byte of the record; the record with CRLF line endings; a whitespace edit of the index; a stray file
+  in the family; the attribute rule removed; the rule widened to the index; an ignore rule hiding the family; the record removed.
+  FULL SUITE (development sandbox, by node identity; its 60 failures and 30 errors come from packages absent there and are identical
+  before and after): 0 outcome changes on 8,221 shared tests, 9 added, all passing; under the Windows-newline simulation the same (the
+  same 14 POSIX-only tests fail before and after). The tested tree differs from this one in this paragraph only.
+
 ## 2026-10-09 (science stage) -- the run intent; the reference-evaluator boundary; completeness derived from admitted evidence; shared burden inputs
 
 Owner ruling 2026-10-09. A run record can hold what was AUTHORIZED BEFORE execution or what HAPPENED AFTER it; the analysis stage

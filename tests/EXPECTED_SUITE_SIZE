@@ -8119,4 +8119,8 @@
 #   test_disagreement_with_the_frozen_rule_refuses renumbered usable_pair_count_mismatch0..3 to 0..2, and that case moved to the
 #   dedicated test_a_usable_count_that_differs_from_the_prediction_refuses (recorder version 2 makes the old construction internally
 #   inconsistent, so the reader refuses it first).
-8336
+# 2026-10-09  ENVIRONMENT QUALIFICATION 9, COMPLETED -- the first artifact-inventory record committed
+#   +9 / -0 by node identity: +5 tests/unit/test_artifact_inventory_committed_records.py (family membership, the pinned record's
+#   bytes + round-trip + collector, the derived index, one first record, not ignored), +4 tests/unit/test_gitattributes_contract.py
+#   (ARTIFACT-INVENTORY-RECORDS-PINNED-1).
+8345

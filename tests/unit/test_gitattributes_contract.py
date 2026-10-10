@@ -284,3 +284,16 @@ def test_the_interpretation_policy_is_byte_pinned_exactly(path, expected):
 def test_the_deployment_configuration_is_byte_pinned_exactly(path, expected):
     """DEPLOYMENT-CONFIG-PINNED-1 (2026-10-01): its digest enters the effective verification policy. Exactly one path."""
     assert _attrs(path).get("text") == expected, (path, _attrs(path))
+
+
+@pytest.mark.parametrize("path,expected", [
+    ("records/verification/environment-qualification/artifact-inventory/REC-0123456789abcdef0123456789abcdef.json", "unset"),
+    ("records/verification/environment-qualification/artifact-inventory/REC-next_not_yet_added.json", "unset"),
+    ("records/verification/environment-qualification/artifact-inventory/index.json", "set"),
+    ("records/verification/environment-qualification/artifact-inventory/nested/REC-x.json", "set"),
+])
+def test_artifact_inventory_records_are_byte_pinned_and_the_index_is_not(path, expected):
+    """ARTIFACT-INVENTORY-RECORDS-PINNED-1 (2026-10-09). A record is permanent evidence bound by its SHA-256 (today's and the next
+    one); the index is a replaceable projection derived from the records and stays normalised text. Direct children only, matching
+    scan_records, which refuses anything else in the family directory."""
+    assert _attrs(path).get("text") == expected, (path, _attrs(path))

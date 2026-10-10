@@ -1,0 +1,32 @@
+{
+  "current": "REC-ece23653bf8e45dbad3da26303870dc6",
+  "derived": true,
+  "records": [
+    {
+      "counts": {
+        "additional_matching_locations": 202,
+        "distinct_filesystem_files_among_matching_locations": 416,
+        "distinct_volume_identities_among_matching_locations": 1,
+        "expected_content_objects": 214,
+        "incomplete_searches": 0,
+        "known_gaps": 1,
+        "matched_content_objects": 214,
+        "requirement_states": {
+          "invalid_evidence": 0,
+          "match": 313,
+          "mismatch": 0,
+          "unavailable": 0
+        },
+        "requirements": 313,
+        "runtime_supplied": 3,
+        "verified_matching_locations": 416
+      },
+      "measurement_completed_at": "2026-10-09T13:42:13Z",
+      "measurement_started_at": "2026-10-09T13:40:36Z",
+      "previous_record_id": null,
+      "record_id": "REC-ece23653bf8e45dbad3da26303870dc6"
+    }
+  ],
+  "schema": "gvc.artifact-inventory-index",
+  "schema_version": 1
+}
