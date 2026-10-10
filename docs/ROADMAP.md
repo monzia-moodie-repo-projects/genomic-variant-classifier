@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **8,345 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **8,460 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -563,6 +563,22 @@ exists to end.
   the record and the pinned plans -- and the installer binds it to the owner's evidence archive (0d14514d...8df6). Its bytes are
   pinned against line-ending conversion (ARTIFACT-INVENTORY-RECORDS-PINNED-1); the index is derived and replaceable. Suite 8,336 ->
   8,345.
+- **2026-10-10 -- The lockfile migration is admitted; renv.lock is now R 4.6.1 with 102 packages (owner rulings 2026-10-08c/d/e/f).**
+  The approved proposal (f21ac4bc: 90 provenance corrections in 13 packages, 15 additions including DANDELION and the locally built
+  qvalue, R 4.6.0 -> 4.6.1, nothing else) was admitted against the actual baseline and candidate lockfiles and the two sealed
+  installation plans: every input bound by digest (exact bytes and canonical text kept as separate domains), the regeneration
+  differing only in its generator identity, the field differences equal to the approved transitions (each now required to state
+  its effect on a later renv::restore), the artifact selection derived from the plans equal to the proposal's and to the candidate
+  run's own report, each addition's lock label equal to its selected artifact's, and the candidate run's evidence archive the one the
+  committed inventory found. The replaced lockfile, the candidate as renv wrote it, the proposal, its regeneration, the equivalence
+  record, both plans and the run's difference report are preserved verbatim in a migration record
+  (records/migrations/environment-qualification/lockfile/REC-722981980c854434ac9e3e7ec86956fe) whose admission is re-derived from
+  those bytes by a test. This is a lockfile admission, not environment qualification. The first issue of this change failed to
+  apply on Windows: one directory per preserved file made a 169-character path, 260 characters inside the installer's temporary
+  clone, beyond the Windows limit. The record is now flat, and a repository PATH BUDGET (PATH-BUDGET-1: every tracked file path at
+  most 150 characters and every directory at most 138, so any checkout or clone root up to 108 characters works without long-path
+  settings) is enforced for every record and tested over every tracked path. Next: the isolated, network-disabled replay of the 102
+  packages and the method tests on that library. Suite 8,345 -> 8,460.
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined

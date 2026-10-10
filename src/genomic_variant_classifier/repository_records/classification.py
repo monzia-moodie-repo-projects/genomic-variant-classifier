@@ -78,6 +78,12 @@ class ProvenanceRelation(str, Enum):
     #: writing. Using either would assert something that did not happen.
     RECONSTRUCTS_MISSING_ARTIFACT = "reconstructs_missing_artifact"
 
+    #: The exact bytes a repository AUTHORITY held at the moment a successor replaced it -- the "historical predecessor preserved
+    #: verbatim" of AUTHORITY-SUCCESSION-1 (ADR-0004 section D). Added 2026-10-09 for the lockfile migration: the replaced
+    #: renv.lock was neither emitted by an installer, captured from a tool, staged, derived nor recovered -- it was the live
+    #: authority, and the relation must say so rather than borrow a neighbour's meaning.
+    SUPERSEDED_AUTHORITY = "superseded_authority"
+
 
 class RetentionClass(str, Enum):
     """How long it is kept. Immutability is not the same as permanence.

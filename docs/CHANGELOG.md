@@ -1,3 +1,64 @@
+## 2026-10-10 (environment qualification) -- the lockfile migration admitted; renv.lock R 4.6.1, 102 packages; the repository path budget
+
+Owner rulings 2026-10-08c (every transition states its restoration effect), 2026-10-08d (the transition admission is tied to the
+artifact plan for new-package provenance), 2026-10-08e (proposal f21ac4bc approved as the intended migration; approval is not
+admission) and 2026-10-08f (admit it against the actual baseline and candidate; the regeneration d4910f60 is corroboration only).
+
+- environment_qualification/lockfile_admission.py (NEW): the admission policy. ApprovedMigration, the acceptance contract, holds the
+  digests fixed by the rulings (never read from the evidence). admit_lockfile_migration refuses with ONE reason code unless, in
+  order: (1) the regenerated proposal differs from the approved one only in generator_sha256 (type-preserving canonical comparison)
+  and the equivalence record binds exactly those digests; (2) every input has the digest the proposal binds -- the baseline in
+  canonical LF text, the candidate in BOTH its exact bytes (e391298a, CRLF as renv wrote it) and its canonical text (ce6aa8b4), the
+  plans in both file bytes and recomputed body digests, the candidate run's difference report -- and the plans bind the same baseline,
+  replay and runtime record; (3) admission.admit_lock_transition admits the exact transition; (4) the artifact selection DERIVED
+  from the two plans (one artifact per locked package, by artifact and receipt digest) equals the proposal's and the candidate run's,
+  every plan version equals the lock's, and the run's own field-difference report equals the repository's exact difference
+  (ABSENT-aware); (5) each addition's declared artifact equals its plan artifact and its lock Repository label equals that artifact's;
+  (6) the independent Python re-implementation reproduced all 102 records -- REPORTED AS CORROBORATION, renv 1.2.3 in the qualified R
+  remains the authority; (7) the candidate run's evidence archive (62a729ab) is the content the committed artifact-inventory record
+  matched, measured against these plans and this runtime record. Deterministic; no filesystem access; no time.
+- admission.py: admit_lock_transition now REQUIRES a non-blank "restoration_effect" on every transition (ruling 2026-10-08c).
+- repository_records/lockfile_migration.py (NEW): the typed owner of the migration record (MIGRATION_RECORD, schema
+  gvc.lockfile-migration/1): eight fixed parts, each preserved verbatim under its original basename directly in artifacts/ (flat:
+  the basenames are distinct, and a directory per part only added length -- see the path budget below); the authority succession (renv.lock, predecessor and successor canonical digests) tied to the admission it states; strict parsing
+  (duplicate keys, floats, byte-order marks refused), deterministic rendering and round-trip, exact on-disk inventory and bytes
+  (artifacts/ holds the preserved files and nothing else, not even a directory). It validates shape, placement and bytes; it does
+  not decide admission.
+- repository_records/path_budget.py (NEW) -- PATH-BUDGET-1. MEASURED 2026-10-10 on the owner's machine: the first issue of this
+  unit kept one directory per part, its longest path was 169 characters, and in the installer's disposable clone
+  (`C:\Users\monzi\AppData\Local\Temp\gvc_lockfile_migration_candidate_<stamp>`, 90 characters) that is 260 -- one beyond the
+  259 a Windows path may hold -- so `git apply` failed, twice. Nothing bounded path length, and every installer simulation ran on
+  Linux. The budget derives from the two Windows limits (a file path at most 259 characters, a directory at most 247: MAX_PATH less
+  the terminator, and MAX_PATH - 12 less the terminator) and a declared root allowance of 108 characters: every tracked file path
+  at most 150 characters (UTF-16 code units), every directory on it at most 138. identity.ArtifactInstance enforces it for every
+  record owner; the longest tracked path is now 148.
+- repository_records/classification.py: ProvenanceRelation.SUPERSEDED_AUTHORITY -- the bytes a repository authority held when a
+  successor replaced it (ADR-0004 AUTHORITY-SUCCESSION-1); none of the existing relations described the replaced renv.lock.
+- records/migrations/environment-qualification/lockfile/REC-722981980c854434ac9e3e7ec86956fe/ (NEW): manifest (6cc2f488...) and the
+  preserved baseline renv.lock (0d9224da), candidate.lock (e391298a), approved proposal (f21ac4bc), regenerated proposal (d4910f60),
+  equivalence record (0f7b2158), replay plan (c578eb10), candidate plan (cc1251f8) and candidate_difference.json (c2172fa8). Sources
+  bound by digest at preservation: the candidate run's evidence archive 62a729ab, the transitions_v2 bundle a268c82e, the
+  candidate_v2 bundle a880da84 and the baseline as the git blob of renv.lock. Record id allocated once.
+- renv.lock: the admitted successor, the candidate's canonical LF text (ce6aa8b4): R 4.6.1, Bioconductor 3.23, 102 packages.
+- .gitattributes: MIGRATION-ARTIFACTS-PRESERVED-1 -- records/migrations/**/artifacts/** -text (`*.lock text eol=lf` would rewrite
+  the CRLF candidate on commit; measured with git check-attr).
+- Tests now reading the baseline (the runtime-only admission and the ported transition cases) read it from the migration record.
+- TESTS +115 (8,460): +21 tests/unit/test_repository_path_budget.py (the arithmetic, the incident reproduced, exact file and
+  directory boundaries, UTF-16 counting, every tracked path, an instrument that must discriminate) and +3 record tests (the flat
+  layout within the budget; a directory inside artifacts/ refused; a shared basename refused at load) on top of the first issue's
+  91. The semantic controls are CONSISTENT FORGERIES: each changes one input and re-binds every digest that names it (plans,
+  difference report, proposal inputs, regeneration, equivalence record, contract), so the check under test -- not a digest -- must
+  refuse; the forger is first proven to reproduce the preserved bytes exactly. Seeded defects: 45 of 45 detected (a first run found
+  one survivor -- a plan whose label no longer describes its body -- and two stale-label controls were added); for the path budget
+  and the flat layout 18 seeded defects in a disposable worktree, all 18 detected (the first run left one survivor:
+  windows_length's own refusal of a non-text value was never exercised, because its caller refuses first; a direct test was added).
+  FULL SUITE (development sandbox, by node identity, against the record unit): 0 outcome changes on 8,230 shared tests and 115
+  added, all passing; under the Windows-newline simulation the same, its 14 simulation-specific failures exactly the record unit's;
+  against the first issue, 0 outcome changes on 8,318 shared tests (3 parametrizations renamed by the flat layout). The tested tree
+  differs from this one in this paragraph and the session record only.
+- FINDING, recorded not changed: repository_records/qualification_manifest.py wraps the RecordDisposition construction inside its
+  vocabulary try-block, so a disposition rule violation is reported as "unrecognised vocabulary term"; the new owner separates them.
+
 ## 2026-10-09 (environment qualification 9, completed) -- the first artifact-inventory record committed
 
 Owner rulings 2026-10-08c, 2026-10-08e and 2026-10-08f: artifacts and runs stay outside the repository; the repository holds portable,

@@ -128,7 +128,8 @@ def test_exact_field_diff_distinguishes_absent_from_null_and_types():
 
 def _t(package, field, old, new):
     side = lambda v: {"absent": True} if v is ABSENT else {"value": v}
-    return {"package": package, "field": field, "old": side(old), "new": side(new), "classification": "test", "evidence": "test"}
+    return {"package": package, "field": field, "old": side(old), "new": side(new), "classification": "test", "evidence": "test",
+            "restoration_effect": "test"}
 
 
 def _candidate():
@@ -155,6 +156,10 @@ def test_exactly_approved_transitions_are_admitted():
     (lambda a, t: a["Packages"]["A"].update(Version="1.1"), "lock.version_changed:A"),
     (lambda a, t: a["R"]["Repositories"].append({"Name": "X", "URL": "https://x"}), "change_outside_R.Version"),
     (lambda a, t: t[0].pop("evidence"), "transition.missing:evidence"),
+    # ruling 2026-10-08c: every transition states its effect on a later renv::restore (required since the lockfile migration)
+    (lambda a, t: t[0].pop("restoration_effect"), "transition.missing:restoration_effect"),
+    (lambda a, t: t[0].update(restoration_effect="  "), "transition.restoration_effect"),
+    (lambda a, t: t[0].update(restoration_effect=None), "transition.restoration_effect"),
 ])
 def test_lock_transition_refusals(mutate, reason):
     after, approved = _candidate()
@@ -282,7 +287,16 @@ def test_malformed_qualification_inputs_refuse(build, reason):
 
 # ------------------------------------------------------------------ ported from the retired source_repair tests (ADR-0004 authority succession)
 
-REAL_LOCK = json.loads((Path(__file__).resolve().parents[2] / "renv.lock").read_text(encoding="utf-8"))
+def _preserved_baseline_lock() -> Path:
+    """The REAL baseline lockfile (R 4.6.0, 87 packages): since the lockfile migration of 2026-10-09 the live renv.lock is its
+    successor, and the predecessor is preserved verbatim in the migration record (ADR-0004 AUTHORITY-SUCCESSION-1)."""
+    found = sorted((Path(__file__).resolve().parents[2] / "records" / "migrations" / "environment-qualification" / "lockfile")
+                   .glob("REC-*/artifacts/renv.lock"))
+    assert len(found) == 1, found
+    return found[0]
+
+
+REAL_LOCK = json.loads(_preserved_baseline_lock().read_text(encoding="utf-8"))
 
 
 def test_real_lockfile_one_exact_transition_plus_the_runtime_change_is_admitted():

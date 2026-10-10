@@ -1,0 +1,541 @@
+{
+  "additions": [
+    {
+      "artifact": {
+        "description_sha256": "f56087ae7c232187b3694ebb9a0114545f273ceba37c3f396b4925cdaf2b95c2",
+        "file_name": "igraph_2.3.3.zip",
+        "kind": "windows_binary",
+        "provenance": "cran_current_binary",
+        "sha256": "6579fa0aa0b9bddd4230f94c6966f42f3efbadf05b73f5072777d30368e7ac02",
+        "size": 7765919
+      },
+      "package": "igraph",
+      "route": "upstream_binary",
+      "version": "2.3.3"
+    },
+    {
+      "artifact": {
+        "description_sha256": "c3fcedf3dd21e12f5bd9125e635c6419a45a16402bba5478423b3f6a88aa86bb",
+        "file_name": "RColorBrewer_1.1-3.zip",
+        "kind": "windows_binary",
+        "provenance": "cran_current_binary",
+        "sha256": "b8880e323f75149e90e0300684626a3de0692523a972932b27b7474dfa6beac7",
+        "size": 54704
+      },
+      "package": "RColorBrewer",
+      "route": "upstream_binary",
+      "version": "1.1-3"
+    },
+    {
+      "artifact": {
+        "description_sha256": "da14881bdc749143157dcea7b3a4ab1caac99ce390fef312b63455e467edd86d",
+        "file_name": "Rcpp_1.1.2.zip",
+        "kind": "windows_binary",
+        "provenance": "cran_current_binary",
+        "sha256": "3606fd375dd0d282521f254073b80fc5127e291d8d4b8cb3e0d4e6c114f9c8c9",
+        "size": 2969415
+      },
+      "package": "Rcpp",
+      "route": "upstream_binary",
+      "version": "1.1.2"
+    },
+    {
+      "artifact": {
+        "description_sha256": "c6f88a265ded58afb427e691bd07963142e97b640c10440a090fc2caa7efde62",
+        "file_name": "S7_0.2.2.zip",
+        "kind": "windows_binary",
+        "provenance": "cran_current_binary",
+        "sha256": "d9d222ba675110d8b74700f1921b92cf732eec98a9649b4ccc1c5808034295fe",
+        "size": 351919
+      },
+      "package": "S7",
+      "route": "upstream_binary",
+      "version": "0.2.2"
+    },
+    {
+      "artifact": {
+        "description_sha256": "1213393b4e33b688c2dd66d0e37645675bf057c232bae9e3229e2271e2ccad8d",
+        "file_name": "farver_2.1.2.zip",
+        "kind": "windows_binary",
+        "provenance": "cran_current_binary",
+        "sha256": "7d02cb3910445890a3a7e2eb0faa4781e144cfaf51f8bf223927e92e042492fa",
+        "size": 1529206
+      },
+      "package": "farver",
+      "route": "upstream_binary",
+      "version": "2.1.2"
+    },
+    {
+      "artifact": {
+        "description_sha256": "20c602121afa1d269ae2b2454fc2e585ac12822dba09febc0605c9966249532d",
+        "file_name": "gtable_0.3.6.zip",
+        "kind": "windows_binary",
+        "provenance": "cran_current_binary",
+        "sha256": "a06613bf451b00bc3b6d2c897777da21bbf13787e16d37a61dd8a2a28d16cd3f",
+        "size": 253041
+      },
+      "package": "gtable",
+      "route": "upstream_binary",
+      "version": "0.3.6"
+    },
+    {
+      "artifact": {
+        "description_sha256": "9e14ff04727e61aa8d314e5827ee1d41901d7f3570e605deac10a9574852ed00",
+        "file_name": "isoband_0.3.0.zip",
+        "kind": "windows_binary",
+        "provenance": "cran_current_binary",
+        "sha256": "9a3b88ac3ff3cb3fb9ee1fa08466d1c1d862c72e58a0e5f3e85133b0b86717ab",
+        "size": 1976850
+      },
+      "package": "isoband",
+      "route": "upstream_binary",
+      "version": "0.3.0"
+    },
+    {
+      "artifact": {
+        "description_sha256": "0fd581e08b3becd15153994bf0dc203432b46f4bf358fdd3e866b5c8ec5ebc0c",
+        "file_name": "labeling_0.4.3.zip",
+        "kind": "windows_binary",
+        "provenance": "cran_current_binary",
+        "sha256": "a5d4772de28813c6730a37e5a4b9605cf1b941344a319e56af7bacf4680ea82e",
+        "size": 64255
+      },
+      "package": "labeling",
+      "route": "upstream_binary",
+      "version": "0.4.3"
+    },
+    {
+      "artifact": {
+        "description_sha256": "735dcdda87fdca670ee6dfeed3fd1cd4b8fcb66fa2000b294bcdea4c8605ac05",
+        "file_name": "viridisLite_0.4.3.zip",
+        "kind": "windows_binary",
+        "provenance": "cran_current_binary",
+        "sha256": "5c2170ccfb04c15991db37b99943fa8ed109106387d8780eda60a94574d0cfe7",
+        "size": 1300962
+      },
+      "package": "viridisLite",
+      "route": "upstream_binary",
+      "version": "0.4.3"
+    },
+    {
+      "artifact": {
+        "description_sha256": "ce7a75c9a4a2b629b906fc0e061987147102efcba0cc6cea7af611123cd80aae",
+        "file_name": "DANDELION_0.1.0.zip",
+        "kind": "windows_binary",
+        "provenance": "cran_current_binary",
+        "sha256": "c7f18cab47f3088fea49c84d901a08bf525fd5c81a2c4181aba103ddf11186f5",
+        "size": 63148
+      },
+      "package": "DANDELION",
+      "route": "upstream_binary",
+      "version": "0.1.0"
+    },
+    {
+      "artifact": {
+        "description_sha256": "a6daba462ac861c02652d9ac13d178cddd04893b3bd661d05386ad6e728f14d4",
+        "file_name": "plyr_1.8.9.zip",
+        "kind": "windows_binary",
+        "provenance": "cran_current_binary",
+        "sha256": "1458d8601e8a09cf00990635e968ae33476fd8be8c6d3ddea5e5e607353675fd",
+        "size": 1127010
+      },
+      "package": "plyr",
+      "route": "upstream_binary",
+      "version": "1.8.9"
+    },
+    {
+      "artifact": {
+        "description_sha256": "a569de77c8497972a688c61a86a721e4673e21d6c798883673e0106844e4ecc1",
+        "file_name": "scales_1.4.0.zip",
+        "kind": "windows_binary",
+        "provenance": "cran_current_binary",
+        "sha256": "059377cd31876a8d465c4f4665aff5ec4f94f63453dc10df7b490937061d3f57",
+        "size": 881441
+      },
+      "package": "scales",
+      "route": "upstream_binary",
+      "version": "1.4.0"
+    },
+    {
+      "artifact": {
+        "description_sha256": "2721d9dc77f5fb6d9861e1b5c78fb459ed820ea47ff6f531898ebe580e9519dc",
+        "file_name": "reshape2_1.4.5.zip",
+        "kind": "windows_binary",
+        "provenance": "cran_current_binary",
+        "sha256": "4a33e42167b58aaebd09066e28df30ff8ac6c53e064f08eb819aac800de2f6c1",
+        "size": 457341
+      },
+      "package": "reshape2",
+      "route": "upstream_binary",
+      "version": "1.4.5"
+    },
+    {
+      "artifact": {
+        "description_sha256": "3f4771d5a89676b2d477331e500c787bc2b9a7f5adbf5b9a42d789c7de969492",
+        "file_name": "ggplot2_4.0.3.zip",
+        "kind": "windows_binary",
+        "provenance": "cran_current_binary",
+        "sha256": "1305524234def24ace147e7c30c6c380d46a8e938ad0a2f36f2d8d930cf443a3",
+        "size": 8472248
+      },
+      "package": "ggplot2",
+      "route": "upstream_binary",
+      "version": "4.0.3"
+    },
+    {
+      "artifact": {
+        "build_plan_sha256": "b98fbb3a52c305f02178861cb2eee0f8cfd465a29b30b95a6475ffe95a5fd0b8",
+        "build_summary_sha256": "ff4fecdac5eb7daa5ec4132fcd41b74478a0e37aab787fb102a00fef31bc5ca0",
+        "description_sha256": "38bab18976051781bf661a149faf1eb4e1bb1a2aecd8b2bc24088bbfb1aa7879",
+        "file_name": "qvalue_2.44.0.zip",
+        "inspection_record_sha256": "6d313b44844b770dfe0b87ead88aa2662944c66373940e3f11bb8166bb42584f",
+        "kind": "local_binary",
+        "load_record_sha256": "1c06f3efe56fce2926e8afecd35b940e2d15c7677f4472e6e94be13c65b79b18",
+        "provenance": "local_build",
+        "receipt_sha256": "fdf51ee35c64a5f99b080e0677206029e44443151fdae5587b1db59cde5e8c3f",
+        "sha256": "1d4dd9845f048b157b2b9e2a5728720cf8f1a8e88f01a60c88f22589a034a4dc",
+        "size": 2818390
+      },
+      "package": "qvalue",
+      "route": "local_build",
+      "version": "2.44.0"
+    }
+  ],
+  "baseline_packages": {
+    "BH": "1.90.0-1",
+    "Biobase": "2.72.0",
+    "BiocFileCache": "3.2.0",
+    "BiocGenerics": "0.58.1",
+    "BiocIO": "1.22.0",
+    "BiocManager": "1.30.27",
+    "BiocParallel": "1.46.0",
+    "BiocVersion": "3.23.1",
+    "Biostrings": "2.80.1",
+    "DBI": "1.3.0",
+    "DelayedArray": "0.38.2",
+    "GenomicAlignments": "1.48.0",
+    "GenomicRanges": "1.64.0",
+    "IRanges": "2.46.0",
+    "Matrix": "1.7-5",
+    "MatrixGenerics": "1.24.0",
+    "R.methodsS3": "1.8.2",
+    "R.oo": "1.27.1",
+    "R.utils": "2.13.0",
+    "R6": "2.6.1",
+    "RCurl": "1.98-1.19",
+    "RSQLite": "3.53.1",
+    "Rhtslib": "3.8.0",
+    "Rsamtools": "2.28.0",
+    "S4Arrays": "1.12.0",
+    "S4Vectors": "0.50.1",
+    "Seqinfo": "1.2.0",
+    "SparseArray": "1.12.2",
+    "SummarizedExperiment": "1.42.0",
+    "XML": "3.99-0.23",
+    "XVector": "0.52.0",
+    "abind": "1.4-8",
+    "askpass": "1.2.1",
+    "bit": "4.6.0",
+    "bit64": "4.8.2",
+    "bitops": "1.0-9",
+    "blob": "1.3.0",
+    "cachem": "1.1.0",
+    "cigarillo": "1.2.0",
+    "cli": "3.6.6",
+    "codetools": "0.2-20",
+    "cpp11": "0.5.5",
+    "crayon": "1.5.3",
+    "curl": "7.1.0",
+    "data.table": "1.18.4",
+    "dbplyr": "2.5.2",
+    "dplyr": "1.2.1",
+    "fastmap": "1.2.0",
+    "filelock": "1.0.3",
+    "formatR": "1.14",
+    "futile.logger": "1.4.9",
+    "futile.options": "1.0.1",
+    "generics": "0.1.4",
+    "glue": "1.8.1",
+    "httr": "1.4.8",
+    "httr2": "1.2.2",
+    "jsonlite": "2.0.0",
+    "lambda.r": "1.2.4",
+    "lattice": "0.22-9",
+    "lifecycle": "1.0.5",
+    "magrittr": "2.0.5",
+    "matrixStats": "1.5.0",
+    "memoise": "2.0.1",
+    "mime": "0.13",
+    "openssl": "2.4.2",
+    "pillar": "1.11.1",
+    "pkgconfig": "2.0.3",
+    "purrr": "1.2.2",
+    "rappdirs": "0.3.4",
+    "recount3": "1.22.0",
+    "renv": "1.2.3",
+    "restfulr": "0.0.17",
+    "rjson": "0.2.23",
+    "rlang": "1.2.0",
+    "rtracklayer": "1.72.0",
+    "sessioninfo": "1.2.4",
+    "snow": "0.4-4",
+    "stringi": "1.8.7",
+    "stringr": "1.6.0",
+    "sys": "3.4.3",
+    "tibble": "3.3.1",
+    "tidyr": "1.3.2",
+    "tidyselect": "1.2.1",
+    "utf8": "1.2.6",
+    "vctrs": "0.7.3",
+    "withr": "3.0.2",
+    "yaml": "2.3.12"
+  },
+  "binding": {
+    "code": {
+      "genomic_variant_classifier/__init__.py": "7f9902b8e2183878d21dbb2f63a511cc815cc3d96f81824ee4273eaf66d6c9b5",
+      "genomic_variant_classifier/environment_qualification/__init__.py": "df0c2d8c33261ecd18a80f6c08c42816bfb6d5bf0ec233646065445fc1c68b89",
+      "genomic_variant_classifier/environment_qualification/admission.py": "ac4a1fd38aa7f57e78efab862b60fe920676635e05a400854e862a18b984dbe5",
+      "genomic_variant_classifier/environment_qualification/artifact_inspector.py": "6014e0be3fc40213aec79d3dc179c2df8b9d6018674b75a88a4dc196a8bb2993",
+      "genomic_variant_classifier/environment_qualification/build_plan.py": "569ac48a3a8108cca23dbbc7e0b7d3104eaa6b1231bd5234a7e1215a4b4e3619",
+      "genomic_variant_classifier/environment_qualification/install_plan.py": "9ccd4a9393520c89952b8bbb0c0df498d99bd89008c823a4e31012ae71eb9416",
+      "genomic_variant_classifier/environment_qualification/isolation.py": "18ef0a43f6c733d1603ea94c39266e2a0e44021703ce2e7d4f8d47c4a3e17c23",
+      "genomic_variant_classifier/environment_qualification/r_runtime.py": "e2c1e77511f33924b1427b7c3b8453b12a0462814fbe77bb05d073477bb6472a",
+      "genomic_variant_classifier/environment_qualification/r_semantics.py": "2354178980f6a77cc8088c7bf1882d90367a45cdbb34247c96af2b0d3642f6e3",
+      "genomic_variant_classifier/environment_qualification/receipt.py": "0c7d58b7b011ee957ff51c20493cbb40d4546b55ad9792e9fd189a2d9d922f47",
+      "genomic_variant_classifier/environment_qualification/required_tests.py": "6774694b4d0ca191565c8502b666d29b8484432bd6755d097b450d1a4a83bc16"
+    },
+    "dependency_tables": [
+      {
+        "rows": 83,
+        "sha256": "51988bb5c37521b96032c9f302f52a6f5dd4dd4275fbde3062f0a2db78d754e8"
+      },
+      {
+        "rows": 15,
+        "sha256": "5ccdc869730594ebe4f0c2a8b60de6f09c34a6db6e02d203bb57428bb1771550"
+      }
+    ],
+    "generator_sha256": "16eb1f52b86facb01715ef523f381e17b1dd79cfd4058e139b24a842df2c63b0",
+    "helpers_sha256": "ed599ac651042e36ca7c6dedbbbde2caf5a18e38b3c9a40e0f7ed83080d51f15",
+    "local_builds": [
+      {
+        "build_plan_file_sha256": "65fe24124cda15886b0e04da31d0580fb6ac69b92c1ecef4559f47b7c7b5bfad",
+        "build_plan_sha256": "b98fbb3a52c305f02178861cb2eee0f8cfd465a29b30b95a6475ffe95a5fd0b8",
+        "build_summary_sha256": "ff4fecdac5eb7daa5ec4132fcd41b74478a0e37aab787fb102a00fef31bc5ca0",
+        "packages": [
+          "qvalue"
+        ],
+        "run_record_sha256": "b20d930a4f80967ee50daa2b6de86fb1aaeacbb8e74ca0f70094636692c38cf3"
+      }
+    ],
+    "lockfile_canonical_sha256": "0d9224daca97fd4666e901d72e6ee6eed4355501b3bfcf4090ef1d7a00bd7a79",
+    "replay": {
+      "analysis_library_identity": "9fe2b133296b84c0cdc5d224ec957663993f7b880d8745c81c03c0e7c9fee90a",
+      "identity_sha256": "55c6e7b6c471723057c74c224ac501a7a055c51829e2eddbf87dd8fa52919d71",
+      "replay_plan_file_sha256": "c578eb10572c3aac927a447b97600860f9cd38118653c83ff74f0aa291d3d50e",
+      "replay_plan_sha256": "ab170b65898d76e8376c2cffe2bc7f874cffdf5ed181d2270fccba39ab2865c7",
+      "runtime_components_manifest_sha256": "615ff831a72301f10e4e8e165ccc9cfc026afbb763e462b2411d8d6d0571dd51",
+      "runtime_record_sha256": "4e76330548a201d32b48e8de9bc6ccfb0aefa676a8068a3f249a6a1b9f5ac023",
+      "summary_sha256": "f8ef359c050b03e0ac476c57b9567157f24a234f91fc473811cacef632e95d1b"
+    },
+    "targets": {
+      "bioc_sha256": "7236f30d2808a83885c04ad819ab7d69883cfe81cbe6fa8da62678c666b0db02",
+      "cran_sha256": "9dbd1f0cc95dcfa82415834009101cef0f33130a18a5a77461544d9e94e93704",
+      "packages": {
+        "DANDELION": "0.1.0",
+        "RColorBrewer": "1.1-3",
+        "Rcpp": "1.1.2",
+        "S7": "0.2.2",
+        "farver": "2.1.2",
+        "ggplot2": "4.0.3",
+        "gtable": "0.3.6",
+        "igraph": "2.3.3",
+        "isoband": "0.3.0",
+        "labeling": "0.4.3",
+        "plyr": "1.8.9",
+        "qvalue": "2.44.0",
+        "reshape2": "1.4.5",
+        "scales": "1.4.0",
+        "viridisLite": "0.4.3"
+      }
+    },
+    "targets_acquisition": {
+      "acquisition_plan_sha256": "dc920fb08f02db3b2be554e3308d1c34ffa3a74e636bc29748aa0827e7d2b3db",
+      "manifest_sha256": "f29dd202d88e6f7c3b92d7eee437f9bfdaf45c7be0389542e99407ac42b17cdd"
+    }
+  },
+  "expected_runtime": {
+    "platform": "x86_64-w64-mingw32",
+    "r_series": "4.6",
+    "r_version": "4.6.1",
+    "release_status": ""
+  },
+  "plan_sha256": "b791ba7b7a873c917348b82562deb8a5ef48c4fc221fac58949da8e17bc0ad92",
+  "runtime_base": [
+    "base",
+    "compiler",
+    "datasets",
+    "grDevices",
+    "graphics",
+    "grid",
+    "methods",
+    "parallel",
+    "splines",
+    "stats",
+    "stats4",
+    "tcltk",
+    "tools",
+    "utils"
+  ],
+  "schema": "gvc.candidate-plan/1",
+  "snapshot": {
+    "force": false,
+    "packages": [
+      "BH",
+      "Biobase",
+      "BiocFileCache",
+      "BiocGenerics",
+      "BiocIO",
+      "BiocManager",
+      "BiocParallel",
+      "BiocVersion",
+      "Biostrings",
+      "DANDELION",
+      "DBI",
+      "DelayedArray",
+      "GenomicAlignments",
+      "GenomicRanges",
+      "IRanges",
+      "Matrix",
+      "MatrixGenerics",
+      "R.methodsS3",
+      "R.oo",
+      "R.utils",
+      "R6",
+      "RColorBrewer",
+      "RCurl",
+      "RSQLite",
+      "Rcpp",
+      "Rhtslib",
+      "Rsamtools",
+      "S4Arrays",
+      "S4Vectors",
+      "S7",
+      "Seqinfo",
+      "SparseArray",
+      "SummarizedExperiment",
+      "XML",
+      "XVector",
+      "abind",
+      "askpass",
+      "bit",
+      "bit64",
+      "bitops",
+      "blob",
+      "cachem",
+      "cigarillo",
+      "cli",
+      "codetools",
+      "cpp11",
+      "crayon",
+      "curl",
+      "data.table",
+      "dbplyr",
+      "dplyr",
+      "farver",
+      "fastmap",
+      "filelock",
+      "formatR",
+      "futile.logger",
+      "futile.options",
+      "generics",
+      "ggplot2",
+      "glue",
+      "gtable",
+      "httr",
+      "httr2",
+      "igraph",
+      "isoband",
+      "jsonlite",
+      "labeling",
+      "lambda.r",
+      "lattice",
+      "lifecycle",
+      "magrittr",
+      "matrixStats",
+      "memoise",
+      "mime",
+      "openssl",
+      "pillar",
+      "pkgconfig",
+      "plyr",
+      "purrr",
+      "qvalue",
+      "rappdirs",
+      "recount3",
+      "renv",
+      "reshape2",
+      "restfulr",
+      "rjson",
+      "rlang",
+      "rtracklayer",
+      "scales",
+      "sessioninfo",
+      "snow",
+      "stringi",
+      "stringr",
+      "sys",
+      "tibble",
+      "tidyr",
+      "tidyselect",
+      "utf8",
+      "vctrs",
+      "viridisLite",
+      "withr",
+      "yaml"
+    ],
+    "repositories": [
+      [
+        "CRAN",
+        "https://packagemanager.posit.co/cran/latest"
+      ],
+      [
+        "BioCsoft",
+        "https://bioconductor.org/packages/3.23/bioc"
+      ],
+      [
+        "BioCann",
+        "https://bioconductor.org/packages/3.23/data/annotation"
+      ],
+      [
+        "BioCexp",
+        "https://bioconductor.org/packages/3.23/data/experiment"
+      ],
+      [
+        "BioCworkflows",
+        "https://bioconductor.org/packages/3.23/workflows"
+      ],
+      [
+        "BioCbooks",
+        "https://bioconductor.org/packages/3.23/books"
+      ]
+    ],
+    "validation": true
+  },
+  "unselected_alternatives": [
+    {
+      "artifact": {
+        "description_sha256": "86ae253bdaea6419a9c3f8f1bd8eb3de8761f328154149113e6a812022b2c059",
+        "file_name": "qvalue_2.44.0.zip",
+        "kind": "windows_binary",
+        "provenance": "bioconductor_current_binary",
+        "sha256": "566ecc3749e6c7037e3f0ad431212e145ede002852032a3ef61f94d95652fcf5",
+        "size": 2811441
+      },
+      "package": "qvalue",
+      "reason": "Owner ruling 2026-10-08b (Q2): qvalue is built locally from the admitted Bioconductor source with the qualified R 4.6.1. The downloaded Windows binary records a different build provenance (Repository https://bioc-release.r-universe.dev, RemoteUrl https://github.com/bioc/qvalue, RemoteRef RELEASE_3_23, RemoteSha ce7605b2dcfd5089cf571b9324778fa75f0ef0a8, Built R 4.6.0); the admitted source declares git_last_commit ce7605b (the same abbreviated commit -- declared metadata, not a content comparison). The binary's relationship to the reviewed source is not established. It is preserved as an unselected alternative and never overwritten.",
+      "selected_route": "local_build",
+      "selected_source_sha256": "e87a8b32fa7fa9021956212ab631a7c55fe410b724c0a54d99e1afc9f8fbbd0e",
+      "version": "2.44.0"
+    }
+  ]
+}

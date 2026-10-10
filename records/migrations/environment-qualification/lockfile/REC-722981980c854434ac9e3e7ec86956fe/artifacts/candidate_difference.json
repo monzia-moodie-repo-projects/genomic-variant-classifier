@@ -1,0 +1,2145 @@
+{
+  "added": {
+    "DANDELION": {
+      "Additional_repositories": "https://bioconductor.org/packages/release/bioc",
+      "Author": "Peixin Tian [aut, cre]",
+      "Authors@R": "person( given = \"Peixin\", family = \"Tian\", role = c(\"aut\", \"cre\"), email = \"pxtian@connect.hku.hk\" )",
+      "Description": "Implements the DANDELION method for prioritizing candidate disease-related proximal genes by integrating trans-regulatory association p-values and gene-level trait association p-values. The statistical testing framework builds on the divide-aggregate composite-null test described by Liu et al. (2022) <doi:10.1080/01621459.2021.1914634>. The biological application and SNP/gene-based prioritization workflow are motivated by Salamone et al. (under review), \"Leveraging trans-gene regulation prioritizes central genes and pathways in asthma\". The package provides functions for identifying distal-proximal gene pairs, organizing significant pairs into genomic loci, and visualizing resulting gene networks.",
+      "Encoding": "UTF-8",
+      "Imports": [
+        "igraph"
+      ],
+      "License": "GPL-3",
+      "Maintainer": "Peixin Tian <pxtian@connect.hku.hk>",
+      "NeedsCompilation": "no",
+      "Package": "DANDELION",
+      "Repository": "CRAN",
+      "RoxygenNote": "7.3.3",
+      "Source": "Repository",
+      "Suggests": [
+        "qvalue"
+      ],
+      "Title": "Discovery of Candidate Disease Genes Using Trans-Regulatory Effects",
+      "Type": "Package",
+      "Version": "0.1.0"
+    },
+    "RColorBrewer": {
+      "Author": "Erich Neuwirth [aut, cre]",
+      "Authors@R": "c(person(given = \"Erich\", family = \"Neuwirth\", role = c(\"aut\", \"cre\"), email = \"erich.neuwirth@univie.ac.at\"))",
+      "Date": "2022-04-03",
+      "Depends": [
+        "R (>= 2.0.0)"
+      ],
+      "Description": "Provides color schemes for maps (and other graphics) designed by Cynthia Brewer as described at http://colorbrewer2.org.",
+      "License": "Apache License 2.0",
+      "Maintainer": "Erich Neuwirth <erich.neuwirth@univie.ac.at>",
+      "NeedsCompilation": "no",
+      "Package": "RColorBrewer",
+      "Repository": "CRAN",
+      "Source": "Repository",
+      "Title": "ColorBrewer Palettes",
+      "Version": "1.1-3"
+    },
+    "Rcpp": {
+      "Author": "Dirk Eddelbuettel [aut, cre] (ORCID: <https://orcid.org/0000-0001-6419-907X>), Romain Francois [aut] (ORCID: <https://orcid.org/0000-0002-2444-4226>), JJ Allaire [aut] (ORCID: <https://orcid.org/0000-0003-0174-9868>), Kevin Ushey [aut] (ORCID: <https://orcid.org/0000-0003-2880-7407>), Qiang Kou [aut] (ORCID: <https://orcid.org/0000-0001-6786-5453>), Nathan Russell [aut], I\u00f1aki Ucar [aut] (ORCID: <https://orcid.org/0000-0001-6403-5550>), Doug Bates [aut] (ORCID: <https://orcid.org/0000-0001-8316-9503>), John Chambers [aut]",
+      "Authors@R": "c(person(\"Dirk\", \"Eddelbuettel\", role = c(\"aut\", \"cre\"), email = \"edd@debian.org\", comment = c(ORCID = \"0000-0001-6419-907X\")), person(\"Romain\", \"Francois\", role = \"aut\", comment = c(ORCID = \"0000-0002-2444-4226\")), person(\"JJ\", \"Allaire\", role = \"aut\", comment = c(ORCID = \"0000-0003-0174-9868\")), person(\"Kevin\", \"Ushey\", role = \"aut\", comment = c(ORCID = \"0000-0003-2880-7407\")), person(\"Qiang\", \"Kou\", role = \"aut\", comment = c(ORCID = \"0000-0001-6786-5453\")), person(\"Nathan\", \"Russell\", role = \"aut\"), person(\"I\u00f1aki\", \"Ucar\", role = \"aut\", comment = c(ORCID = \"0000-0001-6403-5550\")), person(\"Doug\", \"Bates\", role = \"aut\", comment = c(ORCID = \"0000-0001-8316-9503\")), person(\"John\", \"Chambers\", role = \"aut\"))",
+      "BugReports": "https://github.com/RcppCore/Rcpp/issues",
+      "Date": "2026-07-01",
+      "Depends": [
+        "R (>= 3.5.0)"
+      ],
+      "Description": "The 'Rcpp' package provides R functions as well as C++ classes which offer a seamless integration of R and C++. Many R data types and objects can be mapped back and forth to C++ equivalents which facilitates both writing of new code as well as easier integration of third-party libraries. Documentation about 'Rcpp' is provided by several vignettes included in this package, via the 'Rcpp Gallery' site at <https://gallery.rcpp.org>, the paper by Eddelbuettel and Francois (2011, <doi:10.18637/jss.v040.i08>), the book by Eddelbuettel (2013, <doi:10.1007/978-1-4614-6868-4>) and the paper by Eddelbuettel and Balamuta (2018, <doi:10.1080/00031305.2017.1375990>); see 'citation(\"Rcpp\")' for details.",
+      "Encoding": "UTF-8",
+      "Imports": [
+        "methods",
+        "utils"
+      ],
+      "License": "GPL (>= 2)",
+      "Maintainer": "Dirk Eddelbuettel <edd@debian.org>",
+      "NeedsCompilation": "yes",
+      "Package": "Rcpp",
+      "Repository": "CRAN",
+      "RoxygenNote": "6.1.1",
+      "Source": "Repository",
+      "Suggests": [
+        "tinytest",
+        "inline",
+        "rbenchmark",
+        "pkgKitten (>= 0.1.2)"
+      ],
+      "Title": "Seamless R and C++ Integration",
+      "URL": "https://www.rcpp.org, https://dirk.eddelbuettel.com/code/rcpp.html, https://github.com/RcppCore/Rcpp",
+      "Version": "1.1.2",
+      "VignetteBuilder": "Rcpp"
+    },
+    "S7": {
+      "Author": "Object-Oriented Programming Working Group [cph], Davis Vaughan [aut], Jim Hester [aut] (ORCID: <https://orcid.org/0000-0002-2739-7082>), Tomasz Kalinowski [aut], Will Landau [aut], Michael Lawrence [aut], Martin Maechler [aut] (ORCID: <https://orcid.org/0000-0002-8685-9910>), Luke Tierney [aut], Hadley Wickham [aut, cre] (ORCID: <https://orcid.org/0000-0003-4757-117X>)",
+      "Authors@R": "c( person(\"Object-Oriented Programming Working Group\", role = \"cph\"), person(\"Davis\", \"Vaughan\", role = \"aut\"), person(\"Jim\", \"Hester\", role = \"aut\", comment = c(ORCID = \"0000-0002-2739-7082\")), person(\"Tomasz\", \"Kalinowski\", role = \"aut\"), person(\"Will\", \"Landau\", role = \"aut\"), person(\"Michael\", \"Lawrence\", role = \"aut\"), person(\"Martin\", \"Maechler\", role = \"aut\", comment = c(ORCID = \"0000-0002-8685-9910\")), person(\"Luke\", \"Tierney\", role = \"aut\"), person(\"Hadley\", \"Wickham\", , \"hadley@posit.co\", role = c(\"aut\", \"cre\"), comment = c(ORCID = \"0000-0003-4757-117X\")) )",
+      "BugReports": "https://github.com/RConsortium/S7/issues",
+      "Config/Needs/website": "sloop",
+      "Config/build/compilation-database": "true",
+      "Config/testthat/edition": "3",
+      "Config/testthat/parallel": "TRUE",
+      "Config/testthat/start-first": "external-generic",
+      "Depends": [
+        "R (>= 3.5.0)"
+      ],
+      "Description": "A new object oriented programming system designed to be a successor to S3 and S4. It includes formal class, generic, and method specification, and a limited form of multiple dispatch. It has been designed and implemented collaboratively by the R Consortium Object-Oriented Programming Working Group, which includes representatives from R-Core, 'Bioconductor', 'Posit'/'tidyverse', and the wider R community.",
+      "Encoding": "UTF-8",
+      "Imports": [
+        "utils"
+      ],
+      "License": "MIT + file LICENSE",
+      "Maintainer": "Hadley Wickham <hadley@posit.co>",
+      "NeedsCompilation": "yes",
+      "Package": "S7",
+      "Repository": "CRAN",
+      "RoxygenNote": "7.3.3",
+      "Source": "Repository",
+      "Suggests": [
+        "bench",
+        "callr",
+        "covr",
+        "knitr",
+        "methods",
+        "rmarkdown",
+        "testthat (>= 3.2.0)",
+        "tibble"
+      ],
+      "Title": "An Object Oriented System Meant to Become a Successor to S3 and S4",
+      "URL": "https://rconsortium.github.io/S7/, https://github.com/RConsortium/S7",
+      "Version": "0.2.2",
+      "VignetteBuilder": "knitr"
+    },
+    "farver": {
+      "Author": "Thomas Lin Pedersen [cre, aut] (<https://orcid.org/0000-0002-5147-4711>), Berendea Nicolae [aut] (Author of the ColorSpace C++ library), Romain Fran\u00e7ois [aut] (<https://orcid.org/0000-0002-2444-4226>), Posit, PBC [cph, fnd]",
+      "Authors@R": "c( person(\"Thomas Lin\", \"Pedersen\", , \"thomas.pedersen@posit.co\", role = c(\"cre\", \"aut\"), comment = c(ORCID = \"0000-0002-5147-4711\")), person(\"Berendea\", \"Nicolae\", role = \"aut\", comment = \"Author of the ColorSpace C++ library\"), person(\"Romain\", \"Fran\u00e7ois\", , \"romain@purrple.cat\", role = \"aut\", comment = c(ORCID = \"0000-0002-2444-4226\")), person(\"Posit, PBC\", role = c(\"cph\", \"fnd\")) )",
+      "BugReports": "https://github.com/thomasp85/farver/issues",
+      "Config/testthat/edition": "3",
+      "Description": "The encoding of colour can be handled in many different ways, using different colour spaces. As different colour spaces have different uses, efficient conversion between these representations are important. The 'farver' package provides a set of functions that gives access to very fast colour space conversion and comparisons implemented in C++, and offers speed improvements over the 'convertColor' function in the 'grDevices' package.",
+      "Encoding": "UTF-8",
+      "License": "MIT + file LICENSE",
+      "Maintainer": "Thomas Lin Pedersen <thomas.pedersen@posit.co>",
+      "NeedsCompilation": "yes",
+      "Package": "farver",
+      "Repository": "CRAN",
+      "RoxygenNote": "7.3.1",
+      "Source": "Repository",
+      "Suggests": [
+        "covr",
+        "testthat (>= 3.0.0)"
+      ],
+      "Title": "High Performance Colour Space Manipulation",
+      "Type": "Package",
+      "URL": "https://farver.data-imaginist.com, https://github.com/thomasp85/farver",
+      "Version": "2.1.2"
+    },
+    "ggplot2": {
+      "Author": "Hadley Wickham [aut] (ORCID: <https://orcid.org/0000-0003-4757-117X>), Winston Chang [aut] (ORCID: <https://orcid.org/0000-0002-1576-2126>), Lionel Henry [aut], Thomas Lin Pedersen [aut, cre] (ORCID: <https://orcid.org/0000-0002-5147-4711>), Kohske Takahashi [aut], Claus Wilke [aut] (ORCID: <https://orcid.org/0000-0002-7470-9261>), Kara Woo [aut] (ORCID: <https://orcid.org/0000-0002-5125-4188>), Hiroaki Yutani [aut] (ORCID: <https://orcid.org/0000-0002-3385-7233>), Dewey Dunnington [aut] (ORCID: <https://orcid.org/0000-0002-9415-4582>), Teun van den Brand [aut] (ORCID: <https://orcid.org/0000-0002-9335-7468>), Posit, PBC [cph, fnd] (ROR: <https://ror.org/03wc8by49>)",
+      "Authors@R": "c( person(\"Hadley\", \"Wickham\", , \"hadley@posit.co\", role = \"aut\", comment = c(ORCID = \"0000-0003-4757-117X\")), person(\"Winston\", \"Chang\", role = \"aut\", comment = c(ORCID = \"0000-0002-1576-2126\")), person(\"Lionel\", \"Henry\", role = \"aut\"), person(\"Thomas Lin\", \"Pedersen\", , \"thomas.pedersen@posit.co\", role = c(\"aut\", \"cre\"), comment = c(ORCID = \"0000-0002-5147-4711\")), person(\"Kohske\", \"Takahashi\", role = \"aut\"), person(\"Claus\", \"Wilke\", role = \"aut\", comment = c(ORCID = \"0000-0002-7470-9261\")), person(\"Kara\", \"Woo\", role = \"aut\", comment = c(ORCID = \"0000-0002-5125-4188\")), person(\"Hiroaki\", \"Yutani\", role = \"aut\", comment = c(ORCID = \"0000-0002-3385-7233\")), person(\"Dewey\", \"Dunnington\", role = \"aut\", comment = c(ORCID = \"0000-0002-9415-4582\")), person(\"Teun\", \"van den Brand\", role = \"aut\", comment = c(ORCID = \"0000-0002-9335-7468\")), person(\"Posit, PBC\", role = c(\"cph\", \"fnd\"), comment = c(ROR = \"03wc8by49\")) )",
+      "BugReports": "https://github.com/tidyverse/ggplot2/issues",
+      "Collate": "'ggproto.R' 'ggplot-global.R' 'aaa-.R' 'aes-colour-fill-alpha.R' 'aes-evaluation.R' 'aes-group-order.R' 'aes-linetype-size-shape.R' 'aes-position.R' 'all-classes.R' 'compat-plyr.R' 'utilities.R' 'aes.R' 'annotation-borders.R' 'utilities-checks.R' 'legend-draw.R' 'geom-.R' 'annotation-custom.R' 'annotation-logticks.R' 'scale-type.R' 'layer.R' 'make-constructor.R' 'geom-polygon.R' 'geom-map.R' 'annotation-map.R' 'geom-raster.R' 'annotation-raster.R' 'annotation.R' 'autolayer.R' 'autoplot.R' 'axis-secondary.R' 'backports.R' 'bench.R' 'bin.R' 'coord-.R' 'coord-cartesian-.R' 'coord-fixed.R' 'coord-flip.R' 'coord-map.R' 'coord-munch.R' 'coord-polar.R' 'coord-quickmap.R' 'coord-radial.R' 'coord-sf.R' 'coord-transform.R' 'data.R' 'docs_layer.R' 'facet-.R' 'facet-grid-.R' 'facet-null.R' 'facet-wrap.R' 'fortify-map.R' 'fortify-models.R' 'fortify-spatial.R' 'fortify.R' 'stat-.R' 'geom-abline.R' 'geom-rect.R' 'geom-bar.R' 'geom-tile.R' 'geom-bin2d.R' 'geom-blank.R' 'geom-boxplot.R' 'geom-col.R' 'geom-path.R' 'geom-contour.R' 'geom-point.R' 'geom-count.R' 'geom-crossbar.R' 'geom-segment.R' 'geom-curve.R' 'geom-defaults.R' 'geom-ribbon.R' 'geom-density.R' 'geom-density2d.R' 'geom-dotplot.R' 'geom-errorbar.R' 'geom-freqpoly.R' 'geom-function.R' 'geom-hex.R' 'geom-histogram.R' 'geom-hline.R' 'geom-jitter.R' 'geom-label.R' 'geom-linerange.R' 'geom-pointrange.R' 'geom-quantile.R' 'geom-rug.R' 'geom-sf.R' 'geom-smooth.R' 'geom-spoke.R' 'geom-text.R' 'geom-violin.R' 'geom-vline.R' 'ggplot2-package.R' 'grob-absolute.R' 'grob-dotstack.R' 'grob-null.R' 'grouping.R' 'properties.R' 'margins.R' 'theme-elements.R' 'guide-.R' 'guide-axis.R' 'guide-axis-logticks.R' 'guide-axis-stack.R' 'guide-axis-theta.R' 'guide-legend.R' 'guide-bins.R' 'guide-colorbar.R' 'guide-colorsteps.R' 'guide-custom.R' 'guide-none.R' 'guide-old.R' 'guides-.R' 'guides-grid.R' 'hexbin.R' 'import-standalone-obj-type.R' 'import-standalone-types-check.R' 'labeller.R' 'labels.R' 'layer-sf.R' 'layout.R' 'limits.R' 'performance.R' 'plot-build.R' 'plot-construction.R' 'plot-last.R' 'plot.R' 'position-.R' 'position-collide.R' 'position-dodge.R' 'position-dodge2.R' 'position-identity.R' 'position-jitter.R' 'position-jitterdodge.R' 'position-nudge.R' 'position-stack.R' 'quick-plot.R' 'reshape-add-margins.R' 'save.R' 'scale-.R' 'scale-alpha.R' 'scale-binned.R' 'scale-brewer.R' 'scale-colour.R' 'scale-continuous.R' 'scale-date.R' 'scale-discrete-.R' 'scale-expansion.R' 'scale-gradient.R' 'scale-grey.R' 'scale-hue.R' 'scale-identity.R' 'scale-linetype.R' 'scale-linewidth.R' 'scale-manual.R' 'scale-shape.R' 'scale-size.R' 'scale-steps.R' 'scale-view.R' 'scale-viridis.R' 'scales-.R' 'stat-align.R' 'stat-bin.R' 'stat-summary-2d.R' 'stat-bin2d.R' 'stat-bindot.R' 'stat-binhex.R' 'stat-boxplot.R' 'stat-connect.R' 'stat-contour.R' 'stat-count.R' 'stat-density-2d.R' 'stat-density.R' 'stat-ecdf.R' 'stat-ellipse.R' 'stat-function.R' 'stat-identity.R' 'stat-manual.R' 'stat-qq-line.R' 'stat-qq.R' 'stat-quantilemethods.R' 'stat-sf-coordinates.R' 'stat-sf.R' 'stat-smooth-methods.R' 'stat-smooth.R' 'stat-sum.R' 'stat-summary-bin.R' 'stat-summary-hex.R' 'stat-summary.R' 'stat-unique.R' 'stat-ydensity.R' 'summarise-plot.R' 'summary.R' 'theme.R' 'theme-defaults.R' 'theme-current.R' 'theme-sub.R' 'utilities-break.R' 'utilities-grid.R' 'utilities-help.R' 'utilities-patterns.R' 'utilities-resolution.R' 'utilities-tidy-eval.R' 'zxx.R' 'zzz.R'",
+      "Config/Needs/website": "ggtext, tidyr, forcats, tidyverse/tidytemplate",
+      "Config/testthat/edition": "3",
+      "Config/usethis/last-upkeep": "2025-04-23",
+      "Depends": [
+        "R (>= 4.1)"
+      ],
+      "Description": "A system for 'declaratively' creating graphics, based on \"The Grammar of Graphics\". You provide the data, tell 'ggplot2' how to map variables to aesthetics, what graphical primitives to use, and it takes care of the details.",
+      "Encoding": "UTF-8",
+      "Enhances": [
+        "sp"
+      ],
+      "Imports": [
+        "cli",
+        "grDevices",
+        "grid",
+        "gtable (>= 0.3.6)",
+        "isoband",
+        "lifecycle (> 1.0.1)",
+        "rlang (>= 1.1.0)",
+        "S7",
+        "scales (>= 1.4.0)",
+        "stats",
+        "vctrs (>= 0.6.0)",
+        "withr (>= 2.5.0)"
+      ],
+      "LazyData": "true",
+      "License": "MIT + file LICENSE",
+      "Maintainer": "Thomas Lin Pedersen <thomas.pedersen@posit.co>",
+      "NeedsCompilation": "no",
+      "Package": "ggplot2",
+      "Repository": "CRAN",
+      "RoxygenNote": "7.3.3",
+      "Source": "Repository",
+      "Suggests": [
+        "broom",
+        "covr",
+        "dplyr",
+        "ggplot2movies",
+        "hexbin",
+        "Hmisc",
+        "hms",
+        "knitr",
+        "mapproj",
+        "maps",
+        "MASS",
+        "mgcv",
+        "multcomp",
+        "munsell",
+        "nlme",
+        "profvis",
+        "quantreg",
+        "quarto",
+        "ragg (>= 1.2.6)",
+        "RColorBrewer",
+        "roxygen2",
+        "rpart",
+        "sf (>= 0.7-3)",
+        "svglite (>= 2.1.2)",
+        "testthat (>= 3.1.5)",
+        "tibble",
+        "vdiffr (>= 1.0.6)",
+        "xml2"
+      ],
+      "Title": "Create Elegant Data Visualisations Using the Grammar of Graphics",
+      "URL": "https://ggplot2.tidyverse.org, https://github.com/tidyverse/ggplot2",
+      "Version": "4.0.3",
+      "VignetteBuilder": "quarto"
+    },
+    "gtable": {
+      "Author": "Hadley Wickham [aut], Thomas Lin Pedersen [aut, cre], Posit Software, PBC [cph, fnd]",
+      "Authors@R": "c( person(\"Hadley\", \"Wickham\", , \"hadley@posit.co\", role = \"aut\"), person(\"Thomas Lin\", \"Pedersen\", , \"thomas.pedersen@posit.co\", role = c(\"aut\", \"cre\")), person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\")) )",
+      "BugReports": "https://github.com/r-lib/gtable/issues",
+      "Config/Needs/website": "tidyverse/tidytemplate",
+      "Config/testthat/edition": "3",
+      "Config/usethis/last-upkeep": "2024-10-25",
+      "Depends": [
+        "R (>= 4.0)"
+      ],
+      "Description": "Tools to make it easier to work with \"tables\" of 'grobs'. The 'gtable' package defines a 'gtable' grob class that specifies a grid along with a list of grobs and their placement in the grid. Further the package makes it easy to manipulate and combine 'gtable' objects so that complex compositions can be built up sequentially.",
+      "Encoding": "UTF-8",
+      "Imports": [
+        "cli",
+        "glue",
+        "grid",
+        "lifecycle",
+        "rlang (>= 1.1.0)",
+        "stats"
+      ],
+      "License": "MIT + file LICENSE",
+      "Maintainer": "Thomas Lin Pedersen <thomas.pedersen@posit.co>",
+      "NeedsCompilation": "no",
+      "Package": "gtable",
+      "Repository": "CRAN",
+      "RoxygenNote": "7.3.2",
+      "Source": "Repository",
+      "Suggests": [
+        "covr",
+        "ggplot2",
+        "knitr",
+        "profvis",
+        "rmarkdown",
+        "testthat (>= 3.0.0)"
+      ],
+      "Title": "Arrange 'Grobs' in Tables",
+      "URL": "https://gtable.r-lib.org, https://github.com/r-lib/gtable",
+      "Version": "0.3.6",
+      "VignetteBuilder": "knitr"
+    },
+    "igraph": {
+      "Author": "G\u00e1bor Cs\u00e1rdi [aut] (ORCID: <https://orcid.org/0000-0001-7098-9676>), Tam\u00e1s Nepusz [aut] (ORCID: <https://orcid.org/0000-0002-1451-338X>), Vincent Traag [aut] (ORCID: <https://orcid.org/0000-0003-3170-3879>), Szabolcs Horv\u00e1t [aut] (ORCID: <https://orcid.org/0000-0002-3100-523X>), Fabio Zanini [aut] (ORCID: <https://orcid.org/0000-0001-7097-8539>), Daniel Noom [aut], Kirill M\u00fcller [aut, cre] (ORCID: <https://orcid.org/0000-0002-1416-3412>), Michael Antonov [ctb], Chan Zuckerberg Initiative [fnd] (ROR: <https://ror.org/02qenvm24>), David Schoch [aut] (ORCID: <https://orcid.org/0000-0003-2952-4812>), Ma\u00eblle Salmon [aut] (ORCID: <https://orcid.org/0000-0002-2815-0399>), R Consortium [fnd] (ROR: <https://ror.org/01z833950>)",
+      "Authors@R": "c( person(\"G\u00e1bor\", \"Cs\u00e1rdi\", , \"csardi.gabor@gmail.com\", role = \"aut\", comment = c(ORCID = \"0000-0001-7098-9676\")), person(\"Tam\u00e1s\", \"Nepusz\", , \"ntamas@gmail.com\", role = \"aut\", comment = c(ORCID = \"0000-0002-1451-338X\")), person(\"Vincent\", \"Traag\", role = \"aut\", comment = c(ORCID = \"0000-0003-3170-3879\")), person(\"Szabolcs\", \"Horv\u00e1t\", , \"szhorvat@gmail.com\", role = \"aut\", comment = c(ORCID = \"0000-0002-3100-523X\")), person(\"Fabio\", \"Zanini\", , \"fabio.zanini@unsw.edu.au\", role = \"aut\", comment = c(ORCID = \"0000-0001-7097-8539\")), person(\"Daniel\", \"Noom\", role = \"aut\"), person(\"Kirill\", \"M\u00fcller\", , \"kirill@cynkra.com\", role = c(\"aut\", \"cre\"), comment = c(ORCID = \"0000-0002-1416-3412\")), person(\"Michael\", \"Antonov\", role = \"ctb\"), person(\"Chan Zuckerberg Initiative\", role = \"fnd\", comment = c(ROR = \"02qenvm24\")), person(\"David\", \"Schoch\", , \"david.schoch@cynkra.com\", role = \"aut\", comment = c(ORCID = \"0000-0003-2952-4812\")), person(\"Ma\u00eblle\", \"Salmon\", , \"maelle@cynkra.com\", role = \"aut\", comment = c(ORCID = \"0000-0002-2815-0399\")), person(\"R Consortium\", role = \"fnd\", comment = c(ROR = \"01z833950\")) )",
+      "BugReports": "https://github.com/igraph/rigraph/issues",
+      "Config/Needs/build": "devtools, irlba, pkgconfig",
+      "Config/Needs/coverage": "covr",
+      "Config/Needs/roxygen2": "r-lib/roxygen2, igraph/igraph.r2cdocs, moodymudskipper/devtag",
+      "Config/Needs/website": "here, readr, tibble, xmlparsedata, xml2",
+      "Config/build/compilation-database": "false",
+      "Config/build/never-clean": "true",
+      "Config/comment/compilation-database": "Generate manually with pkgload:::generate_db() for faster pkgload::load_all()",
+      "Config/testthat/edition": "3",
+      "Config/testthat/parallel": "true",
+      "Config/testthat/start-first": "aaa-auto, vs-es, scan, vs-operators, weakref, watts.strogatz.game",
+      "Depends": [
+        "methods",
+        "R (>= 3.5.0)"
+      ],
+      "Description": "Routines for simple graphs and network analysis. It can handle large graphs very well and provides functions for generating random and regular graphs, graph visualization, centrality methods and much more.",
+      "Encoding": "UTF-8",
+      "Enhances": [
+        "graph"
+      ],
+      "Imports": [
+        "cli",
+        "graphics",
+        "grDevices",
+        "lifecycle",
+        "magrittr",
+        "Matrix",
+        "pkgconfig (>= 2.0.0)",
+        "rlang (>= 1.1.0)",
+        "stats",
+        "utils",
+        "vctrs"
+      ],
+      "License": "GPL (>= 2)",
+      "LinkingTo": [
+        "cpp11 (>= 0.5.0)"
+      ],
+      "Maintainer": "Kirill M\u00fcller <kirill@cynkra.com>",
+      "NeedsCompilation": "yes",
+      "Package": "igraph",
+      "Repository": "CRAN",
+      "RoxygenNote": "7.3.3.9000",
+      "Source": "Repository",
+      "Suggests": [
+        "ape (>= 5.7-0.1)",
+        "callr",
+        "decor",
+        "digest",
+        "igraphdata",
+        "knitr",
+        "rgl (>= 1.3.14)",
+        "rmarkdown",
+        "scales",
+        "stats4",
+        "tcltk",
+        "testthat",
+        "vdiffr",
+        "withr"
+      ],
+      "SystemRequirements": "libxml2 (optional), glpk (>= 4.57, optional)",
+      "Title": "Network Analysis and Visualization",
+      "URL": "https://r.igraph.org/, https://igraph.org/, https://igraph.discourse.group/",
+      "Version": "2.3.3",
+      "VignetteBuilder": "knitr"
+    },
+    "isoband": {
+      "Author": "Hadley Wickham [aut] (ORCID: <https://orcid.org/0000-0003-4757-117X>), Claus O. Wilke [aut] (Original author, ORCID: <https://orcid.org/0000-0002-7470-9261>), Thomas Lin Pedersen [aut, cre] (ORCID: <https://orcid.org/0000-0002-5147-4711>), Posit, PBC [cph, fnd] (ROR: <https://ror.org/03wc8by49>)",
+      "Authors@R": "c( person(\"Hadley\", \"Wickham\", , \"hadley@posit.co\", role = \"aut\", comment = c(ORCID = \"0000-0003-4757-117X\")), person(\"Claus O.\", \"Wilke\", , \"wilke@austin.utexas.edu\", role = \"aut\", comment = c(\"Original author\", ORCID = \"0000-0002-7470-9261\")), person(\"Thomas Lin\", \"Pedersen\", , \"thomas.pedersen@posit.co\", role = c(\"aut\", \"cre\"), comment = c(ORCID = \"0000-0002-5147-4711\")), person(\"Posit, PBC\", role = c(\"cph\", \"fnd\"), comment = c(ROR = \"03wc8by49\")) )",
+      "BugReports": "https://github.com/r-lib/isoband/issues",
+      "Config/Needs/website": "tidyverse/tidytemplate",
+      "Config/build/compilation-database": "true",
+      "Config/testthat/edition": "3",
+      "Config/usethis/last-upkeep": "2025-12-05",
+      "Description": "A fast C++ implementation to generate contour lines (isolines) and contour polygons (isobands) from regularly spaced grids containing elevation data.",
+      "Encoding": "UTF-8",
+      "Imports": [
+        "cli",
+        "grid",
+        "rlang",
+        "utils"
+      ],
+      "License": "MIT + file LICENSE",
+      "LinkingTo": [
+        "cpp11"
+      ],
+      "Maintainer": "Thomas Lin Pedersen <thomas.pedersen@posit.co>",
+      "NeedsCompilation": "yes",
+      "Package": "isoband",
+      "Repository": "CRAN",
+      "RoxygenNote": "7.3.3",
+      "Source": "Repository",
+      "Suggests": [
+        "covr",
+        "ggplot2",
+        "knitr",
+        "magick",
+        "bench",
+        "rmarkdown",
+        "sf",
+        "testthat (>= 3.0.0)",
+        "xml2"
+      ],
+      "Title": "Generate Isolines and Isobands from Regularly Spaced Elevation Grids",
+      "URL": "https://isoband.r-lib.org, https://github.com/r-lib/isoband",
+      "Version": "0.3.0",
+      "VignetteBuilder": "knitr"
+    },
+    "labeling": {
+      "Author": "Justin Talbot,",
+      "Collate": "'labeling.R'",
+      "Date": "2023-08-29",
+      "Description": "Functions which provide a range of axis labeling algorithms.",
+      "Imports": [
+        "stats",
+        "graphics"
+      ],
+      "License": "MIT + file LICENSE | Unlimited",
+      "Maintainer": "Nuno Sempere <nuno.semperelh@gmail.com>",
+      "NeedsCompilation": "no",
+      "Package": "labeling",
+      "Repository": "CRAN",
+      "Source": "Repository",
+      "Title": "Axis Labeling",
+      "Type": "Package",
+      "Version": "0.4.3"
+    },
+    "plyr": {
+      "Author": "Hadley Wickham [aut, cre]",
+      "Authors@R": "person(\"Hadley\", \"Wickham\", , \"hadley@rstudio.com\", role = c(\"aut\", \"cre\"))",
+      "BugReports": "https://github.com/hadley/plyr/issues",
+      "Depends": [
+        "R (>= 3.1.0)"
+      ],
+      "Description": "A set of tools that solves a common set of problems: you need to break a big problem down into manageable pieces, operate on each piece and then put all the pieces back together.  For example, you might want to fit a model to each spatial location or time point in your study, summarise data by panels or collapse high-dimensional arrays to simpler summary statistics. The development of 'plyr' has been generously supported by 'Becton Dickinson'.",
+      "Encoding": "UTF-8",
+      "Imports": [
+        "Rcpp (>= 0.11.0)"
+      ],
+      "LazyData": "true",
+      "License": "MIT + file LICENSE",
+      "LinkingTo": [
+        "Rcpp"
+      ],
+      "Maintainer": "Hadley Wickham <hadley@rstudio.com>",
+      "NeedsCompilation": "yes",
+      "Package": "plyr",
+      "Repository": "CRAN",
+      "RoxygenNote": "7.2.3",
+      "Source": "Repository",
+      "Suggests": [
+        "abind",
+        "covr",
+        "doParallel",
+        "foreach",
+        "iterators",
+        "itertools",
+        "tcltk",
+        "testthat"
+      ],
+      "Title": "Tools for Splitting, Applying and Combining Data",
+      "URL": "http://had.co.nz/plyr, https://github.com/hadley/plyr",
+      "Version": "1.8.9"
+    },
+    "qvalue": {
+      "Author": "John D. Storey [aut, cre], Andrew J. Bass [aut], Alan Dabney [aut], David Robinson [aut], Gregory Warnes [ctb]",
+      "Authors@R": "c( person(given = \"John D.\", family = \"Storey\", email = \"jdstorey@princeton.edu\", role = c(\"aut\", \"cre\")), person(given = \"Andrew J.\", family = \"Bass\", email = \"ajbass@emory.edu\", role = \"aut\"), person(given = \"Alan\", family = \"Dabney\", role = \"aut\"), person(given = \"David\", family = \"Robinson\", role = \"aut\"), person(given = \"Gregory\", family = \"Warnes\", role = \"ctb\"))",
+      "Date": "2015-03-24",
+      "Depends": [
+        "R(>= 2.10)"
+      ],
+      "Description": "This package takes a list of p-values resulting from the simultaneous testing of many hypotheses and estimates their q-values and local FDR values. The q-value of a test measures the proportion of false positives incurred (called the false discovery rate) when that particular test is called significant. The local FDR measures the posterior probability the null hypothesis is true given the test's p-value. Various plots are automatically generated, allowing one to make sensible significance cut-offs. Several mathematical results have recently been shown on the conservative accuracy of the estimated q-values from this software. The software can be applied to problems in genomics, brain imaging, astrophysics, and data mining.",
+      "Imports": [
+        "splines",
+        "ggplot2",
+        "grid",
+        "reshape2"
+      ],
+      "License": "LGPL",
+      "Maintainer": "John D. Storey <jstorey@princeton.edu>, Andrew J. Bass <ajbass@emory.edu>",
+      "NeedsCompilation": "no",
+      "Package": "qvalue",
+      "Repository": "Bioconductor 3.23",
+      "RoxygenNote": "5.0.1",
+      "Source": "Bioconductor",
+      "Suggests": [
+        "knitr"
+      ],
+      "Title": "Q-value estimation for false discovery rate control",
+      "Type": "Package",
+      "URL": "http://github.com/jdstorey/qvalue",
+      "Version": "2.44.0",
+      "VignetteBuilder": "knitr",
+      "biocViews": "MultipleComparisons",
+      "git_branch": "RELEASE_3_23",
+      "git_last_commit": "ce7605b",
+      "git_last_commit_date": "2026-04-28",
+      "git_url": "https://git.bioconductor.org/packages/qvalue"
+    },
+    "reshape2": {
+      "Author": "Hadley Wickham [aut, cre]",
+      "Authors@R": "person(\"Hadley\", \"Wickham\", , \"hadley@posit.co\", role = c(\"aut\", \"cre\"))",
+      "BugReports": "https://github.com/hadley/reshape/issues",
+      "Config/testthat/edition": "3",
+      "Depends": [
+        "R (>= 3.1)"
+      ],
+      "Description": "Flexibly restructure and aggregate data using just two functions: melt and 'dcast' (or 'acast').",
+      "Encoding": "UTF-8",
+      "Imports": [
+        "plyr (>= 1.8.1)",
+        "Rcpp",
+        "stringr"
+      ],
+      "LazyData": "true",
+      "License": "MIT + file LICENSE",
+      "LinkingTo": [
+        "Rcpp"
+      ],
+      "Maintainer": "Hadley Wickham <hadley@posit.co>",
+      "NeedsCompilation": "yes",
+      "Package": "reshape2",
+      "Repository": "CRAN",
+      "RoxygenNote": "7.3.3",
+      "Source": "Repository",
+      "Suggests": [
+        "covr",
+        "lattice",
+        "testthat (>= 3.0.0)"
+      ],
+      "Title": "Flexibly Reshape Data: A Reboot of the Reshape Package",
+      "URL": "https://github.com/hadley/reshape",
+      "Version": "1.4.5"
+    },
+    "scales": {
+      "Author": "Hadley Wickham [aut], Thomas Lin Pedersen [cre, aut] (<https://orcid.org/0000-0002-5147-4711>), Dana Seidel [aut], Posit Software, PBC [cph, fnd] (03wc8by49)",
+      "Authors@R": "c( person(\"Hadley\", \"Wickham\", , \"hadley@posit.co\", role = \"aut\"), person(\"Thomas Lin\", \"Pedersen\", , \"thomas.pedersen@posit.co\", role = c(\"cre\", \"aut\"), comment = c(ORCID = \"0000-0002-5147-4711\")), person(\"Dana\", \"Seidel\", role = \"aut\"), person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\"), comment = c(ROR = \"03wc8by49\")) )",
+      "BugReports": "https://github.com/r-lib/scales/issues",
+      "Config/Needs/website": "tidyverse/tidytemplate",
+      "Config/testthat/edition": "3",
+      "Config/usethis/last-upkeep": "2025-04-23",
+      "Depends": [
+        "R (>= 4.1)"
+      ],
+      "Description": "Graphical scales map data to aesthetics, and provide methods for automatically determining breaks and labels for axes and legends.",
+      "Encoding": "UTF-8",
+      "Imports": [
+        "cli",
+        "farver (>= 2.0.3)",
+        "glue",
+        "labeling",
+        "lifecycle",
+        "R6",
+        "RColorBrewer",
+        "rlang (>= 1.1.0)",
+        "viridisLite"
+      ],
+      "LazyLoad": "yes",
+      "License": "MIT + file LICENSE",
+      "Maintainer": "Thomas Lin Pedersen <thomas.pedersen@posit.co>",
+      "NeedsCompilation": "no",
+      "Package": "scales",
+      "Repository": "CRAN",
+      "RoxygenNote": "7.3.2",
+      "Source": "Repository",
+      "Suggests": [
+        "bit64",
+        "covr",
+        "dichromat",
+        "ggplot2",
+        "hms (>= 0.5.0)",
+        "stringi",
+        "testthat (>= 3.0.0)"
+      ],
+      "Title": "Scale Functions for Visualization",
+      "URL": "https://scales.r-lib.org, https://github.com/r-lib/scales",
+      "Version": "1.4.0"
+    },
+    "viridisLite": {
+      "Author": "Simon Garnier [aut, cre], Noam Ross [ctb, cph], Bob Rudis [ctb, cph], Marco Sciaini [ctb, cph], Ant\u00f4nio Pedro Camargo [ctb, cph], C\u00e9dric Scherer [ctb, cph]",
+      "Authors@R": "c( person(\"Simon\", \"Garnier\", email = \"garnier@njit.edu\", role = c(\"aut\", \"cre\")), person(\"Noam\", \"Ross\", email = \"noam.ross@gmail.com\", role = c(\"ctb\", \"cph\")), person(\"Bob\", \"Rudis\", email = \"bob@rud.is\", role = c(\"ctb\", \"cph\")), person(\"Marco\", \"Sciaini\", email = \"sciaini.marco@gmail.com\", role = c(\"ctb\", \"cph\")), person(\"Ant\u00f4nio Pedro\", \"Camargo\", role = c(\"ctb\", \"cph\")), person(\"C\u00e9dric\", \"Scherer\", email = \"scherer@izw-berlin.de\", role = c(\"ctb\", \"cph\")) )",
+      "BugReports": "https://github.com/sjmgarnier/viridisLite/issues/",
+      "Date": "2026-02-03",
+      "Depends": [
+        "R (>= 2.10)"
+      ],
+      "Description": "Color maps designed to improve graph readability for readers with  common forms of color blindness and/or color vision deficiency. The color  maps are also perceptually-uniform, both in regular form and also when  converted to black-and-white for printing. This is the 'lite' version of the  'viridis' package that also contains 'ggplot2' bindings for discrete and  continuous color and fill scales and can be found at  <https://cran.r-project.org/package=viridis>.",
+      "Encoding": "UTF-8",
+      "License": "MIT + file LICENSE",
+      "Maintainer": "Simon Garnier <garnier@njit.edu>",
+      "NeedsCompilation": "no",
+      "Package": "viridisLite",
+      "Repository": "CRAN",
+      "RoxygenNote": "7.3.3",
+      "Source": "Repository",
+      "Suggests": [
+        "hexbin (>= 1.27.0)",
+        "ggplot2 (>= 1.0.1)",
+        "testthat",
+        "covr"
+      ],
+      "Title": "Colorblind-Friendly Color Maps (Lite Version)",
+      "Type": "Package",
+      "URL": "https://sjmgarnier.github.io/viridisLite/, https://github.com/sjmgarnier/viridisLite/",
+      "Version": "0.4.3"
+    }
+  },
+  "artifact_selection": {
+    "BH": {
+      "artifact_sha256": "f1fc9cd78af83748b148bf23db4f9ce2031014d6282d33ab4fa6c535716dc2ca",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "Biobase": {
+      "artifact_sha256": "cc2860d489ce40b1d5542adb7dba7b5245be49a393c8c1c6d6164c3f5945d92d",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "BiocFileCache": {
+      "artifact_sha256": "ec0ebd1e2c8f9c1590b0f8ed53a8b43076e8490a4d056cccbb99aaff4d4f71a9",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "BiocGenerics": {
+      "artifact_sha256": "04d8c570acf0d74b6a64fceb72f31d37b12102d5058d6f18fbb63310b77571ab",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "BiocIO": {
+      "artifact_sha256": "223533561deaa5f433f583ec41ebae50ba91228123e89c3bba5324c6745a7435",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "BiocManager": {
+      "artifact_sha256": "956e0b106ecea7d885f282009231fd640c73f68493a45c5cd502d0b2733d36d4",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "BiocParallel": {
+      "artifact_sha256": "038348f37a90ccb4e8927eef2a3e59f6821995a370df5deb6a3e7c6f4668fed2",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "BiocVersion": {
+      "artifact_sha256": "e5e5fc60309103fc40dfebf08842c357860ad09139ffcb58b54e3d0ff1e58e0f",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "Biostrings": {
+      "artifact_sha256": "1b43424bf6587ad3525f31832e060106d1f06e6b8e6e0a4d766e0c72e836321a",
+      "kind": "local_binary",
+      "receipt_sha256": "c13ceaf6f5d698390f1304e408234d2c6266f8cae7adfb3478f3be75bcd65c1a",
+      "route": "local_build"
+    },
+    "DANDELION": {
+      "artifact_sha256": "c7f18cab47f3088fea49c84d901a08bf525fd5c81a2c4181aba103ddf11186f5",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "DBI": {
+      "artifact_sha256": "bdddaaf78945df1ee50229dc4d86331f82b15b05d468af900a2e24457f822491",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "DelayedArray": {
+      "artifact_sha256": "0fdd2819d237ea29fb0c9014430f3c9912d47032fe566feef3a36de05302a42e",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "GenomicAlignments": {
+      "artifact_sha256": "f00c651ba211540884dadb79dcd17b44070b1ba2be49de53e8ebfc7d736a1fad",
+      "kind": "local_binary",
+      "receipt_sha256": "e5a9c55397dcdfcaae7b459553b3a61456424723ace6fc13c0180d1759149af2",
+      "route": "local_build"
+    },
+    "GenomicRanges": {
+      "artifact_sha256": "d8291f40d1daa4d8e2f4fcdfec7ebf5c57db7023ecd1d25f0dcce4ca464ad615",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "IRanges": {
+      "artifact_sha256": "df81eb74c5b47adee0a528d17f2c8942614a2c649890c5307cd7f97e9c538181",
+      "kind": "local_binary",
+      "receipt_sha256": "4d4cadf8568831727f41840d161b42bcbd139a2351ed66743492491f5ae472cd",
+      "route": "local_build"
+    },
+    "Matrix": {
+      "artifact_sha256": null,
+      "kind": null,
+      "receipt_sha256": null,
+      "route": "runtime"
+    },
+    "MatrixGenerics": {
+      "artifact_sha256": "adfd50c258ac3c6407a23fe26ad37a44812dc3e3dbad392fdd4d98c7f28a8ba3",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "R.methodsS3": {
+      "artifact_sha256": "0ff89920f5e56295bcd1d4261c62deb8a6b66a7b9e8765cfc09e833c2bb12d09",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "R.oo": {
+      "artifact_sha256": "e69b3df6ef5b97b997ad5ca415b866fbf7dde017a77a6ee84394e2c34a62abc8",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "R.utils": {
+      "artifact_sha256": "dabf06121a3c86bed39a72a89e92fb26c0a61c2806478257f8e9282f04ac3c34",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "R6": {
+      "artifact_sha256": "e16a8c018a680ac12ca516c1e0085cfbb2db5cd5e1f65c14884a8a6a47fad538",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "RColorBrewer": {
+      "artifact_sha256": "b8880e323f75149e90e0300684626a3de0692523a972932b27b7474dfa6beac7",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "RCurl": {
+      "artifact_sha256": "92c3d6a2b7b71a4e1a1efbbe4d1ac2761607c4c840fc42b4e37117d660eb0ac0",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "RSQLite": {
+      "artifact_sha256": "a8a0845c0afea7173338e4fbfb9a0a051ff5a6cb25eeba5586061137d53b11e6",
+      "kind": "local_binary",
+      "receipt_sha256": "afa69dfadacdaee54b37f5c3b1d0cb90347302564a6acaf418e0befdd677c49f",
+      "route": "local_build"
+    },
+    "Rcpp": {
+      "artifact_sha256": "3606fd375dd0d282521f254073b80fc5127e291d8d4b8cb3e0d4e6c114f9c8c9",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "Rhtslib": {
+      "artifact_sha256": "355a88fa0ec9c44d8fa0da696f02f785a313bd460232b945b9f1a5afee7c37b2",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "Rsamtools": {
+      "artifact_sha256": "9d1ba3fa4e458c868a2601190c43218aa9c2bcfbc8a2428c2fb5e03eed4d5b46",
+      "kind": "local_binary",
+      "receipt_sha256": "1c7ca679de7f5e0c8ddc23e8daf320853ae4294b8ae651bc3cea94b4abe548b4",
+      "route": "local_build"
+    },
+    "S4Arrays": {
+      "artifact_sha256": "e04d07bf52fd53df5e61a68d1449b182a3da30b32ed9ce506bcefa230ce76ff4",
+      "kind": "local_binary",
+      "receipt_sha256": "a8d6e503a9ff36955ce964bfb7a2a0293aa30e7eec06ad867827ec03e12f0ec5",
+      "route": "local_build"
+    },
+    "S4Vectors": {
+      "artifact_sha256": "7d6512ecdc1207514fa8688a4305a6f433ca8aa918b8f6e80a5aff14b672b414",
+      "kind": "local_binary",
+      "receipt_sha256": "fd95fa16e7bfbfb9d34a4464034cfb8386da8a7f4eee6360b1ac817d3e66f4d3",
+      "route": "local_build"
+    },
+    "S7": {
+      "artifact_sha256": "d9d222ba675110d8b74700f1921b92cf732eec98a9649b4ccc1c5808034295fe",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "Seqinfo": {
+      "artifact_sha256": "5d5a5b8913c899614ee840f2e203639c839b12403b089e749af2bcceb3960aae",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "SparseArray": {
+      "artifact_sha256": "fe549b43c3fc62abf00dcd1eb1be5484208a17b37c2034c2c9b5875b8d7e5837",
+      "kind": "local_binary",
+      "receipt_sha256": "ec9c4a4bf72998e3b4ccac7033bcd7cb299bf4aac9a8c6ffcffeb6541f83ade2",
+      "route": "local_build"
+    },
+    "SummarizedExperiment": {
+      "artifact_sha256": "1b9aec417df690a8d3db41c1ba761de6f7ba6fe9604310ccfb6c7f60013fe2aa",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "XML": {
+      "artifact_sha256": "b8492f537a29c75a436fc72faa122e281cbc044526fd642d15ec89bdb3c5b967",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "XVector": {
+      "artifact_sha256": "165e952ece94afff48fc4371e247295abfff21f7e71678e35575877c835f91b1",
+      "kind": "local_binary",
+      "receipt_sha256": "86810d573231dba21bbd345aab362d50026d434043d7364038db63a01fe01941",
+      "route": "local_build"
+    },
+    "abind": {
+      "artifact_sha256": "287713c2a6b74c3e4151eb73f4e221bc31d0f52a15df5acce218b4f19924a27e",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "askpass": {
+      "artifact_sha256": "b4b053f423e1bc0b888a412e1094f8176b01721ebe210367c16dccec860c574b",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "bit": {
+      "artifact_sha256": "41acc4eeff046997aebe9dc2e902db40d8f59a768182d597e7c8c4b761d70032",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "bit64": {
+      "artifact_sha256": "978abf171db761c9d0f37b28c5288a3d84f0a2a922b19514cec319a0fc886a4c",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "bitops": {
+      "artifact_sha256": "be00a0d8baaeefc09c5cac7d53503e14786dcc54cb58381edf60d158c56a69f1",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "blob": {
+      "artifact_sha256": "cf0e588d87c4123c1225b1a2ea8c047315f04b3baa929229f5a9659c376edccf",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "cachem": {
+      "artifact_sha256": "6a4bcfdc7f48b758ce1602b9ddd9c6cf74e2e896e1d209ce96d4e91995ccbe86",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "cigarillo": {
+      "artifact_sha256": "8703b8ea5277a09f744301308fe1bcd78514c5e6e55e7eb7bc24e2c8ac61cada",
+      "kind": "local_binary",
+      "receipt_sha256": "bc2a68db497379720ee9d861221c5107e16c1f4300b40e04e3fcf8c94a4f1ca5",
+      "route": "local_build"
+    },
+    "cli": {
+      "artifact_sha256": "6d5e4c84f4aab8ecac4adec37f61188d2d2b50eb293edfed2d50d8d2f775aa18",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "codetools": {
+      "artifact_sha256": null,
+      "kind": null,
+      "receipt_sha256": null,
+      "route": "runtime"
+    },
+    "cpp11": {
+      "artifact_sha256": "65cf57ba74dd2a93b7a24d6e42d1277cee12479b0fa2169197e123dd31aa0459",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "crayon": {
+      "artifact_sha256": "fe6a43ab50f5bf27dd72ee6581d916d214d1ff3d5268966d347a1bcafd9e2651",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "curl": {
+      "artifact_sha256": "696d61ca1bf4e627162d6a37f9a0f85555b9d9a365dfaed492016475809475ad",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "data.table": {
+      "artifact_sha256": "b07f724dbc12d6736b4d4197a6cd5ff1ae531b70cbe68e1502d06862a28ccb83",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "dbplyr": {
+      "artifact_sha256": "bdff7479dfcdcc9eb890a048afcd6ffa9f40a54d277429e746eb298eb99dc207",
+      "kind": "local_binary",
+      "receipt_sha256": "95c2a8b49c73328c7a498787d5e60a406e8678e37d952f6093708c45d8014fa9",
+      "route": "local_build"
+    },
+    "dplyr": {
+      "artifact_sha256": "082f726dcfc102d9217e01b2326e04bd5f9c74e7fe91612122a6fb4f731ca9bf",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "farver": {
+      "artifact_sha256": "7d02cb3910445890a3a7e2eb0faa4781e144cfaf51f8bf223927e92e042492fa",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "fastmap": {
+      "artifact_sha256": "b1bfcd3d3475124f52a1a1afad3727c04585673b8edba5fc38c4fc42b73fdd72",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "filelock": {
+      "artifact_sha256": "79d6195833f900681b2ce946acef21cfa9a9e5e920b16b3cc0747da2c1cfbd8c",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "formatR": {
+      "artifact_sha256": "642dff53d1ba1a62054d537f4b2844ebde60e5968fd4fe6415ff70cf19e2672d",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "futile.logger": {
+      "artifact_sha256": "790ea326312ef1005ef7f6c566c35c015e239360ef357cbc16e0519964b70669",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "futile.options": {
+      "artifact_sha256": "c35c1e377650d5d95d527ab7a2444f6ad89ed5d65e8e4bf59a97c61920e58327",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "generics": {
+      "artifact_sha256": "080ad8d9f3e056b26ddd0883f9e72cea0eeddece96beae80b50fc7a07bd03752",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "ggplot2": {
+      "artifact_sha256": "1305524234def24ace147e7c30c6c380d46a8e938ad0a2f36f2d8d930cf443a3",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "glue": {
+      "artifact_sha256": "74a0de06a0bf6417094efe774b819ca9508876d4b51914ad620e3af66f7344eb",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "gtable": {
+      "artifact_sha256": "a06613bf451b00bc3b6d2c897777da21bbf13787e16d37a61dd8a2a28d16cd3f",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "httr": {
+      "artifact_sha256": "15ca1b362550705ef01242b7d7aefcb467ee7499f450d8b28a7bcc2066700319",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "httr2": {
+      "artifact_sha256": "45a447a21ec1fb9ba24ebfdcdc47b9febd0f64ba456377903acb13cef75a0f00",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "igraph": {
+      "artifact_sha256": "6579fa0aa0b9bddd4230f94c6966f42f3efbadf05b73f5072777d30368e7ac02",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "isoband": {
+      "artifact_sha256": "9a3b88ac3ff3cb3fb9ee1fa08466d1c1d862c72e58a0e5f3e85133b0b86717ab",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "jsonlite": {
+      "artifact_sha256": "f951bdef28176d3b8602c60533e4dcf837dc7498d9ca327108c29dca361e539d",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "labeling": {
+      "artifact_sha256": "a5d4772de28813c6730a37e5a4b9605cf1b941344a319e56af7bacf4680ea82e",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "lambda.r": {
+      "artifact_sha256": "ed9d5c15306360cf071da45a17e396bc1ba74d7ed7514300580b9c7a6707da36",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "lattice": {
+      "artifact_sha256": null,
+      "kind": null,
+      "receipt_sha256": null,
+      "route": "runtime"
+    },
+    "lifecycle": {
+      "artifact_sha256": "655116bf33a554a5272dfd21e95c2b3044fc3bf0ce530697bc0f5bd71ecc31e5",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "magrittr": {
+      "artifact_sha256": "f3acfae0a374c4f3a6ba3e1ffa7972a23db0e3b6fd31b749e504178e66eeceeb",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "matrixStats": {
+      "artifact_sha256": "107f13ff075fe40769a20f360137d8057b3c210ade06d198158478c5723fff1c",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "memoise": {
+      "artifact_sha256": "b5366209f5ea0311fdbd298681506af3f0d0fbb5b09105fb1812eff59b225a0f",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "mime": {
+      "artifact_sha256": "539dba68e847edfac8bc7a818f794073cccab7535ee19e4741056c0d26342c01",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "openssl": {
+      "artifact_sha256": "e0e62eb13f744e080074bd35b08a538e22a3d977946a49e988b9932f140c64e5",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "pillar": {
+      "artifact_sha256": "f498fec06bc591beba4ba774cbffd135c431eb8c54b9643013ebb062d0f81c35",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "pkgconfig": {
+      "artifact_sha256": "caa7d46b83e6638ac274f8d4dac33240082275323789693da21e14860e128553",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "plyr": {
+      "artifact_sha256": "1458d8601e8a09cf00990635e968ae33476fd8be8c6d3ddea5e5e607353675fd",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "purrr": {
+      "artifact_sha256": "1a9d6b9875e1cd76fdc97e0ce9bea0a424089727074fe51317d94f594938f2a5",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "qvalue": {
+      "artifact_sha256": "1d4dd9845f048b157b2b9e2a5728720cf8f1a8e88f01a60c88f22589a034a4dc",
+      "kind": "local_binary",
+      "receipt_sha256": "fdf51ee35c64a5f99b080e0677206029e44443151fdae5587b1db59cde5e8c3f",
+      "route": "local_build"
+    },
+    "rappdirs": {
+      "artifact_sha256": "bdc3ac24090b47f49c4c4cd6391c41b8f413459295769bafc39f00d8c466d410",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "recount3": {
+      "artifact_sha256": "c314af6db6ba3e9a6382e21376283cb0f3a902c7316bb9f214567254448c0288",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "renv": {
+      "artifact_sha256": "f462b55ace5436b6bed18e01ac1267649fc196ad8505f55c8546704eda104bfb",
+      "kind": "source",
+      "receipt_sha256": null,
+      "route": "bootstrap"
+    },
+    "reshape2": {
+      "artifact_sha256": "4a33e42167b58aaebd09066e28df30ff8ac6c53e064f08eb819aac800de2f6c1",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "restfulr": {
+      "artifact_sha256": "78ffddf50ed640591e14627a7932a536c0cff5831f91c296c521b7d0b4fb43dc",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "rjson": {
+      "artifact_sha256": "02b04cffd871a4031e28c69838ce1af44c815ede60ce323c46e6d8135fdddb4a",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "rlang": {
+      "artifact_sha256": "2ad5f3a2d6d9c56d0a7dbc116e013574168da03b65323594b4e6b161c4c2fc89",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "rtracklayer": {
+      "artifact_sha256": "782a369430b8ba4659cac87f8d2881286ba8b149e83a697535197af4a81878f1",
+      "kind": "local_binary",
+      "receipt_sha256": "d124160486effa3607f5a0a94e70ff16f9d436f74b93b01b1703aa4a06c91230",
+      "route": "local_build"
+    },
+    "scales": {
+      "artifact_sha256": "059377cd31876a8d465c4f4665aff5ec4f94f63453dc10df7b490937061d3f57",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "sessioninfo": {
+      "artifact_sha256": "9cf2129de1c6c7deab70b75bef8d1e7c2112bfde85e1b4eb2c98ac10749c8b63",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "snow": {
+      "artifact_sha256": "3bae0570ca6bcd36ef791891f2049050f735cb4687e95811129be2451f7e2f36",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "stringi": {
+      "artifact_sha256": "a68749aeda9f2b72558247129b36846e71819ed0a59961df31a6610eb9d1fc73",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "stringr": {
+      "artifact_sha256": "b2faba04d97702a60f67f46fb1b8c43398a7ac9b3e7626b43c362bca22b0191e",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "sys": {
+      "artifact_sha256": "6bbabf1f770564ebf0ae200ec1ceb823a5cb3b73fad09f8c7f5397145ed3a2b7",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "tibble": {
+      "artifact_sha256": "424ac6b624e705592a4959c06395ddd56a5bca6ddfaf5d1fccc50a9d27d8cc3f",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "tidyr": {
+      "artifact_sha256": "fc33287befec2c8fcb60c16c9709d8a4536f3e9d78e784cd50598bd957c0f967",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "tidyselect": {
+      "artifact_sha256": "3ab5c3155e2eaee04d7066eec92203ee13479735d4f3c302fcd51758bf569d99",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "utf8": {
+      "artifact_sha256": "bb8e797f679161b2dcce0fac934330ec9cf48332fb598838c3b4b39df18c326d",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "vctrs": {
+      "artifact_sha256": "1b6fb5b85610f9393b2761c1bfdc4af969ac74d567507d197527ab9f7a9d010d",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "viridisLite": {
+      "artifact_sha256": "5c2170ccfb04c15991db37b99943fa8ed109106387d8780eda60a94574d0cfe7",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "withr": {
+      "artifact_sha256": "53bf9a715c7bbcc43a391715fb7fed9f60425e3866bf6116e9b243ba7a943772",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    },
+    "yaml": {
+      "artifact_sha256": "da198a231abc3da29774317362843b44dd3fd467f2c57f1da850554b0db0ec74",
+      "kind": "windows_binary",
+      "receipt_sha256": null,
+      "route": "upstream_binary"
+    }
+  },
+  "baseline_canonical_sha256": "0d9224daca97fd4666e901d72e6ee6eed4355501b3bfcf4090ef1d7a00bd7a79",
+  "candidate_sha256": "e391298a0e27685c3b85b924d9f574b46c9ef2712b42c5729829d11c5cba8c9c",
+  "field_differences": [
+    {
+      "field": "Repository",
+      "new": {
+        "value": "RSPM"
+      },
+      "old": {
+        "value": "CRAN"
+      },
+      "package": "BiocManager"
+    },
+    {
+      "field": "Config/pak/sysreqs",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "zlib1g-dev"
+      },
+      "package": "Biostrings"
+    },
+    {
+      "field": "RemoteRef",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "RELEASE_3_23"
+      },
+      "package": "Biostrings"
+    },
+    {
+      "field": "RemoteSha",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "bc262d5f452e0724e2f68696387d30e0b33e85b0"
+      },
+      "package": "Biostrings"
+    },
+    {
+      "field": "RemoteUrl",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "https://github.com/bioc/Biostrings"
+      },
+      "package": "Biostrings"
+    },
+    {
+      "field": "Repository",
+      "new": {
+        "value": "Bioconductor 3.23"
+      },
+      "old": {
+        "value": "https://bioc-release.r-universe.dev"
+      },
+      "package": "Biostrings"
+    },
+    {
+      "field": "git_branch",
+      "new": {
+        "value": "RELEASE_3_23"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "Biostrings"
+    },
+    {
+      "field": "git_last_commit",
+      "new": {
+        "value": "bc262d5"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "Biostrings"
+    },
+    {
+      "field": "git_last_commit_date",
+      "new": {
+        "value": "2026-05-22"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "Biostrings"
+    },
+    {
+      "field": "git_url",
+      "new": {
+        "value": "https://git.bioconductor.org/packages/Biostrings"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "Biostrings"
+    },
+    {
+      "field": "Config/pak/sysreqs",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "libbz2-dev liblzma-dev xz-utils zlib1g-dev"
+      },
+      "package": "GenomicAlignments"
+    },
+    {
+      "field": "RemoteRef",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "RELEASE_3_23"
+      },
+      "package": "GenomicAlignments"
+    },
+    {
+      "field": "RemoteSha",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "34a743a22b7ce4f754c3962bb06ae872581905b2"
+      },
+      "package": "GenomicAlignments"
+    },
+    {
+      "field": "RemoteUrl",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "https://github.com/bioc/GenomicAlignments"
+      },
+      "package": "GenomicAlignments"
+    },
+    {
+      "field": "Repository",
+      "new": {
+        "value": "Bioconductor 3.23"
+      },
+      "old": {
+        "value": "https://bioc-release.r-universe.dev"
+      },
+      "package": "GenomicAlignments"
+    },
+    {
+      "field": "git_branch",
+      "new": {
+        "value": "RELEASE_3_23"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "GenomicAlignments"
+    },
+    {
+      "field": "git_last_commit",
+      "new": {
+        "value": "34a743a"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "GenomicAlignments"
+    },
+    {
+      "field": "git_last_commit_date",
+      "new": {
+        "value": "2026-04-28"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "GenomicAlignments"
+    },
+    {
+      "field": "git_url",
+      "new": {
+        "value": "https://git.bioconductor.org/packages/GenomicAlignments"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "GenomicAlignments"
+    },
+    {
+      "field": "RemoteRef",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "RELEASE_3_23"
+      },
+      "package": "IRanges"
+    },
+    {
+      "field": "RemoteSha",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "db589cc82f235a7be2d5f2bc6971af1fa2fd03b5"
+      },
+      "package": "IRanges"
+    },
+    {
+      "field": "RemoteUrl",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "https://github.com/bioc/IRanges"
+      },
+      "package": "IRanges"
+    },
+    {
+      "field": "Repository",
+      "new": {
+        "value": "Bioconductor 3.23"
+      },
+      "old": {
+        "value": "https://bioc-release.r-universe.dev"
+      },
+      "package": "IRanges"
+    },
+    {
+      "field": "git_branch",
+      "new": {
+        "value": "RELEASE_3_23"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "IRanges"
+    },
+    {
+      "field": "git_last_commit",
+      "new": {
+        "value": "db589cc"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "IRanges"
+    },
+    {
+      "field": "git_last_commit_date",
+      "new": {
+        "value": "2026-04-28"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "IRanges"
+    },
+    {
+      "field": "git_url",
+      "new": {
+        "value": "https://git.bioconductor.org/packages/IRanges"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "IRanges"
+    },
+    {
+      "field": "Repository",
+      "new": {
+        "value": "CRAN"
+      },
+      "old": {
+        "value": "RSPM"
+      },
+      "package": "RSQLite"
+    },
+    {
+      "field": "Config/pak/sysreqs",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "make libbz2-dev liblzma-dev xz-utils zlib1g-dev"
+      },
+      "package": "Rsamtools"
+    },
+    {
+      "field": "RemoteRef",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "RELEASE_3_23"
+      },
+      "package": "Rsamtools"
+    },
+    {
+      "field": "RemoteSha",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "31add2895a57afb8e120f057f0f068ca69544f87"
+      },
+      "package": "Rsamtools"
+    },
+    {
+      "field": "RemoteUrl",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "https://github.com/bioc/Rsamtools"
+      },
+      "package": "Rsamtools"
+    },
+    {
+      "field": "Repository",
+      "new": {
+        "value": "Bioconductor 3.23"
+      },
+      "old": {
+        "value": "https://bioc-release.r-universe.dev"
+      },
+      "package": "Rsamtools"
+    },
+    {
+      "field": "git_branch",
+      "new": {
+        "value": "RELEASE_3_23"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "Rsamtools"
+    },
+    {
+      "field": "git_last_commit",
+      "new": {
+        "value": "31add28"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "Rsamtools"
+    },
+    {
+      "field": "git_last_commit_date",
+      "new": {
+        "value": "2026-04-28"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "Rsamtools"
+    },
+    {
+      "field": "git_url",
+      "new": {
+        "value": "https://git.bioconductor.org/packages/Rsamtools"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "Rsamtools"
+    },
+    {
+      "field": "RemoteRef",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "RELEASE_3_23"
+      },
+      "package": "S4Arrays"
+    },
+    {
+      "field": "RemoteSha",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "b1246fd0b81ac137623ee1c0d6587a59e8ad1073"
+      },
+      "package": "S4Arrays"
+    },
+    {
+      "field": "RemoteUrl",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "https://github.com/bioc/S4Arrays"
+      },
+      "package": "S4Arrays"
+    },
+    {
+      "field": "Repository",
+      "new": {
+        "value": "Bioconductor 3.23"
+      },
+      "old": {
+        "value": "https://bioc-release.r-universe.dev"
+      },
+      "package": "S4Arrays"
+    },
+    {
+      "field": "git_branch",
+      "new": {
+        "value": "RELEASE_3_23"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "S4Arrays"
+    },
+    {
+      "field": "git_last_commit",
+      "new": {
+        "value": "b1246fd"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "S4Arrays"
+    },
+    {
+      "field": "git_last_commit_date",
+      "new": {
+        "value": "2026-04-28"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "S4Arrays"
+    },
+    {
+      "field": "git_url",
+      "new": {
+        "value": "https://git.bioconductor.org/packages/S4Arrays"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "S4Arrays"
+    },
+    {
+      "field": "RemoteRef",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "RELEASE_3_23"
+      },
+      "package": "S4Vectors"
+    },
+    {
+      "field": "RemoteSha",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "dfc837c68d33d9dfb2ba620c8cad386b8a730fa2"
+      },
+      "package": "S4Vectors"
+    },
+    {
+      "field": "RemoteUrl",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "https://github.com/bioc/S4Vectors"
+      },
+      "package": "S4Vectors"
+    },
+    {
+      "field": "Repository",
+      "new": {
+        "value": "Bioconductor 3.23"
+      },
+      "old": {
+        "value": "https://bioc-release.r-universe.dev"
+      },
+      "package": "S4Vectors"
+    },
+    {
+      "field": "git_branch",
+      "new": {
+        "value": "RELEASE_3_23"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "S4Vectors"
+    },
+    {
+      "field": "git_last_commit",
+      "new": {
+        "value": "dfc837c"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "S4Vectors"
+    },
+    {
+      "field": "git_last_commit_date",
+      "new": {
+        "value": "2026-05-03"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "S4Vectors"
+    },
+    {
+      "field": "git_url",
+      "new": {
+        "value": "https://git.bioconductor.org/packages/S4Vectors"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "S4Vectors"
+    },
+    {
+      "field": "Config/pak/sysreqs",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "zlib1g-dev"
+      },
+      "package": "SparseArray"
+    },
+    {
+      "field": "RemoteRef",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "RELEASE_3_23"
+      },
+      "package": "SparseArray"
+    },
+    {
+      "field": "RemoteSha",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "dd96584c2f1284fe00041e392b5bed5749b4e42d"
+      },
+      "package": "SparseArray"
+    },
+    {
+      "field": "RemoteUrl",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "https://github.com/bioc/SparseArray"
+      },
+      "package": "SparseArray"
+    },
+    {
+      "field": "Repository",
+      "new": {
+        "value": "Bioconductor 3.23"
+      },
+      "old": {
+        "value": "https://bioc-release.r-universe.dev"
+      },
+      "package": "SparseArray"
+    },
+    {
+      "field": "git_branch",
+      "new": {
+        "value": "RELEASE_3_23"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "SparseArray"
+    },
+    {
+      "field": "git_last_commit",
+      "new": {
+        "value": "dd96584"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "SparseArray"
+    },
+    {
+      "field": "git_last_commit_date",
+      "new": {
+        "value": "2026-05-01"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "SparseArray"
+    },
+    {
+      "field": "git_url",
+      "new": {
+        "value": "https://git.bioconductor.org/packages/SparseArray"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "SparseArray"
+    },
+    {
+      "field": "RemoteRef",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "RELEASE_3_23"
+      },
+      "package": "XVector"
+    },
+    {
+      "field": "RemoteSha",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "fa5f5a6296e984f5cb90b52bff781e710d999111"
+      },
+      "package": "XVector"
+    },
+    {
+      "field": "RemoteUrl",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "https://github.com/bioc/XVector"
+      },
+      "package": "XVector"
+    },
+    {
+      "field": "Repository",
+      "new": {
+        "value": "Bioconductor 3.23"
+      },
+      "old": {
+        "value": "https://bioc-release.r-universe.dev"
+      },
+      "package": "XVector"
+    },
+    {
+      "field": "git_branch",
+      "new": {
+        "value": "RELEASE_3_23"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "XVector"
+    },
+    {
+      "field": "git_last_commit",
+      "new": {
+        "value": "fa5f5a6"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "XVector"
+    },
+    {
+      "field": "git_last_commit_date",
+      "new": {
+        "value": "2026-04-28"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "XVector"
+    },
+    {
+      "field": "git_url",
+      "new": {
+        "value": "https://git.bioconductor.org/packages/XVector"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "XVector"
+    },
+    {
+      "field": "Config/pak/sysreqs",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "zlib1g-dev"
+      },
+      "package": "cigarillo"
+    },
+    {
+      "field": "RemoteRef",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "RELEASE_3_23"
+      },
+      "package": "cigarillo"
+    },
+    {
+      "field": "RemoteSha",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "2fdb706c3a207b09e4b3d2c954b077e040fc0a83"
+      },
+      "package": "cigarillo"
+    },
+    {
+      "field": "RemoteUrl",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "https://github.com/bioc/cigarillo"
+      },
+      "package": "cigarillo"
+    },
+    {
+      "field": "Repository",
+      "new": {
+        "value": "Bioconductor 3.23"
+      },
+      "old": {
+        "value": "https://bioc-release.r-universe.dev"
+      },
+      "package": "cigarillo"
+    },
+    {
+      "field": "git_branch",
+      "new": {
+        "value": "RELEASE_3_23"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "cigarillo"
+    },
+    {
+      "field": "git_last_commit",
+      "new": {
+        "value": "2fdb706"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "cigarillo"
+    },
+    {
+      "field": "git_last_commit_date",
+      "new": {
+        "value": "2026-04-28"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "cigarillo"
+    },
+    {
+      "field": "git_url",
+      "new": {
+        "value": "https://git.bioconductor.org/packages/cigarillo"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "cigarillo"
+    },
+    {
+      "field": "Repository",
+      "new": {
+        "value": "CRAN"
+      },
+      "old": {
+        "value": "RSPM"
+      },
+      "package": "dbplyr"
+    },
+    {
+      "field": "Config/pak/sysreqs",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "make libbz2-dev liblzma-dev libxml2-dev libssl-dev xz-utils zlib1g-dev"
+      },
+      "package": "rtracklayer"
+    },
+    {
+      "field": "Description",
+      "new": {
+        "value": "Extensible framework for interacting with multiple genome  browsers (currently UCSC built-in) and manipulating  annotation tracks in various formats (currently GFF, BED, bedGraph, BED15, WIG, BigWig and 2bit built-in). The user may export/import tracks to/from the supported browsers, as well as query and modify the browser state, such as the current viewport."
+      },
+      "old": {
+        "value": "Extensible framework for interacting with multiple genome browsers (currently UCSC built-in) and manipulating annotation tracks in various formats (currently GFF, BED, bedGraph, BED15, WIG, BigWig and 2bit built-in). The user may export/import tracks to/from the supported browsers, as well as query and modify the browser state, such as the current viewport."
+      },
+      "package": "rtracklayer"
+    },
+    {
+      "field": "RemoteRef",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "RELEASE_3_23"
+      },
+      "package": "rtracklayer"
+    },
+    {
+      "field": "RemoteSha",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "3136d28c9e15ed28f32b9fe5428738acade52742"
+      },
+      "package": "rtracklayer"
+    },
+    {
+      "field": "RemoteUrl",
+      "new": {
+        "absent": true
+      },
+      "old": {
+        "value": "https://github.com/bioc/rtracklayer"
+      },
+      "package": "rtracklayer"
+    },
+    {
+      "field": "Repository",
+      "new": {
+        "value": "Bioconductor 3.23"
+      },
+      "old": {
+        "value": "https://bioc-release.r-universe.dev"
+      },
+      "package": "rtracklayer"
+    },
+    {
+      "field": "git_branch",
+      "new": {
+        "value": "RELEASE_3_23"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "rtracklayer"
+    },
+    {
+      "field": "git_last_commit",
+      "new": {
+        "value": "3136d28"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "rtracklayer"
+    },
+    {
+      "field": "git_last_commit_date",
+      "new": {
+        "value": "2026-04-28"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "rtracklayer"
+    },
+    {
+      "field": "git_url",
+      "new": {
+        "value": "https://git.bioconductor.org/packages/rtracklayer"
+      },
+      "old": {
+        "absent": true
+      },
+      "package": "rtracklayer"
+    }
+  ],
+  "removed": [],
+  "schema": "gvc.candidate-difference/1",
+  "top_level": {
+    "R": {
+      "new": {
+        "value": {
+          "Repositories": [
+            {
+              "Name": "CRAN",
+              "URL": "https://packagemanager.posit.co/cran/latest"
+            },
+            {
+              "Name": "BioCsoft",
+              "URL": "https://bioconductor.org/packages/3.23/bioc"
+            },
+            {
+              "Name": "BioCann",
+              "URL": "https://bioconductor.org/packages/3.23/data/annotation"
+            },
+            {
+              "Name": "BioCexp",
+              "URL": "https://bioconductor.org/packages/3.23/data/experiment"
+            },
+            {
+              "Name": "BioCworkflows",
+              "URL": "https://bioconductor.org/packages/3.23/workflows"
+            },
+            {
+              "Name": "BioCbooks",
+              "URL": "https://bioconductor.org/packages/3.23/books"
+            }
+          ],
+          "Version": "4.6.1"
+        }
+      },
+      "old": {
+        "value": {
+          "Repositories": [
+            {
+              "Name": "CRAN",
+              "URL": "https://packagemanager.posit.co/cran/latest"
+            },
+            {
+              "Name": "BioCsoft",
+              "URL": "https://bioconductor.org/packages/3.23/bioc"
+            },
+            {
+              "Name": "BioCann",
+              "URL": "https://bioconductor.org/packages/3.23/data/annotation"
+            },
+            {
+              "Name": "BioCexp",
+              "URL": "https://bioconductor.org/packages/3.23/data/experiment"
+            },
+            {
+              "Name": "BioCworkflows",
+              "URL": "https://bioconductor.org/packages/3.23/workflows"
+            },
+            {
+              "Name": "BioCbooks",
+              "URL": "https://bioconductor.org/packages/3.23/books"
+            }
+          ],
+          "Version": "4.6.0"
+        }
+      }
+    }
+  }
+}

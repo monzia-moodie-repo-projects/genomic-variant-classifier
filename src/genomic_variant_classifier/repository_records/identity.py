@@ -15,6 +15,7 @@ import uuid
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 
+from .path_budget import require_within_budget
 from .roles import ArtifactRole, RecordsOntologyError, is_within_canonical_root
 
 #: `REC-` plus a uuid4 hexadecimal. NOT sequential: `REC-0001` implies a global
@@ -93,6 +94,9 @@ class ArtifactInstance:
             raise RecordsOntologyError(
                 "{!r} is absolute. A durable record locates artifacts relative "
                 "to the repository, not to one workstation.".format(p))
+        # A record that cannot be checked out on Windows from an ordinary clone root is not durable (path_budget; measured
+        # 2026-10-10: a 169-character record path failed to apply in a %TEMP% clone).
+        require_within_budget(p)
 
 
 @dataclass(frozen=True)
