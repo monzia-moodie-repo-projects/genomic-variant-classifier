@@ -297,3 +297,15 @@ def test_artifact_inventory_records_are_byte_pinned_and_the_index_is_not(path, e
     one); the index is a replaceable projection derived from the records and stays normalised text. Direct children only, matching
     scan_records, which refuses anything else in the family directory."""
     assert _attrs(path).get("text") == expected, (path, _attrs(path))
+
+
+@pytest.mark.parametrize("path,expected", [
+    ("records/migrations/environment-qualification/lockfile/REC-0123456789abcdef0123456789abcdef/artifacts/candidate.lock", "unset"),
+    ("records/migrations/environment-qualification/lockfile/REC-0123456789abcdef0123456789abcdef/artifacts/replay_plan.json", "unset"),
+    ("records/migrations/environment-qualification/lockfile/REC-0123456789abcdef0123456789abcdef/manifest.json", "set"),
+    ("renv.lock", "set"),
+])
+def test_migration_artifacts_are_byte_pinned_and_their_manifest_and_the_live_lockfile_are_not(path, expected):
+    """MIGRATION-ARTIFACTS-PRESERVED-1 (2026-10-09). The preserved candidate lockfile is CRLF as renv wrote it, and `*.lock text
+    eol=lf` would rewrite it on commit; the manifest is authored, and the live renv.lock is canonical LF text."""
+    assert _attrs(path).get("text") == expected, (path, _attrs(path))

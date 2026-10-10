@@ -1,5 +1,6 @@
-"""Environment qualification (owner ruling 2026-10-05b): the runtime-only lockfile admission against the REAL renv.lock, the clean R
-probe against the real Rscript and controlled stand-ins, the required-test outcome gate, and the qualification receipt.
+"""Environment qualification (owner ruling 2026-10-05b): the runtime-only lockfile admission against the REAL baseline renv.lock
+(preserved in the lockfile migration record since 2026-10-09), the clean R probe against the real Rscript and controlled stand-ins,
+the required-test outcome gate, and the qualification receipt.
 
 Author: Monzia Moodie
 """
@@ -32,7 +33,11 @@ def code_of(exc_type, call):
 
 
 def real_lock():
-    return strict_json((ROOT / "renv.lock").read_text(encoding="utf-8"))
+    """The REAL baseline lockfile (R 4.6.0): the runtime-only admission is defined against it. Since the lockfile migration of
+    2026-10-09 the live renv.lock is its successor; the baseline is preserved verbatim in the migration record."""
+    found = sorted((ROOT / "records" / "migrations" / "environment-qualification" / "lockfile").glob("REC-*/artifacts/renv.lock"))
+    assert len(found) == 1, found
+    return strict_json(found[0].read_text(encoding="utf-8"))
 
 
 # ------------------------------------------------------------------ runtime-only lockfile admission (the REAL renv.lock)

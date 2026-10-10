@@ -1,0 +1,733 @@
+{
+  "bootstrap": [
+    {
+      "file_name": "renv_1.2.3.tar.gz",
+      "kind": "source",
+      "package": "renv",
+      "sha256": "f462b55ace5436b6bed18e01ac1267649fc196ad8505f55c8546704eda104bfb",
+      "version": "1.2.3"
+    }
+  ],
+  "build_plan_sha256": "78d5357ce83bf74f190aa389a5af76862eb1c327bfbee1fa8e9ce02cb48e2bfd",
+  "build_summary_sha256": "d3c537d82843d521ff0746007fea36c8241d5e88372b65ac03fc8a6942008805",
+  "expected_runtime": {
+    "platform": "x86_64-w64-mingw32",
+    "r_series": "4.6",
+    "r_version": "4.6.1",
+    "release_status": ""
+  },
+  "install": [
+    {
+      "file_name": "BH_1.90.0-1.zip",
+      "kind": "windows_binary",
+      "package": "BH",
+      "route": "upstream_binary",
+      "sha256": "f1fc9cd78af83748b148bf23db4f9ce2031014d6282d33ab4fa6c535716dc2ca",
+      "version": "1.90.0-1"
+    },
+    {
+      "file_name": "DBI_1.3.0.zip",
+      "kind": "windows_binary",
+      "package": "DBI",
+      "route": "upstream_binary",
+      "sha256": "bdddaaf78945df1ee50229dc4d86331f82b15b05d468af900a2e24457f822491",
+      "version": "1.3.0"
+    },
+    {
+      "file_name": "curl_7.1.0.zip",
+      "kind": "windows_binary",
+      "package": "curl",
+      "route": "upstream_binary",
+      "sha256": "696d61ca1bf4e627162d6a37f9a0f85555b9d9a365dfaed492016475809475ad",
+      "version": "7.1.0"
+    },
+    {
+      "file_name": "filelock_1.0.3.zip",
+      "kind": "windows_binary",
+      "package": "filelock",
+      "route": "upstream_binary",
+      "sha256": "79d6195833f900681b2ce946acef21cfa9a9e5e920b16b3cc0747da2c1cfbd8c",
+      "version": "1.0.3"
+    },
+    {
+      "file_name": "generics_0.1.4.zip",
+      "kind": "windows_binary",
+      "package": "generics",
+      "route": "upstream_binary",
+      "sha256": "080ad8d9f3e056b26ddd0883f9e72cea0eeddece96beae80b50fc7a07bd03752",
+      "version": "0.1.4"
+    },
+    {
+      "file_name": "BiocManager_1.30.27.zip",
+      "kind": "windows_binary",
+      "package": "BiocManager",
+      "route": "upstream_binary",
+      "sha256": "956e0b106ecea7d885f282009231fd640c73f68493a45c5cd502d0b2733d36d4",
+      "version": "1.30.27"
+    },
+    {
+      "file_name": "cpp11_0.5.5.zip",
+      "kind": "windows_binary",
+      "package": "cpp11",
+      "route": "upstream_binary",
+      "sha256": "65cf57ba74dd2a93b7a24d6e42d1277cee12479b0fa2169197e123dd31aa0459",
+      "version": "0.5.5"
+    },
+    {
+      "file_name": "snow_0.4-4.zip",
+      "kind": "windows_binary",
+      "package": "snow",
+      "route": "upstream_binary",
+      "sha256": "3bae0570ca6bcd36ef791891f2049050f735cb4687e95811129be2451f7e2f36",
+      "version": "0.4-4"
+    },
+    {
+      "file_name": "BiocVersion_3.23.1.zip",
+      "kind": "windows_binary",
+      "package": "BiocVersion",
+      "route": "upstream_binary",
+      "sha256": "e5e5fc60309103fc40dfebf08842c357860ad09139ffcb58b54e3d0ff1e58e0f",
+      "version": "3.23.1"
+    },
+    {
+      "file_name": "crayon_1.5.3.zip",
+      "kind": "windows_binary",
+      "package": "crayon",
+      "route": "upstream_binary",
+      "sha256": "fe6a43ab50f5bf27dd72ee6581d916d214d1ff3d5268966d347a1bcafd9e2651",
+      "version": "1.5.3"
+    },
+    {
+      "file_name": "matrixStats_1.5.0.zip",
+      "kind": "windows_binary",
+      "package": "matrixStats",
+      "route": "upstream_binary",
+      "sha256": "107f13ff075fe40769a20f360137d8057b3c210ade06d198158478c5723fff1c",
+      "version": "1.5.0"
+    },
+    {
+      "file_name": "R.methodsS3_1.8.2.zip",
+      "kind": "windows_binary",
+      "package": "R.methodsS3",
+      "route": "upstream_binary",
+      "sha256": "0ff89920f5e56295bcd1d4261c62deb8a6b66a7b9e8765cfc09e833c2bb12d09",
+      "version": "1.8.2"
+    },
+    {
+      "file_name": "R6_2.6.1.zip",
+      "kind": "windows_binary",
+      "package": "R6",
+      "route": "upstream_binary",
+      "sha256": "e16a8c018a680ac12ca516c1e0085cfbb2db5cd5e1f65c14884a8a6a47fad538",
+      "version": "2.6.1"
+    },
+    {
+      "file_name": "bitops_1.0-9.zip",
+      "kind": "windows_binary",
+      "package": "bitops",
+      "route": "upstream_binary",
+      "sha256": "be00a0d8baaeefc09c5cac7d53503e14786dcc54cb58381edf60d158c56a69f1",
+      "version": "1.0-9"
+    },
+    {
+      "file_name": "pkgconfig_2.0.3.zip",
+      "kind": "windows_binary",
+      "package": "pkgconfig",
+      "route": "upstream_binary",
+      "sha256": "caa7d46b83e6638ac274f8d4dac33240082275323789693da21e14860e128553",
+      "version": "2.0.3"
+    },
+    {
+      "file_name": "rlang_1.2.0.zip",
+      "kind": "windows_binary",
+      "package": "rlang",
+      "route": "upstream_binary",
+      "sha256": "2ad5f3a2d6d9c56d0a7dbc116e013574168da03b65323594b4e6b161c4c2fc89",
+      "version": "1.2.0"
+    },
+    {
+      "file_name": "Rhtslib_3.8.0.zip",
+      "kind": "windows_binary",
+      "package": "Rhtslib",
+      "route": "upstream_binary",
+      "sha256": "355a88fa0ec9c44d8fa0da696f02f785a313bd460232b945b9f1a5afee7c37b2",
+      "version": "3.8.0"
+    },
+    {
+      "file_name": "abind_1.4-8.zip",
+      "kind": "windows_binary",
+      "package": "abind",
+      "route": "upstream_binary",
+      "sha256": "287713c2a6b74c3e4151eb73f4e221bc31d0f52a15df5acce218b4f19924a27e",
+      "version": "1.4-8"
+    },
+    {
+      "file_name": "XML_3.99-0.23.zip",
+      "kind": "windows_binary",
+      "package": "XML",
+      "route": "upstream_binary",
+      "sha256": "b8492f537a29c75a436fc72faa122e281cbc044526fd642d15ec89bdb3c5b967",
+      "version": "3.99-0.23"
+    },
+    {
+      "file_name": "sys_3.4.3.zip",
+      "kind": "windows_binary",
+      "package": "sys",
+      "route": "upstream_binary",
+      "sha256": "6bbabf1f770564ebf0ae200ec1ceb823a5cb3b73fad09f8c7f5397145ed3a2b7",
+      "version": "3.4.3"
+    },
+    {
+      "file_name": "bit_4.6.0.zip",
+      "kind": "windows_binary",
+      "package": "bit",
+      "route": "upstream_binary",
+      "sha256": "41acc4eeff046997aebe9dc2e902db40d8f59a768182d597e7c8c4b761d70032",
+      "version": "4.6.0"
+    },
+    {
+      "file_name": "fastmap_1.2.0.zip",
+      "kind": "windows_binary",
+      "package": "fastmap",
+      "route": "upstream_binary",
+      "sha256": "b1bfcd3d3475124f52a1a1afad3727c04585673b8edba5fc38c4fc42b73fdd72",
+      "version": "1.2.0"
+    },
+    {
+      "file_name": "cli_3.6.6.zip",
+      "kind": "windows_binary",
+      "package": "cli",
+      "route": "upstream_binary",
+      "sha256": "6d5e4c84f4aab8ecac4adec37f61188d2d2b50eb293edfed2d50d8d2f775aa18",
+      "version": "3.6.6"
+    },
+    {
+      "file_name": "data.table_1.18.4.zip",
+      "kind": "windows_binary",
+      "package": "data.table",
+      "route": "upstream_binary",
+      "sha256": "b07f724dbc12d6736b4d4197a6cd5ff1ae531b70cbe68e1502d06862a28ccb83",
+      "version": "1.18.4"
+    },
+    {
+      "file_name": "glue_1.8.1.zip",
+      "kind": "windows_binary",
+      "package": "glue",
+      "route": "upstream_binary",
+      "sha256": "74a0de06a0bf6417094efe774b819ca9508876d4b51914ad620e3af66f7344eb",
+      "version": "1.8.1"
+    },
+    {
+      "file_name": "magrittr_2.0.5.zip",
+      "kind": "windows_binary",
+      "package": "magrittr",
+      "route": "upstream_binary",
+      "sha256": "f3acfae0a374c4f3a6ba3e1ffa7972a23db0e3b6fd31b749e504178e66eeceeb",
+      "version": "2.0.5"
+    },
+    {
+      "file_name": "withr_3.0.2.zip",
+      "kind": "windows_binary",
+      "package": "withr",
+      "route": "upstream_binary",
+      "sha256": "53bf9a715c7bbcc43a391715fb7fed9f60425e3866bf6116e9b243ba7a943772",
+      "version": "3.0.2"
+    },
+    {
+      "file_name": "formatR_1.14.zip",
+      "kind": "windows_binary",
+      "package": "formatR",
+      "route": "upstream_binary",
+      "sha256": "642dff53d1ba1a62054d537f4b2844ebde60e5968fd4fe6415ff70cf19e2672d",
+      "version": "1.14"
+    },
+    {
+      "file_name": "futile.options_1.0.1.zip",
+      "kind": "windows_binary",
+      "package": "futile.options",
+      "route": "upstream_binary",
+      "sha256": "c35c1e377650d5d95d527ab7a2444f6ad89ed5d65e8e4bf59a97c61920e58327",
+      "version": "1.0.1"
+    },
+    {
+      "file_name": "jsonlite_2.0.0.zip",
+      "kind": "windows_binary",
+      "package": "jsonlite",
+      "route": "upstream_binary",
+      "sha256": "f951bdef28176d3b8602c60533e4dcf837dc7498d9ca327108c29dca361e539d",
+      "version": "2.0.0"
+    },
+    {
+      "file_name": "mime_0.13.zip",
+      "kind": "windows_binary",
+      "package": "mime",
+      "route": "upstream_binary",
+      "sha256": "539dba68e847edfac8bc7a818f794073cccab7535ee19e4741056c0d26342c01",
+      "version": "0.13"
+    },
+    {
+      "file_name": "rappdirs_0.3.4.zip",
+      "kind": "windows_binary",
+      "package": "rappdirs",
+      "route": "upstream_binary",
+      "sha256": "bdc3ac24090b47f49c4c4cd6391c41b8f413459295769bafc39f00d8c466d410",
+      "version": "0.3.4"
+    },
+    {
+      "file_name": "utf8_1.2.6.zip",
+      "kind": "windows_binary",
+      "package": "utf8",
+      "route": "upstream_binary",
+      "sha256": "bb8e797f679161b2dcce0fac934330ec9cf48332fb598838c3b4b39df18c326d",
+      "version": "1.2.6"
+    },
+    {
+      "file_name": "rjson_0.2.23.zip",
+      "kind": "windows_binary",
+      "package": "rjson",
+      "route": "upstream_binary",
+      "sha256": "02b04cffd871a4031e28c69838ce1af44c815ede60ce323c46e6d8135fdddb4a",
+      "version": "0.2.23"
+    },
+    {
+      "file_name": "yaml_2.3.12.zip",
+      "kind": "windows_binary",
+      "package": "yaml",
+      "route": "upstream_binary",
+      "sha256": "da198a231abc3da29774317362843b44dd3fd467f2c57f1da850554b0db0ec74",
+      "version": "2.3.12"
+    },
+    {
+      "file_name": "stringi_1.8.7.zip",
+      "kind": "windows_binary",
+      "package": "stringi",
+      "route": "upstream_binary",
+      "sha256": "a68749aeda9f2b72558247129b36846e71819ed0a59961df31a6610eb9d1fc73",
+      "version": "1.8.7"
+    },
+    {
+      "file_name": "BiocGenerics_0.58.1.zip",
+      "kind": "windows_binary",
+      "package": "BiocGenerics",
+      "route": "upstream_binary",
+      "sha256": "04d8c570acf0d74b6a64fceb72f31d37b12102d5058d6f18fbb63310b77571ab",
+      "version": "0.58.1"
+    },
+    {
+      "file_name": "MatrixGenerics_1.24.0.zip",
+      "kind": "windows_binary",
+      "package": "MatrixGenerics",
+      "route": "upstream_binary",
+      "sha256": "adfd50c258ac3c6407a23fe26ad37a44812dc3e3dbad392fdd4d98c7f28a8ba3",
+      "version": "1.24.0"
+    },
+    {
+      "file_name": "R.oo_1.27.1.zip",
+      "kind": "windows_binary",
+      "package": "R.oo",
+      "route": "upstream_binary",
+      "sha256": "e69b3df6ef5b97b997ad5ca415b866fbf7dde017a77a6ee84394e2c34a62abc8",
+      "version": "1.27.1"
+    },
+    {
+      "file_name": "RCurl_1.98-1.19.zip",
+      "kind": "windows_binary",
+      "package": "RCurl",
+      "route": "upstream_binary",
+      "sha256": "92c3d6a2b7b71a4e1a1efbbe4d1ac2761607c4c840fc42b4e37117d660eb0ac0",
+      "version": "1.98-1.19"
+    },
+    {
+      "file_name": "askpass_1.2.1.zip",
+      "kind": "windows_binary",
+      "package": "askpass",
+      "route": "upstream_binary",
+      "sha256": "b4b053f423e1bc0b888a412e1094f8176b01721ebe210367c16dccec860c574b",
+      "version": "1.2.1"
+    },
+    {
+      "file_name": "bit64_4.8.2.zip",
+      "kind": "windows_binary",
+      "package": "bit64",
+      "route": "upstream_binary",
+      "sha256": "978abf171db761c9d0f37b28c5288a3d84f0a2a922b19514cec319a0fc886a4c",
+      "version": "4.8.2"
+    },
+    {
+      "file_name": "cachem_1.1.0.zip",
+      "kind": "windows_binary",
+      "package": "cachem",
+      "route": "upstream_binary",
+      "sha256": "6a4bcfdc7f48b758ce1602b9ddd9c6cf74e2e896e1d209ce96d4e91995ccbe86",
+      "version": "1.1.0"
+    },
+    {
+      "file_name": "lifecycle_1.0.5.zip",
+      "kind": "windows_binary",
+      "package": "lifecycle",
+      "route": "upstream_binary",
+      "sha256": "655116bf33a554a5272dfd21e95c2b3044fc3bf0ce530697bc0f5bd71ecc31e5",
+      "version": "1.0.5"
+    },
+    {
+      "file_name": "sessioninfo_1.2.4.zip",
+      "kind": "windows_binary",
+      "package": "sessioninfo",
+      "route": "upstream_binary",
+      "sha256": "9cf2129de1c6c7deab70b75bef8d1e7c2112bfde85e1b4eb2c98ac10749c8b63",
+      "version": "1.2.4"
+    },
+    {
+      "file_name": "lambda.r_1.2.4.zip",
+      "kind": "windows_binary",
+      "package": "lambda.r",
+      "route": "upstream_binary",
+      "sha256": "ed9d5c15306360cf071da45a17e396bc1ba74d7ed7514300580b9c7a6707da36",
+      "version": "1.2.4"
+    },
+    {
+      "file_name": "Biobase_2.72.0.zip",
+      "kind": "windows_binary",
+      "package": "Biobase",
+      "route": "upstream_binary",
+      "sha256": "cc2860d489ce40b1d5542adb7dba7b5245be49a393c8c1c6d6164c3f5945d92d",
+      "version": "2.72.0"
+    },
+    {
+      "file_name": "S4Vectors_0.50.1.zip",
+      "kind": "local_binary",
+      "package": "S4Vectors",
+      "receipt_sha256": "fd95fa16e7bfbfb9d34a4464034cfb8386da8a7f4eee6360b1ac817d3e66f4d3",
+      "route": "local_build",
+      "sha256": "7d6512ecdc1207514fa8688a4305a6f433ca8aa918b8f6e80a5aff14b672b414",
+      "version": "0.50.1"
+    },
+    {
+      "file_name": "R.utils_2.13.0.zip",
+      "kind": "windows_binary",
+      "package": "R.utils",
+      "route": "upstream_binary",
+      "sha256": "dabf06121a3c86bed39a72a89e92fb26c0a61c2806478257f8e9282f04ac3c34",
+      "version": "2.13.0"
+    },
+    {
+      "file_name": "openssl_2.4.2.zip",
+      "kind": "windows_binary",
+      "package": "openssl",
+      "route": "upstream_binary",
+      "sha256": "e0e62eb13f744e080074bd35b08a538e22a3d977946a49e988b9932f140c64e5",
+      "version": "2.4.2"
+    },
+    {
+      "file_name": "memoise_2.0.1.zip",
+      "kind": "windows_binary",
+      "package": "memoise",
+      "route": "upstream_binary",
+      "sha256": "b5366209f5ea0311fdbd298681506af3f0d0fbb5b09105fb1812eff59b225a0f",
+      "version": "2.0.1"
+    },
+    {
+      "file_name": "vctrs_0.7.3.zip",
+      "kind": "windows_binary",
+      "package": "vctrs",
+      "route": "upstream_binary",
+      "sha256": "1b6fb5b85610f9393b2761c1bfdc4af969ac74d567507d197527ab9f7a9d010d",
+      "version": "0.7.3"
+    },
+    {
+      "file_name": "futile.logger_1.4.9.zip",
+      "kind": "windows_binary",
+      "package": "futile.logger",
+      "route": "upstream_binary",
+      "sha256": "790ea326312ef1005ef7f6c566c35c015e239360ef357cbc16e0519964b70669",
+      "version": "1.4.9"
+    },
+    {
+      "file_name": "BiocIO_1.22.0.zip",
+      "kind": "windows_binary",
+      "package": "BiocIO",
+      "route": "upstream_binary",
+      "sha256": "223533561deaa5f433f583ec41ebae50ba91228123e89c3bba5324c6745a7435",
+      "version": "1.22.0"
+    },
+    {
+      "file_name": "IRanges_2.46.0.zip",
+      "kind": "local_binary",
+      "package": "IRanges",
+      "receipt_sha256": "4d4cadf8568831727f41840d161b42bcbd139a2351ed66743492491f5ae472cd",
+      "route": "local_build",
+      "sha256": "df81eb74c5b47adee0a528d17f2c8942614a2c649890c5307cd7f97e9c538181",
+      "version": "2.46.0"
+    },
+    {
+      "file_name": "restfulr_0.0.17.zip",
+      "kind": "windows_binary",
+      "package": "restfulr",
+      "route": "upstream_binary",
+      "sha256": "78ffddf50ed640591e14627a7932a536c0cff5831f91c296c521b7d0b4fb43dc",
+      "version": "0.0.17"
+    },
+    {
+      "file_name": "httr_1.4.8.zip",
+      "kind": "windows_binary",
+      "package": "httr",
+      "route": "upstream_binary",
+      "sha256": "15ca1b362550705ef01242b7d7aefcb467ee7499f450d8b28a7bcc2066700319",
+      "version": "1.4.8"
+    },
+    {
+      "file_name": "blob_1.3.0.zip",
+      "kind": "windows_binary",
+      "package": "blob",
+      "route": "upstream_binary",
+      "sha256": "cf0e588d87c4123c1225b1a2ea8c047315f04b3baa929229f5a9659c376edccf",
+      "version": "1.3.0"
+    },
+    {
+      "file_name": "httr2_1.2.2.zip",
+      "kind": "windows_binary",
+      "package": "httr2",
+      "route": "upstream_binary",
+      "sha256": "45a447a21ec1fb9ba24ebfdcdc47b9febd0f64ba456377903acb13cef75a0f00",
+      "version": "1.2.2"
+    },
+    {
+      "file_name": "pillar_1.11.1.zip",
+      "kind": "windows_binary",
+      "package": "pillar",
+      "route": "upstream_binary",
+      "sha256": "f498fec06bc591beba4ba774cbffd135c431eb8c54b9643013ebb062d0f81c35",
+      "version": "1.11.1"
+    },
+    {
+      "file_name": "purrr_1.2.2.zip",
+      "kind": "windows_binary",
+      "package": "purrr",
+      "route": "upstream_binary",
+      "sha256": "1a9d6b9875e1cd76fdc97e0ce9bea0a424089727074fe51317d94f594938f2a5",
+      "version": "1.2.2"
+    },
+    {
+      "file_name": "stringr_1.6.0.zip",
+      "kind": "windows_binary",
+      "package": "stringr",
+      "route": "upstream_binary",
+      "sha256": "b2faba04d97702a60f67f46fb1b8c43398a7ac9b3e7626b43c362bca22b0191e",
+      "version": "1.6.0"
+    },
+    {
+      "file_name": "tidyselect_1.2.1.zip",
+      "kind": "windows_binary",
+      "package": "tidyselect",
+      "route": "upstream_binary",
+      "sha256": "3ab5c3155e2eaee04d7066eec92203ee13479735d4f3c302fcd51758bf569d99",
+      "version": "1.2.1"
+    },
+    {
+      "file_name": "BiocParallel_1.46.0.zip",
+      "kind": "windows_binary",
+      "package": "BiocParallel",
+      "route": "upstream_binary",
+      "sha256": "038348f37a90ccb4e8927eef2a3e59f6821995a370df5deb6a3e7c6f4668fed2",
+      "version": "1.46.0"
+    },
+    {
+      "file_name": "S4Arrays_1.12.0.zip",
+      "kind": "local_binary",
+      "package": "S4Arrays",
+      "receipt_sha256": "a8d6e503a9ff36955ce964bfb7a2a0293aa30e7eec06ad867827ec03e12f0ec5",
+      "route": "local_build",
+      "sha256": "e04d07bf52fd53df5e61a68d1449b182a3da30b32ed9ce506bcefa230ce76ff4",
+      "version": "1.12.0"
+    },
+    {
+      "file_name": "Seqinfo_1.2.0.zip",
+      "kind": "windows_binary",
+      "package": "Seqinfo",
+      "route": "upstream_binary",
+      "sha256": "5d5a5b8913c899614ee840f2e203639c839b12403b089e749af2bcceb3960aae",
+      "version": "1.2.0"
+    },
+    {
+      "file_name": "XVector_0.52.0.zip",
+      "kind": "local_binary",
+      "package": "XVector",
+      "receipt_sha256": "86810d573231dba21bbd345aab362d50026d434043d7364038db63a01fe01941",
+      "route": "local_build",
+      "sha256": "165e952ece94afff48fc4371e247295abfff21f7e71678e35575877c835f91b1",
+      "version": "0.52.0"
+    },
+    {
+      "file_name": "RSQLite_3.53.1.zip",
+      "kind": "local_binary",
+      "package": "RSQLite",
+      "receipt_sha256": "afa69dfadacdaee54b37f5c3b1d0cb90347302564a6acaf418e0befdd677c49f",
+      "route": "local_build",
+      "sha256": "a8a0845c0afea7173338e4fbfb9a0a051ff5a6cb25eeba5586061137d53b11e6",
+      "version": "3.53.1"
+    },
+    {
+      "file_name": "tibble_3.3.1.zip",
+      "kind": "windows_binary",
+      "package": "tibble",
+      "route": "upstream_binary",
+      "sha256": "424ac6b624e705592a4959c06395ddd56a5bca6ddfaf5d1fccc50a9d27d8cc3f",
+      "version": "3.3.1"
+    },
+    {
+      "file_name": "GenomicRanges_1.64.0.zip",
+      "kind": "windows_binary",
+      "package": "GenomicRanges",
+      "route": "upstream_binary",
+      "sha256": "d8291f40d1daa4d8e2f4fcdfec7ebf5c57db7023ecd1d25f0dcce4ca464ad615",
+      "version": "1.64.0"
+    },
+    {
+      "file_name": "Biostrings_2.80.1.zip",
+      "kind": "local_binary",
+      "package": "Biostrings",
+      "receipt_sha256": "c13ceaf6f5d698390f1304e408234d2c6266f8cae7adfb3478f3be75bcd65c1a",
+      "route": "local_build",
+      "sha256": "1b43424bf6587ad3525f31832e060106d1f06e6b8e6e0a4d766e0c72e836321a",
+      "version": "2.80.1"
+    },
+    {
+      "file_name": "SparseArray_1.12.2.zip",
+      "kind": "local_binary",
+      "package": "SparseArray",
+      "receipt_sha256": "ec9c4a4bf72998e3b4ccac7033bcd7cb299bf4aac9a8c6ffcffeb6541f83ade2",
+      "route": "local_build",
+      "sha256": "fe549b43c3fc62abf00dcd1eb1be5484208a17b37c2034c2c9b5875b8d7e5837",
+      "version": "1.12.2"
+    },
+    {
+      "file_name": "dplyr_1.2.1.zip",
+      "kind": "windows_binary",
+      "package": "dplyr",
+      "route": "upstream_binary",
+      "sha256": "082f726dcfc102d9217e01b2326e04bd5f9c74e7fe91612122a6fb4f731ca9bf",
+      "version": "1.2.1"
+    },
+    {
+      "file_name": "Rsamtools_2.28.0.zip",
+      "kind": "local_binary",
+      "package": "Rsamtools",
+      "receipt_sha256": "1c7ca679de7f5e0c8ddc23e8daf320853ae4294b8ae651bc3cea94b4abe548b4",
+      "route": "local_build",
+      "sha256": "9d1ba3fa4e458c868a2601190c43218aa9c2bcfbc8a2428c2fb5e03eed4d5b46",
+      "version": "2.28.0"
+    },
+    {
+      "file_name": "cigarillo_1.2.0.zip",
+      "kind": "local_binary",
+      "package": "cigarillo",
+      "receipt_sha256": "bc2a68db497379720ee9d861221c5107e16c1f4300b40e04e3fcf8c94a4f1ca5",
+      "route": "local_build",
+      "sha256": "8703b8ea5277a09f744301308fe1bcd78514c5e6e55e7eb7bc24e2c8ac61cada",
+      "version": "1.2.0"
+    },
+    {
+      "file_name": "DelayedArray_0.38.2.zip",
+      "kind": "windows_binary",
+      "package": "DelayedArray",
+      "route": "upstream_binary",
+      "sha256": "0fdd2819d237ea29fb0c9014430f3c9912d47032fe566feef3a36de05302a42e",
+      "version": "0.38.2"
+    },
+    {
+      "file_name": "tidyr_1.3.2.zip",
+      "kind": "windows_binary",
+      "package": "tidyr",
+      "route": "upstream_binary",
+      "sha256": "fc33287befec2c8fcb60c16c9709d8a4536f3e9d78e784cd50598bd957c0f967",
+      "version": "1.3.2"
+    },
+    {
+      "file_name": "SummarizedExperiment_1.42.0.zip",
+      "kind": "windows_binary",
+      "package": "SummarizedExperiment",
+      "route": "upstream_binary",
+      "sha256": "1b9aec417df690a8d3db41c1ba761de6f7ba6fe9604310ccfb6c7f60013fe2aa",
+      "version": "1.42.0"
+    },
+    {
+      "file_name": "dbplyr_2.5.2.zip",
+      "kind": "local_binary",
+      "package": "dbplyr",
+      "receipt_sha256": "95c2a8b49c73328c7a498787d5e60a406e8678e37d952f6093708c45d8014fa9",
+      "route": "local_build",
+      "sha256": "bdff7479dfcdcc9eb890a048afcd6ffa9f40a54d277429e746eb298eb99dc207",
+      "version": "2.5.2"
+    },
+    {
+      "file_name": "GenomicAlignments_1.48.0.zip",
+      "kind": "local_binary",
+      "package": "GenomicAlignments",
+      "receipt_sha256": "e5a9c55397dcdfcaae7b459553b3a61456424723ace6fc13c0180d1759149af2",
+      "route": "local_build",
+      "sha256": "f00c651ba211540884dadb79dcd17b44070b1ba2be49de53e8ebfc7d736a1fad",
+      "version": "1.48.0"
+    },
+    {
+      "file_name": "BiocFileCache_3.2.0.zip",
+      "kind": "windows_binary",
+      "package": "BiocFileCache",
+      "route": "upstream_binary",
+      "sha256": "ec0ebd1e2c8f9c1590b0f8ed53a8b43076e8490a4d056cccbb99aaff4d4f71a9",
+      "version": "3.2.0"
+    },
+    {
+      "file_name": "rtracklayer_1.72.0.zip",
+      "kind": "local_binary",
+      "package": "rtracklayer",
+      "receipt_sha256": "d124160486effa3607f5a0a94e70ff16f9d436f74b93b01b1703aa4a06c91230",
+      "route": "local_build",
+      "sha256": "782a369430b8ba4659cac87f8d2881286ba8b149e83a697535197af4a81878f1",
+      "version": "1.72.0"
+    },
+    {
+      "file_name": "recount3_1.22.0.zip",
+      "kind": "windows_binary",
+      "package": "recount3",
+      "route": "upstream_binary",
+      "sha256": "c314af6db6ba3e9a6382e21376283cb0f3a902c7316bb9f214567254448c0288",
+      "version": "1.22.0"
+    }
+  ],
+  "lockfile_canonical_sha256": "0d9224daca97fd4666e901d72e6ee6eed4355501b3bfcf4090ef1d7a00bd7a79",
+  "plan_sha256": "ab170b65898d76e8376c2cffe2bc7f874cffdf5ed181d2270fccba39ab2865c7",
+  "runtime_base": [
+    "base",
+    "compiler",
+    "datasets",
+    "grDevices",
+    "graphics",
+    "grid",
+    "methods",
+    "parallel",
+    "splines",
+    "stats",
+    "stats4",
+    "tcltk",
+    "tools",
+    "utils"
+  ],
+  "runtime_supplied": [
+    {
+      "package": "Matrix",
+      "priority": "recommended",
+      "version": "1.7-5"
+    },
+    {
+      "package": "codetools",
+      "priority": "recommended",
+      "version": "0.2-20"
+    },
+    {
+      "package": "lattice",
+      "priority": "recommended",
+      "version": "0.22-9"
+    }
+  ],
+  "schema": "gvc.replay-plan/1"
+}

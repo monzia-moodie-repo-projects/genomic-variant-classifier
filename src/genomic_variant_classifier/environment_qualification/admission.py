@@ -156,10 +156,13 @@ def exact_field_diff(before: dict, after: dict) -> list:
 
 def _transition_key(t) -> tuple:
     require(isinstance(t, dict), "transition.shape")
-    for k in ("package", "field", "old", "new", "classification", "evidence"):
+    for k in ("package", "field", "old", "new", "classification", "evidence", "restoration_effect"):
         require(k in t, "transition.missing:" + k)
     require(type(t["package"]) is str and type(t["field"]) is str and t["package"] and t["field"], "transition.identity")
     require(type(t["classification"]) is str and t["classification"] and type(t["evidence"]) is str and t["evidence"], "transition.justification")
+    # Ruling 2026-10-08c: every provenance correction states what it changes for a later renv::restore; a transition without that
+    # statement is not reviewable as a lockfile change.
+    require(type(t["restoration_effect"]) is str and t["restoration_effect"].strip() != "", "transition.restoration_effect")
     old, new = _transition_side(t["old"]), _transition_side(t["new"])
     return (t["package"], t["field"], old, new)
 
@@ -177,7 +180,8 @@ def _transition_side(value) -> tuple:
 def admit_lock_transition(before: dict, after: dict, *, observed_version: str, additions: dict, approved_transitions) -> dict:
     """Exactly: the approved R change (via admit_runtime_change), the reviewed additions at their versions, no removals or version
     changes, and the field differences EQUAL to the reviewed exact transitions. A transition is
-    {"package", "field", "old": {"absent": true} | {"value": <json>}, "new": ..., "classification", "evidence"}."""
+    {"package", "field", "old": {"absent": true} | {"value": <json>}, "new": ..., "classification", "evidence", "restoration_effect"}
+    (the last: what the change means for a later renv::restore -- required, ruling 2026-10-08c)."""
     validate_lock(before)
     validate_lock(after)
     require(isinstance(additions, dict) and all(type(k) is str and type(v) is str for k, v in additions.items()), "lock.additions_shape")

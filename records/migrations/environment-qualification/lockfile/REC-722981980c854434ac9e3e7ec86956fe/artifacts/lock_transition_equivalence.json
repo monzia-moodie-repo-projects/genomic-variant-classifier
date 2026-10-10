@@ -1,0 +1,12 @@
+{
+  "approval": "the approved proposal remains f21ac4bc (rulings 2026-10-08e, 2026-10-08f); the regeneration is corroboration only; admission still checks the proposal against the actual baseline and candidate",
+  "approved_generator_sha256": "2cd777bb611b36599a7e2ae3930ca138dc42d16db5a17116dfa1f12e7e2c5580",
+  "approved_proposal_sha256": "f21ac4bca99dabd28f2201fec4e27115c3ad4cc8791050f7d7ddbaf0dee645b9",
+  "checker_sha256": "6601e6a309f27104ebaa99a9fd33969242d935e7c753601221b794d79176665c",
+  "comparison": "canonical JSON (sorted keys, ASCII, type-preserving) of every top-level field except generator_sha256",
+  "permitted_difference": "generator_sha256",
+  "regenerated_proposal_sha256": "d4910f60c315ca647acd4f4a30a4fb57af12c3e995e6ddc01515dfe31eebb593",
+  "regenerating_generator_sha256": "652ff6806ec5adb567ab374b1593bd1a29524ba0a06ec1e66991935adaa11f52",
+  "schema": "gvc.lock-transition-equivalence/2",
+  "substantive_content_equal": true
+}

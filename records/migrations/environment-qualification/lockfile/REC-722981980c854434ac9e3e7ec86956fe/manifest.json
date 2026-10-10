@@ -1,0 +1,200 @@
+{
+  "admission": {
+    "approved_proposal_sha256": "f21ac4bca99dabd28f2201fec4e27115c3ad4cc8791050f7d7ddbaf0dee645b9",
+    "baseline": {
+      "canonical_sha256": "0d9224daca97fd4666e901d72e6ee6eed4355501b3bfcf4090ef1d7a00bd7a79",
+      "exact_sha256": "0d9224daca97fd4666e901d72e6ee6eed4355501b3bfcf4090ef1d7a00bd7a79",
+      "packages": 87,
+      "r_version": "4.6.0"
+    },
+    "candidate": {
+      "canonical_sha256": "ce6aa8b4454f51362c541f924a5a15ce3a5d1560bbfa7583cca85d2cdf8a9b79",
+      "exact_sha256": "e391298a0e27685c3b85b924d9f574b46c9ef2712b42c5729829d11c5cba8c9c",
+      "packages": 102,
+      "r_version": "4.6.1"
+    },
+    "candidate_difference_sha256": "c2172fa8518550944a0a7934b1170d193e887770a04b4d634a098f57084073ee",
+    "candidate_run_evidence": {
+      "entry_id": "run-inventory-20261008:candidate_lock_v2_20261008T183528Z",
+      "inventory_record_id": "REC-ece23653bf8e45dbad3da26303870dc6",
+      "sha256": "62a729ab0a50377225a471eed89f524b40873a01d7aa5871d24fff29feade15a"
+    },
+    "claim": "ADMITTED: the baseline, the candidate, the selected artifacts and the approved proposal agree. A lockfile admission, not an installation authorization and not environment qualification: the isolated replay re-verifies every byte it installs, and the method tests run on that library.",
+    "corroboration": {
+      "method": "independent Python re-implementation of renv 1.2.3 renv_dcf_read + renv_snapshot_description_impl_v2 (renv_emulate.py sha256 791ca07e8daea39980de527d2f233cd037cd84f1f3eb73c0d45e3d711c594904)",
+      "records_reproduced": 102,
+      "status": "corroboration only -- renv 1.2.3 in the qualified R (the candidate run) is the authority"
+    },
+    "equivalence": {
+      "approved_proposal_sha256": "f21ac4bca99dabd28f2201fec4e27115c3ad4cc8791050f7d7ddbaf0dee645b9",
+      "equivalence_sha256": "0f7b21584e3e728a9cb60a9c029f3f6bbbd6649b0a00c0a81eb49f0b0ab3d4c0",
+      "permitted_difference": "generator_sha256",
+      "recorded_checker_sha256": "6601e6a309f27104ebaa99a9fd33969242d935e7c753601221b794d79176665c",
+      "regenerated_proposal_sha256": "d4910f60c315ca647acd4f4a30a4fb57af12c3e995e6ddc01515dfe31eebb593",
+      "substantive_content_equal": true
+    },
+    "plans": {
+      "candidate_plan_file_sha256": "cc1251f87270b87dee22cd241a9555ee45f9d6ecc5643454d9cad227fd0ef2af",
+      "candidate_plan_sha256": "b791ba7b7a873c917348b82562deb8a5ef48c4fc221fac58949da8e17bc0ad92",
+      "replay_plan_file_sha256": "c578eb10572c3aac927a447b97600860f9cd38118653c83ff74f0aa291d3d50e",
+      "replay_plan_sha256": "ab170b65898d76e8376c2cffe2bc7f874cffdf5ed181d2270fccba39ab2865c7"
+    },
+    "runtime_record_sha256": "4e76330548a201d32b48e8de9bc6ccfb0aefa676a8068a3f249a6a1b9f5ac023",
+    "schema": "gvc.lockfile-migration-admission/1",
+    "selection": {
+      "packages": 102,
+      "routes": {
+        "bootstrap": 1,
+        "local_build": 13,
+        "runtime": 3,
+        "upstream_binary": 85
+      }
+    },
+    "transition": {
+      "additions": {
+        "DANDELION": "0.1.0",
+        "RColorBrewer": "1.1-3",
+        "Rcpp": "1.1.2",
+        "S7": "0.2.2",
+        "farver": "2.1.2",
+        "ggplot2": "4.0.3",
+        "gtable": "0.3.6",
+        "igraph": "2.3.3",
+        "isoband": "0.3.0",
+        "labeling": "0.4.3",
+        "plyr": "1.8.9",
+        "qvalue": "2.44.0",
+        "reshape2": "1.4.5",
+        "scales": "1.4.0",
+        "viridisLite": "0.4.3"
+      },
+      "packages_after": 102,
+      "runtime": {
+        "after_r": "4.6.1",
+        "before_r": "4.6.0",
+        "package_count": 87,
+        "packages_unchanged": true,
+        "qualification_complete": false,
+        "schema": "gvc.runtime-lock-delta/1"
+      },
+      "schema": "gvc.lock-transition/1",
+      "transitions": 90
+    }
+  },
+  "approval": "Owner ruling 2026-10-08e approved the lockfile transition proposal f21ac4bca99dabd28f2201fec4e27115c3ad4cc8791050f7d7ddbaf0dee645b9 (90 field transitions in 13 existing packages, 15 additions, R 4.6.0 -> 4.6.1) as the intended migration; ruling 2026-10-08f kept it, admitted the regeneration as corroboration only, and ordered its admission against the actual baseline and candidate.",
+  "as_of": "2026-10-10T05:12:03Z",
+  "files": [
+    {
+      "canonical_path": "records/migrations/environment-qualification/lockfile/REC-722981980c854434ac9e3e7ec86956fe/artifacts/lock_transition_proposal.json",
+      "content_sha256": "f21ac4bca99dabd28f2201fec4e27115c3ad4cc8791050f7d7ddbaf0dee645b9",
+      "disclosure": "public_verbatim",
+      "part": "approved_proposal",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool",
+        "imported_from_staging"
+      ],
+      "retention": "permanent_evidence",
+      "size_bytes": 206374
+    },
+    {
+      "canonical_path": "records/migrations/environment-qualification/lockfile/REC-722981980c854434ac9e3e7ec86956fe/artifacts/renv.lock",
+      "content_sha256": "0d9224daca97fd4666e901d72e6ee6eed4355501b3bfcf4090ef1d7a00bd7a79",
+      "disclosure": "public_verbatim",
+      "part": "baseline_lockfile",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "superseded_authority"
+      ],
+      "retention": "permanent_evidence",
+      "size_bytes": 190274
+    },
+    {
+      "canonical_path": "records/migrations/environment-qualification/lockfile/REC-722981980c854434ac9e3e7ec86956fe/artifacts/candidate_difference.json",
+      "content_sha256": "c2172fa8518550944a0a7934b1170d193e887770a04b4d634a098f57084073ee",
+      "disclosure": "public_verbatim",
+      "part": "candidate_difference",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool",
+        "imported_from_staging"
+      ],
+      "retention": "permanent_evidence",
+      "size_bytes": 76496
+    },
+    {
+      "canonical_path": "records/migrations/environment-qualification/lockfile/REC-722981980c854434ac9e3e7ec86956fe/artifacts/candidate.lock",
+      "content_sha256": "e391298a0e27685c3b85b924d9f574b46c9ef2712b42c5729829d11c5cba8c9c",
+      "disclosure": "public_verbatim",
+      "part": "candidate_lockfile",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool",
+        "imported_from_staging"
+      ],
+      "retention": "permanent_evidence",
+      "size_bytes": 228247
+    },
+    {
+      "canonical_path": "records/migrations/environment-qualification/lockfile/REC-722981980c854434ac9e3e7ec86956fe/artifacts/candidate_plan.json",
+      "content_sha256": "cc1251f87270b87dee22cd241a9555ee45f9d6ecc5643454d9cad227fd0ef2af",
+      "disclosure": "public_verbatim",
+      "part": "candidate_plan",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool",
+        "imported_from_staging"
+      ],
+      "retention": "permanent_evidence",
+      "size_bytes": 18008
+    },
+    {
+      "canonical_path": "records/migrations/environment-qualification/lockfile/REC-722981980c854434ac9e3e7ec86956fe/artifacts/lock_transition_equivalence.json",
+      "content_sha256": "0f7b21584e3e728a9cb60a9c029f3f6bbbd6649b0a00c0a81eb49f0b0ab3d4c0",
+      "disclosure": "public_verbatim",
+      "part": "equivalence_record",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool",
+        "imported_from_staging"
+      ],
+      "retention": "permanent_evidence",
+      "size_bytes": 955
+    },
+    {
+      "canonical_path": "records/migrations/environment-qualification/lockfile/REC-722981980c854434ac9e3e7ec86956fe/artifacts/lock_transition_proposal_regenerated_bound.json",
+      "content_sha256": "d4910f60c315ca647acd4f4a30a4fb57af12c3e995e6ddc01515dfe31eebb593",
+      "disclosure": "public_verbatim",
+      "part": "regenerated_proposal",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool",
+        "imported_from_staging"
+      ],
+      "retention": "permanent_evidence",
+      "size_bytes": 206374
+    },
+    {
+      "canonical_path": "records/migrations/environment-qualification/lockfile/REC-722981980c854434ac9e3e7ec86956fe/artifacts/replay_plan.json",
+      "content_sha256": "c578eb10572c3aac927a447b97600860f9cd38118653c83ff74f0aa291d3d50e",
+      "disclosure": "public_verbatim",
+      "part": "replay_plan",
+      "preservation": "admitted_verbatim",
+      "provenance": [
+        "captured_from_external_tool",
+        "imported_from_staging"
+      ],
+      "retention": "permanent_evidence",
+      "size_bytes": 23782
+    }
+  ],
+  "record_id": "REC-722981980c854434ac9e3e7ec86956fe",
+  "role": "migration_record",
+  "schema": "gvc.lockfile-migration",
+  "schema_version": 1,
+  "succession": {
+    "path": "renv.lock",
+    "predecessor_canonical_sha256": "0d9224daca97fd4666e901d72e6ee6eed4355501b3bfcf4090ef1d7a00bd7a79",
+    "successor_canonical_sha256": "ce6aa8b4454f51362c541f924a5a15ce3a5d1560bbfa7583cca85d2cdf8a9b79"
+  }
+}
