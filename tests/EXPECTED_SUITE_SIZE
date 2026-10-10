@@ -8111,4 +8111,12 @@
 #   +200 / -0 by node identity: +107 tests/unit/test_inference_method_trace.py, +78 tests/unit/test_inference_exposure_outcomes.py,
 #   +15 tests/unit/test_inference_analysis_contract.py (the two R cases run only when GVC_METHOD_FIXTURE_RSCRIPT and
 #   GVC_METHOD_FIXTURE_RLIBS are set; they skip with that reason otherwise).
-8163
+# 2026-10-09  SCIENCE STAGE -- the run intent, the reference-evaluator boundary, completeness derived from admitted evidence, the
+#   shared burden-input summary (ruling 2026-10-09)
+#   +174 / -1 by node identity: +69 tests/unit/test_inference_exposure_outcomes.py, +57 tests/unit/test_inference_run_intent.py,
+#   +19 tests/unit/test_inference_evaluation_boundary.py, +15 tests/unit/test_inference_ranking.py, +14
+#   tests/unit/test_inference_method_trace.py; -1 is a PARAMETRIZE IDENTIFIER, not a lost case: removing one case from
+#   test_disagreement_with_the_frozen_rule_refuses renumbered usable_pair_count_mismatch0..3 to 0..2, and that case moved to the
+#   dedicated test_a_usable_count_that_differs_from_the_prediction_refuses (recorder version 2 makes the old construction internally
+#   inconsistent, so the reader refuses it first).
+8336

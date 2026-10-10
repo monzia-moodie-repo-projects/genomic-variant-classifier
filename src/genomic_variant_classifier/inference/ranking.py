@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["State", "Pair", "GeneRank", "rank_genes", "top_k", "audit_top_k", "contrast", "score_from_binary64", "score_from_hex",
            "UniverseKind", "Universe", "project_scores", "Implementation", "Calibration", "MethodIdentity", "PINNED_COMMIT",
-           "annotate", "ScoreRange", "topk_audit"]
+           "annotate", "ScoreRange", "topk_audit", "read_score_matrix"]
 
 
 class State(Enum):
@@ -286,6 +286,32 @@ def score_from_hex(text: str) -> Fraction:
     if stored != exact:
         raise InferenceError("score_not_exact_binary64")
     return stored
+
+
+def read_score_matrix(raw: bytes) -> dict:
+    """The SCORE ARTIFACT (the runner's mat_p.tsv) -> {(gene, exposure): exact score, or None for "NA" (no score)}.
+
+    One LF-terminated ASCII line per grid cell, "gene<TAB>exposure<TAB>value"; value is R's sprintf("%a") text through score_from_hex
+    (the ruled lossless transport: an exact binary64 score in (0, 1]) or "NA". Strict (owner ruling 2026-10-09: completeness is derived
+    from admitted evidence, so the artifact itself must be unambiguous): no CR, no missing final newline, exactly three non-empty
+    identity fields, and NO DUPLICATE CELL -- a dictionary built line by line would silently keep the LAST of two conflicting values.
+    Whether the cells are the planned grid is the caller's coverage question (exposure_outcomes.score_coverage)."""
+    if type(raw) is not bytes or b"\r" in raw or (raw != b"" and not raw.endswith(b"\n")):
+        raise InferenceError("score_matrix_bytes")
+    try:
+        lines = raw.decode("ascii").split("\n")[:-1]
+    except UnicodeDecodeError:
+        raise InferenceError("score_matrix_bytes") from None
+    out = {}
+    for n, line in enumerate(lines, 1):
+        fields = line.split("\t")
+        if len(fields) != 3 or not fields[0] or not fields[1]:
+            raise InferenceError("score_matrix_line", "line {}".format(n))
+        cell = (fields[0], fields[1])
+        if cell in out:
+            raise InferenceError("score_matrix_duplicate_cell", "line {}".format(n))
+        out[cell] = None if fields[2] == "NA" else score_from_hex(fields[2])
+    return out
 
 
 class UniverseKind(str, Enum):

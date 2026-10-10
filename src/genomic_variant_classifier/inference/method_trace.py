@@ -31,6 +31,13 @@ the run still finishes: every successful exposure keeps its layers, the failed e
 mixture estimates, coverage is reported per gene, and an EXPLORATORY partial ranking keeps the planned gene universe with "unscored"
 genes. Unclassified-missing and infrastructure outcomes refuse the primary analysis and the partial ranking, and are reported.
 
+SHARED BURDEN INPUTS (ruling 2026-10-09, report schema 3)
+=======================================================
+The exposure recorder (version 2) writes each call's EFFECTIVE burden input at the pi0 guard. The judge checks it against what the
+inputs predict -- the plan's ordered valid genes (classify_exposures refuses a difference) and clamp_p of the planned burden p-values
+(the finding burden_inputs_equal_inputs) -- and reports burden_input_summary: which exposures share one burden-side estimation problem,
+with agreement across identical inputs (a disagreement is the finding burden_input_disagreement, never averaged).
+
 FIXTURES are frozen with their predictions BEFORE any qualified run (tests/fixtures/dandelion/method_fixtures_v2.json); a prediction
 that fails is a FINDING reported in the report, never a reason to edit the fixture. Malformed evidence REFUSES (InferenceError).
 The counterfactual "every exposure adjusted by BH" is computed EXACTLY here (rational arithmetic on the recorded post-clamp values) --
@@ -53,17 +60,17 @@ from genomic_variant_classifier.inference.backend_trace import admissible_events
 from genomic_variant_classifier.inference.endpoints import EndpointContract, recovery_contrast
 from genomic_variant_classifier.inference.exact_confirmation import InferenceError
 from genomic_variant_classifier.inference.exposure_outcomes import (
-    PRIMARY_COMPLETE, PRIMARY_REFUSED, PRIMARY_WITHHELD, ExposureStatus, classify_exposures, coverage_report, endpoint_release,
-    exposure_records, partial_ranking, read_exposure_trace)
-from genomic_variant_classifier.inference.ranking import Pair, State, audit_top_k, rank_genes
+    PRIMARY_COMPLETE, PRIMARY_REFUSED, PRIMARY_WITHHELD, ExposureStatus, PairPlan, burden_input_summary, classify_exposures,
+    coverage_report, endpoint_release, exposure_records, partial_ranking, read_exposure_trace)
+from genomic_variant_classifier.inference.ranking import Pair, State, audit_top_k, rank_genes, read_score_matrix
 
 logger = logging.getLogger(__name__)
 
 __all__ = ["SPEC_SCHEMA", "REPORT_SCHEMA", "CIS_DISTANCE", "parse_hex", "exact_bh", "significant", "load_spec", "pair_plan", "usable_pairs",
-           "prepare_scenarios", "judge", "explanation_rows", "render_report"]
+           "plan_for", "clamp_p", "environment_sha256", "prepare_scenarios", "judge", "explanation_rows", "render_report"]
 
 SPEC_SCHEMA = "gvc.dandelion-method-fixtures/2"        # 2: several trace fixtures; per-exposure outcomes and coverage (ruling 2026-10-08g)
-REPORT_SCHEMA = "gvc.dandelion-method-report/2"
+REPORT_SCHEMA = "gvc.dandelion-method-report/3"        # 3: the shared burden-input summary and its checks (ruling 2026-10-09)
 CIS_DISTANCE = 5_000_000            # med_gene's default `dist`, the value the runner uses
 _HEX = re.compile(r"(?P<sign>-?)0x(?P<whole>[0-9a-f])(?:\.(?P<frac>[0-9a-f]+))?p(?P<exp>[+-]\d+)")
 _SCIENCE_FILES = {"route": ("output.txt", "oracle_bh.txt", "oracle_qvalue_pi0_1.txt", "rng.txt", "warnings.txt"),
@@ -289,6 +296,27 @@ def usable_pairs(trace: dict) -> dict:
     return {e: (len(v[0]), len(v[1])) for e, v in _exposure_sets(trace)[1].items() if v is not None}
 
 
+def plan_for(trace: dict) -> PairPlan:
+    """The typed plan (exposure_outcomes.PairPlan) of a fixture's inputs: the grid, exclusions, usable counts and ordered valid genes,
+    all derived BEFORE execution by pair_plan / usable_pairs. A run intent binds its digest (ruling 2026-10-09)."""
+    plan, excluded, order = pair_plan(trace)
+    common = _exposure_sets(trace)[0]
+    return PairPlan(tuple(trace["exposures"]), tuple(common), frozenset(c for c, scored in plan.items() if scored),
+                    tuple(sorted(excluded.items())), tuple(sorted((x, t, v) for x, (t, v) in usable_pairs(trace).items())),
+                    tuple(sorted(order.items())))
+
+
+_XMIN = Fraction(2) ** -1022                # .Machine$double.xmin
+_TOP = Fraction(1 - 1e-15)                  # the binary64 value R computes for 1 - 1e-15
+
+
+def clamp_p(value: Fraction) -> Fraction:
+    """DANDELION 0.1.0 clamp_p, exactly (printed from the installed namespace 2026-10-09): p <= 0 -> .Machine$double.xmin; p >= 1 ->
+    1 - 1e-15 (that binary64 value); otherwise unchanged."""
+    _require(type(value) is Fraction, "clamp_value")
+    return _XMIN if value <= 0 else _TOP if value >= 1 else value
+
+
 # ---------------------------------------------------------------------------------------------------- scenarios
 def _write(path: Path, text: str) -> None:
     with open(path, "xb") as stream:
@@ -409,10 +437,13 @@ def _ranked_rows(ranked) -> list:
              "significant_pairs": r.significant_pairs, "structural_pairs": r.structural_pairs} for r in ranked]
 
 
-def _judge_trace(t: dict, spec: dict, off: Path, on: Path, policy: ExposureFailurePolicy) -> dict:
-    plan, excluded, order = pair_plan(t)
-    # ONE status per planned exposure, from the ACTUAL call, checked against what the inputs predicted before execution (ruling 2026-10-08g)
-    statuses = classify_exposures(t["exposures"], excluded, usable_pairs(t), read_exposure_trace(on / "trace_exposures"))
+def _judge_trace(t: dict, spec: dict, off: Path, on: Path, policy: ExposureFailurePolicy, environment_digest: str) -> dict:
+    typed = plan_for(t)
+    plan, excluded, order = typed.as_dict(), typed.exclusions_dict(), typed.support_dict()
+    # ONE status per planned exposure, from the ACTUAL call, checked against what the inputs predicted before execution (rulings
+    # 2026-10-08g, 2026-10-09: the recorded burden input's ordered genes must be the plan's ordered valid genes)
+    statuses = classify_exposures(t["exposures"], excluded, typed.usable_dict(), read_exposure_trace(on / "trace_exposures"),
+                                  predicted_support=order)
     scored_x = sorted(x for x, s in statuses.items() if s["status"] is ExposureStatus.SCORED)
     refused_x = sorted(x for x, s in statuses.items() if s["status"] in (ExposureStatus.UNCLASSIFIED_MISSING_EXPOSURE, ExposureStatus.INFRASTRUCTURE_ERROR))
     coverage = coverage_report(plan, statuses)
@@ -424,14 +455,12 @@ def _judge_trace(t: dict, spec: dict, off: Path, on: Path, policy: ExposureFailu
     _require(len(set(seen)) == len(seen) and set(scored_x) <= set(seen) <= set(scored_x) | set(refused_x), "trace_incomplete",
              "scored {} / backend calls {}".format(scored_x, seen))
     by_exposure = {e.exposure_id: e for e in events}
-    mat_p, mat_sig = {}, {}
-    for line in _lines(on / "mat_p.tsv"):
-        g, e, v = line.split("\t")
-        mat_p[(g, e)] = parse_hex(v)
+    mat_p = read_score_matrix((on / "mat_p.tsv").read_bytes())      # strict: three fields per line, no duplicate cell (2026-10-09)
+    mat_sig = {}
     for line in _lines(on / "mat_sig.tsv"):
-        g, e, v = line.split("\t")
-        _require(v in ("0", "1"), "run_mat_sig", line)
-        mat_sig[(g, e)] = v == "1"
+        fields = line.split("\t")
+        _require(len(fields) == 3 and fields[2] in ("0", "1") and (fields[0], fields[1]) not in mat_sig, "run_mat_sig", line)
+        mat_sig[(fields[0], fields[1])] = fields[2] == "1"
     _require(set(mat_p) == set(mat_sig) == set(plan), "run_matrix_cells")
     # COMPLETENESS, NOT SILENCE: a score exactly where the plan expects one AND the exposure produced scores
     scored_cells = {c for c, v in mat_p.items() if v is not None}
@@ -462,8 +491,9 @@ def _judge_trace(t: dict, spec: dict, off: Path, on: Path, policy: ExposureFailu
                                        "significant_under_exact_bh": sorted(g for g, d in counter.items() if d)}}
     nominations = set()
     for line in _lines(on / "nominations.tsv"):
-        e, g, _ = line.split("\t")
-        nominations.add((e, g))
+        fields = line.split("\t")
+        _require(len(fields) == 3 and (fields[0], fields[1]) not in nominations, "run_nominations", line)
+        nominations.add((fields[0], fields[1]))
     # gene aggregation: the SAME scores whatever the adjustment (mat.p precedes safe_qvalues); significance is descriptive only
     pairs = []
     for (g, e), scored in sorted(plan.items()):
@@ -478,6 +508,10 @@ def _judge_trace(t: dict, spec: dict, off: Path, on: Path, policy: ExposureFailu
     genes_with_scores = {g for (g, e), s in plan.items() if s}
     ranking_plan = {c: s for c, s in plan.items() if c[0] in genes_with_scores}
     wes = {g: parse_hex(v) for g, v in zip(t["genes"], t["wes"])}
+    # the ACTUAL call's effective burden input equals clamp_p of the planned burden p-values, gene for gene (ruling 2026-10-09)
+    burden_equal = all(s["event"] is None or s["event"].burden_input is None
+                       or s["event"].burden_input.values == tuple(clamp_p(wes[g]) for g in s["event"].burden_input.genes)
+                       for s in statuses.values())
     eligible = frozenset(g for g in genes_with_scores if wes[g] is not None)
     burden_order = tuple(sorted(eligible, key=lambda g: (wes[g], g)))
     reference = frozenset(t["reference_positives"]) & eligible
@@ -521,12 +555,14 @@ def _judge_trace(t: dict, spec: dict, off: Path, on: Path, policy: ExposureFailu
     agreement = {key: observed[key] == p[key] for key in p}
     science = _science_equal("trace", off, on)
     rng = _lines(on / "rng.txt")
-    return {"fixture": t["id"], "purpose": t["purpose"], "exposure_outcomes": records, "coverage": coverage,
+    return {"fixture": t["id"], "purpose": t["purpose"], "plan_sha256": typed.sha256, "exposure_outcomes": records, "coverage": coverage,
             "endpoint_release": {stage: endpoint_release(primary, stage) for stage in ("confirmatory", "feasibility")},
+            "burden_input_summary": burden_input_summary(plan, statuses, environment_digest),
             "exposures": layers,
             "consistency": {"scores_exactly_where_planned_and_scored": scored_cells == expected_cells,
                             "nominations_equal_mat_sig_pairs": nominations == actual_nom,
-                            "gene1_equals_scored_exposures": sorted(gene1) == scored_x},
+                            "gene1_equals_scored_exposures": sorted(gene1) == scored_x,
+                            "burden_inputs_equal_inputs": burden_equal},
             "gene_aggregation": {"rule": "minimum raw DANDELION p over planned pairs; ties by gene identity", "basis": basis,
                                  "planned_pairs": len(planned_cells), "structural_pairs": len(plan) - len(planned_cells),
                                  "ranking_scores_unchanged_under_exact_bh": None if ranked is None else
@@ -558,6 +594,13 @@ def _environment(run: Path, mode: str) -> dict:
     return out
 
 
+def environment_sha256(environment: dict) -> str:
+    """The identity of one run environment as the runner records it (R, platform, random-number kind, library paths, and the DANDELION
+    and qvalue versions with their DESCRIPTION digests): canonical JSON, sorted keys, no whitespace."""
+    _require(type(environment) is dict and bool(environment), "run_environment")
+    return hashlib.sha256((json.dumps(environment, sort_keys=True, separators=(",", ":"), ensure_ascii=True) + "\n").encode("ascii")).hexdigest()
+
+
 def judge(spec_bytes: bytes, spec_sha256: str, runs) -> dict:
     """The report over every fixture: runs/<id>/off and runs/<id>/on as written by the runner. Disagreements are FINDINGS in the
     report (fixtures_passed false), never exceptions; malformed or incomplete evidence refuses. The exposure-failure policy applied is
@@ -567,12 +610,14 @@ def judge(spec_bytes: bytes, spec_sha256: str, runs) -> dict:
     spec = load_spec(spec_bytes)
     policy = ExposureFailurePolicy()
     runs = Path(runs)
-    routes = [_judge_route(f, spec, runs / f["id"] / "off", runs / f["id"] / "on") for f in spec["route_fixtures"]]
-    traces = [_judge_trace(t, spec, runs / t["id"] / "off", runs / t["id"] / "on", policy) for t in spec["trace_fixtures"]]
-    # ONE environment for every run (R, platform, random-number kind, DANDELION and qvalue identities), each run in its stated mode
+    # ONE environment for every run (R, platform, random-number kind, DANDELION and qvalue identities), each run in its stated mode --
+    # established FIRST: the burden-input identities bind it
     envs = [_environment(runs / i / m, m) for i in [f["id"] for f in spec["route_fixtures"]] + [t["id"] for t in spec["trace_fixtures"]]
             for m in ("off", "on")]
     _require(all(e == envs[0] for e in envs), "run_environments_differ")
+    env_digest = environment_sha256(envs[0])
+    routes = [_judge_route(f, spec, runs / f["id"] / "off", runs / f["id"] / "on") for f in spec["route_fixtures"]]
+    traces = [_judge_trace(t, spec, runs / t["id"] / "off", runs / t["id"] / "on", policy, env_digest) for t in spec["trace_fixtures"]]
     failures = []
     for r in routes:
         if not r["adjustment"]["agrees"]:
@@ -593,13 +638,15 @@ def judge(spec_bytes: bytes, spec_sha256: str, runs) -> dict:
                       ("decisions_equal_mat_sig", e["pair_decision"]["decisions_equal_mat_sig"])) if not v]
         failures += ["{}:primary_refused:{}:{}".format(i, x, r["status"]) for x, r in trace["exposure_outcomes"].items()
                      if r["status"] in (ExposureStatus.UNCLASSIFIED_MISSING_EXPOSURE.value, ExposureStatus.INFRASTRUCTURE_ERROR.value)]
+        failures += ["{}:burden_input_disagreement:{}".format(i, g) for g in trace["burden_input_summary"]["investigate"]]
         if not trace["recorder_equivalence"]["all_equal"]:
             failures.append(i + ":recorder_changed_science")
         if not trace["random_stream"]["state_unchanged_by_science"]:
             failures.append(i + ":random_stream_consumed")
         if trace["warnings"]:
             failures.append(i + ":warnings_raised")
-    return {"schema": REPORT_SCHEMA, "spec_sha256": spec_sha256, "environment": envs[0], "exposure_failure_policy": asdict(policy),
+    return {"schema": REPORT_SCHEMA, "spec_sha256": spec_sha256, "environment": envs[0], "environment_sha256": env_digest,
+            "exposure_failure_policy": asdict(policy),
             "route_fixtures": routes, "trace_fixtures": traces, "failures": sorted(failures), "fixtures_passed": not failures}
 
 
