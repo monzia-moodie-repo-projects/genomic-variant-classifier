@@ -172,3 +172,12 @@ configs/source_monitor_interpretation.json -text
 # local digest would differ from CI's. Same reasoning as INTERPRETATION-POLICY-PINNED-1. Exactly one path.
 # DEPLOYMENT-CONFIG-PINNED-1.
 configs/source_monitor_deployment.json -text
+
+# ---------------------------------------------------------------------------
+# ARTIFACT-INVENTORY RECORDS: preserved bytes (added 2026-10-09, the first record).
+# ---------------------------------------------------------------------------
+# A verification record (REC-*.json) is PERMANENT_EVIDENCE whose SHA-256 the readiness decision and the run evidence bind; git must
+# never rewrite its bytes. `records/**/*.json text eol=lf` keeps it LF today -- the reasoning rejected at RECORDS-EOL-NORMALIZATION-1:
+# a preservation must not depend on the corpus staying friendly. The index (index.json) is a REPLACEABLE projection and stays authored
+# text (eol=lf). After the records rules because later rules win. ARTIFACT-INVENTORY-RECORDS-PINNED-1.
+records/verification/environment-qualification/artifact-inventory/REC-*.json -text
