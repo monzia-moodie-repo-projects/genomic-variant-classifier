@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **8,460 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **8,507 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -579,6 +579,47 @@ exists to end.
   most 150 characters and every directory at most 138, so any checkout or clone root up to 108 characters works without long-path
   settings) is enforced for every record and tested over every tracked path. Next: the isolated, network-disabled replay of the 102
   packages and the method tests on that library. Suite 8,345 -> 8,460.
+- **2026-10-10 -- Repository history: the GitHub branch run9a-prep holds nothing main lacks, and may be retired.** GitHub reported
+  "180 commits not in main" for run9a-prep (tip c1c01920, 2026-04-30). It is the April history that pull request #1 merged at
+  2026-05-01 01:44 UTC (61c1b2b, the commit tagged run9a-baseline) and kept "briefly for reference"; the history rewrite of 2026-07-11
+  (git filter-repo, which excised data/alphafold_cif_cache_2026-07-03.tar.gz and notebooks./gitkeep) renamed every commit on main and
+  the identifiers quoted in messages, and the branch kept the old names. A count of commits says nothing about content, so a
+  verification record now answers the content question commit by commit (repository_records/branch_equivalence.py;
+  records/verification/repository-history/branches/REC-9ccf9fa0863b447292230fe1130850b0.json, sha256 9141d73e...19ff): of the 180
+  branch-only commits, 169 have an identical counterpart on main (tree, author, committer, both dates, message, parents), 10 differ
+  only by commit identifiers quoted in their messages, which map exactly to the counterparts' identifiers (13 pairs), and 1 (9bdd270)
+  only added the excised notebooks./gitkeep; the tip's counterpart is the second parent of the pull request #1 merge. The branch
+  reaches 180 commits and 2 trees that main does not, and NO blob: every file content it holds is on main. The record was derived
+  byte-identically from the GitHub branch and from the owner's preserved bundle (history/run9a-prep_c1c01920aa0b_20261010T221514Z.bundle,
+  sha256 1e83929f...e4f4, 3,796,302 bytes, kept in the artifact store); the installer re-derives it from that bundle and requires byte
+  equality before committing -- measured on the owner's machine on 2026-10-11: byte-identical (9141d73e). Its bytes are pinned (BRANCH-EQUIVALENCE-RECORDS-PINNED-1). Deleting the GitHub branch is a separate,
+  irreversible owner step taken only after this record is on main. Suite 8,460 -> 8,507.
+- **2026-10-11 -- The Windows Sandbox isolation smoke qualification PASSED (revision c; the enforcement mechanism of the isolated
+  replay, owner ruling 2026-10-08, Option A).** Measured on the owner's machine (build 29683, an ordinary window): all 26 checks passed
+  (smoke_20261011T003302Z, evidence archive d142b790, terminal record 50d36b09) -- no network address, name resolution and three
+  planned connections refused, the read-only mapping refused a write, the guest saw exactly the staged inputs, the host input and the
+  configuration unchanged -- and the host itself closed the sandbox with `wsb stop` (exit 0; the first observation after the stop
+  already showed the identifier unlisted and the virtual-machine worker exited). Why revision c: the first run (smoke_20261010T172959Z, archive 027b594c) passed
+  all 20 isolation-evidence checks but its sandbox was still running almost five hours after the host asked for the window to be
+  closed; the first launch registered the Windows Sandbox package (0.8.107.0) with the documented command-line interface `wsb`; and a
+  non-elevated window reads empty command lines for processes an elevated window started (confirmed: the same reads succeed for
+  processes the window started itself). Revision c identifies the sandbox by `wsb list` plus exactly one new worker and passes only
+  if `wsb stop` closes it. The orphaned first sandbox was closed the same way first (exit 0, 0.7 s), from an ordinary window although
+  an elevated one had started it. This qualifies the MECHANISM only: the replay itself (the 102 packages, preserved installers,
+  inside the guest) remains to be built and run.
+- **2026-10-11 -- Two Windows-only facts, measured by the second run of the run9a-prep installer (revision b, 01:53-02:02 UTC;
+  nothing committed, the checkout verified unchanged).** (1) The installer's private temporary root works on the owner's machine (its
+  probe stage passed), and the record re-derived byte-identically again. The user-wide TEMP\pytest-of-monzi was created 2026-10-09
+  06:51:28 UTC, 0.8 s before the first of 973 tmp* folders that five test sessions left in TEMP (2026-10-09 06:51, 13:55, 17:39;
+  2026-10-10 02:15, 10:28 UTC; about 20 minutes and 175 to 237 folders each); from an ordinary window it can be neither listed nor
+  have its access list read, and renaming it there is refused (measured; my claim that an ordinary window could rename it was
+  wrong). Its owner is read next from an administrator window, the one window that can move it. (2) Git for Windows refuses the path notebooks./gitkeep in an INDEX: 14 of the 40 new tests failed in their own
+  history helper (Git 2.55.0.windows.5: read-cache.c verify_path calls compat/mingw.c is_valid_win32_path while core.protectNTFS is
+  on, its default; no path component may end in a period or a space). The helper now writes trees with `git mktree`, which holds the
+  excised path as a tree entry exactly as the real history does (+3 tests: the same trees an index writes for ordinary names, the
+  excised entry, no index operation). A Linux build of that Git for Windows source with its Windows path check reproduced the 14
+  failures exactly (14 failed, 356 passed, 2 skipped, the same node identities) and passes every test after the change; such a build
+  now stands in for Git for Windows' path rules in this project's simulations, which a stock Linux git cannot.
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined

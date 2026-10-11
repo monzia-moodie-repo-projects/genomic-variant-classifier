@@ -1,0 +1,1573 @@
+{
+  "schema": "gvc.branch-equivalence",
+  "schema_version": 1,
+  "record_id": "REC-9ccf9fa0863b447292230fe1130850b0",
+  "question": "Does the subject branch hold any content that the reference branch does not?",
+  "subject": {
+    "name": "run9a-prep",
+    "tip": "c1c01920aa0b6fc21d0b3e926cbe1c66af016acc",
+    "tree": "b6478560bc43217ed3008013b42701e456ce5cd1",
+    "commits": 183,
+    "roots": [
+      "08e881b23bb545c85ebbc5b73b8dbbe78c04b9f6"
+    ]
+  },
+  "reference": {
+    "name": "main",
+    "commit": "ffc549f4d346feb906348a183f18e31613707d40",
+    "tree": "4dfc615f0f888d6290c71db431a1f49ffb6d6744"
+  },
+  "excised_paths": [
+    "data/alphafold_cif_cache_2026-07-03.tar.gz",
+    "notebooks./gitkeep"
+  ],
+  "preserved_copy": {
+    "store": "gvc-artifacts",
+    "path": "history/run9a-prep_c1c01920aa0b_20261010T221514Z.bundle",
+    "sha256": "1e83929fee92f430b1bd63745eb4be8d86a6a9663beb540cf017c3c431e1e4f4",
+    "size_bytes": 3796302,
+    "heads": [
+      "c1c01920aa0b6fc21d0b3e926cbe1c66af016acc refs/remotes/origin/run9a-prep"
+    ]
+  },
+  "branch_only_commits": [
+    {
+      "commit": "98bfc2247f515c5d864f74ae5fbcad5c19778eba",
+      "outcome": "identical",
+      "counterpart": "05fdb3198223f14e69ba2550a1a579b4ef09fb25",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "Update README.md"
+    },
+    {
+      "commit": "e9e8771bf9d41707ab886344b914dc44fdb9a896",
+      "outcome": "identical",
+      "counterpart": "6373cc5c7ff22f343adf03754bf6fb58ae0f051a",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "Update README.md"
+    },
+    {
+      "commit": "5bce7f3df65d22765e617ed02fdf7691c65b18f5",
+      "outcome": "identical",
+      "counterpart": "0b735e0c943652e94c686c19a693a6cff0f8b72f",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "Initial commit: Complete genomic variant classifier codebase"
+    },
+    {
+      "commit": "c40198546c3e586ae7f46128ffbae7d57808498d",
+      "outcome": "identical",
+      "counterpart": "d38385ea534ecb213c93a5a63fd7d9fd54e50657",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "Initial commit: Complete genomic variant classifier codebase"
+    },
+    {
+      "commit": "9a92121186ac5ed88c1ade67e7d12bc1aea67fcd",
+      "outcome": "identical",
+      "counterpart": "038b12b913897dc646850d9b5b68ac4f869465a7",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "Initial commit: Complete genomic variant classifier codebase"
+    },
+    {
+      "commit": "65fcd9bd557469fa7cbf4743f5da64eb2a6b44dd",
+      "outcome": "identical",
+      "counterpart": "cfe2eff78859500c70789c3cc881c3726215fae2",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "Initial commit: Complete genomic variant classifier codebase"
+    },
+    {
+      "commit": "01d4f3d036b9203d6fcc896e2af45e7de6a10ffa",
+      "outcome": "identical",
+      "counterpart": "d5a6422b86aeb58bbad72fd1a4a64d898931e8b1",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "Initial commit: Complete genomic variant classifier codebase"
+    },
+    {
+      "commit": "34ca3813b3f5291e377c45250eb27d0975f87669",
+      "outcome": "identical",
+      "counterpart": "1eaff3fdc19d746eab81c35ba7784ebd111b7518",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "Project structure: Added ETL, models, and config"
+    },
+    {
+      "commit": "2712f5bda6c638d442d4f11852e9417916ffc6d9",
+      "outcome": "identical",
+      "counterpart": "981378287ff1eaf035ecb28044d7d8831bf21a68",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "Initial commit: Complete genomic variant classifier codebase"
+    },
+    {
+      "commit": "9bdd27091aa3b9227adca30d8a984473d526bd1e",
+      "outcome": "excised_paths_only",
+      "counterpart": null,
+      "identifier_rewrites": [],
+      "excised_paths": [
+        "notebooks./gitkeep"
+      ],
+      "subject_line": "Create gitkeep"
+    },
+    {
+      "commit": "44d6e1d0b5eced885ac8a400f0358649c84fd4b4",
+      "outcome": "identical",
+      "counterpart": "374cfdb6c2bb93e6c39c1f6d5e3d7ace8797feb0",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "Add .gitkeep file to notebooks directory"
+    },
+    {
+      "commit": "244337eae175de36693569f9bbca60b20d8a4021",
+      "outcome": "identical",
+      "counterpart": "d9c3a2bf442c3dcfe3eda3f8b86ebbb4424724cc",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "Add .gitkeep to notebooks directory"
+    },
+    {
+      "commit": "39424efd98fd086e299e3452ca2186039d09bf56",
+      "outcome": "identical",
+      "counterpart": "9effbf6c286612f068608e9e4baa773abb9426ca",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "Notebook in progress."
+    },
+    {
+      "commit": "99c863315318647d6d95ebf194a153d87d23a930",
+      "outcome": "identical",
+      "counterpart": "fff8125f034f174c909c0266e37d9bbc63e9a5c2",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "Notebook of coding progress."
+    },
+    {
+      "commit": "0d7f890f37dc220952d364a0645d20afba404c3b",
+      "outcome": "identical",
+      "counterpart": "e1e9242a499fc9afc365bf7ba1743730c019ca2f",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: resolve 7 critical bugs and 19 architecture/quality issues (Phase 1 audit)"
+    },
+    {
+      "commit": "19ad0a2ec8526684e4ef08a3614a6325dcc861c1",
+      "outcome": "identical",
+      "counterpart": "157ba646bfa54d71904251abf80f17b988bedbd4",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "Add .env template and update .gitignore"
+    },
+    {
+      "commit": "3150aff357d91cf89f2d16772cadc2842c1f8a5d",
+      "outcome": "identical",
+      "counterpart": "c6c8c7ee2e15b70c4766ae65c21a5c92590a9048",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "Move config files to project root, update gitignore and requirements"
+    },
+    {
+      "commit": "c61576a437782ddc076fd11e1b69c0a17c8bf54a",
+      "outcome": "identical",
+      "counterpart": "45aefce3a25677fb7552564b8120870bd2117761",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "Clean project structure, all files at correct root level"
+    },
+    {
+      "commit": "7d9411d3d4cd43b34a65a5c590df42df07e6a8bd",
+      "outcome": "identical",
+      "counterpart": "9636bef819f4d639d5a552cf9b81c0368a7adc1d",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "Stage 2: workspace setup, project structure, requirements, configs"
+    },
+    {
+      "commit": "039b4bf4ce5858246401d4a85257487be7273cda",
+      "outcome": "identical",
+      "counterpart": "bb259c129a0fc70341f6abf00f57d832550029a3",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "Stage 2: update notebook code, expand .gitignore for outputs and data"
+    },
+    {
+      "commit": "8d6d67e74a415ea3873d8323754b19deac99fe25",
+      "outcome": "identical",
+      "counterpart": "e5adb8c7b287eb6fcb32ed06f0af7d49fc88da12",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: restore Phase 1 baseline (25 passed, 3 skipped)"
+    },
+    {
+      "commit": "e2f1e7339c10ee452bb0f947ca870127b0293669",
+      "outcome": "identical",
+      "counterpart": "fc32b30f7aa9b7f5000ea7d47a2ca951c889469d",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(phase2/pillar1): add GTEx connector + fix Phase 1 baseline"
+    },
+    {
+      "commit": "ed7d031e72b2f8db39052525e73531d964e282e6",
+      "outcome": "identical",
+      "counterpart": "f1637fedb94a41834d55ca07ef5a17d1469ee187",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(phase2/pillar1): add SpliceAI connector"
+    },
+    {
+      "commit": "e07bd446307864e94ccf7233e028644e82b71dd9",
+      "outcome": "identical",
+      "counterpart": "649bdc504788c8bebb378812c0514ada6ed33e28",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(phase2/pillar1): add CADD connector"
+    },
+    {
+      "commit": "023fe8d2944391f00659426c6a51e108277d5209",
+      "outcome": "identical",
+      "counterpart": "5fecc345c3985b43ed2bef40c0ea79b8dd4d33a3",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat: Phase 2 connectors 3-4 (CADD, REVEL) + VS Code environment config"
+    },
+    {
+      "commit": "bfd717510cab3cde14633cf7bc3e85d6572ca148",
+      "outcome": "identical",
+      "counterpart": "00bc304dfbfe3c461ac436bddeac27dfd71dbcc0",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat: Phase 2 connector 5 (PhyloP)"
+    },
+    {
+      "commit": "72de60e83245eb32a4db6809eca910cebb3ce97a",
+      "outcome": "identical",
+      "counterpart": "5a326cb94ceb61952c0a3f810efe5a8a89fbb5a2",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(connector-6): SIFT + PolyPhen-2 annotator from dbNSFP"
+    },
+    {
+      "commit": "5cd80f0b1b686be339b006ccacce3ae43e338947",
+      "outcome": "identical",
+      "counterpart": "fb72ae18151afc9c84fa4dc325653c2d6972a13b",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(connector-7): dbNSFP full-width annotator; add gerp_score feature"
+    },
+    {
+      "commit": "8e234354f06c51a3b8908ec387a6bdf4109f8943",
+      "outcome": "identical",
+      "counterpart": "1680fb48a0d52371a8abb9946150cfb8ca142f41",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix(.gitignore): anchor models/ rule to repo root"
+    },
+    {
+      "commit": "0cd35adc3e937ad4f0130d4cc91b5a45897e8158",
+      "outcome": "identical",
+      "counterpart": "c8899e459c1fdc1eb5911848f83070c095393b70",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix(real_data_prep): sift_score fill default 0.05 -> 0.5"
+    },
+    {
+      "commit": "63f89f8c3bf55dbde9b420e424ff21954af2dfc2",
+      "outcome": "identical",
+      "counterpart": "61a4ce93598394316433240c797512f39b4cbb40",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(pipeline): wire score connectors into DataPrepPipeline"
+    },
+    {
+      "commit": "66b2740e71e035cb5f67a2525ab7680ce64f30b2",
+      "outcome": "identifier_rewrite",
+      "counterpart": "29e48dcf0927382071456b7c4a1edff667940b24",
+      "identifier_rewrites": [
+        [
+          "72de60e",
+          "5a326cb"
+        ]
+      ],
+      "excised_paths": [],
+      "subject_line": "feat(models): promote splice_ai_score to TABULAR_FEATURES"
+    },
+    {
+      "commit": "88eb310cdcfbde5dcfd73f95533c8a43705c618d",
+      "outcome": "identical",
+      "counterpart": "21b58d854752a0fbaad43b21d345a130757edf4b",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(phase2): promote alphamissense_score + GTEx features to TABULAR_FEATURES"
+    },
+    {
+      "commit": "e55a9c37028ca78e000a78371f51933c31d37f7b",
+      "outcome": "identical",
+      "counterpart": "99c75343893a1b11afcbb12d16f49dcadcafd3aa",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: add ROADMAP.md \u2014 Phase 2-5 plan, data sources, algorithm benchmarking"
+    },
+    {
+      "commit": "8422e40b26c93aab401e5409b0897d2d015ac0ee",
+      "outcome": "identical",
+      "counterpart": "36a17f0a14f11ecd99e5b51b143bb46ec9b082bf",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(data): patch ClinVar parquet with real REF/ALT from VCF"
+    },
+    {
+      "commit": "13e6d2c89de97461b6fb315ee8ce1d13619a44ac",
+      "outcome": "identical",
+      "counterpart": "0ffcb340c519ede243a6b3b4cd693954c6a5b5cc",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(phase2): complete \u2014 AUROC 0.9847 on gene-stratified holdout"
+    },
+    {
+      "commit": "2133bd0ee42d0b402813a02fc00485efaba22ded",
+      "outcome": "identical",
+      "counterpart": "497133a67e8dca0fe92300bd1145f3c9d68260ab",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(phase2): mark Phase 2 complete \u2014 holdout AUROC 0.9847"
+    },
+    {
+      "commit": "169a19cea6d15d7ab563c08f48eba330d906c382",
+      "outcome": "identical",
+      "counterpart": "ae1853b25bef8b7837a9d27c09d0039101f395a9",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(phase3): REST API + Docker + InferencePipeline"
+    },
+    {
+      "commit": "c3ec82564dc90669faaa2606b8edde72bf28a188",
+      "outcome": "identical",
+      "counterpart": "f6f1ffd13a93c2e381980fd8336621bfc167f4e1",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix(docker): JAVA_HOME arch-agnostic, drop deprecated compose version, numpy bound, fix comment"
+    },
+    {
+      "commit": "059a53cb4984f0f86b205f050bb74184044dd2e4",
+      "outcome": "identical",
+      "counterpart": "6de5b80067f782019f62cd7d588e75369ddd4ca5",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(api): auto-resolve n_pathogenic_in_gene from ClinVar gene counts"
+    },
+    {
+      "commit": "14258764a98572e89e88ee5999983a7e8d6635ba",
+      "outcome": "identical",
+      "counterpart": "4851dba5ebcf60905e142f58714ec4726dd831be",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat: GET /gene/{symbol} + DataPrepPipeline meta_val + gene_summary parquet"
+    },
+    {
+      "commit": "47a7a3faaf2c46a6faf4838b3cebb9c4d15b77b3",
+      "outcome": "identical",
+      "counterpart": "08a6ef20025c7bc7713a8bc187865809ae682fcb",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(phase4): 7 data connectors + 46\u219255 feature expansion"
+    },
+    {
+      "commit": "40dc188b24e565e1d7cdb70c3406e3e492c59083",
+      "outcome": "identical",
+      "counterpart": "a4f058fb05f3042becd67e29c35f2036ce734bfa",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(phase5): 1000G AF fallback, GNN integration, threshold calibration, Optuna tuning"
+    },
+    {
+      "commit": "0eb40ce660ec2fa368f9fb086f1617e7a71d85ca",
+      "outcome": "identical",
+      "counterpart": "c6c02c16d84c9811cdf3e577c3674e78d87502a0",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(v2.0.0): Phase 6-8 complete \u2014 RNA/protein pipelines, production hardening, clinical validation"
+    },
+    {
+      "commit": "cff925ca86072252e555c3ed9dff582324f322ae",
+      "outcome": "identical",
+      "counterpart": "748f2e9f02e0c9ebb923783c8d76fa5460f7fede",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(phase4): algorithm benchmarking, ESM-2, uncertainty decomposition, LOVD validation"
+    },
+    {
+      "commit": "046bab43ff922e05e2701c7a61eaaad6a798517b",
+      "outcome": "identical",
+      "counterpart": "15eb27a72fbaeec78789284151386db5435977f7",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix(validation): LOVD anti-bot workaround + ClinVar temporal validation from FTP"
+    },
+    {
+      "commit": "b80d8e3c6f3c07effbd17c6085a63399db1811d7",
+      "outcome": "identical",
+      "counterpart": "b6a2e300aab0a36c514d1ec17a3e562dc90063a6",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix(temporal-val): chunked CSV parsing to handle 4M+ row variant_summary.txt.gz"
+    },
+    {
+      "commit": "9d442729fdd168f0468e606eddacc3d23b1981f6",
+      "outcome": "identical",
+      "counterpart": "1ab30ae27c16ad7b9cfda95ba0151e982cb0e003",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix(pipeline+temporal-val): gnn_scorer getattr + dedup variant_id normalisation"
+    },
+    {
+      "commit": "7796f3f16e02ed5f7a28ec3a7c96d0537258c34e",
+      "outcome": "identical",
+      "counterpart": "a9182890106295b5f1be3637ab23782d91380736",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix(temporal-val): skip isin dedup for gz input to avoid OOM at 2M x 4M scale"
+    },
+    {
+      "commit": "45a46d9327538212bc156749107dc7a4255eb3bf",
+      "outcome": "identical",
+      "counterpart": "67e8541531e8319765b73e781fe913bbbeb124a4",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix(pipeline): zero-fill missing feature columns for sparse inference input"
+    },
+    {
+      "commit": "1706680c251e5041c4d1e7afe2f121ceeaabdb14",
+      "outcome": "identical",
+      "counterpart": "799246c3321428f8b8a4322f78ec7fa8c0840ebb",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix(temporal-val): batch scoring in 50K chunks to avoid OOM at 2.4M scale"
+    },
+    {
+      "commit": "14599984355d68f6d1f7af10ecddadd680ea3ac1",
+      "outcome": "identical",
+      "counterpart": "be92282ecbfc06fca42f357adbf15f7591746557",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix(pipeline): use scaler.feature_names_in_ to handle model/code version skew"
+    },
+    {
+      "commit": "009bdb0a4ff7a3047e43e5fc7d6baccc41ec5e58",
+      "outcome": "identical",
+      "counterpart": "fbac530f9fe629e2505eb97ce5413042896528af",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix(temporal-val): enrich holdout with gnomAD AF + gene features before scoring"
+    },
+    {
+      "commit": "3e670ddcf1dc1d303dfe50c889e8e67a1fd82e2b",
+      "outcome": "identical",
+      "counterpart": "369f30dbc3ac89a108e05f5cb07bb4e5c8b21cec",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix(temporal-val): enrich holdout before loading model to stay within RAM budget"
+    },
+    {
+      "commit": "97744c398e66e3e1c2edcb6b883b821d9946f938",
+      "outcome": "identical",
+      "counterpart": "f81693ebdb4588296093259dbcb65a1006d817f4",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(results): ClinVar temporal holdout validation results (cutoff 2024-01-01)"
+    },
+    {
+      "commit": "52034cd69989dc16820d617b12d0d1c2588c9009",
+      "outcome": "identical",
+      "counterpart": "7dee159e8d45e90c40ec1c2d3c370f67632e0d2c",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: update README to reflect full project scope"
+    },
+    {
+      "commit": "b87d6a184f10e097734b23b45bce134d3b491488",
+      "outcome": "identical",
+      "counterpart": "4da4e09d92085b5bc795f84762e4e7ab88df078f",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat: add CatBoost to ensemble"
+    },
+    {
+      "commit": "b39fc22191d36e9ff5b34ed3f419aee139a8ca28",
+      "outcome": "identical",
+      "counterpart": "0966884065553260400d6a83be12909903180bb3",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: target api stage in build; correct MODEL_PATH to phase4"
+    },
+    {
+      "commit": "85cccb647401958cd8e0bab941443847f8eec2cf",
+      "outcome": "identical",
+      "counterpart": "aebae677d71c50eec588bc19d500b0e183e8c197",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "chore: add model manifests for phase2 and phase4 artifacts"
+    },
+    {
+      "commit": "0a1b80b5deb3a98503cd0e28545e3759903e296c",
+      "outcome": "identical",
+      "counterpart": "df8bd1454b1980c3b1390a4295753d057e012849",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "chore: add model manifests, _write_model_manifest() to all save() paths, pin dev deps"
+    },
+    {
+      "commit": "0ba48b3525207ba3a8d2321f912ccb5f8113ae02",
+      "outcome": "identical",
+      "counterpart": "fc8e238bc29ee91f00fe23169095b451c9bd69c4",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "chore: force-add model manifests; add jinja2 to requirements.txt"
+    },
+    {
+      "commit": "2ad89fb24ba8875569c539055746a6b492bc39a8",
+      "outcome": "identical",
+      "counterpart": "18de274db26724b6fb7ba92fe26187a504351ff9",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "chore: generate requirements-api.lock to fix CI lockfile drift check"
+    },
+    {
+      "commit": "e070ca662eb0739cf60666e4393a36231331acc2",
+      "outcome": "identical",
+      "counterpart": "fa57457739f80222e4936159772305356edc8dd8",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: correct IMAGE_NAME to genomic-variant-classifier; use requirements-dev.txt in CI pytest job"
+    },
+    {
+      "commit": "2c8e88b1a93afe16e4a31982803867e53a8d1554",
+      "outcome": "identical",
+      "counterpart": "794cc72f6bd9147df58a729f4a45d98baeab85a3",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "chore: force LF line endings for requirements-api.lock"
+    },
+    {
+      "commit": "7d0d6b1f2f13c0008fc246ca8b20316423d26f1e",
+      "outcome": "identical",
+      "counterpart": "92d6bd7e80b059cc8b4f14c9a65075f34b386a4c",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: remove redundant explicit packages from CI pytest install step"
+    },
+    {
+      "commit": "38e4ddc5d61cbd7b6ccf32a946a52e9132482e57",
+      "outcome": "identical",
+      "counterpart": "894bfe5c46e8b2373a3edfb7630685a8881a0cfd",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: replace lockfile diff with dry-run install check (cross-platform safe)"
+    },
+    {
+      "commit": "c1b1ba7efd5722671c3c16f6fbf07e440b6d9ccd",
+      "outcome": "identical",
+      "counterpart": "3645afd574cca98c208fbbee613a44a8a3775bcd",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: add requests to requirements-api.txt; regenerate lockfile"
+    },
+    {
+      "commit": "ab3afd36df90530c7ba6b7b50d7cc2ae2042528a",
+      "outcome": "identical",
+      "counterpart": "fd980e6186776d8fac62866c802933c73bfe44c8",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: install all three requirements files in CI pytest job"
+    },
+    {
+      "commit": "55e035042f1ef31fad3fb5aa57116e2d4ab7f89f",
+      "outcome": "identical",
+      "counterpart": "61567f03fc8ed6ec9a0e75c8e8986a1dee42bf57",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: add catboost to requirements-api.txt; bump smoke test sleep; update action versions"
+    },
+    {
+      "commit": "732460a15634f48851e7d03256af66dc71a66c87",
+      "outcome": "identical",
+      "counterpart": "c5db92be9fc55dffa739357613a7fd93ee15430e",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: add container log output to smoke test for debugging"
+    },
+    {
+      "commit": "37f75280ba529f2d4099c20630708e53425f4141",
+      "outcome": "identical",
+      "counterpart": "d5ee27fe3012d21b7e0acae533f19c0d4c2d38db",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: add catboost to lockfile; remove --rm from smoke test to capture crash logs"
+    },
+    {
+      "commit": "660f5272588b7c5f1120205217a100ae726d5825",
+      "outcome": "identical",
+      "counterpart": "50437b7ddce8d1f0f605c24b865e2eed8c6235d1",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: rewrite smoke test to capture crash logs (remove --rm, add early exit check)"
+    },
+    {
+      "commit": "0a709dae3205b4c3fa41e3135d17f062de63c52e",
+      "outcome": "identical",
+      "counterpart": "35f8c57d18cc873571449104b9293355481a23d0",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: rewrite requirements-api.txt (was corrupted); add catboost; fix smoke test"
+    },
+    {
+      "commit": "1b03e388e75ba04f24ccdd644fa6a3293cdeec24",
+      "outcome": "identical",
+      "counterpart": "8dd10f033e3910fe1a6e2c738f9afad60dcc8947",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: use full venv path for gunicorn in CMD to fix container startup"
+    },
+    {
+      "commit": "b2a2dc2947cad235452b6ae2b9215bab777f27a3",
+      "outcome": "identical",
+      "counterpart": "a2b513dda95ee5a9d55858f78f83c89dc3448fbd",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: use venv pip in builder; add PATH=/opt/venv/bin to api stage"
+    },
+    {
+      "commit": "fd5c05ba0938835ca648ecbcc0f0a4c4de3218ab",
+      "outcome": "identical",
+      "counterpart": "72d9d13a0e4494fa4f941d82c6c93e1c3b318290",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: use /opt/venv/bin/pip for all installs in builder stage"
+    },
+    {
+      "commit": "8ab5f294077134a8d3077fc4098f83858921d96d",
+      "outcome": "identical",
+      "counterpart": "228d31171aa9bf7ca09b1e2b241a0037f421a4b0",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat: add KGPConnector (1KGP population-stratified AF); 5 new features; 466 tests passing"
+    },
+    {
+      "commit": "af1de82501347cc9b99b9f6458d9dc19eda325bf",
+      "outcome": "identical",
+      "counterpart": "80485d0a45321f601dd7826e4fc7c675857810a5",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat: add KGPConnector (1KGP population-stratified AF); 5 new features; 466 tests passing"
+    },
+    {
+      "commit": "254c3b231210f339c537311405533fa9a4a8a740",
+      "outcome": "identical",
+      "counterpart": "14f26911abb43d5617077f5b6652d25fc7cda444",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat: register KAN, MCDropoutWrapper, DeepEnsembleWrapper in _build_estimators"
+    },
+    {
+      "commit": "9e43a3e831f68ce9da8fbe57b41197468fec7473",
+      "outcome": "identical",
+      "counterpart": "5ead505bf27103b3629ad32101d4437d8a8ad19d",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: remove n_jobs from LogisticRegression; extend --skip-nn to mc_dropout and deep_ensemble; register KAN+MCDropout+DeepEnsemble in _build_estimators"
+    },
+    {
+      "commit": "e4a6b0f115c63be7b282eca6664cb5e15e10dea7",
+      "outcome": "identical",
+      "counterpart": "8695867182c5ba15feb8e95697e02d8859a69fc0",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: save ensemble before feature importance; fix CatBoost feature_importances_ method/property bug"
+    },
+    {
+      "commit": "704b99b667aad3f0d1be48c74dfa4f23571809f7",
+      "outcome": "identical",
+      "counterpart": "156ebcebd0f0b063320d839c8ced817c920c03b4",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat: FinnGen R10 connector + wiring; feature count 70->73; fix INFERENCE_FEATURE_COLUMNS assertion; activate LOVD annotation"
+    },
+    {
+      "commit": "c29ea3d75d3b0ff47a5766be564bb12bbebeff71",
+      "outcome": "identical",
+      "counterpart": "675703c591d846b0f5d173ab2c42f095c336e5e7",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: KAN pykan test_input bug; catboost arrow char; FinnGen column names to R10 schema"
+    },
+    {
+      "commit": "bdec74de74564c6d6a271bdcea035a8555c646ca",
+      "outcome": "identical",
+      "counterpart": "7612533db5a3c2d9a121fa5c0ccf06a5aafc55fc",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: add 1KGP + FinnGen columns to real_data_prep._engineer_features; feature matrix now 73 cols"
+    },
+    {
+      "commit": "579d434fbeec9d91fae22c12630c7f39a90941c3",
+      "outcome": "identical",
+      "counterpart": "32cb268d96c4d87542538c975c255890fcdd454a",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: update README -- 73 features, 10-model ensemble, TCGA histopathology, FinnGen R12, agentic layer"
+    },
+    {
+      "commit": "1361aed58aa229536f59c97aee9cfc194ad59a52",
+      "outcome": "identical",
+      "counterpart": "d5548d1213c4407e906f705da386c20286b97403",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat: add agent_layer, monitoring, training modules, LOVD scripts, PHASE_2_FEATURES"
+    },
+    {
+      "commit": "77cf0c7b36489c6b89d1035aabaa06e5c2726474",
+      "outcome": "identical",
+      "counterpart": "47cb67b3932ca2988167030fee51a613b9bbd82a",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "chore: ignore scratch files, outputs, catboost_info, claude workspace"
+    },
+    {
+      "commit": "c633e5a45e16398dd7e38da43b7387d9b95e56a2",
+      "outcome": "identical",
+      "counterpart": "f5b45c4142e61a60faf6f6824d7faf8d0c7e0cdd",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "chore: stage CI, Docker, protein pipeline, requirements, drift monitor script"
+    },
+    {
+      "commit": "38fac4f9e45eb34a0286c72efb61667e4bc2a042",
+      "outcome": "identical",
+      "counterpart": "a754f385f76666bba96f7b15c2f067b68aa09f42",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "chore: gitignore scratch files, outputs, catboost_info"
+    },
+    {
+      "commit": "f3755495841c08a055a2403ffd868f724b8018d4",
+      "outcome": "identical",
+      "counterpart": "e67b5cd3006f02b03f9fefa366929fcbac477c90",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "chore: fix data/raw/ gitignore pattern (remove leading space, deduplicate)"
+    },
+    {
+      "commit": "351559c76cb4589659ddcf3b4bc01d71d1abdfa2",
+      "outcome": "identical",
+      "counterpart": "9b3aaee6b737c8d391b541a23f257c5b75169b81",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat: add --dbnsfp-path CLI arg and AnnotationConfig wiring"
+    },
+    {
+      "commit": "d9e94d5168d97119346a2819e8f39cf1b0baabb7",
+      "outcome": "identical",
+      "counterpart": "6662ef0eb157807e501fb311c02745806c9661e4",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "chore: ignore data/external/dbnsfp/ directory"
+    },
+    {
+      "commit": "5405cb021ebd29b585da755d64edf5640ec9ea10",
+      "outcome": "identical",
+      "counterpart": "fec3d9af3b15aad44ed856536041acc96ae52978",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: dbnsfp vectorised merge replaces dict-based lookup; eliminates MemoryError on 85M variants"
+    },
+    {
+      "commit": "0e5b3daed0980d3f89c549e3cc4746e11698e5a6",
+      "outcome": "identical",
+      "counterpart": "842d6a78942f0d60fd4eb7bac1261d093639a1d3",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: dbnsfp all stub/error returns now return empty DataFrame; fixes AttributeError in CI"
+    },
+    {
+      "commit": "5a216e5eb0d78a952af8fcaf6d71388068a45153",
+      "outcome": "identical",
+      "counterpart": "acd1c3764ee17acd4e5c1ffc756469f004eceb89",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: dbnsfp _load_index type hint and raw parse return path now return DataFrame"
+    },
+    {
+      "commit": "c0455f678ba8632dddcd83df7d0ca5db4d3b85aa",
+      "outcome": "identical",
+      "counterpart": "5991535e26254c5561ca8e1eb2ae93afdc69640c",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: dbnsfp parquet cache uses pyarrow chrom-filtered load; eliminates MemoryError on 85M row cache"
+    },
+    {
+      "commit": "6be100a70be9ae7fecd5ba44ea591bff9f4e396f",
+      "outcome": "identical",
+      "counterpart": "1879d5bdee6eff6634aab012eaa74bd377e48b85",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: dbnsfp uses ClinVar-filtered parquet cache (36MB/2.7M rows vs 85M); resolves MemoryError"
+    },
+    {
+      "commit": "30708bbff64fc4587173ca786804ce66d7f5e533",
+      "outcome": "identical",
+      "counterpart": "529bce8e59718f3bf907367dd86e43d8f5c7f2ab",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: update DbNSFP test fixture to inject DataFrame instead of dict"
+    },
+    {
+      "commit": "ccb1ce47a2dcdd9acf7a89d513ea793cbd95c442",
+      "outcome": "identical",
+      "counterpart": "b1207e77b8ec0c539a46da26e861b517e55fd25b",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: update test cache filename references from dbnsfp_full_index to dbnsfp_clinvar_index"
+    },
+    {
+      "commit": "b2451d03f43ae37c90fd4cd2481b7944fb1ea853",
+      "outcome": "identical",
+      "counterpart": "5e5c2f3683404e7d2ce4d75a2648d5f6f322d991",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat: preserve Run 4 artifacts \u2014 AUROC 0.9939, first run with real dbNSFP scores"
+    },
+    {
+      "commit": "4e73c6e91926898ac99d1e8ebe5f910e16a8acae",
+      "outcome": "identical",
+      "counterpart": "e5d8242ae1f8509e2e751212f89c9905a221f110",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "chore: exclude model artifacts from experiments/ in .gitignore"
+    },
+    {
+      "commit": "2389ee2ef1d7d1321340907c8d6b4641c85a03aa",
+      "outcome": "identical",
+      "counterpart": "08c3685f2583a4b7c27d39402a04493b2bcc542f",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix(3A): isotonic calibration for XGBoost/LightGBM/RF, KAN OOM subsample gate"
+    },
+    {
+      "commit": "54cf817e74d00d50a346691f9535055216595d8a",
+      "outcome": "identical",
+      "counterpart": "60dbe8b18da72ff2b4c90dd43fd7bd8859cbd41f",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(3B): Nelder-Mead convex blend search replaces LR meta-learner"
+    },
+    {
+      "commit": "c401f25e000d71cdfad50ce6ef1e165cc3a297b1",
+      "outcome": "identical",
+      "counterpart": "1ca199cf4a6fb15f160bb4cdc6ca26aeff9cb060",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix(3A-hotfix): restore else branch so non-recalibrated models saved"
+    },
+    {
+      "commit": "a5ebb8e0f9f92c37583ea08bbf7b2546dcdcbc8b",
+      "outcome": "identical",
+      "counterpart": "7921221e8f012473188707cbabfeab655391b43c",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: PHASE_3_ROADMAP.md \u2014 Run 4 post-mortem, 3A/3B session log, CI hotfix"
+    },
+    {
+      "commit": "40be7c3aa2858cd6696ab0dcebf3bdaa70e0f96c",
+      "outcome": "identical",
+      "counterpart": "51c3f6d5f25d55ad0a7550be1a2e51a105394dd8",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(3C): integrate esm2_delta_norm into 74-feature tabular set"
+    },
+    {
+      "commit": "54050626259843a349f3c1b2d9c8166a2c2ff9a3",
+      "outcome": "identical",
+      "counterpart": "6304a9ed805b3e3ec980ae8c020307bbc04e16a9",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(3C): integrate esm2_delta_norm into 74-feature tabular set"
+    },
+    {
+      "commit": "f8dd413f8511bc9cee9db9d44851f8d9ce9599cd",
+      "outcome": "identical",
+      "counterpart": "7bb4a4227e2ba6e02655de6b6273fce9b1f6144c",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(3C): gnomAD v4.1 constraint metrics \u2014 78-feature set"
+    },
+    {
+      "commit": "015614e46049f2b05dd0d697fb865120556c3064",
+      "outcome": "identical",
+      "counterpart": "d0c745e39c25d02f0ff68bce729ae01d17fe8447",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix(3C): update gnomAD constraint DEFAULT_TSV_PATH to .tsv (not .bgz)"
+    },
+    {
+      "commit": "eda5baf726b0f65883cd913153f9886294621002",
+      "outcome": "identical",
+      "counterpart": "708a441a016007ee2399c127472c7f310ad5585e",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "chore: ignore data/external/gnomad/ \u2014 91 MB constraint TSV"
+    },
+    {
+      "commit": "b51216ba669724453b7a044356222b772d80ff9f",
+      "outcome": "identical",
+      "counterpart": "adf551acda5dfeb36930dce4defbe14f1c62f496",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: update PHASE_3_ROADMAP.md \u2014 Phase 3C complete, Run 6 targets"
+    },
+    {
+      "commit": "56834af4cd1ee3ae665e8364e5128389b56c5d05",
+      "outcome": "identical",
+      "counterpart": "286541d3c99950264608966e603782fd06d99580",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(3D): STRING DB multi-channel edge weights in GNN"
+    },
+    {
+      "commit": "6a833e126724019c960c309c0c9e837310521994",
+      "outcome": "identical",
+      "counterpart": "ae0fa22c242b29d6675ca068e547a965e6fb470e",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(3D): wire local STRING DB paths into GNN training pipeline"
+    },
+    {
+      "commit": "059f4a6912195257285f544f58553683cf938622",
+      "outcome": "identical",
+      "counterpart": "eb74c55fb9865f51bec2b31abe13cebec007038a",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(3D): wire uncertainty into /predict response + GNN training pipeline fixes"
+    },
+    {
+      "commit": "f929213dfb223f9fdb9ffeab423b3d2fbac83b18",
+      "outcome": "identical",
+      "counterpart": "c81d2f215fe7d0061334a44ad1a2b0a15555cc3e",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "test: update test_predict_single_returns_keys to expect uncertainty fields"
+    },
+    {
+      "commit": "e403580e2c8e0666bb15934ec1712c873d19577d",
+      "outcome": "identical",
+      "counterpart": "ab4d2d5016a08547dd3005f3e7887e4135d0cd4e",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "chore: commit local edits to calibrate_thresholds.py and evaluator.py"
+    },
+    {
+      "commit": "d7df6280d28dd68702c182bac10c16379e3872bd",
+      "outcome": "identical",
+      "counterpart": "4a203cee4591b5640b8dcab7ac280cfa7ff8275e",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(3E): CatBoost SHAP branch in InterpretabilityAgent"
+    },
+    {
+      "commit": "e278d7b882fdb7cc026d0dfae20b13edeaedab0b",
+      "outcome": "identical",
+      "counterpart": "974163fb8e1e500e7c5a44c11795f09d0ccbda44",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: complete Phase 3 roadmap \u2014 3D/3E session log, Run 5 readiness"
+    },
+    {
+      "commit": "d9d62cb2b7c7c5904f5127ecbc4024ee6c87eca5",
+      "outcome": "identical",
+      "counterpart": "2538e030d4cd9f513f74758a786993f487dbf266",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "ci: upgrade GitHub Actions to Node.js 24 native versions"
+    },
+    {
+      "commit": "a0a732d16e20afac127b7508734dccbe59b6cd79",
+      "outcome": "identical",
+      "counterpart": "981e5e0914eb591c391ed6e0fca12d9d76a46e00",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat: GCP Run 6 startup script + --gnomad-constraint flag"
+    },
+    {
+      "commit": "2bd48f4189ec9e6eb01c20658ef30793659dd6b0",
+      "outcome": "identical",
+      "counterpart": "75c8dad1379e4605681b9b7e308322cffcb1d9a9",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: add missing --string-db argparse argument (crashed Run 6 at GNN step)"
+    },
+    {
+      "commit": "9957d5a73178e4248be603f8c38bff87ab691128",
+      "outcome": "identical",
+      "counterpart": "a5f42c587986078fe66c671792b3cc70ae3115ff",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: add ensemble resume logic \u2014 load existing joblib if present, skip retraining"
+    },
+    {
+      "commit": "64e8b56add978e7b0e34272eb923277c8887f4f0",
+      "outcome": "identical",
+      "counterpart": "ca18a8c1306c33d8505612ae9fc02ee86833d131",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: Run 6 session summary + roadmap update (AUROC 0.9862, 78 features)"
+    },
+    {
+      "commit": "50f245f06c08f2b175e7250f3401ae419a761817",
+      "outcome": "identical",
+      "counterpart": "cf2434e285ec58baacb2488aee265c087ba7a3a6",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat: Run 7 startup script \u2014 torch-geometric, correct GCS paths, model upload before shutdown"
+    },
+    {
+      "commit": "db345d385ff7513a3d15c75805984bbe63683bf1",
+      "outcome": "identical",
+      "counterpart": "62f311922b19a9dce1892c26828c0c013b05d919",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: Phase 4 agenda \u2014 LiteratureScoutAgent, DataFreshnessAgent pykan hook, KAN re-enablement checklist"
+    },
+    {
+      "commit": "b49211f6e7a60565ec5a0efddae562fd2a1fe17f",
+      "outcome": "identical",
+      "counterpart": "e3f989ca10e4090eb4a5bf0ae0f7637eede15697",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: GPU infrastructure for Run 8 \u2014 T4 accelerator, verified us-central1-a availability"
+    },
+    {
+      "commit": "d32490839a9665f1eb8645e27543fef3e4bf5adc",
+      "outcome": "identical",
+      "counterpart": "c6e5751779ab8cb2d32979adc0f0cac9ef58225b",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: Run 7 complete \u2014 AUROC 0.9862, models in GCS, Run 8 priorities"
+    },
+    {
+      "commit": "67c80a332ba77c62368546f1165ab6bf0c3fce04",
+      "outcome": "identical",
+      "counterpart": "05f7452a8e703c7af8888bdedde0487edd12faa2",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: standing rules corrected \u2014 VM shuts down on ANY exit via trap, not just success"
+    },
+    {
+      "commit": "e07bf9e0db571e473dbd2ced3c021733ea1e3dfd",
+      "outcome": "identical",
+      "counterpart": "1174ad3cbeab7901156eb7397256c3707bb887af",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: standing lessons from Runs 6+7 \u2014 GPU, startup script, venv, trap, GCS patterns"
+    },
+    {
+      "commit": "12153cc644641c23dde88001e10b4e01d9f9ae40",
+      "outcome": "identical",
+      "counterpart": "ab8251bb949c811d9d57cd360a07e06523888328",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat: Run 8 startup script \u2014 GPU assert, trap shutdown, venv bridge, all lessons applied"
+    },
+    {
+      "commit": "e893f0a9cf5c76845e62cb2207972707e655e569",
+      "outcome": "identical",
+      "counterpart": "963f029b340e8584e2021c2bee12a0126d13d7aa",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: GPU quota denied 2026-04-08 \u2014 reapply 2026-04-15 with billing history"
+    },
+    {
+      "commit": "a95c9db8c5782823a8cb9d09914d7edc24478b7a",
+      "outcome": "identical",
+      "counterpart": "7119c0bd5b715de8499dec8bd641b5cdd36932b6",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat: LiteratureScoutAgent \u2014 pykan, ClinVar, AlphaMissense, PyG watch targets"
+    },
+    {
+      "commit": "401735e646340fd93ad3ae26feb395efe680aa66",
+      "outcome": "identical",
+      "counterpart": "09bc1c4d3a9cd6f925dab20b97a412d368e68302",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat: items 1-3 complete \u2014 SpliceAI index builder, VersionMonitorAgent, orchestrator wiring"
+    },
+    {
+      "commit": "c35ba4ef1c5bb99a2f4b88deb07f43ba2584d5c9",
+      "outcome": "identical",
+      "counterpart": "5f02c828bf2f65d81e1875cac9d1984d333f184e",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: requirements cleanup \u2014 delete orphan files, add transformers>=4.40 for ESM-2"
+    },
+    {
+      "commit": "f7480984c2f344370c9c7d40d07c2345ba45d249",
+      "outcome": "identical",
+      "counterpart": "17579e936de0cc2a9ba6804eb20ac5c90ad1d0c0",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "chore: gitignore create_run*.cmd and secrets/"
+    },
+    {
+      "commit": "671e48d27754ba5ee668b3d12de6f85fe2e181ef",
+      "outcome": "identical",
+      "counterpart": "97a4ee7e7a31ddad3924df67e9750cb8d1744728",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: Dockerfile \u2014 venv pip in trainer, PATH in trainer stage, gnomad-constraint + skip-kan in trainer CMD"
+    },
+    {
+      "commit": "e5cf62946cb8a14727cb06c1eb1f97a73fd0b19d",
+      "outcome": "identical",
+      "counterpart": "9205623ad1ead1adabbdf25d2bdfb14a8dedb14e",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat: Polars benchmark \u2014 3.3x speedup on gnomAD constraint join, integration approved for Phase 3"
+    },
+    {
+      "commit": "5d2b0fa195ccaa015c04aa3d19658afe66a9ffb9",
+      "outcome": "identical",
+      "counterpart": "483c657aedd0c6f907843b76450d391ee2491161",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: Polars benchmark result \u2014 3.3x speedup, integration approved for Phase 3"
+    },
+    {
+      "commit": "0eca854b610f48d29476f1c0b8fa404f762d8810",
+      "outcome": "identical",
+      "counterpart": "bed2f846942f32262cfb741a5e88ecb133de2390",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix: replace .gitkeep with .gitignore in data subdirs \u2014 prevents FileExistsError on GCS sync"
+    },
+    {
+      "commit": "f90d8e18cfa86c68e8b6c9d326ae9af37c4dfbc4",
+      "outcome": "identical",
+      "counterpart": "8efadb5667abcb78493cbead62dde18546e13520",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: Spectral Path Regression flagged as Run 9 ensemble candidate \u2014 Cancer Drug Response benchmark matches our regime"
+    },
+    {
+      "commit": "e84c63ed5a65f964a631581dbff2ef28a75204ad",
+      "outcome": "identical",
+      "counterpart": "cfebf58928d6f0675bc36e0f5aacf02c6008f822",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(agents): implement OpenClaw-inspired inter-agent message bus (Phase 4 foundation)"
+    },
+    {
+      "commit": "fe7b0936251acd5413ee855c8312ed328e3d8696",
+      "outcome": "identical",
+      "counterpart": "4a77007e647719796797178afd6168cb7cadd1f5",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: establish docs/+logs/ filing system \u2014 CHANGELOG, sessions, incidents, log structure"
+    },
+    {
+      "commit": "ac5876d9aafd577b81e0f2129acfae62e661655a",
+      "outcome": "identical",
+      "counterpart": "ea670ebe766f8b020c133f9baa66a4cfe553d6d0",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: SpliceAI index complete \u2014 45.5M variants, 336.8MB, uploaded to GCS; session close"
+    },
+    {
+      "commit": "6b2874d572ef3ef0251333e4ce35912f6bc15ad4",
+      "outcome": "identical",
+      "counterpart": "f29729ceb4566472114df0e1ed657900531511c5",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: close INCIDENT spliceai-vcf-size \u2014 correct 336.8MB index confirmed in GCS"
+    },
+    {
+      "commit": "58427e0fcf9d7c97615eb68cc687b8aad786bf7c",
+      "outcome": "identical",
+      "counterpart": "c87420c346f17369b4be536e38f3e26c51207a81",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: post-session \u2014 SpliceAI GCS fix + 142GB local cleanup recorded in CHANGELOG"
+    },
+    {
+      "commit": "d94b00047b54ae24015b63990ff5f14ab7a9397b",
+      "outcome": "identical",
+      "counterpart": "87f1d3d2ae84e39129471e1f55e63eea9b74f4b5",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat: sync TABULAR_FEATURES to 78-feature engineer_features() output; Lambda startup script; Phase 2 join methods in real_data_prep"
+    },
+    {
+      "commit": "de19e956acaecf9afc43287f6d9c8274377f9723",
+      "outcome": "identical",
+      "counterpart": "8bc120c73268ff011ac5db20bfcd683c38146897",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: SESSION_2026-04-16 + CHANGELOG entry (Lambda A10, Phase 2 promotion, Run 8 pre-flight)"
+    },
+    {
+      "commit": "332663660e9b2b6cacaa1e78e6149d9313cd54db",
+      "outcome": "identical",
+      "counterpart": "ef48cdbfe6f499bc9bcd7159e6f0ed90f2ce31b6",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix(alphamissense): support parquet index in _get_lookup; add _parse_parquet branch"
+    },
+    {
+      "commit": "5297711748777a8cab181d8ed23a146f425e9921",
+      "outcome": "identical",
+      "counterpart": "869cc069a03de098954761a22ae76237590d01d5",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix(alphamissense): _parse_parquet must return lookup_key/alphamissense_score schema"
+    },
+    {
+      "commit": "8291bff4dd45e78210e83bdb67f6e7de18014592",
+      "outcome": "identical",
+      "counterpart": "78e2810fe58f4dec8550ad24029ff95f37cd89e2",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: CHANGELOG 2026-04-16 \u2014 AlphaMissense fix, Run 8 launched on Vast.ai"
+    },
+    {
+      "commit": "f7c89d4c2ea506709c1846c4667db1c6e98358f4",
+      "outcome": "identical",
+      "counterpart": "f3095fe31cfd51c3fcd3a076411f039da9a93636",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: Run 8 complete \u2014 AUROC 0.9863, 1.8GB to GCS, GNN/TF/ESM2 bugs logged"
+    },
+    {
+      "commit": "0a02e5d17cfa6ae74bfc3fa8035ae94f98ced9da",
+      "outcome": "identical",
+      "counterpart": "133e394bd2bd2eebe4beaf1f774e5f4dbfc5713a",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix(gnn): string_db path passed where int threshold expected; wire string_db_path to _local_links"
+    },
+    {
+      "commit": "5de3c9bf0a8cdaa02b7ca3c8498eec3aff75cb17",
+      "outcome": "identical",
+      "counterpart": "f179d4ea81ef944bfc5583d354c18e7f73aaa6e6",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: SESSION_2026-04-16 complete \u2014 Run 8, GNN fix, open bugs for Run 9"
+    },
+    {
+      "commit": "38656bc928b7effa52d5837166ed9f760ddd08e3",
+      "outcome": "identical",
+      "counterpart": "f9d6a92b8c9f5ae44275b3c2776f9f8d502ced06",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat: migrate CNN1DClassifier + TabularNNClassifier from TF/Keras to PyTorch"
+    },
+    {
+      "commit": "527b0c8ef016928f24ef68e9f22ecc853feae61f",
+      "outcome": "identical",
+      "counterpart": "518486fcafc05789d203d07818bf910ebfbe8244",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix(spliceai): add parquet index support; inject _parse_parquet branch"
+    },
+    {
+      "commit": "da6686066795263a1ddf39a8dc82a5e32ec4f9e7",
+      "outcome": "identical",
+      "counterpart": "629946394c61a9f50c6f93780500240749ae3c37",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: session close \u2014 SpliceAI + PyTorch NN fixes, Run 9 fully unblocked"
+    },
+    {
+      "commit": "cbd5c7dfa3387c9ae1ce23af459f920d4a761946",
+      "outcome": "identical",
+      "counterpart": "9af0bf22d975eb136ca9739124dfb93146725da1",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: session close \u2014 SpliceAI + PyTorch NN fixes, Run 9 fully unblocked"
+    },
+    {
+      "commit": "a63aea256ef479247b30f6bd28920d7488820ee1",
+      "outcome": "identical",
+      "counterpart": "0a9d2b9fb50508c57025ec35805ee22b269b3dc6",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs: session close \u2014 SpliceAI + PyTorch NN fixes, Run 9 fully unblocked"
+    },
+    {
+      "commit": "9ba31277fd24f51c6bbf7de26c07df26dcbcb8bc",
+      "outcome": "identical",
+      "counterpart": "02453d15215242ed335dce6bf7d025e7147c456e",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(spliceai): default to parquet index; add regression tests; dedupe changelog"
+    },
+    {
+      "commit": "8b12f76a3163e2b01a640af6f98d5bbb4c5be396",
+      "outcome": "identifier_rewrite",
+      "counterpart": "6d0e01a8a87e97b02e3ec61bf43724384c58f4ce",
+      "identifier_rewrites": [
+        [
+          "9ba3127",
+          "02453d1"
+        ]
+      ],
+      "excised_paths": [],
+      "subject_line": "docs: session 2026-04-17 \u2014 SpliceAI default path fix"
+    },
+    {
+      "commit": "d01f2e16e5ec30bd7e9bedbbf3d5a514e22a4b75",
+      "outcome": "identifier_rewrite",
+      "counterpart": "68a22f59e6d0e265501ca68f43930f0ece725e5f",
+      "identifier_rewrites": [
+        [
+          "8b12f76",
+          "6d0e01a"
+        ]
+      ],
+      "excised_paths": [],
+      "subject_line": "docs(changelog): append 2026-04-17 entry (missed in 8b12f76)"
+    },
+    {
+      "commit": "abdb1d2bcec69a2f3299e10fd657240922eceaf4",
+      "outcome": "identical",
+      "counterpart": "6540c0bf492c972663783f4049ad8095e0635d80",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(run9): preflight + VM preflight + ESM-2 smoke test + launch runbook"
+    },
+    {
+      "commit": "50c0579fc6bc8f6b2c3f2a25247c1a09628c23af",
+      "outcome": "identical",
+      "counterpart": "f5196bfee8936cdedfaa743a1581c36516ea0482",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs(run9): INCIDENT for missing HGVSp parser + session + handoff + CHANGELOG"
+    },
+    {
+      "commit": "8a7e2daf37e28dc43e1469c9dbcbb4afeaec8464",
+      "outcome": "identical",
+      "counterpart": "b72c7bc4732a72513d9cd55cc249729d0aec4ad2",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(run9): splits + RunArtifactWriter + oof_predictions exposure"
+    },
+    {
+      "commit": "89b58a339248c6dde0c15fb0df20d2b6ec57ab29",
+      "outcome": "identical",
+      "counterpart": "a57e2594c486e6005432c57ebecfb3c3a5fd4b60",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix(mainline): re-persist splits after GNN injection (Patch 6a)"
+    },
+    {
+      "commit": "f3f435de3742dff62347f8cf6146c922ed9d9b7c",
+      "outcome": "identical",
+      "counterpart": "986af454bc543cbd99a3628d3935fc3362b08e0f",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs(run9): PATCHES_AND_INTEGRATION.md v2 \u2014 schema + Patch 6"
+    },
+    {
+      "commit": "b1c115054a55199cc22b0d6a476f8970bc0bf6ac",
+      "outcome": "identifier_rewrite",
+      "counterpart": "b904776429d48d5434a2588b90b861ec33ad3ed6",
+      "identifier_rewrites": [
+        [
+          "f3f435d",
+          "986af45"
+        ],
+        [
+          "8a7e2da",
+          "b72c7bc"
+        ]
+      ],
+      "excised_paths": [],
+      "subject_line": "fix(ensemble): meta-learner fit uses y_fit to match oof_preds length"
+    },
+    {
+      "commit": "8f9eb60c09077f57bb5f58e370822fd4bddf50d4",
+      "outcome": "identifier_rewrite",
+      "counterpart": "e2c6fe2070b2a952a8123fa2366ee4bdfc201f7d",
+      "identifier_rewrites": [
+        [
+          "2389ee2",
+          "08c3685"
+        ],
+        [
+          "671e48d",
+          "97a4ee7"
+        ]
+      ],
+      "excised_paths": [],
+      "subject_line": "feat(ensemble): add --skip-kan CLI flag, remove hardcoded KAN removal"
+    },
+    {
+      "commit": "128331f37ce3cace05c22b9dca44344c2b5f56a4",
+      "outcome": "identifier_rewrite",
+      "counterpart": "3d4fa77878d25d9cb712afcfa386c5fd222bf019",
+      "identifier_rewrites": [
+        [
+          "2389ee2",
+          "08c3685"
+        ]
+      ],
+      "excised_paths": [],
+      "subject_line": "feat(run9): KAN as first-class ablation target; --skip-mc-dropout flag"
+    },
+    {
+      "commit": "67928a913225a66ca3e9a86d7ed3ef117d2bc58a",
+      "outcome": "identifier_rewrite",
+      "counterpart": "3f7e7ac8614e5f7e8e32b959488f96411b0254ce",
+      "identifier_rewrites": [
+        [
+          "b1c1150",
+          "b904776"
+        ],
+        [
+          "8f9eb60",
+          "e2c6fe2"
+        ],
+        [
+          "128331f",
+          "3d4fa77"
+        ]
+      ],
+      "excised_paths": [],
+      "subject_line": "docs(kan): ROADMAP checklist complete; session + INCIDENT for 2026-04-20"
+    },
+    {
+      "commit": "0bacbe420198abbbe6291926e0980d044951120b",
+      "outcome": "identifier_rewrite",
+      "counterpart": "8fe606b881defce115ac09262236a208572f6aa9",
+      "identifier_rewrites": [
+        [
+          "b1c1150",
+          "b904776"
+        ],
+        [
+          "8f9eb60",
+          "e2c6fe2"
+        ],
+        [
+          "128331f",
+          "3d4fa77"
+        ]
+      ],
+      "excised_paths": [],
+      "subject_line": "docs(kan): ROADMAP checklist complete; session + INCIDENT for 2026-04-20"
+    },
+    {
+      "commit": "d21aba394c788660b2a4051f141827fb66472ac3",
+      "outcome": "identical",
+      "counterpart": "3bbf45b7eda9fa7c264877e88a27b18cc91624d4",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "chore(startup): restore gcp_run6_startup.sh content"
+    },
+    {
+      "commit": "d354e191c6713988b1af11e0a9e2a05d870205ed",
+      "outcome": "identical",
+      "counterpart": "03804d6e2a49fc2396f3ab14d05c6666bc268187",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs(run9): add scientific design, operations playbook, environment notes"
+    },
+    {
+      "commit": "00b4c3f8a996e0bd618aa8b6e2b6d31f1cd4155d",
+      "outcome": "identical",
+      "counterpart": "0e3490bde835223bf0580f4bfd435ca2b9380b22",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(data): gene-stratified splitter + Rule 5/6 test coverage"
+    },
+    {
+      "commit": "d734936a44dd03b7cbdfe22ee27d40343f7526ad",
+      "outcome": "identical",
+      "counterpart": "4780c76eb6fc14d20275705f15684940f5396217",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "feat(run9a): [GNN-TRACE] instrumentation for Patch 6a diagnosis"
+    },
+    {
+      "commit": "75d63ae563a605e8498eae2288e1f98e59a50f13",
+      "outcome": "identical",
+      "counterpart": "14b2cf55ec3974c77cb0c338b05c45a5ea2ac3bf",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "fix(gnn): Patch 6b \u2014 persist meta_train.parquet, source gene_symbol from it"
+    },
+    {
+      "commit": "cb9a4cb346d35443023978ac58bf970fea73ffa1",
+      "outcome": "identical",
+      "counterpart": "a9f5ff07bc163c82665ef9a0a7662e5814989492",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "docs(run9a): SESSION + INCIDENT + CHANGELOG for 2026-04-30"
+    },
+    {
+      "commit": "b3e3b756c9df0a8aaae80279857eae98a8ac4267",
+      "outcome": "identifier_rewrite",
+      "counterpart": "2662cbee3c416e35167df8b7c0f67146f382a45a",
+      "identifier_rewrites": [
+        [
+          "75d63ae",
+          "14b2cf5"
+        ],
+        [
+          "d734936",
+          "4780c76"
+        ]
+      ],
+      "excised_paths": [],
+      "subject_line": "fix(gnn): complete Patch 6b -- _save_splits signature + run() pass-through"
+    },
+    {
+      "commit": "5be5c8f0d4d8aa73f36a1fa1ff4cbb5ede193646",
+      "outcome": "identical",
+      "counterpart": "4013a31fb105235807802963ac5b056ecb56f105",
+      "identifier_rewrites": [],
+      "excised_paths": [],
+      "subject_line": "chore: gitignore .venv*, *.bak-*, session scratch files"
+    },
+    {
+      "commit": "c1c01920aa0b6fc21d0b3e926cbe1c66af016acc",
+      "outcome": "identifier_rewrite",
+      "counterpart": "c568971adafdc58a0e80c281381300c79dc8b9ad",
+      "identifier_rewrites": [
+        [
+          "cb9a4cb",
+          "a9f5ff0"
+        ]
+      ],
+      "excised_paths": [],
+      "subject_line": "chore: pin pandas 2.3.3, add session-docs helper, drawio workspace setting"
+    }
+  ],
+  "summary": {
+    "branch_only_commits": 180,
+    "identical": 169,
+    "identifier_rewrite": 10,
+    "excised_paths_only": 1,
+    "differs": 0,
+    "ambiguous": 0,
+    "no_counterpart": 0
+  },
+  "objects_not_in_reference": {
+    "commits": 180,
+    "trees": [
+      "3a113fe20650a5c39c724e3b8777e01a3806cb2a",
+      "793bc8da80220def928ad1f44ca57bd83d95c143"
+    ],
+    "blobs": []
+  },
+  "verdict": "equivalent"
+}

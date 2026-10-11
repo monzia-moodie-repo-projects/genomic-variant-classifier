@@ -186,3 +186,13 @@ configs/source_monitor_deployment.json -text
 # a preservation must not depend on the corpus staying friendly. The index (index.json) is a REPLACEABLE projection and stays authored
 # text (eol=lf). After the records rules because later rules win. ARTIFACT-INVENTORY-RECORDS-PINNED-1.
 records/verification/environment-qualification/artifact-inventory/REC-*.json -text
+
+# ---------------------------------------------------------------------------
+# BRANCH-EQUIVALENCE RECORDS: preserved bytes (added 2026-10-10, the run9a-prep record).
+# ---------------------------------------------------------------------------
+# A branch-equivalence record (REC-*.json) states, commit by commit, that a branch holds nothing its reference lacks; the installer
+# that commits it re-derives it from the owner's preserved bundle and requires BYTE equality, and the roadmap and changelog quote its
+# SHA-256. Git must never rewrite those bytes. Same reasoning as ARTIFACT-INVENTORY-RECORDS-PINNED-1; direct children only, matching
+# the family test, which admits nothing else in the directory. After the records rules because later rules win.
+# BRANCH-EQUIVALENCE-RECORDS-PINNED-1.
+records/verification/repository-history/branches/REC-*.json -text

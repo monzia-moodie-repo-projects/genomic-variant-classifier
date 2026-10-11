@@ -309,3 +309,15 @@ def test_migration_artifacts_are_byte_pinned_and_their_manifest_and_the_live_loc
     """MIGRATION-ARTIFACTS-PRESERVED-1 (2026-10-09). The preserved candidate lockfile is CRLF as renv wrote it, and `*.lock text
     eol=lf` would rewrite it on commit; the manifest is authored, and the live renv.lock is canonical LF text."""
     assert _attrs(path).get("text") == expected, (path, _attrs(path))
+
+
+@pytest.mark.parametrize("path,expected", [
+    ("records/verification/repository-history/branches/REC-9ccf9fa0863b447292230fe1130850b0.json", "unset"),
+    ("records/verification/repository-history/branches/REC-next_not_yet_added.json", "unset"),
+    ("records/verification/repository-history/branches/index.json", "set"),
+    ("records/verification/repository-history/branches/nested/REC-x.json", "set"),
+])
+def test_branch_equivalence_records_are_byte_pinned_narrowly(path, expected):
+    """BRANCH-EQUIVALENCE-RECORDS-PINNED-1 (2026-10-10). The record is re-derived from the owner's preserved bundle and compared BYTE
+    for byte, and its SHA-256 is quoted; git must never rewrite it (today's record or the next). Direct children only."""
+    assert _attrs(path).get("text") == expected, (path, _attrs(path))
