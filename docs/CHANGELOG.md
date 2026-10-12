@@ -1,3 +1,86 @@
+## 2026-10-10 (repository history) -- run9a-prep holds nothing main lacks: the branch-equivalence record
+
+Owner instruction 2026-10-10: "Move forward with all necessary commits" on the GitHub branch run9a-prep ("180 commits not in main",
+last one 2026-04-30). Measured first, then recorded; the branch itself is deleted only by a separate owner step after this is on main.
+
+- MEASURED: run9a-prep (tip c1c01920, 183 commits, root 08e881b) is the April history that pull request #1 merged at 2026-05-01
+  01:44 UTC (61c1b2b, tagged run9a-baseline; its second parent c568971 is the counterpart of the tip). The history rewrite of
+  2026-07-11 (scripts/forensics/verify_postrewrite.py: git filter-repo excised data/alphafold_cif_cache_2026-07-03.tar.gz and
+  notebooks./gitkeep) renamed every later commit on main and the identifiers quoted in messages; the GitHub branch kept the old names.
+  Every remote tag (run9a-baseline, v2.0.0, v4.0.0) points into main. The owner's bundle of the branch
+  (history/run9a-prep_c1c01920aa0b_20261010T221514Z.bundle, sha256 1e83929f...e4f4, 3,796,302 bytes) verifies with git, records the
+  complete history and holds the same 183 commits as the GitHub branch; 0 of its 1,237 objects are absent from the GitHub mirror.
+- repository_records/branch_equivalence.py (NEW): the typed owner of the record (VERIFICATION_RESULT, schema gvc.branch-equivalence/1,
+  family records/verification/repository-history/branches/). derive() classifies each branch-only commit, read-only: identical
+  (tree, author, committer, both dates, message and the parents' counterparts all equal), identifier_rewrite (the same, except
+  quoted identifiers that map exactly, same length, to the counterparts'), excised_paths_only (changes only declared excised paths,
+  and without them its tree equals its parent's counterpart's tree), differs, ambiguous (two candidates, or one reference commit
+  claimed by two), no_counterpart; then accounts for every object the branch reaches and the reference does not, by type. The verdict
+  is "equivalent" only with every commit explained AND no blob missing -- an explained commit whose content the reference lacks is
+  still content the branch holds. render() is deterministic; load() is strict (duplicate keys, floats, byte-order mark, exact keys in
+  order, formats, a preserved-copy head that is the subject tip, summary and verdict re-derived from the rows, byte-exact re-render).
+  A command line derives and verifies.
+- records/verification/repository-history/branches/REC-9ccf9fa0863b447292230fe1130850b0.json (NEW; 61,210 bytes, sha256
+  9141d73e0013c905bd210314f7c20162097131693829b58f95410d144c9d19ff): 180 branch-only commits -- 169 identical, 10 identifier_rewrite
+  (13 identifier pairs), 1 excised_paths_only (9bdd270, notebooks./gitkeep), 0 differs, 0 ambiguous, 0 no_counterpart; objects not
+  on main: 180 commits, 2 trees (3a113fe2, 793bc8da), 0 blobs; verdict equivalent. Derived byte-identically from the GitHub mirror and
+  from the bundle fetched into a fresh clone; the installer repeats the bundle derivation and requires byte equality.
+- .gitattributes: BRANCH-EQUIVALENCE-RECORDS-PINNED-1 -- REC-*.json directly in the family directory is -text.
+- TESTS +47 (8,507): +43 tests/unit/test_branch_equivalence.py -- every outcome on histories BUILT WITH GIT PLUMBING (trees written
+  with `git mktree`, never through an index; fixed identities and dates; the rewrite's pattern reproduced: the excised commit dropped,
+  later commits renamed, quoted identifiers rewritten),
+  including an excised commit whose content the reference lacks (not equivalent), a declared excision the reference still holds
+  (explains nothing) and a reference commit claimed twice; 17 tamper cases and malformed bytes; the committed record's measured
+  values, its bundle binding and its placement within PATH-BUDGET-1. +4 tests/unit/test_gitattributes_contract.py. Seeded defects:
+  15 against the module, 14 detected; the survivor (subset-of-excised-paths test removed) is proven equivalent -- the tree comparison
+  implies it -- and is kept, documented, as a short-circuit. Two earlier survivors (the remaining-tree comparison; untyped blob
+  identifiers in load) led to the two tests named above and two tamper cases. 3 of the 43 test the history helper itself (added
+  2026-10-11, below).
+  FULL SUITE (development sandbox, by node identity, against main ffc549f4): 0 outcome changes on 8,345 shared tests and 47 added,
+  all passing, in three configurations: the sandbox's git 2.43.0; a Linux build of Git for Windows 2.55.0.windows.5 whose index
+  applies its Windows path check; and that build under the Windows-newline simulation (its 14 simulation-specific failures identical
+  on both sides). The failures common to both sides are the sandbox's own (packages absent or at other versions, its relative
+  PYTHONPATH in two child-process tests and, with git 2.43.0, 8 tests that need --no-lazy-fetch; see the CORRECTION below). Measured
+  2026-10-11 on the committed tree.
+- FINDING: the pre-rewrite commit map compiled on 2026-09-21 outside the repository (58 rows) covers July-era commits only; it shares
+  no commit with run9a-prep, so it neither corroborates nor contradicts this record.
+- 2026-10-11, THE OWNER'S RUNS. (1) The Windows Sandbox smoke qualification PASSED (revision c, 26 of 26 checks, closed by `wsb stop`;
+  archive d142b790); see the roadmap. (2) The first issue of this change's installer re-derived the record from the owner's bundle on
+  his machine BYTE-IDENTICALLY (9141d73e), then FAILED at its targeted tests: all 372 errored at setup with one cause, PermissionError
+  [WinError 5] on TEMP\pytest-of-monzi. Every test requests tmp_path (the autouse fixture _isolate_connector_caches); pytest keeps that
+  user-wide folder in TEMP and creates it with os.mkdir(mode=0o700), which since Python 3.12.4 applies, on Windows, a protected access
+  list granting only SYSTEM, Administrators and the OWNER; a folder created from an administrator window is owned by the Administrators
+  group, which an ordinary window holds only as deny-only (the expected cause; measured from an ordinary window at 01:53 UTC: neither
+  the folder's listing nor its access list can be read, and renaming it is refused; its owner is read next from an administrator
+  window). The installer's revision b gives each test run its own fresh temporary
+  root (pytest --basetemp; TEMP, TMP and TMPDIR for tempfile and child pytest processes), proves it with a probe before the suite,
+  budgets its Windows path length from a measurement (the deepest temporary path is a copied repository path: 180 characters below
+  the basetemp), refuses an administrator window, and prints the distinct failure causes. Full suite with a private temporary root
+  (development sandbox): 0 outcome changes on 8,389 tests. FINDING, recorded not changed: nine test files make directories with
+  tempfile.mkdtemp() at 72 call sites and never remove them (test_runtime_paths 25, test_cache_root 18, test_artifact_inventory 14,
+  test_phylop_cache 7, test_phylop_ingest 4, one each in four more), so every run leaves directories in the user's TEMP; revision b
+  contains them in its own root, and moving those tests to tmp_path is a separate change.
+- 2026-10-11, THE INSTALLER'S SECOND RUN (revision b, 01:53-02:02 UTC; nothing committed, preservation verified unchanged). Every stage
+  passed through the new temp_root probe -- the private temporary root works on the owner's machine -- and the record re-derived
+  byte-identically again; then 14 of the 372 targeted tests failed with ONE cause, in the tests' own helper: "error: Invalid path
+  'notebooks./gitkeep'". Git for Windows (the owner's is 2.55.0.windows.5) checks every path entering an INDEX against Windows naming
+  while core.protectNTFS is on, its default (read in its source at that tag: read-cache.c verify_path calls compat/mingw.c
+  is_valid_win32_path; no path component may end in a period or a space, and none may be a reserved device name). The helper built
+  the constructed histories through an index. It now writes their trees with `git mktree`, which refuses only a name containing a
+  slash, and holds the excised path as a tree entry exactly as the real run9a-prep history does; +3 tests: the helper writes the
+  same tree an index writes for names every platform accepts (git's entry order exercised), the constructed history holds
+  notebooks./gitkeep as a tree entry whose subtree is main's notebooks/ subtree, and no string in the helper's code names an index
+  operation. REPRODUCED before the change and VERIFIED after it with a Linux build of that exact Git for Windows source whose index
+  applies its Windows path check (is_valid_win32_path copied verbatim): before, the owner's targeted run exactly (14 failed, 356
+  passed, 2 skipped; the same 14 node identities); after, 373 passed and 2 skipped (the Windows-only junction tests). A stock Linux git accepts the path, which is why the earlier
+  sandbox runs passed. Installer revision c also prints the reason of every skipped targeted test (the owner's 2 skips, by position
+  the two symbolic-link tests that need a privilege an ordinary window lacks, were not explained) and records git's version and its
+  core.protectNTFS, core.longpaths and core.autocrlf values in the environment stage.
+- CORRECTION (beside the records, docs/sessions/CORRECTION_2026-10-11_the-sandbox-failures-are-not-all-missing-packages.md): three
+  statements of 2026-10-09 attributed the development sandbox's 60 failures and 30 errors to missing packages; 8 of the 60 come from
+  its git 2.43.0, which refuses --no-lazy-fetch, 5 from a lightgbm and scikit-learn version mismatch, and 2 from its relative
+  PYTHONPATH in child processes. No outcome comparison changes: every one was by node identity on both sides of the same sandbox.
+
 ## 2026-10-10 (environment qualification) -- the lockfile migration admitted; renv.lock R 4.6.1, 102 packages; the repository path budget
 
 Owner rulings 2026-10-08c (every transition states its restoration effect), 2026-10-08d (the transition admission is tied to the
