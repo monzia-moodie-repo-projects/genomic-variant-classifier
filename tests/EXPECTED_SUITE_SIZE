@@ -8137,4 +8137,11 @@
 #   Of the 43, 3 were added 2026-10-11 after the owner's Windows run: the history helper writes trees with `git mktree` (an index on
 #   Git for Windows refuses notebooks./gitkeep), writes the same tree an index writes for ordinary names, holds the excised path as a
 #   tree entry, and never names an index operation.
-8507
+# 2026-10-12  TEST WORKSPACE HYGIENE -- the suite stops leaving files in the checkout and in TEMP (measured 2026-10-11: models/best_gat.pt
+#   and compiled bytecode in both validation clones; 973 tmp* folders in TEMP)
+#   +30 / -0 by node identity: +17 tests/unit/test_workspace_snapshot.py (what the working-tree snapshot observes, never follows and
+#   never enters), +10 tests/unit/test_working_tree_guard.py (temporary-file containment in this session, in a child interpreter and
+#   at import time; the guard's verdict, exit code and message from child sessions -- among them, added 2026-10-31 after pull
+#   request #56's red Continuous Integration run, the gate's own coverage outputs, a test writing under those names, a loop that
+#   stops early, and the finding without the terminal plugin), +3 tests/unit/test_gnn_optim.py (the checkpoint path).
+8537

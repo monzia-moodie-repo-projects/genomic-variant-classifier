@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **8,507 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **8,537 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -620,6 +620,27 @@ exists to end.
   excised entry, no index operation). A Linux build of that Git for Windows source with its Windows path check reproduced the 14
   failures exactly (14 failed, 356 passed, 2 skipped, the same node identities) and passes every test after the change; such a build
   now stands in for Git for Windows' path rules in this project's simulations, which a stock Linux git cannot.
+- **2026-10-12 -- Test workspace hygiene: the suite stops leaving files in the checkout and in TEMP, and a guard makes it stay so.**
+  Measured 2026-10-11: both validation clones that had run the full suite held models/best_gat.pt and compiled files, and the
+  owner's TEMP held 973 tmp* folders from five test sessions. A full run at the same tree, with the owner's package versions and
+  the installer's settings, left models/best_gat.pt (GNNTrainer created its checkpoint folder at construction and its default path
+  is relative to the current directory; train_gnn_pipeline offered no way to choose it), 14 compiled files (two child interpreters
+  in test_bootstrap_reconciliation.py started with a fresh environment) and, in its temporary root, 173 tmp* folders (72 mkdtemp
+  calls in nine test files, plus library code). The 2026-09-23 entry below said the suite no longer wrote into the repository; its
+  check ran without PyTorch (correction record beside it). Changed: the checkpoint folder is created where the file is written and
+  the pipeline passes checkpoint_path through (default unchanged), every training test writes under tmp_path, and the two children
+  run with -B. tests/conftest.py points tempfile and TMPDIR, TEMP and TMP at a folder inside pytest's base temporary directory from
+  configuration on -- before any test module is imported (a first version as a session fixture still let PyTorch's cache folder
+  escape during collection) -- so every temporary file, including child processes' and library code's, lands where pytest manages
+  its lifetime. A working-tree guard (repository_hygiene/workspace_snapshot.py) snapshots the whole tree when a session starts and
+  compares it when the test loop ends: anything added, removed or changed is named and fails the session even when every test
+  passed; it never follows a link and does not enter the directories NOT_THIS_REPOSITORY declares. It compares at the end of the
+  loop, not at session finish, because the first Continuous Integration run of this change (pull request #56, 2026-10-31) failed on
+  both Python versions: pytest-cov writes .coverage and coverage.xml between the two (measured). The same run failed one guard test:
+  it installs pytest 9.2.0 from requirements-dev.txt, which still calls plugins' terminal summaries under --no-summary; the test now
+  holds on every pytest version. Open: TEST-R-PROJECT-PROFILE-1 (a test runs Rscript in the checkout at collection; the project
+  profile activates renv and creates renv/library, which the guard does not enter by declaration); CI-INSTALLS-DEV-RANGES-1 (the
+  gate installs requirements.txt and requirements-dev.txt as ranges, not the lock). Suite 8,507 -> 8,537.
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined
@@ -639,7 +660,9 @@ exists to end.
   truncated logs/train.log at collection, and rewrote the orchestrator's
   agent_state.json. After: a content-digest inventory of the whole tree is
   unchanged. Suite 6,745 -> 6,758 collected (+13, 0 removed). Details in
-  `docs/CHANGELOG.md`.
+  `docs/CHANGELOG.md`. CORRECTED 2026-10-12: not true for the graph-neural-network
+  tests, which that check could not run (PyTorch absent); see
+  `docs/sessions/CORRECTION_2026-10-12_the-suite-still-wrote-into-the-repository.md`.
 
 - **2026-08-23 -- authority succession.** The predecessor was preserved verbatim
   at the archive address above and this document took the live path, in one

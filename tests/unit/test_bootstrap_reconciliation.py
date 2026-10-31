@@ -483,7 +483,9 @@ def test_derive_seed_is_stable_across_processes():
             "print(derive_seed(42, 'auroc'))")
     seen = set()
     for salt in ("0", "1", "random"):
-        out = subprocess.run([sys.executable, "-c", code], capture_output=True,
+        # -B: these children get a FRESH environment (no PYTHONDONTWRITEBYTECODE), and their working directory is the checkout;
+        # without -B they wrote src/genomic_variant_classifier/**/__pycache__ into it (measured 2026-10-11 in the validation clones).
+        out = subprocess.run([sys.executable, "-B", "-c", code], capture_output=True,
                              text=True, env={"PYTHONHASHSEED": salt, "PATH": "/usr/bin:/bin",
                                              "PYTHONPATH": "src"})
         assert out.returncode == 0, out.stderr
@@ -775,7 +777,8 @@ def test_evaluator_still_imports_without_scikit_learn():
         "assert hasattr(m, 'format_ci')\n"
         "print('ok')\n"
     )
-    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
+    # -B: a fresh environment and the checkout as working directory (see test_derive_seed_is_stable_across_processes).
+    out = subprocess.run([sys.executable, "-B", "-c", code], capture_output=True, text=True,
                          env={"PYTHONPATH": "src", "PATH": "/usr/bin:/bin"})
     assert out.returncode == 0 and "ok" in out.stdout, out.stderr
 
