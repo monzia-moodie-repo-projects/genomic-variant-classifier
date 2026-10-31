@@ -39,16 +39,17 @@ def _tiny():
     return df, [f"f{j}" for j in range(5)], g
 
 
-def test_precision_default_is_fp32_and_trains():
+def test_precision_default_is_fp32_and_trains(tmp_path):
     df, feat, g = _tiny()
-    _, t, h = train_gnn_pipeline(df, feat, graph=g, epochs=2, test_split=0.25)
+    _, t, h = train_gnn_pipeline(df, feat, graph=g, epochs=2, test_split=0.25, checkpoint_path=tmp_path / "best_gat.pt")
     assert t.precision == "fp32"
     assert all(np.isfinite(e["train_loss"]) for e in h)
 
 
-def test_precision_bf16_path_trains_finite():
+def test_precision_bf16_path_trains_finite(tmp_path):
     df, feat, g = _tiny()
-    _, t, h = train_gnn_pipeline(df, feat, graph=g, epochs=2, test_split=0.25, precision="bf16")
+    _, t, h = train_gnn_pipeline(df, feat, graph=g, epochs=2, test_split=0.25, precision="bf16",
+                                 checkpoint_path=tmp_path / "best_gat.pt")
     assert t.precision == "bf16"
     assert all(np.isfinite(e["train_loss"]) for e in h)
 
@@ -76,3 +77,35 @@ def test_denoise_modes():
 def test_edge_gate_shapes():
     out, gate = EdgeGate(3)(torch.rand(4, 3))
     assert out.shape == (4, 3) and gate.shape == (4, 1)
+
+
+# --------------------------------------------------------------------------- the checkpoint path (2026-10-12)
+# MEASURED 2026-10-11: two validation clones that had run the suite held models/best_gat.pt. GNNTrainer created the checkpoint's
+# folder when CONSTRUCTED and train_gnn_pipeline offered no way to choose the path, so every training test wrote into the current
+# directory -- the checkout. The folder is now created where the file is written, and the pipeline passes the path through.
+def test_constructing_a_trainer_creates_no_folder(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    GNNTrainer(VariantGAT(in_channels=5), epochs=1)                                         # the default, relative path
+    GNNTrainer(VariantGAT(in_channels=5), epochs=1, checkpoint_path=tmp_path / "deep" / "best.pt")
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_the_checkpoint_is_written_where_asked_and_nowhere_else(tmp_path, monkeypatch):
+    work = tmp_path / "current_directory"
+    work.mkdir()
+    monkeypatch.chdir(work)
+    target = tmp_path / "checkpoints" / "run" / "best.pt"
+    df, feat, g = _tiny()
+    model, t, h = train_gnn_pipeline(df, feat, graph=g, epochs=3, test_split=0.25, checkpoint_path=target)
+    assert t.checkpoint_path == target
+    assert max(e["val_auc"] for e in h) > 0, "precondition: fit saves only on an improvement over 0"
+    assert target.is_file()
+    assert set(torch.load(target, map_location="cpu")) == set(model.state_dict())
+    assert list(work.iterdir()) == []
+
+
+def test_the_default_checkpoint_path_is_unchanged():
+    import inspect
+
+    assert inspect.signature(GNNTrainer).parameters["checkpoint_path"].default == "models/best_gat.pt"
+    assert inspect.signature(train_gnn_pipeline).parameters["checkpoint_path"].default == "models/best_gat.pt"

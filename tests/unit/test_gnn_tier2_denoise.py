@@ -62,9 +62,10 @@ def test_denoise_invalid_mode_raises():
         build_pyg_dataset(df, G, feats, edge_denoise="bogus")
 
 
-def test_pipeline_trains_through_denoise_path():
+def test_pipeline_trains_through_denoise_path(tmp_path):
     G, df, feats = _toy()
     _m, _tr, hist = train_gnn_pipeline(df, feats, graph=G, epochs=3,
-                                       edge_denoise="threshold", edge_denoise_tau=0.5)
+                                       edge_denoise="threshold", edge_denoise_tau=0.5,
+                                       checkpoint_path=tmp_path / "best_gat.pt")
     assert len(hist) >= 1
     assert np.isfinite(hist[-1]["val_auc"])

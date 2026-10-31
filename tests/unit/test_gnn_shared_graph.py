@@ -87,23 +87,25 @@ def test_edge_storage_independent_of_variant_count():
     assert ds_small.edge_attr.shape[1] == 3
 
 
-def test_trains_learns_and_is_finite():
+def test_trains_learns_and_is_finite(tmp_path):
     torch.manual_seed(0)
     np.random.seed(0)
     graph = _graph()
     df = _homophilous_variants(graph, 2000)
-    model, trainer, hist = train_gnn_pipeline(df, NCOLS, graph=graph, epochs=120, test_split=0.25)
+    model, trainer, hist = train_gnn_pipeline(df, NCOLS, graph=graph, epochs=120, test_split=0.25,
+                                              checkpoint_path=tmp_path / "best_gat.pt")
     assert len(hist) > 0
     assert all(np.isfinite(h["train_loss"]) and np.isfinite(h["val_loss"]) for h in hist)
     best = max(h["val_auc"] for h in hist)
     assert best > 0.75, f"GNN failed to learn homophilous signal (best val AUC {best:.3f})"
 
 
-def test_predict_proba_aligned_finite_and_gene_level():
+def test_predict_proba_aligned_finite_and_gene_level(tmp_path):
     torch.manual_seed(0)
     graph = _graph()
     df = _homophilous_variants(graph, 2000)
-    _, trainer, _ = train_gnn_pipeline(df, NCOLS, graph=graph, epochs=60, test_split=0.25)
+    _, trainer, _ = train_gnn_pipeline(df, NCOLS, graph=graph, epochs=60, test_split=0.25,
+                                       checkpoint_path=tmp_path / "best_gat.pt")
     full = build_pyg_dataset(df, graph, NCOLS)
     proba = trainer.predict_proba(full)
     assert proba.shape[0] == len(full)
@@ -116,11 +118,12 @@ def test_predict_proba_aligned_finite_and_gene_level():
     assert max(len(s) for s in by_gene.values()) == 1
 
 
-def test_scorer_and_nonconstant_gnn_score():
+def test_scorer_and_nonconstant_gnn_score(tmp_path):
     torch.manual_seed(0)
     graph = _graph()
     df = _homophilous_variants(graph, 2000)
-    _, trainer, _ = train_gnn_pipeline(df, NCOLS, graph=graph, epochs=60, test_split=0.25)
+    _, trainer, _ = train_gnn_pipeline(df, NCOLS, graph=graph, epochs=60, test_split=0.25,
+                                       checkpoint_path=tmp_path / "best_gat.pt")
     full = build_pyg_dataset(df, graph, NCOLS)
     scorer = GNNScorer.from_trainer(trainer, full, df)
     assert len(scorer.gene_scores) > 0
