@@ -386,7 +386,7 @@ class GNNTrainer:
         epochs: int = 100,
         batch_size: int = 32,  # accepted for API compatibility; full-batch by default
         device: Optional[str] = None,
-        checkpoint_path: str = "models/best_gat.pt",
+        checkpoint_path: str | Path = "models/best_gat.pt",
         precision: str = "fp32",
     ) -> None:
         self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
@@ -395,8 +395,9 @@ class GNNTrainer:
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=epochs)
         self.epochs = epochs
         self.batch_size = batch_size
+        # The folder is created where the checkpoint is WRITTEN (fit), not here: constructing a trainer -- as tests and
+        # inference do -- must not create models/ in the current directory (MEASURED 2026-10-11 in the validation clones).
         self.checkpoint_path = Path(checkpoint_path)
-        self.checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
         self.precision = precision
         self.history: list[dict] = []
 
@@ -464,6 +465,7 @@ class GNNTrainer:
             )
             if val_auc > best_val_auc:
                 best_val_auc = val_auc
+                self.checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
                 torch.save(self.model.state_dict(), self.checkpoint_path)
                 no_improve = 0
             else:
@@ -522,8 +524,13 @@ def train_gnn_pipeline(
     edge_denoise: str = "none",
     edge_denoise_tau: float = 0.0,
     layer_type: str = "gat",
+    checkpoint_path: str | Path = "models/best_gat.pt",
 ) -> tuple[VariantGAT, GNNTrainer, list[dict]]:
-    """End-to-end GNN training pipeline (transductive, shared graph)."""
+    """End-to-end GNN training pipeline (transductive, shared graph).
+
+    checkpoint_path: where GNNTrainer.fit saves the best model (default unchanged: models/best_gat.pt, relative to the current
+    directory). Tests pass a path under tmp_path.
+    """
     from sklearn.model_selection import train_test_split
 
     if graph is None:
@@ -554,7 +561,7 @@ def train_gnn_pipeline(
         model = VariantGAT(in_channels=in_channels, hidden_channels=128, heads=8)
     else:
         raise ValueError(f"unknown layer_type: {layer_type!r} (expected 'gat' or 'gps')")
-    trainer = GNNTrainer(model, epochs=epochs, batch_size=batch_size, precision=precision)
+    trainer = GNNTrainer(model, epochs=epochs, batch_size=batch_size, precision=precision, checkpoint_path=checkpoint_path)
     history = trainer.fit(train_ds, val_ds)
     return model, trainer, history
 

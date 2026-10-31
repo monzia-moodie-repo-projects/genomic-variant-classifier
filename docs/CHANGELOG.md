@@ -1,3 +1,70 @@
+## 2026-10-12 (test workspace hygiene) -- the suite stops leaving files in the checkout and in TEMP; a working-tree guard
+
+MEASURED 2026-10-11 on the owner's machine: both validation clones that had run the full suite held models/best_gat.pt and compiled
+files under src/genomic_variant_classifier/__pycache__ and evaluation/__pycache__ (the owner's clean-up block named them and refused);
+TEMP held 973 tmp* folders from five test sessions. Reproduced in the development sandbox at the same tree with the owner's exact
+package versions (from his validation's environment.log; 8,507 collected, as on his machine) and the installer's full-suite settings
+(PYTHONPATH = src, PYTHONDONTWRITEBYTECODE=1, own temporary root, --basetemp): the run left models/best_gat.pt, 14 .pyc files and
+renv/library/R-4.3/x86_64-pc-linux-gnu in the checkout, and 173 tmp* folders, three generated PyTorch Geometric modules and
+torchinductor_root in its temporary root. The 2026-09-23 entry ("the suite stops writing into the repository") was verified without
+PyTorch, so the graph-neural-network tests never ran; docs/sessions/CORRECTION_2026-10-12_the-suite-still-wrote-into-the-repository.md
+records it beside that entry.
+
+- models/gnn.py: GNNTrainer creates the checkpoint's folder in fit, immediately before torch.save, not at construction (its default
+  path is relative to the current directory); train_gnn_pipeline takes checkpoint_path (default unchanged, "models/best_gat.pt") and
+  passes it to the trainer. The eight training tests in test_gnn_optim, test_gnn_shared_graph, test_gnn_tier2_denoise and test_gnn_gps
+  pass a path under tmp_path.
+- tests/unit/test_bootstrap_reconciliation.py: the two child interpreters started with a fresh environment (so without
+  PYTHONDONTWRITEBYTECODE) in the checkout run with -B; they wrote the 14 .pyc files.
+- tests/conftest.py, TEMPORARY-FILE CONTAINMENT: at pytest_configure (trylast: after pytest's own temporary-path factory exists, the
+  object the tmp_path_factory fixture returns), tempfile.tempdir and TMPDIR, TEMP and TMP point at basetemp/tempfile; restored first
+  at pytest_unconfigure; saved and restored by hand, never monkeypatch. Every temporary file of the run -- the 72 mkdtemp calls,
+  library code, child processes -- lands where pytest manages its lifetime. A first version as a session fixture still let
+  torchinductor_root escape: it is created while modules are imported during collection, before any fixture exists (measured).
+- repository_hygiene/workspace_snapshot.py (NEW) and tests/conftest.py, the WORKING-TREE GUARD: the whole working tree is snapshotted
+  at pytest_sessionstart and again when the test loop ends (the innermost pytest_runtestloop wrapper, after the last teardown and
+  before any other plugin resumes); anything added, removed or changed (kind, size, modification time, link target) is named in a
+  "working-tree guard" section of the terminal summary -- on standard error when no summary is printed -- and the session exits 1
+  even when every test passed. WHY THE END OF THE LOOP: the first Continuous Integration run of this change (pull request #56,
+  2026-10-31) failed on Python 3.11 and 3.12 with every test passing, because a comparison at pytest_sessionfinish saw ADDED
+  .coverage and coverage.xml -- pytest-cov's pytest_runtestloop wrapper writes the coverage data file and every --cov-report file
+  between the loop and sessionfinish (reproduced in the development sandbox with the gate's exact options; read in pytest-cov
+  7.1.0's plugin.py). No file name is excused: a test that writes coverage.xml itself is still found. A loop that stops early (-x,
+  --maxfail, an interruption) is said to have done so. The same run failed one test,
+  test_without_a_terminal_summary_the_finding_still_reaches_the_console: the gate installs pytest 9.2.0 (requirements-dev.txt is a
+  range; the lock pins 9.0.3), and 9.2.0 still calls plugins' terminal summaries under --no-summary, so the finding was in the
+  summary, not on standard error. The test now requires the finding on the console exactly once, on any pytest version; a new test
+  without the terminal plugin requires the standard-error fallback. Never follows a link (artifact_inventory.is_redirected: symbolic links,
+  junctions, every reparse point); does not enter backup_artifacts.NOT_THIS_REPOSITORY (imported, not restated); a directory it cannot
+  list is reported, never read as empty; its cost is printed on every run (about 0.05 s for the 2,172 entries of a clone).
+- TESTS +30 (8,537): +17 tests/unit/test_workspace_snapshot.py (added, removed and rewritten files; a file made and removed again
+  leaves no difference; an empty new directory is a finding; every declared directory, at any depth, is not entered; a symbolic link
+  is recorded and never followed, and a Windows junction likewise; an unlistable directory is reported; different roots are refused;
+  the description), +10 tests/unit/test_working_tree_guard.py (containment in this session and in a child interpreter; child pytest
+  sessions on a byte copy of the real conftest: a clean session passes and restores the environment, containment already holds at
+  import, a session that writes into its checkout exits 1 and names what it left, the finding reaches the console exactly once
+  under --no-summary and standard error without the terminal plugin, a collection-only run is contained; under the gate's coverage
+  options a clean session passes with .coverage and
+  coverage.xml written, a test writing coverage.xml and models/best_gat.pt is named for both and .coverage is not, and a loop
+  stopped by -x says so), +3 tests/unit/test_gnn_optim.py (constructing a trainer creates no folder; the
+  checkpoint is written where asked and nowhere else; the default is unchanged). Seeded defects, all caught: the old gnn.py (3 of the
+  new tests fail); the old GNN tests under the new conftest (the guard fails the session, naming models/best_gat.pt); containment
+  removed (4 fail); restoration removed (1 fails); the exit status not set (2 fail); the after-snapshot's wrapper not the innermost
+  (2 fail); the comparison moved back to session finish (3 fail); the standard-error fallback removed (2 fail with pytest 9.0.3,
+  1 with pytest 9.2.0).
+- OPEN, recorded in docs/sessions/SESSION_2026-10-12_test-workspace-hygiene.md: TEST-R-PROJECT-PROFILE-1 (Rscript run in the checkout
+  at collection activates the project's renv and creates renv/library; renv/ is declared not this repository's content, so the guard
+  does not enter it); NOT-THIS-REPOSITORY-DECLARATIONS-1 (NOT_THIS_REPOSITORY, the installers' protected-inventory exclusions and
+  dependency_census._SKIP_DIRS disagree on .venv, .venv-drift and .ruff_cache); OWNER-ENVIRONMENT-VERSUS-LOCK-1 (the owner's
+  environment has 25 versions different from the lock, 75 packages beyond it, and lacks six of its packages); CI-INSTALLS-DEV-RANGES-1
+  (the gate's pytest job installs requirements.txt and requirements-dev.txt, which are ranges, so on 2026-10-31 it ran pytest 9.2.0,
+  pluggy 1.7.0 and coverage 7.17.0 where requirements-dev.lock pins pytest 9.0.3 and coverage 7.13.5).
+- FULL SUITE (development sandbox: the owner's package versions, the installer's full-suite settings, the sandbox's git 2.43.0), by
+  node identity against the same run at the base: 0 outcome changes on the 8,507 shared tests; 26 added, 25 passing and 1 skipped (the
+  Windows junction test); the 8 failures of both runs are the eight git 2.43 tests named in the CORRECTION of 2026-10-11. The guard
+  reported the clone unchanged (2,173 entries); an outside snapshot of the clone found only renv/library (above); the run's temporary
+  root held only pytest's own folders -- every tmp* folder, the PyTorch Geometric modules and torchinductor_root inside them.
+
 ## 2026-10-10 (repository history) -- run9a-prep holds nothing main lacks: the branch-equivalence record
 
 Owner instruction 2026-10-10: "Move forward with all necessary commits" on the GitHub branch run9a-prep ("180 commits not in main",

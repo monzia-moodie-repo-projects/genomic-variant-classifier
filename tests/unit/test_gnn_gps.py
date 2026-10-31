@@ -58,16 +58,16 @@ def test_gps_zero_edge_robust():
     assert torch.isfinite(out).all()
 
 
-def test_pipeline_layer_type_gps_builds_and_trains():
+def test_pipeline_layer_type_gps_builds_and_trains(tmp_path):
     G, df, feats = _toy()
-    m, _tr, hist = train_gnn_pipeline(df, feats, graph=G, epochs=2, layer_type="gps")
+    m, _tr, hist = train_gnn_pipeline(df, feats, graph=G, epochs=2, layer_type="gps", checkpoint_path=tmp_path / "best_gat.pt")
     assert isinstance(m, VariantGATGPS)
     assert np.isfinite(hist[-1]["val_auc"])
 
 
-def test_pipeline_default_is_gat():
+def test_pipeline_default_is_gat(tmp_path):
     G, df, feats = _toy()
-    m, _tr, _h = train_gnn_pipeline(df, feats, graph=G, epochs=2)
+    m, _tr, _h = train_gnn_pipeline(df, feats, graph=G, epochs=2, checkpoint_path=tmp_path / "best_gat.pt")
     assert isinstance(m, VariantGAT)
 
 

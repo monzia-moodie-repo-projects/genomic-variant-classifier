@@ -453,3 +453,156 @@ def _isolate_github_workflow_commands():
                 os.environ.pop(name, None)
             else:
                 os.environ[name] = value
+
+
+# ---------------------------------------------------------------------------
+# Temporary-file containment (added 2026-10-12) -- PREVENTION.
+# ---------------------------------------------------------------------------
+# MEASURED 2026-10-11 on the owner's machine (census of %TEMP%): 973 folders named tmp*, created by the test runs of 2026-10-09
+# and 2026-10-10 and never removed -- 72 `tempfile.mkdtemp()` calls in nine test files, plus library code that calls
+# mkdtemp/mkstemp itself. Each run left more; pytest's own retention never saw them, because they were not under its root.
+#
+# This points `tempfile` -- and TMPDIR/TEMP/TMP, which every child process inherits (git, a child pytest, a child interpreter)
+# -- at a folder INSIDE pytest's base temporary directory, from configuration to the end of the run. Every mkdtemp, mkstemp,
+# NamedTemporaryFile and TemporaryDirectory then lands where pytest manages the lifetime (an explicit --basetemp is emptied by
+# the next run; the default root keeps the last three runs). The call sites are contained by construction, including ones not
+# yet written. tests/unit/test_working_tree_guard.py proves it inside a test, from a child interpreter, and at import time.
+#
+# WHY A HOOK AND NOT A FIXTURE. The first version was a session fixture. MEASURED: a full run still left torchinductor_root in
+# the outer temporary folder -- created while modules were imported during COLLECTION, before any fixture exists (a
+# --collect-only run creates it too). pytest_configure runs before collection; trylast puts it after pytest's own tmpdir plugin
+# has made the factory that the tmp_path_factory fixture itself returns (config._tmp_path_factory). If that factory is ever
+# absent, the run stops here with that said, rather than running uncontained.
+#
+# Saved and restored BY HAND, never `monkeypatch` (THE INVARIANT FOR THIS FILE), and restored FIRST at unconfigure. A test that
+# changes any of these with monkeypatch gets this value back afterwards.
+_TEMPORARY_FILE_VARIABLES = ("TMPDIR", "TEMP", "TMP")
+_CONTAINMENT_SAVED = pytest.StashKey()
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_configure(config) -> None:
+    import tempfile
+
+    factory = getattr(config, "_tmp_path_factory", None)
+    if factory is None:
+        raise pytest.UsageError(
+            "tests/conftest.py cannot contain temporary files: pytest's temporary-path factory (config._tmp_path_factory, the "
+            "object the tmp_path_factory fixture returns) does not exist in this pytest. Without it every mkdtemp() in the suite "
+            "would land in the system temporary folder and stay there.")
+    root = factory.getbasetemp() / "tempfile"
+    root.mkdir()
+    config.stash[_CONTAINMENT_SAVED] = ({name: os.environ.get(name) for name in _TEMPORARY_FILE_VARIABLES}, tempfile.tempdir)
+    for name in _TEMPORARY_FILE_VARIABLES:
+        os.environ[name] = str(root)
+    tempfile.tempdir = str(root)
+
+
+# ---------------------------------------------------------------------------
+# Working-tree guard (added 2026-10-12) -- DETECTION, for the whole session.
+# ---------------------------------------------------------------------------
+# MEASURED 2026-10-11: the two validation clones that had run the full suite held models/best_gat.pt -- GNNTrainer's default
+# checkpoint path is relative to the current directory -- and git status showed nothing, because /models/ and *.pt are ignored.
+# The ROADMAP entry of 2026-09-23 said the suite no longer wrote into the repository; nothing had measured it.
+#
+# A snapshot of the whole working tree is taken when the session starts and again when the TEST LOOP ends
+# (repository_hygiene/workspace_snapshot.py says what is observed and what is not entered). Anything ADDED, REMOVED or CHANGED
+# is named in its own section of the terminal summary and FAILS the session (exit 1), even when every test passed. A per-test
+# check would name the culprit, but walks the tree twice per test; once per session costs two walks, and the names it prints
+# lead to the culprit (git grep). Its cost is printed on every run, so it can never grow unseen.
+#
+# WHY AT THE END OF THE TEST LOOP, NOT AT SESSION FINISH. MEASURED 2026-10-31: the first Continuous Integration run of this guard
+# (pull request #56) failed on both Python versions, every test passing, with ADDED .coverage and coverage.xml. pytest-cov's own
+# pytest_runtestloop wrapper writes the coverage data file and every --cov-report file AFTER the loop and BEFORE sessionfinish:
+# they are outputs the INVOCATION asked for, not something a test left. The last test's teardown -- every session-scoped fixture
+# included -- runs inside the loop, so the end of the loop is the end of what the tests did. No file name is excused: a test that
+# writes .coverage or coverage.xml itself is still found (tests/unit/test_working_tree_guard.py proves both).
+#
+# A file you edit yourself while the suite runs is also a difference: the summary names it, and re-running settles it.
+_WORKSPACE_ROOT = _here.parent.parent
+_WORKSPACE_BEFORE = pytest.StashKey()
+_WORKSPACE_AFTER = pytest.StashKey()
+_WORKSPACE_REPORT = pytest.StashKey()
+
+
+def pytest_sessionstart(session) -> None:
+    from genomic_variant_classifier.repository_hygiene.workspace_snapshot import take_snapshot
+
+    session.config.stash[_WORKSPACE_BEFORE] = take_snapshot(_WORKSPACE_ROOT)
+
+
+@pytest.hookimpl(wrapper=True, trylast=True)
+def pytest_runtestloop(session):
+    """The 'after' snapshot, taken the moment the test loop returns or raises. trylast makes this the INNERMOST wrapper, so it runs
+    before any other plugin's wrapper resumes (pytest-cov's writes its files there)."""
+    try:
+        return (yield)
+    finally:
+        from genomic_variant_classifier.repository_hygiene.workspace_snapshot import take_snapshot
+
+        session.config.stash[_WORKSPACE_AFTER] = (take_snapshot(_WORKSPACE_ROOT), bool(session.shouldstop or session.shouldfail))
+
+
+def pytest_sessionfinish(session, exitstatus) -> None:
+    from genomic_variant_classifier.repository_hygiene.workspace_snapshot import compare, describe, take_snapshot
+
+    before = session.config.stash.get(_WORKSPACE_BEFORE, None)
+    if before is None:
+        session.config.stash[_WORKSPACE_REPORT] = (["NOT ARMED: tests/conftest.py was loaded after the session started, so no "
+                                                    "snapshot exists. Nothing was compared."], False)
+        return
+    at_loop_end = session.config.stash.get(_WORKSPACE_AFTER, None)
+    if at_loop_end is None:                     # the test loop never started (collection itself raised)
+        after, stopped_early, when = take_snapshot(_WORKSPACE_ROOT), False, "at session finish: the test loop never ran"
+    else:
+        (after, stopped_early), when = at_loop_end, "at the end of the test loop"
+    change = compare(before, after)
+    lines = ["{}: {} entries before, {} after ({}); {:.2f} s + {:.2f} s".format(
+        _WORKSPACE_ROOT, len(before.entries), len(after.entries), when, before.seconds, after.seconds)]
+    if stopped_early:
+        lines.append("the test loop stopped early (-x, --maxfail or an interruption): session-scoped fixtures had not been torn down "
+                     "when the tree was compared")
+    for label, unobserved in (("unobserved at the start", before.unobserved), ("unobserved at the end", after.unobserved)):
+        if unobserved:
+            lines.append("{} ({}): {}".format(label, len(unobserved), ", ".join(unobserved[:20])))
+    if change:
+        lines.append("THE TEST SESSION CHANGED THE WORKING TREE. A test must write under tmp_path (or a fixture's folder), never "
+                     "into the checkout:")
+        lines.extend(describe(change))
+        if session.exitstatus in (pytest.ExitCode.OK, pytest.ExitCode.NO_TESTS_COLLECTED):
+            session.exitstatus = pytest.ExitCode.TESTS_FAILED
+    else:
+        lines.append("unchanged")
+    session.config.stash[_WORKSPACE_REPORT] = (lines, bool(change))
+
+
+def pytest_terminal_summary(terminalreporter, exitstatus, config) -> None:
+    report = config.stash.get(_WORKSPACE_REPORT, None)
+    if report is None:
+        return
+    lines, failed = report
+    terminalreporter.section("working-tree guard", sep="=", red=failed, green=not failed, bold=True)
+    for line in lines:
+        terminalreporter.line(line, red=failed)
+    config.stash[_WORKSPACE_REPORT] = (lines, failed, "printed")
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_unconfigure(config) -> None:
+    """Restores what temporary-file containment changed; then, if the terminal summary was skipped (--no-summary,
+    -p no:terminal, some exit codes), writes the working-tree guard's finding here."""
+    saved = config.stash.get(_CONTAINMENT_SAVED, None)
+    if saved is not None:
+        import tempfile
+
+        env, tempdir = saved
+        tempfile.tempdir = tempdir
+        for name, value in env.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+    report = config.stash.get(_WORKSPACE_REPORT, None)
+    if report is None or len(report) == 3 or not report[1]:
+        return
+    sys.stderr.write("\n".join(["working-tree guard:"] + report[0]) + "\n")
