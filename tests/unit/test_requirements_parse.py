@@ -21,9 +21,11 @@ def _write(text: str, name: str = "r.txt", *, binary: bool = False) -> Path:
     d = Path(tempfile.mkdtemp())
     p = d / name
     if binary:
-        open(p, "wb").write(text)
+        with open(p, "wb") as handle:
+            handle.write(text)
     else:
-        io.open(p, "w", encoding="utf-8", newline="\n").write(text)
+        with io.open(p, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(text)
     return p
 
 

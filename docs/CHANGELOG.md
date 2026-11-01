@@ -1,3 +1,46 @@
+## 2026-11-01 (dependency profiles) -- the training-and-test profile installed exactly from hashed, target-specific locks
+
+Owner rulings 2026-10-31: preserve the owner's environment (.venv312); use its MEASURED versions as constraints for the packages the
+profile needs; one lock per target; pip-tools retained; the first change covers only the training-and-test profile. MEASURED before:
+Continuous Integration installed requirements-api.lock, requirements.txt (57 exact pins, 7 ranges, 1 unbounded) and requirements-dev.txt
+(7 ranges), so the transitive closure floated -- pytest 9.2.0, pluggy 1.7.0, coverage 7.17.0 on 2026-10-31 against the owner's 9.0.3,
+1.6.0, 7.13.5; requirements-dev.lock (2026-05-07) was never installed and, against today's declarations, lacks 10 packages and
+conflicts on 21 (correction of the 2026-10-12 entry's wording: docs/sessions/CORRECTION_2026-11-01_requirements-txt-is-not-ranges.md).
+
+- constraints-observed-venv312.txt: 249 versions read from the owner's environment observation (digest a4fc5829..., 2026-10-31); the
+  project's own record excluded (two metadata records for one name, EGG-INFO-SHADOW-1).
+- requirements-train-test-linux.lock and requirements-train-test-windows.lock: requirements.txt + requirements-dev.txt resolved under
+  those constraints with hashes by requirements-generator-toolchain.txt (the owner's measured pip 26.1.2, pip-tools 7.5.3, click 8.3.1,
+  build 1.5.0, setuptools 70.2.0, wheel 0.47.0, pyproject-hooks 1.2.0, packaging 26.0, colorama 0.4.6). Linux: 174 pins, generated twice
+  (Python 3.11 and 3.12) with byte-identical bodies; 153 equal the owner's versions, 0 differ, 21 are not in his environment (the CUDA 13
+  runtime, triton, nvidia-nccl-cu12, pyBigWig). Windows: 152 pins, generated on the owner's machine; all equal his versions and the
+  Linux lock's. Of the 153, hf-xet is in the Linux lock only: huggingface_hub's marker reads "amd64" and Windows reports "AMD64"
+  (HF-XET-WINDOWS-MARKER-1).
+  An unpinned click 8.5.0 had written a false --no-index into a lock header; the toolchain is now pinned.
+- build-constraints-train-test.txt: deflate-dict, dict-hash and pyspark exist only as source archives; their isolated builds used
+  setuptools 84.2.1 (measured in the built wheels); with --build-constraint they use the lock's 70.2.0.
+- deps/environment_observation.py (standard library only; its own tests check it against packaging and run it as the job runs it),
+  deps/environment_contract.py (exact inventory refusing even same-version
+  duplicate metadata, dependency closure with selected extras, target eligibility versus host provenance, marker outcomes, sources and
+  constraints) and scripts/check_dependency_profiles.py (--offline for the lockfile job; --environment for the pytest job).
+- .github/workflows/ci.yml: the pytest job (name and matrix unchanged) builds a fresh environment outside the checkout, installs pip
+  26.1.2 and the Linux lock with --require-hashes --no-deps and the build constraints, installs the project editable without dependencies
+  or build isolation, and verifies the environment against the lock before the suite; the lockfile job checks both locks offline.
+  The job's `cache: pip` is removed: every install passes --no-cache-dir, and at the pinned setup-python the cache key hashes only
+  requirements.txt, a prefix restore-key restores an older cache, and the post step saves that unused cache again.
+- deps/model.py and deps/governance.py: ARTIFACTS declares all 16 dependency files (purpose, authority, profiles, freshness, sources);
+  INSTALL_CONSUMERS declares all 18 install paths with their migration status (2 lock-qualified; 16 not, and saying so).
+- Resource leaks found by -W error and closed: requirements_parse.py's file read, dependency_census.py's file read, and the write helpers
+  of test_requirements_parse.py and test_dependency_census.py (on main, 57 of the owner modules' 125 tests failed under -W error).
+- VERIFIED: the Linux lock installed exactly into a fresh Python 3.12 environment; the contract SATISFIED (176 distributions = 174 pins +
+  pip + the project); the full suite of 9feaf1a1 with Continuous Integration's command on that environment: 8,505 passed, 26 skipped
+  (all environmental), 6 xfailed, 0 failed. On Python 3.11.17, a dry run of the job's exact install (no installation) planned exactly
+  the lock's 174 pins with every download hash-checked; the 3.11 installation itself is proven by the 'pytest (3.11)' job. The pytest
+  job's own steps, read from this ci.yml and run in order on Python 3.12.3 against a shallow checkout of the change (before the
+  observer's six tests were added): install 423 s, contract SATISFIED, coverage-critical imports, pip check, release approvals against
+  9feaf1a1, then the suite -- 8,545 passed, 26 skipped, 6 xfailed, 0 failed, working tree unchanged; the installation wrote nothing
+  into the checkout. Suite 8,537 -> 8,583.
+
 ## 2026-10-12 (test workspace hygiene) -- the suite stops leaving files in the checkout and in TEMP; a working-tree guard
 
 MEASURED 2026-10-11 on the owner's machine: both validation clones that had run the full suite held models/best_gat.pt and compiled

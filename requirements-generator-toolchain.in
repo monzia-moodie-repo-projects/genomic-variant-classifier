@@ -1,0 +1,10 @@
+# The pinned generator toolchain for every lock of this repository (the owner's measured versions, 2026-10-31); colorama is needed by click and build on Windows. Author: Monzia Moodie
+pip==26.1.2
+pip-tools==7.5.3
+click==8.3.1
+build==1.5.0
+setuptools==70.2.0
+wheel==0.47.0
+pyproject-hooks==1.2.0
+packaging==26.0
+colorama==0.4.6

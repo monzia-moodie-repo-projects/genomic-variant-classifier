@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **8,537 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **8,583 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -641,6 +641,20 @@ exists to end.
   holds on every pytest version. Open: TEST-R-PROJECT-PROFILE-1 (a test runs Rscript in the checkout at collection; the project
   profile activates renv and creates renv/library, which the guard does not enter by declaration); CI-INSTALLS-DEV-RANGES-1 (the
   gate installs requirements.txt and requirements-dev.txt as ranges, not the lock). Suite 8,507 -> 8,537.
+- **2026-11-01 -- DEPENDENCY-PROFILES-1: the training-and-test profile is installed exactly from hashed, target-specific locks (owner
+  rulings 2026-10-31).** Continuous Integration's pytest job installed requirements-api.lock, requirements.txt (57 exact pins, 7 ranges,
+  1 unbounded) and requirements-dev.txt (7 ranges): nothing pinned the transitive dependencies, so on 2026-10-31 it tested pytest 9.2.0
+  while the owner's validations ran 9.0.3; requirements-dev.lock (2026-05-07) was never installed and lacks 10 declared packages.
+  Now: requirements-train-test-linux.lock (Python 3.11 and 3.12; two resolutions, byte-identical) and requirements-train-test-windows.lock
+  (generated on the owner's machine), both resolved from requirements.txt + requirements-dev.txt under constraints-observed-venv312.txt
+  (249 versions MEASURED in the owner's environment, which is preserved, not modified) by a pinned generator toolchain; every Windows pin
+  equals the owner's measured version, and the Linux lock adds only Linux-specific packages. The job installs the lock with
+  --require-hashes --no-deps, pins the build backend of three source-only packages (build-constraints-train-test.txt), and proves the
+  environment IS the lock (deps/environment_observation.py, deps/environment_contract.py, scripts/check_dependency_profiles.py) before
+  the suite runs. Every dependency file (16) and every install path (18) is declared in deps/governance.py; 16 install paths are
+  not lock-qualified and say so (ci.yml among them: its drift and lockfile jobs are unchanged). pillow 12.1.1 -> 12.2.0 in
+  requirements.txt (the owner's measured version). Suite 8,537 -> 8,583.
+  CORRECTED: the entry above says requirements.txt is "ranges" -- see docs/sessions/CORRECTION_2026-11-01_requirements-txt-is-not-ranges.md.
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined

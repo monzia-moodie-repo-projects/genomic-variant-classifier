@@ -8144,4 +8144,11 @@
 #   at import time; the guard's verdict, exit code and message from child sessions -- among them, added 2026-10-31 after pull
 #   request #56's red Continuous Integration run, the gate's own coverage outputs, a test writing under those names, a loop that
 #   stops early, and the finding without the terminal plugin), +3 tests/unit/test_gnn_optim.py (the checkpoint path).
-8537
+# 2026-11-01  DEPENDENCY-PROFILES-1 -- the training-and-test profile installed exactly from hashed, target-specific locks
+#   +46 / -0 by node identity: +25 tests/unit/test_environment_contract.py (exact inventory incl. same-version duplicate metadata,
+#   dependency closure with selected extras, target eligibility versus host provenance, marker outcomes, digest-bound evidence),
+#   +11 tests/unit/test_dependency_profiles.py (the committed locks on their three targets, and copies with one defect each),
+#   +4 tests/unit/test_dependency_artifacts.py (every dependency file and every install path declared, and true),
+#   +6 tests/unit/test_environment_observation.py (the observer the pytest job runs before the suite: packaging's own rules, and the
+#   program run as the job runs it, with its three refusals).
+8583

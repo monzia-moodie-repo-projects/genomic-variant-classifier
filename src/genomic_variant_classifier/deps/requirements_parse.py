@@ -216,7 +216,8 @@ def _classify_directive(body: str) -> "RequirementDirective":
 def parse_requirements_file(path, *, allow_failures: bool = False):
     """Return a ParsedRequirementsFile, or RAISE rather than under-report."""
     p = Path(path)
-    raw = io.open(p, encoding="utf-8", newline="").read()
+    with io.open(p, encoding="utf-8", newline="") as source:
+        raw = source.read()
     physical = raw.count("\n") + (0 if raw.endswith(("\n", "\r")) or not raw else 1)
 
     joined_source, joined = _CONTINUATION.subn(" ", raw)
