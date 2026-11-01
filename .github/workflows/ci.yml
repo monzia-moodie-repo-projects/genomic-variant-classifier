@@ -91,6 +91,12 @@ jobs:
           pip install -q packaging
           python scripts/check_lock_satisfies.py --verbose
 
+      - name: The training-and-test locks satisfy their sources on every target (offline)
+        run: |
+          set -euo pipefail
+          pip install -q packaging
+          PYTHONPATH=src python scripts/check_dependency_profiles.py --offline
+
       - name: Assert the API lockfile installs cleanly on Linux with no conflicts
         run: |
           set -euo pipefail
@@ -199,20 +205,55 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
+      # No `cache: pip` here (removed 2026-11-01). Every install below passes --no-cache-dir, so a restored cache is never read;
+      # and at the pinned setup-python (a309ff8b, src/cache-distributions/pip-cache.ts and src/cache-save.ts, read 2026-11-01)
+      # the key hashes only **/requirements.txt, a prefix restore-key restores an older range-resolved cache, and the post step
+      # then saves that unused cache again under the new key.
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
 
-      - name: Install dependencies
+      # -------------------------------------------------------------------------------
+      # THE TRAINING-AND-TEST PROFILE, INSTALLED EXACTLY FROM ITS LOCK (DEPENDENCY-PROFILES-1, owner rulings 2026-10-31).
+      #
+      # Until 2026-11-01 this step installed requirements-api.lock, then requirements.txt and requirements-dev.txt -- a
+      # declaration file (57 exact pins, 7 ranges, 1 unbounded) and a file of ranges, neither pinning any transitive
+      # dependency -- so the suite ran on whatever those ranges resolved to that day: pytest 9.2.0, pluggy 1.7.0 and
+      # coverage 7.17.0 on 2026-10-31 (pull request #56), while every validation on the owner's machine ran pytest 9.0.3.
+      # requirements-dev.lock was never installed here (CI-INSTALLS-DEV-RANGES-1, corrected wording).
+      #
+      # Now: a fresh environment OUTSIDE the checkout; pip 26.1.2 from the generator toolchain's hashed record; the lock
+      # with --require-hashes --no-deps (every artifact's bytes checked, nothing resolved); the project editable without
+      # dependencies or build isolation (setuptools comes from the lock). The next step proves the result IS the lock.
+      # The same lock serves Python 3.11 and 3.12: two independent resolutions gave byte-identical bodies.
+      # -------------------------------------------------------------------------------
+      - name: Install the training-and-test profile exactly from its lock
+        shell: bash
         run: |
-          python -m pip install --upgrade pip
-          # Use lockfile when present (exact reproducibility); fall back to ranges
-          pip install -r requirements-api.lock
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
-          pip install -e .
+          set -euo pipefail
+          venv="$RUNNER_TEMP/venv-train-test"
+          python -m venv "$venv"
+          awk '/^pip==/{on=1} on{print} on && !/\\$/{exit}' requirements-generator-toolchain.txt > "$RUNNER_TEMP/pip.txt"
+          grep -c -- '--hash=sha256:' "$RUNNER_TEMP/pip.txt"
+          "$venv/bin/python" -m pip install --require-hashes --no-deps --no-cache-dir -r "$RUNNER_TEMP/pip.txt"
+          # Three distributions exist only as source archives (deflate-dict, dict-hash, pyspark): their bytes are hash-checked,
+          # and --build-constraint makes their build backend the lock's setuptools 70.2.0 instead of the newest release.
+          "$venv/bin/python" -m pip install --require-hashes --no-deps --no-cache-dir \
+            --build-constraint build-constraints-train-test.txt -r requirements-train-test-linux.lock
+          "$venv/bin/python" -m pip install --no-deps --no-build-isolation --no-cache-dir -e .
+          echo "$venv/bin" >> "$GITHUB_PATH"
+
+      - name: The installed environment IS the lock (inventory, dependency closure, target)
+        shell: bash
+        run: |
+          set -euo pipefail
+          which python
+          observation="$RUNNER_TEMP/environment_observation.json"
+          python -I -B -m genomic_variant_classifier.deps.environment_observation "$observation"
+          python scripts/check_dependency_profiles.py --environment "$observation" \
+            --observation-sha256 "$(sha256sum "$observation" | cut -d' ' -f1)" \
+            --target "linux-${{ matrix.python-version }}"
 
       # -------------------------------------------------------------------------------
       # PROVE THE DEPENDENCIES THAT MATTER ARE ACTUALLY HERE. (2026-07-13, roadmap 6.17)

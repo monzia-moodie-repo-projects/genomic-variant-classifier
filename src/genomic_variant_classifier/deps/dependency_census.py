@@ -71,7 +71,7 @@ import ast
 import io
 import sys
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
@@ -342,7 +342,8 @@ def census(roots, packages, *, repo_root=None, allow_partial=False,
                 continue
             walked += 1
             try:
-                src = io.open(path, encoding="utf-8", errors="strict").read()
+                with io.open(path, encoding="utf-8", errors="strict") as handle:
+                    src = handle.read()
                 tree = ast.parse(src)
             except (OSError, SyntaxError, UnicodeDecodeError) as exc:
                 failures.append("{}: {}: {}".format(

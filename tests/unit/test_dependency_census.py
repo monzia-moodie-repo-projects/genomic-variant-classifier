@@ -21,7 +21,8 @@ def _tree(files: dict) -> Path:
     for rel, text in files.items():
         p = root / rel
         p.parent.mkdir(parents=True, exist_ok=True)
-        io.open(p, "w", encoding="utf-8", newline="\n").write(text)
+        with io.open(p, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(text)
     return root
 
 

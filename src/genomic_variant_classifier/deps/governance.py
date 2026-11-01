@@ -42,7 +42,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from genomic_variant_classifier.deps.model import (
-    Capability, DependencyIntent, DeploymentProfile, DistributionName,
+    ArtifactAuthority, ArtifactFreshness, ArtifactPurpose, Capability, DependencyIntent, DeploymentProfile, DistributionName,
 )
 
 
@@ -267,3 +267,107 @@ def classification_for(distribution):
 def required_by(profile) -> tuple:
     """Which classified distributions a deployment profile needs."""
     return tuple(c for c in CLASSIFICATIONS if c.intent.required_by(profile))
+
+
+# ============================================================================================================================
+# DEPENDENCY-PROFILES-1 (owner rulings 2026-10-31): every dependency FILE and every INSTALL PATH, declared.
+#
+# A file's name says nothing reliable about what it is for -- requirements-dev.txt said "development" and was the CI's test
+# declaration -- so each file is declared on the model's own axes, and a test refuses an undeclared file at the repository root.
+# Each install path carries an explicit migration status: a path that is not lock-qualified must SAY so, so its results cannot be
+# described as reproducible from a lock. Measured 2026-10-31 at 9feaf1a1 (the install-line census of every workflow, the Dockerfile
+# and scripts/vm_bootstrap_run.sh).
+# ============================================================================================================================
+
+@dataclass(frozen=True)
+class DependencyArtifact:
+    path: str
+    authority: ArtifactAuthority
+    purpose: ArtifactPurpose
+    profiles: frozenset
+    freshness: ArtifactFreshness
+    generated_from: tuple
+    note: str
+
+
+def _artifact(path, authority, purpose, profiles, freshness, generated_from, note):
+    return DependencyArtifact(path, authority, purpose, frozenset(profiles), freshness, tuple(generated_from), note)
+
+
+_TT = (DeploymentProfile.TRAINING, DeploymentProfile.CI_TEST)
+_TT_SOURCES = ("requirements.txt", "requirements-dev.txt", "constraints-observed-venv312.txt")
+
+ARTIFACTS = (
+    _artifact("requirements.txt", ArtifactAuthority.AUTHORED, ArtifactPurpose.RUNTIME_DECLARATION, _TT, ArtifactFreshness.CURRENT, (),
+              "57 exact pins, 7 ranges, 1 unbounded (measured 2026-10-31); NOT a lock: it pins no transitive dependency."),
+    _artifact("requirements-dev.txt", ArtifactAuthority.AUTHORED, ArtifactPurpose.TEST_DECLARATION, (DeploymentProfile.CI_TEST, DeploymentProfile.DEVELOPER),
+              ArtifactFreshness.CURRENT, (), "7 ranges; its only measured consumer is continuous integration."),
+    _artifact("constraints-observed-venv312.txt", ArtifactAuthority.GENERATED, ArtifactPurpose.MEASURED_CONSTRAINTS, _TT, ArtifactFreshness.CURRENT, (),
+              "249 versions measured in the owner's .venv312 (observation a4fc5829..., 2026-10-31); the project itself excluded (duplicate metadata)."),
+    _artifact("requirements-train-test-linux.lock", ArtifactAuthority.GENERATED, ArtifactPurpose.INSTALLATION, _TT, ArtifactFreshness.CURRENT, _TT_SOURCES,
+              "Linux, Python 3.11 and 3.12: two independent resolutions, byte-identical bodies (2026-11-01)."),
+    _artifact("requirements-train-test-windows.lock", ArtifactAuthority.GENERATED, ArtifactPurpose.INSTALLATION, _TT, ArtifactFreshness.CURRENT, _TT_SOURCES,
+              "Windows, Python 3.12, generated on the owner's machine by block L1 (2026-11-01, 6b071da5...)."),
+    _artifact("requirements-generator-toolchain.in", ArtifactAuthority.AUTHORED, ArtifactPurpose.GENERATOR_TOOLCHAIN, (), ArtifactFreshness.CURRENT, (),
+              "The owner's measured tool versions; colorama because click and build need it on Windows."),
+    _artifact("requirements-generator-toolchain.txt", ArtifactAuthority.GENERATED, ArtifactPurpose.GENERATOR_TOOLCHAIN, (), ArtifactFreshness.CURRENT,
+              ("requirements-generator-toolchain.in",), "Installed with --require-hashes --no-deps into a separate generator environment."),
+    _artifact("build-constraints-train-test.txt", ArtifactAuthority.AUTHORED, ArtifactPurpose.BUILD_CONSTRAINTS, _TT, ArtifactFreshness.CURRENT, (),
+              "deflate-dict 1.2.2, dict-hash 1.3.7 and pyspark 3.5.8 exist only as source archives; measured 2026-11-01, an isolated build "
+              "used setuptools 84.2.1 (unpinned); with this file the build backend is the lock's setuptools 70.2.0 and wheel 0.47.0."),
+    _artifact("requirements.in", ArtifactAuthority.AUTHORED, ArtifactPurpose.RUNTIME_DECLARATION, (), ArtifactFreshness.SOURCE_STALE, (),
+              "Source of the reference resolution requirements.lock; diverged from requirements.txt (DEVDEPS-DIVERGED-1)."),
+    _artifact("requirements-dev.in", ArtifactAuthority.AUTHORED, ArtifactPurpose.TEST_DECLARATION, (), ArtifactFreshness.SOURCE_STALE, (),
+              "Source of requirements-dev.lock; last changed 2026-05-07 (b1f14b2)."),
+    _artifact("requirements.lock", ArtifactAuthority.GENERATED, ArtifactPurpose.REFERENCE_RESOLUTION, (), ArtifactFreshness.SOURCE_STALE, ("requirements.in",),
+              "Never installed from; generated 2026-05-07."),
+    _artifact("requirements-dev.lock", ArtifactAuthority.GENERATED, ArtifactPurpose.REFERENCE_RESOLUTION, (), ArtifactFreshness.SOURCE_STALE,
+              ("requirements-dev.in",), "Never installed from; against today's declarations: 10 missing, 21 conflicting on Linux (2026-10-31)."),
+    _artifact("requirements-api.txt", ArtifactAuthority.AUTHORED, ArtifactPurpose.RUNTIME_DECLARATION, (DeploymentProfile.API,), ArtifactFreshness.CURRENT, (),
+              "The API image's declaration."),
+    _artifact("requirements-api.lock", ArtifactAuthority.GENERATED, ArtifactPurpose.DEPLOYMENT_LOCK, (DeploymentProfile.API,), ArtifactFreshness.CURRENT,
+              ("requirements-api.txt",), "57 exact pins, NO hashes; checked by scripts/check_lock_satisfies.py."),
+    _artifact("requirements-drift.txt", ArtifactAuthority.AUTHORED, ArtifactPurpose.INSTALLATION, (DeploymentProfile.DRIFT_MONITOR,), ArtifactFreshness.UNVERIFIED, (),
+              "The isolated drift environment; exact pins without hashes; not yet migrated to a hashed lock."),
+    _artifact("requirements-source-monitor.txt", ArtifactAuthority.AUTHORED, ArtifactPurpose.INSTALLATION, (DeploymentProfile.SOURCE_MONITOR,),
+              ArtifactFreshness.CURRENT, (), "PyYAML only, hash-locked; installed --require-hashes --no-deps --only-binary=:all:."),
+)
+
+
+@dataclass(frozen=True)
+class InstallConsumer:
+    """A file that installs Python packages, and whether its result is reproducible from a hashed lock."""
+    path: str
+    lock_qualified: bool
+    status: str
+
+
+INSTALL_CONSUMERS = (
+    InstallConsumer(".github/workflows/ci.yml", False,
+                    "MIXED: job 'test' installs requirements-train-test-linux.lock exactly (DEPENDENCY-PROFILES-1); job 'drift' installs "
+                    "requirements-drift.txt and unpinned pytest/packaging; the lockfile job resolves requirements-api.lock with --dry-run only."),
+    InstallConsumer(".github/workflows/teardown_abort_diagnostic.yml", False, "NOT MIGRATED: requirements-api.lock + requirements.txt + requirements-dev.txt."),
+    InstallConsumer(".github/workflows/drift_monitor.yml", False, "NOT MIGRATED: requirements-drift.txt, unpinned pandas/pyarrow, requirements-api.txt."),
+    InstallConsumer(".github/workflows/data_freshness.yml", False, "NOT MIGRATED: four exact pins and an editable install with dependencies."),
+    InstallConsumer(".github/workflows/source_monitor.yml", True, "Hashed, --no-deps, binary-only: requirements-source-monitor.txt."),
+    InstallConsumer(".github/workflows/source_monitor_verify.yml", True, "Hashed, --no-deps, binary-only: requirements-source-monitor.txt."),
+    InstallConsumer("Dockerfile", False, "NOT MIGRATED: requirements-api.lock (fallback requirements-api.txt); trainer stage requirements.txt."),
+    InstallConsumer("scripts/vm_bootstrap_run.sh", False, "NOT MIGRATED: --no-deps pins read from the reference lock, unpinned installs, re-pins."),
+    # Historical run launchers (2026-04 to 2026-07), measured 2026-11-01: none installs from a lock. Their runs' results are not
+    # reproducible from a lock, and a re-run through them would not be either.
+    InstallConsumer("scripts/gcp_run6_startup.sh", False, "NOT MIGRATED (Run 6, 2026-04-20): requirements.txt + torch/torchvision from the cu118 index."),
+    InstallConsumer("scripts/gcp_run7_startup.sh", False, "NOT MIGRATED (Run 7, 2026-04-08): unpinned torch-geometric, torch-scatter, torch-sparse."),
+    InstallConsumer("scripts/gcp_run8_startup.sh", False, "NOT MIGRATED (Run 8, 2026-04-08): unpinned transformers."),
+    InstallConsumer("scripts/launch_run9_vm.sh", False, "NOT MIGRATED (Run 9, 2026-05-11): editable install with dependencies."),
+    InstallConsumer("scripts/launch_run10_vm.sh", False, "NOT MIGRATED (Run 10, 2026-05-13): editable install with dependencies."),
+    InstallConsumer("scripts/launch_run10a_vm.sh", False, "NOT MIGRATED (Run 10a, 2026-05-23): unpinned pykan + editable install."),
+    InstallConsumer("scripts/launch_run16_vm.sh", False, "NOT MIGRATED (Run 16, 2026-07-13): requirements.txt + editable --no-deps."),
+    InstallConsumer("scripts/launch_run17_baseline.sh", False, "NOT MIGRATED (Run 17, 2026-07-06): 'pybigtools>=0.3.0', failure ignored (|| true)."),
+    InstallConsumer("scripts/launch_run17_r12only.sh", False, "NOT MIGRATED (Run 17, 2026-07-06): 'pybigtools>=0.3.0', failure ignored (|| true)."),
+    InstallConsumer("scripts/launch_run17_r13only.sh", False, "NOT MIGRATED (Run 17, 2026-07-06): 'pybigtools>=0.3.0', failure ignored (|| true)."),
+)
+
+
+def artifact_for(path: str):
+    """The declaration of a repository-root dependency file, or None."""
+    return next((a for a in ARTIFACTS if a.path == path), None)
