@@ -35,7 +35,6 @@ Author: Monzia Moodie
 """
 from __future__ import annotations
 
-import io
 import subprocess
 import unicodedata
 from pathlib import Path
@@ -76,7 +75,7 @@ def test_no_tracked_requirements_file_contains_a_non_ascii_byte():
         p = _REPO_ROOT / name
         if not p.exists():
             continue
-        raw = io.open(p, "rb").read()
+        raw = Path(p).read_bytes()
         bad = [i for i, b in enumerate(raw) if b > 0x7F]
         if bad:
             text = raw.decode("utf-8", errors="replace")
@@ -93,7 +92,7 @@ def test_the_ascii_prose_dash_convention_is_in_use():
     """requirements.txt established ' -- '. This asserts the convention exists,
     so a future reader knows the ASCII rule has a positive form and is not
     merely a prohibition."""
-    text = io.open(_REPO_ROOT / "requirements.txt", encoding="utf-8").read()
+    text = (_REPO_ROOT / "requirements.txt").read_text(encoding="utf-8")
     assert " -- " in text
 
 
@@ -114,7 +113,7 @@ def test_pytest_anyio_is_not_declared_anywhere():
         p = _REPO_ROOT / name
         if not p.exists():
             continue
-        text = io.open(p, encoding="utf-8", errors="replace").read().lower()
+        text = Path(p).read_text(encoding="utf-8", errors="replace").lower()
         assert "pytest-anyio" not in text, name
         assert "pytest_anyio" not in text, name
 

@@ -3,18 +3,15 @@ src/genomic_variant_classifier/models/kan.py
 =================
 KAN (Kolmogorov-Arnold Network) classifier -- Run 11 Integration 2.
 
-Run 12 change: imodelsx (efficient-kan based) is the primary backend; pykan is a fallback.
-FastKAN is 3.7x faster in benchmarks with identical API shape.
+Run 12 change: imodelsx is the primary backend; pykan is a fallback.
 pykan caused Run 10a KAN runaway (19h 22m, $14.72 wasted).
 
-Backend priority (Run 11):
-1. fastkan  -- github.com/ZiyaoLi/fast-kan (MIT license, 3.7x faster)
-   Install: pip install fastkan
-2. pykan   -- original MIT CSAIL implementation (fallback)
-   Install: pip install pykan
-3. efficient-kan -- faster GPU-friendly re-implementation (fallback)
-   Install: pip install efficient-kan
-4. MLP fallback -- sklearn MLPClassifier; no splines but same interface
+Backends, in the order `fit` tries them (corrected 2026-11-01 from the code; the earlier list named fastkan and efficient-kan,
+neither of which this module has ever imported):
+1. imodelsx -- imodelsx.KANClassifier; its modules are taken from efficient-kan (github.com/Blealtan/efficient-kan, per
+   imodelsx/kan/kan_modules.py). In the training-and-test lock.
+2. pykan    -- the original implementation (github.com/KindXiaoming/pykan), used only when imodelsx cannot be imported.
+3. sklearn MLPClassifier -- no splines, same interface, used only when neither KAN backend can be imported.
 
 Reference: Liu et al., 2024 -- "KAN: Kolmogorov-Arnold Networks"
            https://arxiv.org/abs/2404.19756
@@ -30,7 +27,6 @@ Usage:
 from __future__ import annotations
 
 import logging
-import warnings
 from typing import Optional
 
 import numpy as np
@@ -216,7 +212,7 @@ class KANClassifier(BaseEstimator, ClassifierMixin):
     Sklearn-compatible KAN classifier for tabular genomic data.
 
     Run 11 changes:
-    - imodelsx (efficient-kan based) is the primary backend (pykan and efficient-kan are fallbacks)
+    - imodelsx (efficient-kan based) is the primary backend (pykan, then sklearn MLPClassifier, are fallbacks)
     - max_fit_samples=100_000 maintained (Run 10a OOM safeguard)
     - Module-level class definition for pickle safety (Run 10b lesson)
 
@@ -368,11 +364,16 @@ class KANClassifier(BaseEstimator, ClassifierMixin):
         n_features = X.shape[1]
         widths = [n_features] + list(self.hidden_sizes) + [1]
 
+        # auto_save=False (2026-11-01). pykan 0.2.8 defaults to auto_save=True with ckpt_path='./model': constructing the model
+        # creates ./model in the CURRENT DIRECTORY and every fit() appends to ./model/history.txt and writes a checkpoint there
+        # (measured: "checkpoint directory created: ./model", then model/0.0 and model/0.1 after a three-step fit). Run from a
+        # checkout, that writes into the checkout -- the defect class of models/best_gat.pt. Nothing here reads a checkpoint.
         self._kan = _PyKAN(
             width=widths,
             grid=self.grid_size,
             k=self.spline_degree,
             seed=self.random_state,
+            auto_save=False,
         )
 
         X_t = torch.tensor(X, dtype=torch.float32)
@@ -384,44 +385,17 @@ class KANClassifier(BaseEstimator, ClassifierMixin):
             "test_input": X_t,
             "test_label": y_t,
         }
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            self._kan.fit(
-                dataset,
-                opt="Adam",
-                lr=self.learning_rate,
-                steps=self.max_iter,
-                loss_fn=torch.nn.BCEWithLogitsLoss(),
-                metrics=None,
-            )
-
-    def _fit_efficient_kan(self, X: np.ndarray, y: np.ndarray) -> None:
-        """efficient-kan backend -- fallback."""
-        import torch
-        import torch.nn as nn
-        import torch.optim as optim
-        from torch.utils.data import DataLoader, TensorDataset
-
-        self._backend_used = "efficient-kan"
-        n_features = X.shape[1]
-        widths = [n_features] + list(self.hidden_sizes) + [1]
-
-        self._kan = _EfficientKAN(widths, grid_size=self.grid_size, spline_order=self.spline_degree)
-        optimizer = optim.Adam(self._kan.parameters(), lr=self.learning_rate)
-        criterion = nn.BCEWithLogitsLoss()
-
-        X_t = torch.tensor(X, dtype=torch.float32)
-        y_t = torch.tensor(y, dtype=torch.float32).unsqueeze(1)
-        loader = DataLoader(TensorDataset(X_t, y_t), batch_size=self.batch_size, shuffle=True)
-
-        self._kan.train()
-        for _ in range(self.max_iter):
-            for xb, yb in loader:
-                optimizer.zero_grad()
-                loss = criterion(self._kan(xb), yb)
-                loss.backward()
-                optimizer.step()
-        self._kan.eval()
+        # No blanket warning filter (removed 2026-11-01): `warnings.simplefilter("ignore")` here hid EVERY warning of the fit,
+        # and on Python 3.12 the filter list is process-wide, so it also hid other threads' warnings while it was active.
+        # Measured with it removed: a three-step pykan 0.2.8 fit emits no warning (tests/unit/test_kan_pykan_fallback.py).
+        self._kan.fit(
+            dataset,
+            opt="Adam",
+            lr=self.learning_rate,
+            steps=self.max_iter,
+            loss_fn=torch.nn.BCEWithLogitsLoss(),
+            metrics=None,
+        )
 
     def _fit_mlp(self, X: np.ndarray, y: np.ndarray) -> None:
         """MLP fallback -- no KAN backend available."""

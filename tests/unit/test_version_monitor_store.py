@@ -30,7 +30,6 @@ Author: Monzia Moodie
 """
 from __future__ import annotations
 
-import io
 import json
 import tempfile
 from pathlib import Path
@@ -129,7 +128,7 @@ def test_set_many_MERGES_rather_than_replacing(store):
 
 def test_the_written_payload_carries_an_envelope(store):
     vm._set_many({"literature_scout.last_run": "2026-08-15T00:00:00Z"})
-    raw = json.loads(io.open(store.path, encoding="utf-8").read())
+    raw = json.loads(Path(store.path).read_text(encoding="utf-8"))
     assert raw["schema"] == "gvc.literature-scout-state"
     assert raw["generation"] >= 1
     assert "literature_scout.last_run" in raw["values"]
@@ -149,7 +148,7 @@ def test_a_corrupt_store_RAISES_instead_of_reading_as_empty(store):
     emptiness over the original -- destroying the ClinVar header hash and
     AlphaMissense entity tag this agent exists to track."""
     vm._set_many({"literature_scout.clinvar_header_hash": "precious"})
-    io.open(store.path, "w", encoding="utf-8").write('{"schema": "gvc.lit')
+    Path(store.path).write_text('{"schema": "gvc.lit', encoding="utf-8")
     with pytest.raises(StateCorruptionError):
         vm._get("literature_scout.clinvar_header_hash", "")
     with pytest.raises(StateCorruptionError):
@@ -160,10 +159,10 @@ def test_a_legacy_bare_payload_is_readable_and_upgraded(store):
     """MEASURED: the real data/agent_state.json is a bare 25-key dict with no
     envelope. The agent must read it, and the first write must preserve every
     key while adding identity."""
-    io.open(store.path, "w", encoding="utf-8").write(json.dumps({
+    Path(store.path).write_text(json.dumps({
         "literature_scout.clinvar_header_hash": "old",
         "literature_scout.deps_outdated_count": 99,
-    }))
+    }), encoding="utf-8")
     assert store.load(allow_legacy=True).shape is PayloadShape.LEGACY_BARE
     assert vm._get("literature_scout.clinvar_header_hash", "") == "old"
     vm._set_many({"literature_scout.deps_outdated_count": 110})

@@ -1,3 +1,30 @@
+## 2026-11-01 (warnings and resources) -- an unclosed resource fails its test; the package sets no warning filter
+
+MEASURED on the merged tree 4bcabb9f (pull request #58) with `-W always::ResourceWarning` (Linux, the locked environment): 8,551
+passed and 850 unclosed-resource warnings at 42 places -- 753 from tests/unit/test_backup_artifacts.py:80 (`io.open(f).read()` over
+every Python file), the rest test helpers that read or wrote with `io.open(...)` or `json.dump(..., open(...))`, plus a directory
+iterator in scripts/preflight_check_data_paths.py and the child pipe of scripts/smoke_all_models.py. None came from a library, and
+the default filters showed none of them.
+
+- All 42 closed: Path.read_text/read_bytes/write_text (with the same newline handling)/write_bytes, `with os.scandir(...)`,
+  `with subprocess.Popen(...)`.
+- pyproject.toml: `error::ResourceWarning` and `error::pytest.PytestUnraisableExceptionWarning` (a leak is reported from a finaliser,
+  where an exception cannot propagate; both entries are needed for the test to fail). Proven both ways by a child pytest that reads
+  this configuration: a planted leaking test fails, the same test closing its file passes; without the two entries it passes.
+- models/catboost_wrapper.py and models/kan.py: the blanket `catch_warnings(); simplefilter("ignore")` around their fits is removed.
+  Measured with it neutralised: the CatBoost and KAN tests report the same warnings; a pykan fit reports none. On Python 3.12 the
+  filter list is process-wide, so the blanket also silenced other threads. tests/unit/test_warning_filters_are_scoped.py now refuses
+  any filter mutation at any depth in the package (it names exactly those two sites on main).
+- models/kan.py: the pykan fallback is constructed with auto_save=False -- pykan 0.2.8's default wrote ./model (checkpoints and a
+  history file) into the CURRENT DIRECTORY on construction and on every fit; the dead `_fit_efficient_kan` (an undefined
+  `_EfficientKAN`, never dispatched) is removed; the module docstring's backend list (fastkan, efficient-kan) is corrected to what
+  the code tries: imodelsx, pykan, scikit-learn MLPClassifier. New tests/unit/test_kan_pykan_fallback.py.
+- pyproject.toml and tests/unit/test_sklearn_parallel_warning_contract.py: "message-pinning removes it deterministically" was false.
+  On the owner's Windows validation of pull request #58, 1,000 copies of the filtered scikit-learn message reached pytest; scikit-learn
+  1.8.0's worker wrapper resets and refills the process-wide filter list in every thread (SKLEARN-WARNING-FILTER-RACE-1).
+- VERIFIED (Linux, locked environment, the gate's command with coverage, this configuration): 8,557 passed, 26 skipped, 6 xfailed, 0
+  failed, coverage 84%, working tree unchanged. Open, recorded: SILENT-FALLBACKS-1. Suite 8,583 -> 8,589.
+
 ## 2026-11-01 (dependency profiles) -- the training-and-test profile installed exactly from hashed, target-specific locks
 
 Owner rulings 2026-10-31: preserve the owner's environment (.venv312); use its MEASURED versions as constraints for the packages the

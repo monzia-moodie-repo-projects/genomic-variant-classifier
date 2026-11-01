@@ -34,7 +34,6 @@ Author: Monzia Moodie
 """
 from __future__ import annotations
 
-import io
 import json
 import os
 import subprocess
@@ -77,7 +76,7 @@ def test_no_module_defines_a_SECOND_backup_or_secret_pattern_list():
             if f.resolve() == here:
                 continue
             try:
-                tree = ast.parse(io.open(f, encoding="utf-8").read())
+                tree = ast.parse(Path(f).read_text(encoding="utf-8"))
             except (SyntaxError, UnicodeDecodeError):
                 continue
             for n in tree.body:
