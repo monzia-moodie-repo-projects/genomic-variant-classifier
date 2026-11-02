@@ -43,6 +43,7 @@ from __future__ import annotations
 import math
 import sys
 from enum import Enum
+from pathlib import Path
 
 import pytest
 
@@ -461,9 +462,9 @@ class TestAgainstARealBigWig:
         """PHYLOPSWALLOW-1 against a really corrupt file, not a mock."""
         import pybigtools
         path = _real_bigwig(tmp_path)
-        data = open(path, "rb").read()
+        data = Path(path).read_bytes()
         broken = str(tmp_path / "broken.bw")
-        open(broken, "wb").write(data[: len(data) // 2])
+        Path(broken).write_bytes(data[: len(data) // 2])
         try:
             handle = pybigtools.open(broken)
             query_pybigtools(handle, "1", 100)

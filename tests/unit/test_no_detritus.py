@@ -201,9 +201,8 @@ def test_this_test_declares_no_exceptions_of_its_own():
     exception vocabulary that belongs in backup_artifacts.
     """
     import ast
-    import io
 
-    source = io.open(__file__, encoding="utf-8").read()
+    source = Path(__file__).read_text(encoding="utf-8")
     tree = ast.parse(source)
     banned = {"SCRATCH_ROOTS", "BACKUP_SHAPES", "NOT_THIS_REPOSITORY",
               "ALLOWED", "EXCEPTIONS", "IGNORE", "TOLERATED"}

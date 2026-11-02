@@ -4,7 +4,6 @@ Author: Monzia Moodie
 """
 from __future__ import annotations
 
-import io
 import json
 import sys
 import tempfile
@@ -264,8 +263,8 @@ class TestConnectorCacheRoundTrip:
     @staticmethod
     def _src(tmp):
         p = tmp / "phylop.tsv"
-        io.open(p, "w", encoding="utf-8", newline="\n").write(
-            "1\t100\t2.5\n1\t101\t-3.5\n")
+        Path(p).write_text(
+            "1\t100\t2.5\n1\t101\t-3.5\n", encoding="utf-8", newline="\n")
         return p
 
     def test_a_first_build_writes_a_cache_WITH_identity(self):
@@ -303,7 +302,7 @@ class TestConnectorCacheRoundTrip:
         d = Path(tempfile.mkdtemp())
         src = self._src(d)
         PhyloPConnector(phylop_file=src, cache_dir=d)._get_index()
-        io.open(src, "w", encoding="utf-8", newline="\n").write("1\t100\t9.9\n")
+        Path(src).write_text("1\t100\t9.9\n", encoding="utf-8", newline="\n")
 
         second = PhyloPConnector(phylop_file=src, cache_dir=d)
         index = second._get_index()

@@ -266,3 +266,126 @@ def test_missing_nannyml_RAISES_and_names_the_remediation(monkeypatch):
     msg = str(exc.value)
     assert "requirements-drift.txt" in msg, "the error must name the remediation, not just the fault"
     assert "lightgbm" in msg, "the error must explain WHY it lives in a separate environment"
+
+
+# ---------------------------------------------------------------------------
+# 5. No third-party telemetry, no implicit .env (2026-11-02; see the estimator's docstring).
+# ---------------------------------------------------------------------------
+def _record_segment(monkeypatch) -> list:
+    """Replace Segment's send calls with a recorder: nothing leaves the machine, every call is seen."""
+    import segment.analytics as segment_analytics
+
+    calls: list = []
+    monkeypatch.setattr(segment_analytics, "track", lambda *a, **k: calls.append(("track",) + a[1:2]))
+    monkeypatch.setattr(segment_analytics, "identify", lambda *a, **k: calls.append(("identify",)))
+    return calls
+
+
+def test_a_cbpe_run_sends_no_usage_telemetry_and_sets_the_switch(monkeypatch):
+    """MEASURED 2026-11-02: one CBPE fit + estimate sent three Segment events while the switch was absent."""
+    import os
+
+    import genomic_variant_classifier.monitoring.performance_estimator as pe
+
+    monkeypatch.delenv(pe.NANNYML_TELEMETRY_SWITCH, raising=False)
+    calls = _record_segment(monkeypatch)
+    feats, proba, y = _synthetic(2000, seed=0)
+    estimate_performance(build_reference_frame(y[:1000], proba[:1000], feats[:1000]),
+                         build_analysis_frame(proba[1000:], feats[1000:]), metrics=("roc_auc",))
+    assert calls == [], f"nannyml sent usage telemetry: {calls}"
+    assert os.environ.get(pe.NANNYML_TELEMETRY_SWITCH) == "1"
+
+
+def test_the_negative_control_nannyml_does_send_telemetry_without_the_switch(monkeypatch):
+    """Without the switch nannyml's own logger DOES call Segment -- so the empty list above is evidence.
+
+    The system-information probe is replaced, because the real one leaks /proc/self/cgroup (the leak
+    that failed the drift job); the recorder replaces the send, so nothing leaves the machine.
+    """
+    import nannyml.usage_logging as usage_logging
+
+    import genomic_variant_classifier.monitoring.performance_estimator as pe
+
+    monkeypatch.delenv(pe.NANNYML_TELEMETRY_SWITCH, raising=False)
+    monkeypatch.setattr(usage_logging, "_get_system_information", lambda: {})
+    calls = _record_segment(monkeypatch)
+    usage_logging.get_logger().log(usage_logging.UsageEvent.CBPE_ESTIMATOR_FIT, {})
+    assert calls == [("track", usage_logging.UsageEvent.CBPE_ESTIMATOR_FIT.value)]
+
+
+def test_a_value_already_in_the_switch_is_kept(monkeypatch):
+    import os
+
+    import genomic_variant_classifier.monitoring.performance_estimator as pe
+
+    monkeypatch.setenv(pe.NANNYML_TELEMETRY_SWITCH, "yes")
+    pe._import_nannyml()
+    assert os.environ[pe.NANNYML_TELEMETRY_SWITCH] == "yes"
+
+
+_IMPORT_PROBE = """
+import json, os, sys
+import dotenv.main as dm
+calls = []
+real = dm.find_dotenv
+def counting(*a, **k):
+    calls.append(1)
+    return real(*a, **k)
+dm.find_dotenv = counting
+if sys.argv[1] == "estimator":
+    from genomic_variant_classifier.monitoring.performance_estimator import _import_nannyml
+    _import_nannyml()
+else:
+    import nannyml
+print(json.dumps({"find_dotenv_calls": len(calls), "probe": os.environ.get("GVC_DOTENV_PROBE"),
+                  "switch": os.environ.get("PYTHON_DOTENV_DISABLED")}))
+"""
+
+
+def _import_in_a_child(tmp_path, how: str, switch: str | None) -> dict:
+    """Import nannyml in a fresh interpreter whose current directory holds a .env that sets a probe variable.
+
+    `python -c` is an interactive-style run, so python-dotenv searches from the current directory: the
+    planted .env is the nearest one, and the probe variable says whether it was loaded.
+    """
+    import json
+    import os
+    import subprocess
+    import sys
+
+    (tmp_path / ".env").write_text("GVC_DOTENV_PROBE=loaded\n", encoding="utf-8")
+    env = {k: v for k, v in os.environ.items() if k not in ("PYTHON_DOTENV_DISABLED", "GVC_DOTENV_PROBE")}
+    if switch is not None:
+        env["PYTHON_DOTENV_DISABLED"] = switch
+    done = subprocess.run([sys.executable, "-c", _IMPORT_PROBE, how], cwd=str(tmp_path), env=env,
+                          capture_output=True, text=True, timeout=300)
+    assert done.returncode == 0, done.stdout + done.stderr
+    return json.loads(done.stdout.strip().splitlines()[-1])
+
+
+def test_importing_nannyml_through_the_estimator_loads_no_env_file(tmp_path):
+    seen = _import_in_a_child(tmp_path, "estimator", None)
+    assert seen == {"find_dotenv_calls": 0, "probe": None, "switch": None}, seen
+
+
+def test_the_estimator_restores_a_dotenv_switch_that_was_already_set(tmp_path):
+    seen = _import_in_a_child(tmp_path, "estimator", "0")
+    assert seen == {"find_dotenv_calls": 0, "probe": None, "switch": "0"}, seen
+
+
+def test_the_negative_control_a_plain_import_of_nannyml_loads_the_env_file(tmp_path):
+    """Without the estimator, `import nannyml` searches twice and loads the planted file -- the side effect is real."""
+    seen = _import_in_a_child(tmp_path, "plain", None)
+    assert seen == {"find_dotenv_calls": 2, "probe": "loaded", "switch": None}, seen
+
+
+def test_an_old_python_dotenv_is_reported_not_ignored(monkeypatch, caplog):
+    import logging
+
+    import genomic_variant_classifier.monitoring.performance_estimator as pe
+
+    real = pe._md.version
+    monkeypatch.setattr(pe._md, "version", lambda name: "1.1.1" if name == "python-dotenv" else real(name))
+    with caplog.at_level(logging.WARNING, logger=pe.__name__):
+        pe._import_nannyml()
+    assert any("does not honour PYTHON_DOTENV_DISABLED" in r.getMessage() for r in caplog.records)

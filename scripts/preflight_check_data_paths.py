@@ -48,7 +48,8 @@ def check_path_health(path: str, *, must_be_writable: bool = True) -> tuple[str,
         return ("not_a_dir", f"{path} exists but is NOT a directory (stray file shadowing it). Remove/rename it "
                              f"and restore {path}/.")
     try:
-        next(iter(os.scandir(path)), None)  # force a directory read (catches some reparse failures)
+        with os.scandir(path) as entries:   # closed even on the early exit (an unclosed iterator leaked a handle)
+            next(iter(entries), None)  # force a directory read (catches some reparse failures)
     except OSError as e:
         return ("untraversable", f"{path} is a directory but cannot be listed ({e}).")
     if must_be_writable:

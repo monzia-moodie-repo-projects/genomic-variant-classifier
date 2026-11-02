@@ -45,10 +45,26 @@ Deleting five calls fixes today. This test is what stops the sixth.
 
 WHAT IS STILL ALLOWED
 ---------------------
-A filter inside `warnings.catch_warnings()` is RESTORED on exit and is not
-touched here -- ten such calls exist and all ten are legitimate. A filter in
-`pyproject.toml` is declared once, reviewed in one place, and applies to the
-whole run by design rather than by import accident.
+In the SUITE, a filter inside `warnings.catch_warnings()` is RESTORED on exit and
+is not touched here. A filter in `pyproject.toml` is declared once, reviewed in
+one place, and applies to the whole run by design rather than by import accident.
+
+IN THE PACKAGE, NO FILTER MUTATION AT ALL (added 2026-11-01)
+------------------------------------------------------------
+"Restored on exit" is not "scoped". On Python 3.12 `catch_warnings` saves and
+restores the ONE process-wide `warnings.filters` list; while it is active, its
+filters govern every thread. MEASURED 2026-11-01:
+  * models/catboost_wrapper.py and models/kan.py wrapped their fits in
+    `catch_warnings(); simplefilter("ignore")` -- every warning of every thread,
+    for the duration of the fit -- and that blanket hid NOTHING of their own:
+    with it neutralised, the suite's CatBoost and KAN tests reported the same
+    warnings, and a pykan fit reported none. Both were removed.
+  * scikit-learn 1.8.0's worker wrapper (sklearn/utils/parallel.py, read in full)
+    calls `catch_warnings(); resetwarnings()` and refills the list in EVERY
+    worker thread; on the owner's Windows validation 1,000 copies of a message
+    pyproject.toml filters reached pytest anyway (SKLEARN-WARNING-FILTER-RACE-1).
+So a library filter is never private to its caller. The package therefore holds
+NO `filterwarnings`, `simplefilter` or `resetwarnings` call at any depth.
 
 Author: Monzia Moodie
 """
@@ -131,6 +147,67 @@ def test_no_module_level_warning_filter_in_the_package():
         + "\n  ".join(offenders)
         + "\n\nUse `with warnings.catch_warnings():` around the narrow scope "
           "that needs it, or pin a message in pyproject.toml.")
+
+
+def any_depth_filters(source: str):
+    """Every filter mutation in the module, AT ANY DEPTH (functions, `with` blocks, classes included)."""
+    found = []
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Call):
+            fn = node.func
+            name = fn.attr if isinstance(fn, ast.Attribute) else getattr(fn, "id", "")
+            if name in MUTATORS + ("resetwarnings",):
+                found.append((node.lineno, ast.unparse(node)[:70]))
+    return found
+
+
+def _scan_any_depth(root: Path, base: Path = None):
+    anchor = base if base is not None else root
+    offenders = []
+    for path in sorted(root.rglob("*.py")):
+        for line, call in any_depth_filters(path.read_text(encoding="utf-8")):
+            offenders.append("{}:{}  {}".format(path.relative_to(anchor).as_posix(), line, call))
+    return offenders
+
+
+def test_no_warning_filter_mutation_anywhere_in_the_package():
+    """Scoped or not: on Python 3.12 a filter set inside the package governs every thread while it is active."""
+    offenders = _scan_any_depth(SRC, ROOT)
+    assert not offenders, (
+        "these package modules mutate the process-wide warning filters:\n  " + "\n  ".join(offenders)
+        + "\n\nPin a message in pyproject.toml instead, with its measured justification.")
+
+
+def test_the_any_depth_scan_finds_a_scoped_blanket_in_a_function(tmp_path):
+    """Guards the new guard on the exact shape that was removed from catboost_wrapper.py and kan.py."""
+    planted = tmp_path / "fit.py"
+    planted.write_text(
+        'import warnings\n\n\ndef fit(model):\n    with warnings.catch_warnings():\n'
+        '        warnings.simplefilter("ignore")\n        model.fit()\n', encoding="utf-8")
+    offenders = _scan_any_depth(tmp_path)
+    assert len(offenders) == 1 and "fit.py:6" in offenders[0], offenders
+
+
+def test_the_projects_own_configuration_fails_a_test_that_leaks_a_file(tmp_path):
+    """pyproject.toml's two error entries, through pytest itself: a leaking test FAILS, the same test closing its file PASSES.
+
+    Run in a child pytest that reads THIS repository's configuration (-c) but not its conftest, so the verdict is the
+    configuration's alone. Both directions, so neither result is vacuous.
+    """
+    import subprocess
+    import sys
+
+    (tmp_path / "test_planted.py").write_text(
+        "from pathlib import Path\n\n\n"
+        "def test_leaks(tmp_path):\n    p = tmp_path / 'a.txt'\n    p.write_text('a')\n    open(p).read()\n\n\n"
+        "def test_closes(tmp_path):\n    p = tmp_path / 'b.txt'\n    p.write_text('b')\n    assert Path(p).read_text() == 'b'\n",
+        encoding="utf-8")
+    done = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-c", str(PYPROJECT),
+                           "--rootdir", str(tmp_path), str(tmp_path / "test_planted.py")],
+                          cwd=str(tmp_path), capture_output=True, text=True, timeout=300)
+    out = done.stdout + done.stderr
+    assert done.returncode == 1, out
+    assert "FAILED" in out and "test_planted.py::test_leaks" in out and "1 failed, 1 passed" in out, out
 
 
 def test_no_module_level_warning_filter_in_the_suite():
