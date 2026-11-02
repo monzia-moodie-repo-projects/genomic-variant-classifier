@@ -4,7 +4,6 @@ Author: Monzia Moodie
 """
 from __future__ import annotations
 
-import io
 import os
 import tempfile
 from pathlib import Path
@@ -27,11 +26,11 @@ def _make_repo(tmp: Path, *, name: str = PROJECT_NAME,
         p = tmp / sentinel
         if sentinel.endswith(".toml"):
             p.parent.mkdir(parents=True, exist_ok=True)
-            io.open(p, "w", encoding="utf-8", newline="\n").write(
-                '[project]\nname = "{}"\nversion = "0.1.0"\n'.format(name))
+            Path(p).write_text(
+                '[project]\nname = "{}"\nversion = "0.1.0"\n'.format(name), encoding="utf-8", newline="\n")
         elif "." in Path(sentinel).name:
             p.parent.mkdir(parents=True, exist_ok=True)
-            io.open(p, "w", encoding="utf-8", newline="\n").write("4885\n")
+            Path(p).write_text("4885\n", encoding="utf-8", newline="\n")
         else:
             p.mkdir(parents=True, exist_ok=True)
     return tmp
@@ -67,7 +66,7 @@ def test_a_DIFFERENT_project_with_the_same_shape_is_rejected():
 
 def test_an_unparseable_pyproject_is_rejected_not_crashed():
     root = _make_repo(Path(tempfile.mkdtemp()))
-    io.open(root / "pyproject.toml", "w", encoding="utf-8").write("{{{ not toml")
+    (root / "pyproject.toml").write_text("{{{ not toml", encoding="utf-8")
     assert looks_like_project_root(root) is False
 
 
@@ -145,7 +144,7 @@ def test_a_wrong_environment_value_RAISES_rather_than_falling_back():
 def test_there_is_no_developer_path_anywhere_in_the_module():
     """A literal absolute path in the source would reintroduce the defect."""
     import genomic_variant_classifier.paths.runtime_paths as M
-    src = io.open(M.__file__, encoding="utf-8").read()
+    src = Path(M.__file__).read_text(encoding="utf-8")
     import ast
     tree = ast.parse(src)
     strings = [n.value for n in ast.walk(tree)
@@ -204,7 +203,7 @@ def test_a_pyproject_that_is_not_valid_TOML_is_REJECTED_not_raised():
     """
     import tomllib
     root = _make_repo(Path(tempfile.mkdtemp()))
-    io.open(root / "pyproject.toml", "w", encoding="utf-8").write("name = [unclosed")
+    (root / "pyproject.toml").write_text("name = [unclosed", encoding="utf-8")
     with pytest.raises(tomllib.TOMLDecodeError):
         with (root / "pyproject.toml").open("rb") as fh:
             tomllib.load(fh)

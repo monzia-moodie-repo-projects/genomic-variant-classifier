@@ -76,10 +76,36 @@ If nannyml is unavailable, this module RAISES, with the exact remediation. It do
 do, telling the operator "Evidently AI not installed. Run: pip install evidently" while
 Evidently WAS installed and the real fault was that the API had been deleted. The code
 misdiagnosed its own failure, and the drift report was silently never produced, for months.
+
+NO THIRD-PARTY TELEMETRY, NO IMPLICIT .env (2026-11-02)
+------------------------------------------------------
+Read in nannyml 0.13.1 (nannyml/usage_logging.py, nannyml/__init__.py) and python-dotenv 1.2.4
+(dotenv/main.py), and measured:
+
+  * Every CBPE fit and estimate is wrapped by nannyml's `log_usage`. Unless the environment holds
+    NML_DISABLE_USAGE_LOGGING (ANY value), it sends a Segment analytics event whose user id is
+    `uuid.UUID(int=uuid.getnode())` -- derived from this machine's network hardware address --
+    with the operating system, Python version and runtime environment. One CBPE run sent three
+    (measured 2026-11-02 by recording `segment.analytics.track`). A clinical-genomics monitor does
+    not report its use to a vendor, so `_import_nannyml` sets that switch for the process.
+  * Working out "runtime environment" opens /proc/self/cgroup and never closes it
+    (usage_logging.py:286). With pyproject.toml's `error::ResourceWarning` that leak FAILED three
+    tests in the drift job of pull request #59 (2026-11-02). With telemetry off the code is not
+    reached; the leak was there all along, hidden by the default warning filter.
+  * Importing nannyml calls python-dotenv's `load_dotenv()` twice. With no path it searches UP
+    from nannyml's installed directory (from the current directory in an interactive session)
+    and loads the first `.env` it finds into os.environ -- for a `.venv-drift` inside the
+    checkout, the checkout's own `.env`. The project loads its `.env` explicitly, by path, where
+    it means to (utils/helpers.py), so the IMPORT is made with PYTHON_DOTENV_DISABLED set and the
+    variable is restored afterwards exactly as it was. python-dotenv honours that switch from
+    1.2.0; an older one is reported with a WARNING, never silently.
 """
 from __future__ import annotations
 
+import importlib.metadata as _md
 import logging
+import os
+import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Optional, Sequence
 
@@ -105,8 +131,34 @@ DEFAULT_METRICS: tuple[str, ...] = ("roc_auc", "accuracy", "f1", "precision", "r
 MIN_CHUNKS = 10
 
 
+#: nannyml's own switch (nannyml/usage_logging.py, UsageLogger.log): its PRESENCE, with any value,
+#: disables usage telemetry.
+NANNYML_TELEMETRY_SWITCH = "NML_DISABLE_USAGE_LOGGING"
+#: python-dotenv's switch (dotenv/main.py, from 1.2.0): "1" makes load_dotenv() return at once.
+DOTENV_SWITCH = "PYTHON_DOTENV_DISABLED"
+#: The first python-dotenv release that honours DOTENV_SWITCH (1.1.1 does not; read in both wheels).
+DOTENV_SWITCH_SINCE = (1, 2)
+
+
 class NannyMLUnavailableError(RuntimeError):
     """nannyml could not be imported. RAISED, never swallowed."""
+
+
+def _dotenv_honours_switch() -> bool:
+    """True when the installed python-dotenv honours DOTENV_SWITCH (or is absent: nothing to load)."""
+    try:
+        version = _md.version("python-dotenv")
+    except _md.PackageNotFoundError:
+        return True
+    match = re.match(r"(\d+)\.(\d+)", version)
+    return bool(match) and (int(match.group(1)), int(match.group(2))) >= DOTENV_SWITCH_SINCE
+
+
+def _disable_nannyml_telemetry() -> None:
+    """Switch nannyml's usage telemetry off for this process (a value already there is kept: presence is what counts)."""
+    if NANNYML_TELEMETRY_SWITCH not in os.environ:
+        os.environ[NANNYML_TELEMETRY_SWITCH] = "1"
+        logger.info("nannyml usage telemetry disabled for this process (%s=1).", NANNYML_TELEMETRY_SWITCH)
 
 
 def _import_nannyml():
@@ -115,7 +167,19 @@ def _import_nannyml():
     The two ways this fails are BOTH diagnosed explicitly, because the generic
     `except ImportError -> "not installed"` message is how the Evidently export lied about
     itself for months.
+
+    Telemetry is switched off first, and the import itself runs with implicit .env loading
+    suppressed (see the module docstring); the dotenv switch is restored exactly afterwards.
     """
+    _disable_nannyml_telemetry()
+    if not _dotenv_honours_switch():
+        logger.warning(
+            "python-dotenv %s does not honour %s (it arrived in 1.2.0): importing nannyml may load "
+            "a .env file found by searching upward from nannyml's installed directory.",
+            _md.version("python-dotenv"), DOTENV_SWITCH,
+        )
+    previous = os.environ.get(DOTENV_SWITCH)
+    os.environ[DOTENV_SWITCH] = "1"
     try:
         import nannyml as nml  # type: ignore[import]
     except ImportError as exc:
@@ -150,6 +214,11 @@ def _import_nannyml():
                 "supports NumPy 2) and RE-VERIFY that nannyml still imports."
             ) from exc
         raise
+    finally:
+        if previous is None:
+            os.environ.pop(DOTENV_SWITCH, None)
+        else:
+            os.environ[DOTENV_SWITCH] = previous
     return nml
 
 

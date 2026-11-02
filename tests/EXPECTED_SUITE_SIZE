@@ -8151,4 +8151,9 @@
 #   +4 tests/unit/test_dependency_artifacts.py (every dependency file and every install path declared, and true),
 #   +6 tests/unit/test_environment_observation.py (the observer the pytest job runs before the suite: packaging's own rules, and the
 #   program run as the job runs it, with its three refusals).
-8583
+# 2026-11-01  WARNINGS-AND-RESOURCES-1 -- unclosed resources fail their test; no warning filter inside the package
+#   +6 / -0 by node identity: +3 tests/unit/test_kan_pykan_fallback.py (the pykan fallback fits and writes nothing into the current
+#   directory; its fit emits no warning; negative control: pykan's defaults DO write ./model), +3 tests/unit/
+#   test_warning_filters_are_scoped.py (no filter mutation at any depth in the package; a planted scoped blanket is found; the
+#   project's own configuration fails a planted leaking test and passes a closing one).
+8589

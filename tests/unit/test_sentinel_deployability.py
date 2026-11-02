@@ -37,7 +37,6 @@ Author: Monzia Moodie
 from __future__ import annotations
 
 import fnmatch
-import io
 from pathlib import Path
 
 import pytest
@@ -54,7 +53,7 @@ def _ignore_patterns() -> list:
     if not _DOCKERIGNORE.is_file():
         return []
     return [l.strip().rstrip("/")
-            for l in io.open(_DOCKERIGNORE, encoding="utf-8").read().splitlines()
+            for l in Path(_DOCKERIGNORE).read_text(encoding="utf-8").splitlines()
             if l.strip() and not l.strip().startswith("#")]
 
 
@@ -123,8 +122,8 @@ def test_a_directory_with_the_sentinels_but_a_DIFFERENT_name_is_rejected(tmp_pat
         p = tmp_path / s
         if "." in Path(s).name:
             p.parent.mkdir(parents=True, exist_ok=True)
-            io.open(p, "w", encoding="utf-8", newline="\n").write(
-                '[project]\nname = "some-other-project"\nversion = "0.1.0"\n')
+            Path(p).write_text(
+                '[project]\nname = "some-other-project"\nversion = "0.1.0"\n', encoding="utf-8", newline="\n")
         else:
             p.mkdir(parents=True, exist_ok=True)
     assert not looks_like_project_root(tmp_path)

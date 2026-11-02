@@ -82,7 +82,6 @@ Usage:
 from __future__ import annotations
 
 import logging
-import warnings
 from .catboost_output import prepare_catboost_output
 from pathlib import Path
 from typing import Optional
@@ -269,13 +268,15 @@ class CatBoostVariantClassifier(BaseEstimator, ClassifierMixin):
         cb_params.update(self.backend_output_.catboost_parameters())
         self._model = CatBoostClassifier(**cb_params)
 
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            self._model.fit(
-                train_pool,
-                eval_set=eval_pool,
-                verbose=self.verbose,
-            )
+        # No blanket warning filter (removed 2026-11-01): `warnings.simplefilter("ignore")` here hid EVERY warning of the fit,
+        # and on Python 3.12 the filter list is process-wide, so it also hid other threads' warnings while it was active.
+        # Measured with it neutralised: the suite's CatBoost tests (tests/unit/test_catboost.py, 32 with the KAN file) emit
+        # exactly the same warnings, none from CatBoost.
+        self._model.fit(
+            train_pool,
+            eval_set=eval_pool,
+            verbose=self.verbose,
+        )
 
         logger.info(
             "CatBoost fit: best_iteration=%d, categorical_features=%d/%d",

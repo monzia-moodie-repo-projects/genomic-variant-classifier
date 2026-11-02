@@ -72,7 +72,7 @@ def _recovery_full(path: Path):
 
 
 def _fixture(path: Path):
-    json.dump({
+    path.write_text(json.dumps({
         "174": {"variation_set": [{"canonical_spdi": "NC_000010.11:124404663:AT:A",
                                    "variation_loc": []}]},
         "222": {"variation_set": [{"canonical_spdi": "NC_000002.11:199:G:T",  # genome has N
@@ -81,7 +81,7 @@ def _fixture(path: Path):
                                    "variation_loc": [{"assembly_name": "GRCh38",
                                                       "chr": "3", "start": None}]}]},
         # 444 intentionally absent -> NOT_FOUND
-    }, open(path, "w"))
+    }))
 
 
 def test_full_offline_resolution(tmp_path):
@@ -116,10 +116,9 @@ def test_cache_resume(tmp_path):
     rf = tmp_path / "recovery_full.tsv"; _recovery_full(rf)
     fa = tmp_path / "g.fa"; _fasta(fa)
     cache = tmp_path / "cache.json"
-    json.dump({"174": {"verdict": "CONFIRMED_ALLELELESS_NCBI", "spdi": ""}},
-              open(cache, "w"))
+    cache.write_text(json.dumps({"174": {"verdict": "CONFIRMED_ALLELELESS_NCBI", "spdi": ""}}))
     # empty fixture -> if it tried to fetch 174 it would become NOT_FOUND; cache must win
-    fx = tmp_path / "fx.json"; json.dump({}, open(fx, "w"))
+    fx = tmp_path / "fx.json"; fx.write_text(json.dumps({}))
     nc.main(["--recovery-full", str(rf), "--fasta", str(fa), "--cache", str(cache),
              "--out", str(tmp_path / "o.tsv"), "--summary", str(tmp_path / "s.json"),
              "--_fetch_fixture", str(fx), "--rate", "0"])

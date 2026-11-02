@@ -4,7 +4,6 @@ Author: Monzia Moodie
 """
 from __future__ import annotations
 
-import io
 import json
 import os
 import tempfile
@@ -33,7 +32,7 @@ def test_a_corrupt_store_RAISES_rather_than_reporting_empty():
     truncated file becomes a silently reset change-detection baseline."""
     s = _store()
     s.path.parent.mkdir(parents=True, exist_ok=True)
-    io.open(s.path, "w", encoding="utf-8").write('{"schema": "x", "val')
+    Path(s.path).write_text('{"schema": "x", "val', encoding="utf-8")
     with pytest.raises(StateCorruptionError) as exc:
         s.load(allow_legacy=True)
     assert "DAMAGE as ABSENCE" in str(exc.value)
@@ -133,7 +132,7 @@ def test_INVALID_UTF8_is_classified_as_corruption_not_an_escaping_error():
 def test_a_non_object_payload_RAISES():
     s = _store()
     s.path.parent.mkdir(parents=True, exist_ok=True)
-    io.open(s.path, "w", encoding="utf-8").write("[1, 2, 3]")
+    Path(s.path).write_text("[1, 2, 3]", encoding="utf-8")
     with pytest.raises(StateCorruptionError):
         s.load(allow_legacy=True)
 
@@ -155,7 +154,7 @@ def test_a_payload_from_a_DIFFERENT_store_RAISES():
 def test_the_envelope_carries_schema_version_and_generation():
     s = _store()
     s.save({"a": 1})
-    raw = json.loads(io.open(s.path, encoding="utf-8").read())
+    raw = json.loads(Path(s.path).read_text(encoding="utf-8"))
     assert raw[SCHEMA_KEY] == SCHEMA
     assert raw[SCHEMA_VERSION_KEY] == 1
     assert raw[GENERATION_KEY] == 1
@@ -180,8 +179,8 @@ def test_a_LEGACY_bare_dict_is_readable_when_asked_for():
     migrate."""
     s = _store()
     s.path.parent.mkdir(parents=True, exist_ok=True)
-    io.open(s.path, "w", encoding="utf-8").write(
-        json.dumps({"literature_scout.last_run": "2026-06-13T19:14:10Z"}))
+    Path(s.path).write_text(
+        json.dumps({"literature_scout.last_run": "2026-06-13T19:14:10Z"}), encoding="utf-8")
     got = s.load(allow_legacy=True)
     assert got.shape is PayloadShape.LEGACY_BARE
     assert got.values["literature_scout.last_run"].startswith("2026-06-13")
@@ -192,7 +191,7 @@ def test_a_LEGACY_payload_is_REFUSED_unless_asked_for():
     """Reading legacy data must be a deliberate act, not a default."""
     s = _store()
     s.path.parent.mkdir(parents=True, exist_ok=True)
-    io.open(s.path, "w", encoding="utf-8").write('{"a": 1}')
+    Path(s.path).write_text('{"a": 1}', encoding="utf-8")
     with pytest.raises(StateSchemaMismatch) as exc:
         s.load()
     assert "allow_legacy=True" in str(exc.value)
@@ -201,7 +200,7 @@ def test_a_LEGACY_payload_is_REFUSED_unless_asked_for():
 def test_require_enveloped_rejects_a_legacy_load():
     s = _store()
     s.path.parent.mkdir(parents=True, exist_ok=True)
-    io.open(s.path, "w", encoding="utf-8").write('{"a": 1}')
+    Path(s.path).write_text('{"a": 1}', encoding="utf-8")
     got = s.load(allow_legacy=True)
     with pytest.raises(StateSchemaMismatch):
         got.require_enveloped()
@@ -261,7 +260,7 @@ def test_a_failed_write_leaves_NO_temporary_file_behind():
 def test_a_failed_write_leaves_the_ORIGINAL_intact():
     s = _store()
     s.save({"keep": "this"})
-    before = io.open(s.path, "rb").read()
+    before = Path(s.path).read_bytes()
     import genomic_variant_classifier.state.json_state_store as M
     real_dump = M.json.dump
     M.json.dump = lambda *a, **k: (_ for _ in ()).throw(OSError("disk full"))
@@ -270,7 +269,7 @@ def test_a_failed_write_leaves_the_ORIGINAL_intact():
             s.save({"clobber": "that"})
     finally:
         M.json.dump = real_dump
-    assert io.open(s.path, "rb").read() == before
+    assert Path(s.path).read_bytes() == before
 
 
 def test_fsync_is_called_before_the_rename():
@@ -312,7 +311,7 @@ def test_update_works_against_a_LEGACY_store_without_losing_keys():
     preserve all of it while adding the envelope."""
     s = _store()
     s.path.parent.mkdir(parents=True, exist_ok=True)
-    io.open(s.path, "w", encoding="utf-8").write(json.dumps({"old": 1, "keep": 2}))
+    Path(s.path).write_text(json.dumps({"old": 1, "keep": 2}), encoding="utf-8")
     s.update({"new": 3})
     got = s.load()
     assert got.shape is PayloadShape.ENVELOPED
@@ -366,7 +365,7 @@ def test_load_returns_values_INDEPENDENT_of_the_parsed_envelope(monkeypatch):
     import genomic_variant_classifier.state.json_state_store as M
     s = _store()
     s.save({"a": 1})
-    envelope = json.loads(io.open(s.path, encoding="utf-8").read())
+    envelope = json.loads(Path(s.path).read_text(encoding="utf-8"))
     monkeypatch.setattr(M.json, "loads", lambda text: envelope)
     got = s.load()
     assert got.values == envelope[VALUES_KEY]
@@ -393,7 +392,7 @@ def test_the_path_is_SUPPLIED_not_computed():
     derives a location from repository layout."""
     import ast
     import genomic_variant_classifier.state.json_state_store as M
-    src = io.open(M.__file__, encoding="utf-8").read()
+    src = Path(M.__file__).read_text(encoding="utf-8")
     tree = ast.parse(src)
     docs = set()
     for n in ast.walk(tree):

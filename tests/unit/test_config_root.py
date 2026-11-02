@@ -34,7 +34,6 @@ Author: Monzia Moodie
 from __future__ import annotations
 
 import ast
-import io
 import subprocess
 import sys
 from pathlib import Path
@@ -53,7 +52,7 @@ def test_no_absolute_path_literal_survives_in_config():
     constant reintroduces it. Docstrings and comments quote the old line
     deliberately, so only LIVE constants are checked."""
     import re
-    src = io.open(_CONFIG, encoding="utf-8").read()
+    src = Path(_CONFIG).read_text(encoding="utf-8")
     tree = ast.parse(src)
     docs = set()
     for n in ast.walk(tree):
@@ -93,7 +92,7 @@ def test_there_is_exactly_ONE_runtime_path_authority():
     """Two resolver calls would be two authorities for one process, and each
     performs a full discovery walk. The module resolves once."""
     import ast
-    tree = ast.parse(io.open(_CONFIG, encoding="utf-8").read())
+    tree = ast.parse(Path(_CONFIG).read_text(encoding="utf-8"))
     calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call)
              and (getattr(n.func, "id", None) or getattr(n.func, "attr", None))
              in ("resolve_runtime_paths", "resolve_project_root")]
@@ -110,7 +109,7 @@ def test_no_absolute_path_literal_and_no_env_fallback_survives():
     shape that made one author's absolute path the value on every machine.
     """
     import ast
-    tree = ast.parse(io.open(_CONFIG, encoding="utf-8").read())
+    tree = ast.parse(Path(_CONFIG).read_text(encoding="utf-8"))
     for n in tree.body:
         if (isinstance(n, ast.Assign) and n.targets
                 and getattr(n.targets[0], "id", None) == "PROJECT_ROOT"):
@@ -275,9 +274,9 @@ def test_GVC_PROJECT_ROOT_still_overrides(tmp_path):
     fake = tmp_path / "repo"
     (fake / "src" / "genomic_variant_classifier").mkdir(parents=True)
     (fake / "tests").mkdir()
-    io.open(fake / "pyproject.toml", "w", encoding="utf-8", newline="\n").write(
-        '[project]\nname = "genomic-variant-classifier"\nversion = "0.1.0"\n')
-    io.open(fake / "tests" / "EXPECTED_SUITE_SIZE", "w", newline="\n").write("1\n")
+    (fake / "pyproject.toml").write_text(
+        '[project]\nname = "genomic-variant-classifier"\nversion = "0.1.0"\n', encoding="utf-8", newline="\n")
+    (fake / "tests" / "EXPECTED_SUITE_SIZE").write_text("1\n", newline="\n")
     code = (
         "from genomic_variant_classifier.agent_layer.config import PROJECT_ROOT;"
         "print(PROJECT_ROOT)"
