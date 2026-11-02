@@ -551,15 +551,14 @@ def _export_evidently(
         from evidently import DataDefinition, Dataset, Report
         from evidently.presets import DataDriftPreset, DataSummaryPreset
     except ImportError as exc:
+        from genomic_variant_classifier.deps.profiles import install_command
         raise EvidentlyUnavailableError(
             f"Evidently is not importable in this environment: {exc}\n"
             "\n"
             "The drift monitor runs in a SEPARATE environment (requirements-drift.txt),\n"
             "because evidently requires plotly<6 while this project runs plotly 6.6.0.\n"
             "\n"
-            "  python -m venv .venv-drift\n"
-            "  .venv-drift/Scripts/pip install -r requirements-drift.txt\n"
-            "  .venv-drift/Scripts/pip install -e . --no-deps\n"
+            "  " + install_command("drift") + "\n"
             "\n"
             "If the import failed on `evidently.report` / `evidently.metric_preset` /\n"
             "`evidently.pipeline.column_mapping`, you are looking at the OLD 0.4 API. Those\n"

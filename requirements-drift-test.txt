@@ -1,0 +1,17 @@
+# requirements-drift-test.txt -- what the drift profile needs BESIDES the monitor itself (DRIFT-PROFILE-LOCK, 2026-11-02).
+# Author: Monzia Moodie
+#
+# Until 2026-11-02 the drift job installed these unpinned (`pip install pytest packaging`) and the project's build backend came
+# from an isolated build that took the newest setuptools. Each is now declared here and locked with the monitor in
+# requirements-drift-linux.lock and requirements-drift-windows.lock. The specifiers are the project's own: no new range is invented.
+
+# tests_drift/ (the same range as requirements-dev.txt declares for tests/).
+pytest>=8.0,<10.0
+
+# The dependency check that proves the installed environment IS the lock (deps/, scripts/check_dependency_profiles.py), and
+# tests_drift/. The same pin as requirements.txt.
+packaging==26.0
+
+# The build backend of this project's editable install, which runs WITHOUT build isolation so the backend is the locked one
+# (pyproject.toml [build-system]: requires = ["setuptools>=61.0"]).
+setuptools>=61.0

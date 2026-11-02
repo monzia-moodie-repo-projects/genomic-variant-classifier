@@ -113,3 +113,12 @@ value fails its test; without the warning, the old-dotenv test fails.
 
 - DRIFT-ENVIRONMENT-NOT-LOCKED: requirements-drift.txt pins seven packages; everything else resolves on the day (the two jobs
   resolved scipy 1.18.1 on 3.12 and 1.17.1 on 3.11, pytest 9.2.0). One of the 16 install paths recorded under DEPENDENCY-PROFILES-1.
+
+### After the merge (2026-11-02)
+
+- Revision b merged as pull request #60 (merge commit d1bc3cc1, 2026-11-02T06:15:23Z, parents c1e1555c and 1188c4be). The first
+  revision, pull request #59 (head 52a8acb9), is not in main's history (`git merge-base --is-ancestor`, measured 2026-11-02 against
+  GitHub's refs/pull/59/head).
+- `_import_nannyml()` is named `import_nannyml()` since DRIFT-PROFILE-LOCK (2026-11-02), the one sanctioned import of nannyml in
+  src/ and scripts/ (tests/unit/test_nannyml_import_boundary.py).
+- DRIFT-ENVIRONMENT-NOT-LOCKED is closed by DRIFT-PROFILE-LOCK: docs/sessions/SESSION_2026-11-02_drift-profile-lock.md.

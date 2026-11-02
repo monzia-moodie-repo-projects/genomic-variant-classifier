@@ -36,6 +36,13 @@ concurrency:
   group: drift-monitor
   cancel-in-progress: false
 
+# Network resilience for the drift profile's installation (137 wheels, nannyml's 23 MB among them), as ci.yml has had since
+# 2026-07-25 after a dropped download failed its drift job (run 30178381817). pip maps these onto --retries and --timeout for every
+# invocation, the installer's included. Added 2026-11-02 (DRIFT-PROFILE-LOCK), when this workflow began installing the same lock.
+env:
+  PIP_RETRIES: "5"
+  PIP_DEFAULT_TIMEOUT: "60"
+
 jobs:
 
   # ── Job 1: Feature drift detection ──────────────────────────────────────
@@ -58,10 +65,9 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.11"
-          cache: pip
 
       # -------------------------------------------------------------------------------
-      # THE ISOLATED DRIFT ENVIRONMENT. (fixed 2026-07-13, roadmap 6.19)
+      # THE ISOLATED DRIFT ENVIRONMENT. (fixed 2026-07-13, roadmap 6.19; locked 2026-11-02, DRIFT-PROFILE-LOCK)
       #
       # This step used to be `pip install -r requirements-api.txt scipy`, which installs the
       # INFERENCE stack. It contains NO evidently, NO nannyml, NO pandera, NO river -- and it
@@ -70,17 +76,25 @@ jobs:
       #
       # The scheduled drift monitor was therefore running WITHOUT its drift libraries and
       # WITHOUT the code it was supposed to run.
+      #
+      # Since 2026-11-02 it installs the drift profile EXACTLY from requirements-drift-linux.lock, through the same
+      # scripts/install_locked_profile.py as the 'drift monitor' job of ci.yml: a new environment, every artifact
+      # hash-checked, wheels only, the project editable without its training dependencies, and the proof that the
+      # result IS the lock -- pip check included, and pyspark, torch and torch-geometric refused.
       # -------------------------------------------------------------------------------
-      - name: Install the ISOLATED drift environment
+      - name: Install the drift profile exactly from its lock, and prove it IS the lock
+        shell: bash
         run: |
           set -euo pipefail
-          python -m pip install --upgrade pip
-          pip install -r requirements-drift.txt
-          # --no-deps: keep torch / torch_geometric / pyspark OUT. pyspark in particular would
-          # KILL nannyml -- pyspark 3.5.x's pandas module calls np.NaN, REMOVED in NumPy 2.0,
-          # and nannyml optionally imports pyspark.
-          pip install -e . --no-deps
-          pip check
+          python scripts/install_locked_profile.py --profile drift --target linux-3.11 --venv "$RUNNER_TEMP/venv-drift"
+          echo "$RUNNER_TEMP/venv-drift/bin" >> "$GITHUB_PATH"
+
+      - name: Every later step runs the proven environment, and the drift stack reports itself honestly
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(command -v python)" = "$RUNNER_TEMP/venv-drift/bin/python"
+          command -v python
           python scripts/verify_drift_libs.py
 
       # ===============================================================================
@@ -365,10 +379,10 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.11"
-          cache: pip
 
-      - name: Install dependencies
-        run: pip install pandas pyarrow
+      # NO INSTALLATION (2026-11-02, DRIFT-PROFILE-LOCK). This job installed pandas and pyarrow, unpinned -- and no step
+      # of it imports either: the two steps below use the standard library only (urllib, sys) and echo. An unpinned
+      # installation that nothing uses is a dependency surface with no purpose.
 
       # ===============================================================================
       # THIS STEP PRINTED A CLAIM IT NEVER VERIFIED. (fixed 2026-07-13, roadmap 6.20)
@@ -651,10 +665,16 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.11"
-          cache: pip
 
-      - name: Install API dependencies
-        run: pip install -r requirements-api.txt
+      # NO INSTALLATION, AND THE PROJECT ON THE PATH (2026-11-02, DRIFT-PROFILE-LOCK). This job installed
+      # requirements-api.txt -- which does not contain this project -- and then imported
+      # genomic_variant_classifier.monitoring.model_registry from the checkout root, where the package is not: it lives
+      # under src/. So the step below could only stop at its first import with ModuleNotFoundError, never reaching the
+      # verdict it exists to compute (reproduced 2026-11-02: from the checkout root, without the project installed,
+      # `import genomic_variant_classifier` raises ModuleNotFoundError). Measured the same day: model_registry and every
+      # module it imports are the standard library and this package, so nothing needs installing at all; with
+      # PYTHONPATH=src the step computes its real verdict on Python 3.11 and 3.12 alike (with the committed registry,
+      # which declares no production model: exit 3, NOT CHECKED -- the documented outcome, not a crash).
 
       # ===============================================================================
       # A SMOKE TEST THAT COULD NOT FAIL. (fixed 2026-07-13, roadmap 6.20)
@@ -701,6 +721,8 @@ jobs:
         # 0 valid -- and the policy lives in Python where it can be
         # tested. A workflow that knows thresholds is a second policy
         # engine nobody tests.
+        env:
+          PYTHONPATH: src
         run: |
           python - <<'PY'
           import sys

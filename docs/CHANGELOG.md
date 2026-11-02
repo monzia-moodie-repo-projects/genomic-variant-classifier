@@ -1,3 +1,41 @@
+## 2026-11-02 (drift profile lock) -- the drift-monitoring profile locked per target; one installer for every locked profile
+
+MEASURED before: requirements-drift.txt pinned 7 distributions and the drift jobs of pull request #59 resolved 137 on the day --
+pyarrow 26.0.0 against training's 23.0.1 for the same parquet files, matplotlib 3.11.2 (3.10.8), pytest 9.2.0 (9.0.3), scipy
+1.17.1 on Python 3.11 and 1.18.1 on 3.12; pip was upgraded to the newest release, pytest and packaging came unpinned, and the
+project was built with an isolated, unpinned setuptools -- the isolated editable build that leaves
+src/genomic_variant_classifier.egg-info in the source tree (measured with setuptools 84.2.1 and 70.2.0 alike; without isolation it
+does not). drift_monitor.yml's
+verify-model job installed requirements-api.txt, which lacks the project, and then imported the project from the checkout root,
+where it is not: ModuleNotFoundError by construction (reproduced); label-drift installed pandas and pyarrow and uses neither.
+
+- requirements-drift-linux.lock (Python 3.11 and 3.12: two resolutions, byte-identical bodies) and requirements-drift-windows.lock
+  (generated on the owner's machine by block D1): requirements-drift.txt (+ pyarrow==23.0.1) and the new requirements-drift-test.txt
+  (pytest, packaging, setuptools, with the project's own specifiers) resolved with hashes under constraints-drift.txt, which is
+  DERIVED from the training-and-test locks and checked to be exactly that derivation. 137 Linux pins; every distribution shared
+  with training is at training's version except three departures, each measured necessary (constrained to training's version,
+  the resolution is impossible): lightgbm 4.5.0 and plotly 5.24.1 (nannyml's caps) and xgboost 2.1.4 (FLAML[automl], required by
+  nannyml, caps it below 3.0.0). Every pin has a wheel for each target, so the profile installs wheels only.
+- src/genomic_variant_classifier/deps/profiles.py: ONE declaration of both profiles (sources, constraints, locks per target,
+  install flags, departures, forbidden distributions: pyspark, torch, torch-geometric), standard library only.
+- scripts/install_locked_profile.py: ONE procedure for every place a locked profile is installed -- a new environment, pip from the
+  toolchain's hashed record, the lock with --require-hashes --no-deps, the project editable without dependencies or build isolation,
+  then the proof that the environment IS the lock. Used by the pytest and drift jobs and the monthly drift monitor.
+- scripts/check_dependency_profiles.py: --offline checks every profile (derivation, departures, forbidden distributions included);
+  --environment requires --profile; --derive-constraints writes an aligned profile's constraints.
+- ci.yml: the lockfile job installs packaging from the toolchain's hashed record (unpinned until now) and no longer restores an
+  unread pip cache; the pytest and drift jobs install through the installer and prove the job's python is that environment.
+  drift_monitor.yml: feature-drift through the installer; label-drift and verify-model install nothing (verify-model with
+  PYTHONPATH=src now computes its verdict: exit 3, NOT CHECKED, with the committed registry); PIP_RETRIES and PIP_DEFAULT_TIMEOUT.
+- monitoring/performance_estimator.py: import_nannyml() is public and the only import of nannyml in src/ and scripts/ (new
+  tests/unit/test_nannyml_import_boundary.py); scripts/verify_drift_libs.py imports nannyml through it; every remediation message
+  cites deps.profiles.install_command("drift") instead of a hand-kept copy of the retired recipe (there were four).
+- deps/governance.py: four new artifacts; ci.yml and drift_monitor.yml lock-qualified (4 of 18 install paths). README Quickstart names
+  the two environments. VERIFIED: the five changed jobs emulated on the candidate commit (lockfile, pytest 3.12 -- 8,575 passed, 26
+  skipped (each environmental), 6 xfailed and no failure; coverage 84%; 8,607 collected --, drift 3.11 and 3.12 -- 19 passed each --,
+  the monthly feature-drift and verify-model jobs); block D1 on the owner's machine; 13 block mutants, 11 check mutants and 5 planted
+  workflow defects all caught. Suite 8,589 -> 8,607.
+
 ## 2026-11-01 (warnings and resources) -- an unclosed resource fails its test; the package sets no warning filter; nannyml telemetry off
 
 MEASURED on the merged tree 4bcabb9f (pull request #58) with `-W always::ResourceWarning` (Linux, the locked environment): 8,551

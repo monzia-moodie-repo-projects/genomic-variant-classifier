@@ -36,7 +36,18 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: "3.11"
-          cache: pip
+
+      # The checks below need ONE third-party package, packaging. Until 2026-11-02 it was installed unpinned, twice
+      # (`pip install -q packaging`: 26.3 on 2026-11-01). It now comes from the generator toolchain's hashed record --
+      # the version every lock of this repository was generated with -- and `cache: pip` is gone with it: nothing here
+      # reads a cache. (DRIFT-PROFILE-LOCK)
+      - name: Install packaging from the generator toolchain's hashed record
+        shell: bash
+        run: |
+          set -euo pipefail
+          awk '/^packaging==/{on=1} on{print} on && !/\\$/{exit}' requirements-generator-toolchain.txt > "$RUNNER_TEMP/packaging.txt"
+          cat "$RUNNER_TEMP/packaging.txt"
+          python -m pip install --require-hashes --no-deps --no-cache-dir -r "$RUNNER_TEMP/packaging.txt"
 
       # ===============================================================================
       # THIS GATE WAS REBUILT ON 2026-07-14. READ THIS BEFORE "RESTORING" THE RECOMPILE.
@@ -88,13 +99,11 @@ jobs:
       - name: Assert the API lockfile SATISFIES requirements-api.txt (deterministic)
         run: |
           set -euo pipefail
-          pip install -q packaging
           python scripts/check_lock_satisfies.py --verbose
 
-      - name: The training-and-test locks satisfy their sources on every target (offline)
+      - name: Every profile's locks satisfy their sources on every target (offline)
         run: |
           set -euo pipefail
-          pip install -q packaging
           PYTHONPATH=src python scripts/check_dependency_profiles.py --offline
 
       - name: Assert the API lockfile installs cleanly on Linux with no conflicts
@@ -225,35 +234,29 @@ jobs:
       #
       # Now: a fresh environment OUTSIDE the checkout; pip 26.1.2 from the generator toolchain's hashed record; the lock
       # with --require-hashes --no-deps (every artifact's bytes checked, nothing resolved); the project editable without
-      # dependencies or build isolation (setuptools comes from the lock). The next step proves the result IS the lock.
-      # The same lock serves Python 3.11 and 3.12: two independent resolutions gave byte-identical bodies.
+      # dependencies or build isolation (setuptools comes from the lock); then the proof that the result IS the lock
+      # (inventory, dependency closure, target, pip check). The same lock serves Python 3.11 and 3.12: two independent
+      # resolutions gave byte-identical bodies. Three distributions exist only as source archives (deflate-dict, dict-hash,
+      # pyspark): their bytes are hash-checked, and --build-constraint makes their build backend the lock's setuptools 70.2.0.
+      #
+      # ONE PROCEDURE, scripts/install_locked_profile.py, since 2026-11-02 (DRIFT-PROFILE-LOCK): this job, the drift job, the
+      # monthly drift monitor and a person's own machine install a locked profile the same way, from the one declaration in
+      # src/genomic_variant_classifier/deps/profiles.py, so the steps cannot drift apart.
       # -------------------------------------------------------------------------------
-      - name: Install the training-and-test profile exactly from its lock
+      - name: Install the training-and-test profile exactly from its lock, and prove it IS the lock
         shell: bash
         run: |
           set -euo pipefail
-          venv="$RUNNER_TEMP/venv-train-test"
-          python -m venv "$venv"
-          awk '/^pip==/{on=1} on{print} on && !/\\$/{exit}' requirements-generator-toolchain.txt > "$RUNNER_TEMP/pip.txt"
-          grep -c -- '--hash=sha256:' "$RUNNER_TEMP/pip.txt"
-          "$venv/bin/python" -m pip install --require-hashes --no-deps --no-cache-dir -r "$RUNNER_TEMP/pip.txt"
-          # Three distributions exist only as source archives (deflate-dict, dict-hash, pyspark): their bytes are hash-checked,
-          # and --build-constraint makes their build backend the lock's setuptools 70.2.0 instead of the newest release.
-          "$venv/bin/python" -m pip install --require-hashes --no-deps --no-cache-dir \
-            --build-constraint build-constraints-train-test.txt -r requirements-train-test-linux.lock
-          "$venv/bin/python" -m pip install --no-deps --no-build-isolation --no-cache-dir -e .
-          echo "$venv/bin" >> "$GITHUB_PATH"
+          python scripts/install_locked_profile.py --profile train-test --target "linux-${{ matrix.python-version }}" \
+            --venv "$RUNNER_TEMP/venv-train-test"
+          echo "$RUNNER_TEMP/venv-train-test/bin" >> "$GITHUB_PATH"
 
-      - name: The installed environment IS the lock (inventory, dependency closure, target)
+      - name: Every later step runs the proven environment
         shell: bash
         run: |
           set -euo pipefail
-          which python
-          observation="$RUNNER_TEMP/environment_observation.json"
-          python -I -B -m genomic_variant_classifier.deps.environment_observation "$observation"
-          python scripts/check_dependency_profiles.py --environment "$observation" \
-            --observation-sha256 "$(sha256sum "$observation" | cut -d' ' -f1)" \
-            --target "linux-${{ matrix.python-version }}"
+          test "$(command -v python)" = "$RUNNER_TEMP/venv-train-test/bin/python"
+          command -v python
 
       # -------------------------------------------------------------------------------
       # PROVE THE DEPENDENCIES THAT MATTER ARE ACTUALLY HERE. (2026-07-13, roadmap 6.17)
@@ -522,8 +525,8 @@ jobs:
   drift:
     name: drift monitor (isolated env)
     runs-on: ubuntu-24.04   # pinned 2026-09-26: ubuntu-latest moves to Ubuntu 26 from 2026-10-19
-    # `needs: lockfile-check` REMOVED 2026-07-14 (roadmap 6.25). This job installs
-    # requirements-drift.txt into a DELIBERATELY ISOLATED environment -- the whole point of it
+    # `needs: lockfile-check` REMOVED 2026-07-14 (roadmap 6.25). This job installs the drift
+    # profile (requirements-drift-linux.lock since 2026-11-02) into a DELIBERATELY ISOLATED environment -- the whole point of it
     # is that it shares nothing with the API image. Chaining it behind the API lockfile gate
     # was gratuitous, and on run 29374485597 it meant a spurious lockfile failure skipped the
     # drift tests too. A gate should fail the thing it protects, not everything downstream.
@@ -541,20 +544,39 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
 
-      - name: Install the ISOLATED drift environment
+      # -------------------------------------------------------------------------------
+      # THE DRIFT PROFILE, INSTALLED EXACTLY FROM ITS LOCK (DRIFT-PROFILE-LOCK, 2026-11-02).
+      #
+      # Until 2026-11-02 this step upgraded pip to whatever was newest, installed requirements-drift.txt (seven exact pins,
+      # nothing else pinned) and unpinned pytest and packaging, and built the project with an isolated, unpinned setuptools.
+      # On pull request #59 that resolved 137 distributions on the day: pyarrow 26.0.0 while training writes the same
+      # parquet files with 23.0.1, matplotlib 3.11.2 (training 3.10.8), pytest 9.2.0 (training 9.0.3), and scipy 1.17.1 on
+      # 3.11 but 1.18.1 on 3.12 -- two different drift environments under one job name. And an editable install WITH build
+      # isolation writes src/genomic_variant_classifier.egg-info into the checkout (measured in the development sandbox on
+      # 2026-11-02, with setuptools 84.2.1 and 70.2.0 alike; without isolation it does not): a second metadata record of the
+      # project, the shape of EGG-INFO-SHADOW-1.
+      #
+      # Now: scripts/install_locked_profile.py -- a NEW environment; pip from the toolchain's hashed record; the 137 pins of
+      # requirements-drift-linux.lock with --require-hashes --no-deps --only-binary=:all: (every one has a wheel for 3.11 and
+      # 3.12, so nothing is built); the project editable with --no-deps --no-build-isolation; then the proof that the result
+      # IS the lock, with pyspark, torch and torch-geometric refused. Every distribution the drift and training profiles
+      # share is at the training lock's version except three measured departures (lightgbm, plotly, xgboost: deps/profiles.py).
+      # -------------------------------------------------------------------------------
+      - name: Install the drift profile exactly from its lock, and prove it IS the lock
+        shell: bash
         run: |
           set -euo pipefail
-          python -m pip install --upgrade pip
-          pip install -r requirements-drift.txt
-          # --no-deps: the project's TRAINING dependencies (torch, torch_geometric, pyspark,
-          # lightgbm 4.6.0) must NOT come along. pyspark in particular would KILL nannyml:
-          # pyspark 3.5.x's pandas module calls np.NaN, REMOVED in NumPy 2.0, and nannyml
-          # OPTIONALLY imports pyspark. That is why `import nannyml` has never worked on the
-          # developer's laptop.
-          pip install -e . --no-deps
-          pip install pytest packaging
+          python scripts/install_locked_profile.py --profile drift --target "linux-${{ matrix.python-version }}" \
+            --venv "$RUNNER_TEMP/venv-drift"
+          echo "$RUNNER_TEMP/venv-drift/bin" >> "$GITHUB_PATH"
+
+      - name: Every later step runs the proven environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(command -v python)" = "$RUNNER_TEMP/venv-drift/bin/python"
+          command -v python
 
       - name: Assert the isolation actually holds
         run: |

@@ -87,7 +87,7 @@ Read in nannyml 0.13.1 (nannyml/usage_logging.py, nannyml/__init__.py) and pytho
     `uuid.UUID(int=uuid.getnode())` -- derived from this machine's network hardware address --
     with the operating system, Python version and runtime environment. One CBPE run sent three
     (measured 2026-11-02 by recording `segment.analytics.track`). A clinical-genomics monitor does
-    not report its use to a vendor, so `_import_nannyml` sets that switch for the process.
+    not report its use to a vendor, so `import_nannyml` sets that switch for the process.
   * Working out "runtime environment" opens /proc/self/cgroup and never closes it
     (usage_logging.py:286). With pyproject.toml's `error::ResourceWarning` that leak FAILED three
     tests in the drift job of pull request #59 (2026-11-02). With telemetry off the code is not
@@ -111,6 +111,8 @@ from typing import TYPE_CHECKING, Any, Optional, Sequence
 
 import numpy as np
 import pandas as pd
+
+from genomic_variant_classifier.deps.profiles import install_command
 
 if TYPE_CHECKING:  # pragma: no cover
     pass
@@ -161,8 +163,9 @@ def _disable_nannyml_telemetry() -> None:
         logger.info("nannyml usage telemetry disabled for this process (%s=1).", NANNYML_TELEMETRY_SWITCH)
 
 
-def _import_nannyml():
-    """Import nannyml, or FAIL LOUD with the exact remediation.
+def import_nannyml():
+    """Import nannyml, or FAIL LOUD with the exact remediation. The ONLY sanctioned import of nannyml in src/ and scripts/
+    (tests/unit/test_nannyml_import_boundary.py): every other route would skip the two switches below.
 
     The two ways this fails are BOTH diagnosed explicitly, because the generic
     `except ImportError -> "not installed"` message is how the Evidently export lied about
@@ -190,9 +193,7 @@ def _import_nannyml():
             "nannyml requires lightgbm<4.6 while the ensemble TRAINS on lightgbm 4.6.0 (a base\n"
             "model). It is deliberately absent from requirements.txt.\n"
             "\n"
-            "  python -m venv .venv-drift\n"
-            "  .venv-drift/Scripts/pip install -r requirements-drift.txt\n"
-            "  .venv-drift/Scripts/pip install -e . --no-deps\n"
+            "  " + install_command("drift") + "\n"
             "\n"
             "See requirements-drift.txt and roadmap 6.19."
         ) from exc
@@ -317,7 +318,7 @@ def estimate_performance(
         If the frames do not carry what CBPE needs. Fail at the door, not deep inside a
         third-party library with a message about a column name we chose ourselves.
     """
-    nml = _import_nannyml()
+    nml = import_nannyml()
 
     missing_ref = {COL_TRUE, COL_PROBA, COL_PRED} - set(reference.columns)
     if missing_ref:

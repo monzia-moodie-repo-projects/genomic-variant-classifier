@@ -296,6 +296,8 @@ def _artifact(path, authority, purpose, profiles, freshness, generated_from, not
 
 _TT = (DeploymentProfile.TRAINING, DeploymentProfile.CI_TEST)
 _TT_SOURCES = ("requirements.txt", "requirements-dev.txt", "constraints-observed-venv312.txt")
+_DRIFT = (DeploymentProfile.DRIFT_MONITOR,)
+_DRIFT_SOURCES = ("requirements-drift.txt", "requirements-drift-test.txt", "constraints-drift.txt")
 
 ARTIFACTS = (
     _artifact("requirements.txt", ArtifactAuthority.AUTHORED, ArtifactPurpose.RUNTIME_DECLARATION, _TT, ArtifactFreshness.CURRENT, (),
@@ -327,8 +329,20 @@ ARTIFACTS = (
               "The API image's declaration."),
     _artifact("requirements-api.lock", ArtifactAuthority.GENERATED, ArtifactPurpose.DEPLOYMENT_LOCK, (DeploymentProfile.API,), ArtifactFreshness.CURRENT,
               ("requirements-api.txt",), "57 exact pins, NO hashes; checked by scripts/check_lock_satisfies.py."),
-    _artifact("requirements-drift.txt", ArtifactAuthority.AUTHORED, ArtifactPurpose.INSTALLATION, (DeploymentProfile.DRIFT_MONITOR,), ArtifactFreshness.UNVERIFIED, (),
-              "The isolated drift environment; exact pins without hashes; not yet migrated to a hashed lock."),
+    _artifact("requirements-drift.txt", ArtifactAuthority.AUTHORED, ArtifactPurpose.RUNTIME_DECLARATION, _DRIFT, ArtifactFreshness.CURRENT, (),
+              "The drift monitor's declaration (nannyml, evidently, the shared-data contract, nannyml's caps); installed only through its "
+              "locks since 2026-11-02 (DRIFT-PROFILE-LOCK)."),
+    _artifact("requirements-drift-test.txt", ArtifactAuthority.AUTHORED, ArtifactPurpose.TEST_DECLARATION, _DRIFT, ArtifactFreshness.CURRENT, (),
+              "pytest, packaging and the editable install's build backend (setuptools), with the project's own specifiers; installed "
+              "unpinned by the drift job until 2026-11-02."),
+    _artifact("constraints-drift.txt", ArtifactAuthority.GENERATED, ArtifactPurpose.ALIGNMENT_CONSTRAINTS, _DRIFT, ArtifactFreshness.CURRENT,
+              ("requirements-train-test-linux.lock", "requirements-train-test-windows.lock"),
+              "Every train-test pin less three measured departures (lightgbm, plotly, xgboost); checked to be exactly that derivation."),
+    _artifact("requirements-drift-linux.lock", ArtifactAuthority.GENERATED, ArtifactPurpose.INSTALLATION, _DRIFT, ArtifactFreshness.CURRENT, _DRIFT_SOURCES,
+              "Linux, Python 3.11 and 3.12: two independent resolutions, byte-identical bodies, 137 pins, wheels only (2026-11-02)."),
+    _artifact("requirements-drift-windows.lock", ArtifactAuthority.GENERATED, ArtifactPurpose.INSTALLATION, _DRIFT, ArtifactFreshness.CURRENT, _DRIFT_SOURCES,
+              "Windows, Python 3.12, generated on the owner's machine by block D1 (2026-11-02, 92fa3a96...): 136 pins; the 135 shared "
+              "with the Linux lock have equal versions and hash sets; colorama on Windows only; wheels only (a dry run, 136 of 136)."),
     _artifact("requirements-source-monitor.txt", ArtifactAuthority.AUTHORED, ArtifactPurpose.INSTALLATION, (DeploymentProfile.SOURCE_MONITOR,),
               ArtifactFreshness.CURRENT, (), "PyYAML only, hash-locked; installed --require-hashes --no-deps --only-binary=:all:."),
 )
@@ -343,11 +357,14 @@ class InstallConsumer:
 
 
 INSTALL_CONSUMERS = (
-    InstallConsumer(".github/workflows/ci.yml", False,
-                    "MIXED: job 'test' installs requirements-train-test-linux.lock exactly (DEPENDENCY-PROFILES-1); job 'drift' installs "
-                    "requirements-drift.txt and unpinned pytest/packaging; the lockfile job resolves requirements-api.lock with --dry-run only."),
+    InstallConsumer(".github/workflows/ci.yml", True,
+                    "Every installation hash-checked (2026-11-02): jobs 'test' and 'drift' through scripts/install_locked_profile.py "
+                    "(train-test and drift locks, each proven by the environment contract); the lockfile job installs packaging from the "
+                    "generator toolchain's record and resolves requirements-api.lock with --dry-run, which installs nothing."),
     InstallConsumer(".github/workflows/teardown_abort_diagnostic.yml", False, "NOT MIGRATED: requirements-api.lock + requirements.txt + requirements-dev.txt."),
-    InstallConsumer(".github/workflows/drift_monitor.yml", False, "NOT MIGRATED: requirements-drift.txt, unpinned pandas/pyarrow, requirements-api.txt."),
+    InstallConsumer(".github/workflows/drift_monitor.yml", True,
+                    "2026-11-02: feature-drift installs the drift lock through scripts/install_locked_profile.py; label-drift and "
+                    "verify-model install nothing (measured: neither needs a third-party package)."),
     InstallConsumer(".github/workflows/data_freshness.yml", False, "NOT MIGRATED: four exact pins and an editable install with dependencies."),
     InstallConsumer(".github/workflows/source_monitor.yml", True, "Hashed, --no-deps, binary-only: requirements-source-monitor.txt."),
     InstallConsumer(".github/workflows/source_monitor_verify.yml", True, "Hashed, --no-deps, binary-only: requirements-source-monitor.txt."),
