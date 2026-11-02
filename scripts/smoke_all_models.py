@@ -57,18 +57,20 @@ def _stream_child(cmd: list[str], cwd: Path, log_path: Path) -> tuple[int, str]:
     lines: list[str] = []
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with open(log_path, "w", encoding="utf-8") as logf:
-        proc = subprocess.Popen(
+        # The context manager closes the child's pipe and waits (the bare Popen left proc.stdout open: an unclosed-file
+        # warning per call, measured 2026-11-01).
+        with subprocess.Popen(
             cmd, cwd=str(cwd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             text=True, bufsize=1, env=env,
-        )
-        assert proc.stdout is not None
-        for line in proc.stdout:
-            sys.stdout.write(line)
-            sys.stdout.flush()
-            logf.write(line)
-            logf.flush()
-            lines.append(line)
-        proc.wait()
+        ) as proc:
+            assert proc.stdout is not None
+            for line in proc.stdout:
+                sys.stdout.write(line)
+                sys.stdout.flush()
+                logf.write(line)
+                logf.flush()
+                lines.append(line)
+            proc.wait()
     return proc.returncode, "".join(lines)
 
 

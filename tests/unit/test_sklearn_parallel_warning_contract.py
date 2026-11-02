@@ -20,6 +20,12 @@ The warning itself is execution-order dependent and cannot be reliably reproduce
 from a single test, so this test does NOT try to trigger it. It pins the STRUCTURAL
 premise instead: every `delayed(...)` call in the project source is paired with a
 joblib `Parallel` in the same module, never handed to a scikit-learn Parallel.
+
+CORRECTED 2026-11-01 (SKLEARN-WARNING-FILTER-RACE-1): the order dependence, and the
+1,000 copies that passed the pinned filter on the owner's Windows validation, come from
+scikit-learn 1.8.0 itself -- every worker call resets and refills the ONE process-wide
+filter list (sklearn/utils/parallel.py), so concurrent threads can see it empty. The
+pinned filter reduces the noise; it cannot make it deterministic on Python 3.12.
 """
 from __future__ import annotations
 

@@ -51,6 +51,16 @@ testpaths = ["tests"]
 # that pins the premise -- never to quieten a warning that has not been understood.
 # ---------------------------------------------------------------------------
 filterwarnings = [
+    # AN UNCLOSED FILE, PIPE OR DIRECTORY ITERATOR FAILS THE TEST THAT LEFT IT (added 2026-11-01, WARNINGS-AND-RESOURCES-1).
+    # MEASURED on the merged tree 4bcabb9f with `-W always::ResourceWarning`: 850 unclosed-resource warnings at 42 places, all
+    # in this project's code (753 from one line of tests/unit/test_backup_artifacts.py; one scandir iterator in
+    # scripts/preflight_check_data_paths.py; the child pipe of scripts/smoke_all_models.py), none from a library -- and the
+    # default filters showed NONE of them. All 42 were closed. Python reports a leak from the object's finaliser, where an
+    # exception cannot propagate, so pytest turns it into PytestUnraisableExceptionWarning: BOTH entries are needed for the
+    # test to fail (tests/unit/test_warning_filters_are_scoped.py runs a planted leak through this file's own configuration).
+    "error::ResourceWarning",
+    "error::pytest.PytestUnraisableExceptionWarning",
+
     # LightGBM 4.6.0 <-> scikit-learn 1.x interaction. SPURIOUS. Investigated 2026-07-13;
     # the full measurement lives in tests/unit/test_feature_name_contract.py, which FAILS
     # if any premise below stops holding.
@@ -97,7 +107,20 @@ filterwarnings = [
     # runs in isolation, and across full-suite runs it is attributed to whichever file first
     # trips it (observed at 448, 2499, and 0 occurrences on different runs). That variance
     # trains readers to scroll past UserWarnings, which is exactly how a real convergence
-    # defect once survived. Message-pinning removes it deterministically regardless of order.
+    # defect once survived.
+    #
+    # CORRECTED 2026-11-01: this filter does NOT remove it deterministically. The owner's
+    # Windows validation of pull request #58 reported 1,000 copies from
+    # tests/unit/test_containment_serving.py WITH this filter in force (33 warnings in every
+    # other measured run). Read in scikit-learn 1.8.0 (sklearn/utils/parallel.py): each
+    # worker call runs `catch_warnings(); resetwarnings()` and refills the filters it was
+    # handed -- on the ONE process-wide list (Python < 3.14 has no per-context filters). Under
+    # the threading backend concurrent workers empty and refill that list, so a
+    # Parallel.__call__ can capture it EMPTY (the warning then fires, `not warning_filters`)
+    # and the emptied list lets the warning past this filter. The order dependence above has
+    # the same cause. This entry stays: in the other measured runs with it (two Linux, one
+    # Windows in .venv312) no copy passed it. It cannot GUARANTEE that while the suite runs
+    # scikit-learn threads on Python 3.12 (SKLEARN-WARNING-FILTER-RACE-1).
     #
     # This is NOT our code misusing `delayed`. The only `delayed(...)` calls in the project
     # are in models/scalable_svm.py, where joblib.delayed is correctly paired with

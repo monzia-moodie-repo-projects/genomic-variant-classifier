@@ -27,7 +27,7 @@ def _frame(rows):
 def _write(text: str) -> Path:
     d = Path(tempfile.mkdtemp())
     p = d / "phylop.tsv"
-    io.open(p, "w", encoding="utf-8", newline="\n").write(text)
+    Path(p).write_text(text, encoding="utf-8", newline="\n")
     return p
 
 

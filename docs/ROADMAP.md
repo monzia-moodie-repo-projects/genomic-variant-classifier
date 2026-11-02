@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **8,583 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **8,589 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -655,6 +655,18 @@ exists to end.
   not lock-qualified and say so (ci.yml among them: its drift and lockfile jobs are unchanged). pillow 12.1.1 -> 12.2.0 in
   requirements.txt (the owner's measured version). Suite 8,537 -> 8,583.
   CORRECTED: the entry above says requirements.txt is "ranges" -- see docs/sessions/CORRECTION_2026-11-01_requirements-txt-is-not-ranges.md.
+- **2026-11-01 -- WARNINGS-AND-RESOURCES-1: an unclosed resource fails its test, and the package sets no warning filter.** A census of
+  the merged tree with `-W always::ResourceWarning` found 850 unclosed-resource warnings at 42 places, all in this project's code
+  (753 from one line of tests/unit/test_backup_artifacts.py; a directory iterator in scripts/preflight_check_data_paths.py; the child
+  pipe of scripts/smoke_all_models.py), which the default filters never showed; all are closed, and pyproject.toml now makes
+  ResourceWarning (and the unraisable-exception warning that carries it) an error. models/catboost_wrapper.py and models/kan.py
+  wrapped their fits in a blanket `simplefilter("ignore")` that, measured, hid nothing of their own but on Python 3.12 governed every
+  thread while active; both are removed and the package may hold no filter at any depth. The pykan fallback wrote ./model into the
+  current directory (pykan's default auto_save) -- now off and tested; kan.py's dead efficient-kan path (an undefined name) and its
+  false backend list are gone. pyproject.toml's claim that the scikit-learn delayed-warning filter is deterministic is corrected
+  (SKLEARN-WARNING-FILTER-RACE-1: scikit-learn 1.8.0 resets the process-wide filter list in every worker thread). Open, recorded:
+  SILENT-FALLBACKS-1 (catboost_wrapper's broad predict fallback and zero SHAP values on failure; KAN's silent backend substitution).
+  Suite 8,583 -> 8,589.
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined
