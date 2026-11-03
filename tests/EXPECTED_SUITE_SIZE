@@ -8167,4 +8167,14 @@
 #   tests/unit/test_nannyml_import_boundary.py (nannyml is imported only by its guard; the census sees every form of import). The -2
 #   are renames, counted in the +15: the header test now covers every profile's locks and names their constraint file; "the two locks
 #   agree" became "the two train-test locks agree".
-8607
+# 2026-11-02  CERTIFIED-AUPRC-DEGENERATE-REPLICATES-1 / RECALL-CURVE-FABRICATED-1 -- one replicate engine; curves only where defined
+#   +27 / -1 by node identity (net +26): +24 tests/unit/test_replicate_engine.py (no single-class replicate enters an interval and
+#   the metric is never called on one -- scikit-learn's average precision answers 0.0 and, silently, 1.0 there; the accounting
+#   counts exactly the percentile set; a non-finite answer on a two-class replicate is degenerate; the two-stage draw resamples
+#   within clusters and an unstratified draw does not hold the class balance; intervals of metrics already undefined on one class
+#   are bit-identical to the pre-change kernel; the evaluator reports the two-class interval; no scikit-learn warning reaches an
+#   evaluation; a refused ranking channel withholds only the ranking curves, by the input gate; an unexplained empty curve is
+#   refused; the kernel imports and bootstraps without scikit-learn; the project's configuration fails a test that computes an
+#   undefined ranking metric), +3 / -1 tests/unit/test_explicit_absence.py (the single-class test, which pinned a fabricated recall
+#   curve as usable, became one per cohort asserting exactly the undefined curves, plus the defect as a property).
+8633

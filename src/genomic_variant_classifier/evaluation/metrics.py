@@ -32,17 +32,21 @@ DESIGN RULES (additions only)
     splits carries sixteen constant features. Both cross-validated against sklearn to
     1e-16, including all-constant scores (tests/unit/test_evaluation_metrics.py).
 
-KNOWN PRE-EXISTING WART, LEFT ALONE: `calibration_curve` is imported and never used.
-Removing it is a behaviour-neutral cleanup for a separate commit, not this one.
+REMOVED 2026-11-02: the module imported nine scikit-learn names (accuracy_score,
+precision_score, recall_score, f1_score, roc_auc_score, average_precision_score,
+brier_score_loss, confusion_matrix, calibration_curve) that nothing in it used -- the last
+one recorded here since 2026-07-08 as a wart "for a separate commit". It now imports
+scikit-learn only where it is used, inside `integrated_calibration_index`, so the kernel
+imports without it (tests/unit/test_replicate_engine.py).
 =============================================================================
 """
+from __future__ import annotations
+
+import logging
+
 import numpy as np
-from sklearn.metrics import (
-    accuracy_score, precision_score, recall_score, f1_score,
-    roc_auc_score, average_precision_score, brier_score_loss,
-    confusion_matrix
-)
-from sklearn.calibration import calibration_curve
+
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # METRIC STACK (2026-07-08) -- ADDITIVE. Pure numpy/pandas primitives, every one
@@ -870,26 +874,104 @@ def bootstrap_ci(fn: Callable, y: Sequence, score: Sequence, *,
     n_boot defaults to 200: each replicate is O(n log n), so 1000 replicates over a
     1.2M-row split is minutes, not seconds. Raise it for a final publication panel.
     """
-    _require_finite_scores(score, metric_name="auprc_gain")
-    y, s = _clean(y, score)
-    if _degenerate(y):
-        return float("nan"), float("nan")
+    lo, hi, _values, _n_degenerate = _row_bootstrap(
+        fn, y, score, n_boot=n_boot, alpha=alpha, seed=seed, stratified=stratified)
+    return lo, hi
+
+
+# --------------------------------------------------------------------------- #
+# THE REPLICATE ENGINE (2026-11-02, CERTIFIED-AUPRC-DEGENERATE-REPLICATES-1)
+#
+# ONE loop produces every replicate value AND its accounting. Until this date the
+# percentile set and the valid/degenerate counts came from two different loops:
+# `cluster_bootstrap_ci` kept EVERY replicate whose metric value was finite, while
+# `_count_valid_replicates` replayed the draws and counted a single-class replicate
+# as degenerate. The two agree only when the metric returns a non-finite value on
+# one class -- true of this module's own `auroc` and `auprc`, and of scikit-learn's
+# `roc_auc_score` (nan), but NOT of scikit-learn's `average_precision_score`, which
+# returns 0.0 on an all-negative replicate (with a warning) and 1.0 on an
+# all-positive one (with none). That is the metric the evaluator's certified
+# interval for the area under the precision-recall curve uses.
+#
+# MEASURED 2026-11-02 (scikit-learn 1.8.0, 1,000 gene-cluster replicates): on a
+# 40-gene cohort with 2 positive genes the certified interval was reported as
+# [0.0000, 0.8333], status OK, "863 valid, 137 degenerate" -- while all 1,000 values,
+# the 137 zeros included, entered the percentiles. Over the two-class replicates
+# alone it is [0.4408, 0.8333].
+#
+# A replicate with fewer than two classes is DEGENERATE BY DEFINITION here, and the
+# metric is never called on it: every interval in this module bounds a two-class
+# quantity, which is the contract the cohort-level `_degenerate` guards and the
+# accounting already declared. Not calling it is also why no undefined-metric warning
+# can come from a replicate: the warning was the symptom of computing a value that
+# does not exist.
+# --------------------------------------------------------------------------- #
+def _two_class_replicates(fn: Callable, y_arr: "np.ndarray", s_arr: "np.ndarray", *,
+                          draw: Callable, n_boot: int,
+                          seed: int) -> "tuple[np.ndarray, int]":
+    """Draw `n_boot` replicates with `draw`; return (valid values, number degenerate).
+
+    A replicate is VALID when it is non-empty, carries both classes among its finite
+    labels, and the metric returns a finite value on it; every other replicate is
+    DEGENERATE. `len(values) + n_degenerate == n_boot` always, so an interval taken
+    from `values` and the counts reported beside it describe the same replicates by
+    construction -- there is no second loop to disagree with.
+    """
     rng = np.random.default_rng(seed)
-    pos, neg = np.flatnonzero(y == 1), np.flatnonzero(y == 0)
-    vals = []
+    values = []
+    n_degenerate = 0
     for _ in range(n_boot):
-        if stratified:
-            i = np.concatenate([rng.choice(pos, pos.size, replace=True),
-                                rng.choice(neg, neg.size, replace=True)])
-        else:
-            i = rng.integers(0, y.size, y.size)
-        v = fn(y[i], s[i])
+        i = draw(rng)
+        if i.size == 0:
+            n_degenerate += 1
+            continue
+        yi = y_arr[i]
+        labels = np.asarray(yi, dtype=float)
+        if np.unique(labels[np.isfinite(labels)]).size < 2:
+            n_degenerate += 1
+            continue
+        v = fn(yi, s_arr[i])
         if np.isfinite(v):
-            vals.append(v)
-    if not vals:
+            values.append(float(v))
+        else:
+            n_degenerate += 1
+    return np.asarray(values, dtype=float), n_degenerate
+
+
+def _percentile_interval(values: "np.ndarray", alpha: float) -> "tuple[float, float]":
+    """The percentile interval of the VALID replicate values; NaN endpoints when none."""
+    if values.size == 0:
         return float("nan"), float("nan")
-    lo, hi = np.percentile(vals, [100 * alpha / 2, 100 * (1 - alpha / 2)])
+    lo, hi = np.percentile(values, [100 * alpha / 2, 100 * (1 - alpha / 2)])
     return float(lo), float(hi)
+
+
+def _uniform_row_draw(n_rows: int):
+    """Row indices for one UNSTRATIFIED row replicate: `n_rows` draws with replacement."""
+    def draw(rng):
+        return rng.integers(0, n_rows, n_rows)
+
+    return draw
+
+
+def _row_bootstrap(fn: Callable, y: Sequence, score: Sequence, *, n_boot: int,
+                   alpha: float, seed: int, stratified: bool):
+    """Row-level replicates through the one engine: (lower, upper, values, n_degenerate).
+
+    A cohort carrying one class has no two-class replicate to draw, so the loop is not
+    run and every requested replicate is counted degenerate -- which is what each of
+    them would be.
+    """
+    _require_finite_scores(score, metric_name="bootstrap_ci")
+    y_c, s_c = _clean(y, score)
+    if _degenerate(y_c):
+        return float("nan"), float("nan"), np.empty(0, dtype=float), int(n_boot)
+    pos, neg = np.flatnonzero(y_c == 1), np.flatnonzero(y_c == 0)
+    draw = _stratified_row_draw(pos, neg) if stratified else _uniform_row_draw(y_c.size)
+    values, n_degenerate = _two_class_replicates(fn, y_c, s_c, draw=draw,
+                                                 n_boot=n_boot, seed=seed)
+    lo, hi = _percentile_interval(values, alpha)
+    return lo, hi, values, n_degenerate
 
 
 def cluster_bootstrap_ci(fn: Callable, y: Sequence, score: Sequence,
@@ -914,6 +996,28 @@ def cluster_bootstrap_ci(fn: Callable, y: Sequence, score: Sequence,
     uncertainty, so old panels can be re-read rather than merely replaced. A design effect
     of 1.0 means clustering carried no information; values above 1.0 quantify the correction.
     """
+    lo, hi, values, _n_degenerate, _n_clusters = _cluster_bootstrap(
+        fn, y, score, clusters, n_boot=n_boot, alpha=alpha, seed=seed, two_stage=two_stage)
+    if values.size == 0:
+        return (float("nan"), float("nan"), float("nan")) if return_design_effect \
+            else (float("nan"), float("nan"))
+    if not return_design_effect:
+        return lo, hi
+    n_lo, n_hi = bootstrap_ci(fn, y, score, n_boot=min(n_boot, 500),
+                              alpha=alpha, seed=seed)
+    naive_width = n_hi - n_lo
+    de = float((hi - lo) / naive_width) if np.isfinite(naive_width) and naive_width > 0 \
+        else float("nan")
+    return lo, hi, de
+
+
+def _cluster_bootstrap(fn: Callable, y: Sequence, score: Sequence, clusters: Sequence, *,
+                       n_boot: int, alpha: float, seed: int, two_stage: bool):
+    """Gene-cluster replicates through the one engine.
+
+    Returns (lower, upper, values, n_degenerate, n_clusters). A cohort carrying one
+    class is not resampled: every requested replicate is counted degenerate.
+    """
     y_arr = np.asarray(y)
     s_arr = np.asarray(score)
     c_arr = np.asarray(clusters)
@@ -921,42 +1025,17 @@ def cluster_bootstrap_ci(fn: Callable, y: Sequence, score: Sequence,
         raise ValueError(
             f"length mismatch: y={len(y_arr)}, score={len(s_arr)}, clusters={len(c_arr)}"
         )
-
+    uniq = np.unique(c_arr)
     c_clean = clean_arrays(y_arr, s_arr)
     if _degenerate(c_clean.y):
-        return (float("nan"), float("nan"), float("nan")) if return_design_effect \
-            else (float("nan"), float("nan"))
-
-    uniq = np.unique(c_arr)
+        return (float("nan"), float("nan"), np.empty(0, dtype=float), int(n_boot),
+                int(uniq.size))
     index_of = {u: np.flatnonzero(c_arr == u) for u in uniq}
-    rng = np.random.default_rng(seed)
-    vals = []
-    for _ in range(n_boot):
-        drawn = rng.choice(uniq, size=uniq.size, replace=True)
-        parts = []
-        for u in drawn:
-            idx = index_of[u]
-            if two_stage and idx.size > 1:
-                idx = rng.choice(idx, idx.size, replace=True)
-            parts.append(idx)
-        i = np.concatenate(parts) if parts else np.empty(0, dtype=int)
-        if i.size == 0:
-            continue
-        v = fn(y_arr[i], s_arr[i])
-        if np.isfinite(v):
-            vals.append(v)
-    if not vals:
-        return (float("nan"), float("nan"), float("nan")) if return_design_effect \
-            else (float("nan"), float("nan"))
-    lo, hi = np.percentile(vals, [100 * alpha / 2, 100 * (1 - alpha / 2)])
-    if not return_design_effect:
-        return float(lo), float(hi)
-    n_lo, n_hi = bootstrap_ci(fn, y_arr, s_arr, n_boot=min(n_boot, 500),
-                              alpha=alpha, seed=seed)
-    naive_width = n_hi - n_lo
-    de = float((hi - lo) / naive_width) if np.isfinite(naive_width) and naive_width > 0 \
-        else float("nan")
-    return float(lo), float(hi), de
+    values, n_degenerate = _two_class_replicates(
+        fn, y_arr, s_arr, draw=_cluster_draw(uniq, index_of, two_stage=two_stage),
+        n_boot=n_boot, seed=seed)
+    lo, hi = _percentile_interval(values, alpha)
+    return lo, hi, values, n_degenerate, int(uniq.size)
 
 
 # ---------------------------------------------------------------------------
@@ -1056,17 +1135,27 @@ class BootstrapResult:
     finding: str | None
 
 
-def _cluster_draw(index_lists):
+def _cluster_draw(uniq, index_of, *, two_stage: bool = False):
     """Row indices for one CLUSTER replicate: whole clusters, drawn with replacement.
 
-    Mirrors `cluster_bootstrap_ci`: it draws as many cluster labels as there are
-    clusters, with replacement, and concatenates every row of each drawn cluster.
-    """
-    keys_arr = np.array(list(index_lists.keys()), dtype=object)
+    Draws as many cluster labels as there are clusters, with replacement, and
+    concatenates every row of each drawn cluster. With `two_stage` the rows of each
+    drawn cluster of more than one row are themselves resampled with replacement,
+    from the same generator, immediately after that cluster is taken.
 
+    THE ONE CLUSTER DRAW. Until 2026-11-02 `cluster_bootstrap_ci` drew inline and the
+    accounting in `bootstrap_metric` replayed a separate, single-stage copy of the draw
+    (sufficient there only because `bootstrap_metric` never requests two stages). There
+    is now one draw and one loop, whichever design is requested.
+    """
     def draw(rng):
-        drawn = rng.choice(keys_arr, size=keys_arr.size, replace=True)
-        parts = [index_lists[k] for k in drawn]
+        drawn = rng.choice(uniq, size=uniq.size, replace=True)
+        parts = []
+        for u in drawn:
+            idx = index_of[u]
+            if two_stage and idx.size > 1:
+                idx = rng.choice(idx, idx.size, replace=True)
+            parts.append(idx)
         return np.concatenate(parts) if parts else np.empty(0, dtype=int)
 
     return draw
@@ -1088,35 +1177,6 @@ def _stratified_row_draw(pos, neg):
                                rng.choice(neg, neg.size, replace=True)])
 
     return draw
-
-
-def _count_valid_replicates(fn, y_arr, s_arr, *, draw, n_boot, seed):
-    """Replay one resampling design for accounting: valid versus degenerate.
-
-    `draw` is the design's own index generator, so the count describes the loop
-    that actually produced the interval rather than an approximation of it. The
-    generator is seeded identically to the kernel's, and `Generator.choice`
-    consumes the same stream for a given population size, so the replicates
-    counted here are the replicates that were taken.
-    """
-    rng = np.random.default_rng(seed)
-    n_valid = 0
-    n_degenerate = 0
-    for _ in range(n_boot):
-        i = draw(rng)
-        if i.size == 0:
-            n_degenerate += 1
-            continue
-        yi = y_arr[i]
-        if np.unique(yi[np.isfinite(yi)]).size < 2:
-            n_degenerate += 1
-            continue
-        v = fn(y_arr[i], s_arr[i])
-        if np.isfinite(v):
-            n_valid += 1
-        else:
-            n_degenerate += 1
-    return n_valid, n_degenerate
 
 
 def bootstrap_metric(
@@ -1156,7 +1216,12 @@ def bootstrap_metric(
     y_arr = np.asarray(y)
     s_arr = np.asarray(score)
     n_obs = int(len(y_arr))
-    est = fn(*(_clean(y_arr, s_arr)))
+    # THE ESTIMATE OBEYS THE ENGINE'S CONTRACT TOO (2026-11-02). Every interval here
+    # bounds a two-class quantity, so on a cohort carrying one class there is no
+    # estimate to bound and the metric is not called: scikit-learn's average
+    # precision would otherwise report 0.0 or 1.0 for a quantity that does not exist.
+    y_est, s_est = _clean(y_arr, s_arr)
+    est = float("nan") if _degenerate(y_est) else fn(y_est, s_est)
     min_valid_eff = _effective_min_valid(n_boot, min_valid, min_valid_fraction)
 
     if unit is BootstrapUnit.GENE:
@@ -1169,19 +1234,19 @@ def bootstrap_metric(
         c_arr = np.asarray(clusters)
         if len(c_arr) != n_obs:
             raise ValueError(f"clusters length {len(c_arr)} != n_observations {n_obs}")
-        lo, hi, de = cluster_bootstrap_ci(
+        # The interval and its accounting come from ONE set of replicates (see the
+        # replicate engine above): n_valid IS the number of values the percentiles
+        # were taken over.
+        lo, hi, values, n_degen, n_clusters = _cluster_bootstrap(
             fn, y_arr, s_arr, c_arr, n_boot=n_boot, alpha=alpha, seed=seed,
-            return_design_effect=True,
-        )
-        # accounting loop (same cluster structure)
-        uniq = np.unique(c_arr)
-        index_of = {u: np.flatnonzero(c_arr == u) for u in uniq}
-        n_valid, n_degen = _count_valid_replicates(
-            fn, y_arr, s_arr, draw=_cluster_draw(index_of), n_boot=n_boot, seed=seed)
+            two_stage=False)
+        n_valid = int(values.size)
         n_lo, n_hi = bootstrap_ci(fn, y_arr, s_arr, n_boot=min(n_boot, 500), alpha=alpha, seed=seed)
         row_w = (n_hi - n_lo) if (np.isfinite(n_lo) and np.isfinite(n_hi)) else None
         clus_w = (hi - lo) if (np.isfinite(lo) and np.isfinite(hi)) else None
-        var_ratio = (de * de) if (de is not None and np.isfinite(de)) else None
+        de = (clus_w / row_w) if (clus_w is not None and row_w is not None and row_w > 0) \
+            else None
+        var_ratio = (de * de) if de is not None else None
 
         if clus_w is None:
             # Every replicate was degenerate, or the cohort carries one class.
@@ -1205,7 +1270,7 @@ def bootstrap_metric(
             estimate=float(est), lower=float(lo), upper=float(hi),
             confidence_level=confidence_level, resampling_unit=BootstrapUnit.GENE,
             stratified=False,
-            n_observations=n_obs, n_clusters=int(uniq.size),
+            n_observations=n_obs, n_clusters=n_clusters,
             n_requested=n_boot, n_valid=n_valid, n_degenerate=n_degen,
             min_valid_effective=min_valid_eff, random_seed=seed,
             row_ci_width=row_w, cluster_ci_width=clus_w,
@@ -1215,13 +1280,11 @@ def bootstrap_metric(
             status=status, finding=finding,
         )
 
-    # VARIANT (exploratory)
-    lo, hi = bootstrap_ci(fn, y_arr, s_arr, n_boot=n_boot, alpha=alpha, seed=seed)
-    y_clean, s_clean = _clean(y_arr, s_arr)
-    pos = np.flatnonzero(y_clean == 1); neg = np.flatnonzero(y_clean == 0)
-    n_valid, n_degen = _count_valid_replicates(
-        fn, y_clean, s_clean, draw=_stratified_row_draw(pos, neg),
-        n_boot=n_boot, seed=seed)
+    # VARIANT (exploratory). The interval and its accounting come from ONE set of
+    # replicates, as for the gene design.
+    lo, hi, values, n_degen = _row_bootstrap(fn, y_arr, s_arr, n_boot=n_boot, alpha=alpha,
+                                             seed=seed, stratified=True)
+    n_valid = int(values.size)
     row_w = (hi - lo) if (np.isfinite(lo) and np.isfinite(hi)) else None
 
     if row_w is None:
@@ -1478,13 +1541,9 @@ def stratified_evaluate(y: Sequence, score: Sequence, groups: Iterable, *,
     return df
 
 
-if __name__ == "__main__":
-    np.random.seed(42)
-    y_true = np.random.binomial(1, 0.3, 200)
-    y_proba = 0.6 * y_true + 0.4 * np.random.beta(2, 5, 200)
-    y_proba = np.clip(y_proba, 0, 1)
-    evaluator = ModelEvaluator(y_true, y_proba)
-    print(evaluator.generate_report())
+# A `__main__` demonstration stood here until 2026-11-02. It constructed `ModelEvaluator`,
+# removed on 2026-07-21 (see the banner above), so running this module raised NameError.
+# Removed rather than rewritten: the tests are the executable demonstration.
 
 # --------------------------------------------------------------------------- #
 # THE CONFUSION-MATRIX FAMILY (2026-07-29)

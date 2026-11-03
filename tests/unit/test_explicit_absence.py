@@ -127,14 +127,48 @@ def test_the_cause_names_where_the_refusal_happened(label, expected):
     assert absence["auroc"].cause is expected
 
 
-def test_a_single_class_cohort_marks_only_the_undefined_curve():
-    """Absence is PER-CURVE. Marking the report's curves absent wholesale would
-    discard three usable arrays."""
-    absent = set(_report("all_negative").curve_absence)
-    assert "tpr_curve" in absent
-    assert "fpr_curve" not in absent
-    assert "precision_curve" not in absent
-    assert "recall_curve" not in absent
+@pytest.mark.parametrize("label,undefined", [
+    ("all_negative", {"fpr_curve", "tpr_curve", "precision_curve", "recall_curve"}),
+    ("all_positive", {"fpr_curve", "tpr_curve"}),
+], ids=["all_negative", "all_positive"])
+def test_a_single_class_cohort_marks_exactly_the_undefined_curves(label, undefined):
+    """Absence is PER-CURVE: a curve is absent exactly when an axis it divides by has
+    no members, and every other curve is kept.
+
+    CORRECTED 2026-11-02 (RECALL-CURVE-FABRICATED-1). This asserted that only the
+    true-positive rate was absent on the all-negative cohort and that the
+    false-positive rate, precision and recall were "three usable arrays". Recall is
+    true positives over positives, and there are none: scikit-learn substituted 1.0 at
+    every threshold, and the report persisted that substitute as a usable curve. A
+    false-positive rate kept without its true-positive rate, or a precision without
+    its recall, is one coordinate of a curve that does not exist. The receiver
+    operating characteristic curve needs both classes; the precision-recall curve
+    needs a positive, so on the all-positive cohort it is defined and KEPT. The
+    calibration curves need neither and are kept on both.
+    """
+    report = _report(label)
+    assert set(report.curve_absence) == undefined
+    for name in undefined:
+        absence = report.curve_absence[name]
+        assert absence.cause is AbsenceCause.UNDEFINED_ON_COHORT
+        assert absence.reason.endswith(":positives=0,negatives=200" if label == "all_negative"
+                                       else ":positives=200,negatives=0"), absence.reason
+        assert absence.n_expected == N
+        assert getattr(report, name) == [], f"{name} must hold no points"
+    for name in {"fpr_curve", "tpr_curve", "precision_curve", "recall_curve",
+                 "calibration_frac_pos", "calibration_mean_pred"} - undefined:
+        values = getattr(report, name)
+        assert values and all(np.isfinite(values)), f"{name} must be kept, and finite"
+
+
+def test_no_curve_carries_a_value_that_was_never_measured():
+    """THE DEFECT ITSELF, as a property. On the all-negative cohort recall is 0/0, and
+    scikit-learn's precision_recall_curve answers 1.0 at every threshold. Neither the
+    report nor its artifact may carry that number as a curve."""
+    payload = _artifact("all_negative")
+    assert payload["recall_curve"] == []
+    assert payload["curve_absence"]["recall_curve"]["reason"] == (
+        "precision_recall_curve_requires_a_reference_positive:positives=0,negatives=200")
 
 
 def test_a_withheld_input_marks_every_curve():

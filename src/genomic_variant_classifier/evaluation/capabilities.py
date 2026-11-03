@@ -115,12 +115,13 @@ class BootstrapUnit(str, Enum):
 
     DEFINED HERE, at the vocabulary layer, for the same reason `MetricStatus` is:
     it is more foundational than any panel that reports it, and panels import
-    upward. It is also the only placement that works. The kernel that consumes it
-    imports scikit-learn at module level, while `evaluator.py` is contractually
+    upward. It was also, until 2026-11-02, the only placement that worked: the
+    kernel that consumes it imported scikit-learn at module level (nine names it
+    never used, removed that day), while `evaluator.py` is contractually
     required to import WITHOUT scikit-learn -- locked by
     `test_evaluator_phase5.py::test_module_imports_without_sklearn`, which runs in
     a subprocess with the package blocked. An evaluator that must record the
-    resampling unit on every interval therefore cannot reach this enum through
+    resampling unit on every interval therefore could not reach this enum through
     the kernel, and this module is scikit-learn free.
 
     `(str, Enum)` rather than `StrEnum`, per the module docstring: the declared

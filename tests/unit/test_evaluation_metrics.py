@@ -19,7 +19,6 @@ import sys
 import textwrap
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from genomic_variant_classifier.evaluation.metrics import (
@@ -264,7 +263,8 @@ def test_package_imports_without_sklearn():
 
     `evaluator.py` lazy-loads sklearn via `_ensure_sklearn()` and
     `prediction_artifacts.py` imports it inside functions, so the package imports
-    cleanly in a minimal environment. `metrics.py` imports sklearn at module level.
+    cleanly in a minimal environment. `metrics.py` imported sklearn at module level
+    until 2026-11-02 (nine names it never used; removed).
     Commit 015ff94 added `from ... import metrics` to __init__.py and silently broke
     that contract, surfacing only as
     test_evaluator_phase5.py::test_module_imports_without_sklearn.

@@ -1,3 +1,36 @@
+## 2026-11-02 (degenerate replicates) -- one bootstrap replicate engine; curves only where defined; the suite's 33 warnings resolved
+
+MEASURED before: every full run reported 33 warnings, recorded as expected since 2026-08-26. A census (each warning's own stack)
+put all 33 at three call sites in this project's code: evaluator.py's receiver operating characteristic and precision-recall curves
+on single-class cohorts, and the gene-cluster bootstrap's metric on single-class replicates. The certified interval for the area
+under the precision-recall curve came from `cluster_bootstrap_ci`, which kept every replicate with a finite value, while its
+accounting came from a separate replay that counted single-class replicates as degenerate; scikit-learn 1.8.0's
+average_precision_score answers 0.0 on an all-negative input (warning) and 1.0 on an all-positive one (no warning). On a 40-gene
+cohort with 2 positive genes, 1,000 replicates: reported [0.0000, 0.8333], status OK, certification eligible, "863 valid, 137
+degenerate" -- all 1,000 values in the percentiles; over the two-class replicates, [0.4408, 0.8333]. On an all-negative cohort the
+report persisted recall = 1.0 at every threshold (0/0, scikit-learn's substitute) as a usable curve, pinned by a test.
+
+- evaluation/metrics.py: ONE replicate engine (`_two_class_replicates`): a replicate with fewer than two classes is degenerate and
+  the metric is never called on it; the valid values and the degenerate count come from the same loop, so n_valid IS the size of
+  the percentile set. `bootstrap_ci`, `cluster_bootstrap_ci` and `bootstrap_metric` are its callers (row, two-stage and gene
+  designs alike); `_count_valid_replicates` is removed; on a single-class cohort no point estimate is computed. A battery of 144
+  cases by four interval kinds against the pre-change kernel: only scikit-learn's average precision moved (26 interval parts), each
+  equal bit for bit to an independent two-class oracle; this module's auroc and auprc and scikit-learn's roc_auc_score, which
+  already answered NaN on one class, are bit-identical. The nine scikit-learn names the module imported and never used are gone
+  (the kernel now imports without scikit-learn), as is a `__main__` block that called the class removed on 2026-07-21; the
+  module gains `from __future__ import annotations` and its logger.
+- evaluation/evaluator.py: a curve is computed only where its axes have members (receiver operating characteristic: both classes;
+  precision-recall: a positive), and its absence records the class counts; each curve takes its cause from its own input channel
+  (`ranking_check` was accepted and never read, so a refused `scores` array beside valid probabilities was recorded as undefined on
+  the cohort); an empty supported curve over validated input raises rather than borrowing a cause; evaluate()'s duplicate absence
+  maps, built and never used, are removed; `_nan_safe`'s claim that roc_auc_score raises on one class is corrected.
+- pyproject.toml: a warning from sklearn.metrics._ranking fails its test (selected by the issuing module, so configuration never
+  imports scikit-learn; all five warning sites of that module read).
+- Tests: tests/unit/test_replicate_engine.py (24); test_explicit_absence's single-class test corrected; test_typed_report_surface
+  declares the six curve movements by identity, each to an empty curve. Verified with ci.yml's commands, each interpreter in its
+  own locked environment: no warnings in `pytest tests/` (Python 3.11 and 3.12) or `pytest tests_drift/` (19 passed on each);
+  mutation 11 of 11 killed. Suite 8,607 -> 8,633.
+
 ## 2026-11-02 (drift profile lock) -- the drift-monitoring profile locked per target; one installer for every locked profile
 
 MEASURED before: requirements-drift.txt pinned 7 distributions and the drift jobs of pull request #59 resolved 137 on the day --

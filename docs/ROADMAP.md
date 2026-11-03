@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **8,607 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **8,633 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -682,6 +682,23 @@ exists to end.
   monthly drift monitor and a person's own machine. The monthly workflow's verify-model job could not import the project
   (ModuleNotFoundError by construction); it now installs nothing and computes its verdict. nannyml is imported in one place only.
   Install paths lock-qualified: 4 of 18. Suite 8,589 -> 8,607.
+- **2026-11-02 -- CERTIFIED-AUPRC-DEGENERATE-REPLICATES-1 and RECALL-CURVE-FABRICATED-1: one bootstrap replicate engine, and curves
+  only where they are defined.** The 33 warnings every full run had reported since 2026-08-26 (recorded as expected) were traced,
+  call site by call site, to this project computing on single-class input. Two consequences were real. (1) The certified interval
+  for the area under the precision-recall curve kept every replicate whose average precision was finite, while its accounting -- a
+  separate replay -- counted single-class replicates as degenerate; scikit-learn 1.8.0's average precision answers 0.0 on an
+  all-negative replicate and 1.0, silently, on an all-positive one. Measured on a 40-gene cohort with 2 positive genes: reported
+  [0.0000, 0.8333], status OK, "863 valid, 137 degenerate", with all 1,000 values in the percentiles; over the two-class replicates,
+  [0.4408, 0.8333]. Now ONE loop produces every replicate value and its count, and never calls the metric on fewer than two classes;
+  intervals of metrics already undefined on one class are bit-identical (144 cases, four interval kinds). (2) On an all-negative
+  cohort the report persisted a recall curve of 1.0 at every threshold, 0/0 that scikit-learn substituted; a curve is now computed
+  only where its axes have members, and each absence names the class counts. Also: each curve's absence takes its cause from its
+  own input channel (a refused `scores` array was recorded as undefined on the cohort); evaluate()'s unused duplicate absence maps
+  are gone; metrics.py no longer imports nine scikit-learn names it never used, so the kernel imports without scikit-learn; a
+  warning from scikit-learn's ranking module now fails its test. Zero warnings in the suite (Python 3.11 and 3.12). Not yet
+  measured: whether any persisted report was affected (affected exactly when its interval is available and records a degenerate
+  replicate; a read-only census is prepared). A report records neither the code nor the library versions that wrote it
+  (REPORT-PROVENANCE-ABSENT-1, open), so the census dates each report by its file's modification time. Suite 8,607 -> 8,633.
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined

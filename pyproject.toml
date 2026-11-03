@@ -64,6 +64,19 @@ filterwarnings = [
     "error::ResourceWarning",
     "error::pytest.PytestUnraisableExceptionWarning",
 
+    # A RANKING METRIC COMPUTED ON UNDEFINED INPUT FAILS THE TEST THAT COMPUTED IT (added 2026-11-02,
+    # CERTIFIED-AUPRC-DEGENERATE-REPLICATES-1). MEASURED: the 33 warnings every full run reported since 2026-08-26 were all
+    # scikit-learn's ranking module (sklearn/metrics/_ranking.py lines 442, 1131, 1294, 1303) objecting to calls this
+    # project made on single-class input -- the receiver operating characteristic and precision-recall curves on
+    # single-class cohorts, and the bootstrap's metric on single-class replicates, where average precision answered 0.0
+    # (warned) or 1.0 (silently) and those answers entered the certified interval. The calls are gone; this entry keeps
+    # them gone. Selected by the ISSUING MODULE (field 4), not by category, so pytest's configuration never imports
+    # scikit-learn. All five warning sites of that module in scikit-learn 1.8.0 (read 2026-11-02: lines 442, 1131, 1294,
+    # 1303 and 2153, the last for top-k accuracy with k >= the number of classes) report a quantity that is undefined or
+    # meaningless on its input -- never a measurement. tests/unit/test_replicate_engine.py runs planted calls through this
+    # file's own configuration.
+    "error::UserWarning:sklearn\\.metrics\\._ranking",
+
     # LightGBM 4.6.0 <-> scikit-learn 1.x interaction. SPURIOUS. Investigated 2026-07-13;
     # the full measurement lives in tests/unit/test_feature_name_contract.py, which FAILS
     # if any premise below stops holding.

@@ -63,7 +63,7 @@ from genomic_variant_classifier.evaluation.evaluator import (
     deserialize_metric_results,
     serialize_metric_results,
 )
-from genomic_variant_classifier.evaluation.registry import ResultKind, by_name
+from genomic_variant_classifier.evaluation.registry import ResultKind
 from genomic_variant_classifier.evaluation.serialization import dump_strict_json
 
 SNAPSHOT = Path(__file__).parent.parent / "fixtures" / "report_snapshot_2b3.json"
@@ -447,6 +447,26 @@ def test_no_report_field_moved():
     # wrong fields, and the whole purpose of this commit is that no measured
     # value changes when the report becomes a projection.
     declared = {f"{cohort}/schema_version" for cohort in snapshot["cohorts"]}
+    # DECLARED 2026-11-02 (RECALL-CURVE-FABRICATED-1): six curve fields on the two
+    # single-class cohorts, and nothing else. A curve is now computed only where its
+    # axes have denominators, so on the all-negative cohort neither the receiver
+    # operating characteristic curve (true-positive rate over zero positives) nor
+    # the precision-recall curve (recall over zero positives -- the oracle holds the
+    # 1.0 scikit-learn substituted for it) is computed, and on the all-positive
+    # cohort the receiver operating characteristic curve (false-positive rate over
+    # zero negatives) is not. Each of the six now holds NO points, asserted below,
+    # and its absence is recorded with its cause.
+    curve_movements = {
+        "degenerate_all_negative/fpr_curve", "degenerate_all_negative/tpr_curve",
+        "degenerate_all_negative/precision_curve", "degenerate_all_negative/recall_curve",
+        "degenerate_all_positive/fpr_curve", "degenerate_all_positive/tpr_curve",
+    }
+    declared |= curve_movements
+    for movement in movements:
+        name = movement.split(":")[0]
+        if name in curve_movements:
+            assert movement.endswith("-> []"), (
+                f"a declared curve movement must leave the curve EMPTY: {movement}")
     observed = {m.split(":")[0] for m in movements}
     undeclared = observed - declared
     assert not undeclared, (
