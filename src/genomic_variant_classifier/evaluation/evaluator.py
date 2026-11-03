@@ -38,7 +38,6 @@ Usage:
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
 import math
 import dataclasses
@@ -52,10 +51,12 @@ import pandas as pd
 # Both of these are scikit-learn FREE and are therefore safe at module level.
 # `capabilities` imports only dataclasses, enum and typing; `cluster_resolution`
 # imports numpy, pandas and capabilities. Verified 2026-07-26 by importing each
-# in a subprocess with scikit-learn absent. The metric KERNEL is a different
-# matter -- metrics.py imports scikit-learn at module level, so the bootstrap
-# dispatcher is imported lazily inside evaluate(), never here. See
-# `test_evaluator_phase5.py::test_module_imports_without_sklearn`.
+# in a subprocess with scikit-learn absent. The metric KERNEL, metrics.py,
+# imported scikit-learn at module level until 2026-11-02 -- nine names it never
+# used -- so the bootstrap dispatcher is imported where it is used, inside
+# `_interval_fields`, never here. The kernel now imports without scikit-learn
+# too (tests/unit/test_replicate_engine.py); the placement is kept, and this
+# module's own contract is `test_evaluator_phase5.py::test_module_imports_without_sklearn`.
 from genomic_variant_classifier.evaluation.capabilities import BootstrapUnit, MetricResult, MetricStatus
 from genomic_variant_classifier.evaluation.cluster_resolution import (
     ClusterResolution,
@@ -64,14 +65,11 @@ from genomic_variant_classifier.evaluation.cluster_resolution import (
 from genomic_variant_classifier.evaluation.model_comparison import (
     ComparisonBlocker, ComparisonPopulationRelation, ModelComparison)
 from genomic_variant_classifier.evaluation.absence import (
-    AbsenceCause, absence_for_curve, absence_for_value)
-from genomic_variant_classifier.evaluation.absence import (
-    AbsenceCause, CurveAbsence, FieldAbsence, absence_for_curve, absence_for_value)
+    AbsenceCause, FieldAbsence, absence_for_curve, absence_for_value)
 from genomic_variant_classifier.evaluation.legacy_projection import (
-    LEGACY_PROJECTION_POLICIES)
+    LEGACY_PROJECTION_POLICIES, project_legacy_fields)
 from genomic_variant_classifier.evaluation.input_validation import (
     validate_probabilities, validate_ranking_scores, validate_reference_labels)
-from genomic_variant_classifier.evaluation.legacy_projection import project_legacy_fields
 from genomic_variant_classifier.evaluation.population import EvaluationPopulation
 from genomic_variant_classifier.evaluation.registry import (
     MetricContext, evaluate_registered)
@@ -1186,16 +1184,31 @@ class ClinicalEvaluator:
         ci_fields.update(self._interval_fields("auroc", y, p, roc_auc_score, cluster))
         ci_fields.update(self._interval_fields("auprc", y, p, average_precision_score, cluster))
 
-        if ranking_usable:
+        # A CURVE IS COMPUTED ONLY WHERE IT IS DEFINED (2026-11-02, RECALL-CURVE-
+        # FABRICATED-1). The receiver operating characteristic curve divides by both
+        # class counts (false-positive rate over the negatives, true-positive rate over
+        # the positives); the precision-recall curve divides recall by the positives.
+        # Until this date both were computed on every cohort that passed the input
+        # gates, and on a single-class cohort scikit-learn did not refuse: it warned and
+        # returned NaN for the rate it could not form, and for recall on an all-negative
+        # cohort it returned 1.0 at every threshold -- a fabricated curve, persisted as
+        # usable. A curve whose axis has no denominator is undefined AS A CURVE, and a
+        # coordinate array kept without its partner is not a curve. So the decision is
+        # taken HERE, from the class counts, before any call, and `_absence_maps`
+        # records the cause from the same counts.
+        roc_defined = _curve_supported("fpr_curve", n_pos, n_neg)
+        pr_defined = _curve_supported("precision_curve", n_pos, n_neg)
+        if ranking_usable and roc_defined:
             fpr, tpr, _ = roc_curve(y, ranking_values)
         else:
             fpr, tpr = np.array([]), np.array([])
-            logger.warning(
-                "receiver operating characteristic curve withheld: %s (%s)",
-                (label_check.reason or ranking_check.reason),
-                (label_check.detail or ranking_check.detail or ""))
+            if not ranking_usable:
+                logger.warning(
+                    "receiver operating characteristic curve withheld: %s (%s)",
+                    (label_check.reason or ranking_check.reason),
+                    (label_check.detail or ranking_check.detail or ""))
 
-        if ranking_usable:
+        if ranking_usable and pr_defined:
             prec, rec, _ = precision_recall_curve(y, ranking_values)
         else:
             prec, rec = np.array([]), np.array([])
@@ -1238,54 +1251,6 @@ class ClinicalEvaluator:
         # rather than discarded. A report whose scalars are projections of a
         # mapping it does not include would force every consumer wanting status,
         # reason, population or certification to recompute them.
-        # THE CAUSE COMES FROM WHERE THE REFUSAL HAPPENED (2026-07-29, CI-u-3).
-        #
-        # `label_check`, `probability_check` and `ranking_check` are the gate
-        # verdicts computed above. They KNOW why: an input gate refused, or the
-        # cohort is single-class. Inferring that from a NaN at serialisation time
-        # would be exactly the guess the absence vocabulary exists to replace.
-        if not probability_check.ok:
-            scalar_cause = AbsenceCause.WITHHELD_BY_INPUT_GATE
-            scalar_reason = probability_check.reason
-        elif not label_check.ok:
-            scalar_cause = AbsenceCause.WITHHELD_BY_INPUT_GATE
-            scalar_reason = label_check.reason
-        else:
-            scalar_cause = AbsenceCause.UNDEFINED_ON_COHORT
-            scalar_reason = "undefined_on_this_cohort"
-
-        field_absence = {}
-        for name, value in (("auroc", legacy["auroc"]),
-                            ("auprc", legacy["auprc"]),
-                            ("mcc", legacy["mcc"]),
-                            ("f1", legacy["f1"]),
-                            ("brier_score", legacy["brier_score"]),
-                            ("calibration_ece", legacy["calibration_ece"]),
-                            ("calibration_mce", legacy["calibration_mce"]),
-                            ("prevalence", legacy["prevalence"])):
-            typed = metric_results.get(_LEGACY_TO_METRIC.get(name, name))
-            reason = (typed.reason if typed is not None and typed.reason
-                      else scalar_reason)
-            absence = absence_for_value(value, cause=scalar_cause, reason=reason)
-            if absence is not None:
-                field_absence[name] = absence
-
-        curve_cause = (AbsenceCause.WITHHELD_BY_INPUT_GATE
-                       if not probability_usable
-                       else AbsenceCause.UNDEFINED_ON_COHORT)
-        curve_reason = (probability_check.reason or label_check.reason
-                        if not probability_usable else "undefined_on_this_cohort")
-        curve_absence = {}
-        for name, values in (("fpr_curve", list(fpr)), ("tpr_curve", list(tpr)),
-                             ("precision_curve", list(prec)),
-                             ("recall_curve", list(rec)),
-                             ("calibration_frac_pos", list(frac_pos)),
-                             ("calibration_mean_pred", list(mean_pred))):
-            absence = absence_for_curve(values, cause=curve_cause,
-                                        reason=curve_reason, n_expected=n)
-            if absence is not None:
-                curve_absence[name] = absence
-
         # --- ABSENCE, RECORDED WHERE IT IS KNOWN (CI-u-3) --------------------
         #
         # `label_check`, `probability_check` and `ranking_check` are the gate
@@ -1299,7 +1264,7 @@ class ClinicalEvaluator:
                     "precision_curve": prec, "recall_curve": rec,
                     "calibration_frac_pos": frac_pos,
                     "calibration_mean_pred": mean_pred},
-            n_rows=n)
+            n_rows=n, n_pos=n_pos, n_neg=n_neg)
 
         report = EvaluationReport(
             schema_version=EVALUATION_REPORT_SCHEMA_VERSION_POPULATION,
@@ -1353,14 +1318,20 @@ class ClinicalEvaluator:
 
     @staticmethod
     def _nan_safe(metric_fn):
-        """Return a metric that yields NaN, rather than raising, on a degenerate resample.
+        """Return a metric that yields NaN, rather than raising, on a ValueError.
 
-        scikit-learn's roc_auc_score raises ValueError when a resample contains
-        one class; the kernel's resampling loops test np.isfinite on the returned
-        value and never catch. Gene-cluster resampling makes single-class draws
-        entirely reachable -- a cohort of thirty genes can easily draw thirty
-        all-benign clusters -- so without this the certified path would crash on
-        exactly the cohorts it exists to serve.
+        CORRECTED 2026-11-02. This said scikit-learn's roc_auc_score raises
+        ValueError when a resample contains one class. Measured on scikit-learn
+        1.8.0 it does not: it warns (UndefinedMetricWarning) and returns NaN, while
+        average_precision_score returns 0.0 on an all-negative resample and 1.0 on
+        an all-positive one. Neither reaches this wrapper any more: the kernel's
+        replicate engine (metrics._two_class_replicates) never calls the metric on
+        a replicate carrying fewer than two classes -- gene-cluster resampling
+        makes such draws entirely reachable, a cohort of thirty genes can easily
+        draw thirty all-benign clusters -- and counts it degenerate instead. The
+        wrapper still converts a ValueError on a two-class replicate into NaN,
+        which the engine counts degenerate; that conversion is recorded under
+        SILENT-FALLBACKS-1 rather than changed here.
 
         Wrapping the SAME function the point estimate uses, rather than
         substituting the kernel's own rank implementation, keeps the interval
@@ -1442,8 +1413,9 @@ class ClinicalEvaluator:
                 prefix + "finding": cluster.finding,
             }
 
-        # Imported HERE, not at module scope: metrics.py imports scikit-learn at
-        # module level, and this module must import without it.
+        # Imported HERE, not at module scope: metrics.py imported scikit-learn at
+        # module level until 2026-11-02, and this module must import without it.
+        # The kernel no longer does; the placement is kept (see the module imports).
         from genomic_variant_classifier.evaluation.metrics import bootstrap_metric
 
         result = bootstrap_metric(
@@ -1964,14 +1936,37 @@ def _ranking_metric_is_valid(report, ranking_metric: str) -> bool:
         return False
     return bool(np.isfinite(typed.value))
 
+# THE CLASS SUPPORT EACH CURVE REQUIRES (2026-11-02). The receiver operating
+# characteristic curve divides by both class counts; the precision-recall curve
+# divides recall by the positives; the calibration curve divides by the rows in each
+# bin, which a non-empty cohort always has. Declared once, read by `evaluate` to
+# decide what to compute and by `_absence_maps` to say why a curve is absent.
+_CURVE_SUPPORT_REASON = {
+    "fpr_curve": "roc_curve_requires_both_classes",
+    "tpr_curve": "roc_curve_requires_both_classes",
+    "precision_curve": "precision_recall_curve_requires_a_reference_positive",
+    "recall_curve": "precision_recall_curve_requires_a_reference_positive",
+}
+
+
+def _curve_supported(name: str, n_pos: int, n_neg: int) -> bool:
+    """Does the cohort carry the classes this curve divides by?"""
+    reason = _CURVE_SUPPORT_REASON.get(name)
+    if reason is None:
+        return True
+    if reason == "roc_curve_requires_both_classes":
+        return n_pos > 0 and n_neg > 0
+    return n_pos > 0
+
+
 def _absence_maps(*, legacy, metric_results, label_check, probability_check,
-                  ranking_check, curves, n_rows):
+                  ranking_check, curves, n_rows, n_pos, n_neg):
     """Which scalars and curves are absent, and WHY.
 
-    The cause comes from the gate verdict that produced the refusal, never from
-    inspecting the value. A NaN cannot say whether it is undefined on this cohort
-    or withheld because the input was unusable, and those demand different
-    responses from a reader.
+    The cause comes from the gate verdict that produced the refusal, or from the
+    class counts that make a curve undefined, never from inspecting the value. A NaN
+    cannot say whether it is undefined on this cohort or withheld because the input
+    was unusable, and those demand different responses from a reader.
     """
     fields: dict = {}
     curve_map: dict = {}
@@ -2013,11 +2008,36 @@ def _absence_maps(*, legacy, metric_results, label_check, probability_check,
         if absence is not None:
             fields[field_name] = absence
 
+    # EACH CURVE IS GATED ON THE CHANNEL IT WAS COMPUTED FROM (2026-11-02). The
+    # ranking curves come from the ranking channel (`scores` when supplied, else the
+    # probabilities) and the calibration curve from the probability channel, exactly
+    # as `evaluate` computes them. Until this date every curve took its cause from the
+    # probability and label gates alone and `ranking_check` was accepted and never
+    # read, so a refused `scores` array beside valid probabilities recorded the
+    # withheld ranking curves as UNDEFINED_ON_COHORT -- blaming the data for a refusal.
     for curve_name, values in curves.items():
-        cause = gate_cause or AbsenceCause.UNDEFINED_ON_COHORT
-        reason = gate_reason or "curve_undefined_on_cohort"
-        absence = absence_for_curve(values, cause=cause, reason=reason,
-                                    n_expected=n_rows)
+        channel = ranking_check if curve_name in _CURVE_SUPPORT_REASON else probability_check
+        refused = label_check if not label_check.ok else channel
+        if not refused.ok:
+            cause = AbsenceCause.WITHHELD_BY_INPUT_GATE
+            reason = refused.reason
+        elif not _curve_supported(curve_name, n_pos, n_neg):
+            cause = AbsenceCause.UNDEFINED_ON_COHORT
+            reason = (f"{_CURVE_SUPPORT_REASON[curve_name]}:positives={n_pos},"
+                      f"negatives={n_neg}")
+        else:
+            cause = reason = None
+        absence = absence_for_curve(values, cause=cause or AbsenceCause.UNDEFINED_ON_COHORT,
+                                    reason=reason, n_expected=n_rows)
+        if absence is not None and cause is None:
+            # Validated input, the classes the curve needs, and still no usable curve:
+            # that is an implementation defect, not a property of the cohort, and no
+            # cause in the absence vocabulary says so. Refused loudly rather than
+            # recorded under a cause it does not have.
+            raise RuntimeError(
+                f"{curve_name} was computed from validated input on a cohort with "
+                f"{n_pos} positive and {n_neg} negative reference labels and came back "
+                "empty or non-finite; this is a defect in the curve computation")
         if absence is not None:
             curve_map[curve_name] = absence
     return fields, curve_map
