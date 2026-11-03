@@ -1,5 +1,8 @@
-# requirements-drift.txt -- the ISOLATED drift-monitoring environment.
-# Created 2026-07-13 (roadmap 6.19).
+# requirements-drift.txt -- the DECLARATION of the ISOLATED drift-monitoring environment.
+# Created 2026-07-13 (roadmap 6.19). Locked per target since 2026-11-02 (DRIFT-PROFILE-LOCK): this file is no longer installed
+# directly. requirements-drift-linux.lock (Linux, Python 3.11 and 3.12) and requirements-drift-windows.lock (Windows, Python
+# 3.12) are resolved from it and requirements-drift-test.txt, with hashes, under constraints-drift.txt; the profile is declared
+# in src/genomic_variant_classifier/deps/profiles.py.
 #
 # =============================================================================
 # WHY THIS FILE EXISTS: the monitoring tools' dependencies must NEVER constrain
@@ -51,10 +54,14 @@
 # =============================================================================
 # HOW TO USE IT
 # =============================================================================
-#   python -m venv .venv-drift
-#   .venv-drift\Scripts\pip install -r requirements-drift.txt
-#   .venv-drift\Scripts\pip install -e . --no-deps      # the project, WITHOUT its train stack
-#   .venv-drift\Scripts\pip check                       # MUST be clean
+#   python scripts/install_locked_profile.py --profile drift --target windows-3.12 --venv NEW_FOLDER
+#   (on Linux: --target linux-3.11 or linux-3.12)
+#
+# It makes a NEW virtual environment (it refuses an existing folder), installs pip from the generator toolchain's hashed
+# record, then the target's lock with --require-hashes --no-deps --only-binary=:all:, then this project editable WITHOUT its
+# dependencies (the train stack never comes along) -- and it refuses the result unless the installed environment IS the lock:
+# nothing missing, nothing extra, no version different, every dependency satisfied, the target right, pip check clean, and no
+# pyspark, torch or torch-geometric.
 #
 # `pip check` being clean is a hard requirement, not a nicety. Continuous Integration runs it
 # as a gate (roadmap 6.19): a dependency conflict that nothing ever checks is the same defect
@@ -118,6 +125,18 @@ evidently==0.7.6
 numpy==2.4.4
 pandas==2.3.3
 scikit-learn==1.8.0
+
+# pyarrow is the parquet engine on BOTH sides of that contract (pandas read_parquet/to_parquet in
+# monitoring/clinvar_tracker.py and scripts/run_drift_monitor.py), yet until 2026-11-02 it was not
+# pinned here: the drift jobs of pull request #59 resolved pyarrow 26.0.0 while training locks 23.0.1.
+pyarrow==23.0.1
+
+# SINCE 2026-11-02 EVERY distribution the two environments share is held to the training locks'
+# version, not only these four: constraints-drift.txt is DERIVED from the training locks, and the
+# lockfile job refuses it if it is anything else. The only exceptions are three DEPARTURES, each
+# measured to be necessary (a resolution constrained to the training version was impossible) and
+# named in deps/profiles.py: lightgbm and plotly below, and xgboost -- 2.1.4 here, 3.2.0 in training --
+# because nannyml requires FLAML[automl], whose 'automl' extra requires xgboost<3.0.0.
 
 # nannyml's OWN caps, pinned explicitly so the environment is reproducible rather than
 # whatever the resolver felt like on the day. These are the versions that were VERIFIED to

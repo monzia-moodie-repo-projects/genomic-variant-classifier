@@ -36,6 +36,14 @@ three things the old script conflated:
 It EXITS NON-ZERO if anything expected in THIS environment is missing or broken, so it can be
 used as a gate rather than as a thing someone might read.
 
+nannyml IS IMPORTED THROUGH THE PROJECT'S GUARD (2026-11-02, DRIFT-PROFILE-LOCK). A bare
+`import nannyml` loads the first `.env` found by searching upward from nannyml's installed
+directory -- for a .venv-drift inside the checkout, the checkout's own `.env` -- and leaves
+nannyml's usage telemetry on (monitoring/performance_estimator.py, revision b of
+WARNINGS-AND-RESOURCES-1). This script now imports it with
+performance_estimator.import_nannyml(), the one sanctioned route
+(tests/unit/test_nannyml_import_boundary.py).
+
 THE TWO ENVIRONMENTS
 --------------------
     TRAINING  (requirements.txt, .venv312)      lightgbm 4.6.0, plotly 6.6.0, torch, pyspark
@@ -106,7 +114,11 @@ def _probe(mod: str) -> tuple[str, str]:
     except md.PackageNotFoundError:
         return "NOT INSTALLED", ""
     try:
-        importlib.import_module(mod)
+        if mod == "nannyml":
+            from genomic_variant_classifier.monitoring.performance_estimator import import_nannyml
+            import_nannyml()
+        else:
+            importlib.import_module(mod)
     except Exception as exc:  # noqa: BLE001 -- we WANT to report every failure mode
         return "BROKEN", f"{type(exc).__name__}: {exc}"
     return "OK", version
@@ -155,9 +167,8 @@ def main() -> int:
         print("environment. They live in the ISOLATED DRIFT environment, because nannyml")
         print("requires lightgbm<4.6 while the ensemble TRAINS on lightgbm 4.6.0:")
         print()
-        print("  python -m venv .venv-drift")
-        print("  .venv-drift/Scripts/pip install -r requirements-drift.txt")
-        print("  .venv-drift/Scripts/pip install -e . --no-deps")
+        from genomic_variant_classifier.deps.profiles import install_command
+        print("  " + install_command("drift"))
         return 1
 
     print("All expected drift libraries present and importable in this environment.")

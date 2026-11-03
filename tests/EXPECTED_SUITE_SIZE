@@ -8156,4 +8156,15 @@
 #   directory; its fit emits no warning; negative control: pykan's defaults DO write ./model), +3 tests/unit/
 #   test_warning_filters_are_scoped.py (no filter mutation at any depth in the package; a planted scoped blanket is found; the
 #   project's own configuration fails a planted leaking test and passes a closing one).
-8589
+# 2026-11-02  DRIFT-PROFILE-LOCK -- the drift profile locked per target; one installer for every locked profile
+#   +20 / -2 by node identity (net +18): +15 / -2 tests/unit/test_dependency_profiles.py (the drift locks agree with each other and
+#   depart from training exactly where declared; the derived constraint file is exactly its derivation and the command rewrites it
+#   byte for byte; an edited constraint, disagreeing training locks, a departure that no longer departs and a forbidden distribution
+#   are each reported or refused; environment mode judges a drift install by the drift lock and refuses pyspark; the profile
+#   declaration is standard-library only; every file a profile names is declared; the installer's pip record and its refusals), +3
+#   tests/unit/test_dependency_artifacts.py (every installer call names a declared profile and targets it has a lock for; the step
+#   after each call proves the job runs that environment; every workflow calling it retries a dropped download), +2
+#   tests/unit/test_nannyml_import_boundary.py (nannyml is imported only by its guard; the census sees every form of import). The -2
+#   are renames, counted in the +15: the header test now covers every profile's locks and names their constraint file; "the two locks
+#   agree" became "the two train-test locks agree".
+8607

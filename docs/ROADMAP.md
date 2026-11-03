@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **8,589 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **8,607 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -672,6 +672,16 @@ exists to end.
   that telemetry off (NML_DISABLE_USAGE_LOGGING) and imports nannyml without its implicit upward .env search
   (PYTHON_DOTENV_DISABLED, restored afterwards); seven drift tests with negative controls. Open, recorded:
   DRIFT-ENVIRONMENT-NOT-LOCKED (requirements-drift.txt pins seven packages; the rest resolves on the day).
+- **2026-11-02 -- DRIFT-PROFILE-LOCK: the drift-monitoring profile is locked per target, and one installer serves every locked
+  profile.** Closes DRIFT-ENVIRONMENT-NOT-LOCKED: the drift jobs of pull request #59 had resolved 137 distributions on the day
+  (pyarrow 26.0.0 against training's 23.0.1 for the same parquet files; scipy differing between Python 3.11 and 3.12).
+  requirements-drift-linux.lock and requirements-drift-windows.lock are resolved under constraints DERIVED from the training locks,
+  so every shared distribution is at training's version except three departures each measured necessary (lightgbm, plotly,
+  xgboost: nannyml's and FLAML's caps); wheels only. src/genomic_variant_classifier/deps/profiles.py declares both profiles once;
+  scripts/install_locked_profile.py installs either exactly and proves the result IS the lock, for the pytest and drift jobs, the
+  monthly drift monitor and a person's own machine. The monthly workflow's verify-model job could not import the project
+  (ModuleNotFoundError by construction); it now installs nothing and computes its verdict. nannyml is imported in one place only.
+  Install paths lock-qualified: 4 of 18. Suite 8,589 -> 8,607.
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined

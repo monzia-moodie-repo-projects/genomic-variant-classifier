@@ -5,7 +5,7 @@
 [![Tabular features](https://img.shields.io/badge/tabular%20features-91-blue.svg)]()
 [![Base models](https://img.shields.io/badge/base%20models-13-blue.svg)]()
 [![Agents](https://img.shields.io/badge/autonomous%20agents-22-blueviolet.svg)]()
-[![Tests](https://img.shields.io/badge/tests-8589-success.svg)]()
+[![Tests](https://img.shields.io/badge/tests-8607-success.svg)]()
 [![Status](https://img.shields.io/badge/status-active%20development-orange.svg)]()
 
 A multi-modal machine learning system for the five-tier clinical classification of human
@@ -248,6 +248,12 @@ published from the next full training run.
 ## Quickstart
 
 ```bash
+# Environments: two locked dependency profiles, each installed EXACTLY from its hashed lock into a NEW folder and then proven to
+# BE that lock (src/genomic_variant_classifier/deps/profiles.py; targets linux-3.11, linux-3.12, windows-3.12)
+python scripts/install_locked_profile.py --profile train-test --target linux-3.12 --venv ../env-train-test   # training and tests
+python scripts/install_locked_profile.py --profile drift      --target linux-3.12 --venv ../env-drift        # drift monitor:
+#   nannyml requires lightgbm<4.6 while the ensemble trains on 4.6.0, so the drift monitor has its own environment
+
 # Run the API
 MODEL_PATH=models/phase2_pipeline.joblib \
   uvicorn genomic_variant_classifier.api.main:app --port 8000

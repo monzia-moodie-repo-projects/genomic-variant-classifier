@@ -23,13 +23,10 @@ to remember.
 
 HOW TO RUN THESE
 ----------------
-    python -m venv .venv-drift
-    .venv-drift/Scripts/pip install -r requirements-drift.txt
-    .venv-drift/Scripts/pip install -e . --no-deps
-    .venv-drift/Scripts/pip install pytest
-    .venv-drift/Scripts/python -m pytest tests_drift/ -v
+    python scripts/install_locked_profile.py --profile drift --target TARGET --venv NEW_FOLDER
+    NEW_FOLDER/Scripts/python -m pytest tests_drift/ -v       (NEW_FOLDER/bin/python on Linux)
 
-Continuous Integration runs exactly this, in its own job.
+Continuous Integration runs exactly this, in its own job (the drift profile's lock holds pytest since 2026-11-02).
 """
 from __future__ import annotations
 
@@ -261,10 +258,11 @@ def test_missing_nannyml_RAISES_and_names_the_remediation(monkeypatch):
     monkeypatch.setattr(builtins, "__import__", _no_nannyml)
 
     with pytest.raises(NannyMLUnavailableError) as exc:
-        pe._import_nannyml()
+        pe.import_nannyml()
 
     msg = str(exc.value)
     assert "requirements-drift.txt" in msg, "the error must name the remediation, not just the fault"
+    assert "scripts/install_locked_profile.py --profile drift" in msg, "the remediation is the locked installer (2026-11-02)"
     assert "lightgbm" in msg, "the error must explain WHY it lives in a separate environment"
 
 
@@ -319,7 +317,7 @@ def test_a_value_already_in_the_switch_is_kept(monkeypatch):
     import genomic_variant_classifier.monitoring.performance_estimator as pe
 
     monkeypatch.setenv(pe.NANNYML_TELEMETRY_SWITCH, "yes")
-    pe._import_nannyml()
+    pe.import_nannyml()
     assert os.environ[pe.NANNYML_TELEMETRY_SWITCH] == "yes"
 
 
@@ -333,8 +331,8 @@ def counting(*a, **k):
     return real(*a, **k)
 dm.find_dotenv = counting
 if sys.argv[1] == "estimator":
-    from genomic_variant_classifier.monitoring.performance_estimator import _import_nannyml
-    _import_nannyml()
+    from genomic_variant_classifier.monitoring.performance_estimator import import_nannyml
+    import_nannyml()
 else:
     import nannyml
 print(json.dumps({"find_dotenv_calls": len(calls), "probe": os.environ.get("GVC_DOTENV_PROBE"),
@@ -387,5 +385,5 @@ def test_an_old_python_dotenv_is_reported_not_ignored(monkeypatch, caplog):
     real = pe._md.version
     monkeypatch.setattr(pe._md, "version", lambda name: "1.1.1" if name == "python-dotenv" else real(name))
     with caplog.at_level(logging.WARNING, logger=pe.__name__):
-        pe._import_nannyml()
+        pe.import_nannyml()
     assert any("does not honour PYTHON_DOTENV_DISABLED" in r.getMessage() for r in caplog.records)

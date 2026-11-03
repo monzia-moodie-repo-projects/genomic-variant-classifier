@@ -158,7 +158,7 @@ class DeploymentProfile(str, Enum):
     DATA_PREP = "data_prep"
     CI_TEST = "ci_test"
     DEVELOPER = "developer"
-    DRIFT_MONITOR = "drift_monitor"        # requirements-drift.txt: never constrains the model's dependencies (roadmap 6.19)
+    DRIFT_MONITOR = "drift_monitor"        # requirements-drift.txt: never constrains the model's dependencies (roadmap 6.19); locked 2026-11-02
     SOURCE_MONITOR = "source_monitor"      # requirements-source-monitor.txt: PyYAML only, hash-locked (change B, 2026-09-26)
 
 
@@ -184,6 +184,7 @@ class ArtifactPurpose(str, Enum):
     MEASURED_CONSTRAINTS = "measured_constraints"    # versions MEASURED in an environment; they select, never add, a package
     GENERATOR_TOOLCHAIN = "generator_toolchain"      # the exact tools that generate the locks (DEPENDENCY-PROFILES-1)
     BUILD_CONSTRAINTS = "build_constraints"          # pins the build backend of a source-only distribution (pip --build-constraint)
+    ALIGNMENT_CONSTRAINTS = "alignment_constraints"  # DERIVED from another profile's locks, so shared distributions agree (DRIFT-PROFILE-LOCK)
 
 
 class ArtifactFreshness(str, Enum):
