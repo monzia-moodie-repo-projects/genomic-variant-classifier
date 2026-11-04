@@ -1,6 +1,7 @@
-"""tests/conftest.py: temporary-file containment and the working-tree guard (both added 2026-10-12).
+"""The repository root's conftest.py: temporary-file containment and the working-tree guard (both added 2026-10-12 in
+tests/conftest.py; at the root, for every suite, since 2026-11-04).
 
-The in-process tests observe THIS session. The child-session tests run pytest on a small project whose tests/conftest.py is a byte
+The in-process tests observe THIS session. The child-session tests run pytest on a small project whose root conftest.py is a byte
 copy of the real one, so the guard's verdict, its exit code and its message are observed from outside -- the only place an exit
 code can be seen.
 
@@ -17,7 +18,7 @@ from pathlib import Path
 
 
 REPO = Path(__file__).resolve().parents[2]
-CONFTEST = REPO / "tests" / "conftest.py"
+CONFTEST = REPO / "conftest.py"
 
 
 # --------------------------------------------------------------------------- containment, observed in this session
@@ -89,19 +90,19 @@ def test_writes_a_checkpoint_into_the_current_directory():
 def _child(tmp_path: Path, environment, tests: str, *extra: str, quiet: bool = True) -> tuple[subprocess.CompletedProcess, Path, Path]:
     project = tmp_path / "project"
     (project / "tests").mkdir(parents=True)
-    (project / "tests" / "conftest.py").write_bytes(CONFTEST.read_bytes())
+    (project / "conftest.py").write_bytes(CONFTEST.read_bytes())
     (project / "tests" / "test_child.py").write_text(tests, encoding="utf-8")
     plugins = tmp_path / "plugins"                                   # OUTSIDE the project: the guard watches the project
     plugins.mkdir()
     (plugins / "guard_probe.py").write_text(PROBE_PLUGIN, encoding="utf-8")
     probe = tmp_path / "probe.json"
-    # environment: tests/conftest.py's child_pytest_environment, so the host's CI, width and colour settings cannot change what
+    # environment: the root conftest.py's child_pytest_environment, so the host's CI, width and colour settings cannot change what
     # the child prints (2026-11-03).
     env = environment(PYTHONPATH=os.pathsep.join([str(REPO / "src"), str(plugins)] +
                                                  ([os.environ["PYTHONPATH"]] if os.environ.get("PYTHONPATH") else [])),
                       GUARD_PROBE_OUT=str(probe))
     run = subprocess.run([sys.executable, "-m", "pytest", "tests", *(["-q"] if quiet else []), "-p", "no:cacheprovider", "-p", "guard_probe",
-                          *extra],
+                          "--confcutdir", str(project), *extra],
                          cwd=str(project), env=env, capture_output=True, text=True, timeout=600)
     return run, project, probe
 

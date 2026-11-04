@@ -75,7 +75,7 @@ def cache_dir(tmp_path: Path) -> Path:
 
     That was invisible to `git status` (data/raw/ is gitignored) and it made the suite
     non-idempotent: a later run found the cached index and took a different code path.
-    The autouse guard in tests/conftest.py now fails any test that does this.
+    The autouse guard in the repository root's conftest.py (tests/conftest.py until 2026-11-04) now fails any test that does this.
 
     The connector gained a `cache_dir` argument -- the injection point it never had, and
     which ESM2Connector (cache_path) and ProteinStructurePipeline (cache_dir) already had.

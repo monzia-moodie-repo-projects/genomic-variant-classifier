@@ -12,7 +12,7 @@ owner's clean-up block refused to delete them as "untracked or ignored files".
 ROADMAP entry of 2026-09-23 ("the suite no longer writes into the repository")
 was therefore not true, and nothing had measured it.
 
-The `data/raw/cache` guard in `tests/conftest.py` watches one directory per
+The `data/raw/cache` guard in the root `conftest.py` watches one directory per
 test. This module watches the WHOLE working tree once per session: a snapshot
 when the session starts, another when it finishes, and the difference named
 path by path.

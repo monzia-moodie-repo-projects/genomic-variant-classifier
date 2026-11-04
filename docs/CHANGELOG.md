@@ -1,4 +1,61 @@
+## 2026-11-04 (drift-suite guards) -- the session guards in the repository root's conftest.py, for every suite
+
+MEASURED (DRIFT-SUITE-UNGUARDED-1). tests_drift/ has no conftest of its own and tests/conftest.py is loaded only for tests/, so
+the drift suite ran with no warning-filter guard, no working-tree guard, its temporary files in the system temporary folder,
+and only ci.yml's `env -u` between its tests and the workflow's publication files. Measured with pytest 9.0.3: a conftest.py at
+the repository root is loaded for `pytest tests/` and `pytest tests_drift/` alike, and is not loaded by a child pytest that a
+test starts on files outside the repository (with this repository's -c configuration, its root as the working directory, or
+--rootdir set to the child's folder).
+
+- conftest.py (new, at the root): the guards that apply to every suite, moved from tests/conftest.py by exact line ranges --
+  sys.path leaks and writes into data/raw/cache (per test), the workflow's publication files (at import and per test), the
+  child-pytest environment, temporary-file containment, joblib's thread backend as its sequential one with the warning-filter
+  guard, and the working-tree guard. The text changed only where the new place requires it: the repository root is the file's own
+  folder, four messages name the root conftest, two stale comments corrected (six publication variables, not five). ONE BEHAVIOUR
+  CHANGED, measured by the independent review: pytest sets up an outer conftest's autouse fixtures first, so the two per-test
+  guards now also enclose tests/conftest.py's connector-cache fixture and its first import of the embedding and protein modules
+  (which leaves sys.path unchanged and writes nothing). THE INVARIANT (no autouse fixture requests `monkeypatch`) binds the root
+  conftest, where the workflow-variable fixture sorts ahead of the guards; for tests/conftest.py it is no longer a mechanism
+  (measured: with the connector-cache fixture requesting it, 7 passed and 2 errors in the old layout, 7 passed in this one).
+- tests/conftest.py keeps what is tests/'s alone: scripts/ on sys.path, the suite-size ratchet (--assert-suite-size), the
+  connector-cache isolation. Its note "DECLARED LAST ... It requests `monkeypatch`" was wrong before this change (the fixture
+  deliberately does not); replaced.
+- Followed the move: test_working_tree_guard.py and test_sklearn_parallel_warning_contract.py (their child projects carry a byte
+  copy of the ROOT conftest), test_github_workflow_command_isolation.py (parses the root conftest for the one set of publication
+  variables), and the comments that named the old place (four test files, .gitignore, pyproject.toml, workspace_snapshot.py,
+  ci.yml, the README Quickstart, the drift suite's docstring).
+- Every child pytest whose test files live in its own temporary folder (six calls in five files) now passes --confcutdir for that
+  folder. The independent review measured why: with pytest's base temporary folder inside the checkout, a child also loaded the
+  repository's root conftest besides its own copy and stopped with an internal error (the containment's folder made twice).
+  Measured: with --confcutdir a child loads its own conftest and no conftest above it.
+- tests_drift/test_session_guards.py (+2 there, 19 -> 21): inside a drift session the root conftest is loaded and tests/conftest.py
+  is not; joblib's thread backend is the sequential one, tempfile and TMPDIR/TEMP/TMP point under pytest's base temporary
+  folder, and no publication variable is set (the set parsed from the root conftest). Without a root conftest both fail
+  (measured: "2 failed"). tests/unit/test_session_guard_placement.py (+4): both conftests load in the main suite; the guards are
+  in the root conftest and no function is defined in both; at run time every guard hook has exactly one conftest
+  implementation, the root's, over every registered plugin; a child session laid out like tests_drift/ fails on a test that
+  rebinds the warning filters, one that writes into data/raw/cache, one that leaks a sys.path entry ("5 passed, 3 errors") and
+  one that writes into the checkout, naming each.
+- Measured for the drift run, where the repository root is newly on sys.path: no module resolves from the root outside src/
+  except the conftest and the drift test modules, and no tracked root name -- nor any of the 81 untracked root files on the owner's
+  checkout -- equals a top-level module the drift session imports. Drift suite: 21 passed; warning-filter guard 21 checked, 0
+  changed; working tree unchanged.
+- Suite 8,643 -> 8,647 (+4 / -0 by node identity, against c98c5b92).
+
 ## 2026-11-03 (warning-filter race) -- no thread-parallel scikit-learn in the suite; a guard on the warning filters
+
+MERGED AND VERIFIED ON WINDOWS (recorded 2026-11-04). The owner ran -Validate three times (set "ae", 2026-11-04), each passing
+in its own folder with the checkout verified unchanged; the third (07:50 UTC, 98 minutes, candidate 23d7c76a) was published. The
+first took 240 minutes, 169 of them installing: 41 of its 42 package downloads ran below 1 MB/s (the slowest 82 kB/s) and one
+dropped connection was retried; the second run's downloads ran at 18-75 MB/s. Each: 8,555 passed, 83 skipped, 5 xfailed, 0 failed, no warnings, coverage 83%; the warning-filter
+guard 8,643 checked, 0 changed; the working tree unchanged; the drift tests 19 passed. Merged as pull request #63 (merge commit
+c98c5b92, tree ad420dce; GitHub showed 7 checks passed -- their logs are not in this record). The post-merge block (10:15 UTC)
+repeated the targeted run on the merged checkout: 567 passed, 3 skipped, NO warnings (448 two post-merge blocks earlier), the
+guard 570 checked, 0 changed, both candidate environments still exactly their Windows locks. The branch deletion was refused once
+by GitHub ("fatal error in commit_refs_rules", during GitHub's incident with Git Operations of 2026-11-04 09:49 UTC) and
+succeeded at 14:01 UTC. The 83 Windows skips (counted with their [N] weights): R 38 -- 28 with Rscript not on PATH, 8 with
+the pinned DANDELION package absent from R's library, 2 with the fixture variables unset -- POSIX-only 15, symbolic links 13,
+pyBigWig and pybigtools 9, absent data or TODO 8.
 
 MEASURED (SKLEARN-WARNING-FILTER-RACE-1). On Python 3.12 the warning filters are one process-wide list; scikit-learn 1.8.0 runs
 every task of a thread-parallel call inside `catch_warnings(); resetwarnings()` and refills the list entry by entry
