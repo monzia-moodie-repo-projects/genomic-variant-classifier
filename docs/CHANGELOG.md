@@ -1,4 +1,71 @@
+## 2026-11-03 (warning-filter race) -- no thread-parallel scikit-learn in the suite; a guard on the warning filters
+
+MEASURED (SKLEARN-WARNING-FILTER-RACE-1). On Python 3.12 the warning filters are one process-wide list; scikit-learn 1.8.0 runs
+every task of a thread-parallel call inside `catch_warnings(); resetwarnings()` and refills the list entry by entry
+(sklearn/utils/parallel.py, read in full), and concurrent tasks enter and exit out of order. Inside pytest (sandbox, 2
+processors), 20 of 20 RandomForest fits at n_jobs=-1 left the process bound to a different list, with Python's
+`default::DeprecationWarning:__main__` changed from a plain module string (exact match) to a regular expression (prefix match).
+A passive census of the full suite on main (2c2ba877): 237 scikit-learn Parallel calls inside tests, 95 of them threaded, in 16
+tests of 8 files (37.7 s); 14 of those tests ended with the filters rebound and changed, and no test without a threaded call
+did. On the owner's machine (8 processors) 448 copies of scikit-learn's "`delayed` should be used with `Parallel`" warning reached
+pytest (2026-11-03 06:18 UTC) through pyproject.toml's ignore entry for it -- the list had been emptied, and while it is empty
+no `error::` entry applies either. A probe outside pytest on that machine counted 0 changes in 700 fits: it compared contents
+only, after resetwarnings() had removed the one entry that comes back changed. Upstream: scikit-learn #35089, open; Python's
+concurrency-safe warnings stay off by default on builds with the global interpreter lock through 3.15.
+
+- tests/conftest.py, PREVENTION: `joblib.register_parallel_backend("threading", SequentialBackend)` at configuration, verified,
+  and joblib's own thread backend registered again at unconfigure. Every joblib thread request that names its backend goes
+  through that name: an explicit backend="threading" (scikit-learn's histogram binning and pairwise distances), the hints
+  prefer="threads" and require="sharedmem" (thirteen sites: eleven literal, two through a variable), parallel_config(backend=
+  "threading"). Not covered by construction, and caught by the guard instead: a backend instance (none exists in the package,
+  tests, scripts or scikit-learn 1.8.0 outside its tests) and a thread pool that is not joblib's. Process backends are
+  untouched. Measured: a forest, a histogram gradient-boosting fit and pairwise distances -- 40 tasks in worker threads with
+  joblib as shipped, all 40 in the main thread with the mapping, filters bound and unchanged. A first version used
+  parallel_config(backend="sequential"); the guard failed tests/unit/test_containment_propagation.py under it, because an
+  explicit backend overrides that setting.
+- tests/conftest.py, DETECTION: the warning state is taken before each test's setup and compared after its teardown; a replaced
+  list, a lost or changed entry, a change of order, a replaced showwarning or recording hook, or the thread mapping undone fails
+  that test's teardown, after the state is restored, and fails the session too (exit 1, the test named in the guard's section);
+  an interrupt during teardown is never replaced. Entries a library adds while a test runs (torch, scipy and numpy at first
+  import) are not failures; each distinct one is listed, with the first test that added it.
+- tests/conftest.py, child_pytest_environment: the one source for the environment of a child pytest that a test starts, without
+  the variables that change what it prints (CI and BUILD_NUMBER, COLUMNS and LINES, PY_COLORS, FORCE_COLOR and NO_COLOR,
+  PYTEST_ADDOPTS, PYTEST_PLUGINS, PYTHONWARNINGS). Every child pytest in the suite now uses it -- seven calls in six files,
+  found by parsing tests/ -- three of which failed with PY_COLORS=1 before.
+- pyproject.toml: `error::UserWarning:sklearn\.utils\.parallel` -- scikit-learn 1.8.0's sklearn/utils/parallel.py warns at two
+  places (lines 29 and 144), both the configuration not reaching the workers, from either side of a delayed/Parallel mismatch;
+  selected by module, like the ranking entry. The ignore entry and its explanation ("a harmless thread-configuration note") are
+  gone.
+- tests/unit/test_sklearn_parallel_warning_contract.py rewritten around the new premises (12 tests; child sessions run a byte copy
+  of tests/conftest.py with their own pytest.ini, so they hold on pytest 9.0.3 and 9.2.0 alike); tests/unit/
+  test_warning_filters_are_scoped.py fails on a file it cannot read or parse and names it (all 437 under tests/ and 298 under src/
+  parse; the silent skips had never fired). README Quickstart: how the suite is run.
+- INDEPENDENT REVIEW (2026-11-03, before delivery), each finding measured and resolved: under CI=true pytest stops truncating its
+  short summary and a count in the guard's test doubled (it now counts traceback lines, and children run in the scrubbed
+  environment); on pytest 9.2.0 the children had no error entry to lose (each now brings its own); a teardown finding in an
+  xfail-marked test was reported as "xfailed" and the session passed (the session now fails); a KeyboardInterrupt in teardown was
+  replaced by the finding (no longer); a leaked parallel_config with a backend instance would have failed every later test (the
+  per-test check reads the registry only); the reverse mismatch warning was neither error nor ignored (the module entry covers
+  it); wording corrected ("every route", "eleven sites", the guard's advice on module-scoped fixtures, the README).
+- Cost, measured (sandbox, 2 processors, one run each): the 8 files that ran threaded took 90.06 s on main and 72.56 s with this
+  change. Forest trees are seeded before dispatch: 500 trees on 3,000 rows gave identical trees and bitwise-equal probabilities.
+- Not changed, recorded: production runs keep their threads, so a threaded fit there still perturbs the process's warning
+  filters (the package sets none at run time). tests_drift/ has no conftest, so neither this guard nor the working-tree guard
+  reaches the drift suite (DRIFT-SUITE-UNGUARDED-1). Suite 8,633 -> 8,643.
+
 ## 2026-11-02 (degenerate replicates) -- one bootstrap replicate engine; curves only where defined; the suite's 33 warnings resolved
+
+MERGED AND VERIFIED ON WINDOWS (recorded 2026-11-03). The owner's -Validate (set "ac", 2026-11-03 07:12 UTC, 97 minutes, candidate
+4731b78e): 8,545 passed, 83 skipped, 5 xfailed, 0 failed, NO warnings (33 before), coverage 83%; the drift tests 19 passed. Merged
+as pull request #62 (merge commit 2c2ba877, tree 8d39f4ba); the post-merge block (2026-11-03 16:36 UTC) repeated the targeted run
+on the merged checkout (561 passed, 3 skipped, no warnings) with both candidate environments still exactly their locks. THE
+PERSISTED-REPORT CENSUS, run on the owner's machine (2026-11-03 09:42 UTC): 10 reports, all schema version 1 (2026-04-04 to
+2026-06-13). None is affected: schema-1 reports were written by ClinicalEvaluator._bootstrap_ci, which skipped single-class
+replicates (`if len(np.unique(y[idx])) < 2: continue`, from e1e9242 on 2026-03-12 until eca534e on 2026-07-26; the function's text
+is identical by digest at e1e9242, ab4d2d5~1, ab4d2d5, ee6e136, 618e7fd and 7c559a4b); the gene-cluster interval entered at
+eca534e, after all ten. Limit: a report written by uncommitted code cannot be attributed (REPORT-PROVENANCE-ABSENT-1).
+outputs/run14/reproducibility_manifest.json, the one tracked JSON file a strict reader refuses, carries a UTF-8 byte-order mark
+and is read with utf-8-sig by sealed_evaluation.
 
 MEASURED before: every full run reported 33 warnings, recorded as expected since 2026-08-26. A census (each warning's own stack)
 put all 33 at three call sites in this project's code: evaluator.py's receiver operating characteristic and precision-recall curves

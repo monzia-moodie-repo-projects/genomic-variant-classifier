@@ -5,7 +5,7 @@
 [![Tabular features](https://img.shields.io/badge/tabular%20features-91-blue.svg)]()
 [![Base models](https://img.shields.io/badge/base%20models-13-blue.svg)]()
 [![Agents](https://img.shields.io/badge/autonomous%20agents-22-blueviolet.svg)]()
-[![Tests](https://img.shields.io/badge/tests-8633-success.svg)]()
+[![Tests](https://img.shields.io/badge/tests-8643-success.svg)]()
 [![Status](https://img.shields.io/badge/status-active%20development-orange.svg)]()
 
 A multi-modal machine learning system for the five-tier clinical classification of human
@@ -253,6 +253,13 @@ published from the next full training run.
 python scripts/install_locked_profile.py --profile train-test --target linux-3.12 --venv ../env-train-test   # training and tests
 python scripts/install_locked_profile.py --profile drift      --target linux-3.12 --venv ../env-drift        # drift monitor:
 #   nannyml requires lightgbm<4.6 while the ensemble trains on 4.6.0, so the drift monitor has its own environment
+
+# Tests, in the train-test environment (.github/workflows/ci.yml adds --tb=short and coverage, and starts pytest without the
+# workflow-command variables). tests/conftest.py runs joblib's thread backend sequentially for the session and fails a test that
+# rebinds, removes or reorders the warning filters (entries a library adds are listed, not failed), and the session fails if the
+# working tree changed; --assert-suite-size requires the collected count to equal tests/EXPECTED_SUITE_SIZE
+python -m pytest tests/ -q -rs --assert-suite-size
+python -m pytest tests_drift/ -v -rs                  # in the drift environment, with the drift job's options
 
 # Run the API
 MODEL_PATH=models/phase2_pipeline.joblib \

@@ -456,6 +456,32 @@ def _isolate_github_workflow_commands():
 
 
 # ---------------------------------------------------------------------------
+# The environment of a CHILD pytest that a test starts (added 2026-11-03) -- the one source.
+# ---------------------------------------------------------------------------
+# Seven calls in six test files run a child pytest and read its console (measured 2026-11-03 by parsing tests/:
+# test_working_tree_guard.py, test_warning_filters_are_scoped.py, test_sklearn_parallel_warning_contract.py (two),
+# test_replicate_engine.py, test_review_status_tier.py, test_github_workflow_command_isolation.py); every one builds its
+# environment here. What a pytest prints depends on variables it
+# inherits, so a child built from os.environ as it stands passes or fails with the host. MEASURED 2026-11-03 (the second, an
+# independent review): with CI=true -- which GitHub Actions sets -- pytest stops truncating its short summary (_pytest/compat.py
+# running_on_ci reads CI and BUILD_NUMBER), and a count of messages doubled; with PY_COLORS=1 three child tests failed on
+# colour codes. Dropped as well: the width (COLUMNS, LINES), the other colour switches (FORCE_COLOR, NO_COLOR), and
+# what adds options, plugins or filters (PYTEST_ADDOPTS, PYTEST_PLUGINS, PYTHONWARNINGS). Everything else is inherited.
+CHILD_PYTEST_ENVIRONMENT_DROPPED = ("CI", "BUILD_NUMBER", "COLUMNS", "LINES", "PY_COLORS", "FORCE_COLOR", "NO_COLOR",
+                                    "PYTEST_ADDOPTS", "PYTEST_PLUGINS", "PYTHONWARNINGS")
+
+
+@pytest.fixture
+def child_pytest_environment():
+    """A function returning the environment for a child pytest: os.environ without the variables above, plus the given ones."""
+    def build(**extra: str) -> dict:
+        env = {k: v for k, v in os.environ.items() if k not in CHILD_PYTEST_ENVIRONMENT_DROPPED}
+        env.update(extra)
+        return env
+    return build
+
+
+# ---------------------------------------------------------------------------
 # Temporary-file containment (added 2026-10-12) -- PREVENTION.
 # ---------------------------------------------------------------------------
 # MEASURED 2026-10-11 on the owner's machine (census of %TEMP%): 973 folders named tmp*, created by the test runs of 2026-10-09
@@ -496,6 +522,194 @@ def pytest_configure(config) -> None:
     for name in _TEMPORARY_FILE_VARIABLES:
         os.environ[name] = str(root)
     tempfile.tempdir = str(root)
+    _run_joblib_sequentially(config)
+
+
+# ---------------------------------------------------------------------------
+# No thread-parallel scikit-learn in the session, and a guard on the warning filters (added 2026-11-03,
+# SKLEARN-WARNING-FILTER-RACE-1) -- PREVENTION and DETECTION.
+# ---------------------------------------------------------------------------
+# THE DEFECT. On Python 3.12 the warning filters are ONE process-wide list, and `warnings.catch_warnings` saves it on entry and
+# rebinds the saved list on exit. scikit-learn 1.8.0 runs every task of a thread-parallel estimator (RandomForestClassifier with
+# n_jobs != 1) inside `catch_warnings(); resetwarnings()` and refills the list one entry at a time (sklearn/utils/parallel.py,
+# read in full). Concurrent tasks enter and exit out of order, so the process is left bound to some worker's REBUILT copy, and an
+# unlucky interleaving empties a list outright. Upstream issue scikit-learn #35089 (opened 2026-10-06) is open; its reporter
+# finds every build with the global interpreter lock affected, 3.14 included, and Python's concurrency-safe warnings
+# (context_aware_warnings) stay off by default on those builds through 3.15.
+#
+# MEASURED, 2026-11-03:
+#   * inside pytest, in the sandbox (2 processors): 20 of 20 RandomForest fits (500 trees, n_jobs=-1) left the process bound to
+#     a different list, and each changed an entry's meaning -- Python's default::DeprecationWarning:__main__ names its module as
+#     a plain string (matched by equality) and comes back as a regular expression (matched by prefix);
+#   * on the owner's machine (8 processors): 448 copies of scikit-learn's "`sklearn.utils.parallel.delayed` should be used with
+#     ..." warning reached pytest from tests/unit/test_isolation_prerequisite.py (2026-11-03 06:18 UTC), and 1,000 from
+#     tests/unit/test_containment_serving.py on pull request #58's validation (2026-11-01) -- through pyproject.toml's ignore
+#     entry for that message. While a list is empty EVERY entry is gone, the `error::` entries included: a test that must fail
+#     on an unclosed file or an undefined ranking metric would pass instead.
+# A probe outside pytest (2026-11-03) counted 0 changes in 700 fits on that machine; it compared contents only, after
+# resetwarnings() had removed the one entry that comes back changed, so it could not see what the sandbox measured inside pytest.
+#
+# PREVENTION. joblib's THREAD backend is its sequential backend for the whole session: `joblib.register_parallel_backend`
+# (public) maps the name "threading" to joblib's SequentialBackend here at configuration -- before collection, as the
+# temporary-file containment above is -- and the original is registered again at unconfigure. Every joblib thread request that
+# NAMES its backend goes through that one name (joblib 1.5.3, joblib/parallel.py, read): an explicit backend="threading"
+# (scikit-learn 1.8.0: ensemble/_hist_gradient_boosting/binning.py:240 and metrics/pairwise.py:1979), the hints prefer="threads"
+# and require="sharedmem" (thirteen sites -- eleven literal, two passed through a variable: ensemble/_iforest.py:296 and
+# linear_model/_logistic.py:1948 -- resolved through DEFAULT_THREAD_BACKEND = "threading"), and parallel_config(backend=
+# "threading"). Not covered, by construction: a backend INSTANCE (Parallel(backend=ThreadingBackend()), or one handed to
+# parallel_config), which bypasses the registry -- measured 2026-11-03: none in the package, the tests, the scripts or
+# scikit-learn 1.8.0 outside its own tests -- and a thread pool that is not joblib's. The guard below catches both by their
+# effect. joblib's PROCESS backends are untouched: a worker process has its own filters, and scalable_svm's bags keep running as
+# they do in production.
+# MEASURED 2026-11-03, a 16-tree forest at n_jobs=-1, a histogram gradient-boosting fit and pairwise_distances(n_jobs=2): with
+# joblib's registry as shipped, all 40 of scikit-learn's tasks ran in worker threads and the filters were rebound and changed;
+# with "threading" mapped to the sequential backend, all 40 ran in the main thread -- also under parallel_config(backend=
+# "threading") -- and the filters were bound and unchanged. The FIRST version of this change set parallel_config(backend=
+# "sequential") instead; the guard below then failed a test in tests/unit/test_containment_propagation.py, because an explicit
+# backend="threading" overrides that setting (the histogram binning's), and the setting also made the process backends
+# sequential, which nothing called for. Results: a forest's trees are seeded before they are dispatched -- measured with 500 trees
+# on 3,000 rows (2 processors), identical trees and probabilities bitwise equal to the threaded run's. (Threads add the trees'
+# probabilities in the order they finish, so on more processors a threaded run's last bits may vary; the sequential order is
+# fixed.) Production runs keep their threads; this governs the suite.
+#
+# DETECTION. The warning state is taken before a test's setup -- before every fixture, module- and session-scoped ones included --
+# and compared after its teardown. The test in which a change is found FAILS at teardown, naming it, when the list object pytest
+# bound for it was replaced, when any entry it started with is gone (an entry changed in meaning is one gone and one new), when
+# those entries are no longer in their original order (order is precedence: the first matching entry decides), when
+# warnings.showwarning or the hook pytest records through (warnings._showwarnmsg_impl) was replaced, or when joblib's
+# "threading" name no longer maps to the sequential backend. The state is restored first, so later tests start whole. Each of
+# these is how the race shows itself; none is how a correct test behaves: a filter set inside `with warnings.catch_warnings():`
+# in a test or a function-scoped fixture, pytest.warns and the recwarn fixture all restore before teardown ends. A
+# catch_warnings opened in a MODULE- or SESSION-scoped fixture is found too, in the test it was opened in and in the test whose
+# teardown closes it: pytest binds a fresh list for every test, so such a fixture's filters never governed the tests between.
+# THE SESSION FAILS as well whenever any test was found changing the state (exit 1, its node named in this guard's section of the
+# terminal summary): MEASURED (independent review, 2026-11-03), pytest reports any exception in the teardown of an xfail-marked
+# test as "xfailed", which would otherwise hide the finding. An interrupt during teardown (KeyboardInterrupt, SystemExit,
+# pytest.exit) is never replaced: the state is restored and recorded, and the interrupt propagates.
+# ENTRIES ADDED during a test are not a failure, and not silent either. MEASURED 2026-11-03: libraries register filters when
+# first imported -- torch three, scipy and numpy one each, during the setup of the first test that imported them (this file's
+# connector-cache fixture imports the embedding module) -- and pytest discards them when that test ends. An added entry can
+# still shadow one of pyproject.toml's for the rest of that test, so every distinct added entry is listed, with the first test
+# that added it, in this guard's section of the terminal summary.
+# Hook wrappers, not fixtures: no fixture runs before a module-scoped fixture is set up (THE INVARIANT FOR THIS FILE holds --
+# nothing here requests monkeypatch). tests/unit/test_sklearn_parallel_warning_contract.py proves both, in this session and in
+# child sessions that run a byte copy of this file.
+_JOBLIB_THREAD_BACKEND = pytest.StashKey()
+_WARNING_STATE_BEFORE_SETUP = pytest.StashKey()
+_WARNING_GUARD_TALLY = pytest.StashKey()
+
+
+def _joblib_thread_name_is_sequential() -> bool:
+    from joblib.parallel import BACKENDS
+
+    return BACKENDS["threading"] is BACKENDS["sequential"]
+
+
+def _run_joblib_sequentially(config) -> None:
+    import joblib
+    from joblib.parallel import BACKENDS, get_active_backend
+
+    config.stash[_JOBLIB_THREAD_BACKEND] = BACKENDS["threading"]
+    config.stash[_WARNING_GUARD_TALLY] = {"checked": 0, "failed": [], "added": {}, "printed": False}
+    joblib.register_parallel_backend("threading", BACKENDS["sequential"])
+    resolved = [type(get_active_backend(prefer="threads", require="sharedmem")[0]), type(get_active_backend(prefer="threads")[0]),
+                type(get_active_backend(require="sharedmem")[0])]
+    if not _joblib_thread_name_is_sequential() or any(b is not BACKENDS["sequential"] for b in resolved):
+        raise pytest.UsageError(
+            "tests/conftest.py mapped joblib's 'threading' backend to its sequential one, and joblib does not resolve thread "
+            "requests to it (resolved: {}). Thread-parallel scikit-learn would rebind the warning filters "
+            "(SKLEARN-WARNING-FILTER-RACE-1); the suite does not run without this.".format([b.__name__ for b in resolved]))
+
+
+def _warning_state() -> tuple:
+    import warnings
+
+    return warnings.filters, tuple(warnings.filters), warnings.showwarning, warnings._showwarnmsg_impl
+
+
+def _describe_filter(entry) -> str:
+    action, message, category, module, lineno = entry
+    return "{}  message={!r}  category={}  module={!r}  line={}".format(
+        action, getattr(message, "pattern", message), getattr(category, "__name__", category), module, lineno)
+
+
+@pytest.hookimpl(wrapper=True, tryfirst=True)
+def pytest_runtest_setup(item):
+    item.stash[_WARNING_STATE_BEFORE_SETUP] = _warning_state()
+    return (yield)
+
+
+@pytest.hookimpl(wrapper=True, tryfirst=True)
+def pytest_runtest_teardown(item, nextitem):
+    try:
+        result = yield
+    except (KeyboardInterrupt, SystemExit, pytest.exit.Exception):
+        _check_the_warning_state(item, report=False)        # restored and recorded; the interrupt is never replaced
+        raise
+    except BaseException:
+        _check_the_warning_state(item)                      # a finding raised here carries the teardown's own error as context
+        raise
+    _check_the_warning_state(item)
+    return result
+
+
+def _check_the_warning_state(item, report: bool = True) -> None:
+    import warnings
+
+    before = item.stash.get(_WARNING_STATE_BEFORE_SETUP, None)
+    if before is None:
+        raise AssertionError("the warning-filter guard was not armed for {}: its setup hook did not run".format(item.nodeid))
+    binding, entries, showwarning, showwarnmsg_impl = before
+    after = _warning_state()
+    tally = item.config.stash[_WARNING_GUARD_TALLY]
+    tally["checked"] += 1
+    found = []
+    if after[0] is not binding:
+        found.append("warnings.filters is a DIFFERENT list from the one bound before setup ({} entries, now {})".format(
+            len(entries), len(after[1])))
+    gone = [e for e in entries if e not in after[1]]
+    new = [e for e in after[1] if e not in entries]
+    remaining = iter(after[1])
+    in_order = all(e in remaining for e in entries)          # the entries it started with, as a subsequence, in their order
+    if gone:
+        found.append("the filter entries changed: {} gone, {} new".format(len(gone), len(new)))
+        found.extend("    gone: " + _describe_filter(e) for e in gone)
+        found.extend("    new:  " + _describe_filter(e) for e in new)
+    elif not in_order:
+        found.append("the entries this test started with are no longer in their original order (order is precedence)")
+    if after[2] is not showwarning:
+        found.append("warnings.showwarning was replaced: {!r}".format(after[2]))
+    if after[3] is not showwarnmsg_impl:
+        found.append("warnings._showwarnmsg_impl (the hook pytest records warnings through) was replaced: {!r}".format(after[3]))
+    sequential = _joblib_thread_name_is_sequential()
+    if not sequential:
+        found.append("joblib's 'threading' backend no longer maps to its sequential one (a register_parallel_backend call)")
+    if not found:
+        for entry in new:
+            tally["added"].setdefault(_describe_filter(entry), item.nodeid)
+        return
+    tally["failed"].append(item.nodeid)
+    # Restore FIRST -- containment before reporting.
+    warnings.filters = binding
+    binding[:] = entries
+    warnings.showwarning = showwarning
+    warnings._showwarnmsg_impl = showwarnmsg_impl
+    if not sequential:
+        import joblib
+        from joblib.parallel import BACKENDS
+
+        joblib.register_parallel_backend("threading", BACKENDS["sequential"])
+    if not report:
+        return
+    raise AssertionError(
+        "THE WARNING FILTERS AFTER THIS TEST'S TEARDOWN ARE NOT THE ONES BOUND BEFORE ITS SETUP "
+        "(SKLEARN-WARNING-FILTER-RACE-1). While they differ, pyproject.toml's entries -- the `error::` ones included -- may not "
+        "apply, so a warning that must fail a test may not.\n  " + "\n  ".join(found) + "\n"
+        "The usual cause is thread-parallel work that enters warnings.catch_warnings() in worker threads (scikit-learn "
+        "estimators with n_jobs != 1 under a threading backend, or a thread pool that is not joblib's); a catch_warnings opened "
+        "in a module- or session-scoped fixture is another. Set filters inside `with warnings.catch_warnings():` within the test "
+        "or a function-scoped fixture, and leave joblib's 'threading' backend as tests/conftest.py registers it. The state has "
+        "been restored.")
 
 
 # ---------------------------------------------------------------------------
@@ -543,9 +757,21 @@ def pytest_runtestloop(session):
         session.config.stash[_WORKSPACE_AFTER] = (take_snapshot(_WORKSPACE_ROOT), bool(session.shouldstop or session.shouldfail))
 
 
+def _warning_guard_lines(tally: dict) -> list:
+    lines = ["joblib: 'threading' runs sequentially for the session (no worker threads); {} tests checked, {} changed the "
+             "warning state".format(tally["checked"], len(tally["failed"]))]
+    if tally["failed"]:
+        lines.append("THE WARNING STATE CHANGED IN THESE TESTS (each restored; the session fails):")
+        lines.extend("    " + nodeid for nodeid in tally["failed"])
+    return lines
+
+
 def pytest_sessionfinish(session, exitstatus) -> None:
     from genomic_variant_classifier.repository_hygiene.workspace_snapshot import compare, describe, take_snapshot
 
+    tally = session.config.stash.get(_WARNING_GUARD_TALLY, None)
+    if tally is not None and tally["failed"] and session.exitstatus in (pytest.ExitCode.OK, pytest.ExitCode.NO_TESTS_COLLECTED):
+        session.exitstatus = pytest.ExitCode.TESTS_FAILED      # also when pytest reported the finding as an xfail
     before = session.config.stash.get(_WORKSPACE_BEFORE, None)
     if before is None:
         session.config.stash[_WORKSPACE_REPORT] = (["NOT ARMED: tests/conftest.py was loaded after the session started, so no "
@@ -577,6 +803,18 @@ def pytest_sessionfinish(session, exitstatus) -> None:
 
 
 def pytest_terminal_summary(terminalreporter, exitstatus, config) -> None:
+    tally = config.stash.get(_WARNING_GUARD_TALLY, None)
+    if tally is not None:
+        failed = bool(tally["failed"])
+        terminalreporter.section("warning-filter guard", sep="=", red=failed, green=not failed, bold=True)
+        for line in _warning_guard_lines(tally):
+            terminalreporter.line(line, red=failed)
+        tally["printed"] = True
+        if tally["added"]:
+            terminalreporter.line("entries ADDED during a test (pytest discards them when the test ends), each with the first "
+                                  "test that added it:")
+            for entry, nodeid in sorted(tally["added"].items()):
+                terminalreporter.line("  {}\n      first added in {}".format(entry, nodeid))
     report = config.stash.get(_WORKSPACE_REPORT, None)
     if report is None:
         return
@@ -589,8 +827,16 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config) -> None:
 
 @pytest.hookimpl(tryfirst=True)
 def pytest_unconfigure(config) -> None:
-    """Restores what temporary-file containment changed; then, if the terminal summary was skipped (--no-summary,
-    -p no:terminal, some exit codes), writes the working-tree guard's finding here."""
+    """Registers joblib's own thread backend again and restores what temporary-file containment changed; then, if the terminal
+    summary was skipped (--no-summary, -p no:terminal, some exit codes), writes the two guards' findings here."""
+    original = config.stash.get(_JOBLIB_THREAD_BACKEND, None)
+    if original is not None:
+        import joblib
+
+        joblib.register_parallel_backend("threading", original)
+    tally = config.stash.get(_WARNING_GUARD_TALLY, None)
+    if tally is not None and tally["failed"] and not tally["printed"]:
+        sys.stderr.write("\n".join(["warning-filter guard:"] + _warning_guard_lines(tally)) + "\n")
     saved = config.stash.get(_CONTAINMENT_SAVED, None)
     if saved is not None:
         import tempfile

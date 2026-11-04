@@ -8177,4 +8177,19 @@
 #   refused; the kernel imports and bootstraps without scikit-learn; the project's configuration fails a test that computes an
 #   undefined ranking metric), +3 / -1 tests/unit/test_explicit_absence.py (the single-class test, which pinned a fabricated recall
 #   curve as usable, became one per cohort asserting exactly the undefined curves, plus the defect as a property).
-8633
+# 2026-11-03  SKLEARN-WARNING-FILTER-RACE-1 -- no thread-parallel scikit-learn in the suite; a guard on the warning filters
+#   +13 / -3 by node identity (net +10). tests/unit/test_sklearn_parallel_warning_contract.py rewritten. -3: the tests that pinned
+#   the retired ignore entry's premise (the entry exists and is message-pinned; every module using delayed( has Parallel( as text;
+#   no delayed imported from sklearn.utils.parallel, skipping a file it could not parse). +12 there: joblib's "threading" backend
+#   is the sequential one for every named thread route and the other names keep joblib's classes; a forest, a histogram
+#   gradient-boosting fit (an explicit backend="threading") and pairwise distances run every task in the main thread and leave the
+#   filters bound and unchanged; the two pairing warnings are one error entry by module and nothing ignores them; through the
+#   configuration both mismatches fail and the matching pair passes; the child environment drops what changes a child's console
+#   and keeps the rest; a session whose mapping has no effect refuses to run; the session registers joblib's own thread backend
+#   again when it ends; the guard fails exactly five planted offenders (rebinding, emptying, showwarning, the thread backend
+#   registered again, an xfail-marked one) and the session, and passes a module-scoped forest, an explicit thread backend, scoped
+#   filters, pytest.warns and recwarn; an interrupt during teardown is never replaced; an added entry passes and is listed and a
+#   reordering fails; the package takes delayed and Parallel from joblib only, together (parsed); the scan sees planted offenders
+#   and refuses an unparsable file. +1 tests/unit/test_warning_filters_are_scoped.py: the scans fail on a file they cannot parse
+#   or read, and name it.
+8643
