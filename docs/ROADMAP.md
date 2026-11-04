@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **8,643 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **8,647 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -715,8 +715,25 @@ exists to end.
   start run in one scrubbed environment (CI, width and colour settings changed what they printed). An independent review before
   delivery found five defects and several overstatements; each was measured and fixed. Production keeps its threads
   (scikit-learn #35089 is open upstream). Open, recorded: DRIFT-SUITE-UNGUARDED-1 (tests_drift/ has no conftest, so neither this
-  guard nor the working-tree guard reaches it); WINDOWS-RSCRIPT-NOT-ON-PATH-1 (28 R tests skip in the owner's validations).
-  Suite 8,633 -> 8,643.
+  guard nor the working-tree guard reaches it; CLOSED 2026-11-04, below); WINDOWS-RSCRIPT-NOT-ON-PATH-1 (in the owner's
+  validations 28 tests skip because Rscript is not on PATH, and 10 more R tests skip for the pinned DANDELION package or unset
+  fixture variables). Suite 8,633 -> 8,643. MERGED AND VERIFIED ON WINDOWS 2026-11-04: three -Validate runs, each 8,555 passed,
+  83 skipped, 5 xfailed, 0 failed, no warnings, the guard 8,643 checked / 0 changed; pull request #63 (merge commit c98c5b92);
+  the post-merge targeted run had no warnings (448 two post-merge blocks earlier). The 83 Windows skips: R 38, POSIX-only 15,
+  symbolic links 13, pyBigWig and pybigtools 9, absent data or TODO 8.
+- **2026-11-04 -- DRIFT-SUITE-UNGUARDED-1: the session guards in the repository root's conftest.py, for every suite.** The
+  drift suite (tests_drift/, its own environment) never loaded tests/conftest.py, so it ran with no warning-filter guard, no
+  working-tree guard, its temporary files in the system temporary folder, and only ci.yml's `env -u` before its tests and the
+  workflow's publication files. Measured (pytest 9.0.3): a root conftest.py is loaded for `pytest tests/` and `pytest
+  tests_drift/` alike, and not by a child pytest a test starts on files outside the repository. The guards that apply to every
+  suite moved there by exact line ranges; tests/conftest.py keeps scripts/ on sys.path, the suite-size ratchet and the
+  connector-cache isolation. A drift session now shows both guards' sections (21 checked, 0 changed; working tree unchanged);
+  two drift tests prove the root conftest is loaded there and its preventions hold (both fail without it); at run time each
+  guard hook has exactly one conftest implementation, the root's; a child session laid out like tests_drift/ fails on a test
+  that rebinds the warning filters, writes into data/raw/cache, leaks a sys.path entry or writes into the checkout; and every
+  child pytest of the suite is bounded to its own folder (--confcutdir). One behaviour changed, measured by the independent
+  review: the guards are now set up before tests/conftest.py's connector-cache fixture. The repository root, newly on sys.path
+  for the drift run, shadows nothing it imports. Drift suite 19 -> 21; suite 8,643 -> 8,647.
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined

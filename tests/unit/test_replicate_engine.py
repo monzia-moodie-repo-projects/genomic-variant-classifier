@@ -414,7 +414,7 @@ def test_the_projects_configuration_fails_a_test_that_computes_an_undefined_rank
         "def test_defined():\n    assert roc_auc_score([0, 1, 1], [0.1, 0.2, 0.3]) == 1.0\n",
         encoding="utf-8")
     done = subprocess.run([sys.executable, "-B", "-m", "pytest", "-q", "-p", "no:cacheprovider",
-                           "-c", str(ROOT / "pyproject.toml"), "--rootdir", str(tmp_path),
+                           "-c", str(ROOT / "pyproject.toml"), "--rootdir", str(tmp_path), "--confcutdir", str(tmp_path),
                            str(tmp_path / "test_planted.py")],
                           cwd=str(tmp_path), env=child_pytest_environment(), capture_output=True,
                           text=True, timeout=300)

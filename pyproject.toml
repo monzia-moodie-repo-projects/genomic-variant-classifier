@@ -122,7 +122,7 @@ filterwarnings = [
     #     3. a caller that emptied the filters itself (resetwarnings()) and then fitted: no entry applies, and the warning is
     #        only shown. The package holds no such call (tests/unit/test_warning_filters_are_scoped.py) and neither does the
     #        suite.
-    # tests/conftest.py removes cause 2 for the suite: joblib's "threading" backend is its sequential one for the session, and a
+    # The root conftest.py removes cause 2 for both suites: joblib's "threading" backend is its sequential one for the session, and a
     # guard fails any test whose warning filters differ after its teardown from before its setup. What remains is a genuine
     # defect, so it is an ERROR. The explanation the ignore entry carried until 2026-11-01 -- a harmless thread-configuration note
     # from an estimator "inside a fold" -- was wrong.

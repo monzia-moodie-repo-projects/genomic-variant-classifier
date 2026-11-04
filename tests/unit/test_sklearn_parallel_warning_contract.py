@@ -13,7 +13,7 @@ wrong. 2026-11-01: 1,000 copies passed the ignore entry on pull request #58's va
 (sklearn/utils/parallel.py, read in full) runs every task of a thread-parallel estimator inside `catch_warnings();
 resetwarnings()` and refills the ONE process-wide filter list, so concurrent tasks rebind and can empty it.
 
-MEASURED 2026-11-03 (tests/conftest.py carries the full account): inside pytest, 20 of 20 thread-parallel RandomForest fits
+MEASURED 2026-11-03 (the repository root's conftest.py carries the full account): inside pytest, 20 of 20 thread-parallel RandomForest fits
 left the process bound to a different filter list with one entry changed in meaning; on the owner's machine 448 copies of the
 warning reached pytest (2026-11-03 06:18 UTC). While a list is empty, pyproject.toml's `error::` entries do not apply.
 
@@ -23,9 +23,9 @@ WHAT IS PINNED HERE
   its backend goes through that name -- so a forest at n_jobs=-1, a histogram gradient-boosting fit (an explicit
   backend="threading") and pairwise distances run every task in the main thread and leave the filters exactly as they were;
   joblib's process backends are unchanged (in this session);
-* DETECTION: tests/conftest.py fails the teardown of any test that leaves the warning state changed, restores it, fails the
+* DETECTION: the root conftest.py fails the teardown of any test that leaves the warning state changed, restores it, fails the
   SESSION as well (an xfail-marked test's teardown error is reported as an xfail), never replaces an interrupt, and passes the
-  patterns that restore themselves (child sessions running a byte copy of tests/conftest.py, in a scrubbed environment);
+  patterns that restore themselves (child sessions running a byte copy of the root conftest.py, in a scrubbed environment);
 * scikit-learn's two pairing warnings are an ERROR entry in pyproject.toml, selected by their module: through that
   configuration a scikit-learn `delayed` function run by joblib's own Parallel fails, a joblib `delayed` function run by
   scikit-learn's Parallel fails, and the matching pair passes (a child session reading pyproject.toml only);
@@ -52,7 +52,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[2]
 SRC = REPO / "src" / "genomic_variant_classifier"
 PYPROJECT = REPO / "pyproject.toml"
-CONFTEST = REPO / "tests" / "conftest.py"
+CONFTEST = REPO / "conftest.py"
 PAIRING_ENTRY = r"error::UserWarning:sklearn\.utils\.parallel"
 
 
@@ -143,7 +143,7 @@ def test_through_the_configuration_both_mismatches_fail_and_the_matching_pair_pa
     configuration's alone. Both mismatches and the matching pair, so no result is vacuous."""
     (tmp_path / "test_planted.py").write_text(PAIRING_TESTS, encoding="utf-8")
     done = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-c", str(PYPROJECT),
-                           "--rootdir", str(tmp_path), str(tmp_path / "test_planted.py")],
+                           "--rootdir", str(tmp_path), "--confcutdir", str(tmp_path), str(tmp_path / "test_planted.py")],
                           cwd=str(tmp_path), env=child_pytest_environment(), capture_output=True, text=True, timeout=300)
     out = done.stdout + done.stderr
     assert done.returncode == 1, out
@@ -227,12 +227,12 @@ CHILD_INI = "[pytest]\nfilterwarnings =\n    error::ResourceWarning\n"
 
 
 def _child(tmp_path: Path, environment, tests: str, plugin: str = "") -> subprocess.CompletedProcess:
-    """A small project whose tests/conftest.py is a byte copy of the real one (tests/unit/test_working_tree_guard.py's pattern);
+    """A small project whose root conftest.py is a byte copy of the real one (tests/unit/test_working_tree_guard.py's pattern);
     `plugin`, if given, is loaded with -p before the conftest, from a folder OUTSIDE the project."""
     project = tmp_path / "project"
     (project / "tests").mkdir(parents=True)
     (project / "pytest.ini").write_text(CHILD_INI, encoding="utf-8")
-    (project / "tests" / "conftest.py").write_bytes(CONFTEST.read_bytes())
+    (project / "conftest.py").write_bytes(CONFTEST.read_bytes())
     (project / "tests" / "test_child.py").write_text(tests, encoding="utf-8")
     plugins = tmp_path / "plugins"
     plugins.mkdir()
@@ -240,7 +240,8 @@ def _child(tmp_path: Path, environment, tests: str, plugin: str = "") -> subproc
     env = environment(PYTHONPATH=os.pathsep.join([str(REPO / "src"), str(plugins)] +
                                                         ([os.environ["PYTHONPATH"]] if os.environ.get("PYTHONPATH") else [])),
                              CHILD_PROBE_OUT=str(tmp_path / "probe.txt"))
-    return subprocess.run([sys.executable, "-m", "pytest", "tests", "-q", "-p", "no:cacheprovider", "-p", "child_probe"],
+    return subprocess.run([sys.executable, "-m", "pytest", "tests", "-q", "-p", "no:cacheprovider", "-p", "child_probe",
+                           "--confcutdir", str(project)],
                           cwd=str(project), env=env, capture_output=True, text=True, timeout=600)
 
 
@@ -248,7 +249,7 @@ def _dropped_by_the_conftest() -> tuple:
     for node in ast.parse(CONFTEST.read_text(encoding="utf-8"), filename=str(CONFTEST)).body:
         if isinstance(node, ast.Assign) and [getattr(x, "id", "") for x in node.targets] == ["CHILD_PYTEST_ENVIRONMENT_DROPPED"]:
             return ast.literal_eval(node.value)
-    raise AssertionError("tests/conftest.py no longer defines CHILD_PYTEST_ENVIRONMENT_DROPPED")
+    raise AssertionError("conftest.py (the repository root's) no longer defines CHILD_PYTEST_ENVIRONMENT_DROPPED")
 
 
 def test_a_child_pytest_environment_drops_what_changes_its_console_and_keeps_the_rest(child_pytest_environment, monkeypatch):

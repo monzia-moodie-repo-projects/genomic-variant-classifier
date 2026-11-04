@@ -21,8 +21,8 @@ must be asserted differently.
 THE FIXTURES SAVE AND RESTORE BOTH GLOBALS BY HAND. `_PIPELINE` and
 `_RUNTIME_MODEL_BINDING` must never drift apart -- a stale binding surviving a
 pipeline swap is a failure mode Commit A creates. None of these fixtures is
-autouse and none requests `monkeypatch`, following the rule `tests/conftest.py`
-arrived at after an autouse fixture requesting monkeypatch broke two passing
+autouse and none requests `monkeypatch`, following the rule the root `conftest.py` (`tests/conftest.py`
+until 2026-11-04) arrived at after an autouse fixture requesting monkeypatch broke two passing
 tests twice.
 """
 from __future__ import annotations

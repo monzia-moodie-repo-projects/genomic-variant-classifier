@@ -27,6 +27,7 @@ HOW TO RUN THESE
     NEW_FOLDER/Scripts/python -m pytest tests_drift/ -v       (NEW_FOLDER/bin/python on Linux)
 
 Continuous Integration runs exactly this, in its own job (the drift profile's lock holds pytest since 2026-11-02).
+The repository root's conftest.py guards this suite as it guards tests/ (2026-11-04; tests_drift/test_session_guards.py).
 """
 from __future__ import annotations
 

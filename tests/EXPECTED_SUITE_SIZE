@@ -8192,4 +8192,10 @@
 #   reordering fails; the package takes delayed and Parallel from joblib only, together (parsed); the scan sees planted offenders
 #   and refuses an unparsable file. +1 tests/unit/test_warning_filters_are_scoped.py: the scans fail on a file they cannot parse
 #   or read, and name it.
-8643
+# 2026-11-04  DRIFT-SUITE-UNGUARDED-1 -- the session guards move to the repository root's conftest.py, for every suite
+#   +4 / -0 by node identity (collected and diffed against c98c5b92). +4 tests/unit/test_session_guard_placement.py: this session
+#   loads the root conftest and tests/conftest.py; the guards are in the root conftest and nothing is defined in both; at run time
+#   every guard hook has exactly one conftest implementation, the root's; a session laid out like tests_drift/ is guarded by the
+#   root conftest (a rebinding test, a data/raw/cache write and a sys.path leak error at teardown, a write into the checkout fails
+#   the session). (tests_drift/ is outside this count: 19 -> 21, tests_drift/test_session_guards.py.)
+8647

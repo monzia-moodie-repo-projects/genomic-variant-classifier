@@ -1,10 +1,11 @@
 """No test may publish to the running GitHub workflow (added 2026-09-27).
 
 MEASURED on CI run #896 (merge of #28): a TEST published a fabricated "NOT VERIFIED" verdict about a real run onto
-the pytest jobs' summaries, through $GITHUB_STEP_SUMMARY. tests/conftest.py now removes the workflow-command
-variables (its _GITHUB_WORKFLOW_COMMAND_FILES -- the ONE source, parsed here, never duplicated) around every test. Checking "absent inside a test" alone would be VACUOUS off CI (they are never set
-locally), so the parent test launches a CHILD pytest WITH the variables pointing at real files, and requires the
-child's probe to find them absent and the files to stay EMPTY.
+the pytest jobs' summaries, through $GITHUB_STEP_SUMMARY. The repository root's conftest.py (tests/conftest.py until
+2026-11-04) now removes the workflow-command variables around every test, for every suite (its
+_GITHUB_WORKFLOW_COMMAND_FILES -- the ONE source, parsed here, never duplicated). Checking "absent inside a test" alone
+would be VACUOUS off CI (they are never set locally), so the parent test launches a CHILD pytest WITH the variables
+pointing at real files, and requires the child's probe to find them absent and the files to stay EMPTY.
 
 Author: Monzia Moodie
 """
@@ -21,8 +22,8 @@ _ROOT = Path(__file__).resolve().parents[2]
 
 
 def _conftest_set():
-    """tests/conftest.py's _GITHUB_WORKFLOW_COMMAND_FILES, read by PARSING the file (a conftest is never imported)."""
-    tree = ast.parse((_ROOT / "tests" / "conftest.py").read_text(encoding="utf-8"))
+    """The root conftest.py's _GITHUB_WORKFLOW_COMMAND_FILES, read by PARSING the file (a conftest is never imported)."""
+    tree = ast.parse((_ROOT / "conftest.py").read_text(encoding="utf-8"))
     values = [ast.literal_eval(n.value) for n in tree.body if isinstance(n, ast.Assign)
               and any(isinstance(t, ast.Name) and t.id == "_GITHUB_WORKFLOW_COMMAND_FILES" for t in n.targets)]
     assert len(values) == 1, values

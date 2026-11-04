@@ -66,7 +66,7 @@ filters govern every thread. MEASURED 2026-11-01:
 So a library filter is never private to its caller. The package therefore holds
 NO `filterwarnings`, `simplefilter` or `resetwarnings` call at any depth.
 
-For the SUITE that race is closed (2026-11-03): tests/conftest.py maps joblib's
+For the SUITES that race is closed (2026-11-03): the root conftest.py maps joblib's
 "threading" backend to its sequential one, so no worker thread enters
 `catch_warnings`, and fails any test whose warning filters differ after its
 teardown from before its setup
@@ -212,7 +212,7 @@ def test_the_projects_own_configuration_fails_a_test_that_leaks_a_file(tmp_path,
         "def test_closes(tmp_path):\n    p = tmp_path / 'b.txt'\n    p.write_text('b')\n    assert Path(p).read_text() == 'b'\n",
         encoding="utf-8")
     done = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-c", str(PYPROJECT),
-                           "--rootdir", str(tmp_path), str(tmp_path / "test_planted.py")],
+                           "--rootdir", str(tmp_path), "--confcutdir", str(tmp_path), str(tmp_path / "test_planted.py")],
                           cwd=str(tmp_path), env=child_pytest_environment(), capture_output=True, text=True, timeout=300)
     out = done.stdout + done.stderr
     assert done.returncode == 1, out

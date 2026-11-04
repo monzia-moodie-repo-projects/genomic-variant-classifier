@@ -272,7 +272,7 @@ data/processed/seq_windows/*.tmp.parquet
 # meaningful to track.
 #
 # Deliberately NOT broad: these name the coverage artifacts exactly rather than
-# ignoring a wildcard that could also hide a real file. tests/conftest.py records why
+# ignoring a wildcard that could also hide a real file. The root conftest.py records why
 # that restraint matters -- data/raw/ being gitignored is precisely what blinded
 # `git status` to test-induced cache pollution (see the guard added 2026-07-11).
 .coverage

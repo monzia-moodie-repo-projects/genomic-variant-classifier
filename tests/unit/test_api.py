@@ -625,7 +625,7 @@ def client():
     BOTH globals are set and BOTH are restored. A binding surviving a
     pipeline swap is a failure mode PROD-1 creates, and this fixture is
     where it would first appear. Deliberately not autouse and it does
-    not request `monkeypatch`: tests/conftest.py records what happens
+    not request `monkeypatch`: the root conftest.py records what happens
     when an autouse fixture drags monkeypatch into the autouse group.
 
     tests/unit/test_runtime_attribution.py carries the fixtures for the
