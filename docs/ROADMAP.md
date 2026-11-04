@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **8,633 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **8,643 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -695,10 +695,28 @@ exists to end.
   only where its axes have members, and each absence names the class counts. Also: each curve's absence takes its cause from its
   own input channel (a refused `scores` array was recorded as undefined on the cohort); evaluate()'s unused duplicate absence maps
   are gone; metrics.py no longer imports nine scikit-learn names it never used, so the kernel imports without scikit-learn; a
-  warning from scikit-learn's ranking module now fails its test. Zero warnings in the suite (Python 3.11 and 3.12). Not yet
-  measured: whether any persisted report was affected (affected exactly when its interval is available and records a degenerate
-  replicate; a read-only census is prepared). A report records neither the code nor the library versions that wrote it
-  (REPORT-PROVENANCE-ABSENT-1, open), so the census dates each report by its file's modification time. Suite 8,607 -> 8,633.
+  warning from scikit-learn's ranking module now fails its test. Zero warnings in the suite (Python 3.11 and 3.12; on Windows,
+  2026-11-03: 8,545 passed, 83 skipped, 5 xfailed, 0 failed, no warnings). Merged 2026-11-03 as pull request #62 (2c2ba877).
+  MEASURED 2026-11-03, the read-only census on the owner's machine: none of the 10 persisted reports is affected -- all are schema
+  version 1 (2026-04-04 to 2026-06-13), written by ClinicalEvaluator._bootstrap_ci, which skipped single-class replicates from
+  2026-03-12 (e1e9242) until it was replaced on 2026-07-26 (eca534e), after all ten. A report records neither the code nor the
+  library versions that wrote it (REPORT-PROVENANCE-ABSENT-1, open), so one written by uncommitted code cannot be attributed.
+  Suite 8,607 -> 8,633.
+- **2026-11-03 -- SKLEARN-WARNING-FILTER-RACE-1: no thread-parallel scikit-learn in the suite, and a guard on the warning
+  filters.** On Python 3.12 the warning filters are one process-wide list, and scikit-learn 1.8.0 resets and refills it inside
+  every task of a thread-parallel call; concurrent tasks rebind it and can empty it. Measured inside pytest: 20 of 20 threaded
+  forest fits left the process on a different list, one entry changed in meaning; a census of the full suite found 14 tests (all
+  with threaded calls, none without) ending that way; on the owner's machine 448 copies of scikit-learn's pairing warning reached
+  pytest through the ignore entry meant to hide them, and while a list is empty no `error::` entry applies. tests/conftest.py
+  maps joblib's "threading" backend to its sequential one for the session (every thread request that names its backend,
+  explicit backend="threading" included; process backends are untouched) and fails the teardown of any test whose warning state
+  differs from the one bound before its setup -- and the session with it; entries libraries add while a test runs are listed in
+  the guard's summary section. Both of scikit-learn's pairing warnings are now one error entry, by module. Child pytests that tests
+  start run in one scrubbed environment (CI, width and colour settings changed what they printed). An independent review before
+  delivery found five defects and several overstatements; each was measured and fixed. Production keeps its threads
+  (scikit-learn #35089 is open upstream). Open, recorded: DRIFT-SUITE-UNGUARDED-1 (tests_drift/ has no conftest, so neither this
+  guard nor the working-tree guard reaches it); WINDOWS-RSCRIPT-NOT-ON-PATH-1 (28 R tests skip in the owner's validations).
+  Suite 8,633 -> 8,643.
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined

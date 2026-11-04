@@ -46,11 +46,11 @@ def test_probe_workflow_command_variables_are_absent_inside_a_test():
             Path(target).write_text("LEAKED\n", encoding="utf-8")
 
 
-def test_no_test_can_publish_to_the_workflow(tmp_path):
+def test_no_test_can_publish_to_the_workflow(tmp_path, child_pytest_environment):
     files = {name: tmp_path / name.lower() for name in _NAMES}
     for f in files.values():
         f.write_text("", encoding="utf-8")
-    env = dict(os.environ, **{name: str(f) for name, f in files.items()}, **{_CHILD: "1"})
+    env = child_pytest_environment(**{name: str(f) for name, f in files.items()}, **{_CHILD: "1"})
     r = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
                         "tests/unit/test_github_workflow_command_isolation.py::test_probe_workflow_command_variables_are_absent_inside_a_test"],
                        cwd=_ROOT, env=env, capture_output=True, text=True, timeout=300)

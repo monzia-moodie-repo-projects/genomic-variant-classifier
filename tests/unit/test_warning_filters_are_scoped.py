@@ -34,9 +34,9 @@ collection order, and it should not decide what a run reports.
 
 WHY A GUARD RATHER THAN JUST A DELETION
 ---------------------------------------
-`pyproject.toml` already carries the correct pattern: two filters, each pinned
-to an exact MESSAGE, each with a paragraph of measured justification, and an
-explicit instruction beside one of them --
+`pyproject.toml` already carried the correct pattern (2026-08-26): two filters,
+each pinned to an exact MESSAGE, each with a paragraph of measured justification,
+and an explicit instruction beside one of them --
 
     DO NOT broaden this to `ignore::UserWarning`. It is pinned to this exact
     message so a DIFFERENT UserWarning still reaches us.
@@ -66,6 +66,12 @@ filters govern every thread. MEASURED 2026-11-01:
 So a library filter is never private to its caller. The package therefore holds
 NO `filterwarnings`, `simplefilter` or `resetwarnings` call at any depth.
 
+For the SUITE that race is closed (2026-11-03): tests/conftest.py maps joblib's
+"threading" backend to its sequential one, so no worker thread enters
+`catch_warnings`, and fails any test whose warning filters differ after its
+teardown from before its setup
+(tests/unit/test_sklearn_parallel_warning_contract.py proves both).
+
 Author: Monzia Moodie
 """
 from __future__ import annotations
@@ -85,7 +91,7 @@ PYPROJECT = ROOT / "pyproject.toml"
 MUTATORS = ("filterwarnings", "simplefilter")
 
 
-def module_level_filters(source: str):
+def module_level_filters(source: str, filename: str = "<source>"):
     """Filter mutations in `tree.body` -- module level BY CONSTRUCTION.
 
     Parsed, not searched. A call inside a function or a `with` block is not in
@@ -93,7 +99,7 @@ def module_level_filters(source: str):
     pattern that might or might not notice the indentation.
     """
     found = []
-    for node in ast.parse(source).body:
+    for node in ast.parse(source, filename=filename).body:
         if not isinstance(node, ast.Expr) or not isinstance(node.value, ast.Call):
             continue
         fn = node.value.func
@@ -101,6 +107,15 @@ def module_level_filters(source: str):
         if name in MUTATORS:
             found.append((node.lineno, ast.unparse(node.value)[:70]))
     return found
+
+
+def _read(path: Path) -> str:
+    """The file's text; a file that cannot be read or decoded FAILS the scan and is named (a SyntaxError names it already,
+    through the filename handed to ast.parse)."""
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise AssertionError("{}: cannot be read as UTF-8 text, so it cannot be scanned: {!r}".format(path, exc)) from exc
 
 
 def _scan(root: Path, base: Path = None):
@@ -113,24 +128,18 @@ def _scan(root: Path, base: Path = None):
 
     That is the guard-the-guard test doing its job: a helper that cannot be
     exercised on a fixture cannot be shown to work at all.
+
+    A file that cannot be read or parsed FAILS the scan (2026-11-03). It used to
+    be skipped in silence -- a scan that skips what it cannot read passes over it
+    forever. Measured that day: all 437 files under tests/ and 298 under src/
+    read and parse, so the skips had never fired; the unreachable ValueError
+    branch for paths outside `base` went with them.
     """
     anchor = base if base is not None else root
     offenders = []
     for path in sorted(root.rglob("*.py")):
-        try:
-            source = path.read_text(encoding="utf-8")
-        except OSError:                            # pragma: no cover
-            continue
-        try:
-            hits = module_level_filters(source)
-        except SyntaxError:                        # pragma: no cover
-            continue
-        for line, call in hits:
-            try:
-                shown = path.relative_to(anchor).as_posix()
-            except ValueError:                     # pragma: no cover
-                shown = path.as_posix()
-            offenders.append("{}:{}  {}".format(shown, line, call))
+        for line, call in module_level_filters(_read(path), str(path)):
+            offenders.append("{}:{}  {}".format(path.relative_to(anchor).as_posix(), line, call))
     return offenders
 
 
@@ -149,10 +158,10 @@ def test_no_module_level_warning_filter_in_the_package():
           "that needs it, or pin a message in pyproject.toml.")
 
 
-def any_depth_filters(source: str):
+def any_depth_filters(source: str, filename: str = "<source>"):
     """Every filter mutation in the module, AT ANY DEPTH (functions, `with` blocks, classes included)."""
     found = []
-    for node in ast.walk(ast.parse(source)):
+    for node in ast.walk(ast.parse(source, filename=filename)):
         if isinstance(node, ast.Call):
             fn = node.func
             name = fn.attr if isinstance(fn, ast.Attribute) else getattr(fn, "id", "")
@@ -165,7 +174,7 @@ def _scan_any_depth(root: Path, base: Path = None):
     anchor = base if base is not None else root
     offenders = []
     for path in sorted(root.rglob("*.py")):
-        for line, call in any_depth_filters(path.read_text(encoding="utf-8")):
+        for line, call in any_depth_filters(_read(path), str(path)):
             offenders.append("{}:{}  {}".format(path.relative_to(anchor).as_posix(), line, call))
     return offenders
 
@@ -188,7 +197,7 @@ def test_the_any_depth_scan_finds_a_scoped_blanket_in_a_function(tmp_path):
     assert len(offenders) == 1 and "fit.py:6" in offenders[0], offenders
 
 
-def test_the_projects_own_configuration_fails_a_test_that_leaks_a_file(tmp_path):
+def test_the_projects_own_configuration_fails_a_test_that_leaks_a_file(tmp_path, child_pytest_environment):
     """pyproject.toml's two error entries, through pytest itself: a leaking test FAILS, the same test closing its file PASSES.
 
     Run in a child pytest that reads THIS repository's configuration (-c) but not its conftest, so the verdict is the
@@ -204,7 +213,7 @@ def test_the_projects_own_configuration_fails_a_test_that_leaks_a_file(tmp_path)
         encoding="utf-8")
     done = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-c", str(PYPROJECT),
                            "--rootdir", str(tmp_path), str(tmp_path / "test_planted.py")],
-                          cwd=str(tmp_path), capture_output=True, text=True, timeout=300)
+                          cwd=str(tmp_path), env=child_pytest_environment(), capture_output=True, text=True, timeout=300)
     out = done.stdout + done.stderr
     assert done.returncode == 1, out
     assert "FAILED" in out and "test_planted.py::test_leaks" in out and "1 failed, 1 passed" in out, out
@@ -238,12 +247,27 @@ def test_the_scan_finds_a_planted_offender(tmp_path):
     assert "offender.py:3" in offenders[0]
 
 
+def test_the_scans_fail_on_a_file_they_cannot_parse_or_read_and_name_it(tmp_path):
+    """The silent skips are gone (2026-11-03): a scan that skips what it cannot read passes over it forever."""
+    (tmp_path / "broken.py").write_text("def (:\n", encoding="utf-8")
+    for scan in (_scan, _scan_any_depth):
+        with pytest.raises(SyntaxError) as caught:
+            scan(tmp_path)
+        assert caught.value.filename == str(tmp_path / "broken.py"), caught.value.filename
+    (tmp_path / "broken.py").unlink()
+    (tmp_path / "undecodable.py").write_bytes(b"x = '\xff\xfe'\n")
+    for scan in (_scan, _scan_any_depth):
+        with pytest.raises(AssertionError, match="undecodable.py: cannot be read as UTF-8 text"):
+            scan(tmp_path)
+
+
 def test_a_scoped_filter_is_not_an_offender(tmp_path):
     """The permissive direction, and it matters.
 
     A rule that also refused `catch_warnings` would push the next author to
-    delete a legitimate scoped filter -- or to stop scoping at all. Ten such
-    calls exist in this repository and every one is correct.
+    delete a legitimate scoped filter -- or to stop scoping at all. Measured
+    2026-11-03 (parsed): 9 such calls in tests/ and 2 in scripts/, every one
+    inside `with warnings.catch_warnings():`.
     """
     scoped = tmp_path / "scoped.py"
     scoped.write_text(

@@ -401,7 +401,8 @@ def test_the_kernel_imports_and_bootstraps_without_scikit_learn():
 # --------------------------------------------------------------------------- #
 # 5. The configuration keeps it that way
 # --------------------------------------------------------------------------- #
-def test_the_projects_configuration_fails_a_test_that_computes_an_undefined_ranking_metric(tmp_path):
+def test_the_projects_configuration_fails_a_test_that_computes_an_undefined_ranking_metric(
+        tmp_path, child_pytest_environment):
     """pyproject.toml makes any warning from scikit-learn's ranking module an ERROR, so
     a future call on undefined input fails the test that makes it instead of joining a
     warning count. Through pytest itself, against THIS repository's configuration, in
@@ -415,7 +416,8 @@ def test_the_projects_configuration_fails_a_test_that_computes_an_undefined_rank
     done = subprocess.run([sys.executable, "-B", "-m", "pytest", "-q", "-p", "no:cacheprovider",
                            "-c", str(ROOT / "pyproject.toml"), "--rootdir", str(tmp_path),
                            str(tmp_path / "test_planted.py")],
-                          cwd=str(tmp_path), capture_output=True, text=True, timeout=300)
+                          cwd=str(tmp_path), env=child_pytest_environment(), capture_output=True,
+                          text=True, timeout=300)
     out = done.stdout + done.stderr
     assert done.returncode == 1, out
     assert "2 failed, 1 passed" in out, out

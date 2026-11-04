@@ -420,7 +420,7 @@ def test_an_unparseable_file_is_reported_not_silently_skipped(tmp_path: Path) ->
 # --------------------------------------------------------------------------
 # 9. The ratchet number, measured
 # --------------------------------------------------------------------------
-def test_the_collected_count_is_measured_by_pytest_not_computed() -> None:
+def test_the_collected_count_is_measured_by_pytest_not_computed(child_pytest_environment) -> None:
     """Ask pytest how many items this file yields. Do not derive it.
 
     The previous version asserted a value against its own definition and could
@@ -430,7 +430,7 @@ def test_the_collected_count_is_measured_by_pytest_not_computed() -> None:
     proc = subprocess.run(
         [sys.executable, "-m", "pytest", str(_THIS_FILE),
          "--collect-only", "-q", "--no-header", "-p", "no:cacheprovider"],
-        capture_output=True, text=True, cwd=str(_REPO_ROOT),
+        capture_output=True, text=True, cwd=str(_REPO_ROOT), env=child_pytest_environment(),
     )
     match = re.search(r"(\d+)\s+tests?\s+collected", proc.stdout)
     assert match, (

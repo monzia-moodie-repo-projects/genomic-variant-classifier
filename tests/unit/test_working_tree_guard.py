@@ -86,7 +86,7 @@ def test_writes_a_checkpoint_into_the_current_directory():
 '''
 
 
-def _child(tmp_path: Path, tests: str, *extra: str, quiet: bool = True) -> tuple[subprocess.CompletedProcess, Path, Path]:
+def _child(tmp_path: Path, environment, tests: str, *extra: str, quiet: bool = True) -> tuple[subprocess.CompletedProcess, Path, Path]:
     project = tmp_path / "project"
     (project / "tests").mkdir(parents=True)
     (project / "tests" / "conftest.py").write_bytes(CONFTEST.read_bytes())
@@ -95,17 +95,19 @@ def _child(tmp_path: Path, tests: str, *extra: str, quiet: bool = True) -> tuple
     plugins.mkdir()
     (plugins / "guard_probe.py").write_text(PROBE_PLUGIN, encoding="utf-8")
     probe = tmp_path / "probe.json"
-    env = dict(os.environ, PYTHONPATH=os.pathsep.join([str(REPO / "src"), str(plugins)] +
-                                                      ([os.environ["PYTHONPATH"]] if os.environ.get("PYTHONPATH") else [])),
-               GUARD_PROBE_OUT=str(probe))
+    # environment: tests/conftest.py's child_pytest_environment, so the host's CI, width and colour settings cannot change what
+    # the child prints (2026-11-03).
+    env = environment(PYTHONPATH=os.pathsep.join([str(REPO / "src"), str(plugins)] +
+                                                 ([os.environ["PYTHONPATH"]] if os.environ.get("PYTHONPATH") else [])),
+                      GUARD_PROBE_OUT=str(probe))
     run = subprocess.run([sys.executable, "-m", "pytest", "tests", *(["-q"] if quiet else []), "-p", "no:cacheprovider", "-p", "guard_probe",
                           *extra],
                          cwd=str(project), env=env, capture_output=True, text=True, timeout=600)
     return run, project, probe
 
 
-def test_a_clean_session_passes_and_restores_everything(tmp_path):
-    run, project, probe = _child(tmp_path, CLEAN_TESTS)
+def test_a_clean_session_passes_and_restores_everything(tmp_path, child_pytest_environment):
+    run, project, probe = _child(tmp_path, child_pytest_environment, CLEAN_TESTS)
     assert run.returncode == 0, run.stdout + run.stderr
     assert "5 passed" in run.stdout and "working-tree guard" in run.stdout and "unchanged" in run.stdout, run.stdout
     seen = json.loads(probe.read_text(encoding="utf-8"))
@@ -115,8 +117,8 @@ def test_a_clean_session_passes_and_restores_everything(tmp_path):
     assert seen["after"]["tempdir"] in (None, os.path.abspath(seen["before"]["env"]["TMPDIR"])), seen
 
 
-def test_a_session_that_writes_into_the_checkout_fails_and_names_what_it_left(tmp_path):
-    run, project, _ = _child(tmp_path, DIRTY_TESTS)
+def test_a_session_that_writes_into_the_checkout_fails_and_names_what_it_left(tmp_path, child_pytest_environment):
+    run, project, _ = _child(tmp_path, child_pytest_environment, DIRTY_TESTS)
     assert run.returncode == 1, run.stdout + run.stderr
     out = run.stdout
     assert "1 passed" in out, out                                     # every test passed; the SESSION fails
@@ -125,20 +127,20 @@ def test_a_session_that_writes_into_the_checkout_fails_and_names_what_it_left(tm
     assert (project / "models" / "best_gat.pt").is_file()             # it reports; it deletes nothing
 
 
-def test_without_a_terminal_summary_the_finding_still_reaches_the_console(tmp_path):
+def test_without_a_terminal_summary_the_finding_still_reaches_the_console(tmp_path, child_pytest_environment):
     """MEASURED 2026-10-31 (pull request #56's Continuous Integration run, which installs pytest 9.2.0 from requirements-dev.txt):
     pytest 9.0.3 -- the lock's -- does not call plugins' terminal summaries under --no-summary, so the guard writes its finding to
     standard error at unconfigure; pytest 9.2.0 calls them ("Always invoke pytest_terminal_summary so third-party plugins can
     report"), so the finding is in the summary. Either way it must reach the console, and exactly once."""
-    run, _, _ = _child(tmp_path, DIRTY_TESTS, "--no-summary")
+    run, _, _ = _child(tmp_path, child_pytest_environment, DIRTY_TESTS, "--no-summary")
     assert run.returncode == 1, run.stdout + run.stderr
     console = run.stdout + run.stderr
     assert console.count("THE TEST SESSION CHANGED THE WORKING TREE") == 1 and "models/best_gat.pt" in console, console
 
 
-def test_without_the_terminal_plugin_the_finding_reaches_standard_error(tmp_path):
+def test_without_the_terminal_plugin_the_finding_reaches_standard_error(tmp_path, child_pytest_environment):
     """No terminal reporter at all, on every pytest version: the fallback at unconfigure is the only way the finding is seen."""
-    run, _, _ = _child(tmp_path, DIRTY_TESTS, "-p", "no:terminal", quiet=False)
+    run, _, _ = _child(tmp_path, child_pytest_environment, DIRTY_TESTS, "-p", "no:terminal", quiet=False)
     assert run.returncode == 1, run.stdout + run.stderr
     assert run.stderr.startswith("working-tree guard:\n") and "    models/best_gat.pt\n" in run.stderr, run.stderr
     assert run.stdout == "", run.stdout
@@ -169,16 +171,16 @@ def test_never_reached():
 '''
 
 
-def test_the_runs_own_coverage_outputs_are_not_a_finding(tmp_path):
-    run, project, _ = _child(tmp_path, CLEAN_TESTS, *COVERAGE_OPTIONS)
+def test_the_runs_own_coverage_outputs_are_not_a_finding(tmp_path, child_pytest_environment):
+    run, project, _ = _child(tmp_path, child_pytest_environment, CLEAN_TESTS, *COVERAGE_OPTIONS)
     assert run.returncode == 0, run.stdout + run.stderr
     assert "5 passed" in run.stdout and "(at the end of the test loop)" in run.stdout and "unchanged" in run.stdout, run.stdout
     # The outputs were written, after the comparison -- which is why they are not a finding.
     assert (project / ".coverage").is_file() and (project / "coverage.xml").is_file(), sorted(p.name for p in project.iterdir())
 
 
-def test_under_coverage_a_test_that_writes_into_the_checkout_still_fails_even_under_an_output_name(tmp_path):
-    run, project, _ = _child(tmp_path, DIRTY_UNDER_COVERAGE_TESTS, *COVERAGE_OPTIONS)
+def test_under_coverage_a_test_that_writes_into_the_checkout_still_fails_even_under_an_output_name(tmp_path, child_pytest_environment):
+    run, project, _ = _child(tmp_path, child_pytest_environment, DIRTY_UNDER_COVERAGE_TESTS, *COVERAGE_OPTIONS)
     assert run.returncode == 1, run.stdout + run.stderr
     out = run.stdout
     assert "1 passed" in out and "THE TEST SESSION CHANGED THE WORKING TREE" in out and "ADDED (3):" in out, out
@@ -186,8 +188,8 @@ def test_under_coverage_a_test_that_writes_into_the_checkout_still_fails_even_un
     assert "    .coverage\n" not in out, out                                 # the data file pytest-cov writes is not a test's doing
 
 
-def test_a_loop_that_stops_early_says_so(tmp_path):
-    run, _, _ = _child(tmp_path, STOPS_EARLY_TESTS, "-x")
+def test_a_loop_that_stops_early_says_so(tmp_path, child_pytest_environment):
+    run, _, _ = _child(tmp_path, child_pytest_environment, STOPS_EARLY_TESTS, "-x")
     assert run.returncode == 1, run.stdout + run.stderr
     assert "1 failed" in run.stdout and "the test loop stopped early" in run.stdout and "unchanged" in run.stdout, run.stdout
 
@@ -202,12 +204,12 @@ def test_never_runs():
 '''
 
 
-def test_a_collection_only_run_is_contained_at_import_time(tmp_path, monkeypatch):
+def test_a_collection_only_run_is_contained_at_import_time(tmp_path, monkeypatch, child_pytest_environment):
     """MEASURED 2026-10-12: with containment in a session fixture, a --collect-only run (and every run's collection) still created
     torchinductor_root in the outer temporary folder. Containment now starts at configuration, before any test module is imported."""
     out = tmp_path / "made.txt"
     monkeypatch.setenv("GUARD_IMPORT_OUT", str(out))
-    run, _, _ = _child(tmp_path, IMPORT_TIME_PROBE, "--collect-only")
+    run, _, _ = _child(tmp_path, child_pytest_environment, IMPORT_TIME_PROBE, "--collect-only")
     assert run.returncode == 0, run.stdout + run.stderr
     made = Path(out.read_text(encoding="utf-8"))
     assert made.parent.name == "tempfile" and made.parent.parent.name.startswith("pytest-"), made
