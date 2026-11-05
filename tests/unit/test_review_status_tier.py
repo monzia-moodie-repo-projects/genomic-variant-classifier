@@ -63,8 +63,7 @@ from genomic_variant_classifier.data.review_status import (
     tiers_for,
 )
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import _review_map_detector as detector          # noqa: E402
+from tests.unit import _review_map_detector as detector  # tests/unit is a package: no sys.path entry (2026-11-05)
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _THIS_FILE = Path(__file__).resolve()

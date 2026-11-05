@@ -4,8 +4,9 @@ Until 2026-11-04 the guards were in tests/conftest.py, which `pytest tests_drift
 now; tests/conftest.py keeps what is tests/'s alone (scripts/ on sys.path, the suite-size ratchet, the connector-cache isolation).
 Pinned here: both conftests are loaded in this session; no hook or fixture is defined in both files, and at run time every guard
 hook has exactly one conftest implementation -- the root's -- in the whole session, every conftest under tests/ included (a hook
-implemented twice runs twice); and, from outside, a session laid out like tests_drift/ -- a root conftest.py that is a byte copy of
-the real one, test files in tests_drift/, no tests/conftest.py -- fails on a test that rebinds the warning filters, one that
+implemented twice runs twice); and, from outside, a session laid out like tests_drift/ -- a root conftest.py that is the real one
+with its list of filter-registering modules emptied (the root conftest's child_conftest fixture), test files in tests_drift/, no
+tests/conftest.py -- fails on a test that rebinds the warning filters, one that
 writes into data/raw/cache, one that leaks a sys.path entry and one that writes into the checkout, and names each.
 tests_drift/test_session_guards.py observes the guards from inside a real drift session.
 
@@ -24,8 +25,8 @@ ROOT_CONFTEST = REPO / "conftest.py"
 TESTS_CONFTEST = REPO / "tests" / "conftest.py"
 
 
-GUARD_HOOKS = ("pytest_configure", "pytest_runtest_setup", "pytest_runtest_teardown", "pytest_sessionstart", "pytest_runtestloop",
-               "pytest_sessionfinish", "pytest_terminal_summary", "pytest_unconfigure")
+GUARD_HOOKS = ("pytest_configure", "pytest_runtest_setup", "pytest_runtest_teardown", "pytest_sessionstart", "pytest_collection",
+               "pytest_runtestloop", "pytest_sessionfinish", "pytest_terminal_summary", "pytest_unconfigure")
 
 
 def _top_level_functions(path: Path) -> set:
@@ -43,7 +44,8 @@ def test_the_guards_are_in_the_root_conftest_and_nothing_is_defined_in_both():
     root, tests = _top_level_functions(ROOT_CONFTEST), _top_level_functions(TESTS_CONFTEST)
     assert not root & tests, sorted(root & tests)
     hooks = set(GUARD_HOOKS)
-    fixtures = {"_no_data_dir_writes", "_no_sys_path_leaks", "_isolate_github_workflow_commands", "child_pytest_environment"}
+    fixtures = {"_no_data_dir_writes", "_no_sys_path_leaks", "_isolate_github_workflow_commands", "child_pytest_environment",
+                "child_conftest"}
     assert hooks | fixtures <= root, sorted((hooks | fixtures) - root)
     assert tests == {"_read_expected_suite_size", "pytest_addoption", "pytest_collection_modifyitems", "_isolate_connector_caches"}, \
         sorted(tests)
@@ -86,10 +88,10 @@ def test_passes():
 '''
 
 
-def test_a_session_laid_out_like_tests_drift_is_guarded_by_the_root_conftest(tmp_path, child_pytest_environment):
+def test_a_session_laid_out_like_tests_drift_is_guarded_by_the_root_conftest(tmp_path, child_pytest_environment, child_conftest):
     project = tmp_path / "project"
     (project / "tests_drift").mkdir(parents=True)
-    (project / "conftest.py").write_bytes(ROOT_CONFTEST.read_bytes())
+    (project / "conftest.py").write_bytes(child_conftest())
     (project / "tests_drift" / "test_child.py").write_text(DRIFT_LAYOUT_TESTS, encoding="utf-8")
     env = child_pytest_environment(PYTHONPATH=os.pathsep.join([str(REPO / "src")] +
                                                                ([os.environ["PYTHONPATH"]] if os.environ.get("PYTHONPATH") else [])))

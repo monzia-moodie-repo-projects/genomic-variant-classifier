@@ -13,8 +13,9 @@ here; what belongs to tests/ alone -- scripts/ on sys.path, the suite-size ratch
 tests/conftest.py.
 
 The guards, in this file's order: sys.path leaks and writes into data/raw/cache (per test); the workflow's publication files
-(per session and per test); the environment of a child pytest; temporary-file containment; no thread-parallel joblib work and
-the warning-filter guard; the working-tree guard (per session).
+(per session and per test); the environment and the conftest.py of a child pytest; temporary-file containment; no thread-parallel
+joblib work and the warning-filter guard; the libraries that register warning filters when first imported, imported at session
+start, and the check around collection (since 2026-11-05); the working-tree guard (per session).
 
 Author: Monzia Moodie
 """
@@ -307,6 +308,30 @@ def child_pytest_environment():
     return build
 
 
+# The conftest.py of a CHILD project (added 2026-11-05) -- the one source. Four test files run child sessions whose root conftest.py
+# is this file; until 2026-11-05 each wrote a byte copy. A byte copy now imports this file's list of filter-registering modules
+# (torch, spaCy and the rest, about 4 s) at session start, and with no pyproject.toml of the repository's to hide them, reports the
+# three warnings torch_geometric emits about its own code: neither has anything to do with the guard such a session tests. So a
+# child gets this file with exactly one statement changed -- _FILTER_REGISTERING_MODULES, replaced by the names given (none by
+# default) -- found by parsing; tests/unit/test_filter_registering_imports.py proves nothing else differs.
+@pytest.fixture
+def child_conftest():
+    """A function returning this file's bytes with _FILTER_REGISTERING_MODULES replaced by the given module names."""
+    def build(*names: str) -> bytes:
+        import ast
+
+        text = _here.read_text(encoding="utf-8")
+        found = [node for node in ast.parse(text, filename=str(_here)).body if isinstance(node, ast.Assign)
+                 and [getattr(target, "id", "") for target in node.targets] == ["_FILTER_REGISTERING_MODULES"]]
+        if len(found) != 1:
+            raise AssertionError("conftest.py (the repository root's) must assign _FILTER_REGISTERING_MODULES exactly once; "
+                                 "found {}".format(len(found)))
+        lines = text.splitlines(keepends=True)
+        listing = "_FILTER_REGISTERING_MODULES = {!r}\n".format(tuple(names))
+        return "".join(lines[:found[0].lineno - 1] + [listing] + lines[found[0].end_lineno:]).encode("utf-8")
+    return build
+
+
 # ---------------------------------------------------------------------------
 # Temporary-file containment (added 2026-10-12) -- PREVENTION.
 # ---------------------------------------------------------------------------
@@ -412,14 +437,16 @@ def pytest_configure(config) -> None:
 # terminal summary): MEASURED (independent review, 2026-11-03), pytest reports any exception in the teardown of an xfail-marked
 # test as "xfailed", which would otherwise hide the finding. An interrupt during teardown (KeyboardInterrupt, SystemExit,
 # pytest.exit) is never replaced: the state is restored and recorded, and the interrupt propagates.
-# ENTRIES ADDED during a test are not a failure, and not silent either. MEASURED 2026-11-03: libraries register filters when
-# first imported -- torch three, scipy and numpy one each, during the setup of the first test that imported them (tests/conftest.py's
-# connector-cache fixture imports the embedding module) -- and pytest discards them when that test ends. An added entry can
-# still shadow one of pyproject.toml's for the rest of that test, so every distinct added entry is listed, with the first test
-# that added it, in this guard's section of the terminal summary.
+# AN ENTRY ADDED during a test fails it too, since 2026-11-05 (WARNING-FILTER-REORDER-AT-FIRST-IMPORT-1; from 2026-11-03 added
+# entries were listed in the summary, not failed). simplefilter() and filterwarnings() put an entry at the FRONT of the list,
+# ahead of pyproject.toml's entries, for the rest of the test -- an identical entry already in the list is MOVED there, the one
+# shape that failed before -- so an added entry and a moved one have the same effect, and differed only by whether that entry
+# happened to exist already. Libraries that register filters when first imported are imported at session start (the next
+# section), so no test's first import can register anything; what is left to fail is a test that sets a filter outside
+# `with warnings.catch_warnings():`, or a library missing from that section's list.
 # Hook wrappers, not fixtures: no fixture runs before a module-scoped fixture is set up (THE INVARIANT FOR THIS FILE holds --
 # nothing here requests monkeypatch). tests/unit/test_sklearn_parallel_warning_contract.py proves both, in this session and in
-# child sessions that run a byte copy of this file.
+# child sessions that run this file (child_conftest, above).
 _JOBLIB_THREAD_BACKEND = pytest.StashKey()
 _WARNING_STATE_BEFORE_SETUP = pytest.StashKey()
 _WARNING_GUARD_TALLY = pytest.StashKey()
@@ -436,7 +463,7 @@ def _run_joblib_sequentially(config) -> None:
     from joblib.parallel import BACKENDS, get_active_backend
 
     config.stash[_JOBLIB_THREAD_BACKEND] = BACKENDS["threading"]
-    config.stash[_WARNING_GUARD_TALLY] = {"checked": 0, "failed": [], "added": {}, "printed": False}
+    config.stash[_WARNING_GUARD_TALLY] = {"checked": 0, "failed": [], "printed": False}
     joblib.register_parallel_backend("threading", BACKENDS["sequential"])
     resolved = [type(get_active_backend(prefer="threads", require="sharedmem")[0]), type(get_active_backend(prefer="threads")[0]),
                 type(get_active_backend(require="sharedmem")[0])]
@@ -457,6 +484,59 @@ def _describe_filter(entry) -> str:
     action, message, category, module, lineno = entry
     return "{}  message={!r}  category={}  module={!r}  line={}".format(
         action, getattr(message, "pattern", message), getattr(category, "__name__", category), module, lineno)
+
+
+def _filter_differences(binding, entries: tuple, after_binding, after: tuple, bound: str, subject: str) -> list:
+    """Every difference between two warning-filter states, one line each; empty only when they are the same list object holding the
+    same entries in the same order. Shared by the per-test guard and the collection check; `bound` and `subject` name the 'before'.
+    Each finding says where the entry stands now: precedence is position (the first matching entry decides)."""
+    found = []
+    if after_binding is not binding:
+        found.append("warnings.filters is a DIFFERENT list from the one bound {} ({} entries, now {})".format(
+            bound, len(entries), len(after)))
+    gone = [e for e in entries if e not in after]
+    new = [e for e in after if e not in entries]
+    if gone:
+        found.append("the filter entries changed: {} gone, {} new".format(len(gone), len(new)))
+        found.extend("    gone: " + _describe_filter(e) for e in gone)
+        found.extend("    new:  " + _describe_filter(e) for e in new)
+        return found
+    now = {e: after.index(e) for e in entries}               # where each entry it started with stands now (its first occurrence)
+    if new:
+        found.append("{} filter entr{} registered -- by simplefilter() or filterwarnings() outside "
+                     "`with warnings.catch_warnings():`, or by a library's first import:".format(
+                         len(new), "y was" if len(new) == 1 else "ies were"))
+        for e in new:
+            i = after.index(e)
+            found.append("    new:  {}  (position {} of {}; ahead of {} of the {} entries {} started with)".format(
+                _describe_filter(e), i + 1, len(after), sum(1 for s in entries if now[s] > i), len(entries), subject))
+    moved = []
+    for j, e in enumerate(entries):
+        overtaken = sum(1 for o in entries[:j] if now[o] > now[e])     # entries it used to follow and now precedes
+        if overtaken:
+            moved.append("    moved: {}  (now ahead of {} entr{} it used to follow)".format(
+                _describe_filter(e), overtaken, "y" if overtaken == 1 else "ies"))
+    if moved:
+        found.append("the entries {} started with are no longer in their original order (order is precedence):".format(subject))
+        found.extend(moved)
+    if not found and tuple(after) != tuple(entries):
+        # Nothing new, nothing gone, nothing out of order -- and still not the same: an entry appears more often (only a direct
+        # list operation can do that; simplefilter() and filterwarnings() remove an identical entry first). Fail closed.
+        extra = [e for e in dict.fromkeys(after) if after.count(e) > entries.count(e)]
+        found.append("the entries {} started with are all there, in order, and the list still differs: duplicated".format(subject))
+        found.extend("    duplicated: {}  (now {} times, {} before)".format(_describe_filter(e), after.count(e), entries.count(e))
+                     for e in extra)
+    return found
+
+
+def _state_differences(before: tuple, after: tuple, bound: str, subject: str) -> list:
+    """_filter_differences, plus the two functions warnings are shown through. `before` and `after` are _warning_state()s."""
+    found = _filter_differences(before[0], before[1], after[0], after[1], bound, subject)
+    if after[2] is not before[2]:
+        found.append("warnings.showwarning was replaced: {!r}".format(after[2]))
+    if after[3] is not before[3]:
+        found.append("warnings._showwarnmsg_impl (the hook pytest records warnings through) was replaced: {!r}".format(after[3]))
+    return found
 
 
 @pytest.hookimpl(wrapper=True, tryfirst=True)
@@ -489,30 +569,11 @@ def _check_the_warning_state(item, report: bool = True) -> None:
     after = _warning_state()
     tally = item.config.stash[_WARNING_GUARD_TALLY]
     tally["checked"] += 1
-    found = []
-    if after[0] is not binding:
-        found.append("warnings.filters is a DIFFERENT list from the one bound before setup ({} entries, now {})".format(
-            len(entries), len(after[1])))
-    gone = [e for e in entries if e not in after[1]]
-    new = [e for e in after[1] if e not in entries]
-    remaining = iter(after[1])
-    in_order = all(e in remaining for e in entries)          # the entries it started with, as a subsequence, in their order
-    if gone:
-        found.append("the filter entries changed: {} gone, {} new".format(len(gone), len(new)))
-        found.extend("    gone: " + _describe_filter(e) for e in gone)
-        found.extend("    new:  " + _describe_filter(e) for e in new)
-    elif not in_order:
-        found.append("the entries this test started with are no longer in their original order (order is precedence)")
-    if after[2] is not showwarning:
-        found.append("warnings.showwarning was replaced: {!r}".format(after[2]))
-    if after[3] is not showwarnmsg_impl:
-        found.append("warnings._showwarnmsg_impl (the hook pytest records warnings through) was replaced: {!r}".format(after[3]))
+    found = _state_differences(before, after, "before setup", "this test")
     sequential = _joblib_thread_name_is_sequential()
     if not sequential:
         found.append("joblib's 'threading' backend no longer maps to its sequential one (a register_parallel_backend call)")
     if not found:
-        for entry in new:
-            tally["added"].setdefault(_describe_filter(entry), item.nodeid)
         return
     tally["failed"].append(item.nodeid)
     # Restore FIRST -- containment before reporting.
@@ -533,9 +594,131 @@ def _check_the_warning_state(item, report: bool = True) -> None:
         "apply, so a warning that must fail a test may not.\n  " + "\n  ".join(found) + "\n"
         "The usual cause is thread-parallel work that enters warnings.catch_warnings() in worker threads (scikit-learn "
         "estimators with n_jobs != 1 under a threading backend, or a thread pool that is not joblib's); a catch_warnings opened "
-        "in a module- or session-scoped fixture is another. Set filters inside `with warnings.catch_warnings():` within the test "
-        "or a function-scoped fixture, and leave joblib's 'threading' backend as the repository root's conftest.py registers it. "
-        "The state has been restored.")
+        "in a module- or session-scoped fixture is another, and a filter registered during the test -- by the test outside "
+        "`with warnings.catch_warnings():`, or by a library imported for the first time inside it (declare that library in "
+        "_FILTER_REGISTERING_MODULES, the repository root's conftest.py) -- a third. Set filters inside "
+        "`with warnings.catch_warnings():` within the test or a function-scoped fixture, and leave joblib's 'threading' backend "
+        "as the repository root's conftest.py registers it. The state has been restored.")
+
+
+# ---------------------------------------------------------------------------
+# Libraries that register warning filters when first imported (added 2026-11-05, WARNING-FILTER-REORDER-AT-FIRST-IMPORT-1) --
+# PREVENTION, and a check of its completeness on every run.
+# ---------------------------------------------------------------------------
+# THE DEFECT. Thirteen libraries in the training-and-test environment register warning filters when first imported, outside a
+# catch_warnings of their own (read, 2026-11-04): requests, urllib3, numpy, pandas, scipy, torch, sympy, torch_geometric,
+# accelerate, mlxtend, srsly, spaCy and pyspark. mlxtend's frequent_patterns/fpcommon.py:8 calls simplefilter("always",
+# DeprecationWarning) at module level; spaCy's errors.py registers numpy's two "size changed" ignore entries again. pytest collects
+# inside warnings.catch_warnings() and DISCARDS what collection registered (pytest 9.0.3, _pytest/warnings.py, read): in a full
+# run, where collection imports them all, no test runs under those entries. In a run of fewer files, a library those files do
+# not import at module level is imported for the first time INSIDE A TEST -- by its body or a fixture -- and what it registers
+# goes to the front of that test's filters, ahead of pyproject.toml's entries, for the rest of the test; an identical entry is
+# moved there. So a test's filters depended on which tests ran with it.
+# MEASURED 2026-11-04 (sandbox, Linux, Python 3.12.3, the training-and-test lock's environment, pytest 9.0.3):
+#   * tests/unit/test_1kgp.py run alone: 46 passed, 1 error -- this guard failed the teardown of
+#     test_population_cols_in_tabular_features, whose body imports models.variant_ensemble (and through it mlxtend and spaCy) for
+#     the first time; the full suite passes it (0 changed).
+#   * every one of the 425 files of tests/ run alone, one at a time, with Continuous Integration's options apart from coverage:
+#     17 failed this guard (docs/sessions/SESSION_2026-11-05_warning-state-determinism.md has the list).
+#   * a census of every filter registration from pytest's plugin loading to the end of the full collection (8,647 tests): 124
+#     calls -- 61 by pytest itself (its configured entries per phase, and 29 pytest.importorskip calls), 63 by libraries and
+#     Python's os module; the ones that persist come from the thirteen libraries above, imported through the names below.
+#
+# PREVENTION. At session start -- after the working-tree guard's first snapshot, before collection -- every module named below
+# that this environment has is imported inside warnings.catch_warnings(): what it registers is discarded, as collection discards
+# it, and the module stays imported, so no later import, in collection or in a test, registers anything again. Every selection
+# of tests then runs each test under the filters the full run gives it. A module this environment does not have (the drift
+# environment has no torch) cannot be imported by any test either: it is named as absent in this guard's summary. A module that
+# is installed and fails to import stops the session with a usage error naming it, what it warned and what it changed in the
+# working tree (pytest runs neither the terminal summary nor sessionfinish after session start raises). A TRADE-OFF, chosen: a test
+# guarded by pytest.importorskip used to skip when its library was installed but broken; now the session stops, because a broken
+# installation is not an absent dependency (the locks install every one of these).
+#
+# COMPLETENESS, on every run. The warning state (the filters and the two functions warnings are shown through) is compared before
+# and after collection, inside the catch_warnings pytest's warnings plugin opens for it (measured: this wrapper runs innermost). If
+# it differs, something collection imported changed it -- a library missing from the list below, or a test module that registers
+# a filter at module level (which collection discards, and which a run without that module would not have) -- and the session
+# stops with a usage error naming the entries, before any test runs; with `-p no:warnings` nothing is discarded, and the check
+# stops the session all the same. A library first imported inside a test, never at collection, is caught by the per-test guard
+# above. Not a difference, by design: a library that changes the state at CALL time and restores it within the same test.
+_FILTER_REGISTERING_MODULES = ("requests", "numpy", "pandas", "scipy.sparse", "scipy.special", "torch", "torch_geometric",
+                               "accelerate", "mlxtend.frequent_patterns", "spacy", "pyspark")
+
+
+def _import_the_filter_registering_modules(config) -> None:
+    import importlib
+    import importlib.util
+    import time
+    import warnings
+
+    start = time.perf_counter()
+    imported, absent = [], []
+    for name in _FILTER_REGISTERING_MODULES:
+        top = name.partition(".")[0]
+        if top not in sys.modules and importlib.util.find_spec(top) is None:
+            absent.append(name)
+            continue
+        # record=True: the filters in force are the configuration's (pytest applies them for the whole configured session), so an
+        # `error::` entry still raises; whatever else the import warns goes to pytest's own report, as a warning collection
+        # emitted would -- never to the console unseen, never dropped.
+        failure = None
+        with warnings.catch_warnings(record=True) as emitted:
+            try:
+                importlib.import_module(name)
+            except Exception as error:
+                failure = error
+        for message in emitted:
+            config.hook.pytest_warning_recorded.call_historic(
+                kwargs=dict(warning_message=message, when="config", nodeid="", location=None))
+        if failure is not None:
+            raise pytest.UsageError(_import_failure(config, name, failure, emitted)) from failure
+        imported.append(name)
+    config.stash[_WARNING_GUARD_TALLY]["imported"] = (tuple(imported), tuple(absent), time.perf_counter() - start)
+
+
+def _import_failure(config, name: str, failure: Exception, emitted: list) -> str:
+    """The usage error for a listed module that is installed and fails to import. pytest skips the terminal summary and
+    sessionfinish when session start raises, so everything that would have been reported later is in this message: the warnings
+    the import emitted, and what it changed in the working tree (compared here, against the snapshot taken just before)."""
+    from genomic_variant_classifier.repository_hygiene.workspace_snapshot import compare, describe, take_snapshot
+
+    lines = ["conftest.py (the repository root's) imports {!r} at session start, so that the warning filters it registers when "
+             "first imported are discarded (WARNING-FILTER-REORDER-AT-FIRST-IMPORT-1). It is installed and failed to import: "
+             "{}: {}".format(name, type(failure).__name__, failure)]
+    if isinstance(failure, Warning):
+        lines.append("  That exception is a warning: a configured `error::` filter turned it into one (this repository's are in "
+                     "pyproject.toml).")
+    lines.extend("  warned while importing: {}: {} ({}:{})".format(w.category.__name__, w.message, w.filename, w.lineno)
+                 for w in emitted)
+    before = config.stash.get(_WORKSPACE_BEFORE, None)
+    change = compare(before, take_snapshot(_WORKSPACE_ROOT)) if before is not None else None
+    if change:
+        lines.append("  THE IMPORT CHANGED THE WORKING TREE:")
+        lines.extend("  " + line for line in describe(change))
+    elif before is not None:
+        lines.append("  The working tree is unchanged.")
+    lines.append("  Tests that would have skipped such a library through pytest.importorskip now stop the session instead: an "
+                 "installed library that cannot be imported is a broken environment, not an absent dependency.")
+    return "\n".join(lines)
+
+
+@pytest.hookimpl(wrapper=True, trylast=True)
+def pytest_collection(session):
+    """The completeness check. trylast: inside pytest's own wrapper, so the comparison is made within the catch_warnings pytest
+    opens for collection, around everything collection imports."""
+    before = _warning_state()
+    result = yield
+    found = _state_differences(before, _warning_state(), "when collection started", "collection")
+    if found:
+        raise pytest.UsageError(
+            "THE WARNING STATE CHANGED WHILE TESTS WERE COLLECTED (WARNING-FILTER-REORDER-AT-FIRST-IMPORT-1). A module imported by "
+            "collection changed it; pytest's warnings plugin discards that when collection ends, but a run that does not collect "
+            "that module would make the change inside the first test that imports it, ahead of pyproject.toml's entries.\n  " +
+            "\n  ".join(found) + "\n"
+            "If a library registered them, add the module that registers them (or one that imports it) to "
+            "_FILTER_REGISTERING_MODULES in conftest.py (the repository root's). If a test module did, set the filter with "
+            "pytestmark = pytest.mark.filterwarnings(...) instead.")
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -569,6 +752,7 @@ def pytest_sessionstart(session) -> None:
     from genomic_variant_classifier.repository_hygiene.workspace_snapshot import take_snapshot
 
     session.config.stash[_WORKSPACE_BEFORE] = take_snapshot(_WORKSPACE_ROOT)
+    _import_the_filter_registering_modules(session.config)       # after the snapshot: the working-tree guard sees what they do
 
 
 @pytest.hookimpl(wrapper=True, trylast=True)
@@ -586,6 +770,13 @@ def pytest_runtestloop(session):
 def _warning_guard_lines(tally: dict) -> list:
     lines = ["joblib: 'threading' runs sequentially for the session (no worker threads); {} tests checked, {} changed the "
              "warning state".format(tally["checked"], len(tally["failed"]))]
+    if "imported" in tally:
+        imported, absent, seconds = tally["imported"]
+        lines.append("imported at session start, what they register discarded: {} in {:.2f} s; absent in this environment: {}".format(
+            ", ".join(imported) or "none", seconds, ", ".join(absent) or "none"))
+    else:
+        lines.append("NOT ARMED: conftest.py (the repository root's) was loaded after the session started, so the modules that "
+                     "register warning filters were not imported at session start; a first import inside a test fails that test")
     if tally["failed"]:
         lines.append("THE WARNING STATE CHANGED IN THESE TESTS (each restored; the session fails):")
         lines.extend("    " + nodeid for nodeid in tally["failed"])
@@ -636,11 +827,6 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config) -> None:
         for line in _warning_guard_lines(tally):
             terminalreporter.line(line, red=failed)
         tally["printed"] = True
-        if tally["added"]:
-            terminalreporter.line("entries ADDED during a test (pytest discards them when the test ends), each with the first "
-                                  "test that added it:")
-            for entry, nodeid in sorted(tally["added"].items()):
-                terminalreporter.line("  {}\n      first added in {}".format(entry, nodeid))
     report = config.stash.get(_WORKSPACE_REPORT, None)
     if report is None:
         return

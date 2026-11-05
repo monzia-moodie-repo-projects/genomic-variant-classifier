@@ -21,7 +21,6 @@ from genomic_variant_classifier.containment import ContainmentError
 from genomic_variant_classifier.quarantine_policy import QUARANTINED_FEATURES
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
-sys.path.insert(0, str(Path(__file__).resolve().parent))   # tests/unit helpers (_admission_support)
 Q0 = QUARANTINED_FEATURES[0]
 
 
@@ -85,7 +84,7 @@ def _pipeline(columns):
 def test_calibrate_thresholds_loads_through_admission(tmp_path, monkeypatch):
     import calibrate_thresholds as C
     import genomic_variant_classifier.model_admission as admission
-    from _admission_support import AllowForTests, register
+    from tests.unit._admission_support import AllowForTests, register
     from genomic_variant_classifier.models.variant_ensemble import engineer_features
     registry = tmp_path / "registry.v1.json"
     monkeypatch.setattr(admission, "repository_registry_path", lambda: registry)

@@ -5,7 +5,9 @@ warning-filter guard, no working-tree guard, its temporary files in the system t
 between its tests and the workflow's publication files. They are in the root conftest.py now. These tests observe, inside a
 drift session, that the root conftest is loaded and tests/conftest.py is not, and that its preventions are in force. What the
 guards DO when a test breaks them is proven from outside, where an exit code can be seen, by
-tests/unit/test_session_guard_placement.py (a child session with this directory's layout).
+tests/unit/test_session_guard_placement.py (a child session with this directory's layout). Since 2026-11-05 the root conftest
+also imports, at session start, the modules that register warning filters when first imported
+(WARNING-FILTER-REORDER-AT-FIRST-IMPORT-1); which of them this environment has is pinned here.
 
 Author: Monzia Moodie
 """
@@ -53,3 +55,14 @@ def test_the_root_conftests_preventions_are_in_force_here(tmp_path_factory):
     names = _publication_files()
     assert len(names) == 6, names
     assert not [name for name in names if name in os.environ], names
+
+
+def test_the_modules_that_register_warning_filters_were_imported_at_session_start_or_are_absent_here(request):
+    """Both drift locks (requirements-drift-linux.lock and requirements-drift-windows.lock, read 2026-11-04) have requests,
+    numpy, pandas and scipy and none of the other six: those can be imported by no test here, and are named as absent."""
+    found = [plugin for plugin in request.config.pluginmanager.get_plugins()
+             if Path(getattr(plugin, "__file__", None) or "-").resolve() == REPO / "conftest.py"]
+    assert len(found) == 1, found
+    imported, absent, _ = request.config.stash[found[0]._WARNING_GUARD_TALLY]["imported"]
+    assert imported == ("requests", "numpy", "pandas", "scipy.sparse", "scipy.special"), imported
+    assert absent == ("torch", "torch_geometric", "accelerate", "mlxtend.frequent_patterns", "spacy", "pyspark"), absent

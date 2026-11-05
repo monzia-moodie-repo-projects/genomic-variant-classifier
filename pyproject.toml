@@ -128,4 +128,22 @@ filterwarnings = [
     # from an estimator "inside a fold" -- was wrong.
     # tests/unit/test_sklearn_parallel_warning_contract.py runs all three pairings through this file's configuration.
     "error::UserWarning:sklearn\\.utils\\.parallel",
+
+    # TORCH_GEOMETRIC 2.7.0 WARNS ABOUT ITS OWN CODE WHEN IT IS IMPORTED (added 2026-11-05, WARNING-FILTER-REORDER-AT-FIRST-IMPORT-1).
+    # MEASURED in the training-and-test lock's environment (torch_geometric 2.7.0 and torch 2.11.0 in both locks): `import
+    # torch_geometric` with every warning shown emits exactly three, all DeprecationWarning, all about its own code --
+    # torch_geometric/llm/utils/backend_utils.py:26 imports its own deprecated torch_geometric.distributed, and
+    # torch_geometric/nn/pool/select/base.py:65 and nn/pool/connect/base.py:51 call torch.jit.script on two of its classes at
+    # import (SelectOutput, ConnectOutput), which torch 2.11.0 deprecates (warned from torch/jit/_script.py:1488). Until
+    # 2026-11-05 the suite never showed them: its first import of torch_geometric was inside pytest.importorskip, which imports
+    # under simplefilter("ignore"); a run whose first import was an ordinary one reported them (3 warnings), so the count depended
+    # on which tests ran. The root conftest.py now imports
+    # torch_geometric at session start and hands whatever it emits to pytest's report, so every run would show them. This project
+    # calls neither torch.jit.script nor torch_geometric.distributed. Selected by message AND by the module that issues each, so any
+    # other deprecation still reaches us; a torch.jit.script call of this project's own would be hidden as well, which is why the
+    # test that pins these also requires that the project makes none. tests/unit/test_filter_registering_imports.py imports
+    # torch_geometric in a fresh interpreter: exactly these three without these entries, none with them -- an upgrade that changes
+    # either premise fails it.
+    "ignore:`torch_geometric\\.distributed` has been deprecated:DeprecationWarning:torch_geometric\\.llm\\.utils\\.backend_utils",
+    "ignore:`torch\\.jit\\.script` is deprecated:DeprecationWarning:torch\\.jit\\._script",
 ]

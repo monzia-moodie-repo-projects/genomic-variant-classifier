@@ -8198,4 +8198,18 @@
 #   every guard hook has exactly one conftest implementation, the root's; a session laid out like tests_drift/ is guarded by the
 #   root conftest (a rebinding test, a data/raw/cache write and a sys.path leak error at teardown, a write into the checkout fails
 #   the session). (tests_drift/ is outside this count: 19 -> 21, tests_drift/test_session_guards.py.)
-8647
+# 2026-11-05  WARNING-FILTER-REORDER-AT-FIRST-IMPORT-1 -- no test's warning filters depend on which tests ran with it
+#   +21 / -1 by node identity (collected and diffed against adb2e2fd). +12 tests/unit/test_filter_registering_imports.py: this
+#   session imported every listed module at session start and none is absent; every shape of difference (appended, inserted in
+#   the middle or at the front, swapped, moved, inserted again, duplicated, removed, rebound) is found and each entry placed
+#   exactly; a child project's conftest differs from the root one in the list alone; a module first imported inside a test and
+#   not listed fails that test; a listed module registers nothing any test sees, its import warning reaches pytest's report, and a
+#   listed absent one is named; a module imported at collection and not listed, a test module that registers a filter at module
+#   level, and one that replaces warnings.showwarning, stop the session; a listed module that fails to import stops it, the message
+#   carrying its warning and its write into the checkout; one whose import warning is an `error::` entry says so; a fresh import
+#   of torch_geometric warns exactly three times and pyproject.toml's two entries hide exactly those; the project calls neither
+#   deprecated interface. +8 tests/unit/test_dbsnp_pop_preference.py: the file was a script whose checks ran as module-level
+#   asserts during collection and that defined NO test (0 counted); the same checks are 8 tests. +1 / -1
+#   tests/unit/test_sklearn_parallel_warning_contract.py: "an added entry passes and is listed and a reordering fails" becomes
+#   "an added entry and a moved one both fail, each named". (tests_drift/: 21 -> 22.)
+8667
