@@ -28,13 +28,10 @@ tests twice.
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-
-sys.path.insert(0, str(Path(__file__).resolve().parent))   # tests/unit helpers (_admission_support)
 
 from genomic_variant_classifier.api.attribution import (
     ArtifactChangedDuringLoadError,
@@ -523,7 +520,7 @@ def registered_production_client(tmp_path, monkeypatch):
     from fastapi.testclient import TestClient
     import genomic_variant_classifier.api.main as api_main
     import genomic_variant_classifier.model_admission as admission
-    from _admission_support import AllowForTests
+    from tests.unit._admission_support import AllowForTests
 
     artifact_path, registry = _production_artifact(tmp_path)
     # An EXPLICIT test authority: production passes none, and the default (gate C10 not implemented) denies.

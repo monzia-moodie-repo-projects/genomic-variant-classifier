@@ -5,7 +5,7 @@
 [![Tabular features](https://img.shields.io/badge/tabular%20features-91-blue.svg)]()
 [![Base models](https://img.shields.io/badge/base%20models-13-blue.svg)]()
 [![Agents](https://img.shields.io/badge/autonomous%20agents-22-blueviolet.svg)]()
-[![Tests](https://img.shields.io/badge/tests-8647-success.svg)]()
+[![Tests](https://img.shields.io/badge/tests-8667-success.svg)]()
 [![Status](https://img.shields.io/badge/status-active%20development-orange.svg)]()
 
 A multi-modal machine learning system for the five-tier clinical classification of human
@@ -20,8 +20,9 @@ from the contract, refused at fitting, loading and serving (a model trained with
 never served), until repaired (see *Feature set*). It is served as a FastAPI REST service and supervised by an
 autonomous layer of **22 specialised agents** communicating over a typed message bus.
 
-Training draws on a cohort of over four million ClinVar variants across more than 28,000
-genes, annotated from some twenty biological databases.
+Training draws on ClinVar on the Genome Reference Consortium human build 38 (GRCh38): 4,399,089 rows (one per variant) after
+cleaning, of which 1,490,324 carry a binary label under the current review-status policy and form the training cohort (both
+measured 2026-07-24, `docs/measurements/`), annotated from some twenty biological databases.
 
 
 ---
@@ -256,9 +257,11 @@ python scripts/install_locked_profile.py --profile drift      --target linux-3.1
 
 # Tests, in the train-test environment (.github/workflows/ci.yml adds --tb=short and coverage, and starts pytest without the
 # workflow-command variables). The repository root's conftest.py guards BOTH suites: it runs joblib's thread backend
-# sequentially for the session and fails a test that rebinds, removes or reorders the warning filters (entries a library adds
-# are listed, not failed), contains temporary files under pytest's base temporary folder, and fails the session if the working
-# tree changed; tests/conftest.py adds --assert-suite-size, which requires the collected count to equal tests/EXPECTED_SUITE_SIZE
+# sequentially for the session and fails a test that leaves the warning filters different in any way (an entry added included);
+# imports the libraries that register filters when first imported at session start, so no test's filters depend on which tests
+# ran with it, and stops the session if collection registers one; contains temporary files under pytest's base temporary folder;
+# and fails the session if the working tree changed. tests/conftest.py adds --assert-suite-size, which requires the collected
+# count to equal tests/EXPECTED_SUITE_SIZE
 python -m pytest tests/ -q -rs --assert-suite-size
 python -m pytest tests_drift/ -v -rs                  # in the drift environment, with the drift job's options
 
@@ -300,19 +303,39 @@ Run `--help` on any script for its full argument set.
 ## Repository structure
 
 ```
-src/genomic_variant_classifier/
-  agent_layer/   - agents, typed message bus, orchestrator, shared state
-  api/           - FastAPI service, auth, schemas, inference
-  data/          - connectors, ETL, split protocol, data preparation
-  evaluation/    - clinical evaluator, metric registry, thresholds, artifacts
-  models/        - variant ensemble, graph networks, uncertainty wrappers, sequence CNN
-  monitoring/    - drift detection, reference profiles, model registry
-  pipelines/     - RNA splice, protein structure
-  reports/       - HTML report generation
-  training/      - continual learner, Elastic Weight Consolidation
-scripts/         - training entry points, preflight gates, drift monitoring, runbooks
-tests/           - unit, integration and conformal suites
-docs/            - ROADMAP.md, CHANGELOG.md, incidents/, sessions/, measurements/
+src/genomic_variant_classifier/        (every subpackage and top-level module, listed 2026-11-04: 22 packages, and monitoring/
+                                        and training/, which have no __init__.py)
+  agent_layer/               - agents, typed message bus, orchestrator, shared state
+  api/                       - FastAPI service, auth, schemas, inference
+  conformal/                 - conformal prediction, from scratch in numpy
+  data/                      - connectors, extract-transform-load (ETL), split protocol, data preparation
+  deps/                      - dependency governance: the locked profiles, their installation and observation
+  environment_qualification/ - qualification of the R environment for the scientific stage
+  evaluation/                - clinical evaluator, metric registry, thresholds, artifacts
+  features/                  - feature engineering
+  inference/                 - exact statistical inference for the scientific stage (the DANDELION method's ranking, confirmation)
+  models/                    - variant ensemble, graph networks, uncertainty wrappers, sequence convolutional neural network
+  monitoring/                - drift detection, reference profiles, model registry
+  operations/                - operation classification, evidence and admission verification
+  paths/                     - where the project keeps things: one authority, four roots
+  pipelines/                 - ribonucleic acid (RNA) splice, protein structure
+  provenance/                - scientific evidence provenance
+  reports/                   - HyperText Markup Language (HTML) report generation
+  repository_hygiene/        - what belongs in the repository and what is residue (the working-tree snapshot)
+  repository_measurement/    - the semantics of repository inspections
+  repository_records/        - durable machine evidence (verification and migration records)
+  source_monitor/            - qualified monitoring of upstream data sources
+  state/                     - mutable operational state: atomic, identified, fail-closed
+  training/                  - continual learner, Elastic Weight Consolidation
+  transactions/              - rollback state, transactional and outside the tree
+  utils/                     - shared helpers
+  containment.py, model_admission.py, quarantine_policy.py - the containment rules, the one model-admission route, the
+                              quarantined features
+scripts/                     - training entry points, preflight gates, drift monitoring, installers, runbooks
+tests/                       - unit, integration and conformal suites (the train-test environment)
+tests_drift/                 - the drift-monitor suite (the drift environment)
+conftest.py                  - the session guards for both suites
+docs/                        - ROADMAP.md, CHANGELOG.md, incidents/, sessions/, measurements/
 ```
 
 ---

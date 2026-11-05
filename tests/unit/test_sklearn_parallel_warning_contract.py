@@ -23,9 +23,11 @@ WHAT IS PINNED HERE
   its backend goes through that name -- so a forest at n_jobs=-1, a histogram gradient-boosting fit (an explicit
   backend="threading") and pairwise distances run every task in the main thread and leave the filters exactly as they were;
   joblib's process backends are unchanged (in this session);
-* DETECTION: the root conftest.py fails the teardown of any test that leaves the warning state changed, restores it, fails the
-  SESSION as well (an xfail-marked test's teardown error is reported as an xfail), never replaces an interrupt, and passes the
-  patterns that restore themselves (child sessions running a byte copy of the root conftest.py, in a scrubbed environment);
+* DETECTION: the root conftest.py fails the teardown of any test that leaves the warning state changed -- an entry added or
+  moved ahead included, since 2026-11-05 -- restores it, fails the SESSION as well (an xfail-marked test's teardown error
+  is reported as an xfail), never replaces an interrupt, and passes the patterns that restore themselves (child sessions running the
+  root conftest.py with its list of filter-registering modules replaced by CHILD_LISTED -- its child_conftest fixture -- in a
+  scrubbed environment);
 * scikit-learn's two pairing warnings are an ERROR entry in pyproject.toml, selected by their module: through that
   configuration a scikit-learn `delayed` function run by joblib's own Parallel fails, a joblib `delayed` function run by
   scikit-learn's Parallel fails, and the matching pair passes (a child session reading pyproject.toml only);
@@ -225,14 +227,21 @@ def test_after_the_offenders_the_state_is_whole():
 # own for PytestRemovedIn9Warning; 9.2.0 does not -- measured by the independent review, 2026-11-03).
 CHILD_INI = "[pytest]\nfilterwarnings =\n    error::ResourceWarning\n"
 
+# The child's list of filter-registering modules (the root conftest.py imports them at session start): GUARD_TESTS imports
+# scikit-learn at collection, and through it scipy.sparse and scipy.special, which register filters when first imported. MEASURED
+# 2026-11-04: with an empty list the child stops at collection, naming their two entries (SpecialFunctionWarning; "the matrix
+# subclass is not the recommended way").
+CHILD_LISTED = ("scipy.sparse", "scipy.special")
 
-def _child(tmp_path: Path, environment, tests: str, plugin: str = "") -> subprocess.CompletedProcess:
-    """A small project whose root conftest.py is a byte copy of the real one (tests/unit/test_working_tree_guard.py's pattern);
-    `plugin`, if given, is loaded with -p before the conftest, from a folder OUTSIDE the project."""
+
+def _child(tmp_path: Path, environment, conftest, tests: str, plugin: str = "") -> subprocess.CompletedProcess:
+    """A small project whose root conftest.py is the real one with its list of filter-registering modules replaced by CHILD_LISTED
+    (the root conftest's child_conftest fixture, the one difference); `plugin`, if given, is loaded with -p before the conftest, from a folder
+    OUTSIDE the project."""
     project = tmp_path / "project"
     (project / "tests").mkdir(parents=True)
     (project / "pytest.ini").write_text(CHILD_INI, encoding="utf-8")
-    (project / "conftest.py").write_bytes(CONFTEST.read_bytes())
+    (project / "conftest.py").write_bytes(conftest(*CHILD_LISTED))
     (project / "tests" / "test_child.py").write_text(tests, encoding="utf-8")
     plugins = tmp_path / "plugins"
     plugins.mkdir()
@@ -284,22 +293,23 @@ def pytest_unconfigure(config):
 '''
 
 
-def test_a_session_whose_setting_has_no_effect_refuses_to_run(tmp_path, child_pytest_environment):
-    run = _child(tmp_path, child_pytest_environment, "def test_never_runs():\n    pass\n", DISABLED_SETTING_PLUGIN)
+def test_a_session_whose_setting_has_no_effect_refuses_to_run(tmp_path, child_pytest_environment, child_conftest):
+    run = _child(tmp_path, child_pytest_environment, child_conftest, "def test_never_runs():\n    pass\n", DISABLED_SETTING_PLUGIN)
     out = run.stdout + run.stderr
     assert run.returncode == 4, out                                                  # pytest.ExitCode.USAGE_ERROR
     assert "joblib does not resolve thread requests to it" in out and "the suite does not run without this" in out, out
     assert "passed" not in out, out
 
 
-def test_the_session_registers_joblibs_own_thread_backend_again_when_it_ends(tmp_path, child_pytest_environment):
-    run = _child(tmp_path, child_pytest_environment, "def test_runs():\n    pass\n", RESTORE_PROBE_PLUGIN)
+def test_the_session_registers_joblibs_own_thread_backend_again_when_it_ends(tmp_path, child_pytest_environment, child_conftest):
+    run = _child(tmp_path, child_pytest_environment, child_conftest, "def test_runs():\n    pass\n", RESTORE_PROBE_PLUGIN)
     assert run.returncode == 0, run.stdout + run.stderr
     assert (tmp_path / "probe.txt").read_text(encoding="utf-8") == "ThreadingBackend ThreadingBackend"   # joblib's own
 
 
-def test_the_guard_fails_exactly_the_offenders_and_the_session_and_restores_the_state(tmp_path, child_pytest_environment):
-    run = _child(tmp_path, child_pytest_environment, GUARD_TESTS)
+def test_the_guard_fails_exactly_the_offenders_and_the_session_and_restores_the_state(tmp_path, child_pytest_environment,
+                                                                                      child_conftest):
+    run = _child(tmp_path, child_pytest_environment, child_conftest, GUARD_TESTS)
     out = run.stdout + run.stderr
     assert run.returncode == 1, out
     # Each offender's call passes and its TEARDOWN errors; every other test passes. The xfail-marked offender is reported as
@@ -345,8 +355,9 @@ def test_never_reached():
 '''
 
 
-def test_an_interrupt_during_teardown_is_never_replaced_and_the_change_is_still_named(tmp_path, child_pytest_environment):
-    run = _child(tmp_path, child_pytest_environment, INTERRUPT_TESTS)
+def test_an_interrupt_during_teardown_is_never_replaced_and_the_change_is_still_named(tmp_path, child_pytest_environment,
+                                                                                      child_conftest):
+    run = _child(tmp_path, child_pytest_environment, child_conftest, INTERRUPT_TESTS)
     out = run.stdout + run.stderr
     assert run.returncode == 2, out                                                  # pytest.ExitCode.INTERRUPTED
     assert "!! KeyboardInterrupt !!" in out and "1 passed" in out and "test_never_reached" not in out, out
@@ -370,16 +381,21 @@ def test_moves_an_entry_ahead_of_the_others():
 '''
 
 
-def test_an_added_entry_passes_and_is_listed_and_a_reordering_fails(tmp_path, child_pytest_environment):
-    run = _child(tmp_path, child_pytest_environment, ADDING_TESTS)
+def test_an_added_entry_and_a_moved_one_both_fail_each_named(tmp_path, child_pytest_environment, child_conftest):
+    """Until 2026-11-05 an added entry was listed and only a moved one failed; both put an entry ahead of the configuration's for
+    the rest of the test (WARNING-FILTER-REORDER-AT-FIRST-IMPORT-1)."""
+    run = _child(tmp_path, child_pytest_environment, child_conftest, ADDING_TESTS)
     out = run.stdout + run.stderr
     assert run.returncode == 1, out
-    assert "2 passed, 1 error" in out, out
-    assert out.count(" ERROR at teardown of ") == 1 and " ERROR at teardown of test_moves_an_entry_ahead_of_the_others " in out, out
+    assert "2 passed, 2 errors" in out, out
+    assert out.count(" ERROR at teardown of ") == 2, out
+    for name in ("test_adds_an_entry_the_way_a_library_does_at_import", "test_moves_an_entry_ahead_of_the_others"):
+        assert " ERROR at teardown of {} ".format(name) in out, (name, out)
+    assert "1 filter entry was registered" in out, out
+    assert "    new:  ignore  message='planted by an import'  category=UserWarning  module=None  line=0" in out, out
     assert "no longer in their original order (order is precedence)" in out, out
-    assert "entries ADDED during a test" in out, out
-    assert ("ignore  message='planted by an import'  category=UserWarning  module=None  line=0\n"
-            "      first added in tests/test_child.py::test_adds_an_entry_the_way_a_library_does_at_import") in out, out
+    assert "    moved: " in out and " (now ahead of " in out, out
+    assert "2 tests checked, 2 changed the warning state" in out and "ADDED during a test" not in out, out
 
 
 # --------------------------------------------------------------------------- the package's use of joblib, parsed

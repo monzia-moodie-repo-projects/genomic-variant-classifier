@@ -2,9 +2,10 @@
 
 What belongs to tests/ alone: `scripts/` on sys.path (below), the suite-size ratchet, and the connector-cache isolation. The
 session guards that apply to EVERY suite in this repository -- sys.path leaks, writes into data/raw/cache, the workflow's
-publication files, the child-pytest environment, temporary-file containment, no thread-parallel joblib work with the
-warning-filter guard, and the working-tree guard -- are in the repository root's conftest.py since 2026-11-04
-(DRIFT-SUITE-UNGUARDED-1), which pytest loads for tests/ and tests_drift/ alike.
+publication files, the child-pytest environment and conftest.py, temporary-file containment, no thread-parallel joblib work with
+the warning-filter guard, the session-start import of the libraries that register warning filters (since 2026-11-05), and the
+working-tree guard -- are in the repository root's conftest.py since 2026-11-04 (DRIFT-SUITE-UNGUARDED-1), which pytest loads for
+tests/ and tests_drift/ alike.
 
 Makes the repo-local `scripts/` directory importable during tests regardless of CWD or
 environment, so tests can `import clean_cohort` (and other script-level modules) the same way

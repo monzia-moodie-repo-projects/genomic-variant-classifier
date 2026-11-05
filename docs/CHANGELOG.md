@@ -1,4 +1,109 @@
+## 2026-11-05 (warning-state determinism) -- no test's warning filters depend on which tests ran with it; every test file passes alone
+
+MEASURED (WARNING-FILTER-REORDER-AT-FIRST-IMPORT-1; the independent review of 2026-11-04 found it in tests/unit/test_1kgp.py).
+pytest 9.0.3 collects inside warnings.catch_warnings() and discards what collection registered (_pytest/warnings.py, read); the
+warnings plugin's configuration opens a second catch that lasts until unconfigure. So in a full run, where collection imports
+every library, no test runs under the filters libraries register when first imported. In a run of fewer files, a library those
+files do not import at module level was imported for the first time inside a test -- by its body or a fixture -- and what it
+registered went to the front of that test's filters, ahead of pyproject.toml's entries, for the rest of the test; an identical
+entry was moved there (mlxtend/frequent_patterns/fpcommon.py:8 re-registers the "always DeprecationWarning" entry pytest itself
+registers). A census plugin wrapping warnings._add_filter from pytest's plugin loading to the end of the full collection (8,647
+tests) counted 124 calls: 61 by pytest itself (its configured entries per phase, and 29 pytest.importorskip calls) and 63 by
+libraries and Python's os module; the ones that persist -- made outside the library's own catch_warnings -- come from thirteen
+libraries: requests, urllib3, numpy, pandas, scipy, torch, sympy, torch_geometric, accelerate, mlxtend, srsly, spaCy and pyspark.
+(The independent review's own census, loaded at a different point, counted 116 calls with the same libraries.) Then each of the
+425 test files was run ALONE on main (adb2e2fd), one at a time, in a clone whose editable install is its own src, with
+Continuous Integration's options apart from coverage (2026-11-04 22:52 to 23:52 Coordinated Universal Time (UTC), resumed after
+two container restarts; 3,216 s of runs): 21 files were not clean --
+  * 17 failed the warning-filter guard at a teardown ("no longer in their original order"): test_1kgp, test_alphafold,
+    test_calibration_implementations_agree, test_catboost, test_containment_scripts, test_core, test_correctness_harness,
+    test_data_tree_gate, test_genomiclm_llr_is_computed, test_invariant_ownership, test_lovd_annotation_reaches_training_matrix,
+    test_model_admission, test_model_input_width, test_runtime_attribution, test_storage_guard, test_train_cnn_activation,
+    test_variant_ensemble_save_load;
+  * 2 leaked tests/unit onto sys.path (test_api twice, test_variant_ensemble_save_load): an in-test `sys.path.insert` that the
+    full run hides because other modules insert the same folder at collection;
+  * tests/unit/test_dbsnp_pop_preference.py: "no tests ran" (exit 5) -- a script whose checks were module-level asserts executed
+    during collection; it defined no test, so its checks were never counted or reported;
+  * test_interpretation_contract and test_release_approval failed only because that run's Git was 2.43 (`--no-lazy-fetch` needs
+    2.45+): with Git 2.47.1, 32 and 85 passed. Recorded as GIT-VERSION-REQUIREMENT-UNSTATED-1 (open);
+  and 378 of the 425 passed with library entries listed as "added during a test".
+
+- conftest.py (the root's): PREVENTION -- at session start, after the working-tree guard's first snapshot and before collection,
+  every module in _FILTER_REGISTERING_MODULES (requests, numpy, pandas, scipy.sparse, scipy.special, torch, torch_geometric,
+  accelerate, mlxtend.frequent_patterns, spacy, pyspark; urllib3, sympy and srsly come with them) that the environment has is
+  imported inside catch_warnings(record=True): what it registers is discarded as collection discards it, what it warns goes to
+  pytest's own report, an absent one is named in the guard's summary (the drift environment has five of the eleven), and one that
+  is installed and fails to import stops the session with a usage error that also carries what the import warned and what it
+  changed in the working tree (pytest runs neither the terminal summary nor sessionfinish after session start raises). Measured:
+  3.0 to 4.2 s in the training-and-test environment, 10.8 to 13.1 s in the drift environment with a cold disk cache. A trade-off,
+  stated: a test guarded by pytest.importorskip used to skip when its library was installed but broken; now the session stops.
+  COMPLETENESS -- a pytest_collection wrapper (measured: innermost, inside pytest's collection catch) compares the whole warning
+  state (the filters, warnings.showwarning and pytest's recording hook) before and after collection and stops the session with a
+  usage error naming every difference (mutation: without spacy in the list, the full collection stops naming spaCy's and srsly's
+  entries; with `-p no:warnings` it stops all the same). DETECTION -- the per-test guard now fails an ADDED entry as it fails a
+  moved one (both put an entry ahead of the configuration's); the "entries ADDED during a test" listing is gone. One comparison
+  serves the per-test guard and the collection check, and says where each new or moved entry now stands (its position, and how
+  many of the starting entries it now precedes); it fails closed on any other difference (an entry duplicated by a direct list
+  operation). A new fixture, child_conftest, is the one source of a child project's conftest.py: this file with the list replaced
+  by the names given (by parsing; nothing else differs, proven) -- so child sessions that test another guard import no heavy
+  library.
+- pyproject.toml: two entries for torch_geometric 2.7.0's three import-time DeprecationWarnings about its own code (it imports its
+  deprecated torch_geometric.distributed, and calls torch.jit.script on two of its classes at import). Until now the suite never
+  showed them -- its first import of torch_geometric was inside pytest.importorskip, under simplefilter("ignore") -- and a run whose
+  first import was an ordinary one reported 3 warnings. Scoped by message and by the issuing module; the project calls neither
+  interface (parsed).
+- Tests import the tests/unit helpers as package modules (tests.unit._admission_support, tests.unit._review_map_detector): seven
+  files no longer put tests/unit on sys.path, at module level or inside a test. This relies on the repository root being on
+  sys.path, which pytest's default import mode provides and `python -m pytest` (Continuous Integration and the installers) always
+  does. tests/unit/test_dbsnp_pop_preference.py: the same checks, as 8 tests (mutations, every adjacent swap of the six studies: 2
+  fail for dbGaP_PopFreq/TOPMED and for 1000Genomes_30X/1000Genomes, 1 -- the order test -- for each of the other three; the old
+  script's checks caught the same swaps). test_1kgp.py's docstring and
+  message named api/schemas.py and said the test would fail until the features were added; TABULAR_FEATURES is in
+  models/variant_ensemble.py and they were added (corrected).
+- New tests: tests/unit/test_filter_registering_imports.py (12: this session's imports; every shape of difference placed exactly;
+  child sessions with planted modules -- first imported inside a test and not listed: that test fails, naming the added and the
+  moved entry and where each stands; listed: nothing reaches a test and its import warning reaches pytest's report; imported at
+  collection and not listed, a test module that registers a filter, and one that replaces warnings.showwarning: the session
+  stops; listed and broken: the session stops, with its warning and its write into the checkout in the message; a listed module
+  whose import warning is an `error::` entry: the message says so; and the premise of the two pyproject entries in a fresh
+  interpreter); one test of test_sklearn_parallel_warning_contract.py inverted ("an added entry and a moved one both fail, each
+  named"); tests_drift/test_session_guards.py +1 (the drift environment imports five of the eleven and names six as absent).
+  Eleven mutations of the mechanism (no session-start import; added entries accepted; no collection check; import
+  warnings dropped; imports outside catch_warnings; absent modules imported; no duplicate fallback; moves not reported; the
+  collection check comparing filters only; the failure message without the working tree; without the warnings) are each caught,
+  1 to 5 tests failing each (mutations_v2.json in the evidence).
+- README: the Quickstart's guard description; the repository structure lists every subpackage (22 packages and the namespace
+  packages monitoring/ and training/), tests_drift/ and the root conftest.py (it listed 9); the cohort sentence carries the
+  measured figures (4,399,089 rows after cleaning, 1,490,324 binary under the current review-status policy, measured 2026-07-24)
+  instead of "over four million ... across more than 28,000 genes", whose gene count has no recorded source. docs/ROADMAP.md:
+  header dated; section 1 corrected the same way; section 5 marked as not re-derived since 2026-09-04 (its priorities are the
+  owner's ruling).
+- THE INDEPENDENT REVIEW (a separate agent, 2026-11-04 23:57 to 2026-11-05 00:35 UTC; the session record has every item):
+  two defects -- the first comparison's "now at the front" was wrong for an appended entry, a middle insertion and a swap
+  (replaced by exact positions), and "23 subpackages" (24) -- four risks, each closed (a duplicated entry now fails closed; a
+  session-start usage error now carries the import's warnings and writes; the collection check compares the whole state; the
+  broken-library trade-off is stated), and wording, all corrected.
+- THE SAME CENSUS ON THE CHANGE (2026-11-05 00:44:57 to 01:46:21 UTC; the candidate clone with this change applied, its
+  documents apart; 3,680 s of runs): all 426 test files clean -- every one exit 0, the warning-filter guard "0 changed" in all
+  426, the working tree unchanged in all 426 -- 8,635 passed, 26 skipped, 6 xfailed in total, which is the whole suite (8,667).
+  An earlier census of a work-in-progress version of the change (patch ddcf7123) ran 328 files, all clean, before the review's
+  fixes.
+- THE FULL SUITE AS CONTINUOUS INTEGRATION RUNS IT (one invocation, coverage on, --assert-suite-size; 2026-11-05 01:46:59 UTC;
+  the same clone and patch as the census): 8,635 passed, 26 skipped, 6 xfailed, 0 failed, no warnings, coverage 84%; the
+  warning-filter guard 8,667 checked, 0 changed; the session-start imports 6.44 s; the working tree unchanged; 1,056.95 s. The drift
+  suite in the drift candidate environment: 22 passed, 22 checked, 0 changed, the working tree unchanged.
+- Suite 8,647 -> 8,667 (+21 / -1 by node identity, against adb2e2fd); drift suite 21 -> 22.
+
 ## 2026-11-04 (drift-suite guards) -- the session guards in the repository root's conftest.py, for every suite
+
+MERGED AND VERIFIED ON WINDOWS (recorded 2026-11-05). The owner ran -Validate once (set "af", 2026-11-04 17:34:52 to 19:36:11
+Coordinated Universal Time (UTC), 121.3 minutes; downloads 18.3 to 67.5 megabytes per second, no retries): 8,559 passed, 83 skipped, 5
+xfailed, 0 failed, no warnings, coverage 83%; the warning-filter guard 8,647 checked, 0 changed; the clone's working tree unchanged;
+the targeted run 635 passed, 3 skipped; the drift tests 21 passed (21 checked, 0 changed). Receipt 9730aa22, candidate 45bf3891.
+Merged as pull request #64 (merge commit adb2e2fd, parents c98c5b92 and 45bf3891, tree 679596de -- the sandbox's final tree; fetched
+and checked here). The post-merge block (21:57 UTC): targeted 635 passed, 3 skipped, no warnings, the guard 638 checked, 0 changed;
+drift 21 passed; the owner's checkout unchanged (49,267 entries); both candidate environments still exactly their Windows locks. The
+branch was deleted at 22:12 UTC.
 
 MEASURED (DRIFT-SUITE-UNGUARDED-1). tests_drift/ has no conftest of its own and tests/conftest.py is loaded only for tests/, so
 the drift suite ran with no warning-filter guard, no working-tree guard, its temporary files in the system temporary folder,

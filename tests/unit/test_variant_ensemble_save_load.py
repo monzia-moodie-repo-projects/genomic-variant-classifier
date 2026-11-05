@@ -195,10 +195,7 @@ def test_ensemble_save_load_with_cnn1d(synthetic_data, tmp_path):
     # registered with the ensemble's own fitted columns and members, and loaded with an EXPLICIT test
     # authority. (This test needs PyTorch; a sandbox without it skipped it, so it kept the old signature
     # until the owner's validation run failed on it.)
-    import sys
-    from pathlib import Path
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from _admission_support import AllowForTests, register
+    from tests.unit._admission_support import AllowForTests, register
     registry = register(tmp_path / "registry.v1.json", save_path,
                         feature_names=tuple(ens.tabular_columns_), roster=list(ens.trained_models_))
     ens2 = VariantEnsemble.load(save_path, consumer="test", registry_path=registry,

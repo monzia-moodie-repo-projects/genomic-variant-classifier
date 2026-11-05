@@ -10,8 +10,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import sys
-from pathlib import Path
 
 import joblib
 import numpy as np
@@ -25,8 +23,7 @@ from genomic_variant_classifier.containment import ContainmentError
 from genomic_variant_classifier.models import variant_ensemble as ve
 from genomic_variant_classifier.quarantine_policy import QUARANTINED_FEATURES
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _admission_support import AllowForTests, register  # noqa: E402
+from tests.unit._admission_support import AllowForTests, register  # tests/unit is a package: no sys.path entry (2026-11-05)
 
 Q0 = QUARANTINED_FEATURES[0]
 

@@ -1,6 +1,6 @@
 # GenAssoc / genomic-variant-classifier - Living Roadmap
 
-**Version: 2026-09-04 (v3, revised)  |  Owner: Monzia Moodie**
+**Version: 2026-11-05 (v3; section 9 current to 2026-11-05, section 5 last re-derived 2026-09-04)  |  Owner: Monzia Moodie**
 
 Repo: github.com/monzia-moodie-repo-projects/genomic-variant-classifier
 
@@ -38,7 +38,7 @@ rather than frozen at the commit where the table was built.*
 
 # 1. Project identity & goals
 
-Production-grade multi-modal genomic disease-association program. Core: an ACMG/AMP-style variant pathogenicity classifier over ~1.49M cohort rows (from ~2.49M ClinVar missense), 91 features, 13-model ensemble + stacking meta-learner + STRING-DB GNN + KAN. The four protein-structure features are quarantined (2026-09-22; `quarantine_policy.py`).
+Production-grade multi-modal genomic disease-association program. Core: an ACMG/AMP-style (American College of Medical Genetics and Genomics / Association for Molecular Pathology) variant pathogenicity classifier over a ClinVar GRCh38 table of 4,399,089 variants after cleaning, of which 1,490,324 are binary-labelled under the current review-status policy (both measured 2026-07-24, docs/measurements/; corrected 2026-11-05 from "~1.49M cohort rows (from ~2.49M ClinVar missense)", whose second figure has no recorded source), 91 features, 13-model ensemble + stacking meta-learner + STRING-DB GNN + KAN. The four protein-structure features are quarantined (2026-09-22; `quarantine_policy.py`).
 
 **Dual goal (both first-class):**
 
@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **8,647 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **8,667 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -139,6 +139,12 @@ ClinVar (labels+cohort), gnomAD v4 (LOEUF, pLI, AF, **mis_z, syn_z, gene_constra
 Strong fits: AlphaFold DB (DO), RefSNP/dbSNP (DO), COSMIC (DO, academic; feature NOT label), TCGA (OPTIONAL), Reactome (DONE), KEGG (OPTIONAL, overlaps Reactome). BioGRID overlaps STRING. dbGaP is an access prerequisite (blocked), not a connector. ProteomeXchange / SRA / ENA / DDBJ DRA / SILVA out of scope.
 
 # 5. Immediate plan
+
+> **NOT RE-DERIVED SINCE 2026-09-04 (recorded 2026-11-05).** The work of 2026-09-22 to 2026-11-05 -- the structural quarantine,
+> containment, the gnomAD approval and source-monitor changes A, B, C1 and C2, the science stage (exact inference, the DANDELION
+> ranking and its traces), environment qualification 1 to 9, the lockfile migration, the dependency profiles and the test-session
+> guards -- is recorded in section 9 and in `docs/CHANGELOG.md`, and none of it is reflected in this section's plan. Which of the
+> plan's items now come first is the owner's ruling, not a measurement, so this section is left as it was rather than rewritten.
 
 **Last re-derived 2026-09-04 at `42780f4`.** The standing plan is quoted from
 the archive verbatim below; what changed since 2026-08-08 is characterised, not
@@ -733,7 +739,27 @@ exists to end.
   that rebinds the warning filters, writes into data/raw/cache, leaks a sys.path entry or writes into the checkout; and every
   child pytest of the suite is bounded to its own folder (--confcutdir). One behaviour changed, measured by the independent
   review: the guards are now set up before tests/conftest.py's connector-cache fixture. The repository root, newly on sys.path
-  for the drift run, shadows nothing it imports. Drift suite 19 -> 21; suite 8,643 -> 8,647.
+  for the drift run, shadows nothing it imports. Drift suite 19 -> 21; suite 8,643 -> 8,647. MERGED AND VERIFIED ON WINDOWS
+  2026-11-04: one -Validate run (121.3 minutes): 8,559 passed, 83 skipped, 5 xfailed, 0 failed, no warnings, coverage 83%, the
+  guard 8,647 checked / 0 changed, the drift tests 21 passed (21 checked / 0 changed); pull request #64 (merge commit adb2e2fd,
+  tree 679596de); the post-merge block: targeted 635 passed, 3 skipped, no warnings, drift 21 passed, your checkout unchanged.
+- **2026-11-05 -- WARNING-FILTER-REORDER-AT-FIRST-IMPORT-1: no test's warning filters depend on which tests ran with it; every test
+  file passes alone.** pytest collects inside warnings.catch_warnings() and discards what collection registered, so in a full run no
+  test runs under the filters thirteen libraries register when first imported (requests, urllib3, numpy, pandas, scipy, torch, sympy,
+  torch_geometric, accelerate, mlxtend -- a module-level simplefilter("always", DeprecationWarning) -- srsly, spaCy, pyspark); in a
+  run of fewer files a library first imported INSIDE a test put its entries ahead of pyproject.toml's for the rest of that test.
+  MEASURED on main (adb2e2fd) by running each of the 425 test files alone, one at a time, with Continuous Integration's options apart
+  from coverage: 21 not clean -- 17 failed the warning-filter guard, 2 leaked tests/unit onto sys.path, 1
+  (test_dbsnp_pop_preference.py) collected no test at all, 2 failed only because that run's Git was 2.43 -- and 378 passed with
+  library entries "added during a test". With this change, each of the 426 files run alone: all clean (8,635 passed, 26 skipped, 6
+  xfailed -- the whole suite). The root conftest.py now imports those libraries at session start, inside catch_warnings(record=True)
+  (what they register discarded, what they warn handed to pytest's report, an absent one named, a failing one a usage error that
+  carries its warnings and its writes); a check around collection stops the session if anything collected changes the warning state;
+  and the per-test guard fails an added entry as it failed a moved one, saying where each stands. Tests import the tests/unit helpers
+  as package modules instead of editing sys.path; test_dbsnp_pop_preference.py's checks became 8 tests. pyproject.toml pins
+  torch_geometric 2.7.0's three import-time DeprecationWarnings about its own code (scoped by message and issuing module; a premise
+  test re-measures them). README's repository structure and cohort sentence, and this document's header, section 1 and section 5's
+  status, re-derived. Drift suite 21 -> 22; suite 8,647 -> 8,667 (+21 / -1).
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined
