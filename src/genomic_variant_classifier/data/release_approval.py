@@ -27,7 +27,10 @@ commit/path membership first, then size, SHA-256 and the blob identifier --
 never from a working-tree file, whose line endings a Windows checkout may change.
 The Git reader disables replacement objects and lazy fetching and REQUIRES Git
 2.45 or later (`--no-lazy-fetch`; measured 2026-09-26 in the 2.45.0 release
-notes). An older Git refuses; there is no fallback.
+notes). There is no fallback. Since 2026-11-05 (GIT-VERSION-REQUIREMENT-UNSTATED-1)
+the reader reads `git --version` once, when it is created, and refuses an older or
+unreadable Git with the requirement named; before, Git 2.43 failed at the first
+read with its own usage text (exit 129), which never said what was required.
 
 Reference kernels integrated here (owner packages, 2026-09-25):
 GVC_approval_control_refinements approval_contract.py and
@@ -58,6 +61,9 @@ _SHA256 = re.compile(r"[0-9a-f]{64}", re.ASCII)
 _OID = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", re.ASCII)
 _UTC = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", re.ASCII)
 _DAY = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", re.ASCII)
+GIT_MINIMUM = (2, 45)   # --no-lazy-fetch first appeared in Git 2.45.0
+# "git version 2.47.1", "git version 2.47.1.windows.1", "git version 2.39.3 (Apple Git-146)": major and minor are read.
+_GIT_VERSION = re.compile(r"git version ([0-9]+)\.([0-9]+)(?:[.\s]|$)", re.ASCII)
 _RECORD_FIELDS = frozenset({"schema_version", "target", "approved_release", "scope",
                             "recorded_at_utc", "approval_documented_on",
                             "approval_granted_at_utc", "evidence", "supersedes_sha256"})
@@ -183,27 +189,49 @@ def verify_evidence_bytes(ref: GitEvidence, raw: bytes) -> None:
         raise PolicyError("evidence Git blob identifier differs")
 
 
+def _git(command: list, env: dict) -> bytes:
+    try:
+        result = subprocess.run(command, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, timeout=60, check=False)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise PolicyError(f"Git reader could not complete: {type(exc).__name__}") from exc
+    if result.returncode:
+        raise PolicyError("Git reader refused (exit {}): {}".format(
+            result.returncode, result.stderr.decode("utf-8", errors="replace").strip()[:400]))
+    return result.stdout
+
+
+def require_git_version(env: Optional[Mapping[str, str]] = None) -> Tuple[int, int]:
+    """The (major, minor) of the `git` this process would run; refuses anything older than GIT_MINIMUM, or unreadable.
+
+    Read with the same environment the reader uses. The refusal names the requirement and quotes what was found.
+    """
+    found = _git(["git", "--version"], dict(os.environ if env is None else env)).decode("utf-8", errors="replace").strip()
+    match = _GIT_VERSION.match(found)
+    if match is None:
+        raise PolicyError("Git reader requires Git {}.{} or later (--no-lazy-fetch); `git --version` printed {!r}, "
+                          "which is not a Git version".format(*GIT_MINIMUM, found[:200]))
+    version = (int(match.group(1)), int(match.group(2)))
+    if version < GIT_MINIMUM:
+        raise PolicyError("Git reader requires Git {}.{} or later (--no-lazy-fetch); found {!r}".format(
+            *GIT_MINIMUM, found[:200]))
+    return version
+
+
 def git_reader(repo: str | Path) -> Callable[..., bytes]:
     """Binary Git object reader: no shell, filters, textconv, replacement objects or
-    lazy fetching. Requires Git 2.45+ for --no-lazy-fetch; an older Git REFUSES."""
+    lazy fetching. Requires Git 2.45+ for --no-lazy-fetch: the version is read once,
+    here, and an older Git is REFUSED before any object is read."""
     repo = Path(repo)
     if not repo.is_dir():
         raise PolicyError(f"repository directory unavailable: {repo}")
     env = {k: v for k, v in os.environ.items() if not k.upper().startswith("GIT_")}
     env.update(GIT_TERMINAL_PROMPT="0", GIT_NO_LAZY_FETCH="1", GIT_OPTIONAL_LOCKS="0")
+    require_git_version(env)
 
     def run(*args: str) -> bytes:
-        command = ["git", "--no-replace-objects", "--no-lazy-fetch", "--literal-pathspecs",
-                   "-C", str(repo), *args]
-        try:
-            result = subprocess.run(command, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE, timeout=60, check=False)
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            raise PolicyError(f"Git reader could not complete: {type(exc).__name__}") from exc
-        if result.returncode:
-            raise PolicyError("Git reader refused (exit {}): {}".format(
-                result.returncode, result.stderr.decode("utf-8", errors="replace").strip()[:400]))
-        return result.stdout
+        return _git(["git", "--no-replace-objects", "--no-lazy-fetch", "--literal-pathspecs",
+                     "-C", str(repo), *args], env)
     return run
 
 

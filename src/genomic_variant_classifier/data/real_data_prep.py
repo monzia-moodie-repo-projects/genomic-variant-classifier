@@ -416,6 +416,9 @@ class AnnotationConfig:
     esm2_cache_path: Optional[Path] = None  # Phase 3C: SQLite cache
     esm2_uniprot_index_path: Optional[Path] = None  # Phase 3C: local UniProt seq index (no run-time REST)
     esm2_device: Optional[str] = None  # Phase 3C: None/'auto' -> cuda if available, else cpu
+    # Live UniProt lookups for genes absent from the cache and the index. None keeps ESM2Connector's own default (allowed when no
+    # esm2_uniprot_index_path is set, refused when one is); False never reaches UniProt (added 2026-11-05, TESTS-REACH-THE-NETWORK-1).
+    esm2_allow_network: Optional[bool] = None
     genomiclm_model_name: str = "InstaDeepAI/nucleotide-transformer-v2-100m-multi-species"  # Phase 2: NT DNA-LM
     genomiclm_cache_path: Optional[Path] = None  # Phase 2: NT score-cache parquet
     genomiclm_seq_windows_path: Optional[Path] = None  # Phase 2: ref/alt seq-window parquet
@@ -1173,6 +1176,7 @@ class DataPrepPipeline:
             cache_path=ac.esm2_cache_path,
             uniprot_index_path=ac.esm2_uniprot_index_path,
             device=ac.esm2_device,
+            allow_network=ac.esm2_allow_network,
         )
         df = esm2.annotate_dataframe(df)
         df = esm2.annotate_llr(df)

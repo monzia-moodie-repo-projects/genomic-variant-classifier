@@ -21,10 +21,17 @@ History:
   cache_path resolves under data/raw/cache/.
 
 See memory #5 / #9 and INCIDENT_2026-04-29_gcp-billing-deletion.md.
+
+Also here (2026-11-05, TESTS-REACH-THE-NETWORK-1): the offline_freshness_sources fixture, requested by the tests that run the
+data-freshness agents for the orchestrator's sake; and the program_starts fixture, which records and blocks every program a test
+starts, in the form the platform itself reports it (PROGRAM-START-RECORD-PLATFORM-FORM-1).
 """
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -84,3 +91,106 @@ def _isolate_spliceai(monkeypatch, tmp_path):
 
     monkeypatch.setattr(BaseConnector, "_load_cache", _safe_load_cache)
     monkeypatch.setattr(BaseConnector, "_save_cache", _safe_save_cache)
+
+
+# ---------------------------------------------------------------------------
+# The upstream data sources, offline (added 2026-11-05, TESTS-REACH-THE-NETWORK-1).
+# ---------------------------------------------------------------------------
+# MEASURED 2026-11-05: three tests that run the "data_freshness" pipeline for the ORCHESTRATOR's behaviour (agent isolation, the
+# dry run's telemetry, the artifact gate) made DataFreshnessAgent poll ClinVar's FTP server, gnomAD and AlphaMissense on
+# storage.googleapis.com and LOVD -- in a dry run -- and the agent swallowed each failure. A test that requests this fixture gets
+# the four polls replaced by "no change detected" (what the agent returns when a poll fails), and the registry monitor's probe
+# replaced by one that reports every source unreachable; nothing is fetched. It returns the list of polls made, in order, so a
+# test can show the agent ran. The repository root's conftest.py refuses and fails any network attempt.
+@pytest.fixture
+def offline_freshness_sources(monkeypatch):
+    from genomic_variant_classifier.agent_layer.agents import database_freshness_detector as detector
+    from genomic_variant_classifier.agent_layer.agents.data_freshness_agent import DataFreshnessAgent
+
+    polled = []
+
+    def no_change(source):
+        def poll(self, prev):
+            polled.append(source)
+            return False
+        return poll
+
+    for source in ("clinvar", "gnomad", "lovd", "alphamissense"):
+        monkeypatch.setattr(DataFreshnessAgent, "_poll_" + source, no_change(source))
+    monkeypatch.setattr(detector, "_default_probe", lambda source: (None, "offline under test (no probe is made)"))
+    return polled
+
+
+# ---------------------------------------------------------------------------
+# Program starts, recorded and blocked (added 2026-11-05, PROGRAM-START-RECORD-PLATFORM-FORM-1).
+# ---------------------------------------------------------------------------
+# MEASURED 2026-11-05 on the owner's Windows machine (set "ah" V1, targeted stage): the first version of this recorder lived in
+# tests/unit/test_inference_backend_trace.py and read the command of a "subprocess.Popen" audit event as a list of arguments.
+# That is what CPython reports on POSIX; on Windows its _execute_child joins the list into ONE command line
+# (subprocess.list2cmdline) and passes executable=None before raising the event (Lib/subprocess.py, 3.11 to 3.13 alike). The test
+# failed there; it had been verified only on Linux. The first version also called sys.addaudithook at the test module's import,
+# so its own import check, which executes the module a second time, left a second hook in the process for the rest of the session.
+#
+# This recorder is installed ONCE, when this conftest is imported (pytest imports a conftest once per session; audit hooks cannot
+# be removed). It does nothing until a test requests program_starts. While that test runs, every event below is recorded and, by
+# default, blocked by raising RuntimeError inside the call, so the program never runs:
+#   subprocess.Popen, os.system, os.exec, os.spawn, os.posix_spawn, os.startfile, os.startfile/2, os.fork, os.forkpty -- every
+#   Python-level way of starting a program -- and sys.addaudithook (a blocked addition is dropped by CPython, so no hook leaks).
+# A subprocess.Popen record is {"event", "executable", "command", "cwd"} exactly as the platform raised it (paths decoded with
+# os.fsdecode); program_starts.subprocess_start(argv, cwd) is the record that platform raises for subprocess.run(argv, cwd=cwd)
+# with its defaults, and tests/unit/test_program_start_recorder.py compares it with a REAL start, on whichever machine runs it.
+# NOT COVERED, stated: _posixsubprocess.fork_exec called directly (MEASURED 2026-11-05, CPython 3.11, 3.12 and 3.13 on Linux: it
+# raises no audit event; multiprocessing's spawn and forkserver start methods use it) and _winapi.CreateProcess called directly
+# (multiprocessing's spawn on Windows); and anything done by a program that is not this Python process.
+_PROGRAM_START_EVENTS = frozenset({"subprocess.Popen", "os.system", "os.exec", "os.spawn", "os.posix_spawn", "os.startfile",
+                                   "os.startfile/2", "os.fork", "os.forkpty", "sys.addaudithook"})
+
+
+class ProgramStarts:
+    """What program_starts yields: the records of the requesting test, and the platform's own form of one start."""
+
+    def __init__(self) -> None:
+        self.recording = False
+        self.block = True
+        self.seen: list = []
+
+    def _record(self, event: str, args: tuple) -> None:
+        if not self.recording or event not in _PROGRAM_START_EVENTS:
+            return
+        if event == "subprocess.Popen":
+            executable, command, cwd = args[0], args[1], args[2]
+            if not isinstance(command, (str, bytes)):
+                command = [os.fsdecode(a) for a in command]
+            self.seen.append({"event": event, "executable": None if executable is None else os.fsdecode(executable),
+                              "command": command if isinstance(command, list) else os.fsdecode(command),
+                              "cwd": None if cwd is None else os.fsdecode(cwd)})
+        else:
+            self.seen.append({"event": event, "arguments": args})
+        if self.block:
+            raise RuntimeError("program start blocked by the test (recorded): " + event)
+
+    @staticmethod
+    def subprocess_start(argv, cwd=None) -> dict:
+        """The record of subprocess.run(argv, cwd=cwd) on this platform, shell, executable and close_fds at their defaults."""
+        argv = [os.fsdecode(a) for a in argv]
+        cwd = None if cwd is None else os.fsdecode(cwd)
+        if os.name == "nt":
+            return {"event": "subprocess.Popen", "executable": None, "command": subprocess.list2cmdline(argv), "cwd": cwd}
+        return {"event": "subprocess.Popen", "executable": argv[0], "command": argv, "cwd": cwd}
+
+
+_PROGRAM_STARTS = ProgramStarts()
+sys.addaudithook(_PROGRAM_STARTS._record)
+
+
+@pytest.fixture
+def program_starts():
+    """Records, and by default blocks, every program the requesting test starts (set .block = False to let them run)."""
+    _PROGRAM_STARTS.seen = []
+    _PROGRAM_STARTS.block = True
+    _PROGRAM_STARTS.recording = True
+    try:
+        yield _PROGRAM_STARTS
+    finally:
+        _PROGRAM_STARTS.recording = False
+        _PROGRAM_STARTS.block = True

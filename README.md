@@ -5,7 +5,7 @@
 [![Tabular features](https://img.shields.io/badge/tabular%20features-91-blue.svg)]()
 [![Base models](https://img.shields.io/badge/base%20models-13-blue.svg)]()
 [![Agents](https://img.shields.io/badge/autonomous%20agents-22-blueviolet.svg)]()
-[![Tests](https://img.shields.io/badge/tests-8667-success.svg)]()
+[![Tests](https://img.shields.io/badge/tests-8724-success.svg)]()
 [![Status](https://img.shields.io/badge/status-active%20development-orange.svg)]()
 
 A multi-modal machine learning system for the five-tier clinical classification of human
@@ -260,8 +260,11 @@ python scripts/install_locked_profile.py --profile drift      --target linux-3.1
 # sequentially for the session and fails a test that leaves the warning filters different in any way (an entry added included);
 # imports the libraries that register filters when first imported at session start, so no test's filters depend on which tests
 # ran with it, and stops the session if collection registers one; contains temporary files under pytest's base temporary folder;
-# and fails the session if the working tree changed. tests/conftest.py adds --assert-suite-size, which requires the collected
-# count to equal tests/EXPECTED_SUITE_SIZE
+# sets HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE and HF_DATASETS_OFFLINE to 1 and refuses every attempt to reach the network inside
+# the call -- a proxy on the loopback included, from any *_proxy variable or the system's own settings -- failing the test that
+# tried (since 2026-11-05); and fails the session if the working tree changed. tests/conftest.py
+# adds --assert-suite-size, which requires the collected count to equal tests/EXPECTED_SUITE_SIZE. Git 2.45 or later is required
+# (the release-approval checks read Git objects with --no-lazy-fetch, and refuse an older Git by name)
 python -m pytest tests/ -q -rs --assert-suite-size
 python -m pytest tests_drift/ -v -rs                  # in the drift environment, with the drift job's options
 

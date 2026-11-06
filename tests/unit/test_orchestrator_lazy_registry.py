@@ -81,6 +81,12 @@ def test_ci_data_freshness_pipeline_runs_without_sklearn(tmp_path):
 
     This is the red->green proof for the Data Freshness workflow: it constructs the Orchestrator and
     runs the freshness pipeline (whose agents do not need sklearn) in a sklearn-free interpreter.
+
+    NO NETWORK (2026-11-05, TESTS-REACH-THE-NETWORK-1). MEASURED: the child's registry scan probed ClinVar's FTP server,
+    storage.googleapis.com, alphafold.ebi.ac.uk, api.github.com and databases.lovd.nl, and the root conftest.py's network guard
+    cannot see a child interpreter. The child now replaces the detector's probe, before the pipeline constructs the agent, with
+    one that makes no call and reports each source unreachable -- the outcome a refused probe gave -- and the test requires that
+    the scan went through it (the child prints how many sources it probed) and that the report records its answer.
     """
     r = _run_in_subprocess(
         """
@@ -91,10 +97,18 @@ def test_ci_data_freshness_pipeline_runs_without_sklearn(tmp_path):
                 raise ModuleNotFoundError("No module named 'sklearn' (blocked for test)")
             return real(n, *a, **k)
         builtins.__import__ = blk
+        from genomic_variant_classifier.agent_layer.agents import database_freshness_detector as detector
+        probed = []
+        def offline_probe(source):
+            probed.append(source.key)
+            return (None, "offline under test (no probe is made)")
+        detector._default_probe = offline_probe
         from genomic_variant_classifier.agent_layer.orchestrator import Orchestrator
         from genomic_variant_classifier.agent_layer.shared_state import SharedState
         o = Orchestrator(SharedState(state_file=__import__("os").environ["GVC_TEST_STATE_FILE"]), dry_run=True)
         results = o.run_pipeline("database_monitor")
+        assert probed, "the registry scan probed no source"
+        print("PROBED_OFFLINE", len(probed))
         assert "DatabaseFreshnessMonitorAgent" in results, results
         action = results["DatabaseFreshnessMonitorAgent"].get("action")
         assert action != "error", f"freshness agent errored under sklearn-block: {results}"
@@ -109,6 +123,8 @@ def test_ci_data_freshness_pipeline_runs_without_sklearn(tmp_path):
         "database_monitor pipeline must run clean without sklearn (the CI guarantee).\n"
         f"STDOUT:\n{r.stdout}\nSTDERR:\n{r.stderr}"
     )
+    report = next((tmp_path / "reports" / "data_freshness").glob("FRESHNESS_*.md")).read_text(encoding="utf-8")
+    assert "PROBED_OFFLINE" in r.stdout and "offline under test (no probe is made)" in report, report
 
 
 def test_registry_values_are_lazy(tmp_path):

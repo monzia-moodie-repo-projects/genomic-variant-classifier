@@ -45,8 +45,11 @@ def _pick_real_agents(orch: Orchestrator, n: int):
     return healthy
 
 
-def test_broken_agent_is_isolated_pipeline_survives(monkeypatch, tmp_path):
-    """A broken agent in the MIDDLE of a pipeline must not crash agents before or after it."""
+def test_broken_agent_is_isolated_pipeline_survives(monkeypatch, tmp_path, offline_freshness_sources):
+    """A broken agent in the MIDDLE of a pipeline must not crash agents before or after it.
+
+    offline_freshness_sources (2026-11-05, TESTS-REACH-THE-NETWORK-1): the healthy agents picked include DataFreshnessAgent, whose
+    polls reached ClinVar, gnomAD, LOVD and AlphaMissense (measured); they report "no change" here, with no network."""
     orch = Orchestrator(SharedState(state_file=tmp_path / "state.json"), dry_run=True)
 
     healthy = _pick_real_agents(orch, 2)

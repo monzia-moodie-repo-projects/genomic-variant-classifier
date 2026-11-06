@@ -87,8 +87,11 @@ def test_enforce_artifact_gate_method_exists(temp_state):
     assert callable(orch.enforce_artifact_gate)
 
 
-def test_run_pipeline_invokes_gate(temp_state, monkeypatch):
-    """run_pipeline must call enforce_artifact_gate before running agents."""
+def test_run_pipeline_invokes_gate(temp_state, monkeypatch, offline_freshness_sources):
+    """run_pipeline must call enforce_artifact_gate before running agents.
+
+    offline_freshness_sources (2026-11-05, TESTS-REACH-THE-NETWORK-1): the pipeline's agent polled four upstream sources over the
+    network (measured); here it polls them against no network."""
     orch = Orchestrator(temp_state, dry_run=True)
     called = {"n": 0, "names": None}
 
@@ -97,7 +100,7 @@ def test_run_pipeline_invokes_gate(temp_state, monkeypatch):
         called["names"] = list(agent_names)
 
     monkeypatch.setattr(orch, "enforce_artifact_gate", _spy)
-    # data_freshness pipeline is a single known agent; dry_run keeps agents cheap.
+    # data_freshness pipeline is a single known agent. (dry_run does NOT stop its polls -- only offline_freshness_sources does.)
     orch.run_pipeline("data_freshness")
     assert called["n"] == 1
     assert called["names"] == ["DataFreshnessAgent"]
