@@ -38,7 +38,10 @@ def test_telemetry_never_raises_on_bad_duration(tmp_path):
     assert orch._state.get_section("agent_runs").get("A", []) == []            # nothing recorded, no crash
 
 
-def test_dry_run_pipeline_records_nothing(tmp_path):
+def test_dry_run_pipeline_records_nothing(tmp_path, offline_freshness_sources):
+    # offline_freshness_sources (2026-11-05, TESTS-REACH-THE-NETWORK-1): this dry run polled ClinVar, gnomAD, LOVD and AlphaMissense
+    # over the network (measured); the agent still runs all four polls, against no network.
     orch = _orch(tmp_path, dry_run=True)
     orch.run_pipeline("data_freshness")
+    assert offline_freshness_sources == ["clinvar", "gnomad", "lovd", "alphamissense"]
     assert orch._state.get_section("agent_runs") == {}

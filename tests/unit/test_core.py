@@ -2167,6 +2167,12 @@ class TestAnnotationPipeline:
     with the full write-up. It is not repeated here: ten tests in this class hit that path,
     and only two ever tripped the detector (the first WARMS the cache and the rest get hits),
     so a per-class fix would have been one test-reordering away from regressing.
+
+    NO LIVE UNIPROT LOOKUP (2026-11-05, TESTS-REACH-THE-NETWORK-1). MEASURED: every test here that runs _annotate_scores() sent
+    ESM2Connector to rest.uniprot.org for BRCA1's sequence (data/esm2.py:193; the connector allows a live lookup by default when no
+    local index is configured, and swallows a failure), so the result depended on the network. Each config now says
+    esm2_allow_network=False: no sequence, esm2_delta_norm stays 0.0 -- what these tests assert, on every machine. The repository
+    root's conftest.py refuses and fails any network attempt.
     """
 
     @pytest.fixture
@@ -2281,13 +2287,13 @@ class TestAnnotationPipeline:
 
     def test_annotate_scores_stub_mode_no_raise(self, minimal_canonical_df):
         from genomic_variant_classifier.data.real_data_prep import DataPrepPipeline, AnnotationConfig
-        pipeline = DataPrepPipeline(annotation_config=AnnotationConfig())
+        pipeline = DataPrepPipeline(annotation_config=AnnotationConfig(esm2_allow_network=False))
         result = pipeline._annotate_scores(minimal_canonical_df)
         assert result is not minimal_canonical_df
 
     def test_annotate_scores_adds_all_score_columns(self, minimal_canonical_df):
         from genomic_variant_classifier.data.real_data_prep import DataPrepPipeline, AnnotationConfig
-        pipeline = DataPrepPipeline(annotation_config=AnnotationConfig())
+        pipeline = DataPrepPipeline(annotation_config=AnnotationConfig(esm2_allow_network=False))
         result = pipeline._annotate_scores(minimal_canonical_df)
         for col in ["sift_score", "polyphen2_score", "revel_score",
                     "cadd_phred", "phylop_score", "gerp_score"]:
@@ -2295,7 +2301,7 @@ class TestAnnotationPipeline:
 
     def test_annotate_scores_adds_splice_ai_column(self, minimal_canonical_df):
         from genomic_variant_classifier.data.real_data_prep import DataPrepPipeline, AnnotationConfig
-        pipeline = DataPrepPipeline(annotation_config=AnnotationConfig())
+        pipeline = DataPrepPipeline(annotation_config=AnnotationConfig(esm2_allow_network=False))
         result = pipeline._annotate_scores(minimal_canonical_df)
         assert "splice_ai_score" in result.columns
 
@@ -2303,7 +2309,7 @@ class TestAnnotationPipeline:
         from genomic_variant_classifier.data.real_data_prep import DataPrepPipeline, AnnotationConfig
         from genomic_variant_classifier.data.dbnsfp import DEFAULT_SIFT, DEFAULT_PP2, DEFAULT_REVEL
         from genomic_variant_classifier.data.dbnsfp import DEFAULT_CADD, DEFAULT_GERP
-        pipeline = DataPrepPipeline(annotation_config=AnnotationConfig())
+        pipeline = DataPrepPipeline(annotation_config=AnnotationConfig(esm2_allow_network=False))
         result = pipeline._annotate_scores(minimal_canonical_df)
         assert (result["sift_score"]      == DEFAULT_SIFT).all()
         assert (result["polyphen2_score"] == DEFAULT_PP2).all()
@@ -2314,7 +2320,7 @@ class TestAnnotationPipeline:
 
     def test_annotate_scores_no_nans(self, minimal_canonical_df):
         from genomic_variant_classifier.data.real_data_prep import DataPrepPipeline, AnnotationConfig
-        pipeline = DataPrepPipeline(annotation_config=AnnotationConfig())
+        pipeline = DataPrepPipeline(annotation_config=AnnotationConfig(esm2_allow_network=False))
         result = pipeline._annotate_scores(minimal_canonical_df)
         for col in ["sift_score", "polyphen2_score", "revel_score",
                     "cadd_phred", "phylop_score", "gerp_score", "splice_ai_score"]:
@@ -2322,7 +2328,7 @@ class TestAnnotationPipeline:
 
     def test_annotate_scores_preserves_input_columns(self, minimal_canonical_df):
         from genomic_variant_classifier.data.real_data_prep import DataPrepPipeline, AnnotationConfig
-        pipeline = DataPrepPipeline(annotation_config=AnnotationConfig())
+        pipeline = DataPrepPipeline(annotation_config=AnnotationConfig(esm2_allow_network=False))
         result = pipeline._annotate_scores(minimal_canonical_df)
         for col in minimal_canonical_df.columns:
             assert col in result.columns
@@ -2331,7 +2337,7 @@ class TestAnnotationPipeline:
         from genomic_variant_classifier.data.real_data_prep import DataPrepPipeline, AnnotationConfig
         from unittest.mock import patch
         pipeline = DataPrepPipeline(
-            annotation_config=AnnotationConfig(annotate_cadd=False)
+            annotation_config=AnnotationConfig(annotate_cadd=False, esm2_allow_network=False)
         )
         with patch("genomic_variant_classifier.data.cadd.CADDConnector.fetch") as mock_fetch:
             pipeline._annotate_scores(minimal_canonical_df)
@@ -2341,7 +2347,7 @@ class TestAnnotationPipeline:
         from genomic_variant_classifier.data.real_data_prep import DataPrepPipeline, AnnotationConfig
         from unittest.mock import patch, MagicMock
         pipeline = DataPrepPipeline(
-            annotation_config=AnnotationConfig(annotate_cadd=True)
+            annotation_config=AnnotationConfig(annotate_cadd=True, esm2_allow_network=False)
         )
         with patch("genomic_variant_classifier.data.real_data_prep.CADDConnector") as MockCADD:
             mock_instance = MagicMock()
@@ -2355,7 +2361,7 @@ class TestAnnotationPipeline:
         from genomic_variant_classifier.models.variant_ensemble import engineer_features, TABULAR_FEATURES
         from unittest.mock import patch
 
-        pipeline = DataPrepPipeline(annotation_config=AnnotationConfig())
+        pipeline = DataPrepPipeline(annotation_config=AnnotationConfig(esm2_allow_network=False))
 
         def fake_annotate(df, **kw):
             out = df.copy()
@@ -2404,7 +2410,7 @@ class TestAnnotationPipeline:
         from unittest.mock import patch
 
         call_order = []
-        pipeline = DataPrepPipeline(annotation_config=AnnotationConfig())
+        pipeline = DataPrepPipeline(annotation_config=AnnotationConfig(esm2_allow_network=False))
 
         with patch("genomic_variant_classifier.data.real_data_prep.DbNSFPConnector") as MockDB, \
              patch("genomic_variant_classifier.data.real_data_prep.PhyloPConnector") as MockPP:
@@ -2422,7 +2428,7 @@ class TestAnnotationPipeline:
 
     def test_pipeline_accepts_annotation_config(self):
         from genomic_variant_classifier.data.real_data_prep import DataPrepPipeline, AnnotationConfig
-        cfg = AnnotationConfig(annotate_cadd=True)
+        cfg = AnnotationConfig(annotate_cadd=True, esm2_allow_network=False)
         pipeline = DataPrepPipeline(annotation_config=cfg)
         assert pipeline.annotation_config.annotate_cadd is True
 

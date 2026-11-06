@@ -8212,4 +8212,22 @@
 #   asserts during collection and that defined NO test (0 counted); the same checks are 8 tests. +1 / -1
 #   tests/unit/test_sklearn_parallel_warning_contract.py: "an added entry passes and is listed and a reordering fails" becomes
 #   "an added entry and a moved one both fail, each named". (tests_drift/: 21 -> 22.)
-8667
+# 2026-11-05  TESTS-REACH-THE-NETWORK-1, GIT-VERSION-REQUIREMENT-UNSTATED-1, PROGRAM-START-RECORD-PLATFORM-FORM-1 and
+#   GUARD-SYSTEM-PROXIES-1 -- no test reaches the network; Git 2.45 required; program starts recorded in the platform's own form
+#   +57 / -0 by node identity (collected and diffed against main, 3c01564a). +33 tests/unit/test_network_guard.py: this session is
+#   guarded and offline (huggingface_hub read the variable at its import); what counts as the loopback (16 cases); which proxy
+#   settings are refused (11: on the loopback only, the port defaulted by the scheme, credentials not kept, no_proxy and a variable
+#   that merely ends in _proxy ignored); the proxies are read from every <scheme>_proxy variable and the operating system's own
+#   settings; a loopback server is untouched; in a child session every attempt is refused and fails its test at teardown -- a
+#   refused connection (NetworkRefused, a ConnectionRefusedError), a swallowed lookup, the configured proxy -- while another
+#   loopback port is untouched, an xfail-marked attempt fails the session, the summary counts and names them, the proxy refused and
+#   the invoker's offline value; an xfail-marked attempt that is the session's only finding still fails it; an attempt at import
+#   stops the session before any test. +2 tests/unit/test_inference_backend_trace.py: importing the module starts no program and
+#   adds no audit hook (an Rscript planted on PATH); the DANDELION probe starts R once, outside the checkout, recorded exactly as
+#   the platform reports it. +4 tests/unit/test_program_start_recorder.py: the program_starts fixture calibrated on the machine
+#   that runs it -- a start let through runs and is recorded as predicted; a blocked one never runs; os.system is recorded and
+#   blocked; an audit hook added while recording is refused and never called. +18 tests/unit/test_release_approval.py: a Git of
+#   2.45 or later is accepted and its version read once per reader (6 forms); an older one is refused with the requirement named
+#   before any object is read (5); unreadable output is refused (5); a Git that cannot run is refused; the installed Git meets the
+#   requirement or is refused with it. (The first delivery, +45, failed on Windows: PROGRAM-START-RECORD-PLATFORM-FORM-1.)
+8724

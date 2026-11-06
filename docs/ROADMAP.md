@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **8,667 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **8,724 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -759,7 +759,36 @@ exists to end.
   as package modules instead of editing sys.path; test_dbsnp_pop_preference.py's checks became 8 tests. pyproject.toml pins
   torch_geometric 2.7.0's three import-time DeprecationWarnings about its own code (scoped by message and issuing module; a premise
   test re-measures them). README's repository structure and cohort sentence, and this document's header, section 1 and section 5's
-  status, re-derived. Drift suite 21 -> 22; suite 8,647 -> 8,667 (+21 / -1).
+  status, re-derived. Drift suite 21 -> 22; suite 8,647 -> 8,667 (+21 / -1). VALIDATED ON WINDOWS AND MERGED 2026-11-05: one
+  -Validate run (04:20 to 06:21 UTC, 121.3 minutes): 8,579 passed, 83 skipped, 5 xfailed, 0 failed, coverage 83%, the warning-filter
+  guard 8,667 checked / 0 changed (the eleven modules imported at session start in 28.78 s), targeted 756 passed, 3 skipped, drift 22
+  passed, the checkout unchanged; candidate e28e0f13 (tree 6621b6ba, the sandbox's); pull request #65, merged with a merge commit
+  (3c01564a, parents adb2e2fd and e28e0f13). The post-merge block passed on the owner's machine (07:49 to 08:05 UTC: the merge
+  verified, the checkout fast-forwarded to 3c01564a, both candidate environments still exactly their Windows locks, targeted 756
+  passed, 3 skipped, drift 22 passed, the checkout's 81 untracked files unchanged), and the branch was deleted (08:27 to 08:32 UTC).
+- **2026-11-05 -- TESTS-REACH-THE-NETWORK-1 and GIT-VERSION-REQUIREMENT-UNSTATED-1: no test reaches the network; the Git requirement
+  is stated by the reader itself.** MEASURED on the whole suite (8,667 tests, the gate's options, outcome unchanged by the
+  instrument) with an audit hook in every Python process joined to the HTTPS proxy's refusal log: 15 tests reached the network -- 28
+  proxied connections and 4 name lookups to rest.uniprot.org (ESM2Connector's default live lookup; 11 tests), ClinVar's FTP server,
+  storage.googleapis.com, databases.lovd.nl, alphafold.ebi.ac.uk and api.github.com (the two data-freshness agents; 4 tests, one in
+  a child interpreter) -- each refused in the sandbox and swallowed by the code; and collection started R five times in the
+  checkout, where renv tried to bootstrap itself (7.72 s and 24 refused connections per start, measured alone). On machines with
+  the network open those calls were made. The root conftest.py now sets the three Hugging Face offline variables for the session
+  and refuses, inside the call, every non-loopback lookup, connection and datagram and every connection to a configured proxy; a
+  test that tried fails at teardown even when the code swallowed the refusal, an attempt at session start or collection stops the
+  session, and child processes and non-Python programs are stated as not covered. Each measured site was given a local source
+  (AnnotationConfig.esm2_allow_network, the local UniProt index, an offline_freshness_sources fixture, an offline probe in the
+  child) and the R module probes DANDELION once, lazily and outside the checkout (closing TEST-R-PROJECT-PROFILE-1 for that
+  module). release_approval reads `git --version` once per reader and refuses below 2.45 with the requirement named. Open,
+  recorded: ESM2-REAL-MODE-FIXTURE-1, PYCACHE-FROM-ISOLATED-CHILDREN-1, ESM2-LIVE-UNIPROT-DEFAULT-1, FRESHNESS-DRY-RUN-1,
+  AGENT-LOGGING-IN-LIBRARY-1. REVISION B (same day): the owner's first Windows validation stopped at its targeted tests on ONE test
+  of the change (1 failed, 883 passed, 14 skipped; the checkout verified unchanged) -- it read the program-start record in CPython's
+  POSIX form, a list, where Windows reports one command line (PROGRAM-START-RECORD-PLATFORM-FORM-1; verified only on Linux). The
+  recorder is now a fixture of tests/unit/conftest.py, installed once, keeping the platform's own form and calibrated by four tests
+  against a real start on the machine that runs them; the guard now reads every proxy urllib.request.getproxies() can use, the
+  Windows Internet settings included (GUARD-SYSTEM-PROXIES-1). Verified in the sandbox: 8,692 passed, 26 skipped, 6 xfailed; 0
+  network attempts; the proxy recorded no refusal; drift 22 passed; 28 mutations caught across both deliveries. Suite 8,667 -> 8,724
+  (+57 / -0).
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined

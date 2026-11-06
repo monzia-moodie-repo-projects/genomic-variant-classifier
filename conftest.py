@@ -15,15 +15,20 @@ tests/conftest.py.
 The guards, in this file's order: sys.path leaks and writes into data/raw/cache (per test); the workflow's publication files
 (per session and per test); the environment and the conftest.py of a child pytest; temporary-file containment; no thread-parallel
 joblib work and the warning-filter guard; the libraries that register warning filters when first imported, imported at session
-start, and the check around collection (since 2026-11-05); the working-tree guard (per session).
+start, and the check around collection (since 2026-11-05); no test reaches the network (since 2026-11-05, armed when this file is
+imported); the working-tree guard (per session).
 
 Author: Monzia Moodie
 """
 from __future__ import annotations
 
+import errno
+import ipaddress
 import os
+import socket
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -542,21 +547,46 @@ def _state_differences(before: tuple, after: tuple, bound: str, subject: str) ->
 @pytest.hookimpl(wrapper=True, tryfirst=True)
 def pytest_runtest_setup(item):
     item.stash[_WARNING_STATE_BEFORE_SETUP] = _warning_state()
+    item.stash[_NETWORK_START] = len(_NETWORK["attempts"])
+    _NETWORK["where"] = ("setup", item.nodeid)
+    return (yield)
+
+
+@pytest.hookimpl(wrapper=True, tryfirst=True)
+def pytest_runtest_call(item):
+    _NETWORK["where"] = ("call", item.nodeid)
     return (yield)
 
 
 @pytest.hookimpl(wrapper=True, tryfirst=True)
 def pytest_runtest_teardown(item, nextitem):
+    _NETWORK["where"] = ("teardown", item.nodeid)
     try:
         result = yield
     except (KeyboardInterrupt, SystemExit, pytest.exit.Exception):
-        _check_the_warning_state(item, report=False)        # restored and recorded; the interrupt is never replaced
+        _check_the_network_attempts(item)                   # recorded; the interrupt is never replaced
+        _check_the_warning_state(item, report=False)        # restored and recorded
         raise
     except BaseException:
-        _check_the_warning_state(item)                      # a finding raised here carries the teardown's own error as context
+        _check_both_guards(item)                            # a finding raised here carries the teardown's own error as context
         raise
-    _check_the_warning_state(item)
+    finally:
+        _NETWORK["where"] = ("between tests", item.nodeid)
+    _check_both_guards(item)
     return result
+
+
+def _check_both_guards(item) -> None:
+    """The network guard's finding and the warning-filter guard's, each recorded first; ONE AssertionError carries both."""
+    network = _check_the_network_attempts(item)
+    try:
+        _check_the_warning_state(item)
+    except AssertionError as warning_finding:
+        if network is None:
+            raise
+        raise AssertionError("{}\n\n{}".format(warning_finding, network))
+    if network is not None:
+        raise AssertionError(network)
 
 
 def _check_the_warning_state(item, report: bool = True) -> None:
@@ -707,10 +737,15 @@ def pytest_collection(session):
     """The completeness check. trylast: inside pytest's own wrapper, so the comparison is made within the catch_warnings pytest
     opens for collection, around everything collection imports."""
     before = _warning_state()
-    result = yield
+    _NETWORK["where"] = ("collection", "")
+    try:
+        result = yield
+    finally:
+        _NETWORK["where"] = ("between tests", "")
     found = _state_differences(before, _warning_state(), "when collection started", "collection")
+    messages = []
     if found:
-        raise pytest.UsageError(
+        messages.append(
             "THE WARNING STATE CHANGED WHILE TESTS WERE COLLECTED (WARNING-FILTER-REORDER-AT-FIRST-IMPORT-1). A module imported by "
             "collection changed it; pytest's warnings plugin discards that when collection ends, but a run that does not collect "
             "that module would make the change inside the first test that imports it, ahead of pyproject.toml's entries.\n  " +
@@ -718,7 +753,236 @@ def pytest_collection(session):
             "If a library registered them, add the module that registers them (or one that imports it) to "
             "_FILTER_REGISTERING_MODULES in conftest.py (the repository root's). If a test module did, set the filter with "
             "pytestmark = pytest.mark.filterwarnings(...) instead.")
+    network = _network_attempts_outside_tests()
+    if network:
+        messages.append(
+            "CODE RUN WHILE THE SESSION STARTED OR TESTS WERE COLLECTED TRIED TO REACH THE NETWORK (TESTS-REACH-THE-NETWORK-1). "
+            "Every attempt was refused (NetworkRefused); a module that reaches the network when it is imported, or a skip condition "
+            "that does when it is evaluated at collection, must not:\n  " + "\n  ".join(_describe_attempt(a) for a in network))
+    if messages:
+        raise pytest.UsageError("\n\n".join(messages))
     return result
+
+
+# ---------------------------------------------------------------------------
+# No test reaches the network (added 2026-11-05, TESTS-REACH-THE-NETWORK-1) -- PREVENTION and DETECTION.
+# ---------------------------------------------------------------------------
+# THE DEFECT. A test whose code reaches the network passes or fails with the network: with the service up, down, rate-limited,
+# answering something new, or refused by a proxy. MEASURED 2026-11-05 (development sandbox, Linux, Python 3.12.3, the
+# training-and-test lock's environment, Git 2.47.1, the gate's options and its HF_HUB_OFFLINE=1 and TRANSFORMERS_OFFLINE=1): the
+# whole suite (8,667 tests; 8,635 passed, 26 skipped, 6 xfailed -- the same outcome as without the measurement) run under an audit
+# hook (PEP 578) installed in EVERY Python process by a sitecustomize.py, recording each name lookup, connection and program start
+# with the test running and the project's frames, joined to the HTTPS proxy's own refusal log:
+#   * 15 tests reached the network from the pytest process or its child interpreters, 28 connections and 4 name lookups, every one
+#     refused by the sandbox's proxy, every refusal swallowed by the code that made it:
+#       - 10 tests of tests/unit/test_core.py::TestAnnotationPipeline and tests/unit/test_esm2_activation.py's
+#         test_esm2_emits_delta_norm_column: rest.uniprot.org, from data/esm2.py:193 (_fetch_uniprot_sequence -- ESM2Connector
+#         allows a live UniProt lookup by default when no local index is configured, and logs a failure at DEBUG level);
+#       - 3 tests running the "data_freshness" pipeline (test_orchestrator_agent_isolation, test_orchestrator_run_telemetry's dry
+#         run, test_science_claw_orchestrator_gate): ftp.ncbi.nlm.nih.gov, storage.googleapis.com (twice) and databases.lovd.nl,
+#         from agent_layer/agents/data_freshness_agent.py's four polls -- in a DRY RUN;
+#       - tests/unit/test_orchestrator_lazy_registry.py's test_ci_data_freshness_pipeline_runs_without_sklearn, in a child
+#         interpreter: ftp.ncbi.nlm.nih.gov, storage.googleapis.com, alphafold.ebi.ac.uk, api.github.com and databases.lovd.nl,
+#         from agent_layer/agents/database_freshness_detector.py's _default_probe;
+#   * collection started Rscript five times (tests/unit/test_inference_backend_trace.py evaluated a DANDELION probe in five skip
+#     conditions) in the checkout, whose .Rprofile activates renv: measured alone, one such start took 7.7 s and was refused 24
+#     connections to bioconductor.org and packagemanager.posit.co (renv tried to bootstrap itself; the same start with --vanilla
+#     took 0.18 s and reached nothing). That is fixed in the test module; R is not Python, and this guard cannot see it.
+# On the owner's machine and on Continuous Integration's runners the network is open: those calls are MADE, and what they return
+# reaches the test.
+#
+# PREVENTION. (1) For the whole session this file sets HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE and HF_DATASETS_OFFLINE to 1 -- the
+# values Continuous Integration's test step and the installers' validations set, so a local run is the gate's run: no model
+# download is attempted, and a test needing weights that are not already cached skips with its reason (INCIDENT_2026-06-12). It
+# is done when this file is imported, before the session-start imports, because huggingface_hub reads them at its own import.
+# Every child process inherits them. A value the invoker set differently is named in this guard's summary. (2) An audit hook
+# (sys.addaudithook, PEP 578) is installed when this file is imported -- before the session-start imports and collection -- and
+# REFUSES, by raising NetworkRefused (a ConnectionRefusedError) inside the call, every name lookup of a host that is not the
+# loopback and every connection or datagram to an Internet address that is not the loopback, or to a configured proxy on the
+# loopback (a proxy there forwards to the network; one elsewhere is refused as any other address is). Nothing leaves the process,
+# so every test runs as it would on a machine with no network, whatever machine runs it. Loopback servers and Unix sockets are
+# untouched. Audit hooks cannot be removed: it is disarmed at unconfigure.
+# THE PROXIES READ (2026-11-05, GUARD-SYSTEM-PROXIES-1): every proxy that urllib.request.getproxies() -- and so requests, httpx
+# and aiohttp -- can use: each <scheme>_proxy variable in any letter case (no_proxy excepted), AND the operating system's own
+# settings, which getproxies() falls back to when no variable is set: the Windows Internet settings in the registry
+# (getproxies_registry) or macOS's System Configuration. Both are read, so a variable cannot hide a system proxy. A setting
+# without a port gets its scheme's (http 80, https 443, socks 1080). The first version read six variables only: found when the
+# guard was re-examined for Windows after PROGRAM-START-RECORD-PLATFORM-FORM-1, by reading CPython's urllib.request and
+# requests.utils, not by a failure. The proxies refused are named, with where each was read, in this guard's summary.
+# DETECTION. Each refused attempt is recorded with the test, the phase, the target, the innermost frames of this repository's code
+# and, for a proxied request, the destination read from the calling frames (http.client's _tunnel_host). A TEST in which an
+# attempt was made FAILS at teardown, naming each one -- also when the code under test swallowed the refusal, as every measured
+# site did. An attempt while the session starts or tests are collected stops the session (the collection check above). The
+# session fails whenever any test was found (exit 1): pytest reports a teardown failure of an xfail-marked test as "xfailed".
+# NOT COVERED, stated: a child process (it inherits the offline variables, not this hook), and any program that is not Python.
+# The measurement covered both by recording every program a test starts and the proxy's refusals; after this change it found none.
+class NetworkRefused(ConnectionRefusedError):
+    """Raised inside a network call by the repository root conftest.py's network guard (TESTS-REACH-THE-NETWORK-1)."""
+
+
+_OFFLINE_VARIABLES = ("HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE", "HF_DATASETS_OFFLINE")
+_NETWORK_LOOKUPS = ("socket.getaddrinfo", "socket.gethostbyname", "socket.gethostbyname_ex", "socket.gethostbyaddr",
+                    "socket.getnameinfo")
+_NETWORK_SENDS = ("socket.connect", "socket.sendto", "socket.sendmsg")
+_LOOPBACK_NAMES = frozenset({"localhost", "localhost.localdomain", "ip6-localhost", "ip6-loopback"})
+_NETWORK_START = pytest.StashKey()
+
+
+def _is_loopback(host) -> bool:
+    if host is None:
+        return True                                   # getaddrinfo(None, port): a local address to bind
+    text = host.decode("ascii", "replace") if isinstance(host, (bytes, bytearray)) else str(host)
+    text = text.strip("[]").split("%", 1)[0]
+    if text == "" or text.lower() in _LOOPBACK_NAMES:
+        return True
+    try:
+        address = ipaddress.ip_address(text)
+    except ValueError:
+        return False
+    return address.is_loopback or address.is_unspecified
+
+
+_DEFAULT_PROXY_PORTS = {"http": 80, "https": 443, "socks": 1080, "socks4": 1080, "socks4a": 1080, "socks5": 1080, "socks5h": 1080}
+
+
+def _loopback_proxies(settings: dict) -> frozenset:
+    """{scheme: proxy URL} (urllib.request's form) -> the (host, port) of each proxy on the loopback. Credentials are not kept."""
+    found = set()
+    for scheme, value in settings.items():
+        if scheme == "no" or not isinstance(value, str) or not value:
+            continue
+        try:
+            parts = urlsplit(value if "://" in value else "http://" + value)
+            host, port = parts.hostname, parts.port or _DEFAULT_PROXY_PORTS.get(parts.scheme.lower())
+        except ValueError:
+            continue
+        if host and port and _is_loopback(host):
+            found.add((host, port))
+    return frozenset(found)
+
+
+def _system_proxy_settings() -> tuple:
+    """(where, {scheme: proxy URL}) of the operating system's own proxy settings, or (None, {}) where urllib reads none."""
+    import urllib.request
+
+    for where, reader in (("the Windows Internet settings", "getproxies_registry"),
+                          ("the macOS System Configuration", "getproxies_macosx_sysconf")):
+        if hasattr(urllib.request, reader):
+            return where, dict(getattr(urllib.request, reader)())
+    return None, {}
+
+
+def _configured_proxies() -> dict:
+    """{(host, port): where it was read} for every proxy on the loopback that urllib.request.getproxies() can use."""
+    import urllib.request
+
+    found = {address: "the environment" for address in _loopback_proxies(urllib.request.getproxies_environment())}
+    where, settings = _system_proxy_settings()
+    for address in _loopback_proxies(settings):
+        found[address] = where if address not in found else found[address] + " and " + where
+    return found
+
+
+_NETWORK = {"armed": True, "where": ("configure", ""), "attempts": [], "proxies": _configured_proxies(),
+            "offline": {name: os.environ.get(name) for name in _OFFLINE_VARIABLES}, "checked": 0, "failed": [], "printed": False}
+for _name in _OFFLINE_VARIABLES:
+    os.environ[_name] = "1"
+
+
+def _project_frames(frame) -> tuple:
+    root = str(_here.parent) + os.sep
+    own, innermost, tunnel = [], None, None
+    while frame is not None:
+        name = frame.f_code.co_filename
+        mine = name in (__file__, str(_here))
+        if innermost is None and not mine:
+            innermost = "{}:{}".format(name, frame.f_lineno)
+        if name.startswith(root) and not mine and len(own) < 4:
+            own.append("{}:{} {}".format(os.path.relpath(name, root[:-1]), frame.f_lineno, frame.f_code.co_name))
+        if tunnel is None:
+            state = getattr(frame.f_locals.get("self"), "__dict__", None)
+            host = state.get("_tunnel_host") if isinstance(state, dict) else None
+            if isinstance(host, str) and host:
+                tunnel = host
+        frame = frame.f_back
+    return own, innermost, tunnel
+
+
+def _refuse_network(event: str, args: tuple) -> None:
+    if not event.startswith("socket.") or not _NETWORK["armed"]:
+        return
+    if event in _NETWORK_LOOKUPS:
+        host = args[0][0] if event == "socket.getnameinfo" and isinstance(args[0], tuple) else args[0]
+        if _is_loopback(host):
+            return
+        target = str(host if not isinstance(host, (bytes, bytearray)) else host.decode("ascii", "replace"))
+        if event == "socket.getaddrinfo":
+            target = "{}:{}".format(target, args[1])
+    elif event in _NETWORK_SENDS:
+        sock, address = args[0], args[1]
+        if getattr(sock, "family", None) not in (socket.AF_INET, socket.AF_INET6) or not isinstance(address, tuple):
+            return
+        host, port = str(address[0]), address[1]
+        proxied = _is_loopback(host) and any(port == p for _, p in _NETWORK["proxies"])
+        if _is_loopback(host) and not proxied:
+            return
+        target = "{}:{}{}".format(host, port, " (a configured proxy)" if proxied else "")
+    else:
+        return
+    own, innermost, tunnel = _project_frames(sys._getframe(1))
+    phase, nodeid = _NETWORK["where"]
+    _NETWORK["attempts"].append({"event": event, "target": target, "phase": phase, "nodeid": nodeid, "own": own,
+                                 "innermost": innermost, "destination": tunnel})
+    raise NetworkRefused(errno.ECONNREFUSED, "network access refused under test (TESTS-REACH-THE-NETWORK-1): {} {}".format(
+        event, target))
+
+
+sys.addaudithook(_refuse_network)
+
+
+def _describe_attempt(attempt: dict) -> str:
+    where = attempt["nodeid"] or "(no test)"
+    via = "; destination {}".format(attempt["destination"]) if attempt["destination"] else ""
+    frames = "; ".join(attempt["own"]) if attempt["own"] else "no frame of this repository; innermost " + str(attempt["innermost"])
+    return "{} {}{} -- during {} of {} -- at {}".format(attempt["event"], attempt["target"], via, attempt["phase"], where, frames)
+
+
+def _network_attempts_outside_tests() -> list:
+    return [a for a in _NETWORK["attempts"] if a["phase"] in ("configure", "session start", "collection")]
+
+
+def _check_the_network_attempts(item) -> "str | None":
+    """Records this test's refused attempts in the tally; returns the finding's message, or None when it made none."""
+    start = item.stash.get(_NETWORK_START, None)
+    if start is None:
+        return "the network guard was not armed for {}: its setup hook did not run".format(item.nodeid)
+    _NETWORK["checked"] += 1
+    attempts = _NETWORK["attempts"][start:]
+    if not attempts:
+        return None
+    _NETWORK["failed"].append(item.nodeid)
+    return ("THIS TEST TRIED TO REACH THE NETWORK (TESTS-REACH-THE-NETWORK-1): {} attempt{}, each refused inside this process "
+            "(NetworkRefused, a ConnectionRefusedError), so it ran as on a machine with no network -- but on a machine with one the "
+            "call would be made and its answer would decide the test.\n  {}\n"
+            "Give the code a local source (a fixture under tests/fixtures/, a tmp_path file, an injected probe or fetcher, or the "
+            "component's offline setting) so that it never attempts the network.".format(
+                len(attempts), "" if len(attempts) == 1 else "s", "\n  ".join(_describe_attempt(a) for a in attempts)))
+
+
+def _network_guard_lines() -> list:
+    offline = ", ".join("{}=1".format(name) for name in _OFFLINE_VARIABLES)
+    changed = ["{} (the invoker's {!r})".format(name, value) for name, value in _NETWORK["offline"].items()
+               if value is not None and value != "1"]
+    lines = ["{} tests checked, {} tried to reach the network; {} attempt{} refused in all; set for the session: {}{}".format(
+        _NETWORK["checked"], len(_NETWORK["failed"]), len(_NETWORK["attempts"]), "" if len(_NETWORK["attempts"]) == 1 else "s",
+        offline, "; replaced: " + ", ".join(changed) if changed else "")]
+    proxies = ["{}:{} ({})".format(host, port, where) for (host, port), where in sorted(_NETWORK["proxies"].items())]
+    lines.append("proxies on the loopback, refused as the network: " + (", ".join(proxies) if proxies else "none configured"))
+    if _NETWORK["failed"]:
+        lines.append("THESE TESTS TRIED TO REACH THE NETWORK (every attempt refused; the session fails):")
+        lines.extend("    " + nodeid for nodeid in _NETWORK["failed"])
+    lines.extend("    outside any test: " + _describe_attempt(a) for a in _NETWORK["attempts"] if a["phase"] == "between tests")
+    return lines
 
 
 # ---------------------------------------------------------------------------
@@ -752,6 +1016,7 @@ def pytest_sessionstart(session) -> None:
     from genomic_variant_classifier.repository_hygiene.workspace_snapshot import take_snapshot
 
     session.config.stash[_WORKSPACE_BEFORE] = take_snapshot(_WORKSPACE_ROOT)
+    _NETWORK["where"] = ("session start", "")
     _import_the_filter_registering_modules(session.config)       # after the snapshot: the working-tree guard sees what they do
 
 
@@ -787,8 +1052,12 @@ def pytest_sessionfinish(session, exitstatus) -> None:
     from genomic_variant_classifier.repository_hygiene.workspace_snapshot import compare, describe, take_snapshot
 
     tally = session.config.stash.get(_WARNING_GUARD_TALLY, None)
-    if tally is not None and tally["failed"] and session.exitstatus in (pytest.ExitCode.OK, pytest.ExitCode.NO_TESTS_COLLECTED):
-        session.exitstatus = pytest.ExitCode.TESTS_FAILED      # also when pytest reported the finding as an xfail
+    stray = [a for a in _NETWORK["attempts"] if a["phase"] == "between tests"]
+    if stray and "(outside any test)" not in _NETWORK["failed"]:
+        _NETWORK["failed"].append("(outside any test)")       # between one test's teardown and the next one's setup
+    found = (tally is not None and tally["failed"]) or _NETWORK["failed"]
+    if found and session.exitstatus in (pytest.ExitCode.OK, pytest.ExitCode.NO_TESTS_COLLECTED):
+        session.exitstatus = pytest.ExitCode.TESTS_FAILED      # also when pytest reported a finding as an xfail
     before = session.config.stash.get(_WORKSPACE_BEFORE, None)
     if before is None:
         session.config.stash[_WORKSPACE_REPORT] = (["NOT ARMED: conftest.py (the repository root's) was loaded after the session "
@@ -827,6 +1096,11 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config) -> None:
         for line in _warning_guard_lines(tally):
             terminalreporter.line(line, red=failed)
         tally["printed"] = True
+    failed = bool(_NETWORK["failed"])
+    terminalreporter.section("network guard", sep="=", red=failed, green=not failed, bold=True)
+    for line in _network_guard_lines():
+        terminalreporter.line(line, red=failed)
+    _NETWORK["printed"] = True
     report = config.stash.get(_WORKSPACE_REPORT, None)
     if report is None:
         return
@@ -839,8 +1113,17 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config) -> None:
 
 @pytest.hookimpl(tryfirst=True)
 def pytest_unconfigure(config) -> None:
-    """Registers joblib's own thread backend again and restores what temporary-file containment changed; then, if the terminal
-    summary was skipped (--no-summary, -p no:terminal, some exit codes), writes the two guards' findings here."""
+    """Disarms the network guard and restores the offline variables; registers joblib's own thread backend again and restores what
+    temporary-file containment changed; then, if the terminal summary was skipped (--no-summary, -p no:terminal, some exit codes),
+    writes the three guards' findings here."""
+    _NETWORK["armed"] = False
+    for name, value in _NETWORK["offline"].items():
+        if value is None:
+            os.environ.pop(name, None)
+        else:
+            os.environ[name] = value
+    if _NETWORK["failed"] and not _NETWORK["printed"]:
+        sys.stderr.write("\n".join(["network guard:"] + _network_guard_lines()) + "\n")
     original = config.stash.get(_JOBLIB_THREAD_BACKEND, None)
     if original is not None:
         import joblib

@@ -7,6 +7,7 @@ Author: Monzia Moodie
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import os
 import shutil
@@ -100,17 +101,41 @@ def _rscript():
     return shutil.which("Rscript")
 
 
-def _dandelion_installed():
+# THE DANDELION PROBE: once per session, when the first test that needs it runs -- never at collection -- and in a folder OUTSIDE
+# the checkout (2026-11-05, TESTS-REACH-THE-NETWORK-1; it closes TEST-R-PROJECT-PROFILE-1 for this module). Until then five skip
+# conditions called it when this module was imported. MEASURED 2026-11-05 (development sandbox, R 4.3.3): collection started
+# Rscript five times, in the checkout, whose .Rprofile activates renv; one such start took 7.7 s and was refused 24 connections to
+# bioconductor.org and packagemanager.posit.co (renv trying to bootstrap itself; "failed to bootstrap renv: the project will not be
+# loaded"), and renv created renv/library inside the checkout. The same probe started from a folder outside the checkout took
+# 0.22 s, reached nothing, and saw the same libraries renv had fallen back to (/usr/local/lib/R/site-library,
+# /usr/lib/R/site-library, /usr/lib/R/library): its answer is unchanged where it was measured. It is still the R the PATH names,
+# with the user's own profile -- not the project's renv library, whose qualification is separate work (test_inference_method_trace
+# runs an explicitly named Rscript and library). Every R process this module starts runs outside the checkout, for the same reason.
+_DANDELION_ABSENT = "the pinned DANDELION package (f471153) is not installed in R's library"
+_DANDELION_EXPRESSION = 'quit(status = if (requireNamespace("DANDELION", quietly = TRUE)) 0 else 1)'
+
+
+def _dandelion_installed_from(folder: Path) -> bool:
     exe = _rscript()
     if exe is None:
         return False
-    r = subprocess.run([exe, "-e", 'quit(status = if (requireNamespace("DANDELION", quietly = TRUE)) 0 else 1)'],
-                       capture_output=True, timeout=120)
+    r = subprocess.run([exe, "-e", _DANDELION_EXPRESSION], capture_output=True, timeout=120, cwd=folder)
     return r.returncode == 0
 
 
+@pytest.fixture(scope="session")
+def _dandelion_probe(tmp_path_factory):
+    return _dandelion_installed_from(tmp_path_factory.mktemp("dandelion_probe"))
+
+
+@pytest.fixture
+def installed_dandelion(_dandelion_probe):
+    if not _dandelion_probe:
+        pytest.skip(_DANDELION_ABSENT)
+
+
 @pytest.mark.skipif(_rscript() is None, reason="Rscript not on PATH")
-@pytest.mark.skipif(not _dandelion_installed(), reason="the pinned DANDELION package (f471153) is not installed in R's library")
+@pytest.mark.usefixtures("installed_dandelion")
 @pytest.mark.parametrize("mode, many_backend, many_reason", [
     ("absent", "BH", "qvalue_not_installed"), ("success", "qvalue", None),
     ("warning", "BH", "qvalue_warning"), ("error", "BH", "qvalue_error")])
@@ -123,14 +148,14 @@ def test_the_recorder_observes_every_branch_of_the_real_safe_qvalues(tmp_path, m
         if r_exe is None:
             pytest.skip("R (for R CMD INSTALL of the qvalue test double) not on PATH")
         inst = subprocess.run([r_exe, "CMD", "INSTALL", "-l", str(lib), str(ROOT / "tests/fixtures/dandelion/qvalue_testdouble")],
-                              capture_output=True, text=True, timeout=300)
+                              capture_output=True, text=True, timeout=300, cwd=tmp_path)
         assert inst.returncode == 0, inst.stderr[-500:]
         env["R_LIBS"] = os.pathsep.join(x for x in (str(lib), env.get("R_LIBS", "")) if x)
         env["GVC_QVALUE_DOUBLE_MODE"] = mode
     out = tmp_path / "trace"
     run = subprocess.run([_rscript(), str(ROOT / "tests/fixtures/dandelion/run_recorder_fixture.R"),
                           str(ROOT / "scripts/dandelion/dandelion_backend_recorder.R"), str(out)],
-                         capture_output=True, text=True, timeout=300, env=env)
+                         capture_output=True, text=True, timeout=300, env=env, cwd=tmp_path)
     assert run.returncode == 0 and "fixture OK" in run.stdout, run.stderr[-800:]
     events = admissible_events(read_trace(out, expected_exposures=("rs_small", "rs_few", "rs_many")))
     assert [(e.exposure_id, e.backend, e.fallback_reason) for e in events] == [
@@ -142,13 +167,13 @@ def _probe(tmp_path, scenario, trace_dir):
     result = tmp_path / ("result-" + scenario + ".txt")
     run = subprocess.run([_rscript(), str(ROOT / "tests/fixtures/dandelion/run_recorder_probe.R"),
                           str(ROOT / "scripts/dandelion/dandelion_backend_recorder.R"), scenario, str(trace_dir), str(result)],
-                         capture_output=True, text=True, timeout=300)
+                         capture_output=True, text=True, timeout=300, cwd=tmp_path)
     assert run.returncode == 0, run.stderr[-800:]
     return result.read_bytes()
 
 
 @pytest.mark.skipif(_rscript() is None, reason="Rscript not on PATH")
-@pytest.mark.skipif(not _dandelion_installed(), reason="the pinned DANDELION package (f471153) is not installed in R's library")
+@pytest.mark.usefixtures("installed_dandelion")
 def test_recording_does_not_change_the_science_across_fresh_processes(tmp_path):
     """Owner ruling 2026-10-04b: recorder OFF and recorder ON in two FRESH R processes; exact byte equality of the outputs."""
     off = _probe(tmp_path, "off", tmp_path / "unused")
@@ -159,7 +184,7 @@ def test_recording_does_not_change_the_science_across_fresh_processes(tmp_path):
 
 
 @pytest.mark.skipif(_rscript() is None, reason="Rscript not on PATH")
-@pytest.mark.skipif(not _dandelion_installed(), reason="the pinned DANDELION package (f471153) is not installed in R's library")
+@pytest.mark.usefixtures("installed_dandelion")
 def test_an_unusable_destination_is_refused_before_any_tracing(tmp_path):
     parent = tmp_path / "a_regular_file"
     parent.write_bytes(b"x")
@@ -169,7 +194,7 @@ def test_an_unusable_destination_is_refused_before_any_tracing(tmp_path):
 
 @pytest.mark.skipif(os.name == "nt", reason="parallel::mclapply cannot fork on Windows")
 @pytest.mark.skipif(_rscript() is None, reason="Rscript not on PATH")
-@pytest.mark.skipif(not _dandelion_installed(), reason="the pinned DANDELION package (f471153) is not installed in R's library")
+@pytest.mark.usefixtures("installed_dandelion")
 def test_a_forked_worker_is_refused_before_writing(tmp_path):
     out = _probe(tmp_path, "fork", tmp_path / "trace").decode("utf-8").split("\n")
     assert out[:2] == ["refused 2", "files 0"]
@@ -178,7 +203,7 @@ def test_a_forked_worker_is_refused_before_writing(tmp_path):
 @pytest.mark.skipif(os.name == "nt", reason="a read-only directory attribute does not block file creation on Windows")
 @pytest.mark.skipif(os.name != "nt" and os.geteuid() == 0, reason="root ignores directory permissions, so an unwritable directory cannot be made")
 @pytest.mark.skipif(_rscript() is None, reason="Rscript not on PATH")
-@pytest.mark.skipif(not _dandelion_installed(), reason="the pinned DANDELION package (f471153) is not installed in R's library")
+@pytest.mark.usefixtures("installed_dandelion")
 def test_an_existing_but_unwritable_directory_is_refused_by_the_write_probe(tmp_path):
     """The probe's own case (the directory exists, so only the write probe can refuse it)."""
     locked = tmp_path / "locked"
@@ -189,3 +214,41 @@ def test_an_existing_but_unwritable_directory_is_refused_by_the_write_probe(tmp_
     finally:
         locked.chmod(0o755)
     assert "is not writable -- refusing before any traced call" in out[0] and out[1] == "traced FALSE"
+
+
+# ------------------------------------------------------------------ R is started only when needed, and never in the checkout
+# (2026-11-05, TESTS-REACH-THE-NETWORK-1 / TEST-R-PROJECT-PROFILE-1). An Rscript is planted first on PATH -- so the measurement is
+# the same on a machine with R and without -- and every program start is recorded and BLOCKED before it runs by the program_starts
+# fixture (tests/unit/conftest.py), in the form the platform itself reports it: an argument list on POSIX, one command line on
+# Windows (PROGRAM-START-RECORD-PLATFORM-FORM-1: the first version of these tests read a list, and failed on Windows).
+
+
+@pytest.fixture
+def planted_rscript(tmp_path, monkeypatch):
+    folder = tmp_path / "planted_bin"
+    folder.mkdir()
+    if os.name == "nt":
+        (folder / "Rscript.bat").write_text("@exit /b 0\r\n", encoding="ascii")
+    else:
+        (folder / "Rscript").write_text("#!/bin/sh\nexit 0\n", encoding="ascii")
+        (folder / "Rscript").chmod(0o755)
+    monkeypatch.setenv("PATH", str(folder) + os.pathsep + os.environ.get("PATH", ""))
+    assert Path(shutil.which("Rscript")).parent == folder
+    return folder
+
+
+def test_importing_this_module_starts_no_program(planted_rscript, program_starts):
+    """What collection does: import the module, which evaluates every skip condition. Until 2026-11-05 five of them started R.
+    The import also adds no audit hook (the first version of this file added one at every import)."""
+    spec = importlib.util.spec_from_file_location("_gvc_backend_trace_import_probe", Path(__file__))
+    spec.loader.exec_module(importlib.util.module_from_spec(spec))
+    assert program_starts.seen == []
+
+
+def test_the_dandelion_probe_starts_r_once_outside_the_checkout(planted_rscript, program_starts, tmp_path):
+    with pytest.raises(RuntimeError, match="program start blocked by the test"):
+        _dandelion_installed_from(tmp_path)
+    rscript = shutil.which("Rscript")
+    assert Path(rscript).parent == planted_rscript
+    assert program_starts.seen == [program_starts.subprocess_start([rscript, "-e", _DANDELION_EXPRESSION], cwd=tmp_path)]
+    assert tmp_path.resolve() != ROOT and ROOT not in tmp_path.resolve().parents

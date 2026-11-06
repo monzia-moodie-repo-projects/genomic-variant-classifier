@@ -302,18 +302,89 @@ def test_a_record_over_its_limit_is_refused_before_reading():
     assert not any(c[:2] == ("cat-file", "blob") for c in git.calls)
 
 
+def _scripted_git(version: bytes, answer=(0, b"raw\r\n", b"")):
+    """A stand-in for subprocess.run: `git --version` prints VERSION; every other command answers ANSWER."""
+    calls = []
+
+    def run(command, **kwargs):
+        calls.append((list(command), kwargs))
+        if list(command) == ["git", "--version"]:
+            return subprocess.CompletedProcess(command, 0, stdout=version, stderr=b"")
+        return subprocess.CompletedProcess(command, answer[0], stdout=answer[1], stderr=answer[2])
+    return run, calls
+
+
 def test_the_subprocess_contract_without_invoking_git(tmp_path):
-    with patch("genomic_variant_classifier.data.release_approval.subprocess.run") as run:
-        run.return_value = subprocess.CompletedProcess([], 0, stdout=b"raw\r\n", stderr=b"")
+    run, calls = _scripted_git(b"git version 2.47.1\n")
+    with patch("genomic_variant_classifier.data.release_approval.subprocess.run", side_effect=run):
         assert ra.git_reader(tmp_path)("cat-file", "-t", "a" * 40) == b"raw\r\n"
-        args, kwargs = run.call_args
-        for flag in ("--no-replace-objects", "--no-lazy-fetch", "--literal-pathspecs"):
-            assert flag in args[0]
-        assert not kwargs.get("shell", False) and not kwargs.get("text", False)
-        assert kwargs["env"]["GIT_NO_LAZY_FETCH"] == "1"
-        run.return_value = subprocess.CompletedProcess([], 128, stdout=b"", stderr=b"absent")
+    assert [c[0][:2] for c in calls] == [["git", "--version"], ["git", "--no-replace-objects"]]
+    command, kwargs = calls[-1]
+    for flag in ("--no-replace-objects", "--no-lazy-fetch", "--literal-pathspecs"):
+        assert flag in command
+    for _, kw in calls:                           # the version is read with the reader's own environment and limits
+        assert not kw.get("shell", False) and not kw.get("text", False) and kw["timeout"] == 60
+        assert kw["env"]["GIT_NO_LAZY_FETCH"] == "1" and kw["stdin"] is subprocess.DEVNULL
+    run, _ = _scripted_git(b"git version 2.47.1\n", answer=(128, b"", b"absent"))
+    with patch("genomic_variant_classifier.data.release_approval.subprocess.run", side_effect=run):
         with pytest.raises(ra.PolicyError, match="exit 128"):
             ra.git_reader(tmp_path)("cat-file", "-t", "a" * 40)
+
+
+# GIT-VERSION-REQUIREMENT-UNSTATED-1 (2026-11-05): before, Git 2.43 failed at the FIRST READ with its usage text (exit 129) and
+# never said what was required; the reader now reads the version once, when it is created, and names the requirement.
+@pytest.mark.parametrize("printed,version", [
+    (b"git version 2.45.0\n", (2, 45)), (b"git version 2.47.1\n", (2, 47)), (b"git version 2.47.1.windows.1\n", (2, 47)),
+    (b"git version 2.51.0.windows.2\r\n", (2, 51)), (b"git version 3.0.0\n", (3, 0)), (b"git version 2.45", (2, 45))],
+    ids=["2.45.0", "2.47.1", "2.47.1-windows", "2.51.0-windows-crlf", "3.0.0", "2.45-no-patch-no-newline"])
+def test_a_git_of_2_45_or_later_is_accepted_and_its_version_read_once(tmp_path, printed, version):
+    run, calls = _scripted_git(printed)
+    with patch("genomic_variant_classifier.data.release_approval.subprocess.run", side_effect=run):
+        assert ra.require_git_version() == version
+        reader = ra.git_reader(tmp_path)
+        for _ in range(3):
+            reader("cat-file", "-t", "a" * 40)
+    assert [c[0] for c in calls].count(["git", "--version"]) == 2      # once by the direct call, once by the one reader
+
+
+@pytest.mark.parametrize("printed", [b"git version 2.43.0\n", b"git version 2.44.4\n", b"git version 2.39.3 (Apple Git-146)\n",
+                                     b"git version 1.99.9\n", b"git version 2.4\n"],
+                         ids=["2.43.0", "2.44.4", "2.39.3-apple", "1.99.9", "2.4"])
+def test_an_older_git_is_refused_with_the_requirement_named_before_any_object_is_read(tmp_path, printed):
+    run, calls = _scripted_git(printed)
+    with patch("genomic_variant_classifier.data.release_approval.subprocess.run", side_effect=run):
+        with pytest.raises(ra.PolicyError) as caught:
+            ra.git_reader(tmp_path)
+    assert str(caught.value) == "Git reader requires Git 2.45 or later (--no-lazy-fetch); found {!r}".format(printed.decode().strip())
+    assert [c[0] for c in calls] == [["git", "--version"]]
+
+
+@pytest.mark.parametrize("printed", [b"", b"hello\n", b"version 2.47.1\n", b"git version two\n", b"git version 2.47x\n"],
+                         ids=["empty", "other-text", "no-git-prefix", "words", "letter-after-minor"])
+def test_an_unreadable_version_is_refused(tmp_path, printed):
+    run, calls = _scripted_git(printed)
+    with patch("genomic_variant_classifier.data.release_approval.subprocess.run", side_effect=run):
+        with pytest.raises(ra.PolicyError, match=r"^Git reader requires Git 2\.45 or later \(--no-lazy-fetch\); `git --version` "
+                                                 r"printed .*, which is not a Git version$"):
+            ra.git_reader(tmp_path)
+    assert [c[0] for c in calls] == [["git", "--version"]]
+
+
+def test_a_git_that_cannot_run_is_refused(tmp_path):
+    with patch("genomic_variant_classifier.data.release_approval.subprocess.run", side_effect=FileNotFoundError("git")):
+        with pytest.raises(ra.PolicyError, match=r"^Git reader could not complete: FileNotFoundError$"):
+            ra.git_reader(tmp_path)
+
+
+def test_the_real_git_meets_the_requirement_or_is_refused_with_it():
+    """The installed Git's own output, parsed independently: accepted at 2.45 or later, refused below with the requirement."""
+    printed = subprocess.run(["git", "--version"], capture_output=True, check=True).stdout.decode().strip()
+    major, minor = (int(x) for x in printed.split()[2].split(".")[:2])
+    if (major, minor) >= (2, 45):
+        assert ra.require_git_version() == (major, minor)
+    else:
+        with pytest.raises(ra.PolicyError, match=r"^Git reader requires Git 2\.45 or later"):
+            ra.require_git_version()
 
 
 # ------------------------------------------------------------- 4. the real record, manifest and objects

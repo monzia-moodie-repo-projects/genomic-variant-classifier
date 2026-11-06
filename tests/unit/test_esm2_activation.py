@@ -15,21 +15,31 @@ analysis and the plan to add the missing HGVSp parser in Run 10.
 This test has two modes:
 
 1) When the input dataframe has properly-parsed protein-change columns
-   AND the backend is available AND the model loads AND UniProt is
-   reachable, the test requires esm2_delta_norm > 0 for at least one of
-   three known missense variants. Variance > 0 across them.
+   AND the backend is available AND the model loads AND the local UniProt
+   index is present, the test requires esm2_delta_norm > 0 for at least one
+   of three known missense variants. Variance > 0 across them.
 
 2) When transformers isn't installed locally, the test is SKIPPED
    (importorskip). Stub mode is acceptable on dev machines.
 
 If this test fails at assertion time (not skip time), the connector has
-a real bug. If it fails at fixture time (network/UniProt unreachable,
-model weights unavailable), that's environment-specific and gets xfailed.
+a real bug. Model weights that are not cached locally are environment-specific
+and xfail; an absent local UniProt index skips, with its reason.
+
+NO TEST HERE REACHES THE NETWORK (2026-11-05, TESTS-REACH-THE-NETWORK-1). MEASURED: the
+bare connector looked BRCA1, TP53 and PTEN up live at rest.uniprot.org (its default
+when no index is configured), and the real-mode test called the live lookup itself, so
+on a machine with the network open the outcome depended on UniProt's answer. Sequences
+now come only from the project's local index (data/external/uniprot/
+uniprot_human_reviewed.parquet, built by scripts/build_uniprot_index.py); the connector
+of the other tests is constructed with allow_network=False. The unused _has_network()
+probe (a live TCP connection to rest.uniprot.org) is removed. The repository root's
+conftest.py refuses and fails any network attempt.
 """
 
 from __future__ import annotations
 
-import socket
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -43,15 +53,7 @@ transformers = pytest.importorskip(
 )
 
 
-def _has_network() -> bool:
-    """Quick connectivity check to UniProt (primary external dep). If
-    this fails, xfail the test rather than fail it -- network flakes
-    should not block commits."""
-    try:
-        socket.create_connection(("rest.uniprot.org", 443), timeout=5).close()
-        return True
-    except OSError:
-        return False
+_UNIPROT_INDEX = Path(__file__).resolve().parents[2] / "data" / "external" / "uniprot" / "uniprot_human_reviewed.parquet"
 
 
 @pytest.fixture
@@ -72,7 +74,7 @@ def esm2_connector(tmp_path):
     """
     from genomic_variant_classifier.data.esm2 import ESM2Connector
 
-    return ESM2Connector(cache_path=tmp_path / "esm2_cache.sqlite")
+    return ESM2Connector(cache_path=tmp_path / "esm2_cache.sqlite", allow_network=False)
 
 
 def _variant_frame_with_parsed_columns() -> pd.DataFrame:
@@ -112,17 +114,19 @@ def test_esm2_emits_delta_norm_column(esm2_connector):
     assert len(out) == 3, f"expected 3 rows, got {len(out)}"
 
 
-def test_esm2_not_in_stub_mode(esm2_connector):
+def test_esm2_not_in_stub_mode(tmp_path):
     """When all four required columns are present AND backend is loaded
-    AND network is available AND UniProt returns sequences, the connector
-    must produce esm2_delta_norm > 0 for at least one of three distinct
-    missense variants.
+    AND the model weights are cached AND the local UniProt index holds the
+    sequences, the connector must produce esm2_delta_norm > 0 for at least
+    one of three distinct missense variants.
 
-    If UniProt is unreachable (network issue, outage) this xfails rather
-    than fails -- network flakes are environmental, not regressions.
+    The sequences come from the local UniProt index, never a live lookup: weights that cannot be loaded xfail (as before), then an
+    absent index skips with its reason.
     """
     from genomic_variant_classifier.data import esm2 as esm2_mod
 
+    esm2_connector = esm2_mod.ESM2Connector(cache_path=tmp_path / "esm2_cache.sqlite", uniprot_index_path=_UNIPROT_INDEX)
+    assert esm2_connector.allow_network is False            # an index configured: no live lookup
     if esm2_mod._BACKEND is None:
         pytest.skip(
             "ESM-2 backend did not initialize (no transformers+torch or fair-esm). "
@@ -140,11 +144,9 @@ def test_esm2_not_in_stub_mode(esm2_connector):
             "ESM-2 model weights could not be loaded/run here (e.g. HuggingFace "
             "download failed/timed out) -- environmental, not a regression."
         )
-    if esm2_mod._fetch_uniprot_sequence("TP53", esm2_connector.request_timeout) is None:
-        pytest.xfail(
-            "UniProt sequence fetch failed or returned empty -- environmental, "
-            "not a regression. ESM-2 needs UniProt canonical sequences."
-        )
+    if not _UNIPROT_INDEX.is_file():
+        pytest.skip("the local UniProt index is not present ({}; build it with scripts/build_uniprot_index.py)".format(
+            _UNIPROT_INDEX))
 
     df = _variant_frame_with_parsed_columns()
     out = esm2_connector.annotate_dataframe(df)
@@ -152,7 +154,7 @@ def test_esm2_not_in_stub_mode(esm2_connector):
 
     assert (deltas > 0).any(), (
         f"all esm2_delta_norm values are 0.0: {deltas.tolist()}. "
-        "Backend initialized, required columns present, network available "
+        "Backend initialized, required columns present, local UniProt index present "
         "-- but connector still returned stub zeros. This is a real "
         "regression: check stderr for sequence-fetch errors, wt_aa mismatch "
         "warnings, or silent exceptions in the embedding forward pass."

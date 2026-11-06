@@ -1,3 +1,96 @@
+## 2026-11-05 (hermetic suite) -- no test reaches the network; the Git requirement is stated by the reader itself
+
+MEASURED (TESTS-REACH-THE-NETWORK-1), 2026-11-05 06:41 to 07:04 Coordinated Universal Time (UTC), development sandbox (Linux,
+Python 3.12.3, the training-and-test lock's environment, Git 2.47.1), the whole suite with the gate's options and its
+HF_HUB_OFFLINE=1 and TRANSFORMERS_OFFLINE=1, under a measurement instrument outside the repository: an audit hook (PEP 578) installed
+in EVERY Python process by a sitecustomize.py on PYTHONPATH, appending one record per name lookup, connection and program start --
+with the test and phase current at the time and the project's frames -- joined by time to the HTTPS proxy's own log of refused
+connections (sampled every 5 seconds). The instrument did not change the outcome: 8,635 passed, 26 skipped, 6 xfailed, as without it.
+  * 15 tests reached the network -- 28 connections through the proxy and 4 name lookups, every one refused by the sandbox's proxy
+    and every refusal swallowed by the code that made it:
+      - the 10 tests of tests/unit/test_core.py::TestAnnotationPipeline and test_esm2_activation.py's
+        test_esm2_emits_delta_norm_column (3 connections): rest.uniprot.org, from data/esm2.py:193 _fetch_uniprot_sequence --
+        ESM2Connector allows a live UniProt lookup by default when no local index is configured and logs a failure at DEBUG level;
+      - test_orchestrator_agent_isolation, test_orchestrator_run_telemetry's dry run and test_science_claw_orchestrator_gate (4
+        each): ClinVar's FTP server, storage.googleapis.com twice (gnomAD, AlphaMissense) and databases.lovd.nl, from the four polls
+        of agent_layer/agents/data_freshness_agent.py -- a dry run polls;
+      - test_orchestrator_lazy_registry's test_ci_data_freshness_pipeline_runs_without_sklearn, in a child interpreter (7):
+        ClinVar's FTP server, storage.googleapis.com three times, alphafold.ebi.ac.uk, api.github.com, databases.lovd.nl, from
+        database_freshness_detector._default_probe.
+  * Collection started Rscript five times: tests/unit/test_inference_backend_trace.py evaluated its DANDELION probe in five skip
+    conditions at import, in the checkout, whose .Rprofile activates renv. Measured alone at 07:05 UTC: one such start took 7.72 s and
+    was refused 24 connections to bioconductor.org and packagemanager.posit.co ("failed to bootstrap renv: the project will not be
+    loaded"); started outside the checkout the same probe took 0.22 s, reached nothing and saw the same three R libraries. The run's
+    other 30 starts of /usr/bin/Rscript used --vanilla (no profile is read), as did 11 of tests' stand-in Rscripts. (renv/library inside the checkout, recorded 2026-10-12 as
+    TEST-R-PROJECT-PROFILE-1, comes from the same starts.)
+  * Nothing else reached the network: 2,966 program starts were recorded (4 Python children ran without the measurement in their
+    environment, 8 with -I), and every proxy refusal of the run is either one of the 28 measured connections or falls within the
+    five R starts at collection (06:42:44 to 06:43:26 UTC). The three bursts of R refusals between 06:44:56 and 06:47:38 UTC came
+    from outside the measured run, which started no R then: my own concurrent pytest sessions, three of them full collections
+    (each starting R five times). They are excluded. The proxy's log holds
+    20 entries and was sampled every 5 seconds, so refusal counts from R are lower bounds.
+On the owner's machine and on Continuous Integration's runners the network is open: those calls were MADE there, and their answers
+reached the tests -- observed on the owner's machine: in the warning-state validation (2026-11-05 04:20 to 06:21 UTC; 8,579 passed,
+83 skipped, 5 xfailed; merged as pull request #65, 3c01564a) test_esm2_activation.py::test_esm2_not_in_stub_mode PASSED, its
+cached weights carrying it to a live UniProt lookup, where the sandbox xfails it.
+
+- conftest.py (the repository root's): a NETWORK GUARD for every suite. PREVENTION -- HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE and
+  HF_DATASETS_OFFLINE are 1 for the session (set when the file is imported, before huggingface_hub reads them; an invoker's other
+  value is named in the summary; restored at unconfigure), and an audit hook installed when the file is imported refuses, inside the
+  call, every name lookup of a host that is not the loopback and every connection or datagram to a non-loopback Internet address or
+  to a proxy on the loopback, raising NetworkRefused (a ConnectionRefusedError). The proxies are every one urllib.request.getproxies()
+  -- and so requests, httpx and aiohttp -- can use: each <scheme>_proxy variable in any letter case (no_proxy excepted) and the
+  operating system's own settings (the Windows Internet settings, macOS's System Configuration), both read, a missing port defaulted
+  by the scheme (GUARD-SYSTEM-PROXIES-1); the summary names each, with where it was read. Loopback servers and Unix sockets are
+  untouched. DETECTION -- each attempt is recorded with the test, the phase, the target, the proxied destination
+  (http.client's _tunnel_host) and the project's frames; a test that tried FAILS at teardown, also when the code swallowed the
+  refusal; an attempt while the session starts or tests are collected stops the session; any finding fails the session (pytest
+  reports a teardown failure of an xfail-marked test as a second xfail -- measured). Its own section in the terminal summary.
+  NOT COVERED, stated: child processes (they inherit the offline variables) and programs that are not Python.
+- The measured sites: TestAnnotationPipeline's configs say esm2_allow_network=False -- a new AnnotationConfig field, passed to
+  ESM2Connector(allow_network=...), None keeping the connector's own default; the ESM-2 activation tests take sequences only from the
+  project's local UniProt index (data/external/uniprot/uniprot_human_reviewed.parquet), skipping with the reason when it is absent,
+  and the unused _has_network() probe (a live connection to rest.uniprot.org) is removed; a new fixture, offline_freshness_sources
+  (tests/unit/conftest.py), replaces the four polls with "no change" and the registry probe with "unreachable", requested by the three
+  orchestrator tests (the dry-run test now also requires that all four polls ran); the lazy-registry child replaces the detector's
+  probe before the pipeline builds the agent, and the test requires the report to carry its answer; test_inference_backend_trace.py
+  probes DANDELION once per session, when the first test needing it runs, outside the checkout, and runs every R process outside it.
+- tests/unit/conftest.py: a program_starts fixture (PROGRAM-START-RECORD-PLATFORM-FORM-1). An audit hook installed once, when the
+  conftest is imported, records -- and by default blocks, raising RuntimeError inside the call -- every Python-level program start
+  (subprocess.Popen, os.system, os.exec, os.spawn, os.posix_spawn, os.startfile, os.fork, os.forkpty) and every audit hook added, for
+  the test that requests it; a subprocess.Popen record keeps the executable, command and folder exactly as the platform raised them,
+  and program_starts.subprocess_start(argv, cwd) predicts that record for subprocess.run(argv, cwd=cwd) on the running platform.
+  Stated as not covered: _posixsubprocess.fork_exec and _winapi.CreateProcess called directly (measured on Linux, CPython 3.11 to
+  3.13: the first raises no audit event) and programs that are not this Python process.
+- release_approval.py (GIT-VERSION-REQUIREMENT-UNSTATED-1): require_git_version() reads `git --version` once, when a reader is
+  created, with the reader's environment, and refuses below 2.45 or on unreadable output with the requirement named. Measured with
+  Git 2.43.0 first on PATH: the same 8 tests fail as before, now with "Git reader requires Git 2.45 or later (--no-lazy-fetch); found
+  'git version 2.43.0'" instead of "Git reader refused (exit 129): unknown option: --no-lazy-fetch".
+- Tests: +57 / -0 by node identity (diffed against main, 3c01564a): 33 for the guard (in this session and in child sessions; 11
+  proxy settings, the proxies read from every variable and the system settings), 2 for the R module (an Rscript planted on PATH:
+  importing the module starts no program and adds no audit hook; the probe starts R once, outside the checkout, recorded exactly as
+  the platform reports it), 4 calibrating program_starts on the machine that runs them, 18 for the Git requirement. Suite 8,667 ->
+  8,724. README: the badge, the guard, the Git requirement.
+- REVISION B. The first delivery's validation on the owner's Windows machine (2026-11-05, from 08:42 UTC) stopped at its targeted
+  tests: 1 failed, 883 passed, 14 skipped; the checkout VERIFIED UNCHANGED; nothing committed or published. The failing test was mine
+  (PROGRAM-START-RECORD-PLATFORM-FORM-1): it read the program-start record as a list of arguments, CPython's POSIX form; on Windows
+  CPython reports one command line (subprocess.list2cmdline) and executable=None -- reconstructed byte for byte from the owner's log.
+  It had been verified only on Linux; the recorder above replaced it, and its calibration tests run on the owner's machine. Found
+  while re-examining the guard for Windows: GUARD-SYSTEM-PROXIES-1 (six variables only; now every proxy getproxies() can use).
+- Verified (sandbox). First delivery, 07:28 to 07:50 UTC: 8,680 passed, 26 skipped, 6 xfailed; network guard 8,712 checked, 0 tried;
+  14 mutations caught. Revision B, 10:20:30 to 10:42:41 UTC, the whole suite under the same measurement, nothing else running and the
+  measured clone not edited: 8,692 passed, 26 skipped, 6 xfailed, 5 subtests passed in 1,304.38 s, coverage 84%; the network guard
+  8,724 checked, 0 tried, the loopback proxy named; the warning-filter guard 8,724 checked, 0 changed; the working tree unchanged;
+  every test started and ended (8,724); the proxy recorded 0 refusals in 263 samples; the only network attempts recorded were the
+  guard tests' 6 planted ones, inside their child sessions. Drift suite: 22 passed. 14 further mutations of the recorder and the
+  proxy reader, each caught (docs/sessions/SESSION_2026-11-05_hermetic-suite.md).
+- Open, recorded: ESM2-REAL-MODE-FIXTURE-1 (commit the three canonical sequences, so the real-mode ESM-2 test runs
+  offline where the weights are cached; on the owner's machine it passed on 2026-11-05 after a live lookup, and now skips in a fresh
+  clone); PYCACHE-FROM-ISOLATED-CHILDREN-1; ESM2-LIVE-UNIPROT-DEFAULT-1 (production ESM2Connector reaches UniProt by default and logs a failure at DEBUG -- part
+  of SILENT-FALLBACKS-1); FRESHNESS-DRY-RUN-1 (DataFreshnessAgent's dry run polls the network and writes SharedState, marking a
+  failed poll "checked"); AGENT-LOGGING-IN-LIBRARY-1 (data_freshness_agent.py configures its own handler and level and sets
+  propagate=False, and its formatter labels local time "Z" -- measured: 02:13 printed at 07:13 UTC).
+
 ## 2026-11-05 (warning-state determinism) -- no test's warning filters depend on which tests ran with it; every test file passes alone
 
 MEASURED (WARNING-FILTER-REORDER-AT-FIRST-IMPORT-1; the independent review of 2026-11-04 found it in tests/unit/test_1kgp.py).
