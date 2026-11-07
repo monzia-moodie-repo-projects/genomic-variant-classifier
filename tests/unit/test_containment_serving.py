@@ -300,7 +300,7 @@ class _Records(logging.Handler):
         self.records.append(record)
 
 
-def test_the_api_server_refuses_to_serve_a_quarantined_artifact(tmp_path, monkeypatch):
+def test_the_api_server_refuses_to_serve_a_quarantined_artifact(tmp_path, monkeypatch, api_without_local_data):
     from genomic_variant_classifier.api import main
     artifact = tmp_path / "model.joblib"
     artifact.write_bytes(b"any bytes")

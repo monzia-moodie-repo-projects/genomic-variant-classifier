@@ -236,11 +236,14 @@ def test_the_command_line_exit_codes(tmp_path, copy, capsys):
 
 def test_the_profile_declaration_imports_with_the_standard_library_alone():
     # The installer imports it with the BASE interpreter, before any environment exists.
+    # -B (PYCACHE-FROM-ISOLATED-CHILDREN-1, measured 2026-11-06): -I ignores PYTHONDONTWRITEBYTECODE, so without -B this child wrote
+    # three __pycache__ files into the checkout's src (genomic_variant_classifier/__init__, deps/__init__, deps/profiles), which the
+    # working-tree guard does not observe.
     code = ("import sys; sys.path.insert(0, sys.argv[1]); before = set(sys.modules); "
             "import genomic_variant_classifier.deps.profiles as p; "
             "extra = sorted(m for m in set(sys.modules) - before if not m.startswith(('genomic_variant_classifier', '_')) "
             "and m.split('.')[0] not in sys.stdlib_module_names); print(extra)")
-    out = subprocess.run([sys.executable, "-I", "-c", code, str(ROOT / "src")], capture_output=True, text=True, check=True).stdout
+    out = subprocess.run([sys.executable, "-I", "-B", "-c", code, str(ROOT / "src")], capture_output=True, text=True, check=True).stdout
     assert out.strip() == "[]", out
 
 

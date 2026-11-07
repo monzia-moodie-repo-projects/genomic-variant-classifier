@@ -289,7 +289,7 @@ def test_data_tree_gate_returns_the_row_convention(tmp_path):
         assert r[0] in ("OK", "WARN", "FAIL")
 
 
-def test_run_all_actually_calls_the_data_tree_gate(monkeypatch):
+def test_run_all_actually_calls_the_data_tree_gate(monkeypatch, tmp_path):
     """Drives run_all and asserts the gate CONTRIBUTED a row.
 
     Not a source check. MEASURED 2026-08-30: a scan for `import
@@ -305,10 +305,14 @@ def test_run_all_actually_calls_the_data_tree_gate(monkeypatch):
         return [("OK", "data-tree: SENTINEL")]
 
     monkeypatch.setattr(P, "data_tree_gate", spy)
-    try:
-        rows = P.run_all("python scripts/train.py", "data", 3000, defer_kg=True)
-    except Exception:
-        pytest.skip("run_all needs a fuller fixture here; the call is asserted below")
+    # NOTHING OF THE CHECKOUT'S LOCAL DATA (2026-11-06, DATA-GATED-TESTS-1). MEASURED by the data census: from the owner's checkout
+    # this test found the real STRING graph (data/raw/cache/string_graph_700.pkl, git-ignored) -- the one git-ignored path it read.
+    # The STRING cache is now an empty folder, and the other gate (storage_gate: the data/ layout relative to the current folder,
+    # and this machine's free space) is stubbed too, so only the call under test is real. And no skip: until then an exception
+    # from run_all skipped the test -- a gate wiring that crashed would have read as "not applicable".
+    monkeypatch.setattr(P, "storage_gate", lambda data_root="data", manifest="configs/data_manifest.yaml": [("OK", "storage_gate: stub")])
+    rows = P.run_all("python scripts/train.py", "data", 3000, defer_kg=True,
+                     cache_dir=tmp_path / "string_cache", local_links=tmp_path / "absent.txt.gz")
     assert seen.get("called"), "run_all did not call data_tree_gate"
     assert any("SENTINEL" in m for _, m in rows)
 

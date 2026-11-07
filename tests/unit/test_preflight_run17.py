@@ -166,6 +166,10 @@ def test_emit_kg_includes_kg_and_smoke_maxtrain():
 
 def test_emitted_command_passes_command_level_gate(tmp_path, monkeypatch):
     # the emitted command must satisfy preflight_gate's flag-level rules (values/flags/forbidden)
+    # The command's data paths are relative and validate() checks them against the CURRENT folder (its data_root is not used for
+    # them): run from an empty folder, so the checkout's git-ignored data is never consulted (MEASURED 2026-11-06 by the data
+    # census: from the checkout this test stat'ed eleven real data files). DATA-GATED-TESTS-1.
+    monkeypatch.chdir(tmp_path)
     import sys
     sys.path.insert(0, str(_SCRIPTS))
     import preflight_gate as gate
@@ -183,7 +187,10 @@ def test_run_all_flags_forbidden_skip(tmp_path):
     _kg_parquet(kg, ["variant_id", "allele_freq", "AFR_AF", "EUR_AF", "EAS_AF", "SAS_AF", "AMR_AF"])
     cmd = (f"python scripts/run_phase2_eval.py --clinvar c --string-db auto --min-review-tier 3 "
            f"--n-folds 5 --unseen-gene-holdout --skip-nn --kg {kg} --output outputs/run17")
-    rows = P.run_all(cmd, str(tmp_path), 1000, defer_kg=False, baseline_path=b, scripts_dir=_SCRIPTS)
+    # The STRING gate's cache and local links in tmp_path, not the checkout's data/raw/cache (MEASURED 2026-11-06 by the data
+    # census: from the checkout this test found the real string_graph_700.pkl). DATA-GATED-TESTS-1.
+    rows = P.run_all(cmd, str(tmp_path), 1000, defer_kg=False, baseline_path=b, scripts_dir=_SCRIPTS,
+                     cache_dir=tmp_path / "string_cache", local_links=tmp_path / "absent.txt.gz")
     assert any(lv == "FAIL" and "--skip-nn" in m for lv, m in rows)  # forbidden skip caught
     assert any(lv == "OK" and "per-superpop" in m for lv, m in rows)  # kg still validated
 
@@ -247,7 +254,10 @@ def test_string_gate_threshold_picks_matching_pkl(tmp_path):
     assert rows[0][0] == "WARN"
 
 
-def test_run_all_includes_string_gate(tmp_path):
+def test_run_all_includes_string_gate(tmp_path, monkeypatch):
+    # The emitted command's data paths are relative to the CURRENT folder: run from tmp_path, so none of the checkout's
+    # git-ignored data is consulted (MEASURED 2026-11-06 by the data census: from the checkout, twelve real files). DATA-GATED-TESTS-1.
+    monkeypatch.chdir(tmp_path)
     b = tmp_path / "schema_baseline.json"; _baseline(b, 87)
     cache = tmp_path / "cache"; cache.mkdir()
     (cache / "string_graph_700.pkl").write_text("x")

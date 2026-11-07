@@ -87,7 +87,16 @@ def test_ci_data_freshness_pipeline_runs_without_sklearn(tmp_path):
     cannot see a child interpreter. The child now replaces the detector's probe, before the pipeline constructs the agent, with
     one that makes no call and reports each source unreachable -- the outcome a refused probe gave -- and the test requires that
     the scan went through it (the child prints how many sources it probed) and that the report records its answer.
+
+    NO LOCAL DATA (2026-11-06, DATA-GATED-TESTS-1). The scan's local half (database_freshness_detector.check_local) looks for each
+    source's local_path under the agent's root, and the orchestrator builds the agent with root PROJECT_ROOT -- the repository
+    itself (DatabaseFreshnessMonitorAgent: root None -> PROJECT_ROOT). MEASURED by the data census: from the owner's checkout the
+    child walked his real data/ (81 git-ignored paths: data/raw 65, data/external 13, data/processed 3; sizes of whole directories).
+    MEASURED in the sandbox: running the child from an empty current folder changed nothing (24 git-ignored paths of the clone still
+    looked at) -- the root is not the current folder. The child now checks every local source under an empty folder, records the
+    root the agent passed, and finds exactly the one asset the test planted there.
     """
+    (tmp_path / "empty_root").mkdir()
     r = _run_in_subprocess(
         """
         import builtins
@@ -103,19 +112,41 @@ def test_ci_data_freshness_pipeline_runs_without_sklearn(tmp_path):
             probed.append(source.key)
             return (None, "offline under test (no probe is made)")
         detector._default_probe = offline_probe
+        import os
+        from pathlib import Path
+        from genomic_variant_classifier.monitoring import registry as registry_
+        empty = os.environ["GVC_TEST_EMPTY_ROOT"]
+        # ONE planted asset under the empty root: the check must find it (proving it ran there) and nothing else.
+        planted = next(s for s in registry_.all_sources() if s.local_path)
+        (Path(empty) / planted.local_path).parent.mkdir(parents=True, exist_ok=True)
+        (Path(empty) / planted.local_path).write_bytes(b"planted by the test")
+        real_check_local = detector.check_local
+        local_roots, local_results = [], []
+        def check_local_under_an_empty_root(source, *, root="."):
+            local_roots.append(str(root))
+            result = real_check_local(source, root=empty)
+            local_results.append(result)
+            return result
+        detector.check_local = check_local_under_an_empty_root
         from genomic_variant_classifier.agent_layer.orchestrator import Orchestrator
+        from genomic_variant_classifier.agent_layer.config import PROJECT_ROOT
         from genomic_variant_classifier.agent_layer.shared_state import SharedState
         o = Orchestrator(SharedState(state_file=__import__("os").environ["GVC_TEST_STATE_FILE"]), dry_run=True)
         results = o.run_pipeline("database_monitor")
         assert probed, "the registry scan probed no source"
         print("PROBED_OFFLINE", len(probed))
+        assert local_roots and set(local_roots) == {str(PROJECT_ROOT)}, local_roots
+        found = sorted(r.key for r in local_results if r.detail not in ("absent on disk", "no local_path declared"))
+        assert found == [planted.key], (found, planted.key)
+        print("LOCAL_CHECKED_UNDER_AN_EMPTY_ROOT", len(local_roots), "instead of", local_roots[0], "found only", found)
         assert "DatabaseFreshnessMonitorAgent" in results, results
         action = results["DatabaseFreshnessMonitorAgent"].get("action")
         assert action != "error", f"freshness agent errored under sklearn-block: {results}"
         print("CI_FRESHNESS_OK", action)
         """,
         # The freshness report is an ARTIFACT: GVC_ARTIFACT_ROOT keeps it out of the real reports/.
-        extra_env={"GVC_ARTIFACT_ROOT": str(tmp_path), "GVC_TEST_STATE_FILE": str(tmp_path / "state.json")},
+        extra_env={"GVC_ARTIFACT_ROOT": str(tmp_path), "GVC_TEST_STATE_FILE": str(tmp_path / "state.json"),
+                   "GVC_TEST_EMPTY_ROOT": str(tmp_path / "empty_root")},
     )
     assert list((tmp_path / "reports" / "data_freshness").glob("FRESHNESS_*.md")), (
         "the freshness report did not land under GVC_ARTIFACT_ROOT")
@@ -125,6 +156,7 @@ def test_ci_data_freshness_pipeline_runs_without_sklearn(tmp_path):
     )
     report = next((tmp_path / "reports" / "data_freshness").glob("FRESHNESS_*.md")).read_text(encoding="utf-8")
     assert "PROBED_OFFLINE" in r.stdout and "offline under test (no probe is made)" in report, report
+    assert "LOCAL_CHECKED_UNDER_AN_EMPTY_ROOT" in r.stdout, r.stdout
 
 
 def test_registry_values_are_lazy(tmp_path):

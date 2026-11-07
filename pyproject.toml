@@ -46,6 +46,14 @@ namespaces = true
 # test_message_bus.py") and remains runnable by explicit path.
 testpaths = ["tests"]
 
+# Custom marks. `local_data` is applied ONLY through tests/local_data.py's decorator, which also skips the test where the data is
+# absent (tests/unit/test_local_data_contract.py refuses a hand-written one); registered here so `pytest -m local_data` selects
+# exactly the tests that check git-ignored local data, and so pytest does not warn about an unknown mark (added 2026-11-06,
+# DATA-GATED-TESTS-1).
+markers = [
+    "local_data(*paths): the test checks git-ignored local data at these repository-relative paths and runs only where all exist (tests/local_data.py)",
+]
+
 # ---------------------------------------------------------------------------
 # Warning filters. Add to this list ONLY with a measured justification and a test
 # that pins the premise -- never to quieten a warning that has not been understood.

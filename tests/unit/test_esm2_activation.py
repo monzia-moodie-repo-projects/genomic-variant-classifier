@@ -15,16 +15,16 @@ analysis and the plan to add the missing HGVSp parser in Run 10.
 This test has two modes:
 
 1) When the input dataframe has properly-parsed protein-change columns
-   AND the backend is available AND the model loads AND the local UniProt
-   index is present, the test requires esm2_delta_norm > 0 for at least one
-   of three known missense variants. Variance > 0 across them.
+   AND the backend is available AND the model loads, the test requires
+   esm2_delta_norm > 0 for at least one of three known missense variants.
+   The three sequences come from a COMMITTED fixture (below).
 
 2) When transformers isn't installed locally, the test is SKIPPED
    (importorskip). Stub mode is acceptable on dev machines.
 
 If this test fails at assertion time (not skip time), the connector has
 a real bug. Model weights that are not cached locally are environment-specific
-and xfail; an absent local UniProt index skips, with its reason.
+and xfail.
 
 NO TEST HERE REACHES THE NETWORK (2026-11-05, TESTS-REACH-THE-NETWORK-1). MEASURED: the
 bare connector looked BRCA1, TP53 and PTEN up live at rest.uniprot.org (its default
@@ -35,11 +35,18 @@ uniprot_human_reviewed.parquet, built by scripts/build_uniprot_index.py); the co
 of the other tests is constructed with allow_network=False. The unused _has_network()
 probe (a live TCP connection to rest.uniprot.org) is removed. The repository root's
 conftest.py refuses and fails any network attempt.
+
+THE SEQUENCES ARE COMMITTED (2026-11-06, ESM2-REAL-MODE-FIXTURE-1). MEASURED on the owner's machine by the data census:
+the same commit and the same locked environment SKIPPED the real-mode test in a clean clone and PASSED it in the checkout,
+because data/external/uniprot/uniprot_human_reviewed.parquet is git-ignored -- the verdict depended on an untracked file. The
+three UniProt entries are now tests/fixtures/uniprot/esm2_real_mode_BRCA1_TP53_PTEN.fasta, checked on every run by
+tests/unit/test_uniprot_sequence_fixture.py; the test builds its index from them in its temporary folder
+(tests/unit/_uniprot_fixture.py says where the bytes came from). Only the model weights, which belong to the machine and
+not to the repository, still decide whether it runs.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -53,7 +60,7 @@ transformers = pytest.importorskip(
 )
 
 
-_UNIPROT_INDEX = Path(__file__).resolve().parents[2] / "data" / "external" / "uniprot" / "uniprot_human_reviewed.parquet"
+from tests.unit import _uniprot_fixture
 
 
 @pytest.fixture
@@ -116,16 +123,16 @@ def test_esm2_emits_delta_norm_column(esm2_connector):
 
 def test_esm2_not_in_stub_mode(tmp_path):
     """When all four required columns are present AND backend is loaded
-    AND the model weights are cached AND the local UniProt index holds the
-    sequences, the connector must produce esm2_delta_norm > 0 for at least
-    one of three distinct missense variants.
+    AND the model weights are cached, the connector must produce
+    esm2_delta_norm > 0 for at least one of three distinct missense variants.
 
-    The sequences come from the local UniProt index, never a live lookup: weights that cannot be loaded xfail (as before), then an
-    absent index skips with its reason.
+    The sequences come from the committed fixture, never a live lookup and never the checkout's own index: weights that cannot be
+    loaded xfail (as before).
     """
     from genomic_variant_classifier.data import esm2 as esm2_mod
 
-    esm2_connector = esm2_mod.ESM2Connector(cache_path=tmp_path / "esm2_cache.sqlite", uniprot_index_path=_UNIPROT_INDEX)
+    esm2_connector = esm2_mod.ESM2Connector(cache_path=tmp_path / "esm2_cache.sqlite",
+                                            uniprot_index_path=_uniprot_fixture.build_index(tmp_path))
     assert esm2_connector.allow_network is False            # an index configured: no live lookup
     if esm2_mod._BACKEND is None:
         pytest.skip(
@@ -144,17 +151,13 @@ def test_esm2_not_in_stub_mode(tmp_path):
             "ESM-2 model weights could not be loaded/run here (e.g. HuggingFace "
             "download failed/timed out) -- environmental, not a regression."
         )
-    if not _UNIPROT_INDEX.is_file():
-        pytest.skip("the local UniProt index is not present ({}; build it with scripts/build_uniprot_index.py)".format(
-            _UNIPROT_INDEX))
-
     df = _variant_frame_with_parsed_columns()
     out = esm2_connector.annotate_dataframe(df)
     deltas = out["esm2_delta_norm"].to_numpy(dtype=float)
 
     assert (deltas > 0).any(), (
         f"all esm2_delta_norm values are 0.0: {deltas.tolist()}. "
-        "Backend initialized, required columns present, local UniProt index present "
+        "Backend initialized, required columns present, the committed sequences served "
         "-- but connector still returned stub zeros. This is a real "
         "regression: check stderr for sequence-fetch errors, wt_aa mismatch "
         "warnings, or silent exceptions in the embedding forward pass."

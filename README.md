@@ -5,7 +5,7 @@
 [![Tabular features](https://img.shields.io/badge/tabular%20features-91-blue.svg)]()
 [![Base models](https://img.shields.io/badge/base%20models-13-blue.svg)]()
 [![Agents](https://img.shields.io/badge/autonomous%20agents-22-blueviolet.svg)]()
-[![Tests](https://img.shields.io/badge/tests-8724-success.svg)]()
+[![Tests](https://img.shields.io/badge/tests-8753-success.svg)]()
 [![Status](https://img.shields.io/badge/status-active%20development-orange.svg)]()
 
 A multi-modal machine learning system for the five-tier clinical classification of human
@@ -264,8 +264,11 @@ python scripts/install_locked_profile.py --profile drift      --target linux-3.1
 # the call -- a proxy on the loopback included, from any *_proxy variable or the system's own settings -- failing the test that
 # tried (since 2026-11-05); and fails the session if the working tree changed. tests/conftest.py
 # adds --assert-suite-size, which requires the collected count to equal tests/EXPECTED_SUITE_SIZE. Git 2.45 or later is required
-# (the release-approval checks read Git objects with --no-lazy-fetch, and refuse an older Git by name)
+# (the release-approval checks read Git objects with --no-lazy-fetch, and refuse an older Git by name). Three tests check
+# git-ignored LOCAL data by design (tests/local_data.py: the UniProt index, the EVE corpus, the Run-15 matrix): they run only
+# where that data is present, and are skipped with one reason in a clone; `-m local_data` runs exactly them
 python -m pytest tests/ -q -rs --assert-suite-size
+python -m pytest tests/ -q -rs -m local_data          # only the local-data tests
 python -m pytest tests_drift/ -v -rs                  # in the drift environment, with the drift job's options
 
 # Run the API

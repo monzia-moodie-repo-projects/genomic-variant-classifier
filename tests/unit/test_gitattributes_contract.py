@@ -179,6 +179,19 @@ def test_the_alphafold_fixture_rule_survives():
     assert a.get("eol") == "lf", a
 
 
+@pytest.mark.parametrize("path", [
+    "tests/fixtures/uniprot/esm2_real_mode_BRCA1_TP53_PTEN.fasta",
+    "tests/fixtures/not_yet_added/probe.fasta",
+])
+def test_fasta_fixtures_are_pinned_to_LF(path):
+    """FASTA-FIXTURE-EOL-1 (2026-11-06). MEASURED before the rule: the UniProt fixture resolved to `text=auto`, and a clone under
+    core.autocrlf=true (the owner's Windows configuration) wrote it with 49 carriage returns, which
+    test_uniprot_sequence_fixture.py refuses. Today's fixture and the next one."""
+    a = _attrs(path)
+    assert a.get("text") == "set", (path, a)
+    assert a.get("eol") == "lf", (path, a)
+
+
 def test_the_extensionless_ratchet_file_is_pinned():
     """EXPECTED_SUITE_SIZE has no extension, so only `* text=auto` matched it
     -- and that means CRLF in a Windows working tree while every other
