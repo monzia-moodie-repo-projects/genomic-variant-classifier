@@ -20,7 +20,7 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from smoke_all_models import check_outputs  # noqa: E402
+from smoke_all_models import SELECTED_ENSEMBLE_ROW, check_outputs  # noqa: E402
 
 EXPECTED = {
     "random_forest", "xgboost", "lightgbm", "logistic_regression",
@@ -41,7 +41,7 @@ def main() -> int:
     tmp = Path(tempfile.mkdtemp(prefix="smoke_checks_"))
 
     full = {m: 0.9 for m in EXPECTED}
-    full["ENSEMBLE_STACKER"] = 0.92
+    full[SELECTED_ENSEMBLE_ROW] = 0.92
 
     # case 1: all good
     _write_pmm(tmp, full)
@@ -77,19 +77,27 @@ def main() -> int:
     if ok:
         failures.append(f"OOF-failed/skipping case not caught: msgs={msgs}")
 
-    # case 6: stacker missing
+    # case 6: selected-blend row missing
     nostack = {m: 0.9 for m in EXPECTED}
     _write_pmm(tmp, nostack)
     ok, msgs = check_outputs(tmp, "clean\n", EXPECTED)
-    if ok or not any("ENSEMBLE_STACKER" in m for m in msgs):
-        failures.append(f"missing-stacker case not caught: ok={ok} msgs={msgs}")
+    if ok or not any(SELECTED_ENSEMBLE_ROW in m for m in msgs):
+        failures.append(f"missing-blend-row case not caught: ok={ok} msgs={msgs}")
+
+    # case 7: a pre-package-1 file (retired ENSEMBLE_STACKER row only) is BLOCKED and named as such
+    legacy = {m: 0.9 for m in EXPECTED}
+    legacy["ENSEMBLE_STACKER"] = 0.92
+    _write_pmm(tmp, legacy)
+    ok, msgs = check_outputs(tmp, "clean\n", EXPECTED)
+    if ok or not any("retired row ENSEMBLE_STACKER" in m for m in msgs):
+        failures.append(f"retired-label case not caught: ok={ok} msgs={msgs}")
 
     print("test_smoke_checks:")
     if failures:
         for f in failures:
             print("  [FAIL] " + f)
         return 1
-    print("  [ok] all 6 gate-logic cases behave correctly")
+    print("  [ok] all 7 gate-logic cases behave correctly")
     return 0
 
 

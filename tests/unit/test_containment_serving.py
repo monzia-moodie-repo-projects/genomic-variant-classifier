@@ -24,6 +24,8 @@ from genomic_variant_classifier.models import variant_ensemble as ve
 from genomic_variant_classifier.quarantine_policy import QUARANTINED_FEATURES
 
 from tests.unit._admission_support import AllowForTests, register  # tests/unit is a package: no sys.path entry (2026-11-05)
+from tests.unit._prediction_support import blend_pipeline
+from genomic_variant_classifier.prediction_contract import ContractError
 
 Q0 = QUARANTINED_FEATURES[0]
 
@@ -57,6 +59,11 @@ def _fitted(columns):
     return scaler, lr, meta
 
 
+def _pipe(lr, scaler):
+    """A one-member pipeline around the DECLARED blend (package 1); the logistic stacker is never its predictor."""
+    return blend_pipeline({"logistic_regression": lr}, scaler=scaler)
+
+
 def _legacy(columns):
     """An old pickle: attributes restored WITHOUT __init__, exactly as joblib.load does."""
     scaler, lr, meta = _fitted(columns)
@@ -70,7 +77,7 @@ class TestConstructionAndLoading:
     def test_construction_refuses_a_quarantine_era_model(self):
         scaler, lr, meta = _fitted(_usable_features(3) + [Q0])
         with pytest.raises(ContainmentError, match="suspended"):
-            P.InferencePipeline({"logistic_regression": lr}, meta, scaler=scaler)
+            _pipe(lr, scaler)
 
     # The ONE admission route (model_admission): registry binding + typed decision, BEFORE deserialization.
     def _no_open(self, monkeypatch):
@@ -100,11 +107,12 @@ class TestConstructionAndLoading:
     def test_positive_control_a_registered_allowed_pipeline_round_trips_exactly(self, tmp_path):
         cols = _usable_features(5)
         scaler, lr, meta = _fitted(cols)
-        pipe = P.InferencePipeline({"logistic_regression": lr}, meta, scaler=scaler)
+        pipe = _pipe(lr, scaler)
         before = pipe.predict_proba(_raw())
         path = tmp_path / "ok.joblib"
         pipe.save(path)
-        registry = register(tmp_path / "registry.v1.json", path, feature_names=cols, roster=["logistic_regression"])
+        registry = register(tmp_path / "registry.v1.json", path, feature_names=cols, roster=["logistic_regression"],
+                            predictor_contract_sha256=pipe.predictor_contract_sha256())
         back = P.InferencePipeline.load(path, consumer="test", registry_path=registry, authority=AllowForTests())
         np.testing.assert_array_equal(back.predict_proba(_raw()), before)
 
@@ -112,7 +120,7 @@ class TestConstructionAndLoading:
         cols = _usable_features(5)
         scaler, lr, meta = _fitted(cols)
         path = tmp_path / "ok.joblib"
-        P.InferencePipeline({"logistic_regression": lr}, meta, scaler=scaler).save(path)
+        _pipe(lr, scaler).save(path)
         registry = register(tmp_path / "registry.v1.json", path, feature_names=cols, roster=["logistic_regression"])
         opened = self._no_open(monkeypatch)
         with pytest.raises(ContainmentError, match="C10"):
@@ -123,7 +131,7 @@ class TestConstructionAndLoading:
         cols = _usable_features(5)
         scaler, lr, meta = _fitted(cols)
         path = tmp_path / "ok.joblib"
-        P.InferencePipeline({"logistic_regression": lr}, meta, scaler=scaler).save(path)
+        _pipe(lr, scaler).save(path)
         registry = register(tmp_path / "registry.v1.json", path, feature_names=list(reversed(cols)),
                             roster=["logistic_regression"])      # same names, different order
         with pytest.raises(ContainmentError, match="features differ from its registry record"):
@@ -133,17 +141,17 @@ class TestConstructionAndLoading:
         cols = _usable_features(5)
         scaler, lr, meta = _fitted(cols)
         path = tmp_path / "ok.joblib"
-        P.InferencePipeline({"logistic_regression": lr}, meta, scaler=scaler).save(path)
+        _pipe(lr, scaler).save(path)
         registry = register(tmp_path / "registry.v1.json", path, feature_names=cols,
                             roster=["logistic_regression", "catboost"])
-        with pytest.raises(ContainmentError, match="roster does not match"):
+        with pytest.raises(ContainmentError, match="roster differs from its registry record"):
             P.InferencePipeline.load(path, consumer="test", registry_path=registry, authority=AllowForTests())
 
     def test_changed_bytes_after_registration_are_refused_before_deserializing(self, tmp_path, monkeypatch):
         cols = _usable_features(5)
         scaler, lr, meta = _fitted(cols)
         path = tmp_path / "t.joblib"
-        P.InferencePipeline({"logistic_regression": lr}, meta, scaler=scaler).save(path)
+        _pipe(lr, scaler).save(path)
         registry = register(tmp_path / "registry.v1.json", path, feature_names=cols, roster=["logistic_regression"])
         with path.open("ab") as fh:
             fh.write(b"\x00")
@@ -152,6 +160,14 @@ class TestConstructionAndLoading:
             P.InferencePipeline.load(path, consumer="test", registry_path=registry, authority=AllowForTests())
         assert opened == []
 
+    def test_a_registered_legacy_pipeline_is_refused_at_load(self, tmp_path):
+        path = tmp_path / "legacy_ok.joblib"
+        joblib.dump(_legacy(_usable_features(3)), path)
+        registry = register(tmp_path / "registry.v1.json", path, feature_names=_usable_features(3),
+                            roster=["logistic_regression"])
+        with pytest.raises(ContractError, match="declares no authoritative combiner"):
+            P.InferencePipeline.load(path, consumer="test", registry_path=registry, authority=AllowForTests())
+
     def test_save_refuses_a_quarantine_era_pipeline(self, tmp_path):
         with pytest.raises(ContainmentError):
             _legacy(_usable_features(3) + [Q0]).save(tmp_path / "x.joblib")
@@ -159,24 +175,31 @@ class TestConstructionAndLoading:
 
 
 class TestServingMatrix:
-    @pytest.mark.parametrize("method", ["predict_proba", "predict_proba_with_uncertainty"])
+    @pytest.mark.parametrize("method", ["predict_proba", "score"])
     def test_a_quarantine_era_legacy_object_cannot_predict(self, method):
         with pytest.raises(ContainmentError, match="suspended"):
             getattr(_legacy(_usable_features(3) + [Q0]), method)(_raw())
 
-    @pytest.mark.parametrize("method", ["predict_proba", "predict_proba_with_uncertainty"])
+    @pytest.mark.parametrize("method", ["predict_proba", "score"])
     def test_a_missing_feature_is_refused_never_zero_filled(self, method):
         scaler, lr, meta = _fitted(_usable_features(3) + ["made_up_feature"])
-        pipe = P.InferencePipeline({"logistic_regression": lr}, meta, scaler=scaler)
+        pipe = _pipe(lr, scaler)
         with pytest.raises(ContainmentError, match="never zero-filled"):
             getattr(pipe, method)(_raw())
 
-    @pytest.mark.parametrize("method", ["predict_proba", "predict_proba_with_uncertainty"])
+    @pytest.mark.parametrize("method", ["predict_proba", "score"])
     def test_an_admissible_pipeline_predicts(self, method):
         scaler, lr, meta = _fitted(_usable_features(5))
-        out = getattr(P.InferencePipeline({"logistic_regression": lr}, meta, scaler=scaler), method)(_raw())
-        proba = out if method == "predict_proba" else out["proba"]
+        out = getattr(_pipe(lr, scaler), method)(_raw())
+        proba = out if method == "predict_proba" else out.scores()
         assert proba.shape == (40,) and np.all((proba >= 0) & (proba <= 1))
+
+    @pytest.mark.parametrize("method", ["predict_proba", "score"])
+    def test_an_admissible_legacy_pipeline_is_refused_not_served_its_stacker(self, method):
+        """A pipeline pickled before 2026-11-07 carries only the logistic meta-learner. It is NOT the evaluated
+        predictor, and nothing substitutes it for the blend (gate G3.2)."""
+        with pytest.raises(ContractError, match="declares no authoritative combiner"):
+            getattr(_legacy(_usable_features(3)), method)(_raw())
 
 
 class TestFittedModelBoundary:

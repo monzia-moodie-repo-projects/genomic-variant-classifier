@@ -71,3 +71,19 @@ def test_subset_clinvar_deterministic(tmp_path):
     a = pd.read_parquet(SM._subset_clinvar(str(src), 200, da))
     b = pd.read_parquet(SM._subset_clinvar(str(src), 200, db))
     assert a["variant_id"].tolist() == b["variant_id"].tolist()
+
+
+def test_the_smoke_gate_requires_the_selected_blend_row_by_the_package_constant():
+    """smoke_all_models keeps a literal (it must import without torch); it may never drift from the row evaluate()
+    writes. Package 1, set 1a (2026-11-07)."""
+    from genomic_variant_classifier.models.variant_ensemble import SELECTED_ENSEMBLE_ROW
+    assert SM.SELECTED_ENSEMBLE_ROW == SELECTED_ENSEMBLE_ROW == "SELECTED_CONVEX_BLEND"
+
+
+def test_the_offline_gate_logic_script_passes():
+    """scripts/test_smoke_checks.py, run as the script it is, exits 0 (all seven gate-logic cases)."""
+    import subprocess
+    out = subprocess.run([sys.executable, str(_SCRIPTS / "test_smoke_checks.py")], capture_output=True, text=True,
+                         timeout=120)
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert "all 7 gate-logic cases behave correctly" in out.stdout

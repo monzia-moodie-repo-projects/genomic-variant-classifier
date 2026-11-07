@@ -214,65 +214,101 @@ class BatchPredictRequest(BaseModel):
 # Output schemas
 # ---------------------------------------------------------------------------
 
-class VariantPrediction(BaseModel):
-    """Per-variant prediction result."""
+class QuantityModel(BaseModel):
+    """A value with its unit and state. `unavailable` and `unresolved` carry null and a reason; a computed zero is 0."""
 
-    variant_id: str = Field(description="chrom:pos:ref:alt")
+    model_config = {"extra": "forbid"}
+
+    value: Optional[float]
+    unit: str
+    status: str
+    reason: Optional[str] = None
+
+
+class StatusModel(BaseModel):
+    """Something this record does not provide, and why."""
+
+    model_config = {"extra": "forbid"}
+
+    status: str
+    reason: Optional[str] = None
+
+
+class CombinerReference(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    kind: str
+    combiner_sha256: str
+    kernel: str
+    members: list[str]
+
+
+class RosterResearchView(BaseModel):
+    """A DESCRIPTIVE uniform view of the fitted members. Not the selected blend, and not its uncertainty."""
+
+    model_config = {"extra": "forbid"}
+
+    interpretation: str
+    weighting: str
+    ddof: int
+    between_member_spread_variance: QuantityModel
+    member_disagreement: QuantityModel
+    disagreement_status: str
+    method: Optional[str] = None
+
+
+class VariantPrediction(BaseModel):
+    """Per-variant prediction record, schema 3.0.0 (package 1, gate G6).
+
+    BREAKING relative to 2.0.0. Removed: `classification` (the five-tier relabelling), `confidence` (distance from
+    an unqualified threshold), `uncertainty_epistemic` and `uncertainty_aleatoric` (a variance and an entropy under
+    retired names, the second of them served from a different predictor), `top_features` (never populated: no
+    attribution method existed) and `coverage_interval` (never populated). The score is the selected predictor's --
+    the stored convex blend -- at full binary64 precision, never rounded, clipped or relabelled. `model_call` is a
+    descriptive binary call under one tie rule; no decision policy is qualified, and the record says so.
+    """
+
+    model_config = {"extra": "forbid"}
+
+    prediction_schema_version: str
+    variant_id: str = Field(description="chrom:pos:ref:alt as submitted (after normalisation)")
+    source_row_key: str = Field(description="Position of this variant within the submitted request")
+    source_observation_id: str
+    prediction_unit_id: str
+    ordered_rows_sha256: str
+    result_block_sha256: str
+    combiner: CombinerReference
+    positive_class: int
     pathogenicity_score: float = Field(
         ge=0.0,
         le=1.0,
-        description="Ensemble probability of pathogenicity (0 = benign, 1 = pathogenic).",
+        description="The selected predictor's probability of the positive class (full precision; validated, "
+                    "never clipped).",
     )
-    classification: str = Field(
-        description=(
-            "Categorical call: 'Pathogenic', 'Likely pathogenic', "
-            "'Uncertain significance', 'Likely benign', or 'Benign'."
-        )
-    )
-    confidence: str = Field(
-        description="'high' | 'medium' | 'low' — based on score distance from thresholds."
-    )
-    # Feature contributions — top-5 only, to keep payload small.
-    top_features: Optional[dict[str, float]] = Field(
-        default=None,
-        description="SHAP values or model importances for the top-5 features.",
-    )
-    # Uncertainty decomposition
-    uncertainty_epistemic: Optional[float] = Field(
-        default=None,
-        ge=0.0,
-        description=(
-            "Variance across base model predictions (epistemic / model uncertainty). "
-            "High values indicate ensemble members disagree — collect additional "
-            "functional evidence before reporting."
-        ),
-    )
-    uncertainty_aleatoric: Optional[float] = Field(
-        default=None,
-        ge=0.0,
-        description=(
-            "Binary entropy of the final pathogenicity probability (aleatoric / data "
-            "uncertainty). Peaks near score=0.5; irreducible by further training."
-        ),
-    )
-    # Conformal prediction interval
-    coverage_interval: Optional[list[float]] = Field(
-        default=None,
-        description=(
-            "[lo, hi] conformal prediction interval at 90% coverage. "
-            "None when conformal calibration config is not loaded."
-        ),
-    )
+    model_call: int = Field(description="1 when pathogenicity_score >= 0.5 (tie_rule), else 0. Descriptive only.")
+    tie_rule: str
+    predictive_entropy_nats: QuantityModel
+    roster_research_view: RosterResearchView
+    weighted_blend_diagnostic: StatusModel
+    preprocessing_status: str
+    calibration_status: str
+    decision_policy: StatusModel
+    feature_attribution: StatusModel
+    coverage_interval: StatusModel
+
+    @field_validator("prediction_schema_version")
+    @classmethod
+    def _only_this_schema(cls, v: str) -> str:
+        """A reader of 3.0.0 refuses any other schema version rather than guessing what its fields mean."""
+        if v != "3.0.0":
+            raise ValueError(f"unsupported prediction schema version {v!r}; this reader understands only 3.0.0")
+        return v
 
 
 class PredictResponse(BaseModel):
-    """Response for /predict (single variant).
+    """Response for /predict (single variant). API 3.0.0.
 
-    PROD-1 (2026-08-07), API 2.0.0. `pipeline_version` is gone: it was
-    the OpenAPI version doubling as prediction provenance. `model_version`
-    is now the registry record's label and is None when the serving
-    artifact cannot be attributed -- which is honest, and was previously
-    a constant reading "phase2-v1" whatever was loaded.
+    `model_version` is the registry record's label and is None when the serving artifact cannot be attributed.
     """
 
     prediction: VariantPrediction
@@ -281,14 +317,27 @@ class PredictResponse(BaseModel):
 
 
 class BatchPredictResponse(BaseModel):
-    """Response for /batch. Every result shares one serving identity."""
+    """Response for /batch. Every result shares one serving identity.
+
+    The 2.0.0 counts (n_pathogenic, n_benign, n_uncertain) are removed: matched by substring on the five-tier
+    labels, they omitted every "Likely ..." result and did not partition the batch. The counts here partition it:
+    n_model_call_positive + n_model_call_negative == n_predictions.
+    """
 
     predictions: list[VariantPrediction]
-    n_pathogenic: int
-    n_benign: int
-    n_uncertain: int
+    n_predictions: int
+    n_model_call_positive: int
+    n_model_call_negative: int
     model_record_id: Optional[str] = None
     model_version: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _counts_partition(self) -> "BatchPredictResponse":
+        if self.n_predictions != len(self.predictions):
+            raise ValueError("n_predictions differs from the number of predictions")
+        if self.n_model_call_positive + self.n_model_call_negative != self.n_predictions:
+            raise ValueError("the model-call counts do not partition the batch")
+        return self
 
 
 class HealthResponse(BaseModel):
@@ -339,7 +388,11 @@ class RsidLookupResponse(BaseModel):
     alt: Optional[str] = None
     prediction: Optional[VariantPrediction] = Field(
         default=None,
-        description="Pathogenicity prediction for the resolved locus, if the model is loaded.",
+        description="Pathogenicity prediction for the resolved locus, when a READY model is loaded.",
+    )
+    prediction_unavailable_reason: Optional[str] = Field(
+        default=None,
+        description="Why no prediction accompanies a known locus (null when one does).",
     )
 
 
@@ -356,6 +409,7 @@ class ModelAttributionResponse(BaseModel):
     deployment_alignment: str
     roster_alignment: str
     evaluation_applicability: str
+    predictor_contract_alignment: str = "unknown"
 
     record_id: Optional[str] = None
     model_version: Optional[str] = None
@@ -392,7 +446,7 @@ class ModelAttributionResponse(BaseModel):
 
 
 class InfoResponse(BaseModel):
-    """Model metadata. API 2.0.0.
+    """Model metadata. API 3.0.0 (2.0.0 removed the fields below; 3.0.0 changed the prediction schema).
 
     BREAKING: `pipeline_version`, `training_auroc`, `training_auprc`,
     `holdout_auroc` and the free-text `description` are removed. The
@@ -418,8 +472,13 @@ class InfoResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Classification thresholds
+# Classification thresholds -- NOT USED BY SERVING SINCE API 3.0.0
 # ---------------------------------------------------------------------------
+#
+# The serving API no longer calls score_to_classification (gate G6.2): the five tiers and the score-distance
+# "confidence" are unqualified thresholds applied to an uncalibrated score. These definitions remain only because
+# scripts/validate_external.py still imports them; its disposition, and the silent fallback in _load_thresholds
+# below (Path("") is "." -- a directory -- and the resulting error is swallowed), belong to package 1, set 1c.
 
 # ACMGish five-tier mapping based on calibrated probability.
 # These defaults apply when no calibrated threshold file is found.

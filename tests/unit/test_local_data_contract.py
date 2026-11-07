@@ -225,11 +225,15 @@ def _startup_runners() -> dict:
 
 
 def test_every_test_that_runs_the_api_startup_requests_api_without_local_data():
-    """MEASURED 2026-11-06: these are the places, and the startup otherwise loads the checkout's git-ignored dbSNP index."""
+    """MEASURED 2026-11-06: these are the places, and the startup otherwise loads the checkout's git-ignored dbSNP index.
+
+    2026-11-07 (package 1, set 1a): one more place, the 13 -> 12 projection refused at load through the real lifespan.
+    """
     runners = _startup_runners()
     assert set(runners) == {
         ("tests/unit/test_runtime_attribution.py", "registered_production_client"),
         ("tests/unit/test_runtime_attribution.py", "test_the_same_registered_production_artifact_is_refused_under_the_default_authority"),
+        ("tests/unit/test_runtime_attribution.py", "test_a_declared_projection_is_refused_at_load_through_the_real_lifespan"),
         ("tests/unit/test_containment_serving.py", "test_the_api_server_refuses_to_serve_a_quarantined_artifact"),
     }, sorted(runners)
     missing = sorted(k for k, params in runners.items() if "api_without_local_data" not in params)

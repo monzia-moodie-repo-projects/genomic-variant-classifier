@@ -93,7 +93,26 @@ from genomic_variant_classifier.containment import (
     require_scientific_contract,
 )
 from genomic_variant_classifier.quarantine_policy import QUARANTINED_FEATURES
+from genomic_variant_classifier.models.combiner import (
+    BLEND_KERNEL,
+    COMBINER_KIND,
+    ConvexBlendSpec,
+    MemberSlot,
+    exact_blend,
+    member_artifact_sha256,
+    prediction_stage_sha256,
+    validate_stored_weights,
+)
+from genomic_variant_classifier.prediction_contract import (
+    ContractError,
+    ScientificScope,
+    canonical_digest,
+    model_call,
+    positive_column,
+    sklearn_binary_classes,
+)
 
+import hashlib
 import re as _re
 import joblib
 import json
@@ -1851,7 +1870,8 @@ class TabularNNClassifier(BaseEstimator, ClassifierMixin):
         self.random_state = random_state
         self.model_ = None
         self.scaler_ = StandardScaler()
-        self.classes_ = np.array([0, 1])
+        # classes_ is DERIVED FROM THE FITTED LABELS in fit() (gate G4.5). It was a constant np.array([0, 1]) set
+        # here, so an unfitted object claimed classes and a fit on other labels would have kept the constant.
 
     def _build_model(self, input_dim):
         import torch
@@ -1899,6 +1919,11 @@ class TabularNNClassifier(BaseEstimator, ClassifierMixin):
 
         X = np.asarray(X, dtype=float)
         self.n_features_in_ = X.shape[1]
+        classes = np.unique(np.asarray(y))
+        if classes.dtype.kind not in "iu" or classes.tolist() != [0, 1]:
+            raise ContractError(
+                f"TabularNNClassifier is a binary classifier of the integer labels {{0, 1}}; got {classes.tolist()!r}")
+        self.classes_ = classes.astype(np.int64)
 
         # NEURALNAN-1 (2026-08-12). This was
         #
@@ -2051,7 +2076,7 @@ class TabularNNClassifier(BaseEstimator, ClassifierMixin):
             self.model_.eval()
 
     def predict(self, X):
-        return (self.predict_proba(X)[:, 1] > 0.5).astype(int)
+        return model_call(self.predict_proba(X)[:, 1])
 
 
 # ---------------------------------------------------------------------------
@@ -2074,18 +2099,33 @@ class _IsotonicCalibrator:
         self._base = base_model
         self._iso = IsotonicRegression(out_of_bounds="clip")
 
+    @property
+    def classes_(self) -> np.ndarray:
+        """The calibrated output columns are built as [1 - p, p] from the base model's class-1 column, so they are
+        (0, 1) exactly when the base model's fitted classes are (0, 1) in that order (gate G4.5). A property, so
+        wrappers pickled before it existed (Run 15) are covered too. Any other base class order is refused."""
+        classes, _conversion = sklearn_binary_classes(self._base)
+        if classes != (0, 1):
+            raise ContractError(f"isotonic wrapper over a base model with classes {classes}: its class-1 column "
+                                "is not column 1")
+        return np.array([0, 1], dtype=np.int64)
+
+    def _base_positive(self, X) -> np.ndarray:
+        self.classes_  # noqa: B018 -- validates the base model's class order before column 1 is read
+        return self._base.predict_proba(X)[:, 1]
+
     def fit(self, X_cal: np.ndarray, y_cal: np.ndarray) -> "_IsotonicCalibrator":
-        raw = self._base.predict_proba(X_cal)[:, 1]
+        raw = self._base_positive(X_cal)
         self._iso.fit(raw, y_cal)
         return self
 
     def predict_proba(self, X) -> np.ndarray:
-        raw = self._base.predict_proba(X)[:, 1]
+        raw = self._base_positive(X)
         p = self._iso.predict(raw)
         return np.column_stack([1.0 - p, p])
 
     def predict(self, X) -> np.ndarray:
-        return (self.predict_proba(X)[:, 1] >= 0.5).astype(int)
+        return model_call(self.predict_proba(X)[:, 1])
 
 
 def _write_model_manifest(artifact_path):
@@ -2116,6 +2156,11 @@ def _write_model_manifest(artifact_path):
     manifest_path.write_text(json.dumps(manifest, indent=2))
     return manifest_path
 
+
+#: The evaluate() row of the SELECTED predictor (gate G3; the declared convex blend). It replaces the row label
+#: ENSEMBLE_STACKER, which named a logistic stacker while the row was computed from the blend. Records written under
+#: the old label keep their bytes; a reader of NEW evaluations uses this constant, never a literal.
+SELECTED_ENSEMBLE_ROW = "SELECTED_CONVEX_BLEND"
 
 # Models whose input is the SEQUENCE branch rather than the tabular matrix.
 #
@@ -2372,7 +2417,7 @@ class VariantEnsemble:
         self.zero_variance_features_: list[str] = []
 
     @staticmethod
-    def _find_blend_weights(oof_preds: np.ndarray, y: np.ndarray) -> np.ndarray:
+    def _find_blend_weights(oof_preds: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, dict]:
         """
         Nelder-Mead convex blend search over OOF predictions.
 
@@ -2381,8 +2426,9 @@ class VariantEnsemble:
         regression meta-learner when base model scores are highly correlated
         (the typical case when all models are trained on the same features).
 
-        Falls back gracefully to equal weights if scipy is unavailable or
-        optimisation fails to converge.
+        Returns (weights, fit_report). The docstring used to promise a graceful fallback to equal weights when the
+        optimisation failed; no such fallback ever existed, and none is added: a failed search raises, and a
+        non-converged one is recorded in the report.
         """
         from scipy.optimize import minimize
 
@@ -2403,9 +2449,31 @@ class VariantEnsemble:
             method="Nelder-Mead",
             options={"maxiter": 5000, "xatol": 1e-5, "fatol": 1e-5},
         )
-        w = np.abs(result.x)
+        # THE OPTIMISER CONTRACT, REPAIRED IN TRAINING ONLY (owner ruling 2026-11-07; Run 15 is never refitted).
+        # abs() and the division below are the optimiser's PARAMETRISATION of the simplex during the search; the
+        # weights it returns are then stored exactly and are never abs()-ed or renormalised again at prediction.
+        # Until 2026-11-07 neither the optimiser status nor the result was checked: a non-finite or all-zero
+        # result became NaN weights. Both are refused now; non-convergence is RECORDED (the weights are still a
+        # valid convex blend, but not a converged optimum) and logged.
+        x = np.asarray(result.x, dtype=np.float64)
+        if not np.isfinite(x).all() or np.abs(x).sum() == 0.0:
+            raise RuntimeError(f"blend weight search returned an unusable point {x.tolist()!r} "
+                               f"({result.message!r}); no blend can be stored")
+        w = np.abs(x)
         w /= w.sum()
-        return w
+        validate_stored_weights(w, n_models)
+        report = {
+            "optimizer": "scipy.optimize.minimize(method='Nelder-Mead')",
+            "objective": "negative_out_of_fold_auroc_of_abs_normalised_weights",
+            "success": bool(result.success), "status": int(result.status), "message": str(result.message),
+            "n_iterations": int(result.nit), "n_function_evaluations": int(result.nfev),
+            "objective_value": float(result.fun),
+            "convergence": "converged" if result.success else "not_converged_weights_kept_and_recorded",
+        }
+        if not result.success:
+            logger.warning("Blend weight search did NOT converge (%s); the stored weights are recorded as a "
+                           "non-converged convex blend.", result.message)
+        return w, report
 
     def _leakfree_oof(self, name, model, X_tab_fit, X_seq_fit, y_fit,
                       gene_fit, cv_splits):
@@ -3184,8 +3252,15 @@ class VariantEnsemble:
         self.meta_learner.fit(oof_preds, y_fit)
 
         logger.info("Running Nelder-Mead blend weight search ...")
-        self.blend_weights_ = self._find_blend_weights(oof_preds, y_fit)
+        self.blend_weights_, self.blend_fit_report_ = self._find_blend_weights(oof_preds, y_fit)
         self.feature_names_ = list(self.trained_models_.keys())
+        # THE DECLARED COMBINER (gate G3.1), persisted by save(). The convex blend is the authoritative predictor;
+        # the logistic meta-learner fitted above is a separately identified research candidate that no
+        # authoritative path calls.
+        self.selected_combiner_ = COMBINER_KIND
+        self.combiner_declaration_source_ = "declared_at_fit"
+        self.member_artifact_sha256_ = {}
+        self.source_artifact_sha256_ = None
         logger.info(
             "Blend weights: %s",
             {
@@ -3193,12 +3268,14 @@ class VariantEnsemble:
                 for n, w in zip(self.feature_names_, self.blend_weights_)
             },
         )
-        blend_auroc = roc_auc_score(y_fit, oof_preds @ self.blend_weights_)
+        blend_auroc = roc_auc_score(y_fit, exact_blend(np.asarray(oof_preds, dtype=np.float64),
+                                                       tuple(float(w) for w in self.blend_weights_)))
         lr_auroc = roc_auc_score(
             y_fit, self.meta_learner.predict_proba(oof_preds)[:, 1]
         )
         logger.info(
-            "OOF blend AUROC: %.4f  (LR stacker: %.4f  delta=%.4f)",
+            "OOF blend AUROC: %.4f  (logistic research candidate: %.4f  delta=%.4f) -- training objective on the "
+            "rows the weights were fitted on, not an evaluation",
             blend_auroc,
             lr_auroc,
             blend_auroc - lr_auroc,
@@ -3208,66 +3285,92 @@ class VariantEnsemble:
         self.base_estimators.clear()
         return self
 
-    def predict_proba(
-        self, X_tab: pd.DataFrame, X_seq: "pd.DataFrame | None" = None
-    ) -> np.ndarray:
-        """X_seq: 2-column [fasta_seq_ref, fasta_seq_alt] frame. See fit() -- the
-        `pd.Series` annotation here was false for the production path (2026-07-15)."""
-        if not self.trained_models_:
-            raise RuntimeError("Call fit() before predict_proba().")
-        # CONTAINMENT -- checked BEFORE the anonymous X_tab.values conversion below: no quarantined
-        # column, and (when fit recorded it) exactly the fitted names in the fitted order. Never zero-fill.
-        _require_tabular_admissible(X_tab, "predict_proba X_tab")
-        if getattr(self, "tabular_columns_", None) is not None:
-            require_matrix(X_tab, self.tabular_columns_, QUARANTINED_FEATURES)
-        X_seq = self._require_sequence_windows(
-            {"X_seq": X_seq}, self.trained_models_, "predict_proba")["X_seq"]
-        base_preds = np.zeros((len(X_tab), len(self.trained_models_)))
-        for i, (name, model) in enumerate(self.trained_models_.items()):
+    # ------------------------------------------------------------------
+    # The selected predictor (gates G3 and G4)
+    # ------------------------------------------------------------------
+
+    def _require_declared_blend(self) -> tuple[float, ...]:
+        """The declared combiner and its exact stored weights, or a refusal. Never the logistic candidate."""
+        declared = getattr(self, "selected_combiner_", None)
+        if declared != COMBINER_KIND:
+            raise ContractError(
+                f"this ensemble declares the combiner {declared!r}; only {COMBINER_KIND!r} is an authoritative "
+                "predictor, and no other combiner is substituted. A legacy orchestrator must be loaded with an "
+                "explicit legacy_combiner_declaration")
+        names = list(getattr(self, "feature_names_", None) or ())
+        if names != list(self.trained_models_):
+            raise ContractError(f"the fitted member order {names} differs from the loaded members "
+                                f"{list(self.trained_models_)}")
+        return validate_stored_weights(getattr(self, "blend_weights_", None), len(names))
+
+    def _member_probability_matrix(self, X_tab: pd.DataFrame, X_seq) -> tuple[list[str], np.ndarray]:
+        """Each fitted member called ONCE, in the fitted order; every output column validated (gate G4.5)."""
+        names, columns = [], []
+        for name, model in self.trained_models_.items():
             if name == "cnn_1d":
                 X_input = X_seq
             elif name == "catboost":
                 X_input = X_tab
             else:
                 X_input = X_tab.values
-            base_preds[:, i] = model.predict_proba(X_input)[:, 1]
+            values, _classes, _conversion = positive_column(model, model.predict_proba(X_input), len(X_tab))
+            names.append(name)
+            columns.append(np.asarray(values, dtype=np.float64))
+        return names, np.column_stack(columns)
 
-        # Prefer Nelder-Mead convex blend; fall back to LR stacker for
-        # models loaded from disk before this change was introduced.
-        if self.blend_weights_ is not None:
-            blend = base_preds @ self.blend_weights_
-            return np.column_stack([1.0 - blend, blend])
-        return self.meta_learner.predict_proba(base_preds)
+    def _checked_inputs(self, X_tab: pd.DataFrame, X_seq, method: str):
+        if not self.trained_models_:
+            raise RuntimeError(f"Call fit() before {method}().")
+        # CONTAINMENT -- checked BEFORE the anonymous X_tab.values conversion: no quarantined column, and (when fit
+        # recorded it) exactly the fitted names in the fitted order. Never zero-fill.
+        _require_tabular_admissible(X_tab, f"{method} X_tab")
+        if getattr(self, "tabular_columns_", None) is not None:
+            require_matrix(X_tab, self.tabular_columns_, QUARANTINED_FEATURES)
+        return self._require_sequence_windows({"X_seq": X_seq}, self.trained_models_, method)["X_seq"]
+
+    def predict_proba(
+        self, X_tab: pd.DataFrame, X_seq: "pd.DataFrame | None" = None
+    ) -> np.ndarray:
+        """The declared convex blend of every fitted member, (n, 2), positive class in column 1.
+
+        X_seq: 2-column [fasta_seq_ref, fasta_seq_alt] frame. See fit() -- the `pd.Series` annotation here was false
+        for the production path (2026-07-15).
+
+        Until 2026-11-07 this fell back to the logistic meta-learner whenever blend_weights_ was None. That
+        substitution is refused now (gate G3.2): an ensemble whose declared blend cannot be computed has no
+        authoritative prediction. The kernel is the exact stored-value dot product rounded once (combiner.BLEND_KERNEL,
+        owner ruling 2026-11-07); the historical `@` keeps its own identity for replay only.
+        """
+        weights = self._require_declared_blend()
+        X_seq = self._checked_inputs(X_tab, X_seq, "predict_proba")
+        _names, base = self._member_probability_matrix(X_tab, X_seq)
+        blend = exact_blend(base, weights)
+        return np.column_stack([1.0 - blend, blend])
 
     def predict(
         self, X_tab: pd.DataFrame, X_seq: "pd.DataFrame | None" = None
     ) -> np.ndarray:
-        return (self.predict_proba(X_tab, X_seq)[:, 1] > 0.5).astype(int)
+        return model_call(self.predict_proba(X_tab, X_seq)[:, 1])
 
     def evaluate(
         self, X_tab: pd.DataFrame, X_seq: "pd.DataFrame | None", y: pd.Series
     ) -> pd.DataFrame:
-        # Keep the attachment: the nested predict_proba() below runs the gate again, and a
-        # resolved frame would be refused there as provenance-less.
-        _x_seq_input = X_seq
-        X_seq = self._require_sequence_windows(
-            {"X_seq": X_seq}, self.trained_models_, "evaluate")["X_seq"]
+        """Per-member rows and ONE row for the selected predictor, all from ONE captured member bundle (G4.4).
+
+        Until 2026-11-07 every member was called here and then called AGAIN through predict_proba() for the
+        ensemble row, which was labelled ENSEMBLE_STACKER although it was the blend. The ensemble row is now named
+        SELECTED_ENSEMBLE_ROW and reduces the same member matrix the member rows reduce. Historical records keep
+        their ENSEMBLE_STACKER bytes; nothing rewrites them.
+        """
+        weights = self._require_declared_blend()
+        X_seq = self._checked_inputs(X_tab, X_seq, "evaluate")
         y_arr = np.asarray(y)
+        names, base = self._member_probability_matrix(X_tab, X_seq)
+        columns = {name: base[:, j] for j, name in enumerate(names)}
+        columns[SELECTED_ENSEMBLE_ROW] = exact_blend(base, weights)
         results: dict[str, dict] = {}
-        for name, model in self.trained_models_.items():
-            # Run 10 fix: mirror the same 3-way dispatch used in
-            # fit() and predict_proba(). CatBoost requires a DataFrame
-            # (column names drive categorical-feature resolution); the
-            # previous code called .values for catboost too and would
-            # crash on the cb_wrapper's pandas-only input contract.
-            if name == "cnn_1d":
-                X_input = X_seq
-            elif name == "catboost":
-                X_input = X_tab
-            else:
-                X_input = X_tab.values
-            proba = model.predict_proba(X_input)[:, 1]
-            preds = (proba > 0.5).astype(int)
+        for name, proba in columns.items():
+            preds = model_call(proba)
             results[name] = {
                 "auroc": roc_auc_score(y_arr, proba),
                 "auprc": average_precision_score(y_arr, proba),
@@ -3278,22 +3381,66 @@ class VariantEnsemble:
                 "mcc": matthews_corrcoef(y_arr, preds),
                 "brier": brier_score_loss(y_arr, proba),
             }
-        ens_proba = self.predict_proba(X_tab, _x_seq_input)[:, 1]
-        ens_preds = (ens_proba > 0.5).astype(int)
-        results["ENSEMBLE_STACKER"] = {
-            "auroc": roc_auc_score(y_arr, ens_proba),
-            "auprc": average_precision_score(y_arr, ens_proba),
-            "f1_macro": f1_score(y_arr, ens_preds, average="macro", zero_division=0),
-            "f1_weighted": f1_score(
-                y_arr, ens_preds, average="weighted", zero_division=0
-            ),
-            "mcc": matthews_corrcoef(y_arr, ens_preds),
-            "brier": brier_score_loss(y_arr, ens_proba),
-        }
         df = pd.DataFrame(results).T.round(4)
         df = df.sort_values("auroc", ascending=False)
         logger.info("\n%s", df.to_string())
         return df
+
+    # ------------------------------------------------------------------
+    # Identity of the selected predictor
+    # ------------------------------------------------------------------
+
+    def fit_input_stage_sha256(self) -> str:
+        """Identity of what the stored weights were fitted ON: the raw out-of-fold member matrix, its member order and
+        the fit-row positions. Refused when the ensemble does not carry them (the stage would be unknown)."""
+        oof = getattr(self, "oof_predictions_", None)
+        idx = getattr(self, "oof_fit_indices_", None)
+        names = getattr(self, "oof_model_names_", None)
+        if oof is None or idx is None or names is None:
+            raise ContractError("the blend's fit-input stage is unknown: the ensemble carries no out-of-fold "
+                                "matrix, fit indices or member order")
+        oof = np.ascontiguousarray(np.asarray(oof, dtype="<f8"))
+        idx_arr = np.asarray(idx)
+        if idx_arr.dtype.kind not in "iu":
+            raise ContractError("out-of-fold fit indices must be integers")
+        return canonical_digest("gvc.blend-fit-input-stage.v1", {
+            "stage": "raw_out_of_fold_member_probabilities",
+            "oof_model_names": [str(n) for n in names],
+            "oof_shape": list(oof.shape),
+            "oof_predictions_sha256": hashlib.sha256(oof.tobytes()).hexdigest(),
+            "oof_fit_indices_sha256": hashlib.sha256(
+                np.ascontiguousarray(idx_arr.astype("<i8")).tobytes()).hexdigest()})
+
+    def member_identities(self) -> dict[str, str]:
+        """Each member's artifact identity, measured ONCE and kept: the saved file digest for a loaded or saved
+        ensemble, otherwise the digest of its first serialisation (see combiner.member_artifact_sha256)."""
+        recorded = getattr(self, "member_artifact_sha256_", None)
+        if recorded is None:
+            recorded = {}
+            self.member_artifact_sha256_ = recorded
+        for name, model in self.trained_models_.items():
+            if name not in recorded:
+                recorded[name] = member_artifact_sha256(model)
+        return {name: recorded[name] for name in self.trained_models_}
+
+    def convex_blend_spec(self, scope: ScientificScope) -> ConvexBlendSpec:
+        """The ConvexBlendSpec of this fitted ensemble: exact weights, full fitted roster, member stages."""
+        weights = self._require_declared_blend()
+        identities = self.member_identities()
+        members = tuple(MemberSlot(name, identities[name], prediction_stage_sha256(name, model))
+                        for name, model in self.trained_models_.items())
+        stage = self.fit_input_stage_sha256()
+        source = getattr(self, "source_artifact_sha256_", None)
+        if source is not None:
+            kind = "saved_orchestrator_sha256"
+        else:
+            kind = "in_memory_fit_record_sha256"
+            source = canonical_digest("gvc.in-memory-fit-record.v1", {
+                "members": {k: identities[k] for k in self.trained_models_},
+                "weights_binary64_hex": [w.hex() for w in weights], "fit_input_stage_sha256": stage})
+        return ConvexBlendSpec(source_kind=kind, source_sha256=source, scientific_scope_sha256=scope.digest,
+                               members=members, weights=weights, fit_input_stage_sha256=stage,
+                               kernel=BLEND_KERNEL)
 
     def save(self, path: Optional[Path] = None) -> None:
         """Persist the ensemble: one joblib per base model plus a thin orchestrator that names them.
@@ -3313,6 +3460,9 @@ class VariantEnsemble:
                 "save() needs a destination: pass path=..., or construct EnsembleConfig(model_dir=...). "
                 "There is no default location; the current working directory is not an authority.")
         path = Path(path or self.config.model_dir / "ensemble.joblib")
+        # The declared combiner and its stored weights are checked BEFORE anything is written: an ensemble whose
+        # authoritative predictor cannot be computed is not saved at all (gate G3.2).
+        self._require_declared_blend()
         path.parent.mkdir(parents=True, exist_ok=True)
 
         # Per-model checkpoints sit in <path>_models/ next to the orchestrator.
@@ -3353,17 +3503,38 @@ class VariantEnsemble:
             "saved_model_paths": saved_model_paths,
             "saved_model_sha256": saved_model_sha256,
             "models_dir_name": models_dir.name,
+            # Package 1, set 1a (2026-11-07). The DECLARED combiner (gate G3.1) and the training-side optimiser
+            # report. preprocessor_ -- the fitted missing-value policy -- was never saved, so a loaded ensemble
+            # handed InferencePipeline no policy and serving silently took the legacy pass-through path.
+            "selected_combiner": getattr(self, "selected_combiner_", None),
+            "blend_fit_report": getattr(self, "blend_fit_report_", None),
+            "preprocessor_": getattr(self, "preprocessor_", None),
         }
         joblib.dump(orchestrator, path)
         _write_model_manifest(path)
+        # Member identity is the digest of the bytes just written (combiner.member_artifact_sha256). A member whose
+        # identity was recorded from DIFFERENT bytes earlier (an ensemble re-saved after a load) is re-bound, loudly.
+        previous = getattr(self, "member_artifact_sha256_", None) or {}
+        rebound = sorted(n for n, d in saved_model_sha256.items() if n in previous and previous[n] != d)
+        if rebound:
+            logger.warning("Member artifact identities re-bound to the newly written bytes: %s. A ConvexBlendSpec "
+                           "built before this save still names the earlier bytes.", rebound)
+        self.member_artifact_sha256_ = dict(saved_model_sha256)
+        self.source_artifact_sha256_ = ArtifactIdentity.measure(path).sha256
         logger.info(
             "Ensemble saved to %s (orchestrator + %d base models in %s/)",
             path, len(saved_model_paths), models_dir.name,
         )
 
     @classmethod
-    def load(cls, path: Path, *, consumer: str, registry_path: Path, authority=None) -> "VariantEnsemble":
+    def load(cls, path: Path, *, consumer: str, registry_path: Path, authority=None,
+             legacy_combiner_declaration: Optional[str] = None) -> "VariantEnsemble":
         """Load an ensemble through the ONE admission route, all members or none.
+
+        THE DECLARED COMBINER (gate G3.1, 2026-11-07). An orchestrator saved since then names its combiner. One
+        saved before (Run 15's) names none, and loading it requires the CALLER to declare it explicitly
+        (legacy_combiner_declaration="convex_probability_blend", the owner's ruling for Run 15); the declaration
+        and its source are recorded on the object. Nothing is inferred, and no other combiner is substituted.
 
         Refused BEFORE deserialization unless a deployment-registry record measured the orchestrator's bytes
         and the cutover authority ALLOWs this consumer (model_admission; owner ruling 2026-09-23, point 2).
@@ -3398,9 +3569,32 @@ class VariantEnsemble:
         if tabular is None or tuple(tabular) != tuple(record.feature_names):
             raise ContainmentError("the ensemble's fitted columns differ from the registry record's features")
 
+        stored = obj.get("selected_combiner")
+        if stored is not None:
+            if legacy_combiner_declaration is not None:
+                raise ContractError("this orchestrator declares its own combiner; a caller declaration is only for "
+                                    "legacy orchestrators that declare none")
+            declared, declaration_source = stored, "orchestrator"
+        elif legacy_combiner_declaration is not None:
+            declared, declaration_source = legacy_combiner_declaration, "caller_declared_for_legacy_orchestrator"
+        else:
+            raise ContractError(
+                f"{path.name} declares no combiner (an orchestrator saved before 2026-11-07). Pass "
+                f"legacy_combiner_declaration={COMBINER_KIND!r} to load it as its stored convex blend; no "
+                "combiner is inferred")
+        if declared != COMBINER_KIND:
+            raise ContractError(f"unsupported declared combiner {declared!r}")
+
         ens = cls.__new__(cls)
         ens.config = obj["config"]
         ens.meta_learner = obj["meta_learner"]
+        ens.selected_combiner_ = declared
+        ens.combiner_declaration_source_ = declaration_source
+        ens.blend_fit_report_ = obj.get("blend_fit_report")
+        # Absent from orchestrators saved before 2026-11-07: None, recorded as such, never refitted.
+        ens.preprocessor_ = obj.get("preprocessor_")
+        ens.member_artifact_sha256_ = dict(digests)
+        ens.source_artifact_sha256_ = record.artifact.sha256
         ens.blend_weights_ = obj["blend_weights_"]
         ens.feature_names_ = obj.get("feature_names_")
         ens.tabular_columns_ = tabular
@@ -3418,4 +3612,5 @@ class VariantEnsemble:
             raise ContainmentError(
                 "the loaded members are not in the order the meta-learner was fitted on: "
                 f"{list(ens.trained_models_)} vs {list(ens.feature_names_ or ())}")
+        ens._require_declared_blend()   # stored weights validated at load: refused, never repaired (gate G3.2)
         return ens

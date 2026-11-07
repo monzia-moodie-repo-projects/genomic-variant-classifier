@@ -46,9 +46,15 @@ Implementation notes
 * Feature engineering is delegated to the InferencePipeline wrapper
   (``src/genomic_variant_classifier/api/pipeline.py``), which replicates the 64-feature logic from
   ``DataPrepPipeline._engineer_features`` without any I/O side-effects.
-* Auth is HTTPBearer.  When VALID_API_KEYS is empty, all requests are
-  allowed (development mode).  /health is always public.
-* Rate limits: /predict 1000/min per key, /batch 100/min per key.
+* Auth is the X-API-Key header (api/auth.py).  When API_KEYS is empty, all
+  requests are allowed (development mode).  /health is always public.
+* Rate limits: /predict 1000/min per key, /batch 100/min per key.  The limiter
+  identity is the SHA-256 of the X-API-Key value (never the raw key); requests
+  without a key are limited by remote address.
+* API 3.0.0 (package 1, 2026-11-07): every prediction is a schema-3.0.0 record
+  from the pipeline's one shared serializer -- the selected convex blend at full
+  precision, identities, units and statuses -- passed through unchanged: no
+  rounding, clipping or relabelling here.
 * /metrics is served by prometheus-fastapi-instrumentator.
 
 Phase 7 additions:
@@ -68,7 +74,6 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Optional
 
-import numpy as np
 import pandas as pd
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -86,8 +91,8 @@ from genomic_variant_classifier.api.schemas import (
     RsidLookupResponse,
     VariantPrediction,
     VariantRequest,
-    score_to_classification,
 )
+from genomic_variant_classifier.prediction_contract import ContractError
 
 # ---------------------------------------------------------------------------
 # NOTE: Auth dependency is in src/genomic_variant_classifier/api/auth.py (X-API-Key header, API_KEYS env var)
@@ -176,7 +181,7 @@ _START_TIME: float = time.monotonic()
 #: because one symbol was serving as both the OpenAPI version and
 #: prediction provenance, and that conflation is why "1.0.0" sat
 #: unexamined for four and a half months.
-API_VERSION = "2.0.0"
+API_VERSION = "3.0.0"
 
 #: The committed deployment declaration. See deployments/README.md for
 #: what a registry in version control can and cannot claim.
@@ -205,19 +210,25 @@ from genomic_variant_classifier.api.schemas import (  # noqa: E402
 # Rate limiting (7.2)
 # ---------------------------------------------------------------------------
 
+def _rate_key(request: Request) -> str:
+    """Rate-limit identity: the SHA-256 of the X-API-Key the request authenticated with, else the remote address.
+
+    Until 2026-11-07 this read an `Authorization: Bearer` header that api/auth.py never accepts, so every
+    authenticated client was limited by IP address instead of by key. The raw key is never used as an identity
+    (it would sit in the limiter's storage); its digest is.
+    """
+    import hashlib
+
+    key = request.headers.get("X-API-Key", "").strip()
+    if key:
+        return "api-key-sha256:" + hashlib.sha256(key.encode("utf-8")).hexdigest()
+    client = request.client
+    return "remote-address:" + (client.host if client is not None else "unknown")
+
+
 try:
     from slowapi import Limiter
     from slowapi.errors import RateLimitExceeded
-    from slowapi.util import get_remote_address
-
-    def _rate_key(request: Request) -> str:
-        """Use the API key as rate-limit identity; fall back to IP."""
-        auth = request.headers.get("Authorization", "")
-        if auth.startswith("Bearer "):
-            key = auth[7:].strip()
-            if key:
-                return key
-        return get_remote_address(request)
 
     _limiter = Limiter(key_func=_rate_key)
     _SLOWAPI_AVAILABLE = True
@@ -281,6 +292,12 @@ async def lifespan(app: FastAPI):
             _PIPELINE = None
             _artifact_identity = None
             logger.exception("Refusing to serve: %s is not admissible under the quarantine", MODEL_PATH)
+        except ContractError:
+            # Package 1: the artifact declares no computable authoritative combiner (for example a pipeline
+            # pickled with only the logistic meta-learner, or one holding a member serving cannot execute).
+            _PIPELINE = None
+            _artifact_identity = None
+            logger.exception("Refusing to serve: %s violates the prediction contract", MODEL_PATH)
         except Exception as exc:
             logger.error("Failed to load pipeline from %s: %s", MODEL_PATH, exc)
     else:
@@ -335,10 +352,11 @@ async def lifespan(app: FastAPI):
         _PIPELINE, _artifact_identity, DEPLOYMENT_REGISTRY_PATH)
     logger.info(
         "Runtime model binding: resolution=%s alignment=%s "
-        "roster=%s evidence=%s",
+        "roster=%s predictor_contract=%s evidence=%s",
         _RUNTIME_MODEL_BINDING.resolution_status.value,
         _RUNTIME_MODEL_BINDING.deployment_alignment.value,
         _RUNTIME_MODEL_BINDING.roster_alignment.value,
+        _RUNTIME_MODEL_BINDING.predictor_contract_alignment.value,
         _RUNTIME_MODEL_BINDING.evaluation_applicability.value)
     if not _RUNTIME_MODEL_BINDING.is_ready:
         logger.warning(
@@ -519,25 +537,48 @@ def _variant_to_row(req: VariantRequest) -> dict:
     }
 
 
+def _require_ready_for_inference() -> None:
+    """Refuse inference unless a model is loaded AND its runtime binding is READY (owner ruling 2026-11-07).
+
+    Readiness: registered, the declared production record, an EXACT roster and the fitted predictor contract the
+    record identifies. A failed check prevents scoring -- it is not only an amber /health. Called BEFORE any feature
+    preparation or member call, and outside the broad handlers, so the refusal is a 503, never a 500.
+    """
+    if _PIPELINE is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Model not loaded.  Check MODEL_PATH and run scripts/export_model.py.")
+    binding = _RUNTIME_MODEL_BINDING
+    if binding is None or not binding.is_ready:
+        reason = ("the application lifespan has not bound the model" if binding is None else
+                  f"resolution={binding.resolution_status.value} deployment={binding.deployment_alignment.value} "
+                  f"roster={binding.roster_alignment.value} "
+                  f"predictor_contract={binding.predictor_contract_alignment.value}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Model not ready for inference: {reason}")
+
+
+def _paired_predictions(rows: list[dict], records: list[dict]) -> list[VariantPrediction]:
+    """Pair submitted rows with result records BY IDENTITY, then validate each record unchanged (G6.3).
+
+    The exact cardinality, the position key and the variant identity are checked before anything is paired; only
+    then is a strict zip safe. Nothing is rounded, clipped or reclassified here (G6.1).
+    """
+    if len(records) != len(rows):
+        raise ContractError(f"{len(rows)} variants submitted but {len(records)} results returned")
+    units = [r.get("prediction_unit_id") for r in records]
+    if len(set(units)) != len(units):
+        raise ContractError("duplicate prediction units in one response")
+    for i, (row, record) in enumerate(zip(rows, records, strict=True)):
+        if record.get("source_row_key") != f"position:{i}" or record.get("variant_id") != row["variant_id"]:
+            raise ContractError(f"result {i} ({record.get('source_row_key')}, {record.get('variant_id')}) is not "
+                                f"the submitted variant {row['variant_id']}")
+    return [VariantPrediction(**record) for record in records]
+
+
 def _make_prediction(row: dict) -> VariantPrediction:
-    result = _PIPELINE.predict_single(row)
-    score  = float(np.clip(result["pathogenicity_score"], 0.0, 1.0))
-    classification, confidence = score_to_classification(score)
-
-    top_features: Optional[dict[str, float]] = None
-    if hasattr(_PIPELINE, "feature_importances"):
-        try:
-            top_features = _PIPELINE.feature_importances(pd.DataFrame([row]), top_n=5)
-        except Exception:
-            pass
-
-    return VariantPrediction(
-        variant_id          = row["variant_id"],
-        pathogenicity_score = round(score, 4),
-        classification      = classification,
-        confidence          = confidence,
-        top_features        = top_features,
-    )
+    return _paired_predictions([row], [_PIPELINE.predict_single(row)])[0]
 
 
 # ---------------------------------------------------------------------------
@@ -604,6 +645,8 @@ async def info(_key: str = Depends(require_api_key)) -> InfoResponse:
             roster_alignment         = binding.roster_alignment.value,
             evaluation_applicability = (
                 binding.evaluation_applicability.value),
+            predictor_contract_alignment = (
+                binding.predictor_contract_alignment.value),
             record_id                = binding.record_id,
             model_version            = binding.model_version,
             artifact_sha256          = binding.artifact_sha256,
@@ -635,14 +678,7 @@ async def predict(
     body: VariantRequest,
     _key: str = Depends(require_api_key),
 ) -> PredictResponse:
-    if _PIPELINE is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=(
-                "Model not loaded.  "
-                "Check MODEL_PATH and run scripts/export_model.py."
-            ),
-        )
+    _require_ready_for_inference()
     try:
         row  = _variant_to_row(body)
         pred = _make_prediction(row)
@@ -673,26 +709,10 @@ async def batch_predict(
     body: BatchPredictRequest,
     _key: str = Depends(require_api_key),
 ) -> BatchPredictResponse:
-    if _PIPELINE is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Model not loaded.",
-        )
+    _require_ready_for_inference()
     try:
         rows        = [_variant_to_row(v) for v in body.variants]
-        raw_results = _PIPELINE.predict_batch(rows)
-
-        predictions: list[VariantPrediction] = []
-        for row, result in zip(rows, raw_results):
-            score          = float(np.clip(result["pathogenicity_score"], 0.0, 1.0))
-            classification, confidence = score_to_classification(score)
-            predictions.append(VariantPrediction(
-                variant_id          = row["variant_id"],
-                pathogenicity_score = round(score, 4),
-                classification      = classification,
-                confidence          = confidence,
-            ))
-
+        predictions = _paired_predictions(rows, _PIPELINE.predict_batch(rows))
     except Exception as exc:
         logger.exception("Batch prediction failed (%d variants)", len(body.variants))
         raise HTTPException(
@@ -700,13 +720,13 @@ async def batch_predict(
             detail=f"Batch prediction error: {exc}",
         ) from exc
 
-    classes = [p.classification for p in predictions]
+    calls = [p.model_call for p in predictions]
     _binding = _RUNTIME_MODEL_BINDING
     return BatchPredictResponse(
-        predictions     = predictions,
-        n_pathogenic    = sum(1 for c in classes if "Pathogenic" in c),
-        n_benign        = sum(1 for c in classes if "Benign" in c),
-        n_uncertain     = sum(1 for c in classes if "Uncertain" in c),
+        predictions           = predictions,
+        n_predictions         = len(predictions),
+        n_model_call_positive = sum(1 for c in calls if c == 1),
+        n_model_call_negative = sum(1 for c in calls if c == 0),
         model_record_id = _binding.record_id if _binding else None,
         model_version   = _binding.model_version if _binding else None,
     )
@@ -782,9 +802,14 @@ async def rsid_lookup(
     if locus is None:
         return RsidLookupResponse(rs_id=normalised_id, known=False)
 
-    # Attempt prediction if the model is loaded
+    # Attempt prediction only when a READY model is loaded; otherwise say why there is none.
     prediction: Optional[VariantPrediction] = None
-    if _PIPELINE is not None:
+    unavailable: Optional[str] = None
+    try:
+        _require_ready_for_inference()
+    except HTTPException as refusal:
+        unavailable = str(refusal.detail)
+    if unavailable is None:
         try:
             row = _variant_to_row(
                 VariantRequest(
@@ -797,6 +822,7 @@ async def rsid_lookup(
             prediction = _make_prediction(row)
         except Exception as exc:
             logger.warning("rsid_lookup: prediction failed for %s: %s", rs_id, exc)
+            unavailable = f"prediction failed: {type(exc).__name__}: {exc}"
 
     return RsidLookupResponse(
         rs_id=normalised_id,
@@ -806,6 +832,7 @@ async def rsid_lookup(
         ref=locus["ref"],
         alt=locus["alt"],
         prediction=prediction,
+        prediction_unavailable_reason=unavailable,
     )
 
 

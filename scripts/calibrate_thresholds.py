@@ -28,9 +28,18 @@ Exit codes
     0   Success — thresholds written.
     1   Calibration error (e.g. not enough positive examples in val set).
     2   I/O or pipeline error.
+
+TRANSITION REFUSAL (package 1, set 1a, 2026-11-07): this script refuses at import, before any model library, artifact,
+data file or output is touched -- see transition_policy.PREDICTION_CONTRACT_TRANSITION_DENIED. Its migration onto the
+selected prediction contract (bound predictor, input representation, calibration transformation and score stage) is
+package 1, set 1c.
 """
 
 from __future__ import annotations
+
+from genomic_variant_classifier.containment import require_execution_permitted
+from genomic_variant_classifier.transition_policy import PREDICTION_CONTRACT_TRANSITION_DENIED
+require_execution_permitted('scripts/calibrate_thresholds.py', PREDICTION_CONTRACT_TRANSITION_DENIED)
 
 import argparse
 import json

@@ -388,54 +388,35 @@ class TestEnsembleIntegration:
 # ---------------------------------------------------------------------------
 
 class TestInferencePipelineWithCatBoost:
+    """Package 1 (2026-11-07): fitted, picklable members recording their inputs replace MagicMock estimators, which
+    carried no fitted classes_ and could not be identified; the pipeline serves its declared blend."""
 
     def test_catboost_routed_to_dataframe(self, numeric_variant_df, numeric_labels):
         """
-        InferencePipeline.predict_proba() must route CatBoost to DataFrame,
-        all other models to numpy.
-
-        Uses trained_models= (the actual InferencePipeline kwarg, not base_models=).
+        InferencePipeline.predict_proba() must route CatBoost to a named DataFrame and every other member to a
+        NumPy array, calling each member exactly once.
         """
-        from genomic_variant_classifier.api.pipeline import InferencePipeline
-        from genomic_variant_classifier.models.catboost_wrapper import CatBoostVariantClassifier
+        from tests.unit._prediction_support import FixedProba, blend_pipeline
 
-        mock_cb    = MagicMock(spec=CatBoostVariantClassifier)
-        mock_cb.predict_proba.return_value = np.tile([0.1, 0.9], (len(numeric_variant_df), 1))
-        mock_other = MagicMock()
-        mock_other.predict_proba.return_value = np.tile([0.2, 0.8], (len(numeric_variant_df), 1))
-        mock_meta  = MagicMock()
-        mock_meta.predict_proba.return_value = np.tile([0.1, 0.9], (len(numeric_variant_df), 1))
+        cb, other = FixedProba(0.9), FixedProba(0.8)
+        pipe = blend_pipeline({"catboost": cb, "lightgbm": other})
+        proba = pipe.predict_proba(numeric_variant_df)
 
-        pipe = InferencePipeline(
-            trained_models={"catboost": mock_cb, "lightgbm": mock_other},
-            meta_learner=mock_meta,
+        assert len(cb.calls) == 1 and len(other.calls) == 1
+        assert isinstance(cb.calls[0], pd.DataFrame), (
+            f"CatBoost received {type(cb.calls[0]).__name__} -- expected DataFrame."
         )
-        pipe.predict_proba(numeric_variant_df)
-
-        cb_arg = mock_cb.predict_proba.call_args[0][0]
-        assert isinstance(cb_arg, pd.DataFrame), (
-            f"CatBoost received {type(cb_arg).__name__} — expected DataFrame."
+        assert isinstance(other.calls[0], np.ndarray), (
+            f"LightGBM received {type(other.calls[0]).__name__} -- expected numpy array."
         )
-
-        lgbm_arg = mock_other.predict_proba.call_args[0][0]
-        assert isinstance(lgbm_arg, np.ndarray), (
-            f"LightGBM received {type(lgbm_arg).__name__} — expected numpy array."
-        )
+        np.testing.assert_allclose(proba, 0.5 * 0.9 + 0.5 * 0.8, rtol=0, atol=1e-15)
 
     def test_pipeline_without_catboost_unaffected(self, numeric_variant_df):
-        """Pipeline with no CatBoost model behaves identically to before."""
-        from genomic_variant_classifier.api.pipeline import InferencePipeline
-        mock_lgbm = MagicMock()
-        mock_lgbm.predict_proba.return_value = np.tile([0.1, 0.9], (len(numeric_variant_df), 1))
-        mock_meta = MagicMock()
-        mock_meta.predict_proba.return_value = np.tile([0.1, 0.9], (len(numeric_variant_df), 1))
+        """A pipeline with no CatBoost member hands every member a NumPy array."""
+        from tests.unit._prediction_support import FixedProba, blend_pipeline
 
-        pipe = InferencePipeline(
-            trained_models={"lightgbm": mock_lgbm},
-            meta_learner=mock_meta,
-        )
+        lgbm = FixedProba(0.9)
+        pipe = blend_pipeline({"lightgbm": lgbm})
         proba = pipe.predict_proba(numeric_variant_df)
         assert proba.shape[0] == len(numeric_variant_df)
-
-        lgbm_arg = mock_lgbm.predict_proba.call_args[0][0]
-        assert isinstance(lgbm_arg, np.ndarray)
+        assert len(lgbm.calls) == 1 and isinstance(lgbm.calls[0], np.ndarray)

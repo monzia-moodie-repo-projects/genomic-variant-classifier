@@ -1,4 +1,48 @@
+## 2026-11-07 (prediction contract, set 1a) -- one authoritative score, computed exactly; serving bound to the fitted predictor
+
+Package 1, set 1a of three, under the owner's rulings of 2026-11-07 (decisions ccffb8cf, revision 5, and 38f15c7a; the acceptance
+matrix and its revision 2 in docs/package1/). Full record: docs/sessions/SESSION_2026-11-07_prediction-contract-1a.md.
+
+- The stored convex blend is the single authoritative score; the logistic stacker is a research candidate, never served and never
+  substituted (VariantEnsemble.predict_proba's meta-learner fallback is removed). Kernel `exact_binary64_products_sum_rne_v1`
+  (models/combiner.py): the exact sum of the stored binary64 products, rounded once. MEASURED on Run 15's real 883,127 x 13
+  out-of-fold matrix (docs/measurements/MEASUREMENT_2026-11-07_exact-blend-kernel-run15.md): bit-identical to the owner's
+  reference and to an independent exact method on every row; the historical `P @ w` differs on 356,050 rows by at most 3 units in
+  the last place, 0 call changes at five edges under >= and >, one identical order of 883,127 distinct values.
+- prediction_contract.py (new): two row identities, probability blocks bound from member to result, replay, one tie rule.
+  Schema-2 uncertainty (models/disagreement.py, models/mc_dropout.py): both decompositions close in their own units; spread exactly
+  zero when draws agree (np.var was measured nonzero); no stochastic pass is unavailable, never zero.
+- Serving: one scorer and one serializer; prediction schema 3.0.0 (removed: the five-tier labels, the threshold-distance
+  confidence, two uncertainty fields under retired names, the never-populated top_features, and batch counts that did not
+  partition the batch; the coverage interval is reported unavailable); `predictor_contract_sha256` in the registry record; `/predict` and `/batch` answer 503 before
+  any member call unless the record, an EXACT roster and the fitted predictor all match; a declared projection is never ready.
+  The API image copies prediction_contract.py.
+- Transition refusals (transition_policy.py): calibrate_thresholds, run9_ablations, the score-reconstruction exporter and the
+  SHAP writer, each refused before any model library, data or output until set 1b or 1c migrates it. Gate C10 stays closed.
+- Tests: +151 / -29 by node identity (diffed against main, 0e9db4e1). Suite 8,753 -> 8,875. README: the served record, the blend,
+  the uncertainty decomposition and the badge. ROADMAP: section 1, section 6 and the entry.
+- Verified (development sandbox, Linux, Git 2.48.1): the whole suite on the candidate, 8,815 passed, 54 skipped, 6 xfailed, 0 failed;
+  0 network attempts; the warning state unchanged. Test by test against the same measurement of main (8,693 / 54 / 6): the 29
+  retired tests passed there and are gone, the 151 new pass, nothing else differs. Its working-tree guard caught my own edit of
+  this changelog and the roadmap during the run; the frozen tree is run again on a clean clone. Forecast for the owner's
+  validation (from set "aj"'s Windows full.xml): 8,787 passed, 83 skipped, 5 xfailed.
+- My errors, corrected before delivery: the container's reclaim (recovered by replaying the recorded edits); three defects found by
+  the candidate's first full run (the API image, the startup-runner list, two X_seq fixtures without the combiner declaration);
+  two wrong test expectations (pandas rounding; 0.25 x 0.2 + 0.75 x 0.6 is exactly 0.5).
+
 ## 2026-11-06 (data-gated tests) -- no test's outcome depends on git-ignored local data, except three that check that data by design
+
+MERGED AND VERIFIED ON WINDOWS (recorded 2026-11-07). The owner ran -Validate of revision B once (2026-11-07 01:52 to 03:55
+Coordinated Universal Time (UTC); receipt 478253d1): targeted 803 passed, 7 skipped; the whole suite 8,665 passed, 83 skipped, 5
+xfailed, 5 subtests passed in 53 minutes 40 seconds, coverage 83%, exactly the numbers forecast; the Windows-only junction tests and
+test_esm2_not_in_stub_mode passed; the three local-data tests skipped with the one reason; drift 22 passed. Candidate d1d30dc3 (tree
+2884c01f) published as branch data-gated-tests-2026-11-06 (04:35 UTC) and merged as pull request #67 with a merge commit:
+0e9db4e1, parents 0e5d73c4 and d1d30dc3, tree 2884c01f. The post-merge block (05:10 to 05:27 UTC) fast-forwarded the owner's
+checkout and compared all 810 targeted tests by node identity with the validation's full.xml: 806 passed, 4 skipped, 0
+differences, the three local-data tests passing in his checkout, each named with its git-ignored, untracked paths; drift 22
+passed; both candidate environments still exactly their Windows locks; the checkout unchanged and no new temporary folder. The
+branch was deleted on GitHub under a lease and locally (06:12 to 06:27 UTC). The pull request's check results were not read here
+(this session has no GitHub API access).
 
 MEASURED (DATA-GATED-TESTS-1), on the owner's machine, 2026-11-06 08:07 to 09:28 Coordinated Universal Time (UTC) -- block DC, the
 data census: the whole suite in his CHECKOUT, on main 0e5d73c4 with the locked environment of set "ai"'s validation (re-checked against

@@ -10,6 +10,10 @@ Coverage
   src/genomic_variant_classifier/api/pipeline.py          → InferencePipeline.predict_single / predict_batch
   src/genomic_variant_classifier/api/main.py              → /health, /info, /predict, /batch endpoints
 
+Package 1, set 1a (2026-11-07): the pipeline is built around the DECLARED convex blend (tests/unit/
+_prediction_support.py), and predictions are schema-3.0.0 records -- full-precision score, one tie rule,
+identities, units and statuses; the five-tier classification and "confidence" are gone from serving.
+
 Run with:
     pytest tests/unit/test_api.py -v --tb=short
 
@@ -34,6 +38,7 @@ from genomic_variant_classifier.api.attribution import (
     RuntimeModelBinding,
     served_model_roster,
 )
+from tests.unit._prediction_support import FixedProba, blend_pipeline
 
 
 # ---------------------------------------------------------------------------
@@ -76,33 +81,31 @@ def full_variant_row() -> dict:
     }
 
 
-def _make_mock_trained_models(proba: float = 0.85) -> dict:
-    """Return mock base models that always predict `proba` for the positive class."""
-    model = MagicMock()
-    model.predict_proba.side_effect = lambda X: np.array([[1 - proba, proba]] * len(X))
-    return {"lightgbm": model, "xgboost": model}
-
-
-def _make_mock_meta_learner(proba: float = 0.85):
-    """Return a mock meta-learner that always returns `proba`."""
-    ml = MagicMock()
-    ml.predict_proba.side_effect = lambda X: np.array([[1 - proba, proba]] * len(X))
-    return ml
+def _make_trained_models(proba: float = 0.85) -> dict:
+    """Two fitted, picklable members that always predict `proba` for the positive class."""
+    return {"lightgbm": FixedProba(proba), "xgboost": FixedProba(proba)}
 
 
 def _make_pipeline(proba: float = 0.85):
-    from genomic_variant_classifier.api.pipeline import InferencePipeline, PipelineMetadata
-    return InferencePipeline(
-        trained_models = _make_mock_trained_models(proba),
-        meta_learner   = _make_mock_meta_learner(proba),
-        scaler         = None,
-        metadata       = PipelineMetadata(
+    from genomic_variant_classifier.api.pipeline import PipelineMetadata
+    return blend_pipeline(
+        _make_trained_models(proba),
+        scaler   = None,
+        metadata = PipelineMetadata(
             val_auroc     = 0.9847,
             n_train       = 1_197_216,
             n_features    = EXPECTED_TABULAR_FEATURE_COUNT,
             model_version = "phase2",
         ),
     )
+
+
+RECORD_KEYS = {
+    "prediction_schema_version", "variant_id", "source_row_key", "source_observation_id", "prediction_unit_id",
+    "ordered_rows_sha256", "result_block_sha256", "combiner", "positive_class", "pathogenicity_score",
+    "model_call", "tie_rule", "predictive_entropy_nats", "roster_research_view", "weighted_blend_diagnostic",
+    "preprocessing_status", "calibration_status", "decision_policy", "feature_attribution", "coverage_interval",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -234,6 +237,8 @@ class TestBatchPredictRequest:
 # ---------------------------------------------------------------------------
 
 class TestScoreToClassification:
+    """The five-tier helper is NO LONGER USED BY SERVING (API 3.0.0, gate G6.2). It remains, and is tested, only
+    because scripts/validate_external.py still imports it (its disposition belongs to package 1, set 1c)."""
 
     @pytest.mark.parametrize("score,label", [
         (0.95, "Pathogenic"),
@@ -410,38 +415,37 @@ class TestEngineerFeatures:
 
 class TestInferencePipeline:
 
-    def test_predict_single_returns_keys(self):
+    def test_predict_single_returns_a_schema_3_record(self):
         pipe   = _make_pipeline(proba=0.85)
         result = pipe.predict_single({"chrom": "17", "pos": 43094692, "ref": "G", "alt": "A"})
-        assert set(result.keys()) == {
-            "pathogenicity_score", "classification", "confidence",
-            "uncertainty_epistemic", "uncertainty_aleatoric",
-        }
+        assert set(result.keys()) == RECORD_KEYS
+        assert result["prediction_schema_version"] == "3.0.0"
+        assert result["variant_id"] == "17:43094692:G:A" and result["source_row_key"] == "position:0"
+        assert result["source_observation_id"] != result["prediction_unit_id"]
+        for gone in ("classification", "confidence", "uncertainty_epistemic", "uncertainty_aleatoric",
+                     "top_features"):
+            assert gone not in result
 
-    def test_predict_single_high_score_pathogenic(self):
-        pipe   = _make_pipeline(proba=0.95)
-        result = pipe.predict_single({"chrom": "17", "pos": 1, "ref": "G", "alt": "A"})
-        assert result["classification"] == "Pathogenic"
+    def test_the_score_is_full_precision_never_rounded(self):
+        p = 0.123456789012345678
+        result = _make_pipeline(proba=p).predict_single({"chrom": "17", "pos": 1, "ref": "G", "alt": "A"})
+        assert result["pathogenicity_score"] == p            # was round(score, 4) == 0.1235
 
-    def test_predict_single_likely_pathogenic(self):
-        pipe   = _make_pipeline(proba=0.80)
-        result = pipe.predict_single({"chrom": "17", "pos": 1, "ref": "G", "alt": "A"})
-        assert result["classification"] == "Likely pathogenic"
+    @pytest.mark.parametrize("proba,call", [(0.95, 1), (0.5, 1), (0.5 - 2.0 ** -53, 0), (0.05, 0), (0.0, 0),
+                                            (1.0, 1)])
+    def test_one_tie_rule(self, proba, call):
+        result = _make_pipeline(proba=proba).predict_single({"chrom": "17", "pos": 1, "ref": "G", "alt": "A"})
+        assert result["model_call"] == call and result["tie_rule"] == "positive_if_p_ge_0.5"
 
-    def test_predict_single_uncertain(self):
-        pipe   = _make_pipeline(proba=0.50)
-        result = pipe.predict_single({"chrom": "17", "pos": 1, "ref": "G", "alt": "A"})
-        assert result["classification"] == "Uncertain significance"
-
-    def test_predict_single_likely_benign(self):
-        pipe   = _make_pipeline(proba=0.20)
-        result = pipe.predict_single({"chrom": "17", "pos": 1, "ref": "G", "alt": "A"})
-        assert result["classification"] == "Likely benign"
-
-    def test_predict_single_benign(self):
-        pipe   = _make_pipeline(proba=0.05)
-        result = pipe.predict_single({"chrom": "17", "pos": 1, "ref": "G", "alt": "A"})
-        assert result["classification"] == "Benign"
+    def test_unqualified_outputs_are_reported_unavailable(self):
+        result = _make_pipeline().predict_single({"chrom": "17", "pos": 1, "ref": "G", "alt": "A"})
+        for key in ("decision_policy", "feature_attribution", "coverage_interval", "weighted_blend_diagnostic"):
+            assert result[key]["status"] == "unavailable" and result[key]["reason"]
+        assert result["calibration_status"] == "not_qualified_by_this_record"
+        view = result["roster_research_view"]
+        assert view["between_member_spread_variance"] == {
+            "value": 0.0, "unit": "probability_squared", "status": "defined", "reason": None}
+        assert view["disagreement_status"] == "exact_agreement"
 
     def test_predict_batch_length(self):
         pipe    = _make_pipeline(proba=0.9)
@@ -458,16 +462,11 @@ class TestInferencePipeline:
 
     def test_scaler_applied_when_present(self):
         from sklearn.preprocessing import StandardScaler
-        from genomic_variant_classifier.api.pipeline import InferencePipeline
 
         scaler = MagicMock(spec=StandardScaler)
         scaler.transform.side_effect = lambda X: X  # identity
 
-        pipe = InferencePipeline(
-            trained_models = _make_mock_trained_models(0.8),
-            meta_learner   = _make_mock_meta_learner(0.8),
-            scaler         = scaler,
-        )
+        pipe = blend_pipeline(_make_trained_models(0.8), scaler=scaler)
         pipe.predict_single({"chrom": "1", "pos": 1, "ref": "A", "alt": "T"})
         assert scaler.transform.called
 
@@ -496,14 +495,16 @@ class TestInferencePipeline:
         pipe.save(out)
         from tests.unit._admission_support import AllowForTests, register
         registry = register(tmp_path / "registry.v1.json", out, feature_names=pipe._declared_features(),
-                            roster=list(pipe.trained_models))
+                            roster=list(pipe.trained_models),
+                            predictor_contract_sha256=pipe.predictor_contract_sha256())
         loaded = InferencePipeline.load(out, consumer="test", registry_path=registry, authority=AllowForTests())
         assert loaded.metadata.val_auroc == pytest.approx(0.9847)
+        assert loaded.combiner.digest == pipe.combiner.digest
+        assert "logistic_stacker" in loaded.research_candidates      # carried, never called
         result = loaded.predict_single({"chrom": "1", "pos": 1, "ref": "A", "alt": "T"})
-        assert result["classification"] in {
-            "Pathogenic", "Likely pathogenic", "Uncertain significance",
-            "Likely benign", "Benign",
-        }
+        assert set(result) == RECORD_KEYS
+        assert result["combiner"]["combiner_sha256"] == pipe.combiner.digest
+        assert result["preprocessing_status"] == "fitted_training_policy_applied"
 
     def test_predict_proba_applies_the_missing_value_policy(self, tmp_path):
         """PIPELINE-FILL-1: value coverage for the SECOND call site.
@@ -606,7 +607,31 @@ class TestInferencePipeline:
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
-def client():
+def client(tmp_path):
+    """A READY world: the pipeline's real saved bytes, a registry record identifying THIS fitted predictor (exact
+    roster and predictor contract), promoted to production, resolved by the production resolver.
+
+    Package 1, set 1a (2026-11-07): /predict and /batch refuse unless the runtime binding is ready, so every
+    prediction test runs against an attributed predictor. The unattributed world is `unattributed_client` below.
+    """
+    from fastapi.testclient import TestClient
+    import genomic_variant_classifier.api.main as api_main
+    from tests.unit._prediction_support import ready_binding
+
+    saved = (api_main._PIPELINE, api_main._RUNTIME_MODEL_BINDING)
+    pipe = _make_pipeline(proba=0.92)
+    binding, _artifact, _registry = ready_binding(tmp_path, pipe)
+    assert binding.is_ready, binding
+    api_main._PIPELINE = pipe
+    api_main._RUNTIME_MODEL_BINDING = binding
+    try:
+        yield TestClient(api_main.app)
+    finally:
+        api_main._PIPELINE, api_main._RUNTIME_MODEL_BINDING = saved
+
+
+@pytest.fixture
+def unattributed_client():
     """An UNATTRIBUTED world: a pipeline object with no artifact bytes.
 
     The name is kept because many tests request it, but the world it
@@ -643,13 +668,13 @@ def client():
 
 class TestHealthEndpoint:
 
-    def test_health_reports_degraded_without_attribution(self, client):
+    def test_health_reports_degraded_without_attribution(self, unattributed_client):
         """PROD-1. A process that loaded bytes it cannot identify is
         ALIVE and NOT READY. An orchestrator should stop routing
         inference traffic to it rather than restart it, and for a
         clinical-facing service "I loaded a model but cannot establish
         what it is" must not be operationally green."""
-        r = client.get("/health")
+        r = unattributed_client.get("/health")
         assert r.status_code == 200
         body = r.json()
         assert body["model_loaded"]     is True
@@ -667,26 +692,31 @@ class TestHealthEndpoint:
         from fastapi.testclient import TestClient
         import genomic_variant_classifier.api.main as api_main
 
+        # The global is RESTORED (it leaked into every later test until 2026-11-07).
+        saved = api_main._PIPELINE
         api_main._PIPELINE = None
-        c = TestClient(api_main.app)
-        r = c.get("/health")
-        assert r.status_code == 200
-        body = r.json()
-        assert body["model_loaded"] is False
-        assert body["status"]       == "degraded"
+        try:
+            c = TestClient(api_main.app)
+            r = c.get("/health")
+            assert r.status_code == 200
+            body = r.json()
+            assert body["model_loaded"] is False
+            assert body["status"]       == "degraded"
+        finally:
+            api_main._PIPELINE = saved
 
 
 class TestInfoEndpoint:
 
-    def test_info_reports_attribution_and_no_metric(self, client):
+    def test_info_reports_attribution_and_no_metric(self, unattributed_client):
         """The four assertions this replaced pinned constants written on
         2026-03-25 and never updated through Runs 9 to 16. The suite
         DEFENDED them, which is why they survived. `/info` now reports
         what it is serving; it reports no metric at all."""
-        r = client.get("/info")
+        r = unattributed_client.get("/info")
         assert r.status_code == 200
         body = r.json()
-        assert body["api_version"]  == "2.0.0"
+        assert body["api_version"]  == "3.0.0"
         assert body["model_loaded"] is True
         assert body["attribution"]["resolution_status"] == (
             "no_artifact_identity")
@@ -726,22 +756,27 @@ class TestPredictEndpoint:
         body = r.json()
         assert "prediction" in body
         pred = body["prediction"]
-        assert 0.0 <= pred["pathogenicity_score"] <= 1.0
-        assert pred["classification"] in {
-            "Pathogenic", "Likely pathogenic", "Uncertain significance",
-            "Likely benign", "Benign",
-        }
-        assert pred["confidence"] in {"high", "medium", "low"}
+        assert set(pred) == RECORD_KEYS
+        assert pred["pathogenicity_score"] == 0.92            # passed through unchanged: no clip, no rounding
+        assert pred["model_call"] == 1 and pred["tie_rule"] == "positive_if_p_ge_0.5"
         assert pred["variant_id"] == "17:43094692:G:A"
 
-    def test_predict_reports_no_identity_when_unattributed(self, client):
-        """None is the honest answer for a pipeline with no artifact.
-        The constant it replaced said "phase2-v1" whatever was loaded."""
-        r = client.post("/predict", json={"chrom": "1", "pos": 1, "ref": "A", "alt": "T"})
-        assert r.status_code == 200
-        body = r.json()
-        assert body["model_record_id"] is None
-        assert body["model_version"] is None
+    def test_an_unattributed_model_refuses_inference_before_any_member_call(self, unattributed_client):
+        """Owner ruling 2026-11-07 (decision 38f15c7a): a binding that is not READY prevents scoring -- 503, outside
+        the broad handlers, before feature preparation or any member call. It was a 200 until set 1a."""
+        import genomic_variant_classifier.api.main as api_main
+        members = list(api_main._PIPELINE.trained_models.values())
+        for route, payload in (("/predict", {"chrom": "1", "pos": 1, "ref": "A", "alt": "T"}),
+                               ("/batch", {"variants": [{"chrom": "1", "pos": 1, "ref": "A", "alt": "T"}]})):
+            r = unattributed_client.post(route, json=payload)
+            assert r.status_code == 503, (route, r.status_code, r.text)
+            assert "not ready for inference" in r.json()["detail"]
+        assert all(m.calls == [] for m in members), "a member was called before the readiness refusal"
+
+    def test_predictions_carry_the_ready_record_identity(self, client):
+        body = client.post("/predict", json={"chrom": "1", "pos": 1, "ref": "A", "alt": "T"}).json()
+        assert body["model_record_id"].startswith("synthetic-ready-")
+        assert body["model_version"] == "synthetic-ready"
         assert "pipeline_version" not in body
 
     def test_predict_chrom_normalised(self, client):
@@ -796,13 +831,15 @@ class TestBatchEndpoint:
         r = client.post("/batch", json=payload)
         assert r.status_code == 200
         body = r.json()
-        assert body["n_pathogenic"] + body["n_benign"] + body["n_uncertain"] == 2
-        assert len(body["predictions"]) == 2
-        assert body["model_record_id"] is None
-        assert body["model_version"] is None
+        assert body["n_predictions"] == 2 == len(body["predictions"])
+        assert body["n_model_call_positive"] + body["n_model_call_negative"] == 2
+        assert [p["source_row_key"] for p in body["predictions"]] == ["position:0", "position:1"]
+        assert [p["variant_id"] for p in body["predictions"]] == ["17:43094692:G:A", "1:925952:G:T"]
+        assert body["model_version"] == "synthetic-ready"
 
-    def test_batch_counts_correct(self, client):
-        """With proba=0.92 all variants should be Pathogenic."""
+    def test_batch_counts_partition_the_batch(self, client):
+        """With proba=0.92 every model call is positive; the counts partition the batch (the 2.0.0 counts
+        matched "Pathogenic" by case-sensitive substring and silently omitted every "Likely pathogenic")."""
         payload = {"variants": [
             {"chrom": "1", "pos": i + 1, "ref": "A", "alt": "T"}
             for i in range(5)
@@ -810,9 +847,11 @@ class TestBatchEndpoint:
         r = client.post("/batch", json=payload)
         assert r.status_code == 200
         body = r.json()
-        assert body["n_pathogenic"] == 5
-        assert body["n_benign"]     == 0
-        assert body["n_uncertain"]  == 0
+        assert body["n_predictions"]         == 5
+        assert body["n_model_call_positive"] == 5
+        assert body["n_model_call_negative"] == 0
+        for gone in ("n_pathogenic", "n_benign", "n_uncertain"):
+            assert gone not in body
 
     def test_batch_empty_rejected(self, client):
         r = client.post("/batch", json={"variants": []})
@@ -993,3 +1032,62 @@ class TestApiKeyAuth:
             assert r.status_code == 200
         finally:
             auth_module._VALID_KEYS = original
+
+
+# ---------------------------------------------------------------------------
+# 9. Package 1 serving contract (2026-11-07): pairing by identity, rate identity
+# ---------------------------------------------------------------------------
+
+class TestServingContract:
+
+    def _batch(self, client):
+        return client.post("/batch", json={"variants": [
+            {"chrom": "17", "pos": 43094692, "ref": "G", "alt": "A"},
+            {"chrom": "1",  "pos": 925952,   "ref": "G", "alt": "T"},
+        ]})
+
+    def test_a_reordered_result_is_refused_not_paired_by_position(self, client):
+        import genomic_variant_classifier.api.main as api_main
+        original = api_main._PIPELINE.predict_batch
+        api_main._PIPELINE.predict_batch = lambda rows: list(reversed(original(rows)))
+        try:
+            r = self._batch(client)
+        finally:
+            del api_main._PIPELINE.predict_batch
+        assert r.status_code == 500 and "is not the submitted variant" in r.json()["detail"]
+
+    def test_a_result_of_the_wrong_cardinality_is_refused(self, client):
+        import genomic_variant_classifier.api.main as api_main
+        original = api_main._PIPELINE.predict_batch
+        api_main._PIPELINE.predict_batch = lambda rows: original(rows)[:1]
+        try:
+            r = self._batch(client)
+        finally:
+            del api_main._PIPELINE.predict_batch
+        assert r.status_code == 500 and "2 variants submitted but 1 results returned" in r.json()["detail"]
+
+    def test_single_and_batch_share_one_serializer(self, client):
+        single = client.post("/predict", json={"chrom": "17", "pos": 43094692, "ref": "G", "alt": "A"}).json()
+        batch = self._batch(client).json()
+        s, b = single["prediction"], batch["predictions"][0]
+        assert set(s) == set(b) == RECORD_KEYS
+        for key in ("pathogenicity_score", "model_call", "tie_rule", "combiner", "predictive_entropy_nats",
+                    "roster_research_view", "decision_policy"):
+            assert s[key] == b[key], key
+
+    def test_the_rate_limit_identity_is_the_digest_of_the_api_key(self):
+        import hashlib
+
+        from starlette.requests import Request
+
+        import genomic_variant_classifier.api.main as api_main
+
+        def request(headers):
+            return Request({"type": "http", "headers": [(k.lower().encode(), v.encode()) for k, v in headers],
+                            "client": ("10.0.0.7", 1234), "method": "GET", "path": "/"})
+
+        keyed = api_main._rate_key(request([("X-API-Key", "secret-key")]))
+        assert keyed == "api-key-sha256:" + hashlib.sha256(b"secret-key").hexdigest()
+        assert "secret-key" not in keyed
+        # A Bearer header is NOT how this API authenticates, so it is not a rate identity either.
+        assert api_main._rate_key(request([("Authorization", "Bearer secret-key")])) == "remote-address:10.0.0.7"

@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+# TRANSITION REFUSAL (package 1, set 1a, 2026-11-07): see transition_policy.PREDICTION_CONTRACT_TRANSITION_DENIED.
+# FIRST statements: they run before joblib, NumPy, pandas or scikit-learn is imported, an artifact is read or a
+# prediction file is written.
+from genomic_variant_classifier.containment import require_execution_permitted
+from genomic_variant_classifier.transition_policy import PREDICTION_CONTRACT_TRANSITION_DENIED
+require_execution_permitted('scripts/export_phase2_predictions_from_saved_models.py', PREDICTION_CONTRACT_TRANSITION_DENIED)
+
 from pathlib import Path
 import json
 import sys

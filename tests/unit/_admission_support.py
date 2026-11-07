@@ -28,7 +28,7 @@ class AllowForTests:
 
 
 def register(registry_path: Path, artifact: Path, *, feature_names, roster, version: str = "synthetic-v1",
-             serving_projection=None) -> Path:
+             serving_projection=None, predictor_contract_sha256=None) -> Path:
     """Add one record for `artifact` (its digest MEASURED by the registry) and save; returns the path."""
     registry = ModelRegistry.load(registry_path, create_if_missing=True)
     registry.register(
@@ -39,6 +39,6 @@ def register(registry_path: Path, artifact: Path, *, feature_names, roster, vers
                                         label_policy="synthetic"),
             metrics={"auroc": 0.5}),
         feature_names=tuple(feature_names), model_roster=tuple(roster),
-        serving_projection=serving_projection)
+        serving_projection=serving_projection, predictor_contract_sha256=predictor_contract_sha256)
     registry.save()
     return registry.path

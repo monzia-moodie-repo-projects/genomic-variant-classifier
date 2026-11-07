@@ -310,8 +310,18 @@ class RunArtifactWriter:
 
         Schema:
             variant_id, gene_symbol, rank, feature, shap_value
+
+        REFUSED SINCE 2026-11-07 (package 1, set 1a), before SHAP is imported or anything is computed or written:
+        this method explained ensemble.meta_learner -- the logistic research candidate -- while the selected
+        predictor is the stored convex blend. An explanation of another predictor is scientifically invalid. Its
+        replacement (explanations bound to the selected predictor, stage, units, background and prediction units)
+        is package 1, set 1b. See transition_policy.EXPLANATION_TARGET_MIGRATION_REQUIRED.
         """
-        import shap
+        from genomic_variant_classifier.containment import ContainmentError
+        from genomic_variant_classifier.transition_policy import EXPLANATION_TARGET_MIGRATION_REQUIRED
+
+        raise ContainmentError(EXPLANATION_TARGET_MIGRATION_REQUIRED)
+        import shap  # noqa: E402 -- unreachable until set 1b replaces this method
 
         if not hasattr(ensemble, "meta_learner"):
             raise AttributeError("ensemble has no meta_learner attribute")

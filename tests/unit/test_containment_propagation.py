@@ -13,7 +13,7 @@ from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 
-from genomic_variant_classifier.api.pipeline import InferencePipeline
+from tests.unit._prediction_support import blend_pipeline
 from genomic_variant_classifier.containment import ContainmentError, QuarantineError
 from genomic_variant_classifier.models.variant_ensemble import (
     EnsembleConfig, VariantEnsemble, engineer_features,
@@ -89,22 +89,21 @@ def _pipeline(exc_type):
     # engineer_features leaves genuinely missing constraint values as NaN (honest missingness), so the
     # stand-in base model must accept NaN natively; filling it here would hide that property.
     base = HistGradientBoostingClassifier(max_iter=5, min_samples_leaf=1).fit(X.values, [1, 0, 1, 0])
-    meta = LogisticRegression().fit(base.predict_proba(X.values)[:, 1:], [1, 0, 1, 0])
-    return InferencePipeline(trained_models={"logistic_regression": base}, meta_learner=meta,
-                             gnn_scorer=_Scorer(exc_type)), rows
+    # Package 1 (2026-11-07): the pipeline serves its DECLARED blend; no logistic meta-learner is built.
+    return blend_pipeline({"logistic_regression": base}, gnn_scorer=_Scorer(exc_type)), rows
 
 
-@pytest.mark.parametrize("method", ["predict_proba", "predict_proba_with_uncertainty"])
+@pytest.mark.parametrize("method", ["predict_proba", "score"])
 def test_refusal_inside_the_gnn_scorer_escapes(method):
     pipe, rows = _pipeline(ContainmentError)
     with pytest.raises(ContainmentError):
         getattr(pipe, method)(rows)
 
 
-@pytest.mark.parametrize("method", ["predict_proba", "predict_proba_with_uncertainty"])
+@pytest.mark.parametrize("method", ["predict_proba", "score"])
 def test_control_ordinary_scorer_failure_falls_back(method):
     # Proves the test above reaches the handler: an ordinary scorer error still falls back.
     pipe, rows = _pipeline(RuntimeError)
     out = getattr(pipe, method)(rows)
-    proba = out if method == "predict_proba" else out["proba"]
+    proba = out if method == "predict_proba" else out.scores()
     assert len(proba) == len(rows)

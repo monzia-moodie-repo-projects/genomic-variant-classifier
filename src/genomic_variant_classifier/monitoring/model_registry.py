@@ -391,8 +391,19 @@ class ModelRecord:
     drift_report: Optional[Mapping] = None
     #: SERVEROSTER-1. Optional by design: a record that declares no
     #: projection yields RosterAlignment.UNKNOWN rather than an error,
-    #: so schema_version 1 files stay readable.
+    #: so schema_version 1 files stay readable. SINCE 2026-11-07 (owner
+    #: ruling 38f15c7a) A PROJECTION IS DIAGNOSTIC ONLY: it explains what an
+    #: old record declared and never authorizes serving a different roster.
     serving_projection: Optional["ServingProjection"] = None
+    #: Package 1 (2026-11-07). The identity of the FITTED PREDICTOR this
+    #: artifact executes: InferencePipeline.predictor_contract_sha256() --
+    #: the selected combiner (ordered member slots with their fitted
+    #: identities and prediction stages, exact stored weights, numerical
+    #: kernel), the declared input features, the scaler and the missing-value
+    #: policy, and the class order. Optional so older records stay readable;
+    #: a record without it cannot admit an inference load (the roster
+    #: fingerprint is order-independent and names, not fitted members).
+    predictor_contract_sha256: Optional[str] = None
 
     def __post_init__(self) -> None:
         if not self.version:
@@ -410,6 +421,11 @@ class ModelRecord:
                 "A record without a roster cannot detect that.")
         object.__setattr__(self, "feature_names", tuple(self.feature_names))
         object.__setattr__(self, "model_roster", tuple(self.model_roster))
+        contract = self.predictor_contract_sha256
+        if contract is not None and (type(contract) is not str or len(contract) != 64
+                                     or any(c not in "0123456789abcdef" for c in contract)):
+            raise RegistryInvariantError(
+                "predictor_contract_sha256 must be a full lowercase SHA-256 when present")
 
     @property
     def record_id(self) -> str:
@@ -431,7 +447,8 @@ class ModelRecord:
             stage=stage, registered_at_utc=self.registered_at_utc,
             notes=self.notes, sealed_evaluation_id=self.sealed_evaluation_id,
             drift_report=self.drift_report,
-            serving_projection=self.serving_projection)
+            serving_projection=self.serving_projection,
+            predictor_contract_sha256=self.predictor_contract_sha256)
 
     def to_dict(self) -> dict:
         return {"version": self.version,
@@ -449,7 +466,8 @@ class ModelRecord:
                 "drift_report": self.drift_report,
                 "serving_projection": (
                     self.serving_projection.to_dict()
-                    if self.serving_projection is not None else None)}
+                    if self.serving_projection is not None else None),
+                "predictor_contract_sha256": self.predictor_contract_sha256}
 
     @classmethod
     def from_dict(cls, payload: Mapping) -> "ModelRecord":
@@ -470,7 +488,8 @@ class ModelRecord:
             drift_report=payload.get("drift_report"),
             serving_projection=(
                 ServingProjection.from_dict(payload["serving_projection"])
-                if payload.get("serving_projection") else None))
+                if payload.get("serving_projection") else None),
+            predictor_contract_sha256=payload.get("predictor_contract_sha256"))
 
 
 class PolicyEvidenceStatus(str, Enum):
@@ -742,6 +761,7 @@ class ModelRegistry:
         sealed_evaluation_id: Optional[str] = None,
         drift_report: Optional[Mapping] = None,
         serving_projection: Optional[ServingProjection] = None,
+        predictor_contract_sha256: Optional[str] = None,
     ) -> ModelRecord:
         """Add a record at stage REGISTERED. The digest is MEASURED here."""
         if any(r.version == version for r in self.records):
@@ -760,7 +780,8 @@ class ModelRegistry:
             notes=notes,
             sealed_evaluation_id=sealed_evaluation_id,
             drift_report=drift_report,
-            serving_projection=serving_projection)
+            serving_projection=serving_projection,
+            predictor_contract_sha256=predictor_contract_sha256)
         self.records.append(record)
         self.promotion_history.append(PromotionEvent(
             version=version, from_stage=Stage.REGISTERED,

@@ -124,6 +124,11 @@ def expected_roster() -> tuple[set[str], list[str]]:
     return roster, errors
 
 
+#: The evaluate() row of the selected predictor. A LITERAL here so this gate stays importable without torch or the
+#: package; tests/unit/test_smoke_all_models.py pins it to variant_ensemble.SELECTED_ENSEMBLE_ROW.
+SELECTED_ENSEMBLE_ROW = "SELECTED_CONVEX_BLEND"
+
+
 def check_outputs(outdir: Path, log_text: str, expected: set[str]) -> tuple[bool, list[str]]:
     """Pure check logic (unit-testable without torch/data)."""
     msgs: list[str] = []
@@ -146,9 +151,13 @@ def check_outputs(outdir: Path, log_text: str, expected: set[str]) -> tuple[bool
         if pd.isna(auroc):
             ok = False
             msgs.append(f"[FAIL] {m}: AUROC is NaN (degenerate fit)")
-    if "ENSEMBLE_STACKER" not in present:
+    if SELECTED_ENSEMBLE_ROW not in present:
         ok = False
-        msgs.append("[FAIL] ENSEMBLE_STACKER missing (blend did not form)")
+        if "ENSEMBLE_STACKER" in present:
+            msgs.append(f"[FAIL] {SELECTED_ENSEMBLE_ROW} missing: this per_model_metrics.csv carries the retired row "
+                        "ENSEMBLE_STACKER, so it was written before package 1 (2026-11-07)")
+        else:
+            msgs.append(f"[FAIL] {SELECTED_ENSEMBLE_ROW} missing (the selected blend did not form)")
 
     # (b) log red flags
     for flag in _LOG_RED_FLAGS:
