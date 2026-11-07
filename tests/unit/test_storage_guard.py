@@ -385,7 +385,7 @@ def test_storage_gate_returns_the_row_convention(tmp_path, monkeypatch, capsys):
         assert r[0] in ("OK", "WARN", "FAIL")
 
 
-def test_run_all_actually_calls_the_storage_gate(monkeypatch):
+def test_run_all_actually_calls_the_storage_gate(monkeypatch, tmp_path):
     """Drives run_all and asserts the gate CONTRIBUTED a row, rather than
     reading the source for a call. A source check passes on dead code and fails
     on a clean refactor -- both directions wrong, as scripts/forensics/
@@ -398,10 +398,13 @@ def test_run_all_actually_calls_the_storage_gate(monkeypatch):
         return [("OK", "storage: SENTINEL")]
 
     monkeypatch.setattr(P, "storage_gate", spy)
-    try:
-        rows = P.run_all("python scripts/train.py", "data", 3000, defer_kg=True)
-    except Exception:
-        pytest.skip("run_all needs a fuller fixture here; the call is asserted below")
+    # NOTHING OF THE CHECKOUT'S LOCAL DATA (2026-11-06, DATA-GATED-TESTS-1). MEASURED by the data census: from the owner's checkout
+    # this test audited his REAL data tree (data_tree_gate, 3,374 paths) and found the real STRING graph in data/raw/cache. The other
+    # gate is stubbed too and the STRING cache is an empty folder, so only the call under test is real. And no skip: until then
+    # an exception from run_all skipped the test -- a gate wiring that crashed would have read as "not applicable".
+    monkeypatch.setattr(P, "data_tree_gate", lambda data_root="data", manifest="configs/data_manifest.yaml": [("OK", "data_tree_gate: stub")])
+    rows = P.run_all("python scripts/train.py", "data", 3000, defer_kg=True,
+                     cache_dir=tmp_path / "string_cache", local_links=tmp_path / "absent.txt.gz")
     assert seen.get("called"), "run_all did not call storage_gate"
     assert any("SENTINEL" in m for _, m in rows)
 

@@ -510,8 +510,10 @@ def _production_artifact(tmp_path):
 
 
 @pytest.fixture
-def registered_production_client(tmp_path, monkeypatch):
-    """Drives the ACTUAL lifespan against a real artifact and registry.
+def registered_production_client(tmp_path, monkeypatch, api_without_local_data):
+    """Drives the ACTUAL lifespan against a real artifact and registry -- and none of the checkout's local data
+    (api_without_local_data, tests/unit/conftest.py: MEASURED 2026-11-06, the startup otherwise loads the git-ignored
+    data/processed/dbsnp_index.parquet where a checkout holds it).
 
     Uses `with TestClient(...)`, because `TestClient(app)` alone does not run
     startup on starlette 1.0.0 -- measured 2026-08-07. Without the context
@@ -592,7 +594,8 @@ def test_predictions_carry_the_serving_record_identity(
     assert "pipeline_version" not in body
 
 
-def test_the_same_registered_production_artifact_is_refused_under_the_default_authority(tmp_path, monkeypatch):
+def test_the_same_registered_production_artifact_is_refused_under_the_default_authority(tmp_path, monkeypatch,
+                                                                                        api_without_local_data):
     """The negative twin of the whole-chain test: identical artifact and registry, NO test authority. Gate C10
     is not implemented, so admission refuses before deserialization and the service is alive, not ready."""
     from fastapi.testclient import TestClient

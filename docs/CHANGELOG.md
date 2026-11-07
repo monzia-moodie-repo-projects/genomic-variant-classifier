@@ -1,4 +1,105 @@
+## 2026-11-06 (data-gated tests) -- no test's outcome depends on git-ignored local data, except three that check that data by design
+
+MEASURED (DATA-GATED-TESTS-1), on the owner's machine, 2026-11-06 08:07 to 09:28 Coordinated Universal Time (UTC) -- block DC, the
+data census: the whole suite in his CHECKOUT, on main 0e5d73c4 with the locked environment of set "ai"'s validation (re-checked against
+its Windows lock: SATISFIED), the validation's options apart from two measured to change nothing (-p no:cacheprovider; coverage's
+report in the run folder), under an instrument outside the repository that records every path a Python process looks at or opens:
+an audit hook (Python Enhancement Proposal 578, PEP 578) for the events that carry a path, and wrappers of os.stat, os.lstat,
+os.access and the os.path predicates -- which on Windows never call os.stat -- installed in every Python process by a sitecustomize.py
+on PYTHONPATH, each record carrying the test and its phase. Calibrated on that machine first (24 checks, revision 4). Compared test by
+test with the validation's clean clone (V1, the same commit and environment, full.xml pinned by SHA-256):
+  * 8,639 passed, 80 skipped, 5 xfailed against V1's 8,635, 84, 5; the network guard 8,724 checked, 0 tried; the working tree and every
+    untracked and ignored entry of the checkout unchanged. 125 events files, 233,803 records, 0 instrument errors; 13,483 paths
+    answered by git (git check-ignore --no-index answers for absent paths too).
+  * EXACTLY 4 tests differ, each skipped in the clone and passed in the checkout, each found by its paths:
+    test_esm2_activation.py::test_esm2_not_in_stub_mode (data/external/uniprot/uniprot_human_reviewed.parquet), and three that check
+    local data by design -- test_eve_entry_name_resolution.py's test_uniprot_index_has_entry_name_column and
+    test_real_corpus_resolution_fraction (the same index; the EVE (Evolutionary model of Variant Effect) variant files), and
+    test_drift_reference_profile.py::test_psi_exact_on_the_real_run15_matrix (outputs/run15_rerun_report/full/splits/X_train.parquet).
+  * 46 tests looked at git-ignored data present in the checkout; the other 42 had the same outcome either way: 11 in code that reads
+    the checkout's data although the test does not need it -- the five that run the Application Programming Interface's (API's)
+    startup loaded data/processed/dbsnp_index.parquet (defaults relative to the current folder); the three preflight tests checked
+    the command's data paths relative to the current folder or found the real STRING graph in data/raw/cache; the data-tree and
+    storage run_all tests audited the real data tree through run_all's other gate (3,374 paths) and found that graph; the freshness
+    child walked the real data/ (81 paths); 24 source scans and 3 whole-checkout hygiene walks enter ignored folders
+    (SOURCE-SCANS-ENTER-IGNORED-DIRS-1, open); the real-tree audit reads the real tree by design; the ClinVar ingest test compares
+    paths (a look); the dependency census reads the egg-info (EGG-INFO-SHADOW-1, open).
+Before the census, block SQ (07:05 UTC, read-only) read the ESM-2 test's three sequences from the owner's index (SHA-256 3d8380bd...,
+20,190 rows) and from UniProt's current FASTA entries: identical -- BRCA1 P38398 (1,863 residues), TP53 P04637 (393), PTEN P60484 (403),
+each carrying the residue the test changes (R1699, R175, G129). The drift suite, measured in the sandbox under the same instrument: no
+drift test looks at a git-ignored path (22 passed).
+
+- tests/fixtures/uniprot/esm2_real_mode_BRCA1_TP53_PTEN.fasta (ESM2-REAL-MODE-FIXTURE-1): UniProt's three FASTA entries as served on
+  2026-11-06, 3,070 bytes, SHA-256 0530d882...; tests/unit/_uniprot_fixture.py pins each entry (accession, entry name, gene, sequence
+  version, length, the sequence's SHA-256, the residue) and builds the index the connector reads, with the columns
+  scripts/build_uniprot_index.py writes, in the test's temporary folder. test_esm2_not_in_stub_mode uses it: it no longer depends on
+  local data and runs, offline, wherever the model weights are cached.
+- .gitattributes: `tests/fixtures/**/*.fasta text eol=lf` (FASTA-FIXTURE-EOL-1). MEASURED before it was added: the fixture resolved to
+  text=auto, and a clone under core.autocrlf=true -- the owner's Windows configuration -- wrote it with 49 carriage returns (3,119
+  bytes), which its canonical-bytes test refuses; with the rule, the committed 3,070 bytes.
+- tests/local_data.py: the three tests that check local data are declared with `@local_data(path, ...)`. Each path is taken
+  relative to the repository root -- two of the three read `Path("data/...")`, relative to the CURRENT folder, so a run started
+  elsewhere skipped them silently -- and the test is skipped by pytest's own skipif, with one reason for every such test naming the
+  absent paths, unless all exist; the registered `local_data` mark (pyproject.toml) makes `pytest -m local_data` run exactly them. A
+  decorator, not a conftest hook: the session guards' hooks are the root conftest.py's alone (test_session_guard_placement.py).
+- tests/unit/conftest.py: api_without_local_data points the API's three optional tables at absent paths and restores the module's
+  tables afterwards; the five tests that run the startup request it. Two preflight tests run in a temporary folder and the third
+  passes temporary cache and links folders; the two run_all tests stub the other gate, pass temporary folders, and no longer turn an
+  exception from run_all into a skip (a crashed gate wiring read as "not applicable"); the freshness child checks every local source
+  under an empty folder holding one planted asset, which it must find (the orchestrator builds the agent with root PROJECT_ROOT).
+  The dependency-profile test's isolated child runs with -B (PYCACHE-FROM-ISOLATED-CHILDREN-1: -I ignores PYTHONDONTWRITEBYTECODE,
+  and the child wrote three bytecode files into src).
+- tests/unit/test_local_data_contract.py (21): the local-data tests are exactly the measured three; every declared path is
+  repository-relative POSIX, git-ignored and untracked; the mark is never written by hand and is registered; the decorator refuses
+  no path or a bad one and applies the mark and pytest's skip; in a real child session it skips with the one reason where the data is
+  absent, runs the test where it is present, and -m local_data selects exactly those; every test that runs the API startup requests
+  api_without_local_data. 8 sabotages, each caught. tests/unit/test_uniprot_sequence_fixture.py (6) and
+  tests/unit/test_gitattributes_contract.py (+2; the rule removed: both fail).
+- Tests: +29 / -0 by node identity (diffed against main, 0e5d73c4). Suite 8,724 -> 8,753. README: the badge and the local-data tests.
+- Verified (sandbox), the whole suite on a clean clone of the candidate under the same instrument (2026-11-06 10:57 to 11:11 UTC):
+  8,721 passed, 26 skipped, 6 xfailed, 5 subtests passed, exit 0, 0 instrument errors; the network guard 8,753 checked, 0 tried; the
+  warning-filter guard 8,753 checked, 0 changed; the working tree unchanged. Test by test against the same measurement of main: the
+  29 new tests pass, the three local-data tests skip with the one reason, nothing else differs. The clone after the run holds no
+  bytecode (main's run left three files in src). In the clone, 29 tests look at a git-ignored path (30 in that run; the freshness
+  test file, measured again after its correction, looks at none), against 38 on main: the eleven fixed tests no longer do; the two
+  new contract tests probe one deliberately absent path; the other 27 look only at paths absent in a clone (2 of them only in the
+  instrument's reading: a temporary folder's file removed by name relative to a directory descriptor --
+  INSTRUMENT-DIR-FD-AUDIT-EVENTS-1, none of the owner's 46 found that way), and in the owner's checkout the census found no
+  git-ignored data present that any test reads beyond the 46 above. The drift suite: 22 passed, no git-ignored path. Mutations,
+  each caught: the 8 of the contract, the .fasta rule removed, the freshness redirection bypassed.
+- My errors, caught before delivery: (1) the first version of the marker was implemented by hooks in tests/conftest.py;
+  test_session_guard_placement.py failed it (a guard hook implemented twice runs twice) -- the decorator replaced it. (2) The first
+  fix of the freshness test changed the child's CURRENT folder, reasoning from check_local's default root without reading its
+  caller; the instrument showed the child still looking at 24 git-ignored paths of the clone -- the agent's root is PROJECT_ROOT.
+  (3) A code comment credited the data-tree run_all test with its storage twin's 3,374 paths; the census corrected it.
+- REVISION B (2026-11-06), after the owner's first V1 (18:21 to 19:25 UTC) stopped at the targeted tests: 797 passed, 6 failed,
+  7 skipped, every failure a carriage return. My errors, caught by that run: (4) FIXTURE-WRITTEN-BY-APPLY-1 -- the installer's
+  `git apply` wrote the new FASTA fixture into the clone under the .gitattributes from BEFORE the patch, so core.autocrlf=true (the
+  owner's setting) gave it 49 carriage returns, and the blob check could not see them (git normalises line ends when it hashes). I had
+  measured the rule on a clone of the commit only, never on the installer's own path, and the sandbox harness ran without
+  core.autocrlf. Measured since in the sandbox with core.autocrlf=true: the old path writes 3,119 bytes with 49 carriage returns; a
+  clone, a fast-forward merge (the post-merge block's path) and a merge commit fast-forwarded each write 3,070 bytes and none. The
+  installer now applies the patch to the index, lets git write the changed files from it, and compares every changed file's bytes
+  with `git cat-file --filters`. (5) STDIN-TEXT-MODE-1 -- test_every_declared_path_is_git_ignored_and_untracked sent the paths to
+  `git check-ignore --stdin` in Python's text mode, which writes "\r\n" on Windows; git then answered for "<path>\r". The
+  repository already held the measured remedy (test_c2_qualification_record.py, 2026-10-02: NUL-separated bytes) and I did not read
+  it before writing the test. The test now sends NUL-separated bytes with a never-ignored control path that must not be reported.
+
 ## 2026-11-05 (hermetic suite) -- no test reaches the network; the Git requirement is stated by the reader itself
+
+MERGED AND VERIFIED ON WINDOWS (recorded 2026-11-06). The owner ran -Validate once (set "ai", 2026-11-05 23:27 to 2026-11-06
+01:22 Coordinated Universal Time (UTC); receipt 63956e2c): targeted 896 passed, 14 skipped; the whole suite 8,635 passed, 84 skipped,
+5 xfailed, 5 subtests passed, coverage 83%; the network guard 8,724 checked, 0 tried; the warning-filter guard 8,724 checked, 0
+changed; the three Windows-only junction tests passed; drift 22 passed; the clone's working tree unchanged. Against set "ag"'s
+validation: +56 passed and +1 skipped -- test_esm2_not_in_stub_mode, which now skips in a clone, as forecast. Merged as pull request
+#66 (merge commit 0e5d73c4, parents 3c01564a and cf224271, tree 2fd84792 -- the sandbox's final tree); 7 checks passed. The
+post-merge block's second run (02:21 to 02:28 UTC) STOPPED: targeted 897 passed, 13 skipped against the validation's 896 and 14 --
+test_esm2_not_in_stub_mode skipped in the validation clone and PASSED in the owner's checkout, which holds the git-ignored UniProt
+index. That block compared COUNTS between a clean clone and a checkout that holds local data, a case its sandbox harness never
+built. Its revision B (04:26 to 04:39 UTC) compares each of the 910 targeted tests by node identity with the validation's own
+full.xml (pinned by SHA-256), allows exactly one difference by name -- a test the clone skipped for a git-ignored, untracked file
+present in the checkout -- and passed: 0 problems, both candidate environments still exactly their Windows locks, drift 22 passed, the
+checkout unchanged. The branch was deleted (05:05 to 05:08 UTC). The finding started DATA-GATED-TESTS-1 (the entry above).
 
 MEASURED (TESTS-REACH-THE-NETWORK-1), 2026-11-05 06:41 to 07:04 Coordinated Universal Time (UTC), development sandbox (Linux,
 Python 3.12.3, the training-and-test lock's environment, Git 2.47.1), the whole suite with the gate's options and its

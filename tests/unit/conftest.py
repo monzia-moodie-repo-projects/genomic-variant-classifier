@@ -194,3 +194,27 @@ def program_starts():
     finally:
         _PROGRAM_STARTS.recording = False
         _PROGRAM_STARTS.block = True
+
+
+# ---------------------------------------------------------------------------
+# The API's optional data tables, absent (added 2026-11-06, DATA-GATED-TESTS-1).
+# ---------------------------------------------------------------------------
+# MEASURED 2026-11-06 by the data census on the owner's machine: the five tests that run the API's real startup (the lifespan) --
+# test_runtime_attribution's registered_production_client and its negative twin, and test_containment_serving's quarantine test --
+# READ data/processed/dbsnp_index.parquet from his checkout. api/main.py takes GENE_SUMMARY_PATH and DBSNP_INDEX_PATH from the
+# environment with defaults RELATIVE TO THE CURRENT FOLDER (data/processed/...); both files are git-ignored, so a checkout loads
+# them and a clone does not, and the startup leaves the loaded tables (_GENE_SUMMARY, _DBSNP_INDEX, _GNOMAD_INDEX) in the module
+# for every later test. The outcomes happened to agree; the code paths did not. A test that requests this fixture gets all three
+# tables pointed at paths that do not exist (gnomAD's off, as when GNOMAD_INDEX_PATH is unset) and the three module tables put back
+# afterwards. tests/unit/test_local_data_contract.py requires every test or fixture that runs the startup to request it.
+@pytest.fixture
+def api_without_local_data(tmp_path, monkeypatch):
+    import genomic_variant_classifier.api.main as api_main
+
+    absent = tmp_path / "api_local_data_absent"
+    monkeypatch.setattr(api_main, "GENE_SUMMARY_PATH", absent / "gene_summary.parquet")
+    monkeypatch.setattr(api_main, "DBSNP_INDEX_PATH", absent / "dbsnp_index.parquet")
+    monkeypatch.setattr(api_main, "GNOMAD_INDEX_PATH", None)
+    for table in ("_GENE_SUMMARY", "_DBSNP_INDEX", "_GNOMAD_INDEX"):
+        monkeypatch.setattr(api_main, table, getattr(api_main, table))      # restored at teardown, whatever the startup loaded
+    return api_main

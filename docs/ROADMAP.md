@@ -1,6 +1,6 @@
 # GenAssoc / genomic-variant-classifier - Living Roadmap
 
-**Version: 2026-11-05 (v3; section 9 current to 2026-11-05, section 5 last re-derived 2026-09-04)  |  Owner: Monzia Moodie**
+**Version: 2026-11-06 (v3; section 9 current to 2026-11-06, section 5 last re-derived 2026-09-04)  |  Owner: Monzia Moodie**
 
 Repo: github.com/monzia-moodie-repo-projects/genomic-variant-classifier
 
@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **8,724 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **8,753 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -788,7 +788,38 @@ exists to end.
   against a real start on the machine that runs them; the guard now reads every proxy urllib.request.getproxies() can use, the
   Windows Internet settings included (GUARD-SYSTEM-PROXIES-1). Verified in the sandbox: 8,692 passed, 26 skipped, 6 xfailed; 0
   network attempts; the proxy recorded no refusal; drift 22 passed; 28 mutations caught across both deliveries. Suite 8,667 -> 8,724
-  (+57 / -0).
+  (+57 / -0). VALIDATED ON WINDOWS AND MERGED 2026-11-06: one -Validate run (2026-11-05 23:27 to 2026-11-06 01:22 UTC): 8,635 passed,
+  84 skipped, 5 xfailed, coverage 83%, the network guard 8,724 checked / 0 tried, the warning-filter guard 8,724 / 0, drift 22
+  passed, the clone unchanged; pull request #66, merged with a merge commit (0e5d73c4, parents 3c01564a and cf224271, tree
+  2fd84792). The post-merge block's second run STOPPED: test_esm2_not_in_stub_mode skipped in the validation clone and passed in the
+  owner's checkout, which holds the git-ignored UniProt index -- a count comparison between a clone and a checkout that holds local
+  data. Its revision B compares each of the 910 targeted tests by node identity with the validation's full.xml and allows only
+  that case, by name; it passed (04:26 to 04:39 UTC), and the branch was deleted. The finding started DATA-GATED-TESTS-1 (below).
+- **2026-11-06 -- DATA-GATED-TESTS-1: no test's outcome depends on git-ignored local data, except three that check that data by
+  design.** MEASURED on the owner's machine (the data census, 08:07 to 09:28 UTC): the whole suite in his checkout, on 0e5d73c4 and
+  the validation's locked environment, under an instrument recording every path each test looked at (an audit hook and wrappers of
+  the stat and os.path functions in every Python process, calibrated on that machine first), compared test by test with the
+  validation's clean clone: 8,639 passed, 80 skipped, 5 xfailed against 8,635, 84, 5. Exactly 4 tests differ -- each skipped in the
+  clone and passed in the checkout, each found by its paths: test_esm2_not_in_stub_mode (the UniProt index), the EVE (Evolutionary
+  model of Variant Effect) module's two real-data checks, and the population stability index on the real Run-15 matrix. 46 tests read
+  git-ignored data present there; of the 42 with the same outcome, 11 ran code that read the checkout's data without needing it (the
+  Application Programming Interface startup's dbSNP index, preflight paths relative to the current folder, run_all's other gate over
+  the real data tree, the freshness scan of data/), 24 source scans and 3 hygiene walks enter ignored folders, 1 audits the real tree
+  by design, 2 only compare paths (the ClinVar ingest) and 1 reads the egg-info (EGG-INFO-SHADOW-1). The change: the ESM-2 test's
+  three sequences committed as a UniProt FASTA fixture (pinned by accession, version and SHA-256; identical in the owner's index and
+  UniProt's current entries), with a line-ending rule measured as necessary (FASTA-FIXTURE-EOL-1: without it a Windows clone wrote 49
+  carriage returns into it); the three checks of local data declared with tests/local_data.py's `local_data` decorator (paths
+  anchored at the repository root -- two were relative to the current folder -- pytest's own skip with one reason, `-m local_data`
+  selects them), a contract that the set is exactly those three and every path git-ignored and untracked; the 11 given absent or
+  temporary paths, each measured again under the instrument (api_without_local_data, with a contract that every test running the
+  startup requests it); the isolated child of the dependency-profile test started with -B (PYCACHE-FROM-ISOLATED-CHILDREN-1). The
+  drift suite, measured in the sandbox: no test reads a git-ignored path. Open, recorded: SOURCE-SCANS-ENTER-IGNORED-DIRS-1 (the 27
+  scans and walks; the owner's ignored folders under src are the egg-info, agent_layer/data and agent_layer/logs), DATA-CENSUS-TOOL-1
+  (the instrument is outside the repository; with it INSTRUMENT-DIR-FD-AUDIT-EVENTS-1, removal events carrying a directory descriptor
+  read as current-folder paths). Suite 8,724 -> 8,753 (+29 / -0). REVISION B (2026-11-06): the owner's first V1 stopped at the
+  targeted tests (6 failures, all carriage returns): the installer's `git apply` wrote the fixture under the old .gitattributes
+  (FIXTURE-WRITTEN-BY-APPLY-1; the patch now goes into the index and git writes the files, every changed file's bytes checked), and a
+  new test sent paths to git in text mode (STDIN-TEXT-MODE-1; now NUL-separated bytes, the repository's measured pattern of 2026-10-02).
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined

@@ -61,6 +61,11 @@
 # fixture been genuinely binary (a parquet, an .npy), normalization would have SILENTLY
 # CORRUPTED it rather than merely shortening it.
 tests/fixtures/**/*.cif text eol=lf
+# FASTA (FAST-All sequence format) fixtures: the same reasoning, MEASURED for the first one before it was committed (2026-11-06,
+# ESM2-REAL-MODE-FIXTURE-1). With no rule the fixture resolved to `text=auto`, and a clone under core.autocrlf=true -- the owner's
+# Windows configuration -- wrote it with 49 carriage returns (3,119 bytes instead of 3,070), which its canonical-bytes test refuses.
+# With this rule the clone holds the committed 3,070 bytes, SHA-256 0530d882... FASTA-FIXTURE-EOL-1.
+tests/fixtures/**/*.fasta text eol=lf
 
 # Binary fixtures: verbatim, always. Normalization would destroy them.
 tests/fixtures/**/*.parquet binary

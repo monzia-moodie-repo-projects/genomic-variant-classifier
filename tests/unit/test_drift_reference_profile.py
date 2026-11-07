@@ -37,12 +37,12 @@ That substitution is only safe if two things are true, and both are asserted her
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
 
+from tests.local_data import local_data, repo_path
 from genomic_variant_classifier.monitoring.drift_detector import (
     PSI_MONITOR,
     PSI_RETRAIN,
@@ -382,18 +382,20 @@ def test_bare_ndarray_with_wrong_width_raises(X_ref, profile):
 
 
 # ---------------------------------------------------------------------------
-# 5. THE REAL MATRIX -- skipped where the cohort is absent (i.e. in CI)
+# 5. THE REAL MATRIX -- local data: run where the cohort is present, skipped where it is absent (a clone, CI)
 # ---------------------------------------------------------------------------
+# `local_data` (2026-11-06, DATA-GATED-TESTS-1; tests/local_data.py): the path is taken relative to the repository root --
+# until then `Path("outputs/...")` was relative to the CURRENT folder -- and a skip carries the one local-data reason.
+# MEASURED by the data census: passed in the owner's checkout, skipped in a clean clone.
+REAL_REF_REL = "outputs/run15_rerun_report/full/splits/X_train.parquet"
 
-REAL_REF = Path("outputs/run15_rerun_report/full/splits/X_train.parquet")
 
-
-@pytest.mark.skipif(not REAL_REF.is_file(),
-                    reason="Run-15 reference matrix absent (gitignored cohort data; not in CI)")
+@local_data(REAL_REF_REL)
 def test_psi_exact_on_the_real_run15_matrix():
     """Synthetic exactness is necessary but not sufficient. Prove it on the real thing."""
-    X = pd.read_parquet(REAL_REF).select_dtypes(include=[np.number])
-    profile = DriftReferenceProfile.from_reference(X, source=str(REAL_REF))
+    real_ref = repo_path(REAL_REF_REL)
+    X = pd.read_parquet(real_ref).select_dtypes(include=[np.number])
+    profile = DriftReferenceProfile.from_reference(X, source=str(real_ref))
     detector = DriftDetector.from_reference(X_ref=X)
 
     rng = np.random.default_rng(0)

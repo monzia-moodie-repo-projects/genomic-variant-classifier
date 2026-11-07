@@ -8230,4 +8230,16 @@
 #   2.45 or later is accepted and its version read once per reader (6 forms); an older one is refused with the requirement named
 #   before any object is read (5); unreadable output is refused (5); a Git that cannot run is refused; the installed Git meets the
 #   requirement or is refused with it. (The first delivery, +45, failed on Windows: PROGRAM-START-RECORD-PLATFORM-FORM-1.)
-8724
+# 2026-11-06  DATA-GATED-TESTS-1, ESM2-REAL-MODE-FIXTURE-1, FASTA-FIXTURE-EOL-1 and PYCACHE-FROM-ISOLATED-CHILDREN-1 -- no test's
+#   outcome depends on git-ignored local data except the three that check that data by design; the ESM-2 sequences are committed
+#   +29 / -0 by node identity (collected and diffed against main, 0e5d73c4). +21 tests/unit/test_local_data_contract.py: the
+#   local-data tests are exactly the measured three; every declared path is git-ignored and untracked (asked of git); a declared
+#   path must be repository-relative POSIX (9 cases); repo_path is anchored at the repository root, not the current folder; the
+#   mark is never written by hand, and is registered; the decorator refuses no path and a bad path (3) and applies the mark and
+#   pytest's own skip; in a real child session it skips with the one reason where the data is absent, runs the test where it is
+#   present, and -m local_data selects exactly the decorated tests; every test that runs the API startup requests
+#   api_without_local_data, which points every table at an absent path. +6 tests/unit/test_uniprot_sequence_fixture.py: three
+#   UniProt entries in canonical bytes; each entry is the measured sequence (3); the index built from them has the index builder's
+#   columns; the connector serves them with no network. +2 tests/unit/test_gitattributes_contract.py: FASTA fixtures are pinned to
+#   LF, today's and the next. (tests_drift/: unchanged, 22.)
+8753

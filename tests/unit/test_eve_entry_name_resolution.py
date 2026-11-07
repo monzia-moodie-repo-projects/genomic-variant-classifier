@@ -15,6 +15,11 @@ This module guards:
     via the rebuilt UniProt index;
   * a data-gated check that the rebuilt index actually carries entry_name.
 
+The two data-gated checks are checks OF THE LOCAL DATA, so they are declared with `local_data` (2026-11-06,
+DATA-GATED-TESTS-1; tests/local_data.py): their paths are taken relative to the repository root -- until then
+`Path("data/...")` was relative to the CURRENT folder, so a run started anywhere else skipped them silently -- and a skip
+carries the one local-data reason. MEASURED by the data census: both passed in the owner's checkout and were skipped in a clean clone.
+
 Run:  pytest tests/unit/test_eve_entry_name_resolution.py -v
 """
 
@@ -26,6 +31,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from tests.local_data import local_data, repo_path
 from genomic_variant_classifier.data.eve import (
     DEFAULT_SCORE,
     EVEConnector,
@@ -35,9 +41,9 @@ from genomic_variant_classifier.data.eve import (
     _EVE_MIN_RESOLVED_FRACTION,
 )
 
-# Canonical real-data locations (tests that need them are skipped if absent).
-_EVE_VARIANT_DIR = Path("data/external/eve/EVE_all_data/variant_files")
-_UNIPROT_INDEX = Path("data/external/uniprot/uniprot_human_reviewed.parquet")
+# Canonical real-data locations, relative to the repository root (the tests that need them carry `local_data`).
+_EVE_VARIANT_DIR_REL = "data/external/eve/EVE_all_data/variant_files"
+_UNIPROT_INDEX_REL = "data/external/uniprot/uniprot_human_reviewed.parquet"
 
 
 # --------------------------------------------------------------------------- #
@@ -199,10 +205,10 @@ def test_mutations_protein_name_branch_unchanged(tmp_path):
 # --------------------------------------------------------------------------- #
 # 5. Data-gated: rebuilt UniProt index carries entry_name + real corpus coverage
 # --------------------------------------------------------------------------- #
-@pytest.mark.skipif(not _UNIPROT_INDEX.exists(),
-                    reason="UniProt index not present (run scripts/build_uniprot_index.py)")
+@local_data(_UNIPROT_INDEX_REL)
 def test_uniprot_index_has_entry_name_column():
-    df = pd.read_parquet(_UNIPROT_INDEX)
+    """The index scripts/build_uniprot_index.py built carries entry_name. (Absent: build it with that script.)"""
+    df = pd.read_parquet(repo_path(_UNIPROT_INDEX_REL))
     assert "entry_name" in df.columns, (
         "UniProt index lacks entry_name -- rebuild with the patched "
         "scripts/build_uniprot_index.py before staging."
@@ -214,16 +220,13 @@ def test_uniprot_index_has_entry_name_column():
     assert by_entry.get("1433Z_HUMAN") == "YWHAZ"
 
 
-@pytest.mark.skipif(
-    not (_UNIPROT_INDEX.exists() and _EVE_VARIANT_DIR.exists()),
-    reason="EVE variant_files and/or UniProt index not present",
-)
+@local_data(_UNIPROT_INDEX_REL, _EVE_VARIANT_DIR_REL)
 def test_real_corpus_resolution_fraction():
     """At least _EVE_MIN_RESOLVED_FRACTION of the real 3,211 EVE filenames must
     resolve to an HGNC symbol via the rebuilt index. Expected ~0.99."""
-    entry_map = load_eve_entry_map(_UNIPROT_INDEX)
+    entry_map = load_eve_entry_map(repo_path(_UNIPROT_INDEX_REL))
     assert entry_map, "entry map empty -- index missing entry_name column?"
-    stems = [p.stem for p in _EVE_VARIANT_DIR.glob("*.csv")]
+    stems = [p.stem for p in repo_path(_EVE_VARIANT_DIR_REL).glob("*.csv")]
     assert stems, "no EVE CSVs found"
     resolved = sum(1 for s in stems if resolve_eve_gene(s, entry_map)[1])
     frac = resolved / len(stems)
