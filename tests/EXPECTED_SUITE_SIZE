@@ -8266,4 +8266,28 @@
 #   never served its stacker); test_containment_scripts.py +1 / -1 (calibrate_thresholds is refused, not loaded);
 #   test_smoke_all_models.py +2 / -0 (the smoke gate requires the selected blend's row by the package constant; the offline
 #   gate-logic script runs). (tests_drift/: unchanged, 22.)
-8875
+# 2026-11-08  PREDICTION-CONTRACT-1B (package 1, set 1b; owner rulings ccffb8cf and 38f15c7a) -- out-of-fold rows carry their
+#   composed and verified training-split identity; a run is complete evidence only through its completion manifest; writers
+#   consume one bound capture per split
+#   +58 / -11 by node identity (collected and diffed against main, b051bb3d). New file: +47
+#   tests/unit/test_prediction_contract_1b.py (the inert reader returns data and runs nothing, imports nothing, keeps object
+#   arrays inert and refuses compressed, trailing, persistent-id and structured inputs, and recovers a real orchestrator; every
+#   fit row has one recorded fold, gene groups disjoint, stratified folds equal the declared splitter; the member sidecar is
+#   aligned and a historical one is refused with its meaning; the split digest binds features, labels, variants and role; unit
+#   contexts separate OOF and held-out units; ambiguous inputs refused; the OOF table carries verified identity with no blend
+#   column, a subsample is composed through and a wrong one refused, an ensemble without recorded identity refused, a bare
+#   frame refused; the split capture is the selected predictor bound to its member blocks, mismatched rows refused, a sequence
+#   member without windows refused before any member runs; bare arrays refused; predictions, calibration points equal to
+#   scikit-learn with their counts, consequence performance separated, member-score attributions closing within 8 ulp and a
+#   foreign background refused; completion written last and re-measured, refused for a missing output or capture or a changed
+#   file, fault injection leaves an inspectable unverifiable run, a rerun retires the old manifest and a retirement never
+#   overwrites an earlier one (a repeated timestamp), strict JSON, the aggregate
+#   admits completed runs only; the ablation harness and the mainline --max-train path executed to verified completion, a failed
+#   deliverable or identity binding blocks it, the preflight refuses before any fit; the insights detector reads completed runs
+#   only and flags shared-gene folds from a real run; the Run 15 derived record and its code provenance). Replaced, by file:
+#   test_prediction_contract_transition.py +4 / -5 (two denials remain for 1c; the SHAP writer is retired; the harness has no
+#   broad handler and its --help runs); test_prediction_artifacts.py +5 / -5 and test_d1_d2.py +1 / -1 (bare arrays and frames
+#   refused; the aggregate admits completed runs only); test_model_insights_agent.py +1 / -0 (an incomplete run is listed and
+#   never analysed); test_model_insights_detector.py and the agent's other tests now run on real completed runs.
+#   (tests_drift/: unchanged, 22.)
+8922

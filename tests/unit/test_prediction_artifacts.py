@@ -6,6 +6,11 @@ Tests for src/genomic_variant_classifier/evaluation/prediction_artifacts.py.
 Focuses on the atomic-write, manifest-schema, and idempotency guarantees
 that Rule 5 depends on. No GCS upload is exercised here; that's an
 integration test.
+
+Package 1, set 1b (2026-11-08): predictions come only from bound captures, out-of-fold rows only with their composed
+training-split identity, and the ablation aggregate only from completed runs. The tests below that wrote bare arrays
+or frames now assert the refusal; the positive paths are exercised on a really fitted ensemble in
+test_prediction_contract_1b.py.
 """
 
 from __future__ import annotations
@@ -17,7 +22,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from genomic_variant_classifier.evaluation.prediction_artifacts import RunArtifactWriter
+from genomic_variant_classifier.evaluation.prediction_artifacts import IncompleteRunError, RunArtifactWriter
+from genomic_variant_classifier.prediction_contract import ContractError
 
 
 @pytest.fixture
@@ -86,7 +92,7 @@ class TestManifest:
 # ---------------------------------------------------------------------------
 class TestTestPredictions:
 
-    def test_writes_parquet_with_correct_columns(self, writer, dummy_meta):
+    def test_bare_arrays_are_refused_and_nothing_is_written(self, writer, dummy_meta):
         n = len(dummy_meta)
         y = np.random.randint(0, 2, n)
         proba = np.random.random(n)
@@ -94,17 +100,12 @@ class TestTestPredictions:
             "xgboost": np.random.random(n),
             "lightgbm": np.random.random(n),
         }
-        writer.save_test_predictions(y, proba, base_probs, dummy_meta)
-        df = pd.read_parquet(writer.output_dir / "test_predictions.parquet")
-        assert "label" in df.columns
-        assert "ensemble_prob" in df.columns
-        assert "xgboost_prob" in df.columns
-        assert "lightgbm_prob" in df.columns
-        assert "variant_id" in df.columns
-        assert len(df) == n
+        with pytest.raises(ContractError, match="bare arrays"):
+            writer.save_test_predictions(y, proba, base_probs, dummy_meta)
+        assert not (writer.output_dir / "test_predictions.parquet").exists()
 
-    def test_length_mismatch_raises(self, writer, dummy_meta):
-        with pytest.raises(ValueError, match="len"):
+    def test_the_keyword_form_is_refused_too(self, writer, dummy_meta):
+        with pytest.raises(ContractError, match="bare arrays"):
             writer.save_test_predictions(
                 y_test=np.zeros(5),
                 proba=np.zeros(10),
@@ -118,24 +119,14 @@ class TestTestPredictions:
 # ---------------------------------------------------------------------------
 class TestOOFPredictions:
 
-    def test_requires_variant_id_fold_label(self, writer):
-        df_missing_fold = pd.DataFrame({"variant_id": ["v1"], "label": [1]})
-        with pytest.raises(ValueError, match="fold"):
-            writer.save_oof_predictions(df_missing_fold)
-
-    def test_writes_with_required_cols(self, writer):
-        df = pd.DataFrame(
-            {
-                "variant_id": ["v1", "v2"],
-                "fold": [0, 1],
-                "label": [1, 0],
-                "xgboost_prob": [0.8, 0.2],
-            }
-        )
-        writer.save_oof_predictions(df)
-        loaded = pd.read_parquet(writer.output_dir / "oof_predictions.parquet")
-        assert len(loaded) == 2
-        assert set(loaded.columns) >= {"variant_id", "fold", "label", "xgboost_prob"}
+    @pytest.mark.parametrize("frame", [
+        pd.DataFrame({"variant_id": ["v1"], "label": [1]}),
+        pd.DataFrame({"variant_id": ["v1", "v2"], "fold": [0, 1], "label": [1, 0], "xgboost_prob": [0.8, 0.2]}),
+    ])
+    def test_a_frame_without_composed_identity_is_refused(self, writer, frame):
+        with pytest.raises(ContractError, match="OOFIdentity"):
+            writer.save_oof_predictions(frame)
+        assert not (writer.output_dir / "oof_predictions.parquet").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -164,33 +155,12 @@ class TestGraphStats:
 # ---------------------------------------------------------------------------
 class TestAblationAggregator:
 
-    def test_idempotent_append(self, writer, tmp_path):
+    def test_an_incomplete_run_cannot_enter_the_aggregate(self, writer, tmp_path):
         master = tmp_path / "ablation_results.parquet"
         writer.save_manifest("sha", {}, {})  # so writer has state
-
-        writer.append_ablation_row(
-            master,
-            {
-                "ablation": "full",
-                "auroc": 0.986,
-                "auprc": 0.94,
-            },
-        )
-        writer.append_ablation_row(
-            master,
-            {
-                "ablation": "full",
-                "auroc": 0.987,
-                "auprc": 0.95,  # replaces
-            },
-        )
-
-        df = pd.read_parquet(master)
-        rows_for_full = df[df["ablation"] == "full"]
-        assert (
-            len(rows_for_full) == 1
-        ), "Re-run of same ablation should replace, not duplicate"
-        assert rows_for_full.iloc[0]["auroc"] == pytest.approx(0.987)
+        with pytest.raises(IncompleteRunError):
+            writer.append_ablation_row(master, {"ablation": "full", "auroc": 0.986, "auprc": 0.94})
+        assert not master.exists()
 
 
 # ---------------------------------------------------------------------------

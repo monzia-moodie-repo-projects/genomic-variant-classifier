@@ -55,6 +55,7 @@ from genomic_variant_classifier.prediction_contract import (
     ContractError,
     ObservationSet,
     ProbabilityBlock,
+    ScientificScope,
     canonical_digest,
     require_sha256,
     require_text,
@@ -76,6 +77,9 @@ __all__ = [
     "dot2",
     "historical_parity",
     "member_artifact_sha256",
+    "member_draw_schedule",
+    "member_modalities",
+    "SELECTED_PREDICTOR_SCOPE",
     "prediction_stage_sha256",
     "require_supported_modalities",
     "score_once",
@@ -95,6 +99,31 @@ WEIGHT_MASS_ATOL = 1e-12
 _SOURCE_KINDS = frozenset({"saved_orchestrator_sha256", "in_memory_fit_record_sha256"})
 
 _SPLIT = 134217729.0   # 2**27 + 1: the Veltkamp split constant for binary64
+
+#: References to the authoritative definitions of the task, the method and the numerical policy of the SELECTED
+#: predictor (not restatements). ONE definition for serving (api.pipeline.SERVING_SCOPE is this object) and for the
+#: offline split scorer (VariantEnsemble.score_split), so the combiner identity a run evaluates is the identity a
+#: server would carry for the same fitted ensemble. Moved here unchanged from api/pipeline.py in set 1b.
+SELECTED_PREDICTOR_SCOPE = ScientificScope(
+    task_sha256=canonical_digest("gvc.task.v1", {
+        "endpoint": "binary_pathogenicity_probability_of_a_submitted_variant",
+        "classes": [0, 1], "positive_class": 1,
+        "label_definition": "the training label column of the fitted ensemble; defined by its training run"}),
+    method_sha256=canonical_digest("gvc.method.v1", {
+        "combiner": "convex_probability_blend", "kernel": BLEND_KERNEL,
+        "members": "full_fitted_roster_in_fitted_order", "member_stage": "as_fitted_and_served"}),
+    numerical_policy_sha256=canonical_digest("gvc.numerical-policy.v1", {
+        "storage": "little_endian_binary64", "row_sum_atol": 1e-7, "weight_mass_atol": 1e-12,
+        "clipping": "forbidden", "units": ["nats", "probability_squared"], "variance_ddof": 0}),
+)
+
+#: What each fitted member consumes. Every member not named here consumes the tabular matrix.
+_MEMBER_MODALITIES: dict[str, frozenset] = {"cnn_1d": frozenset({"sequence_windows"})}
+
+
+def member_modalities(names) -> dict[str, frozenset]:
+    """The modalities each named member needs (ONE definition, shared by serving and the offline split scorer)."""
+    return {name: _MEMBER_MODALITIES.get(name, frozenset({"tabular"})) for name in names}
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -449,6 +478,18 @@ def score_once(spec: ConvexBlendSpec, *, models: Mapping[str, Any],
     result = ProbabilityBlock.from_array(rows=rows, class_order=(0, 1), positive_class=1, binding=result_binding,
                                          draw_id=result_draw_id, probabilities=score.prediction_matrix())
     return result, tuple(blocks)
+
+
+def member_draw_schedule(name: str, model: Any) -> dict[str, Any]:
+    """The declared draw schedule of one member's prediction (ONE definition, shared by serving and the offline
+    split scorer): the MC dropout seed schedule, the fitted deep-ensemble member seeds, or a single evaluation."""
+    require_text(name, "member name")
+    if hasattr(model, "draw_seeds") and getattr(model, "_supports_mc", False):
+        return {"mechanism": "mc_dropout_mean", "seeds": model.draw_seeds()}
+    if hasattr(model, "members_"):
+        return {"mechanism": "fitted_ensemble_mean",
+                "member_seeds": list(getattr(model, "member_seeds_", ["unrecorded"]))}
+    return {"mechanism": "deterministic_single_evaluation"}
 
 
 def require_supported_modalities(spec: ConvexBlendSpec, *, required_by_member: Mapping[str, frozenset],

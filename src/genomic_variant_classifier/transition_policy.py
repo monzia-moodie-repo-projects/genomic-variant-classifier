@@ -17,6 +17,15 @@ nothing to do with the quarantine.
 
 Removing an entry is the enabling package's job, done together with the migration and its tests; never an edit here
 alone.
+
+Set 1b (2026-11-08) removed two refusals together with the migrations that replace them:
+  * scripts/run9_ablations.py (ABLATION_WRITER_MIGRATION_REQUIRED): it now scores each split through ONE bound capture
+    (VariantEnsemble.score_split), writes identity-bearing predictions and out-of-fold rows, checks its capabilities
+    before training, and publishes a completion manifest only when every requested deliverable exists.
+  * EXPLANATION_TARGET_MIGRATION_REQUIRED (RunArtifactWriter.save_shap_values): the method is retired, not re-enabled;
+    the selected predictor's explanation is RunArtifactWriter.save_member_score_attributions, and a feature-level
+    explanation of the blend is a standing refusal (evaluation.blend_attribution.FEATURE_LEVEL_EXPLANATION_UNAVAILABLE),
+    not a transition.
 """
 from __future__ import annotations
 
@@ -29,11 +38,6 @@ PREDICTION_CONTRACT_TRANSITION_DENIED = MappingProxyType({
         "consume the selected prediction contract -- it rebuilt member predictions itself, scored them with the "
         "logistic meta-learner (removed from InferencePipeline in set 1a: not the selected predictor) and fitted a "
         "probability transformation whose score stage the thresholds would silently inherit",
-    "scripts/run9_ablations.py":
-        "ABLATION_WRITER_MIGRATION_REQUIRED (enabled by package 1, set 1b): this harness re-predicts every member "
-        "independently of the selected predictor's bound member capture, writes predictions without unit identities, "
-        "and its explanation writer (RunArtifactWriter.save_shap_values) explained the logistic meta-learner rather "
-        "than the selected blend; a run could not be represented faithfully as complete evidence",
     "scripts/export_phase2_predictions_from_saved_models.py":
         "SCORE_RECONSTRUCTION_REFUSED (disposition decided in package 1, set 1c): this exporter reconstructs member "
         "scores from saved models, DIVIDES THE STORED WEIGHTS BY THEIR SUM and writes the result as prediction files "
@@ -41,10 +45,3 @@ PREDICTION_CONTRACT_TRANSITION_DENIED = MappingProxyType({
         "agreement check is not prediction identity. It re-predicts the quarantine-era run "
         "outputs/rnaseq_pred_write_smoke, the same run whose diagnostic is already historical-execution denied",
 })
-
-#: Operations inside a module that refuse while the module itself stays importable (reason codes as above).
-EXPLANATION_TARGET_MIGRATION_REQUIRED = (
-    "EXPLANATION_TARGET_MIGRATION_REQUIRED (enabled by package 1, set 1b): RunArtifactWriter.save_shap_values "
-    "explained ensemble.meta_learner -- the logistic research candidate -- not the selected convex blend. An "
-    "explanation of another predictor is refused, not written; a valid blend explanation (member-score accounting "
-    "phi_ij = w_j (p_ij - mu_j) with a recorded closure residual) replaces it in set 1b.")

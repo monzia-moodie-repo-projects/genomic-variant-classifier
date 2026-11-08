@@ -1,12 +1,10 @@
 """test_model_insights_agent.py -- Monzia Moodie
-Hermetic tests for the ModelInsightsAgent BaseAgent adapter: dry-run discovers the latest run, writes a report
+Hermetic tests for the ModelInsightsAgent BaseAgent adapter over REAL completed runs (package 1, set 1b): dry-run
+discovers the latest completed run, writes a report
 under a tmp root, and records SharedState; no run artifacts -> 'skipped'; a serious integrity flag emits one
 informational FEATURE_INSTABILITY to TrainingLifecycleAgent; dry-run emits nothing. No real outputs/ or reports/
 are touched (outputs_root + root are tmp).
 """
-import numpy as np
-import pandas as pd
-
 from genomic_variant_classifier.agent_layer.agents.model_insights_agent import (
     ModelInsightsAgent, _SECTION,
 )
@@ -14,22 +12,11 @@ from genomic_variant_classifier.agent_layer.shared_state import SharedState
 
 
 def _write_oof(tmp_path, *, leaky=False, disjoint=True, run="run99"):
-    rd = tmp_path / "outputs" / run / "full"
-    rd.mkdir(parents=True, exist_ok=True)
-    n = 300
-    rng = np.random.default_rng(0)
-    y = (np.arange(n) % 3 == 0).astype(int)
-    if leaky:
-        strong = y * 0.98 + 0.01                       # near-perfect -> AUROC >= 0.99
-    else:
-        strong = np.clip(0.2 * rng.standard_normal(n) + 0.7 * y + 0.15, 0, 1)
-    weak = np.clip(0.4 * rng.standard_normal(n) + 0.5, 0, 1)
-    folds = np.arange(n) % 4
-    genes = [f"SHARED{i % 3}" for i in range(n)] if not disjoint else [f"G{f}_{i}" for i, f in enumerate(folds)]
-    pd.DataFrame({"variant_id": np.arange(n), "gene_symbol": genes, "fold": folds, "label": y,
-                  "strong_prob": strong, "weak_prob": weak, "ensemble_prob": strong}
-                 ).to_parquet(rd / "oof_predictions.parquet")
-    return rd
+    """A REAL completed run (production writer, fitted two-member ensemble). `disjoint=False` fits without gene groups,
+    so the recorded StratifiedKFold folds share genes -- the Run 15 situation the detector must flag."""
+    from tests.unit._run_artifact_support import completed_run
+
+    return completed_run(tmp_path / "outputs" / run / "full", seed=0, leaky=leaky, gene_groups=disjoint)
 
 
 def _agent(tmp_path):
@@ -42,13 +29,23 @@ def test_dry_run_writes_report_and_records_state(tmp_path):
     agent, ss = _agent(tmp_path)
     res = agent.run(dry_run=True)
     assert res["action"] == "model_insights_scan"
-    assert res["models"] >= 3                                   # strong, weak, ensemble
+    assert res["models"] == 2                                   # the two fitted members; no blend row (in-sample)
     reports = list((tmp_path / "reports" / "model_insights").glob("INSIGHTS_*.md"))
     assert len(reports) == 1
     body = reports[0].read_text()
     assert "Per-model metrics" in body and "by MCC" in body and "docs/METRICS.md" in body
     sec = ss.get_section(_SECTION)
     assert sec["ranking_by_mcc"] and sec["run_dir"].endswith("full") and isinstance(sec["metrics"], list)
+
+
+def test_an_incomplete_run_is_listed_and_never_analysed(tmp_path):
+    rd = _write_oof(tmp_path)
+    (rd / "completion_manifest.json").unlink()
+    agent, ss = _agent(tmp_path)
+    res = agent.run(dry_run=True)
+    assert res["action"] == "skipped" and res["reason"] == "no_completed_run"
+    assert [i["run_dir"] for i in res["incomplete_runs"]] == [str(rd)]
+    assert not (tmp_path / "reports").exists()
 
 
 def test_no_run_artifacts_skips(tmp_path):

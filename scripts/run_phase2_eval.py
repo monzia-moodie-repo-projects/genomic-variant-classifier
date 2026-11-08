@@ -4,9 +4,10 @@ scripts/run_phase2_eval.py
 End-to-end Phase 2 evaluation on real ClinVar data.
 
 Exit codes:
-  0  AUROC >= target (default 0.90)
-  1  AUROC < target
-  2  Pipeline error
+  0  AUROC >= target (default 0.90), and the run is COMPLETE (completion_manifest.json written)
+  1  AUROC < target, and the run is COMPLETE
+  2  Pipeline error, a failed identity binding, or a requested deliverable that failed: the outputs written so far
+     stay inspectable, but no completion manifest exists and the run is not completed evidence (package 1, set 1b)
 
 Minimal usage (~15 min):
   python scripts/run_phase2_eval.py
@@ -26,12 +27,12 @@ Full Phase 2 usage (~45-90 min):
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import sys
 import time
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from genomic_variant_classifier.containment import ContainmentError
@@ -309,6 +310,16 @@ def main() -> int:
     outdir = Path(args.output)
     outdir.mkdir(parents=True, exist_ok=True)
 
+    # THE COMPLETION CONTRACT (package 1, set 1b, gate G8). The writer is created FIRST: it retires a completion
+    # manifest left by an earlier run in this directory before anything is rewritten, and at the very end it publishes
+    # a new one only if every required output exists with the bytes measured when it was written. Any failure before
+    # that point leaves the outputs inspectable and the run refused as completed evidence.
+    from genomic_variant_classifier.evaluation.prediction_artifacts import RunArtifactWriter
+
+    writer = RunArtifactWriter(run_id=outdir.parent.name or "phase2", ablation=outdir.name or "full",
+                               output_dir=outdir)
+    deliverable_failures: dict[str, str] = {}
+
     clinvar = Path(args.clinvar)
     if not clinvar.exists():
         logger.error("ClinVar parquet not found: %s", clinvar)
@@ -423,7 +434,11 @@ def main() -> int:
             )
             _seq_win = None
             args.skip_cnn = True
+        # meta_train is read ONCE and kept row-aligned with X_train/y_train/seq_tr through the subsample below
+        # (package 1, set 1b). The GNN, hetero-GNN and unseen-gene-holdout blocks used to re-read the FULL file from
+        # disk, so under --max-train they paired subsampled feature rows with the first N genes of the full split.
         _meta_train_seq = pd.read_parquet(outdir / "splits" / "meta_train.parquet")
+        meta_train = _meta_train_seq
 
         # 2026-07-15 (roadmap 6.28): migrated off the deprecated 2-tuple. This block used
         # to read `seq_tr, _u_tr = attach_delta_windows(...)` and sum the three
@@ -532,15 +547,33 @@ def main() -> int:
                 len(_census["dead"]), len(_census["missing"]),
             )
 
+        # SPLIT IDENTITIES of the splits AS PREPARED (package 1, set 1b, gates G1/G2): computed before the subsample
+        # and before the GNN blocks below rewrite gnn_score in place, so they describe the prepared rows. The full
+        # training split's identity, labels and metadata are kept for the out-of-fold composition.
+        from genomic_variant_classifier.evaluation.split_identity import (
+            SPLIT_UNIT_CONTEXT_SHA256,
+            split_identity,
+            split_observations,
+        )
+
+        train_identity, train_vids = split_identity(X_train, y_train, meta_train, "train")
+        val_identity, val_vids = split_identity(X_val, y_val, meta_val, "val")
+        test_identity, test_vids = split_identity(X_test, y_test, meta, "test")
+        y_train_full, meta_train_full = y_train, meta_train
+
+        subsample_positions = None
         if args.max_train and len(y_train) > args.max_train:
-            idx = (
+            subsample_positions = (
                 pd.Series(range(len(y_train)))
                 .sample(args.max_train, random_state=42)
-                .values
-            )  # .values gives numpy array, required for .iloc
-            X_train = X_train.iloc[idx].reset_index(drop=True)
-            y_train = y_train.iloc[idx].reset_index(drop=True)
-            seq_tr = seq_tr.iloc[idx].reset_index(drop=True)
+                .to_numpy(dtype=np.int64)
+            )
+            # ONE subsample, applied to every row-aligned input: features, labels, the sequence attachment (which
+            # has `subset`, not `iloc` -- `.iloc` raised AttributeError here) and the metadata the gene groups come from.
+            X_train = X_train.iloc[subsample_positions].reset_index(drop=True)
+            y_train = y_train.iloc[subsample_positions].reset_index(drop=True)
+            seq_tr = seq_tr.subset(subsample_positions)
+            meta_train = meta_train.iloc[subsample_positions].reset_index(drop=True)
             logger.info("Subsampled training set to %d", args.max_train)
 
         ens_cfg = EnsembleConfig(
@@ -586,20 +619,19 @@ def main() -> int:
                 )
             # Level 2 (INCIDENT_2026-06-13): thread gene_symbol so the
             # stacking OOF uses gene-disjoint inner CV + per-fold train-only
-            # n_pathogenic_in_gene recompute. Row-aligned with X_train.
-            _meta_tr_path = outdir / "splits" / "meta_train.parquet"
-            _gene_sym = (
-                pd.read_parquet(_meta_tr_path)["gene_symbol"]
-                if _meta_tr_path.exists() else None
-            )
-            ensemble.fit(X_train, seq_tr, y_train, gene_symbol=_gene_sym)
+            # n_pathogenic_in_gene recompute. Row-aligned with X_train (subsampled with it).
+            ensemble.fit(X_train, seq_tr, y_train, gene_symbol=meta_train["gene_symbol"])
             ensemble.save(_ensemble_path)
+        writer.register_external("models/ensemble.joblib")
+        for _member in ensemble.trained_models_:
+            writer.register_external(f"models/ensemble_models/{_member}.joblib")
 
         import joblib
 
         joblib.dump(prep.scaler, outdir / "scaler.joblib")
         _write_model_manifest(outdir / "scaler.joblib")
         logger.info("Scaler saved to %s/scaler.joblib", outdir)
+        writer.register_external("scaler.joblib")
 
         # ── Optional GNN training (5.2) ───────────────────────────────────
         gnn_scorer = None
@@ -639,28 +671,18 @@ def main() -> int:
                 # which DataPrepPipeline now persists alongside the feature matrix.
                 # Previous implementation reloaded X_train.parquet (a 78-col numeric
                 # matrix with NO gene_symbol) and crashed inside build_pyg_dataset.
-                _meta_train_path = outdir / "splits" / "meta_train.parquet"
-                if _meta_train_path.exists():
-                    _meta_train = pd.read_parquet(_meta_train_path)
-                    gnn_df = X_train.copy().reset_index(drop=True)
-                    gnn_df["gene_symbol"] = (
-                        _meta_train["gene_symbol"].fillna("").reset_index(drop=True)
-                    )
-                    gnn_df["acmg_label"] = y_train.values
-                    logger.info(
-                        "[GNN-TRACE] meta_train.parquet sourced gene_symbol "
-                        "(unique_genes=%d, missing=%d)",
-                        gnn_df["gene_symbol"].nunique(),
-                        int((gnn_df["gene_symbol"] == "").sum()),
-                    )
-                else:
-                    logger.warning(
-                        "[GNN-TRACE] meta_train.parquet missing at %s; "
-                        "GNN training cannot proceed (no gene_symbol). "
-                        "Re-run DataPrepPipeline to regenerate splits.",
-                        _meta_train_path,
-                    )
-                    raise FileNotFoundError(_meta_train_path)
+                # The in-memory meta_train, row-aligned with X_train (subsampled with it; set 1b).
+                gnn_df = X_train.copy().reset_index(drop=True)
+                gnn_df["gene_symbol"] = (
+                    meta_train["gene_symbol"].fillna("").reset_index(drop=True)
+                )
+                gnn_df["acmg_label"] = y_train.values
+                logger.info(
+                    "[GNN-TRACE] meta_train sourced gene_symbol "
+                    "(unique_genes=%d, missing=%d)",
+                    gnn_df["gene_symbol"].nunique(),
+                    int((gnn_df["gene_symbol"] == "").sum()),
+                )
 
                 # Resolve STRING DB links file: prefer explicit --string-db path
                 _local_links = (
@@ -812,12 +834,16 @@ def main() -> int:
                     "Install with: pip install torch torch-geometric",
                     exc,
                 )
+                deliverable_failures["gnn"] = f"ImportError: {exc}"
             except Exception as exc:
                 logger.warning(
                     "[GNN-TRACE] generic Exception caught: %s: %s",
                     type(exc).__name__, exc, exc_info=True,
                 )
                 logger.warning("GNN training failed: %s — continuing without GNN.", exc)
+                # Recorded, never masked (set 1b): the run continues so its outputs stay inspectable, but a requested
+                # GNN that failed means the run is NOT completed evidence.
+                deliverable_failures["gnn"] = f"{type(exc).__name__}: {exc}"
         else:
             logger.warning(
                 "[GNN-TRACE] gate-skipped: args.string_db is falsy (%r); "
@@ -856,12 +882,9 @@ def main() -> int:
                     string_graph_to_edges,
                 )
 
-                _ht_meta = outdir / "splits" / "meta_train.parquet"
-                if not _ht_meta.exists():
-                    raise FileNotFoundError(_ht_meta)
-                _ht_mt = pd.read_parquet(_ht_meta)
                 hetero_df = X_train.copy().reset_index(drop=True)
-                hetero_df["gene_symbol"] = _ht_mt["gene_symbol"].fillna("").reset_index(drop=True)
+                # The in-memory meta_train, row-aligned with X_train (subsampled with it; set 1b).
+                hetero_df["gene_symbol"] = meta_train["gene_symbol"].fillna("").reset_index(drop=True)
                 hetero_df["acmg_label"] = y_train.values
 
                 # node features exclude BOTH score columns (no self-feeding)
@@ -976,9 +999,11 @@ def main() -> int:
                 raise   # a quarantine refusal must not become 'continuing without hetero_gnn_score'
             except ImportError as exc:
                 logger.warning("[HETERO-GNN] ImportError: %s -- install torch/torch-geometric; skipping.", exc)
+                deliverable_failures["hetero_gnn"] = f"ImportError: {exc}"
             except Exception as exc:
                 logger.warning("[HETERO-GNN] failed: %s: %s -- continuing without hetero_gnn_score.",
                                type(exc).__name__, exc, exc_info=True)
+                deliverable_failures["hetero_gnn"] = f"{type(exc).__name__}: {exc}"
 
         # Run 10 ordering fix (INCIDENT_2026-05-12_no-per-model-checkpoint
         # and INCIDENT_2026-05-12_oof-blend-vs-locked-test): perform
@@ -988,8 +1013,15 @@ def main() -> int:
         # substitute for held-out test evaluation.
         logger.info("Evaluating ensemble on held-out test + val splits "
                     "(BEFORE save, defensive)")
-        results = ensemble.evaluate(X_test, seq_te, y_test)
-        val_results = ensemble.evaluate(X_val, seq_val, y_val)
+        # ONE BOUND CAPTURE PER SPLIT (package 1, set 1b; gate G4.4): each member is called once per split and the
+        # declared blend applied once; the metric tables, the prediction files, the calibration points and the
+        # member-score attributions are all reductions of these captures. Nothing re-predicts.
+        rows_test = split_observations(test_identity, test_vids, unit_context_sha256=SPLIT_UNIT_CONTEXT_SHA256)
+        rows_val = split_observations(val_identity, val_vids, unit_context_sha256=SPLIT_UNIT_CONTEXT_SHA256)
+        scored_test = ensemble.score_split(X_test, seq_te, rows_test, split_sha256=test_identity.prediction_split_sha256)
+        scored_val = ensemble.score_split(X_val, seq_val, rows_val, split_sha256=val_identity.prediction_split_sha256)
+        results = ensemble.evaluate_scored(scored_test, y_test)
+        val_results = ensemble.evaluate_scored(scored_val, y_val)
 
         # The selected predictor's row (package 1, 2026-11-07): the declared convex blend. The label constant is
         # the one evaluate() writes; the retired literal ENSEMBLE_STACKER named a stacker the row never computed.
@@ -1015,172 +1047,157 @@ def main() -> int:
             "n_features": int(X_train.shape[1]),
         }
 
-        # Flush all scientific artifacts BEFORE save(). If joblib.dump
-        # crashes (Run 9's _CNN1D pickle bug), we still have AUROC numbers
-        # on disk to inform whether to re-launch.
-        (outdir / "metrics.json").write_text(json.dumps(m, indent=2))
-        results.to_csv(outdir / "per_model_metrics.csv")
-        val_results.to_csv(outdir / "per_model_metrics_val.csv")
-        X_test.to_parquet(outdir / "X_test.parquet", index=False)
-        meta.to_parquet(outdir / "meta_test.parquet", index=False)
-        meta_val.to_parquet(outdir / "meta_val.parquet", index=False)
-        _save_feature_importance(ensemble, list(X_train.columns), outdir)
+        # Flush all scientific artifacts BEFORE anything optional. Every file goes through the writer (atomic, strict
+        # JSON, digest measured at write time) so the completion manifest can bind it.
+        writer.save_json("metrics.json", m)
+        writer.save_table_csv("per_model_metrics.csv", results)
+        writer.save_table_csv("per_model_metrics_val.csv", val_results)
+        writer.save_table_parquet("X_test.parquet", X_test)
+        writer.save_table_parquet("meta_test.parquet", meta)
+        writer.save_table_parquet("meta_val.parquet", meta_val)
+        _fi = _feature_importance_frame(ensemble, list(X_train.columns))
+        if _fi is not None:
+            writer.save_table_csv("feature_importance.csv", _fi, index=False)
+        writer.save_split_predictions(scored_test, y_test, meta, role="test")
+        writer.save_split_predictions(scored_val, y_val, meta_val, role="val")
+        writer.save_calibration(scored_test, y_test, meta=meta)
+        writer.save_member_score_attributions(scored_test, background=scored_val)
+
+        # OUT-OF-FOLD ROWS WITH THEIR ORIGINAL TRAINING-SPLIT IDENTITY (gate G2). Composed through the subsample
+        # positions and the ensemble's oof_fit_indices_, verified against the labels the ensemble fitted on. A failed
+        # binding raises: no sequential-index fallback, no warning-and-continue, no completion manifest.
+        from genomic_variant_classifier.evaluation.oof_identity import compose_oof_identity
+
+        writer.save_oof_predictions(compose_oof_identity(
+            ensemble, train=train_identity, vids=train_vids, labels=y_train_full, meta_train=meta_train_full,
+            subsample_positions=subsample_positions))
 
         # PM11b (2026-05-27): Unseen-gene-holdout ablation - C3 hypothesis
         # falsifier (b) per RUN_15_PLAN.md. When --unseen-gene-holdout is set,
         # retrain the ensemble on a gene-stratified subset of training data and
         # evaluate on held-out genes. AUROC under 0.95 falsifies the claim that
         # Run 15's enhancements reflect genuine generalization rather than
-        # gene-prevalence memorization. Wrapped in try/except so an ablation
-        # failure never compromises the main run's persisted metrics.
+        # gene-prevalence memorization. Since set 1b a failure is NOT downgraded to a warning: every main output is
+        # already on disk (above), the exception propagates, and the run is not completed evidence.
+        ugh_required: list[str] = []
         if getattr(args, "unseen_gene_holdout", False):
             logger.info("[UGH] --unseen-gene-holdout set: running ablation post-training")
-            try:
-                from genomic_variant_classifier.data.splits import (
-                    unseen_gene_holdout_split,
-                )
+            from genomic_variant_classifier.data.splits import (
+                unseen_gene_holdout_split,
+            )
 
-                _meta_train_path = outdir / "splits" / "meta_train.parquet"
-                if not _meta_train_path.exists():
-                    raise FileNotFoundError(
-                        f"unseen_gene_holdout requires {_meta_train_path}; "
-                        "ensure DataPrepPipeline persists meta_train (Patch 6b, "
-                        "INCIDENT_2026-04-30, closed PM11a)."
-                    )
-                _meta_train_ugh = pd.read_parquet(_meta_train_path)
+            # The in-memory meta_train, row-aligned with X_train (subsampled with it; set 1b).
+            _meta_train_ugh = meta_train
+            sub_train_idx, holdout_idx = unseen_gene_holdout_split(
+                _meta_train_ugh, holdout_frac=0.2, seed=42, gene_col="gene_symbol"
+            )
+            n_train_genes = int(
+                _meta_train_ugh.iloc[sub_train_idx]["gene_symbol"].nunique()
+            )
+            n_holdout_genes = int(
+                _meta_train_ugh.iloc[holdout_idx]["gene_symbol"].nunique()
+            )
+            logger.info(
+                "[UGH] split: %d train rows (%d genes) / %d holdout rows (%d genes)",
+                len(sub_train_idx), n_train_genes, len(holdout_idx), n_holdout_genes,
+            )
 
-                sub_train_idx, holdout_idx = unseen_gene_holdout_split(
-                    _meta_train_ugh, holdout_frac=0.2, seed=42, gene_col="gene_symbol"
-                )
-                n_train_genes = int(
-                    _meta_train_ugh.iloc[sub_train_idx]["gene_symbol"].nunique()
-                )
-                n_holdout_genes = int(
-                    _meta_train_ugh.iloc[holdout_idx]["gene_symbol"].nunique()
-                )
-                logger.info(
-                    "[UGH] split: %d train rows (%d genes) / %d holdout rows (%d genes)",
-                    len(sub_train_idx), n_train_genes, len(holdout_idx), n_holdout_genes,
-                )
+            X_train_ugh = X_train.iloc[sub_train_idx].reset_index(drop=True)
+            y_train_ugh = y_train.iloc[sub_train_idx].reset_index(drop=True)
+            seq_tr_ugh = seq_tr.subset(sub_train_idx)
+            X_holdout = X_train.iloc[holdout_idx].reset_index(drop=True)
+            y_holdout = y_train.iloc[holdout_idx].reset_index(drop=True)
+            seq_holdout = seq_tr.subset(holdout_idx)
 
-                X_train_ugh = X_train.iloc[sub_train_idx].reset_index(drop=True)
-                y_train_ugh = y_train.iloc[sub_train_idx].reset_index(drop=True)
-                seq_tr_ugh = seq_tr.subset(sub_train_idx)
-                X_holdout = X_train.iloc[holdout_idx].reset_index(drop=True)
-                y_holdout = y_train.iloc[holdout_idx].reset_index(drop=True)
-                seq_holdout = seq_tr.subset(holdout_idx)
+            ens_cfg_ugh = EnsembleConfig(
+                n_folds=args.n_folds,
+                model_dir=outdir / "models_unseen_gene_holdout",
+                skip_kan=args.skip_kan,
+            )
+            ensemble_ugh = VariantEnsemble(ens_cfg_ugh)
 
-                ens_cfg_ugh = EnsembleConfig(
-                    n_folds=args.n_folds,
-                    model_dir=outdir / "models_unseen_gene_holdout",
-                    skip_kan=args.skip_kan,
-                )
-                ensemble_ugh = VariantEnsemble(ens_cfg_ugh)
+            # Mirror the main ensemble's model-removal logic for a fair compare.
+            if args.skip_nn:
+                ensemble_ugh.base_estimators.pop("cnn_1d", None)
+                ensemble_ugh.base_estimators.pop("tabular_nn", None)
+            if getattr(args, "skip_cnn", False) and not args.skip_nn:
+                ensemble_ugh.base_estimators.pop("cnn_1d", None)
+            if args.skip_kan:
+                ensemble_ugh.base_estimators.pop("kan", None)
+            if args.skip_svm:
+                ensemble_ugh.base_estimators.pop("svm", None)
+                ensemble_ugh.base_estimators.pop("svm_bagged_rbf", None)
 
-                # Mirror the main ensemble's model-removal logic for a fair compare.
-                if args.skip_nn:
-                    ensemble_ugh.base_estimators.pop("cnn_1d", None)
-                    ensemble_ugh.base_estimators.pop("tabular_nn", None)
-                if getattr(args, "skip_cnn", False) and not args.skip_nn:
-                    ensemble_ugh.base_estimators.pop("cnn_1d", None)
-                if args.skip_kan:
-                    ensemble_ugh.base_estimators.pop("kan", None)
-                if args.skip_svm:
-                    ensemble_ugh.base_estimators.pop("svm", None)
-                    ensemble_ugh.base_estimators.pop("svm_bagged_rbf", None)
+            t0_ugh = time.perf_counter()
+            logger.info("[UGH] training ensemble on %d samples", len(y_train_ugh))
+            # gene_symbol is passed (set 1b), as for the main ensemble: the calibration carve and inner folds are
+            # gene-disjoint inside the holdout experiment too.
+            ensemble_ugh.fit(X_train_ugh, seq_tr_ugh, y_train_ugh,
+                             gene_symbol=_meta_train_ugh.iloc[sub_train_idx]["gene_symbol"].reset_index(drop=True))
+            elapsed_ugh = time.perf_counter() - t0_ugh
+            logger.info("[UGH] training done in %.2fs", elapsed_ugh)
 
-                t0_ugh = time.perf_counter()
-                logger.info("[UGH] training ensemble on %d samples", len(y_train_ugh))
-                ensemble_ugh.fit(X_train_ugh, seq_tr_ugh, y_train_ugh)
-                elapsed_ugh = time.perf_counter() - t0_ugh
-                logger.info("[UGH] training done in %.2fs", elapsed_ugh)
+            ugh_results = ensemble_ugh.evaluate(X_holdout, seq_holdout, y_holdout)
+            ugh_row = ugh_results.loc[SELECTED_ENSEMBLE_ROW]
 
-                ugh_results = ensemble_ugh.evaluate(X_holdout, seq_holdout, y_holdout)
-                from genomic_variant_classifier.models.variant_ensemble import SELECTED_ENSEMBLE_ROW
-                ugh_row = ugh_results.loc[SELECTED_ENSEMBLE_ROW]
+            m_ugh = {
+                "auroc": float(ugh_row["auroc"]),
+                "auprc": float(ugh_row["auprc"]),
+                "f1": float(ugh_row["f1_macro"]),
+                "mcc": float(ugh_row["mcc"]),
+                "brier": float(ugh_row["brier"]),
+                "n_holdout": int(len(y_holdout)),
+                "n_train_subset": int(len(y_train_ugh)),
+                "n_train_genes": n_train_genes,
+                "n_holdout_genes": n_holdout_genes,
+                "holdout_frac_actual": float(
+                    len(y_holdout) / (len(y_holdout) + len(y_train_ugh))
+                ),
+                "seed": 42,
+                "elapsed_seconds": elapsed_ugh,
+            }
+            writer.save_json("unseen_gene_holdout_metrics.json", m_ugh)
+            writer.save_table_csv("unseen_gene_holdout_per_model.csv", ugh_results)
+            ugh_required = ["unseen_gene_holdout_metrics.json", "unseen_gene_holdout_per_model.csv"]
+            logger.info(
+                "[UGH] DONE. Selected convex blend AUROC=%.4f on %d-sample (%d-gene) holdout",
+                m_ugh["auroc"], len(y_holdout), n_holdout_genes,
+            )
+            logger.info(
+                "[UGH] C3 falsifier (b) %s: AUROC %.4f vs 0.95 threshold",
+                "PASS" if m_ugh["auroc"] >= 0.95 else "FAIL",
+                m_ugh["auroc"],
+            )
 
-                m_ugh = {
-                    "auroc": float(ugh_row["auroc"]),
-                    "auprc": float(ugh_row["auprc"]),
-                    "f1": float(ugh_row["f1_macro"]),
-                    "mcc": float(ugh_row["mcc"]),
-                    "brier": float(ugh_row["brier"]),
-                    "n_holdout": int(len(y_holdout)),
-                    "n_train_subset": int(len(y_train_ugh)),
-                    "n_train_genes": n_train_genes,
-                    "n_holdout_genes": n_holdout_genes,
-                    "holdout_frac_actual": float(
-                        len(y_holdout) / (len(y_holdout) + len(y_train_ugh))
-                    ),
-                    "seed": 42,
-                    "elapsed_seconds": elapsed_ugh,
-                }
-                (outdir / "unseen_gene_holdout_metrics.json").write_text(
-                    json.dumps(m_ugh, indent=2)
-                )
-                ugh_results.to_csv(outdir / "unseen_gene_holdout_per_model.csv")
-                logger.info(
-                    "[UGH] DONE. Selected convex blend AUROC=%.4f on %d-sample (%d-gene) holdout",
-                    m_ugh["auroc"], len(y_holdout), n_holdout_genes,
-                )
-                logger.info(
-                    "[UGH] C3 falsifier (b) %s: AUROC %.4f vs 0.95 threshold",
-                    "PASS" if m_ugh["auroc"] >= 0.95 else "FAIL",
-                    m_ugh["auroc"],
-                )
-            except ContainmentError:
-                raise   # a quarantine refusal is not an optional-ablation failure
-            except Exception as exc:
-                logger.warning(
-                    "[UGH] unseen-gene-holdout ablation FAILED: %s - main results unchanged.",
-                    exc,
-                    exc_info=True,
-                )
-
-        # OOF predictions for downstream ablation tooling. Already on
-        # ensemble.oof_predictions_ but pinning to parquet decouples
-        # ablation harnesses from joblib reload success.
-        try:
-            import numpy as _np  # noqa: F811
-            _oof   = getattr(ensemble, "oof_predictions_", None)
-            _names = getattr(ensemble, "oof_model_names_", None)
-            if _oof is not None and _names is not None:
-                _oof_df = pd.DataFrame(_oof, columns=list(_names))
-                # Persist training row indices so downstream meta-learner
-                # reconstruction aligns OOF rows to meta_train.parquet
-                # even when --max-train subsampling is active (F-13).
-                if args.max_train and len(y_train) == args.max_train:
-                    if len(idx) == len(_oof_df):
-                        _oof_df.insert(0, "_train_row_idx", idx)
-                    else:
-                        # Length mismatch: VariantEnsemble stores a
-                        # subset of OOF rows (e.g. stacker training split).
-                        # Fall back to sequential indices within oof_df.
-                        logger.warning(
-                            "OOF idx length mismatch: idx=%d oof=%d "
-                            "-- using sequential indices (subsampled "
-                            "minitest run; does not affect Run 15 "
-                            "where max_train is not set).",
-                            len(idx), len(_oof_df),
-                        )
-                        _oof_df.insert(
-                            0, "_train_row_idx",
-                            _np.arange(len(_oof_df), dtype=_np.int64),
-                        )
-                else:
-                    _oof_df.insert(
-                        0, "_train_row_idx",
-                        _np.arange(len(_oof_df), dtype=_np.int64),
-                    )
-                _oof_df.to_parquet(outdir / "oof_predictions.parquet",
-                                   index=False)
-                logger.info(
-                    "OOF predictions flushed to %s/oof_predictions.parquet "
-                    "(shape=%s, _train_row_idx included)",
-                    outdir, _oof_df.shape,
-                )
-        except Exception as _exc:
-            logger.warning("Could not flush OOF predictions: %s", _exc)
+        # ── Completion (gate G8): published LAST, only when nothing requested is missing or failed ──────────────
+        for _name in ("X_train", "X_val", "X_test", "y_train", "y_val", "y_test", "meta_train", "meta_val",
+                      "meta_test"):
+            if (outdir / "splits" / f"{_name}.parquet").is_file():
+                writer.register_external(f"splits/{_name}.parquet")
+        for _gnn_file in ("models/gnn_model.joblib", "models/gnn_scorer.joblib", "models/hetero_gnn_scorer.joblib"):
+            if (outdir / _gnn_file).is_file():
+                writer.register_external(_gnn_file)
+        if deliverable_failures:
+            logger.error(
+                "Requested deliverable(s) FAILED: %s. Every output above is on disk and inspectable, but no "
+                "completion manifest is written: this run is not completed evidence.", deliverable_failures)
+            return 2
+        required = ["metrics.json", "per_model_metrics.csv", "per_model_metrics_val.csv", "X_test.parquet",
+                    "meta_test.parquet", "meta_val.parquet", "test_predictions.parquet", "test_prediction_blocks.json",
+                    "val_predictions.parquet", "val_prediction_blocks.json", "calibration_points.parquet",
+                    "member_score_attributions.parquet", "member_score_attributions.json",
+                    "oof_predictions.parquet", "oof_identity.json", "scaler.joblib", "models/ensemble.joblib",
+                    *ugh_required]
+        writer.complete(required, deliverables={
+            "gnn": {"status": "complete" if args.string_db else "not_requested"},
+            "hetero_gnn": {"status": "complete" if getattr(args, "hetero_gnn", False) else "not_requested"},
+            "unseen_gene_holdout": {"status": "complete" if ugh_required else "not_requested"},
+            "feature_importance_csv": {"status": "complete" if _fi is not None else "unavailable",
+                                       **({} if _fi is not None else {"reason": "no member exposes "
+                                                                      "feature_importances_"})},
+            "feature_level_explanation": {"status": "unavailable",
+                                          "reason_code": "FEATURE_LEVEL_EXPLANATION_UNAVAILABLE"},
+        }, extra={"selected_row": SELECTED_ENSEMBLE_ROW, "max_train": args.max_train})
 
         auroc = m["auroc"]
         val_auroc = m["val_auroc"]
@@ -1218,7 +1235,9 @@ def main() -> int:
         return 2
 
 
-def _save_feature_importance(ensemble, feature_names: list[str], outdir: Path) -> None:
+def _feature_importance_frame(ensemble, feature_names: list[str]) -> "pd.DataFrame | None":
+    """The mean of the members' own `feature_importances_` (split-count style; not a permutation estimate), or None
+    when no member exposes one. Written by the caller through the run's artefact writer (set 1b)."""
     imps = {}
     for name, model in ensemble.trained_models_.items():
         base = getattr(model, "_base", getattr(model, "base_estimator", model))
@@ -1228,7 +1247,7 @@ def _save_feature_importance(ensemble, feature_names: list[str], outdir: Path) -
                 fi = fi()
             imps[name] = list(fi)
     if not imps:
-        return
+        return None
     avg = (
         pd.DataFrame(imps, index=feature_names)
         .mean(axis=1)
@@ -1236,10 +1255,10 @@ def _save_feature_importance(ensemble, feature_names: list[str], outdir: Path) -
         .reset_index()
         .rename(columns={"index": "feature", 0: "mean_importance"})
     )
-    avg.to_csv(outdir / "feature_importance.csv", index=False)
     logger.info("Top 10 features:")
     for _, row in avg.head(10).iterrows():
         logger.info("  %-35s  %.4f", row["feature"], row["mean_importance"])
+    return avg
 
 
 if __name__ == "__main__":

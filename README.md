@@ -5,7 +5,7 @@
 [![Tabular features](https://img.shields.io/badge/tabular%20features-91-blue.svg)]()
 [![Base models](https://img.shields.io/badge/base%20models-13-blue.svg)]()
 [![Agents](https://img.shields.io/badge/autonomous%20agents-22-blueviolet.svg)]()
-[![Tests](https://img.shields.io/badge/tests-8875-success.svg)]()
+[![Tests](https://img.shields.io/badge/tests-8922-success.svg)]()
 [![Status](https://img.shields.io/badge/status-active%20development-orange.svg)]()
 
 A multi-modal machine learning system built toward the five-tier clinical classification of
@@ -117,6 +117,13 @@ The ensemble's composition is written into the run artifacts, so *which models a
 trained* is a recorded fact: a base model whose out-of-fold step fails raises rather than
 quietly leaving the roster. The Graph Attention Network is deliberately absent from this
 table — it contributes the `gnn_score` feature and produces no out-of-fold column.
+
+A run is **complete evidence only when its `completion_manifest.json` verifies** (package 1, set 1b): the manifest is
+written last, binds every output by SHA-256, names the selected predictor and the prediction blocks it produced, and is
+re-measured by every consumer (`prediction_artifacts.verify_completed_run`). Out-of-fold predictions carry their original
+training-split row, fold, label and unit identities, composed through any subsample and verified against the labels the
+ensemble was fitted on; predictions, calibration points and the blend's member-score attributions are all reduced from one
+bound capture of each split.
 
 ---
 

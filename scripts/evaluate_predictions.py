@@ -70,7 +70,9 @@ from genomic_variant_classifier.evaluation.metrics import (
 )
 
 LABEL_CANDIDATES = ("label", "y", "y_true", "target", "is_pathogenic")
-SCORE_CANDIDATES = ("ensemble_prob", "ensemble_proba", "proba", "prediction", "y_proba")
+# `selected_score` first: since package 1, set 1b (2026-11-08) a test_predictions.parquet carries the selected convex
+# blend under that name, from the same bound capture as its member columns. Older files carry `ensemble_prob`.
+SCORE_CANDIDATES = ("selected_score", "ensemble_prob", "ensemble_proba", "proba", "prediction", "y_proba")
 
 PANEL = ["n", "n_pos", "pos_rate", "auroc", "auprc", "auprc_no_skill", "auprc_lift",
          "brier", "ece", "cal_slope", "cal_intercept", "calibration_valid"]

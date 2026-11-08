@@ -1,5 +1,9 @@
-"""Package 1, set 1a transition dispositions: every affected, reachable operation is correct or explicitly refused.
+"""Package 1 transition dispositions: every affected, reachable operation is correct or explicitly refused.
 Author: Monzia Moodie
+
+Set 1b (2026-11-08) removed two set-1a refusals TOGETHER with their migrations: scripts/run9_ablations.py now runs on one
+bound capture per split and publishes a completion manifest, and RunArtifactWriter.save_shap_values is retired in
+favour of the selected predictor's member-score attributions (a feature-level explanation is a standing refusal).
 
 Owner ruling of 2026-11-07 (decision 38f15c7a). Each refusal test makes the forbidden downstream effects observable
 -- model-library imports, explanation construction, file creation -- and asserts both the refusal and their absence.
@@ -20,24 +24,21 @@ import pytest
 
 from genomic_variant_classifier.containment import ContainmentError
 from genomic_variant_classifier.quarantine_policy import HISTORICAL_EXECUTION_DENIED
-from genomic_variant_classifier.transition_policy import (
-    EXPLANATION_TARGET_MIGRATION_REQUIRED,
-    PREDICTION_CONTRACT_TRANSITION_DENIED,
-)
+from genomic_variant_classifier.prediction_contract import ContractError
+from genomic_variant_classifier.transition_policy import PREDICTION_CONTRACT_TRANSITION_DENIED
 
 REPO = Path(__file__).resolve().parents[2]
 
 
-def test_the_transition_denials_are_exactly_the_reviewed_three_and_carry_reason_codes():
+def test_the_transition_denials_are_exactly_the_two_left_for_set_1c_and_carry_reason_codes():
     assert dict(PREDICTION_CONTRACT_TRANSITION_DENIED).keys() == {
-        "scripts/calibrate_thresholds.py", "scripts/run9_ablations.py",
-        "scripts/export_phase2_predictions_from_saved_models.py"}
+        "scripts/calibrate_thresholds.py", "scripts/export_phase2_predictions_from_saved_models.py"}
     assert PREDICTION_CONTRACT_TRANSITION_DENIED["scripts/export_phase2_predictions_from_saved_models.py"].startswith(
         "SCORE_RECONSTRUCTION_REFUSED (disposition decided in package 1, set 1c)")
     assert PREDICTION_CONTRACT_TRANSITION_DENIED["scripts/calibrate_thresholds.py"].startswith(
         "THRESHOLD_CONSUMER_MIGRATION_REQUIRED (enabled by package 1, set 1c)")
-    assert PREDICTION_CONTRACT_TRANSITION_DENIED["scripts/run9_ablations.py"].startswith(
-        "ABLATION_WRITER_MIGRATION_REQUIRED (enabled by package 1, set 1b)")
+    import genomic_variant_classifier.transition_policy as policy
+    assert not hasattr(policy, "EXPLANATION_TARGET_MIGRATION_REQUIRED"), "the 1b migration removes the constant"
     with pytest.raises(TypeError):
         PREDICTION_CONTRACT_TRANSITION_DENIED["scripts/x.py"] = "y"          # read-only policy
 
@@ -95,9 +96,11 @@ def test_the_threshold_helpers_cannot_be_imported_around_the_refusal():
     assert "calibrate_thresholds" not in sys.modules
 
 
-def test_the_shap_writer_refuses_before_importing_shap_or_writing(tmp_path, monkeypatch):
-    """The writer explained ensemble.meta_learner (the logistic research candidate). It must refuse before SHAP is
-    imported, before the stacker is touched, and before any file appears."""
+def test_the_retired_shap_writer_refuses_before_importing_shap_or_writing(tmp_path, monkeypatch):
+    """save_shap_values explained ensemble.meta_learner (the logistic research candidate). Set 1b retires it: it refuses
+    with the standing feature-level reason before SHAP is imported, before any ensemble is touched, and before any file
+    appears; the selected predictor's explanation is save_member_score_attributions."""
+    from genomic_variant_classifier.evaluation.blend_attribution import FEATURE_LEVEL_EXPLANATION_UNAVAILABLE
     from genomic_variant_classifier.evaluation.prediction_artifacts import RunArtifactWriter
 
     monkeypatch.setitem(sys.modules, "shap", None)        # importing shap would raise ImportError, not refuse
@@ -107,26 +110,38 @@ def test_the_shap_writer_refuses_before_importing_shap_or_writing(tmp_path, monk
         def meta_learner(self):
             raise AssertionError("the logistic stacker was touched")
 
-    writer = RunArtifactWriter.__new__(RunArtifactWriter)
-    writer.output_dir = tmp_path
-    with pytest.raises(ContainmentError) as refused:
+    writer = RunArtifactWriter(run_id="r", ablation="a", output_dir=tmp_path)
+    with pytest.raises(ContractError) as refused:
         writer.save_shap_values(_Ensemble(), {"lightgbm": np.zeros(3)}, pd.DataFrame({"variant_id": list("abc")}))
-    assert str(refused.value) == EXPLANATION_TARGET_MIGRATION_REQUIRED
+    assert FEATURE_LEVEL_EXPLANATION_UNAVAILABLE in str(refused.value)
+    assert "retired" in str(refused.value)
     assert list(tmp_path.iterdir()) == []
 
 
-def test_the_ablation_caller_propagates_a_refusal_through_its_broad_handler():
-    """run9_ablations wrapped save_shap_values in `except Exception: logger.error(...)`, which would have turned the
-    refusal into a log line and a run that looked complete. The ContainmentError clause must come first and
-    re-raise. (The script is itself refused at import in set 1a; this guards the code set 1b re-enables.)"""
-    tree = ast.parse((REPO / "scripts/run9_ablations.py").read_text(encoding="utf-8"))
-    tries = [n for n in ast.walk(tree) if isinstance(n, ast.Try)
-             and "save_shap_values" in ast.unparse(n.body[0]) if n.body]
-    assert len(tries) == 1, len(tries)
-    handlers = tries[0].handlers
-    assert ast.unparse(handlers[0].type) == "ContainmentError"
-    assert isinstance(handlers[0].body[0], ast.Raise) and handlers[0].body[0].exc is None
-    assert ast.unparse(handlers[1].type) == "Exception"
+def test_the_ablation_harness_is_enabled_and_its_deliverables_are_never_swallowed():
+    """Set 1b removes run9_ablations' transition guard together with its migration. Its requested deliverables run
+    OUTSIDE any handler: a failure propagates, no completion manifest is written, and no broad `except Exception`
+    remains in main() to turn a failure into a log line and a run that looks complete (owner ruling 2026-11-07)."""
+    source = (REPO / "scripts/run9_ablations.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    assert "require_execution_permitted" not in source
+    main = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "main")
+    handlers = [h for t in ast.walk(main) if isinstance(t, ast.Try) for h in t.handlers]
+    assert handlers == [], [ast.unparse(h.type) for h in handlers if h.type is not None]
+    calls = {ast.unparse(n.func) for n in ast.walk(main) if isinstance(n, ast.Call)}
+    for needed in ("writer.save_member_score_attributions", "writer.save_permutation_importance",
+                   "ensemble.score_split", "compose_oof_identity", "writer.complete", "preflight"):
+        assert needed in calls, needed
+    assert "writer.save_shap_values" not in calls
+
+
+def test_the_ablation_harness_help_runs_without_a_refusal(tmp_path):
+    env = {**os.environ, "PYTHONPATH": str(REPO / "src"), "PYTHONDONTWRITEBYTECODE": "1"}
+    r = subprocess.run([sys.executable, str(REPO / "scripts/run9_ablations.py"), "--help"], cwd=tmp_path, env=env,
+                       capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "--skip-attributions" in r.stdout and "Execution denied" not in r.stdout + r.stderr
+    assert list(tmp_path.iterdir()) == []
 
 
 @pytest.mark.parametrize("record", [

@@ -9,7 +9,7 @@ D.1 correctness fixes:
   - F-02/F-03  _assert_clean_cohort: null alleles, dup IDs, missing key cols
   - F-05       run_phase2_eval auto-skip CNN when seq-windows absent
   - F-08       evaluation package import (prediction_artifacts)
-  - F-13       OOF sidecar includes _train_row_idx
+  - F-13       OOF sidecar includes _train_row_idx (superseded in package 1, set 1b: composed, verified identity)
 
 D.2 science additions:
   - splits.py  unseen_gene_holdout_split: disjointness, both-class gate,
@@ -452,34 +452,39 @@ class TestRecomputeNpig:
 
 class TestRunArtifactWriter:
 
-    def test_oof_includes_row_index_when_provided(self, tmp_path):
+    def test_oof_requires_its_composed_training_row_identity(self, tmp_path):
+        """F-13, superseded in package 1, set 1b: the `_train_row_idx` this test once described was a POSITION over
+        the ensemble's fit subset, not a training row (Run 15: joined as a row number it gives AUROC 0.4995). The
+        writer now accepts only an OOFIdentity, composed and label-verified by evaluation.oof_identity; the real
+        identity tests run on a fitted ensemble in test_prediction_contract_1b.py."""
         from genomic_variant_classifier.evaluation.prediction_artifacts import (
             RunArtifactWriter,
         )
+        from genomic_variant_classifier.prediction_contract import ContractError
         writer = RunArtifactWriter(
             run_id="test_run", ablation="full", output_dir=tmp_path
         )
         oof    = pd.DataFrame({
+            "_train_row_idx": [0, 1, 2],
             "variant_id": ["v1", "v2", "v3"],
             "fold":        [0, 1, 2],
             "label":       [0, 1, 0],
             "catboost_prob": [0.1, 0.9, 0.4],
         })
-        path = writer.save_oof_predictions(oof)
-        df   = pd.read_parquet(path)
-        assert len(df) == 3
-        assert "label" in df.columns
-        assert "catboost_prob" in df.columns
+        with pytest.raises(ContractError, match="OOFIdentity"):
+            writer.save_oof_predictions(oof)
+        assert not (tmp_path / "oof_predictions.parquet").exists()
 
     def test_oof_missing_required_cols_raises(self, tmp_path):
         from genomic_variant_classifier.evaluation.prediction_artifacts import (
             RunArtifactWriter,
         )
+        from genomic_variant_classifier.prediction_contract import ContractError
         writer = RunArtifactWriter(
             run_id="test_run", ablation="full", output_dir=tmp_path
         )
         bad_oof = pd.DataFrame({"some_col": [1, 2, 3]})
-        with pytest.raises(ValueError, match="missing required cols"):
+        with pytest.raises(ContractError, match="no verified training-row identity"):
             writer.save_oof_predictions(bad_oof)
 
     def test_save_manifest_writes_valid_json(self, tmp_path):

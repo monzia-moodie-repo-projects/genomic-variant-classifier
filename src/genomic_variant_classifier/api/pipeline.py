@@ -50,7 +50,10 @@ from genomic_variant_classifier.containment import (
 from genomic_variant_classifier.models.combiner import (
     BLEND_KERNEL,
     ConvexBlendSpec,
+    SELECTED_PREDICTOR_SCOPE,
     MemberSlot,
+    member_draw_schedule,
+    member_modalities,
     require_supported_modalities,
     score_once,
 )
@@ -65,10 +68,10 @@ from genomic_variant_classifier.prediction_contract import (
     ObservationSet,
     ProbabilityBlock,
     Quantity,
-    ScientificScope,
     binary_entropy,
     canonical_digest,
     positive_column,
+    variant_identity_of,
 )
 from genomic_variant_classifier.quarantine_policy import QUARANTINED_FEATURES
 
@@ -90,22 +93,9 @@ INFERENCE_FEATURE_COLUMNS: list[str] = list(TABULAR_FEATURES)
 #: What this process can supply to a member: the rendered tabular matrix. No sequence windows exist at serving time.
 SERVING_MODALITIES: frozenset = frozenset({"tabular"})
 
-#: What each fitted member consumes. Every member not named here consumes the tabular matrix.
-_MEMBER_MODALITIES: dict[str, frozenset] = {"cnn_1d": frozenset({"sequence_windows"})}
-
-#: References to the authoritative definitions of the task, the method and the numerical policy (not restatements).
-SERVING_SCOPE = ScientificScope(
-    task_sha256=canonical_digest("gvc.task.v1", {
-        "endpoint": "binary_pathogenicity_probability_of_a_submitted_variant",
-        "classes": [0, 1], "positive_class": 1,
-        "label_definition": "the training label column of the fitted ensemble; defined by its training run"}),
-    method_sha256=canonical_digest("gvc.method.v1", {
-        "combiner": "convex_probability_blend", "kernel": BLEND_KERNEL,
-        "members": "full_fitted_roster_in_fitted_order", "member_stage": "as_fitted_and_served"}),
-    numerical_policy_sha256=canonical_digest("gvc.numerical-policy.v1", {
-        "storage": "little_endian_binary64", "row_sum_atol": 1e-7, "weight_mass_atol": 1e-12,
-        "clipping": "forbidden", "units": ["nats", "probability_squared"], "variance_ddof": 0}),
-)
+#: The selected predictor's scope and each member's modalities: ONE definition each, in models/combiner.py (moved there
+#: unchanged in package 1, set 1b, so the offline split scorer binds the same combiner identity serving does).
+SERVING_SCOPE = SELECTED_PREDICTOR_SCOPE
 
 _UNIT_CONTEXT_SHA256 = canonical_digest("gvc.unit-context.v1", {
     "unit": "one_pathogenicity_prediction_per_submitted_row", "positive_class": 1})
@@ -115,10 +105,6 @@ _COMBINER_EXECUTION_SHA256 = canonical_digest("gvc.combiner-execution-adapter.v1
 _RESULT_DRAW_ID = "selected_convex_blend"
 _WEIGHTED_DIAGNOSTIC_UNAVAILABLE = (
     "weighted_mixture_kernel_not_yet_qualified_against_the_800_digit_oracle")
-
-
-def member_modalities(names) -> dict[str, frozenset]:
-    return {name: _MEMBER_MODALITIES.get(name, frozenset({"tabular"})) for name in names}
 
 
 # ---------------------------------------------------------------------------
@@ -203,10 +189,7 @@ def _json_value(value: Any) -> Any:
 
 
 def _variant_identity(record: Mapping[str, Any]) -> str:
-    parts = [record.get(k) for k in ("chrom", "pos", "ref", "alt")]
-    if any(p is None or p == "" for p in parts):
-        return "unidentified_variant"
-    return ":".join(str(p) for p in parts)
+    return variant_identity_of(record)   # one definition (prediction_contract), shared with the training writers
 
 
 def rows_from_frame(df: pd.DataFrame) -> ObservationSet:
@@ -544,12 +527,7 @@ class InferencePipeline:
     # ------------------------------------------------------------------
 
     def _member_schedule(self, name: str, model: Any) -> Any:
-        if hasattr(model, "draw_seeds") and getattr(model, "_supports_mc", False):
-            return {"mechanism": "mc_dropout_mean", "seeds": model.draw_seeds()}
-        if hasattr(model, "members_"):
-            return {"mechanism": "fitted_ensemble_mean",
-                    "member_seeds": list(getattr(model, "member_seeds_", ["unrecorded"]))}
-        return {"mechanism": "deterministic_single_evaluation"}
+        return member_draw_schedule(name, model)   # one definition (combiner), shared with the offline split scorer
 
     def score(self, df: pd.DataFrame) -> ScoredBatch:
         """Render once, call each member once, apply the declared blend once; every payload identity-bound."""
