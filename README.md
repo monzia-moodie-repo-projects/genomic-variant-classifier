@@ -5,7 +5,7 @@
 [![Tabular features](https://img.shields.io/badge/tabular%20features-91-blue.svg)]()
 [![Base models](https://img.shields.io/badge/base%20models-13-blue.svg)]()
 [![Agents](https://img.shields.io/badge/autonomous%20agents-22-blueviolet.svg)]()
-[![Tests](https://img.shields.io/badge/tests-8959-success.svg)]()
+[![Tests](https://img.shields.io/badge/tests-9016-success.svg)]()
 [![Status](https://img.shields.io/badge/status-active%20development-orange.svg)]()
 
 A multi-modal machine learning system built toward the five-tier clinical classification of
@@ -45,9 +45,15 @@ reinforce one another:
 
 Three constraints follow and are treated as first-class engineering concerns: every base
 model sees **identical folds, features and splits**, so differences are attributable to the
-algorithms; splits are **gene-disjoint**, so scoring well only on catalogued variants in
+algorithms; splits are meant to be **gene-disjoint**, so scoring well only on catalogued variants in
 catalogued genes does not count as solving the problem; and *"I do not know"* is a
 **calibrated, auditable output** rather than a probability loitering near 0.5.
+
+The splits are not yet gene-disjoint in fact: they group rows by gene-symbol STRING, and a
+string naming several genes is a different group from a string naming one of them. MEASURED
+2026-11-08 on Run 15: 19.60% of its test rows and 15.66% of its validation rows share a gene
+with a training string (`docs/claims/`). Grouping by gene is Package 1D work
+(GENE-IDENTITY-SPLIT-1, open).
 
 ---
 
@@ -261,14 +267,23 @@ targets.
 
 ## Early results
 
-**Preliminary, and an early waypoint rather than a result.** The Run 15 baseline (sealed
-2026-06-09, commit `032a2ab`) reported a test AUROC of **0.9984** on gene-stratified,
-expert-reviewed ClinVar variants, with a comparable unseen-gene-holdout figure.
+**No valid performance result yet.** The Run 15 baseline (sealed 2026-06-09, commit
+`032a2ab`) reported a test AUROC of 0.9984 on expert-reviewed ClinVar variants grouped by
+gene-symbol string, with a comparable unseen-gene-holdout figure. Both evaluations are
+**INVALIDATED_EVALUATION** (claims `run15.test.ensemble_evaluation`,
+`run15.validation.ensemble_evaluation` and `run15.c3.unseen_gene_generalization`, owner ruling
+2026-11-08): MEASURED on the run's own files, every evaluated row's gene-count feature equals the
+pathogenic labels of the evaluated rows of its gene, its own label included (0 mismatches over
+304,711 test, 146,329 validation and 213,436 holdout rows), the strings shared genes with
+training, and the holdout's graph-network scores were trained on its labels. The numbers are
+kept as a record of what the run printed; they are not evidence, and how much they overstate
+is not estimated. The records, with every input bound by SHA-256: `docs/claims/`.
 
-That configuration was narrower than the one now in the repository: the feature space, the
-model roster, the split protocol and the data-integrity gates have all changed since. A
-like-for-like per-model table, with the evaluation protocol stated alongside, will be
-published from the next full training run.
+A trivial baseline sets the scale: on the same test split, the pathogenic rate of the variant's
+consequence category alone (19 categories, rates from training) comes within three hundredths
+of the reported figure (measured 2026-11-08; `docs/CHANGELOG.md`). A result from the next full
+run will be reported as an increment over such baselines, within variant classes, on a
+gene-disjoint evaluation.
 
 ---
 

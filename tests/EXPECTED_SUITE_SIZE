@@ -8315,4 +8315,19 @@
 #   the set, its first-statement guard and its refusal); test_containment_scripts.py +1 / -1 (the threshold workflow reads bound
 #   predictions, never a model or a feature split); tests/conformal/test_calibrate.py +1 / -0 (a pre-1b substrate must name its
 #   score column). (tests_drift/: unchanged, 22.)
-8959
+# 2026-11-08  PACKAGE 1D, STAGE 1D-0 (owner ruling 2026-11-08, decision file 56ca0eff) -- Run 15's evaluations are
+#   INVALIDATED_EVALUATION; a claim-disposition registry binds the documents and the live holdout design withholds its verdict
+#   +57 / -0 by node identity (collected against main, 4a7e6d96). New file: +57 tests/unit/test_claim_dispositions.py (the
+#   committed registry verifies, holds the three Run 15 claims, each invalidated, with 0 own-label mismatches on 213,436, 304,711
+#   and 146,329 rows; require_admissible refuses each and an unknown claim; the cited figures are the record's own metrics; the
+#   records bind every input and the run's code; they are byte-identical to what the committed derivation writes from the
+#   evidence they hold; ASCII LF; a copy loads, and an edited record, a consistently rewritten past record, a sequence gap, a
+#   wrong file name, a stray file, duplicate keys, NaN, truncation and thirteen schema violations are refused with a valid
+#   digest, and a partial replacement must partition the defects; the four current-claim documents cite no invalidated figure
+#   without its disposition and the check is not vacuous; bare, wrongly qualified, table and fenced citations are found and
+#   figures match only as whole numbers; the ablation record opens with its correction and the probe's docstring is
+#   corrected; the holdout design's verdict is WITHHELD with its defects, a design not known invalid reports PASS or FAIL, the
+#   driver withholds through design_verdict; the evidence functions on synthetic inputs: the own-label identity, gene tokens
+#   inside multi-gene strings, Run 15's MD5 holdout rule, LOVD against the training mode, unique log lines and no invented
+#   timestamp). (tests_drift/: unchanged, 22.)
+9016

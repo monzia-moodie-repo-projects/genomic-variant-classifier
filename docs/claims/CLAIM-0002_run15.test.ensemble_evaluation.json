@@ -1,0 +1,225 @@
+{
+  "schema": "gvc.scientific-claim-disposition.v1",
+  "record_sequence": 2,
+  "previous_record_sha256": "fa4358befcf76247005f0effeee5771dd9125b0bfb0fefbfde142bc3603ec43c",
+  "recorded_utc": "2026-11-08T14:05:47Z",
+  "author": "Monzia Moodie",
+  "ruling": {
+    "date": "2026-11-08",
+    "decision_file_sha256": "56ca0eff9078e933faabe958dddb62f1017ee67c3a6036b8d5573a634f7476a0",
+    "sections": [
+      "2.1",
+      "2.2",
+      "2.3",
+      "21"
+    ]
+  },
+  "claim": {
+    "claim_id": "run15.test.ensemble_evaluation",
+    "claim_type": "held_out_performance",
+    "statement": "The Run 15 ensemble's test-split performance measures pathogenicity prediction on genes absent from training.",
+    "evaluation_population": "Run 15 test split: 304,711 rows of 3,539 gene-symbol strings, grouped apart from training by string"
+  },
+  "historical_observation": {
+    "run": "Run 15 (outputs/run15_rerun_report/full; launched 2026-06-05 22:46 UTC)",
+    "metrics": {
+      "auroc": 0.9984,
+      "auprc": 0.9936,
+      "f1": 0.9826,
+      "mcc": 0.9652,
+      "brier": 0.0069
+    },
+    "verdict": "NOT_RECORDED",
+    "criterion": null,
+    "code_provenance": {
+      "run_code_commit_pre_rewrite": "4b9de1c319739824955bb165c295e56e444626ce",
+      "commit_subject": "fix(postflight): drop false blend_weights.json gate (weights live in ensemble.joblib); pull unseen-gene metrics",
+      "commit_date": "2026-06-05T16:51:31-04:00",
+      "facts": {
+        "count_computed_before_split": {
+          "file": "src/genomic_variant_classifier/data/real_data_prep.py",
+          "git_blob": "4daf65b9f5124eb827160e54872b4775c8f627a4",
+          "line": 236,
+          "text": "df = enrich_gene_counts(df)"
+        },
+        "gene_symbol_string_split": {
+          "file": "src/genomic_variant_classifier/data/real_data_prep.py",
+          "git_blob": "4daf65b9f5124eb827160e54872b4775c8f627a4",
+          "line": 1182,
+          "text": "splitter = GroupShuffleSplit("
+        },
+        "label_stratified_inner_folds": {
+          "file": "src/genomic_variant_classifier/models/variant_ensemble.py",
+          "git_blob": "615590a4f167892509c72bc5029f4ff0998edf6a",
+          "line": 1271,
+          "text": "cv = StratifiedKFold("
+        }
+      },
+      "leakage_fixes_after_the_run": [
+        {
+          "pre_rewrite": "689787f93a0ca081965c755c80b0f08a89d0846b",
+          "rewritten": "070ea735e7c2056172211a9bba4c680cf7adf1b1",
+          "tree": "f9f79ba3d4b28a91540d44e6dcefb39b7a65ea4d",
+          "subject": "fix(leakage): train-only n_pathogenic_in_gene post-split",
+          "descends_from_run_code": true
+        },
+        {
+          "pre_rewrite": "6b38985d61faa45b774af127f9a7939c062e455d",
+          "rewritten": "6cd310a1fc15b9cb8050dcb6a68439a7901c0fda",
+          "tree": "f7a97c29c635cc5ec561b3feadfb2e38eaf312a2",
+          "subject": "fix(leakage): Level 2 leak-free stacking OOF",
+          "descends_from_run_code": true
+        }
+      ],
+      "history_note": "main's history was rewritten on 2026-07-11 (git filter-repo); pre-rewrite objects are read from the owner's preserved repository; each fix's tree equals its rewritten counterpart's"
+    },
+    "source_artifacts": [
+      {
+        "path": "outputs/run15_rerun_report/full/metrics.json",
+        "sha256": "901a3267cbfc55d237a44deca39cfa81857a9a0c5d9b7a8cf8784f4ad1a6a59c",
+        "bytes": 324
+      },
+      {
+        "path": "outputs/run15_rerun_report/full/unseen_gene_holdout_metrics.json",
+        "sha256": "d095aa68d0a61e4a41a1e37f78702dee4c338c6c77a33139c6959e28c116aa2d",
+        "bytes": 296
+      },
+      {
+        "path": "outputs/run15_rerun_report/full/unseen_gene_holdout_per_model.csv",
+        "sha256": "56e42efc4ee1c3f3a9a68399d1213d5b8ca4eaa7f891f3045d3c44cd6ce36ec3",
+        "bytes": 779
+      },
+      {
+        "path": "outputs/run15_rerun_report/full/per_model_metrics.csv",
+        "sha256": "943266fd83f0ff549c6ed507602a3266df28f16605c0c3f8c551ca9a9ea606ac",
+        "bytes": 784
+      },
+      {
+        "path": "outputs/run15_rerun_report/full/per_model_metrics_val.csv",
+        "sha256": "6fe12ef9fab8d76c84666b15d819bb476a6ca6276cf55b262a5604e438492a72",
+        "bytes": 785
+      },
+      {
+        "path": "outputs/run15_rerun_report/full/splits/meta_train.parquet",
+        "sha256": "d2c733940331479d0c92e1ce833c6f2dabe73a4b7239664a8904f82e4aa027a1",
+        "bytes": 49374531
+      },
+      {
+        "path": "outputs/run15_rerun_report/full/splits/y_train.parquet",
+        "sha256": "65375ac298c25c1710e5b1f6d8ff9bdc319b24b41413eb680bbb2c0414c29bc0",
+        "bytes": 77580
+      },
+      {
+        "path": "outputs/run15_rerun_report/full/splits/X_train.parquet",
+        "sha256": "061d979d124b535bfa331500dd1c8c3e99b12ef2186f6a25125153c633055622",
+        "bytes": 24960944
+      },
+      {
+        "path": "outputs/run15_rerun_report/full/splits/meta_val.parquet",
+        "sha256": "f385c6e3be5888afe7cf029df6b60e16ed9108cb7620ce6173b4f939207dfa4b",
+        "bytes": 7281137
+      },
+      {
+        "path": "outputs/run15_rerun_report/full/splits/y_val.parquet",
+        "sha256": "a8c97a098ffc44e02301d27467014084e3a76df7e405ae594ebc3f2d25a2b786",
+        "bytes": 12847
+      },
+      {
+        "path": "outputs/run15_rerun_report/full/splits/X_val.parquet",
+        "sha256": "103160d8a75d052aa4ed0816f87f959301c3cb0380e22814981887edd049976d",
+        "bytes": 3449065
+      },
+      {
+        "path": "outputs/run15_rerun_report/full/splits/meta_test.parquet",
+        "sha256": "43fe2694a662935aa94a401375d3886901ff4af743d5461c956843b33c7a7295",
+        "bytes": 14627756
+      },
+      {
+        "path": "outputs/run15_rerun_report/full/splits/y_test.parquet",
+        "sha256": "5cdaac9b9a1195fdb5d65a850b95955fbb09934a6536a042f00833fcf8d732d4",
+        "bytes": 24568
+      },
+      {
+        "path": "outputs/run15_rerun_report/full/splits/X_test.parquet",
+        "sha256": "a1a8f225d0be4c8e8530a729f799dec4e576480d9d717cbf866f7fd675d850b5",
+        "bytes": 7136929
+      },
+      {
+        "path": "outputs/run15_rerun_report/run15_baseline_master.log",
+        "sha256": "21461f9bd71a9ea6a530a2d8681885e19d266e73ce3dbe3e5610c0c7501a7c3d",
+        "bytes": 83685
+      }
+    ]
+  },
+  "disposition": "INVALIDATED_EVALUATION",
+  "scientific_claim_eligible": false,
+  "invalidating_defects": [
+    {
+      "defect_id": "GENE_TARGET_COUNT_OWN_LABEL_LEAKAGE",
+      "statement": "Each evaluated row's n_pathogenic_in_gene equals the number of pathogenic labels among the evaluated rows of its gene, its own label included (mismatches counts the rows where it does not).",
+      "evidence": {
+        "rows": 304711,
+        "positives": 44832,
+        "mismatches": 0,
+        "feature_auroc_alone": 0.7181
+      }
+    },
+    {
+      "defect_id": "GENE_IDENTITY_SPLIT_LEAKAGE",
+      "statement": "The split grouped rows by gene-symbol string, not by gene: evaluated rows whose string shares at least one gene with a training string were not held out from that gene.",
+      "evidence": {
+        "evaluated_strings": 3539,
+        "strings_identical_to_a_training_string": 0,
+        "strings_sharing_a_gene_token": 247,
+        "rows_sharing_a_gene_token": 59735,
+        "rows": 304711,
+        "row_fraction": 0.196,
+        "positives_among_them": 13599,
+        "positives": 44832
+      }
+    },
+    {
+      "defect_id": "VARIANT_LEVEL_CLINICAL_CLASS_FEATURE",
+      "statement": "lovd_variant_class, LOVD's own clinical classification of the variant, was an input; evaluated rows carrying an annotation are counted.",
+      "evidence": {
+        "annotated_evaluated_rows": 13,
+        "run_log": {
+          "line": 89,
+          "timestamp": "2026-06-05 22:50:55",
+          "text": "INFO      genomic_variant_classifier.data.lovd  LOVDConnector: 362 / 1490014 variants annotated (lovd_variant_class > 0)."
+        }
+      }
+    }
+  ],
+  "inflation_estimate": null,
+  "partial_replacements": [
+    {
+      "description": "docs/ABLATION_n_pathogenic_in_gene.md, arm no_gene_level (2026-06-07): n_pathogenic_in_gene, gene_has_known_disease and two constant constraint columns zeroed in every split, ensemble retrained on a 150,000-row subsample of these splits (3 folds, 7 tree models, seed 42).",
+      "metrics": {
+        "test_auroc": 0.99783,
+        "test_auroc_ci95_low": 0.99761,
+        "test_auroc_ci95_high": 0.99804,
+        "matched_full_arm_test_auroc": 0.99817
+      },
+      "source": "outputs/ablation_run15/ablation_results.parquet (as recorded in the ablation document)",
+      "addresses_defects": [
+        "GENE_TARGET_COUNT_OWN_LABEL_LEAKAGE"
+      ],
+      "does_not_address_defects": [
+        "GENE_IDENTITY_SPLIT_LEAKAGE",
+        "VARIANT_LEVEL_CLINICAL_CLASS_FEATURE"
+      ]
+    }
+  ],
+  "hypothesis_status": "NOT_RESOLVED_BY_THIS_EXPERIMENT",
+  "required_replacement": "A leakage-free, gene-component-disjoint evaluation of a predictor whose every supervised input excludes the evaluated genes' labels (Package 1D stages 1D-1 to 1D-3), on a newly locked population (ruling section 15.6).",
+  "replacement_claim_id": null,
+  "cited_figures": [
+    "0.9984",
+    "0.9936",
+    "0.9826",
+    "0.9652",
+    "0.0069"
+  ],
+  "record_sha256": "84f22d76504faaba8cff5ca6c553b2b24648753f26566a9522241c1d2647004a"
+}

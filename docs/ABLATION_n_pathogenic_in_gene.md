@@ -1,5 +1,20 @@
 # Ablation: `n_pathogenic_in_gene` (gene-prevalence memorization) — 2026-06-07
 
+> **CORRECTION 2026-11-08 (appended; nothing below is rewritten).** Two premises of this record are
+> MEASURED false on the splits it used (`outputs/run15_rerun_report/full/splits/`): they were not
+> "de-leaked", and for genes absent from training the count was not uninformative. Run 15 ran at
+> commit 4b9de1c3, before the train-only recount of 2026-06-13, so every validation, test and
+> holdout row's `n_pathogenic_in_gene` equals the number of pathogenic labels among the evaluated
+> rows of its gene, its own label included -- 0 mismatches over 146,329, 304,711 and 213,436 rows;
+> alone, the feature reaches AUROC 0.7034, 0.7181 and 0.7203. The `full` arm therefore evaluated a
+> leaked feature, and the `no_gene_level` arm, which zeroed it and `gene_has_known_disease` in every
+> split, measures the removal of that channel only: the splits also grouped genes by symbol string
+> (19.60% of test rows share a gene with training). The Run 15 evaluations are
+> INVALIDATED_EVALUATION: claims `run15.test.ensemble_evaluation`,
+> `run15.validation.ensemble_evaluation` and `run15.c3.unseen_gene_generalization`, derived from the
+> run's own files in `docs/claims/`. The verdict below ("the gene-prevalence memorisation concern is
+> resolved") is not supported by these arms.
+
 **Verdict: the headline ~0.998 AUROC does NOT depend on `n_pathogenic_in_gene`.**
 Zeroing the #1-importance feature costs 0.0002 test AUROC (within the bootstrap 95%
 CIs' overlap). The long-standing "gene-prevalence memorization inflates AUROC" concern,

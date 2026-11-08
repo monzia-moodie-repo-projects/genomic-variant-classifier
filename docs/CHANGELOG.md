@@ -1,8 +1,63 @@
+## 2026-11-08 (package 1D, stage 1D-0) -- Run 15's evaluations are INVALIDATED_EVALUATION; a claim-disposition registry
+
+Owner ruling of 2026-11-08 (decision file SHA-256 56ca0eff...): the C3 unseen-gene claim is INVALIDATED_EVALUATION, its
+historical observation is preserved, and downstream reporting consumes the current disposition. The audit of that ruling
+(claude/AUDIT_OF_RULING_PACKAGE1D_PACKAGE2_2026-11-08b.md, refinement R1) measured that the same defect reaches the validation
+and test evaluations. This change records all three and makes the records binding.
+
+- MEASURED on Run 15's own files (outputs/run15_rerun_report/full, every file bound by SHA-256 in the records): the run's code
+  was commit 4b9de1c3 (pre-rewrite, 2026-06-05), where enrich_gene_counts() ran before the gene-grouped split
+  (real_data_prep.py:236 before :1182) and the stacking folds were label-stratified (variant_ensemble.py:1271); both fixes of
+  2026-06-13 (070ea735 and 6cd310a1 on main; 689787f9 and 6b38985d before the rewrite, same trees) descend from it. On every
+  validation, test and holdout row `n_pathogenic_in_gene` equals the number of pathogenic labels among the evaluated rows of its
+  gene, its own label included: 0 mismatches over 146,329, 304,711 and 213,436 rows; alone it reaches AUROC 0.7034, 0.7181 and
+  0.7203. The split grouped gene-symbol STRINGS: 15.66%, 19.60% and 8.28% of those rows (22,921, 59,735 and 17,680) share a gene
+  token with a training string. The holdout, reconstructed exactly with Run 15's own rule (MD5 of "42:<symbol>" below 0.20:
+  213,436 rows, 2,407 genes, 825,538 training rows, as logged), was carved AFTER the graph network trained on it (log lines 285
+  and 345). LOVD's own clinical class was an input (170 holdout and 13 test rows annotated).
+- docs/claims/: three records -- run15.c3.unseen_gene_generalization, run15.test.ensemble_evaluation,
+  run15.validation.ensemble_evaluation -- each INVALIDATED_EVALUATION, with its defects and their evidence, the historical
+  metrics and verdict (and the log line that printed it), `inflation_estimate: null`, and, for the test evaluation, the
+  ablation's no_gene_level arm (0.99783) as a partial replacement that addresses the count channel only. Written by
+  scripts/derive_run15_claim_dispositions.py from the files (evaluation/run15_claim_evidence.py), never typed; --check re-derives
+  them byte for byte. Hash-chained (record_sha256 = canonical digest without that field; previous_record_sha256), append-only.
+- evaluation/claim_disposition.py: the strict reader (exact schema, duplicate keys and non-finite literals refused, sequence
+  without gaps, file name = claim, chain verified), require_admissible (refuses an invalidated claim), and the document gate:
+  in README.md, docs/METRICS.md, docs/ROADMAP.md and docs/runs/RUN17_SCOPE.md a figure of an inadmissible claim may appear only in
+  a paragraph or table row carrying its disposition and claim identifier. Those documents now do; the README's results section
+  says there is no valid performance result yet, and its claim that the splits are gene-disjoint is corrected.
+- Corrections, appended: docs/ABLATION_n_pathogenic_in_gene.md opens with a dated correction (its splits were not "de-leaked");
+  scripts/probe_run14_univariate_leakage.py's docstring no longer states that Run 15 postdates the fix.
+- scripts/run_phase2_eval.py: the unseen-gene holdout is the design that invalidated C3, so its verdict is recorded as WITHHELD
+  (design_verdict: INVALID_DESIGN, the three defects, the claim it cannot support) in unseen_gene_holdout_metrics.json and the
+  log; the metrics remain as a forensic record. A new run can no longer print a C3 PASS from the same experiment.
+- For scale (measured 2026-11-08 with the audit bundle's baseline_ladder.py, gvc_ruling_audit_2026-11-08b.zip, on Run 15's
+  test split, lookups fitted on its training split): the pathogenic rate of the consequence category alone (19 categories)
+  reaches AUROC 0.9716 (AUPRC 0.8433); with CADD breaking ties, 0.9874. Within missense (43,861 rows): REVEL 0.9681,
+  AlphaMissense 0.9528, CADD 0.9281.
+- Open, recorded: GENE-IDENTITY-SPLIT-1 -- the live splits still group gene-symbol strings (real_data_prep._gene_aware_split,
+  split_protocol_v2._resolve_genes); grouping by gene is Package 1D work.
+- Tests: +57 / -0 (tests/unit/test_claim_dispositions.py). Suite 8,959 -> 9,016. README: the badge. ROADMAP: the table and the
+  entry. Ten guards were mutated one at a time in a copy of the tree (a removed disposition beside a METRICS figure and beside the
+  README's, the driver's PASS restored, the inflation, chain and digest checks removed, table rows read as prose, the correction
+  banner renamed, WITHHELD turned into PASS, figures matched inside longer numbers); every one was caught.
+
 ## 2026-11-08 (prediction contract, set 1c) -- the remaining consumers read bound evidence or refuse; package 1 closes
 
 Package 1, set 1c of three, built on merged set 1b (a29af854), under the owner's rulings of 2026-11-07 (decisions ccffb8cf and
 38f15c7a). Gate by gate: docs/package1/PACKAGE1_SET1C_DELIVERY.md; dispositions of every census candidate:
 docs/package1/PACKAGE1_SET1C_CENSUS_LEDGER.json.
+
+MERGED AND VERIFIED ON WINDOWS (recorded 2026-11-08, re-read from the owner's files in Downloads). -Validate ran once (2026-11-08
+09:38 to 11:01 UTC; receipt 1e0fd3f8): every stage passed; the whole suite 8,871 passed, 83 skipped, 5 xfailed, exactly the numbers
+forecast; targeted 1,309 passed, 5 skipped; the five package test files 65, 7, 9, 47 and 44 of their own; drift 22 passed.
+Candidate 7255c2db published as branch prediction-contract-1c-2026-11-08 (record 8651edf4) and merged as pull request #70 with a
+merge commit: 4a7e6d96, parents a29af854 and 7255c2db, tree db34ee7a. The post-merge block (11:03 to 11:34 UTC; record a7c6240d)
+fast-forwarded the owner's checkout from a29af854 to 4a7e6d96 and compared all 1,314 targeted tests by node identity: 1,309
+passed, 5 skipped, 0 differences (junit 8732fe84); drift 22 passed; both candidate environments still their Windows locks; the 81
+untracked entries unchanged and no new ignored entry. The branch was deleted on GitHub under a lease and locally (11:34:51 to
+11:36:38 UTC; record 8877c56a), 30 seconds after the post-merge record was finished (11:34:20.93 UTC) (ruling of 2026-11-08, section 2.1); GitHub now
+holds main only.
 
 - A completed run's split predictions are read through ONE bound reader (prediction_artifacts.load_completed_split_predictions):
   the manifest verifies, the file, its block descriptor and the manifest are each read once and cross-checked (split, rows, row

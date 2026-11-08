@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **8,959 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **9,016 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -898,6 +898,28 @@ exists to end.
   historical-execution denied; transition_policy.py is retired; the superseded patchers and the OOF alignment check refuse (gate
   G2.4); observability reads the selected blend's weights from a verified manifest. Acceptance:
   docs/package1/PACKAGE1_SET1C_DELIVERY.md and the set-1c census ledger. Suite 8,922 -> 8,959 (+53 / -16).
+  VALIDATED ON WINDOWS AND MERGED 2026-11-08: one -Validate run (09:38 to 11:01 UTC; receipt 1e0fd3f8): the whole suite 8,871
+  passed, 83 skipped, 5 xfailed, exactly as forecast; targeted 1,309 passed, 5 skipped; drift 22 passed. Candidate 7255c2db
+  (tree db34ee7a) published and merged as pull request #70 with a merge commit: 4a7e6d96, parents a29af854 and 7255c2db. The
+  post-merge block (11:03 to 11:34 UTC) compared all 1,314 targeted tests by node identity: no difference; the branch was deleted
+  (11:34 to 11:36 UTC), after the post-merge record was written (owner ruling 2026-11-08, section 2.1).
+- **2026-11-08 -- PACKAGE 1D, STAGE 1D-0: Run 15's evaluations are INVALIDATED_EVALUATION; a claim-disposition registry.**
+  Owner ruling of 2026-11-08 (decision file 56ca0eff), extended by measurement. Run 15 ran at commit 4b9de1c3 (2026-06-05), before
+  the train-only gene count and the gene-grouped stacking folds (both 2026-06-13, and both descend from it): MEASURED on the run's
+  own files, every validation, test and unseen-gene-holdout row's `n_pathogenic_in_gene` equals the pathogenic labels of the
+  evaluated rows of its gene, its own label included (0 mismatches over 146,329, 304,711 and 213,436 rows; the feature alone
+  reaches AUROC 0.70 to 0.72); the splits grouped gene-symbol STRINGS, so 15.66%, 19.60% and 8.28% of those rows share a gene with
+  training; the graph network that scored the holdout was trained on its labels; LOVD's own clinical class was an input. The C3
+  claim, the test evaluation and the validation evaluation are INVALIDATED_EVALUATION -- not FAIL: no hypothesis is resolved and
+  no inflation is estimated. docs/claims/ holds one record per claim, WRITTEN from the run's files by
+  scripts/derive_run15_claim_dispositions.py (every input bound by SHA-256, the run's code facts read from the preserved
+  pre-rewrite history; --check re-derives byte for byte), hash-chained and append-only; evaluation/claim_disposition.py reads it
+  (require_admissible refuses an invalidated claim) and gates the current-claim documents: README, METRICS, this roadmap and the
+  Run 17 scope may cite a Run 15 figure only beside its disposition and claim identifier. The ablation record and a probe's
+  docstring, which stated the opposite of the measurement, carry dated corrections. The live driver's unseen-gene holdout -- the
+  same design -- now records its C3 verdict as WITHHELD with the defects named. Open: GENE-IDENTITY-SPLIT-1 (the live splits still
+  group gene-symbol strings: real_data_prep._gene_aware_split, split_protocol_v2._resolve_genes). Next: stage 1D-1. Suite 8,959 ->
+  9,016 (+57 / -0).
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined
