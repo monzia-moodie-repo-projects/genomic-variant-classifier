@@ -21,7 +21,18 @@ import sys
 from pathlib import Path
 
 
+SUPERSEDED = (
+    "SUPERSEDED (package 1, set 1c, 2026-11-08): fix_oof_index.py guarded the F-13 `_train_row_idx` insertion in "
+    "run_phase2_eval.py with a fall-back to sequential indices -- the defect package 1, set 1b removed (gate G2: a "
+    "failed identity binding prevents publication; out-of-fold rows carry their composed original training-split "
+    "identity, evaluation/oof_identity.py). Its target no longer exists. It refuses before reading or writing anything; "
+    "the source is kept as the record of what it did.")
+
+
 def main(argv=None) -> int:
+    print(SUPERSEDED, file=sys.stderr)
+    return 2
+    # --- historical body, unreachable since package 1, set 1c ---
     p = argparse.ArgumentParser()
     p.add_argument("--dry-run", action="store_true")
     args = p.parse_args(argv)

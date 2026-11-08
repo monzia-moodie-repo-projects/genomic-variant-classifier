@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 """probe_oof_builder.py (2026-07-10)
 
+HISTORICAL RECORD, LABELLED in package 1, set 1c (2026-11-08; gate G2.4). This read-only probe documents how the
+question was investigated; it joins nothing. Its finding stands and is now settled in code: `_train_row_idx` in a
+pre-1b oof_predictions.parquet is a dense position over the out-of-fold subset, NEVER a training-split row. Run 15's
+real mapping is the derived record (scripts/derive_run15_oof_identity.py); runs since set 1b carry the composed
+original identity (evaluation/oof_identity.py).
+
+
 Resolve the AUTHORITATIVE meaning of oof_predictions._train_row_idx for run15_baseline, so the
 conformal calibration labels can be joined correctly (not guessed).
 

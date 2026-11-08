@@ -19,7 +19,7 @@
 #   5. LightGBM device used (cpu vs gpu vs cuda)
 #   6. CNN_1D skip confirmation
 #   7. Feature non-zero rate (which features actually carried signal)
-#   8. Blend weights (meta-learner contribution per base model)
+#   8. Stored convex-blend weights of the SELECTED predictor (verified completion manifest)
 #   9. Peak GPU memory observed
 #  10. Master-log error and warning summary
 #  11. Per-model artifact size on disk
@@ -358,22 +358,44 @@ def feature_nonzero_rate(outputs_dir: Path) -> dict[str, Any]:
 
 
 def blend_weights(outputs_dir: Path) -> dict[str, Any]:
-    """If a meta-learner / blend weights file exists, read it."""
+    """The SELECTED predictor's stored convex-blend weights, from the run's VERIFIED completion manifest.
+
+    Package 1, set 1c (2026-11-08). This read blend_weights.json, meta_learner_coefs.json or ensemble_blend.json --
+    files no run ever wrote (the weights live inside models/ensemble.joblib) -- so it always reported "Not available",
+    and its report called blend weights the "meta-learner contribution per base model". They are not: the stored
+    convex blend IS the selected predictor, and the logistic meta-learner is a separately identified research
+    candidate whose coefficients are not reported here. A run without a verified completion manifest (every run
+    before package 1, set 1b) reports the weights as unavailable, with the reason.
+    """
     info: dict[str, Any] = {"available": False}
-    candidates = [
-        outputs_dir / "blend_weights.json",
-        outputs_dir / "meta_learner_coefs.json",
-        outputs_dir / "ensemble_blend.json",
-    ]
-    for c in candidates:
-        if c.exists():
-            try:
-                info["available"] = True
-                info["path"] = c.as_posix()
-                info["weights"] = json.loads(c.read_text())
-                return info
-            except Exception as e:
-                info["error"] = f"{type(e).__name__}: {e}"
+    try:
+        from genomic_variant_classifier.evaluation.prediction_artifacts import (
+            IncompleteRunError,
+            verify_completed_run,
+        )
+    except ImportError as e:
+        info["reason"] = f"the repository package is not importable here ({type(e).__name__}: {e})"
+        return info
+    try:
+        manifest = verify_completed_run(outputs_dir)
+    except IncompleteRunError as e:
+        info["reason"] = str(e)
+        return info
+    predictor = manifest.get("predictor") or {}
+    members = list(predictor.get("members") or [])
+    hexes = list(predictor.get("weights_binary64_hex") or [])
+    if not members or len(members) != len(hexes):
+        info["reason"] = "the completion manifest names no member weights for the selected predictor"
+        return info
+    info.update({
+        "available": True,
+        "source": "completion_manifest.json (verified: every listed artefact re-measured)",
+        "what": "stored convex-blend weights of the selected predictor (not logistic meta-learner coefficients)",
+        "combiner_sha256": predictor.get("combiner_sha256"),
+        "kernel": predictor.get("kernel"),
+        "weights": {m: float.fromhex(h) for m, h in zip(members, hexes)},
+        "weights_binary64_hex": dict(zip(members, hexes)),
+    })
     return info
 
 
@@ -489,15 +511,16 @@ def write_markdown_report(report: dict[str, Any], path: Path) -> None:
         lines.append(f"- Not available: {fnz.get('error', 'unknown')}")
     lines.append("")
 
-    # Blend weights
-    lines.append("## Blend weights")
+    # Selected predictor: stored convex-blend weights
+    lines.append("## Selected predictor: stored convex-blend weights")
     bw = report["blend_weights"]
     if bw.get("available"):
-        lines.append(f"- Source: `{bw['path']}`")
+        lines.append(f"- Source: {bw['source']}")
+        lines.append(f"- Combiner: `{bw['combiner_sha256']}` (kernel `{bw['kernel']}`)")
         for model, w in bw["weights"].items():
-            lines.append(f"  - {model}: {w}")
+            lines.append(f"  - {model}: {w!r}")
     else:
-        lines.append("- Not available")
+        lines.append(f"- Not available: {bw.get('reason', 'unknown')}")
     lines.append("")
 
     # Errors

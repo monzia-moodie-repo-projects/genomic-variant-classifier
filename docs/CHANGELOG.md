@@ -1,8 +1,74 @@
+## 2026-11-08 (prediction contract, set 1c) -- the remaining consumers read bound evidence or refuse; package 1 closes
+
+Package 1, set 1c of three, built on merged set 1b (a29af854), under the owner's rulings of 2026-11-07 (decisions ccffb8cf and
+38f15c7a). Gate by gate: docs/package1/PACKAGE1_SET1C_DELIVERY.md; dispositions of every census candidate:
+docs/package1/PACKAGE1_SET1C_CENSUS_LEDGER.json.
+
+- A completed run's split predictions are read through ONE bound reader (prediction_artifacts.load_completed_split_predictions):
+  the manifest verifies, the file, its block descriptor and the manifest are each read once and cross-checked (split, rows, row
+  count, result block, member blocks and order, the label digest), and the selected score must be finite binary64 in [0, 1].
+- The threshold workflow (scripts/calibrate_thresholds.py) is MIGRATED, not patched. MEASURED on the shipped code: its search
+  returned the TOP score for every target (synthetic split of 20,000 rows: 1.000000 with 238 calls for both the 0.80 and the 0.95
+  target, where the documented "lowest qualifying" thresholds are 0.566 and 0.703), so the "Likely pathogenic" tier was empty; it
+  also scored the removed logistic meta-learner, fitted, chose and thresholded a calibration on the same rows, and fell back
+  silently. It now delegates to the repository's exact sweep and Objective A (evaluation/thresholds.py) on a completed run's
+  bound selected score, writes thresholds on the stage serving returns (a strictly increasing calibration cannot change a
+  predictive-value operating point; tested with temperature and Platt scaling), names its bands neutrally (not ACMG/AMP tiers),
+  carries its certification blockers and a record digest (evaluation/decision_policy.py), and refuses -- writing nothing -- when
+  a floor is unreachable or the two sides' regions overlap. MEASURED: tail predictive values overlap on realistic runs (a run
+  with area under the receiver operating characteristic curve (AUROC) 0.906: positive scores >= 0.554 and negative scores <=
+  0.618 both clear 0.80), so the default floors refuse; the choice of a partition rule is put to the owner
+  (DECISION-POLICY-OVERLAP-1).
+- Export metadata bound to the selected predictor (gate G7.2): `PipelineMetadata.val_auroc` and `n_train` (copied from an
+  unbound metrics.json, defaulting to 0.0 and 0) are removed and REFUSE when read, even from an older pickle; the metadata carries
+  `evaluation_evidence` recomputed from the run's bound predictions for exactly this combiner (or unavailable with a reason) and
+  `fit_input_rows` from the ensemble; the feature list is the one rendered. export_model.py requires a verified completed run,
+  checks the ensemble and scaler bytes against its manifest (no unlisted `joblib.load`), and never swallows a refusal.
+- The import-time, current-directory-relative, silently defaulting threshold loader and the five-tier helper are removed from
+  api/schemas.py. validate_external.py applies an explicit decision policy only for its own predictor (it passed (lo, hi) tuples
+  as thresholds; its ROC frame raised; its PR frame invented a threshold); validate_clinvar_temporal.py MEASURES the training
+  overlap against the training split (it claimed the cutoff guaranteed none) and stops fabricating 0.0 for undefined rates;
+  validate_lovd_enriched.py refuses a guessed `consequence` (a model input it fabricated for every row) unless asked, counts its
+  fills and no longer copies into `G:/My Drive`; build_lovd_index.py maps every LOVD term to its own class (MEASURED: "not
+  pathogenic" and "probably not pathogenic" were labelled pathogenic, "Class 10" benign), names itself instead of sending a
+  desktop browser's User-Agent, and uses the repository's calibration kernel.
+- Conformal: the selected score by default and a bound completed-run mode that records its substrate
+  (conformal/calibrate.py, run_conformal_calibration.py); conformal_prediction.py delegates to the finite-sample order statistic
+  (MEASURED: its interpolated threshold lay between two order statistics, and for k > n it returned the largest score where the
+  guarantee needs every label) and writes prediction sets, not score intervals.
+- Dispositions: the reconstruction exporter joins quarantine_policy.HISTORICAL_EXECUTION_DENIED; transition_policy.py is
+  RETIRED (no transition refusal remains); apply_d1_fixes.py and fix_oof_index.py refuse as SUPERSEDED; verify_oof_alignment.py
+  is RETIRED (gate G2.4: it joined a position over the OOF subset as a training-split row); the other two OOF probes and the
+  reconstruction diagnostic are labelled; the three observability scripts read the selected blend's weights from a verified
+  manifest (they read a "meta_learner_coefs.json" no run ever wrote); continual_trainer reads the 1-D score;
+  calibration_analysis records the consequence classes it skips.
+- Tests: +53 / -16 by node identity (diffed against main, a29af854). Suite 8,922 -> 8,959. README: the badge. ROADMAP: the table
+  and the entry.
+- Verified (development sandbox, Linux, Git 2.48.1), the whole suite on a snapshot of the candidate taken before the README and
+  ROADMAP counts were updated: 8,894 passed, 54 skipped, 6 xfailed and 5 failed -- exactly the five tests that require the README
+  badge and the ROADMAP row to equal the ratchet (both still read 8,922 in that snapshot; the documentation guards pass on the
+  final tree). Test by test against the same measurement of main (8,862 / 54 / 6): the 16 retired tests passed there and are gone,
+  the 53 new pass, the other 8,901 common tests are identical in outcome and reason. Twenty guards were mutated one at a time;
+  nineteen were caught at once and the twentieth after its test was strengthened. The frozen tree is run again on a clean clone.
+  Forecast for the owner's validation (from set "al"'s Windows full.xml, where all 16 retired tests passed): 8,871 passed, 83
+  skipped, 5 xfailed.
+
 ## 2026-11-08 (prediction contract, set 1b) -- original out-of-fold identity; the completion manifest; writers consume bound captures
 
 Package 1, set 1b of three, built on merged set 1a (b051bb3d), under the owner's rulings of 2026-11-07 (decisions ccffb8cf and
 38f15c7a). Gate by gate: docs/package1/PACKAGE1_SET1B_DELIVERY.md; dispositions of the 282 census candidates:
 docs/package1/PACKAGE1_SET1B_CENSUS_LEDGER.json; full record: docs/sessions/SESSION_2026-11-08_prediction-contract-1b.md.
+
+MERGED AND VERIFIED ON WINDOWS (recorded 2026-11-08, re-read from the owner's files in Downloads). -Validate ran once (2026-11-08
+04:55 to 06:11 Coordinated Universal Time (UTC); receipt dcee4aaa): every stage passed; the whole suite 8,834 passed, 83 skipped,
+5 xfailed (full.xml 16f4990f, 8,922 test cases), exactly the numbers forecast; Run 15's derived record, re-derived from the owner's
+files and the bundle, has record digest b1330929 on Windows -- the digest the Linux harness produced -- and equals the committed
+record in every field but the mapping file and the digest that covers it. Candidate 7816bdc7 published as branch
+prediction-contract-1b-2026-11-08 (06:13 UTC; record 654561db) and merged as pull request #69 with a merge commit: a29af854,
+parents b051bb3d and 7816bdc7, tree b0bb918b. The post-merge block (06:47 to 06:55 UTC; record 3240a10a) fast-forwarded the
+owner's checkout from b051bb3d to a29af854 and compared all 1,105 targeted tests by node identity: 1,100 passed, 5 skipped, 0
+differences, 0 warnings; drift 22 passed; the 81 untracked entries unchanged and no new ignored entry. The branch was deleted on
+GitHub under a lease and locally (07:01 to 07:10 UTC; record ea670257); GitHub now holds main only.
 
 - Original out-of-fold (OOF) identity (gate G2): `VariantEnsemble.fit` records each OOF row's fold (from the exact splits every
   member uses), label, the fit-input size and the fold scheme, and persists them; evaluation/split_identity.py and

@@ -3,9 +3,24 @@ scripts/conformal_prediction.py
 =================================
 Phase 8.3 — Conformal prediction intervals for /predict responses.
 
-Implements split conformal prediction (Papadopoulos et al. 2002 / Venn–Abers
-variant) to produce calibrated prediction sets with guaranteed marginal
-coverage at a user-specified error level α.
+Implements split conformal prediction (Papadopoulos et al. 2002) to produce
+prediction sets with guaranteed marginal coverage at a user-specified error
+level α.
+
+Package 1, set 1c (2026-11-08) -- two defects of this script, measured and repaired:
+  * THE QUANTILE. It took `np.quantile(scores, ceil((n+1)(1-α))/n)`. Linear
+    interpolation at that level lands between the k-th and (k+1)-th smallest
+    scores (position (n-1)k/n), so it was not the conformal threshold (it was
+    conservative there); and when k > n it clipped the level to 1 and returned
+    the LARGEST score where the guarantee requires every label in the set --
+    anti-conservative. It now delegates to the package's tested
+    `conformal.split.conformal_quantile` (the k-th smallest score; +inf when
+    k > n, recorded as unbounded).
+  * THE OUTPUT. For binary labels the conformal object is the prediction SET
+    {y : r(x, y) <= q̂}; the old "interval" [s - q̂, s + q̂] was not a conformal
+    quantity. `--apply` now writes which labels the set contains, and the
+    score at full precision.
+The score is the pipeline's predict_proba -- the selected convex blend.
 
 Algorithm (split conformal)
 ---------------------------
@@ -18,18 +33,20 @@ Algorithm (split conformal)
 3. Compute the (1-α)(1 + 1/n) quantile q̂ of {r_i}.
 4. At test time, the prediction set is:
      Ŷ = {y : r(x, y) ≤ q̂}
-   which for binary labels collapses to a score interval:
-     score ∈ [s - q̂,  s + q̂]  clipped to [0, 1]
+   which for binary labels is: pathogenic in the set iff 1 - s <= q̂, and
+   benign in the set iff s <= q̂ (both, one, or -- rarely -- neither).
 
 Coverage guarantee: P(y_true ∈ Ŷ) ≥ 1 - α for exchangeable data.
 
 Output
 ------
   conformal_config.json   q̂ values for α ∈ {0.01, 0.05, 0.10, 0.20}
-                          + empirical coverage on the calibration set
+                          + the coverage on the calibration rows themselves
+                          (in-sample: >= 1 - α by construction, not an
+                          estimate of coverage on new variants)
 
-  The API can load conformal_config.json at startup and attach
-  prediction_interval_low / prediction_interval_high to /predict responses.
+  Serving does not load this file: response schema 3.0.0 reports the coverage
+  interval as unavailable.
 
 Usage
 -----
@@ -73,45 +90,39 @@ def calibrate(
     alpha: float,
 ) -> float:
     """
-    Compute the conformal quantile q̂ for a given significance level α.
+    The conformal threshold q̂ for error level α: the k-th smallest
+    non-conformity score, k = ceil((n+1)(1-α)), or +inf when k > n.
 
-    Non-conformity score:
+    Non-conformity score (least-ambiguous-set score of the true label):
         r_i = 1 - y_prob_i  if y_i = 1
         r_i = y_prob_i      if y_i = 0
 
-    The quantile is the ceil((n+1)(1-α))/n -th empirical quantile of {r_i},
-    which ensures marginal coverage ≥ 1-α.
-
-    Parameters
-    ----------
-    y_true  : binary labels (0/1), shape (n,)
-    y_prob  : predicted probabilities, shape (n,)
-    alpha   : target error level ∈ (0, 1)
-
-    Returns
-    -------
-    q_hat : float — conformal quantile
+    Delegates to conformal.split.conformal_quantile (set 1c): the previous
+    np.quantile form interpolated between the k-th and (k+1)-th order
+    statistics, and returned the largest score instead of +inf when k > n.
     """
-    n = len(y_true)
+    from genomic_variant_classifier.conformal.split import conformal_quantile
+
+    y_true = np.asarray(y_true)
+    y_prob = np.asarray(y_prob, dtype=float)
+    if y_true.shape != y_prob.shape or not np.isin(y_true, (0, 1)).all():
+        raise ValueError("one binary label per probability required")
+    if not np.isfinite(y_prob).all() or ((y_prob < 0) | (y_prob > 1)).any():
+        raise ValueError("probabilities must be finite and in [0, 1]")
     scores = np.where(y_true == 1, 1.0 - y_prob, y_prob)
-    # Adjusted quantile level for finite-sample coverage
-    level  = min(1.0, np.ceil((n + 1) * (1 - alpha)) / n)
-    q_hat  = float(np.quantile(scores, level))
-    return q_hat
+    return conformal_quantile(scores, alpha)
 
 
-def prediction_interval(
+def prediction_set(
     y_prob: np.ndarray,
     q_hat: float,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
-    Return (lower, upper) prediction interval for an array of probabilities.
-
-    Intervals are clipped to [0, 1].
+    (contains_pathogenic, contains_benign): the binary conformal prediction set
+    {y : r(x, y) <= q̂} as two boolean arrays. q̂ = +inf contains both labels.
     """
-    lo = np.clip(y_prob - q_hat, 0.0, 1.0)
-    hi = np.clip(y_prob + q_hat, 0.0, 1.0)
-    return lo, hi
+    y_prob = np.asarray(y_prob, dtype=float)
+    return (1.0 - y_prob) <= q_hat, y_prob <= q_hat
 
 
 def empirical_coverage(
@@ -120,17 +131,12 @@ def empirical_coverage(
     q_hat: float,
 ) -> float:
     """
-    Empirical coverage = fraction of calibration samples where the true label
-    is inside the prediction interval.
+    The fraction of rows whose true label is in its prediction set. On the
+    calibration rows themselves this is >= 1 - α by construction.
     """
-    lo, hi = prediction_interval(y_prob, q_hat)
-    # A label is "inside" the interval if:
-    #   pathogenic (y=1): upper bound ≥ threshold to call positive
-    #   benign (y=0):     lower bound ≤ threshold to call negative
-    # Equivalently, the non-conformity score ≤ q_hat
-    scores   = np.where(y_true == 1, 1.0 - y_prob, y_prob)
-    covered  = (scores <= q_hat).mean()
-    return float(covered)
+    contains_pathogenic, contains_benign = prediction_set(y_prob, q_hat)
+    covered = np.where(np.asarray(y_true) == 1, contains_pathogenic, contains_benign)
+    return float(covered.mean())
 
 
 # ---------------------------------------------------------------------------
@@ -188,39 +194,41 @@ def main(argv: list[str] | None = None) -> int:
         q_hat    = calibrate(y_true, y_prob, alpha)
         coverage = empirical_coverage(y_true, y_prob, q_hat)
         config["alphas"][str(alpha)] = {
-            "q_hat":             round(q_hat, 6),
-            "empirical_coverage": round(coverage, 4),
-            "target_coverage":   round(1 - alpha, 4),
+            # Full precision; +inf (alpha < 1/(n+1)) is recorded as unbounded, never as the largest score.
+            "q_hat":             q_hat if np.isfinite(q_hat) else None,
+            "q_hat_status":      "finite" if np.isfinite(q_hat) else "unbounded_every_label_in_the_set",
+            "calibration_set_coverage_in_sample": coverage,
+            "target_coverage":   1 - alpha,
         }
         logger.info(
-            "α=%.2f  q̂=%.4f  empirical_coverage=%.4f  (target=%.4f)",
+            "α=%.2f  q̂=%s  in-sample coverage=%.4f  (target=%.4f)",
             alpha, q_hat, coverage, 1 - alpha,
         )
 
     with open(output_path, "w") as f:
-        json.dump(config, f, indent=2)
+        json.dump(config, f, indent=2, allow_nan=False)
     logger.info("Conformal config written to %s", output_path)
 
     # --- Optional: annotate a test set ---
     if args.apply:
         apply_alpha = args.apply_alpha
-        q_hat = config["alphas"].get(str(apply_alpha), {}).get("q_hat")
-        if q_hat is None:
+        entry = config["alphas"].get(str(apply_alpha))
+        if entry is None:
             logger.error("α=%.2f not in calibrated alphas.", apply_alpha)
             return 1
+        q_hat = entry["q_hat"] if entry["q_hat"] is not None else np.inf
 
-        logger.info("Annotating %s with α=%.2f intervals …", args.apply, apply_alpha)
+        logger.info("Annotating %s with α=%.2f prediction sets …", args.apply, apply_alpha)
         test_df = pd.read_parquet(args.apply)
         test_prob = pipeline.predict_proba(test_df)
-        lo, hi = prediction_interval(test_prob, q_hat)
+        contains_pathogenic, contains_benign = prediction_set(test_prob, q_hat)
 
         test_df = test_df.copy()
-        test_df["pathogenicity_score"] = test_prob.round(4)
-        test_df["interval_low"]        = lo.round(4)
-        test_df["interval_high"]       = hi.round(4)
-        test_df["interval_width"]      = (hi - lo).round(4)
+        test_df["pathogenicity_score"] = test_prob             # full precision (no rounding)
+        test_df["set_contains_pathogenic"] = contains_pathogenic
+        test_df["set_contains_benign"] = contains_benign
 
-        apply_out = Path(args.apply).with_suffix("").name + "_with_intervals.parquet"
+        apply_out = Path(args.apply).with_suffix("").name + "_with_prediction_sets.parquet"
         apply_path = output_path.parent / apply_out
         test_df.to_parquet(apply_path, index=False)
         logger.info("Annotated test set written to %s", apply_path)

@@ -53,4 +53,10 @@ HISTORICAL_EXECUTION_DENIED = MappingProxyType({
         "re-predicts a quarantine-era run (outputs/rnaseq_pred_write_smoke) with its saved models",
     "scripts/run10b_partial_phase2_eval_v2.py":
         "fits a NEW stacking model on quarantine-era Run 10b predictions -- a new computational result",
+    # Package 1, set 1c (2026-11-08; frozen acceptance matrix revision 1, set 1c): moved here from the prediction-
+    # contract transition policy, which this set retires. Its disposition is not a pending migration.
+    "scripts/export_phase2_predictions_from_saved_models.py":
+        "re-predicts the same quarantine-era run (outputs/rnaseq_pred_write_smoke) with its saved models, bypassing "
+        "admission, DIVIDES THE STORED BLEND WEIGHTS BY THEIR SUM (a different predictor from the selected blend) and "
+        "writes the result as prediction files -- a new computational result",
 })

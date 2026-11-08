@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+# HISTORICAL RECORD, LABELLED in package 1, set 1c (2026-11-08). This diagnostic computes TWO combiners over the same
+# reconstructed member scores (bare joblib loads, members called on raw AND scaled features) and prints an AUROC for
+# each: `weighted_blend` = scores @ (stored weights DIVIDED BY THEIR SUM) and `meta_learner_stack` = the logistic
+# meta-learner. Neither is the selected predictor: that is the stored convex blend with the EXACT stored weights (no
+# normalisation) under the declared kernel (models/combiner.py); the logistic stacker is a separately identified
+# research candidate. Its execution stays denied; the source is kept as the record of what was measured.
+#
 # HISTORICAL EXECUTION IS DENIED BY DEFAULT (owner ruling 2026-09-23; see
 # quarantine_policy.HISTORICAL_EXECUTION_DENIED). FIRST statement: it runs before any model library
 # is imported and before any artifact is loaded, predicted from or fitted.

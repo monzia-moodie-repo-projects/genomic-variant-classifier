@@ -5,6 +5,11 @@ Set 1b (2026-11-08) removed two set-1a refusals TOGETHER with their migrations: 
 bound capture per split and publishes a completion manifest, and RunArtifactWriter.save_shap_values is retired in
 favour of the selected predictor's member-score attributions (a feature-level explanation is a standing refusal).
 
+Set 1c (2026-11-08) removes the last two and RETIRES the transition policy module: scripts/calibrate_thresholds.py is
+migrated onto a completed run's bound predictions (evaluation/decision_policy.py), and
+scripts/export_phase2_predictions_from_saved_models.py -- whose disposition was never a migration -- is denied as a
+historical execution (quarantine_policy.HISTORICAL_EXECUTION_DENIED, tested in test_containment_completion.py).
+
 Owner ruling of 2026-11-07 (decision 38f15c7a). Each refusal test makes the forbidden downstream effects observable
 -- model-library imports, explanation construction, file creation -- and asserts both the refusal and their absence.
 The amended acceptance matrix (PACKAGE1_ACCEPTANCE_MATRIX_2026-11-07_rev2) lists every entrypoint, its state after
@@ -13,6 +18,7 @@ The amended acceptance matrix (PACKAGE1_ACCEPTANCE_MATRIX_2026-11-07_rev2) lists
 from __future__ import annotations
 
 import ast
+import importlib.util
 import os
 import subprocess
 import sys
@@ -23,77 +29,39 @@ import pandas as pd
 import pytest
 
 from genomic_variant_classifier.containment import ContainmentError
-from genomic_variant_classifier.quarantine_policy import HISTORICAL_EXECUTION_DENIED
 from genomic_variant_classifier.prediction_contract import ContractError
-from genomic_variant_classifier.transition_policy import PREDICTION_CONTRACT_TRANSITION_DENIED
 
 REPO = Path(__file__).resolve().parents[2]
 
 
-def test_the_transition_denials_are_exactly_the_two_left_for_set_1c_and_carry_reason_codes():
-    assert dict(PREDICTION_CONTRACT_TRANSITION_DENIED).keys() == {
-        "scripts/calibrate_thresholds.py", "scripts/export_phase2_predictions_from_saved_models.py"}
-    assert PREDICTION_CONTRACT_TRANSITION_DENIED["scripts/export_phase2_predictions_from_saved_models.py"].startswith(
-        "SCORE_RECONSTRUCTION_REFUSED (disposition decided in package 1, set 1c)")
-    assert PREDICTION_CONTRACT_TRANSITION_DENIED["scripts/calibrate_thresholds.py"].startswith(
-        "THRESHOLD_CONSUMER_MIGRATION_REQUIRED (enabled by package 1, set 1c)")
-    import genomic_variant_classifier.transition_policy as policy
-    assert not hasattr(policy, "EXPLANATION_TARGET_MIGRATION_REQUIRED"), "the 1b migration removes the constant"
-    with pytest.raises(TypeError):
-        PREDICTION_CONTRACT_TRANSITION_DENIED["scripts/x.py"] = "y"          # read-only policy
+def test_the_transition_policy_is_retired_and_nothing_imports_it():
+    """Package 1 closes in set 1c: no transition refusal remains, so the module and every reference to it go. A
+    refusal that outlives its migration is a refusal nobody can lift deliberately."""
+    assert importlib.util.find_spec("genomic_variant_classifier.transition_policy") is None
+    offenders = []
+    for root in ("src", "scripts"):
+        for path in sorted((REPO / root).rglob("*.py")):
+            if "transition_policy" in path.read_text(encoding="utf-8", errors="replace"):
+                offenders.append(str(path.relative_to(REPO)))
+    assert offenders == []
 
 
-def test_the_transition_policy_is_separate_from_the_quarantine_policy():
-    """A transition has nothing to do with the quarantine: the quarantine policy (and the digest admission
-    decisions bind to) is unchanged by it."""
-    assert not set(PREDICTION_CONTRACT_TRANSITION_DENIED) & set(HISTORICAL_EXECUTION_DENIED)
-    from genomic_variant_classifier import model_admission
-    source = Path(model_admission.__file__).read_text(encoding="utf-8")
-    assert "transition_policy" not in source
-
-
-@pytest.mark.parametrize("script", sorted(PREDICTION_CONTRACT_TRANSITION_DENIED))
-def test_the_guard_is_the_first_statement_after_future_imports(script):
-    tree = ast.parse((REPO / script).read_text(encoding="utf-8"))
-    body = [n for n in tree.body if not (isinstance(n, ast.Expr) and isinstance(n.value, ast.Constant))]
-    body = [n for n in body if not (isinstance(n, ast.ImportFrom) and n.module == "__future__")]
-    first = [ast.unparse(n) for n in body[:3]]
-    assert first[0].startswith("from genomic_variant_classifier.containment import ")
-    assert "require_execution_permitted" in first[0]
-    assert first[1] == ("from genomic_variant_classifier.transition_policy import "
-                        "PREDICTION_CONTRACT_TRANSITION_DENIED")
-    assert first[2] == f"require_execution_permitted({script!r}, PREDICTION_CONTRACT_TRANSITION_DENIED)"
-
-
-@pytest.mark.parametrize("script", sorted(PREDICTION_CONTRACT_TRANSITION_DENIED))
-def test_running_the_script_refuses_before_any_model_library_data_or_output(script, tmp_path):
+def test_the_migrated_threshold_workflow_runs_its_help_without_a_refusal_or_a_model_library(tmp_path):
     wrapper = (
         "import runpy, sys\n"
-        "from genomic_variant_classifier.containment import ContainmentError\n"
+        "sys.argv = [sys.argv[1], '--help']\n"
         "try:\n"
-        "    runpy.run_path(sys.argv[1], run_name='__main__')\n"
-        "except ContainmentError as e:\n"
+        "    runpy.run_path(sys.argv[0], run_name='__main__')\n"
+        "except SystemExit as e:\n"
         "    heavy = [m for m in ('joblib', 'sklearn', 'torch', 'shap', 'xgboost', 'lightgbm') if m in sys.modules]\n"
-        "    print('REFUSED', heavy, str(e))\n"
-        "    sys.exit(0)\n"
-        "print('NOT REFUSED'); sys.exit(1)\n")
+        "    print('EXIT', e.code, heavy)\n")
     env = {**os.environ, "PYTHONPATH": str(REPO / "src"), "PYTHONDONTWRITEBYTECODE": "1"}
-    r = subprocess.run([sys.executable, "-c", wrapper, str(REPO / script), "--help"], cwd=tmp_path, env=env,
-                       capture_output=True, text=True, timeout=300)
+    r = subprocess.run([sys.executable, "-c", wrapper, str(REPO / "scripts/calibrate_thresholds.py")], cwd=tmp_path,
+                       env=env, capture_output=True, text=True, timeout=300)
     assert r.returncode == 0, r.stdout + r.stderr
-    assert r.stdout.startswith("REFUSED [] Execution denied: " + script), r.stdout
-    assert list(tmp_path.iterdir()) == [], "the refused script created files"
-
-
-def test_the_threshold_helpers_cannot_be_imported_around_the_refusal():
-    sys.modules.pop("calibrate_thresholds", None)
-    sys.path.insert(0, str(REPO / "scripts"))
-    try:
-        with pytest.raises(ContainmentError, match="THRESHOLD_CONSUMER_MIGRATION_REQUIRED"):
-            import calibrate_thresholds  # noqa: F401
-    finally:
-        sys.path.remove(str(REPO / "scripts"))
-    assert "calibrate_thresholds" not in sys.modules
+    assert "--run-dir" in r.stdout and r.stdout.rstrip().endswith("EXIT 0 []"), r.stdout
+    assert "Execution denied" not in r.stdout + r.stderr
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_the_retired_shap_writer_refuses_before_importing_shap_or_writing(tmp_path, monkeypatch):

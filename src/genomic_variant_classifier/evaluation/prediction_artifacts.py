@@ -42,12 +42,13 @@ Integration (scripts/run_phase2_eval.py, scripts/run9_ablations.py):
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import logging
 import os
 import re
 import tempfile
-from dataclasses import asdict, is_dataclass
+from dataclasses import asdict, dataclass, is_dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional
@@ -62,9 +63,13 @@ logger = logging.getLogger(__name__)
 
 __all__ = [
     "COMPLETION_MANIFEST",
+    "BoundSplitPredictions",
     "IncompleteRunError",
     "RunArtifactWriter",
+    "SPLIT_PREDICTION_IDENTITY_COLUMNS",
     "calibration_points",
+    "load_completed_split_predictions",
+    "selected_predictor_evaluation_evidence",
     "verify_completed_run",
 ]
 
@@ -167,6 +172,167 @@ def verify_completed_run(run_dir: Path | str) -> dict:
     if problems:
         raise IncompleteRunError(f"{run_dir}: the completion manifest does not describe these files: {problems}")
     return manifest
+
+
+# ---------------------------------------------------------------------------
+# Bound reader of a completed run's split predictions (package 1, set 1c)
+# ---------------------------------------------------------------------------
+#: The identity and value columns save_split_predictions writes first, in this order; one `<member>_prob` column per
+#: fitted member follows, in the predictor's member order.
+SPLIT_PREDICTION_IDENTITY_COLUMNS = ("source_observation_id", "prediction_unit_id", "variant_identity", "label",
+                                     "selected_score")
+
+
+def _verified_bytes(run_dir: Path, name: str, manifest: Mapping[str, Any]) -> bytes:
+    """The bytes of one listed artefact, read ONCE and compared with the manifest entry. Parsing these bytes (never a
+    second read of the path) means what is parsed is exactly what was verified."""
+    entry = (manifest.get("artefacts") or {}).get(name)
+    if not isinstance(entry, dict):
+        raise IncompleteRunError(f"{run_dir}: the completion manifest does not list {name}")
+    data = (run_dir / _require_name(name)).read_bytes()
+    if hashlib.sha256(data).hexdigest() != entry.get("sha256") or len(data) != entry.get("bytes"):
+        raise IncompleteRunError(f"{run_dir}: {name} changed after the run was completed")
+    return data
+
+
+@dataclass(frozen=True, eq=False)
+class BoundSplitPredictions:
+    """One split's predictions from a COMPLETED run, verified against its completion manifest and block descriptor.
+
+    `frame` holds the identity columns, the integer labels, the selected score (the stored convex blend, full
+    precision) and one column per member. `identity()` is what a consumer records so its own output names the exact
+    predictor, run, file and rows it was computed from.
+    """
+
+    run_dir: Path
+    role: str
+    frame: pd.DataFrame
+    predictor: Mapping[str, Any]
+    blocks: Mapping[str, Any]
+    completion_manifest_sha256: str
+    predictions_sha256: str
+    run_id: str
+    ablation: str
+
+    @property
+    def scores(self) -> np.ndarray:
+        return self.frame["selected_score"].to_numpy(dtype=np.float64)
+
+    @property
+    def labels(self) -> np.ndarray:
+        return self.frame["label"].to_numpy(dtype=np.int64)
+
+    def identity(self) -> dict[str, Any]:
+        return {"run_dir_name": self.run_dir.name, "run_id": self.run_id, "ablation": self.ablation,
+                "completion_manifest_sha256": self.completion_manifest_sha256, "role": self.role,
+                "predictions_file": f"{self.role}_predictions.parquet",
+                "predictions_sha256": self.predictions_sha256,
+                "combiner_sha256": self.predictor["combiner_sha256"],
+                "split_sha256": self.blocks["split_sha256"], "rows_sha256": self.blocks["rows_sha256"],
+                "result_block_sha256": self.blocks["result_block_sha256"], "n_rows": int(self.blocks["n_rows"]),
+                "labels_int64_sha256": self.blocks["labels_int64_sha256"], "score_column": "selected_score"}
+
+
+def load_completed_split_predictions(run_dir: Path | str, role: str) -> BoundSplitPredictions:
+    """`<role>_predictions.parquet` of a completed run, refused unless every binding holds.
+
+    The run must verify (verify_completed_run re-measures every listed artefact). The predictions file, its block
+    descriptor and the manifest itself are then read once each and compared with what the manifest recorded; the
+    descriptor must agree with the manifest's prediction-block entry (split, rows, row count, result block, member
+    blocks); the columns must be the identity columns followed by exactly the predictor's members; the labels must
+    reproduce the recorded label digest; and the selected score must be float64, finite and in [0, 1]. Nothing is
+    repaired, re-ordered or coerced.
+    """
+    from genomic_variant_classifier.evaluation.split_identity import SPLIT_ROLES, binary_labels
+    from genomic_variant_classifier.prediction_contract import require_sha256
+
+    run_dir = Path(run_dir)
+    if role not in SPLIT_ROLES:
+        raise ContractError(f"unknown split role {role!r}")
+    manifest = verify_completed_run(run_dir)
+    manifest_bytes = (run_dir / COMPLETION_MANIFEST).read_bytes()
+    if json.loads(manifest_bytes.decode("utf-8")) != manifest:
+        raise IncompleteRunError(f"{run_dir}: the completion manifest changed while it was being read")
+    predictor = manifest.get("predictor")
+    if not isinstance(predictor, dict):
+        raise IncompleteRunError(f"{run_dir}: the completion manifest names no selected predictor")
+    require_sha256(predictor.get("combiner_sha256"), "combiner_sha256")
+    recorded = (manifest.get("prediction_blocks") or {}).get(role)
+    if not isinstance(recorded, dict):
+        raise IncompleteRunError(f"{run_dir}: the completed run holds no {role} predictions")
+    name = f"{role}_predictions.parquet"
+    blocks = json.loads(_verified_bytes(run_dir, f"{role}_prediction_blocks.json", manifest).decode("utf-8"))
+    for key in ("split_sha256", "rows_sha256", "n_rows", "result_block_sha256"):
+        if blocks.get(key) != recorded.get(key):
+            raise IncompleteRunError(f"{run_dir}: {role} block descriptor and completion manifest disagree on {key}")
+    member_digests = {m: d.get("sha256") for m, d in (blocks.get("member_blocks") or {}).items()}
+    if member_digests != recorded.get("member_block_sha256"):
+        raise IncompleteRunError(f"{run_dir}: {role} member blocks differ from the completion manifest")
+    members = list(predictor.get("members") or [])
+    if list(member_digests) != members:
+        raise IncompleteRunError(f"{run_dir}: {role} member blocks {list(member_digests)} are not the predictor's "
+                                 f"members {members} in order")
+    data = _verified_bytes(run_dir, name, manifest)
+    frame = pd.read_parquet(io.BytesIO(data))
+    head = list(frame.columns[:len(SPLIT_PREDICTION_IDENTITY_COLUMNS)])
+    members_present = list(frame.columns[len(SPLIT_PREDICTION_IDENTITY_COLUMNS):
+                                         len(SPLIT_PREDICTION_IDENTITY_COLUMNS) + len(members)])
+    if head != list(SPLIT_PREDICTION_IDENTITY_COLUMNS) or members_present != [f"{m}_prob" for m in members]:
+        raise IncompleteRunError(f"{run_dir}: {name} columns {list(frame.columns)} are not the identity columns "
+                                 f"followed by the predictor's members")
+    if len(frame) != int(blocks["n_rows"]):
+        raise IncompleteRunError(f"{run_dir}: {name} holds {len(frame)} rows; its blocks declare {blocks['n_rows']}")
+    labels = binary_labels(frame["label"].to_numpy(), len(frame))
+    if hashlib.sha256(labels.astype("<i8").tobytes()).hexdigest() != blocks.get("labels_int64_sha256"):
+        raise IncompleteRunError(f"{run_dir}: {name} labels do not reproduce the recorded label digest")
+    if frame["selected_score"].dtype != np.float64:
+        raise IncompleteRunError(f"{run_dir}: {name} selected_score is {frame['selected_score'].dtype}, not float64")
+    scores = frame["selected_score"].to_numpy()
+    if not np.isfinite(scores).all() or ((scores < 0) | (scores > 1)).any():
+        raise IncompleteRunError(f"{run_dir}: {name} selected_score is not finite in [0, 1]")
+    return BoundSplitPredictions(
+        run_dir=run_dir, role=role, frame=frame, predictor=dict(predictor), blocks=blocks,
+        completion_manifest_sha256=hashlib.sha256(manifest_bytes).hexdigest(),
+        predictions_sha256=hashlib.sha256(data).hexdigest(),
+        run_id=str(manifest.get("run_id")), ablation=str(manifest.get("ablation")))
+
+
+def selected_predictor_evaluation_evidence(run_dir: Path | str, combiner_sha256: str) -> dict:
+    """Evaluation evidence of ONE predictor, computed from a completed run's bound split predictions (gate G7.2).
+
+    Refused unless the run verifies and its completion manifest names `combiner_sha256` as the selected predictor:
+    a number another combiner earned is never carried. For each evaluated split the run holds (val, test, holdout),
+    the AUROC is recomputed from the bound `selected_score` with the repository's kernel
+    (evaluation.metrics.auroc) and recorded with the identities of the file and rows it describes.
+    """
+    from genomic_variant_classifier.evaluation.metrics import auroc
+
+    manifest = verify_completed_run(run_dir)
+    named = (manifest.get("predictor") or {}).get("combiner_sha256")
+    if named != combiner_sha256:
+        raise ContractError(f"{run_dir}: the completed run's selected predictor is {named}, not {combiner_sha256}; "
+                            "its evaluation is not evidence about this predictor")
+    splits = {}
+    manifest_digests = set()
+    for role in ("val", "test", "holdout"):
+        if role not in (manifest.get("prediction_blocks") or {}):
+            continue
+        bound = load_completed_split_predictions(run_dir, role)
+        identity = bound.identity()
+        manifest_digests.add(identity["completion_manifest_sha256"])
+        splits[role] = {**{k: identity[k] for k in ("predictions_sha256", "result_block_sha256", "rows_sha256",
+                                                     "split_sha256", "n_rows", "labels_int64_sha256")},
+                        "n_positive": int(bound.labels.sum()), "auroc": float(auroc(bound.labels, bound.scores))}
+    if not splits:
+        raise IncompleteRunError(f"{run_dir}: the completed run holds no evaluated split predictions")
+    if len(manifest_digests) != 1:
+        raise IncompleteRunError(f"{run_dir}: the completion manifest changed while the evidence was read")
+    return {"status": "bound", "schema": "gvc.selected-predictor-evaluation-evidence.v1",
+            "combiner_sha256": combiner_sha256, "run_id": manifest.get("run_id"), "ablation": manifest.get("ablation"),
+            "completion_manifest_sha256": manifest_digests.pop(),
+            "metric_kernel": "genomic_variant_classifier.evaluation.metrics.auroc", "splits": splits,
+            "qualification": "the selected predictor evaluated on its own run's splits; not an external, temporal or "
+                             "held-out-gene validation"}
 
 
 # ---------------------------------------------------------------------------

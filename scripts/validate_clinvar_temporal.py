@@ -19,7 +19,17 @@ Metrics produced
   AUROC, AUPRC, Brier score, ECE (15 bins)
   Per-threshold sensitivity, specificity, PPV, NPV, F1
   Label distribution of new variants (new pathogenic / benign / VUS)
-  Overlap with training set (fraction of new variants already in training)
+  Overlap with the training split (MEASURED, then removed), or "unmeasured" with the reason
+
+Package 1, set 1c (2026-11-08): the score is the selected predictor's (predict_proba = the stored convex blend).
+Corrected here: (1) "Temporal filter guarantees no training overlap" was false -- a variant last evaluated after the
+cutoff can be a training variant (it was re-reviewed) -- and no overlap was ever measured on that path; --splits-dir
+was documented "for deduplication" and never read. Overlap is now measured against the training split's locus
+identities (meta_train.parquet in --splits-dir) on every path, removed, and reported; when they are not available the
+report says "unmeasured" instead of claiming none. (2) The threshold table fabricated 0.0 for undefined rates
+(`max(denominator, 1)`); rates are now typed results that refuse when undefined. (3) The unbound
+`metadata.val_auroc` is replaced by the pipeline's predictor identity and bound evaluation evidence. (4) A failed
+AlphaMissense enrichment is recorded in metrics.json, and a containment refusal is never swallowed.
 
 Usage
 -----
@@ -50,7 +60,6 @@ from __future__ import annotations
 import argparse
 import gzip
 import io
-import json
 import logging
 import sys
 from pathlib import Path
@@ -256,18 +265,57 @@ def _ece(y_true: np.ndarray, y_proba: np.ndarray, n_bins: int = 15) -> float:
 
 
 def _threshold_metrics(y_true: np.ndarray, y_proba: np.ndarray, threshold: float) -> dict:
-    y_pred = (y_proba >= threshold).astype(int)
-    tp = int(((y_pred == 1) & (y_true == 1)).sum())
-    tn = int(((y_pred == 0) & (y_true == 0)).sum())
-    fp = int(((y_pred == 1) & (y_true == 0)).sum())
-    fn = int(((y_pred == 0) & (y_true == 1)).sum())
-    sens = tp / max(tp + fn, 1)
-    spec = tn / max(tn + fp, 1)
-    ppv  = tp / max(tp + fp, 1)
-    npv  = tn / max(tn + fn, 1)
-    f1   = 2 * ppv * sens / max(ppv + sens, 1e-9)
-    return dict(threshold=threshold, sensitivity=sens, specificity=spec,
-                ppv=ppv, npv=npv, f1=f1, tp=tp, tn=tn, fp=fp, fn=fn)
+    """Counts and typed rates at a FIXED reporting threshold (score >= threshold). An undefined rate is a status with a
+    reason (evaluation.thresholds.metrics_from_counts), never the 0.0 the old `max(denominator, 1)` fabricated."""
+    from genomic_variant_classifier.evaluation.thresholds import (
+        ConfusionCounts,
+        ThresholdOperator,
+        ThresholdParameters,
+        ThresholdSource,
+        metrics_from_counts,
+    )
+
+    calls = y_proba >= threshold
+    counts = ConfusionCounts(true_positive=int((calls & (y_true == 1)).sum()),
+                             false_positive=int((calls & (y_true == 0)).sum()),
+                             false_negative=int((~calls & (y_true == 1)).sum()),
+                             true_negative=int((~calls & (y_true == 0)).sum()))
+    return metrics_from_counts(counts, ThresholdParameters(threshold=threshold,
+                                                           operator=ThresholdOperator.GREATER_OR_EQUAL,
+                                                           source=ThresholdSource.FIXED_DEFAULT)).to_dict()
+
+
+def measure_training_overlap(new_variants: pd.DataFrame, splits_dir: Path | None) -> tuple[pd.DataFrame, dict]:
+    """Remove every new variant whose locus identity is in the training split, and record what was done.
+
+    The identity is prediction_contract.variant_identity_of -- the exact chrom:pos:ref:alt string serving and the run
+    writers use; representations are NOT normalised, so a differently written allele is not matched (recorded). A row
+    without a complete locus cannot be compared and is kept, counted. Without the training split's metadata nothing is
+    claimed: the status is "unmeasured" with the reason.
+    """
+    import hashlib
+
+    from genomic_variant_classifier.evaluation.split_identity import variant_identities
+    from genomic_variant_classifier.prediction_contract import UNIDENTIFIED_VARIANT
+
+    meta_path = None if splits_dir is None else Path(splits_dir) / "meta_train.parquet"
+    if meta_path is None or not meta_path.is_file():
+        return new_variants, {
+            "status": "unmeasured",
+            "reason": f"no training-split metadata at {meta_path}; a temporal cutoff alone does NOT exclude training "
+                      "variants (a variant re-evaluated after the cutoff can be in the training split)"}
+    data = meta_path.read_bytes()
+    meta = pd.read_parquet(io.BytesIO(data), columns=["chrom", "pos", "ref", "alt"])
+    training = set(variant_identities(meta)) - {UNIDENTIFIED_VARIANT}
+    identities = variant_identities(new_variants)
+    overlap = np.fromiter((v in training for v in identities), dtype=bool, count=len(identities))
+    record = {"status": "measured", "training_metadata": str(meta_path),
+              "training_metadata_sha256": hashlib.sha256(data).hexdigest(),
+              "n_training_identities": len(training), "n_before": int(len(new_variants)),
+              "n_overlapping_removed": int(overlap.sum()),
+              "n_without_a_complete_locus_kept": int(sum(v == UNIDENTIFIED_VARIANT for v in identities)),
+              "rule": "exact chrom:pos:ref:alt identity (prediction_contract.variant_identity_of); no normalisation"}
+    return new_variants.loc[~overlap].copy(), record
 
 
 # ---------------------------------------------------------------------------
@@ -292,7 +340,8 @@ def main() -> None:
     )
     p.add_argument("--splits-dir", type=Path,
                    default=Path("outputs/phase2_with_gnomad/splits"),
-                   help="Directory with X_train.parquet / X_val.parquet for deduplication.")
+                   help="The training run's splits directory: meta_train.parquet's locus identities are removed from "
+                        "the holdout and the overlap is reported (absent: overlap is reported as unmeasured).")
     p.add_argument("--model", type=Path, default=Path("models/phase2_pipeline.joblib"))
     p.add_argument("--cutoff", type=str, default="2024-01-01",
                    help="ISO date; variants last-evaluated after this date form the test set.")
@@ -346,27 +395,12 @@ def main() -> None:
         del clinvar
 
     # -----------------------------------------------------------------------
-    # Deduplicate against training set (parquet path only)
-    # For gz input the temporal cutoff already excludes training data;
-    # loading clinvar_grch38.parquet (4.4M rows) would exhaust RAM before
-    # the model can be loaded.
+    # Overlap with the training split: MEASURED and removed on every path (set 1c). The old code claimed the
+    # temporal filter guaranteed no overlap on the gz path, and on the parquet path removed every variant of a
+    # hard-coded, current-directory-relative ClinVar snapshot instead of the training split.
     # -----------------------------------------------------------------------
-    if not already_filtered:
-        train_ids: set[str] = set()
-        clinvar_proc = Path("data/processed/clinvar_grch38.parquet")
-        if clinvar_proc.exists():
-            cv_df = pd.read_parquet(clinvar_proc, columns=["variant_id"])
-            train_ids.update(cv_df["variant_id"].dropna().astype(str))
-            del cv_df
-            logger.info("Training set variant_ids: %d", len(train_ids))
-        if train_ids and "variant_id" in new_variants.columns:
-            before = len(new_variants)
-            keep_mask = [v not in train_ids for v in new_variants["variant_id"].tolist()]
-            new_variants = new_variants[keep_mask].copy()
-            logger.info("After dedup: %d (removed %d)", len(new_variants), before - len(new_variants))
-        del train_ids
-    else:
-        logger.info("Temporal filter guarantees no training overlap — skipping variant_id dedup.")
+    new_variants, training_overlap = measure_training_overlap(new_variants, args.splits_dir)
+    logger.info("Training overlap: %s", training_overlap)
 
     # -----------------------------------------------------------------------
     # Resolve label column
@@ -424,17 +458,27 @@ def main() -> None:
     am_parquet = Path("data/processed/alphamissense_scores.parquet")
     if not am_parquet.exists():
         am_parquet = Path("data/external/alphamissense/AlphaMissense_hg38.tsv.gz")
+    enrichment = {"alphamissense": {"status": "not_available", "reason": f"no source at {am_parquet}"}}
     if am_parquet.exists():
+        from genomic_variant_classifier.containment import ContainmentError
         try:
             from genomic_variant_classifier.data.alphamissense import AlphaMissenseConnector
             am = AlphaMissenseConnector(tsv_path=str(am_parquet))
             am_df = am.fetch(labeled)
             if "alphamissense_score" in am_df.columns:
                 labeled["alphamissense_score"] = am_df["alphamissense_score"].values
+                enrichment["alphamissense"] = {"status": "applied", "source": str(am_parquet),
+                                               "hit_rate": float(labeled["alphamissense_score"].notna().mean())}
                 logger.info("  AlphaMissense: %.1f%% hit rate",
                             100 * labeled["alphamissense_score"].notna().mean())
+            else:
+                enrichment["alphamissense"] = {"status": "no_score_column", "source": str(am_parquet)}
+        except ContainmentError:
+            raise   # a refusal is never recorded as an ordinary enrichment failure
         except Exception as exc:
-            logger.warning("  AlphaMissense skipped: %s", exc)
+            enrichment["alphamissense"] = {"status": "failed", "source": str(am_parquet),
+                                           "reason": f"{type(exc).__name__}: {exc}"}
+            logger.error("  AlphaMissense enrichment FAILED (recorded in metrics.json): %s", exc)
 
     import gc; gc.collect()
     logger.info("Enrichment complete. Labeled DataFrame: %d rows x %d cols",
@@ -448,8 +492,9 @@ def main() -> None:
     from genomic_variant_classifier.model_admission import repository_registry_path
     pipeline = InferencePipeline.load(args.model, consumer="scripts/validate_clinvar_temporal.py",
                                       registry_path=repository_registry_path())
-    logger.info("Model val_auroc=%.4f, n_features=%d",
-                pipeline.metadata.val_auroc, pipeline.metadata.n_features)
+    logger.info("Model: combiner %s, n_features=%d, evaluation evidence %s",
+                pipeline.combiner.digest, pipeline.metadata.n_features,
+                pipeline.metadata.evaluation_evidence.get("status"))
 
     # -----------------------------------------------------------------------
     # Score in batches to avoid OOM in engineer_features at 2M+ scale
@@ -496,10 +541,16 @@ def main() -> None:
         "auprc":           auprc,
         "brier":           brier,
         "ece":             ece,
-        "model_val_auroc": pipeline.metadata.val_auroc,
-        "threshold_metrics": threshold_results,
+        "training_overlap": training_overlap,
+        "enrichment":      enrichment,
+        "predictor": {"combiner_sha256": pipeline.combiner.digest,
+                      "predictor_contract_sha256": pipeline.predictor_contract_sha256(),
+                      "evaluation_evidence": pipeline.metadata.evaluation_evidence},
+        "fixed_reporting_thresholds": threshold_results,
     }
-    (args.output / "metrics.json").write_text(json.dumps(metrics, indent=2))
+    from genomic_variant_classifier.evaluation.serialization import dump_strict_json
+    (args.output / "metrics.json").write_text(dump_strict_json(metrics, artifact="metrics.json") + "\n",
+                                              encoding="utf-8", newline="\n")
     pd.DataFrame({"fpr": fpr, "tpr": tpr}).to_parquet(
         args.output / "roc_curve.parquet", index=False
     )
@@ -511,26 +562,29 @@ def main() -> None:
     logger.info(
         "\n=== Temporal Holdout Summary ===\n"
         "  Cutoff:  %s\n"
-        "  AUROC:   %.4f  (training val: %.4f)\n"
+        "  AUROC:   %.4f\n"
         "  AUPRC:   %.4f\n"
         "  Brier:   %.4f\n"
         "  ECE:     %.4f\n"
         "  N:       %d  (%d pathogenic, %d benign)",
         args.cutoff,
-        auroc, pipeline.metadata.val_auroc,
+        auroc,
         auprc, brier, ece,
         len(labeled), int(y_true.sum()), int((y_true == 0).sum()),
     )
 
-    # Threshold table
-    header = f"{'Threshold':>10}{'Sens':>8}{'Spec':>8}{'PPV':>8}{'NPV':>8}{'F1':>8}"
+    # Fixed reporting thresholds (typed: an undefined rate prints its status, never a fabricated 0.0)
+    header = f"{'Threshold':>10}{'Sens':>10}{'Spec':>10}{'PPV':>10}{'NPV':>10}{'F1':>10}"
     logger.info("\n%s\n%s", header, "-" * len(header))
+
+    def _cell(result: dict) -> str:
+        return f"{result['value']:10.4f}" if result["status"] == "ok" else f"{result['status'][:10]:>10}"
+
     for r in threshold_results:
-        logger.info(
-            "%10.2f%8.4f%8.4f%8.4f%8.4f%8.4f",
-            r["threshold"], r["sensitivity"], r["specificity"],
-            r["ppv"], r["npv"], r["f1"],
-        )
+        m = r["metrics"]
+        logger.info("%10.2f%s%s%s%s%s", r["threshold"]["decision_threshold"], _cell(m["sensitivity"]),
+                    _cell(m["specificity"]), _cell(m["positive_predictive_value"]),
+                    _cell(m["negative_predictive_value"]), _cell(m["f1"]))
 
 
 if __name__ == "__main__":

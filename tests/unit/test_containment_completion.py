@@ -62,10 +62,13 @@ class TestRequireExecutionPermitted:
             require_execution_permitted("scripts/y.py", {"scripts/x.py": "  "})
 
 
-def test_the_denied_set_is_exactly_the_two_scripts_ruled_on():
+def test_the_denied_set_is_exactly_the_scripts_ruled_on():
+    """The two of the owner ruling of 2026-09-23, and the reconstruction exporter added by package 1, set 1c (frozen
+    acceptance matrix revision 1: it re-predicts the same quarantine-era run, bypassing admission)."""
     assert set(HISTORICAL_EXECUTION_DENIED) == {
         "scripts/diagnose_phase2_prediction_reconstruction.py",
         "scripts/run10b_partial_phase2_eval_v2.py",
+        "scripts/export_phase2_predictions_from_saved_models.py",
     }
     with pytest.raises(TypeError):
         HISTORICAL_EXECUTION_DENIED["scripts/z.py"] = "x"          # read-only policy

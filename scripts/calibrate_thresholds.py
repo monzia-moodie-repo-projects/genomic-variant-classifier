@@ -1,45 +1,41 @@
 """
 scripts/calibrate_thresholds.py
 ================================
-Post-training probability calibration and ACMG-tier threshold optimisation.
+Research operating points on the SELECTED predictor's score, chosen on one split of a COMPLETED run.
 
-What it does
-------------
-1. Loads the trained InferencePipeline and the gene-stratified validation set.
-2. Runs Platt scaling (logistic regression on the raw ensemble log-odds) to
-   obtain well-calibrated probabilities.
-3. Sweeps candidate thresholds and finds, for each ACMG tier boundary, the
-   lowest threshold where PPV ≥ target (default 0.95 for Pathogenic/Likely
-   pathogenic, 0.80 for the other tiers).
-4. Writes the calibrated thresholds to models/classification_thresholds.json.
-5. Optionally replaces the in-memory thresholds used by schemas.py at startup
-   (see --apply flag).
+Author: Monzia Moodie
 
-Usage
------
-    python scripts/calibrate_thresholds.py \\
-        --pipeline  models/phase2_pipeline.joblib \\
-        --val-X     outputs/phase2_eval/splits/X_val.parquet \\
-        --val-y     outputs/phase2_eval/splits/y_val.parquet \\
-        --output    models/classification_thresholds.json
+    python scripts/calibrate_thresholds.py --run-dir outputs/run16/full --role val \\
+        --output models/decision_policy.json
+
+What it does (package 1, set 1c, 2026-11-08 -- evaluation/decision_policy.py holds the method and its rationale)
+  1. Reads `<role>_predictions.parquet` of a completed run through prediction_artifacts.
+     load_completed_split_predictions: the completion manifest and the prediction blocks are verified and the stored
+     convex blend's `selected_score` is read with the identities of the predictor, run, file and rows. Nothing is
+     re-scored, so no model is loaded.
+  2. Chooses four operating points with the repository's exact sweep and Objective A (the most sensitive point whose
+     predictive value clears a floor): two positive-predictive-value floors on `selected_score` and two
+     negative-predictive-value floors on `1 - selected_score`.
+  3. Writes a strict, digest-bearing gvc.decision-policy.v1 record. Consumers verify it and refuse it for any other
+     predictor (DecisionPolicy.require_predictor).
+
+What it no longer does, and why
+  * It no longer scores the logistic meta-learner (removed from the inference pipeline in set 1a: it is not the
+    selected predictor).
+  * It no longer fits Platt or temperature scaling, picks one by its error on the same rows, and thresholds the
+    transformed score. A strictly increasing transformation cannot change which rows clear a threshold, so it cannot
+    change a predictive-value operating point; it only moved the thresholds onto a scale serving never produces.
+  * It no longer returns the highest qualifying threshold while documenting the lowest, and it no longer falls back
+    to the best-precision point when a floor is unreachable: it refuses (exit 1) and writes nothing.
+  * Its bands carry neutral names, not ACMG/AMP tier labels: they are research operating points.
 
 Exit codes
-----------
-    0   Success — thresholds written.
-    1   Calibration error (e.g. not enough positive examples in val set).
-    2   I/O or pipeline error.
-
-TRANSITION REFUSAL (package 1, set 1a, 2026-11-07): this script refuses at import, before any model library, artifact,
-data file or output is touched -- see transition_policy.PREDICTION_CONTRACT_TRANSITION_DENIED. Its migration onto the
-selected prediction contract (bound predictor, input representation, calibration transformation and score stage) is
-package 1, set 1c.
+    0  policy written
+    1  refused: a floor is unreachable, or the bands would be inconsistent or overlap (nothing written)
+    2  the input is not a verified completed run with the requested split (nothing written)
 """
 
 from __future__ import annotations
-
-from genomic_variant_classifier.containment import require_execution_permitted
-from genomic_variant_classifier.transition_policy import PREDICTION_CONTRACT_TRANSITION_DENIED
-require_execution_permitted('scripts/calibrate_thresholds.py', PREDICTION_CONTRACT_TRANSITION_DENIED)
 
 import argparse
 import json
@@ -47,372 +43,67 @@ import logging
 import sys
 from pathlib import Path
 
-import numpy as np
-import pandas as pd
-from sklearn.calibration import CalibratedClassifierCV
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import precision_recall_curve
-
-from genomic_variant_classifier.containment import ContainmentError
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
 logger = logging.getLogger("calibrate_thresholds")
 
 
-# ---------------------------------------------------------------------------
-# Default tier-boundary PPV targets
-# ---------------------------------------------------------------------------
-PPV_TARGETS: dict[str, float] = {
-    "pathogenic_lo":       0.95,   # lower bound of Pathogenic tier
-    "likely_pathogenic_lo": 0.80,  # lower bound of Likely pathogenic tier
-    "vus_hi":              0.20,   # upper bound of VUS (= lower Likely benign)
-    "benign_hi":           0.05,   # upper bound of Benign tier
-}
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Research operating points of the selected predictor, chosen on a "
+                                            "completed run's split predictions.")
+    p.add_argument("--run-dir", required=True, type=Path, help="a completed run directory (completion manifest)")
+    p.add_argument("--role", default="val", choices=("val", "test", "holdout", "train"),
+                   help="the split whose predictions choose the operating points (default: val)")
+    p.add_argument("--output", required=True, type=Path, help="where the gvc.decision-policy.v1 record is written")
+    p.add_argument("--positive-high-floor", type=float, default=0.95,
+                   help="minimum positive predictive value of the positive_high_ppv band (default 0.95)")
+    p.add_argument("--positive-moderate-floor", type=float, default=0.80,
+                   help="minimum positive predictive value of every positive call (default 0.80)")
+    p.add_argument("--negative-high-floor", type=float, default=0.95,
+                   help="minimum negative predictive value of the negative_high_npv band (default 0.95)")
+    p.add_argument("--negative-moderate-floor", type=float, default=0.80,
+                   help="minimum negative predictive value of every negative call (default 0.80)")
+    return p.parse_args(argv)
 
 
-def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(
-        description="Calibrate pathogenicity thresholds against validation set"
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s")
+
+    from genomic_variant_classifier.evaluation.decision_policy import (
+        DecisionPolicyRefused,
+        build_decision_policy,
+        write_decision_policy,
     )
-    p.add_argument(
-        "--pipeline",
-        default="models/phase2_pipeline.joblib",
-        help="Path to InferencePipeline joblib artifact",
+    from genomic_variant_classifier.evaluation.prediction_artifacts import (
+        IncompleteRunError,
+        load_completed_split_predictions,
     )
-    p.add_argument(
-        "--val-X",
-        default="outputs/phase2_eval/splits/X_val.parquet",
-        help="Validation feature matrix (parquet)",
-    )
-    p.add_argument(
-        "--val-y",
-        default="outputs/phase2_eval/splits/y_val.parquet",
-        help="Validation labels (parquet with 'label' column, or plain series parquet)",
-    )
-    p.add_argument(
-        "--output",
-        default="models/classification_thresholds.json",
-        help="Output path for threshold JSON",
-    )
-    p.add_argument(
-        "--ppv-pathogenic",
-        type=float,
-        default=0.95,
-        help="Minimum PPV for the Pathogenic tier lower boundary (default 0.95)",
-    )
-    p.add_argument(
-        "--ppv-likely",
-        type=float,
-        default=0.80,
-        help="Minimum PPV for the Likely pathogenic tier lower boundary (default 0.80)",
-    )
-    p.add_argument(
-        "--n-bins",
-        type=int,
-        default=1000,
-        help="Number of threshold sweep points (default 1000)",
-    )
-    return p.parse_args()
-
-
-def load_pipeline(path: str):
-    # InferencePipeline.load, never a bare joblib.load: the thresholds written here are used in SERVING, so the
-    # pipeline must pass the same load-time admission (quarantine, recorded digest) the API server applies.
-    from genomic_variant_classifier.api.pipeline import InferencePipeline
-    from genomic_variant_classifier.model_admission import repository_registry_path
-    obj = InferencePipeline.load(path, consumer="scripts/calibrate_thresholds.py",
-                                 registry_path=repository_registry_path())
-    logger.info("Pipeline loaded: val_auroc=%.4f", obj.metadata.val_auroc)
-    return obj
-
-
-def get_raw_scores(pipeline, X_val: pd.DataFrame) -> np.ndarray:
-    """
-    Extract pre-stacking base-model predictions (log-odds) for Platt scaling.
-
-    We pass the already-engineered features directly to the base models,
-    bypassing engineer_features() since X_val is already the feature matrix.
-    """
-    # X_val is the feature matrix from the split parquets -- columns already engineered. The pipeline's own
-    # admitted matrix step selects ITS declared features, refuses any it lacks (never zero-fills) and scales.
-    pipeline._require_admissible()
-    X, _ = pipeline._model_matrix(X_val)
-
-    base_preds = np.column_stack([
-        model.predict_proba(X if name == "catboost" else X.values)[:, 1]
-        for name, model in pipeline.trained_models.items()
-    ])
-    # Raw stacker log-odds for Platt scaling
-    stacker_proba = pipeline.meta_learner.predict_proba(base_preds)[:, 1]
-    return stacker_proba
-
-
-def platt_scale(raw_scores: np.ndarray, y_val: np.ndarray) -> LogisticRegression:
-    """Fit a logistic regression on log-odds of raw_scores → calibrated proba."""
-    eps = 1e-7
-    log_odds = np.log(
-        (raw_scores + eps) / (1.0 - raw_scores + eps)
-    ).reshape(-1, 1)
-    lr = LogisticRegression(C=1e6, solver="lbfgs", max_iter=1000)
-    lr.fit(log_odds, y_val)
-    logger.info(
-        "Platt scaling fit: coef=%.4f  intercept=%.4f",
-        float(lr.coef_[0, 0]),
-        float(lr.intercept_[0]),
-    )
-    return lr
-
-
-def _ece(scores: np.ndarray, y: np.ndarray, n_bins: int = 10) -> float:
-    """Expected Calibration Error — weighted mean |accuracy - confidence| per bin."""
-    bin_edges = np.linspace(0, 1, n_bins + 1)
-    ece = 0.0
-    n = len(y)
-    for _b, (lo, hi) in enumerate(zip(bin_edges[:-1], bin_edges[1:])):
-        # Top bin CLOSED to [lo, 1.0]. A half-open final bin drops every score of exactly
-        # 1.0 -- a pure decision-tree or ensemble leaf -- under-reporting this error by
-        # 86.7% on a fixture with 20% of rows at 1.0. Repaired 2026-07-20; the same defect
-        # was repaired in evaluator.py on 2026-07-10.
-        if _b == n_bins - 1:
-            mask = (scores >= lo) & (scores <= hi)
-        else:
-            mask = (scores >= lo) & (scores < hi)
-        if mask.sum() == 0:
-            continue
-        ece += (mask.sum() / n) * abs(float(y[mask].mean()) - float(scores[mask].mean()))
-    return float(ece)
-
-
-def temperature_scale(
-    raw_scores: np.ndarray,
-    y_val: np.ndarray,
-) -> tuple[float, np.ndarray]:
-    """
-    Temperature scaling: divide logits by T, then sigmoid.
-
-    Finds T > 0 that minimises NLL on the validation set via
-    scipy.optimize.minimize_scalar (bounded Brent method).
-    Preserves AUROC exactly (monotonic transformation).
-    Typically achieves lower ECE than Platt on large, well-trained models.
-
-    Returns (T, calibrated_scores).
-    """
-    from scipy.optimize import minimize_scalar
-    from scipy.special import expit  # numerically stable sigmoid
-
-    eps = 1e-7
-    logits = np.log(
-        (raw_scores + eps) / (1.0 - raw_scores + eps)
-    )
-
-    def nll(T: float) -> float:
-        if T <= 0:
-            return 1e9
-        p = expit(logits / T)
-        return float(-np.mean(y_val * np.log(p + eps) + (1 - y_val) * np.log(1 - p + eps)))
-
-    result = minimize_scalar(nll, bounds=(0.01, 10.0), method="bounded")
-    T = float(result.x)
-    calibrated = expit(logits / T)
-    logger.info("Temperature scaling: T=%.4f  (NLL=%.4f)", T, result.fun)
-    return T, calibrated
-
-
-
-def find_ppv_threshold(
-    calibrated_scores: np.ndarray,
-    y_true: np.ndarray,
-    target_ppv: float,
-) -> float:
-    """
-    Return the lowest threshold t such that PPV(score >= t) >= target_ppv.
-    Falls back to the highest threshold that maximises PPV if target is unreachable.
-    """
-    precision, _, thresholds = precision_recall_curve(y_true, calibrated_scores)
-    # precision_recall_curve returns precision[i] for threshold[i]; last entry is 1.0
-    # thresholds has one fewer entry than precision
-    for prec, thresh in zip(reversed(precision[:-1]), reversed(thresholds)):
-        if prec >= target_ppv:
-            return float(thresh)
-    # Target PPV not reachable — return threshold that achieves highest precision
-    best_idx = int(np.argmax(precision[:-1]))
-    logger.warning(
-        "PPV target %.2f not reachable; best achievable PPV=%.3f at threshold=%.4f",
-        target_ppv,
-        float(precision[best_idx]),
-        float(thresholds[best_idx]),
-    )
-    return float(thresholds[best_idx])
-
-
-def compute_thresholds(
-    calibrated_scores: np.ndarray,
-    y_true: np.ndarray,
-    ppv_pathogenic: float,
-    ppv_likely: float,
-) -> dict:
-    """
-    Derive five-tier classification thresholds from the calibrated score.
-
-    Returns a dict compatible with schemas.CLASSIFICATION_THRESHOLDS format:
-        { tier_label: [lo, hi], ... }
-    """
-    path_lo    = find_ppv_threshold(calibrated_scores, y_true, ppv_pathogenic)
-    likely_lo  = find_ppv_threshold(calibrated_scores, y_true, ppv_likely)
-
-    # Benign / likely-benign boundaries: mirror the pathogenic thresholds
-    # using 1 - P(benign) = P(pathogenic) logic on the inverted label
-    y_benign = 1 - y_true
-    benign_lo   = 1.0 - find_ppv_threshold(1.0 - calibrated_scores, y_benign, ppv_pathogenic)
-    lb_lo       = 1.0 - find_ppv_threshold(1.0 - calibrated_scores, y_benign, ppv_likely)
-
-    # Clamp & order: Benign < Likely benign < VUS < Likely path < Path
-    benign_hi   = min(benign_lo, lb_lo)
-    lb_hi       = min(lb_lo, likely_lo)
-    vus_lo      = benign_hi
-    vus_hi      = lb_hi
-
-    thresholds = {
-        "Pathogenic":             [round(path_lo, 4),   1.01],
-        "Likely pathogenic":      [round(likely_lo, 4), round(path_lo, 4)],
-        "Uncertain significance": [round(vus_lo, 4),    round(vus_hi, 4)],
-        "Likely benign":          [round(benign_hi, 4), round(lb_hi, 4)],
-        "Benign":                 [-0.01,               round(benign_lo, 4)],
-    }
-
-    logger.info("Calibrated thresholds:")
-    for label, (lo, hi) in thresholds.items():
-        logger.info("  %-26s  [%.4f, %.4f)", label, lo, hi)
-
-    return thresholds
-
-
-def main() -> int:
-    args = parse_args()
-
-    pipeline_path = Path(args.pipeline)
-    val_x_path    = Path(args.val_X)
-    val_y_path    = Path(args.val_y)
-    output_path   = Path(args.output)
-
-    for p in [pipeline_path, val_x_path, val_y_path]:
-        if not p.exists():
-            logger.error("File not found: %s", p)
-            return 2
 
     try:
-        pipeline = load_pipeline(str(pipeline_path))
-    except ContainmentError:
-        raise   # a quarantine refusal, not a load failure
-    except Exception as exc:
-        logger.error("Failed to load pipeline: %s", exc)
+        bound = load_completed_split_predictions(args.run_dir, args.role)
+    except (IncompleteRunError, FileNotFoundError) as exc:
+        logger.error("NOT a verified completed run with %s predictions: %s", args.role, exc)
         return 2
-
+    logger.info("Bound input: %d %s rows (%d positive) of run %s/%s; predictor %s; file sha256 %s",
+                len(bound.frame), args.role, int(bound.labels.sum()), bound.run_id, bound.ablation,
+                bound.predictor["combiner_sha256"], bound.predictions_sha256)
     try:
-        X_val = pd.read_parquet(val_x_path)
-        y_raw = pd.read_parquet(val_y_path)
-        if "label" in y_raw.columns:
-            y_val = y_raw["label"].values.astype(int)
-        else:
-            y_val = y_raw.iloc[:, 0].values.astype(int)
-        logger.info(
-            "Validation set: %d samples  (%d pathogenic, %d benign)",
-            len(y_val), int(y_val.sum()), int((y_val == 0).sum()),
-        )
-    except Exception as exc:
-        logger.error("Failed to load validation data: %s", exc)
-        return 2
-
-    if len(np.unique(y_val)) < 2:
-        logger.error("Validation set must contain both classes for calibration.")
+        record = build_decision_policy(bound, positive_high=args.positive_high_floor,
+                                       positive_moderate=args.positive_moderate_floor,
+                                       negative_high=args.negative_high_floor,
+                                       negative_moderate=args.negative_moderate_floor)
+    except DecisionPolicyRefused as exc:
+        logger.error("REFUSED -- nothing written: %s", exc)
+        for name, entry in exc.outcomes.items():
+            logger.error("  %s: %s", name, json.dumps(entry["outcome"]["selection"], sort_keys=True))
         return 1
-
-    try:
-        raw_scores = get_raw_scores(pipeline, X_val)
-    except ContainmentError:
-        raise
-    except Exception as exc:
-        logger.error("Failed to score validation set: %s", exc)
-        return 2
-
-    # Platt scaling
-    from sklearn.metrics import roc_auc_score, brier_score_loss
-
-    logger.info(
-        "Pre-calibration:  AUROC=%.4f  Brier=%.4f  ECE=%.4f",
-        roc_auc_score(y_val, raw_scores),
-        brier_score_loss(y_val, raw_scores),
-        _ece(raw_scores, y_val),
-    )
-
-    # Platt scaling
-    platt = platt_scale(raw_scores, y_val)
-    eps = 1e-7
-    log_odds = np.log(
-        (raw_scores + eps) / (1.0 - raw_scores + eps)
-    ).reshape(-1, 1)
-    platt_scores = platt.predict_proba(log_odds)[:, 1]
-    platt_ece = _ece(platt_scores, y_val)
-    logger.info(
-        "Platt scaling:    AUROC=%.4f  Brier=%.4f  ECE=%.4f",
-        roc_auc_score(y_val, platt_scores),
-        brier_score_loss(y_val, platt_scores),
-        platt_ece,
-    )
-
-    # Temperature scaling
-    temp_T, temp_scores = temperature_scale(raw_scores, y_val)
-    temp_ece = _ece(temp_scores, y_val)
-    logger.info(
-        "Temp scaling:     AUROC=%.4f  Brier=%.4f  ECE=%.4f  T=%.4f",
-        roc_auc_score(y_val, temp_scores),
-        brier_score_loss(y_val, temp_scores),
-        temp_ece,
-        temp_T,
-    )
-
-    # Use whichever method achieves lower ECE for threshold derivation
-    if temp_ece <= platt_ece:
-        calibrated = temp_scores
-        calibration_method = "temperature"
-        logger.info("Selected: temperature scaling (ECE %.4f vs Platt %.4f)", temp_ece, platt_ece)
-    else:
-        calibrated = platt_scores
-        calibration_method = "platt"
-        logger.info("Selected: Platt scaling (ECE %.4f vs temperature %.4f)", platt_ece, temp_ece)
-
-    thresholds = compute_thresholds(
-        calibrated, y_val,
-        ppv_pathogenic=args.ppv_pathogenic,
-        ppv_likely=args.ppv_likely,
-    )
-
-    output = {
-        "thresholds":           thresholds,
-        "calibration_method":   calibration_method,
-        "temperature_T":        round(temp_T, 6),
-        "platt_coef":           float(platt.coef_[0, 0]),
-        "platt_intercept":      float(platt.intercept_[0]),
-        "val_auroc_raw":        round(float(roc_auc_score(y_val, raw_scores)), 4),
-        "val_auroc_calib":      round(float(roc_auc_score(y_val, calibrated)), 4),
-        "val_brier_raw":        round(float(brier_score_loss(y_val, raw_scores)), 4),
-        "val_brier_calib":      round(float(brier_score_loss(y_val, calibrated)), 4),
-        "val_ece_raw":          round(_ece(raw_scores, y_val), 5),
-        "val_ece_platt":        round(platt_ece, 5),
-        "val_ece_temperature":  round(temp_ece, 5),
-        "val_ece_selected":     round(_ece(calibrated, y_val), 5),
-        "n_val":                int(len(y_val)),
-        "ppv_pathogenic":       args.ppv_pathogenic,
-        "ppv_likely":           args.ppv_likely,
-    }
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(output, indent=2))
-    logger.info("Thresholds written to %s", output_path)
+    for name, point in record["operating_points"].items():
+        metrics = point["outcome"]["metrics"]["metrics"]
+        logger.info("  %-18s %s %s %.17g  (floor %.4f; sensitivity %s; predictive value %s)", name,
+                    point["score_space"], point["operator"], point["threshold"], point["floor"],
+                    metrics["sensitivity"]["value"], metrics["positive_predictive_value"]["value"])
+    file_sha256 = write_decision_policy(record, args.output)
+    logger.info("Decision policy written: %s (record_sha256 %s, file sha256 %s). Certification blockers: %s",
+                args.output, record["record_sha256"], file_sha256, record["certification_blockers"])
     return 0
 
 

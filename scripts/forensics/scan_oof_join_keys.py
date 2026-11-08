@@ -1,6 +1,14 @@
 #!/usr/bin/env python
 """scan_oof_join_keys.py (2026-07-10)
 
+HISTORICAL RECORD, LABELLED in package 1, set 1c (2026-11-08; gate G2.4). Read-only. Two of its readings are
+superseded: an IDX_ONLY file's `_train_row_idx` is a dense position over the out-of-fold subset, never a training-split
+row (Run 15's real mapping: scripts/derive_run15_oof_identity.py), and "VIABLE (aligned)" -- per-model AUROC >= 0.90
+from an in-file label -- is a plausibility screen, not a proof of a correct join. A substrate is now a COMPLETED run's
+bound predictions (evaluation/prediction_artifacts.load_completed_split_predictions; out-of-fold rows through
+evaluation/model_insights_detector.load_completed_oof).
+
+
 run15_baseline's oof_predictions has a RESET dense _train_row_idx that lost the true label
 mapping (verify_oof_alignment.py proved all 13 per-model AUROCs = chance). So run15 cannot be the
 conformal methods-demo substrate.

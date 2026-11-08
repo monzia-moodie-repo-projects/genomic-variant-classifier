@@ -6,9 +6,19 @@ Enrich LOVD variants with gnomAD AF + gene features, then run model validation.
 Enrichment steps (in priority order):
   1. gnomAD v4 allele frequency join (variant_id = chrom:pos:ref:alt)
   2. Gene-level features from gene_summary parquet
-  3. Consequence derived from variant pattern (SNV / indel / del / dup)
+  3. Consequence: the cohort's OWN `consequence` column. Inferring it from allele lengths is refused unless
+     --allow-inferred-consequence is given, and then it is recorded in metrics.json as a heuristic input.
 
 Output: outputs/lovd_validation_full/metrics.json  +  predictions.parquet
+
+Package 1, set 1c (2026-11-08): the score is the selected predictor's (predict_proba = the stored convex blend).
+Corrected here: `consequence` -- a model input -- was FABRICATED for every row from the allele lengths (every SNV
+"missense_variant", every length change "frameshift_variant", in-frame ones included), so the validation measured the
+model on inputs the cohort never had; that now requires an explicit flag, uses in-frame classes where the length change
+is a multiple of three, and is recorded. The fills the enrichment applies (absent gnomAD frequency -> 0.0, absent
+AlphaMissense -> 0.5) are COUNTED in metrics.json; a hard-coded copy into `G:/My Drive` (a cloud mount the project
+never bulk-writes through) is removed; the unbound `metadata.val_auroc` is replaced by the predictor's identity and
+bound evaluation evidence; nothing is rounded; metrics.json is strict JSON.
 
 Usage:
     python scripts/validate_lovd_enriched.py
@@ -17,7 +27,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import sys
 from pathlib import Path
@@ -39,25 +48,26 @@ logger = logging.getLogger(__name__)
 
 def _infer_consequence(variant_id: str) -> str:
     """
-    Heuristic consequence from variant_id string 'chrom:pos:ref:alt'.
+    HEURISTIC consequence from variant_id 'chrom:pos:ref:alt' -- used ONLY with --allow-inferred-consequence.
 
-    LOVD variants in known disease genes are predominantly coding; for SNVs
-    we default to missense_variant (the most common pathogenic consequence).
-    Indels (ref or alt is '?') are treated as frameshift_variant.
+    It is a guess, not an annotation: an SNV is assumed missense (it may be synonymous, nonsense, splice or
+    non-coding); a length change is frameshift unless the net change is a multiple of three (in-frame). An unknown
+    allele ('?') or a malformed identifier is "unknown_consequence" -- never a guessed coding class.
     """
     parts = variant_id.split(":")
     if len(parts) != 4:
-        return "missense_variant"
+        return "unknown_consequence"
     _, _, ref, alt = parts
-    if ref == "?" or alt == "?":
-        return "frameshift_variant"
+    if ref == "?" or alt == "?" or not ref or not alt:
+        return "unknown_consequence"
     if len(ref) == 1 and len(alt) == 1:
         return "missense_variant"
-    if len(ref) > 1 and len(alt) == 1:
-        return "frameshift_variant"   # deletion
-    if len(ref) == 1 and len(alt) > 1:
-        return "frameshift_variant"   # insertion
-    return "missense_variant"
+    change = len(alt) - len(ref)
+    if change == 0:
+        return "missense_variant"          # a multi-nucleotide substitution
+    if change % 3 == 0:
+        return "inframe_insertion" if change > 0 else "inframe_deletion"
+    return "frameshift_variant"
 
 
 # ---------------------------------------------------------------------------
@@ -91,6 +101,10 @@ def main() -> int:
         type=Path,
         default=Path("outputs/lovd_validation_full"),
     )
+    parser.add_argument(
+        "--allow-inferred-consequence", action="store_true",
+        help="when the cohort has no `consequence` column, GUESS it from allele lengths (recorded as heuristic)",
+    )
     args = parser.parse_args()
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -99,6 +113,16 @@ def main() -> int:
     # ---- load cohort ----
     logger.info("Loading LOVD cohort from %s ...", args.cohort)
     df = pd.read_parquet(args.cohort)
+    if set(pd.unique(df["label"])) != {0, 1}:
+        logger.error("The cohort's `label` must be exactly 0/1 with both classes present; found %s",
+                     sorted(map(str, pd.unique(df["label"]))))
+        return 2
+    if "consequence" not in df.columns and not args.allow_inferred_consequence:
+        logger.error("REFUSED: the cohort has no `consequence` column, and `consequence` is a model input. Annotate "
+                     "it (for example with VEP), or pass --allow-inferred-consequence to accept a recorded guess "
+                     "from allele lengths.")
+        return 2
+    enrichment: dict[str, dict] = {}
     logger.info(
         "Cohort: %d variants  (%d pathogenic, %d benign)",
         len(df), int((df["label"] == 1).sum()), int((df["label"] == 0).sum()),
@@ -112,6 +136,8 @@ def main() -> int:
         df = df.merge(gnomad, on="variant_id", how="left")
         df["allele_freq"] = df["gnomad_af"].fillna(0.0)
         n_matched = df["gnomad_af"].notna().sum()
+        enrichment["allele_freq"] = {"source": str(args.gnomad), "n_matched": int(n_matched),
+                                     "n_filled_with_0": int(len(df) - n_matched)}
         logger.info(
             "gnomAD match: %d / %d variants (%.1f%%)",
             n_matched, len(df), 100 * n_matched / len(df),
@@ -120,6 +146,7 @@ def main() -> int:
     else:
         logger.warning("gnomAD parquet not found; allele_freq will default to 0.0")
         df["allele_freq"] = 0.0
+        enrichment["allele_freq"] = {"source": None, "n_matched": 0, "n_filled_with_0": int(len(df))}
 
     # ---- enrich: gene-level features ----
     if args.gene_summary.exists():
@@ -141,14 +168,24 @@ def main() -> int:
             "AlphaMissense match: %d / %d SNV variants (%.1f%%)",
             n_am, len(df), 100 * n_am / len(df),
         )
-        # engineer_features() reads alphamissense_score; fill missing with 0.5 (not covered)
+        # engineer_features() reads alphamissense_score; fill missing with 0.5 (not covered) -- COUNTED below
+        enrichment["alphamissense_score"] = {"source": str(am_path), "n_matched": int(n_am),
+                                             "n_filled_with_0.5": int(len(df) - n_am)}
         df["alphamissense_score"] = df["am_pathogenicity"].fillna(0.5)
         df = df.drop(columns=["am_pathogenicity"])
     else:
         logger.warning("AlphaMissense parquet not found; alphamissense_score defaults to 0.5")
+        enrichment["alphamissense_score"] = {"source": None, "n_matched": 0,
+                                             "note": "absent: engineer_features applies its own default"}
 
-    # ---- enrich: consequence ----
-    df["consequence"] = df["variant_id"].apply(_infer_consequence)
+    # ---- consequence: the cohort's own, or an explicitly accepted and recorded guess ----
+    if "consequence" in df.columns:
+        enrichment["consequence"] = {"source": "cohort column"}
+    else:
+        df["consequence"] = df["variant_id"].apply(_infer_consequence)
+        enrichment["consequence"] = {"source": "HEURISTIC from allele lengths (--allow-inferred-consequence)",
+                                     "counts": {str(k): int(v) for k, v in
+                                                df["consequence"].value_counts().items()}}
     logger.info(
         "Consequence distribution:\n%s",
         df["consequence"].value_counts().to_string(),
@@ -160,9 +197,9 @@ def main() -> int:
     pipeline = InferencePipeline.load(args.model, consumer="scripts/validate_lovd_enriched.py",
                                       registry_path=repository_registry_path())
     logger.info(
-        "Model loaded: val_auroc=%.4f  features=%d",
-        pipeline.metadata.val_auroc,
-        len(pipeline.metadata.feature_names) if pipeline.metadata.feature_names else "?",
+        "Model loaded: combiner %s  features=%d  evaluation evidence %s",
+        pipeline.combiner.digest, pipeline.metadata.n_features,
+        pipeline.metadata.evaluation_evidence.get("status"),
     )
 
     # ---- score ----
@@ -189,7 +226,7 @@ def main() -> int:
             continue
         ga = roc_auc_score(grp["label"].values, grp["_prob"].values)
         gene_metrics[gene] = {
-            "auroc": round(ga, 4),
+            "auroc": float(ga),
             "n": len(grp),
             "n_pathogenic": int((grp["label"] == 1).sum()),
             "n_benign": int((grp["label"] == 0).sum()),
@@ -224,34 +261,27 @@ def main() -> int:
         "n_pathogenic": int((y_true == 1).sum()),
         "n_benign": int((y_true == 0).sum()),
         "n_snv": int(snv_mask.sum()),
-        "auroc": round(auroc, 4),
-        "auprc": round(auprc, 4),
-        "brier": round(brier, 4),
-        "auroc_snv_only": round(snv_auroc, 4) if snv_auroc is not None else None,
+        "auroc": float(auroc),
+        "auprc": float(auprc),
+        "brier": float(brier),
+        "auroc_snv_only": float(snv_auroc) if snv_auroc is not None else None,
         "per_gene": gene_metrics,
         "model": args.model.name,
-        "gnomad_match_rate": round(
-            float(df["allele_freq"].gt(0).sum()) / len(df), 4
-        ),
+        "enrichment": enrichment,
+        "predictor": {"combiner_sha256": pipeline.combiner.digest,
+                      "predictor_contract_sha256": pipeline.predictor_contract_sha256(),
+                      "evaluation_evidence": pipeline.metadata.evaluation_evidence},
     }
 
+    from genomic_variant_classifier.evaluation.serialization import dump_strict_json
     out_metrics = args.output_dir / "metrics.json"
-    out_metrics.write_text(json.dumps(metrics, indent=2))
+    out_metrics.write_text(dump_strict_json(metrics, artifact="metrics.json") + "\n", encoding="utf-8", newline="\n")
     logger.info("Metrics saved to %s", out_metrics)
 
     out_preds = args.output_dir / "predictions.parquet"
     df["predicted_proba"] = y_prob
     df.to_parquet(out_preds, index=False)
     logger.info("Predictions saved to %s", out_preds)
-
-    # ---- copy to Google Drive ----
-    gdrive_dir = Path("G:/My Drive/genomic-classifier-results/lovd_validation")
-    if gdrive_dir.exists():
-        import shutil
-        shutil.copy2(out_metrics, gdrive_dir / "metrics.json")
-        shutil.copy2(out_preds,   gdrive_dir / "predictions.parquet")
-        logger.info("Results copied to Google Drive.")
-
     return 0
 
 

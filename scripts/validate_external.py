@@ -13,26 +13,33 @@ Metrics computed
   AUPRC          Area under precision-recall curve
   ECE            Expected calibration error (15 equal-width bins)
   MCE            Maximum calibration error
-  Sensitivity    At each ACMG-tier operating point
-  Specificity    At each ACMG-tier operating point
-  PPV / NPV      Positive / negative predictive value
-  F1             At each operating point
-  Confusion matrix (normalised and absolute)
+  Operating points (only with --decision-policy): counts and typed rates at each operating point of a VERIFIED
+                 decision policy chosen for THIS predictor (evaluation/decision_policy.py)
 
 Output files (--output-dir)
 ----------------------------
-  metrics.json          All scalar metrics
-  roc_curve.parquet     fpr, tpr, threshold columns
-  pr_curve.parquet      precision, recall, threshold columns
+  metrics.json          All scalar metrics, the predictor's identity and the decision policy's status
+  roc_curve.parquet     fpr, tpr, threshold columns (scikit-learn's own thresholds; the first is +inf)
+  pr_curve.parquet      precision, recall, threshold columns (the final point has no threshold: null)
   calibration.parquet   mean_prob, fraction_positives per bin
-  predictions.parquet   variant_id, label, score, classification
+  predictions.parquet   variant_id, label, score (full precision) and, with a policy, its band
+
+Package 1, set 1c (2026-11-08): the score is the selected predictor's (predict_proba = the stored convex blend). The
+five "ACMG-tier" thresholds are gone: they came from api/schemas.CLASSIFICATION_THRESHOLDS, loaded at import from a
+path relative to the current directory with every error swallowed, and they were passed to the threshold metrics as
+(lo, hi) TUPLES, so `y_prob >= thr` compared each score with a pair. A decision policy is now an explicit argument,
+verified and refused for any other predictor; without one no threshold is applied and the report says so. The ROC
+frame no longer appends a threshold (its arrays already have equal length, so the old frame raised), the PR frame no
+longer invents 1.0 for its final point, nothing is rounded, the unbound `pipeline_val_auroc` is replaced by the
+pipeline's predictor identity and bound evaluation evidence, and metrics.json is strict JSON.
 
 Usage
 -----
   python scripts/validate_external.py \
       --pipeline   models/phase2_pipeline.joblib \
       --cohort     data/external/validation_cohort.parquet \
-      --output-dir outputs/external_validation
+      --output-dir outputs/external_validation \
+      [--decision-policy models/decision_policy.json]
 
   # cohort parquet must have columns:
   #   - All feature columns accepted by /predict (chrom, pos, ref, alt, …)
@@ -42,7 +49,6 @@ Usage
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import sys
 from pathlib import Path
@@ -51,7 +57,6 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import (
     average_precision_score,
-    f1_score,
     precision_recall_curve,
     roc_auc_score,
     roc_curve,
@@ -111,38 +116,34 @@ def expected_calibration_error(
 
 
 # ---------------------------------------------------------------------------
-# Per-threshold metrics
+# Operating points of a verified decision policy
 # ---------------------------------------------------------------------------
 
-def _threshold_metrics(
-    y_true: np.ndarray,
-    y_prob: np.ndarray,
-    thresholds: dict[str, float],
-) -> dict[str, dict[str, float]]:
-    results = {}
-    for tier, thr in thresholds.items():
-        y_pred = (y_prob >= thr).astype(int)
-        tp = int(((y_pred == 1) & (y_true == 1)).sum())
-        fp = int(((y_pred == 1) & (y_true == 0)).sum())
-        tn = int(((y_pred == 0) & (y_true == 0)).sum())
-        fn = int(((y_pred == 0) & (y_true == 1)).sum())
+def _policy_metrics(policy, y_true: np.ndarray, y_prob: np.ndarray) -> dict:
+    """Counts and typed rates at each operating point of `policy` on this cohort (refusal-aware: an undefined rate is
+    a status with a reason, never a fabricated 0.0)."""
+    from genomic_variant_classifier.evaluation.thresholds import (
+        ConfusionCounts,
+        ThresholdOperator,
+        ThresholdParameters,
+        ThresholdSource,
+        metrics_from_counts,
+    )
 
-        sens = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-        spec = tn / (tn + fp) if (tn + fp) > 0 else 0.0
-        ppv  = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-        npv  = tn / (tn + fn) if (tn + fn) > 0 else 0.0
-        f1   = f1_score(y_true, y_pred, zero_division=0)
-
-        results[tier] = {
-            "threshold":   round(thr, 4),
-            "sensitivity": round(sens, 4),
-            "specificity": round(spec, 4),
-            "ppv":         round(ppv, 4),
-            "npv":         round(npv, 4),
-            "f1":          round(f1, 4),
-            "tp": tp, "fp": fp, "tn": tn, "fn": fn,
-        }
-    return results
+    out = {}
+    for name, point in policy.record["operating_points"].items():
+        values = y_prob if point["score_space"] == "selected_score" else 1.0 - y_prob
+        target = y_true if point["score_space"] == "selected_score" else 1 - y_true
+        calls = values >= point["threshold"] if point["operator"] == ">=" else values > point["threshold"]
+        counts = ConfusionCounts(true_positive=int((calls & (target == 1)).sum()),
+                                 false_positive=int((calls & (target == 0)).sum()),
+                                 false_negative=int((~calls & (target == 1)).sum()),
+                                 true_negative=int((~calls & (target == 0)).sum()))
+        parameters = ThresholdParameters(threshold=point["threshold"], operator=ThresholdOperator(point["operator"]),
+                                         source=ThresholdSource.CALIBRATED)
+        out[name] = {"score_space": point["score_space"], "floor_chosen_for": point["floor"],
+                     **metrics_from_counts(counts, parameters).to_dict()}
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -159,6 +160,9 @@ def main(argv: list[str] | None = None) -> int:
                         help="Directory for output files (default: outputs/external_validation)")
     parser.add_argument("--batch-size", type=int, default=2048,
                         help="Scoring batch size (default: 2048)")
+    parser.add_argument("--decision-policy", default=None,
+                        help="a gvc.decision-policy.v1 record (scripts/calibrate_thresholds.py) chosen for THIS "
+                             "predictor; without it no threshold is applied")
     parser.add_argument("--log-level",  default="INFO")
     args = parser.parse_args(argv)
 
@@ -176,6 +180,11 @@ def main(argv: list[str] | None = None) -> int:
     from genomic_variant_classifier.model_admission import repository_registry_path
     pipeline = InferencePipeline.load(args.pipeline, consumer="scripts/validate_external.py",
                                       registry_path=repository_registry_path())
+    policy = None
+    if args.decision_policy:
+        from genomic_variant_classifier.evaluation.decision_policy import load_decision_policy
+        policy = load_decision_policy(args.decision_policy)
+        policy.require_predictor(pipeline.combiner.digest)      # refused BEFORE any cohort is read or scored
 
     # --- Load cohort ---
     logger.info("Loading cohort from %s …", args.cohort)
@@ -211,46 +220,57 @@ def main(argv: list[str] | None = None) -> int:
     ece, mce, cal_df = expected_calibration_error(y_true, y_prob)
     logger.info("ECE=%.4f  MCE=%.4f", ece, mce)
 
-    # --- Load thresholds (from calibrated file or defaults) ---
-    from genomic_variant_classifier.api.schemas import CLASSIFICATION_THRESHOLDS
-    threshold_metrics = _threshold_metrics(y_true, y_prob, CLASSIFICATION_THRESHOLDS)
+    # --- Operating points: only those of a verified policy chosen for this predictor ---
+    if policy is not None:
+        decision_policy = {"status": "applied", "record_sha256": policy.record_sha256,
+                           "file_sha256": policy.file_sha256, "policy_status": policy.record["status"],
+                           "certification_blockers": policy.record["certification_blockers"],
+                           "operating_points": _policy_metrics(policy, y_true, y_prob)}
+    else:
+        decision_policy = {"status": "unavailable",
+                           "reason": "no --decision-policy was given; no threshold is applied to the selected score"}
 
     # --- ROC / PR curves ---
     fpr, tpr, roc_thr = roc_curve(y_true, y_prob)
     prec, rec, pr_thr = precision_recall_curve(y_true, y_prob)
 
     # --- Predictions table ---
-    from genomic_variant_classifier.api.schemas import score_to_classification
     pred_df = pd.DataFrame({
         "variant_id":    df.get("variant_id", pd.Series(
             [f"{r.chrom}:{r.pos}:{r.ref}:{r.alt}" for _, r in df.iterrows()],
             index=df.index,
         )),
         "label":         y_true,
-        "score":         y_prob.round(4),
-        "classification": [score_to_classification(float(p))[0] for p in y_prob],
+        "score":         y_prob,
     })
+    if policy is not None:
+        pred_df["decision_band"] = policy.classify(np.asarray(y_prob, dtype=np.float64))
 
     # --- Write outputs ---
+    from genomic_variant_classifier.evaluation.serialization import dump_strict_json
     metrics = {
         "n_variants":    len(df),
         "n_pathogenic":  n_pos,
         "n_benign":      n_neg,
-        "auroc":         round(auroc, 4),
-        "auprc":         round(auprc, 4),
+        "auroc":         float(auroc),
+        "auprc":         float(auprc),
         "ece":           ece,
         "mce":           mce,
-        "threshold_metrics": threshold_metrics,
-        "pipeline_val_auroc": pipeline.metadata.val_auroc,
+        "decision_policy": decision_policy,
+        "predictor": {"combiner_sha256": pipeline.combiner.digest,
+                      "predictor_contract_sha256": pipeline.predictor_contract_sha256(),
+                      "evaluation_evidence": pipeline.metadata.evaluation_evidence},
     }
 
-    with open(output_dir / "metrics.json", "w") as f:
-        json.dump(metrics, f, indent=2)
+    (output_dir / "metrics.json").write_text(dump_strict_json(metrics, artifact="metrics.json") + "\n",
+                                             encoding="utf-8", newline="\n")
 
-    pd.DataFrame({"fpr": fpr, "tpr": tpr, "threshold": np.append(roc_thr, 1.0)}).to_parquet(
+    pd.DataFrame({"fpr": fpr, "tpr": tpr, "threshold": roc_thr}).to_parquet(
         output_dir / "roc_curve.parquet", index=False
     )
-    pd.DataFrame({"precision": prec, "recall": rec, "threshold": np.append(pr_thr, 1.0)}).to_parquet(
+    # precision_recall_curve returns one more (precision, recall) point than thresholds: the final point (recall 0) is
+    # reached by no threshold, so its threshold is null rather than an invented 1.0.
+    pd.DataFrame({"precision": prec, "recall": rec, "threshold": np.append(pr_thr, np.nan)}).to_parquet(
         output_dir / "pr_curve.parquet", index=False
     )
     cal_df.to_parquet(output_dir / "calibration.parquet", index=False)

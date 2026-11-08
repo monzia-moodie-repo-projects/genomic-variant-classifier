@@ -16,10 +16,10 @@ def _substrate(n_genes, per_gene, seed, aligned=True):
             p = float(np.clip(rng.normal(0.8 if y else 0.2, 0.12), 0, 1))
             cons = rng.choice(["missense_variant", "nonsense", "splice_donor_variant"])
             rows.append({"variant_id": f"v{gi}_{j}", "gene_symbol": g, "consequence": cons,
-                         "label": y, "ensemble_prob": p})
+                         "label": y, "selected_score": p})
     df = pd.DataFrame(rows)
     if not aligned:
-        df["ensemble_prob"] = rng.permutation(df["ensemble_prob"].values)
+        df["selected_score"] = rng.permutation(df["selected_score"].values)
     return df
 
 
@@ -27,6 +27,11 @@ def test_aligned_calibration_hits_target(tmp_path):
     p = tmp_path / "aligned.parquet"
     _substrate(400, 50, 1).to_parquet(p)
     res = CAL.calibrate(p)
+    # Package 1, set 1c: the default score is the selected predictor's, and an unbound file is recorded as such.
+    import hashlib
+    assert res.substrate == {"bound": False, "path": str(p), "sha256": hashlib.sha256(p.read_bytes()).hexdigest(),
+                             "score_column": "selected_score",
+                             "note": "an unbound file: nothing ties these scores to a predictor, run or row set"}
     assert res.coverage["marginal_ok"]
     assert res.n_cal > 0 and res.n_eval > 0
     assert abs(res.coverage["marginal_coverage"] - 0.90) < 0.03
@@ -62,3 +67,13 @@ def test_per_stratum_present_when_stratum_col_exists(tmp_path):
     res = CAL.calibrate(p)
     assert "per_stratum_coverage" in res.coverage
     assert "group_coverage_any" in res.coverage
+
+
+def test_a_pre_1b_substrate_must_name_its_score_column(tmp_path):
+    """Package 1, set 1c: `ensemble_prob` is no longer the default; a historical file names it explicitly."""
+    p = tmp_path / "legacy.parquet"
+    _substrate(400, 50, 6).rename(columns={"selected_score": "ensemble_prob"}).to_parquet(p)
+    with pytest.raises(ValueError, match="missing required columns"):
+        CAL.calibrate(p)
+    res = CAL.calibrate(p, CAL.CalibrationConfig(score_col="ensemble_prob"))
+    assert res.substrate["score_column"] == "ensemble_prob" and res.substrate["bound"] is False
