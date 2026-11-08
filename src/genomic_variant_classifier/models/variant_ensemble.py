@@ -96,15 +96,23 @@ from genomic_variant_classifier.quarantine_policy import QUARANTINED_FEATURES
 from genomic_variant_classifier.models.combiner import (
     BLEND_KERNEL,
     COMBINER_KIND,
+    SELECTED_PREDICTOR_SCOPE,
     ConvexBlendSpec,
     MemberSlot,
     exact_blend,
     member_artifact_sha256,
+    member_draw_schedule,
+    member_modalities,
     prediction_stage_sha256,
+    require_supported_modalities,
+    score_once,
     validate_stored_weights,
 )
 from genomic_variant_classifier.prediction_contract import (
+    Binding,
     ContractError,
+    ObservationSet,
+    ProbabilityBlock,
     ScientificScope,
     canonical_digest,
     model_call,
@@ -2162,6 +2170,42 @@ def _write_model_manifest(artifact_path):
 #: the old label keep their bytes; a reader of NEW evaluations uses this constant, never a literal.
 SELECTED_ENSEMBLE_ROW = "SELECTED_CONVEX_BLEND"
 
+#: Meaning of a per-member `{name}_oof_indices.npy` checkpoint written since package 1, set 1b (2026-11-08): element k
+#: is the fit-input row of element k of `{name}_oof.npy`, and `{name}_oof_folds.npy` holds that row's validation fold.
+OOF_INDEX_SIDECAR_SEMANTICS = "fit_input_row_position_of_each_oof_element_v2"
+#: Meaning of every EARLIER sidecar (a `{name}_meta.json` without `oof_indices_semantics`, Run 11 to set 1a): the
+#: validation positions of fold 0, then fold 1, ... concatenated. They are a permutation of the fit rows, NOT aligned
+#: with `{name}_oof.npy`; pairing them element-wise misassigns rows (measured on Run 15: AUROC 0.499 for xgboost
+#: against 0.99906 correctly paired). They are kept, never rewritten, and read only through read_member_oof_checkpoint.
+HISTORICAL_OOF_INDEX_SIDECAR_SEMANTICS = "fold_concatenated_validation_positions_not_aligned_with_oof_v1"
+
+
+def read_member_oof_checkpoint(model_dir: Path, name: str) -> dict:
+    """One member's per-model OOF checkpoint, with its index semantics stated, never guessed.
+
+    Returns {"oof", "fit_input_positions", "folds", "semantics", "meta"} for a checkpoint written since set 1b. A
+    historical checkpoint (no `oof_indices_semantics` in its meta) is REFUSED with its meaning spelled out: its index
+    file cannot be paired with its OOF vector element-wise, and the fold structure needed to undo the concatenation is
+    not stored beside it.
+    """
+    model_dir = Path(model_dir)
+    meta = json.loads((model_dir / f"{name}_meta.json").read_text(encoding="utf-8"))
+    semantics = meta.get("oof_indices_semantics")
+    if semantics is None:
+        raise ContractError(
+            f"{name}_oof_indices.npy in {model_dir} is a HISTORICAL sidecar "
+            f"({HISTORICAL_OOF_INDEX_SIDECAR_SEMANTICS}): the fold-concatenated validation positions, not aligned with "
+            f"{name}_oof.npy. Pairing them element-wise misassigns rows. Reconstruct the folds from the run's recorded "
+            "splitter (a separately identified derived record), or use the orchestrator's oof_fit_indices_")
+    if semantics != OOF_INDEX_SIDECAR_SEMANTICS:
+        raise ContractError(f"unknown OOF index semantics {semantics!r}")
+    oof = np.load(model_dir / f"{name}_oof.npy", allow_pickle=False)
+    positions = np.load(model_dir / f"{name}_oof_indices.npy", allow_pickle=False)
+    folds = np.load(model_dir / meta["oof_folds_file"], allow_pickle=False)
+    if not (oof.ndim == positions.ndim == folds.ndim == 1 and len(oof) == len(positions) == len(folds)):
+        raise ContractError(f"{name}: OOF, index and fold sidecars are not aligned vectors of one length")
+    return {"oof": oof, "fit_input_positions": positions, "folds": folds, "semantics": semantics, "meta": meta}
+
 # Models whose input is the SEQUENCE branch rather than the tabular matrix.
 #
 # Declared once, in one place, so that adding a second sequence model does not require
@@ -2227,6 +2271,55 @@ def _require_bound_columns_admissible(columns) -> None:
     """
     if columns is not None:
         require_scientific_contract(columns, QUARANTINED_FEATURES)
+
+
+#: The draw identity of the selected predictor's result block in an offline split capture, and the declared adapter
+#: that applied the blend there (package 1, set 1b).
+SPLIT_RESULT_DRAW_ID = "selected_convex_blend"
+_SPLIT_COMBINER_EXECUTION_SHA256 = canonical_digest("gvc.combiner-execution-adapter.v1", {
+    "adapter": "gvc.variant-ensemble.score-split.v1", "kernel": BLEND_KERNEL})
+
+
+def _metric_frame(columns: dict, y_arr: np.ndarray) -> pd.DataFrame:
+    """The per-row metric table of evaluate() and evaluate_scored(): ONE reducer, one tie rule (model_call)."""
+    results: dict[str, dict] = {}
+    for name, proba in columns.items():
+        preds = model_call(proba)
+        results[name] = {
+            "auroc": roc_auc_score(y_arr, proba),
+            "auprc": average_precision_score(y_arr, proba),
+            "f1_macro": f1_score(y_arr, preds, average="macro", zero_division=0),
+            "f1_weighted": f1_score(
+                y_arr, preds, average="weighted", zero_division=0
+            ),
+            "mcc": matthews_corrcoef(y_arr, preds),
+            "brier": brier_score_loss(y_arr, proba),
+        }
+    df = pd.DataFrame(results).T.round(4)
+    df = df.sort_values("auroc", ascending=False)
+    logger.info("\n%s", df.to_string())
+    return df
+
+
+@dataclass(frozen=True, eq=False)
+class ScoredSplit:
+    """One bound capture of a split: the selected predictor's block, the member blocks it binds, and its spec."""
+
+    result: ProbabilityBlock
+    members: tuple
+    combiner: ConvexBlendSpec
+    split_sha256: str
+    __hash__ = None  # type: ignore[assignment]
+
+    @property
+    def member_names(self) -> tuple[str, ...]:
+        return self.combiner.member_names
+
+    def scores(self) -> np.ndarray:
+        return np.array(self.result.positive_probability(), dtype=np.float64)
+
+    def member_matrix(self) -> np.ndarray:
+        return np.column_stack([b.positive_probability() for b in self.members])
 
 
 class VariantEnsemble:
@@ -3005,6 +3098,22 @@ class VariantEnsemble:
             )
             cv_splits = list(cv.split(X_tab_fit, y_fit))
 
+        # THE FOLD OF EVERY OUT-OF-FOLD ROW (package 1, set 1b, gate G2). Recorded from the exact splits every member
+        # is evaluated on (cross_val_predict receives cv_splits itself, not the splitter), so a published fold is the
+        # fold that produced the prediction. A row in no fold, or in two, is refused.
+        oof_fold = np.full(len(y_fit), -1, dtype=np.int64)
+        for _k, (_tr, _va) in enumerate(cv_splits):
+            if (oof_fold[_va] != -1).any():
+                raise RuntimeError("cross-validation folds overlap: a fit row is in two validation folds")
+            oof_fold[_va] = _k
+        if (oof_fold < 0).any():
+            raise RuntimeError(f"{int((oof_fold < 0).sum())} fit rows are in no validation fold")
+        if gene_fit is not None:
+            oof_cv_scheme = {"kind": "GroupKFold", "n_splits": int(self.config.n_folds), "groups": "gene_symbol"}
+        else:
+            oof_cv_scheme = {"kind": "StratifiedKFold", "n_splits": int(self.config.n_folds), "shuffle": True,
+                             "random_state": int(self.config.random_state), "stratified_on": "label"}
+
         oof_preds = np.zeros((len(y_fit), len(self.base_estimators)))
         # Models that receive post-hoc isotonic calibration.
         _RECALIBRATE = {"xgboost", "lightgbm", "random_forest"}
@@ -3036,7 +3145,7 @@ class VariantEnsemble:
                         model,
                         X_input_fit,
                         y_fit,
-                        cv=cv,
+                        cv=cv_splits,    # the recorded folds themselves (oof_fold above), not a re-split
                         method="predict_proba",
                         n_jobs=1,
                     )[:, 1]
@@ -3104,18 +3213,25 @@ class VariantEnsemble:
                     _meta_path = _ckpt_dir / f"{name}_meta.json"
                     joblib.dump(self.trained_models_[name], _model_path, compress=3)
                     np.save(_oof_path, oof)
-                    # Run 11 carried-forward 3.2: OOF row-index sidecar
-                    # Saves the per-fold prediction-to-row mapping so meta-learner
-                    # can be reconstructed from saved OOF arrays in disaster recovery.
+                    # OOF row-index sidecar, REPAIRED in package 1, set 1b (2026-11-08). Element k of
+                    # {name}_oof_indices.npy is the fit-input row of element k of {name}_oof.npy (the OOF vector
+                    # is in row-position order), and {name}_oof_folds.npy is that row's validation fold. Until
+                    # then this file held the fold-CONCATENATED validation positions, which are NOT aligned with
+                    # the OOF vector: measured on Run 15, pairing them element-wise gives an AUROC of 0.499 for
+                    # xgboost against 0.99906 correctly paired. `oof_indices_semantics` labels the new meaning;
+                    # a sidecar without it is historical (HISTORICAL_OOF_INDEX_SIDECAR_SEMANTICS).
                     _oof_idx_path = _ckpt_dir / f"{name}_oof_indices.npy"
-                    _fold_indices = [test_idx for _, test_idx in cv_splits]
-                    np.save(_oof_idx_path, np.concatenate(_fold_indices))
+                    np.save(_oof_idx_path, np.asarray(idx_fit, dtype=np.int64))
+                    np.save(_ckpt_dir / f"{name}_oof_folds.npy", oof_fold)
                     with open(_meta_path, "w") as _f:
                         json.dump({
                             "name": name,
                             "oof_auroc": float(roc_auc_score(y_fit, oof)),
                             "saved_at_utc": datetime.now(timezone.utc).isoformat(),
                             "n_samples": int(len(y_fit)),
+                            "oof_indices_semantics": OOF_INDEX_SIDECAR_SEMANTICS,
+                            "oof_folds_file": f"{name}_oof_folds.npy",
+                            "oof_cv_scheme": oof_cv_scheme,
                         }, _f, indent=2)
                     _size_mb = _model_path.stat().st_size / 1e6
                     logger.info("    %s checkpoint saved: %s (%.1f MB)", name, _model_path.name, _size_mb)
@@ -3245,6 +3361,13 @@ class VariantEnsemble:
         self.oof_model_names_ = [
             n for n in self.base_estimators if n in self.trained_models_
         ]
+        # The out-of-fold IDENTITY (package 1, set 1b, gate G2): how many rows fit() was given, each OOF row's label
+        # and validation fold, and the fold scheme. A writer composes original training-split positions through
+        # oof_fit_indices_ and checks them against oof_labels_; it never assumes a position is a row number.
+        self.fit_input_rows_ = int(len(y_arr))
+        self.oof_labels_ = np.array(y_fit, copy=True)
+        self.oof_fold_ = oof_fold
+        self.oof_cv_scheme_ = oof_cv_scheme
 
         logger.info(
             "Training meta-learner on %d base-model OOF columns ...", len(valid_cols)
@@ -3368,23 +3491,97 @@ class VariantEnsemble:
         names, base = self._member_probability_matrix(X_tab, X_seq)
         columns = {name: base[:, j] for j, name in enumerate(names)}
         columns[SELECTED_ENSEMBLE_ROW] = exact_blend(base, weights)
-        results: dict[str, dict] = {}
-        for name, proba in columns.items():
-            preds = model_call(proba)
-            results[name] = {
-                "auroc": roc_auc_score(y_arr, proba),
-                "auprc": average_precision_score(y_arr, proba),
-                "f1_macro": f1_score(y_arr, preds, average="macro", zero_division=0),
-                "f1_weighted": f1_score(
-                    y_arr, preds, average="weighted", zero_division=0
-                ),
-                "mcc": matthews_corrcoef(y_arr, preds),
-                "brier": brier_score_loss(y_arr, proba),
-            }
-        df = pd.DataFrame(results).T.round(4)
-        df = df.sort_values("auroc", ascending=False)
-        logger.info("\n%s", df.to_string())
-        return df
+        return _metric_frame(columns, y_arr)
+
+    # ------------------------------------------------------------------
+    # One bound capture of a split (package 1, set 1b; gates G4 and G7)
+    # ------------------------------------------------------------------
+
+    def score_split(self, X_tab: pd.DataFrame, X_seq, rows: ObservationSet, *, split_sha256: str) -> "ScoredSplit":
+        """Every fitted member called ONCE on a split and the declared blend applied ONCE, every payload bound.
+
+        `rows` are the split's prediction units in row order (evaluation.split_identity.split_observations) and
+        `split_sha256` the split's prediction-split identity (SplitIdentity.prediction_split_sha256). The member
+        adapter mirrors the fit-time dispatch (sequence windows for cnn_1d, the named frame for catboost, the ndarray
+        otherwise); capabilities are checked before any member is called. Writers and evaluate_scored() reduce the
+        returned blocks; nothing re-predicts.
+        """
+        spec = self.convex_blend_spec(SELECTED_PREDICTOR_SCOPE)
+        X_seq = self._checked_inputs(X_tab, X_seq, "score_split")
+        if type(rows) is not ObservationSet or len(rows) != len(X_tab):
+            raise ContractError("one prediction unit per split row is required (an ObservationSet of len(X_tab))")
+        available = frozenset({"tabular"}) | (frozenset({"sequence_windows"}) if X_seq is not None else frozenset())
+        require_supported_modalities(spec, required_by_member=member_modalities(spec.member_names),
+                                     available=available)
+        try:
+            matrix = np.ascontiguousarray(X_tab.to_numpy(dtype=np.float64))
+        except (TypeError, ValueError) as exc:
+            raise ContractError(f"the split's feature matrix is not numeric: {exc}") from exc
+        sequence_sha256 = None
+        if X_seq is not None:
+            h = hashlib.sha256(b"gvc.sequence-windows.v1\x00")
+            h.update(json.dumps([str(c) for c in X_seq.columns], ensure_ascii=True).encode("ascii"))
+            for record in X_seq.itertuples(index=False, name=None):
+                h.update(b"\n")
+                h.update(json.dumps([None if v is None else str(v) for v in record],
+                                    ensure_ascii=True, separators=(",", ":")).encode("ascii"))
+            sequence_sha256 = h.hexdigest()
+        ordered_input = canonical_digest("gvc.member-ordered-input.v1", {
+            "rows_sha256": rows.digest, "columns": [str(c) for c in X_tab.columns],
+            "matrix_float64_sha256": hashlib.sha256(matrix.tobytes()).hexdigest(),
+            "sequence_windows_sha256": sequence_sha256, "split_sha256": split_sha256})
+        bindings, draw_ids = [], []
+        for slot in spec.members:
+            model = self.trained_models_[slot.name]
+            rendering = ("sequence_windows_frame" if slot.name in SEQUENCE_MODELS
+                         else "named_dataframe" if slot.name == "catboost" else "ndarray")
+            bindings.append(Binding(
+                producer_sha256=slot.artifact_sha256,
+                input_contract_sha256=canonical_digest("gvc.member-input-contract.v1", {
+                    "features": [str(c) for c in X_tab.columns], "rendering": rendering}),
+                split_sha256=split_sha256,
+                draw_schedule_sha256=canonical_digest("gvc.member-draw-schedule.v1", {
+                    "member": slot.name, "schedule": member_draw_schedule(slot.name, model)}),
+                ordered_input_sha256=ordered_input,
+                execution_sha256=canonical_digest("gvc.member-execution.v1", {
+                    "adapter": "gvc.variant-ensemble.split-member-adapter.v1", "member": slot.name,
+                    "served_class": f"{type(model).__module__}.{type(model).__qualname__}",
+                    "rendering": rendering})))
+            draw_ids.append(f"{slot.name}:single_evaluation")
+        slots = {m.name: m for m in spec.members}
+        expected = dict(zip(spec.member_names, zip(bindings, draw_ids)))
+
+        def predict_member(name: str, model) -> tuple[MemberSlot, ProbabilityBlock]:
+            if name in SEQUENCE_MODELS:
+                X_input = X_seq
+            elif name == "catboost":
+                X_input = X_tab
+            else:
+                X_input = X_tab.values
+            values = model.predict_proba(X_input)
+            _positive, classes, _conversion = positive_column(model, values, len(rows))
+            binding, draw_id = expected[name]
+            return slots[name], ProbabilityBlock.from_array(
+                rows=rows, class_order=classes, positive_class=1, binding=binding, draw_id=draw_id,
+                probabilities=values)
+
+        result, members = score_once(
+            spec, models=self.trained_models_, predict_member=predict_member, rows=rows,
+            member_bindings=tuple(bindings), member_draw_ids=tuple(draw_ids), result_draw_id=SPLIT_RESULT_DRAW_ID,
+            combiner_execution_sha256=_SPLIT_COMBINER_EXECUTION_SHA256)
+        return ScoredSplit(result=result, members=members, combiner=spec, split_sha256=split_sha256)
+
+    @staticmethod
+    def evaluate_scored(scored: "ScoredSplit", y) -> pd.DataFrame:
+        """evaluate()'s table, reduced from ONE bound capture: a row per member and the SELECTED_ENSEMBLE_ROW."""
+        if type(scored) is not ScoredSplit:
+            raise ContractError("a ScoredSplit (one bound member capture) is required")
+        y_arr = np.asarray(y)
+        if len(y_arr) != len(scored.result.rows):
+            raise ContractError("one label per scored row is required")
+        columns = {name: block.positive_probability() for name, block in zip(scored.member_names, scored.members)}
+        columns[SELECTED_ENSEMBLE_ROW] = scored.scores()
+        return _metric_frame(columns, y_arr)
 
     # ------------------------------------------------------------------
     # Identity of the selected predictor
@@ -3509,6 +3706,13 @@ class VariantEnsemble:
             "selected_combiner": getattr(self, "selected_combiner_", None),
             "blend_fit_report": getattr(self, "blend_fit_report_", None),
             "preprocessor_": getattr(self, "preprocessor_", None),
+            # Package 1, set 1b (2026-11-08): the out-of-fold identity (gate G2). Absent (None) for orchestrators
+            # saved earlier, which a writer then refuses to publish an OOF table for, rather than guessing.
+            "fit_input_rows_": getattr(self, "fit_input_rows_", None),
+            "oof_labels_": getattr(self, "oof_labels_", None),
+            "oof_fold_": getattr(self, "oof_fold_", None),
+            "oof_cv_scheme_": getattr(self, "oof_cv_scheme_", None),
+            "calibration_carve_used_": getattr(self, "calibration_carve_used_", None),
         }
         joblib.dump(orchestrator, path)
         _write_model_manifest(path)
@@ -3601,6 +3805,11 @@ class VariantEnsemble:
         ens.oof_predictions_ = obj.get("oof_predictions_")
         ens.oof_fit_indices_ = obj.get("oof_fit_indices_")
         ens.oof_model_names_ = obj.get("oof_model_names_")
+        ens.fit_input_rows_ = obj.get("fit_input_rows_")
+        ens.oof_labels_ = obj.get("oof_labels_")
+        ens.oof_fold_ = obj.get("oof_fold_")
+        ens.oof_cv_scheme_ = obj.get("oof_cv_scheme_")
+        ens.calibration_carve_used_ = obj.get("calibration_carve_used_")
         ens.base_estimators = {}
         ens.trained_models_ = {}
         models_dir = path.parent / obj["models_dir_name"]

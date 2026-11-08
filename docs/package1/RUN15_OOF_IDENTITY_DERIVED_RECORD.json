@@ -1,0 +1,298 @@
+{
+  "schema": "gvc.historical-oof-identity.v1",
+  "status": "derived_and_verified",
+  "statement": "The historical OOF file is NOT rewritten. Row k of its member columns is the out-of-fold prediction for training-split row train_split_position[k] = oof_fit_indices_[k], in the fold given; `_train_row_idx` is a position over the fit subset and must never be joined as a training row.",
+  "inputs": {
+    "orchestrator": {
+      "path": "models/ensemble.joblib",
+      "sha256": "71f87e327186afe1099f542b01b9936316b8ef7e09f7053cb561aee3f6fb9929",
+      "bytes": 98912479
+    },
+    "orchestrator_manifest": {
+      "path": "models/ensemble.manifest.json",
+      "sha256": "5d72cfe5ba335c45242f8c042c4b3a3473b7af57dfa4665864dcc5fb0b7696ee",
+      "bytes": 388
+    },
+    "oof_predictions": {
+      "path": "oof_predictions.parquet",
+      "sha256": "ef00fcfd886d7f94194956871c9dca2376bfa281d3cc820bffd930d597ac2089",
+      "bytes": 80807001
+    },
+    "y_train": {
+      "path": "splits/y_train.parquet",
+      "sha256": "65375ac298c25c1710e5b1f6d8ff9bdc319b24b41413eb680bbb2c0414c29bc0",
+      "bytes": 77580
+    },
+    "meta_train": {
+      "path": "splits/meta_train.parquet",
+      "sha256": "d2c733940331479d0c92e1ce833c6f2dabe73a4b7239664a8904f82e4aa027a1",
+      "bytes": 49374531
+    }
+  },
+  "orchestrator_reader": "genomic_variant_classifier.inert_pickle (no class imported, no model deserialized)",
+  "recorded_configuration": {
+    "random_state": 42,
+    "n_folds": 5
+  },
+  "legacy_carve_rule": {
+    "function": "sklearn.model_selection.train_test_split",
+    "arguments": {
+      "arrays": "numpy.arange(n_train)",
+      "test_size": 0.15,
+      "stratify": "y_train label",
+      "random_state": 42
+    },
+    "scikit_learn_at_fit": "1.8.0",
+    "scikit_learn_at_derivation": "1.8.0"
+  },
+  "n_train": 1038974,
+  "n_fit": 883127,
+  "n_calibration": 155847,
+  "stored_oof_fit_indices_int64_sha256": "5cc3e4bae4cb34a0d923a76348edf3fcd051e1a356f9d95f26400410a05b7fba",
+  "reconstructed_fit_indices_int64_sha256": "5cc3e4bae4cb34a0d923a76348edf3fcd051e1a356f9d95f26400410a05b7fba",
+  "stored_equals_reconstruction": true,
+  "calibration_indices_int64_sha256": "45da2b6751ac9a559bbfc230d7879202aff44817eb477c396dd5f5132409bf09",
+  "stored_blend_weights": {
+    "present": true,
+    "n": 13,
+    "weights_binary64_hex": [
+      "0x1.37362f52544b0p-5",
+      "0x1.d938a0872c50fp-2",
+      "0x1.6d00046cbc25fp-5",
+      "0x1.26809a0948619p-8",
+      "0x1.53c18d8780659p-13",
+      "0x1.533b8c0261533p-10",
+      "0x1.4f5b51f9e666ep-3",
+      "0x1.5eddbb1ecb7ccp-3",
+      "0x1.90fd383f7c747p-5",
+      "0x1.6600720ced48ep-8",
+      "0x1.627a099f7607dp-21",
+      "0x1.ca306a82bb816p-6",
+      "0x1.058c04398064ap-5"
+    ],
+    "fsum": 1.0,
+    "meaning": "non-null stored weights: at the run's code, predict_proba returned this blend and evaluate() reported it as ENSEMBLE_STACKER (see code_provenance)"
+  },
+  "oof_file_member_order": [
+    "random_forest",
+    "xgboost",
+    "lightgbm",
+    "svm",
+    "svm_bagged_rbf",
+    "logistic_regression",
+    "gradient_boosting",
+    "catboost",
+    "tabular_nn",
+    "cnn_1d",
+    "kan",
+    "mc_dropout",
+    "deep_ensemble"
+  ],
+  "oof_file_train_row_idx_is_0_to_n_minus_1": true,
+  "oof_file_columns_equal_stored_matrix": true,
+  "folds": {
+    "splitter": {
+      "kind": "StratifiedKFold",
+      "n_splits": 5,
+      "shuffle": true,
+      "random_state": 42,
+      "stratified_on": "label of the fit rows"
+    },
+    "sizes": [
+      176626,
+      176626,
+      176625,
+      176625,
+      176625
+    ],
+    "folds_int64_sha256": "964dd8b764c878571b79a3d755e6834ff6dcf89762e12b1302f9d47125e26c20",
+    "gene_disjoint": false
+  },
+  "members": {
+    "random_forest": {
+      "auroc_through_derived_mapping": 0.9984559229074734,
+      "auroc_joined_naively_as_training_row": 0.49919615894984354,
+      "legacy_sidecar": {
+        "path": "models/random_forest_oof_indices.npy",
+        "sha256": "acfb9c3733e71e43b5acfcccd5785782c239c6fe7b81cf1b19fd21576a92ec29",
+        "bytes": 7065144,
+        "equals_reconstructed_fold_concatenation": true,
+        "auroc_if_paired_element_wise": 0.4992582261072044
+      }
+    },
+    "xgboost": {
+      "auroc_through_derived_mapping": 0.9990574667382814,
+      "auroc_joined_naively_as_training_row": 0.499468448861335,
+      "legacy_sidecar": {
+        "path": "models/xgboost_oof_indices.npy",
+        "sha256": "acfb9c3733e71e43b5acfcccd5785782c239c6fe7b81cf1b19fd21576a92ec29",
+        "bytes": 7065144,
+        "equals_reconstructed_fold_concatenation": true,
+        "auroc_if_paired_element_wise": 0.49897873204579946
+      }
+    },
+    "lightgbm": {
+      "auroc_through_derived_mapping": 0.9990324175614926,
+      "auroc_joined_naively_as_training_row": 0.4990487473168975,
+      "legacy_sidecar": {
+        "path": "models/lightgbm_oof_indices.npy",
+        "sha256": "acfb9c3733e71e43b5acfcccd5785782c239c6fe7b81cf1b19fd21576a92ec29",
+        "bytes": 7065144,
+        "equals_reconstructed_fold_concatenation": true,
+        "auroc_if_paired_element_wise": 0.4990527173656933
+      }
+    },
+    "svm": {
+      "auroc_through_derived_mapping": 0.9979278443552371,
+      "auroc_joined_naively_as_training_row": 0.4994312015007639,
+      "legacy_sidecar": {
+        "path": "models/svm_oof_indices.npy",
+        "sha256": "acfb9c3733e71e43b5acfcccd5785782c239c6fe7b81cf1b19fd21576a92ec29",
+        "bytes": 7065144,
+        "equals_reconstructed_fold_concatenation": true,
+        "auroc_if_paired_element_wise": 0.4989572704176401
+      }
+    },
+    "svm_bagged_rbf": {
+      "auroc_through_derived_mapping": 0.9972626425033154,
+      "auroc_joined_naively_as_training_row": 0.49992169362135197,
+      "legacy_sidecar": {
+        "path": "models/svm_bagged_rbf_oof_indices.npy",
+        "sha256": "acfb9c3733e71e43b5acfcccd5785782c239c6fe7b81cf1b19fd21576a92ec29",
+        "bytes": 7065144,
+        "equals_reconstructed_fold_concatenation": true,
+        "auroc_if_paired_element_wise": 0.49971970841200386
+      }
+    },
+    "logistic_regression": {
+      "auroc_through_derived_mapping": 0.9969484099103115,
+      "auroc_joined_naively_as_training_row": 0.499046954519624,
+      "legacy_sidecar": {
+        "path": "models/logistic_regression_oof_indices.npy",
+        "sha256": "acfb9c3733e71e43b5acfcccd5785782c239c6fe7b81cf1b19fd21576a92ec29",
+        "bytes": 7065144,
+        "equals_reconstructed_fold_concatenation": true,
+        "auroc_if_paired_element_wise": 0.4992380429349207
+      }
+    },
+    "gradient_boosting": {
+      "auroc_through_derived_mapping": 0.998315197800499,
+      "auroc_joined_naively_as_training_row": 0.49877735435514425,
+      "legacy_sidecar": {
+        "path": "models/gradient_boosting_oof_indices.npy",
+        "sha256": "acfb9c3733e71e43b5acfcccd5785782c239c6fe7b81cf1b19fd21576a92ec29",
+        "bytes": 7065144,
+        "equals_reconstructed_fold_concatenation": true,
+        "auroc_if_paired_element_wise": 0.4993363697562756
+      }
+    },
+    "catboost": {
+      "auroc_through_derived_mapping": 0.998914014542216,
+      "auroc_joined_naively_as_training_row": 0.4994841007312431,
+      "legacy_sidecar": {
+        "path": "models/catboost_oof_indices.npy",
+        "sha256": "acfb9c3733e71e43b5acfcccd5785782c239c6fe7b81cf1b19fd21576a92ec29",
+        "bytes": 7065144,
+        "equals_reconstructed_fold_concatenation": true,
+        "auroc_if_paired_element_wise": 0.49903375573642533
+      }
+    },
+    "tabular_nn": {
+      "auroc_through_derived_mapping": 0.9985104035671375,
+      "auroc_joined_naively_as_training_row": 0.4993127418078152,
+      "legacy_sidecar": {
+        "path": "models/tabular_nn_oof_indices.npy",
+        "sha256": "acfb9c3733e71e43b5acfcccd5785782c239c6fe7b81cf1b19fd21576a92ec29",
+        "bytes": 7065144,
+        "equals_reconstructed_fold_concatenation": true,
+        "auroc_if_paired_element_wise": 0.4989544737242646
+      }
+    },
+    "cnn_1d": {
+      "auroc_through_derived_mapping": 0.8535960480761327,
+      "auroc_joined_naively_as_training_row": 0.49783636719094965,
+      "legacy_sidecar": {
+        "path": "models/cnn_1d_oof_indices.npy",
+        "sha256": "acfb9c3733e71e43b5acfcccd5785782c239c6fe7b81cf1b19fd21576a92ec29",
+        "bytes": 7065144,
+        "equals_reconstructed_fold_concatenation": true,
+        "auroc_if_paired_element_wise": 0.4993116343441225
+      }
+    },
+    "kan": {
+      "auroc_through_derived_mapping": 0.9967550542590191,
+      "auroc_joined_naively_as_training_row": 0.4989508409548862,
+      "legacy_sidecar": {
+        "path": "models/kan_oof_indices.npy",
+        "sha256": "acfb9c3733e71e43b5acfcccd5785782c239c6fe7b81cf1b19fd21576a92ec29",
+        "bytes": 7065144,
+        "equals_reconstructed_fold_concatenation": true,
+        "auroc_if_paired_element_wise": 0.4995600250749667
+      }
+    },
+    "mc_dropout": {
+      "auroc_through_derived_mapping": 0.9984884517227688,
+      "auroc_joined_naively_as_training_row": 0.4992058622549789,
+      "legacy_sidecar": {
+        "path": "models/mc_dropout_oof_indices.npy",
+        "sha256": "acfb9c3733e71e43b5acfcccd5785782c239c6fe7b81cf1b19fd21576a92ec29",
+        "bytes": 7065144,
+        "equals_reconstructed_fold_concatenation": true,
+        "auroc_if_paired_element_wise": 0.49890234157648583
+      }
+    },
+    "deep_ensemble": {
+      "auroc_through_derived_mapping": 0.9986459086598647,
+      "auroc_joined_naively_as_training_row": 0.49910781668680904,
+      "legacy_sidecar": {
+        "path": "models/deep_ensemble_oof_indices.npy",
+        "sha256": "acfb9c3733e71e43b5acfcccd5785782c239c6fe7b81cf1b19fd21576a92ec29",
+        "bytes": 7065144,
+        "equals_reconstructed_fold_concatenation": true,
+        "auroc_if_paired_element_wise": 0.4987370336615489
+      }
+    }
+  },
+  "calibration_note": "Run 15's isotonic calibrators were fitted on the calibration rows of this LEGACY label-stratified carve, which shares genes with the fit rows: its calibrated probabilities are not evidence about calibration on unseen genes.",
+  "code_provenance": {
+    "commit": "4b9de1c319739824955bb165c295e56e444626ce",
+    "commit_subject": "fix(postflight): drop false blend_weights.json gate (weights live in ensemble.joblib); pull unseen-gene metrics",
+    "commit_date": "2026-06-05T16:51:31-04:00",
+    "files": {
+      "src/genomic_variant_classifier/models/variant_ensemble.py": {
+        "git_blob": "615590a4f167892509c72bc5029f4ff0998edf6a",
+        "facts_found_verbatim": {
+          "predict_proba_returns_the_stored_blend": "blend = base_preds @ self.blend_weights_",
+          "blend_used_whenever_weights_are_stored": "if self.blend_weights_ is not None:",
+          "evaluate_row_label": "results[\"ENSEMBLE_STACKER\"] = {",
+          "evaluate_row_scores_predict_proba": "ens_proba = self.predict_proba(X_tab, X_seq)[:, 1]",
+          "evaluate_row_threshold_strictly_greater": "ens_preds = (ens_proba > 0.5).astype(int)",
+          "legacy_carve": "idx_fit, idx_cal = _tts("
+        }
+      },
+      "scripts/run_phase2_eval.py": {
+        "git_blob": "8ee0d60ca39564a51d1a17a7109fe640a75d4378",
+        "facts_found_verbatim": {
+          "test_metrics_from_in_memory_evaluate": "results = ensemble.evaluate(X_test, seq_te, y_test)",
+          "oof_train_row_idx_sequential": "\"_train_row_idx\","
+        }
+      }
+    },
+    "attribution": "ENSEMBLE_STACKER rows written by this run are the stored convex blend computed with the historical kernel numpy_float64_matmul_stored_weights_v1 (P @ w) over the in-memory fitted members, with model calls at p > 0.5 (not the current positive_if_p_ge_0.5); they are not the logistic stacker"
+  },
+  "derived_mapping": {
+    "file": "run15_oof_identity_mapping.parquet",
+    "sha256": "f5917c24d90ac83a7c006341dd658c236fc0823f9819ae678b580af2f9914732",
+    "bytes": 22069092,
+    "columns": [
+      "historical_oof_row",
+      "train_split_position",
+      "fold",
+      "label",
+      "variant_id",
+      "gene_symbol"
+    ],
+    "rows": 883127
+  },
+  "record_sha256": "fdfbaf6846eba51348694f26af8535567d4e567515870c9a2df2efa85eeba0cf"
+}

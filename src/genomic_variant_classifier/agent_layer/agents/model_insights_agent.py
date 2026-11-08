@@ -1,8 +1,10 @@
 """
 model_insights_agent.py -- Monzia Moodie
 
-Read-only per-model comparison + integrity monitor (BaseAgent). Discovers the latest run's
-oof_predictions.parquet, computes per-model metrics via model_insights_detector (the SAME sklearn functions as
+Read-only per-model comparison + integrity monitor (BaseAgent). Discovers the latest COMPLETED run (its completion
+manifest re-measured: prediction_artifacts.verify_completed_run) and reads its identity-bearing
+oof_predictions.parquet; OOF files in runs that are not complete evidence are listed as such and never analysed
+(package 1, set 1b). Computes per-model metrics via model_insights_detector (the SAME sklearn functions as
 evaluation/evaluator.py), writes a DOCUMENTED markdown report (per-model table + MCC ranking + integrity flags
 + a pointer to docs/METRICS.md), records the summary to SharedState ('model_insights'), and -- ONLY when a
 serious integrity flag fires (leakage-suspicion, gene-disjoint violation, or a degenerate OOF column) -- emits
@@ -11,15 +13,14 @@ unchecked.
 
 GUARDRAIL: this agent reports diagnostics + flags only; it NEVER tunes or recommends hyperparameters, and it
 deliberately ranks by MCC rather than AUROC so a leaky near-perfect AUROC is a SUSPICION, not a trophy. No run
-artifacts -> returns the 'skipped' contract (mirrors InterpretabilityAgent 'not due'). `outputs_root` and `root`
+artifacts -> returns the 'skipped' contract (mirrors InterpretabilityAgent 'not due'); OOF files present but no
+completed run -> 'skipped' with reason 'no_completed_run' and the incomplete runs listed. `outputs_root` and `root`
 are injectable so the agent is hermetic under test; the orchestrator constructs it as cls(shared_state).
 """
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
-
-import pandas as pd
 
 from genomic_variant_classifier.agent_layer.agents.base_agent import BaseAgent
 from genomic_variant_classifier.agent_layer.message_bus import FEATURE_INSTABILITY, PRIORITY_HIGH
@@ -46,14 +47,20 @@ class ModelInsightsAgent(BaseAgent):
     def run(self, dry_run: bool = False) -> dict:
         self._log_start(dry_run)
 
-        run_dir = D.discover_latest_run(self._outputs_root)
+        run_dir, incomplete = D.discover_runs(self._outputs_root)
         if run_dir is None:
-            result = {"action": "skipped", "reason": "no_run_artifacts"}
+            if incomplete:
+                result = {"action": "skipped", "reason": "no_completed_run", "incomplete_runs": incomplete}
+            else:
+                result = {"action": "skipped", "reason": "no_run_artifacts"}
             self._log_finish(result)
             return result
 
-        oof = pd.read_parquet(run_dir / "oof_predictions.parquet")
-        analysis = D.analyze(oof)
+        oof, manifest = D.load_completed_oof(run_dir)
+        members = list(manifest["oof_identity"]["members"])
+        analysis = D.analyze(oof, members)
+        analysis["completion_manifest"] = str(run_dir / "completion_manifest.json")
+        analysis["combiner_sha256"] = (manifest.get("predictor") or {}).get("combiner_sha256")
         report_path = self._write_report(run_dir, analysis)
 
         metrics = [
@@ -69,6 +76,8 @@ class ModelInsightsAgent(BaseAgent):
             "gene_disjoint": analysis["gene_disjoint"],
             "metrics": metrics,
             "report": str(report_path),
+            "combiner_sha256": analysis["combiner_sha256"],
+            "incomplete_runs": incomplete,
         })
 
         serious = [f for f in analysis["flags"] if _flag_kind(f) in _SERIOUS]
@@ -90,6 +99,7 @@ class ModelInsightsAgent(BaseAgent):
             "serious_flags": len(serious),
             "ranking_by_mcc": analysis["ranking_by_mcc"],
             "report": str(report_path),
+            "incomplete_runs": len(incomplete),
         }
         self._log_finish(result)
         return result
@@ -104,7 +114,10 @@ class ModelInsightsAgent(BaseAgent):
 
         lines = [
             f"# Model-insights report -- {ts}", "",
-            f"Source run: `{run_dir}`", "",
+            f"Source run: `{run_dir}` (completed; manifest `{analysis['completion_manifest']}`; selected "
+            f"predictor `{analysis['combiner_sha256']}`)", "",
+            "Out-of-fold member predictions only: the stored blend weights were fitted on these rows, so no blend "
+            "row is reported here.", "",
             "Metric definitions: see `docs/METRICS.md` (AUROC, AUPRC, MCC, Brier).", "",
             "## Per-model metrics (computed from oof_predictions.parquet)", "",
             "| model | AUROC | AUPRC | MCC | Brier | n | n_pos |",

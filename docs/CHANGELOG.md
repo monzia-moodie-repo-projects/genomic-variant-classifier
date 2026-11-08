@@ -1,7 +1,60 @@
+## 2026-11-08 (prediction contract, set 1b) -- original out-of-fold identity; the completion manifest; writers consume bound captures
+
+Package 1, set 1b of three, built on merged set 1a (b051bb3d), under the owner's rulings of 2026-11-07 (decisions ccffb8cf and
+38f15c7a). Gate by gate: docs/package1/PACKAGE1_SET1B_DELIVERY.md; dispositions of the 282 census candidates:
+docs/package1/PACKAGE1_SET1B_CENSUS_LEDGER.json; full record: docs/sessions/SESSION_2026-11-08_prediction-contract-1b.md.
+
+- Original out-of-fold (OOF) identity (gate G2): `VariantEnsemble.fit` records each OOF row's fold (from the exact splits every
+  member uses), label, the fit-input size and the fold scheme, and persists them; evaluation/split_identity.py and
+  evaluation/oof_identity.py compose training-split row -> optional subsample -> `oof_fit_indices_` -> OOF row and verify the
+  labels row by row; a failed binding blocks publication. The per-member `{name}_oof_indices.npy` sidecar is now aligned with its
+  OOF vector, with a fold sidecar; a historical sidecar (the fold concatenation) is refused with its meaning.
+- The completion manifest (G8): `RunArtifactWriter.complete()` writes completion_manifest.json last over every output's SHA-256
+  (measured at write time and again), the selected predictor, its prediction blocks and the OOF identity evidence; an earlier
+  run's manifest is retired first (renamed, never onto an earlier retirement); `verify_completed_run` re-measures every byte, and
+  the model-insights detector and agent and the ablation aggregate accept completed runs only.
+- One bound capture per split (`VariantEnsemble.score_split`, `evaluate_scored`): predictions, calibration points with their real
+  counts (equal to scikit-learn's on non-empty bins) and the blend's exact member-score attributions phi = w (p - mu) against a
+  declared background, with the closure residual. The SHAP writer is retired. run9_ablations is enabled (preflight before any fit;
+  no broad handler around its deliverables). run_phase2_eval's `--max-train` path raised `AttributeError` at the base (reproduced)
+  and now works, with the graph and holdout blocks' gene groups aligned to the subsample.
+- Run 15's derived record (G2.3, G7.3), from the artifact through a new inert pickle reader that imports no class and runs no
+  code: the stored `oof_fit_indices_` equal the reconstructed legacy carve exactly; AUROC (area under the receiver operating
+  characteristic curve) through the mapping 0.85360 to 0.99906 per member, joined naively 0.4978 to 0.4999; the ENSEMBLE_STACKER
+  rows are the stored blend under `P @ w`, read from the run's own code (pre-rewrite commit 4b9de1c3, preserved in a bundle). The
+  original OOF file is not rewritten. The installer re-derives the record from the owner's files and the bundle.
+- FINDINGS, recorded and not fixed (owner ruling needed): GNN-FEATURE-ORDER-1 (the graph scores are the constant 0.5 when the
+  ensemble is fitted; it blocks a full mainline run, Run 17) and MAXTRAIN-SPLIT-REPERSIST-1.
+- Tests: +58 / -11 by node identity (diffed against main, b051bb3d). Suite 8,875 -> 8,922. README: the badge and the completion
+  manifest. ROADMAP: the table and the entry.
+- Verified (development sandbox, Linux, Git 2.48.1), the whole suite on a frozen snapshot of the candidate: 8,861 passed, 54
+  skipped, 6 xfailed, 0 failed; 0 network attempts; the warning state and the working tree unchanged. Test by test against the same
+  measurement of main (8,815 / 54 / 6): the 11 retired tests passed there and are gone, the 57 new pass, the other 8,864 are
+  identical in outcome and reason. Twelve guards were mutated one at a time, each caught. The snapshot preceded three corrections
+  and one test (below), so the frozen tree is run again on a clean clone. Forecast for the owner's validation (from set "ak"'s
+  Windows full.xml, where all 11 retired tests passed): 8,834 passed, 83 skipped, 5 xfailed.
+- My errors, corrected before delivery: an ablation preflight that probed a directory not yet created; a test probe that would
+  have passed on the wrong refusal; a redundant environment rebuild left running; and, found while building the installer, a
+  retired manifest's name that could repeat on a coarse clock (and be overwritten), git output decoded in the locale's code page,
+  a test isolating git with the null device's name, and an installer that would have relied on the owner's object store for Run
+  15's commit.
+
 ## 2026-11-07 (prediction contract, set 1a) -- one authoritative score, computed exactly; serving bound to the fitted predictor
 
 Package 1, set 1a of three, under the owner's rulings of 2026-11-07 (decisions ccffb8cf, revision 5, and 38f15c7a; the acceptance
 matrix and its revision 2 in docs/package1/). Full record: docs/sessions/SESSION_2026-11-07_prediction-contract-1a.md.
+
+MERGED AND VERIFIED ON WINDOWS (recorded 2026-11-08). The owner ran -Validate once (2026-11-07 20:32 to 21:46 Coordinated Universal
+Time (UTC); receipt 4d90c9fc): every stage passed; the whole suite 8,787 passed, 83 skipped, 5 xfailed (full.xml d53c70db, 8,875
+test cases), exactly the numbers forecast; the Windows-only junction tests and test_esm2_not_in_stub_mode passed; the three
+local-data tests skipped with the one reason; the set's three new test files 65, 13 and 9 tests, every one passed; drift 22 passed;
+the checkout VERIFIED UNCHANGED. Candidate 0daf3da8 (tree 6bc717f5) published as branch prediction-contract-1a-2026-11-07 (23:51
+UTC) and merged as pull request #68 with a merge commit: b051bb3d, parents 0e9db4e1 and 0daf3da8, tree 6bc717f5. The post-merge
+block (2026-11-08 00:09 to 00:18 UTC) fast-forwarded the owner's checkout and compared all 1,215 targeted tests by node identity
+with the validation's full.xml: 1,210 passed, 5 skipped (symbolic links need a privilege the account lacks), 0 differences, 0
+warnings; drift 22 passed; both candidate environments still exactly their Windows locks; the checkout unchanged (49,294 entries)
+and no new temporary folder. The branch was deleted on GitHub under a lease and locally (00:25 to 00:27 UTC); GitHub now holds main
+only. The pull request's check results were not read here (this session has no GitHub API access).
 
 - The stored convex blend is the single authoritative score; the logistic stacker is a research candidate, never served and never
   substituted (VariantEnsemble.predict_proba's meta-learner fallback is removed). Kernel `exact_binary64_products_sum_rne_v1`

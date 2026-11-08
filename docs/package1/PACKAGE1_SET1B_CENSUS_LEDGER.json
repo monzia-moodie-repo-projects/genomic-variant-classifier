@@ -1,0 +1,4315 @@
+{
+ "base_commit": "b051bb3d5d22d74787f0fb4c11ceef129efb606a",
+ "files": [
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "eced170ad39260ea1afaf261156bd9afb204e53b",
+   "path": ".github/workflows/drift_monitor.yml",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "oof_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "VariantEnsemble.load"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "31a36d4a3b0f763e68709b7c6a139ac5e3012a14",
+   "path": "CLAUDE.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": true,
+   "changed_in_1b": false,
+   "disposition_after_1a": "delegates_or_updated_in_1a",
+   "disposition_after_1b": "delegates_or_updated_in_1a",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "c8f686aaa7cb44707a7c978bf452b4142dd1551d",
+   "path": "Dockerfile",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "2.0.0"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "3e91bcd03ad6d72f4724d61ef1490b3f94358684",
+   "path": "METHODS.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "071822dc365da586c82908e5784e86905ca0c547",
+   "path": "PHASE_1_ASSESSMENT.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "c1a6c86ea06cc417fd0f33e4554183b07f2e23cf",
+   "path": "baseline/constraint/run_constraint_remeasure.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "f03ad905c356455820792ba63135a87872417d60",
+   "path": "baseline/repairexp/run_repair_experiment.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "1a6c5e96fae79b3d764ccff68e7e1a36371c2e7e",
+   "path": "baseline/step7/run_representation_arms.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "2bdb4fd3d688e18c256cb14032c82f8eb344a2e8",
+   "path": "docs/ABLATION_n_pathogenic_in_gene.md",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "oof_predictions.parquet",
+    "test_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "2.0.0",
+    "DeepEnsembleWrapper",
+    "ENSEMBLE_STACKER",
+    "MCDropoutWrapper",
+    "VariantEnsemble.load",
+    "_decompose_uncertainty",
+    "meta_learner",
+    "predict_with_uncertainty"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": true,
+   "disposition_after_1a": "delegates_or_updated_in_1a",
+   "disposition_after_1b": "updated_in_1b",
+   "evidence_test_1b": "tests/unit/test_prediction_contract_1b.py",
+   "family": "other_tracked_text",
+   "git_blob": "3bac92b1e96ae26a15a8e8bf63ab736b77ee315b",
+   "path": "docs/CHANGELOG.md",
+   "rationale_1b": "changed by set 1b (see the installer diff); behaviour covered by the set 1b tests",
+   "references_names_changed_in_1b": [
+    "RunArtifactWriter",
+    "_train_row_idx",
+    "_oof_indices",
+    "oof_predictions.parquet",
+    "test_predictions.parquet",
+    "calibration.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "d7062b3be876875a5385fc4c8d745f101824e00b",
+   "path": "docs/METRICS.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "meta_learner"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "773a8d7d15228e209ec647fd077ed802afbd2cb6",
+   "path": "docs/PATCHES_AND_INTEGRATION.md",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "RunArtifactWriter",
+    "oof_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "_find_blend_weights",
+    "blend_weights_",
+    "predict_proba_with_uncertainty",
+    "uncertainty_aleatoric",
+    "uncertainty_epistemic"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "b0467387f5c0b447f58e0fcea445fa0f6eb1e7b7",
+   "path": "docs/PHASE_3_ROADMAP.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "0cec9239311c21dd21fefbc3b24136984188ebbc",
+   "path": "docs/PLAYBOOK_STALE_NOTICE.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "n_pathogenic"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "745283604a3c236a41cf2c21dcac35d7f1bbc3b9",
+   "path": "docs/POP1_BUILD_SPEC_2026-08-01.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "56463a30153fc1d2374b0623ac522a773246316d",
+   "path": "docs/RNASEQ_ABLATION_FINDINGS_2026-06-19.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": true,
+   "changed_in_1b": true,
+   "disposition_after_1a": "delegates_or_updated_in_1a",
+   "disposition_after_1b": "updated_in_1b",
+   "evidence_test_1b": "tests/unit/test_prediction_contract_1b.py",
+   "family": "other_tracked_text",
+   "git_blob": "fa22f7c3a039d5514519e3d96313f6d1dedcde7a",
+   "path": "docs/ROADMAP.md",
+   "rationale_1b": "changed by set 1b (see the installer diff); behaviour covered by the set 1b tests",
+   "references_names_changed_in_1b": [
+    "RunArtifactWriter",
+    "_oof_indices"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "9df50acb3f2d659171c533accdc8390e609eeca5",
+   "path": "docs/RUN9_OPERATIONS_PLAYBOOK.md",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "RunArtifactWriter",
+    "test_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "save_shap_values"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "bd3a369e15181821c5619eb10395da6350f19366",
+   "path": "docs/RUN9_SCIENTIFIC_DESIGN.md",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "save_oof_predictions",
+    "save_test_predictions",
+    "save_calibration",
+    "save_shap_values",
+    "save_manifest",
+    "RunArtifactWriter",
+    "oof_predictions.parquet",
+    "test_predictions.parquet",
+    "calibration.parquet",
+    "shap_values.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "5ef87a6d666c00642497ccc7eceeb5f52b756b18",
+   "path": "docs/SESSION_2026-08-01_op1-preflight-and-defect-register.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "2.0.0",
+    "SERVING_SUBSET",
+    "from_variant_ensemble"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "38ea81d04229ef33b3b280a588574a8d3a656261",
+   "path": "docs/SESSION_2026-08-07_prod1a-runtime-attribution.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "45da5b1eab7dafa98e70b9f5b864a5f6bd2ad6e4",
+   "path": "docs/SESSION_2026-08-07_registry1-model-registry.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "7cb4fbf69aa19b4ec450611878a9b267f5cb671a",
+   "path": "docs/SESSION_2026-08-08_gate1-three-classes-of-decision.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "3505ac6c1504b94174323e8f85145821f45c87a7",
+   "path": "docs/architecture/EVALUATION_WIRING_AUDIT_2026-07-25.md",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "save_test_predictions",
+    "RunArtifactWriter"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "2.0.0",
+    "DeepEnsembleWrapper",
+    "ENSEMBLE_STACKER",
+    "MCDropoutWrapper",
+    "SERVING_SUBSET",
+    "annotate_uncertainty",
+    "from_variant_ensemble",
+    "uncertainty_aleatoric",
+    "uncertainty_epistemic"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "990088a61365ef3de3a02fd34327c7c5f3134731",
+   "path": "docs/archive/legacy/ROADMAP_2026-03_to_2026-08-22.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "save_shap_values"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "a9f6248961d73bab6bd515f40ce5d5e436268784",
+   "path": "docs/audits/EVALUATION_STACK_AUDIT_2026-07-08.md",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "save_oof_predictions",
+    "save_shap_values",
+    "save_manifest",
+    "save_permutation_importance",
+    "RunArtifactWriter",
+    "oof_predictions.parquet",
+    "test_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "3d0bd1afc7fa3df45b01f09fd64c92c4fd4a0640",
+   "path": "docs/audits/LEAKAGE_METRIC_ANALYSIS_2026-07-08.md",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "save_manifest",
+    "RunArtifactWriter",
+    "ensemble_prob"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "uncertainty_aleatoric",
+    "uncertainty_epistemic"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "14efbd73c19a6e7ac5dac0efd68cef64f5c9ac88",
+   "path": "docs/audits/README_AUDIT_2026-07-14.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "996436955eff6ba7cad94cdca1f347fa0c761347",
+   "path": "docs/audits/evidence/2026-07-08/eval_predictions_run15_by_representation.txt",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "test_predictions.parquet",
+    "ensemble_prob"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "4c3c02a092ddfc95afe9bc2f165c38582a2c03d5",
+   "path": "docs/audits/evidence/2026-07-23/READ_PARQUET_SITES_2026-07-23.csv",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "47b845932ac2c7ff0dd5d8c7079d693f27867eaa",
+   "path": "docs/audits/evidence/2026-07-24/ARTIFACT_LINEAGE_SWEEP_2026-07-24.json",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "_oof_indices",
+    "oof_predictions.parquet",
+    "test_predictions.parquet",
+    "calibration.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "1b2c7fa02bb9599b31896b56aa2597bc2294a7f1",
+   "path": "docs/design/neural_variance_mask.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "523f41d0a9dcd958c513191696903d3f8ef1a002",
+   "path": "docs/hypotheses/HYP_consolidate-package-layout.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "5eb332881f21b0a72b0602960b77a7dfcdefd834",
+   "path": "docs/incidents/INCIDENT_2026-05-12_cnn1d-pickle-nested-class.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "8bd99f41c514c669e33cfaac42f1687b1796f69e",
+   "path": "docs/incidents/INCIDENT_2026-05-12_no-per-model-checkpoint.md",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "oof_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "a8668ce8516f6df08e1e6772fa0d236badf6b6dc",
+   "path": "docs/incidents/INCIDENT_2026-05-16_oof-export-length-mismatch.md",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "test_predictions.parquet",
+    "calibration.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "4df9266d11f265e14906867d85206fbf6fe1a3bf",
+   "path": "docs/incidents/INCIDENT_2026-05-24_cnn1d-cross-platform-unpickle.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "faa6bdb52def30ca45c1da0e7177235e065b7325",
+   "path": "docs/incidents/INCIDENT_2026-05-26_scipy-torch-array-api-compat.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "9d0f81dff0def34112ae169c54c5c1065e9f8702",
+   "path": "docs/incidents/INCIDENT_2026-06-04_kan-test-size-baseline-launcher.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "585ba69681989c5fb8406333f6f91c051bb5c984",
+   "path": "docs/launch/LAUNCH_CONTRACT_run16.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "DeepEnsembleWrapper",
+    "MCDropoutWrapper",
+    "meta_learner"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "046957e677d78cc2f81478a7968e517e174f91df",
+   "path": "docs/measurements/ENSEMBLE_CALLS_2026-07-19.txt",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "ensemble_prob"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "6fd2504e7ce8cf79b2908024248cd0c4e62980b4",
+   "path": "docs/measurements/LOCAL_STATE_2026-07-18.txt",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "5271a539c1aeef938bfa94122d4a42960e9a36fb",
+   "path": "docs/measurements/MEASUREMENT_2026-08-08_baseline1-provenance-census.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "40568f6f1ab1fb09353a8adc58c766aec1c3012b",
+   "path": "docs/measurements/MEASUREMENT_2026-09-18_run14-claim-eligibility.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "\"classification\"",
+    "from_variant_ensemble",
+    "predict_single"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "7ed57536c97290b7c1d5b6c9f0dae9548e9460f2",
+   "path": "docs/measurements/PART3_TEST_SURFACE_2026-07-19.txt",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "_oof_indices"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "1b8f8ac534ad81a89359becfe18e29a117340864",
+   "path": "docs/measurements/RED_TESTS_2026-07-18.txt",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "068fb4bcf24c322989d71e9c1aed96d14f2d59e2",
+   "path": "docs/measurements/REG2_DENOMINATOR_STATUS_AFTER_2026-08-04.txt",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "f27a8ac81af76aeef75b96ff9b02f8714e1c0161",
+   "path": "docs/measurements/SEQ_BRANCH_STATE_2026-07-18.txt",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "save_permutation_importance"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "2eb2bf11487ed8204d540153a35d72f76faa49d4",
+   "path": "docs/measurements/SINGLE_SEQ_MODE_2026-07-18.txt",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "87423edd89b8693bdef407a909ac4515830f0af3",
+   "path": "docs/plans/RUN_11_MASTER_PLAN.md",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "_oof_indices"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "c4815ce8f292b40b568b77e572a0108298642193",
+   "path": "docs/results/RUN_11_RESULTS.md",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "_oof_indices"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "001115159052031330d7e96c85715804892988b9",
+   "path": "docs/results/RUN_13_RESULTS.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "130f01ebb2c3505dcd70f3edbbfbb02e5cbf5af0",
+   "path": "docs/reviews/REVIEW_HYP_consolidate-package-layout_2026-05-08.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER",
+    "meta_learner"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "fbe6199d15fccf57404bbcf52edfcc6e470f2808",
+   "path": "docs/run15_model_comparison.csv",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "033b83fe1a2726f03bc78df7b6e3a66989565972",
+   "path": "docs/runbooks/RUN17_PROVISIONING.md",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "oof_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "c3cdc3546ae7d35fdfff97efa66ca863ccc489b5",
+   "path": "docs/runs/POSTFLIGHT_RUN17_PROTOCOL.md",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "_train_row_idx",
+    "oof_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "1f90dc73961553949260f6126a0ac43ded7fa184",
+   "path": "docs/runs/RUN_14_REFERENCE_CARD.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "DeepEnsembleWrapper",
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "5ec250ba9ecd75a19ae0ac660eab90061bc95734",
+   "path": "docs/runs/RUN_14_RESULTS.md",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "_oof_indices",
+    "oof_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "MCDropoutWrapper",
+    "blend_weights_"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "379db929840a957f25bc5c4aad8b6de82cb1314e",
+   "path": "docs/runs/RUN_15_PLAN.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "3db2185cc8cf6dd6805e583d818504e88dacd7e0",
+   "path": "docs/runs/RUN_16_results.md",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "_oof_indices"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "3a59b472db0edd5ed4489af4537e79fd1bba470c",
+   "path": "docs/runs/RUN_17_PLAN.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "meta_learner"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "e2edb992c96d9ac9d8dba644f817bbb4c6f57d40",
+   "path": "docs/sessions/SESSION_2026-04-20.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "67c24b42c3b1ce858c5d2217eb1d409418a19dc8",
+   "path": "docs/sessions/SESSION_2026-04-30_run9_ready_regen.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "e18ade502e358c0a8faa8a8beb00b20c42ee4ef9",
+   "path": "docs/sessions/SESSION_2026-05-09.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "aff518015b290bf6ba1cabf9a97ea852ee3c56ae",
+   "path": "docs/sessions/SESSION_2026-05-10_arch-cleanup.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "20ecbaffcd0dbed279c6cb511ffbe6c81949acf5",
+   "path": "docs/sessions/SESSION_2026-05-12.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "deebfd25d35463769434f2b3707495265128a010",
+   "path": "docs/sessions/SESSION_2026-05-16.md",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "test_predictions.parquet",
+    "calibration.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "bec101a62f67474ca29d6aa1494b130eb7fe02ac",
+   "path": "docs/sessions/SESSION_2026-05-25.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "a393868ef0ce22eea93208a3908ed80321bd997f",
+   "path": "docs/sessions/SESSION_2026-05-27.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "d4a70d6d8b01076e180406a301b2e34129f71ee7",
+   "path": "docs/sessions/SESSION_2026-06-04.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "bbe49e97486cfabe46e77719dd1346f8d681a517",
+   "path": "docs/sessions/SESSION_2026-06-05.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "128e321bf94ab69e2e6eb578f8319937a4e92aef",
+   "path": "docs/sessions/SESSION_2026-06-06.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "fa8e77d9154cd1a57638bf9c10ffbee2237cf99e",
+   "path": "docs/sessions/SESSION_2026-06-07.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "80038fe7ed21201e451d0dce835a7e0b95d68d85",
+   "path": "docs/sessions/SESSION_2026-06-09.md",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "oof_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "f26f32d0122155b323d90d81667eedea339d5cbd",
+   "path": "docs/sessions/SESSION_2026-06-12_run16-smoke-gate.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "b479f4e6a0386cc69e4053f9ecf47779737ce824",
+   "path": "docs/sessions/SESSION_2026-06-12_run16b.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "515f37fd8b9821e6526aa298dac303c1098dae11",
+   "path": "docs/sessions/SESSION_2026-06-13_feature-trim-and-variance-mask.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "a9d104959e29dd694f578d3d080474cdb03632b0",
+   "path": "docs/sessions/SESSION_2026-06-13_run16.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "cdaf98393f1efd55e2626fbff187e15a3a7a5ac4",
+   "path": "docs/sessions/SESSION_2026-06-14_model-insights-agent.md",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "RunArtifactWriter",
+    "discover_latest_run",
+    "oof_predictions.parquet",
+    "ensemble_prob"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "VariantEnsemble.load"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "404acff5a129eae2d1ce9aacefc33555c67f1909",
+   "path": "docs/sessions/SESSION_2026-06-19.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "4f0b21076888ef76e34d5156bf7f89169c2b1423",
+   "path": "docs/sessions/SESSION_2026-07-01_unit1-unit2-repo-authority.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "868e816c10bc8aa910bc2772f290a285437e363b",
+   "path": "docs/sessions/SESSION_2026-07-06.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "14f11ed5473c92e360b1f0d6a7db958b22fc315a",
+   "path": "docs/sessions/SESSION_2026-07-18_phase3b-window-builder-retirement.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "a6c2769e45f5c6fe78c0360e469b372e8dedbb90",
+   "path": "docs/sessions/SESSION_2026-07-19_docstring-pin-and-sequence-gate-design.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "48a8573e7e3206bed8cc3bc7afadf9607bbfd929",
+   "path": "docs/sessions/SESSION_2026-07-19_part3-xseq-optional.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "2.0.0"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "44c96af7c9d3d6be2085b699ae589f610231fb9f",
+   "path": "docs/sessions/SESSION_2026-07-19_repo-identity-tags-stash-lovd.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "880e6d39b50f44ccea71f52542615ca42f49c722",
+   "path": "docs/sessions/SESSION_2026-07-20_calibration-defect-repair.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "DeepEnsembleWrapper",
+    "MCDropoutWrapper"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "446386acd06f4d6e649fb45a7879296531a21224",
+   "path": "docs/sessions/SESSION_2026-07-20_metric-kernel-fail-closed.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "19cf676180a23c48458bae369fc0d03c7695dff9",
+   "path": "docs/sessions/SESSION_2026-07-20_window-attachment-derivation-and-sequence-gate.md",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "save_permutation_importance"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "d272c4c553a6171c1e726b1b37f90d436ce7ed94",
+   "path": "docs/sessions/SESSION_2026-07-26_bootstrap-reconciliation.md",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "RunArtifactWriter"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "ae96d24c366339b899d26e3059c77e94370e9c49",
+   "path": "docs/sessions/SESSION_2026-07-27_metric-metadata-vocabulary.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "34dc4f9a993776fd82d7f26d9d5d75310756f733",
+   "path": "docs/sessions/SESSION_2026-07-28_one-serialiser.md",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "RunArtifactWriter"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "8f3fd6a53a7a659875edd6c4b5c83db039fcfa74",
+   "path": "docs/sessions/SESSION_2026-07-28_report-input-gates.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "from_variant_ensemble",
+    "predict_single"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "520daf72d3d9b4c1afe739fcfa7b8431536075c3",
+   "path": "docs/sessions/SESSION_2026-08-11_missingness-contract.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "14609dbeb8de5418ca4065f35348950fc7be788b",
+   "path": "docs/sessions/SESSION_2026-08-15_mutable-state-gets-an-authority.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "7f7f8a0a9d79b2372211a852a3911f5460691c46",
+   "path": "docs/sessions/SESSION_2026-08-22_the-record-acquires-a-contract.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "0be5a5a3888fdab9d9df3b068a69018e749f08ed",
+   "path": "docs/sessions/SESSION_2026-08-23_the-evidence-enters-the-repository.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "2689ae227d630feb7255fa4446f1b0fd44bf4886",
+   "path": "docs/sessions/SESSION_2026-08-24_a-metrics-origin-becomes-part-of-it.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "cfca312c9123f7102ba457e3d20a88f3b2c9795d",
+   "path": "docs/sessions/SESSION_2026-11-01_warnings-and-resources.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "predict_proba_with_uncertainty"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "59645fc654547b67f4a86ea560a0e002cc541c01",
+   "path": "docs/sessions/SESSION_2026-11-03_sklearn-warning-filter-race.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "03211dc0195bb0f8bdadff7c5985a85666041514",
+   "path": "docs/sessions/SESSION_2026-11-06_data-gated-tests.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "20bf0fe9ca6add4036057f3a4b70b47a20a92484",
+   "path": "docs/status/HANDOFF_2026-07-15_cowork-to-project.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "94648257be65957baa8ea42cafef0a720f1d6536",
+   "path": "docs/status/HANDOFF_2026-07-20_calibration-and-deliverable-status.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "d65d233e78838c3826539065a0a5a1976c5723bd",
+   "path": "docs/status/REMEDIATION_2026-07-13_warnings-and-silent-model-drop.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "0a866a107aae294143d77c16238e44abda5a6140",
+   "path": "docs/status/SEQ_BRANCH_FINDINGS_2026-07-18.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "8e63c007407252ef2253a1cb2e8b885dd1f06196",
+   "path": "docs/status/STATUS_2026-07-15_evidence-separated.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "6b838ddec1ed1e94d9b694f28a3520db59ff0345",
+   "path": "experiments/2026-04-04_03-39/METRICS.md",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "6d8bf7be32a903e97dc4c02a162496fb5d7d6b68",
+   "path": "experiments/2026-04-04_03-39/metrics_v1.json",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "2.0.0",
+    "ENSEMBLE_STACKER",
+    "meta_learner",
+    "n_pathogenic"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "c8f50dcffcefe1789e037d8c7e4727a579f6fd79",
+   "path": "notebooks/genomic_variant_classifier_setup.ipynb",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "ensemble_prob"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "45105b8723aed059d37c29526544e5f1e89340ea",
+   "path": "notebooks/genomic_variant_classifier_stage2.ipynb",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "DeepEnsembleWrapper",
+    "MCDropoutWrapper"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "143233e421c739470fbae84852c8ce2a631a5bf0",
+   "path": "outputs/run10b_final/run10b_master_final.log",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "731cee3a0b278c0efe058e59a1d9b0e8d085ff07",
+   "path": "outputs/run14/full/per_model_metrics.csv",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "f0ab99b779e02d3735b14b82d5caa38ff9363475",
+   "path": "outputs/run14/full/per_model_metrics_val.csv",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "1f1858bb36eb7adfd84d0a165727a5834ef79bb2",
+   "path": "outputs/run14/reproducibility_manifest.json",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "DeepEnsembleWrapper",
+    "ENSEMBLE_STACKER",
+    "MCDropoutWrapper"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "4d612cfd3e903ca79a22222efc3d9889a6a7db4d",
+   "path": "outputs/run14/run14_master.log",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "_oof_indices",
+    "oof_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "f180e9c10c92dcdb7707a9132ff297742443f91f",
+   "path": "outputs/run14_observability/run14_observability.json",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "_oof_indices",
+    "oof_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "37603c942776c5aa863dcae9692772bc37f7aea3",
+   "path": "outputs/run14_observability/run14_observability.md",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "_oof_indices",
+    "oof_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "398fa03d8a01b013e72f644b4681faf211b8690b",
+   "path": "pyproject.toml",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "2.0.0",
+    "DeepEnsembleWrapper",
+    "MCDropoutWrapper",
+    "predict_single"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "0d18aac808d82723276aeba4ad4ba6d44792a450",
+   "path": "records/verification/repository-history/branches/REC-9ccf9fa0863b447292230fe1130850b0.json",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "RunArtifactWriter"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "2.0.0",
+    "DeepEnsembleWrapper",
+    "ENSEMBLE_STACKER",
+    "MCDropoutWrapper",
+    "annotate_uncertainty"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "ddbbdef4c32a1369806b9a98a260dc58b062bdf1",
+   "path": "roadmap_phase2.txt",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "7d7e1d3b927e6338b4854ac3fd05c86ecaca7cb9",
+   "path": "scripts/Run14_Preflight.ps1",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "blend_weights_"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical",
+   "disposition_after_1b": "historical",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "3f5876e602b0f6666af06bcb6935af92538c91ad",
+   "path": "scripts/Run15_Postflight.ps1",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "3a8ee296ff1071c08021bb35ff0ae02cbcd322c2",
+   "path": "scripts/Run_Preflight_Local.ps1",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "a0c4b290c06d5e9a780a2f76806edae430dac6b7",
+   "path": "scripts/Run_Preflight_VM.sh",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "587c8cf2b074b6a8c1d0a60c3f763b854fb7bfa7",
+   "path": "scripts/ablation_npig_permutation.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect",
+   "disposition_after_1b": "no_score_effect",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "394ba9967ff238af1d4dba3c758bc70de1fecec3",
+   "path": "scripts/aggregate_rnaseq_ablation.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "VariantEnsemble.load"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "7af28efb7f3431bbcd8f1b355d4db783b14b64bd",
+   "path": "scripts/append_changelog_2026-06-19.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "historical",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "44bc71c455126a2ec35fecd1dea876ba0ac71631",
+   "path": "scripts/apply_d1_fixes.py",
+   "rationale_1b": "applied historical patch installer (F-13 _train_row_idx); superseded marking is 1c",
+   "references_names_changed_in_1b": [
+    "_train_row_idx",
+    "oof_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "\"classification\"",
+    "n_pathogenic"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "refused_by_C10",
+   "disposition_after_1b": "refused_by_C10",
+   "evidence_test_1b": "tests/unit/test_containment_serving.py",
+   "family": "script",
+   "git_blob": "6b35b57eae49bbede4720c786591822f019ec55e",
+   "path": "scripts/build_lovd_index.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "CLASSIFICATION_THRESHOLDS",
+    "meta_learner"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": false,
+   "disposition_after_1a": "refused",
+   "disposition_after_1b": "refused",
+   "evidence_test_1b": "tests/unit/test_prediction_contract_transition.py",
+   "family": "script",
+   "git_blob": "dd21cd55678bf62dc209f0518da24e9cac6b460a",
+   "path": "scripts/calibrate_thresholds.py",
+   "rationale_1b": "transition denial THRESHOLD_CONSUMER_MIGRATION_REQUIRED unchanged (enabled by 1c)",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "c95b124e0e97bf1bec0f317bc9c64780facfda16",
+   "path": "scripts/calibration_analysis.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "82aba8eb04d35b6aa5712f6ad8b25d181c8b38df",
+   "path": "scripts/compute_within_gene_auroc.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "a510a4a7a0225d5fde8b92782901a8ecc8dfd329",
+   "path": "scripts/conformal_prediction.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "historical",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "b01733d9ef7f4aff7d10895d6a1fd819318affd9",
+   "path": "scripts/create_run10b_docs.py",
+   "rationale_1b": "historical document generator describing the Run 10b sidecar plan",
+   "references_names_changed_in_1b": [
+    "_oof_indices"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "blend_weights_",
+    "meta_learner"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical",
+   "disposition_after_1b": "historical",
+   "evidence_test_1b": "tests/unit/test_containment_completion.py",
+   "family": "script",
+   "git_blob": "2ab1c4136d0cb9f4380d291f42d1952b0147bb6c",
+   "path": "scripts/diagnose_phase2_prediction_reconstruction.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": true,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "delegates",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "934c050539efc29daad595be247da481442f6eb9",
+   "path": "scripts/evaluate_predictions.py",
+   "rationale_1b": "reads selected_score (the 1b column of the selected blend) first, ensemble_prob for historical files",
+   "references_names_changed_in_1b": [
+    "save_test_predictions",
+    "RunArtifactWriter",
+    "test_predictions.parquet",
+    "ensemble_prob"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "VariantEnsemble.load",
+    "from_variant_ensemble"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "delegates",
+   "disposition_after_1b": "delegates",
+   "evidence_test_1b": "tests/unit/test_prediction_contract.py",
+   "family": "script",
+   "git_blob": "4ed303fb2efc293c688ab11e9e3043a05cdbe7b8",
+   "path": "scripts/export_model.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "blend_weights_"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": false,
+   "disposition_after_1a": "refused",
+   "disposition_after_1b": "refused",
+   "evidence_test_1b": "tests/unit/test_prediction_contract_transition.py",
+   "family": "script",
+   "git_blob": "34d4152f0e66bfdba92f846639dd259e3abc67d4",
+   "path": "scripts/export_phase2_predictions_from_saved_models.py",
+   "rationale_1b": "transition denial SCORE_RECONSTRUCTION_REFUSED unchanged (disposition 1c)",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "historical",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "9120cb12fa2974b7cbf4af16903173675d6f3d2b",
+   "path": "scripts/fix_oof_index.py",
+   "rationale_1b": "applied historical patch installer; superseded marking is 1c",
+   "references_names_changed_in_1b": [
+    "_train_row_idx"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "meta_learner"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect",
+   "disposition_after_1b": "no_score_effect",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "9a26e95163cee00e5b3498523f85009f03b3c793",
+   "path": "scripts/forensics/audit_training_entrypoint.py",
+   "rationale_1b": "text-pattern audit of source; computes no score",
+   "references_names_changed_in_1b": [
+    "ensemble_prob"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "5a6ed8327f502059d6ae4416a3e5b0c598ddebf0",
+   "path": "scripts/forensics/locate_conformal_artifacts.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "historical_owned_by_1c",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "ef13c192d2fb988598a19055f562c9a06a2d0d1c",
+   "path": "scripts/forensics/probe_oof_builder.py",
+   "rationale_1b": "forensic probe of Run 15's _train_row_idx; answered by the derived record; 1c (G2.4)",
+   "references_names_changed_in_1b": [
+    "_train_row_idx",
+    "oof_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "historical_owned_by_1c",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "e54729a791195b3b2acb30e965d9e944b09e0e9a",
+   "path": "scripts/forensics/scan_oof_join_keys.py",
+   "rationale_1b": "forensic scan of historical OOF join keys; 1c (G2.4)",
+   "references_names_changed_in_1b": [
+    "_train_row_idx",
+    "oof_predictions.parquet",
+    "test_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "d82e22a74fba3180a16b46b8fa3ac22cbf964be5",
+   "path": "scripts/forensics/smoke_w2A.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "historical_owned_by_1c",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "3d40d4816cd8f5f66e37827439e9e95ac5f45e0d",
+   "path": "scripts/forensics/verify_oof_alignment.py",
+   "rationale_1b": "joins Run 15's _train_row_idx; the verified mapping is docs/package1/RUN15_OOF_IDENTITY_DERIVED_RECORD.json; repair or retirement is 1c (G2.4)",
+   "references_names_changed_in_1b": [
+    "_train_row_idx",
+    "oof_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "c90cd7befb3435c825674889ef336c40c055a306",
+   "path": "scripts/install_docs_close_2026-06-12_run16-smoke-gate.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "1785733ad0b269bde85a44db9f5ac839a2af0d82",
+   "path": "scripts/install_docs_close_2026-06-12_run16b.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "186a9c0ce26fa734fca4231b393143f1b303a1e6",
+   "path": "scripts/launch_run10b_vm.sh",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "historical",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "09f9024b2c0db63a9df19b2d57c267988d779cc8",
+   "path": "scripts/launch_run11_vm.sh",
+   "rationale_1b": "Run 11 launcher counting sidecar files; the files are still written (now aligned, with fold sidecars)",
+   "references_names_changed_in_1b": [
+    "_oof_indices"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "no_score_effect",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "feff0b7cf85423a0de15e8240585db235222fc6e",
+   "path": "scripts/launch_run15_baseline.sh",
+   "rationale_1b": "post-run presence check of oof_predictions.parquet, which is still written (with identity columns)",
+   "references_names_changed_in_1b": [
+    "oof_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "no_score_effect",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "839a714a646d6bce742bb0c78f6054c28c96835b",
+   "path": "scripts/launch_run17_baseline.sh",
+   "rationale_1b": "post-run presence check of oof_predictions.parquet, which is still written",
+   "references_names_changed_in_1b": [
+    "oof_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "no_score_effect",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "847bcd731650cb7ef2d55660f7574d10ed4bf80f",
+   "path": "scripts/launch_run17_r12only.sh",
+   "rationale_1b": "post-run presence check of oof_predictions.parquet, which is still written",
+   "references_names_changed_in_1b": [
+    "oof_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "no_score_effect",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "bd76ff8ca3250a58323d33f4e0c880757622df61",
+   "path": "scripts/launch_run17_r13only.sh",
+   "rationale_1b": "post-run presence check of oof_predictions.parquet, which is still written",
+   "references_names_changed_in_1b": [
+    "oof_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "ff0bfcd91806aefb079244c87b7c7a813e7d20aa",
+   "path": "scripts/migrate_pickles.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "896ebadcd286ec46485055fc1af8e749e26ec8d3",
+   "path": "scripts/patch_add_manifests.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "fad9face66a4e6be1a5c8c08bda714a0d37db791",
+   "path": "scripts/patch_gnn_optim.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "VariantEnsemble.load",
+    "blend_weights_",
+    "meta_learner"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical",
+   "disposition_after_1b": "historical",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "dddf6c3fd25d2df211bfe45bb1bc3bc6af0a5a71",
+   "path": "scripts/patch_run_phase2_resume_load.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "cdfc4889064872ca21a834a699cafdddd53e4b2e",
+   "path": "scripts/preflight_vm.sh",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "historical",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "123a22901519e845ec30c873d7d99be656332db2",
+   "path": "scripts/probe_run14_univariate_leakage.py",
+   "rationale_1b": "Run 14 probe; its notes about the writer describe the pre-1b writer",
+   "references_names_changed_in_1b": [
+    "save_oof_predictions",
+    "RunArtifactWriter",
+    "oof_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "n_pathogenic"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect",
+   "disposition_after_1b": "no_score_effect",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "dba8f3b125ef819bbc10fbf0f84cb1b079c9217c",
+   "path": "scripts/read_run_artifacts.py",
+   "rationale_1b": "prints which run files exist; its note that run_phase2_eval never calls RunArtifactWriter describes pre-1b runs (wording 1c)",
+   "references_names_changed_in_1b": [
+    "RunArtifactWriter",
+    "test_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "72b5ae3f7ac29990142264fa8851d739bcff0c57",
+   "path": "scripts/run10b_partial_phase2_eval_v2.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "5cb4dc7d75a313186c4af59790ceff4ac23295ea",
+   "path": "scripts/run11_hpo.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "meta_learner"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical",
+   "disposition_after_1b": "historical",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "f1e3967a971ff1fc94d1c4b75ff504c103ae1dbd",
+   "path": "scripts/run14_observability.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "meta_learner"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical",
+   "disposition_after_1b": "historical",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "8472b4a7a4d4c496fe7c2fa0f29ed33dcf3cb06e",
+   "path": "scripts/run15_observability.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "meta_learner"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect",
+   "disposition_after_1b": "no_score_effect",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "a3355ce3b0fd4321b74297458be83fb220e22626",
+   "path": "scripts/run17_observability.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER",
+    "save_shap_values"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": true,
+   "disposition_after_1a": "refused",
+   "disposition_after_1b": "migrated_in_1b",
+   "evidence_test_1b": "tests/unit/test_prediction_contract_1b.py",
+   "family": "script",
+   "git_blob": "e96afd05d694f3e5852f6fbfe5d82232b76ec100",
+   "path": "scripts/run9_ablations.py",
+   "rationale_1b": "transition denial removed with its migration: one bound capture per split (score_split), identity-bearing test/val predictions, OOF identity composed through the subsample, calibration points, member-score attributions, preflight before any fit, no broad handlers around deliverables, completion manifest, atomic aggregate of completed runs",
+   "references_names_changed_in_1b": [
+    "save_oof_predictions",
+    "save_calibration",
+    "append_ablation_row",
+    "save_manifest",
+    "save_permutation_importance",
+    "RunArtifactWriter",
+    "ABLATION_WRITER_MIGRATION_REQUIRED",
+    "oof_predictions.parquet",
+    "test_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "3dad0ca1d7965c8467a7cc44b387b9517ee6d55a",
+   "path": "scripts/run9_launch.md",
+   "rationale_1b": "Run 9 launch notes",
+   "references_names_changed_in_1b": [
+    "test_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical",
+   "disposition_after_1b": "historical",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "608531e816301af71512778d04f0db365fcda754",
+   "path": "scripts/run9_outputs_audit.ps1",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "DeepEnsembleWrapper"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect",
+   "disposition_after_1b": "no_score_effect",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "6d908a7989a2e1d1a8af45b711794bf0238f3c9c",
+   "path": "scripts/run_benchmark.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "explicit_refusal_on_1b_files",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "fb6cff54bde0a418330e7b30eed6672290673247",
+   "path": "scripts/run_conformal_calibration.py",
+   "rationale_1b": "its default --score-col ensemble_prob is absent from a 1b test_predictions.parquet: conformal.calibrate.load_and_verify raises 'substrate missing required columns' and the script exits 2; --score-col selected_score reads the selected blend; re-pointing is 1c",
+   "references_names_changed_in_1b": [
+    "test_predictions.parquet",
+    "ensemble_prob"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "2d1859cca5e380022398d9e688a789e7b6fc19e1",
+   "path": "scripts/run_drift_monitor.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER",
+    "VariantEnsemble.load"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": true,
+   "disposition_after_1a": "delegates",
+   "disposition_after_1b": "migrated_in_1b",
+   "evidence_test_1b": "tests/unit/test_prediction_contract_1b.py",
+   "family": "script",
+   "git_blob": "f5ce3315f65ca3261bfe40d48221e05a0b81d8ae",
+   "path": "scripts/run_phase2_eval.py",
+   "rationale_1b": "split identities before subsample; one subsample of X/y/sequence/metadata (the WindowAttachment .iloc defect and the full-meta GNN/hetero/holdout misalignment fixed); one bound capture per split; every output through the writer; OOF identity composed and verified (failure exits 2); failed requested deliverables block completion",
+   "references_names_changed_in_1b": [
+    "save_oof_predictions",
+    "save_calibration",
+    "RunArtifactWriter",
+    "oof_predictions.parquet",
+    "test_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": false,
+   "disposition_after_1a": "delegates_or_updated_in_1a",
+   "disposition_after_1b": "delegates_or_updated_in_1a",
+   "evidence_test_1b": "tests/unit/test_prediction_contract.py",
+   "family": "script",
+   "git_blob": "1ebe43cc43b8756333e0a9e4201d5fe31ea9f047",
+   "path": "scripts/smoke_all_models.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "754aaee213c65feefd3ffbfd2dd44166ed306c4f",
+   "path": "scripts/test_scalable_svm.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "5fc1c2a3842a218cd5aae0efeb541866c0aa9dc6",
+   "path": "scripts/test_scalable_svm_cap.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": false,
+   "disposition_after_1a": "delegates_or_updated_in_1a",
+   "disposition_after_1b": "delegates_or_updated_in_1a",
+   "evidence_test_1b": "tests/unit/test_prediction_contract.py",
+   "family": "script",
+   "git_blob": "d343f9b07c348d2d9656e652a603eb10bf077923",
+   "path": "scripts/test_smoke_checks.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "no_score_effect",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "76544d70a7254e5275520bc53f51a00a52732f57",
+   "path": "scripts/train.py",
+   "rationale_1b": "scores through ensemble.predict_proba (the selected blend since 1a); writes no prediction or OOF table through the run writer; not a completion-manifest producer",
+   "references_names_changed_in_1b": [
+    "ensemble_prob"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "f6bfee004c46fb8253561a9f2c27519af14ce67f",
+   "path": "scripts/tune_hyperparams.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "n_pathogenic"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "refused_by_C10",
+   "disposition_after_1b": "refused_by_C10",
+   "evidence_test_1b": "tests/unit/test_containment_serving.py",
+   "family": "script",
+   "git_blob": "f7245adceaa122aea8f9d1308361e395807ddd9e",
+   "path": "scripts/validate_clinvar_temporal.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "\"classification\"",
+    "CLASSIFICATION_THRESHOLDS",
+    "n_pathogenic",
+    "score_to_classification"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "refused_by_C10",
+   "disposition_after_1b": "refused_by_C10",
+   "evidence_test_1b": "tests/unit/test_containment_serving.py",
+   "family": "script",
+   "git_blob": "7ee574a3580bf861653c1f8255f5fd94b7cd7dc2",
+   "path": "scripts/validate_external.py",
+   "rationale_1b": "writes its own calibration.parquet (unrelated to the writer's retired table); InferencePipeline.load refused by C10 (1c)",
+   "references_names_changed_in_1b": [
+    "calibration.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "n_pathogenic"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "refused_by_C10",
+   "disposition_after_1b": "refused_by_C10",
+   "evidence_test_1b": "tests/unit/test_containment_serving.py",
+   "family": "script",
+   "git_blob": "0d43a2b5a7cfc1726fdc681424730bbcecba13c7",
+   "path": "scripts/validate_lovd_enriched.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "d9a4c5028fe7b7315709ca95cddba49f52a8ac6c",
+   "path": "scripts/vm_bootstrap_run.sh",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "script",
+   "git_blob": "5bb047c03f930d569453be1ee9ec5547f0989799",
+   "path": "scripts/write_session_docs.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "19bf800b8a428fd145f0341d2416a0d75a7bd6ff",
+   "path": "src/genomic_variant_classifier/agent_layer/agents/adversarial_submission_monitor_agent.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "1293d88000f4ad993bdc8fe2af62dc61c7959f53",
+   "path": "src/genomic_variant_classifier/agent_layer/agents/annotation_policy_monitor_agent.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "2e858e195c22bd7b8fcda875ab7f5b26c4e2bb8a",
+   "path": "src/genomic_variant_classifier/agent_layer/agents/interpretability_agent.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": true,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "migrated_in_1b",
+   "evidence_test_1b": "tests/unit/test_model_insights_agent.py",
+   "family": "runtime",
+   "git_blob": "9f4a1c227edd464f450b7049a0e25db194275360",
+   "path": "src/genomic_variant_classifier/agent_layer/agents/model_insights_agent.py",
+   "rationale_1b": "analyses the latest completed run; lists incomplete runs; never reads an OOF file without a verified manifest",
+   "references_names_changed_in_1b": [
+    "oof_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "890c273e6b18f188f008c2fc4e63bb5d8c72648e",
+   "path": "src/genomic_variant_classifier/agent_layer/agents/shap_utils.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "3b60e80bc0cb9a15525a2bf6ca2f4f7a18801e2a",
+   "path": "src/genomic_variant_classifier/agent_layer/config.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "c94ed84fd6557ec036cfe498aa761447edb3a9ff",
+   "path": "src/genomic_variant_classifier/agent_layer/harness/correctness_harness.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "SERVING_SUBSET",
+    "is_ready",
+    "serving_projection"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": false,
+   "disposition_after_1a": "delegates_or_updated_in_1a",
+   "disposition_after_1b": "delegates_or_updated_in_1a",
+   "evidence_test_1b": "tests/unit/test_prediction_contract.py",
+   "family": "runtime",
+   "git_blob": "bda65bc33e2def0cf6045a5f508ea30d5ae9b349",
+   "path": "src/genomic_variant_classifier/api/attribution.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "2.0.0",
+    "api_version",
+    "is_ready",
+    "n_pathogenic",
+    "predict_batch",
+    "predict_single",
+    "score_to_classification"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": false,
+   "disposition_after_1a": "delegates_or_updated_in_1a",
+   "disposition_after_1b": "delegates_or_updated_in_1a",
+   "evidence_test_1b": "tests/unit/test_prediction_contract.py",
+   "family": "runtime",
+   "git_blob": "a88ca94a8f75f8842ec7997de4a66a8b3f952d56",
+   "path": "src/genomic_variant_classifier/api/main.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "\"classification\"",
+    "\"confidence\"",
+    "SERVING_SUBSET",
+    "from_variant_ensemble",
+    "meta_learner",
+    "predict_batch",
+    "predict_proba_with_uncertainty",
+    "predict_single",
+    "score_to_classification",
+    "uncertainty_aleatoric",
+    "uncertainty_epistemic"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": true,
+   "disposition_after_1a": "delegates_or_updated_in_1a",
+   "disposition_after_1b": "updated_in_1b",
+   "evidence_test_1b": "tests/unit/test_prediction_contract_1b.py",
+   "family": "runtime",
+   "git_blob": "d83b10646a4060cadf4d9bd77367ff02a89c5692",
+   "path": "src/genomic_variant_classifier/api/pipeline.py",
+   "rationale_1b": "changed by set 1b (see the installer diff); behaviour covered by the set 1b tests",
+   "references_names_changed_in_1b": [
+    "SERVING_SCOPE",
+    "_member_schedule",
+    "_variant_identity",
+    "member_modalities"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "2.0.0",
+    "CLASSIFICATION_THRESHOLDS",
+    "api_version",
+    "n_pathogenic",
+    "score_to_classification",
+    "uncertainty_aleatoric",
+    "uncertainty_epistemic"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": false,
+   "disposition_after_1a": "delegates_or_updated_in_1a",
+   "disposition_after_1b": "delegates_or_updated_in_1a",
+   "evidence_test_1b": "tests/unit/test_prediction_contract.py",
+   "family": "runtime",
+   "git_blob": "328f6a7665d089f5f0cc15a377824781e729cfc7",
+   "path": "src/genomic_variant_classifier/api/schemas.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "explicit_refusal_on_1b_files",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "fcfe4393de4fc28b7aae8538ecd0cf7d211681ad",
+   "path": "src/genomic_variant_classifier/conformal/calibrate.py",
+   "rationale_1b": "missing score column refused by load_and_verify (see run_conformal_calibration.py); 1c",
+   "references_names_changed_in_1b": [
+    "ensemble_prob"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "no_score_effect",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "715a1b80d346fec3056ceead3dd7ef5fa19712b0",
+   "path": "src/genomic_variant_classifier/evaluation/__init__.py",
+   "rationale_1b": "re-exports RunArtifactWriter",
+   "references_names_changed_in_1b": [
+    "RunArtifactWriter"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "DeepEnsembleWrapper"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect",
+   "disposition_after_1b": "no_score_effect",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "9449ed72d8f80089b0874d901a3ffb4499e06e18",
+   "path": "src/genomic_variant_classifier/evaluation/benchmark.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "a1ff22c9884e3e5e5ea5fd1aef80e0cd8ff4501c",
+   "path": "src/genomic_variant_classifier/evaluation/canonical.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "n_pathogenic"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect",
+   "disposition_after_1b": "no_score_effect",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "5ae54701c4badc62595dfcc3a1c2218d17eaeae0",
+   "path": "src/genomic_variant_classifier/evaluation/evaluator.py",
+   "rationale_1b": "its ensemble_prob mention is documentation; it evaluates the scores it is given",
+   "references_names_changed_in_1b": [
+    "ensemble_prob"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "f056ed1f6397294e3e0d3dcadb229117b9881cfe",
+   "path": "src/genomic_variant_classifier/evaluation/input_validation.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": true,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "migrated_in_1b",
+   "evidence_test_1b": "tests/unit/test_model_insights_detector.py",
+   "family": "runtime",
+   "git_blob": "67886fc89612fe77bdbcfa48e5fabe4a2b2dd372",
+   "path": "src/genomic_variant_classifier/evaluation/model_insights_detector.py",
+   "rationale_1b": "reads only verified completed runs and the identity schema; members from the run's OOF identity",
+   "references_names_changed_in_1b": [
+    "discover_latest_run",
+    "oof_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "n_pathogenic"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect",
+   "disposition_after_1b": "no_score_effect",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "f3ed138b288983472907c383b93491b6024006ec",
+   "path": "src/genomic_variant_classifier/evaluation/ntqr_evaluator.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "meta_learner",
+    "save_shap_values"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": true,
+   "disposition_after_1a": "refused_operation",
+   "disposition_after_1b": "migrated_in_1b",
+   "evidence_test_1b": "tests/unit/test_prediction_contract_1b.py",
+   "family": "runtime",
+   "git_blob": "cf3ae27b5baa4ce56991aecc58f007e69e135efa",
+   "path": "src/genomic_variant_classifier/evaluation/prediction_artifacts.py",
+   "rationale_1b": "bound captures only; OOF requires OOFIdentity; strict JSON; calibration points with real counts separate from consequence performance; save_shap_values retired; member-score attributions; completion manifest written last; stale manifest retired; atomic aggregate",
+   "references_names_changed_in_1b": [
+    "save_oof_predictions",
+    "save_test_predictions",
+    "save_calibration",
+    "save_shap_values",
+    "append_ablation_row",
+    "save_manifest",
+    "save_permutation_importance",
+    "RunArtifactWriter",
+    "_train_row_idx",
+    "oof_predictions.parquet",
+    "calibration.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "9c6b3f043d507da21df5765f046b43871d24f10d",
+   "path": "src/genomic_variant_classifier/evaluation/registry.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "no_score_effect",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "0b15103edc2225b0ba392e979b54437bd85f6e28",
+   "path": "src/genomic_variant_classifier/evaluation/representation_artifact.py",
+   "rationale_1b": "docstring reference to the atomic-write idiom",
+   "references_names_changed_in_1b": [
+    "RunArtifactWriter"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "5cc38750465ec96ad5d93d537544293287565136",
+   "path": "src/genomic_variant_classifier/evaluation/sealed_evaluation.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "63fa96943db138517da01d7183a3b3b4ca705574",
+   "path": "src/genomic_variant_classifier/inference/analysis_contract.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "VariantEnsemble.load"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect",
+   "disposition_after_1b": "no_score_effect",
+   "evidence_test_1b": "tests/unit/test_model_admission.py",
+   "family": "runtime",
+   "git_blob": "acb5092d2a302004adca765c0c07afc39ce41c2f",
+   "path": "src/genomic_variant_classifier/model_admission.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "7b8cb664bccbe85e4a8b6a86c6601242916520b9",
+   "path": "src/genomic_variant_classifier/models/catboost_wrapper.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "d02bcabf4493f719630922a42f48c8d682ef76d0",
+   "path": "src/genomic_variant_classifier/models/gnn.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "a3abfe40fa3f9985f40e0874eae276d40bc73d2d",
+   "path": "src/genomic_variant_classifier/models/kan.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "DeepEnsembleWrapper",
+    "MCDropoutWrapper",
+    "_decompose_uncertainty",
+    "aleatoric_uncertainty",
+    "annotate_uncertainty",
+    "epistemic_uncertainty",
+    "predict_with_uncertainty",
+    "total_uncertainty",
+    "uncertainty_aleatoric",
+    "uncertainty_epistemic",
+    "uncertainty_flag",
+    "uncertainty_summary"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": false,
+   "disposition_after_1a": "delegates_or_updated_in_1a",
+   "disposition_after_1b": "delegates_or_updated_in_1a",
+   "evidence_test_1b": "tests/unit/test_prediction_contract.py",
+   "family": "runtime",
+   "git_blob": "fd6763793ab84dc29b200f5dc768c492af95de2c",
+   "path": "src/genomic_variant_classifier/models/mc_dropout.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "6db740ac5edc4f010547139e43ebb8a80e0ea64f",
+   "path": "src/genomic_variant_classifier/models/scalable_svm.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "DeepEnsembleWrapper",
+    "ENSEMBLE_STACKER",
+    "MCDropoutWrapper",
+    "_find_blend_weights",
+    "blend_weights_",
+    "meta_learner",
+    "uncertainty_aleatoric",
+    "uncertainty_epistemic"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": true,
+   "disposition_after_1a": "delegates_or_updated_in_1a",
+   "disposition_after_1b": "updated_in_1b",
+   "evidence_test_1b": "tests/unit/test_prediction_contract_1b.py",
+   "family": "runtime",
+   "git_blob": "9e331d19aa92e8217aa371694fed29c3605dd87a",
+   "path": "src/genomic_variant_classifier/models/variant_ensemble.py",
+   "rationale_1b": "changed by set 1b (see the installer diff); behaviour covered by the set 1b tests",
+   "references_names_changed_in_1b": [
+    "_oof_indices",
+    "member_modalities"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "ebb3333cb3afe67040643b8ddec3af7a52c93043",
+   "path": "src/genomic_variant_classifier/monitoring/drift_detector.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "from_variant_ensemble",
+    "serving_projection"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": false,
+   "disposition_after_1a": "delegates_or_updated_in_1a",
+   "disposition_after_1b": "delegates_or_updated_in_1a",
+   "evidence_test_1b": "tests/unit/test_prediction_contract.py",
+   "family": "runtime",
+   "git_blob": "57cf4169458bfb00c146735e8131ed4de59b7ecd",
+   "path": "src/genomic_variant_classifier/monitoring/model_registry.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "f3830eaf130a60c5e293041e7249a7eb1ae7baef",
+   "path": "src/genomic_variant_classifier/monitoring/performance_estimator.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER",
+    "n_pathogenic"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": false,
+   "disposition_after_1a": "delegates_or_updated_in_1a",
+   "disposition_after_1b": "delegates_or_updated_in_1a",
+   "evidence_test_1b": "tests/unit/test_prediction_contract.py",
+   "family": "runtime",
+   "git_blob": "b51999a077013f03885d3d7cf76d3a2e9733d870",
+   "path": "src/genomic_variant_classifier/reports/report_generator.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "f6df712de6c7f0814a977ac8f62fa41bf0bae370",
+   "path": "src/genomic_variant_classifier/training/continual_trainer.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "unaffected_by_1a",
+   "disposition_after_1b": "unaffected_by_1a",
+   "evidence_test_1b": null,
+   "family": "runtime",
+   "git_blob": "4e808c072be1e8fb03c43dc1bdfc1b635751db39",
+   "path": "src/genomic_variant_classifier/training/ewc.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "historical_or_documentation",
+   "disposition_after_1b": "historical_or_documentation",
+   "evidence_test_1b": null,
+   "family": "other_tracked_text",
+   "git_blob": "832dc889888e01b21bf3241ab81e00b38d13694c",
+   "path": "stage1_listing.txt",
+   "rationale_1b": "non-code tracked text mentioning a name 1b changes; records keep their bytes (G7.3)",
+   "references_names_changed_in_1b": [
+    "_oof_indices",
+    "oof_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [
+    "2.0.0",
+    "SERVING_SUBSET",
+    "from_variant_ensemble",
+    "predict_single"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": true,
+   "disposition_after_1a": "delegates_or_updated_in_1a",
+   "disposition_after_1b": "updated_in_1b",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "7091c08f5f1516e3912618214dfccf814b4c1f95",
+   "path": "tests/EXPECTED_SUITE_SIZE",
+   "rationale_1b": "the suite-size ratchet",
+   "references_names_changed_in_1b": [
+    "RunArtifactWriter"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "966d2cb18006af2e03724e21d2390d18d5ce22f7",
+   "path": "tests/conformal/test_calibrate.py",
+   "rationale_1b": "synthetic frames with an explicit ensemble_prob column",
+   "references_names_changed_in_1b": [
+    "ensemble_prob"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "ea4d4cc1eabd1a1fb0cad6f05e294e087628fd38",
+   "path": "tests/conformal/test_mapie_crosscheck.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "\"classification\""
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "2ea9c56367c51b4b796aef6d51118e82529d4e87",
+   "path": "tests/unit/test_adversarial_submission_baseline.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "364d25004bfa3b0bf15b5de704d8adbb23230e4a",
+   "path": "tests/unit/test_annotation_policy_baseline.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "\"classification\"",
+    "\"confidence\"",
+    "2.0.0",
+    "InferencePipeline(",
+    "api_version",
+    "from_variant_ensemble",
+    "meta_learner",
+    "n_pathogenic",
+    "predict_batch",
+    "predict_proba_with_uncertainty",
+    "predict_single",
+    "score_to_classification",
+    "uncertainty_aleatoric",
+    "uncertainty_epistemic"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": false,
+   "disposition_after_1a": "delegates_or_updated_in_1a",
+   "disposition_after_1b": "delegates_or_updated_in_1a",
+   "evidence_test_1b": "tests/unit/test_api.py",
+   "family": "test",
+   "git_blob": "6f6ceabb50d43e85738f9be9388fd76b1b843c80",
+   "path": "tests/unit/test_api.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "12b4d45e3ffe38b08004611fe68e04c6020ed8d0",
+   "path": "tests/unit/test_base_model_dropout_is_loud.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "4531f65523c79756a0c84f0aa3d1a2d03f6b803f",
+   "path": "tests/unit/test_calibration_binning_convention.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "8eb47452151f87d7fb39e6607d117b47614293c4",
+   "path": "tests/unit/test_calibration_carve.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "ca7d5229e1914ba55f2fabc2340f909a43f391e8",
+   "path": "tests/unit/test_canonical_variant_table.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "InferencePipeline(",
+    "meta_learner"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": false,
+   "disposition_after_1a": "delegates_or_updated_in_1a",
+   "disposition_after_1b": "delegates_or_updated_in_1a",
+   "evidence_test_1b": "tests/unit/test_catboost.py",
+   "family": "test",
+   "git_blob": "3360be4e6ff317bfb866aefd7c4309c3a19bf6c9",
+   "path": "tests/unit/test_catboost.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "620b77030f168889f59b24bab2635f292adc7a71",
+   "path": "tests/unit/test_cnn_1d_delta.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "3eef3c07ed9367d99efcae7cddb5efa0219daaea",
+   "path": "tests/unit/test_cnn_tier1.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "1031968635b3f5cda799ab090af1af2b33307d5c",
+   "path": "tests/unit/test_computation_path_guards.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "InferencePipeline(",
+    "meta_learner",
+    "predict_proba_with_uncertainty"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": false,
+   "disposition_after_1a": "delegates_or_updated_in_1a",
+   "disposition_after_1b": "delegates_or_updated_in_1a",
+   "evidence_test_1b": "tests/unit/test_containment_propagation.py",
+   "family": "test",
+   "git_blob": "21a04f282d77b363479676f8a397bcf27921e6d6",
+   "path": "tests/unit/test_containment_propagation.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "InferencePipeline(",
+    "meta_learner"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": false,
+   "disposition_after_1a": "delegates_or_updated_in_1a",
+   "disposition_after_1b": "delegates_or_updated_in_1a",
+   "evidence_test_1b": "tests/unit/test_containment_scripts.py",
+   "family": "test",
+   "git_blob": "a7e0b3bdd1bc7349ec85bfdd0284a698d8e8d5e0",
+   "path": "tests/unit/test_containment_scripts.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "InferencePipeline(",
+    "VariantEnsemble.load",
+    "meta_learner",
+    "predict_proba_with_uncertainty"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": false,
+   "disposition_after_1a": "delegates_or_updated_in_1a",
+   "disposition_after_1b": "delegates_or_updated_in_1a",
+   "evidence_test_1b": "tests/unit/test_containment_serving.py",
+   "family": "test",
+   "git_blob": "7154773d95e0247f7e5c9b6534fe747df0d1a309",
+   "path": "tests/unit/test_containment_serving.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "ENSEMBLE_STACKER"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": false,
+   "disposition_after_1a": "delegates_or_updated_in_1a",
+   "disposition_after_1b": "delegates_or_updated_in_1a",
+   "evidence_test_1b": "tests/unit/test_core.py",
+   "family": "test",
+   "git_blob": "00708bf0431d8a54d0e5f293d38d104e68d928e8",
+   "path": "tests/unit/test_core.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "7c7a2f78f997ae1a7b1087d98ea6fa401216db25",
+   "path": "tests/unit/test_correctness_harness.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "n_pathogenic"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": true,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "updated_in_1b",
+   "evidence_test_1b": "tests/unit/test_prediction_contract_1b.py",
+   "family": "test",
+   "git_blob": "f2dfde085a2e912255ce11f2ec0bc6ff156f8452",
+   "path": "tests/unit/test_d1_d2.py",
+   "rationale_1b": "changed by set 1b (see the installer diff); behaviour covered by the set 1b tests",
+   "references_names_changed_in_1b": [
+    "save_oof_predictions",
+    "save_manifest",
+    "RunArtifactWriter",
+    "_train_row_idx",
+    "oof_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": "tests/unit/test_prediction_contract_1b.py",
+   "family": "test",
+   "git_blob": "661afd2a6b86989bd2d88df1b40c14b7ad2caac9",
+   "path": "tests/unit/test_ensemble_persistence.py",
+   "rationale_1b": "asserts the per-member checkpoint files exist and the OOF and index sidecars have one length, still true; alignment and folds are asserted by the 1b tests",
+   "references_names_changed_in_1b": [
+    "_oof_indices"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "1564a1df012cf33e71471d747e65255d5153d5d2",
+   "path": "tests/unit/test_evaluation_metrics.py",
+   "rationale_1b": "checks the evaluation package exports RunArtifactWriter",
+   "references_names_changed_in_1b": [
+    "RunArtifactWriter"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "66bcf5ffc250d5e767b35455d15a71a2256a5eb4",
+   "path": "tests/unit/test_evaluation_population.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "n_pathogenic"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "851b3ed597cb9d4025bd171f721ff0896f6a1aa1",
+   "path": "tests/unit/test_evaluator_meta.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "02762a470b39bdee4397e5c9e9efcde981ff1a26",
+   "path": "tests/unit/test_feature_name_contract.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "d54bfc842c5d97a79400570f344e1f5516921f6e",
+   "path": "tests/unit/test_gnn_shared_graph.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "f728f0b8e32c62e11ac93db7995aec1186acbc13",
+   "path": "tests/unit/test_import_resolution_gate.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "a37f32161484c772fd97ca92b6d80299bee3632c",
+   "path": "tests/unit/test_invariant_ownership.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "5c8b359c93e91023594839ef07b7cfa0481571b1",
+   "path": "tests/unit/test_isolation_prerequisite.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "27bc6be6b666ce526e79905121dc0826b25a6071",
+   "path": "tests/unit/test_kan_actually_fits.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "f0698acf52a2f4966904fa9fc83e06761b1eb6ef",
+   "path": "tests/unit/test_kan_pykan_fallback.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "ce77d57dc84ab50086e1b7213a3a3826310aaf67",
+   "path": "tests/unit/test_level2_leakfree_oof.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "ee400e7d315d927f09fc23b5308bf3a677160f89",
+   "path": "tests/unit/test_logistic_regression_is_scaled.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "e5d488c38ac3d56cf14207e34fbe68758b5dfddd",
+   "path": "tests/unit/test_methods_architecture_currency.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "7b87e671871350165d92e975729962eb36fbb80a",
+   "path": "tests/unit/test_metric_metadata_vocabulary.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "564a0a311e623cd8158f1f81622f1c8420d516ad",
+   "path": "tests/unit/test_metric_registry.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "VariantEnsemble.load"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "dd7b2b60b6574243b21c37fa3cff08e6dc4c6531",
+   "path": "tests/unit/test_model_admission.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "bbe252de7d36f8b1a15a715856efc05eb7b8dd7a",
+   "path": "tests/unit/test_model_comparison.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": true,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "updated_in_1b",
+   "evidence_test_1b": "tests/unit/test_prediction_contract_1b.py",
+   "family": "test",
+   "git_blob": "4c1a03ac30d2ad1966d21cb234564bedf0d435b8",
+   "path": "tests/unit/test_model_insights_agent.py",
+   "rationale_1b": "changed by set 1b (see the installer diff); behaviour covered by the set 1b tests",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": true,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "updated_in_1b",
+   "evidence_test_1b": "tests/unit/test_prediction_contract_1b.py",
+   "family": "test",
+   "git_blob": "2069cd1729f5f0a63ea9d13b772abb64b8101593",
+   "path": "tests/unit/test_model_insights_detector.py",
+   "rationale_1b": "changed by set 1b (see the installer diff); behaviour covered by the set 1b tests",
+   "references_names_changed_in_1b": [
+    "discover_latest_run",
+    "oof_predictions.parquet",
+    "ensemble_prob"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "97695b4437b6f8e2ce6c7efaf0b64a23364171d6",
+   "path": "tests/unit/test_oracle_c1_count_path.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "n_pathogenic"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "caa187b136ad319430532b1d3aaa9c6a4cfb9d78",
+   "path": "tests/unit/test_population_wiring.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": true,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "updated_in_1b",
+   "evidence_test_1b": "tests/unit/test_prediction_contract_1b.py",
+   "family": "test",
+   "git_blob": "5b5d230069d51c3b2d9b41e55cba647472e9877a",
+   "path": "tests/unit/test_prediction_artifacts.py",
+   "rationale_1b": "changed by set 1b (see the installer diff); behaviour covered by the set 1b tests",
+   "references_names_changed_in_1b": [
+    "save_oof_predictions",
+    "save_test_predictions",
+    "append_ablation_row",
+    "save_manifest",
+    "RunArtifactWriter",
+    "oof_predictions.parquet",
+    "test_predictions.parquet"
+   ]
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "053e61c8ae7bbe2051ed92dcacfb8ace1b59d07e",
+   "path": "tests/unit/test_prediction_input_contract.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "uncertainty_aleatoric",
+    "uncertainty_epistemic"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "7a5d6ae165e14a7c470ac60d133bfa4e4c6fdd87",
+   "path": "tests/unit/test_readme_claims.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "1a3fcbe51117de3d2489c91ee6f4c4a13dfd244b",
+   "path": "tests/unit/test_registry_metadata_prefix.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "b4236f4e4e5900a95d77fa7127c9ac43b1c84f1c",
+   "path": "tests/unit/test_registry_vocabulary_completion.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "n_pathogenic"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "6948d34307697acbe529754283ea359b7c13e42f",
+   "path": "tests/unit/test_report_input_gates.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "e5087a03938b29a17bafec576bac46306816e346",
+   "path": "tests/unit/test_roadmap_claims.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "VariantEnsemble.load"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "651e4bf1c69a723f152362b00d6b8414e57a6f8d",
+   "path": "tests/unit/test_run_phase2_resume_load.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "2.0.0",
+    "InferencePipeline(",
+    "SERVING_SUBSET",
+    "api_version",
+    "from_variant_ensemble",
+    "is_ready",
+    "meta_learner",
+    "serving_projection"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": false,
+   "disposition_after_1a": "delegates_or_updated_in_1a",
+   "disposition_after_1b": "delegates_or_updated_in_1a",
+   "evidence_test_1b": "tests/unit/test_runtime_attribution.py",
+   "family": "test",
+   "git_blob": "038cdefb399bbd8babb29740d924cb5d2087ebc3",
+   "path": "tests/unit/test_runtime_attribution.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "ec9852d90761a99270e110598da46015b80d8fce",
+   "path": "tests/unit/test_sealed_evaluation.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "71bd75d7630797d452189088a7b2e8304acc15e6",
+   "path": "tests/unit/test_sequence_provenance_gate.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "d00d2446cd66be53aae23da1bb25caa92916bb78",
+   "path": "tests/unit/test_sklearn_parallel_warning_contract.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "MCDropoutWrapper",
+    "_decompose_uncertainty",
+    "epistemic_uncertainty",
+    "predict_with_uncertainty"
+   ],
+   "changed_in_1a": true,
+   "changed_in_1b": false,
+   "disposition_after_1a": "delegates_or_updated_in_1a",
+   "disposition_after_1b": "delegates_or_updated_in_1a",
+   "evidence_test_1b": "tests/unit/test_tabular_nn_mc_dropout.py",
+   "family": "test",
+   "git_blob": "0a8dc5a56022b6be6f73ca8ee045ee81e2225a8b",
+   "path": "tests/unit/test_tabular_nn_mc_dropout.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "DeepEnsembleWrapper",
+    "MCDropoutWrapper"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "a1cd213c865c9ffd4819872a2fd4a382a0132fbf",
+   "path": "tests/unit/test_tabularnn_variance_mask.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "6055ab0c1cc6d3e66d4097199b46ffa4c8518fcb",
+   "path": "tests/unit/test_train_cnn_activation.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [
+    "VariantEnsemble.load"
+   ],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "2488457faaa5606ff7e2932b6035e30c6a690821",
+   "path": "tests/unit/test_variant_ensemble_save_load.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "80393ce14a3094a2d1896995dd2361f09c29c25c",
+   "path": "tests/unit/test_window_attachment_derives_its_counts.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": true,
+   "changed_in_1b": false,
+   "disposition_after_1a": "delegates_or_updated_in_1a",
+   "disposition_after_1b": "delegates_or_updated_in_1a",
+   "evidence_test_1b": "tests/unit/test_x_seq_refusal_contract.py",
+   "family": "test",
+   "git_blob": "4fb2cc1a16d01078ec9f30b6e20539544d102993",
+   "path": "tests/unit/test_x_seq_refusal_contract.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  },
+  {
+   "affected_symbols": [],
+   "changed_in_1a": false,
+   "changed_in_1b": false,
+   "disposition_after_1a": "no_score_effect_test",
+   "disposition_after_1b": "no_score_effect_test",
+   "evidence_test_1b": null,
+   "family": "test",
+   "git_blob": "807aeddc684c5866ada77f39ab3ca0c11cc702e8",
+   "path": "tests/unit/test_zero_variance_guard.py",
+   "rationale_1b": "unchanged by 1b; references no name whose behaviour or presence 1b changes",
+   "references_names_changed_in_1b": []
+  }
+ ],
+ "limits": "a pattern census plus a symbol cross-check is not a call graph; string-built names escape it. Closure review completes in 1c.",
+ "schema": "gvc.package1.census-ledger.v2",
+ "set_1a_ledger_sha256": "258132124b2017a93076041e85892cb2c4764e8b01da6054524f302d189c6fc6",
+ "set_1b_changed_paths": [
+  "README.md",
+  "docs/CHANGELOG.md",
+  "docs/ROADMAP.md",
+  "docs/package1/PACKAGE1_SET1B_CENSUS_LEDGER.json",
+  "docs/package1/PACKAGE1_SET1B_DELIVERY.md",
+  "docs/package1/README.md",
+  "docs/package1/RUN15_OOF_IDENTITY_DERIVED_RECORD.json",
+  "docs/sessions/SESSION_2026-11-08_prediction-contract-1b.md",
+  "scripts/derive_run15_oof_identity.py",
+  "scripts/evaluate_predictions.py",
+  "scripts/run9_ablations.py",
+  "scripts/run_phase2_eval.py",
+  "src/genomic_variant_classifier/agent_layer/agents/model_insights_agent.py",
+  "src/genomic_variant_classifier/api/pipeline.py",
+  "src/genomic_variant_classifier/evaluation/blend_attribution.py",
+  "src/genomic_variant_classifier/evaluation/historical_oof_identity.py",
+  "src/genomic_variant_classifier/evaluation/model_insights_detector.py",
+  "src/genomic_variant_classifier/evaluation/oof_identity.py",
+  "src/genomic_variant_classifier/evaluation/prediction_artifacts.py",
+  "src/genomic_variant_classifier/evaluation/split_identity.py",
+  "src/genomic_variant_classifier/inert_pickle.py",
+  "src/genomic_variant_classifier/models/combiner.py",
+  "src/genomic_variant_classifier/models/variant_ensemble.py",
+  "src/genomic_variant_classifier/prediction_contract.py",
+  "src/genomic_variant_classifier/transition_policy.py",
+  "tests/EXPECTED_SUITE_SIZE",
+  "tests/unit/_run_artifact_support.py",
+  "tests/unit/test_d1_d2.py",
+  "tests/unit/test_model_insights_agent.py",
+  "tests/unit/test_model_insights_detector.py",
+  "tests/unit/test_prediction_artifacts.py",
+  "tests/unit/test_prediction_contract_1b.py",
+  "tests/unit/test_prediction_contract_transition.py"
+ ],
+ "symbol_crosscheck_1b": [
+  "save_oof_predictions",
+  "save_test_predictions",
+  "save_calibration",
+  "save_shap_values",
+  "append_ablation_row",
+  "save_manifest",
+  "save_permutation_importance",
+  "RunArtifactWriter",
+  "_train_row_idx",
+  "_oof_indices",
+  "discover_latest_run",
+  "EXPLANATION_TARGET_MIGRATION_REQUIRED",
+  "ABLATION_WRITER_MIGRATION_REQUIRED",
+  "oof_predictions.parquet",
+  "test_predictions.parquet",
+  "calibration.parquet",
+  "shap_values.parquet",
+  "ensemble_prob",
+  "SERVING_SCOPE",
+  "_member_schedule",
+  "_variant_identity",
+  "member_modalities"
+ ]
+}

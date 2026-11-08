@@ -101,12 +101,14 @@ so schema drift produces a log line rather than a silent miscalibration.
 
 from __future__ import annotations
 
-# TRANSITION REFUSAL (package 1, set 1a, 2026-11-07): see transition_policy.PREDICTION_CONTRACT_TRANSITION_DENIED.
-from genomic_variant_classifier.containment import ContainmentError, require_execution_permitted
-from genomic_variant_classifier.transition_policy import PREDICTION_CONTRACT_TRANSITION_DENIED
-require_execution_permitted('scripts/run9_ablations.py', PREDICTION_CONTRACT_TRANSITION_DENIED)
-
+# PACKAGE 1, SET 1b (2026-11-08): the set-1a transition refusal (ABLATION_WRITER_MIGRATION_REQUIRED) is removed together
+# with its migration. Each evaluated split is scored through ONE bound capture (VariantEnsemble.score_split); test and
+# validation predictions, the out-of-fold rows (with their composed training-split identity), calibration points and
+# the selected predictor's member-score attributions are all reduced from those captures; capabilities are checked
+# before any model is fitted; every requested deliverable either exists or the run fails, and only then is the
+# completion manifest written and the ablation row appended.
 import argparse
+import os
 import hashlib
 import json
 import logging
@@ -455,7 +457,10 @@ def load_splits(
     Required files:
         X_train.parquet, X_val.parquet, X_test.parquet
         y_train.parquet, y_val.parquet, y_test.parquet
-        meta_val.parquet, meta_test.parquet
+        meta_train.parquet, meta_val.parquet, meta_test.parquet
+
+    meta_train is required since package 1, set 1b: the out-of-fold rows are published with their training-split
+    identity (variant identity, gene) and the calibration carve and inner folds are gene-disjoint like mainline.
 
     The y_*.parquet files use column name "label" (per DataPrepPipeline
     _save_splits line 1207: `y_train.to_frame("label").to_parquet(...)`).
@@ -467,6 +472,7 @@ def load_splits(
         "y_train.parquet",
         "y_val.parquet",
         "y_test.parquet",
+        "meta_train.parquet",
         "meta_val.parquet",
         "meta_test.parquet",
     ]
@@ -482,6 +488,7 @@ def load_splits(
         "X_train": pd.read_parquet(splits_dir / "X_train.parquet"),
         "X_val": pd.read_parquet(splits_dir / "X_val.parquet"),
         "X_test": pd.read_parquet(splits_dir / "X_test.parquet"),
+        "meta_train": pd.read_parquet(splits_dir / "meta_train.parquet"),
         "meta_val": pd.read_parquet(splits_dir / "meta_val.parquet"),
         "meta_test": pd.read_parquet(splits_dir / "meta_test.parquet"),
     }
@@ -494,6 +501,52 @@ def load_splits(
         out[f"y_{split}"] = y_df[col].astype(int).reset_index(drop=True)
 
     return out
+
+
+# ---------------------------------------------------------------------------
+# Preflight (package 1, set 1b): everything an expensive run needs, checked BEFORE any model is fitted
+# ---------------------------------------------------------------------------
+_LOCUS_COLUMNS = ("chrom", "pos", "ref", "alt")
+
+
+def preflight(args: argparse.Namespace) -> list[str]:
+    """Problems that would make this run unable to finish as complete evidence; empty when it can start.
+
+    Owner ruling 2026-11-07 (decision 38f15c7a): check capabilities before an expensive run, rather than discovering a
+    missing input, an unwritable directory or an impossible deliverable after hours of training.
+    """
+    problems: list[str] = []
+    if args.ablation == "no_kan" and not args.skip_kan:
+        problems.append("--ablation no_kan requires --skip-kan: no_kan is a model-level removal of KAN, not a "
+                        "feature-column zero-out, and without --skip-kan KAN would still participate")
+    splits_dir = Path(args.splits_dir)
+    names = [f"{kind}_{split}.parquet" for kind in ("X", "y", "meta") for split in ("train", "val", "test")]
+    absent = [n for n in names if not (splits_dir / n).is_file()]
+    if absent:
+        problems.append(f"missing split files in {splits_dir}: {absent}")
+    else:
+        import pyarrow.parquet as pq
+
+        for split in ("train", "val", "test"):
+            counts = {kind: pq.ParquetFile(splits_dir / f"{kind}_{split}.parquet").metadata.num_rows
+                      for kind in ("X", "y", "meta")}
+            if len(set(counts.values())) != 1:
+                problems.append(f"{split}: X/y/meta row counts differ {counts}")
+            columns = set(pq.read_schema(splits_dir / f"meta_{split}.parquet").names)
+            lacking = [c for c in (*_LOCUS_COLUMNS, "gene_symbol") if c not in columns]
+            if lacking:
+                problems.append(f"meta_{split}.parquet lacks {lacking} (needed for prediction-unit identity and the "
+                                "gene-disjoint carve)")
+    out = Path(args.output_dir).resolve()
+    for directory in (out, out.parent):   # the ablation's own directory and the run-level aggregate's directory
+        probe = directory
+        while not probe.exists() and probe != probe.parent:
+            probe = probe.parent          # the nearest existing ancestor is where the directory would be created
+        if not (probe.is_dir() and os.access(probe, os.W_OK | os.X_OK)):
+            problems.append(f"not writable: {directory} (nearest existing ancestor {probe})")
+    if getattr(args, "max_train", None) is not None and args.max_train <= 0:
+        problems.append("--max-train must be positive")
+    return problems
 
 
 # ---------------------------------------------------------------------------
@@ -511,7 +564,7 @@ def main() -> int:
         required=True,
         type=Path,
         help="Directory holding X_{train,val,test}.parquet, y_*.parquet, "
-        "meta_{val,test}.parquet from a prior mainline run.",
+        "meta_{train,val,test}.parquet from a prior mainline run.",
     )
     p.add_argument(
         "--ablation",
@@ -540,8 +593,7 @@ def main() -> int:
         "--skip-nn",
         action="store_true",
         help="Exclude tabular_nn (smoke tests only). cnn_1d is ALWAYS excluded from "
-             "ablations: X_seq here is a constant placeholder, so a convolutional "
-             "branch cannot learn from it.",
+             "ablations: the persisted splits carry no sequence windows.",
     )
     p.add_argument("--skip-svm", action="store_true")
     p.add_argument(
@@ -558,7 +610,11 @@ def main() -> int:
         "two neural-ensemble wrappers). Useful for CPU smoke tests "
         "where these dominate wall-clock.",
     )
-    p.add_argument("--skip-shap", action="store_true")
+    p.add_argument("--skip-attributions", action="store_true",
+                   help="Do not write the selected predictor's member-score attributions (recorded as not requested).")
+    p.add_argument("--skip-shap", action="store_true",
+                   help="Deprecated alias of --skip-attributions (the SHAP writer explained the logistic research "
+                        "candidate and is retired).")
     p.add_argument("--skip-permutation", action="store_true")
     p.add_argument("--n-folds", type=int, default=5)
     p.add_argument(
@@ -592,38 +648,71 @@ def main() -> int:
     logger.info("  output_dir = %s", args.output_dir)
     logger.info("=" * 72)
 
+    problems = preflight(args)
+    if problems:
+        for problem in problems:
+            logger.error("PREFLIGHT: %s", problem)
+        logger.error("Refused before loading any model library or fitting anything (%d problem(s)).", len(problems))
+        return 2
+    skip_attributions = bool(args.skip_attributions or args.skip_shap)
+
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     # ── Delayed heavy imports (keeps --help responsive) ───────────────────
+    from genomic_variant_classifier.evaluation.evaluator import ClinicalEvaluator
+    from genomic_variant_classifier.evaluation.oof_identity import compose_oof_identity
+    from genomic_variant_classifier.evaluation.prediction_artifacts import RunArtifactWriter
+    from genomic_variant_classifier.evaluation.split_identity import (
+        SPLIT_UNIT_CONTEXT_SHA256,
+        split_identity,
+        split_observations,
+    )
     from genomic_variant_classifier.models.variant_ensemble import (
+        SELECTED_ENSEMBLE_ROW,
         EnsembleConfig,
         VariantEnsemble,
     )
-    from genomic_variant_classifier.evaluation.evaluator import ClinicalEvaluator
-    from genomic_variant_classifier.evaluation.prediction_artifacts import RunArtifactWriter
-    from genomic_variant_classifier.data.delta_window_builder import placeholder_window
+
+    # The writer first: it retires any completion manifest an earlier run left in this directory BEFORE anything
+    # is rewritten, so a crash below can never leave an old completion standing over new files.
+    writer = RunArtifactWriter(
+        run_id=args.run_id,
+        ablation=args.ablation,
+        output_dir=args.output_dir,
+    )
 
     # ── Load splits ───────────────────────────────────────────────────────
     splits = load_splits(args.splits_dir)
     X_train, X_val, X_test = splits["X_train"], splits["X_val"], splits["X_test"]
     y_train, y_val, y_test = splits["y_train"], splits["y_val"], splits["y_test"]
-    meta_val, meta_test = splits["meta_val"], splits["meta_test"]
+    meta_train, meta_val, meta_test = splits["meta_train"], splits["meta_val"], splits["meta_test"]
+
+    # Split identities of the splits AS LOADED (before the train subsample and before ablation), so every ablation arm
+    # shares one source-row identity per variant; the ablated matrix each member actually received is bound in its
+    # prediction blocks (ordered-input digest) instead.
+    train_identity, train_vids = split_identity(X_train, y_train, meta_train, "train")
+    val_identity, val_vids = split_identity(X_val, y_val, meta_val, "val")
+    test_identity, test_vids = split_identity(X_test, y_test, meta_test, "test")
 
     # -- Run 15: optional TRAIN subsample for fast local probes -----------
-    # Deterministic given --seed so both ablation arms share the same rows.
+    # Deterministic given --seed so both ablation arms share the same rows. The positions are KEPT: they are the first
+    # link of the out-of-fold identity composition (training-split row -> fit input -> OOF row).
+    subsample_positions = None
+    X_fit, y_fit, meta_fit = X_train, y_train, meta_train
     if getattr(args, "max_train", None) and len(y_train) > args.max_train:
-        import numpy as _np
-        _rng = _np.random.RandomState(args.seed)
-        _idx = _np.sort(_rng.choice(len(y_train), size=args.max_train, replace=False))
-        X_train = X_train.iloc[_idx].reset_index(drop=True)
-        y_train = y_train.iloc[_idx].reset_index(drop=True)
+        rng = np.random.RandomState(args.seed)
+        subsample_positions = np.sort(rng.choice(len(y_train), size=args.max_train, replace=False))
+        X_fit = X_train.iloc[subsample_positions].reset_index(drop=True)
+        y_fit = y_train.iloc[subsample_positions].reset_index(drop=True)
+        meta_fit = meta_train.iloc[subsample_positions].reset_index(drop=True)
         logger.info(
             "Subsampled TRAIN to %d rows (seed=%d) for fast probe", args.max_train, args.seed
         )
 
     logger.info(
-        "Splits loaded: train=%d val=%d test=%d features=%d",
+        "Splits loaded: train=%d (fit %d) val=%d test=%d features=%d",
         len(X_train),
+        len(X_fit),
         len(X_val),
         len(X_test),
         X_train.shape[1],
@@ -637,47 +726,16 @@ def main() -> int:
         "X_test_full": _hash_df(X_test),
     }
 
-    # ── Apply ablation to all three frames ────────────────────────────────
-    # Enforce the no_kan ablation pairing: it's a model-level removal
-    # (zero columns zeroed), so --skip-kan must be set or the ablation
-    # silently no-ops and KAN still participates in the ensemble.
-    if args.ablation == "no_kan" and not args.skip_kan:
-        logger.error(
-            "--ablation no_kan requires --skip-kan. The no_kan ablation "
-            "is a model-level removal of KAN from the ensemble, not a "
-            "feature-column zero-out. Pass --skip-kan alongside "
-            "--ablation no_kan to actually run it."
-        )
-        return 2
-
-    X_train_abl, zeroed_train = apply_ablation(X_train, args.ablation)
+    X_fit_abl, zeroed_train = apply_ablation(X_fit, args.ablation)
     X_val_abl, zeroed_val = apply_ablation(X_val, args.ablation)
     X_test_abl, zeroed_test = apply_ablation(X_test, args.ablation)
 
-    assert zeroed_train == zeroed_val == zeroed_test, (
-        "Inconsistent ablation across splits — column schema differs "
-        "between train/val/test. This is a Rule-6 violation; check "
-        "DataPrepPipeline for schema-drift across splits."
-    )
-
-    # ── Sequence placeholder (mirrors mainline) ───────────────────────────
-    # Sequence is NOT the variable under test in a tabular ablation, but
-    # VariantEnsemble.fit/evaluate/predict_proba take X_seq positionally and index it
-    # unconditionally, so a value must be supplied. It is REQUESTED from the canonical
-    # helper rather than built here, so placeholder knowledge stays in one module.
-    #
-    # Before 2026-07-18 this read `poly_a = "A" * 101`. "A" is in encode_sequence's
-    # BASES, so every fabricated position one-hot-encoded to a CONFIDENT ADENINE.
-    # placeholder_window() returns POLY ("N"), which is absent from BASES and therefore
-    # encodes to all zeros -- an honest "no information here".
-    #
-    # The previous comment claimed this "mirrors mainline". It did not: scripts/train.py
-    # passes REAL windows.
-    # X_seq is None here, not a fabricated placeholder. cnn_1d is popped from the roster
-    # below (2026-07-18), so no sequence model consumes this -- and since ff97c34 the
-    # signature accepts None, so there is nothing to manufacture. The comment block above
-    # describes the placeholder this replaced.
-    seq_tr = seq_va = seq_te = None
+    if not (zeroed_train == zeroed_val == zeroed_test):
+        raise ValueError(
+            "Inconsistent ablation across splits -- column schema differs "
+            "between train/val/test. This is a Rule-6 violation; check "
+            "DataPrepPipeline for schema-drift across splits."
+        )
 
     # ── Ensemble ──────────────────────────────────────────────────────────
     ens_cfg = EnsembleConfig(
@@ -691,63 +749,45 @@ def main() -> int:
 
     # Mirror mainline skip rules. KAN and mc_dropout/deep_ensemble are
     # controlled via EnsembleConfig above, not popped here.
-    # cnn_1d is ALWAYS excluded from ablations (2026-07-18). X_seq here is a single
-    # constant repeated for every row, so a convolutional branch cannot learn from its
-    # input: it would contribute a near-constant column to the stacking meta-learner and
-    # produce a per-model ablation number for a model that measured nothing. Omitting it
-    # makes the ablation report what it actually measured -- the tabular features.
-    #
-    # Restoring it needs REAL windows. The persisted splits under outputs/<run>/splits/
-    # do not carry them, and there is no meta_train to re-join on, so that is separate
-    # work rather than a flag.
+    # cnn_1d is ALWAYS excluded from ablations (2026-07-18): the persisted splits carry no sequence windows, and a
+    # convolutional branch fed a constant would produce a per-model number for a model that measured nothing.
     ensemble.base_estimators.pop("cnn_1d", None)
-    logger.info("cnn_1d excluded from ablation: X_seq is a constant placeholder, so its "
-                "contribution would be uninformative by construction")
+    logger.info("cnn_1d excluded from ablation: the persisted splits carry no sequence windows")
     if args.skip_nn:
         ensemble.base_estimators.pop("tabular_nn", None)
-    if args.skip_svm or len(y_train) > 100_000:
+    if args.skip_svm or len(y_fit) > 100_000:
         ensemble.base_estimators.pop("svm", None)
-        logger.info("SVM skipped: O(n²) infeasible at n=%d", len(y_train))
+        logger.info("SVM skipped: O(n^2) infeasible at n=%d", len(y_fit))
 
     # ── Fit ───────────────────────────────────────────────────────────────
+    # gene_symbol is passed (since set 1b): the calibration carve and the inner folds are gene-disjoint, as in the
+    # mainline run, instead of the legacy label-stratified carve this harness used to fall back to.
     fit_t0 = time.perf_counter()
-    ensemble.fit(X_train_abl, None, y_train)
+    ensemble.fit(X_fit_abl, None, y_fit, gene_symbol=meta_fit["gene_symbol"])
     fit_sec = time.perf_counter() - fit_t0
     logger.info("Fit complete in %.1f min", fit_sec / 60)
     ensemble.save(args.output_dir / "models" / "ensemble.joblib")
+    writer.register_external("models/ensemble.joblib")
+    for name in ensemble.trained_models_:
+        writer.register_external(f"models/ensemble_models/{name}.joblib")
 
-    # ── Evaluate ──────────────────────────────────────────────────────────
-    test_results = ensemble.evaluate(X_test_abl, None, y_test)
-    val_results = ensemble.evaluate(X_val_abl, None, y_val)
-
-    test_proba = ensemble.predict_proba(X_test_abl, None)[:, 1]
-
-    # Per-base-model test probabilities (for test_predictions.parquet)
-    base_probs: dict[str, np.ndarray] = {}
-    for name, model in ensemble.trained_models_.items():
-        # cnn_1d was popped from base_estimators above, so it can never appear in
-        # `name`. The branch that handled it was dead code and is gone.
-        X_input = X_test_abl.values
-        try:
-            base_probs[name] = model.predict_proba(X_input)[:, 1]
-        except Exception as exc:
-            logger.warning("base-model %s predict_proba failed: %s", name, exc)
+    # ── ONE bound capture per evaluated split ──────────────────────────────
+    rows_test = split_observations(test_identity, test_vids, unit_context_sha256=SPLIT_UNIT_CONTEXT_SHA256)
+    rows_val = split_observations(val_identity, val_vids, unit_context_sha256=SPLIT_UNIT_CONTEXT_SHA256)
+    scored_test = ensemble.score_split(X_test_abl, None, rows_test, split_sha256=test_identity.prediction_split_sha256)
+    scored_val = ensemble.score_split(X_val_abl, None, rows_val, split_sha256=val_identity.prediction_split_sha256)
+    test_results = ensemble.evaluate_scored(scored_test, y_test)
+    val_results = ensemble.evaluate_scored(scored_val, y_val)
 
     evaluator = ClinicalEvaluator(n_bootstrap=1000, random_state=args.seed)
     report = evaluator.evaluate(
         y_true=y_test,
-        y_proba=test_proba,
+        y_proba=scored_test.scores(),
         meta=meta_test,
         model_name=f"{args.run_id}_{args.ablation}",
     )
 
     # ── Rule-5 artefacts ──────────────────────────────────────────────────
-    writer = RunArtifactWriter(
-        run_id=args.run_id,
-        ablation=args.ablation,
-        output_dir=args.output_dir,
-    )
-
     writer.save_manifest(
         git_sha=_git_sha(),
         versions=_versions(),
@@ -756,100 +796,69 @@ def main() -> int:
             "zeroed_columns": zeroed_train,
             "seed": args.seed,
             "n_folds": args.n_folds,
+            "max_train": args.max_train,
             "splits_dir": str(args.splits_dir),
             "split_hashes": split_hashes,
+            "split_identities": {"train": train_identity.as_dict(), "val": val_identity.as_dict(),
+                                 "test": test_identity.as_dict()},
             "n_train": int(len(y_train)),
+            "n_fit": int(len(y_fit)),
             "n_val": int(len(y_val)),
             "n_test": int(len(y_test)),
             "n_features": int(X_train.shape[1]),
             "feature_columns": list(X_train.columns),
             "ensemble_models": list(ensemble.trained_models_.keys()),
+            "calibration_carve": ensemble.calibration_carve_used_,
             "fit_seconds": round(fit_sec, 1),
             "run_started_utc": datetime.now(timezone.utc).isoformat(),
         },
     )
-    writer.save_test_predictions(
-        y_test=y_test,
-        proba=test_proba,
-        base_probs=base_probs,
-        meta=meta_test,
-    )
+    writer.save_split_predictions(scored_test, y_test, meta_test, role="test")
+    writer.save_split_predictions(scored_val, y_val, meta_val, role="val")
     writer.save_eval_report(report)
-    writer.save_calibration(report)
+    writer.save_calibration(scored_test, y_test, report=report, meta=meta_test)
+    writer.save_oof_predictions(compose_oof_identity(
+        ensemble, train=train_identity, vids=train_vids, labels=y_train, meta_train=meta_train,
+        subsample_positions=subsample_positions))
+    writer.save_table_csv("per_model_metrics.csv", test_results)
+    writer.save_table_csv("per_model_metrics_val.csv", val_results)
 
-    # OOF predictions — requires Patch 1 (VariantEnsemble.oof_predictions_)
-    if hasattr(ensemble, "oof_predictions_"):
-        oof = pd.DataFrame(
-            ensemble.oof_predictions_,
-            columns=[
-                f"{n}_prob"
-                for n in getattr(
-                    ensemble,
-                    "oof_model_names_",
-                    ensemble.trained_models_.keys(),
-                )
-            ],
-        )
-        fit_idx = getattr(ensemble, "oof_fit_indices_", None)
-        n_oof = len(oof)
-        if fit_idx is not None and len(fit_idx) == n_oof:
-            oof["label"] = y_train.values[fit_idx]
-            oof["fold"] = -1
-            if "variant_id" in X_train.columns:
-                oof["variant_id"] = X_train["variant_id"].values[fit_idx]
-            else:
-                oof["variant_id"] = [f"train_{i}" for i in fit_idx]
-        elif n_oof == len(y_train):
-            oof["label"] = y_train.values
-            oof["fold"] = -1
-            if "variant_id" in X_train.columns:
-                oof["variant_id"] = X_train["variant_id"].values
-            else:
-                oof["variant_id"] = [f"train_{i}" for i in range(n_oof)]
-        else:
-            logger.warning(
-                "OOF length (%d) != y_train (%d) and no fit indices; "
-                "OOF export skipped.",
-                n_oof, len(y_train),
-            )
-        writer.save_oof_predictions(oof)
+    required = ["manifest.json", "test_predictions.parquet", "test_prediction_blocks.json", "val_predictions.parquet",
+                "val_prediction_blocks.json", "eval_report.json", "calibration_points.parquet",
+                "consequence_performance.parquet", "oof_predictions.parquet", "oof_identity.json",
+                "per_model_metrics.csv", "per_model_metrics_val.csv", "models/ensemble.joblib"]
+    deliverables: dict[str, dict] = {}
+    # Requested deliverables are NOT wrapped in broad handlers (owner ruling 2026-11-07): a failure propagates, no
+    # completion manifest is written, and the run stays inspectable but is refused as completed evidence.
+    if skip_attributions:
+        deliverables["member_score_attributions"] = {"status": "not_requested"}
     else:
-        logger.warning(
-            "ensemble has no `oof_predictions_` attribute — apply Patch 1 "
-            "to src/genomic_variant_classifier/models/variant_ensemble.py (see "
-            "docs/PATCHES_AND_INTEGRATION.md)."
+        writer.save_member_score_attributions(scored_test, background=scored_val)
+        required += ["member_score_attributions.parquet", "member_score_attributions.json"]
+        deliverables["member_score_attributions"] = {"status": "complete", "explained": "test",
+                                                     "background": "val"}
+    if args.skip_permutation:
+        deliverables["permutation_importance"] = {"status": "not_requested"}
+    else:
+        writer.save_permutation_importance(
+            ensemble,
+            X_test_abl,
+            None,
+            y_test,
+            n_repeats=5,
+            sample_size=min(50_000, len(X_test_abl)),
+            seed=args.seed,
         )
+        required.append("feature_importance.parquet")
+        deliverables["permutation_importance"] = {"status": "complete"}
+    deliverables["feature_level_explanation"] = {
+        "status": "unavailable", "reason_code": "FEATURE_LEVEL_EXPLANATION_UNAVAILABLE"}
 
-    if not args.skip_shap:
-        try:
-            writer.save_shap_values(ensemble, base_probs, meta_test, top_k=20)
-        except ContainmentError:
-            raise   # a refusal is never a logged SHAP failure: it must stop the run (owner ruling 2026-11-07)
-        except Exception as exc:
-            logger.error("SHAP failed: %s", exc)
+    writer.complete(required, deliverables=deliverables,
+                    extra={"selected_row": SELECTED_ENSEMBLE_ROW, "zeroed_columns": zeroed_train})
 
-    if not args.skip_permutation:
-        try:
-            writer.save_permutation_importance(
-                ensemble,
-                X_test_abl,
-                None,
-                y_test,
-                n_repeats=5,
-                sample_size=min(50_000, len(X_test_abl)),
-                seed=args.seed,
-            )
-        except Exception as exc:
-            logger.error("Permutation importance failed: %s", exc)
-
-    # Mainline-compatible artefacts
-    (args.output_dir / "per_model_metrics.csv").write_text(test_results.to_csv())
-    (args.output_dir / "per_model_metrics_val.csv").write_text(val_results.to_csv())
-
-    # Headline ablation row (for the aggregator)
+    # Headline ablation row (for the aggregator) -- only for a COMPLETED ablation, atomically.
     aggregator_path = args.output_dir.parent / "ablation_results.parquet"
-    # The selected predictor's row (package 1, 2026-11-07); see variant_ensemble.SELECTED_ENSEMBLE_ROW.
-    from genomic_variant_classifier.models.variant_ensemble import SELECTED_ENSEMBLE_ROW
     ens_row = test_results.loc[SELECTED_ENSEMBLE_ROW]
     ens_val = val_results.loc[SELECTED_ENSEMBLE_ROW]
     writer.append_ablation_row(

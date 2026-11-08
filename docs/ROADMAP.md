@@ -1,6 +1,6 @@
 # GenAssoc / genomic-variant-classifier - Living Roadmap
 
-**Version: 2026-11-07 (v3; section 9 current to 2026-11-07, section 5 last re-derived 2026-09-04)  |  Owner: Monzia Moodie**
+**Version: 2026-11-08 (v3; section 9 current to 2026-11-08, section 5 last re-derived 2026-09-04)  |  Owner: Monzia Moodie**
 
 Repo: github.com/monzia-moodie-repo-projects/genomic-variant-classifier
 
@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **8,875 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **8,922 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -848,6 +848,37 @@ exists to end.
   ledger of all 282 score-surface candidates). Set 1b (out-of-fold identities, completion manifest, explanation and calibration
   writers) builds on merged 1a; set 1c (exporter metadata, thresholds, validators, forensic consumers) on merged 1b. Suite
   8,753 -> 8,875 (+151 / -29).
+  VALIDATED ON WINDOWS AND MERGED 2026-11-07/08: one -Validate run (20:32 to 21:46 UTC; receipt 4d90c9fc): the whole suite 8,787
+  passed, 83 skipped, 5 xfailed, exactly as forecast; targeted 1,210 passed, 5 skipped; drift 22 passed. Candidate 0daf3da8 (tree
+  6bc717f5) published (23:51 UTC) and merged as pull request #68 with a merge commit: b051bb3d, parents 0e9db4e1 and 0daf3da8,
+  tree 6bc717f5. The post-merge block (00:09 UTC) compared all 1,215 targeted tests by node identity against the validation: no
+  difference; the branch was deleted (00:25 UTC).
+- **2026-11-08 -- PREDICTION-CONTRACT-1B: package 1, set 1b of three.** Out-of-fold (OOF) rows now carry their ORIGINAL
+  training-split row: `VariantEnsemble.fit` records each OOF row's fold (from the exact splits every member uses), its label and the
+  fit-input size, and `evaluation/oof_identity.py` composes training-split row -> optional subsample -> `oof_fit_indices_` -> OOF
+  row, verifying the composed labels against the fitted ones row by row; a failed binding blocks publication. A run is complete
+  evidence only through `completion_manifest.json`, written last by `RunArtifactWriter.complete()` over every output's SHA-256
+  (measured at write time and again at completion), the selected predictor and the prediction-block digests; a manifest left by an
+  earlier run is retired (renamed, never onto an earlier retirement) before anything is rewritten, and every consumer
+  re-measures it. Writers consume one bound capture per
+  split (`VariantEnsemble.score_split`): predictions, calibration points with their real bin counts (separate from the
+  per-consequence performance table), and the blend's exact member-score attributions phi = w (p - mu) against a declared
+  background, with the closure residual recorded (a feature-level explanation is reported unavailable: the members' explanations
+  share no definition, background or unit). The SHAP writer, which explained the logistic research candidate, is retired;
+  run9_ablations is enabled (preflight before any fit, no broad handler around its deliverables); run_phase2_eval's `--max-train`
+  path works (it raised AttributeError) and aligns the GNN, hetero-GNN and holdout gene groups with the subsample. The
+  per-member `{name}_oof_indices.npy` sidecar is aligned with its OOF vector (until now the fold concatenation: measured on Run
+  15, AUROC 0.499 when paired element-wise). Run 15's derived record (docs/package1/RUN15_OOF_IDENTITY_DERIVED_RECORD.json), from
+  the artifact through a new inert pickle reader that runs no class's code: the stored `oof_fit_indices_` equal the reconstructed
+  legacy carve exactly; AUROC through the mapping 0.85360 to 0.99906 per member, joined naively 0.4978 to 0.4999; the original
+  file is not rewritten; its ENSEMBLE_STACKER rows are the stored blend under `P @ w` (the run's own code, read from the preserved
+  pre-rewrite commit 4b9de1c3). FINDINGS, not fixed (owner decision): GNN-FEATURE-ORDER-1 -- run_phase2_eval fits the ensemble
+  before the GNN blocks inject `gnn_score` and `hetero_gnn_score`, which are the constant 0.5 at fit time (measured), so the
+  driver's census aborts and `fit` raises on a full cohort unless both dead-feature overrides are set, and with them the members
+  would be fitted on a constant and evaluated on injected scores: this blocks a full mainline run (Run 17); MAXTRAIN-SPLIT-REPERSIST-1
+  -- under `--max-train` the GNN block re-persists the subsampled `X_train` beside the full labels (the ablation preflight now
+  refuses such a directory). Acceptance: docs/package1/PACKAGE1_SET1B_DELIVERY.md and the set-1b census ledger. Suite 8,875 ->
+  8,922 (+58 / -11).
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined

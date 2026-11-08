@@ -1,6 +1,6 @@
 """test_model_insights_detector.py -- Monzia Moodie
-Hermetic tests for the model-insights detector over a synthetic oof_predictions.parquet (RunArtifactWriter
-schema). Covers per-model metrics, leakage-suspicion + degenerate + AUROC/AUPRC-gap flags, gene-disjoint
+Hermetic tests for the model-insights detector: metric and flag logic over synthetic OOF frames, and run discovery
+over REAL completed runs (package 1, set 1b: only a run with a verified completion manifest is read). Covers per-model metrics, leakage-suspicion + degenerate + AUROC/AUPRC-gap flags, gene-disjoint
 pass/fail, MCC-not-AUROC ranking, and latest-run discovery.
 """
 import numpy as np
@@ -72,9 +72,17 @@ def test_analyze_bundles_everything_and_flags_violation():
 
 
 def test_discover_latest_run(tmp_path):
+    """Only a COMPLETED run qualifies (package 1, set 1b): an OOF file without a verified completion manifest is
+    reported as incomplete and never returned as the latest run."""
+    from tests.unit._run_artifact_support import completed_run
+
     assert D.discover_latest_run(str(tmp_path)) is None    # empty -> None
     rd = tmp_path / "run99" / "full"
     rd.mkdir(parents=True)
     _oof().to_parquet(rd / "oof_predictions.parquet")
+    assert D.discover_latest_run(str(tmp_path)) is None    # an OOF file alone is not a completed run
+    found, incomplete = D.discover_runs(str(tmp_path))
+    assert found is None and [i["run_dir"] for i in incomplete] == [str(rd)]
+    done = completed_run(tmp_path / "run100" / "full", seed=3)
     found = D.discover_latest_run(str(tmp_path))
-    assert found is not None and found.name == "full"
+    assert found == done and found.name == "full"

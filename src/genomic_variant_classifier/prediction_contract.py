@@ -61,6 +61,7 @@ __all__ = [
     "require_text",
     "select_original_rows",
     "sklearn_binary_classes",
+    "variant_identity_of",
 ]
 
 #: The ONE tie rule (G6.1). A probability of exactly one half is a positive model call everywhere in the package: the
@@ -184,6 +185,19 @@ class ObservationSet:
 
     def __len__(self) -> int:
         return len(self.rows)
+
+
+#: The variant identity of a row whose locus is incomplete. Several rows may carry it; their source row keys differ.
+UNIDENTIFIED_VARIANT = "unidentified_variant"
+
+
+def variant_identity_of(record: Mapping[str, Any]) -> str:
+    """chrom:pos:ref:alt of one record, or UNIDENTIFIED_VARIANT when any part is missing or empty (ONE definition,
+    shared by serving and the training-artifact writers)."""
+    parts = [record.get(k) for k in ("chrom", "pos", "ref", "alt")]
+    if any(p is None or p == "" for p in parts):
+        return UNIDENTIFIED_VARIANT
+    return ":".join(str(p) for p in parts)
 
 
 def ordered_rows_digest(rows: Any) -> str:
