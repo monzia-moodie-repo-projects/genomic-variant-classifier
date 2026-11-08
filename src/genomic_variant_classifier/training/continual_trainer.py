@@ -777,7 +777,10 @@ class ContinualLearner:
         new_pipe = InferencePipeline.load(new_model_path, consumer="training.continual_trainer",
                                           registry_path=self.config.registry_path)
         from sklearn.metrics import roc_auc_score, average_precision_score
-        val_proba = new_pipe.predict_proba(X_val_new)[:, 1]
+        # InferencePipeline.predict_proba returns the selected blend's P(pathogenic) as a 1-D array (set 1a); the
+        # `[:, 1]` this line carried would raise IndexError (package 1, set 1c; recorded for package 7, behind the
+        # fail-closed guard above).
+        val_proba = new_pipe.predict_proba(X_val_new)
         new_auroc = float(roc_auc_score(y_val_new, val_proba))
         new_auprc = float(average_precision_score(y_val_new, val_proba))
 

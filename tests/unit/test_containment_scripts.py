@@ -81,16 +81,19 @@ def _pipeline(columns):
     return P, sc, lr, meta
 
 
-def test_calibrate_thresholds_is_refused_during_the_prediction_contract_transition():
-    """Package 1, set 1a (2026-11-07). This test exercised the script's admission (a quarantine-era record refused
-    before opening; C10 refusing a registered pipeline; scoring through meta_learner under a test authority). The
-    script now refuses AT IMPORT -- before any of that -- until set 1c migrates it onto the selected prediction
-    contract (transition_policy.PREDICTION_CONTRACT_TRANSITION_DENIED). Its helpers cannot be imported to bypass the
-    refusal. The admission behaviour itself stays covered by InferencePipeline.load (test_containment_serving.py)."""
-    sys.modules.pop("calibrate_thresholds", None)
-    with pytest.raises(ContainmentError, match="THRESHOLD_CONSUMER_MIGRATION_REQUIRED"):
-        import calibrate_thresholds  # noqa: F401
-    assert "calibrate_thresholds" not in sys.modules
+def test_calibrate_thresholds_reads_bound_predictions_and_never_a_model_or_a_feature_split():
+    """Package 1, set 1c. The threshold workflow used to load a pipeline, rebuild member predictions from a cached
+    feature split and score them with the logistic meta-learner; set 1a refused it at import. It now consumes only a
+    completed run's bound split predictions (prediction_artifacts.load_completed_split_predictions), so no model is
+    deserialized and no feature column -- quarantined or not -- reaches it."""
+    import ast as _ast
+    source = (Path(__file__).resolve().parents[2] / "scripts" / "calibrate_thresholds.py").read_text(encoding="utf-8")
+    names = {n.id for n in _ast.walk(_ast.parse(source)) if isinstance(n, _ast.Name)}
+    called = {_ast.unparse(n.func) for n in _ast.walk(_ast.parse(source)) if isinstance(n, _ast.Call)}
+    assert "load_completed_split_predictions" in called
+    for forbidden in ("InferencePipeline", "joblib", "meta_learner", "read_parquet", "VariantEnsemble"):
+        assert forbidden not in source, forbidden
+    assert not {"joblib", "pd"} & names
 
 
 # --- continual training (2026-09-23): the drift reference and the density ratio refuse quarantine-era cohorts ---

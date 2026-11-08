@@ -1,60 +1,43 @@
 """
 scripts/export_model.py
 ========================
-Serialise a trained run into an ``InferencePipeline`` joblib artefact
-suitable for loading by the FastAPI service.
+Serialise the fitted ensemble of a COMPLETED run into an ``InferencePipeline`` joblib artefact.
 
-What this script does
----------------------
-1. Locates the best trained ``VariantEnsemble`` (or an ensemble subset
-   from a run_phase2_eval.py output directory).
-2. Wraps it with the fitted ``StandardScaler`` and feature list in a
-   ``genomic_variant_classifier.api.pipeline.InferencePipeline`` instance.
-3. Optionally excludes large base models (``--exclude-models``) to reduce
-   artefact size without significant AUROC loss.
-4. Writes the artefact to ``--output`` (default: models/phase2_pipeline.joblib).
-5. Runs a smoke-test: classifies three known ClinVar variants and asserts
-   BRCA1 c.68_69del (pathogenic) scores higher than a benign control.
+Author: Monzia Moodie
 
-Model size guide (approximate serialised sizes)
-------------------------------------------------
-  random_forest    ~1 200 MB   (large due to deep trees × 300 estimators)
-  gradient_boosting  ~400 MB
-  xgboost            ~120 MB
-  lightgbm            ~50 MB
-  logistic_regression  ~1 MB
+What this script does (package 1, set 1c, 2026-11-08 -- gate G7.2)
+------------------------------------------------------------------
+1. Verifies the run (prediction_artifacts.verify_completed_run): an export is a deployment candidate, so its source
+   must be complete evidence. An incomplete run is refused (exit 1).
+2. Loads ``models/ensemble.joblib`` through the ONE admission route (``VariantEnsemble.load``) after checking that the
+   file is the one the completion manifest lists, with the bytes it recorded; the ensemble's declared combiner must be
+   the predictor the manifest names (the run's predictions came from it).
+3. Loads ``scaler.joblib`` (when the run has one) from bytes verified against the manifest -- never a bare
+   ``joblib.load`` of an unlisted file.
+4. Builds the pipeline with metadata bound to the selected predictor: ``evaluation_evidence`` recomputed from the run's
+   bound split predictions (prediction_artifacts.selected_predictor_evaluation_evidence) and ``fit_input_rows`` from
+   the ensemble. The old ``val_auroc`` / ``n_train`` copied from an unbound metrics.json (defaulting to 0.0 and 0) are
+   gone; the feature list is the one the pipeline renders, never a silent fallback.
+5. Runs a smoke test on three known ClinVar variants, then writes ``--output``.
 
-Recommended production export (< 200 MB, AUROC ~0.9845):
-  python scripts/export_model.py --input outputs/run \\
-      --exclude-models random_forest gradient_boosting
+``--exclude-models`` is refused (owner ruling 2026-09-23, point 3): an ensemble with members removed is a different
+model and must be trained, evaluated and registered as one.
 
 Usage
 -----
-  # After a run_phase2_eval.py training run:
-  python scripts/export_model.py \\
-      --input  outputs/phase2_with_gnomad \\
-      --output models/phase2_pipeline.joblib
-
-  # Slim export (~200 MB) suitable for Docker:
-  python scripts/export_model.py \\
-      --input  outputs/phase2_with_gnomad \\
-      --output models/phase2_pipeline_slim.joblib \\
-      --exclude-models random_forest gradient_boosting
-
-  # Verify the exported artefact without re-exporting:
+  python scripts/export_model.py export --input outputs/run16/full --output models/phase2_pipeline.joblib
   python scripts/export_model.py verify models/phase2_pipeline.joblib
 
 Exit codes
 ----------
     0  artefact written (and smoke test passed)
-    1  required file missing or smoke test failed
+    1  input not a verified completed run, required file missing, or smoke test failed
     2  unexpected error
 """
 
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import sys
 from pathlib import Path
@@ -127,73 +110,43 @@ _SMOKE_VARIANTS = [
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _load_ensemble_from_run(run_dir: Path):
-    """
-    Load the best-available trained model from a run_phase2_eval.py output dir.
+def _require_listed(run_dir: Path, name: str, manifest: dict) -> bytes:
+    """The bytes of a file the completion manifest lists, read once and compared with what it recorded."""
+    import hashlib
 
-    Looks for (in priority order):
-      1. models/ensemble.joblib  — standard sub-directory artefact
-      2. ensemble.joblib         — bare VariantEnsemble at root
-    """
-    candidates = [
-        run_dir / "models" / "ensemble.joblib",
-        run_dir / "ensemble.joblib",
-    ]
-    for path in candidates:
-        if path.exists():
-            logger.info("Loading model from %s", path)
-            # Through the ONE admission route: refused before deserialization without a trusted binding.
-            from genomic_variant_classifier.model_admission import repository_registry_path
-            from genomic_variant_classifier.models.variant_ensemble import VariantEnsemble
-            return VariantEnsemble.load(path, consumer="scripts/export_model.py",
-                                        registry_path=repository_registry_path()), path
-    raise FileNotFoundError(
-        f"No trained model found in {run_dir}. "
-        "Expected one of: " + ", ".join(str(c) for c in candidates)
-    )
+    entry = (manifest.get("artefacts") or {}).get(name)
+    if not isinstance(entry, dict):
+        raise FileNotFoundError(f"{run_dir}: the completion manifest does not list {name}")
+    data = (run_dir / name).read_bytes()
+    if hashlib.sha256(data).hexdigest() != entry.get("sha256") or len(data) != entry.get("bytes"):
+        raise FileNotFoundError(f"{run_dir}: {name} is not the file the completed run recorded")
+    return data
 
 
-def _load_scaler(run_dir: Path):
-    """Load the fitted StandardScaler from the run directory, if present."""
-    for name in ("scaler.joblib", "models/scaler.joblib"):
-        p = run_dir / name
-        if p.exists():
-            logger.info("Loading scaler from %s", p)
-            return joblib.load(p)
-    logger.warning(
-        "No scaler.joblib found in %s — InferencePipeline will skip scaling. "
-        "This is fine if DataPrepConfig.scale_features=False was used at training.",
-        run_dir,
-    )
-    return None
+def _load_ensemble_from_run(run_dir: Path, manifest: dict):
+    """The run's ``models/ensemble.joblib``, checked against the completion manifest, through the admission route."""
+    name = "models/ensemble.joblib"
+    _require_listed(run_dir, name, manifest)
+    logger.info("Loading model from %s", run_dir / name)
+    # Through the ONE admission route: refused before deserialization without a trusted binding.
+    from genomic_variant_classifier.model_admission import repository_registry_path
+    from genomic_variant_classifier.models.variant_ensemble import VariantEnsemble
+    return VariantEnsemble.load(run_dir / name, consumer="scripts/export_model.py",
+                                registry_path=repository_registry_path())
 
 
-def _load_feature_names(run_dir: Path) -> list[str] | None:
-    """
-    Try to load the exact feature column list used at training.
+def _load_scaler(run_dir: Path, manifest: dict):
+    """The run's fitted StandardScaler from bytes verified against the completion manifest, or None when the run
+    recorded none (DataPrepConfig.scale_features=False)."""
+    import io
 
-    Search order (most authoritative first):
-      1. splits/X_train.parquet  — ground-truth split written by run_phase2_eval.py
-      2. X_train.parquet         — legacy flat location
-      3. feature_names.txt       — manually curated fallback
-    """
-    candidates = [
-        run_dir / "splits" / "X_train.parquet",
-        run_dir / "X_train.parquet",
-        run_dir / "feature_names.txt",
-    ]
-    for p in candidates:
-        if not p.exists():
-            continue
-        if p.suffix == ".parquet":
-            cols = list(pd.read_parquet(p, columns=None).columns)
-            logger.info("Loaded %d feature names from %s", len(cols), p)
-            return cols
-        if p.suffix == ".txt":
-            names = p.read_text().splitlines()
-            logger.info("Loaded %d feature names from %s", len(names), p)
-            return [n.strip() for n in names if n.strip()]
-    return None
+    if "scaler.joblib" not in (manifest.get("artefacts") or {}):
+        logger.warning("The completed run lists no scaler.joblib: the InferencePipeline will not scale (correct only "
+                       "if DataPrepConfig.scale_features=False was used at training).")
+        return None
+    data = _require_listed(run_dir, "scaler.joblib", manifest)
+    logger.info("Loading scaler from %s (bytes verified against the completion manifest)", run_dir / "scaler.joblib")
+    return joblib.load(io.BytesIO(data))
 
 
 def _smoke_test(pipeline) -> bool:
@@ -213,6 +166,8 @@ def _smoke_test(pipeline) -> bool:
 
     try:
         scores = pipeline.predict_proba(pd.DataFrame(rows_in))
+    except ContainmentError:
+        raise   # a refusal is not a smoke-test failure
     except Exception as exc:
         logger.error("Smoke test: predict_proba raised %s: %s", type(exc).__name__, exc)
         return False
@@ -239,8 +194,13 @@ def _smoke_test(pipeline) -> bool:
 # ---------------------------------------------------------------------------
 
 def cmd_export(args: argparse.Namespace) -> int:
-    from genomic_variant_classifier.api.pipeline import InferencePipeline
-    from genomic_variant_classifier.models.variant_ensemble import TABULAR_FEATURES
+    from genomic_variant_classifier.api.pipeline import SERVING_SCOPE, InferencePipeline
+    from genomic_variant_classifier.evaluation.prediction_artifacts import (
+        IncompleteRunError,
+        selected_predictor_evaluation_evidence,
+        verify_completed_run,
+    )
+    from genomic_variant_classifier.prediction_contract import ContractError
 
     run_dir = Path(args.input)
     if not run_dir.exists():
@@ -249,37 +209,29 @@ def cmd_export(args: argparse.Namespace) -> int:
 
     if args.exclude_models:
         # Owner ruling 2026-09-23, point 3: an ensemble with members removed is a DIFFERENT model, never
-        # constructed at export. Its meta-learner and blend weights were fitted on the full roster.
+        # constructed at export. Its blend weights were fitted on the full roster.
         raise ContainmentError(
             f"--exclude-models {sorted(args.exclude_models)} refused: an ensemble with members removed is a "
             "different model and must be trained, evaluated and registered as one")
 
     try:
-        ensemble, _ = _load_ensemble_from_run(run_dir)
-        scaler        = _load_scaler(run_dir)
-        feature_names = _load_feature_names(run_dir) or list(TABULAR_FEATURES)
+        manifest = verify_completed_run(run_dir)
+    except IncompleteRunError as exc:
+        logger.error("REFUSED: %s. An exported pipeline is a deployment candidate; it is built only from a completed "
+                     "run (a run directory with a verified completion_manifest.json).", exc)
+        return 1
 
-        if not getattr(ensemble, "trained_models_", {}):
-            logger.error("No base models remain after exclusion.  Aborting.")
-            return 1
-
-        # Read provenance from metrics.json if present
-        val_auroc = 0.0
-        n_train   = 0
-        metrics_path = run_dir / "metrics.json"
-        if metrics_path.exists():
-            m         = json.loads(metrics_path.read_text())
-            val_auroc = m.get("val_auroc", 0.0)
-            n_train   = m.get("n_train",   0)
-            logger.info("Provenance: val_auroc=%.4f  n_train=%d", val_auroc, n_train)
-
-        pipeline = InferencePipeline.from_variant_ensemble(
-            ensemble,
-            scaler        = scaler,
-            feature_names = feature_names,
-            val_auroc     = val_auroc,
-            n_train       = n_train,
-        )
+    try:
+        ensemble = _load_ensemble_from_run(run_dir, manifest)
+        scaler = _load_scaler(run_dir, manifest)
+        spec = ensemble.convex_blend_spec(SERVING_SCOPE)
+        evidence = selected_predictor_evaluation_evidence(run_dir, spec.digest)
+        pipeline = InferencePipeline.from_variant_ensemble(ensemble, scaler=scaler, evaluation_evidence=evidence)
+        for role, split in evidence["splits"].items():
+            logger.info("Bound evidence (%s): AUROC %.17g on %d rows (%d positive); predictions sha256 %s",
+                        role, split["auroc"], split["n_rows"], split["n_positive"], split["predictions_sha256"])
+        logger.info("fit_input_rows=%s  features=%d  combiner=%s", pipeline.metadata.fit_input_rows,
+                    pipeline.metadata.n_features, spec.digest)
 
         # Smoke test before writing
         if not args.skip_smoke_test:
@@ -298,12 +250,8 @@ def cmd_export(args: argparse.Namespace) -> int:
 
     except ContainmentError:
         raise   # a refusal, not an export failure
-    except FileNotFoundError as exc:
-        logger.error("%s", exc)
-        logger.error(
-            "Re-run run_phase2_eval.py — the updated script saves both "
-            "ensemble.joblib and scaler.joblib automatically."
-        )
+    except (FileNotFoundError, IncompleteRunError, ContractError) as exc:
+        logger.error("REFUSED: %s", exc)
         return 1
     except Exception as exc:
         logger.exception("Export failed: %s", exc)
@@ -339,7 +287,7 @@ def parse_args() -> argparse.Namespace:
     exp = sub.add_parser("export", help="Wrap and export a trained model.")
     exp.add_argument(
         "--input", "-i", type=Path, required=True,
-        help="run_phase2_eval output directory containing ensemble.joblib.",
+        help="a COMPLETED run directory (verified completion_manifest.json listing models/ensemble.joblib).",
     )
     exp.add_argument(
         "--output", "-o", type=Path, default=Path("models/phase2_pipeline.joblib"),
@@ -349,10 +297,9 @@ def parse_args() -> argparse.Namespace:
         "--exclude-models", nargs="*", metavar="MODEL",
         default=[],
         help=(
-            "Base model names to drop from the artefact before serialising. "
-            "Common values: random_forest gradient_boosting  "
-            "(reduces artefact from ~2 GB to ~200 MB with negligible AUROC loss). "
-            "Example: --exclude-models random_forest gradient_boosting"
+            "REFUSED (owner ruling 2026-09-23, point 3): an ensemble with members removed is a different model and "
+            "must be trained, evaluated and registered as one. Kept only so a caller that passes it is refused "
+            "explicitly instead of failing on an unknown argument."
         ),
     )
     exp.add_argument(

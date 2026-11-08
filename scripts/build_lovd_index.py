@@ -59,7 +59,6 @@ Usage
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import time
 import xml.etree.ElementTree as ET
@@ -67,7 +66,6 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import quote
 
-import numpy as np
 import pandas as pd
 import requests
 
@@ -89,25 +87,42 @@ _CLINGEN_URL     = "https://reg.clinicalgenome.org/allele?hgvsOrDescriptor={hgvs
 
 _ATOM_NS = "{http://www.w3.org/2005/Atom}"
 
+#: What this client is. Never a browser string (package 1, set 1c).
+_CLIENT_USER_AGENT = "genomic-variant-classifier/build_lovd_index (research data client; python-requests)"
+
 _REQUEST_TIMEOUT = 30
 _RATE_DELAY      = 0.3   # seconds between NCBI calls
 
-# LOVD classification strings -> binary label
-_PATH_TERMS = {
+# LOVD classification strings -> binary label. EXACT terms (package 1, set 1c, 2026-11-08).
+#
+# This was a SUBSTRING test with the pathogenic terms checked FIRST, so this table's own benign terms "not pathogenic"
+# and "probably not pathogenic" CONTAIN "pathogenic" and were labelled 1 -- an inverted label on exactly the benign
+# rows written in that vocabulary -- and "class 1" matched "class 10" through "class 19". Measured on 2026-11-08 by
+# executing the extracted function on its own terms: 2 of the 12 terms in these sets were labelled wrongly. Now a
+# classification is normalised (lower case, whitespace collapsed, ONE trailing parenthetical qualifier such as
+# "(recessive)" removed) and must EQUAL a term; anything else is unlabelled (None) and excluded, never guessed.
+_PATH_TERMS = frozenset({
     "pathogenic", "likely pathogenic", "definitely pathogenic",
     "probably pathogenic", "class 5", "class 4",
-}
-_BENIGN_TERMS = {
+})
+_BENIGN_TERMS = frozenset({
     "benign", "likely benign", "probably not pathogenic",
     "not pathogenic", "class 1", "class 2",
-}
+})
+assert not _PATH_TERMS & _BENIGN_TERMS
+
+
+def _normalise_classification(classification: str) -> str:
+    import re
+    c = re.sub(r"\s+", " ", str(classification).lower()).strip()
+    return re.sub(r"\s*\([^()]*\)$", "", c).strip()
 
 
 def _lovd_label(classification: str) -> Optional[int]:
-    c = str(classification).lower().strip()
-    if any(t in c for t in _PATH_TERMS):
+    c = _normalise_classification(classification)
+    if c in _PATH_TERMS:
         return 1
-    if any(t in c for t in _BENIGN_TERMS):
+    if c in _BENIGN_TERMS:
         return 0
     return None
 
@@ -175,11 +190,10 @@ def _fetch_lovd_atom(gene: str, cookie: Optional[str], page_size: int = 100) -> 
     session = requests.Session()
     session.headers.update({
         "Cookie": cookie,
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/124.0.0.0 Safari/537.36"
-        ),
+        # The project's own client name (package 1, set 1c). This sent a desktop Chrome User-Agent to pass LOVD's
+        # browser-validation challenge: an automated client presenting itself as a browser to get past an access
+        # control the site deliberately applies to automated clients. A client identifies as what it is.
+        "User-Agent": _CLIENT_USER_AGENT,
     })
 
     entries = []
@@ -253,8 +267,9 @@ def _ncbi_hgvs_to_vcf(hgvs: str) -> Optional[tuple[str, int, str, str]]:
     """
     try:
         url = _NCBI_VAR_URL.format(hgvs=quote(hgvs, safe=""))
-        resp = requests.get(url, timeout=_REQUEST_TIMEOUT)
+        resp = requests.get(url, timeout=_REQUEST_TIMEOUT, headers={"User-Agent": _CLIENT_USER_AGENT})
         if resp.status_code != 200:
+            logger.warning("NCBI Variation Services returned HTTP %d for %s: unresolved", resp.status_code, hgvs)
             return None
         data = resp.json()
         # data["contextuals"] is a list of genomic placements
@@ -270,8 +285,10 @@ def _ncbi_hgvs_to_vcf(hgvs: str) -> Optional[tuple[str, int, str, str]]:
             alt = ctx.get("alternateAllele", "")
             if pos and ref is not None and alt is not None:
                 return chrom, int(pos), str(ref).upper(), str(alt).upper()
-    except Exception:
-        pass
+    except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
+        # Named, logged and counted by the caller as unresolved -- no longer a bare `except Exception: pass` that
+        # made a network failure indistinguishable from "no GRCh38 placement".
+        logger.warning("NCBI HGVS resolution FAILED for %s: %s: %s", hgvs, type(exc).__name__, exc)
     return None
 
 
@@ -445,16 +462,17 @@ def evaluate_against_model(
     output_dir: Path,
 ) -> None:
     """Score LOVD variants and compute validation metrics."""
-    from sklearn.calibration import calibration_curve
     from sklearn.metrics import (
         average_precision_score, brier_score_loss, roc_auc_score,
     )
     from genomic_variant_classifier.api.pipeline import InferencePipeline
+    from genomic_variant_classifier.evaluation.metrics import expected_calibration_error
 
     from genomic_variant_classifier.model_admission import repository_registry_path
     pipeline = InferencePipeline.load(model_path, consumer="scripts/build_lovd_index.py",
                                       registry_path=repository_registry_path())
-    logger.info("Loaded model: val_auroc=%.4f", pipeline.metadata.val_auroc)
+    logger.info("Loaded model: combiner %s, evaluation evidence %s", pipeline.combiner.digest,
+                pipeline.metadata.evaluation_evidence.get("status"))
 
     y_true  = lovd_df["label"].values
     y_proba = pipeline.predict_proba(lovd_df)
@@ -463,11 +481,10 @@ def evaluate_against_model(
     auprc = average_precision_score(y_true, y_proba)
     brier = brier_score_loss(y_true, y_proba)
 
-    frac_pos, mean_pred = calibration_curve(y_true, y_proba, n_bins=10, strategy="uniform")
-    bins   = np.linspace(0, 1, 11)
-    counts = np.histogram(y_proba, bins=bins)[0]
-    ece    = float(sum((c / len(y_true)) * abs(fp - mp)
-                       for fp, mp, c in zip(frac_pos, mean_pred, counts)))
+    # The repository's calibration kernel (package 1, set 1c). This zipped calibration_curve's NON-EMPTY bins with
+    # np.histogram's ALL bins, attaching each weight to the wrong bin whenever a bin was empty (recorded for
+    # package 2; repaired elsewhere on 2026-07-20 and pinned by test_calibration_implementations_agree.py).
+    ece    = float(expected_calibration_error(y_true, y_proba, n_bins=10))
 
     logger.info(
         "LOVD external validation: AUROC=%.4f  AUPRC=%.4f  Brier=%.4f  ECE=%.4f",
@@ -484,9 +501,13 @@ def evaluate_against_model(
         "auprc": auprc,
         "brier": brier,
         "ece": ece,
-        "model_val_auroc": pipeline.metadata.val_auroc,
+        "predictor": {"combiner_sha256": pipeline.combiner.digest,
+                      "predictor_contract_sha256": pipeline.predictor_contract_sha256(),
+                      "evaluation_evidence": pipeline.metadata.evaluation_evidence},
     }
-    (output_dir / "lovd_metrics.json").write_text(json.dumps(metrics, indent=2))
+    from genomic_variant_classifier.evaluation.serialization import dump_strict_json
+    (output_dir / "lovd_metrics.json").write_text(dump_strict_json(metrics, artifact="lovd_metrics.json") + "\n",
+                                                  encoding="utf-8", newline="\n")
 
     out_df = lovd_df.copy()
     out_df["predicted_proba"] = y_proba

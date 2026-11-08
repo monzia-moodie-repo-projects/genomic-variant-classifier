@@ -112,20 +112,67 @@ _WEIGHTED_DIAGNOSTIC_UNAVAILABLE = (
 # ---------------------------------------------------------------------------
 
 
+#: The evaluation evidence of a pipeline built without a completed run to bind (gate G7.2).
+EVALUATION_EVIDENCE_UNAVAILABLE: Mapping[str, Any] = {
+    "status": "unavailable",
+    "reason": "no completed run was bound when this pipeline was built; no evaluation of the selected predictor is "
+              "carried"}
+
+_PIPEMETA_REFUSAL = (
+    "PipelineMetadata.{name} was removed in package 1, set 1c (gate G7.2, PIPEMETA-1): it was a scalar copied from an "
+    "unbound metrics.json (defaulting to {default} when absent) and nothing tied it to the predictor this pipeline "
+    "executes. Read `evaluation_evidence` (bound to the selected combiner, or unavailable with a reason) and "
+    "`fit_input_rows` (recorded by the fitted ensemble).")
+
+
 @dataclass
 class PipelineMetadata:
-    """Provenance stored alongside the model artifact."""
+    """Provenance stored alongside the model artifact.
+
+    Package 1, set 1c (gate G7.2): only evidence BOUND to the selected predictor is carried. `evaluation_evidence` is
+    either {"status": "bound", ...} -- computed from a completed run whose completion manifest names this pipeline's
+    combiner -- or {"status": "unavailable", "reason": ...}. `fit_input_rows` is the row count the fitted members were
+    trained on, as the ensemble itself recorded it (VariantEnsemble.fit_input_rows_), or None when it did not.
+    """
 
     created_at: str = field(
         default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat()
     )
-    val_auroc: float = 0.0
-    n_train: int = 0
     n_features: int = 0
     feature_names: list[str] = field(
         default_factory=lambda: list(INFERENCE_FEATURE_COLUMNS)
     )
     model_version: str = "phase2"
+    fit_input_rows: Optional[int] = None
+    evaluation_evidence: dict = field(default_factory=lambda: dict(EVALUATION_EVIDENCE_UNAVAILABLE))
+
+    # Read-only refusals, not fields. A property is a data descriptor, so it also wins over a `val_auroc` value an
+    # older pickle restores into the instance dictionary: a stale reader fails loudly instead of reading 0.0 or a
+    # number another combiner earned.
+    @property
+    def val_auroc(self) -> float:
+        raise ContractError(_PIPEMETA_REFUSAL.format(name="val_auroc", default="0.0"))
+
+    @property
+    def n_train(self) -> int:
+        raise ContractError(_PIPEMETA_REFUSAL.format(name="n_train", default="0"))
+
+
+def _require_evaluation_evidence(evidence: Any, combiner_sha256: str) -> dict:
+    """Bound evidence must name THIS combiner; unavailable evidence must say why. Anything else is refused."""
+    if not isinstance(evidence, Mapping):
+        raise ContractError("evaluation evidence must be a mapping with a status")
+    evidence = dict(evidence)
+    if evidence.get("status") == "unavailable":
+        if not isinstance(evidence.get("reason"), str) or not evidence["reason"].strip():
+            raise ContractError("unavailable evaluation evidence must state its reason")
+        return evidence
+    if evidence.get("status") != "bound":
+        raise ContractError(f"unknown evaluation-evidence status {evidence.get('status')!r}")
+    if evidence.get("combiner_sha256") != combiner_sha256:
+        raise ContractError(f"the evaluation evidence was computed for predictor {evidence.get('combiner_sha256')}, "
+                            f"not this pipeline's {combiner_sha256}; evidence from another combiner is not carried")
+    return evidence
 
 
 def _write_model_manifest(artifact_path, feature_names=None):
@@ -351,14 +398,18 @@ class InferencePipeline:
         ensemble,
         scaler=None,
         feature_names: Optional[list[str]] = None,
-        val_auroc: float = 0.0,
-        n_train: int = 0,
+        evaluation_evidence: Optional[Mapping[str, Any]] = None,
     ) -> "InferencePipeline":
         """
         The fitted ensemble's members (ALL of them, in the fitted order) and its declared convex blend.
 
         A member serving cannot execute (cnn_1d) is not dropped: construction refuses, because the stored blend
         needs every member (owner ruling 2026-11-07: unsupported projections are refused).
+
+        Metadata (package 1, set 1c, gate G7.2): `feature_names` and `n_features` are the features this pipeline
+        actually renders (the scaler's, else the contract's); a supplied `feature_names` that differs is refused, not
+        recorded. `fit_input_rows` comes from the ensemble. `evaluation_evidence` must be bound to this pipeline's
+        combiner, or unavailable with a reason (the default).
         """
         if not getattr(ensemble, "trained_models_", None):
             raise ValueError(
@@ -366,18 +417,16 @@ class InferencePipeline:
                 "Ensure the ensemble was fitted before calling from_variant_ensemble()."
             )
         spec = ensemble.convex_blend_spec(SERVING_SCOPE)
-        feature_names = feature_names or INFERENCE_FEATURE_COLUMNS
-        metadata = PipelineMetadata(
-            val_auroc=val_auroc,
-            n_train=n_train,
-            n_features=len(feature_names),
-            feature_names=feature_names,
-        )
-        return cls(
+        evidence = _require_evaluation_evidence(
+            EVALUATION_EVIDENCE_UNAVAILABLE if evaluation_evidence is None else evaluation_evidence, spec.digest)
+        fit_rows = getattr(ensemble, "fit_input_rows_", None)
+        if fit_rows is not None and (type(fit_rows) is not int or fit_rows <= 0):
+            raise ContractError(f"the ensemble's fit_input_rows_ {fit_rows!r} is not a positive int")
+        pipeline = cls(
             trained_models=dict(ensemble.trained_models_),
             combiner=spec,
             scaler=scaler,
-            metadata=metadata,
+            metadata=PipelineMetadata(fit_input_rows=fit_rows, evaluation_evidence=evidence),
             # getattr, not attribute access: an ensemble pickled before the
             # fitted policy existed has no such attribute, and that is a
             # LEGACY ARTEFACT rather than an error. _apply_missing_value_policy
@@ -385,6 +434,15 @@ class InferencePipeline:
             preprocessor=getattr(ensemble, "preprocessor_", None),
             research_candidates={"logistic_stacker": ensemble.meta_learner},
         )
+        declared = [str(f) for f in pipeline._declared_features()]
+        if feature_names is not None and [str(f) for f in feature_names] != declared:
+            raise ContractError("the supplied feature_names differ from the features this pipeline renders "
+                                f"({len(list(feature_names))} supplied, {len(declared)} rendered); metadata records "
+                                "what is executed")
+        pipeline.metadata.feature_names = declared
+        pipeline.metadata.n_features = len(declared)
+        pipeline._require_admissible()
+        return pipeline
 
     # ------------------------------------------------------------------
     # Containment boundary (serving, loading, construction)

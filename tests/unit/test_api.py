@@ -92,8 +92,7 @@ def _make_pipeline(proba: float = 0.85):
         _make_trained_models(proba),
         scaler   = None,
         metadata = PipelineMetadata(
-            val_auroc     = 0.9847,
-            n_train       = 1_197_216,
+            fit_input_rows = 1_197_216,
             n_features    = EXPECTED_TABULAR_FEATURE_COUNT,
             model_version = "phase2",
         ),
@@ -236,33 +235,39 @@ class TestBatchPredictRequest:
 # 3. score_to_classification
 # ---------------------------------------------------------------------------
 
-class TestScoreToClassification:
-    """The five-tier helper is NO LONGER USED BY SERVING (API 3.0.0, gate G6.2). It remains, and is tested, only
-    because scripts/validate_external.py still imports it (its disposition belongs to package 1, set 1c)."""
+class TestScoreToClassificationRemoved:
+    """Package 1, set 1c (2026-11-08): the five-tier helper and its import-time, current-directory-relative, silently
+    defaulting threshold loader are REMOVED. Serving dropped them in 3.0.0 (gate G6.2); validate_external now reads an
+    explicit, predictor-bound decision policy (evaluation/decision_policy.py)."""
 
-    @pytest.mark.parametrize("score,label", [
-        (0.95, "Pathogenic"),
-        (0.75, "Likely pathogenic"),
-        (0.50, "Uncertain significance"),
-        (0.20, "Likely benign"),
-        (0.05, "Benign"),
-    ])
-    def test_correct_label(self, score, label):
-        from genomic_variant_classifier.api.schemas import score_to_classification
-        classification, _ = score_to_classification(score)
-        assert classification == label
+    def test_the_helpers_are_gone(self):
+        from genomic_variant_classifier.api import schemas
+        for name in ("score_to_classification", "CLASSIFICATION_THRESHOLDS", "_load_thresholds",
+                     "_DEFAULT_THRESHOLDS"):
+            assert not hasattr(schemas, name), name
 
-    def test_high_confidence_far_from_boundary(self):
-        # score=0.50 is the midpoint of "Uncertain significance" (0.30–0.70)
-        # dist = min(0.50-0.30, 0.70-0.50) = 0.20 → "high"
-        from genomic_variant_classifier.api.schemas import score_to_classification
-        _, confidence = score_to_classification(0.50)
-        assert confidence == "high"
+    def test_importing_the_schemas_reads_no_file(self, tmp_path):
+        """A thresholds file in the current directory used to change what a script classified with, silently."""
+        import os
+        import subprocess
+        import sys as _sys
 
-    def test_low_confidence_near_boundary(self):
-        from genomic_variant_classifier.api.schemas import score_to_classification
-        _, confidence = score_to_classification(0.71)   # just above Likely pathogenic threshold
-        assert confidence == "low"
+        (tmp_path / "models").mkdir()
+        (tmp_path / "models" / "classification_thresholds.json").write_text("{}", encoding="utf-8")
+        probe = ("import builtins, io, sys\n"
+                 "opened = []\n"
+                 "real = io.open\n"
+                 "def spy(file, *a, **k):\n"
+                 "    opened.append(str(file)); return real(file, *a, **k)\n"
+                 "builtins.open = io.open = spy\n"
+                 "import genomic_variant_classifier.api.schemas\n"
+                 "print([f for f in opened if 'threshold' in f or f.endswith('.json')])\n")
+        env = {**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[2] / "src"),
+               "THRESHOLDS_PATH": str(tmp_path / "models" / "classification_thresholds.json")}
+        r = subprocess.run([_sys.executable, "-c", probe], cwd=tmp_path, env=env, capture_output=True, text=True,
+                           timeout=300)
+        assert r.returncode == 0, r.stderr
+        assert r.stdout.strip() == "[]", r.stdout
 
 
 # ---------------------------------------------------------------------------
@@ -490,7 +495,7 @@ class TestInferencePipeline:
         # also the wrong shape (roadmap 6.28: production passes a 2-column frame).
         ens.fit(X_tab, None, y)
 
-        pipe = InferencePipeline.from_variant_ensemble(ens, val_auroc=0.9847)
+        pipe = InferencePipeline.from_variant_ensemble(ens)
         out  = tmp_path / "pipeline.joblib"
         pipe.save(out)
         from tests.unit._admission_support import AllowForTests, register
@@ -498,7 +503,14 @@ class TestInferencePipeline:
                             roster=list(pipe.trained_models),
                             predictor_contract_sha256=pipe.predictor_contract_sha256())
         loaded = InferencePipeline.load(out, consumer="test", registry_path=registry, authority=AllowForTests())
-        assert loaded.metadata.val_auroc == pytest.approx(0.9847)
+        # G7.2 (package 1, set 1c): only evidence bound to the selected predictor is carried; without a completed run
+        # it is unavailable WITH a reason, and the removed unbound scalars refuse instead of reading 0.0.
+        assert loaded.metadata.evaluation_evidence["status"] == "unavailable"
+        assert loaded.metadata.fit_input_rows == 20
+        assert loaded.metadata.feature_names == [str(f) for f in loaded._declared_features()]
+        from genomic_variant_classifier.prediction_contract import ContractError
+        with pytest.raises(ContractError, match="PIPEMETA-1"):
+            loaded.metadata.val_auroc
         assert loaded.combiner.digest == pipe.combiner.digest
         assert "logistic_stacker" in loaded.research_candidates      # carried, never called
         result = loaded.predict_single({"chrom": "1", "pos": 1, "ref": "A", "alt": "T"})
@@ -544,7 +556,7 @@ class TestInferencePipeline:
         y = pd.Series([0] * 10 + [1] * 10)
         ens.fit(X_tab, None, y)
 
-        pipe = InferencePipeline.from_variant_ensemble(ens, val_auroc=0.9)
+        pipe = InferencePipeline.from_variant_ensemble(ens)
         assert pipe.preprocessor_ is not None, (
             "from_variant_ensemble did not carry the fitted policy; this test "
             "would then exercise the LEGACY path and prove nothing")
@@ -582,7 +594,7 @@ class TestInferencePipeline:
                              columns=TABULAR_FEATURES)
         ens.fit(X_tab, None, pd.Series([0] * 10 + [1] * 10))
 
-        pipe = InferencePipeline.from_variant_ensemble(ens, val_auroc=0.9)
+        pipe = InferencePipeline.from_variant_ensemble(ens)
         pipe.preprocessor_ = None          # a pipeline pickled before 2026-08-11
 
         bare = pd.DataFrame([{"chrom": "1", "pos": 1, "ref": "A", "alt": "T"}])

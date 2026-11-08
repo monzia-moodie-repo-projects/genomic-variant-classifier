@@ -628,11 +628,13 @@ async def info(_key: str = Depends(require_api_key)) -> InfoResponse:
         feature_names = list(_PIPELINE.metadata.feature_names)
         n_features    = _PIPELINE.metadata.n_features
 
-    # PIPEMETA-1. `_PIPELINE.metadata.val_auroc` is deliberately NOT read
-    # here and must never be. It is an unqualified scalar embedded in the
-    # artifact format, with no population and no protocol beside it --
-    # exactly the shape of the constant this endpoint just stopped
-    # publishing. A fallback to it would recreate PROD-1 on purpose.
+    # PIPEMETA-1. `_PIPELINE.metadata.val_auroc` was deliberately never read
+    # here: it was an unqualified scalar embedded in the artifact format, with
+    # no population and no protocol beside it -- exactly the shape of the
+    # constant this endpoint stopped publishing. Package 1, set 1c removed it
+    # (reading it now refuses); `metadata.evaluation_evidence` is bound to the
+    # selected combiner, but it is a run's own evaluation, not a sealed
+    # deployment evaluation, so /info does not publish it either.
     binding = _RUNTIME_MODEL_BINDING or RuntimeModelBinding.no_model_loaded(
         detail="the application lifespan has not run")
 

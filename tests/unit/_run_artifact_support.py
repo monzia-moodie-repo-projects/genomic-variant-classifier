@@ -72,8 +72,13 @@ def fit_fast(X: pd.DataFrame, y: pd.Series, meta: pd.DataFrame, model_dir: Optio
 
 
 def completed_run(run_dir: Path, *, seed: int = 0, leaky: bool = False, gene_groups: bool = True,
-                  n_train: int = 300, n_test: int = 160) -> Path:
-    """A COMPLETE run written by the production writer: fitted ensemble, bound test capture, OOF identity, manifest."""
+                  n_train: int = 300, n_test: int = 160, n_val: int = 0, with_scaler: bool = False) -> Path:
+    """A COMPLETE run written by the production writer: fitted ensemble, bound test capture, OOF identity, manifest.
+
+    `n_val` > 0 also writes the bound validation capture and, as scripts/run_phase2_eval.py does, a metrics.json whose
+    AUROC values are computed from the SAME bound scores (package 1, set 1c consumers read both). `with_scaler` also
+    writes and registers the fitted StandardScaler as scaler.joblib.
+    """
     run_dir = Path(run_dir)
     X, y, meta = synthetic_split(n_train, seed=seed, role="train", leaky=leaky)
     Xt, yt, mt = synthetic_split(n_test, seed=seed + 1, role="test", leaky=leaky)
@@ -81,13 +86,34 @@ def completed_run(run_dir: Path, *, seed: int = 0, leaky: bool = False, gene_gro
     ens = fit_fast(X, y, meta, run_dir / "models", gene_groups=gene_groups)
     ens.save(run_dir / "models" / "ensemble.joblib")
     writer.register_external("models/ensemble.joblib")
+    required = ["test_predictions.parquet", "test_prediction_blocks.json", "oof_predictions.parquet",
+                "oof_identity.json", "models/ensemble.joblib"]
+    if with_scaler:
+        import joblib
+        from sklearn.preprocessing import StandardScaler
+
+        joblib.dump(StandardScaler().fit(X), run_dir / "scaler.joblib")
+        writer.register_external("scaler.joblib")
+        required.append("scaler.joblib")
     train_id, train_vids = split_identity(X, y, meta, "train")
     test_id, test_vids = split_identity(Xt, yt, mt, "test")
     rows = split_observations(test_id, test_vids, unit_context_sha256=SPLIT_UNIT_CONTEXT_SHA256)
     scored = ens.score_split(Xt, None, rows, split_sha256=test_id.prediction_split_sha256)
     writer.save_split_predictions(scored, yt, mt, role="test")
+    if n_val:
+        from sklearn.metrics import roc_auc_score
+
+        Xv, yv, mv = synthetic_split(n_val, seed=seed + 2, role="val", leaky=leaky)
+        val_id, val_vids = split_identity(Xv, yv, mv, "val")
+        val_rows = split_observations(val_id, val_vids, unit_context_sha256=SPLIT_UNIT_CONTEXT_SHA256)
+        scored_val = ens.score_split(Xv, None, val_rows, split_sha256=val_id.prediction_split_sha256)
+        writer.save_split_predictions(scored_val, yv, mv, role="val")
+        writer.save_json("metrics.json", {
+            "auroc": float(roc_auc_score(yt, scored.result.positive_probability())),
+            "val_auroc": float(roc_auc_score(yv, scored_val.result.positive_probability())),
+            "n_train": int(len(y)), "n_val": int(len(yv)), "n_test": int(len(yt))})
+        required += ["val_predictions.parquet", "val_prediction_blocks.json", "metrics.json"]
     writer.save_oof_predictions(compose_oof_identity(ens, train=train_id, vids=train_vids, labels=y,
                                                      meta_train=meta))
-    writer.complete(["test_predictions.parquet", "test_prediction_blocks.json", "oof_predictions.parquet",
-                     "oof_identity.json", "models/ensemble.joblib"])
+    writer.complete(required)
     return run_dir

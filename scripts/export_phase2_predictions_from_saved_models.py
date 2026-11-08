@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-# TRANSITION REFUSAL (package 1, set 1a, 2026-11-07): see transition_policy.PREDICTION_CONTRACT_TRANSITION_DENIED.
-# FIRST statements: they run before joblib, NumPy, pandas or scikit-learn is imported, an artifact is read or a
-# prediction file is written.
+# HISTORICAL EXECUTION DENIED (package 1, set 1c, 2026-11-08; it was a transition refusal since set 1a): see
+# quarantine_policy.HISTORICAL_EXECUTION_DENIED. FIRST statements: they run before joblib, NumPy, pandas or scikit-learn
+# is imported, an artifact is read or a prediction file is written. The source stays preserved as a historical record.
 from genomic_variant_classifier.containment import require_execution_permitted
-from genomic_variant_classifier.transition_policy import PREDICTION_CONTRACT_TRANSITION_DENIED
-require_execution_permitted('scripts/export_phase2_predictions_from_saved_models.py', PREDICTION_CONTRACT_TRANSITION_DENIED)
+from genomic_variant_classifier.quarantine_policy import HISTORICAL_EXECUTION_DENIED
+require_execution_permitted('scripts/export_phase2_predictions_from_saved_models.py', HISTORICAL_EXECUTION_DENIED)
 
 from pathlib import Path
 import json

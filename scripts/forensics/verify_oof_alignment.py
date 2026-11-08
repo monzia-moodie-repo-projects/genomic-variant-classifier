@@ -104,7 +104,21 @@ def _walk_json_for_auroc(obj, prefix=""):
     return out
 
 
+RETIRED = (
+    "RETIRED (package 1, set 1c, 2026-11-08; acceptance matrix gate G2.4): this check joined labels as "
+    "y_train[_train_row_idx], i.e. it treated `_train_row_idx` -- a DENSE POSITION over the out-of-fold subset -- as a "
+    "row of the training split. That join is wrong whenever the out-of-fold rows are not the first rows of the training "
+    "split in order, and a high per-model AUROC cannot prove it right. Run 15's real mapping is the separately "
+    "identified DERIVED record (scripts/derive_run15_oof_identity.py -> "
+    "docs/package1/RUN15_OOF_IDENTITY_DERIVED_RECORD.json, evaluation/historical_oof_identity.py); runs since set 1b "
+    "write out-of-fold rows with their composed original identity (evaluation/oof_identity.py), read through "
+    "evaluation/model_insights_detector.load_completed_oof. It refuses before reading anything.")
+
+
 def main():
+    print(RETIRED)
+    return 2
+    # --- historical body, unreachable since package 1, set 1c ---
     print("=" * 78)
     print("OOF ALIGNMENT VERIFICATION (run15_baseline) -- gate before conformal calibration")
     print("=" * 78)

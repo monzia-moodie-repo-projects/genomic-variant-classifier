@@ -14,9 +14,17 @@ coverage guarantee; it is explicitly NOT a clinical performance claim. Every art
 Gene-disjoint calibration: the calibration and evaluation splits share NO gene, matching how the
 model is deployed (gene-disjoint holdout). Coverage is therefore an honest estimate of coverage
 on unseen genes, not on unseen variants of seen genes.
+
+Package 1, set 1c (2026-11-08): the score is the SELECTED predictor's (`selected_score`, the stored convex blend; a
+pre-1b substrate's `ensemble_prob` must be named explicitly), and every result records WHICH substrate it was computed
+from. `calibrate_completed_run` reads a completed run's bound split predictions
+(evaluation.prediction_artifacts.load_completed_split_predictions) and records the predictor, run, file and rows;
+`calibrate(path)` records the file's measured SHA-256 and states that it is unbound.
 """
 from __future__ import annotations
 
+import hashlib
+import io
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -46,7 +54,7 @@ class AlignmentError(RuntimeError):
 
 @dataclass
 class CalibrationConfig:
-    score_col: str = "ensemble_prob"
+    score_col: str = "selected_score"
     label_col: str = "label"
     group_col: str = "gene_symbol"
     stratum_col: str = "consequence"
@@ -58,9 +66,10 @@ class CalibrationConfig:
     #: comparison rather than its meaning, which made it indistinguishable
     #: from a production-quality threshold. It is a DATA INTEGRITY
     #: sentinel: it asks whether the score/label join is credible, not
-    #: whether the model is good. The same policy object is consumed by
+    #: whether the model is good. The same policy object was consumed by
     #: scripts/forensics/verify_oof_alignment.py, which carried its own
-    #: copy of the number until today.
+    #: copy of the number until today (that check is retired since
+    #: package 1, set 1c: its join itself was invalid).
     score_label_alignment_policy: ScoreLabelAlignmentPolicy = field(
         default_factory=lambda: DEFAULT_SCORE_LABEL_ALIGNMENT_POLICY)
 
@@ -75,6 +84,8 @@ class CalibrationResult:
     coverage: dict = field(default_factory=dict)
     mondrian_coverage: dict = field(default_factory=dict)
     disclaimer: str = DISCLAIMER
+    #: WHICH scores these numbers describe: a completed run's bound identities, or an unbound file's measured digest.
+    substrate: dict = field(default_factory=dict)
 
 
 def _gene_disjoint_mask(genes: np.ndarray, cal_frac: float, seed: int) -> np.ndarray:
@@ -97,7 +108,11 @@ def _binary_prob_matrix(p: np.ndarray) -> np.ndarray:
 
 def load_and_verify(path: str | Path, cfg: CalibrationConfig) -> pd.DataFrame:
     """Load the substrate, assert required columns, and RUN THE GATE. Raises on failure."""
-    df = pd.read_parquet(path)
+    return _verify_frame(pd.read_parquet(path), cfg)
+
+
+def _verify_frame(df: pd.DataFrame, cfg: CalibrationConfig) -> pd.DataFrame:
+    """Assert required columns and RUN THE GATE on an in-memory substrate. Raises on failure."""
     required = [cfg.score_col, cfg.label_col, cfg.group_col]
     missing = [c for c in required if c not in df.columns]
     if missing:
@@ -125,8 +140,29 @@ def load_and_verify(path: str | Path, cfg: CalibrationConfig) -> pd.DataFrame:
 
 
 def calibrate(path: str | Path, cfg: CalibrationConfig | None = None) -> CalibrationResult:
+    """Calibrate on an UNBOUND parquet substrate; the result records the bytes' measured SHA-256 (read once)."""
     cfg = cfg or CalibrationConfig()
-    df = load_and_verify(path, cfg)
+    data = Path(path).read_bytes()
+    substrate = {"bound": False, "path": str(path), "sha256": hashlib.sha256(data).hexdigest(),
+                 "score_column": cfg.score_col,
+                 "note": "an unbound file: nothing ties these scores to a predictor, run or row set"}
+    return _calibrate_frame(_verify_frame(pd.read_parquet(io.BytesIO(data)), cfg), cfg, substrate)
+
+
+def calibrate_completed_run(run_dir: str | Path, role: str = "test",
+                            cfg: CalibrationConfig | None = None) -> CalibrationResult:
+    """Calibrate on a COMPLETED run's bound split predictions (the selected score); the result records the
+    predictor, run, file and rows. A configuration naming any other score column is refused."""
+    from ..evaluation.prediction_artifacts import load_completed_split_predictions
+
+    cfg = cfg or CalibrationConfig()
+    if cfg.score_col != "selected_score":
+        raise ValueError(f"a completed run is calibrated on its selected score, not {cfg.score_col!r}")
+    bound = load_completed_split_predictions(run_dir, role)
+    return _calibrate_frame(_verify_frame(bound.frame, cfg), cfg, {"bound": True, **bound.identity()})
+
+
+def _calibrate_frame(df: pd.DataFrame, cfg: CalibrationConfig, substrate: dict) -> CalibrationResult:
 
     y = pd.to_numeric(df[cfg.label_col], errors="coerce").astype(int).values
     p = pd.to_numeric(df[cfg.score_col], errors="coerce").values
@@ -168,5 +204,5 @@ def calibrate(path: str | Path, cfg: CalibrationConfig | None = None) -> Calibra
     return CalibrationResult(
         n_total=len(df), n_cal=int(cal_mask.sum()), n_eval=int(eval_mask.sum()),
         auroc=float(auroc), q_hat_lac=float(scc.q_hat_),
-        coverage=rep, mondrian_coverage=mond_rep,
+        coverage=rep, mondrian_coverage=mond_rep, substrate=dict(substrate),
     )

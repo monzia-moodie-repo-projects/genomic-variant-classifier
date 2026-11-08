@@ -8290,4 +8290,29 @@
 #   refused; the aggregate admits completed runs only); test_model_insights_agent.py +1 / -0 (an incomplete run is listed and
 #   never analysed); test_model_insights_detector.py and the agent's other tests now run on real completed runs.
 #   (tests_drift/: unchanged, 22.)
-8922
+# 2026-11-08  PREDICTION-CONTRACT-1C (package 1, set 1c; owner rulings ccffb8cf and 38f15c7a) -- the remaining consumers read
+#   bound evidence or refuse; package 1 closes and the transition policy is retired
+#   +53 / -16 by node identity (collected and diffed against main, a29af854). New file: +44
+#   tests/unit/test_prediction_contract_1c.py (the bound reader of a completed run's split predictions returns what was written
+#   with its identities and refuses an incomplete run, an absent split, changed bytes, a block descriptor disagreeing with the
+#   manifest on split, rows, row count or result block, relabelled rows and reordered members; the decision policy selects
+#   Objective A exactly on both sides against an independent brute force, is invariant to temperature and Platt scaling, refuses
+#   an unreachable floor with every outcome, refuses overlapping regions measured on a real run instead of clamping, refuses
+#   invalid floors, round-trips and refuses an edited record or another predictor, names its blockers and no ACMG/AMP tier; the
+#   threshold command writes a bound policy and refuses without writing; export evidence is recomputed from bound predictions
+#   for one predictor, the metadata carries only bound evidence and the removed scalars refuse even from an old pickle, export
+#   refuses an incomplete run and a scaler the run did not record, is refused by gate C10 by default and writes a bound pipeline
+#   under a test authority; conformal calibration of a completed run records its identity and the command names it; the
+#   conformal script's threshold is the finite-sample order statistic (+inf when k > n); no consumer indexes the 1-D pipeline
+#   score as a matrix; the superseded patchers and the retired alignment check refuse before touching anything; observability
+#   reads the selected blend's weights from the verified manifest (three scripts) and run17 is still generated from run15;
+#   external validation applies no threshold without a policy and a policy only for its own predictor; temporal validation
+#   measures training overlap or reports it unmeasured and refuses undefined rates; the LOVD validator refuses a guessed model
+#   input by default; every LOVD term maps to its own class). Replaced, by file: test_api.py +2 / -7 (the five-tier helper and
+#   its import-time loader are gone; importing the schemas reads no file); test_prediction_contract_transition.py +2 / -7 (the
+#   transition policy is retired and nothing imports it; the migrated threshold command's --help runs without a refusal or a
+#   model library); test_containment_completion.py +3 / -1 (the reconstruction exporter joins the historical-execution denial:
+#   the set, its first-statement guard and its refusal); test_containment_scripts.py +1 / -1 (the threshold workflow reads bound
+#   predictions, never a model or a feature split); tests/conformal/test_calibrate.py +1 / -0 (a pre-1b substrate must name its
+#   score column). (tests_drift/: unchanged, 22.)
+8959

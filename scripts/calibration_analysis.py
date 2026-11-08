@@ -168,9 +168,15 @@ def main(argv: list[str] | None = None) -> int:
 
         class_rows = []
         class_metrics = {}
+        skipped_groups: dict[str, int] = {}
         for grp in sorted(groups):
             mask = df["_consequence_class"] == grp
             if mask.sum() < 50:
+                # Package 1, set 1c: this skip was SILENT -- a consequence class simply vanished from the report.
+                # It is now logged and recorded in calibration_metrics.json with its size.
+                skipped_groups[str(grp)] = int(mask.sum())
+                logger.warning("Consequence class %r has %d rows (< 50): no per-class calibration is reported",
+                               grp, int(mask.sum()))
                 continue
             grp_true = y_true[mask.values]
             grp_prob = y_prob[mask.values]
@@ -190,12 +196,15 @@ def main(argv: list[str] | None = None) -> int:
             )
     else:
         class_metrics = {}
+        skipped_groups = {}
         logger.warning("No 'consequence' column — skipping per-class calibration.")
 
     # --- Write metrics JSON ---
     metrics = {
         "overall": _calibration_summary(y_true, y_prob),
         "by_consequence": class_metrics,
+        "by_consequence_skipped_below_50_rows": skipped_groups,
+        "score": "InferencePipeline.predict_proba: the selected convex blend",
     }
     with open(output_dir / "calibration_metrics.json", "w") as f:
         json.dump(metrics, f, indent=2)

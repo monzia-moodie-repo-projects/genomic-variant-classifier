@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **8,922 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **8,959 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -879,6 +879,25 @@ exists to end.
   -- under `--max-train` the GNN block re-persists the subsampled `X_train` beside the full labels (the ablation preflight now
   refuses such a directory). Acceptance: docs/package1/PACKAGE1_SET1B_DELIVERY.md and the set-1b census ledger. Suite 8,875 ->
   8,922 (+58 / -11).
+  VALIDATED ON WINDOWS AND MERGED 2026-11-08: one -Validate run (04:55 to 06:11 UTC; receipt dcee4aaa): the whole suite 8,834
+  passed, 83 skipped, 5 xfailed, exactly as forecast; Run 15's derived record re-derived on Windows (digest b1330929, as on Linux).
+  Candidate 7816bdc7 published (06:13 UTC) and merged as pull request #69 with a merge commit: a29af854, parents b051bb3d and
+  7816bdc7, tree b0bb918b. The post-merge block (06:47 UTC) compared all 1,105 targeted tests by node identity: no difference; the
+  branch was deleted (07:01 UTC).
+- **2026-11-08 -- PREDICTION-CONTRACT-1C: package 1, set 1c of three; package 1 closes.** Every remaining consumer of the score
+  reads BOUND evidence or refuses. A completed run's split predictions have one bound reader
+  (`prediction_artifacts.load_completed_split_predictions`). The threshold workflow is migrated onto it and the repository's exact
+  operating-point machinery (`evaluation/decision_policy.py`; MEASURED: the old search returned the top score for every target):
+  thresholds on the served score stage, neutral band names, certification blockers, a record digest, refusals instead of
+  fallbacks -- and, MEASURED, tail predictive values overlap on realistic runs, so the default floors refuse; the partition rule
+  is an open owner decision (DECISION-POLICY-OVERLAP-1). Export metadata carries only evidence bound to the exported
+  combiner (gate G7.2; `val_auroc` and `n_train` removed and refusing). The import-time threshold loader is gone; the four
+  validators apply a policy only for their own predictor, measure training overlap instead of assuming it, stop fabricating a
+  model input and rates, and map LOVD terms exactly (MEASURED: two benign terms were labelled pathogenic). Conformal calibration
+  uses the selected score with a recorded substrate and the finite-sample order statistic. The reconstruction exporter is
+  historical-execution denied; transition_policy.py is retired; the superseded patchers and the OOF alignment check refuse (gate
+  G2.4); observability reads the selected blend's weights from a verified manifest. Acceptance:
+  docs/package1/PACKAGE1_SET1C_DELIVERY.md and the set-1c census ledger. Suite 8,922 -> 8,959 (+53 / -16).
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined

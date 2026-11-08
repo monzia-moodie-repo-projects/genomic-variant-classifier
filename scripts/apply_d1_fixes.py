@@ -339,7 +339,19 @@ def patches_for_eval(eval_path: Path, dry_run: bool) -> int:
 # Main
 # ---------------------------------------------------------------------------
 
+SUPERSEDED = (
+    "SUPERSEDED (package 1, set 1c, 2026-11-08): apply_d1_fixes.py patched real_data_prep.py and run_phase2_eval.py at "
+    "commit 553efac. Its targets have since been rewritten (measured on the set-1c base a29af854: F-02, F-05, F-07 and "
+    "F-13 find no target text; of F-06's twelve log fragments ten are already applied and two are absent), and its "
+    "F-13 patch inserts the sequential `_train_row_idx` fallback that package 1, set 1b removed "
+    "(gate G2: out-of-fold rows carry their composed original training-split identity, evaluation/oof_identity.py). "
+    "It refuses before reading or writing anything; the source is kept as the record of what it did.")
+
+
 def main(argv=None) -> int:
+    print(SUPERSEDED, file=sys.stderr)
+    return 2
+    # --- historical body, unreachable since package 1, set 1c ---
     p = argparse.ArgumentParser(description="Apply D.1 str_replace patches")
     p.add_argument("--dry-run", action="store_true",
                    help="Preview matches without writing anything.")

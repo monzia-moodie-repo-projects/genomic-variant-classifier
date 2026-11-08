@@ -472,70 +472,12 @@ class InfoResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Classification thresholds -- NOT USED BY SERVING SINCE API 3.0.0
+# Classification thresholds: REMOVED in package 1, set 1c (2026-11-08)
 # ---------------------------------------------------------------------------
 #
-# The serving API no longer calls score_to_classification (gate G6.2): the five tiers and the score-distance
-# "confidence" are unqualified thresholds applied to an uncalibrated score. These definitions remain only because
-# scripts/validate_external.py still imports them; its disposition, and the silent fallback in _load_thresholds
-# below (Path("") is "." -- a directory -- and the resulting error is swallowed), belong to package 1, set 1c.
-
-# ACMGish five-tier mapping based on calibrated probability.
-# These defaults apply when no calibrated threshold file is found.
-# Run scripts/calibrate_thresholds.py to produce models/classification_thresholds.json
-# and override these defaults with empirically-calibrated boundaries.
-_DEFAULT_THRESHOLDS: dict[str, tuple[float, float]] = {
-    "Pathogenic":             (0.90, 1.01),
-    "Likely pathogenic":      (0.70, 0.90),
-    "Uncertain significance": (0.30, 0.70),
-    "Likely benign":          (0.10, 0.30),
-    "Benign":                 (-0.01, 0.10),
-}
-
-
-def _load_thresholds() -> dict[str, tuple[float, float]]:
-    """
-    Attempt to load calibrated thresholds from models/classification_thresholds.json.
-    Falls back to _DEFAULT_THRESHOLDS silently if the file is absent or malformed.
-    """
-    import json
-    import os
-    from pathlib import Path
-
-    candidates = [
-        Path(os.environ.get("THRESHOLDS_PATH", "")),
-        Path("models/classification_thresholds.json"),
-    ]
-    for path in candidates:
-        if path and path.exists():
-            try:
-                data = json.loads(path.read_text())
-                raw = data.get("thresholds", {})
-                parsed: dict[str, tuple[float, float]] = {}
-                for label, bounds in raw.items():
-                    if isinstance(bounds, (list, tuple)) and len(bounds) == 2:
-                        parsed[label] = (float(bounds[0]), float(bounds[1]))
-                if set(parsed.keys()) == set(_DEFAULT_THRESHOLDS.keys()):
-                    return parsed
-            except Exception:
-                pass   # malformed file — use defaults
-    return dict(_DEFAULT_THRESHOLDS)
-
-
-CLASSIFICATION_THRESHOLDS: dict[str, tuple[float, float]] = _load_thresholds()
-
-
-def score_to_classification(score: float) -> tuple[str, str]:
-    """Return (classification, confidence) for a raw probability score."""
-    for label, (lo, hi) in CLASSIFICATION_THRESHOLDS.items():
-        if lo < score <= hi:
-            dist = min(score - lo, hi - score)
-            if dist >= 0.15:
-                confidence = "high"
-            elif dist >= 0.05:
-                confidence = "medium"
-            else:
-                confidence = "low"
-            return label, confidence
-    # Fallback — should not occur for valid scores in [0, 1]
-    return "Uncertain significance", "low"
+# `_load_thresholds`, `CLASSIFICATION_THRESHOLDS` and `score_to_classification` lived here. Serving stopped using
+# them in 3.0.0 (gate G6.2), and their last consumer, scripts/validate_external.py, now reads an explicit,
+# predictor-bound decision policy (evaluation/decision_policy.py) passed by argument. The loader ran at IMPORT, read
+# a path relative to the current directory (`Path("")` is "." -- a directory, so THRESHOLDS_PATH unset never
+# failed), and swallowed every error into five fixed "ACMG-ish" tiers -- so what a script classified with depended on
+# the directory it was started from, silently. No schema module reads a file.
