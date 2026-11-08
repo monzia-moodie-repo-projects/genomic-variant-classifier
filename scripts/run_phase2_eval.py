@@ -1079,6 +1079,8 @@ def main() -> int:
         # Run 15's enhancements reflect genuine generalization rather than
         # gene-prevalence memorization. Since set 1b a failure is NOT downgraded to a warning: every main output is
         # already on disk (above), the exception propagates, and the run is not completed evidence.
+        # Since package 1D-0 (2026-11-08) this design is KNOWN INVALID for that purpose and renders no PASS or FAIL: see
+        # the verdict below and evaluation/claim_disposition.py.
         ugh_required: list[str] = []
         if getattr(args, "unseen_gene_holdout", False):
             logger.info("[UGH] --unseen-gene-holdout set: running ablation post-training")
@@ -1156,6 +1158,14 @@ def main() -> int:
                 "seed": 42,
                 "elapsed_seconds": elapsed_ugh,
             }
+            # Package 1D-0 (owner ruling 2026-11-08): this holdout design is the one that invalidated Run 15's C3 claim
+            # (docs/claims/CLAIM-0001_run15.c3.unseen_gene_generalization.json): the GNN blocks above inject scores
+            # trained on these rows' labels before the holdout is carved, the holdout rows' gene count includes their own
+            # labels, and the groups are gene-symbol strings. Its verdict is WITHHELD, with the defects named, until 1D
+            # replaces the design; the metrics are kept as a forensic record, never as a PASS.
+            from genomic_variant_classifier.evaluation.claim_disposition import UGH_DESIGN_ID, design_verdict
+
+            m_ugh["c3_falsifier"] = design_verdict(UGH_DESIGN_ID, m_ugh["auroc"], 0.95)
             writer.save_json("unseen_gene_holdout_metrics.json", m_ugh)
             writer.save_table_csv("unseen_gene_holdout_per_model.csv", ugh_results)
             ugh_required = ["unseen_gene_holdout_metrics.json", "unseen_gene_holdout_per_model.csv"]
@@ -1163,10 +1173,12 @@ def main() -> int:
                 "[UGH] DONE. Selected convex blend AUROC=%.4f on %d-sample (%d-gene) holdout",
                 m_ugh["auroc"], len(y_holdout), n_holdout_genes,
             )
-            logger.info(
-                "[UGH] C3 falsifier (b) %s: AUROC %.4f vs 0.95 threshold",
-                "PASS" if m_ugh["auroc"] >= 0.95 else "FAIL",
-                m_ugh["auroc"],
+            logger.warning(
+                "[UGH] C3 falsifier (b) verdict %s: %s (%s); AUROC %.4f is a forensic record of an invalid design, "
+                "not evidence of generalization (claim %s)",
+                m_ugh["c3_falsifier"]["verdict"], m_ugh["c3_falsifier"]["design_status"],
+                ", ".join(m_ugh["c3_falsifier"]["defects"]), m_ugh["auroc"],
+                m_ugh["c3_falsifier"]["claim_it_cannot_support"],
             )
 
         # ── Completion (gate G8): published LAST, only when nothing requested is missing or failed ──────────────

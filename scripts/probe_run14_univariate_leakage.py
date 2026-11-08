@@ -21,10 +21,16 @@ WHY, AND WHY IT MATTERS MORE THAN THE ABLATIONS
     That fix is dated 2026-06-13 -- EIGHTEEN DAYS AFTER Run 14.
 
     `outputs/ablation_run15/ablation_results.parquet` shows `no_gene_prevalence` costs
-    only ΔAUROC 0.0002. That does NOT exonerate Run 14: Run 15 POSTDATES the fix, so its
-    `n_pathogenic_in_gene` is identically zero on the gene-disjoint test set
-    (tests/unit/test_d1_d2.py::TestRecomputeNpig::test_test_npig_always_zero). Zeroing a
-    feature that is already zero changes nothing by construction.
+    only ΔAUROC 0.0002. That does NOT exonerate Run 14.
+
+    CORRECTED 2026-11-08. This paragraph said that Run 15 postdates the fix and that its count
+    is identically zero on the test set. MEASURED on Run 15's own files, both are false: Run 15
+    ran at commit 4b9de1c3 (2026-06-05), before the fix (2026-06-13), and every test row's
+    count equals its own gene's test labels (0 mismatches over 304,711 rows; AUROC 0.7181 alone).
+    Its evaluations are INVALIDATED_EVALUATION -- claims run15.test.ensemble_evaluation,
+    run15.validation.ensemble_evaluation and run15.c3.unseen_gene_generalization in docs/claims/.
+    (tests/unit/test_d1_d2.py::TestRecomputeNpig::test_test_npig_always_zero tests the CURRENT
+    code, not Run 15's.)
 
     Run 14's splits predate the fix. They are the only surviving evidence.
 

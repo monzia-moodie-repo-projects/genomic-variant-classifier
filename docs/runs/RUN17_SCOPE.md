@@ -12,7 +12,8 @@ checked (PASS) before any billable GPU time is spent. Author: Monzia Moodie.
 ## 1. Objective
 
 Run 17 = the next full-cohort training run after Run 15 (sealed, commit `032a2ab`,
-Test AUROC 0.9984). Its **single new purpose** is to **activate two feature groups that are
+Test AUROC 0.9984 -- INVALIDATED_EVALUATION since 2026-11-08, claim `run15.test.ensemble_evaluation`,
+`docs/claims/`; it is not a baseline Run 17 can be compared against). Its **single new purpose** is to **activate two feature groups that are
 present-but-constant** in the current schema:
 
 - **`gnn_score`** — via `--string-db auto` (STRING-DB v12, GNN over the PPI graph).
@@ -166,7 +167,9 @@ python scripts/run_phase2_eval.py `
 ## 5. Open decisions & risks (resolve before launch)
 - **`<DECISION>` — `n_pathogenic_in_gene` computation scope** (roadmap §5): confirm
   train-only-per-fold vs corpus-wide; if corpus-wide, recompute train-only to close the
-  leakage question the UGH 0.9988 result left open. **Gate A blocks on this.**
+  leakage question the UGH 0.9988 result left open. **Gate A blocks on this.** (2026-11-08: the
+  question is answered -- Run 15 predates the train-only count; the UGH result is
+  INVALIDATED_EVALUATION, claim `run15.c3.unseen_gene_generalization`, `docs/claims/`.)
 - **1000G parquet existence** (Gate C): if absent → Run 17 = `gnn_score` only; `af_1kg_*`
   slips to Run 18.
 - **GNN local smoke feasibility** (Gate D): probe first; may force the smoke onto GPU.

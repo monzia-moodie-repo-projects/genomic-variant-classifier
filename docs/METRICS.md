@@ -5,6 +5,12 @@ applied and how its value has moved across runs. Append a new row after every ru
 Last updated: Run 15 (2026-06-06). Run 9 row corrected 2026-06-06 (prior 0.9814/0.9850
 was wrong; see note under the matrix).
 
+> **2026-11-08 -- every Run 15 evaluation below is INVALIDATED_EVALUATION** (owner ruling
+> 2026-11-08; the records, derived from the run's own files: `docs/claims/`). The figures are
+> kept as what the run printed. Each place that cites one names its claim, and
+> `tests/unit/test_claim_dispositions.py` fails if a Run 15 figure appears in this document
+> without its disposition beside it.
+
 Conventions: y = true label (1 = pathogenic, 0 = benign); p = model score / probability
 of pathogenicity; positives = pathogenic; Run 15 class balance = 210,549 pathogenic /
 1,279,465 benign (~1:6).
@@ -26,7 +32,8 @@ of pathogenicity; positives = pathogenic; Run 15 class balance = 210,549 pathoge
 - **Construction:** area under Precision = TP/(TP+FP) vs Recall = TP/(TP+FN).
 - **Range:** baseline = positive prevalence (~0.14) -> 1.0.
 - **Captures:** positive-(pathogenic-)class performance specifically.
-- **Where:** beside AUROC (Run 15 ensemble 0.9936 main / 0.9945 UGH).
+- **Where:** beside AUROC (Run 15 ensemble 0.9936 main / 0.9945 UGH; both INVALIDATED_EVALUATION:
+  `run15.test.ensemble_evaluation`, `run15.c3.unseen_gene_generalization`).
 
 ---
 
@@ -35,12 +42,14 @@ of pathogenicity; positives = pathogenic; Run 15 class balance = 210,549 pathoge
 ### F1 (macro / weighted)
 - **Formula:** 2*P*R/(P+R) at threshold 0.5. Macro = unweighted per-class mean;
   weighted = support-weighted (benign-dominated). Macro exposes minority weakness.
-- **Range:** 0 -> 1. **Where:** per model/ensemble (Run 15 f1_macro 0.9826, weighted 0.9913).
+- **Range:** 0 -> 1. **Where:** per model/ensemble (Run 15 f1_macro 0.9826, weighted 0.9913;
+  INVALIDATED_EVALUATION, `run15.test.ensemble_evaluation`).
 
 ### MCC — Matthews Correlation Coefficient
 - **Formula:** (TP*TN - FP*FN)/sqrt((TP+FP)(TP+FN)(TN+FP)(TN+FN)).
 - **Range:** -1 -> +1 (0 = random). Balanced single summary over all four cells.
-- **Where:** per model/ensemble (Run 15 0.9652 main / 0.9695 UGH).
+- **Where:** per model/ensemble (Run 15 0.9652 main / 0.9695 UGH; INVALIDATED_EVALUATION, `run15.test.ensemble_evaluation`,
+  `run15.c3.unseen_gene_generalization`).
 
 ---
 
@@ -48,7 +57,8 @@ of pathogenicity; positives = pathogenic; Run 15 class balance = 210,549 pathoge
 
 ### Brier score
 - **Formula:** mean((p - y)^2). **Range:** 0 (best) -> 1. Joint accuracy + calibration.
-- **Where:** per model/ensemble (Run 15 0.0069 main / 0.0059 UGH).
+- **Where:** per model/ensemble (Run 15 0.0069 main / 0.0059 UGH; INVALIDATED_EVALUATION, `run15.test.ensemble_evaluation`,
+  `run15.c3.unseen_gene_generalization`).
 
 ### Calibration (reliability) curve
 - Bin predictions (10 bins); mean predicted vs observed fraction positive; diagonal =
@@ -103,8 +113,11 @@ of pathogenicity; positives = pathogenic; Run 15 class balance = 210,549 pathoge
 
 ## VII. Decision gates
 
-- **AUROC >= 0.9** holdout PASS gate. Run 15: 0.9984 PASS.
-- **C3 falsifier >= 0.95** on unseen-gene holdout AUROC. Run 15: 0.9988 PASS.
+- **AUROC >= 0.9** holdout PASS gate. Run 15: 0.9984 PASS as printed; the evaluation is
+  INVALIDATED_EVALUATION (`run15.validation.ensemble_evaluation`).
+- **C3 falsifier >= 0.95** on unseen-gene holdout AUROC. Run 15: 0.9988 PASS as printed; the
+  evaluation is INVALIDATED_EVALUATION (`run15.c3.unseen_gene_generalization`). Since 2026-11-08 the driver WITHHOLDS this verdict
+  for the same holdout design (`claim_disposition.design_verdict`).
 - **GNN std>0 / nonzero_frac=1.0** non-degeneracy gate. Run 15: PASS.
 - **Seq-window coverage <0.5% unmapped** abort gate (returns 2) - guards cnn_1d.
 
@@ -123,8 +136,8 @@ run's results doc (backfill from docs/CHANGELOG.md if found).
 | 12  | 05-?? | 0.9974 | — | 0.9912 | 0.9713 | 0.943 | 0.0141 | 8 | NameError torch | skipped | 349,067 | 6.47 h | ~$4.80 |
 | 13  | 05-25 | 0.9974 | 0.9985 | 0.9913 | 0.9768 | 0.9536 | 0.0124 | 9 | NameError test_size | skipped | 349,067 | 6.33 h | ~$4.90 |
 | 14  | 05-26 | 0.9975 | 0.9985 | — | — | — | — | 10 | 0.9921 | skipped | 349,067 | 3 h 14 m | $2.17 |
-| 15  | 06-06 | **0.9984** | 0.9984 (stacker) | 0.9936 | 0.9826 (macro) | 0.9652 | 0.0069 | **13** | 0.9968 | **0.8536** | 304,711 | ~11.2 h | ~$6.3 |
-| 15-UGH | 06-06 | 0.9988 (unseen-gene, C3 PASS) | — | 0.9945 | 0.9847 | 0.9695 | 0.0059 | 13 | 0.9970 | 0.8448 | 213,436 / 2,407 genes | — | — |
+| 15  | 06-06 | 0.9984 INVALIDATED_EVALUATION (`run15.test.ensemble_evaluation`; validation `run15.validation.ensemble_evaluation`) | 0.9984 (stacker) | 0.9936 | 0.9826 (macro) | 0.9652 | 0.0069 | **13** | 0.9968 | **0.8536** | 304,711 | ~11.2 h | ~$6.3 |
+| 15-UGH | 06-06 | 0.9988 (unseen-gene, C3 PASS as printed) INVALIDATED_EVALUATION (`run15.c3.unseen_gene_generalization`) | — | 0.9945 | 0.9847 | 0.9695 | 0.0059 | 13 | 0.9970 | 0.8448 | 213,436 / 2,407 genes | — | — |
 
 **Comparability caveat (read before trending the AUROC column).** Runs 10b-14 scored on a
 locked 349,067-variant test set. Run 15's test set is 304,711 because the review-tier <=3
@@ -150,7 +163,9 @@ new-baseline rather than a clean delta off Run 14. The unseen-gene 0.9988 ~= in-
 0.9984 = no generalization collapse on 2,407 unseen genes, but NOT proof of leakage-free:
 gene-level features (n_pathogenic_in_gene 391 top, pLI, LOEUF) may inform holdout genes;
 attribution requires the n_pathogenic_in_gene ablation. Do not record 0.9988 as
-"leakage disproven."
+"leakage disproven." CORRECTED 2026-11-08: both figures are INVALIDATED_EVALUATION
+(`run15.test.ensemble_evaluation`, `run15.c3.unseen_gene_generalization`): Run 15 ran before the
+train-only count existed, so the gene count of every evaluated row included its own label.
 
 **KAN.** Failed every run from introduction through Run 13 (OOM -> MLP fallback -> NameError
 torch -> NameError test_size), first trained Run 14 (0.9921), Run 15 0.9968/0.9970 -
@@ -167,7 +182,8 @@ feature; the non-degeneracy gate now guards the Run-14 regression permanently.
 
 **Calibration.** Brier 0.0141 (Run 12) -> 0.0124 (Run 13) -> 0.0069 main / 0.0059 UGH
 (Run 15); MCC 0.943 -> 0.9536 -> 0.9652/0.9695. Both track roster growth and the
-isotonic-calibrated tree learners.
+isotonic-calibrated tree learners. The Run 15 figures are INVALIDATED_EVALUATION
+(`run15.test.ensemble_evaluation`, `run15.c3.unseen_gene_generalization`).
 
 **n_pathogenic_in_gene.** Top feature every run (3.3x next feature historically; 1.3x in
 Run 14 after the rich config; importance 391 in Run 15). **Adjudicated 2026-06-07 by
@@ -177,4 +193,8 @@ ENSEMBLE_STACKER test AUROC 0.99820 -> 0.99800 (Δ −0.0002, bootstrap 95% CIs 
 High split-usage importance but negligible marginal contribution -> the ~0.998 is NOT
 gene-prevalence memorization through this feature (effect concentrates in the LoF subgroup,
 −0.0291, ~5% of test). See `docs/ABLATION_n_pathogenic_in_gene.md`. Residual channel
-`gene_has_known_disease` untested (`no_gene_level`, optional).
+`gene_has_known_disease` untested (`no_gene_level`, optional). CORRECTED 2026-11-08: the splits
+were not de-leaked -- each test row's count was its own gene's test labels (measured, 0
+mismatches) -- so the `full` arm evaluated a leaked feature; the `no_gene_level` arm (0.99783)
+removed this channel and remains a partial measurement, not a valid gene-disjoint result
+(claim records in `docs/claims/`).
