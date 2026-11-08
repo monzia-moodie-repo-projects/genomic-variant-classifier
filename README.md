@@ -5,17 +5,20 @@
 [![Tabular features](https://img.shields.io/badge/tabular%20features-91-blue.svg)]()
 [![Base models](https://img.shields.io/badge/base%20models-13-blue.svg)]()
 [![Agents](https://img.shields.io/badge/autonomous%20agents-22-blueviolet.svg)]()
-[![Tests](https://img.shields.io/badge/tests-8753-success.svg)]()
+[![Tests](https://img.shields.io/badge/tests-8875-success.svg)]()
 [![Status](https://img.shields.io/badge/status-active%20development-orange.svg)]()
 
-A multi-modal machine learning system for the five-tier clinical classification of human
-genomic variants — **Pathogenic, Likely Pathogenic, Uncertain Significance, Likely Benign,
-and Benign** — in accordance with ACMG/AMP guidelines.
+A multi-modal machine learning system built toward the five-tier clinical classification of
+human genomic variants — **Pathogenic, Likely Pathogenic, Uncertain Significance, Likely
+Benign, and Benign** — in accordance with ACMG/AMP guidelines. It serves a pathogenicity
+score today; the five tiers return only with a qualified, bound decision policy.
 
 It integrates genomic sequence, population-stratified allele frequencies, protein and DNA
 language-model representations, gene-network topology, tissue-specific expression, and
 curated gene–disease evidence into a **91-feature** matrix, consumed by a **13-model**
-stacking ensemble. Protein-structure features are currently **quarantined**: excluded
+ensemble whose single authoritative score is the stored convex blend of its members'
+probabilities, computed exactly (the logistic stacker is kept as a research candidate,
+never served). Protein-structure features are currently **quarantined**: excluded
 from the contract, refused at fitting, loading and serving (a model trained with them is
 never served), until repaired (see *Feature set*). It is served as a FastAPI REST service and supervised by an
 autonomous layer of **22 specialised agents** communicating over a typed message bus.
@@ -68,8 +71,8 @@ A multi-branch fusion model wrapped in an autonomous supervisory layer.
      |            |                       |            |
      +------------+-----------+-----------+------------+
                               |
-                  Stacking meta-learner
-                  + calibration + conformal sets + uncertainty
+                  Stored convex blend (one authoritative score)
+                  + predictive entropy; conformal sets (research)
                               |
                     Clinical evaluation
                               |
@@ -82,7 +85,7 @@ A multi-branch fusion model wrapped in an autonomous supervisory layer.
 
 | Branch | What it contributes | Status |
 |---|---|---|
-| Tabular | 13 base classifiers over the feature matrix, stacked and calibrated | live |
+| Tabular | 13 base classifiers over the feature matrix, combined by the stored convex blend | live |
 | Sequence | 1D convolution over ref/alt context windows; ESM-2 and Nucleotide Transformer variant-effect signals | live |
 | Graph | Graph Attention Network over STRING, plus a heterogeneous knowledge graph; both enter the matrix as *features*, not as classifiers | live |
 | Histopathology | Whole-slide imaging over TCGA cohorts, linking prediction to tissue morphology | planned |
@@ -101,7 +104,7 @@ the point is to compare families, not to find one winner and discard the evidenc
 | 3 | `lightgbm` | LightGBM | Gradient-boosted trees |
 | 4 | `catboost` | CatBoost | Gradient-boosted trees |
 | 5 | `gradient_boosting` | scikit-learn Gradient Boosting | Gradient-boosted trees |
-| 6 | `logistic_regression` | Logistic Regression — also the stacking meta-learner | Linear |
+| 6 | `logistic_regression` | Logistic Regression — also the research stacker (never served) | Linear |
 | 7 | `svm` | Support Vector Machine | Kernel |
 | 8 | `svm_bagged_rbf` | Bagged radial-basis-function Support Vector Machine | Kernel |
 | 9 | `kan` | Kolmogorov-Arnold Network | Kolmogorov-Arnold |
@@ -205,7 +208,11 @@ measured, over which rows, and whether it can be trusted.
   objective, the tie-break, and how many candidates were feasible.
 - **Conformal prediction sets.** `{pathogenic}`, `{benign}`, both (defer), or empty (out of
   domain), with label-conditional calibration so coverage holds for the rare class.
-- **Epistemic and aleatoric uncertainty** are separated, flagging cases for expert review.
+- **Disagreement between stochastic draws is decomposed exactly**, each identity in its own
+  unit: the entropy of the mean (nats) is the mean draw entropy plus the mean divergence of
+  the draws from their mean; the Bernoulli variance of the mean (probability squared) is the
+  mean draw variance plus the spread between draws. A model without stochastic draws reports
+  the decomposition as unavailable, never as zero.
 - **Drift is monitored in three classes** — covariate, label, and concept — with retraining
   under Elastic Weight Consolidation and a shadow-to-production model registry. The monitor
   reports `0/1/2/3/4`, where **4 is NOT CHECKED**: *"I looked and found nothing"* and *"I
@@ -222,10 +229,22 @@ GET  /health          Liveness + readiness
 GET  /info            Model metadata and drift status
 GET  /metrics         Prometheus metrics
 GET  /gene/{symbol}   Gene-level feature lookup
-GET  /rsid/{rs_id}    rs-ID resolution + prediction
-POST /predict         Single variant -> five-tier classification + uncertainty
-POST /batch           Batch classification
+GET  /rsid/{rs_id}    rs-ID resolution; a prediction only when the served model is ready
+POST /predict         Single variant -> prediction record (schema 3.0.0)
+POST /batch           Batch of prediction records under one serving identity
 ```
+
+A prediction record (schema 3.0.0) carries the stored convex blend's score at full binary64
+precision, never rounded or clipped; a descriptive binary call under one tie rule (positive
+when the score is at least 0.5); the predictive entropy of that score in nats; a descriptive,
+uniformly weighted view of how the fitted members disagree (labelled as not the blend); and the
+identities that bind
+it to its input rows, its combiner and the registered fitted predictor. Calibration, a
+decision policy, feature attribution and a coverage interval are each reported as
+unavailable until one is qualified and bound -- the five-tier labels are no longer served.
+`/predict` and `/batch` answer 503 before any model is called unless the served artifact is
+the registered production record with an exact roster and the same fitted predictor
+(`predictor_contract_sha256`).
 
 Authentication via `X-API-Key`, rate limiting via `slowapi`, structured JSON logging, and
 Prometheus instrumentation, from a multi-stage Dockerfile with builder, api and trainer

@@ -1,96 +1,89 @@
 """
 src/genomic_variant_classifier/models/mc_dropout.py
 ========================
-MC Dropout / Deep Ensemble uncertainty wrapper -- Phase 4C.
+Monte Carlo dropout and deep-ensemble wrappers, with schema-2 uncertainty records.
 
-Produces calibrated probability estimates with epistemic and aleatoric
-uncertainty decomposition for any sklearn-compatible classifier.
+Author: Monzia Moodie
 
-Two complementary approaches are implemented:
+Two mechanisms produce a finite, equally weighted set of Bernoulli draws per variant:
 
-1. MCDropoutWrapper  (neural networks with dropout)
-   Wraps a TF/Keras or PyTorch model that has dropout layers.  Keeps dropout
-   active at inference time and runs T stochastic forward passes.
-   -- Produces:
-     mean_prob           -- mean of T softmax outputs (better calibrated)
-     uncertainty_epistemic -- variance of predictions (model uncertainty; high
-                             when the model is uncertain due to lack of training data)
-     uncertainty_aleatoric -- mean binary entropy of predictions (data uncertainty;
-                             high for inherently ambiguous variants regardless of data)
+1. MCDropoutWrapper -- a network with dropout layers run T times with dropout ACTIVE, each pass under a recorded seed.
+2. DeepEnsembleWrapper -- M independently seeded clones of a base estimator.
 
-2. DeepEnsembleWrapper (any sklearn estimator)
-   Trains M independently-initialised copies of a base estimator.  At
-   inference, aggregates their predict_proba outputs.  Achieves identical
-   uncertainty decomposition to MC Dropout with no architectural changes.
-   Recommended when the base model does not use dropout (e.g. GBT, RF).
+predict_proba() returns the mean draw, computed exactly as before this module recorded uncertainty (same seed schedule,
+same precision), so a fitted member's predictions are unchanged. That matters: Run 15's stored blend weights were
+fitted on these members' outputs.
 
-Usage
------
-    from genomic_variant_classifier.models.mc_dropout import DeepEnsembleWrapper
-    from lightgbm import LGBMClassifier
-
-    ens = DeepEnsembleWrapper(
-        base_estimator=LGBMClassifier(n_estimators=300),
-        n_members=5,
-    )
-    ens.fit(X_train, y_train)
-
-    mean_p, epistemic, aleatoric = ens.predict_with_uncertainty(X_test)
-    # epistemic[i] high  => model is uncertain (consider retraining with more data)
-    # aleatoric[i] high  => variant is intrinsically ambiguous (VUS)
-
-Both wrappers expose a sklearn-compatible predict_proba() that returns the
-mean probability, allowing them to be used as drop-in replacements in the
-VariantEnsemble stacking pipeline.
+Schema-2 uncertainty (package 1, gate G5; models/disagreement.py) replaces the 2026-05 decomposition:
+  * two exact identities, each in its own unit, never summed -- entropy in nats, variance in probability squared;
+  * the retired names "epistemic" (draw variance) and "aleatoric" (mean draw entropy) are gone: for a finite draw set
+    they are the between-draw spread and the expected within-draw entropy, not population quantities;
+  * the mixed-unit "total" (variance + entropy) and the triage flag thresholded on it are removed (G5.1);
+  * every record states the supported, requested and applied randomness, the ordered draw identities (seeds or
+    member indices), whether the draws are distinct, and degeneracy -- an estimator with no stochastic forward pass
+    yields an UNAVAILABLE uncertainty with a reason, never a computed-looking zero (G5.2);
+  * nothing is clipped; draws outside [0, 1] are refused.
 """
 
 from __future__ import annotations
 
 import logging
-import warnings
-from copy import deepcopy
-from typing import Optional
+from typing import Any
 
 import numpy as np
 from sklearn.base import BaseEstimator, ClassifierMixin, clone
 from sklearn.utils.validation import check_is_fitted
 
+from genomic_variant_classifier.models.disagreement import draw_decomposition
+from genomic_variant_classifier.prediction_contract import (
+    ContractError,
+    model_call,
+    positive_column,
+    sklearn_binary_classes,
+)
+
 logger = logging.getLogger(__name__)
 
+__all__ = ["DeepEnsembleWrapper", "MCDropoutWrapper", "annotate_uncertainty", "uncertainty_record"]
 
-# ---------------------------------------------------------------------------
-# Shared uncertainty decomposition
-# ---------------------------------------------------------------------------
 
-def _decompose_uncertainty(
-    probs_stack: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """
-    Decompose predictive uncertainty from a stack of probability estimates.
+def _require_draw_count(value: Any, name: str) -> int:
+    """A mixture needs at least two draws; bool and every non-int are refused (no coercion)."""
+    if type(value) is not int or value < 2:
+        raise ContractError(f"{name} must be a Python int >= 2, got {value!r}")
+    return value
 
-    Parameters
-    ----------
-    probs_stack : ndarray of shape (T, n_samples)
-        T probability estimates per sample (from T passes or T ensemble members).
 
-    Returns
-    -------
-    mean_prob : (n_samples,)
-    epistemic : (n_samples,)  -- variance across passes (reducible uncertainty)
-    aleatoric : (n_samples,)  -- mean binary entropy (irreducible uncertainty)
-    """
-    mean_prob = probs_stack.mean(axis=0)
-    epistemic = probs_stack.var(axis=0)
+def _require_binary_labels(y: Any) -> np.ndarray:
+    classes = np.unique(np.asarray(y))
+    if classes.dtype.kind not in "iu" or classes.tolist() != [0, 1]:
+        raise ContractError(f"binary integer labels {{0, 1}} required, got classes {classes.tolist()!r}")
+    return classes.astype(np.int64)
 
-    # Exact binary entropy (nats) with 0*log(0):=0 -- a fully-confident pass has
-    # EXACTLY 0 uncertainty: no clip floor, no float32 log(0)=NaN, no warnings, no deps.
-    _p = np.clip(probs_stack, 0.0, 1.0)
-    _safe_p = np.where(_p > 0.0, _p, 1.0)
-    _safe_1m = np.where(_p < 1.0, 1.0 - _p, 1.0)
-    entropy_per_pass = -(_p * np.log(_safe_p) + (1.0 - _p) * np.log(_safe_1m))
-    aleatoric = entropy_per_pass.mean(axis=0)
 
-    return mean_prob, epistemic, aleatoric
+def uncertainty_record(stack: np.ndarray, *, mechanism: str, supported_randomness: str, requested_randomness: str,
+                       applied_randomness: str, draw_identities: list, draws_distinct: bool,
+                       degeneracy: str | None) -> dict[str, Any]:
+    """A schema-2 record for one wrapper call. When the draws are not a valid mixture the uncertainty is UNAVAILABLE
+    with a reason; it is never reported as zero."""
+    record: dict[str, Any] = {
+        "schema": "gvc.uncertainty.schema-2",
+        "mechanism": mechanism,
+        "supported_randomness": supported_randomness,
+        "requested_randomness": requested_randomness,
+        "applied_randomness": applied_randomness,
+        "draw_identities": list(draw_identities),
+        "draws_distinct": bool(draws_distinct),
+        "degeneracy": degeneracy,
+    }
+    if degeneracy is not None:
+        record["status"] = "unavailable"
+        record["reason"] = degeneracy
+        return record
+    record["status"] = "defined"
+    record["reason"] = None
+    record.update(draw_decomposition(stack))
+    return record
 
 
 # ---------------------------------------------------------------------------
@@ -99,20 +92,17 @@ def _decompose_uncertainty(
 
 class DeepEnsembleWrapper(BaseEstimator, ClassifierMixin):
     """
-    Deep Ensemble over M independently-trained sklearn-compatible estimators.
+    Deep ensemble over M independently trained clones of *base_estimator*.
 
-    Trains M clones of *base_estimator* with different random seeds and
-    aggregates their predict_proba() at inference time.
+    Member k is seeded with random_state + k through the estimator's own `random_state` (or `seed`) parameter. An
+    estimator exposing neither cannot be seeded: its members are identical by construction, which is RECORDED as
+    degeneracy (`seed_mechanism_ == "none"`), so the member spread is unavailable rather than a misleading zero.
 
     Parameters
     ----------
-    base_estimator : sklearn estimator
-        Any estimator with fit() and predict_proba().
-    n_members : int
-        Number of ensemble members (default: 5).  5-10 is sufficient for
-        good uncertainty estimates; beyond 10 shows diminishing returns.
+    base_estimator : sklearn estimator with fit() and predict_proba()
+    n_members : int >= 2
     random_state : int
-        Base random seed.  Member k uses random_state + k.
     """
 
     def __init__(
@@ -126,56 +116,72 @@ class DeepEnsembleWrapper(BaseEstimator, ClassifierMixin):
         self.random_state = random_state
 
     def fit(self, X: np.ndarray, y: np.ndarray, **fit_kwargs) -> "DeepEnsembleWrapper":
-        self.classes_ = np.unique(y)
+        n_members = _require_draw_count(self.n_members, "n_members")
+        self.classes_ = _require_binary_labels(y)
         self.members_: list[BaseEstimator] = []
-
-        for k in range(self.n_members):
+        params = clone(self.base_estimator).get_params()
+        if "random_state" in params:
+            self.seed_mechanism_ = "random_state"
+        elif "seed" in params:
+            self.seed_mechanism_ = "seed"
+        else:
+            self.seed_mechanism_ = "none"
+            logger.warning(
+                "DeepEnsemble: %s exposes neither random_state nor seed; its %d members are identical by "
+                "construction and the member spread will be reported UNAVAILABLE.",
+                type(self.base_estimator).__name__, n_members)
+        self.member_seeds_: list[int | None] = []
+        for k in range(n_members):
             member = clone(self.base_estimator)
-            # Inject random state if the estimator supports it
-            if hasattr(member, "random_state"):
-                member.set_params(random_state=self.random_state + k)
-            elif hasattr(member, "seed"):
-                member.set_params(seed=self.random_state + k)
-
-            logger.info("DeepEnsemble: fitting member %d/%d ...", k + 1, self.n_members)
+            seed = None if self.seed_mechanism_ == "none" else int(self.random_state) + k
+            if seed is not None:
+                member.set_params(**{self.seed_mechanism_: seed})
+            logger.info("DeepEnsemble: fitting member %d/%d ...", k + 1, n_members)
             member.fit(X, y, **fit_kwargs)
             self.members_.append(member)
-
+            self.member_seeds_.append(seed)
         return self
 
+    def predict_draws(self, X: np.ndarray) -> np.ndarray:
+        """(n_members, n_samples) positive-class probabilities, each member's classes validated."""
+        check_is_fitted(self, "members_")
+        n = len(X)
+        draws = []
+        for member in self.members_:
+            p, _classes, _conversion = positive_column(member, member.predict_proba(X), n)
+            draws.append(p)
+        return np.array(draws)
+
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
-        """Return mean pathogenicity probabilities, shape (n_samples, 2)."""
-        mean_p, _, _ = self.predict_with_uncertainty(X)
+        """Mean member probability, shape (n_samples, 2), in the members' own precision (unchanged behaviour)."""
+        mean_p = self.predict_draws(X).mean(axis=0)
         return np.column_stack([1.0 - mean_p, mean_p])
 
     def predict(self, X: np.ndarray) -> np.ndarray:
-        return (self.predict_proba(X)[:, 1] >= 0.5).astype(int)
+        return model_call(self.predict_proba(X)[:, 1])
 
-    def predict_with_uncertainty(
-        self, X: np.ndarray
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """
-        Returns
-        -------
-        mean_prob   : (n_samples,)  mean pathogenicity probability
-        epistemic   : (n_samples,)  variance across members (model uncertainty)
-        aleatoric   : (n_samples,)  mean entropy per member (data uncertainty)
-        """
-        check_is_fitted(self, "members_")
-        probs_stack = np.array(
-            [m.predict_proba(X)[:, 1] for m in self.members_]
-        )  # (n_members, n_samples)
-        return _decompose_uncertainty(probs_stack)
-
-    def uncertainty_summary(self, X: np.ndarray) -> dict[str, np.ndarray]:
-        """Return a dict with all uncertainty components for easy inspection."""
-        mean_p, epistemic, aleatoric = self.predict_with_uncertainty(X)
-        return {
-            "mean_prob": mean_p,
-            "epistemic_uncertainty": epistemic,
-            "aleatoric_uncertainty": aleatoric,
-            "total_uncertainty": epistemic + aleatoric,
-        }
+    def predict_with_uncertainty(self, X: np.ndarray) -> dict[str, Any]:
+        """The producer mean plus a schema-2 record over the member draws."""
+        draws = self.predict_draws(X)
+        seeds = list(getattr(self, "member_seeds_", [None] * len(self.members_)))
+        mechanism = getattr(self, "seed_mechanism_", "unrecorded")
+        distinct = mechanism in ("random_state", "seed") and len(set(seeds)) == len(seeds)
+        degeneracy = None
+        if mechanism == "none":
+            degeneracy = "members_not_seeded_identical_by_construction"
+        elif mechanism == "unrecorded":
+            degeneracy = "member_seeds_not_recorded_by_this_fitted_object"
+        elif not distinct:
+            degeneracy = "duplicate_member_seeds"
+        record = uncertainty_record(
+            draws, mechanism="fitted_ensemble",
+            supported_randomness="independent_member_initialisation",
+            requested_randomness=f"{len(self.members_)}_members_seeded_{mechanism}",
+            applied_randomness="none" if mechanism == "none" else f"{mechanism}=random_state+k",
+            draw_identities=[{"member_index": k, "seed": s} for k, s in enumerate(seeds)],
+            draws_distinct=distinct, degeneracy=degeneracy)
+        record["producer_mean"] = draws.mean(axis=0)
+        return record
 
 
 # ---------------------------------------------------------------------------
@@ -184,21 +190,19 @@ class DeepEnsembleWrapper(BaseEstimator, ClassifierMixin):
 
 class MCDropoutWrapper(BaseEstimator, ClassifierMixin):
     """
-    MC Dropout wrapper for neural network classifiers with dropout layers.
+    Monte Carlo dropout over an estimator exposing ``_predict_proba_single_pass(X, seed=...)``.
 
-    Wraps any estimator that exposes a ``_predict_proba_single_pass()``
-    method (or falls back to predict_proba() with dropout toggled on when
-    possible).  If the underlying model does not support dropout-at-inference,
-    this wrapper degrades to a single deterministic pass with zero uncertainty.
+    An estimator without that method has no stochastic forward pass: predict_proba() is then its deterministic
+    prediction, and predict_with_uncertainty() reports the uncertainty UNAVAILABLE (never zero).
 
-    For most use cases, prefer DeepEnsembleWrapper which works with any
-    sklearn estimator without requiring dropout layers.
+    The seed schedule is the historical one -- numpy default_rng(random_state).integers(0, 2**31, size=n_passes) --
+    so the mean is unchanged for fitted members. A repeated seed is RECORDED (draws_distinct False) and makes the
+    draw set unavailable as an uncertainty estimate; the mean is not altered.
 
     Parameters
     ----------
     base_estimator : estimator with predict_proba
-    n_passes : int
-        Number of stochastic forward passes (default: 50).
+    n_passes : int >= 2
     random_state : int
     """
 
@@ -213,103 +217,114 @@ class MCDropoutWrapper(BaseEstimator, ClassifierMixin):
         self.random_state = random_state
 
     def fit(self, X: np.ndarray, y: np.ndarray, **fit_kwargs) -> "MCDropoutWrapper":
-        self.classes_ = np.unique(y)
+        _require_draw_count(self.n_passes, "n_passes")
+        self.classes_ = _require_binary_labels(y)
         self.estimator_ = clone(self.base_estimator)
         self.estimator_.fit(X, y, **fit_kwargs)
         self._supports_mc = hasattr(self.estimator_, "_predict_proba_single_pass")
         if not self._supports_mc:
             logger.warning(
-                "MCDropoutWrapper: %s does not expose _predict_proba_single_pass(). "
-                "Uncertainty estimates will be zero. "
-                "Consider using DeepEnsembleWrapper instead.",
+                "MCDropoutWrapper: %s does not expose _predict_proba_single_pass(); predictions are its "
+                "deterministic output and the uncertainty is UNAVAILABLE. Consider DeepEnsembleWrapper.",
                 type(self.estimator_).__name__,
             )
         return self
 
+    def draw_seeds(self) -> list[int]:
+        """The ordered pass seeds as Python ints (the historical schedule)."""
+        n_passes = _require_draw_count(self.n_passes, "n_passes")
+        rng = np.random.default_rng(self.random_state)
+        return rng.integers(0, 2**31, size=n_passes).tolist()
+
+    def predict_draws(self, X: np.ndarray) -> np.ndarray:
+        """(n_passes, n_samples) positive-class probabilities with dropout active. Refused without MC support."""
+        check_is_fitted(self, "estimator_")
+        if not self._supports_mc:
+            raise ContractError(f"{type(self.estimator_).__name__} has no stochastic forward pass; there are no "
+                                "MC draws to return")
+        classes, _conversion = sklearn_binary_classes(self.estimator_)
+        n = len(X)
+        passes = []
+        for seed in self.draw_seeds():
+            p = np.asarray(self.estimator_._predict_proba_single_pass(X, seed=int(seed)))
+            if p.ndim == 1:
+                if p.shape != (n,):
+                    raise ContractError(f"single pass returned shape {p.shape} for {n} rows")
+                passes.append(p)
+            else:
+                passes.append(positive_column(self.estimator_, p, n)[0])
+        return np.array(passes)
+
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
-        mean_p, _, _ = self.predict_with_uncertainty(X)
+        check_is_fitted(self, "estimator_")
+        if not self._supports_mc:
+            positive, _c, _conv = positive_column(self.estimator_, self.estimator_.predict_proba(X), len(X))
+            mean_p = positive
+        else:
+            mean_p = self.predict_draws(X).mean(axis=0)
         return np.column_stack([1.0 - mean_p, mean_p])
 
     def predict(self, X: np.ndarray) -> np.ndarray:
-        return (self.predict_proba(X)[:, 1] >= 0.5).astype(int)
+        return model_call(self.predict_proba(X)[:, 1])
 
-    def predict_with_uncertainty(
-        self, X: np.ndarray
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def predict_with_uncertainty(self, X: np.ndarray) -> dict[str, Any]:
+        """The producer mean plus a schema-2 record over the MC passes (or an unavailable record)."""
         check_is_fitted(self, "estimator_")
-
         if not self._supports_mc:
-            proba = self.estimator_.predict_proba(X)[:, 1]
-            zeros = np.zeros_like(proba)
-            return proba, zeros, zeros
-
-        passes = []
-        rng = np.random.default_rng(self.random_state)
-        seeds = rng.integers(0, 2**31, size=self.n_passes)
-
-        for seed in seeds:
-            p = self.estimator_._predict_proba_single_pass(X, seed=int(seed))
-            passes.append(p if p.ndim == 1 else p[:, 1])
-
-        probs_stack = np.array(passes)  # (n_passes, n_samples)
-        return _decompose_uncertainty(probs_stack)
-
-    def uncertainty_summary(self, X: np.ndarray) -> dict[str, np.ndarray]:
-        mean_p, epistemic, aleatoric = self.predict_with_uncertainty(X)
-        return {
-            "mean_prob": mean_p,
-            "epistemic_uncertainty": epistemic,
-            "aleatoric_uncertainty": aleatoric,
-            "total_uncertainty": epistemic + aleatoric,
-        }
+            mean_p = self.predict_proba(X)[:, 1]
+            record = uncertainty_record(
+                np.empty((0, 0)), mechanism="mc_dropout", supported_randomness="none",
+                requested_randomness=f"{self.n_passes}_dropout_passes", applied_randomness="none",
+                draw_identities=[], draws_distinct=False,
+                degeneracy="estimator_has_no_stochastic_forward_pass")
+            record["producer_mean"] = mean_p
+            return record
+        seeds = self.draw_seeds()
+        draws = self.predict_draws(X)
+        distinct = len(set(seeds)) == len(seeds)
+        record = uncertainty_record(
+            draws, mechanism="mc_dropout", supported_randomness="dropout_masks_with_batchnorm_in_eval",
+            requested_randomness=f"{len(seeds)}_dropout_passes",
+            applied_randomness="torch.manual_seed(seed)_per_pass",
+            draw_identities=[{"pass_index": k, "seed": s} for k, s in enumerate(seeds)],
+            draws_distinct=distinct, degeneracy=None if distinct else "duplicate_pass_seeds")
+        record["producer_mean"] = draws.mean(axis=0)
+        return record
 
 
 # ---------------------------------------------------------------------------
-# Convenience: annotate a DataFrame with uncertainty columns
+# Convenience: annotate a DataFrame with schema-2 columns
 # ---------------------------------------------------------------------------
 
 def annotate_uncertainty(
     wrapper: DeepEnsembleWrapper | MCDropoutWrapper,
-    df: pd.DataFrame,
+    df: "pd.DataFrame",
     feature_cols: list[str],
-) -> pd.DataFrame:
+) -> "pd.DataFrame":
     """
-    Add uncertainty columns to a variant DataFrame in-place.
+    Return a copy of *df* with schema-2 uncertainty columns, each named with its unit.
 
-    Adds:
-      pathogenicity_mean        -- mean ensemble probability
-      uncertainty_epistemic     -- model (reducible) uncertainty
-      uncertainty_aleatoric     -- data (irreducible) uncertainty
-      uncertainty_total         -- sum of both
-      uncertainty_flag          -- 'high' / 'medium' / 'low' for triage
-
-    Parameters
-    ----------
-    wrapper : DeepEnsembleWrapper or MCDropoutWrapper (already fitted)
-    df : DataFrame with *feature_cols* present
-    feature_cols : list of feature column names
+    The features are passed in their own dtype (no float32 cast). There is no "total" and no triage flag: a variance
+    and an entropy cannot be added, and no qualified decision policy exists for this record.
     """
-    import pandas as pd  # local import to avoid circular at module level
-
-    X = df[feature_cols].values.astype(np.float32)
-    summary = wrapper.uncertainty_summary(X)
-
-    df = df.copy()
-    df["pathogenicity_mean"] = summary["mean_prob"]
-    df["uncertainty_epistemic"] = summary["epistemic_uncertainty"]
-    df["uncertainty_aleatoric"] = summary["aleatoric_uncertainty"]
-    df["uncertainty_total"] = summary["total_uncertainty"]
-
-    # Simple triage flag based on total uncertainty
-    total = summary["total_uncertainty"]
-    flags = np.where(total > 0.05, "high", np.where(total > 0.02, "medium", "low"))
-    df["uncertainty_flag"] = flags
-
-    return df
+    record = wrapper.predict_with_uncertainty(df[feature_cols].to_numpy())
+    out = df.copy()
+    out["pathogenicity_mean"] = record["producer_mean"]
+    out["uncertainty_status"] = record["status"]
+    out["uncertainty_reason"] = record["reason"]
+    if record["status"] == "defined":
+        out["expected_draw_entropy_nats"] = record["expected_draw_entropy_nats"]
+        out["mixture_predictive_entropy_nats"] = record["mixture_predictive_entropy_nats"]
+        out["disagreement_nats"] = record["disagreement_nats"]
+        out["disagreement_status"] = record["disagreement_status"]
+        out["between_draw_spread_variance_probability_squared"] = (
+            record["between_draw_spread_variance_probability_squared"])
+        out["expected_within_draw_variance_probability_squared"] = (
+            record["expected_within_draw_variance_probability_squared"])
+    return out
 
 
-# avoid module-level pandas import (heavy) -- only needed in annotate_uncertainty
-try:
-    import pandas as pd
-except ImportError:
+try:  # avoid a hard module-level pandas dependency; only annotate_uncertainty's annotation needs it
+    import pandas as pd  # noqa: F401
+except ImportError:  # pragma: no cover - pandas is a core dependency of this package
     pass

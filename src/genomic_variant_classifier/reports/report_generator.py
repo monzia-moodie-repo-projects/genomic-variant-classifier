@@ -529,9 +529,16 @@ class ReportGenerator:
         if roc_data:
             roc_plot = plot_roc_curves(roc_data)
             pr_plot  = plot_pr_curves(roc_data)
-            if "ENSEMBLE_STACKER" in roc_data:
-                y_true, y_proba = roc_data["ENSEMBLE_STACKER"]
-                calibration_plot = plot_calibration(y_true, y_proba, "Ensemble Stacker")
+            # The selected predictor's curve (package 1, 2026-11-07). A curve under the retired label
+            # ENSEMBLE_STACKER is NOT attributed to the blend: such data predates the declared combiner and its
+            # provenance is not established here (gate G7.3), so it gets no calibration plot -- and the log says so.
+            from genomic_variant_classifier.models.variant_ensemble import SELECTED_ENSEMBLE_ROW
+            if SELECTED_ENSEMBLE_ROW in roc_data:
+                y_true, y_proba = roc_data[SELECTED_ENSEMBLE_ROW]
+                calibration_plot = plot_calibration(y_true, y_proba, "Selected convex blend")
+            elif "ENSEMBLE_STACKER" in roc_data:
+                logger.warning("roc_data carries the retired label ENSEMBLE_STACKER and no %s entry; no calibration "
+                               "plot is attributed to the selected predictor", SELECTED_ENSEMBLE_ROW)
 
         fi_plot = None
         if feature_importance is not None and not feature_importance.empty:

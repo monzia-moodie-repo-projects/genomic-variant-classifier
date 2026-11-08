@@ -1085,7 +1085,7 @@ class TestValidationMetrics:
         model_metrics = [
             {"model_name": "random_forest", "auroc": 0.85, "auprc": 0.78,
              "f1_macro": 0.82, "mcc": 0.64, "brier": 0.15},
-            {"model_name": "ENSEMBLE_STACKER", "auroc": 0.91, "auprc": 0.88,
+            {"model_name": "SELECTED_CONVEX_BLEND", "auroc": 0.91, "auprc": 0.88,
              "f1_macro": 0.89, "mcc": 0.78, "brier": 0.10},
         ]
         report_path = gen.generate(

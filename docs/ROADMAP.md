@@ -1,6 +1,6 @@
 # GenAssoc / genomic-variant-classifier - Living Roadmap
 
-**Version: 2026-11-06 (v3; section 9 current to 2026-11-06, section 5 last re-derived 2026-09-04)  |  Owner: Monzia Moodie**
+**Version: 2026-11-07 (v3; section 9 current to 2026-11-07, section 5 last re-derived 2026-09-04)  |  Owner: Monzia Moodie**
 
 Repo: github.com/monzia-moodie-repo-projects/genomic-variant-classifier
 
@@ -38,7 +38,7 @@ rather than frozen at the commit where the table was built.*
 
 # 1. Project identity & goals
 
-Production-grade multi-modal genomic disease-association program. Core: an ACMG/AMP-style (American College of Medical Genetics and Genomics / Association for Molecular Pathology) variant pathogenicity classifier over a ClinVar GRCh38 table of 4,399,089 variants after cleaning, of which 1,490,324 are binary-labelled under the current review-status policy (both measured 2026-07-24, docs/measurements/; corrected 2026-11-05 from "~1.49M cohort rows (from ~2.49M ClinVar missense)", whose second figure has no recorded source), 91 features, 13-model ensemble + stacking meta-learner + STRING-DB GNN + KAN. The four protein-structure features are quarantined (2026-09-22; `quarantine_policy.py`).
+Production-grade multi-modal genomic disease-association program. Core: an ACMG/AMP-style (American College of Medical Genetics and Genomics / Association for Molecular Pathology) variant pathogenicity classifier over a ClinVar GRCh38 table of 4,399,089 variants after cleaning, of which 1,490,324 are binary-labelled under the current review-status policy (both measured 2026-07-24, docs/measurements/; corrected 2026-11-05 from "~1.49M cohort rows (from ~2.49M ClinVar missense)", whose second figure has no recorded source), 91 features, 13-model ensemble whose one authoritative score is the stored convex blend (exact kernel; the logistic stacker is a research candidate since 2026-11-07) + STRING-DB GNN + KAN. The four protein-structure features are quarantined (2026-09-22; `quarantine_policy.py`).
 
 **Dual goal (both first-class):**
 
@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **8,753 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **8,875 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -344,7 +344,7 @@ minutes.
 
 # 6. Modeling & infra roadmap
 
-- Ensemble: RF, XGBoost, LightGBM, SVM (nystrom + bagged_rbf), LR, GBM, 1D-CNN, TabularNN + meta-learner; CatBoost; MC-Dropout; Deep Ensemble; KAN. Per-model comparison every run.
+- Ensemble: RF, XGBoost, LightGBM, SVM (nystrom + bagged_rbf), LR, GBM, 1D-CNN, TabularNN; CatBoost; MC-Dropout; Deep Ensemble; KAN; combined by the stored convex blend (the selected predictor; the logistic meta-learner is a research candidate, never served). Per-model comparison every run.
 
 - GNN (Phase D/A): bf16 AMP, PyG SparseTensor/CSR, GraphGPS, Laplacian PE/RWSE, 3-channel STRING weights. GPU-only; 2-epoch probe first.
 
@@ -820,6 +820,34 @@ exists to end.
   targeted tests (6 failures, all carriage returns): the installer's `git apply` wrote the fixture under the old .gitattributes
   (FIXTURE-WRITTEN-BY-APPLY-1; the patch now goes into the index and git writes the files, every changed file's bytes checked), and a
   new test sent paths to git in text mode (STDIN-TEXT-MODE-1; now NUL-separated bytes, the repository's measured pattern of 2026-10-02).
+  VALIDATED ON WINDOWS AND MERGED 2026-11-07: one -Validate run of revision B (01:52 to 03:55 UTC): 8,665 passed, 83 skipped, 5
+  xfailed, coverage 83%, as forecast; test_esm2_not_in_stub_mode passed and the three local-data tests skipped with the one reason;
+  drift 22 passed; pull request #67, merged with a merge commit (0e9db4e1, parents 0e5d73c4 and d1d30dc3, tree 2884c01f). The
+  post-merge block compared all 810 targeted tests by node identity: 0 differences, the three local-data tests passing in the
+  owner's checkout by name; both candidate environments still their Windows locks; the branch was deleted.
+- **2026-11-07 -- PREDICTION-CONTRACT-1A: package 1 (the prediction contract), set 1a of three.** Owner rulings of
+  2026-11-07 (decisions ccffb8cf, revision 5, and 38f15c7a): the stored convex blend of the fitted members' probabilities is the ONE authoritative
+  score; the logistic stacker is a research candidate, never served and never substituted. Its kernel is
+  `exact_binary64_products_sum_rne_v1` -- the exact real sum of the stored binary64 products, rounded once, nearest with ties to
+  even, a result above one refused -- because the historical `P @ w` depends on the summation order and Dot2 is not exact (the
+  owner's counterexamples reproduce: (1, 2^-52, 2^-106) with (1/2, 1/4, 1/4), and two 2^-1074 terms). MEASURED on Run 15's real
+  883,127 x 13 out-of-fold matrix: the integrated kernel equals the owner's reference bit for bit on every row (and an independent
+  exact method, fsum over error-free products, on every row); `P @ w` differs on 356,050 rows by at most 3 units in the last
+  place (2.22e-16), with 0 call changes at 0.1/0.3/0.5/0.7/0.9 under both >= and >, and an identical total order (883,127
+  distinct values), so every rank-based metric is unchanged. Set 1a: the observation and probability-block contract
+  (prediction_contract.py), the exact kernel and the convex-blend specification (models/combiner.py), schema-2 uncertainty
+  records whose identities close in their own units (entropy in nats, variance in probability squared; no stochastic pass is
+  reported unavailable, never zero), `VariantEnsemble` scoring the declared blend from one member capture (the meta-learner
+  fallback removed), serving with one scorer and one serializer (prediction schema 3.0.0: full-precision score, one tie rule;
+  the five-tier labels, the unattributed counts and the unused fields removed), a readiness gate (`/predict` and `/batch` answer
+  503 before any member call unless the registered production record, an EXACT roster and the same fitted predictor --
+  `predictor_contract_sha256`, a new registry field -- all hold; a declared projection is readable and never ready), and
+  transition refusals for the consumers that cannot yet consume the contract (calibrate_thresholds, run9_ablations, the
+  score-reconstruction exporter, the SHAP writer; transition_policy.py, separate from the quarantine policy so its admission
+  digest is unchanged). Gate C10 stays closed. Acceptance: docs/package1/ (the matrix, its revision 2 and the set-1a census
+  ledger of all 282 score-surface candidates). Set 1b (out-of-fold identities, completion manifest, explanation and calibration
+  writers) builds on merged 1a; set 1c (exporter metadata, thresholds, validators, forensic consumers) on merged 1b. Suite
+  8,753 -> 8,875 (+151 / -29).
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined

@@ -101,6 +101,11 @@ so schema drift produces a log line rather than a silent miscalibration.
 
 from __future__ import annotations
 
+# TRANSITION REFUSAL (package 1, set 1a, 2026-11-07): see transition_policy.PREDICTION_CONTRACT_TRANSITION_DENIED.
+from genomic_variant_classifier.containment import ContainmentError, require_execution_permitted
+from genomic_variant_classifier.transition_policy import PREDICTION_CONTRACT_TRANSITION_DENIED
+require_execution_permitted('scripts/run9_ablations.py', PREDICTION_CONTRACT_TRANSITION_DENIED)
+
 import argparse
 import hashlib
 import json
@@ -818,6 +823,8 @@ def main() -> int:
     if not args.skip_shap:
         try:
             writer.save_shap_values(ensemble, base_probs, meta_test, top_k=20)
+        except ContainmentError:
+            raise   # a refusal is never a logged SHAP failure: it must stop the run (owner ruling 2026-11-07)
         except Exception as exc:
             logger.error("SHAP failed: %s", exc)
 
@@ -841,8 +848,10 @@ def main() -> int:
 
     # Headline ablation row (for the aggregator)
     aggregator_path = args.output_dir.parent / "ablation_results.parquet"
-    ens_row = test_results.loc["ENSEMBLE_STACKER"]
-    ens_val = val_results.loc["ENSEMBLE_STACKER"]
+    # The selected predictor's row (package 1, 2026-11-07); see variant_ensemble.SELECTED_ENSEMBLE_ROW.
+    from genomic_variant_classifier.models.variant_ensemble import SELECTED_ENSEMBLE_ROW
+    ens_row = test_results.loc[SELECTED_ENSEMBLE_ROW]
+    ens_val = val_results.loc[SELECTED_ENSEMBLE_ROW]
     writer.append_ablation_row(
         aggregator_path,
         {

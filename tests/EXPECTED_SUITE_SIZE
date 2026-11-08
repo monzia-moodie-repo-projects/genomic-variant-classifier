@@ -8242,4 +8242,28 @@
 #   UniProt entries in canonical bytes; each entry is the measured sequence (3); the index built from them has the index builder's
 #   columns; the connector serves them with no network. +2 tests/unit/test_gitattributes_contract.py: FASTA fixtures are pinned to
 #   LF, today's and the next. (tests_drift/: unchanged, 22.)
-8753
+# 2026-11-07  PREDICTION-CONTRACT-1A (package 1, set 1a; owner rulings ccffb8cf and 38f15c7a) -- the stored convex blend is
+#   the one authoritative score, computed by the exact kernel; serving requires a ready, identity-bound predictor; consumers
+#   that cannot yet consume the contract are refused
+#   +151 / -29 by node identity (collected and diffed against main, 0e9db4e1). New files: +65
+#   tests/unit/test_prediction_contract.py (prediction units 12, payloads 10, replay 5, the stored blend 16 -- the exact
+#   kernel, the owner's counterexamples, the specification and its refusals -- one member capture per scoring 9, persistence
+#   4, the golden fixture 9); +13 tests/unit/test_prediction_contract_transition.py (the three denials and their reason codes;
+#   each guard is the first statement and refuses before any model library, data or output; the threshold helpers cannot be
+#   imported around it; the SHAP writer refuses before importing SHAP; the ablation caller re-raises through its broad
+#   handler; a 3.0.0 reader refuses other schemas; the transition policy is separate from the quarantine policy); +9
+#   tests/unit/test_disagreement_kernel.py (the Bernoulli divergence against a high-precision oracle, exact zero on agreement,
+#   unresolved rows with a reason, refused inputs). Replaced, by file (+added / -removed, each removal a test of retired
+#   behaviour, renamed or rewritten to the new contract): test_api.py +16 / -8 (the five-tier relabelling and its counts
+#   retired; one tie rule, full precision, the schema 3.0.0 record, identity pairing, the readiness refusal before any member
+#   call, the hashed rate-limit key); test_tabular_nn_mc_dropout.py +14 / -4, test_mc_dropout_uncertainty.py +13 / -7,
+#   test_mc_dropout_entropy.py +3 / -3 (schema-2 records: draw counts and labels refused, the historical mean kept bitwise, no
+#   stochastic pass reported unavailable never zero, spread exactly zero when draws agree, identities closed in their own
+#   units); test_runtime_attribution.py +7 / -1 (a declared projection is readable and never ready, refused at load through
+#   the real lifespan; an independently fitted 12-member predictor with its own record is ready; matching member names are not
+#   the fitted predictor; an invalid binding refuses before any member call); test_containment_serving.py +6 / -3,
+#   test_containment_propagation.py +2 / -2 (predict_proba_with_uncertainty retired for score; a legacy pipeline is refused,
+#   never served its stacker); test_containment_scripts.py +1 / -1 (calibrate_thresholds is refused, not loaded);
+#   test_smoke_all_models.py +2 / -0 (the smoke gate requires the selected blend's row by the package constant; the offline
+#   gate-logic script runs). (tests_drift/: unchanged, 22.)
+8875

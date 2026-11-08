@@ -129,6 +129,10 @@ COPY src/genomic_variant_classifier/monitoring/model_registry.py  src/genomic_va
 COPY src/genomic_variant_classifier/containment.py  src/genomic_variant_classifier/containment.py
 COPY src/genomic_variant_classifier/quarantine_policy.py  src/genomic_variant_classifier/quarantine_policy.py
 COPY src/genomic_variant_classifier/model_admission.py  src/genomic_variant_classifier/model_admission.py
+# PACKAGE 1 (2026-11-07). api/main.py, api/pipeline.py and four modules under models/ (combiner, disagreement,
+# mc_dropout, variant_ensemble) import prediction_contract.py -- the row and probability-block contract -- at module
+# level. One file, as above.
+COPY src/genomic_variant_classifier/prediction_contract.py  src/genomic_variant_classifier/prediction_contract.py
 COPY src/genomic_variant_classifier/__init__.py  src/genomic_variant_classifier/__init__.py
 
 # Model artefact placeholder — override at runtime via bind-mount or COPY

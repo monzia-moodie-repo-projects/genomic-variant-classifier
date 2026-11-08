@@ -38,6 +38,7 @@ from genomic_variant_classifier.api.attribution import (
     ArtifactResolutionStatus,
     DeploymentAlignment,
     EvaluationApplicabilityStatus,
+    PredictorContractAlignment,
     RosterAlignment,
     RuntimeModelBinding,
     load_pipeline_with_identity,
@@ -70,38 +71,35 @@ PROJECTION = ServingProjection(
                                  "inference"})
 
 
-class _ConstantModel:
-    """A base model that always returns the same probability.
+# The production artifact's members are tests.unit._prediction_support.WidthSensitive: MODULE-LEVEL AND PICKLABLE
+# (`InferencePipeline.save` is `joblib.dump`, and `MagicMock` raises PicklingError), with real fitted classes_, and
+# WIDTH-SENSITIVE since 2026-11-07. The constant model they replace accepted a matrix of ANY width, which is how a
+# 13-input logistic stacker served 12 columns without any test noticing (it raised at the first real request).
 
-    MODULE-LEVEL AND PICKLABLE, deliberately. `InferencePipeline.save` is
-    `joblib.dump`, and `MagicMock` raises PicklingError -- which meant the
-    three tests built to drive the real serialisation path never ran.
-    Pickle stores a class by qualified reference, so a class defined
-    inside a fixture cannot be found on load either.
-    """
 
-    def __init__(self, proba: float = 0.92) -> None:
-        self.proba = float(proba)
-
-    def predict_proba(self, X):
-        import numpy as _np
-        return _np.array([[1.0 - self.proba, self.proba]] * len(X))
+#: A fixed fitted-predictor identity for the stand-in pipelines below (package 1, 2026-11-07).
+CONTRACT = "c" * 64
+OTHER_CONTRACT = "d" * 64
 
 
 class _FakePipeline:
-    """Something with an executable model mapping. Not an InferencePipeline.
+    """Something with an executable model mapping and a fitted-predictor identity. Not an InferencePipeline.
 
-    The served roster is read from the live object's mapping, so anything
-    carrying one is a sufficient stand-in for the attribution logic.
+    The served roster is read from the live object's mapping, and the fitted predictor from
+    predictor_contract_sha256(), so anything carrying both is a sufficient stand-in for the attribution logic.
     """
 
-    def __init__(self, roster) -> None:
+    def __init__(self, roster, contract: str = CONTRACT) -> None:
         self.trained_models = {name: MagicMock() for name in roster}
+        self._contract = contract
+
+    def predictor_contract_sha256(self) -> str:
+        return self._contract
 
 
 def _write_registry(tmp_path: Path, *, projection=None, promote=False,
                     roster=TRAINED_ROSTER, artifact: Path = None,
-                    feature_names=("af_raw", "af_log10")) -> Path:
+                    feature_names=("af_raw", "af_log10"), contract=CONTRACT) -> Path:
     """A real registry file with one record for a real artifact."""
     path = tmp_path / "registry.v1.json"
     registry = ModelRegistry(path=path)
@@ -119,7 +117,8 @@ def _write_registry(tmp_path: Path, *, projection=None, promote=False,
             metrics={"auroc": 0.9988}),
         feature_names=tuple(feature_names),
         model_roster=roster,
-        serving_projection=projection)
+        serving_projection=projection,
+        predictor_contract_sha256=contract)
     if promote:
         registry.promote_to_shadow(record.version)
         registry.promote_to_production(record.version, PromotionPolicy(
@@ -161,6 +160,11 @@ def test_the_alignment_vocabulary_is_exactly_this():
 def test_the_roster_vocabulary_is_exactly_this():
     assert [m.value for m in RosterAlignment] == [
         "unknown", "exact", "serving_subset", "inconsistent"]
+
+
+def test_the_predictor_contract_vocabulary_is_exactly_this():
+    assert [m.value for m in PredictorContractAlignment] == [
+        "unknown", "not_declared_by_record", "matches", "differs"]
 
 
 def test_the_applicability_vocabulary_is_exactly_this():
@@ -378,8 +382,10 @@ def test_an_artifact_registered_but_not_the_declared_production_differs(
     assert binding.is_ready is False
 
 
-def test_a_declared_production_artifact_with_its_projection_is_ready(
-        tmp_path, artifact):
+def test_a_declared_projection_is_readable_but_never_ready(tmp_path, artifact):
+    """Owner ruling 2026-11-07 (decision 38f15c7a): a declared 13 -> 12 omission explains a difference; it does not
+    establish that the registered and executable predictors are the same. SERVING_SUBSET stays readable as a
+    diagnostic and is never ready -- even with a matching artifact digest and fitted-predictor identity."""
     registry = _write_registry(tmp_path, artifact=artifact,
                                projection=PROJECTION, promote=True)
     binding = resolve_runtime_binding(
@@ -389,9 +395,35 @@ def test_a_declared_production_artifact_with_its_projection_is_ready(
     assert binding.deployment_alignment is (
         DeploymentAlignment.MATCHES_DECLARED_PRODUCTION)
     assert binding.roster_alignment is RosterAlignment.SERVING_SUBSET
-    assert binding.is_ready is True
+    assert binding.predictor_contract_alignment is PredictorContractAlignment.MATCHES
+    assert binding.is_ready is False
     assert binding.record_id.startswith("run15-")
     assert binding.model_version == "run15-ensemble"
+
+
+def test_an_independently_fitted_twelve_member_predictor_with_its_own_record_is_ready(tmp_path, artifact):
+    """A separately fitted 12-member blend is legitimate under ITS OWN record (its roster, its identity)."""
+    registry = _write_registry(tmp_path, artifact=artifact, roster=SERVED_ROSTER, promote=True)
+    binding = resolve_runtime_binding(
+        _FakePipeline(SERVED_ROSTER), ArtifactIdentity.measure(artifact), registry)
+    assert binding.roster_alignment is RosterAlignment.EXACT
+    assert binding.predictor_contract_alignment is PredictorContractAlignment.MATCHES
+    assert binding.is_ready is True
+
+
+@pytest.mark.parametrize("contract,expected", [
+    (OTHER_CONTRACT, PredictorContractAlignment.DIFFERS),
+    (None, PredictorContractAlignment.NOT_DECLARED_BY_RECORD),
+])
+def test_matching_member_names_are_not_the_fitted_predictor(tmp_path, artifact, contract, expected):
+    """Same names, different fitted members, order, weights, stages or kernel -- or a record that does not say which
+    fitted predictor it describes: never ready."""
+    registry = _write_registry(tmp_path, artifact=artifact, roster=SERVED_ROSTER, promote=True, contract=contract)
+    binding = resolve_runtime_binding(
+        _FakePipeline(SERVED_ROSTER), ArtifactIdentity.measure(artifact), registry)
+    assert binding.roster_alignment is RosterAlignment.EXACT
+    assert binding.predictor_contract_alignment is expected
+    assert binding.is_ready is False
 
 
 def test_an_undeclared_omission_is_not_a_projection(tmp_path, artifact):
@@ -430,6 +462,7 @@ def test_serving_the_full_trained_roster_is_exact(tmp_path, artifact):
         _FakePipeline(TRAINED_ROSTER), ArtifactIdentity.measure(artifact),
         registry)
     assert binding.roster_alignment is RosterAlignment.EXACT
+    assert binding.predictor_contract_alignment is PredictorContractAlignment.MATCHES
     assert binding.is_ready is True
 
 
@@ -496,16 +529,33 @@ def unattributed_pipeline_client():
 
 
 def _production_artifact(tmp_path):
-    from genomic_variant_classifier.api.pipeline import InferencePipeline, PipelineMetadata
+    from genomic_variant_classifier.api.pipeline import INFERENCE_FEATURE_COLUMNS, PipelineMetadata
+    from tests.unit._prediction_support import WidthSensitive, blend_pipeline
     artifact_path = tmp_path / "phase2_pipeline.joblib"
-    pipeline = InferencePipeline(
-        trained_models={n: _ConstantModel() for n in SERVED_ROSTER},
-        meta_learner=_ConstantModel(), scaler=None,
-        metadata=PipelineMetadata(n_features=2, feature_names=["af_raw", "af_log10"]))
+    pipeline = blend_pipeline(
+        {n: WidthSensitive(len(INFERENCE_FEATURE_COLUMNS), 0.92) for n in SERVED_ROSTER},
+        scaler=None, metadata=PipelineMetadata(n_features=2, feature_names=["af_raw", "af_log10"]))
     pipeline.save(artifact_path)
-    # The record must describe what the models CONSUME: the pipeline's declared features.
+    # The record must describe what the models CONSUME (the pipeline's declared features) and WHICH FITTED PREDICTOR
+    # they are: a self-consistent record of this 12-member predictor, never a 13-member record with a projection.
+    registry = _write_registry(tmp_path, artifact=artifact_path, roster=SERVED_ROSTER, promote=True,
+                               feature_names=pipeline._declared_features(),
+                               contract=pipeline.predictor_contract_sha256())
+    return artifact_path, registry
+
+
+def _projected_artifact(tmp_path):
+    """The SAME 12-member artifact registered under the 13-member record with a declared projection (refused)."""
+    from genomic_variant_classifier.api.pipeline import INFERENCE_FEATURE_COLUMNS, PipelineMetadata
+    from tests.unit._prediction_support import WidthSensitive, blend_pipeline
+    artifact_path = tmp_path / "phase2_pipeline.joblib"
+    pipeline = blend_pipeline(
+        {n: WidthSensitive(len(INFERENCE_FEATURE_COLUMNS), 0.92) for n in SERVED_ROSTER},
+        scaler=None, metadata=PipelineMetadata(n_features=2, feature_names=["af_raw", "af_log10"]))
+    pipeline.save(artifact_path)
     registry = _write_registry(tmp_path, artifact=artifact_path, projection=PROJECTION, promote=True,
-                               feature_names=pipeline._declared_features())
+                               feature_names=pipeline._declared_features(),
+                               contract=pipeline.predictor_contract_sha256())
     return artifact_path, registry
 
 
@@ -559,15 +609,16 @@ def test_the_whole_chain_resolves_through_the_real_lifespan(
 
     info = registered_production_client.get("/info").json()
     attribution = info["attribution"]
-    assert info["api_version"] == "2.0.0"
+    assert info["api_version"] == "3.0.0"
     assert attribution["resolution_status"] == "registered"
     assert attribution["deployment_alignment"] == "matches_declared_production"
-    assert attribution["roster_alignment"] == "serving_subset"
+    assert attribution["roster_alignment"] == "exact"
+    assert attribution["predictor_contract_alignment"] == "matches"
     assert attribution["model_version"] == "run15-ensemble"
     assert len(attribution["artifact_sha256"]) == 64
     assert sorted(attribution["served_model_roster"]) == sorted(SERVED_ROSTER)
     assert sorted(attribution["registered_model_roster"]) == sorted(
-        TRAINED_ROSTER)
+        SERVED_ROSTER)
 
 
 def test_info_publishes_no_metric_and_no_free_text_description(
@@ -592,6 +643,9 @@ def test_predictions_carry_the_serving_record_identity(
     assert body["model_record_id"].startswith("run15-")
     assert body["model_version"] == "run15-ensemble"
     assert "pipeline_version" not in body
+    # The width-sensitive members were really called with the declared matrix, and the blend is served unchanged.
+    assert body["prediction"]["pathogenicity_score"] == pytest.approx(0.92, abs=1e-15)
+    assert body["prediction"]["combiner"]["members"] == list(SERVED_ROSTER)
 
 
 def test_the_same_registered_production_artifact_is_refused_under_the_default_authority(tmp_path, monkeypatch,
@@ -612,3 +666,60 @@ def test_the_same_registered_production_artifact_is_refused_under_the_default_au
         (api_main._PIPELINE, api_main._RUNTIME_MODEL_BINDING,
          api_main.MODEL_PATH, api_main.DEPLOYMENT_REGISTRY_PATH) = saved
     assert body["live"] is True and body["ready"] is False and body["model_loaded"] is False
+
+
+
+def test_a_declared_projection_is_refused_at_load_through_the_real_lifespan(tmp_path, monkeypatch,
+                                                                         api_without_local_data):
+    """The 13 -> 12 projection with a matching artifact digest: the load is refused (roster not EXACT), the service
+    is alive and not ready, and /predict refuses with a 503. Uses the isolated test authority so the refusal tested
+    is the projection rule, not C10."""
+    from fastapi.testclient import TestClient
+    import genomic_variant_classifier.api.main as api_main
+    import genomic_variant_classifier.model_admission as admission
+    from tests.unit._admission_support import AllowForTests
+
+    artifact_path, registry = _projected_artifact(tmp_path)
+    monkeypatch.setattr(admission, "DEFAULT_AUTHORITY", AllowForTests())
+    saved = (api_main._PIPELINE, api_main._RUNTIME_MODEL_BINDING, api_main.MODEL_PATH, api_main.DEPLOYMENT_REGISTRY_PATH)
+    monkeypatch.setattr(api_main, "MODEL_PATH", artifact_path)
+    monkeypatch.setattr(api_main, "DEPLOYMENT_REGISTRY_PATH", registry)
+    try:
+        with TestClient(api_main.app) as client:
+            health = client.get("/health").json()
+            refused = client.post("/predict", json={"chrom": "1", "pos": 1, "ref": "A", "alt": "T"})
+            loaded = api_main._PIPELINE
+    finally:
+        (api_main._PIPELINE, api_main._RUNTIME_MODEL_BINDING,
+         api_main.MODEL_PATH, api_main.DEPLOYMENT_REGISTRY_PATH) = saved
+    assert loaded is None, "a projected predictor was loaded"
+    assert health["live"] is True and health["ready"] is False and health["model_loaded"] is False
+    assert refused.status_code == 503
+
+
+def test_a_loaded_object_with_an_invalid_binding_refuses_before_any_member_call(tmp_path):
+    """A loaded pipeline whose binding is not ready (here: the record identifies a DIFFERENT fitted predictor)
+    refuses /predict and /batch with a 503 before any member is called."""
+    from fastapi.testclient import TestClient
+    import genomic_variant_classifier.api.main as api_main
+    from tests.unit._prediction_support import CountingProba, blend_pipeline
+
+    members = {n: CountingProba(0.9) for n in ("lightgbm", "xgboost")}
+    pipe = blend_pipeline(members)
+    artifact = tmp_path / "p.joblib"
+    pipe.save(artifact)
+    registry = _write_registry(tmp_path, artifact=artifact, roster=tuple(members), promote=True,
+                               feature_names=pipe._declared_features(), contract=OTHER_CONTRACT)
+    binding = resolve_runtime_binding(pipe, ArtifactIdentity.measure(artifact), registry)
+    assert binding.predictor_contract_alignment is PredictorContractAlignment.DIFFERS and not binding.is_ready
+    saved = (api_main._PIPELINE, api_main._RUNTIME_MODEL_BINDING)
+    _install(api_main, pipe, binding)
+    try:
+        c = TestClient(api_main.app)
+        a = c.post("/predict", json={"chrom": "1", "pos": 1, "ref": "A", "alt": "T"})
+        b = c.post("/batch", json={"variants": [{"chrom": "1", "pos": 1, "ref": "A", "alt": "T"}]})
+    finally:
+        api_main._PIPELINE, api_main._RUNTIME_MODEL_BINDING = saved
+    assert a.status_code == 503 and b.status_code == 503
+    assert "predictor_contract=differs" in a.json()["detail"]
+    assert all(m.n_calls == 0 for m in members.values())

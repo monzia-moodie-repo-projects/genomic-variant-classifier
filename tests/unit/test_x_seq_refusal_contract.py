@@ -105,6 +105,23 @@ def _ens(**kw) -> VariantEnsemble:
     return VariantEnsemble(EnsembleConfig(n_folds=2, **kw))
 
 
+def _with_trained(ens: VariantEnsemble, names: list[str]) -> VariantEnsemble:
+    """Placeholder members plus the declaration every fitted ensemble carries since package 1 (2026-11-07).
+
+    predict_proba and evaluate refuse an ensemble that does not declare the convex blend BEFORE they look at the
+    inputs (gate G3.2: no combiner is ever substituted). A fixture without the declaration would therefore be
+    refused for the combiner, and every `pytest.raises(ValueError, match="cnn_1d")` below would fail -- or, in the
+    negative control, pass on the wrong refusal. The declaration is the fitted shape: the combiner kind, the member
+    order and one stored weight per member (uniform, exactly representable).
+    """
+    from genomic_variant_classifier.models.combiner import COMBINER_KIND
+    ens.trained_models_ = {name: object() for name in names}
+    ens.selected_combiner_ = COMBINER_KIND
+    ens.feature_names_ = list(names)
+    ens.blend_weights_ = np.full(len(names), 1.0 / len(names))
+    return ens
+
+
 # ---------------------------------------------------------------------------
 # The roster constant
 # ---------------------------------------------------------------------------
@@ -228,8 +245,7 @@ def test_predict_proba_refuses_when_a_sequence_model_is_trained_and_x_seq_is_non
     network: the guard runs before any inference, so training one to reach it would test the
     fixture rather than the guard.
     """
-    ens = _ens(model_dir=tmp_path / "models")
-    ens.trained_models_ = {"cnn_1d": object()}
+    ens = _with_trained(_ens(model_dir=tmp_path / "models"), ["cnn_1d"])
     with pytest.raises(ValueError, match="cnn_1d"):
         ens.predict_proba(_tab(), None)
 
@@ -240,8 +256,7 @@ def test_evaluate_refuses_when_a_sequence_model_is_trained_and_x_seq_is_none(tmp
     evaluate() is the path that produces the numbers a reader would quote, so an unnoticed
     None here is the one that reaches a results table.
     """
-    ens = _ens(model_dir=tmp_path / "models")
-    ens.trained_models_ = {"cnn_1d": object()}
+    ens = _with_trained(_ens(model_dir=tmp_path / "models"), ["cnn_1d"])
     with pytest.raises(ValueError, match="cnn_1d"):
         ens.evaluate(_tab(), None, _labels())
 
@@ -253,12 +268,14 @@ def test_predict_proba_and_evaluate_are_silent_for_a_tabular_only_trained_roster
     placeholder objects in trained_models_ are not real estimators. That is the point: the
     assertion is that the failure is NOT the sequence refusal.
     """
-    ens = _ens(model_dir=tmp_path / "models")
-    ens.trained_models_ = {"logistic_regression": object()}
+    ens = _with_trained(_ens(model_dir=tmp_path / "models"), ["logistic_regression"])
     for call in (lambda: ens.predict_proba(_tab(), None),
                  lambda: ens.evaluate(_tab(), None, _labels())):
-        with pytest.raises(Exception) as exc:
+        with pytest.raises(AttributeError) as exc:
             call()
         assert "cnn_1d" not in str(exc.value), (
             "a tabular-only roster triggered the sequence refusal; the guard fires too broadly"
         )
+        # The failure is the placeholder member being CALLED -- i.e. every check before inference passed, the
+        # combiner declaration included. An earlier refusal would not be an AttributeError about predict_proba.
+        assert "predict_proba" in str(exc.value)

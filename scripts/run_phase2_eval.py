@@ -991,8 +991,11 @@ def main() -> int:
         results = ensemble.evaluate(X_test, seq_te, y_test)
         val_results = ensemble.evaluate(X_val, seq_val, y_val)
 
-        ens_row = results.loc["ENSEMBLE_STACKER"]
-        ens_val_row = val_results.loc["ENSEMBLE_STACKER"]
+        # The selected predictor's row (package 1, 2026-11-07): the declared convex blend. The label constant is
+        # the one evaluate() writes; the retired literal ENSEMBLE_STACKER named a stacker the row never computed.
+        from genomic_variant_classifier.models.variant_ensemble import SELECTED_ENSEMBLE_ROW
+        ens_row = results.loc[SELECTED_ENSEMBLE_ROW]
+        ens_val_row = val_results.loc[SELECTED_ENSEMBLE_ROW]
         elapsed = time.perf_counter() - t0
         m = {
             "auroc": float(ens_row["auroc"]),
@@ -1093,7 +1096,8 @@ def main() -> int:
                 logger.info("[UGH] training done in %.2fs", elapsed_ugh)
 
                 ugh_results = ensemble_ugh.evaluate(X_holdout, seq_holdout, y_holdout)
-                ugh_row = ugh_results.loc["ENSEMBLE_STACKER"]
+                from genomic_variant_classifier.models.variant_ensemble import SELECTED_ENSEMBLE_ROW
+                ugh_row = ugh_results.loc[SELECTED_ENSEMBLE_ROW]
 
                 m_ugh = {
                     "auroc": float(ugh_row["auroc"]),
@@ -1116,7 +1120,7 @@ def main() -> int:
                 )
                 ugh_results.to_csv(outdir / "unseen_gene_holdout_per_model.csv")
                 logger.info(
-                    "[UGH] DONE. ENSEMBLE_STACKER AUROC=%.4f on %d-sample (%d-gene) holdout",
+                    "[UGH] DONE. Selected convex blend AUROC=%.4f on %d-sample (%d-gene) holdout",
                     m_ugh["auroc"], len(y_holdout), n_holdout_genes,
                 )
                 logger.info(

@@ -62,6 +62,7 @@ __all__ = [
     "ArtifactResolutionStatus",
     "DeploymentAlignment",
     "EvaluationApplicabilityStatus",
+    "PredictorContractAlignment",
     "RosterAlignment",
     "RuntimeModelBinding",
     "ArtifactChangedDuringLoadError",
@@ -112,17 +113,36 @@ class DeploymentAlignment(str, Enum):
 
 
 class RosterAlignment(str, Enum):
-    """Does the executable roster match the record's, given the projection?
+    """Does the executable roster match the record's?
 
-    SERVING_SUBSET is legitimate ONLY because the record declares which models
-    the serving artifact omits and why. INCONSISTENT is the state that catches
-    silent model loss -- a component that vanished without being declared.
+    SERVING_SUBSET IS DIAGNOSTIC ONLY (owner ruling 2026-11-07, decision
+    38f15c7a). It describes what an older record DECLARED -- an intentional
+    omission -- and it is never a readiness-qualifying state and never
+    authorizes an inference load: a declared omission explains a difference, it
+    does not establish that the registered and executable predictors are the
+    same. INCONSISTENT catches silent model loss -- a component that vanished
+    without being declared. EXACT compares member NAMES; the fitted predictor
+    itself is compared by PredictorContractAlignment.
     """
 
     UNKNOWN = "unknown"
     EXACT = "exact"
     SERVING_SUBSET = "serving_subset"
     INCONSISTENT = "inconsistent"
+
+
+class PredictorContractAlignment(str, Enum):
+    """Is the loaded object the FITTED PREDICTOR the record identifies? (package 1, 2026-11-07)
+
+    Compares InferencePipeline.predictor_contract_sha256() -- ordered member slots with fitted member identities and
+    prediction stages, exact stored weights, numerical kernel, declared features, fitted rendering and class order --
+    with the record's predictor_contract_sha256. Only MATCHES can be ready.
+    """
+
+    UNKNOWN = "unknown"
+    NOT_DECLARED_BY_RECORD = "not_declared_by_record"
+    MATCHES = "matches"
+    DIFFERS = "differs"
 
 
 class EvaluationApplicabilityStatus(str, Enum):
@@ -164,6 +184,7 @@ class RuntimeModelBinding:
     model_version: Optional[str] = None
     registry_stage: Optional[Stage] = None
     registered_model_roster: Optional[tuple[str, ...]] = None
+    predictor_contract_alignment: PredictorContractAlignment = PredictorContractAlignment.UNKNOWN
 
     #: Supplementary human diagnostics ONLY. Never a machine contract: every
     #: decision a consumer makes must come from one of the four enums.
@@ -204,8 +225,9 @@ class RuntimeModelBinding:
             self.resolution_status is ArtifactResolutionStatus.REGISTERED
             and self.deployment_alignment
             is DeploymentAlignment.MATCHES_DECLARED_PRODUCTION
-            and self.roster_alignment in (RosterAlignment.EXACT,
-                                          RosterAlignment.SERVING_SUBSET)
+            and self.roster_alignment is RosterAlignment.EXACT
+            and self.predictor_contract_alignment
+            is PredictorContractAlignment.MATCHES
         )
 
     @property
@@ -376,6 +398,20 @@ def resolve_runtime_binding(
 
     roster_state, roster_detail = roster_alignment(match, served)
 
+    # The fitted predictor itself, not only its member names (package 1, 2026-11-07).
+    if match.predictor_contract_sha256 is None:
+        contract_state = PredictorContractAlignment.NOT_DECLARED_BY_RECORD
+    else:
+        try:
+            loaded_contract = pipeline.predictor_contract_sha256()
+        except Exception as exc:   # an object with no computable contract is DIFFERS, stated, never ready
+            loaded_contract = None
+            roster_detail = (roster_detail + "; " if roster_detail else "") + (
+                f"the loaded object has no computable predictor contract: {type(exc).__name__}: {exc}")
+        contract_state = (PredictorContractAlignment.MATCHES
+                          if loaded_contract == match.predictor_contract_sha256
+                          else PredictorContractAlignment.DIFFERS)
+
     # COMMIT A PUBLISHES NO EVIDENCE. The served roster is a projection of the
     # evaluated roster, so the record's metrics are not automatically evidence
     # for these bytes. Commit C attaches a SealedEvaluation that names this
@@ -404,4 +440,5 @@ def resolve_runtime_binding(
         model_version=match.version,
         registry_stage=match.stage,
         registered_model_roster=match.model_roster,
+        predictor_contract_alignment=contract_state,
         detail=roster_detail)
