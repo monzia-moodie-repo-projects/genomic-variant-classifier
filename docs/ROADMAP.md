@@ -94,7 +94,7 @@ other.
 | Sequence features | 1 | `SEQUENCE_FEATURES` |
 | Base-model roster | **13** | `len(VariantEnsemble().base_estimators)` on a live instance |
 | Registered agents | **22** | `Orchestrator._register_agents()` -> `_agent_registry` |
-| Test suite | **9,016 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
+| Test suite | **9,056 collected** | `tests/EXPECTED_SUITE_SIZE`, and the README badge agrees |
 
 **Why the feature count reads 97 in the history.** HGMD was removed on
 2026-07-13 -- `variant_ensemble.py:389` records *"Was 2 features; roster dropped
@@ -920,6 +920,26 @@ exists to end.
   same design -- now records its C3 verdict as WITHHELD with the defects named. Open: GENE-IDENTITY-SPLIT-1 (the live splits still
   group gene-symbol strings: real_data_prep._gene_aware_split, split_protocol_v2._resolve_genes). Next: stage 1D-1. Suite 8,959 ->
   9,016 (+57 / -0).
+  VALIDATED ON WINDOWS AND MERGED 2026-11-08: one -Validate run (receipt GVC_package_1d0_validation_20261108T201522Z, sha256
+  01797bf8; candidate 3b9f112e, tree 7780f7a3; all 26 stages exit 0). The first post-merge block refused before merging, as
+  designed; the second merged pull request #71 with a merge commit -- 7cb70ec2, parents 4a7e6d96 and 3b9f112e -- and compared the
+  targeted tests by node identity (1,953 passed, 5 skipped, as in the validation; drift 22); the branch was then deleted.
+- **2026-11-09 -- PACKAGE 1D, STAGE 1D-1a (set "ao"): the information-source census.** Owner rulings 25691d66 and c34eb717.
+  Nonbehavioural. docs/census/FEATURE_CENSUS_1D1a.json reviews all 91 declared features and the 11 non-tabular information sources
+  the graph code can build (five knowledge-graph relation sources, three STRING edge attributes, the STRING edge selection, two GNN
+  supervision labels): meaning, producer, datasets, source state, supervision and threshold supervision, upstream overlap, timing,
+  label-criterion use (ACMG/AMP evidence the curators assign the label from), disposition, reason and evidence. Consumption is
+  MEASURED from the code (eleven surfaces; every consumer site classified, aliases included) and each entry's consumers must equal
+  it; producers are bound by comment-insensitive semantic-closure digests; anchors must occur exactly once; admission is monotone
+  over dependencies. information_sources/census.py verifies all of it and prints that scientific truth is NOT ESTABLISHED BY
+  STRUCTURAL VALIDATION ALONE. Result, measured not targeted: 55 admit_strict, 8 conditional_only, 12 exclude_strict, 4
+  retire_predictive, 12 withhold_pending_evidence; sources 4 / 5 excluded / 2 withheld. Registered: EVE-COVERAGE-IDENTITY-1 (the
+  audit's EVE and default-indicator measurements are withdrawn: docs/census/measure_1d1_correction.json, re-derived from
+  Run 15's files by scripts/measure_1d1_correction.py --check), MISSINGNESS-SEMANTICS-1,
+  GNN-SCALE-SKEW-1, GNN-NODE-LABEL-COUNT-1, KG-DISEASE-RELATION-1 (ClinGen and OMIM shares_disease relations are accepted by the
+  hetero-GNN), STRING-CHANNEL-ORIGIN-1 (edges selected on a score that includes curated pathways and text mining),
+  CODON-POSITION-SEMANTICS-1, RNA-SPLICE-GATE-ORDER-1, GTEX-EQTL-PRODUCTION-DEFAULT-1. Next: stage 1D-1b, the admission authority
+  and the observation contract. Suite 9,016 -> 9,056 (+40 / -0).
 - **KNOWN LIMITATION (2026-10-08) -- the frozen environment pins S4Vectors 0.50.1.** Upstream 0.50.3 (commit 841b1d2, 2026-09-16)
   fixes a comparator that ignored the fourth key: in 0.50.1, matchIntegerQuads and selfmatchIntegerQuads with method "quick" return no
   match for elements sharing the first three keys with an earlier element. No affected call was identified within the examined

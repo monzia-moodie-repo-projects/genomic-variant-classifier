@@ -8330,4 +8330,19 @@
 #   driver withholds through design_verdict; the evidence functions on synthetic inputs: the own-label identity, gene tokens
 #   inside multi-gene strings, Run 15's MD5 holdout rule, LOVD against the training mode, unique log lines and no invented
 #   timestamp). (tests_drift/: unchanged, 22.)
-9016
+# 2026-11-09  PACKAGE 1D, STAGE 1D-1a (set "ao"; owner rulings 25691d66 and c34eb717) -- the information-source census.
+#   +40 / -0 by node identity (collected against main, 7cb70ec2). New file: +40 tests/unit/test_information_source_census.py (the
+#   committed ledger verifies with fresh measurement and is byte-identical to what the reviewed builder writes; the 19 pinned
+#   rulings hold; the measured surfaces match the code and the retired label count is a measured GNN dependency; the graph
+#   inventory holds the disease relations, excluded; the EVE correction record withdraws the two invalid sections; on the real
+#   ledger with one defect introduced: a changed pinned ruling, an unreviewed feature, order, completeness, recorded consumers,
+#   a tampered surface inventory, an unclassified or new consumer site, an unknown site class, a surface whose rule file is
+#   unclassified, a changed producer digest, an uncited digest, a missing or ambiguous anchor, literature-only evidence,
+#   non-monotone admission, a dropped measured dependency, a mixed-origin relation admitted, a missing relation, unreviewed or
+#   invalid assessments, an unverified admitted source, an unknown dataset or defect target, the authority and schema, a
+#   non-canonical ledger file, duplicate keys and NaN; the primitives: the closure digest follows meaning not bytes, the
+#   contract digest gates and the file digest does not, discovery sees aliases, the comprehension rule evaluates only a pure
+#   selection, anchors are unique; EVE join-membership coverage, default-deny relation admission, semantic against
+#   materialization identity; the correction script withdraws, measures, re-checks byte for byte and refuses a varying EVE
+#   column or a log without the unconfigured-connector line). (tests_drift/: unchanged, 22.)
+9056

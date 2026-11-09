@@ -1,3 +1,39 @@
+## 2026-11-09 (package 1D, stage 1D-1a, set "ao") -- the information-source census
+
+Owner rulings of 2026-11-09 (decision files 25691d66... and c34eb717...): a nonbehavioural census of every declared feature
+and every non-tabular information source, with complete evidence-backed dispositions, before any feature is retired. No model,
+feature, scaler, graph or inference code changes.
+
+- docs/census/FEATURE_CENSUS_1D1a.json: 91 feature entries in contract order and 11 information-source entries, each with
+  meaning, producer, datasets (25, each with access and evidence), source state, upstream and threshold supervision, upstream
+  overlap, timing, label-criterion use, dependencies, disposition, reason and evidence. Written by
+  scripts/build_feature_census_1d1a.py: the review by hand, every measured field computed; --check byte-compares.
+- information_sources/consumers.py MEASURES consumption: eleven surfaces from the exact code that decides their columns (the
+  feature builder run on an empty frame; the contract guard, scaler, persistence, inference and fit-record statements; the
+  GNN and hetero-GNN node-attribute comprehensions, parsed and evaluated against the contract); every module under src/ and
+  scripts/ referencing a contract or graph-construction symbol (aliases included) must be classified; the knowledge-graph
+  relation table and the STRING edge channels are read from the code.
+- information_sources/census.py, the gate, adopted from the owner's integrated reference (sha256 4ca06c71...) with refinements:
+  consumption coverage mandatory (the reference's command line checked no surface); the census bound to the ordered contract
+  and to comment-insensitive semantic-closure digests of every cited producer rather than to the whole model file; code
+  anchors present exactly once; admission monotone over dependencies; graph relations under the same vocabulary;
+  label-criterion use recorded. It reports what it verifies and that scientific truth is NOT ESTABLISHED BY STRUCTURAL
+  VALIDATION ALONE.
+- Result, measured, not targeted: features 55 admit_strict, 8 conditional_only, 12 exclude_strict, 4 retire_predictive,
+  12 withhold_pending_evidence; information sources 4 conditional_only, 5 exclude_strict, 2 withhold_pending_evidence.
+- Registered with evidence: EVE-COVERAGE-IDENTITY-1; MISSINGNESS-SEMANTICS-1; GNN-SCALE-SKEW-1 (raw GNN scores injected into
+  standardised matrices after fit, but scaled at inference; measured on Run 15's persisted splits: gnn_score spans
+  [0.0012, 0.5] beside standardised columns); GNN-NODE-LABEL-COUNT-1; KG-DISEASE-RELATION-1; STRING-CHANNEL-ORIGIN-1;
+  CODON-POSITION-SEMANTICS-1; RNA-SPLICE-GATE-ORDER-1 (Run 15's annotated rows carry neither gating column);
+  GTEX-EQTL-PRODUCTION-DEFAULT-1.
+- docs/census/measure_1d1_correction.json withdraws the 1D-1 audit's default-indicator and EVE-coverage sections, which
+  compared standardised values with raw defaults, and records the replacement measurements: Run 15's EVE connector ran with no
+  source (log line 83), and 36 of its 78 columns are constant in every split. scripts/measure_1d1_correction.py writes it from
+  Run 15's files and the audit's file; --check re-derives it byte for byte.
+- Tests: +40 / -0 (tests/unit/test_information_source_census.py). Suite 9,016 -> 9,056. Twelve guards were mutated one at a
+  time (each file restored after its run); the suite file catches all twelve (the first pass's one survivor, an ambiguous
+  evidence anchor, gained a test). README: the badge. ROADMAP: the table, the 1D-0 merge record and the entry.
+
 ## 2026-11-08 (package 1D, stage 1D-0) -- Run 15's evaluations are INVALIDATED_EVALUATION; a claim-disposition registry
 
 Owner ruling of 2026-11-08 (decision file SHA-256 56ca0eff...): the C3 unseen-gene claim is INVALIDATED_EVALUATION, its
